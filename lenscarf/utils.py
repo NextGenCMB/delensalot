@@ -31,15 +31,15 @@ class timer:
             dh = np.floor(dt / 3600.)
             dm = np.floor(np.mod(dt, 3600.) / 60.)
             ds = np.floor(np.mod(dt, 60))
-            dms = 100 *  np.mod(dt,1.)
+            dms = 1000 *  np.mod(dt,1.)
             #s +=  "%24s: %.1f"%(k, self.keys[k]) + '\n'
-            s += "\r  %40s:  [" % k + ('%02d:%02d:%02d:%02d' % (dh, dm, ds, dms)) + "] " + "\n"
+            s += "\r  %40s:  [" % k + ('%02dh:%02dm:%02ds:%03dms' % (dh, dm, ds, dms)) + "] " + "\n"
         dt = time() - self.ti
         dh = np.floor(dt / 3600.)
         dm = np.floor(np.mod(dt, 3600.) / 60.)
         ds = np.floor(np.mod(dt, 60))
-        dms = 100 *np.mod(dt, 1.)
-        s += "\r  %40s:  [" % 'Total' + ('%02d:%02d:%02d:%02d' % (dh, dm, ds, dms)) + "] "
+        dms = 1000 *np.mod(dt, 1.)
+        s += "\r  %40s:  [" % 'Total' + ('%02dh:%02dm:%02ds:%03dms' % (dh, dm, ds, dms)) + "] "
         return s
 
     def add(self, label):

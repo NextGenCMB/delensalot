@@ -1,6 +1,7 @@
 import setuptools
 from numpy.distutils.core import setup
 from numpy.distutils.misc_util import Configuration
+import glob
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -8,6 +9,11 @@ with open("README.md", "r") as fh:
 
 def configuration(parent_package='', top_path=''):
     config = Configuration('', parent_package, top_path)
+    modules = glob.glob('lenscarf/fortran/*.f95')
+    for modu in modules:
+        nam = modu.split('/')[-1].replace('.f95', '')
+        config.add_extension('lenscarf.fortran.' + nam, ['lenscarf/fortran/%s.f95'%nam],
+                extra_link_args=['-lgomp'],libraries=['gomp'], extra_f90_compile_args=['-fopenmp', '-w' , '-O3', '-ffast-math'])
     return config
 
 setup(

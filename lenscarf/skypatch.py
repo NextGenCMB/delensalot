@@ -29,8 +29,6 @@ class skypatch:
         southp = colat_bounds[1] >= np.pi
 
         self.colat_bounds = colat_bounds
-        self.northp = northp
-        self.southp = southp
 
         self.nt_buffers_n =  pole_buffers *  northp
         self.nt_buffers_s  = pole_buffers *  southp

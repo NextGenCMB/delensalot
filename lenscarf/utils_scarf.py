@@ -19,14 +19,25 @@ class scarfjob:
         self.lmax = None
         self.mmax = None
 
+    @staticmethod
+    def supported_geometries():
+        return ['healpix', 'ecp','gauss', 'thingauss']
+
     def n_pix(self):  # !FIXME add this to scarf.cc
         return np.sum([self.geom.nph(i) for i in range(self.geom.nrings())])
 
     def set_healpix_geometry(self, nside):
         self.geom = scarf.healpix_geometry(nside, 1)
 
-    def set_ecp_geometry(self, nlat, nlon, tbounds=(0., np.pi)):
+    def set_ecp_geometry(self, nlat, nlon, phi_center=np.pi, tbounds=(0., np.pi)):
         r"""Cylindrical grid equidistant in longitude and latitudes, between the provided co-latitude bounds
+
+
+            Args:
+                nlat: number of latitude points
+                nlon: number of longitude points
+                phi_center: longitude of center of patch in radians (defaults to pi)
+                tbounds: latitudes of the patch boudaries (in radians, defaults to (0, pi)
 
             Co-latitudes are :math:`\theta = i \frac{\pi}{Nt-1}, i=0,...,Nt-1`
             Longitudes are :math:`\phi = i \frac{2\pi}{Np}, i=0,...,Np-1`
@@ -39,10 +50,10 @@ class scarfjob:
         tht = np.linspace(max(tbounds[0], 0), min(tbounds[1], np.pi), nlat)
         wt = np.ones(nlat, dtype=float) * (2 * np.pi / nlon * np.pi / (nlat - 1))
         wt[[0, -1]] *= 0.5
-        phi0 = np.zeros(nlat, dtype=float)
+        phi0s = (phi_center - np.pi) + np.zeros(nlat, dtype=float)
         nph = nlon * np.ones(nlat, dtype=int)
         ofs = np.arange(nlat, dtype=int) * nlon
-        self.geom = scarf.Geometry(nlat, nph, ofs, 1, phi0, tht, wt)
+        self.geom = scarf.Geometry(nlat, nph, ofs, 1, phi0s, tht, wt)
 
     def set_gauss_geometry(self, nlat, nlon):
         """standard Gauss-Legendre grid
