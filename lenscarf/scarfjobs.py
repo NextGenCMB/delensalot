@@ -61,13 +61,12 @@ class scarfjob:
 
 
             Args:
-                nlat: number of GL latitude points
                 lmax: band-limit (or desired band-limit) on the equator
                 smax: maximal intended spin-value (this changes the m-truncation by an amount ~smax)
                 zbounds: pixels outside of provided cos-colatitude bounds will be discarded
 
             Note:
-                This saves memory but hardly any computational time
+                'thinning' saves memory but hardly any computational time for the same latitude range
 
 
         """
@@ -77,8 +76,7 @@ class scarfjob:
         p = np.where((tb[0] <= tht) & (tht <= tb[1]))
 
         tht = tht[p]
-        wt = scarf.GL_wg(nlatf)[p]  # standard wg \cdot 2pi  n
-
+        wt = scarf.GL_wg(nlatf)[p]
         nlat = tht.size
         phi0 = np.zeros(nlat, dtype=float)
         mmax = np.minimum(np.maximum(st2mmax(smax, tht, lmax), st2mmax(-smax, tht, lmax)), np.ones(nlat) * lmax)

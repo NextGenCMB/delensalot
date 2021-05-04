@@ -22,6 +22,9 @@ def lowpapprox(n):
      """
     if np.isscalar(n):
         n = [n]
+        scal = True
+    else:
+        scal = False
     # --- first builds all candidates powers of low primes, sorted
     nmax = 2 ** int(np.ceil(np.log2(np.max(n)))) # at the worst power of two larger will do
     grid = [0]
@@ -46,5 +49,5 @@ def lowpapprox(n):
             sols[unique_ns[i_unsolved]] = n_
             i_unsolved += 1
             if i_unsolved >= nuniq:
-                return np.array([sols[i] for i in n])
+                return sols[n[0]] if scal else np.array([sols[i] for i in n])
     assert 0
