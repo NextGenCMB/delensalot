@@ -3,6 +3,13 @@ import numpy as np
 import scarf
 from lenscarf.utils_sht import st2mmax, lowpapprox
 
+
+class geom_statics:
+    @staticmethod
+    def n_pix(geom):
+        return np.sum([geom.nph(i) for i in range(geom.nrings())]) #:FIXME
+
+
 class scarfjob:
     r"""SHT job instance emulating existing ducc python bindings
 

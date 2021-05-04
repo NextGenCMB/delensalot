@@ -24,6 +24,7 @@ class deflection:
         self.cacher = cacher
         self.scarf_geometry = scarf_geometry
 
+        # FIXME: can get d1 tbounds from geometry + buffers.
         self._tbds = tht_bounds
         self._pbds = p_bounds
         self._resamin = targetres_amin
@@ -81,7 +82,7 @@ class deflection:
         geo = self.scarf_geometry
         nrings = geo.nrings()
         stride = 1
-        npix = np.sum([geo.nph(i) for i in range(nrings)])
+        npix = np.sum([geo.nph(i) for i in range(nrings)]) #:FIXME
         rediimdi = np.zeros((2, npix), dtype=float)
         from plancklens import utils #FIXME
         for i, ir in utils.enumerate_progress(range(nrings)):
