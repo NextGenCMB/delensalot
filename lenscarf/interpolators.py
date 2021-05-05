@@ -31,32 +31,27 @@ class bicubic_ecp_interpolator:
             On first instantiation pyfftw might spend some extra time calculating a FFT plan
 
     """
-    def __init__(self, spin, glm, t_bounds, targetres_amin, sht_threads, fftw_threads,
-                 p_bounds=(0., 2 * np.pi), clm=None, mmax=None, pole_buffers=3):
+    def __init__(self, spin, glm, patch:skypatch, sht_threads, fftw_threads, clm=None, mmax=None):
         # Defines latitude grid from input bounds:
         assert spin >= 0, spin
-        assert 0<= t_bounds[0] < t_bounds[1] <= np.pi, t_bounds
-        assert p_bounds[0] < p_bounds[1], p_bounds
-        assert (p_bounds[1] - p_bounds[0]) <= 2 * np.pi, p_bounds
+        #assert 0<= t_bounds[0] < t_bounds[1] <= np.pi, t_bounds
+        #assert p_bounds[0] < p_bounds[1], p_bounds
+        #assert (p_bounds[1] - p_bounds[0]) <= 2 * np.pi, p_bounds
 
         tim = timer(True, prefix='spinfield bicubic interpolator')
         # ---- We build an ECP patch on the specified lat and lon bounds
-        th1, th2 = t_bounds
-        patch = skypatch(t_bounds, p_bounds, targetres_amin, pole_buffers=pole_buffers)
         ecp_nt, ecp_nph = patch.ecp_ring_ntphi()
         # North and south pol buffers, if relevant (need a periodic patch)
         nt_buf_n, nt_buf_s = patch.nt_buffers_n, patch.nt_buffers_s
         ecp_nt_nobuf = ecp_nt - nt_buf_n - nt_buf_s
-        ecp_pctr = np.mean(p_bounds)  # Centering the ECP patch on the longitude center
         imin, imax = patch.ecp_resize(ecp_nph)
-        print(ecp_nt_nobuf, ecp_nt, imin, imax)
 
         lmax = getlmax(glm.size)
         # ------ Build custom scarf job with patch center on the middle of ECP map
         ecp_job = scarfjob()
         ecp_job.set_triangular_alm_info(lmax, lmax if mmax is None else mmax)
         ecp_job.set_nthreads(sht_threads)
-        ecp_job.set_ecp_geometry(ecp_nt_nobuf, ecp_nph, phi_center=ecp_pctr, tbounds=(th1, th2))
+        ecp_job.set_ecp_geometry(ecp_nt_nobuf, ecp_nph, phi_center=np.mean(patch.pbounds), tbounds=patch.tbounds)
         tim.add('scarf ecp job setup')
         # ----- calculation of the map to interpolate
         if spin > 0:
@@ -88,15 +83,14 @@ class bicubic_ecp_interpolator:
         tim.add('fftw fwd')
 
         # ----- bicucic prefiltering
-        #6. / (2. * np.cos(2. * np.pi * np.fft.fftfreq(Nphi)) + 4.)
         wt = 6. / (2. * np.cos(2. * np.pi * np.fft.fftfreq(tmp_shape[0])) + 4.)
         wp = 6. / (2. * np.cos(2. * np.pi * np.fft.fftfreq(ecp_m_resized.shape[1])) + 4.)[:tmp_shape[1]]
 
         ifft2(tmp * np.outer(wt, wp))
         tim.add('bicubic prefilt, fftw bwd')
 
-        dt = (th2 - th1) / (ecp_nt_nobuf - 1.)
-        buf_t_bounds = [t_bounds[0] - nt_buf_n * dt, t_bounds[1] + nt_buf_s * dt]
+        dt = (patch.tbounds[1] - patch.tbounds[0]) / (ecp_nt_nobuf - 1.)
+        buf_t_bounds = [patch.tbounds[0] - nt_buf_n * dt, patch.tbounds[1] + nt_buf_s * dt]
 
         self._re_f = np.require(f.real, dtype=np.float64)
         self._im_f = np.require(f.imag, dtype=np.float64) if spin > 0 else None
@@ -107,7 +101,7 @@ class bicubic_ecp_interpolator:
 
         self._phir_min = phir_min
         self._phir_max = phir_max
-        self._ecp_pctr = ecp_pctr
+        self._ecp_pctr = np.mean(patch.pbounds)
         self._prescal =  ( (imax - imin) / (phir_max - phir_min) )
         self._trescal =  ((ecp_m_resized.shape[0] - 1) / (buf_t_bounds[1] - buf_t_bounds[0]))
         self._buf_t_bounds = buf_t_bounds
@@ -159,6 +153,19 @@ class bicubic_ecp_interpolator:
 
     def __call__(self, tht, phi):
         return self.eval(tht, phi)
+
+    def get_spline_info(self):
+        """Returns splining info that could be passed to optimized code
+
+            Note:
+                Do not change any of the outputs
+
+        """
+        tht0 = self._buf_t_bounds[0]
+        phi0 = self._ecp_pctr - np.pi + self._phir_min
+        t2grid = self._trescal
+        p2grid = self._prescal
+        return (tht0, t2grid), (phi0, p2grid), (self._re_f, self._im_f)
 
     def eval(self, tht, phi):
         """Returns interpolated spin field on input colatitude and longitude (in rad)

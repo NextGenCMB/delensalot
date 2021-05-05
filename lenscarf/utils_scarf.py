@@ -4,10 +4,58 @@ import scarf
 from lenscarf.utils_sht import st2mmax, lowpapprox
 
 
-class geom_statics:
+class Geom:
     @staticmethod
-    def n_pix(geom):
-        return np.sum([geom.nph(i) for i in range(geom.nrings())]) #:FIXME
+    def npix(geom:scarf.Geometry):
+        return np.sum([geom.nph(ir) for ir in range(geom.nrings())]) #:FIXME hack
+
+    @staticmethod
+    def phis(geom:scarf.Geometry, ir):
+        nph = geom.nph(ir)
+        return (geom.phi0(ir) + np.arange(nph) * (2 * np.pi  / nph)) % (2. * np.pi)
+
+    @staticmethod
+    def tbounds(geom:scarf.Geometry): # FIXME hack
+        tmin = np.inf
+        tmax = 0.
+        for ir in range(geom.nrings()):
+            tht = geom.theta(ir)
+            if tht > tmax:
+                tmax = tht
+            if tht < tmin:
+                tmin = tht
+        return tmin, tmax
+
+
+
+    @staticmethod
+    def pbounds2pix(geom:scarf.Geometry, ir, pbounds): #FIXME hack
+        if abs(pbounds[1] - pbounds[0]) >= (2 * np.pi):
+            return geom.ofs(ir) + np.arange(geom.nph(ir)), Geom.phis(geom, ir)
+        pbounds = np.array(pbounds) % (2. * np.pi)
+        pixs = geom.ofs(ir) + np.arange(geom.nph(ir), dtype=int)
+        phis = Geom.phis(geom, ir)
+        print(pbounds)
+        if pbounds[1] >= pbounds[0]:
+            idc =  (phis >= pbounds[0]) & (phis <= pbounds[1])
+        else:
+            idc =  (phis <= pbounds[0]) | (phis >= pbounds[1])
+        return pixs[idc], phis[idc]
+
+    @staticmethod
+    def pbounds2npix(geom:scarf.Geometry, pbounds): #FIXME hack
+        if abs(pbounds[1] - pbounds[0]) >= (2 * np.pi):
+            return Geom.npix(geom)
+        pbounds = np.array(pbounds) % (2 * np.pi)
+        npix = 0
+        ordr = pbounds[1] >= pbounds[0]
+        for ir in range(geom.nrings()):
+            phis = Geom.phis(geom, ir)
+            if ordr:
+                npix += np.sum((phis >= pbounds[0]) & (phis <= pbounds[1]))
+            else:
+                npix += np.sum((phis <= pbounds[0]) | (phis >= pbounds[1]))
+        return npix
 
 
 class scarfjob:
