@@ -18,9 +18,8 @@ class bicubic_ecp_interpolator:
             glm: gradient-mode of the map to interpolate (healpix/py format)
             t_bounds:  co-latitude bounds (rad) of the patch to do the interpolation on
             targetres_amin: target resolution of the interpolation operation
-            sht_threads: numbers of OMP threads to perform shts with (libsharp / ducc)
+            sht_threads: numbers of OMP threads to perform shts with (scarf / ducc)
             fftw_threads: numbers of threads for FFT's
-            p_bounds: longitude bounds (defaults to (0, 2pi))
             clm: curl mode of map to interpolate, if relevant
 
         Note:
@@ -28,7 +27,7 @@ class bicubic_ecp_interpolator:
             The longitude bounds (in the second dimension) will be buffered by some small amount and will not match pixels exactly
 
         Note:
-            On first instantiation pyfftw might spend some extra time calculating a FFT plan
+            On first instantiation pyfftw spends some extra time calculating a FFT plan
 
     """
     def __init__(self, spin, glm, patch:skypatch, sht_threads, fftw_threads, clm=None, mmax=None):
@@ -51,7 +50,7 @@ class bicubic_ecp_interpolator:
         ecp_job = scarfjob()
         ecp_job.set_triangular_alm_info(lmax, lmax if mmax is None else mmax)
         ecp_job.set_nthreads(sht_threads)
-        ecp_job.set_ecp_geometry(ecp_nt_nobuf, ecp_nph, phi_center=np.mean(patch.pbounds), tbounds=patch.tbounds)
+        ecp_job.set_ecp_geometry(ecp_nt_nobuf, ecp_nph, phi_center=patch.pbounds[0], tbounds=patch.tbounds)
         tim.add('scarf ecp job setup')
         # ----- calculation of the map to interpolate
         if spin > 0:
@@ -99,9 +98,10 @@ class bicubic_ecp_interpolator:
         phir_min = imin * 2 * np.pi / ecp_nph
         phir_max = imax * 2 * np.pi / ecp_nph
 
+        #FIXME: do I need all this stuff?
         self._phir_min = phir_min
         self._phir_max = phir_max
-        self._ecp_pctr = np.mean(patch.pbounds)
+        self._ecp_pctr = patch.pbounds[0]
         self._prescal =  ( (imax - imin) / (phir_max - phir_min) )
         self._trescal =  ((ecp_m_resized.shape[0] - 1) / (buf_t_bounds[1] - buf_t_bounds[0]))
         self._buf_t_bounds = buf_t_bounds

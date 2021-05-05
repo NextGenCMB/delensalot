@@ -1,60 +1,66 @@
 import os
 import numpy as np
 import scarf
-from lenscarf.utils_sht import st2mmax, lowpapprox
+from lenscarf.utils_sht import st2mmax, lowprimes
+
+class pbounds:
+    """Class to regroup simple functions handling sky maps longitude truncation
+
+            Args:
+                pctr: center of interval in radians
+                prange: full extent of interval in radians
+
+            Note:
+                2pi periodicity
+
+    """
+    def __init__(self, pctr, prange):
+        assert prange >= 0., prange
+        self.pctr = pctr % (2. * np.pi)
+        self.hext = min(prange * 0.5, np.pi) # half-extent
+
+    def __repr__(self):
+        return "ctr:%.2f range:%.2f"%(self.pctr, self.hext * 2)
+
+    def get_range(self):
+        return 2 * self.hext
+
+    def get_ctr(self):
+        return self.pctr
+
+    def contains(self, phs:np.ndarray):
+        dph = (phs - self.pctr) % (2 * np.pi)  # points inside are either close to zero or 2pi
+        return (dph <= self.hext) |( (2 * np.pi - dph) <= self.hext)
+
 
 
 class Geom:
     @staticmethod
     def npix(geom:scarf.Geometry):
-        return np.sum([geom.nph(ir) for ir in range(geom.nrings())]) #:FIXME hack
+        return np.sum(geom.nph)
 
     @staticmethod
     def phis(geom:scarf.Geometry, ir):
-        nph = geom.nph(ir)
-        return (geom.phi0(ir) + np.arange(nph) * (2 * np.pi  / nph)) % (2. * np.pi)
+        nph = geom.get_nph(ir)
+        return (geom.get_phi0(ir) + np.arange(nph) * (2 * np.pi  / nph)) % (2. * np.pi)
 
     @staticmethod
-    def tbounds(geom:scarf.Geometry): # FIXME hack
-        tmin = np.inf
-        tmax = 0.
-        for ir in range(geom.nrings()):
-            tht = geom.theta(ir)
-            if tht > tmax:
-                tmax = tht
-            if tht < tmin:
-                tmin = tht
-        return tmin, tmax
-
-
+    def tbounds(geom:scarf.Geometry):
+        return np.min(geom.theta), np.max(geom.theta)
 
     @staticmethod
-    def pbounds2pix(geom:scarf.Geometry, ir, pbounds): #FIXME hack
-        if abs(pbounds[1] - pbounds[0]) >= (2 * np.pi):
-            return geom.ofs(ir) + np.arange(geom.nph(ir)), Geom.phis(geom, ir)
-        pbounds = np.array(pbounds) % (2. * np.pi)
-        pixs = geom.ofs(ir) + np.arange(geom.nph(ir), dtype=int)
+    def pbounds2pix(geom:scarf.Geometry, ir, pbs:pbounds):
+        pixs = geom.get_ofs(ir) + np.arange(geom.get_nph(ir), dtype=int)
         phis = Geom.phis(geom, ir)
-        print(pbounds)
-        if pbounds[1] >= pbounds[0]:
-            idc =  (phis >= pbounds[0]) & (phis <= pbounds[1])
-        else:
-            idc =  (phis <= pbounds[0]) | (phis >= pbounds[1])
+        idc = pbs.contains(phis)
         return pixs[idc], phis[idc]
 
     @staticmethod
-    def pbounds2npix(geom:scarf.Geometry, pbounds): #FIXME hack
-        if abs(pbounds[1] - pbounds[0]) >= (2 * np.pi):
-            return Geom.npix(geom)
-        pbounds = np.array(pbounds) % (2 * np.pi)
+    def pbounds2npix(geom:scarf.Geometry, pbs:pbounds):
         npix = 0
-        ordr = pbounds[1] >= pbounds[0]
-        for ir in range(geom.nrings()):
+        for ir in range(geom.get_nrings()):
             phis = Geom.phis(geom, ir)
-            if ordr:
-                npix += np.sum((phis >= pbounds[0]) & (phis <= pbounds[1]))
-            else:
-                npix += np.sum((phis <= pbounds[0]) | (phis >= pbounds[1]))
+            npix += np.sum(pbs.contains(phis))
         return npix
 
 
@@ -79,7 +85,7 @@ class scarfjob:
         return ['healpix', 'ecp','gauss', 'thingauss']
 
     def n_pix(self):  # !FIXME add this to scarf.cc
-        return np.sum([self.geom.nph(i) for i in range(self.geom.nrings())])
+        return np.sum([self.geom.nph(i) for i in range(self.geom.get_nrings())])
 
     def set_healpix_geometry(self, nside):
         self.geom = scarf.healpix_geometry(nside, 1)
@@ -146,7 +152,7 @@ class scarfjob:
         nlat = tht.size
         phi0 = np.zeros(nlat, dtype=float)
         mmax = np.minimum(np.maximum(st2mmax(smax, tht, lmax), st2mmax(-smax, tht, lmax)), np.ones(nlat) * lmax)
-        nph = lowpapprox(np.ceil(2 * mmax + 1))
+        nph = lowprimes(np.ceil(2 * mmax + 1))
         ofs = np.insert(np.cumsum(nph[:-1]), 0, 0)
         self.geom = scarf.Geometry(nlat, nph, ofs, 1, phi0, tht, wt * (2 * np.pi / nph ))
 

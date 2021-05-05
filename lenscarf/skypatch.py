@@ -1,12 +1,12 @@
 import numpy as np
-from lenscarf.utils_sht import lowpapprox
+from lenscarf.utils_sht import lowprimes
 
 class skypatch:
     """This contains simple methods in order to build ECP maps centred on a sky location and link them to healpix rings
 
         Args:
-            tbounds: co-latitudes (rad) delimiting the patch
-            pbounds: longitudes (rad) delimiting the patch (e.g. (0, 2pi))
+            tbounds: co-latitudes (rad) delimiting the patch (e.g. 0, pi)
+            pbounds: longitudes (rad) delimiting the patch. format is (patch_center, patch_extent)
             targetres_amin: desired resolution of the pixelisation
             pole_buffers: adds a number of pixels at the poles if set (for interpolation purposes e.g.)
 
@@ -17,7 +17,7 @@ class skypatch:
     """
     def __init__(self, tbounds, pbounds, targetres_amin, pole_buffers=0):
         assert (0. <= tbounds[0] < tbounds[1] <= np.pi), tbounds
-        assert (pbounds[0] < pbounds[1]) and (pbounds[1] - pbounds[0]) <= (2 * np.pi), pbounds
+        assert (pbounds[1] > 0), pbounds
         #-- inclusive bounds
 
         self.tbounds = tbounds
@@ -42,9 +42,9 @@ class skypatch:
         max_sinth = 1. if cross_eq else np.max(np.sin(self.colat_bounds))
         nt_min =  (self.colat_bounds[1] - self.colat_bounds[0]) / (self.res_desired_amin / 60 / 180 * np.pi)
         np_min = max_sinth * (2 * np.pi)/ (self.res_desired_amin / 60 / 180 * np.pi)
-        nt = lowpapprox(np.ceil(nt_min + self.nt_buffers_n + self.nt_buffers_s))
+        nt = lowprimes(np.ceil(nt_min + self.nt_buffers_n + self.nt_buffers_s))
         #: add a buffer for poles bicubic spline interp
-        nph = lowpapprox(np.ceil(np_min))
+        nph = lowprimes(np.ceil(np_min))
         rest_amin = (self.colat_bounds[1] - self.colat_bounds[0]) / np.pi * 180 * 60 / (nt - self.nt_buffers_n - self.nt_buffers_s)
         resp_amin = max_sinth * 360 * 60 / nph
         print("achieved nt np %s %s res %.2f (tht) %.2f (phi) amins"%(nt, nph, rest_amin, resp_amin))
@@ -59,12 +59,11 @@ class skypatch:
 
         """
         # ------|--------|-------
-        prange = self.pbounds[1] - self.pbounds[0]
+        prange = self.pbounds[1]
         first = max(0, int(np.floor((np.pi - prange * 0.5) * nph_ecp / (2 * np.pi))))
         last = min(nph_ecp - 1, int(np.ceil((np.pi + prange * 0.5) * nph_ecp / (2 * np.pi))))
-        nph_ap = lowpapprox(last - first + 1)
+        nph_ap = lowprimes(last - first + 1)
         if nph_ap < nph_ecp:
-            print(nph_ap, nph_ecp)
             dn = nph_ap - (last - first + 1)
             dhp = dn // 2
             dmp = dn - dhp

@@ -14,7 +14,7 @@ def st2mmax(spin, tht, lmax):
     return mmax
 
 
-def lowpapprox(n):
+def lowprimes(n:np.ndarray):
     """Finds approximations of integer array n from above built exclusively of low prime numbers 2,3,5.
 
         Python but still ok here for reasonable n

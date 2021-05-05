@@ -5,24 +5,25 @@ from lenscarf import interpolators as itp
 from lenscarf.utils_remapping import d2ang
 from lenscarf import cachers
 from lenscarf.utils_hp import getlmax
-from lenscarf.utils_scarf import Geom
+from lenscarf.utils_scarf import Geom, pbounds as pbs
 from lenscarf.fortran import remapping as fremap
 import numpy as np
 
 class deflection:
     def __init__(self, scarf_geometry:scarf.Geometry, targetres_amin, p_bounds, dlm, fftw_threads, scarf_threads,
-                 cacher=cachers.cacher_none(), clm=None):
+                 cacher:cachers.cacher = cachers.cacher_none(), clm=None):
         """
 
-        #FIXME: give skypatch as input, get bounds from there etc
+                p_bounds: tuple with longitude cuts info in the form of (patch center, patch extent), both in radians
+
+
+                scarf_geometry: points where the deflected is calculated. Resolution independent of the ECP patch
+
 
         #FIXME: allow non-trivial mmax?
 
-        #FIXME: need to make sure the ECP patch overlaps the lensgeometry
-            scarf_geometry: points where the deflected is calculated. Resolution independent of the ECP patch
-
         """
-        assert (p_bounds[0] < p_bounds[1]) and (p_bounds[1] - p_bounds[0]) <= (2 * np.pi), p_bounds
+        assert (p_bounds[1] > 0), p_bounds
 
         # --- interpolation of spin-1 deflection on the desired area and resolution
         tht_bounds = Geom.tbounds(scarf_geometry)
@@ -36,7 +37,7 @@ class deflection:
 
         # FIXME: can get d1 tbounds from geometry + buffers.
         self._tbds = tht_bounds
-        self._pbds = p_bounds
+        self._pbds = pbs(p_bounds[0], p_bounds[1])  # (patch ctr, patch extent)
         self._resamin = targetres_amin
         self._sht_tr = scarf_threads
         self._fft_tr = fftw_threads
@@ -48,14 +49,8 @@ class deflection:
         buf = bufamin/ 180 / 60 * np.pi
         tbds = [max(self._tbds[0] - buf, 0.), min(np.pi, self._tbds[1] + buf)]
         sintmin = np.min(np.sin(self._tbds))
-        if sintmin > 0:
-            pbds =  [self._pbds[0] - buf / sintmin, self._pbds[1] + buf / sintmin]
-        else:
-            pbds = [0., 2*  np.pi]
-        if pbds[1] - pbds[0] >= 2 * np.pi:
-            pctr = np.mean(self._pbds)
-            pbds = [pctr - np.pi, pctr + np.pi]
-        buffered_patch = skypatch(tbds, pbds, self._resamin, pole_buffers=3)
+        prange = min(self._pbds.get_range() + 2 * buf / sintmin if sintmin > 0 else 2 * np.pi, 2 * np.pi)
+        buffered_patch = skypatch(tbds, (self._pbds.get_ctr(), prange), self._resamin, pole_buffers=3)
         return itp.bicubic_ecp_interpolator(spin, glm, buffered_patch, self._sht_tr, self._fft_tr, clm=clm, mmax=mmax)
 
     def _init_d1(self):
@@ -91,14 +86,14 @@ class deflection:
     def _bwd_angles(self):
         self._init_d1()
         (tht0, t2grid), (phi0, p2grid), (re_f, im_f) = self.d1.get_spline_info()
-        nrings = self.geom.nrings()
+        nrings = self.geom.get_nrings()
         npix = Geom.pbounds2npix(self.geom, self._pbds)
         rediimdi = np.zeros((2, npix), dtype=float)
         from plancklens import utils #FIXME
         startpix = 0
         for i, ir in utils.enumerate_progress(range(nrings)):
             pixs, phis = Geom.pbounds2pix(self.geom, ir, self._pbds)
-            thts = np.ones(len(pixs)) * self.geom.theta(ir)
+            thts = np.ones(len(pixs)) * self.geom.get_theta(ir)
             redi, imdi = fremap.remapping.solve_pixs(re_f , im_f, thts, phis, tht0, phi0, t2grid, p2grid)
             sli = slice(startpix, startpix + len(pixs))
             rediimdi[0, sli] = redi
