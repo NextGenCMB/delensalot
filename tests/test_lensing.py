@@ -1,0 +1,32 @@
+from lenscarf import cachers, remapping
+import numpy as np
+from lenscarf import utils_scarf as sj
+import healpy as hp
+
+from plancklens.utils import camb_clfile
+
+
+PBOUNDS = (np.pi,  np.pi)
+j = sj.scarfjob()
+j.set_thingauss_geometry(3999, 2, zbounds=(0., 0.1))
+
+lmaxin = 3999
+lmaxout = 2999
+clee = camb_clfile('../lenscarf/data/cls/FFP10_wdipole_lensedCls.dat')['ee'][:lmaxin + 1]
+clpp = camb_clfile('../lenscarf/data/cls/FFP10_wdipole_lenspotentialCls.dat')['pp'][:lmaxin + 1]
+
+glm = hp.synalm(clee, new=True)
+plm = hp.synalm(clpp, new=True)
+
+
+dlm = hp.almxfl(plm, np.sqrt(np.arange(lmaxin + 1) * np.arange(1, lmaxin + 2)))
+
+d = remapping.deflection(j.geom, 1.7, PBOUNDS, dlm, 8, 8, cacher=cachers.cacher_mem())
+
+d.lensgclm(glm, 2, lmaxout)
+d.tim.reset()
+d.lensgclm(glm, 2, lmaxout)
+d.tim.reset()
+d.lensgclm(glm, 0, lmaxout)
+d.tim.reset()
+d.lensgclm(glm, 0, lmaxout)
