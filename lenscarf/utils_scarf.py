@@ -14,7 +14,7 @@ class pbounds:
                 2pi periodicity
 
     """
-    def __init__(self, pctr, prange):
+    def __init__(self, pctr:float, prange:float):
         assert prange >= 0., prange
         self.pctr = pctr % (2. * np.pi)
         self.hext = min(prange * 0.5, np.pi) # half-extent
@@ -51,16 +51,13 @@ class Geom:
     @staticmethod
     def pbounds2pix(geom:scarf.Geometry, ir, pbs:pbounds):
         pixs = geom.get_ofs(ir) + np.arange(geom.get_nph(ir), dtype=int)
-        phis = Geom.phis(geom, ir)
-        idc = pbs.contains(phis)
-        return pixs[idc], phis[idc]
+        return pixs[pbs.contains(Geom.phis(geom, ir))]
 
     @staticmethod
     def pbounds2npix(geom:scarf.Geometry, pbs:pbounds):
         npix = 0
         for ir in range(geom.get_nrings()):
-            phis = Geom.phis(geom, ir)
-            npix += np.sum(pbs.contains(phis))
+            npix += np.sum(pbs.contains(Geom.phis(geom, ir))) #FIXME: hack
         return npix
 
 
@@ -84,8 +81,8 @@ class scarfjob:
     def supported_geometries():
         return ['healpix', 'ecp','gauss', 'thingauss']
 
-    def n_pix(self):  # !FIXME add this to scarf.cc
-        return np.sum([self.geom.nph(i) for i in range(self.geom.get_nrings())])
+    def n_pix(self):
+        return np.sum(self.geom.nph)
 
     def set_healpix_geometry(self, nside):
         self.geom = scarf.healpix_geometry(nside, 1)

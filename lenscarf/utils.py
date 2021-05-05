@@ -21,6 +21,8 @@ class timer:
 
     def reset(self):
         self.t0 = time()
+        self.ti = self.t0
+        self.keys = {}
 
     def __str__(self):
         if len(self.keys) == 0:
