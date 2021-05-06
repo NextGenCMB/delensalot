@@ -114,7 +114,7 @@ class scarfjob:
         self.geom = scarf.Geometry(nlat, nph, ofs, 1, phi0s, tht, wt)
 
     def set_gauss_geometry(self, nlat, nlon):
-        """standard Gauss-Legendre grid
+        """Standard Gauss-Legendre grid
 
 
         """

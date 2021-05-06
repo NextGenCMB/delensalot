@@ -16,8 +16,7 @@ class bicubic_ecp_interpolator:
         Args:
             spin: spin-weight of the map to interpolate
             glm: gradient-mode of the map to interpolate (healpix/py format)
-            t_bounds:  co-latitude bounds (rad) of the patch to do the interpolation on
-            targetres_amin: target resolution of the interpolation operation
+            patch: skypatch instance defining the region boundaries and resolution
             sht_threads: numbers of OMP threads to perform shts with (scarf / ducc)
             fftw_threads: numbers of threads for FFT's
             clm: curl mode of map to interpolate, if relevant
@@ -33,10 +32,6 @@ class bicubic_ecp_interpolator:
     def __init__(self, spin, glm, patch:skypatch, sht_threads, fftw_threads, clm=None, mmax=None):
         # Defines latitude grid from input bounds:
         assert spin >= 0, spin
-        #assert 0<= t_bounds[0] < t_bounds[1] <= np.pi, t_bounds
-        #assert p_bounds[0] < p_bounds[1], p_bounds
-        #assert (p_bounds[1] - p_bounds[0]) <= 2 * np.pi, p_bounds
-
         tim = timer(True, prefix='spinfield bicubic interpolator')
         # ---- We build an ECP patch on the specified lat and lon bounds
         ecp_nt, ecp_nph = patch.ecp_ring_ntphi()
