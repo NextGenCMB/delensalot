@@ -93,7 +93,7 @@ class Geom:
         """
         assert Geom.npix(geom) == m.size, ('incompatible arrays size', (Geom.npix(geom), m.size))
         if pbs.get_range() >= (2. * np.pi) : return m
-        m_bnd = np.zeros(Geom.npix(geom), dtype=m.dtype)
+        m_bnd = np.zeros(Geom.pbounds2npix(geom, pbs), dtype=m.dtype)
         start = 0
         for ir in range(geom.get_nrings()):
             pixs = Geom.pbounds2pix(geom, ir, pbs)

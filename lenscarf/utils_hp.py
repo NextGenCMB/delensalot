@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def almxfl(alm:np.ndarray, mmax:int or None, fl:np.ndarray, inplace:bool):
+def almxfl(alm:np.ndarray, fl:np.ndarray, mmax:int or None, inplace:bool):
     """Multiply alm by a function of l.
 
     Parameters

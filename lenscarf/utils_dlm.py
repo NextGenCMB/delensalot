@@ -24,7 +24,7 @@ def get_spin_lower(s, lmax):
     return ret
 
 
-def plm2kggo(job:scarfjob, dlm:np.ndarray, dclm:np.ndarray=None):
+def dlm2kggo(job:scarfjob, dlm:np.ndarray, dclm:np.ndarray=None):
     """Returns convergence (kappa), shear maps (gamma1, gamma2) and rotation map (omega) from lensing potentials healpy arrays
 
         :math:`\kappa = -\frac 12 \Delta \phi`
@@ -48,7 +48,7 @@ def plm2kggo(job:scarfjob, dlm:np.ndarray, dclm:np.ndarray=None):
         o = job.alm2map(almxfl(dclm, d2k, job.mmax, False))
     return k, (g1, g2), o
 
-def plm2M(job:scarfjob, dlm:np.ndarray, dclm:np.ndarray or None):
+def dlm2M(job:scarfjob, dlm:np.ndarray, dclm: np.ndarray or None):
     """Returns determinant of magnification matrix corresponding to input deflection field
 
         Args:
@@ -59,7 +59,7 @@ def plm2M(job:scarfjob, dlm:np.ndarray, dclm:np.ndarray or None):
         Returns:
             determinant of magnification matrix. Array of size input scarfjob pixelization gemoetry
 
-    #FIXME: not too sure about the sign of olm
+    #FIXME: not too sure about the signs for non-zero curl deflection
     """
     lmax = Alm.getlmax(dlm.size, job.mmax)
     assert lmax == job.lmax, (Alm.getlmax(dlm.size, job.mmax), job.lmax)
