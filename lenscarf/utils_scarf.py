@@ -193,6 +193,9 @@ class scarfjob:
         ofs = np.insert(np.cumsum(nph[:-1]), 0, 0)
         self.geom = scarf.Geometry(nlat, nph, ofs, 1, phi0, tht, wt * (2 * np.pi / nph ))
 
+    def set_geometry(self, geom:scarf.Geometry):
+        self.geom = geom
+
     def set_nthreads(self, nthreads):
         self.nthreads = nthreads
 

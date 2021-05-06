@@ -6,12 +6,13 @@ from lenscarf.utils_remapping import d2ang
 from lenscarf import cachers
 from lenscarf.utils import timer
 from lenscarf.utils_hp import Alm
-from lenscarf.utils_scarf import Geom, pbounds as pbs
+from lenscarf.utils_scarf import Geom, pbounds as pbs, scarfjob
 from lenscarf.fortran import remapping as fremap
+from lenscarf import utils_dlm
 import numpy as np
 
 class deflection:
-    def __init__(self, scarf_geometry:scarf.Geometry, targetres_amin, p_bounds:tuple, dlm, fftw_threads, scarf_threads,
+    def __init__(dclm, scarf_geometry:scarf.Geometry, targetres_amin, p_bounds:tuple, dlm, fftw_threads, scarf_threads,
                  cacher:cachers.cacher = cachers.cacher_none(), clm=None, mmax=None):
         """
 
@@ -32,22 +33,22 @@ class deflection:
         lmax = Alm.getlmax(dlm.size, mmax)
         if mmax is None: mmax = lmax
 
-        self.dlm = dlm
-        self.clm = clm
+        dclm.dlm = dlm
+        dclm.clm = clm
 
-        self.lmax_dlm = lmax
-        self.mmax_dlm = mmax
-        self.d1 = None # -- this might be instantiated later if needed
-        self.cacher = cacher
-        self.geom = scarf_geometry
+        dclm.lmax_dlm = lmax
+        dclm.mmax_dlm = mmax
+        dclm.d1 = None # -- this might be instantiated later if needed
+        dclm.cacher = cacher
+        dclm.geom = scarf_geometry
 
         # FIXME: can get d1 tbounds from geometry + buffers.
-        self._tbds = tht_bounds
-        self._pbds = pbs(p_bounds[0], p_bounds[1])  # (patch ctr, patch extent)
-        self._resamin = targetres_amin
-        self._sht_tr = scarf_threads
-        self._fft_tr = fftw_threads
-        self.tim = timer(True, prefix='deflection instance')
+        dclm._tbds = tht_bounds
+        dclm._pbds = pbs(p_bounds[0], p_bounds[1])  # (patch ctr, patch extent)
+        dclm._resamin = targetres_amin
+        dclm._sht_tr = scarf_threads
+        dclm._fft_tr = fftw_threads
+        dclm.tim = timer(True, prefix='deflection instance')
 
     def _build_interpolator(self, glm, spin, clm=None, mmax=None):
         bufamin = 30.
@@ -117,18 +118,14 @@ class deflection:
         assert startpix == npix, (startpix, npix)
         return rediimdi
 
-    def _bwd_magn(self):
-        pass
-        #M = None
-        #for i, iband in utils.enumerate_progress(bands, label='Caching backw. magnification'):
-        #    fname = 'bwd_detm_band%02d'%iband
-        #    if not self.cacher.is_cached(fname):
-        #        if M is None:
-        #            plm_i, olm_i = self.ang2dlm(hp.Alm.getlmax(plm.size) + 100, bwd=True)
-        #            k, (g1, g2), w = rpu.get_kappa_gamma_omega(plm_i, self.nside_lens, olm=olm_i, zbounds=self.zbounds)
-        #            M = (1. - k) ** 2 - g1 ** 2 - g2 ** 2 + w ** 2
-        #            del k, g1, g2, w
-        #        self.cacher.cache(fname, M[self._get_pix(iband)])
+    def _fwd_magn(self):
+        #FIXME:
+        scjob = scarfjob()
+        scjob.set_geometry(self.geom)
+        scjob.set_triangular_alm_info(self.lmax_dlm, self.mmax_dlm)
+        scjob.set_nthreads(self._sht_tr)
+        M = Geom.map2pbnmap(self.geom, utils_dlm.plm2M(scjob, self.dlm, self.clm), self._pbds)
+        return M
 
     def lensgclm(self, glm, spin, lmax_out, backwards=False, clm=None, mmax=None, mmax_out=None):
 

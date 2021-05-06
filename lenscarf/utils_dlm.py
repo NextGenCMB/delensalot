@@ -24,7 +24,7 @@ def get_spin_lower(s, lmax):
     return ret
 
 
-def plm2kggo(job:scarfjob, plm:np.ndarray, olm:np.ndarray=None):
+def plm2kggo(job:scarfjob, dlm:np.ndarray, dclm:np.ndarray=None):
     """Returns convergence (kappa), shear maps (gamma1, gamma2) and rotation map (omega) from lensing potentials healpy arrays
 
         :math:`\kappa = -\frac 12 \Delta \phi`
@@ -33,40 +33,43 @@ def plm2kggo(job:scarfjob, plm:np.ndarray, olm:np.ndarray=None):
 
     #FIXME: not too sure about the sign of olm
     """
-    lmax = Alm.getlmax(plm.size, job.mmax)
-    assert lmax == job.lmax, (Alm.getlmax(plm.size, job.mmax), job.lmax)
-    ftl_k =  0.5 * np.arange(lmax + 1, dtype=float) * np.arange(1, lmax + 2, dtype=float)  # For k = -1/2 Delta
-    ftl_g = -0.5 * get_spin_raise(0, lmax) * get_spin_raise(1, lmax)
+    lmax = Alm.getlmax(dlm.size, job.mmax)
+    assert lmax == job.lmax, (Alm.getlmax(dlm.size, job.mmax), job.lmax)
+    # We further have p2d = get_spin_raise(0, lmax) = sqrt(0, lmax + 1) * sqrt(1, lmax + 2)
+    d2k = -0.5 *  get_spin_lower(1, lmax)  # For k = -1/2 Delta
+    d2g = -0.5 *  get_spin_raise(1, lmax)
     # coefficient for spin lowering is the same. g1 +i g2 is -1/2 spin-2 transform of raise ** 2 plm.
-    k = job.alm2map(almxfl(plm, ftl_k, job.mmax, False))
-    if olm is None:
-        g1, g2 = job.alm2map_spin([almxfl(plm, ftl_g, job.mmax, False), np.zeros_like(plm)], 2)
+    k = job.alm2map(almxfl(dlm, d2k, job.mmax, False))
+    if dclm is None:
+        g1, g2 = job.alm2map_spin([almxfl(dlm, d2g, job.mmax, False), np.zeros_like(dlm)], 2)
         o = 0.
     else:
-        g1, g2 = job.alm2map_spin([almxfl(plm, ftl_g, job.mmax, False), almxfl(olm, ftl_g, job.mmax, False)], 2)
-        o = job.alm2map(almxfl(olm, ftl_k, job.mmax, False))
+        g1, g2 = job.alm2map_spin([almxfl(dlm, d2g, job.mmax, False), almxfl(dclm, d2g, job.mmax, False)], 2)
+        o = job.alm2map(almxfl(dclm, d2k, job.mmax, False))
     return k, (g1, g2), o
 
-def plm2M(job:scarfjob, plm:np.ndarray, olm:np.ndarray):
-    """Returns determinant of magnification matrix corresponding to input deflection field potentials
+def plm2M(job:scarfjob, dlm:np.ndarray, dclm:np.ndarray or None):
+    """Returns determinant of magnification matrix corresponding to input deflection field
 
         Args:
             job: scarfjob definining the geometry and other SHTs parameters (lmax, mmax, nthreads)
-            plm: alm array for lensing gradient potential
-            olm: alm array for lensing curl potential
+            dlm: alm array for lensing deflection gradient
+            dclm: alm array for lensing deflection curl (treated as zero if None)
 
         Returns:
             determinant of magnification matrix. Array of size input scarfjob pixelization gemoetry
 
     #FIXME: not too sure about the sign of olm
     """
-    lmax = Alm.getlmax(plm.size, job.mmax)
-    assert lmax == job.lmax, (Alm.getlmax(plm.size, job.mmax), job.lmax)
-    assert lmax == Alm.getlmax(olm.size, job.mmax), (Alm.getlmax(olm.size, job.mmax), Alm.getlmax(plm.size, job.mmax))
-    ftl_k =  0.5 * np.arange(lmax + 1, dtype=float) * np.arange(1, lmax + 2, dtype=float)  # For k = -1/2 Delta
-    ftl_g = -0.5 * get_spin_raise(0, lmax) * get_spin_raise(1, lmax)
-    M = (1. - job.alm2map(almxfl(plm, ftl_k, job.mmax, False))) ** 2 # (1 - k) ** 2
-    M -= np.sum(job.alm2map_spin([almxfl(plm, ftl_g, job.mmax, False), almxfl(olm, ftl_g, job.mmax, False)], 2) ** 2, axis=0)  # - g1 ** 2 - g2 ** 2
-    if np.any(olm):
-        M += job.alm2map(almxfl(olm, ftl_k, job.mmax, False)) ** 2 # + w ** 2
+    lmax = Alm.getlmax(dlm.size, job.mmax)
+    assert lmax == job.lmax, (Alm.getlmax(dlm.size, job.mmax), job.lmax)
+    if dclm is None:
+        dclm = np.zeros_like(dlm)
+    assert lmax == Alm.getlmax(dclm.size, job.mmax), (Alm.getlmax(dclm.size, job.mmax), Alm.getlmax(dlm.size, job.mmax))
+    d2k = -0.5 *  get_spin_lower(1, lmax)  # For k = -1/2 Delta
+    d2g = -0.5 *  get_spin_raise(1, lmax)
+    M = (1. - job.alm2map(almxfl(dlm, d2k, job.mmax, False))) ** 2 # (1 - k) ** 2
+    M -= np.sum(job.alm2map_spin([almxfl(dlm, d2g, job.mmax, False), almxfl(dclm, d2g, job.mmax, False)], 2) ** 2, axis=0)  # - g1 ** 2 - g2 ** 2
+    if np.any(dclm):
+        M += job.alm2map(almxfl(dclm, d2k, job.mmax, False)) ** 2 # + w ** 2
     return M
