@@ -66,25 +66,6 @@ module remapping
 
     contains
 
-    subroutine get_tht(ctht, stht, tht)
-        implicit None
-        double precision, intent(in) :: ctht, stht  ! cost and sint
-        double precision, intent(out) :: tht
-        integer version
-
-        version = nint(ctht)
-            if (version == 0) then
-                tht = dacos(ctht)
-            else if (version == 1) then
-                tht = dasin(stht)
-            else if (version == -1) then
-                tht = DPI - dasin(stht)
-            else
-                write(*, *) 'invalid version (-1, 0, 1)', version
-                error stop
-            end if
-    end subroutine get_tht
-
     subroutine d2ang_scal(Red, Imd, tht, phi, thtp, phip)
         ! no phi modulo here. In principle double prec. accurate and avoiding any division by zero
         ! version -1, 0, 1 for pints close to the north pole, equator or south pol
@@ -188,7 +169,7 @@ module remapping
             imdi = imdi - im_res
         end do
         if (itr > itrmax) then
-            write(*, *) 'redi, imdi -solver failed to achieve convergence', maxres, itr, itrmax
+            write(*, *) 'redi, imdi solver failed to achieve convergence', maxres, itr, itrmax
             if (maxres > 1d-5) then
                 error stop
             end if

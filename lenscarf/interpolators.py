@@ -3,7 +3,7 @@
 
 """
 from lenscarf.utils import timer
-from lenscarf.utils_hp import getlmax
+from lenscarf.utils_hp import Alm
 from lenscarf.skypatch import skypatch
 from lenscarf.utils_scarf import scarfjob
 import numpy as np
@@ -40,10 +40,11 @@ class bicubic_ecp_interpolator:
         ecp_nt_nobuf = ecp_nt - nt_buf_n - nt_buf_s
         imin, imax = patch.ecp_resize(ecp_nph)
 
-        lmax = getlmax(glm.size)
+        lmax = Alm.getlmax(glm.size, mmax)
+        if mmax is None : mmax = lmax
         # ------ Build custom scarf job with patch center on the middle of ECP map
         ecp_job = scarfjob()
-        ecp_job.set_triangular_alm_info(lmax, lmax if mmax is None else mmax)
+        ecp_job.set_triangular_alm_info(lmax, mmax)
         ecp_job.set_nthreads(sht_threads)
         ecp_job.set_ecp_geometry(ecp_nt_nobuf, ecp_nph, phi_center=patch.pbounds[0], tbounds=patch.tbounds)
         tim.add('scarf ecp job setup')

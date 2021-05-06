@@ -5,14 +5,14 @@ from lenscarf import interpolators as itp
 from lenscarf.utils_remapping import d2ang
 from lenscarf import cachers
 from lenscarf.utils import timer
-from lenscarf.utils_hp import getlmax
+from lenscarf.utils_hp import Alm
 from lenscarf.utils_scarf import Geom, pbounds as pbs
 from lenscarf.fortran import remapping as fremap
 import numpy as np
 
 class deflection:
     def __init__(self, scarf_geometry:scarf.Geometry, targetres_amin, p_bounds:tuple, dlm, fftw_threads, scarf_threads,
-                 cacher:cachers.cacher = cachers.cacher_none(), clm=None):
+                 cacher:cachers.cacher = cachers.cacher_none(), clm=None, mmax=None):
         """
 
                 p_bounds: tuple with longitude cuts info in the form of (patch center, patch extent), both in radians
@@ -25,13 +25,18 @@ class deflection:
 
         """
         assert (p_bounds[1] > 0), p_bounds
-
         # --- interpolation of spin-1 deflection on the desired area and resolution
         tht_bounds = Geom.tbounds(scarf_geometry)
         assert (0. <= tht_bounds[0] < tht_bounds[1] <= np.pi), tht_bounds
         #self.sky_patch = skypatch(tht_bounds, p_bounds, targetres_amin, pole_buffers=3)
+        lmax = Alm.getlmax(dlm.size, mmax)
+        if mmax is None: mmax = lmax
+
         self.dlm = dlm
         self.clm = clm
+
+        self.lmax_dlm = lmax
+        self.mmax_dlm = mmax
         self.d1 = None # -- this might be instantiated later if needed
         self.cacher = cacher
         self.geom = scarf_geometry
@@ -68,9 +73,8 @@ class deflection:
         if not self.cacher.is_cached(fn):
             nrings = self.geom.get_nrings()
             npix = Geom.pbounds2npix(self.geom, self._pbds)
-            lmax, mmax = (getlmax(self.dlm.size), getlmax(self.dlm.size)) #FIXME: allow non-trivial mmax?
             clm = np.zeros_like(self.dlm) if self.clm is None else self.clm
-            red, imd = self.geom.alm2map_spin([self.dlm, clm], 1, lmax, mmax, self._sht_tr, [-1., 1.])
+            red, imd = self.geom.alm2map_spin([self.dlm, clm], 1, self.lmax_dlm, self.mmax_dlm, self._sht_tr, [-1., 1.])
             thp_phip= np.zeros( (2, npix), dtype=float)
             startpix = 0
             for ir in range(nrings):
@@ -113,11 +117,24 @@ class deflection:
         assert startpix == npix, (startpix, npix)
         return rediimdi
 
-    def lensgclm(self, glm, spin, lmax_out, backwards=False, clm=None):
+    def _bwd_magn(self):
+        pass
+        #M = None
+        #for i, iband in utils.enumerate_progress(bands, label='Caching backw. magnification'):
+        #    fname = 'bwd_detm_band%02d'%iband
+        #    if not self.cacher.is_cached(fname):
+        #        if M is None:
+        #            plm_i, olm_i = self.ang2dlm(hp.Alm.getlmax(plm.size) + 100, bwd=True)
+        #            k, (g1, g2), w = rpu.get_kappa_gamma_omega(plm_i, self.nside_lens, olm=olm_i, zbounds=self.zbounds)
+        #            M = (1. - k) ** 2 - g1 ** 2 - g2 ** 2 + w ** 2
+        #            del k, g1, g2, w
+        #        self.cacher.cache(fname, M[self._get_pix(iband)])
 
-        mmax_out = lmax_out #FIXME
-        interpjob = self._build_interpolator(glm, spin, clm=clm)
-        self.tim.add('glm spin %s lmax %s interpolator setup'%(spin, getlmax(glm.size)))
+    def lensgclm(self, glm, spin, lmax_out, backwards=False, clm=None, mmax=None, mmax_out=None):
+
+        if mmax_out is None: mmax_out = lmax_out
+        interpjob = self._build_interpolator(glm, spin, clm=clm, mmax=mmax)
+        self.tim.add('glm spin %s lmax %s interpolator setup'%(spin, Alm.getlmax(glm.size, mmax)))
         # NB: could perform here unchecked interpolation, gain of 10-15% so not mindblowing
         thtn, phin = self._bwd_angles() if backwards else self._fwd_angles()
         self.tim.add('getting angles')
@@ -147,7 +164,7 @@ class deflection:
         if spin > 0:
             gclm_len = self.geom.map2alm_spin(lenm, spin, lmax_out, mmax_out, self._sht_tr, [-1.,1.])
         else:
-            gclm_len = self.geom.map2alm(lenm.squeeze(), lmax_out, mmax_out, self._sht_tr, [-1.,1.])
+            gclm_len = self.geom.map2alm(lenm, lmax_out, mmax_out, self._sht_tr, [-1.,1.])
         self.tim.add('map2alm spin %s lmaxout %s'%(spin, lmax_out))
         print(self.tim)
         return gclm_len
