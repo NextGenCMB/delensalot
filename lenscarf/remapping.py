@@ -47,7 +47,7 @@ class deflection:
         self._resamin = targetres_amin
         self._sht_tr = scarf_threads
         self._fft_tr = fftw_threads
-        self.tim = timer(True)
+        self.tim = timer(True, prefix='deflection instance')
 
     def _build_interpolator(self, glm, spin, clm=None, mmax=None):
         bufamin = 30.
@@ -69,7 +69,7 @@ class deflection:
 
 
         """
-        fn = 'fwdangles'
+        fn = 'fwdang'
         if not self.cacher.is_cached(fn):
             nrings = self.geom.get_nrings()
             npix = Geom.pbounds2npix(self.geom, self._pbds)
@@ -139,25 +139,14 @@ class deflection:
         thtn, phin = self._bwd_angles() if backwards else self._fwd_angles()
         self.tim.add('getting angles')
 
-        npix = Geom.npix(self.geom)
-        if thtn.size == npix:
-            lenm = interpjob.eval(thtn, phin)
-            self.tim.add('interpolation')
-
-        else: # need to patch up the pixels. how to best do that?
-            lenm_ = interpjob.eval(thtn, phin)
-            self.tim.add('interpolation')
-            lenm = np.zeros(npix if spin == 0 else (2, npix), dtype=float)
-            start = 0
-            for ir in range(self.geom.get_nrings()):
-                pixs = Geom.pbounds2pix(self.geom, ir, self._pbds)
-                if spin == 0:
-                    lenm[pixs] = lenm_[start:start + pixs.size]
-                else:
-                    lenm[0, pixs] = lenm_[0][start:start + pixs.size]
-                    lenm[1, pixs] = lenm_[1][start:start + pixs.size]
-                start += pixs.size
-            self.tim.add('truncated array filling')
+        lenm_pbded = interpjob.eval(thtn, phin)
+        self.tim.add('interpolation')
+        if spin == 0:
+            lenm =  Geom.pbdmap2map(self.geom, lenm_pbded, self._pbds)
+        else:
+            lenm = [Geom.pbdmap2map(self.geom, lenm_pbded[0], self._pbds),
+                    Geom.pbdmap2map(self.geom, lenm_pbded[1], self._pbds)]
+        self.tim.add('truncated array filling')
 
         #FIXME: polarization rotation
         # --- going back to alm:

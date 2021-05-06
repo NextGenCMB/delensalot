@@ -35,6 +35,10 @@ class pbounds:
 
 
 class Geom:
+    """This collects simple static methods for scarf Geometry class
+
+
+    """
     @staticmethod
     def npix(geom:scarf.Geometry):
         return np.sum(geom.nph)
@@ -55,11 +59,47 @@ class Geom:
 
     @staticmethod
     def pbounds2npix(geom:scarf.Geometry, pbs:pbounds):
+        if pbs.get_range() >= (2. * np.pi) : return Geom.npix(geom)
         npix = 0
         for ir in range(geom.get_nrings()):
             npix += np.sum(pbs.contains(Geom.phis(geom, ir))) #FIXME: hack
         return npix
 
+    @staticmethod
+    def pbdmap2map(geom:scarf.Geometry, m_bnd:np.ndarray, pbs:pbounds):#FIXME: hack
+        """Converts a map defined on longitude cuts back to the input geometry with full longitude range
+
+            Note:
+                inverse to Geom.map2pbnmap
+
+        """
+        assert Geom.pbounds2npix(geom, pbs) == m_bnd.size, ('incompatible arrays size', (Geom.npix(geom), m_bnd.size))
+        if pbs.get_range() >= (2. * np.pi) : return m_bnd
+        m = np.zeros(Geom.npix(geom), dtype=m_bnd.dtype)
+        start = 0
+        for ir in range(geom.get_nrings()):
+            pixs = Geom.pbounds2pix(geom, ir, pbs)
+            m[pixs] = m_bnd[start:start + pixs.size]
+            start += pixs.size
+        return m
+
+    @staticmethod
+    def map2pbnmap(geom:scarf.Geometry, m:np.ndarray, pbs:pbounds):#FIXME: hack
+        """Converts a map defined by the input geometry to a small array according to input longitude cuts
+
+            Note:
+                inverse to Geom.map2pbnmap
+
+        """
+        assert Geom.npix(geom) == m.size, ('incompatible arrays size', (Geom.npix(geom), m.size))
+        if pbs.get_range() >= (2. * np.pi) : return m
+        m_bnd = np.zeros(Geom.npix(geom), dtype=m.dtype)
+        start = 0
+        for ir in range(geom.get_nrings()):
+            pixs = Geom.pbounds2pix(geom, ir, pbs)
+            m_bnd[start:start + pixs.size] = m[pixs]
+            start += pixs.size
+        return m_bnd
 
 class scarfjob:
     r"""SHT job instance emulating existing ducc python bindings

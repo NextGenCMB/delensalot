@@ -6,9 +6,9 @@ import healpy as hp
 from plancklens.utils import camb_clfile
 
 
-PBOUNDS = (np.pi,  np.pi)
+PBOUNDS = (np.pi, 2* np.pi)
 j = sj.scarfjob()
-j.set_thingauss_geometry(3999, 2, zbounds=(0., 0.1))
+j.set_thingauss_geometry(3999, 2, zbounds=(-0.1, 0.1))
 
 lmaxin = 3999
 lmaxout = 2999

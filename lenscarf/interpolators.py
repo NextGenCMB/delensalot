@@ -16,7 +16,7 @@ class bicubic_ecp_interpolator:
         Args:
             spin: spin-weight of the map to interpolate
             glm: gradient-mode of the map to interpolate (healpix/py format)
-            patch: skypatch instance defining the region boundaries and resolution
+            patch: skypatch instance defining the region boundaries and sampling resolution
             sht_threads: numbers of OMP threads to perform shts with (scarf / ducc)
             fftw_threads: numbers of threads for FFT's
             clm: curl mode of map to interpolate, if relevant

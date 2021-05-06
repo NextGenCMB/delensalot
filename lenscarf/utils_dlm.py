@@ -57,11 +57,12 @@ def plm2M(job:scarfjob, plm:np.ndarray, olm:np.ndarray):
 
         Returns:
             determinant of magnification matrix. Array of size input scarfjob pixelization gemoetry
-            
+
     #FIXME: not too sure about the sign of olm
     """
     lmax = Alm.getlmax(plm.size, job.mmax)
     assert lmax == job.lmax, (Alm.getlmax(plm.size, job.mmax), job.lmax)
+    assert lmax == Alm.getlmax(olm.size, job.mmax), (Alm.getlmax(olm.size, job.mmax), Alm.getlmax(plm.size, job.mmax))
     ftl_k =  0.5 * np.arange(lmax + 1, dtype=float) * np.arange(1, lmax + 2, dtype=float)  # For k = -1/2 Delta
     ftl_g = -0.5 * get_spin_raise(0, lmax) * get_spin_raise(1, lmax)
     M = (1. - job.alm2map(almxfl(plm, ftl_k, job.mmax, False))) ** 2 # (1 - k) ** 2
