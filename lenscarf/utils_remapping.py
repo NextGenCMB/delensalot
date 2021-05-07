@@ -58,8 +58,10 @@ def d2ang(red, imd, tht, phi, version):
 
         # -- Eq. for new co-latitude (always work fine), here written for 1 - cos tht in order not to lose precision
         e_tp = e_t + e_d - e_t * e_d + version * red * sind_d * sint  # 1 -+ cost'
-        sintp = np.sqrt(np.abs(e_tp * (2 - e_tp)))
+        sintp = np.sqrt(np.maximum(0., e_tp * (2 - e_tp)))
+        # FIXME:
         # : the abs is here to avoid machine roundoffs resulting in nans, when tht itself is machine precision to zero
+        # : generally the regions within 'd' of the poles less reliable.  
 
         # -- deflected coordinates
         if isnorth:

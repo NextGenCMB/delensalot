@@ -114,6 +114,7 @@ class deflection:
         else:
             return np.array([[],[]])
 
+
     def _bwd_angles(self): #FIXME: feed the full map at once
         fn = 'bwdang'
         if not self.cacher.is_cached(fn):

@@ -83,7 +83,7 @@ module remapping
         end if
         sind_d = 1.d0 - d / 6.d0 * (1.d0 - d / 20d0 * (1.d0 - d / 42d0))
         d = dsqrt(d)
-        !version = nint(cos(tht)) ! 'nearest int' 1 0 -1 for closest to north pole, equator or south pole respectively
+        !version  'nearest int' 1 0 -1 for closest to north pole, equator or south pole respectively
         version = nint(1 - 2 * tht / DPI)
         if (version == 0) then
             cost = dcos(tht)
@@ -105,9 +105,10 @@ module remapping
             write(*, *) 'invalid version parameter (must be in (-1, 0, 1))', version
             error stop
         end if
-        sintp = dsqrt(dabs(e_tp * (2 - e_tp)))
-        !: the abs is here to avoid machine roundoffs resulting in nans, when tht itself is machine precision to zero
-
+        sintp = dsqrt(dmax1(0.d0, e_tp * (2 - e_tp)))
+        ! FIXME:
+        !: the max is here to avoid machine roundoffs resulting in nans, when tht itself is machine precision to zero
+        !: in practice it seems that when one tries to land exactly on the poles this reduces the precision to max 1e-11
         if (version ==  1) then
             thtp = dasin(sintp)
             phip = modulo(phi + datan2( Imd * sind_d, (1.d0 - e_d) * sint + Red * sind_d * (1.d0 - e_t)), PI2)
@@ -154,8 +155,6 @@ module remapping
         fp = modulo(phi - phi0, PI2) * p2grid
         redi = -eval(ref, ft, fp) ! Starting point is -red -i imd
         imdi = -eval(imf, ft, fp)
-        re_res = 0d0
-        im_res = 0d0
         maxres = 10.
         itr = 0
         tol = max(TOLAMIN / 180 / 60 * DPI, 1d-15)
