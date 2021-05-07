@@ -123,7 +123,7 @@ def pixel_solver(defl:remapping.deflection, ir:int, ip:int):
             imdi = imdi - im_res
             print(maxres / np.pi * 180 * 60, sc_job_pixel.geom.theta, Geom.phis(sc_job_pixel.geom, 0))
     print(itr, ITRMAX, maxres / np.pi * 180 * 60)
-    return redi, imdi, thti, phii, tht, phi
+    return redi, imdi
 if __name__ == '__main__':
 
     d._bwd_angles()

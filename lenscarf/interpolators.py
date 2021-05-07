@@ -9,7 +9,6 @@ from lenscarf.utils_scarf import scarfjob
 import numpy as np
 import pyfftw
 from omppol.src import bicubic #:FIXME
-
 class bicubic_ecp_interpolator:
     """Spin-weighted bicubic spline interpolator on a patch of the sky.
 
@@ -181,3 +180,8 @@ class bicubic_ecp_interpolator:
         dfdt = np.array(self.eval_ongrid(tgrid + 1, pgrid)) -np.array(self.eval_ongrid(tgrid - 1, pgrid) )
         dfdp = np.array(self.eval_ongrid(tgrid, pgrid + 1)) -np.array(self.eval_ongrid(tgrid, pgrid - 1) )
         return dfdt * 0.5 * self._trescal, dfdp * 0.5 * self._prescal
+
+
+class polar_interpolator:
+    def __init__(self, spin, glm, patch:skypatch, sht_threads, fftw_threads, clm=None, mmax=None):
+        pass

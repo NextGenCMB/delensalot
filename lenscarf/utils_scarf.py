@@ -54,6 +54,18 @@ class Geom:
         return np.min(geom.theta), np.max(geom.theta)
 
     @staticmethod
+    def rings2pix(geom:scarf.Geometry, rings:np.ndarray):
+        return np.concatenate([geom.get_ofs(ir) + np.arange(geom.get_nph(ir), dtype=int) for ir in rings])
+
+    @staticmethod
+    def rings2phi(geom:scarf.Geometry, rings:np.ndarray):
+        return np.concatenate([Geom.phis(geom, ir) for ir in rings])
+
+    @staticmethod
+    def rings2tht(geom: scarf.Geometry, rings: np.ndarray):
+        return np.concatenate([geom.theta[ir] * np.ones(geom.nph[ir]) for ir in rings])
+
+    @staticmethod
     def pbounds2pix(geom:scarf.Geometry, ir, pbs:pbounds):
         assert ir < geom.get_nrings(), (ir, geom.get_nrings())
         pixs = geom.get_ofs(ir) + np.arange(geom.get_nph(ir), dtype=int)
@@ -72,7 +84,7 @@ class Geom:
         """Converts a map defined on longitude cuts back to the input geometry with full longitude range
 
             Note:
-                inverse to Geom.map2pbnmap
+                'inverse' to Geom.map2pbnmap
 
         """
         assert Geom.pbounds2npix(geom, pbs) == m_bnd.size, ('incompatible arrays size', (Geom.npix(geom), m_bnd.size))
@@ -90,7 +102,7 @@ class Geom:
         """Converts a map defined by the input geometry to a small array according to input longitude cuts
 
             Note:
-                inverse to Geom.map2pbnmap
+                'inverse' to Geom.pbdmap2map
 
         """
         assert Geom.npix(geom) == m.size, ('incompatible arrays size', (Geom.npix(geom), m.size))
