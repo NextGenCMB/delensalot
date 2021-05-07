@@ -121,7 +121,7 @@ class scarfjob:
 
     @staticmethod
     def supported_geometries():
-        return ['healpix', 'ecp','gauss', 'thingauss']
+        return ['healpix', 'ecp','gauss', 'thingauss', 'pixel']
 
     def n_pix(self):
         return np.sum(self.geom.nph)
@@ -146,6 +146,7 @@ class scarfjob:
 
 
         """
+        assert nlat >= 2, nlat
         tbounds = np.sort(tbounds)
         tht = np.linspace(max(tbounds[0], 0), min(tbounds[1], np.pi), nlat)
         wt = np.ones(nlat, dtype=float) * (2 * np.pi / nlon * np.pi / (nlat - 1))
@@ -194,6 +195,19 @@ class scarfjob:
         nph = lowprimes(np.ceil(2 * mmax + 1))
         ofs = np.insert(np.cumsum(nph[:-1]), 0, 0)
         self.geom = scarf.Geometry(nlat, nph, ofs, 1, phi0, tht, wt * (2 * np.pi / nph ))
+
+    def set_pixel_geometry(self, tht:float or np.ndarray, phi:float or np.ndarray):
+        """Single ring with two phis
+
+
+        """
+        #assert 0
+        #FIXME: dont understand the result with a single phi, looks like needs at least two phis...
+        if not np.isscalar(tht): tht = tht[0]
+        if not np.isscalar(phi): phi = phi[0]
+
+        assert 0 <= tht <= np.pi
+        self.geom = scarf.Geometry(1, np.array([2]), np.array([0]), 1, np.array([phi %(2 * np.pi)]), np.array([tht]), np.array([1.]))
 
     def set_geometry(self, geom:scarf.Geometry):
         self.geom = geom

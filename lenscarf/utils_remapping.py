@@ -61,7 +61,7 @@ def d2ang(red, imd, tht, phi, version):
         sintp = np.sqrt(np.maximum(0., e_tp * (2 - e_tp)))
         # FIXME:
         # : the abs is here to avoid machine roundoffs resulting in nans, when tht itself is machine precision to zero
-        # : generally the regions within 'd' of the poles less reliable.  
+        # : generally the regions within 'd' of the poles less reliable.
 
         # -- deflected coordinates
         if isnorth:
