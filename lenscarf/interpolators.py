@@ -108,7 +108,8 @@ class bicubic_ecp_interpolator:
         self.patch = patch
 
         #temp
-        #self.ma = ecp_m_resized
+        self.ma = ecp_m_resized # FIXME: here for test purposes
+        self.ecpjob = ecp_job
         print(tim)
 
     def phi2grid(self, phi):

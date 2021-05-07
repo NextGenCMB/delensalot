@@ -13,16 +13,21 @@ import numpy as np
 
 class deflection:
     def __init__(self, scarf_geometry:scarf.Geometry, targetres_amin, p_bounds:tuple, dlm, fftw_threads, scarf_threads,
-                 cacher:cachers.cacher = cachers.cacher_none(), dclm=None, mmax=None):
-        """
+                 cacher:cachers.cacher = cachers.cacher_none(), dclm:np.ndarray or None=None, mmax=None):
+        """Deflection field object than can be used to lens several maps with forward or backward deflection
 
+            Args:
+                scarf_geometry: scarf.Geometry object holding info on the delfection operation pixelzation etc
+                targetres_amin: float, desired interpolation resolution in arcmin
                 p_bounds: tuple with longitude cuts info in the form of (patch center, patch extent), both in radians
+                dlm: deflection-field alm array, gradient mode (:math:`\sqrt{L(L+1)}\phi_{LM}`)
+                fftw_threads: number of threads for FFTWs transforms (other than the ones in SHTs)
+                scarf_threads: number of threads for the SHTs scarf-ducc based calculations
+                cacher: cachers.cacher instance allowing if desired caching of several pieces of info;
+                        Useless if only one maps is intended to be deflected, but useful if more.
+                dclm: deflection-field alm array, curl mode (if relevant)
+                mmax: maximal m of the dlm / dclm arrays, if different from lmax
 
-
-                scarf_geometry: points where the deflected is calculated. Resolution independent of the ECP patch
-
-
-        #FIXME: allow non-trivial mmax?
 
         """
         assert (p_bounds[1] > 0), p_bounds
@@ -94,38 +99,55 @@ class deflection:
             return thp_phip
         return self.cacher.load(fn)
 
-    def _bwd_angles(self): #FIXME: feed the full map at once
+    def _bwd_ring_angles(self, ir): # Single ring inversion, for test purposes
         self.tim.reset_t0()
         self._init_d1()
         (tht0, t2grid), (phi0, p2grid), (re_f, im_f) = self.d1.get_spline_info()
-        npix = Geom.pbounds2npix(self.geom, self._pbds)
-        bwdang = np.zeros((2, npix), dtype=float)
-        startpix = 0
-        buft = 1e20 # not too sure why this fails with a few degrees buffer
-        for i, ir in enumerate_progress(range(self.geom.get_nrings())):
-            pixs = Geom.pbounds2pix(self.geom, ir, self._pbds)
+        pixs = Geom.pbounds2pix(self.geom, ir, self._pbds)
+        if pixs.size > 0:
             phis = Geom.phis(self.geom, ir)[self._pbds.contains(Geom.phis(self.geom, ir))]
-            tht = self.geom.get_theta(ir)
-            this_n = (tht - tht0) * t2grid # this ring in grid unit
-            slt = slice(max( int(np.rint(this_n - buft)), 0), min( int(np.rint(this_n  + buft)), re_f.shape[0]))
-            redi, imdi = fremap.remapping.solve_pixs(re_f[slt,:] , im_f[slt,:], np.ones(len(pixs)) * tht, phis, tht0, phi0, t2grid, p2grid)
-            sli = slice(startpix, startpix + len(pixs))
-            bwdang[0, sli] = redi
-            bwdang[1, sli] = imdi
-            startpix += len(pixs)
-        assert startpix == npix, (startpix, npix)
-        self.tim.add('bwd angles')
+            assert phis.size == pixs.size
+            thts = self.geom.get_theta(ir) * np.ones(pixs.size)
+            redi, imdi = fremap.remapping.solve_pixs(re_f, im_f, thts, phis, tht0, phi0, t2grid, p2grid)
+            bwdang = d2ang(redi, imdi, thts, phis, int(np.rint(self.geom.get_cth(ir))))
+            return bwdang
+        else:
+            return np.array([[],[]])
 
-        return bwdang
+    def _bwd_angles(self): #FIXME: feed the full map at once
+        fn = 'bwdang'
+        if not self.cacher.is_cached(fn):
+            self.tim.reset_t0()
+            self._init_d1()
+            (tht0, t2grid), (phi0, p2grid), (re_f, im_f) = self.d1.get_spline_info()
+            npix = Geom.pbounds2npix(self.geom, self._pbds)
+            bwdang = np.zeros((2, npix), dtype=float)
+            startpix = 0
+            for i, ir in enumerate_progress(range(self.geom.get_nrings())):
+                pixs = Geom.pbounds2pix(self.geom, ir, self._pbds)
+                if pixs.size > 0:
+                    phis = Geom.phis(self.geom, ir)[self._pbds.contains(Geom.phis(self.geom, ir))]
+                    assert phis.size == pixs.size
+                    thts = self.geom.get_theta(ir) * np.ones(pixs.size)
+                    redi, imdi = fremap.remapping.solve_pixs(re_f , im_f, thts, phis, tht0, phi0, t2grid, p2grid)
+                    sli = slice(startpix, startpix + len(pixs))
+                    bwdang[:, sli] = d2ang(redi, imdi, thts, phis, int(np.rint(self.geom.get_cth(ir))))
+                    #bwdang[0, sli] = redi
+                    #bwdang[1, sli] = imdi
+                    startpix += len(pixs)
+            assert startpix == npix, (startpix, npix)
+            self.cacher.cache(fn, bwdang)
+            self.tim.add('bwd angles')
+            return bwdang
+        return self.cacher.load(fn)
 
     def _fwd_magn(self):
         scjob = scarfjob()
         scjob.set_geometry(self.geom)
         scjob.set_triangular_alm_info(self.lmax_dlm, self.mmax_dlm)
         scjob.set_nthreads(self._sht_tr)
-        M = Geom.map2pbnmap(self.geom, utils_dlm.dlm2M(scjob, self.dlm, self.dclm), self._pbds)
-        return M
-
+        return Geom.map2pbnmap(self.geom, utils_dlm.dlm2M(scjob, self.dlm, self.dclm), self._pbds)
+        
     def _bwd_magn(self):
         """Builds inverse deflection magnification determinant
 
@@ -158,7 +180,6 @@ class deflection:
         if mmax_out is None: mmax_out = lmax_out
         interpjob = self._build_interpolator(glm, spin, clm=clm, mmax=mmax)
         self.tim.add('glm spin %s lmax %s interpolator setup'%(spin, Alm.getlmax(glm.size, mmax)))
-        # NB: could perform here unchecked interpolation, gain of 10-15% so not mindblowing
         thtn, phin = self._bwd_angles() if backwards else self._fwd_angles()
         self.tim.add('getting angles')
 

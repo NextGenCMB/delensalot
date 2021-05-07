@@ -67,13 +67,14 @@ module remapping
     contains
 
     subroutine d2ang_scal(Red, Imd, tht, phi, thtp, phip)
-        ! no phi modulo here. In principle double prec. accurate and avoiding any division by zero
+        ! In principle double prec. accurate and avoiding any division by zero
         ! version -1, 0, 1 for pints close to the north pole, equator or south pol
         implicit none
         double precision, intent(in) :: Red, Imd, tht, phi
         double precision, intent(out) :: thtp, phip
         double precision d, cost, costp, sind_d, sint, sintp, e_t, e_tp, e_d
         integer version
+        double precision :: PI2 = DPI * 2
 
         d = Red * Red + Imd * Imd
         if (d > 0.0001d0) then
@@ -88,7 +89,7 @@ module remapping
             cost = dcos(tht)
             costp = cost * dcos(d) - Red * sind_d * dsqrt(1.d0 - cost * cost)
             thtp = dacos(costp)
-            phip = phi + dasin(Imd / dsqrt(1. - costp * costp) * sind_d) ! ok except for absurdly large d
+            phip = modulo(phi + dasin(Imd / dsqrt(1. - costp * costp) * sind_d), PI2) ! ok except for absurdly large d
             return
         end if
         e_d = 2 * dsin(d * 0.5) ** 2
@@ -104,13 +105,15 @@ module remapping
             write(*, *) 'invalid version parameter (must be in (-1, 0, 1))', version
             error stop
         end if
-        sintp = dsqrt(e_tp * (2 - e_tp))
+        sintp = dsqrt(dabs(e_tp * (2 - e_tp)))
+        !: the abs is here to avoid machine roundoffs resulting in nans, when tht itself is machine precision to zero
+
         if (version ==  1) then
             thtp = dasin(sintp)
-            phip = phi + datan2( Imd * sind_d, (1.d0 - e_d) * sint + Red * sind_d * (1.d0 - e_t))
+            phip = modulo(phi + datan2( Imd * sind_d, (1.d0 - e_d) * sint + Red * sind_d * (1.d0 - e_t)), PI2)
         else
             thtp = DPI - dasin(sintp)
-            phip = phi + datan2( Imd * sind_d, (1.d0 - e_d) * sint + Red * sind_d * (e_t - 1.d0))
+            phip = modulo(phi + datan2( Imd * sind_d, (1.d0 - e_d) * sint + Red * sind_d * (e_t - 1.d0)), PI2)
         end if
         return
     end subroutine d2ang_scal
@@ -124,7 +127,7 @@ module remapping
         red = dsin(thtp - tht) - 2 * dsin(dphi * 0.5d0) ** 2 * dcos(tht) * sintp  ! Red sind / d
         imd = dsin(dphi) * sintp  ! Imd sind / d
         sind = dsqrt(red * red + imd * imd)
-        if (sind > 0) then
+        if (sind > 0d0) then
             norm = dasin(sind) / sind
             red = red * norm
             imd = imd * norm
@@ -133,6 +136,7 @@ module remapping
 
     subroutine solve_pix(nt_f, np_f, ref, imf, tht, phi, tht0, phi0, t2grid, p2grid, thti, phii, redi, imdi)
         ! scalar version of solve_ring
+        ! We should probably avoid tht on pole here as it make little sense to bicubic spline the deflection there
         use bicubic, only : eval
         implicit none
         double precision, intent(in) :: tht, tht0, phi0, t2grid, p2grid

@@ -8,7 +8,7 @@ from plancklens.utils import camb_clfile
 
 PBOUNDS = (0., 2 * np.pi)
 j = sj.scarfjob()
-j.set_ecp_geometry(100, 100,  tbounds=(0.0, np.pi))
+j.set_ecp_geometry(100, 100,  tbounds=(0.0, np.pi/10))
 
 lmaxin = 3999
 lmaxout = 2999
@@ -19,12 +19,13 @@ glm = hp.synalm(clee, new=True)
 plm = hp.synalm(clpp, new=True)
 
 
-dlm = 0 * hp.almxfl(plm, np.sqrt(np.arange(lmaxin + 1) * np.arange(1, lmaxin + 2)))
+dlm = hp.almxfl(plm, np.sqrt(np.arange(lmaxin + 1) * np.arange(1, lmaxin + 2)))
 
 
-d = remapping.deflection(j.geom, 1.7 * 16, PBOUNDS, dlm, 8, 8, cacher=cachers.cacher_mem())
+d = remapping.deflection(j.geom, 1.7, PBOUNDS, dlm, 8, 8, cacher=cachers.cacher_mem())
 
 def get_mi():
+    d._bwd_angles()
     return d._bwd_magn()
 
 

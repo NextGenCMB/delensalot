@@ -45,6 +45,7 @@ class Geom:
 
     @staticmethod
     def phis(geom:scarf.Geometry, ir):
+        assert ir < geom.get_nrings(), (ir, geom.get_nrings())
         nph = geom.get_nph(ir)
         return (geom.get_phi0(ir) + np.arange(nph) * (2 * np.pi  / nph)) % (2. * np.pi)
 
@@ -54,6 +55,7 @@ class Geom:
 
     @staticmethod
     def pbounds2pix(geom:scarf.Geometry, ir, pbs:pbounds):
+        assert ir < geom.get_nrings(), (ir, geom.get_nrings())
         pixs = geom.get_ofs(ir) + np.arange(geom.get_nph(ir), dtype=int)
         return pixs[pbs.contains(Geom.phis(geom, ir))]
 

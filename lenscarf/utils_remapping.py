@@ -58,7 +58,8 @@ def d2ang(red, imd, tht, phi, version):
 
         # -- Eq. for new co-latitude (always work fine), here written for 1 - cos tht in order not to lose precision
         e_tp = e_t + e_d - e_t * e_d + version * red * sind_d * sint  # 1 -+ cost'
-        sintp = np.sqrt(e_tp * (2 - e_tp))
+        sintp = np.sqrt(np.abs(e_tp * (2 - e_tp)))
+        # : the abs is here to avoid machine roundoffs resulting in nans, when tht itself is machine precision to zero
 
         # -- deflected coordinates
         if isnorth:
@@ -91,6 +92,6 @@ def ang2d(thtp, tht, dphi):
     sind = np.sqrt(red * red + imd * imd)
     pix = np.where(sind > 0)
     norm = np.arcsin(sind[pix]) / sind[pix]
-    red[pix] *= norm[pix]
-    imd[pix] *= norm[pix]
+    red[pix] *= norm
+    imd[pix] *= norm
     return red, imd
