@@ -8,7 +8,8 @@ from lenscarf.skypatch import skypatch
 from lenscarf.utils_scarf import scarfjob
 import numpy as np
 import pyfftw
-from omppol.src import bicubic #:FIXME
+from lenscarf.fortran import bicubic
+
 class bicubic_ecp_interpolator:
     """Spin-weighted bicubic spline interpolator on a patch of the sky.
 

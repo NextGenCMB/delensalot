@@ -4,7 +4,7 @@ import numpy as np
 from lenscarf.utils_remapping import d2ang, ang2d
 
 def exactpixel_solver(defl:remapping.deflection, ir:int, ip:int):
-    """Solves the inversion 'exactly' (without splines but brute-force SHT) for a single pixel
+    """Solves the deflection field inversion 'exactly' (without splines but brute-force SHT) for a single pixel
 
     """
     defl._init_d1()
@@ -13,7 +13,7 @@ def exactpixel_solver(defl:remapping.deflection, ir:int, ip:int):
     sc_job_pixel.set_nthreads(1)
     sc_job_pixel.set_triangular_alm_info(defl.lmax_dlm, defl.mmax_dlm)
 
-    sc_job_check.set_nthreads(8)
+    sc_job_check.set_nthreads(1)
     sc_job_check.set_triangular_alm_info(defl.lmax_dlm, defl.mmax_dlm)
     dclm = [defl.dlm, defl.dlm * 0]
 
