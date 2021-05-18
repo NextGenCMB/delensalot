@@ -138,8 +138,16 @@ class scarfjob:
     def n_pix(self):
         return np.sum(self.geom.nph)
 
-    def set_healpix_geometry(self, nside):
-        self.geom = scarf.healpix_geometry(nside, 1)
+    def set_healpix_geometry(self, nside, zbounds=(-1,1.)):
+        hp_geom = scarf.healpix_geometry(nside, 1)
+        if zbounds[0] > -1. or zbounds[1] < 1.:
+            ri, = np.where( (hp_geom.cth >= zbounds[0]) & (hp_geom.cth <= zbounds[1]))
+            assert ri.size > 0, 'empty geometry'
+            nph = hp_geom.nph[ri]
+            ofs = np.insert(np.cumsum(nph[:-1]), 0, 0)
+            self.geom = scarf.Geometry(ri.size, nph, ofs, 1, hp_geom.phi0[ri], hp_geom.theta[ri], hp_geom.weight[ri])
+        else:
+            self.geom = hp_geom
 
     def set_ecp_geometry(self, nlat, nlon, phi_center=np.pi, tbounds=(0., np.pi)):
         r"""Cylindrical grid equidistant in longitude and latitudes, between the provided co-latitude bounds
