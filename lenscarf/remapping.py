@@ -133,13 +133,37 @@ class deflection:
                     redi, imdi = fremap.remapping.solve_pixs(re_f , im_f, thts, phis, tht0, phi0, t2grid, p2grid)
                     sli = slice(startpix, startpix + len(pixs))
                     bwdang[:, sli] = d2ang(redi, imdi, thts, phis, int(np.rint(self.geom.get_cth(ir))))
-                    #bwdang[0, sli] = redi
-                    #bwdang[1, sli] = imdi
                     startpix += len(pixs)
             assert startpix == npix, (startpix, npix)
             self.cacher.cache(fn, bwdang)
             self.tim.add('bwd angles')
             return bwdang
+        return self.cacher.load(fn)
+
+    def _fwd_polrot(self):
+        fn = 'fwdpolrot'
+        if not self.cacher.is_cached(fn):
+            npix = Geom.pbounds2npix(self.geom, self._pbds)
+            dclm = np.zeros_like(self.dlm) if self.dclm is None else self.dclm
+            red, imd = self.geom.alm2map_spin([self.dlm, dclm], 1, self.lmax_dlm, self.mmax_dlm, self._sht_tr, [-1., 1.])
+            d = np.sqrt(red ** 2 + imd ** 2)
+            gamma = np.zeros(npix, dtype=float)
+            startpix = 0
+            for ir, tht in enumerate_progress(self.geom.theta):
+                pixs = Geom.pbounds2pix(self.geom, ir, self._pbds)
+                if pixs.size > 0:
+                    phis = Geom.phis(self.geom, ir)[self._pbds.contains(Geom.phis(self.geom, ir))]
+                    assert phis.size == pixs.size
+                    sli = slice(startpix, startpix + len(pixs))
+                    startpix += len(pixs)
+                    assert 0 < tht < np.pi, 'Fix this'
+                    cot = self.geom.get_cth(ir) / self.geom.get_sth(ir)
+                    gamma[sli]  = np.arctan2(imd[pixs], red[pixs])
+                    gamma[sli] -= np.arctan2(imd[pixs], d[pixs] * np.sin(d[pixs]) * cot + red[pixs] * np.cos(d[pixs]))
+            assert startpix == npix, (startpix, npix)
+            self.cacher.cache(fn,gamma)
+            self.tim.add('polrot, fwd')
+            return gamma
         return self.cacher.load(fn)
 
     def _fwd_magn(self):
@@ -154,27 +178,62 @@ class deflection:
 
 
         """
-        self.tim.reset_t0()
-        scjob = scarfjob()
-        scjob.set_geometry(self.geom)
-        scjob.set_triangular_alm_info(self.lmax_dlm, self.mmax_dlm)
-        scjob.set_nthreads(self._sht_tr)
-        thti, phii = self._bwd_angles()
-        redimd = np.zeros((2, Geom.npix(scjob.geom)), dtype=float)
-        start = 0
-        for it, tht in enumerate_progress(self.geom.theta, label='collecting red imd'):
-            pixs = Geom.pbounds2pix(self.geom, it, self._pbds)
-            if pixs.size > 0:
-                phis = Geom.phis(self.geom, it)[self._pbds.contains(Geom.phis(self.geom, it))]
-                sli = slice(start, start+pixs.size)
-                redimd[:, pixs] = ang2d(thti[sli], tht * np.ones(pixs.size), phii[sli] -phis)
-                start += pixs.size
-        assert start == thti.size
-        self.tim.add('collecting red imd for Mi')
-        dlm, dclm = scjob.map2alm_spin(redimd, 1)
-        Mi = Geom.map2pbnmap(self.geom, utils_dlm.dlm2M(scjob, dlm, dclm), self._pbds)
-        self.tim.add('Mi SHTs')
-        return Mi, dlm, dclm
+        fn = 'bwdmagn'
+        if not self.cacher.is_cached(fn):
+            self.tim.reset_t0()
+            scjob = scarfjob()
+            scjob.set_geometry(self.geom)
+            scjob.set_triangular_alm_info(self.lmax_dlm, self.mmax_dlm)
+            scjob.set_nthreads(self._sht_tr)
+            thti, phii = self._bwd_angles()
+            redimd = np.zeros((2, Geom.npix(scjob.geom)), dtype=float)
+            start = 0
+            for it, tht in enumerate_progress(self.geom.theta, label='collecting red imd'):
+                pixs = Geom.pbounds2pix(self.geom, it, self._pbds)
+                if pixs.size > 0:
+                    phis = Geom.phis(self.geom, it)[self._pbds.contains(Geom.phis(self.geom, it))]
+                    sli = slice(start, start+pixs.size)
+                    redimd[:, pixs] = ang2d(thti[sli], tht * np.ones(pixs.size), phii[sli] -phis)
+                    start += pixs.size
+            assert start == thti.size
+            self.tim.add('collecting red imd for Mi')
+            dlm, dclm = scjob.map2alm_spin(redimd, 1)
+            Mi = Geom.map2pbnmap(self.geom, utils_dlm.dlm2M(scjob, dlm, dclm), self._pbds)
+            self.tim.add('Mi SHTs')
+            self.cacher.cache(fn, Mi)
+        return self.cacher.load(fn)
+
+    def _bwd_polrot(self):
+        """Builds inverse deflection polarisation rotation angles
+
+
+        """
+        fn = 'bwdpolrot'
+        if not self.cacher.is_cached(fn):
+            self.tim.reset_t0()
+            scjob = scarfjob()
+            scjob.set_geometry(self.geom)
+            scjob.set_triangular_alm_info(self.lmax_dlm, self.mmax_dlm)
+            scjob.set_nthreads(self._sht_tr)
+            thti, phii = self._bwd_angles()
+            gamma = np.zeros(Geom.npix(scjob.geom), dtype=float)
+            start = 0
+            for it, tht in enumerate_progress(self.geom.theta, label='collecting red imd'):
+                pixs = Geom.pbounds2pix(self.geom, it, self._pbds)
+                if pixs.size > 0:
+                    phis = Geom.phis(self.geom, it)[self._pbds.contains(Geom.phis(self.geom, it))]
+                    sli = slice(start, start+pixs.size)
+                    red, imd = ang2d(thti[sli], tht * np.ones(pixs.size), phii[sli] -phis)
+                    start += pixs.size
+                    assert 0 < tht < np.pi, 'Fix this'
+                    cot = self.geom.get_cth(it) / self.geom.get_sth(it)
+                    d = np.sqrt(red ** 2 + imd ** 2)
+                    gamma[sli]  = np.arctan2(imd[pixs], red[pixs])
+                    gamma[sli] -= np.arctan2(imd[pixs],  d[pixs] * np.sin(d[pixs]) * cot + red[pixs] * np.cos(d[pixs]))
+            assert start == thti.size
+            self.tim.add('bwd polrot')
+            self.cacher.cache(fn, gamma)
+        return self.cacher.load(fn)
 
     def lensgclm(self, glm, spin, lmax_out, backwards=False, clm=None, mmax=None, mmax_out=None):
 
@@ -189,12 +248,13 @@ class deflection:
         if spin == 0:
             lenm =  Geom.pbdmap2map(self.geom, lenm_pbded, self._pbds)
         else:
-            lenm = [Geom.pbdmap2map(self.geom, lenm_pbded[0], self._pbds),
-                    Geom.pbdmap2map(self.geom, lenm_pbded[1], self._pbds)]
-        self.tim.add('truncated array filling')
+            gamma = self._bwd_polrot if backwards else self._fwd_polrot
+            lenm_pbded = np.exp(1j * spin * gamma()) * (lenm_pbded[0] + 1j * lenm_pbded[1])
+            self.tim.add('pol rot')
 
-        #FIXME: polarization rotation
-        # --- going back to alm:
+            lenm = [Geom.pbdmap2map(self.geom, lenm_pbded.real, self._pbds),
+                    Geom.pbdmap2map(self.geom, lenm_pbded.imag, self._pbds)]
+        self.tim.add('truncated array filling')
         if spin > 0:
             gclm_len = self.geom.map2alm_spin(lenm, spin, lmax_out, mmax_out, self._sht_tr, [-1.,1.])
         else:
