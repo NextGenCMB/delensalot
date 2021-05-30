@@ -65,22 +65,30 @@ class Geom:
     def rings2tht(geom: scarf.Geometry, rings: np.ndarray):
         return np.concatenate([geom.theta[ir] * np.ones(geom.nph[ir]) for ir in rings])
 
+
     @staticmethod
     def pbounds2pix(geom:scarf.Geometry, ir, pbs:pbounds):
+        """Returns pixels (unsorted) of geometry maps within longitude bounds
+
+        """
         assert ir < geom.get_nrings(), (ir, geom.get_nrings())
-        pixs = geom.get_ofs(ir) + np.arange(geom.get_nph(ir), dtype=int)
-        return pixs[pbs.contains(Geom.phis(geom, ir))]
+        jmin = geom.nph[ir] * (((pbs.pctr - pbs.hext - geom.phi0[ir]) / (2 * np.pi)) % 1.)
+        jmax = jmin + geom.nph[ir] * pbs.get_range() / (2. * np.pi)
+        return geom.ofs[ir] + np.arange(int(np.ceil(jmin)), int(np.floor(jmax)) + 1) % geom.nph[ir]
 
     @staticmethod
     def pbounds2npix(geom:scarf.Geometry, pbs:pbounds):
+        """Returns total number of pixels within longitudinal bounds
+
+        """
         if pbs.get_range() >= (2. * np.pi) : return Geom.npix(geom)
-        npix = 0
-        for ir in range(geom.get_nrings()):
-            npix += np.sum(pbs.contains(Geom.phis(geom, ir))) #FIXME: hack
-        return npix
+        jmins = geom.nph * (((pbs.pctr - pbs.hext - geom.phi0) / (2 * np.pi)) % 1.)
+        jmaxs = jmins + geom.nph * pbs.get_range() / (2. * np.pi)
+        return np.sum(np.floor(jmaxs).astype(int) - np.ceil(jmins).astype(int)) + jmaxs.size
+
 
     @staticmethod
-    def pbdmap2map(geom:scarf.Geometry, m_bnd:np.ndarray, pbs:pbounds):#FIXME: hack
+    def pbdmap2map(geom:scarf.Geometry, m_bnd:np.ndarray, pbs:pbounds):
         """Converts a map defined on longitude cuts back to the input geometry with full longitude range
 
             Note:
@@ -89,16 +97,20 @@ class Geom:
         """
         assert Geom.pbounds2npix(geom, pbs) == m_bnd.size, ('incompatible arrays size', (Geom.npix(geom), m_bnd.size))
         if pbs.get_range() >= (2. * np.pi) : return m_bnd
+        jmins = geom.nph * ( ((pbs.pctr - pbs.hext - geom.phi0) / (2 * np.pi)) % 1. )
+        jmaxs = np.floor(jmins + geom.nph * pbs.get_range() / (2. * np.pi)).astype(int)
+        jmins = np.ceil(jmins).astype(int)
         m = np.zeros(Geom.npix(geom), dtype=m_bnd.dtype)
         start = 0
-        for ir in range(geom.get_nrings()):
-            pixs = Geom.pbounds2pix(geom, ir, pbs)
+        for ir, (jmin, jmax) in enumerate(zip(jmins, jmaxs)):
+            pixs = geom.ofs[ir] + np.arange(jmin, jmax + 1)%geom.nph[ir]
             m[pixs] = m_bnd[start:start + pixs.size]
             start += pixs.size
         return m
 
+
     @staticmethod
-    def map2pbnmap(geom:scarf.Geometry, m:np.ndarray, pbs:pbounds):#FIXME: hack
+    def map2pbnmap(geom:scarf.Geometry, m:np.ndarray, pbs:pbounds):
         """Converts a map defined by the input geometry to a small array according to input longitude cuts
 
             Note:
@@ -107,13 +119,17 @@ class Geom:
         """
         assert Geom.npix(geom) == m.size, ('incompatible arrays size', (Geom.npix(geom), m.size))
         if pbs.get_range() >= (2. * np.pi) : return m
-        m_bnd = np.zeros(Geom.pbounds2npix(geom, pbs), dtype=m.dtype)
+        jmins = geom.nph * (((pbs.pctr - pbs.hext - geom.phi0) / (2 * np.pi)) % 1.)
+        jmaxs = np.floor(jmins + geom.nph * pbs.get_range() / (2. * np.pi)).astype(int)
+        jmins = np.ceil(jmins).astype(int)
+        m_bnd = np.empty(np.sum(jmaxs - jmins) + jmaxs.size, dtype=m.dtype)
         start = 0
-        for ir in range(geom.get_nrings()):
-            pixs = Geom.pbounds2pix(geom, ir, pbs)
+        for ir, (jmin, jmax) in enumerate(zip(jmins, jmaxs)):
+            pixs = geom.ofs[ir] + np.arange(jmin, jmax + 1)%geom.nph[ir]
             m_bnd[start:start + pixs.size] = m[pixs]
             start += pixs.size
         return m_bnd
+
 
 class scarfjob:
     r"""SHT job instance emulating existing ducc python bindings
@@ -140,11 +156,12 @@ class scarfjob:
 
     def set_healpix_geometry(self, nside, zbounds=(-1,1.)):
         hp_geom = scarf.healpix_geometry(nside, 1)
+        tbounds = np.arccos(zbounds)
         if zbounds[0] > -1. or zbounds[1] < 1.:
-            ri, = np.where( (hp_geom.cth >= zbounds[0]) & (hp_geom.cth <= zbounds[1]))
+            ri, = np.where( (hp_geom.theta >= tbounds[1]) & (hp_geom.theta <= tbounds[0]))
             assert ri.size > 0, 'empty geometry'
             nph = hp_geom.nph[ri]
-            ofs = np.insert(np.cumsum(nph[:-1]), 0, 0)
+            ofs = hp_geom.ofs[ri] - np.min(hp_geom.ofs[ri])
             self.geom = scarf.Geometry(ri.size, nph, ofs, 1, hp_geom.phi0[ri], hp_geom.theta[ri], hp_geom.weight[ri])
         else:
             self.geom = hp_geom
