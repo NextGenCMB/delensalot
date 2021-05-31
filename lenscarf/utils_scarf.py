@@ -3,6 +3,8 @@ import numpy as np
 import scarf
 from lenscarf.utils_sht import st2mmax, lowprimes
 
+Geometry = scarf.Geometry
+
 class pbounds:
     """Class to regroup simple functions handling sky maps longitude truncation
 
@@ -83,7 +85,7 @@ class Geom:
         """
         if pbs.get_range() >= (2. * np.pi) : return Geom.npix(geom)
         jmins = geom.nph * (((pbs.pctr - pbs.hext - geom.phi0) / (2 * np.pi)) % 1.)
-        jmaxs = jmins + geom.nph * pbs.get_range() / (2. * np.pi)
+        jmaxs = jmins + geom.nph * (pbs.get_range() / (2. * np.pi))
         return np.sum(np.floor(jmaxs).astype(int) - np.ceil(jmins).astype(int)) + jmaxs.size
 
 
@@ -98,7 +100,7 @@ class Geom:
         assert Geom.pbounds2npix(geom, pbs) == m_bnd.size, ('incompatible arrays size', (Geom.npix(geom), m_bnd.size))
         if pbs.get_range() >= (2. * np.pi) : return m_bnd
         jmins = geom.nph * ( ((pbs.pctr - pbs.hext - geom.phi0) / (2 * np.pi)) % 1. )
-        jmaxs = np.floor(jmins + geom.nph * pbs.get_range() / (2. * np.pi)).astype(int)
+        jmaxs = np.floor(jmins + geom.nph * (pbs.get_range() / (2. * np.pi))).astype(int)
         jmins = np.ceil(jmins).astype(int)
         m = np.zeros(Geom.npix(geom), dtype=m_bnd.dtype)
         start = 0
@@ -120,7 +122,7 @@ class Geom:
         assert Geom.npix(geom) == m.size, ('incompatible arrays size', (Geom.npix(geom), m.size))
         if pbs.get_range() >= (2. * np.pi) : return m
         jmins = geom.nph * (((pbs.pctr - pbs.hext - geom.phi0) / (2 * np.pi)) % 1.)
-        jmaxs = np.floor(jmins + geom.nph * pbs.get_range() / (2. * np.pi)).astype(int)
+        jmaxs = np.floor(jmins + geom.nph * (pbs.get_range() / (2. * np.pi))).astype(int)
         jmins = np.ceil(jmins).astype(int)
         m_bnd = np.empty(np.sum(jmaxs - jmins) + jmaxs.size, dtype=m.dtype)
         start = 0

@@ -13,7 +13,7 @@ import numpy as np
 
 class deflection:
     def __init__(self, scarf_geometry:scarf.Geometry, targetres_amin, p_bounds:tuple, dlm, fftw_threads, scarf_threads,
-                 cacher:cachers.cacher = cachers.cacher_none(), dclm:np.ndarray or None=None, mmax=None):
+                 cacher:cachers.cacher or None=None, dclm:np.ndarray or None=None, mmax=None):
         """Deflection field object than can be used to lens several maps with forward or backward deflection
 
             Args:
@@ -37,6 +37,7 @@ class deflection:
         #self.sky_patch = skypatch(tht_bounds, p_bounds, targetres_amin, pole_buffers=3)
         lmax = Alm.getlmax(dlm.size, mmax)
         if mmax is None: mmax = lmax
+        if cacher is None: cacher = cachers.cacher_none()
 
         self.dlm = dlm
         self.dclm = dclm
@@ -89,7 +90,7 @@ class deflection:
                     phis = Geom.phis(self.geom, ir)[self._pbds.contains(Geom.phis(self.geom, ir))]
                     assert phis.size == pixs.size, (phis.size, pixs.size)
                     thts = self.geom.get_theta(ir) * np.ones(pixs.size)
-                    thtp_, phip_ = d2ang(red[pixs], imd[pixs], thts , phis, int(np.round(self.geom.get_cth(ir))))
+                    thtp_, phip_ = d2ang(red[pixs], imd[pixs], thts , phis, int(np.round(np.cos(self.geom.theta[ir]))))
                     sli = slice(startpix, startpix + len(pixs))
                     thp_phip[0, sli] = thtp_
                     thp_phip[1, sli] = phip_
@@ -109,7 +110,7 @@ class deflection:
             assert phis.size == pixs.size
             thts = self.geom.get_theta(ir) * np.ones(pixs.size)
             redi, imdi = fremap.remapping.solve_pixs(re_f, im_f, thts, phis, tht0, phi0, t2grid, p2grid)
-            bwdang = d2ang(redi, imdi, thts, phis, int(np.rint(self.geom.get_cth(ir))))
+            bwdang = d2ang(redi, imdi, thts, phis, int(np.rint(np.cos(self.geom.theta(ir)))))
             return bwdang
         else:
             return np.array([[],[]])
@@ -132,7 +133,7 @@ class deflection:
                     thts = self.geom.get_theta(ir) * np.ones(pixs.size)
                     redi, imdi = fremap.remapping.solve_pixs(re_f , im_f, thts, phis, tht0, phi0, t2grid, p2grid)
                     sli = slice(startpix, startpix + len(pixs))
-                    bwdang[:, sli] = d2ang(redi, imdi, thts, phis, int(np.rint(self.geom.get_cth(ir))))
+                    bwdang[:, sli] = d2ang(redi, imdi, thts, phis, int(np.rint(np.cos(self.geom.theta[ir]))))
                     startpix += len(pixs)
             assert startpix == npix, (startpix, npix)
             self.cacher.cache(fn, bwdang)
@@ -157,7 +158,7 @@ class deflection:
                     sli = slice(startpix, startpix + len(pixs))
                     startpix += len(pixs)
                     assert 0 < tht < np.pi, 'Fix this'
-                    cot = self.geom.get_cth(ir) / self.geom.get_sth(ir)
+                    cot = np.cos(self.geom.theta[ir]) / np.sin(self.geom.theta[ir])
                     gamma[sli]  = np.arctan2(imd[pixs], red[pixs])
                     gamma[sli] -= np.arctan2(imd[pixs], d[pixs] * np.sin(d[pixs]) * cot + red[pixs] * np.cos(d[pixs]))
             assert startpix == npix, (startpix, npix)
@@ -216,7 +217,7 @@ class deflection:
             scjob.set_triangular_alm_info(self.lmax_dlm, self.mmax_dlm)
             scjob.set_nthreads(self._sht_tr)
             thti, phii = self._bwd_angles()
-            gamma = np.zeros(Geom.npix(scjob.geom), dtype=float)
+            gamma = np.zeros(Geom.pbounds2npix(self.geom, self._pbds), dtype=float)
             start = 0
             for it, tht in enumerate_progress(self.geom.theta, label='collecting red imd'):
                 pixs = Geom.pbounds2pix(self.geom, it, self._pbds)
@@ -224,19 +225,20 @@ class deflection:
                     phis = Geom.phis(self.geom, it)[self._pbds.contains(Geom.phis(self.geom, it))]
                     sli = slice(start, start+pixs.size)
                     red, imd = ang2d(thti[sli], tht * np.ones(pixs.size), phii[sli] -phis)
-                    start += pixs.size
                     assert 0 < tht < np.pi, 'Fix this'
-                    cot = self.geom.get_cth(it) / self.geom.get_sth(it)
+                    cot = np.cos(self.geom.theta[it]) / np.sin(self.geom.theta[it])
                     d = np.sqrt(red ** 2 + imd ** 2)
-                    gamma[sli]  = np.arctan2(imd[pixs], red[pixs])
-                    gamma[sli] -= np.arctan2(imd[pixs],  d[pixs] * np.sin(d[pixs]) * cot + red[pixs] * np.cos(d[pixs]))
+                    gamma[sli]  = np.arctan2(imd, red)
+                    gamma[sli] -= np.arctan2(imd, d * np.sin(d) * cot + red * np.cos(d))
+                    start += pixs.size
+
             assert start == thti.size
             self.tim.add('bwd polrot')
             self.cacher.cache(fn, gamma)
         return self.cacher.load(fn)
 
     def lensgclm(self, glm, spin, lmax_out, backwards=False, clm=None, mmax=None, mmax_out=None):
-
+        #TODO: save only grid angles and full phase factor
         if mmax_out is None: mmax_out = lmax_out
         interpjob = self._build_interpolator(glm, spin, clm=clm, mmax=mmax)
         self.tim.add('glm spin %s lmax %s interpolator setup'%(spin, Alm.getlmax(glm.size, mmax)))
@@ -246,12 +248,17 @@ class deflection:
         lenm_pbded = interpjob.eval(thtn, phin)
         self.tim.add('interpolation')
         if spin == 0:
+            if backwards:
+                lenm_pbded *= self._bwd_magn()
+            self.tim.add('det Mi')
             lenm =  Geom.pbdmap2map(self.geom, lenm_pbded, self._pbds)
         else:
             gamma = self._bwd_polrot if backwards else self._fwd_polrot
             lenm_pbded = np.exp(1j * spin * gamma()) * (lenm_pbded[0] + 1j * lenm_pbded[1])
             self.tim.add('pol rot')
-
+            if backwards:
+                lenm_pbded *= self._bwd_magn()
+            self.tim.add('det Mi')
             lenm = [Geom.pbdmap2map(self.geom, lenm_pbded.real, self._pbds),
                     Geom.pbdmap2map(self.geom, lenm_pbded.imag, self._pbds)]
         self.tim.add('truncated array filling')

@@ -93,3 +93,28 @@ def enumerate_progress(lst:list or np.ndarray, label=''):
             sys.stdout.flush()
     sys.stdout.write("\n")
     sys.stdout.flush()
+
+def read_map(m):
+    """Reads a map whether given as (list of) string (with ',f' denoting field f), array or callable
+
+    """
+    if callable(m):
+        return m()
+    if isinstance(m, list):
+        ma = read_map(m[0])
+        for m2 in m[1:]:
+            ma *= read_map(m2)
+        return ma
+    if not isinstance(m, str):
+        return m
+    if '.npy' in m:
+        return np.load(m)
+    elif '.fits' in m:
+        #FIXME
+        import healpy as hp
+        if ',' not in m:
+            return hp.read_map(m)
+        m, field = m.split(',')
+        return hp.read_map(m, field=int(field))
+    else:
+        assert 0, 'cant tell what to do with ' + m
