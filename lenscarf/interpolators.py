@@ -29,7 +29,7 @@ class bicubic_ecp_interpolator:
             On first instantiation pyfftw spends some extra time calculating a FFT plan
 
     """
-    def __init__(self, spin, glm, patch:skypatch, sht_threads, fftw_threads, clm=None, mmax=None):
+    def __init__(self, spin:int, glm, patch:skypatch, sht_threads:int, fftw_threads:int, clm=None, mmax=None):
         # Defines latitude grid from input bounds:
         assert spin >= 0, spin
         tim = timer(True, prefix='spinfield bicubic interpolator')

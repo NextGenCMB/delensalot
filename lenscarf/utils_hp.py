@@ -37,7 +37,7 @@ def almxfl(alm:np.ndarray, fl:np.ndarray, mmax:int or None, inplace:bool):
         return ret
 
 
-def gauss_beam(fwhm, lmax):
+def gauss_beam(fwhm:float, lmax:int):
     """Gaussian beam
 
     Parameters
@@ -47,13 +47,16 @@ def gauss_beam(fwhm, lmax):
     lmax : int
         Maximum multipole of the beam
 
+    Returns
+    -------
+    bl: ndarray
+        The beam transfer function from multipole 0 to lmax
+
 
     """
-    sigma = fwhm / np.sqrt(8.0 * np.log(2.0))
-    ell = np.arange(lmax + 1)
-    sigma2 = sigma ** 2
-    return np.exp(-0.5 * ell * (ell + 1) * sigma2)
-
+    l = np.arange(lmax + 1)
+    bl = np.exp(-0.5 * l * (l + 1) *  (fwhm / np.sqrt(8.0 * np.log(2.0))) ** 2)
+    return bl
 
 class Alm:
     """alm arrays useful statics. Directly from healpy but excluding keywords

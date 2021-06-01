@@ -74,6 +74,8 @@ class Geom:
 
         """
         assert ir < geom.get_nrings(), (ir, geom.get_nrings())
+        if pbs.get_range() >= (2. * np.pi) :
+            return geom.ofs[ir] + np.arange(geom.nph[ir], dtype=int)
         jmin = geom.nph[ir] * (((pbs.pctr - pbs.hext - geom.phi0[ir]) / (2 * np.pi)) % 1.)
         jmax = jmin + geom.nph[ir] * pbs.get_range() / (2. * np.pi)
         return geom.ofs[ir] + np.arange(int(np.ceil(jmin)), int(np.floor(jmax)) + 1) % geom.nph[ir]
@@ -98,7 +100,8 @@ class Geom:
 
         """
         assert Geom.pbounds2npix(geom, pbs) == m_bnd.size, ('incompatible arrays size', (Geom.npix(geom), m_bnd.size))
-        if pbs.get_range() >= (2. * np.pi) : return m_bnd
+        if pbs.get_range() >= (2. * np.pi) :
+            return m_bnd
         jmins = geom.nph * ( ((pbs.pctr - pbs.hext - geom.phi0) / (2 * np.pi)) % 1. )
         jmaxs = np.floor(jmins + geom.nph * (pbs.get_range() / (2. * np.pi))).astype(int)
         jmins = np.ceil(jmins).astype(int)
@@ -120,7 +123,8 @@ class Geom:
 
         """
         assert Geom.npix(geom) == m.size, ('incompatible arrays size', (Geom.npix(geom), m.size))
-        if pbs.get_range() >= (2. * np.pi) : return m
+        if pbs.get_range() >= (2. * np.pi) :
+            return m
         jmins = geom.nph * (((pbs.pctr - pbs.hext - geom.phi0) / (2 * np.pi)) % 1.)
         jmaxs = np.floor(jmins + geom.nph * (pbs.get_range() / (2. * np.pi))).astype(int)
         jmins = np.ceil(jmins).astype(int)

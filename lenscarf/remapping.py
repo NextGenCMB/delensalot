@@ -87,7 +87,7 @@ class deflection:
             for ir in range(nrings):
                 pixs = Geom.pbounds2pix(self.geom, ir, self._pbds)
                 if pixs.size > 0:
-                    phis = Geom.phis(self.geom, ir)[self._pbds.contains(Geom.phis(self.geom, ir))]
+                    phis = Geom.phis(self.geom, ir)[pixs - self.geom.ofs[ir]]
                     assert phis.size == pixs.size, (phis.size, pixs.size)
                     thts = self.geom.get_theta(ir) * np.ones(pixs.size)
                     thtp_, phip_ = d2ang(red[pixs], imd[pixs], thts , phis, int(np.round(np.cos(self.geom.theta[ir]))))
@@ -115,8 +115,36 @@ class deflection:
         else:
             return np.array([[],[]])
 
+    def _bwd_angles(self):
+        fn = 'bwdang'
+        if not self.cacher.is_cached(fn):
+            self.tim.reset_t0()
+            self._init_d1()
+            (tht0, t2grid), (phi0, p2grid), (re_f, im_f) = self.d1.get_spline_info()
+            npix = Geom.pbounds2npix(self.geom, self._pbds)
+            nrings = self.geom.get_nrings()
+            # build full angles arrays
+            thts = np.empty(npix, dtype=float)
+            phis = np.empty(npix, dtype=float)
+            starts = np.zeros(nrings + 1, dtype=int)
+            for i, ir in enumerate_progress(range(nrings)):
+                pixs = Geom.pbounds2pix(self.geom, ir, self._pbds)
+                starts[ir + 1] = starts[ir] + pixs.size
+                if pixs.size > 0:
+                    thts[starts[ir] : starts[ir + 1]] = self.geom.get_theta(ir) * np.ones(pixs.size)
+                    phis[starts[ir] : starts[ir + 1]] = Geom.phis(self.geom, ir)[pixs - self.geom.ofs[ir]]
+            redi, imdi = fremap.remapping.solve_pixs(re_f, im_f, thts, phis, tht0, phi0, t2grid, p2grid)
+            bwdang = np.zeros((2, npix), dtype=float)
+            for i, ir in enumerate_progress(range(nrings)):
+                vt = int(np.rint(np.cos(self.geom.theta[ir])))
+                sli = slice(starts[ir], starts[ir + 1])
+                bwdang[:, sli] = d2ang(redi[sli], imdi[sli], thts[sli], phis[sli], vt)
+            self.cacher.cache(fn, bwdang)
+            self.tim.add('bwd angles (full map)')
+            return bwdang
+        return self.cacher.load(fn)
 
-    def _bwd_angles(self): #FIXME: feed the full map at once
+    def _bwd_angles_serial(self): #FIXME: feed the full map at once
         fn = 'bwdang'
         if not self.cacher.is_cached(fn):
             self.tim.reset_t0()
@@ -128,7 +156,7 @@ class deflection:
             for i, ir in enumerate_progress(range(self.geom.get_nrings())):
                 pixs = Geom.pbounds2pix(self.geom, ir, self._pbds)
                 if pixs.size > 0:
-                    phis = Geom.phis(self.geom, ir)[self._pbds.contains(Geom.phis(self.geom, ir))]
+                    phis = Geom.phis(self.geom, ir)[pixs - self.geom.ofs[ir]]
                     assert phis.size == pixs.size
                     thts = self.geom.get_theta(ir) * np.ones(pixs.size)
                     redi, imdi = fremap.remapping.solve_pixs(re_f , im_f, thts, phis, tht0, phi0, t2grid, p2grid)

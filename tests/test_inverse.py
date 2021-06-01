@@ -7,7 +7,7 @@ from lenscarf.utils_remapping import d2ang, ang2d
 
 from plancklens.utils import camb_clfile
 
-PBOUNDS = [0., 2 * np.pi]
+PBOUNDS = (0., 2 * np.pi)
 j = sj.scarfjob()
 #j.set_thingauss_geometry(3999, smax=2, zbounds=(0.9, 1))
 j.set_ecp_geometry(100, 100, tbounds=(0.0, np.pi / 10))  # This one is more tricky since has th == 0
