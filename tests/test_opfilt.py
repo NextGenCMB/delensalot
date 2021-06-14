@@ -1,4 +1,5 @@
 import numpy as np
+import os
 from time import time
 import scarf
 from lenscarf import remapping
@@ -16,10 +17,15 @@ sht_threads = 8
 fftw_threads = 8
 fwhm = 2.3
 targetres_amin=2.
-
 lensjob, pbds = utils_config.cmbs4_08b_healpix()
 lensgeom = lensjob.geom
 ninvgeom = lensjob.geom
+
+IPVMAP = '/global/cscratch1/sd/jcarron/cmbs4/temp/s08b/cILC2021_00/ipvmap.fits'
+if not os.path.exists(IPVMAP):
+    IPVMAP = '/Users/jcarron/OneDrive - unige.ch/cmbs4/inputs/ipvmap.fits'
+
+
 
 # build slice for zbounded hp:
 hp_geom = scarf.healpix_geometry(2048, 1)
@@ -31,7 +37,8 @@ cldd = camb_clfile('../lenscarf/data/cls/FFP10_wdipole_lenspotentialCls.dat')['p
 cldd *= np.sqrt(np.arange(lmax_dlm + 1) *  np.arange(1, lmax_dlm + 2))
 dlm = hp.synalm(cldd, new=True)
 
-cacher = cachers.cacher_npy('/Users/jcarron/OneDrive - unige.ch/lenscarf/temp/test_opfilt')
+#cacher = cachers.cacher_npy('/Users/jcarron/OneDrive - unige.ch/lenscarf/temp/test_opfilt')
+cacher = cachers.cacher_mem()
 d = remapping.deflection(lensgeom, targetres_amin, pbds, dlm, sht_threads, fftw_threads, cacher=cacher)
 
 
@@ -44,7 +51,7 @@ d._bwd_angles()
 print('inverse deflection: %.2fs'%(time() - t0))
 # ninv filter:
 transf = utils_hp.gauss_beam(fwhm, lmax_len)
-n_inv = [np.nan_to_num(utils.read_map(['/Users/jcarron/OneDrive - unige.ch/cmbs4/inputs/ipvmap.fits'])[hp_start:hp_end])]
+n_inv = [np.nan_to_num(utils.read_map(IPVMAP)[hp_start:hp_end])]
 opfilt = opfilt_pp.alm_filter_ninv_wl(ninvgeom, n_inv, d,  transf, (lmax_len, lmax_len), (lmax_unl, lmax_unl), sht_threads)
 
 elm = np.zeros(utils_hp.Alm.getsize(lmax_unl, lmax_unl), dtype=complex)
