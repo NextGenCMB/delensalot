@@ -109,7 +109,7 @@ class Alm:
         return m * (2 * lmax + 1 - m) // 2 + l
 
     @staticmethod
-    def getlmax(s:int, mmax:int):
+    def getlmax(s:int, mmax:int or None):
         """Returns the lmax corresponding to a given healpy array size.
 
         Parameters
