@@ -55,14 +55,15 @@ class alm_filter_ninv_wl:
         tim.add('transf')
 
         qumap = self.sc_job.alm2map_spin(eblm, 2)
-        tim.add('alm2map_spin')
+        tim.add('alm2map_spin lmax %s nrings %s'%(self.lmax_len, self.sc_job.geom.get_nrings()))
 
         self.apply_map(qumap)  # applies N^{-1}
         tim.add('apply ninv')
 
         eblm = self.sc_job.map2alm_spin(qumap, 2)
-        tim.add('map2alm_spin')
+        tim.add('map2alm_spin lmax %s nrings %s'%(self.lmax_len, self.sc_job.geom.get_nrings()))
 
+        # FIXME: npix / 4 pi is wrong here
         almxfl(eblm[0], self.b_transf * (qumap[0].size / (4 * np.pi)), self.mmax_len, inplace=True) # factor npix / 4pi
         almxfl(eblm[1], self.b_transf * (qumap[0].size / (4 * np.pi)), self.mmax_len, inplace=True)
         tim.add('transf')
