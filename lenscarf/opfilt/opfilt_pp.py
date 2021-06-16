@@ -45,9 +45,9 @@ class alm_filter_ninv_wl:
 
         # Forward lensing here
         tim = timer(True, prefix='opfilt_pp')
-        lmax_unl =Alm. getlmax(elm.size, self.mmax_sol)
+        lmax_unl =Alm.getlmax(elm.size, self.mmax_sol)
         assert lmax_unl == self.lmax_sol, (lmax_unl, self.lmax_sol)
-        eblm = self.ffi.lensgclm(elm, 2, lmax_out=self.lmax_len, mmax_out=self.mmax_len)
+        eblm = self.ffi.lensgclm(elm, 2, lmax_out=self.lmax_len, mmax=self.mmax_sol, mmax_out=self.mmax_len)
         tim.add('lensgclm fwd')
 
         almxfl(eblm[0], self.b_transf, self.mmax_len, inplace=True)
@@ -69,7 +69,8 @@ class alm_filter_ninv_wl:
         tim.add('transf')
 
         # backward lensing with magn. mult. here
-        eblm = self.ffi.lensgclm(eblm[0], 2, clm=eblm[1], lmax_out=self.lmax_sol, backwards=True)
+        eblm = self.ffi.lensgclm(eblm[0], 2, clm=eblm[1],
+                                 mmax=self.mmax_len, lmax_out=self.lmax_sol, mmax_out=self.mmax_sol, backwards=True)
         elm[:] = eblm[0]
         tim.add('lensgclm bwd')
         print(tim)

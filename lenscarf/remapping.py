@@ -4,7 +4,7 @@ from lenscarf.skypatch import skypatch
 from lenscarf import interpolators as itp
 from lenscarf.utils_remapping import d2ang, ang2d
 from lenscarf import cachers
-from lenscarf.utils import timer, enumerate_progress
+from lenscarf.utils import timer
 from lenscarf.utils_hp import Alm
 from lenscarf.utils_scarf import Geom, pbounds as pbs, scarfjob
 from lenscarf.fortran import remapping as fremap
@@ -69,7 +69,7 @@ class deflection:
 
     def _init_d1(self):
         if self.d1 is None:
-            self.d1 = self._build_interpolator(self.dlm, 1)
+            self.d1 = self._build_interpolator(self.dlm, 1, clm=self.dclm, mmax=self.mmax_dlm)
 
     def _fwd_angles(self):
         """Builds deflected angles for the forawrd deflection field for the pixels inside the patch
@@ -106,7 +106,7 @@ class deflection:
         (tht0, t2grid), (phi0, p2grid), (re_f, im_f) = self.d1.get_spline_info()
         pixs = Geom.pbounds2pix(self.geom, ir, self._pbds)
         if pixs.size > 0:
-            phis = Geom.phis(self.geom, ir)[self._pbds.contains(Geom.phis(self.geom, ir))]
+            phis = Geom.phis(self.geom, ir)[[pixs - self.geom.ofs[ir]]]
             assert phis.size == pixs.size
             thts = self.geom.get_theta(ir) * np.ones(pixs.size)
             redi, imdi = fremap.remapping.solve_pixs(re_f, im_f, thts, phis, tht0, phi0, t2grid, p2grid)
@@ -127,15 +127,18 @@ class deflection:
             thts = np.empty(npix, dtype=float)
             phis = np.empty(npix, dtype=float)
             starts = np.zeros(nrings + 1, dtype=int)
-            for i, ir in enumerate_progress(range(nrings)):
+            for i, ir in enumerate(range(nrings)):
                 pixs = Geom.pbounds2pix(self.geom, ir, self._pbds)
                 starts[ir + 1] = starts[ir] + pixs.size
                 if pixs.size > 0:
                     thts[starts[ir] : starts[ir + 1]] = self.geom.get_theta(ir) * np.ones(pixs.size)
                     phis[starts[ir] : starts[ir + 1]] = Geom.phis(self.geom, ir)[pixs - self.geom.ofs[ir]]
+            # Perform deflection inversion with Fortran code
             redi, imdi = fremap.remapping.solve_pixs(re_f, im_f, thts, phis, tht0, phi0, t2grid, p2grid)
             bwdang = np.zeros((2, npix), dtype=float)
-            for i, ir in enumerate_progress(range(nrings)):
+            # Inverse deflection to inverse angles
+            # FIXME: cache here grid units etc
+            for i, ir in enumerate(range(nrings)):
                 vt = int(np.rint(np.cos(self.geom.theta[ir])))
                 sli = slice(starts[ir], starts[ir + 1])
                 bwdang[:, sli] = d2ang(redi[sli], imdi[sli], thts[sli], phis[sli], vt)
@@ -144,44 +147,20 @@ class deflection:
             return bwdang
         return self.cacher.load(fn)
 
-    def _bwd_angles_serial(self): #FIXME: feed the full map at once
-        fn = 'bwdang'
-        if not self.cacher.is_cached(fn):
-            self.tim.reset_t0()
-            self._init_d1()
-            (tht0, t2grid), (phi0, p2grid), (re_f, im_f) = self.d1.get_spline_info()
-            npix = Geom.pbounds2npix(self.geom, self._pbds)
-            bwdang = np.zeros((2, npix), dtype=float)
-            startpix = 0
-            for i, ir in enumerate_progress(range(self.geom.get_nrings())):
-                pixs = Geom.pbounds2pix(self.geom, ir, self._pbds)
-                if pixs.size > 0:
-                    phis = Geom.phis(self.geom, ir)[pixs - self.geom.ofs[ir]]
-                    assert phis.size == pixs.size
-                    thts = self.geom.get_theta(ir) * np.ones(pixs.size)
-                    redi, imdi = fremap.remapping.solve_pixs(re_f , im_f, thts, phis, tht0, phi0, t2grid, p2grid)
-                    sli = slice(startpix, startpix + len(pixs))
-                    bwdang[:, sli] = d2ang(redi, imdi, thts, phis, int(np.rint(np.cos(self.geom.theta[ir]))))
-                    startpix += len(pixs)
-            assert startpix == npix, (startpix, npix)
-            self.cacher.cache(fn, bwdang)
-            self.tim.add('bwd angles')
-            return bwdang
-        return self.cacher.load(fn)
-
     def _fwd_polrot(self):
         fn = 'fwdpolrot'
         if not self.cacher.is_cached(fn):
+            self.tim.reset_t0()
             npix = Geom.pbounds2npix(self.geom, self._pbds)
             dclm = np.zeros_like(self.dlm) if self.dclm is None else self.dclm
             red, imd = self.geom.alm2map_spin([self.dlm, dclm], 1, self.lmax_dlm, self.mmax_dlm, self._sht_tr, [-1., 1.])
             d = np.sqrt(red ** 2 + imd ** 2)
             gamma = np.zeros(npix, dtype=float)
             startpix = 0
-            for ir, tht in enumerate_progress(self.geom.theta):
+            for ir, tht in enumerate(self.geom.theta):
                 pixs = Geom.pbounds2pix(self.geom, ir, self._pbds)
                 if pixs.size > 0:
-                    phis = Geom.phis(self.geom, ir)[self._pbds.contains(Geom.phis(self.geom, ir))]
+                    phis = Geom.phis(self.geom, ir)[pixs - self.geom.ofs[ir]]
                     assert phis.size == pixs.size
                     sli = slice(startpix, startpix + len(pixs))
                     startpix += len(pixs)
@@ -217,10 +196,10 @@ class deflection:
             thti, phii = self._bwd_angles()
             redimd = np.zeros((2, Geom.npix(scjob.geom)), dtype=float)
             start = 0
-            for it, tht in enumerate_progress(self.geom.theta, label='collecting red imd'):
+            for it, tht in enumerate(self.geom.theta):
                 pixs = Geom.pbounds2pix(self.geom, it, self._pbds)
                 if pixs.size > 0:
-                    phis = Geom.phis(self.geom, it)[self._pbds.contains(Geom.phis(self.geom, it))]
+                    phis = Geom.phis(self.geom, it)[pixs - self.geom.ofs[it]]
                     sli = slice(start, start+pixs.size)
                     redimd[:, pixs] = ang2d(thti[sli], tht * np.ones(pixs.size), phii[sli] -phis)
                     start += pixs.size
@@ -247,10 +226,10 @@ class deflection:
             thti, phii = self._bwd_angles()
             gamma = np.zeros(Geom.pbounds2npix(self.geom, self._pbds), dtype=float)
             start = 0
-            for it, tht in enumerate_progress(self.geom.theta, label='collecting red imd'):
+            for it, tht in enumerate(self.geom.theta):
                 pixs = Geom.pbounds2pix(self.geom, it, self._pbds)
                 if pixs.size > 0:
-                    phis = Geom.phis(self.geom, it)[self._pbds.contains(Geom.phis(self.geom, it))]
+                    phis = Geom.phis(self.geom, it)[pixs - self.geom.ofs[it]]
                     sli = slice(start, start+pixs.size)
                     red, imd = ang2d(thti[sli], tht * np.ones(pixs.size), phii[sli] -phis)
                     assert 0 < tht < np.pi, 'Fix this'
@@ -268,6 +247,7 @@ class deflection:
     def lensgclm(self, glm, spin, lmax_out, backwards=False, clm=None, mmax=None, mmax_out=None):
         #TODO: save only grid angles and full phase factor
         if mmax_out is None: mmax_out = lmax_out
+        self.tim.reset_t0()
         interpjob = self._build_interpolator(glm, spin, clm=clm, mmax=mmax)
         self.tim.add('glm spin %s lmax %s interpolator setup'%(spin, Alm.getlmax(glm.size, mmax)))
         thtn, phin = self._bwd_angles() if backwards else self._fwd_angles()
@@ -278,7 +258,7 @@ class deflection:
         if spin == 0:
             if backwards:
                 lenm_pbded *= self._bwd_magn()
-            self.tim.add('det Mi')
+                self.tim.add('det Mi')
             lenm =  Geom.pbdmap2map(self.geom, lenm_pbded, self._pbds)
         else:
             gamma = self._bwd_polrot if backwards else self._fwd_polrot
@@ -286,7 +266,7 @@ class deflection:
             self.tim.add('pol rot')
             if backwards:
                 lenm_pbded *= self._bwd_magn()
-            self.tim.add('det Mi')
+                self.tim.add('det Mi')
             lenm = [Geom.pbdmap2map(self.geom, lenm_pbded.real, self._pbds),
                     Geom.pbdmap2map(self.geom, lenm_pbded.imag, self._pbds)]
         self.tim.add('truncated array filling')
@@ -294,6 +274,6 @@ class deflection:
             gclm_len = self.geom.map2alm_spin(lenm, spin, lmax_out, mmax_out, self._sht_tr, [-1.,1.])
         else:
             gclm_len = self.geom.map2alm(lenm, lmax_out, mmax_out, self._sht_tr, [-1.,1.])
-        self.tim.add('map2alm spin %s lmaxout %s'%(spin, lmax_out))
+        self.tim.add('map2alm spin %s lmaxout %s nrings %s'%(spin, lmax_out, self.geom.get_nrings()))
         print(self.tim)
         return gclm_len
