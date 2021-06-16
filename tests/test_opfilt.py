@@ -53,7 +53,14 @@ hp_end = hp_start + Geom.npix(ninvgeom).astype(hp_start.dtype) # Somehow otherwi
 # deflection instance:
 cldd = camb_clfile('../lenscarf/data/cls/FFP10_wdipole_lenspotentialCls.dat')['pp'][:lmax_dlm + 1]
 cldd *= np.sqrt(np.arange(lmax_dlm + 1) *  np.arange(1, lmax_dlm + 2))
-dlm = hp.synalm(cldd, lmax=lmax_dlm, mmax=mmax_dlm)
+
+
+#dlm = hp.synalm(cldd, lmax=lmax_dlm, mmax=mmax_dlm) # get segfault with nontrivial mmax and new=True ?!
+dlm_size = utils_hp.Alm.getsize(lmax_dlm, mmax_dlm)
+dlm = np.random.standard_normal(dlm_size) + 1j * np.random.standard_normal(dlm_size)
+utils_hp.almxfl(dlm, np.sqrt(cldd * 0.5), mmax_dlm, inplace=True)
+dlm[utils_hp.Alm.getidx(lmax_dlm, np.arange(lmax_dlm + 1, dtype=int), 0)].real *= np.sqrt(2.)
+dlm[utils_hp.Alm.getidx(lmax_dlm, np.arange(lmax_dlm + 1, dtype=int), 0)].imag = 0.
 
 #cacher = cachers.cacher_npy('/Users/jcarron/OneDrive - unige.ch/lenscarf/temp/test_opfilt')
 cacher = cachers.cacher_mem()
