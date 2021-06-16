@@ -23,7 +23,7 @@ def cmbs4_08b_healpix():
     scarf_job.set_healpix_geometry(2048, zbounds=zbounds_len)
     return scarf_job, [pb_ctr/ 180 * np.pi, pb_extent/ 180 * np.pi], zbounds_len
 
-def cmbs4_08b_healpix_oneq(): # square of 50 deg by 50 deg
+def cmbs4_08b_healpix_oneq():
     zbounds_len = np.cos( (90 + 25) / 180 * np.pi), np.cos( (90 - 25) / 180 * np.pi)
     pb_ctr = 0. / 180 * np.pi
     pb_extent = 50. / 180 * np.pi
@@ -32,9 +32,11 @@ def cmbs4_08b_healpix_oneq(): # square of 50 deg by 50 deg
     return scarf_job, [pb_ctr, pb_extent], zbounds_len
 
 def cmbs4_08b_healpix_onp(): # square of 50 deg by 50 deg
-    zbounds_len = (np.cos(25. / 180 * np.pi), 1.)
+    extent_deg = 40. # 40 deg ensures each and every point at least 6 deg. away from mask
+    zbounds_len = (np.cos(extent_deg / 180 * np.pi), 1.)
+    zbounds_ninv =  (np.cos(34. / 180 * np.pi), 1.)
     pb_ctr = 0. / 180 * np.pi
     pb_extent = 360 / 180 * np.pi
     scarf_job = us.scarfjob()
-    scarf_job.set_healpix_geometry(2048, zbounds=zbounds_len)
-    return scarf_job, [pb_ctr, pb_extent], zbounds_len
+    scarf_job.set_healpix_geometry(2048, zbounds=zbounds_ninv)
+    return scarf_job, [pb_ctr, pb_extent], zbounds_len, zbounds_ninv

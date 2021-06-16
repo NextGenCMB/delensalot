@@ -21,8 +21,9 @@ fwhm = 2.3
 targetres_amin=2.
 mmax_is_lmax = False
 
-#ninvjob, pbds, zbounds = utils_config.cmbs4_08b_healpix()#_oneq() #FIXME: can have distinct zbounds for ninv and zboundslen
-ninvjob, pbds, zbounds = utils_config.cmbs4_08b_healpix_onp()#_oneq() #FIXME: can have distinct zbounds for ninv and zboundslen
+#ninvjob, pbds, zbounds_len, zbounds_ninv  = utils_config.cmbs4_08b_healpix()#_oneq() #FIXME: can have distinct zbounds for ninv and zboundslen
+ninvjob, pbds, zbounds_len, zbounds_ninv  = utils_config.cmbs4_08b_healpix_onp()#_oneq() #FIXME: can have distinct zbounds for ninv and zboundslen
+#ninvjob, pbds, zbounds_len, zbounds_ninv = utils_config.cmbs4_08b_healpix_oneq() #FIXME: can have distinct zbounds for ninv and zboundslen
 
 ninvgeom = ninvjob.geom
 lenjob = scarfjob()
@@ -69,9 +70,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.lensgeom == 'healpix':
-        lenjob.set_healpix_geometry(nside, zbounds=zbounds)
+        lenjob.set_healpix_geometry(nside, zbounds=zbounds_len)
     elif args.lensgeom == 'thingauss':
-        lenjob.set_thingauss_geometry(max(lmax_unl, lmax_len), 2, zbounds=zbounds)
+        lenjob.set_thingauss_geometry(max(lmax_unl, lmax_len), 2, zbounds=zbounds_len)
     else:
         assert 0, args.lensgeom + ' not implemented'
     d = remapping.deflection(lenjob.geom, targetres_amin, pbds, dlm, sht_threads, fftw_threads, mmax=mmax_dlm, cacher=cacher)
