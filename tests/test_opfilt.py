@@ -6,20 +6,23 @@ from lenscarf import remapping
 from lenscarf import utils_config, utils_hp, utils
 from lenscarf import cachers
 from lenscarf.opfilt import opfilt_pp
-from lenscarf.utils_scarf import Geom
+from lenscarf.utils_scarf import Geom, scarfjob
 from plancklens.utils import camb_clfile
 import healpy as hp
+
 
 lmax_dlm = 4096
 lmax_unl = 4000
 lmax_len = 4000
 sht_threads = 8
 fftw_threads = 8
+nside = 2048
 fwhm = 2.3
 targetres_amin=2.
-lensjob, pbds = utils_config.cmbs4_08b_healpix()
-lensgeom = lensjob.geom
-ninvgeom = lensjob.geom
+
+ninvjob, pbds, zbounds = utils_config.cmbs4_08b_healpix() #FIXME: can have distinct zbounds for ninv and zboundslen
+ninvgeom = ninvjob.geom
+lenjob = scarfjob()
 
 IPVMAP = '/global/cscratch1/sd/jcarron/cmbs4/temp/s08b/cILC2021_00/ipvmap.fits'
 if not os.path.exists(IPVMAP):
@@ -39,27 +42,44 @@ dlm = hp.synalm(cldd, new=True)
 
 #cacher = cachers.cacher_npy('/Users/jcarron/OneDrive - unige.ch/lenscarf/temp/test_opfilt')
 cacher = cachers.cacher_mem()
-d = remapping.deflection(lensgeom, targetres_amin, pbds, dlm, sht_threads, fftw_threads, cacher=cacher)
 
 
-t0 = time()
-d._init_d1()
-print('init d1: %.2fs'%(time() - t0))
-
-t0 = time()
-d._bwd_angles()
-print('inverse deflection: %.2fs'%(time() - t0))
 # ninv filter:
 transf = utils_hp.gauss_beam(fwhm, lmax_len)
 n_inv = [np.nan_to_num(utils.read_map(IPVMAP)[hp_start:hp_end])]
-opfilt = opfilt_pp.alm_filter_ninv_wl(ninvgeom, n_inv, d,  transf, (lmax_len, lmax_len), (lmax_unl, lmax_unl), sht_threads)
 
-elm = np.zeros(utils_hp.Alm.getsize(lmax_unl, lmax_unl), dtype=complex)
-opfilt.apply_alm(elm)
-print("2nd version without plans etc")
-opfilt.apply_alm(elm)
+if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser(description='test of lenscarf-based opfilt')
+    parser.add_argument('-lensgeom', dest='lensgeom', type=str, default='healpix', help='minimal sim index')
+    args = parser.parse_args()
 
-"""NERSC  THREADS 16
+    if args.lensgeom == 'healpix':
+        lenjob.set_healpix_geometry(nside, zbounds=zbounds)
+    elif args.lensgeom == 'thingauss':
+        lenjob.set_thingauss_geometry(max(lmax_unl, lmax_len), 2, zbounds=zbounds)
+    else:
+        assert 0, args.lensgeom + ' not implemented'
+    d = remapping.deflection(lenjob.geom, targetres_amin, pbds, dlm, sht_threads, fftw_threads, cacher=cacher)
+
+
+    t0 = time()
+    d._init_d1()
+    print('init d1: %.2fs' % (time() - t0))
+
+    t0 = time()
+    d._bwd_angles()
+    print('inverse deflection: %.2fs' % (time() - t0))
+    opfilt = opfilt_pp.alm_filter_ninv_wl(ninvgeom, n_inv, d, transf, (lmax_len, lmax_len), (lmax_unl, lmax_unl),
+                                              sht_threads)
+    elm = np.zeros(utils_hp.Alm.getsize(lmax_unl, lmax_unl), dtype=complex)
+    d.tim.reset()
+    opfilt.apply_alm(elm)
+    print("2nd version without plans etc")
+    d.tim.reset()
+    opfilt.apply_alm(elm)
+
+"""comp to NERSC  THREADS 16
                        scarf ecp job setup:  [00h:00m:00s:000ms] 
                              scarf alm2map:  [00h:00m:01s:986ms] 
                              fftw planning:  [00h:00m:00s:003ms] 
