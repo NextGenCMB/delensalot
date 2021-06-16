@@ -38,13 +38,13 @@ class timer:
             ds = np.floor(np.mod(dt, 60))
             dms = 1000 *  np.mod(dt,1.)
             #s +=  "%24s: %.1f"%(k, self.keys[k]) + '\n'
-            s += "\r  %40s:  [" % k + ('%02dh:%02dm:%02ds:%03dms' % (dh, dm, ds, dms)) + "] " + "\n"
+            s += "%40s:  [" % k + ('%02dh:%02dm:%02ds:%03dms' % (dh, dm, ds, dms)) + "] " + "\n"
         dt = time() - self.ti
         dh = np.floor(dt / 3600.)
         dm = np.floor(np.mod(dt, 3600.) / 60.)
         ds = np.floor(np.mod(dt, 60))
         dms = 1000 *np.mod(dt, 1.)
-        s += "\r %45s :  [" %(self.prefix + ' Total') + ('%02dh:%02dm:%02ds:%03dms' % (dh, dm, ds, dms)) + "] "
+        s += "%45s :  [" %(self.prefix + ' Total') + ('%02dh:%02dm:%02ds:%03dms' % (dh, dm, ds, dms)) + "] "
         return s
 
     def add(self, label):
@@ -113,8 +113,8 @@ def read_map(m):
         #FIXME
         import healpy as hp
         if ',' not in m:
-            return hp.read_map(m)
+            return hp.read_map(m, verbose=False)
         m, field = m.split(',')
-        return hp.read_map(m, field=int(field))
+        return hp.read_map(m, field=int(field), verbose=False)
     else:
         assert 0, 'cant tell what to do with ' + m
