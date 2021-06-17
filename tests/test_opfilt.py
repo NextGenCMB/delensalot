@@ -5,10 +5,9 @@ import scarf
 from lenscarf import remapping
 from lenscarf import utils_config, utils_hp, utils, utils_sht
 from lenscarf import cachers
-from lenscarf.opfilt import opfilt_pp
+from lenscarf.opfilt import opfilt_ee_wl
 from lenscarf.utils_scarf import Geom, scarfjob
 from plancklens.utils import camb_clfile
-import healpy as hp
 
 
 lmax_dlm = 4096
@@ -21,8 +20,8 @@ fwhm = 2.3
 targetres_amin=2.
 mmax_is_lmax = False
 
-#ninvjob, pbds, zbounds_len, zbounds_ninv  = utils_config.cmbs4_08b_healpix()#_oneq() #FIXME: can have distinct zbounds for ninv and zboundslen
-ninvjob, pbds, zbounds_len, zbounds_ninv  = utils_config.cmbs4_08b_healpix_onp()#_oneq() #FIXME: can have distinct zbounds for ninv and zboundslen
+ninvjob, pbds, zbounds_len, zbounds_ninv  = utils_config.cmbs4_08b_healpix()#_oneq() #FIXME: can have distinct zbounds for ninv and zboundslen
+#ninvjob, pbds, zbounds_len, zbounds_ninv  = utils_config.cmbs4_08b_healpix_onp()#_oneq() #FIXME: can have distinct zbounds for ninv and zboundslen
 #ninvjob, pbds, zbounds_len, zbounds_ninv = utils_config.cmbs4_08b_healpix_oneq() #FIXME: can have distinct zbounds for ninv and zboundslen
 
 ninvgeom = ninvjob.geom
@@ -86,8 +85,8 @@ if __name__ == '__main__':
     t0 = time()
     d._bwd_angles()
     print('inverse deflection: %.2fs' % (time() - t0))
-    opfilt = opfilt_pp.alm_filter_ninv_wl(ninvgeom, n_inv, d, transf, (lmax_unl, mmax_unl), (lmax_len, mmax_len),
-                                              sht_threads)
+    opfilt = opfilt_ee_wl.alm_filter_ninv_wl(ninvgeom, n_inv, d, transf, (lmax_unl, mmax_unl), (lmax_len, mmax_len),
+                                              sht_threads, verbose=True)
     elm = np.zeros(utils_hp.Alm.getsize(lmax_unl, mmax_unl), dtype=complex)
     d.tim.reset()
     opfilt.apply_alm(elm)
