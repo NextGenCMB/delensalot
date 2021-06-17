@@ -1,6 +1,7 @@
 import sys
 from time import time
 import numpy as np
+import hashlib
 
 class timer:
     def __init__(self, verbose, prefix='', suffix=''):
@@ -93,6 +94,22 @@ def enumerate_progress(lst:list or np.ndarray, label=''):
             sys.stdout.flush()
     sys.stdout.write("\n")
     sys.stdout.flush()
+
+def clhash(cl, dtype=np.float16):
+    """Hash for generic numpy array.
+
+    By default we avoid here double precision checks since this might be machine dependent.
+
+    """
+    return hashlib.sha1(np.copy(cl.astype(dtype), order='C')).hexdigest()
+
+def cli(cl):
+    """Pseudo-inverse for positive cl-arrays.
+
+    """
+    ret = np.zeros_like(cl)
+    ret[np.where(cl > 0)] = 1. / cl[np.where(cl > 0)]
+    return ret
 
 def read_map(m):
     """Reads a map whether given as (list of) string (with ',f' denoting field f), array or callable
