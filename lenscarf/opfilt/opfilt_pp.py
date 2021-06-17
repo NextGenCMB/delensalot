@@ -12,6 +12,19 @@ from lenscarf import remapping
 class alm_filter_ninv(object):
     def __init__(self, ninv_geom:utils_scarf.Geometry, ninv:list, transf:np.ndarray,
                  unlalm_info:tuple, lenalm_info:tuple, sht_threads:int, verbose=False):
+        r"""CMB inverse-variance and Wiener filtering instance, to use for cg-inversion
+
+            Args:
+                ninv_geom: scarf geometry for the inverse-pixel-noise variance SHTs
+                ninv: list of inverse-pixel noise variance maps (strings, or arrays, or ...)
+                transf: CMB transfer function (assumed to be the same in E and B)
+                unlalm_info: tuple of int, lmax and mmax of unlensed CMB
+                lenalm_info: tuple of int, lmax and mmax of lensed CMB
+                sht_threads: number of threads for scarf SHTs
+                verbose: some printout if set, defaults to False
+
+
+        """
 
         npix = utils_scarf.Geom.npix(ninv_geom)
         assert np.all([ni.size == npix for ni in ninv])
@@ -29,7 +42,7 @@ class alm_filter_ninv(object):
 
         sc_job = utils_scarf.scarfjob()
         if not np.all(ninv_geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
-            print('*** alm_filter_ninv: swtiching to same ninv_geometry but with unit weights')
+            print('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
             nr = ninv_geom.get_nrings()
             ninv_geom_ = utils_scarf.Geometry(nr, ninv_geom.nph.copy(), ninv_geom.ofs.copy(), 1, ninv_geom.phi0.copy(), ninv_geom.theta.copy(), np.ones(nr, dtype=float))
             # Does not seem to work without the 'copy'
@@ -59,7 +72,9 @@ class alm_filter_ninv(object):
         return ret
 
     def apply_alm(self, elm:np.ndarray):
-        # applies Y^T N^{-1} Y (now  D^t B^T N^{-1} B D)
+        """Applies operator Y^T N^{-1} Y (now  D^t B^T N^{-1} B D, where D is lensing, B the transfer function)
+
+        """
         assert self.lmax_sol == self.lmax_len, (self.lmax_sol, self.lmax_len) # not implemented wo lensing
         assert self.mmax_sol == self.mmax_len, (self.mmax_sol, self.mmax_len)
 
@@ -89,6 +104,10 @@ class alm_filter_ninv(object):
             print(tim)
 
     def apply_map(self, qumap):
+        """Applies pixel inverse-noise variance maps
+
+
+        """
         if len(self.n_inv) == 1:  #  QQ = UU
             qumap *= self.n_inv[0]
         elif len(self.n_inv) == 3:  # QQ, QU, UU
@@ -160,6 +179,38 @@ class alm_filter_ninv_wl(alm_filter_ninv):
 
 pre_op_dense = None #FIXME: not implemented. need something like dense TT but with monopole and dipole taken out.
 
+
+def calc_prep(maps:list or np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv_wl):
+    """cg-inversion pre-operation  (D^t B^t N^{-1} X^{dat})
+
+        Args:
+            maps: input polarisation maps
+            s_cls: CMB spectra dictionary (here only 'ee' key required)
+            ninv_filt: inverse-variance filtering instance
+
+            
+    """
+    assert np.all(ninv_filt.sc_job.geom.weight==1.) # Sum rather than integral, hence requires unit weights
+    qumap= [np.copy(maps[0]), np.copy(maps[1])]
+    ninv_filt.apply_map(qumap)
+
+    elm, blm = ninv_filt.sc_job.map2alm_spin(qumap, 2)
+    almxfl(elm, ninv_filt.b_transf, ninv_filt.mmax_len, inplace=True)
+    almxfl(blm, ninv_filt.b_transf, ninv_filt.mmax_len, inplace=True)
+    elm, blm = ninv_filt.ffi.lensgclm(elm, 2, ninv_filt.lmax_sol,
+                                      clm=blm, backwards=True, mmax=ninv_filt.mmax_len,  mmax_out=ninv_filt.mmax_sol)
+    almxfl(elm, s_cls['ee'] > 0., ninv_filt.mmax_sol, inplace=True)
+    return elm
+
+def apply_fini(*args, **kwargs):
+    """cg-inversion post-operation
+
+        If nothing output is Wiener-filtered CMB
+
+
+    """
+    pass
+
 class dot_op:
     def __init__(self, lmax:int, mmax:int or None):
         """scalar product operation for cg inversion
@@ -177,11 +228,11 @@ class dot_op:
     def __call__(self, elm1, elm2):
         assert elm1.size == Alm.getsize(self.lmax, self.mmax), (elm1.size, Alm.getsize(self.lmax, self.mmax))
         assert elm2.size == Alm.getsize(self.lmax, self.mmax), (elm1.size, Alm.getsize(self.lmax, self.mmax))
-        tcl = alm2cl(elm1, elm2, self.lmax, self.mmax, None)
-        return np.sum(tcl * (2 * np.arange(tcl.size) + 1))
+        return np.sum(alm2cl(elm1, elm2, self.lmax, self.mmax, None) * (2 * np.arange(self.lmax + 1) + 1))
 
 class fwd_op:
     """Forward operation for polarization-only, no primordial B power cg filter
+
 
     """
     def __init__(self, s_cls:dict, ninv_filt:alm_filter_ninv):
