@@ -2,6 +2,7 @@ import os
 import numpy as np
 import scarf
 from lenscarf.utils_sht import st2mmax, lowprimes
+from lenscarf.utils import clhash
 
 Geometry = scarf.Geometry
 
@@ -136,6 +137,15 @@ class Geom:
             start += pixs.size
         return m_bnd
 
+    @staticmethod
+    def hashdict(geom:scarf.Geometry):
+        """Returns a hash dictionary from scarf geometry
+
+        """
+        arrs = [geom.theta, geom.nph, geom.ofs, geom.weight, geom.phi0]
+        labs = ['theta', 'nph', 'ofs', 'weight', 'phi0']
+        typs = [np.float16, int, int, np.float16, np.float16]
+        return {lab : clhash(arr, dtype=typ) for arr, lab, typ in zip(arrs, labs, typs)}
 
 class scarfjob:
     r"""SHT job instance emulating existing ducc python bindings

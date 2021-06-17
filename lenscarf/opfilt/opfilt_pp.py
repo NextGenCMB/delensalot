@@ -28,7 +28,15 @@ class alm_filter_ninv(object):
         self.mmax_sol = min(lmax_unl, mmax_unl)
 
         sc_job = utils_scarf.scarfjob()
-        sc_job.set_geometry(ninv_geom)
+        if not np.all(ninv_geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
+            print('*** alm_filter_ninv: swtiching to same ninv_geometry but with unit weights')
+            nr = ninv_geom.get_nrings()
+            ninv_geom_ = utils_scarf.Geometry(nr, ninv_geom.nph.copy(), ninv_geom.ofs.copy(), 1, ninv_geom.phi0.copy(), ninv_geom.theta.copy(), np.ones(nr, dtype=float))
+            # Does not seem to work without the 'copy'
+        else:
+            ninv_geom_ = ninv_geom
+        assert np.all(ninv_geom_.weight == 1.)
+        sc_job.set_geometry(ninv_geom_)
         sc_job.set_nthreads(sht_threads)
         sc_job.set_triangular_alm_info(lmax_len, mmax_len)
         self.sc_job = sc_job
@@ -37,7 +45,9 @@ class alm_filter_ninv(object):
 
     def hashdict(self):
         return {'ninv':self._ninv_hash(), 'transf':clhash(self.b_transf),
-                'unalm':(self.lmax_sol, self.mmax_sol), 'lenalm':(self.lmax_len, self.mmax_len) }
+                'geom':utils_scarf.Geom.hashdict(self.sc_job.geom),
+                'unalm':(self.lmax_sol, self.mmax_sol),
+                'lenalm':(self.lmax_len, self.mmax_len) }
 
     def _ninv_hash(self):
         ret = []
@@ -70,9 +80,9 @@ class alm_filter_ninv(object):
         eblm = self.sc_job.map2alm_spin(qumap, 2)
         tim.add('map2alm_spin lmax %s mmax %s nrings %s'%(self.lmax_len, self.mmax_len, self.sc_job.geom.get_nrings()))
 
-        # FIXME: npix / 4 pi is wrong here
-        almxfl(eblm[0], self.b_transf * (qumap[0].size / (4 * np.pi)), self.mmax_len, inplace=True) # factor npix / 4pi
-        almxfl(eblm[1], self.b_transf * (qumap[0].size / (4 * np.pi)), self.mmax_len, inplace=True)
+        # The map2alm is here a sum rather than integral, so geom.weights are assumed to be unity
+        almxfl(eblm[0], self.b_transf, self.mmax_len, inplace=True)
+        almxfl(eblm[1], self.b_transf, self.mmax_len, inplace=True)
         tim.add('transf')
         elm[:] = eblm[0]
         if self.verbose:
@@ -106,8 +116,11 @@ class alm_filter_ninv_wl(alm_filter_ninv):
         self.ffi = ffi
 
     def hashdict(self):
-        #FIXME:
-        return {}
+        return {'ninv':self._ninv_hash(), 'transf':clhash(self.b_transf),
+                'geom':utils_scarf.Geom.hashdict(self.sc_job.geom),
+                'deflection':self.ffi.hashdict(),
+                'unalm':(self.lmax_sol, self.mmax_sol),
+                'lenalm':(self.lmax_len, self.mmax_len) }
 
     def apply_alm(self, elm:np.ndarray):
         # applies Y^T N^{-1} Y (now  D^t B^T N^{-1} B D)
@@ -132,9 +145,9 @@ class alm_filter_ninv_wl(alm_filter_ninv):
         eblm = self.sc_job.map2alm_spin(qumap, 2)
         tim.add('map2alm_spin lmax %s mmax %s nrings %s'%(self.lmax_len, self.mmax_len, self.sc_job.geom.get_nrings()))
 
-        # FIXME: npix / 4 pi is wrong here
-        almxfl(eblm[0], self.b_transf * (qumap[0].size / (4 * np.pi)), self.mmax_len, inplace=True) # factor npix / 4pi
-        almxfl(eblm[1], self.b_transf * (qumap[0].size / (4 * np.pi)), self.mmax_len, inplace=True)
+        # The map2alm is here a sum rather than integral, so geom.weights are assumed to be unity
+        almxfl(eblm[0], self.b_transf, self.mmax_len, inplace=True)
+        almxfl(eblm[1], self.b_transf, self.mmax_len, inplace=True)
         tim.add('transf')
 
         # backward lensing with magn. mult. here
@@ -148,16 +161,24 @@ class alm_filter_ninv_wl(alm_filter_ninv):
 pre_op_dense = None #FIXME: not implemented. need something like dense TT but with monopole and dipole taken out.
 
 class dot_op:
-    def __init__(self, lmax:int, mmax:int):
+    def __init__(self, lmax:int, mmax:int or None):
+        """scalar product operation for cg inversion
+
+            Args:
+                lmax: maximum multipole defining the alm layout
+                mmax: maximum m defining the alm layout (defaults to lmax if None or < 0)
+
+
+        """
+        if mmax is None or mmax < 0: mmax = lmax
         self.lmax = lmax
-        self.mmax = mmax
+        self.mmax = min(mmax, lmax)
 
     def __call__(self, elm1, elm2):
-        lmax = Alm.getlmax(elm1.size, self.mmax)
-        assert lmax == Alm.getlmax(elm2.size, self.mmax)
+        assert elm1.size == Alm.getsize(self.lmax, self.mmax), (elm1.size, Alm.getsize(self.lmax, self.mmax))
+        assert elm2.size == Alm.getsize(self.lmax, self.mmax), (elm1.size, Alm.getsize(self.lmax, self.mmax))
         tcl = alm2cl(elm1, elm2, self.lmax, self.mmax, None)
-        return np.sum(tcl * (2. * lmax + 1) + 1)
-
+        return np.sum(tcl * (2 * np.arange(tcl.size) + 1))
 
 class fwd_op:
     """Forward operation for polarization-only, no primordial B power cg filter
