@@ -20,8 +20,8 @@ fwhm = 2.3
 targetres_amin=2.
 mmax_is_lmax = False
 
-ninvjob, pbds, zbounds_len, zbounds_ninv  = utils_config.cmbs4_08b_healpix()#_oneq() #FIXME: can have distinct zbounds for ninv and zboundslen
-#ninvjob, pbds, zbounds_len, zbounds_ninv  = utils_config.cmbs4_08b_healpix_onp()#_oneq() #FIXME: can have distinct zbounds for ninv and zboundslen
+#ninvjob, pbds, zbounds_len, zbounds_ninv  = utils_config.cmbs4_08b_healpix()#_oneq() #FIXME: can have distinct zbounds for ninv and zboundslen
+ninvjob, pbds, zbounds_len, zbounds_ninv  = utils_config.cmbs4_08b_healpix_onp()#_oneq() #FIXME: can have distinct zbounds for ninv and zboundslen
 #ninvjob, pbds, zbounds_len, zbounds_ninv = utils_config.cmbs4_08b_healpix_oneq() #FIXME: can have distinct zbounds for ninv and zboundslen
 
 ninvgeom = ninvjob.geom
