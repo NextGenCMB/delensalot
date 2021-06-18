@@ -3,15 +3,13 @@
 
 """
 import numpy as np
-from lenscarf.utils_hp import almxfl, Alm
+from lenscarf.utils_hp import almxfl, Alm, alm2cl
 from lenscarf.utils import timer, clhash, cli
 from lenscarf import  utils_scarf
 from lenscarf import remapping
 from lenscarf.opfilt import opfilt_pp
 from scipy.interpolate import UnivariateSpline as spl
 
-dot_op = opfilt_pp.dot_op
-fwd_op = opfilt_pp.fwd_op
 apply_fini = opfilt_pp.apply_fini
 pre_op_dense = None # not implemented
 
@@ -125,3 +123,47 @@ def calc_prep(maps:list or np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv_wl)
                                       clm=blm, backwards=True, mmax=ninv_filt.mmax_len,  mmax_out=ninv_filt.mmax_sol)
     almxfl(elm, s_cls['ee'] > 0., ninv_filt.mmax_sol, inplace=True)
     return elm
+
+
+class dot_op:
+    def __init__(self, lmax: int, mmax: int or None):
+        """scalar product operation for cg inversion
+
+            Args:
+                lmax: maximum multipole defining the alm layout
+                mmax: maximum m defining the alm layout (defaults to lmax if None or < 0)
+
+
+        """
+        if mmax is None or mmax < 0: mmax = lmax
+        self.lmax = lmax
+        self.mmax = min(mmax, lmax)
+
+    def __call__(self, elm1, elm2):
+        assert elm1.size == Alm.getsize(self.lmax, self.mmax), (elm1.size, Alm.getsize(self.lmax, self.mmax))
+        assert elm2.size == Alm.getsize(self.lmax, self.mmax), (elm2.size, Alm.getsize(self.lmax, self.mmax))
+        return np.sum(alm2cl(elm1[0], elm2[0], self.lmax, self.mmax, None) * (2 * np.arange(self.lmax + 1) + 1))
+
+
+class fwd_op:
+    """Forward operation for polarization-only, no primordial B power cg filter
+
+
+    """
+    def __init__(self, s_cls:dict, ninv_filt:alm_filter_ninv_wl):
+        self.iclee = cli(s_cls['ee'])
+        self.ninv_filt = ninv_filt
+        self.lmax_sol = ninv_filt.lmax_sol
+        self.mmax_sol = ninv_filt.mmax_sol
+
+    def hashdict(self):
+        return {'iclee': clhash(self.iclee),
+                'n_inv_filt': self.ninv_filt.hashdict()}
+
+    def __call__(self, elm):
+        return self.calc(elm)
+
+    def calc(self, elm):
+        nlm = np.copy(elm)
+        self.ninv_filt.apply_alm(nlm)
+        return almxfl(nlm + almxfl(elm, self.iclee, self.mmax_sol, False), self.iclee > 0., self.mmax_sol, False)

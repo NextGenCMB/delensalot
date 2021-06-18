@@ -6,6 +6,7 @@ import numpy as np
 from lenscarf.utils_hp import almxfl, Alm, alm2cl
 from lenscarf.utils import timer, cli, clhash, read_map
 from lenscarf import  utils_scarf
+from scipy.interpolate import UnivariateSpline as spl
 
 
 class alm_filter_ninv(object):
@@ -85,7 +86,7 @@ class alm_filter_ninv(object):
         fbl = self.b_transf ** 2 / (self._nlevp/ 180. / 60. * np.pi) ** 2
         return fel, fbl
 
-    def apply_alm(self, elm:np.ndarray):
+    def apply_alm(self, eblm:np.ndarray):
         """Applies operator B^T N^{-1} B
 
         """
@@ -93,9 +94,8 @@ class alm_filter_ninv(object):
         assert self.mmax_sol == self.mmax_len, (self.mmax_sol, self.mmax_len)
 
         tim = timer(True, prefix='opfilt_pp')
-        lmax_unl = Alm.getlmax(elm.size, self.mmax_sol)
+        lmax_unl = Alm.getlmax(eblm[0].size, self.mmax_sol)
         assert lmax_unl == self.lmax_sol, (lmax_unl, self.lmax_sol)
-        eblm = np.array([elm, np.zeros_like(elm)])
         almxfl(eblm[0], self.b_transf, self.mmax_len, inplace=True)
         almxfl(eblm[1], self.b_transf, self.mmax_len, inplace=True)
         tim.add('transf')
@@ -106,14 +106,13 @@ class alm_filter_ninv(object):
         self.apply_map(qumap)  # applies N^{-1}
         tim.add('apply ninv')
 
-        eblm = self.sc_job.map2alm_spin(qumap, 2)
+        eblm[:] = self.sc_job.map2alm_spin(qumap, 2)
         tim.add('map2alm_spin lmax %s mmax %s nrings %s'%(self.lmax_len, self.mmax_len, self.sc_job.geom.get_nrings()))
 
         # The map2alm is here a sum rather than integral, so geom.weights are assumed to be unity
         almxfl(eblm[0], self.b_transf, self.mmax_len, inplace=True)
         almxfl(eblm[1], self.b_transf, self.mmax_len, inplace=True)
         tim.add('transf')
-        elm[:] = eblm[0]
         if self.verbose:
             print(tim)
 
@@ -137,7 +136,7 @@ class alm_filter_ninv(object):
 
 pre_op_dense = None #FIXME: not implemented. need something like dense TT but with monopole and dipole taken out.
 
-def calc_prep(maps:list or np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv):
+def calc_prep(maps:np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv):
     """cg-inversion pre-operation  (D^t B^t N^{-1} X^{dat})
 
         Args:
@@ -150,13 +149,13 @@ def calc_prep(maps:list or np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv):
     assert ninv_filt.lmax_sol == ninv_filt.lmax_len, (ninv_filt.lmax_sol, ninv_filt.lmax_len)  # not implemented wo lensing
     assert ninv_filt.mmax_sol == ninv_filt.mmax_len, (ninv_filt.mmax_sol, ninv_filt.mmax_len)
     assert np.all(ninv_filt.sc_job.geom.weight==1.) # Sum rather than integral, hence requires unit weights
-    qumap= [np.copy(maps[0]), np.copy(maps[1])]
+    qumap= np.copy(maps)
     ninv_filt.apply_map(qumap)
-    elm, blm = ninv_filt.sc_job.map2alm_spin(qumap, 2)
-    almxfl(elm, ninv_filt.b_transf, ninv_filt.mmax_len, inplace=True)
-    almxfl(blm, ninv_filt.b_transf, ninv_filt.mmax_len, inplace=True)
-    almxfl(elm, s_cls['ee'] > 0., ninv_filt.mmax_sol, inplace=True)
-    return elm
+    eblm = ninv_filt.sc_job.map2alm_spin(qumap, 2)
+    lmax_tr = len(ninv_filt.b_transf) - 1
+    almxfl(eblm[0], ninv_filt.b_transf * (s_cls['ee'][:lmax_tr+1] > 0.), ninv_filt.mmax_len, inplace=True)
+    almxfl(eblm[1], ninv_filt.b_transf * (s_cls['bb'][:lmax_tr+1] > 0.), ninv_filt.mmax_len, inplace=True)
+    return eblm
 
 def apply_fini(*args, **kwargs):
     """cg-inversion post-operation
@@ -167,6 +166,38 @@ def apply_fini(*args, **kwargs):
     """
     pass
 
+class pre_op_diag:
+    """Cg-inversion diagonal preconditioner
+
+    """
+    def __init__(self, s_cls:dict, ninv_filt:alm_filter_ninv):
+        ninv_fel, ninv_fbl = ninv_filt.get_febl()  # (N_lev * transf) ** 2 basically
+        lmax_sol = ninv_filt.lmax_sol
+        flmat = {}
+        for fl, clk in zip([ninv_fel, ninv_fbl], ['ee', 'bb']):
+            assert len(s_cls[clk]) > ninv_filt.lmax_sol, (ninv_filt.lmax_sol, len(s_cls[clk]))
+            if len(fl) - 1 < lmax_sol: # We extend the transfer fct to avoid predcon. with zero (~ Gauss beam)
+                print("PRE_OP_DIAG: extending transfer fct from lmax %s to lmax %s"%(len(fl)-1, lmax_sol))
+                assert np.all(fl > 0)
+                spl_sq = spl(np.arange(len(ninv_fel), dtype=float), np.log(fl), k=2, ext='extrapolate')
+                flmat[clk] = cli(s_cls[clk][:lmax_sol + 1]) + np.exp(spl_sq(np.arange(lmax_sol + 1, dtype=float)))
+            else:
+                flmat[clk] = cli(s_cls[clk][:lmax_sol + 1]) + fl
+
+        self.flmat = {k: cli(flmat[k]) * (s_cls[k][:lmax_sol +1] > 0.) for k in ['ee', 'bb']}
+        self.lmax = ninv_filt.lmax_sol
+        self.mmax = ninv_filt.mmax_sol
+
+    def __call__(self, eblm):
+        return self.calc(eblm)
+
+    def calc(self, eblm):
+        assert Alm.getsize(self.lmax, self.mmax) == eblm[0].size, (self.lmax, self.mmax, Alm.getlmax(eblm[0].size, self.mmax))
+        assert Alm.getsize(self.lmax, self.mmax) == eblm[1].size, (self.lmax, self.mmax, Alm.getlmax(eblm[1].size, self.mmax))
+        ret = np.copy(eblm)
+        almxfl(ret[0], self.flmat['ee'], self.mmax, True)
+        almxfl(ret[1], self.flmat['bb'], self.mmax, True)
+        return ret
 
 class dot_op:
     def __init__(self, lmax:int, mmax:int or None):
@@ -182,10 +213,14 @@ class dot_op:
         self.lmax = lmax
         self.mmax = min(mmax, lmax)
 
-    def __call__(self, elm1, elm2):
-        assert elm1.size == Alm.getsize(self.lmax, self.mmax), (elm1.size, Alm.getsize(self.lmax, self.mmax))
-        assert elm2.size == Alm.getsize(self.lmax, self.mmax), (elm1.size, Alm.getsize(self.lmax, self.mmax))
-        return np.sum(alm2cl(elm1, elm2, self.lmax, self.mmax, None) * (2 * np.arange(self.lmax + 1) + 1))
+    def __call__(self, eblm1, eblm2):
+        assert eblm1[0].size == Alm.getsize(self.lmax, self.mmax), (eblm1[0].size, Alm.getsize(self.lmax, self.mmax))
+        assert eblm2[0].size == Alm.getsize(self.lmax, self.mmax), (eblm2[0].size, Alm.getsize(self.lmax, self.mmax))
+        assert eblm1[1].size == Alm.getsize(self.lmax, self.mmax), (eblm1[1].size, Alm.getsize(self.lmax, self.mmax))
+        assert eblm2[1].size == Alm.getsize(self.lmax, self.mmax), (eblm2[1].size, Alm.getsize(self.lmax, self.mmax))
+        ret  = np.sum(alm2cl(eblm1[0], eblm2[0], self.lmax, self.mmax, None) * (2 * np.arange(self.lmax + 1) + 1))
+        ret += np.sum(alm2cl(eblm1[1], eblm2[1], self.lmax, self.mmax, None) * (2 * np.arange(self.lmax + 1) + 1))
+        return ret
 
 class fwd_op:
     """Forward operation for polarization-only, no primordial B power cg filter
@@ -193,19 +228,21 @@ class fwd_op:
 
     """
     def __init__(self, s_cls:dict, ninv_filt:alm_filter_ninv):
-        self.iclee = cli(s_cls['ee'])
+        self.icls = {'ee':cli(s_cls['ee']), 'bb':cli(s_cls['bb'])}
         self.ninv_filt = ninv_filt
         self.lmax_sol = ninv_filt.lmax_sol
         self.mmax_sol = ninv_filt.mmax_sol
 
     def hashdict(self):
-        return {'iclee': clhash(self.iclee),
+        return {'iclee': clhash(self.icls['ee']),'iclbb': clhash(self.icls['bb']),
                 'n_inv_filt': self.ninv_filt.hashdict()}
 
-    def __call__(self, elm):
-        return self.calc(elm)
+    def __call__(self, eblm):
+        return self.calc(eblm)
 
-    def calc(self, elm):
-        nlm = np.copy(elm)
+    def calc(self, eblm):
+        nlm = np.copy(eblm)
         self.ninv_filt.apply_alm(nlm)
-        return almxfl(nlm + almxfl(elm, self.iclee, self.mmax_sol, False), self.iclee > 0., self.mmax_sol, False)
+        nlm[0] = almxfl(nlm[0] + almxfl(eblm[0], self.icls['ee'], self.mmax_sol, False), self.icls['ee'] > 0., self.mmax_sol, False)
+        nlm[1] = almxfl(nlm[1] + almxfl(eblm[1], self.icls['bb'], self.mmax_sol, False), self.icls['bb'] > 0., self.mmax_sol, False)
+        return nlm
