@@ -4,7 +4,7 @@ from lenscarf.skypatch import skypatch
 from lenscarf import interpolators as itp
 from lenscarf.utils_remapping import d2ang, ang2d
 from lenscarf import cachers
-from lenscarf.utils import timer
+from lenscarf.utils import timer, clhash
 from lenscarf.utils_hp import Alm
 from lenscarf.utils_scarf import Geom, pbounds as pbs, scarfjob
 from lenscarf.fortran import remapping as fremap
@@ -13,7 +13,7 @@ import numpy as np
 
 class deflection:
     def __init__(self, scarf_geometry:scarf.Geometry, targetres_amin, p_bounds:tuple, dlm, fftw_threads, scarf_threads,
-                 cacher:cachers.cacher or None=None, dclm:np.ndarray or None=None, mmax=None):
+                 cacher:cachers.cacher or None=None, dclm:np.ndarray or None=None, mmax=None, verbose=True):
         """Deflection field object than can be used to lens several maps with forward or backward deflection
 
             Args:
@@ -55,6 +55,12 @@ class deflection:
         self._sht_tr = scarf_threads
         self._fft_tr = fftw_threads
         self.tim = timer(True, prefix='deflection instance')
+        self.verbose = verbose
+
+    def hashdict(self):
+        return {'lensgeom':Geom.hashdict(self.geom), 'resamin':self._resamin, 'pbs':self._pbds,
+               'dlm':clhash(self.dlm.real), 'dclm': None if self.dclm is None else clhash(self.dclm.real)}
+
 
     def _build_interpolator(self, glm, spin, clm=None, mmax=None):
         bufamin = 30.
@@ -84,7 +90,7 @@ class deflection:
             red, imd = self.geom.alm2map_spin([self.dlm, dclm], 1, self.lmax_dlm, self.mmax_dlm, self._sht_tr, [-1., 1.])
             thp_phip= np.zeros( (2, npix), dtype=float)
             startpix = 0
-            for ir in range(nrings):
+            for ir in np.argsort(self.geom.ofs): # We must follow the ordering of scarf position-space map
                 pixs = Geom.pbounds2pix(self.geom, ir, self._pbds)
                 if pixs.size > 0:
                     phis = Geom.phis(self.geom, ir)[pixs - self.geom.ofs[ir]]
@@ -127,7 +133,7 @@ class deflection:
             thts = np.empty(npix, dtype=float)
             phis = np.empty(npix, dtype=float)
             starts = np.zeros(nrings + 1, dtype=int)
-            for i, ir in enumerate(range(nrings)):
+            for i, ir in enumerate(np.argsort(self.geom.ofs)): # We must follow the ordering of scarf position-space map
                 pixs = Geom.pbounds2pix(self.geom, ir, self._pbds)
                 starts[ir + 1] = starts[ir] + pixs.size
                 if pixs.size > 0:
@@ -138,7 +144,7 @@ class deflection:
             bwdang = np.zeros((2, npix), dtype=float)
             # Inverse deflection to inverse angles
             # FIXME: cache here grid units etc
-            for i, ir in enumerate(range(nrings)):
+            for i, ir in enumerate(np.argsort(self.geom.ofs)): # We must follow the ordering of scarf position-space map
                 vt = int(np.rint(np.cos(self.geom.theta[ir])))
                 sli = slice(starts[ir], starts[ir + 1])
                 bwdang[:, sli] = d2ang(redi[sli], imdi[sli], thts[sli], phis[sli], vt)
@@ -157,14 +163,14 @@ class deflection:
             d = np.sqrt(red ** 2 + imd ** 2)
             gamma = np.zeros(npix, dtype=float)
             startpix = 0
-            for ir, tht in enumerate(self.geom.theta):
+            for ir in np.argsort(self.geom.ofs): # We must follow the ordering of scarf position-space map
                 pixs = Geom.pbounds2pix(self.geom, ir, self._pbds)
                 if pixs.size > 0:
                     phis = Geom.phis(self.geom, ir)[pixs - self.geom.ofs[ir]]
                     assert phis.size == pixs.size
                     sli = slice(startpix, startpix + len(pixs))
                     startpix += len(pixs)
-                    assert 0 < tht < np.pi, 'Fix this'
+                    assert 0 < self.geom.theta[ir] < np.pi, 'Fix this'
                     cot = np.cos(self.geom.theta[ir]) / np.sin(self.geom.theta[ir])
                     gamma[sli]  = np.arctan2(imd[pixs], red[pixs])
                     gamma[sli] -= np.arctan2(imd[pixs], d[pixs] * np.sin(d[pixs]) * cot + red[pixs] * np.cos(d[pixs]))
@@ -196,12 +202,12 @@ class deflection:
             thti, phii = self._bwd_angles()
             redimd = np.zeros((2, Geom.npix(scjob.geom)), dtype=float)
             start = 0
-            for it, tht in enumerate(self.geom.theta):
+            for it in np.argsort(self.geom.ofs): # We must follow the ordering of scarf position-space map
                 pixs = Geom.pbounds2pix(self.geom, it, self._pbds)
                 if pixs.size > 0:
                     phis = Geom.phis(self.geom, it)[pixs - self.geom.ofs[it]]
                     sli = slice(start, start+pixs.size)
-                    redimd[:, pixs] = ang2d(thti[sli], tht * np.ones(pixs.size), phii[sli] -phis)
+                    redimd[:, pixs] = ang2d(thti[sli], self.geom.theta[it] * np.ones(pixs.size), phii[sli] -phis)
                     start += pixs.size
             assert start == thti.size
             self.tim.add('collecting red imd for Mi')
@@ -226,13 +232,13 @@ class deflection:
             thti, phii = self._bwd_angles()
             gamma = np.zeros(Geom.pbounds2npix(self.geom, self._pbds), dtype=float)
             start = 0
-            for it, tht in enumerate(self.geom.theta):
+            for it in np.argsort(self.geom.ofs): # We must follow the ordering of scarf position-space map
                 pixs = Geom.pbounds2pix(self.geom, it, self._pbds)
                 if pixs.size > 0:
                     phis = Geom.phis(self.geom, it)[pixs - self.geom.ofs[it]]
                     sli = slice(start, start+pixs.size)
-                    red, imd = ang2d(thti[sli], tht * np.ones(pixs.size), phii[sli] -phis)
-                    assert 0 < tht < np.pi, 'Fix this'
+                    red, imd = ang2d(thti[sli], self.geom.theta[it] * np.ones(pixs.size), phii[sli] -phis)
+                    assert 0 < self.geom.theta[it] < np.pi, 'Fix this'
                     cot = np.cos(self.geom.theta[it]) / np.sin(self.geom.theta[it])
                     d = np.sqrt(red ** 2 + imd ** 2)
                     gamma[sli]  = np.arctan2(imd, red)
@@ -275,5 +281,6 @@ class deflection:
         else:
             gclm_len = self.geom.map2alm(lenm, lmax_out, mmax_out, self._sht_tr, [-1.,1.])
         self.tim.add('map2alm spin %s lmaxout %s nrings %s'%(spin, lmax_out, self.geom.get_nrings()))
-        print(self.tim)
+        if self.verbose:
+            print(self.tim)
         return gclm_len

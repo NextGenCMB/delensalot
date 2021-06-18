@@ -4,7 +4,7 @@
 """
 import numpy as np
 from lenscarf.utils_hp import almxfl, Alm, alm2cl
-from lenscarf.utils import timer, cli, clhash
+from lenscarf.utils import timer, cli, clhash, read_map
 from lenscarf import  utils_scarf
 
 
@@ -15,7 +15,7 @@ class alm_filter_ninv(object):
 
             Args:
                 ninv_geom: scarf geometry for the inverse-pixel-noise variance SHTs
-                ninv: list of inverse-pixel noise variance maps (strings, or arrays, or ...)
+                ninv: list of inverse-pixel noise variance maps (itself can be (a list of) string, or array, or ...)
                 transf: CMB transfer function (assumed to be the same in E and B)
                 unlalm_info: tuple of int, lmax and mmax of unlensed CMB
                 lenalm_info: tuple of int, lmax and mmax of lensed CMB
@@ -55,6 +55,8 @@ class alm_filter_ninv(object):
 
         self.verbose=verbose
 
+        self._nlevp = None
+
     def hashdict(self):
         return {'ninv':self._ninv_hash(), 'transf':clhash(self.b_transf),
                 'geom':utils_scarf.Geom.hashdict(self.sc_job.geom),
@@ -69,6 +71,19 @@ class alm_filter_ninv(object):
             else:
                 ret.append(ninv_comp)
         return ret
+
+    def get_febl(self):
+        if self._nlevp is None:
+            if len(self.n_inv) == 1:
+                nlev_febl =  10800. / np.sqrt(np.sum(read_map(self.n_inv[0])) / (4.0 * np.pi)) / np.pi
+            elif len(self.n_inv) == 3:
+                nlev_febl = 10800. / np.sqrt( (0.5 * np.sum(read_map(self.n_inv[0])) + np.sum(read_map(self.n_inv[2]))) / (4.0 * np.pi))  / np.pi
+            else:
+                assert 0
+            self._nlevp = nlev_febl
+        fel = self.b_transf ** 2 / (self._nlevp/ 180. / 60. * np.pi) ** 2
+        fbl = self.b_transf ** 2 / (self._nlevp/ 180. / 60. * np.pi) ** 2
+        return fel, fbl
 
     def apply_alm(self, elm:np.ndarray):
         """Applies operator B^T N^{-1} B
@@ -151,6 +166,7 @@ def apply_fini(*args, **kwargs):
 
     """
     pass
+
 
 class dot_op:
     def __init__(self, lmax:int, mmax:int or None):

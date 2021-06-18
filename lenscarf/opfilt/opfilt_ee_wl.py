@@ -4,10 +4,11 @@
 """
 import numpy as np
 from lenscarf.utils_hp import almxfl, Alm
-from lenscarf.utils import timer, clhash
+from lenscarf.utils import timer, clhash, cli
 from lenscarf import  utils_scarf
 from lenscarf import remapping
 from lenscarf.opfilt import opfilt_pp
+from scipy.interpolate import UnivariateSpline as spl
 
 dot_op = opfilt_pp.dot_op
 fwd_op = opfilt_pp.fwd_op
@@ -77,6 +78,31 @@ class alm_filter_ninv_wl(opfilt_pp.alm_filter_ninv):
         if self.verbose:
             print(tim)
 
+
+class pre_op_diag:
+    """Cg-inversion diagonal preconditioner
+
+    """
+    def __init__(self, s_cls:dict, ninv_filt:alm_filter_ninv_wl):
+        assert len(s_cls['ee']) > ninv_filt.lmax_sol, (ninv_filt.lmax_sol, len(s_cls['ee']))
+        lmax_sol = ninv_filt.lmax_sol
+        ninv_fel, ninv_fbl = ninv_filt.get_febl() # (N_lev * transf) ** 2 basically
+        if len(ninv_fel) - 1 < lmax_sol: # We extend the transfer fct to avoid predcon. with zero (~ Gauss beam)
+            print("PRE_OP_DIAG: extending transfer fct from lmax %s to lmax %s"%(len(ninv_fel)-1, lmax_sol))
+            assert np.all(ninv_fel > 0)
+            spl_sq = spl(np.arange(len(ninv_fel), dtype=float), np.log(ninv_fel), k=2, ext='extrapolate')
+            ninv_fel = np.exp(spl_sq(np.arange(lmax_sol + 1, dtype=float)))
+        flmat = cli(s_cls['ee'][:lmax_sol + 1]) + ninv_fel[:lmax_sol + 1]
+        self.flmat = cli(flmat) * (s_cls['ee'][:lmax_sol +1] > 0.)
+        self.lmax = ninv_filt.lmax_sol
+        self.mmax = ninv_filt.mmax_sol
+
+    def __call__(self, elm):
+        return self.calc(elm)
+
+    def calc(self, elm):
+        assert Alm.getsize(self.lmax, self.mmax) == elm.size, (self.lmax, self.mmax, Alm.getlmax(elm.size, self.mmax))
+        return almxfl(elm, self.flmat, self.mmax, False)
 
 def calc_prep(maps:list or np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv_wl):
     """cg-inversion pre-operation  (D^t B^t N^{-1} X^{dat})
