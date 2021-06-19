@@ -108,8 +108,8 @@ class Geom:
         jmins = np.ceil(jmins).astype(int)
         m = np.zeros(Geom.npix(geom), dtype=m_bnd.dtype)
         start = 0
-        for ir, (jmin, jmax) in enumerate(zip(jmins, jmaxs)):
-            pixs = geom.ofs[ir] + np.arange(jmin, jmax + 1)%geom.nph[ir]
+        for ir in np.argsort(geom.ofs):
+            pixs = geom.ofs[ir] + np.arange(jmins[ir], jmaxs[ir] + 1)%geom.nph[ir]
             m[pixs] = m_bnd[start:start + pixs.size]
             start += pixs.size
         return m
@@ -131,8 +131,8 @@ class Geom:
         jmins = np.ceil(jmins).astype(int)
         m_bnd = np.empty(np.sum(jmaxs - jmins) + jmaxs.size, dtype=m.dtype)
         start = 0
-        for ir, (jmin, jmax) in enumerate(zip(jmins, jmaxs)):
-            pixs = geom.ofs[ir] + np.arange(jmin, jmax + 1)%geom.nph[ir]
+        for ir in np.argsort(geom.ofs):
+            pixs = geom.ofs[ir] + np.arange(jmins[ir], jmaxs[ir] + 1)%geom.nph[ir]
             m_bnd[start:start + pixs.size] = m[pixs]
             start += pixs.size
         return m_bnd
