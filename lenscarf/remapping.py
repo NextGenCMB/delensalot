@@ -62,20 +62,21 @@ class deflection:
                'dlm':clhash(self.dlm.real), 'dclm': None if self.dclm is None else clhash(self.dclm.real)}
 
 
-    def _build_interpolator(self, glm, spin, clm=None, mmax=None):
+    def _build_interpolator(self, gclm, mmax:int or None, spin:int):
         bufamin = 30.
-        print("***instantiating spin-%s interpolator with %s amin buffers"%(spin, bufamin))
+        if self.verbose: print("***instantiating spin-%s interpolator with %s amin buffers"%(spin, bufamin))
         # putting a d = 0.01 ~ 30 arcmin buffer which should be way more than enough
         buf = bufamin/ 180 / 60 * np.pi
         tbds = [max(self._tbds[0] - buf, 0.), min(np.pi, self._tbds[1] + buf)]
         sintmin = np.min(np.sin(self._tbds))
         prange = min(self._pbds.get_range() + 2 * buf / sintmin if sintmin > 0 else 2 * np.pi, 2 * np.pi)
         buffered_patch = skypatch(tbds, (self._pbds.get_ctr(), prange), self._resamin, pole_buffers=3)
-        return itp.bicubic_ecp_interpolator(spin, glm, buffered_patch, self._sht_tr, self._fft_tr, clm=clm, mmax=mmax)
+        return itp.bicubic_ecp_interpolator(spin, gclm, mmax, buffered_patch, self._sht_tr, self._fft_tr)
 
     def _init_d1(self):
         if self.d1 is None:
-            self.d1 = self._build_interpolator(self.dlm, 1, clm=self.dclm, mmax=self.mmax_dlm)
+            gclm = [self.dlm, np.zeros_like(self.dlm) if self.dclm is None else self.dclm]
+            self.d1 = self._build_interpolator(gclm, self.mmax_dlm, 1)
 
     def _fwd_angles(self):
         """Builds deflected angles for the forawrd deflection field for the pixels inside the patch
@@ -135,10 +136,10 @@ class deflection:
             starts = np.zeros(nrings + 1, dtype=int)
             for i, ir in enumerate(np.argsort(self.geom.ofs)): # We must follow the ordering of scarf position-space map
                 pixs = Geom.pbounds2pix(self.geom, ir, self._pbds)
-                starts[ir + 1] = starts[ir] + pixs.size
+                starts[i + 1] = starts[i] + pixs.size
                 if pixs.size > 0:
-                    thts[starts[ir] : starts[ir + 1]] = self.geom.get_theta(ir) * np.ones(pixs.size)
-                    phis[starts[ir] : starts[ir + 1]] = Geom.phis(self.geom, ir)[pixs - self.geom.ofs[ir]]
+                    thts[starts[i] : starts[i + 1]] = self.geom.get_theta(ir) * np.ones(pixs.size)
+                    phis[starts[i] : starts[i + 1]] = Geom.phis(self.geom, ir)[pixs - self.geom.ofs[ir]]
             # Perform deflection inversion with Fortran code
             redi, imdi = fremap.remapping.solve_pixs(re_f, im_f, thts, phis, tht0, phi0, t2grid, p2grid)
             bwdang = np.zeros((2, npix), dtype=float)
@@ -146,7 +147,7 @@ class deflection:
             # FIXME: cache here grid units etc
             for i, ir in enumerate(np.argsort(self.geom.ofs)): # We must follow the ordering of scarf position-space map
                 vt = int(np.rint(np.cos(self.geom.theta[ir])))
-                sli = slice(starts[ir], starts[ir + 1])
+                sli = slice(starts[i], starts[i + 1])
                 bwdang[:, sli] = d2ang(redi[sli], imdi[sli], thts[sli], phis[sli], vt)
             self.cacher.cache(fn, bwdang)
             self.tim.add('bwd angles (full map)')
@@ -250,12 +251,12 @@ class deflection:
             self.cacher.cache(fn, gamma)
         return self.cacher.load(fn)
 
-    def lensgclm(self, glm, spin, lmax_out, backwards=False, clm=None, mmax=None, mmax_out=None):
+    def lensgclm(self, gclm:np.ndarray or list, mmax:int or None, spin, lmax_out, mmax_out:int or None, backwards=False):
         #TODO: save only grid angles and full phase factor
         if mmax_out is None: mmax_out = lmax_out
         self.tim.reset_t0()
-        interpjob = self._build_interpolator(glm, spin, clm=clm, mmax=mmax)
-        self.tim.add('glm spin %s lmax %s interpolator setup'%(spin, Alm.getlmax(glm.size, mmax)))
+        interpjob = self._build_interpolator(gclm, mmax, spin)
+        self.tim.add('glm spin %s lmax %s interpolator setup'%(spin, Alm.getlmax((gclm[0] if abs(spin) > 0 else gclm).size, mmax)))
         thtn, phin = self._bwd_angles() if backwards else self._fwd_angles()
         self.tim.add('getting angles')
 

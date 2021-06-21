@@ -40,3 +40,8 @@ def cmbs4_08b_healpix_onp(): # square of 50 deg by 50 deg
     scarf_job = us.scarfjob()
     scarf_job.set_healpix_geometry(2048, zbounds=zbounds_ninv)
     return scarf_job, [pb_ctr, pb_extent], zbounds_len, zbounds_ninv
+
+def full_sky_healpix():
+    scarf_job = us.scarfjob()
+    scarf_job.set_healpix_geometry(2048)
+    return scarf_job, [0, 2 * np.pi], (-1.,1.), (-1.,1)

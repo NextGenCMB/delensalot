@@ -15,7 +15,7 @@ class skypatch:
 
 
     """
-    def __init__(self, tbounds, pbounds, targetres_amin, pole_buffers=0):
+    def __init__(self, tbounds, pbounds, targetres_amin, pole_buffers=0, verbose=False):
         assert (0. <= tbounds[0] < tbounds[1] <= np.pi), tbounds
         assert (pbounds[1] > 0), pbounds
         #-- inclusive bounds
@@ -33,6 +33,8 @@ class skypatch:
         self.nt_buffers_n =  pole_buffers *  northp
         self.nt_buffers_s  = pole_buffers *  southp
 
+        self.verbose = verbose
+
     def ecp_ring_ntphi(self):
         """Number of tht and phi points matching desired resolution and powers of low primes
 
@@ -47,7 +49,8 @@ class skypatch:
         nph = lowprimes(np.ceil(np_min))
         rest_amin = (self.colat_bounds[1] - self.colat_bounds[0]) / np.pi * 180 * 60 / (nt - self.nt_buffers_n - self.nt_buffers_s)
         resp_amin = max_sinth * 360 * 60 / nph
-        print("achieved nt np %s %s res %.2f (tht) %.2f (phi) amins"%(nt, nph, rest_amin, resp_amin))
+        if self.verbose:
+            print("achieved nt np %s %s res %.2f (tht) %.2f (phi) amins"%(nt, nph, rest_amin, resp_amin))
         return nt, nph
 
     def ecp_resize(self, nph_ecp):

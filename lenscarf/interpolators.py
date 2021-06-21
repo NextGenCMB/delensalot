@@ -15,11 +15,11 @@ class bicubic_ecp_interpolator:
 
         Args:
             spin: spin-weight of the map to interpolate
-            glm: gradient-mode of the map to interpolate (healpix/py format)
+            gclm: gradient and curl mode of the map to interpolate (healpix/py format). For spin-0 1-d array
+            mmax: maxmimal m defining the glm layout (defaults to lmax if None)
             patch: skypatch instance defining the region boundaries and sampling resolution
             sht_threads: numbers of OMP threads to perform shts with (scarf / ducc)
             fftw_threads: numbers of threads for FFT's
-            clm: curl mode of map to interpolate, if relevant
 
         Note:
             The first and last pixels (of the first dimension) match the input colatitude bounds exactly
@@ -29,7 +29,7 @@ class bicubic_ecp_interpolator:
             On first instantiation pyfftw spends some extra time calculating a FFT plan
 
     """
-    def __init__(self, spin:int, glm, patch:skypatch, sht_threads:int, fftw_threads:int, clm=None, mmax=None):
+    def __init__(self, spin:int, gclm:np.ndarray or list, mmax:int or None, patch:skypatch, sht_threads:int, fftw_threads:int, verbose=False):
         # Defines latitude grid from input bounds:
         assert spin >= 0, spin
         tim = timer(True, prefix='spinfield bicubic interpolator')
@@ -40,7 +40,7 @@ class bicubic_ecp_interpolator:
         ecp_nt_nobuf = ecp_nt - nt_buf_n - nt_buf_s
         imin, imax = patch.ecp_resize(ecp_nph)
 
-        lmax = Alm.getlmax(glm.size, mmax)
+        lmax = Alm.getlmax( (gclm[0] if spin > 0 else gclm).size, mmax)
         if mmax is None : mmax = lmax
         # ------ Build custom scarf job with patch center on the middle of ECP map
         ecp_job = scarfjob()
@@ -51,13 +51,13 @@ class bicubic_ecp_interpolator:
         # ----- calculation of the map to interpolate
         if spin > 0:
             ecp_m_resized = np.zeros((ecp_nt_nobuf + nt_buf_n + nt_buf_s, imax - imin + 1), dtype=complex)
-            ecp_m = ecp_job.alm2map_spin([glm, clm if clm is not None else np.zeros_like(glm)], spin)
+            ecp_m = ecp_job.alm2map_spin(gclm, spin)
             ecp_m_resized[nt_buf_n:ecp_nt_nobuf + nt_buf_n] = (ecp_m[0] +  1j* ecp_m[1]).reshape( (ecp_nt_nobuf, ecp_nph))[:, imin:imax+1]
             tmp_shape = ecp_m_resized.shape
             ftype = complex
         else:
             ecp_m_resized = np.zeros((ecp_nt_nobuf + nt_buf_n + nt_buf_s, imax - imin + 1), dtype=float)
-            ecp_m_resized[nt_buf_n:ecp_nt_nobuf + nt_buf_n] = ecp_job.alm2map(glm).reshape( (ecp_nt_nobuf, ecp_nph))[:, imin:imax+1]
+            ecp_m_resized[nt_buf_n:ecp_nt_nobuf + nt_buf_n] = ecp_job.alm2map(gclm).reshape( (ecp_nt_nobuf, ecp_nph))[:, imin:imax+1]
             tmp_shape = (ecp_m_resized.shape[0], ecp_m_resized.shape[1] // 2 + 1)
             ftype = float
         for i in range(nt_buf_n): # north pole buffers if relevant
@@ -110,7 +110,8 @@ class bicubic_ecp_interpolator:
         #temp
         self.ma = ecp_m_resized # FIXME: here for test purposes
         self.ecpjob = ecp_job
-        print(tim)
+        if verbose:
+            print(tim)
 
     def phi2grid(self, phi):
         return (phi - self._ecp_pctr + np.pi - self._phir_min)%(2. * np.pi) * self._prescal

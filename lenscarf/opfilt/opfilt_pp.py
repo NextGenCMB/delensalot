@@ -26,9 +26,6 @@ class alm_filter_ninv(object):
 
         """
 
-        npix = utils_scarf.Geom.npix(ninv_geom)
-        assert np.all([ni.size == npix for ni in ninv])
-
         self.n_inv = ninv
         self.b_transf = transf
 
