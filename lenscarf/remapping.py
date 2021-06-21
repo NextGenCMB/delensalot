@@ -13,7 +13,7 @@ import numpy as np
 
 class deflection:
     def __init__(self, scarf_geometry:scarf.Geometry, targetres_amin, p_bounds:tuple, dlm, fftw_threads, scarf_threads,
-                 cacher:cachers.cacher or None=None, dclm:np.ndarray or None=None, mmax=None, verbose=True):
+                 cacher:cachers.cacher or None=None, dclm:np.ndarray or None=None, mmax_dlm=None, verbose=True):
         """Deflection field object than can be used to lens several maps with forward or backward deflection
 
             Args:
@@ -26,7 +26,7 @@ class deflection:
                 cacher: cachers.cacher instance allowing if desired caching of several pieces of info;
                         Useless if only one maps is intended to be deflected, but useful if more.
                 dclm: deflection-field alm array, curl mode (if relevant)
-                mmax: maximal m of the dlm / dclm arrays, if different from lmax
+                mmax_dlm: maximal m of the dlm / dclm arrays, if different from lmax
 
 
         """
@@ -35,15 +35,15 @@ class deflection:
         tht_bounds = Geom.tbounds(scarf_geometry)
         assert (0. <= tht_bounds[0] < tht_bounds[1] <= np.pi), tht_bounds
         #self.sky_patch = skypatch(tht_bounds, p_bounds, targetres_amin, pole_buffers=3)
-        lmax = Alm.getlmax(dlm.size, mmax)
-        if mmax is None: mmax = lmax
+        lmax = Alm.getlmax(dlm.size, mmax_dlm)
+        if mmax_dlm is None: mmax = lmax
         if cacher is None: cacher = cachers.cacher_none()
 
         self.dlm = dlm
         self.dclm = dclm
 
         self.lmax_dlm = lmax
-        self.mmax_dlm = mmax
+        self.mmax_dlm = mmax_dlm
         self.d1 = None # -- this might be instantiated later if needed
         self.cacher = cacher
         self.geom = scarf_geometry
@@ -71,7 +71,7 @@ class deflection:
         sintmin = np.min(np.sin(self._tbds))
         prange = min(self._pbds.get_range() + 2 * buf / sintmin if sintmin > 0 else 2 * np.pi, 2 * np.pi)
         buffered_patch = skypatch(tbds, (self._pbds.get_ctr(), prange), self._resamin, pole_buffers=3)
-        return itp.bicubic_ecp_interpolator(spin, gclm, mmax, buffered_patch, self._sht_tr, self._fft_tr)
+        return itp.bicubic_ecp_interpolator(spin, gclm, mmax, buffered_patch, self._sht_tr, self._fft_tr, verbose=self.verbose)
 
     def _init_d1(self):
         if self.d1 is None:

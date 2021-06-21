@@ -3,7 +3,7 @@ import numpy as np
 from lenscarf.utils_scarf import scarfjob
 from lenscarf.utils_hp import almxfl, Alm
 
-def get_spin_raise(s, lmax):
+def get_spin_raise(s:int, lmax:int):
     r"""Response coefficient of spin-s spherical harmonic to spin raising operator.
 
         :math:`\sqrt{ (l - s) (l + s + 1) }` for abs(s) <= l <= lmax
@@ -13,7 +13,7 @@ def get_spin_raise(s, lmax):
     ret[abs(s):] = np.sqrt(np.arange(abs(s) -s, lmax - s + 1) * np.arange(abs(s) + s + 1, lmax + s + 2))
     return ret
 
-def get_spin_lower(s, lmax):
+def get_spin_lower(s:int, lmax:int):
     r"""Response coefficient of spin-s spherical harmonic to spin lowering operator.
 
         :math:`-\sqrt{ (l + s) (l - s + 1) }` for abs(s) <= l <= lmax
@@ -24,7 +24,7 @@ def get_spin_lower(s, lmax):
     return ret
 
 
-def dlm2kggo(job:scarfjob, dlm:np.ndarray, dclm:np.ndarray=None):
+def dlm2kggo(job:scarfjob, dlm:np.ndarray, dclm:np.ndarray or None=None):
     """Returns convergence (kappa), shear maps (gamma1, gamma2) and rotation map (omega) from lensing potentials healpy arrays
 
         :math:`\kappa = -\frac 12 \Delta \phi`

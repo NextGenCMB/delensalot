@@ -49,11 +49,14 @@ class alm_filter_ninv(object):
         sc_job.set_geometry(ninv_geom_)
         sc_job.set_nthreads(sht_threads)
         sc_job.set_triangular_alm_info(lmax_len, mmax_len)
+        self.ninv_geom = ninv_geom
         self.sc_job = sc_job
 
         self.verbose=verbose
 
         self._nlevp = None
+        self.tim = timer(True, prefix='opfilt')
+
 
     def hashdict(self):
         return {'ninv':self._ninv_hash(), 'transf':clhash(self.b_transf),

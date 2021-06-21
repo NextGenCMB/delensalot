@@ -44,7 +44,8 @@ class alm_filter_ninv_wl(opfilt_pp.alm_filter_ninv):
 
         """
         # Forward lensing here
-        tim = timer(True, prefix='opfilt_pp')
+        tim = self.tim
+        tim.reset_t0()
         lmax_unl =Alm.getlmax(elm.size, self.mmax_sol)
         assert lmax_unl == self.lmax_sol, (lmax_unl, self.lmax_sol)
         eblm = self.ffi.lensgclm([elm, np.zeros_like(elm)], self.mmax_sol, 2, self.lmax_len, self.mmax_len)
