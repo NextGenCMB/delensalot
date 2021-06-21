@@ -16,8 +16,7 @@ from plancklens.utils import camb_clfile
 lmax_dlm = 4096
 lmax_unl = 4000
 lmax_len = 4000
-sht_threads = 8
-fftw_threads = 8
+
 nside = 2048
 fwhm = 2.3
 targetres_amin=2.
@@ -81,9 +80,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='test of lenscarf-based opfilt')
     parser.add_argument('-lensgeom', dest='lensgeom', type=str, default='healpix', help='lens geometry choice')
     parser.add_argument('-run', dest='run', action='store_true', help='build and filter one sim')
+    parser.add_argument('-sht', dest='sht', type=int, default=8, help='threads number for SHTs')
+    parser.add_argument('-fftw', dest='fftw',type=int, default=8, help='threads number for FFTs')
 
     args = parser.parse_args()
-
+    sht_threads = args.sht
+    fftw_threads = args.fftw
     if args.lensgeom == 'healpix':
         lenjob.set_healpix_geometry(nside, zbounds=zbounds_len)
     elif args.lensgeom == 'thingauss':
