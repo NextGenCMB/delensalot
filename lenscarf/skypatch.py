@@ -15,7 +15,7 @@ class skypatch:
 
 
     """
-    def __init__(self, tbounds, pbounds, targetres_amin, pole_buffers=0, verbose=False):
+    def __init__(self, tbounds:tuple, pbounds:tuple, targetres_amin:float, pole_buffers:int=0, verbose=False):
         assert (0. <= tbounds[0] < tbounds[1] <= np.pi), tbounds
         assert (pbounds[1] > 0), pbounds
         #-- inclusive bounds

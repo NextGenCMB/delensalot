@@ -8,7 +8,7 @@ from lenscarf import cachers
 from lenscarf.opfilt import opfilt_ee_wl, opfilt_pp
 from lenscarf.utils_scarf import Geom, scarfjob
 from plancklens.utils import camb_clfile
-
+from lenscarf import qest_wl
 # FIXME: qest_wl part of opfilt
 # FIXME: make opfilt classes instead of files?
 # FIXME: fix multigrid always assuming mmax=lmax
@@ -23,14 +23,17 @@ targetres_amin=2.
 mmax_is_lmax = False # False allows for mmax cuts
 w_lensing = True
 full_sky = False
+config = 'cmbs4_08b_healpix_onp' #cmbs4_08b_healpix, cmbs4_08b_healpix_onp, cmbs4_08b_healpix_oneq, full_sky_healpix
 
 if not full_sky:
-    ninvjob, pbds, zbounds_len, zbounds_ninv  = utils_config.cmbs4_08b_healpix()#_oneq() #FIXME: can have distinct zbounds for ninv and zboundslen
+    ninvjob, pbds, zbounds_len, zbounds_ninv  = getattr(utils_config, config)() #_oneq() #FIXME: can have distinct zbounds for ninv and zboundslen
     #ninvjob, pbds, zbounds_len, zbounds_ninv  = utils_config.cmbs4_08b_healpix_onp()#_oneq() #FIXME: can have distinct zbounds for ninv and zboundslen
     #ninvjob, pbds, zbounds_len, zbounds_ninv = utils_config.cmbs4_08b_healpix_oneq() #FIXME: can have distinct zbounds for ninv and zboundslen
     IPVMAP = '/global/cscratch1/sd/jcarron/cmbs4/temp/s08b/cILC2021_00/ipvmap.fits'
     if not os.path.exists(IPVMAP):
         IPVMAP = '/Users/jcarron/OneDrive - unige.ch/cmbs4/inputs/ipvmap.fits'
+    if config in ['cmbs4_08b_healpix_onp']:
+        IPVMAP = '/Users/jcarron/OneDrive - unige.ch/cmbs4/inputs/ipvmap_onpole.fits'
 
 else:
     ninvjob, pbds, zbounds_len, zbounds_ninv = utils_config.full_sky_healpix()
@@ -92,7 +95,7 @@ if __name__ == '__main__':
         lenjob.set_thingauss_geometry(max(lmax_unl, lmax_len), 2, zbounds=zbounds_len)
     else:
         assert 0, args.lensgeom + ' not implemented'
-    d = remapping.deflection(lenjob.geom, targetres_amin, pbds, dlm, sht_threads, fftw_threads, mmax=mmax_dlm, cacher=cacher)
+    d = remapping.deflection(lenjob.geom, targetres_amin, pbds, dlm, mmax_dlm, sht_threads, fftw_threads, cacher=cacher)
 
 
     t0 = time()
@@ -124,9 +127,11 @@ if __name__ == '__main__':
         qu_dat += np.random.standard_normal(qu_dat.shape) * utils.cli(np.sqrt(utils.read_map(n_inv[0])))
 
         from plancklens.qcinv import cd_solve, multigrid
-        itermax = 3
+        itermax = 100
         opfilt.verbose = False
         d.verbose = False
+        d.tim.reset()
+        opfilt.tim.reset()
         chain_descr = [[0, ["diag_cl"], lmax_unl, nside, itermax, 1e-3, cd_solve.tr_cg, cd_solve.cache_mem()]]
         if w_lensing:
             soltn = np.zeros(utils_hp.Alm.getsize(lmax_unl, mmax_unl), dtype=complex)
@@ -139,8 +144,23 @@ if __name__ == '__main__':
         chain = multigrid.multigrid_chain(opfilt_file, chain_descr, cl_len, opfilt)
         chain.solve(soltn, qu_dat, dot_op=opfilt_file.dot_op(lmax_unl, mmax_unl))
 
+        qlms_g, qlms_c = qest_wl.get_qlms_wl(qu_dat, soltn, opfilt)
+        opfilt.tim.add('qest_wl')
+
+        import pylab as pl
+        from plancklens import nhl
+
+        ls = np.arange(2, lmax_dlm + 1)
+        cl_unl = camb_clfile('../lenscarf/data/cls/FFP10_wdipole_lenspotentialCls.dat')
+
+        n0 = nhl.get_N0_iter('p_p', 0.35/ np.sqrt(2.), 0.35, fwhm, cl_unl, 2, lmax_len, 0, lmax_qlm=lmax_dlm)[0]
+        pl.loglog(ls, 1e7 / 2 / np.pi * ls ** 2 * (ls + 1.) ** 2 * utils_hp.alm2cl(qlms_g, qlms_g, lmax_dlm, mmax_dlm, lmax_dlm)[ls] * n0[ls] ** 2)
+        pl.loglog(ls, 1e7 / 2 / np.pi * ls ** 2 * (ls + 1.) ** 2 * n0[ls], c='k')
+        pl.loglog(ls, 1e7 / 2 / np.pi * ls ** 2 * (ls + 1.) ** 2 * cl_unl['pp'][ls])
+        pl.show()
         print(opfilt._nlevp)
-        pass
+        print(d.tim)
+        print(opfilt.tim)
 """comp to NERSC  THREADS 16
                        scarf ecp job setup:  [00h:00m:00s:000ms] 
                              scarf alm2map:  [00h:00m:01s:986ms] 

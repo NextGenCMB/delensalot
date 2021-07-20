@@ -12,8 +12,9 @@ from lenscarf import utils_dlm
 import numpy as np
 
 class deflection:
-    def __init__(self, scarf_geometry:scarf.Geometry, targetres_amin, p_bounds:tuple, dlm, fftw_threads, scarf_threads,
-                 cacher:cachers.cacher or None=None, dclm:np.ndarray or None=None, mmax_dlm=None, verbose=True):
+    def __init__(self, scarf_geometry:scarf.Geometry, targetres_amin, p_bounds:tuple, dlm,
+                 mmax_dlm:int or None, fftw_threads:int, scarf_threads:int,
+                 cacher:cachers.cacher or None=None, dclm:np.ndarray or None=None, verbose=True):
         """Deflection field object than can be used to lens several maps with forward or backward deflection
 
             Args:
@@ -36,7 +37,7 @@ class deflection:
         assert (0. <= tht_bounds[0] < tht_bounds[1] <= np.pi), tht_bounds
         #self.sky_patch = skypatch(tht_bounds, p_bounds, targetres_amin, pole_buffers=3)
         lmax = Alm.getlmax(dlm.size, mmax_dlm)
-        if mmax_dlm is None: mmax = lmax
+        if mmax_dlm is None: mmax_dlm = lmax
         if cacher is None: cacher = cachers.cacher_none()
 
         self.dlm = dlm
@@ -52,7 +53,7 @@ class deflection:
         self._tbds = tht_bounds
         self._pbds = pbs(p_bounds[0], p_bounds[1])  # (patch ctr, patch extent)
         self._resamin = targetres_amin
-        self._sht_tr = scarf_threads
+        self.sht_tr = scarf_threads
         self._fft_tr = fftw_threads
         self.tim = timer(True, prefix='deflection instance')
         self.verbose = verbose
@@ -71,7 +72,7 @@ class deflection:
         sintmin = np.min(np.sin(self._tbds))
         prange = min(self._pbds.get_range() + 2 * buf / sintmin if sintmin > 0 else 2 * np.pi, 2 * np.pi)
         buffered_patch = skypatch(tbds, (self._pbds.get_ctr(), prange), self._resamin, pole_buffers=3)
-        return itp.bicubic_ecp_interpolator(spin, gclm, mmax, buffered_patch, self._sht_tr, self._fft_tr, verbose=self.verbose)
+        return itp.bicubic_ecp_interpolator(spin, gclm, mmax, buffered_patch, self.sht_tr, self._fft_tr, verbose=self.verbose)
 
     def _init_d1(self):
         if self.d1 is None:
@@ -85,10 +86,9 @@ class deflection:
         """
         fn = 'fwdang'
         if not self.cacher.is_cached(fn):
-            nrings = self.geom.get_nrings()
             npix = Geom.pbounds2npix(self.geom, self._pbds)
             dclm = np.zeros_like(self.dlm) if self.dclm is None else self.dclm
-            red, imd = self.geom.alm2map_spin([self.dlm, dclm], 1, self.lmax_dlm, self.mmax_dlm, self._sht_tr, [-1., 1.])
+            red, imd = self.geom.alm2map_spin([self.dlm, dclm], 1, self.lmax_dlm, self.mmax_dlm, self.sht_tr, [-1., 1.])
             thp_phip= np.zeros( (2, npix), dtype=float)
             startpix = 0
             for ir in np.argsort(self.geom.ofs): # We must follow the ordering of scarf position-space map
@@ -160,7 +160,7 @@ class deflection:
             self.tim.reset_t0()
             npix = Geom.pbounds2npix(self.geom, self._pbds)
             dclm = np.zeros_like(self.dlm) if self.dclm is None else self.dclm
-            red, imd = self.geom.alm2map_spin([self.dlm, dclm], 1, self.lmax_dlm, self.mmax_dlm, self._sht_tr, [-1., 1.])
+            red, imd = self.geom.alm2map_spin([self.dlm, dclm], 1, self.lmax_dlm, self.mmax_dlm, self.sht_tr, [-1., 1.])
             d = np.sqrt(red ** 2 + imd ** 2)
             gamma = np.zeros(npix, dtype=float)
             startpix = 0
@@ -185,7 +185,7 @@ class deflection:
         scjob = scarfjob()
         scjob.set_geometry(self.geom)
         scjob.set_triangular_alm_info(self.lmax_dlm, self.mmax_dlm)
-        scjob.set_nthreads(self._sht_tr)
+        scjob.set_nthreads(self.sht_tr)
         return Geom.map2pbnmap(self.geom, utils_dlm.dlm2M(scjob, self.dlm, self.dclm), self._pbds)
         
     def _bwd_magn(self):
@@ -199,7 +199,7 @@ class deflection:
             scjob = scarfjob()
             scjob.set_geometry(self.geom)
             scjob.set_triangular_alm_info(self.lmax_dlm, self.mmax_dlm)
-            scjob.set_nthreads(self._sht_tr)
+            scjob.set_nthreads(self.sht_tr)
             thti, phii = self._bwd_angles()
             redimd = np.zeros((2, Geom.npix(scjob.geom)), dtype=float)
             start = 0
@@ -229,7 +229,7 @@ class deflection:
             scjob = scarfjob()
             scjob.set_geometry(self.geom)
             scjob.set_triangular_alm_info(self.lmax_dlm, self.mmax_dlm)
-            scjob.set_nthreads(self._sht_tr)
+            scjob.set_nthreads(self.sht_tr)
             thti, phii = self._bwd_angles()
             gamma = np.zeros(Geom.pbounds2npix(self.geom, self._pbds), dtype=float)
             start = 0
@@ -251,12 +251,12 @@ class deflection:
             self.cacher.cache(fn, gamma)
         return self.cacher.load(fn)
 
-    def lensgclm(self, gclm:np.ndarray or list, mmax:int or None, spin, lmax_out, mmax_out:int or None, backwards=False):
-        #TODO: save only grid angles and full phase factor
-        if mmax_out is None: mmax_out = lmax_out
+    def gclm2lenmap(self, gclm:np.ndarray or list, mmax:int or None, spin, backwards:bool):
+        # TODO: save only grid angles and full phase factor
         self.tim.reset_t0()
         interpjob = self._build_interpolator(gclm, mmax, spin)
-        self.tim.add('glm spin %s lmax %s interpolator setup'%(spin, Alm.getlmax((gclm[0] if abs(spin) > 0 else gclm).size, mmax)))
+        self.tim.add('glm spin %s lmax %s interpolator setup' % (
+        spin, Alm.getlmax((gclm[0] if abs(spin) > 0 else gclm).size, mmax)))
         thtn, phin = self._bwd_angles() if backwards else self._fwd_angles()
         self.tim.add('getting angles')
 
@@ -266,7 +266,7 @@ class deflection:
             if backwards:
                 lenm_pbded *= self._bwd_magn()
                 self.tim.add('det Mi')
-            lenm =  Geom.pbdmap2map(self.geom, lenm_pbded, self._pbds)
+            lenm = Geom.pbdmap2map(self.geom, lenm_pbded, self._pbds)
         else:
             gamma = self._bwd_polrot if backwards else self._fwd_polrot
             lenm_pbded = np.exp(1j * spin * gamma()) * (lenm_pbded[0] + 1j * lenm_pbded[1])
@@ -277,10 +277,17 @@ class deflection:
             lenm = [Geom.pbdmap2map(self.geom, lenm_pbded.real, self._pbds),
                     Geom.pbdmap2map(self.geom, lenm_pbded.imag, self._pbds)]
         self.tim.add('truncated array filling')
+        return lenm
+
+    def lensgclm(self, gclm:np.ndarray or list, mmax:int or None, spin, lmax_out, mmax_out:int or None, backwards=False):
+        self.tim.reset_t0()
+        lenm = self.gclm2lenmap(gclm, mmax, spin, backwards)
+        self.tim.add('gclm2lenmap, total')
+        if mmax_out is None: mmax_out = lmax_out
         if spin > 0:
-            gclm_len = self.geom.map2alm_spin(lenm, spin, lmax_out, mmax_out, self._sht_tr, [-1.,1.])
+            gclm_len = self.geom.map2alm_spin(lenm, spin, lmax_out, mmax_out, self.sht_tr, [-1., 1.])
         else:
-            gclm_len = self.geom.map2alm(lenm, lmax_out, mmax_out, self._sht_tr, [-1.,1.])
+            gclm_len = self.geom.map2alm(lenm, lmax_out, mmax_out, self.sht_tr, [-1., 1.])
         self.tim.add('map2alm spin %s lmaxout %s nrings %s'%(spin, lmax_out, self.geom.get_nrings()))
         if self.verbose:
             print(self.tim)
