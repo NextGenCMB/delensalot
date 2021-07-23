@@ -1,6 +1,13 @@
 """Module for curved-sky iterative lensing estimation
 
-    Version revised on Apr 3 2020
+    Version revised on July 23 2021
+        Amon the changes:
+            * lenscarf'ed this
+            * optionally change main variable from plm to klm or dlm with expected better behavior
+            * rid of alm2rlm which was just wasting a little bit of time and loads of memory
+            * abstracted bfgs with cacher and dot_op
+
+
 
 
 #FIXME: should remove abs path from cacher path id's
@@ -17,9 +24,8 @@ from lenscarf.utils import cli, read_map
 from lenscarf.utils_hp import Alm, almxfl, alm2cl
 from lenscarf.utils_scarf import scarfjob
 from lenscarf import utils_dlm
-#import healpy as hp #FIXME
-from plancklens.qcinv import multigrid, cd_solve
 
+from plancklens.qcinv import multigrid, cd_solve
 from lenscarf.iterators import bfgs
 
 from lenscarf.opfilt import opfilt_ee_wl
@@ -44,7 +50,9 @@ typs = ['T', 'QU', 'TQU']
 
 
 class pol_iterator(object):
-    def __init__(self, lib_dir:str, h:str, dat_maps, plm0, pp_h0, cpp_prior, cls_filt, lm_max_dlm:tuple, lm_max_elm:tuple, ninv_filt:opfilt_ee_wl.alm_filter_ninv_wl,
+    def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple, lm_max_elm:tuple,
+                 dat_maps:list or np.ndarray, plm0:np.ndarray, pp_h0:np.ndarray,
+                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_ee_wl.alm_filter_ninv_wl,
                  chain_descr, NR_method=100, tidy=0, verbose=True, soltn_cond=True, wflm0=None):
         """Lensing map iterator
 
@@ -68,29 +76,27 @@ class pol_iterator(object):
         assert typ in ['QU'], typ + 'not implemented'
         assert len(dat_maps) == len(typ), (len(dat_maps), typ)
         assert Alm.getlmax(plm0.size, mmax_qlm) == lmax_qlm
+        if mmax_qlm is None: mmax_qlm = lmax_qlm
 
         self.h = h
-        cacher = cachers.cacher_npy(lib_dir) #Should check with Hessian formation if use something else
-        hess_cacher = cachers.cacher_npy(opj(self.lib_dir, 'hessian'))
-        # FIXME:
+
+        self.lib_dir = lib_dir
+        self.cacher = cachers.cacher_npy(lib_dir)
+        self.hess_cacher = cachers.cacher_npy(opj(self.lib_dir, 'hessian'))
+        self.wf_cacher = cachers.cacher_npy(opj(self.lib_dir, 'wflms'))
+
         #if chain_descr is None:
         # nside = hp.npix2nside(read_map(dat_maps[0]).size)
         #    chain_descr =  [[0, ["diag_cl"], lmax_filt, nside, np.inf, 1e-3, cd_solve.tr_cg, cd_solve.cache_mem()]]
         self.typ = typ
         self.opfilt = opfilt_ee_wl
-        self.lib_dir = lib_dir
         self.dat_maps = dat_maps
 
 
         self.chain_descr = chain_descr
-        assert lmax_filt == chain_descr[-1][2], (lmax_filt, chain_descr[-1][2])
 
-        self.chh = cpp_prior * self._p2h(len(cpp_prior) - 1) ** 2
-        
-        lmax_qlm = Alm.getlmax(plm0.size, mmax_qlm)
-        if mmax_qlm is None: mmax_qlm = lmax_qlm
-        assert mmax_qlm == lmax_qlm, 'check rlm2alm and all almxfl etc'
-        
+        self.chh = cpp_prior[:self.lmax_qlm+1] * self._p2h(lmax_qlm) ** 2
+        self.hh_h0 = pp_h0[:self.lmax_qlm + 1] * self._h2p(self.lmax_qlm) ** 2
         self.lmax_qlm = lmax_qlm
         self.mmax_qlm = mmax_qlm
 
@@ -103,9 +109,6 @@ class pol_iterator(object):
         self.mmax_filt = mmax_filt
 
         self.filter = ninv_filt
-        self.cacher = cacher
-        self.hess_cacher = hess_cacher
-
         # Defining a trial newton step length :
 
         def newton_step_length(iter, norm_incr):  # FIXME
@@ -120,7 +123,6 @@ class pol_iterator(object):
         print('ffs iterator : This is trying to setup %s' % lib_dir)
 
 
-        self.hh_h0 = pp_h0[:self.lmax_qlm + 1] * self._h2p(self.lmax_qlm) ** 2
 
         if not os.path.exists(opj(self.lib_dir, 'history_increment.txt')):
             with open(opj(self.lib_dir, 'history_increment.txt'), 'w') as f:
@@ -135,9 +137,9 @@ class pol_iterator(object):
                 f.close()
 
         print('++ ffs_%s masked iterator : setup OK' % type)
-        plm_fname = opj(lib_dir, '%s_plm_it%03d' % ({'p': 'phi', 'o': 'om'}['p'], 0))
+        plm_fname = '%s_%slm_it%03d' % ({'p': 'phi', 'o': 'om'}['p'], self.h, 0)
         if not self.cacher.is_cached(plm_fname):
-            self.cacher.cache(plm_fname, plm0)
+            self.cacher.cache(plm_fname, almxfl(plm0, self._p2h(self.lmax_qlm), self.mmax_qlm, False))
 
     def _p2h(self, lmax):
         if self.h == 'p':
@@ -228,8 +230,8 @@ class pol_iterator(object):
         assert self.typ in ['QU', 'T'], self.typ
         for i in np.arange(itr - 1, -1, -1):
             fname = 'wflm_%s_it%s' % (key.lower(), i)
-            if self.cacher.is_cached(fname):
-                return self.cacher.load(fname), i
+            if self.wf_cacher.is_cached(fname):
+                return self.wf_cacher.load(fname), i
         if callable(self.wflm0):
             return self.wflm0(), -1
         return np.zeros(({'T':1, 'QU':1, 'TQU':2}[self.typ], Alm.getsize(self.lmax_filt, self.mmax_filt)), dtype=complex).squeeze(), -1
@@ -460,7 +462,7 @@ class iterator_cstmf(pol_iterator):
                 mchain.solve(soltn, [read_map(d) if isinstance(d, str) else d for d in self.dat_maps])
                 fn_wf = 'wflm_%s_it%s' % (key.lower(), itr - 1)
                 print("caching "  + fn_wf)
-                self.cacher.cache(fn_wf, soltn)
+                self.wf_cacher.cache(fn_wf, soltn)
             else:
                 print("Using cached WF solution at iter %s "%itr)
             if not np.all(self.erescal == 1.):
@@ -496,8 +498,8 @@ class iterator_cstmf_bfgs0(iterator_cstmf):
         We need the inverse hessian that will produce phi_iter.
         """
         # Zeroth order inverse hessian :
-        apply_H0k = lambda rlm, k: alm2rlm(almxfl(rlm2alm(rlm), self.hh_h0, self.mmax_qlm, False))
-        apply_B0k = lambda rlm, k: alm2rlm(almxfl(rlm2alm(rlm), cli(self.hh_h0), self.mmax_qlm, False))
+        apply_H0k = lambda rlm, q: alm2rlm(almxfl(rlm2alm(rlm), self.hh_h0, self.mmax_qlm, False))
+        apply_B0k = lambda rlm, q: alm2rlm(almxfl(rlm2alm(rlm), cli(self.hh_h0), self.mmax_qlm, False))
         lp1 = 2 * np.arange(self.lmax_qlm + 1) + 1
         dot_op = lambda rlm1, rlm2: np.sum(lp1 * alm2cl(rlm1, rlm2, self.lmax_qlm, self.mmax_qlm, self.lmax_qlm))
         BFGS_H = bfgs.BFGS_Hessian(self.hess_cacher, apply_H0k, {}, {}, dot_op,
