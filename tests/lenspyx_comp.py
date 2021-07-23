@@ -1,12 +1,12 @@
 from lenspyx.shts import shts as lpyx_shts, fsht
 from itercurv import utils_shts as usht
 from lenscarf.utils import timer
-from lenscarf.utils_hp import getlmax
+from lenscarf.utils_hp import Alm
 from lenspyx.bicubic import bicubic as lpyx_bicubic
 
 def lensgclm_band_lpyx(thts, nphi, spin, dx, dy, glm, clm=None):
     tim = timer(True)
-    vtm = fsht.vlm2vtm(getlmax(glm.size), spin, thts, usht.alm2vlm(glm, clm=clm))
+    vtm = fsht.vlm2vtm(Alm.getlmax(glm.size, -1), spin, thts, usht.alm2vlm(glm, clm=clm))
     tim.add('glm2vtm')
     ma = lpyx_shts.vtm2map(spin, vtm, nphi, bicubic_prefilt=True)
     tim.add('vtm2fmap')

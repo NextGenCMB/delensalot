@@ -39,6 +39,9 @@ class alm_filter_ninv_wl(opfilt_pp.alm_filter_ninv):
                 'deflection':self.ffi.hashdict(),
                 'unalm':(self.lmax_sol, self.mmax_sol), 'lenalm':(self.lmax_len, self.mmax_len) }
 
+    def set_ffi(self, ffi:remapping.deflection):
+        self.ffi = ffi
+
     def apply_alm(self, elm:np.ndarray):
         """Applies operator Y^T N^{-1} Y (now  D^t B^T N^{-1} B D, where D is lensing, B the transfer function)
 

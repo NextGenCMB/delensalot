@@ -12,16 +12,16 @@ from lenscarf import utils_dlm
 import numpy as np
 
 class deflection:
-    def __init__(self, scarf_geometry:scarf.Geometry, targetres_amin, p_bounds:tuple, dlm,
+    def __init__(self, scarf_geometry:scarf.Geometry, targetres_amin, p_bounds:tuple, dglm,
                  mmax_dlm:int or None, fftw_threads:int, scarf_threads:int,
                  cacher:cachers.cacher or None=None, dclm:np.ndarray or None=None, verbose=True):
         """Deflection field object than can be used to lens several maps with forward or backward deflection
 
             Args:
-                scarf_geometry: scarf.Geometry object holding info on the delfection operation pixelzation etc
+                scarf_geometry: scarf.Geometry object holding info on the deflection operation pixelization
                 targetres_amin: float, desired interpolation resolution in arcmin
                 p_bounds: tuple with longitude cuts info in the form of (patch center, patch extent), both in radians
-                dlm: deflection-field alm array, gradient mode (:math:`\sqrt{L(L+1)}\phi_{LM}`)
+                dglm: deflection-field alm array, gradient mode (:math:`\sqrt{L(L+1)}\phi_{LM}`)
                 fftw_threads: number of threads for FFTWs transforms (other than the ones in SHTs)
                 scarf_threads: number of threads for the SHTs scarf-ducc based calculations
                 cacher: cachers.cacher instance allowing if desired caching of several pieces of info;
@@ -36,11 +36,11 @@ class deflection:
         tht_bounds = Geom.tbounds(scarf_geometry)
         assert (0. <= tht_bounds[0] < tht_bounds[1] <= np.pi), tht_bounds
         #self.sky_patch = skypatch(tht_bounds, p_bounds, targetres_amin, pole_buffers=3)
-        lmax = Alm.getlmax(dlm.size, mmax_dlm)
+        lmax = Alm.getlmax(dglm.size, mmax_dlm)
         if mmax_dlm is None: mmax_dlm = lmax
         if cacher is None: cacher = cachers.cacher_none()
 
-        self.dlm = dlm
+        self.dlm = dglm
         self.dclm = dclm
 
         self.lmax_dlm = lmax
@@ -62,6 +62,15 @@ class deflection:
         return {'lensgeom':Geom.hashdict(self.geom), 'resamin':self._resamin, 'pbs':self._pbds,
                'dlm':clhash(self.dlm.real), 'dclm': None if self.dclm is None else clhash(self.dclm.real)}
 
+    def copy(self, dlm:list or np.ndarray, mmax_dlm:int or None, cacher:cachers.cacher or None=None):
+        """Returns a deflection instance for another deflection field and cacher with same parameters than self
+
+
+        """
+        assert len(dlm) == 2, (len(dlm), 'gradient and curl mode (curl can be none)')
+        pbounds = (self._pbds.get_ctr(), self._pbds.get_range())
+        return deflection(self.geom, self._resamin, pbounds, dlm[0], mmax_dlm, self._fft_tr, self.sht_tr, cacher, dlm[1],
+                          verbose=self.verbose)
 
     def _build_interpolator(self, gclm, mmax:int or None, spin:int):
         bufamin = 30.

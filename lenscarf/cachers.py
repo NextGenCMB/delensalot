@@ -8,6 +8,8 @@ class cacher(object):
         assert 0
     def is_cached(self, fn):
         assert 0
+    def remove(self, fn):
+        assert 0
 
 class cacher_none(cacher):
     def cache(self, fn ,obj):
@@ -16,6 +18,8 @@ class cacher_none(cacher):
         assert 0
     def is_cached(self, fn):
         return False
+    def remove(self, fn):
+        pass
 
 class cacher_npy(cacher):
     def __init__(self, lib_dir, verbose=False):
@@ -43,6 +47,10 @@ class cacher_npy(cacher):
     def is_cached(self, fn):
         return os.path.exists(self._path(fn))
 
+    def remove(self, fn):
+        assert self.is_cached(fn)
+        os.remove(fn)
+
 
 class cacher_mem(cacher):
     def __init__(self):
@@ -57,3 +65,7 @@ class cacher_mem(cacher):
 
     def is_cached(self, fn):
         return fn in self._cache.keys()
+
+    def remove(self, fn):
+        assert fn in self._cache.keys()
+        del self._cache[fn]
