@@ -181,7 +181,7 @@ class pol_iterator(object):
 
     def _sk2plm(self, itr):
         sk_fname = lambda k: 'rlm_sn_%s_%s' % (k, 'p')
-        rlm = alm2rlm(self.cacher.load(opj(self.lib_dir, 'phi_%slm_it000'%self.h)))
+        rlm = alm2rlm(self.cacher.load('phi_%slm_it000'%self.h))
         for i in range(itr):
             rlm += self.hess_cacher.load(sk_fname(i))
         return rlm2alm(rlm)

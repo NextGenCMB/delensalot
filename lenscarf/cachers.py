@@ -29,15 +29,15 @@ class cacher_npy(cacher):
         self.verbose = verbose
 
     def _path(self, fn):
+        assert '.npy' not in fn
+        assert '/' not in fn # dont want this here
         return os.path.join(self.lib_dir, fn + '.npy')
 
     def cache(self, fn, obj):
-        assert '.npy' not in fn
-        np.save(os.path.join(self.lib_dir, fn + '.npy'), obj)
+        np.save(self._path(fn), obj)
         if self.verbose: print("Cached " + fn + '.npy')
 
     def load(self, fn):
-        assert '.npy' not in fn
         p = self._path(fn)
         assert os.path.exists(p), p
         if self.verbose:
