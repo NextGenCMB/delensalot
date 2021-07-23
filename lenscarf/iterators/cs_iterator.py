@@ -53,6 +53,8 @@ class pol_iterator(object):
             Args:
                 h: 'k', 'd', 'p' if bfgs updates act on klm's, dlm's or plm's respectively
                 pp_h0: the starting hessian estimate. (cl array, ~ 1 / N0 of the lensing potential)
+                cpp_prior: fiducial lensing potential spectrum used for the prior term
+                cls_filt (dict): dictionary containing the filter cmb unlensed spectra (here, only 'ee' is required)
 
 
 
@@ -62,18 +64,18 @@ class pol_iterator(object):
         lmax_qlm, mmax_qlm = lm_max_dlm
         lmax_filt, mmax_filt = lm_max_elm
 
+        assert len(pp_h0) > lmax_qlm
         assert typ in ['QU'], typ + 'not implemented'
         assert len(dat_maps) == len(typ), (len(dat_maps), typ)
-        assert Alm.getlmax(plm0.size, mmax_qlm) + 1 == len(pp_h0) #FIXME
+        assert Alm.getlmax(plm0.size, mmax_qlm) == lmax_qlm
 
         self.h = h
         cacher = cachers.cacher_npy(lib_dir) #Should check with Hessian formation if use something else
-
+        hess_cacher = cachers.cacher_npy(opj(self.lib_dir, 'hessian'))
         # FIXME:
         #if chain_descr is None:
         # nside = hp.npix2nside(read_map(dat_maps[0]).size)
         #    chain_descr =  [[0, ["diag_cl"], lmax_filt, nside, np.inf, 1e-3, cd_solve.tr_cg, cd_solve.cache_mem()]]
-
         self.typ = typ
         self.opfilt = opfilt_ee_wl
         self.lib_dir = lib_dir
@@ -102,6 +104,7 @@ class pol_iterator(object):
 
         self.filter = ninv_filt
         self.cacher = cacher
+        self.hess_cacher = hess_cacher
 
         # Defining a trial newton step length :
 
@@ -117,18 +120,7 @@ class pol_iterator(object):
         print('ffs iterator : This is trying to setup %s' % lib_dir)
 
 
-        self.hh_h0 = pp_h0 * self._h2p(self.lmax_qlm) ** 2
-        curv_hh = self.hh_h0 + cli(self.chh[0:self.lmax_qlm + 1])
-        # isotropic estimate of the posterior curvature at the starting point
-        #fn_curv = opj(self.lib_dir, 'qlm_p_h0.dat')
-        #fn_n0 = opj(self.lib_dir, 'qlm_p_n0.dat')
-        #if not os.path.exists(fn_curv):
-        #        np.savetxt(fn_curv, cli(curv_pp))
-        #        print("     cached " + fn_curv)
-        #if not os.path.exists(fn_n0):
-        #        np.savetxt(fn_n0, cli(h0))
-        #        print("     cached " + fn_n0)
-        #assert np.allclose(curv_pp, cli(np.loadtxt(fn_curv)), rtol=1e-10)
+        self.hh_h0 = pp_h0[:self.lmax_qlm + 1] * self._h2p(self.lmax_qlm) ** 2
 
         if not os.path.exists(opj(self.lib_dir, 'history_increment.txt')):
             with open(opj(self.lib_dir, 'history_increment.txt'), 'w') as f:
@@ -186,17 +178,17 @@ class pol_iterator(object):
 
 
     def _sk2plm(self, itr):
-        sk_fname = lambda k: opj(self.lib_dir, 'hessian', 'rlm_sn_%s_%s' % (k, 'p'))
+        sk_fname = lambda k: 'rlm_sn_%s_%s' % (k, 'p')
         rlm = alm2rlm(self.cacher.load(opj(self.lib_dir, 'phi_%slm_it000'%self.h)))
         for i in range(itr):
-            rlm += self.cacher.load(sk_fname(i))
+            rlm += self.hess_cacher.load(sk_fname(i))
         return rlm2alm(rlm)
 
     def _yk2grad(self, itr):
-        yk_fname = lambda k: opj(self.lib_dir, 'hessian','rlm_yn_%s_%s' % (k, 'p'))
+        yk_fname = lambda k: 'rlm_yn_%s_%s' % (k, 'p')
         rlm = alm2rlm(self.load_gradient(0, 'p'))
         for i in range(itr):
-            rlm += self.cacher.load(yk_fname(i))
+            rlm += self.hess_cacher.load(yk_fname(i))
         return rlm2alm(rlm)
 
     def is_iter_done(self, itr, key):
@@ -204,16 +196,16 @@ class pol_iterator(object):
 
         """
         if itr <= 0:
-            return self.cacher.is_cached(opj(self.lib_dir, '%s_plm_it000' % ({'p': 'phi', 'o': 'om'}[key])))
-        sk_fname = lambda k: opj(self.lib_dir, 'hessian', 'rlm_sn_%s_%s' % (k, 'p'))
-        return self.cacher.is_cached(sk_fname(itr - 1))
+            return self.cacher.is_cached('%s_%slm_it000' % ({'p': 'phi', 'o': 'om'}[key], self.h))
+        sk_fname = lambda k: 'rlm_sn_%s_%s' % (k, 'p')
+        return self.hess_cacher.is_cached(sk_fname(itr - 1)) #FIXME
 
     def _is_qd_grad_done(self, itr, key):
         if itr <= 0:
-            return self.cacher.is_cached(opj(self.lib_dir, 'qlm_grad%slik_it%03d' % (key.lower(), 0)))
-        yk_fname = lambda k: opj(self.lib_dir, 'hessian','rlm_yn_%s_%s' % (k, 'p'))
+            return self.cacher.is_cached('%slm_grad%slik_it%03d' % (self.h, key.lower(), 0))
+        yk_fname = lambda k: 'rlm_yn_%s_%s' % (k, 'p')
         for i in range(itr):
-            if not self.cacher.is_cached(yk_fname(i)):
+            if not self.hess_cacher.is_cached(yk_fname(i)):
                 return False
         return True
 
@@ -222,7 +214,7 @@ class pol_iterator(object):
         if itr < 0:
             return np.zeros(Alm.getsize(self.lmax_qlm, self.mmax_qlm), dtype=complex)
         assert key.lower() in ['p', 'o'], key  # potential or curl potential.
-        fn = opj(self.lib_dir, '%s_%slm_it%03d' % ({'p': 'phi', 'o': 'om'}[key.lower()], self.h, itr))
+        fn = '%s_%slm_it%03d' % ({'p': 'phi', 'o': 'om'}[key.lower()], self.h, itr)
         if self.cacher.is_cached(fn):
             return self.cacher.load(fn)
         return self._sk2plm(itr)
@@ -235,7 +227,7 @@ class pol_iterator(object):
         assert key.lower() in ['p', 'o']
         assert self.typ in ['QU', 'T'], self.typ
         for i in np.arange(itr - 1, -1, -1):
-            fname = opj(self.lib_dir, 'wflms', 'wflm_%s_it%s' % (key.lower(), i))
+            fname = 'wflm_%s_it%s' % (key.lower(), i)
             if self.cacher.is_cached(fname):
                 return self.cacher.load(fname), i
         if callable(self.wflm0):
@@ -250,7 +242,7 @@ class pol_iterator(object):
         assert 0, 'subclass this'
 
     def load_graddet(self, k, key):
-        fn= opj(self.lib_dir, '%slm_grad%sdet_it%03d' % (self.h, key.lower(), k))
+        fn= '%slm_grad%sdet_it%03d' % (self.h, key.lower(), k)
         return self.cacher.load(fn)
 
     def load_gradpri(self, itr, key):
@@ -262,7 +254,7 @@ class pol_iterator(object):
 
     def load_gradquad(self, k, key):
         if k == 0:
-            fn = opj(self.lib_dir, '%slm_grad%slik_it%03d' % (self.h, key.lower(), k))
+            fn = '%slm_grad%slik_it%03d' % (self.h, key.lower(), k)
             return self.cacher.load(fn)
         assert key == 'p'
         return self._yk2grad(k)
@@ -289,13 +281,11 @@ class pol_iterator(object):
         apply_B0k = lambda rlm, kr: alm2rlm(almxfl(rlm2alm(rlm), cli(self.hh_h0), self.lmax_qlm, False))
         lp1 = 2 * np.arange(self.lmax_qlm + 1) + 1
         dot_op = lambda rlm1, rlm2: np.sum(lp1 * alm2cl(rlm1, rlm2, self.lmax_qlm, self.mmax_qlm, self.lmax_qlm))
-        hess_cache = cachers.cacher_npy(opj(self.lib_dir, 'hessian'))
-        BFGS_H = bfgs.BFGS_Hessian(hess_cache, apply_H0k, {}, {}, dot_op,
+        BFGS_H = bfgs.BFGS_Hessian(self.hess_cacher, apply_H0k, {}, {}, dot_op,
                                    L=self.NR_method, verbose=self.verbose, apply_B0k=apply_B0k)
         # Adding the required y and s vectors :
         for k_ in range(np.max([0, k - BFGS_H.L]), k):
-            BFGS_H.add_ys(opj(self.lib_dir, 'hessian', 'rlm_yn_%s_%s' % (k_, key)),
-                          opj(self.lib_dir, 'hessian', 'rlm_sn_%s_%s' % (k_, key)), k_)
+            BFGS_H.add_ys('rlm_yn_%s_%s' % (k_, key), 'rlm_sn_%s_%s' % (k_, key), k_)
         return BFGS_H
 
 
@@ -316,23 +306,23 @@ class pol_iterator(object):
         """
         assert it > 0, it
         k = it - 2
-        yk_fname = opj(self.lib_dir, 'hessian', 'rlm_yn_%s_%s' % (k, key))
-        if k >= 0 and not self.cacher.is_cached(yk_fname):  # Caching hessian BFGS yk update :
+        yk_fname = 'rlm_yn_%s_%s' % (k, key)
+        if k >= 0 and not self.hess_cacher.is_cached(yk_fname):  # Caching hessian BFGS yk update :
             yk = alm2rlm(gradn - self.load_gradient(k, key))
-            self.cacher.cache(yk_fname, yk)
+            self.hess_cacher.cache(yk_fname, yk)
         k = it - 1
         BFGS = self.get_hessian(k, key)  # Constructing L-BFGS hessian
         # get descent direction sk = - H_k gk : (rlm array). Will be cached directly
-        sk_fname = opj(self.lib_dir, 'hessian', 'rlm_sn_%s_%s' % (k, key))
+        sk_fname = 'rlm_sn_%s_%s' % (k, key)
         step = 0.
-        if not self.cacher.is_cached(sk_fname):
+        if not self.hess_cacher.is_cached(sk_fname):
             print("calculating descent direction" )
             t0 = time.time()
             incr = BFGS.get_mHkgk(alm2rlm(gradn), k)
             norm_inc = self.calc_norm(rlm2alm(incr)) / self.calc_norm(self.get_hlm(0, key))
             step = self.newton_step_length(it, norm_inc)
             incr = alm2rlm(self.ensure_invertibility(self.get_hlm(it - 1, key), self._step2incr(step, incr), self.mmax_qlm))
-            self.cacher.cache(sk_fname, incr)
+            self.hess_cacher.cache(sk_fname, incr)
             prt_time(time.time() - t0, label=' Exec. time for descent direction calculation')
         assert self.cacher.is_cached(sk_fname), sk_fname
         return rlm2alm(self.cacher.load(sk_fname)),step
@@ -440,7 +430,7 @@ class iterator_cstmf(pol_iterator):
     def __init__(self, lib_dir, typ, dat_maps, plm0, mf0, h0, cpp_prior, cls_filt, lmax_filt, e_rescal=None, **kwargs):
         super(iterator_cstmf, self).__init__(lib_dir, typ, dat_maps, plm0, h0, cpp_prior, cls_filt, lmax_filt, **kwargs)
         assert self.lmax_qlm == Alm.getlmax(mf0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(mf0.size, self.lmax_qlm))
-        self.cacher.cache(opj(self.lib_dir, 'mf'), mf0)
+        self.cacher.cache('mf', mf0)
         self.erescal = np.ones(self.lmax_filt + 1) if e_rescal is None else e_rescal[:self.lmax_filt + 1]
         assert len(self.erescal) > self.lmax_filt
 
@@ -468,7 +458,7 @@ class iterator_cstmf(pol_iterator):
                 soltn *= self.soltn_cond
                 assert soltn.ndim == 1, 'Fix following lines'
                 mchain.solve(soltn, [read_map(d) if isinstance(d, str) else d for d in self.dat_maps])
-                fn_wf = opj(self.lib_dir,'wflms','wflm_%s_it%s' % (key.lower(), itr - 1))
+                fn_wf = 'wflm_%s_it%s' % (key.lower(), itr - 1)
                 print("caching "  + fn_wf)
                 self.cacher.cache(fn_wf, soltn)
             else:
@@ -481,9 +471,9 @@ class iterator_cstmf(pol_iterator):
            #def get_qlms_wl(qudat: np.ndarray or list, elm_wf: np.ndarray, filt: opfilt_ee_wl.alm_filter_ninv_wl):
             assert self.typ == 'QU', 'fix this'
             G, C = ql.get_qlms_wl(Xdat, soltn, self.filter)
-            almxfl(G if key.lower() == 'p' else C, self._p2h(self.lmax_qlm), self.mmax_qlm, True)
+            almxfl(G if key.lower() == 'p' else C, self._h2p(self.lmax_qlm), self.mmax_qlm, True)
             if itr == 1: #We need the gradient at 0 and the yk's to be able to rebuild all gradients
-                fn_lik = opj(self.lib_dir, '%slm_grad%slik_it%03d' % (self.h, key.lower(), 0))
+                fn_lik = '%slm_grad%slik_it%03d' % (self.h, key.lower(), 0)
                 self.cacher.cache(fn_lik, -G if key.lower() == 'p' else -C)
             return -G if key.lower() == 'p' else -C
 
@@ -496,9 +486,9 @@ class iterator_cstmf_bfgs0(iterator_cstmf):
     def __init__(self, lib_dir, typ, dat_maps, plm0, mf0, h0, df0, cpp_prior, cls_filt, lmax_filt, **kwargs):
         super(iterator_cstmf_bfgs0, self).__init__(lib_dir, typ, dat_maps, plm0, mf0, h0, cpp_prior, cls_filt, lmax_filt, **kwargs)
         self.df0 = df0
-        s0_fname = opj(self.lib_dir, 'hessian', 'rlm_sn_%s_%s' % (0, 'p'))
-        if not os.path.exists(s0_fname):  # Caching Hessian BFGS yk update :
-            self.cacher.cache(s0_fname, alm2rlm(plm0))
+        s0_fname = 'rlm_sn_%s_%s' % (0, 'p')
+        if not self.hess_cacher.is_cached(s0_fname):  # Caching Hessian BFGS yk update :
+            self.hess_cacher.cache(s0_fname, alm2rlm(plm0))
             print("Cached " + s0_fname)
 
     def get_hessian(self, k, key):
@@ -510,40 +500,38 @@ class iterator_cstmf_bfgs0(iterator_cstmf):
         apply_B0k = lambda rlm, k: alm2rlm(almxfl(rlm2alm(rlm), cli(self.hh_h0), self.mmax_qlm, False))
         lp1 = 2 * np.arange(self.lmax_qlm + 1) + 1
         dot_op = lambda rlm1, rlm2: np.sum(lp1 * alm2cl(rlm1, rlm2, self.lmax_qlm, self.mmax_qlm, self.lmax_qlm))
-        hess_cache = cachers.cacher_npy(opj(self.lib_dir, 'hessian'))
-        BFGS_H = bfgs.BFGS_Hessian(hess_cache, apply_H0k, {}, {}, dot_op,
+        BFGS_H = bfgs.BFGS_Hessian(self.hess_cacher, apply_H0k, {}, {}, dot_op,
                                    L=self.NR_method, verbose=self.verbose, apply_B0k=apply_B0k)
         # Adding the required y and s vectors :
         for k_ in range(np.max([0, k - BFGS_H.L]), k + 1):
-            BFGS_H.add_ys(opj(self.lib_dir, 'hessian', 'rlm_yn_%s_%s.npy' % (k_, key)),
-                          opj(self.lib_dir, 'hessian', 'rlm_sn_%s_%s.npy' % (k_, key)), k_)
+            BFGS_H.add_ys('rlm_yn_%s_%s.npy' % (k_, key), 'rlm_sn_%s_%s.npy' % (k_, key), k_)
         return BFGS_H
 
     def build_incr(self, it, key, gradn):
         assert it > 0, it
         k = it - 1
-        yk_fname = opj(self.lib_dir, 'hessian', 'rlm_yn_%s_%s' % (k, key))
-        if k >= 0 and not os.path.exists(yk_fname):  # Caching hessian BFGS yk update :
+        yk_fname = 'rlm_yn_%s_%s' % (k, key)
+        if k >= 0 and not self.hess_cacher.is_cached(yk_fname):  # Caching hessian BFGS yk update :
             if k > 0:
                 yk = alm2rlm(gradn - self.load_gradient(k - 1, key))
-                self.cacher.cache(yk_fname, yk)
+                self.hess_cacher.cache(yk_fname, yk)
             else:
-                self.cacher.cache(yk_fname, alm2rlm(gradn - self.df0))
+                self.hess_cacher.cache(yk_fname, alm2rlm(gradn - self.df0))
                 self.df0 = None
         k = it - 1
         BFGS = self.get_hessian(k, key)  # Constructing L-BFGS hessian
         # get descent direction sk = - H_k gk : (rlm array). Will be cached directly
-        sk_fname = opj(self.lib_dir, 'hessian','rlm_sn_%s_%s' % (k + 1, key))
+        sk_fname = 'rlm_sn_%s_%s' % (k + 1, key)
         step = 0.
-        if not os.path.exists(sk_fname):
+        if not self.hess_cacher.is_cached(sk_fname):
             print("rank calculating descent direction")
             t0 = time.time()
             incr = BFGS.get_mHkgk(alm2rlm(gradn), k + 1)
             norm_inc = self.calc_norm(rlm2alm(incr)) / self.calc_norm(self.get_hlm(0, key))
             step = self.newton_step_length(it, norm_inc)
             incr = alm2rlm(self.ensure_invertibility(self.get_hlm(it - 1, key), self._step2incr(step, incr), self.mmax_qlm))
-            self.cacher.cache(sk_fname, incr)
+            self.hess_cacher.cache(sk_fname, incr)
             prt_time(time.time() - t0, label=' Exec. time for descent direction calculation')
-        assert os.path.exists(sk_fname), sk_fname
-        return rlm2alm(self.cacher.load(sk_fname)),step
+        assert self.hess_cacher.is_cached(sk_fname), sk_fname
+        return rlm2alm(self.hess_cacher.load(sk_fname)),step
 
