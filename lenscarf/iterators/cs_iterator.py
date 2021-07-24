@@ -122,8 +122,6 @@ class pol_iterator(object):
         self.wflm0 = wflm0
         print('ffs iterator : This is trying to setup %s' % lib_dir)
 
-
-
         if not os.path.exists(opj(self.lib_dir, 'history_increment.txt')):
             with open(opj(self.lib_dir, 'history_increment.txt'), 'w') as f:
                 f.write('# Iteration step \n' +
@@ -429,8 +427,12 @@ class iterator_cstmf(pol_iterator):
     Mean field from theory, perturbatively
     """
 
-    def __init__(self, lib_dir, typ, dat_maps, plm0, mf0, h0, cpp_prior, cls_filt, lmax_filt, e_rescal=None, **kwargs):
-        super(iterator_cstmf, self).__init__(lib_dir, typ, dat_maps, plm0, h0, cpp_prior, cls_filt, lmax_filt, **kwargs)
+    def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple, lm_max_elm:tuple,
+                 dat_maps:list or np.ndarray, plm0:np.ndarray, mf0:np.ndarray, pp_h0:np.ndarray,
+                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_ee_wl.alm_filter_ninv_wl,
+                 chain_descr, e_rescal=None, **kwargs):
+        super(iterator_cstmf, self).__init__(lib_dir, h, lm_max_dlm, lm_max_elm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
+                                             ninv_filt, chain_descr, **kwargs)
         assert self.lmax_qlm == Alm.getlmax(mf0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(mf0.size, self.lmax_qlm))
         self.cacher.cache('mf', mf0)
         self.erescal = np.ones(self.lmax_filt + 1) if e_rescal is None else e_rescal[:self.lmax_filt + 1]
@@ -485,8 +487,13 @@ class iterator_cstmf_bfgs0(iterator_cstmf):
         df0 is gradient estimate for phi == 0, (- qlms calcualted with unlensed weight and filtering)
 
     """
-    def __init__(self, lib_dir, typ, dat_maps, plm0, mf0, h0, df0, cpp_prior, cls_filt, lmax_filt, **kwargs):
-        super(iterator_cstmf_bfgs0, self).__init__(lib_dir, typ, dat_maps, plm0, mf0, h0, cpp_prior, cls_filt, lmax_filt, **kwargs)
+    def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple, lm_max_elm:tuple,
+                 dat_maps:list or np.ndarray, plm0:np.ndarray, mf0:np.ndarray, pp_h0:np.ndarray, df0:str,
+                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_ee_wl.alm_filter_ninv_wl,
+                 chain_descr, **kwargs):
+        super(iterator_cstmf_bfgs0, self).__init__(lib_dir, h, lm_max_dlm, lm_max_elm, dat_maps, plm0, mf0, pp_h0, cpp_prior, cls_filt,
+                                             ninv_filt, chain_descr, **kwargs)
+        #assert self.lmax_qlm == Alm.getlmax(df0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(df0.size, self.lmax_qlm))
         self.df0 = df0
         s0_fname = 'rlm_sn_%s_%s' % (0, 'p')
         if not self.hess_cacher.is_cached(s0_fname):  # Caching Hessian BFGS yk update :
