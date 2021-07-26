@@ -95,8 +95,8 @@ class pol_iterator(object):
 
         self.chain_descr = chain_descr
 
-        self.chh = cpp_prior[:self.lmax_qlm+1] * self._p2h(lmax_qlm) ** 2
-        self.hh_h0 = pp_h0[:self.lmax_qlm + 1] * self._h2p(self.lmax_qlm) ** 2
+        self.chh = cpp_prior[:lmax_qlm+1] * self._p2h(lmax_qlm) ** 2
+        self.hh_h0 = pp_h0[:lmax_qlm + 1] * self._h2p(self.lmax_qlm) ** 2
         self.lmax_qlm = lmax_qlm
         self.mmax_qlm = mmax_qlm
 
