@@ -3,15 +3,17 @@
 
 """
 import numpy as np
+import os
 from lenscarf.utils_hp import almxfl, Alm, alm2cl
 from lenscarf.utils import timer, cli, clhash, read_map
 from lenscarf import  utils_scarf
+from lenscarf.opfilt import bmodes_ninv as bni
 from scipy.interpolate import UnivariateSpline as spl
 
 
 class alm_filter_ninv(object):
     def __init__(self, ninv_geom:utils_scarf.Geometry, ninv:list, transf:np.ndarray,
-                 unlalm_info:tuple, lenalm_info:tuple, sht_threads:int, verbose=False):
+                 unlalm_info:tuple, lenalm_info:tuple, sht_threads:int, tpl:bni.template_dense or None=None, verbose=False):
         r"""CMB inverse-variance and Wiener filtering instance, to use for cg-inversion
 
             Args:
@@ -56,6 +58,9 @@ class alm_filter_ninv(object):
 
         self._nlevp = None
         self.tim = timer(True, prefix='opfilt')
+
+        self.template = tpl # here just one template allowed
+
 
 
     def hashdict(self):
@@ -123,7 +128,20 @@ class alm_filter_ninv(object):
         """
         if len(self.n_inv) == 1:  #  QQ = UU
             qumap *= self.n_inv[0]
+            if self.template is not None:
+                ts = [self.template] # Hack, this is only meant for one template
+                coeffs = np.concatenate(([t.dot(qumap) for t in ts]))
+                coeffs = np.dot(ts[0].tniti(), coeffs)
+                pmodes = np.zeros_like(qumap)
+                im = 0
+                for t in ts:
+                    t.accum(pmodes, coeffs[im:(im + t.nmodes)])
+                    im += t.nmodes
+                pmodes *= self.n_inv[0]
+                qumap -= pmodes
+
         elif len(self.n_inv) == 3:  # QQ, QU, UU
+            assert self.template is None
             qmap, umap = qumap
             qmap_copy = qmap.copy()
             qmap *= self.n_inv[0]

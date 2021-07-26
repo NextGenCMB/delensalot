@@ -8,6 +8,7 @@ import numpy as np
 import healpy as hp
 
 from lenscarf.iterators import cs_iterator as scarf_iterator
+from lenscarf.opfilt import bmodes_ninv as bni
 from plancklens.filt import  filt_util, filt_cinv
 from plancklens import qest, qresp, utils
 from plancklens.qcinv import cd_solve, opfilt_pp
@@ -24,7 +25,7 @@ from cmbs4 import sims_08b
 
 fg = '00'
 TEMP =  '/global/cscratch1/sd/jcarron/cmbs4/temp/s08b/cILC2021_%s_lmax4000/'%fg
-BMARG_LIBDIR  = '/global/cscratch1/sd/jcarron/cmbs4/temp/s06b/095_fgtol1e300/template_matrix'
+BMARG_LIBDIR  = '/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08b/'
 BMARG_LCUT=200
 BMARG_CENTRALNLEV_UKAMIN = 0.350500 # central pol noise level in map used to build the (TniT) inverse matrix
 THIS_CENTRALNLEV_UKAMIN = 0.42# central pol noise level in this pameter file noise sims. The template matrix willbe rescaled
@@ -301,6 +302,8 @@ def get_itlib(qe_key, DATIDX, cmbonly=False, vscarf=False):
         from lenscarf import remapping, utils_scarf
         #scarf_geometry: scarf.Geometry, targetres_amin, p_bounds: tuple, dglm,
         #mmax_dlm: int or None, fftw_threads: int, scarf_threads: int
+
+
         hp_geom = scarf.healpix_geometry(2048, 1)
         ninvgeom = hp_geom
         hp_start = hp_geom.ofs[np.where(hp_geom.theta == np.min(ninvgeom.theta))[0]][0]
@@ -316,10 +319,11 @@ def get_itlib(qe_key, DATIDX, cmbonly=False, vscarf=False):
         mmax_qlm = lmax_qlm
         mmax_filt = lmax_filt
         tr = int(os.environ.get('OMP_NUM_THREADS', 8))
+        tpl = bni.template_dense(BMARG_LCUT, ninvgeom, tr, _lib_dir=BMARG_LIBDIR, rescal=tniti_rescal)
 
         ffi = remapping.deflection(lenjob.geom, 1.7, pb_scarf, np.zeros_like(plm0), mmax_qlm, tr, tr)
 
-        filtr = opfilt_ee_wl_scarf.alm_filter_ninv_wl(hp_geom, ninv_sc, ffi, transf, (lmax_filt, mmax_filt), (lmax_transf, lmax_transf), tr )
+        filtr = opfilt_ee_wl_scarf.alm_filter_ninv_wl(hp_geom, ninv_sc, ffi, transf, (lmax_filt, mmax_filt), (lmax_transf, lmax_transf), tr, tpl)
         #ninv_geom: utils_scarf.Geometry, ninv: list, ffi: remapping.deflection, transf: np.ndarray,
         #unlalm_info: tuple, lenalm_info: tuple, sht_threads: int, verbose = False
         itlib = scarf_iterator.iterator_cstmf(lib_dir_iterator, vscarf, (lmax_qlm, mmax_qlm), (lmax_filt, mmax_filt), dat,
