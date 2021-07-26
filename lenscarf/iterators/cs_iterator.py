@@ -268,7 +268,7 @@ class pol_iterator(object):
         return self.load_gradpri(itr, key) + self.load_gradquad(itr, key) + self.load_graddet(itr, key)
 
     def calc_norm(self, qlm):
-        return np.sqrt(np.sum(alm2cl(qlm, None, self.lmax_qlm, self.mmax_qlm, self.lmax_qlm)))
+        return np.sqrt(np.sum(alm2cl(qlm, qlm, self.lmax_qlm, self.mmax_qlm, self.lmax_qlm)))
 
 
     def get_hessian(self, k, key):
