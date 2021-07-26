@@ -461,7 +461,8 @@ class iterator_cstmf(pol_iterator):
             if it_soltn < itr - 1:
                 soltn *= self.soltn_cond
                 assert soltn.ndim == 1, 'Fix following lines'
-                mchain.solve(soltn, [read_map(d) if isinstance(d, str) else d for d in self.dat_maps])
+                dot_op = opfilt_ee_wl.dot_op(self.lmax_filt, self.mmax_filt)
+                mchain.solve(soltn, [read_map(d) if isinstance(d, str) else d for d in self.dat_maps], dot_op=dot_op)
                 fn_wf = 'wflm_%s_it%s' % (key.lower(), itr - 1)
                 print("caching "  + fn_wf)
                 self.wf_cacher.cache(fn_wf, soltn)
