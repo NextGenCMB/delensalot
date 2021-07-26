@@ -183,10 +183,10 @@ qcls_dd, qcls_ds, qcls_ss = (None, None, None)
 
 def get_itlib(qe_key, DATIDX, cmbonly=False, vscarf=False):
     assert not cmbonly
-    assert vscarf in [False, 'd', 'k', 'p'], vscarf
+    assert vscarf in [False, '', 'd', 'k', 'p'], vscarf
     lib_dir = TEMP
     lib_dir_iterator = lib_dir + '/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20'%DATIDX + '_cmbonly'*cmbonly
-    if vscarf is not False:
+    if vscarf in ['d', 'k', 'p']:
         lib_dir_iterator += vscarf
     assert qe_key == 'p_p'
     cls_weights_len = utils.camb_clfile(os.path.join(cls_path, 'FFP10_wdipole_lensedCls.dat'))  # QE fiducial weights (here identical to lensed CMB spectra)
@@ -293,7 +293,7 @@ def get_itlib(qe_key, DATIDX, cmbonly=False, vscarf=False):
         return bp(np.arange(4097), 400, 0.5, 1500, 0.1, scale=50)
 
     wflm0 = lambda : alm_copy(ivfs_raw_OBD.get_sim_emliklm(DATIDX), lmax=lmax_filt)
-    if vscarf is False:
+    if vscarf in ['', False]:
         itlib =  cs_iterator.iterator_cstmf(lib_dir_iterator ,{'p_p': 'QU', 'p': 'TQU', 'ptt': 'T'}[qe_key],
                     dat, plm0, mf0, H0_unl, cpp, cls_filt, lmax_filt, wflm0=wflm0, chain_descr=chain_descr,  ninv_filt=opfilt)
     else:
@@ -343,6 +343,7 @@ if __name__ == '__main__':
     parser.add_argument('-imax', dest='imax', type=int, default=-1, help='maximal sim index')
     parser.add_argument('-cmb', dest='cmb', action='store_true', help='cmb-only rec')
     parser.add_argument('-btempl', dest='btempl', action='store_true', help='build B-templ for last iter > 0')
+    parser.add_argument('-scarf', dest='scarf', type=str, default='', help='minimal sim index')
 
     args = parser.parse_args()
     from plancklens.helpers import mpi
@@ -350,14 +351,14 @@ if __name__ == '__main__':
     from itercurv.iterators.statics import rec as Rec
     jobs = []
     for idx in np.arange(args.imin, args.imax + 1):
-        lib_dir_iterator = TEMP + '/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20' % idx + '_cmbonly' *args.cmb
+        lib_dir_iterator = TEMP + '/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20' % idx + '_cmbonly' *args.cmb + args.scarf
         if Rec.maxiterdone(lib_dir_iterator) < args.itmax:
             jobs.append(idx)
 
     for idx in jobs[mpi.rank::mpi.size]:
-        lib_dir_iterator = TEMP + '/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20' % idx + '_cmbonly' *args.cmb
+        lib_dir_iterator = TEMP + '/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20' % idx + '_cmbonly' *args.cmb+ args.scarf
         if args.itmax >= 0 and Rec.maxiterdone(lib_dir_iterator) < args.itmax:
-            itlib = get_itlib('p_p', idx, cmbonly=args.cmb)
+            itlib = get_itlib('p_p', idx, cmbonly=args.cmb, vscarf=args.scarf)
             for i in range(args.itmax + 1):
                 print("****Iterator: setting cg-tol to %.4e ****"%tol_iter(i))
                 print("****Iterator: setting solcond to %s ****"%soltn_cond(i))
