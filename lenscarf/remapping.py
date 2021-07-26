@@ -14,7 +14,7 @@ import numpy as np
 class deflection:
     def __init__(self, scarf_geometry:scarf.Geometry, targetres_amin, p_bounds:tuple, dglm,
                  mmax_dlm:int or None, fftw_threads:int, scarf_threads:int,
-                 cacher:cachers.cacher or None=None, dclm:np.ndarray or None=None, verbose=True):
+                 cacher:cachers.cacher or None=None, dclm:np.ndarray or None=None, verbose=False):
         """Deflection field object than can be used to lens several maps with forward or backward deflection
 
             Args:

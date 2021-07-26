@@ -423,8 +423,9 @@ class pol_iterator(object):
                         shutil.rmtree(opj(self.lib_dir, 'ffi_%s_it%s'%(key, itr)))
 
 class iterator_cstmf(pol_iterator):
-    """
-    Mean field from theory, perturbatively
+    """Mean field from theory, perturbatively
+
+
     """
 
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple, lm_max_elm:tuple,
@@ -439,7 +440,7 @@ class iterator_cstmf(pol_iterator):
         assert len(self.erescal) > self.lmax_filt
 
     def load_graddet(self, k, key):
-        return self.cacher.load(opj(self.lib_dir, 'mf'))
+        return self.cacher.load('mf')
 
     def calc_gradlik_graddet(self, itr, key):
         """Computes the quadratic part of the gradient for plm iteration 'itr'
