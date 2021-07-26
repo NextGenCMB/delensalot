@@ -209,6 +209,31 @@ class pol_iterator(object):
                 return False
         return True
 
+    def get_template_blm(self, it, elm_wf, lmin_plm, lmaxb=2048):
+        """Builds a template B-mode map with the iterated phi and input elm_wf
+
+            Args:
+                it: iteration index
+                elm_wf: Wiener-filtered E-mode (healpy alm array)
+                lmin_plm: the lensing tracer is zeroed below lmin_plm
+                nside, nband, facres: lenspyx lensing parameters
+                lmaxb: the B-template is calculated up to lmaxb (defaults to lmax elm_wf)
+
+            Returns:
+
+                blm healpy array
+
+
+        """
+        assert Alm.getlmax(elm_wf.size, self.mmax_filt) == self.lmax_filt
+        dlm = self.get_hlm(it, 'p')
+        self.hlm2dlm(dlm, inplace=True)
+        plm_filt = np.ones(self.lmax_qlm + 1, dtype=float)
+        plm_filt[:lmin_plm] *= 0.
+        almxfl(dlm, plm_filt, self.lmax_qlm, True)
+        ffi = self.filter.ffi.copy(dlm, self.mmax_qlm)
+        elm, blm = ffi.lensgclm([elm_wf, elm_wf * 0.], self.mmax_filt, 2, lmaxb, lmaxb)
+        return blm
 
     def get_hlm(self, itr, key):
         """Loads current estimate """
