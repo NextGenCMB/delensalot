@@ -310,7 +310,7 @@ def get_itlib(qe_key, DATIDX, cmbonly=False, vscarf=False):
         lenjob.set_thingauss_geometry(max(lmax_filt, lmax_transf), 2, zbounds=zbounds_len)
 
         pb_ctr = np.mean([-(360. - pbounds_len[1]), pbounds_len[0]])
-        pb_extent = pbounds_exl[0] + (360. - pbounds_len[1])
+        pb_extent = pbounds_len[0] + (360. - pbounds_len[1])
         pb_scarf = (pb_ctr / 180 * np.pi, pb_extent / 180 * np.pi)
         mmax_qlm = lmax_qlm
         mmax_filt = lmax_filt
