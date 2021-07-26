@@ -227,4 +227,6 @@ class template_dense(template_bfilt):
     def tniti(self):
         if self._tniti is None:
             self._tniti = read_map(os.path.join(self.lib_dir, 'tniti.npy')) * self.rescal
+            print("reading " +os.path.join(self.lib_dir, 'tniti.npy') )
+            print("Rescaling it with %.5f"%self.rescal)
         return self._tniti
