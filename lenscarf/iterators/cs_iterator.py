@@ -211,6 +211,7 @@ class pol_iterator(object):
 
 
     def get_hlm(self, itr, key):
+        """Loads current estimate """
         if itr < 0:
             return np.zeros(Alm.getsize(self.lmax_qlm, self.mmax_qlm), dtype=complex)
         assert key.lower() in ['p', 'o'], key  # potential or curl potential.
@@ -435,7 +436,7 @@ class iterator_cstmf(pol_iterator):
         super(iterator_cstmf, self).__init__(lib_dir, h, lm_max_dlm, lm_max_elm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
                                              ninv_filt, chain_descr, **kwargs)
         assert self.lmax_qlm == Alm.getlmax(mf0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(mf0.size, self.lmax_qlm))
-        self.cacher.cache('mf', mf0)
+        self.cacher.cache('mf', almxfl(mf0,  self._p2h(self.lmax_qlm), self.mmax_qlm, False))
         self.erescal = np.ones(self.lmax_filt + 1) if e_rescal is None else e_rescal[:self.lmax_filt + 1]
         assert len(self.erescal) > self.lmax_filt
 
