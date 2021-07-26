@@ -183,7 +183,7 @@ qcls_dd, qcls_ds, qcls_ss = (None, None, None)
 
 def get_itlib(qe_key, DATIDX, cmbonly=False, vscarf=False):
     assert not cmbonly
-    assert vscarf in [False, '', 'd', 'k', 'p'], vscarf
+    #assert vscarf in [False, '', 'd', 'k', 'p'], vscarf
     lib_dir = TEMP
     lib_dir_iterator = lib_dir + '/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20'%DATIDX + '_cmbonly'*cmbonly
     if vscarf in ['d', 'k', 'p']:
