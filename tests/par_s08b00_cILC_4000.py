@@ -309,7 +309,7 @@ def get_itlib(qe_key, DATIDX, cmbonly=False, vscarf=False):
         lenjob = utils_scarf.scarfjob()
         lenjob.set_thingauss_geometry(max(lmax_filt, lmax_transf), 2, zbounds=zbounds_len)
         dat = sims.get_sim_pmap(DATIDX)
-        dat = [da[hp_start:hp_end] for da in dat]
+        dat = np.array([da[hp_start:hp_end] for da in dat])
         pb_ctr = np.mean([-(360. - pbounds_len[1]), pbounds_len[0]])
         pb_extent = pbounds_len[0] + (360. - pbounds_len[1])
         pb_scarf = (pb_ctr / 180 * np.pi, pb_extent / 180 * np.pi)

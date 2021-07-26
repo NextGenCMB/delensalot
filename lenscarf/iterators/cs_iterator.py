@@ -462,7 +462,7 @@ class iterator_cstmf(pol_iterator):
                 soltn *= self.soltn_cond
                 assert soltn.ndim == 1, 'Fix following lines'
                 dot_op = opfilt_ee_wl.dot_op(self.lmax_filt, self.mmax_filt)
-                mchain.solve(soltn, [read_map(d) if isinstance(d, str) else d for d in self.dat_maps], dot_op=dot_op)
+                mchain.solve(soltn, self.dat_maps, dot_op=dot_op)
                 fn_wf = 'wflm_%s_it%s' % (key.lower(), itr - 1)
                 print("caching "  + fn_wf)
                 self.wf_cacher.cache(fn_wf, soltn)
@@ -471,11 +471,10 @@ class iterator_cstmf(pol_iterator):
             if not np.all(self.erescal == 1.):
                 print("Rescaling WF mode solution")
                 almxfl(soltn, self.erescal, self.mmax_filt, inplace=True)
-            Xdat = [read_map(d) if isinstance(d, str) else d for d in self.dat_maps]
 
            #def get_qlms_wl(qudat: np.ndarray or list, elm_wf: np.ndarray, filt: opfilt_ee_wl.alm_filter_ninv_wl):
             assert self.typ == 'QU', 'fix this'
-            G, C = ql.get_qlms_wl(Xdat, soltn, self.filter)
+            G, C = ql.get_qlms_wl(self.dat_maps, soltn, self.filter)
             almxfl(G if key.lower() == 'p' else C, self._h2p(self.lmax_qlm), self.mmax_qlm, True)
             if itr == 1: #We need the gradient at 0 and the yk's to be able to rebuild all gradients
                 fn_lik = '%slm_grad%slik_it%03d' % (self.h, key.lower(), 0)
