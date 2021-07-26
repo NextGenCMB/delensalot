@@ -324,8 +324,8 @@ class pol_iterator(object):
             incr = alm2rlm(self.ensure_invertibility(self.get_hlm(it - 1, key), self._step2incr(step, incr), self.mmax_qlm))
             self.hess_cacher.cache(sk_fname, incr)
             prt_time(time.time() - t0, label=' Exec. time for descent direction calculation')
-        assert self.cacher.is_cached(sk_fname), sk_fname
-        return rlm2alm(self.cacher.load(sk_fname)),step
+        assert self.hess_cacher.is_cached(sk_fname), sk_fname
+        return rlm2alm(self.hess_cacher.load(sk_fname)),step
 
     def ensure_invertibility(self, hlm, incr_hlm, mmax_dlm):
         """Build new plm increment from current estimate and increment
