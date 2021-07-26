@@ -312,7 +312,7 @@ def get_itlib(qe_key, DATIDX, cmbonly=False, vscarf=False):
         hp_end = hp_start + utils_scarf.Geom.npix(ninvgeom).astype(hp_start.dtype)  # Somehow otherwise makes a float out of int64 and uint64 ???
         ninv_sc = [pixn_inv[0][hp_start:hp_end]]
         lenjob = utils_scarf.scarfjob()
-        if 'h' in vscarf:
+        if 'h' not in vscarf:
             lenjob.set_thingauss_geometry(max(lmax_filt, lmax_transf), 2, zbounds=zbounds_len)
         else:
             lenjob.set_healpix_geometry(2048, zbounds=zbounds_len)
