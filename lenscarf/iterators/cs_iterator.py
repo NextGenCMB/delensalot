@@ -231,7 +231,7 @@ class pol_iterator(object):
         plm_filt = np.ones(self.lmax_qlm + 1, dtype=float)
         plm_filt[:lmin_plm] *= 0.
         almxfl(dlm, plm_filt, self.lmax_qlm, True)
-        ffi = self.filter.ffi.copy(dlm, self.mmax_qlm)
+        ffi = self.filter.ffi.copy([dlm, None], self.mmax_qlm)
         elm, blm = ffi.lensgclm([elm_wf, elm_wf * 0.], self.mmax_filt, 2, lmaxb, lmaxb)
         return blm
 
