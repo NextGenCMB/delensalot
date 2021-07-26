@@ -186,7 +186,7 @@ def get_itlib(qe_key, DATIDX, cmbonly=False, vscarf=False):
     #assert vscarf in [False, '', 'd', 'k', 'p'], vscarf
     lib_dir = TEMP
     lib_dir_iterator = lib_dir + '/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20'%DATIDX + '_cmbonly'*cmbonly
-    if vscarf in ['d', 'k', 'p']:
+    if vscarf not in [False, '']:
         lib_dir_iterator += vscarf
     assert qe_key == 'p_p'
     cls_weights_len = utils.camb_clfile(os.path.join(cls_path, 'FFP10_wdipole_lensedCls.dat'))  # QE fiducial weights (here identical to lensed CMB spectra)
