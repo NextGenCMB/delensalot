@@ -319,6 +319,7 @@ def get_itlib(qe_key, DATIDX, cmbonly=False, vscarf=False):
 
         dat = sims.get_sim_pmap(DATIDX)
         dat = np.array([da[hp_start:hp_end] for da in dat])
+        assert dat[0].size == utils_scarf.Geom.npix(_j.geom), (dat[0].size,utils_scarf.Geom.npix(_j.geom) )
         pb_ctr = np.mean([-(360. - pbounds_len[1]), pbounds_len[0]])
         pb_extent = pbounds_len[0] + (360. - pbounds_len[1])
         pb_scarf = (pb_ctr / 180 * np.pi, pb_extent / 180 * np.pi)
