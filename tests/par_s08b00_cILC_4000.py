@@ -330,7 +330,7 @@ def get_itlib(qe_key, DATIDX, cmbonly=False, vscarf=False):
 
         ffi = remapping.deflection(lenjob.geom, 1.7, pb_scarf, np.zeros_like(plm0), mmax_qlm, tr, tr)
 
-        filtr = opfilt_ee_wl_scarf.alm_filter_ninv_wl(hp_geom, ninv_sc, ffi, transf, (lmax_filt, mmax_filt), (lmax_transf, lmax_transf), tr, tpl)
+        filtr = opfilt_ee_wl_scarf.alm_filter_ninv_wl(ninvgeom, ninv_sc, ffi, transf, (lmax_filt, mmax_filt), (lmax_transf, lmax_transf), tr, tpl)
         #ninv_geom: utils_scarf.Geometry, ninv: list, ffi: remapping.deflection, transf: np.ndarray,
         #unlalm_info: tuple, lenalm_info: tuple, sht_threads: int, verbose = False
         itlib = scarf_iterator.iterator_cstmf(lib_dir_iterator, vscarf[0], (lmax_qlm, mmax_qlm), (lmax_filt, mmax_filt), dat,
