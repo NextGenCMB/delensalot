@@ -137,7 +137,7 @@ class pol_iterator(object):
         print('++ ffs_%s masked iterator : setup OK' % type)
         plm_fname = '%s_%slm_it%03d' % ({'p': 'phi', 'o': 'om'}['p'], self.h, 0)
         if not self.cacher.is_cached(plm_fname):
-            self.cacher.cache(plm_fname, almxfl(plm0, self._p2h(self.lmax_qlm), self.mmax_qlm, False))
+            self.cacher.cache(plm_fname, almxfl(read_map(plm0), self._p2h(self.lmax_qlm), self.mmax_qlm, False))
 
     def _p2h(self, lmax):
         if self.h == 'p':

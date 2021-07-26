@@ -14,6 +14,7 @@ print(PBOUNDS, np.min(j.geom.cth), np.max(j.geom.cth))
 
 lmaxin = 3999
 lmaxout = 2999
+mmax_dlm = lmaxin
 clee = camb_clfile('../lenscarf/data/cls/FFP10_wdipole_lensedCls.dat')['ee'][:lmaxin + 1]
 clpp = camb_clfile('../lenscarf/data/cls/FFP10_wdipole_lenspotentialCls.dat')['pp'][:lmaxin + 1]
 
@@ -23,13 +24,13 @@ plm = hp.synalm(clpp, new=True)
 
 dlm = hp.almxfl(plm, np.sqrt(np.arange(lmaxin + 1) * np.arange(1, lmaxin + 2)))
 
-d = remapping.deflection(j.geom, 1.7, PBOUNDS, dlm, 8, 8, cacher=cachers.cacher_mem())
+d = remapping.deflection(j.geom, 1.7, PBOUNDS, dlm, mmax_dlm, 8, 8, cacher=cachers.cacher_mem())
 
-d.lensgclm(glm, 0, lmaxout)
+d.lensgclm(glm, mmax_dlm, 0, lmaxout, mmax_dlm)
 d.tim.reset()
-d.lensgclm(glm, 0, lmaxout)
+d.lensgclm(glm, mmax_dlm, 0, lmaxout, mmax_dlm)
 d.tim.reset()
-d.lensgclm(glm, 2, lmaxout)
+d.lensgclm(glm, mmax_dlm, 2, lmaxout, mmax_dlm)
 d.tim.reset()
-d.lensgclm(glm, 2, lmaxout)
+d.lensgclm(glm, mmax_dlm, 2, lmaxout, mmax_dlm)
 d.tim.reset()
