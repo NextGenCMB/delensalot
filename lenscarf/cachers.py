@@ -49,7 +49,7 @@ class cacher_npy(cacher):
 
     def remove(self, fn):
         assert self.is_cached(fn)
-        os.remove(fn)
+        os.remove(self._path(fn))
 
 
 class cacher_mem(cacher):
