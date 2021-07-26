@@ -1,7 +1,6 @@
 from __future__ import print_function
 
 import numpy as np
-import os
 from lenscarf import cachers
 
 class BFGS_Hessian(object):
