@@ -303,14 +303,20 @@ def get_itlib(qe_key, DATIDX, cmbonly=False, vscarf=False):
         #scarf_geometry: scarf.Geometry, targetres_amin, p_bounds: tuple, dglm,
         #mmax_dlm: int or None, fftw_threads: int, scarf_threads: int
 
-
+        _j = utils_scarf.scarfjob()
+        _j.set_healpix_geometry(nside, zbounds=zbounds)
         hp_geom = scarf.healpix_geometry(2048, 1)
-        ninvgeom = hp_geom
+
+        ninvgeom = _j.geom
         hp_start = hp_geom.ofs[np.where(hp_geom.theta == np.min(ninvgeom.theta))[0]][0]
         hp_end = hp_start + utils_scarf.Geom.npix(ninvgeom).astype(hp_start.dtype)  # Somehow otherwise makes a float out of int64 and uint64 ???
         ninv_sc = [pixn_inv[0][hp_start:hp_end]]
         lenjob = utils_scarf.scarfjob()
-        lenjob.set_thingauss_geometry(max(lmax_filt, lmax_transf), 2, zbounds=zbounds_len)
+        if 'h' in vscarf:
+            lenjob.set_thingauss_geometry(max(lmax_filt, lmax_transf), 2, zbounds=zbounds_len)
+        else:
+            lenjob.set_healpix_geometry(2048, zbounds=zbounds_len)
+
         dat = sims.get_sim_pmap(DATIDX)
         dat = np.array([da[hp_start:hp_end] for da in dat])
         pb_ctr = np.mean([-(360. - pbounds_len[1]), pbounds_len[0]])
