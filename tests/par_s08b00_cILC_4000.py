@@ -316,7 +316,10 @@ def get_itlib(qe_key, DATIDX, cmbonly=False, vscarf=False):
             lenjob.set_thingauss_geometry(max(lmax_filt, lmax_transf), 2, zbounds=zbounds_len)
         else:
             lenjob.set_healpix_geometry(2048, zbounds=zbounds_len)
-
+        if 'f' in vscarf:
+            k_geom = scarf.healpix_geometry(2048, 1)
+        else:
+            k_geom = lenjob.geom
         dat = sims.get_sim_pmap(DATIDX)
         dat = np.array([da[hp_start:hp_end] for da in dat])
         assert dat[0].size == utils_scarf.Geom.npix(_j.geom), (dat[0].size,utils_scarf.Geom.npix(_j.geom) )
@@ -334,7 +337,7 @@ def get_itlib(qe_key, DATIDX, cmbonly=False, vscarf=False):
         #ninv_geom: utils_scarf.Geometry, ninv: list, ffi: remapping.deflection, transf: np.ndarray,
         #unlalm_info: tuple, lenalm_info: tuple, sht_threads: int, verbose = False
         itlib = scarf_iterator.iterator_cstmf(lib_dir_iterator, vscarf[0], (lmax_qlm, mmax_qlm), (lmax_filt, mmax_filt), dat,
-                                            plm0, mf0, H0_unl, cpp, cls_unl, filtr, chain_descr, wflm0=wflm0)
+                                            plm0, mf0, H0_unl, cpp, cls_unl, filtr, k_geom, chain_descr, wflm0=wflm0)
         #lib_dir: str, h: str, lm_max_dlm: tuple, lm_max_elm: tuple,
         #dat_maps: list or np.ndarray, plm0: np.ndarray, mf0: np.ndarray, pp_h0: np.ndarray,
         #cpp_prior: np.ndarray, cls_filt: dict, ninv_filt: opfilt_ee_wl.alm_filter_ninv_wl,

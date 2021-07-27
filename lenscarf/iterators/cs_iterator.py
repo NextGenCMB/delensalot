@@ -9,8 +9,6 @@
 
 
 
-
-#FIXME: should remove abs path from cacher path id's
 """
 
 import os
@@ -20,6 +18,7 @@ import time
 
 import numpy as np
 
+import scarf
 from lenscarf.utils import cli, read_map
 from lenscarf.utils_hp import Alm, almxfl, alm2cl
 from lenscarf.utils_scarf import scarfjob
@@ -52,7 +51,7 @@ typs = ['T', 'QU', 'TQU']
 class pol_iterator(object):
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple, lm_max_elm:tuple,
                  dat_maps:list or np.ndarray, plm0:np.ndarray, pp_h0:np.ndarray,
-                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_ee_wl.alm_filter_ninv_wl,
+                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_ee_wl.alm_filter_ninv_wl, k_geom:scarf.Geometry,
                  chain_descr, NR_method=100, tidy=0, verbose=True, soltn_cond=True, wflm0=None):
         """Lensing map iterator
 
@@ -63,7 +62,7 @@ class pol_iterator(object):
                 pp_h0: the starting hessian estimate. (cl array, ~ 1 / N0 of the lensing potential)
                 cpp_prior: fiducial lensing potential spectrum used for the prior term
                 cls_filt (dict): dictionary containing the filter cmb unlensed spectra (here, only 'ee' is required)
-
+                k_geom: scarf geometry for once-per-iterations opertations (like cehcking for invertibility etc)
 
 
         """
@@ -109,6 +108,7 @@ class pol_iterator(object):
         self.mmax_filt = mmax_filt
 
         self.filter = ninv_filt
+        self.k_geom = k_geom
         # Defining a trial newton step length :
 
         def newton_step_length(iter, norm_incr):  # FIXME
@@ -364,7 +364,7 @@ class pol_iterator(object):
         lmax_dlm = Alm.getlmax(hlm.size, mmax_dlm)
         if mmax_dlm is None or mmax_dlm < 0: mmax_dlm = lmax_dlm
         scjob = scarfjob()
-        scjob.set_geometry(self.filter.ffi.geom)
+        scjob.set_geometry(self.k_geom)
         scjob.set_nthreads(self.filter.ffi.sht_tr)
         scjob.set_triangular_alm_info(lmax_dlm, mmax_dlm)
 
@@ -456,10 +456,10 @@ class iterator_cstmf(pol_iterator):
 
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple, lm_max_elm:tuple,
                  dat_maps:list or np.ndarray, plm0:np.ndarray, mf0:np.ndarray, pp_h0:np.ndarray,
-                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_ee_wl.alm_filter_ninv_wl,
+                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_ee_wl.alm_filter_ninv_wl, k_geom:scarf.Geometry,
                  chain_descr, e_rescal=None, **kwargs):
         super(iterator_cstmf, self).__init__(lib_dir, h, lm_max_dlm, lm_max_elm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
-                                             ninv_filt, chain_descr, **kwargs)
+                                             ninv_filt, k_geom, chain_descr, **kwargs)
         assert self.lmax_qlm == Alm.getlmax(mf0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(mf0.size, self.lmax_qlm))
         self.cacher.cache('mf', almxfl(mf0,  self._h2p(self.lmax_qlm), self.mmax_qlm, False))
         self.erescal = np.ones(self.lmax_filt + 1) if e_rescal is None else e_rescal[:self.lmax_filt + 1]
@@ -516,10 +516,10 @@ class iterator_cstmf_bfgs0(iterator_cstmf):
     """
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple, lm_max_elm:tuple,
                  dat_maps:list or np.ndarray, plm0:np.ndarray, mf0:np.ndarray, pp_h0:np.ndarray, df0:str,
-                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_ee_wl.alm_filter_ninv_wl,
+                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_ee_wl.alm_filter_ninv_wl, k_geom:scarf.Geometry,
                  chain_descr, **kwargs):
         super(iterator_cstmf_bfgs0, self).__init__(lib_dir, h, lm_max_dlm, lm_max_elm, dat_maps, plm0, mf0, pp_h0, cpp_prior, cls_filt,
-                                             ninv_filt, chain_descr, **kwargs)
+                                             ninv_filt, k_geom, chain_descr, **kwargs)
         #assert self.lmax_qlm == Alm.getlmax(df0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(df0.size, self.lmax_qlm))
         self.df0 = df0
         s0_fname = 'rlm_sn_%s_%s' % (0, 'p')
