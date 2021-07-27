@@ -7,7 +7,7 @@ import os, sys
 import numpy as np
 import healpy as hp
 
-from lenscarf.iterators import cs_iterator as scarf_iterator
+from lenscarf.iterators import cs_iterator as scarf_iterator, steps
 from lenscarf.opfilt import bmodes_ninv as bni
 from plancklens.filt import  filt_util, filt_cinv
 from plancklens import qest, qresp, utils
@@ -302,10 +302,11 @@ def get_itlib(qe_key, DATIDX, cmbonly=False, vscarf=False):
         from lenscarf import remapping, utils_scarf
         #scarf_geometry: scarf.Geometry, targetres_amin, p_bounds: tuple, dglm,
         #mmax_dlm: int or None, fftw_threads: int, scarf_threads: int
-
+        tr = int(os.environ.get('OMP_NUM_THREADS', 8))
         _j = utils_scarf.scarfjob()
         _j.set_healpix_geometry(nside, zbounds=zbounds)
         hp_geom = scarf.healpix_geometry(2048, 1)
+        mmax_qlm = lmax_qlm
 
         ninvgeom = _j.geom
         hp_start = hp_geom.ofs[np.where(hp_geom.theta == np.min(ninvgeom.theta))[0]][0]
@@ -320,15 +321,19 @@ def get_itlib(qe_key, DATIDX, cmbonly=False, vscarf=False):
             k_geom = scarf.healpix_geometry(2048, 1)
         else:
             k_geom = lenjob.geom
+        if 'r' in vscarf:
+            if 'h' in vscarf:
+                h2k = np.ones(lmax_qlm + 1, dtype=float)
+            stepper = steps.hmapprescal(lmax_qlm, mmax_qlm, h2k, ninv_sc[0], (0.1, 0.5), ninvgeom, tr)
+        else:
+            stepper = steps.harmonicbump(lmax_qlm, mmax_qlm)
         dat = sims.get_sim_pmap(DATIDX)
         dat = np.array([da[hp_start:hp_end] for da in dat])
         assert dat[0].size == utils_scarf.Geom.npix(_j.geom), (dat[0].size,utils_scarf.Geom.npix(_j.geom) )
         pb_ctr = np.mean([-(360. - pbounds_len[1]), pbounds_len[0]])
         pb_extent = pbounds_len[0] + (360. - pbounds_len[1])
         pb_scarf = (pb_ctr / 180 * np.pi, pb_extent / 180 * np.pi)
-        mmax_qlm = lmax_qlm
         mmax_filt = lmax_filt
-        tr = int(os.environ.get('OMP_NUM_THREADS', 8))
         tpl = bni.template_dense(BMARG_LCUT, ninvgeom, tr, _lib_dir=BMARG_LIBDIR, rescal=tniti_rescal)
         pbd_geom = utils_scarf.pbdGeometry(lenjob.geom, utils_scarf.pbounds(pb_ctr, pb_extent))
         ffi = remapping.deflection(pbd_geom, 1.7, np.zeros_like(plm0), mmax_qlm, tr, tr)
@@ -354,6 +359,10 @@ if __name__ == '__main__':
     parser.add_argument('-cmb', dest='cmb', action='store_true', help='cmb-only rec')
     parser.add_argument('-btempl', dest='btempl', action='store_true', help='build B-templ for last iter > 0')
     parser.add_argument('-scarf', dest='scarf', type=str, default='', help='minimal sim index')
+
+    #vscarf: 'p' 'k' 'd' for bfgs variable
+    #add a 'f' to use full sky in once-per iteration kappa thingy
+    #add a 'r' for real space attenuation of the step instead of harmonic space
 
     args = parser.parse_args()
     from plancklens.helpers import mpi

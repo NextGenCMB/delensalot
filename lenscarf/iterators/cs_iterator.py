@@ -27,7 +27,7 @@ from lenscarf.utils_scarf import scarfjob
 from lenscarf import utils_dlm
 
 from plancklens.qcinv import multigrid, cd_solve
-from lenscarf.iterators import bfgs
+from lenscarf.iterators import bfgs, steps
 
 from lenscarf.opfilt import opfilt_ee_wl
 from lenscarf import cachers
@@ -54,7 +54,7 @@ class pol_iterator(object):
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
                  dat_maps:list or np.ndarray, plm0:np.ndarray, pp_h0:np.ndarray,
                  cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_ee_wl.alm_filter_ninv_wl, k_geom:scarf.Geometry,
-                 chain_descr, NR_method=100, tidy=0, verbose=True, soltn_cond=True, wflm0=None):
+                 chain_descr, stepper:steps.nrstep, NR_method=100, tidy=0, verbose=True, soltn_cond=True, wflm0=None):
         """Lensing map iterator
 
             The bfgs hessian updates are called 'hlm's and are either in plm, dlm or klm space
@@ -113,11 +113,7 @@ class pol_iterator(object):
         self.k_geom = k_geom
         # Defining a trial newton step length :
 
-        def newton_step_length(iter, norm_incr):  # FIXME
-            # Just trying if half the step is better for S4 QU
-            return 0.5
-
-        self.newton_step_length = newton_step_length
+        self.stepper = stepper
 
         #self.soltn_cond = np.all([np.all(self.cov.get_mask(_t) == 1.) for _t in self.type])
         self.soltn_cond = soltn_cond
@@ -459,9 +455,9 @@ class iterator_cstmf(pol_iterator):
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
                  dat_maps:list or np.ndarray, plm0:np.ndarray, mf0:np.ndarray, pp_h0:np.ndarray,
                  cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_ee_wl.alm_filter_ninv_wl, k_geom:scarf.Geometry,
-                 chain_descr, e_rescal=None, **kwargs):
+                 chain_descr, stepper:steps.nrstep, e_rescal=None, **kwargs):
         super(iterator_cstmf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
-                                             ninv_filt, k_geom, chain_descr, **kwargs)
+                                             ninv_filt, k_geom, chain_descr, stepper, **kwargs)
         assert self.lmax_qlm == Alm.getlmax(mf0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(mf0.size, self.lmax_qlm))
         self.cacher.cache('mf', almxfl(mf0,  self._h2p(self.lmax_qlm), self.mmax_qlm, False))
         self.erescal = np.ones(self.lmax_filt + 1) if e_rescal is None else e_rescal[:self.lmax_filt + 1]
@@ -520,9 +516,9 @@ class iterator_cstmf_bfgs0(iterator_cstmf):
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple, lm_max_elm:tuple,
                  dat_maps:list or np.ndarray, plm0:np.ndarray, mf0:np.ndarray, pp_h0:np.ndarray, df0:str,
                  cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_ee_wl.alm_filter_ninv_wl, k_geom:scarf.Geometry,
-                 chain_descr, **kwargs):
+                 chain_descr, stepper:steps.nrstep, **kwargs):
         super(iterator_cstmf_bfgs0, self).__init__(lib_dir, h, lm_max_dlm, lm_max_elm, dat_maps, plm0, mf0, pp_h0, cpp_prior, cls_filt,
-                                             ninv_filt, k_geom, chain_descr, **kwargs)
+                                             ninv_filt, k_geom, chain_descr, stepper, **kwargs)
         #assert self.lmax_qlm == Alm.getlmax(df0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(df0.size, self.lmax_qlm))
         self.df0 = df0
         s0_fname = 'rlm_sn_%s_%s' % (0, 'p')
@@ -567,8 +563,8 @@ class iterator_cstmf_bfgs0(iterator_cstmf):
             t0 = time.time()
             incr = BFGS.get_mHkgk(alm2rlm(gradn), k + 1)
             norm_inc = self.calc_norm(rlm2alm(incr)) / self.calc_norm(self.get_hlm(0, key))
-            step = self.newton_step_length(it, norm_inc)
-            incr = alm2rlm(self.ensure_invertibility(self.get_hlm(it - 1, key), self._step2incr(step, incr), self.mmax_qlm))
+            step = self.stepper.steplen(it, norm_inc)
+            incr = alm2rlm(self.ensure_invertibility(self.get_hlm(it - 1, key), self.stepper.build_incr(incr, it), self.mmax_qlm))
             self.hess_cacher.cache(sk_fname, incr)
             prt_time(time.time() - t0, label=' Exec. time for descent direction calculation')
         assert self.hess_cacher.is_cached(sk_fname), sk_fname
