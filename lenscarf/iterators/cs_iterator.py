@@ -479,7 +479,7 @@ class iterator_cstmf(pol_iterator):
             dlm = self.get_hlm(itr - 1, key)
             self.hlm2dlm(dlm, True)
             libdir_ffi = opj(self.lib_dir, 'ffi_%s_it%s'%(key, itr))
-            ffi = self.filter.ffi.copy([dlm, None], self.mmax_qlm, cachers.cacher_npy(libdir_ffi))
+            ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm, cachers.cacher_npy(libdir_ffi))
             self.filter.set_ffi(ffi)
             mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.filter)
             soltn, it_soltn = self.load_soltn(itr, key)
