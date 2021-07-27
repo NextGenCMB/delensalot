@@ -163,17 +163,6 @@ class pol_iterator(object):
         else:
             return  almxfl(hlm, h2d, self.mmax_qlm, False)
 
-    def _step2incr(self, step, rlmincr):
-        if np.isscalar(step):
-            return step * rlm2alm(rlmincr)
-        elif len(step) > 0: #TODO: pospace steps!
-            assert len(step) > self.lmax_qlm
-            ret = rlm2alm(rlmincr)
-            almxfl(ret, step, self.mmax_qlm, True)
-            return ret
-        else:
-            assert 0
-
 
     def _sk2plm(self, itr):
         sk_fname = lambda k: 'rlm_sn_%s_%s' % (k, 'p')
@@ -344,8 +333,8 @@ class pol_iterator(object):
             t0 = time.time()
             incr = BFGS.get_mHkgk(alm2rlm(gradn), k)
             norm_inc = self.calc_norm(rlm2alm(incr)) / self.calc_norm(self.get_hlm(0, key))
-            step = self.newton_step_length(it, norm_inc)
-            incr = alm2rlm(self.ensure_invertibility(self.get_hlm(it - 1, key), self._step2incr(step, incr), self.mmax_qlm))
+            step = self.stepper.steplen(it, norm_inc)
+            incr = alm2rlm(self.ensure_invertibility(self.get_hlm(it - 1, key), self.stepper.build_incr(incr, it), self.mmax_qlm))
             self.hess_cacher.cache(sk_fname, incr)
             prt_time(time.time() - t0, label=' Exec. time for descent direction calculation')
         assert self.hess_cacher.is_cached(sk_fname), sk_fname
@@ -513,11 +502,11 @@ class iterator_cstmf_bfgs0(iterator_cstmf):
         df0 is gradient estimate for phi == 0, (- qlms calcualted with unlensed weight and filtering)
 
     """
-    def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple, lm_max_elm:tuple,
+    def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
                  dat_maps:list or np.ndarray, plm0:np.ndarray, mf0:np.ndarray, pp_h0:np.ndarray, df0:str,
                  cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_ee_wl.alm_filter_ninv_wl, k_geom:scarf.Geometry,
                  chain_descr, stepper:steps.nrstep, **kwargs):
-        super(iterator_cstmf_bfgs0, self).__init__(lib_dir, h, lm_max_dlm, lm_max_elm, dat_maps, plm0, mf0, pp_h0, cpp_prior, cls_filt,
+        super(iterator_cstmf_bfgs0, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, mf0, pp_h0, cpp_prior, cls_filt,
                                              ninv_filt, k_geom, chain_descr, stepper, **kwargs)
         #assert self.lmax_qlm == Alm.getlmax(df0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(df0.size, self.lmax_qlm))
         self.df0 = df0
