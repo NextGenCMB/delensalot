@@ -6,7 +6,7 @@ from lenscarf import remapping
 from lenscarf import utils_config, utils_hp, utils, utils_sht
 from lenscarf import cachers
 from lenscarf.opfilt import opfilt_ee_wl, opfilt_pp
-from lenscarf.utils_scarf import Geom, scarfjob
+from lenscarf.utils_scarf import Geom, scarfjob, pbdGeometry, pbounds
 from plancklens.utils import camb_clfile
 from lenscarf import qest_wl
 # FIXME: qest_wl part of opfilt
@@ -19,14 +19,14 @@ lmax_len = 4000
 
 nside = 2048
 fwhm = 2.3
-targetres_amin=2.
+targetres_amin=1.7
 mmax_is_lmax = False # False allows for mmax cuts
 w_lensing = True
 full_sky = False
 config = 'cmbs4_08b_healpix_onp' #cmbs4_08b_healpix, cmbs4_08b_healpix_onp, cmbs4_08b_healpix_oneq, full_sky_healpix
 
 if not full_sky:
-    ninvjob, pbds, zbounds_len, zbounds_ninv  = getattr(utils_config, config)() #_oneq() #FIXME: can have distinct zbounds for ninv and zboundslen
+    #ninvjob, pbds, zbounds_len, zbounds_ninv  = getattr(utils_config, config)() #_oneq() #FIXME: can have distinct zbounds for ninv and zboundslen
     #ninvjob, pbds, zbounds_len, zbounds_ninv  = utils_config.cmbs4_08b_healpix_onp()#_oneq() #FIXME: can have distinct zbounds for ninv and zboundslen
     #ninvjob, pbds, zbounds_len, zbounds_ninv = utils_config.cmbs4_08b_healpix_oneq() #FIXME: can have distinct zbounds for ninv and zboundslen
     IPVMAP = '/global/cscratch1/sd/jcarron/cmbs4/temp/s08b/cILC2021_00/ipvmap.fits'
@@ -95,7 +95,8 @@ if __name__ == '__main__':
         lenjob.set_thingauss_geometry(max(lmax_unl, lmax_len), 2, zbounds=zbounds_len)
     else:
         assert 0, args.lensgeom + ' not implemented'
-    d = remapping.deflection(lenjob.geom, targetres_amin, pbds, dlm, mmax_dlm, sht_threads, fftw_threads, cacher=cacher)
+    d_geom = pbdGeometry(lenjob.geom, pbounds(pbds[0], pbds[1]))
+    d = remapping.deflection(d_geom, targetres_amin, dlm, mmax_dlm, sht_threads, fftw_threads, cacher=cacher)
 
 
     t0 = time()
@@ -106,7 +107,7 @@ if __name__ == '__main__':
     d._bwd_angles()
     print('inverse deflection: %.2fs' % (time() - t0))
     opfilt = opfilt_ee_wl.alm_filter_ninv_wl(ninvgeom, n_inv, d, transf, (lmax_unl, mmax_unl), (lmax_len, mmax_len),
-                                              sht_threads, verbose=True)
+                                              sht_threads, None, verbose=True)
     elm = np.zeros(utils_hp.Alm.getsize(lmax_unl, mmax_unl), dtype=complex)
     d.tim.reset()
     opfilt.apply_alm(elm)
