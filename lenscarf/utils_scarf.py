@@ -4,7 +4,6 @@ import scarf
 from lenscarf.utils_sht import st2mmax, lowprimes
 from lenscarf.utils import clhash
 
-Geometry = scarf.Geometry
 
 class pbounds:
     """Class to regroup simple functions handling sky maps longitude truncation
@@ -35,6 +34,16 @@ class pbounds:
         dph = (phs - self.pctr) % (2 * np.pi)  # points inside are either close to zero or 2pi
         return (dph <= self.hext) |( (2 * np.pi - dph) <= self.hext)
 
+Geometry = scarf.Geometry
+
+class pbdGeometry:
+    def __init__(self, geom:Geometry, pbound:pbounds):
+        """Scarf geometry with additional info on longitudinal cuts
+
+
+        """
+        self.geom = geom
+        self.pbound = pbound
 
 
 class Geom:

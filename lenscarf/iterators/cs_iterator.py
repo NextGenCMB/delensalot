@@ -1,9 +1,11 @@
 """Module for curved-sky iterative lensing estimation
 
     Version revised on July 23 2021
-        Amon the changes:
-            * lenscarf'ed this
-            * optionally change main variable from plm to klm or dlm with expected better behavior
+
+        Among the changes:
+            * lenscarf'ed this with great improvements in execution time
+            * novel and more stable way of calculating the delfection angles and inverses
+            * optionally change main variable from plm to klm or dlm with expected better behavior ?
             * rid of alm2rlm which was just wasting a little bit of time and loads of memory
             * abstracted bfgs with cacher and dot_op
 
@@ -49,7 +51,7 @@ typs = ['T', 'QU', 'TQU']
 
 
 class pol_iterator(object):
-    def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple, lm_max_elm:tuple,
+    def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
                  dat_maps:list or np.ndarray, plm0:np.ndarray, pp_h0:np.ndarray,
                  cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_ee_wl.alm_filter_ninv_wl, k_geom:scarf.Geometry,
                  chain_descr, NR_method=100, tidy=0, verbose=True, soltn_cond=True, wflm0=None):
@@ -69,7 +71,7 @@ class pol_iterator(object):
         assert h in ['k', 'p', 'd']
         typ = 'QU'
         lmax_qlm, mmax_qlm = lm_max_dlm
-        lmax_filt, mmax_filt = lm_max_elm
+        lmax_filt, mmax_filt = ninv_filt.lmax_sol, ninv_filt.mmax_sol
 
         assert len(pp_h0) > lmax_qlm
         assert typ in ['QU'], typ + 'not implemented'
@@ -209,20 +211,20 @@ class pol_iterator(object):
                 return False
         return True
 
-    def get_template_blm(self, it, elm_wf, lmin_plm, lmaxb=2048):
+    def get_template_blm(self, it, elm_wf, lmin_plm=1, lmaxb=2048):
         """Builds a template B-mode map with the iterated phi and input elm_wf
 
             Args:
                 it: iteration index
                 elm_wf: Wiener-filtered E-mode (healpy alm array)
                 lmin_plm: the lensing tracer is zeroed below lmin_plm
-                nside, nband, facres: lenspyx lensing parameters
                 lmaxb: the B-template is calculated up to lmaxb (defaults to lmax elm_wf)
 
             Returns:
-
                 blm healpy array
 
+            Note:
+                It can be a real lot better to keep the same L range as the iterations
 
         """
         assert Alm.getlmax(elm_wf.size, self.mmax_filt) == self.lmax_filt
@@ -230,8 +232,8 @@ class pol_iterator(object):
         self.hlm2dlm(dlm, inplace=True)
         plm_filt = np.ones(self.lmax_qlm + 1, dtype=float)
         plm_filt[:lmin_plm] *= 0.
-        almxfl(dlm, plm_filt, self.lmax_qlm, True)
-        ffi = self.filter.ffi.copy([dlm, None], self.mmax_qlm)
+        almxfl(dlm, plm_filt, self.mmax_qlm, True)
+        ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm)
         elm, blm = ffi.lensgclm([elm_wf, elm_wf * 0.], self.mmax_filt, 2, lmaxb, lmaxb)
         return blm
 
@@ -454,11 +456,11 @@ class iterator_cstmf(pol_iterator):
 
     """
 
-    def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple, lm_max_elm:tuple,
+    def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
                  dat_maps:list or np.ndarray, plm0:np.ndarray, mf0:np.ndarray, pp_h0:np.ndarray,
                  cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_ee_wl.alm_filter_ninv_wl, k_geom:scarf.Geometry,
                  chain_descr, e_rescal=None, **kwargs):
-        super(iterator_cstmf, self).__init__(lib_dir, h, lm_max_dlm, lm_max_elm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
+        super(iterator_cstmf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
                                              ninv_filt, k_geom, chain_descr, **kwargs)
         assert self.lmax_qlm == Alm.getlmax(mf0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(mf0.size, self.lmax_qlm))
         self.cacher.cache('mf', almxfl(mf0,  self._h2p(self.lmax_qlm), self.mmax_qlm, False))
@@ -501,7 +503,8 @@ class iterator_cstmf(pol_iterator):
 
            #def get_qlms_wl(qudat: np.ndarray or list, elm_wf: np.ndarray, filt: opfilt_ee_wl.alm_filter_ninv_wl):
             assert self.typ == 'QU', 'fix this'
-            G, C = ql.get_qlms_wl(self.dat_maps, soltn, self.filter)
+            # TODO: change here for custom geom for qe calc:
+            G, C = ql.get_qlms_wl(self.dat_maps, soltn, self.filter, self.filter.ffi.pbgeom)
             almxfl(G if key.lower() == 'p' else C, self._h2p(self.lmax_qlm), self.mmax_qlm, True)
             if itr == 1: #We need the gradient at 0 and the yk's to be able to rebuild all gradients
                 fn_lik = '%slm_grad%slik_it%03d' % (self.h, key.lower(), 0)

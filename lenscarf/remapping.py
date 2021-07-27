@@ -6,19 +6,20 @@ from lenscarf.utils_remapping import d2ang, ang2d
 from lenscarf import cachers
 from lenscarf.utils import timer, clhash
 from lenscarf.utils_hp import Alm
-from lenscarf.utils_scarf import Geom, pbounds as pbs, scarfjob
+from lenscarf.utils_scarf import Geom, pbounds as pbs, scarfjob, pbdGeometry
 from lenscarf.fortran import remapping as fremap
 from lenscarf import utils_dlm
+
 import numpy as np
 
 class deflection:
-    def __init__(self, scarf_geometry:scarf.Geometry, targetres_amin, p_bounds:tuple, dglm,
+    def __init__(self, scarf_pbgeometry:pbdGeometry, targetres_amin, dglm,
                  mmax_dlm:int or None, fftw_threads:int, scarf_threads:int,
                  cacher:cachers.cacher or None=None, dclm:np.ndarray or None=None, verbose=False):
         """Deflection field object than can be used to lens several maps with forward or backward deflection
 
             Args:
-                scarf_geometry: scarf.Geometry object holding info on the deflection operation pixelization
+                scarf_pbgeometry: scarf.Geometry object holding info on the deflection operation pixelization
                 targetres_amin: float, desired interpolation resolution in arcmin
                 p_bounds: tuple with longitude cuts info in the form of (patch center, patch extent), both in radians
                 dglm: deflection-field alm array, gradient mode (:math:`\sqrt{L(L+1)}\phi_{LM}`)
@@ -31,9 +32,8 @@ class deflection:
 
 
         """
-        assert (p_bounds[1] > 0), p_bounds
         # --- interpolation of spin-1 deflection on the desired area and resolution
-        tht_bounds = Geom.tbounds(scarf_geometry)
+        tht_bounds = Geom.tbounds(scarf_pbgeometry.geom)
         assert (0. <= tht_bounds[0] < tht_bounds[1] <= np.pi), tht_bounds
         #self.sky_patch = skypatch(tht_bounds, p_bounds, targetres_amin, pole_buffers=3)
         lmax = Alm.getlmax(dglm.size, mmax_dlm)
@@ -47,11 +47,12 @@ class deflection:
         self.mmax_dlm = mmax_dlm
         self.d1 = None # -- this might be instantiated later if needed
         self.cacher = cacher
-        self.geom = scarf_geometry
+        self.pbgeom = scarf_pbgeometry
+        self.geom = scarf_pbgeometry.geom
 
         # FIXME: can get d1 tbounds from geometry + buffers.
         self._tbds = tht_bounds
-        self._pbds = pbs(p_bounds[0], p_bounds[1])  # (patch ctr, patch extent)
+        self._pbds = scarf_pbgeometry.pbound  # (patch ctr, patch extent)
         self._resamin = targetres_amin
         self.sht_tr = scarf_threads
         self._fft_tr = fftw_threads
@@ -62,14 +63,24 @@ class deflection:
         return {'lensgeom':Geom.hashdict(self.geom), 'resamin':self._resamin, 'pbs':self._pbds,
                'dlm':clhash(self.dlm.real), 'dclm': None if self.dclm is None else clhash(self.dclm.real)}
 
-    def copy(self, dlm:list or np.ndarray, mmax_dlm:int or None, cacher:cachers.cacher or None=None):
+    def change_dlm(self, dlm:list or np.ndarray, mmax_dlm:int or None, cacher:cachers.cacher or None=None):
         """Returns a deflection instance for another deflection field and cacher with same parameters than self
 
 
         """
         assert len(dlm) == 2, (len(dlm), 'gradient and curl mode (curl can be none)')
-        pbounds = (self._pbds.get_ctr(), self._pbds.get_range())
-        return deflection(self.geom, self._resamin, pbounds, dlm[0], mmax_dlm, self._fft_tr, self.sht_tr, cacher, dlm[1],
+        return deflection(self.pbgeom, self._resamin, dlm[0], mmax_dlm, self._fft_tr, self.sht_tr, cacher, dlm[1],
+                          verbose=self.verbose)
+
+    def change_geom(self, pbgeom:pbdGeometry, cacher:cachers.cacher or None=None):
+        """Returns a deflection instance with a different position-space geometry
+
+                Args:
+                    pbgeom: new pbounded-scarf geometry
+                    p_bounds: tuple with longitude cuts info in the form of (patch center, patch extent), both in radians
+                    cacher: cacher instance if desired
+        """
+        return deflection(pbgeom, self._resamin, self.dlm, self.mmax_dlm, self._fft_tr, self.sht_tr, cacher, self.dclm,
                           verbose=self.verbose)
 
     def _build_interpolator(self, gclm, mmax:int or None, spin:int):
