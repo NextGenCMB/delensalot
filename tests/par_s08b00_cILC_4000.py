@@ -347,6 +347,8 @@ def get_itlib(qe_key, DATIDX, cmbonly=False, vscarf=False):
         filtr = opfilt_ee_wl_scarf.alm_filter_ninv_wl(ninvgeom, ninv_sc, ffi, transf, (lmax_filt, mmax_filt), (lmax_transf, lmax_transf), tr, tpl)
         #ninv_geom: utils_scarf.Geometry, ninv: list, ffi: remapping.deflection, transf: np.ndarray,
         #unlalm_info: tuple, lenalm_info: tuple, sht_threads: int, verbose = False
+        if '0' in vscarf:
+            mf0 *= 0.
         itlib = scarf_iterator.iterator_cstmf(lib_dir_iterator, vscarf[0], (lmax_qlm, mmax_qlm), dat,
                                             plm0, mf0, H0_unl, cpp, cls_unl, filtr, k_geom, chain_descr, stepper, wflm0=wflm0)
         #lib_dir: str, h: str, lm_max_dlm: tuple, lm_max_elm: tuple,
@@ -369,6 +371,7 @@ if __name__ == '__main__':
     #vscarf: 'p' 'k' 'd' for bfgs variable
     #add a 'f' to use full sky in once-per iteration kappa thingy
     #add a 'r' for real space attenuation of the step instead of harmonic space
+    # add a '0' for no mf
 
     args = parser.parse_args()
     from plancklens.helpers import mpi

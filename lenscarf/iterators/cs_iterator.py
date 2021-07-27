@@ -65,6 +65,7 @@ class pol_iterator(object):
                 cpp_prior: fiducial lensing potential spectrum used for the prior term
                 cls_filt (dict): dictionary containing the filter cmb unlensed spectra (here, only 'ee' is required)
                 k_geom: scarf geometry for once-per-iterations opertations (like cehcking for invertibility etc)
+                stepper: custom calculation of NR-step
 
 
         """
