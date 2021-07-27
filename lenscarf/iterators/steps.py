@@ -75,4 +75,4 @@ class hmapprescal(nrstep):
         return almxfl(self.sc_job.map2alm(increal), cli(self.incr2klm), self.lmax_qlm, False)
 
     def steplen(self, itr, incrnorm):
-        return self.maxval
+        return self.valrange[1]
