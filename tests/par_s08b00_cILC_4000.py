@@ -322,8 +322,14 @@ def get_itlib(qe_key, DATIDX, cmbonly=False, vscarf=False):
         else:
             k_geom = lenjob.geom
         if 'r' in vscarf:
-            if 'h' in vscarf:
+            if vscarf[0] == 'k':
                 h2k = np.ones(lmax_qlm + 1, dtype=float)
+            elif vscarf[0] == 'p':
+                h2k = np.arange(lmax_qlm + 1) * np.arange(1, lmax_qlm + 2) * 0.5
+            elif vscarf[0] == 'd':
+                h2k = np.sqrt(np.arange(lmax_qlm + 1) * np.arange(1, lmax_qlm + 2))
+            else:
+                assert 0
             stepper = steps.hmapprescal(lmax_qlm, mmax_qlm, h2k, ninv_sc[0], (0.1, 0.5), ninvgeom, tr)
         else:
             stepper = steps.harmonicbump(lmax_qlm, mmax_qlm)
@@ -342,7 +348,7 @@ def get_itlib(qe_key, DATIDX, cmbonly=False, vscarf=False):
         #ninv_geom: utils_scarf.Geometry, ninv: list, ffi: remapping.deflection, transf: np.ndarray,
         #unlalm_info: tuple, lenalm_info: tuple, sht_threads: int, verbose = False
         itlib = scarf_iterator.iterator_cstmf(lib_dir_iterator, vscarf[0], (lmax_qlm, mmax_qlm), dat,
-                                            plm0, mf0, H0_unl, cpp, cls_unl, filtr, k_geom, chain_descr, wflm0=wflm0)
+                                            plm0, mf0, H0_unl, cpp, cls_unl, filtr, k_geom, chain_descr, stepper, wflm0=wflm0)
         #lib_dir: str, h: str, lm_max_dlm: tuple, lm_max_elm: tuple,
         #dat_maps: list or np.ndarray, plm0: np.ndarray, mf0: np.ndarray, pp_h0: np.ndarray,
         #cpp_prior: np.ndarray, cls_filt: dict, ninv_filt: opfilt_ee_wl.alm_filter_ninv_wl,
