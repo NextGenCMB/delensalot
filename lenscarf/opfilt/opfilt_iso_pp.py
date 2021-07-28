@@ -135,7 +135,7 @@ class alm_filter_nlev:
         fl[:spin] *= 0.
         fl = np.sqrt(fl)
         eblm = [almxfl(eblm_wf[0], fl, self.mmax_sol, False), almxfl(eblm_wf[1], fl, self.mmax_sol, False)]
-        return q_pbgeom.geom.alm2map_spin(eblm, 2, self.lmax_len, self.mmax_len, self._nthreads, (-1., 1.))
+        return q_pbgeom.geom.alm2map_spin(eblm, spin, self.lmax_len, self.mmax_len, self._nthreads, (-1., 1.))
 
 class pre_op_diag:
     """Cg-inversion diagonal preconditioner
