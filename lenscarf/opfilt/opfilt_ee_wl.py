@@ -92,7 +92,7 @@ class alm_filter_ninv_wl(opfilt_pp.alm_filter_ninv):
         assert len(qudat) == 2
         assert (qudat[0].size == utils_scarf.Geom.npix(self.ninv_geom)) and (qudat[0].size == qudat[1].size)
 
-        ebwf = (elm_wf, np.zeros_like(elm_wf))
+        ebwf = np.array([elm_wf, np.zeros_like(elm_wf)])
         repmap, impmap = self._get_irespmap(qudat, ebwf, q_pbgeom)
         Gs, Cs = self._get_gpmap(ebwf, 3, q_pbgeom)  # 2 pos.space maps
         GC = (repmap - 1j * impmap) * (Gs + 1j * Cs)  # (-2 , +3)
