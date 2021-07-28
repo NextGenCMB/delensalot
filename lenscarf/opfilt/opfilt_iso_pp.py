@@ -190,6 +190,6 @@ def calc_prep(eblm:np.ndarray, s_cls:dict, ninv_filt:alm_filter_nlev):
     eblmc = np.copy(eblm)
     almxfl(eblmc[0], ninv_filt.inoise_1, ninv_filt.mmax_len, True)
     almxfl(eblmc[1], ninv_filt.inoise_1, ninv_filt.mmax_len, True)
-    almxfl(eblmc, s_cls['ee'] > 0., ninv_filt.mmax_sol, True)
-    almxfl(eblmc, s_cls['bb'] > 0., ninv_filt.mmax_sol, True)
+    almxfl(eblmc[0], s_cls['ee'] > 0., ninv_filt.mmax_sol, True)
+    almxfl(eblmc[1], s_cls['bb'] > 0., ninv_filt.mmax_sol, True)
     return eblmc
