@@ -80,8 +80,8 @@ def get_gpmap(eblm_wf:np.ndarray or list, spin:int, filt:opfilt_ee_wl.alm_filter
     fl[:spin] *= 0.
     fl = np.sqrt(fl)
     eblm = [utils_hp.almxfl(eblm_wf[0], fl, filt.mmax_sol, False), utils_hp.almxfl(eblm_wf[1], fl, filt.mmax_sol, False)]
-    if q_pbgeom is not filt.ffi.pbgeom:
-        ffi = filt.ffi.change_geom(q_pbgeom, (0., 2 * np.pi))
+    if q_pbgeom.geom is not filt.ffi.pbgeom:
+        ffi = filt.ffi.change_geom(q_pbgeom)
     else:
         ffi = filt.ffi
     return ffi.gclm2lenmap(eblm, filt.mmax_sol, spin, False)
