@@ -7,6 +7,7 @@ from lenscarf.utils_hp import almxfl, Alm, alm2cl
 from lenscarf.utils import timer, clhash, cli
 from lenscarf import  utils_scarf
 from lenscarf import remapping
+from lenscarf import cachers
 from lenscarf.opfilt import opfilt_pp, bmodes_ninv as bni
 from scipy.interpolate import UnivariateSpline as spl
 
@@ -128,7 +129,7 @@ class alm_filter_ninv_wl(opfilt_pp.alm_filter_ninv):
         fl[:spin] *= 0.
         fl = np.sqrt(fl)
         eblm = [almxfl(eblm_wf[0], fl, self.mmax_sol, False), almxfl(eblm_wf[1], fl, self.mmax_sol, False)]
-        ffi = self.ffi.change_geom(q_pbgeom, (0., 2 * np.pi)) if q_pbgeom is not self.ffi.pbgeom else self.ffi
+        ffi = self.ffi.change_geom(q_pbgeom, cacher=cachers.cacher_mem()) if q_pbgeom is not self.ffi.pbgeom else self.ffi
         return ffi.gclm2lenmap(eblm, self.mmax_sol, spin, False)
 
     def _get_irespmap(self, qudat:np.ndarray, ebwf:np.ndarray or list, q_pbgeom:utils_scarf.pbdGeometry):

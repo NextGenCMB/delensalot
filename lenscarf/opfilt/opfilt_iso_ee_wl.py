@@ -9,7 +9,7 @@ from lenscarf import utils_scarf
 from lenscarf import remapping
 from scipy.interpolate import UnivariateSpline as spl
 from lenscarf.opfilt import opfilt_ee_wl
-
+from lenscarf import cachers
 
 pre_op_dense = None # not implemented
 dot_op = opfilt_ee_wl.dot_op
@@ -148,7 +148,7 @@ class alm_filter_nlev_wl:
         fl[:spin] *= 0.
         fl = np.sqrt(fl)
         eblm = [almxfl(eblm_wf[0], fl, self.mmax_sol, False), almxfl(eblm_wf[1], fl, self.mmax_sol, False)]
-        ffi = self.ffi.change_geom(q_pbgeom, (0., 2 * np.pi)) if q_pbgeom is not self.ffi.pbgeom else self.ffi
+        ffi = self.ffi.change_geom(q_pbgeom, cacher=cachers.cacher_mem()) if q_pbgeom is not self.ffi.pbgeom else self.ffi
         return ffi.gclm2lenmap(eblm, self.mmax_sol, spin, False)
 
 class pre_op_diag:
