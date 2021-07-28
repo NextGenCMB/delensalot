@@ -1,4 +1,5 @@
-import scarf
+import time
+import numpy as np
 
 from lenscarf.skypatch import skypatch
 from lenscarf import interpolators as itp
@@ -6,11 +7,10 @@ from lenscarf.utils_remapping import d2ang, ang2d
 from lenscarf import cachers
 from lenscarf.utils import timer, clhash
 from lenscarf.utils_hp import Alm, alm2cl
-from lenscarf.utils_scarf import Geom, pbounds as pbs, scarfjob, pbdGeometry
+from lenscarf.utils_scarf import Geom, scarfjob, pbdGeometry
 from lenscarf.fortran import remapping as fremap
 from lenscarf import utils_dlm
 
-import numpy as np
 
 class deflection:
     def __init__(self, scarf_pbgeometry:pbdGeometry, targetres_amin, dglm,
@@ -81,8 +81,9 @@ class deflection:
 
                 Args:
                     pbgeom: new pbounded-scarf geometry
-                    p_bounds: tuple with longitude cuts info in the form of (patch center, patch extent), both in radians
                     cacher: cacher instance if desired
+
+
         """
         return deflection(pbgeom, self._resamin, self.dlm, self.mmax_dlm, self._fft_tr, self.sht_tr, cacher, self.dclm,
                           verbose=self.verbose)
@@ -149,6 +150,7 @@ class deflection:
     def _bwd_angles(self):
         fn = 'bwdang'
         if not self.cacher.is_cached(fn):
+            t0 = time.time()
             self.tim.reset_t0()
             self._init_d1()
             (tht0, t2grid), (phi0, p2grid), (re_f, im_f) = self.d1.get_spline_info()
@@ -174,6 +176,7 @@ class deflection:
                 sli = slice(starts[i], starts[i + 1])
                 bwdang[:, sli] = d2ang(redi[sli], imdi[sli], thts[sli], phis[sli], vt)
             self.cacher.cache(fn, bwdang)
+            print('bwd angles calc, %.2e secs'%(time.time() - t0))
             self.tim.add('bwd angles (full map)')
             return bwdang
         return self.cacher.load(fn)
@@ -316,7 +319,7 @@ class deflection:
         if self.sig_d <= 0: # no actual deflection
             if spin == 0:
                 return gclm.copy()
-            return np.array([gclm[0].copy(), gclm[1].copy() if gclm[1] is not None else gclm[0] * 0])
+            return np.array([gclm[0].copy(), gclm[1].copy() if gclm[1] is not None else np.zeros_like(gclm[0])])
         self.tim.reset_t0()
         lenm = self.gclm2lenmap(gclm, mmax, spin, backwards)
         self.tim.add('gclm2lenmap, total')
