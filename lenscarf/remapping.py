@@ -42,7 +42,7 @@ class deflection:
             s2_d += np.sum(alm2cl(dclm, dclm, lmax, mmax_dlm, lmax) * (2 * np.arange(lmax + 1) + 1) ) / (4 * np.pi)
         sig_d = np.sqrt(s2_d)
         assert sig_d < 0.01, ('deflection std is %.2e: this is really too high a value for something sensible'%sig_d)
-        print(" Deflection std %.2e amin"%(self.sig_d / np.pi * 180 * 60))
+        print(" Deflection std %.2e amin"%(sig_d / np.pi * 180 * 60))
         self.sig_d = sig_d
         self.dlm = dglm
         self.dclm = dclm
@@ -92,7 +92,7 @@ class deflection:
         if self.verbose: print("***instantiating spin-%s interpolator with %s amin buffers"%(spin, bufamin))
         # putting a d = 0.01 ~ 30 arcmin buffer which should be way more than enough
         buf = bufamin/ 180 / 60 * np.pi
-        tbds = [max(self._tbds[0] - buf, 0.), min(np.pi, self._tbds[1] + buf)]
+        tbds = (max(self._tbds[0] - buf, 0.), min(np.pi, self._tbds[1] + buf))
         sintmin = np.min(np.sin(self._tbds))
         prange = min(self._pbds.get_range() + 2 * buf / sintmin if sintmin > 0 else 2 * np.pi, 2 * np.pi)
         buffered_patch = skypatch(tbds, (self._pbds.get_ctr(), prange), self._resamin, pole_buffers=3)
