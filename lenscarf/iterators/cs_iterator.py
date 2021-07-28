@@ -490,8 +490,8 @@ class iterator_cstmf(pol_iterator):
 
            #def get_qlms_wl(qudat: np.ndarray or list, elm_wf: np.ndarray, filt: opfilt_ee_wl.alm_filter_ninv_wl):
             assert self.typ == 'QU', 'fix this'
-            # TODO: change here for custom geom for qe calc:
-            G, C = ql.get_qlms_wl(self.dat_maps, soltn, self.filter, self.filter.ffi.pbgeom)
+            #G, C = ql.get_qlms_wl(self.dat_maps, soltn, self.filter, self.filter.ffi.pbgeom)
+            G, C = self.filter.get_qlms(self.dat_maps, soltn, self.k_geom)
             almxfl(G if key.lower() == 'p' else C, self._h2p(self.lmax_qlm), self.mmax_qlm, True)
             if itr == 1: #We need the gradient at 0 and the yk's to be able to rebuild all gradients
                 fn_lik = '%slm_grad%slik_it%03d' % (self.h, key.lower(), 0)
