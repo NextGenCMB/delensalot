@@ -490,9 +490,11 @@ class iterator_cstmf(pol_iterator):
            #def get_qlms_wl(qudat: np.ndarray or list, elm_wf: np.ndarray, filt: opfilt_ee_wl.alm_filter_ninv_wl):
             assert self.typ == 'QU', 'fix this'
             #G, C = ql.get_qlms_wl(self.dat_maps, soltn, self.filter, self.filter.ffi.pbgeom)
+            t0 = time.time()
             q_geom = pbdGeometry(self.k_geom, pbounds(0., 2 * np.pi))
             G, C = self.filter.get_qlms(self.dat_maps, soltn, q_geom)
             almxfl(G if key.lower() == 'p' else C, self._h2p(self.lmax_qlm), self.mmax_qlm, True)
+            print('get_qlms calculation done; (%.0f secs)'%(time.time() - t0))
             if itr == 1: #We need the gradient at 0 and the yk's to be able to rebuild all gradients
                 fn_lik = '%slm_grad%slik_it%03d' % (self.h, key.lower(), 0)
                 self.cacher.cache(fn_lik, -G if key.lower() == 'p' else -C)
