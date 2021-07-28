@@ -129,7 +129,7 @@ class alm_filter_ninv_wl(opfilt_pp.alm_filter_ninv):
         fl[:spin] *= 0.
         fl = np.sqrt(fl)
         eblm = [almxfl(eblm_wf[0], fl, self.mmax_sol, False), almxfl(eblm_wf[1], fl, self.mmax_sol, False)]
-        ffi = self.ffi.change_geom(q_pbgeom, cacher=cachers.cacher_mem()) if q_pbgeom is not self.ffi.pbgeom else self.ffi
+        ffi = self.ffi.change_geom(q_pbgeom) if q_pbgeom is not self.ffi.pbgeom else self.ffi
         return ffi.gclm2lenmap(eblm, self.mmax_sol, spin, False)
 
     def _get_irespmap(self, qudat:np.ndarray, ebwf:np.ndarray or list, q_pbgeom:utils_scarf.pbdGeometry):

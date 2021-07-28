@@ -5,7 +5,7 @@ from lenscarf import interpolators as itp
 from lenscarf.utils_remapping import d2ang, ang2d
 from lenscarf import cachers
 from lenscarf.utils import timer, clhash
-from lenscarf.utils_hp import Alm
+from lenscarf.utils_hp import Alm, alm2cl
 from lenscarf.utils_scarf import Geom, pbounds as pbs, scarfjob, pbdGeometry
 from lenscarf.fortran import remapping as fremap
 from lenscarf import utils_dlm
@@ -21,7 +21,6 @@ class deflection:
             Args:
                 scarf_pbgeometry: scarf.Geometry object holding info on the deflection operation pixelization
                 targetres_amin: float, desired interpolation resolution in arcmin
-                p_bounds: tuple with longitude cuts info in the form of (patch center, patch extent), both in radians
                 dglm: deflection-field alm array, gradient mode (:math:`\sqrt{L(L+1)}\phi_{LM}`)
                 fftw_threads: number of threads for FFTWs transforms (other than the ones in SHTs)
                 scarf_threads: number of threads for the SHTs scarf-ducc based calculations
@@ -32,14 +31,19 @@ class deflection:
 
 
         """
-        # --- interpolation of spin-1 deflection on the desired area and resolution
-        tht_bounds = Geom.tbounds(scarf_pbgeometry.geom)
-        assert (0. <= tht_bounds[0] < tht_bounds[1] <= np.pi), tht_bounds
-        #self.sky_patch = skypatch(tht_bounds, p_bounds, targetres_amin, pole_buffers=3)
         lmax = Alm.getlmax(dglm.size, mmax_dlm)
         if mmax_dlm is None: mmax_dlm = lmax
         if cacher is None: cacher = cachers.cacher_none()
 
+
+        # std deviation of deflection:
+        s2_d = np.sum(alm2cl(dglm, dglm, lmax, mmax_dlm, lmax) * (2 * np.arange(lmax + 1) + 1) ) / (4 * np.pi)
+        if dclm is not None:
+            s2_d += np.sum(alm2cl(dclm, dclm, lmax, mmax_dlm, lmax) * (2 * np.arange(lmax + 1) + 1) ) / (4 * np.pi)
+        sig_d = np.sqrt(s2_d)
+        assert sig_d < 0.01, ('deflection std is %.2e: this is really too high a value for something sensible'%sig_d)
+        print(" Deflection std %.2e amin"%(self.sig_d / np.pi * 180 * 60))
+        self.sig_d = sig_d
         self.dlm = dglm
         self.dclm = dclm
 
@@ -51,7 +55,7 @@ class deflection:
         self.geom = scarf_pbgeometry.geom
 
         # FIXME: can get d1 tbounds from geometry + buffers.
-        self._tbds = tht_bounds
+        self._tbds = Geom.tbounds(scarf_pbgeometry.geom)
         self._pbds = scarf_pbgeometry.pbound  # (patch ctr, patch extent)
         self._resamin = targetres_amin
         self.sht_tr = scarf_threads
@@ -95,7 +99,7 @@ class deflection:
         return itp.bicubic_ecp_interpolator(spin, gclm, mmax, buffered_patch, self.sht_tr, self._fft_tr, verbose=self.verbose)
 
     def _init_d1(self):
-        if self.d1 is None:
+        if self.d1 is None and self.sig_d > 0.:
             gclm = [self.dlm, np.zeros_like(self.dlm) if self.dclm is None else self.dclm]
             self.d1 = self._build_interpolator(gclm, self.mmax_dlm, 1)
 
@@ -272,6 +276,15 @@ class deflection:
         return self.cacher.load(fn)
 
     def gclm2lenmap(self, gclm:np.ndarray or list, mmax:int or None, spin, backwards:bool):
+        if self.sig_d <= 0:
+            if abs(spin) > 0:
+                lmax = Alm.getlmax(gclm[0].size, mmax)
+                if mmax is None: mmax = lmax
+                return self.geom.alm2map_spin(gclm, 1, lmax, mmax, self.sht_tr, [-1., 1.])
+            else:
+                lmax = Alm.getlmax(gclm.size, mmax)
+                if mmax is None: mmax = lmax
+                return self.geom.alm2map(gclm, lmax, mmax, self.sht_tr, [-1., 1.])
         # TODO: save only grid angles and full phase factor
         self.tim.reset_t0()
         interpjob = self._build_interpolator(gclm, mmax, spin)
@@ -300,6 +313,10 @@ class deflection:
         return lenm
 
     def lensgclm(self, gclm:np.ndarray or list, mmax:int or None, spin, lmax_out, mmax_out:int or None, backwards=False):
+        if self.sig_d <= 0: # no actual deflection
+            if spin == 0:
+                return gclm.copy()
+            return np.array([gclm[0].copy(), gclm[1].copy() if gclm[1] is not None else gclm[0] * 0])
         self.tim.reset_t0()
         lenm = self.gclm2lenmap(gclm, mmax, spin, backwards)
         self.tim.add('gclm2lenmap, total')
