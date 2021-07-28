@@ -105,7 +105,7 @@ class alm_filter_nlev:
 
 
         """
-        assert len(eblm_dat) == 2
+        assert len(eblm_dat) == 2 and len(eblm_wf) == 2
         ebwf = np.copy(eblm_wf)
         almxfl(ebwf[0], self.transf, self.mmax_len, True)
         almxfl(ebwf[1], self.transf, self.mmax_len, True)
@@ -127,6 +127,7 @@ class alm_filter_nlev:
         """
         assert len(eblm_wf) == 2
         assert  Alm.getlmax(eblm_wf[0].size, self.mmax_sol)== self.lmax_sol, ( Alm.getlmax(eblm_wf[0].size, self.mmax_sol), self.lmax_sol)
+        assert  Alm.getlmax(eblm_wf[1].size, self.mmax_sol)== self.lmax_sol, ( Alm.getlmax(eblm_wf[1].size, self.mmax_sol), self.lmax_sol)
         assert spin in [1, 3], spin
         lmax = Alm.getlmax(eblm_wf[0].size, self.mmax_sol)
         i1, i2 = (2, -1) if spin == 1 else (-2, 3)
@@ -142,6 +143,7 @@ class pre_op_diag:
     """
     def __init__(self, s_cls:dict, ninv_filt:alm_filter_nlev):
         assert len(s_cls['ee']) > ninv_filt.lmax_sol, (ninv_filt.lmax_sol, len(s_cls['ee']))
+        assert len(s_cls['bb']) > ninv_filt.lmax_sol, (ninv_filt.lmax_sol, len(s_cls['bb']))
         lmax_sol = ninv_filt.lmax_sol
         ninv_fel, ninv_fbl = ninv_filt.get_febl()
         if len(ninv_fel) - 1 < lmax_sol: # We extend the transfer fct to avoid predcon. with zero (~ Gauss beam)
@@ -187,9 +189,9 @@ def calc_prep(eblm:np.ndarray, s_cls:dict, ninv_filt:alm_filter_nlev):
     """
     assert isinstance(eblm, np.ndarray)
     assert Alm.getsize(eblm[0].size, ninv_filt.mmax_len) == ninv_filt.lmax_len, (Alm.getsize(eblm[0].size, ninv_filt.mmax_len), ninv_filt.lmax_len)
+    assert ninv_filt.lmax_len == ninv_filt.lmax_sol
+    assert ninv_filt.mmax_len == ninv_filt.mmax_sol
     eblmc = np.copy(eblm)
-    almxfl(eblmc[0], ninv_filt.inoise_1, ninv_filt.mmax_len, True)
-    almxfl(eblmc[1], ninv_filt.inoise_1, ninv_filt.mmax_len, True)
-    almxfl(eblmc[0], s_cls['ee'] > 0., ninv_filt.mmax_sol, True)
-    almxfl(eblmc[1], s_cls['bb'] > 0., ninv_filt.mmax_sol, True)
+    almxfl(eblmc[0], ninv_filt.inoise_1 * (s_cls['ee'][:ninv_filt.lmax_len + 1] > 0.), ninv_filt.mmax_len, True)
+    almxfl(eblmc[1], ninv_filt.inoise_1 * (s_cls['bb'][:ninv_filt.lmax_len + 1] > 0.), ninv_filt.mmax_len, True)
     return eblmc
