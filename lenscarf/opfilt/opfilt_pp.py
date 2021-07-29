@@ -3,7 +3,6 @@
 
 """
 import numpy as np
-import os
 from lenscarf.utils_hp import almxfl, Alm, alm2cl
 from lenscarf.utils import timer, cli, clhash, read_map
 from lenscarf import  utils_scarf

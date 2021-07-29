@@ -493,9 +493,7 @@ class iterator_cstmf(pol_iterator):
                 print("Rescaling WF mode solution")
                 almxfl(soltn, self.erescal, self.mmax_filt, inplace=True)
 
-           #def get_qlms_wl(qudat: np.ndarray or list, elm_wf: np.ndarray, filt: opfilt_ee_wl.alm_filter_ninv_wl):
             assert self.typ == 'QU', 'fix this'
-            #G, C = ql.get_qlms_wl(self.dat_maps, soltn, self.filter, self.filter.ffi.pbgeom)
             t0 = time.time()
             q_geom = pbdGeometry(self.k_geom, pbounds(0., 2 * np.pi))
             G, C = self.filter.get_qlms(self.dat_maps, soltn, q_geom)
