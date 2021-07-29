@@ -63,6 +63,9 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         return {'transf': clhash(self.transf), 'inoise2':clhash(self.inoise_2),
                 'lmax_sol':self.lmax_sol, 'lmax_len':self.lmax_len, 'ffi':self.ffi.hashdict()}
 
+    def dot_op(self):
+        return dot_op(self.lmax_sol, self.mmax_sol)
+
     def get_ftl(self):
         return np.copy(self.inoise_2)
 

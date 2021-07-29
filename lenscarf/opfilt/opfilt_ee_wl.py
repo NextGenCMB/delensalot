@@ -81,6 +81,8 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
                 ret.append(ninv_comp)
         return ret
 
+    def dot_op(self):
+        return dot_op(self.lmax_sol, self.mmax_sol)
 
     def apply_alm(self, elm:np.ndarray):
         """Applies operator Y^T N^{-1} Y (now  D^t B^T N^{-1} B D, where D is lensing, B the transfer function)

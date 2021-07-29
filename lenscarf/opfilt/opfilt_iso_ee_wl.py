@@ -57,6 +57,9 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
     def set_ffi(self, ffi:remapping.deflection):
         self.ffi = ffi
 
+    def dot_op(self):
+        return dot_op(self.lmax_sol, self.mmax_sol)
+
     def apply_alm(self, elm:np.ndarray):
         """Applies operator Y^T N^{-1} Y (now  bl ** 2 / n, where D is lensing, bl the transfer function)
 
