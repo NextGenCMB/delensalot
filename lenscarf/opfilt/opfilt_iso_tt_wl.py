@@ -144,7 +144,7 @@ def calc_prep(tlm:np.ndarray, s_cls:dict, ninv_filt:alm_filter_nlev_wl):
     assert isinstance(tlm, np.ndarray)
     assert Alm.getsize(tlm.size, ninv_filt.mmax_len) == ninv_filt.lmax_len, (Alm.getsize(tlm.size, ninv_filt.mmax_len), ninv_filt.lmax_len)
     tlmc = np.copy(tlm)
-    almxfl(tlmc, ninv_filt.inoise_1 * (s_cls['tt'][:ninv_filt.lmax_len + 1] > 0.), ninv_filt.mmax_len, True)
+    almxfl(tlmc, ninv_filt.inoise_1, ninv_filt.mmax_len, True)
     tlmc = ninv_filt.ffi.lensgclm(tlmc, ninv_filt.mmax_len, 2, ninv_filt.lmax_sol,ninv_filt.mmax_sol, backwards=True)
     almxfl(tlmc, s_cls['tt'] > 0., ninv_filt.mmax_sol, True)
     return tlmc
