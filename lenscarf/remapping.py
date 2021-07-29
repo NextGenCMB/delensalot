@@ -6,7 +6,7 @@ from lenscarf import interpolators as itp
 from lenscarf.utils_remapping import d2ang, ang2d
 from lenscarf import cachers
 from lenscarf.utils import timer, clhash
-from lenscarf.utils_hp import Alm, alm2cl
+from lenscarf.utils_hp import Alm, alm2cl, alm_copy
 from lenscarf.utils_scarf import Geom, scarfjob, pbdGeometry
 from lenscarf.fortran import remapping as fremap
 from lenscarf import utils_dlm
@@ -318,8 +318,9 @@ class deflection:
     def lensgclm(self, gclm:np.ndarray or list, mmax:int or None, spin, lmax_out, mmax_out:int or None, backwards=False):
         if self.sig_d <= 0: # no actual deflection
             if spin == 0:
-                return gclm.copy()
-            return np.array([gclm[0].copy(), gclm[1].copy() if gclm[1] is not None else np.zeros_like(gclm[0])])
+                return alm_copy(gclm, mmax, lmax_out, mmax_out)
+            glmret = alm_copy(gclm[0], mmax, lmax_out, mmax_out)
+            return np.array([glmret, alm_copy(gclm[1], mmax, lmax_out, mmax_out) if gclm[1] is not None else np.zeros_like(glmret)])
         self.tim.reset_t0()
         lenm = self.gclm2lenmap(gclm, mmax, spin, backwards)
         self.tim.add('gclm2lenmap, total')
