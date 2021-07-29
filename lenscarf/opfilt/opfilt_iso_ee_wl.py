@@ -191,7 +191,7 @@ def calc_prep(eblm:np.ndarray, s_cls:dict, ninv_filt:alm_filter_nlev_wl):
 
     """
     assert isinstance(eblm, np.ndarray)
-    assert Alm.getsize(eblm[0].size, ninv_filt.mmax_len) == ninv_filt.lmax_len, (Alm.getsize(eblm[0].size, ninv_filt.mmax_len), ninv_filt.lmax_len)
+    assert Alm.getlmax(eblm[0].size, ninv_filt.mmax_len) == ninv_filt.lmax_len, (Alm.getlmax(eblm[0].size, ninv_filt.mmax_len), ninv_filt.lmax_len)
     eblmc = np.copy(eblm)
     almxfl(eblmc[0], ninv_filt.inoise_1, ninv_filt.mmax_len, True)
     almxfl(eblmc[1], ninv_filt.inoise_1, ninv_filt.mmax_len, True)
