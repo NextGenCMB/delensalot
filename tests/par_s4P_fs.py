@@ -116,7 +116,7 @@ if __name__ == '__main__':
     for idx in jobs[mpi.rank::mpi.size]:
         lib_dir_iterator = TEMP + '/s4iterator_fullsky_p_p_%04d'%idx + args.scarf
         if args.itmax >= 0 and Rec.maxiterdone(lib_dir_iterator) < args.itmax:
-            itlib = get_itlib(args.vscarf)
+            itlib = get_itlib(args.scarf)
             for i in range(args.itmax + 1):
                 print("****Iterator: setting cg-tol to %.4e ****"%tol_iter(i))
                 print("****Iterator: setting solcond to %s ****"%soltn_cond(i))
