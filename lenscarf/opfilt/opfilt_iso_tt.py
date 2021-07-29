@@ -118,7 +118,7 @@ class alm_filter_nlev:
         assert  Alm.getlmax(tlm_wf.size, self.mmax_sol)== self.lmax_sol, ( Alm.getlmax(tlm_wf.size, self.mmax_sol), self.lmax_sol)
         lmax = Alm.getlmax(tlm_wf.size, self.mmax_sol)
         fl = -np.sqrt(np.arange(lmax + 1) * np.arange(1, lmax + 2))
-        return q_pbgeom.geom.alm2map_spin(almxfl(tlm_wf, fl, self.mmax_sol, False), 1, self.lmax_len, self.mmax_len, self._nthreads, (-1., 1.))
+        return q_pbgeom.geom.alm2map_spin([almxfl(tlm_wf, fl, self.mmax_sol, False), np.zeros_like(tlm_wf)], 1, self.lmax_len, self.mmax_len, self._nthreads, (-1., 1.))
 
 class pre_op_diag:
     """Cg-inversion diagonal preconditioner
