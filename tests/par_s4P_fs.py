@@ -88,14 +88,13 @@ def get_itlib(vscarf):
 
     plm0 = np.load(TEMP + '/plm0.npy')
     R_unl = qresp.get_response('p_p', lmax, 'p', cls_unl, cls_unl, {'e': fel_unl, 'b': fbl_unl}, lmax_qlm=lmax_qlm)[0]
-    H0_unl = cli(R_unl)
 
     ffi = remapping.deflection(d_geo, 1.7, np.zeros_like(plm0), mmax_qlm, tr, tr)
     isofilter = alm_filter_nlev_wl(nlev_p, ffi, transf, (lmax_unl, lmax_unl), (lmax, lmax))
     stepper = steps.nrstep(lmax_qlm, mmax_qlm, val=0.5)
     k_geom = isofilter.ffi.geom
     itlib = scarf_iterator.iterator_cstmf( TEMP + '/s4iterator_fullsky_p_p_%04d'%idx + args.scarf, vscarf[0], (lmax_qlm, mmax_qlm), np.load(TEMP + '/eblm_dat.npy'),
-            plm0, plm0 * 0., H0_unl, cpp, cls_unl, isofilter, k_geom, chain_descr, stepper)
+            plm0, plm0 * 0., R_unl, cpp, cls_unl, isofilter, k_geom, chain_descr, stepper)
     return itlib
 
 if __name__ == '__main__':

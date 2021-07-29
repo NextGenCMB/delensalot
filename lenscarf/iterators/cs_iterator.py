@@ -475,8 +475,6 @@ class iterator_cstmf(pol_iterator):
             assert key in ['p'], key + '  not implemented'
             dlm = self.get_hlm(itr - 1, key)
             self.hlm2dlm(dlm, True)
-            libdir_ffi = opj(self.lib_dir, 'ffi_%s_it%s'%(key, itr))
-            #ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm, cachers.cacher_npy(libdir_ffi))
             ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm, cachers.cacher_mem())
             self.filter.set_ffi(ffi)
             mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.filter)
