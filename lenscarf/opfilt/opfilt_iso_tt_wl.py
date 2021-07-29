@@ -2,12 +2,10 @@
 
 
 """
-import os
 import numpy as np
-from lenscarf.utils_hp import almxfl, Alm, alm2cl
-from lenscarf.utils import timer, cli, clhash
+from lenscarf.utils_hp import almxfl, Alm
+from lenscarf.utils import timer, clhash
 from lenscarf import utils_scarf, remapping
-from scipy.interpolate import UnivariateSpline as spl
 from lenscarf.opfilt import opfilt_iso_tt
 
 
@@ -95,7 +93,7 @@ class alm_filter_nlev_wl:
 
         """
         assert Alm.getlmax(tlm_dat.size, self.mmax_len) == self.lmax_len, (Alm.getlmax(tlm_dat.size, self.mmax_len), self.lmax_len)
-        assert Alm.getlmax(tlm_wf.size, self.mmax_len) == self.lmax_len, (Alm.getlmax(tlm_wf.size, self.mmax_len), self.lmax_len)
+        assert Alm.getlmax(tlm_wf.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(tlm_wf.size, self.mmax_sol), self.lmax_sol)
 
         d1 = self._get_irestmap(tlm_dat, tlm_wf, q_pbgeom) * self._get_gtmap(tlm_wf, q_pbgeom)
         G, C = q_pbgeom.geom.map2alm_spin(d1, 1, lmax_qlm, mmax_qlm, self.ffi.sht_tr, (-1., 1.))
@@ -145,8 +143,6 @@ def calc_prep(tlm:np.ndarray, s_cls:dict, ninv_filt:alm_filter_nlev_wl):
     """
     assert isinstance(tlm, np.ndarray)
     assert Alm.getsize(tlm.size, ninv_filt.mmax_len) == ninv_filt.lmax_len, (Alm.getsize(tlm.size, ninv_filt.mmax_len), ninv_filt.lmax_len)
-    assert ninv_filt.lmax_len == ninv_filt.lmax_sol
-    assert ninv_filt.mmax_len == ninv_filt.mmax_sol
     tlmc = np.copy(tlm)
     almxfl(tlmc, ninv_filt.inoise_1 * (s_cls['tt'][:ninv_filt.lmax_len + 1] > 0.), ninv_filt.mmax_len, True)
     tlmc = ninv_filt.ffi.lensgclm(tlmc, ninv_filt.mmax_len, 2, ninv_filt.lmax_sol,ninv_filt.mmax_sol, backwards=True)
