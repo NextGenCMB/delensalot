@@ -29,7 +29,7 @@ from lenscarf import utils_dlm
 from plancklens.qcinv import multigrid
 from lenscarf.iterators import bfgs, steps
 
-from lenscarf.opfilt import opfilt_ee_wl
+from lenscarf.opfilt import opfilt_ee_wl, opfilt_iso_ee_wl
 from lenscarf import cachers
 
 
@@ -52,8 +52,11 @@ typs = ['T', 'QU', 'TQU']
 class pol_iterator(object):
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
                  dat_maps:list or np.ndarray, plm0:np.ndarray, pp_h0:np.ndarray,
-                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_ee_wl.alm_filter_ninv_wl, k_geom:scarf.Geometry,
-                 chain_descr, stepper:steps.nrstep, NR_method=100, tidy=0, verbose=True, soltn_cond=True, wflm0=None):
+                 cpp_prior:np.ndarray, cls_filt:dict,
+                 ninv_filt:opfilt_ee_wl.alm_filter_ninv_wl or opfilt_iso_ee_wl.alm_filter_nlev_wl,
+                 k_geom:scarf.Geometry,
+                 chain_descr, stepper:steps.nrstep,
+                 NR_method=100, tidy=0, verbose=True, soltn_cond=True, wflm0=None):
         """Lensing map iterator
 
             The bfgs hessian updates are called 'hlm's and are either in plm, dlm or klm space
@@ -90,7 +93,12 @@ class pol_iterator(object):
         # nside = hp.npix2nside(read_map(dat_maps[0]).size)
         #    chain_descr =  [[0, ["diag_cl"], lmax_filt, nside, np.inf, 1e-3, cd_solve.tr_cg, cd_solve.cache_mem()]]
         self.typ = typ
-        self.opfilt = opfilt_ee_wl
+        if isinstance(ninv_filt, opfilt_ee_wl.alm_filter_ninv_wl):
+            self.opfilt = opfilt_ee_wl
+        elif isinstance(ninv_filt, opfilt_iso_ee_wl.alm_filter_nlev_wl):
+            self.opfilt = opfilt_iso_ee_wl
+        else:
+            assert 0, 'opfilt not understood'
         self.dat_maps = dat_maps
 
 

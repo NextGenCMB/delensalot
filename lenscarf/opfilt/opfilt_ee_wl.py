@@ -165,7 +165,7 @@ class pre_op_diag:
         ninv_fel, ninv_fbl = ninv_filt.get_febl() # (N_lev * transf) ** 2 basically
         if len(ninv_fel) - 1 < lmax_sol: # We extend the transfer fct to avoid predcon. with zero (~ Gauss beam)
             print("PRE_OP_DIAG: extending transfer fct from lmax %s to lmax %s"%(len(ninv_fel)-1, lmax_sol))
-            assert np.all(ninv_fel > 0)
+            assert np.all(ninv_fel > 0) #FIXME
             spl_sq = spl(np.arange(len(ninv_fel), dtype=float), np.log(ninv_fel), k=2, ext='extrapolate')
             ninv_fel = np.exp(spl_sq(np.arange(lmax_sol + 1, dtype=float)))
         flmat = cli(s_cls['ee'][:lmax_sol + 1]) + ninv_fel[:lmax_sol + 1]

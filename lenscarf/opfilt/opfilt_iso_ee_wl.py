@@ -163,20 +163,22 @@ class pre_op_diag:
         ninv_fel, ninv_fbl = ninv_filt.get_febl()
         if len(ninv_fel) - 1 < lmax_sol: # We extend the transfer fct to avoid predcon. with zero (~ Gauss beam)
             print("PRE_OP_DIAG: extending transfer fct from lmax %s to lmax %s"%(len(ninv_fel)-1, lmax_sol))
-            assert np.all(ninv_fel > 0)
-            spl_sq = spl(np.arange(len(ninv_fel), dtype=float), np.log(ninv_fel), k=2, ext='extrapolate')
+            assert np.all(ninv_fel >= 0)
+            nz = np.where(ninv_fel > 0)
+            spl_sq = spl(np.arange(len(ninv_fel), dtype=float)[nz], np.log(ninv_fel[nz]), k=2, ext='extrapolate')
             ninv_fel = np.exp(spl_sq(np.arange(lmax_sol + 1, dtype=float)))
         flmat = cli(s_cls['ee'][:lmax_sol + 1]) + ninv_fel[:lmax_sol + 1]
         self.flmat = cli(flmat) * (s_cls['ee'][:lmax_sol +1] > 0.)
         self.lmax = ninv_filt.lmax_sol
         self.mmax = ninv_filt.mmax_sol
 
-    def __call__(self, elm):
-        return self.calc(elm)
+    def __call__(self, eblm):
+        return self.calc(eblm)
 
     def calc(self, elm):
         assert Alm.getsize(self.lmax, self.mmax) == elm.size, (self.lmax, self.mmax, Alm.getlmax(elm.size, self.mmax))
         return almxfl(elm, self.flmat, self.mmax, False)
+
 
 def calc_prep(eblm:np.ndarray, s_cls:dict, ninv_filt:alm_filter_nlev_wl):
     """cg-inversion pre-operation  (D^t B^t N^{-1} X^{dat})
