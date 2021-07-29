@@ -56,6 +56,8 @@ transf   =  gauss_beam(1./180 / 60 * np.pi, lmax=lmax) * (np.arange(lmax + 1) >=
 transf_i = cli(transf)
 fel =  cli(cls_len['ee'][:lmax + 1] + (nlev_p / 180 / 60 * np.pi) ** 2 * cli(transf ** 2)) * (transf > 0)
 fbl =  cli(cls_len['bb'][:lmax + 1] + (nlev_p / 180 / 60 * np.pi) ** 2 * cli(transf ** 2)) * (transf > 0)
+fel_unl =  cli(cls_unl['ee'][:lmax + 1] + (nlev_p / 180 / 60 * np.pi) ** 2 * cli(transf ** 2)) * (transf > 0)
+fbl_unl =  cli(cls_unl['bb'][:lmax + 1] + (nlev_p / 180 / 60 * np.pi) ** 2 * cli(transf ** 2)) * (transf > 0)
 chain_descr = [[0, ["diag_cl"], lmax_unl, 2048, np.inf, 1e-3, cd_solve.tr_cg, cd_solve.cache_mem()]]
 
 
@@ -73,7 +75,7 @@ def get_itlib(vscarf):
     isoppfilter = alm_filter_nlev(nlev_p, transf, (lmax, lmax))
     plm0 = isoppfilter.get_qlms(eblm, eblm_wf, d_geo, lmax_qlm, lmax_qlm)[0]
     R = qresp.get_response('p_p', lmax, 'p', cls_len, cls_len, {'e': fel, 'b': fbl}, lmax_qlm=lmax_qlm)[0]
-    R_unl = qresp.get_response('p_p', lmax, 'p', cls_unl, cls_unl, {'e': fel, 'b': fbl}, lmax_qlm=lmax_qlm)[0]
+    R_unl = qresp.get_response('p_p', lmax, 'p', cls_unl, cls_unl, {'e': fel_unl, 'b': fbl_unl}, lmax_qlm=lmax_qlm)[0]
     H0_unl = cli(R_unl)
     almxfl(plm0, utils.cli(R), mmax_qlm, True)
 
