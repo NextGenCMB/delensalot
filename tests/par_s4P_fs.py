@@ -78,7 +78,7 @@ def get_itlib(vscarf):
     almxfl(plm0, utils.cli(R), mmax_qlm, True)
 
     ffi = remapping.deflection(d_geo, 1.7, np.zeros_like(plm0), mmax_qlm, tr, tr)
-    cpp = cls_unl[:lmax_qlm + 1]
+    cpp = cls_unl['pp'][:lmax_qlm + 1]
     almxfl(plm0, cpp * utils.cli(cpp + utils.cli(R)), mmax_qlm, True)
     isofilter = alm_filter_nlev_wl(nlev_p, ffi, transf, (lmax_unl, lmax_unl), (lmax, lmax))
     stepper = steps.nrstep(lmax_qlm, mmax_qlm, val=0.5)
