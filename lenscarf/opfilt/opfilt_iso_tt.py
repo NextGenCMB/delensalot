@@ -35,7 +35,6 @@ class alm_filter_nlev:
                     Mode exclusions can be implemented setting the transfer fct to zero
 
 
-
         """
         lmax_sol, mmax_sol = alm_info
         lmax_transf = len(transf) - 1
