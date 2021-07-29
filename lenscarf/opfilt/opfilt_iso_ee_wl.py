@@ -57,6 +57,9 @@ class alm_filter_nlev_wl:
     def get_febl(self):
         return np.copy(self.inoise_2), np.copy(self.inoise_2)
 
+    def set_ffi(self, ffi:remapping.deflection):
+        self.ffi = ffi
+
     def apply_alm(self, elm:np.ndarray):
         """Applies operator Y^T N^{-1} Y (now  bl ** 2 / n, where D is lensing, bl the transfer function)
 
