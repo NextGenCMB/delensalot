@@ -4,17 +4,17 @@
 """
 import numpy as np
 from lenscarf.utils_hp import almxfl, Alm, alm2cl
-from lenscarf.utils import timer, clhash, cli
+from lenscarf.utils import clhash, cli
 from lenscarf import  utils_scarf
 from lenscarf import remapping
-from lenscarf import cachers
-from lenscarf.opfilt import opfilt_pp, bmodes_ninv as bni
+from lenscarf.opfilt import  opfilt_pp, opfilt_base, bmodes_ninv as bni
 from scipy.interpolate import UnivariateSpline as spl
+from lenscarf.utils import timer
 
 apply_fini = opfilt_pp.apply_fini
 pre_op_dense = None # not implemented
 
-class alm_filter_ninv_wl(opfilt_pp.alm_filter_ninv):
+class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
     def __init__(self, ninv_geom:utils_scarf.Geometry, ninv:list, ffi:remapping.deflection, transf:np.ndarray,
                  unlalm_info:tuple, lenalm_info:tuple, sht_threads:int, tpl:bni.template_dense or None, verbose=False):
         r"""CMB inverse-variance and Wiener filtering instance, using unlensed E and lensing deflection
@@ -31,8 +31,40 @@ class alm_filter_ninv_wl(opfilt_pp.alm_filter_ninv):
 
 
         """
-        super().__init__(ninv_geom, ninv, transf, unlalm_info, lenalm_info, sht_threads, tpl=tpl,verbose=verbose)
-        self.ffi = ffi
+        lmax_unl, mmax_unl = unlalm_info
+        lmax_len, mmax_len = lenalm_info
+        lmax_transf = len(transf) - 1
+        self.lmax_len = min(lmax_transf, lmax_len)
+        self.mmax_len = min(mmax_len, lmax_transf)
+        lmax_sol = lmax_unl
+        mmax_sol = min(lmax_unl, mmax_unl)
+
+        super().__init__(lmax_sol, mmax_sol, ffi)
+        self.n_inv = ninv
+        self.b_transf = transf
+
+
+        sc_job = utils_scarf.scarfjob()
+        if not np.all(ninv_geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
+            print('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
+            nr = ninv_geom.get_nrings()
+            ninv_geom_ = utils_scarf.Geometry(nr, ninv_geom.nph.copy(), ninv_geom.ofs.copy(), 1, ninv_geom.phi0.copy(), ninv_geom.theta.copy(), np.ones(nr, dtype=float))
+            # Does not seem to work without the 'copy'
+        else:
+            ninv_geom_ = ninv_geom
+        assert np.all(ninv_geom_.weight == 1.)
+        sc_job.set_geometry(ninv_geom_)
+        sc_job.set_nthreads(sht_threads)
+        sc_job.set_triangular_alm_info(lmax_len, mmax_len)
+        self.ninv_geom = ninv_geom
+        self.sc_job = sc_job
+
+        self.verbose=verbose
+
+        self._nlevp = None
+        self.tim = timer(True, prefix='opfilt')
+
+        self.template = tpl # here just one template allowed
 
     def hashdict(self):
         return {'ninv':self._ninv_hash(), 'transf':clhash(self.b_transf),
@@ -40,8 +72,15 @@ class alm_filter_ninv_wl(opfilt_pp.alm_filter_ninv):
                 'deflection':self.ffi.hashdict(),
                 'unalm':(self.lmax_sol, self.mmax_sol), 'lenalm':(self.lmax_len, self.mmax_len) }
 
-    def set_ffi(self, ffi:remapping.deflection):
-        self.ffi = ffi
+    def _ninv_hash(self):
+        ret = []
+        for ninv_comp in self.n_inv:
+            if isinstance(ninv_comp, np.ndarray) and ninv_comp.size > 1:
+                ret.append(clhash(ninv_comp))
+            else:
+                ret.append(ninv_comp)
+        return ret
+
 
     def apply_alm(self, elm:np.ndarray):
         """Applies operator Y^T N^{-1} Y (now  D^t B^T N^{-1} B D, where D is lensing, B the transfer function)

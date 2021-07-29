@@ -8,7 +8,7 @@ from lenscarf.utils import timer, cli
 from lenscarf import utils_scarf
 from lenscarf import remapping
 from scipy.interpolate import UnivariateSpline as spl
-from lenscarf.opfilt import opfilt_ee_wl
+from lenscarf.opfilt import opfilt_ee_wl, opfilt_base
 
 pre_op_dense = None # not implemented
 dot_op = opfilt_ee_wl.dot_op
@@ -16,7 +16,7 @@ fwd_op = opfilt_ee_wl.fwd_op
 apply_fini = opfilt_ee_wl.apply_fini
 
 
-class alm_filter_nlev_wl:
+class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
     def __init__(self, nlev_p:float, ffi:remapping.deflection, transf:np.ndarray, unlalm_info:tuple, lenalm_info:tuple, verbose=False):
         r"""Version of alm_filter_ninv_wl for full-sky maps filtered with homogeneous noise levels
 
@@ -39,11 +39,8 @@ class alm_filter_nlev_wl:
         lmax_sol, mmax_sol = unlalm_info
         lmax_len, mmax_len = lenalm_info
         lmax_transf = len(transf) - 1
+        super().__init__(lmax_sol, mmax_sol, ffi)
 
-        self.ffi = ffi
-
-        self.lmax_sol = lmax_sol
-        self.mmax_sol = mmax_sol
         self.lmax_len = min(lmax_len, lmax_transf)
         self.mmax_len = min(mmax_len, self.lmax_len)
 

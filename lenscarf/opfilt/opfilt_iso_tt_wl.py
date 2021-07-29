@@ -6,7 +6,7 @@ import numpy as np
 from lenscarf.utils_hp import almxfl, Alm
 from lenscarf.utils import timer, clhash
 from lenscarf import utils_scarf, remapping
-from lenscarf.opfilt import opfilt_iso_tt
+from lenscarf.opfilt import opfilt_iso_tt, opfilt_base
 
 
 fwd_op = opfilt_iso_tt.fwd_op
@@ -23,7 +23,7 @@ def apply_fini(*args, **kwargs):
     """
     pass
 
-class alm_filter_nlev_wl:
+class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
     def __init__(self, nlev_t:float, ffi:remapping.deflection, transf:np.ndarray, unlalm_info:tuple, lenalm_info:tuple, verbose=False):
         r"""Version of alm_filter_ninv_wl for full-sky maps filtered with homogeneous noise levels
 
@@ -46,10 +46,8 @@ class alm_filter_nlev_wl:
         lmax_len, mmax_len = lenalm_info
         lmax_transf = len(transf) - 1
 
-        self.ffi = ffi
+        super(alm_filter_nlev_wl, self).__init__(lmax_sol, mmax_sol, ffi)
 
-        self.lmax_sol = lmax_sol
-        self.mmax_sol = mmax_sol
         self.lmax_len = min(lmax_len, lmax_transf)
         self.mmax_len = min(mmax_len, self.lmax_len)
 
