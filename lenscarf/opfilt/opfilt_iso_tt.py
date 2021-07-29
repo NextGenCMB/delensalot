@@ -103,7 +103,8 @@ class alm_filter_nlev:
 
 
         """
-        twf = tlm_dat - almxfl(tlm_wf, self.transf, self.mmax_len, False)
+        assert self.lmax_sol == self.lmax_len  and self.mmax_sol == self.mmax_len
+        twf = tlm_dat - almxfl(tlm_wf, self.transf, self.mmax_sol, False)
         almxfl(twf, self.inoise_1, self.mmax_len, True)
         return q_pbgeom.geom.alm2map(twf, self.lmax_len, self.mmax_len, self._nthreads, (-1., 1.))
 
@@ -116,8 +117,7 @@ class alm_filter_nlev:
 
         """
         assert  Alm.getlmax(tlm_wf.size, self.mmax_sol)== self.lmax_sol, ( Alm.getlmax(tlm_wf.size, self.mmax_sol), self.lmax_sol)
-        lmax = Alm.getlmax(tlm_wf.size, self.mmax_sol)
-        fl = -np.sqrt(np.arange(lmax + 1) * np.arange(1, lmax + 2))
+        fl = -np.sqrt(np.arange(self.lmax_sol + 1) * np.arange(1, self.lmax_sol + 2))
         return q_pbgeom.geom.alm2map_spin([almxfl(tlm_wf, fl, self.mmax_sol, False), np.zeros_like(tlm_wf)], 1, self.lmax_len, self.mmax_len, self._nthreads, (-1., 1.))
 
 class pre_op_diag:
