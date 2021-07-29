@@ -64,24 +64,30 @@ chain_descr = [[0, ["diag_cl"], lmax_unl, 2048, np.inf, 1e-3, cd_solve.tr_cg, cd
 
 def get_itlib(vscarf):
     tr = int(os.environ.get('OMP_NUM_THREADS', 8))
-    eblm = build_sim(0, transf, nlev_p)
-    eblm_wf = np.copy(eblm)
-    almxfl(eblm_wf[0], transf_i * fel * cls_len['ee'][:lmax + 1], mmax, inplace=True)
-    almxfl(eblm_wf[1], transf_i * fbl * cls_len['bb'][:lmax + 1], mmax, inplace=True)
+    cpp = cls_unl['pp'][:lmax_qlm + 1]
+    if not os.path.exists(TEMP + '/plm0.npy'):
+        if not os.path.exists(TEMP + '/eblm_dat.npy'):
+            eblm = build_sim(0, transf, nlev_p)
+            np.save(TEMP + '/eblm_dat.npy', eblm)
+        eblm_wf = np.load(TEMP + '/eblm_dat.npy')
+        almxfl(eblm_wf[0], transf_i * fel * cls_len['ee'][:lmax + 1], mmax, inplace=True)
+        almxfl(eblm_wf[1], transf_i * fbl * cls_len['bb'][:lmax + 1], mmax, inplace=True)
 
-    sc_job = utils_scarf.scarfjob()
-    sc_job.set_thingauss_geometry(lmax_unl, 2)
-    d_geo = utils_scarf.pbdGeometry(sc_job.geom, utils_scarf.pbounds(pb_ctr, pb_extent))
-    isoppfilter = alm_filter_nlev(nlev_p, transf, (lmax, lmax))
-    plm0 = isoppfilter.get_qlms(eblm, eblm_wf, d_geo, lmax_qlm, lmax_qlm)[0]
-    R = qresp.get_response('p_p', lmax, 'p', cls_len, cls_len, {'e': fel, 'b': fbl}, lmax_qlm=lmax_qlm)[0]
+        sc_job = utils_scarf.scarfjob()
+        sc_job.set_thingauss_geometry(lmax_unl, 2)
+        d_geo = utils_scarf.pbdGeometry(sc_job.geom, utils_scarf.pbounds(pb_ctr, pb_extent))
+        isoppfilter = alm_filter_nlev(nlev_p, transf, (lmax, lmax))
+        plm0 = isoppfilter.get_qlms(eblm, eblm_wf, d_geo, lmax_qlm, lmax_qlm)[0]
+        R = qresp.get_response('p_p', lmax, 'p', cls_len, cls_len, {'e': fel, 'b': fbl}, lmax_qlm=lmax_qlm)[0]
+        almxfl(plm0, utils.cli(R), mmax_qlm, True)
+        almxfl(plm0, cpp * utils.cli(cpp + utils.cli(R)), mmax_qlm, True)
+        np.save(TEMP + '/plm0.npy', plm0)
+
+    plm0 = np.load(TEMP + '/plm0.npy')
     R_unl = qresp.get_response('p_p', lmax, 'p', cls_unl, cls_unl, {'e': fel_unl, 'b': fbl_unl}, lmax_qlm=lmax_qlm)[0]
     H0_unl = cli(R_unl)
-    almxfl(plm0, utils.cli(R), mmax_qlm, True)
 
     ffi = remapping.deflection(d_geo, 1.7, np.zeros_like(plm0), mmax_qlm, tr, tr)
-    cpp = cls_unl['pp'][:lmax_qlm + 1]
-    almxfl(plm0, cpp * utils.cli(cpp + utils.cli(R)), mmax_qlm, True)
     isofilter = alm_filter_nlev_wl(nlev_p, ffi, transf, (lmax_unl, lmax_unl), (lmax, lmax))
     stepper = steps.nrstep(lmax_qlm, mmax_qlm, val=0.5)
     k_geom = isofilter.ffi.geom
