@@ -44,7 +44,7 @@ sc_job = utils_scarf.scarfjob()
 sc_job.set_thingauss_geometry(4096, 2)
 d_geo = utils_scarf.pbdGeometry(sc_job.geom, utils_scarf.pbounds(0, 2. * np.pi))
 isoppfilter = alm_filter_nlev(nlev_p, transf, (lmax, lmax))
-G, C = isoppfilter.get_qlms(eblm, eblm_wf, d_geo, 3000, 3000)
+G = isoppfilter.get_qlms(eblm, eblm_wf, d_geo, 3000, 3000)[0]
 R = qresp.get_response('p_p', 3000, 'p', cls_len, cls_len, {'e': fel, 'b': fbl}, lmax_qlm=lmax_qlm)[0]
 almxfl(G, utils.cli(R), mmax_qlm, True)
 

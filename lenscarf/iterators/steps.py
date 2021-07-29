@@ -6,15 +6,16 @@ from lenscarf.utils import cli
 from lenscarf.utils import read_map
 
 class nrstep(object):
-    def __init__(self, lmax_qlm:int, mmax_qlm:int):
+    def __init__(self, lmax_qlm:int, mmax_qlm:int, val=1.):
         self.lmax_qlm = lmax_qlm
         self.mmax_qlm = mmax_qlm
+        self.val = val
 
     def steplen(self, itr, incrnorm):
-        return 1.
+        return self.val
 
     def build_incr(self, incrlm, itr):
-        return incrlm
+        return self.val * incrlm
 
 class harmonicbump(nrstep):
     def __init__(self, lmax_qlm, mmax_qlm, xa=400, xb=1500, a=0.5, b=0.1, scale=50):
