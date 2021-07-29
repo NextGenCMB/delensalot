@@ -11,6 +11,7 @@ from lenscarf.utils import cli
 from lenscarf.utils_hp import gauss_beam, almxfl, alm2cl, synalm, alm_copy
 from lenscarf.opfilt.opfilt_iso_tt import alm_filter_nlev
 from lenscarf import utils_scarf
+from plancklens.sims import planck2018_sims
 
 cls_path = os.path.join(os.path.dirname(plancklens.__file__), 'data', 'cls')
 cls_unl = utils.camb_clfile(os.path.join(cls_path, 'FFP10_wdipole_lenspotentialCls.dat'))
@@ -19,7 +20,6 @@ cls_len = utils.camb_clfile(os.path.join(cls_path, 'FFP10_wdipole_lensedCls.dat'
 def build_sim(idx, transf, nlev_t):
     lmax = len(transf) - 1
     mmax = lmax
-    from plancklens.sims import planck2018_sims
     tlm = alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_tlm(idx), None, lmax, mmax)
     almxfl(tlm, transf, mmax, inplace=True)
     tlm += synalm(np.ones(lmax + 1) * (transf > 0) * (nlev_t / 180 / 60 * np.pi) ** 2, lmax, mmax)
@@ -32,7 +32,7 @@ ftl =  cli(cls_len['tt'][:lmax + 1] + (nlev_t / 180 / 60 * np.pi) ** 2 * cli(tra
 
 tlm = build_sim(0, transf, nlev_p)
 tlm_wf = np.copy(tlm)
-almxfl(tlm_wf[0], transf_i * ftl * cls_len['tt'][:lmax + 1], mmax, inplace=True)
+almxfl(tlm_wf, transf_i * ftl * cls_len['tt'][:lmax + 1], mmax, inplace=True)
 
 lmax_qlm, mmax_qlm = (4096, 4096)
 sc_job = utils_scarf.scarfjob()
@@ -46,4 +46,6 @@ almxfl(G, utils.cli(R), mmax_qlm, True)
 ls = np.arange(2, 3000+ 1)
 pl.loglog(ls, ls ** 2 * (ls + 1.) ** 2 * 1e7 / 2 / np.pi * alm2cl(G, G, lmax_qlm, mmax_qlm, lmax_qlm)[ls])
 pl.loglog(ls, ls ** 2 * (ls + 1.) ** 2 * 1e7 / 2 / np.pi / R[ls])
+plm_in = alm_copy(planck2018_sims.cmb_unl_ffp10.get_sim_plm(0), None, lmax_qlm, mmax_qlm)
+pl.loglog(ls, ls ** 2 * (ls + 1.) ** 2 * 1e7 / 2 / np.pi * alm2cl(G, plm_in , lmax_qlm, mmax_qlm, lmax_qlm)[ls])
 pl.show()
