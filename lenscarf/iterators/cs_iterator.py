@@ -445,7 +445,7 @@ class iterator_cstmf(pol_iterator):
 
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
                  dat_maps:list or np.ndarray, plm0:np.ndarray, mf0:np.ndarray, pp_h0:np.ndarray,
-                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_ee_wl.alm_filter_ninv_wl, k_geom:scarf.Geometry,
+                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.scarf_alm_filter_wl, k_geom:scarf.Geometry,
                  chain_descr, stepper:steps.nrstep, e_rescal=None, **kwargs):
         super(iterator_cstmf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
                                              ninv_filt, k_geom, chain_descr, stepper, **kwargs)
@@ -476,7 +476,7 @@ class iterator_cstmf(pol_iterator):
             if it_soltn < itr - 1:
                 soltn *= self.soltn_cond
                 assert soltn.ndim == 1, 'Fix following lines'
-                dot_op = opfilt_ee_wl.dot_op(self.lmax_filt, self.mmax_filt)
+                dot_op = self.opfilt.dot_op(self.lmax_filt, self.mmax_filt)
                 mchain.solve(soltn, self.dat_maps, dot_op=dot_op)
                 fn_wf = 'wflm_%s_it%s' % (key.lower(), itr - 1)
                 print("caching "  + fn_wf)
@@ -506,7 +506,7 @@ class iterator_cstmf_bfgs0(iterator_cstmf):
     """
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
                  dat_maps:list or np.ndarray, plm0:np.ndarray, mf0:np.ndarray, pp_h0:np.ndarray, df0:str,
-                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_ee_wl.alm_filter_ninv_wl, k_geom:scarf.Geometry,
+                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.scarf_alm_filter_wl, k_geom:scarf.Geometry,
                  chain_descr, stepper:steps.nrstep, **kwargs):
         super(iterator_cstmf_bfgs0, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, mf0, pp_h0, cpp_prior, cls_filt,
                                              ninv_filt, k_geom, chain_descr, stepper, **kwargs)
