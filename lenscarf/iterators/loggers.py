@@ -1,5 +1,8 @@
+"""This module contains loggers instance for getting info out during the iteration process
+
+
+"""
 import os
-import numpy as np
 from lenscarf.iterators import cs_iterator
 from os.path import join as opj
 import time
@@ -43,10 +46,10 @@ class logger_norms(logger):
     def on_iterdone(self, itr:int, key:str, iterator:cs_iterator.pol_iterator):
         incr = iterator.hess_cacher.load('rlm_sn_%s_%s' % (itr-1, key))
         norm_inc = iterator.calc_norm(incr) / iterator.calc_norm(iterator.get_hlm(0, key))
-        norms = [iterator.calc_norm(iterator.load_gradquad(itr - 1, key))]
-        norms.append(iterator.calc_norm(iterator.load_graddet(itr - 1, key)))
-        norms.append(iterator.calc_norm(iterator.load_gradpri(itr - 1, key)))
-        norm_grad = iterator.calc_norm(iterator.load_gradient(itr - 1, key))
+        norms = [iterator.calc_norm(iterator.load_gradquad(itr - 1, key)),
+                 iterator.calc_norm(iterator.load_graddet(itr - 1, key)),
+                 iterator.calc_norm(iterator.load_gradpri(itr - 1, key)),]
+        norm_grad =  iterator.calc_norm(iterator.load_gradient(itr - 1, key))
         norm_grad_0 = iterator.calc_norm(iterator.load_gradient(0, key))
         for i in [0, 1, 2]: norms[i] = norms[i] / norm_grad_0
 
