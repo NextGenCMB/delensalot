@@ -70,7 +70,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         return np.copy(self.inoise_2)
 
     def apply_alm(self, tlm:np.ndarray):
-        """Applies operator Y^T N^{-1} Y (now  bl ** 2 / n, where D is lensing, bl the transfer function)
+        """Applies operator Y^T N^{-1} Y
 
         """
         lmax_unl = Alm.getlmax(tlm.size, self.mmax_sol)
@@ -92,13 +92,12 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         """
         assert Alm.getlmax(tlm_dat.size, self.mmax_len) == self.lmax_len, (Alm.getlmax(tlm_dat.size, self.mmax_len), self.lmax_len)
         assert Alm.getlmax(tlm_wf.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(tlm_wf.size, self.mmax_sol), self.lmax_sol)
-        lmax_qlm, mmax_qlm = self.ffi.lmax_dlm, self.ffi.mmax_dlm
         d1 = self._get_irestmap(tlm_dat, tlm_wf, q_pbgeom) * self._get_gtmap(tlm_wf, q_pbgeom)
-        G, C = q_pbgeom.geom.map2alm_spin(d1, 1, lmax_qlm, mmax_qlm, self.ffi.sht_tr, (-1., 1.))
+        G, C = q_pbgeom.geom.map2alm_spin(d1, 1, self.ffi.lmax_dlm, self.ffi.mmax_dlm, self.ffi.sht_tr, (-1., 1.))
         del d1
-        fl = - np.sqrt(np.arange(lmax_qlm + 1, dtype=float) * np.arange(1, lmax_qlm + 2))
-        almxfl(G, fl, mmax_qlm, True)
-        almxfl(C, fl, mmax_qlm, True)
+        fl = - np.sqrt(np.arange(self.ffi.lmax_dlm + 1, dtype=float) * np.arange(1, self.ffi.lmax_dlm + 2))
+        almxfl(G, fl, self.ffi.mmax_dlm, True)
+        almxfl(C, fl, self.ffi.mmax_dlm, True)
         return G, C
 
     def _get_irestmap(self, tlm_dat:np.ndarray, tlm_wf:np.ndarray, q_pbgeom:utils_scarf.pbdGeometry):
@@ -109,9 +108,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
 
 
         """
-        twf =  self.ffi.lensgclm(tlm_wf, self.mmax_sol, 0, self.lmax_len, self.mmax_len)
-        almxfl(twf, self.transf, self.mmax_len, True)
-        twf[:] = tlm_dat - twf
+        twf = tlm_dat - almxfl(self.ffi.lensgclm(tlm_wf, self.mmax_sol, 0, self.lmax_len, self.mmax_len), self.transf, self.mmax_len, False)
         almxfl(twf, self.inoise_1, self.mmax_len, True)
         return q_pbgeom.geom.alm2map(twf, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
 
