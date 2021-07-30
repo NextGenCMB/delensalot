@@ -55,7 +55,7 @@ class qlm_iterator(object):
                  ninv_filt:opfilt_base.scarf_alm_filter_wl,
                  k_geom:scarf.Geometry,
                  chain_descr, stepper:steps.nrstep,
-                 logger,
+                 logger=None,
                  NR_method=100, tidy=0, verbose=True, soltn_cond=True, wflm0=None):
         """Lensing map iterator
 
