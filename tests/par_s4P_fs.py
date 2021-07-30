@@ -72,7 +72,8 @@ chain_descr = [[0, ["diag_cl"], lmax_unl, 2048, np.inf, 1e-3, cd_solve.tr_cg, cd
 def get_itlib(k, vscarf):
     assert k in ['ptt', 'p_p'], k
     libdir_iterator = TEMP + '/s4iterator_fullsky_%s_%04d' % (k, idx) + args.scarf
-    if not os.path.exists(libdir_iterator): os.makedirs(libdir_iterator)
+    if not os.path.exists(libdir_iterator):
+        os.makedirs(libdir_iterator)
     tr = int(os.environ.get('OMP_NUM_THREADS', 8))
     cpp = cls_unl['pp'][:lmax_qlm + 1]
 
@@ -100,7 +101,7 @@ def get_itlib(k, vscarf):
         plm0 = isofilter.get_qlms(alm_dat, alm_wf, d_geo, lmax_qlm, lmax_qlm)[0]
         almxfl(plm0, utils.cli(R), mmax_qlm, True)
         almxfl(plm0, cpp * utils.cli(cpp + utils.cli(R)), mmax_qlm, True)
-        np.save(path_dat, plm0)
+        np.save(path_plm0, plm0)
 
     plm0 = np.load(path_plm0)
     R_unl = qresp.get_response(k, lmax, 'p', cls_unl, cls_unl, {'e': fel_unl, 'b': fbl_unl}, lmax_qlm=lmax_qlm)[0]
