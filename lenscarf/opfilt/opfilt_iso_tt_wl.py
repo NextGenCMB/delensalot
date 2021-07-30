@@ -126,7 +126,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         assert  Alm.getlmax(tlm_wf.size, self.mmax_sol)== self.lmax_sol, ( Alm.getlmax(tlm_wf.size, self.mmax_sol), self.lmax_sol)
         fl = -np.sqrt(np.arange(self.lmax_sol + 1) * np.arange(1, self.lmax_sol + 2))
         ffi = self.ffi.change_geom(q_pbgeom) if q_pbgeom is not self.ffi.pbgeom else self.ffi
-        return ffi.gclm2lenmap(almxfl(tlm_wf, fl, self.mmax_sol, False), 0, self.lmax_len, False)
+        return ffi.gclm2lenmap(almxfl(tlm_wf, fl, self.mmax_sol, False), self.mmax_sol, 1, False)
 
 
 def calc_prep(tlm:np.ndarray, s_cls:dict, ninv_filt:alm_filter_nlev_wl):
