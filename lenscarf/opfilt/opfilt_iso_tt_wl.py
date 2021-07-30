@@ -110,7 +110,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
 
         """
         twf =  self.ffi.lensgclm(tlm_wf, self.mmax_sol, 0, self.lmax_len, self.mmax_len)
-        almxfl(tlm_wf, self.transf, self.mmax_len, True)
+        almxfl(twf, self.transf, self.mmax_len, True)
         twf[:] = tlm_dat - twf
         almxfl(twf, self.inoise_1, self.mmax_len, True)
         return q_pbgeom.geom.alm2map(twf, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
