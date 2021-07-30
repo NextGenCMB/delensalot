@@ -72,13 +72,10 @@ class pol_iterator(object):
 
         """
         assert h in ['k', 'p', 'd']
-        typ = 'QU'
         lmax_qlm, mmax_qlm = lm_max_dlm
         lmax_filt, mmax_filt = ninv_filt.lmax_sol, ninv_filt.mmax_sol
 
         assert len(pp_h0) > lmax_qlm
-        assert typ in ['QU'], typ + 'not implemented'
-        assert len(dat_maps) == len(typ), (len(dat_maps), typ)
         assert Alm.getlmax(plm0.size, mmax_qlm) == lmax_qlm
         if mmax_qlm is None: mmax_qlm = lmax_qlm
 
@@ -89,8 +86,6 @@ class pol_iterator(object):
         self.hess_cacher = cachers.cacher_npy(opj(self.lib_dir, 'hessian'))
         self.wf_cacher = cachers.cacher_npy(opj(self.lib_dir, 'wflms'))
 
-
-        self.typ = typ
         self.opfilt = sys.modules[ninv_filt.__module__] # filter module containing the ch-relevant info
 
         self.dat_maps = dat_maps
@@ -117,7 +112,6 @@ class pol_iterator(object):
 
         self.stepper = stepper
 
-        #self.soltn_cond = np.all([np.all(self.cov.get_mask(_t) == 1.) for _t in self.type])
         self.soltn_cond = soltn_cond
         self.wflm0 = wflm0
         print('ffs iterator : This is trying to setup %s' % lib_dir)
@@ -240,14 +234,14 @@ class pol_iterator(object):
 
         """
         assert key.lower() in ['p', 'o']
-        assert self.typ in ['QU', 'T'], self.typ
         for i in np.arange(itr - 1, -1, -1):
             fname = 'wflm_%s_it%s' % (key.lower(), i)
             if self.wf_cacher.is_cached(fname):
                 return self.wf_cacher.load(fname), i
         if callable(self.wflm0):
             return self.wflm0(), -1
-        return np.zeros(({'T':1, 'QU':1, 'TQU':2}[self.typ], Alm.getsize(self.lmax_filt, self.mmax_filt)), dtype=complex).squeeze(), -1
+        # TODO: for MV this need a change
+        return np.zeros((1, Alm.getsize(self.lmax_filt, self.mmax_filt)), dtype=complex).squeeze(), -1
 
 
     def calc_gradlik_graddet(self, itr, key):
@@ -465,7 +459,6 @@ class iterator_cstmf(pol_iterator):
         assert itr > 0, itr
         assert key.lower() in ['p', 'o'], key  # potential or curl potential.
         if not self._is_qd_grad_done(itr, key):
-            assert self.typ in ['QU']
             assert key in ['p'], key + '  not implemented'
             dlm = self.get_hlm(itr - 1, key)
             self.hlm2dlm(dlm, True)
@@ -486,7 +479,6 @@ class iterator_cstmf(pol_iterator):
                 print("Rescaling WF mode solution")
                 almxfl(soltn, self.erescal, self.mmax_filt, inplace=True)
 
-            assert self.typ == 'QU', 'fix this'
             t0 = time.time()
             q_geom = pbdGeometry(self.k_geom, pbounds(0., 2 * np.pi))
             G, C = self.filter.get_qlms(self.dat_maps, soltn, q_geom)
