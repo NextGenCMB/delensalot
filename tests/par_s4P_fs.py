@@ -104,7 +104,7 @@ def get_itlib(k, vscarf):
         np.save(path_plm0, plm0)
 
     plm0 = np.load(path_plm0)
-    R_unl = qresp.get_response(k, lmax, 'p', cls_unl, cls_unl,  {'e': fel, 'b': fbl, 't':ftl}, lmax_qlm=lmax_qlm)[0]
+    R_unl = qresp.get_response(k, lmax, 'p', cls_unl, cls_unl,  {'e': fel_unl, 'b': fbl_unl, 't':ftl_unl}, lmax_qlm=lmax_qlm)[0]
 
     ffi = remapping.deflection(d_geo, 1.7, np.zeros_like(plm0), mmax_qlm, tr, tr)
     if k == 'p_p':
