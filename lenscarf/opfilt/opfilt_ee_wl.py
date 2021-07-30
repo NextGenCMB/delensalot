@@ -81,8 +81,43 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
                 ret.append(ninv_comp)
         return ret
 
+    def get_febl(self):
+        n_inv_cl_p = self.b_transf ** 2  / (self._nlevp/ 180. / 60. * np.pi) ** 2
+        return n_inv_cl_p, n_inv_cl_p.copy()
+
     def dot_op(self):
         return dot_op(self.lmax_sol, self.mmax_sol)
+
+    def apply_map(self, qumap):
+        """Applies pixel inverse-noise variance maps
+
+
+        """
+        if len(self.n_inv) == 1:  #  QQ = UU
+            qumap *= self.n_inv[0]
+            if self.template is not None:
+                ts = [self.template] # Hack, this is only meant for one template
+                coeffs = np.concatenate(([t.dot(qumap) for t in ts]))
+                coeffs = np.dot(ts[0].tniti(), coeffs)
+                pmodes = np.zeros_like(qumap)
+                im = 0
+                for t in ts:
+                    t.accum(pmodes, coeffs[im:(im + t.nmodes)])
+                    im += t.nmodes
+                pmodes *= self.n_inv[0]
+                qumap -= pmodes
+
+        elif len(self.n_inv) == 3:  # QQ, QU, UU
+            assert self.template is None
+            qmap, umap = qumap
+            qmap_copy = qmap.copy()
+            qmap *= self.n_inv[0]
+            qmap += self.n_inv[1] * umap
+            umap *= self.n_inv[2]
+            umap += self.n_inv[1] * qmap_copy
+            del qmap_copy
+        else:
+            assert 0
 
     def apply_alm(self, elm:np.ndarray):
         """Applies operator Y^T N^{-1} Y (now  D^t B^T N^{-1} B D, where D is lensing, B the transfer function)
@@ -206,8 +241,9 @@ class pre_op_diag:
         ninv_fel, ninv_fbl = ninv_filt.get_febl() # (N_lev * transf) ** 2 basically
         if len(ninv_fel) - 1 < lmax_sol: # We extend the transfer fct to avoid predcon. with zero (~ Gauss beam)
             print("PRE_OP_DIAG: extending transfer fct from lmax %s to lmax %s"%(len(ninv_fel)-1, lmax_sol))
-            assert np.all(ninv_fel > 0) #FIXME
-            spl_sq = spl(np.arange(len(ninv_fel), dtype=float), np.log(ninv_fel), k=2, ext='extrapolate')
+            assert np.all(ninv_fel >= 0)
+            nz = np.where(ninv_fel > 0)
+            spl_sq = spl(np.arange(len(ninv_fel), dtype=float)[nz], np.log(ninv_fel[nz]), k=2, ext='extrapolate')
             ninv_fel = np.exp(spl_sq(np.arange(lmax_sol + 1, dtype=float)))
         flmat = cli(s_cls['ee'][:lmax_sol + 1]) + ninv_fel[:lmax_sol + 1]
         self.flmat = cli(flmat) * (s_cls['ee'][:lmax_sol +1] > 0.)

@@ -79,22 +79,20 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         almxfl(tlmc, self.inoise_2, self.mmax_len, inplace=True)
         tlm[:] = self.ffi.lensgclm(tlmc, self.mmax_len, 0, self.lmax_sol, self.mmax_sol, backwards=True)
 
-    def get_qlms(self, tlm_dat: np.ndarray, tlm_wf: np.ndarray, q_pbgeom: utils_scarf.pbdGeometry, lmax_qlm, mmax_qlm):
+    def get_qlms(self, tlm_dat: np.ndarray, tlm_wf: np.ndarray, q_pbgeom: utils_scarf.pbdGeometry):
         """Get lensing generaliazed QE consistent with filter assumptions
 
             Args:
                 tlm_dat: input temperature data maps (geom must match that of the filter)
                 tlm_wf: Wiener-filtered T CMB map (alm arrays)
                 q_pbgeom: scarf pbounded-geometry of for the position-space mutliplication of the legs
-                lmax_qlm: maximum l of l,m output
-                mmax_qlm: maximum m of l,m output
 
             All implementation signs are super-weird but end result should be correct...
 
         """
         assert Alm.getlmax(tlm_dat.size, self.mmax_len) == self.lmax_len, (Alm.getlmax(tlm_dat.size, self.mmax_len), self.lmax_len)
         assert Alm.getlmax(tlm_wf.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(tlm_wf.size, self.mmax_sol), self.lmax_sol)
-
+        lmax_qlm, mmax_qlm = self.ffi.lmax_dlm, self.ffi.mmax_dlm
         d1 = self._get_irestmap(tlm_dat, tlm_wf, q_pbgeom) * self._get_gtmap(tlm_wf, q_pbgeom)
         G, C = q_pbgeom.geom.map2alm_spin(d1, 1, lmax_qlm, mmax_qlm, self.ffi.sht_tr, (-1., 1.))
         del d1
