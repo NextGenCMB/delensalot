@@ -56,7 +56,7 @@ class pol_iterator(object):
                  ninv_filt:opfilt_base.scarf_alm_filter_wl,
                  k_geom:scarf.Geometry,
                  chain_descr, stepper:steps.nrstep,
-                 logger:loggers.logger,
+                 logger:loggers.logger or None,
                  NR_method=100, tidy=0, verbose=True, soltn_cond=True, wflm0=None):
         """Lensing map iterator
 
@@ -86,7 +86,7 @@ class pol_iterator(object):
         self.cacher = cachers.cacher_npy(lib_dir)
         self.hess_cacher = cachers.cacher_npy(opj(self.lib_dir, 'hessian'))
         self.wf_cacher = cachers.cacher_npy(opj(self.lib_dir, 'wflms'))
-        self.logger = logger
+        self.logger = logger if logger is not None else loggers.logger_norms(opj(lib_dir, 'history_increment.txt'))
         self.opfilt = sys.modules[ninv_filt.__module__] # filter module containing the ch-relevant info
 
         self.dat_maps = dat_maps
