@@ -87,12 +87,13 @@ class pol_iterator(object):
         self.hess_cacher = cachers.cacher_npy(opj(self.lib_dir, 'hessian'))
         self.wf_cacher = cachers.cacher_npy(opj(self.lib_dir, 'wflms'))
         self.logger = logger if logger is not None else loggers.logger_norms(opj(lib_dir, 'history_increment.txt'))
-        self.opfilt = sys.modules[ninv_filt.__module__] # filter module containing the ch-relevant info
-
-        self.dat_maps = dat_maps
-
 
         self.chain_descr = chain_descr
+        self.opfilt = sys.modules[ninv_filt.__module__] # filter module containing the ch-relevant info
+        self.stepper = stepper
+        self.soltn_cond = soltn_cond
+
+        self.dat_maps = dat_maps
 
         self.chh = cpp_prior[:lmax_qlm+1] * self._p2h(lmax_qlm) ** 2
         self.hh_h0 = cli(pp_h0[:lmax_qlm + 1] * self._h2p(lmax_qlm) ** 2 + cli(self.chh))  #~ (1/Cpp + 1/N0)^-1
@@ -111,9 +112,6 @@ class pol_iterator(object):
         self.k_geom = k_geom
         # Defining a trial newton step length :
 
-        self.stepper = stepper
-
-        self.soltn_cond = soltn_cond
         self.wflm0 = wflm0
         plm_fname = '%s_%slm_it%03d' % ({'p': 'phi', 'o': 'om'}['p'], self.h, 0)
         if not self.cacher.is_cached(plm_fname):
