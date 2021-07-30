@@ -124,6 +124,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='test iterator full-sky with pert. resp.')
     parser.add_argument('-k', dest='k', type=str, default='p_p', help='rec. type')
     parser.add_argument('-itmax', dest='itmax', type=int, default=-1, help='maximal iter index')
+    parser.add_argument('-tol', dest='tol', type=int, default=3, help='-log10 of cg tolerance')
     parser.add_argument('-imin', dest='imin', type=int, default=-1, help='minimal sim index')
     parser.add_argument('-imax', dest='imax', type=int, default=-1, help='maximal sim index')
     parser.add_argument('-scarf', dest='scarf', type=str, default='', help='minimal sim index')
@@ -132,9 +133,10 @@ if __name__ == '__main__':
     #add a 'f' to use full sky in once-per iteration kappa thingy
     #add a 'r' for real space attenuation of the step instead of harmonic space
     # add a '0' for no mf
-    soltn_cond = lambda it: True
-    tol_iter = lambda it : 1e-3
     args = parser.parse_args()
+    tol_iter = lambda it : 10 ** (- args.tol)
+    soltn_cond = lambda it: True
+
     from plancklens.helpers import mpi
     mpi.barrier = lambda : 1 # redefining the barrier
     from itercurv.iterators.statics import rec as Rec
