@@ -27,7 +27,7 @@ from lenscarf.utils_scarf import scarfjob, pbdGeometry, pbounds
 from lenscarf import utils_dlm
 
 from plancklens.qcinv import multigrid
-from lenscarf.iterators import bfgs, steps
+from lenscarf.iterators import bfgs, steps, loggers
 
 from lenscarf.opfilt import opfilt_base
 from lenscarf import cachers
@@ -56,6 +56,7 @@ class pol_iterator(object):
                  ninv_filt:opfilt_base.scarf_alm_filter_wl,
                  k_geom:scarf.Geometry,
                  chain_descr, stepper:steps.nrstep,
+                 logger:loggers.logger,
                  NR_method=100, tidy=0, verbose=True, soltn_cond=True, wflm0=None):
         """Lensing map iterator
 
@@ -85,7 +86,7 @@ class pol_iterator(object):
         self.cacher = cachers.cacher_npy(lib_dir)
         self.hess_cacher = cachers.cacher_npy(opj(self.lib_dir, 'hessian'))
         self.wf_cacher = cachers.cacher_npy(opj(self.lib_dir, 'wflms'))
-
+        self.logger = logger
         self.opfilt = sys.modules[ninv_filt.__module__] # filter module containing the ch-relevant info
 
         self.dat_maps = dat_maps
@@ -114,24 +115,10 @@ class pol_iterator(object):
 
         self.soltn_cond = soltn_cond
         self.wflm0 = wflm0
-        print('ffs iterator : This is trying to setup %s' % lib_dir)
-
-        if not os.path.exists(opj(self.lib_dir, 'history_increment.txt')):
-            with open(opj(self.lib_dir, 'history_increment.txt'), 'w') as f:
-                f.write('# Iteration step \n' +
-                           '# Exec. time in sec.\n' +
-                           '# Increment norm (normalized to starting point displacement norm) \n' +
-                           '# Total gradient norm  (all grad. norms normalized to initial total gradient norm)\n' +
-                           '# Quad. gradient norm\n' +
-                           '# Det. gradient norm\n' +
-                           '# Pri. gradient norm\n' +
-                           '# Newton step length\n')
-                f.close()
-
-        print('++ ffs_%s masked iterator : setup OK' % type)
         plm_fname = '%s_%slm_it%03d' % ({'p': 'phi', 'o': 'om'}['p'], self.h, 0)
         if not self.cacher.is_cached(plm_fname):
             self.cacher.cache(plm_fname, almxfl(read_map(plm0), self._p2h(self.lmax_qlm), self.mmax_qlm, False))
+        self.logger.startup(self)
 
     def _p2h(self, lmax):
         if self.h == 'p':
@@ -323,18 +310,14 @@ class pol_iterator(object):
         BFGS = self.get_hessian(k, key)  # Constructing L-BFGS hessian
         # get descent direction sk = - H_k gk : (rlm array). Will be cached directly
         sk_fname = 'rlm_sn_%s_%s' % (k, key)
-        step = 0.
         if not self.hess_cacher.is_cached(sk_fname):
             print("calculating descent direction" )
             t0 = time.time()
             incr = BFGS.get_mHkgk(alm2rlm(gradn), k)
-            norm_inc = self.calc_norm(rlm2alm(incr)) / self.calc_norm(self.get_hlm(0, key))
-            step = self.stepper.steplen(it, norm_inc)
             incr = alm2rlm(self.ensure_invertibility(self.get_hlm(it - 1, key), self.stepper.build_incr(incr, it), self.mmax_qlm))
             self.hess_cacher.cache(sk_fname, incr)
             prt_time(time.time() - t0, label=' Exec. time for descent direction calculation')
         assert self.hess_cacher.is_cached(sk_fname), sk_fname
-        return rlm2alm(self.hess_cacher.load(sk_fname)),step
 
     def ensure_invertibility(self, hlm, incr_hlm, mmax_dlm):
         """Build new plm increment from current estimate and increment
@@ -403,33 +386,16 @@ class pol_iterator(object):
         assert key.lower() in ['p', 'o'], key  # potential or curl potential.
         if not self.is_iter_done(itr, key):
             assert self.is_iter_done(itr - 1, key), 'previous iteration not done'
+            self.logger.on_iterstart(itr, key, self)
             # Calculation in // of lik and det term :
-            ti = time.time()
             glm = self.calc_gradlik_graddet(itr, key)
             glm += self.load_graddet(itr - 1, key) + self.load_gradpri(itr - 1, key)
-            if True:
-                #incr, steplength = self.build_incr(itr, key, self.load_gradient(itr - 1, key))
-                #self.cacher.write_alm(plm_fname, self.get_plm(it - 1, key) + incr)
-                incr, steplength = self.build_incr(itr, key, glm)
-                del glm
-                # Saves some info about increment norm and exec. time :
-                norm_inc = self.calc_norm(incr) / self.calc_norm(self.get_hlm(0, key))
-                norms = [self.calc_norm(self.load_gradquad(itr - 1, key))]
-                norms.append(self.calc_norm(self.load_graddet(itr - 1, key)))
-                norms.append(self.calc_norm(self.load_gradpri(itr - 1, key)))
-                norm_grad = self.calc_norm(self.load_gradient(itr - 1, key))
-                norm_grad_0 = self.calc_norm(self.load_gradient(0, key))
-                for i in [0, 1, 2]: norms[i] = norms[i] / norm_grad_0
-
-                with open(opj(self.lib_dir, 'history_increment.txt'), 'a') as file:
-                    file.write('%03d %.1f %.6f %.6f %.6f %.6f %.6f %.12f \n'
-                               % (itr, time.time() - ti, norm_inc, norm_grad / norm_grad_0, norms[0], norms[1], norms[2],
-                                  steplength if np.isscalar(steplength) else np.mean(steplength)))
-                    file.close()
-
-                if self.tidy > 2:  # Erasing deflection databases
-                    if os.path.exists(opj(self.lib_dir, 'ffi_%s_it%s'%(key, itr))):
-                        shutil.rmtree(opj(self.lib_dir, 'ffi_%s_it%s'%(key, itr)))
+            self.build_incr(itr, key, glm)
+            del glm
+            self.logger.on_iterdone(itr, key, self)
+            if self.tidy > 2:  # Erasing deflection databases
+                if os.path.exists(opj(self.lib_dir, 'ffi_%s_it%s'%(key, itr))):
+                    shutil.rmtree(opj(self.lib_dir, 'ffi_%s_it%s'%(key, itr)))
 
 class iterator_cstmf(pol_iterator):
     """Mean field from theory, perturbatively
@@ -539,16 +505,11 @@ class iterator_cstmf_bfgs0(iterator_cstmf):
         BFGS = self.get_hessian(k, key)  # Constructing L-BFGS hessian
         # get descent direction sk = - H_k gk : (rlm array). Will be cached directly
         sk_fname = 'rlm_sn_%s_%s' % (k + 1, key)
-        step = 0.
         if not self.hess_cacher.is_cached(sk_fname):
             print("rank calculating descent direction")
             t0 = time.time()
             incr = BFGS.get_mHkgk(alm2rlm(gradn), k + 1)
-            norm_inc = self.calc_norm(rlm2alm(incr)) / self.calc_norm(self.get_hlm(0, key))
-            step = self.stepper.steplen(it, norm_inc)
             incr = alm2rlm(self.ensure_invertibility(self.get_hlm(it - 1, key), self.stepper.build_incr(incr, it), self.mmax_qlm))
             self.hess_cacher.cache(sk_fname, incr)
             prt_time(time.time() - t0, label=' Exec. time for descent direction calculation')
         assert self.hess_cacher.is_cached(sk_fname), sk_fname
-        return rlm2alm(self.hess_cacher.load(sk_fname)),step
-
