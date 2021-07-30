@@ -27,16 +27,15 @@ from lenscarf.utils_scarf import scarfjob, pbdGeometry, pbounds
 from lenscarf import utils_dlm
 
 from plancklens.qcinv import multigrid
-from lenscarf.iterators import bfgs, steps, loggers
+from lenscarf.iterators import bfgs, steps
 
 from lenscarf.opfilt import opfilt_base
 from lenscarf import cachers
 
 
-
-
 alm2rlm = lambda alm : alm # get rid of this
 rlm2alm = lambda rlm : rlm
+
 
 
 def prt_time(dt, label=''):
@@ -49,14 +48,14 @@ def prt_time(dt, label=''):
 typs = ['T', 'QU', 'TQU']
 
 
-class pol_iterator(object):
+class qlm_iterator(object):
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
                  dat_maps:list or np.ndarray, plm0:np.ndarray, pp_h0:np.ndarray,
                  cpp_prior:np.ndarray, cls_filt:dict,
                  ninv_filt:opfilt_base.scarf_alm_filter_wl,
                  k_geom:scarf.Geometry,
                  chain_descr, stepper:steps.nrstep,
-                 logger:loggers.logger or None,
+                 logger,
                  NR_method=100, tidy=0, verbose=True, soltn_cond=True, wflm0=None):
         """Lensing map iterator
 
@@ -86,7 +85,10 @@ class pol_iterator(object):
         self.cacher = cachers.cacher_npy(lib_dir)
         self.hess_cacher = cachers.cacher_npy(opj(self.lib_dir, 'hessian'))
         self.wf_cacher = cachers.cacher_npy(opj(self.lib_dir, 'wflms'))
-        self.logger = logger if logger is not None else loggers.logger_norms(opj(lib_dir, 'history_increment.txt'))
+        if logger is None:
+            from lenscarf.iterators import loggers
+            logger = loggers.logger_norms(opj(lib_dir, 'history_increment.txt'))
+        self.logger = logger
 
         self.chain_descr = chain_descr
         self.opfilt = sys.modules[ninv_filt.__module__] # filter module containing the ch-relevant info
@@ -395,7 +397,7 @@ class pol_iterator(object):
                 if os.path.exists(opj(self.lib_dir, 'ffi_%s_it%s'%(key, itr))):
                     shutil.rmtree(opj(self.lib_dir, 'ffi_%s_it%s'%(key, itr)))
 
-class iterator_cstmf(pol_iterator):
+class iterator_cstmf(qlm_iterator):
     """Mean field from theory, perturbatively
 
 

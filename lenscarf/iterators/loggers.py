@@ -2,24 +2,24 @@
 
 
 """
-import os
-from lenscarf.iterators import cs_iterator
-from os.path import join as opj
 import time
+import os
+from os.path import join as opj
+from lenscarf.iterators import cs_iterator
 
 
 class logger(object):
     def __init__(self):
         pass
 
-    def startup(self, iterator:cs_iterator.pol_iterator):
+    def startup(self, iterator:cs_iterator.qlm_iterator):
         """loger operations at startup """
         assert 0, 'implement this'
 
-    def on_iterstart(self, itr:int, key:str, iterator:cs_iterator.pol_iterator):
+    def on_iterstart(self, itr:int, key:str, iterator:cs_iterator.qlm_iterator):
         assert 0, 'implement this'
 
-    def on_iterdone(self, itr:int, key:str, iterator:cs_iterator.pol_iterator):
+    def on_iterdone(self, itr:int, key:str, iterator:cs_iterator.qlm_iterator):
         assert 0, 'implement this'
 
 class logger_norms(logger):
@@ -28,7 +28,7 @@ class logger_norms(logger):
         self.txt_file = txt_file
         self.ti = None
 
-    def startup(self, iterator:cs_iterator.pol_iterator):
+    def startup(self, iterator:cs_iterator.qlm_iterator):
         if not os.path.exists(self.txt_file):
             with open(self.txt_file, 'w') as f:
                 f.write('# Iteration step \n' +
@@ -40,10 +40,10 @@ class logger_norms(logger):
                            '# Pri. gradient norm\n')
                 f.close()
 
-    def on_iterstart(self, itr:int, key:str, iterator:cs_iterator.pol_iterator):
+    def on_iterstart(self, itr:int, key:str, iterator:cs_iterator.qlm_iterator):
         self.ti = time.time()
 
-    def on_iterdone(self, itr:int, key:str, iterator:cs_iterator.pol_iterator):
+    def on_iterdone(self, itr:int, key:str, iterator:cs_iterator.qlm_iterator):
         incr = iterator.hess_cacher.load('rlm_sn_%s_%s' % (itr-1, key))
         norm_inc = iterator.calc_norm(incr) / iterator.calc_norm(iterator.get_hlm(0, key))
         norms = [iterator.calc_norm(iterator.load_gradquad(itr - 1, key)),
