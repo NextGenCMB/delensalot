@@ -231,12 +231,6 @@ class qlm_iterator(object):
         return np.zeros((1, Alm.getsize(self.lmax_filt, self.mmax_filt)), dtype=complex).squeeze(), -1
 
 
-    def calc_gradlik_graddet(self, itr, key):
-        """Calculates the quadratic and mean-field gradient terms
-
-        """
-        assert 0, 'subclass this'
-
     def load_graddet(self, itr, key):
         fn= '%slm_grad%sdet_it%03d' % (self.h, key.lower(), itr)
         return self.cacher.load(fn)
@@ -421,9 +415,6 @@ class qlm_iterator(object):
                 self.wf_cacher.cache(fn_wf, soltn)
             else:
                 print("Using cached WF solution at iter %s "%itr)
-            if not np.all(self.erescal == 1.):
-                print("Rescaling WF mode solution")
-                almxfl(soltn, self.erescal, self.mmax_filt, inplace=True)
 
             t0 = time.time()
             q_geom = pbdGeometry(self.k_geom, pbounds(0., 2 * np.pi))
@@ -444,13 +435,11 @@ class iterator_cstmf(qlm_iterator):
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
                  dat_maps:list or np.ndarray, plm0:np.ndarray, mf0:np.ndarray, pp_h0:np.ndarray,
                  cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.scarf_alm_filter_wl, k_geom:scarf.Geometry,
-                 chain_descr, stepper:steps.nrstep, e_rescal=None, **kwargs):
+                 chain_descr, stepper:steps.nrstep, **kwargs):
         super(iterator_cstmf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
                                              ninv_filt, k_geom, chain_descr, stepper, **kwargs)
         assert self.lmax_qlm == Alm.getlmax(mf0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(mf0.size, self.lmax_qlm))
         self.cacher.cache('mf', almxfl(mf0,  self._h2p(self.lmax_qlm), self.mmax_qlm, False))
-        self.erescal = np.ones(self.lmax_filt + 1) if e_rescal is None else e_rescal[:self.lmax_filt + 1]
-        assert len(self.erescal) > self.lmax_filt
 
     def load_graddet(self, k, key):
         return self.cacher.load('mf')
@@ -464,13 +453,11 @@ class iterator_pertmf(qlm_iterator):
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
                  dat_maps:list or np.ndarray, plm0:np.ndarray, mf_resp:np.ndarray, pp_h0:np.ndarray,
                  cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.scarf_alm_filter_wl, k_geom:scarf.Geometry,
-                 chain_descr, stepper:steps.nrstep, e_rescal=None, **kwargs):
+                 chain_descr, stepper:steps.nrstep, **kwargs):
         super(iterator_pertmf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
                                              ninv_filt, k_geom, chain_descr, stepper, **kwargs)
         assert mf_resp.ndim == 1 and mf_resp.size > self.lmax_qlm, mf_resp.shape
         self.p_mf_resp = mf_resp
-        self.erescal = np.ones(self.lmax_filt + 1) if e_rescal is None else e_rescal[:self.lmax_filt + 1]
-        assert len(self.erescal) > self.lmax_filt
 
     def load_graddet(self, itr, key):
         return almxfl(self.get_hlm(itr - 1, key), self.p_mf_resp * self._h2p(self.lmax_qlm), self.mmax_qlm, False)
