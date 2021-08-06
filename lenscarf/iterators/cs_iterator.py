@@ -465,16 +465,15 @@ class iterator_pertmf(qlm_iterator):
                  dat_maps:list or np.ndarray, plm0:np.ndarray, mf_resp:np.ndarray, pp_h0:np.ndarray,
                  cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.scarf_alm_filter_wl, k_geom:scarf.Geometry,
                  chain_descr, stepper:steps.nrstep, e_rescal=None, **kwargs):
-        super(iterator_cstmf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
+        super(iterator_pertmf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
                                              ninv_filt, k_geom, chain_descr, stepper, **kwargs)
-        assert self.lmax_qlm == Alm.getlmax(mf0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(mf0.size, self.lmax_qlm))
         assert mf_resp.ndim == 1 and mf_resp.size > self.lmax_qlm, mf_resp.shape
         self.p_mf_resp = mf_resp
         self.erescal = np.ones(self.lmax_filt + 1) if e_rescal is None else e_rescal[:self.lmax_filt + 1]
         assert len(self.erescal) > self.lmax_filt
 
     def load_graddet(self, itr, key):
-        return almxfl(self.get_hlm(itr - 1, key), self.h_mf_resp * self._h2p(self.lmax_qlm), self.mmax_qlm, False)
+        return almxfl(self.get_hlm(itr - 1, key), self.p_mf_resp * self._h2p(self.lmax_qlm), self.mmax_qlm, False)
 
 class iterator_cstmf_bfgs0(iterator_cstmf):
     """Variant of the iterator where the initial curvature guess is itself a bfgs update from phi =0 to input plm
