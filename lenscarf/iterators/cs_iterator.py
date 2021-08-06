@@ -237,8 +237,8 @@ class qlm_iterator(object):
         """
         assert 0, 'subclass this'
 
-    def load_graddet(self, k, key):
-        fn= '%slm_grad%sdet_it%03d' % (self.h, key.lower(), k)
+    def load_graddet(self, itr, key):
+        fn= '%slm_grad%sdet_it%03d' % (self.h, key.lower(), itr)
         return self.cacher.load(fn)
 
     def load_gradpri(self, itr, key):
@@ -397,26 +397,6 @@ class qlm_iterator(object):
                 if os.path.exists(opj(self.lib_dir, 'ffi_%s_it%s'%(key, itr))):
                     shutil.rmtree(opj(self.lib_dir, 'ffi_%s_it%s'%(key, itr)))
 
-class iterator_cstmf(qlm_iterator):
-    """Mean field from theory, perturbatively
-
-
-    """
-
-    def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
-                 dat_maps:list or np.ndarray, plm0:np.ndarray, mf0:np.ndarray, pp_h0:np.ndarray,
-                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.scarf_alm_filter_wl, k_geom:scarf.Geometry,
-                 chain_descr, stepper:steps.nrstep, e_rescal=None, **kwargs):
-        super(iterator_cstmf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
-                                             ninv_filt, k_geom, chain_descr, stepper, **kwargs)
-        assert self.lmax_qlm == Alm.getlmax(mf0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(mf0.size, self.lmax_qlm))
-        self.cacher.cache('mf', almxfl(mf0,  self._h2p(self.lmax_qlm), self.mmax_qlm, False))
-        self.erescal = np.ones(self.lmax_filt + 1) if e_rescal is None else e_rescal[:self.lmax_filt + 1]
-        assert len(self.erescal) > self.lmax_filt
-
-    def load_graddet(self, k, key):
-        return self.cacher.load('mf')
-
     def calc_gradlik_graddet(self, itr, key):
         """Computes the quadratic part of the gradient for plm iteration 'itr'
 
@@ -454,6 +434,47 @@ class iterator_cstmf(qlm_iterator):
                 fn_lik = '%slm_grad%slik_it%03d' % (self.h, key.lower(), 0)
                 self.cacher.cache(fn_lik, -G if key.lower() == 'p' else -C)
             return -G if key.lower() == 'p' else -C
+
+class iterator_cstmf(qlm_iterator):
+    """Constant mean-field
+
+
+    """
+
+    def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
+                 dat_maps:list or np.ndarray, plm0:np.ndarray, mf0:np.ndarray, pp_h0:np.ndarray,
+                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.scarf_alm_filter_wl, k_geom:scarf.Geometry,
+                 chain_descr, stepper:steps.nrstep, e_rescal=None, **kwargs):
+        super(iterator_cstmf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
+                                             ninv_filt, k_geom, chain_descr, stepper, **kwargs)
+        assert self.lmax_qlm == Alm.getlmax(mf0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(mf0.size, self.lmax_qlm))
+        self.cacher.cache('mf', almxfl(mf0,  self._h2p(self.lmax_qlm), self.mmax_qlm, False))
+        self.erescal = np.ones(self.lmax_filt + 1) if e_rescal is None else e_rescal[:self.lmax_filt + 1]
+        assert len(self.erescal) > self.lmax_filt
+
+    def load_graddet(self, k, key):
+        return self.cacher.load('mf')
+
+class iterator_pertmf(qlm_iterator):
+    """Mean field isotropic response applied to current estimate
+
+
+    """
+
+    def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
+                 dat_maps:list or np.ndarray, plm0:np.ndarray, mf_resp:np.ndarray, pp_h0:np.ndarray,
+                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.scarf_alm_filter_wl, k_geom:scarf.Geometry,
+                 chain_descr, stepper:steps.nrstep, e_rescal=None, **kwargs):
+        super(iterator_cstmf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
+                                             ninv_filt, k_geom, chain_descr, stepper, **kwargs)
+        assert self.lmax_qlm == Alm.getlmax(mf0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(mf0.size, self.lmax_qlm))
+        assert mf_resp.ndim == 1 and mf_resp.size > self.lmax_qlm, mf_resp.shape
+        self.p_mf_resp = mf_resp
+        self.erescal = np.ones(self.lmax_filt + 1) if e_rescal is None else e_rescal[:self.lmax_filt + 1]
+        assert len(self.erescal) > self.lmax_filt
+
+    def load_graddet(self, itr, key):
+        return almxfl(self.get_hlm(itr - 1, key), self.h_mf_resp * self._h2p(self.lmax_qlm), self.mmax_qlm, False)
 
 class iterator_cstmf_bfgs0(iterator_cstmf):
     """Variant of the iterator where the initial curvature guess is itself a bfgs update from phi =0 to input plm
