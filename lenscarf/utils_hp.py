@@ -1,4 +1,6 @@
 import numpy as np
+from numpy.random import default_rng
+rng = default_rng()
 
 
 def almxfl(alm:np.ndarray, fl:np.ndarray, mmax:int or None, inplace:bool):
@@ -80,7 +82,7 @@ def synalm(cl:np.ndarray, lmax:int, mmax:int or None):
     if mmax is None or mmax < 0:
         mmax = lmax
     alm_size = Alm.getsize(lmax, mmax)
-    alm = np.random.standard_normal(alm_size) + 1j * np.random.standard_normal(alm_size)
+    alm = rng.standard_normal(alm_size) + 1j * rng.standard_normal(alm_size)
     almxfl(alm, np.sqrt(cl[:lmax+1] * 0.5), mmax, True)
     real_idcs = Alm.getidx(lmax, np.arange(lmax + 1, dtype=int), 0)
     alm[real_idcs] = alm[real_idcs].real * np.sqrt(2.)
