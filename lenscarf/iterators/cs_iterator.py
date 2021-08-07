@@ -461,6 +461,7 @@ class iterator_pertmf(qlm_iterator):
         self.p_mf_resp = mf_resp
 
     def load_graddet(self, itr, key):
+        assert self.h == 'p', 'check this line is ok for other h'
         return almxfl(self.get_hlm(itr - 1, key), self.p_mf_resp * self._h2p(self.lmax_qlm), self.mmax_qlm, False)
 
 class iterator_cstmf_bfgs0(iterator_cstmf):
