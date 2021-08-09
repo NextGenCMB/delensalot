@@ -89,7 +89,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
 
         """
         elm = synalm(unlcmb_cls['ee'], self.lmax_sol, self.mmax_sol)
-        eblm = self.ffi.lensgclm(np.array([elm, elm * 0]), self.mmax_sol, None, 2, self.lmax_len, self.mmax_len)
+        eblm = self.ffi.lensgclm(np.array([elm, elm * 0]), self.mmax_sol, 2, self.lmax_len, self.mmax_len, False)
         almxfl(eblm[0], self.transf, self.mmax_len, True)
         almxfl(eblm[1], self.transf, self.mmax_len, True)
         eblm[0] += synalm((np.ones(self.lmax_len + 1) * (self.nlev_p / 180 / 60 * np.pi) ** 2) * (self.transf > 0), self.lmax_len, self.mmax_len)
