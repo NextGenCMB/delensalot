@@ -34,12 +34,13 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         lmax_unl, mmax_unl = unlalm_info
         lmax_len, mmax_len = lenalm_info
         lmax_transf = len(transf) - 1
-        self.lmax_len = min(lmax_transf, lmax_len)
-        self.mmax_len = min(mmax_len, lmax_transf)
+
         lmax_sol = lmax_unl
         mmax_sol = min(lmax_unl, mmax_unl)
-
         super().__init__(lmax_sol, mmax_sol, ffi)
+
+        self.lmax_len = min(lmax_transf, lmax_len)
+        self.mmax_len = min(mmax_len, lmax_transf)
         self.n_inv = ninv
         self.b_transf = transf
 

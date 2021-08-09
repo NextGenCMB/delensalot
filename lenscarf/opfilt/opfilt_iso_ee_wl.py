@@ -3,7 +3,7 @@
 
 """
 import numpy as np
-from lenscarf.utils_hp import almxfl, Alm
+from lenscarf.utils_hp import almxfl, Alm, synalm
 from lenscarf.utils import timer, cli
 from lenscarf import utils_scarf
 from lenscarf import remapping
@@ -47,6 +47,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         self.inoise_2  = transf[:self.lmax_len + 1] ** 2 / (nlev_p / 180 / 60 * np.pi) ** 2
         self.inoise_1  = transf[:self.lmax_len + 1] ** 1 / (nlev_p / 180 / 60 * np.pi) ** 2
         self.transf    = transf[:self.lmax_len + 1]
+        self.nlev_p = nlev_p
 
         self.verbose = verbose
         self.tim = timer(True, prefix='opfilt')
@@ -82,6 +83,18 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         tim.add('lensgclm bwd')
         if self.verbose:
             print(tim)
+
+    def synalm(self, unlcmb_cls:dict):
+        """Generate some dat maps consistent with filter fid ingredients
+
+        """
+        elm = synalm(unlcmb_cls['ee'], self.lmax_sol, self.mmax_sol)
+        eblm = self.ffi.lensgclm(np.array([elm, elm * 0]), self.mmax_sol, None, 2, self.lmax_len, self.mmax_len)
+        almxfl(eblm[0], self.transf, self.mmax_len, True)
+        almxfl(eblm[1], self.transf, self.mmax_len, True)
+        eblm[0] += synalm((np.ones(self.lmax_len + 1) * (self.nlev_p / 180 / 60 * np.pi) ** 2) * (self.transf > 0), self.lmax_len, self.mmax_len)
+        eblm[1] += synalm((np.ones(self.lmax_len + 1) * (self.nlev_p / 180 / 60 * np.pi) ** 2) * (self.transf > 0), self.lmax_len, self.mmax_len)
+        return eblm
 
     def get_qlms(self, eblm_dat: np.ndarray or list, elm_wf: np.ndarray, q_pbgeom: utils_scarf.pbdGeometry):
         """Get lensing generaliazed QE consistent with filter assumptions

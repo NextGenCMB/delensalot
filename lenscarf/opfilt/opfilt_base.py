@@ -17,6 +17,9 @@ class scarf_alm_filter_wl(object):
         self.lmax_sol = lmax_sol
         self.mmax_sol = mmax_sol
 
+        self.lmax_len = lmax_sol
+        self.mmax_len = mmax_sol
+
     def set_ffi(self, ffi:remapping.deflection):
         """Update of lensing deflection instance"""
         self.ffi = ffi
