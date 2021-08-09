@@ -31,3 +31,6 @@ class scarf_alm_filter_wl(object):
     def dot_op(self):
         """This must give the scalar product instance betweem two cg-solution estimates"""
         assert 0, 'sub-class this'
+
+    def synalm(self, cmbcls:dict):
+        assert 0, 'subclass this'
