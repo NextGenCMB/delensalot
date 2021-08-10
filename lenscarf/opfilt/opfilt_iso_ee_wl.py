@@ -96,12 +96,13 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         eblm[1] += synalm((np.ones(self.lmax_len + 1) * (self.nlev_p / 180 / 60 * np.pi) ** 2) * (self.transf > 0), self.lmax_len, self.mmax_len)
         return eblm
 
-    def get_qlms(self, eblm_dat: np.ndarray or list, elm_wf: np.ndarray, q_pbgeom: utils_scarf.pbdGeometry):
+    def get_qlms(self, eblm_dat: np.ndarray or list, elm_wf: np.ndarray, q_pbgeom: utils_scarf.pbdGeometry, alm_wf_leg2:None or np.ndarray =None):
         """Get lensing generaliazed QE consistent with filter assumptions
 
             Args:
                 eblm_dat: input polarization maps (geom must match that of the filter)
                 elm_wf: Wiener-filtered CMB maps (alm arrays)
+                alm_wf_leg2: Wiener-filtered CMB maps of gradient leg, if different from ivf leg (alm arrays)
                 q_pbgeom: scarf pbounded-geometry of for the position-space mutliplication of the legs
 
             All implementation signs are super-weird but end result should be correct...
@@ -113,6 +114,9 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
 
         ebwf = np.array([elm_wf, np.zeros_like(elm_wf)])
         repmap, impmap = self._get_irespmap(eblm_dat, ebwf, q_pbgeom)
+        if alm_wf_leg2 is not None:
+            assert Alm.getlmax(alm_wf_leg2.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(alm_wf_leg2.size, self.mmax_sol), self.lmax_sol)
+            ebwf[0, :] = alm_wf_leg2
         Gs, Cs = self._get_gpmap(ebwf, 3, q_pbgeom)  # 2 pos.space maps
         GC = (repmap - 1j * impmap) * (Gs + 1j * Cs)  # (-2 , +3)
         Gs, Cs = self._get_gpmap(ebwf, 1, q_pbgeom)

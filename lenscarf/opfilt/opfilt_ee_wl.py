@@ -157,21 +157,23 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         if self.verbose:
             print(tim)
 
-    def get_qlms(self, qudat: np.ndarray or list, elm_wf: np.ndarray, q_pbgeom: utils_scarf.pbdGeometry):
+    def get_qlms(self, qudat: np.ndarray or list, elm_wf: np.ndarray, q_pbgeom: utils_scarf.pbdGeometry, alm_wf_leg2 :None or np.ndarray=None):
         """
 
             Args:
                 qudat: input polarization maps (geom must match that of the filter)
                 elm_wf: Wiener-filtered CMB maps (alm arrays)
+                alm_wf_leg2: gradient leg Winer filtered CMB, if different from ivf leg
                 q_pbgeom: scarf pbounded-geometry of for the position-space mutliplication of the legs
 
             Note: all implementation signs are super-weird but end result correct...
         """
         assert len(qudat) == 2
         assert (qudat[0].size == utils_scarf.Geom.npix(self.ninv_geom)) and (qudat[0].size == qudat[1].size)
-
         ebwf = np.array([elm_wf, np.zeros_like(elm_wf)])
         repmap, impmap = self._get_irespmap(qudat, ebwf, q_pbgeom)
+        if alm_wf_leg2 is None:
+            ebwf[0, :] = alm_wf_leg2
         Gs, Cs = self._get_gpmap(ebwf, 3, q_pbgeom)  # 2 pos.space maps
         GC = (repmap - 1j * impmap) * (Gs + 1j * Cs)  # (-2 , +3)
         Gs, Cs = self._get_gpmap(ebwf, 1,  q_pbgeom)
