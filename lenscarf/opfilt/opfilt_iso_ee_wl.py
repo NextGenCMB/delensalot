@@ -137,8 +137,8 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         """
         if mfkey in [1]:
             if phas is None:
-                phas = [synalm(np.ones(self.lmax_len + 1, dtype=float), self.lmax_len, self.mmax_len),
-                        synalm(np.ones(self.lmax_len + 1, dtype=float), self.lmax_len, self.mmax_len)]
+                phas = np.array([synalm(np.ones(self.lmax_len + 1, dtype=float), self.lmax_len, self.mmax_len),
+                                 synalm(np.ones(self.lmax_len + 1, dtype=float), self.lmax_len, self.mmax_len)])
             assert Alm.getlmax(phas[0].size, self.mmax_len) == self.lmax_len
             assert Alm.getlmax(phas[1].size, self.mmax_len) == self.lmax_len
 
