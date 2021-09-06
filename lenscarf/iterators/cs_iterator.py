@@ -511,6 +511,7 @@ class iterator_simf(qlm_iterator):
             self.cacher.cache(fn_lik, -G if key.lower() == 'p' else -C)
         return -G if key.lower() == 'p' else -C
 
+
 class iterator_cstmf_bfgs0(iterator_cstmf):
     """Variant of the iterator where the initial curvature guess is itself a bfgs update from phi =0 to input plm
 

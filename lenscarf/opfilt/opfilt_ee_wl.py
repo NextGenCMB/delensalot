@@ -3,13 +3,14 @@
 
 """
 import numpy as np
-from lenscarf.utils_hp import almxfl, Alm, alm2cl
+from lenscarf.utils_hp import almxfl, Alm, alm2cl, synalm
 from lenscarf.utils import clhash, cli
 from lenscarf import  utils_scarf
 from lenscarf import remapping
 from lenscarf.opfilt import  opfilt_pp, opfilt_base, bmodes_ninv as bni
 from scipy.interpolate import UnivariateSpline as spl
 from lenscarf.utils import timer
+
 
 apply_fini = opfilt_pp.apply_fini
 pre_op_dense = None # not implemented
@@ -187,6 +188,42 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         almxfl(G, fl, mmax_qlm, True)
         almxfl(C, fl, mmax_qlm, True)
         return G, C
+
+    def get_qlms_mf(self, mfkey, q_pbgeom:utils_scarf.pbdGeometry, mchain, phas=None):
+        """Mean-field estimate using tricks of Carron Lewis appendix
+
+
+        """
+        if mfkey in [1]:
+            if phas is None:
+                phas = [synalm(np.ones(self.lmax_len + 1, dtype=float), self.lmax_len, self.mmax_len),
+                        synalm(np.ones(self.lmax_len + 1, dtype=float), self.lmax_len, self.mmax_len)]
+            assert Alm.getlmax(phas[0].size, self.mmax_len) == self.lmax_len
+            assert Alm.getlmax(phas[1].size, self.mmax_len) == self.lmax_len
+
+            soltn = np.zeros(Alm.getsize(self.lmax_sol, self.mmax_sol), dtype=complex)
+            mchain.solve(soltn, phas, dot_op=self.dot_op())
+            almxfl(phas[0], 0.5 * self.b_transf, self.mmax_len, True)
+            almxfl(phas[1], 0.5 * self.b_transf, self.mmax_len, True)
+
+            repmap, impmap = q_pbgeom.geom.alm2map_spin(phas, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
+            Gs, Cs = self._get_gpmap([soltn, soltn * 0], 3, q_pbgeom)  # 2 pos.space maps
+            GC = (repmap - 1j * impmap) * (Gs + 1j * Cs)  # (-2 , +3)
+            Gs, Cs = self._get_gpmap([soltn, soltn * 0], 1, q_pbgeom)
+            GC -= (repmap + 1j * impmap) * (Gs - 1j * Cs)  # (+2 , -1)
+            del repmap, impmap, Gs, Cs
+        else:
+            assert 0, mfkey + ' not implemented'
+        lmax_qlm = self.ffi.lmax_dlm
+        mmax_qlm = self.ffi.mmax_dlm
+        G, C = q_pbgeom.geom.map2alm_spin([GC.real, GC.imag], 1, lmax_qlm, mmax_qlm, self.ffi.sht_tr, (-1., 1.))
+        del GC
+        fl = - np.sqrt(np.arange(lmax_qlm + 1, dtype=float) * np.arange(1, lmax_qlm + 2))
+        almxfl(G, fl, mmax_qlm, True)
+        almxfl(C, fl, mmax_qlm, True)
+        return G, C
+
+
 
     def _get_gpmap(self, eblm_wf:np.ndarray or list, spin:int, q_pbgeom:utils_scarf.pbdGeometry):
         """Wiener-filtered gradient leg to feed into the QE
