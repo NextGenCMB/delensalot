@@ -484,7 +484,7 @@ class iterator_simf(qlm_iterator):
     """
 
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
-                 dat_maps:list or np.ndarray, plm0:np.ndarray, mf_key:np.ndarray, pp_h0:np.ndarray,
+                 dat_maps:list or np.ndarray, plm0:np.ndarray, mf_key:int, pp_h0:np.ndarray,
                  cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.scarf_alm_filter_wl, k_geom:scarf.Geometry,
                  chain_descr, stepper:steps.nrstep, **kwargs):
         super(iterator_simf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
