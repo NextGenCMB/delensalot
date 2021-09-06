@@ -383,7 +383,7 @@ class qlm_iterator(object):
             self.logger.on_iterstart(itr, key, self)
             # Calculation in // of lik and det term :
             glm  = self.calc_gradlik(itr, key)
-            glm += self.calc_graddet(itr - 1, key)
+            glm += self.calc_graddet(itr, key)
             glm += self.load_gradpri(itr - 1, key)
             almxfl(glm, self.chh > 0, self.mmax_qlm, True) # kills all modes where prior is set to zero
             self.build_incr(itr, key, glm)
