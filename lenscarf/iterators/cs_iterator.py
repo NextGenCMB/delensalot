@@ -382,8 +382,9 @@ class qlm_iterator(object):
             assert self.is_iter_done(itr - 1, key), 'previous iteration not done'
             self.logger.on_iterstart(itr, key, self)
             # Calculation in // of lik and det term :
-            glm = self.calc_gradlik_graddet(itr, key)
-            glm += self.load_graddet(itr - 1, key) + self.load_gradpri(itr - 1, key)
+            glm  = self.calc_gradlik(itr, key)
+            glm += self.calc_graddet(itr - 1, key)
+            glm += self.load_gradpri(itr - 1, key)
             almxfl(glm, self.chh > 0, self.mmax_qlm, True) # kills all modes where prior is set to zero
             self.build_incr(itr, key, glm)
             del glm
@@ -392,7 +393,8 @@ class qlm_iterator(object):
                 if os.path.exists(opj(self.lib_dir, 'ffi_%s_it%s'%(key, itr))):
                     shutil.rmtree(opj(self.lib_dir, 'ffi_%s_it%s'%(key, itr)))
 
-    def calc_gradlik_graddet(self, itr, key):
+
+    def calc_gradlik(self, itr, key):
         """Computes the quadratic part of the gradient for plm iteration 'itr'
 
         """
@@ -427,6 +429,9 @@ class qlm_iterator(object):
                 self.cacher.cache(fn_lik, -G if key.lower() == 'p' else -C)
             return -G if key.lower() == 'p' else -C
 
+    def calc_graddet(self, itr, key):
+        assert 0, 'subclass this'
+
 class iterator_cstmf(qlm_iterator):
     """Constant mean-field
 
@@ -443,6 +448,9 @@ class iterator_cstmf(qlm_iterator):
         self.cacher.cache('mf', almxfl(mf0,  self._h2p(self.lmax_qlm), self.mmax_qlm, False))
 
     def load_graddet(self, k, key):
+        return self.cacher.load('mf')
+
+    def calc_graddet(self, k, key):
         return self.cacher.load('mf')
 
 class iterator_pertmf(qlm_iterator):
@@ -463,6 +471,45 @@ class iterator_pertmf(qlm_iterator):
     def load_graddet(self, itr, key):
         assert self.h == 'p', 'check this line is ok for other h'
         return almxfl(self.get_hlm(itr - 1, key), self.p_mf_resp * self._h2p(self.lmax_qlm), self.mmax_qlm, False)
+
+    def calc_graddet(self, itr, key):
+        assert self.h == 'p', 'check this line is ok for other h'
+        return almxfl(self.get_hlm(itr - 1, key), self.p_mf_resp * self._h2p(self.lmax_qlm), self.mmax_qlm, False)
+
+
+class iterator_simf(qlm_iterator):
+    """Monte-Carlo evaluation of mean-field
+
+
+    """
+
+    def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
+                 dat_maps:list or np.ndarray, plm0:np.ndarray, mf_key:np.ndarray, pp_h0:np.ndarray,
+                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.scarf_alm_filter_wl, k_geom:scarf.Geometry,
+                 chain_descr, stepper:steps.nrstep, **kwargs):
+        super(iterator_simf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
+                                             ninv_filt, k_geom, chain_descr, stepper, **kwargs)
+        self.mf_key = mf_key
+
+
+    def calc_graddet(self, itr, key):
+        assert self.is_iter_done(itr - 1, key)
+        assert itr > 0, itr
+        assert key in ['p'], key + '  not implemented'
+        dlm = self.get_hlm(itr - 1, key)
+        self.hlm2dlm(dlm, True)
+        ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm, cachers.cacher_mem())
+        self.filter.set_ffi(ffi)
+        mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.filter)
+        t0 = time.time()
+        q_geom = pbdGeometry(self.k_geom, pbounds(0., 2 * np.pi))
+        G, C = self.filter.get_qlms_mf(self.mf_key, q_geom, mchain)
+        almxfl(G if key.lower() == 'p' else C, self._h2p(self.lmax_qlm), self.mmax_qlm, True)
+        print('get_qlm_mf calculation done; (%.0f secs)' % (time.time() - t0))
+        if itr == 1:  # We need the gradient at 0 and the yk's to be able to rebuild all gradients
+            fn_lik = '%slm_grad%sdet_it%03d' % (self.h, key.lower(), 0)
+            self.cacher.cache(fn_lik, -G if key.lower() == 'p' else -C)
+        return -G if key.lower() == 'p' else -C
 
 class iterator_cstmf_bfgs0(iterator_cstmf):
     """Variant of the iterator where the initial curvature guess is itself a bfgs update from phi =0 to input plm
