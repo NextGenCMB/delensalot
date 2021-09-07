@@ -84,17 +84,23 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         if self.verbose:
             print(tim)
 
-    def synalm(self, unlcmb_cls:dict):
+    def synalm(self, unlcmb_cls:dict, cmb_phas=None):
         """Generate some dat maps consistent with filter fid ingredients
 
+            Note:
+                Feeding in directly the unlensed CMB can be useful for paired simulations.
+                In this case the shape must match that of the filter unlensed alm array
+
+
         """
-        elm = synalm(unlcmb_cls['ee'], self.lmax_sol, self.mmax_sol)
+        elm = synalm(unlcmb_cls['ee'], self.lmax_sol, self.mmax_sol) if cmb_phas is None else cmb_phas
+        assert Alm.getlmax(elm.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(elm.size, self.mmax_sol), self.lmax_sol)
         eblm = self.ffi.lensgclm(np.array([elm, elm * 0]), self.mmax_sol, 2, self.lmax_len, self.mmax_len, False)
         almxfl(eblm[0], self.transf, self.mmax_len, True)
         almxfl(eblm[1], self.transf, self.mmax_len, True)
         eblm[0] += synalm((np.ones(self.lmax_len + 1) * (self.nlev_p / 180 / 60 * np.pi) ** 2) * (self.transf > 0), self.lmax_len, self.mmax_len)
         eblm[1] += synalm((np.ones(self.lmax_len + 1) * (self.nlev_p / 180 / 60 * np.pi) ** 2) * (self.transf > 0), self.lmax_len, self.mmax_len)
-        return eblm
+        return elm, eblm
 
     def get_qlms(self, eblm_dat: np.ndarray or list, elm_wf: np.ndarray, q_pbgeom: utils_scarf.pbdGeometry, alm_wf_leg2:None or np.ndarray =None):
         """Get lensing generaliazed QE consistent with filter assumptions
