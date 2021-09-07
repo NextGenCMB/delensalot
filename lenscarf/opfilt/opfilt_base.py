@@ -36,5 +36,5 @@ class scarf_alm_filter_wl(object):
         """This must give the scalar product instance betweem two cg-solution estimates"""
         assert 0, 'sub-class this'
 
-    def synalm(self, cmbcls:dict, cmbphas=None):
+    def synalm(self, cmbcls:dict, cmb_phas=None):
         assert 0, 'subclass this'
