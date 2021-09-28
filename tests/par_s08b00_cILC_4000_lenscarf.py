@@ -79,7 +79,7 @@ hp_start = hp_geom.ofs[np.where(hp_geom.theta == np.min(ninvgeom.theta))[0]][0]
 hp_end = hp_start + utils_scarf.Geom.npix(ninvgeom).astype(hp_start.dtype)  # Somehow otherwise makes a float out of int64 and uint64 ???
 # --- scarf geometry of the lensing jobs at each iteration
 lenjob = utils_scarf.scarfjob()
-mmax_filt = lmax_filt# we could reduce that since we are not too far from the pole
+mmax_filt = None# we could reduce that since we are not too far from the pole. From command line args
 mmax_qlm = lmax_qlm
 #NB: the lensing jobs geom are specified in the command line arguments
 
@@ -95,7 +95,7 @@ def step_length(iter, norm_incr):
     return bp(np.arange(4097), 400, 0.5, 1500, 0.1, scale=50)
 
 
-def get_itlib(qe_key, DATIDX,  vscarf='p'):
+def get_itlib(qe_key, DATIDX,  vscarf='p', mmax_is_lmax=True):
     #assert vscarf in [False, '', 'd', 'k', 'p'], vscarf
     lib_dir = TEMP
     lib_dir_iterator = lib_dir + '/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20'%DATIDX
@@ -159,7 +159,15 @@ def get_itlib(qe_key, DATIDX,  vscarf='p'):
         k_geom = scarf.healpix_geometry(2048, 1)
     else:
         k_geom = lenjob.geom
-
+    if not mmax_is_lmax:
+        from lenscarf import utils_sht
+        tht_mmax = np.min(np.abs(lenjob.geom.theta - np.pi * 0.5)) + np.pi * 0.5
+        mmax_unl = int(
+            np.ceil(max(utils_sht.st2mmax(2, tht_mmax, lmax_filt), utils_sht.st2mmax(-2, tht_mmax, lmax_filt))))
+        mmax_filt = min(lmax_filt, mmax_unl)
+    else:
+        mmax_filt = lmax_filt
+    print("lmax filt, mmax filt %s %s"%(lmax_filt, mmax_filt))
     ninv_sc = [hp.read_map(ref_parfile.ivmap_path)[hp_start:hp_end]]
     if 'r' in vscarf:
         if vscarf[0] == 'k':
@@ -198,6 +206,7 @@ if __name__ == '__main__':
     parser.add_argument('-imax', dest='imax', type=int, default=0, help='maximal sim index')
     parser.add_argument('-btempl', dest='btempl', action='store_true', help='build B-templ for last iter > 0')
     parser.add_argument('-scarf', dest='scarf', type=str, default='p', help='further iterator options')
+    parser.add_argument('-mmax', dest='mmax',  action='store_true', help='reduces mmax to some value')
 
     #vscarf: 'p' 'k' 'd' for bfgs variable
     # add a 'f' to use full sky in once-per iteration kappa thingy
@@ -208,6 +217,8 @@ if __name__ == '__main__':
     from plancklens.helpers import mpi
     mpi.barrier = lambda : 1 # redefining the barrier
     from itercurv.iterators.statics import rec as Rec
+
+
     jobs = []
     for idx in np.arange(args.imin, args.imax + 1):
         lib_dir_iterator = TEMP + '/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20' % idx + args.scarf
