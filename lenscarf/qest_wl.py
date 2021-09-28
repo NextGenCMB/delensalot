@@ -5,6 +5,7 @@ from lenscarf.opfilt import opfilt_ee_wl
 from lenscarf import utils_hp, utils_scarf
 
 # FIXME: Put this sd opfilt method? with cachers for EWF and prep (in case rotations are involved) etc?
+# TODO: this has been put in opfilt now, can remove that
 def get_qlms_wl(qudat:np.ndarray or list, elm_wf:np.ndarray, filt:opfilt_ee_wl.alm_filter_ninv_wl, q_pbgeom:utils_scarf.pbdGeometry):
     """
 
