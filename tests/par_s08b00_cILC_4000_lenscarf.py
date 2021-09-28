@@ -50,7 +50,7 @@ nside = 2048
 nsims = 200  # number of sims for the mean-field
 tol=1e-3
 
-#----- The gradient spectrum seems to saturate with 1e-3 after roughly this number of iteration
+# --- cg iterations parameters
 tol_iter = lambda itr : 1e-3 if itr <= 10 else 1e-4
 soltn_cond = lambda itr: True
 
@@ -67,7 +67,20 @@ zbounds_len[1] = min(zbounds_len[1],  1.)
 pbounds_len = np.array((113.20399439681668, 326.79600560318335)) # This was built also using a 5 degrees buffer
 pb_ctr = np.mean([-(360. - pbounds_len[1]), pbounds_len[0]]) # centre of patch
 pb_extent = pbounds_len[0] + (360. - pbounds_len[1])   # extent of pach
+# -- scarf geometries
+tr = int(os.environ.get('OMP_NUM_THREADS', 8)) # threads
+ninv_job = utils_scarf.scarfjob()  # input data geometry etc
+ninv_job.set_healpix_geometry(nside, zbounds=zbounds)  # input maps are given to us on a healpix geom zero outside of zbounds
+ninvgeom = ninv_job.geom
 
+# -- now we just get the pixels defining the slice to take into the input maps to get the non-zero part
+hp_geom = scarf.healpix_geometry(2048, 1)
+hp_start = hp_geom.ofs[np.where(hp_geom.theta == np.min(ninvgeom.theta))[0]][0]
+hp_end = hp_start + utils_scarf.Geom.npix(ninvgeom).astype(hp_start.dtype)  # Somehow otherwise makes a float out of int64 and uint64 ???
+# --- scarf geometry of the lensing jobs at each iteration
+lenjob = utils_scarf.scarfjob()
+mmax_qlm = lmax_qlm  # we could reduce that since we are not too far from the pole
+#NB: the lensing jobs geom are specified in the command line arguments
 
 
 def bp(x, xa, a, xb, b, scale=50): # helper function to build step-length
@@ -128,8 +141,6 @@ def get_itlib(qe_key, DATIDX,  vscarf='p'):
         mf0 =  (mf0 * len(mc_sims_mf) - ref_parfile.qlms_dd.get_sim_qlm('p_p', DATIDX)) / (len(mc_sims_mf) - 1.)
     plm0 = hp.almxfl(utils.alm_copy(ref_parfile.qlms_dd.get_sim_qlm(qe_key, DATIDX), lmax=lmax_qlm) - mf0, qnorm * clwf)
 
-    pixn_inv = [hp.read_map(ref_parfile.ivmap_path)]
-
     chain_descr = [[0, ["diag_cl"], lmax_filt, nside, np.inf, tol, cd_solve.tr_cg, cd_solve.cache_mem()]]
 
     #--- killing L = 1, 2 and 3 with prior
@@ -138,17 +149,7 @@ def get_itlib(qe_key, DATIDX,  vscarf='p'):
 
     wflm0 = lambda : alm_copy(ref_parfile.ivfs_raw_OBD.get_sim_emliklm(DATIDX), None, lmax_filt, mmax_filt)
 
-    tr = int(os.environ.get('OMP_NUM_THREADS', 8))
-    _j = utils_scarf.scarfjob()
-    _j.set_healpix_geometry(nside, zbounds=zbounds)
-    hp_geom = scarf.healpix_geometry(2048, 1)
-    mmax_qlm = lmax_qlm
 
-    ninvgeom = _j.geom
-    hp_start = hp_geom.ofs[np.where(hp_geom.theta == np.min(ninvgeom.theta))[0]][0]
-    hp_end = hp_start + utils_scarf.Geom.npix(ninvgeom).astype(hp_start.dtype)  # Somehow otherwise makes a float out of int64 and uint64 ???
-    ninv_sc = [pixn_inv[0][hp_start:hp_end]]
-    lenjob = utils_scarf.scarfjob()
     if 'h' not in vscarf:
         lenjob.set_thingauss_geometry(max(lmax_filt, lmax_transf), 2, zbounds=zbounds_len)
     else:
@@ -157,6 +158,8 @@ def get_itlib(qe_key, DATIDX,  vscarf='p'):
         k_geom = scarf.healpix_geometry(2048, 1)
     else:
         k_geom = lenjob.geom
+
+    ninv_sc = [hp.read_map(ref_parfile.ivmap_path)[hp_start:hp_end]]
     if 'r' in vscarf:
         if vscarf[0] == 'k':
             h2k = np.ones(lmax_qlm + 1, dtype=float)
