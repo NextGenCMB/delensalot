@@ -194,8 +194,8 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description='test iterator full-sky with pert. resp.')
     parser.add_argument('-itmax', dest='itmax', type=int, default=-1, help='maximal iter index')
-    parser.add_argument('-imin', dest='imin', type=int, default=-1, help='minimal sim index')
-    parser.add_argument('-imax', dest='imax', type=int, default=-1, help='maximal sim index')
+    parser.add_argument('-imin', dest='imin', type=int, default=0, help='minimal sim index')
+    parser.add_argument('-imax', dest='imax', type=int, default=0, help='maximal sim index')
     parser.add_argument('-btempl', dest='btempl', action='store_true', help='build B-templ for last iter > 0')
     parser.add_argument('-scarf', dest='scarf', type=str, default='p', help='further iterator options')
 
