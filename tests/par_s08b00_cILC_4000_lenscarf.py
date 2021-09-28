@@ -229,7 +229,7 @@ if __name__ == '__main__':
     for idx in jobs[mpi.rank::mpi.size]:
         lib_dir_iterator = TEMP + '/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20' % idx + args.scarf
         if args.itmax >= 0 and Rec.maxiterdone(lib_dir_iterator) < args.itmax:
-            itlib = get_itlib('p_p', idx,  vscarf=args.scarf)
+            itlib = get_itlib('p_p', idx,  vscarf=args.scarf, mmax_is_lmax=not args.mmax)
             for i in range(args.itmax + 1):
                 print("****Iterator: setting cg-tol to %.4e ****"%tol_iter(i))
                 print("****Iterator: setting solcond to %s ****"%soltn_cond(i))
