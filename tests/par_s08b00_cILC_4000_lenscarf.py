@@ -175,7 +175,7 @@ def get_itlib(qe_key, DATIDX,  vscarf='p'):
 
     dat = ref_parfile.sims.get_sim_pmap(DATIDX)
     dat = np.array([da[hp_start:hp_end] for da in dat])
-    assert dat[0].size == utils_scarf.Geom.npix(_j.geom), (dat[0].size,utils_scarf.Geom.npix(_j.geom) )
+    assert dat[0].size == utils_scarf.Geom.npix(ninvgeom), (dat[0].size,utils_scarf.Geom.npix(ninvgeom) )
 
     mmax_filt = lmax_filt
     tpl = bni.template_dense(BMARG_LCUT, ninvgeom, tr, _lib_dir=BMARG_LIBDIR, rescal=tniti_rescal)
