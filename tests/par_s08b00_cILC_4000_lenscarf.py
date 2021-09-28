@@ -224,6 +224,7 @@ if __name__ == '__main__':
         lib_dir_iterator = TEMP + '/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20' % idx + args.scarf
         if Rec.maxiterdone(lib_dir_iterator) < args.itmax:
             jobs.append(idx)
+            print(lib_dir_iterator)
 
     for idx in jobs[mpi.rank::mpi.size]:
         lib_dir_iterator = TEMP + '/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20' % idx + args.scarf
