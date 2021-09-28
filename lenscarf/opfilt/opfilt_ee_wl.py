@@ -3,8 +3,8 @@
 
 """
 import numpy as np
-from lenscarf.utils_hp import almxfl, Alm, alm2cl, synalm
-from lenscarf.utils import clhash, cli
+from lenscarf.utils_hp import almxfl, Alm, alm2cl
+from lenscarf.utils import clhash, cli, read_map
 from lenscarf import  utils_scarf
 from lenscarf import remapping
 from lenscarf.opfilt import  opfilt_pp, opfilt_base, bmodes_ninv as bni
@@ -84,6 +84,14 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         return ret
 
     def get_febl(self):
+        if len(self.n_inv) == 1:
+            nlev_febl = 10800. / np.sqrt(np.sum(read_map(self.n_inv[0])) / (4.0 * np.pi)) / np.pi
+        elif len(self.n_inv) == 3:
+            nlev_febl = 10800. / np.sqrt(
+                (0.5 * np.sum(read_map(self.n_inv[0])) + np.sum(read_map(self.n_inv[2]))) / (4.0 * np.pi)) / np.pi
+        else:
+            assert 0
+        self._nlevp = nlev_febl
         n_inv_cl_p = self.b_transf ** 2  / (self._nlevp/ 180. / 60. * np.pi) ** 2
         return n_inv_cl_p, n_inv_cl_p.copy()
 

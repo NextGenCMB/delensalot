@@ -79,7 +79,8 @@ hp_start = hp_geom.ofs[np.where(hp_geom.theta == np.min(ninvgeom.theta))[0]][0]
 hp_end = hp_start + utils_scarf.Geom.npix(ninvgeom).astype(hp_start.dtype)  # Somehow otherwise makes a float out of int64 and uint64 ???
 # --- scarf geometry of the lensing jobs at each iteration
 lenjob = utils_scarf.scarfjob()
-mmax_qlm = lmax_qlm  # we could reduce that since we are not too far from the pole
+mmax_filt = lmax_filt# we could reduce that since we are not too far from the pole
+mmax_qlm = lmax_qlm
 #NB: the lensing jobs geom are specified in the command line arguments
 
 
@@ -177,7 +178,6 @@ def get_itlib(qe_key, DATIDX,  vscarf='p'):
     dat = np.array([da[hp_start:hp_end] for da in dat])
     assert dat[0].size == utils_scarf.Geom.npix(ninvgeom), (dat[0].size,utils_scarf.Geom.npix(ninvgeom) )
 
-    mmax_filt = lmax_filt
     tpl = bni.template_dense(BMARG_LCUT, ninvgeom, tr, _lib_dir=BMARG_LIBDIR, rescal=tniti_rescal)
     pbd_geom = utils_scarf.pbdGeometry(lenjob.geom, utils_scarf.pbounds(pb_ctr, pb_extent))
     ffi = remapping.deflection(pbd_geom, 1.7, np.zeros_like(plm0), mmax_qlm, tr, tr)
