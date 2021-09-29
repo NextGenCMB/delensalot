@@ -66,8 +66,8 @@ zbounds_len[1] = min(zbounds_len[1],  1.)
 # -- (Maybe this actually slows things down, not sure, can try to set pb_ctr, pb_extent to (np.pi, 2* np.pi)
 pbounds_len = np.array((113.20399439681668, 326.79600560318335)) # This was built also using a 5 degrees buffer
 pb_ctr = np.mean([-(360. - pbounds_len[1]), pbounds_len[0]]) # centre of patch
-pb_extent = pbounds_len[0] + (360. - pbounds_len[1])   # extent of pach
-pb_ctr, pb_extent = (pb_ctr / 360 * np.pi, pb_extent / 360 * np.pi)
+pb_extent = pbounds_len[0] + (360. - pbounds_len[1])   # extent of patch
+pb_ctr, pb_extent = (pb_ctr / 180 * np.pi, pb_extent / 180 * np.pi)
 # -- scarf geometries
 tr = int(os.environ.get('OMP_NUM_THREADS', 8)) # threads
 ninv_job = utils_scarf.scarfjob()  # input data geometry etc
