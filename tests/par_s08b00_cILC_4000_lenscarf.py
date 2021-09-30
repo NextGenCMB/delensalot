@@ -241,5 +241,19 @@ if __name__ == '__main__':
                 print("doing iter " + str(i))
                 itlib.iterate(i, 'p')
             if args.btempl and args.itmax > 0:
-                elm = Rec.load_elm(lib_dir_iterator, args.itmax - 1)
-                Rec.get_btemplate(lib_dir_iterator, elm, args.itmax, pbounds_len, zbounds_len,  cache=True, lmax_b=2048)
+                from lenscarf import cachers
+                e_fname = 'wflm_%s_it%s' % ('p', args.itmax - 1)
+                assert itlib.wf_cacher.is_cached(e_fname)
+                # loading deflection field at the wanted iter:
+                dlm = itlib.get_hlm(args.itmax, 'p')
+                itlib.hlm2dlm(dlm, True)
+                ffi = itlib.filter.ffi.change_dlm([dlm, None], itlib.mmax_qlm, cachers.cacher_mem())
+                itlib.filter.set_ffi(ffi)
+
+                # loading e-mode map:
+                elm = itlib.wf_cacher.load('wflm_%s_it%s' % ('p', args.itmax - 1))
+                lmax_b, mmax_b = (2048, 2048)
+                b_fname =  itlib.lib_dir + '/blm_%04d_%s_lmax%s.fits' % (args.itmax, utils.clhash(elm.real), lmax_b)
+                _, blm = itlib.filter.ffi.lensgclm(np.array([elm, elm * 0]), itlib.mmax_filt, 2, lmax_b, mmax_b, False)
+                hp.write_alm(b_fname, blm)
+                print('Cached ', b_fname)
