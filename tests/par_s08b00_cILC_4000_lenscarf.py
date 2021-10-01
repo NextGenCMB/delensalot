@@ -267,7 +267,7 @@ if __name__ == '__main__':
                 print("****Iterator: setting solcond to %s ****"%soltn_cond(i))
                 chain_descr = [[0, ["diag_cl"], lmax_filt, nside, np.inf, tol_iter(i), cd_solve.tr_cg, cd_solve.cache_mem()]]
                 itlib.chain_descr  = chain_descr
-                itlib.soltn_cond = soltn_cond
+                itlib.soltn_cond = soltn_cond(i)
 
                 print("doing iter " + str(i))
                 itlib.iterate(i, 'p')
