@@ -13,7 +13,7 @@ from lenscarf.opfilt import bmodes_ninv as bni
 from plancklens import  qresp, utils
 from plancklens.qcinv import cd_solve
 from lenscarf.opfilt import opfilt_ee_wl as opfilt_ee_wl_scarf
-
+from cmbs4.plotrec_utils import get_bb_amplitude
 import scarf
 from lenscarf import remapping, utils_scarf
 from cmbs4 import sims_08b
@@ -236,7 +236,7 @@ if __name__ == '__main__':
                 print("****Iterator: setting solcond to %s ****"%soltn_cond(i))
                 chain_descr = [[0, ["diag_cl"], lmax_filt, nside, np.inf, tol_iter(i), cd_solve.tr_cg, cd_solve.cache_mem()]]
                 itlib.chain_descr  = chain_descr
-                itlib.soltn_cond = soltn_cond(i)
+                itlib.soltn_cond = soltn_cond
 
                 print("doing iter " + str(i))
                 itlib.iterate(i, 'p')
@@ -255,5 +255,11 @@ if __name__ == '__main__':
                 lmax_b, mmax_b = (2048, 2048)
                 b_fname =  itlib.lib_dir + '/blm_%04d_%s_lmax%s.fits' % (args.itmax, utils.clhash(elm.real), lmax_b)
                 _, blm = itlib.filter.ffi.lensgclm(np.array([elm, elm * 0]), itlib.mmax_filt, 2, lmax_b, mmax_b, False)
-                hp.write_alm(b_fname, blm)
-                print('Cached ', b_fname)
+                #hp.write_alm(b_fname, blm)
+                #print('Cached ', b_fname)
+                cls_path = os.path.join(os.path.dirname(plancklens.__file__), 'data', 'cls')
+                cls_len = utils.camb_clfile(os.path.join(cls_path, 'FFP10_wdipole_lensedCls.dat'))
+                from plancklens.sims import planck2018_sims
+                blm_in = alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(idx), None, lmax_b, mmax_b)
+                print("BB ampl")
+                print(get_bb_amplitude(sims_08b.get_nlev_mask(2.), cls_len, blm, blm_in))
