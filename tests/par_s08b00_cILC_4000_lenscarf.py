@@ -256,10 +256,10 @@ if __name__ == '__main__':
     for idx in np.arange(args.imin, args.imax + 1):
         lib_dir_iterator = TEMP + '/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20' % idx + args.scarf
         if Rec.maxiterdone(lib_dir_iterator) < args.itmax:
-            jobs.append(idx)
+            jobs.append( (idx, Rec.maxiterdone(lib_dir_iterator)) )
             print(lib_dir_iterator)
 
-    for idx in jobs[mpi.rank::mpi.size]:
+    for idx, itdone in jobs[mpi.rank::mpi.size]:
         lib_dir_iterator = TEMP + '/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20' % idx + args.scarf
         if args.itmax >= 0 and Rec.maxiterdone(lib_dir_iterator) < args.itmax:
             itlib = get_itlib('p_p', idx,  vscarf=args.scarf, mmax_is_lmax=not args.mmax)
@@ -272,6 +272,6 @@ if __name__ == '__main__':
 
                 print("doing iter " + str(i))
                 itlib.iterate(i, 'p')
-                if args.BB and i > 0:
+                if args.BB and i > 0 and i > itdone:
                     print(build_Bampl(itlib, i, idx, cache_b= args.btempl * (i == args.imax)))
 
