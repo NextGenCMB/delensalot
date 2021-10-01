@@ -223,7 +223,7 @@ def build_Bampl(this_itlib, this_itr, datidx, cache_b=False):
     blm_in = alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(datidx), None, lmax_b, mmax_b)
     print("BB ampl itr " + str(this_itr))
     Abb = get_bb_amplitude(sims_08b.get_nlev_mask(2.), cls_len, blm, blm_in)
-    f = open(itlib.lib_dir + "/BBampl.txt", "a")
+    f = open(this_itlib.lib_dir + "/BBampl.txt", "a")
     f.write("%4s %.5f" % (this_itr, Abb))
     f.close()
     return Abb
