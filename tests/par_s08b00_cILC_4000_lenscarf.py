@@ -149,8 +149,8 @@ def get_itlib(qe_key, DATIDX,  vscarf='p', mmax_is_lmax=True):
     cpp[:4] *= 1e-5
 
 
-    wflm0 = lambda : alm_copy(ref_parfile.ivfs_raw_OBD.get_sim_emliklm(DATIDX), None, lmax_filt, mmax_filt)
-
+    #wflm0 = lambda : alm_copy(ref_parfile.ivfs_raw_OBD.get_sim_emliklm(DATIDX), None, lmax_filt, mmax_filt)
+    wflm0 = None
 
     if 'h' not in vscarf:
         lenjob.set_thingauss_geometry(max(lmax_filt, lmax_transf), 2, zbounds=zbounds_len)
@@ -199,6 +199,37 @@ def get_itlib(qe_key, DATIDX,  vscarf='p', mmax_is_lmax=True):
     itlib.newton_step_length = step_length
     return itlib
 
+
+def build_Bampl(this_itlib, this_itr, datidx, cache_b=False):
+    from lenscarf import cachers
+    from plancklens.sims import planck2018_sims
+    e_fname = 'wflm_%s_it%s' % ('p', this_itr - 1)
+    assert this_itlib.wf_cacher.is_cached(e_fname)
+    # loading deflection field at the wanted iter:
+    dlm = this_itlib.get_hlm(this_itr, 'p')
+    this_itlib.hlm2dlm(dlm, True)
+    ffi = this_itlib.filter.ffi.change_dlm([dlm, None], this_itlib.mmax_qlm, cachers.cacher_mem())
+    this_itlib.filter.set_ffi(ffi)
+
+    # loading e-mode map:
+    elm = this_itlib.wf_cacher.load('wflm_%s_it%s' % ('p', this_itr - 1))
+    lmax_b, mmax_b = (2048, 2048)
+    b_fname =this_itlib.lib_dir + '/blm_%04d_%s_lmax%s.fits' % (this_itr, utils.clhash(elm.real), lmax_b)
+    _, blm = this_itlib.filter.ffi.lensgclm(np.array([elm, elm * 0]), this_itlib.mmax_filt, 2, lmax_b, mmax_b, False)
+    if cache_b:
+        hp.write_alm(b_fname, blm)
+    print('Cached ', b_fname)
+    cls_path = os.path.join(os.path.dirname(plancklens.__file__), 'data', 'cls')
+    cls_len = utils.camb_clfile(os.path.join(cls_path, 'FFP10_wdipole_lensedCls.dat'))
+    blm_in = alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(datidx), None, lmax_b, mmax_b)
+    print("BB ampl itr " + str(this_itr))
+    Abb = get_bb_amplitude(sims_08b.get_nlev_mask(2.), cls_len, blm, blm_in)
+    f = open(itlib.lib_dir + "/BBampl.txt", "a")
+    f.write("%4s %.5f" % (this_itr, Abb))
+    f.close()
+    return Abb
+
+
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description='test iterator full-sky with pert. resp.')
@@ -208,6 +239,7 @@ if __name__ == '__main__':
     parser.add_argument('-btempl', dest='btempl', action='store_true', help='build B-templ for last iter > 0')
     parser.add_argument('-scarf', dest='scarf', type=str, default='p', help='further iterator options')
     parser.add_argument('-mmax', dest='mmax',  action='store_true', help='reduces mmax to some value')
+    parser.add_argument('-BB', dest='BB',  action='store_true', help='calc BB ampls at each iter')
 
     #vscarf: 'p' 'k' 'd' for bfgs variable
     # add a 'f' to use full sky in once-per iteration kappa thingy
@@ -240,29 +272,6 @@ if __name__ == '__main__':
 
                 print("doing iter " + str(i))
                 itlib.iterate(i, 'p')
-            if args.btempl and args.itmax > 0:
-                from lenscarf import cachers
-                e_fname = 'wflm_%s_it%s' % ('p', args.itmax - 1)
-                assert itlib.wf_cacher.is_cached(e_fname)
-                # loading deflection field at the wanted iter:
-                dlm = itlib.get_hlm(args.itmax, 'p')
-                itlib.hlm2dlm(dlm, True)
-                ffi = itlib.filter.ffi.change_dlm([dlm, None], itlib.mmax_qlm, cachers.cacher_mem())
-                itlib.filter.set_ffi(ffi)
+                if args.BB and i > 0:
+                    print(build_Bampl(itlib, i, idx, cache_b= args.b_templ * (i == args.imax)))
 
-                # loading e-mode map:
-                elm = itlib.wf_cacher.load('wflm_%s_it%s' % ('p', args.itmax - 1))
-                lmax_b, mmax_b = (2048, 2048)
-                b_fname =  itlib.lib_dir + '/blm_%04d_%s_lmax%s.fits' % (args.itmax, utils.clhash(elm.real), lmax_b)
-                _, blm = itlib.filter.ffi.lensgclm(np.array([elm, elm * 0]), itlib.mmax_filt, 2, lmax_b, mmax_b, False)
-                #hp.write_alm(b_fname, blm)
-                #print('Cached ', b_fname)
-                cls_path = os.path.join(os.path.dirname(plancklens.__file__), 'data', 'cls')
-                cls_len = utils.camb_clfile(os.path.join(cls_path, 'FFP10_wdipole_lensedCls.dat'))
-                from plancklens.sims import planck2018_sims
-                blm_in = alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(idx), None, lmax_b, mmax_b)
-                print("BB ampl itr "+ str(args.itmax))
-                Abb = get_bb_amplitude(sims_08b.get_nlev_mask(2.), cls_len, blm, blm_in)
-                f = open(itlib.lib_dir + "/BBampl.txt", "a")
-                f.write("%4s %.5f"%(args.itmax, Abb))
-                f.close()
