@@ -68,6 +68,7 @@ pbounds_len = np.array((113.20399439681668, 326.79600560318335)) # This was buil
 pb_ctr = np.mean([-(360. - pbounds_len[1]), pbounds_len[0]]) # centre of patch
 pb_extent = pbounds_len[0] + (360. - pbounds_len[1])   # extent of patch
 pb_ctr, pb_extent = (pb_ctr / 180 * np.pi, pb_extent / 180 * np.pi)
+
 # -- scarf geometries
 tr = int(os.environ.get('OMP_NUM_THREADS', 8)) # threads
 ninv_job = utils_scarf.scarfjob()  # input data geometry etc
