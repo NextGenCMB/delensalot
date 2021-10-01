@@ -224,7 +224,7 @@ def build_Bampl(this_itlib, this_itr, datidx, cache_b=False):
     print("BB ampl itr " + str(this_itr))
     Abb = get_bb_amplitude(sims_08b.get_nlev_mask(2.), cls_len, blm, blm_in)
     f = open(this_itlib.lib_dir + "/BBampl.txt", "a")
-    f.write("%4s %.5f" % (this_itr, Abb))
+    f.write("%4s %.5f" % (this_itr, Abb) + "\n")
     f.close()
     return Abb
 
