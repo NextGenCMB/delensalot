@@ -273,5 +273,5 @@ if __name__ == '__main__':
                 print("doing iter " + str(i))
                 itlib.iterate(i, 'p')
                 if args.BB and i > 0:
-                    print(build_Bampl(itlib, i, idx, cache_b= args.b_templ * (i == args.imax)))
+                    print(build_Bampl(itlib, i, idx, cache_b= args.btempl * (i == args.imax)))
 
