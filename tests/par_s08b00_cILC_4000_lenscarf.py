@@ -150,12 +150,18 @@ def get_itlib(qe_key, DATIDX,  vscarf='p', mmax_is_lmax=True):
 
 
     wflm0 = lambda : alm_copy(ref_parfile.ivfs_raw_OBD.get_sim_emliklm(DATIDX), None, lmax_filt, mmax_filt)
-
-    if 'h' not in vscarf:
-        lenjob.set_thingauss_geometry(max(lmax_filt, lmax_transf), 2, zbounds=zbounds_len)
+    if 'FS' in vscarf:
+        print("full sky lensing operations. redifining zbounds_len and pbounds")
+        zbounds_lensing = (-1.,1.)
+        pb_ctr_len, pb_extent_len = (np.pi, 2 * np.pi)
     else:
-        lenjob.set_healpix_geometry(2048, zbounds=zbounds_len)
-    if 'f' in vscarf:
+        zbounds_lensing = zbounds_len
+        pb_ctr_len, pb_extent_len = pb_ctr, pb_extent
+    if 'h' not in vscarf:
+        lenjob.set_thingauss_geometry(max(lmax_filt, lmax_transf), 2, zbounds=zbounds_lensing)
+    else:
+        lenjob.set_healpix_geometry(2048, zbounds=zbounds_lensing)
+    if 'f' in vscarf or 'FS' in vscarf: # once per iteration lensing operations (e.g. quadratic estimators)
         k_geom = scarf.healpix_geometry(2048, 1)
     else:
         k_geom = lenjob.geom
@@ -187,7 +193,7 @@ def get_itlib(qe_key, DATIDX,  vscarf='p', mmax_is_lmax=True):
     assert dat[0].size == utils_scarf.Geom.npix(ninvgeom), (dat[0].size,utils_scarf.Geom.npix(ninvgeom) )
 
     tpl = bni.template_dense(BMARG_LCUT, ninvgeom, tr, _lib_dir=BMARG_LIBDIR, rescal=tniti_rescal)
-    pbd_geom = utils_scarf.pbdGeometry(lenjob.geom, utils_scarf.pbounds(pb_ctr, pb_extent))
+    pbd_geom = utils_scarf.pbdGeometry(lenjob.geom, utils_scarf.pbounds(pb_ctr_len, pb_extent_len))
     ffi = remapping.deflection(pbd_geom, 1.7, np.zeros_like(plm0), mmax_qlm, tr, tr)
 
     filtr = opfilt_ee_wl_scarf.alm_filter_ninv_wl(ninvgeom, ninv_sc, ffi, transf, (lmax_filt, mmax_filt), (lmax_transf, lmax_transf), tr, tpl)
