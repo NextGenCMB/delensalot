@@ -207,7 +207,7 @@ def build_Bampl(this_itlib, this_itr, datidx, cache_b=False):
     # loading deflection field at the wanted iter:
     dlm = this_itlib.get_hlm(this_itr, 'p')
     this_itlib.hlm2dlm(dlm, True)
-    ffi = this_itlib.filter.ffi.change_dlm([dlm, None], this_itlib.mmax_qlm, cachers.cacher_mem())
+    ffi = this_itlib.filter.ffi.change_dlm([dlm, None], this_itlib.mmax_qlm, cachers.cacher_none())
     this_itlib.filter.set_ffi(ffi)
 
     # loading e-mode map:
