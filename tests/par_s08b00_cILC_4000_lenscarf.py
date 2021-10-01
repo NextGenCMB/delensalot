@@ -149,8 +149,7 @@ def get_itlib(qe_key, DATIDX,  vscarf='p', mmax_is_lmax=True):
     cpp[:4] *= 1e-5
 
 
-    #wflm0 = lambda : alm_copy(ref_parfile.ivfs_raw_OBD.get_sim_emliklm(DATIDX), None, lmax_filt, mmax_filt)
-    wflm0 = None
+    wflm0 = lambda : alm_copy(ref_parfile.ivfs_raw_OBD.get_sim_emliklm(DATIDX), None, lmax_filt, mmax_filt)
 
     if 'h' not in vscarf:
         lenjob.set_thingauss_geometry(max(lmax_filt, lmax_transf), 2, zbounds=zbounds_len)
