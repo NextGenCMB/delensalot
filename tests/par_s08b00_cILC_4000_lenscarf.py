@@ -261,5 +261,8 @@ if __name__ == '__main__':
                 cls_len = utils.camb_clfile(os.path.join(cls_path, 'FFP10_wdipole_lensedCls.dat'))
                 from plancklens.sims import planck2018_sims
                 blm_in = alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(idx), None, lmax_b, mmax_b)
-                print("BB ampl")
-                print(get_bb_amplitude(sims_08b.get_nlev_mask(2.), cls_len, blm, blm_in))
+                print("BB ampl itr "+ str(args.itmax))
+                Abb = get_bb_amplitude(sims_08b.get_nlev_mask(2.), cls_len, blm, blm_in)
+                f = open(itlib.lib_dir + "/BBampl.txt", "a")
+                f.write("%4s %.5f"%(args.itmax, Abb))
+                f.close()
