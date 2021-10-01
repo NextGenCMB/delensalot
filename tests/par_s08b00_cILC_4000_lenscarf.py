@@ -218,7 +218,7 @@ def build_Bampl(this_itlib, this_itr, datidx, cache_b=False):
     _, blm = this_itlib.filter.ffi.lensgclm(np.array([elm, elm * 0]), this_itlib.mmax_filt, 2, lmax_b, mmax_b, False)
     if cache_b:
         hp.write_alm(b_fname, blm)
-    print('Cached ', b_fname)
+        print('Cached ', b_fname)
     cls_path = os.path.join(os.path.dirname(plancklens.__file__), 'data', 'cls')
     cls_len = utils.camb_clfile(os.path.join(cls_path, 'FFP10_wdipole_lensedCls.dat'))
     blm_in = alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(datidx), None, lmax_b, mmax_b)
