@@ -157,6 +157,9 @@ def get_itlib(qe_key, DATIDX,  vscarf='p', mmax_is_lmax=True):
     else:
         zbounds_lensing = zbounds_len
         pb_ctr_len, pb_extent_len = pb_ctr, pb_extent
+    if 'P360' in vscarf:
+        print('no long. cuts')
+        pb_ctr_len, pb_extent_len = (np.pi, 2 * np.pi)
     if 'h' not in vscarf:
         lenjob.set_thingauss_geometry(max(lmax_filt, lmax_transf), 2, zbounds=zbounds_lensing)
     else:
