@@ -252,7 +252,7 @@ if __name__ == '__main__':
     parser.add_argument('-scarf', dest='scarf', type=str, default='p', help='further iterator options')
     parser.add_argument('-mmax', dest='mmax',  action='store_true', help='reduces mmax to some value')
     parser.add_argument('-BB', dest='BB',  action='store_false', help='calc BB ampls at each iter')
-    parser.add_argument('-tol', dest='LOG',  type=str, default='', help='CG tolerance function for each iter')
+    parser.add_argument('-tol', dest='tol',  type=str, default='', help='CG tolerance function for each iter')
 
     #vscarf: 'p' 'k' 'd' for bfgs variable
     # add a 'f' to use full sky in once-per iteration kappa thingy
