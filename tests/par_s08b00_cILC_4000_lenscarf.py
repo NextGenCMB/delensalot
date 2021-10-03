@@ -17,6 +17,7 @@ from cmbs4.plotrec_utils import get_bb_amplitude
 import scarf
 from lenscarf import remapping, utils_scarf
 from cmbs4 import sims_08b
+from scipy.interpolate import UnivariateSpline as spl
 
 
 #-------- reference reconstruction parfiles that will give me the mean-field
@@ -51,9 +52,11 @@ nsims = 200  # number of sims for the mean-field
 tol=1e-3
 
 # --- cg iterations parameters
-tol_iter = lambda itr : 1e-3 if itr <= 10 else 1e-4
 soltn_cond = lambda itr: True
-
+tol_iter = lambda itr : 1e-3 if itr <= 10 else 1e-4
+tol_iter_lin = lambda itr: spl([1, 12] , [1e-3, 1e-4]  , k=1, s=0)(itr) # does not work beyond itr 12
+tol_iter_log = lambda itr: np.exp(spl(np.log([1., 12.]) , np.log([1e-3, 1e-4])  , k=1, s=0)(np.log(itr * 1.)))
+TOLS = {'':tol_iter, 'LOG':tol_iter_log, 'LIN':tol_iter_lin}
 # --- Here we extract zbounds to speed up the spherical transforms
 zbounds = sims_08b.get_zbounds(np.inf) # sharp zbounds of inverse noise variance maps
 # --- We also build zbounds outside which the lensing is not performed at all, assuming everything is zero
@@ -166,6 +169,7 @@ def get_itlib(qe_key, DATIDX,  vscarf='p', mmax_is_lmax=True):
         lenjob.set_healpix_geometry(2048, zbounds=zbounds_lensing)
     if 'f' in vscarf or 'FS' in vscarf: # once per iteration lensing operations (e.g. quadratic estimators)
         k_geom = scarf.healpix_geometry(2048, 1)
+        # FIXME: here should be perfectly fine to use thingauss
     else:
         k_geom = lenjob.geom
     if not mmax_is_lmax:
@@ -247,7 +251,8 @@ if __name__ == '__main__':
     parser.add_argument('-btempl', dest='btempl', action='store_true', help='build B-templ for last iter > 0')
     parser.add_argument('-scarf', dest='scarf', type=str, default='p', help='further iterator options')
     parser.add_argument('-mmax', dest='mmax',  action='store_true', help='reduces mmax to some value')
-    parser.add_argument('-BB', dest='BB',  action='store_true', help='calc BB ampls at each iter')
+    parser.add_argument('-BB', dest='BB',  action='store_false', help='calc BB ampls at each iter')
+    parser.add_argument('-tol', dest='LOG',  type=str, default='', help='CG tolerance function for each iter')
 
     #vscarf: 'p' 'k' 'd' for bfgs variable
     # add a 'f' to use full sky in once-per iteration kappa thingy
@@ -272,9 +277,10 @@ if __name__ == '__main__':
         if args.itmax >= 0 and Rec.maxiterdone(lib_dir_iterator) < args.itmax:
             itlib = get_itlib('p_p', idx,  vscarf=args.scarf, mmax_is_lmax=not args.mmax)
             for i in range(args.itmax + 1):
-                print("****Iterator: setting cg-tol to %.4e ****"%tol_iter(i))
+                cg_tol = TOLS[args.tol](max(i, 1))
+                print("****Iterator: setting cg-tol to %.4e ****"%cg_tol)
                 print("****Iterator: setting solcond to %s ****"%soltn_cond(i))
-                chain_descr = [[0, ["diag_cl"], lmax_filt, nside, np.inf, tol_iter(i), cd_solve.tr_cg, cd_solve.cache_mem()]]
+                chain_descr = [[0, ["diag_cl"], lmax_filt, nside, np.inf, cg_tol, cd_solve.tr_cg, cd_solve.cache_mem()]]
                 itlib.chain_descr  = chain_descr
                 itlib.soltn_cond = soltn_cond(i)
 
