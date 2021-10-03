@@ -99,7 +99,7 @@ def step_length(iter, norm_incr):
     return bp(np.arange(4097), 400, 0.5, 1500, 0.1, scale=50)
 
 
-def get_itlib(qe_key, DATIDX,  vscarf='p', mmax_is_lmax=True, lmin_dotop=0):
+def get_itlib(qe_key, DATIDX,  vscarf='p', mmax_is_lmax=True, lmin_dotop=0, lmin_EE=0):
     #assert vscarf in [False, '', 'd', 'k', 'p'], vscarf
     lib_dir = TEMP
     lib_dir_iterator = lib_dir + '/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20'%DATIDX
@@ -164,13 +164,17 @@ def get_itlib(qe_key, DATIDX,  vscarf='p', mmax_is_lmax=True, lmin_dotop=0):
         print('no long. cuts')
         pb_ctr_len, pb_extent_len = (np.pi, 2 * np.pi)
     if 'h' not in vscarf:
+
         lenjob.set_thingauss_geometry(max(lmax_filt, lmax_transf), 2, zbounds=zbounds_lensing)
     else:
         lenjob.set_healpix_geometry(2048, zbounds=zbounds_lensing)
     if 'f' in vscarf or 'FS' in vscarf: # once per iteration lensing operations (e.g. quadratic estimators)
         k_geom = scarf.healpix_geometry(2048, 1)
-        # FIXME: here should be perfectly fine to use thingauss
+        # FIXME: here should always be perfectly fine to use thingauss
+        # but with
     else:
+        # FIXME: here lmax should be (lmax_filt * 2 + lmax_qlm) // 2 for GL grid?
+        #  (+ buffer for accounting for lensing? probably same theta-points at the end)
         k_geom = lenjob.geom
     if not mmax_is_lmax:
         from lenscarf import utils_sht
@@ -207,6 +211,7 @@ def get_itlib(qe_key, DATIDX,  vscarf='p', mmax_is_lmax=True, lmin_dotop=0):
                             (lmax_filt, mmax_filt), (lmax_transf, lmax_transf), tr, tpl, lmin_dotop=lmin_dotop)
     if '0' in vscarf:
         mf0 *= 0.
+    cls_filt['ee'][:lmin_EE] *= 0
     itlib = scarf_iterator.iterator_cstmf(lib_dir_iterator, vscarf[0], (lmax_qlm, mmax_qlm), dat,
                                         plm0, mf0, H0_unl, cpp, cls_filt, filtr, k_geom, chain_descr, stepper, wflm0=wflm0)
     itlib.newton_step_length = step_length
@@ -255,6 +260,7 @@ if __name__ == '__main__':
     parser.add_argument('-BB', dest='BB',  action='store_false', help='calc BB ampls at each iter')
     parser.add_argument('-tol', dest='tol',  type=str, default='', help='CG tolerance function for each iter')
     parser.add_argument('-lmin_dtp', dest='lmin_dotop', type=int, default=0, help='lmin for dot operation in cg')
+    parser.add_argument('-lmin_EE', dest='lmin_EE', type=int, default=0, help='lmin for EE operation in cg')
 
     #vscarf: 'p' 'k' 'd' for bfgs variable
     # add a 'f' to use full sky in once-per iteration kappa thingy
@@ -266,6 +272,9 @@ if __name__ == '__main__':
     if args.lmin_dotop > 0:
         print("setting lmin in dotop")
         args.scarf += 'LMINDT%s'%args.lmin_dotop
+    if args.lmin_EE > 0:
+        print("setting lmin EE in cg")
+        args.scarf += 'LMINEE%s'%args.lmin_EE
     assert args.tol in TOLS.keys(), args.tol + ' tol. scheme not recognized'
     from plancklens.helpers import mpi
     mpi.barrier = lambda : 1 # redefining the barrier
