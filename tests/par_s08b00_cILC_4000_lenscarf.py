@@ -83,6 +83,8 @@ hp_start = hp_geom.ofs[np.where(hp_geom.theta == np.min(ninvgeom.theta))[0]][0]
 hp_end = hp_start + utils_scarf.Geom.npix(ninvgeom).astype(hp_start.dtype)  # Somehow otherwise makes a float out of int64 and uint64 ???
 # --- scarf geometry of the lensing jobs at each iteration
 lenjob = utils_scarf.scarfjob()
+kjob = utils_scarf.scarfjob()
+
 mmax_filt = None# we could reduce that since we are not too far from the pole. From command line args
 mmax_qlm = lmax_qlm
 #NB: the lensing jobs geom are specified in the command line arguments
@@ -164,17 +166,19 @@ def get_itlib(qe_key, DATIDX,  vscarf='p', mmax_is_lmax=True, lmin_dotop=0, lmin
         print('no long. cuts')
         pb_ctr_len, pb_extent_len = (np.pi, 2 * np.pi)
     if 'h' not in vscarf:
-
-        lenjob.set_thingauss_geometry(max(lmax_filt, lmax_transf), 2, zbounds=zbounds_lensing)
+        dlmax = 1024 # accouting for lensing dl
+        lmax_GL = (2 * lmax_filt + lmax_filt + dlmax) // 2
+        lenjob.set_thingauss_geometry(lmax_GL, 2, zbounds=zbounds_lensing)
     else:
         lenjob.set_healpix_geometry(2048, zbounds=zbounds_lensing)
     if 'f' in vscarf or 'FS' in vscarf: # once per iteration lensing operations (e.g. quadratic estimators)
-        k_geom = scarf.healpix_geometry(2048, 1)
-        # FIXME: here should always be perfectly fine to use thingauss
-        # but with
+        if 'h' in scarf:
+            kjob.set_healpix_geometry(2048)
+        else:
+            dlmax = 1024  # accouting for lensing dl
+            lmax_GL = (2 * lmax_filt + lmax_qlm + dlmax) // 2
+            kjob.set_thingauss_geometry(lmax_GL, 2)
     else:
-        # FIXME: here lmax should be (lmax_filt * 2 + lmax_qlm) // 2 for GL grid?
-        #  (+ buffer for accounting for lensing? probably same theta-points at the end)
         k_geom = lenjob.geom
     if not mmax_is_lmax:
         from lenscarf import utils_sht
