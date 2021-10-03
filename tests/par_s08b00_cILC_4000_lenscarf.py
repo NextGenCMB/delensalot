@@ -178,6 +178,7 @@ def get_itlib(qe_key, DATIDX,  vscarf='p', mmax_is_lmax=True, lmin_dotop=0, lmin
             dlmax = 1024  # accouting for lensing dl
             lmax_GL = (2 * lmax_filt + lmax_qlm + dlmax) // 2
             kjob.set_thingauss_geometry(lmax_GL, 2)
+        k_geom = kjob.geom
     else:
         k_geom = lenjob.geom
     if not mmax_is_lmax:
