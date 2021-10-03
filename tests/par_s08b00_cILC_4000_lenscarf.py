@@ -172,7 +172,7 @@ def get_itlib(qe_key, DATIDX,  vscarf='p', mmax_is_lmax=True, lmin_dotop=0, lmin
     else:
         lenjob.set_healpix_geometry(2048, zbounds=zbounds_lensing)
     if 'f' in vscarf or 'FS' in vscarf: # once per iteration lensing operations (e.g. quadratic estimators)
-        if 'h' in scarf:
+        if 'h' in vscarf:
             kjob.set_healpix_geometry(2048)
         else:
             dlmax = 1024  # accouting for lensing dl
