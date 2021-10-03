@@ -264,7 +264,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     args.scarf += 'TOL' + args.tol.upper()
     if args.lmin_dotop > 0:
-        args.scarf += 'lmindt%s'%args.lmin_dotop
+        args.scarf += 'LMINDT%s'%args.lmin_dotop
     assert args.tol in TOLS.keys(), args.tol + ' tol. scheme not recognized'
     from plancklens.helpers import mpi
     mpi.barrier = lambda : 1 # redefining the barrier
