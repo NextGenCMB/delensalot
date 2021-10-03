@@ -17,7 +17,8 @@ pre_op_dense = None # not implemented
 
 class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
     def __init__(self, ninv_geom:utils_scarf.Geometry, ninv:list, ffi:remapping.deflection, transf:np.ndarray,
-                 unlalm_info:tuple, lenalm_info:tuple, sht_threads:int, tpl:bni.template_dense or None, verbose=False):
+                 unlalm_info:tuple, lenalm_info:tuple, sht_threads:int,
+                 tpl:bni.template_dense or None, verbose=False, lmin_dotop=0):
         r"""CMB inverse-variance and Wiener filtering instance, using unlensed E and lensing deflection
 
             Args:
@@ -44,6 +45,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         self.mmax_len = min(mmax_len, lmax_transf)
         self.n_inv = ninv
         self.b_transf = transf
+        self.lmin_dotop = lmin_dotop
 
 
         sc_job = utils_scarf.scarfjob()
@@ -98,7 +100,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         return n_inv_cl_p, n_inv_cl_p.copy()
 
     def dot_op(self):
-        return dot_op(self.lmax_sol, self.mmax_sol)
+        return dot_op(self.lmax_sol, self.mmax_sol, lmin=self.lmin_dotop)
 
     def apply_map(self, qumap):
         """Applies pixel inverse-noise variance maps
@@ -296,7 +298,7 @@ def calc_prep(qumaps:np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv_wl):
 
 
 class dot_op:
-    def __init__(self, lmax: int, mmax: int or None):
+    def __init__(self, lmax: int, mmax: int or None, lmin=0):
         """scalar product operation for cg inversion
 
             Args:
@@ -308,11 +310,12 @@ class dot_op:
         if mmax is None or mmax < 0: mmax = lmax
         self.lmax = lmax
         self.mmax = min(mmax, lmax)
+        self.lmin = int(lmin)
 
     def __call__(self, elm1, elm2):
         assert elm1.size == Alm.getsize(self.lmax, self.mmax), (elm1.size, Alm.getsize(self.lmax, self.mmax))
         assert elm2.size == Alm.getsize(self.lmax, self.mmax), (elm2.size, Alm.getsize(self.lmax, self.mmax))
-        return np.sum(alm2cl(elm1, elm2, self.lmax, self.mmax, None) * (2 * np.arange(self.lmax + 1) + 1))
+        return np.sum(alm2cl(elm1, elm2, self.lmax, self.mmax, None)[self.lmin:] * (2 * np.arange(self.lmin, self.lmax + 1) + 1))
 
 
 class fwd_op:

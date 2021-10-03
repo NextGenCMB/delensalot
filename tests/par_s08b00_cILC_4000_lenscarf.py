@@ -99,7 +99,7 @@ def step_length(iter, norm_incr):
     return bp(np.arange(4097), 400, 0.5, 1500, 0.1, scale=50)
 
 
-def get_itlib(qe_key, DATIDX,  vscarf='p', mmax_is_lmax=True):
+def get_itlib(qe_key, DATIDX,  vscarf='p', mmax_is_lmax=True, lmin_dotop=0):
     #assert vscarf in [False, '', 'd', 'k', 'p'], vscarf
     lib_dir = TEMP
     lib_dir_iterator = lib_dir + '/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20'%DATIDX
@@ -203,7 +203,8 @@ def get_itlib(qe_key, DATIDX,  vscarf='p', mmax_is_lmax=True):
     pbd_geom = utils_scarf.pbdGeometry(lenjob.geom, utils_scarf.pbounds(pb_ctr_len, pb_extent_len))
     ffi = remapping.deflection(pbd_geom, 1.7, np.zeros_like(plm0), mmax_qlm, tr, tr)
 
-    filtr = opfilt_ee_wl_scarf.alm_filter_ninv_wl(ninvgeom, ninv_sc, ffi, transf, (lmax_filt, mmax_filt), (lmax_transf, lmax_transf), tr, tpl)
+    filtr = opfilt_ee_wl_scarf.alm_filter_ninv_wl(ninvgeom, ninv_sc, ffi, transf,
+                            (lmax_filt, mmax_filt), (lmax_transf, lmax_transf), tr, tpl, lmin_dotop=lmin_dotop)
     if '0' in vscarf:
         mf0 *= 0.
     itlib = scarf_iterator.iterator_cstmf(lib_dir_iterator, vscarf[0], (lmax_qlm, mmax_qlm), dat,
@@ -253,6 +254,7 @@ if __name__ == '__main__':
     parser.add_argument('-mmax', dest='mmax',  action='store_true', help='reduces mmax to some value')
     parser.add_argument('-BB', dest='BB',  action='store_false', help='calc BB ampls at each iter')
     parser.add_argument('-tol', dest='tol',  type=str, default='', help='CG tolerance function for each iter')
+    parser.add_argument('-lmin_dtp', dest='lmin_dotop', type=int, default=0, help='lmin for dot operation in cg')
 
     #vscarf: 'p' 'k' 'd' for bfgs variable
     # add a 'f' to use full sky in once-per iteration kappa thingy
@@ -261,6 +263,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     args.scarf += 'TOL' + args.tol.upper()
+    if args.lmin_dotop > 0:
+        args.scarf += 'lmindt%s'%args.lmin_dotop
     assert args.tol in TOLS.keys(), args.tol + ' tol. scheme not recognized'
     from plancklens.helpers import mpi
     mpi.barrier = lambda : 1 # redefining the barrier
@@ -277,7 +281,7 @@ if __name__ == '__main__':
     for idx, itdone in jobs[mpi.rank::mpi.size]:
         lib_dir_iterator = TEMP + '/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20' % idx + args.scarf
         if args.itmax >= 0 and Rec.maxiterdone(lib_dir_iterator) < args.itmax:
-            itlib = get_itlib('p_p', idx,  vscarf=args.scarf, mmax_is_lmax=not args.mmax)
+            itlib = get_itlib('p_p', idx,  vscarf=args.scarf, mmax_is_lmax=not args.mmax,lmin_dotop=args.lmin_dotop)
             for i in range(args.itmax + 1):
                 cg_tol = TOLS[args.tol](max(i, 1))
                 print("****Iterator: setting cg-tol to %.4e ****"%cg_tol)
