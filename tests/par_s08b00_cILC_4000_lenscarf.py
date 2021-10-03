@@ -260,6 +260,8 @@ if __name__ == '__main__':
     # add a '0' for no mf
 
     args = parser.parse_args()
+    args.scarf += 'TOL' + args.tol.upper()
+    assert args.tol in TOLS.keys(), args.tol + ' tol. scheme not recognized'
     from plancklens.helpers import mpi
     mpi.barrier = lambda : 1 # redefining the barrier
     from itercurv.iterators.statics import rec as Rec
