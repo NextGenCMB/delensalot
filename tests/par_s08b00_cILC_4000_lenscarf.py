@@ -280,7 +280,7 @@ if __name__ == '__main__':
     if args.lmin_EE > 0:
         print("setting lmin EE in cg")
         args.scarf += 'LMINEE%s'%args.lmin_EE
-    i
+
     assert args.tol in TOLS.keys(), args.tol + ' tol. scheme not recognized'
     from plancklens.helpers import mpi
     mpi.barrier = lambda : 1 # redefining the barrier
