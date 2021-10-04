@@ -97,8 +97,8 @@ def bp(x, xa, a, xb, b, scale=50): # helper function to build step-length
     return a + r(x) * (b - a) / r(xb)
 
 
-def step_length(iter, norm_incr):
-    return bp(np.arange(4097), 400, 0.5, 1500, 0.1, scale=50)
+def step_length(iter, norm_incr, highl_step=0.1):
+    return bp(np.arange(4097), 400, 0.5, 1500, highl_step, scale=50)
 
 
 def get_itlib(qe_key, DATIDX,  vscarf='p', mmax_is_lmax=True, lmin_dotop=0, lmin_EE=0):
@@ -219,7 +219,6 @@ def get_itlib(qe_key, DATIDX,  vscarf='p', mmax_is_lmax=True, lmin_dotop=0, lmin
     cls_filt['ee'][:lmin_EE] *= 0
     itlib = scarf_iterator.iterator_cstmf(lib_dir_iterator, vscarf[0], (lmax_qlm, mmax_qlm), dat,
                                         plm0, mf0, H0_unl, cpp, cls_filt, filtr, k_geom, chain_descr, stepper, wflm0=wflm0)
-    itlib.newton_step_length = step_length
     return itlib
 
 
@@ -266,6 +265,7 @@ if __name__ == '__main__':
     parser.add_argument('-tol', dest='tol',  type=str, default='', help='CG tolerance function for each iter')
     parser.add_argument('-lmin_dtp', dest='lmin_dotop', type=int, default=0, help='lmin for dot operation in cg')
     parser.add_argument('-lmin_EE', dest='lmin_EE', type=int, default=0, help='lmin for EE operation in cg')
+    parser.add_argument('-highl_step', dest='highl_step', type=float, default=0.1, help='high l step size')
 
     #vscarf: 'p' 'k' 'd' for bfgs variable
     # add a 'f' to use full sky in once-per iteration kappa thingy
@@ -273,13 +273,14 @@ if __name__ == '__main__':
     # add a '0' for no mf
 
     args = parser.parse_args()
-    args.scarf += 'TOL' + args.tol.upper()
+    args.scarf += 'TOL' + args.tol.upper() + 'HIGHLSTEP%s'%(10 * args.highl_step)
     if args.lmin_dotop > 0:
         print("setting lmin in dotop")
         args.scarf += 'LMINDT%s'%args.lmin_dotop
     if args.lmin_EE > 0:
         print("setting lmin EE in cg")
         args.scarf += 'LMINEE%s'%args.lmin_EE
+    i
     assert args.tol in TOLS.keys(), args.tol + ' tol. scheme not recognized'
     from plancklens.helpers import mpi
     mpi.barrier = lambda : 1 # redefining the barrier
@@ -304,6 +305,7 @@ if __name__ == '__main__':
                 chain_descr = [[0, ["diag_cl"], lmax_filt, nside, np.inf, cg_tol, cd_solve.tr_cg, cd_solve.cache_mem()]]
                 itlib.chain_descr  = chain_descr
                 itlib.soltn_cond = soltn_cond(i)
+                itlib.newton_step_length = lambda itr, norm : step_length(itr, norm, args.highl_step)
 
                 print("doing iter " + str(i))
                 itlib.iterate(i, 'p')
