@@ -101,7 +101,7 @@ def step_length(iter, norm_incr, highl_step=0.1):
     return bp(np.arange(4097), 400, 0.5, 1500, highl_step, scale=50)
 
 
-def get_itlib(qe_key, DATIDX,  vscarf='p', mmax_is_lmax=True, lmin_dotop=0, lmin_EE=0):
+def get_itlib(qe_key, DATIDX,  vscarf='p', mmax_is_lmax=True, lmin_dotop=0, lmin_EE=0, NR_method=100):
     #assert vscarf in [False, '', 'd', 'k', 'p'], vscarf
     lib_dir = TEMP
     lib_dir_iterator = lib_dir + '/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20'%DATIDX
@@ -218,7 +218,7 @@ def get_itlib(qe_key, DATIDX,  vscarf='p', mmax_is_lmax=True, lmin_dotop=0, lmin
         mf0 *= 0.
     cls_filt['ee'][:lmin_EE] *= 0
     itlib = scarf_iterator.iterator_cstmf(lib_dir_iterator, vscarf[0], (lmax_qlm, mmax_qlm), dat,
-                                        plm0, mf0, H0_unl, cpp, cls_filt, filtr, k_geom, chain_descr, stepper, wflm0=wflm0)
+                                        plm0, mf0, H0_unl, cpp, cls_filt, filtr, k_geom, chain_descr, stepper, wflm0=wflm0, NR_method=NR_method)
     return itlib
 
 
@@ -266,6 +266,7 @@ if __name__ == '__main__':
     parser.add_argument('-lmin_dtp', dest='lmin_dotop', type=int, default=0, help='lmin for dot operation in cg')
     parser.add_argument('-lmin_EE', dest='lmin_EE', type=int, default=0, help='lmin for EE operation in cg')
     parser.add_argument('-highl_step', dest='highl_step', type=float, default=0.1, help='high l step size')
+    parser.add_argument('-NR', dest='NR', type=int, default=2, help='L in BFGS-L')
 
     #vscarf: 'p' 'k' 'd' for bfgs variable
     # add a 'f' to use full sky in once-per iteration kappa thingy
@@ -273,7 +274,7 @@ if __name__ == '__main__':
     # add a '0' for no mf
 
     args = parser.parse_args()
-    args.scarf += 'TOL' + args.tol.upper() + 'HIGHLSTEP%s'%(10 * args.highl_step)
+    args.scarf += 'TOL' + args.tol.upper() + 'HIGHLSTEP%s'%(10 * args.highl_step) + 'NR'%args.NR
     if args.lmin_dotop > 0:
         print("setting lmin in dotop")
         args.scarf += 'LMINDT%s'%args.lmin_dotop
@@ -297,7 +298,7 @@ if __name__ == '__main__':
     for idx, itdone in jobs[mpi.rank::mpi.size]:
         lib_dir_iterator = TEMP + '/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20' % idx + args.scarf
         if args.itmax >= 0 and Rec.maxiterdone(lib_dir_iterator) < args.itmax:
-            itlib = get_itlib('p_p', idx,  vscarf=args.scarf, mmax_is_lmax=not args.mmax,lmin_dotop=args.lmin_dotop,lmin_EE=args.lmin_EE)
+            itlib = get_itlib('p_p', idx,  vscarf=args.scarf, mmax_is_lmax=not args.mmax,lmin_dotop=args.lmin_dotop,lmin_EE=args.lmin_EE, NR_method=args.NR)
             for i in range(args.itmax + 1):
                 cg_tol = TOLS[args.tol](max(i, 1))
                 print("****Iterator: setting cg-tol to %.4e ****"%cg_tol)
