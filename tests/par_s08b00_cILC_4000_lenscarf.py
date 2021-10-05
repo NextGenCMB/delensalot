@@ -102,7 +102,8 @@ def step_length(iter, norm_incr, highl_step=0.1):
     return bp(np.arange(4097), 400, 0.5, 1500, highl_step, scale=50)
 
 
-def get_itlib(qe_key, DATIDX,  vscarf='p', mmax_is_lmax=True, lmin_dotop=0, lmin_EE=0, NR_method=100):
+def get_itlib(qe_key, DATIDX,
+              vscarf='p', mmax_is_lmax=True, lmin_dotop=0, lmin_EE=0, NR_method=100, res=1.7):
     #assert vscarf in [False, '', 'd', 'k', 'p'], vscarf
     lib_dir = TEMP
     lib_dir_iterator = lib_dir + '/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20'%DATIDX
@@ -211,7 +212,7 @@ def get_itlib(qe_key, DATIDX,  vscarf='p', mmax_is_lmax=True, lmin_dotop=0, lmin
 
     tpl = bni.template_dense(BMARG_LCUT, ninvgeom, tr, _lib_dir=BMARG_LIBDIR, rescal=tniti_rescal)
     pbd_geom = utils_scarf.pbdGeometry(lenjob.geom, utils_scarf.pbounds(pb_ctr_len, pb_extent_len))
-    ffi = remapping.deflection(pbd_geom, 1.7, np.zeros_like(plm0), mmax_qlm, tr, tr)
+    ffi = remapping.deflection(pbd_geom, res, np.zeros_like(plm0), mmax_qlm, tr, tr)
 
     filtr = opfilt_ee_wl_scarf.alm_filter_ninv_wl(ninvgeom, ninv_sc, ffi, transf,
                             (lmax_filt, mmax_filt), (lmax_transf, lmax_transf), tr, tpl, lmin_dotop=lmin_dotop)
@@ -268,6 +269,7 @@ if __name__ == '__main__':
     parser.add_argument('-lmin_EE', dest='lmin_EE', type=int, default=0, help='lmin for EE operation in cg')
     parser.add_argument('-highl_step', dest='highl_step', type=float, default=0.1, help='high l step size')
     parser.add_argument('-NR', dest='NR', type=int, default=100, help='L in BFGS-L')
+    parser.add_argument('-res', dest='res', type=float, default=1.7, help='lensing res')
 
     #vscarf: 'p' 'k' 'd' for bfgs variable
     # add a 'f' to use full sky in once-per iteration kappa thingy
