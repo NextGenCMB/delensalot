@@ -277,7 +277,7 @@ if __name__ == '__main__':
     # add a '0' for no mf
 
     args = parser.parse_args()
-    args.scarf += 'TOL' + args.tol.upper() + 'HIGHLSTEP%s'%(10 * args.highl_step) + 'NR%s'%args.NR
+    args.scarf += 'TOL' + args.tol.upper() + 'HIGHLSTEP%s'%(10 * args.highl_step) + 'NR%s'%args.NR + 'RES%s'%args.res
     if args.lmin_dotop > 0:
         print("setting lmin in dotop")
         args.scarf += 'LMINDT%s'%args.lmin_dotop
