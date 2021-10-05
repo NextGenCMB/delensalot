@@ -54,9 +54,10 @@ tol=1e-3
 # --- cg iterations parameters
 soltn_cond = lambda itr: True
 tol_iter = lambda itr : 1e-3 if itr <= 10 else 1e-4
+tol_iter_flat = lambda itr : 1e-3
 tol_iter_lin = lambda itr: spl([1, 12] , [1e-3, 1e-4]  , k=1, s=0)(itr) # does not work beyond itr 12
 tol_iter_log = lambda itr: np.exp(spl(np.log([1., 12.]) , np.log([1e-3, 1e-4])  , k=1, s=0)(np.log(itr * 1.)))
-TOLS = {'':tol_iter, 'LOG':tol_iter_log, 'LIN':tol_iter_lin}
+TOLS = {'':tol_iter, 'LOG':tol_iter_log, 'LIN':tol_iter_lin, 'FLAT':tol_iter_flat}
 # --- Here we extract zbounds to speed up the spherical transforms
 zbounds = sims_08b.get_zbounds(np.inf) # sharp zbounds of inverse noise variance maps
 # --- We also build zbounds outside which the lensing is not performed at all, assuming everything is zero
