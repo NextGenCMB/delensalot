@@ -266,7 +266,7 @@ if __name__ == '__main__':
     parser.add_argument('-lmin_dtp', dest='lmin_dotop', type=int, default=0, help='lmin for dot operation in cg')
     parser.add_argument('-lmin_EE', dest='lmin_EE', type=int, default=0, help='lmin for EE operation in cg')
     parser.add_argument('-highl_step', dest='highl_step', type=float, default=0.1, help='high l step size')
-    parser.add_argument('-NR', dest='NR', type=int, default=2, help='L in BFGS-L')
+    parser.add_argument('-NR', dest='NR', type=int, default=100, help='L in BFGS-L')
 
     #vscarf: 'p' 'k' 'd' for bfgs variable
     # add a 'f' to use full sky in once-per iteration kappa thingy
