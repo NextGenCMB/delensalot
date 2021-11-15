@@ -1,7 +1,6 @@
 import sys
-import params.parfile as par
+import params.__init__ as par
 
-# sim_id = int(sys.argv[1])
-for sim_id in range(200):
+for sim_id in range(None):
     par.qlms_dd.get_sim_qlm('p_p', sim_id)
     print(sim_id)
