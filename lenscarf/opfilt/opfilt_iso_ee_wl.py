@@ -161,7 +161,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
             GC -= (repmap + 1j * impmap) * (Gs - 1j * Cs)  # (+2 , -1)
             del repmap, impmap, Gs, Cs
         elif mfkey in [0]: # standard QE, quite inefficient
-            assert phas is None
+            assert phas is None, 'discarding this phase anyways'
             eblm_dat = self.synalm(cls_filt)
             elm_wf = np.zeros(Alm.getsize(self.lmax_sol, self.mmax_sol), dtype=complex)
             mchain.solve(elm_wf, eblm_dat, dot_op=self.dot_op())
