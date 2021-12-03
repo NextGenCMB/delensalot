@@ -11,6 +11,8 @@
 
 
 
+    #FIXME: loading of total gradient seems mixed up with loading of quadratic gradient...
+
 """
 
 import os
@@ -243,11 +245,8 @@ class qlm_iterator(object):
         return ret
 
     def load_gradquad(self, k, key):
-        if k == 0:
-            fn = '%slm_grad%slik_it%03d' % (self.h, key.lower(), k)
-            return self.cacher.load(fn)
-        assert key == 'p'
-        return self._yk2grad(k)
+        fn = '%slm_grad%slik_it%03d' % (self.h, key.lower(), k)
+        return self.cacher.load(fn)
 
     def load_gradient(self, itr, key):
         """Loads the total gradient at iteration iter.
@@ -255,7 +254,12 @@ class qlm_iterator(object):
                 All necessary alm's must have been calculated previously
 
         """
-        return self.load_gradpri(itr, key) + self.load_gradquad(itr, key) + self.load_graddet(itr, key)
+        if itr == 0:
+            g  = self.load_gradpri(0, key)
+            g += self.load_graddet(0, key)
+            g += self.load_gradquad(0, key)
+            return g
+        return self._yk2grad(itr)
 
     def calc_norm(self, qlm):
         return np.sqrt(np.sum(alm2cl(qlm, qlm, self.lmax_qlm, self.mmax_qlm, self.lmax_qlm)))
