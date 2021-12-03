@@ -28,7 +28,7 @@ class scarf_alm_filter_wl(object):
         """Estimate of the quadratic likelihood piece, for data dat_map and alm_wf wiener filtered estimate"""
         assert 0, 'sub-class this'
 
-    def get_qlms_mf(self, mfkey, q_pbgeom:pbdGeometry, mchain, phas=None):
+    def get_qlms_mf(self, mfkey, q_pbgeom:pbdGeometry, mchain, phas=None, cls_filt:dict or None=None):
         """Estimate of the quadratic likelihood piece, for data dat_map and alm_wf wiener filtered estimate"""
         assert 0, 'sub-class this'
 

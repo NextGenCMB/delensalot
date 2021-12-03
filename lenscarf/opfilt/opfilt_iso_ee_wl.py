@@ -136,12 +136,12 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         almxfl(C, fl, mmax_qlm, True)
         return G, C
 
-    def get_qlms_mf(self, mfkey, q_pbgeom:utils_scarf.pbdGeometry, mchain, phas=None):
+    def get_qlms_mf(self, mfkey, q_pbgeom:utils_scarf.pbdGeometry, mchain, phas=None, cls_filt:dict or None=None):
         """Mean-field estimate using tricks of Carron Lewis appendix
 
 
         """
-        if mfkey in [1]:
+        if mfkey in [1]: # This should be B^t x, D dC D^t B^t Covi x, x random phases in alm space
             if phas is None:
                 phas = np.array([synalm(np.ones(self.lmax_len + 1, dtype=float), self.lmax_len, self.mmax_len),
                                  synalm(np.ones(self.lmax_len + 1, dtype=float), self.lmax_len, self.mmax_len)])
@@ -150,15 +150,23 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
 
             soltn = np.zeros(Alm.getsize(self.lmax_sol, self.mmax_sol), dtype=complex)
             mchain.solve(soltn, phas, dot_op=self.dot_op())
+
             almxfl(phas[0], 0.5 * self.transf, self.mmax_len, True)
             almxfl(phas[1], 0.5 * self.transf, self.mmax_len, True)
-
             repmap, impmap = q_pbgeom.geom.alm2map_spin(phas, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
-            Gs, Cs = self._get_gpmap([soltn, soltn * 0], 3, q_pbgeom)  # 2 pos.space maps
+
+            Gs, Cs = self._get_gpmap([soltn, np.zeros_like(soltn)], 3, q_pbgeom)  # 2 pos.space maps
             GC = (repmap - 1j * impmap) * (Gs + 1j * Cs)  # (-2 , +3)
-            Gs, Cs = self._get_gpmap([soltn, soltn * 0], 1, q_pbgeom)
+            Gs, Cs = self._get_gpmap([soltn, np.zeros_like(soltn)], 1, q_pbgeom)
             GC -= (repmap + 1j * impmap) * (Gs - 1j * Cs)  # (+2 , -1)
             del repmap, impmap, Gs, Cs
+        elif mfkey in [0]: # standard QE, quite inefficient
+            assert phas is None
+            eblm_dat = self.synalm(cls_filt)
+            elm_wf = np.zeros(Alm.getsize(self.lmax_sol, self.mmax_sol), dtype=complex)
+            mchain.solve(elm_wf, eblm_dat, dot_op=self.dot_op())
+            return self.get_qlms(eblm_dat, elm_wf, q_pbgeom)
+
         else:
             assert 0, mfkey + ' not implemented'
         lmax_qlm = self.ffi.lmax_dlm
