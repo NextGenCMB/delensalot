@@ -503,7 +503,7 @@ class iterator_simf(qlm_iterator):
         mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.filter)
         t0 = time.time()
         q_geom = pbdGeometry(self.k_geom, pbounds(0., 2 * np.pi))
-        G, C = self.filter.get_qlms_mf(self.mf_key, q_geom, mchain)
+        G, C = self.filter.get_qlms_mf(self.mf_key, q_geom, mchain, cls_filt=self.cls_filt)
         almxfl(G if key.lower() == 'p' else C, self._h2p(self.lmax_qlm), self.mmax_qlm, True)
         print('get_qlm_mf calculation done; (%.0f secs)' % (time.time() - t0))
         if itr == 1:  # We need the gradient at 0 and the yk's to be able to rebuild all gradients
