@@ -162,7 +162,8 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
             del repmap, impmap, Gs, Cs
         elif mfkey in [0]: # standard gQE, quite inefficient but simple
             assert phas is None, 'discarding this phase anyways'
-            eblm_dat = np.array(self.synalm(cls_filt))
+            elm_pha, eblm_dat = self.synalm(cls_filt)
+            eblm_dat = np.array(eblm_dat)
             elm_wf = np.zeros(Alm.getsize(self.lmax_sol, self.mmax_sol), dtype=complex)
             mchain.solve(elm_wf, eblm_dat, dot_op=self.dot_op())
             return self.get_qlms(eblm_dat, elm_wf, q_pbgeom)
