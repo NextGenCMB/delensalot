@@ -88,7 +88,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         """Generate some dat maps consistent with filter fid ingredients
 
             Note:
-                Feeding in directly the unlensed CMB can be useful for paired simulations.
+                Feeding in directly the unlensed CMB phase can be useful for paired simulations.
                 In this case the shape must match that of the filter unlensed alm array
 
 
@@ -160,7 +160,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
             Gs, Cs = self._get_gpmap([soltn, np.zeros_like(soltn)], 1, q_pbgeom)
             GC -= (repmap + 1j * impmap) * (Gs - 1j * Cs)  # (+2 , -1)
             del repmap, impmap, Gs, Cs
-        elif mfkey in [0]: # standard QE, quite inefficient
+        elif mfkey in [0]: # standard gQE, quite inefficient but simple
             assert phas is None, 'discarding this phase anyways'
             eblm_dat = self.synalm(cls_filt)
             elm_wf = np.zeros(Alm.getsize(self.lmax_sol, self.mmax_sol), dtype=complex)
