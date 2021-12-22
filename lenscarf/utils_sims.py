@@ -21,12 +21,17 @@ class ztrunc_sims:
         hp_trunc = Geom.get_healpix_geometry(nside, zbounds=zbounds)
         hp_start = hp_geom.ofs[np.where(hp_geom.theta == np.min(hp_trunc.theta))[0]][0]
         hp_end = hp_start + Geom.npix(hp_trunc).astype(hp_start.dtype)  # Somehow otherwise makes a float out of int64 and uint64 ???
+
         self.slic = slice(hp_start, hp_end)
+        self.nside = nside
 
     def get_sim_pmap(self, idx):
         Q, U = self.sims.get_sim_pmap(idx)
-        return Q[self.slic], U[self.slic]
+        return self.ztruncify(Q), self.ztruncify(U)
 
     def get_sim_tmap(self, idx):
-        T = self.sims.get_sim_tmap(idx)
-        return T[self.slic]
+        return self.ztruncify(self.sims.get_sim_tmap(idx))
+
+    def ztruncify(self, m:np.ndarray):
+        assert m.size == 12 * self.nside ** 2, ('unexpected input size', m.size, 12 * self.nside ** 2)
+        return m[self.slic]

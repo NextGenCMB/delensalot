@@ -23,7 +23,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
 
             Args:
                 ninv_geom: scarf geometry for the inverse-pixel-noise variance SHTs
-                ninv: list of inverse-pixel noise variance maps (strings, or arrays, or ...)
+                ninv: list of inverse-pixel noise variance maps (either 1 (QQ=UU) or 3  (QQ UU and QU noise) arrays of the right size)
                 ffi: remapping.deflection instance that performs the forward and backward lensing
                 transf: CMB transfer function (assumed to be the same in E and B)
                 unlalm_info: tuple of int, lmax and mmax of unlensed CMB

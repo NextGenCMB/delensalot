@@ -17,7 +17,7 @@ from plancklens.filt import filt_cinv, filt_util
 from plancklens.sims import phas
 import healpy as hp
 from plancklens import utils, qresp, qest, qecl
-from lenscarf.utils import cli
+from lenscarf.utils import cli, read_map
 from lenscarf.utils_hp import gauss_beam, almxfl
 from lenscarf.opfilt import opfilt_ee_wl
 from lenscarf import utils_scarf, utils_sims
@@ -73,7 +73,8 @@ fbl_unl =  cli(cls_unl['bb'][:lmax_ivf + 1] + (nlev_p / 180 / 60 * np.pi) ** 2 *
 # -------------------------
 # ---- Input simulation libraries. Here we use the NERSC FFP10 CMBs with homogeneous noise and consistent transfer function
 #       We define explictly the phase library such that we can use the same phases for for other purposes in the future as well if needed
-pix_phas = phas.pix_lib_phas(opj(TEMP, 'pixphas'), 3, (hp.nside2npix(nside),))
+#       I am putting here the phases in the home directory such that they dont get NERSC auto-purged
+pix_phas = phas.pix_lib_phas(opj(os.environ['HOME'], 'pixphas_nside%s'%nside), 3, (hp.nside2npix(nside),))
 sims      = maps.cmb_maps_nlev(planck2018_sims.cmb_len_ffp10(), transf, nlev_t, nlev_p, nside, pix_lib_phas=pix_phas)
 
 # Makes the simulation library consistent with the zbounds
@@ -162,8 +163,10 @@ def get_itlib(k:str, simidx:int, version:str):
     if k in ['p_p', 'p_eb']:
         tpl = None # for template projection, here set to None
         wee = k == 'p_p' # keeps or not the EE-like terms in the generalized QEs
-        filtr = opfilt_ee_wl.alm_filter_ninv_wl(ninvjob_geometry, ninv_p, ffi, transf, (lmax_unl, mmax_unl), (lmax_ivf, mmax_ivf), tr, tpl, wee=wee)
+        ninv = [sims_MAP.ztruncify(read_map(ni)) for ni in ninv_p] # inverse pixel noise map on consistent geometry
+        filtr = opfilt_ee_wl.alm_filter_ninv_wl(ninvjob_geometry, ninv, ffi, transf, (lmax_unl, mmax_unl), (lmax_ivf, mmax_ivf), tr, tpl, wee=wee)
         datmaps = np.array(sims_MAP.get_sim_pmap(simidx))
+
     else:
         assert 0
 
