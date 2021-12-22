@@ -135,7 +135,7 @@ qcls_ss = qecl.library(opj(TEMP, 'qcls_ss'), qlms_ss, qlms_ss, np.array([]))  # 
 # -------------------------
 
 
-def get_itlib(k:str, simidx:int, version:str):
+def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
     """Return iterator instance for simulation idx and qe_key type k
 
         Args:
@@ -143,7 +143,7 @@ def get_itlib(k:str, simidx:int, version:str):
             simidx: simulation index to build iterative lensing estimate on
             version: string to use to test variants of the iterator with otherwise the same parfile
                      (here if 'noMF' is in version, will not use any mean-fied at the very first step)
-
+            cg_tol: tolerance of conjugate-gradient filter
     """
     assert k in ['p_eb', 'p_p'], k
     libdir_iterator = libdir_iterators(k, simidx, version)
@@ -194,7 +194,7 @@ def get_itlib(k:str, simidx:int, version:str):
     cpp[:Lmin] *= 0.
     almxfl(plm0, cpp > 0, mmax_qlm, True)
     iterator = scarf_iterator.iterator_pertmf(libdir_iterator, 'p', (lmax_qlm, mmax_qlm), datmaps,
-            plm0, mf_resp, R_unl, cpp, cls_unl, filtr, k_geom, chain_descr, stepper, mf0=mf0)
+            plm0, mf_resp, R_unl, cpp, cls_unl, filtr, k_geom, chain_descrs(lmax_unl, cg_tol), stepper, mf0=mf0)
     return iterator
 
 if __name__ == '__main__':
@@ -209,7 +209,7 @@ if __name__ == '__main__':
 
 
     args = parser.parse_args()
-    tol_iter = lambda it : 10 ** (- args.tol) # tolerance a fct of iterations ?
+    tol_iter   = lambda it : 10 ** (- args.tol) # tolerance a fct of iterations ?
     soltn_cond = lambda it: True # Uses (or not) previous E-mode solution as input to search for current iteration one
 
     from plancklens.helpers import mpi
@@ -224,13 +224,12 @@ if __name__ == '__main__':
     for idx in jobs[mpi.rank::mpi.size]:
         lib_dir_iterator = libdir_iterators(args.k, idx, args.v)
         if args.itmax >= 0 and Rec.maxiterdone(lib_dir_iterator) < args.itmax:
-            itlib = get_itlib(args.k, idx, args.v)
+            itlib = get_itlib(args.k, idx, args.v, 1.)
             for i in range(args.itmax + 1):
                 print("****Iterator: setting cg-tol to %.4e ****"%tol_iter(i))
                 print("****Iterator: setting solcond to %s ****"%soltn_cond(i))
 
-                chain_descr = chain_descrs(lmax_unl, tol_iter(i))
-                itlib.chain_descr  = chain_descr
+                itlib.chain_descr  = chain_descrs(lmax_unl, tol_iter(i))
                 itlib.soltn_cond   = soltn_cond(i)
                 print("doing iter " + str(i))
                 itlib.iterate(i, 'p')
