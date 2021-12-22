@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 from lenscarf.utils_scarf import Geom
 from plancklens.sims import maps
