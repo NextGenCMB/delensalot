@@ -147,7 +147,7 @@ class Geom:
         return m_bnd
 
     @staticmethod
-    def get_healpix_geometry(nside:int, zbounds:tuple[float, float]=(-1., 1.)):
+    def get_healpix_geometry(nside:int, zbounds:tuple=(-1., 1.)):
         hp_geom = scarf.healpix_geometry(nside, 1)
         tbounds = np.arccos(zbounds)
         if zbounds[0] > -1. or zbounds[1] < 1.:
@@ -161,7 +161,7 @@ class Geom:
         return geom
 
     @staticmethod
-    def get_thingauss_geometry(lmax:int, smax:int, zbounds:tuple[float, float]=(-1., 1.)):
+    def get_thingauss_geometry(lmax:int, smax:int, zbounds:tuple=(-1., 1.)):
         """Build a 'thinned' Gauss-Legendre geometry, using polar optimization to reduce the number of points away from the equator
 
 
