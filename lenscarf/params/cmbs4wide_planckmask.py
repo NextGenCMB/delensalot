@@ -3,9 +3,10 @@
 
 
 FIXME's :
-    plancklens _eb etc calls T map
     plancklens independent QEs ?
-
+    degrade method of _wl_ filters
+    check of invertibility at very first step
+    mf_resp for EB-like ?
 ~ cgtol 5 ~ 100 it for QE with planck chain
 """
 import os
@@ -30,6 +31,8 @@ suffix = 'cmbs4_planckmask' # descriptor to distinguish this parfile from others
 TEMP =  opj(os.environ['SCRATCH'], 'lenscarfrecs', suffix)
 
 lmax_ivf, mmax_ivf, beam, nlev_t, nlev_p = (3000, 3000, 1., 1., np.sqrt(2.))
+
+# The fiducial transfer functions are set to zero below these lmins
 lmin_tlm, lmin_elm, lmin_blm = (2, 2, 2)  # for delensing useful to cut much more B
 
 lmax_qlm, mmax_qlm, lmax_unl, mmax_unl = (4000, 4000, 4000, 4000)
@@ -68,8 +71,6 @@ cls_len = utils.camb_clfile(opj(cls_path, 'FFP10_wdipole_lensedCls.dat'))
 transf_tlm   =  gauss_beam(beam/180 / 60 * np.pi, lmax=lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_tlm)
 transf_elm   =  gauss_beam(beam/180 / 60 * np.pi, lmax=lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_elm)
 transf_blm   =  gauss_beam(beam/180 / 60 * np.pi, lmax=lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_blm)
-
-
 
 # Isotropic approximation to the filtering (used eg for response calculations)
 ftl =  cli(cls_len['tt'][:lmax_ivf + 1] + (nlev_t / 180 / 60 * np.pi) ** 2 * cli(transf_tlm ** 2)) * (transf_tlm > 0)
@@ -175,8 +176,11 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
 
     plm0 = np.load(path_plm0)
     R_unl = qresp.get_response(k, lmax_ivf, 'p', cls_unl, cls_unl,  {'e': fel_unl, 'b': fbl_unl, 't':ftl_unl}, lmax_qlm=lmax_qlm)[0]
-    assert k in ['p_p', 'p_eb'], 'fix next line'
-    mf_resp = qresp.get_mf_resp(k, cls_unl, {'ee': fel_unl, 'bb': fbl_unl}, lmax_ivf, lmax_qlm)[0]
+    if k in ['p_p']:
+        mf_resp = qresp.get_mf_resp(k, cls_unl, {'ee': fel_unl, 'bb': fbl_unl}, lmax_ivf, lmax_qlm)[0]
+    else:
+        print('*** mf_resp not implemented for key ' + k, ', setting it to zero')
+        mf_resp = np.zeros(lmax_qlm + 1, dtype=float)
     # Lensing deflection field instance (initiated here with zero deflection)
     ffi = remapping.deflection(lenjob_pbgeometry, lensres, np.zeros_like(plm0), mmax_qlm, tr, tr)
     if k in ['p_p', 'p_eb']:
@@ -189,13 +193,13 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
 
     else:
         assert 0
-
     k_geom = filtr.ffi.geom # Customizable Geometry for position-space operations in calculations of the iterated QEs etc
     # Sets to zero all L-modes below Lmin in the iterations:
     cpp[:Lmin] *= 0.
     almxfl(plm0, cpp > 0, mmax_qlm, True)
     iterator = scarf_iterator.iterator_pertmf(libdir_iterator, 'p', (lmax_qlm, mmax_qlm), datmaps,
-            plm0, mf_resp, R_unl, cpp, cls_unl, filtr, k_geom, chain_descrs(lmax_unl, cg_tol), stepper, mf0=mf0)
+            plm0, mf_resp, R_unl, cpp, cls_unl, filtr, k_geom, chain_descrs(lmax_unl, cg_tol), stepper
+            ,mf0=mf0, wflm0=ivfs.get_sim_emliklm)
     return iterator
 
 if __name__ == '__main__':

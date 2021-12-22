@@ -70,7 +70,7 @@ class qlm_iterator(object):
                 cls_filt (dict): dictionary containing the filter cmb unlensed spectra (here, only 'ee' is required)
                 k_geom: scarf geometry for once-per-iterations opertations (like cehcking for invertibility etc)
                 stepper: custom calculation of NR-step
-
+                wflm0(optional): callable with Wiener-filtered CMB map search starting point
 
         """
         assert h in ['k', 'p', 'd']
