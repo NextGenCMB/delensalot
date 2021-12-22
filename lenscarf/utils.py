@@ -95,7 +95,7 @@ def enumerate_progress(lst:list or np.ndarray, label=''):
     sys.stdout.write("\n")
     sys.stdout.flush()
 
-def clhash(cl, dtype=np.float16):
+def clhash(cl, dtype=np.float32):
     """Hash for generic numpy array.
 
     By default we avoid here double precision checks since this might be machine dependent.

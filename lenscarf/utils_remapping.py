@@ -12,7 +12,7 @@ def _sind_d_m1(d, deriv=False):
     else:
         return - 1. / 3. * (1. -  d2 / 10. * ( 1.  - d2 / 28.))
 
-def d2ang(red, imd, tht, phi, version):
+def d2ang(red, imd, tht, phi, version, sint_dphi=False):
     """Builds deflected positions according to deflection field red, imd and undeflected coord. tht and phi.
 
         This assumes we are close to one of the pole |cos(tht)| ~ 1 and are a bit careful not to lose any precision
@@ -23,7 +23,7 @@ def d2ang(red, imd, tht, phi, version):
             tht: undeflected co-latitude coordinate
             phi: undeflected longitude
             version: either 1, 0, -1 whether we are closer to the north pole, equator or south pole
-
+            sint_dphi: if set, returns increments, with dphi increment scaled by sint
         Returns:
             deflected co-latitudes and longitudes
 
@@ -72,6 +72,10 @@ def d2ang(red, imd, tht, phi, version):
             assert np.min(tht) > np.pi * 0.4, ('wrong localization', np.min(tht))  # -- for the arcsin at the end
             thtp = np.pi - np.arcsin(sintp)
             dphi = np.arctan2(imd * sind_d, (1. - e_d) * sint + red * sind_d * (e_t - 1.))
+    if sint_dphi:
+        if version == 0: # should be calculated already
+            sint = np.sqrt(1. - cost * cost)
+        return thtp - tht, sint * dphi
     return thtp, (phi +dphi) % (2. * np.pi)
 
 

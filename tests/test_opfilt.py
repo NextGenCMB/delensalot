@@ -3,7 +3,7 @@ import os
 from time import time
 import scarf
 from lenscarf import remapping
-from lenscarf import utils_config, utils_hp, utils, utils_sht
+from lenscarf import utils_config, utils_hp, utils, utils_sht, utils_scarf
 from lenscarf import cachers
 from lenscarf.opfilt import opfilt_ee_wl, opfilt_pp
 from lenscarf.utils_scarf import Geom, scarfjob, pbdGeometry, pbounds
@@ -34,7 +34,7 @@ if not full_sky:
         IPVMAP = '/Users/jcarron/OneDrive - unige.ch/cmbs4/inputs/ipvmap.fits'
     if config in ['cmbs4_08b_healpix_onp']:
         IPVMAP = '/Users/jcarron/OneDrive - unige.ch/cmbs4/inputs/ipvmap_onpole.fits'
-
+        ninvjob, pbds, zbounds_len, zbounds_ninv = utils_config.cmbs4_08b_healpix_onp()
 else:
     ninvjob, pbds, zbounds_len, zbounds_ninv = utils_config.full_sky_healpix()
     import healpy as hp
@@ -145,19 +145,24 @@ if __name__ == '__main__':
         chain = multigrid.multigrid_chain(opfilt_file, chain_descr, cl_len, opfilt)
         chain.solve(soltn, qu_dat, dot_op=opfilt_file.dot_op(lmax_unl, mmax_unl))
 
-        qlms_g, qlms_c = qest_wl.get_qlms_wl(qu_dat, soltn, opfilt)
+        QE_geom = utils_scarf.pbdGeometry(lenjob.geom, utils_scarf.pbounds(np.pi, 2 * np.pi))
+        qlms_g, qlms_c = qest_wl.get_qlms_wl(qu_dat, soltn, opfilt, QE_geom)
+        qlms_g_EB, qlms_c_EB = qest_wl.get_qlms_wl(qu_dat, soltn, opfilt, QE_geom, wEE=False)
+
         opfilt.tim.add('qest_wl')
 
         import pylab as pl
-        from plancklens import nhl
+        from plancklens import n0s
+        #FIXME:
+        N0 = n0s.get_N0(beam_fwhm=fwhm, nlev_t=1./ np.sqrt(2.), nlev_p=1.,
+                        lmax_CMB=lmax_len,  lmin_CMB=10, lmax_out=lmax_dlm)[0]['p_p']
 
         ls = np.arange(2, lmax_dlm + 1)
         cl_unl = camb_clfile('../lenscarf/data/cls/FFP10_wdipole_lenspotentialCls.dat')
+        w = ls ** 2 * (ls + 1) ** 2 * 1e7 /2./np.pi
+        pl.loglog(ls, w *  utils_hp.alm2cl(qlms_g, qlms_g, lmax_dlm, mmax_dlm, lmax_dlm)[ls] * N0[ls] ** 2)
+        pl.loglog(ls, w *  utils_hp.alm2cl(qlms_g_EB, qlms_g_EB, lmax_dlm, mmax_dlm, lmax_dlm)[ls] * N0[ls] ** 2)
 
-        n0 = nhl.get_N0_iter('p_p', 0.35/ np.sqrt(2.), 0.35, fwhm, cl_unl, 2, lmax_len, 0, lmax_qlm=lmax_dlm)[0]
-        pl.loglog(ls, 1e7 / 2 / np.pi * ls ** 2 * (ls + 1.) ** 2 * utils_hp.alm2cl(qlms_g, qlms_g, lmax_dlm, mmax_dlm, lmax_dlm)[ls] * n0[ls] ** 2)
-        pl.loglog(ls, 1e7 / 2 / np.pi * ls ** 2 * (ls + 1.) ** 2 * n0[ls], c='k')
-        pl.loglog(ls, 1e7 / 2 / np.pi * ls ** 2 * (ls + 1.) ** 2 * cl_unl['pp'][ls])
         pl.show()
         print(opfilt._nlevp)
         print(d.tim)

@@ -18,7 +18,7 @@ pre_op_dense = None # not implemented
 class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
     def __init__(self, ninv_geom:utils_scarf.Geometry, ninv:list, ffi:remapping.deflection, transf:np.ndarray,
                  unlalm_info:tuple, lenalm_info:tuple, sht_threads:int,
-                 tpl:bni.template_dense or None, verbose=False, lmin_dotop=0):
+                 tpl:bni.template_dense or None, verbose=False, lmin_dotop=0, wee=True):
         r"""CMB inverse-variance and Wiener filtering instance, using unlensed E and lensing deflection
 
             Args:
@@ -30,6 +30,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
                 lenalm_info: tuple of int, lmax and mmax of lensed CMB
                 sht_threads: number of threads for scarf SHTs
                 verbose: some printout if set, defaults to False
+                wee: includes the EE-like term in the generalized QE
 
 
         """
@@ -46,6 +47,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         self.n_inv = ninv
         self.b_transf = transf
         self.lmin_dotop = lmin_dotop
+        self.wee = wee
 
 
         sc_job = utils_scarf.scarfjob()
@@ -243,7 +245,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         qu = qudat - self.sc_job.alm2map_spin(ebwf, 2)
         self.apply_map(qu)
         ebwf = self.sc_job.map2alm_spin(qu, 2)
-        almxfl(ebwf[0], self.b_transf * 0.5, self.mmax_len, True)  # Factor of 1/2 because of \dagger rather than ^{-1}
+        almxfl(ebwf[0], self.b_transf * 0.5 * self.wee, self.mmax_len, True)  # Factor of 1/2 because of \dagger rather than ^{-1}
         almxfl(ebwf[1], self.b_transf * 0.5, self.mmax_len, True)
         return q_pbgeom.geom.alm2map_spin(ebwf, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
 
