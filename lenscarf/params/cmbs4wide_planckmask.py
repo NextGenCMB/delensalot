@@ -77,7 +77,7 @@ pix_phas = phas.pix_lib_phas(opj(TEMP, 'pixphas'), 3, (hp.nside2npix(nside),))
 sims      = maps.cmb_maps_nlev(planck2018_sims.cmb_len_ffp10(), transf, nlev_t, nlev_p, nside, pix_lib_phas=pix_phas)
 
 # Makes the simulation library consistent with the zbounds
-sims_MAP  = utils_sims.ztrunc_sims(planck2018_sims.smica_dx12(), nside, zbounds)
+sims_MAP  = utils_sims.ztrunc_sims(sims, nside, zbounds)
 # -------------------------
 
 # List of paths to masks that will be multiplied together to give the total mask
@@ -121,18 +121,18 @@ qcls_ss = qecl.library(opj(TEMP, 'qcls_ss'), qlms_ss, qlms_ss, np.array([]))
 # -------------------------
 
 
-def get_itlib(k:str, idx:int, version:str):
+def get_itlib(k:str, simidx:int, version:str):
     """Return iterator instance for simulation idx and qe_key type k
 
         Args:
             k: 'p_p' for Pol-only, 'ptt' for T-only, 'p_eb' for EB-only, etc
-            idx: simulation index to build iterative lensing estimate on
+            simidx: simulation index to build iterative lensing estimate on
             version: string to use to test variants of the iterator with otherwise the same parfile
                      (here if 'noMF' is in version, will not use any mean-fied at the very first step)
 
     """
     assert k in ['p_eb', 'p_p'], k
-    libdir_iterator = libdir_iterators(k, idx, version)
+    libdir_iterator = libdir_iterators(k, simidx, version)
     if not os.path.exists(libdir_iterator):
         os.makedirs(libdir_iterator)
     tr = int(os.environ.get('OMP_NUM_THREADS', 8))
@@ -140,9 +140,9 @@ def get_itlib(k:str, idx:int, version:str):
     path_plm0 = opj(libdir_iterator, 'phi_plm_it000.npy')
     if not os.path.exists(path_plm0):
         # We now build the Wiener-filtered QE here since not done already
-        plm0  = qlms_dd.get_sim_qlm(k, idx)              # Unormalized quadratic estimate:
+        plm0  = qlms_dd.get_sim_qlm(k, simidx)              # Unormalized quadratic estimate:
         mf0 = qlms_dd.get_sim_qlm_mf(k, mc_sims_mf_it0 * (not 'noMF' in version))  # Mean-field to subtract on the first iteration:
-        if idx in mc_sims_mf_it0 * (not 'noMF' in version): # We dont want to include the sim we consider in the mean-field...
+        if simidx in mc_sims_mf_it0 * (not 'noMF' in version): # We dont want to include the sim we consider in the mean-field...
             mf0 =  (mf0 - plm0 / len(mc_sims_mf_it0)) / (len(mc_sims_mf_it0) - 1)
         plm0 -= mf0  # MF-subtracted unnormalized QE
         # Isotropic normalization of the QE
@@ -163,7 +163,7 @@ def get_itlib(k:str, idx:int, version:str):
         tpl = None # for template projection, here set to None
         wee = k == 'p_p' # keeps or not the EE-like terms in the generalized QEs
         filtr = opfilt_ee_wl.alm_filter_ninv_wl(ninvjob_geometry, ninv_p, ffi, transf, (lmax_unl, mmax_unl), (lmax_ivf, mmax_ivf), tr, tpl, wee=wee)
-        datmaps = np.array(sims_MAP.get_sim_pmap(idx))
+        datmaps = np.array(sims_MAP.get_sim_pmap(simidx))
     else:
         assert 0
 
