@@ -17,7 +17,8 @@ apply_fini = opfilt_ee_wl.apply_fini
 
 
 class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
-    def __init__(self, nlev_p:float, ffi:remapping.deflection, transf:np.ndarray, unlalm_info:tuple, lenalm_info:tuple, verbose=False):
+    def __init__(self, nlev_p:float, ffi:remapping.deflection, transf:np.ndarray, unlalm_info:tuple, lenalm_info:tuple,
+                 wee=True, verbose=False):
         r"""Version of alm_filter_ninv_wl for full-sky maps filtered with homogeneous noise levels
 
 
@@ -27,7 +28,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
                     transf: transfer function (beam, pixel window, mutlipole cuts, ...)
                     unlalm_info: lmax and mmax of unlensed CMB
                     lenalm_info: lmax and mmax of lensed CMB (greater or equal the transfer lmax)
-
+                    wee: includes EE-like term in generalized QE if set
 
                 Note:
                     All operations are in harmonic space.
@@ -50,6 +51,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         self.nlev_p = nlev_p
 
         self.verbose = verbose
+        self.wee = wee
         self.tim = timer(True, prefix='opfilt')
 
     def get_febl(self):
@@ -193,8 +195,8 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         almxfl(ebwf[0], self.transf, self.mmax_len, True)
         almxfl(ebwf[1], self.transf, self.mmax_len, True)
         ebwf[:] = eblm_dat - ebwf
-        almxfl(ebwf[0], self.inoise_1 * 0.5, self.mmax_len, True)  # Factor of 1/2 because of \dagger rather than ^{-1}
-        almxfl(ebwf[1], self.inoise_1 * 0.5, self.mmax_len, True)
+        almxfl(ebwf[0], self.inoise_1 * 0.5 * self.wee, self.mmax_len, True)  # Factor of 1/2 because of \dagger rather than ^{-1}
+        almxfl(ebwf[1], self.inoise_1 * 0.5,            self.mmax_len, True)
         return q_pbgeom.geom.alm2map_spin(ebwf, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
 
     def _get_gpmap(self, eblm_wf:np.ndarray or list, spin:int, q_pbgeom:utils_scarf.pbdGeometry):
