@@ -17,21 +17,21 @@ pre_op_dense = None # not implemented
 
 class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
     def __init__(self, ninv_geom:utils_scarf.Geometry, ninv:list, ffi:remapping.deflection, transf:np.ndarray,
-                 unlalm_info:tuple, lenalm_info:tuple, sht_threads:int,
-                 tpl:bni.template_dense or None, verbose=False, lmin_dotop=0, wee=True):
+                 unlalm_info:tuple, lenalm_info:tuple, sht_threads:int,tpl:bni.template_dense or None,
+                 transf_blm:np.ndarray or None=None, verbose=False, lmin_dotop=0, wee=True):
         r"""CMB inverse-variance and Wiener filtering instance, using unlensed E and lensing deflection
 
             Args:
                 ninv_geom: scarf geometry for the inverse-pixel-noise variance SHTs
                 ninv: list of inverse-pixel noise variance maps (either 1 (QQ=UU) or 3  (QQ UU and QU noise) arrays of the right size)
                 ffi: remapping.deflection instance that performs the forward and backward lensing
-                transf: CMB transfer function (assumed to be the same in E and B)
+                transf: E-CMB transfer function
                 unlalm_info: tuple of int, lmax and mmax of unlensed CMB
                 lenalm_info: tuple of int, lmax and mmax of lensed CMB
                 sht_threads: number of threads for scarf SHTs
                 verbose: some printout if set, defaults to False
                 wee: includes the EE-like term in the generalized QE
-
+                transf_blm: B-CMB transfer function (if different from E)
 
         """
         lmax_unl, mmax_unl = unlalm_info
@@ -45,7 +45,8 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         self.lmax_len = min(lmax_transf, lmax_len)
         self.mmax_len = min(mmax_len, lmax_transf)
         self.n_inv = ninv
-        self.b_transf = transf
+        self.b_transf_elm = transf
+        self.b_transf_blm = transf if transf_blm is None else transf_blm
         self.lmin_dotop = lmin_dotop
         self.wee = wee
 
@@ -73,7 +74,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         self.template = tpl # here just one template allowed
 
     def hashdict(self):
-        return {'ninv':self._ninv_hash(), 'transf':clhash(self.b_transf),
+        return {'ninv':self._ninv_hash(), 'transfe':clhash(self.b_transf_elm),'transfb':clhash(self.b_transf_blm),
                 'geom':utils_scarf.Geom.hashdict(self.sc_job.geom),
                 'deflection':self.ffi.hashdict(),
                 'unalm':(self.lmax_sol, self.mmax_sol), 'lenalm':(self.lmax_len, self.mmax_len) }
@@ -98,8 +99,9 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
                 assert 0
             self._nlevp = nlev_febl
             print('Using nlevp %.2f amin'%self._nlevp)
-        n_inv_cl_p = self.b_transf ** 2  / (self._nlevp/ 180. / 60. * np.pi) ** 2
-        return n_inv_cl_p, n_inv_cl_p.copy()
+        n_inv_cl_e = self.b_transf_elm ** 2  / (self._nlevp/ 180. / 60. * np.pi) ** 2
+        n_inv_cl_b = self.b_transf_blm ** 2  / (self._nlevp/ 180. / 60. * np.pi) ** 2
+        return n_inv_cl_e, n_inv_cl_b.copy()
 
     def dot_op(self):
         return dot_op(self.lmax_sol, self.mmax_sol, lmin=self.lmin_dotop)
@@ -147,8 +149,8 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         eblm = self.ffi.lensgclm([elm, np.zeros_like(elm)], self.mmax_sol, 2, self.lmax_len, self.mmax_len)
         tim.add('lensgclm fwd')
 
-        almxfl(eblm[0], self.b_transf, self.mmax_len, inplace=True)
-        almxfl(eblm[1], self.b_transf, self.mmax_len, inplace=True)
+        almxfl(eblm[0], self.b_transf_elm, self.mmax_len, inplace=True)
+        almxfl(eblm[1], self.b_transf_blm, self.mmax_len, inplace=True)
         tim.add('transf')
 
         qumap = self.sc_job.alm2map_spin(eblm, 2)
@@ -161,8 +163,8 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         tim.add('map2alm_spin lmax %s mmax %s nrings %s'%(self.lmax_len, self.mmax_len, self.sc_job.geom.get_nrings()))
 
         # The map2alm is here a sum rather than integral, so geom.weights are assumed to be unity
-        almxfl(eblm[0], self.b_transf, self.mmax_len, inplace=True)
-        almxfl(eblm[1], self.b_transf, self.mmax_len, inplace=True)
+        almxfl(eblm[0], self.b_transf_elm, self.mmax_len, inplace=True)
+        almxfl(eblm[1], self.b_transf_blm, self.mmax_len, inplace=True)
         tim.add('transf')
 
         # backward lensing with magn. mult. here
@@ -240,13 +242,13 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         assert np.all(self.sc_job.geom.weight == 1.) # sum rather than integrals
 
         ebwf = self.ffi.lensgclm(ebwf, self.mmax_sol, 2, self.lmax_len, self.mmax_len, False)
-        almxfl(ebwf[0], self.b_transf, self.mmax_len, True)
-        almxfl(ebwf[1], self.b_transf, self.mmax_len, True)
+        almxfl(ebwf[0], self.b_transf_elm, self.mmax_len, True)
+        almxfl(ebwf[1], self.b_transf_blm, self.mmax_len, True)
         qu = qudat - self.sc_job.alm2map_spin(ebwf, 2)
         self.apply_map(qu)
         ebwf = self.sc_job.map2alm_spin(qu, 2)
-        almxfl(ebwf[0], self.b_transf * 0.5 * self.wee, self.mmax_len, True)  # Factor of 1/2 because of \dagger rather than ^{-1}
-        almxfl(ebwf[1], self.b_transf * 0.5, self.mmax_len, True)
+        almxfl(ebwf[0], self.b_transf_elm * 0.5 * self.wee, self.mmax_len, True)  # Factor of 1/2 because of \dagger rather than ^{-1}
+        almxfl(ebwf[1], self.b_transf_blm * 0.5, self.mmax_len, True)
         return q_pbgeom.geom.alm2map_spin(ebwf, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
 
 
@@ -292,9 +294,9 @@ def calc_prep(qumaps:np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv_wl):
     ninv_filt.apply_map(qumap)
 
     eblm = ninv_filt.sc_job.map2alm_spin(qumap, 2)
-    almxfl(eblm[0], ninv_filt.b_transf, ninv_filt.mmax_len, True)
-    almxfl(eblm[1], ninv_filt.b_transf, ninv_filt.mmax_len, True)
-    elm, blm = ninv_filt.ffi.lensgclm(eblm, ninv_filt.mmax_len, 2, ninv_filt.lmax_sol,ninv_filt.mmax_sol, backwards=True)
+    almxfl(eblm[0], ninv_filt.b_transf_elm, ninv_filt.mmax_len, True)
+    almxfl(eblm[1], ninv_filt.b_transf_blm, ninv_filt.mmax_len, True)
+    elm, blm = ninv_filt.ffi.lensgclm(eblm, ninv_filt.mmax_len, 2, ninv_filt.lmax_sol, ninv_filt.mmax_sol, backwards=True)
     almxfl(elm, s_cls['ee'] > 0., ninv_filt.mmax_sol, True)
     return elm
 
