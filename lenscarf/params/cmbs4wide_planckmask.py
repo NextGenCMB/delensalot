@@ -184,7 +184,7 @@ def get_itlib(k:str, simidx:int, version:str):
         ninv = [sims_MAP.ztruncify(read_map(ni)) for ni in ninv_p] # inverse pixel noise map on consistent geometry
         filtr = opfilt_ee_wl.alm_filter_ninv_wl(ninvjob_geometry, ninv, ffi, transf_elm, (lmax_unl, mmax_unl), (lmax_ivf, mmax_ivf), tr, tpl,
                                                 wee=wee, lmin_dotop=min(lmin_elm, lmin_blm), transf_blm=transf_blm)
-        datmaps = np.array(sims_MAP.get_sim_pmap(simidx))
+        datmaps = np.array(sims_MAP.get_sim_pmap(int(simidx)))
 
     else:
         assert 0
