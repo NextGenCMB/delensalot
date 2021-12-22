@@ -25,7 +25,7 @@ from lenscarf import utils_scarf, utils_sims
 suffix = 'cmbs4_planckmask' # descriptor to distinguish this parfile from others...
 TEMP =  opj(os.environ['SCRATCH'], 'lenscarfrecs', suffix)
 
-lmin_ivf, lmax_ivf, mmax_ivf, beam, nlev_t, nlev_p = (30, 3000, 3000, 1., 1., np.sqrt(2.))
+lmin_ivf, lmax_ivf, mmax_ivf, beam, nlev_t, nlev_p = (2, 3000, 3000, 1., 1., np.sqrt(2.))
 lmax_qlm, mmax_qlm, lmax_unl, mmax_unl = (4000, 4000, 4000, 4000)
 
 #----------------- pixelization and geometry info for the input maps and the MAP pipeline and for lensing operations
@@ -164,7 +164,8 @@ def get_itlib(k:str, simidx:int, version:str):
         tpl = None # for template projection, here set to None
         wee = k == 'p_p' # keeps or not the EE-like terms in the generalized QEs
         ninv = [sims_MAP.ztruncify(read_map(ni)) for ni in ninv_p] # inverse pixel noise map on consistent geometry
-        filtr = opfilt_ee_wl.alm_filter_ninv_wl(ninvjob_geometry, ninv, ffi, transf, (lmax_unl, mmax_unl), (lmax_ivf, mmax_ivf), tr, tpl, wee=wee)
+        filtr = opfilt_ee_wl.alm_filter_ninv_wl(ninvjob_geometry, ninv, ffi, transf, (lmax_unl, mmax_unl), (lmax_ivf, mmax_ivf), tr, tpl,
+                                                wee=wee, lmin_dotop=lmin_ivf)
         datmaps = np.array(sims_MAP.get_sim_pmap(simidx))
 
     else:
