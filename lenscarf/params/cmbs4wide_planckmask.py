@@ -6,6 +6,7 @@ FIXME's :
     plancklens _eb etc calls T map
     plancklens independent QEs ?
 
+~ cgtol 5 ~ 100 it for QE with planck chain
 """
 import os
 from os.path import join as opj
@@ -48,12 +49,12 @@ stepper = steps.nrstep(lmax_qlm, mmax_qlm, val=0.5) # handler of the size steps 
 mc_sims_mf_it0 = np.arange(300) # sims to use to build the very first iteration mean-field (QE mean-field)
 
 
-# Multigrid chain descriptor (Here sticking to Planck mask one)
-# chain_descrs = lambda lmax_unl, cg_tol : [[0, ["diag_cl"], lmax_unl, nside, np.inf, cg_tol, cd_solve.tr_cg, cd_solve.cache_mem()]]
-chain_descrs = lambda lmax_sol, cg_tol :  \
-            [[2, ["split(dense(" + opj(TEMP, 'cinv_p', 'dense.pk') + "), 32, diag_cl)"], 512, 256, 3, 0.0, cd_solve.tr_cg,cd_solve.cache_mem()],
-             [1, ["split(stage(2),  512, diag_cl)"], 1024, 512, 3, 0.0, cd_solve.tr_cg, cd_solve.cache_mem()],
-             [0, ["split(stage(1), 1024, diag_cl)"], lmax_sol, nside, np.inf, cg_tol, cd_solve.tr_cg, cd_solve.cache_mem()]]
+# Multigrid chain descriptor
+chain_descrs = lambda lmax_sol, cg_tol : [[0, ["diag_cl"], lmax_sol, nside, np.inf, cg_tol, cd_solve.tr_cg, cd_solve.cache_mem()]]
+#chain_descrs = lambda lmax_sol, cg_tol :  \
+#            [[2, ["split(dense(" + opj(TEMP, 'cinv_p', 'dense.pk') + "), 32, diag_cl)"], 512, 256, 3, 0.0, cd_solve.tr_cg,cd_solve.cache_mem()],
+#             [1, ["split(stage(2),  512, diag_cl)"], 1024, 512, 3, 0.0, cd_solve.tr_cg, cd_solve.cache_mem()],
+#             [0, ["split(stage(1), 1024, diag_cl)"], lmax_sol, nside, np.inf, cg_tol, cd_solve.tr_cg, cd_solve.cache_mem()]]
 libdir_iterators = lambda qe_key, simidx, version: opj(TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
 #------------------
 
