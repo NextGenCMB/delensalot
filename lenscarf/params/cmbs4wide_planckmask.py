@@ -150,9 +150,10 @@ def get_itlib(k:str, simidx:int, version:str):
     if not os.path.exists(path_plm0):
         # We now build the Wiener-filtered QE here since not done already
         plm0  = qlms_dd.get_sim_qlm(k, simidx)              # Unormalized quadratic estimate:
-        mf0 = qlms_dd.get_sim_qlm_mf(k, mc_sims_mf_it0 * (not 'noMF' in version))  # Mean-field to subtract on the first iteration:
-        if simidx in mc_sims_mf_it0 * (not 'noMF' in version): # We dont want to include the sim we consider in the mean-field...
-            mf0 =  (mf0 - plm0 / len(mc_sims_mf_it0)) / (len(mc_sims_mf_it0) - 1)
+        mf_sims = np.unique(mc_sims_mf_it0 if not 'noMF' in version else np.array([]))
+        mf0 = qlms_dd.get_sim_qlm_mf(k, mf_sims)  # Mean-field to subtract on the first iteration:
+        if simidx in mf_sims: # We dont want to include the sim we consider in the mean-field...
+            mf0 =  (mf0 - plm0 / len(mf_sims)) / (len(mf_sims) - 1)
         plm0 -= mf0  # MF-subtracted unnormalized QE
         # Isotropic normalization of the QE
         R = qresp.get_response(k, lmax_ivf, 'p', cls_len, cls_len, {'e': fel, 'b': fbl, 't':ftl}, lmax_qlm=lmax_qlm)[0]
