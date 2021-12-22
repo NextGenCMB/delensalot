@@ -1,7 +1,9 @@
 import os
 import numpy as np
-from plancklens.utils import alm2rlm, rlm2alm
 from plancklens.helpers import cachers
+
+alm2rlm = lambda x : x
+rlm2alm = lambda x : x
 
 class rec:
     """Static methods to reach for iterated lensing maps etc
