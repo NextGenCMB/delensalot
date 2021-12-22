@@ -1,6 +1,11 @@
 """Iterative reconstruction for masked polarization CMB data
 
 
+
+FIXME's :
+    plancklens _eb etc calls T map
+    plancklens independent QEs ?
+
 """
 import os
 from os.path import join as opj
@@ -146,14 +151,17 @@ def get_itlib(k:str, simidx:int, version:str):
         os.makedirs(libdir_iterator)
     tr = int(os.environ.get('OMP_NUM_THREADS', 8))
     cpp = np.copy(cls_unl['pp'][:lmax_qlm + 1])
+
+    # QE mean-field fed in as constant piece in the iteration steps:
+    mf_sims = np.unique(mc_sims_mf_it0 if not 'noMF' in version else np.array([]))
+    mf0 = qlms_dd.get_sim_qlm_mf(k, mf_sims)  # Mean-field to subtract on the first iteration:
+    if simidx in mf_sims:  # We dont want to include the sim we consider in the mean-field...
+        mf0 = (mf0 - qlms_dd.get_sim_qlm(k, int(simidx)) / len(mf_sims)) / (len(mf_sims) - 1)
+
     path_plm0 = opj(libdir_iterator, 'phi_plm_it000.npy')
     if not os.path.exists(path_plm0):
         # We now build the Wiener-filtered QE here since not done already
-        plm0  = qlms_dd.get_sim_qlm(k, int(simidx))              # Unormalized quadratic estimate:
-        mf_sims = np.unique(mc_sims_mf_it0 if not 'noMF' in version else np.array([]))
-        mf0 = qlms_dd.get_sim_qlm_mf(k, mf_sims)  # Mean-field to subtract on the first iteration:
-        if simidx in mf_sims: # We dont want to include the sim we consider in the mean-field...
-            mf0 =  (mf0 - plm0 / len(mf_sims)) / (len(mf_sims) - 1)
+        plm0  = qlms_dd.get_sim_qlm(k, int(simidx))  #Unormalized quadratic estimate:
         plm0 -= mf0  # MF-subtracted unnormalized QE
         # Isotropic normalization of the QE
         R = qresp.get_response(k, lmax_ivf, 'p', cls_len, cls_len, {'e': fel, 'b': fbl, 't':ftl}, lmax_qlm=lmax_qlm)[0]
@@ -186,7 +194,7 @@ def get_itlib(k:str, simidx:int, version:str):
     cpp[:Lmin] *= 0.
     almxfl(plm0, cpp > 0, mmax_qlm, True)
     iterator = scarf_iterator.iterator_pertmf(libdir_iterator, 'p', (lmax_qlm, mmax_qlm), datmaps,
-            plm0, mf_resp, R_unl, cpp, cls_unl, filtr, k_geom, chain_descr, stepper)
+            plm0, mf_resp, R_unl, cpp, cls_unl, filtr, k_geom, chain_descr, stepper, mf0=mf0)
     return iterator
 
 if __name__ == '__main__':

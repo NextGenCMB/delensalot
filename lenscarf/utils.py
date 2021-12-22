@@ -130,8 +130,8 @@ def read_map(m):
         #FIXME
         import healpy as hp
         if ',' not in m:
-            return hp.read_map(m, verbose=False)
+            return hp.read_map(m)
         m, field = m.split(',')
-        return hp.read_map(m, field=int(field), verbose=False)
+        return hp.read_map(m, field=int(field))
     else:
         assert 0, 'cant tell what to do with ' + m

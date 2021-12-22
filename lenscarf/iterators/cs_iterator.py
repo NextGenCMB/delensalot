@@ -460,25 +460,35 @@ class iterator_cstmf(qlm_iterator):
 class iterator_pertmf(qlm_iterator):
     """Mean field isotropic response applied to current estimate
 
+            A constant term can also be added ('mf0')
 
     """
 
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
                  dat_maps:list or np.ndarray, plm0:np.ndarray, mf_resp:np.ndarray, pp_h0:np.ndarray,
                  cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.scarf_alm_filter_wl, k_geom:scarf.Geometry,
-                 chain_descr, stepper:steps.nrstep, **kwargs):
+                 chain_descr, stepper:steps.nrstep, mf0=None, **kwargs):
         super(iterator_pertmf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
                                              ninv_filt, k_geom, chain_descr, stepper, **kwargs)
         assert mf_resp.ndim == 1 and mf_resp.size > self.lmax_qlm, mf_resp.shape
+        if mf0 is not None:
+            assert self.lmax_qlm == Alm.getlmax(mf0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(mf0.size, self.lmax_qlm))
+            self.cacher.cache('mf', almxfl(mf0,  self._h2p(self.lmax_qlm), self.mmax_qlm, False))
         self.p_mf_resp = mf_resp
 
     def load_graddet(self, itr, key):
         assert self.h == 'p', 'check this line is ok for other h'
-        return almxfl(self.get_hlm(itr - 1, key), self.p_mf_resp * self._h2p(self.lmax_qlm), self.mmax_qlm, False)
+        mf = almxfl(self.get_hlm(itr - 1, key), self.p_mf_resp * self._h2p(self.lmax_qlm), self.mmax_qlm, False)
+        if self.cacher.is_cached('mf'):
+            mf += self.cacher.load(mf)
+        return mf
 
     def calc_graddet(self, itr, key):
         assert self.h == 'p', 'check this line is ok for other h'
-        return almxfl(self.get_hlm(itr - 1, key), self.p_mf_resp * self._h2p(self.lmax_qlm), self.mmax_qlm, False)
+        mf = almxfl(self.get_hlm(itr - 1, key), self.p_mf_resp * self._h2p(self.lmax_qlm), self.mmax_qlm, False)
+        if self.cacher.is_cached('mf'):
+            mf += self.cacher.load(mf)
+        return mf
 
 
 class iterator_simf(qlm_iterator):
