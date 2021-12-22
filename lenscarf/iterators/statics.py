@@ -2,8 +2,8 @@ import os
 import numpy as np
 from plancklens.helpers import cachers
 
-alm2rlm = lambda x : x
-rlm2alm = lambda x : x
+alm2rlm = lambda x : x.copy()
+rlm2alm = lambda x : x.copy()
 
 class rec:
     """Static methods to reach for iterated lensing maps etc
