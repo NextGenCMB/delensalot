@@ -95,7 +95,7 @@ def enumerate_progress(lst:list or np.ndarray, label=''):
     sys.stdout.write("\n")
     sys.stdout.flush()
 
-def clhash(cl, dtype=np.float16):
+def clhash(cl, dtype=np.float32):
     """Hash for generic numpy array.
 
     By default we avoid here double precision checks since this might be machine dependent.
@@ -120,7 +120,7 @@ def read_map(m):
     if isinstance(m, list):
         ma = read_map(m[0])
         for m2 in m[1:]:
-            ma *= read_map(m2)
+            ma = ma * read_map(m2) # avoiding *= to allow float and full map inputs
         return ma
     if not isinstance(m, str):
         return m

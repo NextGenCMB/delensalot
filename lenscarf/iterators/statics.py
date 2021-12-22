@@ -1,9 +1,7 @@
 import os
 import numpy as np
-from plancklens.utils import alm2rlm, rlm2alm, clhash
-from itercurv.remapping import cachers
-from itercurv.remapping import remapping
-import healpy as hp
+from plancklens.utils import alm2rlm, rlm2alm
+from plancklens.helpers import cachers
 
 class rec:
     """Static methods to reach for iterated lensing maps etc
@@ -75,17 +73,3 @@ class rec:
         for i in range(itr):
             rlm += cacher.load(yk_fname(i))
         return rlm2alm(rlm)
-
-    @staticmethod
-    def get_btemplate(it_libdir, elm, itr, pbounds, zbounds_len, lmax_b=2048, cache=False):
-        """Att: pbounds for some itlibs  not others """
-        ffi_libdir = it_libdir + '/ffi_p_it%s' % itr
-        fname = ffi_libdir + '/blm_%04d_%s_lmax%s.fits' % (itr, clhash(elm.real), lmax_b)
-        if not os.path.exists(fname) or not cache:
-            ffi = remapping.cached_deflection(ffi_libdir, 2048, 1, facres=-1, zbounds=zbounds_len, pbounds=pbounds)
-            blm = ffi.lens_gclm(2, elm, lmax_len=lmax_b)[1]
-            if cache:
-                hp.write_alm(fname, blm)
-            return blm
-        print("loading " + fname)
-        return hp.read_alm(fname)

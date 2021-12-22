@@ -1,3 +1,4 @@
+from __future__ import annotations
 import os
 import numpy as np
 import scarf
@@ -147,6 +148,49 @@ class Geom:
         return m_bnd
 
     @staticmethod
+    def get_healpix_geometry(nside:int, zbounds:tuple[float, float]=(-1., 1.)):
+        hp_geom = scarf.healpix_geometry(nside, 1)
+        tbounds = np.arccos(zbounds)
+        if zbounds[0] > -1. or zbounds[1] < 1.:
+            ri, = np.where( (hp_geom.theta >= tbounds[1]) & (hp_geom.theta <= tbounds[0]))
+            assert ri.size > 0, 'empty geometry'
+            nph = hp_geom.nph[ri]
+            ofs = hp_geom.ofs[ri] - np.min(hp_geom.ofs[ri])
+            geom = scarf.Geometry(ri.size, nph, ofs, 1, hp_geom.phi0[ri], hp_geom.theta[ri], hp_geom.weight[ri])
+        else:
+            geom = hp_geom
+        return geom
+
+    @staticmethod
+    def get_thingauss_geometry(lmax:int, smax:int, zbounds:tuple[float, float]=(-1., 1.)):
+        """Build a 'thinned' Gauss-Legendre geometry, using polar optimization to reduce the number of points away from the equator
+
+
+            Args:
+                lmax: band-limit (or desired band-limit) on the equator
+                smax: maximal intended spin-value (this changes the m-truncation by an amount ~smax)
+                zbounds: pixels outside of provided cos-colatitude bounds will be discarded
+
+            Note:
+                'thinning' saves memory but hardly any computational time for the same latitude range
+
+
+        """
+        nlatf = lmax + 1  # full meridian GL points
+        tht = np.arccos(scarf.GL_xg(nlatf))
+        tb = np.sort(np.arccos(zbounds))
+        p = np.where((tb[0] <= tht) & (tht <= tb[1]))
+
+        tht = tht[p]
+        wt = scarf.GL_wg(nlatf)[p]
+        nlat = tht.size
+        phi0 = np.zeros(nlat, dtype=float)
+        mmax = np.minimum(np.maximum(st2mmax(smax, tht, lmax), st2mmax(-smax, tht, lmax)), np.ones(nlat) * lmax)
+        nph = lowprimes(np.ceil(2 * mmax + 1))
+        ofs = np.insert(np.cumsum(nph[:-1]), 0, 0)
+        return scarf.Geometry(nlat, nph, ofs, 1, phi0, tht, wt * (2 * np.pi / nph ))
+
+    @staticmethod
     def hashdict(geom:scarf.Geometry):
         """Returns a hash dictionary from scarf geometry
 
@@ -180,16 +224,7 @@ class scarfjob:
         return np.sum(self.geom.nph)
 
     def set_healpix_geometry(self, nside, zbounds=(-1,1.)):
-        hp_geom = scarf.healpix_geometry(nside, 1)
-        tbounds = np.arccos(zbounds)
-        if zbounds[0] > -1. or zbounds[1] < 1.:
-            ri, = np.where( (hp_geom.theta >= tbounds[1]) & (hp_geom.theta <= tbounds[0]))
-            assert ri.size > 0, 'empty geometry'
-            nph = hp_geom.nph[ri]
-            ofs = hp_geom.ofs[ri] - np.min(hp_geom.ofs[ri])
-            self.geom = scarf.Geometry(ri.size, nph, ofs, 1, hp_geom.phi0[ri], hp_geom.theta[ri], hp_geom.weight[ri])
-        else:
-            self.geom = hp_geom
+        self.geom = Geom.get_healpix_geometry(nside, zbounds=zbounds)
 
     def set_ecp_geometry(self, nlat, nlon, phi_center=np.pi, tbounds=(0., np.pi)):
         r"""Cylindrical grid equidistant in longitude and latitudes, between the provided co-latitude bounds
@@ -244,19 +279,7 @@ class scarfjob:
 
 
         """
-        nlatf = lmax + 1  # full meridian GL points
-        tht = np.arccos(scarf.GL_xg(nlatf))
-        tb = np.sort(np.arccos(zbounds))
-        p = np.where((tb[0] <= tht) & (tht <= tb[1]))
-
-        tht = tht[p]
-        wt = scarf.GL_wg(nlatf)[p]
-        nlat = tht.size
-        phi0 = np.zeros(nlat, dtype=float)
-        mmax = np.minimum(np.maximum(st2mmax(smax, tht, lmax), st2mmax(-smax, tht, lmax)), np.ones(nlat) * lmax)
-        nph = lowprimes(np.ceil(2 * mmax + 1))
-        ofs = np.insert(np.cumsum(nph[:-1]), 0, 0)
-        self.geom = scarf.Geometry(nlat, nph, ofs, 1, phi0, tht, wt * (2 * np.pi / nph ))
+        self.geom = Geom.get_thingauss_geometry(lmax, smax, zbounds=zbounds)
 
     def set_pixel_geometry(self, tht:float or np.ndarray, phi:float or np.ndarray):
         """Single ring with two phis
