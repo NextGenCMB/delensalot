@@ -1,4 +1,4 @@
-"""Iterative reconstruction for idealized pol data
+"""Iterative reconstruction for masked polarization CMB data
 
 
 """
@@ -168,7 +168,8 @@ def get_itlib(k:str, simidx:int, version:str):
     R_unl = qresp.get_response(k, lmax_ivf, 'p', cls_unl, cls_unl,  {'e': fel_unl, 'b': fbl_unl, 't':ftl_unl}, lmax_qlm=lmax_qlm)[0]
     assert k in ['p_p', 'p_eb'], 'fix next line'
     mf_resp = qresp.get_mf_resp(k, cls_unl, {'ee': fel_unl, 'bb': fbl_unl}, lmax_ivf, lmax_qlm)[0]
-    ffi = remapping.deflection(lenjob_geometry, lensres, np.zeros_like(plm0), mmax_qlm, tr, tr)
+    # Lensing deflection field instance (initiated here with zero deflection)
+    ffi = remapping.deflection(lenjob_pbgeometry, lensres, np.zeros_like(plm0), mmax_qlm, tr, tr)
     if k in ['p_p', 'p_eb']:
         tpl = None # for template projection, here set to None
         wee = k == 'p_p' # keeps or not the EE-like terms in the generalized QEs
