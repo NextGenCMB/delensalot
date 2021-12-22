@@ -2,7 +2,6 @@
 
 
 """
-
 import os
 from os.path import join as opj
 import numpy as np
@@ -54,9 +53,10 @@ libdir_iterators = lambda qe_key, simidx, version: opj(TEMP,'%s_sim%04d'%(qe_key
 #------------------
 
 # Fiducial CMB spectra for QE and iterative reconstructions
-cls_path = os.path.join(os.path.dirname(plancklens.__file__), 'data', 'cls')
-cls_unl = utils.camb_clfile(os.path.join(cls_path, 'FFP10_wdipole_lenspotentialCls.dat'))
-cls_len = utils.camb_clfile(os.path.join(cls_path, 'FFP10_wdipole_lensedCls.dat'))
+# (here we use very lightly suboptimal lensed spectra QE weights)
+cls_path = opj(os.path.dirname(plancklens.__file__), 'data', 'cls')
+cls_unl = utils.camb_clfile(opj(cls_path, 'FFP10_wdipole_lenspotentialCls.dat'))
+cls_len = utils.camb_clfile(opj(cls_path, 'FFP10_wdipole_lensedCls.dat'))
 
 # Fiducial model of the transfer function
 transf_tlm   =  gauss_beam(beam/180 / 60 * np.pi, lmax=lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_tlm)
@@ -81,7 +81,7 @@ fbl_unl =  cli(cls_unl['bb'][:lmax_ivf + 1] + (nlev_p / 180 / 60 * np.pi) ** 2 *
 #       I am putting here the phases in the home directory such that they dont get NERSC auto-purged
 pix_phas = phas.pix_lib_phas(opj(os.environ['HOME'], 'pixphas_nside%s'%nside), 3, (hp.nside2npix(nside),))
 #       actual data transfer function for the sim generation:
-transf_dat =  gauss_beam(beam/180 / 60 * np.pi, lmax=4096) # taking here full FFP10 cmb's
+transf_dat =  gauss_beam(beam / 180 / 60 * np.pi, lmax=4096) # taking here full FFP10 cmb's
 sims      = maps.cmb_maps_nlev(planck2018_sims.cmb_len_ffp10(), transf_dat, nlev_t, nlev_p, nside, pix_lib_phas=pix_phas)
 
 # Makes the simulation library consistent with the zbounds
@@ -125,8 +125,8 @@ qlms_ds = qest.library_sepTP(opj(TEMP, 'qlms_ds'), ivfs, ivfs_d, cls_len['te'], 
 qlms_ss = qest.library_sepTP(opj(TEMP, 'qlms_ss'), ivfs, ivfs_s, cls_len['te'], nside, lmax_qlm=lmax_qlm)
 
 qcls_dd = qecl.library(opj(TEMP, 'qcls_dd'), qlms_dd, qlms_dd, mc_sims_bias)
-qcls_ds = qecl.library(opj(TEMP, 'qcls_ds'), qlms_ds, qlms_ds, np.array([]))
-qcls_ss = qecl.library(opj(TEMP, 'qcls_ss'), qlms_ss, qlms_ss, np.array([]))
+qcls_ds = qecl.library(opj(TEMP, 'qcls_ds'), qlms_ds, qlms_ds, np.array([]))  # for QE RDN0 calculations
+qcls_ss = qecl.library(opj(TEMP, 'qcls_ss'), qlms_ss, qlms_ss, np.array([]))  # for QE RDN0 / MCN0 calculations
 # -------------------------
 
 
@@ -149,7 +149,7 @@ def get_itlib(k:str, simidx:int, version:str):
     path_plm0 = opj(libdir_iterator, 'phi_plm_it000.npy')
     if not os.path.exists(path_plm0):
         # We now build the Wiener-filtered QE here since not done already
-        plm0  = qlms_dd.get_sim_qlm(k, simidx)              # Unormalized quadratic estimate:
+        plm0  = qlms_dd.get_sim_qlm(k, int(simidx))              # Unormalized quadratic estimate:
         mf_sims = np.unique(mc_sims_mf_it0 if not 'noMF' in version else np.array([]))
         mf0 = qlms_dd.get_sim_qlm_mf(k, mf_sims)  # Mean-field to subtract on the first iteration:
         if simidx in mf_sims: # We dont want to include the sim we consider in the mean-field...
@@ -222,6 +222,6 @@ if __name__ == '__main__':
 
                 chain_descr = chain_descrs(lmax_unl, tol_iter(i))
                 itlib.chain_descr  = chain_descr
-                itlib.soltn_cond = soltn_cond(i)
+                itlib.soltn_cond   = soltn_cond(i)
                 print("doing iter " + str(i))
                 itlib.iterate(i, 'p')
