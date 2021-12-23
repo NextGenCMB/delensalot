@@ -1,6 +1,13 @@
-"""Iterative reconstruction for idealized pol data
+"""Iterative reconstruction for masked polarization CMB data
 
 
+
+FIXME's :
+    plancklens independent QEs ?
+    degrade method of _wl_ filters
+    check of invertibility at very first step
+    mf_resp for EB-like ?
+~ cgtol 5 ~ 100 it for QE with planck chain
 """
 import os
 from os.path import join as opj
@@ -24,6 +31,8 @@ suffix = 'cmbs4_planckmask' # descriptor to distinguish this parfile from others
 TEMP =  opj(os.environ['SCRATCH'], 'lenscarfrecs', suffix)
 
 lmax_ivf, mmax_ivf, beam, nlev_t, nlev_p = (3000, 3000, 1., 1., np.sqrt(2.))
+
+# The fiducial transfer functions are set to zero below these lmins
 lmin_tlm, lmin_elm, lmin_blm = (2, 2, 2)  # for delensing useful to cut much more B
 
 lmax_qlm, mmax_qlm, lmax_unl, mmax_unl = (4000, 4000, 4000, 4000)
@@ -43,12 +52,12 @@ stepper = steps.nrstep(lmax_qlm, mmax_qlm, val=0.5) # handler of the size steps 
 mc_sims_mf_it0 = np.arange(300) # sims to use to build the very first iteration mean-field (QE mean-field)
 
 
-# Multigrid chain descriptor (Here sticking to Planck mask one)
-# chain_descrs = lambda lmax_unl, cg_tol : [[0, ["diag_cl"], lmax_unl, nside, np.inf, cg_tol, cd_solve.tr_cg, cd_solve.cache_mem()]]
-chain_descrs = lambda lmax_sol, cg_tol :  \
-            [[2, ["split(dense(" + opj(TEMP, 'cinv_p', 'dense.pk') + "), 32, diag_cl)"], 512, 256, 3, 0.0, cd_solve.tr_cg,cd_solve.cache_mem()],
-             [1, ["split(stage(2),  512, diag_cl)"], 1024, 512, 3, 0.0, cd_solve.tr_cg, cd_solve.cache_mem()],
-             [0, ["split(stage(1), 1024, diag_cl)"], lmax_sol, nside, np.inf, cg_tol, cd_solve.tr_cg, cd_solve.cache_mem()]]
+# Multigrid chain descriptor
+chain_descrs = lambda lmax_sol, cg_tol : [[0, ["diag_cl"], lmax_sol, nside, np.inf, cg_tol, cd_solve.tr_cg, cd_solve.cache_mem()]]
+#chain_descrs = lambda lmax_sol, cg_tol :  \
+#            [[2, ["split(dense(" + opj(TEMP, 'cinv_p', 'dense.pk') + "), 32, diag_cl)"], 512, 256, 3, 0.0, cd_solve.tr_cg,cd_solve.cache_mem()],
+#             [1, ["split(stage(2),  512, diag_cl)"], 1024, 512, 3, 0.0, cd_solve.tr_cg, cd_solve.cache_mem()],
+#             [0, ["split(stage(1), 1024, diag_cl)"], lmax_sol, nside, np.inf, cg_tol, cd_solve.tr_cg, cd_solve.cache_mem()]]
 libdir_iterators = lambda qe_key, simidx, version: opj(TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
 #------------------
 
@@ -62,8 +71,6 @@ cls_len = utils.camb_clfile(opj(cls_path, 'FFP10_wdipole_lensedCls.dat'))
 transf_tlm   =  gauss_beam(beam/180 / 60 * np.pi, lmax=lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_tlm)
 transf_elm   =  gauss_beam(beam/180 / 60 * np.pi, lmax=lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_elm)
 transf_blm   =  gauss_beam(beam/180 / 60 * np.pi, lmax=lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_blm)
-
-
 
 # Isotropic approximation to the filtering (used eg for response calculations)
 ftl =  cli(cls_len['tt'][:lmax_ivf + 1] + (nlev_t / 180 / 60 * np.pi) ** 2 * cli(transf_tlm ** 2)) * (transf_tlm > 0)
@@ -130,7 +137,7 @@ qcls_ss = qecl.library(opj(TEMP, 'qcls_ss'), qlms_ss, qlms_ss, np.array([]))  # 
 # -------------------------
 
 
-def get_itlib(k:str, simidx:int, version:str):
+def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
     """Return iterator instance for simulation idx and qe_key type k
 
         Args:
@@ -138,7 +145,7 @@ def get_itlib(k:str, simidx:int, version:str):
             simidx: simulation index to build iterative lensing estimate on
             version: string to use to test variants of the iterator with otherwise the same parfile
                      (here if 'noMF' is in version, will not use any mean-fied at the very first step)
-
+            cg_tol: tolerance of conjugate-gradient filter
     """
     assert k in ['p_eb', 'p_p'], k
     libdir_iterator = libdir_iterators(k, simidx, version)
@@ -146,14 +153,17 @@ def get_itlib(k:str, simidx:int, version:str):
         os.makedirs(libdir_iterator)
     tr = int(os.environ.get('OMP_NUM_THREADS', 8))
     cpp = np.copy(cls_unl['pp'][:lmax_qlm + 1])
+
+    # QE mean-field fed in as constant piece in the iteration steps:
+    mf_sims = np.unique(mc_sims_mf_it0 if not 'noMF' in version else np.array([]))
+    mf0 = qlms_dd.get_sim_qlm_mf(k, mf_sims)  # Mean-field to subtract on the first iteration:
+    if simidx in mf_sims:  # We dont want to include the sim we consider in the mean-field...
+        mf0 = (mf0 - qlms_dd.get_sim_qlm(k, int(simidx)) / len(mf_sims)) / (len(mf_sims) - 1)
+
     path_plm0 = opj(libdir_iterator, 'phi_plm_it000.npy')
     if not os.path.exists(path_plm0):
         # We now build the Wiener-filtered QE here since not done already
-        plm0  = qlms_dd.get_sim_qlm(k, int(simidx))              # Unormalized quadratic estimate:
-        mf_sims = np.unique(mc_sims_mf_it0 if not 'noMF' in version else np.array([]))
-        mf0 = qlms_dd.get_sim_qlm_mf(k, mf_sims)  # Mean-field to subtract on the first iteration:
-        if simidx in mf_sims: # We dont want to include the sim we consider in the mean-field...
-            mf0 =  (mf0 - plm0 / len(mf_sims)) / (len(mf_sims) - 1)
+        plm0  = qlms_dd.get_sim_qlm(k, int(simidx))  #Unormalized quadratic estimate:
         plm0 -= mf0  # MF-subtracted unnormalized QE
         # Isotropic normalization of the QE
         R = qresp.get_response(k, lmax_ivf, 'p', cls_len, cls_len, {'e': fel, 'b': fbl, 't':ftl}, lmax_qlm=lmax_qlm)[0]
@@ -166,26 +176,30 @@ def get_itlib(k:str, simidx:int, version:str):
 
     plm0 = np.load(path_plm0)
     R_unl = qresp.get_response(k, lmax_ivf, 'p', cls_unl, cls_unl,  {'e': fel_unl, 'b': fbl_unl, 't':ftl_unl}, lmax_qlm=lmax_qlm)[0]
-    assert k in ['p_p', 'p_eb'], 'fix next line'
-    mf_resp = qresp.get_mf_resp(k, cls_unl, {'ee': fel_unl, 'bb': fbl_unl}, lmax_ivf, lmax_qlm)[0]
-    ffi = remapping.deflection(lenjob_geometry, lensres, np.zeros_like(plm0), mmax_qlm, tr, tr)
+    if k in ['p_p']:
+        mf_resp = qresp.get_mf_resp(k, cls_unl, {'ee': fel_unl, 'bb': fbl_unl}, lmax_ivf, lmax_qlm)[0]
+    else:
+        print('*** mf_resp not implemented for key ' + k, ', setting it to zero')
+        mf_resp = np.zeros(lmax_qlm + 1, dtype=float)
+    # Lensing deflection field instance (initiated here with zero deflection)
+    ffi = remapping.deflection(lenjob_pbgeometry, lensres, np.zeros_like(plm0), mmax_qlm, tr, tr)
     if k in ['p_p', 'p_eb']:
         tpl = None # for template projection, here set to None
         wee = k == 'p_p' # keeps or not the EE-like terms in the generalized QEs
         ninv = [sims_MAP.ztruncify(read_map(ni)) for ni in ninv_p] # inverse pixel noise map on consistent geometry
         filtr = opfilt_ee_wl.alm_filter_ninv_wl(ninvjob_geometry, ninv, ffi, transf_elm, (lmax_unl, mmax_unl), (lmax_ivf, mmax_ivf), tr, tpl,
                                                 wee=wee, lmin_dotop=min(lmin_elm, lmin_blm), transf_blm=transf_blm)
-        datmaps = np.array(sims_MAP.get_sim_pmap(simidx))
+        datmaps = np.array(sims_MAP.get_sim_pmap(int(simidx)))
 
     else:
         assert 0
-
     k_geom = filtr.ffi.geom # Customizable Geometry for position-space operations in calculations of the iterated QEs etc
     # Sets to zero all L-modes below Lmin in the iterations:
     cpp[:Lmin] *= 0.
     almxfl(plm0, cpp > 0, mmax_qlm, True)
     iterator = scarf_iterator.iterator_pertmf(libdir_iterator, 'p', (lmax_qlm, mmax_qlm), datmaps,
-            plm0, mf_resp, R_unl, cpp, cls_unl, filtr, k_geom, chain_descr, stepper)
+            plm0, mf_resp, R_unl, cpp, cls_unl, filtr, k_geom, chain_descrs(lmax_unl, cg_tol), stepper
+            ,mf0=mf0, wflm0=ivfs.get_sim_emliklm)
     return iterator
 
 if __name__ == '__main__':
@@ -200,7 +214,7 @@ if __name__ == '__main__':
 
 
     args = parser.parse_args()
-    tol_iter = lambda it : 10 ** (- args.tol) # tolerance a fct of iterations ?
+    tol_iter   = lambda it : 10 ** (- args.tol) # tolerance a fct of iterations ?
     soltn_cond = lambda it: True # Uses (or not) previous E-mode solution as input to search for current iteration one
 
     from plancklens.helpers import mpi
@@ -215,13 +229,12 @@ if __name__ == '__main__':
     for idx in jobs[mpi.rank::mpi.size]:
         lib_dir_iterator = libdir_iterators(args.k, idx, args.v)
         if args.itmax >= 0 and Rec.maxiterdone(lib_dir_iterator) < args.itmax:
-            itlib = get_itlib(args.k, idx, args.v)
+            itlib = get_itlib(args.k, idx, args.v, 1.)
             for i in range(args.itmax + 1):
                 print("****Iterator: setting cg-tol to %.4e ****"%tol_iter(i))
                 print("****Iterator: setting solcond to %s ****"%soltn_cond(i))
 
-                chain_descr = chain_descrs(lmax_unl, tol_iter(i))
-                itlib.chain_descr  = chain_descr
+                itlib.chain_descr  = chain_descrs(lmax_unl, tol_iter(i))
                 itlib.soltn_cond   = soltn_cond(i)
                 print("doing iter " + str(i))
                 itlib.iterate(i, 'p')
