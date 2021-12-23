@@ -278,7 +278,9 @@ class pre_op_diag:
 
 
 def calc_prep(eblm:np.ndarray, s_cls:dict, ninv_filt:alm_filter_nlev_wl):
-    """cg-inversion pre-operation  (D^t B^t N^{-1} X^{dat})
+    """cg-inversion pre-operation
+
+        This performs :math:`(D^t B^t N^{-1} X^{\rm dat})`
 
         Args:
             eblm: input data polarisation elm and blm
