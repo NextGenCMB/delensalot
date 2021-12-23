@@ -18,6 +18,15 @@ dot_op = opfilt_ee_wl.dot_op
 fwd_op = opfilt_ee_wl.fwd_op
 apply_fini = opfilt_ee_wl.apply_fini
 
+def _extend_cl(cl, lmax):
+    """Forces input to an array of size lmax + 1
+
+    """
+    if np.isscalar(cl):
+        return np.ones(lmax + 1, dtype=float) * cl
+    ret = np.zeros(lmax + 1, dtype=float)
+    ret[:min(len(cl), lmax+1)]= np.copy(cl[:min(len(cl), lmax+1)])
+    return ret
 
 class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
     def __init__(self, nlev_p:float or np.ndarray, ffi:remapping.deflection, transf:np.ndarray, unlalm_info:tuple, lenalm_info:tuple,
@@ -26,12 +35,15 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
 
 
                 Args:
-                    nlev_p: filtering noise level in uK-amin
+                    nlev_p: CMB-E filtering noise level in uK-amin
+                            (to input colored noise cls, can feed in an array. Size must match that of the transfer fct)
                     ffi: lenscarf deflection instance
                     transf: CMB E-mode transfer function (beam, pixel window, mutlipole cuts, ...)
                     unlalm_info: lmax and mmax of unlensed CMB
                     lenalm_info: lmax and mmax of lensed CMB (greater or equal the transfer lmax)
                     transf_b(optional): CMB B-mode transfer function (if different from E)
+                    nlev_b(optional): CMB-B filtering noise level in uK-amin
+                             (to input colored noise cls, can feed in an array. Size must match that of the transfer fct)
                     wee: includes EE-like term in generalized QE if set
 
                 Note:
@@ -51,22 +63,20 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         self.lmax_len = min(lmax_len, lmax_transf)
         self.mmax_len = min(mmax_len, self.lmax_len)
 
-        transf_elm = np.zeros(self.lmax_len + 1)
-        transf_elm[:len(transf)] = transf
-        transf_blm = np.zeros(self.lmax_len + 1)
-        transf_blm[:len(transf_b)] = transf_b
+        transf_elm = transf
+        transf_blm = transf if transf_b is not None else transf_b
 
-        self.inoise_2_elm  = transf_elm[:self.lmax_len + 1] ** 2 / (nlev_e / 180 / 60 * np.pi) ** 2
-        self.inoise_1_elm  = transf_elm[:self.lmax_len + 1] ** 1 / (nlev_e / 180 / 60 * np.pi) ** 2
+        self.inoise_2_elm  = _extend_cl(transf_elm ** 2 / (nlev_e / 180 / 60 * np.pi) ** 2, lmax_len)
+        self.inoise_1_elm  = _extend_cl(transf_elm ** 1 / (nlev_e / 180 / 60 * np.pi) ** 2, lmax_len)
 
-        self.inoise_2_blm = transf_blm[:self.lmax_len + 1] ** 2 / (nlev_b / 180 / 60 * np.pi) ** 2
-        self.inoise_1_blm = transf_blm[:self.lmax_len + 1] ** 1 / (nlev_b / 180 / 60 * np.pi) ** 2
+        self.inoise_2_blm = _extend_cl(transf_blm ** 2 / (nlev_b / 180 / 60 * np.pi) ** 2, lmax_len)
+        self.inoise_1_blm = _extend_cl(transf_blm ** 1 / (nlev_b / 180 / 60 * np.pi) ** 2, lmax_len)
 
-        self.transf_elm  = transf_elm[:self.lmax_len + 1]
-        self.transf_blm  = transf_blm[:self.lmax_len + 1]
+        self.transf_elm  = _extend_cl(transf_elm, lmax_len)
+        self.transf_blm  = _extend_cl(transf_blm, lmax_len)
 
-        self.nlev_elm = nlev_e
-        self.nlev_blm = nlev_b
+        self.nlev_elm = _extend_cl(nlev_e, lmax_len)
+        self.nlev_blm = _extend_cl(nlev_b, lmax_len)
 
         self.verbose = verbose
         self.wee = wee
