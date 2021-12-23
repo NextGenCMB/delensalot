@@ -95,10 +95,7 @@ sims      = maps.cmb_maps_nlev(planck2018_sims.cmb_len_ffp10(), transf_dat, nlev
 sims_MAP  = utils_sims.ztrunc_sims(sims, nside, [zbounds])
 # -------------------------
 
-ftl_rs = np.ones(lmax_ivf + 1, dtype=float) * (np.arange(lmax_ivf + 1) >= lmin_tlm)
-fel_rs = np.ones(lmax_ivf + 1, dtype=float) * (np.arange(lmax_ivf + 1) >= lmin_elm)
-fbl_rs = np.ones(lmax_ivf + 1, dtype=float) * (np.arange(lmax_ivf + 1) >= lmin_blm)
-ivfs   = filt_simple.library_fullsky_sepTP(opj(TEMP, 'ivfs'), sims, nside, transf_d, cls_len, ftl, fel, fbl, cache=False)
+ivfs   = filt_simple.library_fullsky_sepTP(opj(TEMP, 'ivfs'), sims, nside, transf_d, cls_len, ftl, fel, fbl, cache=True)
 
 # ---- QE libraries from plancklens to calculate unnormalized QE (qlms) and their spectra (qcls)
 mc_sims_bias = np.arange(60, dtype=int)
