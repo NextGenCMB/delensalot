@@ -9,7 +9,6 @@ FIXME's :
     degrade method of _wl_ filters
     check of invertibility at very first step
     mf_resp for EB-like ?
-    feed in alms not maps
 """
 import os
 from os.path import join as opj
@@ -179,7 +178,7 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
         # Here multipole cuts are set by the transfer function (those with 0 are not considered)
         filtr = alm_filter_nlev_wl(nlev_p, ffi, transf_elm, (lmax_unl, mmax_unl), (lmax_ivf, mmax_ivf),
                                    wee=wee, transf_b=transf_blm, nlev_b=nlev_p)
-        # dat maps now given in harmonic in this idealized configuration
+        # dat maps must now be given in harmonic space in this idealized configuration
         sht_job = utils_scarf.scarfjob()
         sht_job.set_geometry(ninvjob_geometry)
         sht_job.set_triangular_alm_info(lmax_ivf,mmax_ivf)

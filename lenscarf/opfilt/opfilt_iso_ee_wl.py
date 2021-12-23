@@ -253,6 +253,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
 class pre_op_diag:
     """Cg-inversion diagonal preconditioner
 
+
     """
     def __init__(self, s_cls:dict, ninv_filt:alm_filter_nlev_wl):
         assert len(s_cls['ee']) > ninv_filt.lmax_sol, (ninv_filt.lmax_sol, len(s_cls['ee']))
@@ -280,7 +281,7 @@ class pre_op_diag:
 def calc_prep(eblm:np.ndarray, s_cls:dict, ninv_filt:alm_filter_nlev_wl):
     """cg-inversion pre-operation
 
-        This performs :math:`(D^t B^t N^{-1} X^{\rm dat})`
+        This performs :math:`D_\phi^t B^t N^{-1} X^{\rm dat}`
 
         Args:
             eblm: input data polarisation elm and blm
