@@ -189,7 +189,7 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
     almxfl(plm0, cpp > 0, mmax_qlm, True)
     iterator = scarf_iterator.iterator_pertmf(libdir_iterator, 'p', (lmax_qlm, mmax_qlm), datmaps,
             plm0, mf_resp, R_unl, cpp, cls_unl, filtr, k_geom, chain_descrs(lmax_unl, cg_tol), stepper
-            ,mf0=mf0, wflm0=ivfs.get_sim_emliklm)
+            ,mf0=mf0, wflm0=lambda : ivfs.get_sim_emliklm(simidx))
     return iterator
 
 if __name__ == '__main__':
