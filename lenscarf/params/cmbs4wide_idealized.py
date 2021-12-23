@@ -9,6 +9,7 @@ FIXME's :
     degrade method of _wl_ filters
     check of invertibility at very first step
     mf_resp for EB-like ?
+    feed in alms not maps
 """
 import os
 from os.path import join as opj
@@ -20,7 +21,7 @@ import plancklens
 from plancklens import utils, qresp, qest, qecl
 from plancklens.qcinv import cd_solve
 from plancklens.sims import maps, phas, planck2018_sims
-from plancklens.filt import filt_cinv, filt_util
+from plancklens.filt import filt_simple, filt_util
 
 from lenscarf import remapping, utils_scarf, utils_sims
 from lenscarf.iterators import cs_iterator as scarf_iterator, steps
@@ -71,7 +72,7 @@ cls_len = utils.camb_clfile(opj(cls_path, 'FFP10_wdipole_lensedCls.dat'))
 transf_tlm   =  gauss_beam(beam/180 / 60 * np.pi, lmax=lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_tlm)
 transf_elm   =  gauss_beam(beam/180 / 60 * np.pi, lmax=lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_elm)
 transf_blm   =  gauss_beam(beam/180 / 60 * np.pi, lmax=lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_blm)
-
+transf_d = {'t':transf_tlm, 'e':transf_elm, 'b':transf_blm}
 # Isotropic approximation to the filtering (used eg for response calculations)
 ftl =  cli(cls_len['tt'][:lmax_ivf + 1] + (nlev_t / 180 / 60 * np.pi) ** 2 * cli(transf_tlm ** 2)) * (transf_tlm > 0)
 fel =  cli(cls_len['ee'][:lmax_ivf + 1] + (nlev_p / 180 / 60 * np.pi) ** 2 * cli(transf_elm ** 2)) * (transf_elm > 0)
@@ -95,25 +96,10 @@ sims      = maps.cmb_maps_nlev(planck2018_sims.cmb_len_ffp10(), transf_dat, nlev
 sims_MAP  = utils_sims.ztrunc_sims(sims, nside, [zbounds])
 # -------------------------
 
-# List of paths to masks that will be multiplied together to give the total mask
-masks = [] # No masks here
-
-
-# List of the inverse noise pixel variance maps, all will be multiplied together
-# We keep the full plancklens pipeline for these QEs on idealized skies, even if a bit overkill
-ninv_t = [np.array([hp.nside2pixarea(nside, degrees=True) * 60 ** 2 / nlev_t ** 2])] + masks
-cinv_t = filt_cinv.cinv_t(opj(TEMP, 'cinv_t'), lmax_ivf,nside, cls_len, transf_tlm, ninv_t,
-                        marge_monopole=True, marge_dipole=True, marge_maps=[])
-
-ninv_p = [[np.array([hp.nside2pixarea(nside, degrees=True) * 60 ** 2 / nlev_p ** 2])] + masks]
-cinv_p = filt_cinv.cinv_p(opj(TEMP, 'cinv_p'), lmax_ivf, nside, cls_len, transf_elm, ninv_p,
-            chain_descr=chain_descrs(lmax_ivf, 1e-5), transf_blm=transf_blm, marge_qmaps=(), marge_umaps=())
-
-ivfs_raw    = filt_cinv.library_cinv_sepTP(opj(TEMP, 'ivfs'), sims, cinv_t, cinv_p, cls_len)
 ftl_rs = np.ones(lmax_ivf + 1, dtype=float) * (np.arange(lmax_ivf + 1) >= lmin_tlm)
 fel_rs = np.ones(lmax_ivf + 1, dtype=float) * (np.arange(lmax_ivf + 1) >= lmin_elm)
 fbl_rs = np.ones(lmax_ivf + 1, dtype=float) * (np.arange(lmax_ivf + 1) >= lmin_blm)
-ivfs   = filt_util.library_ftl(ivfs_raw, lmax_ivf, ftl_rs, fel_rs, fbl_rs)
+ivfs   = filt_simple.library_fullsky_sepTP(opj(TEMP, 'ivfs'), sims, nside, transf_d, cls_len, ftl, fel, fbl, cache=False)
 
 # ---- QE libraries from plancklens to calculate unnormalized QE (qlms) and their spectra (qcls)
 mc_sims_bias = np.arange(60, dtype=int)
@@ -193,8 +179,12 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
         # Here multipole cuts are set by the transfer function (those with 0 are not considered)
         filtr = alm_filter_nlev_wl(nlev_p, ffi, transf_elm, (lmax_unl, mmax_unl), (lmax_ivf, mmax_ivf),
                                    wee=wee, transf_b=transf_blm, nlev_b=nlev_p)
-        datmaps = np.array(sims_MAP.get_sim_pmap(int(simidx)))
-
+        # dat maps now given in harmonic in this idealized configuration
+        sht_job = utils_scarf.scarfjob()
+        sht_job.set_geometry(ninvjob_geometry)
+        sht_job.set_triangular_alm_info(lmax_ivf,mmax_ivf)
+        sht_job.set_nthreads(tr)
+        datmaps = np.array(sht_job.map2alm_spin(sims_MAP.get_sim_pmap(int(simidx)), 2))
     else:
         assert 0
     k_geom = filtr.ffi.geom # Customizable Geometry for position-space operations in calculations of the iterated QEs etc

@@ -24,7 +24,7 @@ from plancklens.filt import filt_cinv, filt_util
 from lenscarf import remapping, utils_scarf, utils_sims
 from lenscarf.iterators import cs_iterator as scarf_iterator, steps
 from lenscarf.utils import cli, read_map
-from lenscarf.utils_hp import gauss_beam, almxfl
+from lenscarf.utils_hp import gauss_beam, almxfl, alm_copy
 from lenscarf.opfilt import opfilt_ee_wl
 
 suffix = 'cmbs4_planckmask' # descriptor to distinguish this parfile from others...
@@ -32,10 +32,13 @@ TEMP =  opj(os.environ['SCRATCH'], 'lenscarfrecs', suffix)
 
 lmax_ivf, mmax_ivf, beam, nlev_t, nlev_p = (3000, 3000, 1., 1., np.sqrt(2.))
 
-# The fiducial transfer functions are set to zero below these lmins
-lmin_tlm, lmin_elm, lmin_blm = (2, 2, 2)  # for delensing useful to cut much more B
+lmin_tlm, lmin_elm, lmin_blm = (2, 2, 2) # The fiducial transfer functions are set to zero below these lmins
+# for delensing useful to cut much more B. It can also help since the cg inversion does not have to reconstruct those.
 
-lmax_qlm, mmax_qlm, lmax_unl, mmax_unl = (4000, 4000, 4000, 4000)
+lmax_qlm, mmax_qlm = (4000, 4000) # Lensing map is reconstructed down to this lmax and mmax
+# NB: the QEs from plancklens does not support mmax != lmax, but the MAP pipeline does
+lmax_unl, mmax_unl = (4000, 4000) # Delensed CMB is reconstructed down to this lmax and mmax
+
 
 #----------------- pixelization and geometry info for the input maps and the MAP pipeline and for lensing operations
 nside = 2048
@@ -43,10 +46,10 @@ zbounds     = (-1.,1.) # colatitude sky cuts for noise variance maps (We could e
 ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(nside, zbounds=zbounds)
 
 zbounds_len = (-1.,1.) # Outside of these bounds the reconstructed maps are assumed to be zero
-pb_ctr, pb_extent = (0., 2 * np.pi) ## Longitude cuts, if any, in the form (center of patch, patch extent)
+pb_ctr, pb_extent = (0., 2 * np.pi) # Longitude cuts, if any, in the form (center of patch, patch extent)
 lenjob_geometry = utils_scarf.Geom.get_thingauss_geometry(lmax_unl, 2, zbounds=zbounds_len)
 lenjob_pbgeometry =utils_scarf.pbdGeometry(lenjob_geometry, utils_scarf.pbounds(pb_ctr, pb_extent))
-lensres = 1.7  # deflection operations will be performed at this resolution
+lensres = 1.7  # Deflection operations will be performed at this resolution
 Lmin = 2 # The reconstruction of all lensing multipoles below that will not be attempted
 stepper = steps.nrstep(lmax_qlm, mmax_qlm, val=0.5) # handler of the size steps in the MAP BFGS iterative search
 mc_sims_mf_it0 = np.arange(300) # sims to use to build the very first iteration mean-field (QE mean-field)
@@ -86,17 +89,17 @@ fbl_unl =  cli(cls_unl['bb'][:lmax_ivf + 1] + (nlev_p / 180 / 60 * np.pi) ** 2 *
 # ---- Input simulation libraries. Here we use the NERSC FFP10 CMBs with homogeneous noise and consistent transfer function
 #       We define explictly the phase library such that we can use the same phases for for other purposes in the future as well if needed
 #       I am putting here the phases in the home directory such that they dont get NERSC auto-purged
-pix_phas = phas.pix_lib_phas(opj(os.environ['HOME'], 'pixphas_nside%s'%nside), 3, (hp.nside2npix(nside),))
+pix_phas = phas.pix_lib_phas(opj(os.environ['HOME'], 'pixphas_nside%s'%nside), 3, (hp.nside2npix(nside),)) # T, Q, and U noise phases
 #       actual data transfer function for the sim generation:
-transf_dat =  gauss_beam(beam / 180 / 60 * np.pi, lmax=4096) # taking here full FFP10 cmb's
+transf_dat =  gauss_beam(beam / 180 / 60 * np.pi, lmax=4096) # (taking here full FFP10 cmb's which are given to 4096)
 sims      = maps.cmb_maps_nlev(planck2018_sims.cmb_len_ffp10(), transf_dat, nlev_t, nlev_p, nside, pix_lib_phas=pix_phas)
 
 # Makes the simulation library consistent with the zbounds
-sims_MAP  = utils_sims.ztrunc_sims(sims, nside, zbounds)
+sims_MAP  = utils_sims.ztrunc_sims(sims, nside, [zbounds])
 # -------------------------
 
 # List of paths to masks that will be multiplied together to give the total mask
-# here we use the same in Pol and T, though that would not be necessary
+# Here we use the same in Pol and T, though that would not be necessary
 masks = ['/project/projectdirs/cmb/data/planck2018/pr3/Planck_L08_inputs/PR3vJan18_temp_lensingmask_gPR2_70_psPR2_143_COT2_smicadx12_smicapoldx12_psPR2_217_sz.fits.gz']
 
 
@@ -115,10 +118,15 @@ fel_rs = np.ones(lmax_ivf + 1, dtype=float) * (np.arange(lmax_ivf + 1) >= lmin_e
 fbl_rs = np.ones(lmax_ivf + 1, dtype=float) * (np.arange(lmax_ivf + 1) >= lmin_blm)
 ivfs   = filt_util.library_ftl(ivfs_raw, lmax_ivf, ftl_rs, fel_rs, fbl_rs)
 
-# -------------------------
-# This following block is only necessary if a full, Planck-like QE lensing power spectrum analysis is desired
+# ---- QE libraries from plancklens to calculate unnormalized QE (qlms) and their spectra (qcls)
 mc_sims_bias = np.arange(60, dtype=int)
 mc_sims_var  = np.arange(60, 300, dtype=int)
+qlms_dd = qest.library_sepTP(opj(TEMP, 'qlms_dd'), ivfs, ivfs,   cls_len['te'], nside, lmax_qlm=lmax_qlm)
+qcls_dd = qecl.library(opj(TEMP, 'qcls_dd'), qlms_dd, qlms_dd, mc_sims_bias)
+# -------------------------
+# This following block is only necessary if a full, Planck-like QE lensing power spectrum analysis is desired
+# This uses 'ds' and 'ss' QE's, crossing data with sims and sims with other sims.
+
 # This remaps idx -> idx + 1 by blocks of 60 up to 300. This is used to remap the sim indices for the 'MCN0' debiasing term in the QE spectrum
 ss_dict = { k : v for k, v in zip( np.concatenate( [ range(i*60, (i+1)*60) for i in range(0,5) ] ),
                                    np.concatenate( [ np.roll( range(i*60, (i+1)*60), -1 ) for i in range(0,5) ] ) ) }
@@ -127,11 +135,9 @@ ds_dict = { k : -1 for k in range(300)} # This remap all sim. indices to the dat
 ivfs_d = filt_util.library_shuffle(ivfs, ds_dict)
 ivfs_s = filt_util.library_shuffle(ivfs, ss_dict)
 
-qlms_dd = qest.library_sepTP(opj(TEMP, 'qlms_dd'), ivfs, ivfs,   cls_len['te'], nside, lmax_qlm=lmax_qlm)
 qlms_ds = qest.library_sepTP(opj(TEMP, 'qlms_ds'), ivfs, ivfs_d, cls_len['te'], nside, lmax_qlm=lmax_qlm)
 qlms_ss = qest.library_sepTP(opj(TEMP, 'qlms_ss'), ivfs, ivfs_s, cls_len['te'], nside, lmax_qlm=lmax_qlm)
 
-qcls_dd = qecl.library(opj(TEMP, 'qcls_dd'), qlms_dd, qlms_dd, mc_sims_bias)
 qcls_ds = qecl.library(opj(TEMP, 'qcls_ds'), qlms_ds, qlms_ds, np.array([]))  # for QE RDN0 calculations
 qcls_ss = qecl.library(opj(TEMP, 'qcls_ss'), qlms_ss, qlms_ss, np.array([]))  # for QE RDN0 / MCN0 calculations
 # -------------------------
@@ -146,6 +152,7 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
             version: string to use to test variants of the iterator with otherwise the same parfile
                      (here if 'noMF' is in version, will not use any mean-fied at the very first step)
             cg_tol: tolerance of conjugate-gradient filter
+
     """
     assert k in ['p_eb', 'p_p'], k
     libdir_iterator = libdir_iterators(k, simidx, version)
@@ -169,7 +176,7 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
         R = qresp.get_response(k, lmax_ivf, 'p', cls_len, cls_len, {'e': fel, 'b': fbl, 't':ftl}, lmax_qlm=lmax_qlm)[0]
         # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
         WF = cpp * utils.cli(cpp + utils.cli(R))
-
+        plm0 = alm_copy(plm0,  None, lmax_qlm, mmax_qlm) # Just in case the QE and MAP mmax'es were not consistent
         almxfl(plm0, utils.cli(R), mmax_qlm, True) # Normalized QE
         almxfl(plm0, WF, mmax_qlm, True)           # Wiener-filter QE
         np.save(path_plm0, plm0)
