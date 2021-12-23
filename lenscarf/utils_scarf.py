@@ -153,9 +153,8 @@ class Geom:
         tbounds = np.arccos(zbounds)
         if zbounds[0] > -1. or zbounds[1] < 1.:
             ri, = np.where( (hp_geom.theta >= tbounds[1]) & (hp_geom.theta <= tbounds[0]))
-            assert ri.size > 0, 'empty geometry'
             nph = hp_geom.nph[ri]
-            ofs = hp_geom.ofs[ri] - np.min(hp_geom.ofs[ri])
+            ofs = hp_geom.ofs[ri] - np.min(hp_geom.ofs[ri]) if ri.size > 0 else np.array([])
             geom = scarf.Geometry(ri.size, nph, ofs, 1, hp_geom.phi0[ri], hp_geom.theta[ri], hp_geom.weight[ri])
         else:
             geom = hp_geom
