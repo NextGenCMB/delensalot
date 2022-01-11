@@ -101,6 +101,7 @@ class qlm_iterator(object):
 
         self.chh = cpp_prior[:lmax_qlm+1] * self._p2h(lmax_qlm) ** 2
         self.hh_h0 = cli(pp_h0[:lmax_qlm + 1] * self._h2p(lmax_qlm) ** 2 + cli(self.chh))  #~ (1/Cpp + 1/N0)^-1
+        self.hh_h0 *= (self.chh > 0)
         self.lmax_qlm = lmax_qlm
         self.mmax_qlm = mmax_qlm
 
