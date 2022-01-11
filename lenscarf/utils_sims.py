@@ -44,6 +44,8 @@ class ztrunc_sims:
 
     def ztruncify(self, m:np.ndarray):
         assert m.size == 12 * self.nside ** 2, ('unexpected input size', m.size, 12 * self.nside ** 2)
+        if len(self.slics) == 1:
+            return m[self.slics[0]]
         ret = np.zeros(self.npix, dtype=float)
         for sli_m, sli in zip(self.slics_m, self.slics):
             ret[sli_m] = m[sli]

@@ -137,7 +137,7 @@ def alm2cl(alm:np.ndarray, blm:np.ndarray or None, lmax:int or None, mmax:int or
     return cl
 
 def alm_copy(alm, mmaxin:int or None, lmaxout:int, mmaxout:int):
-    """Copies the healpy alm array, with the option to reduce its lmax
+    """Copies the healpy alm array, with the option to change its lmax
 
         Parameters
         ----------
