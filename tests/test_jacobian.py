@@ -3,8 +3,9 @@ from lenscarf import utils_hp, remapping, cachers, utils_scarf, utils_dlm, utils
 from lenscarf.utils_scarf import pbdGeometry, pbounds, scarfjob, Geom
 from plancklens.utils import camb_clfile, cli
 from scipy.special import spherical_jn
+
 def get_jacobian(d:remapping.deflection):
-    """
+    """Compares true versus approximated Jacobian
 
         Note:
             close to the poles the healpix geom is horrible (alm2map and map2alm not commuting unless 'iter' is high)
@@ -47,7 +48,4 @@ if __name__ == '__main__':
 
     Ma, Mt, k, dnorm = get_jacobian(d) # New calc.
     print(np.max(np.abs(Ma)), np.max(np.abs(Ma / Mt -1.)), np.max(np.abs( (Ma - 0.5 * dnorm ** 2)/ Mt-1)), np.max(np.abs( (1 - 2 * k) / Mt-1.)))
-#(1.034787329002264,
-# 1.8536532619961577e-07,
-# 2.601621584830127e-09,
-# 0.00029699305732244774)
+#1.0342127793693392 2.2114298880993033e-07 3.1805525990691308e-09 0.00036568493721045314
