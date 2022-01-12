@@ -66,17 +66,20 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         transf_elm = transf
         transf_blm = transf_b if transf_b is not None else transf
 
-        self.inoise_2_elm  = _extend_cl(transf_elm ** 2 * cli(nlev_e / 180 / 60 * np.pi) ** 2, lmax_len)
-        self.inoise_1_elm  = _extend_cl(transf_elm ** 1 * cli(nlev_e / 180 / 60 * np.pi) ** 2, lmax_len)
+        nlev_elm = _extend_cl(nlev_e, lmax_len)
+        nlev_blm = _extend_cl(nlev_b, lmax_len)
 
-        self.inoise_2_blm = _extend_cl(transf_blm ** 2 * cli(nlev_b / 180 / 60 * np.pi) ** 2, lmax_len)
-        self.inoise_1_blm = _extend_cl(transf_blm ** 1 * cli(nlev_b / 180 / 60 * np.pi) ** 2, lmax_len)
+        self.inoise_2_elm  = _extend_cl(transf_elm ** 2, lmax_len) * cli(nlev_elm ** 2) * (180 * 60 / np.pi) ** 2
+        self.inoise_1_elm  = _extend_cl(transf_elm ** 1 ,lmax_len) * cli(nlev_elm ** 2) * (180 * 60 / np.pi) ** 2
+
+        self.inoise_2_blm = _extend_cl(transf_blm ** 2, lmax_len) * cli(nlev_blm ** 2) * (180 * 60 / np.pi) ** 2
+        self.inoise_1_blm = _extend_cl(transf_blm ** 1, lmax_len) * cli(nlev_blm ** 2) * (180 * 60 / np.pi) ** 2
 
         self.transf_elm  = _extend_cl(transf_elm, lmax_len)
         self.transf_blm  = _extend_cl(transf_blm, lmax_len)
 
-        self.nlev_elm = _extend_cl(nlev_e, lmax_len)
-        self.nlev_blm = _extend_cl(nlev_b, lmax_len)
+        self.nlev_elm = nlev_elm
+        self.nlev_blm = nlev_blm
 
         self.verbose = verbose
         self.wee = wee
