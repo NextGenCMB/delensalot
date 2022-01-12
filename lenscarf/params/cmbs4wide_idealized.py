@@ -139,6 +139,7 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
         os.makedirs(libdir_iterator)
     tr = int(os.environ.get('OMP_NUM_THREADS', 8))
     cpp = np.copy(cls_unl['pp'][:lmax_qlm + 1])
+    cpp[:Lmin] *= 0.
 
     # QE mean-field fed in as constant piece in the iteration steps:
     mf_sims = np.unique(mc_sims_mf_it0 if not 'noMF' in version else np.array([]))
@@ -158,6 +159,7 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
         plm0 = alm_copy(plm0,  None, lmax_qlm, mmax_qlm) # Just in case the QE and MAP mmax'es were not consistent
         almxfl(plm0, utils.cli(R), mmax_qlm, True) # Normalized QE
         almxfl(plm0, WF, mmax_qlm, True)           # Wiener-filter QE
+        almxfl(plm0, cpp > 0, mmax_qlm, True)
         np.save(path_plm0, plm0)
 
     plm0 = np.load(path_plm0)
@@ -185,8 +187,6 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
         assert 0
     k_geom = filtr.ffi.geom # Customizable Geometry for position-space operations in calculations of the iterated QEs etc
     # Sets to zero all L-modes below Lmin in the iterations:
-    cpp[:Lmin] *= 0.
-    almxfl(plm0, cpp > 0, mmax_qlm, True)
     iterator = scarf_iterator.iterator_pertmf(libdir_iterator, 'p', (lmax_qlm, mmax_qlm), datmaps,
             plm0, mf_resp, R_unl, cpp, cls_unl, filtr, k_geom, chain_descrs(lmax_unl, cg_tol), stepper
             ,mf0=mf0)

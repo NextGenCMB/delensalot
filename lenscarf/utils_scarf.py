@@ -190,6 +190,19 @@ class Geom:
         return scarf.Geometry(nlat, nph, ofs, 1, phi0, tht, wt * (2 * np.pi / nph ))
 
     @staticmethod
+    def get_pixel_geometry(tht:float or np.ndarray, phi:float or np.ndarray):
+        """Single pixel geom
+
+
+        """
+        #FIXME: dont understand the result with a single phi, looks like needs at least two phis...
+        if not np.isscalar(tht): tht = tht[0]
+        if not np.isscalar(phi): phi = phi[0]
+
+        assert 0 <= tht <= np.pi
+        return scarf.Geometry(1, np.array([2]), np.array([0]), 1, np.array([phi %(2 * np.pi)]), np.array([tht]), np.array([1.]))
+
+    @staticmethod
     def hashdict(geom:scarf.Geometry):
         """Returns a hash dictionary from scarf geometry
 
