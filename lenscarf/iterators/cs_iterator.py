@@ -206,9 +206,14 @@ class qlm_iterator(object):
             if self.wf_cacher.is_cached(fn):
                 return self.wf_cacher.load(fn)
         if elm_wf is None:
-            e_fname = 'wflm_%s_it%s' % ('p', it_e - 1)
-            assert self.wf_cacher.is_cached(e_fname)
-            elm_wf = self.wf_cacher.load(e_fname)
+            if it_e > 0:
+                e_fname = 'wflm_%s_it%s' % ('p', it_e - 1)
+                assert self.wf_cacher.is_cached(e_fname)
+                elm_wf = self.wf_cacher.load(e_fname)
+            elif it_e == 0:
+                elm_wf = self.wflm0()
+            else:
+                assert 0,'dont know what to do with it_e = ' + str(it_e)
         assert Alm.getlmax(elm_wf.size, self.mmax_filt) == self.lmax_filt
         mmaxb = lmaxb
         dlm = self.get_hlm(it, 'p')
