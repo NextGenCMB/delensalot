@@ -64,7 +64,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         self.mmax_len = min(mmax_len, self.lmax_len)
 
         transf_elm = transf
-        transf_blm = transf if transf_b is not None else transf_b
+        transf_blm = transf_b if transf_b is not None else transf
 
         self.inoise_2_elm  = _extend_cl(transf_elm ** 2 * cli(nlev_e / 180 / 60 * np.pi) ** 2, lmax_len)
         self.inoise_1_elm  = _extend_cl(transf_elm ** 1 * cli(nlev_e / 180 / 60 * np.pi) ** 2, lmax_len)
