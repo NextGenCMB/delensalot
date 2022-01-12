@@ -12,7 +12,8 @@
 
 
     #FIXME: loading of total gradient seems mixed up with loading of quadratic gradient...
-
+    #TODO: make plm0 possibly a path?
+    #FIXME: Chh = 0 not resulting in 0 estimate
 """
 
 import os
@@ -182,12 +183,13 @@ class qlm_iterator(object):
                 return False
         return True
 
-    def get_template_blm(self, it, elm_wf, lmin_plm=1, lmaxb=2048):
+    def get_template_blm(self, it, it_e, lmaxb=1024, lmin_plm=1, elm_wf:None or np.ndarray=None):
         """Builds a template B-mode map with the iterated phi and input elm_wf
 
             Args:
-                it: iteration index
-                elm_wf: Wiener-filtered E-mode (healpy alm array)
+                it: iteration index of lensing tracer
+                it_e: iteration index of E-tracer
+                elm_wf: Wiener-filtered E-mode (healpy alm array), if not an iterated solution (it_e will ignored if set)
                 lmin_plm: the lensing tracer is zeroed below lmin_plm
                 lmaxb: the B-template is calculated up to lmaxb (defaults to lmax elm_wf)
 
@@ -198,14 +200,24 @@ class qlm_iterator(object):
                 It can be a real lot better to keep the same L range as the iterations
 
         """
+        cache_cond = (lmin_plm == 1) and (elm_wf is None)
+        fn = 'btempl_p%03d_e%03d_lmax%s' % (it, it_e, lmaxb)
+        if cache_cond:
+            if self.wf_cacher.is_cached(fn):
+                return self.wf_cacher.load(fn)
+        if elm_wf is None:
+            e_fname = 'wflm_%s_it%s' % ('p', it_e - 1)
+            assert self.wf_cacher.is_cached(e_fname)
+            elm_wf = self.wf_cacher.load(e_fname)
         assert Alm.getlmax(elm_wf.size, self.mmax_filt) == self.lmax_filt
+        mmaxb = lmaxb
         dlm = self.get_hlm(it, 'p')
         self.hlm2dlm(dlm, inplace=True)
-        plm_filt = np.ones(self.lmax_qlm + 1, dtype=float)
-        plm_filt[:lmin_plm] *= 0.
-        almxfl(dlm, plm_filt, self.mmax_qlm, True)
+        almxfl(dlm, np.arange(self.lmax_qlm + 1, dtype=int) >= lmin_plm, self.mmax_qlm, True)
         ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm)
-        elm, blm = ffi.lensgclm([elm_wf, elm_wf * 0.], self.mmax_filt, 2, lmaxb, lmaxb)
+        elm, blm = ffi.lensgclm([elm_wf, np.zeros_like(elm_wf)], self.mmax_filt, 2, lmaxb, mmaxb)
+        if cache_cond:
+            self.wf_cacher.cache(fn, blm)
         return blm
 
     def get_hlm(self, itr, key):
