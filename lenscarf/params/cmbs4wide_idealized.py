@@ -145,7 +145,8 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
     mf_sims = np.unique(mc_sims_mf_it0 if not 'noMF' in version else np.array([]))
     mf0 = qlms_dd.get_sim_qlm_mf(k, mf_sims)  # Mean-field to subtract on the first iteration:
     if simidx in mf_sims:  # We dont want to include the sim we consider in the mean-field...
-        mf0 = (mf0 - qlms_dd.get_sim_qlm(k, int(simidx)) / len(mf_sims)) / (len(mf_sims) - 1)
+        Nmf = len(mf_sims)
+        mf0 = (mf0 - qlms_dd.get_sim_qlm(k, int(simidx)) / Nmf) * (Nmf / (Nmf - 1))
 
     path_plm0 = opj(libdir_iterator, 'phi_plm_it000.npy')
     if not os.path.exists(path_plm0):
