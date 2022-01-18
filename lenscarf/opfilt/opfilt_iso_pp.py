@@ -16,7 +16,7 @@ fwd_op = opfilt_pp.fwd_op
 apply_fini = opfilt_pp.apply_fini
 
 class alm_filter_nlev:
-    def __init__(self, nlev_p:float, transf:np.ndarray, alm_info:tuple, verbose=False):
+    def __init__(self, nlev_p:float, transf:np.ndarray, alm_info:tuple, verbose=False, wee=True):
         r"""Version of alm_filter_ninv_wl for full-sky maps filtered with homogeneous noise levels
 
 
@@ -24,7 +24,7 @@ class alm_filter_nlev:
                     nlev_p: filtering noise level in uK-amin
                     transf: transfer function (beam, pixel window, mutlipole cuts, ...)
                     alm_info: lmax and mmax of unlensed CMB
-
+                    wee: includes EE-like term in QE
 
                 Note:
                     All operations are in harmonic space.
@@ -48,6 +48,7 @@ class alm_filter_nlev:
 
         self.verbose = verbose
         self.tim = timer(True, prefix='opfilt')
+        self.wee = wee
 
         self._nthreads = int(os.environ.get('OMP_NUM_THREADS', 1))
 
@@ -110,8 +111,8 @@ class alm_filter_nlev:
         almxfl(ebwf[0], self.transf, self.mmax_len, True)
         almxfl(ebwf[1], self.transf, self.mmax_len, True)
         ebwf[:] = eblm_dat - ebwf
-        almxfl(ebwf[0], self.inoise_1 * 0.5, self.mmax_len, True)  # Factor of 1/2 because of \dagger rather than ^{-1}
-        almxfl(ebwf[1], self.inoise_1 * 0.5, self.mmax_len, True)
+        almxfl(ebwf[0], self.inoise_1 * 0.5 * self.wee, self.mmax_len, True)  # Factor of 1/2 because of \dagger rather than ^{-1}
+        almxfl(ebwf[1], self.inoise_1 * 0.5,            self.mmax_len, True)
         return q_pbgeom.geom.alm2map_spin(ebwf, 2, self.lmax_len, self.mmax_len, self._nthreads, (-1., 1.))
 
     def _get_gpmap(self, eblm_wf:np.ndarray or list, spin:int, q_pbgeom:utils_scarf.pbdGeometry):

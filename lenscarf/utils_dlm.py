@@ -36,8 +36,8 @@ def dlm2kggo(job:scarfjob, dlm:np.ndarray, dclm:np.ndarray or None=None):
     lmax = Alm.getlmax(dlm.size, job.mmax)
     assert lmax == job.lmax, (Alm.getlmax(dlm.size, job.mmax), job.lmax)
     # We further have p2d = get_spin_raise(0, lmax) = sqrt(0, lmax + 1) * sqrt(1, lmax + 2)
-    d2k = -0.5 *  get_spin_lower(1, lmax)  # For k = -1/2 Delta
-    d2g = -0.5 *  get_spin_raise(1, lmax)
+    d2k = - 0.5 *  get_spin_lower(1, lmax)  # For k = -1/2 Delta
+    d2g =   0.5 *  get_spin_raise(1, lmax)
     # coefficient for spin lowering is the same. g1 +i g2 is -1/2 spin-2 transform of raise ** 2 plm.
     k = job.alm2map(almxfl(dlm, d2k, job.mmax, False))
     if dclm is None:

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import time
 import numpy as np
 
@@ -103,6 +105,35 @@ class deflection:
         if self.d1 is None and self.sig_d > 0.:
             gclm = [self.dlm, np.zeros_like(self.dlm) if self.dclm is None else self.dclm]
             self.d1 = self._build_interpolator(gclm, self.mmax_dlm, 1)
+
+    def fill_map(self, functions:list[callable], dtype=float):
+        """Iterates over rings to produce output maps functions of the deflections
+
+            Args:
+                functions: list of callable each with arguments red, imd, and theta
+                dtype: dtype of the output maps
+
+            Returns:
+                (len(functions), npix)-shaped array (squeezed)
+
+        """
+        startpix = 0
+        npix = Geom.pbounds2npix(self.geom, self._pbds)
+        dclm = np.zeros_like(self.dlm) if self.dclm is None else self.dclm
+        red, imd = self.geom.alm2map_spin([self.dlm, dclm], 1, self.lmax_dlm, self.mmax_dlm, self.sht_tr, [-1., 1.])
+        m = np.zeros((len(functions),npix), dtype=dtype)
+        cost, sint = np.cos(self.geom.theta), np.sin(self.geom.theta)
+        for ir in np.argsort(self.geom.ofs):  # We must follow the ordering of scarf position-space map
+            pixs = Geom.pbounds2pix(self.geom, ir, self._pbds)
+            if pixs.size > 0:
+                phis = Geom.phis(self.geom, ir)[pixs - self.geom.ofs[ir]]
+                assert phis.size == pixs.size, (phis.size, pixs.size)
+                sli = slice(startpix, startpix + len(pixs))
+                for ifu, func in enumerate(functions):
+                    m[ifu, sli] = func(red[pixs], imd[pixs], self.geom.theta[ir], cost[ir], sint[ir])
+                startpix += len(pixs)
+        assert startpix == npix, (startpix, npix)
+        return m.squeeze()
 
     def _fwd_angles(self):
         """Builds deflected angles for the forawrd deflection field for the pixels inside the patch

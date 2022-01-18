@@ -4,9 +4,9 @@ import scarf
 from lenscarf.opfilt import opfilt_ee_wl
 from lenscarf import utils_hp, utils_scarf
 
-# FIXME: Put this sd opfilt method? with cachers for EWF and prep (in case rotations are involved) etc?
 # TODO: this has been put in opfilt now, can remove that
-def get_qlms_wl(qudat:np.ndarray or list, elm_wf:np.ndarray, filt:opfilt_ee_wl.alm_filter_ninv_wl, q_pbgeom:utils_scarf.pbdGeometry):
+def get_qlms_wl(qudat:np.ndarray or list, elm_wf:np.ndarray, filt:opfilt_ee_wl.alm_filter_ninv_wl, q_pbgeom:utils_scarf.pbdGeometry,
+                wEE=True):
     """
 
         Args:
@@ -14,6 +14,7 @@ def get_qlms_wl(qudat:np.ndarray or list, elm_wf:np.ndarray, filt:opfilt_ee_wl.a
             elm_wf: Wiener-filtered CMB maps (alm arrays)
             filt: lenscarf filtering instance
             q_pbgeom: scarf pbounded-geometry of for the position-space mutliplication of the legs
+            wEE: include the EE-like QE term in the gradient (defaults to True)
 
         #FIXME: all implementation signs are super-weird but end result correct...
     """
@@ -21,7 +22,7 @@ def get_qlms_wl(qudat:np.ndarray or list, elm_wf:np.ndarray, filt:opfilt_ee_wl.a
     assert (qudat[0].size == utils_scarf.Geom.npix(filt.ninv_geom)) and (qudat[0].size == qudat[1].size)
 
     ebwf = (elm_wf, np.zeros_like(elm_wf))
-    repmap, impmap = get_irespmap(qudat, ebwf, filt, q_pbgeom)
+    repmap, impmap = get_irespmap(qudat, ebwf, filt, q_pbgeom, wEE=wEE)
     Gs, Cs = get_gpmap(ebwf, 3, filt, q_pbgeom)  # 2 pos.space maps
     GC = (repmap - 1j * impmap) * (Gs + 1j * Cs)  # (-2 , +3)
     Gs, Cs = get_gpmap(ebwf, 1, filt, q_pbgeom)
@@ -36,7 +37,8 @@ def get_qlms_wl(qudat:np.ndarray or list, elm_wf:np.ndarray, filt:opfilt_ee_wl.a
     utils_hp.almxfl(C, fl, mmax_qlm, True)
     return G, C
 
-def get_irespmap(qudat:np.ndarray, ebwf:np.ndarray or list, filt:opfilt_ee_wl.alm_filter_ninv_wl, q_pbgeom:utils_scarf.pbdGeometry):
+def get_irespmap(qudat:np.ndarray, ebwf:np.ndarray or list, filt:opfilt_ee_wl.alm_filter_ninv_wl, q_pbgeom:utils_scarf.pbdGeometry,
+                 wEE=True):
     """Builds inverse variance weighted map to feed into the QE
 
 
@@ -54,8 +56,8 @@ def get_irespmap(qudat:np.ndarray, ebwf:np.ndarray or list, filt:opfilt_ee_wl.al
     qu = qudat - filt.sc_job.alm2map_spin(ebwf, 2)
     filt.apply_map(qu)
     ebwf = filt.sc_job.map2alm_spin(qu, 2)
-    utils_hp.almxfl(ebwf[0], filt.b_transf * 0.5, filt.mmax_len, True)  # Factor of 1/2 because of \dagger rather than ^{-1}
-    utils_hp.almxfl(ebwf[1], filt.b_transf * 0.5, filt.mmax_len, True)
+    utils_hp.almxfl(ebwf[0], filt.b_transf * 0.5 * wEE, filt.mmax_len, True)  # Factor of 1/2 because of \dagger rather than ^{-1}
+    utils_hp.almxfl(ebwf[1], filt.b_transf * 0.5,       filt.mmax_len, True)
     return q_pbgeom.geom.alm2map_spin(ebwf, 2, filt.lmax_len, filt.mmax_len, filt.ffi.sht_tr, (-1., 1.))
 
 def get_gpmap(eblm_wf:np.ndarray or list, spin:int, filt:opfilt_ee_wl.alm_filter_ninv_wl, q_pbgeom:utils_scarf.pbdGeometry):

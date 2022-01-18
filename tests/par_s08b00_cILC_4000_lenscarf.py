@@ -13,10 +13,11 @@ from lenscarf.opfilt import bmodes_ninv as bni
 from plancklens import  qresp, utils
 from plancklens.qcinv import cd_solve
 from lenscarf.opfilt import opfilt_ee_wl as opfilt_ee_wl_scarf
-
+from cmbs4.plotrec_utils import get_bb_amplitude
 import scarf
 from lenscarf import remapping, utils_scarf
 from cmbs4 import sims_08b
+from scipy.interpolate import UnivariateSpline as spl
 
 
 #-------- reference reconstruction parfiles that will give me the mean-field
@@ -51,9 +52,12 @@ nsims = 200  # number of sims for the mean-field
 tol=1e-3
 
 # --- cg iterations parameters
-tol_iter = lambda itr : 1e-3 if itr <= 10 else 1e-4
 soltn_cond = lambda itr: True
-
+tol_iter = lambda itr : 1e-3 if itr <= 10 else 1e-4
+tol_iter_flat = lambda itr : 1e-3
+tol_iter_lin = lambda itr: spl([1, 12] , [1e-3, 1e-4]  , k=1, s=0)(itr) # does not work beyond itr 12
+tol_iter_log = lambda itr: np.exp(spl(np.log([1., 12.]) , np.log([1e-3, 1e-4])  , k=1, s=0)(np.log(itr * 1.)))
+TOLS = {'':tol_iter, 'LOG':tol_iter_log, 'LIN':tol_iter_lin, 'FLAT':tol_iter_flat}
 # --- Here we extract zbounds to speed up the spherical transforms
 zbounds = sims_08b.get_zbounds(np.inf) # sharp zbounds of inverse noise variance maps
 # --- We also build zbounds outside which the lensing is not performed at all, assuming everything is zero
@@ -81,6 +85,8 @@ hp_start = hp_geom.ofs[np.where(hp_geom.theta == np.min(ninvgeom.theta))[0]][0]
 hp_end = hp_start + utils_scarf.Geom.npix(ninvgeom).astype(hp_start.dtype)  # Somehow otherwise makes a float out of int64 and uint64 ???
 # --- scarf geometry of the lensing jobs at each iteration
 lenjob = utils_scarf.scarfjob()
+kjob = utils_scarf.scarfjob()
+
 mmax_filt = None# we could reduce that since we are not too far from the pole. From command line args
 mmax_qlm = lmax_qlm
 #NB: the lensing jobs geom are specified in the command line arguments
@@ -93,11 +99,12 @@ def bp(x, xa, a, xb, b, scale=50): # helper function to build step-length
     return a + r(x) * (b - a) / r(xb)
 
 
-def step_length(iter, norm_incr):
-    return bp(np.arange(4097), 400, 0.5, 1500, 0.1, scale=50)
+def step_length(iter, norm_incr, highl_step=0.1):
+    return bp(np.arange(4097), 400, 0.5, 1500, highl_step, scale=50)
 
 
-def get_itlib(qe_key, DATIDX,  vscarf='p', mmax_is_lmax=True):
+def get_itlib(qe_key, DATIDX,
+              vscarf='p', mmax_is_lmax=True, lmin_dotop=0, lmin_EE=0, NR_method=100, res=1.7):
     #assert vscarf in [False, '', 'd', 'k', 'p'], vscarf
     lib_dir = TEMP
     lib_dir_iterator = lib_dir + '/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20'%DATIDX
@@ -151,14 +158,30 @@ def get_itlib(qe_key, DATIDX,  vscarf='p', mmax_is_lmax=True):
 
 
     wflm0 = lambda : alm_copy(ref_parfile.ivfs_raw_OBD.get_sim_emliklm(DATIDX), None, lmax_filt, mmax_filt)
-
-
-    if 'h' not in vscarf:
-        lenjob.set_thingauss_geometry(max(lmax_filt, lmax_transf), 2, zbounds=zbounds_len)
+    if 'FS' in vscarf:
+        print("full sky lensing operations. redifining zbounds_len and pbounds")
+        zbounds_lensing = (-1.,1.)
+        pb_ctr_len, pb_extent_len = (np.pi, 2 * np.pi)
     else:
-        lenjob.set_healpix_geometry(2048, zbounds=zbounds_len)
-    if 'f' in vscarf:
-        k_geom = scarf.healpix_geometry(2048, 1)
+        zbounds_lensing = zbounds_len
+        pb_ctr_len, pb_extent_len = pb_ctr, pb_extent
+    if 'P360' in vscarf:
+        print('no long. cuts')
+        pb_ctr_len, pb_extent_len = (np.pi, 2 * np.pi)
+    if 'h' not in vscarf:
+        dlmax = 1024 # accouting for lensing dl
+        lmax_GL = (2 * lmax_filt + lmax_filt + dlmax) // 2
+        lenjob.set_thingauss_geometry(lmax_GL, 2, zbounds=zbounds_lensing)
+    else:
+        lenjob.set_healpix_geometry(2048, zbounds=zbounds_lensing)
+    if 'f' in vscarf or 'FS' in vscarf: # once per iteration lensing operations (e.g. quadratic estimators)
+        if 'h' in vscarf:
+            kjob.set_healpix_geometry(2048)
+        else:
+            dlmax = 1024  # accouting for lensing dl
+            lmax_GL = (2 * lmax_filt + lmax_qlm + dlmax) // 2
+            kjob.set_thingauss_geometry(lmax_GL, 2)
+        k_geom = kjob.geom
     else:
         k_geom = lenjob.geom
     if not mmax_is_lmax:
@@ -189,16 +212,48 @@ def get_itlib(qe_key, DATIDX,  vscarf='p', mmax_is_lmax=True):
     assert dat[0].size == utils_scarf.Geom.npix(ninvgeom), (dat[0].size,utils_scarf.Geom.npix(ninvgeom) )
 
     tpl = bni.template_dense(BMARG_LCUT, ninvgeom, tr, _lib_dir=BMARG_LIBDIR, rescal=tniti_rescal)
-    pbd_geom = utils_scarf.pbdGeometry(lenjob.geom, utils_scarf.pbounds(pb_ctr, pb_extent))
-    ffi = remapping.deflection(pbd_geom, 1.7, np.zeros_like(plm0), mmax_qlm, tr, tr)
+    pbd_geom = utils_scarf.pbdGeometry(lenjob.geom, utils_scarf.pbounds(pb_ctr_len, pb_extent_len))
+    ffi = remapping.deflection(pbd_geom, res, np.zeros_like(plm0), mmax_qlm, tr, tr)
 
-    filtr = opfilt_ee_wl_scarf.alm_filter_ninv_wl(ninvgeom, ninv_sc, ffi, transf, (lmax_filt, mmax_filt), (lmax_transf, lmax_transf), tr, tpl)
+    filtr = opfilt_ee_wl_scarf.alm_filter_ninv_wl(ninvgeom, ninv_sc, ffi, transf,
+                            (lmax_filt, mmax_filt), (lmax_transf, lmax_transf), tr, tpl, lmin_dotop=lmin_dotop)
     if '0' in vscarf:
         mf0 *= 0.
+    cls_filt['ee'][:lmin_EE] *= 0
     itlib = scarf_iterator.iterator_cstmf(lib_dir_iterator, vscarf[0], (lmax_qlm, mmax_qlm), dat,
-                                        plm0, mf0, H0_unl, cpp, cls_filt, filtr, k_geom, chain_descr, stepper, wflm0=wflm0)
-    itlib.newton_step_length = step_length
+                                        plm0, mf0, H0_unl, cpp, cls_filt, filtr, k_geom, chain_descr, stepper, wflm0=wflm0, NR_method=NR_method)
     return itlib
+
+
+def build_Bampl(this_itlib, this_itr, datidx, cache_b=False):
+    from lenscarf import cachers
+    from plancklens.sims import planck2018_sims
+    e_fname = 'wflm_%s_it%s' % ('p', this_itr - 1)
+    assert this_itlib.wf_cacher.is_cached(e_fname)
+    # loading deflection field at the wanted iter:
+    dlm = this_itlib.get_hlm(this_itr, 'p')
+    this_itlib.hlm2dlm(dlm, True)
+    ffi = this_itlib.filter.ffi.change_dlm([dlm, None], this_itlib.mmax_qlm, cachers.cacher_none())
+    this_itlib.filter.set_ffi(ffi)
+
+    # loading e-mode map:
+    elm = this_itlib.wf_cacher.load('wflm_%s_it%s' % ('p', this_itr - 1))
+    lmax_b, mmax_b = (2048, 2048)
+    b_fname =this_itlib.lib_dir + '/blm_%04d_%s_lmax%s.fits' % (this_itr, utils.clhash(elm.real), lmax_b)
+    _, blm = this_itlib.filter.ffi.lensgclm(np.array([elm, elm * 0]), this_itlib.mmax_filt, 2, lmax_b, mmax_b, False)
+    if cache_b:
+        hp.write_alm(b_fname, blm)
+        print('Cached ', b_fname)
+    cls_path = os.path.join(os.path.dirname(plancklens.__file__), 'data', 'cls')
+    cls_len = utils.camb_clfile(os.path.join(cls_path, 'FFP10_wdipole_lensedCls.dat'))
+    blm_in = alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(datidx), None, lmax_b, mmax_b)
+    print("BB ampl itr " + str(this_itr))
+    Abb = get_bb_amplitude(sims_08b.get_nlev_mask(2.), cls_len, blm, blm_in)
+    f = open(this_itlib.lib_dir + "/BBampl.txt", "a")
+    f.write("%4s %.5f" % (this_itr, Abb) + "\n")
+    f.close()
+    return Abb
+
 
 if __name__ == '__main__':
     import argparse
@@ -209,6 +264,13 @@ if __name__ == '__main__':
     parser.add_argument('-btempl', dest='btempl', action='store_true', help='build B-templ for last iter > 0')
     parser.add_argument('-scarf', dest='scarf', type=str, default='p', help='further iterator options')
     parser.add_argument('-mmax', dest='mmax',  action='store_true', help='reduces mmax to some value')
+    parser.add_argument('-BB', dest='BB',  action='store_false', help='calc BB ampls at each iter')
+    parser.add_argument('-tol', dest='tol',  type=str, default='', help='CG tolerance function for each iter')
+    parser.add_argument('-lmin_dtp', dest='lmin_dotop', type=int, default=0, help='lmin for dot operation in cg')
+    parser.add_argument('-lmin_EE', dest='lmin_EE', type=int, default=0, help='lmin for EE operation in cg')
+    parser.add_argument('-highl_step', dest='highl_step', type=float, default=0.1, help='high l step size')
+    parser.add_argument('-NR', dest='NR', type=int, default=100, help='L in BFGS-L')
+    parser.add_argument('-res', dest='res', type=float, default=1.7, help='lensing res')
 
     #vscarf: 'p' 'k' 'd' for bfgs variable
     # add a 'f' to use full sky in once-per iteration kappa thingy
@@ -216,6 +278,15 @@ if __name__ == '__main__':
     # add a '0' for no mf
 
     args = parser.parse_args()
+    args.scarf += 'TOL' + args.tol.upper() + 'HIGHLSTEP%s'%(10 * args.highl_step) + 'NR%s'%args.NR + 'RES%s'%args.res
+    if args.lmin_dotop > 0:
+        print("setting lmin in dotop")
+        args.scarf += 'LMINDT%s'%args.lmin_dotop
+    if args.lmin_EE > 0:
+        print("setting lmin EE in cg")
+        args.scarf += 'LMINEE%s'%args.lmin_EE
+
+    assert args.tol in TOLS.keys(), args.tol + ' tol. scheme not recognized'
     from plancklens.helpers import mpi
     mpi.barrier = lambda : 1 # redefining the barrier
     from itercurv.iterators.statics import rec as Rec
@@ -225,36 +296,25 @@ if __name__ == '__main__':
     for idx in np.arange(args.imin, args.imax + 1):
         lib_dir_iterator = TEMP + '/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20' % idx + args.scarf
         if Rec.maxiterdone(lib_dir_iterator) < args.itmax:
-            jobs.append(idx)
+            jobs.append( (idx, Rec.maxiterdone(lib_dir_iterator)) )
             print(lib_dir_iterator)
 
-    for idx in jobs[mpi.rank::mpi.size]:
+    for idx, itdone in jobs[mpi.rank::mpi.size]:
         lib_dir_iterator = TEMP + '/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20' % idx + args.scarf
         if args.itmax >= 0 and Rec.maxiterdone(lib_dir_iterator) < args.itmax:
-            itlib = get_itlib('p_p', idx,  vscarf=args.scarf, mmax_is_lmax=not args.mmax)
+            itlib = get_itlib('p_p', idx, res=args.res,
+                              vscarf=args.scarf, mmax_is_lmax=not args.mmax,lmin_dotop=args.lmin_dotop,lmin_EE=args.lmin_EE, NR_method=args.NR)
             for i in range(args.itmax + 1):
-                print("****Iterator: setting cg-tol to %.4e ****"%tol_iter(i))
+                cg_tol = TOLS[args.tol](max(i, 1))
+                print("****Iterator: setting cg-tol to %.4e ****"%cg_tol)
                 print("****Iterator: setting solcond to %s ****"%soltn_cond(i))
-                chain_descr = [[0, ["diag_cl"], lmax_filt, nside, np.inf, tol_iter(i), cd_solve.tr_cg, cd_solve.cache_mem()]]
+                chain_descr = [[0, ["diag_cl"], lmax_filt, nside, np.inf, cg_tol, cd_solve.tr_cg, cd_solve.cache_mem()]]
                 itlib.chain_descr  = chain_descr
                 itlib.soltn_cond = soltn_cond(i)
+                itlib.newton_step_length = lambda itr, norm : step_length(itr, norm, args.highl_step)
 
                 print("doing iter " + str(i))
                 itlib.iterate(i, 'p')
-            if args.btempl and args.itmax > 0:
-                from lenscarf import cachers
-                e_fname = 'wflm_%s_it%s' % ('p', args.itmax - 1)
-                assert itlib.wf_cacher.is_cached(e_fname)
-                # loading deflection field at the wanted iter:
-                dlm = itlib.get_hlm(args.itmax, 'p')
-                itlib.hlm2dlm(dlm, True)
-                ffi = itlib.filter.ffi.change_dlm([dlm, None], itlib.mmax_qlm, cachers.cacher_mem())
-                itlib.filter.set_ffi(ffi)
+                if args.BB and i > 0 and i > itdone:
+                    print(build_Bampl(itlib, i, idx, cache_b= args.btempl * (i == args.imax)))
 
-                # loading e-mode map:
-                elm = itlib.wf_cacher.load('wflm_%s_it%s' % ('p', args.itmax - 1))
-                lmax_b, mmax_b = (2048, 2048)
-                b_fname =  itlib.lib_dir + '/blm_%04d_%s_lmax%s.fits' % (args.itmax, utils.clhash(elm.real), lmax_b)
-                _, blm = itlib.filter.ffi.lensgclm(np.array([elm, elm * 0]), itlib.mmax_filt, 2, lmax_b, mmax_b, False)
-                hp.write_alm(b_fname, blm)
-                print('Cached ', b_fname)

@@ -2,7 +2,7 @@ import numpy as np
 from lenscarf.utils_sht import lowprimes
 
 class skypatch:
-    """This contains simple methods in order to build ECP maps centred on a sky location and link them to healpix rings
+    """This contains simple methods in order to build ECP maps centred on a sky location and link them to latitude rings
 
         Args:
             tbounds: co-latitudes (rad) delimiting the patch (e.g. 0, pi)

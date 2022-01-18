@@ -11,6 +11,9 @@
 
 
 
+    #FIXME: loading of total gradient seems mixed up with loading of quadratic gradient...
+    #TODO: make plm0 possibly a path?
+    #FIXME: Chh = 0 not resulting in 0 estimate
 """
 
 import os
@@ -68,7 +71,7 @@ class qlm_iterator(object):
                 cls_filt (dict): dictionary containing the filter cmb unlensed spectra (here, only 'ee' is required)
                 k_geom: scarf geometry for once-per-iterations opertations (like cehcking for invertibility etc)
                 stepper: custom calculation of NR-step
-
+                wflm0(optional): callable with Wiener-filtered CMB map search starting point
 
         """
         assert h in ['k', 'p', 'd']
@@ -99,6 +102,7 @@ class qlm_iterator(object):
 
         self.chh = cpp_prior[:lmax_qlm+1] * self._p2h(lmax_qlm) ** 2
         self.hh_h0 = cli(pp_h0[:lmax_qlm + 1] * self._h2p(lmax_qlm) ** 2 + cli(self.chh))  #~ (1/Cpp + 1/N0)^-1
+        self.hh_h0 *= (self.chh > 0)
         self.lmax_qlm = lmax_qlm
         self.mmax_qlm = mmax_qlm
 
@@ -179,12 +183,13 @@ class qlm_iterator(object):
                 return False
         return True
 
-    def get_template_blm(self, it, elm_wf, lmin_plm=1, lmaxb=2048):
+    def get_template_blm(self, it, it_e, lmaxb=1024, lmin_plm=1, elm_wf:None or np.ndarray=None):
         """Builds a template B-mode map with the iterated phi and input elm_wf
 
             Args:
-                it: iteration index
-                elm_wf: Wiener-filtered E-mode (healpy alm array)
+                it: iteration index of lensing tracer
+                it_e: iteration index of E-tracer
+                elm_wf: Wiener-filtered E-mode (healpy alm array), if not an iterated solution (it_e will ignored if set)
                 lmin_plm: the lensing tracer is zeroed below lmin_plm
                 lmaxb: the B-template is calculated up to lmaxb (defaults to lmax elm_wf)
 
@@ -195,14 +200,29 @@ class qlm_iterator(object):
                 It can be a real lot better to keep the same L range as the iterations
 
         """
+        cache_cond = (lmin_plm == 1) and (elm_wf is None)
+        fn = 'btempl_p%03d_e%03d_lmax%s' % (it, it_e, lmaxb)
+        if cache_cond:
+            if self.wf_cacher.is_cached(fn):
+                return self.wf_cacher.load(fn)
+        if elm_wf is None:
+            if it_e > 0:
+                e_fname = 'wflm_%s_it%s' % ('p', it_e - 1)
+                assert self.wf_cacher.is_cached(e_fname)
+                elm_wf = self.wf_cacher.load(e_fname)
+            elif it_e == 0:
+                elm_wf = self.wflm0()
+            else:
+                assert 0,'dont know what to do with it_e = ' + str(it_e)
         assert Alm.getlmax(elm_wf.size, self.mmax_filt) == self.lmax_filt
+        mmaxb = lmaxb
         dlm = self.get_hlm(it, 'p')
         self.hlm2dlm(dlm, inplace=True)
-        plm_filt = np.ones(self.lmax_qlm + 1, dtype=float)
-        plm_filt[:lmin_plm] *= 0.
-        almxfl(dlm, plm_filt, self.mmax_qlm, True)
+        almxfl(dlm, np.arange(self.lmax_qlm + 1, dtype=int) >= lmin_plm, self.mmax_qlm, True)
         ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm)
-        elm, blm = ffi.lensgclm([elm_wf, elm_wf * 0.], self.mmax_filt, 2, lmaxb, lmaxb)
+        elm, blm = ffi.lensgclm([elm_wf, np.zeros_like(elm_wf)], self.mmax_filt, 2, lmaxb, mmaxb)
+        if cache_cond:
+            self.wf_cacher.cache(fn, blm)
         return blm
 
     def get_hlm(self, itr, key):
@@ -243,11 +263,8 @@ class qlm_iterator(object):
         return ret
 
     def load_gradquad(self, k, key):
-        if k == 0:
-            fn = '%slm_grad%slik_it%03d' % (self.h, key.lower(), k)
-            return self.cacher.load(fn)
-        assert key == 'p'
-        return self._yk2grad(k)
+        fn = '%slm_grad%slik_it%03d' % (self.h, key.lower(), k)
+        return self.cacher.load(fn)
 
     def load_gradient(self, itr, key):
         """Loads the total gradient at iteration iter.
@@ -255,7 +272,12 @@ class qlm_iterator(object):
                 All necessary alm's must have been calculated previously
 
         """
-        return self.load_gradpri(itr, key) + self.load_gradquad(itr, key) + self.load_graddet(itr, key)
+        if itr == 0:
+            g  = self.load_gradpri(0, key)
+            g += self.load_graddet(0, key)
+            g += self.load_gradquad(0, key)
+            return g
+        return self._yk2grad(itr)
 
     def calc_norm(self, qlm):
         return np.sqrt(np.sum(alm2cl(qlm, qlm, self.lmax_qlm, self.mmax_qlm, self.lmax_qlm)))
@@ -456,25 +478,35 @@ class iterator_cstmf(qlm_iterator):
 class iterator_pertmf(qlm_iterator):
     """Mean field isotropic response applied to current estimate
 
+            A constant term can also be added ('mf0')
 
     """
 
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
                  dat_maps:list or np.ndarray, plm0:np.ndarray, mf_resp:np.ndarray, pp_h0:np.ndarray,
                  cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.scarf_alm_filter_wl, k_geom:scarf.Geometry,
-                 chain_descr, stepper:steps.nrstep, **kwargs):
+                 chain_descr, stepper:steps.nrstep, mf0=None, **kwargs):
         super(iterator_pertmf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
                                              ninv_filt, k_geom, chain_descr, stepper, **kwargs)
         assert mf_resp.ndim == 1 and mf_resp.size > self.lmax_qlm, mf_resp.shape
+        if mf0 is not None:
+            assert self.lmax_qlm == Alm.getlmax(mf0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(mf0.size, self.lmax_qlm))
+            self.cacher.cache('mf', almxfl(mf0,  self._h2p(self.lmax_qlm), self.mmax_qlm, False))
         self.p_mf_resp = mf_resp
 
     def load_graddet(self, itr, key):
         assert self.h == 'p', 'check this line is ok for other h'
-        return almxfl(self.get_hlm(itr - 1, key), self.p_mf_resp * self._h2p(self.lmax_qlm), self.mmax_qlm, False)
+        mf = almxfl(self.get_hlm(itr - 1, key), self.p_mf_resp * self._h2p(self.lmax_qlm), self.mmax_qlm, False)
+        if self.cacher.is_cached('mf'):
+            mf += self.cacher.load('mf')
+        return mf
 
     def calc_graddet(self, itr, key):
         assert self.h == 'p', 'check this line is ok for other h'
-        return almxfl(self.get_hlm(itr - 1, key), self.p_mf_resp * self._h2p(self.lmax_qlm), self.mmax_qlm, False)
+        mf = almxfl(self.get_hlm(itr - 1, key), self.p_mf_resp * self._h2p(self.lmax_qlm), self.mmax_qlm, False)
+        if self.cacher.is_cached('mf'):
+            mf += self.cacher.load('mf')
+        return mf
 
 
 class iterator_simf(qlm_iterator):
@@ -503,7 +535,7 @@ class iterator_simf(qlm_iterator):
         mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.filter)
         t0 = time.time()
         q_geom = pbdGeometry(self.k_geom, pbounds(0., 2 * np.pi))
-        G, C = self.filter.get_qlms_mf(self.mf_key, q_geom, mchain)
+        G, C = self.filter.get_qlms_mf(self.mf_key, q_geom, mchain, cls_filt=self.cls_filt)
         almxfl(G if key.lower() == 'p' else C, self._h2p(self.lmax_qlm), self.mmax_qlm, True)
         print('get_qlm_mf calculation done; (%.0f secs)' % (time.time() - t0))
         if itr == 1:  # We need the gradient at 0 and the yk's to be able to rebuild all gradients
