@@ -54,6 +54,8 @@ Lmin = 2 # The reconstruction of all lensing multipoles below that will not be a
 stepper = steps.nrstep(lmax_qlm, mmax_qlm, val=0.5) # handler of the size steps in the MAP BFGS iterative search
 mc_sims_mf_it0 = np.arange(300) # sims to use to build the very first iteration mean-field (QE mean-field)
 
+# TODO define one simulation to get the index -1 to be the data ? 
+# Or else we will get the data in the mean field estimation and it will mess everythong
 
 # Multigrid chain descriptor
 chain_descrs = lambda lmax_sol, cg_tol : [[0, ["diag_cl"], lmax_sol, nside, np.inf, cg_tol, cd_solve.tr_cg, cd_solve.cache_mem()]]
@@ -156,6 +158,8 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
     """
     assert k in ['p_eb', 'p_p'], k
     libdir_iterator = libdir_iterators(k, simidx, version)
+    print('Starting get itlib for {}'.format(libdir_iterator))
+
     if not os.path.exists(libdir_iterator):
         os.makedirs(libdir_iterator)
     tr = int(os.environ.get('OMP_NUM_THREADS', 8))
