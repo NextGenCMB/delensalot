@@ -225,6 +225,12 @@ class qlm_iterator(object):
             self.wf_cacher.cache(fn, blm)
         return blm
 
+    def _get_ffi(self, itr):
+        dlm = self.get_hlm(itr, 'p')
+        self.hlm2dlm(dlm, inplace=True)
+        ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm)
+        return ffi
+
     def get_hlm(self, itr, key):
         """Loads current estimate """
         if itr < 0:
