@@ -187,7 +187,8 @@ module remapping
             imdi = imdi - im_res
         end do
         if (itr > itrmax) then
-            write(*, *) 'redi, imdi solver failed to achieve convergence', maxres, itr, itrmax
+            write(*, *) 'redi, imdi solver failed (maxres, itmax)', maxres, itrmax
+            write(*, *),' at tht phi (in deg) ', tht / DPI * 180, phi / DPI * 180
             if (maxres > 1d-5) then
                 error stop
             end if
