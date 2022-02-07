@@ -441,7 +441,7 @@ class qlm_iterator(object):
             if self._usethisE is not None:
                 if callable(self._usethisE):
                     print("iterator: using custom WF E")
-                    soltn = self._usethisE(itr)
+                    soltn = self._usethisE(self.filter, itr)
                 else:
                     assert 0, 'dont know what to do this with this E input'
             else:
