@@ -59,7 +59,7 @@ class qlm_iterator(object):
                  k_geom:scarf.Geometry,
                  chain_descr, stepper:steps.nrstep,
                  logger=None,
-                 NR_method=100, tidy=0, verbose=True, soltn_cond=True, wflm0=None):
+                 NR_method=100, tidy=0, verbose=True, soltn_cond=True, wflm0=None, _usethisE=None):
         """Lensing map iterator
 
             The bfgs hessian updates are called 'hlm's and are either in plm, dlm or klm space
@@ -123,6 +123,8 @@ class qlm_iterator(object):
         if not self.cacher.is_cached(plm_fname):
             self.cacher.cache(plm_fname, almxfl(read_map(plm0), self._p2h(self.lmax_qlm), self.mmax_qlm, False))
         self.logger.startup(self)
+
+        self._usethisE = _usethisE
 
     def _p2h(self, lmax):
         if self.h == 'p':
@@ -436,16 +438,23 @@ class qlm_iterator(object):
             ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm, cachers.cacher_mem())
             self.filter.set_ffi(ffi)
             mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.filter)
-            soltn, it_soltn = self.load_soltn(itr, key)
-            if it_soltn < itr - 1:
-                soltn *= self.soltn_cond
-                assert soltn.ndim == 1, 'Fix following lines'
-                mchain.solve(soltn, self.dat_maps, dot_op=self.filter.dot_op())
-                fn_wf = 'wflm_%s_it%s' % (key.lower(), itr - 1)
-                print("caching "  + fn_wf)
-                self.wf_cacher.cache(fn_wf, soltn)
+            if self._usethisE is not None:
+                if callable(self._usethisE):
+                    print("iterator: using custom WF E")
+                    soltn = self._usethisE(self.filter, itr)
+                else:
+                    assert 0, 'dont know what to do this with this E input'
             else:
-                print("Using cached WF solution at iter %s "%itr)
+                soltn, it_soltn = self.load_soltn(itr, key)
+                if it_soltn < itr - 1:
+                    soltn *= self.soltn_cond
+                    assert soltn.ndim == 1, 'Fix following lines'
+                    mchain.solve(soltn, self.dat_maps, dot_op=self.filter.dot_op())
+                    fn_wf = 'wflm_%s_it%s' % (key.lower(), itr - 1)
+                    print("caching "  + fn_wf)
+                    self.wf_cacher.cache(fn_wf, soltn)
+                else:
+                    print("Using cached WF solution at iter %s "%itr)
 
             t0 = time.time()
             q_geom = pbdGeometry(self.k_geom, pbounds(0., 2 * np.pi))
