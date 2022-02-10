@@ -1,6 +1,3 @@
-"""Get the output computed from a param file and compute the Cls etc..."""
-
-
 import numpy as np
 from lenscarf import utils
 from lenscarf.iterators import statics
