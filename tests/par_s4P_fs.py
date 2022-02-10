@@ -13,6 +13,7 @@ from lenscarf import remapping
 
 import numpy as np
 import os
+from os.path import join as opj
 from plancklens import utils, qresp
 from lenscarf.utils import cli
 from lenscarf.utils_hp import gauss_beam, almxfl, synalm, alm_copy
@@ -24,7 +25,8 @@ from lenscarf.opfilt.opfilt_iso_pp import alm_filter_nlev as pp_isofilt
 
 from lenscarf import utils_scarf
 
-TEMP =  '/global/cscratch1/sd/jcarron/cmbs4/temp/s4P_fs'
+suffix = 's4P_fs' # descriptor to distinguish this parfile from others...
+TEMP =  opj(os.environ['SCRATCH'], 'lenscarfrecs', suffix)
 
 lmin, lmax, mmax, beam, nlev_t, nlev_p = (30, 3000, 3000, 1., 1.5, 1.5 * np.sqrt(2.))
 lmax_qlm, mmax_qlm, lmax_unl, mmax_unl = (4000, 4000, 4000, 4000)
