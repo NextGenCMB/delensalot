@@ -188,7 +188,8 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         eblm = self.ffi.lensgclm(np.array([elm, elm * 0]), self.mmax_sol, 2, self.lmax_len, self.mmax_len, False)
         almxfl(eblm[0], self.b_transf_elm, self.mmax_len, True)
         almxfl(eblm[1], self.b_transf_blm, self.mmax_len, True)
-        QU = self.sc_job.alm2map_spin(eblm, 2)
+        # cant use here sc_job since it is using the unit weight transforms
+        QU = self.ninv_geom.alm2map_spin(eblm, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
         del eblm # Adding noise
         if len(self.n_inv) == 1: # QQ = UU
             pixnoise = np.sqrt(cli(self.n_inv[0]))
@@ -247,7 +248,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
             soltn = np.zeros(Alm.getsize(self.lmax_sol, self.mmax_sol), dtype=complex)
             mchain.solve(soltn, phas, dot_op=self.dot_op())
 
-            phas = self.sc_job.map2alm_spin(phas, 2)
+            phas = self.ninv_geom.map2alm_spin(phas, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
             almxfl(phas[0], 0.5 * self.b_transf_elm, self.mmax_len, True)
             almxfl(phas[1], 0.5 * self.b_transf_blm, self.mmax_len, True)
             repmap, impmap = q_pbgeom.geom.alm2map_spin(phas, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
