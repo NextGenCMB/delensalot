@@ -239,8 +239,8 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         if mfkey in [1]: # This should be B^t x, D dC D^t B^t Covi x, x random phases in pixel space here
             if phas is None:
                 # unit variance phases in Q U space
-                phas = [default_rng().standard_normal(utils_scarf.Geom.npix(self.ninv_geom)),
-                        default_rng().standard_normal(utils_scarf.Geom.npix(self.ninv_geom))]
+                phas = np.array([default_rng().standard_normal(utils_scarf.Geom.npix(self.ninv_geom)),
+                                 default_rng().standard_normal(utils_scarf.Geom.npix(self.ninv_geom))])
             assert phas[0].size == utils_scarf.Geom.npix(self.ninv_geom)
             assert phas[1].size == utils_scarf.Geom.npix(self.ninv_geom)
 
