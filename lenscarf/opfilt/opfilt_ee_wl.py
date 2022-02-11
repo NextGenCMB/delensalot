@@ -236,8 +236,28 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
 
 
         """
-        if mfkey in [1]: # This should be B^t x, D dC D^t B^t Covi x, x random phases in alm space
-            assert 0, 'not implemented'
+        if mfkey in [1]: # This should be B^t x, D dC D^t B^t Covi x, x random phases in pixel space here
+            if phas is None:
+                # unit variance phases in Q U space
+                phas = [default_rng().standard_normal(utils_scarf.Geom.npix(self.ninv_geom)),
+                        default_rng().standard_normal(utils_scarf.Geom.npix(self.ninv_geom))]
+            assert phas[0].size == utils_scarf.Geom.npix(self.ninv_geom)
+            assert phas[1].size == utils_scarf.Geom.npix(self.ninv_geom)
+
+            soltn = np.zeros(Alm.getsize(self.lmax_sol, self.mmax_sol), dtype=complex)
+            mchain.solve(soltn, phas, dot_op=self.dot_op())
+
+            phas = self.sc_job.map2alm_spin(phas, 2)
+            almxfl(phas[0], 0.5 * self.b_transf_elm, self.mmax_len, True)
+            almxfl(phas[1], 0.5 * self.b_transf_blm, self.mmax_len, True)
+            repmap, impmap = q_pbgeom.geom.alm2map_spin(phas, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
+
+            Gs, Cs = self._get_gpmap([soltn, np.zeros_like(soltn)], 3, q_pbgeom)  # 2 pos.space maps
+            GC = (repmap - 1j * impmap) * (Gs + 1j * Cs)  # (-2 , +3)
+            Gs, Cs = self._get_gpmap([soltn, np.zeros_like(soltn)], 1, q_pbgeom)
+            GC -= (repmap + 1j * impmap) * (Gs - 1j * Cs)  # (+2 , -1)
+            del repmap, impmap, Gs, Cs
+
         elif mfkey in [0]: # standard gQE, quite inefficient but simple
             assert phas is None, 'discarding this phase anyways'
             QUdat = np.array(self.synalm(cls_filt))
