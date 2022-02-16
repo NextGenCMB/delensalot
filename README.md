@@ -1,4 +1,4 @@
-![alt text](CAPTURE.png)
+![alt text](Capture.PNG)
 # Lenscarf
 
 Curved-sky iterative CMB lensing tools based on scarf
