@@ -52,8 +52,10 @@ lenjob_pbgeometry =utils_scarf.pbdGeometry(lenjob_geometry, utils_scarf.pbounds(
 lensres = 1.7  # Deflection operations will be performed at this resolution
 Lmin = 2 # The reconstruction of all lensing multipoles below that will not be attempted
 stepper = steps.nrstep(lmax_qlm, mmax_qlm, val=0.5) # handler of the size steps in the MAP BFGS iterative search
-mc_sims_mf_it0 = np.arange(300) # sims to use to build the very first iteration mean-field (QE mean-field)
+mc_sims_mf_it0 = np.arange(320) # sims to use to build the very first iteration mean-field (QE mean-field)
 
+# TODO define one simulation to get the index -1 to be the data ? 
+# Or else we will get the data in the mean field estimation and it will mess everythong
 
 # Multigrid chain descriptor
 chain_descrs = lambda lmax_sol, cg_tol : [[0, ["diag_cl"], lmax_sol, nside, np.inf, cg_tol, cd_solve.tr_cg, cd_solve.cache_mem()]]
@@ -156,6 +158,8 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
     """
     assert k in ['p_eb', 'p_p'], k
     libdir_iterator = libdir_iterators(k, simidx, version)
+    print('Starting get itlib for {}'.format(libdir_iterator))
+
     if not os.path.exists(libdir_iterator):
         os.makedirs(libdir_iterator)
     tr = int(os.environ.get('OMP_NUM_THREADS', 8))
@@ -186,7 +190,7 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
 
     plm0 = np.load(path_plm0)
     R_unl = qresp.get_response(k, lmax_ivf, 'p', cls_unl, cls_unl,  {'e': fel_unl, 'b': fbl_unl, 't':ftl_unl}, lmax_qlm=lmax_qlm)[0]
-    if k in ['p_p']:
+    if k in ['p_p'] and not 'noRespMF' in version :
         mf_resp = qresp.get_mf_resp(k, cls_unl, {'ee': fel_unl, 'bb': fbl_unl}, lmax_ivf, lmax_qlm)[0]
     else:
         print('*** mf_resp not implemented for key ' + k, ', setting it to zero')
@@ -239,6 +243,7 @@ if __name__ == '__main__':
         if args.itmax >= 0 and Rec.maxiterdone(lib_dir_iterator) < args.itmax:
             itlib = get_itlib(args.k, idx, args.v, 1.)
             for i in range(args.itmax + 1):
+                # print("Rank {} with size {} is starting iteration {}".format(mpi.rank, mpi.size, i))
                 print("****Iterator: setting cg-tol to %.4e ****"%tol_iter(i))
                 print("****Iterator: setting solcond to %s ****"%soltn_cond(i))
 

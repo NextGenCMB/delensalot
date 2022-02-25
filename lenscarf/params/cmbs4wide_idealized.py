@@ -217,6 +217,10 @@ if __name__ == '__main__':
         if Rec.maxiterdone(lib_dir_iterator) < args.itmax:
             jobs.append(idx)
 
+    if mpi.rank ==0:
+        print("Caching things in " + TEMP)
+
+
     for idx in jobs[mpi.rank::mpi.size]:
         lib_dir_iterator = libdir_iterators(args.k, idx, args.v)
         if args.itmax >= 0 and Rec.maxiterdone(lib_dir_iterator) < args.itmax:

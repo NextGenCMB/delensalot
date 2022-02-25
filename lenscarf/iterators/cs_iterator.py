@@ -230,7 +230,7 @@ class qlm_iterator(object):
     def _get_ffi(self, itr):
         dlm = self.get_hlm(itr, 'p')
         self.hlm2dlm(dlm, inplace=True)
-        ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm)
+        ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm, cachers.cacher_mem())
         return ffi
 
     def get_hlm(self, itr, key):
