@@ -1,7 +1,7 @@
 ![alt text](Capture.PNG)
 # Lenscarf
 
-Curved-sky iterative CMB lensing tools based on scarf
+Curved-sky iterative CMB lensing tools based on [Scarf](https://github.com/samuelsimko/scarf)
 
 
 known 'issues'

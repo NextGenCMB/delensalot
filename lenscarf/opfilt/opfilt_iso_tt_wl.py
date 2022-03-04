@@ -7,12 +7,22 @@ from lenscarf.utils_hp import almxfl, Alm
 from lenscarf.utils import timer, clhash
 from lenscarf import utils_scarf, remapping
 from lenscarf.opfilt import opfilt_iso_tt, opfilt_base
-
+from plancklens.utils import cli
 
 fwd_op = opfilt_iso_tt.fwd_op
 dot_op = opfilt_iso_tt.dot_op
 pre_op_diag = opfilt_iso_tt.pre_op_diag
 pre_op_dense = None # not implemented
+
+def _extend_cl(cl, lmax):
+    """Forces input to an array of size lmax + 1
+
+    """
+    if np.isscalar(cl):
+        return np.ones(lmax + 1, dtype=float) * cl
+    ret = np.zeros(lmax + 1, dtype=float)
+    ret[:min(len(cl), lmax+1)]= np.copy(cl[:min(len(cl), lmax+1)])
+    return ret
 
 def apply_fini(*args, **kwargs):
     """cg-inversion post-operation
@@ -24,12 +34,12 @@ def apply_fini(*args, **kwargs):
     pass
 
 class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
-    def __init__(self, nlev_t:float, ffi:remapping.deflection, transf:np.ndarray, unlalm_info:tuple, lenalm_info:tuple, verbose=False):
+    def __init__(self, nlev_t:float or np.ndarray, ffi:remapping.deflection, transf:np.ndarray, unlalm_info:tuple, lenalm_info:tuple, verbose=False):
         r"""Version of alm_filter_ninv_wl for full-sky maps filtered with homogeneous noise levels
 
 
                 Args:
-                    nlev_t: filtering noise level in uK-amin
+                    nlev_t: filtering noise level in uK-amin (can be a function of multipole)
                     ffi: lenscarf deflection instance
                     transf: transfer function (beam, pixel window, mutlipole cuts, ...)
                     unlalm_info: lmax and mmax of unlensed CMB
@@ -51,9 +61,12 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         self.lmax_len = min(lmax_len, lmax_transf)
         self.mmax_len = min(mmax_len, self.lmax_len)
 
-        self.inoise_2  = transf[:self.lmax_len + 1] ** 2 / (nlev_t / 180 / 60 * np.pi) ** 2
-        self.inoise_1  = transf[:self.lmax_len + 1] ** 1 / (nlev_t / 180 / 60 * np.pi) ** 2
-        self.transf    = transf[:self.lmax_len + 1]
+        nlev_tlm = _extend_cl(nlev_t, lmax_len)
+
+        self.inoise_2  = _extend_cl(transf ** 2, lmax_len) * cli(nlev_tlm ** 2) * (180 * 60 / np.pi) ** 2
+        self.inoise_1  = _extend_cl(transf ** 1 ,lmax_len) * cli(nlev_tlm ** 2) * (180 * 60 / np.pi) ** 2
+        self.transf    = _extend_cl(transf, lmax_len)
+
 
         self.verbose = verbose
         self.tim = timer(True, prefix='opfilt')
