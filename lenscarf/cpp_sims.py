@@ -11,7 +11,7 @@ from os.path import join as opj
 import os
 import importlib
 from lenscarf.utils_hp import alm2cl, alm_copy
-
+from lenscarf.utils import read_map
 class cpp_sims_lib:
     def __init__(self, k, itmax, tol, imin, imax, v='', param_file='cmbs4wide_planckmask', label=''):
         """Helper library to plot results from MAP estimation of simulations.
@@ -21,6 +21,7 @@ class cpp_sims_lib:
         """
         
         # Load the parameters defined in the param_file
+        self.param_file = param_file
         self.param = importlib.import_module('lenscarf.params.'+param_file)
 
         self.k = k
@@ -37,8 +38,12 @@ class cpp_sims_lib:
         self.mmax_qlm = self.param.mmax_qlm
 
         # self.plms = [[None]*(itmax+1)]*(imax+1)
+        self.cacher_param = cachers.cacher_npy(opj(self.TEMP, 'cpplib'))
+        self.fsky = self.get_fsky() 
 
-        
+        self.cpp_fid = self.param.cls_unl['pp']
+
+
         if type(self.param.sims.sims_cmb_len).__name__ == 'cmb_len_ffp10':
             self.sims_unl = planck2018_sims.cmb_unl_ffp10() 
     
@@ -59,6 +64,19 @@ class cpp_sims_lib:
     def get_plm_input(self, simidx):
         return alm_copy(self.sims_unl.get_sim_plm(simidx), mmaxin=None, lmaxout=self.lmax_qlm, mmaxout=self.mmax_qlm)
     
+    def get_fsky(self):
+        try:
+            fn = 'fsky'
+            if not self.cacher_param.is_cached(fn):
+                mask = read_map(self.param.masks)
+                fsky = np.sum(mask)/np.size(mask)
+                print(fsky)
+                self.cacher_param.cache(fn, fsky)
+            return self.cacher_param.load(fn)
+        except AttributeError:
+            print('No masks defined in param file ' + self.param_file)
+            return 1.
+
 
     def get_cpp_input(self, simidx):
         fn_cpp_in = 'cpp_input'
@@ -78,11 +96,12 @@ class cpp_sims_lib:
             plmin = self.get_plm_input(simidx)
             # plmit = self.plms[simidx][itr]
             plmit = self.get_plm(simidx, itr)
-            cpp_init = alm2cl(plmit, plmin, self.lmax_qlm, self.mmax_qlm, None)
-            cacher.cache(fn, cpp_init)
-        cpp_init = cacher.load(fn)
-        return cpp_init
+            cpp_itXin = alm2cl(plmit, plmin, self.lmax_qlm, self.mmax_qlm, None)
+            cacher.cache(fn, cpp_itXin)
+        cpp_itXin = cacher.load(fn)
+        return cpp_itXin
     
+
 
     def get_cpp(self, simidx, itr):
         fn_cpp_it = 'cpp_it_{}'.format(itr)
@@ -111,7 +130,7 @@ class cpp_sims_lib:
             cpp_qe = cpp_qe_wf * utils.cli(WF)**2
             cacher.cache(fn_cpp_qe, cpp_qe)
         cpp_qe = cacher.load(fn_cpp_qe)
-        return cpp_qe
+        return cpp_qe, R
 
     def get_mf0(self, simidx):
         return np.load(opj(self.libdir_sim(simidx), 'mf.npy'))
@@ -155,11 +174,9 @@ class cpp_sims_lib:
         # pl.loglog(ls, w * hp.alm2cl(MF1[0], MF1[0])[ls] / norm[ls] ** 2, label='MF spec + MC noise')
 
 
-    def get_n0n1_iter(self, simidx=0, itermax=15):
-        # get_N0_iter and response ?
-        # Allow to get iterative WF
+    def get_n0_iter(self, itermax=15):
         lmin_ivf = 2 # TODO Not sure if this is the correct lmin in all case ?
-        cacher = self.cacher_sim(simidx)
+        cacher = self.cacher_param
         fn_n0s = 'N0s_biased_itmax{}'.format(itermax)
         fn_n0s_unb = 'N0s_unbiased_itmax{}'.format(itermax)
         fn_resp_fid = 'resp_fid_itmax{}'.format(itermax)
@@ -180,8 +197,14 @@ class cpp_sims_lib:
         return N0s_biased, N0s_unbiased, rgg_fid, rgg_true
 
 
-    def get_wf_it(self, simidx=0, itermax=15):
-        cpp = self.param.cls_unl['pp'][:6001]
-        _, _, resp_fid, _ = self.get_n0n1_iter()
-        return cpp * utils.cli(cpp + utils.cli(resp_fid[:6001]))
+    def get_wf_fid(self, itermax=15):
+        _, _, resp_fid, _ = self.get_n0_iter(itermax=itermax)
+        return self.cpp_fid[:self.lmax_qlm+1] * utils.cli(self.cpp_fid[:self.lmax_qlm+1] + utils.cli(resp_fid[:self.lmax_qlm+1]))
 
+    def get_wf_sim(self, simidx, itr):
+        fn = 'wf_sim_it{}'.format(itr)
+        cacher = self.cacher_sim(simidx)
+        if not cacher.is_cached(fn):
+            wf = self.get_cpp_itXinput(simidx, itr) * utils.cli(self.get_cpp_input(simidx))
+            cacher.cache(fn, wf)
+        return cacher.load(fn)
