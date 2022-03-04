@@ -424,14 +424,14 @@ class qlm_iterator(object):
                     shutil.rmtree(opj(self.lib_dir, 'ffi_%s_it%s'%(key, itr)))
 
 
-    def calc_gradlik(self, itr, key):
+    def calc_gradlik(self, itr, key, iwantit=False):
         """Computes the quadratic part of the gradient for plm iteration 'itr'
 
         """
         assert self.is_iter_done(itr - 1, key)
         assert itr > 0, itr
         assert key.lower() in ['p', 'o'], key  # potential or curl potential.
-        if not self._is_qd_grad_done(itr, key):
+        if not self._is_qd_grad_done(itr, key) or iwantit:
             assert key in ['p'], key + '  not implemented'
             dlm = self.get_hlm(itr - 1, key)
             self.hlm2dlm(dlm, True)
