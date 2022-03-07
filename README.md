@@ -1,4 +1,4 @@
-![alt text](dlensalot.PNG)
+![alt text](dlensalot2.PNG)
 # D.Lensalot (formely known as Lenscarf)
 
 Curved-sky iterative CMB lensing tools based on [Scarf](https://github.com/samuelsimko/scarf)
