@@ -1,6 +1,8 @@
 ![alt text](dlensalot2.PNG)
 # D.Lensalot (formerly known as Lenscarf)
 
+(Just so everyone knows: Sir D.Lensalot is Sir Ducc Lensalot
+
 Curved-sky iterative CMB lensing tools based on [Scarf](https://github.com/samuelsimko/scarf)
 
 
