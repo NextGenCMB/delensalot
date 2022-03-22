@@ -1,12 +1,11 @@
+===========================================
+D.Lensalot 
+==========================================
 
 .. image:: res/dlensalot2.PNG
   :width: 400
   :alt: D.lensalot logo
 
-
-===========================================
-D.Lensalot 
-==========================================
 (formerly known as Lenscarf)
 
 Curved-sky iterative CMB lensing tools
