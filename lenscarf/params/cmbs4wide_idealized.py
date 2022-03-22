@@ -16,14 +16,18 @@ import numpy as np
 import healpy as hp
 
 import plancklens
-
-from plancklens import utils, qresp, qest, qecl
+from plancklens import utils
+from plancklens import qresp
+from plancklens import qest, qecl
 from plancklens.qcinv import cd_solve
+
 from plancklens.sims import maps, phas, planck2018_sims
 from plancklens.filt import filt_simple, filt_util
 
-from lenscarf import remapping, utils_scarf, utils_sims
+from lenscarf import remapping
+from lenscarf import utils_scarf, utils_sims
 from lenscarf.iterators import cs_iterator as scarf_iterator, steps
+
 from lenscarf.utils import cli
 from lenscarf.utils_hp import gauss_beam, almxfl, alm_copy
 from lenscarf.opfilt.opfilt_iso_ee_wl import alm_filter_nlev_wl
@@ -209,6 +213,7 @@ if __name__ == '__main__':
     soltn_cond = lambda it: True # Uses (or not) previous E-mode solution as input to search for current iteration one
 
     from plancklens.helpers import mpi
+
     mpi.barrier = lambda : 1 # redefining the barrier (Why ? )
     from lenscarf.iterators.statics import rec as Rec
     jobs = []
