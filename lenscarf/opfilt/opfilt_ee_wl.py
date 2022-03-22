@@ -3,7 +3,7 @@
 
 """
 import numpy as np
-from lenscarf.utils_hp import almxfl, Alm, alm2cl
+from lenscarf.utils_hp import almxfl, Alm, alm2cl, synalm, default_rng
 from lenscarf.utils import clhash, cli, read_map
 from lenscarf import  utils_scarf
 from lenscarf import remapping
@@ -174,6 +174,33 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         if self.verbose:
             print(tim)
 
+    def synalm(self, unlcmb_cls:dict, cmb_phas=None):
+        """Generate some dat maps consistent with noise filter fiducial ingredients
+
+            Note:
+                Feeding in directly the unlensed CMB phase can be useful for paired simulations.
+                In this case the shape must match that of the filter unlensed alm array
+
+
+        """
+        elm = synalm(unlcmb_cls['ee'], self.lmax_sol, self.mmax_sol) if cmb_phas is None else cmb_phas
+        assert Alm.getlmax(elm.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(elm.size, self.mmax_sol), self.lmax_sol)
+        eblm = self.ffi.lensgclm(np.array([elm, elm * 0]), self.mmax_sol, 2, self.lmax_len, self.mmax_len, False)
+        almxfl(eblm[0], self.b_transf_elm, self.mmax_len, True)
+        almxfl(eblm[1], self.b_transf_blm, self.mmax_len, True)
+        # cant use here sc_job since it is using the unit weight transforms
+        QU = self.ninv_geom.alm2map_spin(eblm, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
+        del eblm # Adding noise
+        if len(self.n_inv) == 1: # QQ = UU
+            pixnoise = np.sqrt(cli(self.n_inv[0]))
+            QU[0] += default_rng().standard_normal(utils_scarf.Geom.npix(self.ninv_geom)) * pixnoise
+            QU[1] += default_rng().standard_normal(utils_scarf.Geom.npix(self.ninv_geom)) * pixnoise
+        elif len(self.n_inv) == 3: #QQ UU QU
+            assert 0, 'this is not implemented at the moment, but this is easy'
+        else:
+            assert 0, 'you should never land here'
+        return QU
+
     def get_qlms(self, qudat: np.ndarray or list, elm_wf: np.ndarray, q_pbgeom: utils_scarf.pbdGeometry, alm_wf_leg2 :None or np.ndarray=None):
         """
 
@@ -205,6 +232,49 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         almxfl(C, fl, mmax_qlm, True)
         return G, C
 
+    def get_qlms_mf(self, mfkey, q_pbgeom:utils_scarf.pbdGeometry, mchain, phas=None, cls_filt:dict or None=None):
+        """Mean-field estimate using tricks of Carron Lewis appendix
+
+
+        """
+        if mfkey in [1]: # This should be B^t x, D dC D^t B^t Covi x, x random phases in pixel space here
+            if phas is None:
+                # unit variance phases in Q U space
+                phas = np.array([default_rng().standard_normal(utils_scarf.Geom.npix(self.ninv_geom)),
+                                 default_rng().standard_normal(utils_scarf.Geom.npix(self.ninv_geom))])
+            assert phas[0].size == utils_scarf.Geom.npix(self.ninv_geom)
+            assert phas[1].size == utils_scarf.Geom.npix(self.ninv_geom)
+
+            soltn = np.zeros(Alm.getsize(self.lmax_sol, self.mmax_sol), dtype=complex)
+            mchain.solve(soltn, phas, dot_op=self.dot_op())
+
+            phas = self.ninv_geom.map2alm_spin(phas, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
+            almxfl(phas[0], 0.5 * self.b_transf_elm, self.mmax_len, True)
+            almxfl(phas[1], 0.5 * self.b_transf_blm, self.mmax_len, True)
+            repmap, impmap = q_pbgeom.geom.alm2map_spin(phas, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
+
+            Gs, Cs = self._get_gpmap([soltn, np.zeros_like(soltn)], 3, q_pbgeom)  # 2 pos.space maps
+            GC = (repmap - 1j * impmap) * (Gs + 1j * Cs)  # (-2 , +3)
+            Gs, Cs = self._get_gpmap([soltn, np.zeros_like(soltn)], 1, q_pbgeom)
+            GC -= (repmap + 1j * impmap) * (Gs - 1j * Cs)  # (+2 , -1)
+            del repmap, impmap, Gs, Cs
+
+        elif mfkey in [0]: # standard gQE, quite inefficient but simple
+            assert phas is None, 'discarding this phase anyways'
+            QUdat = np.array(self.synalm(cls_filt))
+            elm_wf = np.zeros(Alm.getsize(self.lmax_sol, self.mmax_sol), dtype=complex)
+            mchain.solve(elm_wf, QUdat, dot_op=self.dot_op())
+            return self.get_qlms(QUdat, elm_wf, q_pbgeom)
+        else:
+            assert 0, mfkey + ' not implemented'
+        lmax_qlm = self.ffi.lmax_dlm
+        mmax_qlm = self.ffi.mmax_dlm
+        G, C = q_pbgeom.geom.map2alm_spin([GC.real, GC.imag], 1, lmax_qlm, mmax_qlm, self.ffi.sht_tr, (-1., 1.))
+        del GC
+        fl = - np.sqrt(np.arange(lmax_qlm + 1, dtype=float) * np.arange(1, lmax_qlm + 2))
+        almxfl(G, fl, mmax_qlm, True)
+        almxfl(C, fl, mmax_qlm, True)
+        return G, C
 
     def _get_gpmap(self, eblm_wf:np.ndarray or list, spin:int, q_pbgeom:utils_scarf.pbdGeometry):
         """Wiener-filtered gradient leg to feed into the QE

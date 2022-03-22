@@ -188,6 +188,7 @@ class deflection:
     def _bwd_angles(self):
         fn = 'bwdang'
         if not self.cacher.is_cached(fn):
+
             t0 = time.time()
             self.tim.reset_t0()
             self._init_d1()
@@ -198,12 +199,12 @@ class deflection:
             thts = np.empty(npix, dtype=float)
             phis = np.empty(npix, dtype=float)
             starts = np.zeros(nrings + 1, dtype=int)
-            for i, ir in enumerate(np.argsort(self.geom.ofs)): # We must follow the ordering of scarf position-space map
+            for i, ir in enumerate(np.argsort(self.geom.ofs)):  # We must follow the ordering of scarf position-space map
                 pixs = Geom.pbounds2pix(self.geom, ir, self._pbds)
                 starts[i + 1] = starts[i] + pixs.size
                 if pixs.size > 0:
-                    thts[starts[i] : starts[i + 1]] = self.geom.get_theta(ir) * np.ones(pixs.size)
-                    phis[starts[i] : starts[i + 1]] = Geom.phis(self.geom, ir)[pixs - self.geom.ofs[ir]]
+                    thts[starts[i]: starts[i + 1]] = self.geom.get_theta(ir) * np.ones(pixs.size)
+                    phis[starts[i]: starts[i + 1]] = Geom.phis(self.geom, ir)[pixs - self.geom.ofs[ir]]
             # Perform deflection inversion with Fortran code
             redi, imdi = fremap.remapping.solve_pixs(re_f, im_f, thts, phis, tht0, phi0, t2grid, p2grid)
             bwdang = np.zeros((2, npix), dtype=float)
@@ -316,7 +317,7 @@ class deflection:
             self.cacher.cache(fn, gamma)
         return self.cacher.load(fn)
 
-    def gclm2lenmap(self, gclm:np.ndarray or list, mmax:int or None, spin, backwards:bool):
+    def gclm2lenmap(self, gclm:np.ndarray or list, mmax:int or None, spin, backwards:bool, nomagn=False):
         if self.sig_d <= 0:
             if abs(spin) > 0:
                 lmax = Alm.getlmax(gclm[0].size, mmax)
@@ -338,7 +339,7 @@ class deflection:
         self.tim.add('interpolation')
         if spin == 0:
             if backwards:
-                lenm_pbded *= self._bwd_magn()
+                if not nomagn: lenm_pbded *= self._bwd_magn()
                 self.tim.add('det Mi')
             lenm = Geom.pbdmap2map(self.geom, lenm_pbded, self._pbds)
         else:
@@ -353,14 +354,14 @@ class deflection:
         self.tim.add('truncated array filling')
         return lenm
 
-    def lensgclm(self, gclm:np.ndarray or list, mmax:int or None, spin, lmax_out, mmax_out:int or None, backwards=False):
+    def lensgclm(self, gclm:np.ndarray or list, mmax:int or None, spin, lmax_out, mmax_out:int or None, backwards=False, nomagn=False):
         if self.sig_d <= 0: # no actual deflection
             if spin == 0:
                 return alm_copy(gclm, mmax, lmax_out, mmax_out)
             glmret = alm_copy(gclm[0], mmax, lmax_out, mmax_out)
             return np.array([glmret, alm_copy(gclm[1], mmax, lmax_out, mmax_out) if gclm[1] is not None else np.zeros_like(glmret)])
         self.tim.reset_t0()
-        lenm = self.gclm2lenmap(gclm, mmax, spin, backwards)
+        lenm = self.gclm2lenmap(gclm, mmax, spin, backwards, nomagn=nomagn)
         self.tim.add('gclm2lenmap, total')
         if mmax_out is None: mmax_out = lmax_out
         if spin > 0:

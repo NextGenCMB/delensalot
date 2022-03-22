@@ -118,7 +118,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
             print(tim)
 
     def synalm(self, unlcmb_cls:dict, cmb_phas=None):
-        """Generate some dat maps consistent with filter fid ingredients
+        """Generate some dat maps consistent with noise filter fiducial ingredients
 
             Note:
                 Feeding in directly the unlensed CMB phase can be useful for paired simulations.

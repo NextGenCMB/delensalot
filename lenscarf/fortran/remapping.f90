@@ -189,9 +189,9 @@ module remapping
         if (itr > itrmax) then
             write(*, *) 'redi, imdi solver failed (maxres, itmax)', maxres, itrmax
             write(*, *),' at tht phi (in deg) ', tht / DPI * 180, phi / DPI * 180
-            if (maxres > 1d-5) then
-                error stop
-            end if
+            !if (maxres > 1d-5) then !FIXME: what to do with this?
+            !    error stop
+            !end if
         end if
     end subroutine solve_pix
 
@@ -213,5 +213,6 @@ module remapping
         end do
         !$OMP END PARALLEL DO
     end subroutine solve_pixs
+
 
 end module remapping

@@ -1,4 +1,5 @@
 import numpy as np
+import pylab as pl
 from lenscarf import utils_hp, remapping, cachers, utils_scarf, utils_dlm, utils_remapping
 from lenscarf.utils_scarf import pbdGeometry, pbounds, scarfjob, Geom
 from plancklens.utils import camb_clfile, cli
@@ -24,7 +25,7 @@ def get_jacobian(d:remapping.deflection):
 
     dnorm = np.sqrt(d1 ** 2 + d2 ** 2)
     Mapprox = (1. - k) ** 2 + o ** 2 - g1 ** 2 - g2 ** 2
-    Mtrue = spherical_jn(0, dnorm) * Mapprox - dnorm * spherical_jn(1, dnorm) * (1. - k - g1 * (d1 ** 2 - d2 ** 2) - g2 * ( 2 * d1 * d2))
+    Mtrue = spherical_jn(0, dnorm) * Mapprox - dnorm * spherical_jn(1, dnorm) * (1. - k - g1 * (d1 ** 2 - d2 ** 2) / dnorm ** 2 - g2 * ( 2 * d1 * d2) / dnorm ** 2)
     return Mapprox, Mtrue, k,  dnorm
 
 if __name__ == '__main__':
@@ -48,4 +49,15 @@ if __name__ == '__main__':
 
     Ma, Mt, k, dnorm = get_jacobian(d) # New calc.
     print(np.max(np.abs(Ma)), np.max(np.abs(Ma / Mt -1.)), np.max(np.abs( (Ma - 0.5 * dnorm ** 2)/ Mt-1)), np.max(np.abs( (1 - 2 * k) / Mt-1.)))
-#1.0342127793693392 2.2114298880993033e-07 3.1805525990691308e-09 0.00036568493721045314
+
+    # Plotting spectrum of |J| and its approximation
+    diff_lm = sjob.map2alm(Mt - Ma)
+    cl_diff = utils_hp.alm2cl(diff_lm, diff_lm, d.lmax_dlm, d.mmax_dlm, d.lmax_dlm)
+    del diff_lm
+    diff_lm = sjob.map2alm(Mt)
+    cl_M= utils_hp.alm2cl(diff_lm, diff_lm, d.lmax_dlm, d.mmax_dlm, d.lmax_dlm)
+    ls = np.arange(1, d.lmax_dlm)
+    pl.loglog(ls, cl_diff[ls])
+    pl.loglog(ls, cl_M[ls])
+    pl.show()
+#1.036089569804855 1.9741976986509258e-07 2.660417663946646e-09 0.0002988467153802743

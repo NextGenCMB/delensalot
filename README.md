@@ -1,6 +1,9 @@
-# Lenscarf
+![alt text](dlensalot2.PNG)
+# D.Lensalot (formerly known as Lenscarf)
 
-Curved-sky iterative CMB lensing tools based on scarf
+(Just so everyone knows: Sir D.Lensalot is Sir Ducc Lensalot)
+
+Curved-sky iterative CMB lensing tools based on [Scarf](https://github.com/samuelsimko/scarf)
 
 
 known 'issues'
@@ -12,7 +15,7 @@ known 'issues'
 
 ## Use on NERSC
 
-To use lenscarf on NERSC, you need to load some libraries as well as the GNU compilers (the default ones being Intel), before installing the module.
+To use D.lensalot on NERSC, you need to load some libraries as well as the GNU compilers (the default ones being Intel), before installing the module.
 Type these lines in the terminal or include them into your `~/.bash_profile`:
 
 ```

@@ -9,9 +9,8 @@ from lenscarf.skypatch import skypatch
 from lenscarf.utils_scarf import scarfjob
 import numpy as np
 import pyfftw
-print('3')
 from lenscarf.fortran import bicubic
-print('4')
+
 class bicubic_ecp_interpolator:
     """Spin-weighted bicubic spline interpolator on a patch of the sky.
 
