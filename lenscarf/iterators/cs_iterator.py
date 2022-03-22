@@ -188,7 +188,7 @@ class qlm_iterator(object):
     def get_template_blm(self, it, it_e, lmaxb=1024, lmin_plm=1, elm_wf:None or np.ndarray=None):
         """Builds a template B-mode map with the iterated phi and input elm_wf
 
-            Args: 
+            Args:
                 it: iteration index of lensing tracer
                 it_e: iteration index of E-tracer
                 elm_wf: Wiener-filtered E-mode (healpy alm array), if not an iterated solution (it_e will ignored if set)
