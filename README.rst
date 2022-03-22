@@ -1,5 +1,7 @@
-.. |D.lensalot logo| image:: res/dlensalot2.PNG
-
+.. image:: res/dlensalot2.PNG
+  :width: 400
+  :alt: D.lensalot logo
+  
 ===========================================
 D.Lensalot 
 ==========================================
