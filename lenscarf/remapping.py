@@ -7,11 +7,9 @@ from lenscarf.skypatch import skypatch
 from lenscarf import interpolators as itp
 from lenscarf.utils_remapping import d2ang, ang2d
 from lenscarf import cachers
-
 from lenscarf.utils import timer, clhash
 from lenscarf.utils_hp import Alm, alm2cl, alm_copy
 from lenscarf.utils_scarf import Geom, scarfjob, pbdGeometry
-
 from lenscarf.fortran import remapping as fremap
 from lenscarf import utils_dlm
 
