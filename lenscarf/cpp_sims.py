@@ -12,8 +12,11 @@ import os
 import importlib
 from lenscarf.utils_hp import alm2cl, alm_copy
 from lenscarf.utils import read_map
+from lenscarf.rdn0_cs import load_ss_ds
+
+
 class cpp_sims_lib:
-    def __init__(self, k, itmax, tol, imin, imax, v='', param_file='cmbs4wide_planckmask', label=''):
+    def __init__(self, k, itmax, tol, v='', param_file='cmbs4wide_planckmask', label=''):
         """Helper library to plot results from MAP estimation of simulations.
         
         This class loads the results of the runs done with the param_file and the options asked
@@ -28,8 +31,8 @@ class cpp_sims_lib:
         self.itmax = itmax
         self.tol = tol
         self.tol_iter  = 10 ** (- self.tol) 
-        self.imin = imin
-        self.imax = imax
+        # self.imin = imin
+        # self.imax = imax
         self.version = v
         self.iters = np.arange(itmax+1)
         self.label = label
