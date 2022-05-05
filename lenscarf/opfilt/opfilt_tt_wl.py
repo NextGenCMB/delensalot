@@ -122,7 +122,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         # Forward lensing here
         tim = self.tim
         tim.reset_t0()
-        lmax_unl =Alm.getlmax(tlm.size, self.mmax_sol)
+        lmax_unl = Alm.getlmax(tlm.size, self.mmax_sol)
         assert lmax_unl == self.lmax_sol, (lmax_unl, self.lmax_sol)
         # glm is -tlm for spin 0 but two signs cancel
         tlm_len = self.ffi.lensgclm(tlm, self.mmax_sol, 0, self.lmax_len, self.mmax_len)
@@ -145,7 +145,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         tim.add('transf')
 
         # backward lensing with magn. mult. here
-        tlm[:]= self.ffi.lensgclm(tlm, self.mmax_len, 0, self.lmax_sol, self.mmax_sol, backwards=True)
+        tlm[:]= self.ffi.lensgclm(tlm_len, self.mmax_len, 0, self.lmax_sol, self.mmax_sol, backwards=True)
         tim.add('lensgclm bwd')
         if self.verbose:
             print(tim)
