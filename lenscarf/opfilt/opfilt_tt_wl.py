@@ -131,7 +131,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         almxfl(tlm_len, self.b_transf_tlm, self.mmax_len, inplace=True)
         tim.add('transf')
 
-        tmap = self.sc_job.alm2map(tlm)
+        tmap = self.sc_job.alm2map(tlm_len)
         tim.add('alm2map lmax %s mmax %s nrings %s'%(self.lmax_len, self.mmax_len, self.sc_job.geom.get_nrings()))
 
         self.apply_map(tmap)  # applies N^{-1}
