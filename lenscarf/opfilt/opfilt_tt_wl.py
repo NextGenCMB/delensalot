@@ -7,7 +7,7 @@ from lenscarf.utils_hp import almxfl, Alm, alm2cl, synalm, default_rng
 from lenscarf.utils import clhash, cli, read_map
 from lenscarf import  utils_scarf
 from lenscarf import remapping
-from lenscarf.opfilt import  opfilt_tt, opfilt_base
+from lenscarf.opfilt import opfilt_base
 from scipy.interpolate import UnivariateSpline as spl
 from lenscarf.utils import timer
 
