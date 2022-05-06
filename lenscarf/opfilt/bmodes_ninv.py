@@ -176,7 +176,7 @@ class template_bfilt(object):
 
         """
         if self.lib_dir is not None:
-            return self._build_tniti('')
+            return self._build_tnit('')
         NiQQ, NiUU, NiQU = NiQQ_NiUU_NiQU
         assert NiQU is None
         tnit = np.zeros((self.nmodes, self.nmodes), dtype=float)
@@ -189,7 +189,7 @@ class template_bfilt(object):
             tnit[a, :] = tnit[:, a]
         return tnit
 
-    def _build_tniti(self, prefix=''):
+    def _build_tnit(self, prefix=''):
         tnit = np.zeros((self.nmodes, self.nmodes), dtype=float)
         for i, a in enumerate_progress(range(self.nmodes), label='collecting Tmat rows'):
             fname = os.path.join(self.lib_dir, prefix + 'row%05d.npy'%a)

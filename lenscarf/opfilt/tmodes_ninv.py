@@ -166,7 +166,7 @@ class template_tfilt(object):
 
         """
         if self.lib_dir is not None:
-            return self._build_tniti('')
+            return self._build_tnit('')
         tnit = np.zeros((self.nmodes, self.nmodes), dtype=float)
         for i, a in enumerate_progress(range(self.nmodes), False * 'filling template matrix'):  # Starts at ell = 1
             _NiT = np.copy(NiT)  # Building Ni_{QX} R_bX
@@ -175,7 +175,7 @@ class template_tfilt(object):
             tnit[a, :] = tnit[:, a]
         return tnit
 
-    def _build_tniti(self, prefix=''):
+    def _build_tnit(self, prefix=''):
         tnit = np.zeros((self.nmodes, self.nmodes), dtype=float)
         for i, a in enumerate_progress(range(self.nmodes), label='collecting Tmat rows'):
             fname = os.path.join(self.lib_dir, prefix + 'row%05d.npy'%a)
@@ -212,9 +212,9 @@ class template_dense(template_tfilt):
                 sht_threads: number of threads per SHT
                 _lib_dir(optional): the instance will look for a matrix cached there if set
                 rescal(optional): rescales the matrix by this factor. Useful if the original matrix was calculated using
-                        a different overall noise level. The template matrix is proportional to the inverse squared noise level
+                        a different overall noise level. The 'tniti' template matrix is proportional to the squared noise level
 
-        
+
         """
         assert os.path.exists(os.path.join(_lib_dir, 'tniti.npy')), os.path.join(_lib_dir, 'tniti.npy')
         super().__init__(lmax_marg, geom, sht_threads, _lib_dir=_lib_dir)
