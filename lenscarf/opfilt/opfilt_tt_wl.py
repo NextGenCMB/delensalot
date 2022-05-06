@@ -7,7 +7,8 @@ from lenscarf.utils_hp import almxfl, Alm, alm2cl, synalm, default_rng
 from lenscarf.utils import clhash, cli, read_map
 from lenscarf import  utils_scarf
 from lenscarf import remapping
-from lenscarf.opfilt import opfilt_base
+from lenscarf.opfilt import opfilt_base, tmodes_ninv as tni
+
 from scipy.interpolate import UnivariateSpline as spl
 from lenscarf.utils import timer
 
@@ -24,7 +25,7 @@ def apply_fini(*args, **kwargs):
 
 class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
     def __init__(self, ninv_geom:utils_scarf.Geometry, ninv: np.ndarray, ffi:remapping.deflection, transf:np.ndarray,
-                 unlalm_info:tuple, lenalm_info:tuple, sht_threads:int,verbose=False, lmin_dotop=0):
+                 unlalm_info:tuple, lenalm_info:tuple, sht_threads:int,verbose=False, lmin_dotop=0, tpl:tni.template_tfilt or None =None):
         r"""CMB inverse-variance and Wiener filtering instance, using unlensed E and lensing deflection
 
             Args:
@@ -74,7 +75,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         self._nlevt = None
         self.tim = timer(True, prefix='opfilt')
 
-        self.template = None # not implemented yet
+        self.template = tpl
 
     def hashdict(self):
         return {'ninv':self._ninv_hash(), 'transf':clhash(self.b_transf_tlm),
