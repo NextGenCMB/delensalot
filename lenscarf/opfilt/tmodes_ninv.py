@@ -68,7 +68,7 @@ class template_tfilt(object):
 
 
         """
-        assert lmax_marg >= 1, lmax_marg # monopole always assumed to be zero
+        assert lmax_marg >= 0, lmax_marg
         self.lmax = lmax_marg
         self.nmodes = (lmax_marg + 1) * lmax_marg + lmax_marg + 1 - 0
         if not np.all(geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
@@ -96,7 +96,7 @@ class template_tfilt(object):
 
     @staticmethod
     def get_nmodes(lmax):
-        assert lmax >= 1, lmax
+        assert lmax >= 0, lmax
         return (lmax + 1) * lmax + lmax + 1 - 0
 
     @staticmethod
