@@ -202,6 +202,20 @@ class template_tfilt(object):
 
 class template_dense(template_tfilt):
     def __init__(self, lmax_marg:int, geom:scarf.Geometry, sht_threads:int, _lib_dir=None, rescal=1.):
+        """Dense harmonic mode template projection matrix instance
+
+            Typically used with a precomputed matrix
+
+            Args:
+                lmax_marg: maximum projected multipole (inclusive)
+                geom: scarf geometry of the data maps
+                sht_threads: number of threads per SHT
+                _lib_dir(optional): the instance will look for a matrix cached there if set
+                rescal(optional): rescales the matrix by this factor. Useful if the original matrix was calculated using
+                        a different overall noise level. The template matrix is proportional to the inverse squared noise level
+
+        
+        """
         assert os.path.exists(os.path.join(_lib_dir, 'tniti.npy')), os.path.join(_lib_dir, 'tniti.npy')
         super().__init__(lmax_marg, geom, sht_threads, _lib_dir=_lib_dir)
         self.rescal = rescal
