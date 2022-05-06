@@ -70,7 +70,7 @@ class template_tfilt(object):
         """
         assert lmax_marg >= 1, lmax_marg # monopole always assumed to be zero
         self.lmax = lmax_marg
-        self.nmodes = (lmax_marg + 1) * lmax_marg + lmax_marg + 1 - 1
+        self.nmodes = (lmax_marg + 1) * lmax_marg + lmax_marg + 1 - 0
         if not np.all(geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
             print('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
             nr = geom.get_nrings()
@@ -97,25 +97,25 @@ class template_tfilt(object):
     @staticmethod
     def get_nmodes(lmax):
         assert lmax >= 1, lmax
-        return (lmax + 1) * lmax + lmax + 1 - 1
+        return (lmax + 1) * lmax + lmax + 1 - 0
 
     @staticmethod
     def get_modelmax(mode):
         assert mode >= 0, mode
         nmodes = 0
         l = -1
-        while nmodes - 1 < mode + 1:
+        while nmodes - 1 < mode + 0:
             l += 1
             nmodes += 2 * l + 1
         return l
 
     @staticmethod
     def _rlm2blm(rlm):
-        return rlm2alm(np.concatenate([np.zeros(1), rlm]))
+        return rlm2alm(rlm)
 
     @staticmethod
     def _blm2rlm(blm):
-        return alm2rlm(blm)[1:]
+        return alm2rlm(blm)
 
     def apply_tmode(self, tmap, mode):
         assert mode < self.nmodes, (mode, self.nmodes)
