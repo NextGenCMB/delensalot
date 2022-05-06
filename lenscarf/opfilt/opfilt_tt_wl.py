@@ -182,7 +182,6 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
             All implementation signs are super-weird but end result should be correct...
 
         """
-        assert Alm.getlmax(tlm_dat.size, self.mmax_len) == self.lmax_len, (Alm.getlmax(tlm_dat.size, self.mmax_len), self.lmax_len)
         assert Alm.getlmax(tlm_wf.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(tlm_wf.size, self.mmax_sol), self.lmax_sol)
         if alm_wf_leg2 is None:
             d1 = self._get_irestmap(tlm_dat, tlm_wf, q_pbgeom) * self._get_gtmap(tlm_wf, q_pbgeom)
