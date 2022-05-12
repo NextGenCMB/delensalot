@@ -16,14 +16,16 @@ import scarf
 from plancklens.filt import  filt_util, filt_cinv
 from plancklens import qest, qresp, utils
 from plancklens.qcinv import cd_solve, opfilt_pp
-import itercurv
 
+
+#TODO remove itercurv dependence
+import itercurv
 from itercurv import healpix_hack as hph
 from itercurv.filt import opfilt_ee_wl
 from itercurv.iterators import cs_iterator
 from itercurv.filt import utils_cinv_p
-
 from itercurv.remapping.utils import alm_copy
+
 from cmbs4 import sims_08b
 
 #NB: using lmax 3000 MF
