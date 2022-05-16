@@ -1,4 +1,4 @@
-"""Iterative reconstruction for s06b fg 00, using Caterina ILC maps
+"""Iterative reconstruction for s08d fg 00 / 07, using Caterina ILC maps
 
 Steps to run this successfully:
     1. calculate tniti
@@ -6,7 +6,6 @@ Steps to run this successfully:
     3. choose filter
     4. check dir structure
 """
-
 
 import os, sys
 import numpy as np
@@ -20,7 +19,6 @@ from plancklens.qcinv import cd_solve, opfilt_pp
 
 #TODO remove itercurv dependence
 import itercurv
-from itercurv import healpix_hack as hph
 from itercurv.filt import opfilt_ee_wl
 from itercurv.iterators import cs_iterator
 from itercurv.filt import utils_cinv_p
@@ -29,18 +27,14 @@ from itercurv.remapping.utils import alm_copy
 from cmbs4 import sims_08b
 
 #NB: using lmax 3000 MF
-fg = '09'
-TEMP =  '/global/cscratch1/sd/sebibel/cmbs4/s08b/cILC2021_%s_lmax4000/'%fg
-TEMP3000  =  TEMP.replace('_lmax4000', '')
-TEMP_qlmsddOBD = TEMP.replace('_lmax4000', '')
-BMARG_LIBDIR  = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08b/'
+fg = '07'
+TEMP =  '/global/cscratch1/sd/sebibel/cmbs4/s08d/cILC_%s_chile/'%fg
+BMARG_LIBDIR  = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08d/'
 BMARG_LCUT=200
-BMARG_CENTRALNLEV_UKAMIN = 0.350500 # central pol noise level in map used to build the (TniT) inverse matrix
-THIS_CENTRALNLEV_UKAMIN = 0.42# central pol noise level in this pameter file noise sims. The template matrix willbe rescaled
-
-tniti_rescal = (THIS_CENTRALNLEV_UKAMIN / BMARG_CENTRALNLEV_UKAMIN) ** 2
+THIS_CENTRALNLEV_UKAMIN = 0.42# central pol noise level in this pameter file noise sims.
 nlev_p = 0.42   #NB: cinv_p gives me this value cinv_p::noiseP_uk_arcmin = 0.429
 nlev_t = nlev_p / np.sqrt(2.)
+
 beam = 2.3
 lmax_ivf_qe = 3000
 lmin_ivf_qe = 10
@@ -49,8 +43,8 @@ lmax_transf = 4000 # can be distinct from lmax_filt for iterations
 lmax_filt = 4096 # unlensed CMB iteration lmax
 nside = 2048
 nsims = 200
-tol=1e-3
 
+tol=1e-3
 # The gradient spectrum seems to saturate with 1e-3 after roughly this number of iteration
 tol_iter = lambda itr : 1e-3 if itr <= 10 else 1e-4
 soltn_cond = lambda itr: True
@@ -61,12 +55,6 @@ sht_threads = 32
 opfilt_pp.alm2map_spin = lambda eblm, nside_, spin, lmax, **kwargs: scarf.alm2map_spin(eblm, spin, nside_, lmax, **kwargs, nthreads=sht_threads, zbounds=zbounds)
 opfilt_pp.map2alm_spin = lambda *args, **kwargs: scarf.map2alm_spin(*args, **kwargs, nthreads=sht_threads, zbounds=zbounds)
 
-# sht_threads = int(os.environ.get('OMP_NUM_THREADS', 2))
-# opfilt_pp.alm2map_spin = lambda qumap, spin, lmax: scarf.map2alm_spin(qumap, spin, lmax, lmax, sht_threads, zbounds)
-# opfilt_pp.alm2map_spin = lambda eblm, nside_, spin, lmax: scarf.alm2map_spin(eblm, spin, nside_, lmax, lmax, sht_threads, zbounds)
-
-#opfilt_pp.alm2map_spin = lambda *args, **kwargs, :hph.alm2map_spin(*args, **kwargs, zbounds=zbounds)
-#opfilt_pp.map2alm_spin = lambda *args, **kwargs, :hph.map2alm_spin(*args, **kwargs, zbounds=zbounds)
 
 #---Add 5 degrees to mask zbounds:
 zbounds_len = [np.cos(np.arccos(zbounds[0]) + 5. / 180 * np.pi), np.cos(np.arccos(zbounds[1]) - 5. / 180 * np.pi)]
@@ -74,7 +62,6 @@ zbounds_len[0] = max(zbounds_len[0], -1.)
 zbounds_len[1] = min(zbounds_len[1],  1.)
 #-- Add 5 degress to mask pbounds
 pbounds_len = np.array((113.20399439681668, 326.79600560318335)) #hardcoded
-
 
 # --- masks: here we test apodized at ratio 10 and weightmap
 if not os.path.exists(TEMP):

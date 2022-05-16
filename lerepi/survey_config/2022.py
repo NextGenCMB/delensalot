@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import healpy as hp
-import cmbs4
 from warnings import warn
 
 
@@ -80,6 +79,8 @@ def get_crudeILC_noise_cl(fg, lmax, output_beam, freqs=(93, 145), ret_coeffs=Fal
 
 
 def get_beamdfgd_pcls(freq1, freq2, fg, mask_nlev=2.):
+    import cmbs4
+    warn("get_beamdfgd_pcls() is redundant and will be removed in the future.", DeprecationWarning, stacklevel=2)
     """EE BB EB BE foreground (cross)spectra, inclusive of transfer function
 
     """
@@ -114,7 +115,7 @@ def get_fidcls():
     
     import plancklens
     from plancklens import utils
-    warn('This is redundant and will be removed in the future.', DeprecationWarning, stacklevel=2)
+    warn("get_fidcls() is redundant and will be removed in the future.", DeprecationWarning, stacklevel=2)
     cls_path = os.path.join(os.path.dirname(os.path.abspath(plancklens.__file__)), 'data', 'cls')
     cl_unl = utils.camb_clfile(os.path.join(cls_path, 'FFP10_wdipole_lenspotentialCls.dat'))
     cl_len = utils.camb_clfile(os.path.join(cls_path, 'FFP10_wdipole_lensedCls.dat'))

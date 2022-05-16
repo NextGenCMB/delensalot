@@ -1,14 +1,14 @@
 """08b sims
-
     Params in Table 2-2 PBDR
-
+    Each class defines a set of data which has been provided for delensing.
+    For each class, define the directory, configuration, mask, ..
+    Configuration of sims can be found in /config_survey
 """
 import os
 import numpy as np
-import plancklens
-from plancklens import utils
+from plancklens import utils #TODO switch this to lenscarf
 import healpy as hp
-import cmbs4
+
 
 class caterinaILC_May12:
     """ILC maps from C Umilta on s06b May 12 2021
