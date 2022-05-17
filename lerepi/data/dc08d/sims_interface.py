@@ -12,7 +12,7 @@ import healpy as hp
 
 
 class ILC_May2022:
-    """ILC maps from Caterina Umilta on s08b May 2022 for the Chile configuration.
+    """ILC maps from Caterina Umilta on s08d May 2022 for the Chile configuration.
         These maps are multiplied with the weights used for the ILC
     """
     def __init__(self, fg, facunits=1e6, rhitsi=True):
