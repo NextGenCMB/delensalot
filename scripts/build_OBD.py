@@ -69,7 +69,7 @@ if __name__ == '__main__':
 
         NiT = read_map(ninv_p)  # inverse pixel variance map
         bpl = bmodes_ninv.template_bfilt(lmax_marg, geom, int(os.environ.get('OMP_NUM_THREADS', 4)), _lib_dir=libdir)
-        bpl._get_rows_mpi(NiT, prefix)  # builds all rows in parallel #SB: NiT needs to be 3 matrices. QQ, UU, QU
+        bpl._get_rows_mpi(NiT, prefix)  # builds all rows in parallel
         mpi.barrier()
         if mpi.rank == 0:
             assert not os.path.exists(bpl.lib_dir + '/tniti.npy')
