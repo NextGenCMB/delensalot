@@ -12,33 +12,32 @@ import numpy as np
 import healpy as hp
 import argparse
 
-import scarf
+from plancklens.helpers import mpi
 from plancklens.filt import  filt_util, filt_cinv
+from itercurv.filt import utils_cinv_p as iterc_cinv_p
 from plancklens import qest, qresp
 from plancklens.qcinv import cd_solve, opfilt_pp
 
+import scarf
 
 import lenscarf
+from lenscarf import utils
 from lenscarf.opfilt import opfilt_ee_wl
 from lenscarf.iterators import cs_iterator
-from lenscarf.opfilt import utils_cinv_p
 from itercurv.remapping.utils import alm_copy
 
 
-from plancklens.helpers import mpi
-
-
-from lenscarf import utils
 from lerepi.data.dc08d import sims_interface as sims_if
+from lerepi.survey_config import sc as survey_config
 
 qe_key = 'p_p'
 
 fg = '07'
-TEMP =  '/global/cscratch1/sd/sebibel/cmbs4/s08d/cILC_%s_test/'%fg
+TEMP =  '/global/cscratch1/sd/sebibel/cmbs4/s08d/cILC_%s_test2/'%fg
 BMARG_LIBDIR  = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08d/'
 BMARG_LCUT = 200
-THIS_CENTRALNLEV_UKAMIN = 0.42# central pol noise level in this pameter file noise sims.
-nlev_p = 0.42   #NB: cinv_p gives me this value cinv_p::noiseP_uk_arcmin = 0.429
+THIS_CENTRALNLEV_UKAMIN = 1.# central pol noise level in this pameter file noise sims.
+nlev_p = THIS_CENTRALNLEV_UKAMIN   #NB: cinv_p gives me this value cinv_p::noiseP_uk_arcmin = 0.429
 nlev_t = nlev_p / np.sqrt(2.)
 
 beam = 2.3
@@ -56,7 +55,7 @@ tol_iter = lambda itr : 1e-3 if itr <= 10 else 1e-4
 soltn_cond = lambda itr: True
 
 #---- Redfining opfilt_pp shts to include zbounds
-zbounds = sims_if.get_zbounds(np.inf)
+zbounds = survey_config.get_zbounds(np.inf)
 sht_threads = 32
 opfilt_pp.alm2map_spin = lambda eblm, nside_, spin, lmax, **kwargs: scarf.alm2map_spin(eblm, spin, nside_, lmax, **kwargs, nthreads=sht_threads, zbounds=zbounds)
 opfilt_pp.map2alm_spin = lambda *args, **kwargs: scarf.map2alm_spin(*args, **kwargs, nthreads=sht_threads, zbounds=zbounds)
@@ -121,10 +120,10 @@ cinv_t = filt_cinv.cinv_t(libdir_cinvt, lmax_ivf_qe, nside, cls_len, transf[:lma
                         marge_monopole=True, marge_dipole=True, marge_maps=[], chain_descr=chain_descr)
 
 ninv_p = [[ivmap_path]]
-cinv_p_OBD = utils_cinv_p.cinv_p(libdir_cinvp, lmax_ivf_qe, nside, cls_len, transf[:lmax_ivf_qe+1], ninv_p,
+cinv_p = iterc_cinv_p.cinv_p(libdir_cinvp, lmax_ivf_qe, nside, cls_len, transf[:lmax_ivf_qe+1], ninv_p,
                                  chain_descr=chain_descr, bmarg_lmax=BMARG_LCUT, zbounds=zbounds, _bmarg_lib_dir=BMARG_LIBDIR)
-cinv_p = cinv_p_OBD
-ivfs_raw = filt_cinv.library_cinv_sepTP(libdir_ivfs, sims, cinv_t, cinv_p_OBD, cls_len)
+
+ivfs_raw = filt_cinv.library_cinv_sepTP(libdir_ivfs, sims, cinv_t, cinv_p, cls_len)
 
 ivfs = filt_util.library_ftl(ivfs_raw, lmax_ivf_qe, filt_t, filt_e, filt_b)
 
