@@ -117,7 +117,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         if self.verbose:
             print(tim)
 
-    def synalm(self, unlcmb_cls:dict, cmb_phas=None):
+    def synalm(self, unlcmb_cls:dict, cmb_phas=None, get_unlelm=True):
         """Generate some dat maps consistent with noise filter fiducial ingredients
 
             Note:
@@ -133,7 +133,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         almxfl(eblm[1], self.transf_blm, self.mmax_len, True)
         eblm[0] += synalm((np.ones(self.lmax_len + 1) * (self.nlev_elm / 180 / 60 * np.pi) ** 2) * (self.transf_elm > 0), self.lmax_len, self.mmax_len)
         eblm[1] += synalm((np.ones(self.lmax_len + 1) * (self.nlev_blm / 180 / 60 * np.pi) ** 2) * (self.transf_blm > 0), self.lmax_len, self.mmax_len)
-        return elm, eblm
+        return elm, eblm if get_unlelm else eblm
 
     def get_qlms(self, eblm_dat: np.ndarray or list, elm_wf: np.ndarray, q_pbgeom: utils_scarf.pbdGeometry, alm_wf_leg2:None or np.ndarray =None):
         """Get lensing generaliazed QE consistent with filter assumptions
