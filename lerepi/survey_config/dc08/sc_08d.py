@@ -3,6 +3,39 @@ import numpy as np
 import healpy as hp
 from warnings import warn
 
+import scarf
+from plancklens.qcinv import opfilt_pp
+
+BMARG_LIBDIR = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08d/' #TODO move matrix to here
+BMARG_LCUT = 200
+THIS_CENTRALNLEV_UKAMIN = 0.59 # comes from calculating central patch noise level, see jupyter notebook 'Check_inputdata' @ p/pcmbs4/s08d
+nside = 2048
+
+lmax_transf = 4000 # can be distinct from lmax_filt for iterations
+lmax_filt = 4096 # unlensed CMB iteration lmax
+lmax_qlm = 4096
+lmax_ivf_qe = 3000
+lmin_ivf_qe = 10
+
+beam_ILC = 2.3
+transf = hp.gauss_beam(beam_ILC / 180. / 60. * np.pi, lmax=lmax_transf)
+
+
+
+def get_zbounds():
+
+    zbounds = get_zbounds(np.inf)
+    sht_threads = 32
+    #---- Redefine opfilt_pp shts to include zbounds
+    opfilt_pp.alm2map_spin = lambda eblm, nside_, spin, lmax, **kwargs: scarf.alm2map_spin(eblm, spin, nside_, lmax, **kwargs, nthreads=sht_threads, zbounds=zbounds)
+    opfilt_pp.map2alm_spin = lambda *args, **kwargs: scarf.map2alm_spin(*args, **kwargs, nthreads=sht_threads, zbounds=zbounds)
+    #---Add 5 degrees to mask zbounds:
+    zbounds_len = [np.cos(np.arccos(zbounds[0]) + 5. / 180 * np.pi), np.cos(np.arccos(zbounds[1]) - 5. / 180 * np.pi)]
+    zbounds_len[0] = max(zbounds_len[0], -1.)
+    zbounds_len[1] = min(zbounds_len[1],  1.)
+
+    return zbounds, zbounds_len
+
 
 def get_beam(freq):
     

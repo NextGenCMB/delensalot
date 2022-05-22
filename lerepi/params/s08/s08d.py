@@ -28,7 +28,6 @@ from lenscarf.opfilt import opfilt_ee_wl
 from lenscarf.iterators import cs_iterator
 from itercurv.remapping.utils import alm_copy
 
-
 from lerepi.data.dc08d import sims_interface as sims_if
 from lerepi.survey_config import sc as survey_config
 
@@ -36,13 +35,15 @@ qe_key = 'p_p'
 
 fg = '00'
 TEMP =  '/global/cscratch1/sd/sebibel/cmbs4/s08d/cILC_%s_test/'%fg
-BMARG_LIBDIR  = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08d/' #TODO move matrix to here
-BMARG_LCUT = 200
-THIS_CENTRALNLEV_UKAMIN = 0.59 # comes from calculating noise level form central patch, see jupyter notebook 'Check_inputdata' @ p/pcmbs4/s08d
+
+BMARG_LIBDIR  = survey_config.BMARG_LIBDIR
+BMARG_LCUT = survey_config.BMARG_LCUT
+THIS_CENTRALNLEV_UKAMIN = survey_config.THIS_CENTRALNLEV_UKAMIN
+
 nlev_p = THIS_CENTRALNLEV_UKAMIN 
 nlev_t = nlev_p / np.sqrt(2.)
 
-beam = 2.3
+beam = survey_config.beam
 lmax_ivf_qe = 3000
 lmin_ivf_qe = 10
 lmax_qlm = 4096
