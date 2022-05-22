@@ -21,7 +21,9 @@ from plancklens.qcinv import cd_solve, opfilt_pp
 import scarf
 
 import lenscarf
+
 from lenscarf import utils
+from lenscarf.iterators.statics import rec
 from lenscarf.opfilt import opfilt_ee_wl
 from lenscarf.iterators import cs_iterator
 from itercurv.remapping.utils import alm_copy
@@ -32,12 +34,12 @@ from lerepi.survey_config import sc as survey_config
 
 qe_key = 'p_p'
 
-fg = '07'
-TEMP =  '/global/cscratch1/sd/sebibel/cmbs4/s08d/cILC_%s_test2/'%fg
-BMARG_LIBDIR  = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08d/'
+fg = '00'
+TEMP =  '/global/cscratch1/sd/sebibel/cmbs4/s08d/cILC_%s_test/'%fg
+BMARG_LIBDIR  = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08d/' #TODO move matrix to here
 BMARG_LCUT = 200
-THIS_CENTRALNLEV_UKAMIN = 1.# central pol noise level in this pameter file noise sims.
-nlev_p = THIS_CENTRALNLEV_UKAMIN   #NB: cinv_p gives me this value cinv_p::noiseP_uk_arcmin = 0.429
+THIS_CENTRALNLEV_UKAMIN = 0.59 # comes from calculating noise level form central patch, see jupyter notebook 'Check_inputdata' @ p/pcmbs4/s08d
+nlev_p = THIS_CENTRALNLEV_UKAMIN 
 nlev_t = nlev_p / np.sqrt(2.)
 
 beam = 2.3
@@ -47,7 +49,7 @@ lmax_qlm = 4096
 lmax_transf = 4000 # can be distinct from lmax_filt for iterations
 lmax_filt = 4096 # unlensed CMB iteration lmax
 nside = 2048
-nsims = 200
+nsims = 100
 
 tol=1e-3
 # The gradient spectrum seems to saturate with 1e-3 after roughly this number of iteration
@@ -71,17 +73,17 @@ if not os.path.exists(TEMP):
     os.makedirs(TEMP)
 ivmap_path = os.path.join(TEMP, 'ipvmap.fits')
 if not os.path.exists(ivmap_path):
-    rhits = np.nan_to_num(hp.read_map('/project/projectdirs/cmbs4/awg/lowellbb/expt_xx/08d/rhits/n2048.fits'))
+    rhits = np.nan_to_num(hp.read_map('/project/projectdirs/cmbs4/awg/lowellbb/expt_xx/08d/rhits/n2048.fits')) #TODO this should come from survey_conf
     pixlev = THIS_CENTRALNLEV_UKAMIN / (np.sqrt(hp.nside2pixarea(2048, degrees=True)) * 60.)
     print("Pmap center pixel pol noise level: %.2f"%(pixlev * np.sqrt(hp.nside2pixarea(nside, degrees=True)) * 60.))
-    hp.write_map(ivmap_path,  1./ pixlev ** 2 * rhits)
+    hp.write_map(ivmap_path,  1./ pixlev ** 2 * rhits)  #TODO this should be provided to app level
 ivmat_path = os.path.join(TEMP, 'itvmap.fits')
 if not os.path.exists(ivmat_path):
     pixlev= 0.27 * np.sqrt(2) / (np.sqrt(hp.nside2pixarea(2048, degrees=True)) * 60.)
-    rhits = np.nan_to_num(hp.read_map('/project/projectdirs/cmbs4/awg/lowellbb/expt_xx/08b/rhits/n2048.fits'))
+    rhits = np.nan_to_num(hp.read_map('/project/projectdirs/cmbs4/awg/lowellbb/expt_xx/08d/rhits/n2048.fits')) #TODO this should come from survey_conf
     rhits = np.where(rhits > 0., rhits, 0.)  # *(~np.isnan(rhits))
     print("Pmap center pixel T noise level: %.2f"%(pixlev * np.sqrt(hp.nside2pixarea(nside, degrees=True)) * 60.))
-    hp.write_map(ivmat_path,  1./ pixlev ** 2 * rhits)
+    hp.write_map(ivmat_path,  1./ pixlev ** 2 * rhits)  #TODO this should be provided to app level
 
 cls_path = os.path.join(os.path.dirname(lenscarf.__file__), 'data', 'cls')
 cls_unl = utils.camb_clfile(os.path.join(cls_path, 'FFP10_wdipole_lenspotentialCls.dat'))
@@ -173,7 +175,7 @@ def get_itlib(qe_key, DATIDX):
 
     assert qe_key == 'p_p'
 
-    TEMP_it = TEMP + '/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20'%DATIDX
+    TEMP_it = TEMP + '/iterator_p_p_%04d_OBD'%DATIDX
 
     if not os.path.exists(TEMP + '/mfresp_unl_%s.dat' % qe_key):
         lmax = min(lmax_transf, lmax_filt)
@@ -210,6 +212,8 @@ def get_itlib(qe_key, DATIDX):
     cpp = np.copy(cls_unl['pp'][:lmax_qlm + 1])
     clwf = cpp * utils.cli(cpp + N0_len)
     qnorm = utils.cli(respG_grad)
+
+    #TODO if this file isn't precalculated, either terminate param file, or turn this into mpi tasks.
     mc_sims_mf = np.arange(nsims)
     mf0 = qlms_dd.get_sim_qlm_mf('p_p', mc_sims=mc_sims_mf)
     if DATIDX in mc_sims_mf:
@@ -262,13 +266,13 @@ if __name__ == '__main__':
 
     jobs = []
     for idx in np.arange(args.imin, args.imax + 1):
-        TEMP_it = TEMP + '/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20' % idx
-        if Rec.maxiterdone(TEMP_it) < args.itmax:
-            jobs.append(idx)
+        TEMP_it = TEMP + '/iterator_p_p_%04d_OBD' % idx
+        if rec.maxiterdone(TEMP_it) < args.itmax:
+            jobs.append(idx)    
 
     for idx in jobs[mpi.rank::mpi.size]:
-        TEMP_it = TEMP + '/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20' % idx
-        if args.itmax >= 0 and Rec.maxiterdone(TEMP_it) < args.itmax:
+        TEMP_it = TEMP + '/iterator_p_p_%04d_OBD' % idx
+        if args.itmax >= 0 and rec.maxiterdone(TEMP_it) < args.itmax:
             itlib = get_itlib(qe_key, idx)
             for i in range(args.itmax + 1):
                 print("****Iterator: setting cg-tol to %.4e ****"%tol_iter(i))
