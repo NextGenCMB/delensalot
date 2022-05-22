@@ -17,22 +17,29 @@ def set_mpl():
     mpl.rc('legend', fontsize=15)
 
 
-def ptk(ls):
+def pp2kk(ls):
+    """Returns the normalisation to convert phi specrum into kappa spectrum
+     
+     :math: `C_L^{\kappa\kappa} = (L(L+1))^2 / 4 C_L^{\phi\phi}`
+     
+      """
     return ls**2*(ls+1)**2/4
 
 
-def plot_bnd(bndcl, **kwargs):
-    p =pl.errorbar(bndcl[0], bndcl[1], yerr=bndcl[2], **kwargs)
+def plot_bnd(bndcl, ax=None, *argv, **kwargs):
+    if ax is None:
+        ax = pl.gca()
+    p = ax.errorbar(bndcl[0], bndcl[1], yerr=bndcl[2], *argv, **kwargs)
     return p
 
 
-def bnd(cl, edges, weight=lambda ell: np.ones(len(ell), dtype=float)):
-    """Binning for ptk(ell)*Clpp"""
+def bnd(cl, lmin, lmax, edges, weight=lambda ell: np.ones(len(ell), dtype=float)):
+    """Binning for weight(ell)*Cl"""
     bl = edges[:-1];bu = edges[1:]
     ellb = 0.5 * bl + 0.5 * bu
-    lmax = len(cl)-1
-    ells = np.arange(lmax+1)
-    cl_bnd, err = binned(cl*weight(ells), 0, lmax,  bl, bu, reterr=True,)
+    # lmax = len(cl)-1
+    ells = np.arange(lmin, lmax+1)
+    cl_bnd, err = binned(cl[lmin :lmax+1]*weight(ells), lmin, lmax,  bl, bu, reterr=True,)
     return ellb, cl_bnd, err
 
 

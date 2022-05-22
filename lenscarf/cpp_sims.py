@@ -6,13 +6,15 @@ from plancklens import qresp
 from lenscarf import cachers
 from plancklens.qcinv import multigrid
 from plancklens import nhl 
+from scipy.interpolate import UnivariateSpline as spline
 
 from os.path import join as opj
 import os
 import importlib
 from lenscarf.utils_hp import alm2cl, alm_copy
 from lenscarf.utils import read_map
-from lenscarf.rdn0_cs import load_ss_ds
+from lenscarf.utils_plot import pp2kk
+from lenscarf import rdn0_cs
 
 
 class cpp_sims_lib:
@@ -201,13 +203,103 @@ class cpp_sims_lib:
 
 
     def get_wf_fid(self, itermax=15):
+        """Fiducial iterative Wiener filter.
+        
+        Normalisation of :math:`phi^{MAP}`
+        :math:`\mathcal{W} = \frac{C_{\phi\phi, \mathrm{fid}}}{C_{\phi\phi, \mathrm{fid}} + 1/\mathcal{R}_L}`
+ 
+        """
         _, _, resp_fid, _ = self.get_n0_iter(itermax=itermax)
         return self.cpp_fid[:self.lmax_qlm+1] * utils.cli(self.cpp_fid[:self.lmax_qlm+1] + utils.cli(resp_fid[:self.lmax_qlm+1]))
 
     def get_wf_sim(self, simidx, itr):
+        """Get the Wiener from the simulations.
+
+        :math:`\hat \mathcal{W} = \frac{C_L{\phi^{\rm MAP} \phi{\rm in}}}{C_L{\phi^{\rm in} \phi{\rm in}}}`
+        
+        """
         fn = 'wf_sim_it{}'.format(itr)
         cacher = self.cacher_sim(simidx)
         if not cacher.is_cached(fn):
             wf = self.get_cpp_itXinput(simidx, itr) * utils.cli(self.get_cpp_input(simidx))
             cacher.cache(fn, wf)
         return cacher.load(fn)
+
+    def get_wf_eff(self, imin = 0, imax = 4, itermax=15):
+        """Effective Wiener filter averaged over several simulations
+        We spline interpolate the ratio between the effective WF from simulations and the fiducial WF
+        We take into account the sky fraction to get the simulated WFs
+        
+        Args:
+            imin: Minimum index of simulations
+            imax: Maximum index of simulations
+            itermax: Iteration of the MAP estimator
+
+        Returns:
+            wf_eff: Effective Wiener filter
+            wfcorr_spl: Splined interpolation of the ratio between the effective and the fiducial Wiener filter
+        
+        """
+    #    ckk_in = {}
+    #     ckk_cross = {}
+        wf_fid = self.get_wf_fid(itermax)
+        wfsims_bias = np.zeros([imax-imin, len(wf_fid)])
+    #     for i, f in enumerate(dat_files):
+    #         _, ckk_in[f], ckk_cross[f] = np.loadtxt(os.path.join(DIR, f, 'MAP_cls.dat')).transpose()
+    #         wfcorr_full[i] =  ckk_cross[f] *cli(ckk_in[f] * wfpred) 
+        for isim in range(imax-imin):
+            wfsims_bias[isim] = self.get_wf_sim(isim, itermax) / self.fsky * utils.cli(wf_fid)
+        wfcorr_mean = np.mean(wfsims_bias, axis=0)
+        wfcorr_spl = np.zeros(len(wf_fid))
+        ells = np.arange(self.lmax_qlm+1)
+        wfcorr_spl[ells] = spline(ells, wfcorr_mean[ells])(ells)
+        wf_eff = wf_fid * wfcorr_spl
+        return wf_eff[:self.lmax_qlm+1], wfcorr_spl
+
+
+
+    def load_rdn0_kk_map(self, idx):
+        """Load previously computed RDN0 estimate.
+    
+        See the file rdn0_cs.py to compute the RDN0 for a given paramfile and simidx.
+
+        Args:
+            idx: index of simulation
+
+        Returns:
+            rdn0: unormalized realisation dependent bias, raw phi-based spectum obtained by 1/4 L^2 (L + 1)^7 * 1e7 times this
+            kds: data x sim QE estimates 
+            kss: sim x sim QE estimates 
+        """
+        outputdir = rdn0_cs.output_sim(self.param.suffix, idx)
+        fn = opj(outputdir, 'cls_dsss.dat')
+        if not os.path.exists(fn):
+            itlibdir = self.param.libdir_iterators(self.k, idx, self.version)
+            Nroll = 10
+            Nsims = 100
+            ss_dict =  Nroll * (np.arange(Nsims) // Nroll) + (np.arange(Nsims) + 1) % Nroll
+            rdn0_cs.export_dsss(itlibdir, self.param.suffix, idx, ss_dict)
+        kds, kss, _, _, _, _ = np.loadtxt(fn).transpose()
+        rdn0 = 4 * kds - 2 * kss
+
+        return rdn0, kds, kss
+
+    def get_rdn0_map(self, idx):
+        """Get the normalized iterative RDN0 estimate        
+        
+        Args:
+            idx: index of simulation
+
+        Returns:
+            RDN0: Normalized realisation dependent bias of Cpp MAP
+        """
+        rdn0, kds, kss = self.load_rdn0_kk_map(idx)
+        assert self.itmax == 15, "Need to check if the exported RDN0 correspond to the same iteration as the Cpp MAP" 
+        # TODO  maybe not relevant if everything is converged ?
+        N0s_biased, N0s_unbiased, rgg_fid, rgg_true = self.get_n0_iter(itermax=15)
+        RDN0 = rdn0[:self.lmax_qlm+1] * pp2kk(np.arange(self.lmax_qlm+1)) * 1e7 * (N0s_biased[-1][:self.lmax_qlm+1])**2
+        return RDN0
+        
+    def get_nsims(self):
+        """Return the number of simulations reconstructed up to itmax"""
+        
