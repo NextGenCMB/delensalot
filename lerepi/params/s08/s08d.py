@@ -32,14 +32,15 @@ from itercurv.iterators import cs_iterator as itercurv_it
 
 from itercurv.remapping.utils import alm_copy
 
-
 from lerepi.data.dc08 import data_08d as sims_if
 from lerepi.survey_config.dc08 import sc_08d as survey_config
+
 
 qe_key = 'p_p'
 
 fg = '00'
 TEMP =  '/global/cscratch1/sd/sebibel/cmbs4/s08d/cILC_%s_test/'%fg
+
 BMARG_LIBDIR = survey_config.BMARG_LIBDIR
 BMARG_LCUT = survey_config.BMARG_LCUT
 beam = survey_config.get_ILC_beam()
