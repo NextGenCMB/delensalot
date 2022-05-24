@@ -4,6 +4,22 @@ import healpy as hp
 from warnings import warn
 
 
+DATA_LIBDIR = '/global/project/projectdirs/cmbs4/awg/lowellbb/'
+BMARG_LIBDIR = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08d/'
+BMARG_LCUT = 200
+
+THIS_CENTRALNLEV_UKAMIN = 0.59 # comes from calculating noise level form central patch, see jupyter notebook 'Check_inputdata' @ p/pcmbs4/s08d
+
+
+
+def get_ILC_beam():
+    beam = 2.3
+    return beam
+
+
+def get_mask():
+    return 
+
 def get_beam(freq):
     
     return {20:11.0, 27:8.4, 39:5.8, 93:2.5, 145:1.6, 225:1.1, 278:1.}[freq]

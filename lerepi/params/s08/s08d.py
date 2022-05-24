@@ -24,25 +24,29 @@ import lenscarf
 
 from lenscarf import utils
 from lenscarf.iterators.statics import rec
-from lenscarf.opfilt import opfilt_ee_wl
-from lenscarf.iterators import cs_iterator
+from itercurv.filt import opfilt_ee_wl
+from lenscarf.opfilt import opfilt_ee_wl as lenscarf_opfilt_ee_wl
+
+from lenscarf.iterators import cs_iterator as lenscarf_it
+from itercurv.iterators import cs_iterator as itercurv_it
+
 from itercurv.remapping.utils import alm_copy
 
 
-from lerepi.data.dc08d import sims_interface as sims_if
-from lerepi.survey_config import sc as survey_config
+from lerepi.data.dc08 import data_08d as sims_if
+from lerepi.survey_config.dc08 import sc_08d as survey_config
 
 qe_key = 'p_p'
 
 fg = '00'
 TEMP =  '/global/cscratch1/sd/sebibel/cmbs4/s08d/cILC_%s_test/'%fg
-BMARG_LIBDIR  = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08d/' #TODO move matrix to here
-BMARG_LCUT = 200
-THIS_CENTRALNLEV_UKAMIN = 0.59 # comes from calculating noise level form central patch, see jupyter notebook 'Check_inputdata' @ p/pcmbs4/s08d
-nlev_p = THIS_CENTRALNLEV_UKAMIN 
+BMARG_LIBDIR = survey_config.BMARG_LIBDIR
+BMARG_LCUT = survey_config.BMARG_LCUT
+beam = survey_config.get_ILC_beam()
+
+nlev_p = survey_config.THIS_CENTRALNLEV_UKAMIN 
 nlev_t = nlev_p / np.sqrt(2.)
 
-beam = 2.3
 lmax_ivf_qe = 3000
 lmin_ivf_qe = 10
 lmax_qlm = 4096
@@ -58,6 +62,7 @@ soltn_cond = lambda itr: True
 
 #---- Redfining opfilt_pp shts to include zbounds
 zbounds = survey_config.get_zbounds(np.inf)
+# TODO check values
 sht_threads = 32
 opfilt_pp.alm2map_spin = lambda eblm, nside_, spin, lmax, **kwargs: scarf.alm2map_spin(eblm, spin, nside_, lmax, **kwargs, nthreads=sht_threads, zbounds=zbounds)
 opfilt_pp.map2alm_spin = lambda *args, **kwargs: scarf.map2alm_spin(*args, **kwargs, nthreads=sht_threads, zbounds=zbounds)
@@ -218,9 +223,9 @@ def get_itlib(qe_key, DATIDX):
     mf0 = qlms_dd.get_sim_qlm_mf('p_p', mc_sims=mc_sims_mf)
     if DATIDX in mc_sims_mf:
         mf0 =  (mf0 * len(mc_sims_mf) - qlms_dd.get_sim_qlm('p_p', DATIDX)) / (len(mc_sims_mf) - 1.)
-    else:
-        plm0 = hp.almxfl(utils.alm_copy(qlms_dd.get_sim_qlm(qe_key, DATIDX), lmax=lmax_qlm) - mf0, qnorm * clwf)
-        dat = sims.get_sim_pmap(DATIDX)
+    
+    plm0 = hp.almxfl(alm_copy(qlms_dd.get_sim_qlm(qe_key, DATIDX), lmax=lmax_qlm) - mf0, qnorm * clwf)
+    dat = sims.get_sim_pmap(DATIDX)
 
     if qe_key == 'p_p':
         pixn_inv = [hp.read_map(ivmap_path)]
@@ -228,6 +233,7 @@ def get_itlib(qe_key, DATIDX):
         assert 0
 
     def opfilt(libdir, plm, olm=None):
+        print('BMARG_LCUT: ', BMARG_LCUT)
         return opfilt_ee_wl.alm_filter_ninv_wl(libdir, pixn_inv, transf, lmax_filt, plm, bmarg_lmax=BMARG_LCUT, _bmarg_lib_dir=BMARG_LIBDIR,
                     olm=olm, nside_lens=2048, nbands_lens=1, facres=-1,zbounds=zbounds, zbounds_len=zbounds_len)
                                         #lmax_bmarg=lmin_ivf_qe, highl_ebcut=lmax_filt)
@@ -248,10 +254,20 @@ def get_itlib(qe_key, DATIDX):
         return bp(np.arange(4097), 400, 0.5, 1500, 0.1, scale=50)
 
     wflm0 = lambda : alm_copy(ivfs_raw.get_sim_emliklm(DATIDX), lmax=lmax_filt)
-    itlib =  cs_iterator.iterator_cstmf(TEMP_it ,{'p_p': 'QU', 'p': 'TQU', 'ptt': 'T'}[qe_key],
+    
+    # TODO switch to lenscarf iterator
+    itlib_itercurv =  itercurv_it.iterator_cstmf(TEMP_it ,{'p_p': 'QU', 'p': 'TQU', 'ptt': 'T'}[qe_key],
                         dat, plm0, mf0, H0_unl, cpp, cls_filt, lmax_filt, wflm0=wflm0, chain_descr=chain_descr,  ninv_filt=opfilt)
-    itlib.newton_step_length = step_length
-    return itlib
+    itlib_itercurv.newton_step_length = step_length
+
+    mf_resp = qresp.get_mf_resp(qe_key, cls_unl, {'ee': fel_stp_unl, 'bb': fbl_stp_unl}, lmax_ivf_qe, lmax_qlm)[0]
+    R_unl = qresp.get_response(qe_key, lmax_ivf_qe, 'p', cls_unl, cls_unl,  {'e': fel_stp_unl, 'b': fbl_stp_unl, 't':ftl_stp_unl}, lmax_qlm=lmax_qlm)[0]
+    
+    itlib_lenscarf = lenscarf_it.iterator_pertmf(TEMP_it, 'p', (lmax_qlm, lmax_qlm), dat,
+            plm0, mf_resp, R_unl, cpp, cls_unl, opfilt, opfilt.ffi.geom, chain_descr, step_length,
+            mf0=mf0, wflm0=lambda : alm_copy(ivfs.get_sim_emliklm(DATIDX), None, lmax_filt, lmax_filt))
+
+    return itlib_itercurv, itlib_lenscarf
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='test iterator full-sky with pert. resp.')
@@ -273,7 +289,7 @@ if __name__ == '__main__':
     for idx in jobs[mpi.rank::mpi.size]:
         TEMP_it = TEMP + '/iterator_p_p_%04d_OBD' % idx
         if args.itmax >= 0 and rec.maxiterdone(TEMP_it) < args.itmax:
-            itlib = get_itlib(qe_key, idx)
+            itlib, _ = get_itlib(qe_key, idx)
             for i in range(args.itmax + 1):
                 print("****Iterator: setting cg-tol to %.4e ****"%tol_iter(i))
                 print("****Iterator: setting solcond to %s ****"%soltn_cond(i))
@@ -283,6 +299,12 @@ if __name__ == '__main__':
 
                 print("doing iter " + str(i))
                 itlib.iterate(i, 'p')
-            # Produces B-template for last iteration
-            if args.btempl and args.itmax > 0:
-                blm = cs_iterator.get_template_blm(args.itmax, args.itmax, lmax_b=2048, lmin_plm=1)
+    # Produces B-template for last iteration
+    # TODO. this is a hack. Once it works, rework.  
+    
+    if args.btempl and args.itmax > 0:
+        # from itercurv.iterators.statics import rec as Rec
+        # elm = Rec.load_elm(TEMP_it, args.itmax-1)
+        # Rec.get_btemplate(TEMP_it, elm, args.itmax, [0,360], zbounds_len,  cache=True, lmax_b=2048)
+        _, itlib = get_itlib(qe_key, 0)
+        blm = itlib.get_template_blm(args.itmax, args.itmax, lmaxb=2048, lmin_plm=1)
