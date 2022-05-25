@@ -12,7 +12,7 @@ from lenscarf.utils_hp import Alm, alm2cl, alm_copy
 from lenscarf.utils_scarf import Geom, scarfjob, pbdGeometry
 from lenscarf.fortran import remapping as fremap
 from lenscarf import utils_dlm
-
+import scarf
 
 class deflection:
     def __init__(self, scarf_pbgeometry:pbdGeometry, targetres_amin, dglm,
@@ -137,7 +137,7 @@ class deflection:
         return m.squeeze()
 
     def _fwd_angles(self):
-        """Builds deflected angles for the forawrd deflection field for the pixels inside the patch
+        """Builds deflected angles for the forward deflection field for the pixels inside the patch
 
 
         """
@@ -311,6 +311,38 @@ class deflection:
             self.cacher.cache(fn, gamma)
         return self.cacher.load(fn)
 
+    def gclm2lenpixs(self, gclm:np.ndarray or list, mmax:int or None, spin:int, pixs:np.ndarray[int], backwards:bool, nomagn=False):
+        """Produces the remapped field 'exactly' on the required lensing geometry pixels by brute-force calculation
+
+            Note:
+                The number of pixels must be small here, otherwise way too slow
+
+            Note:
+                If the remapping angles etc were not calculated previously, it will build the full map, so make take some time.
+
+        """
+        thts, phis = self._bwd_angles()[:, pixs] if backwards else self._fwd_angles()[:, pixs]
+        nph = 2 * np.ones(thts.size, dtype=int) # I believe at least 2 points per ring if using scarf
+        ofs = 2 * np.arange(thts.size, dtype=int)
+        wt = np.ones(thts.size)
+        geom = scarf.Geometry(thts.size, nph, ofs, 1, phis.copy(), thts.copy(), wt) #copy necessary as this goes to C
+        #thts.size, nph, ofs, 1, phi0, thts, wt
+        if abs(spin) > 0:
+            lmax = Alm.getlmax(gclm[0].size, mmax)
+            if mmax is None: mmax = lmax
+            QU = geom.alm2map_spin(gclm, spin, lmax, mmax, self.sht_tr, [-1., 1.])[:, 0::2]
+            gamma = self._bwd_polrot()[pixs] if backwards else self._fwd_polrot()[pixs]
+            QU = np.exp(1j * spin * gamma) * (QU[0] + 1j * QU[1])
+            if backwards and not nomagn:
+                QU *= self._bwd_magn()[pixs]
+            return QU.real, QU.imag
+        lmax = Alm.getlmax(gclm.size, mmax)
+        if mmax is None: mmax = lmax
+        T = geom.alm2map(gclm, lmax, mmax, self.sht_tr, [-1., 1.])[0::2]
+        if backwards and not nomagn:
+            T *= self._bwd_magn()[pixs]
+        return T
+
     def gclm2lenmap(self, gclm:np.ndarray or list, mmax:int or None, spin, backwards:bool, nomagn=False):
         if self.sig_d <= 0:
             if abs(spin) > 0:
@@ -332,15 +364,15 @@ class deflection:
         lenm_pbded = interpjob.eval(thtn, phin)
         self.tim.add('interpolation')
         if spin == 0:
-            if backwards:
-                if not nomagn: lenm_pbded *= self._bwd_magn()
+            if backwards and not nomagn:
+                lenm_pbded *= self._bwd_magn()
                 self.tim.add('det Mi')
             lenm = Geom.pbdmap2map(self.geom, lenm_pbded, self._pbds)
         else:
             gamma = self._bwd_polrot if backwards else self._fwd_polrot
             lenm_pbded = np.exp(1j * spin * gamma()) * (lenm_pbded[0] + 1j * lenm_pbded[1])
             self.tim.add('pol rot')
-            if backwards:
+            if backwards and not nomagn:
                 lenm_pbded *= self._bwd_magn()
                 self.tim.add('det Mi')
             lenm = [Geom.pbdmap2map(self.geom, lenm_pbded.real, self._pbds),
