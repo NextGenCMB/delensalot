@@ -1,4 +1,4 @@
-"""Module for harmonic curl modes template deprojection of a spin-2 field (e.g. B-modes)
+"""Module for scalar field harmonic modes template deprojection
 
 
 """
@@ -56,21 +56,21 @@ def alm2rlm(alm):
 
 
 
-class template_bfilt(object):
+class template_tfilt(object):
     def __init__(self, lmax_marg:int, geom:scarf.Geometry, sht_threads:int, _lib_dir=None):
-        """Here all B-modes up to lmax are set to infinite noise
+        """Here all T-modes up to lmax are set to infinite noise
 
             Args:
-                lmax_marg: all B-mulitpoles up to and inclusive of lmax are marginalized
+                lmax_marg: all T-mulitpoles up to and inclusive of lmax are marginalized
                 geom: scarf geometry of SHTs
                 sht_threads: number of OMP threads for SHTs
                 _lib_dir: some stuff might be cached there in some cases
 
 
         """
-        assert lmax_marg >= 2, lmax_marg
+        assert lmax_marg >= 0, lmax_marg
         self.lmax = lmax_marg
-        self.nmodes = (lmax_marg + 1) * lmax_marg + lmax_marg + 1 - 4
+        self.nmodes = (lmax_marg + 1) * lmax_marg + lmax_marg + 1 - 0
         if not np.all(geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
             print('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
             nr = geom.get_nrings()
@@ -96,77 +96,67 @@ class template_bfilt(object):
 
     @staticmethod
     def get_nmodes(lmax):
-        assert lmax >= 2, lmax
-        return (lmax + 1) * lmax + lmax + 1 - 4
+        assert lmax >= 0, lmax
+        return (lmax + 1) * lmax + lmax + 1 - 0
 
     @staticmethod
     def get_modelmax(mode):
         assert mode >= 0, mode
         nmodes = 0
         l = -1
-        while nmodes - 1 < mode + 4:
+        while nmodes - 1 < mode + 0:
             l += 1
             nmodes += 2 * l + 1
         return l
 
     @staticmethod
     def _rlm2blm(rlm):
-        return rlm2alm(np.concatenate([np.zeros(4), rlm]))
+        return rlm2alm(rlm)
 
     @staticmethod
     def _blm2rlm(blm):
-        return alm2rlm(blm)[4:]
+        return alm2rlm(blm)
 
-    def apply_qumode(self, qumap, mode):
+    def apply_tmode(self, tmap, mode):
         assert mode < self.nmodes, (mode, self.nmodes)
-        assert len(qumap) == 2
         tcoeffs = np.zeros(self.get_nmodes(self.get_modelmax(mode)), dtype=float)
         tcoeffs[mode] = 1.0
-        self.apply_qu(qumap, tcoeffs)
+        self.apply_t(tmap, tcoeffs)
 
-    def apply_qu(self, qumap, coeffs):  # RbQ  * Q or  RbU * U
-        assert len(qumap) == 2
+    def apply_t(self, tmap, coeffs):  # RbQ  * Q or  RbU * U
         assert (len(coeffs) <= self.nmodes)
-        assert qumap[0].size == self.npix, (self.npix, qumap[0].size)
-        assert qumap[1].size == self.npix, (self.npix, qumap[1].size)
-        blm = self._rlm2blm(coeffs)
-        elm = np.zeros_like(blm)
-        this_lmax = Alm.getlmax(blm.size, -1)
+        assert tmap.size == self.npix, (self.npix, tmap.size)
+        tlm = self._rlm2blm(coeffs)
+        this_lmax = Alm.getlmax(tlm.size, -1)
         self.sc_job.set_triangular_alm_info(this_lmax, this_lmax)
-        q, u = self.sc_job.alm2map_spin([elm, blm], 2)
-        qumap[0] *= q
-        qumap[1] *= u
+        tmap *= self.sc_job.alm2map(tlm)
 
-    def accum(self, qumap, coeffs):
+    def accum(self, tmap, coeffs):
         """Forward template operation
 
-            Turns the input real harmonic *coeffs* to blm and send to Q, U.
-            This plus-adds the input *qumap*
+            Turns the input real harmonic *coeffs* to tlm and send to T map.
+            This plus-adds the input *tmap*
 
         """
         assert (len(coeffs) <= self.nmodes)
-        blm = self._rlm2blm(coeffs)
-        elm = np.zeros_like(blm)
-        this_lmax = Alm.getlmax(blm.size, -1)
+        tlm = self._rlm2blm(coeffs)
+        this_lmax = Alm.getlmax(tlm.size, -1)
         self.sc_job.set_triangular_alm_info(this_lmax, this_lmax)
-        q, u = self.sc_job.alm2map_spin([elm, blm], 2)
-        qumap[0] += q
-        qumap[1] += u
+        tmap += self.sc_job.alm2map(tlm)
 
-    def dot(self, qumap):
+    def dot(self, tmap):
         """Backward template operation.
 
-            Turns the input qu maps into the real harmonic coefficient B-modes up to lmax.
+            Turns the input map into the real harmonic coefficient T-modes up to lmax.
             This includes a factor npix / 4pi, as the transpose differs from the inverse by that factor
 
         """
-        assert len(qumap) == 2
-        assert qumap[0].size == self.npix and qumap[1].size == self.npix
+        assert tmap.size == self.npix
         self.sc_job.set_triangular_alm_info(self.lmax, self.lmax)
-        blm = self.sc_job.map2alm_spin(qumap, 2)[1]
-        return self._blm2rlm(blm) # Units weight transform
+        tlm = self.sc_job.map2alm(tmap)
+        return self._blm2rlm(tlm) # Units weight transform
 
-    def build_tnit(self, NiQQ_NiUU_NiQU):
+    def build_tnit(self, NiT):
         """Return the nmodes x nmodes matrix (T^t N^{-1} T )_{bl bl'}'
 
             For unit inverse noise matrices on the full-sky this is a diagonal matrix
@@ -176,25 +166,18 @@ class template_bfilt(object):
 
         """
         if self.lib_dir is not None:
-            return self._build_tniti('')
-        if NiQQ_NiUU_NiQU.shape[0] == 3: #Here, QQ and UU may be different, but NiQU negligible
-            NiQQ, NiUU, NiQU = NiQQ_NiUU_NiQU
-            assert NiQU is None
-        else: #Here, we assume that NiQQ = NiUU, and NiQU is negligible
-            NiQQ, NiUU, NiQU = NiQQ_NiUU_NiQU, NiQQ_NiUU_NiQU, None
+            return self._build_tnit('')
         tnit = np.zeros((self.nmodes, self.nmodes), dtype=float)
-        for i, a in enumerate_progress(range(self.nmodes),
-                                             False * 'filling template matrix'):  # Starts at ell = 2
-            _NiQ = np.copy(NiQQ)  # Building Ni_{QX} R_bX
-            _NiU = np.copy(NiUU)  # Building Ni_{UX} R_bX
-            self.apply_qumode([_NiQ, _NiU], a)
-            tnit[:, a] = self.dot([_NiQ, _NiU])
+        for i, a in enumerate_progress(range(self.nmodes), False * 'filling template matrix'):  # Starts at ell = 1
+            _NiT = np.copy(NiT)  # Building Ni_{QX} R_bX
+            self.apply_tmode(_NiT, a)
+            tnit[:, a] = self.dot(_NiT)
             tnit[a, :] = tnit[:, a]
         return tnit
 
     def _build_tnit(self, prefix=''):
         tnit = np.zeros((self.nmodes, self.nmodes), dtype=float)
-        for i, a in enumerate_progress(range(self.nmodes), label='collecting Pmat rows'):
+        for i, a in enumerate_progress(range(self.nmodes), label='collecting Tmat rows'):
             fname = os.path.join(self.lib_dir, prefix + 'row%05d.npy'%a)
             assert os.path.exists(fname)
             tnit[:, a]  = np.load(fname)
@@ -202,30 +185,37 @@ class template_bfilt(object):
         return tnit
 
 
-    def _get_rows_mpi(self, NiQQ_NiUU_NiQU, prefix):
+    def _get_rows_mpi(self, NiT, prefix):
         """Produces and save all rows of the matrix for large matriz sizes
 
         """
         from plancklens.helpers import mpi
         assert self.lib_dir is not None, 'cant do this without a lib_dir'
-        if NiQQ_NiUU_NiQU.shape[0] == 3: #Here, QQ and UU may be different, but NiQU negligible
-            NiQQ, NiUU, NiQU = NiQQ_NiUU_NiQU
-            assert NiQU is None
-        else: #Here, we assume that NiQQ = NiUU, and NiQU is negligible
-            NiQQ, NiUU, NiQU = NiQQ_NiUU_NiQU, NiQQ_NiUU_NiQU, None
         assert self.nmodes <= 99999, 'ops, naming in the lines below'
         for a in range(self.nmodes)[mpi.rank::mpi.size]:
             fname = os.path.join(self.lib_dir, prefix + 'row%05d.npy'%a)
             if not os.path.exists(fname):
-                _NiQ = np.copy(NiQQ)  # Building Ni_{QX} R_bX
-                _NiU = np.copy(NiUU)  # Building Ni_{UX} R_bX
-                self.apply_qumode([_NiQ, _NiU], a)
-                np.save(fname, self.dot([_NiQ, _NiU]))
-                del _NiQ, _NiU
+                _NiT = np.copy(NiT)  # Building Ni_{T} R_bT
+                self.apply_tmode(_NiT, a)
+                np.save(fname, self.dot(_NiT))
 
 
-class template_dense(template_bfilt):
+class template_dense(template_tfilt):
     def __init__(self, lmax_marg:int, geom:scarf.Geometry, sht_threads:int, _lib_dir=None, rescal=1.):
+        """Dense harmonic mode template projection matrix instance
+
+            Typically used with a precomputed matrix
+
+            Args:
+                lmax_marg: maximum projected multipole (inclusive)
+                geom: scarf geometry of the data maps
+                sht_threads: number of threads per SHT
+                _lib_dir(optional): the instance will look for a matrix cached there if set
+                rescal(optional): rescales the matrix by this factor. Useful if the original matrix was calculated using
+                        a different overall noise level. The 'tniti' template matrix is proportional to the squared noise level
+
+
+        """
         assert os.path.exists(os.path.join(_lib_dir, 'tniti.npy')), os.path.join(_lib_dir, 'tniti.npy')
         super().__init__(lmax_marg, geom, sht_threads, _lib_dir=_lib_dir)
         self.rescal = rescal
