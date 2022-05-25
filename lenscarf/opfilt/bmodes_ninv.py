@@ -173,8 +173,12 @@ class template_bfilt(object):
         """
         if self.lib_dir is not None:
             return self._build_tniti('')
-        NiQQ, NiUU, NiQU = NiQQ_NiUU_NiQU
-        assert NiQU is None
+        if NiQQ_NiUU_NiQU.shape[0] == 3: #Here, QQ and UU may be different, but NiQU negligible
+            NiQQ, NiUU, NiQU = NiQQ_NiUU_NiQU
+            assert NiQU is None
+        else: #Here, we assume that NiQQ = NiUU, and NiQU is negligible
+            NiQQ, NiUU, NiQU = NiQQ_NiUU_NiQU, NiQQ_NiUU_NiQU, None
+
         tnit = np.zeros((self.nmodes, self.nmodes), dtype=float)
         for i, a in enumerate_progress(range(self.nmodes),
                                              False * 'filling template matrix'):  # Starts at ell = 2
@@ -187,7 +191,7 @@ class template_bfilt(object):
 
     def _build_tniti(self, prefix=''):
         tnit = np.zeros((self.nmodes, self.nmodes), dtype=float)
-        for i, a in enumerate_progress(range(self.nmodes), label='collecting Tmat rows'):
+        for i, a in enumerate_progress(range(self.nmodes), label='collecting Pmat rows'):
             fname = os.path.join(self.lib_dir, prefix + 'row%05d.npy'%a)
             assert os.path.exists(fname)
             tnit[:, a]  = np.load(fname)
@@ -201,8 +205,11 @@ class template_bfilt(object):
         """
         from plancklens.helpers import mpi
         assert self.lib_dir is not None, 'cant do this without a lib_dir'
-        NiQQ, NiUU, NiQU = NiQQ_NiUU_NiQU
-        assert NiQU is None
+        if NiQQ_NiUU_NiQU.shape[0] == 3: #Here, QQ and UU may be different, but NiQU negligible
+            NiQQ, NiUU, NiQU = NiQQ_NiUU_NiQU
+            assert NiQU is None
+        else: #Here, we assume that NiQQ = NiUU, and NiQU is negligible
+            NiQQ, NiUU, NiQU = NiQQ_NiUU_NiQU, NiQQ_NiUU_NiQU, None
         assert self.nmodes <= 99999, 'ops, naming in the lines below'
         for a in range(self.nmodes)[mpi.rank::mpi.size]:
             fname = os.path.join(self.lib_dir, prefix + 'row%05d.npy'%a)

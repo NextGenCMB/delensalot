@@ -11,9 +11,9 @@ from lenscarf.opfilt import  opfilt_pp, opfilt_base, bmodes_ninv as bni
 from scipy.interpolate import UnivariateSpline as spl
 from lenscarf.utils import timer
 
-
 apply_fini = opfilt_pp.apply_fini
 pre_op_dense = None # not implemented
+
 
 class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
     def __init__(self, ninv_geom:utils_scarf.Geometry, ninv:list, ffi:remapping.deflection, transf:np.ndarray,
