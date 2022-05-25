@@ -20,22 +20,7 @@ lmin_ivf_qe = 10
 beam_ILC = 2.3
 transf = hp.gauss_beam(beam_ILC / 180. / 60. * np.pi, lmax=lmax_transf)
 
-
-
-def get_zbounds():
-
-    zbounds = get_zbounds(np.inf)
-    sht_threads = 32
-    #---- Redefine opfilt_pp shts to include zbounds
-    opfilt_pp.alm2map_spin = lambda eblm, nside_, spin, lmax, **kwargs: scarf.alm2map_spin(eblm, spin, nside_, lmax, **kwargs, nthreads=sht_threads, zbounds=zbounds)
-    opfilt_pp.map2alm_spin = lambda *args, **kwargs: scarf.map2alm_spin(*args, **kwargs, nthreads=sht_threads, zbounds=zbounds)
-    #---Add 5 degrees to mask zbounds:
-    zbounds_len = [np.cos(np.arccos(zbounds[0]) + 5. / 180 * np.pi), np.cos(np.arccos(zbounds[1]) - 5. / 180 * np.pi)]
-    zbounds_len[0] = max(zbounds_len[0], -1.)
-    zbounds_len[1] = min(zbounds_len[1],  1.)
-
-    return zbounds, zbounds_len
-
+rhits = hp.read_map('/project/projectdirs/cmbs4/awg/lowellbb/expt_xx/08d/rhits/n2048.fits')
 
 DATA_LIBDIR = '/global/project/projectdirs/cmbs4/awg/lowellbb/'
 BMARG_LIBDIR = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08d/'
@@ -44,6 +29,38 @@ BMARG_LCUT = 200
 THIS_CENTRALNLEV_UKAMIN = 0.59 # comes from calculating noise level form central patch, see jupyter notebook 'Check_inputdata' @ p/pcmbs4/s08d
 
 
+def extend_zbounds(zbounds):
+    # #TODO check if this works
+    # sht_threads = 32
+    # #---- Redefine opfilt_pp shts to include zbounds
+    # opfilt_pp.alm2map_spin = lambda eblm, nside_, spin, lmax, **kwargs: scarf.alm2map_spin(eblm, spin, nside_, lmax, **kwargs, nthreads=sht_threads, zbounds=zbounds)
+    # opfilt_pp.map2alm_spin = lambda *args, **kwargs: scarf.map2alm_spin(*args, **kwargs, nthreads=sht_threads, zbounds=zbounds)
+    #---Add 5 degrees to mask zbounds:
+    zbounds_len = [np.cos(np.arccos(zbounds[0]) + 5. / 180 * np.pi), np.cos(np.arccos(zbounds[1]) - 5. / 180 * np.pi)]
+    zbounds_len[0] = max(zbounds_len[0], -1.)
+    zbounds_len[1] = min(zbounds_len[1],  1.)
+
+    return zbounds_len
+
+
+def get_zbounds(hits_ratio=np.inf):
+    """Cos-tht bounds for thresholded mask
+
+    """
+    pix = np.where(get_nlev_mask(hits_ratio))[0]
+    tht, phi = hp.pix2ang(2048, pix)
+    zbounds = np.cos(np.max(tht)), np.cos(np.min(tht))
+    return zbounds
+
+
+def get_nlev_mask(ratio):
+    """Mask built thresholding the relative hit counts map
+        Note:
+            Same as 06b
+    """
+    mask = np.where(rhits < 1. / ratio, 0., 1.)  *(~np.isnan(rhits))
+    return mask
+
 
 def get_ILC_beam():
     beam = 2.3
@@ -51,7 +68,9 @@ def get_ILC_beam():
 
 
 def get_mask():
-    return 
+    assert 0, 'Not yet implemented'
+    return None
+
 
 def get_beam(freq):
     
@@ -80,6 +99,7 @@ def get_PBDR_noise_cl(freq, lmax):
 
 
 def get_crudeILC_noise_cl(fg, lmax, output_beam, freqs=(93, 145), ret_coeffs=False, spl_coeffs=False):
+    
     """Builds coefficients and noise curves for harmonic ILC from empirical spectra
 
         If output_beam is set, the noise curves corresponds to the CMB beamed with that width (in amin)
@@ -128,6 +148,8 @@ def get_crudeILC_noise_cl(fg, lmax, output_beam, freqs=(93, 145), ret_coeffs=Fal
 
 
 def get_beamdfgd_pcls(freq1, freq2, fg, mask_nlev=2.):
+    warn("get_beamdfgd_pcls() is redundant and will be removed in the future.", DeprecationWarning, stacklevel=2)
+    assert 0, 'Deprecated'
     import cmbs4
     warn("get_beamdfgd_pcls() is redundant and will be removed in the future.", DeprecationWarning, stacklevel=2)
     """EE BB EB BE foreground (cross)spectra, inclusive of transfer function
@@ -139,25 +161,6 @@ def get_beamdfgd_pcls(freq1, freq2, fg, mask_nlev=2.):
     suf = 'fg%s_pcls_%sGHzx%sGHz_mnlev_%s.dat'%(fg, freq1, freq2, int(100 * mask_nlev))
     p = os.path.join(os.path.dirname(os.path.abspath(cmbs4.__file__)), 'data', 's06b', suf)
     return np.loadtxt(p).transpose()
-
-
-def get_zbounds(hits_ratio=np.inf):
-    """Cos-tht bounds for thresholded mask
-
-    """
-    pix = np.where(get_nlev_mask(hits_ratio))[0]
-    tht, phi = hp.pix2ang(2048, pix)
-    return np.cos(np.max(tht)), np.cos(np.min(tht))
-
-
-def get_nlev_mask(ratio):
-    """Mask built thresholding the relative hit counts map
-        Note:
-            Same as 06b
-    """
-    rhits = hp.read_map('/project/projectdirs/cmbs4/awg/lowellbb/expt_xx/08b/rhits/n2048.fits')
-    mask = np.where(rhits < 1. / ratio, 0., 1.)  *(~np.isnan(rhits))
-    return mask
 
 
 def get_fidcls():
