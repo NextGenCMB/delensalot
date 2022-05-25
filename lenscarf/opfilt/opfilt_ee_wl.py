@@ -174,7 +174,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         if self.verbose:
             print(tim)
 
-    def synalm(self, unlcmb_cls:dict, cmb_phas=None):
+    def synalm(self, unlcmb_cls:dict, cmb_phas=None, get_unlelm=False):
         """Generate some dat maps consistent with noise filter fiducial ingredients
 
             Note:
@@ -199,7 +199,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
             assert 0, 'this is not implemented at the moment, but this is easy'
         else:
             assert 0, 'you should never land here'
-        return QU
+        return elm, QU if get_unlelm else QU
 
     def get_qlms(self, qudat: np.ndarray or list, elm_wf: np.ndarray, q_pbgeom: utils_scarf.pbdGeometry, alm_wf_leg2 :None or np.ndarray=None):
         """

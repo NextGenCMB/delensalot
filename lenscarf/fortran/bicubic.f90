@@ -1,3 +1,17 @@
+subroutine helloworld
+USE OMP_LIB
+
+INTEGER :: thread_id
+
+!$OMP PARALLEL PRIVATE(thread_id)
+
+    thread_id = OMP_GET_THREAD_NUM()
+    write(*, *) 'Hello from process: ', thread_id
+
+!$OMP END PARALLEL
+
+end subroutine
+
 double precision function cubicfilter(x, c0, c1, c2, c3)
     ! filter 4 values using cubic splines
     double precision x, c0, c1, c2, c3
