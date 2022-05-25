@@ -6,7 +6,7 @@ from warnings import warn
 import scarf
 from plancklens.qcinv import opfilt_pp
 
-BMARG_LIBDIR = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08d/' #TODO move matrix to here
+BMARG_LIBDIR = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08d/'
 BMARG_LCUT = 200
 THIS_CENTRALNLEV_UKAMIN = 0.59 # comes from calculating central patch noise level, see jupyter notebook 'Check_inputdata' @ p/pcmbs4/s08d
 nside = 2048
@@ -19,8 +19,6 @@ lmin_ivf_qe = 10
 
 beam_ILC = 2.3
 transf = hp.gauss_beam(beam_ILC / 180. / 60. * np.pi, lmax=lmax_transf)
-
-
 
 def get_zbounds():
 
