@@ -6,6 +6,8 @@ from warnings import warn
 import scarf
 from plancklens.qcinv import opfilt_pp
 
+from lerepi.asserter import string_asserter
+
 BMARG_LIBDIR = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08d/' #TODO move matrix to here
 BMARG_LCUT = 200
 THIS_CENTRALNLEV_UKAMIN = 0.59 # comes from calculating central patch noise level, see jupyter notebook 'Check_inputdata' @ p/pcmbs4/s08d
@@ -20,14 +22,17 @@ lmin_ivf_qe = 10
 beam_ILC = 2.3
 transf = hp.gauss_beam(beam_ILC / 180. / 60. * np.pi, lmax=lmax_transf)
 
-rhits = hp.read_map('/project/projectdirs/cmbs4/awg/lowellbb/expt_xx/08d/rhits/n2048.fits')
 
 DATA_LIBDIR = '/global/project/projectdirs/cmbs4/awg/lowellbb/'
-BMARG_LIBDIR = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08d/'
+BMARG_LIBDIR = os.path.join(DATA_LIBDIR, '/reanalysis/mapphi_intermediate/s08d/')
 BMARG_LCUT = 200
 
 THIS_CENTRALNLEV_UKAMIN = 0.59 # comes from calculating noise level form central patch, see jupyter notebook 'Check_inputdata' @ p/pcmbs4/s08d
 
+rhits = hp.read_map(os.path.join(DATA_LIBDIR, '/expt_xx/08d/rhits/n2048.fits'))
+
+
+#TODO would like a decorator for checking dir strings
 
 def extend_zbounds(zbounds):
     # #TODO check if this works
@@ -73,16 +78,17 @@ def get_mask():
 
 
 def get_beam(freq):
-    
+    assert 0, 'Check if true'
     return {20:11.0, 27:8.4, 39:5.8, 93:2.5, 145:1.6, 225:1.1, 278:1.}[freq]
 
 
 def get_nlevp(freq):
-    
+    assert 0, 'Check if true'
     return {20:13.6, 27:6.5, 39:4.15, 93:0.63, 145:0.59, 225:1.83, 278:4.34}[freq]
 
 
 def get_PBDR_noise_cl(freq, lmax):
+    warn("get_PBDR_noise_cl() is redundant and will be removed in the future.", DeprecationWarning, stacklevel=2)
     
     lknee = dict()
     a_P = dict()
