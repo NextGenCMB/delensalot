@@ -9,6 +9,7 @@ from plancklens.qcinv import opfilt_pp
 from lerepi.asserter import string_asserter
 
 BMARG_LIBDIR = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08d/' #TODO move matrix to here
+
 BMARG_LCUT = 200
 THIS_CENTRALNLEV_UKAMIN = 0.59 # comes from calculating central patch noise level, see jupyter notebook 'Check_inputdata' @ p/pcmbs4/s08d
 nside = 2048
