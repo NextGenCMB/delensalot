@@ -99,6 +99,7 @@ class deflection:
         sintmin = np.min(np.sin(self._tbds))
         prange = min(self._pbds.get_range() + 2 * buf / sintmin if sintmin > 0 else 2 * np.pi, 2 * np.pi)
         buffered_patch = skypatch(tbds, (self._pbds.get_ctr(), prange), self._resamin, pole_buffers=3)
+        #TODO: recognize north-south symmetry and implement it
         return itp.bicubic_ecp_interpolator(spin, gclm, mmax, buffered_patch, self.sht_tr, self._fft_tr, verbose=self.verbose)
 
     def _init_d1(self):
