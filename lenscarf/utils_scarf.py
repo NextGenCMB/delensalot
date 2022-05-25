@@ -67,15 +67,35 @@ class Geom:
         return np.min(geom.theta), np.max(geom.theta)
 
     @staticmethod
-    def rings2pix(geom:scarf.Geometry, rings:np.ndarray):
+    def rings2pix(geom:scarf.Geometry, rings:np.ndarray[int]):
         return np.concatenate([geom.get_ofs(ir) + np.arange(geom.get_nph(ir), dtype=int) for ir in rings])
 
     @staticmethod
-    def rings2phi(geom:scarf.Geometry, rings:np.ndarray):
+    def pix2ang(geom: scarf.Geometry, pixs: np.ndarray[int] or list[int]):
+        """Convert pixel indices to latitude and longitude (not terribly fast)"""
+        s_pixs = np.argsort(pixs)
+        thts, phis = np.empty(s_pixs.shape, dtype=float), np.empty(s_pixs.shape, float)
+        sorted_iofs = np.argsort(geom.ofs)
+        i, this_pix = 0, pixs[s_pixs[0]]
+        this_ring = 0
+        for next_ring in sorted_iofs:
+            while this_pix < geom.ofs[next_ring]:
+                thts[s_pixs[i]] = geom.theta[this_ring]
+                phis[s_pixs[i]] = geom.phi0[this_ring] + (2 * np.pi) * (this_pix - geom.ofs[this_ring]) / geom.nph[
+                    this_ring]
+                i += 1
+                if i == len(pixs):
+                    return thts, phis
+                this_pix = pixs[s_pixs[i]]
+            this_ring = next_ring
+        assert 0, 'invalid inputs'
+
+    @staticmethod
+    def rings2phi(geom:scarf.Geometry, rings:np.ndarray[int]):
         return np.concatenate([Geom.phis(geom, ir) for ir in rings])
 
     @staticmethod
-    def rings2tht(geom: scarf.Geometry, rings: np.ndarray):
+    def rings2tht(geom: scarf.Geometry, rings: np.ndarray[int]):
         return np.concatenate([geom.theta[ir] * np.ones(geom.nph[ir]) for ir in rings])
 
 
