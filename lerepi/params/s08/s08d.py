@@ -37,9 +37,9 @@ from lerepi.survey_config.dc08 import sc_08d as survey_config
 
 
 qe_key = 'p_p'
-
 fg = '00'
-TEMP =  '/global/cscratch1/sd/sebibel/cmbs4/s08d/cILC_%s_test/'%fg
+#TODO remove itercurv
+TEMP =  '/global/cscratch1/sd/sebibel/cmbs4/s08d/cILC_%s/'%fg
 
 BMARG_LIBDIR = survey_config.BMARG_LIBDIR
 BMARG_LCUT = survey_config.BMARG_LCUT
@@ -61,26 +61,19 @@ tol=1e-3
 tol_iter = lambda itr : 1e-3 if itr <= 10 else 1e-4
 soltn_cond = lambda itr: True
 
-#---- Redfining opfilt_pp shts to include zbounds
-zbounds = survey_config.get_zbounds(np.inf)
-# TODO check values
+zbounds = survey_config.get_zbounds()
+zbounds = survey_config.extend_zbounds(zbounds) #---Add 5 degrees to mask zbounds:
+
 sht_threads = 32
 opfilt_pp.alm2map_spin = lambda eblm, nside_, spin, lmax, **kwargs: scarf.alm2map_spin(eblm, spin, nside_, lmax, **kwargs, nthreads=sht_threads, zbounds=zbounds)
 opfilt_pp.map2alm_spin = lambda *args, **kwargs: scarf.map2alm_spin(*args, **kwargs, nthreads=sht_threads, zbounds=zbounds)
 
-
-#---Add 5 degrees to mask zbounds:
-zbounds_len = [np.cos(np.arccos(zbounds[0]) + 5. / 180 * np.pi), np.cos(np.arccos(zbounds[1]) - 5. / 180 * np.pi)]
-zbounds_len[0] = max(zbounds_len[0], -1.)
-zbounds_len[1] = min(zbounds_len[1],  1.)
-
-# --- masks: here we test apodized at ratio 10 and weightmap
 if not os.path.exists(TEMP):
     os.makedirs(TEMP)
 ivmap_path = os.path.join(TEMP, 'ipvmap.fits')
 if not os.path.exists(ivmap_path):
     rhits = np.nan_to_num(hp.read_map('/project/projectdirs/cmbs4/awg/lowellbb/expt_xx/08d/rhits/n2048.fits')) #TODO this should come from survey_conf
-    pixlev = THIS_CENTRALNLEV_UKAMIN / (np.sqrt(hp.nside2pixarea(2048, degrees=True)) * 60.)
+    pixlev = nlev_p / (np.sqrt(hp.nside2pixarea(2048, degrees=True)) * 60.)
     print("Pmap center pixel pol noise level: %.2f"%(pixlev * np.sqrt(hp.nside2pixarea(nside, degrees=True)) * 60.))
     hp.write_map(ivmap_path,  1./ pixlev ** 2 * rhits)  #TODO this should be provided to app level
 ivmat_path = os.path.join(TEMP, 'itvmap.fits')
@@ -130,6 +123,8 @@ cinv_t = filt_cinv.cinv_t(libdir_cinvt, lmax_ivf_qe, nside, cls_len, transf[:lma
 ninv_p = [[ivmap_path]]
 cinv_p = iterc_cinv_p.cinv_p(libdir_cinvp, lmax_ivf_qe, nside, cls_len, transf[:lmax_ivf_qe+1], ninv_p,
                                  chain_descr=chain_descr, bmarg_lmax=BMARG_LCUT, zbounds=zbounds, _bmarg_lib_dir=BMARG_LIBDIR)
+# cinv_p = iterc_cinv_p.cinv_p(libdir_cinvp, lmax_ivf_qe, nside, cls_len, transf[:lmax_ivf_qe+1], ninv_p,
+#                                  chain_descr=chain_descr, zbounds=zbounds)
 
 ivfs_raw = filt_cinv.library_cinv_sepTP(libdir_ivfs, sims, cinv_t, cinv_p, cls_len)
 
@@ -138,8 +133,7 @@ ivfs = filt_util.library_ftl(ivfs_raw, lmax_ivf_qe, filt_t, filt_e, filt_b)
 #-----: This is a filtering instance shuffling simulation indices according to 'ss_dict'.
 ddresp = qresp.resp_lib_simple(os.path.join(TEMP, 'qresp_dd_stp'), lmax_ivf_qe, cls_weights_qe, cls_grad,
                                {'tt':ftl_stp.copy(), 'ee':fel_stp.copy(),'bb':fbl_stp.copy()}, lmax_qlm)
-qlms_dd = qest.library_sepTP(os.path.join(TEMP, 'qlms_ddOBD'), ivfs, ivfs, cls_len['te'], nside,
-                                       lmax_qlm=lmax_qlm, resplib=ddresp)                        
+qlms_dd = qest.library_sepTP(os.path.join(TEMP, 'qlms_ddOBD'), ivfs, ivfs, cls_len['te'], nside, lmax_qlm=lmax_qlm, resplib=ddresp)                        
 
 qlibs = [qlms_dd]
 qcls_dd, qcls_ds, qcls_ss = (None, None, None)
@@ -221,7 +215,7 @@ def get_itlib(qe_key, DATIDX):
 
     #TODO if this file isn't precalculated, either terminate param file, or turn this into mpi tasks.
     mc_sims_mf = np.arange(nsims)
-    mf0 = qlms_dd.get_sim_qlm_mf('p_p', mc_sims=mc_sims_mf)
+    mf0 = qlms_dd.get_sim_qlm_mf_mpi('p_p', mc_sims=mc_sims_mf, mpi=mpi)
     if DATIDX in mc_sims_mf:
         mf0 =  (mf0 * len(mc_sims_mf) - qlms_dd.get_sim_qlm('p_p', DATIDX)) / (len(mc_sims_mf) - 1.)
     
@@ -234,10 +228,10 @@ def get_itlib(qe_key, DATIDX):
         assert 0
 
     def opfilt(libdir, plm, olm=None):
-        print('BMARG_LCUT: ', BMARG_LCUT)
-        return opfilt_ee_wl.alm_filter_ninv_wl(libdir, pixn_inv, transf, lmax_filt, plm, bmarg_lmax=BMARG_LCUT, _bmarg_lib_dir=BMARG_LIBDIR,
-                    olm=olm, nside_lens=2048, nbands_lens=1, facres=-1,zbounds=zbounds, zbounds_len=zbounds_len)
-                                        #lmax_bmarg=lmin_ivf_qe, highl_ebcut=lmax_filt)
+        # print('BMARG_LCUT: ', BMARG_LCUT)
+        # 'try no OBD for now'
+        # return opfilt_ee_wl.alm_filter_ninv_wl(libdir, pixn_inv, transf, lmax_filt, plm, olm=olm, nside_lens=2048, nbands_lens=1, facres=-1,zbounds=zbounds, zbounds_len=zbounds_len)
+        return opfilt_ee_wl.alm_filter_ninv_wl(libdir, pixn_inv, transf, lmax_filt, plm, bmarg_lmax=BMARG_LCUT, _bmarg_lib_dir=BMARG_LIBDIR, olm=olm, nside_lens=2048, nbands_lens=1, facres=-1,zbounds=zbounds, zbounds_len=zbounds)
 
     chain_descr = [[0, ["diag_cl"], lmax_filt, nside, np.inf, tol, cd_solve.tr_cg, cd_solve.cache_mem()]]
 
@@ -261,14 +255,13 @@ def get_itlib(qe_key, DATIDX):
                         dat, plm0, mf0, H0_unl, cpp, cls_filt, lmax_filt, wflm0=wflm0, chain_descr=chain_descr,  ninv_filt=opfilt)
     itlib_itercurv.newton_step_length = step_length
 
-    mf_resp = qresp.get_mf_resp(qe_key, cls_unl, {'ee': fel_stp_unl, 'bb': fbl_stp_unl}, lmax_ivf_qe, lmax_qlm)[0]
-    R_unl = qresp.get_response(qe_key, lmax_ivf_qe, 'p', cls_unl, cls_unl,  {'e': fel_stp_unl, 'b': fbl_stp_unl, 't':ftl_stp_unl}, lmax_qlm=lmax_qlm)[0]
-    
-    itlib_lenscarf = lenscarf_it.iterator_pertmf(TEMP_it, 'p', (lmax_qlm, lmax_qlm), dat,
-            plm0, mf_resp, R_unl, cpp, cls_unl, opfilt, opfilt.ffi.geom, chain_descr, step_length,
-            mf0=mf0, wflm0=lambda : alm_copy(ivfs.get_sim_emliklm(DATIDX), None, lmax_filt, lmax_filt))
+    # mf_resp = qresp.get_mf_resp(qe_key, cls_unl, {'ee': fel_stp_unl, 'bb': fbl_stp_unl}, lmax_ivf_qe, lmax_qlm)[0]
+    # R_unl = qresp.get_response(qe_key, lmax_ivf_qe, 'p', cls_unl, cls_unl,  {'e': fel_stp_unl, 'b': fbl_stp_unl, 't':ftl_stp_unl}, lmax_qlm=lmax_qlm)[0]
+    # itlib_lenscarf = lenscarf_it.iterator_pertmf(TEMP_it, 'p', (lmax_qlm, lmax_qlm), dat,
+    #         plm0, mf_resp, R_unl, cpp, cls_unl, opfilt, opfilt.ffi.geom, chain_descr, step_length,
+    #         mf0=mf0, wflm0=lambda : alm_copy(ivfs.get_sim_emliklm(DATIDX), None, lmax_filt, lmax_filt))
 
-    return itlib_itercurv, itlib_lenscarf
+    return itlib_itercurv#, itlib_lenscarf
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='test iterator full-sky with pert. resp.')
@@ -290,7 +283,7 @@ if __name__ == '__main__':
     for idx in jobs[mpi.rank::mpi.size]:
         TEMP_it = TEMP + '/iterator_p_p_%04d_OBD' % idx
         if args.itmax >= 0 and rec.maxiterdone(TEMP_it) < args.itmax:
-            itlib, _ = get_itlib(qe_key, idx)
+            itlib = get_itlib(qe_key, idx)
             for i in range(args.itmax + 1):
                 print("****Iterator: setting cg-tol to %.4e ****"%tol_iter(i))
                 print("****Iterator: setting solcond to %s ****"%soltn_cond(i))
@@ -307,5 +300,5 @@ if __name__ == '__main__':
         # from itercurv.iterators.statics import rec as Rec
         # elm = Rec.load_elm(TEMP_it, args.itmax-1)
         # Rec.get_btemplate(TEMP_it, elm, args.itmax, [0,360], zbounds_len,  cache=True, lmax_b=2048)
-        _, itlib = get_itlib(qe_key, 0)
+        itlib = get_itlib(qe_key, 0)
         blm = itlib.get_template_blm(args.itmax, args.itmax, lmaxb=2048, lmin_plm=1)

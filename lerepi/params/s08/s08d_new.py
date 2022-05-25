@@ -1,4 +1,4 @@
-"""Iterative reconstruction for s08d fg 00 / 07, using Caterina ILC maps
+"""Iterative reconstruction for s08d, using Caterina ILC maps
 
 Steps to run this successfully:
     1. calculate tniti
@@ -13,6 +13,7 @@ import healpy as hp
 
 from plancklens.qcinv import cd_solve
 
+#TODO only one or two imports would be appreciated
 import lenscarf
 import lenscarf.interface_user as if_u 
 from lenscarf import utils
