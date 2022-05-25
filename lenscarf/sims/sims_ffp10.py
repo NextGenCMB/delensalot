@@ -6,23 +6,24 @@ from plancklens.sims.planck2018_sims import cmb_unl_ffp10
 from plancklens import utils
 from lenscarf.remapping import deflection
 
+aberration_lbv_ffp10 = (264. * (np.pi / 180), 48.26 * (np.pi / 180), 0.001234)
 
 class cmb_len_ffp10:
-    def __init__(self, cacher: cachers.cacher or None=None, lmax_thingauss=5120, nbands=1):
+    def __init__(self, aberration:tuple[float, float, float]=aberration_lbv_ffp10,cacher: cachers.cacher or None=None,
+                       lmax_thingauss=5120, nbands=1):
         """FFP10 lensed cmbs, lensed with independent lenscarf code on thingauss geometry
 
 
             Args:
+                aberration: aberration parameters (gal. longitude (rad), latitude (rad) and v/c) Defaults to FFP10 values
                 cacher: set this to one of lenscarf.cachers in order save maps (nothing saved by default)
                 nbands: if set splits the sky into bands to perform the operations (saves some memory but probably a bit slower)
 
             Note: (FIXME)
                  The calculation of the FFT plans by FFTW can totally dominate if doing only very few remappings in the same session
 
-
-            #FIXME: use symmetric bands for big speed-up (need to adapt the remapper)
-                    (for example checking that the reverse sorted thetas are the 'same' than sorted)
         """
+        nbands = nbands + (1 - nbands%2)  # want an odd number to avoid a split just on the equator
         assert nbands <= 10, 'did not check'
         if cacher is None:
             cacher = cachers.cacher_none() # This cacher saves nothing
@@ -49,6 +50,12 @@ class cmb_len_ffp10:
         self.pbdGeoms = pbdGeoms
         self.nbands = len(pbdGeoms)
 
+        l, b, v = aberration
+        # \phi_{10} =   \sqrt{4\pi/3} n_z
+        # \phi_{11} = - \sqrt{4\pi / 3} \frac{(n_x - i n_y)}{\sqrt{2}}
+        vlm = np.array([0., np.cos(b), - np.exp(-1j * l) * np.sin(b) / np.sqrt(2.)])  # LM = 00, 10 and 11
+        self.vlm = vlm * (v * np.sqrt(4 * np.pi / 3))
+
     @staticmethod
     def _mkbands(nbands: int):
         """Splits the sky in nbands regions with equal numbers of latitude points """
@@ -64,9 +71,9 @@ class cmb_len_ffp10:
         print('fsky total', np.sum(zu - zl) / 2.)
         return zl, zu
 
-    @staticmethod
-    def _get_dlm(idx):
+    def _get_dlm(self, idx):
         dlm = cmb_unl_ffp10.get_sim_plm(idx)
+        dlm[:len(self.vlm)] += self.vlm # aberration
         lmax_dlm = utils_hp.Alm.getlmax(dlm.size, -1)
         mmax_dlm = lmax_dlm
         p2d = np.sqrt(np.arange(lmax_dlm + 1) * np.arange(1, lmax_dlm + 2))

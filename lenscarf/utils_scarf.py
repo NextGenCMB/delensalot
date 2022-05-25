@@ -54,7 +54,7 @@ class Geom:
     """
     @staticmethod
     def npix(geom:scarf.Geometry):
-        return np.sum(geom.nph)
+        return int(np.sum(geom.nph))
 
     @staticmethod
     def phis(geom:scarf.Geometry, ir):
@@ -108,9 +108,8 @@ class Geom:
         nph  = np.concatenate([geom.nph  for geom in geomlist])
         phi0 = np.concatenate([geom.phi0  for geom in geomlist])
         wt   = np.concatenate([geom.weight for geom in geomlist])
-        npix_0 = Geom.npix(geomlist[0])
         npixs = np.cumsum([Geom.npix(geom) for geom in geomlist])
-        ofs  = np.concatenate([geom.ofs + npixs - npix_0 for geom, npix in zip(geomlist, npixs)])
+        ofs  = np.concatenate([geom.ofs + npix - npixs[0] for geom, npix in zip(geomlist, npixs)])
         new_geom = scarf.Geometry(thts.size, nph, ofs, 1, phi0, thts, wt)
         assert Geom.npix(new_geom) ==  npixs[-1]
         return new_geom

@@ -95,12 +95,23 @@ class deflection:
         if self.verbose: print("***instantiating spin-%s interpolator with %s amin buffers"%(spin, bufamin))
         # putting a d = 0.01 ~ 30 arcmin buffer which should be way more than enough
         buf = bufamin/ 180 / 60 * np.pi
-        tbds = (max(self._tbds[0] - buf, 0.), min(np.pi, self._tbds[1] + buf))
+        srted_tht = np.sort(self.geom.theta)
+        assert self._tbds == (srted_tht[0], srted_tht[-1]), (self._tbds)
+        symmetric = np.all(np.abs(srted_tht - (np.pi - srted_tht)[::-1]) < 1e-14)
+        largegap = np.min(np.abs(srted_tht - np.pi * 0.5)) > buf
+        if symmetric and largegap:
+            tbds = (max(self._tbds[0] - buf, 0.), srted_tht[len(srted_tht)//2 - 1] + buf)
+            assert tbds[1] < 0.5 * np.pi, tbds
+            assert np.all(np.argsort(self.geom.ofs) == np.argsort(self.geom.theta)), 'I believe we need the rings to be ordered'
+            if self.verbose:
+                print("building a symmetric pair of interpolators")
+        else:
+            tbds = (max(self._tbds[0] - buf, 0.), min(np.pi, self._tbds[1] + buf))
         sintmin = np.min(np.sin(self._tbds))
         prange = min(self._pbds.get_range() + 2 * buf / sintmin if sintmin > 0 else 2 * np.pi, 2 * np.pi)
         buffered_patch = skypatch(tbds, (self._pbds.get_ctr(), prange), self._resamin, pole_buffers=3)
-        #TODO: recognize north-south symmetry and implement it
-        return itp.bicubic_ecp_interpolator(spin, gclm, mmax, buffered_patch, self.sht_tr, self._fft_tr, verbose=self.verbose)
+        return itp.bicubic_ecp_interpolator(spin, gclm, mmax, buffered_patch, self.sht_tr, self._fft_tr,
+                                            ns_symmetrize=symmetric * largegap, verbose=self.verbose)
 
     def _init_d1(self):
         if self.d1 is None and self.sig_d > 0.:
@@ -186,6 +197,7 @@ class deflection:
             t0 = time.time()
             self.tim.reset_t0()
             self._init_d1()
+            #TODO: this will for the (unexpected here) ns_symmetrized interpolator cases
             (tht0, t2grid), (phi0, p2grid), (re_f, im_f) = self.d1.get_spline_info()
             npix = Geom.pbounds2npix(self.geom, self._pbds)
             nrings = self.geom.get_nrings()
@@ -312,7 +324,7 @@ class deflection:
         return self.cacher.load(fn)
 
     def gclm2lenpixs(self, gclm:np.ndarray or list, mmax:int or None, spin:int, pixs:np.ndarray[int], backwards:bool, nomagn=False):
-        """Produces the remapped field 'exactly' on the required lensing geometry pixels by brute-force calculation
+        """Produces the remapped field on the required lensing geometry pixels 'exactly', by brute-force calculation
 
             Note:
                 The number of pixels must be small here, otherwise way too slow
@@ -353,7 +365,7 @@ class deflection:
                 lmax = Alm.getlmax(gclm.size, mmax)
                 if mmax is None: mmax = lmax
                 return self.geom.alm2map(gclm, lmax, mmax, self.sht_tr, [-1., 1.])
-        # TODO: save only grid angles and full phase factor
+        # TODO: consider saving only grid angles and full phase factor
         self.tim.reset_t0()
         interpjob = self._build_interpolator(gclm, mmax, spin)
         self.tim.add('glm spin %s lmax %s interpolator setup' % (

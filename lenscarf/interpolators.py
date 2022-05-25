@@ -33,8 +33,6 @@ class bicubic_ecp_interpolator:
             On first instantiation pyfftw spends some extra time calculating a FFT plan
 
 
-        # TODO Add exact remapping implementation for the points closest to the poles
-
     """
     def __init__(self, spin:int, gclm:np.ndarray or list, mmax:int or None, patch:skypatch, sht_threads:int, fftw_threads:int,
                  verbose=False, ns_symmetrize=False):
@@ -55,7 +53,7 @@ class bicubic_ecp_interpolator:
         ecp_job.set_triangular_alm_info(lmax, mmax)
         ecp_job.set_nthreads(sht_threads)
         if ns_symmetrize and np.abs(np.max(patch.tbounds[1]) - (np.pi - np.max(patch.tbounds[0]))) > 1e-14:# else already symmetric
-            assert np.all(patch.tbounds <= np.pi * 0.5) or np.all(patch.tbounds >= np.pi * 0.5), 'patch crosses equator, you probably did not mean to use this in conjonction with ns_symmetrize'
+            assert patch.tbounds[1] <= np.pi * 0.5 or patch.tbounds[0] >= np.pi * 0.5, 'patch crosses equator, you probably did not mean to use this in conjonction with ns_symmetrize'
             # We will have two ECP maps, but one extended SHT geometry
             ecp_geom1 = Geom.get_ecp_geometry(ecp_nt_nobuf, ecp_nph, phi_center=patch.pbounds[0], tbounds=patch.tbounds)
             ecp_geom2 = Geom.get_ecp_geometry(ecp_nt_nobuf, ecp_nph, phi_center=patch.pbounds[0], tbounds=(np.pi - patch.tbounds[1], np.pi - patch.tbounds[0]))
@@ -74,15 +72,15 @@ class bicubic_ecp_interpolator:
         # ----- calculation of the map to interpolate
         self._re_f = []
         self._im_f = []
+        dt = np.abs((patch.tbounds[1] - patch.tbounds[0]) / (ecp_nt_nobuf - 1.))
         # SHT:
-        ecp_m = ecp_job.alm2map_spin(gclm, spin) if  abs(spin) > 0 else ecp_job.alm2map(gclm)
+        ecp_m = ecp_job.alm2map_spin(gclm, spin) if  spin > 0 else ecp_job.alm2map(gclm)
         for isli, slic in enumerate(slices):
-            tbds = patch.tbounds if isli == 0 else (np.pi - patch.tbounds[1], np.pi - patch.tbounds[0])
             tbuf_n = nt_buf_n if isli == 0 else nt_buf_s
             tbuf_s = nt_buf_s if isli == 0 else nt_buf_n
             if spin > 0:
                 ecp_m_resized = np.zeros((ecp_nt_nobuf + tbuf_n + tbuf_s, imax - imin + 1), dtype=complex)
-                ecp_m_resized[tbuf_n:ecp_nt_nobuf + tbuf_n] = (ecp_m[0][slic] +  1j* ecp_m[1][slic]).reshape( (ecp_nt_nobuf, ecp_nph))[:, imin:imax+1]
+                ecp_m_resized[tbuf_n:ecp_nt_nobuf + tbuf_n] = (ecp_m[0,slic] +  1j* ecp_m[1,slic]).reshape( (ecp_nt_nobuf, ecp_nph))[:, imin:imax+1]
                 tmp_shape = ecp_m_resized.shape
                 ftype = complex
             else:
@@ -114,9 +112,6 @@ class bicubic_ecp_interpolator:
             ifft2(tmp * np.outer(wt, wp))
             tim.add('bicubic prefilt, fftw bwd')
 
-            dt = np.abs((tbds[1] - tbds[0]) / (ecp_nt_nobuf - 1.))
-            buf_t_bounds = (tbds[0] - tbuf_n * dt, tbds[1] + tbuf_s * dt)
-
             self._re_f.append(np.require(f.real, dtype=np.float64))
             self._im_f.append(np.require(f.imag, dtype=np.float64) if spin > 0 else None)
 
@@ -129,8 +124,8 @@ class bicubic_ecp_interpolator:
         self._phir_max = phir_max
         self._ecp_pctr = patch.pbounds[0]
         self._prescal =  ( (imax - imin) / (phir_max - phir_min) )
-        self._trescal =  ((self._re_f[0].shape[0] - 1) / (buf_t_bounds[1] - buf_t_bounds[0]))
-        self._buf_t_bounds = buf_t_bounds
+        self._buf_t_bounds = (patch.tbounds[0] - nt_buf_n * dt, patch.tbounds[1] + nt_buf_s * dt)
+        self._trescal =  ((self._re_f[0].shape[0] - 1) / (self._buf_t_bounds[1] - self._buf_t_bounds[0]))
 
         self.spin = spin
         self.tim = tim
@@ -167,9 +162,8 @@ class bicubic_ecp_interpolator:
         if self.spin > 0:
             ret_re = np.empty_like(t_grid)
             ret_im = np.empty_like(t_grid)
-            for ref, slic in zip(self._re_f, slices):
+            for ref, imf, slic in zip(self._re_f, self._im_f, slices):
                 ret_re[slic] = bicubic.deflect_omp(ref, t_grid[slic], p_grid[slic])
-            for imf, slic in zip(self._im_f, slices):
                 ret_im[slic] = bicubic.deflect_omp(imf, t_grid[slic], p_grid[slic])
             return ret_re, ret_im
         ret_re = np.empty_like(t_grid)
