@@ -26,9 +26,11 @@ from lenscarf.iterators import cs_iterator as scarf_iterator, steps
 from lenscarf.utils import cli
 from lenscarf.utils_hp import gauss_beam, almxfl, alm_copy
 from lenscarf.opfilt.opfilt_iso_ee_wl import alm_filter_nlev_wl
+from lenscarf import cachers
 
 suffix = 'cmbs4_delensing_idealized' # descriptor to distinguish this parfile from others...
 TEMP =  opj(os.environ['SCRATCH'], 'lenscarfrecs', suffix)
+DATDIR = opj(os.environ['SCRATCH'],'lenscarfedFFP10')
 
 lmax_ivf, mmax_ivf, beam, nlev_t, nlev_p = (3000, 3000, 1., 0.5 / np.sqrt(2), 0.5)
 
@@ -88,7 +90,7 @@ fbl_unl =  cli(cls_unl['bb'][:lmax_ivf + 1] + (nlev_p / 180 / 60 * np.pi) ** 2 *
 pix_phas = phas.pix_lib_phas(opj(os.environ['HOME'], 'pixphas_nside%s'%nside), 3, (hp.nside2npix(nside),)) # T, Q, and U noise phases
 #       actual data transfer function for the sim generation:
 transf_dat =  gauss_beam(beam / 180 / 60 * np.pi, lmax=4096) # (taking here full FFP10 cmb's which are given to 4096)
-sims      = maps.cmb_maps_nlev(sims_ffp10.cmb_len_ffp10(), transf_dat, nlev_t, nlev_p, nside, pix_lib_phas=pix_phas)
+sims      = maps.cmb_maps_nlev(sims_ffp10.cmb_len_ffp10(cacher=cachers.cacher_npy(DATDIR), lmax_thingauss=2 * 4096, nbands=7, verbose=True), transf_dat, nlev_t, nlev_p, nside, pix_lib_phas=pix_phas)
 
 # Makes the simulation library consistent with the zbounds
 sims_MAP  = utils_sims.ztrunc_sims(sims, nside, [zbounds])
