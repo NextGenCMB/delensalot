@@ -9,8 +9,8 @@ from lenscarf.remapping import deflection
 aberration_lbv_ffp10 = (264. * (np.pi / 180), 48.26 * (np.pi / 180), 0.001234)
 
 class cmb_len_ffp10:
-    def __init__(self, aberration:tuple[float, float, float]=aberration_lbv_ffp10,cacher: cachers.cacher or None=None,
-                       lmax_thingauss=5120, nbands=1, verbose=False):
+    def __init__(self, aberration:tuple[float, float, float]=aberration_lbv_ffp10,cacher:cachers.cacher or None=None,
+                       lmax_thingauss:int=5120, nbands:int=1, verbose:bool=False):
         """FFP10 lensed cmbs, lensed with independent lenscarf code on thingauss geometry
 
 
@@ -36,13 +36,13 @@ class cmb_len_ffp10:
         self.mmax_len = 4096
         self.lmax_thingauss = lmax_thingauss
 
-        self.targetres = 0.75  # Main accuracy parameter. I belive this crudely matches the FFP10 pipeline's
+        self.targetres = 0.75  # Main accuracy parameter. This crudely matches the FFP10 pipeline's
 
         zls, zus = self._mkbands(nbands)
         # By construction the central one covers the equator
         len_geoms = [utils_scarf.Geom.get_thingauss_geometry(lmax_thingauss, 2, zbounds=(zls[nbands//2], zus[nbands//2]))]
         for ib in range(nbands//2):
-            # and the other ones are symmetric w.r.t. the equator
+            # and the other ones are symmetric w.r.t. the equator. We merge them to get faster SHTs
             geom_north = utils_scarf.Geom.get_thingauss_geometry(lmax_thingauss, 2, zbounds=(zls[ib], zus[ib]))
             geom_south = utils_scarf.Geom.get_thingauss_geometry(lmax_thingauss, 2, zbounds=(zls[nbands-ib], zus[nbands-ib]))
             len_geoms.append(utils_scarf.Geom.merge([geom_north, geom_south]))
@@ -54,7 +54,6 @@ class cmb_len_ffp10:
         assert np.all(np.sort(ref_geom.theta) == np.sort(tht_all))
 
         self.pbdGeoms = pbdGeoms
-        self.nbands = len(pbdGeoms)
 
         l, b, v = aberration
         # \phi_{10} = - \sqrt{4\pi/3} n_z
