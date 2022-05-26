@@ -45,7 +45,7 @@ class cmb_len_ffp10:
         for ib in range(nbands//2):
             # and the other ones are symmetric w.r.t. the equator. We merge them to get faster SHTs
             geom_north = utils_scarf.Geom.get_thingauss_geometry(lmax_thingauss, 2, zbounds=(zls[ib], zus[ib]))
-            geom_south = utils_scarf.Geom.get_thingauss_geometry(lmax_thingauss, 2, zbounds=(zls[nbands-ib], zus[nbands-ib]))
+            geom_south = utils_scarf.Geom.get_thingauss_geometry(lmax_thingauss, 2, zbounds=(zls[nbands-ib-1], zus[nbands-ib-1]))
             len_geoms.append(utils_scarf.Geom.merge([geom_north, geom_south]))
         pbdGeoms = [utils_scarf.pbdGeometry(len_geom, utils_scarf.pbounds(np.pi, 2 * np.pi)) for len_geom in len_geoms]
 
