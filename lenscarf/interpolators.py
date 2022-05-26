@@ -1,6 +1,6 @@
 """This module contains the main curved-sky spin-field interpolators
 
-
+# TODO flexible fft module
 """
 from lenscarf.utils import timer
 from lenscarf.utils_hp import Alm
