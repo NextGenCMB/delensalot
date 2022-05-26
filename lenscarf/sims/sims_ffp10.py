@@ -56,12 +56,15 @@ class cmb_len_ffp10:
 
         self.pbdGeoms = pbdGeoms
 
+        # aberration: we must add the difference to the FFP10 aberration
         l, b, v = aberration
+        l_ffp10, b_ffp10, v_ffp10 = aberration
+
         # \phi_{10} = - \sqrt{4\pi/3} n_z
         # \phi_{11} = + \sqrt{4\pi / 3} \frac{(n_x - i n_y)}{\sqrt{2}}
         vlm = np.array([0., np.cos(b), - np.exp(-1j * l) * np.sin(b) / np.sqrt(2.)])  # LM = 00, 10 and 11
-        self.vlm = vlm * (-v * np.sqrt(4 * np.pi / 3))
-
+        vlm_ffp10 = np.array([0., np.cos(b_ffp10), - np.exp(-1j * l_ffp10) * np.sin(b_ffp10) / np.sqrt(2.)])
+        self.vlm = (vlm - vlm_ffp10) * (-v * np.sqrt(4 * np.pi / 3))
         self.verbose = verbose
 
     @staticmethod
