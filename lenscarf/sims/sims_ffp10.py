@@ -81,6 +81,9 @@ class cmb_len_ffp10:
         zu[-1] = 1.
         return zl, zu
 
+    def hashdict(self):
+        return {'sims':'ffp10', 'tres':self.targetres, 'lmaxGL':self.lmax_thingauss}
+
     def _get_dlm(self, idx):
         dlm = cmb_unl_ffp10.get_sim_plm(idx)
         dlm[:len(self.vlm)] += self.vlm # aberration
