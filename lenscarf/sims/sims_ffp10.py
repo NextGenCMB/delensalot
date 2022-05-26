@@ -10,7 +10,7 @@ aberration_lbv_ffp10 = (264. * (np.pi / 180), 48.26 * (np.pi / 180), 0.001234)
 
 class cmb_len_ffp10:
     def __init__(self, aberration:tuple[float, float, float]=aberration_lbv_ffp10,cacher: cachers.cacher or None=None,
-                       lmax_thingauss=5120, nbands=1):
+                       lmax_thingauss=5120, nbands=1, verbose=False):
         """FFP10 lensed cmbs, lensed with independent lenscarf code on thingauss geometry
 
 
@@ -23,7 +23,7 @@ class cmb_len_ffp10:
                  The calculation of the FFT plans by FFTW can totally dominate if doing only very few remappings in the same session
 
         """
-        nbands = nbands + (1 - nbands%2)  # want an odd number to avoid a split just on the equator
+        nbands = int(nbands + (1 - int(nbands)%2))  # want an odd number to avoid a split just on the equator
         assert nbands <= 10, 'did not check'
         if cacher is None:
             cacher = cachers.cacher_none() # This cacher saves nothing
@@ -39,7 +39,13 @@ class cmb_len_ffp10:
         self.targetres = 0.75  # Main accuracy parameter. I belive this crudely matches the FFP10 pipeline's
 
         zls, zus = self._mkbands(nbands)
-        len_geoms = [utils_scarf.Geom.get_thingauss_geometry(lmax_thingauss, 2, zbounds=(zl, zu)) for zl, zu in zip(zls, zus)]
+        # By construction the central one covers the equator
+        len_geoms = [utils_scarf.Geom.get_thingauss_geometry(lmax_thingauss, 2, zbounds=(zls[nbands//2], zus[nbands//2]))]
+        for ib in range(nbands//2):
+            # and the other ones are symmetric w.r.t. the equator
+            geom_north = utils_scarf.Geom.get_thingauss_geometry(lmax_thingauss, 2, zbounds=(zls[ib], zus[ib]))
+            geom_south = utils_scarf.Geom.get_thingauss_geometry(lmax_thingauss, 2, zbounds=(zls[nbands-ib], zus[nbands-ib]))
+            len_geoms.append(utils_scarf.Geom.merge([geom_north, geom_south]))
         pbdGeoms = [utils_scarf.pbdGeometry(len_geom, utils_scarf.pbounds(np.pi, 2 * np.pi)) for len_geom in len_geoms]
 
         # Sanity check, we cant have rings overlap
@@ -51,10 +57,12 @@ class cmb_len_ffp10:
         self.nbands = len(pbdGeoms)
 
         l, b, v = aberration
-        # \phi_{10} =   \sqrt{4\pi/3} n_z
-        # \phi_{11} = - \sqrt{4\pi / 3} \frac{(n_x - i n_y)}{\sqrt{2}}
+        # \phi_{10} = - \sqrt{4\pi/3} n_z
+        # \phi_{11} = + \sqrt{4\pi / 3} \frac{(n_x - i n_y)}{\sqrt{2}}
         vlm = np.array([0., np.cos(b), - np.exp(-1j * l) * np.sin(b) / np.sqrt(2.)])  # LM = 00, 10 and 11
-        self.vlm = vlm * (v * np.sqrt(4 * np.pi / 3))
+        self.vlm = vlm * (-v * np.sqrt(4 * np.pi / 3))
+
+        self.verbose = verbose
 
     @staticmethod
     def _mkbands(nbands: int):
@@ -68,7 +76,6 @@ class cmb_len_ffp10:
         zl = np.cos(th_u[::-1])
         zl[0] = -1.
         zu[-1] = 1.
-        print('fsky total', np.sum(zu - zl) / 2.)
         return zl, zu
 
     def _get_dlm(self, idx):
@@ -89,7 +96,7 @@ class cmb_len_ffp10:
         mmax_elm = lmax_elm
         assert lmax_elm == utils_hp.Alm.getlmax(unl_blm.size, -1)
         for i, pbdGeom in utils.enumerate_progress(self.pbdGeoms, 'collecting bands'):
-            ffi = deflection(pbdGeom, self.targetres, dlm, mmax_dlm, self.fft_tr, self.sht_tr)
+            ffi = deflection(pbdGeom, self.targetres, dlm, mmax_dlm, self.fft_tr, self.sht_tr, verbose=self.verbose)
             len_eblm += ffi.lensgclm([unl_elm, unl_blm], mmax_elm, 2, self.lmax_len, self.mmax_len)
         return len_eblm
 
@@ -102,7 +109,7 @@ class cmb_len_ffp10:
             lmax_tlm = utils_hp.Alm.getlmax(unl_tlm.size, -1)
             mmax_tlm = lmax_tlm
             for i, pbdGeom in utils.enumerate_progress(self.pbdGeoms, 'collecting bands'):
-                ffi = deflection(pbdGeom, self.targetres, dlm, mmax_dlm, self.fft_tr, self.sht_tr)
+                ffi = deflection(pbdGeom, self.targetres, dlm, mmax_dlm, self.fft_tr, self.sht_tr, verbose=self.verbose)
                 len_tlm += ffi.lensgclm(unl_tlm, mmax_tlm, 0, self.lmax_len, self.mmax_len)
             self.cacher.cache(fn, len_tlm)
             return len_tlm

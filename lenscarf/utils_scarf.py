@@ -81,8 +81,7 @@ class Geom:
         for next_ring in sorted_iofs:
             while this_pix < geom.ofs[next_ring]:
                 thts[s_pixs[i]] = geom.theta[this_ring]
-                phis[s_pixs[i]] = geom.phi0[this_ring] + (2 * np.pi) * (this_pix - geom.ofs[this_ring]) / geom.nph[
-                    this_ring]
+                phis[s_pixs[i]] = geom.phi0[this_ring] + (2 * np.pi) * (this_pix - geom.ofs[this_ring]) / geom.nph[this_ring]
                 i += 1
                 if i == len(pixs):
                     return thts, phis
