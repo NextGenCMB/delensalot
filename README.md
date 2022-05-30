@@ -6,18 +6,11 @@
 Curved-sky iterative CMB lensing tools
 
 ## Installation
-
-Download the project to your computer, navigate to the root folder and execute the command,
-
-``` 
-python setup.py install
-```
-
-For this to work, an older gnu compiler, gcc 7 is currently needed, as a newer version is more restrictive to type checking.
+D.lensalot is computationally demanding and therefore needs NERSC.
 
 ### Use on NERSC
 
-To use D.lensalot on NERSC, first load the dependent libraries, and swap to the gnu gcc compiler.
+First load the dependent libraries, and swap to the gnu gcc compiler.
 To do so, open a terminal on NERSC and execute,
 ```
 module load fftw
@@ -28,6 +21,15 @@ module load python
 ```
 
 alternative, add the above lines to your `~/.bash_profile`
+
+
+Download the project to your computer, navigate to the root folder and execute the command,
+
+``` 
+python setup.py install
+```
+
+For this to work, an older gnu compiler, `gcc 7` is currently needed, as a newer version is more restrictive to type checking.
 
 
 ## Dependencies
