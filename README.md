@@ -2,7 +2,6 @@
 # D.Lensalot 
 
 
-
 (formerly known as Lenscarf)
 Curved-sky iterative CMB lensing tools
 
@@ -14,8 +13,24 @@ Download the project to your computer, navigate to the root folder and execute t
 python setup.py install
 ```
 
-## Dependencies
+For this to work, an older gnu compiler, gcc 7 is currently needed, as a newer version is more restrictive to type checking.
 
+### Use on NERSC
+
+To use D.lensalot on NERSC, first load the dependent libraries, and swap to the gnu gcc compiler.
+To do so, open a terminal on NERSC and execute,
+```
+module load fftw
+module load gsl
+module load cfitsio
+module swap PrgEnv-intel PrgEnv-gnu
+module load python
+```
+
+alternative, add the above lines to your `~/.bash_profile`
+
+
+## Dependencies
 
  based on
   * [Scarf](https://github.com/samuelsimko/scarf)
@@ -25,20 +40,3 @@ python setup.py install
 ## Doc
 
 Documentation may be found [HERE]
-
-
-## Use on NERSC
-
-
-To use D.lensalot on NERSC, you need to load some libraries as well as the GNU compilers (the default ones being Intel), before installing the module.
-Type these lines in the terminal or include them into your `~/.bash_profile`:
-
-```
-module load fftw
-module load gsl
-module load cfitsio
-module swap PrgEnv-intel PrgEnv-gnu
-module load python
-```
-
-
