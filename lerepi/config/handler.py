@@ -15,10 +15,17 @@ from lenscarf.utils import cli
 from lenscarf.utils_hp import gauss_beam
 from lenscarf.opfilt.bmodes_ninv import template_dense
 
+"""
+Change this and only differentiate between dlensalot and 'other' params
+"""
 
 class lensing_config():
     def __init__(self, config_file, TEMP):
         # TODO Here what we want is to transform human-input into lerepi-language
+        self.nside = config_file.nside
+        self.zbounds = config_file.zbounds
+        self.zbounds_len = config_file.zbounds_len
+
         self.lmax_transf = config_file.lmax_transf
         self.lmax_filt = config_file.lmax_filt
         
@@ -27,10 +34,14 @@ class lensing_config():
         self.lmin_blm = config_file.lmin_blm
         self.lmax_qlm = config_file.lmax_qlm
         self.mmax_qlm = config_file.mmax_qlm
+        
         self.lmax_ivf = config_file.lmax_ivf
+        self.mmax_ivf = config_file.mmax_ivf
         self.lmin_ivf = config_file.lmin_ivf
         self.lmax_unl = config_file.lmax_unl
         self.mmax_unl = config_file.mmax_unl
+
+        self.stepper = config_file.stepper
 
         cls_path = opj(os.path.dirname(plancklens.__file__), 'data', 'cls')
         self.cls_unl = utils.camb_clfile(opj(cls_path, 'FFP10_wdipole_lenspotentialCls.dat'))
@@ -139,7 +150,7 @@ class run_config():
         
         self.tol = config_file.TOL
         self.tol_iter = lambda it : 10 ** (- self.tol)
-        self.soltn_cond = lambda it: True # Uses (or not) previous E-mode solution as input to search for current iteration one
+        self.soltn_cond = config_file.soltn_cond # Uses (or not) previous E-mode solution as input to search for current iteration one
         self.cg_tol = config_file.CG_TOL
 
         self.mask_suffix = config_file.mask_suffix

@@ -63,9 +63,9 @@ LENSRES = 1.7  # Deflection operations will be performed at this resolution
 Lmin = 2 # The reconstruction of all lensing multipoles below that will not be attempted
 
 # Meanfield, OBD, and tol settings
-CG_TOL = 1e-4
+CG_TOL = 1e-3
 TOL = 4
-nsims_mf = 1
+nsims_mf = 2
 mc_sims_mf_it0 = np.arange(nsims_mf)
 isOBD = True
 
@@ -100,3 +100,4 @@ ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(nside, zbounds=zbounds)
 
 # stepper:
 stepper = steps.harmonicbump(lmax_qlm, mmax_qlm, xa=400, xb=1500) #reduce the gradient by 0.5 for large scale and by 0.1 for small scales to improve convergence in regimes where the deflection field is not invertible
+soltn_cond = lambda it: True
