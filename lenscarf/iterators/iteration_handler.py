@@ -14,7 +14,7 @@ from lenscarf.opfilt import opfilt_ee_wl
 
 
 class scarf_iterator_pertmf():
-    def __init__(self, k:str, simidx:int, version:str, libdir_iterators, lensing_config, survey_config):
+    def __init__(self, k:str, simidx:int, version:str, libdir_iterators, lensing_config, survey_config, run_config):
         """Return iterator instance for simulation idx and qe_key type k
 
             Args:
@@ -32,6 +32,8 @@ class scarf_iterator_pertmf():
         self.lensing_config = lensing_config
         self.survey_config = survey_config
         self.libdir_iterator = libdir_iterator
+        self.tpl = lensing_config.tpl
+        self.tr = lensing_config.tr
         if not os.path.exists(libdir_iterator):
             os.makedirs(libdir_iterator)
         print('Starting get itlib for {}'.format(libdir_iterator))
@@ -42,11 +44,12 @@ class scarf_iterator_pertmf():
         self.plm0 = self.get_plm_it0()
         self.mf_resp = self.get_meanfield_response_it0()
         self.datmaps = self.get_datmaps()
-        self.filter = self.get_filter()
-
-
-        self.chain_descr = lensing_config.chain_descrs(lensing_config.lmax_unl, lensing_config.cg_tol)
         self.ffi = remapping.deflection(lensing_config.lenjob_pbgeometry, lensing_config.lensres, np.zeros_like(self.plm0), lensing_config.mmax_qlm, self.tr, self.tr)
+
+        self.filter = self.get_filter(self.sims_MAP, self.ffi, self.tpl)
+
+
+        self.chain_descr = lensing_config.chain_descr(lensing_config.lmax_unl, run_config.cg_tol)
 
 
     def get_meanfield_it0(self):
@@ -66,7 +69,7 @@ class scarf_iterator_pertmf():
             plm0  = self.lensing_config.qlms_dd.get_sim_qlm(self.k, int(self.simidx))  #Unormalized quadratic estimate:
             plm0 -= self.mf0  # MF-subtracted unnormalized QE
             # Isotropic normalization of the QE
-            R = self.lensing_config.qresp.get_response(self.k, self.lensing_config.lmax_ivf, 'p', self.lensing_config.cls_len, self.lensing_config.cls_len, {'e': self.lensing_config.fel, 'b': self.lensing_config.fbl, 't':self.lensing_config.ftl}, lmax_qlm=self.lensing_config.lmax_qlm)[0]
+            R = qresp.get_response(self.k, self.lensing_config.lmax_ivf, 'p', self.lensing_config.cls_len, self.lensing_config.cls_len, {'e': self.lensing_config.fel, 'b': self.lensing_config.fbl, 't':self.lensing_config.ftl}, lmax_qlm=self.lensing_config.lmax_qlm)[0]
             # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
             WF = self.lensing_config.cpp * utils.cli(self.lensing_config.cpp + utils.cli(R))
             plm0 = alm_copy(plm0,  None, self.lensing_config.lmax_qlm, self.lensing_config.mmax_qlm) # Just in case the QE and MAP mmax'es were not consistent
@@ -90,8 +93,8 @@ class scarf_iterator_pertmf():
 
     def get_datmaps(self):
         assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
-        sims_MAP  = utils_sims.ztrunc_sims(self.survey_config.sims, self.lensing_config.nside, [self.lensing_config.zbounds])
-        datmaps = np.array(sims_MAP.get_sim_pmap(int(self.simidx)))
+        self.sims_MAP  = utils_sims.ztrunc_sims(self.survey_config.sims, self.lensing_config.nside, [self.lensing_config.zbounds])
+        datmaps = np.array(self.sims_MAP.get_sim_pmap(int(self.simidx)))
 
         return datmaps
 
@@ -102,7 +105,7 @@ class scarf_iterator_pertmf():
         ninv = [sims_MAP.ztruncify(read_map(ni)) for ni in self.lensing_config.ninv_p] # inverse pixel noise map on consistent geometry
         filter = opfilt_ee_wl.alm_filter_ninv_wl(self.lensing_config.ninvjob_geometry, ninv, ffi, self.lensing_config.transf_elm, (self.lensing_config.lmax_unl, self.lensing_config.mmax_unl), (self.lensing_config.lmax_ivf, self.lensing_config.mmax_ivf), self.tr, tpl,
                                                 wee=wee, lmin_dotop=min(self.lensing_config.lmin_elm, self.lensing_config.lmin_blm), transf_blm=self.lensing_config.transf_blm)
-        self.k_geom = self.filtr.ffi.geom # Customizable Geometry for position-space operations in calculations of the iterated QEs etc
+        self.k_geom = filter.ffi.geom # Customizable Geometry for position-space operations in calculations of the iterated QEs etc
 
         return filter
 
@@ -115,7 +118,7 @@ class scarf_iterator_pertmf():
         """
         iterator = cs_iterator.iterator_pertmf(
             self.libdir_iterator, 'p', (self.lensing_config.lmax_qlm, self.lensing_config.mmax_qlm), self.datmaps, self.plm0, self.mf_resp,
-            self.R_unl, self.lensing_config.cpp, self.lensing_config.cls_unl, self.filtr, self.k_geom, self.chain_descr,
+            self.R_unl, self.lensing_config.cpp, self.lensing_config.cls_unl, self.filter, self.k_geom, self.chain_descr,
             self.lensing_config.stepper, mf0=self.mf0, wflm0=self.wflm0)
         
         return iterator
