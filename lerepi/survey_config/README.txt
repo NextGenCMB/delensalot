@@ -1,1 +1,0 @@
-Is there a naming scheme for change in configuration?
