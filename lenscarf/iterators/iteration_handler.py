@@ -27,7 +27,10 @@ class scarf_iterator_pertmf():
         """
         self.k = k
         self.simidx = simidx
+        self.version = version
         libdir_iterator = libdir_iterators(k, simidx, version)
+        self.lensing_config = lensing_config
+        self.survey_config = survey_config
         self.libdir_iterator = libdir_iterator
         if not os.path.exists(libdir_iterator):
             os.makedirs(libdir_iterator)
@@ -40,8 +43,7 @@ class scarf_iterator_pertmf():
         self.mf_resp = self.get_meanfield_response_it0()
         self.datmaps = self.get_datmaps()
         self.filter = self.get_filter()
-        self.lensing_config = lensing_config
-        self.survey_config = survey_config
+
 
         self.chain_descr = lensing_config.chain_descrs(lensing_config.lmax_unl, lensing_config.cg_tol)
         self.ffi = remapping.deflection(lensing_config.lenjob_pbgeometry, lensing_config.lensres, np.zeros_like(self.plm0), lensing_config.mmax_qlm, self.tr, self.tr)
@@ -119,6 +121,8 @@ class scarf_iterator_pertmf():
         return iterator
 
 
-    def transformer(descr):
-        if descr == 'permf':
-            return scarf_iterator_pertmf
+def transformer(descr):
+    if descr == 'pertmf':
+        return scarf_iterator_pertmf
+    else:
+        assert 0, "Not yet implemented"
