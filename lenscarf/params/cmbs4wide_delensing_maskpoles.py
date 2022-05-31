@@ -1,7 +1,5 @@
 """Iterative reconstruction for masked polarization CMB data
 
-
-
 FIXME's :
     plancklens independent QEs ?
     degrade method of _wl_ filters
@@ -42,7 +40,7 @@ lmax_unl, mmax_unl = (4000, 4000) # Delensed CMB is reconstructed down to this l
 
 #----------------- pixelization and geometry info for the input maps and the MAP pipeline and for lensing operations
 nside = 2048
-zbounds     = (-1.,1.) # colatitude sky cuts for noise variance maps (We could exclude all rings which are completely masked)
+zbounds = (-1.,1.) # colatitude sky cuts for noise variance maps (We could exclude all rings which are completely masked)
 ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(nside, zbounds=zbounds)
 
 zbounds_len = (-1.,1.) # Outside of these bounds the reconstructed maps are assumed to be zero
