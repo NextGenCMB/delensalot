@@ -7,6 +7,7 @@ FIXME's :
     mf_resp for EB-like ?
 """
 
+import argparse
 import os
 from os.path import join as opj
 import numpy as np
@@ -29,15 +30,32 @@ from lenscarf.opfilt import opfilt_ee_wl
 
 from lenscarf.opfilt.bmodes_ninv import template_dense 
 
-import lenscarf.interface_user as if_u
 
 from lerepi.data.dc08 import data_08d as if_s
-from lerepi.core import helper
+from lerepi.survey_config.dc08 import sc_08d as sc
 
-DATA_LIBDIR = '/global/project/projectdirs/cmbs4/awg/lowellbb/'
-BMARG_LIBDIR = os.path.join(DATA_LIBDIR, 'reanalysis/mapphi_intermediate/s08d/')
+def collect_jobs(self, libdir_iterators):
+    jobs = []
+    for idx in np.arange(self.run_config.imin, self.run_config.imax + 1):
+        lib_dir_iterator = libdir_iterators(self.lensing_config.k, idx, self.run_config.v)
+        if Rec.maxiterdone(lib_dir_iterator) < self.run_config.itmax:
+            jobs.append(idx)
+    self.jobs = jobs
+    
+    
+def get_parser_paramfile():
 
-parser = if_u.get_parser_paramfile()
+    parser = argparse.ArgumentParser(description='test iterator full-sky with pert. resp.')
+    parser.add_argument('-k', dest='k', type=str, default='p_p', help='rec. type')
+    parser.add_argument('-itmax', dest='itmax', type=int, default=-1, help='maximal iter index')
+    parser.add_argument('-tol', dest='tol', type=float, default=5., help='-log10 of cg tolerance default')
+    parser.add_argument('-imin', dest='imin', type=int, default=-1, help='minimal sim index')
+    parser.add_argument('-imax', dest='imax', type=int, default=-1, help='maximal sim index')
+    parser.add_argument('-v', dest='v', type=str, default='', help='iterator version')
+
+    return parser.parse_args()
+
+parser = get_parser_paramfile()
 fg = '00'
 mask_suffix = 2
 isOBD = True
@@ -56,14 +74,10 @@ lmax_qlm, mmax_qlm = (4000, 4000)
 lmax_unl, mmax_unl = (4000, 4000)
 
 nside = 2048
-
-sims = if_s.ILC_May2022(fg,mask_suffix=mask_suffix)
-mask = sims.get_mask_path()
-
-zbounds = helper.get_zbounds(hp.read_map(mask))
+zbounds = sc.get_zbounds()
 ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(nside, zbounds=zbounds)
 
-zbounds_len = helper.extend_zbounds(zbounds) # Outside of these bounds the reconstructed maps are assumed to be zero
+zbounds_len = sc.extend_zbounds(zbounds) # Outside of these bounds the reconstructed maps are assumed to be zero
 pb_ctr, pb_extent = (0., 2 * np.pi) # Longitude cuts, if any, in the form (center of patch, patch extent)
 lenjob_geometry = utils_scarf.Geom.get_thingauss_geometry(lmax_unl, 2, zbounds=zbounds_len)
 lenjob_pbgeometry = utils_scarf.pbdGeometry(lenjob_geometry, utils_scarf.pbounds(pb_ctr, pb_extent))
@@ -108,7 +122,8 @@ pix_phas = phas.pix_lib_phas(opj(os.environ['HOME'], 'pixphas_nside%s'%nside), 3
 #       actual data transfer function for the sim generation:
 transf_dat =  gauss_beam(beam / 180 / 60 * np.pi, lmax=4096) # (taking here full FFP10 cmb's which are given to 4096)
 
-
+sims = if_s.ILC_May2022(fg,mask_suffix=mask_suffix)
+mask = sims.get_mask_path()
 # Makes the simulation library consistent with the zbounds
 sims_MAP  = utils_sims.ztrunc_sims(sims, nside, [zbounds])
 # -------------------------
@@ -123,7 +138,7 @@ cinv_t = filt_cinv.cinv_t(opj(TEMP, 'cinv_t'), lmax_ivf,nside, cls_len, transf_t
 
 ninv_p = [[np.array([hp.nside2pixarea(nside, degrees=True) * 60 ** 2 / nlev_p ** 2])] + masks]
 cinv_p = filt_cinv.cinv_p(opj(TEMP, 'cinv_p'), lmax_ivf, nside, cls_len, transf_elm, ninv_p,
-            chain_descr=chain_descrs(lmax_ivf, 1e-5), transf_blm=transf_blm, marge_qmaps=(), marge_umaps=())
+            chain_descr=chain_descrs(lmax_ivf, 1e-4), transf_blm=transf_blm, marge_qmaps=(), marge_umaps=())
 
 ivfs_raw    = filt_cinv.library_cinv_sepTP(opj(TEMP, 'ivfs'), sims, cinv_t, cinv_p, cls_len)
 ftl_rs = np.ones(lmax_ivf + 1, dtype=float) * (np.arange(lmax_ivf + 1) >= lmin_tlm)
@@ -212,7 +227,7 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
     ffi = remapping.deflection(lenjob_pbgeometry, lensres, np.zeros_like(plm0), mmax_qlm, tr, tr)
     if k in ['p_p', 'p_eb']:
         if isOBD:
-             tpl = template_dense(200, ninvjob_geometry, tr, _lib_dir=BMARG_LIBDIR) # for template projection
+             tpl = template_dense(200, ninvjob_geometry, tr, _lib_dir=sc.BMARG_LIBDIR) # for template projection
         else:
             tpl = None # for template projection, here set to None
         wee = k == 'p_p' # keeps or not the EE-like terms in the generalized QEs
@@ -231,11 +246,25 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
 
 
 if __name__ == '__main__':
+    """
+    example logic 
+    """
+#     get_config_survey()
+#     test_settings_config()
+#     get_config_dlensalot()
+#     test_settings_dlensalot()
+#     
+#     
+#     get_qest()
+#     other()
+#     collect_jobs()
+#     run()
+
     tol_iter   = lambda it : 10 ** (- parser.tol) # tolerance a fct of iterations ?
     soltn_cond = lambda it: True # Uses (or not) previous E-mode solution as input to search for current iteration one
 
     mpi.barrier = lambda : 1 # redefining the barrier (Why ? )
-    jobs = if_u.collect_jobs(parser, libdir_iterators)
+    jobs = collect_jobs(parser, libdir_iterators)
 
     for idx in jobs[mpi.rank::mpi.size]:
         lib_dir_iterator = libdir_iterators(parser.k, idx, parser.v)

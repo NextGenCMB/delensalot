@@ -63,8 +63,8 @@ LENSRES = 1.7  # Deflection operations will be performed at this resolution
 Lmin = 2 # The reconstruction of all lensing multipoles below that will not be attempted
 
 # Meanfield, OBD, and tol settings
-CG_TOL = 1e-5
-TOL = 5
+CG_TOL = 1e-4
+TOL = 4
 nsims_mf = 1
 mc_sims_mf_it0 = np.arange(nsims_mf)
 isOBD = True
