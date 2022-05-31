@@ -53,6 +53,7 @@ Lmin = 2 # The reconstruction of all lensing multipoles below that will not be a
 cg_tol = 1e-5
 tol = 5
 nsims_mf = 10
+mc_sims_mf_it0 = np.arange(nsims_mf)
 isOBD = True
 
 # rhits:
