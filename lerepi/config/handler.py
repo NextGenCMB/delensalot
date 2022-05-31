@@ -48,6 +48,7 @@ class lensing_config():
             self.qcls_ds = qecl.library(opj(TEMP, 'qcls_ds'), self.qlms_ds, self.qlms_ds, np.array([]))  # for QE RDN0 calculations
             self.qcls_ss = qecl.library(opj(TEMP, 'qcls_ss'), self.qlms_ss, self.qlms_ss, np.array([]))  # for QE RDN0 / MCN0 calculations
 
+
         if config_file.STANDARD_TRANSFERFUNCTION == True:
             # Fiducial model of the transfer function
             self.transf_tlm   =  gauss_beam(config_file.beam/180 / 60 * np.pi, lmax=config_file.lmax_ivf) * (np.arange(config_file.lmax_ivf + 1) >= config_file.lmin_tlm)
@@ -67,14 +68,15 @@ class lensing_config():
         if config_file.CHAIN_DESCRIPTOR == 'default':
             self.chain_descr = lambda lmax_sol, cg_tol : [[0, ["diag_cl"], lmax_sol, config_file.nside, np.inf, cg_tol, cd_solve.tr_cg, cd_solve.cache_mem()]]
 
-        if config_file.FILTER == 'default':
+
+        if config_file.FILTER == 'cinv_sepTP':
             self.ninv_t = [np.array([hp.nside2pixarea(config_file.nside, degrees=True) * 60 ** 2 / config_file.nlev_t ** 2])] + config_file.masks
             self.ninv_p = [[np.array([hp.nside2pixarea(config_file.nside, degrees=True) * 60 ** 2 / config_file.nlev_p ** 2])] + config_file.masks]
 
-            self.cinv_t = filt_cinv.cinv_t(opj(TEMP, 'cinv_t'), config_file.lmax_ivf,config_file.nside, cls_len, self.transf_tlm, ninv_t,
+            self.cinv_t = filt_cinv.cinv_t(opj(TEMP, 'cinv_t'), config_file.lmax_ivf,config_file.nside, cls_len, self.transf_tlm, self.ninv_t,
                             marge_monopole=True, marge_dipole=True, marge_maps=[])
 
-            self.cinv_p = filt_cinv.cinv_p(opj(TEMP, 'cinv_p'), self.lmax_ivf, config_file.nside, cls_len, self.transf_elm, ninv_p,
+            self.cinv_p = filt_cinv.cinv_p(opj(TEMP, 'cinv_p'), self.lmax_ivf, config_file.nside, cls_len, self.transf_elm, self.ninv_p,
                         chain_descr=self.chain_descr(config_file.lmax_ivf, 1e-5), transf_blm=self.transf_blm, marge_qmaps=(), marge_umaps=())
 
             self.ivfs_raw    = filt_cinv.library_cinv_sepTP(opj(TEMP, 'ivfs'), config_file.sims, self.cinv_t, self.cinv_p, cls_len)
@@ -82,6 +84,14 @@ class lensing_config():
             self.fel_rs = np.ones(config_file.lmax_ivf + 1, dtype=float) * (np.arange(config_file.lmax_ivf + 1) >= config_file.lmin_elm)
             self.fbl_rs = np.ones(config_file.lmax_ivf + 1, dtype=float) * (np.arange(config_file.lmax_ivf + 1) >= config_file.lmin_blm)
             self.ivfs   = filt_util.library_ftl(self.ivfs_raw, config_file.lmax_ivf, self.ftl_rs, self.fel_rs, self.fbl_rs)
+
+
+        if config_file.FILTER_QE == 'sepTP':
+            # ---- QE libraries from plancklens to calculate unnormalized QE (qlms) and their spectra (qcls)
+            self.mc_sims_bias = np.arange(60, dtype=int)
+            self.mc_sims_var  = np.arange(60, 300, dtype=int)
+            self.qlms_dd = qest.library_sepTP(opj(TEMP, 'qlms_dd'), self.ivfs, self.ivfs, cls_len['te'], config_file.nside, lmax_qlm=config_file.lmax_qlm)
+            self.qcls_dd = qecl.library(opj(TEMP, 'qcls_dd'), self.qlms_dd, self.qlms_dd, self.mc_sims_bias)
 
 
 class survey_config():
