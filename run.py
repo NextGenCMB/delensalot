@@ -6,8 +6,9 @@ from lerepi.core import handler
 
 
 if __name__ == '__main__':
-    parser = lerepi_parser()
-    parser.validate()
-    
-    lerepi_handler = handler(parser)
-    handler.run()
+    lparser = lerepi_parser()
+    lparser.validate()
+    parser = lparser.get_parser()
+
+    lerepi_handler = handler.handler(parser)
+    lerepi_handler.run()

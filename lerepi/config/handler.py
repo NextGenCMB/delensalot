@@ -18,6 +18,7 @@ from lenscarf.opfilt.bmodes_ninv import template_dense
 
 class lensing_config():
     def __init__(self, config_file, TEMP):
+        # TODO Here what we want is to transform human-input into lerepi-language
         self.lmax_transf = config_file.lmax_transf
         self.lmax_filt = config_file.lmax_filt
         
@@ -39,18 +40,37 @@ class lensing_config():
         self.cpp[:config_file.Lmin] *= 0.
 
         self.mc_sims_mf_it0 = np.arange(config_file.nsims_mf)
-        self.lensres = lensing_config.lensres
+        self.lensres = config_file.LENSRES
         self.lenjob_pbgeometry = config_file.lenjob_pbgeometry
         self.ninvjob_geometry = config_file.ninvjob_geometry
         self.isOBD = config_file.isOBD
-        if self.lensing_config.isOBD:
-            self.tpl = template_dense(200, self.lensing_config.ninvjob_geometry, self.tr, _lib_dir=self.lensing_config.BMARG_LIBDIR) # for template projection
+        self.tr = int(os.environ.get('OMP_NUM_THREADS', 8)) #TODO hardcoded.. what to do with it?
+
+        if config_file.isOBD:
+            self.tpl = template_dense(200, self.ninvjob_geometry, self.tr, _lib_dir=config_file.BMARG_LIBDIR)
         else:
-            self.tpl = None # for template projection, here set to None
+            self.tpl = None
 
         if config_file.CHAIN_DESCRIPTOR == 'default':
             self.chain_descr = lambda lmax_sol, cg_tol : [[0, ["diag_cl"], lmax_sol, config_file.nside, np.inf, cg_tol, cd_solve.tr_cg, cd_solve.cache_mem()]]
 
+        if config_file.STANDARD_TRANSFERFUNCTION == True:
+            # Fiducial model of the transfer function
+            self.transf_tlm   =  gauss_beam(config_file.BEAM/180 / 60 * np.pi, lmax=config_file.lmax_ivf) * (np.arange(config_file.lmax_ivf + 1) >= config_file.lmin_tlm)
+            self.transf_elm   =  gauss_beam(config_file.BEAM/180 / 60 * np.pi, lmax=config_file.lmax_ivf) * (np.arange(config_file.lmax_ivf + 1) >= config_file.lmin_elm)
+            self.transf_blm   =  gauss_beam(config_file.BEAM/180 / 60 * np.pi, lmax=config_file.lmax_ivf) * (np.arange(config_file.lmax_ivf + 1) >= config_file.lmin_blm)
+
+            # Isotropic approximation to the filtering (used eg for response calculations)
+            self.ftl =  cli(cls_len['tt'][:config_file.lmax_ivf + 1] + (config_file.nlev_t / 180 / 60 * np.pi) ** 2 * cli(self.transf_tlm ** 2)) * (self.transf_tlm > 0)
+            self.fel =  cli(cls_len['ee'][:config_file.lmax_ivf + 1] + (config_file.nlev_p / 180 / 60 * np.pi) ** 2 * cli(self.transf_elm ** 2)) * (self.transf_elm > 0)
+            self.fbl =  cli(cls_len['bb'][:config_file.lmax_ivf + 1] + (config_file.nlev_p / 180 / 60 * np.pi) ** 2 * cli(self.transf_blm ** 2)) * (self.transf_blm > 0)
+
+            # Same using unlensed spectra (used for unlensed response used to initiate the MAP curvature matrix)
+            self.ftl_unl =  cli(cls_unl['tt'][:config_file.lmax_ivf + 1] + (config_file.nlev_t / 180 / 60 * np.pi) ** 2 * cli(self.transf_tlm ** 2)) * (self.transf_tlm > 0)
+            self.fel_unl =  cli(cls_unl['ee'][:config_file.lmax_ivf + 1] + (config_file.nlev_p / 180 / 60 * np.pi) ** 2 * cli(self.transf_elm ** 2)) * (self.transf_elm > 0)
+            self.fbl_unl =  cli(cls_unl['bb'][:config_file.lmax_ivf + 1] + (config_file.nlev_p / 180 / 60 * np.pi) ** 2 * cli(self.transf_blm ** 2)) * (self.transf_blm > 0)
+
+        self.masks = config_file.masks
         if config_file.FILTER == 'cinv_sepTP':
             self.ninv_t = [np.array([hp.nside2pixarea(config_file.nside, degrees=True) * 60 ** 2 / config_file.nlev_t ** 2])] + config_file.masks
             self.ninv_p = [[np.array([hp.nside2pixarea(config_file.nside, degrees=True) * 60 ** 2 / config_file.nlev_p ** 2])] + config_file.masks]
@@ -81,23 +101,6 @@ class lensing_config():
             self.qcls_ds = qecl.library(opj(TEMP, 'qcls_ds'), self.qlms_ds, self.qlms_ds, np.array([]))  # for QE RDN0 calculations
             self.qcls_ss = qecl.library(opj(TEMP, 'qcls_ss'), self.qlms_ss, self.qlms_ss, np.array([]))  # for QE RDN0 / MCN0 calculations
 
-        if config_file.STANDARD_TRANSFERFUNCTION == True:
-            # Fiducial model of the transfer function
-            self.transf_tlm   =  gauss_beam(config_file.beam/180 / 60 * np.pi, lmax=config_file.lmax_ivf) * (np.arange(config_file.lmax_ivf + 1) >= config_file.lmin_tlm)
-            self.transf_elm   =  gauss_beam(config_file.beam/180 / 60 * np.pi, lmax=config_file.lmax_ivf) * (np.arange(config_file.lmax_ivf + 1) >= config_file.lmin_elm)
-            self.transf_blm   =  gauss_beam(config_file.beam/180 / 60 * np.pi, lmax=config_file.lmax_ivf) * (np.arange(config_file.lmax_ivf + 1) >= config_file.lmin_blm)
-
-            # Isotropic approximation to the filtering (used eg for response calculations)
-            self.ftl =  cli(cls_len['tt'][:config_file.lmax_ivf + 1] + (config_file.nlev_t / 180 / 60 * np.pi) ** 2 * cli(self.transf_tlm ** 2)) * (self.transf_tlm > 0)
-            self.fel =  cli(cls_len['ee'][:config_file.lmax_ivf + 1] + (config_file.nlev_p / 180 / 60 * np.pi) ** 2 * cli(self.transf_elm ** 2)) * (self.transf_elm > 0)
-            self.fbl =  cli(cls_len['bb'][:config_file.lmax_ivf + 1] + (config_file.nlev_p / 180 / 60 * np.pi) ** 2 * cli(self.transf_blm ** 2)) * (self.transf_blm > 0)
-
-            # Same using unlensed spectra (used for unlensed response used to initiate the MAP curvature matrix)
-            self.ftl_unl =  cli(cls_unl['tt'][:config_file.lmax_ivf + 1] + (config_file.nlev_t / 180 / 60 * np.pi) ** 2 * cli(self.transf_tlm ** 2)) * (self.transf_tlm > 0)
-            self.fel_unl =  cli(cls_unl['ee'][:config_file.lmax_ivf + 1] + (config_file.nlev_p / 180 / 60 * np.pi) ** 2 * cli(self.transf_elm ** 2)) * (self.transf_elm > 0)
-            self.fbl_unl =  cli(cls_unl['bb'][:config_file.lmax_ivf + 1] + (config_file.nlev_p / 180 / 60 * np.pi) ** 2 * cli(self.transf_blm ** 2)) * (self.transf_blm > 0)
-
-
         if config_file.FILTER_QE == 'sepTP':
             # ---- QE libraries from plancklens to calculate unnormalized QE (qlms) and their spectra (qcls)
             self.mc_sims_bias = np.arange(60, dtype=int)
@@ -108,38 +111,39 @@ class lensing_config():
 
 class survey_config():
     def __init__(self, config_file):
+        # TODO Here what we want is to transform human-input into lerepi-language
         self.sims = config_file.sims
         self.THIS_CENTRALNLEV_UKAMIN = config_file.THIS_CENTRALNLEV_UKAMIN
-        self.beam_ILC = config_file.beam_ILC
+        self.beam = config_file.BEAM
 
         self.DATA_libdir = config_file.DATA_LIBDIR
         self.BMARG_LIBDIR = config_file.BMARG_LIBDIR
         self.BMARG_LCUT = config_file.BMARG_LCUT
 
-        self.get_nlevp = config_file.get_nlevp
         self.fg = config_file.fg
         self.transf = config_file.transf
 
 
 class run_config():
     def __init__(self, config_file):
-        self.k = config_file.k
+        # TODO Here what we want is to transform human-input into lerepi-language
+        self.k = config_file.K
 
-        self.v = config_file.v       
+        self.v = config_file.V      
         
-        self.itmax = config_file.itmax
-        self.imin = config_file.imin
-        self.imax = config_file.imax
+        self.itmax = config_file.ITMAX
+        self.imin = config_file.IMIN
+        self.imax = config_file.IMAX
         
-        self.tol = config_file.tol
+        self.tol = config_file.TOL
         self.tol_iter = lambda it : 10 ** (- self.tol)
         self.soltn_cond = lambda it: True # Uses (or not) previous E-mode solution as input to search for current iteration one
-        self.cg_tol = config_file.cg_tol
+        self.cg_tol = config_file.CG_TOL
 
         self.mask_suffix = config_file.mask_suffix
         self.isOBD = config_file.isOBD
         
-        if config_file.v == 'noMF':
+        if config_file.V == 'noMF':
             self.nsims_mf = 0
         else:
             self.nsims_mf = config_file.nsims_mf

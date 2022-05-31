@@ -10,6 +10,16 @@ from lerepi.core import helper
 # DATA_LIBDIR: 
 DATA_LIBDIR = '/global/project/projectdirs/cmbs4/awg/lowellbb/'
 
+# Lensing key, either p_p, ptt, p_eb
+K = 'p_p'
+
+# version, can be 'noMF
+V = ''
+
+ITMAX = 15
+IMIN = 0
+IMAX = 0
+
 # BMARG_LIBDIR: 
 BMARG_LIBDIR = os.path.join(DATA_LIBDIR, 'reanalysis/mapphi_intermediate/s08d/')
 
@@ -49,13 +59,13 @@ lmax_qlm, mmax_qlm = (4000, 4000)
 lmax_unl, mmax_unl = (4000, 4000)
 lmax_ivf, mmax_ivf = (3000, 3000)
 lmin_ivf, mmin_ivf = (10, 10)
-lensres = 1.7  # Deflection operations will be performed at this resolution
+LENSRES = 1.7  # Deflection operations will be performed at this resolution
 Lmin = 2 # The reconstruction of all lensing multipoles below that will not be attempted
 
 # Meanfield, OBD, and tol settings
-cg_tol = 1e-5
-tol = 5
-nsims_mf = 10
+CG_TOL = 1e-5
+TOL = 5
+nsims_mf = 1
 mc_sims_mf_it0 = np.arange(nsims_mf)
 isOBD = True
 
@@ -64,8 +74,10 @@ rhits = hp.read_map(os.path.join(DATA_LIBDIR, 'expt_xx/08d/rhits/n2048.fits'))
 
 # The following block defines which data and mask to use
 fg = '00'
-sims = if_s.ILC_May2022(fg,mask_suffix=2)
+mask_suffix = 2
+sims = if_s.ILC_May2022(fg, mask_suffix=mask_suffix)
 mask = sims.get_mask_path()
+masks = [mask] # TODO lenscarf supports multiple masks. But lerepi currently doesn't
 
 # The following block defines about which area the lensing will be performed. Zbounds is the latitude bounds, pbounds is for longitude
 zbounds = helper.get_zbounds(hp.read_map(mask))
@@ -78,10 +90,10 @@ lenjob_pbgeometry = utils_scarf.pbdGeometry(lenjob_geometry, utils_scarf.pbounds
 nside = 2048
 
 # beam:
-beam = 2.3
+BEAM = 2.3
 
 # transf:
-transf = hp.gauss_beam(beam / 180. / 60. * np.pi, lmax=lmax_transf)
+transf = hp.gauss_beam(BEAM / 180. / 60. * np.pi, lmax=lmax_transf)
 
 # ninvjob_geometry:
 ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(nside, zbounds=zbounds)
