@@ -231,20 +231,6 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
 
 
 if __name__ == '__main__':
-    """
-    example logic 
-    """
-#     get_config_survey()
-#     test_settings_config()
-#     get_config_dlensalot()
-#     test_settings_dlensalot()
-#     
-#     
-#     get_qest()
-#     other()
-#     collect_jobs()
-#     run()
-
     tol_iter   = lambda it : 10 ** (- parser.tol) # tolerance a fct of iterations ?
     soltn_cond = lambda it: True # Uses (or not) previous E-mode solution as input to search for current iteration one
 

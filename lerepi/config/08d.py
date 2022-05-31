@@ -38,6 +38,9 @@ CHAIN_DESCRIPTOR = 'default'
 # Change the following block only if other than sepTP for QE is desired
 FILTER_QE = 'sepTP' 
 
+# Choose your iterator. Either pertmf or const_mf
+ITERATOR = 'pertmf'
+
 # The following block defines various multipole limits. Change as desired
 lmax_transf = 4000 # can be distinct from lmax_filt for iterations
 lmax_filt = 4096 # unlensed CMB iteration lmax

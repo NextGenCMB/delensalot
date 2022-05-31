@@ -20,7 +20,7 @@ from lerepi.core.delensing_interface import Dlensalot
 class handler():
 
     def __init__(self, parser):
-        spec = iu.spec_from_file_location("module.name", lerepi.__file__+'/config/'+parser.survey_config+'.py')
+        spec = iu.spec_from_file_location("module.name", lerepi.__file__+'/config/'+parser.config+'.py')
         foo = iu.module_from_spec(spec)
         sys.modules["module.name"] = foo
         spec.loader.exec_module(foo)

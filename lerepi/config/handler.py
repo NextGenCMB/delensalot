@@ -6,13 +6,14 @@ import numpy as np
 
 import plancklens
 from plancklens import qest, qecl
-from plancklens.filt import filt_util
 from plancklens import utils, qest, qecl
+from plancklens.filt import filt_util
 from plancklens.qcinv import cd_solve
-
-from lenscarf.utils_hp import gauss_beam
-from lenscarf.utils import cli
 from plancklens.filt import filt_cinv, filt_util
+
+from lenscarf.utils import cli
+from lenscarf.utils_hp import gauss_beam
+from lenscarf.opfilt.bmodes_ninv import template_dense
 
 
 class lensing_config():
@@ -42,6 +43,13 @@ class lensing_config():
         self.lenjob_pbgeometry = config_file.lenjob_pbgeometry
         self.ninvjob_geometry = config_file.ninvjob_geometry
         self.isOBD = config_file.isOBD
+        if self.lensing_config.isOBD:
+            self.tpl = template_dense(200, self.lensing_config.ninvjob_geometry, self.tr, _lib_dir=self.lensing_config.BMARG_LIBDIR) # for template projection
+        else:
+            self.tpl = None # for template projection, here set to None
+
+        if config_file.CHAIN_DESCRIPTOR == 'default':
+            self.chain_descr = lambda lmax_sol, cg_tol : [[0, ["diag_cl"], lmax_sol, config_file.nside, np.inf, cg_tol, cd_solve.tr_cg, cd_solve.cache_mem()]]
 
         if config_file.FILTER == 'cinv_sepTP':
             self.ninv_t = [np.array([hp.nside2pixarea(config_file.nside, degrees=True) * 60 ** 2 / config_file.nlev_t ** 2])] + config_file.masks
@@ -51,9 +59,9 @@ class lensing_config():
                             marge_monopole=True, marge_dipole=True, marge_maps=[])
 
             self.cinv_p = filt_cinv.cinv_p(opj(TEMP, 'cinv_p'), self.lmax_ivf, config_file.nside, cls_len, self.transf_elm, self.ninv_p,
-                        chain_descr=self.chain_descr(config_file.lmax_ivf, 1e-5), transf_blm=self.transf_blm, marge_qmaps=(), marge_umaps=())
+                        chain_descr=self.chain_descr(config_file.lmax_ivf, config_file.cg_tol), transf_blm=self.transf_blm, marge_qmaps=(), marge_umaps=())
 
-            self.ivfs_raw    = filt_cinv.library_cinv_sepTP(opj(TEMP, 'ivfs'), config_file.sims, self.cinv_t, self.cinv_p, cls_len)
+            self.ivfs_raw = filt_cinv.library_cinv_sepTP(opj(TEMP, 'ivfs'), config_file.sims, self.cinv_t, self.cinv_p, cls_len)
             self.ftl_rs = np.ones(config_file.lmax_ivf + 1, dtype=float) * (np.arange(config_file.lmax_ivf + 1) >= config_file.lmin_tlm)
             self.fel_rs = np.ones(config_file.lmax_ivf + 1, dtype=float) * (np.arange(config_file.lmax_ivf + 1) >= config_file.lmin_elm)
             self.fbl_rs = np.ones(config_file.lmax_ivf + 1, dtype=float) * (np.arange(config_file.lmax_ivf + 1) >= config_file.lmin_blm)
@@ -89,8 +97,6 @@ class lensing_config():
             self.fel_unl =  cli(cls_unl['ee'][:config_file.lmax_ivf + 1] + (config_file.nlev_p / 180 / 60 * np.pi) ** 2 * cli(self.transf_elm ** 2)) * (self.transf_elm > 0)
             self.fbl_unl =  cli(cls_unl['bb'][:config_file.lmax_ivf + 1] + (config_file.nlev_p / 180 / 60 * np.pi) ** 2 * cli(self.transf_blm ** 2)) * (self.transf_blm > 0)
 
-        if config_file.CHAIN_DESCRIPTOR == 'default':
-            self.chain_descr = lambda lmax_sol, cg_tol : [[0, ["diag_cl"], lmax_sol, config_file.nside, np.inf, cg_tol, cd_solve.tr_cg, cd_solve.cache_mem()]]
 
         if config_file.FILTER_QE == 'sepTP':
             # ---- QE libraries from plancklens to calculate unnormalized QE (qlms) and their spectra (qcls)
