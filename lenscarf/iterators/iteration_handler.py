@@ -44,7 +44,6 @@ class scarf_iterator_pertmf():
         self.survey_config = survey_config
 
         self.chain_descr = lensing_config.chain_descrs(lensing_config.lmax_unl, lensing_config.cg_tol)
-        self.tr = int(os.environ.get('OMP_NUM_THREADS', 8))
         self.ffi = remapping.deflection(lensing_config.lenjob_pbgeometry, lensing_config.lensres, np.zeros_like(self.plm0), lensing_config.mmax_qlm, self.tr, self.tr)
 
 
@@ -107,7 +106,7 @@ class scarf_iterator_pertmf():
 
 
     def get_iterator(self):
-        """iterator_pertmf needs a whole lot of parameters
+        """iterator_pertmf needs a whole lot of parameters, which are calculated when initialising this class.
 
         Returns:
             _type_: _description_
