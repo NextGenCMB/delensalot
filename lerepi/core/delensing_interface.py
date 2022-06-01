@@ -19,5 +19,6 @@ class Dlensalot():
     @log_on_start(logging.INFO, "Start of run()")
     @log_on_end(logging.INFO, "Finished run()")
     def run(self):
-        self.dlensalot.collect_jobs()
-        self.dlensalot.run()
+        # TODO it feels unclean that self.QE has no jobs and no run. Implement at some point?
+        self.MAP.collect_jobs()
+        self.MAP.run()
