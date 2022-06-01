@@ -1,3 +1,7 @@
+    """This file doesn't work with lerepi anymore and is only here for understanding behaviour of new structure
+    """
+
+
 import os
 import numpy as np
 import healpy as hp

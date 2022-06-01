@@ -157,10 +157,10 @@ class p2d_Transformer:
                 dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), iteration.lmax_ivf,dl.nside, dl.cls_len, dl.transf_tlm, dl.ninv_t,
                                 marge_monopole=True, marge_dipole=True, marge_maps=[])
 
-                dl.cinv_p = filt_cinv.cinv_p(opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, iteration.nside, dl.cls_len, dl.transf_elm, dl.ninv_p,
+                dl.cinv_p = filt_cinv.cinv_p(opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, dl.nside, dl.cls_len, dl.transf_elm, dl.ninv_p,
                             chain_descr=dl.chain_descr(iteration.lmax_ivf, iteration.CG_TOL), transf_blm=dl.transf_blm, marge_qmaps=(), marge_umaps=())
 
-                dl.ivfs_raw = filt_cinv.library_cinv_sepTP(opj(dl.TEMP, 'ivfs'), iteration.sims, dl.cinv_t, dl.cinv_p, dl.cls_len)
+                dl.ivfs_raw = filt_cinv.library_cinv_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl.cinv_t, dl.cinv_p, dl.cls_len)
                 dl.ftl_rs = np.ones(iteration.lmax_ivf + 1, dtype=float) * (np.arange(iteration.lmax_ivf + 1) >= iteration.lmin_tlm)
                 dl.fel_rs = np.ones(iteration.lmax_ivf + 1, dtype=float) * (np.arange(iteration.lmax_ivf + 1) >= iteration.lmin_elm)
                 dl.fbl_rs = np.ones(iteration.lmax_ivf + 1, dtype=float) * (np.arange(iteration.lmax_ivf + 1) >= iteration.lmin_blm)
@@ -175,8 +175,8 @@ class p2d_Transformer:
                 dl.ivfs_d = filt_util.library_shuffle(dl.ivfs, iteration.ds_dict)
                 dl.ivfs_s = filt_util.library_shuffle(dl.ivfs, iteration.ss_dict)
 
-                dl.qlms_ds = qest.library_sepTP(opj(dl.TEMP, 'qlms_ds'), iteration.ivfs, iteration.ivfs_d, dl.cls_len['te'], iteration.nside, lmax_qlm=iteration.lmax_qlm)
-                dl.qlms_ss = qest.library_sepTP(opj(dl.TEMP, 'qlms_ss'), iteration.ivfs, iteration.ivfs_s, dl.cls_len['te'], iteration.nside, lmax_qlm=iteration.lmax_qlm)
+                dl.qlms_ds = qest.library_sepTP(opj(dl.TEMP, 'qlms_ds'), iteration.ivfs, iteration.ivfs_d, dl.cls_len['te'], dl.nside, lmax_qlm=iteration.lmax_qlm)
+                dl.qlms_ss = qest.library_sepTP(opj(dl.TEMP, 'qlms_ss'), iteration.ivfs, iteration.ivfs_s, dl.cls_len['te'], dl.nside, lmax_qlm=iteration.lmax_qlm)
 
                 dl.qcls_ds = qecl.library(opj(dl.TEMP, 'qcls_ds'), dl.qlms_ds, dl.qlms_ds, np.array([]))  # for QE RDN0 calculations
                 dl.qcls_ss = qecl.library(opj(dl.TEMP, 'qcls_ss'), dl.qlms_ss, dl.qlms_ss, np.array([]))  # for QE RDN0 / MCN0 calculations
@@ -186,7 +186,7 @@ class p2d_Transformer:
                 # ---- QE libraries from plancklens to calculate unnormalized QE (qlms) and their spectra (qcls)
                 dl.mc_sims_bias = np.arange(60, dtype=int)
                 dl.mc_sims_var  = np.arange(60, 300, dtype=int)
-                dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.ivfs, dl.ivfs, dl.cls_len['te'], iteration.nside, lmax_qlm=iteration.lmax_qlm)
+                dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.ivfs, dl.ivfs, dl.cls_len['te'], dl.nside, lmax_qlm=iteration.lmax_qlm)
                 dl.qcls_dd = qecl.library(opj(dl.TEMP, 'qcls_dd'), dl.qlms_dd, dl.qlms_dd, dl.mc_sims_bias)
 
 
@@ -226,23 +226,25 @@ class p2d_Transformer:
         @log_on_start(logging.INFO, "Start of _process_stepperparams()")
         @log_on_end(logging.INFO, "Finished _process_stepperparams()")
         def _process_stepperparams(dl, st):
-            if st.stepper == 'harmonicbump':
+            if st.typ == 'harmonicbump':
                 dl.stepper = steps.harmonicbump(st.lmax_qlm, st.mmax_qlm, xa=400, xb=1500)
 
 
         dl = Dlensalot()
         _process_geometryparams(dl, cf.geometry)
         _process_dataparams(dl, cf.data)
-        _process_iterationparams(dl, cf.iteration)
         _process_chaindescparams(dl, cf.chain_descriptor)
+        _process_iterationparams(dl, cf.iteration)
         _process_stepperparams(dl, cf.stepper)
+        
+        return dl
 
 
 class p2l_Transformer:
     """Extracts all parameters needed for lerepi
     Implement if needed
     """
-    def build(cf):
+    def build(self, cf):
         pass
 
 

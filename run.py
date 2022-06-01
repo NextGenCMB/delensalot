@@ -22,7 +22,6 @@ if __name__ == '__main__':
     formatter = logging.Formatter('%(asctime)s:: %(name)s:: %(levelname)s - %(message)s')
     ConsoleOutputHandler.setFormatter(formatter)
 
-    
     lparser = lerepi_parser()
     lparser.validate()
     parser = lparser.get_parser()

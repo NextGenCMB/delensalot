@@ -10,9 +10,12 @@ __author__ = "S. Belkner, J. Carron, L. Legrand"
 import os
 import sys
 import importlib.util as iu
+import shutil
 
 import logging
 from logdecorator import log_on_start, log_on_end
+
+import numpy as np
 
 import lerepi
 from lerepi.core.visitor import transform
@@ -30,6 +33,10 @@ class handler():
         sys.modules['paramfile'] = paramfile
         spec.loader.exec_module(paramfile)
         self.dlensalot_model = transform(paramfile.dlensalot_model, p2d_Transformer())
+        
+        # Store the dlensalot_model as parameterfile in TEMP, to use for resume purposes
+        shutil.copyfile(paramfile_path, self.dlensalot_model.TEMP+'/'+parser.config_file)
+
         # In case there are settings which are solely for lerepi
         self.lerepi_model = transform(paramfile.dlensalot_model, p2l_Transformer())
 
@@ -49,5 +56,4 @@ class handler():
     @log_on_end(logging.INFO, "Finished run()")
     def run(self):
         handler.do_something_with_params(self.lerepi_model)
-        dlensalot = Dlensalot(self.dlensalot_model)
-        dlensalot.run()
+        self.dlensalot_model.run()
