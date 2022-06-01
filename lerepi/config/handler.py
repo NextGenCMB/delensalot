@@ -1,3 +1,10 @@
+#!/usr/bin/env python
+
+"""handler.py: This module handles the configuration file and turns it into lerepi / dlensalot language
+"""
+__author__ = "S. Belkner, J. Carron, L. Legrand"
+
+
 import os
 from os.path import join as opj
 
@@ -155,8 +162,6 @@ class run_config():
 
         self.mask_suffix = config_file.mask_suffix
         self.isOBD = config_file.isOBD
-
-        
         
         if config_file.V == 'noMF':
             self.nsims_mf = 0

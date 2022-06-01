@@ -1,7 +1,6 @@
 import argparse
 import os
 from os import walk
-import sys
 
 import lerepi
 
@@ -14,7 +13,6 @@ class lerepi_parser():
         __argparser.add_argument('-sc', dest='survey_config', type=str, default='', help='Survey configuration')
         __argparser.add_argument('-lc', dest='lensing_config', type=str, default='', help='Lensing configuration')
         __argparser.add_argument('-rc', dest='run_config', type=str, default='', help='Run configuration')
-
         self.parser = __argparser.parse_args()
 
 
@@ -39,7 +37,9 @@ class lerepi_parser():
         self.parser.lensing_config = self.parser.lensing_config
         self.parser.survey_config = self.parser.run_config
 
+
     def get_parser(self):
+
         return self.parser
 
 

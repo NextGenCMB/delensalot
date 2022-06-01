@@ -30,9 +30,9 @@ from lenscarf.opfilt import opfilt_ee_wl
 
 from lenscarf.opfilt.bmodes_ninv import template_dense 
 
-
 from lerepi.data.dc08 import data_08d as if_s
 from lerepi.survey_config.dc08 import sc_08d as sc
+
 
 def collect_jobs(self, libdir_iterators):
     jobs = []

@@ -1,5 +1,9 @@
-"""Entry point for running lerepi 
+#!/usr/bin/env python
+
+"""run.py: Entry point for running lerepi
 """
+__author__ = "S. Belkner, J. Carron, L. Legrand"
+
 
 from lerepi.core.parser import lerepi_parser
 from lerepi.core import handler

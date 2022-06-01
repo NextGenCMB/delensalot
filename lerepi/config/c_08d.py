@@ -65,7 +65,7 @@ Lmin = 2 # The reconstruction of all lensing multipoles below that will not be a
 # Meanfield, OBD, and tol settings
 CG_TOL = 1e-3
 TOL = 4
-nsims_mf = 2
+nsims_mf = 10
 mc_sims_mf_it0 = np.arange(nsims_mf)
 isOBD = True
 
@@ -74,7 +74,7 @@ rhits = hp.read_map(os.path.join(DATA_LIBDIR, 'expt_xx/08d/rhits/n2048.fits'))
 
 # The following block defines which data and mask to use
 fg = '00'
-mask_suffix = 2
+mask_suffix = 50
 sims = if_s.ILC_May2022(fg, mask_suffix=mask_suffix)
 mask = sims.get_mask_path()
 masks = [mask] # TODO lenscarf supports multiple masks. But lerepi currently doesn't
