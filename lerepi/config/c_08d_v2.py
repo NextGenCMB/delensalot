@@ -67,8 +67,8 @@ dlensalot_model = DLENSALOT_Model(
         CG_TOL = 1e-3,
         TOL = 4,
         soltn_cond = lambda it: True,
-        OMP_NUM_THREADS = 8,
-        nsims_mf = 10
+        OMP_NUM_THREADS = 16,
+        nsims_mf = 2
     ),
     geometry = DLENSALOT_Geometry(
         lmax_unl = 4000,

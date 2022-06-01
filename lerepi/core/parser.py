@@ -1,3 +1,10 @@
+#!/usr/bin/env python
+
+"""parser.py: Read and validate terminal user input and store param file to TEMP directory
+"""
+__author__ = "S. Belkner, J. Carron, L. Legrand"
+
+
 import argparse
 import os
 from os import walk

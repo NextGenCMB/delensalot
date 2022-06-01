@@ -198,7 +198,7 @@ class p2d_Transformer:
                 from lerepi.data.dc08 import data_08d as if_s_loc
                 if 'ILC_May2022' in geometry.zbounds[0]:
                     # Take fg00 as it shouldn't matter for zbounds which to take
-                    sims_loc = if_s_loc.ILC_May2022('00')
+                    sims_loc = if_s_loc.ILC_May2022('00', mask_suffix=cf.data.mask_suffix)
                     zbounds_loc = sims_loc.get_zbounds(hp.read_map(sims_loc.get_mask_path()), geometry.zbounds[1])
                 if geometry.zbounds_len[0] ==  geometry.zbounds[0]:
                     zbounds_len_loc = sims_loc.extend_zbounds(zbounds_loc, geometry.zbounds_len[1])
@@ -236,7 +236,7 @@ class p2d_Transformer:
         _process_chaindescparams(dl, cf.chain_descriptor)
         _process_iterationparams(dl, cf.iteration)
         _process_stepperparams(dl, cf.stepper)
-        
+
         return dl
 
 

@@ -11,13 +11,13 @@ import attr
 
 
 class DLENSALOT_Concept:
-    """An abstract element base type for the IHMM formalism."""
+    """An abstract element base type for the Dlensalot formalism."""
     __metaclass__ = abc.ABCMeta
 
 
 @attr.s
 class DLENSALOT_Model(DLENSALOT_Concept):
-    """A root model element type of the IHMM formalism.
+    """A root model element type of the Dlensalot formalism.
 
     Attributes:
         DATA_LIBDIR: path to the data
@@ -31,7 +31,7 @@ class DLENSALOT_Model(DLENSALOT_Concept):
 
 @attr.s
 class DLENSALOT_Data(DLENSALOT_Concept):
-    """A root model element type of the IHMM formalism.
+    """A root model element type of the Dlensalot formalism.
 
     Attributes:
         DATA_LIBDIR: path to the data
