@@ -20,8 +20,6 @@ class cmb_len_ffp10:
                 cacher: set this to one of lenscarf.cachers in order save maps (nothing saved by default)
                 nbands: if set splits the sky into bands to perform the operations (saves some memory but probably a bit slower)
 
-            Note: (FIXME)
-                 The calculation of the FFT plans by FFTW can totally dominate if doing only very few remappings in the same session
 
         """
         nbands = int(nbands + (1 - int(nbands)%2))  # want an odd number to avoid a split just on the equator
@@ -58,7 +56,7 @@ class cmb_len_ffp10:
 
         # aberration: we must add the difference to the FFP10 aberration
         l, b, v = aberration
-        l_ffp10, b_ffp10, v_ffp10 = aberration
+        l_ffp10, b_ffp10, v_ffp10 = aberration_lbv_ffp10
 
         # \phi_{10} = - \sqrt{4\pi/3} n_z
         # \phi_{11} = + \sqrt{4\pi / 3} \frac{(n_x - i n_y)}{\sqrt{2}}
