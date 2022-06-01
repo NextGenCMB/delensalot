@@ -2,7 +2,6 @@
 import numpy as np
 import healpy as hp
 
-from lerepi.data.dc08 import data_08d as if_s
 from lerepi.metamodel.dlensalot import *
 
 dlensalot_model = DLENSALOT_Model(
@@ -11,8 +10,8 @@ dlensalot_model = DLENSALOT_Model(
         rhits = '/global/project/projectdirs/cmbs4/awg/lowellbb/expt_xx/08d/rhits/n2048.fits',
         fg = '00',
         mask_suffix = 50,
-        sims = if_s.ILC_May2022,
-        mask = if_s.ILC_May2022,
+        sims = '08d/ILC_May2022',
+        mask = '08d/ILC_May2022',
         masks = [if_s.ILC_May2022], # TODO lenscarf supports multiple masks. But lerepi currently doesn't
         nside = 2048,
         BEAM = 2.3,
@@ -76,24 +75,23 @@ dlensalot_model = DLENSALOT_Model(
         lenjob_geometry = 'thin_gauss',
         lenjob_pbgeometry = 'pbdGeometry',
         ninvjob_geometry = 'healpix_geometry',
-    )
+    ),
     chain_descriptor = DLENSALOT_Chaindescriptor(
         p0 = 0,
         p1 = ["diag_cl"],
-        p2 = lmax_sol,
-        p3 = cf.nside,
+        p2 = None,
+        p3 = 2048,
         p4 = np.inf,
-        p5 = cg_tol,
-        p6 = cd_solve.tr_cg,
-        p7 = cd_solve.cache_mem(),
+        p5 = None,
+        p6 = 'tr_cg',
+        p7 = 'cache_mem'
     ),
     steppper = DLENSALOT_Stepper(
         typ = 'harmonicbump',
         lmax_qlm = 4000,
         mmax_qlm = 4000,
         xa = 400,
-        xb = 1500,
-         #reduce the gradient by 0.5 for large scale and by 0.1 for small scales to improve convergence in regimes where the deflection field is not invertible
+        xb = 1500
     )
 )
 

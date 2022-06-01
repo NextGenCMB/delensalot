@@ -29,6 +29,7 @@ from lerepi.metamodel.dlensalot import Dlensalot_Model
 from lerepi.core.visitor import transform
 from lerepi.core.delensing_interface import Dlensalot
 
+from lerepi.data.dc08 import data_08d as if_s
 
 class p2d_Transformer:
     """Extracts all parameters needed for Dlensalot and turns it into a dl._model
@@ -45,9 +46,15 @@ class p2d_Transformer:
             dl.mc_sims_mf_it0 = np.arange(dl.nsims_mf)
             dl.rhits = hp.read_map(data.rhits)
             dl.fg = data.fg
-            dl.sims = data.sims(data.fg, mask_suffix=data.mask_suffix)
-            dl.mask = data.mask.get_mask_path()
-            dl.masks = [mask.get_mask_path() for mask in data.masks]
+
+            # TODO this is quite hacky, prettify. Perhaps load data like done with config file in core.handler
+            if 'data_08d' in data.sims:
+                from lerepi.data.dc08 import data_08d as if_s
+                if 'ILC_May2022' in data.sims:
+                    dl.sims = if_s.ILC_May2022.sims(data.fg, mask_suffix=data.mask_suffix)
+            if data.mask == data.sims:
+                dl.mask = dl.sims.get_mask_path()
+                dl.masks = [mask.get_mask_path() for mask in data.masks]
 
             dl.beam = data.BEAM
             dl.lmax_transf = data.lmax_transf
@@ -187,6 +194,10 @@ class p2d_Transformer:
 
         def _process_chaindescparams(dl, cd):
             # TODO hacky solution. Redo if needed
+            if cd.p6 == 'tr_cg':
+                cd.p6 = cd_solve.tr_cg
+            if cd.p7 == 'cache_mem':
+                cd.p7 = cd_solve.cache_mem()
             dl.chain_descr = lambda p2, p5 : [
                 [cd.p0, cd.p1, p2, cd.p3, cd.p4, p5, cd.p6, cd.p7]]
 
