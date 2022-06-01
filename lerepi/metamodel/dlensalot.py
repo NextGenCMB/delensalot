@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-"""imsensor.py: Contains the metamodel of the immune sensor formalism.
+"""dlensalot.py: Contains the metamodel of the Dlensalot formalism.
 """
 __author__ = "S. Belkner, J. Carron, L. Legrand"
 
