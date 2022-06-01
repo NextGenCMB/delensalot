@@ -15,27 +15,25 @@ import shutil
 import logging
 from logdecorator import log_on_start, log_on_end
 
-import numpy as np
-
-import lerepi
 from lerepi.core.visitor import transform
 from lerepi.transformer.param2dlensalot import p2d_Transformer, p2l_Transformer, transform
-from lerepi.core.delensing_interface import Dlensalot
 
 
 class handler():
 
     def __init__(self, parser):
-        module_path = os.path.dirname(lerepi.__file__)
-        paramfile_path = module_path+'/config/'+parser.config_file
-        spec = iu.spec_from_file_location('paramfile', paramfile_path)
+        spec = iu.spec_from_file_location('paramfile', parser.config_file)
         paramfile = iu.module_from_spec(spec)
         sys.modules['paramfile'] = paramfile
         spec.loader.exec_module(paramfile)
         self.dlensalot_model = transform(paramfile.dlensalot_model, p2d_Transformer())
         
         # Store the dlensalot_model as parameterfile in TEMP, to use for resume purposes
-        shutil.copyfile(paramfile_path, self.dlensalot_model.TEMP+'/'+parser.config_file)
+        if parser.resume != '':
+            # This is only done if not resuming. Otherwise it would be there already
+            if os.path.isfile(parser.config_file) and parser.config_file.endswith('.py'):
+                # Check if it is really a file 
+                shutil.copyfile(parser.config_file, self.dlensalot_model.TEMP+'/'+parser.config_file.split('/')[-1])
 
         # In case there are settings which are solely for lerepi
         self.lerepi_model = transform(paramfile.dlensalot_model, p2l_Transformer())
