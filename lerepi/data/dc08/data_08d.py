@@ -79,7 +79,7 @@ class ILC_May2022:
         """Cos-tht bounds for thresholded mask
 
         """
-        pix = np.where(get_nlev_mask(hits_ratio, rhits))[0]
+        pix = np.where(ILC_May2022.get_nlev_mask(hits_ratio, rhits))[0]
         tht, phi = hp.pix2ang(2048, pix)
         zbounds = np.cos(np.max(tht)), np.cos(np.min(tht))
 

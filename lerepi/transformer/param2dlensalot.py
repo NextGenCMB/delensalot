@@ -35,7 +35,6 @@ class p2d_Transformer:
     """Extracts all parameters needed for Dlensalot and turns it into a dl._model
     """
 
-
     def build(cf):
 
         def _process_dataparams(dl, data):
@@ -47,14 +46,15 @@ class p2d_Transformer:
             dl.rhits = hp.read_map(data.rhits)
             dl.fg = data.fg
 
-            # TODO this is quite hacky, prettify. Perhaps load data like done with config file in core.handler
+            # TODO this is quite hacky, prettify. Perhaps load data like done with config file in core.handler.
+            # The way it is right now doesn't scale.. also [masks] doesn't work as intented
             if 'data_08d' in data.sims:
                 from lerepi.data.dc08 import data_08d as if_s
                 if 'ILC_May2022' in data.sims:
                     dl.sims = if_s.ILC_May2022.sims(data.fg, mask_suffix=data.mask_suffix)
             if data.mask == data.sims:
                 dl.mask = dl.sims.get_mask_path()
-                dl.masks = [mask.get_mask_path() for mask in data.masks]
+                dl.masks = [dl.mask]
 
             dl.beam = data.BEAM
             dl.lmax_transf = data.lmax_transf
@@ -63,9 +63,11 @@ class p2d_Transformer:
             _suffix = '08d_%s_r%s'%(data.fg, data.mask_suffix)+'_isOBD'*data.isOBD
             _suffix += '_MF%s'%(data.nsims_mf) if data.nsims_mf > 0 else ''
             dl.TEMP =  opj(os.environ['SCRATCH'], 'cmbs4', _suffix)
-
-            dl.zbounds = data.zbounds[0].get_zbounds(hp.read_map(dl.mask),data.zbounds[1])
-            dl.zbounds_len = data.zbounds_len[0].extend_zbounds(dl.zbounds, data.zbounds_len[1])
+            
+            if data.zbounds[0] ==  data.sims:
+                dl.zbounds = dl.sims.get_zbounds(hp.read_map(dl.mask),data.zbounds[1])
+            if data.zbounds_len[0] ==  data.sims:
+                dl.zbounds_len = dl.sims.extend_zbounds(dl.zbounds, data.zbounds_len[1])
             dl.pb_ctr, dl.pb_extent = data.pbounds
 
             dl.DATA_libdir = data.DATA_LIBDIR
@@ -117,7 +119,6 @@ class p2d_Transformer:
 
             dl.cpp = np.copy(dl.cls_unl['pp'][:dl.lmax_qlm + 1])
             dl.cpp[:cf.Lmin] *= 0.
-
 
             dl.lensres = iteration.LENSRES
             dl.tr = int(os.environ.get('OMP_NUM_THREADS', iteration.OMP_NUM_THREADS)) #TODO hardcoded. what to do with it?
