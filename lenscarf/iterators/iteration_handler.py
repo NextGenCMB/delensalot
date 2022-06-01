@@ -24,7 +24,6 @@ from lenscarf.opfilt import opfilt_ee_wl
 # from lenscarf.core.visitor import transform
 
 
-# TODO this class transforms lerepi into D.lensalot language
 class scarf_iterator_pertmf():
     def __init__(self, qe, k:str, simidx:int, version:str, libdir_iterators, lensing_config):
         """Return iterator instance for simulation idx and qe_key type k
@@ -101,7 +100,6 @@ class scarf_iterator_pertmf():
         Returns:
             _type_: _description_
         """
-        # iterator = cs_iterator.transform(lensing_config.)
         iterator = cs_iterator.iterator_pertmf(
             self.libdir_iterator, 'p', (self.lensing_config.lmax_qlm, self.lensing_config.mmax_qlm), self.datmaps, self.plm0, self.mf_resp,
             self.R_unl, self.lensing_config.cpp, self.lensing_config.cls_unl, self.filter, self.k_geom, self.chain_descr,

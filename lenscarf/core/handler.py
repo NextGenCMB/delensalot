@@ -62,6 +62,17 @@ class MAP_delensing():
                     itlib_iterator.iterate(i, 'p')
 
 
+    @log_on_start(logging.INFO, "Start of get_btemplate()")
+    @log_on_end(logging.INFO, "Finished get_btemplate()")
+    def get_btemplate(self):
+        for idx in self.jobs[mpi.rank::mpi.size]:
+            lib_dir_iterator = self.libdir_iterators(self.dlensalot_model.k, idx, self.dlensalot_model.version)
+            if self.dlensalot_model.itmax >= 0 and Rec.maxiterdone(lib_dir_iterator) < self.dlensalot_model.itmax:
+                itlib = self.ith(self.qe, self.dlensalot_model.k, idx, self.dlensalot_model.version, self.libdir_iterators, self.dlensalot_model)
+                itlib_iterator = itlib.get_iterator()
+                for it in range(1, self.dlensalot_model.itmax + 1):
+                    itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1)
+
 class QE_delensing():
     def __init__(self, dlensalot_model):
         self.libdir_iterators = lambda qe_key, simidx, version: opj(dlensalot_model.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
@@ -93,11 +104,13 @@ class QE_delensing():
     @log_on_end(logging.INFO, "Finished get_plm_it0()")
     def get_plm_it0(self, simidx):
         lib_dir_iterator = self.libdir_iterators(self.k, simidx, self.version)
+        if not os.path.exists(lib_dir_iterator):
+            os.makedirs(lib_dir_iterator)
         path_plm0 = opj(lib_dir_iterator, 'phi_plm_it000.npy')
         if not os.path.exists(path_plm0):
             # We now build the Wiener-filtered QE here since not done already
             plm0  = self.dlensalot_model.qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate:
-            plm0 -= self.mf0  # MF-subtracted unnormalized QE
+            plm0 -= self.mf0(simidx)  # MF-subtracted unnormalized QE
             # Isotropic normalization of the QE
             R = qresp.get_response(self.k, self.dlensalot_model.lmax_ivf, 'p', self.dlensalot_model.cls_len, self.dlensalot_model.cls_len, {'e': self.dlensalot_model.fel, 'b': self.dlensalot_model.fbl, 't':self.dlensalot_model.ftl}, lmax_qlm=self.dlensalot_model.lmax_qlm)[0]
             # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
