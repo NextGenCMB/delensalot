@@ -10,6 +10,9 @@ import numpy as np
 from plancklens import utils #TODO switch this to lenscarf
 import healpy as hp
 
+import logging
+from logdecorator import log_on_start, log_on_end
+
 
 class ILC_May2022:
     """ILC maps from Caterina Umilta on s08d May 2022 for the Chile configuration.
@@ -75,7 +78,7 @@ class ILC_May2022:
         return np.nan_to_num(mask)
 
 
-    def get_zbounds(rhits, hits_ratio=np.inf):
+    def get_zbounds(self, rhits, hits_ratio=np.inf):
         """Cos-tht bounds for thresholded mask
 
         """
@@ -86,7 +89,7 @@ class ILC_May2022:
         return zbounds
 
 
-    def extend_zbounds(zbounds, degrees=5.):
+    def extend_zbounds(self, zbounds, degrees=5.):
         """Extends given zbounds by some degrees.
 
         Args:

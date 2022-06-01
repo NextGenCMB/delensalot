@@ -5,7 +5,7 @@ import healpy as hp
 from lerepi.metamodel.dlensalot import *
 
 dlensalot_model = DLENSALOT_Model(
-    datahandler = DLENSALOT_Data(
+    data = DLENSALOT_Data(
         DATA_LIBDIR = '/global/project/projectdirs/cmbs4/awg/lowellbb/',
         rhits = '/global/project/projectdirs/cmbs4/awg/lowellbb/expt_xx/08d/rhits/n2048.fits',
         fg = '00',
@@ -25,10 +25,10 @@ dlensalot_model = DLENSALOT_Model(
         BMARG_LCUT = 200,
         tpl = 'template_dense',
         CENTRALNLEV_UKAMIN = 0.59,
-        nlev_t = 0.59,
-        nlev_p = 0.59/np.sqrt(2),
+        nlev_t = 0.59/np.sqrt(2),
+        nlev_p = 0.59
     ),
-    iterationhandler = DLENSALOT_Iteration(
+    iteration = DLENSALOT_Iteration(
         K = 'p_p',# Lensing key, either p_p, ptt, p_eb
         # version, can be 'noMF
         V = '',
@@ -72,9 +72,14 @@ dlensalot_model = DLENSALOT_Model(
         nsims_mf = 10
     ),
     geometry = DLENSALOT_Geometry(
+        lmax_unl = 4000,
+        zbounds = ('08d/ILC_May2022', np.inf),
+        zbounds_len = ('08d/ILC_May2022', 5.),
+        pbounds = (0., 2*np.pi),
+        nside = 2048,
         lenjob_geometry = 'thin_gauss',
         lenjob_pbgeometry = 'pbdGeometry',
-        ninvjob_geometry = 'healpix_geometry',
+        ninvjob_geometry = 'healpix_geometry'
     ),
     chain_descriptor = DLENSALOT_Chaindescriptor(
         p0 = 0,
@@ -86,7 +91,7 @@ dlensalot_model = DLENSALOT_Model(
         p6 = 'tr_cg',
         p7 = 'cache_mem'
     ),
-    steppper = DLENSALOT_Stepper(
+    stepper = DLENSALOT_Stepper(
         typ = 'harmonicbump',
         lmax_qlm = 4000,
         mmax_qlm = 4000,

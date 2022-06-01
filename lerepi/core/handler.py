@@ -16,8 +16,6 @@ from logdecorator import log_on_start, log_on_end
 
 import lerepi
 from lerepi.core.visitor import transform
-
-
 from lerepi.transformer.param2dlensalot import p2d_Transformer, p2l_Transformer, transform
 from lerepi.core.delensing_interface import Dlensalot
 
@@ -31,13 +29,14 @@ class handler():
         paramfile = iu.module_from_spec(spec)
         sys.modules['paramfile'] = paramfile
         spec.loader.exec_module(paramfile)
-
-        self.dlensalot_model = transform(paramfile, p2d_Transformer())
+        self.dlensalot_model = transform(paramfile.dlensalot_model, p2d_Transformer())
         # In case there are settings which are solely for lerepi
-        self.lerepi_model = transform(paramfile, p2l_Transformer())
+        self.lerepi_model = transform(paramfile.dlensalot_model, p2l_Transformer())
 
 
     # TODO implement if needed
+    @log_on_start(logging.INFO, "Start of do_something_with_params()")
+    @log_on_end(logging.INFO, "Finished do_something_with_params()")
     def do_something_with_params(lerepi_model):
         """If there is a lerepi model, then possibly settings might be set here. Pass for now
 
@@ -46,7 +45,8 @@ class handler():
         """
         pass
 
-
+    @log_on_start(logging.INFO, "Start of run()")
+    @log_on_end(logging.INFO, "Finished run()")
     def run(self):
         handler.do_something_with_params(self.lerepi_model)
         dlensalot = Dlensalot(self.dlensalot_model)

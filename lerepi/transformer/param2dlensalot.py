@@ -8,6 +8,10 @@ __author__ = "S. Belkner, J. Carron, L. Legrand"
 import os
 from os.path import join as opj
 
+import logging
+from logdecorator import log_on_start, log_on_end
+
+
 import numpy as np
 import healpy as hp
 
@@ -24,34 +28,36 @@ from lenscarf.iterators import steps
 from lenscarf.utils_hp import gauss_beam
 from lenscarf.opfilt.bmodes_ninv import template_dense
 
-from lerepi.metamodel.dlensalot import Dlensalot_Model
-
+from lerepi.metamodel.dlensalot import DLENSALOT_Model
 from lerepi.core.visitor import transform
 from lerepi.core.delensing_interface import Dlensalot
 
-from lerepi.data.dc08 import data_08d as if_s
+
 
 class p2d_Transformer:
-    """Extracts all parameters needed for Dlensalot and turns it into a dl._model
-    """
+    """_summary_
+    """    
+    @log_on_start(logging.INFO, "Start of build()")
+    @log_on_end(logging.INFO, "Finished build()")
+    def build(self, cf):
 
-    def build(cf):
-
+        @log_on_start(logging.INFO, "Start of _process_dataparams()")
+        @log_on_end(logging.INFO, "Finished _process_dataparams()")
         def _process_dataparams(dl, data):
             dl.mask_suffix = data.mask_suffix
-            dl.nside = cf.nside
+            dl.nside = data.nside
             dl.isOBD = data.isOBD
-            dl.nsims_mf = 0 if data.V == 'noMF' else data.nsims_mf
+            dl.nsims_mf = 0 if cf.iteration.V == 'noMF' else cf.iteration.nsims_mf
             dl.mc_sims_mf_it0 = np.arange(dl.nsims_mf)
             dl.rhits = hp.read_map(data.rhits)
             dl.fg = data.fg
 
             # TODO this is quite hacky, prettify. Perhaps load data like done with config file in core.handler.
             # The way it is right now doesn't scale.. also [masks] doesn't work as intented
-            if 'data_08d' in data.sims:
+            if '08d' in data.sims:
                 from lerepi.data.dc08 import data_08d as if_s
                 if 'ILC_May2022' in data.sims:
-                    dl.sims = if_s.ILC_May2022.sims(data.fg, mask_suffix=data.mask_suffix)
+                    dl.sims = if_s.ILC_May2022(data.fg, mask_suffix=data.mask_suffix)
             if data.mask == data.sims:
                 dl.mask = dl.sims.get_mask_path()
                 dl.masks = [dl.mask]
@@ -61,7 +67,7 @@ class p2d_Transformer:
             dl.transf = data.transf(dl.beam / 180. / 60. * np.pi, lmax=dl.lmax_transf)
 
             _suffix = '08d_%s_r%s'%(data.fg, data.mask_suffix)+'_isOBD'*data.isOBD
-            _suffix += '_MF%s'%(data.nsims_mf) if data.nsims_mf > 0 else ''
+            _suffix += '_MF%s'%(dl.nsims_mf) if dl.nsims_mf > 0 else ''
             dl.TEMP =  opj(os.environ['SCRATCH'], 'cmbs4', _suffix)
             
             if data.zbounds[0] ==  data.sims:
@@ -78,9 +84,9 @@ class p2d_Transformer:
             dl.nlev_t = data.CENTRALNLEV_UKAMIN if data.nlev_t == None else data.nlev_t
             dl.nlev_p = data.CENTRALNLEV_UKAMIN/np.sqrt(2) if data.nlev_p == None else data.nlev_t
 
-            if cf.isOBD:
+            if data.isOBD:
                 if data.tpl == 'template_dense':
-                    dl.tpl = template_dense(data.BMARG_LCUT, dl.ninvjob_geometry, data.tr, _lib_dir=data.BMARG_LIBDIR)
+                    dl.tpl = template_dense(data.BMARG_LCUT, dl.ninvjob_geometry, cf.iteration.OMP_NUM_THREADS, _lib_dir=data.BMARG_LIBDIR)
                 else:
                     assert 0, "Implement if needed"
             else:
@@ -91,7 +97,8 @@ class p2d_Transformer:
             dl.cls_unl = utils.camb_clfile(opj(cls_path, 'FFP10_wdipole_lenspotentialCls.dat'))
             dl.cls_len = utils.camb_clfile(opj(cls_path, 'FFP10_wdipole_lensedCls.dat'))
 
-
+        @log_on_start(logging.INFO, "Start of _process_iterationparams()")
+        @log_on_end(logging.INFO, "Finished _process_iterationparams()")
         def _process_iterationparams(dl, iteration):
             dl.version = iteration.V
             dl.k = iteration.K  
@@ -112,43 +119,42 @@ class p2d_Transformer:
             dl.lmax_unl = iteration.lmax_unl
             dl.mmax_unl = iteration.mmax_unl
 
-            dl.tol = cf.TOL
+            dl.tol = iteration.TOL
             dl.tol_iter = lambda it : 10 ** (- dl.tol)
-            dl.soltn_cond = cf.soltn_cond # Uses (or not) previous E-mode solution as input to search for current iteration one
-            dl.cg_tol = cf.CG_TOL
+            dl.soltn_cond = iteration.soltn_cond # Uses (or not) previous E-mode solution as input to search for current iteration one
+            dl.cg_tol = iteration.CG_TOL
 
             dl.cpp = np.copy(dl.cls_unl['pp'][:dl.lmax_qlm + 1])
-            dl.cpp[:cf.Lmin] *= 0.
+            dl.cpp[:iteration.Lmin] *= 0.
 
             dl.lensres = iteration.LENSRES
-            dl.tr = int(os.environ.get('OMP_NUM_THREADS', iteration.OMP_NUM_THREADS)) #TODO hardcoded. what to do with it?
+            dl.tr = int(os.environ.get('OMP_NUM_THREADS', iteration.OMP_NUM_THREADS))
             dl.iterator = iteration.ITERATOR
 
             dl.stepper = iteration.stepper
 
-
             if iteration.STANDARD_TRANSFERFUNCTION == True:
                 # Fiducial model of the transfer function
-                dl.transf_tlm   =  gauss_beam(iteration.BEAM/180 / 60 * np.pi, lmax=iteration.lmax_ivf) * (np.arange(iteration.lmax_ivf + 1) >= iteration.lmin_tlm)
-                dl.transf_elm   =  gauss_beam(iteration.BEAM/180 / 60 * np.pi, lmax=iteration.lmax_ivf) * (np.arange(iteration.lmax_ivf + 1) >= iteration.lmin_elm)
-                dl.transf_blm   =  gauss_beam(iteration.BEAM/180 / 60 * np.pi, lmax=iteration.lmax_ivf) * (np.arange(iteration.lmax_ivf + 1) >= iteration.lmin_blm)
+                dl.transf_tlm   =  gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf) * (np.arange(iteration.lmax_ivf + 1) >= iteration.lmin_tlm)
+                dl.transf_elm   =  gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf) * (np.arange(iteration.lmax_ivf + 1) >= iteration.lmin_elm)
+                dl.transf_blm   =  gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf) * (np.arange(iteration.lmax_ivf + 1) >= iteration.lmin_blm)
 
                 # Isotropic approximation to the filtering (used eg for response calculations)
-                dl.ftl =  cli(dl.cls_len['tt'][:iteration.lmax_ivf + 1] + (iteration.nlev_t / 180 / 60 * np.pi) ** 2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
-                dl.fel =  cli(dl.cls_len['ee'][:iteration.lmax_ivf + 1] + (iteration.nlev_p / 180 / 60 * np.pi) ** 2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
-                dl.fbl =  cli(dl.cls_len['bb'][:iteration.lmax_ivf + 1] + (iteration.nlev_p / 180 / 60 * np.pi) ** 2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
+                dl.ftl =  cli(dl.cls_len['tt'][:iteration.lmax_ivf + 1] + (dl.nlev_t / 180 / 60 * np.pi) ** 2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
+                dl.fel =  cli(dl.cls_len['ee'][:iteration.lmax_ivf + 1] + (dl.nlev_p / 180 / 60 * np.pi) ** 2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
+                dl.fbl =  cli(dl.cls_len['bb'][:iteration.lmax_ivf + 1] + (dl.nlev_p / 180 / 60 * np.pi) ** 2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
 
                 # Same using unlensed spectra (used for unlensed response used to initiate the MAP curvature matrix)
-                dl.ftl_unl =  cli(dl.cls_unl['tt'][:iteration.lmax_ivf + 1] + (iteration.nlev_t / 180 / 60 * np.pi) ** 2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
-                dl.fel_unl =  cli(dl.cls_unl['ee'][:iteration.lmax_ivf + 1] + (iteration.nlev_p / 180 / 60 * np.pi) ** 2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
-                dl.fbl_unl =  cli(dl.cls_unl['bb'][:iteration.lmax_ivf + 1] + (iteration.nlev_p / 180 / 60 * np.pi) ** 2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
+                dl.ftl_unl =  cli(dl.cls_unl['tt'][:iteration.lmax_ivf + 1] + (dl.nlev_t / 180 / 60 * np.pi) ** 2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
+                dl.fel_unl =  cli(dl.cls_unl['ee'][:iteration.lmax_ivf + 1] + (dl.nlev_p / 180 / 60 * np.pi) ** 2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
+                dl.fbl_unl =  cli(dl.cls_unl['bb'][:iteration.lmax_ivf + 1] + (dl.nlev_p / 180 / 60 * np.pi) ** 2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
 
 
             if iteration.FILTER == 'cinv_sepTP':
-                dl.ninv_t = [np.array([hp.nside2pixarea(iteration.nside, degrees=True) * 60 ** 2 / iteration.nlev_t ** 2])] + iteration.masks
-                dl.ninv_p = [[np.array([hp.nside2pixarea(iteration.nside, degrees=True) * 60 ** 2 / iteration.nlev_p ** 2])] + iteration.masks]
+                dl.ninv_t = [np.array([hp.nside2pixarea(dl.nside, degrees=True) * 60 ** 2 / dl.nlev_t ** 2])] + dl.masks
+                dl.ninv_p = [[np.array([hp.nside2pixarea(dl.nside, degrees=True) * 60 ** 2 / dl.nlev_p ** 2])] + dl.masks]
 
-                dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), iteration.lmax_ivf,iteration.nside, dl.cls_len, dl.transf_tlm, dl.ninv_t,
+                dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), iteration.lmax_ivf,dl.nside, dl.cls_len, dl.transf_tlm, dl.ninv_t,
                                 marge_monopole=True, marge_dipole=True, marge_maps=[])
 
                 dl.cinv_p = filt_cinv.cinv_p(opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, iteration.nside, dl.cls_len, dl.transf_elm, dl.ninv_p,
@@ -184,15 +190,29 @@ class p2d_Transformer:
                 dl.qcls_dd = qecl.library(opj(dl.TEMP, 'qcls_dd'), dl.qlms_dd, dl.qlms_dd, dl.mc_sims_bias)
 
 
+        @log_on_start(logging.INFO, "Start of _process_geometryparams()")
+        @log_on_end(logging.INFO, "Finished _process_geometryparams()")
         def _process_geometryparams(dl, geometry):
-            if geometry.lenjob_geometry == 'thingauss':
-                dl.lenjob_geometry = utils_scarf.Geom.get_thingauss_geometry(geometry.lmax_unl, 2, zbounds=dl.zbounds_len)
-            if geometry.lenjob_pbgeometry == 'pbdGeometry':
-                dl.lenjob_pbgeometry = utils_scarf.pbdGeometry(dl.lenjob_geometry, utils_scarf.pbounds(dl.pb_ctr, dl.pb_extent))
-            if geometry.ninvjob_geometry == 'healpix_geometry':
-                dl.ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(dl.nside, zbounds=dl.zbounds)
-             
+            # TODO this is quite a hacky way for such a simple task.. simplify..
+            if '08d' in geometry.zbounds[0]:
+                from lerepi.data.dc08 import data_08d as if_s_loc
+                if 'ILC_May2022' in geometry.zbounds[0]:
+                    # Take fg00 as it shouldn't matter for zbounds which to take
+                    sims_loc = if_s_loc.ILC_May2022('00')
+                    zbounds_loc = sims_loc.get_zbounds(hp.read_map(sims_loc.get_mask_path()), geometry.zbounds[1])
+                if geometry.zbounds_len[0] ==  geometry.zbounds[0]:
+                    zbounds_len_loc = sims_loc.extend_zbounds(zbounds_loc, geometry.zbounds_len[1])
 
+            if geometry.lenjob_geometry == 'thin_gauss':
+                dl.lenjob_geometry = utils_scarf.Geom.get_thingauss_geometry(geometry.lmax_unl, 2, zbounds=zbounds_len_loc)
+            if geometry.lenjob_pbgeometry == 'pbdGeometry':
+                dl.lenjob_pbgeometry = utils_scarf.pbdGeometry(dl.lenjob_geometry, utils_scarf.pbounds(geometry.pbounds[0], geometry.pbounds[1]))
+            if geometry.ninvjob_geometry == 'healpix_geometry':
+                dl.ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(geometry.nside, zbounds=zbounds_loc)
+
+
+        @log_on_start(logging.INFO, "Start of _process_chaindescparams()")
+        @log_on_end(logging.INFO, "Finished _process_chaindescparams()")
         def _process_chaindescparams(dl, cd):
             # TODO hacky solution. Redo if needed
             if cd.p6 == 'tr_cg':
@@ -203,6 +223,8 @@ class p2d_Transformer:
                 [cd.p0, cd.p1, p2, cd.p3, cd.p4, p5, cd.p6, cd.p7]]
 
 
+        @log_on_start(logging.INFO, "Start of _process_stepperparams()")
+        @log_on_end(logging.INFO, "Finished _process_stepperparams()")
         def _process_stepperparams(dl, st):
             if st.stepper == 'harmonicbump':
                 dl.stepper = steps.harmonicbump(st.lmax_qlm, st.mmax_qlm, xa=400, xb=1500)
@@ -224,11 +246,11 @@ class p2l_Transformer:
         pass
 
 
-@transform.case(Dlensalot_Model, p2d_Transformer)
+@transform.case(DLENSALOT_Model, p2d_Transformer)
 def f1(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)
 
 
-@transform.case(Dlensalot_Model, p2l_Transformer)
-def f1(expr, transformer): # pylint: disable=missing-function-docstring
+@transform.case(DLENSALOT_Model, p2l_Transformer)
+def f2(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)

@@ -11,14 +11,14 @@ from logdecorator import log_on_start, log_on_end
 from lenscarf.core import handler
 
 
-class Dlensalot():
-    def __init__(self, lc):
-        self.QE = handler.QE_delensing(lc)
-        self.MAP = handler.MAP_delensing(self.QE, lc)
+class Dlensalot(object):
 
     @log_on_start(logging.INFO, "Start of run()")
     @log_on_end(logging.INFO, "Finished run()")
     def run(self):
+        self.QE = handler.QE_delensing(lc)
+        self.MAP = handler.MAP_delensing(self.QE, lc)
+
         # TODO it feels unclean that self.QE has no jobs and no run. Implement at some point?
         self.MAP.collect_jobs()
         self.MAP.run()

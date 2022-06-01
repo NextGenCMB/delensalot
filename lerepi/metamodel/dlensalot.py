@@ -37,11 +37,31 @@ class DLENSALOT_Data(DLENSALOT_Concept):
         DATA_LIBDIR: path to the data
     """
     DATA_LIBDIR = attr.ib(default='')
+    rhits = attr.ib(default='')
+    fg = attr.ib(default='')
+    mask_suffix = attr.ib(default='')
+    sims = attr.ib(default='')
+    mask = attr.ib(default='')
+    masks = attr.ib(default=[])
+    nside = attr.ib(default='')
+    BEAM = attr.ib(default='')
+    lmax_transf = attr.ib(default='')
+    transf = attr.ib(default='')
+    zbounds = attr.ib(default='')
+    zbounds_len = attr.ib(default='')
+    pbounds = attr.ib(default='')
+    isOBD = attr.ib(default='')
+    BMARG_LIBDIR = attr.ib(default='')
+    BMARG_LCUT = attr.ib(default='')
+    tpl = attr.ib(default='')
+    CENTRALNLEV_UKAMIN = attr.ib(default='')
+    nlev_t = attr.ib(default='')
+    nlev_p = attr.ib(default='')
 
 
 @attr.s
 class DLENSALOT_Chaindescriptor(DLENSALOT_Concept):
-    """A root model element type of the IHMM formalism.
+    """A root model element type of the Dlensalot formalism.
 
     Attributes:
         DATA_LIBDIR: path to the data
@@ -58,24 +78,25 @@ class DLENSALOT_Chaindescriptor(DLENSALOT_Concept):
 
 @attr.s
 class DLENSALOT_Stepper(DLENSALOT_Concept):
-    """A root model element type of the IHMM formalism.
+    """A root model element type of the Dlensalot formalism.
 
     Attributes:
         DATA_LIBDIR: path to the data
     """
     DATA_LIBDIR = attr.ib(default='')
+    typ = attr.ib(default='')
+    lmax_qlm = attr.ib(default='')
+    mmax_qlm = attr.ib(default='')
+    xa = attr.ib(default='')
+    xb = attr.ib(default='')
 
 
 @attr.s
 class DLENSALOT_Iteration(DLENSALOT_Concept):
-    """A node element type of the IHMM formalism.
+    """_summary_
 
-    Attributes:
-        name            : A string defining the name
-        transition      : a dictionary of dictionaries, 
-                          which defines possible next states as key, and the
-                          CVE identifier as a value.
-        observation     : A dictionary which defines the emission of the state
+    Args:
+        DLENSALOT_Concept (_type_): _description_
     """
     K = attr.ib(default='')
     # version, can be 'noMF
@@ -115,23 +136,25 @@ class DLENSALOT_Iteration(DLENSALOT_Concept):
     # Meanfield, OBD, and tol settings
     CG_TOL = attr.ib(default='')
     TOL = attr.ib(default='')
-    soltn_cond = lambda it: True
+    soltn_cond = attr.ib(default='')
     nsims_mf = attr.ib(default='')
     mc_sims_mf_it0 = attr.ib(default='')
     stepper = attr.ib(default='')
+    OMP_NUM_THREADS = attr.ib(default='')
 
 
 @attr.s
 class DLENSALOT_Geometry(DLENSALOT_Concept):
-    """A node element type of the IHMM formalism.
+    """_summary_
 
-    Attributes:
-        name            : A string defining the name
-        transition      : a dictionary of dictionaries, 
-                          which defines possible next states as key, and the
-                          CVE identifier as a value.
-        observation     : A dictionary which defines the emission of the state
+    Args:
+        DLENSALOT_Concept (_type_): _description_
     """
-    lenjob_geometry = attr.ib()
-    lenjob_pbgeometry = attr.ib()
-    ninvjob_geometry = attr.ib()
+    lmax_unl = attr.ib(default='')
+    zbounds = attr.ib(default='')
+    zbounds_len = attr.ib(default='')
+    pbounds = attr.ib(default='')
+    nside = attr.ib(default='')
+    lenjob_geometry = attr.ib(default='')
+    lenjob_pbgeometry = attr.ib(default='')
+    ninvjob_geometry = attr.ib(default='')

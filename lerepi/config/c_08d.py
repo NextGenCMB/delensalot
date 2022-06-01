@@ -28,9 +28,8 @@ BMARG_LCUT = 200
 
 # THIS_CENTRALNLEV_UKAMIN: 
 THIS_CENTRALNLEV_UKAMIN = 0.59 
-nlev_t = THIS_CENTRALNLEV_UKAMIN
-nlev_p = THIS_CENTRALNLEV_UKAMIN/np.sqrt(2)
-
+nlev_t = THIS_CENTRALNLEV_UKAMIN/np.sqrt(2)
+nlev_p = THIS_CENTRALNLEV_UKAMIN
 # Change the following block only if a full, Planck-like QE lensing power spectrum analysis is desired
 # This uses 'ds' and 'ss' QE's, crossing data with sims and sims with other sims.
 # This remaps idx -> idx + 1 by blocks of 60 up to 300. This is used to remap the sim indices for the 'MCN0' debiasing term in the QE spectrum
