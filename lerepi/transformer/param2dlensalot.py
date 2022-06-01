@@ -132,6 +132,7 @@ class p2d_Transformer:
             dl.iterator = iteration.ITERATOR
 
             dl.stepper = iteration.stepper
+            dl.get_btemplate_per_iteration = iteration.get_btemplate_per_iteration
 
             if iteration.STANDARD_TRANSFERFUNCTION == True:
                 # Fiducial model of the transfer function

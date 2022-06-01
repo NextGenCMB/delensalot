@@ -31,9 +31,10 @@ dlensalot_model = DLENSALOT_Model(
         K = 'p_p',# Lensing key, either p_p, ptt, p_eb
         # version, can be 'noMF
         V = '',
-        ITMAX = 15,
+        ITMAX = 10,
         IMIN = 0,
         IMAX = 0,
+        get_btemplate_per_iteration = True, # this is quite ugly to realise it in this way..
         # Change the following block only if a full, Planck-like QE lensing power spectrum analysis is desired
         # This uses 'ds' and 'ss' QE's, crossing data with sims and sims with other sims.
         # This remaps idx -> idx + 1 by blocks of 60 up to 300. This is used to remap the sim indices for the 'MCN0' debiasing term in the QE spectrum
@@ -65,10 +66,10 @@ dlensalot_model = DLENSALOT_Model(
         Lmin = 2, # The reconstruction of all lensing multipoles below that will not be attempted
         # Meanfield, OBD, and tol settings
         CG_TOL = 1e-3,
-        TOL = 4,
+        TOL = 3,
         soltn_cond = lambda it: True,
         OMP_NUM_THREADS = 16,
-        nsims_mf = 2
+        nsims_mf = 30
     ),
     geometry = DLENSALOT_Geometry(
         lmax_unl = 4000,

@@ -15,10 +15,19 @@ class Dlensalot(object):
 
     @log_on_start(logging.INFO, "Start of run()")
     @log_on_end(logging.INFO, "Finished run()")
-    def run(self):
-        self.QE = handler.QE_delensing(self)
-
-        self.MAP = handler.MAP_delensing(self.QE, self)
+    def run(dlensalot_model):
         # TODO it feels unclean that self.QE has no jobs and no run. Implement at some point?
-        self.MAP.collect_jobs()
-        self.MAP.run()
+        QE = handler.QE_delensing(dlensalot_model)
+        MAP = handler.MAP_delensing(QE, dlensalot_model)
+        if dlensalot_model.get_btemplate_per_iteration:
+            Dlensalot.get_btemplate(QE, MAP)
+        else:
+            MAP.collect_jobs()
+            MAP.run()
+
+
+    @log_on_start(logging.INFO, "Start of get_btemplate()")
+    @log_on_end(logging.INFO, "Finished get_btemplate()")
+    def get_btemplate(QE, MAP):
+        MAP.collect_jobs()
+        MAP.get_btemplate()
