@@ -1,3 +1,11 @@
+#!/usr/bin/env python
+
+"""iteration_handler.py: This module receives input from lerepi, handles delensing jobs and runs them.
+    Two main classes define the delensing; the plancklens QE delenser, and the D.lensalot MAP delensing.
+    
+"""
+__author__ = "S. Belkner, J. Carron, L. Legrand"
+
 import os
 import logging
 from logdecorator import log_on_start, log_on_end
@@ -38,8 +46,8 @@ class scarf_iterator_pertmf():
         self.tpl = lensing_config.tpl
         self.tr = lensing_config.tr
 
-        self.mf0 = qe.mf0
-        self.plm0 = qe.plm0
+        self.mf0 = qe.mf0(simidx)
+        self.plm0 = qe.plm0(simidx)
         self.mf_resp = qe.mf_resp
         self.wflm0 = qe.wflm0(simidx)
         self.R_unl = qe.R_unl
@@ -108,7 +116,8 @@ def transformer(descr):
     else:
         assert 0, "Not yet implemented"
 
-# TODO Above could be changed into a proper visitor pattern if needed at some point
+# TODO Above could be changed into a proper visitor pattern if needed at some point. But
+# this iteration_handle would have to become a transformer module with transformer class
 # @transform.case(pertmf, ITERATOR_TRANSFORMER)
 # def f1(expr, transformer): # pylint: disable=missing-function-docstring
 #     return transformer.scarf_iterator_pertmf(expr)
