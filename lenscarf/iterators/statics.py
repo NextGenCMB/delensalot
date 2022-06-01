@@ -5,6 +5,7 @@ from plancklens.helpers import cachers
 alm2rlm = lambda x : x.copy()
 rlm2alm = lambda x : x.copy()
 
+#TODO this looks like a 'query' class to me. May be refactored.
 class rec:
     """Static methods to reach for iterated lensing maps etc
 

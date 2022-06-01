@@ -617,3 +617,5 @@ class iterator_cstmf_bfgs0(iterator_cstmf):
             self.hess_cacher.cache(sk_fname, incr)
             prt_time(time.time() - t0, label=' Exec. time for descent direction calculation')
         assert self.hess_cacher.is_cached(sk_fname), sk_fname
+
+# TODO add visitor pattern if desired

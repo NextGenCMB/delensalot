@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-"""handler.py: This module receives input from lerepi.
+"""handler.py: This module receives input from lerepi, handles delensing jobs and runs them.
+    Two main classes define the delensing; the plancklens QE delenser, and the D.lensalot MAP delensing.
     
 """
 __author__ = "S. Belkner, J. Carron, L. Legrand"
@@ -25,6 +26,10 @@ class MAP_delensing():
         self.qe = qe
         self.lensing_config = lensing_config
         self.libdir_iterators = lambda qe_key, simidx, version: opj(lensing_config.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
+        
+        # TODO this is the interface to the D.lensalot iterators and connects 
+        # to lerepi. Could be simplified, s.t. interfacing happens without the iteration_handler
+        # but directly with cs_iterator, e.g. by adding visitor pattern to cs_iterator
         self.ith = iteration_handler.transformer(lensing_config.iterator)
 
 

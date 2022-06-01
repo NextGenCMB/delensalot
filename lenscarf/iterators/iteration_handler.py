@@ -1,5 +1,6 @@
 import os
-from os.path import join as opj
+import logging
+from logdecorator import log_on_start, log_on_end
 
 import numpy as np
 
@@ -15,6 +16,7 @@ from lenscarf.opfilt import opfilt_ee_wl
 # from lenscarf.core.visitor import transform
 
 
+# TODO this class transforms lerepi into D.lensalot language
 class scarf_iterator_pertmf():
     def __init__(self, qe, k:str, simidx:int, version:str, libdir_iterators, lensing_config):
         """Return iterator instance for simulation idx and qe_key type k
@@ -46,12 +48,21 @@ class scarf_iterator_pertmf():
             os.makedirs(self.libdir_iterator)
         print('Starting get itlib for {}'.format(self.libdir_iterator))
 
-        self.datmaps = self.get_datmaps() #TODO this should be done earlier. Perhaps in delensing_interface
+        # TODO this should be done earlier. Perhaps in delensing_interface. Lambda this to add simidx parameter
+        self.datmaps = self.get_datmaps() 
+
+        # TODO this should be done earlier. Lambda this to add simidx parameter, if needed
         self.ffi = remapping.deflection(lensing_config.lenjob_pbgeometry, lensing_config.lensres, np.zeros_like(self.plm0), lensing_config.mmax_qlm, self.tr, self.tr)
+        
+        # TODO this should be done earlier. Lambda this to add simidx parameter
         self.filter = self.get_filter(self.sims_MAP, self.ffi, self.tpl)
+
+        # TODO not sure why this happens here. Could be done much earlier
         self.chain_descr = lensing_config.chain_descr(lensing_config.lmax_unl, lensing_config.cg_tol)
 
 
+    @log_on_start(logging.INFO, "Start of get_datmaps()")
+    @log_on_end(logging.INFO, "Finished get_datmaps()")
     def get_datmaps(self):
         assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
         self.sims_MAP  = utils_sims.ztrunc_sims(self.lensing_config.sims, self.lensing_config.nside, [self.lensing_config.zbounds])
@@ -60,6 +71,8 @@ class scarf_iterator_pertmf():
         return datmaps
 
 
+    @log_on_start(logging.INFO, "Start of get_filter()")
+    @log_on_end(logging.INFO, "Finished get_filter()")
     def get_filter(self, sims_MAP, ffi, tpl):
         assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
         wee = self.k == 'p_p' # keeps or not the EE-like terms in the generalized QEs
@@ -71,12 +84,16 @@ class scarf_iterator_pertmf():
         return filter
 
 
+    # TODO this should somewhat be transformed into a visitor pattern
+    @log_on_start(logging.INFO, "Start of get_iterator()")
+    @log_on_end(logging.INFO, "Finished get_iterator()")
     def get_iterator(self):
         """iterator_pertmf needs a whole lot of parameters, which are calculated when initialising this class.
 
         Returns:
             _type_: _description_
         """
+        # iterator = cs_iterator.transform(lensing_config.)
         iterator = cs_iterator.iterator_pertmf(
             self.libdir_iterator, 'p', (self.lensing_config.lmax_qlm, self.lensing_config.mmax_qlm), self.datmaps, self.plm0, self.mf_resp,
             self.R_unl, self.lensing_config.cpp, self.lensing_config.cls_unl, self.filter, self.k_geom, self.chain_descr,
@@ -92,6 +109,6 @@ def transformer(descr):
         assert 0, "Not yet implemented"
 
 # TODO Above could be changed into a proper visitor pattern if needed at some point
-# @transform.case(IBN_Model, IBN2Pomegranate_Transformer)
+# @transform.case(pertmf, ITERATOR_TRANSFORMER)
 # def f1(expr, transformer): # pylint: disable=missing-function-docstring
-#     return transformer.pom_ibn(expr)
+#     return transformer.scarf_iterator_pertmf(expr)
