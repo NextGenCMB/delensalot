@@ -28,4 +28,5 @@ if __name__ == '__main__':
     parser = lparser.get_parser()
 
     lerepi_handler = handler.handler(parser)
+    lerepi_handler.collect_jobs()
     lerepi_handler.run()

@@ -15,6 +15,9 @@ from logdecorator import log_on_start, log_on_end
 import numpy as np
 import healpy as hp
 
+
+# TODO not sure if I want to have initialisation at this level wrt lenscarf and plancklens objects..
+# TODO If it includes calculation of some kind, move it further back
 import plancklens
 from plancklens import qest, qecl
 from plancklens import utils, qest, qecl
@@ -29,8 +32,24 @@ from lenscarf.utils_hp import gauss_beam
 from lenscarf.opfilt.bmodes_ninv import template_dense
 
 from lerepi.metamodel.dlensalot import DLENSALOT_Model
+from lerepi.metamodel.dlensalot import DLENSALOT_Concept
 from lerepi.core.visitor import transform
-from lerepi.core.delensing_interface import Dlensalot
+
+
+class p2T_Transformer:
+    """Directory is built upon runtime, so accessing it here
+
+    Returns:
+        _type_: _description_
+    """
+    @log_on_start(logging.INFO, "Start of build()")
+    @log_on_end(logging.INFO, "Finished build()")
+    def build(self, cf):
+        _nsims_mf = 0 if cf.iteration.V == 'noMF' else cf.iteration.nsims_mf
+        _suffix = '08d_%s_r%s'%(cf.data.fg, cf.data.mask_suffix)+'_isOBD'*cf.data.isOBD
+        _suffix += '_MF%s'%(_nsims_mf) if _nsims_mf > 0 else ''
+        TEMP =  opj(os.environ['SCRATCH'], 'cmbs4', _suffix)
+        return TEMP
 
 
 class p2d_Transformer:
@@ -46,6 +65,7 @@ class p2d_Transformer:
             dl.mask_suffix = data.mask_suffix
             dl.nside = data.nside
             dl.isOBD = data.isOBD
+            # TODO simplify the following two attributes
             dl.nsims_mf = 0 if cf.iteration.V == 'noMF' else cf.iteration.nsims_mf
             dl.mc_sims_mf_it0 = np.arange(dl.nsims_mf)
             dl.rhits = hp.read_map(data.rhits)
@@ -86,7 +106,11 @@ class p2d_Transformer:
 
             if data.isOBD:
                 if data.tpl == 'template_dense':
-                    dl.tpl = template_dense(data.BMARG_LCUT, dl.ninvjob_geometry, cf.iteration.OMP_NUM_THREADS, _lib_dir=data.BMARG_LIBDIR)
+                    def tpl_kwargs(lmax_marg, geom, sht_threads, _lib_dir=None, rescal=1.):
+                        return locals()
+                    dl.tpl = template_dense
+                    dl.tpl_kwargs = tpl_kwargs(data.BMARG_LCUT, dl.ninvjob_geometry, cf.iteration.OMP_NUM_THREADS, _lib_dir=data.BMARG_LIBDIR)
+                    
                 else:
                     assert 0, "Implement if needed"
             else:
@@ -96,6 +120,7 @@ class p2d_Transformer:
             cls_path = opj(os.path.dirname(plancklens.__file__), 'data', 'cls')
             dl.cls_unl = utils.camb_clfile(opj(cls_path, 'FFP10_wdipole_lenspotentialCls.dat'))
             dl.cls_len = utils.camb_clfile(opj(cls_path, 'FFP10_wdipole_lensedCls.dat'))
+
 
         @log_on_start(logging.INFO, "Start of _process_iterationparams()")
         @log_on_end(logging.INFO, "Finished _process_iterationparams()")
@@ -227,10 +252,10 @@ class p2d_Transformer:
         @log_on_end(logging.INFO, "Finished _process_stepperparams()")
         def _process_stepperparams(dl, st):
             if st.typ == 'harmonicbump':
-                dl.stepper = steps.harmonicbump(st.lmax_qlm, st.mmax_qlm, xa=400, xb=1500)
+                dl.stepper = steps.harmonicbump(st.lmax_qlm, st.mmax_qlm, xa=st.xa, xb=st.xb)
 
 
-        dl = Dlensalot()
+        dl = DLENSALOT_Concept()
         _process_geometryparams(dl, cf.geometry)
         _process_dataparams(dl, cf.data)
         _process_chaindescparams(dl, cf.chain_descriptor)
@@ -247,10 +272,35 @@ class p2l_Transformer:
     def build(self, cf):
         pass
 
+
 class p2q_Transformer:
     """Extracts all parameters needed for querying results of D.lensalot
     """
     def build(self, cf):
+        pass
+
+
+class p2v_Transformer:
+    """Directory is built upon runtime, so accessing it here
+
+    Returns:
+        _type_: _description_
+    """
+    @log_on_start(logging.INFO, "Start of build()")
+    @log_on_end(logging.INFO, "Finished build()")
+    def build(cf):
+        pass
+
+
+class p2b_Transformer:
+    """Directory is built upon runtime, so accessing it here
+
+    Returns:
+        _type_: _description_
+    """
+    @log_on_start(logging.INFO, "Start of build()")
+    @log_on_end(logging.INFO, "Finished build()")
+    def buil(cf):
         pass
 
 
@@ -262,10 +312,24 @@ def f1(expr, transformer): # pylint: disable=missing-function-docstring
 def f2(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)
 
-# TODO this could be a solution to connect to a future 'query' module. Transform into query language, and query.
-# But I am not entirely convinced it is the right way to use the same config file to define query specification.
-# Maybe if the configfile is the one copied to the TEMP dir it is ok..
 @transform.case(DLENSALOT_Model, p2q_Transformer)
 def f3(expr, transformer): # pylint: disable=missing-function-docstring
+    # TODO this could be a solution to connect to a future 'query' module. Transform into query language, and query.
+    # But I am not entirely convinced it is the right way to use the same config file to define query specification.
+    # Maybe if the configfile is the one copied to the TEMP dir it is ok..
+    assert 0, "Implement if needed"
+    return transformer.build(expr)
+
+@transform.case(DLENSALOT_Model, p2T_Transformer)
+def f4(expr, transformer): # pylint: disable=missing-function-docstring
+    return transformer.build(expr)
+
+@transform.case(DLENSALOT_Model, p2v_Transformer)
+def f5(expr, transformer): # pylint: disable=missing-function-docstring
+    assert 0, "Implement if needed"
+    return transformer.build(expr)
+
+@transform.case(DLENSALOT_Model, p2b_Transformer)
+def f6(expr, transformer): # pylint: disable=missing-function-docstring
     assert 0, "Implement if needed"
     return transformer.build(expr)

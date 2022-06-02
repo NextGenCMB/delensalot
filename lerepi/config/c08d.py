@@ -4,6 +4,12 @@ import healpy as hp
 from lerepi.metamodel.dlensalot import *
 
 dlensalot_model = DLENSALOT_Model(
+    job = DLENSALOT_Job(
+        Btemplate_per_iteration = False,
+        QE_delensing = False,
+        MAP_delensing = True,
+        inspect_result = False
+    ),
     data = DLENSALOT_Data(
         DATA_LIBDIR = '/global/project/projectdirs/cmbs4/awg/lowellbb/',
         rhits = '/global/project/projectdirs/cmbs4/awg/lowellbb/expt_xx/08d/rhits/n2048.fits',
@@ -34,7 +40,6 @@ dlensalot_model = DLENSALOT_Model(
         ITMAX = 10,
         IMIN = 0,
         IMAX = 0,
-        get_btemplate_per_iteration = False, # this is quite ugly to realise it in this way..
         # Change the following block only if a full, Planck-like QE lensing power spectrum analysis is desired
         # This uses 'ds' and 'ss' QE's, crossing data with sims and sims with other sims.
         # This remaps idx -> idx + 1 by blocks of 60 up to 300. This is used to remap the sim indices for the 'MCN0' debiasing term in the QE spectrum

@@ -22,11 +22,26 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     Attributes:
         data: 
     """
+    job = attr.ib(default='')
     data = attr.ib(default='')
     iteration  = attr.ib(default=[])
     geometry = attr.ib(default=[])
     chain_descriptor = attr.ib(default=[])
     stepper = attr.ib(default='')
+
+
+# TODO this could be useful
+@attr.s
+class DLENSALOT_Job(DLENSALOT_Concept):
+    """A root model element type of the Dlensalot formalism.
+
+    Attributes:
+        QE_delensing:
+    """
+    QE_delensing = attr.ib(default='')
+    MAP_delensing = attr.ib(default='')
+    Btemplate_per_iteration = attr.ib(default='')
+    inspect_result = attr.ib(default='')
 
 
 @attr.s

@@ -5,13 +5,16 @@
 __author__ = "S. Belkner, J. Carron, L. Legrand"
 
 
+import logging
+from logdecorator import log_on_start, log_on_end
+
 import argparse
 import os
 from os import walk
 
 import lerepi
 
-
+# TODO currently only supports config file. Could think of adding DLENSALOT_Job parameters
 class lerepi_parser():
 
     def __init__(self):
@@ -20,7 +23,8 @@ class lerepi_parser():
         __argparser.add_argument('-r', dest='resume', type=str, default='', help='Abolsute path to parameter file to resume')
         self.parser = __argparser.parse_args()
 
-
+    @log_on_start(logging.INFO, "Start of validate()")
+    @log_on_end(logging.INFO, "Finished validate()")
     def validate(self):
         _f = []
         module_path = os.path.dirname(lerepi.__file__)
@@ -51,6 +55,8 @@ class lerepi_parser():
             assert 0, "I see the following options: {}".format(f)
 
 
+    @log_on_start(logging.INFO, "Start of get_parser()")
+    @log_on_end(logging.INFO, "Finished get_parser()")
     def get_parser(self):
 
         return self.parser
