@@ -17,7 +17,7 @@ import scarf
 class deflection:
     def __init__(self, scarf_pbgeometry:pbdGeometry, targetres_amin, dglm,
                  mmax_dlm:int or None, fftw_threads:int, scarf_threads:int,
-                 cacher:cachers.cacher or None=None, dclm:np.ndarray or None=None, verbose=False):
+                 cacher:cachers.cacher or None=None, dclm:np.ndarray or None=None, verbose=False, fftw_flags=('FFTW_ESTIMATE',)):
         """Deflection field object than can be used to lens several maps with forward or backward deflection
 
             Args:
@@ -62,6 +62,8 @@ class deflection:
         self._resamin = targetres_amin
         self.sht_tr = scarf_threads
         self._fft_tr = fftw_threads
+        self.fftw_flags = fftw_flags
+
         self.tim = timer(True, prefix='deflection instance')
         self.verbose = verbose
 
@@ -111,7 +113,7 @@ class deflection:
         prange = min(self._pbds.get_range() + 2 * buf / sintmin if sintmin > 0 else 2 * np.pi, 2 * np.pi)
         buffered_patch = skypatch(tbds, (self._pbds.get_ctr(), prange), self._resamin, pole_buffers=3)
         return itp.bicubic_ecp_interpolator(spin, gclm, mmax, buffered_patch, self.sht_tr, self._fft_tr,
-                                            ns_symmetrize=symmetric * largegap, verbose=self.verbose)
+                                            ns_symmetrize=symmetric * largegap, verbose=self.verbose, fftw_flags=self.fftw_flags)
 
     def _init_d1(self):
         if self.d1 is None and self.sig_d > 0.:
