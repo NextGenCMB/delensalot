@@ -293,7 +293,8 @@ class qlm_iterator(object):
     def calc_norm(self, qlm):
         return np.sqrt(np.sum(alm2cl(qlm, qlm, self.lmax_qlm, self.mmax_qlm, self.lmax_qlm)))
 
-
+    @log_on_start(logging.INFO, "Start of get_hessian() for k {k} and key {key}")
+    @log_on_end(logging.INFO, "Finished get_hessian() for k {k} and key {key}")
     def get_hessian(self, k, key):
         """Inverse hessian that will produce phi_iter.
 
@@ -311,7 +312,8 @@ class qlm_iterator(object):
             BFGS_H.add_ys('rlm_yn_%s_%s' % (k_, key), 'rlm_sn_%s_%s' % (k_, key), k_)
         return BFGS_H
 
-
+    @log_on_start(logging.INFO, "Start of build_incr() for iteration {itr} and key {key}")
+    @log_on_end(logging.INFO, "Finished build_incr() for iteration {itr} and key {key}")
     def build_incr(self, it, key, gradn):
         """Search direction
 
@@ -473,8 +475,8 @@ class qlm_iterator(object):
                 self.cacher.cache(fn_lik, -G if key.lower() == 'p' else -C)
             return -G if key.lower() == 'p' else -C
 
-    @log_on_start(logging.INFO, "Start of calc_graddet() for iteration {itr} and key {key}")
-    @log_on_end(logging.INFO, "Finished calc_graddet() for iteration {itr} and key {key}")
+    @log_on_start(logging.INFO, "Start of calc_graddet() for iteration {itr} and key {key}. Subclassed")
+    @log_on_end(logging.INFO, "Finished calc_graddet() for iteration {itr} and key {key}. Subclassed")
     def calc_graddet(self, itr, key):
         assert 0, 'subclass this'
 
@@ -615,6 +617,9 @@ class iterator_cstmf_bfgs0(iterator_cstmf):
             BFGS_H.add_ys('rlm_yn_%s_%s.npy' % (k_, key), 'rlm_sn_%s_%s.npy' % (k_, key), k_)
         return BFGS_H
 
+
+    @log_on_start(logging.INFO, "Start of build_incr() for iteration {itr} and key {key}")
+    @log_on_end(logging.INFO, "Finished build_incr() for iteration {itr} and key {key}")
     def build_incr(self, it, key, gradn):
         assert it > 0, it
         k = it - 1
