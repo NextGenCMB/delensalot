@@ -20,7 +20,7 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
 
     Attributes:
-        DATA_LIBDIR: path to the data
+        data: 
     """
     data = attr.ib(default='')
     iteration  = attr.ib(default=[])
@@ -64,7 +64,7 @@ class DLENSALOT_Chaindescriptor(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
 
     Attributes:
-        DATA_LIBDIR: path to the data
+        p0: 
     """
     p0 = attr.ib(default='')
     p1 = attr.ib(default='')
@@ -81,9 +81,8 @@ class DLENSALOT_Stepper(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
 
     Attributes:
-        DATA_LIBDIR: path to the data
+        typ:
     """
-    DATA_LIBDIR = attr.ib(default='')
     typ = attr.ib(default='')
     lmax_qlm = attr.ib(default='')
     mmax_qlm = attr.ib(default='')
@@ -139,8 +138,6 @@ class DLENSALOT_Iteration(DLENSALOT_Concept):
     TOL = attr.ib(default='')
     soltn_cond = attr.ib(default='')
     nsims_mf = attr.ib(default='')
-    mc_sims_mf_it0 = attr.ib(default='')
-    stepper = attr.ib(default='')
     OMP_NUM_THREADS = attr.ib(default='')
 
 

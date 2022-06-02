@@ -34,7 +34,8 @@ class ILC_May2022:
             self.p_mask = '/global/homes/s/sebibel/git/lerepi/lerepi/data/dc08/masks/mask_r%s.fits'%mask_suffix #/global/cscratch1/sd/sebibel/masks/cmbs4/masks/
         self.rhitsi = rhitsi
         self.nside_mask = 2048
-    
+
+
     def hashdict(self):
 
         ret = {'rhits':self.rhitsi, 'sim_lib':'cmbs4_08d_ILC_%s'%self.fg, 'units':self.facunits, 'path2sim0':self.path%0}

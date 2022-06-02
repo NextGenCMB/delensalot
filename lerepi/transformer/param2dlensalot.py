@@ -33,7 +33,6 @@ from lerepi.core.visitor import transform
 from lerepi.core.delensing_interface import Dlensalot
 
 
-
 class p2d_Transformer:
     """_summary_
     """    
@@ -53,13 +52,14 @@ class p2d_Transformer:
             dl.fg = data.fg
 
             # TODO this is quite hacky, prettify. Perhaps load data like done with config file in core.handler.
-            # The way it is right now doesn't scale.. also [masks] doesn't work as intented
+            # The way it is right now doesn't scale.. 
             if '08d' in data.sims:
                 from lerepi.data.dc08 import data_08d as if_s
                 if 'ILC_May2022' in data.sims:
                     dl.sims = if_s.ILC_May2022(data.fg, mask_suffix=data.mask_suffix)
             if data.mask == data.sims:
                 dl.mask = dl.sims.get_mask_path()
+                # TODO [masks] doesn't work as intented
                 dl.masks = [dl.mask]
 
             dl.beam = data.BEAM
@@ -131,7 +131,6 @@ class p2d_Transformer:
             dl.tr = int(os.environ.get('OMP_NUM_THREADS', iteration.OMP_NUM_THREADS))
             dl.iterator = iteration.ITERATOR
 
-            dl.stepper = iteration.stepper
             dl.get_btemplate_per_iteration = iteration.get_btemplate_per_iteration
 
             if iteration.STANDARD_TRANSFERFUNCTION == True:
@@ -194,7 +193,7 @@ class p2d_Transformer:
         @log_on_start(logging.INFO, "Start of _process_geometryparams()")
         @log_on_end(logging.INFO, "Finished _process_geometryparams()")
         def _process_geometryparams(dl, geometry):
-            # TODO this is quite a hacky way for such a simple task.. simplify..
+            # TODO this is quite a hacky way for extracting zbounds independent of data object.. simplify..
             if '08d' in geometry.zbounds[0]:
                 from lerepi.data.dc08 import data_08d as if_s_loc
                 if 'ILC_May2022' in geometry.zbounds[0]:
@@ -217,11 +216,11 @@ class p2d_Transformer:
         def _process_chaindescparams(dl, cd):
             # TODO hacky solution. Redo if needed
             if cd.p6 == 'tr_cg':
-                cd.p6 = cd_solve.tr_cg
+                _p6 = cd_solve.tr_cg
             if cd.p7 == 'cache_mem':
-                cd.p7 = cd_solve.cache_mem()
+                _p7 = cd_solve.cache_mem()
             dl.chain_descr = lambda p2, p5 : [
-                [cd.p0, cd.p1, p2, cd.p3, cd.p4, p5, cd.p6, cd.p7]]
+                [cd.p0, cd.p1, p2, cd.p3, cd.p4, p5, _p6, _p7]]
 
 
         @log_on_start(logging.INFO, "Start of _process_stepperparams()")
@@ -242,8 +241,14 @@ class p2d_Transformer:
 
 
 class p2l_Transformer:
-    """Extracts all parameters needed for lerepi
+    """Extracts all parameters needed for D.lensalot for QE and MAP delensing
     Implement if needed
+    """
+    def build(self, cf):
+        pass
+
+class p2q_Transformer:
+    """Extracts all parameters needed for querying results of D.lensalot
     """
     def build(self, cf):
         pass
@@ -253,7 +258,14 @@ class p2l_Transformer:
 def f1(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)
 
-
 @transform.case(DLENSALOT_Model, p2l_Transformer)
 def f2(expr, transformer): # pylint: disable=missing-function-docstring
+    return transformer.build(expr)
+
+# TODO this could be a solution to connect to a future 'query' module. Transform into query language, and query.
+# But I am not entirely convinced it is the right way to use the same config file to define query specification.
+# Maybe if the configfile is the one copied to the TEMP dir it is ok..
+@transform.case(DLENSALOT_Model, p2q_Transformer)
+def f3(expr, transformer): # pylint: disable=missing-function-docstring
+    assert 0, "Implement if needed"
     return transformer.build(expr)

@@ -8,7 +8,7 @@ dlensalot_model = DLENSALOT_Model(
         DATA_LIBDIR = '/global/project/projectdirs/cmbs4/awg/lowellbb/',
         rhits = '/global/project/projectdirs/cmbs4/awg/lowellbb/expt_xx/08d/rhits/n2048.fits',
         fg = '00',
-        mask_suffix = 50,
+        mask_suffix = 100,
         sims = '08d/ILC_May2022',
         mask = '08d/ILC_May2022',
         masks = ['08d/ILC_May2022'], # TODO lenscarf supports multiple masks. But lerepi currently doesn't
@@ -19,7 +19,7 @@ dlensalot_model = DLENSALOT_Model(
         zbounds = ('08d/ILC_May2022', np.inf),
         zbounds_len = ('08d/ILC_May2022', 5.), # Outside of these bounds the reconstructed maps are assumed to be zero
         pbounds = (0., 2*np.pi), # Longitude cuts, if any, in the form (center of patch, patch extent)
-        isOBD = False,
+        isOBD = True,
         BMARG_LIBDIR = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08d/',
         BMARG_LCUT = 200,
         tpl = 'template_dense',
@@ -34,7 +34,7 @@ dlensalot_model = DLENSALOT_Model(
         ITMAX = 10,
         IMIN = 0,
         IMAX = 0,
-        get_btemplate_per_iteration = True, # this is quite ugly to realise it in this way..
+        get_btemplate_per_iteration = False, # this is quite ugly to realise it in this way..
         # Change the following block only if a full, Planck-like QE lensing power spectrum analysis is desired
         # This uses 'ds' and 'ss' QE's, crossing data with sims and sims with other sims.
         # This remaps idx -> idx + 1 by blocks of 60 up to 300. This is used to remap the sim indices for the 'MCN0' debiasing term in the QE spectrum
@@ -63,13 +63,13 @@ dlensalot_model = DLENSALOT_Model(
         lmin_ivf = 10,
         mmin_ivf = 10,
         LENSRES = 1.7, # Deflection operations will be performed at this resolution
-        Lmin = 2, # The reconstruction of all lensing multipoles below that will not be attempted
+        Lmin = 4, # The reconstruction of all lensing multipoles below that will not be attempted
         # Meanfield, OBD, and tol settings
         CG_TOL = 1e-3,
         TOL = 3,
         soltn_cond = lambda it: True,
         OMP_NUM_THREADS = 16,
-        nsims_mf = 30
+        nsims_mf = 100
     ),
     geometry = DLENSALOT_Geometry(
         lmax_unl = 4000,
