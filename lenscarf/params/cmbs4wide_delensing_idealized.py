@@ -166,10 +166,10 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
 
     plm0 = np.load(path_plm0)
     R_unl = qresp.get_response(k, lmax_ivf, 'p', cls_unl, cls_unl,  {'e': fel_unl, 'b': fbl_unl, 't':ftl_unl}, lmax_qlm=lmax_qlm)[0]
-    if k in ['p_p']:
+    if not 'MFresp0' in version and k in ['p_p']:
         mf_resp = qresp.get_mf_resp(k, cls_unl, {'ee': fel_unl, 'bb': fbl_unl}, lmax_ivf, lmax_qlm)[0]
     else:
-        print('*** mf_resp not implemented for key ' + k, ', setting it to zero')
+        print('*** setting MFresp to zero')
         mf_resp = np.zeros(lmax_qlm + 1, dtype=float)
     # Lensing deflection field instance (initiated here with zero deflection)
     ffi = remapping.deflection(lenjob_pbgeometry, lensres, np.zeros_like(plm0), mmax_qlm, tr, tr)
