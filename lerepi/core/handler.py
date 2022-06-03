@@ -17,7 +17,7 @@ import logging
 from logdecorator import log_on_start, log_on_end
 
 from lerepi.core.visitor import transform
-from lerepi.transformer.param2dlensalot import p2d_Transformer, p2l_Transformer, p2v_Transformer, p2b_Transformer, p2T_Transformer, transform
+from lerepi.core.transformer.param2dlensalot import p2d_Transformer, p2l_Transformer, p2v_Transformer, p2b_Transformer, p2T_Transformer, transform
 
 import lenscarf.core.handler as lenscarf_handler
 
@@ -72,9 +72,9 @@ class handler():
         if parser.resume == '':
             # This is only done if not resuming. Otherwise file would already exist
             if os.path.isfile(parser.config_file) and parser.config_file.endswith('.py'):
-                dostore = False
                 # if the file already exists, check if something changed
                 if os.path.isfile(TEMP+'/'+parser.config_file.split('/')[-1]):
+                    dostore = False
                     print('Param file {} already exist. Checking differences.'.format(TEMP+'/'+parser.config_file.split('/')[-1]))
                     paramfile_old = handler.load_paramfile(TEMP+'/'+parser.config_file.split('/')[-1], 'paramfile_old')   
                     for key, val in paramfile_old.dlensalot_model.__dict__.items():
@@ -87,8 +87,8 @@ class handler():
                                         print('Exit. Check config file.')
                                         sys.exit()
         if dostore:
-            print('Parameterfile stored at ', TEMP+'/'+parser.config_file.split('/')[-1])
             shutil.copyfile(parser.config_file, TEMP+'/'+parser.config_file.split('/')[-1])
+            print('Parameterfile stored at ', TEMP+'/'+parser.config_file.split('/')[-1])
         else:
             print('Matching parameterfile found. Resuming where I left off.')
 
