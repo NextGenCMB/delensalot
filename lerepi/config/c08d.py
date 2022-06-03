@@ -8,7 +8,7 @@ dlensalot_model = DLENSALOT_Model(
         Btemplate_per_iteration = False,
         QE_delensing = False,
         MAP_delensing = True,
-        inspect_result = False
+        inspect_result = False # TODO maybe return this in form of something interactive? Like a webservice with all plots dynamic? That would be nice.. like a dashboard..
     ),
     data = DLENSALOT_Data(
         DATA_LIBDIR = '/global/project/projectdirs/cmbs4/awg/lowellbb/',
@@ -74,7 +74,7 @@ dlensalot_model = DLENSALOT_Model(
         TOL = 3,
         soltn_cond = lambda it: True,
         OMP_NUM_THREADS = 16,
-        nsims_mf = 100
+        nsims_mf = 10
     ),
     geometry = DLENSALOT_Geometry(
         lmax_unl = 4000,

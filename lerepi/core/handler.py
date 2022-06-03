@@ -21,6 +21,7 @@ from lerepi.transformer.param2dlensalot import p2d_Transformer, p2l_Transformer,
 
 import lenscarf.core.handler as lenscarf_handler
 
+
 class handler():
 
     def __init__(self, parser):
@@ -28,16 +29,13 @@ class handler():
         TEMP = transform(self.paramfile.dlensalot_model, p2T_Transformer())
         self.store(parser, self.paramfile, TEMP)
 
-        self.dlensalot_model = transform(self.paramfile.dlensalot_model, p2d_Transformer())
-        # In case there are settings which are solely for lerepi
-        self.lerepi_model = transform(self.paramfile.dlensalot_model, p2l_Transformer())
-
 
     @log_on_start(logging.INFO, "Start of collect_jobs()")
     @log_on_end(logging.INFO, "Finished collect_jobs()")
     def collect_jobs(self):
         def _process_jobparams(pf):
             jobs = []
+            # TODO if the pf.X objects were distinguishable by X2X_Transformer, could replace the seemingly redundant if checks here.
             if pf.QE_delensing:
                 jobs.append(((self.paramfile.dlensalot_model, p2d_Transformer()), lenscarf_handler.QE_delensing))
             if pf.MAP_delensing:
@@ -92,7 +90,7 @@ class handler():
             print('Parameterfile stored at ', TEMP+'/'+parser.config_file.split('/')[-1])
             shutil.copyfile(parser.config_file, TEMP+'/'+parser.config_file.split('/')[-1])
         else:
-            print('Matching parameterfile found. Resuming where you left off.')
+            print('Matching parameterfile found. Resuming where I left off.')
 
 
     @log_on_start(logging.INFO, "Start of load_paramfile()")
