@@ -194,13 +194,11 @@ class template_bfilt(object):
         return tnit
 
     def _build_tnit(self, prefix=''):
-        nmodes_loc = int(self.nmodes/10)
-        print(nmodes_loc)
-        tnit = np.zeros((nmodes_loc, nmodes_loc), dtype=float)
-        for i, a in enumerate_progress(range(nmodes_loc), label='collecting Pmat rows'):
+        tnit = np.zeros((self.nmodes, self.nmodes), dtype=float)
+        for i, a in enumerate_progress(range(self.nmodes), label='collecting Pmat rows'):
             fname = os.path.join(self.lib_dir, prefix + 'row%05d.npy'%a)
             assert os.path.exists(fname)
-            tnit[:, a]  = np.load(fname)[:nmodes_loc]
+            tnit[:, a]  = np.load(fname)
             tnit[a, :] = tnit[:, a]
         return tnit
 
