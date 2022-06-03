@@ -1,7 +1,7 @@
 import numpy as np
 import healpy as hp
 
-from lerepi.metamodel.dlensalot import *
+from lerepi.core.metamodel.dlensalot import *
 
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(
