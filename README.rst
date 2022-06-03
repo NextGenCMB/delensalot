@@ -14,6 +14,10 @@ git clone and then,
 
 `-e` only if you are a developer, of course.
 
+You may also use the setup.py if you prefer.
+
+Lerepi in addition depends on Plancklens and D.lensalot. Ask for guidance if needed
+
 
 Pipelines
 =============

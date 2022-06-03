@@ -1,0 +1,9 @@
+Using itercurv,
+ * similar to CMB-S4 s08b run, but wouldn't run with the noise matrix and new data
+ * if pbounds set to (0,0), would run until 5th iteration, then lensing potential explodes across all multipoles by 8 orders of magnitude
+ * if pbounds set to (0,179), (0,180), (0,360), wouldn't work as _get_pix() or get_healpix_rings won't work, the former sometimes returning [] (looks like pbounds is treated wrong?)
+ 
+using lenscarf,
+ * data, mask and noise as is would result in oom crashes.
+ * same config, but succeeded, with ~180 iterations for it0 delensing remapping
+ * reducing mask size> tba

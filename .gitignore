@@ -3,6 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+
+# healpy
+*.fits
+
 # C extensions
 *.so
 
