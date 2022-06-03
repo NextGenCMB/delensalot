@@ -74,7 +74,7 @@ class p2d_Transformer:
             dl.fg = data.fg
 
             # TODO this is quite hacky, prettify. Perhaps load data like done with config file in core.handler.
-            # The way it is right now doesn't scale.. 
+            # The way it is right now doesn't scale and only works for 08d
             if '08d' in data.sims:
                 from lerepi.data.dc08 import data_08d as if_s
                 if 'ILC_May2022' in data.sims:

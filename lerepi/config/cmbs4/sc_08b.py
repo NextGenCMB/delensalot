@@ -1,3 +1,5 @@
+assert 0, "Implement if needed"
+
 import os
 import numpy as np
 import healpy as hp
@@ -6,7 +8,6 @@ from warnings import warn
 import scarf
 from plancklens.qcinv import opfilt_pp
 assert 0, 'Ímplement'
-# from lerepi.asserter import string_asserter
 
 
 '''
