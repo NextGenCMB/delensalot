@@ -9,6 +9,7 @@ __author__ = "S. Belkner, J. Carron, L. Legrand"
 import os
 from os.path import join as opj
 import logging
+log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
 
 import numpy as np

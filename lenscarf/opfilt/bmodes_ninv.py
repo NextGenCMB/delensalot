@@ -5,6 +5,9 @@
 import os
 import numpy as np
 import scarf
+
+from plancklens.qcinv import opfilt_pp
+
 from lenscarf import utils_scarf as us
 from lenscarf.utils_hp import Alm
 from lenscarf.utils import enumerate_progress, read_map
@@ -52,8 +55,6 @@ def alm2rlm(alm):
         rlm[l2s[m:] + 2 * m - 1] = alm[m * (2 * lmax + 1 - m) // 2 + ls[m:]].real * rt2
         rlm[l2s[m:] + 2 * m + 0] = alm[m * (2 * lmax + 1 - m) // 2 + ls[m:]].imag * rt2
     return rlm
-
-
 
 
 class template_bfilt(object):
@@ -242,3 +243,94 @@ class template_dense(template_bfilt):
             print("reading " +os.path.join(self.lib_dir, 'tniti.npy') )
             print("Rescaling it with %.5f"%self.rescal)
         return self._tniti
+
+
+# TODO this is merely a copy paste of the itercurv version. Replace with lenscarf.bmodes_ninv.template_dense()
+class eblm_filter_ninv(opfilt_pp.alm_filter_ninv):
+    """Identical to *plancklens* polarization filter, but adding the $B$-marginalization possibility
+
+        Note:
+            n_inv is inverse pixel variance map (no volume factors or units)
+
+            set bmarg_lib_dir only to calculate the rows of the template with mpi later on, for very large bmarg_lmax
+
+            blm_range is only a way to approximately project out some modes,
+            you dont want to mix this with bmarg_lmax which is exact template marginalisation
+
+    """
+    def __init__(self, n_inv, b_transf, bmarg_lmax=0, zbounds=(-1., 1.), blm_range=(2, np.inf), _bmarg_lib_dir=None, _bmarg_rescal=1.):
+        super(eblm_filter_ninv, self).__init__(n_inv, b_transf) #SB: this doesn't seem to work, as parent explicitly sets n_inv to None, no matter what. Next line fixes that
+        self.n_inv = self.get_ninv() #SB: n_inv was never set. opfilt_pp.alm_filter_ninv within plancklens expects child to get_ninv()
+        self.nside = hp.npix2nside(len(self.n_inv[0])) #SB: nside was never set. opfilt_pp.alm_filter_ninv within plancklens expects child to set nside
+        self.templates = []
+        if bmarg_lmax > 1:
+            assert len(self.n_inv) == 1, 'implement if 3'
+            self.templates.append(template_bfilt(bmarg_lmax, hp.npix2nside(self.n_inv[0].size), zbounds=zbounds, _lib_dir=_bmarg_lib_dir))
+        if len(self.templates) > 0:
+            if _bmarg_lib_dir is not None and os.path.exists( os.path.join(_bmarg_lib_dir, 'tniti.npy')):
+                print("Loading " + os.path.join(_bmarg_lib_dir, 'tniti.npy'))
+                self.tniti = np.load(os.path.join(_bmarg_lib_dir, 'tniti.npy'))
+                if _bmarg_rescal != 1.:
+                    print("**** RESCALING tiniti with %.2f"%_bmarg_rescal)
+                    self.tniti *= _bmarg_rescal
+            else:
+                print("Inverting template matrix:")
+                tnit = self.templates[0].build_tnit((self.n_inv[0], self.n_inv[0], None))
+                eigv, eigw = np.linalg.eigh(tnit)
+                if not np.all(eigv > 0):
+                    print('Negative or zero eigenvalues in template projection')
+                eigv_inv = utils.cli(eigv)
+                self.tniti = np.dot(np.dot(eigw, np.diag(eigv_inv)), np.transpose(eigw))
+                if _bmarg_lib_dir is not None and not os.path.exists(os.path.join(_bmarg_lib_dir, 'tniti.npy')):
+                    np.save(os.path.join(_bmarg_lib_dir, 'tniti.npy'), self.tniti)
+                    print("Cached " + os.path.join(_bmarg_lib_dir, 'tniti.npy'))
+        self.blm_range = blm_range
+        self.zbounds = zbounds
+        if not ( (self.blm_range[0] <= 2) and (self.blm_range[1] >= (3 * self.nside - 1)) ):
+            assert len(self.templates)  == 0, 'templates-cuts mixing not implemented'
+
+
+    def apply_map(self, qumap):
+        [qmap, umap] = qumap
+        if len(self.n_inv) == 1:  # TT, QQ=UU
+            if (self.blm_range[0] <= 2) and (self.blm_range[1] >= (3 * self.nside - 1)):
+                qmap *= self.n_inv[0]
+                umap *= self.n_inv[0]
+                # tmap *= self.n_inv
+                if len(self.templates) != 0:
+                    coeffs = np.concatenate(([t.dot([qmap, umap]) for t in self.templates]))
+                    coeffs = np.dot(self.tniti, coeffs)
+                    pmodes = [np.zeros_like(qmap), np.zeros_like(umap)]
+                    im = 0
+                    for t in self.templates:
+                        t.accum(pmodes, coeffs[im:(im + t.nmodes)])
+                        im += t.nmodes
+                    pmodes[0] *= self.n_inv[0]
+                    pmodes[1] *= self.n_inv[0]
+                    qmap -= pmodes[0]
+                    umap -= pmodes[1]
+            else:
+                print("apply_map: cuts %s %s"%(self.blm_range[0], self.blm_range[1]))
+                elm, blm = hph.map2alm_spin([qmap, umap], 2, lmax=min(3 * self.nside - 1, self.blm_range[1]))
+                if self.blm_range[0] > 2: # approx taking out the low-ell B-modes
+                    b_ftl = np.ones(hp.Alm.getlmax(blm.size) + 1, dtype=float)
+                    b_ftl[:self.blm_range[0]] *= 0.
+                    hp.almxfl(blm, b_ftl, inplace=True)
+
+                q, u = hph.alm2map_spin([elm, blm], self.nside, 2, hp.Alm.getlmax(elm.size), zbounds=self.zbounds)
+                qmap[:] = q * self.n_inv[0]
+                umap[:] = u * self.n_inv[0]
+
+        elif len(self.n_inv) == 3:  # TT, QQ, QU, UU
+            assert 0, 'implement template deproj.'
+            qmap_copy = qmap.copy()
+
+            qmap *= self.n_inv[0]
+            qmap += self.n_inv[1] * umap
+
+            umap *= self.n_inv[2]
+            umap += self.n_inv[1] * qmap_copy
+
+            del qmap_copy
+        else:
+            assert 0
