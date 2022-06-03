@@ -10,7 +10,7 @@ from lenscarf.remapping import deflection
 aberration_lbv_ffp10 = (264. * (np.pi / 180), 48.26 * (np.pi / 180), 0.001234)
 
 class cmb_len_ffp10:
-    def __init__(self, aberration:tuple[float, float, float]=aberration_lbv_ffp10,cacher:cachers.cacher or None=None,
+    def __init__(self, aberration:tuple[float, float, float]or None=None, cacher:cachers.cacher or None=None,
                        lmax_thingauss:int=5120, nbands:int=1, verbose:bool=False):
         """FFP10 lensed cmbs, lensed with independent lenscarf code on thingauss geometry
 
@@ -22,10 +22,13 @@ class cmb_len_ffp10:
 
 
         """
+
         nbands = int(nbands + (1 - int(nbands)%2))  # want an odd number to avoid a split just on the equator
         assert nbands <= 10, 'did not check'
         if cacher is None:
             cacher = cachers.cacher_none() # This cacher saves nothing
+        if aberration is None:
+            aberration = aberration_lbv_ffp10
         self.cacher = cacher
 
         self.fft_tr = int(os.environ.get('OMP_NUM_THREADS', 1))
@@ -62,9 +65,11 @@ class cmb_len_ffp10:
         # \phi_{11} = + \sqrt{4\pi / 3} \frac{(n_x - i n_y)}{\sqrt{2}}
         vlm = np.array([0., np.cos(b), - np.exp(-1j * l) * np.sin(b) / np.sqrt(2.)])  # LM = 00, 10 and 11
         vlm_ffp10 = np.array([0., np.cos(b_ffp10), - np.exp(-1j * l_ffp10) * np.sin(b_ffp10) / np.sqrt(2.)])
-        self.vlm = (vlm - vlm_ffp10) * (-v * np.sqrt(4 * np.pi / 3))
+        vlm *= (-v * np.sqrt(4 * np.pi / 3))
+        vlm_ffp10 *= (-v * np.sqrt(4 * np.pi / 3))
+        self.delta_vlm = (vlm - vlm_ffp10)
         if verbose:
-            print("Input aberration power %.3e"%(utils_hp.alm2cl(self.vlm, self.vlm, 1, 1, 1)[1]))
+            print("Input aberration power %.3e"%(utils_hp.alm2cl(vlm, vlm, 1, 1, 1)[1]))
         self.verbose = verbose
 
     @staticmethod
@@ -86,7 +91,7 @@ class cmb_len_ffp10:
 
     def _get_dlm(self, idx):
         dlm = cmb_unl_ffp10.get_sim_plm(idx)
-        dlm[:len(self.vlm)] += self.vlm # aberration
+        dlm[:len(self.delta_vlm)] += self.delta_vlm # aberration
         lmax_dlm = utils_hp.Alm.getlmax(dlm.size, -1)
         mmax_dlm = lmax_dlm
         p2d = np.sqrt(np.arange(lmax_dlm + 1) * np.arange(1, lmax_dlm + 2))
