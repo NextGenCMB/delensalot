@@ -67,9 +67,11 @@ class cmb_len_ffp10:
         vlm_ffp10 = np.array([0., np.cos(b_ffp10), - np.exp(-1j * l_ffp10) * np.sin(b_ffp10) / np.sqrt(2.)])
         vlm *= (-v * np.sqrt(4 * np.pi / 3))
         vlm_ffp10 *= (-v * np.sqrt(4 * np.pi / 3))
-        self.delta_vlm = (vlm - vlm_ffp10)
+        self.delta_vlm = vlm - vlm_ffp10
         if verbose:
             print("Input aberration power %.3e"%(utils_hp.alm2cl(vlm, vlm, 1, 1, 1)[1]))
+            print("Input delta- aberration power %.3e"%(utils_hp.alm2cl(self.delta_vlm, self.delta_vlm, 1, 1, 1)[1]))
+
         self.verbose = verbose
 
     @staticmethod
