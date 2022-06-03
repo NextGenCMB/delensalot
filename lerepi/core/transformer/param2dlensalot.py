@@ -52,7 +52,8 @@ class p2T_Transformer:
         TEMP =  opj(os.environ['SCRATCH'], 'cmbs4', _suffix)
         return TEMP
 
-
+# TODO parameters currently are sometimes redundant, not general, and not descriptive
+# remove redundancy, remove non-general parameters, change names 
 class p2d_Transformer:
     """_summary_
     """    
@@ -76,7 +77,7 @@ class p2d_Transformer:
             # TODO this is quite hacky, prettify. Perhaps load data like done with config file in core.handler.
             # The way it is right now doesn't scale and only works for 08d. What if we run pico.
             if '08d' in data.sims:
-                from lerepi.config.cmbs4.data.dc08 import data_08d as if_s
+                from lerepi.config.cmbs4.data import data_08d as if_s
                 if 'ILC_May2022' in data.sims:
                     dl.sims = if_s.ILC_May2022(data.fg, mask_suffix=data.mask_suffix)
             if data.mask == data.sims:
@@ -225,7 +226,7 @@ class p2d_Transformer:
         def _process_geometryparams(dl, geometry):
             # TODO this is quite a hacky way for extracting zbounds independent of data object.. simplify..
             if '08d' in geometry.zbounds[0]:
-                from lerepi.data.dc08 import data_08d as if_s_loc
+                from lerepi.config.cmbs4.data import data_08d as if_s_loc
                 if 'ILC_May2022' in geometry.zbounds[0]:
                     # Take fg00 as it shouldn't matter for zbounds which to take
                     sims_loc = if_s_loc.ILC_May2022('00', mask_suffix=cf.data.mask_suffix)

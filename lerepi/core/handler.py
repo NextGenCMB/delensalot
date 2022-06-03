@@ -68,8 +68,9 @@ class handler():
             paramfile (_type_): _description_
             TEMP (_type_): _description_
         """
-        dostore = True
+        dostore = False
         if parser.resume == '':
+            dostore = True
             # This is only done if not resuming. Otherwise file would already exist
             if os.path.isfile(parser.config_file) and parser.config_file.endswith('.py'):
                 # if the file already exists, check if something changed
@@ -87,7 +88,9 @@ class handler():
                                         print('Exit. Check config file.')
                                         sys.exit()
         if dostore:
-            shutil.copyfile(parser.config_file, TEMP+'/'+parser.config_file.split('/')[-1])
+            if not os.path.exists(TEMP+'/'+parser.config_file.split('/')[-2]):
+                os.makedirs(TEMP+'/'+parser.config_file.split('/')[-2])
+            shutil.copyfile(parser.config_file, TEMP+'/'+parser.config_file.split('/')[-2]+'/'+parser.config_file.split('/')[-1])
             print('Parameterfile stored at ', TEMP+'/'+parser.config_file.split('/')[-1])
         else:
             print('Matching parameterfile found. Resuming where I left off.')

@@ -33,11 +33,11 @@ class lerepi_parser():
             break
         f = [s for s in _f if s.startswith('c_')]
         paramfile_path = module_path+'/config/'+self.parser.config_file
-
         if self.parser.config_file == '' and self.parser.resume == '':
             # if -p  and -r empty, abort
             assert 0, 'ERROR: Must choose config file. I see the following options: {}'.format(f)
-        elif self.parser.config_file == '' and self.parser.resume != '':
+        
+        elif self.parser.resume != '':
             # if resume is asked, check path
             paramfile_path = self.parser.resume
             if os.path.exists(paramfile_path):

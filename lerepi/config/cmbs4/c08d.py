@@ -1,3 +1,4 @@
+from pickle import NONE
 import numpy as np
 import healpy as hp
 
@@ -15,7 +16,7 @@ dlensalot_model = DLENSALOT_Model(
         rhits = '/global/project/projectdirs/cmbs4/awg/lowellbb/expt_xx/08d/rhits/n2048.fits',
         TEMP_suffix = '', #add your own description
         fg = '00',
-        mask_suffix = 5,
+        mask_suffix = None,
         sims = 'cmbs4/08d/ILC_May2022',
         mask = 'cmbs4/08d/ILC_May2022',
         masks = ['cmbs4/08d/ILC_May2022'], # TODO lenscarf supports multiple masks. But lerepi currently doesn't

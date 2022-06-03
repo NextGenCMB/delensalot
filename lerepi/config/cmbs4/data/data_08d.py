@@ -31,7 +31,7 @@ class ILC_May2022:
         if mask_suffix is None:
             self.p_mask = p_dset_dir + '/ILC_mask_08d_smooth_30arcmin.fits' # Same mask as 06d
         else:
-            self.p_mask = '/global/homes/s/sebibel/git/lerepi/lerepi/data/dc08/masks/mask_r%s.fits'%mask_suffix #/global/cscratch1/sd/sebibel/masks/cmbs4/masks/
+            self.p_mask = '/global/homes/s/sebibel/git/lerepi/lerepi/config/cmbs4/data/masks/08d_mask_r%s.fits'%mask_suffix #/global/cscratch1/sd/sebibel/masks/cmbs4/masks/
         self.rhitsi = rhitsi
         self.nside_mask = 2048
 
@@ -39,6 +39,7 @@ class ILC_May2022:
     def hashdict(self):
 
         ret = {'rhits':self.rhitsi, 'sim_lib':'cmbs4_08d_ILC_%s'%self.fg, 'units':self.facunits, 'path2sim0':self.path%0}
+
         return ret
 
 
@@ -47,6 +48,7 @@ class ILC_May2022:
         retq = np.nan_to_num(hp.read_map(self.path%idx, field=1)) * self.facunits
         retu = np.nan_to_num(hp.read_map(self.path%idx, field=2)) * self.facunits
         fac = 1. if not self.rhitsi else np.nan_to_num(hp.read_map(self.p_mask))
+        
         return retq * utils.cli(fac), retu * utils.cli(fac)
 
 
