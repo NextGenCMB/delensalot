@@ -35,7 +35,7 @@ class scarf_iterator_pertmf():
                         (here if 'noMF' is in version, will not use any mean-fied at the very first step)
                 cg_tol: tolerance of conjugate-gradient filter
 
-        """
+        """ 
         self.k = k
         self.simidx = simidx
         self.version = version
@@ -45,15 +45,14 @@ class scarf_iterator_pertmf():
         self.tpl = lensing_config.tpl
         self.tr = lensing_config.tr
 
-        self.mf0 = qe.mf0(simidx)
-        self.plm0 = qe.plm0(simidx)
-        self.mf_resp = qe.mf_resp
-        self.wflm0 = qe.wflm0(simidx)
+        self.mf0 = qe.get_meanfield_it0(simidx)
+        self.plm0 = qe.get_plm_it0(simidx)
+        self.mf_resp = qe.get_meanfield_response_it0()
+        self.wflm0 = qe.get_wflm0
         self.R_unl = qe.R_unl
 
         if not os.path.exists(self.libdir_iterator):
             os.makedirs(self.libdir_iterator)
-        print('Starting get itlib for {}'.format(self.libdir_iterator))
 
         # TODO this should be done earlier. Perhaps in delensing_interface. Lambda this to add simidx parameter
         self.datmaps = self.get_datmaps() 
@@ -84,6 +83,7 @@ class scarf_iterator_pertmf():
         assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
         wee = self.k == 'p_p' # keeps or not the EE-like terms in the generalized QEs
         ninv = [sims_MAP.ztruncify(read_map(ni)) for ni in self.lensing_config.ninv_p] # inverse pixel noise map on consistent geometry
+        # TODO Add a typechecker to make sure we are passing the right objects to the filter
         filter = opfilt_ee_wl.alm_filter_ninv_wl(self.lensing_config.ninvjob_geometry, ninv, ffi, self.lensing_config.transf_elm, (self.lensing_config.lmax_unl, self.lensing_config.mmax_unl), (self.lensing_config.lmax_ivf, self.lensing_config.mmax_ivf), self.tr, tpl,
                                                 wee=wee, lmin_dotop=min(self.lensing_config.lmin_elm, self.lensing_config.lmin_blm), transf_blm=self.lensing_config.transf_blm)
         self.k_geom = filter.ffi.geom # Customizable Geometry for position-space operations in calculations of the iterated QEs etc
@@ -117,5 +117,5 @@ def transformer(descr):
 # TODO Above could be changed into a proper visitor pattern if needed at some point. But
 # this iteration_handle would have to become a transformer module with transformer class
 # @transform.case(pertmf, ITERATOR_TRANSFORMER)
-# def f1(expr, transformer): # pylint: disable=missing-function-docstring
+# def f1(expr, transformer):
 #     return transformer.scarf_iterator_pertmf(expr)
