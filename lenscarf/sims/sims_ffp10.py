@@ -91,9 +91,10 @@ class cmb_len_ffp10:
 
     def _get_dlm(self, idx):
         dlm = cmb_unl_ffp10.get_sim_plm(idx)
-        dlm[:len(self.delta_vlm)] += self.delta_vlm # aberration
         lmax_dlm = utils_hp.Alm.getlmax(dlm.size, -1)
         mmax_dlm = lmax_dlm
+        dlm[utils_hp.Alm.getidx(lmax_dlm, 1, 0)] += self.delta_vlm[1] # LM=10 aberration
+        dlm[utils_hp.Alm.getidx(lmax_dlm, 1, 1)] += self.delta_vlm[2] # LM = 11
         p2d = np.sqrt(np.arange(lmax_dlm + 1) * np.arange(1, lmax_dlm + 2))
         utils_hp.almxfl(dlm, p2d, mmax_dlm, inplace=True)
         return dlm, lmax_dlm, mmax_dlm
