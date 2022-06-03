@@ -70,8 +70,6 @@ class cmb_len_ffp10:
         self.delta_vlm = vlm - vlm_ffp10
         if verbose:
             print("Input aberration power %.3e"%(utils_hp.alm2cl(vlm, vlm, 1, 1, 1)[1]))
-            print("Input delta- aberration power %.3e"%(utils_hp.alm2cl(self.delta_vlm, self.delta_vlm, 1, 1, 1)[1]))
-
         self.verbose = verbose
 
     @staticmethod
