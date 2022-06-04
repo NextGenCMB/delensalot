@@ -58,16 +58,21 @@ class QE_delensing():
             self.get_wflm0(idx)
             self.get_R_unl()
             logging.info('{}/{}, Finished job {}'.format(mpi.rank,mpi.size,idx))
+        print('{} finished qe ivfs tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
         mpi.barrier()
+        print('All ranks finished qe ivfs tasks.')
         for idx in self.jobs[mpi.rank::mpi.size]:
             self.get_meanfield_it0(idx)
             self.get_plm_it0(idx)
+        print('{} finished qe mf-calc tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
+        mpi.barrier()
+        print('All ranks finished qe mf-calc tasks.')
 
 
     @log_on_start(logging.INFO, "Start of get_sim_qlm()")
     @log_on_end(logging.INFO, "Finished get_sim_qlm()")
     def get_sim_qlm(self, idx):
-        logging.info('{}/{}, Starting get_sim_qlm {} {}'.format(mpi.rank,mpi.size,self.k, idx))
+
         return self.dlensalot_model.qlms_dd.get_sim_qlm(self.k, idx)
 
 
@@ -75,7 +80,7 @@ class QE_delensing():
     @log_on_end(logging.INFO, "Finished get_wflm0()")    
     def get_wflm0(self, simidx):
 
-        return alm_copy(self.dlensalot_model.ivfs.get_sim_emliklm(simidx), None, self.dlensalot_model.lmax_unl, self.dlensalot_model.mmax_unl)
+        return lambda: alm_copy(self.dlensalot_model.ivfs.get_sim_emliklm(simidx), None, self.dlensalot_model.lmax_unl, self.dlensalot_model.mmax_unl)
 
 
     @log_on_start(logging.INFO, "Start of get_R_unl()")
@@ -161,7 +166,6 @@ class MAP_delensing():
     @log_on_end(logging.INFO, "Finished run()")
     def run(self):
         self.qe.run()
-        mpi.barrier()
         for idx in self.jobs[mpi.rank::mpi.size]:
             lib_dir_iterator = self.libdir_iterators(self.dlensalot_model.k, idx, self.dlensalot_model.version)
             if self.dlensalot_model.itmax >= 0 and Rec.maxiterdone(lib_dir_iterator) < self.dlensalot_model.itmax:

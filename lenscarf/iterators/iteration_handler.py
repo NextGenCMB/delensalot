@@ -45,20 +45,22 @@ class scarf_iterator_pertmf():
         self.tpl = lensing_config.tpl
         self.tr = lensing_config.tr
 
-        self.mf0 = qe.get_meanfield_it0(simidx)
-        self.plm0 = qe.get_plm_it0(simidx)
+        self.qe = qe
         self.mf_resp = qe.get_meanfield_response_it0()
-        self.wflm0 = qe.get_wflm0
-        self.R_unl = qe.R_unl
+        self.wflm0 = qe.get_wflm0(simidx)
+        self.R_unl = qe.R_unl()
+        self.mf0 = self.qe.get_meanfield_it0(self.simidx)
+        self.plm0 = self.qe.get_plm_it0(self.simidx)
+
+        # TODO this should be done earlier. Lambda this to add simidx parameter, if needed
+        self.ffi = remapping.deflection(self.lensing_config.lenjob_pbgeometry, self.lensing_config.lensres, np.zeros_like(self.plm0),
+            self.lensing_config.mmax_qlm, self.tr, self.tr)
 
         if not os.path.exists(self.libdir_iterator):
             os.makedirs(self.libdir_iterator)
 
         # TODO this should be done earlier. Perhaps in delensing_interface. Lambda this to add simidx parameter
-        self.datmaps = self.get_datmaps() 
-
-        # TODO this should be done earlier. Lambda this to add simidx parameter, if needed
-        self.ffi = remapping.deflection(lensing_config.lenjob_pbgeometry, lensing_config.lensres, np.zeros_like(self.plm0), lensing_config.mmax_qlm, self.tr, self.tr)
+        self.datmaps = self.get_datmaps()
         
         # TODO this should be done earlier. Lambda this to add simidx parameter
         self.filter = self.get_filter(self.sims_MAP, self.ffi, self.tpl)
