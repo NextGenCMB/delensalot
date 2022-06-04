@@ -79,8 +79,14 @@ class scarf_iterator_pertmf():
 
     @log_on_start(logging.INFO, "Start of get_filter()")
     @log_on_end(logging.INFO, "Finished get_filter()")
-    def get_filter(self, sims_MAP, ffi, tpl):
+    def get_filter(self, sims_MAP=None, ffi=None, tpl=None):
         assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
+        if sims_MAP == None:
+            sims_MAP = self.sims_MAP
+        if ffi == None:
+            ffi = self.ffi
+        if tpl == None:
+            tpl = self.tpl
         wee = self.k == 'p_p' # keeps or not the EE-like terms in the generalized QEs
         ninv = [sims_MAP.ztruncify(read_map(ni)) for ni in self.lensing_config.ninv_p] # inverse pixel noise map on consistent geometry
         # TODO Add a typechecker to make sure we are passing the right objects to the filter

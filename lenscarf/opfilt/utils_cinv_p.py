@@ -13,12 +13,13 @@ import numpy as np
 import healpy as hp
 import pickle as pk
 
-from plancklens import utils
+
 from plancklens.helpers import mpi
 from plancklens.qcinv import cd_solve, opfilt_pp, multigrid
 from plancklens.qcinv import util, util_alm
 from plancklens.filt import filt_cinv
 
+import plancklens.utils as utils
 from lenscarf.opfilt import bmodes_ninv
 
 class cinv_p(filt_cinv.cinv):

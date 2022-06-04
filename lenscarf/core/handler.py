@@ -175,6 +175,12 @@ class MAP_delensing():
                     itlib_iterator.iterate(i, 'p')
 
 
+    @log_on_start(logging.INFO, "Start of init_ith()")
+    @log_on_end(logging.INFO, "Finished init_ith()")
+    def get_ith_sim(self, simidx):
+        return self.ith(self.qe, self.dlensalot_model.k, simidx, self.dlensalot_model.version, self.libdir_iterators, self.dlensalot_model)
+
+
 class inspect_result():
     def __init__(self, qe, dlensalot_model):
         assert 0, "Implement if needed"
