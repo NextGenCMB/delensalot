@@ -25,6 +25,7 @@ from plancklens.qcinv import cd_solve
 from plancklens.filt import filt_cinv, filt_util
 
 from lenscarf import utils_scarf
+import lenscarf.core.handler as lenscarf_handler
 from lenscarf.utils import cli
 from lenscarf.iterators import steps
 from lenscarf.utils_hp import gauss_beam
@@ -281,8 +282,19 @@ class p2l_Transformer:
     """Extracts all parameters needed for D.lensalot for QE and MAP delensing
     Implement if needed
     """
-    def build(self, cf):
-        pass
+    def build(self, pf):
+        jobs = []
+        # TODO if the pf.X objects were distinguishable by X2X_Transformer, could replace the seemingly redundant if checks here.
+        if pf.job.QE_delensing:
+            jobs.append(((pf, p2d_Transformer()), lenscarf_handler.QE_delensing))
+        if pf.job.MAP_delensing:
+            jobs.append(((pf, p2d_Transformer()), lenscarf_handler.MAP_delensing))
+        if pf.job.Btemplate_per_iteration:
+            jobs.append(((pf, p2b_Transformer()), lenscarf_handler.B_template_construction))
+        if pf.job.inspect_result:
+            # TODO maybe use this to return something interactive? Like a webservice with all plots dynamic? Like a dashboard..
+            jobs.append(((pf, p2v_Transformer()), lenscarf_handler.inspect_result))
+        return jobs
 
 
 class p2q_Transformer:

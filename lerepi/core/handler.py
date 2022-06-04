@@ -17,9 +17,7 @@ import logging
 from logdecorator import log_on_start, log_on_end
 
 from lerepi.core.visitor import transform
-from lerepi.core.transformer.param2dlensalot import p2d_Transformer, p2l_Transformer, p2v_Transformer, p2b_Transformer, p2T_Transformer, transform
-
-import lenscarf.core.handler as lenscarf_handler
+from lerepi.core.transformer.param2dlensalot import p2l_Transformer, p2T_Transformer, transform
 
 
 class handler():
@@ -33,19 +31,22 @@ class handler():
     @log_on_start(logging.INFO, "Start of collect_jobs()")
     @log_on_end(logging.INFO, "Finished collect_jobs()")
     def collect_jobs(self):
-        def _process_jobparams(pf):
-            jobs = []
-            # TODO if the pf.X objects were distinguishable by X2X_Transformer, could replace the seemingly redundant if checks here.
-            if pf.QE_delensing:
-                jobs.append(((self.paramfile.dlensalot_model, p2d_Transformer()), lenscarf_handler.QE_delensing))
-            if pf.MAP_delensing:
-                jobs.append(((self.paramfile.dlensalot_model, p2d_Transformer()), lenscarf_handler.MAP_delensing))
-            if pf.Btemplate_per_iteration:
-                jobs.append(((self.paramfile.dlensalot_model, p2b_Transformer()), lenscarf_handler.B_template_construction))
-            if pf.inspect_result:
-                jobs.append(((self.paramfile.dlensalot_model, p2v_Transformer()), lenscarf_handler.inspect_result))
-            return jobs
-        self.jobs = _process_jobparams(self.paramfile.dlensalot_model.job)
+        self.jobs = transform(self.paramfile.dlensalot_model, p2l_Transformer())
+
+
+    @log_on_start(logging.INFO, "Start of get_jobs()")
+    @log_on_end(logging.INFO, "Finished get_jobs()")
+    def get_jobs(self):
+        return self.jobs
+
+
+    @log_on_start(logging.INFO, "Start of get_jobs()")
+    @log_on_end(logging.INFO, "Finished get_jobs()")
+    def init_job(self, job):
+        model = transform(*job[0])
+        j = job[1](model)
+        j.collect_jobs()
+        return j
 
 
     @log_on_start(logging.INFO, "Start of run()")
@@ -91,7 +92,7 @@ class handler():
             if not os.path.exists(TEMP+'/'+parser.config_file.split('/')[-2]):
                 os.makedirs(TEMP+'/'+parser.config_file.split('/')[-2])
             shutil.copyfile(parser.config_file, TEMP+'/'+parser.config_file.split('/')[-1])
-            logging.info('Parameterfile stored at ', TEMP+'/'+parser.config_file.split('/')[-1])
+            logging.info('Parameterfile stored at '+ TEMP+'/'+parser.config_file.split('/')[-1])
         else:
             if parser.resume == '':
                 # Only give this info when not resuming
