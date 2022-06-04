@@ -76,7 +76,7 @@ class handler():
                 # if the file already exists, check if something changed
                 if os.path.isfile(TEMP+'/'+parser.config_file.split('/')[-1]):
                     dostore = False
-                    print('Param file {} already exist. Checking differences.'.format(TEMP+'/'+parser.config_file.split('/')[-1]))
+                    logging.warning('Param file {} already exist. Checking differences.'.format(TEMP+'/'+parser.config_file.split('/')[-1]))
                     paramfile_old = handler.load_paramfile(TEMP+'/'+parser.config_file.split('/')[-1], 'paramfile_old')   
                     for key, val in paramfile_old.dlensalot_model.__dict__.items():
                         for k, v in val.__dict__.items():
@@ -84,16 +84,18 @@ class handler():
                                 if callable(v):
                                     # If it's a function, we can test if bytecode is the same as a simple check won't work due to pointing to memory location
                                     if v.__code__.co_code != paramfile.dlensalot_model.__dict__[key].__dict__[k].__code__.co_code:
-                                        print("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, paramfile.dlensalot_model.__dict__[key].__dict__[k]))
-                                        print('Exit. Check config file.')
+                                        logging.error("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, paramfile.dlensalot_model.__dict__[key].__dict__[k]))
+                                        logging.error('Exit. Check config file.')
                                         sys.exit()
         if dostore:
             if not os.path.exists(TEMP+'/'+parser.config_file.split('/')[-2]):
                 os.makedirs(TEMP+'/'+parser.config_file.split('/')[-2])
-            shutil.copyfile(parser.config_file, TEMP+'/'+parser.config_file.split('/')[-2]+'/'+parser.config_file.split('/')[-1])
-            print('Parameterfile stored at ', TEMP+'/'+parser.config_file.split('/')[-1])
+            shutil.copyfile(parser.config_file, TEMP+'/'+parser.config_file.split('/')[-1])
+            logging.info('Parameterfile stored at ', TEMP+'/'+parser.config_file.split('/')[-1])
         else:
-            print('Matching parameterfile found. Resuming where I left off.')
+            if parser.resume == '':
+                # Only give this info when not resuming
+                logging.info('Matching parameterfile found. Resuming where I left off.')
 
 
     @log_on_start(logging.INFO, "Start of load_paramfile()")

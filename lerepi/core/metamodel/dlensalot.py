@@ -172,3 +172,4 @@ class DLENSALOT_Geometry(DLENSALOT_Concept):
     lenjob_geometry = attr.ib(default='')
     lenjob_pbgeometry = attr.ib(default='')
     ninvjob_geometry = attr.ib(default='')
+    ninvjob_qe_geometry = attr.ib(default='')

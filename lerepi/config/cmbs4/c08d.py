@@ -85,7 +85,8 @@ dlensalot_model = DLENSALOT_Model(
         nside = 2048,
         lenjob_geometry = 'thin_gauss',
         lenjob_pbgeometry = 'pbdGeometry',
-        ninvjob_geometry = 'healpix_geometry'
+        ninvjob_geometry = 'healpix_geometry',
+        ninvjob_qe_geometry = 'healpix_geometry_qe'
     ),
     chain_descriptor = DLENSALOT_Chaindescriptor(
         p0 = 0,
