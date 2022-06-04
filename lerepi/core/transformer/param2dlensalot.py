@@ -18,8 +18,7 @@ import healpy as hp
 # TODO not sure if I want to have initialisation at this level wrt lenscarf and plancklens objects..
 # TODO If it includes calculation of some kind, move it further back
 import plancklens
-from plancklens import qest, qecl
-from plancklens import utils, qest, qecl
+from plancklens import qest, qecl, utils
 from plancklens.filt import filt_util
 from plancklens.qcinv import cd_solve
 from plancklens.filt import filt_cinv, filt_util
