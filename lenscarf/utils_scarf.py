@@ -326,5 +326,4 @@ class scarfjob:
         return self.geom.alm2map_spin(gclm, spin, self.lmax, self.mmax, self.nthreads, [-1., 1.])
 
     def map2alm_spin(self, m, spin):
-        print(m.shape)
         return self.geom.map2alm_spin(m, spin, self.lmax, self.mmax, self.nthreads, [-1., 1.])

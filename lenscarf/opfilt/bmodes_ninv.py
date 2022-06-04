@@ -190,6 +190,7 @@ class template_bfilt(object):
 
         """
         assert len(qumap) == 2
+        # TODO possibly a ztrunc missing for qumap
         assert qumap[0].size == self.npix and qumap[1].size == self.npix, ' '.join([str(qumap[1].shape), str(self.npix)])
         self.sc_job.set_triangular_alm_info(self.lmax, self.lmax)
         blm = self.sc_job.map2alm_spin(qumap, 2)[1]
