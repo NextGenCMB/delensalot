@@ -52,7 +52,7 @@ class p2T_Transformer:
         TEMP =  opj(os.environ['SCRATCH'], 'cmbs4', _suffix)
         return TEMP
 
-# TODO parameters currently are sometimes redundant, not general, and not descriptive
+# TODO parameters are sometimes redundant, not general, and not descriptive
 # remove redundancy, remove non-general parameters, change names 
 class p2d_Transformer:
     """_summary_
@@ -89,8 +89,6 @@ class p2d_Transformer:
             dl.lmax_transf = data.lmax_transf
             dl.transf = data.transf(dl.beam / 180. / 60. * np.pi, lmax=dl.lmax_transf)
 
-           
-            
             if data.zbounds[0] ==  data.sims:
                 dl.zbounds = dl.sims.get_zbounds(hp.read_map(dl.mask),data.zbounds[1])
             if data.zbounds_len[0] ==  data.sims:
@@ -103,8 +101,8 @@ class p2d_Transformer:
             dl.BMARG_RESCALE = data.BMARG_RESCALE
 
             dl.CENTRALNLEV_UKAMIN = data.CENTRALNLEV_UKAMIN
-            dl.nlev_t = data.CENTRALNLEV_UKAMIN if data.nlev_t == None else data.nlev_t
-            dl.nlev_p = data.CENTRALNLEV_UKAMIN/np.sqrt(2) if data.nlev_p == None else data.nlev_t
+            dl.nlev_t = data.CENTRALNLEV_UKAMIN/np.sqrt(2) if data.nlev_t == None else data.nlev_t
+            dl.nlev_p = data.CENTRALNLEV_UKAMIN if data.nlev_p == None else data.nlev_t
 
             if data.isOBD:
                 if data.tpl == 'template_dense':
@@ -117,7 +115,6 @@ class p2d_Transformer:
                     assert 0, "Implement if needed"
             else:
                 dl.tpl = None
-
 
             cls_path = opj(os.path.dirname(plancklens.__file__), 'data', 'cls')
             dl.cls_unl = utils.camb_clfile(opj(cls_path, 'FFP10_wdipole_lenspotentialCls.dat'))
@@ -162,9 +159,9 @@ class p2d_Transformer:
 
             if iteration.STANDARD_TRANSFERFUNCTION == True:
                 # Fiducial model of the transfer function
-                dl.transf_tlm   =  gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf) * (np.arange(iteration.lmax_ivf + 1) >= iteration.lmin_tlm)
-                dl.transf_elm   =  gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf) * (np.arange(iteration.lmax_ivf + 1) >= iteration.lmin_elm)
-                dl.transf_blm   =  gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf) * (np.arange(iteration.lmax_ivf + 1) >= iteration.lmin_blm)
+                dl.transf_tlm = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf) * (np.arange(iteration.lmax_ivf + 1) >= iteration.lmin_tlm)
+                dl.transf_elm = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf) * (np.arange(iteration.lmax_ivf + 1) >= iteration.lmin_elm)
+                dl.transf_blm = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf) * (np.arange(iteration.lmax_ivf + 1) >= iteration.lmin_blm)
 
                 # Isotropic approximation to the filtering (used eg for response calculations)
                 dl.ftl =  cli(dl.cls_len['tt'][:iteration.lmax_ivf + 1] + (dl.nlev_t / 180 / 60 * np.pi) ** 2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
@@ -178,9 +175,13 @@ class p2d_Transformer:
 
 
             if iteration.FILTER == 'cinv_sepTP':
-                dl.ninv_t = [np.array([hp.nside2pixarea(dl.nside, degrees=True) * 60 ** 2 / dl.nlev_t ** 2])] + dl.masks
-                dl.ninv_p = [[np.array([hp.nside2pixarea(dl.nside, degrees=True) * 60 ** 2 / dl.nlev_p ** 2])] + dl.masks]
-
+                mask_norm = 0.29
+                dl.ninv_t = [np.array([hp.nside2pixarea(dl.nside, degrees=True) * 60 ** 2 / dl.nlev_t ** 2])/mask_norm] + dl.masks
+                dl.ninv_p = [[np.array([hp.nside2pixarea(dl.nside, degrees=True) * 60 ** 2 / dl.nlev_p ** 2])/mask_norm] + dl.masks]
+                if mask_norm != 1.0:
+                    print("WARNING WARNING -------------------WARNING WARNING WARNING WARNING")
+                    print("-------------------Mask normalisation hardcoded-------------------")
+                    print("WARNING WARNING WARNING WARNING------------------- WARNING WARNING")
                 # TODO these two trigger actual heavy computation. Perhaps move this to the lerepi job-level. Could be done via introducing a DLENSALOT_Filter model component
                 dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), iteration.lmax_ivf,dl.nside, dl.cls_len, dl.transf_tlm, dl.ninv_t,
                                 marge_monopole=True, marge_dipole=True, marge_maps=[])
@@ -285,11 +286,11 @@ class p2l_Transformer:
         jobs = []
         # TODO if the pf.X objects were distinguishable by X2X_Transformer, could replace the seemingly redundant if checks here.
         if pf.job.QE_delensing:
-            jobs.append(((pf, p2d_Transformer()), lenscarf_handler.QE_delensing))
+            jobs.append(((pf, p2d_Transformer()), lenscarf_handler.QE_lr))
         if pf.job.MAP_delensing:
-            jobs.append(((pf, p2d_Transformer()), lenscarf_handler.MAP_delensing))
+            jobs.append(((pf, p2d_Transformer()), lenscarf_handler.MAP_lr))
         if pf.job.Btemplate_per_iteration:
-            jobs.append(((pf, p2b_Transformer()), lenscarf_handler.B_template_construction))
+            jobs.append(((pf, p2d_Transformer()), lenscarf_handler.B_template_construction))
         if pf.job.inspect_result:
             # TODO maybe use this to return something interactive? Like a webservice with all plots dynamic? Like a dashboard..
             jobs.append(((pf, p2v_Transformer()), lenscarf_handler.inspect_result))

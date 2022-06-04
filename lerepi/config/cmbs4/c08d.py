@@ -1,4 +1,3 @@
-from pickle import NONE
 import numpy as np
 import healpy as hp
 
@@ -14,9 +13,9 @@ dlensalot_model = DLENSALOT_Model(
     data = DLENSALOT_Data(
         DATA_LIBDIR = '/global/project/projectdirs/cmbs4/awg/lowellbb/',
         rhits = '/global/project/projectdirs/cmbs4/awg/lowellbb/expt_xx/08d/rhits/n2048.fits',
-        TEMP_suffix = 'OBD200', #add your own description
+        TEMP_suffix = 'OBD30_masknormalised_dmb', #OBD200_masknormalised          add your own description
         fg = '00',
-        mask_suffix = None,
+        mask_suffix = 100,
         sims = 'cmbs4/08d/ILC_May2022',
         mask = 'cmbs4/08d/ILC_May2022',
         masks = ['cmbs4/08d/ILC_May2022'], # TODO lenscarf supports multiple masks. But lerepi currently doesn't
@@ -50,7 +49,7 @@ dlensalot_model = DLENSALOT_Model(
         lmax_filt = 4096, # unlensed CMB iteration lmax
         lmin_tlm = 30,
         lmin_elm = 30,
-        lmin_blm = 200, #Supress all modes below this value, hacky version of OBD
+        lmin_blm = 30, #Supress all modes below this value, hacky version of OBD
         lmax_qlm = 4000,
         mmax_qlm = 4000,
         lmax_unl = 4000,

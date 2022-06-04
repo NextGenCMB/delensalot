@@ -37,10 +37,12 @@ class DLENSALOT_Job(DLENSALOT_Concept):
     Attributes:
         QE_delensing:
     """
+    # TODO refactor, should be called 'QE_lensingreconstruction' and 'MAP_lensingreconstruction' 
     QE_delensing = attr.ib(default='')
     MAP_delensing = attr.ib(default='')
     Btemplate_per_iteration = attr.ib(default='')
     inspect_result = attr.ib(default='')
+    # TODO add jobs "delens_map" and "build_OBD"
 
 
 @attr.s

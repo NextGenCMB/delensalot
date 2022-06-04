@@ -16,6 +16,8 @@ import shutil
 import logging
 from logdecorator import log_on_start, log_on_end
 
+from plancklens.helpers import mpi
+
 from lerepi.core.visitor import transform
 from lerepi.core.transformer.param2dlensalot import p2l_Transformer, p2T_Transformer, transform
 
@@ -88,10 +90,13 @@ class handler():
                                         logging.error("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, paramfile.dlensalot_model.__dict__[key].__dict__[k]))
                                         logging.error('Exit. Check config file.')
                                         sys.exit()
+                    logging.error('Param file look the same. Resuming where I left off last time.')
+
         if dostore:
-            if not os.path.exists(TEMP+'/'+parser.config_file.split('/')[-2]):
-                os.makedirs(TEMP+'/'+parser.config_file.split('/')[-2])
-            shutil.copyfile(parser.config_file, TEMP+'/'+parser.config_file.split('/')[-1])
+            if mpi.rank == 0:
+                if not os.path.exists(TEMP):
+                    os.makedirs(TEMP)
+                shutil.copyfile(parser.config_file, TEMP+'/'+parser.config_file.split('/')[-1])
             logging.info('Parameterfile stored at '+ TEMP+'/'+parser.config_file.split('/')[-1])
         else:
             if parser.resume == '':

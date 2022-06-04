@@ -13,18 +13,17 @@ import os
 import numpy as np
 import healpy as hp
 
-from lenscarf import utils_scarf
-from lenscarf.opfilt import bmodes_ninv
-from lenscarf.core.decorators.io import iohelper
-
-from lerepi.data.dc08 import data_08d as sims_if
 from plancklens.helpers import mpi
 
+from lenscarf import utils_scarf
+from lenscarf.opfilt import bmodes_ninv
 
-data = sims_if.ILC_May2022('00')
+from lerepi.config.cmbs4.data import data_08d as sims_if
+
+data = sims_if.ILC_May2022('00', mask_suffix=100)
 lmax_marg = 200  # max marged multipole
 prefix = ''
-lib_dir = os.path.join('/global/cscratch1/sd/sebibel/cmbs4/s08d/', 'OBD')
+lib_dir = os.path.join('/global/cscratch1/sd/sebibel/cmbs4/s08d/', 'OBD_matrix', 'r100_normalisedmask')
 
 
 def calc_ninvp(centralnoiselevel = 0.59):
@@ -32,9 +31,10 @@ def calc_ninvp(centralnoiselevel = 0.59):
     Central noise level comes from notebook
     """
     mask = data.get_mask()
-    mask = np.where(mask<0.0001,0,mask)
+    # mask = np.where(mask<0.0001,0,mask)
     pixlev = centralnoiselevel / (np.sqrt(hp.nside2pixarea(2048, degrees=True)) * 60.)
-    ninv_p = 1./ pixlev ** 2 * mask
+    ninv_p = 1./ pixlev ** 2 * mask/np.nan_to_num(np.max(mask))
+    print('max of mask: {}'.format(np.nan_to_num(np.max(mask))))
     return ninv_p
 
 
@@ -50,7 +50,6 @@ def cleanup():
         os.remove(fn)
 
 
-@iohelper
 def build_OBD(lib_dir, mpi):
     """
     Calculates..
@@ -60,26 +59,27 @@ def build_OBD(lib_dir, mpi):
     """
     
     ninv_p = calc_ninvp() # ninv_p = NiT
-
     mpi.barrier()
-    geom = utils_scarf.Geom.get_healpix_geometry(data.nside)
-    bpl = bmodes_ninv.template_bfilt(lmax_marg, geom, int(os.environ.get('OMP_NUM_THREADS', 4)), _lib_dir=lib_dir)
+    geom = utils_scarf.Geom.get_healpix_geometry(data.nside_mask)
+    bpl = bmodes_ninv.template_bfilt(lmax_marg, geom, int(os.environ.get('OMP_NUM_THREADS', 8)), _lib_dir=lib_dir)
     if not os.path.exists(lib_dir + '/tnit.npy'):
         bpl._get_rows_mpi(ninv_p, prefix)  # builds all rows in parallel
-    else:
-        mpi.barrier()
-        if mpi.rank == 0:
-            tnit = bpl._build_tnit()
-            np.save(lib_dir + '/tnit.npy', tnit)
-        
-    nlev_deproj_modes = 10000.  # regularization, saying the modes have in fact huge noise
-    tniti = np.linalg.inv(tnit + np.diag((1. / (nlev_deproj_modes / 180. / 60. * np.pi) ** 2) * np.ones(tnit.shape[0])))
-    np.save(lib_dir + '/tniti.npy', tniti)
     mpi.barrier()
-    mpi.finalize()
+    if mpi.rank == 0:
+        tnit = bpl._build_tnit()
+        np.save(lib_dir + '/tnit.npy', tnit)
+        nlev_deproj_modes = 10000.  # regularization, saying the modes have in fact huge noise
+        tniti = np.linalg.inv(tnit + np.diag((1. / (nlev_deproj_modes / 180. / 60. * np.pi) ** 2) * np.ones(tnit.shape[0])))
+        np.save(lib_dir + '/tniti.npy', tniti)
+        mpi.barrier()
+        mpi.finalize()
 
 
 if __name__ == '__main__':
+    if mpi.rank == 0:
+        if not os.path.exists(lib_dir):
+            os.makedirs(lib_dir)
+            print('created dir {}'.format(lib_dir))
     pol = True
     if pol == True:
         build_OBD(lib_dir, mpi)

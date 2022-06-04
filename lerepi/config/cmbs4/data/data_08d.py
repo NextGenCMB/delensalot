@@ -28,8 +28,9 @@ class ILC_May2022:
         p_dset_dir =  '/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/foreground_cleaned_maps/08d.%s_umilta_220502'%fg
         self.path = p_dset_dir + '/cmbs4_08d' + fg + '_cmb_b02_ellmin30_ellmax4050_map_2048_%04d.fits' # CMB + noise
         self.path_noise =   p_dset_dir + '/cmbs4_08d' + fg + '_noise_b02_ellmin30_ellmax4050_map_2048_%04d.fits'
+        self.p_mask_base = p_dset_dir + '/ILC_mask_08d_smooth_30arcmin.fits' # Same mask as 06d
         if mask_suffix is None:
-            self.p_mask = p_dset_dir + '/ILC_mask_08d_smooth_30arcmin.fits' # Same mask as 06d
+            self.p_mask = self.p_mask_base
         else:
             self.p_mask = '/global/homes/s/sebibel/git/lerepi/lerepi/config/cmbs4/data/masks/08d_mask_r%s.fits'%mask_suffix #/global/cscratch1/sd/sebibel/masks/cmbs4/masks/
         self.rhitsi = rhitsi
@@ -47,7 +48,7 @@ class ILC_May2022:
 
         retq = np.nan_to_num(hp.read_map(self.path%idx, field=1)) * self.facunits
         retu = np.nan_to_num(hp.read_map(self.path%idx, field=2)) * self.facunits
-        fac = 1. if not self.rhitsi else np.nan_to_num(hp.read_map(self.p_mask))
+        fac = 1. if not self.rhitsi else np.nan_to_num(hp.read_map(self.p_mask_base))
         
         return retq * utils.cli(fac), retu * utils.cli(fac)
 
@@ -66,7 +67,7 @@ class ILC_May2022:
 
         retq = np.nan_to_num(hp.read_map(self.path_noise%idx, field=1)) * self.facunits
         retu = np.nan_to_num(hp.read_map(self.path_noise%idx, field=2)) * self.facunits
-        fac = 1. if not self.rhitsi else np.nan_to_num(hp.read_map(self.p_mask))
+        fac = 1. if not self.rhitsi else np.nan_to_num(hp.read_map(self.p_mask_base))
         return retq * utils.cli(fac), retu * utils.cli(fac)
 
 
