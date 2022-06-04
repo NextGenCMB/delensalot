@@ -4,24 +4,35 @@
 """
 import os
 import numpy as np
+import healpy as hp
 import scarf
 
+from plancklens import utils
+from plancklens.helpers import mpi
 from plancklens.qcinv import opfilt_pp
+
 
 from lenscarf import utils_scarf as us
 from lenscarf.utils_hp import Alm
+from lenscarf.core import healpix_hack as hph
+
 from lenscarf.utils import enumerate_progress, read_map
 
 
 def lmax2nlm(lmax):
     """ returns the length of the complex alm array required for maximum multipole lmax. """
+
     return (lmax + 1) * (lmax + 2) // 2
 
+
 def nlm2lmax(nlm):
+
     """ returns the lmax for an array of alm with length nlm. """
     lmax = int(np.floor(np.sqrt(2 * nlm) - 1))
     assert ((lmax + 2) * (lmax + 1) // 2 == nlm)
+
     return lmax
+
 
 def rlm2alm(rlm):
     """ converts 'real harmonic' coefficients rlm to complex alm. """
@@ -37,6 +48,7 @@ def rlm2alm(rlm):
     alm[ls] = rlm[l2s]
     for m in range(1, lmax + 1):
         alm[m * (2 * lmax + 1 - m) // 2 + ls[m:]] = (rlm[l2s[m:] + 2 * m - 1] + 1.j * rlm[l2s[m:] + 2 * m + 0]) * ir2
+
     return alm
 
 
@@ -54,6 +66,7 @@ def alm2rlm(alm):
     for m in range(1, lmax + 1):
         rlm[l2s[m:] + 2 * m - 1] = alm[m * (2 * lmax + 1 - m) // 2 + ls[m:]].real * rt2
         rlm[l2s[m:] + 2 * m + 0] = alm[m * (2 * lmax + 1 - m) // 2 + ls[m:]].imag * rt2
+
     return rlm
 
 
@@ -92,31 +105,43 @@ class template_bfilt(object):
                 os.makedirs(_lib_dir)
             self.lib_dir = _lib_dir
 
+
     def hashdict(self):
+
         return {'lmax':self.lmax, 'geom':us.Geom.hashdict(self.sc_job.geom)}
+
 
     @staticmethod
     def get_nmodes(lmax):
+
         assert lmax >= 2, lmax
         return (lmax + 1) * lmax + lmax + 1 - 4
 
+
     @staticmethod
     def get_modelmax(mode):
+
         assert mode >= 0, mode
         nmodes = 0
         l = -1
         while nmodes - 1 < mode + 4:
             l += 1
             nmodes += 2 * l + 1
+
         return l
+
 
     @staticmethod
     def _rlm2blm(rlm):
+
         return rlm2alm(np.concatenate([np.zeros(4), rlm]))
+
 
     @staticmethod
     def _blm2rlm(blm):
+
         return alm2rlm(blm)[4:]
+
 
     def apply_qumode(self, qumap, mode):
         assert mode < self.nmodes, (mode, self.nmodes)
@@ -124,6 +149,7 @@ class template_bfilt(object):
         tcoeffs = np.zeros(self.get_nmodes(self.get_modelmax(mode)), dtype=float)
         tcoeffs[mode] = 1.0
         self.apply_qu(qumap, tcoeffs)
+
 
     def apply_qu(self, qumap, coeffs):  # RbQ  * Q or  RbU * U
         assert len(qumap) == 2
@@ -137,6 +163,7 @@ class template_bfilt(object):
         q, u = self.sc_job.alm2map_spin([elm, blm], 2)
         qumap[0] *= q
         qumap[1] *= u
+
 
     def accum(self, qumap, coeffs):
         """Forward template operation
@@ -154,6 +181,7 @@ class template_bfilt(object):
         qumap[0] += q
         qumap[1] += u
 
+
     def dot(self, qumap):
         """Backward template operation.
 
@@ -166,6 +194,7 @@ class template_bfilt(object):
         self.sc_job.set_triangular_alm_info(self.lmax, self.lmax)
         blm = self.sc_job.map2alm_spin(qumap, 2)[1]
         return self._blm2rlm(blm) # Units weight transform
+
 
     def build_tnit(self, NiQQ_NiUU_NiQU):
         """Return the nmodes x nmodes matrix (T^t N^{-1} T )_{bl bl'}'
@@ -191,7 +220,9 @@ class template_bfilt(object):
             self.apply_qumode([_NiQ, _NiU], a)
             tnit[:, a] = self.dot([_NiQ, _NiU])
             tnit[a, :] = tnit[:, a]
+
         return tnit
+
 
     def _build_tnit(self, prefix=''):
         tnit = np.zeros((self.nmodes, self.nmodes), dtype=float)
@@ -200,6 +231,7 @@ class template_bfilt(object):
             assert os.path.exists(fname)
             tnit[:, a]  = np.load(fname)
             tnit[a, :] = tnit[:, a]
+
         return tnit
 
 
@@ -207,7 +239,6 @@ class template_bfilt(object):
         """Produces and save all rows of the matrix for large matriz sizes
 
         """
-        from plancklens.helpers import mpi
         assert self.lib_dir is not None, 'cant do this without a lib_dir'
         if NiQQ_NiUU_NiQU.shape[0] == 3: #Here, QQ and UU may be different, but NiQU negligible
             NiQQ, NiUU, NiQU = NiQQ_NiUU_NiQU
