@@ -190,7 +190,7 @@ class template_bfilt(object):
 
         """
         assert len(qumap) == 2
-        assert qumap[0].size == self.npix and qumap[1].size == self.npix
+        assert qumap[0].size == self.npix and qumap[1].size == self.npix, ' '.join([str(qumap[1].shape), str(self.npix)])
         self.sc_job.set_triangular_alm_info(self.lmax, self.lmax)
         blm = self.sc_job.map2alm_spin(qumap, 2)[1]
         return self._blm2rlm(blm) # Units weight transform
@@ -287,14 +287,16 @@ class eblm_filter_ninv(opfilt_pp.alm_filter_ninv):
             you dont want to mix this with bmarg_lmax which is exact template marginalisation
 
     """
-    def old__init__(self, n_inv, b_transf, bmarg_lmax=0, zbounds=(-1., 1.), blm_range=(2, np.inf), _bmarg_lib_dir=None, _bmarg_rescal=1.):
-        pass
     def __init__(self, geom, n_inv, b_transf, lmax_marg=0, zbounds=(-1., 1.), blm_range=(2, np.inf), _bmarg_lib_dir=None, _bmarg_rescal=1., sht_threads=8):
-        super(eblm_filter_ninv, self).__init__(n_inv, b_transf) #SB: this doesn't seem to work, as parent explicitly sets n_inv to None, no matter what. Next line fixes that
-        self.n_inv = self.get_ninv() #SB: n_inv was never set. opfilt_pp.alm_filter_ninv within plancklens expects child to get_ninv()
-        self.nside = hp.npix2nside(len(self.n_inv[0])) #SB: nside was never set. opfilt_pp.alm_filter_ninv within plancklens expects child to set nside
+        super(eblm_filter_ninv, self).__init__(n_inv, b_transf)
+        self.n_inv = self.get_ninv()
+        self.nside = hp.npix2nside(len(self.n_inv[0]))
+        if not ( (blm_range[0] <= 2) and (blm_range[1] >= (3 * self.nside - 1)) ):
+            assert len(self.templates)  == 0, 'templates-cuts mixing not implemented'
+
+        self.blm_range = blm_range
         self.templates = []
-        if bmarg_lmax > 1:
+        if lmax_marg > 1:
             assert len(self.n_inv) == 1, 'implement if 3'
             self.templates.append(template_bfilt(lmax_marg=lmax_marg, geom=geom, sht_threads=sht_threads, _lib_dir=_bmarg_lib_dir))
         if len(self.templates) > 0:
@@ -315,10 +317,8 @@ class eblm_filter_ninv(opfilt_pp.alm_filter_ninv):
                 if _bmarg_lib_dir is not None and not os.path.exists(os.path.join(_bmarg_lib_dir, 'tniti.npy')):
                     np.save(os.path.join(_bmarg_lib_dir, 'tniti.npy'), self.tniti)
                     print("Cached " + os.path.join(_bmarg_lib_dir, 'tniti.npy'))
-        self.blm_range = blm_range
+
         self.zbounds = zbounds
-        if not ( (self.blm_range[0] <= 2) and (self.blm_range[1] >= (3 * self.nside - 1)) ):
-            assert len(self.templates)  == 0, 'templates-cuts mixing not implemented'
 
 
     def apply_map(self, qumap):

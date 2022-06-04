@@ -12,6 +12,7 @@ import sys, os
 import numpy as np
 import healpy as hp
 import pickle as pk
+
 from plancklens import utils
 from plancklens.helpers import mpi
 from plancklens.qcinv import cd_solve, opfilt_pp, multigrid
@@ -36,8 +37,8 @@ class cinv_p(filt_cinv.cinv):
             this implementation does not support template projection
 
     """
-    def __init__(self, lib_dir, lmax, nside, cl, transf, ninv,
-                 pcf='default', chain_descr=None, _bmarg_lib_dir=None, _bmarg_rescal=1., zbounds=(-1., 1.), bmarg_lmax=0):
+    def __init__(self, lib_dir, lmax, nside, cl, transf, ninv, geom,
+                 pcf='default', chain_descr=None, _bmarg_lib_dir=None, _bmarg_rescal=1., zbounds=(-1., 1.), bmarg_lmax=0, sht_threads=8):
         assert lib_dir is not None and lmax >= 1024 and nside >= 512, (lib_dir, lmax, nside)
         super(cinv_p, self).__init__(lib_dir, lmax)
         
@@ -52,10 +53,8 @@ class cinv_p(filt_cinv.cinv):
              [1, ["split(stage(2),  512, diag_cl)"], 1024, 512, 3, 0.0, cd_solve.tr_cg, cd_solve.cache_mem()],
              [0, ["split(stage(1), 1024, diag_cl)"], lmax, nside, np.inf, 1.0e-5, cd_solve.tr_cg, cd_solve.cache_mem()]]
 
-
-        # TODO replace with lenscarf.bmodes_ninv.template_dense()
-        n_inv_filt = util.jit(bmodes_ninv.eblm_filter_ninv, ninv, transf[0:lmax + 1],
-                              bmarg_lmax=bmarg_lmax, zbounds=zbounds, _bmarg_lib_dir=_bmarg_lib_dir, _bmarg_rescal=_bmarg_rescal)
+        n_inv_filt = util.jit(bmodes_ninv.eblm_filter_ninv, geom, ninv, transf[0:lmax + 1],
+                              lmax_marg=bmarg_lmax, zbounds=zbounds, _bmarg_lib_dir=_bmarg_lib_dir, _bmarg_rescal=_bmarg_rescal, sht_threads=sht_threads)
         self.chain = util.jit(multigrid.multigrid_chain, opfilt_pp, chain_descr, cl, n_inv_filt)
 
         if mpi.rank == 0:
