@@ -22,7 +22,7 @@ from lenscarf.iterators.statics import rec as Rec
 from lenscarf.iterators import iteration_handler
 
 
-class QE_delensing():
+class QE_lr():
     def __init__(self, dlensalot_model):
         self.libdir_iterators = lambda qe_key, simidx, version: opj(dlensalot_model.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
         self.dlensalot_model = dlensalot_model
@@ -137,10 +137,10 @@ class QE_delensing():
         return mf_resp
 
 
-class MAP_delensing():
+class MAP_lr():
     def __init__(self, dlensalot_model):
         # TODO not entirely happy how QE dependence is put into MAP_delensing but cannot think of anything better at the moment.
-        self.qe = QE_delensing(dlensalot_model)
+        self.qe = QE_lr(dlensalot_model)
         self.dlensalot_model = dlensalot_model
         self.libdir_iterators = lambda qe_key, simidx, version: opj(dlensalot_model.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
         
@@ -204,8 +204,8 @@ class inspect_result():
 
 # TODO B_template construction could be independent of the iterator(), and could be simplified when get_template_blm is moved to a 'query' module
 class B_template_construction():
-    def __init__(self, qe, dlensalot_model):
-        self.qe = qe
+    def __init__(self, dlensalot_model):
+        self.qe = self.qe = QE_lr(dlensalot_model)
         self.dlensalot_model = dlensalot_model
         self.libdir_iterators = lambda qe_key, simidx, version: opj(dlensalot_model.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
         
@@ -218,10 +218,11 @@ class B_template_construction():
     @log_on_start(logging.INFO, "Start of collect_jobs()")
     @log_on_end(logging.INFO, "Finished collect_jobs(): {self.jobs}")
     def collect_jobs(self):
+        self.qe.collect_jobs()
         jobs = []
         for idx in np.arange(self.dlensalot_model.imin, self.dlensalot_model.imax + 1):
             lib_dir_iterator = self.libdir_iterators(self.dlensalot_model.k, idx, self.dlensalot_model.version)
-            if Rec.maxiterdone(lib_dir_iterator) == self.dlensalot_model.itmax:
+            if Rec.maxiterdone(lib_dir_iterator) >= self.dlensalot_model.itmax:
                 jobs.append(idx)
         self.jobs = jobs
 
@@ -229,11 +230,51 @@ class B_template_construction():
     @log_on_start(logging.INFO, "Start of run()")
     @log_on_end(logging.INFO, "Finished run()")
     def run(self):
+        self.qe.collect_jobs()
         for idx in self.jobs[mpi.rank::mpi.size]:
             lib_dir_iterator = self.libdir_iterators(self.dlensalot_model.k, idx, self.dlensalot_model.version)
-            if self.dlensalot_model.itmax >= 0 and Rec.maxiterdone(lib_dir_iterator) == self.dlensalot_model.itmax:
+            if self.dlensalot_model.itmax >= 0 and Rec.maxiterdone(lib_dir_iterator) >= self.dlensalot_model.itmax:
                 itlib = self.ith(self.qe, self.dlensalot_model.k, idx, self.dlensalot_model.version, self.libdir_iterators, self.dlensalot_model)
                 itlib_iterator = itlib.get_iterator()
                 for it in range(0, self.dlensalot_model.itmax + 1):
-                    itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1)
+                    if it <= Rec.maxiterdone(lib_dir_iterator):
+                        itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1)
 
+
+class B_map_delensing():
+    def __init__(self, dlensalot_model):
+        assert 0, "Implement"
+        self.qe = self.qe = QE_lr(dlensalot_model)
+        self.dlensalot_model = dlensalot_model
+        self.libdir_iterators = lambda qe_key, simidx, version: opj(dlensalot_model.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
+        
+        # TODO this is the interface to the D.lensalot iterators and connects 
+        # to lerepi. Could be simplified, s.t. interfacing happens without the iteration_handler
+        # but directly with cs_iterator, e.g. by adding visitor pattern to cs_iterator
+        self.ith = iteration_handler.transformer(dlensalot_model.iterator)
+
+
+    @log_on_start(logging.INFO, "Start of collect_jobs()")
+    @log_on_end(logging.INFO, "Finished collect_jobs(): {self.jobs}")
+    def collect_jobs(self):
+        self.qe.collect_jobs()
+        jobs = []
+        for idx in np.arange(self.dlensalot_model.imin, self.dlensalot_model.imax + 1):
+            lib_dir_iterator = self.libdir_iterators(self.dlensalot_model.k, idx, self.dlensalot_model.version)
+            if Rec.maxiterdone(lib_dir_iterator) >= self.dlensalot_model.itmax:
+                jobs.append(idx)
+        self.jobs = jobs
+
+
+    @log_on_start(logging.INFO, "Start of run()")
+    @log_on_end(logging.INFO, "Finished run()")
+    def run(self):
+        self.qe.collect_jobs()
+        for idx in self.jobs[mpi.rank::mpi.size]:
+            lib_dir_iterator = self.libdir_iterators(self.dlensalot_model.k, idx, self.dlensalot_model.version)
+            if self.dlensalot_model.itmax >= 0 and Rec.maxiterdone(lib_dir_iterator) >= self.dlensalot_model.itmax:
+                itlib = self.ith(self.qe, self.dlensalot_model.k, idx, self.dlensalot_model.version, self.libdir_iterators, self.dlensalot_model)
+                itlib_iterator = itlib.get_iterator()
+                for it in range(0, self.dlensalot_model.itmax + 1):
+                    if it <= Rec.maxiterdone(lib_dir_iterator):
+                        itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1)

@@ -54,9 +54,9 @@ class cinv_p(filt_cinv.cinv):
              [1, ["split(stage(2),  512, diag_cl)"], 1024, 512, 3, 0.0, cd_solve.tr_cg, cd_solve.cache_mem()],
              [0, ["split(stage(1), 1024, diag_cl)"], lmax, nside, np.inf, 1.0e-5, cd_solve.tr_cg, cd_solve.cache_mem()]]
 
-        n_inv_filt = util.jit(bmodes_ninv.eblm_filter_ninv, geom, ninv, transf[0:lmax + 1],
+        self.n_inv_filt = util.jit(bmodes_ninv.eblm_filter_ninv, geom, ninv, transf[0:lmax + 1],
                               lmax_marg=bmarg_lmax, zbounds=zbounds, _bmarg_lib_dir=_bmarg_lib_dir, _bmarg_rescal=_bmarg_rescal, sht_threads=sht_threads)
-        self.chain = util.jit(multigrid.multigrid_chain, opfilt_pp, chain_descr, cl, n_inv_filt)
+        self.chain = util.jit(multigrid.multigrid_chain, opfilt_pp, chain_descr, cl, self.n_inv_filt)
 
         if mpi.rank == 0:
             if not os.path.exists(lib_dir):
