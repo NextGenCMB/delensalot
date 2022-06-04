@@ -14,7 +14,7 @@ from os import walk
 
 import lerepi
 
-# TODO currently only supports config file. Could think of adding DLENSALOT_Job parameters
+# TODO currently only supports config file. Add DLENSALOT_Job parameters
 class lerepi_parser():
 
     def __init__(self):
