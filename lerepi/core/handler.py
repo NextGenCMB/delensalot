@@ -19,7 +19,7 @@ from logdecorator import log_on_start, log_on_end
 from plancklens.helpers import mpi
 
 from lerepi.core.visitor import transform
-from lerepi.core.transformer.param2dlensalot import p2l_Transformer, p2T_Transformer, transform
+from lerepi.core.transformer.param2dlensalot import p2j_Transformer, p2T_Transformer, transform
 
 
 class handler():
@@ -33,7 +33,7 @@ class handler():
     @log_on_start(logging.INFO, "Start of collect_jobs()")
     @log_on_end(logging.INFO, "Finished collect_jobs()")
     def collect_jobs(self):
-        self.jobs = transform(self.paramfile.dlensalot_model, p2l_Transformer())
+        self.jobs = transform(self.paramfile.dlensalot_model, p2j_Transformer())
 
 
     @log_on_start(logging.INFO, "Start of get_jobs()")
@@ -55,7 +55,7 @@ class handler():
     @log_on_end(logging.INFO, "Finished run()")
     def run(self):
         for transf, job in self.jobs:
-            model = transform(*transf)
+            model = transform(*transf)           
             j = job(model)
             j.collect_jobs()
             j.run()
@@ -90,7 +90,7 @@ class handler():
                                         logging.error("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, paramfile.dlensalot_model.__dict__[key].__dict__[k]))
                                         logging.error('Exit. Check config file.')
                                         sys.exit()
-                    logging.error('Param file look the same. Resuming where I left off last time.')
+                    logging.info('Param file look the same. Resuming where I left off last time.')
 
         if dostore:
             if mpi.rank == 0:

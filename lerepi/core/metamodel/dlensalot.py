@@ -28,6 +28,7 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     geometry = attr.ib(default=[])
     chain_descriptor = attr.ib(default=[])
     stepper = attr.ib(default='')
+    map_delensing = attr.ib(default='')
 
 
 @attr.s
@@ -37,12 +38,12 @@ class DLENSALOT_Job(DLENSALOT_Concept):
     Attributes:
         QE_delensing:
     """
-    # TODO refactor, should be called 'QE_lensingreconstruction' and 'MAP_lensingreconstruction' 
-    QE_delensing = attr.ib(default='')
-    MAP_delensing = attr.ib(default='')
+    QE_lensrec = attr.ib(default='')
+    MAP_lensrec = attr.ib(default='')
     Btemplate_per_iteration = attr.ib(default='')
     inspect_result = attr.ib(default='')
-    # TODO add jobs "delens_map" and "build_OBD"
+    map_delensing = attr.ib(default='')
+    # TODO add job "build_OBD"
 
 
 @attr.s
@@ -52,6 +53,7 @@ class DLENSALOT_Data(DLENSALOT_Concept):
     Attributes:
         DATA_LIBDIR: path to the data
     """
+    mask_norm = attr.ib(default='')
     DATA_LIBDIR = attr.ib(default='')
     TEMP_suffix = attr.ib(default='')
     rhits = attr.ib(default='')
@@ -175,3 +177,25 @@ class DLENSALOT_Geometry(DLENSALOT_Concept):
     lenjob_pbgeometry = attr.ib(default='')
     ninvjob_geometry = attr.ib(default='')
     ninvjob_qe_geometry = attr.ib(default='')
+
+
+@attr.s
+class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
+    """_summary_
+
+    Args:
+        DLENSALOT_Concept (_type_): _description_
+    """
+    edges = attr.ib(default='')
+    IMIN = attr.ib(default='')
+    IMAX = attr.ib(default='')
+    ITMAX = attr.ib(default='')
+    fg = attr.ib(default='')
+    base_mask = attr.ib(default='')
+    nlevels = attr.ib(default='')
+    nside = attr.ib(default='')
+    lmax_cl = attr.ib(default='')
+    beam = attr.ib(default='')
+    lmax_transf = attr.ib(default='')
+    transf = attr.ib(default='')
+    Cl_fid = attr.ib(default='')

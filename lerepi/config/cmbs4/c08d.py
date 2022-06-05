@@ -3,19 +3,22 @@ import healpy as hp
 
 from lerepi.core.metamodel.dlensalot import *
 
+
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(
+        QE_lensrec = False,
+        MAP_lensrec = False,
         Btemplate_per_iteration = False,
-        QE_delensing = False,
-        MAP_delensing = True,
+        map_delensing = True,
         inspect_result = False
     ),
     data = DLENSALOT_Data(
         DATA_LIBDIR = '/global/project/projectdirs/cmbs4/awg/lowellbb/',
         rhits = '/global/project/projectdirs/cmbs4/awg/lowellbb/expt_xx/08d/rhits/n2048.fits',
-        TEMP_suffix = 'OBD30_masknormalised_dmb', #OBD200_masknormalised          add your own description
+        TEMP_suffix = 'OBD30_masknormalised_dmb_tfc', #OBD200_masknormalised          add your own description
         fg = '00',
         mask_suffix = 100,
+        mask_norm = 0.29,
         sims = 'cmbs4/08d/ILC_May2022',
         mask = 'cmbs4/08d/ILC_May2022',
         masks = ['cmbs4/08d/ILC_May2022'], # TODO lenscarf supports multiple masks. But lerepi currently doesn't
@@ -26,7 +29,7 @@ dlensalot_model = DLENSALOT_Model(
         zbounds = ('cmbs4/08d/ILC_May2022', np.inf),
         zbounds_len = ('cmbs4/08d/ILC_May2022', 5.), # Outside of these bounds the reconstructed maps are assumed to be zero
         pbounds = (0., 2*np.pi), # Longitude cuts, if any, in the form (center of patch, patch extent)
-        isOBD = False,
+        isOBD = True,
         BMARG_LIBDIR = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08d/',
         BMARG_LCUT = 200,
         tpl = 'template_dense',
@@ -39,7 +42,7 @@ dlensalot_model = DLENSALOT_Model(
         V = '', # version, can be 'noMF'
         ITMAX = 10,
         IMIN = 0,
-        IMAX = 100,
+        IMAX = 99,
         nsims_mf = 100,
         OMP_NUM_THREADS = 8,
         Lmin = 4, # The reconstruction of all lensing multipoles below that will not be attempted
@@ -96,6 +99,20 @@ dlensalot_model = DLENSALOT_Model(
         mmax_qlm = 4000,
         xa = 400,
         xb = 1500
+    ),
+    map_delensing = DLENSALOT_Mapdelensing(
+        edges = 'cmbs4',
+        IMIN = 0,
+        IMAX = 100,
+        ITMAX = 4,
+        fg = '00',
+        basemask = 'cmbs4/08d/ILC_May2022',
+        nlevels = [2., 5., 10., 100.],
+        nside = 2048,
+        lmax_cl = 2048,
+        beam = 2.3,
+        lmax_transf = 4000,
+        transf = 'gauss',
+        Cl_fid = 'ffp10'
     )
 )
-

@@ -13,15 +13,15 @@ from logdecorator import log_on_start, log_on_end
 
 import numpy as np
 import healpy as hp
+import hashlib
 
-
-# TODO not sure if I want to have initialisation at this level wrt lenscarf and plancklens objects..
-# TODO If it includes calculation of some kind, move it further back
+# TODO Only want initialisation at this level for lenscarf and plancklens objects, so queries work (lazy loading)
 import plancklens
 from plancklens import qest, qecl, utils
 from plancklens.filt import filt_util
 from plancklens.qcinv import cd_solve
 from plancklens.filt import filt_cinv, filt_util
+
 
 from lenscarf import utils_scarf
 import lenscarf.core.handler as lenscarf_handler
@@ -54,12 +54,12 @@ class p2T_Transformer:
 
 # TODO parameters are sometimes redundant, not general, and not descriptive
 # remove redundancy, remove non-general parameters, change names 
-class p2d_Transformer:
+class p2lensrec_Transformer:
     """_summary_
     """    
     @log_on_start(logging.INFO, "Start of build()")
     @log_on_end(logging.INFO, "Finished build()")
-    def build(self, cf):
+    def build(cf):
 
         @log_on_start(logging.INFO, "Start of _process_dataparams()")
         @log_on_end(logging.INFO, "Finished _process_dataparams()")
@@ -175,18 +175,15 @@ class p2d_Transformer:
 
 
             if iteration.FILTER == 'cinv_sepTP':
-                mask_norm = 0.29
+                mask_norm = iteration.mask_norm
                 dl.ninv_t = [np.array([hp.nside2pixarea(dl.nside, degrees=True) * 60 ** 2 / dl.nlev_t ** 2])/mask_norm] + dl.masks
                 dl.ninv_p = [[np.array([hp.nside2pixarea(dl.nside, degrees=True) * 60 ** 2 / dl.nlev_p ** 2])/mask_norm] + dl.masks]
-                if mask_norm != 1.0:
-                    print("WARNING WARNING -------------------WARNING WARNING WARNING WARNING")
-                    print("-------------------Mask normalisation hardcoded-------------------")
-                    print("WARNING WARNING WARNING WARNING------------------- WARNING WARNING")
-                # TODO these two trigger actual heavy computation. Perhaps move this to the lerepi job-level. Could be done via introducing a DLENSALOT_Filter model component
+                # TODO cinv_t adn cinv_p trigger computation. Perhaps move this to the lerepi job-level. Could be done via introducing a DLENSALOT_Filter model component
                 dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), iteration.lmax_ivf,dl.nside, dl.cls_len, dl.transf_tlm, dl.ninv_t,
                                 marge_monopole=True, marge_dipole=True, marge_maps=[])
                 if dl.isOBD:
-                    dl.cinv_p = cinv_p_OBD.cinv_p(opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, dl.nside, dl.cls_len, dl.transf_elm[:dl.lmax_ivf+1], dl.ninv_p, geom=dl.ninvjob_qe_geometry,
+                    transf_elm_loc = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf)
+                    dl.cinv_p = cinv_p_OBD.cinv_p(opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, dl.nside, dl.cls_len, transf_elm_loc[:dl.lmax_ivf+1], dl.ninv_p, geom=dl.ninvjob_qe_geometry,
                         chain_descr=dl.chain_descr(iteration.lmax_ivf, iteration.CG_TOL), bmarg_lmax=dl.BMARG_LCUT, zbounds=dl.zbounds, _bmarg_lib_dir=dl.BMARG_LIBDIR, _bmarg_rescal=dl.BMARG_RESCALE, sht_threads=cf.iteration.OMP_NUM_THREADS)
                 else:
                     dl.cinv_p = filt_cinv.cinv_p(opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, dl.nside, dl.cls_len, dl.transf_elm, dl.ninv_p,
@@ -212,6 +209,7 @@ class p2d_Transformer:
 
                 dl.qcls_ds = qecl.library(opj(dl.TEMP, 'qcls_ds'), dl.qlms_ds, dl.qlms_ds, np.array([]))  # for QE RDN0 calculations
                 dl.qcls_ss = qecl.library(opj(dl.TEMP, 'qcls_ss'), dl.qlms_ss, dl.qlms_ss, np.array([]))  # for QE RDN0 / MCN0 calculations
+                dl.qcls_dd = qecl.library(opj(dl.TEMP, 'qcls_dd'), dl.qlms_dd, dl.qlms_dd, dl.mc_sims_bias)
 
 
             if iteration.FILTER_QE == 'sepTP':
@@ -219,8 +217,7 @@ class p2d_Transformer:
                 dl.mc_sims_bias = np.arange(60, dtype=int)
                 dl.mc_sims_var  = np.arange(60, 300, dtype=int)
                 dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.ivfs, dl.ivfs, dl.cls_len['te'], dl.nside, lmax_qlm=iteration.lmax_qlm)
-                dl.qcls_dd = qecl.library(opj(dl.TEMP, 'qcls_dd'), dl.qlms_dd, dl.qlms_dd, dl.mc_sims_bias)
-
+                
 
         @log_on_start(logging.INFO, "Start of _process_geometryparams()")
         @log_on_end(logging.INFO, "Finished _process_geometryparams()")
@@ -278,25 +275,6 @@ class p2d_Transformer:
         return dl
 
 
-class p2l_Transformer:
-    """Extracts all parameters needed for D.lensalot for QE and MAP delensing
-    Implement if needed
-    """
-    def build(self, pf):
-        jobs = []
-        # TODO if the pf.X objects were distinguishable by X2X_Transformer, could replace the seemingly redundant if checks here.
-        if pf.job.QE_delensing:
-            jobs.append(((pf, p2d_Transformer()), lenscarf_handler.QE_lr))
-        if pf.job.MAP_delensing:
-            jobs.append(((pf, p2d_Transformer()), lenscarf_handler.MAP_lr))
-        if pf.job.Btemplate_per_iteration:
-            jobs.append(((pf, p2d_Transformer()), lenscarf_handler.B_template_construction))
-        if pf.job.inspect_result:
-            # TODO maybe use this to return something interactive? Like a webservice with all plots dynamic? Like a dashboard..
-            jobs.append(((pf, p2v_Transformer()), lenscarf_handler.inspect_result))
-        return jobs
-
-
 class p2q_Transformer:
     """Extracts all parameters needed for querying results of D.lensalot
     """
@@ -304,7 +282,7 @@ class p2q_Transformer:
         pass
 
 
-class p2v_Transformer:
+class p2d_Transformer:
     """Directory is built upon runtime, so accessing it here
 
     Returns:
@@ -312,11 +290,63 @@ class p2v_Transformer:
     """
     @log_on_start(logging.INFO, "Start of build()")
     @log_on_end(logging.INFO, "Finished build()")
-    def build(cf):
-        pass
+    def build(self, cf):
+        ioreco_edges = np.array([2, 30, 200, 300, 500, 700, 1000, 1500, 2000, 3000, 4000, 5000])
+        cmbs4_edges = np.array([2, 30, 60, 90, 120, 150, 180, 200, 300, 500, 700, 1000, 1500, 2000, 3000, 4000, 5000])
+        def _process_delensingparams(dl, de):
+            dl.k = cf.iteration.K # Lensing key, either p_p, ptt, p_eb
+            dl.version = cf.iteration.V # version, can be 'noMF'
+            if de.edges == 'ioreco':
+                dl.edges = ioreco_edges
+            elif de.edges == 'cmbs4':
+                dl.edges = cmbs4_edges
+            dl.edges_center = (dl.edges[1:]+dl.edges[:-1])/2.
+            dl.imin = de.IMIN
+            dl.imax = de.IMAX
+            dl.itmax = de.ITMAX
+            dl.fg = de.fg
+
+            # CMB_S4 mask only needed for rotating ILC maps
+            # TODO this is quite hacky, prettify. Perhaps load data like done with config file in core.handler.
+            # The way it is right now doesn't scale and only works for 08d. What if we run pico.
+            if '08d' in de.base_mask:
+                from lerepi.config.cmbs4.data import data_08d as if_s
+                if 'ILC_May2022' in de.base_mask:
+                    dl.sims = if_s.ILC_May2022(de.fg)
+                    maskpath = dl.sims.get_mask_path()
+                    dl.base_mask = np.nan_to_num(
+                        hp.read_map(maskpath))
+            dl.TEMP = transform(cf, p2T_Transformer())
+            dl.analysis_path = dl.TEMP.split('/')[-1]
+            dl.nlevels = de.nlevels
+            dl.nside = de.nside
+            dl.lmax_cl = de.lmax_cl
+            dl.lmax_lib = 3*dl.lmax_cl-1
+            dl.beam = 2.3
+            dl.lmax_transf = de.lmax_transf
+            if de.transf == 'gauss':
+                dl.transf = hp.gauss_beam(de.beam / 180. / 60. * np.pi, lmax=dl.lmax_transf)
+
+            if de.Cl_fid == 'ffp10':
+                dl.cls_path = opj(os.path.dirname(plancklens.__file__), 'data', 'cls')
+                dl.cls_len = utils.camb_clfile(opj(dl.cls_path, 'FFP10_wdipole_lensedCls.dat'))
+                dl.clg_templ = dl.cls_len['ee']
+                dl.clc_templ = dl.cls_len['bb']
+                dl.clg_templ[0] = 1e-32
+                dl.clg_templ[1] = 1e-32
+
+            dl.sha_edges = hashlib.sha256()
+            dl.sha_edges.update(str(dl.edges).encode())
+            dl.dirid = dl.sha_edges.hexdigest()[:4]
 
 
-class p2b_Transformer:
+        dl = DLENSALOT_Concept()
+        _process_delensingparams(dl, cf.map_delensing)
+
+        return dl
+
+
+class p2i_Transformer:
     """Directory is built upon runtime, so accessing it here
 
     Returns:
@@ -328,11 +358,32 @@ class p2b_Transformer:
         pass
 
 
+class p2j_Transformer:
+    """Extracts all parameters needed for D.lensalot for QE and MAP delensing
+    Implement if needed
+    """
+    def build(self, pf):
+        jobs = []
+        # TODO if the pf.X objects were distinguishable by X2X_Transformer, could replace the seemingly redundant if checks here.
+        if pf.job.QE_lensrec:
+            jobs.append(((pf, p2lensrec_Transformer()), lenscarf_handler.QE_lr))
+        if pf.job.MAP_lensrec:
+            jobs.append(((pf, p2lensrec_Transformer()), lenscarf_handler.MAP_lr))
+        if pf.job.Btemplate_per_iteration:
+            jobs.append(((pf, p2lensrec_Transformer()), lenscarf_handler.B_template_construction))
+        if pf.job.map_delensing:
+            jobs.append(((pf, p2d_Transformer()), lenscarf_handler.map_delensing))
+        if pf.job.inspect_result:
+            # TODO maybe use this to return something interactive? Like a webservice with all plots dynamic? Like a dashboard..
+            jobs.append(((pf, p2i_Transformer()), lenscarf_handler.inspect_result))
+        return jobs
+
+
 @transform.case(DLENSALOT_Model, p2d_Transformer)
 def f1(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)
 
-@transform.case(DLENSALOT_Model, p2l_Transformer)
+@transform.case(DLENSALOT_Model, p2j_Transformer)
 def f2(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)
 
@@ -348,12 +399,11 @@ def f3(expr, transformer): # pylint: disable=missing-function-docstring
 def f4(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)
 
-@transform.case(DLENSALOT_Model, p2v_Transformer)
+@transform.case(DLENSALOT_Model, p2d_Transformer)
 def f5(expr, transformer): # pylint: disable=missing-function-docstring
-    assert 0, "Implement if needed"
     return transformer.build(expr)
 
-@transform.case(DLENSALOT_Model, p2b_Transformer)
+@transform.case(DLENSALOT_Model, p2i_Transformer)
 def f6(expr, transformer): # pylint: disable=missing-function-docstring
     assert 0, "Implement if needed"
     return transformer.build(expr)

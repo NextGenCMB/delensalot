@@ -1,6 +1,7 @@
 '''Script for calculating delensed ILC and Blens spectra, using precaulculated Btemplates as input. Use 'Generate_Btemplate.py' for calulcating Btemplate input.
 ''' 
 
+# TODO integrate into lerepi
 from __future__ import print_function
 import os, sys
 from os.path import join as opj
@@ -28,7 +29,7 @@ parser = argparse.ArgumentParser(description='Delensing maps using Btemplates')
 parser.add_argument('-sidl', dest='simid_lower', type=int, default=0, help='Minimal simulation index')
 parser.add_argument('-sidu', dest='simid_upper', type=int, default=100, help='Maximal simulation index')
 parser.add_argument('-fg', dest='fg', type=str, default='00', help='Foreground model. Either 00, 07, or 09')
-parser.add_argument('-edges', dest='edges', type=str, default='cmbs4', help='Edges identifier. See file for edges definitions.')
+parser.add_argument('-edges', dest='edges', type=str, default='ioreco', help='Edges identifier. See file for edges definitions.')
 args = parser.parse_args()
 
 
@@ -60,8 +61,7 @@ simids = np.arange(simid_lower, simid_upper+1)
 fg = args.fg
 # CMB_S4 mask only needed for rotating ILC maps
 cmbs4_mask = np.nan_to_num(hp.read_map('/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/foreground_cleaned_maps/08d.%s_umilta_220502'%fg + '/ILC_mask_08d_smooth_30arcmin.fits'))
-Nmf = 100
-analysis_path = '08d_%s_rNone_MF%d_OBD200/'%(fg,Nmf)
+analysis_path = '08d_00_r100_MF100_OBD200_masknormalised_dmb/'
 nlevels = [2., 5., 10., 100.]
 itmax = 4
 '''
