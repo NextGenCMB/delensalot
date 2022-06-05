@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
-"""iteration_handler.py: This module receives input from lerepi, handles delensing jobs and runs them.
-    Two main classes define the delensing; the plancklens QE delenser, and the D.lensalot MAP delensing.
+"""iteration_handler.py: This module is a passthrough to Dlensalot.cs_iterator. In the future, it will serve as a template module, which helps
+setting up an iterator, (e.g. permf or constmf), and decide which object on iteration level will be used, (e.g. cg, bfgs, filter).
+At this level, can possibly also choose likelihood, which would be needed for crosscorrelating to external tracers.
     
 """
 __author__ = "S. Belkner, J. Carron, L. Legrand"
@@ -18,10 +19,6 @@ from lenscarf import utils_sims
 from lenscarf.iterators import cs_iterator
 from lenscarf.utils import read_map
 from lenscarf.opfilt import opfilt_ee_wl
-
-# TODO not sure if I need something like this at the moment. Implement visitor pattern if needed.
-# from lenscarf.metamodel.iterator_pert import IT_PERT
-# from lenscarf.core.visitor import transform
 
 
 class scarf_iterator_pertmf():
@@ -42,6 +39,8 @@ class scarf_iterator_pertmf():
         self.lensing_config = lensing_config
         
         self.libdir_iterator = libdir_iterators(k, simidx, version)
+        if not os.path.exists(self.libdir_iterator):
+            os.makedirs(self.libdir_iterator)
         self.tpl = lensing_config.tpl
         self.tr = lensing_config.tr
 
@@ -52,19 +51,10 @@ class scarf_iterator_pertmf():
         self.mf0 = self.qe.get_meanfield_it0(self.simidx)
         self.plm0 = self.qe.get_plm_it0(self.simidx)
 
-        # TODO this should be done earlier. Lambda this to add simidx parameter, if needed
         self.ffi = remapping.deflection(self.lensing_config.lenjob_pbgeometry, self.lensing_config.lensres, np.zeros_like(self.plm0),
             self.lensing_config.mmax_qlm, self.tr, self.tr)
-
-        if not os.path.exists(self.libdir_iterator):
-            os.makedirs(self.libdir_iterator)
-
-        # TODO this should be done earlier. Perhaps in delensing_interface. Lambda this to add simidx parameter
         self.datmaps = self.get_datmaps()
-        
-        # TODO this should be done earlier. Lambda this to add simidx parameter
         self.filter = self.get_filter(self.sims_MAP, self.ffi, self.tpl)
-
         # TODO not sure why this happens here. Could be done much earlier
         self.chain_descr = lensing_config.chain_descr(lensing_config.lmax_unl, lensing_config.cg_tol)
 
@@ -91,7 +81,6 @@ class scarf_iterator_pertmf():
             tpl = self.tpl
         wee = self.k == 'p_p' # keeps or not the EE-like terms in the generalized QEs
         ninv = [sims_MAP.ztruncify(read_map(ni)) for ni in self.lensing_config.ninv_p] # inverse pixel noise map on consistent geometry
-        # TODO Add a typechecker to make sure we are passing the right objects to the filter
         filter = opfilt_ee_wl.alm_filter_ninv_wl(self.lensing_config.ninvjob_geometry, ninv, ffi, self.lensing_config.transf_elm, (self.lensing_config.lmax_unl, self.lensing_config.mmax_unl), (self.lensing_config.lmax_ivf, self.lensing_config.mmax_ivf), self.tr, tpl,
                                                 wee=wee, lmin_dotop=min(self.lensing_config.lmin_elm, self.lensing_config.lmin_blm), transf_blm=self.lensing_config.transf_blm)
         self.k_geom = filter.ffi.geom # Customizable Geometry for position-space operations in calculations of the iterated QEs etc
@@ -116,14 +105,9 @@ class scarf_iterator_pertmf():
         return iterator
 
 
+# TODO Change into a proper visitor pattern if needed
 def transformer(descr):
     if descr == 'pertmf':
         return scarf_iterator_pertmf
     else:
         assert 0, "Not yet implemented"
-
-# TODO Above could be changed into a proper visitor pattern if needed at some point. But
-# this iteration_handle would have to become a transformer module with transformer class
-# @transform.case(pertmf, ITERATOR_TRANSFORMER)
-# def f1(expr, transformer):
-#     return transformer.scarf_iterator_pertmf(expr)

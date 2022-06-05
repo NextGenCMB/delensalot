@@ -13,6 +13,7 @@ log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
 
 import numpy as np
+import healpy as hp
 
 from plancklens import utils, qresp
 from plancklens.helpers import mpi
@@ -20,6 +21,10 @@ from plancklens.helpers import mpi
 from lenscarf.utils_hp import almxfl, alm_copy
 from lenscarf.iterators.statics import rec as Rec
 from lenscarf.iterators import iteration_handler
+
+from plancklens.sims import planck2018_sims
+from lerepi.config.cmbs4.data import data_08d as sims_if
+from component_separation.MSC.MSC import pospace as ps
 
 
 class QE_lr():
@@ -241,27 +246,42 @@ class B_template_construction():
                         itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1)
 
 
-class B_map_delensing():
-    def __init__(self, dlensalot_model):
-        assert 0, "Implement"
-        self.qe = self.qe = QE_lr(dlensalot_model)
-        self.dlensalot_model = dlensalot_model
-        self.libdir_iterators = lambda qe_key, simidx, version: opj(dlensalot_model.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
-        
-        # TODO this is the interface to the D.lensalot iterators and connects 
-        # to lerepi. Could be simplified, s.t. interfacing happens without the iteration_handler
-        # but directly with cs_iterator, e.g. by adding visitor pattern to cs_iterator
-        self.ith = iteration_handler.transformer(dlensalot_model.iterator)
+class map_delensing():
+    """Script for calculating delensed ILC and Blens spectra,
+    using precaulculated Btemplates as input. Use 'Generate_Btemplate.py' for calulcating Btemplate input.
+    """
+
+    def __init__(self, bmd_model):
+        self.bmd_model = bmd_model
+        self.libdir_iterators = lambda qe_key, simidx, version: opj(bmd_model.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
+        self.lib_nm = dict()
+        self.bcl_L_nm, self.bcl_cs_nm, self.bwfcl_cs_nm = np.zeros(shape=(len(bmd_model.nlevels),len(bmd_model.edges))), np.zeros(shape=(len(bmd_model.nlevels),len(bmd_model.edges))), np.zeros(shape=(len(bmd_model.nlevels),len(bmd_model.edges)))
+
+
+    @log_on_start(logging.INFO, "Start of getfn_blm_lensc()")
+    @log_on_end(logging.INFO, "Finished getfn_blm_lensc()")
+    def getfn_blm_lensc(self, ana_p, simidx, it):
+        '''Lenscarf output using Catherinas E and B maps'''
+        rootstr = '/global/cscratch1/sd/sebibel/cmbs4/'
+
+        return rootstr+ana_p+'p_p_sim%04d/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(simidx, it, it)
+
+            
+    @log_on_start(logging.INFO, "Start of getfn_qumap_cs()")
+    @log_on_end(logging.INFO, "Finished getfn_qumap_cs()")
+    def getfn_qumap_cs(self, simidx):
+        '''Component separated polarisation maps lm, i.e. lenscarf input'''
+
+        return self.bmd_model.sims.get_sim_pmap(simidx)
 
 
     @log_on_start(logging.INFO, "Start of collect_jobs()")
     @log_on_end(logging.INFO, "Finished collect_jobs(): {self.jobs}")
     def collect_jobs(self):
-        self.qe.collect_jobs()
         jobs = []
-        for idx in np.arange(self.dlensalot_model.imin, self.dlensalot_model.imax + 1):
-            lib_dir_iterator = self.libdir_iterators(self.dlensalot_model.k, idx, self.dlensalot_model.version)
-            if Rec.maxiterdone(lib_dir_iterator) >= self.dlensalot_model.itmax:
+        for idx in np.arange(self.bmd_model.imin, self.bmd_model.imax + 1):
+            lib_dir_iterator = self.libdir_iterators(self.bmd_model.k, idx, self.bmd_model.version)
+            if Rec.maxiterdone(lib_dir_iterator) >= self.bmd_model.itmax:
                 jobs.append(idx)
         self.jobs = jobs
 
@@ -269,12 +289,49 @@ class B_map_delensing():
     @log_on_start(logging.INFO, "Start of run()")
     @log_on_end(logging.INFO, "Finished run()")
     def run(self):
-        self.qe.collect_jobs()
+        outputdata = np.zeros(shape=(6,len(self.bmd_model.nlevels),len(self.bmd_model.edges)-1))
+        for nlev in self.bmd_model.nlevels:
+            sims_may  = sims_if.ILC_May2022(self.bmd_model.fg, mask_suffix=int(nlev))
+            nlev_mask = sims_may.get_mask() 
+            self.lib_nm.update({nlev: ps.map2cl_binned(nlev_mask, self.bmd_model.clc_templ[:self.bmd_model.lmax_lib], self.bmd_model.edges, self.bmd_model.lmax_lib)})
+       
+        dirroot = '/global/cscratch1/sd/sebibel/cmbs4/'+self.bmd_model.analysis_path+'/plotdata/'
+        if not(os.path.isdir(dirroot + '{}'.format(self.bmd_model.dirid))):
+            os.makedirs(dirroot + '{}'.format(self.bmd_model.dirid))
+
         for idx in self.jobs[mpi.rank::mpi.size]:
-            lib_dir_iterator = self.libdir_iterators(self.dlensalot_model.k, idx, self.dlensalot_model.version)
-            if self.dlensalot_model.itmax >= 0 and Rec.maxiterdone(lib_dir_iterator) >= self.dlensalot_model.itmax:
-                itlib = self.ith(self.qe, self.dlensalot_model.k, idx, self.dlensalot_model.version, self.libdir_iterators, self.dlensalot_model)
-                itlib_iterator = itlib.get_iterator()
-                for it in range(0, self.dlensalot_model.itmax + 1):
-                    if it <= Rec.maxiterdone(lib_dir_iterator):
-                        itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1)
+            file_op = dirroot + '{}'.format(self.bmd_model.dirid) + '/ClBBwf_sim%04d_fg%2s_res2b3acm.npy'%(idx, self.bmd_model.fg)
+            print('will store file at:', file_op)
+            
+            qumap_cs_buff = self.getfn_qumap_cs(idx)
+            eblm_cs_buff = hp.map2alm_spin(qumap_cs_buff*self.bmd_model.base_mask, 2, self.bmd_model.lmax_cl)
+            bmap_cs_buff = hp.alm2map(eblm_cs_buff[1], self.bmd_model.nside)
+            for nlevi, nlev in enumerate(self.bmd_model.nlevels):
+                sims_may  = sims_if.ILC_May2022(self.bmd_model.fg, mask_suffix=int(nlev))
+                nlev_mask = sims_may.get_mask() 
+                bcl_cs_nm = self.lib_nm[nlev].map2cl(bmap_cs_buff)
+                blm_L_buff = hp.almxfl(utils.alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(idx), lmax=self.bmd_model.lmax_cl), self.bmd_model.transf)
+                bmap_L_buff = hp.alm2map(blm_L_buff, self.bmd_model.nside)
+                bcl_L_nm = self.lib_nm[nlev].map2cl(bmap_L_buff)
+
+                blm_lensc_MAP_buff = np.load(self.getfn_blm_lensc(self.bmd_model.analysis_path, idx, self.bmd_model.itmax))
+                bmap_lensc_MAP_buff = hp.alm2map(blm_lensc_MAP_buff, nside=self.bmd_model.nside)
+                blm_lensc_QE_buff = np.load(self.getfn_blm_lensc(self.bmd_model.analysis_path, idx, 0))
+                bmap_lensc_QE_buff = hp.alm2map(blm_lensc_QE_buff, nside=self.bmd_model.nside)
+    
+                bcl_Llensc_MAP_nm = self.lib_nm[nlev].map2cl(bmap_L_buff-bmap_lensc_MAP_buff)    
+                bcl_Llensc_QE_nm = self.lib_nm[nlev].map2cl(bmap_L_buff-bmap_lensc_QE_buff)
+
+                bcl_cslensc_MAP_nm = self.lib_nm[nlev].map2cl(bmap_cs_buff-bmap_lensc_MAP_buff)
+                bcl_cslensc_QE_nm = self.lib_nm[nlev].map2cl(bmap_cs_buff-bmap_lensc_QE_buff)
+                
+                outputdata[0][nlevi] = bcl_L_nm
+                outputdata[1][nlevi] = bcl_cs_nm
+                
+                outputdata[2][nlevi] = bcl_Llensc_MAP_nm
+                outputdata[3][nlevi] = bcl_cslensc_MAP_nm  
+                
+                outputdata[4][nlevi] = bcl_Llensc_QE_nm           
+                outputdata[5][nlevi] = bcl_cslensc_QE_nm
+            np.save(file_op, outputdata)
+
