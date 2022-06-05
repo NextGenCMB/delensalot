@@ -264,7 +264,7 @@ class map_delensing():
         '''Lenscarf output using Catherinas E and B maps'''
         rootstr = '/global/cscratch1/sd/sebibel/cmbs4/'
 
-        return rootstr+ana_p+'p_p_sim%04d/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(simidx, it, it)
+        return rootstr+ana_p+'/p_p_sim%04d/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(simidx, it, it)
 
             
     @log_on_start(logging.INFO, "Start of getfn_qumap_cs()")
