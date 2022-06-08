@@ -35,6 +35,7 @@ class ILC_May2022:
             self.p_mask = '/global/homes/s/sebibel/git/lerepi/lerepi/config/cmbs4/data/masks/08d_mask_r%s.fits'%mask_suffix #/global/cscratch1/sd/sebibel/masks/cmbs4/masks/
         self.rhitsi = rhitsi
         self.nside_mask = 2048
+        self.noisemodel_mask = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08b/masks/08d_rhits_positive_nonan.fits'
 
 
     def hashdict(self):

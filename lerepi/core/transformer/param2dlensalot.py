@@ -31,9 +31,9 @@ from lenscarf.utils_hp import gauss_beam
 from lenscarf.opfilt import utils_cinv_p as cinv_p_OBD
 from lenscarf.opfilt.bmodes_ninv import template_dense
 
-from lerepi.core.metamodel.dlensalot import DLENSALOT_Concept, DLENSALOT_Model
+from lerepi.config import config_helper as ch
 from lerepi.core.visitor import transform
-
+from lerepi.core.metamodel.dlensalot import DLENSALOT_Concept, DLENSALOT_Model
 
 class p2T_Transformer:
     """Directory is built upon runtime, so accessing it here
@@ -53,8 +53,7 @@ class p2T_Transformer:
         return TEMP
 
 
-# TODO parameters are sometimes redundant, not general, and not descriptive
-# remove redundancy, remove non-general parameters, change names 
+# TODO parameters are sometimes redundant, not general, and not descriptive 
 class p2lensrec_Transformer:
     """_summary_
     """
@@ -85,7 +84,8 @@ class p2lensrec_Transformer:
             _mask_class_name = _ui[-1]
             _mask_module_name = 'lerepi.config.'+_ui[0]+'.data.data_'+_ui[1]
             _mask_module = importlib.import_module(_mask_module_name)
-            dl.mask = getattr(_mask_module, _mask_class_name)(dl.fg, mask_suffix=dl.mask_suffix).get_mask_path()
+            dl.mask = getattr(_mask_module, _mask_class_name)(dl.fg, mask_suffix=dl.mask_suffix)
+            ch.get_mask_path()
             dl.masks = [dl.mask] # TODO [masks] doesn't work as intented
 
             dl.beam = data.BEAM
@@ -225,7 +225,6 @@ class p2lensrec_Transformer:
         @log_on_start(logging.INFO, "Start of _process_geometryparams()")
         @log_on_end(logging.INFO, "Finished _process_geometryparams()")
         def _process_geometryparams(dl, geometry):
-            # TODO this is quite a hacky way for extracting zbounds independent of data object.. simplify..
             _ui = geometry.zbounds[0].split('/')
             _sims_module_name = 'lerepi.config.'+_ui[0]+'.data.data_'+_ui[1]
             _sims_class_name = _ui[-1]
@@ -246,6 +245,8 @@ class p2lensrec_Transformer:
                 # TODO for QE, isOBD only works with zbounds=(-1,1). Perhaps missing ztrunc on qumaps
                 # Introduced new geometry for now, until either plancklens supports ztrunc, or ztrunced simlib (not sure if it already does)
                 dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(geometry.nside, zbounds=(-1,1))
+            elif geometry.ninvjob_qe_geometry == 'healpix_geometry':
+                dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(geometry.nside, zbounds=zbounds_loc)
 
 
         @log_on_start(logging.INFO, "Start of _process_chaindescparams()")

@@ -6,9 +6,9 @@ __author__ = "S. Belkner, J. Carron, L. Legrand"
 
 
 import abc
-from enum import Enum
 import attr
 
+# TODO I would like to come up with a better structure for this whole 'DLENSALOT_Model'
 
 class DLENSALOT_Concept:
     """An abstract element base type for the Dlensalot formalism."""
