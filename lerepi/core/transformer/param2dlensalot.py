@@ -5,10 +5,12 @@
 __author__ = "S. Belkner, J. Carron, L. Legrand"
 
 
-import os
+import os, sys
 from os.path import join as opj
+import importlib
 
 import logging
+log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
 
 import numpy as np
@@ -18,10 +20,8 @@ import hashlib
 # TODO Only want initialisation at this level for lenscarf and plancklens objects, so queries work (lazy loading)
 import plancklens
 from plancklens import qest, qecl, utils
-from plancklens.filt import filt_util
+from plancklens.filt import filt_util, filt_cinv
 from plancklens.qcinv import cd_solve
-from plancklens.filt import filt_cinv, filt_util
-
 
 from lenscarf import utils_scarf
 import lenscarf.core.handler as lenscarf_handler
@@ -45,22 +45,23 @@ class p2T_Transformer:
     @log_on_end(logging.INFO, "Finished build()")
     def build(self, cf):
         _nsims_mf = 0 if cf.iteration.V == 'noMF' else cf.iteration.nsims_mf
-        _suffix = '08d_%s_r%s'%(cf.data.fg, cf.data.mask_suffix)+'_isOBD'*cf.data.isOBD
+        _suffix = cf.data.sims.split('/')[1]+'_%s_r%s'%(cf.data.fg, cf.data.mask_suffix)+'_isOBD'*cf.data.isOBD
         _suffix += '_MF%s'%(_nsims_mf) if _nsims_mf > 0 else ''
         if cf.data.TEMP_suffix != '':
             _suffix += '_'+cf.data.TEMP_suffix
-        TEMP =  opj(os.environ['SCRATCH'], 'cmbs4', _suffix)
+        TEMP =  opj(os.environ['SCRATCH'], cf.data.sims.split('/')[0], _suffix)
         return TEMP
+
 
 # TODO parameters are sometimes redundant, not general, and not descriptive
 # remove redundancy, remove non-general parameters, change names 
 class p2lensrec_Transformer:
     """_summary_
-    """    
+    """
+
     @log_on_start(logging.INFO, "Start of build()")
     @log_on_end(logging.INFO, "Finished build()")
-    def build(cf):
-
+    def build(self, cf):
         @log_on_start(logging.INFO, "Start of _process_dataparams()")
         @log_on_end(logging.INFO, "Finished _process_dataparams()")
         def _process_dataparams(dl, data):
@@ -74,16 +75,18 @@ class p2lensrec_Transformer:
             dl.rhits = hp.read_map(data.rhits)
             dl.fg = data.fg
 
-            # TODO this is quite hacky, prettify. Perhaps load data like done with config file in core.handler.
-            # The way it is right now doesn't scale and only works for 08d. What if we run pico.
-            if '08d' in data.sims:
-                from lerepi.config.cmbs4.data import data_08d as if_s
-                if 'ILC_May2022' in data.sims:
-                    dl.sims = if_s.ILC_May2022(data.fg, mask_suffix=data.mask_suffix)
-            if data.mask == data.sims:
-                dl.mask = dl.sims.get_mask_path()
-                # TODO [masks] doesn't work as intented
-                dl.masks = [dl.mask]
+            _ui = data.sims.split('/')
+            _sims_module_name = 'lerepi.config.'+_ui[0]+'.data.data_'+_ui[1]
+            _sims_class_name = _ui[-1]
+            _sims_module = importlib.import_module(_sims_module_name)
+            dl.sims = getattr(_sims_module, _sims_class_name)(dl.fg, mask_suffix=dl.mask_suffix)
+
+            _ui = data.mask.split('/')
+            _mask_class_name = _ui[-1]
+            _mask_module_name = 'lerepi.config.'+_ui[0]+'.data.data_'+_ui[1]
+            _mask_module = importlib.import_module(_mask_module_name)
+            dl.mask = getattr(_mask_module, _mask_class_name)(dl.fg, mask_suffix=dl.mask_suffix).get_mask_path()
+            dl.masks = [dl.mask] # TODO [masks] doesn't work as intented
 
             dl.beam = data.BEAM
             dl.lmax_transf = data.lmax_transf
@@ -95,15 +98,15 @@ class p2lensrec_Transformer:
                 dl.zbounds_len = dl.sims.extend_zbounds(dl.zbounds, data.zbounds_len[1])
             dl.pb_ctr, dl.pb_extent = data.pbounds
 
-            dl.DATA_libdir = data.DATA_LIBDIR
+            dl.DATA_libdir = data.DATA_LIBDIR # TODO I don't really need this..
             dl.BMARG_LIBDIR = data.BMARG_LIBDIR
-            dl.BMARG_LCUT = data.BMARG_LCUT
+            dl.BMARG_LCUT = data.BMARG_LCUT  # TODO if tnitit != bmarg_lcut size, error. Either extract from tniti, or make it an actual user-parameter. 
             dl.BMARG_RESCALE = data.BMARG_RESCALE
 
             dl.CENTRALNLEV_UKAMIN = data.CENTRALNLEV_UKAMIN
             dl.nlev_t = data.CENTRALNLEV_UKAMIN/np.sqrt(2) if data.nlev_t == None else data.nlev_t
-            dl.nlev_p = data.CENTRALNLEV_UKAMIN if data.nlev_p == None else data.nlev_t
-
+            dl.nlev_p = data.CENTRALNLEV_UKAMIN if data.nlev_p == None else data.nlev_p
+    
             if data.isOBD:
                 if data.tpl == 'template_dense':
                     def tpl_kwargs(lmax_marg, geom, sht_threads, _lib_dir=None, rescal=1.):
@@ -144,12 +147,12 @@ class p2lensrec_Transformer:
             dl.mmax_unl = iteration.mmax_unl
 
             dl.tol = iteration.TOL
-            dl.tol_iter = lambda it : 10 ** (- dl.tol)
+            dl.tol_iter = lambda itr : 10 ** (- dl.tol) if itr <= 10 else 10 ** (-(dl.tol+1)) 
             dl.soltn_cond = iteration.soltn_cond # Uses (or not) previous E-mode solution as input to search for current iteration one
             dl.cg_tol = iteration.CG_TOL
 
             dl.cpp = np.copy(dl.cls_unl['pp'][:dl.lmax_qlm + 1])
-            dl.cpp[:iteration.Lmin] *= 0.
+            dl.cpp[:iteration.Lmin] *= 0. # TODO *0 or *1e-5?
 
             dl.lensres = iteration.LENSRES
             dl.tr = int(os.environ.get('OMP_NUM_THREADS', iteration.OMP_NUM_THREADS))
@@ -175,7 +178,7 @@ class p2lensrec_Transformer:
 
 
             if iteration.FILTER == 'cinv_sepTP':
-                mask_norm = iteration.mask_norm
+                mask_norm = cf.data.mask_norm
                 dl.ninv_t = [np.array([hp.nside2pixarea(dl.nside, degrees=True) * 60 ** 2 / dl.nlev_t ** 2])/mask_norm] + dl.masks
                 dl.ninv_p = [[np.array([hp.nside2pixarea(dl.nside, degrees=True) * 60 ** 2 / dl.nlev_p ** 2])/mask_norm] + dl.masks]
                 # TODO cinv_t adn cinv_p trigger computation. Perhaps move this to the lerepi job-level. Could be done via introducing a DLENSALOT_Filter model component
@@ -213,7 +216,7 @@ class p2lensrec_Transformer:
 
 
             if iteration.FILTER_QE == 'sepTP':
-                # ---- QE libraries from plancklens to calculate unnormalized QE (qlms) and their spectra (qcls)
+                # ---- QE libraries from plancklens to calculate unnormalized QE (qlms)
                 dl.mc_sims_bias = np.arange(60, dtype=int)
                 dl.mc_sims_var  = np.arange(60, 300, dtype=int)
                 dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.ivfs, dl.ivfs, dl.cls_len['te'], dl.nside, lmax_qlm=iteration.lmax_qlm)
@@ -223,15 +226,14 @@ class p2lensrec_Transformer:
         @log_on_end(logging.INFO, "Finished _process_geometryparams()")
         def _process_geometryparams(dl, geometry):
             # TODO this is quite a hacky way for extracting zbounds independent of data object.. simplify..
-            if '08d' in geometry.zbounds[0]:
-                from lerepi.config.cmbs4.data import data_08d as if_s_loc
-                if 'ILC_May2022' in geometry.zbounds[0]:
-                    # Take fg00 as it shouldn't matter for zbounds which to take
-                    sims_loc = if_s_loc.ILC_May2022('00', mask_suffix=cf.data.mask_suffix)
-                    zbounds_loc = sims_loc.get_zbounds(hp.read_map(sims_loc.get_mask_path()), geometry.zbounds[1])
-                if geometry.zbounds_len[0] ==  geometry.zbounds[0]:
-                    zbounds_len_loc = sims_loc.extend_zbounds(zbounds_loc, geometry.zbounds_len[1])
-
+            _ui = geometry.zbounds[0].split('/')
+            _sims_module_name = 'lerepi.config.'+_ui[0]+'.data.data_'+_ui[1]
+            _sims_class_name = _ui[-1]
+            _sims_module = importlib.import_module(_sims_module_name)
+            sims_loc = getattr(_sims_module, _sims_class_name)('00', mask_suffix=cf.data.mask_suffix)
+            zbounds_loc = sims_loc.get_zbounds(hp.read_map(sims_loc.get_mask_path()), geometry.zbounds[1])
+            if geometry.zbounds_len[0] ==  geometry.zbounds[0]:
+                zbounds_len_loc = sims_loc.extend_zbounds(zbounds_loc, geometry.zbounds_len[1])
 
             if geometry.lenjob_geometry == 'thin_gauss':
                 dl.lenjob_geometry = utils_scarf.Geom.get_thingauss_geometry(geometry.lmax_unl, 2, zbounds=zbounds_len_loc)
@@ -291,6 +293,8 @@ class p2d_Transformer:
     @log_on_start(logging.INFO, "Start of build()")
     @log_on_end(logging.INFO, "Finished build()")
     def build(self, cf):
+        # TODO make this an option for the user. If needed, user can define their own edges via configfile.
+        fs_edges = np.arange(2,3000, 20)
         ioreco_edges = np.array([2, 30, 200, 300, 500, 700, 1000, 1500, 2000, 3000, 4000, 5000])
         cmbs4_edges = np.array([2, 30, 60, 90, 120, 150, 180, 200, 300, 500, 700, 1000, 1500, 2000, 3000, 4000, 5000])
         def _process_delensingparams(dl, de):
@@ -300,32 +304,32 @@ class p2d_Transformer:
                 dl.edges = ioreco_edges
             elif de.edges == 'cmbs4':
                 dl.edges = cmbs4_edges
+            elif de.edges == 'fs':
+                dl.edges = fs_edges
             dl.edges_center = (dl.edges[1:]+dl.edges[:-1])/2.
             dl.imin = de.IMIN
             dl.imax = de.IMAX
             dl.itmax = de.ITMAX
             dl.fg = de.fg
+ 
+            _ui = cf.data.sims.split('/')
+            _sims_module_name = 'lerepi.config.'+_ui[0]+'.data.data_'+_ui[1]
+            _sims_class_name = _ui[-1]
+            _sims_module = importlib.import_module(_sims_module_name)
+            dl.sims = getattr(_sims_module, _sims_class_name)(dl.fg, mask_suffix=dl.mask_suffix) # TODO this should be a *kwargs
 
-            # CMB_S4 mask only needed for rotating ILC maps
-            # TODO this is quite hacky, prettify. Perhaps load data like done with config file in core.handler.
-            # The way it is right now doesn't scale and only works for 08d. What if we run pico.
-            if '08d' in de.base_mask:
-                from lerepi.config.cmbs4.data import data_08d as if_s
-                if 'ILC_May2022' in de.base_mask:
-                    dl.sims = if_s.ILC_May2022(de.fg)
-                    maskpath = dl.sims.get_mask_path()
-                    dl.base_mask = np.nan_to_num(
-                        hp.read_map(maskpath))
+            maskpath = dl.sims.get_mask_path()
+            dl.base_mask = np.nan_to_num(hp.read_map(maskpath))
             dl.TEMP = transform(cf, p2T_Transformer())
             dl.analysis_path = dl.TEMP.split('/')[-1]
             dl.nlevels = de.nlevels
             dl.nside = de.nside
             dl.lmax_cl = de.lmax_cl
             dl.lmax_lib = 3*dl.lmax_cl-1
-            dl.beam = 2.3
+            dl.beam = de.beam
             dl.lmax_transf = de.lmax_transf
             if de.transf == 'gauss':
-                dl.transf = hp.gauss_beam(de.beam / 180. / 60. * np.pi, lmax=dl.lmax_transf)
+                dl.transf = hp.gauss_beam(dl.beam / 180. / 60. * np.pi, lmax=dl.lmax_transf)
 
             if de.Cl_fid == 'ffp10':
                 dl.cls_path = opj(os.path.dirname(plancklens.__file__), 'data', 'cls')
@@ -379,24 +383,16 @@ class p2j_Transformer:
         return jobs
 
 
-@transform.case(DLENSALOT_Model, p2d_Transformer)
+@transform.case(DLENSALOT_Model, p2j_Transformer)
 def f1(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)
 
-@transform.case(DLENSALOT_Model, p2j_Transformer)
+@transform.case(DLENSALOT_Model, p2T_Transformer)
 def f2(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)
 
-@transform.case(DLENSALOT_Model, p2q_Transformer)
+@transform.case(DLENSALOT_Model, p2lensrec_Transformer)
 def f3(expr, transformer): # pylint: disable=missing-function-docstring
-    # TODO this could be a solution to connect to a future 'query' module. Transform into query language, and query.
-    # But I am not entirely convinced it is the right way to use the same config file to define query specification.
-    # Maybe if the configfile is the one copied to the TEMP dir it is ok..
-    assert 0, "Implement if needed"
-    return transformer.build(expr)
-
-@transform.case(DLENSALOT_Model, p2T_Transformer)
-def f4(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)
 
 @transform.case(DLENSALOT_Model, p2d_Transformer)
@@ -405,5 +401,13 @@ def f5(expr, transformer): # pylint: disable=missing-function-docstring
 
 @transform.case(DLENSALOT_Model, p2i_Transformer)
 def f6(expr, transformer): # pylint: disable=missing-function-docstring
+    assert 0, "Implement if needed"
+    return transformer.build(expr)
+
+@transform.case(DLENSALOT_Model, p2q_Transformer)
+def f7(expr, transformer): # pylint: disable=missing-function-docstring
+    # TODO this could be a solution to connect to a future 'query' module. Transform into query language, and query.
+    # But I am not entirely convinced it is the right way to use the same config file to define query specification.
+    # Maybe if the configfile is the one copied to the TEMP dir it is ok..
     assert 0, "Implement if needed"
     return transformer.build(expr)

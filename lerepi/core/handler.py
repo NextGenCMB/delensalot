@@ -15,6 +15,8 @@ import shutil
 
 import logging
 from logdecorator import log_on_start, log_on_end
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
 
 from plancklens.helpers import mpi
 
@@ -55,6 +57,7 @@ class handler():
     @log_on_end(logging.INFO, "Finished run()")
     def run(self):
         for transf, job in self.jobs:
+            log.info("Starting job {}".format(job))
             model = transform(*transf)           
             j = job(model)
             j.collect_jobs()
@@ -83,7 +86,7 @@ class handler():
                     paramfile_old = handler.load_paramfile(TEMP+'/'+parser.config_file.split('/')[-1], 'paramfile_old')   
                     for key, val in paramfile_old.dlensalot_model.__dict__.items():
                         for k, v in val.__dict__.items():
-                            if v != paramfile.dlensalot_model.__dict__[key].__dict__[k]:
+                            if v.__str__() != paramfile.dlensalot_model.__dict__[key].__dict__[k].__str__():
                                 if callable(v):
                                     # If it's a function, we can test if bytecode is the same as a simple check won't work due to pointing to memory location
                                     if v.__code__.co_code != paramfile.dlensalot_model.__dict__[key].__dict__[k].__code__.co_code:

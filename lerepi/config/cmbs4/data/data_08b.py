@@ -16,7 +16,8 @@ class caterinaILC_May12:
         These maps are multiplied with the weights used for the ILC
 
     """
-    def __init__(self, fg, facunits=1e6, rhitsi=True):
+    def __init__(self, fg, facunits=1e6, rhitsi=True, mask_suffix=None):
+        assert mask_suffix == None, 'Implement if needed'
         assert fg in ['00', '07', '09']
         self.facunits = facunits
         self.fg = fg
@@ -41,6 +42,53 @@ class caterinaILC_May12:
         retu = np.nan_to_num(hp.read_map(self.path_noise%idx, field=2)) * self.facunits
         fac = 1. if not self.rhitsi else np.nan_to_num(hp.read_map(self.p2mask))
         return retq * utils.cli(fac), retu * utils.cli(fac)
+
+
+    def get_nlev_mask(ratio, rhits):
+        """Mask built thresholding the relative hit counts map
+            Note:
+                Same as 06b
+        """
+        rhits_loc = np.nan_to_num(rhits)
+        mask = np.where(rhits/np.max(rhits_loc) < 1. / ratio, 0., rhits_loc)
+        
+        return np.nan_to_num(mask)
+
+
+    def get_zbounds(self, rhits, hits_ratio=np.inf):
+        """Cos-tht bounds for thresholded mask
+
+        """
+        pix = np.where(caterinaILC_May12.get_nlev_mask(hits_ratio, rhits))[0]
+        tht, phi = hp.pix2ang(2048, pix)
+        zbounds = np.cos(np.max(tht)), np.cos(np.min(tht))
+
+        return zbounds
+
+    
+    def extend_zbounds(self, zbounds, degrees=5.):
+        """Extends given zbounds by some degrees.
+
+        Args:
+            zbounds (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
+        zbounds_len = [np.cos(np.arccos(zbounds[0]) + degrees / 180 * np.pi), np.cos(np.arccos(zbounds[1]) - degrees / 180 * np.pi)]
+        zbounds_len[0] = max(zbounds_len[0], -1.)
+        zbounds_len[1] = min(zbounds_len[1],  1.)
+
+        return zbounds_len
+
+    def get_mask(self):
+
+        return hp.read_map(self.p2mask, field=0)
+    
+    
+    def get_mask_path(self):
+        
+        return self.p2mask
 
 
 class caterinaILC_Sep12:
