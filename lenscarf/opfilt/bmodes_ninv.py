@@ -13,6 +13,7 @@ from plancklens.qcinv import opfilt_pp
 
 
 from lenscarf import utils_scarf as us
+import lenscarf.utils_sims as usims
 from lenscarf.utils_hp import Alm
 from lenscarf.core import healpix_hack as hph
 
@@ -296,6 +297,7 @@ class eblm_filter_ninv(opfilt_pp.alm_filter_ninv):
             assert len(self.templates)  == 0, 'templates-cuts mixing not implemented'
 
         self.blm_range = blm_range
+        self.map_trunc = usims.ztrunc_sims(None, nside=2048, zbounds_list=[zbounds])
         self.templates = []
         if lmax_marg > 1:
             assert len(self.n_inv) == 1, 'implement if 3'

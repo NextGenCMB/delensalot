@@ -482,7 +482,7 @@ class qlm_iterator(object):
     def calc_graddet(self, itr, key):
         assert 0, 'subclass this'
 
-
+       
 class iterator_cstmf(qlm_iterator):
     """Constant mean-field
 

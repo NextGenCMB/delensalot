@@ -11,20 +11,55 @@ from os.path import join as opj
 import logging
 log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
+import datetime
+import getpass
 
 import numpy as np
 import healpy as hp
 
 from plancklens import utils, qresp
 from plancklens.helpers import mpi
+from plancklens.sims import planck2018_sims
+
+from MSC import pospace as ps
 
 from lenscarf.utils_hp import almxfl, alm_copy
 from lenscarf.iterators.statics import rec as Rec
 from lenscarf.iterators import iteration_handler
+from lenscarf.opfilt.bmodes_ninv import template_bfilt
 
-from plancklens.sims import planck2018_sims
 from lerepi.config.cmbs4.data import data_08d as sims_if
-from component_separation.MSC.MSC import pospace as ps
+
+
+class OBD_builder():
+    def __init__(self, OBD_model):
+        self.__dict__.update(OBD_model.__dict__)
+
+
+    @log_on_start(logging.INFO, "Start of collect_jobs()")
+    @log_on_end(logging.INFO, "Finished collect_jobs()")
+    def collect_jobs(self):
+        # This is faking the collect/run structure, as bpl takes care of MPI 
+        jobs = [1]
+        self.jobs = jobs
+
+
+    def run(self):
+        # This fakes the collect/run structure, as bpl takes care of MPI 
+        for job in self.jobs:
+            bpl = template_bfilt(self.lmax_marg, self.geom, int(os.environ.get('OMP_NUM_THREADS', 4)), _lib_dir=self.TEMP)
+            if not os.path.exists(self.TEMP + '/tnit.npy'):
+                bpl._get_rows_mpi(self.ninv_p)  # builds all rows in parallel
+            mpi.barrier()
+            if mpi.rank == 0:
+                tnit = bpl._build_tnit()
+                np.save(self.TEMP + '/tnit.npy', tnit)
+                tniti = np.linalg.inv(tnit + np.diag((1. / (self.nlev_dep / 180. / 60. * np.pi) ** 2) * np.ones(tnit.shape[0])))
+                np.save(self.TEMP + '/tniti.npy', tniti)
+                readme = '{}: This tniti has been created from user {} using lerepi/D.lensalot with the following settings: {}'.format(getpass.getuser(), datetime.today(), self.__dict__)
+                np.save(self.TEMP + '/README.txt', readme)
+                mpi.barrier()
+                mpi.finalize()
 
 
 class QE_lr():
@@ -144,7 +179,7 @@ class QE_lr():
 
 class MAP_lr():
     def __init__(self, dlensalot_model):
-        # TODO not entirely happy how QE dependence is put into MAP_delensing but cannot think of anything better at the moment.
+        # TODO not entirely happy how QE dependence is put into MAP_lr but cannot think of anything better at the moment.
         self.qe = QE_lr(dlensalot_model)
         self.dlensalot_model = dlensalot_model
         self.libdir_iterators = lambda qe_key, simidx, version: opj(dlensalot_model.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
@@ -235,15 +270,14 @@ class B_template_construction():
     @log_on_start(logging.INFO, "Start of run()")
     @log_on_end(logging.INFO, "Finished run()")
     def run(self):
-        self.qe.collect_jobs()
+        self.qe.run()
         for idx in self.jobs[mpi.rank::mpi.size]:
             lib_dir_iterator = self.libdir_iterators(self.dlensalot_model.k, idx, self.dlensalot_model.version)
-            if self.dlensalot_model.itmax >= 0 and Rec.maxiterdone(lib_dir_iterator) >= self.dlensalot_model.itmax:
-                itlib = self.ith(self.qe, self.dlensalot_model.k, idx, self.dlensalot_model.version, self.libdir_iterators, self.dlensalot_model)
-                itlib_iterator = itlib.get_iterator()
-                for it in range(0, self.dlensalot_model.itmax + 1):
-                    if it <= Rec.maxiterdone(lib_dir_iterator):
-                        itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1)
+            itlib = self.ith(self.qe, self.dlensalot_model.k, idx, self.dlensalot_model.version, self.libdir_iterators, self.dlensalot_model)
+            itlib_iterator = itlib.get_iterator()
+            for it in range(0, self.dlensalot_model.itmax + 1):
+                if it <= Rec.maxiterdone(lib_dir_iterator):
+                    itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1)
 
 
 class map_delensing():
@@ -262,6 +296,7 @@ class map_delensing():
     @log_on_end(logging.INFO, "Finished getfn_blm_lensc()")
     def getfn_blm_lensc(self, ana_p, simidx, it):
         '''Lenscarf output using Catherinas E and B maps'''
+        # TODO remove hardcoding
         rootstr = '/global/cscratch1/sd/sebibel/cmbs4/'
 
         return rootstr+ana_p+'/p_p_sim%04d/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(simidx, it, it)
@@ -294,7 +329,7 @@ class map_delensing():
             sims_may  = sims_if.ILC_May2022(self.bmd_model.fg, mask_suffix=int(nlev))
             nlev_mask = sims_may.get_mask() 
             self.lib_nm.update({nlev: ps.map2cl_binned(nlev_mask, self.bmd_model.clc_templ[:self.bmd_model.lmax_lib], self.bmd_model.edges, self.bmd_model.lmax_lib)})
-       
+        # TODO remove hardcoding
         dirroot = '/global/cscratch1/sd/sebibel/cmbs4/'+self.bmd_model.analysis_path+'/plotdata/'
         if not(os.path.isdir(dirroot + '{}'.format(self.bmd_model.dirid))):
             os.makedirs(dirroot + '{}'.format(self.bmd_model.dirid))
@@ -334,4 +369,3 @@ class map_delensing():
                 outputdata[4][nlevi] = bcl_Llensc_QE_nm           
                 outputdata[5][nlevi] = bcl_cslensc_QE_nm
             np.save(file_op, outputdata)
-

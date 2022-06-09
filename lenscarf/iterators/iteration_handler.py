@@ -33,10 +33,10 @@ class scarf_iterator_pertmf():
                 cg_tol: tolerance of conjugate-gradient filter
 
         """ 
+        self.__dict__.update(lensing_config.__dict__)
         self.k = k
         self.simidx = simidx
         self.version = version
-        self.lensing_config = lensing_config
         
         self.libdir_iterator = libdir_iterators(k, simidx, version)
         if not os.path.exists(self.libdir_iterator):
@@ -51,8 +51,8 @@ class scarf_iterator_pertmf():
         self.mf0 = self.qe.get_meanfield_it0(self.simidx)
         self.plm0 = self.qe.get_plm_it0(self.simidx)
 
-        self.ffi = remapping.deflection(self.lensing_config.lenjob_pbgeometry, self.lensing_config.lensres, np.zeros_like(self.plm0),
-            self.lensing_config.mmax_qlm, self.tr, self.tr)
+        self.ffi = remapping.deflection(self.lenjob_pbgeometry, self.lensres, np.zeros_like(self.plm0),
+            self.mmax_qlm, self.tr, self.tr)
         self.datmaps = self.get_datmaps()
         self.filter = self.get_filter(self.sims_MAP, self.ffi, self.tpl)
         # TODO not sure why this happens here. Could be done much earlier
@@ -63,7 +63,7 @@ class scarf_iterator_pertmf():
     @log_on_end(logging.INFO, "Finished get_datmaps()")
     def get_datmaps(self):
         assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
-        self.sims_MAP  = utils_sims.ztrunc_sims(self.lensing_config.sims, self.lensing_config.nside, [self.lensing_config.zbounds])
+        self.sims_MAP  = utils_sims.ztrunc_sims(self.sims, self.nside, [self.zbounds])
         datmaps = np.array(self.sims_MAP.get_sim_pmap(int(self.simidx)))
 
         return datmaps
@@ -80,15 +80,15 @@ class scarf_iterator_pertmf():
         if tpl == None:
             tpl = self.tpl
         wee = self.k == 'p_p' # keeps or not the EE-like terms in the generalized QEs
-        ninv = [sims_MAP.ztruncify(read_map(ni)) for ni in self.lensing_config.ninv_p] # inverse pixel noise map on consistent geometry
-        filter = opfilt_ee_wl.alm_filter_ninv_wl(self.lensing_config.ninvjob_geometry, ninv, ffi, self.lensing_config.transf_elm, (self.lensing_config.lmax_unl, self.lensing_config.mmax_unl), (self.lensing_config.lmax_ivf, self.lensing_config.mmax_ivf), self.tr, tpl,
-                                                wee=wee, lmin_dotop=min(self.lensing_config.lmin_elm, self.lensing_config.lmin_blm), transf_blm=self.lensing_config.transf_blm)
+        ninv = [sims_MAP.ztruncify(read_map(ni)) for ni in self.ninv_p] # inverse pixel noise map on consistent geometry
+        # TODO bug? transf = self.transf_elm? Or should it be transf_tlm?
+        filter = opfilt_ee_wl.alm_filter_ninv_wl(self.ninvjob_geometry, ninv, ffi, self.transf_elm, (self.lmax_unl, self.mmax_unl), (self.lmax_ivf, self.mmax_ivf), self.tr, tpl,
+                                                wee=wee, lmin_dotop=min(self.lmin_elm, self.lmin_blm), transf_blm=self.transf_blm)
         self.k_geom = filter.ffi.geom # Customizable Geometry for position-space operations in calculations of the iterated QEs etc
 
         return filter
 
 
-    # TODO this should somewhat be transformed into a visitor pattern
     @log_on_start(logging.INFO, "Start of get_iterator()")
     @log_on_end(logging.INFO, "Finished get_iterator()")
     def get_iterator(self):
@@ -98,16 +98,101 @@ class scarf_iterator_pertmf():
             _type_: _description_
         """
         iterator = cs_iterator.iterator_pertmf(
-            self.libdir_iterator, 'p', (self.lensing_config.lmax_qlm, self.lensing_config.mmax_qlm), self.datmaps, self.plm0, self.mf_resp,
-            self.R_unl, self.lensing_config.cpp, self.lensing_config.cls_unl, self.filter, self.k_geom, self.chain_descr,
-            self.lensing_config.stepper, mf0=self.mf0, wflm0=self.wflm0)
+            self.libdir_iterator, 'p', (self.lmax_qlm, self.mmax_qlm), self.datmaps, self.plm0, self.mf_resp,
+            self.R_unl, self.cpp, self.cls_unl, self.filter, self.k_geom, self.chain_descr,
+            self.stepper, mf0=self.mf0, wflm0=self.wflm0)
         
         return iterator
 
 
-# TODO Change into a proper visitor pattern if needed
+class scarf_iterator_constmf():
+    def __init__(self, qe, k:str, simidx:int, version:str, libdir_iterators, lensing_config):
+        """Return constmf iterator instance for simulation idx and qe_key type k
+
+            Args:
+                k: 'p_p' for Pol-only, 'ptt' for T-only, 'p_eb' for EB-only, etc
+                simidx: simulation index to build iterative lensing estimate on
+                version: string to use to test variants of the iterator with otherwise the same parfile
+                        (here if 'noMF' is in version, will not use any mean-fied at the very first step)
+                cg_tol: tolerance of conjugate-gradient filter
+
+        """ 
+        self.k = k
+        self.simidx = simidx
+        self.version = version
+        self.__dict__.update(lensing_config.__dict__)
+        
+        self.libdir_iterator = libdir_iterators(k, simidx, version)
+        if not os.path.exists(self.libdir_iterator):
+            os.makedirs(self.libdir_iterator)
+        self.tpl = lensing_config.tpl
+        self.tr = lensing_config.tr
+
+        self.qe = qe
+        self.mf_resp = qe.get_meanfield_response_it0()
+        self.wflm0 = qe.get_wflm0(simidx)
+        self.R_unl = qe.R_unl()
+        self.mf0 = self.qe.get_meanfield_it0(self.simidx)
+        self.plm0 = self.qe.get_plm_it0(self.simidx)
+
+        self.ffi = remapping.deflection(self.lenjob_pbgeometry, self.lensres, np.zeros_like(self.plm0),
+            self.mmax_qlm, self.tr, self.tr)
+        self.datmaps = self.get_datmaps()
+        self.filter = self.get_filter(self.sims_MAP, self.ffi, self.tpl)
+        # TODO not sure why this happens here. Could be done much earlier
+        self.chain_descr = lensing_config.chain_descr(lensing_config.lmax_unl, lensing_config.cg_tol)
+
+
+    @log_on_start(logging.INFO, "Start of get_datmaps()")
+    @log_on_end(logging.INFO, "Finished get_datmaps()")
+    def get_datmaps(self):
+        assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
+        self.sims_MAP  = utils_sims.ztrunc_sims(self.sims, self.nside, [self.zbounds])
+        datmaps = np.array(self.sims_MAP.get_sim_pmap(int(self.simidx)))
+
+        return datmaps
+
+
+    @log_on_start(logging.INFO, "Start of get_filter()")
+    @log_on_end(logging.INFO, "Finished get_filter()")
+    def get_filter(self, sims_MAP=None, ffi=None, tpl=None):
+        assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
+        if sims_MAP == None:
+            sims_MAP = self.sims_MAP
+        if ffi == None:
+            ffi = self.ffi
+        if tpl == None:
+            tpl = self.tpl
+        wee = self.k == 'p_p' # keeps or not the EE-like terms in the generalized QEs
+        ninv = [sims_MAP.ztruncify(read_map(ni)) for ni in self.ninv_p] # inverse pixel noise map on consistent geometry
+        filter = opfilt_ee_wl.alm_filter_ninv_wl(self.ninvjob_geometry, ninv, ffi, self.transf_elm, (self.lmax_unl, self.mmax_unl), (self.lmax_ivf, self.mmax_ivf), self.tr, tpl,
+                                                wee=wee, lmin_dotop=min(self.lmin_elm, self.lmin_blm), transf_blm=self.transf_blm)
+        self.k_geom = filter.ffi.geom # Customizable Geometry for position-space operations in calculations of the iterated QEs etc
+
+        return filter
+
+
+    @log_on_start(logging.INFO, "Start of get_iterator()")
+    @log_on_end(logging.INFO, "Finished get_iterator()")
+    def get_iterator(self):
+        """iterator_pertmf needs a whole lot of parameters, which are calculated when initialising this class.
+
+        Returns:
+            _type_: _description_
+        """
+        iterator = cs_iterator.iterator_pertmf(
+            self.libdir_iterator, 'p', (self.lmax_qlm, self.mmax_qlm), self.datmaps, self.plm0, self.mf0,
+            self.R_unl, self.cpp, self.cls_unl, self.filter, self.k_geom, self.chain_descr,
+            self.stepper, wflm0=self.wflm0)
+        
+        return iterator
+
+
+# TODO Change into a proper visitor pattern
 def transformer(descr):
     if descr == 'pertmf':
         return scarf_iterator_pertmf
+    elif descr == 'constmf':
+        return scarf_iterator_constmf
     else:
         assert 0, "Not yet implemented"
