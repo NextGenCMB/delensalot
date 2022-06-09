@@ -6,7 +6,7 @@ from lerepi.core.metamodel.dlensalot import *
 
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(
-        build_OBD = True,
+        build_OBD = False,
         QE_lensrec = False,
         MAP_lensrec = False,
         Btemplate_per_iteration = False,
@@ -14,7 +14,7 @@ dlensalot_model = DLENSALOT_Model(
         inspect_result = False
     ),
     data = DLENSALOT_Data(
-        TEMP_suffix = 'OBDbuilder2',
+        TEMP_suffix = 'example',
         fg = '00',
         sims = 'cmbs4/08b/caterinaILC_May12',
         zbounds =  ('nmr_relative', 10),
@@ -33,7 +33,7 @@ dlensalot_model = DLENSALOT_Model(
         IMIN = 0,
         IMAX = 99,
         nsims_mf = 100,
-        OMP_NUM_THREADS = 32,
+        OMP_NUM_THREADS = 8,
         Lmin = 4, 
         CG_TOL = 1e-3,
         TOL = 3,

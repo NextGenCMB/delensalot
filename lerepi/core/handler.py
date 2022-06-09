@@ -29,7 +29,8 @@ class handler():
     def __init__(self, parser):
         self.paramfile = handler.load_paramfile(parser.config_file, 'paramfile')
         TEMP = transform(self.paramfile.dlensalot_model, p2T_Transformer())
-        self.store(parser, self.paramfile, TEMP)
+        if mpi.rank == 0:
+            self.store(parser, self.paramfile, TEMP)
 
 
     @log_on_start(logging.INFO, "Start of collect_jobs()")

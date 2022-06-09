@@ -6,6 +6,7 @@ from lerepi.core.metamodel.dlensalot import *
 
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(
+        build_OBD = True,
         QE_lensrec = False,
         MAP_lensrec = True,
         Btemplate_per_iteration = True,
@@ -13,27 +14,17 @@ dlensalot_model = DLENSALOT_Model(
         inspect_result = False
     ),
     data = DLENSALOT_Data(
-        TEMP_suffix = '',
+        TEMP_suffix = 'example',
         fg = '00',
         sims = 'cmbs4/08d/ILC_May2022',
-        mask = ('nlev', 100),
-        zbounds =  ('nmr_relative', np.inf),
-        zbounds_len = ('extend', 5.),
+        zbounds =  ('nmr_relative', 10),
+        zbounds_len = ('extend', 5.),   
         nside = 2048,
         BEAM = 2.3,
         lmax_transf = 4000,
         transf = hp.gauss_beam,
-        pbounds = (0., 2*np.pi),
-        isOBD = True, # The next 10 parameters all belong to the noisemodel in some way.
-        noisemodel_rhits = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08d/masks/08d_rhits_positive_nonan.fits', #If OBD used, this must be the exact same map with which tniti was build
-        noisemodel_norm = 1.0, #divide noisemodel by this value # TODO not sure if needed
-        BMARG_LIBDIR = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08d/',
-        BMARG_LCUT = 200,
-        tpl = 'template_dense',
-        BMARG_RESCALE = 1.44,
-        CENTRALNLEV_UKAMIN = 0.59,
-        nlev_t = 0.59/np.sqrt(2),
-        nlev_p = 0.59
+        pbounds = [0, 2*np.pi],
+        tpl = 'template_dense'
     ),
     iteration = DLENSALOT_Iteration(
         K = 'p_p',
@@ -48,9 +39,6 @@ dlensalot_model = DLENSALOT_Model(
         TOL = 3,
         soltn_cond = lambda it: True,
         lmax_filt = 4096,
-        lmin_tlm = 30,
-        lmin_elm = 30,
-        lmin_blm = 30, #Supress all modes below this value, hacky version of OBD
         lmax_qlm = 4096,
         mmax_qlm = 4096,
         lmax_unl = 4000,
@@ -108,5 +96,22 @@ dlensalot_model = DLENSALOT_Model(
         lmax_transf = 4000,
         transf = 'gauss',
         Cl_fid = 'ffp10'
+    ),
+    noisemodel = DLENSALOT_Noisemodel(
+        type = 'OBD',
+        BMARG_LIBDIR = '/global/cscratch1/sd/sebibel/cmbs4/08d_00_OBD_MF100/OBD_matrix/', # '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08d/',
+        BMARG_LCUT = 200,
+        BMARG_RESCALE = 1.0,
+        lmin_tlm = 30,
+        lmin_elm = 30,
+        lmin_blm = 30,
+        CENTRALNLEV_UKAMIN = 0.59,
+        nlev_t = 0.59/np.sqrt(2),
+        nlev_p = 0.59,
+        nlev_dep = 1e5,
+        inf = 1e8,
+        ratio = np.inf,
+        mask = ('nlev', np.inf),
+        noisemodel_rhits = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08d/masks/08d_rhits_positive_nonan.fits',
     )
 )

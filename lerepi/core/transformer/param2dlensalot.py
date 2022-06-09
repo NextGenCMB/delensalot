@@ -186,7 +186,8 @@ class p2lensrec_Transformer:
                 dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), iteration.lmax_ivf,dl.nside, dl.cls_len, dl.transf_tlm, dl.ninv_t,
                                 marge_monopole=True, marge_dipole=True, marge_maps=[])
 
-                if dl.isOBD:
+                # TODO this could move to _OBDparams()
+                if dl.OBD_type == 'OBD':
                     transf_elm_loc = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf)
                     
                     dl.cinv_p = cinv_p_OBD.cinv_p(opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, dl.nside, dl.cls_len, transf_elm_loc[:dl.lmax_ivf+1], dl.ninv_p, geom=dl.ninvjob_qe_geometry,
@@ -201,7 +202,6 @@ class p2lensrec_Transformer:
                 dl.fbl_rs = np.ones(iteration.lmax_ivf + 1, dtype=float) * (np.arange(iteration.lmax_ivf + 1) >= dl.lmin_blm)
                 dl.ivfs   = filt_util.library_ftl(dl.ivfs_raw, iteration.lmax_ivf, dl.ftl_rs, dl.fel_rs, dl.fbl_rs)
 
-
             if iteration.QE_LENSING_CL_ANALYSIS == True:
                 dl.ss_dict = { k : v for k, v in zip( np.concatenate( [ range(i*60, (i+1)*60) for i in range(0,5) ] ),
                                         np.concatenate( [ np.roll( range(i*60, (i+1)*60), -1 ) for i in range(0,5) ] ) ) }
@@ -213,17 +213,18 @@ class p2lensrec_Transformer:
                 dl.qlms_ds = qest.library_sepTP(opj(dl.TEMP, 'qlms_ds'), iteration.ivfs, iteration.ivfs_d, dl.cls_len['te'], dl.nside, lmax_qlm=iteration.lmax_qlm)
                 dl.qlms_ss = qest.library_sepTP(opj(dl.TEMP, 'qlms_ss'), iteration.ivfs, iteration.ivfs_s, dl.cls_len['te'], dl.nside, lmax_qlm=iteration.lmax_qlm)
 
+                dl.mc_sims_bias = np.arange(60, dtype=int)
+                dl.mc_sims_var  = np.arange(60, 300, dtype=int)
+
                 dl.qcls_ds = qecl.library(opj(dl.TEMP, 'qcls_ds'), dl.qlms_ds, dl.qlms_ds, np.array([]))  # for QE RDN0 calculations
                 dl.qcls_ss = qecl.library(opj(dl.TEMP, 'qcls_ss'), dl.qlms_ss, dl.qlms_ss, np.array([]))  # for QE RDN0 / MCN0 calculations
                 dl.qcls_dd = qecl.library(opj(dl.TEMP, 'qcls_dd'), dl.qlms_dd, dl.qlms_dd, dl.mc_sims_bias)
 
-
             if iteration.FILTER_QE == 'sepTP':
                 # ---- QE libraries from plancklens to calculate unnormalized QE (qlms)
-                dl.mc_sims_bias = np.arange(60, dtype=int)
-                dl.mc_sims_var  = np.arange(60, 300, dtype=int)
                 dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.ivfs, dl.ivfs, dl.cls_len['te'], dl.nside, lmax_qlm=iteration.lmax_qlm)
-                
+            else:
+                assert 0, 'Implement if needed'
 
         @log_on_start(logging.INFO, "Start of _process_geometryparams()")
         @log_on_end(logging.INFO, "Finished _process_geometryparams()")
@@ -284,13 +285,14 @@ class p2lensrec_Transformer:
         def _process_OBDparams(dl, ob):
             dl.OBD_type = ob.OBD_type
             dl.BMARG_LCUT = ob.BMARG_LCUT
+            dl.BMARG_LIBDIR = ob.BMARG_LIBDIR
             if dl.OBD_type == 'OBD':
                 # TODO need to check if tniti exists, and if tniti is the correct one
                 if cf.data.tpl == 'template_dense':
                     def tpl_kwargs(lmax_marg, geom, sht_threads, _lib_dir=None, rescal=1.):
                         return locals()
                     dl.tpl = template_dense
-                    dl.tpl_kwargs = tpl_kwargs(ob.BMARG_LCUT, dl.ninvjob_geometry, cf.iteration.OMP_NUM_THREADS, _lib_dir=ob.BMARG_LIBDIR, rescal=ob.BMARG_RESCALE) 
+                    dl.tpl_kwargs = tpl_kwargs(ob.BMARG_LCUT, dl.ninvjob_geometry, cf.iteration.OMP_NUM_THREADS, _lib_dir=dl.BMARG_LIBDIR, rescal=ob.BMARG_RESCALE) 
                 else:
                     assert 0, "Implement if needed"
             elif dl.OBD_type == 'trunc':
@@ -306,6 +308,10 @@ class p2lensrec_Transformer:
                 dl.lmin_tlm = 0
                 dl.lmin_elm = 0
                 dl.lmin_blm = 0
+            else:
+                log.error("Don't understand your OBD_type input. Exiting..")
+                traceback.print_stack()
+                sys.exit()
 
 
         dl = DLENSALOT_Concept()
@@ -370,7 +376,7 @@ class p2OBD_Transformer:
         masks =  p2OBD_Transformer.get_masks(cf)
         noisemodel_rhits_map = p2OBD_Transformer.get_nlrh_map(cf)
         noisemodel_norm = np.max(noisemodel_rhits_map)
-        b_transf = gauss_beam(cf.data.BEAM/180 / 60 * np.pi, lmax=cf.iteration.lmax_ivf)
+        b_transf = gauss_beam(cf.data.BEAM/180 / 60 * np.pi, lmax=cf.iteration.lmax_ivf) # TODO ninv_p doesn't depend on this anyway, right?
         ninv_desc = [[np.array([hp.nside2pixarea(cf.data.nside, degrees=True) * 60 ** 2 / nlev_p ** 2])/noisemodel_norm] + masks]
         ninv_p = opfilt_pp.alm_filter_ninv(ninv_desc, b_transf, marge_qmaps=(), marge_umaps=()).get_ninv()
 
