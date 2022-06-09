@@ -8,6 +8,7 @@ __author__ = "S. Belkner, J. Carron, L. Legrand"
 import os, sys
 from os.path import join as opj
 import importlib
+import traceback
 
 import logging
 log = logging.getLogger(__name__)
@@ -22,6 +23,7 @@ import plancklens
 from plancklens import qest, qecl, utils
 from plancklens.filt import filt_util, filt_cinv
 from plancklens.qcinv import cd_solve
+from plancklens.qcinv import opfilt_pp
 
 from lenscarf import utils_scarf
 import lenscarf.core.handler as lenscarf_handler
@@ -31,9 +33,10 @@ from lenscarf.utils_hp import gauss_beam
 from lenscarf.opfilt import utils_cinv_p as cinv_p_OBD
 from lenscarf.opfilt.bmodes_ninv import template_dense
 
-from lerepi.config import config_helper as ch
+from lerepi.config.config_helper import data_functions as df
 from lerepi.core.visitor import transform
 from lerepi.core.metamodel.dlensalot import DLENSALOT_Concept, DLENSALOT_Model
+
 
 class p2T_Transformer:
     """Directory is built upon runtime, so accessing it here
@@ -45,15 +48,36 @@ class p2T_Transformer:
     @log_on_end(logging.INFO, "Finished build()")
     def build(self, cf):
         _nsims_mf = 0 if cf.iteration.V == 'noMF' else cf.iteration.nsims_mf
-        _suffix = cf.data.sims.split('/')[1]+'_%s_r%s'%(cf.data.fg, cf.data.mask_suffix)+'_isOBD'*cf.data.isOBD
+        _suffix = cf.data.sims.split('/')[1]+'_%s'%(cf.data.fg)
+        if cf.OBD.type == 'OBD':
+            _suffix += '_OBD'
+        elif cf.OBD.type == 'trunc':
+            _suffix += '_OBDtrunc'+cf.data.lmin_blm
+        elif cf.OBD.type == 'None' or cf.OBD.type == None:
+            _suffix += '_noOBD'
+
         _suffix += '_MF%s'%(_nsims_mf) if _nsims_mf > 0 else ''
         if cf.data.TEMP_suffix != '':
             _suffix += '_'+cf.data.TEMP_suffix
         TEMP =  opj(os.environ['SCRATCH'], cf.data.sims.split('/')[0], _suffix)
+
         return TEMP
 
 
-# TODO parameters are sometimes redundant, not general, and not descriptive 
+    @log_on_start(logging.INFO, "Start of build_del_suffix()")
+    @log_on_end(logging.INFO, "Finished build_del_suffix()")
+    def build_del_suffix(self, dl):
+
+        return os.path.join(dl.TEMP, dl.analysis_path, 'plotdata')
+
+
+    @log_on_start(logging.INFO, "Start of build_OBD()")
+    @log_on_end(logging.INFO, "Finished build_OBD()")
+    def build_OBD(self, dl):
+
+        return os.path.join(dl.TEMP, 'OBD_matrix')
+
+
 class p2lensrec_Transformer:
     """_summary_
     """
@@ -65,59 +89,41 @@ class p2lensrec_Transformer:
         @log_on_end(logging.INFO, "Finished _process_dataparams()")
         def _process_dataparams(dl, data):
             dl.TEMP = transform(cf, p2T_Transformer())
-            dl.mask_suffix = data.mask_suffix
             dl.nside = data.nside
-            dl.isOBD = data.isOBD
             # TODO simplify the following two attributes
             dl.nsims_mf = 0 if cf.iteration.V == 'noMF' else cf.iteration.nsims_mf
             dl.mc_sims_mf_it0 = np.arange(dl.nsims_mf)
-            dl.rhits = hp.read_map(data.rhits)
             dl.fg = data.fg
 
             _ui = data.sims.split('/')
             _sims_module_name = 'lerepi.config.'+_ui[0]+'.data.data_'+_ui[1]
             _sims_class_name = _ui[-1]
             _sims_module = importlib.import_module(_sims_module_name)
-            dl.sims = getattr(_sims_module, _sims_class_name)(dl.fg, mask_suffix=dl.mask_suffix)
+            dl.sims = getattr(_sims_module, _sims_class_name)(dl.fg)
 
-            _ui = data.mask.split('/')
-            _mask_class_name = _ui[-1]
-            _mask_module_name = 'lerepi.config.'+_ui[0]+'.data.data_'+_ui[1]
-            _mask_module = importlib.import_module(_mask_module_name)
-            dl.mask = getattr(_mask_module, _mask_class_name)(dl.fg, mask_suffix=dl.mask_suffix)
-            ch.get_mask_path()
-            dl.masks = [dl.mask] # TODO [masks] doesn't work as intented
+            dl.masks = p2OBD_Transformer.get_masks(cf)
 
             dl.beam = data.BEAM
             dl.lmax_transf = data.lmax_transf
             dl.transf = data.transf(dl.beam / 180. / 60. * np.pi, lmax=dl.lmax_transf)
 
-            if data.zbounds[0] ==  data.sims:
-                dl.zbounds = dl.sims.get_zbounds(hp.read_map(dl.mask),data.zbounds[1])
-            if data.zbounds_len[0] ==  data.sims:
-                dl.zbounds_len = dl.sims.extend_zbounds(dl.zbounds, data.zbounds_len[1])
-            dl.pb_ctr, dl.pb_extent = data.pbounds
-
-            dl.DATA_libdir = data.DATA_LIBDIR # TODO I don't really need this..
-            dl.BMARG_LIBDIR = data.BMARG_LIBDIR
-            dl.BMARG_LCUT = data.BMARG_LCUT  # TODO if tnitit != bmarg_lcut size, error. Either extract from tniti, or make it an actual user-parameter. 
-            dl.BMARG_RESCALE = data.BMARG_RESCALE
-
-            dl.CENTRALNLEV_UKAMIN = data.CENTRALNLEV_UKAMIN
-            dl.nlev_t = data.CENTRALNLEV_UKAMIN/np.sqrt(2) if data.nlev_t == None else data.nlev_t
-            dl.nlev_p = data.CENTRALNLEV_UKAMIN if data.nlev_p == None else data.nlev_p
-    
-            if data.isOBD:
-                if data.tpl == 'template_dense':
-                    def tpl_kwargs(lmax_marg, geom, sht_threads, _lib_dir=None, rescal=1.):
-                        return locals()
-                    dl.tpl = template_dense
-                    dl.tpl_kwargs = tpl_kwargs(data.BMARG_LCUT, dl.ninvjob_geometry, cf.iteration.OMP_NUM_THREADS, _lib_dir=data.BMARG_LIBDIR, rescal=data.BMARG_RESCALE)
-                    
-                else:
-                    assert 0, "Implement if needed"
+            if data.zbounds[0] == 'nmr_relative':
+                dl.zbounds = df.get_zbounds(dl.noisemodel_rhits_map, data.zbounds[1])
+            elif data.zbounds[0] == float or data.zbounds[0] == int:
+                dl.zbounds = data.zbounds
             else:
-                dl.tpl = None
+                log.error('Not sure what to do with this zbounds: {}'.format(data.zbounds))
+                traceback.print_stack()
+                sys.exit()
+            if data.zbounds_len[0] == 'extend':
+                dl.zbounds_len = df.extend_zbounds(dl.zbounds, degrees=data.zbounds_len[1])
+            elif data.zbounds_len[0] == float or data.zbounds_len[0] == int:
+                dl.zbounds_len = data.zbounds_len
+            else:
+                log.error('Not sure what to do with this zbounds_len: {}'.format(data.zbounds_len))
+                traceback.print_stack()
+                sys.exit()
+            dl.pb_ctr, dl.pb_extent = data.pbounds
 
             cls_path = opj(os.path.dirname(plancklens.__file__), 'data', 'cls')
             dl.cls_unl = utils.camb_clfile(opj(cls_path, 'FFP10_wdipole_lenspotentialCls.dat'))
@@ -134,9 +140,6 @@ class p2lensrec_Transformer:
             dl.imax = iteration.IMAX
             dl.lmax_filt = iteration.lmax_filt
             
-            dl.lmin_tlm = iteration.lmin_tlm
-            dl.lmin_elm = iteration.lmin_elm
-            dl.lmin_blm = iteration.lmin_blm
             dl.lmax_qlm = iteration.lmax_qlm
             dl.mmax_qlm = iteration.mmax_qlm
             
@@ -158,13 +161,13 @@ class p2lensrec_Transformer:
             dl.tr = int(os.environ.get('OMP_NUM_THREADS', iteration.OMP_NUM_THREADS))
             dl.iterator = iteration.ITERATOR
 
-            dl.get_btemplate_per_iteration = iteration.get_btemplate_per_iteration
-
             if iteration.STANDARD_TRANSFERFUNCTION == True:
+                dl.nlev_t = p2OBD_Transformer.get_nlevt(cf)
+                dl.nlev_p = p2OBD_Transformer.get_nlevp(cf)
                 # Fiducial model of the transfer function
-                dl.transf_tlm = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf) * (np.arange(iteration.lmax_ivf + 1) >= iteration.lmin_tlm)
-                dl.transf_elm = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf) * (np.arange(iteration.lmax_ivf + 1) >= iteration.lmin_elm)
-                dl.transf_blm = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf) * (np.arange(iteration.lmax_ivf + 1) >= iteration.lmin_blm)
+                dl.transf_tlm = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf) * (np.arange(iteration.lmax_ivf + 1) >= dl.lmin_tlm)
+                dl.transf_elm = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf) * (np.arange(iteration.lmax_ivf + 1) >= dl.lmin_elm)
+                dl.transf_blm = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf) * (np.arange(iteration.lmax_ivf + 1) >= dl.lmin_blm)
 
                 # Isotropic approximation to the filtering (used eg for response calculations)
                 dl.ftl =  cli(dl.cls_len['tt'][:iteration.lmax_ivf + 1] + (dl.nlev_t / 180 / 60 * np.pi) ** 2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
@@ -176,16 +179,16 @@ class p2lensrec_Transformer:
                 dl.fel_unl =  cli(dl.cls_unl['ee'][:iteration.lmax_ivf + 1] + (dl.nlev_p / 180 / 60 * np.pi) ** 2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
                 dl.fbl_unl =  cli(dl.cls_unl['bb'][:iteration.lmax_ivf + 1] + (dl.nlev_p / 180 / 60 * np.pi) ** 2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
 
-
             if iteration.FILTER == 'cinv_sepTP':
-                mask_norm = cf.data.mask_norm
-                dl.ninv_t = [np.array([hp.nside2pixarea(dl.nside, degrees=True) * 60 ** 2 / dl.nlev_t ** 2])/mask_norm] + dl.masks
-                dl.ninv_p = [[np.array([hp.nside2pixarea(dl.nside, degrees=True) * 60 ** 2 / dl.nlev_p ** 2])/mask_norm] + dl.masks]
-                # TODO cinv_t adn cinv_p trigger computation. Perhaps move this to the lerepi job-level. Could be done via introducing a DLENSALOT_Filter model component
+                dl.ninv_t = p2OBD_Transformer.get_ninvt(cf)
+                dl.ninv_p = p2OBD_Transformer.get_ninvp(cf)
+                # TODO cinv_t and cinv_p trigger computation. Perhaps move this to the lerepi job-level. Could be done via introducing a DLENSALOT_Filter model component
                 dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), iteration.lmax_ivf,dl.nside, dl.cls_len, dl.transf_tlm, dl.ninv_t,
                                 marge_monopole=True, marge_dipole=True, marge_maps=[])
+
                 if dl.isOBD:
                     transf_elm_loc = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf)
+                    
                     dl.cinv_p = cinv_p_OBD.cinv_p(opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, dl.nside, dl.cls_len, transf_elm_loc[:dl.lmax_ivf+1], dl.ninv_p, geom=dl.ninvjob_qe_geometry,
                         chain_descr=dl.chain_descr(iteration.lmax_ivf, iteration.CG_TOL), bmarg_lmax=dl.BMARG_LCUT, zbounds=dl.zbounds, _bmarg_lib_dir=dl.BMARG_LIBDIR, _bmarg_rescal=dl.BMARG_RESCALE, sht_threads=cf.iteration.OMP_NUM_THREADS)
                 else:
@@ -193,9 +196,9 @@ class p2lensrec_Transformer:
                         chain_descr=dl.chain_descr(iteration.lmax_ivf, iteration.CG_TOL), transf_blm=dl.transf_blm, marge_qmaps=(), marge_umaps=())
 
                 dl.ivfs_raw = filt_cinv.library_cinv_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl.cinv_t, dl.cinv_p, dl.cls_len)
-                dl.ftl_rs = np.ones(iteration.lmax_ivf + 1, dtype=float) * (np.arange(iteration.lmax_ivf + 1) >= iteration.lmin_tlm)
-                dl.fel_rs = np.ones(iteration.lmax_ivf + 1, dtype=float) * (np.arange(iteration.lmax_ivf + 1) >= iteration.lmin_elm)
-                dl.fbl_rs = np.ones(iteration.lmax_ivf + 1, dtype=float) * (np.arange(iteration.lmax_ivf + 1) >= iteration.lmin_blm)
+                dl.ftl_rs = np.ones(iteration.lmax_ivf + 1, dtype=float) * (np.arange(iteration.lmax_ivf + 1) >= dl.lmin_tlm)
+                dl.fel_rs = np.ones(iteration.lmax_ivf + 1, dtype=float) * (np.arange(iteration.lmax_ivf + 1) >= dl.lmin_elm)
+                dl.fbl_rs = np.ones(iteration.lmax_ivf + 1, dtype=float) * (np.arange(iteration.lmax_ivf + 1) >= dl.lmin_blm)
                 dl.ivfs   = filt_util.library_ftl(dl.ivfs_raw, iteration.lmax_ivf, dl.ftl_rs, dl.fel_rs, dl.fbl_rs)
 
 
@@ -225,21 +228,29 @@ class p2lensrec_Transformer:
         @log_on_start(logging.INFO, "Start of _process_geometryparams()")
         @log_on_end(logging.INFO, "Finished _process_geometryparams()")
         def _process_geometryparams(dl, geometry):
-            _ui = geometry.zbounds[0].split('/')
-            _sims_module_name = 'lerepi.config.'+_ui[0]+'.data.data_'+_ui[1]
-            _sims_class_name = _ui[-1]
-            _sims_module = importlib.import_module(_sims_module_name)
-            sims_loc = getattr(_sims_module, _sims_class_name)('00', mask_suffix=cf.data.mask_suffix)
-            zbounds_loc = sims_loc.get_zbounds(hp.read_map(sims_loc.get_mask_path()), geometry.zbounds[1])
-            if geometry.zbounds_len[0] ==  geometry.zbounds[0]:
-                zbounds_len_loc = sims_loc.extend_zbounds(zbounds_loc, geometry.zbounds_len[1])
+            if geometry.zbounds[0] == 'nmr_relative':
+                zbounds_loc = df.get_zbounds(hp.read_map(cf.data.noisemodel_rhits), geometry.zbounds[1])
+            elif geometry.zbounds[0] == float or geometry.zbounds[0] == int:
+                zbounds_loc = geometry.zbounds
+            else:
+                log.error('Not sure what to do with this zbounds: {}'.format(geometry.zbounds))
+                traceback.print_stack()
+                sys.exit()
+            if geometry.zbounds_len[0] == 'extend':
+                zbounds_len_loc = df.extend_zbounds(zbounds_loc, degrees=geometry.zbounds_len[1])
+            elif geometry.zbounds_len[0] == float or geometry.zbounds_len[0] == int:
+                zbounds_len_loc = geometry.zbounds_len
+            else:
+                log.error('Not sure what to do with this zbounds_len: {}'.format(geometry.zbounds_len))
+                traceback.print_stack()
+                sys.exit()
 
             if geometry.lenjob_geometry == 'thin_gauss':
                 dl.lenjob_geometry = utils_scarf.Geom.get_thingauss_geometry(geometry.lmax_unl, 2, zbounds=zbounds_len_loc)
             if geometry.lenjob_pbgeometry == 'pbdGeometry':
                 dl.lenjob_pbgeometry = utils_scarf.pbdGeometry(dl.lenjob_geometry, utils_scarf.pbounds(geometry.pbounds[0], geometry.pbounds[1]))
             if geometry.ninvjob_geometry == 'healpix_geometry':
-                    # ninv MAP geometry. Could be merged with QE, if next comment resolved
+                # ninv MAP geometry. Could be merged with QE, if next comment resolved
                 dl.ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(geometry.nside, zbounds=zbounds_loc)
             if geometry.ninvjob_qe_geometry == 'healpix_geometry_qe':
                 # TODO for QE, isOBD only works with zbounds=(-1,1). Perhaps missing ztrunc on qumaps
@@ -268,18 +279,147 @@ class p2lensrec_Transformer:
                 dl.stepper = steps.harmonicbump(st.lmax_qlm, st.mmax_qlm, xa=st.xa, xb=st.xb)
 
 
+        @log_on_start(logging.INFO, "Start of _process_OBDparams()")
+        @log_on_end(logging.INFO, "Finished _process_OBDparams()")
+        def _process_OBDparams(dl, ob):
+            dl.OBD_type = ob.OBD_type   
+            if dl.OBD_type == 'OBD':
+                # TODO need to check if tniti exists, and if tniti is the correct one
+                if cf.data.tpl == 'template_dense':
+                    def tpl_kwargs(lmax_marg, geom, sht_threads, _lib_dir=None, rescal=1.):
+                        return locals()
+                    dl.tpl = template_dense
+                    dl.tpl_kwargs = tpl_kwargs(ob.BMARG_LCUT, dl.ninvjob_geometry, cf.iteration.OMP_NUM_THREADS, _lib_dir=ob.BMARG_LIBDIR, rescal=ob.BMARG_RESCALE) 
+                else:
+                    assert 0, "Implement if needed"
+            elif dl.OBD_type == 'trunc':
+                dl.tpl = None
+                dl.tpl_kwargs = None
+                dl.lmin_tlm = ob.lmin_tlm
+                dl.lmin_elm = ob.lmin_elm
+                dl.lmin_blm = ob.lmin_blm
+            elif dl.OBD_type == None or dl.OBD_type == 'None':
+                dl.tpl = None
+                dl.tpl_kwargs = None
+                # TODO are 0s a good value? 
+                dl.lmin_tlm = 0
+                dl.lmin_elm = 0
+                dl.lmin_blm = 0
+
+
         dl = DLENSALOT_Concept()
+        _process_OBDparams(dl, cf.obd)
         _process_geometryparams(dl, cf.geometry)
         _process_dataparams(dl, cf.data)
         _process_chaindescparams(dl, cf.chain_descriptor)
         _process_iterationparams(dl, cf.iteration)
         _process_stepperparams(dl, cf.stepper)
 
+        log.info("I am gong to work with the following values: {}".format(dl.__dict__))
+
+        return dl
+
+
+class p2OBD_Transformer:
+    """Extracts all parameters needed for building consistent OBD
+    """
+    @log_on_start(logging.INFO, "Start of get_nlrh_map()")
+    @log_on_end(logging.INFO, "Finished get_nlrh_map()")
+    def get_nlrh_map(cf):
+        noisemodel_rhits_map = p2OBD_Transformer.get_nlrh_map(cf)
+        noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.build_OBD.inf
+
+        return noisemodel_rhits_map
+
+    @log_on_start(logging.INFO, "Start of get_nlevt()")
+    @log_on_end(logging.INFO, "Finished get_nlevt()")
+    def get_nlevt(cf):
+        nlev_t = cf.data.CENTRALNLEV_UKAMIN/np.sqrt(2) if cf.data.nlev_t == None else cf.data.nlev_t
+
+        return nlev_t
+
+    @log_on_start(logging.INFO, "Start of get_nlevp()")
+    @log_on_end(logging.INFO, "Finished get_nlevp()")
+    def get_nlevp(cf):
+        nlev_p = cf.data.CENTRALNLEV_UKAMIN if cf.data.nlev_p == None else cf.data.nlev_p
+
+        return nlev_p
+
+    @log_on_start(logging.INFO, "Start of get_ninvt()")
+    @log_on_end(logging.INFO, "Finished get_ninvt()")
+    def get_ninvt(cf):
+        nlev_t = p2OBD_Transformer.get_nlevp(cf)
+        masks =  p2OBD_Transformer.get_masks(cf)
+        noisemodel_rhits_map = p2OBD_Transformer.get_nlrh_map(cf)
+        noisemodel_norm = np.max(noisemodel_rhits_map)
+        b_transf = cf.data.transf_blm
+        
+        ninv_desc = [[np.array([hp.nside2pixarea(cf.data.nside, degrees=True) * 60 ** 2 / nlev_t ** 2])/noisemodel_norm] + masks]
+        n_invt = opfilt_pp.alm_filter_ninv(ninv_desc, b_transf, marge_qmaps=(), marge_umaps=()).get_ninv()
+
+        return n_invt
+
+    @log_on_start(logging.INFO, "Start of get_ninvp()")
+    @log_on_end(logging.INFO, "Finished get_ninvp()")
+    def get_ninvp(cf):
+        nlev_p = p2OBD_Transformer.get_nlevp(cf)
+        masks =  p2OBD_Transformer.get_masks(cf)
+        noisemodel_rhits_map = p2OBD_Transformer.get_nlrh_map(cf)
+        noisemodel_norm = np.max(noisemodel_rhits_map)
+        b_transf = cf.data.transf_blm
+        ninv_desc = [[np.array([hp.nside2pixarea(cf.data.nside, degrees=True) * 60 ** 2 / nlev_p ** 2])/noisemodel_norm] + masks]
+        n_invp = opfilt_pp.alm_filter_ninv(ninv_desc, b_transf, marge_qmaps=(), marge_umaps=()).get_ninv()
+        
+        return n_invp
+
+    @log_on_start(logging.INFO, "Start of get_masks()")
+    @log_on_end(logging.INFO, "Finished get_masks()")
+    def get_masks(cf):
+        masks = []
+        noisemodel_rhits_map = p2OBD_Transformer.get_nlrh_map(cf)
+        if cf.data.noisemodel_rhits is not None:
+            df.get_nlev_mask(np.inf, cf.data.rhits)
+            masks.append(cf.data.noisemodel_rhits)
+        if cf.data.mask[0] == 'nlev':
+            _mask = df.get_nlev_mask(cf.OBD.mask[1], noisemodel_rhits_map)
+            _mask = np.where(_mask>0., 1., 0.)
+            masks.append(_mask)
+
+        return masks
+
+
+    def build(self, cf):
+        @log_on_start(logging.INFO, "Start of _process_builOBDparams()")
+        @log_on_end(logging.INFO, "Finished _process_builOBDparams()")
+        def _process_builOBDparams():
+            if os.path.isfile(opj(cf.obd.BMARG_LIBDIR,'tniti.npy')):
+                # TODO need to test if it is the right tniti.npy
+                log.warning("tniti.npy in destination dir {} already exists.".format(cf.obd.BMARG_LIBDIR))
+            elif os.path.isfile(opj(cf.obd.BMARG_LIBDIR_builpath,'tniti.npy')):
+                # TODO need to test if it is the right tniti.npy
+                log.warning("tniti.npy in buildpath dir {} already exists.".format(cf.obd.BMARG_LIBDIR_builpath))
+                log.warning("Exiting. Please check your settings.")
+                sys.exit()
+            else:
+                p2OBD_Transformer.get_ninv(cf)
+                dl.rhits_map = p2OBD_Transformer.get_nlrh_map(cf)
+                dl.nside = cf.data.nside
+                dl.nlev_dep = cf.build_OBD.nlev_dep
+                dl.central_noiselevel = cf.build_OBD.central_noiselevel
+                dl.masks = p2OBD_Transformer.get_masks(cf)
+                dl.nlev_p = p2OBD_Transformer.get_nlevp(cf)
+                dl.n_invp = p2OBD_Transformer.get_ninvp(cf)
+                dl.geom = utils_scarf.Geom.get_healpix_geometry(self.OBD_model.nside)
+                dl.TEMP = p2T_Transformer.build_OBD(p2T_Transformer.build(cf))
+
+        dl = DLENSALOT_Concept()
+        _process_builOBDparams()
+
         return dl
 
 
 class p2q_Transformer:
-    """Extracts all parameters needed for querying results of D.lensalot
+    """Extracts all parameters needed for building consistent OBD
     """
     def build(self, cf):
         pass
@@ -313,16 +453,18 @@ class p2d_Transformer:
             dl.itmax = de.ITMAX
             dl.fg = de.fg
  
-            _ui = cf.data.sims.split('/')
+            _ui = de.base_mask.split('/')
             _sims_module_name = 'lerepi.config.'+_ui[0]+'.data.data_'+_ui[1]
             _sims_class_name = _ui[-1]
             _sims_module = importlib.import_module(_sims_module_name)
-            dl.sims = getattr(_sims_module, _sims_class_name)(dl.fg, mask_suffix=dl.mask_suffix) # TODO this should be a *kwargs
+            de.sims = getattr(_sims_module, _sims_class_name)(dl.fg)
 
-            maskpath = dl.sims.get_mask_path()
-            dl.base_mask = np.nan_to_num(hp.read_map(maskpath))
+            mask_path = de.sims.p2mask
+            dl.base_mask = np.nan_to_num(hp.read_map(mask_path))
             dl.TEMP = transform(cf, p2T_Transformer())
             dl.analysis_path = dl.TEMP.split('/')[-1]
+            dl.TEMP_DELENSED_SPECTRUM = transform(dl, p2T_Transformer())
+
             dl.nlevels = de.nlevels
             dl.nside = de.nside
             dl.lmax_cl = de.lmax_cl
@@ -370,6 +512,8 @@ class p2j_Transformer:
     def build(self, pf):
         jobs = []
         # TODO if the pf.X objects were distinguishable by X2X_Transformer, could replace the seemingly redundant if checks here.
+        if pf.job.build_OBD:
+            jobs.append(((pf, p2OBD_Transformer()), lenscarf_handler.OBD_builder))
         if pf.job.QE_lensrec:
             jobs.append(((pf, p2lensrec_Transformer()), lenscarf_handler.QE_lr))
         if pf.job.MAP_lensrec:
@@ -389,11 +533,19 @@ def f1(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)
 
 @transform.case(DLENSALOT_Model, p2T_Transformer)
-def f2(expr, transformer): # pylint: disable=missing-function-docstring
+def f2a(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)
+
+@transform.case(DLENSALOT_Concept, p2T_Transformer)
+def f2b(expr, transformer): # pylint: disable=missing-function-docstring
+    return transformer.build_del(expr)
 
 @transform.case(DLENSALOT_Model, p2lensrec_Transformer)
 def f3(expr, transformer): # pylint: disable=missing-function-docstring
+    return transformer.build(expr)
+
+@transform.case(DLENSALOT_Model, p2OBD_Transformer)
+def f4(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)
 
 @transform.case(DLENSALOT_Model, p2d_Transformer)
@@ -402,13 +554,13 @@ def f5(expr, transformer): # pylint: disable=missing-function-docstring
 
 @transform.case(DLENSALOT_Model, p2i_Transformer)
 def f6(expr, transformer): # pylint: disable=missing-function-docstring
+    # TODO this could be a solution to connect to a future 'inspect' module,
+    # or 'prepare_inspect'..
     assert 0, "Implement if needed"
     return transformer.build(expr)
 
 @transform.case(DLENSALOT_Model, p2q_Transformer)
 def f7(expr, transformer): # pylint: disable=missing-function-docstring
-    # TODO this could be a solution to connect to a future 'query' module. Transform into query language, and query.
-    # But I am not entirely convinced it is the right way to use the same config file to define query specification.
-    # Maybe if the configfile is the one copied to the TEMP dir it is ok..
+    # TODO this could be a solution to connect to a future 'query' module. 
     assert 0, "Implement if needed"
     return transformer.build(expr)

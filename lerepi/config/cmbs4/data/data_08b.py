@@ -15,8 +15,7 @@ class caterinaILC_May12:
         These maps are multiplied with the weights used for the ILC
 
     """
-    def __init__(self, fg, facunits=1e6, rhitsi=True, mask_suffix=None):
-        assert mask_suffix == None, 'Implement if needed'
+    def __init__(self, fg, facunits=1e6, rhitsi=True):
         assert fg in ['00', '07', '09']
         self.facunits = facunits
         self.fg = fg
@@ -25,7 +24,6 @@ class caterinaILC_May12:
         self.path_noise =   p + '/cmbs4_08b' + fg + '_noise_b02_ellmin30_ellmax4050_map_2048_%04d.fits'
         self.rhitsi=rhitsi
         self.p2mask = p + '/ILC_mask_08b_smooth_30arcmin.fits' # Same mask as 06b
-        self.noisemodel_mask = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08b/08b_rhits_positive_nonan.fits'
 
 
     def hashdict(self):

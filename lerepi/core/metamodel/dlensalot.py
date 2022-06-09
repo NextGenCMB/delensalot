@@ -3,12 +3,11 @@
 """dlensalot.py: Contains the metamodel of the Dlensalot formalism.
 """
 __author__ = "S. Belkner, J. Carron, L. Legrand"
-
+# TODO I would like to come up with a better structure for this whole 'DLENSALOT_Model'
 
 import abc
 import attr
 
-# TODO I would like to come up with a better structure for this whole 'DLENSALOT_Model'
 
 class DLENSALOT_Concept:
     """An abstract element base type for the Dlensalot formalism."""
@@ -29,6 +28,7 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     chain_descriptor = attr.ib(default=[])
     stepper = attr.ib(default='')
     map_delensing = attr.ib(default='')
+    obd = attr.ib(default='')
 
 
 @attr.s
@@ -43,7 +43,7 @@ class DLENSALOT_Job(DLENSALOT_Concept):
     Btemplate_per_iteration = attr.ib(default='')
     inspect_result = attr.ib(default='')
     map_delensing = attr.ib(default='')
-    # TODO add job "build_OBD"
+    build_OBD = attr.ib(default='')
 
 
 @attr.s
@@ -53,15 +53,9 @@ class DLENSALOT_Data(DLENSALOT_Concept):
     Attributes:
         DATA_LIBDIR: path to the data
     """
-    mask_norm = attr.ib(default='')
-    DATA_LIBDIR = attr.ib(default='')
     TEMP_suffix = attr.ib(default='')
-    rhits = attr.ib(default='')
     fg = attr.ib(default='')
-    mask_suffix = attr.ib(default='')
     sims = attr.ib(default='')
-    mask = attr.ib(default='')
-    masks = attr.ib(default=[])
     nside = attr.ib(default='')
     BEAM = attr.ib(default='')
     lmax_transf = attr.ib(default='')
@@ -69,14 +63,8 @@ class DLENSALOT_Data(DLENSALOT_Concept):
     zbounds = attr.ib(default='')
     zbounds_len = attr.ib(default='')
     pbounds = attr.ib(default='')
-    isOBD = attr.ib(default='')
-    BMARG_LIBDIR = attr.ib(default='')
-    BMARG_LCUT = attr.ib(default='')
-    BMARG_RESCALE = attr.ib(default=1.)
+    OBD_type = attr.ib(default='')
     tpl = attr.ib(default='')
-    CENTRALNLEV_UKAMIN = attr.ib(default='')
-    nlev_t = attr.ib(default='')
-    nlev_p = attr.ib(default='')
 
 
 @attr.s
@@ -123,7 +111,6 @@ class DLENSALOT_Iteration(DLENSALOT_Concept):
     ITMAX = attr.ib(default='')
     IMIN = attr.ib(default='')
     IMAX = attr.ib(default='')
-    get_btemplate_per_iteration = attr.ib(default='')
     # Change the following block only if a full, Planck-like QE lensing power spectrum analysis is desired
     # This uses 'ds' and 'ss' QE's, crossing data with sims and sims with other sims.
     # This remaps idx -> idx + 1 by blocks of 60 up to 300. This is used to remap the sim indices for the 'MCN0' debiasing term in the QE spectrum
@@ -199,3 +186,28 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
     lmax_transf = attr.ib(default='')
     transf = attr.ib(default='')
     Cl_fid = attr.ib(default='')
+
+
+@attr.s
+class DLENSALOT_OBD(DLENSALOT_Concept):
+    """A root model element type of the Dlensalot formalism.
+
+    Attributes:
+        typ:
+    """
+    nlev_dep = attr.ib(default='')
+    inf = attr.ib(default='')
+    ratio = attr.ib(default='')
+    BMARG_LIBDIR = attr.ib(default='')
+    BMARG_LIBDIR_buildpath = attr.ib(default='')
+    BMARG_LCUT = attr.ib(default='')
+    BMARG_RESCALE = attr.ib(default='')
+    CENTRALNLEV_UKAMIN = 0.42,
+    nlev_t = 0.42/np.sqrt(2),
+    nlev_p = 0.42
+    nlev_dep = 10000.,
+    inf = 1e4,
+    ratio = np.inf,
+    mask = ('nlev', 100),
+    noisemodel_rhits = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08b/masks/08b_rhits_positive_nonan.fits', #If OBD used, this must be the exact same map with which tniti was build
+    noisemodel_norm = 1.0, #divide noisemodel by this value # TODO not sure if needed
