@@ -374,8 +374,6 @@ class p2OBD_Transformer:
         ninv_desc = [[np.array([hp.nside2pixarea(cf.data.nside, degrees=True) * 60 ** 2 / nlev_p ** 2])/noisemodel_norm] + masks]
         ninv_p = opfilt_pp.alm_filter_ninv(ninv_desc, b_transf, marge_qmaps=(), marge_umaps=()).get_ninv()
 
-        hp.write_map('/global/cscratch1/sd/sebibel/cmbs4/ninv_test.fits', ninv_p)
-        sys.exit()
         return ninv_p
 
 
