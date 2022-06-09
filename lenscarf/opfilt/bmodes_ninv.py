@@ -2,23 +2,38 @@
 
 
 """
-import os
+import os, sys
 import numpy as np
+import healpy as hp
 import scarf
+
+from plancklens import utils
+from plancklens.helpers import mpi
+from plancklens.qcinv import opfilt_pp
+
+
 from lenscarf import utils_scarf as us
+import lenscarf.utils_sims as usims
 from lenscarf.utils_hp import Alm
+from lenscarf.core import healpix_hack as hph
+
 from lenscarf.utils import enumerate_progress, read_map
 
 
 def lmax2nlm(lmax):
     """ returns the length of the complex alm array required for maximum multipole lmax. """
+
     return (lmax + 1) * (lmax + 2) // 2
 
+
 def nlm2lmax(nlm):
+
     """ returns the lmax for an array of alm with length nlm. """
     lmax = int(np.floor(np.sqrt(2 * nlm) - 1))
     assert ((lmax + 2) * (lmax + 1) // 2 == nlm)
+
     return lmax
+
 
 def rlm2alm(rlm):
     """ converts 'real harmonic' coefficients rlm to complex alm. """
@@ -34,6 +49,7 @@ def rlm2alm(rlm):
     alm[ls] = rlm[l2s]
     for m in range(1, lmax + 1):
         alm[m * (2 * lmax + 1 - m) // 2 + ls[m:]] = (rlm[l2s[m:] + 2 * m - 1] + 1.j * rlm[l2s[m:] + 2 * m + 0]) * ir2
+
     return alm
 
 
@@ -51,9 +67,8 @@ def alm2rlm(alm):
     for m in range(1, lmax + 1):
         rlm[l2s[m:] + 2 * m - 1] = alm[m * (2 * lmax + 1 - m) // 2 + ls[m:]].real * rt2
         rlm[l2s[m:] + 2 * m + 0] = alm[m * (2 * lmax + 1 - m) // 2 + ls[m:]].imag * rt2
+
     return rlm
-
-
 
 
 class template_bfilt(object):
@@ -70,7 +85,7 @@ class template_bfilt(object):
         """
         assert lmax_marg >= 2, lmax_marg
         self.lmax = lmax_marg
-        self.nmodes = (lmax_marg + 1) * lmax_marg + lmax_marg + 1 - 4
+        self.nmodes = int((lmax_marg + 1) * lmax_marg + lmax_marg + 1 - 4)
         if not np.all(geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
             print('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
             nr = geom.get_nrings()
@@ -91,31 +106,43 @@ class template_bfilt(object):
                 os.makedirs(_lib_dir)
             self.lib_dir = _lib_dir
 
+
     def hashdict(self):
+
         return {'lmax':self.lmax, 'geom':us.Geom.hashdict(self.sc_job.geom)}
+
 
     @staticmethod
     def get_nmodes(lmax):
+
         assert lmax >= 2, lmax
         return (lmax + 1) * lmax + lmax + 1 - 4
 
+
     @staticmethod
     def get_modelmax(mode):
+
         assert mode >= 0, mode
         nmodes = 0
         l = -1
         while nmodes - 1 < mode + 4:
             l += 1
             nmodes += 2 * l + 1
+
         return l
+
 
     @staticmethod
     def _rlm2blm(rlm):
+
         return rlm2alm(np.concatenate([np.zeros(4), rlm]))
+
 
     @staticmethod
     def _blm2rlm(blm):
+
         return alm2rlm(blm)[4:]
+
 
     def apply_qumode(self, qumap, mode):
         assert mode < self.nmodes, (mode, self.nmodes)
@@ -123,6 +150,7 @@ class template_bfilt(object):
         tcoeffs = np.zeros(self.get_nmodes(self.get_modelmax(mode)), dtype=float)
         tcoeffs[mode] = 1.0
         self.apply_qu(qumap, tcoeffs)
+
 
     def apply_qu(self, qumap, coeffs):  # RbQ  * Q or  RbU * U
         assert len(qumap) == 2
@@ -136,6 +164,7 @@ class template_bfilt(object):
         q, u = self.sc_job.alm2map_spin([elm, blm], 2)
         qumap[0] *= q
         qumap[1] *= u
+
 
     def accum(self, qumap, coeffs):
         """Forward template operation
@@ -153,6 +182,7 @@ class template_bfilt(object):
         qumap[0] += q
         qumap[1] += u
 
+
     def dot(self, qumap):
         """Backward template operation.
 
@@ -161,10 +191,12 @@ class template_bfilt(object):
 
         """
         assert len(qumap) == 2
-        assert qumap[0].size == self.npix and qumap[1].size == self.npix
+        assert qumap[0].size == self.npix and qumap[1].size == self.npix, ' '.join([str(qumap[1].shape), str(self.npix)])
         self.sc_job.set_triangular_alm_info(self.lmax, self.lmax)
         blm = self.sc_job.map2alm_spin(qumap, 2)[1]
+
         return self._blm2rlm(blm) # Units weight transform
+
 
     def build_tnit(self, NiQQ_NiUU_NiQU):
         """Return the nmodes x nmodes matrix (T^t N^{-1} T )_{bl bl'}'
@@ -177,8 +209,11 @@ class template_bfilt(object):
         """
         if self.lib_dir is not None:
             return self._build_tnit('')
-        NiQQ, NiUU, NiQU = NiQQ_NiUU_NiQU
-        assert NiQU is None
+        if NiQQ_NiUU_NiQU.shape[0] == 3: #Here, QQ and UU may be different, but NiQU negligible
+            NiQQ, NiUU, NiQU = NiQQ_NiUU_NiQU
+            assert NiQU is None
+        else: #Here, we assume that NiQQ = NiUU, and NiQU is negligible
+            NiQQ, NiUU, NiQU = NiQQ_NiUU_NiQU, NiQQ_NiUU_NiQU, None
         tnit = np.zeros((self.nmodes, self.nmodes), dtype=float)
         for i, a in enumerate_progress(range(self.nmodes),
                                              False * 'filling template matrix'):  # Starts at ell = 2
@@ -187,15 +222,18 @@ class template_bfilt(object):
             self.apply_qumode([_NiQ, _NiU], a)
             tnit[:, a] = self.dot([_NiQ, _NiU])
             tnit[a, :] = tnit[:, a]
+
         return tnit
+
 
     def _build_tnit(self, prefix=''):
         tnit = np.zeros((self.nmodes, self.nmodes), dtype=float)
-        for i, a in enumerate_progress(range(self.nmodes), label='collecting Tmat rows'):
+        for i, a in enumerate_progress(range(self.nmodes), label='collecting Pmat rows'):
             fname = os.path.join(self.lib_dir, prefix + 'row%05d.npy'%a)
             assert os.path.exists(fname)
             tnit[:, a]  = np.load(fname)
             tnit[a, :] = tnit[:, a]
+
         return tnit
 
 
@@ -203,12 +241,14 @@ class template_bfilt(object):
         """Produces and save all rows of the matrix for large matriz sizes
 
         """
-        from plancklens.helpers import mpi
         assert self.lib_dir is not None, 'cant do this without a lib_dir'
-        NiQQ, NiUU, NiQU = NiQQ_NiUU_NiQU
-        assert NiQU is None
+        if NiQQ_NiUU_NiQU.shape[0] == 3: #Here, QQ and UU may be different, but NiQU negligible
+            NiQQ, NiUU, NiQU = NiQQ_NiUU_NiQU
+            assert NiQU is None
+        else: #Here, we assume that NiQQ = NiUU, and NiQU is negligible
+            NiQQ, NiUU, NiQU = NiQQ_NiUU_NiQU, NiQQ_NiUU_NiQU, None
         assert self.nmodes <= 99999, 'ops, naming in the lines below'
-        for a in range(self.nmodes)[mpi.rank::mpi.size]:
+        for ai, a in enumerate_progress(range(self.nmodes)[mpi.rank::mpi.size], label='Calculating Pmat row'):
             fname = os.path.join(self.lib_dir, prefix + 'row%05d.npy'%a)
             if not os.path.exists(fname):
                 _NiQ = np.copy(NiQQ)  # Building Ni_{QX} R_bX
@@ -234,3 +274,99 @@ class template_dense(template_bfilt):
             print("reading " +os.path.join(self.lib_dir, 'tniti.npy') )
             print("Rescaling it with %.5f"%self.rescal)
         return self._tniti
+
+
+# TODO this is merely a copy paste of the itercurv version. Replace with lenscarf.bmodes_ninv.template_dense()
+class eblm_filter_ninv(opfilt_pp.alm_filter_ninv):
+    """Identical to *plancklens* polarization filter, but adding the $B$-marginalization possibility
+
+        Note:
+            n_inv is inverse pixel variance map (no volume factors or units)
+
+            set bmarg_lib_dir only to calculate the rows of the template with mpi later on, for very large bmarg_lmax
+
+            blm_range is only a way to approximately project out some modes,
+            you dont want to mix this with bmarg_lmax which is exact template marginalisation
+
+    """
+    def __init__(self, geom, n_inv, b_transf, lmax_marg=0, zbounds=(-1., 1.), blm_range=(2, np.inf), _bmarg_lib_dir=None, _bmarg_rescal=1., sht_threads=8):
+        super(eblm_filter_ninv, self).__init__(n_inv, b_transf)
+        self.n_inv = self.get_ninv()
+        self.nside = hp.npix2nside(len(self.n_inv[0]))
+        if not ( (blm_range[0] <= 2) and (blm_range[1] >= (3 * self.nside - 1)) ):
+            assert len(self.templates)  == 0, 'templates-cuts mixing not implemented'
+
+        self.blm_range = blm_range
+        self.map_trunc = usims.ztrunc_sims(None, nside=2048, zbounds_list=[zbounds])
+        self.templates = []
+        if lmax_marg > 1:
+            assert len(self.n_inv) == 1, 'implement if 3'
+            self.templates.append(template_bfilt(lmax_marg=lmax_marg, geom=geom, sht_threads=sht_threads, _lib_dir=_bmarg_lib_dir))
+        if len(self.templates) > 0:
+            if _bmarg_lib_dir is not None and os.path.exists( os.path.join(_bmarg_lib_dir, 'tniti.npy')):
+                print("Loading " + os.path.join(_bmarg_lib_dir, 'tniti.npy'))
+                self.tniti = np.load(os.path.join(_bmarg_lib_dir, 'tniti.npy'))
+                if _bmarg_rescal != 1.:
+                    print("**** RESCALING tiniti with %.4f"%_bmarg_rescal)
+                    self.tniti *= _bmarg_rescal
+            else:
+                print("Inverting template matrix:")
+                tnit = self.templates[0].build_tnit((self.n_inv[0], self.n_inv[0], None))
+                eigv, eigw = np.linalg.eigh(tnit)
+                if not np.all(eigv > 0):
+                    print('Negative or zero eigenvalues in template projection')
+                eigv_inv = utils.cli(eigv)
+                self.tniti = np.dot(np.dot(eigw, np.diag(eigv_inv)), np.transpose(eigw))
+                if _bmarg_lib_dir is not None and not os.path.exists(os.path.join(_bmarg_lib_dir, 'tniti.npy')):
+                    np.save(os.path.join(_bmarg_lib_dir, 'tniti.npy'), self.tniti)
+                    print("Cached " + os.path.join(_bmarg_lib_dir, 'tniti.npy'))
+
+        self.zbounds = zbounds
+
+
+    def apply_map(self, qumap):
+        [qmap, umap] = qumap
+        if len(self.n_inv) == 1:  # TT, QQ=UU
+            if (self.blm_range[0] <= 2) and (self.blm_range[1] >= (3 * self.nside - 1)):
+                qmap *= self.n_inv[0]
+                umap *= self.n_inv[0]
+                # tmap *= self.n_inv
+                if len(self.templates) != 0:
+                    coeffs = np.concatenate(([t.dot([qmap, umap]) for t in self.templates]))
+                    coeffs = np.dot(self.tniti, coeffs)
+                    pmodes = [np.zeros_like(qmap), np.zeros_like(umap)]
+                    im = 0
+                    for t in self.templates:
+                        t.accum(pmodes, coeffs[im:(im + t.nmodes)])
+                        im += t.nmodes
+                    pmodes[0] *= self.n_inv[0]
+                    pmodes[1] *= self.n_inv[0]
+                    qmap -= pmodes[0]
+                    umap -= pmodes[1]
+                    return qmap, umap
+            else:
+                print("apply_map: cuts %s %s"%(self.blm_range[0], self.blm_range[1]))
+                elm, blm = hph.map2alm_spin([qmap, umap], 2, lmax=min(3 * self.nside - 1, self.blm_range[1]))
+                if self.blm_range[0] > 2: # approx taking out the low-ell B-modes
+                    b_ftl = np.ones(hp.Alm.getlmax(blm.size) + 1, dtype=float)
+                    b_ftl[:self.blm_range[0]] *= 0.
+                    hp.almxfl(blm, b_ftl, inplace=True)
+
+                q, u = hph.alm2map_spin([elm, blm], self.nside, 2, hp.Alm.getlmax(elm.size), zbounds=self.zbounds)
+                qmap[:] = q * self.n_inv[0]
+                umap[:] = u * self.n_inv[0]
+                return qmap, umap
+
+        elif len(self.n_inv) == 3:  # TT, QQ, QU, UU
+            assert 0, 'implement template deproj.'
+            qmap_copy = qmap.copy()
+
+            qmap *= self.n_inv[0]
+            qmap += self.n_inv[1] * umap
+
+            umap *= self.n_inv[2]
+            umap += self.n_inv[1] * qmap_copy
+
+            del qmap_copy
+        else:
+            assert 0
