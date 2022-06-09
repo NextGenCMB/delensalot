@@ -49,11 +49,11 @@ class p2T_Transformer:
     def build(self, cf):
         _nsims_mf = 0 if cf.iteration.V == 'noMF' else cf.iteration.nsims_mf
         _suffix = cf.data.sims.split('/')[1]+'_%s'%(cf.data.fg)
-        if cf.OBD.type == 'OBD':
+        if cf.noisemodel.type == 'OBD':
             _suffix += '_OBD'
-        elif cf.OBD.type == 'trunc':
+        elif cf.noisemodel.type == 'trunc':
             _suffix += '_OBDtrunc'+cf.data.lmin_blm
-        elif cf.OBD.type == 'None' or cf.OBD.type == None:
+        elif cf.noisemodel.type == 'None' or cf.noisemodel.type == None:
             _suffix += '_noOBD'
 
         _suffix += '_MF%s'%(_nsims_mf) if _nsims_mf > 0 else ''
@@ -73,9 +73,9 @@ class p2T_Transformer:
 
     @log_on_start(logging.INFO, "Start of build_OBD()")
     @log_on_end(logging.INFO, "Finished build_OBD()")
-    def build_OBD(self, dl):
+    def build_OBD(self, TEMP):
 
-        return os.path.join(dl.TEMP, 'OBD_matrix')
+        return os.path.join(TEMP, 'OBD_matrix')
 
 
 class p2lensrec_Transformer:
@@ -282,7 +282,8 @@ class p2lensrec_Transformer:
         @log_on_start(logging.INFO, "Start of _process_OBDparams()")
         @log_on_end(logging.INFO, "Finished _process_OBDparams()")
         def _process_OBDparams(dl, ob):
-            dl.OBD_type = ob.OBD_type   
+            dl.OBD_type = ob.OBD_type
+            dl.BMARG_LCUT = ob.BMARG_LCUT
             if dl.OBD_type == 'OBD':
                 # TODO need to check if tniti exists, and if tniti is the correct one
                 if cf.data.tpl == 'template_dense':
@@ -308,7 +309,7 @@ class p2lensrec_Transformer:
 
 
         dl = DLENSALOT_Concept()
-        _process_OBDparams(dl, cf.obd)
+        _process_OBDparams(dl, cf.noisemodel)
         _process_geometryparams(dl, cf.geometry)
         _process_dataparams(dl, cf.data)
         _process_chaindescparams(dl, cf.chain_descriptor)
@@ -326,24 +327,27 @@ class p2OBD_Transformer:
     @log_on_start(logging.INFO, "Start of get_nlrh_map()")
     @log_on_end(logging.INFO, "Finished get_nlrh_map()")
     def get_nlrh_map(cf):
-        noisemodel_rhits_map = p2OBD_Transformer.get_nlrh_map(cf)
-        noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.build_OBD.inf
+        noisemodel_rhits_map = df.get_nlev_mask(np.inf, hp.read_map(cf.noisemodel.noisemodel_rhits))
+        noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.noisemodel.inf
 
         return noisemodel_rhits_map
+
 
     @log_on_start(logging.INFO, "Start of get_nlevt()")
     @log_on_end(logging.INFO, "Finished get_nlevt()")
     def get_nlevt(cf):
-        nlev_t = cf.data.CENTRALNLEV_UKAMIN/np.sqrt(2) if cf.data.nlev_t == None else cf.data.nlev_t
+        nlev_t = cf.data.CENTRALNLEV_UKAMIN/np.sqrt(2) if cf.noisemodel.nlev_t == None else cf.noisemodel.nlev_t
 
         return nlev_t
+
 
     @log_on_start(logging.INFO, "Start of get_nlevp()")
     @log_on_end(logging.INFO, "Finished get_nlevp()")
     def get_nlevp(cf):
-        nlev_p = cf.data.CENTRALNLEV_UKAMIN if cf.data.nlev_p == None else cf.data.nlev_p
+        nlev_p = cf.noisemodel.CENTRALNLEV_UKAMIN if cf.noisemodel.nlev_p == None else cf.noisemodel.nlev_p
 
         return nlev_p
+
 
     @log_on_start(logging.INFO, "Start of get_ninvt()")
     @log_on_end(logging.INFO, "Finished get_ninvt()")
@@ -352,12 +356,12 @@ class p2OBD_Transformer:
         masks =  p2OBD_Transformer.get_masks(cf)
         noisemodel_rhits_map = p2OBD_Transformer.get_nlrh_map(cf)
         noisemodel_norm = np.max(noisemodel_rhits_map)
-        b_transf = cf.data.transf_blm
-        
+        t_transf = gauss_beam(cf.data.beam/180 / 60 * np.pi, lmax=cf.iteration.lmax_ivf)
         ninv_desc = [[np.array([hp.nside2pixarea(cf.data.nside, degrees=True) * 60 ** 2 / nlev_t ** 2])/noisemodel_norm] + masks]
-        n_invt = opfilt_pp.alm_filter_ninv(ninv_desc, b_transf, marge_qmaps=(), marge_umaps=()).get_ninv()
+        ninv_t = opfilt_pp.alm_filter_ninv(ninv_desc, t_transf, marge_qmaps=(), marge_umaps=()).get_ninv()
 
-        return n_invt
+        return ninv_t
+
 
     @log_on_start(logging.INFO, "Start of get_ninvp()")
     @log_on_end(logging.INFO, "Finished get_ninvp()")
@@ -366,22 +370,25 @@ class p2OBD_Transformer:
         masks =  p2OBD_Transformer.get_masks(cf)
         noisemodel_rhits_map = p2OBD_Transformer.get_nlrh_map(cf)
         noisemodel_norm = np.max(noisemodel_rhits_map)
-        b_transf = cf.data.transf_blm
+        b_transf = gauss_beam(cf.data.BEAM/180 / 60 * np.pi, lmax=cf.iteration.lmax_ivf)
         ninv_desc = [[np.array([hp.nside2pixarea(cf.data.nside, degrees=True) * 60 ** 2 / nlev_p ** 2])/noisemodel_norm] + masks]
-        n_invp = opfilt_pp.alm_filter_ninv(ninv_desc, b_transf, marge_qmaps=(), marge_umaps=()).get_ninv()
-        
-        return n_invp
+        ninv_p = opfilt_pp.alm_filter_ninv(ninv_desc, b_transf, marge_qmaps=(), marge_umaps=()).get_ninv()
+
+        hp.write_map('/global/cscratch1/sd/sebibel/cmbs4/ninv_test.fits', ninv_p)
+        sys.exit()
+        return ninv_p
+
 
     @log_on_start(logging.INFO, "Start of get_masks()")
     @log_on_end(logging.INFO, "Finished get_masks()")
     def get_masks(cf):
         masks = []
-        noisemodel_rhits_map = p2OBD_Transformer.get_nlrh_map(cf)
-        if cf.data.noisemodel_rhits is not None:
-            df.get_nlev_mask(np.inf, cf.data.rhits)
-            masks.append(cf.data.noisemodel_rhits)
-        if cf.data.mask[0] == 'nlev':
-            _mask = df.get_nlev_mask(cf.OBD.mask[1], noisemodel_rhits_map)
+        if cf.noisemodel.noisemodel_rhits is not None:
+            msk = p2OBD_Transformer.get_nlrh_map(cf)
+            masks.append(msk)
+        if cf.noisemodel.mask[0] == 'nlev':
+            noisemodel_rhits_map = p2OBD_Transformer.get_nlrh_map(cf)
+            _mask = df.get_nlev_mask(cf.noisemodel.mask[1], noisemodel_rhits_map)
             _mask = np.where(_mask>0., 1., 0.)
             masks.append(_mask)
 
@@ -391,29 +398,31 @@ class p2OBD_Transformer:
     def build(self, cf):
         @log_on_start(logging.INFO, "Start of _process_builOBDparams()")
         @log_on_end(logging.INFO, "Finished _process_builOBDparams()")
-        def _process_builOBDparams():
-            if os.path.isfile(opj(cf.obd.BMARG_LIBDIR,'tniti.npy')):
+        def _process_builOBDparams(dl, nm):
+            _TEMP = transform(cf, p2T_Transformer())
+            dl.TEMP = transform(_TEMP, p2T_Transformer())
+            if os.path.isfile(opj(nm.BMARG_LIBDIR,'tniti.npy')):
                 # TODO need to test if it is the right tniti.npy
-                log.warning("tniti.npy in destination dir {} already exists.".format(cf.obd.BMARG_LIBDIR))
-            elif os.path.isfile(opj(cf.obd.BMARG_LIBDIR_builpath,'tniti.npy')):
+                log.warning("tniti.npy in destination dir {} already exists.".format(nm.BMARG_LIBDIR))
+            if os.path.isfile(opj(dl.TEMP,'tniti.npy')):
                 # TODO need to test if it is the right tniti.npy
-                log.warning("tniti.npy in buildpath dir {} already exists.".format(cf.obd.BMARG_LIBDIR_builpath))
+                log.warning("tniti.npy in buildpath dir {} already exists.".format(dl.TEMP))
                 log.warning("Exiting. Please check your settings.")
                 sys.exit()
             else:
-                p2OBD_Transformer.get_ninv(cf)
-                dl.rhits_map = p2OBD_Transformer.get_nlrh_map(cf)
+                dl.BMARG_LCUT = nm.BMARG_LCUT
                 dl.nside = cf.data.nside
-                dl.nlev_dep = cf.build_OBD.nlev_dep
-                dl.central_noiselevel = cf.build_OBD.central_noiselevel
+                dl.nlev_dep = nm.nlev_dep
+                dl.CENTRALNLEV_UKAMIN = nm.CENTRALNLEV_UKAMIN
+                dl.geom = utils_scarf.Geom.get_healpix_geometry(dl.nside)
+                dl.rhits_map = p2OBD_Transformer.get_nlrh_map(cf)
                 dl.masks = p2OBD_Transformer.get_masks(cf)
                 dl.nlev_p = p2OBD_Transformer.get_nlevp(cf)
-                dl.n_invp = p2OBD_Transformer.get_ninvp(cf)
-                dl.geom = utils_scarf.Geom.get_healpix_geometry(self.OBD_model.nside)
-                dl.TEMP = p2T_Transformer.build_OBD(p2T_Transformer.build(cf))
+                dl.ninv_p = p2OBD_Transformer.get_ninvp(cf)
+
 
         dl = DLENSALOT_Concept()
-        _process_builOBDparams()
+        _process_builOBDparams(dl, cf.noisemodel)
 
         return dl
 
@@ -422,6 +431,7 @@ class p2q_Transformer:
     """Extracts all parameters needed for building consistent OBD
     """
     def build(self, cf):
+        
         pass
 
 
@@ -538,7 +548,11 @@ def f2a(expr, transformer): # pylint: disable=missing-function-docstring
 
 @transform.case(DLENSALOT_Concept, p2T_Transformer)
 def f2b(expr, transformer): # pylint: disable=missing-function-docstring
-    return transformer.build_del(expr)
+    return transformer.build_del_suffix(expr)
+
+@transform.case(str, p2T_Transformer)
+def f2c(expr, transformer): # pylint: disable=missing-function-docstring
+    return transformer.build_OBD(expr)
 
 @transform.case(DLENSALOT_Model, p2lensrec_Transformer)
 def f3(expr, transformer): # pylint: disable=missing-function-docstring

@@ -28,7 +28,7 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     chain_descriptor = attr.ib(default=[])
     stepper = attr.ib(default='')
     map_delensing = attr.ib(default='')
-    obd = attr.ib(default='')
+    noisemodel = attr.ib(default='')
 
 
 @attr.s
@@ -189,25 +189,27 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
 
 
 @attr.s
-class DLENSALOT_OBD(DLENSALOT_Concept):
+class DLENSALOT_Noisemodel(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
 
     Attributes:
         typ:
     """
+    type = attr.ib(default='')
+    lmin_tlm = attr.ib(default='')
+    lmin_elm = attr.ib(default='')
+    lmin_blm = attr.ib(default='')
     nlev_dep = attr.ib(default='')
     inf = attr.ib(default='')
     ratio = attr.ib(default='')
     BMARG_LIBDIR = attr.ib(default='')
-    BMARG_LIBDIR_buildpath = attr.ib(default='')
     BMARG_LCUT = attr.ib(default='')
     BMARG_RESCALE = attr.ib(default='')
-    CENTRALNLEV_UKAMIN = 0.42,
-    nlev_t = 0.42/np.sqrt(2),
-    nlev_p = 0.42
-    nlev_dep = 10000.,
-    inf = 1e4,
-    ratio = np.inf,
-    mask = ('nlev', 100),
-    noisemodel_rhits = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08b/masks/08b_rhits_positive_nonan.fits', #If OBD used, this must be the exact same map with which tniti was build
-    noisemodel_norm = 1.0, #divide noisemodel by this value # TODO not sure if needed
+    CENTRALNLEV_UKAMIN = attr.ib(default='')
+    nlev_t = attr.ib(default='')
+    nlev_p = attr.ib(default='')
+    nlev_dep = attr.ib(default='')
+    inf = attr.ib(default='')
+    ratio = attr.ib(default='')
+    mask = attr.ib(default='')
+    noisemodel_rhits = attr.ib(default='')
