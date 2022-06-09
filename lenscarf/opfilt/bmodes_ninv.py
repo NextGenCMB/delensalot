@@ -343,7 +343,6 @@ class eblm_filter_ninv(opfilt_pp.alm_filter_ninv):
                     pmodes[1] *= self.n_inv[0]
                     qmap -= pmodes[0]
                     umap -= pmodes[1]
-                    return qmap, umap
             else:
                 print("apply_map: cuts %s %s"%(self.blm_range[0], self.blm_range[1]))
                 elm, blm = hph.map2alm_spin([qmap, umap], 2, lmax=min(3 * self.nside - 1, self.blm_range[1]))
@@ -355,7 +354,6 @@ class eblm_filter_ninv(opfilt_pp.alm_filter_ninv):
                 q, u = hph.alm2map_spin([elm, blm], self.nside, 2, hp.Alm.getlmax(elm.size), zbounds=self.zbounds)
                 qmap[:] = q * self.n_inv[0]
                 umap[:] = u * self.n_inv[0]
-                return qmap, umap
 
         elif len(self.n_inv) == 3:  # TT, QQ, QU, UU
             assert 0, 'implement template deproj.'
