@@ -6,15 +6,15 @@ from lerepi.core.metamodel.dlensalot import *
 
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(
-        build_OBD = True,
+        build_OBD = False,
         QE_lensrec = False,
-        MAP_lensrec = True,
-        Btemplate_per_iteration = True,
-        map_delensing = True,
+        MAP_lensrec = False,
+        Btemplate_per_iteration = False,
+        map_delensing = False,
         inspect_result = False
     ),
     data = DLENSALOT_Data(
-        TEMP_suffix = 'test2',
+        TEMP_suffix = 'interactive',
         fg = '00',
         sims = 'cmbs4/08d/ILC_May2022',
         zbounds =  ('nmr_relative', 10),
@@ -99,7 +99,7 @@ dlensalot_model = DLENSALOT_Model(
     ),
     noisemodel = DLENSALOT_Noisemodel(
         type = 'OBD',
-        BMARG_LIBDIR = '/global/cscratch1/sd/sebibel/cmbs4/08d_00_OBD_MF100_test2/OBD_matrix/', # '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08d/',
+        BMARG_LIBDIR = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08d/',
         BMARG_LCUT = 200,
         BMARG_RESCALE = 1.0,
         lmin_tlm = 30,
