@@ -14,7 +14,7 @@ dlensalot_model = DLENSALOT_Model(
         inspect_result = False
     ),
     data = DLENSALOT_Data(
-        TEMP_suffix = 'example',
+        TEMP_suffix = 'test2',
         fg = '00',
         sims = 'cmbs4/08d/ILC_May2022',
         zbounds =  ('nmr_relative', 10),
@@ -56,7 +56,7 @@ dlensalot_model = DLENSALOT_Model(
     ),
     geometry = DLENSALOT_Geometry(
         lmax_unl = 4000,
-        zbounds = ('nmr_relative', np.inf),
+        zbounds = ('nmr_relative', 10),
         zbounds_len = ('extend', 5.),
         pbounds = [1.97, 5.71],
         nside = 2048,
@@ -99,7 +99,7 @@ dlensalot_model = DLENSALOT_Model(
     ),
     noisemodel = DLENSALOT_Noisemodel(
         type = 'OBD',
-        BMARG_LIBDIR = '/global/cscratch1/sd/sebibel/cmbs4/08d_00_OBD_MF100/OBD_matrix/', # '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08d/',
+        BMARG_LIBDIR = '/global/cscratch1/sd/sebibel/cmbs4/08d_00_OBD_MF100_test2/OBD_matrix/', # '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08d/',
         BMARG_LCUT = 200,
         BMARG_RESCALE = 1.0,
         lmin_tlm = 30,
@@ -110,8 +110,8 @@ dlensalot_model = DLENSALOT_Model(
         nlev_p = 0.59,
         nlev_dep = 1e5,
         inf = 1e8,
-        ratio = np.inf,
-        mask = ('nlev', np.inf),
+        ratio = 10,
+        mask = ('nlev', 10),
         noisemodel_rhits = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08d/masks/08d_rhits_positive_nonan.fits',
     )
 )

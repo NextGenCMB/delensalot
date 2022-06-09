@@ -36,21 +36,30 @@ class handler():
     @log_on_start(logging.INFO, "Start of collect_jobs()")
     @log_on_end(logging.INFO, "Finished collect_jobs()")
     def collect_jobs(self):
+
         self.jobs = transform(self.paramfile.dlensalot_model, p2j_Transformer())
 
 
     @log_on_start(logging.INFO, "Start of get_jobs()")
     @log_on_end(logging.INFO, "Finished get_jobs()")
     def get_jobs(self):
+
         return self.jobs
 
 
-    @log_on_start(logging.INFO, "Start of get_jobs()")
-    @log_on_end(logging.INFO, "Finished get_jobs()")
+    @log_on_start(logging.INFO, "Start of init_job()")
+    @log_on_end(logging.INFO, "Finished init_job()")
     def init_job(self, job):
+        log.info('transform started')
         model = transform(*job[0])
+        log.info('transform done')
+        log.info('model init started')
         j = job[1](model)
+        log.info('model init done')
+        log.info('collect_jobs started')
         j.collect_jobs()
+        log.info('collect_jobs done')
+
         return j
 
 
@@ -63,6 +72,7 @@ class handler():
             j = job(model)
             j.collect_jobs()
             j.run()
+            mpi.barrier()
 
 
     @log_on_start(logging.INFO, "Start of store()")
@@ -124,4 +134,5 @@ class handler():
         p = iu.module_from_spec(spec)
         sys.modules[descriptor] = p
         spec.loader.exec_module(p)
+
         return p

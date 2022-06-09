@@ -108,7 +108,7 @@ class p2lensrec_Transformer:
             dl.transf = data.transf(dl.beam / 180. / 60. * np.pi, lmax=dl.lmax_transf)
 
             if data.zbounds[0] == 'nmr_relative':
-                dl.zbounds = df.get_zbounds(dl.noisemodel_rhits_map, data.zbounds[1])
+                dl.zbounds = df.get_zbounds(hp.read_map(cf.noisemodel.noisemodel_rhits), data.zbounds[1])
             elif data.zbounds[0] == float or data.zbounds[0] == int:
                 dl.zbounds = data.zbounds
             else:
@@ -230,7 +230,7 @@ class p2lensrec_Transformer:
         @log_on_end(logging.INFO, "Finished _process_geometryparams()")
         def _process_geometryparams(dl, geometry):
             if geometry.zbounds[0] == 'nmr_relative':
-                zbounds_loc = df.get_zbounds(hp.read_map(cf.data.noisemodel_rhits), geometry.zbounds[1])
+                zbounds_loc = df.get_zbounds(hp.read_map(cf.noisemodel.noisemodel_rhits), geometry.zbounds[1])
             elif geometry.zbounds[0] == float or geometry.zbounds[0] == int:
                 zbounds_loc = geometry.zbounds
             else:
@@ -283,18 +283,23 @@ class p2lensrec_Transformer:
         @log_on_start(logging.INFO, "Start of _process_OBDparams()")
         @log_on_end(logging.INFO, "Finished _process_OBDparams()")
         def _process_OBDparams(dl, ob):
-            dl.OBD_type = ob.OBD_type
+            dl.OBD_type = ob.type
             dl.BMARG_LCUT = ob.BMARG_LCUT
             dl.BMARG_LIBDIR = ob.BMARG_LIBDIR
+            dl.BMARG_RESCALE = ob.BMARG_RESCALE
             if dl.OBD_type == 'OBD':
                 # TODO need to check if tniti exists, and if tniti is the correct one
                 if cf.data.tpl == 'template_dense':
                     def tpl_kwargs(lmax_marg, geom, sht_threads, _lib_dir=None, rescal=1.):
                         return locals()
                     dl.tpl = template_dense
-                    dl.tpl_kwargs = tpl_kwargs(ob.BMARG_LCUT, dl.ninvjob_geometry, cf.iteration.OMP_NUM_THREADS, _lib_dir=dl.BMARG_LIBDIR, rescal=ob.BMARG_RESCALE) 
+                    dl.tpl_kwargs = tpl_kwargs(ob.BMARG_LCUT, dl.ninvjob_geometry, cf.iteration.OMP_NUM_THREADS, _lib_dir=dl.BMARG_LIBDIR, rescal=dl.BMARG_RESCALE) 
                 else:
                     assert 0, "Implement if needed"
+                # TODO need to initialise as function expect it, but do I want this? Shouldn't be needed
+                dl.lmin_tlm = ob.lmin_tlm
+                dl.lmin_elm = ob.lmin_elm
+                dl.lmin_blm = ob.lmin_blm
             elif dl.OBD_type == 'trunc':
                 dl.tpl = None
                 dl.tpl_kwargs = None
@@ -315,8 +320,8 @@ class p2lensrec_Transformer:
 
 
         dl = DLENSALOT_Concept()
-        _process_OBDparams(dl, cf.noisemodel)
         _process_geometryparams(dl, cf.geometry)
+        _process_OBDparams(dl, cf.noisemodel)
         _process_dataparams(dl, cf.data)
         _process_chaindescparams(dl, cf.chain_descriptor)
         _process_iterationparams(dl, cf.iteration)
@@ -330,47 +335,47 @@ class p2lensrec_Transformer:
 class p2OBD_Transformer:
     """Extracts all parameters needed for building consistent OBD
     """
-    @log_on_start(logging.INFO, "Start of get_nlrh_map()")
-    @log_on_end(logging.INFO, "Finished get_nlrh_map()")
+    # @log_on_start(logging.INFO, "Start of get_nlrh_map()")
+    # @log_on_end(logging.INFO, "Finished get_nlrh_map()")
     def get_nlrh_map(cf):
-        noisemodel_rhits_map = df.get_nlev_mask(np.inf, hp.read_map(cf.noisemodel.noisemodel_rhits))
+        noisemodel_rhits_map = df.get_nlev_mask(cf.noisemodel.ratio, hp.read_map(cf.noisemodel.noisemodel_rhits))
         noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.noisemodel.inf
 
         return noisemodel_rhits_map
 
 
-    @log_on_start(logging.INFO, "Start of get_nlevt()")
-    @log_on_end(logging.INFO, "Finished get_nlevt()")
+    # @log_on_start(logging.INFO, "Start of get_nlevt()")
+    # @log_on_end(logging.INFO, "Finished get_nlevt()")
     def get_nlevt(cf):
         nlev_t = cf.data.CENTRALNLEV_UKAMIN/np.sqrt(2) if cf.noisemodel.nlev_t == None else cf.noisemodel.nlev_t
 
         return nlev_t
 
 
-    @log_on_start(logging.INFO, "Start of get_nlevp()")
-    @log_on_end(logging.INFO, "Finished get_nlevp()")
+    # @log_on_start(logging.INFO, "Start of get_nlevp()")
+    # @log_on_end(logging.INFO, "Finished get_nlevp()")
     def get_nlevp(cf):
         nlev_p = cf.noisemodel.CENTRALNLEV_UKAMIN if cf.noisemodel.nlev_p == None else cf.noisemodel.nlev_p
 
         return nlev_p
 
 
-    @log_on_start(logging.INFO, "Start of get_ninvt()")
-    @log_on_end(logging.INFO, "Finished get_ninvt()")
+    # @log_on_start(logging.INFO, "Start of get_ninvt()")
+    # @log_on_end(logging.INFO, "Finished get_ninvt()")
     def get_ninvt(cf):
         nlev_t = p2OBD_Transformer.get_nlevp(cf)
         masks =  p2OBD_Transformer.get_masks(cf)
         noisemodel_rhits_map = p2OBD_Transformer.get_nlrh_map(cf)
         noisemodel_norm = np.max(noisemodel_rhits_map)
-        t_transf = gauss_beam(cf.data.beam/180 / 60 * np.pi, lmax=cf.iteration.lmax_ivf)
+        t_transf = gauss_beam(cf.data.BEAM/180 / 60 * np.pi, lmax=cf.iteration.lmax_ivf)
         ninv_desc = [[np.array([hp.nside2pixarea(cf.data.nside, degrees=True) * 60 ** 2 / nlev_t ** 2])/noisemodel_norm] + masks]
         ninv_t = opfilt_pp.alm_filter_ninv(ninv_desc, t_transf, marge_qmaps=(), marge_umaps=()).get_ninv()
 
         return ninv_t
 
 
-    @log_on_start(logging.INFO, "Start of get_ninvp()")
-    @log_on_end(logging.INFO, "Finished get_ninvp()")
+    # @log_on_start(logging.INFO, "Start of get_ninvp()")
+    # @log_on_end(logging.INFO, "Finished get_ninvp()")
     def get_ninvp(cf):
         nlev_p = p2OBD_Transformer.get_nlevp(cf)
         masks =  p2OBD_Transformer.get_masks(cf)
@@ -383,8 +388,8 @@ class p2OBD_Transformer:
         return ninv_p
 
 
-    @log_on_start(logging.INFO, "Start of get_masks()")
-    @log_on_end(logging.INFO, "Finished get_masks()")
+    # @log_on_start(logging.INFO, "Start of get_masks()")
+    # @log_on_end(logging.INFO, "Finished get_masks()")
     def get_masks(cf):
         masks = []
         if cf.noisemodel.noisemodel_rhits is not None:
