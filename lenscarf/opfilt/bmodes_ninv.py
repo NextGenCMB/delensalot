@@ -2,7 +2,7 @@
 
 
 """
-import os
+import os, sys
 import numpy as np
 import healpy as hp
 import scarf
@@ -85,7 +85,7 @@ class template_bfilt(object):
         """
         assert lmax_marg >= 2, lmax_marg
         self.lmax = lmax_marg
-        self.nmodes = (lmax_marg + 1) * lmax_marg + lmax_marg + 1 - 4
+        self.nmodes = int((lmax_marg + 1) * lmax_marg + lmax_marg + 1 - 4)
         if not np.all(geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
             print('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
             nr = geom.get_nrings()
@@ -191,10 +191,10 @@ class template_bfilt(object):
 
         """
         assert len(qumap) == 2
-        # TODO possibly a ztrunc missing for qumap
         assert qumap[0].size == self.npix and qumap[1].size == self.npix, ' '.join([str(qumap[1].shape), str(self.npix)])
         self.sc_job.set_triangular_alm_info(self.lmax, self.lmax)
         blm = self.sc_job.map2alm_spin(qumap, 2)[1]
+
         return self._blm2rlm(blm) # Units weight transform
 
 
@@ -248,7 +248,7 @@ class template_bfilt(object):
         else: #Here, we assume that NiQQ = NiUU, and NiQU is negligible
             NiQQ, NiUU, NiQU = NiQQ_NiUU_NiQU, NiQQ_NiUU_NiQU, None
         assert self.nmodes <= 99999, 'ops, naming in the lines below'
-        for a in range(self.nmodes)[mpi.rank::mpi.size]:
+        for ai, a in enumerate_progress(range(self.nmodes)[mpi.rank::mpi.size], label='Calculating Pmat row'):
             fname = os.path.join(self.lib_dir, prefix + 'row%05d.npy'%a)
             if not os.path.exists(fname):
                 _NiQ = np.copy(NiQQ)  # Building Ni_{QX} R_bX
@@ -307,7 +307,7 @@ class eblm_filter_ninv(opfilt_pp.alm_filter_ninv):
                 print("Loading " + os.path.join(_bmarg_lib_dir, 'tniti.npy'))
                 self.tniti = np.load(os.path.join(_bmarg_lib_dir, 'tniti.npy'))
                 if _bmarg_rescal != 1.:
-                    print("**** RESCALING tiniti with %.2f"%_bmarg_rescal)
+                    print("**** RESCALING tiniti with %.4f"%_bmarg_rescal)
                     self.tniti *= _bmarg_rescal
             else:
                 print("Inverting template matrix:")

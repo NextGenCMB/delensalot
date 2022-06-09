@@ -44,12 +44,14 @@ class OBD_builder():
         self.jobs = jobs
 
 
+    @log_on_start(logging.INFO, "Start of run()")
+    @log_on_end(logging.INFO, "Finished run()")
     def run(self):
         # This fakes the collect/run structure, as bpl takes care of MPI 
         for job in self.jobs:
-            bpl = template_bfilt(self.lmax_marg, self.geom, int(os.environ.get('OMP_NUM_THREADS', 4)), _lib_dir=self.TEMP)
+            bpl = template_bfilt(self.BMARG_LCUT, self.geom, int(os.environ.get('OMP_NUM_THREADS', 4)), _lib_dir=self.TEMP)
             if not os.path.exists(self.TEMP + '/tnit.npy'):
-                bpl._get_rows_mpi(self.ninv_p)  # builds all rows in parallel
+                bpl._get_rows_mpi(self.ninv_p[0], prefix='')  # builds all rows in parallel
             mpi.barrier()
             if mpi.rank == 0:
                 tnit = bpl._build_tnit()
