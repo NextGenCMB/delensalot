@@ -24,24 +24,20 @@ from lenscarf.opfilt import opfilt_ee_wl
 class scarf_iterator_pertmf():
     def __init__(self, qe, k:str, simidx:int, version:str, libdir_iterators, lensing_config):
         """Return iterator instance for simulation idx and qe_key type k
-
             Args:
                 k: 'p_p' for Pol-only, 'ptt' for T-only, 'p_eb' for EB-only, etc
                 simidx: simulation index to build iterative lensing estimate on
                 version: string to use to test variants of the iterator with otherwise the same parfile
                         (here if 'noMF' is in version, will not use any mean-fied at the very first step)
                 cg_tol: tolerance of conjugate-gradient filter
-
-        """ 
+        """
         self.__dict__.update(lensing_config.__dict__)
-        self.k = k
-        self.simidx = simidx
-        self.version = version
+        self.lensing_config = lensing_config
         
         self.libdir_iterator = libdir_iterators(k, simidx, version)
         if not os.path.exists(self.libdir_iterator):
             os.makedirs(self.libdir_iterator)
-        self.tpl = lensing_config.tpl
+        self.tpl = lensing_config.tpl(**lensing_config.tpl_kwargs)
         self.tr = lensing_config.tr
 
         self.qe = qe
@@ -81,7 +77,6 @@ class scarf_iterator_pertmf():
             tpl = self.tpl
         wee = self.k == 'p_p' # keeps or not the EE-like terms in the generalized QEs
         ninv = [sims_MAP.ztruncify(read_map(ni)) for ni in self.ninv_p] # inverse pixel noise map on consistent geometry
-        # TODO bug? transf = self.transf_elm? Or should it be transf_tlm?
         filter = opfilt_ee_wl.alm_filter_ninv_wl(self.ninvjob_geometry, ninv, ffi, self.transf_elm, (self.lmax_unl, self.mmax_unl), (self.lmax_ivf, self.mmax_ivf), self.tr, tpl,
                                                 wee=wee, lmin_dotop=min(self.lmin_elm, self.lmin_blm), transf_blm=self.transf_blm)
         self.k_geom = filter.ffi.geom # Customizable Geometry for position-space operations in calculations of the iterated QEs etc
@@ -89,11 +84,11 @@ class scarf_iterator_pertmf():
         return filter
 
 
+    # TODO choose iterator via visitor pattern. perhaps already in p2lensrec
     @log_on_start(logging.INFO, "Start of get_iterator()")
     @log_on_end(logging.INFO, "Finished get_iterator()")
     def get_iterator(self):
         """iterator_pertmf needs a whole lot of parameters, which are calculated when initialising this class.
-
         Returns:
             _type_: _description_
         """
@@ -125,9 +120,8 @@ class scarf_iterator_constmf():
         self.libdir_iterator = libdir_iterators(k, simidx, version)
         if not os.path.exists(self.libdir_iterator):
             os.makedirs(self.libdir_iterator)
-        self.tpl = lensing_config.tpl
-        self.tr = lensing_config.tr
-
+        self.tpl = lensing_config.tpl(**lensing_config.tpl_kwargs)
+        self.tr = lensing_config.tr 
         self.qe = qe
         self.mf_resp = qe.get_meanfield_response_it0()
         self.wflm0 = qe.get_wflm0(simidx)

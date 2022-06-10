@@ -80,10 +80,13 @@ class QE_lr():
     @log_on_end(logging.INFO, "Finished collect_jobs()")
     def collect_jobs(self):
         jobs = []
-        # TODO could check if mf has already been calculated
-        for idx in self.mc_sims_mf_it0:
+        for idx in np.arange(self.imin, self.imax + 1):
             jobs.append(idx)
         self.jobs = jobs
+        # TODO could check if mf has already been calculated, or all get_X() have created the files they need, before appending. Fixes (1)
+        # for idx in self.mc_sims_mf_it0:
+        #     jobs.append(idx)
+        # self.jobs = jobs
 
 
     @log_on_start(logging.INFO, "Start of run()")
@@ -206,7 +209,9 @@ class MAP_lr():
     @log_on_start(logging.INFO, "Start of run()")
     @log_on_end(logging.INFO, "Finished run()")
     def run(self):
+        # TODO if all qe jobs already done before, this still takes a while. Fix, checking if files exist should be quick. (1)
         self.qe.run()
+        # TODO within first srun, this doesn't start.. at least one job hangs in qe.
         for idx in self.jobs[mpi.rank::mpi.size]:
             lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
             if self.itmax >= 0 and Rec.maxiterdone(lib_dir_iterator) < self.itmax:
@@ -216,13 +221,14 @@ class MAP_lr():
                     print("****Iterator: setting cg-tol to %.4e ****"%self.tol_iter(i))
                     print("****Iterator: setting solcond to %s ****"%self.soltn_cond(i))
                     itlib_iterator.chain_descr  = self.chain_descr(self.lmax_unl, self.tol_iter(i))
-                    itlib_iterator.soltn_cond   = self.soltn_cond(i)
+                    itlib_iterator.soltn_cond = self.soltn_cond(i)
                     itlib_iterator.iterate(i, 'p')
 
 
     @log_on_start(logging.INFO, "Start of init_ith()")
     @log_on_end(logging.INFO, "Finished init_ith()")
     def get_ith_sim(self, simidx):
+        
         return self.ith(self.qe, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
 
 
@@ -249,7 +255,7 @@ class B_template_construction():
         self.__dict__.update(dlensalot_model.__dict__)
         # TODO Only needed to hand over to ith(). It would be better if a ith model was prepared already, and only hand over that
         self.dlensalot_model = dlensalot_model
-        self.qe = self.qe = QE_lr(dlensalot_model)
+        self.qe = QE_lr(dlensalot_model)
         self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
         
         # TODO this is the interface to the D.lensalot iterators and connects 
