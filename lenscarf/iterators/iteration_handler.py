@@ -32,6 +32,7 @@ class scarf_iterator_pertmf():
                 cg_tol: tolerance of conjugate-gradient filter
         """
         self.__dict__.update(lensing_config.__dict__)
+        self.simidx = simidx
         self.lensing_config = lensing_config
         
         self.libdir_iterator = libdir_iterators(k, simidx, version)
@@ -42,7 +43,7 @@ class scarf_iterator_pertmf():
 
         self.qe = qe
         self.mf_resp = qe.get_meanfield_response_it0()
-        self.wflm0 = qe.get_wflm0(simidx)
+        self.wflm0 = qe.get_wflm0(self.simidx)
         self.R_unl = qe.R_unl()
         self.mf0 = self.qe.get_meanfield_it0(self.simidx)
         self.plm0 = self.qe.get_plm_it0(self.simidx)
@@ -124,7 +125,7 @@ class scarf_iterator_constmf():
         self.tr = lensing_config.tr 
         self.qe = qe
         self.mf_resp = qe.get_meanfield_response_it0()
-        self.wflm0 = qe.get_wflm0(simidx)
+        self.wflm0 = qe.get_wflm0(self.simidx)
         self.R_unl = qe.R_unl()
         self.mf0 = self.qe.get_meanfield_it0(self.simidx)
         self.plm0 = self.qe.get_plm_it0(self.simidx)
@@ -174,7 +175,7 @@ class scarf_iterator_constmf():
         Returns:
             _type_: _description_
         """
-        iterator = cs_iterator.iterator_pertmf(
+        iterator = cs_iterator.iterator_cstmf(
             self.libdir_iterator, 'p', (self.lmax_qlm, self.mmax_qlm), self.datmaps, self.plm0, self.mf0,
             self.R_unl, self.cpp, self.cls_unl, self.filter, self.k_geom, self.chain_descr,
             self.stepper, wflm0=self.wflm0)

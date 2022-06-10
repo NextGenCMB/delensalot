@@ -5,7 +5,7 @@
 """
 __author__ = "S. Belkner, J. Carron, L. Legrand"
 
-import os
+import os, sys
 from os.path import join as opj
 import logging
 log = logging.getLogger(__name__)
@@ -78,11 +78,14 @@ class QE_lr():
 
     @log_on_start(logging.INFO, "Start of collect_jobs()")
     @log_on_end(logging.INFO, "Finished collect_jobs()")
-    def collect_jobs(self):
-        jobs = []
-        for idx in np.arange(self.imin, self.imax + 1):
-            jobs.append(idx)
-        self.jobs = jobs
+    def collect_jobs(self, id='all'):
+        if id == "None":
+            self.jobs = []
+        elif id == 'all':
+            jobs = []
+            for idx in np.arange(self.imin, self.imax + 1):
+                jobs.append(idx)
+            self.jobs = jobs
         # TODO could check if mf has already been calculated, or all get_X() have created the files they need, before appending. Fixes (1)
         # for idx in self.mc_sims_mf_it0:
         #     jobs.append(idx)
@@ -191,13 +194,17 @@ class MAP_lr():
         # TODO this is the interface to the D.lensalot iterators and connects 
         # to lerepi. Could be simplified, s.t. interfacing happens without the iteration_handler
         # but directly with cs_iterator, e.g. by adding visitor pattern to cs_iterator
+        print(self.iterator)
         self.ith = iteration_handler.transformer(self.iterator)
+        print(self.ith)
 
 
     @log_on_start(logging.INFO, "Start of collect_jobs()")
     @log_on_end(logging.INFO, "Finished collect_jobs()")
     def collect_jobs(self):
-        self.qe.collect_jobs()
+        # Skip qe calculation if you are sure
+        # TODO find a cheaper way of detecting if QE lensrec is done, then skip
+        self.qe.collect_jobs('None')
         jobs = []
         for idx in np.arange(self.imin, self.imax + 1):
             lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
