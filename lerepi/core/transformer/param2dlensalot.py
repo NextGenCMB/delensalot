@@ -49,11 +49,11 @@ class p2T_Transformer:
     def build(self, cf):
         _nsims_mf = 0 if cf.iteration.V == 'noMF' else cf.iteration.nsims_mf
         _suffix = cf.data.sims.split('/')[1]+'_%s'%(cf.data.fg)
-        if cf.noisemodel.type == 'OBD':
+        if cf.noisemodel.typ == 'OBD':
             _suffix += '_OBD'
-        elif cf.noisemodel.type == 'trunc':
+        elif cf.noisemodel.typ == 'trunc':
             _suffix += '_OBDtrunc'+cf.data.lmin_blm
-        elif cf.noisemodel.type == 'None' or cf.noisemodel.type == None:
+        elif cf.noisemodel.typ == 'None' or cf.noisemodel.typ == None:
             _suffix += '_noOBD'
 
         _suffix += '_MF%s'%(_nsims_mf) if _nsims_mf > 0 else ''
@@ -146,6 +146,7 @@ class p2lensrec_Transformer:
             dl.lmax_ivf = iteration.lmax_ivf
             dl.mmax_ivf = iteration.mmax_ivf
             dl.lmin_ivf = iteration.lmin_ivf
+            dl.mmin_ivf = iteration.mmin_ivf
             dl.lmax_unl = iteration.lmax_unl
             dl.mmax_unl = iteration.mmax_unl
 
@@ -185,23 +186,26 @@ class p2lensrec_Transformer:
                 # TODO cinv_t and cinv_p trigger computation. Perhaps move this to the lerepi job-level. Could be done via introducing a DLENSALOT_Filter model component
                 dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), iteration.lmax_ivf,dl.nside, dl.cls_len, dl.transf_tlm, dl.ninv_t,
                                 marge_monopole=True, marge_dipole=True, marge_maps=[])
-
                 # TODO this could move to _OBDparams()
                 if dl.OBD_type == 'OBD':
                     transf_elm_loc = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf)
                     
                     dl.cinv_p = cinv_p_OBD.cinv_p(opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, dl.nside, dl.cls_len, transf_elm_loc[:dl.lmax_ivf+1], dl.ninv_p, geom=dl.ninvjob_qe_geometry,
                         chain_descr=dl.chain_descr(iteration.lmax_ivf, iteration.CG_TOL), bmarg_lmax=dl.BMARG_LCUT, zbounds=dl.zbounds, _bmarg_lib_dir=dl.BMARG_LIBDIR, _bmarg_rescal=dl.BMARG_RESCALE, sht_threads=cf.iteration.OMP_NUM_THREADS)
-                else:
+                elif dl.OBD_type == 'trunc' or dl.OBD_type == None or dl.OBD_type == 'None':
                     dl.cinv_p = filt_cinv.cinv_p(opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, dl.nside, dl.cls_len, dl.transf_elm, dl.ninv_p,
                         chain_descr=dl.chain_descr(iteration.lmax_ivf, iteration.CG_TOL), transf_blm=dl.transf_blm, marge_qmaps=(), marge_umaps=())
-
+                else:
+                    log.error("Don't understand your OBD_type input. Exiting..")
+                    traceback.print_stack()
+                    sys.exit()
                 dl.ivfs_raw = filt_cinv.library_cinv_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl.cinv_t, dl.cinv_p, dl.cls_len)
                 dl.ftl_rs = np.ones(iteration.lmax_ivf + 1, dtype=float) * (np.arange(iteration.lmax_ivf + 1) >= dl.lmin_tlm)
                 dl.fel_rs = np.ones(iteration.lmax_ivf + 1, dtype=float) * (np.arange(iteration.lmax_ivf + 1) >= dl.lmin_elm)
                 dl.fbl_rs = np.ones(iteration.lmax_ivf + 1, dtype=float) * (np.arange(iteration.lmax_ivf + 1) >= dl.lmin_blm)
                 dl.ivfs   = filt_util.library_ftl(dl.ivfs_raw, iteration.lmax_ivf, dl.ftl_rs, dl.fel_rs, dl.fbl_rs)
 
+                    
             if iteration.QE_LENSING_CL_ANALYSIS == True:
                 dl.ss_dict = { k : v for k, v in zip( np.concatenate( [ range(i*60, (i+1)*60) for i in range(0,5) ] ),
                                         np.concatenate( [ np.roll( range(i*60, (i+1)*60), -1 ) for i in range(0,5) ] ) ) }
@@ -252,6 +256,7 @@ class p2lensrec_Transformer:
                 dl.lenjob_pbgeometry = utils_scarf.pbdGeometry(dl.lenjob_geometry, utils_scarf.pbounds(geometry.pbounds[0], geometry.pbounds[1]))
             if geometry.ninvjob_geometry == 'healpix_geometry':
                 # ninv MAP geometry. Could be merged with QE, if next comment resolved
+                # TODO zbounds_loc must be identical to data.zbounds
                 dl.ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(geometry.nside, zbounds=zbounds_loc)
             if geometry.ninvjob_qe_geometry == 'healpix_geometry_qe':
                 # TODO for QE, isOBD only works with zbounds=(-1,1). Perhaps missing ztrunc on qumaps
@@ -283,7 +288,7 @@ class p2lensrec_Transformer:
         @log_on_start(logging.INFO, "Start of _process_OBDparams()")
         @log_on_end(logging.INFO, "Finished _process_OBDparams()")
         def _process_OBDparams(dl, ob):
-            dl.OBD_type = ob.type
+            dl.OBD_type = ob.typ
             dl.BMARG_LCUT = ob.BMARG_LCUT
             dl.BMARG_LIBDIR = ob.BMARG_LIBDIR
             dl.BMARG_RESCALE = ob.BMARG_RESCALE
@@ -302,13 +307,13 @@ class p2lensrec_Transformer:
                 dl.lmin_blm = ob.lmin_blm
             elif dl.OBD_type == 'trunc':
                 dl.tpl = None
-                dl.tpl_kwargs = None
+                dl.tpl_kwargs = dict()
                 dl.lmin_tlm = ob.lmin_tlm
                 dl.lmin_elm = ob.lmin_elm
                 dl.lmin_blm = ob.lmin_blm
             elif dl.OBD_type == None or dl.OBD_type == 'None':
                 dl.tpl = None
-                dl.tpl_kwargs = None
+                dl.tpl_kwargs = dict()
                 # TODO are 0s a good value? 
                 dl.lmin_tlm = 0
                 dl.lmin_elm = 0
@@ -525,7 +530,7 @@ class p2i_Transformer:
 
 
 class p2j_Transformer:
-    """Extracts all parameters needed for D.lensalot for QE and MAP delensing
+    """Extracts parameters needed for the specific D.Lensalot jobs
     Implement if needed
     """
     def build(self, pf):

@@ -73,6 +73,7 @@ class handler():
             j.collect_jobs()
             j.run()
             mpi.barrier()
+            # del j
 
 
     @log_on_start(logging.INFO, "Start of store()")
