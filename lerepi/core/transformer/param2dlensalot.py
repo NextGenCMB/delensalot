@@ -327,7 +327,7 @@ class p2lensrec_Transformer:
         _process_iterationparams(dl, cf.iteration)
         _process_stepperparams(dl, cf.stepper)
 
-        log.info("I am gong to work with the following values: {}".format(dl.__dict__))
+        log.info("I am going to work with the following values: {}".format(dl.__dict__))
 
         return dl
 
