@@ -562,6 +562,7 @@ class iterator_simf(qlm_iterator):
                                              ninv_filt, k_geom, chain_descr, stepper, **kwargs)
         self.mf_key = mf_key
 
+
     @log_on_start(logging.INFO, "Start of calc_graddet() for iteration {itr} and key {key}")
     @log_on_end(logging.INFO, "Finished calc_graddet() for iteration {itr} and key {key}")
     def calc_graddet(self, itr, key):

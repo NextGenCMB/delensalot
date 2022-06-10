@@ -105,6 +105,7 @@ class cinv_p(filt_cinv.cinv):
 
         return talm.elm, talm.blm
 
+
     def _calc_febl(self):
         assert not 'eb' in self.chain.s_cls.keys()
 

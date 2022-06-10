@@ -190,6 +190,7 @@ class template_bfilt(object):
             This includes a factor npix / 4pi, as the transpose differs from the inverse by that factor
 
         """
+        
         assert len(qumap) == 2
         assert qumap[0].size == self.npix and qumap[1].size == self.npix, ' '.join([str(qumap[1].shape), str(self.npix)])
         self.sc_job.set_triangular_alm_info(self.lmax, self.lmax)
@@ -297,7 +298,6 @@ class eblm_filter_ninv(opfilt_pp.alm_filter_ninv):
             assert len(self.templates)  == 0, 'templates-cuts mixing not implemented'
 
         self.blm_range = blm_range
-        self.map_trunc = usims.ztrunc_sims(None, nside=2048, zbounds_list=[zbounds])
         self.templates = []
         if lmax_marg > 1:
             assert len(self.n_inv) == 1, 'implement if 3'
@@ -343,7 +343,6 @@ class eblm_filter_ninv(opfilt_pp.alm_filter_ninv):
                     pmodes[1] *= self.n_inv[0]
                     qmap -= pmodes[0]
                     umap -= pmodes[1]
-                    return qmap, umap
             else:
                 print("apply_map: cuts %s %s"%(self.blm_range[0], self.blm_range[1]))
                 elm, blm = hph.map2alm_spin([qmap, umap], 2, lmax=min(3 * self.nside - 1, self.blm_range[1]))
@@ -355,7 +354,6 @@ class eblm_filter_ninv(opfilt_pp.alm_filter_ninv):
                 q, u = hph.alm2map_spin([elm, blm], self.nside, 2, hp.Alm.getlmax(elm.size), zbounds=self.zbounds)
                 qmap[:] = q * self.n_inv[0]
                 umap[:] = u * self.n_inv[0]
-                return qmap, umap
 
         elif len(self.n_inv) == 3:  # TT, QQ, QU, UU
             assert 0, 'implement template deproj.'
