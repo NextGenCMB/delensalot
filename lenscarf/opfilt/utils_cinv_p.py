@@ -103,7 +103,8 @@ class cinv_p(filt_cinv.cinv):
         assert len(tmap) == 2
         self.chain.solve(talm, [tmap[0], tmap[1]])
 
-        talm.elm, talm.blm
+        return talm.elm, talm.blm
+
 
     def _calc_febl(self):
         assert not 'eb' in self.chain.s_cls.keys()
