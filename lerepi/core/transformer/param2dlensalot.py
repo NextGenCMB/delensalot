@@ -20,6 +20,7 @@ import hashlib
 
 # TODO Only want initialisation at this level for lenscarf and plancklens objects, so queries work (lazy loading)
 import plancklens
+from plancklens.helpers import mpi
 from plancklens import qest, qecl, utils
 from plancklens.filt import filt_util, filt_cinv
 from plancklens.qcinv import cd_solve
@@ -144,8 +145,9 @@ class p2lensrec_Transformer:
             dl.mmax_qlm = iteration.mmax_qlm
             
             dl.lmax_ivf = iteration.lmax_ivf
-            dl.mmax_ivf = iteration.mmax_ivf
             dl.lmin_ivf = iteration.lmin_ivf
+            dl.mmax_ivf = iteration.mmax_ivf
+
             dl.mmin_ivf = iteration.mmin_ivf
             dl.lmax_unl = iteration.lmax_unl
             dl.mmax_unl = iteration.mmax_unl
@@ -163,8 +165,10 @@ class p2lensrec_Transformer:
             dl.iterator = iteration.ITERATOR
 
             if iteration.STANDARD_TRANSFERFUNCTION == True:
+                log.info('0')
                 dl.nlev_t = p2OBD_Transformer.get_nlevt(cf)
                 dl.nlev_p = p2OBD_Transformer.get_nlevp(cf)
+                
                 # Fiducial model of the transfer function
                 dl.transf_tlm = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf) * (np.arange(iteration.lmax_ivf + 1) >= dl.lmin_tlm)
                 dl.transf_elm = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf) * (np.arange(iteration.lmax_ivf + 1) >= dl.lmin_elm)
@@ -181,22 +185,25 @@ class p2lensrec_Transformer:
                 dl.fbl_unl =  cli(dl.cls_unl['bb'][:iteration.lmax_ivf + 1] + (dl.nlev_p / 180 / 60 * np.pi) ** 2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
 
             if iteration.FILTER == 'cinv_sepTP':
+                log.info('1')
                 dl.ninv_t = p2OBD_Transformer.get_ninvt(cf)
                 dl.ninv_p = p2OBD_Transformer.get_ninvp(cf)
+                log.info('2')
                 # TODO cinv_t and cinv_p trigger computation. Perhaps move this to the lerepi job-level. Could be done via introducing a DLENSALOT_Filter model component
                 dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), iteration.lmax_ivf,dl.nside, dl.cls_len, dl.transf_tlm, dl.ninv_t,
                                 marge_monopole=True, marge_dipole=True, marge_maps=[])
                 # TODO this could move to _OBDparams()
+                log.info('3')
                 if dl.OBD_type == 'OBD':
                     transf_elm_loc = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf)
-                    
                     dl.cinv_p = cinv_p_OBD.cinv_p(opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, dl.nside, dl.cls_len, transf_elm_loc[:dl.lmax_ivf+1], dl.ninv_p, geom=dl.ninvjob_qe_geometry,
                         chain_descr=dl.chain_descr(iteration.lmax_ivf, iteration.CG_TOL), bmarg_lmax=dl.BMARG_LCUT, zbounds=dl.zbounds, _bmarg_lib_dir=dl.BMARG_LIBDIR, _bmarg_rescal=dl.BMARG_RESCALE, sht_threads=cf.iteration.OMP_NUM_THREADS)
+                    log.info('4')
                 elif dl.OBD_type == 'trunc' or dl.OBD_type == None or dl.OBD_type == 'None':
                     dl.cinv_p = filt_cinv.cinv_p(opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, dl.nside, dl.cls_len, dl.transf_elm, dl.ninv_p,
                         chain_descr=dl.chain_descr(iteration.lmax_ivf, iteration.CG_TOL), transf_blm=dl.transf_blm, marge_qmaps=(), marge_umaps=())
                 else:
-                    log.error("Don't understand your OBD_type input. Exiting..")
+                    log.error("Don't understand your OBD_typ input. Exiting..")
                     traceback.print_stack()
                     sys.exit()
                 dl.ivfs_raw = filt_cinv.library_cinv_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl.cinv_t, dl.cinv_p, dl.cls_len)
@@ -204,7 +211,7 @@ class p2lensrec_Transformer:
                 dl.fel_rs = np.ones(iteration.lmax_ivf + 1, dtype=float) * (np.arange(iteration.lmax_ivf + 1) >= dl.lmin_elm)
                 dl.fbl_rs = np.ones(iteration.lmax_ivf + 1, dtype=float) * (np.arange(iteration.lmax_ivf + 1) >= dl.lmin_blm)
                 dl.ivfs   = filt_util.library_ftl(dl.ivfs_raw, iteration.lmax_ivf, dl.ftl_rs, dl.fel_rs, dl.fbl_rs)
-
+                print('5')
                     
             if iteration.QE_LENSING_CL_ANALYSIS == True:
                 dl.ss_dict = { k : v for k, v in zip( np.concatenate( [ range(i*60, (i+1)*60) for i in range(0,5) ] ),
@@ -332,7 +339,8 @@ class p2lensrec_Transformer:
         _process_iterationparams(dl, cf.iteration)
         _process_stepperparams(dl, cf.stepper)
 
-        log.info("I am going to work with the following values: {}".format(dl.__dict__))
+        if mpi.rank == 0:
+            log.info("I am going to work with the following values: {}".format(dl.__dict__))
 
         return dl
 
@@ -340,8 +348,8 @@ class p2lensrec_Transformer:
 class p2OBD_Transformer:
     """Extracts all parameters needed for building consistent OBD
     """
-    # @log_on_start(logging.INFO, "Start of get_nlrh_map()")
-    # @log_on_end(logging.INFO, "Finished get_nlrh_map()")
+    @log_on_start(logging.INFO, "Start of get_nlrh_map()")
+    @log_on_end(logging.INFO, "Finished get_nlrh_map()")
     def get_nlrh_map(cf):
         noisemodel_rhits_map = df.get_nlev_mask(cf.noisemodel.ratio, hp.read_map(cf.noisemodel.noisemodel_rhits))
         noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.noisemodel.inf
@@ -365,12 +373,11 @@ class p2OBD_Transformer:
         return nlev_p
 
 
-    # @log_on_start(logging.INFO, "Start of get_ninvt()")
-    # @log_on_end(logging.INFO, "Finished get_ninvt()")
+    @log_on_start(logging.INFO, "Start of get_ninvt()")
+    @log_on_end(logging.INFO, "Finished get_ninvt()")
     def get_ninvt(cf):
         nlev_t = p2OBD_Transformer.get_nlevp(cf)
-        masks =  p2OBD_Transformer.get_masks(cf)
-        noisemodel_rhits_map = p2OBD_Transformer.get_nlrh_map(cf)
+        masks, noisemodel_rhits_map =  p2OBD_Transformer.get_masks(cf)
         noisemodel_norm = np.max(noisemodel_rhits_map)
         t_transf = gauss_beam(cf.data.BEAM/180 / 60 * np.pi, lmax=cf.iteration.lmax_ivf)
         ninv_desc = [[np.array([hp.nside2pixarea(cf.data.nside, degrees=True) * 60 ** 2 / nlev_t ** 2])/noisemodel_norm] + masks]
@@ -379,12 +386,11 @@ class p2OBD_Transformer:
         return ninv_t
 
 
-    # @log_on_start(logging.INFO, "Start of get_ninvp()")
-    # @log_on_end(logging.INFO, "Finished get_ninvp()")
+    @log_on_start(logging.INFO, "Start of get_ninvp()")
+    @log_on_end(logging.INFO, "Finished get_ninvp()")
     def get_ninvp(cf):
         nlev_p = p2OBD_Transformer.get_nlevp(cf)
-        masks =  p2OBD_Transformer.get_masks(cf)
-        noisemodel_rhits_map = p2OBD_Transformer.get_nlrh_map(cf)
+        masks, noisemodel_rhits_map =  p2OBD_Transformer.get_masks(cf)
         noisemodel_norm = np.max(noisemodel_rhits_map)
         b_transf = gauss_beam(cf.data.BEAM/180 / 60 * np.pi, lmax=cf.iteration.lmax_ivf) # TODO ninv_p doesn't depend on this anyway, right?
         ninv_desc = [[np.array([hp.nside2pixarea(cf.data.nside, degrees=True) * 60 ** 2 / nlev_p ** 2])/noisemodel_norm] + masks]
@@ -401,12 +407,12 @@ class p2OBD_Transformer:
             msk = p2OBD_Transformer.get_nlrh_map(cf)
             masks.append(msk)
         if cf.noisemodel.mask[0] == 'nlev':
-            noisemodel_rhits_map = p2OBD_Transformer.get_nlrh_map(cf)
+            noisemodel_rhits_map = msk.copy()
             _mask = df.get_nlev_mask(cf.noisemodel.mask[1], noisemodel_rhits_map)
             _mask = np.where(_mask>0., 1., 0.)
             masks.append(_mask)
 
-        return masks
+        return masks, msk
 
 
     def build(self, cf):
@@ -429,8 +435,7 @@ class p2OBD_Transformer:
                 dl.nlev_dep = nm.nlev_dep
                 dl.CENTRALNLEV_UKAMIN = nm.CENTRALNLEV_UKAMIN
                 dl.geom = utils_scarf.Geom.get_healpix_geometry(dl.nside)
-                dl.rhits_map = p2OBD_Transformer.get_nlrh_map(cf)
-                dl.masks = p2OBD_Transformer.get_masks(cf)
+                dl.masks, dl.rhits_map = p2OBD_Transformer.get_masks(cf)
                 dl.nlev_p = p2OBD_Transformer.get_nlevp(cf)
                 dl.ninv_p = p2OBD_Transformer.get_ninvp(cf)
 
