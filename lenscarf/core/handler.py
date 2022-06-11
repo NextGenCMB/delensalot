@@ -79,9 +79,14 @@ class QE_lr():
     @log_on_start(logging.INFO, "Start of collect_jobs()")
     @log_on_end(logging.INFO, "Finished collect_jobs()")
     def collect_jobs(self, id='all'):
-        if id == "None":
+        mc_sims = self.mc_sims_mf_it0
+        mf_fname = os.path.join(self.TEMP, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, utils.mchash(mc_sims)))
+        if os.path.isfile(mf_fname):
+            # Can safely skip QE jobs. MF exists, so we know QE was run before
             self.jobs = []
-        elif id == 'all':
+        elif id == "None":
+            self.jobs = []
+        elif id == 'All':
             jobs = []
             for idx in np.arange(self.imin, self.imax + 1):
                 jobs.append(idx)
@@ -104,15 +109,23 @@ class QE_lr():
             self.get_wflm0(idx)
             self.get_R_unl()
             logging.info('{}/{}, Finished job {}'.format(mpi.rank,mpi.size,idx))
-        print('{} finished qe ivfs tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
+        log.info('{} finished qe ivfs tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
         mpi.barrier()
-        print('All ranks finished qe ivfs tasks.')
+        # Tunneling the meanfield-calculation, so only rank 0 calculates it. Otherwise,
+        # some processes will try accessing it too fast, or calculate themselves, which results in
+        # an io error
+        log.info("Done waiting. Rank 0 going to calculate meanfield-file.. everyone else waiting.")
+        if mpi.rank == 0:
+            self.get_meanfield_it0(mpi.rank)
+            log.info("rank finsihed calculating meanfield-file.. everyone else waiting.")
+        mpi.barrier()
+        log.info("Starting mf-calc task")
         for idx in self.jobs[mpi.rank::mpi.size]:
             self.get_meanfield_it0(idx)
             self.get_plm_it0(idx)
-        print('{} finished qe mf-calc tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
+        log.info('{} finished qe mf-calc tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
         mpi.barrier()
-        print('All ranks finished qe mf-calc tasks.')
+        log.info('All ranks finished qe mf-calc tasks.')
 
 
     @log_on_start(logging.INFO, "Start of get_sim_qlm()")
@@ -194,17 +207,13 @@ class MAP_lr():
         # TODO this is the interface to the D.lensalot iterators and connects 
         # to lerepi. Could be simplified, s.t. interfacing happens without the iteration_handler
         # but directly with cs_iterator, e.g. by adding visitor pattern to cs_iterator
-        print(self.iterator)
         self.ith = iteration_handler.transformer(self.iterator)
-        print(self.ith)
 
 
     @log_on_start(logging.INFO, "Start of collect_jobs()")
     @log_on_end(logging.INFO, "Finished collect_jobs()")
     def collect_jobs(self):
-        # Skip qe calculation if you are sure
-        # TODO find a cheaper way of detecting if QE lensrec is done, then skip
-        self.qe.collect_jobs('None')
+        self.qe.collect_jobs('All')
         jobs = []
         for idx in np.arange(self.imin, self.imax + 1):
             lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
