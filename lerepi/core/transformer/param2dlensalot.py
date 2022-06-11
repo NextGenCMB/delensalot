@@ -53,7 +53,7 @@ class p2T_Transformer:
         if cf.noisemodel.typ == 'OBD':
             _suffix += '_OBD'
         elif cf.noisemodel.typ == 'trunc':
-            _suffix += '_OBDtrunc'+cf.data.lmin_blm
+            _suffix += '_OBDtrunc'+str(cf.noisemodel.lmin_blm)
         elif cf.noisemodel.typ == 'None' or cf.noisemodel.typ == None:
             _suffix += '_noOBD'
 
@@ -165,7 +165,6 @@ class p2lensrec_Transformer:
             dl.iterator = iteration.ITERATOR
 
             if iteration.STANDARD_TRANSFERFUNCTION == True:
-                log.info('0')
                 dl.nlev_t = p2OBD_Transformer.get_nlevt(cf)
                 dl.nlev_p = p2OBD_Transformer.get_nlevp(cf)
                 
@@ -185,20 +184,16 @@ class p2lensrec_Transformer:
                 dl.fbl_unl =  cli(dl.cls_unl['bb'][:iteration.lmax_ivf + 1] + (dl.nlev_p / 180 / 60 * np.pi) ** 2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
 
             if iteration.FILTER == 'cinv_sepTP':
-                log.info('1')
                 dl.ninv_t = p2OBD_Transformer.get_ninvt(cf)
                 dl.ninv_p = p2OBD_Transformer.get_ninvp(cf)
-                log.info('2')
                 # TODO cinv_t and cinv_p trigger computation. Perhaps move this to the lerepi job-level. Could be done via introducing a DLENSALOT_Filter model component
                 dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), iteration.lmax_ivf,dl.nside, dl.cls_len, dl.transf_tlm, dl.ninv_t,
                                 marge_monopole=True, marge_dipole=True, marge_maps=[])
                 # TODO this could move to _OBDparams()
-                log.info('3')
                 if dl.OBD_type == 'OBD':
                     transf_elm_loc = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf)
                     dl.cinv_p = cinv_p_OBD.cinv_p(opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, dl.nside, dl.cls_len, transf_elm_loc[:dl.lmax_ivf+1], dl.ninv_p, geom=dl.ninvjob_qe_geometry,
                         chain_descr=dl.chain_descr(iteration.lmax_ivf, iteration.CG_TOL), bmarg_lmax=dl.BMARG_LCUT, zbounds=dl.zbounds, _bmarg_lib_dir=dl.BMARG_LIBDIR, _bmarg_rescal=dl.BMARG_RESCALE, sht_threads=cf.iteration.OMP_NUM_THREADS)
-                    log.info('4')
                 elif dl.OBD_type == 'trunc' or dl.OBD_type == None or dl.OBD_type == 'None':
                     dl.cinv_p = filt_cinv.cinv_p(opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, dl.nside, dl.cls_len, dl.transf_elm, dl.ninv_p,
                         chain_descr=dl.chain_descr(iteration.lmax_ivf, iteration.CG_TOL), transf_blm=dl.transf_blm, marge_qmaps=(), marge_umaps=())
