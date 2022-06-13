@@ -27,8 +27,6 @@ from lenscarf.iterators.statics import rec as Rec
 from lenscarf.iterators import iteration_handler
 from lenscarf.opfilt.bmodes_ninv import template_bfilt
 
-from lerepi.config.cmbs4.data import data_08d as sims_if
-
 
 class OBD_builder():
     def __init__(self, OBD_model):
@@ -311,7 +309,8 @@ class map_delensing():
     """
 
     def __init__(self, bmd_model):
-        self.bmd_model = bmd_model
+        self.__dict__.update(bmd_model.__dict__)
+        self = bmd_model
         self.libdir_iterators = lambda qe_key, simidx, version: opj(bmd_model.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
         self.lib_nm = dict()
         self.bcl_L_nm, self.bcl_cs_nm, self.bwfcl_cs_nm = np.zeros(shape=(len(bmd_model.nlevels),len(bmd_model.edges))), np.zeros(shape=(len(bmd_model.nlevels),len(bmd_model.edges))), np.zeros(shape=(len(bmd_model.nlevels),len(bmd_model.edges)))
@@ -319,12 +318,11 @@ class map_delensing():
 
     @log_on_start(logging.INFO, "Start of getfn_blm_lensc()")
     @log_on_end(logging.INFO, "Finished getfn_blm_lensc()")
-    def getfn_blm_lensc(self, ana_p, simidx, it):
+    def getfn_blm_lensc(self, simidx, it):
         '''Lenscarf output using Catherinas E and B maps'''
-        # TODO remove hardcoding
-        rootstr = '/global/cscratch1/sd/sebibel/cmbs4/'
+        rootstr = self.TEMP + self.analysis_path
 
-        return rootstr+ana_p+'/p_p_sim%04d/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(simidx, it, it)
+        return rootstr+'/p_p_sim%04d/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(simidx, it, it)
 
             
     @log_on_start(logging.INFO, "Start of getfn_qumap_cs()")
@@ -332,16 +330,16 @@ class map_delensing():
     def getfn_qumap_cs(self, simidx):
         '''Component separated polarisation maps lm, i.e. lenscarf input'''
 
-        return self.bmd_model.sims.get_sim_pmap(simidx)
+        return self.sims.get_sim_pmap(simidx)
 
 
     @log_on_start(logging.INFO, "Start of collect_jobs()")
     @log_on_end(logging.INFO, "Finished collect_jobs(): {self.jobs}")
     def collect_jobs(self):
         jobs = []
-        for idx in np.arange(self.bmd_model.imin, self.bmd_model.imax + 1):
-            lib_dir_iterator = self.libdir_iterators(self.bmd_model.k, idx, self.bmd_model.version)
-            if Rec.maxiterdone(lib_dir_iterator) >= self.bmd_model.itmax:
+        for idx in np.arange(self.imin, self.imax + 1):
+            lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
+            if Rec.maxiterdone(lib_dir_iterator) >= self.itmax:
                 jobs.append(idx)
         self.jobs = jobs
 
@@ -349,35 +347,30 @@ class map_delensing():
     @log_on_start(logging.INFO, "Start of run()")
     @log_on_end(logging.INFO, "Finished run()")
     def run(self):
-        outputdata = np.zeros(shape=(6,len(self.bmd_model.nlevels),len(self.bmd_model.edges)-1))
-        for nlev in self.bmd_model.nlevels:
-            sims_may  = sims_if.ILC_May2022(self.bmd_model.fg, mask_suffix=int(nlev))
-            nlev_mask = sims_may.get_mask() 
-            self.lib_nm.update({nlev: ps.map2cl_binned(nlev_mask, self.bmd_model.clc_templ[:self.bmd_model.lmax_lib], self.bmd_model.edges, self.bmd_model.lmax_lib)})
-        # TODO remove hardcoding
-        dirroot = '/global/cscratch1/sd/sebibel/cmbs4/'+self.bmd_model.analysis_path+'/plotdata/'
-        if not(os.path.isdir(dirroot + '{}'.format(self.bmd_model.dirid))):
-            os.makedirs(dirroot + '{}'.format(self.bmd_model.dirid))
+        outputdata = np.zeros(shape=(6,len(self.nlevels),len(self.edges)-1))
+        for nlev in self.nlevels:
+            self.lib_nm.update({nlev: ps.map2cl_binned(self.nlev_mask, self.clc_templ[:self.lmax_lib], self.edges, self.lmax_lib)})
+        # TODO move this to p2d
+        if not(os.path.isdir(self.TEMP_DELENSED_SPECTRUM + '{}'.format(self.dirid))):
+            os.makedirs(self.TEMP_DELENSED_SPECTRUM + '{}'.format(self.dirid))
 
         for idx in self.jobs[mpi.rank::mpi.size]:
-            file_op = dirroot + '{}'.format(self.bmd_model.dirid) + '/ClBBwf_sim%04d_fg%2s_res2b3acm.npy'%(idx, self.bmd_model.fg)
+            file_op = self.TEMP_DELENSED_SPECTRUM + '{}'.format(self.dirid) + '/ClBBwf_sim%04d_fg%2s_res2b3acm.npy'%(idx, self.fg)
             print('will store file at:', file_op)
             
             qumap_cs_buff = self.getfn_qumap_cs(idx)
-            eblm_cs_buff = hp.map2alm_spin(qumap_cs_buff*self.bmd_model.base_mask, 2, self.bmd_model.lmax_cl)
-            bmap_cs_buff = hp.alm2map(eblm_cs_buff[1], self.bmd_model.nside)
-            for nlevi, nlev in enumerate(self.bmd_model.nlevels):
-                sims_may  = sims_if.ILC_May2022(self.bmd_model.fg, mask_suffix=int(nlev))
-                nlev_mask = sims_may.get_mask() 
+            eblm_cs_buff = hp.map2alm_spin(qumap_cs_buff*self.base_mask, 2, self.lmax_cl)
+            bmap_cs_buff = hp.alm2map(eblm_cs_buff[1], self.nside)
+            for nlevi, nlev in enumerate(self.nlevels):
                 bcl_cs_nm = self.lib_nm[nlev].map2cl(bmap_cs_buff)
-                blm_L_buff = hp.almxfl(utils.alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(idx), lmax=self.bmd_model.lmax_cl), self.bmd_model.transf)
-                bmap_L_buff = hp.alm2map(blm_L_buff, self.bmd_model.nside)
+                blm_L_buff = hp.almxfl(utils.alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(idx), lmax=self.lmax_cl), self.transf)
+                bmap_L_buff = hp.alm2map(blm_L_buff, self.nside)
                 bcl_L_nm = self.lib_nm[nlev].map2cl(bmap_L_buff)
 
-                blm_lensc_MAP_buff = np.load(self.getfn_blm_lensc(self.bmd_model.analysis_path, idx, self.bmd_model.itmax))
-                bmap_lensc_MAP_buff = hp.alm2map(blm_lensc_MAP_buff, nside=self.bmd_model.nside)
-                blm_lensc_QE_buff = np.load(self.getfn_blm_lensc(self.bmd_model.analysis_path, idx, 0))
-                bmap_lensc_QE_buff = hp.alm2map(blm_lensc_QE_buff, nside=self.bmd_model.nside)
+                blm_lensc_MAP_buff = np.load(self.getfn_blm_lensc(idx, self.itmax))
+                bmap_lensc_MAP_buff = hp.alm2map(blm_lensc_MAP_buff, nside=self.nside)
+                blm_lensc_QE_buff = np.load(self.getfn_blm_lensc(idx, 0))
+                bmap_lensc_QE_buff = hp.alm2map(blm_lensc_QE_buff, nside=self.nside)
     
                 bcl_Llensc_MAP_nm = self.lib_nm[nlev].map2cl(bmap_L_buff-bmap_lensc_MAP_buff)    
                 bcl_Llensc_QE_nm = self.lib_nm[nlev].map2cl(bmap_L_buff-bmap_lensc_QE_buff)
