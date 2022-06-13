@@ -481,13 +481,14 @@ class p2d_Transformer:
             _sims_module_name = 'lerepi.config.'+_ui[0]+'.data.data_'+_ui[1]
             _sims_class_name = _ui[-1]
             _sims_module = importlib.import_module(_sims_module_name)
-            de.sims = getattr(_sims_module, _sims_class_name)(dl.fg)
+            dl.sims = getattr(_sims_module, _sims_class_name)(dl.fg)
 
-            mask_path = de.sims.p2mask
+            mask_path = cf.noisemodel.noisemodel_rhits # dl.sims.p2mask
             dl.base_mask = np.nan_to_num(hp.read_map(mask_path))
             dl.TEMP = transform(cf, p2T_Transformer())
             dl.analysis_path = dl.TEMP.split('/')[-1]
             dl.TEMP_DELENSED_SPECTRUM = transform(dl, p2T_Transformer())
+            dl.nlev_mask = p2OBD_Transformer.get_nlrh_map(cf)
 
             dl.nlevels = de.nlevels
             dl.nside = de.nside
