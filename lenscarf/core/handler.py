@@ -154,7 +154,7 @@ class QE_lr():
         if simidx in self.mc_sims_mf_it0:  # We dont want to include the sim we consider in the mean-field...
             Nmf = len(self.mc_sims_mf_it0)
             mf0 = (mf0 - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / Nmf) * (Nmf / (Nmf - 1))
-        
+
         return mf0
 
 
@@ -178,7 +178,7 @@ class QE_lr():
             almxfl(plm0, WF, self.mmax_qlm, True)           # Wiener-filter QE
             almxfl(plm0, self.cpp > 0, self.mmax_qlm, True)
             np.save(path_plm0, plm0)
-
+        
         return np.load(path_plm0)
 
 
@@ -227,6 +227,7 @@ class MAP_lr():
         self.qe.run()
         # TODO within first srun, this doesn't start.. at least one job hangs in qe.
         for idx in self.jobs[mpi.rank::mpi.size]:
+            log.info('{}, simidx {} started {}'.format(mpi.rank, mpi.size, idx))
             lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
             if self.itmax >= 0 and Rec.maxiterdone(lib_dir_iterator) < self.itmax:
                 itlib = self.ith(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
@@ -237,6 +238,7 @@ class MAP_lr():
                     itlib_iterator.chain_descr  = self.chain_descr(self.lmax_unl, self.tol_iter(i))
                     itlib_iterator.soltn_cond = self.soltn_cond(i)
                     itlib_iterator.iterate(i, 'p')
+                    log.info('{}, simidx {} done with iteration {}'.format(mpi.rank, idx, i))
 
 
     @log_on_start(logging.INFO, "Start of init_ith()")
@@ -310,7 +312,6 @@ class map_delensing():
 
     def __init__(self, bmd_model):
         self.__dict__.update(bmd_model.__dict__)
-        self = bmd_model
         self.libdir_iterators = lambda qe_key, simidx, version: opj(bmd_model.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
         self.lib_nm = dict()
         self.bcl_L_nm, self.bcl_cs_nm, self.bwfcl_cs_nm = np.zeros(shape=(len(bmd_model.nlevels),len(bmd_model.edges))), np.zeros(shape=(len(bmd_model.nlevels),len(bmd_model.edges))), np.zeros(shape=(len(bmd_model.nlevels),len(bmd_model.edges)))
@@ -320,7 +321,7 @@ class map_delensing():
     @log_on_end(logging.INFO, "Finished getfn_blm_lensc()")
     def getfn_blm_lensc(self, simidx, it):
         '''Lenscarf output using Catherinas E and B maps'''
-        rootstr = self.TEMP + self.analysis_path
+        rootstr = self.TEMP# + self.analysis_path
 
         return rootstr+'/p_p_sim%04d/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(simidx, it, it)
 
@@ -338,24 +339,25 @@ class map_delensing():
     def collect_jobs(self):
         jobs = []
         for idx in np.arange(self.imin, self.imax + 1):
-            lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
-            if Rec.maxiterdone(lib_dir_iterator) >= self.itmax:
-                jobs.append(idx)
+            if idx not in self.droplist:
+                lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
+                if Rec.maxiterdone(lib_dir_iterator) >= self.iterations[-1]:
+                    jobs.append(idx)
         self.jobs = jobs
 
 
     @log_on_start(logging.INFO, "Start of run()")
     @log_on_end(logging.INFO, "Finished run()")
     def run(self):
-        outputdata = np.zeros(shape=(6,len(self.nlevels),len(self.edges)-1))
+        outputdata = np.zeros(shape=(2, 2+len(self.iterations), len(self.nlevels), len(self.edges)-1))
         for nlev in self.nlevels:
-            self.lib_nm.update({nlev: ps.map2cl_binned(self.nlev_mask, self.clc_templ[:self.lmax_lib], self.edges, self.lmax_lib)})
+            self.lib_nm.update({nlev: ps.map2cl_binned(self.nlev_mask[nlev], self.clc_templ[:self.lmax_lib], self.edges, self.lmax_lib)})
         # TODO move this to p2d
-        if not(os.path.isdir(self.TEMP_DELENSED_SPECTRUM + '{}'.format(self.dirid))):
-            os.makedirs(self.TEMP_DELENSED_SPECTRUM + '{}'.format(self.dirid))
+        if not(os.path.isdir(self.TEMP_DELENSED_SPECTRUM + '/{}'.format(self.dirid))):
+            os.makedirs(self.TEMP_DELENSED_SPECTRUM + '/{}'.format(self.dirid))
 
         for idx in self.jobs[mpi.rank::mpi.size]:
-            file_op = self.TEMP_DELENSED_SPECTRUM + '{}'.format(self.dirid) + '/ClBBwf_sim%04d_fg%2s_res2b3acm.npy'%(idx, self.fg)
+            file_op = self.TEMP_DELENSED_SPECTRUM + '/{}'.format(self.dirid) + '/ClBBwf_sim%04d_fg%2s_res2b3acm.npy'%(idx, self.fg)
             print('will store file at:', file_op)
             
             qumap_cs_buff = self.getfn_qumap_cs(idx)
@@ -367,23 +369,24 @@ class map_delensing():
                 bmap_L_buff = hp.alm2map(blm_L_buff, self.nside)
                 bcl_L_nm = self.lib_nm[nlev].map2cl(bmap_L_buff)
 
-                blm_lensc_MAP_buff = np.load(self.getfn_blm_lensc(idx, self.itmax))
-                bmap_lensc_MAP_buff = hp.alm2map(blm_lensc_MAP_buff, nside=self.nside)
+                outputdata[0][0][nlevi] = bcl_L_nm
+                outputdata[1][0][nlevi] = bcl_cs_nm
+
                 blm_lensc_QE_buff = np.load(self.getfn_blm_lensc(idx, 0))
                 bmap_lensc_QE_buff = hp.alm2map(blm_lensc_QE_buff, nside=self.nside)
-    
-                bcl_Llensc_MAP_nm = self.lib_nm[nlev].map2cl(bmap_L_buff-bmap_lensc_MAP_buff)    
                 bcl_Llensc_QE_nm = self.lib_nm[nlev].map2cl(bmap_L_buff-bmap_lensc_QE_buff)
-
-                bcl_cslensc_MAP_nm = self.lib_nm[nlev].map2cl(bmap_cs_buff-bmap_lensc_MAP_buff)
                 bcl_cslensc_QE_nm = self.lib_nm[nlev].map2cl(bmap_cs_buff-bmap_lensc_QE_buff)
-                
-                outputdata[0][nlevi] = bcl_L_nm
-                outputdata[1][nlevi] = bcl_cs_nm
-                
-                outputdata[2][nlevi] = bcl_Llensc_MAP_nm
-                outputdata[3][nlevi] = bcl_cslensc_MAP_nm  
-                
-                outputdata[4][nlevi] = bcl_Llensc_QE_nm           
-                outputdata[5][nlevi] = bcl_cslensc_QE_nm
+
+                outputdata[0][1][nlevi] = bcl_Llensc_QE_nm
+                outputdata[1][1][nlevi] = bcl_cslensc_QE_nm
+
+                for iti, it in enumerate(self.iterations):
+                    blm_lensc_MAP_buff = np.load(self.getfn_blm_lensc(idx, it))
+                    bmap_lensc_MAP_buff = hp.alm2map(blm_lensc_MAP_buff, nside=self.nside)
+                    bcl_Llensc_MAP_nm = self.lib_nm[nlev].map2cl(bmap_L_buff-bmap_lensc_MAP_buff)    
+                    bcl_cslensc_MAP_nm = self.lib_nm[nlev].map2cl(bmap_cs_buff-bmap_lensc_MAP_buff)
+
+                    outputdata[0][2+iti][nlevi] = bcl_Llensc_MAP_nm
+                    outputdata[1][2+iti][nlevi] = bcl_cslensc_MAP_nm      
+    
             np.save(file_op, outputdata)

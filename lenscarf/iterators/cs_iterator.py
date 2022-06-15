@@ -524,7 +524,7 @@ class iterator_pertmf(qlm_iterator):
         super(iterator_pertmf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
                                              ninv_filt, k_geom, chain_descr, stepper, **kwargs)
         assert mf_resp.ndim == 1 and mf_resp.size > self.lmax_qlm, mf_resp.shape
-        if mf0 is not None:
+        if mf0 is not None: 
             assert self.lmax_qlm == Alm.getlmax(mf0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(mf0.size, self.lmax_qlm))
             self.cacher.cache('mf', almxfl(mf0,  self._h2p(self.lmax_qlm), self.mmax_qlm, False))
         self.p_mf_resp = mf_resp

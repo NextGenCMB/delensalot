@@ -13,6 +13,9 @@ import numpy as np
 import healpy as hp
 import pickle as pk
 
+import logging
+log = logging.getLogger(__name__)
+from logdecorator import log_on_start, log_on_end
 
 from plancklens.helpers import mpi
 from plancklens.qcinv import cd_solve, opfilt_pp, multigrid
@@ -53,7 +56,6 @@ class cinv_p(filt_cinv.cinv):
             [[2, ["split(dense(" + pcf + "), 32, diag_cl)"], 512, 256, 3, 0.0, cd_solve.tr_cg,cd_solve.cache_mem()],
              [1, ["split(stage(2),  512, diag_cl)"], 1024, 512, 3, 0.0, cd_solve.tr_cg, cd_solve.cache_mem()],
              [0, ["split(stage(1), 1024, diag_cl)"], lmax, nside, np.inf, 1.0e-5, cd_solve.tr_cg, cd_solve.cache_mem()]]
-
         self.n_inv_filt = util.jit(bmodes_ninv.eblm_filter_ninv, geom, ninv, transf[0:lmax + 1],
                               lmax_marg=bmarg_lmax, zbounds=zbounds, _bmarg_lib_dir=_bmarg_lib_dir, _bmarg_rescal=_bmarg_rescal, sht_threads=sht_threads)
         self.chain = util.jit(multigrid.multigrid_chain, opfilt_pp, chain_descr, cl, self.n_inv_filt)
@@ -61,23 +63,19 @@ class cinv_p(filt_cinv.cinv):
         if mpi.rank == 0:
             if not os.path.exists(lib_dir):
                 os.makedirs(lib_dir)
-
             if not os.path.exists(os.path.join(lib_dir, "filt_hash.pk")):
                 pk.dump(self.hashdict(), open(os.path.join(lib_dir, "filt_hash.pk"), 'wb'), protocol=2)
-
             if not os.path.exists(os.path.join(self.lib_dir, "fbl.dat")):
                 fel, fbl = self._calc_febl()
                 np.savetxt(os.path.join(self.lib_dir, "fel.dat"), fel)
                 np.savetxt(os.path.join(self.lib_dir, "fbl.dat"), fbl)
-
             if not os.path.exists(os.path.join(self.lib_dir, "tal.dat")):
                 np.savetxt(os.path.join(self.lib_dir, "tal.dat"), self._calc_tal())
-
             if not os.path.exists(os.path.join(self.lib_dir,  "fmask.fits.gz")):
                 hp.write_map(os.path.join(self.lib_dir,  "fmask.fits.gz"),  self._calc_mask())
-
+            utils.hash_check(pk.load(open(os.path.join(lib_dir, "filt_hash.pk"), 'rb')), self.hashdict())
         mpi.barrier()
-        utils.hash_check(pk.load(open(os.path.join(lib_dir, "filt_hash.pk"), 'rb')), self.hashdict())
+
 
     def hashdict(self):
         return {'lmax': self.lmax,
@@ -148,7 +146,7 @@ class cinv_p(filt_cinv.cinv):
 
     def _ninv_hash(self):
         ret = []
-        for ninv_comp in self.ninv[0]:
+        for ninv_comp in self.ninv:
             if isinstance(ninv_comp, np.ndarray) and ninv_comp.size > 1:
                 ret.append(utils.clhash(ninv_comp))
             else:

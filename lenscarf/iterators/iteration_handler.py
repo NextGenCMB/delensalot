@@ -7,9 +7,12 @@ At this level, can possibly also choose likelihood, which would be needed for cr
 """
 __author__ = "S. Belkner, J. Carron, L. Legrand"
 
-import os
+import os, sys
+
 import logging
+log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
+
 
 import numpy as np
 
