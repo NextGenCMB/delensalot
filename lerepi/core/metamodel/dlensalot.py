@@ -172,6 +172,7 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
     edges = attr.ib(default=-1)
     IMIN = attr.ib(default=-1)
     IMAX = attr.ib(default=-1)
+    droplist = attr.ib(default=-1)
     ITMAX = attr.ib(default=-1)
     fg = attr.ib(default=-1)
     base_mask = attr.ib(default=-1)

@@ -470,7 +470,7 @@ class p2d_Transformer:
     @log_on_end(logging.INFO, "Finished build()")
     def build(self, cf):
         # TODO make this an option for the user. If needed, user can define their own edges via configfile.
-        fs_edges = np.arange(2,3000, 20)
+        fs_edges = np.arange(2, 3000, 20)
         ioreco_edges = np.array([2, 30, 200, 300, 500, 700, 1000, 1500, 2000, 3000, 4000, 5000])
         cmbs4_edges = np.array([2, 30, 60, 90, 120, 150, 180, 200, 300, 500, 700, 1000, 1500, 2000, 3000, 4000, 5000])
         def _process_delensingparams(dl, de):
@@ -485,7 +485,8 @@ class p2d_Transformer:
             dl.edges_center = (dl.edges[1:]+dl.edges[:-1])/2.
             dl.imin = de.IMIN
             dl.imax = de.IMAX
-            dl.itmax = de.ITMAX
+            dl.iterations = de.ITMAX
+            dl.droplist = de.droplist
             dl.fg = de.fg
  
             _ui = de.base_mask.split('/')
@@ -499,8 +500,12 @@ class p2d_Transformer:
             dl.TEMP = transform(cf, p2T_Transformer())
             dl.analysis_path = dl.TEMP.split('/')[-1]
             dl.TEMP_DELENSED_SPECTRUM = transform(dl, p2T_Transformer())
-            dl.nlev_mask = p2OBD_Transformer.get_nlrh_map(cf)
-
+            dl.nlev_mask = dict()
+            noisemodel_rhits_map = df.get_nlev_mask(np.inf, hp.read_map(cf.noisemodel.noisemodel_rhits))
+            noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.noisemodel.inf
+            for nlev in de.nlevels:
+                buffer = df.get_nlev_mask(nlev, noisemodel_rhits_map)
+                dl.nlev_mask.update({nlev:buffer})
             dl.nlevels = de.nlevels
             dl.nside = de.nside
             dl.lmax_cl = de.lmax_cl
