@@ -68,8 +68,8 @@ class p2T_Transformer:
     @log_on_start(logging.INFO, "Start of build_del_suffix()")
     @log_on_end(logging.INFO, "Finished build_del_suffix()")
     def build_del_suffix(self, dl):
-
-        return os.path.join(dl.TEMP, dl.analysis_path, 'plotdata')
+# dl.analysis_path,
+        return os.path.join(dl.TEMP,  'plotdata')
 
 
     @log_on_start(logging.INFO, "Start of build_OBD()")
@@ -124,6 +124,7 @@ class p2lensrec_Transformer:
                 log.error('Not sure what to do with this zbounds_len: {}'.format(data.zbounds_len))
                 traceback.print_stack()
                 sys.exit()
+
             dl.pb_ctr, dl.pb_extent = data.pbounds
 
             cls_path = opj(os.path.dirname(plancklens.__file__), 'data', 'cls')
@@ -187,13 +188,17 @@ class p2lensrec_Transformer:
                 dl.ninv_t = p2OBD_Transformer.get_ninvt(cf)
                 dl.ninv_p = p2OBD_Transformer.get_ninvp(cf)
                 # TODO cinv_t and cinv_p trigger computation. Perhaps move this to the lerepi job-level. Could be done via introducing a DLENSALOT_Filter model component
+                log.info('{} starting filt_cinv.cinv_t()'.format(mpi.rank))
                 dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), iteration.lmax_ivf,dl.nside, dl.cls_len, dl.transf_tlm, dl.ninv_t,
                                 marge_monopole=True, marge_dipole=True, marge_maps=[])
+                log.info('{} finished filt_cinv.cinv_t()'.format(mpi.rank))
                 # TODO this could move to _OBDparams()
                 if dl.OBD_type == 'OBD':
                     transf_elm_loc = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf)
+                    log.info('{} start cinv_p_OBD.cinv_p()'.format(mpi.rank))
                     dl.cinv_p = cinv_p_OBD.cinv_p(opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, dl.nside, dl.cls_len, transf_elm_loc[:dl.lmax_ivf+1], dl.ninv_p, geom=dl.ninvjob_qe_geometry,
                         chain_descr=dl.chain_descr(iteration.lmax_ivf, iteration.CG_TOL), bmarg_lmax=dl.BMARG_LCUT, zbounds=dl.zbounds, _bmarg_lib_dir=dl.BMARG_LIBDIR, _bmarg_rescal=dl.BMARG_RESCALE, sht_threads=cf.iteration.OMP_NUM_THREADS)
+                    log.info('{} finished cinv_p_OBD.cinv_p()'.format(mpi.rank))
                 elif dl.OBD_type == 'trunc' or dl.OBD_type == None or dl.OBD_type == 'None':
                     dl.cinv_p = filt_cinv.cinv_p(opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, dl.nside, dl.cls_len, dl.transf_elm, dl.ninv_p,
                         chain_descr=dl.chain_descr(iteration.lmax_ivf, iteration.CG_TOL), transf_blm=dl.transf_blm, marge_qmaps=(), marge_umaps=())
@@ -201,12 +206,15 @@ class p2lensrec_Transformer:
                     log.error("Don't understand your OBD_typ input. Exiting..")
                     traceback.print_stack()
                     sys.exit()
+                log.info('{} starting filt_cinv.library_cinv_sepTP()'.format(mpi.rank))
                 dl.ivfs_raw = filt_cinv.library_cinv_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl.cinv_t, dl.cinv_p, dl.cls_len)
+                log.info('{} finished filt_cinv.library_cinv_sepTP()'.format(mpi.rank))
                 dl.ftl_rs = np.ones(iteration.lmax_ivf + 1, dtype=float) * (np.arange(iteration.lmax_ivf + 1) >= dl.lmin_tlm)
                 dl.fel_rs = np.ones(iteration.lmax_ivf + 1, dtype=float) * (np.arange(iteration.lmax_ivf + 1) >= dl.lmin_elm)
                 dl.fbl_rs = np.ones(iteration.lmax_ivf + 1, dtype=float) * (np.arange(iteration.lmax_ivf + 1) >= dl.lmin_blm)
+                log.info('{} starting filt_util.library_ftl()'.format(mpi.rank))
                 dl.ivfs   = filt_util.library_ftl(dl.ivfs_raw, iteration.lmax_ivf, dl.ftl_rs, dl.fel_rs, dl.fbl_rs)
-                print('5')
+                log.info('{} finished filt_util.library_ftl()'.format(mpi.rank))
                     
             if iteration.QE_LENSING_CL_ANALYSIS == True:
                 dl.ss_dict = { k : v for k, v in zip( np.concatenate( [ range(i*60, (i+1)*60) for i in range(0,5) ] ),
@@ -228,7 +236,9 @@ class p2lensrec_Transformer:
 
             if iteration.FILTER_QE == 'sepTP':
                 # ---- QE libraries from plancklens to calculate unnormalized QE (qlms)
+                log.info('{} starting qest.library_sepTP()'.format(mpi.rank))
                 dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.ivfs, dl.ivfs, dl.cls_len['te'], dl.nside, lmax_qlm=iteration.lmax_qlm)
+                log.info('{} finished qest.library_sepTP()'.format(mpi.rank))
             else:
                 assert 0, 'Implement if needed'
 
@@ -251,6 +261,7 @@ class p2lensrec_Transformer:
                 log.error('Not sure what to do with this zbounds_len: {}'.format(geometry.zbounds_len))
                 traceback.print_stack()
                 sys.exit()
+
 
             if geometry.lenjob_geometry == 'thin_gauss':
                 dl.lenjob_geometry = utils_scarf.Geom.get_thingauss_geometry(geometry.lmax_unl, 2, zbounds=zbounds_len_loc)
@@ -509,7 +520,7 @@ class p2d_Transformer:
 
             dl.sha_edges = hashlib.sha256()
             dl.sha_edges.update(str(dl.edges).encode())
-            dl.dirid = dl.sha_edges.hexdigest()[:4]
+            dl.dirid = dl.sha_edges.hexdigest()[:4] 
 
 
         dl = DLENSALOT_Concept()
