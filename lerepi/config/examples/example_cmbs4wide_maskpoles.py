@@ -26,6 +26,9 @@ dlensalot_model = DLENSALOT_Model(
         IMAX = 99,
         nsims_mf = 100,
         OMP_NUM_THREADS = 16,
+        zbounds =  ('nmr_relative', np.inf),
+        zbounds_len = ('extend', 5.),   
+        pbounds = [1.97, 5.71],
         LENSRES = 1.7, # Deflection operations will be performed at this resolution
         Lmin = 4, 
         lmax_filt = 4000,
@@ -35,10 +38,7 @@ dlensalot_model = DLENSALOT_Model(
         mmax_ivf = 3000,
         lmin_ivf = 10,
         mmin_ivf = 10,
-        lmax_unl = 4000,
-        zbounds =  ('nmr_relative', np.inf),
-        zbounds_len = ('extend', 5.),   
-        pbounds = [1.97, 5.71],
+        lmax_unl = 4000
     ),
     data = DLENSALOT_Data(
         sims = ('plancklens', 'sims', 'cmb_maps_nlev'),
@@ -88,30 +88,30 @@ dlensalot_model = DLENSALOT_Model(
         ITERATOR = 'constmf', # Choose your iterator. Either pertmf or const_mf
         mfvar = '/global/cscratch1/sd/sebibel/cmbs4/08b_00_OBD_MF100_example/qlms_dd/simMF_k1p_p_135b0ca72339ac4eb092666cd7acb262a8ea2d30.fits',
         soltn_cond = lambda it: True,
+        chain = DLENSALOT_Chaindescriptor(
+            p0 = 0,
+            p1 = ["diag_cl"],
+            p2 = None,
+            p3 = 2048,
+            p4 = np.inf,
+            p5 = None,
+            p6 = 'tr_cg',
+            p7 = 'cache_mem'
+        ),
+        stepper = DLENSALOT_Stepper(
+            typ = 'harmonicbump',
+            lmax_qlm = 4000,
+            mmax_qlm = 4000,
+            xa = 400,
+            xb = 1500
+        )
     ),
-    map_delensing = DLENSALOT_Mapdelensing(
+    madel = DLENSALOT_Mapdelensing(
         edges = 'ioreco',
         ITMAX = [10,12],
         droplist = np.array([]),
         base_mask = 'cmbs4/08b/caterinaILC_May12', # This mask is used to rotate ILC maps
         nlevels = [2, 5],
         lmax_cl = 2048,
-    ),
-    chain_descriptor = DLENSALOT_Chaindescriptor(
-        p0 = 0,
-        p1 = ["diag_cl"],
-        p2 = None,
-        p3 = 2048,
-        p4 = np.inf,
-        p5 = None,
-        p6 = 'tr_cg',
-        p7 = 'cache_mem'
-    ),
-    stepper = DLENSALOT_Stepper(
-        typ = 'harmonicbump',
-        lmax_qlm = 4000,
-        mmax_qlm = 4000,
-        xa = 400,
-        xb = 1500
-    ),
+    )
 )

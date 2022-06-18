@@ -21,13 +21,12 @@ class DLENSALOT_Model(DLENSALOT_Concept):
         data: 
     """
     job = attr.ib(default=-1)
-    data = attr.ib(default=-1)
-    iteration  = attr.ib(default=[])
-    geometry = attr.ib(default=[])
-    chain_descriptor = attr.ib(default=[])
-    stepper = attr.ib(default=-1)
-    map_delensing = attr.ib(default=-1)
-    noisemodel = attr.ib(default=-1)
+    analysis = attr.ib(default=-1)
+    data  = attr.ib(default=[])
+    noisemodel = attr.ib(default=[])
+    qerec = attr.ib(default=[])
+    itrec = attr.ib(default=-1)
+    madel = attr.ib(default=-1)
 
 
 @attr.s
@@ -142,7 +141,8 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     ITERATOR = attr.ib(default=-1)
     mfvar = attr.ib(default=-1)
     soltn_cond = attr.ib(default=-1)
-
+    chain = attr.ib(default=-1)
+    stepper = attr.ib(default=-1)
 
 
 @attr.s
