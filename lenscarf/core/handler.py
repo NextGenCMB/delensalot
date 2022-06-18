@@ -89,10 +89,6 @@ class QE_lr():
             for idx in np.arange(self.imin, self.imax + 1):
                 jobs.append(idx)
             self.jobs = jobs
-        # TODO could check if mf has already been calculated, or all get_X() have created the files they need, before appending. Fixes (1)
-        # for idx in self.mc_sims_mf_it0:
-        #     jobs.append(idx)
-        # self.jobs = jobs
 
 
     @log_on_start(logging.INFO, "Start of run()")
@@ -151,8 +147,8 @@ class QE_lr():
     @log_on_end(logging.INFO, "Finished get_meanfield_it0()")
     def get_meanfield_it0(self, simidx):
         if self.mfvar == None:
-            mf0 = self.qlms_dd.get_sim_qlm_mf(self.k, self.mc_sims_mf_it0)  # Mean-field to subtract on the first iteration:
-            if simidx in self.mc_sims_mf_it0:  # We dont want to include the sim we consider in the mean-field...
+            mf0 = self.qlms_dd.get_sim_qlm_mf(self.k, self.mc_sims_mf_it0)
+            if simidx in self.mc_sims_mf_it0:
                 Nmf = len(self.mc_sims_mf_it0)
                 mf0 = (mf0 - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / Nmf) * (Nmf / (Nmf - 1))
         else:
@@ -181,7 +177,7 @@ class QE_lr():
             almxfl(plm0, WF, self.mmax_qlm, True)           # Wiener-filter QE
             almxfl(plm0, self.cpp > 0, self.mmax_qlm, True)
             np.save(path_plm0, plm0)
-        
+
         return np.load(path_plm0)
 
 
@@ -226,9 +222,7 @@ class MAP_lr():
     @log_on_start(logging.INFO, "Start of run()")
     @log_on_end(logging.INFO, "Finished run()")
     def run(self):
-        # TODO if all qe jobs already done before, this still takes a while. Fix, checking if files exist should be quick. (1)
         self.qe.run()
-        # TODO within first srun, this doesn't start.. at least one job hangs in qe.
         for idx in self.jobs[mpi.rank::mpi.size]:
             log.info('{}, simidx {} started {}'.format(mpi.rank, mpi.size, idx))
             lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
