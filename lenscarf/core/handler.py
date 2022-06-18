@@ -156,7 +156,7 @@ class QE_lr():
                 Nmf = len(self.mc_sims_mf_it0)
                 mf0 = (mf0 - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / Nmf) * (Nmf / (Nmf - 1))
         else:
-            mf0 = hp.read_map(self.mfvar)
+            mf0 = hp.read_alm(self.mfvar)
 
         return mf0
 
