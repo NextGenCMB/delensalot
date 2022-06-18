@@ -64,12 +64,32 @@ class p2T_Transformer:
 
         return TEMP
 
+    @log_on_start(logging.INFO, "Start of build_nomf()")
+    @log_on_end(logging.INFO, "Finished build_nomf()")
+    def build_nomf(self, cf):
+        _suffix = cf.data.sims.split('/')[1]+'_%s'%(cf.data.fg)
+        if cf.noisemodel.typ == 'OBD':
+            _suffix += '_OBD'
+        elif cf.noisemodel.typ == 'trunc':
+            _suffix += '_OBDtrunc'+str(cf.noisemodel.lmin_blm)
+        elif cf.noisemodel.typ == 'None' or cf.noisemodel.typ == None:
+            _suffix += '_noOBD'
+
+        if cf.data.TEMP_suffix != '':
+            _suffix += '_'+cf.data.TEMP_suffix
+        TEMP =  opj(os.environ['SCRATCH'], cf.data.sims.split('/')[0], cf.data.sims.split('/')[1], _suffix)
+
+        return TEMP
+
 
     @log_on_start(logging.INFO, "Start of build_del_suffix()")
     @log_on_end(logging.INFO, "Finished build_del_suffix()")
     def build_del_suffix(self, dl):
 # dl.analysis_path,
-        return os.path.join(dl.TEMP,  'plotdata')
+        if dl.version == '':
+            return os.path.join(dl.TEMP, 'plotdata')
+        else:
+            return os.path.join(dl.TEMP, 'plotdata', dl.version)
 
 
     @log_on_start(logging.INFO, "Start of build_OBD()")
@@ -226,13 +246,13 @@ class p2lensrec_Transformer:
                 log.info('{} finished qest.library_sepTP()'.format(mpi.rank))
             else:
                 assert 0, 'Implement if needed'
-            if iteration.meanfield == 'same':
+            if iteration.mfvar == 'same':
                 dl.mfvar = None
-            elif iteration.meanfield.startswith('/'):
-                if os.path.isfile(iteration.meanfield):
-                    dl.mfvar = iteration.meanfield
+            elif iteration.mfvar.startswith('/'):
+                if os.path.isfile(iteration.mfvar):
+                    dl.mfvar = iteration.mfvar
                 else:
-                    log.error('Not sure what to do with this meanfield: {}'.format(iteration.meanfield))
+                    log.error('Not sure what to do with this meanfield: {}'.format(iteration.mfvar))
 
         @log_on_start(logging.INFO, "Start of _process_geometryparams()")
         @log_on_end(logging.INFO, "Finished _process_geometryparams()")

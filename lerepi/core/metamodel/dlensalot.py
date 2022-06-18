@@ -107,7 +107,7 @@ class DLENSALOT_Iteration(DLENSALOT_Concept):
     ITMAX = attr.ib(default=-1)
     IMIN = attr.ib(default=-1)
     IMAX = attr.ib(default=-1)
-    meanfield = attr.ib(default=-1)
+    mfvar = attr.ib(default=-1)
     # Change the following block only if a full, Planck-like QE lensing power spectrum analysis is desired
     # This uses 'ds' and 'ss' QE's, crossing data with sims and sims with other sims.
     # This remaps idx -> idx + 1 by blocks of 60 up to 300. This is used to remap the sim indices for the 'MCN0' debiasing term in the QE spectrum
