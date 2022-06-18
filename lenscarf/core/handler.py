@@ -150,10 +150,13 @@ class QE_lr():
     @log_on_start(logging.INFO, "Start of get_meanfield_it0()")
     @log_on_end(logging.INFO, "Finished get_meanfield_it0()")
     def get_meanfield_it0(self, simidx):
-        mf0 = self.qlms_dd.get_sim_qlm_mf(self.k, self.mc_sims_mf_it0)  # Mean-field to subtract on the first iteration:
-        if simidx in self.mc_sims_mf_it0:  # We dont want to include the sim we consider in the mean-field...
-            Nmf = len(self.mc_sims_mf_it0)
-            mf0 = (mf0 - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / Nmf) * (Nmf / (Nmf - 1))
+        if self.mfvar == None:
+            mf0 = self.qlms_dd.get_sim_qlm_mf(self.k, self.mc_sims_mf_it0)  # Mean-field to subtract on the first iteration:
+            if simidx in self.mc_sims_mf_it0:  # We dont want to include the sim we consider in the mean-field...
+                Nmf = len(self.mc_sims_mf_it0)
+                mf0 = (mf0 - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / Nmf) * (Nmf / (Nmf - 1))
+        else:
+            mf0 = hp.read_map(self.mfvar)
 
         return mf0
 
@@ -233,8 +236,8 @@ class MAP_lr():
                 itlib = self.ith(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
                 itlib_iterator = itlib.get_iterator()
                 for i in range(self.itmax + 1):
-                    print("****Iterator: setting cg-tol to %.4e ****"%self.tol_iter(i))
-                    print("****Iterator: setting solcond to %s ****"%self.soltn_cond(i))
+                    log.info("****Iterator: setting cg-tol to %.4e ****"%self.tol_iter(i))
+                    log.info("****Iterator: setting solcond to %s ****"%self.soltn_cond(i))
                     itlib_iterator.chain_descr  = self.chain_descr(self.lmax_unl, self.tol_iter(i))
                     itlib_iterator.soltn_cond = self.soltn_cond(i)
                     itlib_iterator.iterate(i, 'p')
