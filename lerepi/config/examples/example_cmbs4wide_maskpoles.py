@@ -27,9 +27,22 @@ dlensalot_model = DLENSALOT_Model(
         nsims_mf = 100,
         OMP_NUM_THREADS = 16,
         LENSRES = 1.7, # Deflection operations will be performed at this resolution
+        Lmin = 4, 
+        lmax_filt = 4000,
+        lmax_unl = 4000,
+        mmax_unl = 4000,
+        lmax_ivf = 3000,
+        mmax_ivf = 3000,
+        lmin_ivf = 10,
+        mmin_ivf = 10,
+        lmax_unl = 4000,
+        zbounds =  ('nmr_relative', np.inf),
+        zbounds_len = ('extend', 5.),   
+        pbounds = [1.97, 5.71],
     ),
     data = DLENSALOT_Data(
         sims = ('plancklens', 'sims', 'cmb_maps_nlev'),
+        # sims = ('lenscarf', 'cmbs4/08d', 'caterinaILC_2022'),
         sims_settings = {
             'sims_cmb_len': planck2018_sims.cmb_len_ffp10(),
             'cl_transf': hp.gauss_beam(1.0 / 180 / 60 * np.pi, lmax=4096),
@@ -39,19 +52,7 @@ dlensalot_model = DLENSALOT_Model(
             'lib_dir': None,
             'pix_lib_phas': phas.pix_lib_phas(opj(os.environ['HOME'], 'pixphas_nside2048'), 3, (hp.nside2npix(2048),))
         },
-        lmax_unl = 4000,
-        zbounds =  ('nmr_relative', np.inf),
-        zbounds_len = ('extend', 5.),   
-        pbounds = [1.97, 5.71],
-        STANDARD_TRANSFERFUNCTION = True, # Change the following block only if exotic transferfunctions are desired
-        Lmin = 4, 
-        lmax_filt = 4000,
-        lmax_unl = 4000,
-        mmax_unl = 4000,
-        lmax_ivf = 3000,
-        mmax_ivf = 3000,
-        lmin_ivf = 10,
-        mmin_ivf = 10
+        STANDARD_TRANSFERFUNCTION = True # Change the following block only if exotic transferfunctions are desired
     ),
     noisemodel = DLENSALOT_Noisemodel(
         typ = 'OBD',
@@ -90,14 +91,11 @@ dlensalot_model = DLENSALOT_Model(
     ),
     map_delensing = DLENSALOT_Mapdelensing(
         edges = 'ioreco',
-        IMIN = 0,
-        IMAX = 99,
         ITMAX = [10,12],
         droplist = np.array([]),
         base_mask = 'cmbs4/08b/caterinaILC_May12', # This mask is used to rotate ILC maps
         nlevels = [2, 5],
         lmax_cl = 2048,
-        Cl_fid = 'ffp10'
     ),
     chain_descriptor = DLENSALOT_Chaindescriptor(
         p0 = 0,

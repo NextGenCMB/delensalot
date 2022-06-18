@@ -61,6 +61,18 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     nsims_mf = attr.ib(default=-1)
     OMP_NUM_THREADS = attr.ib(default=-1)
     LENSRES = attr.ib(default=-1)
+    Lmin = attr.ib(default=-1)
+    lmax_filt = attr.ib(default=-1)
+    lmax_unl = attr.ib(default=-1)
+    mmax_unl = attr.ib(default=-1)
+    lmax_ivf = attr.ib(default=-1)
+    mmax_ivf = attr.ib(default=-1)
+    lmin_ivf = attr.ib(default=-1)
+    mmin_ivf = attr.ib(default=-1)
+    lmax_unl = attr.ib(default=-1)
+    zbounds =  attr.ib(default=-1)
+    zbounds_len = attr.ib(default=-1)
+    pbounds = attr.ib(default=-1)
 
 
 @attr.s
@@ -72,19 +84,8 @@ class DLENSALOT_Data(DLENSALOT_Concept):
     """
     sims = attr.ib(default=-1)
     sims_settings = attr.ib(default=-1)
-    lmax_unl = attr.ib(default=-1)
-    zbounds =  attr.ib(default=-1)
-    zbounds_len = attr.ib(default=-1)
-    pbounds = attr.ib(default=-1)
     STANDARD_TRANSFERFUNCTION = attr.ib(default=-1)
-    Lmin = attr.ib(default=-1)
-    lmax_filt = attr.ib(default=-1)
-    lmax_unl = attr.ib(default=-1)
-    mmax_unl = attr.ib(default=-1)
-    lmax_ivf = attr.ib(default=-1)
-    mmax_ivf = attr.ib(default=-1)
-    lmin_ivf = attr.ib(default=-1)
-    mmin_ivf = attr.ib(default=-1)
+
 
 
 @attr.s
