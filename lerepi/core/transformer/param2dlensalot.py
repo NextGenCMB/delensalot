@@ -108,25 +108,6 @@ class p2lensrec_Transformer:
             dl.lmax_transf = data.lmax_transf
             dl.transf = data.transf(dl.beam / 180. / 60. * np.pi, lmax=dl.lmax_transf)
 
-            if data.zbounds[0] == 'nmr_relative':
-                dl.zbounds = df.get_zbounds(hp.read_map(cf.noisemodel.noisemodel_rhits), data.zbounds[1])
-            elif data.zbounds[0] == float or data.zbounds[0] == int:
-                dl.zbounds = data.zbounds
-            else:
-                log.error('Not sure what to do with this zbounds: {}'.format(data.zbounds))
-                traceback.print_stack()
-                sys.exit()
-            if data.zbounds_len[0] == 'extend':
-                dl.zbounds_len = df.extend_zbounds(dl.zbounds, degrees=data.zbounds_len[1])
-            elif data.zbounds_len[0] == float or data.zbounds_len[0] == int:
-                dl.zbounds_len = data.zbounds_len
-            else:
-                log.error('Not sure what to do with this zbounds_len: {}'.format(data.zbounds_len))
-                traceback.print_stack()
-                sys.exit()
-
-            dl.pb_ctr, dl.pb_extent = data.pbounds
-
             cls_path = opj(os.path.dirname(plancklens.__file__), 'data', 'cls')
             dl.cls_unl = utils.camb_clfile(opj(cls_path, 'FFP10_wdipole_lenspotentialCls.dat'))
             dl.cls_len = utils.camb_clfile(opj(cls_path, 'FFP10_wdipole_lensedCls.dat'))
@@ -154,12 +135,16 @@ class p2lensrec_Transformer:
             dl.mmax_unl = iteration.mmax_unl
 
             dl.tol = iteration.TOL
-            dl.tol_iter = lambda itr : 10 ** (- dl.tol) if itr <= 10 else 10 ** (-(dl.tol+1)) 
+            if 'rinf_tol4' in cf.data.TEMP_suffix:
+                log.warning('tol_iter increased for this run. This is hardcoded.')
+                dl.tol_iter = lambda itr : 2*10 ** (- dl.tol) if itr <= 10 else 2*10 ** (-(dl.tol+1))
+            else:
+                dl.tol_iter = lambda itr : 1*10 ** (- dl.tol) if itr <= 10 else 1*10 ** (-(dl.tol+1))
             dl.soltn_cond = iteration.soltn_cond # Uses (or not) previous E-mode solution as input to search for current iteration one
             dl.cg_tol = iteration.CG_TOL
 
             dl.cpp = np.copy(dl.cls_unl['pp'][:dl.lmax_qlm + 1])
-            dl.cpp[:iteration.Lmin] *= 0. # TODO *0 or *1e-5?
+            dl.cpp[:iteration.Lmin] *= 0.
 
             dl.lensres = iteration.LENSRES
             dl.tr = int(os.environ.get('OMP_NUM_THREADS', iteration.OMP_NUM_THREADS))
@@ -241,22 +226,32 @@ class p2lensrec_Transformer:
                 log.info('{} finished qest.library_sepTP()'.format(mpi.rank))
             else:
                 assert 0, 'Implement if needed'
+            if iteration.meanfield == 'same':
+                dl.mfvar = None
+            elif iteration.meanfield.startswith('/'):
+                if os.path.isfile(iteration.meanfield):
+                    dl.mfvar = iteration.meanfield
+                else:
+                    log.error('Not sure what to do with this meanfield: {}'.format(iteration.meanfield))
 
         @log_on_start(logging.INFO, "Start of _process_geometryparams()")
         @log_on_end(logging.INFO, "Finished _process_geometryparams()")
         def _process_geometryparams(dl, geometry):
+            dl.pb_ctr, dl.pb_extent = geometry.pbounds
             if geometry.zbounds[0] == 'nmr_relative':
-                zbounds_loc = df.get_zbounds(hp.read_map(cf.noisemodel.noisemodel_rhits), geometry.zbounds[1])
+                dl.zbounds = df.get_zbounds(hp.read_map(cf.noisemodel.rhits_normalised[0]), geometry.zbounds[1])
             elif geometry.zbounds[0] == float or geometry.zbounds[0] == int:
-                zbounds_loc = geometry.zbounds
+                dl.zbounds = geometry.zbounds
             else:
                 log.error('Not sure what to do with this zbounds: {}'.format(geometry.zbounds))
                 traceback.print_stack()
                 sys.exit()
             if geometry.zbounds_len[0] == 'extend':
-                zbounds_len_loc = df.extend_zbounds(zbounds_loc, degrees=geometry.zbounds_len[1])
+                dl.zbounds_len = df.extend_zbounds(dl.zbounds, degrees=geometry.zbounds_len[1])
+            elif geometry.zbounds_len[0] == 'max':
+                  dl.zbounds_len = [-1, 1]
             elif geometry.zbounds_len[0] == float or geometry.zbounds_len[0] == int:
-                zbounds_len_loc = geometry.zbounds_len
+                dl.zbounds_len = geometry.zbounds_len
             else:
                 log.error('Not sure what to do with this zbounds_len: {}'.format(geometry.zbounds_len))
                 traceback.print_stack()
@@ -264,19 +259,19 @@ class p2lensrec_Transformer:
 
 
             if geometry.lenjob_geometry == 'thin_gauss':
-                dl.lenjob_geometry = utils_scarf.Geom.get_thingauss_geometry(geometry.lmax_unl, 2, zbounds=zbounds_len_loc)
+                dl.lenjob_geometry = utils_scarf.Geom.get_thingauss_geometry(geometry.lmax_unl, 2, zbounds=dl.zbounds_len)
             if geometry.lenjob_pbgeometry == 'pbdGeometry':
-                dl.lenjob_pbgeometry = utils_scarf.pbdGeometry(dl.lenjob_geometry, utils_scarf.pbounds(geometry.pbounds[0], geometry.pbounds[1]))
+                dl.lenjob_pbgeometry = utils_scarf.pbdGeometry(dl.lenjob_geometry, utils_scarf.pbounds(dl.pb_ctr, dl.pb_extent))
             if geometry.ninvjob_geometry == 'healpix_geometry':
                 # ninv MAP geometry. Could be merged with QE, if next comment resolved
                 # TODO zbounds_loc must be identical to data.zbounds
-                dl.ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(geometry.nside, zbounds=zbounds_loc)
+                dl.ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(geometry.nside, zbounds=dl.zbounds)
             if geometry.ninvjob_qe_geometry == 'healpix_geometry_qe':
                 # TODO for QE, isOBD only works with zbounds=(-1,1). Perhaps missing ztrunc on qumaps
                 # Introduced new geometry for now, until either plancklens supports ztrunc, or ztrunced simlib (not sure if it already does)
                 dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(geometry.nside, zbounds=(-1,1))
             elif geometry.ninvjob_qe_geometry == 'healpix_geometry':
-                dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(geometry.nside, zbounds=zbounds_loc)
+                dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(geometry.nside, zbounds=dl.zbounds)
 
 
         @log_on_start(logging.INFO, "Start of _process_chaindescparams()")
@@ -300,30 +295,30 @@ class p2lensrec_Transformer:
 
         @log_on_start(logging.INFO, "Start of _process_OBDparams()")
         @log_on_end(logging.INFO, "Finished _process_OBDparams()")
-        def _process_OBDparams(dl, ob):
-            dl.OBD_type = ob.typ
-            dl.BMARG_LCUT = ob.BMARG_LCUT
-            dl.BMARG_LIBDIR = ob.BMARG_LIBDIR
-            dl.BMARG_RESCALE = ob.BMARG_RESCALE
+        def _process_noisemodelparams(dl, nm):
+            dl.OBD_type = nm.typ
+            dl.BMARG_LCUT = nm.BMARG_LCUT
+            dl.BMARG_LIBDIR = nm.BMARG_LIBDIR
+            dl.BMARG_RESCALE = nm.BMARG_RESCALE
             if dl.OBD_type == 'OBD':
                 # TODO need to check if tniti exists, and if tniti is the correct one
                 if cf.data.tpl == 'template_dense':
                     def tpl_kwargs(lmax_marg, geom, sht_threads, _lib_dir=None, rescal=1.):
                         return locals()
                     dl.tpl = template_dense
-                    dl.tpl_kwargs = tpl_kwargs(ob.BMARG_LCUT, dl.ninvjob_geometry, cf.iteration.OMP_NUM_THREADS, _lib_dir=dl.BMARG_LIBDIR, rescal=dl.BMARG_RESCALE) 
+                    dl.tpl_kwargs = tpl_kwargs(nm.BMARG_LCUT, dl.ninvjob_geometry, cf.iteration.OMP_NUM_THREADS, _lib_dir=dl.BMARG_LIBDIR, rescal=dl.BMARG_RESCALE) 
                 else:
                     assert 0, "Implement if needed"
                 # TODO need to initialise as function expect it, but do I want this? Shouldn't be needed
-                dl.lmin_tlm = ob.lmin_tlm
-                dl.lmin_elm = ob.lmin_elm
-                dl.lmin_blm = ob.lmin_blm
+                dl.lmin_tlm = nm.lmin_tlm
+                dl.lmin_elm = nm.lmin_elm
+                dl.lmin_blm = nm.lmin_blm
             elif dl.OBD_type == 'trunc':
                 dl.tpl = None
                 dl.tpl_kwargs = dict()
-                dl.lmin_tlm = ob.lmin_tlm
-                dl.lmin_elm = ob.lmin_elm
-                dl.lmin_blm = ob.lmin_blm
+                dl.lmin_tlm = nm.lmin_tlm
+                dl.lmin_elm = nm.lmin_elm
+                dl.lmin_blm = nm.lmin_blm
             elif dl.OBD_type == None or dl.OBD_type == 'None':
                 dl.tpl = None
                 dl.tpl_kwargs = dict()
@@ -339,14 +334,16 @@ class p2lensrec_Transformer:
 
         dl = DLENSALOT_Concept()
         _process_geometryparams(dl, cf.geometry)
-        _process_OBDparams(dl, cf.noisemodel)
+        _process_noisemodelparams(dl, cf.noisemodel)
         _process_dataparams(dl, cf.data)
         _process_chaindescparams(dl, cf.chain_descriptor)
         _process_iterationparams(dl, cf.iteration)
         _process_stepperparams(dl, cf.stepper)
 
         if mpi.rank == 0:
-            log.info("I am going to work with the following values: {}".format(dl.__dict__))
+            log.info("I am going to work with the following values:")
+            for key, val in dl.__dict__.items():
+                log.info(str(key), str(val))
 
         return dl
 
@@ -357,7 +354,7 @@ class p2OBD_Transformer:
     @log_on_start(logging.INFO, "Start of get_nlrh_map()")
     @log_on_end(logging.INFO, "Finished get_nlrh_map()")
     def get_nlrh_map(cf):
-        noisemodel_rhits_map = df.get_nlev_mask(cf.noisemodel.ratio, hp.read_map(cf.noisemodel.noisemodel_rhits))
+        noisemodel_rhits_map = df.get_nlev_mask(cf.noisemodel.rhits_normalised[1], hp.read_map(cf.noisemodel.rhits_normalised[0]))
         noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.noisemodel.inf
 
         return noisemodel_rhits_map
@@ -409,7 +406,7 @@ class p2OBD_Transformer:
     # @log_on_end(logging.INFO, "Finished get_masks()")
     def get_masks(cf):
         masks = []
-        if cf.noisemodel.noisemodel_rhits is not None:
+        if cf.noisemodel.rhits_normalised is not None:
             msk = p2OBD_Transformer.get_nlrh_map(cf)
             masks.append(msk)
         if cf.noisemodel.mask[0] == 'nlev':
@@ -495,17 +492,19 @@ class p2d_Transformer:
             _sims_module = importlib.import_module(_sims_module_name)
             dl.sims = getattr(_sims_module, _sims_class_name)(dl.fg)
 
-            mask_path = cf.noisemodel.noisemodel_rhits # dl.sims.p2mask
+            mask_path = cf.noisemodel.rhits_normalised[0] # dl.sims.p2mask
             dl.base_mask = np.nan_to_num(hp.read_map(mask_path))
             dl.TEMP = transform(cf, p2T_Transformer())
             dl.analysis_path = dl.TEMP.split('/')[-1]
             dl.TEMP_DELENSED_SPECTRUM = transform(dl, p2T_Transformer())
             dl.nlev_mask = dict()
-            noisemodel_rhits_map = df.get_nlev_mask(np.inf, hp.read_map(cf.noisemodel.noisemodel_rhits))
+            # TODO this can possibly be simplified
+            noisemodel_rhits_map = df.get_nlev_mask(np.inf, hp.read_map(cf.noisemodel.rhits_normalised[0]))
             noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.noisemodel.inf
             for nlev in de.nlevels:
                 buffer = df.get_nlev_mask(nlev, noisemodel_rhits_map)
                 dl.nlev_mask.update({nlev:buffer})
+
             dl.nlevels = de.nlevels
             dl.nside = de.nside
             dl.lmax_cl = de.lmax_cl
