@@ -399,6 +399,295 @@ class p2lensrec_Transformer:
         return dl
 
 
+class p2lensrecV2_Transformer:
+    """_summary_
+    """
+
+    @log_on_start(logging.INFO, "Start of build()")
+    @log_on_end(logging.INFO, "Finished build()")
+    def build(self, cf):
+
+        @log_on_start(logging.INFO, "Start of _process_geometryparams()")
+        @log_on_end(logging.INFO, "Finished _process_geometryparams()")
+        def _process_Analysis(dl, geometry):
+            dl.pb_ctr, dl.pb_extent = geometry.pbounds
+            if geometry.zbounds[0] == 'nmr_relative':
+                dl.zbounds = df.get_zbounds(hp.read_map(cf.noisemodel.rhits_normalised[0]), geometry.zbounds[1])
+            elif geometry.zbounds[0] == float or geometry.zbounds[0] == int:
+                dl.zbounds = geometry.zbounds
+            else:
+                log.error('Not sure what to do with this zbounds: {}'.format(geometry.zbounds))
+                traceback.print_stack()
+                sys.exit()
+            if geometry.zbounds_len[0] == 'extend':
+                dl.zbounds_len = df.extend_zbounds(dl.zbounds, degrees=geometry.zbounds_len[1])
+            elif geometry.zbounds_len[0] == 'max':
+                  dl.zbounds_len = [-1, 1]
+            elif geometry.zbounds_len[0] == float or geometry.zbounds_len[0] == int:
+                dl.zbounds_len = geometry.zbounds_len
+            else:
+                log.error('Not sure what to do with this zbounds_len: {}'.format(geometry.zbounds_len))
+                traceback.print_stack()
+                sys.exit()
+
+
+            if geometry.lenjob_geometry == 'thin_gauss':
+                dl.lenjob_geometry = utils_scarf.Geom.get_thingauss_geometry(geometry.lmax_unl, 2, zbounds=dl.zbounds_len)
+            if geometry.lenjob_pbgeometry == 'pbdGeometry':
+                dl.lenjob_pbgeometry = utils_scarf.pbdGeometry(dl.lenjob_geometry, utils_scarf.pbounds(dl.pb_ctr, dl.pb_extent))
+            if geometry.ninvjob_geometry == 'healpix_geometry':
+                # ninv MAP geometry. Could be merged with QE, if next comment resolved
+                # TODO zbounds_loc must be identical to data.zbounds
+                dl.ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(geometry.nside, zbounds=dl.zbounds)
+            if geometry.ninvjob_qe_geometry == 'healpix_geometry_qe':
+                # TODO for QE, isOBD only works with zbounds=(-1,1). Perhaps missing ztrunc on qumaps
+                # Introduced new geometry for now, until either plancklens supports ztrunc, or ztrunced simlib (not sure if it already does)
+                dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(geometry.nside, zbounds=(-1,1))
+            elif geometry.ninvjob_qe_geometry == 'healpix_geometry':
+                dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(geometry.nside, zbounds=dl.zbounds)
+
+
+        @log_on_start(logging.INFO, "Start of _process_dataparams()")
+        @log_on_end(logging.INFO, "Finished _process_dataparams()")
+        def _process_Data(dl, data):
+            dl.TEMP = transform(cf, p2T_Transformer())
+            dl.nside = data.nside
+            # TODO simplify the following two attributes
+            dl.nsims_mf = 0 if cf.iteration.V == 'noMF' else cf.iteration.nsims_mf
+            dl.mc_sims_mf_it0 = np.arange(dl.nsims_mf)
+            dl.fg = data.fg
+
+            _ui = data.sims.split('/')
+            _sims_module_name = 'lerepi.config.'+_ui[0]+'.data.data_'+_ui[1]
+            _sims_class_name = _ui[-1]
+            _sims_module = importlib.import_module(_sims_module_name)
+            dl.sims = getattr(_sims_module, _sims_class_name)(dl.fg)
+
+            dl.masks = p2OBD_Transformer.get_masks(cf)
+
+            dl.beam = data.BEAM
+            dl.lmax_transf = data.lmax_transf
+            dl.transf = data.transf(dl.beam / 180. / 60. * np.pi, lmax=dl.lmax_transf)
+
+            cls_path = opj(os.path.dirname(plancklens.__file__), 'data', 'cls')
+            dl.cls_unl = utils.camb_clfile(opj(cls_path, 'FFP10_wdipole_lenspotentialCls.dat'))
+            dl.cls_len = utils.camb_clfile(opj(cls_path, 'FFP10_wdipole_lensedCls.dat'))
+
+
+        @log_on_start(logging.INFO, "Start of _process_OBDparams()")
+        @log_on_end(logging.INFO, "Finished _process_OBDparams()")
+        def _process_Noisemodel(dl, nm):
+            dl.OBD_type = nm.typ
+            dl.BMARG_LCUT = nm.BMARG_LCUT
+            dl.BMARG_LIBDIR = nm.BMARG_LIBDIR
+            dl.BMARG_RESCALE = nm.BMARG_RESCALE
+            if dl.OBD_type == 'OBD':
+                # TODO need to check if tniti exists, and if tniti is the correct one
+                if cf.data.tpl == 'template_dense':
+                    def tpl_kwargs(lmax_marg, geom, sht_threads, _lib_dir=None, rescal=1.):
+                        return locals()
+                    dl.tpl = template_dense
+                    dl.tpl_kwargs = tpl_kwargs(nm.BMARG_LCUT, dl.ninvjob_geometry, cf.iteration.OMP_NUM_THREADS, _lib_dir=dl.BMARG_LIBDIR, rescal=dl.BMARG_RESCALE) 
+                else:
+                    assert 0, "Implement if needed"
+                # TODO need to initialise as function expect it, but do I want this? Shouldn't be needed
+                dl.lmin_tlm = nm.lmin_tlm
+                dl.lmin_elm = nm.lmin_elm
+                dl.lmin_blm = nm.lmin_blm
+            elif dl.OBD_type == 'trunc':
+                dl.tpl = None
+                dl.tpl_kwargs = dict()
+                dl.lmin_tlm = nm.lmin_tlm
+                dl.lmin_elm = nm.lmin_elm
+                dl.lmin_blm = nm.lmin_blm
+            elif dl.OBD_type == None or dl.OBD_type == 'None':
+                dl.tpl = None
+                dl.tpl_kwargs = dict()
+                # TODO are 0s a good value? 
+                dl.lmin_tlm = 0
+                dl.lmin_elm = 0
+                dl.lmin_blm = 0
+            else:
+                log.error("Don't understand your OBD_type input. Exiting..")
+                traceback.print_stack()
+                sys.exit()
+
+
+        @log_on_start(logging.INFO, "Start of _process_stepperparams()")
+        @log_on_end(logging.INFO, "Finished _process_stepperparams()")
+        def _process_Qerec(dl, st):
+            if st.typ == 'harmonicbump':
+                dl.stepper = steps.harmonicbump(st.lmax_qlm, st.mmax_qlm, xa=st.xa, xb=st.xb)
+
+
+        @log_on_start(logging.INFO, "Start of _process_iterationparams()")
+        @log_on_end(logging.INFO, "Finished _process_iterationparams()")
+        def _process_Itrec(dl, iteration):
+            dl.version = iteration.V
+            dl.k = iteration.K  
+            dl.itmax = iteration.ITMAX
+            dl.imin = iteration.IMIN
+            dl.imax = iteration.IMAX
+            dl.lmax_filt = iteration.lmax_filt
+            
+            dl.lmax_qlm = iteration.lmax_qlm
+            dl.mmax_qlm = iteration.mmax_qlm
+            
+            dl.lmax_ivf = iteration.lmax_ivf
+            dl.lmin_ivf = iteration.lmin_ivf
+            dl.mmax_ivf = iteration.mmax_ivf
+
+            dl.mmin_ivf = iteration.mmin_ivf
+            dl.lmax_unl = iteration.lmax_unl
+            dl.mmax_unl = iteration.mmax_unl
+
+            dl.tol = iteration.TOL
+            if 'rinf_tol4' in cf.data.TEMP_suffix:
+                log.warning('tol_iter increased for this run. This is hardcoded.')
+                dl.tol_iter = lambda itr : 2*10 ** (- dl.tol) if itr <= 10 else 2*10 ** (-(dl.tol+1))
+            else:
+                dl.tol_iter = lambda itr : 1*10 ** (- dl.tol) if itr <= 10 else 1*10 ** (-(dl.tol+1))
+            dl.soltn_cond = iteration.soltn_cond # Uses (or not) previous E-mode solution as input to search for current iteration one
+            dl.cg_tol = iteration.CG_TOL
+
+            dl.cpp = np.copy(dl.cls_unl['pp'][:dl.lmax_qlm + 1])
+            dl.cpp[:iteration.Lmin] *= 0.
+
+            dl.lensres = iteration.LENSRES
+            dl.tr = int(os.environ.get('OMP_NUM_THREADS', iteration.OMP_NUM_THREADS))
+            dl.iterator = iteration.ITERATOR
+
+            if iteration.STANDARD_TRANSFERFUNCTION == True:
+                dl.nlev_t = p2OBD_Transformer.get_nlevt(cf)
+                dl.nlev_p = p2OBD_Transformer.get_nlevp(cf)
+                
+                # Fiducial model of the transfer function
+                dl.transf_tlm = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf) * (np.arange(iteration.lmax_ivf + 1) >= dl.lmin_tlm)
+                dl.transf_elm = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf) * (np.arange(iteration.lmax_ivf + 1) >= dl.lmin_elm)
+                dl.transf_blm = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf) * (np.arange(iteration.lmax_ivf + 1) >= dl.lmin_blm)
+
+                # Isotropic approximation to the filtering (used eg for response calculations)
+                dl.ftl =  cli(dl.cls_len['tt'][:iteration.lmax_ivf + 1] + (dl.nlev_t / 180 / 60 * np.pi) ** 2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
+                dl.fel =  cli(dl.cls_len['ee'][:iteration.lmax_ivf + 1] + (dl.nlev_p / 180 / 60 * np.pi) ** 2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
+                dl.fbl =  cli(dl.cls_len['bb'][:iteration.lmax_ivf + 1] + (dl.nlev_p / 180 / 60 * np.pi) ** 2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
+
+                # Same using unlensed spectra (used for unlensed response used to initiate the MAP curvature matrix)
+                dl.ftl_unl =  cli(dl.cls_unl['tt'][:iteration.lmax_ivf + 1] + (dl.nlev_t / 180 / 60 * np.pi) ** 2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
+                dl.fel_unl =  cli(dl.cls_unl['ee'][:iteration.lmax_ivf + 1] + (dl.nlev_p / 180 / 60 * np.pi) ** 2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
+                dl.fbl_unl =  cli(dl.cls_unl['bb'][:iteration.lmax_ivf + 1] + (dl.nlev_p / 180 / 60 * np.pi) ** 2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
+
+            if iteration.FILTER == 'cinv_sepTP':
+                dl.ninv_t = p2OBD_Transformer.get_ninvt(cf)
+                dl.ninv_p = p2OBD_Transformer.get_ninvp(cf)
+                # TODO cinv_t and cinv_p trigger computation. Perhaps move this to the lerepi job-level. Could be done via introducing a DLENSALOT_Filter model component
+                log.info('{} starting filt_cinv.cinv_t()'.format(mpi.rank))
+                dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), iteration.lmax_ivf,dl.nside, dl.cls_len, dl.transf_tlm, dl.ninv_t,
+                                marge_monopole=True, marge_dipole=True, marge_maps=[])
+                log.info('{} finished filt_cinv.cinv_t()'.format(mpi.rank))
+                # TODO this could move to _OBDparams()
+                if dl.OBD_type == 'OBD':
+                    transf_elm_loc = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf)
+                    log.info('{} start cinv_p_OBD.cinv_p()'.format(mpi.rank))
+                    dl.cinv_p = cinv_p_OBD.cinv_p(opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, dl.nside, dl.cls_len, transf_elm_loc[:dl.lmax_ivf+1], dl.ninv_p, geom=dl.ninvjob_qe_geometry,
+                        chain_descr=dl.chain_descr(iteration.lmax_ivf, iteration.CG_TOL), bmarg_lmax=dl.BMARG_LCUT, zbounds=dl.zbounds, _bmarg_lib_dir=dl.BMARG_LIBDIR, _bmarg_rescal=dl.BMARG_RESCALE, sht_threads=cf.iteration.OMP_NUM_THREADS)
+                    log.info('{} finished cinv_p_OBD.cinv_p()'.format(mpi.rank))
+                elif dl.OBD_type == 'trunc' or dl.OBD_type == None or dl.OBD_type == 'None':
+                    dl.cinv_p = filt_cinv.cinv_p(opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, dl.nside, dl.cls_len, dl.transf_elm, dl.ninv_p,
+                        chain_descr=dl.chain_descr(iteration.lmax_ivf, iteration.CG_TOL), transf_blm=dl.transf_blm, marge_qmaps=(), marge_umaps=())
+                else:
+                    log.error("Don't understand your OBD_typ input. Exiting..")
+                    traceback.print_stack()
+                    sys.exit()
+                log.info('{} starting filt_cinv.library_cinv_sepTP()'.format(mpi.rank))
+                dl.ivfs_raw = filt_cinv.library_cinv_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl.cinv_t, dl.cinv_p, dl.cls_len)
+                log.info('{} finished filt_cinv.library_cinv_sepTP()'.format(mpi.rank))
+                dl.ftl_rs = np.ones(iteration.lmax_ivf + 1, dtype=float) * (np.arange(iteration.lmax_ivf + 1) >= dl.lmin_tlm)
+                dl.fel_rs = np.ones(iteration.lmax_ivf + 1, dtype=float) * (np.arange(iteration.lmax_ivf + 1) >= dl.lmin_elm)
+                dl.fbl_rs = np.ones(iteration.lmax_ivf + 1, dtype=float) * (np.arange(iteration.lmax_ivf + 1) >= dl.lmin_blm)
+                log.info('{} starting filt_util.library_ftl()'.format(mpi.rank))
+                dl.ivfs   = filt_util.library_ftl(dl.ivfs_raw, iteration.lmax_ivf, dl.ftl_rs, dl.fel_rs, dl.fbl_rs)
+                log.info('{} finished filt_util.library_ftl()'.format(mpi.rank))
+                    
+            if iteration.QE_LENSING_CL_ANALYSIS == True:
+                dl.ss_dict = { k : v for k, v in zip( np.concatenate( [ range(i*60, (i+1)*60) for i in range(0,5) ] ),
+                                        np.concatenate( [ np.roll( range(i*60, (i+1)*60), -1 ) for i in range(0,5) ] ) ) }
+                dl.ds_dict = { k : -1 for k in range(300)} # This remap all sim. indices to the data maps to build QEs with always the data in one leg
+
+                dl.ivfs_d = filt_util.library_shuffle(dl.ivfs, iteration.ds_dict)
+                dl.ivfs_s = filt_util.library_shuffle(dl.ivfs, iteration.ss_dict)
+
+                dl.qlms_ds = qest.library_sepTP(opj(dl.TEMP, 'qlms_ds'), iteration.ivfs, iteration.ivfs_d, dl.cls_len['te'], dl.nside, lmax_qlm=iteration.lmax_qlm)
+                dl.qlms_ss = qest.library_sepTP(opj(dl.TEMP, 'qlms_ss'), iteration.ivfs, iteration.ivfs_s, dl.cls_len['te'], dl.nside, lmax_qlm=iteration.lmax_qlm)
+
+                dl.mc_sims_bias = np.arange(60, dtype=int)
+                dl.mc_sims_var  = np.arange(60, 300, dtype=int)
+
+                dl.qcls_ds = qecl.library(opj(dl.TEMP, 'qcls_ds'), dl.qlms_ds, dl.qlms_ds, np.array([]))  # for QE RDN0 calculations
+                dl.qcls_ss = qecl.library(opj(dl.TEMP, 'qcls_ss'), dl.qlms_ss, dl.qlms_ss, np.array([]))  # for QE RDN0 / MCN0 calculations
+                dl.qcls_dd = qecl.library(opj(dl.TEMP, 'qcls_dd'), dl.qlms_dd, dl.qlms_dd, dl.mc_sims_bias)
+
+            if iteration.FILTER_QE == 'sepTP':
+                # ---- QE libraries from plancklens to calculate unnormalized QE (qlms)
+                log.info('{} starting qest.library_sepTP()'.format(mpi.rank))
+                dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.ivfs, dl.ivfs, dl.cls_len['te'], dl.nside, lmax_qlm=iteration.lmax_qlm)
+                log.info('{} finished qest.library_sepTP()'.format(mpi.rank))
+            else:
+                assert 0, 'Implement if needed'
+            if iteration.mfvar == 'same':
+                dl.mfvar = None
+            elif iteration.mfvar.startswith('/'):
+                if os.path.isfile(iteration.mfvar):
+                    dl.mfvar = iteration.mfvar
+                else:
+                    log.error('Not sure what to do with this meanfield: {}'.format(iteration.mfvar))
+
+
+        dl = DLENSALOT_Concept()
+        _process_Analysis(dl, cf.analysis)
+        _process_Data(dl, cf.data)
+        _process_Noisemodel(dl, cf.noisemodel)
+        _process_Qerec(dl, cf.qerec)
+        _process_Itrec(dl, cf.itrec)
+
+
+        if mpi.rank == 0:
+            log.info("I am going to work with the following values:")
+            _str = '---------------------------------------------------\n'
+            for key, val in dl.__dict__.items():
+                _str += '{}:\t{}'.format(key, val)
+                _str += '\n'
+            _str += '---------------------------------------------------\n'
+            log.info(_str)
+            from types import ModuleType, FunctionType
+            from gc import get_referents
+            # Custom objects know their class.
+            # Function objects seem to know way too much, including modules.
+            # Exclude modules as well.
+            BLACKLIST = type, ModuleType, FunctionType
+            def getsize(obj):
+                """sum size of object & members."""
+                if isinstance(obj, BLACKLIST):
+                    raise TypeError('getsize() does not take argument of type: '+ str(type(obj)))
+                seen_ids = set()
+                size = 0
+                objects = [obj]
+                while objects:
+                    need_referents = []
+                    for obj in objects:
+                        if not isinstance(obj, BLACKLIST) and id(obj) not in seen_ids:
+                            seen_ids.add(id(obj))
+                            size += sys.getsizeof(obj)
+                            need_referents.append(obj)
+                    objects = get_referents(*need_referents)
+                return size
+            log.info(getsize(dl))
+ 
+            process = psutil.Process(os.getpid())
+            print(process.memory_info().rss)  # in bytes
+
+        return dl
+
+
 class p2OBD_Transformer:
     """Extracts all parameters needed for building consistent OBD
     """

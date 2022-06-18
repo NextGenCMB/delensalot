@@ -52,7 +52,7 @@ dlensalot_model = DLENSALOT_Model(
             'lib_dir': None,
             'pix_lib_phas': phas.pix_lib_phas(opj(os.environ['HOME'], 'pixphas_nside2048'), 3, (hp.nside2npix(2048),))
         },
-        STANDARD_TRANSFERFUNCTION = True # Change the following block only if exotic transferfunctions are desired
+        STANDARD_TRANSFERFUNCTION = True # Change only if exotic transferfunctions is desired
     ),
     noisemodel = DLENSALOT_Noisemodel(
         typ = 'OBD',
@@ -62,7 +62,7 @@ dlensalot_model = DLENSALOT_Model(
         ninvjob_geometry = 'healpix_geometry',
         lmin_tlm = 30,
         lmin_elm = 30,
-        lmin_blm = 30, #Supress all modes below this value, hacky version of OBD
+        lmin_blm = 30,
         CENTRALNLEV_UKAMIN = 0.42,
         nlev_t = 0.42/np.sqrt(2),
         nlev_p = 0.42,
@@ -73,19 +73,19 @@ dlensalot_model = DLENSALOT_Model(
         tpl = 'template_dense'
     ),
     qerec = DLENSALOT_Qerec(
-        FILTER_QE = 'sepTP', # Change the following block only if other than sepTP for QE is desired
+        FILTER_QE = 'sepTP', # Change only if other than sepTP for QE is desired
         CG_TOL = 1e-3,
         ninvjob_qe_geometry = 'healpix_geometry_qe',
         lmax_qlm = 4000,
         mmax_qlm = 4000,
-        QE_LENSING_CL_ANALYSIS = False # Change the following block only if a full, Planck-like QE lensing power spectrum analysis is desired
+        QE_LENSING_CL_ANALYSIS = False # Change only if a full, Planck-like QE lensing power spectrum analysis is desired
     ),
     itrec = DLENSALOT_Itrec(
-        FILTER = 'cinv_sepTP', # Change the following block only if other than cinv_t, cinv_p, ivfs filters are desired
+        FILTER = 'cinv_sepTP', # Change only if other than cinv_t, cinv_p, ivfs filters are desired
         TOL = 3,
         lenjob_geometry = 'thin_gauss',
         lenjob_pbgeometry = 'pbdGeometry',
-        ITERATOR = 'constmf', # Choose your iterator. Either pertmf or const_mf
+        ITERATOR = 'constmf', # Either pertmf or const_mf
         mfvar = '/global/cscratch1/sd/sebibel/cmbs4/08b_00_OBD_MF100_example/qlms_dd/simMF_k1p_p_135b0ca72339ac4eb092666cd7acb262a8ea2d30.fits',
         soltn_cond = lambda it: True,
         chain = DLENSALOT_Chaindescriptor(
@@ -110,7 +110,6 @@ dlensalot_model = DLENSALOT_Model(
         edges = 'ioreco',
         ITMAX = [10,12],
         droplist = np.array([]),
-        base_mask = 'cmbs4/08b/caterinaILC_May12', # This mask is used to rotate ILC maps
         nlevels = [2, 5],
         lmax_cl = 2048,
     )

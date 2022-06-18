@@ -6,7 +6,7 @@
     runs all jobs
 """
 __author__ = "S. Belkner, J. Carron, L. Legrand"
-
+# TODO this could be the level for _process_Model
 
 import os
 import sys
@@ -36,7 +36,7 @@ class handler():
     @log_on_start(logging.INFO, "Start of collect_jobs()")
     @log_on_end(logging.INFO, "Finished collect_jobs()")
     def collect_jobs(self):
-
+        # TODO this could be the level for _process_Job
         self.jobs = transform(self.paramfile.dlensalot_model, p2j_Transformer())
 
 
@@ -72,7 +72,6 @@ class handler():
             j = job(model)
             j.collect_jobs()
             j.run()
-            mpi.barrier()
             # del j
 
 

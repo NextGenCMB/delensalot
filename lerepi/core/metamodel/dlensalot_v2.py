@@ -86,7 +86,6 @@ class DLENSALOT_Data(DLENSALOT_Concept):
     STANDARD_TRANSFERFUNCTION = attr.ib(default=-1)
 
 
-
 @attr.s
 class DLENSALOT_Noisemodel(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
