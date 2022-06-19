@@ -29,6 +29,7 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     madel = attr.ib(default=-1)
 
 
+# TODO These could become slurm jobs via script using appropriate srun -c XX
 @attr.s
 class DLENSALOT_Job(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
@@ -42,6 +43,7 @@ class DLENSALOT_Job(DLENSALOT_Concept):
     inspect_result = attr.ib(default=-1)
     map_delensing = attr.ib(default=-1)
     build_OBD = attr.ib(default=-1)
+    OMP_NUM_THREADS = attr.ib(default=-1)
 
 
 @attr.s
@@ -55,10 +57,8 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     K = attr.ib(default=-1)
     V = attr.ib(default=-1)
     ITMAX = attr.ib(default=-1)
-    IMIN = attr.ib(default=-1)
-    IMAX = attr.ib(default=-1)
+
     nsims_mf = attr.ib(default=-1)
-    OMP_NUM_THREADS = attr.ib(default=-1)
     LENSRES = attr.ib(default=-1)
     Lmin = attr.ib(default=-1)
     lmax_filt = attr.ib(default=-1)
@@ -72,6 +72,7 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     zbounds =  attr.ib(default=-1)
     zbounds_len = attr.ib(default=-1)
     pbounds = attr.ib(default=-1)
+    STANDARD_TRANSFERFUNCTION = attr.ib(default=-1)
 
 
 @attr.s
@@ -81,9 +82,15 @@ class DLENSALOT_Data(DLENSALOT_Concept):
     Attributes:
         DATA_LIBDIR: path to the data
     """
-    sims = attr.ib(default=-1)
-    sims_settings = attr.ib(default=-1)
-    STANDARD_TRANSFERFUNCTION = attr.ib(default=-1)
+    IMIN = attr.ib(default=-1)
+    IMAX = attr.ib(default=-1)
+    class_parameters = attr.ib(default=-1)
+    package_ = attr.ib(default=-1)
+    module_ = attr.ib(default=-1)
+    class_ = attr.ib(default=-1)
+    beam = attr.ib(default=-1)
+    lmax_transf = attr.ib(default=-1)
+    nside = attr.ib(default=-1)
 
 
 @attr.s

@@ -36,14 +36,15 @@ dlensalot_model = DLENSALOT_Model(
         mmax_ivf = 3000,
         lmin_ivf = 10,
         mmin_ivf = 10,
-        lmax_unl = 4000
+        STANDARD_TRANSFERFUNCTION = True # Change only if exotic transferfunctions is desired
     ),
     data = DLENSALOT_Data(
         IMIN = 0,
         IMAX = 99,
-        sims = ('plancklens', 'sims', 'cmb_maps_nlev'),
-        # sims = ('lenscarf', 'cmbs4/08d', 'caterinaILC_2022'),
-        sims_settings = {
+        package_ = 'plancklens',
+        module_ = 'sims.maps',
+        class_ = 'cmb_maps_nlev',
+        class_parameters = {
             'sims_cmb_len': planck2018_sims.cmb_len_ffp10(),
             'cl_transf': hp.gauss_beam(1.0 / 180 / 60 * np.pi, lmax=4096),
             'nlev_t': 0.5/np.sqrt(2),
@@ -52,7 +53,9 @@ dlensalot_model = DLENSALOT_Model(
             'lib_dir': None,
             'pix_lib_phas': phas.pix_lib_phas(opj(os.environ['HOME'], 'pixphas_nside2048'), 3, (hp.nside2npix(2048),))
         },
-        STANDARD_TRANSFERFUNCTION = True # Change only if exotic transferfunctions is desired
+        beam = 1.0,
+        lmax_transf = 4000,
+        nside = 2048
     ),
     noisemodel = DLENSALOT_Noisemodel(
         typ = 'OBD',
@@ -81,7 +84,7 @@ dlensalot_model = DLENSALOT_Model(
         QE_LENSING_CL_ANALYSIS = False # Change only if a full, Planck-like QE lensing power spectrum analysis is desired
     ),
     itrec = DLENSALOT_Itrec(
-        FILTER = 'cinv_sepTP', # Change only if other than cinv_t, cinv_p, ivfs filters are desired
+        FILTER = 'opfilt_ee_wl.alm_filter_ninv_wl',
         TOL = 3,
         lenjob_geometry = 'thin_gauss',
         lenjob_pbgeometry = 'pbdGeometry',
@@ -100,8 +103,6 @@ dlensalot_model = DLENSALOT_Model(
         ),
         stepper = DLENSALOT_Stepper(
             typ = 'harmonicbump',
-            lmax_qlm = 4000,
-            mmax_qlm = 4000,
             xa = 400,
             xb = 1500
         )

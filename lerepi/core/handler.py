@@ -68,7 +68,8 @@ class handler():
     def run(self):
         for transf, job in self.jobs:
             log.info("Starting job {}".format(job))
-            model = transform(*transf)           
+            model = transform(*transf)
+            log.info("Model collected {}".format(job))
             j = job(model)
             j.collect_jobs()
             j.run()
