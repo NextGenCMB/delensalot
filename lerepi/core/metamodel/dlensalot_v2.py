@@ -130,6 +130,7 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     ninvjob_qe_geometry = attr.ib(default=-1)
     lmax_qlm = attr.ib(default=-1)
     mmax_qlm = attr.ib(default=-1)
+    chain = attr.ib(default=-1)
     QE_LENSING_CL_ANALYSIS = attr.ib(default=-1)
 
 
@@ -144,10 +145,9 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     TOL = attr.ib(default=-1)
     lenjob_geometry = attr.ib(default=-1)
     lenjob_pbgeometry = attr.ib(default=-1)
-    ITERATOR = attr.ib(default=-1)
+    iterator_typ = attr.ib(default=-1)
     mfvar = attr.ib(default=-1)
     soltn_cond = attr.ib(default=-1)
-    chain = attr.ib(default=-1)
     stepper = attr.ib(default=-1)
 
 

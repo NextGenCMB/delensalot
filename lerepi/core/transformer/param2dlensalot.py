@@ -517,6 +517,22 @@ class p2lensrec_Transformer:
             dl.mmax_qlm = qe.mmax_qlm
             dl.cg_tol = qe.CG_TOL
 
+            dl.chain_model = qe.chain
+            # TODO hacky solution. Redo if needed
+            if dl.chain_model.p6 == 'tr_cg':
+                _p6 = cd_solve.tr_cg
+            if dl.chain_model.p7 == 'cache_mem':
+                _p7 = cd_solve.cache_mem()
+            dl.chain_descr = lambda p2, p5 : [
+                [dl.chain_model.p0, dl.chain_model.p1, p2, dl.chain_model.p3, dl.chain_model.p4, p5, _p6, _p7]]
+
+            if qe.ninvjob_qe_geometry == 'healpix_geometry_qe':
+                # TODO for QE, isOBD only works with zbounds=(-1,1). Perhaps missing ztrunc on qumaps
+                # Introduced new geometry for now, until either plancklens supports ztrunc, or ztrunced simlib (not sure if it already does)
+                dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl.nside, zbounds=(-1,1))
+            elif qe.ninvjob_qe_geometry == 'healpix_geometry':
+                dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl.nside, zbounds=dl.zbounds)
+
             if qe.FILTER_QE == 'sepTP':
                 dl.ninv_t = p2OBD_Transformer.get_ninvt(cf)
                 dl.ninv_p = p2OBD_Transformer.get_ninvp(cf)
@@ -529,7 +545,7 @@ class p2lensrec_Transformer:
                     transf_elm_loc = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=dl.lmax_ivf)
                     log.info('{} start cinv_p_OBD.cinv_p()'.format(mpi.rank))
                     dl.cinv_p = cinv_p_OBD.cinv_p(opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, dl.nside, dl.cls_len, transf_elm_loc[:dl.lmax_ivf+1], dl.ninv_p, geom=dl.ninvjob_qe_geometry,
-                        chain_descr=dl.chain_descr(dl.lmax_ivf, dl.cg_tol), bmarg_lmax=dl.BMARG_LCUT, zbounds=dl.zbounds, _bmarg_lib_dir=dl.BMARG_LIBDIR, _bmarg_rescal=dl.BMARG_RESCALE, sht_threads=cf.iteration.OMP_NUM_THREADS)
+                        chain_descr=dl.chain_descr(dl.lmax_ivf, dl.cg_tol), bmarg_lmax=dl.BMARG_LCUT, zbounds=dl.zbounds, _bmarg_lib_dir=dl.BMARG_LIBDIR, _bmarg_rescal=dl.BMARG_RESCALE, sht_threads=dl.tr)
                     log.info('{} finished cinv_p_OBD.cinv_p()'.format(mpi.rank))
                 elif dl.OBD_type == 'trunc' or dl.OBD_type == None or dl.OBD_type == 'None':
                     dl.cinv_p = filt_cinv.cinv_p(opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, dl.nside, dl.cls_len, dl.transf_elm, dl.ninv_p,
@@ -553,13 +569,6 @@ class p2lensrec_Transformer:
                 log.info('{} finished qest.library_sepTP()'.format(mpi.rank))   
             else:
                 assert 0, 'Implement if needed'
-                
-            if qe.ninvjob_qe_geometry == 'healpix_geometry_qe':
-                # TODO for QE, isOBD only works with zbounds=(-1,1). Perhaps missing ztrunc on qumaps
-                # Introduced new geometry for now, until either plancklens supports ztrunc, or ztrunced simlib (not sure if it already does)
-                dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(qe.nside, zbounds=(-1,1))
-            elif qe.ninvjob_qe_geometry == 'healpix_geometry':
-                dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(qe.nside, zbounds=dl.zbounds)
 
             dl.QE_LENSING_CL_ANALYSIS = qe.QE_LENSING_CL_ANALYSIS # Change only if a full, Planck-like QE lensing power spectrum analysis is desired
             if qe.QE_LENSING_CL_ANALYSIS == True:
@@ -587,11 +596,11 @@ class p2lensrec_Transformer:
         @log_on_start(logging.INFO, "Start of _process_Itrec()")
         @log_on_end(logging.INFO, "Finished _process_Itrec()")
         def _process_Itrec(dl, it):
-            assert dl.FILTER == 'opfilt_ee_wl.alm_filter_ninv_wl', 'Implement if needed, MAP filter needs to move to p2d'
+            assert it.FILTER == 'opfilt_ee_wl.alm_filter_ninv_wl', 'Implement if needed, MAP filter needs to move to p2d'
             dl.FILTER = it.FILTER
 
             dl.tol = it.TOL
-            if 'rinf_tol4' in cf.data.TEMP_suffix:
+            if 'rinf_tol4' in cf.analysis.TEMP_suffix:
                 log.warning('tol_iter increased for this run. This is hardcoded.')
                 dl.tol_iter = lambda itr : 2*10 ** (- dl.tol) if itr <= 10 else 2*10 ** (-(dl.tol+1))
             else:
@@ -604,7 +613,7 @@ class p2lensrec_Transformer:
                 dl.lenjob_pbgeometry = utils_scarf.pbdGeometry(dl.lenjob_geometry, utils_scarf.pbounds(dl.pb_ctr, dl.pb_extent))
 
             dl.iterator_typ = it.iterator_typ
-            if it.mfvar == 'same':
+            if it.mfvar == 'same' or it.mfvar == '':
                 dl.mfvar = None
             elif it.mfvar.startswith('/'):
                 if os.path.isfile(it.mfvar):
@@ -616,16 +625,6 @@ class p2lensrec_Transformer:
             if dl.stepper_model.typ == 'harmonicbump':
                 # TODO stepper is needed for iterator, but depends on qe settings?
                 dl.stepper = steps.harmonicbump(dl.lmax_qlm, dl.mmax_qlm, xa=dl.stepper_model.xa, xb=dl.stepper_model.xb)
-            
-
-            dl.chain_model = it.chain
-            # TODO hacky solution. Redo if needed
-            if dl.chain_model.p6 == 'tr_cg':
-                _p6 = cd_solve.tr_cg
-            if dl.chain_model.p7 == 'cache_mem':
-                _p7 = cd_solve.cache_mem()
-            dl.chain_descr = lambda p2, p5 : [
-                [dl.chain_model.p0, dl.chain_model.p1, p2, dl.chain_model.p3, dl.chain_model.p4, p5, _p6, _p7]]
 
 
         dl = DLENSALOT_Concept()
@@ -634,7 +633,6 @@ class p2lensrec_Transformer:
         _process_Noisemodel(dl, cf.noisemodel)
         _process_Qerec(dl, cf.qerec)
         _process_Itrec(dl, cf.itrec)
-
 
         if mpi.rank == 0:
             log.info("I am going to work with the following values:")
