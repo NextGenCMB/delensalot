@@ -48,7 +48,7 @@ class OBD_builder():
         for job in self.jobs:
             bpl = template_bfilt(self.BMARG_LCUT, self.geom, int(os.environ.get('OMP_NUM_THREADS', 4)), _lib_dir=self.TEMP)
             if not os.path.exists(self.TEMP + '/tnit.npy'):
-                bpl._get_rows_mpi(self.ninv_p[0], prefix='')  # builds all rows in parallel
+                bpl._get_rows_mpi(self.ninv_p[0], prefix='')
             mpi.barrier()
             if mpi.rank == 0:
                 int(os.environ.get('OMP_NUM_THREADS', 32)) # TODO not sure if this resets anything..
@@ -192,6 +192,7 @@ class QE_lr():
         else:
             print('*** mf_resp not implemented for key ' + self.k, ', setting it to zero')
             mf_resp = np.zeros(self.lmax_qlm + 1, dtype=float)
+
         return mf_resp
 
 
@@ -312,18 +313,29 @@ class Map_delenser():
     def __init__(self, bmd_model):
         self.__dict__.update(bmd_model.__dict__)
         self.lib = dict()
-        self.bcl_L, self.bcl_cs, self.bwfcl_cs = np.zeros(shape=(len(bmd_model.nlevels),len(bmd_model.edges))), np.zeros(shape=(len(bmd_model.nlevels),len(bmd_model.edges))), np.zeros(shape=(len(bmd_model.nlevels),len(bmd_model.edges)))
-
 
     @log_on_start(logging.INFO, "Start of getfn_blm_lensc()")
     @log_on_end(logging.INFO, "Finished getfn_blm_lensc()")
     def getfn_blm_lensc(self, simidx, it):
         '''Lenscarf output using Catherinas E and B maps'''
+        # TODO this needs cleaner implementation
         if self.libdir_iterators == 'overwrite':
-            if it==12:
-                return '/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/lt_recons/08b.%02d_sebibel_210708_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg),it,simidx)
-            elif it==0:
-                return '/global/cscratch1/sd/sebibel/cmbs4/s08b/cILC2021_%s_lmax4000/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20/ffi_p_it0/blm_%04d_it0.npy'%(self.fg,simidx,simidx)
+            if True:
+                if it==12:
+                    rootstr = '/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/lt_recons/'
+                    if self.fg == '00':
+                        return rootstr+'08b.%02d_sebibel_210708_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg), it, simidx)
+                    elif self.fg == '07':
+                        return rootstr+'/08b.%02d_sebibel_210910_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg), it, simidx)
+                    elif self.fg == '09':
+                        return rootstr+'/08b.%02d_sebibel_210910_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg), it, simidx)
+                elif it==0:
+                    return '/global/cscratch1/sd/sebibel/cmbs4/s08b/cILC2021_%s_lmax4000/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20/ffi_p_it0/blm_%04d_it0.npy'%(self.fg, simidx, simidx)   
+            else:
+                if it==12:
+                    return '/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/lt_recons/08b.%02d_sebibel_210708_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg),it,simidx)
+                elif it==0:
+                    return '/global/cscratch1/sd/sebibel/cmbs4/s08b/cILC2021_%s_lmax4000/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20/ffi_p_it0/blm_%04d_it0.npy'%(self.fg,simidx,simidx)
         else:
             return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(it, it)
 
@@ -361,35 +373,35 @@ class Map_delenser():
 
         for idx in self.jobs[mpi.rank::mpi.size]:
             _file_op = self.file_op(idx, self.fg)
-            print('will store file at:', _file_op)
+            log.info('will store file at: {}'.format(_file_op))
             
             qumap_cs_buff = self.getfn_qumap_cs(idx)
             eblm_cs_buff = hp.map2alm_spin(qumap_cs_buff*self.base_mask, 2, self.lmax_cl)
             bmap_cs_buff = hp.alm2map(eblm_cs_buff[1], self.nside)
             for nlevi, nlev in enumerate(self.nlevels):
-                bcl_cs_nm = self.lib[nlev].map2cl(bmap_cs_buff)
+                bcl_cs = self.lib[nlev].map2cl(bmap_cs_buff)
                 blm_L_buff = hp.almxfl(utils.alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(idx), lmax=self.lmax_cl), self.transf) # TODO fiducial choice should happen at transformer
                 bmap_L_buff = hp.alm2map(blm_L_buff, self.nside)
-                bcl_L_nm = self.lib[nlev].map2cl(bmap_L_buff)
+                bcl_L = self.lib[nlev].map2cl(bmap_L_buff)
 
-                outputdata[0][0][nlevi] = bcl_L_nm
-                outputdata[1][0][nlevi] = bcl_cs_nm
+                outputdata[0][0][nlevi] = bcl_L
+                outputdata[1][0][nlevi] = bcl_cs
 
                 blm_lensc_QE_buff = np.load(self.getfn_blm_lensc(idx, 0))
                 bmap_lensc_QE_buff = hp.alm2map(blm_lensc_QE_buff, nside=self.nside)
-                bcl_Llensc_QE_nm = self.lib[nlev].map2cl(bmap_L_buff-bmap_lensc_QE_buff)
-                bcl_cslensc_QE_nm = self.lib[nlev].map2cl(bmap_cs_buff-bmap_lensc_QE_buff)
+                bcl_Llensc_QE = self.lib[nlev].map2cl(bmap_L_buff-bmap_lensc_QE_buff)
+                bcl_cslensc_QE = self.lib[nlev].map2cl(bmap_cs_buff-bmap_lensc_QE_buff)
 
-                outputdata[0][1][nlevi] = bcl_Llensc_QE_nm
-                outputdata[1][1][nlevi] = bcl_cslensc_QE_nm
+                outputdata[0][1][nlevi] = bcl_Llensc_QE
+                outputdata[1][1][nlevi] = bcl_cslensc_QE
 
                 for iti, it in enumerate(self.iterations):
                     blm_lensc_MAP_buff = hp.read_alm(self.getfn_blm_lensc(idx, it))
                     bmap_lensc_MAP_buff = hp.alm2map(blm_lensc_MAP_buff, nside=self.nside)
-                    bcl_Llensc_MAP_nm = self.lib[nlev].map2cl(bmap_L_buff-bmap_lensc_MAP_buff)    
-                    bcl_cslensc_MAP_nm = self.lib[nlev].map2cl(bmap_cs_buff-bmap_lensc_MAP_buff)
+                    bcl_Llensc_MAP = self.lib[nlev].map2cl(bmap_L_buff-bmap_lensc_MAP_buff)    
+                    bcl_cslensc_MAP = self.lib[nlev].map2cl(bmap_cs_buff-bmap_lensc_MAP_buff)
 
-                    outputdata[0][2+iti][nlevi] = bcl_Llensc_MAP_nm
-                    outputdata[1][2+iti][nlevi] = bcl_cslensc_MAP_nm      
+                    outputdata[0][2+iti][nlevi] = bcl_Llensc_MAP
+                    outputdata[1][2+iti][nlevi] = bcl_cslensc_MAP      
     
             np.save(_file_op, outputdata)
