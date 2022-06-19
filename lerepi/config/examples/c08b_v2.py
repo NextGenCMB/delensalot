@@ -11,15 +11,15 @@ dlensalot_model = DLENSALOT_Model(
         Btemplate_per_iteration = False,
         map_delensing = True,
         inspect_result = False,
-        OMP_NUM_THREADS = 16
+        OMP_NUM_THREADS = 8
     ),
     analysis = DLENSALOT_Analysis(
-        TEMP_suffix = 'r10_tol3',
+        TEMP_suffix = 'rerun_plot',
         K = 'p_p',
         V = '',
         ITMAX = 12,
         nsims_mf = 100,
-        zbounds =  ('nmr_relative', 10),
+        zbounds =  ('nmr_relative', np.inf),
         zbounds_len = ('extend', 5.),   
         pbounds = [1.97, 5.71],
         LENSRES = 1.7, # Deflection operations will be performed at this resolution
@@ -35,12 +35,12 @@ dlensalot_model = DLENSALOT_Model(
     ),
     data = DLENSALOT_Data(
         IMIN = 0,
-        IMAX = 99,
+        IMAX = 499,
         package_ = 'lerepi',
         module_ = 'config.cmbs4.data.data_08b',
         class_ = 'caterinaILC_May12',
         class_parameters = {
-            'fg': '00'
+            'fg': '07'
         },
         beam = 2.3,
         lmax_transf = 4000,
@@ -60,8 +60,8 @@ dlensalot_model = DLENSALOT_Model(
         nlev_p = 0.42,
         nlev_dep = 10000.,
         inf = 1e4,
-        mask = ('nlev', 10),
-        rhits_normalised = ('/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08b/masks/08b_rhits_positive_nonan.fits', 10),
+        mask = ('nlev', np.inf),
+        rhits_normalised = ('/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08b/masks/08b_rhits_positive_nonan.fits', np.inf),
         tpl = 'template_dense'
     ),
     qerec = DLENSALOT_Qerec(
@@ -100,9 +100,9 @@ dlensalot_model = DLENSALOT_Model(
         edges = 'cmbs4',
         iterations = [12],
         droplist = np.array([]),
-        nlevels = [1.2, 2, 5, 10],
+        nlevels = [1.2, 2, 5, 50],
         lmax_cl = 2048,
         Cl_fid = 'ffp10',
-        libdir_it = ''
+        libdir_it = 'overwrite'
     )
 )
