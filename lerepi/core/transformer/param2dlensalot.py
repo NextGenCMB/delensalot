@@ -6,8 +6,6 @@ __author__ = "S. Belkner, J. Carron, L. Legrand"
 
 
 import os, sys
-import cffi
-import psutil
 from os.path import join as opj
 import importlib
 import traceback
@@ -20,7 +18,6 @@ import numpy as np
 import healpy as hp
 import hashlib
 
-# TODO Only want initialisation at this level for lenscarf and plancklens objects, so queries work (lazy loading)
 import plancklens
 from plancklens.helpers import mpi
 from plancklens import qest, qecl, utils
@@ -65,6 +62,7 @@ class p2T_Transformer:
         TEMP =  opj(os.environ['SCRATCH'], cf.data.sims.split('/')[0], _suffix)
 
         return TEMP
+
 
     @log_on_start(logging.INFO, "Start of build_nomf()")
     @log_on_end(logging.INFO, "Finished build_nomf()")
@@ -458,7 +456,7 @@ class p2lensrec_Transformer:
                 dl.fg = dl.dataclass_parameters['fg']
             dl.beam = da.beam
             dl.lmax_transf = da.lmax_transf
-            dl.transf_data = hp.gauss_beam(dl.beam / 180. / 60. * np.pi, lmax=dl.lmax_transf)
+            dl.transf_data = gauss_beam(dl.beam / 180. / 60. * np.pi, lmax=dl.lmax_transf)
 
         @log_on_start(logging.INFO, "Start of _process_Noisemodel()")
         @log_on_end(logging.INFO, "Finished _process_Noisemodel()")
@@ -838,7 +836,7 @@ class p2d_Transformer:
             dl.beam = de.beam
             dl.lmax_transf = de.lmax_transf
             if de.transf == 'gauss':
-                dl.transf = hp.gauss_beam(dl.beam / 180. / 60. * np.pi, lmax=dl.lmax_transf)
+                dl.transf = gauss_beam(dl.beam / 180. / 60. * np.pi, lmax=dl.lmax_transf)
 
             if de.Cl_fid == 'ffp10':
                 dl.cls_path = opj(os.path.dirname(plancklens.__file__), 'data', 'cls')
@@ -909,7 +907,7 @@ class p2d_Transformer:
             dl.lmax_lib = 3*dl.lmax_cl-1
             dl.beam = cf.data.beam
             dl.lmax_transf = cf.data.lmax_transf
-            dl.transf = hp.gauss_beam(dl.beam / 180. / 60. * np.pi, lmax=dl.lmax_transf)
+            dl.transf = gauss_beam(dl.beam / 180. / 60. * np.pi, lmax=dl.lmax_transf)
 
             if ma.Cl_fid == 'ffp10':
                 dl.cls_path = opj(os.path.dirname(plancklens.__file__), 'data', 'cls')
