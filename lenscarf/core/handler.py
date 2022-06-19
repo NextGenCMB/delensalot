@@ -276,7 +276,7 @@ class B_template_constructor():
         # TODO this is the interface to the D.lensalot iterators and connects 
         # to lerepi. Could be simplified, s.t. interfacing happens without the iteration_handler
         # but directly with cs_iterator, e.g. by adding visitor pattern to cs_iterator
-        self.ith = iteration_handler.transformer(self.iterator)
+        self.ith = iteration_handler.transformer(self.iterator_typ)
 
 
     @log_on_start(logging.INFO, "Start of collect_jobs()")
@@ -311,17 +311,21 @@ class Map_delenser():
 
     def __init__(self, bmd_model):
         self.__dict__.update(bmd_model.__dict__)
-        self.libdir_iterators = lambda qe_key, simidx, version: opj(bmd_model.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
-        self.lib_nm = dict()
-        self.bcl_L_nm, self.bcl_cs_nm, self.bwfcl_cs_nm = np.zeros(shape=(len(bmd_model.nlevels),len(bmd_model.edges))), np.zeros(shape=(len(bmd_model.nlevels),len(bmd_model.edges))), np.zeros(shape=(len(bmd_model.nlevels),len(bmd_model.edges)))
+        self.lib = dict()
+        self.bcl_L, self.bcl_cs, self.bwfcl_cs = np.zeros(shape=(len(bmd_model.nlevels),len(bmd_model.edges))), np.zeros(shape=(len(bmd_model.nlevels),len(bmd_model.edges))), np.zeros(shape=(len(bmd_model.nlevels),len(bmd_model.edges)))
 
 
     @log_on_start(logging.INFO, "Start of getfn_blm_lensc()")
     @log_on_end(logging.INFO, "Finished getfn_blm_lensc()")
     def getfn_blm_lensc(self, simidx, it):
         '''Lenscarf output using Catherinas E and B maps'''
-
-        return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(it, it)
+        if self.libdir_iterators == 'overwrite':
+            if it==12:
+                return '/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/lt_recons/08b.%02d_sebibel_210708_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg),it,simidx)
+            elif it==0:
+                return '/global/cscratch1/sd/sebibel/cmbs4/s08b/cILC2021_%s_lmax4000/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20/ffi_p_it0/blm_%04d_it0.npy'%(self.fg,simidx,simidx)
+        else:
+            return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(it, it)
 
             
     @log_on_start(logging.INFO, "Start of getfn_qumap_cs()")
@@ -337,10 +341,14 @@ class Map_delenser():
     def collect_jobs(self):
         jobs = []
         for idx in np.arange(self.imin, self.imax + 1):
-            if idx not in self.droplist:
-                lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
-                if Rec.maxiterdone(lib_dir_iterator) >= self.iterations[-1]:
-                    jobs.append(idx)
+            # Overwriting test
+            if self.libdir_iterators == 'overwrite':
+                jobs.append(idx)
+            else:
+                if idx not in self.droplist:
+                    lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
+                    if Rec.maxiterdone(lib_dir_iterator) >= self.iterations[-1]:
+                        jobs.append(idx)
         self.jobs = jobs
 
 
@@ -349,42 +357,39 @@ class Map_delenser():
     def run(self):
         outputdata = np.zeros(shape=(2, 2+len(self.iterations), len(self.nlevels), len(self.edges)-1))
         for nlev in self.nlevels:
-            self.lib_nm.update({nlev: ps.map2cl_binned(self.nlev_mask[nlev], self.clc_templ[:self.lmax_lib], self.edges, self.lmax_lib)})
-        # TODO move this to p2d
-        if not(os.path.isdir(self.TEMP_DELENSED_SPECTRUM + '/{}'.format(self.dirid))):
-            os.makedirs(self.TEMP_DELENSED_SPECTRUM + '/{}'.format(self.dirid))
+            self.lib.update({nlev: ps.map2cl_binned(self.nlev_mask[nlev], self.clc_templ[:self.lmax_lib], self.edges, self.lmax_lib)})
 
         for idx in self.jobs[mpi.rank::mpi.size]:
-            file_op = self.TEMP_DELENSED_SPECTRUM + '/{}'.format(self.dirid) + '/ClBBwf_sim%04d_fg%2s_res2b3acm.npy'%(idx, self.fg)
-            print('will store file at:', file_op)
+            _file_op = self.file_op(idx, self.fg)
+            print('will store file at:', _file_op)
             
             qumap_cs_buff = self.getfn_qumap_cs(idx)
             eblm_cs_buff = hp.map2alm_spin(qumap_cs_buff*self.base_mask, 2, self.lmax_cl)
             bmap_cs_buff = hp.alm2map(eblm_cs_buff[1], self.nside)
             for nlevi, nlev in enumerate(self.nlevels):
-                bcl_cs_nm = self.lib_nm[nlev].map2cl(bmap_cs_buff)
+                bcl_cs_nm = self.lib[nlev].map2cl(bmap_cs_buff)
                 blm_L_buff = hp.almxfl(utils.alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(idx), lmax=self.lmax_cl), self.transf) # TODO fiducial choice should happen at transformer
                 bmap_L_buff = hp.alm2map(blm_L_buff, self.nside)
-                bcl_L_nm = self.lib_nm[nlev].map2cl(bmap_L_buff)
+                bcl_L_nm = self.lib[nlev].map2cl(bmap_L_buff)
 
                 outputdata[0][0][nlevi] = bcl_L_nm
                 outputdata[1][0][nlevi] = bcl_cs_nm
 
                 blm_lensc_QE_buff = np.load(self.getfn_blm_lensc(idx, 0))
                 bmap_lensc_QE_buff = hp.alm2map(blm_lensc_QE_buff, nside=self.nside)
-                bcl_Llensc_QE_nm = self.lib_nm[nlev].map2cl(bmap_L_buff-bmap_lensc_QE_buff)
-                bcl_cslensc_QE_nm = self.lib_nm[nlev].map2cl(bmap_cs_buff-bmap_lensc_QE_buff)
+                bcl_Llensc_QE_nm = self.lib[nlev].map2cl(bmap_L_buff-bmap_lensc_QE_buff)
+                bcl_cslensc_QE_nm = self.lib[nlev].map2cl(bmap_cs_buff-bmap_lensc_QE_buff)
 
                 outputdata[0][1][nlevi] = bcl_Llensc_QE_nm
                 outputdata[1][1][nlevi] = bcl_cslensc_QE_nm
 
                 for iti, it in enumerate(self.iterations):
-                    blm_lensc_MAP_buff = np.load(self.getfn_blm_lensc(idx, it))
+                    blm_lensc_MAP_buff = hp.read_alm(self.getfn_blm_lensc(idx, it))
                     bmap_lensc_MAP_buff = hp.alm2map(blm_lensc_MAP_buff, nside=self.nside)
-                    bcl_Llensc_MAP_nm = self.lib_nm[nlev].map2cl(bmap_L_buff-bmap_lensc_MAP_buff)    
-                    bcl_cslensc_MAP_nm = self.lib_nm[nlev].map2cl(bmap_cs_buff-bmap_lensc_MAP_buff)
+                    bcl_Llensc_MAP_nm = self.lib[nlev].map2cl(bmap_L_buff-bmap_lensc_MAP_buff)    
+                    bcl_cslensc_MAP_nm = self.lib[nlev].map2cl(bmap_cs_buff-bmap_lensc_MAP_buff)
 
                     outputdata[0][2+iti][nlevi] = bcl_Llensc_MAP_nm
                     outputdata[1][2+iti][nlevi] = bcl_cslensc_MAP_nm      
     
-            np.save(file_op, outputdata)
+            np.save(_file_op, outputdata)
