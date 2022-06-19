@@ -436,6 +436,7 @@ class p2lensrec_Transformer:
                 dl.fel_unl =  cli(dl.cls_unl['ee'][:an.lmax_ivf + 1] + (cf.noisemodel.nlev_p / 180 / 60 * np.pi) ** 2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
                 dl.fbl_unl =  cli(dl.cls_unl['bb'][:an.lmax_ivf + 1] + (cf.noisemodel.nlev_p / 180 / 60 * np.pi) ** 2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
 
+
         @log_on_start(logging.INFO, "Start of _process_Data()")
         @log_on_end(logging.INFO, "Finished _process_Data()")
         def _process_Data(dl, da):
@@ -457,6 +458,7 @@ class p2lensrec_Transformer:
             dl.beam = da.beam
             dl.lmax_transf = da.lmax_transf
             dl.transf_data = gauss_beam(dl.beam / 180. / 60. * np.pi, lmax=dl.lmax_transf)
+
 
         @log_on_start(logging.INFO, "Start of _process_Noisemodel()")
         @log_on_end(logging.INFO, "Finished _process_Noisemodel()")
@@ -790,13 +792,12 @@ class p2d_Transformer:
     @log_on_start(logging.INFO, "Start of build()")
     @log_on_end(logging.INFO, "Finished build()")
     def build(self, cf):
-        # TODO make this an option for the user. If needed, user can define their own edges via configfile.
         fs_edges = np.arange(2, 3000, 20)
         ioreco_edges = np.array([2, 30, 200, 300, 500, 700, 1000, 1500, 2000, 3000, 4000, 5000])
         cmbs4_edges = np.array([2, 30, 60, 90, 120, 150, 180, 200, 300, 500, 700, 1000, 1500, 2000, 3000, 4000, 5000])
         def _process_delensingparams(dl, de):
-            dl.k = cf.iteration.K # Lensing key, either p_p, ptt, p_eb
-            dl.version = cf.iteration.V # version, can be 'noMF'
+            dl.k = cf.iteration.K
+            dl.version = cf.iteration.V
             if de.edges == 'ioreco':
                 dl.edges = ioreco_edges
             elif de.edges == 'cmbs4':
@@ -816,13 +817,12 @@ class p2d_Transformer:
             _sims_module = importlib.import_module(_sims_module_name)
             dl.sims = getattr(_sims_module, _sims_class_name)(dl.fg)
 
-            mask_path = cf.noisemodel.rhits_normalised[0] # dl.sims.p2mask
+            mask_path = cf.noisemodel.rhits_normalised[0]
             dl.base_mask = np.nan_to_num(hp.read_map(mask_path))
             dl.TEMP = transform(cf, p2T_Transformer())
             dl.analysis_path = dl.TEMP.split('/')[-1]
-            dl.TEMP_DELENSED_SPECTRUM = transform(dl, p2T_Transformer())
+            
             dl.nlev_mask = dict()
-            # TODO this can possibly be simplified
             noisemodel_rhits_map = df.get_nlev_mask(np.inf, hp.read_map(cf.noisemodel.rhits_normalised[0]))
             noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.noisemodel.inf
             for nlev in de.nlevels:
@@ -848,8 +848,11 @@ class p2d_Transformer:
 
             dl.sha_edges = hashlib.sha256()
             dl.sha_edges.update(str(dl.edges).encode())
-            dl.dirid = dl.sha_edges.hexdigest()[:4] 
-
+            dl.dirid = dl.sha_edges.hexdigest()[:4]
+            dl.TEMP_DELENSED_SPECTRUM = transform(dl, p2T_Transformer())
+            if not(os.path.isdir(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid))):
+                os.makedirs(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid))
+            dl.file_op = lambda idx, fg: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid) + '/ClBBwf_sim%04d_fg%2s_res2b3acm.npy'.format(idx, fg)
 
         dl = DLENSALOT_Concept()
         _process_delensingparams(dl, cf.map_delensing)
@@ -860,13 +863,13 @@ class p2d_Transformer:
     @log_on_start(logging.INFO, "Start of build()")
     @log_on_end(logging.INFO, "Finished build()")
     def build_v2(self, cf):
-        # TODO make this an option for the user. If needed, user can define their own edges via configfile.
+        # TODO make this an option for the user
         fs_edges = np.arange(2, 3000, 20)
         ioreco_edges = np.array([2, 30, 200, 300, 500, 700, 1000, 1500, 2000, 3000, 4000, 5000])
         cmbs4_edges = np.array([2, 30, 60, 90, 120, 150, 180, 200, 300, 500, 700, 1000, 1500, 2000, 3000, 4000, 5000])
         def _process_Madel(dl, ma):
-            dl.k = cf.analysis.K # Lensing key, either p_p, ptt, p_eb
-            dl.version = cf.analysis.V # version, can be 'noMF'
+            dl.k = cf.analysis.K
+            dl.version = cf.analysis.V
             if ma.edges == 'ioreco':
                 dl.edges = ioreco_edges
             elif ma.edges == 'cmbs4':
@@ -874,12 +877,12 @@ class p2d_Transformer:
             elif ma.edges == 'fs':
                 dl.edges = fs_edges
             dl.edges_center = (dl.edges[1:]+dl.edges[:-1])/2.
-            dl.imin = cf.analysis.IMIN
-            dl.imax = cf.analysis.IMAX
+            dl.imin = cf.data.IMIN
+            dl.imax = cf.data.IMAX
             dl.iterations = ma.iterations
             dl.droplist = ma.droplist
-            if 'fg' in cf.data.dataclass_parameters:
-                dl.fg = cf.data.dataclass_parameters['fg']
+            if 'fg' in cf.data.class_parameters:
+                dl.fg = cf.data.class_parameters['fg']
  
             _package = cf.data.package_
             _module = cf.data.module_
@@ -888,14 +891,17 @@ class p2d_Transformer:
             _sims_full_name = '{}.{}'.format(_package, _module)
             _sims_module = importlib.import_module(_sims_full_name)
             dl.sims = getattr(_sims_module, _class)(**dl.dataclass_parameters)
-
+            dl.nside = cf.data.nside
             mask_path = cf.noisemodel.rhits_normalised[0] # dl.sims.p2mask
             dl.base_mask = np.nan_to_num(hp.read_map(mask_path))
-            dl.TEMP = transform(cf, p2T_Transformer())
+            if cf.madel.libdir_it != '':
+                dl.TEMP = transform(cf, p2T_Transformer())
+                dl.libdir_iterators = 'overwrite'
+            else:
+                dl.TEMP = transform(cf, p2T_Transformer())
+                dl.libdir_iterators = lambda qe_key, simidx, version: opj(dl.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
             dl.analysis_path = dl.TEMP.split('/')[-1]
-            dl.TEMP_DELENSED_SPECTRUM = transform(dl, p2T_Transformer())
             dl.nlev_mask = dict()
-            # TODO this can possibly be simplified
             noisemodel_rhits_map = df.get_nlev_mask(np.inf, hp.read_map(cf.noisemodel.rhits_normalised[0]))
             noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.noisemodel.inf
             dl.nlevels = ma.nlevels
@@ -919,8 +925,11 @@ class p2d_Transformer:
 
             dl.sha_edges = hashlib.sha256()
             dl.sha_edges.update(str(dl.edges).encode())
-            dl.dirid = dl.sha_edges.hexdigest()[:4] 
-
+            dl.dirid = dl.sha_edges.hexdigest()[:4]
+            dl.TEMP_DELENSED_SPECTRUM = transform(dl, p2T_Transformer())
+            if not(os.path.isdir(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid))):
+                os.makedirs(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid))
+            dl.file_op = lambda idx, fg: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid) + '/ClBBwf_sim%04d_fg%2s_res2b3acm.npy'.format(idx, fg)
 
         dl = DLENSALOT_Concept()
         _process_Madel(dl, cf.madel)

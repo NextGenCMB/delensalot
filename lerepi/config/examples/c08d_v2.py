@@ -14,11 +14,11 @@ dlensalot_model = DLENSALOT_Model(
         OMP_NUM_THREADS = 16
     ),
     analysis = DLENSALOT_Analysis(
-        TEMP_suffix = 'r10_tol4',
+        TEMP_suffix = 'r10_tol3',
         K = 'p_p',
         V = '',
         ITMAX = 12,
-        nsims_mf = 100,
+        nsims_mf = 2,
         zbounds =  ('nmr_relative', 10),
         zbounds_len = ('extend', 5.),   
         pbounds = [0, 2*np.pi],
@@ -35,7 +35,7 @@ dlensalot_model = DLENSALOT_Model(
     ),
     data = DLENSALOT_Data(
         IMIN = 0,
-        IMAX = 99,
+        IMAX = 1,
         package_ = 'lerepi',
         module_ = 'config.cmbs4.data.data_08d',
         class_ = 'ILC_May2022',
@@ -48,7 +48,7 @@ dlensalot_model = DLENSALOT_Model(
     ),
     noisemodel = DLENSALOT_Noisemodel(
         typ = 'OBD',
-        BMARG_LIBDIR = '/global/cscratch1/sd/sebibel/cmbs4/OBD_matrices/r10/',
+        BMARG_LIBDIR = '/global/cscratch1/sd/sebibel/cmbs4/OBD_matrices/08d/r10/',
         BMARG_LCUT = 200,
         BMARG_RESCALE = 1.0,
         ninvjob_geometry = 'healpix_geometry',
@@ -61,12 +61,12 @@ dlensalot_model = DLENSALOT_Model(
         nlev_dep = 10000.,
         inf = 1e4,
         mask = ('nlev', 10),
-        rhits_normalised = ('/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08b/masks/08b_rhits_positive_nonan.fits', 10),
+        rhits_normalised = ('/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08d/masks/08d_rhits_positive_nonan.fits', 10),
         tpl = 'template_dense'
     ),
     qerec = DLENSALOT_Qerec(
         FILTER_QE = 'sepTP', # Change only if other than sepTP for QE is desired
-        CG_TOL = 1e-4,
+        CG_TOL = 1e-3,
         ninvjob_qe_geometry = 'healpix_geometry_qe',
         lmax_qlm = 4000,
         mmax_qlm = 4000,
@@ -84,7 +84,7 @@ dlensalot_model = DLENSALOT_Model(
     ),
     itrec = DLENSALOT_Itrec(
         FILTER = 'opfilt_ee_wl.alm_filter_ninv_wl',
-        TOL = 4,
+        TOL = 3,
         lenjob_geometry = 'thin_gauss',
         lenjob_pbgeometry = 'pbdGeometry',
         iterator_typ = 'constmf', # Either pertmf or const_mf
@@ -102,5 +102,7 @@ dlensalot_model = DLENSALOT_Model(
         droplist = np.array([]),
         nlevels = [2, 5, 10],
         lmax_cl = 2048,
+        Cl_fid = 'ffp10',
+        libdir_it = ''
     )
 )
