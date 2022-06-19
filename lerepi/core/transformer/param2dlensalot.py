@@ -929,7 +929,7 @@ class p2d_Transformer:
             dl.TEMP_DELENSED_SPECTRUM = transform(dl, p2T_Transformer())
             if not(os.path.isdir(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid))):
                 os.makedirs(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid))
-            dl.file_op = lambda idx, fg: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid) + '/ClBBwf_sim%04d_fg%2s_res2b3acm.npy'.format(idx, fg)
+            dl.file_op = lambda idx, fg: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid) + '/ClBBwf_sim%04d_fg%2s_res2b3acm.npy'%(idx, fg)
 
         dl = DLENSALOT_Concept()
         _process_Madel(dl, cf.madel)

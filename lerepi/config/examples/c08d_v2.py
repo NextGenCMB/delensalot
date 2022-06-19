@@ -22,7 +22,7 @@ dlensalot_model = DLENSALOT_Model(
         zbounds =  ('nmr_relative', 10),
         zbounds_len = ('extend', 5.),   
         pbounds = [0, 2*np.pi],
-        LENSRES = 1.7, # Deflection operations will be performed at this resolution
+        LENSRES = 1.7,
         Lmin = 4, 
         lmax_filt = 4000,
         lmax_unl = 4000,
@@ -31,7 +31,7 @@ dlensalot_model = DLENSALOT_Model(
         mmax_ivf = 3000,
         lmin_ivf = 10,
         mmin_ivf = 10,
-        STANDARD_TRANSFERFUNCTION = True # Change only if exotic transferfunctions is desired
+        STANDARD_TRANSFERFUNCTION = True
     ),
     data = DLENSALOT_Data(
         IMIN = 0,
