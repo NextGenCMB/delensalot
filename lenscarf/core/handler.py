@@ -94,7 +94,7 @@ class QE_lr():
     @log_on_start(logging.INFO, "Start of run()")
     @log_on_end(logging.INFO, "Finished run()")
     def run(self):
-        # TODO this triggers the creation of all files for the MAP input, defined by the job array. MAP later needs to request the corresponding values separately via the getter
+        # TODO this triggers the creation of all files for the MAP input, defined by the job array. MAP later needs the corresponding values separately via the getter
         # Can I think of something better?
         for idx in self.jobs[mpi.rank::mpi.size]:
             logging.info('{}/{}, Starting job {}'.format(mpi.rank,mpi.size,idx))
@@ -103,23 +103,25 @@ class QE_lr():
             self.get_wflm0(idx)
             self.get_R_unl()
             logging.info('{}/{}, Finished job {}'.format(mpi.rank,mpi.size,idx))
-        log.info('{} finished qe ivfs tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
-        mpi.barrier()
-        # Tunneling the meanfield-calculation, so only rank 0 calculates it. Otherwise,
-        # some processes will try accessing it too fast, or calculate themselves, which results in
-        # an io error
-        log.info("Done waiting. Rank 0 going to calculate meanfield-file.. everyone else waiting.")
-        if mpi.rank == 0:
-            self.get_meanfield_it0(mpi.rank)
-            log.info("rank finsihed calculating meanfield-file.. everyone else waiting.")
-        mpi.barrier()
-        log.info("Starting mf-calc task")
+        if len(self.jobs)>0:
+            log.info('{} finished qe ivfs tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
+            mpi.barrier()
+            # Tunneling the meanfield-calculation, so only rank 0 calculates it. Otherwise,
+            # some processes will try accessing it too fast, or calculate themselves, which results in
+            # an io error
+            log.info("Done waiting. Rank 0 going to calculate meanfield-file.. everyone else waiting.")
+            if mpi.rank == 0:
+                self.get_meanfield_it0(mpi.rank)
+                log.info("rank finsihed calculating meanfield-file.. everyone else waiting.")
+            mpi.barrier()
+            log.info("Starting mf-calc task")
         for idx in self.jobs[mpi.rank::mpi.size]:
             self.get_meanfield_it0(idx)
             self.get_plm_it0(idx)
-        log.info('{} finished qe mf-calc tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
-        mpi.barrier()
-        log.info('All ranks finished qe mf-calc tasks.')
+        if len(self.jobs)>0:
+            log.info('{} finished qe mf-calc tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
+            mpi.barrier()
+            log.info('All ranks finished qe mf-calc tasks.')
 
 
     @log_on_start(logging.INFO, "Start of get_sim_qlm()")
@@ -204,7 +206,7 @@ class MAP_lr():
         # TODO this is the interface to the D.lensalot iterators and connects 
         # to lerepi. Could be simplified, s.t. interfacing happens without the iteration_handler
         # but directly with cs_iterator, e.g. by adding visitor pattern to cs_iterator
-        self.ith = iteration_handler.transformer(self.iterator)
+        self.ith = iteration_handler.transformer(self.iterator_typ)
 
 
     @log_on_start(logging.INFO, "Start of collect_jobs()")
@@ -245,7 +247,7 @@ class MAP_lr():
         return self.ith(self.qe, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
 
 
-class inspect_result():
+class Inspector():
     def __init__(self, qe, dlensalot_model):
         assert 0, "Implement if needed"
 
@@ -263,7 +265,7 @@ class inspect_result():
 
 
 # TODO B_template construction could be independent of the iterator(), and could be simplified when get_template_blm is moved to a 'query' module
-class B_template_construction():
+class B_template_constructor():
     def __init__(self, dlensalot_model):
         self.__dict__.update(dlensalot_model.__dict__)
         # TODO Only needed to hand over to ith(). It would be better if a ith model was prepared already, and only hand over that
@@ -300,11 +302,11 @@ class B_template_construction():
             for it in range(0, self.itmax + 1):
                 if it <= Rec.maxiterdone(lib_dir_iterator):
                     itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1)
+            log.info("{} finished {}".format(mpi.rank, idx))
 
 
-class map_delensing():
-    """Script for calculating delensed ILC and Blens spectra,
-    using precaulculated Btemplates as input. Use 'Generate_Btemplate.py' for calulcating Btemplate input.
+class Map_delenser():
+    """Script for calculating delensed ILC and Blens spectra using precaulculated Btemplates as input.
     """
 
     def __init__(self, bmd_model):
@@ -318,9 +320,8 @@ class map_delensing():
     @log_on_end(logging.INFO, "Finished getfn_blm_lensc()")
     def getfn_blm_lensc(self, simidx, it):
         '''Lenscarf output using Catherinas E and B maps'''
-        rootstr = self.TEMP# + self.analysis_path
 
-        return rootstr+'/p_p_sim%04d/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(simidx, it, it)
+        return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(it, it)
 
             
     @log_on_start(logging.INFO, "Start of getfn_qumap_cs()")
@@ -362,7 +363,7 @@ class map_delensing():
             bmap_cs_buff = hp.alm2map(eblm_cs_buff[1], self.nside)
             for nlevi, nlev in enumerate(self.nlevels):
                 bcl_cs_nm = self.lib_nm[nlev].map2cl(bmap_cs_buff)
-                blm_L_buff = hp.almxfl(utils.alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(idx), lmax=self.lmax_cl), self.transf)
+                blm_L_buff = hp.almxfl(utils.alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(idx), lmax=self.lmax_cl), self.transf) # TODO fiducial choice should happen at transformer
                 bmap_L_buff = hp.alm2map(blm_L_buff, self.nside)
                 bcl_L_nm = self.lib_nm[nlev].map2cl(bmap_L_buff)
 

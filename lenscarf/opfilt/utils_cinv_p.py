@@ -12,6 +12,7 @@ import sys, os
 import numpy as np
 import healpy as hp
 import pickle as pk
+import time
 
 import logging
 log = logging.getLogger(__name__)
@@ -73,8 +74,10 @@ class cinv_p(filt_cinv.cinv):
                 np.savetxt(os.path.join(self.lib_dir, "tal.dat"), self._calc_tal())
             if not os.path.exists(os.path.join(self.lib_dir,  "fmask.fits.gz")):
                 hp.write_map(os.path.join(self.lib_dir,  "fmask.fits.gz"),  self._calc_mask())
-            utils.hash_check(pk.load(open(os.path.join(lib_dir, "filt_hash.pk"), 'rb')), self.hashdict())
-        mpi.barrier()
+        else:
+            while not os.path.exists(os.path.join(lib_dir, "filt_hash.pk")):
+                time.sleep(1)
+        utils.hash_check(pk.load(open(os.path.join(lib_dir, "filt_hash.pk"), 'rb')), self.hashdict())
 
 
     def hashdict(self):
