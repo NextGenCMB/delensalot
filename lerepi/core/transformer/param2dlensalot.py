@@ -6,6 +6,7 @@ __author__ = "S. Belkner, J. Carron, L. Legrand"
 
 
 import os, sys
+import cffi
 import psutil
 from os.path import join as opj
 import importlib
@@ -68,9 +69,9 @@ class p2T_Transformer:
     @log_on_start(logging.INFO, "Start of build_nomf()")
     @log_on_end(logging.INFO, "Finished build_nomf()")
     def build_nomf(self, cf):
-        _suffix = cf.data.module_+cf.data.class_
+        _suffix = cf.data.class_
         if 'fg' in cf.data.class_parameters:
-            +'_%s'%(cf.data.class_parameters['fg'])
+            _suffix +='_%s'%(cf.data.class_parameters['fg'])
         if cf.noisemodel.typ == 'OBD':
             _suffix += '_OBD'
         elif cf.noisemodel.typ == 'trunc':
@@ -80,7 +81,7 @@ class p2T_Transformer:
 
         if cf.analysis.TEMP_suffix != '':
             _suffix += '_'+cf.analysis.TEMP_suffix
-        TEMP =  opj(os.environ['SCRATCH'], 'dlensalot', cf.data.package_, cf.data.module_, _suffix)
+        TEMP =  opj(os.environ['SCRATCH'], 'dlensalot', cf.data.package_, cf.data.module_.split('.')[-1], _suffix)
 
         return TEMP
 
@@ -716,6 +717,8 @@ class p2OBD_Transformer:
         return masks, msk
 
 
+    @log_on_start(logging.INFO, "Start of build()")
+    @log_on_end(logging.INFO, "Finished build()")
     def build(self, cf):
         @log_on_start(logging.INFO, "Start of _process_builOBDparams()")
         @log_on_end(logging.INFO, "Finished _process_builOBDparams()")
@@ -743,6 +746,39 @@ class p2OBD_Transformer:
 
         dl = DLENSALOT_Concept()
         _process_builOBDparams(dl, cf.noisemodel)
+
+        return dl
+
+
+    @log_on_start(logging.INFO, "Start of build()")
+    @log_on_end(logging.INFO, "Finished build()")
+    def build_v2(self, cf):
+        @log_on_start(logging.INFO, "Start of _process_builOBDparams()")
+        @log_on_end(logging.INFO, "Finished _process_builOBDparams()")
+        def _process_Noisemodel(dl, nm):
+            _TEMP = transform(cf, p2T_Transformer())
+            dl.TEMP = transform(_TEMP, p2T_Transformer())
+            if os.path.isfile(opj(nm.BMARG_LIBDIR,'tniti.npy')):
+                # TODO need to test if it is the right tniti.npy
+                log.warning("tniti.npy in destination dir {} already exists.".format(nm.BMARG_LIBDIR))
+            if os.path.isfile(opj(dl.TEMP,'tniti.npy')):
+                # TODO need to test if it is the right tniti.npy
+                log.warning("tniti.npy in buildpath dir {} already exists.".format(dl.TEMP))
+                log.warning("Exiting. Please check your settings.")
+                sys.exit()
+            else:
+                dl.BMARG_LCUT = nm.BMARG_LCUT
+                dl.nside = cf.data.nside
+                dl.nlev_dep = nm.nlev_dep
+                dl.CENTRALNLEV_UKAMIN = nm.CENTRALNLEV_UKAMIN
+                dl.geom = utils_scarf.Geom.get_healpix_geometry(dl.nside)
+                dl.masks, dl.rhits_map = p2OBD_Transformer.get_masks(cf)
+                dl.nlev_p = p2OBD_Transformer.get_nlevp(cf)
+                dl.ninv_p = p2OBD_Transformer.get_ninvp(cf)
+
+
+        dl = DLENSALOT_Concept()
+        _process_Noisemodel(dl, cf.noisemodel)
 
         return dl
 
@@ -823,6 +859,77 @@ class p2d_Transformer:
         return dl
 
 
+    @log_on_start(logging.INFO, "Start of build()")
+    @log_on_end(logging.INFO, "Finished build()")
+    def build_v2(self, cf):
+        # TODO make this an option for the user. If needed, user can define their own edges via configfile.
+        fs_edges = np.arange(2, 3000, 20)
+        ioreco_edges = np.array([2, 30, 200, 300, 500, 700, 1000, 1500, 2000, 3000, 4000, 5000])
+        cmbs4_edges = np.array([2, 30, 60, 90, 120, 150, 180, 200, 300, 500, 700, 1000, 1500, 2000, 3000, 4000, 5000])
+        def _process_Madel(dl, ma):
+            dl.k = cf.analysis.K # Lensing key, either p_p, ptt, p_eb
+            dl.version = cf.analysis.V # version, can be 'noMF'
+            if ma.edges == 'ioreco':
+                dl.edges = ioreco_edges
+            elif ma.edges == 'cmbs4':
+                dl.edges = cmbs4_edges
+            elif ma.edges == 'fs':
+                dl.edges = fs_edges
+            dl.edges_center = (dl.edges[1:]+dl.edges[:-1])/2.
+            dl.imin = cf.analysis.IMIN
+            dl.imax = cf.analysis.IMAX
+            dl.iterations = ma.iterations
+            dl.droplist = ma.droplist
+            if 'fg' in cf.data.dataclass_parameters:
+                dl.fg = cf.data.dataclass_parameters['fg']
+ 
+            _package = cf.data.package_
+            _module = cf.data.module_
+            _class = cf.data.class_
+            dl.dataclass_parameters = cf.data.class_parameters
+            _sims_full_name = '{}.{}'.format(_package, _module)
+            _sims_module = importlib.import_module(_sims_full_name)
+            dl.sims = getattr(_sims_module, _class)(**dl.dataclass_parameters)
+
+            mask_path = cf.noisemodel.rhits_normalised[0] # dl.sims.p2mask
+            dl.base_mask = np.nan_to_num(hp.read_map(mask_path))
+            dl.TEMP = transform(cf, p2T_Transformer())
+            dl.analysis_path = dl.TEMP.split('/')[-1]
+            dl.TEMP_DELENSED_SPECTRUM = transform(dl, p2T_Transformer())
+            dl.nlev_mask = dict()
+            # TODO this can possibly be simplified
+            noisemodel_rhits_map = df.get_nlev_mask(np.inf, hp.read_map(cf.noisemodel.rhits_normalised[0]))
+            noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.noisemodel.inf
+            dl.nlevels = ma.nlevels
+            for nlev in ma.nlevels:
+                buffer = df.get_nlev_mask(nlev, noisemodel_rhits_map)
+                dl.nlev_mask.update({nlev:buffer})
+
+            dl.lmax_cl = ma.lmax_cl
+            dl.lmax_lib = 3*dl.lmax_cl-1
+            dl.beam = cf.data.beam
+            dl.lmax_transf = cf.data.lmax_transf
+            dl.transf = hp.gauss_beam(dl.beam / 180. / 60. * np.pi, lmax=dl.lmax_transf)
+
+            if ma.Cl_fid == 'ffp10':
+                dl.cls_path = opj(os.path.dirname(plancklens.__file__), 'data', 'cls')
+                dl.cls_len = utils.camb_clfile(opj(dl.cls_path, 'FFP10_wdipole_lensedCls.dat'))
+                dl.clg_templ = dl.cls_len['ee']
+                dl.clc_templ = dl.cls_len['bb']
+                dl.clg_templ[0] = 1e-32
+                dl.clg_templ[1] = 1e-32
+
+            dl.sha_edges = hashlib.sha256()
+            dl.sha_edges.update(str(dl.edges).encode())
+            dl.dirid = dl.sha_edges.hexdigest()[:4] 
+
+
+        dl = DLENSALOT_Concept()
+        _process_Madel(dl, cf.madel)
+
+        return dl
+
+
 class p2j_Transformer:
     """Extracts parameters needed for the specific D.Lensalot jobs
     Implement if needed
@@ -878,6 +985,14 @@ def f4(expr, transformer): # pylint: disable=missing-function-docstring
 @transform.case(DLENSALOT_Model, p2d_Transformer)
 def f5(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)
+
+@transform.case(DLENSALOT_Model_v2, p2OBD_Transformer)
+def f4(expr, transformer): # pylint: disable=missing-function-docstring
+    return transformer.build_v2(expr)
+
+@transform.case(DLENSALOT_Model_v2, p2d_Transformer)
+def f5(expr, transformer): # pylint: disable=missing-function-docstring
+    return transformer.build_v2(expr)
 
 @transform.case(DLENSALOT_Model_v2, p2j_Transformer)
 def f1(expr, transformer): # pylint: disable=missing-function-docstring
