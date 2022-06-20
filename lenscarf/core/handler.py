@@ -167,16 +167,14 @@ class QE_lr():
             os.makedirs(lib_dir_iterator)
         path_plm0 = opj(lib_dir_iterator, 'phi_plm_it000.npy')
         if not os.path.exists(path_plm0):
-            # We now build the Wiener-filtered QE here since not done already
             plm0  = self.qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate:
             plm0 -= self.mf0(simidx)  # MF-subtracted unnormalized QE
-            # Isotropic normalization of the QE
             R = qresp.get_response(self.k, self.lmax_ivf, 'p', self.cls_len, self.cls_len, {'e': self.fel, 'b': self.fbl, 't':self.ftl}, lmax_qlm=self.lmax_qlm)[0]
             # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
             WF = self.cpp * utils.cli(self.cpp + utils.cli(R))
-            plm0 = alm_copy(plm0,  None, self.lmax_qlm, self.mmax_qlm) # Just in case the QE and MAP mmax'es were not consistent
+            plm0 = alm_copy(plm0,  None, self.lmax_qlm, self.mmax_qlm)
             almxfl(plm0, utils.cli(R), self.mmax_qlm, True) # Normalized QE
-            almxfl(plm0, WF, self.mmax_qlm, True)           # Wiener-filter QE
+            almxfl(plm0, WF, self.mmax_qlm, True) # Wiener-filter QE
             almxfl(plm0, self.cpp > 0, self.mmax_qlm, True)
             np.save(path_plm0, plm0)
 
@@ -337,9 +335,19 @@ class Map_delenser():
     @log_on_start(logging.INFO, "Start of getfn_qumap_cs()")
     @log_on_end(logging.INFO, "Finished getfn_qumap_cs()")
     def getfn_qumap_cs(self, simidx):
+
         '''Component separated polarisation maps lm, i.e. lenscarf input'''
 
         return self.sims.get_sim_pmap(simidx)
+
+
+    @log_on_start(logging.INFO, "Start of getfn_qumap_cs()")
+    @log_on_end(logging.INFO, "Finished getfn_qumap_cs()")
+    def get_B_wf(self, simidx):
+        '''Component separated polarisation maps lm, i.e. lenscarf input'''
+        # TODO this is a quickfix and works only for already existing bwflm's for 08bb
+        if self.libdir_iterators == 'overwrite':
+            return  np.load('/global/cscratch1/sd/sebibel/cmbs4/s08b/cILC2021_%s_lmax4000/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20/ffi_p_it0/bwflm_%04d.npy'%(self.fg,simidx,simidx))
 
 
     @log_on_start(logging.INFO, "Start of collect_jobs()")
@@ -368,10 +376,14 @@ class Map_delenser():
         for idx in self.jobs[mpi.rank::mpi.size]:
             _file_op = self.file_op(idx, self.fg)
             log.info('will store file at: {}'.format(_file_op))
-            
-            qumap_cs_buff = self.getfn_qumap_cs(idx)
-            eblm_cs_buff = hp.map2alm_spin(qumap_cs_buff*self.base_mask, 2, self.lmax_cl)
-            bmap_cs_buff = hp.alm2map(eblm_cs_buff[1], self.nside)
+
+            # TODO make this a user choise
+            if True:
+                bmap_cs_buff = hp.alm2map(self.get_B_wf(idx), nside=2048)
+            else:
+                qumap_cs_buff = self.getfn_qumap_cs(idx)
+                eblm_cs_buff = hp.map2alm_spin(qumap_cs_buff*self.base_mask, 2, self.lmax_cl)
+                bmap_cs_buff = hp.alm2map(eblm_cs_buff[1], self.nside)
             for nlevi, nlev in enumerate(self.nlevels):
                 bcl_cs = self.lib[nlev].map2cl(bmap_cs_buff)
                 blm_L_buff = hp.almxfl(utils.alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(idx), lmax=self.lmax_cl), self.transf) # TODO fiducial choice should happen at transformer
