@@ -31,7 +31,7 @@ class caterinaILC_May12:
 
 
     def hashdict(self):
-        ret = {'rhits':self.rhitsi, 'sim_lib':'cmbs4_08b_ILC_%s'%self.fg, 'units':self.facunits, 'path2sim0':self.path%0}
+        ret = {'rhits':self.rhitsi, 'sim_lib':'cmbs4_08b_ILC_%s'%self.fg, 'units':self.facunits, 'path2sim0':self.path_set1%0}
         
         return ret
 

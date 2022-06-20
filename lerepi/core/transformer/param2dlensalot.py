@@ -125,7 +125,7 @@ class p2lensrec_Transformer:
 
             dl.masks = p2OBD_Transformer.get_masks(cf)
 
-            dl.beam = data.BEAM
+            dl.beam = data.beam
             dl.lmax_transf = data.lmax_transf
             dl.transf = data.transf(dl.beam / 180. / 60. * np.pi, lmax=dl.lmax_transf)
 
@@ -169,7 +169,7 @@ class p2lensrec_Transformer:
 
             dl.lensres = iteration.LENSRES
             dl.tr = int(os.environ.get('OMP_NUM_THREADS', iteration.OMP_NUM_THREADS))
-            dl.iterator = iteration.ITERATOR
+            dl.iterator_typ = iteration.iterator_typ
 
             if iteration.STANDARD_TRANSFERFUNCTION == True:
                 dl.nlev_t = p2OBD_Transformer.get_nlevt(cf)
@@ -214,13 +214,14 @@ class p2lensrec_Transformer:
                     sys.exit()
                 log.info('{} starting filt_cinv.library_cinv_sepTP()'.format(mpi.rank))
                 dl.ivfs_raw = filt_cinv.library_cinv_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl.cinv_t, dl.cinv_p, dl.cls_len)
-                log.info('{} finished filt_cinv.library_cinv_sepTP()'.format(mpi.rank))
                 dl.ftl_rs = np.ones(iteration.lmax_ivf + 1, dtype=float) * (np.arange(iteration.lmax_ivf + 1) >= dl.lmin_tlm)
                 dl.fel_rs = np.ones(iteration.lmax_ivf + 1, dtype=float) * (np.arange(iteration.lmax_ivf + 1) >= dl.lmin_elm)
                 dl.fbl_rs = np.ones(iteration.lmax_ivf + 1, dtype=float) * (np.arange(iteration.lmax_ivf + 1) >= dl.lmin_blm)
                 log.info('{} starting filt_util.library_ftl()'.format(mpi.rank))
                 dl.ivfs   = filt_util.library_ftl(dl.ivfs_raw, iteration.lmax_ivf, dl.ftl_rs, dl.fel_rs, dl.fbl_rs)
-                log.info('{} finished filt_util.library_ftl()'.format(mpi.rank))
+
+                log.info('{} starting qest.library_sepTP()'.format(mpi.rank))
+                dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.ivfs, dl.ivfs, dl.cls_len['te'], dl.nside, lmax_qlm=dl.lmax_qlm)
                     
             if iteration.QE_LENSING_CL_ANALYSIS == True:
                 dl.ss_dict = { k : v for k, v in zip( np.concatenate( [ range(i*60, (i+1)*60) for i in range(0,5) ] ),
@@ -662,7 +663,7 @@ class p2OBD_Transformer:
     # @log_on_start(logging.INFO, "Start of get_nlevt()")
     # @log_on_end(logging.INFO, "Finished get_nlevt()")
     def get_nlevt(cf):
-        nlev_t = cf.data.CENTRALNLEV_UKAMIN/np.sqrt(2) if cf.noisemodel.nlev_t == None else cf.noisemodel.nlev_t
+        nlev_t = cf.noisemodel.CENTRALNLEV_UKAMIN/np.sqrt(2) if cf.noisemodel.nlev_t == None else cf.noisemodel.nlev_t
 
         return nlev_t
 
@@ -681,7 +682,11 @@ class p2OBD_Transformer:
         nlev_t = p2OBD_Transformer.get_nlevp(cf)
         masks, noisemodel_rhits_map =  p2OBD_Transformer.get_masks(cf)
         noisemodel_norm = np.max(noisemodel_rhits_map)
-        t_transf = gauss_beam(cf.data.beam/180 / 60 * np.pi, lmax=cf.analysis.lmax_ivf)
+        # TODO quickfix, cleanup later
+        if isinstance(cf, DLENSALOT_Model):
+            t_transf = gauss_beam(cf.data.beam/180 / 60 * np.pi, lmax=cf.iteration.lmax_ivf)
+        else:
+            t_transf = gauss_beam(cf.data.beam/180 / 60 * np.pi, lmax=cf.analysis.lmax_ivf)
         ninv_desc = [[np.array([hp.nside2pixarea(cf.data.nside, degrees=True) * 60 ** 2 / nlev_t ** 2])/noisemodel_norm] + masks]
         ninv_t = opfilt_pp.alm_filter_ninv(ninv_desc, t_transf, marge_qmaps=(), marge_umaps=()).get_ninv()
 
@@ -694,7 +699,11 @@ class p2OBD_Transformer:
         nlev_p = p2OBD_Transformer.get_nlevp(cf)
         masks, noisemodel_rhits_map =  p2OBD_Transformer.get_masks(cf)
         noisemodel_norm = np.max(noisemodel_rhits_map)
-        b_transf = gauss_beam(cf.data.beam/180 / 60 * np.pi, lmax=cf.analysis.lmax_ivf) # TODO ninv_p doesn't depend on this anyway, right?
+        # TODO quickfix, cleanup later
+        if isinstance(cf, DLENSALOT_Model):
+            b_transf = gauss_beam(cf.data.beam/180 / 60 * np.pi, lmax=cf.iteration.lmax_ivf) # TODO ninv_p doesn't depend on this anyway, right?
+        else:
+            b_transf = gauss_beam(cf.data.beam/180 / 60 * np.pi, lmax=cf.analysis.lmax_ivf) # TODO ninv_p doesn't depend on this anyway, right?
         ninv_desc = [[np.array([hp.nside2pixarea(cf.data.nside, degrees=True) * 60 ** 2 / nlev_p ** 2])/noisemodel_norm] + masks]
         ninv_p = opfilt_pp.alm_filter_ninv(ninv_desc, b_transf, marge_qmaps=(), marge_umaps=()).get_ninv()
 

@@ -131,3 +131,6 @@ for simidx, simid in enumerate(simids[mpi.rank::mpi.size]):
     BWf_dir = lib_dir_iterator+'/ffi_p_it0/'
     bwflm = ivfs_OBD.get_sim_bmliklm(simid) # b maximum likelihood lm
     np.save(BWf_dir+'bwflm_%04d.npy'%(simid), bwflm)
+    
+    
+    

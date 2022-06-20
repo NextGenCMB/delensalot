@@ -57,7 +57,7 @@ class DLENSALOT_Data(DLENSALOT_Concept):
     fg = attr.ib(default=-1)
     sims = attr.ib(default=-1)
     nside = attr.ib(default=-1)
-    BEAM = attr.ib(default=-1)
+    beam = attr.ib(default=-1)
     lmax_transf = attr.ib(default=-1)
     transf = attr.ib(default=-1)
     tpl = attr.ib(default=-1)
@@ -121,7 +121,7 @@ class DLENSALOT_Iteration(DLENSALOT_Concept):
     # Change the following block only if other than sepTP for QE is desired
     FILTER_QE = attr.ib(default=-1)
     # Choose your iterator. Either pertmf or const_mf
-    ITERATOR = attr.ib(default=-1)
+    iterator_typ = attr.ib(default=-1)
     # The following block defines various multipole limits. Change as desired
     lmax_filt = attr.ib(default=-1) # unlensed CMB iteration lmax
     lmax_qlm = attr.ib(default=-1)
