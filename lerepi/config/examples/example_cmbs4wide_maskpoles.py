@@ -4,9 +4,7 @@ import numpy as np
 import healpy as hp
 
 from lerepi.core.metamodel.dlensalot_v2 import *
-
 from plancklens.sims import phas, planck2018_sims
-
 
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(
@@ -79,8 +77,7 @@ dlensalot_model = DLENSALOT_Model(
             p5 = None,
             p6 = 'tr_cg',
             p7 = 'cache_mem'
-        )
-    ),
+    )),
     itrec = DLENSALOT_Itrec(
         FILTER = 'opfilt_ee_wl.alm_filter_ninv_wl',
         TOL = 3,
@@ -92,13 +89,11 @@ dlensalot_model = DLENSALOT_Model(
             typ = 'harmonicbump',
             xa = 400,
             xb = 1500
-        )
-    ),
+    )),
     madel = DLENSALOT_Mapdelensing(
         edges = 'cmbs4',
         ITMAX = [10,12],
         droplist = np.array([]),
         nlevels = [np.inf],
         lmax_cl = 2048,
-    )
-)
+    ))
