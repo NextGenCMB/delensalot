@@ -250,6 +250,7 @@ class p2lensrec_Transformer:
                 else:
                     log.error('Not sure what to do with this meanfield: {}'.format(iteration.mfvar))
 
+
         @log_on_start(logging.INFO, "Start of _process_geometryparams()")
         @log_on_end(logging.INFO, "Finished _process_geometryparams()")
         def _process_geometryparams(dl, geometry):
@@ -280,7 +281,6 @@ class p2lensrec_Transformer:
                 dl.lenjob_pbgeometry = utils_scarf.pbdGeometry(dl.lenjob_geometry, utils_scarf.pbounds(dl.pb_ctr, dl.pb_extent))
             if geometry.ninvjob_geometry == 'healpix_geometry':
                 # ninv MAP geometry. Could be merged with QE, if next comment resolved
-                # TODO zbounds_loc must be identical to data.zbounds
                 dl.ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(geometry.nside, zbounds=dl.zbounds)
             if geometry.ninvjob_qe_geometry == 'healpix_geometry_qe':
                 # TODO for QE, isOBD only works with zbounds=(-1,1). Perhaps missing ztrunc on qumaps
@@ -377,6 +377,11 @@ class p2lensrec_Transformer:
         def _process_Analysis(dl, an):
             dl.temp_suffix = an.TEMP_suffix
             dl.TEMP = transform(cf, p2T_Transformer())
+            if cf.qerec.overwrite_libdir != '' or cf.qerec.overwrite_libdir != -1 or cf.qerec.overwrite_libdir != None:
+                dl.TEMP = cf.qerec.overwrite_libdir
+                dl.overwrite_libdir = cf.qerec.overwrite_libdir
+            else:
+                dl.overwrite_libdir = None
             dl.tr = int(os.environ.get('OMP_NUM_THREADS', cf.job.OMP_NUM_THREADS))
             dl.version = an.V
             dl.k = an.K
@@ -530,7 +535,7 @@ class p2lensrec_Transformer:
 
             if qe.ninvjob_qe_geometry == 'healpix_geometry_qe':
                 # TODO for QE, isOBD only works with zbounds=(-1,1). Perhaps missing ztrunc on qumaps
-                # Introduced new geometry for now, until either plancklens supports ztrunc, or ztrunced simlib (not sure if it already does)
+                # Introduce new geometry for now, until either plancklens supports ztrunc, or ztrunced simlib (not sure if it already does)
                 dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl.nside, zbounds=(-1,1))
             elif qe.ninvjob_qe_geometry == 'healpix_geometry':
                 dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl.nside, zbounds=dl.zbounds)
@@ -551,13 +556,17 @@ class p2lensrec_Transformer:
                     log.info('{} finished cinv_p_OBD.cinv_p()'.format(mpi.rank))
                 elif dl.OBD_type == 'trunc' or dl.OBD_type == None or dl.OBD_type == 'None':
                     dl.cinv_p = filt_cinv.cinv_p(opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, dl.nside, dl.cls_len, dl.transf_elm, dl.ninv_p,
-                        chain_descr=dl.chain_descr(dl.lmax_ivf, dl.CG_TOL), transf_blm=dl.transf_blm, marge_qmaps=(), marge_umaps=())
+                        chain_descr=dl.chain_descr(dl.lmax_ivf, dl.cg_tol), transf_blm=dl.transf_blm, marge_qmaps=(), marge_umaps=())
                 else:
                     log.error("Don't understand your OBD_typ input. Exiting..")
                     traceback.print_stack()
                     sys.exit()
                 log.info('{} starting filt_cinv.library_cinv_sepTP()'.format(mpi.rank))
-                dl.ivfs_raw = filt_cinv.library_cinv_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl.cinv_t, dl.cinv_p, dl.cls_len)
+                if dl.overwrite_libdir is None: 
+                    dl.ivfs_raw = filt_cinv.library_cinv_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl.cinv_t, dl.cinv_p, dl.cls_len)
+                else:
+                    # TODO hack. Only want to access old s08b sim result lib and generate B wf
+                    dl.ivfs_raw = filt_cinv.library_cinv_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl.cinv_t, dl.cinv_p, dl.cls_len)
                 log.info('{} finished filt_cinv.library_cinv_sepTP()'.format(mpi.rank))
                 dl.ftl_rs = np.ones(dl.lmax_ivf + 1, dtype=float) * (np.arange(dl.lmax_ivf + 1) >= dl.lmin_tlm)
                 dl.fel_rs = np.ones(dl.lmax_ivf + 1, dtype=float) * (np.arange(dl.lmax_ivf + 1) >= dl.lmin_elm)
@@ -830,6 +839,13 @@ class p2d_Transformer:
             dl.base_mask = np.nan_to_num(hp.read_map(mask_path))
             dl.TEMP = transform(cf, p2T_Transformer())
             dl.analysis_path = dl.TEMP.split('/')[-1]
+
+            # if cf.madel.libdir_it != '':
+            #     dl.TEMP = transform(cf, p2T_Transformer())
+            #     dl.libdir_iterators = 'overwrite'
+            # else:
+            #     dl.TEMP = transform(cf, p2T_Transformer())
+            #     dl.libdir_iterators = lambda qe_key, simidx, version: opj(dl.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
             
             dl.nlev_mask = dict()
             noisemodel_rhits_map = df.get_nlev_mask(np.inf, hp.read_map(cf.noisemodel.rhits_normalised[0]))
@@ -861,8 +877,7 @@ class p2d_Transformer:
             dl.TEMP_DELENSED_SPECTRUM = transform(dl, p2T_Transformer())
             if not(os.path.isdir(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid))):
                 os.makedirs(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid))
-            dl.file_op = lambda idx, fg: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid) + '/ClBBwf_sim%04d_fg%2s_res2b3acm.npy'.format(idx, fg)
-
+            dl.file_op = lambda idx, fg: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid) + '/ClBBwf_sim%04d_fg%s_res2b3acm.npy'%(idx, fg)
         dl = DLENSALOT_Concept()
         _process_delensingparams(dl, cf.map_delensing)
 
@@ -903,6 +918,7 @@ class p2d_Transformer:
             dl.nside = cf.data.nside
             mask_path = cf.noisemodel.rhits_normalised[0] # dl.sims.p2mask
             dl.base_mask = np.nan_to_num(hp.read_map(mask_path))
+            # TODO hack. this is only needed to access old s08b data
             if cf.madel.libdir_it != '':
                 dl.TEMP = transform(cf, p2T_Transformer())
                 dl.libdir_iterators = 'overwrite'

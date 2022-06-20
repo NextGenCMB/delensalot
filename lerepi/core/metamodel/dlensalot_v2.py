@@ -132,6 +132,7 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     mmax_qlm = attr.ib(default=-1)
     chain = attr.ib(default=-1)
     QE_LENSING_CL_ANALYSIS = attr.ib(default=-1)
+    overwrite_libdir = attr.ib(default=-1)
 
 
 @attr.s
@@ -149,6 +150,7 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     mfvar = attr.ib(default=-1)
     soltn_cond = attr.ib(default=-1)
     stepper = attr.ib(default=-1)
+    overwrite_itdir = attr.ib(default=-1)
 
 
 @attr.s

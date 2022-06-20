@@ -1,13 +1,12 @@
 import numpy as np
 
 from lerepi.core.metamodel.dlensalot_v2 import *
-
+# this config is used to generate B_wf in old s08b directory
 
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(
         build_OBD = False,
-        QE_lensrec = False,
-        QE_Bwf = True,
+        QE_lensrec = True,
         MAP_lensrec = False,
         Btemplate_per_iteration = False,
         map_delensing = False,
@@ -41,14 +40,14 @@ dlensalot_model = DLENSALOT_Model(
         module_ = 'config.cmbs4.data.data_08b',
         class_ = 'caterinaILC_May12',
         class_parameters = {
-            'fg': '09'
+            'fg': '07'
         },
         beam = 2.3,
         lmax_transf = 4000,
         nside = 2048
     ),
     noisemodel = DLENSALOT_Noisemodel(
-        typ = 'OBD',
+        typ = 'trunc',
         BMARG_LIBDIR = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08b/',
         BMARG_LCUT = 200,
         BMARG_RESCALE = (0.42/0.350500)**2,
@@ -81,7 +80,8 @@ dlensalot_model = DLENSALOT_Model(
             p5 = None,
             p6 = 'tr_cg',
             p7 = 'cache_mem'
-        )
+        ),
+        overwrite_libdir = '/global/cscratch1/sd/sebibel/cmbs4/s08b/cILC2021_07_lmax4000/'
     ),
     itrec = DLENSALOT_Itrec(
         FILTER = 'opfilt_ee_wl.alm_filter_ninv_wl',
@@ -95,7 +95,8 @@ dlensalot_model = DLENSALOT_Model(
             typ = 'harmonicbump',
             xa = 400,
             xb = 1500
-        )
+        ),
+        overwrite_itdir = 'ffi_p_it%d/'
     ),
     madel = DLENSALOT_Mapdelensing(
         edges = 'cmbs4',
