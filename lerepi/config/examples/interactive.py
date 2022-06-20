@@ -1,7 +1,7 @@
 import numpy as np
 
 from lerepi.core.metamodel.dlensalot_v2 import *
-# this config is used to generate B_wf in old s08b directory
+# this config is used to generate B_wf in old s08b directory. config is stored in the usual place.
 
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(
@@ -40,7 +40,7 @@ dlensalot_model = DLENSALOT_Model(
         module_ = 'config.cmbs4.data.data_08b',
         class_ = 'caterinaILC_May12',
         class_parameters = {
-            'fg': '07'
+            'fg': '09'
         },
         beam = 2.3,
         lmax_transf = 4000,
@@ -81,7 +81,7 @@ dlensalot_model = DLENSALOT_Model(
             p6 = 'tr_cg',
             p7 = 'cache_mem'
         ),
-        overwrite_libdir = '/global/cscratch1/sd/sebibel/cmbs4/s08b/cILC2021_07_lmax4000/'
+        overwrite_libdir = '/global/cscratch1/sd/sebibel/cmbs4/s08b/cILC2021_09_lmax4000/'
     ),
     itrec = DLENSALOT_Itrec(
         FILTER = 'opfilt_ee_wl.alm_filter_ninv_wl',

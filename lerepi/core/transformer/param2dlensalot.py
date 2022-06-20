@@ -138,6 +138,7 @@ class p2lensrec_Transformer:
         @log_on_end(logging.INFO, "Finished _process_iterationparams()")
         def _process_iterationparams(dl, iteration):
             dl.version = iteration.V
+            dl.mfvar = iteration.mfvar
             dl.k = iteration.K  
             dl.itmax = iteration.ITMAX
             dl.imin = iteration.IMIN
@@ -242,7 +243,7 @@ class p2lensrec_Transformer:
                 dl.qcls_dd = qecl.library(opj(dl.TEMP, 'qcls_dd'), dl.qlms_dd, dl.qlms_dd, dl.mc_sims_bias)
 
 
-            if iteration.mfvar == 'same':
+            if iteration.mfvar == 'same' or iteration.mfvar == '':
                 dl.mfvar = None
             elif iteration.mfvar.startswith('/'):
                 if os.path.isfile(iteration.mfvar):
