@@ -65,26 +65,40 @@ class OBD_builder():
 class QE_lr():
     def __init__(self, dlensalot_model):
         self.__dict__.update(dlensalot_model.__dict__)
-        self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
-
-        self.mf0 = lambda simidx: self.get_meanfield_it0(simidx)
-        self.plm0 = lambda simidx: self.get_plm_it0(simidx)
-        self.mf_resp = lambda: self.get_meanfield_response_it0()
-        self.wflm0 = lambda simidx: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lmax_unl, self.mmax_unl)
-        self.R_unl = lambda: qresp.get_response(self.k, self.lmax_ivf, 'p', self.cls_unl, self.cls_unl,  {'e': self.fel_unl, 'b': self.fbl_unl, 't':self.ftl_unl}, lmax_qlm=self.lmax_qlm)[0]
-
+        if 'overwrite_libdir' in dlensalot_model.__dict__:
+            pass
+        else:
+            self.overwrite_libdir = None
+        if self.overwrite_libdir is None:
+            self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
+            self.mf0 = lambda simidx: self.get_meanfield_it0(simidx)
+            self.plm0 = lambda simidx: self.get_plm_it0(simidx)
+            self.mf_resp = lambda: self.get_meanfield_response_it0()
+            self.wflm0 = lambda simidx: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lmax_unl, self.mmax_unl)
+            self.R_unl = lambda: qresp.get_response(self.k, self.lmax_ivf, 'p', self.cls_unl, self.cls_unl,  {'e': self.fel_unl, 'b': self.fbl_unl, 't':self.ftl_unl}, lmax_qlm=self.lmax_qlm)[0]
+        else:
+            # TODO hack. Only want to access old s08b sim result lib and generate B wf
+            self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'zb_terator_%s_%04d_nofg_OBD_solcond_3apr20'%(qe_key, simidx) + version)
+      
 
     @log_on_start(logging.INFO, "Start of collect_jobs()")
     @log_on_end(logging.INFO, "Finished collect_jobs()")
     def collect_jobs(self, id='all'):
-        mc_sims = self.mc_sims_mf_it0
-        mf_fname = os.path.join(self.TEMP, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, utils.mchash(mc_sims)))
-        if os.path.isfile(mf_fname):
-            # Can safely skip QE jobs. MF exists, so we know QE was run before
-            self.jobs = []
-        elif id == "None":
-            self.jobs = []
-        elif id == 'All':
+        if self.overwrite_libdir is None:
+            mc_sims = self.mc_sims_mf_it0
+            mf_fname = os.path.join(self.TEMP, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, utils.mchash(mc_sims)))
+            if os.path.isfile(mf_fname):
+                # Can safely skip QE jobs. MF exists, so we know QE was run before
+                self.jobs = []
+            elif id == "None":
+                self.jobs = []
+            elif id == 'All':
+                jobs = []
+                for idx in np.arange(self.imin, self.imax + 1):
+                    jobs.append(idx)
+                self.jobs = jobs
+        else:
+            # TODO hack. Only want to access old s08b sim result lib and generate B wf
             jobs = []
             for idx in np.arange(self.imin, self.imax + 1):
                 jobs.append(idx)
@@ -94,41 +108,59 @@ class QE_lr():
     @log_on_start(logging.INFO, "Start of run()")
     @log_on_end(logging.INFO, "Finished run()")
     def run(self):
-        # TODO this triggers the creation of all files for the MAP input, defined by the job array. MAP later needs the corresponding values separately via the getter
-        # Can I think of something better?
-        for idx in self.jobs[mpi.rank::mpi.size]:
-            logging.info('{}/{}, Starting job {}'.format(mpi.rank,mpi.size,idx))
-            self.get_sim_qlm(idx)
-            self.get_meanfield_response_it0()
-            self.get_wflm0(idx)
-            self.get_R_unl()
-            logging.info('{}/{}, Finished job {}'.format(mpi.rank,mpi.size,idx))
-        if len(self.jobs)>0:
-            log.info('{} finished qe ivfs tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
-            mpi.barrier()
-            # Tunneling the meanfield-calculation, so only rank 0 calculates it. Otherwise,
-            # some processes will try accessing it too fast, or calculate themselves, which results in
-            # an io error
-            log.info("Done waiting. Rank 0 going to calculate meanfield-file.. everyone else waiting.")
-            if mpi.rank == 0:
-                self.get_meanfield_it0(mpi.rank)
-                log.info("rank finsihed calculating meanfield-file.. everyone else waiting.")
-            mpi.barrier()
-            log.info("Starting mf-calc task")
-        for idx in self.jobs[mpi.rank::mpi.size]:
-            self.get_meanfield_it0(idx)
-            self.get_plm_it0(idx)
-        if len(self.jobs)>0:
-            log.info('{} finished qe mf-calc tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
-            mpi.barrier()
-            log.info('All ranks finished qe mf-calc tasks.')
-
+        if self.overwrite_libdir is None:
+            # TODO this triggers the creation of all files for the MAP input, defined by the job array. MAP later needs the corresponding values separately via the getter
+            # Can I think of something better?
+            for idx in self.jobs[mpi.rank::mpi.size]:
+                logging.info('{}/{}, Starting job {}'.format(mpi.rank,mpi.size,idx))
+                self.get_sim_qlm(idx)
+                self.get_meanfield_response_it0()
+                self.get_wflm0(idx)
+                self.get_R_unl()
+                self.get_B_wf(idx)
+                logging.info('{}/{}, Finished job {}'.format(mpi.rank,mpi.size,idx))
+            if len(self.jobs)>0:
+                log.info('{} finished qe ivfs tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
+                mpi.barrier()
+                # Tunneling the meanfield-calculation, so only rank 0 calculates it. Otherwise,
+                # some processes will try accessing it too fast, or calculate themselves, which results in
+                # an io error
+                log.info("Done waiting. Rank 0 going to calculate meanfield-file.. everyone else waiting.")
+                if mpi.rank == 0:
+                    self.get_meanfield_it0(mpi.rank)
+                    log.info("rank finsihed calculating meanfield-file.. everyone else waiting.")
+                mpi.barrier()
+                log.info("Starting mf-calc task")
+            for idx in self.jobs[mpi.rank::mpi.size]:
+                self.get_meanfield_it0(idx)
+                self.get_plm_it0(idx)
+            if len(self.jobs)>0:
+                log.info('{} finished qe mf-calc tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
+                mpi.barrier()
+                log.info('All ranks finished qe mf-calc tasks.')
+        else:
+            # TODO hack. Only want to access old s08b sim result lib and generate B wf
+            for idx in self.jobs[mpi.rank::mpi.size]:
+                self.get_B_wf(idx)
 
     @log_on_start(logging.INFO, "Start of get_sim_qlm()")
     @log_on_end(logging.INFO, "Finished get_sim_qlm()")
     def get_sim_qlm(self, idx):
 
         return self.qlms_dd.get_sim_qlm(self.k, idx)
+
+
+    @log_on_start(logging.INFO, "Start of get_B_wf()")
+    @log_on_end(logging.INFO, "Finished get_B_wf()")    
+    def get_B_wf(self, simidx):
+        fn = self.libdir_iterators(self.k, simidx, self.version)+'/bwf_qe_%04d.npy'%simidx
+        if os.path.isfile(fn):
+            bwf = self.ivfs.get_sim_bmliklm(simidx)
+        else:
+            log.info(fn)
+            bwf = self.ivfs.get_sim_bmliklm(simidx)
+            np.save(fn, bwf)
+        return bwf
 
 
     @log_on_start(logging.INFO, "Start of get_wflm0()")
@@ -310,6 +342,10 @@ class Map_delenser():
 
     def __init__(self, bmd_model):
         self.__dict__.update(bmd_model.__dict__)
+        if 'libdir_iterators' in bmd_model.__dict__:
+            pass
+        else:
+            self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
         self.lib = dict()
 
     @log_on_start(logging.INFO, "Start of getfn_blm_lensc()")
@@ -346,8 +382,11 @@ class Map_delenser():
     def get_B_wf(self, simidx):
         '''Component separated polarisation maps lm, i.e. lenscarf input'''
         # TODO this is a quickfix and works only for already existing bwflm's for 08bb
-        if self.libdir_iterators == 'overwrite':
-            return  np.load('/global/cscratch1/sd/sebibel/cmbs4/s08b/cILC2021_%s_lmax4000/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20/ffi_p_it0/bwflm_%04d.npy'%(self.fg,simidx,simidx))
+        bw_fn = '/global/cscratch1/sd/sebibel/cmbs4/s08b/cILC2021_%s_lmax4000/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20/bwf_qe_%04d.npy'%(self.fg,simidx,simidx)
+        if os.path.isfile(bw_fn):
+            return np.load(bw_fn)
+        else:
+            assert 0, "File {} doesn't exist".format(bw_fn)
 
 
     @log_on_start(logging.INFO, "Start of collect_jobs()")
@@ -402,7 +441,10 @@ class Map_delenser():
                 outputdata[1][1][nlevi] = bcl_cslensc_QE
 
                 for iti, it in enumerate(self.iterations):
-                    blm_lensc_MAP_buff = hp.read_alm(self.getfn_blm_lensc(idx, it))
+                    if self.getfn_blm_lensc(idx, it).endswith('npy'):
+                        blm_lensc_MAP_buff = np.load(self.getfn_blm_lensc(idx, it))
+                    else:
+                        blm_lensc_MAP_buff = hp.read_alm(self.getfn_blm_lensc(idx, it))
                     bmap_lensc_MAP_buff = hp.alm2map(blm_lensc_MAP_buff, nside=self.nside)
                     bcl_Llensc_MAP = self.lib[nlev].map2cl(bmap_L_buff-bmap_lensc_MAP_buff)    
                     bcl_cslensc_MAP = self.lib[nlev].map2cl(bmap_cs_buff-bmap_lensc_MAP_buff)
