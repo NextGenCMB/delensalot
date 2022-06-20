@@ -14,4 +14,4 @@ export OMP_PROC_BIND=spread
 
 
 #run the application:
-srun -c 32 --cpu_bind=cores /global/homes/s/sebibel/git/lerepi/run.py -p $1
+srun -c 32 --cpu_bind=cores python3 /global/homes/s/sebibel/git/lerepi/run.py -p /global/cscratch1/sd/sebibel/dlensalot/lerepi/data_08b/caterinaILC_May12_09_OBD/c08b_v2.py
