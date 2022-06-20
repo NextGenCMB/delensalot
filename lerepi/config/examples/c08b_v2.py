@@ -40,7 +40,7 @@ dlensalot_model = DLENSALOT_Model(
         module_ = 'config.cmbs4.data.data_08b',
         class_ = 'caterinaILC_May12',
         class_parameters = {
-            'fg': '07'
+            'fg': '09'
         },
         beam = 2.3,
         lmax_transf = 4000,
@@ -48,7 +48,7 @@ dlensalot_model = DLENSALOT_Model(
     ),
     noisemodel = DLENSALOT_Noisemodel(
         typ = 'OBD',
-        BMARG_LIBDIR = '/global/cscratch1/sd/sebibel/cmbs4/OBD_matrices/08b/r10/',
+        BMARG_LIBDIR = '/global/cscratch1/sd/sebibel/cmbs4/OBD_matrices/08b/rinf/',
         BMARG_LCUT = 200,
         BMARG_RESCALE = (0.42/0.350500)**2,
         ninvjob_geometry = 'healpix_geometry',
