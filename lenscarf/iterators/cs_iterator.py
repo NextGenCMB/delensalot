@@ -188,7 +188,7 @@ class qlm_iterator(object):
                 return False
         return True
 
-    def get_template_blm(self, it, it_e, lmaxb=1024, lmin_plm=1, elm_wf:None or np.ndarray=None):
+    def get_template_blm(self, it, it_e, lmaxb=1024, lmin_plm=1, elm_wf:None or np.ndarray=None, dlm_mod=None):
         """Builds a template B-mode map with the iterated phi and input elm_wf
 
             Args:
@@ -206,7 +206,12 @@ class qlm_iterator(object):
 
         """
         cache_cond = (lmin_plm == 1) and (elm_wf is None)
-        fn = 'btempl_p%03d_e%03d_lmax%s' % (it, it_e, lmaxb)
+        # TODO this needs a cleaner implementation. Duplicate in map_delenser
+        if dlm_mod is not None:
+            dlm_mod_string = '_dlmmod'
+        else:
+            dlm_mod_string = ''
+        fn = 'btempl_p%03d_e%03d_lmax%s%s' % (it, it_e, lmaxb, dlm_mod_string)
         if cache_cond:
             if self.wf_cacher.is_cached(fn):
                 return self.wf_cacher.load(fn)
@@ -222,6 +227,10 @@ class qlm_iterator(object):
         assert Alm.getlmax(elm_wf.size, self.mmax_filt) == self.lmax_filt
         mmaxb = lmaxb
         dlm = self.get_hlm(it, 'p')
+
+        # subtract a field from the last iteration phi estimate before calculating the Btemplate
+        if dlm_mod is not None:
+            dlm -= dlm_mod
         self.hlm2dlm(dlm, inplace=True)
         almxfl(dlm, np.arange(self.lmax_qlm + 1, dtype=int) >= lmin_plm, self.mmax_qlm, True)
         ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm)

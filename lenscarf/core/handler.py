@@ -240,35 +240,45 @@ class MAP_lr():
         self.ith = iteration_handler.transformer(self.iterator_typ)
 
 
+    # TODO could think of MAPlr specific jobs to be selected here
     @log_on_start(logging.INFO, "Start of collect_jobs()")
     @log_on_end(logging.INFO, "Finished collect_jobs()")
-    def collect_jobs(self):
-        self.qe.collect_jobs('All')
-        jobs = []
-        for idx in np.arange(self.imin, self.imax + 1):
-            lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
-            if Rec.maxiterdone(lib_dir_iterator) < self.itmax:
-                jobs.append(idx)
-        self.jobs = jobs
+    def collect_jobs(self, job_id = ''):
+        if job_id == '' or job_id == 'meanfield':
+            self.qe.collect_jobs('All')
+            jobs = []
+            for idx in np.arange(self.imin, self.imax + 1):
+                lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
+                if Rec.maxiterdone(lib_dir_iterator) < self.itmax:
+                    jobs.append(idx)
+            self.jobs = jobs
 
 
     @log_on_start(logging.INFO, "Start of run()")
     @log_on_end(logging.INFO, "Finished run()")
-    def run(self):
-        self.qe.run()
-        for idx in self.jobs[mpi.rank::mpi.size]:
-            log.info('{}, simidx {} started {}'.format(mpi.rank, mpi.size, idx))
-            lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
-            if self.itmax >= 0 and Rec.maxiterdone(lib_dir_iterator) < self.itmax:
-                itlib = self.ith(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
-                itlib_iterator = itlib.get_iterator()
-                for i in range(self.itmax + 1):
-                    log.info("****Iterator: setting cg-tol to %.4e ****"%self.tol_iter(i))
-                    log.info("****Iterator: setting solcond to %s ****"%self.soltn_cond(i))
-                    itlib_iterator.chain_descr  = self.chain_descr(self.lmax_unl, self.tol_iter(i))
-                    itlib_iterator.soltn_cond = self.soltn_cond(i)
-                    itlib_iterator.iterate(i, 'p')
-                    log.info('{}, simidx {} done with iteration {}'.format(mpi.rank, idx, i))
+    def run(self, job_id = ''):
+        if job_id == '':
+            self.qe.run()
+            for idx in self.jobs[mpi.rank::mpi.size]:
+                log.info('{}, simidx {} started {}'.format(mpi.rank, mpi.size, idx))
+                lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
+                if self.itmax >= 0 and Rec.maxiterdone(lib_dir_iterator) < self.itmax:
+                    itlib = self.ith(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
+                    itlib_iterator = itlib.get_iterator()
+                    for i in range(self.itmax + 1):
+                        log.info("****Iterator: setting cg-tol to %.4e ****"%self.tol_iter(i))
+                        log.info("****Iterator: setting solcond to %s ****"%self.soltn_cond(i))
+                        itlib_iterator.chain_descr  = self.chain_descr(self.lmax_unl, self.tol_iter(i))
+                        itlib_iterator.soltn_cond = self.soltn_cond(i)
+                        itlib_iterator.iterate(i, 'p')
+                        log.info('{}, simidx {} done with iteration {}'.format(mpi.rank, idx, i))
+        elif job_id == 'meanfield':
+            self.qe.run()
+            for idx in self.jobs[mpi.rank::mpi.size]:
+                log.info('{}, simidx {} started {}'.format(mpi.rank, mpi.size, idx))
+                lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
+                plms = self.get_plm_it(idx, self.iterations)
+                plms = self.get_meanfield_it(idx, self.iterations)
 
 
     @log_on_start(logging.INFO, "Start of init_ith()")
@@ -276,6 +286,39 @@ class MAP_lr():
     def get_ith_sim(self, simidx):
         
         return self.ith(self.qe, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
+
+
+    @log_on_start(logging.INFO, "Start of get_plm_it()")
+    @log_on_end(logging.INFO, "Finished get_plm_it()")
+    def get_plm_it(self, simidx, iterations):
+
+        plms = Rec.load_plms(self.libdir_iterators(self.k, simidx, self.version), iterations)
+
+        return plms
+
+
+    @log_on_start(logging.INFO, "Start of get_meanfield_it0()")
+    @log_on_end(logging.INFO, "Finished get_meanfield_it0()")
+    def get_meanfield_it(self, simidx, iterations):
+        if self.mfvar == None:
+            plms = Rec.load_plms(self.libdir_iterators(self.k, simidx, self.version), iterations)
+            if True:
+                # TODO plms are normalised etc, could undo this 
+                plm0 -= self.mf0(simidx)
+                R = qresp.get_response(self.k, self.lmax_ivf, 'p', self.cls_len, self.cls_len, {'e': self.fel, 'b': self.fbl, 't':self.ftl}, lmax_qlm=self.lmax_qlm)[0]
+                WF = self.cpp * utils.cli(self.cpp + utils.cli(R))
+                plm0 = alm_copy(plm0,  None, self.lmax_qlm, self.mmax_qlm)
+                almxfl(plm0, utils.cli(R), self.mmax_qlm, True)
+                almxfl(plm0, WF, self.mmax_qlm, True)
+                almxfl(plm0, self.cpp > 0, self.mmax_qlm, True)
+            mf = self.qlms_dd.get_sim_map_mf(self.k, self.mc_sims_mf_it0)
+            if simidx in self.mc_sims_mf_it0:
+                Nmf = len(self.mc_sims_mf_it0)
+                mf0 = (mf0 - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / Nmf) * (Nmf / (Nmf - 1))
+        else:
+            mf0 = hp.read_alm(self.mfvar)
+
+        return mf0
 
 
 class Inspector():
@@ -303,6 +346,25 @@ class B_template_constructor():
         self.dlensalot_model = dlensalot_model
         self.qe = QE_lr(dlensalot_model)
         self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
+
+        # TODO hack. This belongs to config file or p2d or ..
+        if self.dlm_mod_bool:
+            from lenscarf.iterators.statics import rec
+            
+            buffer = rec.load_plms(self.libdir_iterators(self.k, 0, self.version), [0])[-1]
+            dlm_mod = np.zeros_like(buffer)
+            # split = 10
+            # np.store(opj(self.libdir_iterators, 'dlm_mod.npy'), dlm_mod)
+            # for simidx in range(self.imin, self.imax+1)[::split]:
+            #     dlm_mod = np.load(opj(self.libdir_iterators, 'dlm_mod.npy'))
+            #     for simid in range(0,split):
+            #         dlm_mod += rec.load_plms(self.libdir_iterators(self.k, simid, self.v), self.itmax)
+            #     np.store(opj(self.libdir_iterators, 'dlm_mod.npy'), dlm_mod)
+            for simidx in range(self.imin, self.imax):
+                log.info('loaded simidx {}'.format(simidx))
+                dlm_mod += rec.load_plms(self.libdir_iterators(self.k, simidx, self.version), [self.itmax])[-1]
+            np.save(opj(self.TEMP, 'dlm_mod.npy'), dlm_mod/(self.imax-self.imin))
+            self.dlm_mod = np.load(opj(self.TEMP, 'dlm_mod.npy'))
         
         # TODO this is the interface to the D.lensalot iterators and connects 
         # to lerepi. Could be simplified, s.t. interfacing happens without the iteration_handler
@@ -332,7 +394,7 @@ class B_template_constructor():
             itlib_iterator = itlib.get_iterator()
             for it in range(0, self.itmax + 1):
                 if it <= Rec.maxiterdone(lib_dir_iterator):
-                    itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1)
+                    itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=self.dlm_mod)
             log.info("{} finished {}".format(mpi.rank, idx))
 
 
@@ -348,8 +410,8 @@ class Map_delenser():
             self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
         self.lib = dict()
 
-    @log_on_start(logging.INFO, "Start of getfn_blm_lensc()")
-    @log_on_end(logging.INFO, "Finished getfn_blm_lensc()")
+    # @log_on_start(logging.INFO, "Start of getfn_blm_lensc()")
+    # @log_on_end(logging.INFO, "Finished getfn_blm_lensc()")
     def getfn_blm_lensc(self, simidx, it):
         '''Lenscarf output using Catherinas E and B maps'''
         # TODO this needs cleaner implementation
@@ -365,11 +427,15 @@ class Map_delenser():
             elif it==0:
                 return '/global/cscratch1/sd/sebibel/cmbs4/s08b/cILC2021_%s_lmax4000/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20/ffi_p_it0/blm_%04d_it0.npy'%(self.fg, simidx, simidx)    
         else:
-            return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(it, it)
+            # TODO this belongs via config to p2d
+            if self.dlm_mod_bool:
+                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024_dlmmod.npy'%(it, it)
+            else:
+                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(it, it)
 
             
-    @log_on_start(logging.INFO, "Start of getfn_qumap_cs()")
-    @log_on_end(logging.INFO, "Finished getfn_qumap_cs()")
+    # @log_on_start(logging.INFO, "Start of getfn_qumap_cs()")
+    # @log_on_end(logging.INFO, "Finished getfn_qumap_cs()")
     def getfn_qumap_cs(self, simidx):
 
         '''Component separated polarisation maps lm, i.e. lenscarf input'''
@@ -377,8 +443,8 @@ class Map_delenser():
         return self.sims.get_sim_pmap(simidx)
 
 
-    @log_on_start(logging.INFO, "Start of getfn_qumap_cs()")
-    @log_on_end(logging.INFO, "Finished getfn_qumap_cs()")
+    # @log_on_start(logging.INFO, "Start of getfn_qumap_cs()")
+    # @log_on_end(logging.INFO, "Finished getfn_qumap_cs()")
     def get_B_wf(self, simidx):
         '''Component separated polarisation maps lm, i.e. lenscarf input'''
         # TODO this is a quickfix and works only for already existing bwflm's for 08bb
@@ -417,7 +483,7 @@ class Map_delenser():
             log.info('will store file at: {}'.format(_file_op))
 
             # TODO make this a user choise
-            if True:
+            if False:
                 bmap_cs_buff = hp.alm2map(self.get_B_wf(idx), nside=2048)
             else:
                 qumap_cs_buff = self.getfn_qumap_cs(idx)
