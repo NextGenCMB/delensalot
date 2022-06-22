@@ -156,6 +156,8 @@ class p2lensrec_Transformer:
             dl.lmax_unl = iteration.lmax_unl
             dl.mmax_unl = iteration.mmax_unl
 
+            dl.TEMP_suffix = cf.data.TEMP_suffix
+
             dl.tol = iteration.TOL
             if 'rinf_tol4' in cf.data.TEMP_suffix:
                 log.warning('tol_iter increased for this run. This is hardcoded.')
@@ -356,6 +358,10 @@ class p2lensrec_Transformer:
         _process_chaindescparams(dl, cf.chain_descriptor)
         _process_iterationparams(dl, cf.iteration)
         _process_stepperparams(dl, cf.stepper)
+
+        dl.dlm_mod_bool = True
+        if dl.dlm_mod_bool:
+            log.warning('dlm_mod value hardcoded to True!')
 
         if mpi.rank == 0:
             log.info("I am going to work with the following values:")
@@ -611,12 +617,16 @@ class p2lensrec_Transformer:
             assert it.FILTER == 'opfilt_ee_wl.alm_filter_ninv_wl', 'Implement if needed, MAP filter needs to move to p2d'
             dl.FILTER = it.FILTER
 
-            dl.tol = it.TOL
-            if 'rinf_tol4' in cf.analysis.TEMP_suffix:
-                log.warning('tol_iter increased for this run. This is hardcoded.')
-                dl.tol_iter = lambda itr : 2*10 ** (- dl.tol) if itr <= 10 else 2*10 ** (-(dl.tol+1))
+            if it.TOL < 1.:
+                # TODO for cases where TOL is not only the exponent
+                dl.tol_iter = lambda itr : it.TOL if itr <= 10 else it.TOL*0.1
             else:
-                dl.tol_iter = lambda itr : 1*10 ** (- dl.tol) if itr <= 10 else 1*10 ** (-(dl.tol+1))
+                dl.tol = it.TOL
+                if 'rinf_tol4' in cf.analysis.TEMP_suffix:
+                    log.warning('tol_iter increased for this run. This is hardcoded.')
+                    dl.tol_iter = lambda itr : 2*10 ** (- dl.tol) if itr <= 10 else 2*10 ** (-(dl.tol+1))
+                else:
+                    dl.tol_iter = lambda itr : 1*10 ** (- dl.tol) if itr <= 10 else 1*10 ** (-(dl.tol+1))
             dl.soltn_cond = it.soltn_cond
 
             if it.lenjob_geometry == 'thin_gauss':
@@ -881,7 +891,10 @@ class p2d_Transformer:
             dl.file_op = lambda idx, fg: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid) + '/ClBBwf_sim%04d_fg%s_res2b3acm.npy'%(idx, fg)
         dl = DLENSALOT_Concept()
         _process_delensingparams(dl, cf.map_delensing)
-
+        dl.dlm_mod_bool = True
+        if dl.dlm_mod_bool:
+            log.warning('dlm_mod value hardcoded to True!')
+            
         return dl
 
 
@@ -961,6 +974,18 @@ class p2d_Transformer:
         _process_Madel(dl, cf.madel)
 
         return dl
+
+
+class p2m_Transformer:
+    """Jobs related to meanfield calculation
+
+    Returns:
+        _type_: _description_
+    """
+    @log_on_start(logging.INFO, "Start of build()")
+    @log_on_end(logging.INFO, "Finished build()")
+    def build(self, cf):
+        pass
 
 
 class p2j_Transformer:
