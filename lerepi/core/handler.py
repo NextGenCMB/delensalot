@@ -111,8 +111,8 @@ class handler():
             if mpi.rank == 0:
                 if not os.path.exists(TEMP):
                     os.makedirs(TEMP)
-                shutil.copyfile(parser.config_file, TEMP+'/'+parser.config_file.split('/')[-1])
-            logging.info('Parameterfile stored at '+ TEMP+'/'+parser.config_file.split('/')[-1])
+                shutil.copyfile(parser.config_file, TEMP +'/'+parser.config_file.split('/')[-1])
+            logging.info('Parameterfile stored at '+ TEMP +'/'+parser.config_file.split('/')[-1])
         else:
             if parser.resume == '':
                 # Only give this info when not resuming
