@@ -136,4 +136,14 @@ class handler():
         sys.modules[descriptor] = p
         spec.loader.exec_module(p)
 
+        # Printing this for the slurm log file
+        _str = '---------------------------------------------------\n'
+        droplist = ['__builtins__','__cached__', '__loader__', '__package__']
+        for key, val in p.__dict__.items():
+            if key == 'dlensalot_model':
+                _str += '{}:\t{}'.format(key, val)
+                _str += '\n'
+                _str += '---------------------------------------------------\n'
+        log.info(_str)
+
         return p

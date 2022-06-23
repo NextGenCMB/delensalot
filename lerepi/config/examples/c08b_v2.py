@@ -14,7 +14,7 @@ dlensalot_model = DLENSALOT_Model(
         OMP_NUM_THREADS = 16
     ),
     analysis = DLENSALOT_Analysis(
-        TEMP_suffix = 'cnv035',
+        TEMP_suffix = '',
         K = 'p_p',
         V = '',
         ITMAX = 12,
@@ -40,7 +40,7 @@ dlensalot_model = DLENSALOT_Model(
         module_ = 'config.cmbs4.data.data_08b',
         class_ = 'caterinaILC_May12',
         class_parameters = {
-            'fg': '00'
+            'fg': '09'
         },
         beam = 2.3,
         lmax_transf = 4000,
@@ -50,14 +50,14 @@ dlensalot_model = DLENSALOT_Model(
         typ = 'OBD',
         BMARG_LIBDIR = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08b/',
         BMARG_LCUT = 200,
-        BMARG_RESCALE = (0.35/0.350500)**2,
+        BMARG_RESCALE = (0.42/0.350500)**2,
         ninvjob_geometry = 'healpix_geometry',
         lmin_tlm = 30,
         lmin_elm = 30,
         lmin_blm = 30,
-        CENTRALNLEV_UKAMIN = 0.35,
-        nlev_t = 0.35/np.sqrt(2),
-        nlev_p = 0.35,
+        CENTRALNLEV_UKAMIN = 0.42,
+        nlev_t = 0.42/np.sqrt(2),
+        nlev_p = 0.42,
         nlev_dep = 10000.,
         inf = 1e4,
         mask = ('nlev', np.inf),

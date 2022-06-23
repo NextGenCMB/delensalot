@@ -44,8 +44,8 @@ class p2T_Transformer:
     Returns:
         _type_: _description_
     """
-    @log_on_start(logging.INFO, "Start of build()")
-    @log_on_end(logging.INFO, "Finished build()")
+    # @log_on_start(logging.INFO, "Start of build()")
+    # @log_on_end(logging.INFO, "Finished build()")
     def build(self, cf):
         _nsims_mf = 0 if cf.iteration.V == 'noMF' else cf.iteration.nsims_mf
         _suffix = cf.data.sims.split('/')[1]+'_%s'%(cf.data.fg)
@@ -64,8 +64,8 @@ class p2T_Transformer:
         return TEMP
 
 
-    @log_on_start(logging.INFO, "Start of build_nomf()")
-    @log_on_end(logging.INFO, "Finished build_nomf()")
+    # @log_on_start(logging.INFO, "Start of build_nomf()")
+    # @log_on_end(logging.INFO, "Finished build_nomf()")
     def build_nomf(self, cf):
         _suffix = cf.data.class_
         if 'fg' in cf.data.class_parameters:
@@ -80,12 +80,12 @@ class p2T_Transformer:
         if cf.analysis.TEMP_suffix != '':
             _suffix += '_'+cf.analysis.TEMP_suffix
         TEMP =  opj(os.environ['SCRATCH'], 'dlensalot', cf.data.package_, cf.data.module_.split('.')[-1], _suffix)
-
+        log.info('Inside build_nomf:TEMP = {}'.format(TEMP))
         return TEMP
 
 
-    @log_on_start(logging.INFO, "Start of build_del_suffix()")
-    @log_on_end(logging.INFO, "Finished build_del_suffix()")
+    # @log_on_start(logging.INFO, "Start of build_del_suffix()")
+    # @log_on_end(logging.INFO, "Finished build_del_suffix()")
     def build_del_suffix(self, dl):
         if dl.version == '':
             return os.path.join(dl.TEMP, 'plotdata')
@@ -93,8 +93,8 @@ class p2T_Transformer:
             return os.path.join(dl.TEMP, 'plotdata', dl.version)
 
 
-    @log_on_start(logging.INFO, "Start of build_OBD()")
-    @log_on_end(logging.INFO, "Finished build_OBD()")
+    # @log_on_start(logging.INFO, "Start of build_OBD()")
+    # @log_on_end(logging.INFO, "Finished build_OBD()")
     def build_OBD(self, TEMP):
 
         return os.path.join(TEMP, 'OBD_matrix')
@@ -244,7 +244,7 @@ class p2lensrec_Transformer:
                 dl.qcls_ss = qecl.library(opj(dl.TEMP, 'qcls_ss'), dl.qlms_ss, dl.qlms_ss, np.array([]))  # for QE RDN0 / MCN0 calculations
                 dl.qcls_dd = qecl.library(opj(dl.TEMP, 'qcls_dd'), dl.qlms_dd, dl.qlms_dd, dl.mc_sims_bias)
 
-
+            # TODO hack. Think of a better way of including mfvar
             if iteration.mfvar == 'same' or iteration.mfvar == '':
                 dl.mfvar = None
             elif iteration.mfvar.startswith('/'):
@@ -384,7 +384,8 @@ class p2lensrec_Transformer:
         def _process_Analysis(dl, an):
             dl.temp_suffix = an.TEMP_suffix
             dl.TEMP = transform(cf, p2T_Transformer())
-            if cf.qerec.overwrite_libdir != '' or cf.qerec.overwrite_libdir != -1 or cf.qerec.overwrite_libdir != None:
+            # TODO unclear what this actually does
+            if cf.qerec.overwrite_libdir != '' and cf.qerec.overwrite_libdir != -1 and cf.qerec.overwrite_libdir != None:
                 dl.TEMP = cf.qerec.overwrite_libdir
                 dl.overwrite_libdir = cf.qerec.overwrite_libdir
             else:
@@ -573,6 +574,7 @@ class p2lensrec_Transformer:
                     dl.ivfs_raw = filt_cinv.library_cinv_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl.cinv_t, dl.cinv_p, dl.cls_len)
                 else:
                     # TODO hack. Only want to access old s08b sim result lib and generate B wf
+                    # TODO why is this the same as above?
                     dl.ivfs_raw = filt_cinv.library_cinv_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl.cinv_t, dl.cinv_p, dl.cls_len)
                 log.info('{} finished filt_cinv.library_cinv_sepTP()'.format(mpi.rank))
                 dl.ftl_rs = np.ones(dl.lmax_ivf + 1, dtype=float) * (np.arange(dl.lmax_ivf + 1) >= dl.lmin_tlm)
@@ -588,7 +590,7 @@ class p2lensrec_Transformer:
             else:
                 assert 0, 'Implement if needed'
 
-            dl.QE_LENSING_CL_ANALYSIS = qe.QE_LENSING_CL_ANALYSIS # Change only if a full, Planck-like QE lensing power spectrum analysis is desired
+            dl.QE_LENSING_CL_ANALYSIS = qe.QE_LENSING_CL_ANALYSIS
             if qe.QE_LENSING_CL_ANALYSIS == True:
                 dl.ss_dict = { k : v for k, v in zip( np.concatenate( [ range(i*60, (i+1)*60) for i in range(0,5) ] ),
                                         np.concatenate( [ np.roll( range(i*60, (i+1)*60), -1 ) for i in range(0,5) ] ) ) }
@@ -618,7 +620,7 @@ class p2lensrec_Transformer:
             dl.FILTER = it.FILTER
 
             if it.TOL < 1.:
-                # TODO for cases where TOL is not only the exponent
+                # TODO hack. For cases where TOL is not only the exponent. Remove exponent-only version.
                 dl.tol_iter = lambda itr : it.TOL if itr <= 10 else it.TOL*0.1
             else:
                 dl.tol = it.TOL
@@ -850,13 +852,6 @@ class p2d_Transformer:
             dl.base_mask = np.nan_to_num(hp.read_map(mask_path))
             dl.TEMP = transform(cf, p2T_Transformer())
             dl.analysis_path = dl.TEMP.split('/')[-1]
-
-            # if cf.madel.libdir_it != '':
-            #     dl.TEMP = transform(cf, p2T_Transformer())
-            #     dl.libdir_iterators = 'overwrite'
-            # else:
-            #     dl.TEMP = transform(cf, p2T_Transformer())
-            #     dl.libdir_iterators = lambda qe_key, simidx, version: opj(dl.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
             
             dl.nlev_mask = dict()
             noisemodel_rhits_map = df.get_nlev_mask(np.inf, hp.read_map(cf.noisemodel.rhits_normalised[0]))
@@ -888,12 +883,14 @@ class p2d_Transformer:
             dl.TEMP_DELENSED_SPECTRUM = transform(dl, p2T_Transformer())
             if not(os.path.isdir(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid))):
                 os.makedirs(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid))
-            dl.file_op = lambda idx, fg: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid) + '/ClBBwf_sim%04d_fg%s_res2b3acm.npy'%(idx, fg)
+
+            dl.dlm_mod_bool = True
+            if dl.dlm_mod_bool:
+                log.warning('dlm_mod value hardcoded to True!')
+                dlmmod_str = 'dlmmod'
+            dl.file_op = lambda idx, fg: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid) + '/ClBBwf_sim%04d_%s_fg%s_res2b3acm.npy'%(idx, dlmmod_str, fg)
         dl = DLENSALOT_Concept()
         _process_delensingparams(dl, cf.map_delensing)
-        dl.dlm_mod_bool = True
-        if dl.dlm_mod_bool:
-            log.warning('dlm_mod value hardcoded to True!')
             
         return dl
 
@@ -933,6 +930,7 @@ class p2d_Transformer:
             mask_path = cf.noisemodel.rhits_normalised[0] # dl.sims.p2mask
             dl.base_mask = np.nan_to_num(hp.read_map(mask_path))
             # TODO hack. this is only needed to access old s08b data
+            # Remove and think of a better way of including old data without existing config file
             if cf.madel.libdir_it != '':
                 dl.TEMP = transform(cf, p2T_Transformer())
                 dl.libdir_iterators = 'overwrite'
