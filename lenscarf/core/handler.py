@@ -23,7 +23,7 @@ from plancklens.sims import planck2018_sims
 from MSC import pospace as ps
 
 from lenscarf.utils_hp import almxfl, alm_copy
-from lenscarf.iterators.statics import rec as Rec
+from lenscarf.iterators.statics import rec as rec
 from lenscarf.iterators import iteration_handler
 from lenscarf.opfilt.bmodes_ninv import template_bfilt
 
@@ -81,18 +81,18 @@ class QE_lr():
             self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'zb_terator_%s_%04d_nofg_OBD_solcond_3apr20'%(qe_key, simidx) + version)
       
 
-    @log_on_start(logging.INFO, "Start of collect_jobs()")
-    @log_on_end(logging.INFO, "Finished collect_jobs()")
-    def collect_jobs(self, id='all'):
+    @log_on_start(logging.INFO, "Start of collect_jobs(): id = {id}, overwrite_libdir = {self.overwrite_libdir}")
+    @log_on_end(logging.INFO, "Finished collect_jobs(): {self.jobs}")
+    def collect_jobs(self, id=''):
         if self.overwrite_libdir is None:
             mc_sims = self.mc_sims_mf_it0
             mf_fname = os.path.join(self.TEMP, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, utils.mchash(mc_sims)))
             if os.path.isfile(mf_fname):
                 # Can safely skip QE jobs. MF exists, so we know QE was run before
                 self.jobs = []
-            elif id == "None":
+            if id == "None":
                 self.jobs = []
-            elif id == 'All':
+            if id == 'All':
                 jobs = []
                 for idx in np.arange(self.imin, self.imax + 1):
                     jobs.append(idx)
@@ -240,45 +240,69 @@ class MAP_lr():
         self.ith = iteration_handler.transformer(self.iterator_typ)
 
 
-    # TODO could think of MAPlr specific jobs to be selected here
     @log_on_start(logging.INFO, "Start of collect_jobs()")
     @log_on_end(logging.INFO, "Finished collect_jobs()")
-    def collect_jobs(self, job_id = ''):
-        if job_id == '' or job_id == 'meanfield':
-            self.qe.collect_jobs('All')
-            jobs = []
-            for idx in np.arange(self.imin, self.imax + 1):
-                lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
-                if Rec.maxiterdone(lib_dir_iterator) < self.itmax:
-                    jobs.append(idx)
-            self.jobs = jobs
+    def collect_jobs(self):
+        jobs = list(range(len(self.tasks)))
+        for taski, task in enumerate(self.tasks):
+            _jobs = []
+            if task == 'calc_meanfield_it':
+                self.qe.collect_jobs()
+                if rec.maxiterdone(lib_dir_iterator) < self.itmax:
+                    _jobs.append(0)
+            elif task == 'calc_btemplate':
+                self.qe.collect_jobs()
+                for idx in np.arange(self.imin, self.imax + 1):
+                    lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
+                    if rec.maxiterdone(lib_dir_iterator) >= self.itmax:
+                        _jobs.append(idx)
+            elif task == 'lens_rec':
+                self.qe.collect_jobs()
+                for idx in np.arange(self.imin, self.imax + 1):
+                    lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
+                    if rec.maxiterdone(lib_dir_iterator) < self.itmax:
+                        _jobs.append(idx)
+
+            jobs[taski] = _jobs
+        self.jobs = jobs
 
 
     @log_on_start(logging.INFO, "Start of run()")
     @log_on_end(logging.INFO, "Finished run()")
-    def run(self, job_id = ''):
-        if job_id == '':
-            self.qe.run()
-            for idx in self.jobs[mpi.rank::mpi.size]:
-                log.info('{}, simidx {} started {}'.format(mpi.rank, mpi.size, idx))
-                lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
-                if self.itmax >= 0 and Rec.maxiterdone(lib_dir_iterator) < self.itmax:
+    def run(self):
+        for taski, task in enumerate(self.tasks):
+            log.info('{}, task {} started'.format(mpi.rank, task))
+            if task == 'calc_meanfield':
+                self.qe.run()
+                self.get_meanfields_it(np.arange(self.itmax+1))
+            elif task == 'calc_btemplate':
+                self.qe.run()
+                if self.dlm_mod_bool:
+                    dlm_mod = self.get_meanfields_it(np.arange(self.itmax+1))
+                else:
+                    dlm_mod = None
+                for idx in self.jobs[taski][mpi.rank::mpi.size]:
+                    lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
                     itlib = self.ith(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
                     itlib_iterator = itlib.get_iterator()
-                    for i in range(self.itmax + 1):
-                        log.info("****Iterator: setting cg-tol to %.4e ****"%self.tol_iter(i))
-                        log.info("****Iterator: setting solcond to %s ****"%self.soltn_cond(i))
-                        itlib_iterator.chain_descr  = self.chain_descr(self.lmax_unl, self.tol_iter(i))
-                        itlib_iterator.soltn_cond = self.soltn_cond(i)
-                        itlib_iterator.iterate(i, 'p')
-                        log.info('{}, simidx {} done with iteration {}'.format(mpi.rank, idx, i))
-        elif job_id == 'meanfield':
-            self.qe.run()
-            for idx in self.jobs[mpi.rank::mpi.size]:
-                log.info('{}, simidx {} started {}'.format(mpi.rank, mpi.size, idx))
-                lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
-                plms = self.get_plm_it(idx, self.iterations)
-                plms = self.get_meanfield_it(idx, self.iterations)
+                    for it in range(0, self.itmax + 1):
+                        if it <= rec.maxiterdone(lib_dir_iterator):
+                            itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod[it])
+                    log.info("{} finished {}".format(mpi.rank, idx))
+            elif task == 'lens_rec':
+                self.qe.run()
+                for idx in self.jobs[taski][mpi.rank::mpi.size]:
+                    lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
+                    if self.itmax >= 0 and rec.maxiterdone(lib_dir_iterator) < self.itmax:
+                        itlib = self.ith(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
+                        itlib_iterator = itlib.get_iterator()
+                        for i in range(self.itmax + 1):
+                            log.info("****Iterator: setting cg-tol to %.4e ****"%self.tol_iter(i))
+                            log.info("****Iterator: setting solcond to %s ****"%self.soltn_cond(i))
+                            itlib_iterator.chain_descr  = self.chain_descr(self.lmax_unl, self.tol_iter(i))
+                            itlib_iterator.soltn_cond = self.soltn_cond(i)
+                            itlib_iterator.iterate(i, 'p')
+                            log.info('{}, simidx {} done with iteration {}'.format(mpi.rank, idx, i))
 
 
     @log_on_start(logging.INFO, "Start of init_ith()")
@@ -292,33 +316,34 @@ class MAP_lr():
     @log_on_end(logging.INFO, "Finished get_plm_it()")
     def get_plm_it(self, simidx, iterations):
 
-        plms = Rec.load_plms(self.libdir_iterators(self.k, simidx, self.version), iterations)
+        plms = rec.load_plms(self.libdir_iterators(self.k, simidx, self.version), iterations)
 
         return plms
 
 
-    @log_on_start(logging.INFO, "Start of get_meanfield_it0()")
-    @log_on_end(logging.INFO, "Finished get_meanfield_it0()")
-    def get_meanfield_it(self, simidx, iterations):
-        if self.mfvar == None:
-            plms = Rec.load_plms(self.libdir_iterators(self.k, simidx, self.version), iterations)
-            if True:
-                # TODO plms are normalised etc, could undo this 
-                plm0 -= self.mf0(simidx)
-                R = qresp.get_response(self.k, self.lmax_ivf, 'p', self.cls_len, self.cls_len, {'e': self.fel, 'b': self.fbl, 't':self.ftl}, lmax_qlm=self.lmax_qlm)[0]
-                WF = self.cpp * utils.cli(self.cpp + utils.cli(R))
-                plm0 = alm_copy(plm0,  None, self.lmax_qlm, self.mmax_qlm)
-                almxfl(plm0, utils.cli(R), self.mmax_qlm, True)
-                almxfl(plm0, WF, self.mmax_qlm, True)
-                almxfl(plm0, self.cpp > 0, self.mmax_qlm, True)
-            mf = self.qlms_dd.get_sim_map_mf(self.k, self.mc_sims_mf_it0)
-            if simidx in self.mc_sims_mf_it0:
-                Nmf = len(self.mc_sims_mf_it0)
-                mf0 = (mf0 - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / Nmf) * (Nmf / (Nmf - 1))
-        else:
-            mf0 = hp.read_alm(self.mfvar)
+    @log_on_start(logging.INFO, "Start of get_meanfields_it()")
+    @log_on_end(logging.INFO, "Finished get_meanfields_it()")
+    def get_meanfields_it(self, iterations): 
+        # TODO dir creation should be done somehwere else
+        # TODO check which mfs exist, then collect, could be split in sg, pl methods
+        if not os.path.isdir(opj(self.TEMP, 'mf')):
+            os.makedirs(opj(self.TEMP, 'mf'))
+        plm = rec.load_plms(self.libdir_iterators(self.k, 0, self.version), [0])[-1]
+        mf = np.zeros_like(plm)
+        for iti, it in enumerate(iterations[mpi.rank::mpi.size]):
+            fn = opj(self.TEMP, 'mf', 'mf_it%03d.npy'%(it))
+            for simidx in range(self.imin, self.imax):
+                log.info(" iteration {}: simulation {}/{} done".format(it, simidx, self.imax-self.imin))
+                mf += rec.load_plms(self.libdir_iterators(self.k, simidx, self.version), [it])[-1]   
+                np.save(fn, mf/(self.imax-self.imin))
+        del mf
+        mpi.barrier()
+        mfs = np.zeros(shape=(len(iterations),*plm.shape))
+        for iti, it in enumerate(iterations):
+            fn = opj(self.TEMP, 'mf', 'mf_it%03d.npy'%(it))
+            mfs[iti] = np.load(fn)
 
-        return mf0
+        return mfs
 
 
 class Inspector():
@@ -347,23 +372,8 @@ class B_template_constructor():
         self.qe = QE_lr(dlensalot_model)
         self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
 
-        # TODO hack. This belongs to config file or p2d or ..
+        # TODO hack. Creation of dlm_mod should be done via collect/run job.
         if self.dlm_mod_bool:
-            from lenscarf.iterators.statics import rec
-            
-            buffer = rec.load_plms(self.libdir_iterators(self.k, 0, self.version), [0])[-1]
-            dlm_mod = np.zeros_like(buffer)
-            # split = 10
-            # np.store(opj(self.libdir_iterators, 'dlm_mod.npy'), dlm_mod)
-            # for simidx in range(self.imin, self.imax+1)[::split]:
-            #     dlm_mod = np.load(opj(self.libdir_iterators, 'dlm_mod.npy'))
-            #     for simid in range(0,split):
-            #         dlm_mod += rec.load_plms(self.libdir_iterators(self.k, simid, self.v), self.itmax)
-            #     np.store(opj(self.libdir_iterators, 'dlm_mod.npy'), dlm_mod)
-            for simidx in range(self.imin, self.imax):
-                log.info('loaded simidx {}'.format(simidx))
-                dlm_mod += rec.load_plms(self.libdir_iterators(self.k, simidx, self.version), [self.itmax])[-1]
-            np.save(opj(self.TEMP, 'dlm_mod.npy'), dlm_mod/(self.imax-self.imin))
             self.dlm_mod = np.load(opj(self.TEMP, 'dlm_mod.npy'))
         
         # TODO this is the interface to the D.lensalot iterators and connects 
@@ -379,7 +389,7 @@ class B_template_constructor():
         jobs = []
         for idx in np.arange(self.imin, self.imax + 1):
             lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
-            if Rec.maxiterdone(lib_dir_iterator) >= self.itmax:
+            if rec.maxiterdone(lib_dir_iterator) >= self.itmax:
                 jobs.append(idx)
         self.jobs = jobs
 
@@ -393,7 +403,7 @@ class B_template_constructor():
             itlib = self.ith(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
             itlib_iterator = itlib.get_iterator()
             for it in range(0, self.itmax + 1):
-                if it <= Rec.maxiterdone(lib_dir_iterator):
+                if it <= rec.maxiterdone(lib_dir_iterator):
                     itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=self.dlm_mod)
             log.info("{} finished {}".format(mpi.rank, idx))
 
@@ -404,6 +414,8 @@ class Map_delenser():
 
     def __init__(self, bmd_model):
         self.__dict__.update(bmd_model.__dict__)
+
+        # TODO hack. Remove and think of a better way of including old data without existing config file
         if 'libdir_iterators' in bmd_model.__dict__:
             pass
         else:
@@ -466,7 +478,7 @@ class Map_delenser():
             else:
                 if idx not in self.droplist:
                     lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
-                    if Rec.maxiterdone(lib_dir_iterator) >= self.iterations[-1]:
+                    if rec.maxiterdone(lib_dir_iterator) >= self.iterations[-1]:
                         jobs.append(idx)
         self.jobs = jobs
 
@@ -482,7 +494,7 @@ class Map_delenser():
             _file_op = self.file_op(idx, self.fg)
             log.info('will store file at: {}'.format(_file_op))
 
-            # TODO make this a user choise
+            # TODO delensing with wienerfiltered cs map is nonsense, should be removed again..
             if False:
                 bmap_cs_buff = hp.alm2map(self.get_B_wf(idx), nside=2048)
             else:
@@ -519,3 +531,7 @@ class Map_delenser():
                     outputdata[1][2+iti][nlevi] = bcl_cslensc_MAP      
     
             np.save(_file_op, outputdata)
+
+
+class Dlmmod_calculator():
+    pass
