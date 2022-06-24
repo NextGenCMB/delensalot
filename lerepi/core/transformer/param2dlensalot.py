@@ -359,11 +359,8 @@ class p2lensrec_Transformer:
         _process_iterationparams(dl, cf.iteration)
         _process_stepperparams(dl, cf.stepper)
 
-        dl.tasks = ["calc_phi", "calc_meanfield", "calc_btemplate"]
-        dl.dlm_mod_bool = True
-        if dl.dlm_mod_bool:
-            log.warning('dlm_mod value hardcoded to True!')
-
+        dl.tasks = cf.iteration.tasks # ["calc_phi", "calc_meanfield", "calc_btemplate"]
+        dl.dlm_mod_bool = cf.iteration.dlm_mod
         if mpi.rank == 0:
             log.info("I am going to work with the following values:")
             _str = '---------------------------------------------------\n'
@@ -653,9 +650,8 @@ class p2lensrec_Transformer:
 
 
         dl = DLENSALOT_Concept()
-        # TODO hardcoding tasks here until I know where to put it
-        dl.tasks = ["calc_phi", "calc_meanfield", "calc_btemplate"]
 
+        dl.tasks = cf.iteration.tasks
         _process_Analysis(dl, cf.analysis)
         _process_Data(dl, cf.data)
         _process_Noisemodel(dl, cf.noisemodel)
@@ -888,11 +884,12 @@ class p2d_Transformer:
             if not(os.path.isdir(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid))):
                 os.makedirs(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid))
 
-            dl.dlm_mod_bool = True
+            dl.dlm_mod_bool = cf.iteration.dlm_mod
+            # TODO don't like this too mcuh
             if dl.dlm_mod_bool:
-                log.warning('dlm_mod value hardcoded to True!')
-                dlmmod_str = 'dlmmod'
-            dl.file_op = lambda idx, fg: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid) + '/ClBBwf_sim%04d_%s_fg%s_res2b3acm.npy'%(idx, dlmmod_str, fg)
+                dl.file_op = lambda idx, fg: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid) + '/ClBBwf_sim%04d_%s_fg%s_res2b3acm.npy'%(idx, 'dlmmod', fg)
+            else:
+                dl.file_op = lambda idx, fg: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid) + '/ClBBwf_sim%04d_fg%s_res2b3acm.npy'%(idx, fg)
         dl = DLENSALOT_Concept()
         _process_delensingparams(dl, cf.map_delensing)
             

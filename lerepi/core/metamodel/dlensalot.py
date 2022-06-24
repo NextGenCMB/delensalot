@@ -104,9 +104,11 @@ class DLENSALOT_Iteration(DLENSALOT_Concept):
     K = attr.ib(default=-1)
     # version, can be 'noMF
     V = attr.ib(default=-1)
+    tasks = attr.ib(default=-1)
     ITMAX = attr.ib(default=-1)
     IMIN = attr.ib(default=-1)
     IMAX = attr.ib(default=-1)
+    dlm_mod = attr.ib(default=-1)
     mfvar = attr.ib(default=-1)
     # Change the following block only if a full, Planck-like QE lensing power spectrum analysis is desired
     # This uses 'ds' and 'ss' QE's, crossing data with sims and sims with other sims.
