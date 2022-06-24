@@ -201,7 +201,6 @@ class p2lensrec_Transformer:
                 dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), iteration.lmax_ivf,dl.nside, dl.cls_len, dl.transf_tlm, dl.ninv_t,
                                 marge_monopole=True, marge_dipole=True, marge_maps=[])
                 log.info('{} finished filt_cinv.cinv_t()'.format(mpi.rank))
-                # TODO this could move to _OBDparams()
                 if dl.OBD_type == 'OBD':
                     transf_elm_loc = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf)
                     log.info('{} start cinv_p_OBD.cinv_p()'.format(mpi.rank))
@@ -360,6 +359,9 @@ class p2lensrec_Transformer:
         _process_stepperparams(dl, cf.stepper)
 
         dl.tasks = cf.iteration.tasks # ["calc_phi", "calc_meanfield", "calc_btemplate"]
+        if "calc_meanfield" in dl.tasks:
+            if not os.path.isdir(opj(dl.TEMP, 'mf')):
+                os.makedirs(opj(dl.TEMP, 'mf'))
         dl.dlm_mod_bool = cf.iteration.dlm_mod
         if mpi.rank == 0:
             log.info("I am going to work with the following values:")
@@ -568,12 +570,8 @@ class p2lensrec_Transformer:
                     traceback.print_stack()
                     sys.exit()
                 log.info('{} starting filt_cinv.library_cinv_sepTP()'.format(mpi.rank))
-                if dl.overwrite_libdir is None: 
-                    dl.ivfs_raw = filt_cinv.library_cinv_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl.cinv_t, dl.cinv_p, dl.cls_len)
-                else:
-                    # TODO hack. Only want to access old s08b sim result lib and generate B wf
-                    # TODO why is this the same as above?
-                    dl.ivfs_raw = filt_cinv.library_cinv_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl.cinv_t, dl.cinv_p, dl.cls_len)
+                dl.ivfs_raw = filt_cinv.library_cinv_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl.cinv_t, dl.cinv_p, dl.cls_len)
+
                 log.info('{} finished filt_cinv.library_cinv_sepTP()'.format(mpi.rank))
                 dl.ftl_rs = np.ones(dl.lmax_ivf + 1, dtype=float) * (np.arange(dl.lmax_ivf + 1) >= dl.lmin_tlm)
                 dl.fel_rs = np.ones(dl.lmax_ivf + 1, dtype=float) * (np.arange(dl.lmax_ivf + 1) >= dl.lmin_elm)
@@ -704,7 +702,7 @@ class p2OBD_Transformer:
         nlev_t = p2OBD_Transformer.get_nlevp(cf)
         masks, noisemodel_rhits_map =  p2OBD_Transformer.get_masks(cf)
         noisemodel_norm = np.max(noisemodel_rhits_map)
-        # TODO quickfix, cleanup later
+        # TODO hack, needed for v1 and v2 compatibility
         if isinstance(cf, DLENSALOT_Model):
             t_transf = gauss_beam(cf.data.beam/180 / 60 * np.pi, lmax=cf.iteration.lmax_ivf)
         else:
@@ -721,7 +719,7 @@ class p2OBD_Transformer:
         nlev_p = p2OBD_Transformer.get_nlevp(cf)
         masks, noisemodel_rhits_map =  p2OBD_Transformer.get_masks(cf)
         noisemodel_norm = np.max(noisemodel_rhits_map)
-        # TODO quickfix, cleanup later
+        # TODO hack, needed for v1 and v2 compatibility
         if isinstance(cf, DLENSALOT_Model):
             b_transf = gauss_beam(cf.data.beam/180 / 60 * np.pi, lmax=cf.iteration.lmax_ivf) # TODO ninv_p doesn't depend on this anyway, right?
         else:
@@ -829,13 +827,13 @@ class p2d_Transformer:
         def _process_delensingparams(dl, de):
             dl.k = cf.iteration.K
             dl.version = cf.iteration.V
-            if de.edges == 'ioreco':
-                dl.edges = ioreco_edges
-            elif de.edges == 'cmbs4':
-                dl.edges = cmbs4_edges
-            elif de.edges == 'fs':
-                dl.edges = fs_edges
-            dl.edges_center = (dl.edges[1:]+dl.edges[:-1])/2.
+            dl.edges = []
+            if 'ioreco' in de.edges:
+                dl.edges.append(ioreco_edges)
+            if 'cmbs4' in de.edges:
+                dl.edges.append(cmbs4_edges) 
+            elif 'fs' in de.edges:
+                dl.edges.append(fs_edges) 
             dl.imin = de.IMIN
             dl.imax = de.IMAX
             dl.iterations = de.ITMAX
@@ -877,19 +875,20 @@ class p2d_Transformer:
                 dl.clg_templ[0] = 1e-32
                 dl.clg_templ[1] = 1e-32
 
-            dl.sha_edges = hashlib.sha256()
-            dl.sha_edges.update(str(dl.edges).encode())
-            dl.dirid = dl.sha_edges.hexdigest()[:4]
+            dl.sha_edges = [hashlib.sha256() for n in range(len(dl.edges))]
+            for n in range(len(dl.edges)):
+                dl.sha_edges[n].update(str(dl.edges[n]).encode())
+            dl.dirid = [dl.sha_edges[n].hexdigest()[:4] for n in range(len(dl.edges))]
             dl.TEMP_DELENSED_SPECTRUM = transform(dl, p2T_Transformer())
             if not(os.path.isdir(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid))):
                 os.makedirs(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid))
 
             dl.dlm_mod_bool = cf.iteration.dlm_mod
-            # TODO don't like this too mcuh
+            # TODO don't like this too much
             if dl.dlm_mod_bool:
-                dl.file_op = lambda idx, fg: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid) + '/ClBBwf_sim%04d_%s_fg%s_res2b3acm.npy'%(idx, 'dlmmod', fg)
+                dl.file_op = lambda idx, fg, edges_idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edges_idx]) + '/ClBBwf_sim%04d_%s_fg%s_res2b3acm.npy'%(idx, 'dlmmod', fg)
             else:
-                dl.file_op = lambda idx, fg: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid) + '/ClBBwf_sim%04d_fg%s_res2b3acm.npy'%(idx, fg)
+                dl.file_op = lambda idx, fg, edges_idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edges_idx]) + '/ClBBwf_sim%04d_fg%s_res2b3acm.npy'%(idx, fg)
         dl = DLENSALOT_Concept()
         _process_delensingparams(dl, cf.map_delensing)
             
@@ -906,20 +905,19 @@ class p2d_Transformer:
         def _process_Madel(dl, ma):
             dl.k = cf.analysis.K
             dl.version = cf.analysis.V
-            if ma.edges == 'ioreco':
-                dl.edges = ioreco_edges
-            elif ma.edges == 'cmbs4':
-                dl.edges = cmbs4_edges
-            elif ma.edges == 'fs':
-                dl.edges = fs_edges
-            dl.edges_center = (dl.edges[1:]+dl.edges[:-1])/2.
+            dl.edges = []
+            if 'ioreco' in ma.edges:
+                dl.edges.append(ioreco_edges)
+            if 'cmbs4' in ma.edges:
+                dl.edges.append(cmbs4_edges) 
+            elif 'fs' in ma.edges:
+                dl.edges.append(fs_edges)
             dl.imin = cf.data.IMIN
             dl.imax = cf.data.IMAX
             dl.iterations = ma.iterations
             dl.droplist = ma.droplist
             if 'fg' in cf.data.class_parameters:
                 dl.fg = cf.data.class_parameters['fg']
- 
             _package = cf.data.package_
             _module = cf.data.module_
             _class = cf.data.class_
@@ -961,13 +959,19 @@ class p2d_Transformer:
                 dl.clg_templ[0] = 1e-32
                 dl.clg_templ[1] = 1e-32
 
-            dl.sha_edges = hashlib.sha256()
-            dl.sha_edges.update(str(dl.edges).encode())
-            dl.dirid = dl.sha_edges.hexdigest()[:4]
+            dl.sha_edges = [hashlib.sha256() for n in range(len(dl.edges))]
+            for n in range(len(dl.edges)):
+                dl.sha_edges[n].update(str(dl.edges[n]).encode())
+            dl.dirid = [dl.sha_edges[n].hexdigest()[:4] for n in range(len(dl.edges))]
             dl.TEMP_DELENSED_SPECTRUM = transform(dl, p2T_Transformer())
             if not(os.path.isdir(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid))):
                 os.makedirs(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid))
-            dl.file_op = lambda idx, fg: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid) + '/ClBBwf_sim%04d_fg%2s_res2b3acm.npy'%(idx, fg)
+            # TODO don't like this too much
+            # TODO fn needs changing
+            if dl.dlm_mod_bool:
+                dl.file_op = lambda idx, fg, edges_idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edges_idx]) + '/ClBBwf_sim%04d_%s_fg%s_res2b3acm.npy'%(idx, 'dlmmod', fg)
+            else:
+                dl.file_op = lambda idx, fg, edges_idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edges_idx]) + '/ClBBwf_sim%04d_fg%s_res2b3acm.npy'%(idx, fg)
 
         dl = DLENSALOT_Concept()
         _process_Madel(dl, cf.madel)
@@ -1001,12 +1005,10 @@ class p2j_Transformer:
                 jobs.append(((cf, p2lensrec_Transformer()), lenscarf_handler.QE_lr))
             if jb.MAP_lensrec:
                 jobs.append(((cf, p2lensrec_Transformer()), lenscarf_handler.MAP_lr))
-            if jb.Btemplate_per_iteration:
-                jobs.append(((cf, p2lensrec_Transformer()), lenscarf_handler.B_template_constructor))
             if jb.map_delensing:
                 jobs.append(((cf, p2d_Transformer()), lenscarf_handler.Map_delenser))
             if jb.inspect_result:
-                # TODO maybe use this to return something interactive? Like a webservice with all plots dynamic? Like a dashboard..
+                # TODO maybe use this to return something interactive
                 assert 0, "Implement if needed"
 
         jobs = []

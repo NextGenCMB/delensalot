@@ -40,7 +40,6 @@ class DLENSALOT_Job(DLENSALOT_Concept):
     """
     QE_lensrec = attr.ib(default=-1)
     MAP_lensrec = attr.ib(default=-1)
-    Btemplate_per_iteration = attr.ib(default=-1)
     inspect_result = attr.ib(default=-1)
     map_delensing = attr.ib(default=-1)
     build_OBD = attr.ib(default=-1)
