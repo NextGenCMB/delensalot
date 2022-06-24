@@ -274,21 +274,26 @@ class MAP_lr():
             log.info('{}, task {} started'.format(mpi.rank, task))
             if task == 'calc_meanfield':
                 self.qe.run()
-                self.get_meanfields_it(np.arange(self.itmax+1))
+                self.get_meanfields_it(np.arange(self.itmax+1), recalc=True)
             elif task == 'calc_btemplate':
                 self.qe.run()
                 if self.dlm_mod_bool:
                     dlm_mod = self.get_meanfields_it(np.arange(self.itmax+1))
+                    # Assuming mf was done with setting from config
+                    dlm_mod *= self.nsims_mf
+                    dlm_mod -= rec.load_plms(lib_dir_iterator,np.arange(self.itmax+1))
+                    dlm_mod /= (self.nsims_mf-1)
                 else:
-                    dlm_mod = None
+                    dlm_mod = [None for n in range(self.itmax+1)]
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
                     lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
                     itlib = self.ith(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
                     itlib_iterator = itlib.get_iterator()
                     for it in range(0, self.itmax + 1):
                         if it <= rec.maxiterdone(lib_dir_iterator):
+
                             itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod[it])
-                    log.info("{} finished {}".format(mpi.rank, idx))
+                    log.info("{}: finished simulation {}".format(mpi.rank, idx))
             elif task == 'lens_rec':
                 self.qe.run()
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
@@ -323,22 +328,23 @@ class MAP_lr():
 
     @log_on_start(logging.INFO, "Start of get_meanfields_it()")
     @log_on_end(logging.INFO, "Finished get_meanfields_it()")
-    def get_meanfields_it(self, iterations): 
+    def get_meanfields_it(self, iterations, recalc=False): 
         # TODO dir creation should be done somehwere else
         # TODO check which mfs exist, then collect, could be split in sg, pl methods
         if not os.path.isdir(opj(self.TEMP, 'mf')):
             os.makedirs(opj(self.TEMP, 'mf'))
         plm = rec.load_plms(self.libdir_iterators(self.k, 0, self.version), [0])[-1]
-        mf = np.zeros_like(plm)
-        for iti, it in enumerate(iterations[mpi.rank::mpi.size]):
-            fn = opj(self.TEMP, 'mf', 'mf_it%03d.npy'%(it))
-            for simidx in range(self.imin, self.imax):
-                log.info(" iteration {}: simulation {}/{} done".format(it, simidx, self.imax-self.imin))
-                mf += rec.load_plms(self.libdir_iterators(self.k, simidx, self.version), [it])[-1]   
-                np.save(fn, mf/(self.imax-self.imin))
-        del mf
-        mpi.barrier()
-        mfs = np.zeros(shape=(len(iterations),*plm.shape))
+        if recalc:
+            for iti, it in enumerate(iterations[mpi.rank::mpi.size]):
+                mf = np.zeros_like(plm)
+                fn = opj(self.TEMP, 'mf', 'mf_it%03d.npy'%(it))
+                for simidx in range(self.imin, self.imax):
+                    log.info(" iteration {}: simulation {}/{} done".format(it, simidx, self.imax-self.imin))
+                    mf += rec.load_plms(self.libdir_iterators(self.k, simidx, self.version), [it])[-1]
+                    np.save(fn, mf/(self.imax-self.imin))
+            del mf
+            mpi.barrier()
+        mfs = np.zeros(shape=(len(iterations),*plm.shape), dtype=np.complex128)
         for iti, it in enumerate(iterations):
             fn = opj(self.TEMP, 'mf', 'mf_it%03d.npy'%(it))
             mfs[iti] = np.load(fn)
@@ -441,8 +447,10 @@ class Map_delenser():
         else:
             # TODO this belongs via config to p2d
             if self.dlm_mod_bool:
+                log.info('taking modified: btempl_p%03d_e%03d_lmax1024_dlmmod.npy'%(it, it))
                 return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024_dlmmod.npy'%(it, it)
             else:
+                log.info('taking non-modified: btempl_p%03d_e%03d_lmax1024.npy'%(it, it))
                 return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(it, it)
 
             
@@ -494,24 +502,28 @@ class Map_delenser():
             _file_op = self.file_op(idx, self.fg)
             log.info('will store file at: {}'.format(_file_op))
 
-            # TODO delensing with wienerfiltered cs map is nonsense, should be removed again..
-            if False:
-                bmap_cs_buff = hp.alm2map(self.get_B_wf(idx), nside=2048)
+            qumap_cs_buff = self.getfn_qumap_cs(idx)
+            eblm_cs_buff = hp.map2alm_spin(qumap_cs_buff*self.base_mask, 2, self.lmax_cl)
+            bmap_cs_buff = hp.alm2map(eblm_cs_buff[1], self.nside)
+
+            blm_lensc_QE_buff = np.load(self.getfn_blm_lensc(idx, 0))
+            bmap_lensc_QE_buff = hp.alm2map(blm_lensc_QE_buff, nside=self.nside)
+
+            if self.getfn_blm_lensc(idx, 0).endswith('npy'):
+                blm_lensc_MAP_buff = np.array([np.load(self.getfn_blm_lensc(idx, it)) for it in self.iterations])
             else:
-                qumap_cs_buff = self.getfn_qumap_cs(idx)
-                eblm_cs_buff = hp.map2alm_spin(qumap_cs_buff*self.base_mask, 2, self.lmax_cl)
-                bmap_cs_buff = hp.alm2map(eblm_cs_buff[1], self.nside)
+                blm_lensc_MAP_buff = np.array([hp.read_alm(self.getfn_blm_lensc(idx, it)) for it in self.iterations])
+            bmap_lensc_MAP_buff = np.array([hp.alm2map(blm_lensc_MAP_buff[iti], nside=self.nside) for iti in len(self.iterations)])
             for nlevi, nlev in enumerate(self.nlevels):
                 bcl_cs = self.lib[nlev].map2cl(bmap_cs_buff)
-                blm_L_buff = hp.almxfl(utils.alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(idx), lmax=self.lmax_cl), self.transf) # TODO fiducial choice should happen at transformer
+                # TODO fiducial choice should happen at transformer
+                blm_L_buff = hp.almxfl(utils.alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(idx), lmax=self.lmax_cl), self.transf)
                 bmap_L_buff = hp.alm2map(blm_L_buff, self.nside)
                 bcl_L = self.lib[nlev].map2cl(bmap_L_buff)
 
                 outputdata[0][0][nlevi] = bcl_L
                 outputdata[1][0][nlevi] = bcl_cs
 
-                blm_lensc_QE_buff = np.load(self.getfn_blm_lensc(idx, 0))
-                bmap_lensc_QE_buff = hp.alm2map(blm_lensc_QE_buff, nside=self.nside)
                 bcl_Llensc_QE = self.lib[nlev].map2cl(bmap_L_buff-bmap_lensc_QE_buff)
                 bcl_cslensc_QE = self.lib[nlev].map2cl(bmap_cs_buff-bmap_lensc_QE_buff)
 
@@ -519,19 +531,10 @@ class Map_delenser():
                 outputdata[1][1][nlevi] = bcl_cslensc_QE
 
                 for iti, it in enumerate(self.iterations):
-                    if self.getfn_blm_lensc(idx, it).endswith('npy'):
-                        blm_lensc_MAP_buff = np.load(self.getfn_blm_lensc(idx, it))
-                    else:
-                        blm_lensc_MAP_buff = hp.read_alm(self.getfn_blm_lensc(idx, it))
-                    bmap_lensc_MAP_buff = hp.alm2map(blm_lensc_MAP_buff, nside=self.nside)
-                    bcl_Llensc_MAP = self.lib[nlev].map2cl(bmap_L_buff-bmap_lensc_MAP_buff)    
-                    bcl_cslensc_MAP = self.lib[nlev].map2cl(bmap_cs_buff-bmap_lensc_MAP_buff)
+                    bcl_Llensc_MAP = self.lib[nlev].map2cl(bmap_L_buff-bmap_lensc_MAP_buff[iti])    
+                    bcl_cslensc_MAP = self.lib[nlev].map2cl(bmap_cs_buff-bmap_lensc_MAP_buff[iti])
 
                     outputdata[0][2+iti][nlevi] = bcl_Llensc_MAP
                     outputdata[1][2+iti][nlevi] = bcl_cslensc_MAP      
     
             np.save(_file_op, outputdata)
-
-
-class Dlmmod_calculator():
-    pass
