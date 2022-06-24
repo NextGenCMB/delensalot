@@ -291,10 +291,10 @@ class MAP_lr():
                     for it in range(0, self.itmax + 1):
                         if it <= rec.maxiterdone(lib_dir_iterator):
                             if it == 0:
-                                # this has already been done at QE level
-                                itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=None)
+                                  # this has already been done at QE level
+                                itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=4, dlm_mod=None)
                             else:
-                                itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod[it])
+                                itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=4, dlm_mod=dlm_mod[it])
                     log.info("{}: finished simulation {}".format(mpi.rank, idx))
             elif task == 'lens_rec':
                 self.qe.run()
