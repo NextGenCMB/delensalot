@@ -5,12 +5,11 @@ from lerepi.core.metamodel.dlensalot_v2 import *
 
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(
-        build_OBD = False,
-        QE_lensrec = False,
-        MAP_lensrec = True,
-        Btemplate_per_iteration = False,
-        map_delensing = False,
-        inspect_result = False,
+        OBD = ["build"],
+        QE = ["calc_phi", "calc_meanfield"],
+        MAP = ["calc_phi", "calc_meanfield", "calc_btemplate"],
+        Delens = ["default"],
+        Inspect = False,
         OMP_NUM_THREADS = 16
     ),
     analysis = DLENSALOT_Analysis(
@@ -103,6 +102,7 @@ dlensalot_model = DLENSALOT_Model(
         nlevels = [1.2, 2, 5, 50],
         lmax_cl = 2048,
         Cl_fid = 'ffp10',
-        libdir_it = 'overwrite'
+        libdir_it = 'overwrite',
+        subtract_meanfield = "/"
     )
 )

@@ -73,7 +73,6 @@ class handler():
             j = job(model)
             j.collect_jobs()
             j.run()
-            # del j
 
 
     @log_on_start(logging.INFO, "Start of store()")

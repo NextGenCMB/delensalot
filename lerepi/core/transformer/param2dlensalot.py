@@ -359,6 +359,7 @@ class p2lensrec_Transformer:
         _process_iterationparams(dl, cf.iteration)
         _process_stepperparams(dl, cf.stepper)
 
+        dl.tasks = ["calc_phi", "calc_meanfield", "calc_btemplate"]
         dl.dlm_mod_bool = True
         if dl.dlm_mod_bool:
             log.warning('dlm_mod value hardcoded to True!')
@@ -375,8 +376,8 @@ class p2lensrec_Transformer:
         return dl
 
 
-    @log_on_start(logging.INFO, "Start of build()")
-    @log_on_end(logging.INFO, "Finished build()")
+    @log_on_start(logging.INFO, "Start of build_v2()")
+    @log_on_end(logging.INFO, "Finished build_v2()")
     def build_v2(self, cf):
 
         @log_on_start(logging.INFO, "Start of _process_Analysis()")
@@ -652,6 +653,9 @@ class p2lensrec_Transformer:
 
 
         dl = DLENSALOT_Concept()
+        # TODO hardcoding tasks here until I know where to put it
+        dl.tasks = ["calc_phi", "calc_meanfield", "calc_btemplate"]
+
         _process_Analysis(dl, cf.analysis)
         _process_Data(dl, cf.data)
         _process_Noisemodel(dl, cf.noisemodel)
