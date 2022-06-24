@@ -930,11 +930,10 @@ class p2d_Transformer:
             dl.base_mask = np.nan_to_num(hp.read_map(mask_path))
             # TODO hack. this is only needed to access old s08b data
             # Remove and think of a better way of including old data without existing config file
+            dl.TEMP = transform(cf, p2T_Transformer())
             if cf.madel.libdir_it != '':
-                dl.TEMP = transform(cf, p2T_Transformer())
                 dl.libdir_iterators = 'overwrite'
             else:
-                dl.TEMP = transform(cf, p2T_Transformer())
                 dl.libdir_iterators = lambda qe_key, simidx, version: opj(dl.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
             dl.analysis_path = dl.TEMP.split('/')[-1]
             dl.nlev_mask = dict()
