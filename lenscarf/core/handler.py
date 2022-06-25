@@ -88,7 +88,7 @@ class QE_lr():
             mc_sims = self.mc_sims_mf_it0
             mf_fname = os.path.join(self.TEMP, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, utils.mchash(mc_sims)))
             if os.path.isfile(mf_fname):
-                # Can safely skip QE jobs. MF exists, so we know QE was run before
+                # can safely skip QE. MF exists, so we know QE ran before
                 self.jobs = []
             if id == "None":
                 self.jobs = []
@@ -140,8 +140,10 @@ class QE_lr():
                 log.info('All ranks finished qe mf-calc tasks.')
         else:
             # TODO hack. Only want to access old s08b sim result lib and generate B wf
+            # TODO do we really want Wiener-filtereed B?
             for idx in self.jobs[mpi.rank::mpi.size]:
                 self.get_B_wf(idx)
+
 
     @log_on_start(logging.INFO, "Start of get_sim_qlm()")
     @log_on_end(logging.INFO, "Finished get_sim_qlm()")
@@ -160,6 +162,7 @@ class QE_lr():
             log.info(fn)
             bwf = self.ivfs.get_sim_bmliklm(simidx)
             np.save(fn, bwf)
+
         return bwf
 
 
@@ -246,17 +249,19 @@ class MAP_lr():
         jobs = list(range(len(self.tasks)))
         for taski, task in enumerate(self.tasks):
             _jobs = []
-            if task == 'calc_meanfield_it':
+            if task == 'calc_meanfield':
                 self.qe.collect_jobs()
                 if rec.maxiterdone(lib_dir_iterator) < self.itmax:
                     _jobs.append(0)
+
             elif task == 'calc_btemplate':
                 self.qe.collect_jobs()
                 for idx in np.arange(self.imin, self.imax + 1):
                     lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
                     if rec.maxiterdone(lib_dir_iterator) >= self.itmax:
                         _jobs.append(idx)
-            elif task == 'lens_rec':
+                        
+            elif task == 'calc_phi':
                 self.qe.collect_jobs()
                 for idx in np.arange(self.imin, self.imax + 1):
                     lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
@@ -276,6 +281,7 @@ class MAP_lr():
                 self.qe.run()
                 self.get_meanfields_it(np.arange(self.itmax+1), calc=True)
                 mpi.barrier()
+
             elif task == 'calc_btemplate':
                 self.qe.run()
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
@@ -283,7 +289,7 @@ class MAP_lr():
                     if self.dlm_mod_bool:
                         dlm_mod = self.get_meanfields_it(np.arange(self.itmax+1), calc=False)
                         # assuming mf includes all plms from simindices in config
-                        dlm_mod = (dlm_mod * (self.imax - self.imin) - rec.load_plms(lib_dir_iterator, np.arange(self.itmax+1)))/(self.nsims_mf-1)
+                        dlm_mod = (dlm_mod * (self.imax - self.imin) - rec.load_plms(lib_dir_iterator, np.arange(self.itmax+1)))/(self.imax - self.imin - 1)
                     else:
                         dlm_mod = [None for n in range(self.itmax+1)]
                     itlib = self.ith(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
@@ -296,7 +302,8 @@ class MAP_lr():
                             else:
                                 itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod[it], calc=True)
                     log.info("{}: finished simulation {}".format(mpi.rank, idx))
-            elif task == 'lens_rec':
+
+            elif task == 'calc_phi':
                 self.qe.run()
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
                     lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
