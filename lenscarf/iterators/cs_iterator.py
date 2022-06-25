@@ -191,7 +191,7 @@ class qlm_iterator(object):
 
     @log_on_start(logging.INFO, "Start of get_template_blm() for iteration {it}")
     @log_on_end(logging.INFO, "Finished get_template_blm() for iteration {it}")
-    def get_template_blm(self, it, it_e, lmaxb=1024, lmin_plm=1, elm_wf:None or np.ndarray=None, dlm_mod=None):
+    def get_template_blm(self, it, it_e, lmaxb=1024, lmin_plm=1, elm_wf:None or np.ndarray=None, dlm_mod=None, calc=False):
         """Builds a template B-mode map with the iterated phi and input elm_wf
 
             Args:
@@ -208,7 +208,7 @@ class qlm_iterator(object):
                 It can be a real lot better to keep the same L range as the iterations
 
         """
-        cache_cond = (lmin_plm == 1) and (elm_wf is None)
+        cache_cond = ((lmin_plm == 1) and (elm_wf is None)) or calc
         # TODO this needs a cleaner implementation. Duplicate in map_delenser
         if dlm_mod is not None:
             dlm_mod_string = '_dlmmod'
@@ -231,7 +231,7 @@ class qlm_iterator(object):
         mmaxb = lmaxb
         dlm = self.get_hlm(it, 'p')
 
-        # subtract a field from the last iteration phi estimate before calculating the Btemplate
+        # subtract field from phi
         if dlm_mod is not None:
             dlm -= dlm_mod
         self.hlm2dlm(dlm, inplace=True)
