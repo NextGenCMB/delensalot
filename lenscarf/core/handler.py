@@ -18,6 +18,7 @@ import healpy as hp
 
 from plancklens import utils, qresp
 from plancklens.helpers import mpi
+mpi.rank == 0
 from plancklens.sims import planck2018_sims
 
 from MSC import pospace as ps
@@ -33,16 +34,16 @@ class OBD_builder():
         self.__dict__.update(OBD_model.__dict__)
 
 
-    @log_on_start(logging.INFO, "Start of collect_jobs()")
-    @log_on_end(logging.INFO, "Finished collect_jobs()")
+    @log_on_start(logging.INFO, " Start of collect_jobs()")
+    @log_on_end(logging.INFO, " Finished collect_jobs()")
     def collect_jobs(self):
         # This fakes the collect/run structure, as bpl takes care of MPI 
         jobs = [1]
         self.jobs = jobs
 
 
-    @log_on_start(logging.INFO, "Start of run()")
-    @log_on_end(logging.INFO, "Finished run()")
+    @log_on_start(logging.INFO, " Start of run()")
+    @log_on_end(logging.INFO, " Finished run()")
     def run(self):
         # This fakes the collect/run structure, as bpl takes care of MPI 
         for job in self.jobs:
@@ -81,9 +82,10 @@ class QE_lr():
             self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'zb_terator_%s_%04d_nofg_OBD_solcond_3apr20'%(qe_key, simidx) + version)
       
 
-    @log_on_start(logging.INFO, "Start of collect_jobs(): id = {id}, overwrite_libdir = {self.overwrite_libdir}")
-    @log_on_end(logging.INFO, "Finished collect_jobs(): {self.jobs}")
+    @log_on_start(logging.INFO, " Start of collect_jobs(): id = {id}, overwrite_libdir = {self.overwrite_libdir}")
+    @log_on_end(logging.INFO, " Finished collect_jobs(): {self.jobs}")
     def collect_jobs(self, id=''):
+        mpi.rank == 0
         if self.overwrite_libdir is None:
             mc_sims = self.mc_sims_mf_it0
             mf_fname = os.path.join(self.TEMP, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, utils.mchash(mc_sims)))
@@ -105,8 +107,8 @@ class QE_lr():
             self.jobs = jobs
 
 
-    @log_on_start(logging.INFO, "Start of run()")
-    @log_on_end(logging.INFO, "Finished run()")
+    @log_on_start(logging.INFO, " Start of run()")
+    @log_on_end(logging.INFO, " Finished run()")
     def run(self):
         if self.overwrite_libdir is None:
             # TODO this triggers the creation of all files for the MAP input, defined by the job array. MAP later needs the corresponding values separately via the getter
@@ -117,7 +119,7 @@ class QE_lr():
                 self.get_meanfield_response_it0()
                 self.get_wflm0(idx)
                 self.get_R_unl()
-                self.get_B_wf(idx)
+                # self.get_B_wf(idx)
                 logging.info('{}/{}, Finished job {}'.format(mpi.rank,mpi.size,idx))
             if len(self.jobs)>0:
                 log.info('{} finished qe ivfs tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
@@ -138,50 +140,49 @@ class QE_lr():
                 log.info('{} finished qe mf-calc tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
                 mpi.barrier()
                 log.info('All ranks finished qe mf-calc tasks.')
-        else:
-            # TODO hack. Only want to access old s08b sim result lib and generate B wf
-            # TODO do we really want Wiener-filtereed B?
-            for idx in self.jobs[mpi.rank::mpi.size]:
-                self.get_B_wf(idx)
+        # else:
+        #     # TODO hack. Only want to access old s08b sim result lib and generate B wf
+        #     # TODO do we really want Wiener-filtereed B?
+        #     for idx in self.jobs[mpi.rank::mpi.size]:
+        #         self.get_B_wf(idx)
 
 
-    @log_on_start(logging.INFO, "Start of get_sim_qlm()")
-    @log_on_end(logging.INFO, "Finished get_sim_qlm()")
+    @log_on_start(logging.INFO, " Start of get_sim_qlm()")
+    @log_on_end(logging.INFO, " Finished get_sim_qlm()")
     def get_sim_qlm(self, idx):
 
         return self.qlms_dd.get_sim_qlm(self.k, idx)
 
 
-    @log_on_start(logging.INFO, "Start of get_B_wf()")
-    @log_on_end(logging.INFO, "Finished get_B_wf()")    
+    @log_on_start(logging.INFO, " Start of get_B_wf()")
+    @log_on_end(logging.INFO, " Finished get_B_wf()")    
     def get_B_wf(self, simidx):
         fn = self.libdir_iterators(self.k, simidx, self.version)+'/bwf_qe_%04d.npy'%simidx
         if os.path.isfile(fn):
             bwf = self.ivfs.get_sim_bmliklm(simidx)
         else:
-            log.info(fn)
             bwf = self.ivfs.get_sim_bmliklm(simidx)
             np.save(fn, bwf)
 
         return bwf
 
 
-    @log_on_start(logging.INFO, "Start of get_wflm0()")
-    @log_on_end(logging.INFO, "Finished get_wflm0()")    
+    @log_on_start(logging.INFO, " Start of get_wflm0()")
+    @log_on_end(logging.INFO, " Finished get_wflm0()")    
     def get_wflm0(self, simidx):
 
         return lambda: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lmax_unl, self.mmax_unl)
 
 
-    @log_on_start(logging.INFO, "Start of get_R_unl()")
-    @log_on_end(logging.INFO, "Finished get_R_unl()")    
+    @log_on_start(logging.INFO, " Start of get_R_unl()")
+    @log_on_end(logging.INFO, " Finished get_R_unl()")    
     def get_R_unl(self):
 
         return qresp.get_response(self.k, self.lmax_ivf, 'p', self.cls_unl, self.cls_unl,  {'e': self.fel_unl, 'b': self.fbl_unl, 't':self.ftl_unl}, lmax_qlm=self.lmax_qlm)[0]
 
 
-    @log_on_start(logging.INFO, "Start of get_meanfield_it0()")
-    @log_on_end(logging.INFO, "Finished get_meanfield_it0()")
+    @log_on_start(logging.INFO, " Start of get_meanfield_it0()")
+    @log_on_end(logging.INFO, " Finished get_meanfield_it0()")
     def get_meanfield_it0(self, simidx):
         if self.mfvar == None:
             mf0 = self.qlms_dd.get_sim_qlm_mf(self.k, self.mc_sims_mf_it0)
@@ -194,8 +195,8 @@ class QE_lr():
         return mf0
 
 
-    @log_on_start(logging.INFO, "Start of get_plm_it0()")
-    @log_on_end(logging.INFO, "Finished get_plm_it0()")
+    @log_on_start(logging.INFO, " Start of get_plm_it0()")
+    @log_on_end(logging.INFO, " Finished get_plm_it0()")
     def get_plm_it0(self, simidx):
         lib_dir_iterator = self.libdir_iterators(self.k, simidx, self.version)
         if not os.path.exists(lib_dir_iterator):
@@ -217,8 +218,8 @@ class QE_lr():
 
 
     # TODO this could be done before, inside p2d()
-    @log_on_start(logging.INFO, "Start of get_meanfield_response_it0()")
-    @log_on_end(logging.INFO, "Finished get_meanfield_response_it0()")
+    @log_on_start(logging.INFO, " Start of get_meanfield_response_it0()")
+    @log_on_end(logging.INFO, " Finished get_meanfield_response_it0()")
     def get_meanfield_response_it0(self):
         if self.k in ['p_p'] and not 'noRespMF' in self.version :
             mf_resp = qresp.get_mf_resp(self.k, self.cls_unl, {'ee': self.fel_unl, 'bb': self.fbl_unl}, self.lmax_ivf, self.lmax_qlm)[0]
@@ -243,9 +244,10 @@ class MAP_lr():
         self.ith = iteration_handler.transformer(self.iterator_typ)
 
 
-    @log_on_start(logging.INFO, "Start of collect_jobs()")
-    @log_on_end(logging.INFO, "Finished collect_jobs()")
+    @log_on_start(logging.INFO, " Start of collect_jobs()")
+    @log_on_end(logging.INFO, " Finished collect_jobs()")
     def collect_jobs(self):
+        mpi.rank == 0
         jobs = list(range(len(self.tasks)))
         for taski, task in enumerate(self.tasks):
             _jobs = []
@@ -272,8 +274,8 @@ class MAP_lr():
         self.jobs = jobs
 
 
-    @log_on_start(logging.INFO, "Start of run()")
-    @log_on_end(logging.INFO, "Finished run()")
+    @log_on_start(logging.INFO, " Start of run()")
+    @log_on_end(logging.INFO, " Finished run()")
     def run(self):
         for taski, task in enumerate(self.tasks):
             log.info('{}, task {} started'.format(mpi.rank, task))
@@ -319,15 +321,15 @@ class MAP_lr():
                             log.info('{}, simidx {} done with iteration {}'.format(mpi.rank, idx, i))
 
 
-    @log_on_start(logging.INFO, "Start of init_ith()")
-    @log_on_end(logging.INFO, "Finished init_ith()")
+    @log_on_start(logging.INFO, " Start of init_ith()")
+    @log_on_end(logging.INFO, " Finished init_ith()")
     def get_ith_sim(self, simidx):
         
         return self.ith(self.qe, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
 
 
-    @log_on_start(logging.INFO, "Start of get_plm_it()")
-    @log_on_end(logging.INFO, "Finished get_plm_it()")
+    @log_on_start(logging.INFO, " Start of get_plm_it()")
+    @log_on_end(logging.INFO, " Finished get_plm_it()")
     def get_plm_it(self, simidx, iterations):
 
         plms = rec.load_plms(self.libdir_iterators(self.k, simidx, self.version), iterations)
@@ -335,18 +337,17 @@ class MAP_lr():
         return plms
 
 
-    @log_on_start(logging.INFO, "Start of get_meanfield_it()")
-    @log_on_end(logging.INFO, "Finished get_meanfield_it()")
+    @log_on_start(logging.INFO, " Start of get_meanfield_it()")
+    @log_on_end(logging.INFO, " Finished get_meanfield_it()")
     def get_meanfield_it(self, iteration, calc=False):
         fn = opj(self.TEMP, 'mf', 'mf_it%03d.npy'%(iteration))
         if not calc:
             if os.path.isfile(fn):
                 mf = np.load(fn)
             else:
-                self.get_meanfield_it(self, iteration, calc=True)
+                mf = self.get_meanfield_it(self, iteration, calc=True)
         else:
             plm = rec.load_plms(self.libdir_iterators(self.k, 0, self.version), [0])[-1]
-            
             mf = np.zeros_like(plm)
             for simidx in range(self.imin, self.imax):
                 log.info(" iteration {}: simulation {}/{} done".format(iteration, simidx, self.imax-self.imin))
@@ -356,8 +357,8 @@ class MAP_lr():
         return mf
 
 
-    @log_on_start(logging.INFO, "Start of get_meanfields_it()")
-    @log_on_end(logging.INFO, "Finished get_meanfields_it()")
+    @log_on_start(logging.INFO, " Start of get_meanfields_it()")
+    @log_on_end(logging.INFO, " Finished get_meanfields_it()")
     def get_meanfields_it(self, iterations, calc=False):
         plm = rec.load_plms(self.libdir_iterators(self.k, 0, self.version), [0])[-1]
         mfs = np.zeros(shape=(len(iterations),*plm.shape), dtype=np.complex128)
@@ -369,26 +370,6 @@ class MAP_lr():
             mfs[iti] = self.get_meanfield_it(it, calc=False)
 
         return mfs
-
-
-class Inspector():
-    def __init__(self, qe, model):
-
-        assert 0, "Implement if needed"
-
-
-    @log_on_start(logging.INFO, "Start of collect_jobs()")
-    @log_on_end(logging.INFO, "Finished collect_jobs(): {self.jobs}")
-    def collect_jobs(self):
-
-        assert 0, "Implement if needed"
-
-
-    @log_on_start(logging.INFO, "Start of run()")
-    @log_on_end(logging.INFO, "Finished run()")
-    def run(self):
-
-        assert 0, "Implement if needed"
 
 
 class Map_delenser():
@@ -406,8 +387,8 @@ class Map_delenser():
         self.lib = dict()
 
 
-    # @log_on_start(logging.INFO, "Start of getfn_blm_lensc()")
-    # @log_on_end(logging.INFO, "Finished getfn_blm_lensc()")
+    # @log_on_start(logging.INFO, " Start of getfn_blm_lensc()")
+    # @log_on_end(logging.INFO, " Finished getfn_blm_lensc()")
     def getfn_blm_lensc(self, simidx, it):
         '''Lenscarf output using Catherinas E and B maps'''
         # TODO this needs cleaner implementation
@@ -424,14 +405,17 @@ class Map_delenser():
                 return '/global/cscratch1/sd/sebibel/cmbs4/s08b/cILC2021_%s_lmax4000/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20/ffi_p_it0/blm_%04d_it0.npy'%(self.fg, simidx, simidx)    
         else:
             # TODO this belongs via config to p2d
+            # TODO only QE it 0 doesn't exists because no modification is done to it. catching this. Can this be done better?
+            if it == 0:
+                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(it, it)
             if self.dlm_mod_bool:
                 return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024_dlmmod.npy'%(it, it)
             else:
                 return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(it, it)
 
             
-    # @log_on_start(logging.INFO, "Start of getfn_qumap_cs()")
-    # @log_on_end(logging.INFO, "Finished getfn_qumap_cs()")
+    # @log_on_start(logging.INFO, " Start of getfn_qumap_cs()")
+    # @log_on_end(logging.INFO, " Finished getfn_qumap_cs()")
     def getfn_qumap_cs(self, simidx):
 
         '''Component separated polarisation maps lm, i.e. lenscarf input'''
@@ -439,8 +423,8 @@ class Map_delenser():
         return self.sims.get_sim_pmap(simidx)
 
 
-    # @log_on_start(logging.INFO, "Start of getfn_qumap_cs()")
-    # @log_on_end(logging.INFO, "Finished getfn_qumap_cs()")
+    # @log_on_start(logging.INFO, " Start of getfn_qumap_cs()")
+    # @log_on_end(logging.INFO, " Finished getfn_qumap_cs()")
     def get_B_wf(self, simidx):
         '''Component separated polarisation maps lm, i.e. lenscarf input'''
         # TODO this is a quickfix and works only for already existing bwflm's for 08bb
@@ -452,9 +436,11 @@ class Map_delenser():
             assert 0, "File {} doesn't exist".format(bw_fn)
 
 
-    @log_on_start(logging.INFO, "Start of collect_jobs()")
-    @log_on_end(logging.INFO, "Finished collect_jobs(): {self.jobs}")
+    @log_on_start(logging.INFO, " Start of collect_jobs()")
+    @log_on_end(logging.INFO, " Finished collect_jobs(): {self.jobs}")
     def collect_jobs(self):
+        # TODO perhaps trigger calc of B-templates here, if needed
+        mpi.rank == 0
         jobs = []
         for idx in np.arange(self.imin, self.imax + 1):
             # Overwriting test
@@ -463,15 +449,13 @@ class Map_delenser():
             else:
                 if idx not in self.droplist:
                     lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
-                    log.info(lib_dir_iterator)
-                    log.info(rec.maxiterdone(lib_dir_iterator))
                     if rec.maxiterdone(lib_dir_iterator) >= self.iterations[-1]:
                         jobs.append(idx)
         self.jobs = jobs
 
 
-    @log_on_start(logging.INFO, "Start of run()")
-    @log_on_end(logging.INFO, "Finished run()")
+    @log_on_start(logging.INFO, " Start of run()")
+    @log_on_end(logging.INFO, " Finished run()")
     def run(self):
         if self.jobs != []:
             for edgesi, edges in enumerate(self.edges):
@@ -519,3 +503,23 @@ class Map_delenser():
                             outputdata[1][2+iti][nlevi] = bcl_cslensc_MAP      
             
                     np.save(_file_op, outputdata)
+
+
+class Inspector():
+    def __init__(self, qe, model):
+
+        assert 0, "Implement if needed"
+
+
+    @log_on_start(logging.INFO, " Start of collect_jobs()")
+    @log_on_end(logging.INFO, " Finished collect_jobs(): {self.jobs}")
+    def collect_jobs(self):
+
+        assert 0, "Implement if needed"
+
+
+    @log_on_start(logging.INFO, " Start of run()")
+    @log_on_end(logging.INFO, " Finished run()")
+    def run(self):
+
+        assert 0, "Implement if needed"
