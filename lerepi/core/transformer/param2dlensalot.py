@@ -358,7 +358,7 @@ class p2lensrec_Transformer:
         _process_iterationparams(dl, cf.iteration)
         _process_stepperparams(dl, cf.stepper)
 
-        dl.tasks = cf.iteration.tasks # ["calc_phi", "calc_meanfield", "calc_btemplate"]
+        dl.tasks = cf.iteration.tasks
         if "calc_meanfield" in dl.tasks:
             if not os.path.isdir(opj(dl.TEMP, 'mf')):
                 os.makedirs(opj(dl.TEMP, 'mf'))
@@ -671,8 +671,8 @@ class p2lensrec_Transformer:
 class p2OBD_Transformer:
     """Extracts all parameters needed for building consistent OBD
     """
-    @log_on_start(logging.INFO, "Start of get_nlrh_map()")
-    @log_on_end(logging.INFO, "Finished get_nlrh_map()")
+    # @log_on_start(logging.INFO, "Start of get_nlrh_map()")
+    # @log_on_end(logging.INFO, "Finished get_nlrh_map()")
     def get_nlrh_map(cf):
         noisemodel_rhits_map = df.get_nlev_mask(cf.noisemodel.rhits_normalised[1], hp.read_map(cf.noisemodel.rhits_normalised[0]))
         noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.noisemodel.inf
