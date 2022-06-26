@@ -19,7 +19,7 @@ class lerepi_parser():
 
     def __init__(self):
         __argparser = argparse.ArgumentParser(description='Lerepi main entry point')
-        __argparser.add_argument('-p', dest='config_file', type=str, default='cmbs4/c08d.py', help='Config file which defines all variables needed for delensing')
+        __argparser.add_argument('-p', dest='config_file', type=str, default='', help='Config file which defines all variables needed for delensing')
         __argparser.add_argument('-r', dest='resume', type=str, default='', help='Abolsute path to config file to resume')
         self.parser = __argparser.parse_args()
 

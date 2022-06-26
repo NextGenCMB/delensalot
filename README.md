@@ -28,6 +28,18 @@ Documentation may be found [HERE]
 
 # Usage
 
+Type `run.py [-h]`,
+```
+usage: run.py [-h] [-p CONFIG_FILE] [-r RESUME]
+
+Lerepi main entry point
+
+optional arguments:
+  -h, --help      show this help message and exit
+  -p CONFIG_FILE  Config file which defines all variables needed for delensing
+  -r RESUME       Abolsute path to config file to resume
+```
+
 simply type in your favourite `bash`,
 
 ```
