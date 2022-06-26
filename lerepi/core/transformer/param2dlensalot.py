@@ -13,7 +13,6 @@ import traceback
 import logging
 log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
-
 import numpy as np
 import healpy as hp
 import hashlib
@@ -649,7 +648,7 @@ class p2lensrec_Transformer:
 
         dl = DLENSALOT_Concept()
 
-        dl.tasks = cf.iteration.tasks
+        dl.tasks = cf.itrec.tasks
         _process_Analysis(dl, cf.analysis)
         _process_Data(dl, cf.data)
         _process_Noisemodel(dl, cf.noisemodel)
@@ -828,10 +827,10 @@ class p2d_Transformer:
             dl.k = cf.iteration.K
             dl.version = cf.iteration.V
             dl.edges = []
+            if 'cmbs4' in de.edges:
+                dl.edges.append(cmbs4_edges)
             if 'ioreco' in de.edges:
                 dl.edges.append(ioreco_edges)
-            if 'cmbs4' in de.edges:
-                dl.edges.append(cmbs4_edges) 
             elif 'fs' in de.edges:
                 dl.edges.append(fs_edges) 
             dl.imin = de.IMIN
@@ -891,12 +890,12 @@ class p2d_Transformer:
                 dl.file_op = lambda idx, fg, edges_idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edges_idx]) + '/ClBBwf_sim%04d_fg%s_res2b3acm.npy'%(idx, fg)
         dl = DLENSALOT_Concept()
         _process_delensingparams(dl, cf.map_delensing)
-            
+        
         return dl
 
 
-    @log_on_start(logging.INFO, "Start of build()")
-    @log_on_end(logging.INFO, "Finished build()")
+    @log_on_start(logging.INFO, "Start of build_v2()")
+    @log_on_end(logging.INFO, "Finished build_v2()")
     def build_v2(self, cf):
         # TODO make this an option for the user
         fs_edges = np.arange(2, 3000, 20)
@@ -906,10 +905,10 @@ class p2d_Transformer:
             dl.k = cf.analysis.K
             dl.version = cf.analysis.V
             dl.edges = []
-            if 'ioreco' in ma.edges:
-                dl.edges.append(ioreco_edges)
             if 'cmbs4' in ma.edges:
-                dl.edges.append(cmbs4_edges) 
+                dl.edges.append(cmbs4_edges)
+            if 'ioreco' in ma.edges:
+                dl.edges.append(ioreco_edges) 
             elif 'fs' in ma.edges:
                 dl.edges.append(fs_edges)
             dl.imin = cf.data.IMIN
@@ -963,8 +962,9 @@ class p2d_Transformer:
                 dl.sha_edges[n].update(str(dl.edges[n]).encode())
             dl.dirid = [dl.sha_edges[n].hexdigest()[:4] for n in range(len(dl.edges))]
             dl.TEMP_DELENSED_SPECTRUM = transform(dl, p2T_Transformer())
-            if not(os.path.isdir(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid))):
-                os.makedirs(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid))
+            for dir_id in dl.dirid:
+                if not(os.path.isdir(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dir_id))):
+                    os.makedirs(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dir_id))
             # TODO don't like this too much
             # TODO fn needs changing
             if dl.dlm_mod_bool:

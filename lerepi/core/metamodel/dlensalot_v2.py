@@ -39,7 +39,6 @@ class DLENSALOT_Job(DLENSALOT_Concept):
     """
     QE_lensrec = attr.ib(default=-1)
     MAP_lensrec = attr.ib(default=-1)
-    Btemplate_per_iteration = attr.ib(default=-1)
     inspect_result = attr.ib(default=-1)
     map_delensing = attr.ib(default=-1)
     build_OBD = attr.ib(default=-1)
@@ -144,6 +143,7 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     """
     FILTER = attr.ib(default=-1)
     TOL = attr.ib(default=-1)
+    tasks = attr.ib(default=-1)
     lenjob_geometry = attr.ib(default=-1)
     lenjob_pbgeometry = attr.ib(default=-1)
     iterator_typ = attr.ib(default=-1)
@@ -151,6 +151,8 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     soltn_cond = attr.ib(default=-1)
     stepper = attr.ib(default=-1)
     overwrite_itdir = attr.ib(default=-1)
+    tasks = attr.ib(default=-1)
+    dlm_mod = attr.ib(default=-1)
 
 
 @attr.s
@@ -163,6 +165,7 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
     edges = attr.ib(default=-1)
     IMIN = attr.ib(default=-1)
     IMAX = attr.ib(default=-1)
+    dlm_mod = attr.ib(default=-1)
     iterations = attr.ib(default=-1)
     droplist = attr.ib(default=-1)
     base_mask = attr.ib(default=-1)

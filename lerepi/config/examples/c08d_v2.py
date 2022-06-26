@@ -8,7 +8,6 @@ dlensalot_model = DLENSALOT_Model(
         build_OBD = False,
         QE_lensrec = False,
         MAP_lensrec = True,
-        Btemplate_per_iteration = True,
         map_delensing = True,
         inspect_result = False,
         OMP_NUM_THREADS = 16
@@ -84,6 +83,7 @@ dlensalot_model = DLENSALOT_Model(
     ),
     itrec = DLENSALOT_Itrec(
         FILTER = 'opfilt_ee_wl.alm_filter_ninv_wl',
+        tasks = ["calc_phi", "calc_btemplate"], #["calc_phi", "calc_meanfield", "calc_btemplate"],
         TOL = 5e-5,
         lenjob_geometry = 'thin_gauss',
         lenjob_pbgeometry = 'pbdGeometry',
@@ -97,7 +97,8 @@ dlensalot_model = DLENSALOT_Model(
         )
     ),
     madel = DLENSALOT_Mapdelensing(
-        edges = 'cmbs4',
+        edges = ['cmbs4', 'ioreco'],
+        dlm_mod = False,
         iterations = [8,10],
         droplist = np.array([]),
         nlevels = [1.2, 2, 10, 50],

@@ -33,22 +33,22 @@ class handler():
             self.store(parser, self.paramfile, TEMP)
 
 
-    @log_on_start(logging.INFO, "Start of collect_jobs()")
-    @log_on_end(logging.INFO, "Finished collect_jobs()")
+    @log_on_start(logging.INFO, "collect_jobs() Started")
+    @log_on_end(logging.INFO, "collect_jobs() Finished")
     def collect_jobs(self):
         # TODO this could be the level for _process_Job
         self.jobs = transform(self.paramfile.dlensalot_model, p2j_Transformer())
 
 
-    @log_on_start(logging.INFO, "Start of get_jobs()")
-    @log_on_end(logging.INFO, "Finished get_jobs()")
+    @log_on_start(logging.INFO, "get_jobs() Started")
+    @log_on_end(logging.INFO, "get_jobs() Finished")
     def get_jobs(self):
 
         return self.jobs
 
 
-    @log_on_start(logging.INFO, "Start of init_job()")
-    @log_on_end(logging.INFO, "Finished init_job()")
+    @log_on_start(logging.INFO, "collect_jobs() Started")
+    @log_on_end(logging.INFO, "init_job() Finished")
     def init_job(self, job):
         log.info('transform started')
         model = transform(*job[0])
@@ -63,8 +63,8 @@ class handler():
         return j
 
 
-    @log_on_start(logging.INFO, "Start of run()")
-    @log_on_end(logging.INFO, "Finished run()")
+    @log_on_start(logging.INFO, "run() Started")
+    @log_on_end(logging.INFO, "run() Finished")
     def run(self):
         for transf, job in self.jobs:
             log.info("Starting job {}".format(job))
@@ -75,8 +75,8 @@ class handler():
             j.run()
 
 
-    @log_on_start(logging.INFO, "Start of store()")
-    @log_on_end(logging.INFO, "Finished store()")
+    @log_on_start(logging.INFO, "store() Started")
+    @log_on_end(logging.INFO, "store() Finished")
     def store(self, parser, paramfile, TEMP):
         """ Store the dlensalot_model as parameterfile in TEMP, to use if run resumed
 
@@ -118,8 +118,8 @@ class handler():
                 logging.info('Matching parameterfile found. Resuming where I left off.')
 
 
-    @log_on_start(logging.INFO, "Start of load_paramfile()")
-    @log_on_end(logging.INFO, "Finished load_paramfile()")
+    @log_on_start(logging.INFO, "load_paramfile() Started")
+    @log_on_end(logging.INFO, "load_paramfile() Finished")
     def load_paramfile(directory, descriptor):
         """Load parameterfile
 
