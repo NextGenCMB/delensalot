@@ -12,11 +12,9 @@ python setup.py install
 For this to work, an older gnu compiler, `gcc 7` is currently needed, as a newer version is more restrictive to type checking.
 
 
-## Doc
-Documentation may be found [HERE]
+# Usage
 
-
-Type `run.py [-h]`,
+Type `run.py [-h]` for quickhelp,
 ```
 usage: run.py [-h] [-p CONFIG_FILE] [-r RESUME]
 
@@ -28,11 +26,14 @@ optional arguments:
   -r RESUME       Abolsute path to config file to resume
 ```
 
-simply type in your favourite `bash`,
+
+To run a configutation file `<path-to-config>`, type in your favourite `bash`,
 ```
 python3 run.py -p <path-to-config>
 ```
-where, `<path-to-config>` is a relative path, pointing to a config file in config/, e.g.
+`<path-to-config>` is a relative path, pointing to a config file in `lenscarf/lerepi/config/`.
+
+For example,
 ```
 python3 run.py -p examples/example_c08b.py
 ```
@@ -60,3 +61,6 @@ module load python
  based on
   * [Scarf](https://github.com/samuelsimko/scarf)
   * [Plancklens](https://github.com/carronj/plancklens)
+
+## Doc
+Documentation may be found [HERE]

@@ -11,7 +11,6 @@ dlensalot_model = DLENSALOT_Model(
         build_OBD = False,
         QE_lensrec = False,
         MAP_lensrec = True,
-        Btemplate_per_iteration = True,
         map_delensing = True,
         inspect_result = False,
         OMP_NUM_THREADS = 16

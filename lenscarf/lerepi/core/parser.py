@@ -28,6 +28,7 @@ class lerepi_parser():
     def validate(self):
         _f = []
         module_path = os.path.dirname(lerepi.__file__)
+        print(module_path)
         for (dirpath, dirnames, filenames) in walk(module_path+'/config/'):
             _f.extend(filenames)
             break
