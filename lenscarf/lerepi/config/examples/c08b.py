@@ -33,6 +33,8 @@ dlensalot_model = DLENSALOT_Model(
         Lmin = 4, 
         CG_TOL = 1e-3,
         TOL = 3,
+        tasks = ["calc_phi", "calc_meanfield", "calc_btemplate"], #["calc_phi", "calc_meanfield", "calc_btemplate"],
+        dlm_mod = False,
         soltn_cond = lambda it: True,
         lmax_filt = 4000,
         lmax_qlm = 4000,
@@ -80,7 +82,7 @@ dlensalot_model = DLENSALOT_Model(
         xb = 1500
     ),
     map_delensing = DLENSALOT_Mapdelensing(
-        edges = 'cmbs4',
+        edges = ['cmbs4'],
         IMIN = 0,
         IMAX = 99,
         ITMAX = [10,12],

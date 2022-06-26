@@ -457,6 +457,9 @@ class l2lensrec_Transformer:
             dl.imax = da.IMAX
 
             _package = da.package_
+            if da.package_.startswith('lerepi'):
+                _package = 'lenscarf.'+da.package_
+
             _module = da.module_
             _class = da.class_
             dl.dataclass_parameters = da.class_parameters
