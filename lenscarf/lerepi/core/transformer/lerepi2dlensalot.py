@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-"""param2dlensalot.py: transformer module to build dlensalot model from parameter file
+"""lerepi2dlensalot.py: transformer module to build dlensalot model from configuation file
 """
 __author__ = "S. Belkner, J. Carron, L. Legrand"
 
