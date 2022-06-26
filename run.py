@@ -14,9 +14,9 @@ from lerepi.core import handler
 
 if __name__ == '__main__':
     datefmt = "%m-%d %H:%M"
-    # FORMAT = '%(levelname)s:: %(asctime)s:: %(name)s.%(funcName)s.%(klass)s - %(message)s'
+
     FORMAT = '%(levelname)s:: %(asctime)s:: %(name)s.%(funcName)s - %(message)s'
-    # extra = {"klass": lambda: self.__class__.__name__}
+
     
     log = logging.getLogger(__name__)
     log.setLevel(logging.WARNING)
@@ -25,10 +25,13 @@ if __name__ == '__main__':
     ConsoleOutputHandler = logging.StreamHandler()
     ConsoleOutputHandler.setFormatter(formatter)
 
+    # TODO not sure how to get adapter to work to print custom keys at each log
+    # FORMAT = '%(levelname)s:: %(asctime)s:: %(name)s.%(funcName)s.%(klass)s - %(message)s'
+    # extra = {"klass": lambda: self.__class__.__name__}
     # log.addHandler(ConsoleOutputHandler)
     # adapter = logging.LoggerAdapter(ConsoleOutputHandler, extra)
 
-    logging.basicConfig(level=logging.INFO, handlers=[ConsoleOutputHandler]) # , stream=ConsoleOutputHandler
+    logging.basicConfig(level=logging.INFO, handlers=[ConsoleOutputHandler])
     logging.getLogger("healpy").disabled = True
 
     lparser = lerepi_parser()
@@ -37,7 +40,7 @@ if __name__ == '__main__':
 
     lerepi_handler = handler.handler(parser)
     lerepi_handler.collect_jobs()
-    
+
     try:
         lerepi_handler.run()
     except Exception as err:
