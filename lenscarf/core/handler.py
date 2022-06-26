@@ -18,7 +18,6 @@ import healpy as hp
 
 from plancklens import utils, qresp
 from plancklens.helpers import mpi
-mpi.rank == 0
 from plancklens.sims import planck2018_sims
 
 from MSC import pospace as ps
