@@ -116,7 +116,7 @@ class l2lensrec_Transformer:
             dl.fg = data.fg
 
             _ui = data.sims.split('/')
-            _sims_module_name = 'lerepi.config.'+_ui[0]+'.data.data_'+_ui[1]
+            _sims_module_name = 'lenscarf.lerepi.config.'+_ui[0]+'.data.data_'+_ui[1]
             _sims_class_name = _ui[-1]
             _sims_module = importlib.import_module(_sims_module_name)
             dl.sims = getattr(_sims_module, _sims_class_name)(dl.fg)

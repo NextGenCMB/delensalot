@@ -49,11 +49,11 @@ class scarf_iterator_pertmf():
         self.tr = lensing_config.tr
 
         self.qe = qe
-        self.mf_resp = qe.get_meanfield_response_it0()
-        self.wflm0 = qe.get_wflm0(self.simidx)
-        self.R_unl = qe.R_unl()
-        self.mf0 = self.qe.get_meanfield_it0(self.simidx)
-        self.plm0 = self.qe.get_plm_it0(self.simidx)
+        self.mf_resp0 = qe.get_meanfield_response()
+        self.wflm0 = qe.get_wflm(self.simidx)
+        self.R_unl0 = qe.R_unl()
+        self.mf0 = self.qe.get_meanfield_it(self.simidx)
+        self.plm0 = self.qe.get_plm_it(self.simidx)
 
         self.ffi = remapping.deflection(self.lenjob_pbgeometry, self.lensres, np.zeros_like(self.plm0),
             self.mmax_qlm, self.tr, self.tr)
@@ -103,8 +103,8 @@ class scarf_iterator_pertmf():
             _type_: _description_
         """
         iterator = cs_iterator.iterator_pertmf(
-            self.libdir_iterator, 'p', (self.lmax_qlm, self.mmax_qlm), self.datmaps, self.plm0, self.mf_resp,
-            self.R_unl, self.cpp, self.cls_unl, self.filter, self.k_geom, self.chain_descr,
+            self.libdir_iterator, 'p', (self.lmax_qlm, self.mmax_qlm), self.datmaps, self.plm0, self.mf_resp0,
+            self.R_unl0, self.cpp, self.cls_unl, self.filter, self.k_geom, self.chain_descr,
             self.stepper, mf0=self.mf0, wflm0=self.wflm0)
         
         return iterator
@@ -133,11 +133,11 @@ class scarf_iterator_constmf():
         self.tpl = lensing_config.tpl(**lensing_config.tpl_kwargs)
         self.tr = lensing_config.tr 
         self.qe = qe
-        self.mf_resp = qe.get_meanfield_response_it0()
-        self.wflm0 = qe.get_wflm0(self.simidx)
-        self.R_unl = qe.R_unl()
-        self.mf0 = self.qe.get_meanfield_it0(self.simidx)
-        self.plm0 = self.qe.get_plm_it0(self.simidx)
+        self.mf_resp0 = qe.get_meanfield_response()
+        self.wflm0 = qe.get_wflm(self.simidx)
+        self.R_unl0 = qe.R_unl()
+        self.mf0 = self.qe.get_meanfield_it(self.simidx)
+        self.plm0 = self.qe.get_plm_it(self.simidx)
 
         self.ffi = remapping.deflection(self.lenjob_pbgeometry, self.lensres, np.zeros_like(self.plm0),
             self.mmax_qlm, self.tr, self.tr)
@@ -186,7 +186,7 @@ class scarf_iterator_constmf():
         """
         iterator = cs_iterator.iterator_cstmf(
             self.libdir_iterator, 'p', (self.lmax_qlm, self.mmax_qlm), self.datmaps, self.plm0, self.mf0,
-            self.R_unl, self.cpp, self.cls_unl, self.filter, self.k_geom, self.chain_descr,
+            self.R_unl0, self.cpp, self.cls_unl, self.filter, self.k_geom, self.chain_descr,
             self.stepper, wflm0=self.wflm0)
         
         return iterator

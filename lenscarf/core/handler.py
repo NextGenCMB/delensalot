@@ -189,11 +189,11 @@ class QE_lr():
     def get_meanfield(self, simidx):
         if self.mfvar == None:
             mf = self.qlms_dd.get_sim_qlm_mf(self.k, self.mc_sims_mf)
-            if simidx in self.mc_sims_mf:
-                Nmf = np.arange(self.nsims_mf)
-                mf = (mf - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / Nmf) * (Nmf / (Nmf - 1))
         else:
             mf = hp.read_alm(self.mfvar)
+        if simidx in self.mc_sims_mf:
+            Nmf = np.arange(self.nsims_mf)
+            mf = (mf - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / Nmf) * (Nmf / (Nmf - 1))
 
         return mf
 
@@ -319,13 +319,13 @@ class MAP_lr():
                     if self.itmax >= 0 and rec.maxiterdone(lib_dir_iterator) < self.itmax:
                         itlib = self.ith(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
                         itlib_iterator = itlib.get_iterator()
-                        for i in range(self.itmax + 1):
-                            log.info("****Iterator: setting cg-tol to %.4e ****"%self.tol_iter(i))
-                            log.info("****Iterator: setting solcond to %s ****"%self.soltn_cond(i))
-                            itlib_iterator.chain_descr  = self.chain_descr(self.lmax_unl, self.tol_iter(i))
-                            itlib_iterator.soltn_cond = self.soltn_cond(i)
-                            itlib_iterator.iterate(i, 'p')
-                            log.info('{}, simidx {} done with iteration {}'.format(mpi.rank, idx, i))
+                        for it in range(self.itmax + 1):
+                            log.info("****Iterator: setting cg-tol to %.4e ****"%self.tol_iter(it))
+                            log.info("****Iterator: setting solcond to %s ****"%self.soltn_cond(it))
+                            itlib_iterator.chain_descr  = self.chain_descr(self.lmax_unl, self.tol_iter(it))
+                            itlib_iterator.soltn_cond = self.soltn_cond(it)
+                            itlib_iterator.iterate(it, 'p')
+                            log.info('{}, simidx {} done with it {}'.format(mpi.rank, idx, it))
 
 
     @log_on_start(logging.INFO, "get_ith_sim() started")
@@ -337,43 +337,43 @@ class MAP_lr():
 
     @log_on_start(logging.INFO, "get_plm_it() started")
     @log_on_end(logging.INFO, "get_plm_it() finished")
-    def get_plm_it(self, simidx, iterations):
+    def get_plm_it(self, simidx, its):
 
-        plms = rec.load_plms(self.libdir_iterators(self.k, simidx, self.version), iterations)
+        plms = rec.load_plms(self.libdir_iterators(self.k, simidx, self.version), its)
 
         return plms
 
 
-    @log_on_start(logging.INFO, "get_meanfield_it() started")
-    @log_on_end(logging.INFO, "get_meanfield_it() finished")
-    def get_meanfield_it(self, iteration, calc=False):
-        fn = opj(self.TEMP, 'mf', 'mf_it%03d.npy'%(iteration))
+    @log_on_start(logging.INFO, "get_meanfield_it() started: it={it}")
+    @log_on_end(logging.INFO, "get_meanfield_it() finished: it={it}")
+    def get_meanfield_it(self, it, calc=False):
+        fn = opj(self.TEMP, 'mf', 'mf_it%03d.npy'%(it))
         if not calc:
             if os.path.isfile(fn):
                 mf = np.load(fn)
             else:
-                mf = self.get_meanfield_it(self, iteration, calc=True)
+                mf = self.get_meanfield_it(self, it, calc=True)
         else:
             plm = rec.load_plms(self.libdir_iterators(self.k, 0, self.version), [0])[-1]
             mf = np.zeros_like(plm)
-            for simidx in range(self.imin, self.imax):
-                log.info(" finished it {}: sim {}/{} done".format(iteration, simidx, self.imax - self.imin+1))
-                mf += rec.load_plms(self.libdir_iterators(self.k, simidx, self.version), [iteration])[-1]
-                np.save(fn, mf/(self.imax - self.imin +1))
+            for simidx in range(self.imin, self.imax + 1):
+                log.info("it {:02d}: adding sim {:03d}/{}".format(it, simidx, self.imax - self.imin + 1))
+                mf += rec.load_plms(self.libdir_iterators(self.k, simidx, self.version), [it])[-1]
+                np.save(fn, mf/(self.imax - self.imin + 1))
 
         return mf
 
 
     @log_on_start(logging.INFO, "get_meanfields_it() started")
     @log_on_end(logging.INFO, "get_meanfields_it() finished")
-    def get_meanfields_it(self, iterations, calc=False):
+    def get_meanfields_it(self, its, calc=False):
         plm = rec.load_plms(self.libdir_iterators(self.k, 0, self.version), [0])[-1]
-        mfs = np.zeros(shape=(len(iterations),*plm.shape), dtype=np.complex128)
+        mfs = np.zeros(shape=(len(its),*plm.shape), dtype=np.complex128)
         if calc==True:
-            for iti, it in enumerate(iterations[mpi.rank::mpi.size]):
+            for iti, it in enumerate(its[mpi.rank::mpi.size]):
                 mfs[iti] = self.get_meanfield_it(it, calc=calc)
             mpi.barrier()
-        for iti, it in enumerate(iterations[mpi.rank::mpi.size]):
+        for iti, it in enumerate(its[mpi.rank::mpi.size]):
             mfs[iti] = self.get_meanfield_it(it, calc=False)
 
         return mfs
@@ -456,7 +456,7 @@ class Map_delenser():
             else:
                 if idx not in self.droplist:
                     lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
-                    if rec.maxiterdone(lib_dir_iterator) >= self.iterations[-1]:
+                    if rec.maxiterdone(lib_dir_iterator) >= self.its[-1]:
                         jobs.append(idx)
         self.jobs = jobs
 
@@ -466,7 +466,7 @@ class Map_delenser():
     def run(self):
         if self.jobs != []:
             for edgesi, edges in enumerate(self.edges):
-                outputdata = np.zeros(shape=(2, 2+len(self.iterations), len(self.nlevels), len(edges)-1))
+                outputdata = np.zeros(shape=(2, 2+len(self.its), len(self.nlevels), len(edges)-1))
                 for nlev in self.nlevels:
                     self.lib.update({nlev: ps.map2cl_binned(self.nlev_mask[nlev], self.clc_templ[:self.lmax_lib], edges, self.lmax_lib)})
 
@@ -482,10 +482,10 @@ class Map_delenser():
                     bmap_lensc_QE_buff = hp.alm2map(blm_lensc_QE_buff, nside=self.nside)
 
                     if self.getfn_blm_lensc(idx, 0).endswith('npy'):
-                        blm_lensc_MAP_buff = np.array([np.load(self.getfn_blm_lensc(idx, it)) for it in self.iterations])
+                        blm_lensc_MAP_buff = np.array([np.load(self.getfn_blm_lensc(idx, it)) for it in self.its])
                     else:
-                        blm_lensc_MAP_buff = np.array([hp.read_alm(self.getfn_blm_lensc(idx, it)) for it in self.iterations])
-                    bmap_lensc_MAP_buff = np.array([hp.alm2map(blm_lensc_MAP_buff[iti], nside=self.nside) for iti in range(len(self.iterations))])
+                        blm_lensc_MAP_buff = np.array([hp.read_alm(self.getfn_blm_lensc(idx, it)) for it in self.its])
+                    bmap_lensc_MAP_buff = np.array([hp.alm2map(blm_lensc_MAP_buff[iti], nside=self.nside) for iti in range(len(self.its))])
                     for nlevi, nlev in enumerate(self.nlevels):
                         bcl_cs = self.lib[nlev].map2cl(bmap_cs_buff)
                         # TODO fiducial choice should happen at transformer
@@ -502,7 +502,7 @@ class Map_delenser():
                         outputdata[0][1][nlevi] = bcl_Llensc_QE
                         outputdata[1][1][nlevi] = bcl_cslensc_QE
 
-                        for iti, it in enumerate(self.iterations):
+                        for iti, it in enumerate(self.its):
                             bcl_Llensc_MAP = self.lib[nlev].map2cl(bmap_L_buff-bmap_lensc_MAP_buff[iti])    
                             bcl_cslensc_MAP = self.lib[nlev].map2cl(bmap_cs_buff-bmap_lensc_MAP_buff[iti])
 
