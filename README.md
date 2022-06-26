@@ -39,7 +39,7 @@ where, `<path-to-config>` is a relative path, pointing to a config file in confi
 python3 run.py -p examples/example_c08b.py
 ```
 
-runs the example configuration for `c08b`
+runs the example configuration for `c08b`. See [lenscarf/lerepi/README](https://github.com/NextGenCMB/lenscarf/blob/f/mergelerepi/lenscarf/lerepi/README.rst) for a description of the configuation parameters
 
 
 ## Use on NERSC

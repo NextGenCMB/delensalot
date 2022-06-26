@@ -27,7 +27,7 @@ A complete Dlensalot config file includes,
 
 
 
-* There is a predefined list of Jobs from which the user can choose, which are chosen via `True` or `False`,
+* There is a predefined list of Jobs from which the user can choose, which are chosen via ``<boolean choice>`` = ``True`` or ``False``,
     * build_OBD = <boolean choice>,
     * QE_lensrec = <boolean choice>,
     * MAP_lensrec = <boolean choice>,
