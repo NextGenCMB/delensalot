@@ -20,24 +20,24 @@ log.setLevel(logging.INFO)
 
 from plancklens.helpers import mpi
 
-from lerepi.core.visitor import transform
-from lerepi.core.transformer.param2dlensalot import p2j_Transformer, p2T_Transformer, transform
+from lenscarf.lerepi.core.visitor import transform
+from lenscarf.lerepi.core.transformer.lerepi2dlensalot import l2j_Transformer, l2T_Transformer, transform
 
 
 class handler():
 
     def __init__(self, parser):
-        self.paramfile = handler.load_paramfile(parser.config_file, 'paramfile')
-        TEMP = transform(self.paramfile.dlensalot_model, p2T_Transformer())
+        self.configfile = handler.load_configfile(parser.config_file, 'configfile')
+        TEMP = transform(self.configfile.dlensalot_model, l2T_Transformer())
         if mpi.rank == 0:
-            self.store(parser, self.paramfile, TEMP)
+            self.store(parser, self.configfile, TEMP)
 
 
     @log_on_start(logging.INFO, "collect_jobs() Started")
     @log_on_end(logging.INFO, "collect_jobs() Finished")
     def collect_jobs(self):
         # TODO this could be the level for _process_Job
-        self.jobs = transform(self.paramfile.dlensalot_model, p2j_Transformer())
+        self.jobs = transform(self.configfile.dlensalot_model, l2j_Transformer())
 
 
     @log_on_start(logging.INFO, "get_jobs() Started")
@@ -77,12 +77,12 @@ class handler():
 
     @log_on_start(logging.INFO, "store() Started")
     @log_on_end(logging.INFO, "store() Finished")
-    def store(self, parser, paramfile, TEMP):
-        """ Store the dlensalot_model as parameterfile in TEMP, to use if run resumed
+    def store(self, parser, configfile, TEMP):
+        """ Store the dlensalot_model as config file in TEMP, to use if run resumed
 
         Args:
             parser (_type_): _description_
-            paramfile (_type_): _description_
+            configfile (_type_): _description_
             TEMP (_type_): _description_
         """
         dostore = False
@@ -93,35 +93,35 @@ class handler():
                 # if the file already exists, check if something changed
                 if os.path.isfile(TEMP+'/'+parser.config_file.split('/')[-1]):
                     dostore = False
-                    logging.warning('Param file {} already exist. Checking differences.'.format(TEMP+'/'+parser.config_file.split('/')[-1]))
-                    paramfile_old = handler.load_paramfile(TEMP+'/'+parser.config_file.split('/')[-1], 'paramfile_old')   
-                    for key, val in paramfile_old.dlensalot_model.__dict__.items():
+                    logging.warning('config file {} already exist. Checking differences.'.format(TEMP+'/'+parser.config_file.split('/')[-1]))
+                    configfile_old = handler.load_configfile(TEMP+'/'+parser.config_file.split('/')[-1], 'configfile_old')   
+                    for key, val in configfile_old.dlensalot_model.__dict__.items():
                         for k, v in val.__dict__.items():
-                            if v.__str__() != paramfile.dlensalot_model.__dict__[key].__dict__[k].__str__():
+                            if v.__str__() != configfile.dlensalot_model.__dict__[key].__dict__[k].__str__():
                                 if callable(v):
                                     # If it's a function, we can test if bytecode is the same as a simple check won't work due to pointing to memory location
-                                    if v.__code__.co_code != paramfile.dlensalot_model.__dict__[key].__dict__[k].__code__.co_code:
-                                        logging.error("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, paramfile.dlensalot_model.__dict__[key].__dict__[k]))
+                                    if v.__code__.co_code != configfile.dlensalot_model.__dict__[key].__dict__[k].__code__.co_code:
+                                        logging.error("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
                                         logging.error('Exit. Check config file.')
                                         sys.exit()
-                    logging.info('Param file look the same. Resuming where I left off last time.')
+                    logging.info('config file look the same. Resuming where I left off last time.')
 
         if dostore:
             if mpi.rank == 0:
                 if not os.path.exists(TEMP):
                     os.makedirs(TEMP)
                 shutil.copyfile(parser.config_file, TEMP +'/'+parser.config_file.split('/')[-1])
-            logging.info('Parameterfile stored at '+ TEMP +'/'+parser.config_file.split('/')[-1])
+            logging.info('config file stored at '+ TEMP +'/'+parser.config_file.split('/')[-1])
         else:
             if parser.resume == '':
                 # Only give this info when not resuming
-                logging.info('Matching parameterfile found. Resuming where I left off.')
+                logging.info('Matching config file found. Resuming where I left off.')
 
 
-    @log_on_start(logging.INFO, "load_paramfile() Started")
-    @log_on_end(logging.INFO, "load_paramfile() Finished")
-    def load_paramfile(directory, descriptor):
-        """Load parameterfile
+    @log_on_start(logging.INFO, "load_configfile() Started")
+    @log_on_end(logging.INFO, "load_configfile() Finished")
+    def load_configfile(directory, descriptor):
+        """Load config file
 
         Args:
             directory (_type_): _description_
@@ -130,7 +130,7 @@ class handler():
         Returns:
             _type_: _description_
         """
-        spec = iu.spec_from_file_location('paramfile', directory)
+        spec = iu.spec_from_file_location('configfile', directory)
         p = iu.module_from_spec(spec)
         sys.modules[descriptor] = p
         spec.loader.exec_module(p)

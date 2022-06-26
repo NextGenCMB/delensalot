@@ -8,8 +8,8 @@ __author__ = "S. Belkner, J. Carron, L. Legrand"
 import logging
 import traceback
 
-from lerepi.core.parser import lerepi_parser
-from lerepi.core import handler
+from lenscarf.lerepi.core.parser import lerepi_parser
+from lenscarf.lerepi.core import handler
 
 
 if __name__ == '__main__':

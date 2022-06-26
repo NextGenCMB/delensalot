@@ -12,15 +12,15 @@ import argparse
 import os
 from os import walk
 
-import lerepi
+import lenscarf.lerepi as lerepi
 
-# TODO currently only supports config file. Add DLENSALOT_Job parameters
+# TODO currently only supports config file. Add DLENSALOT_Job configs
 class lerepi_parser():
 
     def __init__(self):
         __argparser = argparse.ArgumentParser(description='Lerepi main entry point')
-        __argparser.add_argument('-p', dest='config_file', type=str, default='cmbs4/c08d.py', help='Parameterfile which defines all variables needed for delensing')
-        __argparser.add_argument('-r', dest='resume', type=str, default='', help='Abolsute path to parameter file to resume')
+        __argparser.add_argument('-p', dest='config_file', type=str, default='cmbs4/c08d.py', help='Config file which defines all variables needed for delensing')
+        __argparser.add_argument('-r', dest='resume', type=str, default='', help='Abolsute path to config file to resume')
         self.parser = __argparser.parse_args()
 
     @log_on_start(logging.INFO, "Start of validate()")
@@ -44,7 +44,7 @@ class lerepi_parser():
                 print("resuming previous run with {}".format(paramfile_path) )
                 self.parser.config_file = paramfile_path
             else:
-                print('Cannot find parameter file to resume at {}'.format(paramfile_path))
+                print('Cannot find config file to resume at {}'.format(paramfile_path))
         elif os.path.exists(paramfile_path):
             # if new run is asked, check path
             print("New run requested with with {}".format(paramfile_path))

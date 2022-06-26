@@ -13,17 +13,17 @@ import matplotlib.gridspec as gridspec
 
 import healpy as hp
 
-import lerepi
-from lerepi.core import handler
+import lenscarf.lerepi as lerepi
+from lenscarf.lerepi.core import handler
 
 from lenscarf.utils import read_map, cli
 from lenscarf.iterators.statics import rec
 
 from component_separation.cs_util import Config
 
-from lerepi.core.visitor import transform
-from lerepi.core.transformer.param2dlensalot import p2T_Transformer, transform
-from lerepi.visalot import plot_helper as ph
+from lenscarf.lerepi.core.visitor import transform
+from lenscarf.lerepi.core.transformer.lerepi2dlensalot import l2T_Transformer, transform
+from lenscarf.lerepi.visalot import plot_helper as ph
 
 
 def load_paramfile(directory, descriptor):

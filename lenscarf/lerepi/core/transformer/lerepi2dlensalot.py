@@ -32,12 +32,12 @@ from lenscarf.utils_hp import gauss_beam
 from lenscarf.opfilt import utils_cinv_p as cinv_p_OBD
 from lenscarf.opfilt.bmodes_ninv import template_dense
 
-from lerepi.config.config_helper import data_functions as df
-from lerepi.core.visitor import transform
-from lerepi.core.metamodel.dlensalot import DLENSALOT_Concept, DLENSALOT_Model
-from lerepi.core.metamodel.dlensalot_v2 import DLENSALOT_Model as DLENSALOT_Model_v2
+from lenscarf.lerepi.config.config_helper import data_functions as df
+from lenscarf.lerepi.core.visitor import transform
+from lenscarf.lerepi.core.metamodel.dlensalot import DLENSALOT_Concept, DLENSALOT_Model
+from lenscarf.lerepi.core.metamodel.dlensalot_v2 import DLENSALOT_Model as DLENSALOT_Model_v2
 
-class p2T_Transformer:
+class l2T_Transformer:
     """Directory is built upon runtime, so accessing it here
 
     Returns:
@@ -99,7 +99,7 @@ class p2T_Transformer:
         return os.path.join(TEMP, 'OBD_matrix')
 
 
-class p2lensrec_Transformer:
+class l2lensrec_Transformer:
     """_summary_
     """
 
@@ -109,7 +109,7 @@ class p2lensrec_Transformer:
         @log_on_start(logging.INFO, "_process_dataparams() started")
         @log_on_end(logging.INFO, "_process_dataparams() finished")
         def _process_dataparams(dl, data):
-            dl.TEMP = transform(cf, p2T_Transformer())
+            dl.TEMP = transform(cf, l2T_Transformer())
             dl.nside = data.nside
             # TODO simplify the following two attributes
             dl.nsims_mf = 0 if cf.iteration.V == 'noMF' else cf.iteration.nsims_mf
@@ -122,7 +122,7 @@ class p2lensrec_Transformer:
             _sims_module = importlib.import_module(_sims_module_name)
             dl.sims = getattr(_sims_module, _sims_class_name)(dl.fg)
 
-            dl.masks = p2OBD_Transformer.get_masks(cf)
+            dl.masks = l2OBD_Transformer.get_masks(cf)
 
             dl.beam = data.beam
             dl.lmax_transf = data.lmax_transf
@@ -174,8 +174,8 @@ class p2lensrec_Transformer:
             dl.iterator_typ = iteration.iterator_typ
 
             if iteration.STANDARD_TRANSFERFUNCTION == True:
-                dl.nlev_t = p2OBD_Transformer.get_nlevt(cf)
-                dl.nlev_p = p2OBD_Transformer.get_nlevp(cf)
+                dl.nlev_t = l2OBD_Transformer.get_nlevt(cf)
+                dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
                 
                 # Fiducial model of the transfer function
                 dl.transf_tlm = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf) * (np.arange(iteration.lmax_ivf + 1) >= dl.lmin_tlm)
@@ -193,8 +193,8 @@ class p2lensrec_Transformer:
                 dl.fbl_unl =  cli(dl.cls_unl['bb'][:iteration.lmax_ivf + 1] + (dl.nlev_p / 180 / 60 * np.pi) ** 2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
 
             if iteration.FILTER == 'cinv_sepTP':
-                dl.ninv_t = p2OBD_Transformer.get_ninvt(cf)
-                dl.ninv_p = p2OBD_Transformer.get_ninvp(cf)
+                dl.ninv_t = l2OBD_Transformer.get_ninvt(cf)
+                dl.ninv_p = l2OBD_Transformer.get_ninvp(cf)
                 # TODO cinv_t and cinv_p trigger computation. Perhaps move this to the lerepi job-level. Could be done via introducing a DLENSALOT_Filter model component
                 log.info('{} starting filt_cinv.cinv_t()'.format(mpi.rank))
                 dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), iteration.lmax_ivf,dl.nside, dl.cls_len, dl.transf_tlm, dl.ninv_t,
@@ -382,7 +382,7 @@ class p2lensrec_Transformer:
         @log_on_end(logging.INFO, "_process_Analysis() finished")
         def _process_Analysis(dl, an):
             dl.temp_suffix = an.TEMP_suffix
-            dl.TEMP = transform(cf, p2T_Transformer())
+            dl.TEMP = transform(cf, l2T_Transformer())
             # TODO unclear what this actually does
             if cf.qerec.overwrite_libdir != '' and cf.qerec.overwrite_libdir != -1 and cf.qerec.overwrite_libdir != None:
                 dl.TEMP = cf.qerec.overwrite_libdir
@@ -515,11 +515,11 @@ class p2lensrec_Transformer:
                 sys.exit()
 
             dl.CENTRALNLEV_UKAMIN = nm.CENTRALNLEV_UKAMIN
-            dl.nlev_t = p2OBD_Transformer.get_nlevt(cf)
-            dl.nlev_p = p2OBD_Transformer.get_nlevp(cf)
+            dl.nlev_t = l2OBD_Transformer.get_nlevt(cf)
+            dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
             dl.nlev_dep = nm.nlev_dep
             dl.inf = nm.inf
-            dl.masks = p2OBD_Transformer.get_masks(cf)
+            dl.masks = l2OBD_Transformer.get_masks(cf)
 
             dl.rhits_normalised = nm.rhits_normalised
             
@@ -548,8 +548,8 @@ class p2lensrec_Transformer:
                 dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl.nside, zbounds=dl.zbounds)
 
             if qe.FILTER_QE == 'sepTP':
-                dl.ninv_t = p2OBD_Transformer.get_ninvt(cf)
-                dl.ninv_p = p2OBD_Transformer.get_ninvp(cf)
+                dl.ninv_t = l2OBD_Transformer.get_ninvt(cf)
+                dl.ninv_p = l2OBD_Transformer.get_ninvp(cf)
                 log.info('{} starting filt_cinv.cinv_t()'.format(mpi.rank))
                 dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), dl.lmax_ivf, dl.nside, dl.cls_len, dl.transf_tlm, dl.ninv_t,
                                 marge_monopole=True, marge_dipole=True, marge_maps=[])
@@ -611,7 +611,7 @@ class p2lensrec_Transformer:
         @log_on_start(logging.INFO, "_process_Itrec() started")
         @log_on_end(logging.INFO, "_process_Itrec() finished")
         def _process_Itrec(dl, it):
-            assert it.FILTER == 'opfilt_ee_wl.alm_filter_ninv_wl', 'Implement if needed, MAP filter needs to move to p2d'
+            assert it.FILTER == 'opfilt_ee_wl.alm_filter_ninv_wl', 'Implement if needed, MAP filter needs to move to l2d'
             dl.FILTER = it.FILTER
 
             if it.TOL < 1.:
@@ -667,7 +667,7 @@ class p2lensrec_Transformer:
         return dl
 
 
-class p2OBD_Transformer:
+class l2OBD_Transformer:
     """Extracts all parameters needed for building consistent OBD
     """
     # @log_on_start(logging.INFO, "get_nlrh_map() started")
@@ -698,8 +698,8 @@ class p2OBD_Transformer:
     @log_on_start(logging.INFO, "get_ninvt() started")
     @log_on_end(logging.INFO, "get_ninvt() finished")
     def get_ninvt(cf):
-        nlev_t = p2OBD_Transformer.get_nlevp(cf)
-        masks, noisemodel_rhits_map =  p2OBD_Transformer.get_masks(cf)
+        nlev_t = l2OBD_Transformer.get_nlevp(cf)
+        masks, noisemodel_rhits_map =  l2OBD_Transformer.get_masks(cf)
         noisemodel_norm = np.max(noisemodel_rhits_map)
         # TODO hack, needed for v1 and v2 compatibility
         if isinstance(cf, DLENSALOT_Model):
@@ -715,8 +715,8 @@ class p2OBD_Transformer:
     @log_on_start(logging.INFO, "get_ninvp() started")
     @log_on_end(logging.INFO, "get_ninvp() finished")
     def get_ninvp(cf):
-        nlev_p = p2OBD_Transformer.get_nlevp(cf)
-        masks, noisemodel_rhits_map =  p2OBD_Transformer.get_masks(cf)
+        nlev_p = l2OBD_Transformer.get_nlevp(cf)
+        masks, noisemodel_rhits_map =  l2OBD_Transformer.get_masks(cf)
         noisemodel_norm = np.max(noisemodel_rhits_map)
         # TODO hack, needed for v1 and v2 compatibility
         if isinstance(cf, DLENSALOT_Model):
@@ -734,7 +734,7 @@ class p2OBD_Transformer:
     def get_masks(cf):
         masks = []
         if cf.noisemodel.rhits_normalised is not None:
-            msk = p2OBD_Transformer.get_nlrh_map(cf)
+            msk = l2OBD_Transformer.get_nlrh_map(cf)
             masks.append(msk)
         if cf.noisemodel.mask[0] == 'nlev':
             noisemodel_rhits_map = msk.copy()
@@ -751,8 +751,8 @@ class p2OBD_Transformer:
         @log_on_start(logging.INFO, "() started")
         @log_on_end(logging.INFO, "_process_builOBDparams() finished")
         def _process_builOBDparams(dl, nm):
-            _TEMP = transform(cf, p2T_Transformer())
-            dl.TEMP = transform(_TEMP, p2T_Transformer())
+            _TEMP = transform(cf, l2T_Transformer())
+            dl.TEMP = transform(_TEMP, l2T_Transformer())
             if os.path.isfile(opj(nm.BMARG_LIBDIR,'tniti.npy')):
                 # TODO need to test if it is the right tniti.npy
                 log.warning("tniti.npy in destination dir {} already exists.".format(nm.BMARG_LIBDIR))
@@ -767,9 +767,9 @@ class p2OBD_Transformer:
                 dl.nlev_dep = nm.nlev_dep
                 dl.CENTRALNLEV_UKAMIN = nm.CENTRALNLEV_UKAMIN
                 dl.geom = utils_scarf.Geom.get_healpix_geometry(dl.nside)
-                dl.masks, dl.rhits_map = p2OBD_Transformer.get_masks(cf)
-                dl.nlev_p = p2OBD_Transformer.get_nlevp(cf)
-                dl.ninv_p = p2OBD_Transformer.get_ninvp(cf)
+                dl.masks, dl.rhits_map = l2OBD_Transformer.get_masks(cf)
+                dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
+                dl.ninv_p = l2OBD_Transformer.get_ninvp(cf)
 
 
         dl = DLENSALOT_Concept()
@@ -784,8 +784,8 @@ class p2OBD_Transformer:
         @log_on_start(logging.INFO, "() started")
         @log_on_end(logging.INFO, "_process_builOBDparams() finished")
         def _process_Noisemodel(dl, nm):
-            _TEMP = transform(cf, p2T_Transformer())
-            dl.TEMP = transform(_TEMP, p2T_Transformer())
+            _TEMP = transform(cf, l2T_Transformer())
+            dl.TEMP = transform(_TEMP, l2T_Transformer())
             if os.path.isfile(opj(nm.BMARG_LIBDIR,'tniti.npy')):
                 # TODO need to test if it is the right tniti.npy
                 log.warning("tniti.npy in destination dir {} already exists.".format(nm.BMARG_LIBDIR))
@@ -800,9 +800,9 @@ class p2OBD_Transformer:
                 dl.nlev_dep = nm.nlev_dep
                 dl.CENTRALNLEV_UKAMIN = nm.CENTRALNLEV_UKAMIN
                 dl.geom = utils_scarf.Geom.get_healpix_geometry(dl.nside)
-                dl.masks, dl.rhits_map = p2OBD_Transformer.get_masks(cf)
-                dl.nlev_p = p2OBD_Transformer.get_nlevp(cf)
-                dl.ninv_p = p2OBD_Transformer.get_ninvp(cf)
+                dl.masks, dl.rhits_map = l2OBD_Transformer.get_masks(cf)
+                dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
+                dl.ninv_p = l2OBD_Transformer.get_ninvp(cf)
 
 
         dl = DLENSALOT_Concept()
@@ -811,7 +811,7 @@ class p2OBD_Transformer:
         return dl
 
 
-class p2d_Transformer:
+class l2d_Transformer:
     """Directory is built upon runtime, so accessing it here
 
     Returns:
@@ -847,7 +847,7 @@ class p2d_Transformer:
 
             mask_path = cf.noisemodel.rhits_normalised[0]
             dl.base_mask = np.nan_to_num(hp.read_map(mask_path))
-            dl.TEMP = transform(cf, p2T_Transformer())
+            dl.TEMP = transform(cf, l2T_Transformer())
             dl.analysis_path = dl.TEMP.split('/')[-1]
             
             dl.nlev_mask = dict()
@@ -878,7 +878,7 @@ class p2d_Transformer:
             for n in range(len(dl.edges)):
                 dl.sha_edges[n].update(str(dl.edges[n]).encode())
             dl.dirid = [dl.sha_edges[n].hexdigest()[:4] for n in range(len(dl.edges))]
-            dl.TEMP_DELENSED_SPECTRUM = transform(dl, p2T_Transformer())
+            dl.TEMP_DELENSED_SPECTRUM = transform(dl, l2T_Transformer())
             if not(os.path.isdir(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid))):
                 os.makedirs(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid))
 
@@ -925,11 +925,11 @@ class p2d_Transformer:
             _sims_module = importlib.import_module(_sims_full_name)
             dl.sims = getattr(_sims_module, _class)(**dl.dataclass_parameters)
             dl.nside = cf.data.nside
-            mask_path = cf.noisemodel.rhits_normalised[0] # dl.sims.p2mask
+            mask_path = cf.noisemodel.rhits_normalised[0] # dl.sims.l2mask
             dl.base_mask = np.nan_to_num(hp.read_map(mask_path))
             # TODO hack. this is only needed to access old s08b data
             # Remove and think of a better way of including old data without existing config file
-            dl.TEMP = transform(cf, p2T_Transformer())
+            dl.TEMP = transform(cf, l2T_Transformer())
             if cf.madel.libdir_it != '':
                 dl.libdir_iterators = 'overwrite'
             else:
@@ -961,7 +961,7 @@ class p2d_Transformer:
             for n in range(len(dl.edges)):
                 dl.sha_edges[n].update(str(dl.edges[n]).encode())
             dl.dirid = [dl.sha_edges[n].hexdigest()[:4] for n in range(len(dl.edges))]
-            dl.TEMP_DELENSED_SPECTRUM = transform(dl, p2T_Transformer())
+            dl.TEMP_DELENSED_SPECTRUM = transform(dl, l2T_Transformer())
             for dir_id in dl.dirid:
                 if not(os.path.isdir(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dir_id))):
                     os.makedirs(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dir_id))
@@ -978,7 +978,7 @@ class p2d_Transformer:
         return dl
 
 
-class p2m_Transformer:
+class l2m_Transformer:
     """Jobs related to meanfield calculation
 
     Returns:
@@ -990,7 +990,7 @@ class p2m_Transformer:
         pass
 
 
-class p2j_Transformer:
+class l2j_Transformer:
     """Extracts parameters needed for the specific D.Lensalot jobs
     Implement if needed
     """
@@ -999,13 +999,13 @@ class p2j_Transformer:
         # TODO if the pf.X objects were distinguishable by X2X_Transformer, could replace the seemingly redundant checks here.
         def _process_Jobs(jobs, jb):
             if jb.build_OBD:
-                jobs.append(((cf, p2OBD_Transformer()), lenscarf_handler.OBD_builder))
+                jobs.append(((cf, l2OBD_Transformer()), lenscarf_handler.OBD_builder))
             if jb.QE_lensrec:
-                jobs.append(((cf, p2lensrec_Transformer()), lenscarf_handler.QE_lr))
+                jobs.append(((cf, l2lensrec_Transformer()), lenscarf_handler.QE_lr))
             if jb.MAP_lensrec:
-                jobs.append(((cf, p2lensrec_Transformer()), lenscarf_handler.MAP_lr))
+                jobs.append(((cf, l2lensrec_Transformer()), lenscarf_handler.MAP_lr))
             if jb.map_delensing:
-                jobs.append(((cf, p2d_Transformer()), lenscarf_handler.Map_delenser))
+                jobs.append(((cf, l2d_Transformer()), lenscarf_handler.Map_delenser))
             if jb.inspect_result:
                 # TODO maybe use this to return something interactive
                 assert 0, "Implement if needed"
@@ -1016,50 +1016,50 @@ class p2j_Transformer:
         return jobs
 
 
-@transform.case(DLENSALOT_Model, p2j_Transformer)
+@transform.case(DLENSALOT_Model, l2j_Transformer)
 def f1(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)
 
-@transform.case(DLENSALOT_Model, p2T_Transformer)
+@transform.case(DLENSALOT_Model, l2T_Transformer)
 def f2a(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)
 
-@transform.case(DLENSALOT_Concept, p2T_Transformer)
+@transform.case(DLENSALOT_Concept, l2T_Transformer)
 def f2b(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build_delsuffix(expr)
 
-@transform.case(str, p2T_Transformer)
+@transform.case(str, l2T_Transformer)
 def f2c(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build_OBD(expr)
 
-@transform.case(DLENSALOT_Model, p2lensrec_Transformer)
+@transform.case(DLENSALOT_Model, l2lensrec_Transformer)
 def f3(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)
 
-@transform.case(DLENSALOT_Model, p2OBD_Transformer)
+@transform.case(DLENSALOT_Model, l2OBD_Transformer)
 def f4(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)
 
-@transform.case(DLENSALOT_Model, p2d_Transformer)
+@transform.case(DLENSALOT_Model, l2d_Transformer)
 def f5(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)
 
-@transform.case(DLENSALOT_Model_v2, p2OBD_Transformer)
+@transform.case(DLENSALOT_Model_v2, l2OBD_Transformer)
 def f4(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build_v2(expr)
 
-@transform.case(DLENSALOT_Model_v2, p2d_Transformer)
+@transform.case(DLENSALOT_Model_v2, l2d_Transformer)
 def f5(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build_v2(expr)
 
-@transform.case(DLENSALOT_Model_v2, p2j_Transformer)
+@transform.case(DLENSALOT_Model_v2, l2j_Transformer)
 def f1(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)
 
-@transform.case(DLENSALOT_Model_v2, p2T_Transformer)
+@transform.case(DLENSALOT_Model_v2, l2T_Transformer)
 def f2a2(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build_nomf(expr)
 
-@transform.case(DLENSALOT_Model_v2, p2lensrec_Transformer)
+@transform.case(DLENSALOT_Model_v2, l2lensrec_Transformer)
 def f3(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build_v2(expr)

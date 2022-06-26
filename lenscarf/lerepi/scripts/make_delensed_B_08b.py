@@ -15,7 +15,7 @@ from plancklens.helpers import mpi
 from plancklens import utils
 
 from plancklens.sims import planck2018_sims
-from lerepi.data.dc08 import data_08d as sims_if
+from lenscarf.lerepi.data.dc08 import data_08d as sims_if
 
 from component_separation.MSC.MSC import pospace as ps
 

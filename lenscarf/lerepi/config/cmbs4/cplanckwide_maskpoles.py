@@ -1,7 +1,7 @@
 import numpy as np
 import healpy as hp
 
-from lerepi.core.metamodel.dlensalot import *
+from lenscarf.lerepi.core.metamodel.dlensalot import *
 # TODO how to add the maskpoles thingy?
 
 dlensalot_model = DLENSALOT_Model(

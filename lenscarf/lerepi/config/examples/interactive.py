@@ -1,6 +1,6 @@
 import numpy as np
 
-from lerepi.core.metamodel.dlensalot_v2 import *
+from lenscarf.lerepi.core.metamodel.dlensalot_v2 import *
 # this config is used to generate B_wf in old s08b directory. config is stored in the usual place.
 
 dlensalot_model = DLENSALOT_Model(

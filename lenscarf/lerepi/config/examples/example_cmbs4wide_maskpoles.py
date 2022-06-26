@@ -3,7 +3,7 @@ from os.path import join as opj
 import numpy as np
 import healpy as hp
 
-from lerepi.core.metamodel.dlensalot_v2 import *
+from lenscarf.lerepi.core.metamodel.dlensalot_v2 import *
 from plancklens.sims import phas, planck2018_sims
 
 dlensalot_model = DLENSALOT_Model(
