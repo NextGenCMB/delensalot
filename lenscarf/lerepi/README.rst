@@ -5,10 +5,35 @@ CMB lensing reconstruction pipelines for various experiments (CMB-S4, PICO)
 Introduces config files for user-friendliy D.lensalot handling
 
 
-dlensalot model v1:
+dlensalot model v2:
 --------------------
 
-Description of available parameters:
+Description of available parameters.
+
+
+A complete Dlensalot config file includes,
+
+==================== ===========
+        Type         Description
+-------------------- -----------
+    Job              Which jobs to run
+    Analysis         Analysis specific settings
+    Data             Which data to use
+    Noisemodel       A noisemodel to define the Wiener-filter
+    Qerec            Quadratic estimator lensing reconstruction specific settings
+    Itrec            Iterative delensing lensing reconstruction specific settings
+    Mapdelensing     Delensing specific settings
+==================== ===========
+
+
+
+* There is a predefined list of Jobs from which the user can choose, which are chosen via `True` or `False`,
+    * build_OBD = <boolean choice>,
+    * QE_lensrec = <boolean choice>,
+    * MAP_lensrec = <boolean choice>,
+    * map_delensing = <boolean choice>,
+    * inspect_result = <boolean choice>,
+
 
 .. code-block:: python
 
