@@ -104,10 +104,10 @@ class p2lensrec_Transformer:
     """
 
     @log_on_start(logging.INFO, "build() started")
-    @log_on_end(logging.INFO, "Finished build()")
+    @log_on_end(logging.INFO, "build() finished")
     def build(self, cf):
         @log_on_start(logging.INFO, "_process_dataparams() started")
-        @log_on_end(logging.INFO, "Finished _process_dataparams()")
+        @log_on_end(logging.INFO, "_process_dataparams() finished")
         def _process_dataparams(dl, data):
             dl.TEMP = transform(cf, p2T_Transformer())
             dl.nside = data.nside
@@ -134,7 +134,7 @@ class p2lensrec_Transformer:
 
 
         @log_on_start(logging.INFO, "_process_iterationparams() started")
-        @log_on_end(logging.INFO, "Finished _process_iterationparams()")
+        @log_on_end(logging.INFO, "_process_iterationparams() finished")
         def _process_iterationparams(dl, iteration):
             dl.version = iteration.V
             dl.mfvar = iteration.mfvar
@@ -253,7 +253,7 @@ class p2lensrec_Transformer:
 
 
         @log_on_start(logging.INFO, "_process_geometryparams() started")
-        @log_on_end(logging.INFO, "Finished _process_geometryparams()")
+        @log_on_end(logging.INFO, "_process_geometryparams() finished")
         def _process_geometryparams(dl, geometry):
             dl.pb_ctr, dl.pb_extent = geometry.pbounds
             if geometry.zbounds[0] == 'nmr_relative':
@@ -292,7 +292,7 @@ class p2lensrec_Transformer:
 
 
         @log_on_start(logging.INFO, "_process_chaindescparams() started")
-        @log_on_end(logging.INFO, "Finished _process_chaindescparams()")
+        @log_on_end(logging.INFO, "_process_chaindescparams() finished")
         def _process_chaindescparams(dl, cd):
             # TODO hacky solution. Redo if needed
             if cd.p6 == 'tr_cg':
@@ -304,14 +304,14 @@ class p2lensrec_Transformer:
 
 
         @log_on_start(logging.INFO, "_process_stepperparams() started")
-        @log_on_end(logging.INFO, "Finished _process_stepperparams()")
+        @log_on_end(logging.INFO, "_process_stepperparams() finished")
         def _process_stepperparams(dl, st):
             if st.typ == 'harmonicbump':
                 dl.stepper = steps.harmonicbump(st.lmax_qlm, st.mmax_qlm, xa=st.xa, xb=st.xb)
 
 
         @log_on_start(logging.INFO, "_process_noisemodelparams() started")
-        @log_on_end(logging.INFO, "Finished _process_OBDparams()")
+        @log_on_end(logging.INFO, "_process_OBDparams() finished")
         def _process_noisemodelparams(dl, nm):
             dl.OBD_type = nm.typ
             dl.BMARG_LCUT = nm.BMARG_LCUT
@@ -375,11 +375,11 @@ class p2lensrec_Transformer:
 
 
     @log_on_start(logging.INFO, "build_v2() started")
-    @log_on_end(logging.INFO, "Finished build_v2()")
+    @log_on_end(logging.INFO, "build_v2() finished")
     def build_v2(self, cf):
 
         @log_on_start(logging.INFO, "() started")
-        @log_on_end(logging.INFO, "Finished _process_Analysis()")
+        @log_on_end(logging.INFO, "_process_Analysis() finished")
         def _process_Analysis(dl, an):
             dl.temp_suffix = an.TEMP_suffix
             dl.TEMP = transform(cf, p2T_Transformer())
@@ -451,7 +451,7 @@ class p2lensrec_Transformer:
 
 
         @log_on_start(logging.INFO, "_process_Data() started")
-        @log_on_end(logging.INFO, "Finished _process_Data()")
+        @log_on_end(logging.INFO, "_process_Data() finished")
         def _process_Data(dl, da):
             dl.imin = da.IMIN
             dl.imax = da.IMAX
@@ -474,7 +474,7 @@ class p2lensrec_Transformer:
 
 
         @log_on_start(logging.INFO, "_process_Noisemodel() started")
-        @log_on_end(logging.INFO, "Finished _process_Noisemodel()")
+        @log_on_end(logging.INFO, "_process_Noisemodel() finished")
         def _process_Noisemodel(dl, nm):
             if nm.ninvjob_geometry == 'healpix_geometry':
                 dl.ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(dl.nside, zbounds=dl.zbounds)
@@ -525,7 +525,7 @@ class p2lensrec_Transformer:
             
 
         @log_on_start(logging.INFO, "_process_Qerec() started")
-        @log_on_end(logging.INFO, "Finished _process_Qerec()")
+        @log_on_end(logging.INFO, "_process_Qerec() finished")
         def _process_Qerec(dl, qe):
             dl.lmax_qlm = qe.lmax_qlm
             dl.mmax_qlm = qe.mmax_qlm
@@ -609,7 +609,7 @@ class p2lensrec_Transformer:
 
 
         @log_on_start(logging.INFO, "_process_Itrec() started")
-        @log_on_end(logging.INFO, "Finished _process_Itrec()")
+        @log_on_end(logging.INFO, "_process_Itrec() finished")
         def _process_Itrec(dl, it):
             assert it.FILTER == 'opfilt_ee_wl.alm_filter_ninv_wl', 'Implement if needed, MAP filter needs to move to p2d'
             dl.FILTER = it.FILTER
@@ -671,7 +671,7 @@ class p2OBD_Transformer:
     """Extracts all parameters needed for building consistent OBD
     """
     # @log_on_start(logging.INFO, "get_nlrh_map() started")
-    # @log_on_end(logging.INFO, "Finished get_nlrh_map()")
+    # @log_on_end(logging.INFO, "get_nlrh_map() finished")
     def get_nlrh_map(cf):
         noisemodel_rhits_map = df.get_nlev_mask(cf.noisemodel.rhits_normalised[1], hp.read_map(cf.noisemodel.rhits_normalised[0]))
         noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.noisemodel.inf
@@ -680,7 +680,7 @@ class p2OBD_Transformer:
 
 
     # @log_on_start(logging.INFO, "get_nlevt() started")
-    # @log_on_end(logging.INFO, "Finished get_nlevt()")
+    # @log_on_end(logging.INFO, "get_nlevt() finished")
     def get_nlevt(cf):
         nlev_t = cf.noisemodel.CENTRALNLEV_UKAMIN/np.sqrt(2) if cf.noisemodel.nlev_t == None else cf.noisemodel.nlev_t
 
@@ -688,7 +688,7 @@ class p2OBD_Transformer:
 
 
     # @log_on_start(logging.INFO, "get_nlevp() started")
-    # @log_on_end(logging.INFO, "Finished get_nlevp()")
+    # @log_on_end(logging.INFO, "get_nlevp() finished")
     def get_nlevp(cf):
         nlev_p = cf.noisemodel.CENTRALNLEV_UKAMIN if cf.noisemodel.nlev_p == None else cf.noisemodel.nlev_p
 
@@ -696,7 +696,7 @@ class p2OBD_Transformer:
 
 
     @log_on_start(logging.INFO, "get_ninvt() started")
-    @log_on_end(logging.INFO, "Finished get_ninvt()")
+    @log_on_end(logging.INFO, "get_ninvt() finished")
     def get_ninvt(cf):
         nlev_t = p2OBD_Transformer.get_nlevp(cf)
         masks, noisemodel_rhits_map =  p2OBD_Transformer.get_masks(cf)
@@ -713,7 +713,7 @@ class p2OBD_Transformer:
 
 
     @log_on_start(logging.INFO, "get_ninvp() started")
-    @log_on_end(logging.INFO, "Finished get_ninvp()")
+    @log_on_end(logging.INFO, "get_ninvp() finished")
     def get_ninvp(cf):
         nlev_p = p2OBD_Transformer.get_nlevp(cf)
         masks, noisemodel_rhits_map =  p2OBD_Transformer.get_masks(cf)
@@ -730,7 +730,7 @@ class p2OBD_Transformer:
 
 
     # @log_on_start(logging.INFO, "get_masks() started")
-    # @log_on_end(logging.INFO, "Finished get_masks()")
+    # @log_on_end(logging.INFO, "get_masks() finished")
     def get_masks(cf):
         masks = []
         if cf.noisemodel.rhits_normalised is not None:
@@ -746,10 +746,10 @@ class p2OBD_Transformer:
 
 
     @log_on_start(logging.INFO, "build() started")
-    @log_on_end(logging.INFO, "Finished build()")
+    @log_on_end(logging.INFO, "build() finished")
     def build(self, cf):
         @log_on_start(logging.INFO, "() started")
-        @log_on_end(logging.INFO, "Finished _process_builOBDparams()")
+        @log_on_end(logging.INFO, "_process_builOBDparams() finished")
         def _process_builOBDparams(dl, nm):
             _TEMP = transform(cf, p2T_Transformer())
             dl.TEMP = transform(_TEMP, p2T_Transformer())
@@ -779,10 +779,10 @@ class p2OBD_Transformer:
 
 
     @log_on_start(logging.INFO, "build_v2() started")
-    @log_on_end(logging.INFO, "Finished build()")
+    @log_on_end(logging.INFO, "build() finished")
     def build_v2(self, cf):
         @log_on_start(logging.INFO, "() started")
-        @log_on_end(logging.INFO, "Finished _process_builOBDparams()")
+        @log_on_end(logging.INFO, "_process_builOBDparams() finished")
         def _process_Noisemodel(dl, nm):
             _TEMP = transform(cf, p2T_Transformer())
             dl.TEMP = transform(_TEMP, p2T_Transformer())
@@ -818,7 +818,7 @@ class p2d_Transformer:
         _type_: _description_
     """
     @log_on_start(logging.INFO, "build() started")
-    @log_on_end(logging.INFO, "Finished build()")
+    @log_on_end(logging.INFO, "build() finished")
     def build(self, cf):
         fs_edges = np.arange(2, 3000, 20)
         ioreco_edges = np.array([2, 30, 200, 300, 500, 700, 1000, 1500, 2000, 3000, 4000, 5000])
@@ -895,7 +895,7 @@ class p2d_Transformer:
 
 
     @log_on_start(logging.INFO, "build_v2() started")
-    @log_on_end(logging.INFO, "Finished build_v2()")
+    @log_on_end(logging.INFO, "build_v2() finished")
     def build_v2(self, cf):
         # TODO make this an option for the user
         fs_edges = np.arange(2, 3000, 20)
@@ -985,7 +985,7 @@ class p2m_Transformer:
         _type_: _description_
     """
     @log_on_start(logging.INFO, "build() started")
-    @log_on_end(logging.INFO, "Finished build()")
+    @log_on_end(logging.INFO, "build() finished")
     def build(self, cf):
         pass
 
