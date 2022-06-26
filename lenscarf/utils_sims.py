@@ -25,7 +25,7 @@ class ztrunc_sims:
         for zbounds in zbounds_list:
             hp_trunc = Geom.get_healpix_geometry(nside, zbounds=zbounds)
             hp_start = hp_geom.ofs[np.where(hp_geom.theta == np.min(hp_trunc.theta))[0]][0]
-            this_npix = Geom.npix(hp_trunc).astype(hp_start.dtype) # Somehow otherwise makes a float out of int64 and uint64 ???
+            this_npix = Geom.npix(hp_trunc)
             hp_end = hp_start + this_npix
             slics.append(slice(hp_start, hp_end))
             slics_m.append(slice(npix, npix + this_npix))
