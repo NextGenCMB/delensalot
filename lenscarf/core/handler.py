@@ -222,7 +222,7 @@ class QE_lr():
         return np.load(path_plm0)
 
 
-    # TODO this could be done before, inside p2d()
+    # TODO this could be done before, inside c2d()
     @log_on_start(logging.INFO, "get_meanfield_response_it0() started")
     @log_on_end(logging.INFO, "get_meanfield_response_it0() finished")
     def get_meanfield_response_it0(self):
@@ -238,7 +238,7 @@ class QE_lr():
 class MAP_lr():
     def __init__(self, dlensalot_model):
         self.__dict__.update(dlensalot_model.__dict__)
-        # TODO Only needed to hand over to ith(). in p2d(), prepare an ith model for it
+        # TODO Only needed to hand over to ith(). in c2d(), prepare an ith model for it
         self.dlensalot_model = dlensalot_model
         # TODO not entirely happy how QE dependence is put into MAP_lr but cannot think of anything better at the moment.
         self.qe = QE_lr(dlensalot_model)
@@ -414,7 +414,7 @@ class Map_delenser():
             elif it==0:
                 return '/global/cscratch1/sd/sebibel/cmbs4/s08b/cILC2021_%s_lmax4000/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20/ffi_p_it0/blm_%04d_it0.npy'%(self.fg, simidx, simidx)    
         else:
-            # TODO this belongs via config to p2d
+            # TODO this belongs via config to c2d
             # TODO only QE it 0 doesn't exists because no modification is done to it. catching this. Can this be done better?
             if it == 0:
                 return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(it, it)
