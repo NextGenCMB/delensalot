@@ -26,6 +26,21 @@ python setup.py install
 
 Documentation may be found [HERE]
 
+# Usage
+
+simply type in your favourite `bash`,
+
+```
+python3 run.py -p <path-to-config>
+```
+where, `<path-to-config>` is a relative path, pointing to a config file in config/, e.g.
+
+```
+python3 run.py -p examples/example_c08b.py
+```
+
+runs the example configuration for `c08b`
+
 
 ## Use on NERSC
 
