@@ -49,11 +49,11 @@ class scarf_iterator_pertmf():
         self.tr = lensing_config.tr
 
         self.qe = qe
-        self.mf_resp0 = qe.get_meanfield_response()
+        self.mf_resp0 = qe.get_response_meanfield()
         self.wflm0 = qe.get_wflm(self.simidx)
         self.R_unl0 = qe.R_unl()
-        self.mf0 = self.qe.get_meanfield_it(self.simidx)
-        self.plm0 = self.qe.get_plm_it(self.simidx)
+        self.mf0 = self.qe.get_meanfield(self.simidx)
+        self.plm0 = self.qe.get_plm(self.simidx)
 
         self.ffi = remapping.deflection(self.lenjob_pbgeometry, self.lensres, np.zeros_like(self.plm0),
             self.mmax_qlm, self.tr, self.tr)
@@ -74,8 +74,8 @@ class scarf_iterator_pertmf():
         return datmaps
 
 
-    @log_on_start(logging.INFO, "get_meanfield_it() started")
-    @log_on_end(logging.INFO, "get_meanfield_it() finished")
+    @log_on_start(logging.INFO, "get_filter() started")
+    @log_on_end(logging.INFO, "get_filter() finished")
     def get_filter(self, sims_MAP=None, ffi=None, tpl=None):
         mpi.rank == 0
         assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
@@ -133,11 +133,11 @@ class scarf_iterator_constmf():
         self.tpl = lensing_config.tpl(**lensing_config.tpl_kwargs)
         self.tr = lensing_config.tr 
         self.qe = qe
-        self.mf_resp0 = qe.get_meanfield_response()
+        self.mf_resp0 = qe.get_response_meanfield()
         self.wflm0 = qe.get_wflm(self.simidx)
         self.R_unl0 = qe.R_unl()
-        self.mf0 = self.qe.get_meanfield_it(self.simidx)
-        self.plm0 = self.qe.get_plm_it(self.simidx)
+        self.mf0 = self.qe.get_meanfield(self.simidx)
+        self.plm0 = self.qe.get_plm(self.simidx)
 
         self.ffi = remapping.deflection(self.lenjob_pbgeometry, self.lensres, np.zeros_like(self.plm0),
             self.mmax_qlm, self.tr, self.tr)

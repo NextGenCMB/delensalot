@@ -73,7 +73,7 @@ class QE_lr():
             self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
             self.mf = lambda simidx: self.get_meanfield(simidx)
             self.plm = lambda simidx: self.get_plm(simidx)
-            self.mf_resp = lambda: self.get_meanfield_response()
+            self.mf_resp = lambda: self.get_response_meanfield()
             self.wflm = lambda simidx: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lmax_unl, self.mmax_unl)
             self.R_unl = lambda: qresp.get_response(self.k, self.lmax_ivf, 'p', self.cls_unl, self.cls_unl,  {'e': self.fel_unl, 'b': self.fbl_unl, 't':self.ftl_unl}, lmax_qlm=self.lmax_qlm)[0]
         else:
@@ -119,7 +119,7 @@ class QE_lr():
             for idx in self.jobs[mpi.rank::mpi.size]:
                 logging.info('{}/{}, Starting job {}'.format(mpi.rank,mpi.size,idx))
                 self.get_sim_qlm(idx)
-                self.get_meanfield_response()
+                self.get_response_meanfield()
                 self.get_wflm(idx)
                 self.get_R_unl()
                 # self.get_B_wf(idx)
@@ -188,11 +188,11 @@ class QE_lr():
     @log_on_end(logging.INFO, "get_meanfield() finished")
     def get_meanfield(self, simidx):
         if self.mfvar == None:
-            mf = self.qlms_dd.get_sim_qlm_mf(self.k, self.mc_sims_mf)
+            mf = self.qlms_dd.get_sim_qlm_mf(self.k, np.arange(self.nsims_mf))
         else:
             mf = hp.read_alm(self.mfvar)
-        if simidx in self.mc_sims_mf:
-            Nmf = np.arange(self.nsims_mf)
+        if simidx in np.arange(self.nsims_mf):
+            Nmf = len(np.arange(self.nsims_mf))
             mf = (mf - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / Nmf) * (Nmf / (Nmf - 1))
 
         return mf
@@ -221,9 +221,9 @@ class QE_lr():
 
 
     # TODO this could be done before, inside c2d()
-    @log_on_start(logging.INFO, "get_meanfield_response() started")
-    @log_on_end(logging.INFO, "get_meanfield_response() finished")
-    def get_meanfield_response(self):
+    @log_on_start(logging.INFO, "get_response_meanfield() started")
+    @log_on_end(logging.INFO, "get_response_meanfield() finished")
+    def get_response_meanfield(self):
         if self.k in ['p_p'] and not 'noRespMF' in self.version :
             mf_resp = qresp.get_mf_resp(self.k, self.cls_unl, {'ee': self.fel_unl, 'bb': self.fbl_unl}, self.lmax_ivf, self.lmax_qlm)[0]
         else:
@@ -294,6 +294,7 @@ class MAP_lr():
             elif task == 'calc_btemplate':
                 self.qe.run()
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
+                    log.info("{}: start sim {}".format(mpi.rank, idx))
                     lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
                     if self.dlm_mod_bool:
                         dlm_mod = self.get_meanfields_it(np.arange(self.itmax+1), calc=False)
