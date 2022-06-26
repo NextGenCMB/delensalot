@@ -25,11 +25,11 @@ from plancklens.qcinv import cd_solve
 from plancklens.qcinv import opfilt_pp
 
 from lenscarf import utils_scarf
-import lenscarf.core.handler as lenscarf_handler
 from lenscarf.utils import cli
 from lenscarf.iterators import steps
 from lenscarf.utils_hp import gauss_beam
 from lenscarf.opfilt import utils_cinv_p as cinv_p_OBD
+import lenscarf.core.handler as lenscarf_handler
 from lenscarf.opfilt.bmodes_ninv import template_dense
 
 from lenscarf.lerepi.config.config_helper import data_functions as df
@@ -113,7 +113,6 @@ class l2lensrec_Transformer:
             dl.nside = data.nside
             # TODO simplify the following two attributes
             dl.nsims_mf = 0 if cf.iteration.V == 'noMF' else cf.iteration.nsims_mf
-            dl.mc_sims_mf_it0 = np.arange(dl.nsims_mf)
             dl.fg = data.fg
 
             _ui = data.sims.split('/')
@@ -394,7 +393,6 @@ class l2lensrec_Transformer:
             dl.k = an.K
             dl.itmax = an.ITMAX
             dl.nsims_mf = 0 if cf.analysis.V == 'noMF' else cf.analysis.nsims_mf
-            dl.mc_sims_mf_it0 = np.arange(dl.nsims_mf)
             if an.zbounds[0] == 'nmr_relative':
                 dl.zbounds = df.get_zbounds(hp.read_map(cf.noisemodel.rhits_normalised[0]), an.zbounds[1])
             elif an.zbounds[0] == float or an.zbounds[0] == int:

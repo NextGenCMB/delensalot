@@ -33,7 +33,7 @@ class OBD_builder():
         self.__dict__.update(OBD_model.__dict__)
 
 
-    @log_on_start(logging.INFO, "collect_jobs() Started")
+    @log_on_start(logging.INFO, "collect_jobs() started")
     @log_on_end(logging.INFO, "collect_jobs() finished")
     def collect_jobs(self):
         # This fakes the collect/run structure, as bpl takes care of MPI 
@@ -71,10 +71,10 @@ class QE_lr():
             self.overwrite_libdir = None
         if self.overwrite_libdir is None:
             self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
-            self.mf0 = lambda simidx: self.get_meanfield_it0(simidx)
-            self.plm0 = lambda simidx: self.get_plm_it0(simidx)
-            self.mf_resp = lambda: self.get_meanfield_response_it0()
-            self.wflm0 = lambda simidx: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lmax_unl, self.mmax_unl)
+            self.mf = lambda simidx: self.get_meanfield(simidx)
+            self.plm = lambda simidx: self.get_plm(simidx)
+            self.mf_resp = lambda: self.get_meanfield_response()
+            self.wflm = lambda simidx: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lmax_unl, self.mmax_unl)
             self.R_unl = lambda: qresp.get_response(self.k, self.lmax_ivf, 'p', self.cls_unl, self.cls_unl,  {'e': self.fel_unl, 'b': self.fbl_unl, 't':self.ftl_unl}, lmax_qlm=self.lmax_qlm)[0]
         else:
             # TODO hack. Only want to access old s08b sim result lib and generate B wf
@@ -85,8 +85,7 @@ class QE_lr():
     @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self, id=''):
         if self.overwrite_libdir is None:
-            mc_sims = self.mc_sims_mf_it0
-            mf_fname = os.path.join(self.TEMP, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, utils.mchash(mc_sims)))
+            mf_fname = os.path.join(self.TEMP, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, utils.mchash(np.arange(self.nsims_mf))))
             if os.path.isfile(mf_fname):
                 # can safely skip QE. MF exists, so we know QE ran before
                 self.jobs = []
@@ -120,8 +119,8 @@ class QE_lr():
             for idx in self.jobs[mpi.rank::mpi.size]:
                 logging.info('{}/{}, Starting job {}'.format(mpi.rank,mpi.size,idx))
                 self.get_sim_qlm(idx)
-                self.get_meanfield_response_it0()
-                self.get_wflm0(idx)
+                self.get_meanfield_response()
+                self.get_wflm(idx)
                 self.get_R_unl()
                 # self.get_B_wf(idx)
                 logging.info('{}/{}, finished job {}'.format(mpi.rank,mpi.size,idx))
@@ -133,13 +132,13 @@ class QE_lr():
                 # an io error
                 log.info("Done waiting. Rank 0 going to calculate meanfield-file.. everyone else waiting.")
                 if mpi.rank == 0:
-                    self.get_meanfield_it0(mpi.rank)
+                    self.get_meanfield(mpi.rank)
                     log.info("rank finsihed calculating meanfield-file.. everyone else waiting.")
                 mpi.barrier()
                 log.info("Starting mf-calc task")
             for idx in self.jobs[mpi.rank::mpi.size]:
-                self.get_meanfield_it0(idx)
-                self.get_plm_it0(idx)
+                self.get_meanfield(idx)
+                self.get_plm(idx)
             if len(self.jobs)>0:
                 log.info('{} finished qe mf-calc tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
                 mpi.barrier()
@@ -171,9 +170,9 @@ class QE_lr():
         return bwf
 
 
-    @log_on_start(logging.INFO, "get_wflm0() started")
-    @log_on_end(logging.INFO, "get_wflm0() finished")    
-    def get_wflm0(self, simidx):
+    @log_on_start(logging.INFO, "get_wflm() started")
+    @log_on_end(logging.INFO, "get_wflm() finished")    
+    def get_wflm(self, simidx):
 
         return lambda: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lmax_unl, self.mmax_unl)
 
@@ -185,46 +184,46 @@ class QE_lr():
         return qresp.get_response(self.k, self.lmax_ivf, 'p', self.cls_unl, self.cls_unl,  {'e': self.fel_unl, 'b': self.fbl_unl, 't':self.ftl_unl}, lmax_qlm=self.lmax_qlm)[0]
 
 
-    @log_on_start(logging.INFO, "get_meanfield_it0() started")
-    @log_on_end(logging.INFO, "get_meanfield_it0() finished")
-    def get_meanfield_it0(self, simidx):
+    @log_on_start(logging.INFO, "get_meanfield() started")
+    @log_on_end(logging.INFO, "get_meanfield() finished")
+    def get_meanfield(self, simidx):
         if self.mfvar == None:
-            mf0 = self.qlms_dd.get_sim_qlm_mf(self.k, self.mc_sims_mf_it0)
-            if simidx in self.mc_sims_mf_it0:
-                Nmf = len(self.mc_sims_mf_it0)
-                mf0 = (mf0 - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / Nmf) * (Nmf / (Nmf - 1))
+            mf = self.qlms_dd.get_sim_qlm_mf(self.k, self.mc_sims_mf)
+            if simidx in self.mc_sims_mf:
+                Nmf = np.arange(self.nsims_mf)
+                mf = (mf - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / Nmf) * (Nmf / (Nmf - 1))
         else:
-            mf0 = hp.read_alm(self.mfvar)
+            mf = hp.read_alm(self.mfvar)
 
-        return mf0
+        return mf
 
 
-    @log_on_start(logging.INFO, "get_plm_it0() started")
-    @log_on_end(logging.INFO, "get_plm_it0() finished")
-    def get_plm_it0(self, simidx):
+    @log_on_start(logging.INFO, "get_plm() started")
+    @log_on_end(logging.INFO, "get_plm() finished")
+    def get_plm(self, simidx):
         lib_dir_iterator = self.libdir_iterators(self.k, simidx, self.version)
         if not os.path.exists(lib_dir_iterator):
             os.makedirs(lib_dir_iterator)
-        path_plm0 = opj(lib_dir_iterator, 'phi_plm_it000.npy')
-        if not os.path.exists(path_plm0):
-            plm0  = self.qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate:
-            plm0 -= self.mf0(simidx)  # MF-subtracted unnormalized QE
+        path_plm = opj(lib_dir_iterator, 'phi_plm_it000.npy')
+        if not os.path.exists(path_plm):
+            plm  = self.qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate:
+            plm -= self.mf(simidx)  # MF-subtracted unnormalized QE
             R = qresp.get_response(self.k, self.lmax_ivf, 'p', self.cls_len, self.cls_len, {'e': self.fel, 'b': self.fbl, 't':self.ftl}, lmax_qlm=self.lmax_qlm)[0]
             # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
             WF = self.cpp * utils.cli(self.cpp + utils.cli(R))
-            plm0 = alm_copy(plm0,  None, self.lmax_qlm, self.mmax_qlm)
-            almxfl(plm0, utils.cli(R), self.mmax_qlm, True) # Normalized QE
-            almxfl(plm0, WF, self.mmax_qlm, True) # Wiener-filter QE
-            almxfl(plm0, self.cpp > 0, self.mmax_qlm, True)
-            np.save(path_plm0, plm0)
+            plm = alm_copy(plm,  None, self.lmax_qlm, self.mmax_qlm)
+            almxfl(plm, utils.cli(R), self.mmax_qlm, True) # Normalized QE
+            almxfl(plm, WF, self.mmax_qlm, True) # Wiener-filter QE
+            almxfl(plm, self.cpp > 0, self.mmax_qlm, True)
+            np.save(path_plm, plm)
 
-        return np.load(path_plm0)
+        return np.load(path_plm)
 
 
     # TODO this could be done before, inside c2d()
-    @log_on_start(logging.INFO, "get_meanfield_response_it0() started")
-    @log_on_end(logging.INFO, "get_meanfield_response_it0() finished")
-    def get_meanfield_response_it0(self):
+    @log_on_start(logging.INFO, "get_meanfield_response() started")
+    @log_on_end(logging.INFO, "get_meanfield_response() finished")
+    def get_meanfield_response(self):
         if self.k in ['p_p'] and not 'noRespMF' in self.version :
             mf_resp = qresp.get_mf_resp(self.k, self.cls_unl, {'ee': self.fel_unl, 'bb': self.fbl_unl}, self.lmax_ivf, self.lmax_qlm)[0]
         else:
@@ -269,7 +268,6 @@ class MAP_lr():
                     if rec.maxiterdone(lib_dir_iterator) >= self.itmax:
                         _jobs.append(idx)
 
-                        
             elif task == 'calc_phi':
                 self.qe.collect_jobs()
                 for idx in np.arange(self.imin, self.imax + 1):
