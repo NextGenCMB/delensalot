@@ -54,7 +54,7 @@ class Geom:
     """
     @staticmethod
     def npix(geom:scarf.Geometry):
-        return np.sum(geom.nph)
+        return int(np.sum(geom.nph))
 
     @staticmethod
     def phis(geom:scarf.Geometry, ir):
@@ -67,17 +67,51 @@ class Geom:
         return np.min(geom.theta), np.max(geom.theta)
 
     @staticmethod
-    def rings2pix(geom:scarf.Geometry, rings:np.ndarray):
+    def rings2pix(geom:scarf.Geometry, rings:np.ndarray[int]):
         return np.concatenate([geom.get_ofs(ir) + np.arange(geom.get_nph(ir), dtype=int) for ir in rings])
 
     @staticmethod
-    def rings2phi(geom:scarf.Geometry, rings:np.ndarray):
+    def pix2ang(geom: scarf.Geometry, pixs: np.ndarray[int] or list[int]):
+        """Convert pixel indices to latitude and longitude (not terribly fast)"""
+        s_pixs = np.argsort(pixs)
+        thts, phis = np.empty(s_pixs.shape, dtype=float), np.empty(s_pixs.shape, float)
+        sorted_iofs = np.argsort(geom.ofs)
+        i, this_pix = 0, pixs[s_pixs[0]]
+        this_ring = 0
+        for next_ring in sorted_iofs:
+            while this_pix < geom.ofs[next_ring]:
+                thts[s_pixs[i]] = geom.theta[this_ring]
+                phis[s_pixs[i]] = geom.phi0[this_ring] + (2 * np.pi) * (this_pix - geom.ofs[this_ring]) / geom.nph[this_ring]
+                i += 1
+                if i == len(pixs):
+                    return thts, phis
+                this_pix = pixs[s_pixs[i]]
+            this_ring = next_ring
+        assert 0, 'invalid inputs'
+
+    @staticmethod
+    def rings2phi(geom:scarf.Geometry, rings:np.ndarray[int]):
         return np.concatenate([Geom.phis(geom, ir) for ir in rings])
 
     @staticmethod
-    def rings2tht(geom: scarf.Geometry, rings: np.ndarray):
+    def rings2tht(geom: scarf.Geometry, rings: np.ndarray[int]):
         return np.concatenate([geom.theta[ir] * np.ones(geom.nph[ir]) for ir in rings])
 
+
+    @staticmethod
+    def merge(geomlist:list[scarf.Geometry]):
+        """Concatenates a list of pizelizations to a larger ones. Does not check for latitudes overlaps.
+
+        """
+        thts = np.concatenate([geom.theta  for geom in geomlist])
+        nph  = np.concatenate([geom.nph  for geom in geomlist])
+        phi0 = np.concatenate([geom.phi0  for geom in geomlist])
+        wt   = np.concatenate([geom.weight for geom in geomlist])
+        npixs = np.cumsum([Geom.npix(geom) for geom in geomlist])
+        ofs  = np.concatenate([geom.ofs + npix - npixs[0] for geom, npix in zip(geomlist, npixs)])
+        new_geom = scarf.Geometry(thts.size, nph, ofs, 1, phi0, thts, wt)
+        assert Geom.npix(new_geom) ==  npixs[-1]
+        return new_geom
 
     @staticmethod
     def pbounds2pix(geom:scarf.Geometry, ir, pbs:pbounds):
@@ -190,6 +224,19 @@ class Geom:
         return scarf.Geometry(nlat, nph, ofs, 1, phi0, tht, wt * (2 * np.pi / nph ))
 
     @staticmethod
+    def get_ecp_geometry(nlat:int, nlon:int, phi_center:float=np.pi, tbounds:tuple[float, float]=(0., np.pi)):
+        assert nlat >= 2, nlat
+        tbounds = np.sort(tbounds)
+        tht = np.linspace(max(tbounds[0], 0), min(tbounds[1], np.pi), nlat)
+        wt = np.ones(nlat, dtype=float) * (2 * np.pi / nlon * np.pi / (nlat - 1))
+        wt[[0, -1]] *= 0.5
+        phi0s = (phi_center - np.pi) + np.zeros(nlat, dtype=float)
+        nph = nlon * np.ones(nlat, dtype=int)
+        ofs = np.arange(nlat, dtype=int) * nlon
+        return scarf.Geometry(nlat, nph, ofs, 1, phi0s, tht, wt)
+
+
+    @staticmethod
     def get_pixel_geometry(tht:float or np.ndarray, phi:float or np.ndarray):
         """Single pixel geom
 
@@ -255,15 +302,7 @@ class scarfjob:
 
 
         """
-        assert nlat >= 2, nlat
-        tbounds = np.sort(tbounds)
-        tht = np.linspace(max(tbounds[0], 0), min(tbounds[1], np.pi), nlat)
-        wt = np.ones(nlat, dtype=float) * (2 * np.pi / nlon * np.pi / (nlat - 1))
-        wt[[0, -1]] *= 0.5
-        phi0s = (phi_center - np.pi) + np.zeros(nlat, dtype=float)
-        nph = nlon * np.ones(nlat, dtype=int)
-        ofs = np.arange(nlat, dtype=int) * nlon
-        self.geom = scarf.Geometry(nlat, nph, ofs, 1, phi0s, tht, wt)
+        self.geom = Geom.get_ecp_geometry(nlat, nlon,phi_center=phi_center, tbounds=tbounds)
 
     def set_gauss_geometry(self, nlat, nlon):
         """Standard Gauss-Legendre grid
