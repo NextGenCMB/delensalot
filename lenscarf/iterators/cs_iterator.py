@@ -190,8 +190,8 @@ class qlm_iterator(object):
         return True
 
 
-    @log_on_start(logging.INFO, " Start of get_template_blm() for iteration {it}, calc = {calc}")
-    @log_on_end(logging.INFO, " Finished get_template_blm() for iteration {it}")
+    @log_on_start(logging.INFO, "get_template_blm() started: it {it}, calc={calc}")
+    @log_on_end(logging.INFO, "get_template_blm() finished: it={it}")
     def get_template_blm(self, it, it_e, lmaxb=1024, lmin_plm=1, elm_wf:None or np.ndarray=None, dlm_mod=None, calc=False):
         """Builds a template B-mode map with the iterated phi and input elm_wf
 
@@ -307,8 +307,8 @@ class qlm_iterator(object):
         return np.sqrt(np.sum(alm2cl(qlm, qlm, self.lmax_qlm, self.mmax_qlm, self.lmax_qlm)))
 
 
-    @log_on_start(logging.INFO, " Start of get_hessian() for k {k} and key {key}")
-    @log_on_end(logging.INFO, " Finished get_hessian() for k {k} and key {key}")
+    @log_on_start(logging.INFO, "get_hessian() started: k={k},  key={key}")
+    @log_on_end(logging.INFO, "get_hessian() finished: k={k},  key={key}")
     def get_hessian(self, k, key):
         """Inverse hessian that will produce phi_iter.
 
@@ -327,8 +327,8 @@ class qlm_iterator(object):
         return BFGS_H
 
 
-    @log_on_start(logging.INFO, " Start of build_incr() for iteration {it} and key {key}")
-    @log_on_end(logging.INFO, " Finished build_incr() for iteration {it} and key {key}")
+    @log_on_start(logging.INFO, "build_incr() started: it={it},  key={key}")
+    @log_on_end(logging.INFO, "build_incr() finished: it={it},  key={key}")
     def build_incr(self, it, key, gradn):
         """Search direction
 
@@ -421,8 +421,8 @@ class qlm_iterator(object):
         almxfl(ret, cli(h2k), mmax_dlm, True)
         return ret
 
-    @log_on_start(logging.INFO, " Start of iterate() for iteration {itr} and key {key}")
-    @log_on_end(logging.INFO, " Finished iterate() for iteration {itr} and key {key}")
+    @log_on_start(logging.INFO, "iterate() started: itr={itr},  key={key}")
+    @log_on_end(logging.INFO, "iterate() finished: itr={itr},  key={key}")
     def iterate(self, itr, key):
         """Performs iteration number 'itr'
 
@@ -446,8 +446,8 @@ class qlm_iterator(object):
                     shutil.rmtree(opj(self.lib_dir, 'ffi_%s_it%s'%(key, itr)))
 
 
-    @log_on_start(logging.INFO, " Start of calc_gradlik() for iteration {itr} and key {key}")
-    @log_on_end(logging.INFO, " Finished calc_gradlik() for iteration {itr} and key {key}")
+    @log_on_start(logging.INFO, "calc_gradlik() started: itr={itr},  key={key}")
+    @log_on_end(logging.INFO, "calc_gradlik() finished: itr={itr},  key={key}")
     def calc_gradlik(self, itr, key, iwantit=False):
         """Computes the quadratic part of the gradient for plm iteration 'itr'
 
@@ -490,8 +490,8 @@ class qlm_iterator(object):
                 self.cacher.cache(fn_lik, -G if key.lower() == 'p' else -C)
             return -G if key.lower() == 'p' else -C
 
-    @log_on_start(logging.INFO, " Start of calc_graddet() for iteration {itr} and key {key}. Subclassed")
-    @log_on_end(logging.INFO, " Finished calc_graddet() for iteration {itr} and key {key}. Subclassed")
+    @log_on_start(logging.INFO, "calc_graddet() started: itr={itr},  key={key}. subclassed")
+    @log_on_end(logging.INFO, "calc_graddet() finished: itr={itr},  key={key}. subclassed")
     def calc_graddet(self, itr, key):
         assert 0, 'subclass this'
 
@@ -512,13 +512,13 @@ class iterator_cstmf(qlm_iterator):
         self.cacher.cache('mf', almxfl(mf0,  self._h2p(self.lmax_qlm), self.mmax_qlm, False))
 
 
-    @log_on_start(logging.INFO, " Start of load_graddet() for k {k} and key {key}")
-    @log_on_end(logging.INFO, " Finished load_graddet() for k {k} and key {key}")
+    @log_on_start(logging.INFO, "load_graddet() started: k={k},  key={key}")
+    @log_on_end(logging.INFO, "load_graddet() finished: k={k},  key={key}")
     def load_graddet(self, k, key):
         return self.cacher.load('mf')
 
-    @log_on_start(logging.INFO, " Start of calc_graddet() for k {k} and key {key}")
-    @log_on_end(logging.INFO, " Finished calc_graddet() for k {k} and key {key}")
+    @log_on_start(logging.INFO, "calc_graddet() started: k={k},  key={key}")
+    @log_on_end(logging.INFO, "calc_graddet() finished: k={k},  key={key}")
     def calc_graddet(self, k, key):
         return self.cacher.load('mf')
 
@@ -542,8 +542,8 @@ class iterator_pertmf(qlm_iterator):
             self.cacher.cache('mf', almxfl(mf0,  self._h2p(self.lmax_qlm), self.mmax_qlm, False))
         self.p_mf_resp = mf_resp
 
-    @log_on_start(logging.INFO, " Start of load_graddet() for iteration {itr} and key {key}")
-    @log_on_end(logging.INFO, " Finished load_graddet() for iteration {itr} and key {key}")
+    @log_on_start(logging.INFO, "load_graddet() started: itr={itr},  key={key}")
+    @log_on_end(logging.INFO, "load_graddet() finished: itr={itr},  key={key}")
     def load_graddet(self, itr, key):
         assert self.h == 'p', 'check this line is ok for other h'
         mf = almxfl(self.get_hlm(itr - 1, key), self.p_mf_resp * self._h2p(self.lmax_qlm), self.mmax_qlm, False)
@@ -551,8 +551,8 @@ class iterator_pertmf(qlm_iterator):
             mf += self.cacher.load('mf')
         return mf
 
-    @log_on_start(logging.INFO, " Start of calc_graddet() for iteration {itr} and key {key}")
-    @log_on_end(logging.INFO, " Finished calc_graddet() for iteration {itr} and key {key}")
+    @log_on_start(logging.INFO, "calc_graddet() started: itr={itr},  key={key}")
+    @log_on_end(logging.INFO, "calc_graddet() finished: itr={itr},  key={key}")
     def calc_graddet(self, itr, key):
         assert self.h == 'p', 'check this line is ok for other h'
         mf = almxfl(self.get_hlm(itr - 1, key), self.p_mf_resp * self._h2p(self.lmax_qlm), self.mmax_qlm, False)
@@ -576,8 +576,8 @@ class iterator_simf(qlm_iterator):
         self.mf_key = mf_key
 
 
-    @log_on_start(logging.INFO, " Start of calc_graddet() for iteration {itr} and key {key}")
-    @log_on_end(logging.INFO, " Finished calc_graddet() for iteration {itr} and key {key}")
+    @log_on_start(logging.INFO, "calc_graddet() started: itr={itr},  key={key}")
+    @log_on_end(logging.INFO, "calc_graddet() finished: itr={itr},  key={key}")
     def calc_graddet(self, itr, key):
         assert self.is_iter_done(itr - 1, key)
         assert itr > 0, itr
@@ -634,8 +634,8 @@ class iterator_cstmf_bfgs0(iterator_cstmf):
         return BFGS_H
 
 
-    @log_on_start(logging.INFO, " Start of build_incr() for iteration {it} and key {key}")
-    @log_on_end(logging.INFO, " Finished build_incr() for iteration {it} and key {key}")
+    @log_on_start(logging.INFO, "build_incr() started: it={it},  key={key}")
+    @log_on_end(logging.INFO, "build_incr() finished: it={it},  key={key}")
     def build_incr(self, it, key, gradn):
         assert it > 0, it
         k = it - 1

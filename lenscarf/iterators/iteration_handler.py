@@ -63,8 +63,8 @@ class scarf_iterator_pertmf():
         self.chain_descr = lensing_config.chain_descr(lensing_config.lmax_unl, lensing_config.cg_tol)
 
 
-    @log_on_start(logging.INFO, " Start of get_datmaps()")
-    @log_on_end(logging.INFO, " Finished get_datmaps()")
+    @log_on_start(logging.INFO, "get_datmaps() started")
+    @log_on_end(logging.INFO, "get_datmaps() finished")
     def get_datmaps(self):
         mpi.rank == 0
         assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
@@ -74,8 +74,8 @@ class scarf_iterator_pertmf():
         return datmaps
 
 
-    @log_on_start(logging.INFO, " Start of get_filter()")
-    @log_on_end(logging.INFO, " Finished get_filter()")
+    @log_on_start(logging.INFO, "get_meanfield_it() started")
+    @log_on_end(logging.INFO, "get_meanfield_it() finished")
     def get_filter(self, sims_MAP=None, ffi=None, tpl=None):
         mpi.rank == 0
         assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
@@ -95,8 +95,8 @@ class scarf_iterator_pertmf():
 
 
     # TODO choose iterator via visitor pattern. perhaps already in p2lensrec
-    @log_on_start(logging.INFO, " Start of get_iterator()")
-    @log_on_end(logging.INFO, " Finished get_iterator()")
+    @log_on_start(logging.INFO, "get_iterator() started")
+    @log_on_end(logging.INFO, "get_iterator() finished")
     def get_iterator(self):
         """iterator_pertmf needs a whole lot of parameters, which are calculated when initialising this class.
         Returns:
@@ -147,8 +147,8 @@ class scarf_iterator_constmf():
         self.chain_descr = lensing_config.chain_descr(lensing_config.lmax_unl, lensing_config.cg_tol)
 
 
-    @log_on_start(logging.INFO, " Start of get_datmaps()")
-    @log_on_end(logging.INFO, " Finished get_datmaps()")
+    @log_on_start(logging.INFO, "get_datmaps() started")
+    @log_on_end(logging.INFO, "get_datmaps() finished")
     def get_datmaps(self):
         assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
         self.sims_MAP  = utils_sims.ztrunc_sims(self.sims, self.nside, [self.zbounds])
@@ -157,8 +157,8 @@ class scarf_iterator_constmf():
         return datmaps
 
 
-    @log_on_start(logging.INFO, " Start of get_filter()")
-    @log_on_end(logging.INFO, " Finished get_filter()")
+    @log_on_start(logging.INFO, "get_filter() started")
+    @log_on_end(logging.INFO, "get_filter() finished")
     def get_filter(self, sims_MAP=None, ffi=None, tpl=None):
         assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
         if sims_MAP == None:
@@ -176,8 +176,8 @@ class scarf_iterator_constmf():
         return filter
 
 
-    @log_on_start(logging.INFO, " Start of get_iterator()")
-    @log_on_end(logging.INFO, " Finished get_iterator()")
+    @log_on_start(logging.INFO, "get_iterator() started")
+    @log_on_end(logging.INFO, "get_iterator() finished")
     def get_iterator(self):
         """iterator_pertmf needs a whole lot of parameters, which are calculated when initialising this class.
 
