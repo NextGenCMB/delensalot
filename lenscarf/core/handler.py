@@ -296,21 +296,17 @@ class MAP_lr():
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
                     log.info("{}: start sim {}".format(mpi.rank, idx))
                     lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
+                    itlib = self.ith(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
+                    itlib_iterator = itlib.get_iterator()
                     if self.dlm_mod_bool:
                         dlm_mod = self.get_meanfields_it(np.arange(self.itmax+1), calc=False)
                         # assuming mf includes all plms from simindices in config
-                        dlm_mod = (dlm_mod * (self.imax - self.imin +1) - rec.load_plms(lib_dir_iterator, np.arange(self.itmax+1)))/(self.imax - self.imin)
-                    else:
-                        dlm_mod = [None for n in range(self.itmax+1)]
-                    itlib = self.ith(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
-                    itlib_iterator = itlib.get_iterator()
+                        Nmf = len(np.arange(self.nsims_mf))
+                        dlm_mod = (dlm_mod - np.array(rec.load_plms(lib_dir_iterator, np.arange(self.itmax+1)))/Nmf) * Nmf/(Nmf - 1)
                     for it in range(0, self.itmax + 1):
                         if it <= rec.maxiterdone(lib_dir_iterator):
-                            if it == 0:
-                                  # this has already been done at QE level
-                                itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=None, calc=True)
-                            else:
-                                itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod[it], calc=True)
+                            _dlm_mod = None if (it == 0 or self.dlm_mod_bool == False) else dlm_mod[it]
+                            itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=_dlm_mod, calc=True, Nmf=Nmf)
                     log.info("{}: finished sim {}".format(mpi.rank, idx))
 
             elif task == 'calc_phi':
@@ -348,7 +344,8 @@ class MAP_lr():
     @log_on_start(logging.INFO, "get_meanfield_it() started: it={it}")
     @log_on_end(logging.INFO, "get_meanfield_it() finished: it={it}")
     def get_meanfield_it(self, it, calc=False):
-        fn = opj(self.TEMP, 'mf', 'mf_it%03d.npy'%(it))
+        Nmf = len(np.arange(self.nsims_mf))
+        fn = opj(self.TEMP, 'mf{:03d}'.format(Nmf), 'mf%03d_it%03d.npy'%(Nmf, it))
         if not calc:
             if os.path.isfile(fn):
                 mf = np.load(fn)
@@ -357,10 +354,10 @@ class MAP_lr():
         else:
             plm = rec.load_plms(self.libdir_iterators(self.k, 0, self.version), [0])[-1]
             mf = np.zeros_like(plm)
-            for simidx in range(self.imin, self.imax + 1):
-                log.info("it {:02d}: adding sim {:03d}/{}".format(it, simidx, self.imax - self.imin + 1))
+            for simidx in range(Nmf):
+                log.info("it {:02d}: adding sim {:03d}/{}".format(it, simidx, Nmf))
                 mf += rec.load_plms(self.libdir_iterators(self.k, simidx, self.version), [it])[-1]
-                np.save(fn, mf/(self.imax - self.imin + 1))
+                np.save(fn, mf/Nmf)
 
         return mf
 
@@ -397,7 +394,7 @@ class Map_delenser():
 
     # @log_on_start(logging.INFO, "getfn_blm_lensc() started")
     # @log_on_end(logging.INFO, "getfn_blm_lensc() started")
-    def getfn_blm_lensc(self, simidx, it):
+    def getfn_blm_lensc(self, simidx, it, Nmf):
         '''Lenscarf output using Catherinas E and B maps'''
         # TODO this needs cleaner implementation
         if self.libdir_iterators == 'overwrite':
@@ -417,7 +414,7 @@ class Map_delenser():
             if it == 0:
                 return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(it, it)
             if self.dlm_mod_bool:
-                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024_dlmmod.npy'%(it, it)
+                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024_dlmmod%03d.npy'%(it, it, Nmf)
             else:
                 return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(it, it)
 

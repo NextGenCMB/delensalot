@@ -15,9 +15,6 @@ from logdecorator import log_on_start, log_on_end
 
 import numpy as np
 
-from plancklens.helpers import mpi
-mpi.rank == 0
-
 from lenscarf import remapping
 from lenscarf import utils_sims
 from lenscarf.iterators import cs_iterator
@@ -66,7 +63,6 @@ class scarf_iterator_pertmf():
     @log_on_start(logging.INFO, "get_datmaps() started")
     @log_on_end(logging.INFO, "get_datmaps() finished")
     def get_datmaps(self):
-        mpi.rank == 0
         assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
         self.sims_MAP  = utils_sims.ztrunc_sims(self.sims, self.nside, [self.zbounds])
         datmaps = np.array(self.sims_MAP.get_sim_pmap(int(self.simidx)))
@@ -77,7 +73,6 @@ class scarf_iterator_pertmf():
     @log_on_start(logging.INFO, "get_filter() started")
     @log_on_end(logging.INFO, "get_filter() finished")
     def get_filter(self, sims_MAP=None, ffi=None, tpl=None):
-        mpi.rank == 0
         assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
         if sims_MAP == None:
             sims_MAP = self.sims_MAP

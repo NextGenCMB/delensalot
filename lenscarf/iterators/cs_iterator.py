@@ -192,7 +192,7 @@ class qlm_iterator(object):
 
     @log_on_start(logging.INFO, "get_template_blm() started: it={it}, calc={calc}")
     @log_on_end(logging.INFO, "get_template_blm() finished: it={it}")
-    def get_template_blm(self, it, it_e, lmaxb=1024, lmin_plm=1, elm_wf:None or np.ndarray=None, dlm_mod=None, calc=False):
+    def get_template_blm(self, it, it_e, lmaxb=1024, lmin_plm=1, elm_wf:None or np.ndarray=None, dlm_mod=None, calc=False, Nmf=None):
         """Builds a template B-mode map with the iterated phi and input elm_wf
 
             Args:
@@ -215,6 +215,10 @@ class qlm_iterator(object):
             dlm_mod_string = '_dlmmod'
         else:
             dlm_mod_string = ''
+        if Nmf == None:
+            pass
+        else:
+            dlm_mod_string += "{:03d}".format(Nmf)
         fn = 'btempl_p%03d_e%03d_lmax%s%s' % (it, it_e, lmaxb, dlm_mod_string)
         if not calc:
             if self.wf_cacher.is_cached(fn):
