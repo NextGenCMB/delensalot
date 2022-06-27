@@ -143,11 +143,6 @@ class QE_lr():
                 log.info('{} finished qe mf-calc tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
                 mpi.barrier()
                 log.info('All ranks finished qe mf-calc tasks.')
-        # else:
-        #     # TODO hack. Only want to access old s08b sim result lib and generate B wf
-        #     # TODO do we really want Wiener-filtereed B?
-        #     for idx in self.jobs[mpi.rank::mpi.size]:
-        #         self.get_B_wf(idx)
 
 
     @log_on_start(logging.INFO, "get_sim_qlm() started")
@@ -187,13 +182,15 @@ class QE_lr():
     @log_on_start(logging.INFO, "get_meanfield() started")
     @log_on_end(logging.INFO, "get_meanfield() finished")
     def get_meanfield(self, simidx):
+        Nmf = len(np.arange(self.nsims_mf))
         if self.mfvar == None:
             mf = self.qlms_dd.get_sim_qlm_mf(self.k, np.arange(self.nsims_mf))
+            if simidx in np.arange(self.nsims_mf):    
+                mf = (mf - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / Nmf) * (Nmf / (Nmf - 1))
         else:
             mf = hp.read_alm(self.mfvar)
-        if simidx in np.arange(self.nsims_mf):
-            Nmf = len(np.arange(self.nsims_mf))
-            mf = (mf - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / Nmf) * (Nmf / (Nmf - 1))
+            if simidx in np.arange(self.nsims_mf):    
+                mf = (mf - self.qlms_dd_mfvar.get_sim_qlm(self.k, int(simidx)) / Nmf) * (Nmf / (Nmf - 1))
 
         return mf
 
@@ -227,7 +224,7 @@ class QE_lr():
         if self.k in ['p_p'] and not 'noRespMF' in self.version :
             mf_resp = qresp.get_mf_resp(self.k, self.cls_unl, {'ee': self.fel_unl, 'bb': self.fbl_unl}, self.lmax_ivf, self.lmax_qlm)[0]
         else:
-            print('*** mf_resp not implemented for key ' + self.k, ', setting it to zero')
+            log.info('*** mf_resp not implemented for key ' + self.k, ', setting it to zero')
             mf_resp = np.zeros(self.lmax_qlm + 1, dtype=float)
 
         return mf_resp
@@ -256,7 +253,7 @@ class MAP_lr():
 
             if task == 'calc_meanfield':
                 self.qe.collect_jobs()
-                # TODO check if for each iter, all sims are done, then append. job here is iteration, not simindex (1)
+                # TODO check if for each iter, all sims are done, then append. job here is iteration, not simindex TD(1)
                 lib_dir_iterator = self.libdir_iterators(self.k, 0, self.version)
                 if rec.maxiterdone(lib_dir_iterator) < self.itmax:
                     _jobs.append(0)
@@ -287,7 +284,7 @@ class MAP_lr():
 
             if task == 'calc_meanfield':
                 self.qe.run()
-                # TODO if (1) solved, replace np.arange() accordingly
+                # TODO if TD(1) solved, replace np.arange() accordingly
                 self.get_meanfields_it(np.arange(self.itmax+1), calc=True)
                 mpi.barrier()
 
@@ -317,9 +314,9 @@ class MAP_lr():
                         itlib = self.ith(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
                         itlib_iterator = itlib.get_iterator()
                         for it in range(self.itmax + 1):
-                            log.info("****Iterator: setting cg-tol to %.4e ****"%self.tol_iter(it))
-                            log.info("****Iterator: setting solcond to %s ****"%self.soltn_cond(it))
-                            itlib_iterator.chain_descr  = self.chain_descr(self.lmax_unl, self.tol_iter(it))
+                            log.info("using cg-tol = %.4e"%self.tol_iter(it))
+                            log.info("using soltn_cond = %s"%self.soltn_cond(it))
+                            itlib_iterator.chain_descr = self.chain_descr(self.lmax_unl, self.tol_iter(it))
                             itlib_iterator.soltn_cond = self.soltn_cond(it)
                             itlib_iterator.iterate(it, 'p')
                             log.info('{}, simidx {} done with it {}'.format(mpi.rank, idx, it))
@@ -445,7 +442,6 @@ class Map_delenser():
     @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self):
         # TODO perhaps trigger calc of B-templates here, if needed
-        mpi.rank == 0
         jobs = []
         for idx in np.arange(self.imin, self.imax + 1):
             # Overwriting test

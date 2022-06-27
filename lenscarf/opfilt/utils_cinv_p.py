@@ -125,7 +125,7 @@ class cinv_p(filt_cinv.cinv):
                 4. * np.pi / len(ninv[2]) / np.sum(ninv[2]) * len(np.where(ninv[2] != 0.0)[0])) * 180. * 60. / np.pi
 
 
-        print("cinv_p::noiseP_uk_arcmin = %.3f"%NlevP_uKamin)
+        log.info("cinv_p::noiseP_uk_arcmin = %.3f"%NlevP_uKamin)
 
         s_cls = self.chain.s_cls    
         b_transf = self.chain.n_inv_filt.b_transf

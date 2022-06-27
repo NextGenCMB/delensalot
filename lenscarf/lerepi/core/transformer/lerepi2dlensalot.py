@@ -47,6 +47,12 @@ class l2T_Transformer:
     # @log_on_end(logging.INFO, "build() finished")
     def build(self, cf):
         _nsims_mf = 0 if cf.iteration.V == 'noMF' else cf.iteration.nsims_mf
+
+        #TODO hack to make mf var work for v1 in mf 100 of 08b
+        ovw = 100
+        if _nsims_mf == 50:
+            _nsims_mf = ovw
+        log.warning('_nsims_mf for TEMP dir hardcoded to '.format(ovw))
         _suffix = cf.data.sims.split('/')[1]+'_%s'%(cf.data.fg)
         if cf.noisemodel.typ == 'OBD':
             _suffix += '_OBD'
@@ -222,7 +228,13 @@ class l2lensrec_Transformer:
 
                 log.info('{} starting qest.library_sepTP()'.format(mpi.rank))
                 dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.ivfs, dl.ivfs, dl.cls_len['te'], dl.nside, lmax_qlm=dl.lmax_qlm)
-                    
+
+                if dl.mfvar:
+                    TEMPmfvar = self.TEMP.replace('_00_', "_{}_".format(self.version[2:]))
+                    _ivfs_raw = filt_cinv.library_cinv_sepTP(opj(TEMPmfvar, 'ivfs'), dl.sims, dl.cinv_t, dl.cinv_p, dl.cls_len)
+                    _ivfs = filt_util.library_ftl(_ivfs_raw, iteration.lmax_ivf, dl.ftl_rs, dl.fel_rs, dl.fbl_rs)
+                    dl.qlms_dd_mfvar = qest.library_sepTP(opj(TEMPmfvar, 'qlms_dd'), _ivfs, _ivfs, self.cls_len['te'], self.nside, lmax_qlm=self.lmax_qlm)
+    
             if iteration.QE_LENSING_CL_ANALYSIS == True:
                 dl.ss_dict = { k : v for k, v in zip( np.concatenate( [ range(i*60, (i+1)*60) for i in range(0,5) ] ),
                                         np.concatenate( [ np.roll( range(i*60, (i+1)*60), -1 ) for i in range(0,5) ] ) ) }
@@ -841,7 +853,7 @@ class l2d_Transformer:
             dl.fg = de.fg
  
             _ui = de.base_mask.split('/')
-            _sims_module_name = 'lerepi.config.'+_ui[0]+'.data.data_'+_ui[1]
+            _sims_module_name = 'lenscarf.lerepi.config.'+_ui[0]+'.data.data_'+_ui[1]
             _sims_class_name = _ui[-1]
             _sims_module = importlib.import_module(_sims_module_name)
             dl.sims = getattr(_sims_module, _sims_class_name)(dl.fg)

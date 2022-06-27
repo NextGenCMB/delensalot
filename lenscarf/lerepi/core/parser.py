@@ -6,6 +6,7 @@ __author__ = "S. Belkner, J. Carron, L. Legrand"
 
 
 import logging
+log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
 
 import argparse
@@ -28,7 +29,7 @@ class lerepi_parser():
     def validate(self):
         _f = []
         module_path = os.path.dirname(lerepi.__file__)
-        print(module_path)
+        log.info(module_path)
         for (dirpath, dirnames, filenames) in walk(module_path+'/config/'):
             _f.extend(filenames)
             break
@@ -42,16 +43,17 @@ class lerepi_parser():
             # if resume is asked, check path
             paramfile_path = self.parser.resume
             if os.path.exists(paramfile_path):
-                print("resuming previous run with {}".format(paramfile_path) )
+                log.info("resuming previous run with {}".format(paramfile_path) )
                 self.parser.config_file = paramfile_path
             else:
-                print('Cannot find config file to resume at {}'.format(paramfile_path))
+                log.error('Cannot find config file to resume at {}'.format(paramfile_path))
+                assert 0, "I see the following options: {}".format(f)
         elif os.path.exists(paramfile_path):
             # if new run is asked, check path
-            print("New run requested with with {}".format(paramfile_path))
+            log.info("New run requested with with {}".format(paramfile_path))
             self.parser.config_file = paramfile_path
         else:
-            print("ERROR: Cannot find file {}".format(paramfile_path))
+            log.error("ERROR: Cannot find file {}".format(paramfile_path))
             assert 0, "I see the following options: {}".format(f)
 
 

@@ -7,6 +7,10 @@ import numpy as np
 import healpy as hp
 import scarf
 
+import logging
+log = logging.getLogger(__name__)
+from logdecorator import log_on_start, log_on_end
+
 from plancklens import utils
 from plancklens.helpers import mpi
 from plancklens.qcinv import opfilt_pp
@@ -87,7 +91,7 @@ class template_bfilt(object):
         self.lmax = lmax_marg
         self.nmodes = int((lmax_marg + 1) * lmax_marg + lmax_marg + 1 - 4)
         if not np.all(geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
-            print('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
+            log.info('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
             nr = geom.get_nrings()
             geom_ = us.Geometry(nr, geom.nph.copy(), geom.ofs.copy(), 1, geom.phi0.copy(), geom.theta.copy(), np.ones(nr, dtype=float))
         else:
@@ -272,8 +276,8 @@ class template_dense(template_bfilt):
     def tniti(self):
         if self._tniti is None:
             self._tniti = read_map(os.path.join(self.lib_dir, 'tniti.npy')) * self.rescal
-            print("reading " +os.path.join(self.lib_dir, 'tniti.npy') )
-            print("Rescaling it with %.5f"%self.rescal)
+            log.info("reading " +os.path.join(self.lib_dir, 'tniti.npy') )
+            log.info("Rescaling it with %.5f"%self.rescal)
         return self._tniti
 
 
@@ -304,22 +308,22 @@ class eblm_filter_ninv(opfilt_pp.alm_filter_ninv):
             self.templates.append(template_bfilt(lmax_marg=lmax_marg, geom=geom, sht_threads=sht_threads, _lib_dir=_bmarg_lib_dir))
         if len(self.templates) > 0:
             if _bmarg_lib_dir is not None and os.path.exists( os.path.join(_bmarg_lib_dir, 'tniti.npy')):
-                print("Loading " + os.path.join(_bmarg_lib_dir, 'tniti.npy'))
+                log.info("Loading " + os.path.join(_bmarg_lib_dir, 'tniti.npy'))
                 self.tniti = np.load(os.path.join(_bmarg_lib_dir, 'tniti.npy'))
                 if _bmarg_rescal != 1.:
-                    print("**** RESCALING tiniti with %.4f"%_bmarg_rescal)
+                    log.info("**** RESCALING tiniti with %.4f"%_bmarg_rescal)
                     self.tniti *= _bmarg_rescal
             else:
-                print("Inverting template matrix:")
+                log.info("Inverting template matrix:")
                 tnit = self.templates[0].build_tnit((self.n_inv[0], self.n_inv[0], None))
                 eigv, eigw = np.linalg.eigh(tnit)
                 if not np.all(eigv > 0):
-                    print('Negative or zero eigenvalues in template projection')
+                    log.info('Negative or zero eigenvalues in template projection')
                 eigv_inv = utils.cli(eigv)
                 self.tniti = np.dot(np.dot(eigw, np.diag(eigv_inv)), np.transpose(eigw))
                 if _bmarg_lib_dir is not None and not os.path.exists(os.path.join(_bmarg_lib_dir, 'tniti.npy')):
                     np.save(os.path.join(_bmarg_lib_dir, 'tniti.npy'), self.tniti)
-                    print("Cached " + os.path.join(_bmarg_lib_dir, 'tniti.npy'))
+                    log.info("Cached " + os.path.join(_bmarg_lib_dir, 'tniti.npy'))
 
         self.zbounds = zbounds
 
@@ -344,7 +348,7 @@ class eblm_filter_ninv(opfilt_pp.alm_filter_ninv):
                     qmap -= pmodes[0]
                     umap -= pmodes[1]
             else:
-                print("apply_map: cuts %s %s"%(self.blm_range[0], self.blm_range[1]))
+                log.info("apply_map: cuts %s %s"%(self.blm_range[0], self.blm_range[1]))
                 elm, blm = hph.map2alm_spin([qmap, umap], 2, lmax=min(3 * self.nside - 1, self.blm_range[1]))
                 if self.blm_range[0] > 2: # approx taking out the low-ell B-modes
                     b_ftl = np.ones(hp.Alm.getlmax(blm.size) + 1, dtype=float)

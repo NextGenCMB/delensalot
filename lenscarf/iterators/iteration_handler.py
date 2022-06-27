@@ -2,7 +2,6 @@
 
 """iteration_handler.py: This module is a passthrough to Dlensalot.cs_iterator. In the future, it will serve as a template module, which helps
 setting up an iterator, (e.g. permf or constmf), and decide which object on iteration level will be used, (e.g. cg, bfgs, filter).
-At this level, can possibly also choose likelihood, which would be needed for crosscorrelating to external tracers.
     
 """
 __author__ = "S. Belkner, J. Carron, L. Legrand"

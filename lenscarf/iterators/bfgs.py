@@ -1,5 +1,9 @@
 from __future__ import print_function
 
+import logging
+log = logging.getLogger(__name__)
+from logdecorator import log_on_start, log_on_end
+
 import numpy as np
 from lenscarf import cachers
 
@@ -53,8 +57,8 @@ class BFGS_Hessian(object):
         self.paths2ys[k] = path2y
         self.paths2ss[k] = path2s
         if self.verbose:
-            print('Linked y vector ', path2y, ' to Hessian')
-            print('Linked s vector ', path2s, ' to Hessian')
+            log.info('Linked y vector ', path2y, ' to Hessian')
+            log.info('Linked s vector ', path2s, ' to Hessian')
 
     def _save_alpha(self, alpha, i):
         fname = 'temp_alpha_%s'%i

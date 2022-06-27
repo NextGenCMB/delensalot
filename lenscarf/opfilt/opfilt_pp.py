@@ -2,6 +2,10 @@
 
 
 """
+import logging
+log = logging.getLogger(__name__)
+from logdecorator import log_on_start, log_on_end
+
 import numpy as np
 from lenscarf.utils_hp import almxfl, Alm, alm2cl
 from lenscarf.utils import timer, cli, clhash, read_map
@@ -40,7 +44,7 @@ class alm_filter_ninv(object):
 
         sc_job = utils_scarf.scarfjob()
         if not np.all(ninv_geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
-            print('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
+            log.info('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
             nr = ninv_geom.get_nrings()
             ninv_geom_ = utils_scarf.Geometry(nr, ninv_geom.nph.copy(), ninv_geom.ofs.copy(), 1, ninv_geom.phi0.copy(), ninv_geom.theta.copy(), np.ones(nr, dtype=float))
             # Does not seem to work without the 'copy'
@@ -261,7 +265,7 @@ class pre_op_diag:
         for fl, clk in zip([ninv_fel, ninv_fbl], ['ee', 'bb']):
             assert len(s_cls[clk]) > ninv_filt.lmax_sol, (ninv_filt.lmax_sol, len(s_cls[clk]))
             if len(fl) - 1 < lmax_sol: # We extend the transfer fct to avoid predcon. with zero (~ Gauss beam)
-                print("PRE_OP_DIAG: extending transfer fct from lmax %s to lmax %s"%(len(fl)-1, lmax_sol))
+                log.info("PRE_OP_DIAG: extending transfer fct from lmax %s to lmax %s"%(len(fl)-1, lmax_sol))
                 assert np.all(fl > 0)
                 spl_sq = spl(np.arange(len(ninv_fel), dtype=float), np.log(fl), k=2, ext='extrapolate')
                 flmat[clk] = cli(s_cls[clk][:lmax_sol + 1]) + np.exp(spl_sq(np.arange(lmax_sol + 1, dtype=float)))

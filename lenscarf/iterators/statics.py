@@ -37,7 +37,7 @@ class rec:
                 if (i + 1) in itrs:
                     ret.append(rlm2alm(rlm))
             else:
-                print("*** Could only build up to itr number %s"%i)
+                log.info("*** Could only build up to itr number %s"%i)
                 return ret
         return ret
 

@@ -2,6 +2,10 @@
 
 
 """
+import logging
+log = logging.getLogger(__name__)
+from logdecorator import log_on_start, log_on_end
+
 import os
 import numpy as np
 import scarf
@@ -72,7 +76,7 @@ class template_tfilt(object):
         self.lmax = lmax_marg
         self.nmodes = (lmax_marg + 1) * lmax_marg + lmax_marg + 1 - 0
         if not np.all(geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
-            print('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
+            log.info('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
             nr = geom.get_nrings()
             geom_ = us.Geometry(nr, geom.nph.copy(), geom.ofs.copy(), 1, geom.phi0.copy(), geom.theta.copy(), np.ones(nr, dtype=float))
         else:
@@ -227,6 +231,6 @@ class template_dense(template_tfilt):
     def tniti(self):
         if self._tniti is None:
             self._tniti = read_map(os.path.join(self.lib_dir, 'tniti.npy')) * self.rescal
-            print("reading " +os.path.join(self.lib_dir, 'tniti.npy') )
-            print("Rescaling it with %.5f"%self.rescal)
+            log.info("reading " +os.path.join(self.lib_dir, 'tniti.npy') )
+            log.info("Rescaling it with %.5f"%self.rescal)
         return self._tniti
