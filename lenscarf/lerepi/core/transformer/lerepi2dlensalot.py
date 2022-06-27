@@ -53,7 +53,7 @@ class l2T_Transformer:
         # ovw = 100
         # if _nsims_mf == 50:
         #     _nsims_mf = ovw
-        log.warning('_nsims_mf for TEMP dir hardcoded to {}'.format(ovw))
+        # log.warning('_nsims_mf for TEMP dir hardcoded to {}'.format(ovw))
         _suffix = cf.data.sims.split('/')[1]+'_%s'%(cf.data.fg)
         if cf.noisemodel.typ == 'OBD':
             _suffix += '_OBD'
@@ -849,7 +849,8 @@ class l2d_Transformer:
                 dl.edges.append(fs_edges) 
             dl.imin = de.IMIN
             dl.imax = de.IMAX
-            dl.iterations = de.ITMAX
+            dl.its = de.ITMAX
+            dl.nmf = cf.iteration.nsims_mf
             dl.droplist = de.droplist
             dl.fg = de.fg
  

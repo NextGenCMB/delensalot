@@ -204,7 +204,7 @@ class QE_lr():
         path_plm = opj(lib_dir_iterator, 'phi_plm_it000.npy')
         if not os.path.exists(path_plm):
             plm  = self.qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate:
-            plm -= self.mf(simidx)  # MF-subtracted unnormalized QE
+            # plm -= self.mf(simidx)  # MF-subtracted unnormalized QE
             R = qresp.get_response(self.k, self.lmax_ivf, 'p', self.cls_len, self.cls_len, {'e': self.fel, 'b': self.fbl, 't':self.ftl}, lmax_qlm=self.lmax_qlm)[0]
             # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
             WF = self.cpp * utils.cli(self.cpp + utils.cli(R))
@@ -407,7 +407,7 @@ class Map_delenser():
 
     # @log_on_start(logging.INFO, "getfn_blm_lensc() started")
     # @log_on_end(logging.INFO, "getfn_blm_lensc() started")
-    def getfn_blm_lensc(self, simidx, it, Nmf):
+    def getfn_blm_lensc(self, simidx, it, Nmf=None):
         '''Lenscarf output using Catherinas E and B maps'''
         # TODO this needs cleaner implementation
         if self.libdir_iterators == 'overwrite':
@@ -488,13 +488,13 @@ class Map_delenser():
                     eblm_cs_buff = hp.map2alm_spin(qumap_cs_buff*self.base_mask, 2, self.lmax_cl)
                     bmap_cs_buff = hp.alm2map(eblm_cs_buff[1], self.nside)
 
-                    blm_lensc_QE_buff = np.load(self.getfn_blm_lensc(idx, 0))
+                    blm_lensc_QE_buff = np.load(self.getfn_blm_lensc(idx, 0, self.nmf))
                     bmap_lensc_QE_buff = hp.alm2map(blm_lensc_QE_buff, nside=self.nside)
 
-                    if self.getfn_blm_lensc(idx, 0).endswith('npy'):
-                        blm_lensc_MAP_buff = np.array([np.load(self.getfn_blm_lensc(idx, it)) for it in self.its])
+                    if self.getfn_blm_lensc(idx, 0, self.nmf).endswith('npy'):
+                        blm_lensc_MAP_buff = np.array([np.load(self.getfn_blm_lensc(idx, it, self.nmf)) for it in self.its])
                     else:
-                        blm_lensc_MAP_buff = np.array([hp.read_alm(self.getfn_blm_lensc(idx, it)) for it in self.its])
+                        blm_lensc_MAP_buff = np.array([hp.read_alm(self.getfn_blm_lensc(idx, it, self.nmf)) for it in self.its])
                     bmap_lensc_MAP_buff = np.array([hp.alm2map(blm_lensc_MAP_buff[iti], nside=self.nside) for iti in range(len(self.its))])
                     for nlevi, nlev in enumerate(self.nlevels):
                         bcl_cs = self.lib[nlev].map2cl(bmap_cs_buff)
