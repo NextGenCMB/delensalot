@@ -25,6 +25,7 @@ dlensalot_model = DLENSALOT_Model(
     iteration = DLENSALOT_Iteration(
         K = 'p_p',
         V = '', 
+        QE_subtract_meanfield = False,
         ITMAX = 12,
         IMIN = 0,
         IMAX = 99,

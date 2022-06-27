@@ -72,7 +72,7 @@ class QE_lr():
         if self.overwrite_libdir is None:
             self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
             self.mf = lambda simidx: self.get_meanfield(simidx)
-            self.plm = lambda simidx: self.get_plm(simidx)
+            self.plm = lambda simidx: self.get_plm(simidx, self.QE_subtract_meanfield)
             self.mf_resp = lambda: self.get_response_meanfield()
             self.wflm = lambda simidx: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lmax_unl, self.mmax_unl)
             self.R_unl = lambda: qresp.get_response(self.k, self.lmax_ivf, 'p', self.cls_unl, self.cls_unl,  {'e': self.fel_unl, 'b': self.fbl_unl, 't':self.ftl_unl}, lmax_qlm=self.lmax_qlm)[0]
@@ -114,14 +114,14 @@ class QE_lr():
     @log_on_end(logging.INFO, "run() finished")
     def run(self):
         if self.overwrite_libdir is None:
-            # TODO this triggers the creation of all files for the MAP input, defined by the job array. MAP later needs the corresponding values separately via the getter
-            # Can I think of something better?
             for idx in self.jobs[mpi.rank::mpi.size]:
                 log.info('{}/{}, Starting job {}'.format(mpi.rank,mpi.size,idx))
-                self.get_sim_qlm(idx)
-                self.get_response_meanfield()
-                self.get_wflm(idx)
-                self.get_R_unl()
+                # TODO this triggers the creation of all files for the MAP input, defined by the job array. 
+                # MAP later needs the corresponding values separately via getter. Can I think of something better?
+                # self.get_sim_qlm(idx)
+                # self.get_response_meanfield()
+                # self.get_wflm(idx)
+                # self.get_R_unl()
                 # self.get_B_wf(idx)
                 log.info('{}/{}, finished job {}'.format(mpi.rank,mpi.size,idx))
             if len(self.jobs)>0:
@@ -197,14 +197,15 @@ class QE_lr():
 
     @log_on_start(logging.INFO, "get_plm() started")
     @log_on_end(logging.INFO, "get_plm() finished")
-    def get_plm(self, simidx):
+    def get_plm(self, simidx, subtract_meanfield=True):
         lib_dir_iterator = self.libdir_iterators(self.k, simidx, self.version)
         if not os.path.exists(lib_dir_iterator):
             os.makedirs(lib_dir_iterator)
         path_plm = opj(lib_dir_iterator, 'phi_plm_it000.npy')
         if not os.path.exists(path_plm):
             plm  = self.qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate:
-            # plm -= self.mf(simidx)  # MF-subtracted unnormalized QE
+            if subtract_meanfield:
+                plm -= self.mf(simidx)  # MF-subtracted unnormalized QE
             R = qresp.get_response(self.k, self.lmax_ivf, 'p', self.cls_len, self.cls_len, {'e': self.fel, 'b': self.fbl, 't':self.ftl}, lmax_qlm=self.lmax_qlm)[0]
             # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
             WF = self.cpp * utils.cli(self.cpp + utils.cli(R))
@@ -425,11 +426,11 @@ class Map_delenser():
             # TODO this belongs via config to c2d
             # TODO only QE it 0 doesn't exists because no modification is done to it. catching this. Can this be done better?
             if it == 0:
-                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(it, it)
+                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024%03d.npy'%(it, it, Nmf)
             if self.dlm_mod_bool:
                 return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024_dlmmod%03d.npy'%(it, it, Nmf)
             else:
-                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(it, it)
+                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024%03d.npy'%(it, it, Nmf)
 
             
     # @log_on_start(logging.INFO, "getfn_qumap_cs() started")

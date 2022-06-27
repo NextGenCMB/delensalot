@@ -43,6 +43,11 @@ def load_paramfile(directory, descriptor):
 
     return p
 
+
+def load_config():
+
+    return 
+
 def clamp(val, minimum=0, maximum=255):
     if val < minimum:
         return minimum

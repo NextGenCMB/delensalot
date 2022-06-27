@@ -103,6 +103,7 @@ class DLENSALOT_Iteration(DLENSALOT_Concept):
     K = attr.ib(default=-1)
     # version, can be 'noMF
     V = attr.ib(default=-1)
+    QE_subtract_meanfield = attr.ib(default=True)
     tasks = attr.ib(default=-1)
     ITMAX = attr.ib(default=-1)
     IMIN = attr.ib(default=-1)

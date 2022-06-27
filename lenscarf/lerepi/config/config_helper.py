@@ -9,7 +9,26 @@ import numpy as np
 import healpy as hp
 
 
+class LEREPI_Constants:
+    fs_edges = np.arange(2, 3000, 20)
+    fs_edges = np.arange(2, 3000, 20)
+    ioreco_edges = np.array([2, 30, 200, 300, 500, 700, 1000, 1500, 2000, 3000, 4000, 5000])
+    cmbs4_edges = np.array([2, 30, 60, 90, 120, 150, 180, 200, 300, 500, 700, 1000, 1500, 2000, 3000, 4000, 5000])
+
+
 class data_functions:
+
+    def a2r(val):
+        """arcmin2radian converter
+
+        Args:
+            val (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
+        return val  / 180 / 60 * np.pi
+        
 
     def get_nlev_mask(ratio, rhits):
         """Mask built thresholding the relative hit counts map
