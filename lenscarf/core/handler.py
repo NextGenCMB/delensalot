@@ -117,13 +117,13 @@ class QE_lr():
             # TODO this triggers the creation of all files for the MAP input, defined by the job array. MAP later needs the corresponding values separately via the getter
             # Can I think of something better?
             for idx in self.jobs[mpi.rank::mpi.size]:
-                logging.info('{}/{}, Starting job {}'.format(mpi.rank,mpi.size,idx))
+                log.info('{}/{}, Starting job {}'.format(mpi.rank,mpi.size,idx))
                 self.get_sim_qlm(idx)
                 self.get_response_meanfield()
                 self.get_wflm(idx)
                 self.get_R_unl()
                 # self.get_B_wf(idx)
-                logging.info('{}/{}, finished job {}'.format(mpi.rank,mpi.size,idx))
+                log.info('{}/{}, finished job {}'.format(mpi.rank,mpi.size,idx))
             if len(self.jobs)>0:
                 log.info('{} finished qe ivfs tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
                 mpi.barrier()
@@ -251,25 +251,38 @@ class MAP_lr():
         for taski, task in enumerate(self.tasks):
             _jobs = []
 
-            if task == 'calc_meanfield':
-                self.qe.collect_jobs()
-                # TODO check if for each iter, all sims are done, then append. job here is iteration, not simindex TD(1)
-                lib_dir_iterator = self.libdir_iterators(self.k, 0, self.version)
-                if rec.maxiterdone(lib_dir_iterator) < self.itmax:
-                    _jobs.append(0)
-
-            elif task == 'calc_btemplate':
-                self.qe.collect_jobs()
-                for idx in np.arange(self.imin, self.imax + 1):
-                    lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
-                    if rec.maxiterdone(lib_dir_iterator) >= self.itmax:
-                        _jobs.append(idx)
-
-            elif task == 'calc_phi':
+            # TODO order of task list matters, but shouldn't
+            if task == 'calc_phi':
                 self.qe.collect_jobs()
                 for idx in np.arange(self.imin, self.imax + 1):
                     lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
                     if rec.maxiterdone(lib_dir_iterator) < self.itmax:
+                        _jobs.append(idx)
+
+            elif task == 'calc_meanfield':
+                self.qe.collect_jobs()
+                # TODO need to make sure that all iterator wflms are calculated
+                # either mpi.barrier(), or check all simindices TD(1)
+                log.info("Waiting for all ransk to finish their task")
+                mpi.barrier()
+                _jobs.append(0)
+                # check = True
+                # for idx in range(self.nsims_mf):
+                #     lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)   
+                #     if rec.maxiterdone(lib_dir_iterator) < self.itmax:
+                #         check = False
+                #         break
+                # if check:
+                #     _jobs.append(0)
+
+            elif task == 'calc_btemplate':
+                self.qe.collect_jobs()
+                # TODO making sure that all meanfields are available, but the mpi.barrier() is likely a too strong statement.
+                log.info("Waiting for all ranks to finish their task")
+                mpi.barrier()
+                for idx in np.arange(self.imin, self.imax + 1):
+                    lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
+                    if rec.maxiterdone(lib_dir_iterator) >= self.itmax:
                         _jobs.append(idx)
 
             jobs[taski] = _jobs
@@ -282,11 +295,28 @@ class MAP_lr():
         for taski, task in enumerate(self.tasks):
             log.info('{}, task {} started'.format(mpi.rank, task))
 
-            if task == 'calc_meanfield':
+            if task == 'calc_phi':
+                self.qe.run()
+                for idx in self.jobs[taski][mpi.rank::mpi.size]:
+                    lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
+                    if self.itmax >= 0 and rec.maxiterdone(lib_dir_iterator) < self.itmax:
+                        itlib = self.ith(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
+                        itlib_iterator = itlib.get_iterator()
+                        for it in range(self.itmax + 1):
+                            log.info("using cg-tol = %.4e"%self.tol_iter(it))
+                            log.info("using soltn_cond = %s"%self.soltn_cond(it))
+                            itlib_iterator.chain_descr = self.chain_descr(self.lmax_unl, self.tol_iter(it))
+                            itlib_iterator.soltn_cond = self.soltn_cond(it)
+                            itlib_iterator.iterate(it, 'p')
+                            log.info('{}, simidx {} done with it {}'.format(mpi.rank, idx, it))
+
+
+            elif task == 'calc_meanfield':
                 self.qe.run()
                 # TODO if TD(1) solved, replace np.arange() accordingly
                 self.get_meanfields_it(np.arange(self.itmax+1), calc=True)
                 mpi.barrier()
+
 
             elif task == 'calc_btemplate':
                 self.qe.run()
@@ -305,21 +335,6 @@ class MAP_lr():
                             _dlm_mod = None if (it == 0 or self.dlm_mod_bool == False) else dlm_mod[it]
                             itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=_dlm_mod, calc=True, Nmf=Nmf)
                     log.info("{}: finished sim {}".format(mpi.rank, idx))
-
-            elif task == 'calc_phi':
-                self.qe.run()
-                for idx in self.jobs[taski][mpi.rank::mpi.size]:
-                    lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
-                    if self.itmax >= 0 and rec.maxiterdone(lib_dir_iterator) < self.itmax:
-                        itlib = self.ith(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
-                        itlib_iterator = itlib.get_iterator()
-                        for it in range(self.itmax + 1):
-                            log.info("using cg-tol = %.4e"%self.tol_iter(it))
-                            log.info("using soltn_cond = %s"%self.soltn_cond(it))
-                            itlib_iterator.chain_descr = self.chain_descr(self.lmax_unl, self.tol_iter(it))
-                            itlib_iterator.soltn_cond = self.soltn_cond(it)
-                            itlib_iterator.iterate(it, 'p')
-                            log.info('{}, simidx {} done with it {}'.format(mpi.rank, idx, it))
 
 
     @log_on_start(logging.INFO, "get_ith_sim() started")
@@ -354,7 +369,7 @@ class MAP_lr():
             for simidx in range(Nmf):
                 log.info("it {:02d}: adding sim {:03d}/{}".format(it, simidx, Nmf))
                 mf += rec.load_plms(self.libdir_iterators(self.k, simidx, self.version), [it])[-1]
-                np.save(fn, mf/Nmf)
+            np.save(fn, mf/Nmf)
 
         return mf
 

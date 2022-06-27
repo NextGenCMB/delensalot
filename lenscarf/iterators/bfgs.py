@@ -57,8 +57,8 @@ class BFGS_Hessian(object):
         self.paths2ys[k] = path2y
         self.paths2ss[k] = path2s
         if self.verbose:
-            log.info('Linked y vector ', path2y, ' to Hessian')
-            log.info('Linked s vector ', path2s, ' to Hessian')
+            log.info('Linked y vector ' + str(path2y) + ' to Hessian')
+            log.info('Linked s vector ' + str(path2s) + ' to Hessian')
 
     def _save_alpha(self, alpha, i):
         fname = 'temp_alpha_%s'%i

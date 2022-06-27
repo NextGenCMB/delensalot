@@ -93,7 +93,7 @@ class l2T_Transformer:
     # @log_on_end(logging.INFO, "build_delsuffix() finished")
     def build_delsuffix(self, dl):
         if dl.version == '':
-            return os.path.join(dl.TEMP, 'plotdata')
+            return os.path.join(dl.TEMP, 'plotdata', 'base')
         else:
             return os.path.join(dl.TEMP, 'plotdata', dl.version)
 
@@ -230,10 +230,10 @@ class l2lensrec_Transformer:
                 dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.ivfs, dl.ivfs, dl.cls_len['te'], dl.nside, lmax_qlm=dl.lmax_qlm)
 
                 if dl.mfvar:
-                    TEMPmfvar = self.TEMP.replace('_00_', "_{}_".format(self.version[2:]))
+                    TEMPmfvar = dl.TEMP.replace('_00_', "_{}_".format(dl.version[2:4]))
                     _ivfs_raw = filt_cinv.library_cinv_sepTP(opj(TEMPmfvar, 'ivfs'), dl.sims, dl.cinv_t, dl.cinv_p, dl.cls_len)
                     _ivfs = filt_util.library_ftl(_ivfs_raw, iteration.lmax_ivf, dl.ftl_rs, dl.fel_rs, dl.fbl_rs)
-                    dl.qlms_dd_mfvar = qest.library_sepTP(opj(TEMPmfvar, 'qlms_dd'), _ivfs, _ivfs, self.cls_len['te'], self.nside, lmax_qlm=self.lmax_qlm)
+                    dl.qlms_dd_mfvar = qest.library_sepTP(opj(TEMPmfvar, 'qlms_dd'), _ivfs, _ivfs, dl.cls_len['te'], dl.nside, lmax_qlm=dl.lmax_qlm)
     
             if iteration.QE_LENSING_CL_ANALYSIS == True:
                 dl.ss_dict = { k : v for k, v in zip( np.concatenate( [ range(i*60, (i+1)*60) for i in range(0,5) ] ),

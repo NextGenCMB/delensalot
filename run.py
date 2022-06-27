@@ -17,7 +17,6 @@ if __name__ == '__main__':
 
     FORMAT = '%(levelname)s:: %(asctime)s:: %(name)s.%(funcName)s - %(message)s'
 
-    
     log = logging.getLogger(__name__)
     log.setLevel(logging.WARNING)
 
@@ -45,7 +44,6 @@ if __name__ == '__main__':
         lerepi_handler.run()
     except Exception as err:
         # expection formatter. Don't want all these logdecorator functions in the trace.
-        # Each decorator call comes with three lines of trace, and there are about 4 decorators for each exception..
         _msg = "".join(traceback.format_exception(type(err), err, err.__traceback__))
         msg = ''
         skip = 0
@@ -53,6 +51,7 @@ if __name__ == '__main__':
             if skip > 0:
                 skip -=1
             else:
+                # Each decorator call comes with three lines of trace, and there are about 4 decorators for each exception..
                 if 'logdecorator' in line:
                     skip = 3
                 else:
