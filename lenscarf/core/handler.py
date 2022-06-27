@@ -325,10 +325,10 @@ class MAP_lr():
                     lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
                     itlib = self.ith(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
                     itlib_iterator = itlib.get_iterator()
+                    Nmf = len(np.arange(self.nsims_mf))
                     if self.dlm_mod_bool:
                         dlm_mod = self.get_meanfields_it(np.arange(self.itmax+1), calc=False)
                         # assuming mf includes all plms from simindices in config
-                        Nmf = len(np.arange(self.nsims_mf))
                         dlm_mod = (dlm_mod - np.array(rec.load_plms(lib_dir_iterator, np.arange(self.itmax+1)))/Nmf) * Nmf/(Nmf - 1)
                     for it in range(0, self.itmax + 1):
                         if it <= rec.maxiterdone(lib_dir_iterator):
@@ -356,6 +356,7 @@ class MAP_lr():
     @log_on_start(logging.INFO, "get_meanfield_it() started: it={it}")
     @log_on_end(logging.INFO, "get_meanfield_it() finished: it={it}")
     def get_meanfield_it(self, it, calc=False):
+        # for mfvar runs, this returns the correct meanfields, as mfvar runs go into distinct itlib dirs.
         Nmf = len(np.arange(self.nsims_mf))
         fn = opj(self.TEMP, 'mf{:03d}'.format(Nmf), 'mf%03d_it%03d.npy'%(Nmf, it))
         if not calc:

@@ -48,11 +48,12 @@ class l2T_Transformer:
     def build(self, cf):
         _nsims_mf = 0 if cf.iteration.V == 'noMF' else cf.iteration.nsims_mf
 
-        #TODO hack to make mf var work for v1 in mf 100 of 08b
-        ovw = 100
-        if _nsims_mf == 50:
-            _nsims_mf = ovw
-        log.warning('_nsims_mf for TEMP dir hardcoded to '.format(ovw))
+        # #TODO hack to make mf var work for v1 in mf 100 of 08b
+        ovw = _nsims_mf
+        # ovw = 100
+        # if _nsims_mf == 50:
+        #     _nsims_mf = ovw
+        log.warning('_nsims_mf for TEMP dir hardcoded to {}'.format(ovw))
         _suffix = cf.data.sims.split('/')[1]+'_%s'%(cf.data.fg)
         if cf.noisemodel.typ == 'OBD':
             _suffix += '_OBD'
