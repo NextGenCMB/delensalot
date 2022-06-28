@@ -51,6 +51,11 @@ If you'd like to know the status of the analysis done with `$path/conf.py`, run,
 python3 run.py -s $path/conf.py
 ```
 
+## interactive mode
+
+D.lensalot supports interactive mode. See `lenscarf/notebooks/interactive.ipynb` for guidance.
+
+
 ## Inspect your results
 
 `lenscarf/notebooks` and `lenscarf/scripts` may be of some help.
