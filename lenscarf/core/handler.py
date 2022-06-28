@@ -118,11 +118,11 @@ class QE_lr():
                 log.info('{}/{}, Starting job {}'.format(mpi.rank,mpi.size,idx))
                 # TODO this triggers the creation of all files for the MAP input, defined by the job array. 
                 # MAP later needs the corresponding values separately via getter. Can I think of something better?
-                # self.get_sim_qlm(idx)
-                # self.get_response_meanfield()
-                # self.get_wflm(idx)
-                # self.get_R_unl()
-                # self.get_B_wf(idx)
+                self.get_sim_qlm(idx)
+                self.get_response_meanfield()
+                self.get_wflm(idx)
+                self.get_R_unl()
+                self.get_B_wf(idx)
                 log.info('{}/{}, finished job {}'.format(mpi.rank,mpi.size,idx))
             if len(self.jobs)>0:
                 log.info('{} finished qe ivfs tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
@@ -132,7 +132,7 @@ class QE_lr():
                 # an io error
                 log.info("Done waiting. Rank 0 going to calculate meanfield-file.. everyone else waiting.")
                 if mpi.rank == 0:
-                    self.get_meanfield(mpi.rank)
+                    self.get_meanfield(idx)
                     log.info("rank finsihed calculating meanfield-file.. everyone else waiting.")
                 mpi.barrier()
                 log.info("Starting mf-calc task")
@@ -311,13 +311,11 @@ class MAP_lr():
                             itlib_iterator.iterate(it, 'p')
                             log.info('{}, simidx {} done with it {}'.format(mpi.rank, idx, it))
 
-
             elif task == 'calc_meanfield':
                 self.qe.run()
                 # TODO if TD(1) solved, replace np.arange() accordingly
                 self.get_meanfields_it(np.arange(self.itmax+1), calc=True)
                 mpi.barrier()
-
 
             elif task == 'calc_btemplate':
                 self.qe.run()

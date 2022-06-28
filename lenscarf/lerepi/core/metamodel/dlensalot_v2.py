@@ -56,7 +56,6 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     K = attr.ib(default=-1)
     V = attr.ib(default=-1)
     ITMAX = attr.ib(default=-1)
-
     nsims_mf = attr.ib(default=-1)
     LENSRES = attr.ib(default=-1)
     Lmin = attr.ib(default=-1)
@@ -112,8 +111,8 @@ class DLENSALOT_Noisemodel(DLENSALOT_Concept):
     nlev_p = attr.ib(default=-1)
     nlev_dep = attr.ib(default=-1)
     inf = attr.ib(default=-1)
-    mask = attr.ib(default=-1)
-    rhits_normalised = attr.ib(default=-1)
+    mask = attr.ib(default=None)
+    rhits_normalised = attr.ib(default=None)
     tpl = attr.ib(default=-1)
 
 
@@ -152,7 +151,6 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     stepper = attr.ib(default=-1)
     overwrite_itdir = attr.ib(default=-1)
     tasks = attr.ib(default=-1)
-    dlm_mod = attr.ib(default=-1)
 
 
 @attr.s

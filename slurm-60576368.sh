@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH -N 40
+#SBATCH -N 50
 #SBATCH -C haswell
 #SBATCH -q regular
-#SBATCH -J 8bmfvar
+#SBATCH -J 8d_r100
 #SBATCH --mail-user=sebastian.belkner@unige.ch
 #SBATCH --mail-type=ALL
 #SBATCH -t 02:00:00
@@ -15,14 +15,12 @@ export OMP_PROC_BIND=spread
 # file='/global/cscratch1/sd/sebibel/cmbs4/08b_07_OBD_MF100_example/config_mfvar.py'
 # file='/global/cscratch1/sd/sebibel/dlensalot/lerepi/data_08b/caterinaILC_May12_00_OBD_cnv035/c08b_v2.py'
 # file='/global/cscratch1/sd/sebibel/dlensalot/lerepi/data_08b/caterinaILC_May12_00_OBD_cnv035/c08b_v2.py'
-# file='/global/cscratch1/sd/sebibel/dlensalot/lerepi/data_08d/ILC_May2022_07_OBD_r10_tol5e5/c08d_v2.py'
-file='/global/cscratch1/sd/sebibel/cmbs4/08b_07_OBD_MF100_example/config_mfvar.py'
-
+file='examples/c08d_v2.py'
 
 echo $file
-cat $file
+cat lenscarf/lerepi/config/$file
 
 srun -c 32 --cpu_bind=cores python3 /global/homes/s/sebibel/git/lenscarf/run.py -r $file
 
 echo $file
-cat $file
+cat lenscarf/lerepi/config/$file

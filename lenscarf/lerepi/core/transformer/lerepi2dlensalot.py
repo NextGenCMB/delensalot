@@ -32,7 +32,6 @@ from lenscarf.opfilt import utils_cinv_p as cinv_p_OBD
 import lenscarf.core.handler as lenscarf_handler
 from lenscarf.opfilt.bmodes_ninv import template_dense
 
-
 from lenscarf.lerepi.config.config_helper import data_functions as df, LEREPI_Constants as lc
 from lenscarf.lerepi.core.visitor import transform
 from lenscarf.lerepi.core.metamodel.dlensalot import DLENSALOT_Concept, DLENSALOT_Model
@@ -410,7 +409,7 @@ class l2lensrec_Transformer:
             dl.nsims_mf = 0 if cf.analysis.V == 'noMF' else cf.analysis.nsims_mf
             if an.zbounds[0] == 'nmr_relative':
                 dl.zbounds = df.get_zbounds(hp.read_map(cf.noisemodel.rhits_normalised[0]), an.zbounds[1])
-            elif an.zbounds[0] == float or an.zbounds[0] == int:
+            elif type(an.zbounds[0]) == float or type(an.zbounds[0]) == int:
                 dl.zbounds = an.zbounds
             else:
                 log.error('Not sure what to do with this zbounds: {}'.format(an.zbounds))
@@ -420,7 +419,7 @@ class l2lensrec_Transformer:
                 dl.zbounds_len = df.extend_zbounds(dl.zbounds, degrees=an.zbounds_len[1])
             elif an.zbounds_len[0] == 'max':
                   dl.zbounds_len = [-1, 1]
-            elif an.zbounds_len[0] == float or an.zbounds_len[0] == int:
+            elif type(an.zbounds_len[0]) == float or type(an.zbounds_len[0]) == int:
                 dl.zbounds_len = an.zbounds_len
             else:
                 log.error('Not sure what to do with this zbounds_len: {}'.format(an.zbounds_len))
@@ -623,7 +622,7 @@ class l2lensrec_Transformer:
         def _process_Itrec(dl, it):
             assert it.FILTER == 'opfilt_ee_wl.alm_filter_ninv_wl', 'Implement if needed, MAP filter needs to move to l2d'
             dl.FILTER = it.FILTER
-
+            dl.tasks = it.tasks
             if it.TOL < 1.:
                 # TODO hack. For cases where TOL is not only the exponent. Remove exponent-only version.
                 dl.tol_iter = lambda itr : it.TOL if itr <= 10 else it.TOL*0.1
@@ -657,8 +656,7 @@ class l2lensrec_Transformer:
 
 
         dl = DLENSALOT_Concept()
-
-        dl.tasks = cf.itrec.tasks
+        dl.dlm_mod_bool = cf.madel.dlm_mod
         _process_Analysis(dl, cf.analysis)
         _process_Data(dl, cf.data)
         _process_Noisemodel(dl, cf.noisemodel)
@@ -745,12 +743,17 @@ class l2OBD_Transformer:
         masks = []
         if cf.noisemodel.rhits_normalised is not None:
             msk = l2OBD_Transformer.get_nlrh_map(cf)
-            masks.append(msk)
-        if cf.noisemodel.mask[0] == 'nlev':
-            noisemodel_rhits_map = msk.copy()
-            _mask = df.get_nlev_mask(cf.noisemodel.mask[1], noisemodel_rhits_map)
-            _mask = np.where(_mask>0., 1., 0.)
-            masks.append(_mask)
+        else:
+            msk = np.ones(shape=hp.nside2npix(cf.data.nside))
+        masks.append(msk)
+        if cf.noisemodel.mask is not None:
+            if cf.noisemodel.mask[0] == 'nlev':
+                noisemodel_rhits_map = msk.copy()
+                _mask = df.get_nlev_mask(cf.noisemodel.mask[1], noisemodel_rhits_map)
+                _mask = np.where(_mask>0., 1., 0.)
+        else:
+            _mask = np.ones(shape=hp.nside2npix(cf.data.nside))
+        masks.append(_mask)
 
         return masks, msk
 
@@ -977,6 +980,7 @@ class l2d_Transformer:
                     os.makedirs(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dir_id))
             # TODO don't like this too much
             # TODO fn needs changing
+            dl.dlm_mod_bool = cf.madel.dlm_mod
             if dl.dlm_mod_bool:
                 dl.file_op = lambda idx, fg, edges_idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edges_idx]) + '/ClBBwf_sim%04d_%s_fg%s_res2b3acm.npy'%(idx, 'dlmmod', fg)
             else:

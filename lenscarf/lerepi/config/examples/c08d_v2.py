@@ -13,12 +13,12 @@ dlensalot_model = DLENSALOT_Model(
         OMP_NUM_THREADS = 16
     ),
     analysis = DLENSALOT_Analysis(
-        TEMP_suffix = 'rinf_tol5e5',
+        TEMP_suffix = 'r10_tol5e5',
         K = 'p_p',
         V = '',
         ITMAX = 12,
-        nsims_mf = 100,
-        zbounds =  ('nmr_relative', np.inf),
+        nsims_mf = 10,
+        zbounds =  ('nmr_relative', 10),
         zbounds_len = ('extend', 10.),   
         pbounds = [0, 2*np.pi],
         LENSRES = 1.7,
@@ -39,7 +39,7 @@ dlensalot_model = DLENSALOT_Model(
         module_ = 'config.cmbs4.data.data_08d',
         class_ = 'ILC_May2022',
         class_parameters = {
-            'fg': '00'
+            'fg': '07'
         },
         beam = 2.3,
         lmax_transf = 4000,
@@ -47,7 +47,7 @@ dlensalot_model = DLENSALOT_Model(
     ),
     noisemodel = DLENSALOT_Noisemodel(
         typ = 'OBD',
-        BMARG_LIBDIR = '/global/cscratch1/sd/sebibel/cmbs4/OBD_matrices/08d/rinf/',
+        BMARG_LIBDIR = '/global/cscratch1/sd/sebibel/cmbs4/OBD_matrices/08d/r10/',
         BMARG_LCUT = 200,
         BMARG_RESCALE = (0.65/0.59)**2,
         ninvjob_geometry = 'healpix_geometry',
@@ -83,10 +83,8 @@ dlensalot_model = DLENSALOT_Model(
     ),
     itrec = DLENSALOT_Itrec(
         FILTER = 'opfilt_ee_wl.alm_filter_ninv_wl',
-        tasks = ["calc_phi", "calc_btemplate"], #["calc_phi", "calc_meanfield", "calc_btemplate"],
         TOL = 5e-5,
         tasks = ["calc_phi", "calc_meanfield", "calc_btemplate"], #["calc_phi", "calc_meanfield", "calc_btemplate"],
-        dlm_mod = False,
         lenjob_geometry = 'thin_gauss',
         lenjob_pbgeometry = 'pbdGeometry',
         iterator_typ = 'constmf', # Either pertmf or const_mf
