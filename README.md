@@ -39,6 +39,16 @@ python3 run.py -p examples/example_c08b.py
 ```
 runs the example configuration for `c08b`. See [lenscarf/lerepi/README](https://github.com/NextGenCMB/lenscarf/blob/f/mergelerepi/lenscarf/lerepi/README.rst) for a description of the configuation parameters
 
+If you already have an analysis, located at `$path`, with config file `conf.py`, you may resume this analysis with,
+```
+python3 run.py -r $path/conf.py
+```
+
+If you'd like to know the status of the analysis done with `$path/conf.py`, run,
+```
+python3 run.py -s $path/conf.py
+```
+
 
 ## Use on NERSC
 D.lensalot is computationally demanding and therefore needs NERSC.
