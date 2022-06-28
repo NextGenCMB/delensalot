@@ -149,7 +149,7 @@ class QE_lr():
     @log_on_end(logging.INFO, "get_sim_qlm() finished")
     def get_sim_qlm(self, idx):
 
-        return self.qlms_dd.get_sim_qlm(self.k, idx)
+        return self.qlms_dd.get_sim_qlm(self.k, int(idx))
 
 
     @log_on_start(logging.INFO, "get_B_wf() started")

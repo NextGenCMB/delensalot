@@ -7,6 +7,8 @@ __author__ = "S. Belkner, J. Carron, L. Legrand"
 import abc
 import attr
 
+import numpy as np
+
 
 class DLENSALOT_Concept:
     """An abstract element base type for the Dlensalot formalism."""
@@ -52,25 +54,25 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     Attributes:
         DATA_LIBDIR: path to the data
     """
-    TEMP_suffix = attr.ib(default=-1)
-    K = attr.ib(default=-1)
-    V = attr.ib(default=-1)
-    ITMAX = attr.ib(default=-1)
-    nsims_mf = attr.ib(default=-1)
-    LENSRES = attr.ib(default=-1)
-    Lmin = attr.ib(default=-1)
-    lmax_filt = attr.ib(default=-1)
-    lmax_unl = attr.ib(default=-1)
-    mmax_unl = attr.ib(default=-1)
-    lmax_ivf = attr.ib(default=-1)
-    mmax_ivf = attr.ib(default=-1)
-    lmin_ivf = attr.ib(default=-1)
-    mmin_ivf = attr.ib(default=-1)
-    lmax_unl = attr.ib(default=-1)
-    zbounds =  attr.ib(default=-1)
-    zbounds_len = attr.ib(default=-1)
-    pbounds = attr.ib(default=-1)
-    STANDARD_TRANSFERFUNCTION = attr.ib(default=-1)
+    TEMP_suffix = attr.ib(default=None)
+    K = attr.ib(default=np.nan)
+    V = attr.ib(default=np.nan)
+    ITMAX = attr.ib(default=np.nan)
+    nsims_mf = attr.ib(default=np.nan)
+    LENSRES = attr.ib(default=np.nan)
+    Lmin = attr.ib(default=np.nan)
+    lmax_filt = attr.ib(default=np.nan)
+    lmax_unl = attr.ib(default=np.nan)
+    mmax_unl = attr.ib(default=np.nan)
+    lmax_ivf = attr.ib(default=np.nan)
+    mmax_ivf = attr.ib(default=np.nan)
+    lmin_ivf = attr.ib(default=np.nan)
+    mmin_ivf = attr.ib(default=np.nan)
+    lmax_unl = attr.ib(default=np.nan)
+    zbounds =  attr.ib(default=np.nan)
+    zbounds_len = attr.ib(default=np.nan)
+    pbounds = attr.ib(default=np.nan)
+    STANDARD_TRANSFERFUNCTION = attr.ib(default=True)
 
 
 @attr.s
@@ -80,15 +82,15 @@ class DLENSALOT_Data(DLENSALOT_Concept):
     Attributes:
         DATA_LIBDIR: path to the data
     """
-    IMIN = attr.ib(default=-1)
-    IMAX = attr.ib(default=-1)
-    class_parameters = attr.ib(default=-1)
-    package_ = attr.ib(default=-1)
-    module_ = attr.ib(default=-1)
-    class_ = attr.ib(default=-1)
-    beam = attr.ib(default=-1)
-    lmax_transf = attr.ib(default=-1)
-    nside = attr.ib(default=-1)
+    IMIN = attr.ib(default=np.nan)
+    IMAX = attr.ib(default=np.nan)
+    class_parameters = attr.ib(default=None)
+    package_ = attr.ib(default=None)
+    module_ = attr.ib(default=None)
+    class_ = attr.ib(default=None)
+    beam = attr.ib(default=None)
+    lmax_transf = attr.ib(default=np.nan)
+    nside = attr.ib(default=np.nan)
 
 
 @attr.s
@@ -98,22 +100,22 @@ class DLENSALOT_Noisemodel(DLENSALOT_Concept):
     Attributes:
         typ:
     """
-    typ = attr.ib(default=-1)
-    BMARG_LIBDIR = attr.ib(default=-1)
-    BMARG_LCUT = attr.ib(default=-1)
-    BMARG_RESCALE = attr.ib(default=-1)
-    ninvjob_geometry = attr.ib(default=-1)
-    lmin_tlm = attr.ib(default=-1)
-    lmin_elm = attr.ib(default=-1)
-    lmin_blm = attr.ib(default=-1)
-    CENTRALNLEV_UKAMIN = attr.ib(default=-1)
-    nlev_t = attr.ib(default=-1)
-    nlev_p = attr.ib(default=-1)
-    nlev_dep = attr.ib(default=-1)
-    inf = attr.ib(default=-1)
+    typ = attr.ib()
+    BMARG_LIBDIR = attr.ib(default=None)
+    BMARG_LCUT = attr.ib(default=None)
+    BMARG_RESCALE = attr.ib(default=None)
+    ninvjob_geometry = attr.ib(default=None)
+    lmin_tlm = attr.ib(default=np.nan)
+    lmin_elm = attr.ib(default=np.nan)
+    lmin_blm = attr.ib(default=np.nan)
+    CENTRALNLEV_UKAMIN = attr.ib(default=np.nan)
+    nlev_t = attr.ib(default=np.nan)
+    nlev_p = attr.ib(default=np.nan)
+    nlev_dep = attr.ib(default=np.nan)
+    inf = attr.ib(default=np.nan)
     mask = attr.ib(default=None)
     rhits_normalised = attr.ib(default=None)
-    tpl = attr.ib(default=-1)
+    tpl = attr.ib(default=None)
 
 
 @attr.s
@@ -123,14 +125,14 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     Attributes:
         typ:
     """
-    FILTER_QE = attr.ib(default=-1)
-    CG_TOL = attr.ib(default=-1)
-    ninvjob_qe_geometry = attr.ib(default=-1)
-    lmax_qlm = attr.ib(default=-1)
-    mmax_qlm = attr.ib(default=-1)
-    chain = attr.ib(default=-1)
-    QE_LENSING_CL_ANALYSIS = attr.ib(default=-1)
-    overwrite_libdir = attr.ib(default=-1)
+    FILTER_QE = attr.ib(default=None)
+    CG_TOL = attr.ib(default=np.nan)
+    ninvjob_qe_geometry = attr.ib(default=None)
+    lmax_qlm = attr.ib(default=np.nan)
+    mmax_qlm = attr.ib(default=np.nan)
+    chain = attr.ib(default=None)
+    QE_LENSING_CL_ANALYSIS = attr.ib(default=False)
+    overwrite_libdir = attr.ib(default=None)
 
 
 @attr.s
@@ -140,17 +142,16 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     Attributes:
         typ:
     """
-    FILTER = attr.ib(default=-1)
-    TOL = attr.ib(default=-1)
-    tasks = attr.ib(default=-1)
-    lenjob_geometry = attr.ib(default=-1)
-    lenjob_pbgeometry = attr.ib(default=-1)
-    iterator_typ = attr.ib(default=-1)
-    mfvar = attr.ib(default=-1)
-    soltn_cond = attr.ib(default=-1)
-    stepper = attr.ib(default=-1)
-    overwrite_itdir = attr.ib(default=-1)
-    tasks = attr.ib(default=-1)
+    FILTER = attr.ib(default=None)
+    TOL = attr.ib(default=np.nan)
+    lenjob_geometry = attr.ib(default=None)
+    lenjob_pbgeometry = attr.ib(default=None)
+    iterator_typ = attr.ib(default=None)
+    mfvar = attr.ib(default=None)
+    soltn_cond = attr.ib(default=None)
+    stepper = attr.ib(default=None)
+    overwrite_itdir = attr.ib(default=None)
+    tasks = attr.ib(default=None)
 
 
 @attr.s

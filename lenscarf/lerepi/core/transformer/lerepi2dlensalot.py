@@ -212,22 +212,26 @@ class l2lensrec_Transformer:
                 dl.fbl_unl = cli(dl.cls_unl['bb'][:iteration.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_blm**2)) * (dl.transf_blm > 0)
 
             if iteration.FILTER == 'cinv_sepTP':
-                dl.ninv_t = l2OBD_Transformer.get_ninvt(cf)
-                dl.ninv_p = l2OBD_Transformer.get_ninvp(cf)
+                dl.ninv_t, dl.ninvt_desc = l2OBD_Transformer.get_ninvt(cf)
+                dl.ninv_p, dl.ninvp_desc = l2OBD_Transformer.get_ninvp(cf)
+                # TODO filters can be initialised with both, ninvX_desc and ninv_X. But Plancklens' hashcheck will complain if it changed since shapes are different.
+                # TODO using ninv_X possibly causes hashcheck to fail, as v1 == v2 won't work on arrays.
+                dl.ninvt_desc = dl.ninv_t
+                dl.ninvp_desc = dl.ninv_p 
                 # TODO cinv_t and cinv_p trigger computation. Perhaps move this to the lerepi job-level. Could be done via introducing a DLENSALOT_Filter model component
-                dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), iteration.lmax_ivf,dl.nside, dl.cls_len, dl.transf_tlm, dl.ninv_t,
+                dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), iteration.lmax_ivf,dl.nside, dl.cls_len, dl.transf_tlm, dl.ninvt_desc,
                                 marge_monopole=True, marge_dipole=True, marge_maps=[])
                 if dl.OBD_type == 'OBD':
                     transf_elm_loc = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf)
                     dl.cinv_p = cinv_p_OBD.cinv_p(
                         opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, dl.nside, dl.cls_len, transf_elm_loc[:dl.lmax_ivf+1], 
-                        dl.ninv_p, geom=dl.ninvjob_qe_geometry, chain_descr=dl.chain_descr(iteration.lmax_ivf, iteration.CG_TOL),
+                        dl.ninvp_desc, geom=dl.ninvjob_qe_geometry, chain_descr=dl.chain_descr(iteration.lmax_ivf, iteration.CG_TOL),
                         bmarg_lmax=dl.BMARG_LCUT, zbounds=dl.zbounds, _bmarg_lib_dir=dl.BMARG_LIBDIR, _bmarg_rescal=dl.BMARG_RESCALE,
                         sht_threads=cf.iteration.OMP_NUM_THREADS)
                 elif dl.OBD_type == 'trunc' or dl.OBD_type == None or dl.OBD_type == 'None':
                     dl.cinv_p = filt_cinv.cinv_p(
                         opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, dl.nside, dl.cls_len,
-                        dl.transf_elm, dl.ninv_p, chain_descr=dl.chain_descr(iteration.lmax_ivf, iteration.CG_TOL), transf_blm=dl.transf_blm,
+                        dl.transf_elm, dl.ninvp_desc, chain_descr=dl.chain_descr(iteration.lmax_ivf, iteration.CG_TOL), transf_blm=dl.transf_blm,
                         marge_qmaps=(), marge_umaps=())
                 else:
                     log.error("Don't understand your OBD_typ input. Exiting..")
@@ -563,21 +567,20 @@ class l2lensrec_Transformer:
                 dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl.nside, zbounds=dl.zbounds)
 
             if qe.FILTER_QE == 'sepTP':
-                dl.ninv_t = l2OBD_Transformer.get_ninvt(cf)
-                dl.ninv_p = l2OBD_Transformer.get_ninvp(cf)
-                log.info('{} starting filt_cinv.cinv_t()'.format(mpi.rank))
-                dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), dl.lmax_ivf, dl.nside, dl.cls_len, dl.transf_tlm, dl.ninv_t,
-                                marge_monopole=True, marge_dipole=True, marge_maps=[])
-                log.info('{} finished filt_cinv.cinv_t()'.format(mpi.rank))
-                
+                dl.ninv_t, dl.ninvt_desc = l2OBD_Transformer.get_ninvt(cf)
+                dl.ninv_p, dl.ninvp_desc = l2OBD_Transformer.get_ninvp(cf)
+                # TODO filters can be initialised with both, ninvX_desc and ninv_X. But Plancklens' hashcheck will complain if it changed since shapes are different. Not sure which one I want to use in the future..
+                # TODO using ninv_X possibly causes hashcheck to fail, as v1 == v2 won't work on arrays.
+                dl.ninvt_desc = dl.ninv_t
+                dl.ninvp_desc = dl.ninv_p 
+                dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), dl.lmax_ivf, dl.nside, dl.cls_len, dl.transf_tlm, dl.ninvt_desc,
+                                marge_monopole=True, marge_dipole=True, marge_maps=[])  
                 if dl.OBD_type == 'OBD':
                     transf_elm_loc = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=dl.lmax_ivf)
-                    log.info('{} start cinv_p_OBD.cinv_p()'.format(mpi.rank))
-                    dl.cinv_p = cinv_p_OBD.cinv_p(opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, dl.nside, dl.cls_len, transf_elm_loc[:dl.lmax_ivf+1], dl.ninv_p, geom=dl.ninvjob_qe_geometry,
+                    dl.cinv_p = cinv_p_OBD.cinv_p(opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, dl.nside, dl.cls_len, transf_elm_loc[:dl.lmax_ivf+1], dl.ninvp_desc, geom=dl.ninvjob_qe_geometry,
                         chain_descr=dl.chain_descr(dl.lmax_ivf, dl.cg_tol), bmarg_lmax=dl.BMARG_LCUT, zbounds=dl.zbounds, _bmarg_lib_dir=dl.BMARG_LIBDIR, _bmarg_rescal=dl.BMARG_RESCALE, sht_threads=dl.tr)
-                    log.info('{} finished cinv_p_OBD.cinv_p()'.format(mpi.rank))
                 elif dl.OBD_type == 'trunc' or dl.OBD_type == None or dl.OBD_type == 'None':
-                    dl.cinv_p = filt_cinv.cinv_p(opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, dl.nside, dl.cls_len, dl.transf_elm, dl.ninv_p,
+                    dl.cinv_p = filt_cinv.cinv_p(opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, dl.nside, dl.cls_len, dl.transf_elm, dl.ninvp_desc,
                         chain_descr=dl.chain_descr(dl.lmax_ivf, dl.cg_tol), transf_blm=dl.transf_blm, marge_qmaps=(), marge_umaps=())
                 else:
                     log.error("Don't understand your OBD_typ input. Exiting..")
@@ -717,7 +720,7 @@ class l2OBD_Transformer:
         ninv_desc = [[np.array([hp.nside2pixarea(cf.data.nside, degrees=True) * 60 ** 2 / nlev_t ** 2])/noisemodel_norm] + masks]
         ninv_t = opfilt_pp.alm_filter_ninv(ninv_desc, t_transf, marge_qmaps=(), marge_umaps=()).get_ninv()
 
-        return ninv_t
+        return ninv_t, ninv_desc
 
 
     @log_on_start(logging.INFO, "get_ninvp() started")
@@ -734,7 +737,7 @@ class l2OBD_Transformer:
         ninv_desc = [[np.array([hp.nside2pixarea(cf.data.nside, degrees=True) * 60 ** 2 / nlev_p ** 2])/noisemodel_norm] + masks]
         ninv_p = opfilt_pp.alm_filter_ninv(ninv_desc, b_transf, marge_qmaps=(), marge_umaps=()).get_ninv()
 
-        return ninv_p
+        return ninv_p, ninv_desc
 
 
     # @log_on_start(logging.INFO, "get_masks() started")
@@ -747,7 +750,9 @@ class l2OBD_Transformer:
             msk = np.ones(shape=hp.nside2npix(cf.data.nside))
         masks.append(msk)
         if cf.noisemodel.mask is not None:
-            if cf.noisemodel.mask[0] == 'nlev':
+            if type(cf.noisemodel.mask) == str:
+                _mask = cf.noisemodel.mask
+            elif cf.noisemodel.mask[0] == 'nlev':
                 noisemodel_rhits_map = msk.copy()
                 _mask = df.get_nlev_mask(cf.noisemodel.mask[1], noisemodel_rhits_map)
                 _mask = np.where(_mask>0., 1., 0.)
@@ -924,7 +929,7 @@ class l2d_Transformer:
                 dl.edges.append(lc.fs_edges)
             dl.imin = cf.data.IMIN
             dl.imax = cf.data.IMAX
-            dl.iterations = ma.iterations
+            dl.its = ma.iterations
             dl.droplist = ma.droplist
             if 'fg' in cf.data.class_parameters:
                 dl.fg = cf.data.class_parameters['fg']

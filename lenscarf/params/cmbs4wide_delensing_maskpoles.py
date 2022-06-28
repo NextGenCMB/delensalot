@@ -26,7 +26,7 @@ from lenscarf.utils import cli, read_map
 from lenscarf.utils_hp import gauss_beam, almxfl, alm_copy
 from lenscarf.opfilt import opfilt_ee_wl
 
-suffix = 'cmbs4_delens_maskpoles' # descriptor to distinguish this parfile from others...
+suffix = 'cmbs4_delens_maskpoles2' # descriptor to distinguish this parfile from others...
 TEMP =  opj(os.environ['SCRATCH'], 'lenscarfrecs', suffix)
 
 lmax_ivf, mmax_ivf, beam, nlev_t, nlev_p = (3000, 3000, 1., 0.5/np.sqrt(2), 0.5)
@@ -93,7 +93,7 @@ fbl_unl =  cli(cls_unl['bb'][:lmax_ivf + 1] + (nlev_p / 180 / 60 * np.pi) ** 2 *
 # ---- Input simulation libraries. Here we use the NERSC FFP10 CMBs with homogeneous noise and consistent transfer function
 #       We define explictly the phase library such that we can use the same phases for for other purposes in the future as well if needed
 #       I am putting here the phases in the home directory such that they dont get NERSC auto-purged
-pix_phas = phas.pix_lib_phas(opj(os.environ['HOME'], 'pixphas_nside%s'%nside), 3, (hp.nside2npix(nside),)) # T, Q, and U noise phases
+pix_phas = phas.pix_lib_phas(opj(os.environ['HOME'], 'pixphas_nside%s_3'%nside), 3, (hp.nside2npix(nside),)) # T, Q, and U noise phases
 #       actual data transfer function for the sim generation:
 transf_dat =  gauss_beam(beam / 180 / 60 * np.pi, lmax=4096) # (taking here full FFP10 cmb's which are given to 4096)
 sims      = maps.cmb_maps_nlev(planck2018_sims.cmb_len_ffp10(), transf_dat, nlev_t, nlev_p, nside, pix_lib_phas=pix_phas)
@@ -215,6 +215,7 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
         ninv = [sims_MAP.ztruncify(read_map(ni)) for ni in ninv_p] # inverse pixel noise map on consistent geometry
         filtr = opfilt_ee_wl.alm_filter_ninv_wl(ninvjob_geometry, ninv, ffi, transf_elm, (lmax_unl, mmax_unl), (lmax_ivf, mmax_ivf), tr, tpl,
                                                 wee=wee, lmin_dotop=min(lmin_elm, lmin_blm), transf_blm=transf_blm)
+
         datmaps = np.array(sims_MAP.get_sim_pmap(int(simidx)))
 
     else:
