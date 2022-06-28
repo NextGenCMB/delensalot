@@ -32,8 +32,8 @@ from lenscarf.opfilt import utils_cinv_p as cinv_p_OBD
 import lenscarf.core.handler as lenscarf_handler
 from lenscarf.opfilt.bmodes_ninv import template_dense
 
-from lenscarf.lerepi.config.config_helper import data_functions as df, LEREPI_Constants as lc
 from lenscarf.lerepi.core.visitor import transform
+from lenscarf.lerepi.config.config_helper import data_functions as df, LEREPI_Constants as lc
 from lenscarf.lerepi.core.metamodel.dlensalot import DLENSALOT_Concept, DLENSALOT_Model
 from lenscarf.lerepi.core.metamodel.dlensalot_v2 import DLENSALOT_Model as DLENSALOT_Model_v2
 
@@ -942,7 +942,7 @@ class l2d_Transformer:
             # Remove and think of a better way of including old data without existing config file
             dl.TEMP = transform(cf, l2T_Transformer())
 
-            # TODO this looks bad..
+            # TODO II
             if cf.madel.libdir_it != '':
                 dl.libdir_iterators = 'overwrite'
             else:
@@ -978,7 +978,7 @@ class l2d_Transformer:
             for dir_id in dl.dirid:
                 if not(os.path.isdir(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dir_id))):
                     os.makedirs(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dir_id))
-            # TODO don't like this too much
+            # TODO II
             # TODO fn needs changing
             dl.dlm_mod_bool = cf.madel.dlm_mod
             if dl.dlm_mod_bool:
@@ -992,8 +992,8 @@ class l2d_Transformer:
         return dl
 
 
-class l2m_Transformer:
-    """Jobs related to meanfield calculation
+class l2s_Transformer:
+    """lerepi2statusreport transformation
 
     Returns:
         _type_: _description_
@@ -1004,9 +1004,20 @@ class l2m_Transformer:
         pass
 
 
+class l2m_Transformer:
+    """lerepi2meanfield transformation
+
+    Returns:
+        _type_: _description_
+    """
+    @log_on_start(logging.INFO, "build() started")
+    @log_on_end(logging.INFO, "build() finished")
+    def build(self, cf):
+        assert 0, "Implement if needed"
+
+
 class l2j_Transformer:
     """Extracts parameters needed for the specific D.Lensalot jobs
-    Implement if needed
     """
     def build(self, cf):
         

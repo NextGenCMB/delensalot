@@ -13,23 +13,27 @@ from lenscarf.lerepi.core import handler
 
 
 if __name__ == '__main__':
+    
+    # statusreport_handler = logging.StreamHandler()
+    # statusreport_handler.setFormatter(logging.Formatter('%(message)s')) #"" This is the key thing for the question!
+    # statusreport_handler.setLevel(logging.INFO)
+
+    # sr_logger = logging.getLogger('statusreport')
+    # # logging.basicConfig(level=logging.INFO, handlers=[statusreport_handler])
+    # sr_logger.addHandler(statusreport_handler)
+
+    # sr_logger.info('here')
+
     datefmt = "%m-%d %H:%M"
-
     FORMAT = '%(levelname)s:: %(asctime)s:: %(name)s.%(funcName)s - %(message)s'
-
-    log = logging.getLogger(__name__)
-    log.setLevel(logging.WARNING)
-
     formatter = logging.Formatter(FORMAT, datefmt=datefmt)
     ConsoleOutputHandler = logging.StreamHandler()
     ConsoleOutputHandler.setFormatter(formatter)
+    ConsoleOutputHandler.setLevel(logging.INFO)
 
-    # TODO not sure how to get LoggerAdapter to work to print custom keys at each log
-    # FORMAT = '%(levelname)s:: %(asctime)s:: %(name)s.%(funcName)s.%(klass)s - %(message)s'
-    # extra = {"klass": lambda: self.__class__.__name__}
-    # log.addHandler(ConsoleOutputHandler)
-    # adapter = logging.LoggerAdapter(ConsoleOutputHandler, extra)
-
+    sys_logger = logging.getLogger(__name__)
+    sys_logger.addHandler(ConsoleOutputHandler)
+    sys_logger.setLevel(logging.INFO)
     logging.basicConfig(level=logging.INFO, handlers=[ConsoleOutputHandler])
     logging.getLogger("healpy").disabled = True
 

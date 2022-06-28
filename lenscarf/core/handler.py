@@ -122,7 +122,7 @@ class QE_lr():
                 self.get_response_meanfield()
                 self.get_wflm(idx)
                 self.get_R_unl()
-                self.get_B_wf(idx)
+                # self.get_B_wf(idx)
                 log.info('{}/{}, finished job {}'.format(mpi.rank,mpi.size,idx))
             if len(self.jobs)>0:
                 log.info('{} finished qe ivfs tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
@@ -156,6 +156,8 @@ class QE_lr():
     @log_on_end(logging.INFO, "get_B_wf() finished")    
     def get_B_wf(self, simidx):
         fn = self.libdir_iterators(self.k, simidx, self.version)+'/bwf_qe_%04d.npy'%simidx
+        if not os.path.isdir(self.libdir_iterators(self.k, simidx, self.version)):
+            os.makedirs(self.libdir_iterators(self.k, simidx, self.version))
         if os.path.isfile(fn):
             bwf = self.ivfs.get_sim_bmliklm(simidx)
         else:

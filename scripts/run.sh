@@ -5,7 +5,7 @@
 #SBATCH -J 8bmfvar
 #SBATCH --mail-user=sebastian.belkner@unige.ch
 #SBATCH --mail-type=ALL
-#SBATCH -t 00:01:00
+#SBATCH -t 04:00:00
 #SBATCH -o ./add/slurm/slurm-%j.out
 
 #OpenMP settings:

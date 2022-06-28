@@ -21,7 +21,8 @@ log.setLevel(logging.INFO)
 from plancklens.helpers import mpi
 
 from lenscarf.lerepi.core.visitor import transform
-from lenscarf.lerepi.core.transformer.lerepi2dlensalot import l2j_Transformer, l2T_Transformer, transform
+from lenscarf.lerepi.core.transformer.lerepi2dlensalot import l2j_Transformer, l2T_Transformer#, transform
+from lenscarf.lerepi.core.transformer.lerepi2status import l2j_Transformer as l2js_Transformer#, transform as transform_status
 
 
 class handler():
@@ -29,15 +30,19 @@ class handler():
     def __init__(self, parser):
         self.configfile = handler.load_configfile(parser.config_file, 'configfile')
         TEMP = transform(self.configfile.dlensalot_model, l2T_Transformer())
-        if mpi.rank == 0:
-            self.store(parser, self.configfile, TEMP)
+        if parser.status == '':
+            if mpi.rank == 0:
+                self.store(parser, self.configfile, TEMP)
+        self.parser = parser
 
 
     @log_on_start(logging.INFO, "collect_jobs() Started")
     @log_on_end(logging.INFO, "collect_jobs() Finished")
     def collect_jobs(self):
-        # TODO this could be the level for _process_Job
-        self.jobs = transform(self.configfile.dlensalot_model, l2j_Transformer())
+        if self.parser.status == '':
+            self.jobs = transform(self.configfile.dlensalot_model, l2j_Transformer())
+        else:
+            self.jobs = transform(self.configfile.dlensalot_model, l2js_Transformer())
 
 
     @log_on_start(logging.INFO, "get_jobs() Started")
@@ -69,7 +74,7 @@ class handler():
         for transf, job in self.jobs:
             log.info("Starting job {}".format(job))
             model = transform(*transf)
-            log.info("Model collected {}".format(job))
+            log.info("Model collected {}".format(model))
             j = job(model)
             j.collect_jobs()
             j.run()
