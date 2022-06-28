@@ -11,6 +11,11 @@ lenscarf.egg-info/
 *.o
 *.obj
 
+
+# slurm
+slurm*
+
+
 # Precompiled Headers
 *.gch
 *.pch
