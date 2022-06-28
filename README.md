@@ -27,6 +27,7 @@ optional arguments:
   -s STATUS   Absolute path for the analysis to write a report.
 ```
 
+## Run a configuration file
 
 To run a configutation file `<path-to-config>`, type in your favourite `bash`,
 ```
@@ -49,6 +50,10 @@ If you'd like to know the status of the analysis done with `$path/conf.py`, run,
 ```
 python3 run.py -s $path/conf.py
 ```
+
+## Inspect your results
+
+`lenscarf/notebooks` and `lenscarf/scripts` may be of some help.
 
 
 ## Use on NERSC
