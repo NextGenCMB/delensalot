@@ -13,7 +13,7 @@ dlensalot_model = DLENSALOT_Model(
         inspect_result = False
     ),
     data = DLENSALOT_Data(
-        TEMP_suffix = 'noQEmfsub',
+        TEMP_suffix = 'testparser',
         fg = '07',
         sims = 'cmbs4/08b/caterinaILC_May12',
         nside = 2048,

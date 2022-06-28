@@ -24,7 +24,7 @@ if __name__ == '__main__':
     ConsoleOutputHandler = logging.StreamHandler()
     ConsoleOutputHandler.setFormatter(formatter)
 
-    # TODO not sure how to get adapter to work to print custom keys at each log
+    # TODO not sure how to get LoggerAdapter to work to print custom keys at each log
     # FORMAT = '%(levelname)s:: %(asctime)s:: %(name)s.%(funcName)s.%(klass)s - %(message)s'
     # extra = {"klass": lambda: self.__class__.__name__}
     # log.addHandler(ConsoleOutputHandler)
@@ -34,8 +34,8 @@ if __name__ == '__main__':
     logging.getLogger("healpy").disabled = True
 
     lparser = lerepi_parser()
-    lparser.validate()
-    parser = lparser.get_parser()
+    if lparser.validate():
+        parser = lparser.get_parser()
 
     lerepi_handler = handler.handler(parser)
     lerepi_handler.collect_jobs()
