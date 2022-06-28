@@ -16,11 +16,11 @@ dlensalot_model = DLENSALOT_Model(
         OMP_NUM_THREADS = 16
     ),
     analysis = DLENSALOT_Analysis(
-        TEMP_suffix = 'planckmask',
+        TEMP_suffix = 'planckmask_wmf',
         K = 'p_p',
         V = '',
         ITMAX = 12,
-        nsims_mf = 0,
+        nsims_mf = 10,
         zbounds =  (-1,1),
         zbounds_len = (-1,1),   
         pbounds = [0, 2*np.pi],
