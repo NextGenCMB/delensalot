@@ -14,7 +14,7 @@ For this to work, an older gnu compiler, `gcc 7` is currently needed, as a newer
 
 # Usage
 
-Type `run.py [-h]` for quickhelp,
+Type `python3 run.py [-h]` for quickhelp,
 ```
 usage: run.py [-h] [-p NEW] [-r RESUME] [-s STATUS]
 
