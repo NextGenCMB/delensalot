@@ -75,6 +75,14 @@ about
    about/publications
    about/people
 
+
+modules
+==========
+
+.. automodule:: lenscarf
+    :members:
+
+
 Indices and tables
 ==================
 
