@@ -11,17 +11,19 @@ class BFGS_Hessian(object):
     """
     Class to evaluate the update to inverse Hessian matrix in the L-BFGS scheme.
     (see wikipedia article if nothing else).
-    H is B^-1 form that article.
-    B_k+1 = B  + yy^t / (y^ts) - B s s^t B / (s^t Bk s))   (all k on the RHS)
-    H_k+1 = (1 - sy^t / (y^t s) ) H (1 - ys^t / (y^ts))) + ss^t / (y^t s).
+
+
+    H is $B^-1$ form that article.
+    $B_k+1 = B  + yy^t / (y^ts) - B s s^t B / (s^t Bk s))$   (all k on the RHS)
+    $H_k+1 = (1 - sy^t / (y^t s) ) H (1 - ys^t / (y^ts))) + ss^t / (y^t s)$.
 
     Determinant of B:
-    ln det Bk+1 = ln det Bk + ln( s^ty / s^t B s).
+    $ln det Bk+1 = ln det Bk + ln( s^ty / s^t B s)$.
+    For quasi Newton, $s_k = x_k1 - x_k = - alpha_k Hk grad_k with alpha_k$ newton step-length.
+        --> $s^t B s at k is alpha_k^2 g_k H g_k$
+            $s^t y is  - alpha_k (g_k+1 - g_k) H g_k$
+    This leads to $ln|B_k + 1| = ln |B_k| + ln(1 - 1/alpha_k g_k+1 H g_k / (gk H gk))$
 
-    For quasi Newton, s_k = x_k1 - x_k = - alpha_k Hk grad_k with alpha_k newton step-length.
-        --> s^t B s at k is alpha_k^2 g_k H g_k
-            s^t y is  - alpha_k (g_k+1 - g_k) H g_k
-    This leads to ln|B_k + 1| = ln |B_k| + ln(1 - 1/alpha_k g_k+1 H g_k / (gk H gk))    
     """
 
     def __init__(self, cacher:cachers.cacher, apply_H0k:callable, paths2ys, paths2ss, dot_op:callable,

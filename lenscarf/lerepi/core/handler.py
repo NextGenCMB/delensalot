@@ -28,8 +28,14 @@ from lenscarf.lerepi.core.transformer.lerepi2status import l2j_Transformer as l2
 
 
 class handler():
-
+    """_summary_
+    """
     def __init__(self, parser):
+        """_summary_
+
+        Args:
+            parser (_type_): _description_
+        """
         self.configfile = handler.load_configfile(parser.config_file, 'configfile')
         TEMP = transform(self.configfile.dlensalot_model, l2T_Transformer())
         if parser.status == '':
@@ -42,6 +48,8 @@ class handler():
     @log_on_start(logging.INFO, "collect_jobs() Started")
     @log_on_end(logging.INFO, "collect_jobs() Finished")
     def collect_jobs(self):
+        """_summary_
+        """        
         if self.parser.status == '':
             self.jobs = transform(self.configfile.dlensalot_model, l2j_Transformer())
         else:
@@ -51,6 +59,11 @@ class handler():
     @log_on_start(logging.INFO, "get_jobs() Started")
     @log_on_end(logging.INFO, "get_jobs() Finished")
     def get_jobs(self):
+        """_summary_
+
+        Returns:
+            _type_: _description_
+        """        
 
         return self.jobs
 
