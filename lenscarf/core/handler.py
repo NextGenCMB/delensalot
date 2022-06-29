@@ -317,8 +317,8 @@ class MAP_lr():
                 self.qe.run()
                 # Must use mpi.barrier() before get_meanfields_it(), otherwise running into fileNotExist errors, as job splitting changes.
                 # TODO could assign it0 mf to whoever is first, but then would need to check if all files exist and either time.sleep() or skip and let the next rank try?
-                mpi.barrier()
                 # TODO if TD(1) solved, replace np.arange() accordingly
+                mpi.barrier()
                 self.get_meanfields_it(np.arange(self.itmax+1), calc=True)
                 mpi.barrier()
 

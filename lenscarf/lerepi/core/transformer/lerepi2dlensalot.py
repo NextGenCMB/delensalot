@@ -374,9 +374,14 @@ class l2lensrec_Transformer:
         _process_iterationparams(dl, cf.iteration)
         _process_stepperparams(dl, cf.stepper)
 
+
         dl.tasks = cf.iteration.tasks
+        # TODO hack. Refactor
         if "calc_meanfield" in dl.tasks:
-            dl.mf_dirname = opj(dl.TEMP, 'mf_{}_{:03d}'.format(dl.version, dl.nsims_mf))
+            if dl.version == '' or dl.version == None:
+                dl.mf_dirname = opj(dl.TEMP, 'mf_{:03d}'.format(dl.nsims_mf))
+            else:
+                dl.mf_dirname = opj(dl.TEMP, 'mf_{}_{:03d}'.format(dl.version, dl.nsims_mf))
             if not os.path.isdir(dl.mf_dirname):
                 os.makedirs(dl.mf_dirname)
         dl.dlm_mod_bool = cf.iteration.dlm_mod
@@ -666,6 +671,15 @@ class l2lensrec_Transformer:
         _process_Noisemodel(dl, cf.noisemodel)
         _process_Qerec(dl, cf.qerec)
         _process_Itrec(dl, cf.itrec)
+
+        # TODO hack. Refactor
+        if "calc_meanfield" in dl.tasks:
+            if dl.version == '' or dl.version == None:
+                dl.mf_dirname = opj(dl.TEMP, 'mf_{:03d}'.format(dl.nsims_mf))
+            else:
+                dl.mf_dirname = opj(dl.TEMP, 'mf_{}_{:03d}'.format(dl.version, dl.nsims_mf))
+            if not os.path.isdir(dl.mf_dirname):
+                os.makedirs(dl.mf_dirname)
 
         if mpi.rank == 0:
             log.info("I am going to work with the following values:")

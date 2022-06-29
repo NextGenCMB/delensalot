@@ -3,11 +3,11 @@
 """dlensalot.py: Contains the metamodel of the Dlensalot formalism.
 """
 __author__ = "S. Belkner, J. Carron, L. Legrand"
-# TODO I would like to come up with a better structure for this whole 'DLENSALOT_Model'
 
 import abc
 import attr
-
+from warnings import warn
+warn('dlensalot is deprecated and will soon be replaced by dlensalot_v2. Please use dlensalot_v2, so the transition will be easier in the future', DeprecationWarning, stacklevel=2)
 
 class DLENSALOT_Concept:
     """An abstract element base type for the Dlensalot formalism."""

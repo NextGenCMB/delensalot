@@ -49,8 +49,8 @@ class l2s_Transformer:
     def build_v2(self, cf):
         def _process_Status(dl):
             dl.__dict__.update(cf.__dict__)
-            dl.analysispath = l2T_Transformer().build(cf)
-            dl.itmax = cf.analysis.itmax
+            dl.analysispath = l2T_Transformer().build_nomf(cf)
+            dl.itmax = cf.analysis.ITMAX
             dl.version = cf.analysis.V
 
         dl = DLENSALOT_Concept()
@@ -87,4 +87,4 @@ def f2(expr, transformer): # pylint: disable=missing-function-docstring
 
 @transform.case(DLENSALOT_Model_v2, l2s_Transformer)
 def f3(expr, transformer): # pylint: disable=missing-function-docstring
-    return transformer.build(expr)
+    return transformer.build_v2(expr)
