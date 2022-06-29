@@ -25,8 +25,7 @@ optional arguments:
   -p NEW                Relative path to config file to run analysis.
   -r RESUME             Absolute path to config file to resume.
   -s STATUS             Absolute path for the analysis to write a report.
-  -purgehashs PURGEHASHS
-                        Purge all hash-files.
+
 ```
 
 ## Run a configuration file
