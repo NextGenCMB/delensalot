@@ -67,6 +67,7 @@ other
 
 about
 =============
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
@@ -79,14 +80,11 @@ about
 modules
 ==========
 
-.. automodule:: lenscarf.lerepi.core
-    :members:
-    :undoc-members:
-
-.. automodule:: lenscarf.lerepi.core.handler
-    :members:
-    :undoc-members:
-
+.. toctree::
+   :maxdepth: 2
+   :caption: Contents:
+   
+   modules/modules
 
 
 
