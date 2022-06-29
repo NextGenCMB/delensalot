@@ -5,6 +5,7 @@
 __author__ = "S. Belkner, J. Carron, L. Legrand"
 
 
+import os
 import logging
 import traceback
 

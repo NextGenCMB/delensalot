@@ -85,8 +85,7 @@ class analysisreport:
             log.info('------------------------')
             log.info("{} finished it0, {}/{} finished btempl_p0{}".format(counts[3], counts[2], self.imax+1, self.itmax, ))
 
-                
-            
+
         for n in range(3):
             log.info("")
         for n in range(3):

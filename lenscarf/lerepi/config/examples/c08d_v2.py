@@ -36,7 +36,7 @@ dlensalot_model = DLENSALOT_Model(
         IMIN = 0,
         IMAX = 99,
         package_ = 'lenscarf',
-        module_ = 'config.cmbs4.data.data_08d',
+        module_ = 'lerepi.config.cmbs4.data.data_08d',
         class_ = 'ILC_May2022',
         class_parameters = {
             'fg': '07'

@@ -70,9 +70,9 @@ class l2T_Transformer:
         return TEMP
 
 
-    # @log_on_start(logging.INFO, "build_nomf() started")
-    # @log_on_end(logging.INFO, "build_nomf() finished")
-    def build_nomf(self, cf):
+    # @log_on_start(logging.INFO, "build_v2() started")
+    # @log_on_end(logging.INFO, "build_v2() finished")
+    def build_v2(self, cf):
         _suffix = cf.data.class_
         if 'fg' in cf.data.class_parameters:
             _suffix +='_%s'%(cf.data.class_parameters['fg'])
@@ -86,7 +86,7 @@ class l2T_Transformer:
         if cf.analysis.TEMP_suffix != '':
             _suffix += '_'+cf.analysis.TEMP_suffix
         TEMP =  opj(os.environ['SCRATCH'], 'dlensalot', cf.data.package_, cf.data.module_.split('.')[-1], _suffix)
-        log.info('Inside build_nomf:TEMP = {}'.format(TEMP))
+
         return TEMP
 
 
@@ -879,6 +879,7 @@ class l2d_Transformer:
             mask_path = cf.noisemodel.rhits_normalised[0]
             dl.base_mask = np.nan_to_num(hp.read_map(mask_path))
             dl.TEMP = transform(cf, l2T_Transformer())
+            log.info(dl.TEMP)
             dl.analysis_path = dl.TEMP.split('/')[-1]
             
             dl.nlev_mask = dict()
@@ -961,6 +962,8 @@ class l2d_Transformer:
             # TODO hack. this is only needed to access old s08b data
             # Remove and think of a better way of including old data without existing config file
             dl.TEMP = transform(cf, l2T_Transformer())
+            log.info(dl.TEMP)
+            sys.exit()
 
             # TODO II
             if cf.madel.libdir_it != '':
@@ -1103,7 +1106,7 @@ def f1(expr, transformer): # pylint: disable=missing-function-docstring
 
 @transform.case(DLENSALOT_Model_v2, l2T_Transformer)
 def f2a2(expr, transformer): # pylint: disable=missing-function-docstring
-    return transformer.build_nomf(expr)
+    return transformer.build_v2(expr)
 
 @transform.case(DLENSALOT_Model_v2, l2lensrec_Transformer)
 def f3(expr, transformer): # pylint: disable=missing-function-docstring
