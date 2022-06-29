@@ -50,7 +50,7 @@ class l2s_Transformer:
     def build_v2(self, cf):
         def _process_Status(dl):
             dl.__dict__.update(cf.__dict__)
-            dl.analysispath = l2T_Transformer().build_nomf(cf)
+            dl.analysispath = l2T_Transformer().build_v2(cf)
             dl.itmax = cf.analysis.ITMAX
             dl.version = cf.analysis.V
             dl.imax = cf.data.IMAX

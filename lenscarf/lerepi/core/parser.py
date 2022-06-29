@@ -6,11 +6,12 @@ __author__ = "S. Belkner, J. Carron, L. Legrand"
 
 
 import logging
+from re import purge
 log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
 
 import argparse
-import os
+import os, sys
 from os import walk
 
 import lenscarf.lerepi as lerepi
@@ -18,12 +19,24 @@ import lenscarf.lerepi as lerepi
 # TODO Add DLENSALOT_Job configs
 class lerepi_parser():
 
+
+
     def __init__(self):
+
+        def hide_args(arglist):
+            for action in arglist:
+                action.help=argparse.SUPPRESS
         __argparser = argparse.ArgumentParser(description='D.lensalot entry point.')
         __argparser.add_argument('-p', dest='new', type=str, default='', help='Relative path to config file to run analysis.')
         __argparser.add_argument('-r', dest='resume', type=str, default='', help='Absolute path to config file to resume.')
         __argparser.add_argument('-s', dest='status', type=str, default='', help='Absolute path for the analysis to write a report.')
-        __argparser.add_argument('-purgehashs', dest='purgehashs', type=str, default='', help='Purge all hash-files.')
+        dmode = __argparser.add_argument('-devmode', dest='devmode', type=str, default=False, help='Only for development purposes')
+        hide_args([dmode])
+        # Only in devmode can purgehashs be accessed
+        if '-devmode' in sys.argv[1:]:
+            hidden_item = __argparser.add_argument('-purgehashs', dest='purgehashs', type=str, default='', help='Purge all hash-files.')
+        elif '-devmode' not in sys.argv[1:]:
+            pass
         self.parser = __argparser.parse_args()
 
     @log_on_start(logging.INFO, "Start of validate()")
@@ -95,8 +108,9 @@ class lerepi_parser():
 
         if self.parser.new == '' and self.parser.resume == '' and self.parser.status == '' and self.parser.purgehashs == '':
             assert 0, 'Choose one of the available options to get going.'
-        if _validate_purge(self.parser.purgehashs):
-            pass
+        if "purgehashs" in self.parser.__dict__:
+            if _validate_purge(self.parser.purgehashs):
+                pass
         if _validate_s(self.parser.status):
             pass
         if _validate_r(self.parser.resume):

@@ -33,54 +33,55 @@ class handler():
         self.configfile = handler.load_configfile(parser.config_file, 'configfile')
         TEMP = transform(self.configfile.dlensalot_model, l2T_Transformer())
         # TODO this is not a clean implementation for purging..
-        if parser.purgehashs:
-            if mpi.rank == 0:
-                def is_anadir(TEMP):
-                    if TEMP.startswith(os.environ['SCRATCH']):
-                        return True
-                    else:
-                        log.error('Not a $SCRATCH dir.')
-                        sys.exit()
-
-                def get_hashfiles(TEMP):
-                    counter = 0
-                    hashfiles = []
-                    for dirpath, dirnames, filenames in os.walk(TEMP):
-                        _hshfile = [filename for filename in filenames if filename.endswith('hash.pk')]
-                        counter += len(_hshfile)
-                        if _hshfile != []:
-                            hashfiles.append([dirpath, _hshfile])
-
-                    return hashfiles, counter
-
-                if is_anadir(TEMP):
-                    log.info("====================================================")
-                    log.info("========        PURGING subroutine        ==========")
-                    log.info("====================================================")
-                    log.info("Will check {} for hash files: ".format(TEMP))
-                    hashfiles, counter = get_hashfiles(TEMP)
-                    if len(hashfiles)>0:
-                        log.info("I find {} hash files,".format(counter))
-                        log.info(hashfiles)
-                        userinput = input('Please confirm purging with YES: ')
-                        if userinput == "YES":
-                            for pths in hashfiles:
-                                for pth in pths[1]:
-                                    fn = opj(pths[0],pth)
-                                    os.remove(fn)
-                                    print("Deleted {}".format(fn))
-                            print('All hashfiles have been deleted.')
-                            hashfiles, counter = get_hashfiles(TEMP)
-                            log.info("I find {} hash files".format(counter))  
+        if "purgehashs" in parser.__dict__:
+            if parser.purgehashs:
+                if mpi.rank == 0:
+                    def is_anadir(TEMP):
+                        if TEMP.startswith(os.environ['SCRATCH']):
+                            return True
                         else:
-                            log.info("Not sure what that answer was.")
-                    else:
-                        log.info("Cannot find any hash files.".format(counter))  
-    
-            log.info("====================================================")
-            log.info("========        PURGING subroutine        ==========")
-            log.info("====================================================")
-            sys.exit() 
+                            log.error('Not a $SCRATCH dir.')
+                            sys.exit()
+
+                    def get_hashfiles(TEMP):
+                        counter = 0
+                        hashfiles = []
+                        for dirpath, dirnames, filenames in os.walk(TEMP):
+                            _hshfile = [filename for filename in filenames if filename.endswith('hash.pk')]
+                            counter += len(_hshfile)
+                            if _hshfile != []:
+                                hashfiles.append([dirpath, _hshfile])
+
+                        return hashfiles, counter
+
+                    if is_anadir(TEMP):
+                        log.info("====================================================")
+                        log.info("========        PURGING subroutine        ==========")
+                        log.info("====================================================")
+                        log.info("Will check {} for hash files: ".format(TEMP))
+                        hashfiles, counter = get_hashfiles(TEMP)
+                        if len(hashfiles)>0:
+                            log.info("I find {} hash files,".format(counter))
+                            log.info(hashfiles)
+                            userinput = input('Please confirm purging with YES: ')
+                            if userinput == "YES":
+                                for pths in hashfiles:
+                                    for pth in pths[1]:
+                                        fn = opj(pths[0],pth)
+                                        os.remove(fn)
+                                        print("Deleted {}".format(fn))
+                                print('All hashfiles have been deleted.')
+                                hashfiles, counter = get_hashfiles(TEMP)
+                                log.info("I find {} hash files".format(counter))  
+                            else:
+                                log.info("Not sure what that answer was.")
+                        else:
+                            log.info("Cannot find any hash files.".format(counter))  
+        
+                log.info("====================================================")
+                log.info("========        PURGING subroutine        ==========")
+                log.info("====================================================")
+                sys.exit() 
         else:
             if parser.status == '':
                 if mpi.rank == 0:
