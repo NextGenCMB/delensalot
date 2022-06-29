@@ -16,15 +16,17 @@ For this to work, an older gnu compiler, `gcc 7` is currently needed, as a newer
 
 Type `python3 run.py [-h]` for quickhelp,
 ```
-usage: run.py [-h] [-p NEW] [-r RESUME] [-s STATUS]
+usage: run.py [-h] [-p NEW] [-r RESUME] [-s STATUS] [-purgehashs PURGEHASHS]
 
 D.lensalot entry point.
 
 optional arguments:
-  -h, --help  show this help message and exit
-  -p NEW      Relative path to config file to run analysis.
-  -r RESUME   Absolute path to config file to resume.
-  -s STATUS   Absolute path for the analysis to write a report.
+  -h, --help            show this help message and exit
+  -p NEW                Relative path to config file to run analysis.
+  -r RESUME             Absolute path to config file to resume.
+  -s STATUS             Absolute path for the analysis to write a report.
+  -purgehashs PURGEHASHS
+                        Purge all hash-files.
 ```
 
 ## Run a configuration file
