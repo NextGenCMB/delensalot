@@ -48,14 +48,15 @@ extensions = [
 
 
 # mathjax settings
-mathjax_config ={
+mathjax_options ={
     'extensions': ['tex2jax.js'],
     'tex2jax': {
         'inlineMath': [["$", "$"], ["\\(", "\\)"]],
         'displayMath': [['$$', '$$'], ["\\[", "\\]"]],
         'processEscapes': True
     },
-    'HTML-CSS': {'fonts': ['TeX']} }
+    'HTML-CSS': {'fonts': ['TeX']},
+    "mathjax_path": "https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML" }
 
 # Napoleon settings
 napoleon_google_docstring = True
