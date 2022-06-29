@@ -15,6 +15,13 @@ class DLENSALOT_Concept:
     __metaclass__ = abc.ABCMeta
 
 
+    def __str__(self):
+        _str = ''
+        for k, v in self.__dict__.items():
+            _str+="\t{}:\t{}\n".format(k,v)
+        return _str
+
+
 @attr.s
 class DLENSALOT_Model(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
