@@ -8,8 +8,8 @@
 import os, sys
 # sys.path.insert(0, os.path.abspath("./../"))
 
-autodoc_mock_imports = ['plancklens', 'scarf', 'MSC', 'bicubic']
-
+autodoc_mock_imports = ['plancklens', 'scarf', 'MSC', 'bicubic', 'fortran']
+latex_engine = 'xelatex'
 # sys.path.insert(0, os.path.abspath("./../"))
 
 sys.path.insert(0, "./../")
@@ -47,7 +47,7 @@ extensions = [
 ]
 
 napoleon_google_docstring = True
-napoleon_numpy_docstring = True
+# napoleon_numpy_docstring = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
