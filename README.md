@@ -14,18 +14,20 @@ For this to work, an older gnu compiler, `gcc 7` is currently needed, as a newer
 
 # Usage
 
-Type `run.py [-h]` for quickhelp,
+Type `python3 run.py [-h]` for quickhelp,
 ```
-usage: run.py [-h] [-p CONFIG_FILE] [-r RESUME]
+usage: run.py [-h] [-p NEW] [-r RESUME] [-s STATUS]
 
-Lerepi main entry point
+D.lensalot entry point.
 
 optional arguments:
-  -h, --help      show this help message and exit
-  -p CONFIG_FILE  Config file which defines all variables needed for delensing
-  -r RESUME       Abolsute path to config file to resume
+  -h, --help  show this help message and exit
+  -p NEW      Relative path to config file to run analysis.
+  -r RESUME   Absolute path to config file to resume.
+  -s STATUS   Absolute path for the analysis to write a report.
 ```
 
+## Run a configuration file
 
 To run a configutation file `<path-to-config>`, type in your favourite `bash`,
 ```
@@ -38,6 +40,25 @@ For example,
 python3 run.py -p examples/example_c08b.py
 ```
 runs the example configuration for `c08b`. See [lenscarf/lerepi/README](https://github.com/NextGenCMB/lenscarf/blob/f/mergelerepi/lenscarf/lerepi/README.rst) for a description of the configuation parameters
+
+If you already have an analysis, located at `$path`, with config file `conf.py`, you may resume this analysis with,
+```
+python3 run.py -r $path/conf.py
+```
+
+If you'd like to know the status of the analysis done with `$path/conf.py`, run,
+```
+python3 run.py -s $path/conf.py
+```
+
+## interactive mode
+
+D.lensalot supports interactive mode. See `lenscarf/notebooks/interactive.ipynb` for guidance.
+
+
+## Inspect your results
+
+`lenscarf/notebooks` and `lenscarf/scripts` may be of some help.
 
 
 ## Use on NERSC
