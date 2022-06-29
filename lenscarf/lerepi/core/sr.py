@@ -31,6 +31,7 @@ class analysisreport:
     def count(self, filenames):
         wflm_c, wflm_mc = 0, 0
         btempl_c, btempl_mc = 0, 0
+
         if any("p_it{}.npy".format(self.itmax-1) in filename for filename in filenames):
             wflm_c += 1
         else:
@@ -52,6 +53,16 @@ class analysisreport:
             log.info("==============================================")
         for n in range(3):
             log.info("")
+
+        qlms_dd_ct = 0
+        for idx in self.jobs:
+            for dirpath, dirnames, filenames in os.walk(self.analysispath):
+                if dirpath.endswith('qlms_dd'):
+                    qlms_dd_ct += len([filename for filename in filenames if filename.startswith("sim_p_p")])
+        log.info("qlms:")
+        log.info('------------------------')
+        log.info("{}/{} QE phis are there".format(qlms_dd_ct, self.imax+1))
+        
         wflm_c, wflm_mc = 0, 0
         btempl_c, btempl_mc = 0, 0
         counts = np.zeros(shape=4, dtype=np.int)
@@ -64,9 +75,16 @@ class analysisreport:
                     else:
                         if dirpath.split('/')[-2].endswith(self.version):
                             counts += self.count(filenames)
+            log.info("")
+            log.info("Wflms:")
+            log.info('------------------------')
+            log.info("{}/{} wflm{} (iteration {}) are there, {} haven't yet started it0".format(counts[0], self.imax+1, self.itmax-1, self.itmax, counts[1]))
+            
+            log.info("")
+            log.info("B-template:")
+            log.info('------------------------')
+            log.info("{}/{} btempl_p0{} are there, {} haven't yet started it0".format(counts[2], self.imax+1, self.itmax, counts[3]))
 
-            log.info("{}/{} wflm{} (iteration {}) are already there".format(counts[0], np.sum(counts[0:2]), self.itmax-1, self.itmax))
-            log.info("{}/{} btempl_p0{} are already there".format(counts[2], np.sum(counts[2:4]), self.itmax-1))
                 
             
         for n in range(3):

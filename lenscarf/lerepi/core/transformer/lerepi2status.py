@@ -34,6 +34,7 @@ class l2s_Transformer:
             dl.analysispath = l2T_Transformer().build(cf)
             dl.itmax = cf.iteration.ITMAX
             dl.version = cf.iteration.V
+            dl.imax = cf.data.IMAX
 
         # TODO build list of files to be checked
         # build list of modifiers to test the files against, as in version, itmax, mf, ..
@@ -52,6 +53,7 @@ class l2s_Transformer:
             dl.analysispath = l2T_Transformer().build_nomf(cf)
             dl.itmax = cf.analysis.ITMAX
             dl.version = cf.analysis.V
+            dl.imax = cf.data.IMAX
 
         dl = DLENSALOT_Concept()
         _process_Status(dl)
