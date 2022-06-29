@@ -1,5 +1,8 @@
-"""This is how we actually ran the 08b data - TODO
-"""
+import sys
+from warnings import warn
+warn('This is deprecated. Please use _v2 if possible.', DeprecationWarning, stacklevel=2)
+sys.exit()
+
 import numpy as np
 import healpy as hp
 
@@ -10,39 +13,38 @@ dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(
         build_OBD = False,
         QE_lensrec = False,
-        MAP_lensrec = False,
-        Btemplate_per_iteration = False,
+        MAP_lensrec = True,
         map_delensing = False,
         inspect_result = False
     ),
     data = DLENSALOT_Data(
-        TEMP_suffix = 'testrun',
-        fg = '00',
+        TEMP_suffix = 'testparser',
+        fg = '07',
         sims = 'cmbs4/08b/caterinaILC_May12',
-        zbounds =  ('nmr_relative', np.inf),
-        zbounds_len = ('extend', 5.),   
         nside = 2048,
-        BEAM = 2.3,
+        beam = 2.3,
         lmax_transf = 4000,
         transf = hp.gauss_beam,
-        pbounds = [1.97, 5.71],
         tpl = 'template_dense'
     ),
     iteration = DLENSALOT_Iteration(
         K = 'p_p',
         V = '', 
+        QE_subtract_meanfield = False,
         ITMAX = 12,
         IMIN = 0,
         IMAX = 99,
         nsims_mf = 100,
-        OMP_NUM_THREADS = 8,
+        tasks = ["calc_phi", "calc_meanfield", "calc_btemplate"], #["calc_phi", "calc_meanfield", "calc_btemplate"],
+        dlm_mod = False,
+        OMP_NUM_THREADS = 16,
         Lmin = 4, 
         CG_TOL = 1e-3,
         TOL = 3,
         soltn_cond = lambda it: True,
-        lmax_filt = 4096,
-        lmax_qlm = 4096,
-        mmax_qlm = 4096,
+        lmax_filt = 4000,
+        lmax_qlm = 4000,
+        mmax_qlm = 4000,
         lmax_unl = 4000,
         mmax_unl = 4000,
         lmax_ivf = 3000,
@@ -50,16 +52,17 @@ dlensalot_model = DLENSALOT_Model(
         lmin_ivf = 10,
         mmin_ivf = 10,
         LENSRES = 1.7, # Deflection operations will be performed at this resolution
+        mfvar = 'same',
         QE_LENSING_CL_ANALYSIS = False, # Change the following block only if a full, Planck-like QE lensing power spectrum analysis is desired
         STANDARD_TRANSFERFUNCTION = True, # Change the following block only if exotic transferfunctions are desired
         FILTER = 'cinv_sepTP', # Change the following block only if other than cinv_t, cinv_p, ivfs filters are desired
         FILTER_QE = 'sepTP', # Change the following block only if other than sepTP for QE is desired
-        ITERATOR = 'constmf' # Choose your iterator. Either pertmf or const_mf
+        iterator_typ = 'constmf' # Choose your iterator. Either pertmf or const_mf
     ),
     geometry = DLENSALOT_Geometry(
         lmax_unl = 4000,
-        zbounds = ('nmr_relative', np.inf),
-        zbounds_len = ('extend', 5.),
+        zbounds =  ('nmr_relative', np.inf),
+        zbounds_len = ('extend', 5.),   
         pbounds = [1.97, 5.71],
         nside = 2048,
         lenjob_geometry = 'thin_gauss',
@@ -85,13 +88,14 @@ dlensalot_model = DLENSALOT_Model(
         xb = 1500
     ),
     map_delensing = DLENSALOT_Mapdelensing(
-        edges = 'cmbs4',
+        edges = ['ioreco', 'cmbs4'],
         IMIN = 0,
         IMAX = 99,
-        ITMAX = 10,
-        fg = '00',
+        ITMAX = [10,12],
+        droplist = np.array([]),
+        fg = '07',
         base_mask = 'cmbs4/08b/caterinaILC_May12', # This mask is used to rotate ILC maps
-        nlevels = [2., 5.],
+        nlevels = [1.2, 2, 10, 50],
         nside = 2048,
         lmax_cl = 2048,
         beam = 2.3,
@@ -100,7 +104,7 @@ dlensalot_model = DLENSALOT_Model(
         Cl_fid = 'ffp10'
     ),
     noisemodel = DLENSALOT_Noisemodel(
-        type = 'OBD',
+        typ = 'OBD',
         BMARG_LIBDIR = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08b/',
         BMARG_LCUT = 200,
         BMARG_RESCALE = (0.42/0.350500)**2,
@@ -114,6 +118,6 @@ dlensalot_model = DLENSALOT_Model(
         inf = 1e4,
         ratio = np.inf,
         mask = ('nlev', np.inf),
-        noisemodel_rhits = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08b/masks/08b_rhits_positive_nonan.fits',
+        rhits_normalised = ('/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08b/masks/08b_rhits_positive_nonan.fits', np.inf)
     )
 )

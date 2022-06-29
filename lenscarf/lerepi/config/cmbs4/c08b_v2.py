@@ -5,17 +5,17 @@ from lenscarf.lerepi.core.metamodel.dlensalot_v2 import *
 
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(
-        OBD = ["build"],
-        QE = ["calc_phi", "calc_meanfield"],
-        MAP = ["calc_phi", "calc_meanfield", "calc_btemplate"],
-        Delens = ["default"],
-        Inspect = False,
+        build_OBD = False,
+        QE_lensrec = False,
+        MAP_lensrec = True,
+        map_delensing = False,
+        inspect_result = False,
         OMP_NUM_THREADS = 16
     ),
     analysis = DLENSALOT_Analysis(
         TEMP_suffix = '',
         K = 'p_p',
-        V = '',
+        V = 'abc',
         ITMAX = 12,
         nsims_mf = 100,
         zbounds =  ('nmr_relative', np.inf),
@@ -35,8 +35,8 @@ dlensalot_model = DLENSALOT_Model(
     data = DLENSALOT_Data(
         IMIN = 0,
         IMAX = 99,
-        package_ = 'lerepi',
-        module_ = 'config.cmbs4.data.data_08b',
+        package_ = 'lenscarf',
+        module_ = 'lerepi.config.cmbs4.data.data_08b',
         class_ = 'caterinaILC_May12',
         class_parameters = {
             'fg': '09'
@@ -84,6 +84,7 @@ dlensalot_model = DLENSALOT_Model(
     itrec = DLENSALOT_Itrec(
         FILTER = 'opfilt_ee_wl.alm_filter_ninv_wl',
         TOL = 3,
+        tasks = ["calc_phi", "calc_meanfield", "calc_btemplate"], #["calc_phi", "calc_meanfield", "calc_btemplate"],
         lenjob_geometry = 'thin_gauss',
         lenjob_pbgeometry = 'pbdGeometry',
         iterator_typ = 'constmf', # Either pertmf or const_mf
@@ -98,11 +99,11 @@ dlensalot_model = DLENSALOT_Model(
     madel = DLENSALOT_Mapdelensing(
         edges = 'cmbs4',
         iterations = [12],
+        dlm_mod = False,
         droplist = np.array([]),
         nlevels = [1.2, 2, 5, 50],
         lmax_cl = 2048,
         Cl_fid = 'ffp10',
-        libdir_it = 'overwrite',
-        subtract_meanfield = "/"
+        libdir_it = 'overwrite'
     )
 )
