@@ -9,7 +9,6 @@ import os, sys
 # sys.path.insert(0, os.path.abspath("./../"))
 
 autodoc_mock_imports = ['plancklens', 'scarf', 'MSC', 'bicubic', 'fortran']
-latex_engine = 'xelatex'
 # sys.path.insert(0, os.path.abspath("./../"))
 
 sys.path.insert(0, "./../")
