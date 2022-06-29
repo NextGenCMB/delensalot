@@ -39,7 +39,7 @@ dlensalot_model = DLENSALOT_Model(
         module_ = 'lerepi.config.cmbs4.data.data_08d',
         class_ = 'ILC_May2022',
         class_parameters = {
-            'fg': '07'
+            'fg': '00'
         },
         beam = 2.3,
         lmax_transf = 4000,
@@ -47,7 +47,7 @@ dlensalot_model = DLENSALOT_Model(
     ),
     noisemodel = DLENSALOT_Noisemodel(
         typ = 'OBD',
-        BMARG_LIBDIR = '/global/cscratch1/sd/sebibel/cmbs4/OBD_matrices/08d/r10/',
+        BMARG_LIBDIR = '/global/cscratch1/sd/sebibel/cmbs4/OBD_matrices/08d/r100/',
         BMARG_LCUT = 200,
         BMARG_RESCALE = (0.65/0.59)**2,
         ninvjob_geometry = 'healpix_geometry',
@@ -59,13 +59,13 @@ dlensalot_model = DLENSALOT_Model(
         nlev_p = 0.65,
         nlev_dep = 10000.,
         inf = 1e4,
-        mask = ('nlev', np.inf),
-        rhits_normalised = ('/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08d/masks/08d_rhits_positive_nonan.fits', np.inf),
+        mask = ('nlev', 10),
+        rhits_normalised = ('/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08d/masks/08d_rhits_positive_nonan.fits', 10),
         tpl = 'template_dense'
     ),
     qerec = DLENSALOT_Qerec(
         FILTER_QE = 'sepTP', # Change only if other than sepTP for QE is desired
-        CG_TOL = 2e-4,
+        CG_TOL = 3e-4,
         ninvjob_qe_geometry = 'healpix_geometry_qe',
         lmax_qlm = 4000,
         mmax_qlm = 4000,

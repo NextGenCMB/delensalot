@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH -N 25
+#SBATCH -N 50
 #SBATCH -C haswell
 #SBATCH -q regular
-#SBATCH -J 8bmfvar
+#SBATCH -J r10_tol5e5
 #SBATCH --mail-user=sebastian.belkner@unige.ch
 #SBATCH --mail-type=ALL
-#SBATCH -t 04:00:00
+#SBATCH -t 02:00:00
 #SBATCH -o ./add/slurm/slurm-%j.out
 
 #OpenMP settings:
@@ -23,7 +23,7 @@ export OMP_PROC_BIND=spread
 # file='/global/cscratch1/sd/sebibel/dlensalot/lerepi/data_08d/ILC_May2022_00_OBD_r100_tol5e5/c08d_v2.py'
 # file='/global/cscratch1/sd/sebibel/dlensalot/lerepi/data_08d/ILC_May2022_00_OBD_r10_tol5e5/c08d_v2.py'
 
-file='/global/cscratch1/sd/sebibel/cmbs4/08b_07_OBD_MF100_example/config_mfvar.py'
+file='/global/cscratch1/sd/sebibel/dlensalot/lenscarf/data_08d/ILC_May2022_00_OBD_r100_tol5e5/c08d_v2.py'
 echo $file
 cat $file
 

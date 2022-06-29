@@ -6,7 +6,6 @@ __author__ = "S. Belkner, J. Carron, L. Legrand"
 
 
 import logging
-from re import purge
 log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
 
@@ -18,9 +17,6 @@ import lenscarf.lerepi as lerepi
 
 # TODO Add DLENSALOT_Job configs
 class lerepi_parser():
-
-
-
     def __init__(self):
 
         def hide_args(arglist):
@@ -35,6 +31,7 @@ class lerepi_parser():
         # Only in devmode can purgehashs be accessed
         if '-devmode' in sys.argv[1:]:
             hidden_item = __argparser.add_argument('-purgehashs', dest='purgehashs', type=str, default='', help='Purge all hash-files.')
+            hide_args([hidden_item])
         elif '-devmode' not in sys.argv[1:]:
             pass
         self.parser = __argparser.parse_args()

@@ -15,10 +15,10 @@ dlensalot_model = DLENSALOT_Model(
     analysis = DLENSALOT_Analysis(
         TEMP_suffix = '',
         K = 'p_p',
-        V = 'abc',
+        V = '',
         ITMAX = 12,
         nsims_mf = 100,
-        zbounds =  ('nmr_relative', np.inf),
+        zbounds =  ('nmr_relative', 100),
         zbounds_len = ('extend', 5.),   
         pbounds = [1.97, 5.71],
         LENSRES = 1.7,
@@ -97,7 +97,7 @@ dlensalot_model = DLENSALOT_Model(
         )
     ),
     madel = DLENSALOT_Mapdelensing(
-        edges = 'cmbs4',
+        edges = ['cmbs4', 'ioreco'],
         iterations = [12],
         dlm_mod = False,
         droplist = np.array([]),

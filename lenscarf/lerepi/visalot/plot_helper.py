@@ -25,6 +25,15 @@ from lenscarf.lerepi.core.visitor import transform
 from lenscarf.lerepi.core.transformer.lerepi2dlensalot import l2T_Transformer, transform
 from lenscarf.lerepi.visalot import plot_helper as ph
 
+ll = np.arange(0,200+1,1)
+scale_uk = (2 * ll + 1) * ll**2 * (ll + 1)**2
+scale_ps = ll*(ll+1)/(2*np.pi)
+label_scale_ps = r'$\frac{\ell(\ell+1)}{2 \pi}$'
+label_scale_lp = r'$\frac{\ell^2(\ell+1)^2}{2 \pi}$'
+scale_lp = ll**2 * (ll + 1)**2 * 1e7 / (2 * np.pi)
+
+psl = r'$\frac{l(l+1)}{2\pi}C_\ell \/ [\mu K^2]$'
+
 
 def load_paramfile(directory, descriptor):
     """Load parameterfile

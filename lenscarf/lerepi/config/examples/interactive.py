@@ -1,7 +1,6 @@
 import numpy as np
 
 from lenscarf.lerepi.core.metamodel.dlensalot_v2 import *
-# this config is used to generate B_wf in old s08b directory. config is stored in the usual place.
 
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(
@@ -98,7 +97,7 @@ dlensalot_model = DLENSALOT_Model(
         overwrite_itdir = 'ffi_p_it%d/'
     ),
     madel = DLENSALOT_Mapdelensing(
-        edges = 'cmbs4',
+        edges = ['cmbs4', 'ioreco'],
         iterations = [12],
         droplist = np.array([]),
         nlevels = [1.2, 2, 5, 50],

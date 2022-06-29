@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
-"""run.py: Entry point for running lerepi
+"""run.py: Entry point for running D.lensalot
 """
 __author__ = "S. Belkner, J. Carron, L. Legrand"
 
 
-import os
+import os, sys
 import logging
 import traceback
 
@@ -14,17 +14,6 @@ from lenscarf.lerepi.core import handler
 
 
 if __name__ == '__main__':
-    
-    # statusreport_handler = logging.StreamHandler()
-    # statusreport_handler.setFormatter(logging.Formatter('%(message)s')) #"" This is the key thing for the question!
-    # statusreport_handler.setLevel(logging.INFO)
-
-    # sr_logger = logging.getLogger('statusreport')
-    # # logging.basicConfig(level=logging.INFO, handlers=[statusreport_handler])
-    # sr_logger.addHandler(statusreport_handler)
-
-    # sr_logger.info('here')
-
     datefmt = "%m-%d %H:%M"
     FORMAT = '%(levelname)s:: %(asctime)s:: %(name)s.%(funcName)s - %(message)s'
     formatter = logging.Formatter(FORMAT, datefmt=datefmt)
@@ -43,6 +32,9 @@ if __name__ == '__main__':
         parser = lparser.get_parser()
 
     lerepi_handler = handler.handler(parser)
+    if "purgehashs" in parser.__dict__:
+        handler.purge(parser, lerepi_handler.TEMP)
+        sys.exit()
     lerepi_handler.collect_jobs()
 
     try:
