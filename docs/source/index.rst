@@ -79,8 +79,15 @@ about
 modules
 ==========
 
-.. automodule:: lenscarf
+.. automodule:: lenscarf.lerepi.core
     :members:
+    :undoc-members:
+
+.. automodule:: lenscarf.lerepi.core.handler
+    :members:
+    :undoc-members:
+
+
 
 
 Indices and tables
