@@ -6,7 +6,6 @@ modules
    :caption: Contents:
 
    core
-   fortran
    iterators
    lerepi
    opfilt
