@@ -34,11 +34,11 @@ class analysisreport:
 
         if any("p_it{}.npy".format(self.itmax-1) in filename for filename in filenames):
             wflm_c += 1
-        else:
+        elif any("p_it{}.npy".format(0) in filename for filename in filenames):
             wflm_mc += 1
         if any("btempl_p{:03d}".format(self.itmax) in filename for filename in filenames):
             btempl_c += 1
-        else:
+        elif any("btempl_p{:03d}".format(0) in filename for filename in filenames):
             btempl_mc += 1
 
         return np.array([wflm_c, wflm_mc, btempl_c, btempl_mc])
@@ -78,12 +78,12 @@ class analysisreport:
             log.info("")
             log.info("Wflms:")
             log.info('------------------------')
-            log.info("{}/{} wflm{} (iteration {}) are there, {} haven't yet started it0".format(counts[0], self.imax+1, self.itmax-1, self.itmax, counts[1]))
+            log.info("{} finished it0, {}/{} finished wflm{} (iteration {})".format(counts[1], counts[0], self.imax+1, self.itmax-1, self.itmax, ))
             
             log.info("")
             log.info("B-template:")
             log.info('------------------------')
-            log.info("{}/{} btempl_p0{} are there, {} haven't yet started it0".format(counts[2], self.imax+1, self.itmax, counts[3]))
+            log.info("{} finished it0, {}/{} finished btempl_p0{}".format(counts[3], counts[2], self.imax+1, self.itmax, ))
 
                 
             
