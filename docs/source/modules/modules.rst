@@ -9,6 +9,5 @@ modules
    fortran
    iterators
    lerepi
-   modules
    opfilt
    sims
