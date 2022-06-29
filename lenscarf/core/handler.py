@@ -315,6 +315,9 @@ class MAP_lr():
 
             elif task == 'calc_meanfield':
                 self.qe.run()
+                # Must use mpi.barrier() before get_meanfields_it(), otherwise running into fileNotExist errors, as job splitting changes.
+                # TODO could assign it0 mf to whoever is first, but then would need to check if all files exist and either time.sleep() or skip and let the next rank try?
+                mpi.barrier()
                 # TODO if TD(1) solved, replace np.arange() accordingly
                 self.get_meanfields_it(np.arange(self.itmax+1), calc=True)
                 mpi.barrier()
@@ -359,7 +362,7 @@ class MAP_lr():
     def get_meanfield_it(self, it, calc=False):
         # for mfvar runs, this returns the correct meanfields, as mfvar runs go into distinct itlib dirs.
         Nmf = len(np.arange(self.nsims_mf))
-        fn = opj(self.TEMP, 'mf{:03d}'.format(Nmf), 'mf%03d_it%03d.npy'%(Nmf, it))
+        fn = opj(self.mf_dirname, 'mf%03d_it%03d.npy'%(Nmf, it))
         if not calc:
             if os.path.isfile(fn):
                 mf = np.load(fn)

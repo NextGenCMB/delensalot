@@ -376,8 +376,9 @@ class l2lensrec_Transformer:
 
         dl.tasks = cf.iteration.tasks
         if "calc_meanfield" in dl.tasks:
-            if not os.path.isdir(opj(dl.TEMP, 'mf{:03d}'.format(dl.nsims_mf))):
-                os.makedirs(opj(dl.TEMP, 'mf{:03d}'.format(dl.nsims_mf)))
+            dl.mf_dirname = opj(dl.TEMP, 'mf_{}_{:03d}'.format(dl.version, dl.nsims_mf))
+            if not os.path.isdir(dl.mf_dirname):
+                os.makedirs(dl.mf_dirname)
         dl.dlm_mod_bool = cf.iteration.dlm_mod
         if mpi.rank == 0:
             log.info("I am going to work with the following values:")
