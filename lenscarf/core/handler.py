@@ -395,17 +395,30 @@ class MAP_lr():
 class Map_delenser():
     """Script for calculating delensed ILC and Blens spectra using precaulculated Btemplates as input.
     """
-    from MSC import pospace as ps
-    
+
     def __init__(self, bmd_model):
         self.__dict__.update(bmd_model.__dict__)
-
         # TODO hack. Remove and think of a better way of including old data without existing config file
         if 'libdir_iterators' in bmd_model.__dict__:
             pass
         else:
             self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
         self.lib = dict()
+
+
+    def map2cl(map, lmax):
+    
+        if 'map2cl' in self.cl_calc:
+
+            return self.cl_calc.anfast(map, lmax)
+        else:
+
+            return self.map2cl(map, lmax)
+
+
+    def map2cl_binned(nlev_mask, clc_templ, edges, lmax_lib):
+
+        return self.cl_calc.map2cl_binned(nlev_mask, clc_templ, edges, lmax_lib)
 
 
     # @log_on_start(logging.INFO, "getfn_blm_lensc() started")
@@ -425,7 +438,8 @@ class Map_delenser():
             elif it==0:
                 return '/global/cscratch1/sd/sebibel/cmbs4/s08b/cILC2021_%s_lmax4000/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20/ffi_p_it0/blm_%04d_it0.npy'%(self.fg, simidx, simidx)    
         else:
-            # TODO this belongs via config to c2d
+            # TODO this belongs via config to l2d
+            # TODO fn needs to be defined in l2d
             # TODO only QE it 0 doesn't exists because no modification is done to it. catching this. Can this be done better?
             if it == 0:
                 return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024%03d.npy'%(it, it, Nmf)
@@ -477,52 +491,64 @@ class Map_delenser():
     @log_on_start(logging.INFO, "run() started")
     @log_on_end(logging.INFO, "run() finished")
     def run(self):
+
         if self.jobs != []:
-            for edgesi, edges in enumerate(self.edges):
-                outputdata = np.zeros(shape=(2, 2+len(self.its), len(self.nlevels), len(edges)-1))
+            if self.spectrum_type == 'binned':
+                for edgesi, edges in enumerate(self.edges):
+                    outputdata = np.zeros(shape=(2, 2+len(self.its), len(self.nlevels), len(edges)-1))
+                    for nlev in self.nlevels:
+                        self.lib.update({nlev: self.map2cl_binned(self.nlev_mask[nlev], self.cl_templ[:self.lmax_lib], edges, self.lmax_lib)})
+            else:
+                edgesi = 0
+                a = overwrite_anafast() if self.cl_calc == hp else self.cl_calc
                 for nlev in self.nlevels:
-                    self.lib.update({nlev: ps.map2cl_binned(self.nlev_mask[nlev], self.clc_templ[:self.lmax_lib], edges, self.lmax_lib)})
+                    outputdata = np.zeros(shape=(2, 2+len(self.its), len(self.nlevels), self.lmax_lib+1))
+                    self.lib.update({nlev: a})
 
-                for idx in self.jobs[mpi.rank::mpi.size]:
-                    _file_op = self.file_op(idx, self.fg, edgesi)
-                    log.info('will store file at: {}'.format(_file_op))
+            for idx in self.jobs[mpi.rank::mpi.size]:
+                _file_op = self.file_op(idx, self.fg, edgesi)
+                log.info('will store file at: {}'.format(_file_op))
 
-                    qumap_cs_buff = self.getfn_qumap_cs(idx)
-                    eblm_cs_buff = hp.map2alm_spin(qumap_cs_buff*self.base_mask, 2, self.lmax_cl)
-                    bmap_cs_buff = hp.alm2map(eblm_cs_buff[1], self.nside)
+                qumap_cs_buff = self.getfn_qumap_cs(idx)
+                eblm_cs_buff = hp.map2alm_spin(qumap_cs_buff*self.base_mask, 2, self.lmax_cl)
+                bmap_cs_buff = hp.alm2map(eblm_cs_buff[1], self.nside)
 
-                    blm_lensc_QE_buff = np.load(self.getfn_blm_lensc(idx, 0, self.nmf))
-                    bmap_lensc_QE_buff = hp.alm2map(blm_lensc_QE_buff, nside=self.nside)
+                blm_lensc_QE_buff = np.load(self.getfn_blm_lensc(idx, 0, self.nmf))
+                bmap_lensc_QE_buff = hp.alm2map(blm_lensc_QE_buff, nside=self.nside)
 
-                    if self.getfn_blm_lensc(idx, 0, self.nmf).endswith('npy'):
-                        blm_lensc_MAP_buff = np.array([np.load(self.getfn_blm_lensc(idx, it, self.nmf)) for it in self.its])
+                fns = [self.getfn_blm_lensc(idx, it, self.nmf) for it in self.its]
+                blm_lensc_MAP_buff = np.zeros(shape=(len(fns), *blm_lensc_QE_buff.shape), dtype=np.complex128)
+                for fni, fn in enumerate(fns):
+                    if fn.endswith('npy'):
+                        blm_lensc_MAP_buff[fni] = np.array(np.load(fn))
                     else:
-                        blm_lensc_MAP_buff = np.array([hp.read_alm(self.getfn_blm_lensc(idx, it, self.nmf)) for it in self.its])
-                    bmap_lensc_MAP_buff = np.array([hp.alm2map(blm_lensc_MAP_buff[iti], nside=self.nside) for iti in range(len(self.its))])
-                    for nlevi, nlev in enumerate(self.nlevels):
-                        bcl_cs = self.lib[nlev].map2cl(bmap_cs_buff)
-                        # TODO fiducial choice should happen at transformer
-                        blm_L_buff = hp.almxfl(utils.alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(idx), lmax=self.lmax_cl), self.transf)
-                        bmap_L_buff = hp.alm2map(blm_L_buff, self.nside)
-                        bcl_L = self.lib[nlev].map2cl(bmap_L_buff)
+                        blm_lensc_MAP_buff[fni] = np.array(hp.read_alm(fn))   
+                bmap_lensc_MAP_buff = np.array([hp.alm2map(blm_lensc_MAP_buff[iti], nside=self.nside) for iti in range(len(self.its))])
 
-                        outputdata[0][0][nlevi] = bcl_L
-                        outputdata[1][0][nlevi] = bcl_cs
+                for nlevi, nlev in enumerate(self.nlevels):
+                    bcl_cs = self.lib[nlev].map2cl(bmap_cs_buff)
+                    # TODO fiducial choice should happen at transformer
+                    blm_L_buff = hp.almxfl(utils.alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(idx), lmax=self.lmax_cl), self.transf)
+                    bmap_L_buff = hp.alm2map(blm_L_buff, self.nside)
+                    bcl_L = self.lib[nlev].map2cl(bmap_L_buff)
 
-                        bcl_Llensc_QE = self.lib[nlev].map2cl(bmap_L_buff-bmap_lensc_QE_buff)
-                        bcl_cslensc_QE = self.lib[nlev].map2cl(bmap_cs_buff-bmap_lensc_QE_buff)
+                    outputdata[0][0][nlevi] = bcl_L
+                    outputdata[1][0][nlevi] = bcl_cs
 
-                        outputdata[0][1][nlevi] = bcl_Llensc_QE
-                        outputdata[1][1][nlevi] = bcl_cslensc_QE
+                    bcl_Llensc_QE = self.lib[nlev].map2cl(bmap_L_buff-bmap_lensc_QE_buff)
+                    bcl_cslensc_QE = self.lib[nlev].map2cl(bmap_cs_buff-bmap_lensc_QE_buff)
 
-                        for iti, it in enumerate(self.its):
-                            bcl_Llensc_MAP = self.lib[nlev].map2cl(bmap_L_buff-bmap_lensc_MAP_buff[iti])    
-                            bcl_cslensc_MAP = self.lib[nlev].map2cl(bmap_cs_buff-bmap_lensc_MAP_buff[iti])
+                    outputdata[0][1][nlevi] = bcl_Llensc_QE
+                    outputdata[1][1][nlevi] = bcl_cslensc_QE
 
-                            outputdata[0][2+iti][nlevi] = bcl_Llensc_MAP
-                            outputdata[1][2+iti][nlevi] = bcl_cslensc_MAP      
-            
-                    np.save(_file_op, outputdata)
+                    for iti, it in enumerate(self.its):
+                        bcl_Llensc_MAP = self.lib[nlev].map2cl(bmap_L_buff-bmap_lensc_MAP_buff[iti])    
+                        bcl_cslensc_MAP = self.lib[nlev].map2cl(bmap_cs_buff-bmap_lensc_MAP_buff[iti])
+
+                        outputdata[0][2+iti][nlevi] = bcl_Llensc_MAP
+                        outputdata[1][2+iti][nlevi] = bcl_cslensc_MAP
+
+        np.save(_file_op, outputdata)
 
 
 class Inspector():
@@ -543,3 +569,10 @@ class Inspector():
     def run(self):
 
         assert 0, "Implement if needed"
+
+
+class overwrite_anafast():
+
+    def map2cl(self, *args, **kwargs):
+        return hp.anafast(*args, **kwargs)
+

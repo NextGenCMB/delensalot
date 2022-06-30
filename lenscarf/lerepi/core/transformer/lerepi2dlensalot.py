@@ -946,6 +946,7 @@ class l2d_Transformer:
             dl.imin = cf.data.IMIN
             dl.imax = cf.data.IMAX
             dl.its = ma.iterations
+            dl.nmf = cf.analysis.nsims_mf
             dl.droplist = ma.droplist
             if 'fg' in cf.data.class_parameters:
                 dl.fg = cf.data.class_parameters['fg']
@@ -964,7 +965,7 @@ class l2d_Transformer:
             dl.TEMP = transform(cf, l2T_Transformer())
 
             # TODO II
-            if cf.madel.libdir_it != '':
+            if ma.libdir_it != '':
                 dl.libdir_iterators = 'overwrite'
             else:
                 dl.libdir_iterators = lambda qe_key, simidx, version: opj(dl.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
@@ -991,24 +992,57 @@ class l2d_Transformer:
                 dl.clg_templ[0] = 1e-32
                 dl.clg_templ[1] = 1e-32
 
-            dl.sha_edges = [hashlib.sha256() for n in range(len(dl.edges))]
-            for n in range(len(dl.edges)):
-                dl.sha_edges[n].update(str(dl.edges[n]).encode())
-            dl.dirid = [dl.sha_edges[n].hexdigest()[:4] for n in range(len(dl.edges))]
+            dl.spectrum_type = ma.spectrum_type
+            if dl.spectrum_type == 'binned':
+                dl.sha_edges = [hashlib.sha256() for n in range(len(dl.edges))]
+                for n in range(len(dl.edges)):
+                    dl.sha_edges[n].update(str(dl.edges[n]).encode())
+                dl.dirid = [dl.sha_edges[n].hexdigest()[:4] for n in range(len(dl.edges))]
+            else:
+                dl.sha_edges = [hashlib.sha256()]
+                dl.sha_edges[0].update('unbinned'.encode())
+                dl.dirid = [dl.sha_edges[0].hexdigest()[:4]]
+
             dl.TEMP_DELENSED_SPECTRUM = transform(dl, l2T_Transformer())
             for dir_id in dl.dirid:
                 if not(os.path.isdir(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dir_id))):
                     os.makedirs(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dir_id))
+
             # TODO II
             # TODO fn needs changing
-            dl.dlm_mod_bool = cf.madel.dlm_mod
-            if dl.dlm_mod_bool:
-                dl.file_op = lambda idx, fg, edges_idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edges_idx]) + '/ClBBwf_sim%04d_%s_fg%s_res2b3acm.npy'%(idx, 'dlmmod', fg)
+            dl.dlm_mod_bool = ma.dlm_mod
+            if dl.spectrum_type == 'binned':
+                if dl.dlm_mod_bool:
+                    dl.file_op = lambda idx, fg, edges_idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edges_idx]) + '/ClBBwf_sim%04d_%s_fg%s_res2b3acm.npy'%(idx, 'dlmmod', fg)
+                else:
+                    dl.file_op = lambda idx, fg, edges_idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edges_idx]) + '/ClBBwf_sim%04d_fg%s_res2b3acm.npy'%(idx, fg)
             else:
-                dl.file_op = lambda idx, fg, edges_idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edges_idx]) + '/ClBBwf_sim%04d_fg%s_res2b3acm.npy'%(idx, fg)
+                if dl.dlm_mod_bool:
+                    dl.file_op = lambda idx, fg, x: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[0]) + '/ClBBwf_sim%04d_%s_fg%s_res2b3acm.npy'%(idx, 'dlmmod', fg)
+                else:
+                    dl.file_op = lambda idx, fg, x: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[0]) + '/ClBBwf_sim%04d_fg%s_res2b3acm.npy'%(idx, fg)
 
+            if ma.spectrum_calculator == None:
+                log.info("Using Healpy as powerspectrum calculator")
+                dl.cl_calc = hp
+            else:
+                dl.cl_calc = ma.spectrum_calculator       
+                
+        def _check_powspeccalculator(clc):
+            if dl.spectrum_type == 'binned':
+                if 'map2cl_binned' not in clc.__dict__:
+                    log.error("Spectrum calculator doesn't provide needed function map2cl_binned() for binned spectrum calculation")
+                    sys.exit()
+            elif dl.spectrum_type == 'unbinned':
+                if 'map2cl' not in clc.__dict__:
+                    if 'anafast' not in clc.__dict__:
+                        log.error("Spectrum calculator doesn't provide needed function map2cl() or anafast() for unbinned spectrum calculation")
+                        sys.exit()
+        
         dl = DLENSALOT_Concept()
+
         _process_Madel(dl, cf.madel)
+        _check_powspeccalculator(dl.cl_calc)
 
         return dl
 
