@@ -179,6 +179,7 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
     lmax_cl = attr.ib(default=-1)
     Cl_fid = attr.ib(default=-1)
     libdir_it = attr.ib(default=-1)
+    spectrum_calculator = attr.ib(default=None)
 
 
 @attr.s

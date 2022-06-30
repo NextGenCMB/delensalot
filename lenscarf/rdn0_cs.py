@@ -16,7 +16,7 @@ from plancklens.qcinv import multigrid
 from plancklens.utils import stats, cli
 from plancklens.sims import planck2018_sims
 from os.path import join as opj
-from plancklens.helpers import mpi
+from lenscarf.core import mpi
 
 
 

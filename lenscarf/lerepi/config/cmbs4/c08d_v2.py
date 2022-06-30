@@ -47,7 +47,7 @@ dlensalot_model = DLENSALOT_Model(
     ),
     noisemodel = DLENSALOT_Noisemodel(
         typ = 'OBD',
-        BMARG_LIBDIR = '/global/cscratch1/sd/sebibel/cmbs4/OBD_matrices/08d/r100/',
+        BMARG_LIBDIR = '/global/cscratch1/sd/sebibel/cmbs4/OBD_matrices/08d/r10/',
         BMARG_LCUT = 200,
         BMARG_RESCALE = (0.65/0.59)**2,
         ninvjob_geometry = 'healpix_geometry',

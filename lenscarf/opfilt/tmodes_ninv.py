@@ -193,7 +193,7 @@ class template_tfilt(object):
         """Produces and save all rows of the matrix for large matriz sizes
 
         """
-        from plancklens.helpers import mpi
+        from lenscarf.core import mpi
         assert self.lib_dir is not None, 'cant do this without a lib_dir'
         assert self.nmodes <= 99999, 'ops, naming in the lines below'
         for a in range(self.nmodes)[mpi.rank::mpi.size]:

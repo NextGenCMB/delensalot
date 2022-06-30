@@ -12,7 +12,7 @@ log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
 
 from plancklens import utils
-from plancklens.helpers import mpi
+from lenscarf.core import mpi
 from plancklens.qcinv import opfilt_pp
 
 

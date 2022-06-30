@@ -287,7 +287,7 @@ if __name__ == '__main__':
         args.scarf += 'LMINEE%s'%args.lmin_EE
 
     assert args.tol in TOLS.keys(), args.tol + ' tol. scheme not recognized'
-    from plancklens.helpers import mpi
+    from lenscarf.core import mpi
     mpi.barrier = lambda : 1 # redefining the barrier
     from itercurv.iterators.statics import rec as Rec
 

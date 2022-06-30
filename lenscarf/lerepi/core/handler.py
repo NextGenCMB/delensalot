@@ -20,11 +20,11 @@ from logdecorator import log_on_start, log_on_end
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 
-from plancklens.helpers import mpi
+from lenscarf.core import mpi
 
 from lenscarf.lerepi.core.visitor import transform
-from lenscarf.lerepi.core.transformer.lerepi2dlensalot import l2j_Transformer, l2T_Transformer#, transform
-from lenscarf.lerepi.core.transformer.lerepi2status import l2j_Transformer as l2js_Transformer#, transform as transform_status
+from lenscarf.lerepi.core.transformer.lerepi2dlensalot import l2j_Transformer, l2T_Transformer
+from lenscarf.lerepi.core.transformer.lerepi2status import l2j_Transformer as l2js_Transformer
 
 
 class handler():

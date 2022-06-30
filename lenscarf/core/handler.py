@@ -17,10 +17,8 @@ import numpy as np
 import healpy as hp
 
 from plancklens import utils, qresp
-from plancklens.helpers import mpi
+from lenscarf.core import mpi
 from plancklens.sims import planck2018_sims
-
-from MSC import pospace as ps
 
 from lenscarf.utils_hp import almxfl, alm_copy
 from lenscarf.iterators.statics import rec as rec
@@ -397,7 +395,8 @@ class MAP_lr():
 class Map_delenser():
     """Script for calculating delensed ILC and Blens spectra using precaulculated Btemplates as input.
     """
-
+    from MSC import pospace as ps
+    
     def __init__(self, bmd_model):
         self.__dict__.update(bmd_model.__dict__)
 

@@ -18,7 +18,7 @@ import logging
 log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
 
-from plancklens.helpers import mpi
+from lenscarf.core import mpi
 from plancklens.qcinv import cd_solve, opfilt_pp, multigrid
 from plancklens.qcinv import util, util_alm
 from plancklens.filt import filt_cinv
@@ -61,11 +61,13 @@ class cinv_p(filt_cinv.cinv):
                               lmax_marg=bmarg_lmax, zbounds=zbounds, _bmarg_lib_dir=_bmarg_lib_dir, _bmarg_rescal=_bmarg_rescal, sht_threads=sht_threads)
         self.chain = util.jit(multigrid.multigrid_chain, opfilt_pp, chain_descr, cl, self.n_inv_filt)
 
+        hash_flag = np.zeros(1)
         if mpi.rank == 0:
             if not os.path.exists(lib_dir):
                 os.makedirs(lib_dir)
             if not os.path.exists(os.path.join(lib_dir, "filt_hash.pk")):
                 pk.dump(self.hashdict(), open(os.path.join(lib_dir, "filt_hash.pk"), 'wb'), protocol=2)
+            [mpi.send(hash_flag, dest=dest) for dest in range(1,mpi.size)]
             if not os.path.exists(os.path.join(self.lib_dir, "fbl.dat")):
                 fel, fbl = self._calc_febl()
                 np.savetxt(os.path.join(self.lib_dir, "fel.dat"), fel)
@@ -75,8 +77,7 @@ class cinv_p(filt_cinv.cinv):
             if not os.path.exists(os.path.join(self.lib_dir,  "fmask.fits.gz")):
                 hp.write_map(os.path.join(self.lib_dir,  "fmask.fits.gz"),  self._calc_mask())
         else:
-            while not os.path.exists(os.path.join(lib_dir, "filt_hash.pk")):
-                time.sleep(1)
+            mpi.receive(hash_flag, source=0)
         utils.hash_check(pk.load(open(os.path.join(lib_dir, "filt_hash.pk"), 'rb')), self.hashdict())
 
 

@@ -18,7 +18,7 @@ import healpy as hp
 import hashlib
 
 import plancklens
-from plancklens.helpers import mpi
+from lenscarf.core import mpi
 from plancklens import qest, qecl, utils
 from plancklens.filt import filt_util, filt_cinv
 from plancklens.qcinv import cd_solve
@@ -962,8 +962,6 @@ class l2d_Transformer:
             # TODO hack. this is only needed to access old s08b data
             # Remove and think of a better way of including old data without existing config file
             dl.TEMP = transform(cf, l2T_Transformer())
-            log.info(dl.TEMP)
-            sys.exit()
 
             # TODO II
             if cf.madel.libdir_it != '':
