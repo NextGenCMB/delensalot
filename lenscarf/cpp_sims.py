@@ -4,6 +4,7 @@ from lenscarf.iterators import statics
 from plancklens.sims import planck2018_sims
 from plancklens import qresp
 from lenscarf import cachers
+from lenscarf import utils_scarf, utils_sims
 from plancklens.qcinv import multigrid
 from plancklens import nhl 
 from scipy.interpolate import UnivariateSpline as spline
@@ -15,7 +16,10 @@ from lenscarf.utils_hp import alm2cl, alm_copy
 from lenscarf.utils import read_map
 from lenscarf.utils_plot import pp2kk
 from lenscarf import rdn0_cs
+from lenscarf import utils_hp as uhp
+from lenscarf import n0n1_iterative
 
+import healpy as hp
 
 class cpp_sims_lib:
     def __init__(self, k, itmax, tol, v='', param_file='cmbs4wide_planckmask', label=''):
@@ -28,7 +32,6 @@ class cpp_sims_lib:
         # Load the parameters defined in the param_file
         self.param_file = param_file
         self.param = importlib.import_module('lenscarf.params.'+param_file)
-
         self.k = k
         self.itmax = itmax
         self.tol = tol
@@ -69,6 +72,21 @@ class cpp_sims_lib:
     def get_plm_input(self, simidx):
         return alm_copy(self.sims_unl.get_sim_plm(simidx), mmaxin=None, lmaxout=self.lmax_qlm, mmaxout=self.mmax_qlm)
     
+    def get_eblm_dat(self, simidx, lmaxout=1024):
+        QU_maps = self.param.sims_MAP.get_sim_pmap(simidx)
+        tr = int(os.environ.get('OMP_NUM_THREADS', 8))
+        sht_job = utils_scarf.scarfjob()
+        sht_job.set_geometry(self.param.ninvjob_geometry)
+        sht_job.set_triangular_alm_info(self.param.lmax_ivf,self.param.mmax_ivf)
+        sht_job.set_nthreads(tr)
+        elm, blm = np.array(sht_job.map2alm_spin(QU_maps, 2))
+        lmaxdat = hp.sphtfunc.Alm.getlmax(elm.size)
+        elm = uhp.alm_copy(elm, mmaxin=lmaxdat, lmaxout=lmaxout, mmaxout=lmaxout)
+        blm = uhp.alm_copy(blm, mmaxin=lmaxdat, lmaxout=lmaxout, mmaxout=lmaxout)
+        return elm, blm
+
+
+
     def get_fsky(self):
         try:
             fn = 'fsky'
@@ -179,37 +197,207 @@ class cpp_sims_lib:
         # pl.loglog(ls, w * hp.alm2cl(MF1[0], MF1[0])[ls] / norm[ls] ** 2, label='MF spec + MC noise')
 
 
-    def get_n0_iter(self, itermax=15):
-        lmin_ivf = 2 # TODO Not sure if this is the correct lmin in all case ?
-        cacher = self.cacher_param
-        fn_n0s = 'N0s_biased_itmax{}'.format(itermax)
-        fn_n0s_unb = 'N0s_unbiased_itmax{}'.format(itermax)
-        fn_resp_fid = 'resp_fid_itmax{}'.format(itermax)
-        fn_resp_true = 'resp_true_itmax{}'.format(itermax)
+    def get_N0_qe(self):
+        fn_n0_qe = 'N0_qe'
+        
+        if not self.cacher_param.is_cached(fn_n0_qe):
+            cls_cmb_dat = self.param.cls_len_fid
+            
+            # Simple white noise model. Can feed here something more fancy if desired
+            transf = hp.gauss_beam(self.param.beam / 60. / 180. * np.pi, lmax=self.param.lmax_ivf)
+            Noise_L_T = (self.param.nlev_t / 60. / 180. * np.pi) ** 2 / transf ** 2
+            Noise_L_P = (self.param.nlev_p / 60. / 180. * np.pi) ** 2 / transf ** 2
 
-        if any (not cacher.is_cached(fn) for fn in [fn_n0s, fn_n0s_unb, fn_resp_fid, fn_resp_true]):
-            N0s_biased, N0s_unbiased, r_gg_fid, r_gg_true = nhl.get_N0_iter(
-                self.k, self.param.nlev_t, self.param.nlev_p, self.param.beam, self.param.cls_unl, lmin_ivf, self.param.lmax_ivf, itermax, ret_delcls=False, ret_resp=True)
-            cacher.cache(fn_n0s, N0s_biased)
-            cacher.cache(fn_n0s_unb, N0s_unbiased)
-            cacher.cache(fn_resp_fid, r_gg_fid)
-            cacher.cache(fn_resp_true, r_gg_true)
-        N0s_biased = cacher.load(fn_n0s)
-        N0s_unbiased = cacher.load(fn_n0s_unb)
-        rgg_fid  = cacher.load(fn_resp_fid)     
-        rgg_true = cacher.load(fn_resp_true)     
+            # Data power spectra
+            cls_dat = {
+                'tt': (self.param.cls_len['tt'][:self.param.lmax_ivf + 1] + Noise_L_T),
+                'ee': (self.param.cls_len['ee'][:self.param.lmax_ivf + 1] + Noise_L_P),
+                'bb': (self.param.cls_len['bb'][:self.param.lmax_ivf + 1] + Noise_L_P),
+                'te': np.copy(self.param.cls_len['te'][:self.param.lmax_ivf + 1])}
 
-        return N0s_biased, N0s_unbiased, rgg_fid, rgg_true
+            for s in cls_dat.keys():
+                cls_dat[s][min(lmaxs_CMB[s[0]], lmaxs_CMB[s[1]]) + 1:] *= 0.
+
+            # (C+N)^{-1} filter spectra
+            # For independent T and P filtering, this is really just 1/ (C+ N), diagonal in T, E, B space
+            fal_sepTP = {spec: utils.cli(cls_dat[spec]) for spec in ['tt', 'ee', 'bb']}
+            # Spectra of the inverse-variance filtered maps
+            # In general cls_ivfs = fal * dat_cls * fal^t, with a matrix product in T, E, B space
+            cls_ivfs_sepTP = utils.cls_dot([fal_sepTP, cls_dat, fal_sepTP], ret_dict=True)
+
+            # For joint TP filtering, fals is matrix inverse
+            # fal_jtTP = utils.cl_inverse(cls_dat)
+            # since cls_dat = fals, cls_ivfs = fals. If the data spectra do not match the filter, this must be changed:
+            # cls_ivfs_jtTP = utils.cls_dot([fal_jtTP, cls_dat, fal_jtTP], ret_dict=True)
+            # for cls in [fal_sepTP, fal_jtTP, cls_ivfs_sepTP, cls_ivfs_jtTP]:
+            #     for cl in cls.values():
+            #         cl[:max(1, lmin_ivf)] *= 0.
 
 
-    def get_wf_fid(self, itermax=15):
+            N0 = nhl.get_nhl(self.k, self.k, self.param.cls_len, cls_ivfs_sepTP, self.param.lmax_ivf, self.param.lmax_ivf)
+        N0 = self.cacher_param.load(fn_n0_qe)
+        return N0
+
+    def get_N0_N1_iter(self, itermax=15, version=''):
+        assert self.k =='p_p', 'Iterative biases not implemented fot MV and TT estimators'
+
+        config = (self.param.nlev_t, self.param.nlev_p, self.param.beam, self.param.lmin_elm, self.param.lmax_ivf, self.param.lmax_qlm)
+
+        # TODO: the cached files do not depend on the itermax
+        iterbiases = n0n1_iterative.polMAPbiases(config, fidcls_unl=self.param.cls_unl, itrmax = itermax, cacher=self.cacher_param)
+        N0_biased, N1_biased_spl, r_gg_fid, r_gg_true = iterbiases.get_n0n1(cls_unl_true=None, cls_noise_true=None, version=version)
+        return N0_biased, N1_biased_spl, r_gg_fid, r_gg_true
+
+    # def get_n0_iter(self, itermax=15, version=''):
+    #     if self.k == 'p_p':
+    #         lmin_ivf = self.param.lmin_elm  # TODO: what about lmin_blm ?
+    #     elif self.k == 'ptt':
+    #         lmin_ivf = self.param.lmin_tlm
+    #     elif self.k == 'p':
+    #         assert self.param.lmin_tlm == self.param.lmin_elm, "Dont know what lmin_ivf to take in this case, need to update nhl library"
+    #         lmin_ivf = self.param.lmin_tlm
+
+    #     cacher = self.cacher_param
+    #     tail = '_lminivf_{}_itmax{}_{}'.format(lmin_ivf, itermax, version)
+    #     fn_n0s = 'N0s_biased' + tail
+    #     fn_n0s_unb = 'N0s_unbiased' + tail
+    #     fn_resp_fid = 'resp_fid' + tail
+    #     fn_resp_true = 'resp_true' + tail
+    #     cached_files = [fn_n0s, fn_n0s_unb, fn_resp_fid, fn_resp_true]
+    #     if 'wN1' in version:
+    #         fn_N1s = 'N1s_biased' + tail
+    #         fn_N1s_unb = 'N1s_unbiased' + tail
+    #         cached_files += [fn_N1s, fn_N1s_unb]
+    #     if any (not cacher.is_cached(fn) for fn in cached_files):
+    #         ret = nhl.get_N0_iter(
+    #             self.k, self.param.nlev_t, self.param.nlev_p, self.param.beam, self.param.cls_unl, lmin_ivf, self.param.lmax_ivf, itermax, ret_delcls=True, ret_resp=True, version=version)
+    #         cacher.cache(fn_n0s, ret[0])
+    #         cacher.cache(fn_n0s_unb, ret[1])
+    #         cacher.cache(fn_resp_fid, ret[2])
+    #         cacher.cache(fn_resp_true, ret[3])
+    #         if 'wN1' in version:
+    #             cacher.cache(fn_N1s, ret[4])
+    #             cacher.cache(fn_N1s_unb, ret[5])           
+    #     N0s_biased = cacher.load(fn_n0s)
+    #     N0s_unbiased = cacher.load(fn_n0s_unb)
+    #     rgg_fid  = cacher.load(fn_resp_fid)     
+    #     rgg_true = cacher.load(fn_resp_true)     
+    #     if 'wN1' in version:
+    #         N1s_biased  = cacher.load(fn_N1s)     
+    #         N1s_unbiased = cacher.load(fn_N1s_unb)   
+    #     return N0s_biased, N0s_unbiased, rgg_fid, rgg_true if not 'wN1' in version else N0s_biased, N0s_unbiased, rgg_fid, rgg_true, N1s_biased, N1s_unbiased
+
+    # def get_N1_qe(self):
+    #     if resp_gradcls:
+    #         fn_N1 = 'N1_QE_respgradcls'
+    #     else:
+    #         fn_N1 = 'N1_QE'
+    #         if not self.cacher.is_cached(fn_N1):
+    #             print('computing N1 QE')
+    #             if resp_gradcls:
+    #                 cls_f = self.cls_grad
+    #             else:
+    #                 cls_f = self.cls_len
+    #             n1lib = n1_fft.n1_fft(fals = self.confi_crude.fals, cls_w=cls_len_fid, cls_f=cls_f, cpp=self.cpp_prior, lminbox=self.lminbox, lmaxbox=self.lmaxbox, k2l=self.k2l)
+                
+    #             tmp_ls, = np.where(n1lib.box.mode_counts()[:self.lmax_qlm + 1] > 0)
+    #             idx = (np.linspace(1, len(tmp_ls) - 1, 50)).astype(int)
+    #             Ls = tmp_ls[idx]
+
+    #             n1 = np.array([n1lib.get_n1(self.k, L, do_n1mat=False) for L in Ls])
+    #             resp = self.get_resp('QE', resp_gradcls=resp_gradcls)
+
+    #             # Interpolate on the normed and L^2(L+1)^2 N1
+    #             ells_= np.arange(self.lmax_qlm+1)
+    #             N1 = spline(Ls, n1 * cli(resp[Ls])**2 * (Ls * (Ls+1))**2 , s=0, k=3, ext='zeros')(ells_)  / ( ells_ * (ells_ +1) )**2
+    #             self.cacher.cache(fn_N1, N1)
+    #         N1s_qe = self.cacher.load(fn_N1)
+    #         return N1s_qe
+
+
+    # def get_N1_iter(self, itermax=15, wN1f=False, resp_gradcls=True):
+
+    #     if self.k == 'p_p':
+    #         lmin_ivf = self.param.lmin_elm  # TODO: what about lmin_blm ?
+    #     elif self.k == 'ptt':
+    #         lmin_ivf = self.param.lmin_tlm
+    #     elif self.k == 'p':
+    #         assert self.param.lmin_tlm == self.param.lmin_elm, "Dont know what lmin_ivf to take in this case, need to update nhl library"
+    #         lmin_ivf = self.param.lmin_tlm
+
+
+    #     tail = '_lminivf_{}_itmax{}_{}'.format(lmin_ivf, itermax, version)
+    #     fn_N1s = 'N1s_biased' + tail
+    #     fn_N1s_unb = 'N1s_unbiased' + tail
+
+    #     if any (not self.cacher.is_cached(fn) for fn in [fn_N1s]):
+
+    #         nmax = 3
+
+    #         N0 = self.get_N0('MAP')
+    #         cpp = np.copy(self.cls_unl['pp'])
+    #         clwf = cpp[:self.lmax_qlm + 1] * cli(cpp[:self.lmax_qlm + 1] + N0[:self.lmax_qlm + 1])
+    #         cpp[:self.lmax_qlm + 1] *= (1. - clwf)
+            
+    #         lib_len = len_fft.len_fft(self.cls_unl, cpp, lminbox=self.lminbox, lmaxbox=self.lmaxbox, k2l=self.k2l)
+    #         cls_plen_2d =  lib_len.lensed_cls_2d(nmax=nmax)
+
+    #         cls_plen = {k: lib_len.box.sum_in_l(cls_plen_2d[k]) * cli(lib_len.box.mode_counts() * 1.) for k in cls_plen_2d.keys()}
+    #         cls_filt = cls_plen
+    #         ivfs_cls, fals = utils_n1.get_ivf_cls(cls_plen, cls_filt, self.lmin_ivf, self.lmax_ivf, self.nlev_t, self.nlev_p,  self.nlev_t, self.nlev_p, self.transf,
+    #                                     jt_tp=self.jt_TP)
+
+    #         cls_f_2d = lib_len.lensed_gradcls_2d(nmax=nmax) # response cls
+    #         cls_f = {k: lib_len.box.sum_in_l(cls_f_2d[k]) * cli(lib_len.box.mode_counts() * 1.) for k in cls_f_2d.keys()}
+            
+    #         cls_w = cls_f 
+
+    #         if self.k == 'ptt':
+    #             fals['ee'] *= 0.
+    #             fals['bb'] *= 0.
+    #             ivfs_cls['ee'] *= 0.
+    #             ivfs_cls['bb'] *= 0.
+    #         if self.k == 'p_p':
+    #             fals['tt'] *= 0.
+    #             ivfs_cls['tt'] *= 0.
+    #             ivfs_cls['te'] *= 0.
+    #         if self.k in ['ptt', 'p_p']:
+    #             cls_w['te'] *= 0.
+
+    #         ls, = np.where(lib_len.box.mode_counts()[:self.lmax_ivf + 1] > 0)
+    #         fals_spl  = {k: spline(ls, fals[k][ls], k=2, s=0, ext='zeros')(np.arange(self.lmax_ivf + 1) * 1.) for k in fals.keys()}
+    #         cls_w_spl = {k: spline(ls, cls_w[k][ls], k=2, s=0, ext='zeros')(np.arange(self.lmax_ivf + 1) * 1.) for k in cls_w.keys()}
+    #         cls_f_spl = {k: spline(ls, cls_f[k][ls], k=2, s=0, ext='zeros')(np.arange(self.lmax_ivf + 1) * 1.) for k in cls_f.keys()}
+            
+    #         #This one spline probably not needed
+    #         cpp_spl = spline(ls, cpp[ls], k=2, s=0, ext='zeros')(np.arange(self.lmax_ivf + 1) * 1.)
+
+    #         libn1 = n1_fft.n1_fft(fals_spl, cls_w_spl, cls_f_spl, cpp_spl, lminbox=self.lminbox,  lmaxbox=self.lmaxbox, k2l=self.k2l)
+    #         # Choose Ls correspoding to the ls in the box to be able to normalize the n1
+    #         tmp_ls, = np.where(lib_len.box.mode_counts()[:self.lmax_qlm + 1] > 0)
+    #         idx = (np.linspace(1, len(tmp_ls) - 1, 50)).astype(int)
+    #         Ls = tmp_ls[idx]
+    #         n1 =  np.array([libn1.get_n1(self.k, L, do_n1mat=False) for L in Ls])
+    #         resp_ = self.get_resp('MAP')
+    #         # Interpolate on the normed and L^2(L+1)^2 N1
+    #         ells_ = np.arange(len(N0)) * 1.
+    #         N1 = spline(Ls, n1 * cli(resp_[Ls])**2 * (Ls * (Ls+1))**2 , s=0, k=3, ext='zeros')(ells_) / ( ells_ * (ells_ +1) )**2
+            
+    #         self.cacher.cache(fn_N1, N1)
+    #     N1 = self.cacher.load(fn_N1)
+    #     return N1
+
+
+
+
+    def get_wf_fid(self, itermax=15, version=''):
         """Fiducial iterative Wiener filter.
         
         Normalisation of :math:`phi^{MAP}`
         :math:`\mathcal{W} = \frac{C_{\phi\phi, \mathrm{fid}}}{C_{\phi\phi, \mathrm{fid}} + 1/\mathcal{R}_L}`
  
         """
-        _, _, resp_fid, _ = self.get_n0_iter(itermax=itermax)
+        _, _, resp_fid, _ = self.get_N0_N1_iter(itermax=itermax, version=version)
         return self.cpp_fid[:self.lmax_qlm+1] * utils.cli(self.cpp_fid[:self.lmax_qlm+1] + utils.cli(resp_fid[:self.lmax_qlm+1]))
 
     def get_wf_sim(self, simidx, itr):
@@ -296,8 +484,8 @@ class cpp_sims_lib:
         rdn0, kds, kss = self.load_rdn0_kk_map(idx)
         assert self.itmax == 15, "Need to check if the exported RDN0 correspond to the same iteration as the Cpp MAP" 
         # TODO  maybe not relevant if everything is converged ?
-        N0s_biased, N0s_unbiased, rgg_fid, rgg_true = self.get_n0_iter(itermax=15)
-        RDN0 = rdn0[:self.lmax_qlm+1] * pp2kk(np.arange(self.lmax_qlm+1)) * 1e7 * (N0s_biased[-1][:self.lmax_qlm+1])**2
+        N0_biased, N1_biased_spl, r_gg_fid, r_gg_true = self.get_N0_N1_iter(itermax=15)
+        RDN0 = rdn0[:self.lmax_qlm+1] * pp2kk(np.arange(self.lmax_qlm+1)) * 1e7 * utils.cli(r_gg_fid[:self.lmax_qlm+1])**2
         return RDN0
         
     def get_nsims(self):
