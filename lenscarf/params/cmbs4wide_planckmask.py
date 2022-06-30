@@ -51,7 +51,8 @@ lenjob_geometry = utils_scarf.Geom.get_thingauss_geometry(lmax_unl, 2, zbounds=z
 lenjob_pbgeometry = utils_scarf.pbdGeometry(lenjob_geometry, utils_scarf.pbounds(pb_ctr, pb_extent))
 lensres = 1.7  # Deflection operations will be performed at this resolution
 Lmin = 2 # The reconstruction of all lensing multipoles below that will not be attempted
-stepper = steps.nrstep(lmax_qlm, mmax_qlm, val=0.5) # handler of the size steps in the MAP BFGS iterative search
+# stepper = steps.nrstep(lmax_qlm, mmax_qlm, val=0.5) # handler of the size steps in the MAP BFGS iterative search
+stepper = steps.harmonicbump(lmax_qlm, mmax_qlm) # here we use a scale dependent step, to get to convergence after iteration 15
 mc_sims_mf_it0 = np.arange(320) # sims to use to build the very first iteration mean-field (QE mean-field)
 
 # TODO define one simulation to get the index -1 to be the data ? 
