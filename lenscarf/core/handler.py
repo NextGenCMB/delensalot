@@ -416,9 +416,14 @@ class Map_delenser():
             return self.map2cl(map, lmax)
 
 
-    def map2cl_binned(nlev_mask, clc_templ, edges, lmax_lib):
+    def map2cl_binned(self, nlev_mask, clc_templ, edges, lmax_lib):
 
         return self.cl_calc.map2cl_binned(nlev_mask, clc_templ, edges, lmax_lib)
+
+
+    def map2cl_unbinned(self, mask, lmax, lmax_mask, tmap2=None, npts=None, ww=None, zbounds=np.array([-1.,1.])):
+
+        return lambda tmap: self.cl_calc.map2cl(tmap, mask, lmax, lmax_mask, tmap2=tmap2, npts=npts, ww=ww, zbounds=zbounds)
 
 
     # @log_on_start(logging.INFO, "getfn_blm_lensc() started")
@@ -491,64 +496,95 @@ class Map_delenser():
     @log_on_start(logging.INFO, "run() started")
     @log_on_end(logging.INFO, "run() finished")
     def run(self):
-
-        if self.jobs != []:
+        
+        @log_on_start(logging.INFO, "_prepare_job() started")
+        @log_on_end(logging.INFO, "_prepare_job() finished")
+        def _prepare_job(edges):
             if self.spectrum_type == 'binned':
-                for edgesi, edges in enumerate(self.edges):
-                    outputdata = np.zeros(shape=(2, 2+len(self.its), len(self.nlevels), len(edges)-1))
-                    for nlev in self.nlevels:
-                        self.lib.update({nlev: self.map2cl_binned(self.nlev_mask[nlev], self.cl_templ[:self.lmax_lib], edges, self.lmax_lib)})
+                outputdata = np.zeros(shape=(2, 2+len(self.its), len(self.nlevels), len(edges)-1))
+                for nlev in self.nlevels:
+                    self.lib.update({nlev: self.map2cl_binned(self.nlev_mask[nlev], self.clc_templ[:self.lmax_lib], edges, self.lmax_lib)})
             else:
-                edgesi = 0
-                a = overwrite_anafast() if self.cl_calc == hp else self.cl_calc
+                a = overwrite_anafast() if self.cl_calc == hp else self.map2cl_unbinned()
                 for nlev in self.nlevels:
                     outputdata = np.zeros(shape=(2, 2+len(self.its), len(self.nlevels), self.lmax_lib+1))
                     self.lib.update({nlev: a})
 
-            for idx in self.jobs[mpi.rank::mpi.size]:
-                _file_op = self.file_op(idx, self.fg, edgesi)
-                log.info('will store file at: {}'.format(_file_op))
+            return outputdata
 
-                qumap_cs_buff = self.getfn_qumap_cs(idx)
-                eblm_cs_buff = hp.map2alm_spin(qumap_cs_buff*self.base_mask, 2, self.lmax_cl)
-                bmap_cs_buff = hp.alm2map(eblm_cs_buff[1], self.nside)
+        @log_on_start(logging.INFO, "_build_basemaps() started")
+        @log_on_end(logging.INFO, "_build_basemaps() finished")
+        def _build_basemaps(idx):
+            qumap_cs = self.getfn_qumap_cs(idx)
+            eblm_cs = hp.map2alm_spin(qumap_cs*self.base_mask, 2, self.lmax_cl)
+            bmap_cs = hp.alm2map(eblm_cs[1], self.nside)
 
-                blm_lensc_QE_buff = np.load(self.getfn_blm_lensc(idx, 0, self.nmf))
-                bmap_lensc_QE_buff = hp.alm2map(blm_lensc_QE_buff, nside=self.nside)
 
-                fns = [self.getfn_blm_lensc(idx, it, self.nmf) for it in self.its]
-                blm_lensc_MAP_buff = np.zeros(shape=(len(fns), *blm_lensc_QE_buff.shape), dtype=np.complex128)
-                for fni, fn in enumerate(fns):
-                    if fn.endswith('npy'):
-                        blm_lensc_MAP_buff[fni] = np.array(np.load(fn))
-                    else:
-                        blm_lensc_MAP_buff[fni] = np.array(hp.read_alm(fn))   
-                bmap_lensc_MAP_buff = np.array([hp.alm2map(blm_lensc_MAP_buff[iti], nside=self.nside) for iti in range(len(self.its))])
+            # TODO fiducial choice should happen at transformer
+            blm_L = hp.almxfl(utils.alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(idx), lmax=self.lmax_cl), self.transf)
+            bmap_L = hp.alm2map(blm_L, self.nside)
 
-                for nlevi, nlev in enumerate(self.nlevels):
-                    bcl_cs = self.lib[nlev].map2cl(bmap_cs_buff)
-                    # TODO fiducial choice should happen at transformer
-                    blm_L_buff = hp.almxfl(utils.alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(idx), lmax=self.lmax_cl), self.transf)
-                    bmap_L_buff = hp.alm2map(blm_L_buff, self.nside)
-                    bcl_L = self.lib[nlev].map2cl(bmap_L_buff)
+            btemplm_QE = np.load(self.getfn_blm_lensc(idx, 0, self.nmf))
+            btempmap_QE = hp.alm2map(btemplm_QE, nside=self.nside)
 
-                    outputdata[0][0][nlevi] = bcl_L
-                    outputdata[1][0][nlevi] = bcl_cs
+            return bmap_L, bmap_cs, btempmap_QE
 
-                    bcl_Llensc_QE = self.lib[nlev].map2cl(bmap_L_buff-bmap_lensc_QE_buff)
-                    bcl_cslensc_QE = self.lib[nlev].map2cl(bmap_cs_buff-bmap_lensc_QE_buff)
 
-                    outputdata[0][1][nlevi] = bcl_Llensc_QE
-                    outputdata[1][1][nlevi] = bcl_cslensc_QE
+        @log_on_start(logging.INFO, "_build_Btemplate_MAP() started")
+        @log_on_end(logging.INFO, "_build_Btemplate_MAP() finished")
+        def _build_Btemplate_MAP(idx):
+            fns = [self.getfn_blm_lensc(idx, it, self.nmf) for it in self.its]
+            btemplm_MAP = np.zeros(shape=(len(fns), *np.load(self.getfn_blm_lensc(idx, 0, self.nmf)).shape), dtype=np.complex128)
+            for fni, fn in enumerate(fns):
+                if fn.endswith('.npy'):
+                    btemplm_MAP[fni] = np.array(np.load(fn))
+                else:
+                    btemplm_MAP[fni] = np.array(hp.read_alm(fn))   
+            btempmap_MAP = np.array([hp.alm2map(btemplm_MAP[iti], nside=self.nside) for iti in range(len(self.its))])
 
-                    for iti, it in enumerate(self.its):
-                        bcl_Llensc_MAP = self.lib[nlev].map2cl(bmap_L_buff-bmap_lensc_MAP_buff[iti])    
-                        bcl_cslensc_MAP = self.lib[nlev].map2cl(bmap_cs_buff-bmap_lensc_MAP_buff[iti])
+            return btempmap_MAP
 
-                        outputdata[0][2+iti][nlevi] = bcl_Llensc_MAP
-                        outputdata[1][2+iti][nlevi] = bcl_cslensc_MAP
 
-        np.save(_file_op, outputdata)
+        @log_on_start(logging.INFO, "_delens() started")
+        @log_on_end(logging.INFO, "_delens() finished")
+        def _delens(bmap_L, bmap_cs, btempmap_QE, btempmap_MAP):
+            for nlevi, nlev in enumerate(self.nlevels):
+                log.info("starting nlev mask {}".format(nlev))
+
+                log.info("starting base Cl calc")
+                bcl_cs = self.lib[nlev].map2cl(bmap_cs)
+                bcl_L = self.lib[nlev].map2cl(bmap_L)
+
+                outputdata[0][0][nlevi] = bcl_L
+                outputdata[1][0][nlevi] = bcl_cs
+
+                log.info("starting QE delensing")
+                btempcl_L_QE = self.lib[nlev].map2cl(bmap_L-btempmap_QE)
+                btempcl_cs_QE = self.lib[nlev].map2cl(bmap_cs-btempmap_QE)
+
+                outputdata[0][1][nlevi] = btempcl_L_QE
+                outputdata[1][1][nlevi] = btempcl_cs_QE
+
+                for iti, it in enumerate(self.its):
+                    log.info("starting MAP delensing for iteration {}".format(it))
+                    btempcl_L_MAP = self.lib[nlev].map2cl(bmap_L-btempmap_MAP[iti])    
+                    btempcl_cs_MAP = self.lib[nlev].map2cl(bmap_cs-btempmap_MAP[iti])
+
+                    outputdata[0][2+iti][nlevi] = btempcl_L_MAP
+                    outputdata[1][2+iti][nlevi] = btempcl_cs_MAP
+
+            return outputdata
+
+        if self.jobs != []:
+            for edgesi, edges in enumerate(self.edges):
+                outputdata = _prepare_job(edges)
+                for idx in self.jobs[mpi.rank::mpi.size]:
+                    _file_op = self.file_op(idx, self.fg, edgesi)
+                    log.info('will store file at: {}'.format(_file_op))
+                    bmap_L, bmap_cs, btempmap_QE = _build_basemaps(idx)
+                    btempmap_MAP = _build_Btemplate_MAP(idx)
+                    outputdata = _delens(bmap_L, bmap_cs, btempmap_QE, btempmap_MAP)
+                    np.save(_file_op, outputdata)
 
 
 class Inspector():
