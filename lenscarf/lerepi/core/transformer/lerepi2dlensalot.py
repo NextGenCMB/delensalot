@@ -386,6 +386,7 @@ class l2lensrec_Transformer:
                 os.makedirs(dl.mf_dirname)
         dl.dlm_mod_bool = cf.iteration.dlm_mod
         if mpi.rank == 0:
+            # TODO possibly don't want to show this when in interactive mode
             log.info("I am going to work with the following values:")
             _str = '---------------------------------------------------\n'
             for key, val in dl.__dict__.items():
@@ -577,8 +578,8 @@ class l2lensrec_Transformer:
                 dl.ninv_p, dl.ninvp_desc = l2OBD_Transformer.get_ninvp(cf)
                 # TODO filters can be initialised with both, ninvX_desc and ninv_X. But Plancklens' hashcheck will complain if it changed since shapes are different. Not sure which one I want to use in the future..
                 # TODO using ninv_X possibly causes hashcheck to fail, as v1 == v2 won't work on arrays.
-                dl.ninvt_desc = dl.ninv_t
-                dl.ninvp_desc = dl.ninv_p 
+                # dl.ninvt_desc = dl.ninv_t
+                # dl.ninvp_desc = dl.ninv_p 
                 dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), dl.lmax_ivf, dl.nside, dl.cls_len, dl.transf_tlm, dl.ninvt_desc,
                                 marge_monopole=True, marge_dipole=True, marge_maps=[])  
                 if dl.OBD_type == 'OBD':
@@ -732,8 +733,8 @@ class l2OBD_Transformer:
             t_transf = gauss_beam(df.a2r(cf.data.beam), lmax=cf.iteration.lmax_ivf)
         else:
             t_transf = gauss_beam(df.a2r(cf.data.beam), lmax=cf.analysis.lmax_ivf)
-        ninv_desc = [[np.array([hp.nside2pixarea(cf.data.nside, degrees=True) * 60 ** 2 / nlev_t ** 2])/noisemodel_norm] + masks]
-        ninv_t = opfilt_pp.alm_filter_ninv(ninv_desc, t_transf, marge_qmaps=(), marge_umaps=()).get_ninv()
+        ninv_desc = [np.array([hp.nside2pixarea(cf.data.nside, degrees=True) * 60 ** 2 / nlev_t ** 2])/noisemodel_norm] + masks
+        ninv_t = opfilt_pp.alm_filter_ninv([ninv_desc], t_transf, marge_qmaps=(), marge_umaps=()).get_ninv()
 
         return ninv_t, ninv_desc
 
