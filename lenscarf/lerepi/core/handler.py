@@ -45,6 +45,14 @@ class handler():
         self.TEMP = TEMP
 
 
+    @log_on_start(logging.INFO, "check_mpi() Started")
+    @log_on_end(logging.INFO, "check_mpi() Finished")
+    def check_mpi(self):
+        """_summary_
+        """        
+        log.info("rank: {}, size: {}".format(mpi.rank, mpi.size))
+
+
     @log_on_start(logging.INFO, "collect_jobs() Started")
     @log_on_end(logging.INFO, "collect_jobs() Finished")
     def collect_jobs(self):
@@ -87,13 +95,15 @@ class handler():
     @log_on_start(logging.INFO, "run() Started")
     @log_on_end(logging.INFO, "run() Finished")
     def run(self):
-        for transf, job in self.jobs:
-            log.info("Starting job {}".format(job))
-            model = transform(*transf)
-            log.info("Model collected {}".format(model))
-            j = job(model)
-            j.collect_jobs()
-            j.run()
+        for jobdict in self.jobs:
+            for job_id, val in jobdict.items():
+                for transf, job in val:
+                    log.info("Starting job {}".format(job_id))
+                    model = transform(*transf)
+                    log.info("Model collected {}".format(model))
+                    j = job(model)
+                    j.collect_jobs()
+                    j.run()
 
 
     @log_on_start(logging.INFO, "store() Started")

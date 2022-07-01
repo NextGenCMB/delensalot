@@ -13,12 +13,12 @@ dlensalot_model = DLENSALOT_Model(
         OMP_NUM_THREADS = 16
     ),
     analysis = DLENSALOT_Analysis(
-        TEMP_suffix = 'r10_tol5e5',
+        TEMP_suffix = 'r100_tol5e5',
         K = 'p_p',
         V = '',
         ITMAX = 12,
         nsims_mf = 100,
-        zbounds =  ('nmr_relative', 10),
+        zbounds =  ('nmr_relative', 100),
         zbounds_len = ('extend', 10.),   
         pbounds = [0, 2*np.pi],
         LENSRES = 1.7,
@@ -47,7 +47,7 @@ dlensalot_model = DLENSALOT_Model(
     ),
     noisemodel = DLENSALOT_Noisemodel(
         typ = 'OBD',
-        BMARG_LIBDIR = '/global/cscratch1/sd/sebibel/cmbs4/OBD_matrices/08d/r10/',
+        BMARG_LIBDIR = '/pscratch/sd/s/sebibel/data/cmbs4/reanalysis/mapphi_intermediate/s08d/OBD_matrices/r100/',
         BMARG_LCUT = 200,
         BMARG_RESCALE = (0.65/0.59)**2,
         ninvjob_geometry = 'healpix_geometry',
@@ -59,8 +59,8 @@ dlensalot_model = DLENSALOT_Model(
         nlev_p = 0.65,
         nlev_dep = 10000.,
         inf = 1e4,
-        mask = ('nlev', 10),
-        rhits_normalised = ('/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08d/masks/08d_rhits_positive_nonan.fits', 10),
+        mask = ('nlev', 100),
+        rhits_normalised = ('/pscratch/sd/s/sebibel/data/cmbs4/reanalysis/mapphi_intermediate/s08d/masks/08d_rhits_positive_nonan.fits', 100),
         tpl = 'template_dense'
     ),
     qerec = DLENSALOT_Qerec(

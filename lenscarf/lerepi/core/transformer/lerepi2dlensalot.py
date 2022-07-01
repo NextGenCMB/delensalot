@@ -1079,13 +1079,13 @@ class l2j_Transformer:
         # TODO if the pf.X objects were distinguishable by X2X_Transformer, could replace the seemingly redundant checks here.
         def _process_Jobs(jobs, jb):
             if jb.build_OBD:
-                jobs.append(((cf, l2OBD_Transformer()), lenscarf_handler.OBD_builder))
+                jobs.append({"build_OBD":((cf, l2OBD_Transformer()), lenscarf_handler.OBD_builder)})
             if jb.QE_lensrec:
-                jobs.append(((cf, l2lensrec_Transformer()), lenscarf_handler.QE_lr))
+                jobs.append({"QE_lensrec":((cf, l2lensrec_Transformer()), lenscarf_handler.QE_lr)})
             if jb.MAP_lensrec:
-                jobs.append(((cf, l2lensrec_Transformer()), lenscarf_handler.MAP_lr))
+                jobs.append({"MAP_lensrec":((cf, l2lensrec_Transformer()), lenscarf_handler.MAP_lr)})
             if jb.map_delensing:
-                jobs.append(((cf, l2d_Transformer()), lenscarf_handler.Map_delenser))
+                jobs.append({"map_delensing":((cf, l2d_Transformer()), lenscarf_handler.Map_delenser)})
             if jb.inspect_result:
                 # TODO maybe use this to return something interactive
                 assert 0, "Implement if needed"
