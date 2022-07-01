@@ -26,10 +26,11 @@ def pp2kk(ls):
     return ls**2*(ls+1)**2/4
 
 
-def plot_bnd(bndcl, ax=None, *argv, **kwargs):
+def plot_bnd(bndcl, ax=None, marker=None, *argv, **kwargs):
     if ax is None:
         ax = pl.gca()
-    p = ax.errorbar(bndcl[0], bndcl[1], yerr=bndcl[2], *argv, **kwargs)
+    if marker is None: marker = '.'
+    p = ax.errorbar(bndcl[0], bndcl[1], yerr=bndcl[2], ls='', marker=marker,  *argv, **kwargs)
     return p
 
 
