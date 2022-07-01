@@ -1,6 +1,7 @@
 import numpy as np
 from lenscarf import utils
 from lenscarf.iterators import statics
+import plancklens
 from plancklens.sims import planck2018_sims
 from plancklens import qresp
 from lenscarf import cachers
@@ -18,6 +19,7 @@ from lenscarf.utils_plot import pp2kk
 from lenscarf import rdn0_cs
 from lenscarf import utils_hp as uhp
 from lenscarf import n0n1_iterative
+from lensitbiases import n1_fft
 
 import healpy as hp
 
@@ -237,6 +239,75 @@ class cpp_sims_lib:
             N0 = nhl.get_nhl(self.k, self.k, self.param.cls_len, cls_ivfs_sepTP, self.param.lmax_ivf, self.param.lmax_ivf)
         N0 = self.cacher_param.load(fn_n0_qe)
         return N0
+
+
+    def get_N0_N1_QE_fid(self, doN1mat=False):
+        """
+        Returns the fiducial QE N0 and N1 biases.
+        """
+        fn_n0_qe = 'N0_qe_fid'
+        fn_n1_qe = 'N1_qe_fid'
+        fn_resp_qe = 'Resp_qe_fid'
+        assert self.k =='p_p', 'QE biases are currently not implemented fot MV and TT estimators (check nhl lib and n1_fft lib to get more QE biases)'
+
+        if np.any([not self.cacher_param.is_cached(fn) for fn in [fn_n0_qe, fn_n1_qe, fn_resp_qe]]):
+            
+            
+            if type(self.param.ivfs) == plancklens.filt.filt_util.library_ftl:
+                """In the masked case"""
+                cls_weights = self.param.ivfs.ivfs.cl
+            elif type(self.param.ivfs) == plancklens.filt.filt_simple.library_fullsky_sepTP:
+                """In the full sky case"""
+                cls_weights = self.param.ivfs.cl
+
+            # cls_cmb_dat = self.param.cls_len
+            fidcls_noise = {'tt': (self.param.nlev_t / 180 / 60 * np.pi) **2 * utils.cli(self.param.transf_tlm ** 2) * (self.param.transf_tlm > 0),
+                            'ee': (self.param.nlev_p / 180 / 60 * np.pi) **2 * utils.cli(self.param.transf_elm ** 2) * (self.param.transf_elm > 0),
+                            'bb': (self.param.nlev_p / 180 / 60 * np.pi) **2 * utils.cli(self.param.transf_blm ** 2) * (self.param.transf_blm > 0) }
+            # cls_noise_dat = fidcls_noise
+            lmax =  self.param.lmax_ivf
+            lmax_qlm =  self.param.lmax_qlm
+
+            fals = {'tt':self.param.ftl, 
+                        'ee':self.param.fel,
+                        'bb':self.param.fbl}
+            cls_ivfs = fals
+            #FIXME: In principle this should be the filtered CMB data, but here we assume they are the fiducial ones
+            # could compute it as in n0n1_iterative.py with the fiducial Cls for the filtering but the true Cls for the data
+            
+            n_gg = nhl.get_nhl(self.k, self.k, cls_weights, cls_ivfs, lmax, lmax, lmax_out=lmax_qlm)[0]
+            # nhllib = nhl.nhl_lib_simple(opj(self.TEMP, 'cpplib'), self.param.ivfs, cls_weights, lmax_qlm)
+            
+            # FIXME : Assuming here that the Cls entering the response are the lensed Cls, but more optimal is to put the gradlensed Cls
+            cls_f = self.param.cls_len
+            r_gg_fid = qresp.get_response(self.k, lmax, 'p', cls_weights, cls_f, fals, lmax_qlm=lmax_qlm)[0]
+
+            N0_fid = n_gg * utils.cli(r_gg_fid ** 2)
+
+            n1lib = n1_fft.n1_fft(fals, cls_weights, cls_f, np.copy(self.param.cls_unl['pp']), lminbox=50, lmaxbox=5000, k2l=None)
+            n1_Ls = np.arange(50, (lmax_qlm // 50) * 50  + 50, 50)
+            if not doN1mat:
+                n1 = np.array([n1lib.get_n1(self.k, L, do_n1mat=False)  for L in n1_Ls])
+                n1mat = None
+            else:
+                n1_, n1m_ = n1lib.get_n1(self.k, n1_Ls[0], do_n1mat=True)
+                n1 = np.zeros(len(n1_Ls))
+                n1mat = np.zeros( (len(n1_Ls), n1m_.size))
+                n1[0] = n1_
+                n1mat[0] = n1m_
+                for iL, n1_L in enumerate(n1_Ls[1:]):
+                    n1_, n1m_ = n1lib.get_n1(self.k, n1_L, do_n1mat=True)
+                    n1[iL + 1] = n1_
+                    n1mat[iL + 1] = n1m_
+            N1_fid_spl = spline(n1_Ls, n1_Ls ** 2 * (n1_Ls * 1. + 1) ** 2 * n1 / r_gg_fid[n1_Ls] ** 2, k=2,s=0, ext='zeros') (np.arange(len(N0_fid)))
+
+            self.cacher_param.cache(fn_n0_qe, N0_fid)
+            self.cacher_param.cache(fn_n1_qe, N1_fid_spl)
+            self.cacher_param.cache(fn_resp_qe, r_gg_fid)
+        N0_fid = self.cacher_param.load(fn_n0_qe)
+        N1_fid = self.cacher_param.load(fn_n1_qe)
+        Resp_fid = self.cacher_param.load(fn_resp_qe)
+        return N0_fid, N1_fid, Resp_fid
 
     def get_N0_N1_iter(self, itermax=15, version=''):
         assert self.k =='p_p', 'Iterative biases not implemented fot MV and TT estimators'
