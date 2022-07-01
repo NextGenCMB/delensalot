@@ -63,15 +63,11 @@ class cinv_p(filt_cinv.cinv):
 
         hash_flag = np.zeros(1)
         if mpi.rank == 0:
-            log.info("rank 0, I am here 0")
             if not os.path.exists(lib_dir):
                 os.makedirs(lib_dir)
-            log.info("rank 0, I am here 1")
             if not os.path.exists(os.path.join(lib_dir, "filt_hash.pk")):
                 pk.dump(self.hashdict(), open(os.path.join(lib_dir, "filt_hash.pk"), 'wb'), protocol=2)
-            log.info("rank 0, I am here 2")
             [mpi.send(hash_flag, dest=dest) for dest in range(1,mpi.size)]
-            log.info("rank 0, I am here 3")
             if not os.path.exists(os.path.join(self.lib_dir, "fbl.dat")):
                 fel, fbl = self._calc_febl()
                 np.savetxt(os.path.join(self.lib_dir, "fel.dat"), fel)
