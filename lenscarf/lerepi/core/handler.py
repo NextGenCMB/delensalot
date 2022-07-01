@@ -97,13 +97,16 @@ class handler():
     def run(self):
         for jobdict in self.jobs:
             for job_id, val in jobdict.items():
-                for transf, job in val:
-                    log.info("Starting job {}".format(job_id))
-                    model = transform(*transf)
-                    log.info("Model collected {}".format(model))
-                    j = job(model)
-                    j.collect_jobs()
-                    j.run()
+                conf = val[0][0]
+                transformer = val[0][1]
+                job = val[1]
+
+                log.info("Starting job {}".format(job_id))
+                model = transform(conf, transformer)
+                log.info("Model collected {}".format(model))
+                j = job(model)
+                j.collect_jobs()
+                j.run()
 
 
     @log_on_start(logging.INFO, "store() Started")
