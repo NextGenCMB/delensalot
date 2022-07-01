@@ -1,4 +1,4 @@
 dev
 =====
 
-Files related to direct dev of lerepi
+Files related to direct dev of D.lensalot
