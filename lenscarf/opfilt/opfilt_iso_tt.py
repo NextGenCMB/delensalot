@@ -2,6 +2,10 @@
 
 
 """
+import logging
+log = logging.getLogger(__name__)
+from logdecorator import log_on_start, log_on_end
+
 import os
 import numpy as np
 from lenscarf.utils_hp import almxfl, Alm, alm2cl
@@ -128,7 +132,7 @@ class pre_op_diag:
         lmax_sol = ninv_filt.lmax_sol
         ninv_ftl = ninv_filt.get_ftl()
         if len(ninv_ftl) - 1 < lmax_sol: # We extend the transfer fct to avoid predcon. with zero (~ Gauss beam)
-            print("PRE_OP_DIAG: extending T transfer fct from lmax %s to lmax %s"%(len(ninv_ftl)-1, lmax_sol))
+            log.info("PRE_OP_DIAG: extending T transfer fct from lmax %s to lmax %s"%(len(ninv_ftl)-1, lmax_sol))
             assert np.all(ninv_ftl >= 0.)
             nz = np.where(ninv_ftl > 0.)
             spl_sq = spl(np.arange(len(ninv_ftl), dtype=float)[nz], np.log(ninv_ftl[nz]), k=2, ext='extrapolate')

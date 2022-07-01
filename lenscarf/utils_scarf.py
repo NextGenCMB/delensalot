@@ -1,5 +1,5 @@
 from __future__ import annotations
-import os
+import os, sys
 import numpy as np
 import scarf
 from lenscarf.utils_sht import st2mmax, lowprimes

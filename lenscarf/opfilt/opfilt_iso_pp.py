@@ -2,6 +2,10 @@
 
 
 """
+import logging
+log = logging.getLogger(__name__)
+from logdecorator import log_on_start, log_on_end
+
 import os
 import numpy as np
 from lenscarf.utils_hp import almxfl, Alm
@@ -148,12 +152,12 @@ class pre_op_diag:
         lmax_sol = ninv_filt.lmax_sol
         ninv_fel, ninv_fbl = ninv_filt.get_febl()
         if len(ninv_fel) - 1 < lmax_sol: # We extend the transfer fct to avoid predcon. with zero (~ Gauss beam)
-            print("PRE_OP_DIAG: extending E transfer fct from lmax %s to lmax %s"%(len(ninv_fel)-1, lmax_sol))
+            log.info("PRE_OP_DIAG: extending E transfer fct from lmax %s to lmax %s"%(len(ninv_fel)-1, lmax_sol))
             assert np.all(ninv_fel > 0)
             spl_sq = spl(np.arange(len(ninv_fel), dtype=float), np.log(ninv_fel), k=2, ext='extrapolate')
             ninv_fel = np.exp(spl_sq(np.arange(lmax_sol + 1, dtype=float)))
         if len(ninv_fbl) - 1 < lmax_sol: # We extend the transfer fct to avoid predcon. with zero (~ Gauss beam)
-            print("PRE_OP_DIAG: extending N transfer fct from lmax %s to lmax %s"%(len(ninv_fbl)-1, lmax_sol))
+            log.info("PRE_OP_DIAG: extending N transfer fct from lmax %s to lmax %s"%(len(ninv_fbl)-1, lmax_sol))
             assert np.all(ninv_fbl > 0)
             spl_sq = spl(np.arange(len(ninv_fbl), dtype=float), np.log(ninv_fbl), k=2, ext='extrapolate')
             ninv_fbl = np.exp(spl_sq(np.arange(lmax_sol + 1, dtype=float)))
