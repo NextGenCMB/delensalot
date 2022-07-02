@@ -1,11 +1,11 @@
 import sys
 from warnings import warn
 warn('This is deprecated. Please use _v2 if possible.', DeprecationWarning, stacklevel=2)
-sys.exit()
 
 import numpy as np
 import healpy as hp
 
+from MSC import pospace
 from lenscarf.lerepi.core.metamodel.dlensalot import *
 
 
@@ -14,12 +14,12 @@ dlensalot_model = DLENSALOT_Model(
         build_OBD = False,
         QE_lensrec = False,
         MAP_lensrec = True,
-        map_delensing = False,
+        map_delensing = True,
         inspect_result = False
     ),
     data = DLENSALOT_Data(
-        TEMP_suffix = 'testparser',
-        fg = '07',
+        TEMP_suffix = 'example',
+        fg = '09',
         sims = 'cmbs4/08b/caterinaILC_May12',
         nside = 2048,
         beam = 2.3,
@@ -29,14 +29,12 @@ dlensalot_model = DLENSALOT_Model(
     ),
     iteration = DLENSALOT_Iteration(
         K = 'p_p',
-        V = '', 
-        QE_subtract_meanfield = False,
+        V = 'fg00mf', 
         ITMAX = 12,
         IMIN = 0,
         IMAX = 99,
         nsims_mf = 100,
         tasks = ["calc_phi", "calc_meanfield", "calc_btemplate"], #["calc_phi", "calc_meanfield", "calc_btemplate"],
-        dlm_mod = False,
         OMP_NUM_THREADS = 16,
         Lmin = 4, 
         CG_TOL = 1e-3,
@@ -52,7 +50,7 @@ dlensalot_model = DLENSALOT_Model(
         lmin_ivf = 10,
         mmin_ivf = 10,
         LENSRES = 1.7, # Deflection operations will be performed at this resolution
-        mfvar = 'same',
+        mfvar = '/global/cscratch1/sd/sebibel/cmbs4/08b_00_OBD_MF100_example/qlms_dd/simMF_k1p_p_135b0ca72339ac4eb092666cd7acb262a8ea2d30.fits',
         QE_LENSING_CL_ANALYSIS = False, # Change the following block only if a full, Planck-like QE lensing power spectrum analysis is desired
         STANDARD_TRANSFERFUNCTION = True, # Change the following block only if exotic transferfunctions are desired
         FILTER = 'cinv_sepTP', # Change the following block only if other than cinv_t, cinv_p, ivfs filters are desired
@@ -98,10 +96,13 @@ dlensalot_model = DLENSALOT_Model(
         nlevels = [1.2, 2, 10, 50],
         nside = 2048,
         lmax_cl = 2048,
+        dlm_mod = False,
         beam = 2.3,
         lmax_transf = 4000,
         transf = 'gauss',
-        Cl_fid = 'ffp10'
+        Cl_fid = 'ffp10',
+        spectrum_type = 'binned',
+        spectrum_calculator = pospace
     ),
     noisemodel = DLENSALOT_Noisemodel(
         typ = 'OBD',

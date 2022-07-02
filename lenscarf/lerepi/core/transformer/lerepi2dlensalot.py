@@ -142,9 +142,10 @@ class l2lensrec_Transformer:
         @log_on_start(logging.INFO, "_process_iterationparams() started")
         @log_on_end(logging.INFO, "_process_iterationparams() finished")
         def _process_iterationparams(dl, iteration):
-            # TODO hack. Think of a better way of including this
+            # TODO hack. We always want to subtract it atm. But possibly not in the future.
             if "QE_subtract_meanfield" in iteration.__dict__:
-                dl.subtract_meanfield = iteration.QE_subtract_meanfield
+                # dl.subtract_meanfield = iteration.QE_subtract_meanfield
+                dl.subtract_meanfield = True
             else:
                 dl.subtract_meanfield = True
             # TODO hack. Think of a better way of including mfvar
@@ -215,9 +216,8 @@ class l2lensrec_Transformer:
                 dl.ninv_t, dl.ninvt_desc = l2OBD_Transformer.get_ninvt(cf)
                 dl.ninv_p, dl.ninvp_desc = l2OBD_Transformer.get_ninvp(cf)
                 # TODO filters can be initialised with both, ninvX_desc and ninv_X. But Plancklens' hashcheck will complain if it changed since shapes are different.
-                # TODO using ninv_X possibly causes hashcheck to fail, as v1 == v2 won't work on arrays.
-                dl.ninvt_desc = dl.ninv_t
-                dl.ninvp_desc = dl.ninv_p 
+                # TODO using ninv_X causes hashcheck to fail, as these ninv are List[np.array] and Plancklens checks for List[np.ndarray]
+
                 # TODO cinv_t and cinv_p trigger computation. Perhaps move this to the lerepi job-level. Could be done via introducing a DLENSALOT_Filter model component
                 dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), iteration.lmax_ivf,dl.nside, dl.cls_len, dl.transf_tlm, dl.ninvt_desc,
                                 marge_monopole=True, marge_dipole=True, marge_maps=[])
@@ -382,9 +382,8 @@ class l2lensrec_Transformer:
                 dl.mf_dirname = opj(dl.TEMP, 'mf_{:03d}'.format(dl.nsims_mf))
             else:
                 dl.mf_dirname = opj(dl.TEMP, 'mf_{}_{:03d}'.format(dl.version, dl.nsims_mf))
-            if not os.path.isdir(dl.mf_dirname):
+            if not os.path.isdir(dl.mf_dirname) and mpi.rank == 0:
                 os.makedirs(dl.mf_dirname)
-        dl.dlm_mod_bool = cf.iteration.dlm_mod
         if mpi.rank == 0:
             # TODO possibly don't want to show this when in interactive mode
             log.info("I am going to work with the following values:")
@@ -632,6 +631,14 @@ class l2lensrec_Transformer:
         def _process_Itrec(dl, it):
             assert it.FILTER == 'opfilt_ee_wl.alm_filter_ninv_wl', 'Implement if needed, MAP filter needs to move to l2d'
             dl.FILTER = it.FILTER
+
+            # TODO hack. We always want to subtract it atm. But possibly not in the future.
+            if "QE_subtract_meanfield" in it.__dict__:
+                # dl.subtract_meanfield = iteration.QE_subtract_meanfield
+                dl.subtract_meanfield = True
+            else:
+                dl.subtract_meanfield = True
+
             dl.tasks = it.tasks
             if it.TOL < 1.:
                 # TODO hack. For cases where TOL is not only the exponent. Remove exponent-only version.
@@ -666,7 +673,6 @@ class l2lensrec_Transformer:
 
 
         dl = DLENSALOT_Concept()
-        dl.dlm_mod_bool = cf.madel.dlm_mod
         _process_Analysis(dl, cf.analysis)
         _process_Data(dl, cf.data)
         _process_Noisemodel(dl, cf.noisemodel)
@@ -679,7 +685,7 @@ class l2lensrec_Transformer:
                 dl.mf_dirname = opj(dl.TEMP, 'mf_{:03d}'.format(dl.nsims_mf))
             else:
                 dl.mf_dirname = opj(dl.TEMP, 'mf_{}_{:03d}'.format(dl.version, dl.nsims_mf))
-            if not os.path.isdir(dl.mf_dirname):
+            if not os.path.isdir(dl.mf_dirname) and mpi.rank == 0:
                 os.makedirs(dl.mf_dirname)
 
         if mpi.rank == 0:
@@ -880,7 +886,6 @@ class l2d_Transformer:
             mask_path = cf.noisemodel.rhits_normalised[0]
             dl.base_mask = np.nan_to_num(hp.read_map(mask_path))
             dl.TEMP = transform(cf, l2T_Transformer())
-            log.info(dl.TEMP)
             dl.analysis_path = dl.TEMP.split('/')[-1]
             
             dl.nlev_mask = dict()
@@ -907,23 +912,43 @@ class l2d_Transformer:
                 dl.clg_templ[0] = 1e-32
                 dl.clg_templ[1] = 1e-32
 
-            dl.sha_edges = [hashlib.sha256() for n in range(len(dl.edges))]
-            for n in range(len(dl.edges)):
-                dl.sha_edges[n].update(str(dl.edges[n]).encode())
-            dl.dirid = [dl.sha_edges[n].hexdigest()[:4] for n in range(len(dl.edges))]
-            dl.TEMP_DELENSED_SPECTRUM = transform(dl, l2T_Transformer())
-            for edgesi, edges in enumerate(dl.edges):
-                if not(os.path.isdir(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edgesi]))):
-                    os.makedirs(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edgesi]))
-                    log.info("dir created: {}".format(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edgesi])))
-
-            dl.dlm_mod_bool = cf.iteration.dlm_mod
-            # TODO don't like this too much
-            if dl.dlm_mod_bool:
-                dl.file_op = lambda idx, fg, edges_idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edges_idx]) + '/ClBBwf_sim%04d_%s_fg%s_res2b3acm.npy'%(idx, 'dlmmod', fg)
+            dl.spectrum_type = de.spectrum_type
+            if dl.spectrum_type == 'binned':
+                dl.sha_edges = [hashlib.sha256() for n in range(len(dl.edges))]
+                for n in range(len(dl.edges)):
+                    dl.sha_edges[n].update(str(dl.edges[n]).encode())
+                dl.dirid = [dl.sha_edges[n].hexdigest()[:4] for n in range(len(dl.edges))]
             else:
-                dl.file_op = lambda idx, fg, edges_idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edges_idx]) + '/ClBBwf_sim%04d_fg%s_res2b3acm.npy'%(idx, fg)
-        
+                dl.sha_edges = [hashlib.sha256()]
+                dl.sha_edges[0].update('unbinned'.encode())
+                dl.dirid = [dl.sha_edges[0].hexdigest()[:4]]
+
+            if de.spectrum_calculator == None:
+                log.info("Using Healpy as powerspectrum calculator")
+                dl.cl_calc = hp
+            else:
+                dl.cl_calc = de.spectrum_calculator   
+
+            dl.TEMP_DELENSED_SPECTRUM = transform(dl, l2T_Transformer())
+            if mpi.rank == 0:
+                for edgesi, edges in enumerate(dl.edges):
+                    if not(os.path.isdir(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edgesi]))):
+                        os.makedirs(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edgesi]))
+                        log.info("dir created: {}".format(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edgesi])))
+
+            dl.dlm_mod_bool = cf.de.dlm_mod
+            # TODO don't like this too much
+            if dl.spectrum_type == 'binned':
+                if dl.dlm_mod_bool:
+                    dl.file_op = lambda idx, fg, edges_idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edges_idx]) + '/ClBBwf_sim%04d_%s_fg%s_res2b3acm.npy'%(idx, 'dlmmod', fg)
+                else:
+                    dl.file_op = lambda idx, fg, edges_idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edges_idx]) + '/ClBBwf_sim%04d_fg%s_res2b3acm.npy'%(idx, fg)
+            else:
+                if dl.dlm_mod_bool:
+                    dl.file_op = lambda idx, fg, x: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[0]) + '/ClBBwf_sim%04d_%s_fg%s_res2b3acm.npy'%(idx, 'dlmmod', fg)
+                else:
+                    dl.file_op = lambda idx, fg, x: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[0]) + '/ClBBwf_sim%04d_fg%s_res2b3acm.npy'%(idx, fg)
+
         
         dl = DLENSALOT_Concept()
         _process_delensingparams(dl, cf.map_delensing)

@@ -150,7 +150,7 @@ class cinv_p(filt_cinv.cinv):
 
     def _ninv_hash(self):
         ret = []
-        for ninv_comp in self.ninv:
+        for ninv_comp in self.ninv[0]:
             if isinstance(ninv_comp, np.ndarray) and ninv_comp.size > 1:
                 ret.append(utils.clhash(ninv_comp))
             else:

@@ -1,7 +1,7 @@
 import numpy as np
 
 from lenscarf.lerepi.core.metamodel.dlensalot_v2 import *
-
+from MSC import pospace
 
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(
@@ -104,6 +104,8 @@ dlensalot_model = DLENSALOT_Model(
         nlevels = [1.2, 2, 5, 50],
         lmax_cl = 2048,
         Cl_fid = 'ffp10',
-        libdir_it = 'overwrite'
+        libdir_it = 'overwrite',
+        spectrum_type = 'binned',
+        spectrum_calculator = pospace
     )
 )

@@ -7,7 +7,7 @@ import numpy as np
 import healpy as hp
 
 from lenscarf.lerepi.core.metamodel.dlensalot import *
-
+from MSC import pospace
 
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(
@@ -99,7 +99,9 @@ dlensalot_model = DLENSALOT_Model(
         beam = 2.3,
         lmax_transf = 4000,
         transf = 'gauss',
-        Cl_fid = 'ffp10'
+        Cl_fid = 'ffp10',
+        spectrum_type = 'binned',
+        spectrum_calculator = pospace
     ),
     noisemodel = DLENSALOT_Noisemodel(
         typ = 'OBD',

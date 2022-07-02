@@ -1,10 +1,13 @@
-import numpy as np
-
-from lenscarf.lerepi.core.metamodel.dlensalot_v2 import *
 import sys
 from warnings import warn
 warn('Not yet supported. Use _v2 if possible', DeprecationWarning, stacklevel=2)
 sys.exit()
+
+import numpy as np
+
+from lenscarf.lerepi.core.metamodel.dlensalot_v2 import *
+from MSC import pospace
+
 
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(
@@ -101,11 +104,13 @@ dlensalot_model = DLENSALOT_Model(
     madel = DLENSALOT_Mapdelensing(
         edges = 'cmbs4',
         iterations = [12],
+        dlm_mod = False,
         droplist = np.array([]),
         nlevels = [1.2, 2, 5, 50],
         lmax_cl = 2048,
         Cl_fid = 'ffp10',
         libdir_it = 'overwrite',
-        subtract_meanfield = "/"
+        spectrum_type = 'binned',
+        spectrum_calculator = pospace
     )
 )
