@@ -46,7 +46,7 @@ class l2T_Transformer:
     # @log_on_start(logging.INFO, "build() started")
     # @log_on_end(logging.INFO, "build() finished")
     def build(self, cf):
-        _nsims_mf = 0 if cf.iteration.V == 'noMF' else cf.iteration.nsims_mf
+        _nsims_mf = 0 if cf.iteration.V = 'noMF' else cf.iteration.nsims_mf
 
         # #TODO hack to make mf var work for v1 in mf 100 of 08b
         ovw = _nsims_mf
@@ -181,6 +181,8 @@ class l2lensrec_Transformer:
             if 'rinf_tol4' in cf.data.TEMP_suffix:
                 log.warning('tol_iter increased for this run. This is hardcoded.')
                 dl.tol_iter = lambda itr : 2*10 ** (- dl.tol) if itr <= 10 else 2*10 ** (-(dl.tol+1))
+            elif 'tol5e5' in cf.data.TEMP_suffix:
+                dl.tol_iter = lambda itr : 1*10 ** (- dl.tol) 
             else:
                 dl.tol_iter = lambda itr : 1*10 ** (- dl.tol) if itr <= 10 else 1*10 ** (-(dl.tol+1))
             dl.soltn_cond = iteration.soltn_cond # Uses (or not) previous E-mode solution as input to search for current iteration one
@@ -471,12 +473,32 @@ class l2lensrec_Transformer:
                 dl.fel_unl =  cli(dl.cls_unl['ee'][:an.lmax_ivf + 1] + df.a2r(cf.noisemodel.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
                 dl.fbl_unl =  cli(dl.cls_unl['bb'][:an.lmax_ivf + 1] + df.a2r(cf.noisemodel.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
 
+            elif dl.STANDARD_TRANSFERFUNCTION == 'with_pixwin':
+                # Fiducial model of the transfer function
+                dl.transf_tlm = gauss_beam(df.a2r(cf.data.beam), lmax=an.lmax_ivf) * hp.pixwin(2048, lmax=an.lmax_ivf) * (np.arange(an.lmax_ivf + 1) >= cf.noisemodel.lmin_tlm)
+                dl.transf_elm = gauss_beam(df.a2r(cf.data.beam), lmax=an.lmax_ivf) * hp.pixwin(2048, lmax=an.lmax_ivf) * (np.arange(an.lmax_ivf + 1) >= cf.noisemodel.lmin_elm)
+                dl.transf_blm = gauss_beam(df.a2r(cf.data.beam), lmax=an.lmax_ivf) * hp.pixwin(2048, lmax=an.lmax_ivf) * (np.arange(an.lmax_ivf + 1) >= cf.noisemodel.lmin_blm)
+
+                # Isotropic approximation to the filtering (used eg for response calculations)
+                dl.ftl =  cli(dl.cls_len['tt'][:an.lmax_ivf + 1] + df.a2r(cf.noisemodel.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
+                dl.fel =  cli(dl.cls_len['ee'][:an.lmax_ivf + 1] + df.a2r(cf.noisemodel.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
+                dl.fbl =  cli(dl.cls_len['bb'][:an.lmax_ivf + 1] + df.a2r(cf.noisemodel.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
+
+                # Same using unlensed spectra (used for unlensed response used to initiate the MAP curvature matrix)
+                dl.ftl_unl =  cli(dl.cls_unl['tt'][:an.lmax_ivf + 1] + df.a2r(cf.noisemodel.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
+                dl.fel_unl =  cli(dl.cls_unl['ee'][:an.lmax_ivf + 1] + df.a2r(cf.noisemodel.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
+                dl.fbl_unl =  cli(dl.cls_unl['bb'][:an.lmax_ivf + 1] + df.a2r(cf.noisemodel.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
+            else:
+                log.info("Don't understand your input.")
+                sys.exit()
 
         @log_on_start(logging.INFO, "_process_Data() started")
         @log_on_end(logging.INFO, "_process_Data() finished")
         def _process_Data(dl, da):
             dl.imin = da.IMIN
             dl.imax = da.IMAX
+            # TODO refactor, use dl.simidx in lenscarf.core
+            dl.simidxs = da.simindices if da.simindices != -1 else np.arange(dl.imin, dl.imax)
 
             _package = da.package_
             if da.package_.startswith('lerepi'):
@@ -645,9 +667,11 @@ class l2lensrec_Transformer:
                 dl.tol_iter = lambda itr : it.TOL if itr <= 10 else it.TOL*0.1
             else:
                 dl.tol = it.TOL
-                if 'rinf_tol4' in cf.analysis.TEMP_suffix:
+                if 'rinf_tol4' in cf.data.TEMP_suffix:
                     log.warning('tol_iter increased for this run. This is hardcoded.')
                     dl.tol_iter = lambda itr : 2*10 ** (- dl.tol) if itr <= 10 else 2*10 ** (-(dl.tol+1))
+                elif 'tol5e5' in cf.data.TEMP_suffix:
+                    dl.tol_iter = lambda itr : 1*10 ** (- dl.tol) 
                 else:
                     dl.tol_iter = lambda itr : 1*10 ** (- dl.tol) if itr <= 10 else 1*10 ** (-(dl.tol+1))
             dl.soltn_cond = it.soltn_cond
@@ -883,14 +907,19 @@ class l2d_Transformer:
             _sims_module = importlib.import_module(_sims_module_name)
             dl.sims = getattr(_sims_module, _sims_class_name)(dl.fg)
 
-            mask_path = cf.noisemodel.rhits_normalised[0]
-            dl.base_mask = np.nan_to_num(hp.read_map(mask_path))
+            if cf.noisemodel.rhits_normalised is not None:
+                mask_path = cf.noisemodel.rhits_normalised[0]
+                dl.base_mask = np.nan_to_num(hp.read_map(mask_path))
+            else:
+                dl.base_mask = np.ones(shape=hp.nside2npix(cf.data.nside))
+            noisemodel_rhits_map = df.get_nlev_mask(np.inf, dl.base_mask)
+            noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.noisemodel.inf
             dl.TEMP = transform(cf, l2T_Transformer())
             dl.analysis_path = dl.TEMP.split('/')[-1]
             
             dl.nlev_mask = dict()
-            noisemodel_rhits_map = df.get_nlev_mask(np.inf, hp.read_map(cf.noisemodel.rhits_normalised[0]))
-            noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.noisemodel.inf
+
+            
             for nlev in de.nlevels:
                 buffer = df.get_nlev_mask(nlev, noisemodel_rhits_map)
                 dl.nlev_mask.update({nlev:buffer})
@@ -984,8 +1013,14 @@ class l2d_Transformer:
             _sims_module = importlib.import_module(_sims_full_name)
             dl.sims = getattr(_sims_module, _class)(**dl.dataclass_parameters)
             dl.nside = cf.data.nside
-            mask_path = cf.noisemodel.rhits_normalised[0]
-            dl.base_mask = np.nan_to_num(hp.read_map(mask_path))
+
+            if cf.noisemodel.rhits_normalised is not None:
+                mask_path = cf.noisemodel.rhits_normalised[0]
+                dl.base_mask = np.nan_to_num(hp.read_map(mask_path))
+            else:
+                dl.base_mask = np.ones(shape=hp.nside2npix(cf.data.nside))
+            noisemodel_rhits_map = df.get_nlev_mask(np.inf, dl.base_mask)
+            noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.noisemodel.inf
             # TODO hack. this is only needed to access old s08b data
             # Remove and think of a better way of including old data without existing config file
             dl.TEMP = transform(cf, l2T_Transformer())
@@ -997,8 +1032,9 @@ class l2d_Transformer:
                 dl.libdir_iterators = lambda qe_key, simidx, version: opj(dl.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
             dl.analysis_path = dl.TEMP.split('/')[-1]
             dl.nlev_mask = dict()
-            noisemodel_rhits_map = df.get_nlev_mask(np.inf, hp.read_map(cf.noisemodel.rhits_normalised[0]))
-            noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.noisemodel.inf
+
+            
+            
             dl.nlevels = ma.nlevels
             for nlev in ma.nlevels:
                 buffer = df.get_nlev_mask(nlev, noisemodel_rhits_map)

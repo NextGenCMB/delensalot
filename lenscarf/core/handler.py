@@ -91,19 +91,19 @@ class QE_lr():
                 self.jobs = []
             elif id == 'All':
                 jobs = []
-                for idx in np.arange(self.imin, self.imax + 1):
+                for idx in self.simidxs:
                     jobs.append(idx)
                 self.jobs = jobs
             else:
                 # TODO if id='', skip finished simindices
                 jobs = []
-                for idx in np.arange(self.imin, self.imax + 1):
+                for idx in self.simidxs:
                     jobs.append(idx)
                 self.jobs = jobs
         else:
             # TODO hack. Only want to access old s08b sim result lib and generate B wf
             jobs = []
-            for idx in np.arange(self.imin, self.imax + 1):
+            for idx in self.simidxs:
                 jobs.append(idx)
             self.jobs = jobs
 
@@ -182,15 +182,14 @@ class QE_lr():
     @log_on_start(logging.INFO, "get_meanfield() started")
     @log_on_end(logging.INFO, "get_meanfield() finished")
     def get_meanfield(self, simidx):
-        Nmf = len(np.arange(self.nsims_mf))
         if self.mfvar == None:
             mf = self.qlms_dd.get_sim_qlm_mf(self.k, np.arange(self.nsims_mf))
             if simidx in np.arange(self.nsims_mf):    
-                mf = (mf - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / Nmf) * (Nmf / (Nmf - 1))
+                mf = (mf - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / self.nsims_mf) * (self.nsims_mf / (self.nsims_mf - 1))
         else:
             mf = hp.read_alm(self.mfvar)
             if simidx in np.arange(self.nsims_mf):    
-                mf = (mf - self.qlms_dd_mfvar.get_sim_qlm(self.k, int(simidx)) / Nmf) * (Nmf / (Nmf - 1))
+                mf = (mf - self.qlms_dd_mfvar.get_sim_qlm(self.k, int(simidx)) / self.nsims_mf) * (self.nsims_mf / (self.nsims_mf - 1))
 
         return mf
 
@@ -255,7 +254,7 @@ class MAP_lr():
             # TODO order of task list matters, but shouldn't
             if task == 'calc_phi':
                 self.qe.collect_jobs()
-                for idx in np.arange(self.imin, self.imax + 1):
+                for idx in self.simidxs:
                     lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
                     if rec.maxiterdone(lib_dir_iterator) < self.itmax:
                         _jobs.append(idx)
@@ -281,7 +280,7 @@ class MAP_lr():
                 # TODO making sure that all meanfields are available, but the mpi.barrier() is likely a too strong statement.
                 log.info("Waiting for all ranks to finish their task")
                 mpi.barrier()
-                for idx in np.arange(self.imin, self.imax + 1):
+                for idx in self.simidxs:
                     lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
                     if rec.maxiterdone(lib_dir_iterator) >= self.itmax:
                         _jobs.append(idx)
@@ -327,15 +326,14 @@ class MAP_lr():
                     lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
                     itlib = self.ith(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
                     itlib_iterator = itlib.get_iterator()
-                    Nmf = len(np.arange(self.nsims_mf))
                     if self.dlm_mod_bool:
                         dlm_mod = self.get_meanfields_it(np.arange(self.itmax+1), calc=False)
                         # assuming mf includes all plms from simindices in config
-                        dlm_mod = (dlm_mod - np.array(rec.load_plms(lib_dir_iterator, np.arange(self.itmax+1)))/Nmf) * Nmf/(Nmf - 1)
+                        dlm_mod = (dlm_mod - np.array(rec.load_plms(lib_dir_iterator, np.arange(self.itmax+1)))/self.nsims_mf) * self.nsims_mf/(self.nsims_mf - 1)
                     for it in range(0, self.itmax + 1):
                         if it <= rec.maxiterdone(lib_dir_iterator):
                             _dlm_mod = None if (it == 0 or self.dlm_mod_bool == False) else dlm_mod[it]
-                            itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=_dlm_mod, calc=True, Nmf=Nmf)
+                            itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=_dlm_mod, calc=True, Nmf=self.nsims_mf)
                     log.info("{}: finished sim {}".format(mpi.rank, idx))
 
 
@@ -359,8 +357,7 @@ class MAP_lr():
     @log_on_end(logging.INFO, "get_meanfield_it() finished: it={it}")
     def get_meanfield_it(self, it, calc=False):
         # for mfvar runs, this returns the correct meanfields, as mfvar runs go into distinct itlib dirs.
-        Nmf = len(np.arange(self.nsims_mf))
-        fn = opj(self.mf_dirname, 'mf%03d_it%03d.npy'%(Nmf, it))
+        fn = opj(self.mf_dirname, 'mf%03d_it%03d.npy'%(self.nsims_mf, it))
         if not calc:
             if os.path.isfile(fn):
                 mf = np.load(fn)
@@ -369,10 +366,11 @@ class MAP_lr():
         else:
             plm = rec.load_plms(self.libdir_iterators(self.k, 0, self.version), [0])[-1]
             mf = np.zeros_like(plm)
-            for simidx in range(Nmf):
-                log.info("it {:02d}: adding sim {:03d}/{}".format(it, simidx, Nmf))
+            # Assuming that simidx = meanfield inidices
+            for simidx in self.simidxs:
+                log.info("it {:02d}: adding sim {:03d}/{}".format(it, simidx, self.nsims_mf))
                 mf += rec.load_plms(self.libdir_iterators(self.k, simidx, self.version), [it])[-1]
-            np.save(fn, mf/Nmf)
+            np.save(fn, mf/self.nsims_mf)
 
         return mf
 
@@ -481,7 +479,7 @@ class Map_delenser():
     def collect_jobs(self):
         # TODO perhaps trigger calc of B-templates here, if needed
         jobs = []
-        for idx in np.arange(self.imin, self.imax + 1):
+        for idx in self.simidxs:
             # Overwriting test
             if self.libdir_iterators == 'overwrite':
                 jobs.append(idx)

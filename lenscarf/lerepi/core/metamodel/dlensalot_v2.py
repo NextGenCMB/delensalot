@@ -91,6 +91,7 @@ class DLENSALOT_Data(DLENSALOT_Concept):
     """
     IMIN = attr.ib(default=np.nan)
     IMAX = attr.ib(default=np.nan)
+    simidxs = attr.ib(default=-1)
     class_parameters = attr.ib(default=None)
     package_ = attr.ib(default=None)
     module_ = attr.ib(default=None)
@@ -169,12 +170,11 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
         DLENSALOT_Concept (_type_): _description_
     """
     edges = attr.ib(default=-1)
-    IMIN = attr.ib(default=-1)
-    IMAX = attr.ib(default=-1)
     dlm_mod = attr.ib(default=-1)
     iterations = attr.ib(default=-1)
     droplist = attr.ib(default=-1)
     base_mask = attr.ib(default=-1)
+    masks = attr.ib(default=None)
     nlevels = attr.ib(default=-1)
     lmax_cl = attr.ib(default=-1)
     Cl_fid = attr.ib(default=-1)

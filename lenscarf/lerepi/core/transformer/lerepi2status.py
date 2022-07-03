@@ -34,7 +34,7 @@ class l2s_Transformer:
             dl.analysispath = l2T_Transformer().build(cf)
             dl.itmax = cf.iteration.ITMAX
             dl.version = cf.iteration.V
-            dl.imax = cf.data.IMAX
+            dl.imax = cf.iteration.IMAX
 
         # TODO build list of files to be checked
         # build list of modifiers to test the files against, as in version, itmax, mf, ..
@@ -67,7 +67,7 @@ class l2j_Transformer:
     """
     def build(self, cf):
         def _process_Jobs(jobs):
-            jobs.append(((cf, l2s_Transformer()), sr.analysisreport))
+            jobs.append({"report":((cf, l2s_Transformer()), sr.analysisreport)})
 
         jobs = []
         _process_Jobs(jobs)
