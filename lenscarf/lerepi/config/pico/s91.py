@@ -19,19 +19,20 @@ dlensalot_model = DLENSALOT_Model(
         ITMAX = 10,
         LENSRES = 1.7,
         Lmin = 2, 
-        lmax_filt = 4000,
-        lmax_unl = 4000,
-        mmax_unl = 4000,
-        lmax_ivf = 3000,
-        mmax_ivf = 3000,
-        lmin_ivf = 10,
-        mmin_ivf = 10,
+        lmax_filt = 2500,
+        lmax_unl = 2500,
+        mmax_unl = 2500,
+        lmax_ivf = 2500,
+        mmax_ivf = 2500,
+        lmin_ivf = 2,
+        mmin_ivf = 2,
         STANDARD_TRANSFERFUNCTION = 'with_pixwin'
     ),
     data = DLENSALOT_Data(
         IMIN = 0,
         IMAX = 19,
         simidxs = np.arange(1,21,2),
+        simidxs_mf = np.arange(1,21,2),
         package_ = 'lenscarf',
         module_ = 'lerepi.config.pico.data.sims_90',
         class_ = 'ILC_Matthieu_Dec21',
@@ -39,7 +40,7 @@ dlensalot_model = DLENSALOT_Model(
             'fg': '91'
         },
         beam = 8.0,
-        lmax_transf = 4000,
+        lmax_transf = 2500,
         nside = 2048
     ),
     noisemodel = DLENSALOT_Noisemodel(
@@ -49,16 +50,16 @@ dlensalot_model = DLENSALOT_Model(
         lmin_elm = 2,
         lmin_blm = 200,
         CENTRALNLEV_UKAMIN = 2.0,
-        nlev_t = 2.0/np.sqrt(2),
-        nlev_p = 2.0,
+        nlev_t = ('<path/to/smooth_noise.py>', 'cl'),
+        nlev_p = ('<path/to/smooth_noise.py>', 'cl'),
         inf = 1e4
     ),
     qerec = DLENSALOT_Qerec(
         FILTER_QE = 'sepTP', # Change only if other than sepTP for QE is desired
         CG_TOL = 1e-3,
         ninvjob_qe_geometry = 'healpix_geometry_qe',
-        lmax_qlm = 4000,
-        mmax_qlm = 4000,
+        lmax_qlm = 2500,
+        mmax_qlm = 2500,
         QE_LENSING_CL_ANALYSIS = False, # Change only if a full, Planck-like QE lensing power spectrum analysis is desired
         chain = DLENSALOT_Chaindescriptor(
             p0 = 0,
@@ -88,11 +89,11 @@ dlensalot_model = DLENSALOT_Model(
     ),
     madel = DLENSALOT_Mapdelensing(
         iterations = [8,10],
-        nlevels = [1.2, 2, 10, 50],
-        masks = ("masks", ["<path/to/mask>", "<path/to/mask>"]), #("nlevels", [1.2, 2, 10, 50])
+        masks = ("masks", ["/pscratch/..", "/pscratch/.."]), #("nlevels", [1.2, 2, 10, 50])
         lmax_cl = 200,
         Cl_fid = 'ffp10',
         spectrum_type = 'unbinned',
-        spectrum_calculator = pospace
+        spectrum_calculator = pospace,
+        libdir_it = -1 # don't overwrite for now
     )
 )

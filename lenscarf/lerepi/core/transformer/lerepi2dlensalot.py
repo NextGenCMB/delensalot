@@ -46,7 +46,7 @@ class l2T_Transformer:
     # @log_on_start(logging.INFO, "build() started")
     # @log_on_end(logging.INFO, "build() finished")
     def build(self, cf):
-        _nsims_mf = 0 if cf.iteration.V = 'noMF' else cf.iteration.nsims_mf
+        _nsims_mf = 0 if cf.iteration.V == 'noMF' else cf.iteration.nsims_mf
 
         # #TODO hack to make mf var work for v1 in mf 100 of 08b
         ovw = _nsims_mf
@@ -119,7 +119,7 @@ class l2lensrec_Transformer:
             dl.TEMP = transform(cf, l2T_Transformer())
             dl.nside = data.nside
             # TODO simplify the following two attributes
-            dl.nsims_mf = 0 if cf.iteration.V == 'noMF' else cf.iteration.nsims_mf
+            dl.Nmf = 0 if cf.iteration.V == 'noMF' else cf.iteration.nsims_mf
             dl.fg = data.fg
 
             _ui = data.sims.split('/')
@@ -381,9 +381,9 @@ class l2lensrec_Transformer:
         # TODO hack. Refactor
         if "calc_meanfield" in dl.tasks:
             if dl.version == '' or dl.version == None:
-                dl.mf_dirname = opj(dl.TEMP, 'mf_{:03d}'.format(dl.nsims_mf))
+                dl.mf_dirname = opj(dl.TEMP, 'mf_{:03d}'.format(dl.Nmf))
             else:
-                dl.mf_dirname = opj(dl.TEMP, 'mf_{}_{:03d}'.format(dl.version, dl.nsims_mf))
+                dl.mf_dirname = opj(dl.TEMP, 'mf_{}_{:03d}'.format(dl.version, dl.Nmf))
             if not os.path.isdir(dl.mf_dirname) and mpi.rank == 0:
                 os.makedirs(dl.mf_dirname)
         if mpi.rank == 0:
@@ -418,7 +418,8 @@ class l2lensrec_Transformer:
             dl.version = an.V
             dl.k = an.K
             dl.itmax = an.ITMAX
-            dl.nsims_mf = 0 if cf.analysis.V == 'noMF' else cf.analysis.nsims_mf
+            dl.simidxs_mf = cf.analysis.simidxs_mf
+            dl.Nmf = 0 if cf.analysis.V == 'noMF' else len(dl.simidxs_mf)
             if an.zbounds[0] == 'nmr_relative':
                 dl.zbounds = df.get_zbounds(hp.read_map(cf.noisemodel.rhits_normalised[0]), an.zbounds[1])
             elif type(an.zbounds[0]) == float or type(an.zbounds[0]) == int:
@@ -497,8 +498,7 @@ class l2lensrec_Transformer:
         def _process_Data(dl, da):
             dl.imin = da.IMIN
             dl.imax = da.IMAX
-            # TODO refactor, use dl.simidx in lenscarf.core
-            dl.simidxs = da.simindices if da.simindices != -1 else np.arange(dl.imin, dl.imax)
+            dl.simidxs = da.simidxs if da.simidxs != -1 else np.arange(dl.imin, dl.imax)
 
             _package = da.package_
             if da.package_.startswith('lerepi'):
@@ -706,9 +706,9 @@ class l2lensrec_Transformer:
         # TODO hack. Refactor
         if "calc_meanfield" in dl.tasks:
             if dl.version == '' or dl.version == None:
-                dl.mf_dirname = opj(dl.TEMP, 'mf_{:03d}'.format(dl.nsims_mf))
+                dl.mf_dirname = opj(dl.TEMP, 'mf_{:03d}'.format(dl.Nmf))
             else:
-                dl.mf_dirname = opj(dl.TEMP, 'mf_{}_{:03d}'.format(dl.version, dl.nsims_mf))
+                dl.mf_dirname = opj(dl.TEMP, 'mf_{}_{:03d}'.format(dl.version, dl.Nmf))
             if not os.path.isdir(dl.mf_dirname) and mpi.rank == 0:
                 os.makedirs(dl.mf_dirname)
 
@@ -739,17 +739,31 @@ class l2OBD_Transformer:
     # @log_on_start(logging.INFO, "get_nlevt() started")
     # @log_on_end(logging.INFO, "get_nlevt() finished")
     def get_nlevt(cf):
-        nlev_t = cf.noisemodel.CENTRALNLEV_UKAMIN/np.sqrt(2) if cf.noisemodel.nlev_t == None else cf.noisemodel.nlev_t
+        _nlev_t = 0
+        if cf.noisemodel.CENTRALNLEV_UKAMIN != -1 and cf.noisemodel.nlev_t != -1:
+            _nlev_t = cf.noisemodel.CENTRALNLEV_UKAMIN/np.sqrt(2) if cf.noisemodel.nlev_t == -1 else cf.noisemodel.nlev_t
+        elif type(cf.noisemodel.nlev_t) == tuple:
+            _nlev_t = np.load(cf.noisemodel.nlev_t[0])
+            if cf.noisemodel.nlev_t[1] == 'cl':
+                # assume that nlev comes as cl. Scale to arcmin
+                _nlev_t = df.c2a(_nlev_t)
 
-        return nlev_t
+        return _nlev_t
 
 
     # @log_on_start(logging.INFO, "get_nlevp() started")
     # @log_on_end(logging.INFO, "get_nlevp() finished")
     def get_nlevp(cf):
-        nlev_p = cf.noisemodel.CENTRALNLEV_UKAMIN if cf.noisemodel.nlev_p == None else cf.noisemodel.nlev_p
-
-        return nlev_p
+        _nlev_p = 0
+        if cf.noisemodel.CENTRALNLEV_UKAMIN != -1 and cf.noisemodel.nlev_p != -1:
+            _nlev_p = cf.noisemodel.CENTRALNLEV_UKAMIN if cf.noisemodel.nlev_p == -1 else cf.noisemodel.nlev_p
+        elif type(cf.noisemodel.nlev_p) == tuple:
+            _nlev_p = np.load(cf.noisemodel.nlev_p[0])
+            if cf.noisemodel.nlev_p[1] == 'cl':
+                # assume that nlev comes as cl. Scale to arcmin
+                _nlev_p = df.c2a(_nlev_p)
+        
+        return _nlev_p
 
 
     @log_on_start(logging.INFO, "get_ninvt() started")
@@ -898,7 +912,6 @@ class l2d_Transformer:
             dl.imax = de.IMAX
             dl.its = de.ITMAX
             dl.nmf = cf.iteration.nsims_mf
-            dl.droplist = de.droplist
             dl.fg = de.fg
  
             _ui = de.base_mask.split('/')
@@ -907,31 +920,46 @@ class l2d_Transformer:
             _sims_module = importlib.import_module(_sims_module_name)
             dl.sims = getattr(_sims_module, _sims_class_name)(dl.fg)
 
+            dl.TEMP = transform(cf, l2T_Transformer())
+            dl.analysis_path = dl.TEMP.split('/')[-1]
+
             if cf.noisemodel.rhits_normalised is not None:
                 mask_path = cf.noisemodel.rhits_normalised[0]
                 dl.base_mask = np.nan_to_num(hp.read_map(mask_path))
             else:
                 dl.base_mask = np.ones(shape=hp.nside2npix(cf.data.nside))
             noisemodel_rhits_map = df.get_nlev_mask(np.inf, dl.base_mask)
-            noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.noisemodel.inf
-            dl.TEMP = transform(cf, l2T_Transformer())
-            dl.analysis_path = dl.TEMP.split('/')[-1]
-            
-            dl.nlev_mask = dict()
+            noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.noisemodel.inf   
 
-            
-            for nlev in de.nlevels:
-                buffer = df.get_nlev_mask(nlev, noisemodel_rhits_map)
-                dl.nlev_mask.update({nlev:buffer})
+            if de.nlevels != -1:
+                dl.nlev_mask = dict()
+                dl.nlevels = de.nlevels
+                for nlev in de.nlevels:
+                    buffer = df.get_nlev_mask(nlev, noisemodel_rhits_map)
+                    dl.nlev_mask.update({nlev:buffer})
 
-            dl.nlevels = de.nlevels
+            if de.masks != None:
+                dl.masks = dict({de.masks[0]:{}})
+                dl.mask_ids = de.masks[1]
+                if de.masks[0] == 'nlevels': 
+                    for mask_id in dl.mask_ids:
+                        buffer = df.get_nlev_mask(mask_id, noisemodel_rhits_map)
+                        dl.masks.update({mask_id:buffer})
+                elif de.masks[0] == 'masks':
+                    dl.mask_ids = np.zeros(shape=len(de.masks[1]))
+                    for fni, fn in enumerate(de.masks[1]):
+                        buffer = np.load(fn)
+                        _fsky = float("{:0.2d}".format(np.sum(buffer)/len(buffer)))
+                        dl.mask_ids[fni] = _fsky
+                        dl.masks.update({_fsky:buffer})
+                        
             dl.nside = de.nside
             dl.lmax_cl = de.lmax_cl
             dl.lmax_lib = 3*dl.lmax_cl-1
             dl.beam = de.beam
             dl.lmax_transf = de.lmax_transf
             if de.transf == 'gauss':
-                dl.transf = gauss_beam(dl.beam / 180. / 60. * np.pi, lmax=dl.lmax_transf)
+                dl.transf = gauss_beam(df.a2r(dl.beam), lmax=dl.lmax_transf)
 
             if de.Cl_fid == 'ffp10':
                 dl.cls_path = opj(os.path.dirname(plancklens.__file__), 'data', 'cls')
@@ -991,18 +1019,22 @@ class l2d_Transformer:
         def _process_Madel(dl, ma):
             dl.k = cf.analysis.K
             dl.version = cf.analysis.V
+
             dl.edges = []
-            if 'cmbs4' in ma.edges:
-                dl.edges.append(lc.cmbs4_edges)
-            if 'ioreco' in ma.edges:
-                dl.edges.append(lc.ioreco_edges) 
-            elif 'fs' in ma.edges:
-                dl.edges.append(lc.fs_edges)
+            if ma.edges != -1:
+                if 'cmbs4' in ma.edges:
+                    dl.edges.append(lc.cmbs4_edges)
+                if 'ioreco' in ma.edges:
+                    dl.edges.append(lc.ioreco_edges) 
+                elif 'fs' in ma.edges:
+                    dl.edges.append(lc.fs_edges)
+
             dl.imin = cf.data.IMIN
             dl.imax = cf.data.IMAX
+            dl.simidxs = cf.data.simidxs if cf.data.simidxs != -1 else np.arange(dl.imin, dl.imax)
             dl.its = ma.iterations
-            dl.nmf = cf.analysis.nsims_mf
-            dl.droplist = ma.droplist
+
+            dl.Nmf = len(cf.analysis.simidxs_mf)
             if 'fg' in cf.data.class_parameters:
                 dl.fg = cf.data.class_parameters['fg']
             _package = cf.data.package_
@@ -1014,31 +1046,52 @@ class l2d_Transformer:
             dl.sims = getattr(_sims_module, _class)(**dl.dataclass_parameters)
             dl.nside = cf.data.nside
 
-            if cf.noisemodel.rhits_normalised is not None:
-                mask_path = cf.noisemodel.rhits_normalised[0]
-                dl.base_mask = np.nan_to_num(hp.read_map(mask_path))
-            else:
-                dl.base_mask = np.ones(shape=hp.nside2npix(cf.data.nside))
-            noisemodel_rhits_map = df.get_nlev_mask(np.inf, dl.base_mask)
-            noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.noisemodel.inf
             # TODO hack. this is only needed to access old s08b data
             # Remove and think of a better way of including old data without existing config file
             dl.TEMP = transform(cf, l2T_Transformer())
 
             # TODO II
+            # could put btempl paths similar to sim path handling. If D.lensalot handles it, use D.lensalot internal class for it
+            # dl.libdir_iterators = lambda qe_key, simidx, version: de.libdir_it%()
+            # if it==12:
+            #     rootstr = '/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/lt_recons/'
+            #     if self.fg == '00':
+            #         return rootstr+'08b.%02d_sebibel_210708_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg), it, simidx)
+            #     elif self.fg == '07':
+            #         return rootstr+'/08b.%02d_sebibel_210910_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg), it, simidx)
+            #     elif self.fg == '09':
+            #         return rootstr+'/08b.%02d_sebibel_210910_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg), it, simidx)
+            # elif it==0:
+            #     return '/global/cscratch1/sd/sebibel/cmbs4/s08b/cILC2021_%s_lmax4000/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20/ffi_p_it0/blm_%04d_it0.npy'%(self.fg, simidx, simidx)    
+        
             if ma.libdir_it != '':
                 dl.libdir_iterators = 'overwrite'
             else:
                 dl.libdir_iterators = lambda qe_key, simidx, version: opj(dl.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
             dl.analysis_path = dl.TEMP.split('/')[-1]
-            dl.nlev_mask = dict()
 
-            
-            
-            dl.nlevels = ma.nlevels
-            for nlev in ma.nlevels:
-                buffer = df.get_nlev_mask(nlev, noisemodel_rhits_map)
-                dl.nlev_mask.update({nlev:buffer})
+            if cf.noisemodel.rhits_normalised is not None:
+                _mask_path = cf.noisemodel.rhits_normalised[0]
+                dl.base_mask = np.nan_to_num(hp.read_map(_mask_path))
+            else:
+                dl.base_mask = np.ones(shape=hp.nside2npix(cf.data.nside))
+            noisemodel_rhits_map = df.get_nlev_mask(np.inf, dl.base_mask)
+            noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.noisemodel.inf
+
+            if ma.masks != None:
+                dl.masks = dict({ma.masks[0]:{}})
+                dl.mask_ids = ma.masks[1]
+                if ma.masks[0] == 'nlevels': 
+                    for mask_id in dl.mask_ids:
+                        buffer = df.get_nlev_mask(mask_id, noisemodel_rhits_map)
+                        dl.masks.update({mask_id:buffer})
+                elif ma.masks[0] == 'masks':
+                    dl.mask_ids = np.zeros(shape=len(ma.masks[1]))
+                    for fni, fn in enumerate(ma.masks[1]):
+                        buffer = np.load(fn)
+                        _fsky = float("{:0.2d}".format(np.sum(buffer)/len(buffer)))
+                        dl.mask_ids[fni] = _fsky
+                        dl.masks.update({_fsky:buffer})
 
             dl.lmax_cl = ma.lmax_cl
             dl.lmax_lib = 3*dl.lmax_cl-1

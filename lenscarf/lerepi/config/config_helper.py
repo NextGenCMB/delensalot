@@ -28,6 +28,18 @@ class data_functions:
             _type_: _description_
         """
         return val  / 180 / 60 * np.pi
+
+
+    def c2a(val):
+        """Cl2arcmin converter
+
+        Args:
+            val (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
+        return np.sqrt(val) * (60 * 180 / np.pi)
         
 
     def get_nlev_mask(ratio, rhits):

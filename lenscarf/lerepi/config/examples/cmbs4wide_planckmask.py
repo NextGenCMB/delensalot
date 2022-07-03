@@ -98,7 +98,6 @@ dlensalot_model = DLENSALOT_Model(
     madel = DLENSALOT_Mapdelensing(
         edges = ['cmbs4'],
         iterations = [10,12],
-        droplist = np.array([]),
         nlevels = [np.inf],
         lmax_cl = 2048,
     ))
