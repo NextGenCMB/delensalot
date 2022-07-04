@@ -35,6 +35,7 @@ class analysisreport:
         if any("p_it{}.npy".format(self.itmax-1) in filename for filename in filenames):
             wflm_c += 1
         elif any("p_it{}.npy".format(0) in filename for filename in filenames):
+            log.info(filenames)
             wflm_mc += 1
         if any("btempl_p{:03d}".format(self.itmax) in filename for filename in filenames):
             btempl_c += 1

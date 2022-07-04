@@ -62,10 +62,11 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
         DATA_LIBDIR: path to the data
     """
     TEMP_suffix = attr.ib(default=None)
+
     K = attr.ib(default=np.nan)
     V = attr.ib(default=np.nan)
     ITMAX = attr.ib(default=np.nan)
-    nsims_mf = attr.ib(default=np.nan)
+    simidxs_mf = attr.ib(default=[])
     LENSRES = attr.ib(default=np.nan)
     Lmin = attr.ib(default=np.nan)
     lmax_filt = attr.ib(default=np.nan)
@@ -91,7 +92,7 @@ class DLENSALOT_Data(DLENSALOT_Concept):
     """
     IMIN = attr.ib(default=np.nan)
     IMAX = attr.ib(default=np.nan)
-    simidxs = attr.ib(default=-1)
+    simidxs = attr.ib(default=[])
     class_parameters = attr.ib(default=None)
     package_ = attr.ib(default=None)
     module_ = attr.ib(default=None)
@@ -117,8 +118,8 @@ class DLENSALOT_Noisemodel(DLENSALOT_Concept):
     lmin_elm = attr.ib(default=np.nan)
     lmin_blm = attr.ib(default=np.nan)
     CENTRALNLEV_UKAMIN = attr.ib(default=np.nan)
-    nlev_t = attr.ib(default=np.nan)
-    nlev_p = attr.ib(default=np.nan)
+    nlev_t = attr.ib(default=[])
+    nlev_p = attr.ib(default=[])
     nlev_dep = attr.ib(default=np.nan)
     inf = attr.ib(default=np.nan)
     mask = attr.ib(default=None)
@@ -133,7 +134,8 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     Attributes:
         typ:
     """
-    FILTER_QE = attr.ib(default=None)
+    ivfs = attr.ib(default=None)
+    qlms = attr.ib(default=None)
     CG_TOL = attr.ib(default=np.nan)
     ninvjob_qe_geometry = attr.ib(default=None)
     lmax_qlm = attr.ib(default=np.nan)

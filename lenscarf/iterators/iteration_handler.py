@@ -19,6 +19,7 @@ from lenscarf import utils_sims
 from lenscarf.iterators import cs_iterator
 from lenscarf.utils import read_map
 from lenscarf.opfilt import opfilt_ee_wl
+from lenscarf.opfilt.opfilt_iso_ee_wl import alm_filter_nlev_wl
 
 
 class scarf_iterator_pertmf():
@@ -67,6 +68,16 @@ class scarf_iterator_pertmf():
         datmaps = np.array(self.sims_MAP.get_sim_pmap(int(self.simidx)))
 
         return datmaps
+
+
+    @log_on_start(logging.INFO, "get_filter() started")
+    @log_on_end(logging.INFO, "get_filter() finished")
+    def get_filter_iso(self):
+        wee = self.k == 'p_p'
+        filter = alm_filter_nlev_wl(self.nlev_p, self.ffi, self.transf_elm, (self.lmax_unl, self.mmax_unl), (self.lmax_ivf, self.mmax_ivf),
+                wee=wee, transf_b=self.transf_blm, nlev_b=self.nlev_p)
+        
+        return filter
 
 
     @log_on_start(logging.INFO, "get_filter() started")

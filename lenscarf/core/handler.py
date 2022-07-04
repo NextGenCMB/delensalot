@@ -83,7 +83,7 @@ class QE_lr():
     @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self, id=''):
         if self.overwrite_libdir is None:
-            mf_fname = os.path.join(self.TEMP, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, utils.mchash(np.arange(self.simidxs))))
+            mf_fname = os.path.join(self.TEMP, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, utils.mchash(self.simidxs)))
             if os.path.isfile(mf_fname):
                 # can safely skip QE. MF exists, so we know QE ran before
                 self.jobs = []
@@ -183,12 +183,12 @@ class QE_lr():
     @log_on_end(logging.INFO, "get_meanfield() finished")
     def get_meanfield(self, simidx):
         if self.mfvar == None:
-            mf = self.qlms_dd.get_sim_qlm_mf(self.k, np.arange(self.simidxs_mf))
-            if simidx in np.arange(self.simidxs_mf):    
+            mf = self.qlms_dd.get_sim_qlm_mf(self.k, self.simidxs_mf)
+            if simidx in self.simidxs_mf:    
                 mf = (mf - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
         else:
             mf = hp.read_alm(self.mfvar)
-            if simidx in np.arange(self.simidxs_mf):    
+            if simidx in self.simidxs_mf:    
                 mf = (mf - self.qlms_dd_mfvar.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
 
         return mf

@@ -9,6 +9,7 @@ import lenscarf
 import plancklens
 from astropy.io import fits
 from plancklens import utils
+from os.path import join as opj
 from plancklens.sims import phas, planck2018_sims
 import healpy as hp
 
@@ -71,7 +72,9 @@ def get_nlev_mask(rhits, ratio):
 
 
 def read_map(fn):
+
     return fits.open(fn)[0].data
+
 
 def get_fidcls():
     """CMBs are the FFP10 ones
@@ -94,8 +97,7 @@ class ILC_Matthieu_18:
         assert fg in ['91']
         self.facunits = facunits
         self.fg = fg
-
-        p = "/project/projectdirs/pico/reanalysis/nilc/"
+        p =  opj(os.environ['CFS'], "pico/reanalysis/nilc/")
         self.path = p + '/py91_00%02d/NILC_PICO91_B_reso40acm.fits' # odd is r=0
         self.path_noise =   p + '/py91_00%02d/NILC_NOISE_PICO91_B_reso40acm.fits'
         self.rhitsi = rhitsi
@@ -165,8 +167,7 @@ class ILC_Matthieu_Dec21:
     def __init__(self, fg):
         assert fg in ['91']
         self.fg = fg
-
-        p = "/project/projectdirs/pico/reanalysis/nilc/ns2048"
+        p =  opj(os.environ['CFS'], "pico/reanalysis/nilc/ns2048")
         self.path_E = p + '/py91_ns2048_00%02d/NILC_PICO91_E_reso8acm.fits' # odd is r=0
         self.path_B = p + '/py91_ns2048_00%02d/NILC_PICO91_B_reso8acm.fits' # odd is r=0
         self.path_noise_E = p + '/py91_ns2048_00%02d/NILC_NOISE_PICO91_E_reso8acm.fits'
@@ -174,7 +175,7 @@ class ILC_Matthieu_Dec21:
 
 
     def hashdict(self):
-        ret = {'rhits':self.rhitsi, 'sim_lib':'pico_08b_ILC_%s'%self.fg, 'units':self.facunits, 'path2sim0':self.path%0}
+        ret = {'sim_lib':'pico_08b_ILC_%s'%self.fg, 'path2sim0':self.path_E%0}
         
         return ret
 
@@ -188,19 +189,19 @@ class ILC_Matthieu_Dec21:
     def get_sim_pmap(self, idx):
         Emap = np.nan_to_num(fits.open(self.path_E%idx)[0].data)
         Bmap = np.nan_to_num(fits.open(self.path_B%idx)[0].data)
-        elm, blm = hp.map2alm_spin([Emap, Bmap], spin=0)
-        qmap, umap = hp.alm2map([elm, blm], spin=2)
+        teblm = hp.map2alm([np.zeros_like(Emap), Emap, Bmap], lmax=2048, pol=False)
+        IQU = hp.alm2map(teblm, nside=2048, pol=True)
         
-        return qmap, umap
+        return IQU[1], IQU[2]
 
 
     def get_noise_sim_pmap(self, idx):
         Emap = np.nan_to_num(fits.open(self.path_noise_E%idx)[0].data)
         Bmap = np.nan_to_num(fits.open(self.path_noise_B%idx)[0].data)
-        elm, blm = hp.map2alm_spin([Emap, Bmap], spin=0)
-        qmap, umap = hp.alm2map_spin([elm, blm], nside=2048, spin=2, lmax=2000)
+        teblm = hp.map2alm([np.zeros_like(Emap), Emap, Bmap], lmax=2048, pol=False)
+        IQU = hp.alm2map(teblm, nside=2048, pol=True)
         
-        return qmap, umap
+        return IQU[1], IQU[2]
     
     
 class ILC_Seb_Nov21:
@@ -217,12 +218,8 @@ class ILC_Seb_Nov21:
         self.fg = fg
         p = "/global/cscratch1/sd/sebibel/compsep/pico/d90sim/lensmask/sim0"
         self.path = p + '/MapT_combined_SMICA_highell_bins_%04d'%nside+'_1500_2500_JC_%04d.npy'
-        # self.path_noise =   p + '/ClN_non-separated_2048_4000_6000_JC_%04d.fits'
         pcmbs4 =  '/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/foreground_cleaned_maps/08b.%s_umilta_210511/'%fg
         self.path_noise =   pcmbs4 + '/cmbs4_08b' + fg + '_noise_b02_ellmin30_ellmax4050_map_2048_%04d.fits' #TODO delete noise maps
-        # p =  '/project/projectdirs/pico/data_xx.yy/90.00' # 08b.%s_umilta_210511/'%fg
-        # self.path = p + '/pico_90_llcdm_AL0p03_f021_b38_ellmin00_map_2048_mc_%04d.fits' #TODO # CMB + noise 
-        # self.path_noise =   p + '/pico_90_noise_f090_b10_ellmin00_map_2048_mc_%04d.fits' #TODO
         
         self.rhitsi = rhitsi
         self.p2mask = "/global/homes/s/sebibel/data/mask/PR3vJan18_temp_lensingmask_gPR2_70_psPR2_143_COT2_smicadx12_smicapoldx12_psPR2_217_sz.fits.gz" #TODO
@@ -239,10 +236,6 @@ class ILC_Seb_Nov21:
         fac = 1. if not self.rhitsi else np.nan_to_num(hp.read_map(self.p2mask))
         return retq * utils.cli(fac), retu * utils.cli(fac)
 
-        # retq = np.nan_to_num(hp.read_map(self.path%idx, field=1)) * self.facunits
-        # retu = np.nan_to_num(hp.read_map(self.path%idx, field=2)) * self.facunits
-        # fac = 1. if not self.rhitsi else np.nan_to_num(hp.read_map(self.p2mask))
-        # return retq * utils.cli(fac), retu * utils.cli(fac)
 
     def get_noise_sim_pmap(self, idx):
         retq = np.nan_to_num(np.load(self.path_noise%idx))[1] * self.facunits
@@ -266,19 +259,15 @@ class ILC_Pico_2018:
         self.fg = fg
         p = "/global/cscratch1/sd/sebibel/compsep/pico/d90sim/lensmask/sim0"
         self.path = p + '/MapT_combined_SMICA_highell_bins_2048_1500_2500_JC_%04d.npy'
-        # self.path_noise =   p + '/ClN_non-separated_2048_4000_6000_JC_%04d.fits'
         pcmbs4 =  '/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/foreground_cleaned_maps/08b.%s_umilta_210511/'%fg
         self.path_noise =   pcmbs4 + '/cmbs4_08b' + fg + '_noise_b02_ellmin30_ellmax4050_map_2048_%04d.fits' #TODO delete noise maps
-        # p =  '/project/projectdirs/pico/data_xx.yy/90.00' # 08b.%s_umilta_210511/'%fg
-        # self.path = p + '/pico_90_llcdm_AL0p03_f021_b38_ellmin00_map_2048_mc_%04d.fits' #TODO # CMB + noise 
-        # self.path_noise =   p + '/pico_90_noise_f090_b10_ellmin00_map_2048_mc_%04d.fits' #TODO
-        
         self.rhitsi = rhitsi
         self.p2mask = "/global/homes/s/sebibel/data/mask/PR3vJan18_temp_lensingmask_gPR2_70_psPR2_143_COT2_smicadx12_smicapoldx12_psPR2_217_sz.fits.gz" #TODO
 
 
     def hashdict(self):
         ret = {'rhits':self.rhitsi, 'sim_lib':'pico_08b_ILC_%s'%self.fg, 'units':self.facunits, 'path2sim0':self.path%0}
+
         return ret
 
 
@@ -286,15 +275,13 @@ class ILC_Pico_2018:
         retq = np.nan_to_num(np.load(self.path%idx))[1] * self.facunits
         retu = np.nan_to_num(np.load(self.path%idx))[2] * self.facunits
         fac = 1. if not self.rhitsi else np.nan_to_num(hp.read_map(self.p2mask))
+
         return retq * utils.cli(fac), retu * utils.cli(fac)
 
-        # retq = np.nan_to_num(hp.read_map(self.path%idx, field=1)) * self.facunits
-        # retu = np.nan_to_num(hp.read_map(self.path%idx, field=2)) * self.facunits
-        # fac = 1. if not self.rhitsi else np.nan_to_num(hp.read_map(self.p2mask))
-        # return retq * utils.cli(fac), retu * utils.cli(fac)
 
     def get_noise_sim_pmap(self, idx):
         retq = np.nan_to_num(np.load(self.path_noise%idx))[1] * self.facunits
         retu = np.nan_to_num(np.load(self.path_noise%idx))[2] * self.facunits
         fac = 1. if not self.rhitsi else np.nan_to_num(hp.read_map(self.p2mask))
+
         return retq * utils.cli(fac), retu * utils.cli(fac)

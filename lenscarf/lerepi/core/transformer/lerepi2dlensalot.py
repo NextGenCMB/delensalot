@@ -20,7 +20,7 @@ import hashlib
 import plancklens
 from lenscarf.core import mpi
 from plancklens import qest, qecl, utils
-from plancklens.filt import filt_util, filt_cinv
+from plancklens.filt import filt_util, filt_cinv, filt_simple
 from plancklens.qcinv import cd_solve
 from plancklens.qcinv import opfilt_pp
 
@@ -215,8 +215,8 @@ class l2lensrec_Transformer:
                 dl.fbl_unl = cli(dl.cls_unl['bb'][:iteration.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_blm**2)) * (dl.transf_blm > 0)
 
             if iteration.FILTER == 'cinv_sepTP':
-                dl.ninv_t, dl.ninvt_desc = l2OBD_Transformer.get_ninvt(cf)
-                dl.ninv_p, dl.ninvp_desc = l2OBD_Transformer.get_ninvp(cf)
+                dl.ninvt_desc = l2OBD_Transformer.get_ninvt(cf)
+                dl.ninvp_desc = l2OBD_Transformer.get_ninvp(cf)
                 # TODO filters can be initialised with both, ninvX_desc and ninv_X. But Plancklens' hashcheck will complain if it changed since shapes are different.
                 # TODO using ninv_X causes hashcheck to fail, as these ninv are List[np.array] and Plancklens checks for List[np.ndarray]
 
@@ -453,6 +453,9 @@ class l2lensrec_Transformer:
             dl.lmax_unl = an.lmax_unl
             dl.mmax_unl = an.mmax_unl
 
+            dl.nlev_t = l2OBD_Transformer.get_nlevt(cf)
+            dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
+
             _cls_path = opj(os.path.dirname(plancklens.__file__), 'data', 'cls')
             dl.cls_unl = utils.camb_clfile(opj(_cls_path, 'FFP10_wdipole_lenspotentialCls.dat'))
             dl.cls_len = utils.camb_clfile(opj(_cls_path, 'FFP10_wdipole_lensedCls.dat'))
@@ -465,14 +468,14 @@ class l2lensrec_Transformer:
                 dl.transf_blm = gauss_beam(df.a2r(cf.data.beam), lmax=an.lmax_ivf) * (np.arange(an.lmax_ivf + 1) >= cf.noisemodel.lmin_blm)
 
                 # Isotropic approximation to the filtering (used eg for response calculations)
-                dl.ftl =  cli(dl.cls_len['tt'][:an.lmax_ivf + 1] + df.a2r(cf.noisemodel.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
-                dl.fel =  cli(dl.cls_len['ee'][:an.lmax_ivf + 1] + df.a2r(cf.noisemodel.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
-                dl.fbl =  cli(dl.cls_len['bb'][:an.lmax_ivf + 1] + df.a2r(cf.noisemodel.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
+                dl.ftl =  cli(dl.cls_len['tt'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
+                dl.fel =  cli(dl.cls_len['ee'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
+                dl.fbl =  cli(dl.cls_len['bb'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
 
                 # Same using unlensed spectra (used for unlensed response used to initiate the MAP curvature matrix)
-                dl.ftl_unl =  cli(dl.cls_unl['tt'][:an.lmax_ivf + 1] + df.a2r(cf.noisemodel.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
-                dl.fel_unl =  cli(dl.cls_unl['ee'][:an.lmax_ivf + 1] + df.a2r(cf.noisemodel.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
-                dl.fbl_unl =  cli(dl.cls_unl['bb'][:an.lmax_ivf + 1] + df.a2r(cf.noisemodel.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
+                dl.ftl_unl =  cli(dl.cls_unl['tt'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
+                dl.fel_unl =  cli(dl.cls_unl['ee'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
+                dl.fbl_unl =  cli(dl.cls_unl['bb'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
 
             elif dl.STANDARD_TRANSFERFUNCTION == 'with_pixwin':
                 # Fiducial model of the transfer function
@@ -481,14 +484,14 @@ class l2lensrec_Transformer:
                 dl.transf_blm = gauss_beam(df.a2r(cf.data.beam), lmax=an.lmax_ivf) * hp.pixwin(2048, lmax=an.lmax_ivf) * (np.arange(an.lmax_ivf + 1) >= cf.noisemodel.lmin_blm)
 
                 # Isotropic approximation to the filtering (used eg for response calculations)
-                dl.ftl =  cli(dl.cls_len['tt'][:an.lmax_ivf + 1] + df.a2r(cf.noisemodel.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
-                dl.fel =  cli(dl.cls_len['ee'][:an.lmax_ivf + 1] + df.a2r(cf.noisemodel.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
-                dl.fbl =  cli(dl.cls_len['bb'][:an.lmax_ivf + 1] + df.a2r(cf.noisemodel.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
+                dl.ftl =  cli(dl.cls_len['tt'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
+                dl.fel =  cli(dl.cls_len['ee'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
+                dl.fbl =  cli(dl.cls_len['bb'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
 
                 # Same using unlensed spectra (used for unlensed response used to initiate the MAP curvature matrix)
-                dl.ftl_unl =  cli(dl.cls_unl['tt'][:an.lmax_ivf + 1] + df.a2r(cf.noisemodel.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
-                dl.fel_unl =  cli(dl.cls_unl['ee'][:an.lmax_ivf + 1] + df.a2r(cf.noisemodel.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
-                dl.fbl_unl =  cli(dl.cls_unl['bb'][:an.lmax_ivf + 1] + df.a2r(cf.noisemodel.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
+                dl.ftl_unl =  cli(dl.cls_unl['tt'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
+                dl.fel_unl =  cli(dl.cls_unl['ee'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
+                dl.fbl_unl =  cli(dl.cls_unl['bb'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
             else:
                 log.info("Don't understand your input.")
                 sys.exit()
@@ -498,7 +501,7 @@ class l2lensrec_Transformer:
         def _process_Data(dl, da):
             dl.imin = da.IMIN
             dl.imax = da.IMAX
-            dl.simidxs = da.simidxs if da.simidxs != -1 else np.arange(dl.imin, dl.imax)
+            dl.simidxs = da.simidxs if da.simidxs != [] else np.arange(dl.imin, dl.imax)
 
             _package = da.package_
             if da.package_.startswith('lerepi'):
@@ -594,13 +597,11 @@ class l2lensrec_Transformer:
             elif qe.ninvjob_qe_geometry == 'healpix_geometry':
                 dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl.nside, zbounds=dl.zbounds)
 
-            if qe.FILTER_QE == 'sepTP':
-                dl.ninv_t, dl.ninvt_desc = l2OBD_Transformer.get_ninvt(cf)
-                dl.ninv_p, dl.ninvp_desc = l2OBD_Transformer.get_ninvp(cf)
+            if qe.ivfs == 'sepTP':
+                dl.ninvt_desc = l2OBD_Transformer.get_ninvt(cf)
+                dl.ninvp_desc = l2OBD_Transformer.get_ninvp(cf)
                 # TODO filters can be initialised with both, ninvX_desc and ninv_X. But Plancklens' hashcheck will complain if it changed since shapes are different. Not sure which one I want to use in the future..
                 # TODO using ninv_X possibly causes hashcheck to fail, as v1 == v2 won't work on arrays.
-                # dl.ninvt_desc = dl.ninv_t
-                # dl.ninvp_desc = dl.ninv_p 
                 dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), dl.lmax_ivf, dl.nside, dl.cls_len, dl.transf_tlm, dl.ninvt_desc,
                                 marge_monopole=True, marge_dipole=True, marge_maps=[])  
                 if dl.OBD_type == 'OBD':
@@ -620,10 +621,11 @@ class l2lensrec_Transformer:
                 dl.fel_rs = np.ones(dl.lmax_ivf + 1, dtype=float) * (np.arange(dl.lmax_ivf + 1) >= dl.lmin_elm)
                 dl.fbl_rs = np.ones(dl.lmax_ivf + 1, dtype=float) * (np.arange(dl.lmax_ivf + 1) >= dl.lmin_blm)
                 dl.ivfs   = filt_util.library_ftl(dl.ivfs_raw, dl.lmax_ivf, dl.ftl_rs, dl.fel_rs, dl.fbl_rs)
-
-                dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.ivfs, dl.ivfs, dl.cls_len['te'], dl.nside, lmax_qlm=dl.lmax_qlm)
+            elif qe.ivfs == 'simple':
+                dl.ivfs = filt_simple.library_fullsky_alms_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
             else:
                 assert 0, 'Implement if needed'
+            dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.ivfs, dl.ivfs, dl.cls_len['te'], dl.nside, lmax_qlm=dl.lmax_qlm)
 
             dl.QE_LENSING_CL_ANALYSIS = qe.QE_LENSING_CL_ANALYSIS
             if qe.QE_LENSING_CL_ANALYSIS == True:
@@ -651,7 +653,7 @@ class l2lensrec_Transformer:
         @log_on_start(logging.INFO, "_process_Itrec() started")
         @log_on_end(logging.INFO, "_process_Itrec() finished")
         def _process_Itrec(dl, it):
-            assert it.FILTER == 'opfilt_ee_wl.alm_filter_ninv_wl', 'Implement if needed, MAP filter needs to move to l2d'
+            assert it.FILTER in ['opfilt_ee_wl.alm_filter_ninv_wl', 'opfilt_iso_ee_wl.alm_filter_nlev_wl'] , 'Implement if needed, MAP filter needs to move to l2d'
             dl.FILTER = it.FILTER
 
             # TODO hack. We always want to subtract it atm. But possibly not in the future.
@@ -739,15 +741,14 @@ class l2OBD_Transformer:
     # @log_on_start(logging.INFO, "get_nlevt() started")
     # @log_on_end(logging.INFO, "get_nlevt() finished")
     def get_nlevt(cf):
-        _nlev_t = 0
-        if cf.noisemodel.CENTRALNLEV_UKAMIN != -1 and cf.noisemodel.nlev_t != -1:
-            _nlev_t = cf.noisemodel.CENTRALNLEV_UKAMIN/np.sqrt(2) if cf.noisemodel.nlev_t == -1 else cf.noisemodel.nlev_t
+        if type(cf.noisemodel.nlev_t) in [float, np.float64, int]:
+            _nlev_t = cf.noisemodel.nlev_t
         elif type(cf.noisemodel.nlev_t) == tuple:
-            _nlev_t = np.load(cf.noisemodel.nlev_t[0])
-            if cf.noisemodel.nlev_t[1] == 'cl':
+            _nlev_t = np.load(cf.noisemodel.nlev_t[1])
+            if cf.noisemodel.nlev_t[0] == 'cl':
                 # assume that nlev comes as cl. Scale to arcmin
                 _nlev_t = df.c2a(_nlev_t)
-
+                
         return _nlev_t
 
 
@@ -755,11 +756,11 @@ class l2OBD_Transformer:
     # @log_on_end(logging.INFO, "get_nlevp() finished")
     def get_nlevp(cf):
         _nlev_p = 0
-        if cf.noisemodel.CENTRALNLEV_UKAMIN != -1 and cf.noisemodel.nlev_p != -1:
-            _nlev_p = cf.noisemodel.CENTRALNLEV_UKAMIN if cf.noisemodel.nlev_p == -1 else cf.noisemodel.nlev_p
+        if type(cf.noisemodel.nlev_p) in [float, np.float64, int]:
+                _nlev_p = cf.noisemodel.nlev_p
         elif type(cf.noisemodel.nlev_p) == tuple:
-            _nlev_p = np.load(cf.noisemodel.nlev_p[0])
-            if cf.noisemodel.nlev_p[1] == 'cl':
+            _nlev_p = np.load(cf.noisemodel.nlev_p[1])
+            if cf.noisemodel.nlev_p[0] == 'cl':
                 # assume that nlev comes as cl. Scale to arcmin
                 _nlev_p = df.c2a(_nlev_p)
         
@@ -769,7 +770,7 @@ class l2OBD_Transformer:
     @log_on_start(logging.INFO, "get_ninvt() started")
     @log_on_end(logging.INFO, "get_ninvt() finished")
     def get_ninvt(cf):
-        nlev_t = l2OBD_Transformer.get_nlevp(cf)
+        nlev_t = l2OBD_Transformer.get_nlevt(cf)
         masks, noisemodel_rhits_map =  l2OBD_Transformer.get_masks(cf)
         noisemodel_norm = np.max(noisemodel_rhits_map)
         # TODO hack, needed for v1 and v2 compatibility
@@ -778,9 +779,9 @@ class l2OBD_Transformer:
         else:
             t_transf = gauss_beam(df.a2r(cf.data.beam), lmax=cf.analysis.lmax_ivf)
         ninv_desc = [np.array([hp.nside2pixarea(cf.data.nside, degrees=True) * 60 ** 2 / nlev_t ** 2])/noisemodel_norm] + masks
-        ninv_t = opfilt_pp.alm_filter_ninv([ninv_desc], t_transf, marge_qmaps=(), marge_umaps=()).get_ninv()
-
-        return ninv_t, ninv_desc
+        # ninv_t = opfilt_pp.alm_filter_ninv([ninv_desc], t_transf, marge_qmaps=(), marge_umaps=()).get_ninv()
+        # return ninv_t, ninv_desc
+        return ninv_desc
 
 
     @log_on_start(logging.INFO, "get_ninvp() started")
@@ -795,9 +796,9 @@ class l2OBD_Transformer:
         else:
             b_transf = gauss_beam(df.a2r(cf.data.beam), lmax=cf.analysis.lmax_ivf) # TODO ninv_p doesn't depend on this anyway, right?
         ninv_desc = [[np.array([hp.nside2pixarea(cf.data.nside, degrees=True) * 60 ** 2 / nlev_p ** 2])/noisemodel_norm] + masks]
-        ninv_p = opfilt_pp.alm_filter_ninv(ninv_desc, b_transf, marge_qmaps=(), marge_umaps=()).get_ninv()
-
-        return ninv_p, ninv_desc
+        # ninv_p = opfilt_pp.alm_filter_ninv(ninv_desc, b_transf, marge_qmaps=(), marge_umaps=()).get_ninv()
+        # return ninv_p, ninv_desc
+        return ninv_desc
 
 
     # @log_on_start(logging.INFO, "get_masks() started")
@@ -847,7 +848,7 @@ class l2OBD_Transformer:
                 dl.geom = utils_scarf.Geom.get_healpix_geometry(dl.nside)
                 dl.masks, dl.rhits_map = l2OBD_Transformer.get_masks(cf)
                 dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
-                dl.ninv_p = l2OBD_Transformer.get_ninvp(cf)
+                dl.ninv_p_desc = l2OBD_Transformer.get_ninvp(cf)
 
 
         dl = DLENSALOT_Concept()
@@ -880,7 +881,7 @@ class l2OBD_Transformer:
                 dl.geom = utils_scarf.Geom.get_healpix_geometry(dl.nside)
                 dl.masks, dl.rhits_map = l2OBD_Transformer.get_masks(cf)
                 dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
-                dl.ninv_p = l2OBD_Transformer.get_ninvp(cf)
+                dl.ninv_p_desc = l2OBD_Transformer.get_ninvp(cf)
 
 
         dl = DLENSALOT_Concept()
@@ -1031,7 +1032,7 @@ class l2d_Transformer:
 
             dl.imin = cf.data.IMIN
             dl.imax = cf.data.IMAX
-            dl.simidxs = cf.data.simidxs if cf.data.simidxs != -1 else np.arange(dl.imin, dl.imax)
+            dl.simidxs = cf.data.simidxs if cf.data.simidxs != [] else np.arange(dl.imin, dl.imax)
             dl.its = ma.iterations
 
             dl.Nmf = len(cf.analysis.simidxs_mf)
@@ -1088,8 +1089,11 @@ class l2d_Transformer:
                 elif ma.masks[0] == 'masks':
                     dl.mask_ids = np.zeros(shape=len(ma.masks[1]))
                     for fni, fn in enumerate(ma.masks[1]):
-                        buffer = np.load(fn)
-                        _fsky = float("{:0.2d}".format(np.sum(buffer)/len(buffer)))
+                        if fn.endswith('.fits'):
+                            buffer = hp.read_map(fn)
+                        else:
+                            buffer = np.load(fn)
+                        _fsky = float("{:0.2f}".format(np.sum(buffer)/len(buffer)))
                         dl.mask_ids[fni] = _fsky
                         dl.masks.update({_fsky:buffer})
 
