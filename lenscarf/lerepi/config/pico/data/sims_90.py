@@ -206,7 +206,7 @@ class ILC_Matthieu_Dec21:
         return teblm
 
 
-    def get_sim_pmap(self, idx, maporlm='lm'):
+    def get_sim_pmap(self, idx, maporlm='alm'):
         """returning plms instead, as we are using filt_simple.library_fullsky_alms_sepTP
 
         Args:
@@ -217,7 +217,7 @@ class ILC_Matthieu_Dec21:
         """
         Emap = np.nan_to_num(fits.open(self.path_E%idx)[0].data)
         Bmap = np.nan_to_num(fits.open(self.path_B%idx)[0].data)
-        if maporlm == 'lm':
+        if maporlm == 'alm':
             _ret = self.get_sim_plm(Emap, Bmap)
         elif maporlm == 'map':
             _ret = [0, Emap, Bmap]

@@ -433,9 +433,9 @@ class Map_delenser():
     def read_data_v2(self, edges_id=0):
         bcl_cs = np.zeros(shape=(len(self.its)+2, len(self.mask_ids), len(self.simidxs), len(self.edges[edges_id])-1))
         bcl_L = np.zeros(shape=(len(self.its)+2, len(self.mask_ids), len(self.simidxs), len(self.edges[edges_id])-1))
-        print('Loading {} sims from {}'.format(len(self.simidxs), self.TEMP + '/plotdata{}/{}'.format(self.vers_str,self.dirid[0])))
+        print('Loading {} sims from {}'.format(len(self.simidxs), self.TEMP + '/plotdata/{}/{}'.format(self.vers_str,self.dirid[0])))
         for simidx, simid in enumerate(self.simidxs):
-            data = np.load(self.TEMP + '/plotdata{}/{}'.format(self.vers_str,self.dirid[0]) + '/ClBBwf_sim%04d_fg%2s_res2b3acm.npy'%(simid, self.class_parameters['fg']))
+            data = np.load(self.TEMP + '/plotdata/{}/{}'.format(self.vers_str,self.dirid[0]) + '/ClBBwf_sim%04d_fg%2s_res2b3acm.npy'%(simid, self.class_parameters['fg']))
             bcl_L[0,:,simidx] = data[0][0]
             bcl_cs[0,:,simidx] = data[1][0]
 
@@ -486,11 +486,11 @@ class Map_delenser():
 
         '''Component separated polarisation maps lm, i.e. lenscarf input'''
 
-        return self.sims.get_sim_pmap(simidx, self.data_type)
+        return self.sims.get_sim_pmap(simidx)
 
 
-    # @log_on_start(logging.INFO, "getfn_qumap_cs() started")
-    # @log_on_end(logging.INFO, "getfn_qumap_cs() finished")
+    # @log_on_start(logging.INFO, "get_B_wf() started")
+    # @log_on_end(logging.INFO, "get_B_wf() finished")
     def get_B_wf(self, simidx):
         '''Component separated polarisation maps lm, i.e. lenscarf input'''
         # TODO this is a quickfix and works only for already existing bwflm's for 08bb

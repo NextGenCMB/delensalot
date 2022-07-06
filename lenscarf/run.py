@@ -11,8 +11,11 @@ import abc
 import traceback
 
 import lenscarf
-from lenscarf.lerepi.core.parser import lerepi_parser
 from lenscarf.lerepi.core import handler
+import lenscarf.lerepi.etc.dev_helper as dh
+from lenscarf.lerepi.etc.abstract import parserclass
+from lenscarf.lerepi.core.parser import lerepi_parser
+
 
 datefmt = "%m-%d %H:%M"
 FORMAT = '%(levelname)s:: %(asctime)s:: %(name)s.%(funcName)s - %(message)s'
@@ -26,14 +29,6 @@ sys_logger.addHandler(ConsoleOutputHandler)
 sys_logger.setLevel(logging.INFO)
 logging.basicConfig(level=logging.INFO, handlers=[ConsoleOutputHandler])
 logging.getLogger("healpy").disabled = True
-
-class parserclass:
-    """An abstract element base type for the parser formalism."""
-    __metaclass__ = abc.ABCMeta
-    resume = ''
-    config_file = ''
-    purgehashs = ''
-    status = ''
 
 
 class run():
@@ -57,8 +52,8 @@ if __name__ == '__main__':
         parser = lparser.get_parser()
 
     lerepi_handler = handler.handler(parser)
-    if "purgehashs" in parser.__dict__:
-        handler.purge(parser, lerepi_handler.TEMP)
+    if dh.dev_subr in parser.__dict__:
+        dh.dev(parser, lerepi_handler.TEMP)
         sys.exit()
     lerepi_handler.collect_jobs()
 

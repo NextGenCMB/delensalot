@@ -41,6 +41,8 @@ dlensalot_model = DLENSALOT_Model(
         class_parameters = {
             'fg': '07'
         },
+        data_type = 'map',
+        data_field = "qu",
         beam = 2.3,
         lmax_transf = 4000,
         nside = 2048

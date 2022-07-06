@@ -442,7 +442,6 @@ class l2lensrec_Transformer:
             dl.Lmin = an.Lmin
 
             dl.lmax_filt = an.lmax_filt
-
             dl.lmax_ivf = an.lmax_ivf
             dl.lmin_ivf = an.lmin_ivf
             dl.mmax_ivf = an.mmax_ivf
@@ -466,14 +465,14 @@ class l2lensrec_Transformer:
                 dl.transf_blm = gauss_beam(df.a2r(cf.data.beam), lmax=an.lmax_ivf) * (np.arange(an.lmax_ivf + 1) >= cf.noisemodel.lmin_blm)
 
                 # Isotropic approximation to the filtering (used eg for response calculations)
-                dl.ftl =  cli(dl.cls_len['tt'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
-                dl.fel =  cli(dl.cls_len['ee'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
-                dl.fbl =  cli(dl.cls_len['bb'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
+                dl.ftl = cli(dl.cls_len['tt'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
+                dl.fel = cli(dl.cls_len['ee'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
+                dl.fbl = cli(dl.cls_len['bb'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
 
                 # Same using unlensed spectra (used for unlensed response used to initiate the MAP curvature matrix)
-                dl.ftl_unl =  cli(dl.cls_unl['tt'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
-                dl.fel_unl =  cli(dl.cls_unl['ee'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
-                dl.fbl_unl =  cli(dl.cls_unl['bb'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
+                dl.ftl_unl = cli(dl.cls_unl['tt'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
+                dl.fel_unl = cli(dl.cls_unl['ee'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
+                dl.fbl_unl = cli(dl.cls_unl['bb'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
 
             elif dl.STANDARD_TRANSFERFUNCTION == 'with_pixwin':
                 # Fiducial model of the transfer function
@@ -482,14 +481,14 @@ class l2lensrec_Transformer:
                 dl.transf_blm = gauss_beam(df.a2r(cf.data.beam), lmax=an.lmax_ivf) * hp.pixwin(2048, lmax=an.lmax_ivf) * (np.arange(an.lmax_ivf + 1) >= cf.noisemodel.lmin_blm)
 
                 # Isotropic approximation to the filtering (used eg for response calculations)
-                dl.ftl =  cli(dl.cls_len['tt'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
-                dl.fel =  cli(dl.cls_len['ee'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
-                dl.fbl =  cli(dl.cls_len['bb'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
+                dl.ftl = cli(dl.cls_len['tt'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
+                dl.fel = cli(dl.cls_len['ee'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
+                dl.fbl = cli(dl.cls_len['bb'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
 
                 # Same using unlensed spectra (used for unlensed response used to initiate the MAP curvature matrix)
-                dl.ftl_unl =  cli(dl.cls_unl['tt'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
-                dl.fel_unl =  cli(dl.cls_unl['ee'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
-                dl.fbl_unl =  cli(dl.cls_unl['bb'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
+                dl.ftl_unl = cli(dl.cls_unl['tt'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
+                dl.fel_unl = cli(dl.cls_unl['ee'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
+                dl.fbl_unl = cli(dl.cls_unl['bb'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
             else:
                 log.info("Don't understand your input.")
                 sys.exit()
@@ -1172,7 +1171,7 @@ class l2d_Transformer:
                     dl.sha_edges[n].update(str(dl.edges[n]).encode())
                 dl.dirid = [dl.sha_edges[n].hexdigest()[:4] for n in range(len(dl.edges))]
                 dl.edges_center = np.array([(e[1:]+e[:-1])/2 for e in dl.edges])
-                dl.ct = dl.clc_templ[np.array(dl.edges_center,dtype=int)]
+                dl.ct = np.array([[dl.clc_templ[np.array(ec,dtype=int)]for ec in edge] for edge in dl.edges_center])
             elif dl.binning == 'unbinned':
                 dl.lmax = 200
                 dl.lmax_mask = 6*dl.lmax-1
