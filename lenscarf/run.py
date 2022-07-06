@@ -37,13 +37,13 @@ class parserclass:
 
 
 class run():
-    def __init__(self, config, job_id):
+    def __init__(self, config, job_id, madel_kwargs={}):
         parser = parserclass()
         parser.resume =  ""
         parser.config_file = config
         parser.status = ''
 
-        lerepi_handler = handler.handler(parser)
+        lerepi_handler = handler.handler(parser, madel_kwargs)
         lerepi_handler.collect_jobs()
         jobs = lerepi_handler.get_jobs()
         for jobdict in jobs:

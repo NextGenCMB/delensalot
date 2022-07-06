@@ -112,7 +112,7 @@ class scarf_iterator_pertmf():
     @log_on_end(logging.INFO, "get_filter() finished")
     def get_filter(self, sims_MAP=None, ffi=None, tpl=None):
         assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
-        if self.FILTER == 'opfilt_iso_ee_wl.alm_filter_nlev_wl':
+        if self.filter == 'opfilt_iso_ee_wl.alm_filter_nlev_wl':
             filter = self.get_filter_iso()
         else:
             filter = self.get_filter_aniso(sims_MAP, ffi, tpl)
@@ -225,7 +225,7 @@ class scarf_iterator_constmf():
     @log_on_end(logging.INFO, "get_filter() finished")
     def get_filter(self, sims_MAP=None, ffi=None, tpl=None):
         assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
-        if self.FILTER == 'opfilt_iso_ee_wl.alm_filter_nlev_wl':
+        if self.filter == 'opfilt_iso_ee_wl.alm_filter_nlev_wl':
             filter = self.get_filter_iso()
         else:
             filter = self.get_filter_aniso(sims_MAP, ffi, tpl)

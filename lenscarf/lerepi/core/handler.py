@@ -30,13 +30,14 @@ from lenscarf.lerepi.core.transformer.lerepi2status import l2j_Transformer as l2
 class handler():
     """_summary_
     """
-    def __init__(self, parser):
+    def __init__(self, parser, madel_kwargs={}):
         """_summary_
 
         Args:
             parser (_type_): _description_
         """
         self.configfile = handler.load_configfile(parser.config_file, 'configfile')
+        self.configfile.dlensalot_model.madel.__dict__.update(madel_kwargs)
         TEMP = transform(self.configfile.dlensalot_model, l2T_Transformer())
         if parser.status == '':
             if mpi.rank == 0:

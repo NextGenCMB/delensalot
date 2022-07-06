@@ -34,6 +34,10 @@ scale_lp = ll**2 * (ll + 1)**2 * 1e7 / (2 * np.pi)
 
 psl = r'$\frac{l(l+1)}{2\pi}C_\ell \/ [\mu K^2]$'
 
+CB_color_cycle = ["#88CCEE", "#CC6677", "#DDCC77", "#117733", "#332288", "#AA4499", 
+"#44AA99", "#999933", "#882255", "#661100", "#6699CC", "#888888"]
+CB_color_cycle_lighter = ["#68ACCE", "#AC4657", "#ADAC57", "#005713", "#130268", "#8A2479", 
+"#248A79", "#797913", "#680235", "#460000", "#4679AC", "#686868"]
 
 def load_paramfile(directory, descriptor):
     """Load parameterfile

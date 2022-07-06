@@ -15,12 +15,9 @@ dlensalot_model = DLENSALOT_Model(
         OMP_NUM_THREADS = 16
     ),
     analysis = DLENSALOT_Analysis(
-        TEMP_suffix = 'highcut5',
+        TEMP_suffix = '',
         K = 'p_p',
         V = 'noMF',
-        zbounds =  (-1,1),
-        zbounds_len = (-1,1),   
-        pbounds = [0, 2*np.pi],
         simidxs_mf = np.arange(0),
         ITMAX = 10,
         LENSRES = 1.7,
@@ -44,6 +41,8 @@ dlensalot_model = DLENSALOT_Model(
         class_parameters = {
             'fg': '91'
         },
+        data_type = 'map',
+        data_field = "eb",
         beam = 8.0,
         lmax_transf = 2048,
         nside = 2048
@@ -52,7 +51,7 @@ dlensalot_model = DLENSALOT_Model(
         typ = 'trunc',
         ninvjob_geometry = 'healpix_geometry',
         lmin_tlm = 30,
-        lmin_elm = 10,
+        lmin_elm = 2,
         lmin_blm = 200,
         CENTRALNLEV_UKAMIN = 2.0,
         nlev_t = ('cl', opj(os.environ['SCRATCH'], 'data/pico/noise/Clsmooth_julien.npy')),
@@ -62,7 +61,7 @@ dlensalot_model = DLENSALOT_Model(
     qerec = DLENSALOT_Qerec(
         ivfs = 'simple',
         qlms = 'sepTP',
-        CG_TOL = 1e-3,
+        cg_tol = 1e-4,
         ninvjob_qe_geometry = 'healpix_geometry_qe',
         lmax_qlm = 2500,
         mmax_qlm = 2500,
@@ -79,8 +78,8 @@ dlensalot_model = DLENSALOT_Model(
         )
     ),
     itrec = DLENSALOT_Itrec(
-        FILTER = 'opfilt_iso_ee_wl.alm_filter_nlev_wl',
-        TOL = 1e-4,
+        filter = 'opfilt_iso_ee_wl.alm_filter_nlev_wl',
+        cg_tol = 1e-5,
         tasks = ["calc_phi", "calc_btemplate"], #["calc_phi", "calc_meanfield", "calc_btemplate"],
         lenjob_geometry = 'thin_gauss',
         lenjob_pbgeometry = 'pbdGeometry',
@@ -95,10 +94,11 @@ dlensalot_model = DLENSALOT_Model(
     ),
     madel = DLENSALOT_Mapdelensing(
         iterations = [8,10],
-        masks = ("masks", [opj(os.environ['CFS'], "pico/reanalysis/nilc/ns2048/nilc_pico_mask_ns2048.fits")]), #("nlevels", [1.2, 2, 10, 50])
-        lmax_cl = 200,
+        edges = ['ioreco'], # overwritten when binning=unbinned
+        masks = ("masks", [None, opj(os.environ['CFS'], "pico/reanalysis/nilc/ns2048/nilc_pico_mask_ns2048.fits")]), #("nlevels", [1.2, 2, 10, 50])
+        lmax = 2048, # automatically set to 200 when binning=unbinned
         Cl_fid = 'ffp10',
-        spectrum_type = 'unbinned',
+        binning = 'unbinned',
         spectrum_calculator = pospace
     )
 )

@@ -97,6 +97,8 @@ class DLENSALOT_Data(DLENSALOT_Concept):
     package_ = attr.ib(default=None)
     module_ = attr.ib(default=None)
     class_ = attr.ib(default=None)
+    data_type = attr.ib(default=None)
+    data_field = attr.ib(default=None)
     beam = attr.ib(default=None)
     lmax_transf = attr.ib(default=np.nan)
     nside = attr.ib(default=np.nan)
@@ -136,7 +138,7 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     """
     ivfs = attr.ib(default=None)
     qlms = attr.ib(default=None)
-    CG_TOL = attr.ib(default=np.nan)
+    cg_tol = attr.ib(default=np.nan)
     ninvjob_qe_geometry = attr.ib(default=None)
     lmax_qlm = attr.ib(default=np.nan)
     mmax_qlm = attr.ib(default=np.nan)
@@ -152,8 +154,8 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     Attributes:
         typ:
     """
-    FILTER = attr.ib(default=None)
-    TOL = attr.ib(default=np.nan)
+    filter = attr.ib(default=None)
+    cg_tol = attr.ib(default=np.nan)
     lenjob_geometry = attr.ib(default=None)
     lenjob_pbgeometry = attr.ib(default=None)
     iterator_typ = attr.ib(default=None)
@@ -176,10 +178,10 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
     iterations = attr.ib(default=-1)
     base_mask = attr.ib(default=-1)
     masks = attr.ib(default=None)
-    lmax_cl = attr.ib(default=-1)
+    lmax = attr.ib(default=-1)
     Cl_fid = attr.ib(default=-1)
     libdir_it = attr.ib(default=None)
-    spectrum_type = attr.ib(default=-1)
+    binning = attr.ib(default=-1)
     spectrum_calculator = attr.ib(default=None)
 
 

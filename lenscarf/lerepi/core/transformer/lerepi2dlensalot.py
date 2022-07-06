@@ -182,7 +182,7 @@ class l2lensrec_Transformer:
             else:
                 dl.tol_iter = lambda itr : 1*10 ** (- dl.tol) if itr <= 10 else 1*10 ** (-(dl.tol+1))
             dl.soltn_cond = iteration.soltn_cond # Uses (or not) previous E-mode solution as input to search for current iteration one
-            dl.cg_tol = iteration.CG_TOL
+            dl.cg_tol = iteration.cg_tol
 
             dl.cpp = np.copy(dl.cls_unl['pp'][:dl.lmax_qlm + 1])
             dl.cpp[:iteration.Lmin] *= 0.
@@ -223,13 +223,13 @@ class l2lensrec_Transformer:
                     transf_elm_loc = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=iteration.lmax_ivf)
                     dl.cinv_p = cinv_p_OBD.cinv_p(
                         opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, dl.nside, dl.cls_len, transf_elm_loc[:dl.lmax_ivf+1], 
-                        dl.ninvp_desc, geom=dl.ninvjob_qe_geometry, chain_descr=dl.chain_descr(iteration.lmax_ivf, iteration.CG_TOL),
+                        dl.ninvp_desc, geom=dl.ninvjob_qe_geometry, chain_descr=dl.chain_descr(iteration.lmax_ivf, iteration.cg_tol),
                         bmarg_lmax=dl.BMARG_LCUT, zbounds=dl.zbounds, _bmarg_lib_dir=dl.BMARG_LIBDIR, _bmarg_rescal=dl.BMARG_RESCALE,
                         sht_threads=cf.iteration.OMP_NUM_THREADS)
                 elif dl.OBD_type == 'trunc' or dl.OBD_type == None or dl.OBD_type == 'None':
                     dl.cinv_p = filt_cinv.cinv_p(
                         opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, dl.nside, dl.cls_len,
-                        dl.transf_elm, dl.ninvp_desc, chain_descr=dl.chain_descr(iteration.lmax_ivf, iteration.CG_TOL), transf_blm=dl.transf_blm,
+                        dl.transf_elm, dl.ninvp_desc, chain_descr=dl.chain_descr(iteration.lmax_ivf, iteration.cg_tol), transf_blm=dl.transf_blm,
                         marge_qmaps=(), marge_umaps=())
                 else:
                     log.error("Don't understand your OBD_typ input. Exiting..")
@@ -516,9 +516,28 @@ class l2lensrec_Transformer:
 
             if 'fg' in dl.dataclass_parameters:
                 dl.fg = dl.dataclass_parameters['fg']
+
+            if da.data_type is None:
+                log.info("must specify data_type")
+                sys.exit()
+            elif da.data_type in ['map', 'alm']:
+                dl.data_type = da.data_type
+            else:
+                log.info("Don't understand your data_type: {}".format(da.data_type))
+                sys.exit()
+
+            if da.data_field is None:
+                log.info("must specify data_type")
+                sys.exit()
+            elif da.data_field in ['eb', 'qu']:
+                dl.data_field = da.data_field
+            else:
+                log.info("Don't understand your data_field: {}".format(da.data_field))
+                sys.exit()
+
             dl.beam = da.beam
             dl.lmax_transf = da.lmax_transf
-            dl.transf_data = gauss_beam(df.a2r(cf.data.beam), lmax=dl.lmax_transf)
+            # dl.transf_data = gauss_beam(df.a2r(cf.data.beam), lmax=dl.lmax_transf)
 
 
         @log_on_start(logging.INFO, "_process_Noisemodel() started")
@@ -577,7 +596,7 @@ class l2lensrec_Transformer:
         def _process_Qerec(dl, qe):
             dl.lmax_qlm = qe.lmax_qlm
             dl.mmax_qlm = qe.mmax_qlm
-            dl.cg_tol = qe.CG_TOL
+            dl.cg_tol = qe.cg_tol
 
             dl.chain_model = qe.chain
             # TODO hacky solution. Redo if needed
@@ -651,8 +670,8 @@ class l2lensrec_Transformer:
         @log_on_start(logging.INFO, "_process_Itrec() started")
         @log_on_end(logging.INFO, "_process_Itrec() finished")
         def _process_Itrec(dl, it):
-            assert it.FILTER in ['opfilt_ee_wl.alm_filter_ninv_wl', 'opfilt_iso_ee_wl.alm_filter_nlev_wl'] , 'Implement if needed, MAP filter needs to move to l2d'
-            dl.FILTER = it.FILTER
+            assert it.filter in ['opfilt_ee_wl.alm_filter_ninv_wl', 'opfilt_iso_ee_wl.alm_filter_nlev_wl'] , 'Implement if needed, MAP filter needs to move to l2d'
+            dl.filter = it.filter
             dl.ivfs_qe = cf.qerec.ivfs
 
             # TODO hack. We always want to subtract it atm. But possibly not in the future.
@@ -663,18 +682,18 @@ class l2lensrec_Transformer:
                 dl.subtract_meanfield = True
 
             dl.tasks = it.tasks
-            if it.TOL < 1.:
+            if it.cg_tol < 1.:
                 # TODO hack. For cases where TOL is not only the exponent. Remove exponent-only version.
-                dl.tol_iter = lambda itr : it.TOL if itr <= 10 else it.TOL*0.1
+                dl.cg_tol = lambda itr : it.cg_tol if itr <= 10 else it.cg_tol*0.1
             else:
-                dl.tol = it.TOL
+                dl.cg_tol = it.cg_tol
                 if 'rinf_tol4' in cf.data.TEMP_suffix:
                     log.warning('tol_iter increased for this run. This is hardcoded.')
-                    dl.tol_iter = lambda itr : 2*10 ** (- dl.tol) if itr <= 10 else 2*10 ** (-(dl.tol+1))
+                    dl.cg_tol = lambda itr : 2*10 ** (- dl.cg_tol) if itr <= 10 else 2*10 ** (-(dl.cg_tol+1))
                 elif 'tol5e5' in cf.data.TEMP_suffix:
-                    dl.tol_iter = lambda itr : 1*10 ** (- dl.tol) 
+                    dl.cg_tol = lambda itr : 1*10 ** (- dl.cg_tol) 
                 else:
-                    dl.tol_iter = lambda itr : 1*10 ** (- dl.tol) if itr <= 10 else 1*10 ** (-(dl.tol+1))
+                    dl.cg_tol = lambda itr : 1*10 ** (- dl.cg_tol) if itr <= 10 else 1*10 ** (-(dl.cg_tol+1))
             dl.soltn_cond = it.soltn_cond
 
             if it.lenjob_geometry == 'thin_gauss':
@@ -706,7 +725,7 @@ class l2lensrec_Transformer:
         _process_Qerec(dl, cf.qerec)
         _process_Itrec(dl, cf.itrec)
 
-        # TODO hack. Refactor
+        # TODO belongs to l2T
         if "calc_meanfield" in dl.tasks:
             if dl.version == '' or dl.version == None:
                 dl.mf_dirname = opj(dl.TEMP, 'mf_{:03d}'.format(dl.Nmf))
@@ -958,8 +977,8 @@ class l2d_Transformer:
                         dl.masks.update({_fsky:buffer})
                         
             dl.nside = de.nside
-            dl.lmax_cl = de.lmax_cl
-            dl.lmax_lib = 3*dl.lmax_cl-1
+            dl.lmax = de.lmax
+            dl.lmax_lib = 3*dl.lmax-1
             dl.beam = de.beam
             dl.lmax_transf = de.lmax_transf
             if de.transf == 'gauss':
@@ -973,8 +992,8 @@ class l2d_Transformer:
                 dl.clg_templ[0] = 1e-32
                 dl.clg_templ[1] = 1e-32
 
-            dl.spectrum_type = de.spectrum_type
-            if dl.spectrum_type == 'binned':
+            dl.binning = de.binning
+            if dl.binning == 'binned':
                 dl.sha_edges = [hashlib.sha256() for n in range(len(dl.edges))]
                 for n in range(len(dl.edges)):
                     dl.sha_edges[n].update(str(dl.edges[n]).encode())
@@ -999,7 +1018,7 @@ class l2d_Transformer:
 
             dl.dlm_mod_bool = cf.de.dlm_mod
             # TODO don't like this too much
-            if dl.spectrum_type == 'binned':
+            if dl.binning == 'binned':
                 if dl.dlm_mod_bool:
                     dl.file_op = lambda idx, fg, edges_idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edges_idx]) + '/ClBBwf_sim%04d_%s_fg%s_res2b3acm.npy'%(idx, 'dlmmod', fg)
                 else:
@@ -1035,11 +1054,29 @@ class l2d_Transformer:
             dl._package = cf.data.package_
             dl._module = cf.data.module_
             dl._class = cf.data.class_
-            dl.dataclass_parameters = cf.data.class_parameters
+            dl.class_parameters = cf.data.class_parameters
             _sims_full_name = '{}.{}'.format(dl._package, dl._module)
             _sims_module = importlib.import_module(_sims_full_name)
-            dl.sims = getattr(_sims_module, dl._class)(**dl.dataclass_parameters)
+            dl.sims = getattr(_sims_module, dl._class)(**dl.class_parameters)
             dl.nside = cf.data.nside
+
+            if cf.data.data_type is None:
+                log.info("must specify data_type")
+                sys.exit()
+            elif cf.data.data_type in ['map', 'alm']:
+                dl.data_type = cf.data.data_type
+            else:
+                log.info("Don't understand your data_type: {}".format(cf.data.data_type))
+                sys.exit()
+
+            if cf.data.data_field is None:
+                log.info("must specify data_type")
+                sys.exit()
+            elif cf.data.data_field in ['eb', 'qu']:
+                dl.data_field = cf.data.data_field
+            else:
+                log.info("Don't understand your data_field: {}".format(cf.data.data_field))
+                sys.exit()
 
             # TODO hack. this is only needed to access old s08b data
             # Remove and think of a better way of including old data without existing config file
@@ -1083,7 +1120,10 @@ class l2d_Transformer:
                 elif ma.masks[0] == 'masks':
                     dl.mask_ids = np.zeros(shape=len(ma.masks[1]))
                     for fni, fn in enumerate(ma.masks[1]):
-                        if fn.endswith('.fits'):
+                        if fn == None:
+                            buffer = np.ones(shape=hp.nside2npix(dl.nside))
+                            dl.mask_ids[fni] = 1.00
+                        elif fn.endswith('.fits'):
                             buffer = hp.read_map(fn)
                         else:
                             buffer = np.load(fn)
@@ -1094,12 +1134,15 @@ class l2d_Transformer:
                 dl.masks = {"no":{1.00:np.ones(shape=hp.nside2npix(dl.nside))}}
                 dl.mask_ids = np.array([1.00])
 
-            dl.lmax_cl = ma.lmax_cl
-            dl.lmax_mask = 3*dl.lmax_cl-1
             dl.beam = cf.data.beam
             dl.lmax_transf = cf.data.lmax_transf
-            dl.transf = gauss_beam(df.a2r(dl.beam), lmax=dl.lmax_transf)
-
+            if cf.analysis.STANDARD_TRANSFERFUNCTION == True:
+                dl.transf = gauss_beam(df.a2r(dl.beam), lmax=dl.lmax_transf)
+            elif cf.analysis.STANDARD_TRANSFERFUNCTION == 'with_pixwin':
+                dl.transf = gauss_beam(df.a2r(dl.beam), lmax=dl.lmax_transf) * hp.pixwin(cf.data.nside, lmax=dl.lmax_transf)
+            else:
+                log.info("Don't understand your STANDARD_TRANSFERFUNCTION: {}".format(cf.analysis.STANDARD_TRANSFERFUNCTION))
+            
             if ma.Cl_fid == 'ffp10':
                 dl.cls_path = opj(os.path.dirname(plancklens.__file__), 'data', 'cls')
                 dl.cls_len = utils.camb_clfile(opj(dl.cls_path, 'FFP10_wdipole_lensedCls.dat'))
@@ -1108,25 +1151,34 @@ class l2d_Transformer:
                 dl.clg_templ[0] = 1e-32
                 dl.clg_templ[1] = 1e-32
 
-            dl.spectrum_type = ma.spectrum_type
-            if dl.spectrum_type == 'binned':
+            dl.binning = ma.binning
+            if dl.binning == 'binned':
+                dl.lmax = ma.lmax
+                dl.lmax_mask = 3*dl.lmax-1
                 dl.edges = []
+                dl.edges_id = []
                 if ma.edges != -1:
                     if 'cmbs4' in ma.edges:
                         dl.edges.append(lc.cmbs4_edges)
+                        dl.edges_id.append('cmbs4')
                     if 'ioreco' in ma.edges:
                         dl.edges.append(lc.ioreco_edges) 
+                        dl.edges_id.append('ioreco')
                     elif 'fs' in ma.edges:
                         dl.edges.append(lc.fs_edges)
+                        dl.edges_id.append('fs')
                 dl.sha_edges = [hashlib.sha256() for n in range(len(dl.edges))]
                 for n in range(len(dl.edges)):
                     dl.sha_edges[n].update(str(dl.edges[n]).encode())
                 dl.dirid = [dl.sha_edges[n].hexdigest()[:4] for n in range(len(dl.edges))]
                 dl.edges_center = np.array([(e[1:]+e[:-1])/2 for e in dl.edges])
                 dl.ct = dl.clc_templ[np.array(dl.edges_center,dtype=int)]
-            elif dl.spectrum_type == 'unbinned':
-                dl.edges = ma.edges
-                dl.edges_center = dl.edges[1:]
+            elif dl.binning == 'unbinned':
+                dl.lmax = 200
+                dl.lmax_mask = 6*dl.lmax-1
+                dl.edges = np.array([np.arange(0,dl.lmax+2)])
+                dl.edges_id = [dl.binning]
+                dl.edges_center = dl.edges[:,1:]
                 dl.ct = np.ones(shape=len(dl.edges_center))
                 dl.sha_edges = [hashlib.sha256()]
                 dl.sha_edges[0].update('unbinned'.encode())
@@ -1144,7 +1196,7 @@ class l2d_Transformer:
             # TODO II
             # TODO fn needs changing
             dl.dlm_mod_bool = ma.dlm_mod
-            if dl.spectrum_type == 'binned':
+            if dl.binning == 'binned':
                 if dl.dlm_mod_bool:
                     dl.file_op = lambda idx, fg, edges_idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edges_idx]) + '/ClBBwf_sim%04d_%s_fg%s_res2b3acm.npy'%(idx, 'dlmmod', fg)
                 else:
@@ -1162,11 +1214,11 @@ class l2d_Transformer:
                 dl.cl_calc = ma.spectrum_calculator       
                 
         def _check_powspeccalculator(clc):
-            if dl.spectrum_type == 'binned':
+            if dl.binning == 'binned':
                 if 'map2cl_binned' not in clc.__dict__:
                     log.error("Spectrum calculator doesn't provide needed function map2cl_binned() for binned spectrum calculation")
                     sys.exit()
-            elif dl.spectrum_type == 'unbinned':
+            elif dl.binning == 'unbinned':
                 if 'map2cl' not in clc.__dict__:
                     if 'anafast' not in clc.__dict__:
                         log.error("Spectrum calculator doesn't provide needed function map2cl() or anafast() for unbinned spectrum calculation")
@@ -1178,18 +1230,6 @@ class l2d_Transformer:
         _check_powspeccalculator(dl.cl_calc)
 
         return dl
-
-
-class l2s_Transformer:
-    """lerepi2statusreport transformation
-
-    Returns:
-        _type_: _description_
-    """
-    @log_on_start(logging.INFO, "build() started")
-    @log_on_end(logging.INFO, "build() finished")
-    def build(self, cf):
-        pass
 
 
 class l2m_Transformer:

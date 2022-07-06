@@ -303,9 +303,9 @@ class MAP_lr():
                         itlib = self.ith(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
                         itlib_iterator = itlib.get_iterator()
                         for it in range(self.itmax + 1):
-                            log.info("using cg-tol = %.4e"%self.tol_iter(it))
+                            log.info("using cg-tol = %.4e"%self.cg_tol(it))
                             log.info("using soltn_cond = %s"%self.soltn_cond(it))
-                            itlib_iterator.chain_descr = self.chain_descr(self.lmax_unl, self.tol_iter(it))
+                            itlib_iterator.chain_descr = self.chain_descr(self.lmax_unl, self.cg_tol(it))
                             itlib_iterator.soltn_cond = self.soltn_cond(it)
                             itlib_iterator.iterate(it, 'p')
                             log.info('{}, simidx {} done with it {}'.format(mpi.rank, idx, it))
@@ -365,8 +365,7 @@ class MAP_lr():
         else:
             plm = rec.load_plms(self.libdir_iterators(self.k, self.simidxs[0], self.version), [0])[-1]
             mf = np.zeros_like(plm)
-            # Assuming that simidx = meanfield inidices
-            for simidx in self.simidxs:
+            for simidx in self.simidxs_mf:
                 log.info("it {:02d}: adding sim {:03d}/{}".format(it, simidx, self.Nmf))
                 mf += rec.load_plms(self.libdir_iterators(self.k, simidx, self.version), [it])[-1]
             np.save(fn, mf/self.Nmf)
@@ -431,30 +430,28 @@ class Map_delenser():
 
     @log_on_start(logging.INFO, "read_data_v2() started")
     @log_on_end(logging.INFO, "read_data_v2() finished")
-    def read_data_v2(self, dm, simids=None, edges=None, dir_idx=0):
-        bcl_cs = np.zeros(shape=(len(self.iterations)+2, len(self.nlevels), len(self.simids), len(self.edges)-1))
-        bcl_L = np.zeros(shape=(len(self.iterations)+2, len(self.nlevels), len(self.simids), len(self.edges)-1))
-        print('Loading {} sims from {}'.format(len(self.simids), self.TEMP + '/plotdata{}/{}'.format(self.vers_str,self.dirid[dir_idx])))
-        for simidx, simid in enumerate(self.simids):
-            data = np.load(self.TEMP + '/plotdata{}/{}'.format(self.vers_str,self.dirid[dir_idx]) + '/ClBBwf_sim%04d_fg%2s_res2b3acm.npy'%(simid, dm.data.class_parameters['fg']))
+    def read_data_v2(self, edges_id=0):
+        bcl_cs = np.zeros(shape=(len(self.its)+2, len(self.mask_ids), len(self.simidxs), len(self.edges[edges_id])-1))
+        bcl_L = np.zeros(shape=(len(self.its)+2, len(self.mask_ids), len(self.simidxs), len(self.edges[edges_id])-1))
+        print('Loading {} sims from {}'.format(len(self.simidxs), self.TEMP + '/plotdata{}/{}'.format(self.vers_str,self.dirid[0])))
+        for simidx, simid in enumerate(self.simidxs):
+            data = np.load(self.TEMP + '/plotdata{}/{}'.format(self.vers_str,self.dirid[0]) + '/ClBBwf_sim%04d_fg%2s_res2b3acm.npy'%(simid, self.class_parameters['fg']))
             bcl_L[0,:,simidx] = data[0][0]
             bcl_cs[0,:,simidx] = data[1][0]
 
             bcl_L[1,:,simidx] = data[0][1]
             bcl_cs[1,:,simidx] = data[1][1]
 
-            for iti, it in enumerate(self.iterations):
+            for iti, it in enumerate(self.its):
                 bcl_L[2+iti,:,simidx] = data[0][2+iti]
                 bcl_cs[2+iti,:,simidx] = data[1][2+iti]
-
-        print('dirid: {}'.format(self.dirid[dir_idx]))
 
         return bcl_L, bcl_cs
 
 
     # @log_on_start(logging.INFO, "getfn_blm_lensc() started")
     # @log_on_end(logging.INFO, "getfn_blm_lensc() finished")
-    def getfn_blm_lensc(self, simidx, it, Nmf=None):
+    def getfn_blm_lensc(self, simidx, it):
         '''Lenscarf output using Catherinas E and B maps'''
         # TODO this needs cleaner implementation via lambda
         # _libdir_iterator = self.libdir_iterators(self.k, simidx, self.version)
@@ -476,11 +473,11 @@ class Map_delenser():
             # TODO fn needs to be defined in l2d
             # TODO only QE it 0 doesn't exists because no modification is done to it. catching this. Can this be done better?
             if it == 0:
-                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024%03d.npy'%(it, it, Nmf)
+                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024%03d.npy'%(it, it, self.Nmf)
             if self.dlm_mod_bool:
-                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024_dlmmod%03d.npy'%(it, it, Nmf)
+                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024_dlmmod%03d.npy'%(it, it, self.Nmf)
             else:
-                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024%03d.npy'%(it, it, Nmf)
+                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024%03d.npy'%(it, it, self.Nmf)
 
             
     # @log_on_start(logging.INFO, "getfn_qumap_cs() started")
@@ -489,7 +486,7 @@ class Map_delenser():
 
         '''Component separated polarisation maps lm, i.e. lenscarf input'''
 
-        return self.sims.get_sim_pmap(simidx, 'map')
+        return self.sims.get_sim_pmap(simidx, self.data_type)
 
 
     # @log_on_start(logging.INFO, "getfn_qumap_cs() started")
@@ -503,6 +500,15 @@ class Map_delenser():
             return np.load(bw_fn)
         else:
             assert 0, "File {} doesn't exist".format(bw_fn)
+
+
+    # @log_on_start(logging.INFO, "get_teblm_ffp10() started")
+    # @log_on_end(logging.INFO, "get_teblm_ffp10() finished")
+    def get_teblm_ffp10(self, simidx):
+        '''Pure BB-lensing from ffp10''' 
+        ret = hp.almxfl(utils.alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(simidx), lmax=self.lmax), self.transf)
+
+        return ret
 
 
     @log_on_start(logging.INFO, "collect_jobs() started")
@@ -529,14 +535,14 @@ class Map_delenser():
         @log_on_end(logging.INFO, "_prepare_job() finished")
         def _prepare_job(edges=[]):
             masktype = list(self.masks.keys())[0]
-            if self.spectrum_type == 'binned':
+            if self.binning == 'binned':
                 outputdata = np.zeros(shape=(2, 2+len(self.its), len(self.mask_ids), len(edges)-1))
                 for mask_id, mask in self.masks[masktype].items():
                     self.lib.update({mask_id: self.cl_calc.map2cl_binned(mask, self.clc_templ[:self.lmax_mask], edges, self.lmax_mask)})
-            elif self.spectrum_type == 'unbinned':
+            elif self.binning == 'unbinned':
                 for mask_id, mask in self.masks[masktype].items():
-                    a = overwrite_anafast() if self.cl_calc == hp else masked_lib(mask, self.cl_calc, self.lmax_cl, self.lmax_mask)
-                    outputdata = np.zeros(shape=(2, 2+len(self.its), len(self.mask_ids), self.lmax_cl+1))
+                    a = overwrite_anafast() if self.cl_calc == hp else masked_lib(mask, self.cl_calc, self.lmax, self.lmax_mask)
+                    outputdata = np.zeros(shape=(2, 2+len(self.its), len(self.mask_ids), self.lmax+1))
                     self.lib.update({mask_id: a})
 
             return outputdata
@@ -545,15 +551,28 @@ class Map_delenser():
         @log_on_start(logging.INFO, "_build_basemaps() started")
         @log_on_end(logging.INFO, "_build_basemaps() finished")
         def _build_basemaps(idx):
-            qumap_cs = self.getfn_qumap_cs(idx)
-            eblm_cs = hp.map2alm_spin(qumap_cs*self.base_mask, 2, self.lmax_cl)
-            bmap_cs = hp.alm2map(eblm_cs[1], self.nside)
+            if self.data_type == 'map':
+                if self.data_field == 'qu':
+                    map_cs = self.getfn_qumap_cs(idx)
+                    eblm_cs = hp.map2alm_spin(map_cs*self.base_mask, 2, self.lmax)
+                    bmap_cs = hp.alm2map(eblm_cs[1], self.nside)
+                elif self.data_field == 'eb':
+                    map_cs = self.getfn_qumap_cs(idx)
+                    teblm_cs = hp.map2alm([np.zeros_like(map_cs[0]), *map_cs], lmax=self.lmax, pol=False)
+                    bmap_cs = hp.alm2map(teblm_cs[2], self.nside)
+            elif self.data_type == 'alm':
+                if self.data_field == 'eb':
+                    eblm_cs = self.getfn_qumap_cs(idx)
+                    bmap_cs = hp.alm2map(eblm_cs[1], self.nside)
+                elif self.data_field == 'qu':
+                    log.error("I don't think you have qlms,ulms")
+                    sys.exit()
 
             # TODO fiducial choice should happen at transformer
-            blm_L = hp.almxfl(utils.alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(idx), lmax=self.lmax_cl), self.transf)
+            blm_L = self.get_teblm_ffp10(idx)
             bmap_L = hp.alm2map(blm_L, self.nside)
 
-            btemplm_QE = np.load(self.getfn_blm_lensc(idx, 0, self.Nmf))
+            btemplm_QE = np.load(self.getfn_blm_lensc(idx, 0))
             btempmap_QE = hp.alm2map(btemplm_QE, nside=self.nside)
 
             return bmap_L, bmap_cs, btempmap_QE
@@ -562,8 +581,8 @@ class Map_delenser():
         @log_on_start(logging.INFO, "_build_Btemplate_MAP() started")
         @log_on_end(logging.INFO, "_build_Btemplate_MAP() finished")
         def _build_Btemplate_MAP(idx):
-            fns = [self.getfn_blm_lensc(idx, it, self.Nmf) for it in self.its]
-            btemplm_MAP = np.zeros(shape=(len(fns), *np.load(self.getfn_blm_lensc(idx, 0, self.Nmf)).shape), dtype=np.complex128)
+            fns = [self.getfn_blm_lensc(idx, it) for it in self.its]
+            btemplm_MAP = np.zeros(shape=(len(fns), *np.load(self.getfn_blm_lensc(idx, 0)).shape), dtype=np.complex128)
             for fni, fn in enumerate(fns):
                 if fn.endswith('.npy'):
                     btemplm_MAP[fni] = np.array(np.load(fn))
@@ -605,7 +624,7 @@ class Map_delenser():
             return outputdata
 
         if self.jobs != []:
-            if self.spectrum_type == 'binned':
+            if self.binning == 'binned':
                 for edgesi, edges in enumerate(self.edges):
                     outputdata = _prepare_job(edges)
                     for idx in self.jobs[mpi.rank::mpi.size]:

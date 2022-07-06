@@ -191,7 +191,7 @@ class ILC_Matthieu_Dec21:
         return hp.gauss_beam(8 / 60. / 180 * np.pi, lmax=lmax) * hp.pixwin(2048, lmax=lmax)
 
     
-    def get_sim_plm(self, idx, Emap, Bmap):
+    def get_sim_plm(self, Emap, Bmap):
         """returning plms instead, as we are using filt_simple.library_fullsky_alms_sepTP
 
         Args:
@@ -218,14 +218,11 @@ class ILC_Matthieu_Dec21:
         Emap = np.nan_to_num(fits.open(self.path_E%idx)[0].data)
         Bmap = np.nan_to_num(fits.open(self.path_B%idx)[0].data)
         if maporlm == 'lm':
-            _ret = self.get_sim_plm(idx, Emap, Bmap)
+            _ret = self.get_sim_plm(Emap, Bmap)
         elif maporlm == 'map':
-            _ret = [0,Emap, Bmap]
+            _ret = [0, Emap, Bmap]
 
         return _ret[1], _ret[2]
-
-        # IQU = hp.alm2map(teblm, nside=2048, pol=True)
-        # return IQU[1], IQU[2]
 
 
     def get_noise_sim_pmap(self, idx):
