@@ -77,9 +77,9 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     lmin_ivf = attr.ib(default=np.nan)
     mmin_ivf = attr.ib(default=np.nan)
     lmax_unl = attr.ib(default=np.nan)
-    zbounds =  attr.ib(default=np.nan)
-    zbounds_len = attr.ib(default=np.nan)
-    pbounds = attr.ib(default=np.nan)
+    zbounds =  attr.ib(default=(-1,1))
+    zbounds_len = attr.ib(default=(-1,1))
+    pbounds = attr.ib(default=(-1,1))
     STANDARD_TRANSFERFUNCTION = attr.ib(default=True)
 
 
@@ -172,13 +172,13 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
         DLENSALOT_Concept (_type_): _description_
     """
     edges = attr.ib(default=-1)
-    dlm_mod = attr.ib(default=-1)
+    dlm_mod = attr.ib(default=False)
     iterations = attr.ib(default=-1)
     base_mask = attr.ib(default=-1)
     masks = attr.ib(default=None)
     lmax_cl = attr.ib(default=-1)
     Cl_fid = attr.ib(default=-1)
-    libdir_it = attr.ib(default=-1)
+    libdir_it = attr.ib(default=None)
     spectrum_type = attr.ib(default=-1)
     spectrum_calculator = attr.ib(default=None)
 

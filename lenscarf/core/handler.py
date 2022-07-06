@@ -221,7 +221,7 @@ class QE_lr():
     @log_on_start(logging.INFO, "get_response_meanfield() started")
     @log_on_end(logging.INFO, "get_response_meanfield() finished")
     def get_response_meanfield(self):
-        if self.k in ['p_p'] and not 'noRespMF' in self.version :
+        if self.k in ['p_p'] and not 'noRespMF' in self.version:
             mf_resp = qresp.get_mf_resp(self.k, self.cls_unl, {'ee': self.fel_unl, 'bb': self.fbl_unl}, self.lmax_ivf, self.lmax_qlm)[0]
         else:
             log.info('*** mf_resp not implemented for key ' + self.k, ', setting it to zero')
@@ -363,7 +363,7 @@ class MAP_lr():
             else:
                 mf = self.get_meanfield_it(self, it, calc=True)
         else:
-            plm = rec.load_plms(self.libdir_iterators(self.k, 0, self.version), [0])[-1]
+            plm = rec.load_plms(self.libdir_iterators(self.k, self.simidxs[0], self.version), [0])[-1]
             mf = np.zeros_like(plm)
             # Assuming that simidx = meanfield inidices
             for simidx in self.simidxs:
@@ -377,7 +377,7 @@ class MAP_lr():
     @log_on_start(logging.INFO, "get_meanfields_it() started")
     @log_on_end(logging.INFO, "get_meanfields_it() finished")
     def get_meanfields_it(self, its, calc=False):
-        plm = rec.load_plms(self.libdir_iterators(self.k, 0, self.version), [0])[-1]
+        plm = rec.load_plms(self.libdir_iterators(self.k, self.simidxs[0], self.version), [0])[-1]
         mfs = np.zeros(shape=(len(its),*plm.shape), dtype=np.complex128)
         if calc==True:
             for iti, it in enumerate(its[mpi.rank::mpi.size]):
@@ -403,32 +403,61 @@ class Map_delenser():
         self.lib = dict()
 
 
-    def map2cl(self, map, lmax):
-    
-        if 'map2cl' in self.cl_calc:
+    @log_on_start(logging.INFO, "read_data() started")
+    @log_on_end(logging.INFO, "read_data() finished")
+    def read_data(self, dm, simids=None, edges=None, dlm_mod=False, dir_idx=0):
+        bcl_cs = np.zeros(shape=(len(self.iterations)+2, len(self.nlevels), len(self.simids), len(self.edges)-1))
+        bcl_L = np.zeros(shape=(len(self.iterations)+2, len(self.nlevels), len(self.simids), len(self.edges)-1))
+        for simidx, simid in enumerate(self.simids):
+            if dm.iteration.dlm_mod:
+                data = np.load(self.TEMP + '/plotdata{}/{}'.format(self.vers_str,self.dirid) + '/ClBBwf_sim%04d_dlmmod_fg%2s_res2b3acm.npy'%(simid, dm.map_delensing.fg))
+            else:
+                data = np.load(self.TEMP + '/plotdata{}/{}'.format(self.vers_str,self.dirid) + '/ClBBwf_sim%04d_fg%2s_res2b3acm.npy'%(simid, dm.map_delensing.fg))
+            # data =  np.load(dirroot_loc + '{}'.format(self.dirid) + '/Lenscarf_plotdata_ClBB_sim%04d_fg%2s_res2b3acm.npy'%(simid, fg))
+            bcl_L[0,:,simidx] = data[0][0]
+            bcl_cs[0,:,simidx] = data[1][0]
 
-            return self.cl_calc.anfast(map, lmax)
-        else:
+            bcl_L[1,:,simidx] = data[0][1]
+            bcl_cs[1,:,simidx] = data[1][1]
 
-            return self.map2cl(map, lmax)
+            for iti, it in enumerate(self.iterations):
+                bcl_L[2+iti,:,simidx] = data[0][2+iti]
+                bcl_cs[2+iti,:,simidx] = data[1][2+iti]
+
+        print('dirid: {}'.format(self.dirid))
+
+        return bcl_L, bcl_cs
 
 
-    def map2cl_binned(self, mask, clc_templ, edges, lmax_lib):
+    @log_on_start(logging.INFO, "read_data_v2() started")
+    @log_on_end(logging.INFO, "read_data_v2() finished")
+    def read_data_v2(self, dm, simids=None, edges=None, dir_idx=0):
+        bcl_cs = np.zeros(shape=(len(self.iterations)+2, len(self.nlevels), len(self.simids), len(self.edges)-1))
+        bcl_L = np.zeros(shape=(len(self.iterations)+2, len(self.nlevels), len(self.simids), len(self.edges)-1))
+        print('Loading {} sims from {}'.format(len(self.simids), self.TEMP + '/plotdata{}/{}'.format(self.vers_str,self.dirid[dir_idx])))
+        for simidx, simid in enumerate(self.simids):
+            data = np.load(self.TEMP + '/plotdata{}/{}'.format(self.vers_str,self.dirid[dir_idx]) + '/ClBBwf_sim%04d_fg%2s_res2b3acm.npy'%(simid, dm.data.class_parameters['fg']))
+            bcl_L[0,:,simidx] = data[0][0]
+            bcl_cs[0,:,simidx] = data[1][0]
 
-        return self.cl_calc.map2cl_binned(mask, clc_templ, edges, lmax_lib)
+            bcl_L[1,:,simidx] = data[0][1]
+            bcl_cs[1,:,simidx] = data[1][1]
 
+            for iti, it in enumerate(self.iterations):
+                bcl_L[2+iti,:,simidx] = data[0][2+iti]
+                bcl_cs[2+iti,:,simidx] = data[1][2+iti]
 
-    def map2cl_unbinned(self, mask, lmax, lmax_mask, tmap2=None, npts=None, ww=None, zbounds=np.array([-1.,1.])):
+        print('dirid: {}'.format(self.dirid[dir_idx]))
 
-        return lambda tmap: self.cl_calc.map2cl(tmap, mask, lmax, lmax_mask, tmap2=tmap2, npts=npts, ww=ww, zbounds=zbounds)
+        return bcl_L, bcl_cs
 
 
     # @log_on_start(logging.INFO, "getfn_blm_lensc() started")
-    # @log_on_end(logging.INFO, "getfn_blm_lensc() started")
+    # @log_on_end(logging.INFO, "getfn_blm_lensc() finished")
     def getfn_blm_lensc(self, simidx, it, Nmf=None):
         '''Lenscarf output using Catherinas E and B maps'''
         # TODO this needs cleaner implementation via lambda
-        _libdir_iterator = self.libdir_iterators(self.k, simidx, self.version)
+        # _libdir_iterator = self.libdir_iterators(self.k, simidx, self.version)
         # return _libdir_iterator+fn(**params)
 
         if self.libdir_iterators == 'overwrite':
@@ -460,7 +489,7 @@ class Map_delenser():
 
         '''Component separated polarisation maps lm, i.e. lenscarf input'''
 
-        return self.sims.get_sim_pmap(simidx)
+        return self.sims.get_sim_pmap(simidx, 'map')
 
 
     # @log_on_start(logging.INFO, "getfn_qumap_cs() started")
@@ -498,18 +527,20 @@ class Map_delenser():
         
         @log_on_start(logging.INFO, "_prepare_job() started")
         @log_on_end(logging.INFO, "_prepare_job() finished")
-        def _prepare_job(edges):
+        def _prepare_job(edges=[]):
+            masktype = list(self.masks.keys())[0]
             if self.spectrum_type == 'binned':
                 outputdata = np.zeros(shape=(2, 2+len(self.its), len(self.mask_ids), len(edges)-1))
-                for mask_id, mask in self.masks.items():
-                    self.lib.update({mask_id: self.map2cl_binned(mask, self.clc_templ[:self.lmax_lib], edges, self.lmax_lib)})
-            else:
-                a = overwrite_anafast() if self.cl_calc == hp else self.map2cl_unbinned()
-                for mask_id in self.mask_ids:
-                    outputdata = np.zeros(shape=(2, 2+len(self.its), len(self.mask_ids), self.lmax_lib+1))
+                for mask_id, mask in self.masks[masktype].items():
+                    self.lib.update({mask_id: self.cl_calc.map2cl_binned(mask, self.clc_templ[:self.lmax_mask], edges, self.lmax_mask)})
+            elif self.spectrum_type == 'unbinned':
+                for mask_id, mask in self.masks[masktype].items():
+                    a = overwrite_anafast() if self.cl_calc == hp else masked_lib(mask, self.cl_calc, self.lmax_cl, self.lmax_mask)
+                    outputdata = np.zeros(shape=(2, 2+len(self.its), len(self.mask_ids), self.lmax_cl+1))
                     self.lib.update({mask_id: a})
 
             return outputdata
+
 
         @log_on_start(logging.INFO, "_build_basemaps() started")
         @log_on_end(logging.INFO, "_build_basemaps() finished")
@@ -522,7 +553,7 @@ class Map_delenser():
             blm_L = hp.almxfl(utils.alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(idx), lmax=self.lmax_cl), self.transf)
             bmap_L = hp.alm2map(blm_L, self.nside)
 
-            btemplm_QE = np.load(self.getfn_blm_lensc(idx, 0, self.mf))
+            btemplm_QE = np.load(self.getfn_blm_lensc(idx, 0, self.Nmf))
             btempmap_QE = hp.alm2map(btemplm_QE, nside=self.nside)
 
             return bmap_L, bmap_cs, btempmap_QE
@@ -574,10 +605,20 @@ class Map_delenser():
             return outputdata
 
         if self.jobs != []:
-            for edgesi, edges in enumerate(self.edges):
-                outputdata = _prepare_job(edges)
+            if self.spectrum_type == 'binned':
+                for edgesi, edges in enumerate(self.edges):
+                    outputdata = _prepare_job(edges)
+                    for idx in self.jobs[mpi.rank::mpi.size]:
+                        _file_op = self.file_op(idx, self.fg, edgesi)
+                        log.info('will store file at: {}'.format(_file_op))
+                        bmap_L, bmap_cs, btempmap_QE = _build_basemaps(idx)
+                        btempmap_MAP = _build_Btemplate_MAP(idx)
+                        outputdata = _delens(bmap_L, bmap_cs, btempmap_QE, btempmap_MAP)
+                        np.save(_file_op, outputdata)
+            else:
+                outputdata = _prepare_job()
                 for idx in self.jobs[mpi.rank::mpi.size]:
-                    _file_op = self.file_op(idx, self.fg, edgesi)
+                    _file_op = self.file_op(idx, self.fg, 0)
                     log.info('will store file at: {}'.format(_file_op))
                     bmap_L, bmap_cs, btempmap_QE = _build_basemaps(idx)
                     btempmap_MAP = _build_Btemplate_MAP(idx)
@@ -610,3 +651,14 @@ class overwrite_anafast():
     def map2cl(self, *args, **kwargs):
         return hp.anafast(*args, **kwargs)
 
+
+class masked_lib:
+
+    def __init__(self, mask, cl_calc, lmax, lmax_mask):
+        self.mask = mask
+        self.cl_calc = cl_calc
+        self.lmax = lmax
+        self.lmax_mask = lmax_mask
+
+    def map2cl(self, map):
+        return self.cl_calc.map2cl(map, self.mask, self.lmax, self.lmax_mask)

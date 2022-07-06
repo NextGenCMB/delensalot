@@ -47,13 +47,7 @@ class l2T_Transformer:
     # @log_on_end(logging.INFO, "build() finished")
     def build(self, cf):
         _nsims_mf = 0 if cf.iteration.V == 'noMF' else cf.iteration.nsims_mf
-
-        # #TODO hack to make mf var work for v1 in mf 100 of 08b
         ovw = _nsims_mf
-        # ovw = 100
-        # if _nsims_mf == 50:
-        #     _nsims_mf = ovw
-        # log.warning('_nsims_mf for TEMP dir hardcoded to {}'.format(ovw))
         _suffix = cf.data.sims.split('/')[1]+'_%s'%(cf.data.fg)
         if cf.noisemodel.typ == 'OBD':
             _suffix += '_OBD'
@@ -162,6 +156,8 @@ class l2lensrec_Transformer:
             dl.itmax = iteration.ITMAX
             dl.imin = iteration.IMIN
             dl.imax = iteration.IMAX
+            dl.simidxs = np.arange(dl.imin,dl.imax+1)
+            dl.simidxs_mf = np.arange(dl.imin, dl.imax+1)
             dl.lmax_filt = iteration.lmax_filt
             
             dl.lmax_qlm = iteration.lmax_qlm
@@ -422,22 +418,24 @@ class l2lensrec_Transformer:
             dl.Nmf = 0 if cf.analysis.V == 'noMF' else len(dl.simidxs_mf)
             if an.zbounds[0] == 'nmr_relative':
                 dl.zbounds = df.get_zbounds(hp.read_map(cf.noisemodel.rhits_normalised[0]), an.zbounds[1])
-            elif type(an.zbounds[0]) == float or type(an.zbounds[0]) == int:
+            elif type(an.zbounds[0]) in [float, int, np.float64]:
                 dl.zbounds = an.zbounds
             else:
                 log.error('Not sure what to do with this zbounds: {}'.format(an.zbounds))
                 traceback.print_stack()
                 sys.exit()
+
             if an.zbounds_len[0] == 'extend':
                 dl.zbounds_len = df.extend_zbounds(dl.zbounds, degrees=an.zbounds_len[1])
             elif an.zbounds_len[0] == 'max':
-                  dl.zbounds_len = [-1, 1]
-            elif type(an.zbounds_len[0]) == float or type(an.zbounds_len[0]) == int:
+                dl.zbounds_len = [-1, 1]
+            elif type(an.zbounds_len[0]) in [float, int, np.float64]:
                 dl.zbounds_len = an.zbounds_len
             else:
                 log.error('Not sure what to do with this zbounds_len: {}'.format(an.zbounds_len))
                 traceback.print_stack()
-                sys.exit()  
+                sys.exit()
+
             dl.pb_ctr, dl.pb_extent = an.pbounds
 
             dl.lensres = an.LENSRES
@@ -565,7 +563,7 @@ class l2lensrec_Transformer:
                 traceback.print_stack()
                 sys.exit()
 
-            dl.CENTRALNLEV_UKAMIN = nm.CENTRALNLEV_UKAMIN
+            # TODO duplicate in process_analysis
             dl.nlev_t = l2OBD_Transformer.get_nlevt(cf)
             dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
             dl.nlev_dep = nm.nlev_dep
@@ -655,6 +653,7 @@ class l2lensrec_Transformer:
         def _process_Itrec(dl, it):
             assert it.FILTER in ['opfilt_ee_wl.alm_filter_ninv_wl', 'opfilt_iso_ee_wl.alm_filter_nlev_wl'] , 'Implement if needed, MAP filter needs to move to l2d'
             dl.FILTER = it.FILTER
+            dl.ivfs_qe = cf.qerec.ivfs
 
             # TODO hack. We always want to subtract it atm. But possibly not in the future.
             if "QE_subtract_meanfield" in it.__dict__:
@@ -699,6 +698,8 @@ class l2lensrec_Transformer:
 
 
         dl = DLENSALOT_Concept()
+        
+        dl.dlm_mod_bool = cf.madel.dlm_mod
         _process_Analysis(dl, cf.analysis)
         _process_Data(dl, cf.data)
         _process_Noisemodel(dl, cf.noisemodel)
@@ -745,6 +746,7 @@ class l2OBD_Transformer:
             _nlev_t = cf.noisemodel.nlev_t
         elif type(cf.noisemodel.nlev_t) == tuple:
             _nlev_t = np.load(cf.noisemodel.nlev_t[1])
+            _nlev_t[:3] = 0
             if cf.noisemodel.nlev_t[0] == 'cl':
                 # assume that nlev comes as cl. Scale to arcmin
                 _nlev_t = df.c2a(_nlev_t)
@@ -760,6 +762,7 @@ class l2OBD_Transformer:
                 _nlev_p = cf.noisemodel.nlev_p
         elif type(cf.noisemodel.nlev_p) == tuple:
             _nlev_p = np.load(cf.noisemodel.nlev_p[1])
+            _nlev_p[:3] = 0
             if cf.noisemodel.nlev_p[0] == 'cl':
                 # assume that nlev comes as cl. Scale to arcmin
                 _nlev_p = df.c2a(_nlev_p)
@@ -877,7 +880,6 @@ class l2OBD_Transformer:
                 dl.BMARG_LCUT = nm.BMARG_LCUT
                 dl.nside = cf.data.nside
                 dl.nlev_dep = nm.nlev_dep
-                dl.CENTRALNLEV_UKAMIN = nm.CENTRALNLEV_UKAMIN
                 dl.geom = utils_scarf.Geom.get_healpix_geometry(dl.nside)
                 dl.masks, dl.rhits_map = l2OBD_Transformer.get_masks(cf)
                 dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
@@ -913,6 +915,7 @@ class l2d_Transformer:
             dl.imax = de.IMAX
             dl.its = de.ITMAX
             dl.nmf = cf.iteration.nsims_mf
+            dl.simidxs_mf = np.arange(dl.imin, dl.imax+1)
             dl.fg = de.fg
  
             _ui = de.base_mask.split('/')
@@ -1021,15 +1024,6 @@ class l2d_Transformer:
             dl.k = cf.analysis.K
             dl.version = cf.analysis.V
 
-            dl.edges = []
-            if ma.edges != -1:
-                if 'cmbs4' in ma.edges:
-                    dl.edges.append(lc.cmbs4_edges)
-                if 'ioreco' in ma.edges:
-                    dl.edges.append(lc.ioreco_edges) 
-                elif 'fs' in ma.edges:
-                    dl.edges.append(lc.fs_edges)
-
             dl.imin = cf.data.IMIN
             dl.imax = cf.data.IMAX
             dl.simidxs = cf.data.simidxs if cf.data.simidxs != [] else np.arange(dl.imin, dl.imax)
@@ -1038,13 +1032,13 @@ class l2d_Transformer:
             dl.Nmf = len(cf.analysis.simidxs_mf)
             if 'fg' in cf.data.class_parameters:
                 dl.fg = cf.data.class_parameters['fg']
-            _package = cf.data.package_
-            _module = cf.data.module_
-            _class = cf.data.class_
+            dl._package = cf.data.package_
+            dl._module = cf.data.module_
+            dl._class = cf.data.class_
             dl.dataclass_parameters = cf.data.class_parameters
-            _sims_full_name = '{}.{}'.format(_package, _module)
+            _sims_full_name = '{}.{}'.format(dl._package, dl._module)
             _sims_module = importlib.import_module(_sims_full_name)
-            dl.sims = getattr(_sims_module, _class)(**dl.dataclass_parameters)
+            dl.sims = getattr(_sims_module, dl._class)(**dl.dataclass_parameters)
             dl.nside = cf.data.nside
 
             # TODO hack. this is only needed to access old s08b data
@@ -1064,11 +1058,11 @@ class l2d_Transformer:
             #         return rootstr+'/08b.%02d_sebibel_210910_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg), it, simidx)
             # elif it==0:
             #     return '/global/cscratch1/sd/sebibel/cmbs4/s08b/cILC2021_%s_lmax4000/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20/ffi_p_it0/blm_%04d_it0.npy'%(self.fg, simidx, simidx)    
-        
-            if ma.libdir_it != '':
-                dl.libdir_iterators = 'overwrite'
-            else:
+          
+            if ma.libdir_it is None:
                 dl.libdir_iterators = lambda qe_key, simidx, version: opj(dl.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
+            else:
+                dl.libdir_iterators = 'overwrite'
             dl.analysis_path = dl.TEMP.split('/')[-1]
 
             if cf.noisemodel.rhits_normalised is not None:
@@ -1085,7 +1079,7 @@ class l2d_Transformer:
                 if ma.masks[0] == 'nlevels': 
                     for mask_id in dl.mask_ids:
                         buffer = df.get_nlev_mask(mask_id, noisemodel_rhits_map)
-                        dl.masks.update({mask_id:buffer})
+                        dl.masks[ma.masks[0]].update({mask_id:buffer})
                 elif ma.masks[0] == 'masks':
                     dl.mask_ids = np.zeros(shape=len(ma.masks[1]))
                     for fni, fn in enumerate(ma.masks[1]):
@@ -1095,10 +1089,13 @@ class l2d_Transformer:
                             buffer = np.load(fn)
                         _fsky = float("{:0.2f}".format(np.sum(buffer)/len(buffer)))
                         dl.mask_ids[fni] = _fsky
-                        dl.masks.update({_fsky:buffer})
+                        dl.masks[ma.masks[0]].update({_fsky:buffer})
+            else:
+                dl.masks = {"no":{1.00:np.ones(shape=hp.nside2npix(dl.nside))}}
+                dl.mask_ids = np.array([1.00])
 
             dl.lmax_cl = ma.lmax_cl
-            dl.lmax_lib = 3*dl.lmax_cl-1
+            dl.lmax_mask = 3*dl.lmax_cl-1
             dl.beam = cf.data.beam
             dl.lmax_transf = cf.data.lmax_transf
             dl.transf = gauss_beam(df.a2r(dl.beam), lmax=dl.lmax_transf)
@@ -1113,15 +1110,32 @@ class l2d_Transformer:
 
             dl.spectrum_type = ma.spectrum_type
             if dl.spectrum_type == 'binned':
+                dl.edges = []
+                if ma.edges != -1:
+                    if 'cmbs4' in ma.edges:
+                        dl.edges.append(lc.cmbs4_edges)
+                    if 'ioreco' in ma.edges:
+                        dl.edges.append(lc.ioreco_edges) 
+                    elif 'fs' in ma.edges:
+                        dl.edges.append(lc.fs_edges)
                 dl.sha_edges = [hashlib.sha256() for n in range(len(dl.edges))]
                 for n in range(len(dl.edges)):
                     dl.sha_edges[n].update(str(dl.edges[n]).encode())
                 dl.dirid = [dl.sha_edges[n].hexdigest()[:4] for n in range(len(dl.edges))]
-            else:
+                dl.edges_center = np.array([(e[1:]+e[:-1])/2 for e in dl.edges])
+                dl.ct = dl.clc_templ[np.array(dl.edges_center,dtype=int)]
+            elif dl.spectrum_type == 'unbinned':
+                dl.edges = ma.edges
+                dl.edges_center = dl.edges[1:]
+                dl.ct = np.ones(shape=len(dl.edges_center))
                 dl.sha_edges = [hashlib.sha256()]
                 dl.sha_edges[0].update('unbinned'.encode())
                 dl.dirid = [dl.sha_edges[0].hexdigest()[:4]]
+            else:
+                log.info("Don't understand your spectrum type")
+                sys.exit()
 
+            dl.vers_str = '/{}'.format(dl.version) if dl.version != '' else 'base'
             dl.TEMP_DELENSED_SPECTRUM = transform(dl, l2T_Transformer())
             for dir_id in dl.dirid:
                 if not(os.path.isdir(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dir_id))):

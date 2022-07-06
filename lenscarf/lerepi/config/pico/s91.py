@@ -15,21 +15,21 @@ dlensalot_model = DLENSALOT_Model(
         OMP_NUM_THREADS = 16
     ),
     analysis = DLENSALOT_Analysis(
-        TEMP_suffix = '',
+        TEMP_suffix = 'highcut5',
         K = 'p_p',
-        V = '',
+        V = 'noMF',
         zbounds =  (-1,1),
         zbounds_len = (-1,1),   
         pbounds = [0, 2*np.pi],
-        simidxs_mf = np.arange(1,21,2),
+        simidxs_mf = np.arange(0),
         ITMAX = 10,
         LENSRES = 1.7,
         Lmin = 2, 
         lmax_filt = 2048,
         lmax_unl = 2500,
         mmax_unl = 2500,
-        lmax_ivf = 2048,
-        mmax_ivf = 2048,
+        lmax_ivf = 2000,
+        mmax_ivf = 2000,
         lmin_ivf = 2,
         mmin_ivf = 2,
         STANDARD_TRANSFERFUNCTION = 'with_pixwin'
@@ -45,22 +45,23 @@ dlensalot_model = DLENSALOT_Model(
             'fg': '91'
         },
         beam = 8.0,
-        lmax_transf = 2500,
+        lmax_transf = 2048,
         nside = 2048
     ),
     noisemodel = DLENSALOT_Noisemodel(
         typ = 'trunc',
         ninvjob_geometry = 'healpix_geometry',
         lmin_tlm = 30,
-        lmin_elm = 2,
+        lmin_elm = 10,
         lmin_blm = 200,
         CENTRALNLEV_UKAMIN = 2.0,
-        nlev_t = ('cl', opj(os.environ['SCRATCH'], 'data/pico/noise/Clsmooth_sim0001_E.npy')),
-        nlev_p = ('cl', opj(os.environ['SCRATCH'], 'data/pico/noise/Clsmooth_sim0001_E.npy')),
+        nlev_t = ('cl', opj(os.environ['SCRATCH'], 'data/pico/noise/Clsmooth_julien.npy')),
+        nlev_p = ('cl', opj(os.environ['SCRATCH'], 'data/pico/noise/Clsmooth_julien.npy')),
         inf = 1e4
     ),
     qerec = DLENSALOT_Qerec(
-        FILTER_QE = 'simple', # Change only if other than sepTP for QE is desired
+        ivfs = 'simple',
+        qlms = 'sepTP',
         CG_TOL = 1e-3,
         ninvjob_qe_geometry = 'healpix_geometry_qe',
         lmax_qlm = 2500,
@@ -83,7 +84,7 @@ dlensalot_model = DLENSALOT_Model(
         tasks = ["calc_phi", "calc_btemplate"], #["calc_phi", "calc_meanfield", "calc_btemplate"],
         lenjob_geometry = 'thin_gauss',
         lenjob_pbgeometry = 'pbdGeometry',
-        iterator_typ = 'constmf', # Either pertmf or const_mf
+        iterator_typ = 'pertmf', # Either pertmf or const_mf
         mfvar = '',
         soltn_cond = lambda it: True,
         stepper = DLENSALOT_Stepper(
@@ -98,7 +99,6 @@ dlensalot_model = DLENSALOT_Model(
         lmax_cl = 200,
         Cl_fid = 'ffp10',
         spectrum_type = 'unbinned',
-        spectrum_calculator = pospace,
-        libdir_it = -1 # don't overwrite for now
+        spectrum_calculator = pospace
     )
 )

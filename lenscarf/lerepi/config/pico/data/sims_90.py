@@ -5,6 +5,10 @@
 import os
 import numpy as np
 
+import logging
+log = logging.getLogger(__name__)
+from logdecorator import log_on_start, log_on_end
+
 import lenscarf
 import plancklens
 from astropy.io import fits
@@ -172,6 +176,7 @@ class ILC_Matthieu_Dec21:
         self.path_B = p + '/py91_ns2048_00%02d/NILC_PICO91_B_reso8acm.fits' # odd is r=0
         self.path_noise_E = p + '/py91_ns2048_00%02d/NILC_NOISE_PICO91_E_reso8acm.fits'
         self.path_noise_B = p + '/py91_ns2048_00%02d/NILC_NOISE_PICO91_B_reso8acm.fits'
+        self.lmax = 2000
 
 
     def hashdict(self):
@@ -185,14 +190,42 @@ class ILC_Matthieu_Dec21:
 
         return hp.gauss_beam(8 / 60. / 180 * np.pi, lmax=lmax) * hp.pixwin(2048, lmax=lmax)
 
+    
+    def get_sim_plm(self, idx, Emap, Bmap):
+        """returning plms instead, as we are using filt_simple.library_fullsky_alms_sepTP
 
-    def get_sim_pmap(self, idx):
+        Args:
+            idx (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
+        log.info('E/B loaded. calculating alms')
+        teblm = hp.map2alm([np.zeros_like(Emap), Emap, Bmap], lmax=self.lmax, pol=False)
+        
+        return teblm
+
+
+    def get_sim_pmap(self, idx, maporlm='lm'):
+        """returning plms instead, as we are using filt_simple.library_fullsky_alms_sepTP
+
+        Args:
+            idx (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
         Emap = np.nan_to_num(fits.open(self.path_E%idx)[0].data)
         Bmap = np.nan_to_num(fits.open(self.path_B%idx)[0].data)
-        teblm = hp.map2alm([np.zeros_like(Emap), Emap, Bmap], lmax=2048, pol=False)
-        IQU = hp.alm2map(teblm, nside=2048, pol=True)
-        
-        return IQU[1], IQU[2]
+        if maporlm == 'lm':
+            _ret = self.get_sim_plm(idx, Emap, Bmap)
+        elif maporlm == 'map':
+            _ret = [0,Emap, Bmap]
+
+        return _ret[1], _ret[2]
+
+        # IQU = hp.alm2map(teblm, nside=2048, pol=True)
+        # return IQU[1], IQU[2]
 
 
     def get_noise_sim_pmap(self, idx):
