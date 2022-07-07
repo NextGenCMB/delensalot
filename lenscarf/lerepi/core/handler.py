@@ -37,7 +37,9 @@ class handler():
             parser (_type_): _description_
         """
         self.configfile = handler.load_configfile(parser.config_file, 'configfile')
-        self.configfile.dlensalot_model.madel.__dict__.update(madel_kwargs)
+        # TODO hack. remove when v1 is gone
+        if 'madel' in self.configfile.dlensalot_model.__dict__:
+            self.configfile.dlensalot_model.madel.__dict__.update(madel_kwargs)
         TEMP = transform(self.configfile.dlensalot_model, l2T_Transformer())
         if parser.status == '':
             if mpi.rank == 0:

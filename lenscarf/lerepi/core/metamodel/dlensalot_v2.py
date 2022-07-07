@@ -176,7 +176,6 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
     edges = attr.ib(default=-1)
     dlm_mod = attr.ib(default=False)
     iterations = attr.ib(default=-1)
-    base_mask = attr.ib(default=-1)
     masks = attr.ib(default=None)
     lmax = attr.ib(default=-1)
     Cl_fid = attr.ib(default=-1)

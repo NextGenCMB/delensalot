@@ -136,6 +136,8 @@ class l2lensrec_Transformer:
         @log_on_start(logging.INFO, "_process_iterationparams() started")
         @log_on_end(logging.INFO, "_process_iterationparams() finished")
         def _process_iterationparams(dl, iteration):
+            dl.ivfs_qe = iteration.ivfs
+            dl.filter = iteration.filter
             # TODO hack. We always want to subtract it atm. But possibly not in the future.
             if "QE_subtract_meanfield" in iteration.__dict__:
                 # dl.subtract_meanfield = iteration.QE_subtract_meanfield
@@ -182,7 +184,19 @@ class l2lensrec_Transformer:
             else:
                 dl.tol_iter = lambda itr : 1*10 ** (- dl.tol) if itr <= 10 else 1*10 ** (-(dl.tol+1))
             dl.soltn_cond = iteration.soltn_cond # Uses (or not) previous E-mode solution as input to search for current iteration one
-            dl.cg_tol = iteration.cg_tol
+            
+            if iteration.cg_tol < 1.:
+                # TODO hack. For cases where TOL is not only the exponent. Remove exponent-only version.
+                dl.cg_tol = lambda itr : iteration.cg_tol if itr <= 10 else iteration.cg_tol*0.1
+            else:
+                dl.cg_tol = iteration.cg_tol
+                if 'rinf_tol4' in cf.data.TEMP_suffix:
+                    log.warning('tol_iter increased for this run. This is hardcoded.')
+                    dl.cg_tol = lambda itr : 2*10 ** (- dl.cg_tol) if itr <= 10 else 2*10 ** (-(dl.cg_tol+1))
+                elif 'tol5e5' in cf.data.TEMP_suffix:
+                    dl.cg_tol = lambda itr : 1*10 ** (- dl.cg_tol) 
+                else:
+                    dl.cg_tol = lambda itr : 1*10 ** (- dl.cg_tol) if itr <= 10 else 1*10 ** (-(dl.cg_tol+1))
 
             dl.cpp = np.copy(dl.cls_unl['pp'][:dl.lmax_qlm + 1])
             dl.cpp[:iteration.Lmin] *= 0.
@@ -210,7 +224,7 @@ class l2lensrec_Transformer:
                 dl.fel_unl = cli(dl.cls_unl['ee'][:iteration.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_elm**2)) * (dl.transf_elm > 0)
                 dl.fbl_unl = cli(dl.cls_unl['bb'][:iteration.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_blm**2)) * (dl.transf_blm > 0)
 
-            if iteration.FILTER == 'cinv_sepTP':
+            if iteration.filter == 'cinv_sepTP':
                 dl.ninvt_desc = l2OBD_Transformer.get_ninvt(cf)
                 dl.ninvp_desc = l2OBD_Transformer.get_ninvp(cf)
                 # TODO filters can be initialised with both, ninvX_desc and ninv_X. But Plancklens' hashcheck will complain if it changed since shapes are different.
@@ -365,6 +379,8 @@ class l2lensrec_Transformer:
 
 
         dl = DLENSALOT_Concept()
+
+        dl.dlm_mod_bool = cf.map_delensing.dlm_mod
         _process_geometryparams(dl, cf.geometry)
         _process_noisemodelparams(dl, cf.noisemodel)
         _process_dataparams(dl, cf.data)
@@ -498,7 +514,7 @@ class l2lensrec_Transformer:
         def _process_Data(dl, da):
             dl.imin = da.IMIN
             dl.imax = da.IMAX
-            dl.simidxs = da.simidxs if da.simidxs != [] else np.arange(dl.imin, dl.imax)
+            dl.simidxs = da.simidxs if da.simidxs != [] else np.arange(dl.imin, dl.imax+1)
 
             _package = da.package_
             if da.package_.startswith('lerepi'):
@@ -919,71 +935,105 @@ class l2d_Transformer:
     @log_on_start(logging.INFO, "build() started")
     @log_on_end(logging.INFO, "build() finished")
     def build(self, cf):
-        def _process_delensingparams(dl, de):
-            dl.k = cf.iteration.K
-            dl.version = cf.iteration.V
-            dl.edges = []
-            if 'cmbs4' in de.edges:
-                dl.edges.append(lc.cmbs4_edges)
-            if 'ioreco' in de.edges:
-                dl.edges.append(lc.ioreco_edges)
-            elif 'fs' in de.edges:
-                dl.edges.append(lc.fs_edges) 
-            dl.imin = de.IMIN
-            dl.imax = de.IMAX
-            dl.its = de.ITMAX
-            dl.nmf = cf.iteration.nsims_mf
-            dl.simidxs_mf = np.arange(dl.imin, dl.imax+1)
-            dl.fg = de.fg
- 
-            _ui = de.base_mask.split('/')
+
+        def _process_data(dl, da):
+            dl.fg = da.fg
+            _ui = cf.data.sims.split('/')
             _sims_module_name = 'lenscarf.lerepi.config.'+_ui[0]+'.data.data_'+_ui[1]
             _sims_class_name = _ui[-1]
             _sims_module = importlib.import_module(_sims_module_name)
             dl.sims = getattr(_sims_module, _sims_class_name)(dl.fg)
+            dl.nside = da.nside
 
+            if da.data_type is None:
+                log.info("must specify data_type")
+                sys.exit()
+            elif da.data_type in ['map', 'alm']:
+                dl.data_type = da.data_type
+            else:
+                log.info("Don't understand your data_type: {}".format(da.data_type))
+                sys.exit()
+
+            if da.data_field is None:
+                log.info("must specify data_type")
+                sys.exit()
+            elif da.data_field in ['eb', 'qu']:
+                dl.data_field = da.data_field
+            else:
+                log.info("Don't understand your data_field: {}".format(da.data_field))
+                sys.exit()
+            dl.beam = da.beam
+            dl.lmax_transf = da.lmax_transf
+
+
+        def _process_iteration(dl, it):
+            dl.k = it.K
+            dl.version = it.V
+            dl.Nmf = it.nsims_mf
+            dl.imin = it.IMIN
+            dl.imax = it.IMAX
+            dl.simidxs = np.arange(dl.imin, dl.imax+1)
+            dl.Nmf = it.nsims_mf
+
+            if it.STANDARD_TRANSFERFUNCTION == True:
+                dl.transf = gauss_beam(df.a2r(dl.beam), lmax=dl.lmax_transf)
+            elif it.STANDARD_TRANSFERFUNCTION == 'with_pixwin':
+                dl.transf = gauss_beam(df.a2r(dl.beam), lmax=dl.lmax_transf) * hp.pixwin(dl.nside, lmax=dl.lmax_transf)
+            else:
+                log.info("Don't understand your STANDARD_TRANSFERFUNCTION: {}".format(it.STANDARD_TRANSFERFUNCTION))
+
+
+        def _process_TEMP(dl):
             dl.TEMP = transform(cf, l2T_Transformer())
             dl.analysis_path = dl.TEMP.split('/')[-1]
+            dl.TEMP_DELENSED_SPECTRUM = transform(dl, l2T_Transformer())
 
+            dl.vers_str = '/{}'.format(dl.version) if dl.version != '' else 'base'
+            if mpi.rank == 0:
+                for edgesi, edges in enumerate(dl.edges):
+                    if not(os.path.isdir(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edgesi]))):
+                        os.makedirs(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edgesi]))
+                        log.info("dir created: {}".format(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edgesi])))
+
+
+        def _process_Madel(dl, ma):
+            dl.its = ma.iterations 
+            if ma.libdir_it is None:
+                dl.libdir_iterators = lambda qe_key, simidx, version: opj(dl.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
+            else:
+                dl.libdir_iterators = 'overwrite'
             if cf.noisemodel.rhits_normalised is not None:
-                mask_path = cf.noisemodel.rhits_normalised[0]
-                dl.base_mask = np.nan_to_num(hp.read_map(mask_path))
+                _mask_path = cf.noisemodel.rhits_normalised[0]
+                dl.base_mask = np.nan_to_num(hp.read_map(_mask_path))
             else:
                 dl.base_mask = np.ones(shape=hp.nside2npix(cf.data.nside))
             noisemodel_rhits_map = df.get_nlev_mask(np.inf, dl.base_mask)
-            noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.noisemodel.inf   
-
-            if de.nlevels != -1:
-                dl.nlev_mask = dict()
-                dl.nlevels = de.nlevels
-                for nlev in de.nlevels:
-                    buffer = df.get_nlev_mask(nlev, noisemodel_rhits_map)
-                    dl.nlev_mask.update({nlev:buffer})
-
-            if de.masks != None:
-                dl.masks = dict({de.masks[0]:{}})
-                dl.mask_ids = de.masks[1]
-                if de.masks[0] == 'nlevels': 
+            noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.noisemodel.inf
+            if ma.masks != None:
+                dl.masks = dict({ma.masks[0]:{}})
+                dl.mask_ids = ma.masks[1]
+                if ma.masks[0] == 'nlevels': 
                     for mask_id in dl.mask_ids:
                         buffer = df.get_nlev_mask(mask_id, noisemodel_rhits_map)
-                        dl.masks.update({mask_id:buffer})
-                elif de.masks[0] == 'masks':
-                    dl.mask_ids = np.zeros(shape=len(de.masks[1]))
-                    for fni, fn in enumerate(de.masks[1]):
-                        buffer = np.load(fn)
-                        _fsky = float("{:0.2d}".format(np.sum(buffer)/len(buffer)))
+                        dl.masks[ma.masks[0]].update({mask_id:buffer})
+                elif ma.masks[0] == 'masks':
+                    dl.mask_ids = np.zeros(shape=len(ma.masks[1]))
+                    for fni, fn in enumerate(ma.masks[1]):
+                        if fn == None:
+                            buffer = np.ones(shape=hp.nside2npix(dl.nside))
+                            dl.mask_ids[fni] = 1.00
+                        elif fn.endswith('.fits'):
+                            buffer = hp.read_map(fn)
+                        else:
+                            buffer = np.load(fn)
+                        _fsky = float("{:0.2f}".format(np.sum(buffer)/len(buffer)))
                         dl.mask_ids[fni] = _fsky
-                        dl.masks.update({_fsky:buffer})
-                        
-            dl.nside = de.nside
-            dl.lmax = de.lmax
-            dl.lmax_lib = 3*dl.lmax-1
-            dl.beam = de.beam
-            dl.lmax_transf = de.lmax_transf
-            if de.transf == 'gauss':
-                dl.transf = gauss_beam(df.a2r(dl.beam), lmax=dl.lmax_transf)
-
-            if de.Cl_fid == 'ffp10':
+                        dl.masks[ma.masks[0]].update({_fsky:buffer})
+            else:
+                dl.masks = {"no":{1.00:np.ones(shape=hp.nside2npix(dl.nside))}}
+                dl.mask_ids = np.array([1.00])
+            
+            if ma.Cl_fid == 'ffp10':
                 dl.cls_path = opj(os.path.dirname(plancklens.__file__), 'data', 'cls')
                 dl.cls_len = utils.camb_clfile(opj(dl.cls_path, 'FFP10_wdipole_lensedCls.dat'))
                 dl.clg_templ = dl.cls_len['ee']
@@ -991,32 +1041,44 @@ class l2d_Transformer:
                 dl.clg_templ[0] = 1e-32
                 dl.clg_templ[1] = 1e-32
 
-            dl.binning = de.binning
+            dl.binning = ma.binning
             if dl.binning == 'binned':
+                dl.lmax = ma.lmax
+                dl.lmax_mask = 3*dl.lmax-1
+                dl.edges = []
+                dl.edges_id = []
+                if ma.edges != -1:
+                    if 'cmbs4' in ma.edges:
+                        dl.edges.append(lc.cmbs4_edges)
+                        dl.edges_id.append('cmbs4')
+                    if 'ioreco' in ma.edges:
+                        dl.edges.append(lc.ioreco_edges) 
+                        dl.edges_id.append('ioreco')
+                    elif 'fs' in ma.edges:
+                        dl.edges.append(lc.fs_edges)
+                        dl.edges_id.append('fs')
+                dl.edges = np.array(dl.edges)
                 dl.sha_edges = [hashlib.sha256() for n in range(len(dl.edges))]
                 for n in range(len(dl.edges)):
                     dl.sha_edges[n].update(str(dl.edges[n]).encode())
                 dl.dirid = [dl.sha_edges[n].hexdigest()[:4] for n in range(len(dl.edges))]
-            else:
+                dl.edges_center = np.array([(e[1:]+e[:-1])/2 for e in dl.edges])
+                dl.ct = np.array([[dl.clc_templ[np.array(ec,dtype=int)]for ec in edge] for edge in dl.edges_center])
+            elif dl.binning == 'unbinned':
+                dl.lmax = 200
+                dl.lmax_mask = 6*dl.lmax-1
+                dl.edges = np.array([np.arange(0,dl.lmax+2)])
+                dl.edges_id = [dl.binning]
+                dl.edges_center = dl.edges[:,1:]
+                dl.ct = np.ones(shape=len(dl.edges_center))
                 dl.sha_edges = [hashlib.sha256()]
                 dl.sha_edges[0].update('unbinned'.encode())
                 dl.dirid = [dl.sha_edges[0].hexdigest()[:4]]
-
-            if de.spectrum_calculator == None:
-                log.info("Using Healpy as powerspectrum calculator")
-                dl.cl_calc = hp
             else:
-                dl.cl_calc = de.spectrum_calculator   
+                log.info("Don't understand your spectrum type")
+                sys.exit()
 
-            dl.TEMP_DELENSED_SPECTRUM = transform(dl, l2T_Transformer())
-            if mpi.rank == 0:
-                for edgesi, edges in enumerate(dl.edges):
-                    if not(os.path.isdir(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edgesi]))):
-                        os.makedirs(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edgesi]))
-                        log.info("dir created: {}".format(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edgesi])))
-
-            dl.dlm_mod_bool = cf.de.dlm_mod
-            # TODO don't like this too much
+            dl.dlm_mod_bool = ma.dlm_mod
             if dl.binning == 'binned':
                 if dl.dlm_mod_bool:
                     dl.file_op = lambda idx, fg, edges_idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edges_idx]) + '/ClBBwf_sim%04d_%s_fg%s_res2b3acm.npy'%(idx, 'dlmmod', fg)
@@ -1028,9 +1090,19 @@ class l2d_Transformer:
                 else:
                     dl.file_op = lambda idx, fg, x: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[0]) + '/ClBBwf_sim%04d_fg%s_res2b3acm.npy'%(idx, fg)
 
-        
+            if ma.spectrum_calculator == None:
+                log.info("Using Healpy as powerspectrum calculator")
+                dl.cl_calc = hp
+            else:
+                dl.cl_calc = ma.spectrum_calculator       
+
+
         dl = DLENSALOT_Concept()
-        _process_delensingparams(dl, cf.map_delensing)
+        _process_data(dl, cf.data)
+        _process_iteration(dl, cf.iteration)
+        
+        _process_Madel(dl, cf.map_delensing)
+        _process_TEMP(dl)
         
         return dl
 
@@ -1044,7 +1116,7 @@ class l2d_Transformer:
 
             dl.imin = cf.data.IMIN
             dl.imax = cf.data.IMAX
-            dl.simidxs = cf.data.simidxs if cf.data.simidxs != [] else np.arange(dl.imin, dl.imax)
+            dl.simidxs = cf.data.simidxs if cf.data.simidxs != [] else np.arange(dl.imin, dl.imax+1)
             dl.its = ma.iterations
 
             dl.Nmf = len(cf.analysis.simidxs_mf)
@@ -1166,6 +1238,7 @@ class l2d_Transformer:
                     elif 'fs' in ma.edges:
                         dl.edges.append(lc.fs_edges)
                         dl.edges_id.append('fs')
+                dl.edges = np.array(dl.edges)
                 dl.sha_edges = [hashlib.sha256() for n in range(len(dl.edges))]
                 for n in range(len(dl.edges)):
                     dl.sha_edges[n].update(str(dl.edges[n]).encode())
