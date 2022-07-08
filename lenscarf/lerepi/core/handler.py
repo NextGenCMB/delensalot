@@ -64,7 +64,10 @@ class handler():
         if self.parser.status == '':
             self.jobs = transform(self.configfile.dlensalot_model, l2j_Transformer())
         else:
-            self.jobs = transform(self.configfile.dlensalot_model, l2js_Transformer())
+            if mpi.rank == 0:
+                self.jobs = transform(self.configfile.dlensalot_model, l2js_Transformer())
+            else:
+                self.jobs = []
 
 
     @log_on_start(logging.INFO, "get_jobs() Started")

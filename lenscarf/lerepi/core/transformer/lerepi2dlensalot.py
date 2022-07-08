@@ -176,20 +176,14 @@ class l2lensrec_Transformer:
             dl.TEMP_suffix = cf.data.TEMP_suffix
 
             dl.tol = iteration.TOL
-            if 'rinf_tol4' in cf.data.TEMP_suffix:
-                log.warning('tol_iter increased for this run. This is hardcoded.')
-                dl.tol_iter = lambda itr : 2*10 ** (- dl.tol) if itr <= 10 else 2*10 ** (-(dl.tol+1))
-            elif 'tol5e5' in cf.data.TEMP_suffix:
-                dl.tol_iter = lambda itr : 1*10 ** (- dl.tol) 
-            else:
-                dl.tol_iter = lambda itr : 1*10 ** (- dl.tol) if itr <= 10 else 1*10 ** (-(dl.tol+1))
             dl.soltn_cond = iteration.soltn_cond # Uses (or not) previous E-mode solution as input to search for current iteration one
-            
             if iteration.cg_tol < 1.:
                 # TODO hack. For cases where TOL is not only the exponent. Remove exponent-only version.
-                dl.cg_tol = lambda itr : iteration.cg_tol if itr <= 10 else iteration.cg_tol*0.1
+                if 'tol5e5' in cf.data.TEMP_suffix:
+                    dl.cg_tol = lambda itr : iteration.cg_tol
+                else:
+                    dl.cg_tol = lambda itr : iteration.cg_tol if itr <= 10 else iteration.cg_tol*0.1
             else:
-                dl.cg_tol = iteration.cg_tol
                 if 'rinf_tol4' in cf.data.TEMP_suffix:
                     log.warning('tol_iter increased for this run. This is hardcoded.')
                     dl.cg_tol = lambda itr : 2*10 ** (- dl.cg_tol) if itr <= 10 else 2*10 ** (-(dl.cg_tol+1))
@@ -699,13 +693,15 @@ class l2lensrec_Transformer:
             dl.tasks = it.tasks
             if it.cg_tol < 1.:
                 # TODO hack. For cases where TOL is not only the exponent. Remove exponent-only version.
-                dl.cg_tol = lambda itr : it.cg_tol if itr <= 10 else it.cg_tol*0.1
+                if 'tol5e5' in cf.analysis.TEMP_suffix:
+                    dl.cg_tol = lambda itr : it.cg_tol
+                else:
+                    dl.cg_tol = lambda itr : it.cg_tol if itr <= 10 else it.cg_tol*0.1
             else:
-                dl.cg_tol = it.cg_tol
-                if 'rinf_tol4' in cf.data.TEMP_suffix:
+                if 'rinf_tol4' in cf.analysis.TEMP_suffix:
                     log.warning('tol_iter increased for this run. This is hardcoded.')
                     dl.cg_tol = lambda itr : 2*10 ** (- dl.cg_tol) if itr <= 10 else 2*10 ** (-(dl.cg_tol+1))
-                elif 'tol5e5' in cf.data.TEMP_suffix:
+                elif 'tol5e5' in cf.analysis.TEMP_suffix:
                     dl.cg_tol = lambda itr : 1*10 ** (- dl.cg_tol) 
                 else:
                     dl.cg_tol = lambda itr : 1*10 ** (- dl.cg_tol) if itr <= 10 else 1*10 ** (-(dl.cg_tol+1))
@@ -938,8 +934,11 @@ class l2d_Transformer:
 
         def _process_data(dl, da):
             dl.fg = da.fg
+            dl.class_parameters = {'fg': da.fg}
+           
             _ui = cf.data.sims.split('/')
             _sims_module_name = 'lenscarf.lerepi.config.'+_ui[0]+'.data.data_'+_ui[1]
+            dl._module = _sims_module_name[9:]
             _sims_class_name = _ui[-1]
             _sims_module = importlib.import_module(_sims_module_name)
             dl.sims = getattr(_sims_module, _sims_class_name)(dl.fg)
