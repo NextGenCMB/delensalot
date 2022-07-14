@@ -18,11 +18,11 @@ dlensalot_model = DLENSALOT_Model(
         OMP_NUM_THREADS = 16
     ),
     analysis = DLENSALOT_Analysis(
-        TEMP_suffix = '',
+        TEMP_suffix = 'test',
         K = 'p_p',
         V = '',
         ITMAX = 12,
-        nsims_mf = 0,
+        simidxs_mf = np.arange(0,100),
         LENSRES = 1.7,
         Lmin = 4, 
         lmax_filt = 4000,
@@ -97,10 +97,12 @@ dlensalot_model = DLENSALOT_Model(
             xb = 1500
     )),
     madel = DLENSALOT_Mapdelensing(
-        iterations = [8,10],
+        iterations = [10,12],
         edges = ['ioreco'], # overwritten when binning=unbinned
+        masks = ("nlevels", [1.2, 2, 10, 50]),
         lmax = 2048, # automatically set to 200 when binning=unbinned
         Cl_fid = 'ffp10',
-        binning = 'unbinned',
+        binning = 'binned',
         spectrum_calculator = pospace
-    ))
+    )
+)

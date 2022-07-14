@@ -97,15 +97,12 @@ dlensalot_model = DLENSALOT_Model(
         )
     ),
     madel = DLENSALOT_Mapdelensing(
-        edges = ['cmbs4', 'ioreco'],
-        iterations = [12],
-        dlm_mod = False,
-        droplist = np.array([]),
-        nlevels = [1.2, 2, 5, 50],
-        lmax_cl = 2048,
+        iterations = [10,12],
+        edges = ['cmbs4', 'ioreco'], # overwritten when binning=unbinned
+        masks = ("nlevels", [1.2, 2, 10, 50]),
+        lmax = 2048, # automatically set to 200 when binning=unbinned
         Cl_fid = 'ffp10',
-        libdir_it = 'overwrite',
-        spectrum_type = 'binned',
+        binning = 'binned',
         spectrum_calculator = pospace
     )
 )

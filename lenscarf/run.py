@@ -20,7 +20,7 @@ from lenscarf.lerepi.core.parser import lerepi_parser
 datefmt = "%m-%d %H:%M"
 FORMAT = '%(levelname)s:: %(asctime)s:: %(name)s.%(funcName)s - %(message)s'
 formatter = logging.Formatter(FORMAT, datefmt=datefmt)
-ConsoleOutputHandler = logging.StreamHandler()
+ConsoleOutputHandler = logging.StreamHandler(sys.stdout)
 ConsoleOutputHandler.setFormatter(formatter)
 ConsoleOutputHandler.setLevel(logging.INFO)
 
@@ -32,7 +32,11 @@ logging.getLogger("healpy").disabled = True
 
 
 class run():
-    def __init__(self, config, job_id, madel_kwargs={}):
+    def __init__(self, config, job_id, verbose=True, madel_kwargs={}):
+        if not verbose:
+            ConsoleOutputHandler.setLevel(logging.WARNING)
+            sys_logger.setLevel(logging.WARNING)
+            logging.basicConfig(level=logging.WARNING, handlers=[ConsoleOutputHandler])
         parser = parserclass()
         parser.resume =  ""
         parser.config_file = config

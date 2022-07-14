@@ -263,7 +263,7 @@ class MAP_lr():
                 self.qe.collect_jobs()
                 # TODO need to make sure that all iterator wflms are calculated
                 # either mpi.barrier(), or check all simindices TD(1)
-                log.info("Waiting for all ransk to finish their task")
+                log.info("Waiting for all ranks to finish their task")
                 mpi.barrier()
                 _jobs.append(0)
                 # check = True
@@ -282,8 +282,12 @@ class MAP_lr():
                 mpi.barrier()
                 for idx in self.simidxs:
                     lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
-                    if rec.maxiterdone(lib_dir_iterator) >= self.itmax:
+                    if "calc_phi" in self.tasks:
+                        # assume that this is a new analysis, so rec.maxiterdone won't work. Could collect task jobs after finishing previous task run to improve this.
                         _jobs.append(idx)
+                    else:
+                        if rec.maxiterdone(lib_dir_iterator) >= self.itmax:
+                            _jobs.append(idx)
 
             jobs[taski] = _jobs
         self.jobs = jobs
@@ -321,6 +325,7 @@ class MAP_lr():
 
             elif task == 'calc_btemplate':
                 self.qe.run()
+                log.info('{}, task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
                     log.info("{}: start sim {}".format(mpi.rank, idx))
                     lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
@@ -551,8 +556,8 @@ class Map_delenser():
             return outputdata
 
 
-        @log_on_start(logging.INFO, "_build_basemaps() started")
-        @log_on_end(logging.INFO, "_build_basemaps() finished")
+        # @log_on_start(logging.INFO, "_build_basemaps() started")
+        # @log_on_end(logging.INFO, "_build_basemaps() finished")
         def _build_basemaps(idx):
             if self.data_type == 'map':
                 if self.data_field == 'qu':
@@ -581,8 +586,8 @@ class Map_delenser():
             return bmap_L, bmap_cs, btempmap_QE
 
 
-        @log_on_start(logging.INFO, "_build_Btemplate_MAP() started")
-        @log_on_end(logging.INFO, "_build_Btemplate_MAP() finished")
+        # @log_on_start(logging.INFO, "_build_Btemplate_MAP() started")
+        # @log_on_end(logging.INFO, "_build_Btemplate_MAP() finished")
         def _build_Btemplate_MAP(idx):
             fns = [self.getfn_blm_lensc(idx, it) for it in self.its]
             btemplm_MAP = np.zeros(shape=(len(fns), *np.load(self.getfn_blm_lensc(idx, 0)).shape), dtype=np.complex128)
@@ -601,15 +606,12 @@ class Map_delenser():
         def _delens(bmap_L, bmap_cs, btempmap_QE, btempmap_MAP):
             for mask_idi, mask_id in enumerate(self.mask_ids):
                 log.info("starting mask {}".format(mask_id))
-
-                log.info("starting base Cl calc")
                 bcl_cs = self.lib[mask_id].map2cl(bmap_cs)
                 bcl_L = self.lib[mask_id].map2cl(bmap_L)
 
                 outputdata[0][0][mask_idi] = bcl_L
                 outputdata[1][0][mask_idi] = bcl_cs
 
-                log.info("starting QE delensing")
                 btempcl_L_QE = self.lib[mask_id].map2cl(bmap_L-btempmap_QE)
                 btempcl_cs_QE = self.lib[mask_id].map2cl(bmap_cs-btempmap_QE)
 

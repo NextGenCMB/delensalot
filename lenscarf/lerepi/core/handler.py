@@ -158,7 +158,7 @@ class handler():
                 logging.info('Matching config file found. Resuming where I left off.')
 
 
-    @log_on_start(logging.INFO, "load_configfile() Started")
+    @log_on_start(logging.INFO, "load_configfile() Started: {directory}")
     @log_on_end(logging.INFO, "load_configfile() Finished")
     def load_configfile(directory, descriptor):
         """Load config file

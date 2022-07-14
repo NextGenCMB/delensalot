@@ -1261,8 +1261,9 @@ class l2d_Transformer:
             dl.vers_str = '/{}'.format(dl.version) if dl.version != '' else 'base'
             dl.TEMP_DELENSED_SPECTRUM = transform(dl, l2T_Transformer())
             for dir_id in dl.dirid:
-                if not(os.path.isdir(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dir_id))):
-                    os.makedirs(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dir_id))
+                if mpi.rank == 0:
+                    if not(os.path.isdir(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dir_id))):
+                        os.makedirs(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dir_id))
 
             # TODO II
             # TODO fn needs changing

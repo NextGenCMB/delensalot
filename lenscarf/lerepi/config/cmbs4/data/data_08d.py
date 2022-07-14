@@ -6,6 +6,7 @@
 """
 
 import os
+from os.path import join as opj
 import numpy as np
 from plancklens import utils #TODO switch this to lenscarf
 import healpy as hp
@@ -25,7 +26,7 @@ class ILC_May2022:
         assert fg in ['00', '07']
         self.facunits = facunits
         self.fg = fg
-        p_dset_dir =  '/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/foreground_cleaned_maps/08d.%s_umilta_220502'%fg
+        p_dset_dir =  opj(os.environ['CFS'], 'cmbs4/awg/lowellbb/reanalysis/foreground_cleaned_maps/08d.%s_umilta_220502'%fg)
         self.path = p_dset_dir + '/cmbs4_08d' + fg + '_cmb_b02_ellmin30_ellmax4050_map_2048_%04d.fits' # CMB + noise
         self.path_noise =   p_dset_dir + '/cmbs4_08d' + fg + '_noise_b02_ellmin30_ellmax4050_map_2048_%04d.fits'
         self.p2mask = p_dset_dir + '/ILC_mask_08d_smooth_30arcmin.fits' # Same mask as 06d
@@ -69,7 +70,7 @@ class ILC_May2022_perlmutter:
         assert fg in ['00', '07']
         self.facunits = facunits
         self.fg = fg
-        p_dset_dir =  '/pscratch/sd/s/sebibel/data/cmbs4/reanalysis/08d.%s_umilta_220502'%fg
+        p_dset_dir =  opj(os.environ['CFS'], 'cmbs4/awg/lowellbb/reanalysis/foreground_cleaned_maps/08d.%s_umilta_220502'%fg)
         self.path = p_dset_dir + '/cmbs4_08d' + fg + '_cmb_b02_ellmin30_ellmax4050_map_2048_%04d.fits' # CMB + noise
         self.path_noise =   p_dset_dir + '/cmbs4_08d' + fg + '_noise_b02_ellmin30_ellmax4050_map_2048_%04d.fits'
         self.p2mask = p_dset_dir + '/ILC_mask_08d_smooth_30arcmin.fits' # Same mask as 06d
