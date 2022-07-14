@@ -3,7 +3,7 @@ from lenscarf import utils
 from lenscarf.iterators import statics
 import plancklens
 from plancklens.sims import planck2018_sims
-from plancklens import qresp
+from plancklens import qresp    
 from lenscarf import cachers
 from lenscarf import utils_scarf, utils_sims
 from plancklens.qcinv import multigrid
@@ -199,122 +199,152 @@ class cpp_sims_lib:
         # pl.loglog(ls, w * hp.alm2cl(MF1[0], MF1[0])[ls] / norm[ls] ** 2, label='MF spec + MC noise')
 
 
-    def get_N0_qe(self):
-        fn_n0_qe = 'N0_qe'
+    # def get_N0_qe(self):
+    #     fn_n0_qe = 'N0_qe'
         
-        if not self.cacher_param.is_cached(fn_n0_qe):
-            cls_cmb_dat = self.param.cls_len_fid
+    #     if not self.cacher_param.is_cached(fn_n0_qe):
+    #         cls_cmb_dat = self.param.cls_len_fid
             
-            # Simple white noise model. Can feed here something more fancy if desired
-            transf = hp.gauss_beam(self.param.beam / 60. / 180. * np.pi, lmax=self.param.lmax_ivf)
-            Noise_L_T = (self.param.nlev_t / 60. / 180. * np.pi) ** 2 / transf ** 2
-            Noise_L_P = (self.param.nlev_p / 60. / 180. * np.pi) ** 2 / transf ** 2
+    #         # Simple white noise model. Can feed here something more fancy if desired
+    #         transf = hp.gauss_beam(self.param.beam / 60. / 180. * np.pi, lmax=self.param.lmax_ivf)
+    #         Noise_L_T = (self.param.nlev_t / 60. / 180. * np.pi) ** 2 / transf ** 2
+    #         Noise_L_P = (self.param.nlev_p / 60. / 180. * np.pi) ** 2 / transf ** 2
 
-            # Data power spectra
-            cls_dat = {
-                'tt': (self.param.cls_len['tt'][:self.param.lmax_ivf + 1] + Noise_L_T),
-                'ee': (self.param.cls_len['ee'][:self.param.lmax_ivf + 1] + Noise_L_P),
-                'bb': (self.param.cls_len['bb'][:self.param.lmax_ivf + 1] + Noise_L_P),
-                'te': np.copy(self.param.cls_len['te'][:self.param.lmax_ivf + 1])}
+    #         # Data power spectra
+    #         cls_dat = {
+    #             'tt': (self.param.cls_len['tt'][:self.param.lmax_ivf + 1] + Noise_L_T),
+    #             'ee': (self.param.cls_len['ee'][:self.param.lmax_ivf + 1] + Noise_L_P),
+    #             'bb': (self.param.cls_len['bb'][:self.param.lmax_ivf + 1] + Noise_L_P),
+    #             'te': np.copy(self.param.cls_len['te'][:self.param.lmax_ivf + 1])}
 
-            for s in cls_dat.keys():
-                cls_dat[s][min(lmaxs_CMB[s[0]], lmaxs_CMB[s[1]]) + 1:] *= 0.
+    #         for s in cls_dat.keys():
+    #             cls_dat[s][min(lmaxs_CMB[s[0]], lmaxs_CMB[s[1]]) + 1:] *= 0.
 
-            # (C+N)^{-1} filter spectra
-            # For independent T and P filtering, this is really just 1/ (C+ N), diagonal in T, E, B space
-            fal_sepTP = {spec: utils.cli(cls_dat[spec]) for spec in ['tt', 'ee', 'bb']}
-            # Spectra of the inverse-variance filtered maps
-            # In general cls_ivfs = fal * dat_cls * fal^t, with a matrix product in T, E, B space
-            cls_ivfs_sepTP = utils.cls_dot([fal_sepTP, cls_dat, fal_sepTP], ret_dict=True)
+    #         # (C+N)^{-1} filter spectra
+    #         # For independent T and P filtering, this is really just 1/ (C+ N), diagonal in T, E, B space
+    #         fal_sepTP = {spec: utils.cli(cls_dat[spec]) for spec in ['tt', 'ee', 'bb']}
+    #         # Spectra of the inverse-variance filtered maps
+    #         # In general cls_ivfs = fal * dat_cls * fal^t, with a matrix product in T, E, B space
+    #         cls_ivfs_sepTP = utils.cls_dot([fal_sepTP, cls_dat, fal_sepTP], ret_dict=True)
 
-            # For joint TP filtering, fals is matrix inverse
-            # fal_jtTP = utils.cl_inverse(cls_dat)
-            # since cls_dat = fals, cls_ivfs = fals. If the data spectra do not match the filter, this must be changed:
-            # cls_ivfs_jtTP = utils.cls_dot([fal_jtTP, cls_dat, fal_jtTP], ret_dict=True)
-            # for cls in [fal_sepTP, fal_jtTP, cls_ivfs_sepTP, cls_ivfs_jtTP]:
-            #     for cl in cls.values():
-            #         cl[:max(1, lmin_ivf)] *= 0.
-
-
-            N0 = nhl.get_nhl(self.k, self.k, self.param.cls_len, cls_ivfs_sepTP, self.param.lmax_ivf, self.param.lmax_ivf)
-        N0 = self.cacher_param.load(fn_n0_qe)
-        return N0
+    #         # For joint TP filtering, fals is matrix inverse
+    #         # fal_jtTP = utils.cl_inverse(cls_dat)
+    #         # since cls_dat = fals, cls_ivfs = fals. If the data spectra do not match the filter, this must be changed:
+    #         # cls_ivfs_jtTP = utils.cls_dot([fal_jtTP, cls_dat, fal_jtTP], ret_dict=True)
+    #         # for cls in [fal_sepTP, fal_jtTP, cls_ivfs_sepTP, cls_ivfs_jtTP]:
+    #         #     for cl in cls.values():
+    #         #         cl[:max(1, lmin_ivf)] *= 0.
 
 
-    def get_N0_N1_QE_fid(self, doN1mat=False):
-        """
-        Returns the fiducial QE N0 and N1 biases.
-        """
-        fn_n0_qe = 'N0_qe_fid'
-        fn_n1_qe = 'N1_qe_fid'
-        fn_resp_qe = 'Resp_qe_fid'
-        assert self.k =='p_p', 'QE biases are currently not implemented fot MV and TT estimators (check nhl lib and n1_fft lib to get more QE biases)'
+    #         N0 = nhl.get_nhl(self.k, self.k, self.param.cls_len, cls_ivfs_sepTP, self.param.lmax_ivf, self.param.lmax_ivf)
+    #     N0 = self.cacher_param.load(fn_n0_qe)
+    #     return N0
 
-        if np.any([not self.cacher_param.is_cached(fn) for fn in [fn_n0_qe, fn_n1_qe, fn_resp_qe]]):
+
+    def get_N0_N1_QE(self):
+        assert self.k =='p_p', 'Biases not implemented fot MV and TT estimators'
+
+        config = (self.param.nlev_t, self.param.nlev_p, self.param.beam, self.param.lmin_elm, self.param.lmax_ivf, self.param.lmax_qlm)
+
+        iterbiases = n0n1_iterative.polMAPbiases(config, fidcls_unl=self.param.cls_unl, itrmax = 0, cacher=self.cacher_param)
+        N0_biased, N1_biased_spl, r_gg_fid, r_gg_true = iterbiases.get_n0n1(cls_unl_true=None, cls_noise_true=None, version='')
+        return N0_biased, N1_biased_spl, r_gg_fid, r_gg_true
+
+    # def get_N0_N1_QE_fid(self, doN1mat=False):
+    #     """
+    #     Returns the fiducial QE N0 and N1 biases.
+    #     """
+    #     fn_n0_qe = 'N0_qe_fid'
+    #     fn_n1_qe = 'N1_qe_fid'
+    #     fn_resp_qe = 'Resp_qe_fid'
+    #     assert self.k =='p_p', 'QE biases are currently not implemented fot MV and TT estimators (check nhl lib and n1_fft lib to get more QE biases)'
+
+    #     if np.any([not self.cacher_param.is_cached(fn) for fn in [fn_n0_qe, fn_n1_qe, fn_resp_qe]]):
             
+    #         # if type(self.param.ivfs) == plancklens.filt.filt_util.library_ftl:
+    #         #     """In the masked case"""
+    #         #     cls_weights = self.param.ivfs.ivfs.cl
+    #         # elif type(self.param.ivfs) == plancklens.filt.filt_simple.library_fullsky_sepTP:
+    #         #     """In the full sky case"""
+    #         #     cls_weights = self.param.ivfs.cl
+    #         # cls_cmb_dat = self.param.cls_len
+    #         # fidcls_noise = {'tt': (self.param.nlev_t / 180 / 60 * np.pi) **2 * utils.cli(self.param.transf_tlm ** 2) * (self.param.transf_tlm > 0),
+    #         #                 'ee': (self.param.nlev_p / 180 / 60 * np.pi) **2 * utils.cli(self.param.transf_elm ** 2) * (self.param.transf_elm > 0),
+    #         #                 'bb': (self.param.nlev_p / 180 / 60 * np.pi) **2 * utils.cli(self.param.transf_blm ** 2) * (self.param.transf_blm > 0) }
+    #         # cls_noise_dat = fidcls_noise
             
-            if type(self.param.ivfs) == plancklens.filt.filt_util.library_ftl:
-                """In the masked case"""
-                cls_weights = self.param.ivfs.ivfs.cl
-            elif type(self.param.ivfs) == plancklens.filt.filt_simple.library_fullsky_sepTP:
-                """In the full sky case"""
-                cls_weights = self.param.ivfs.cl
+    #         lmax =  self.param.lmax_ivf
+    #         lmax_qlm =  self.param.lmax_qlm
 
-            # cls_cmb_dat = self.param.cls_len
-            fidcls_noise = {'tt': (self.param.nlev_t / 180 / 60 * np.pi) **2 * utils.cli(self.param.transf_tlm ** 2) * (self.param.transf_tlm > 0),
-                            'ee': (self.param.nlev_p / 180 / 60 * np.pi) **2 * utils.cli(self.param.transf_elm ** 2) * (self.param.transf_elm > 0),
-                            'bb': (self.param.nlev_p / 180 / 60 * np.pi) **2 * utils.cli(self.param.transf_blm ** 2) * (self.param.transf_blm > 0) }
-            # cls_noise_dat = fidcls_noise
-            lmax =  self.param.lmax_ivf
-            lmax_qlm =  self.param.lmax_qlm
-
-            fals = {'tt':self.param.ftl, 
-                        'ee':self.param.fel,
-                        'bb':self.param.fbl}
-            cls_ivfs = fals
-            #FIXME: In principle this should be the filtered CMB data, but here we assume they are the fiducial ones
-            # could compute it as in n0n1_iterative.py with the fiducial Cls for the filtering but the true Cls for the data
+    #         fals = {'tt':self.param.ftl, 
+    #                     'ee':self.param.fel,
+    #                     'bb':self.param.fbl}
+    #         # cls_ivfs = fals
             
-            n_gg = nhl.get_nhl(self.k, self.k, cls_weights, cls_ivfs, lmax, lmax, lmax_out=lmax_qlm)[0]
-            # nhllib = nhl.nhl_lib_simple(opj(self.TEMP, 'cpplib'), self.param.ivfs, cls_weights, lmax_qlm)
+    #         cls_weights = {q: np.copy(self.param.cls_len[q][:lmax+1]) for q in ['tt', 'ee', 'bb']}
+
+    #         cls_weights['tt'][:self.param.lmin_tlm] *= 0
+    #         cls_weights['ee'][:self.param.lmin_elm] *= 0
+    #         cls_weights['bb'][:self.param.lmin_blm] *= 0
+
+    #         cls_cmb = {q: np.copy(self.param.cls_len[q][:lmax+1]) for q in ['tt', 'te', 'ee', 'bb']}
+    #         facdatnoise = 1.
+    #         #FIXME: In principle this should be the filtered CMB data, but here we assume they are the fiducial ones
+    #         # could compute it as in n0n1_iterative.py with the fiducial Cls for the filtering but the true Cls for the data
+    #         dat_cls = {'tt': (cls_cmb['tt'][:lmax + 1] + facdatnoise * (self.param.nlev_t / 180 / 60 * np.pi) ** 2 *  utils.cli(self.param.transf_tlm ** 2)) * (self.param.transf_tlm > 0),
+    #             'ee': (cls_cmb['ee'][:lmax + 1] + facdatnoise * (self.param.nlev_p / 180 / 60 * np.pi) ** 2 *  utils.cli(self.param.transf_elm ** 2))*  (self.param.transf_elm > 0),
+    #            'bb': (cls_cmb['bb'][:lmax + 1] + facdatnoise * (self.param.nlev_p / 180 / 60 * np.pi) ** 2 * utils.cli(self.param.transf_blm ** 2))*  (self.param.transf_blm > 0)}
+
+    #         cls_ivfs_arr = plancklens.utils.cls_dot([fals, dat_cls, fals])
+    #         cls_ivfs = dict()
+    #         for i, a in enumerate(['t', 'e', 'b']):
+    #             for j, b in enumerate(['t', 'e', 'b'][i:]):
+    #                 if np.any(cls_ivfs_arr[i, j + i]):
+    #                     cls_ivfs[a + b] = cls_ivfs_arr[i, j + i]
+
+
+    #         n_gg = nhl.get_nhl(self.k, self.k, cls_weights, cls_ivfs, lmax, lmax, lmax_out=lmax_qlm)[0]
+    #         # nhllib = nhl.nhl_lib_simple(opj(self.TEMP, 'cpplib'), self.param.ivfs, cls_weights, lmax_qlm)
             
-            # FIXME : Assuming here that the Cls entering the response are the lensed Cls, but more optimal is to put the gradlensed Cls
-            cls_f = self.param.cls_len
-            r_gg_fid = qresp.get_response(self.k, lmax, 'p', cls_weights, cls_f, fals, lmax_qlm=lmax_qlm)[0]
+    #         # FIXME : Assuming here that the Cls entering the response are the lensed Cls, but more optimal is to put the gradlensed Cls
+    #         cls_f = self.param.cls_len
+    #         r_gg_fid = qresp.get_response(self.k, lmax, 'p', cls_weights, cls_f, fals, lmax_qlm=lmax_qlm)[0]
+    #         # R = qresp.get_response(self.k, self.param.lmax_ivf, 'p', self.param.cls_len, self.param.cls_len, {'e': self.param.fel, 'b': self.param.fbl, 't':self.param.ftl}, lmax_qlm=self.param.lmax_qlm)[0]
 
-            N0_fid = n_gg * utils.cli(r_gg_fid ** 2)
+    #         N0_fid = n_gg * utils.cli(r_gg_fid ** 2)
 
-            n1lib = n1_fft.n1_fft(fals, cls_weights, cls_f, np.copy(self.param.cls_unl['pp']), lminbox=50, lmaxbox=5000, k2l=None)
-            n1_Ls = np.arange(50, (lmax_qlm // 50) * 50  + 50, 50)
-            if not doN1mat:
-                n1 = np.array([n1lib.get_n1(self.k, L, do_n1mat=False)  for L in n1_Ls])
-                n1mat = None
-            else:
-                n1_, n1m_ = n1lib.get_n1(self.k, n1_Ls[0], do_n1mat=True)
-                n1 = np.zeros(len(n1_Ls))
-                n1mat = np.zeros( (len(n1_Ls), n1m_.size))
-                n1[0] = n1_
-                n1mat[0] = n1m_
-                for iL, n1_L in enumerate(n1_Ls[1:]):
-                    n1_, n1m_ = n1lib.get_n1(self.k, n1_L, do_n1mat=True)
-                    n1[iL + 1] = n1_
-                    n1mat[iL + 1] = n1m_
-            N1_fid_spl = spline(n1_Ls, n1_Ls ** 2 * (n1_Ls * 1. + 1) ** 2 * n1 / r_gg_fid[n1_Ls] ** 2, k=2,s=0, ext='zeros') (np.arange(len(N0_fid)))
-
-            self.cacher_param.cache(fn_n0_qe, N0_fid)
-            self.cacher_param.cache(fn_n1_qe, N1_fid_spl)
-            self.cacher_param.cache(fn_resp_qe, r_gg_fid)
-        N0_fid = self.cacher_param.load(fn_n0_qe)
-        N1_fid = self.cacher_param.load(fn_n1_qe)
-        Resp_fid = self.cacher_param.load(fn_resp_qe)
-        return N0_fid, N1_fid, Resp_fid
+    #         n1lib = n1_fft.n1_fft(fals, cls_weights, cls_f, np.copy(self.param.cls_unl['pp']), lminbox=50, lmaxbox=5000, k2l=None)
+    #         n1_Ls = np.arange(50, (lmax_qlm // 50) * 50  + 50, 50)
+    #         if not doN1mat:
+    #             n1 = np.array([n1lib.get_n1(self.k, L, do_n1mat=False)  for L in n1_Ls])
+    #             n1mat = None
+    #         else:
+    #             n1_, n1m_ = n1lib.get_n1(self.k, n1_Ls[0], do_n1mat=True)
+    #             n1 = np.zeros(len(n1_Ls))
+    #             n1mat = np.zeros( (len(n1_Ls), n1m_.size))
+    #             n1[0] = n1_
+    #             n1mat[0] = n1m_
+    #             for iL, n1_L in enumerate(n1_Ls[1:]):
+    #                 n1_, n1m_ = n1lib.get_n1(self.k, n1_L, do_n1mat=True)
+    #                 n1[iL + 1] = n1_
+    #                 n1mat[iL + 1] = n1m_
+    #         N1_fid_spl = spline(n1_Ls, n1_Ls ** 2 * (n1_Ls * 1. + 1) ** 2 * n1 / r_gg_fid[n1_Ls] ** 2, k=2,s=0, ext='zeros') (np.arange(len(N0_fid)))
+    #         N1_fid_spl *= utils.cli(np.arange(lmax_qlm + 1) ** 2  * np.arange(1, lmax_qlm + 2, dtype=float) ** 2)
+            
+    #         self.cacher_param.cache(fn_n0_qe, N0_fid)
+    #         self.cacher_param.cache(fn_n1_qe, N1_fid_spl)
+    #         self.cacher_param.cache(fn_resp_qe, r_gg_fid)
+    #     N0_fid = self.cacher_param.load(fn_n0_qe)
+    #     N1_fid = self.cacher_param.load(fn_n1_qe)
+    #     Resp_fid = self.cacher_param.load(fn_resp_qe)
+    #     return N0_fid, N1_fid, Resp_fid
 
     def get_N0_N1_iter(self, itermax=15, version=''):
         assert self.k =='p_p', 'Iterative biases not implemented fot MV and TT estimators'
 
         config = (self.param.nlev_t, self.param.nlev_p, self.param.beam, self.param.lmin_elm, self.param.lmax_ivf, self.param.lmax_qlm)
 
-        # TODO: the cached files do not depend on the itermax
+       
         iterbiases = n0n1_iterative.polMAPbiases(config, fidcls_unl=self.param.cls_unl, itrmax = itermax, cacher=self.cacher_param)
         N0_biased, N1_biased_spl, r_gg_fid, r_gg_true = iterbiases.get_n0n1(cls_unl_true=None, cls_noise_true=None, version=version)
         return N0_biased, N1_biased_spl, r_gg_fid, r_gg_true
@@ -484,7 +514,7 @@ class cpp_sims_lib:
             cacher.cache(fn, wf)
         return cacher.load(fn)
 
-    def get_wf_eff(self, imin = 0, imax = 4, itermax=15):
+    def get_wf_eff(self, imin = 0, imax = 4, itermax=15, lmin_interp=0, lmax_interp=None,  k=3, s=None):
         """Effective Wiener filter averaged over several simulations
         We spline interpolate the ratio between the effective WF from simulations and the fiducial WF
         We take into account the sky fraction to get the simulated WFs
@@ -510,11 +540,25 @@ class cpp_sims_lib:
             wfsims_bias[isim] = self.get_wf_sim(isim, itermax) / self.fsky * utils.cli(wf_fid)
         wfcorr_mean = np.mean(wfsims_bias, axis=0)
         wfcorr_spl = np.zeros(len(wf_fid))
-        ells = np.arange(self.lmax_qlm+1)
-        wfcorr_spl[ells] = spline(ells, wfcorr_mean[ells])(ells)
+        if lmax_interp is None: lmax_interp=self.lmax_qlm
+        ells = np.arange(lmin_interp, lmax_interp+1)
+        wfcorr_spl[ells] = spline(ells, wfcorr_mean[ells], k=k, s=s)(ells)
         wf_eff = wf_fid * wfcorr_spl
         return wf_eff[:self.lmax_qlm+1], wfcorr_spl
 
+
+    def get_kR_eff(self):
+        """Correct the normalisation using the RDN0 estimates from several sims"""
+        #FIXME: for now we only have one sim with an RDN0 estimate
+        idx = 0
+        outputdir = rdn0_cs.output_sim(self.param.suffix, idx)
+        fn = opj(outputdir, 'cls_dsss.dat')
+        kdsfid, kssfid, _, _, _, _ = np.loadtxt(fn).transpose()
+        rdn0_mean = 4 * kdsfid - 2 * kssfid
+        kR_eff_Spline = self.kRtrue_fid[self.ells] * spline(self.ells, rdn0_mean[self.ells] *cli(self.kRtrue_fid[self.ells]))(self.ells)
+        kR_eff = np.zeros(4001)
+        kR_eff[self.ells]  = kR_eff_Spline
+        return kR_eff
 
 
     def load_rdn0_kk_map(self, idx):
