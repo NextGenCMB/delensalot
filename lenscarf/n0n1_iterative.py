@@ -63,7 +63,7 @@ class polMAPbiases:
         if cls_noise_true is None: cls_noise_true = cls_noise_fid
         if cls_unl_true is None: cls_unl_true = cls_unl_fid
         if fn is None:
-            fn = 'n0n1' + _dicthash(cls_noise_true, lmax, keys=['ee', 'bb']) + _dicthash(cls_unl_true, 6000, keys = ['ee', 'pp'])
+            fn = 'n0n1_it' + str(self.itrmax) +'_' + _dicthash(cls_noise_true, lmax, keys=['ee', 'bb']) + _dicthash(cls_unl_true, 6000, keys = ['ee', 'pp'])
             if version != '':
                 fn = 'v' + version + fn
         if not self._cacher.is_cached(fn):
