@@ -88,7 +88,7 @@ class l2T_Transformer:
     # @log_on_end(logging.INFO, "build_delsuffix() finished")
     def build_delsuffix(self, dl):
         if dl.version == '':
-            return os.path.join(dl.TEMP, 'plotdata', 'base')
+            return os.path.join(dl.TEMP, 'plotdata', 'mask_RF')
         else:
             return os.path.join(dl.TEMP, 'plotdata', dl.version)
 
@@ -1025,7 +1025,7 @@ class l2d_Transformer:
                             buffer = hp.read_map(fn)
                         else:
                             buffer = np.load(fn)
-                        _fsky = float("{:0.2f}".format(np.sum(buffer)/len(buffer)))
+                        _fsky = float("{:0.3f}".format(np.sum(buffer)/len(buffer)))
                         dl.mask_ids[fni] = _fsky
                         dl.masks[ma.masks[0]].update({_fsky:buffer})
             else:
@@ -1197,7 +1197,7 @@ class l2d_Transformer:
                             buffer = hp.read_map(fn)
                         else:
                             buffer = np.load(fn)
-                        _fsky = float("{:0.2f}".format(np.sum(buffer)/len(buffer)))
+                        _fsky = float("{:0.3f}".format(np.sum(buffer)/len(buffer)))
                         dl.mask_ids[fni] = _fsky
                         dl.masks[ma.masks[0]].update({_fsky:buffer})
             else:

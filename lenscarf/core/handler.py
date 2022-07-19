@@ -438,12 +438,11 @@ class Map_delenser():
     def read_data_v2(self, edges_id=0):
         bcl_cs = np.zeros(shape=(len(self.its)+2, len(self.mask_ids), len(self.simidxs), len(self.edges[edges_id])-1))
         bcl_L = np.zeros(shape=(len(self.its)+2, len(self.mask_ids), len(self.simidxs), len(self.edges[edges_id])-1))
-        print('Loading {} sims from {}'.format(len(self.simidxs), self.TEMP + '/plotdata/{}/{}'.format(self.vers_str,self.dirid[0])))
+        
+        print('Loading {} sims from {}'.format(len(self.simidxs),  '/'.join([f for f in self.file_op(0, self.fg, 0).split('/')[:-1]])))
         for simidx, simid in enumerate(self.simidxs):
-            if self.dlm_mod_bool:
-                data = np.load(self.TEMP + '/plotdata/{}/{}'.format(self.vers_str,self.dirid[0]) + '/ClBBwf_sim%04d_dlmmod_fg%2s_res2b3acm.npy'%(simid, self.class_parameters['fg']))
-            else:
-                data = np.load(self.TEMP + '/plotdata/{}/{}'.format(self.vers_str,self.dirid[0]) + '/ClBBwf_sim%04d_fg%2s_res2b3acm.npy'%(simid, self.class_parameters['fg']))
+            _file_op = self.file_op(simidx, self.fg, 0)
+            data = np.load(_file_op)
             bcl_L[0,:,simidx] = data[0][0]
             bcl_cs[0,:,simidx] = data[1][0]
 
