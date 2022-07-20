@@ -116,7 +116,7 @@ class QE_lr():
                 log.info('{}/{}, Starting job {}'.format(mpi.rank,mpi.size,idx))
                 # TODO this triggers the creation of all files for the MAP input, defined by the job array. 
                 # MAP later needs the corresponding values separately via getter. Can I think of something better?
-                self.get_sim_qlm(idx)
+                self.get_sim_qlm(int(idx))
                 self.get_response_meanfield()
                 self.get_wflm(idx)
                 self.get_R_unl()
