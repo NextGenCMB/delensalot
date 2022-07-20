@@ -22,7 +22,6 @@ from lenscarf.core import mpi
 from plancklens import qest, qecl, utils
 from plancklens.filt import filt_util, filt_cinv, filt_simple
 from plancklens.qcinv import cd_solve
-from plancklens.qcinv import opfilt_pp
 
 from lenscarf import utils_scarf
 from lenscarf.utils import cli
@@ -186,11 +185,11 @@ class l2lensrec_Transformer:
             else:
                 if 'rinf_tol4' in cf.data.TEMP_suffix:
                     log.warning('tol_iter increased for this run. This is hardcoded.')
-                    dl.cg_tol = lambda itr : 2*10 ** (- dl.cg_tol) if itr <= 10 else 2*10 ** (-(dl.cg_tol+1))
+                    dl.cg_tol = lambda itr : 2*10 ** (- iteration.cg_tol) if itr <= 10 else 2*10 ** (-(iteration.cg_tol+1))
                 elif 'tol5e5' in cf.data.TEMP_suffix:
-                    dl.cg_tol = lambda itr : 1*10 ** (- dl.cg_tol) 
+                    dl.cg_tol = lambda itr : 1*10 ** (- iteration.cg_tol) 
                 else:
-                    dl.cg_tol = lambda itr : 1*10 ** (- dl.cg_tol) if itr <= 10 else 1*10 ** (-(dl.cg_tol+1))
+                    dl.cg_tol = lambda itr : 1*10 ** (- iteration.cg_tol) if itr <= 10 else 1*10 ** (-(iteration.cg_tol+1))
 
             dl.cpp = np.copy(dl.cls_unl['pp'][:dl.lmax_qlm + 1])
             dl.cpp[:iteration.Lmin] *= 0.
@@ -655,6 +654,7 @@ class l2lensrec_Transformer:
 
             dl.QE_LENSING_CL_ANALYSIS = qe.QE_LENSING_CL_ANALYSIS
             if qe.QE_LENSING_CL_ANALYSIS == True:
+                # TODO fix numbers for mc ocrrection and total nsims
                 dl.ss_dict = { k : v for k, v in zip( np.concatenate( [ range(i*60, (i+1)*60) for i in range(0,5) ] ),
                                         np.concatenate( [ np.roll( range(i*60, (i+1)*60), -1 ) for i in range(0,5) ] ) ) }
                 dl.ds_dict = { k : -1 for k in range(300)}
@@ -700,11 +700,11 @@ class l2lensrec_Transformer:
             else:
                 if 'rinf_tol4' in cf.analysis.TEMP_suffix:
                     log.warning('tol_iter increased for this run. This is hardcoded.')
-                    dl.cg_tol = lambda itr : 2*10 ** (- dl.cg_tol) if itr <= 10 else 2*10 ** (-(dl.cg_tol+1))
+                    dl.cg_tol = lambda itr : 2*10 ** (- it.cg_tol) if itr <= 10 else 2*10 ** (-(it.cg_tol+1))
                 elif 'tol5e5' in cf.analysis.TEMP_suffix:
-                    dl.cg_tol = lambda itr : 1*10 ** (- dl.cg_tol) 
+                    dl.cg_tol = lambda itr : 1*10 ** (- it.cg_tol) 
                 else:
-                    dl.cg_tol = lambda itr : 1*10 ** (- dl.cg_tol) if itr <= 10 else 1*10 ** (-(dl.cg_tol+1))
+                    dl.cg_tol = lambda itr : 1*10 ** (- it.cg_tol) if itr <= 10 else 1*10 ** (-(it.cg_tol+1))
             dl.soltn_cond = it.soltn_cond
 
             if it.lenjob_geometry == 'thin_gauss':
@@ -806,14 +806,7 @@ class l2OBD_Transformer:
         nlev_t = l2OBD_Transformer.get_nlevt(cf)
         masks, noisemodel_rhits_map =  l2OBD_Transformer.get_masks(cf)
         noisemodel_norm = np.max(noisemodel_rhits_map)
-        # TODO hack, needed for v1 and v2 compatibility
-        if isinstance(cf, DLENSALOT_Model):
-            t_transf = gauss_beam(df.a2r(cf.data.beam), lmax=cf.iteration.lmax_ivf)
-        else:
-            t_transf = gauss_beam(df.a2r(cf.data.beam), lmax=cf.analysis.lmax_ivf)
         ninv_desc = [np.array([hp.nside2pixarea(cf.data.nside, degrees=True) * 60 ** 2 / nlev_t ** 2])/noisemodel_norm] + masks
-        # ninv_t = opfilt_pp.alm_filter_ninv([ninv_desc], t_transf, marge_qmaps=(), marge_umaps=()).get_ninv()
-        # return ninv_t, ninv_desc
         return ninv_desc
 
 
@@ -823,14 +816,7 @@ class l2OBD_Transformer:
         nlev_p = l2OBD_Transformer.get_nlevp(cf)
         masks, noisemodel_rhits_map =  l2OBD_Transformer.get_masks(cf)
         noisemodel_norm = np.max(noisemodel_rhits_map)
-        # TODO hack, needed for v1 and v2 compatibility
-        if isinstance(cf, DLENSALOT_Model):
-            b_transf = gauss_beam(df.a2r(cf.data.beam), lmax=cf.iteration.lmax_ivf) # TODO ninv_p doesn't depend on this anyway, right?
-        else:
-            b_transf = gauss_beam(df.a2r(cf.data.beam), lmax=cf.analysis.lmax_ivf) # TODO ninv_p doesn't depend on this anyway, right?
         ninv_desc = [[np.array([hp.nside2pixarea(cf.data.nside, degrees=True) * 60 ** 2 / nlev_p ** 2])/noisemodel_norm] + masks]
-        # ninv_p = opfilt_pp.alm_filter_ninv(ninv_desc, b_transf, marge_qmaps=(), marge_umaps=()).get_ninv()
-        # return ninv_p, ninv_desc
         return ninv_desc
 
 
