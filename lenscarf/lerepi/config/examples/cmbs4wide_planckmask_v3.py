@@ -54,18 +54,21 @@ dlensalot_model = DLENSALOT_Model(
         nside = 2048
     ),
     noisemodel = DLENSALOT_Noisemodel(
-        ninvjob_geometry = 'healpix_geometry',
+        lowell_treat = 'trunc',
         nlev_t = 0.5/np.sqrt(2),
         nlev_p = 0.5,
         mask = opj(os.environ['CFS'], "cmb/data/planck2018/pr3/Planck_L08_inputs/PR3vJan18_temp_lensingmask_gPR2_70_psPR2_143_COT2_smicadx12_smicapoldx12_psPR2_217_sz.fits.gz"),
         OBD = DLENSALOT_OBD(
-            BMARG_LIBDIR = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08b/',
-            BMARG_LCUT = 200,
-            BMARG_RESCALE = (0.42/0.350500)**2,
-            lmin_tlm = 30,
-            lmin_elm = 30,
-            lmin_blm = 200
+            libdir = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08b/',
+            rescale = (0.42/0.350500)**2,
+            nlev_dep = 1e4,
+            tpl = 'template_dense'
+
         )
+        lmin_tlm = 30,
+        lmin_elm = 30,
+        lmin_blm = 200,
+        ninvjob_geometry = 'healpix_geometry',
     ),
     qerec = DLENSALOT_Qerec(
         ivfs = 'sepTP',

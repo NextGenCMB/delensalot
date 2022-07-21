@@ -120,19 +120,16 @@ class DLENSALOT_Noisemodel(DLENSALOT_Concept):
     Attributes:
         typ:
     """
+    lowell_treat = attr.ib(default=None) # OBD, trunc, None
     OBD = attr.ib(default=None)
-    typ = attr.ib(default=None)
-    ninvjob_geometry = attr.ib(default=None)
     lmin_tlm = attr.ib(default=np.nan)
     lmin_elm = attr.ib(default=np.nan)
     lmin_blm = attr.ib(default=np.nan)
     nlev_t = attr.ib(default=[])
     nlev_p = attr.ib(default=[])
-    nlev_dep = attr.ib(default=np.nan)
-    inf = attr.ib(default=np.nan)
-    mask = attr.ib(default=None)
     rhits_normalised = attr.ib(default=None)
-    tpl = attr.ib(default=None)
+    mask = attr.ib(default=None)
+    ninvjob_geometry = attr.ib(default=None)
 
 
 @attr.s
@@ -231,6 +228,7 @@ class DLENSALOT_OBD(DLENSALOT_Concept):
     Attributes:
         BMARG_LIBDIR:
     """
-    BMARG_LIBDIR = attr.ib(default=None)
-    BMARG_LCUT = attr.ib(default=None)
-    BMARG_RESCALE = attr.ib(default=None)
+    libdir = attr.ib(default=None)
+    rescale = attr.ib(default=None)
+    tpl = attr.ib(default=None)
+    nlev_dep = attr.ib(default=np.nan)

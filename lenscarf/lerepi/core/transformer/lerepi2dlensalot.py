@@ -106,18 +106,25 @@ class l2lensrec_Transformer:
     """
 
     def mapper(self, cf):
-
         if cf.meta.version == '0.2a':
-            
             return self.build(cf)
 
         elif cf.meta.version == '0.2b':
-
             return self.build_v2(cf)
         
         elif cf.meta.version == '0.9':
-            
-            return self.build_v3(cf)
+            valid = self.validate(cf)
+            if valid:
+                return self.build_v3(cf)
+            else:
+                log.error('Setting in configuration file not supported: {}'.format(valid))
+
+
+    @log_on_start(logging.INFO, "build_v2() started")
+    @log_on_end(logging.INFO, "build_v2() finished")
+    def validate():
+        # TODO implement
+        return True
 
 
     @log_on_start(logging.INFO, "build() started")
@@ -352,7 +359,7 @@ class l2lensrec_Transformer:
         @log_on_start(logging.INFO, "_process_noisemodelparams() started")
         @log_on_end(logging.INFO, "_process_OBDparams() finished")
         def _process_noisemodelparams(dl, nm):
-            dl.OBD_type = nm.typ
+            dl.lowell_treat = nm.lowell
             dl.BMARG_LCUT = nm.BMARG_LCUT
             dl.BMARG_LIBDIR = nm.BMARG_LIBDIR
             dl.BMARG_RESCALE = nm.BMARG_RESCALE
@@ -773,9 +780,10 @@ class l2lensrec_Transformer:
 
         return dl
 
-
-    @log_on_start(logging.INFO, "build_v2() started")
-    @log_on_end(logging.INFO, "build_v2() finished")
+    
+    
+    @log_on_start(logging.INFO, "build_v3() started")
+    @log_on_end(logging.INFO, "build_v3() finished")
     def build_v3(self, cf):
 
 
@@ -946,28 +954,44 @@ class l2lensrec_Transformer:
         @log_on_start(logging.INFO, "_process_Noisemodel() started")
         @log_on_end(logging.INFO, "_process_Noisemodel() finished")
         def _process_Noisemodel(dl, nm):
-            # OBD = attr.ib(default=None)
-            # typ = attr.ib(default=None)
-            # ninvjob_geometry = attr.ib(default=None)
-            # lmin_tlm = attr.ib(default=np.nan)
-            # lmin_elm = attr.ib(default=np.nan)
-            # lmin_blm = attr.ib(default=np.nan)
-            # nlev_t = attr.ib(default=[])
-            # nlev_p = attr.ib(default=[])
-            # nlev_dep = attr.ib(default=np.nan)
-            # inf = attr.ib(default=np.nan)
-            # mask = attr.ib(default=None)
-            # rhits_normalised = attr.ib(default=None)
-            # tpl = attr.ib(default=None)
+            # lowell_treat
+            dl.lowell_treat = nm.lowell_treat
 
+
+            # OBD
+            dl.obd_libdir = nm.OBD.libdir
+            dl.obd_rescale = nm.rescale
+            dl.obd_tpl = nm.OBD.tpl
+            dl.obd_nlevdep = nm.OBD.nlevdep
+
+            # lmin_tlm
+
+
+            # lmin_elm
+
+
+            # lmin_blm
+
+
+            # nlev_t
+
+
+            # nlev_p
+
+
+            # rhits_normalised
+
+
+            # mask
+
+
+            # ninvjob_geometry
             if nm.ninvjob_geometry == 'healpix_geometry':
                 dl.ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(dl.nside, zbounds=dl.zbounds)
-            dl.OBD_type = nm.typ
-            dl.BMARG_LIBDIR = nm.BMARG_LIBDIR
-            dl.BMARG_LCUT = nm.BMARG_LCUT
-            dl.BMARG_RESCALE = nm.BMARG_RESCALE
 
-            if dl.OBD_type == 'OBD':
+
+            if dl.lowell_treat == 'OBD':
+
                 # TODO need to check if tniti exists, and if tniti is the correct one
                 # TODO this is a weird lazy loading solution of template_dense 
                 if nm.tpl == 'template_dense':
