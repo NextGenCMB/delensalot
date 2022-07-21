@@ -85,9 +85,6 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     simidxs_mf = attr.ib(default=[])
     TEMP_suffix = attr.ib(default=None)
     lens_res = attr.ib(default=np.nan)
-    lmax_filt = attr.ib(default=np.nan)
-    mmax_unl = attr.ib(default=np.nan)
-    lmax_unl = attr.ib(default=np.nan)
     zbounds =  attr.ib(default=(-1,1))
     zbounds_len = attr.ib(default=(-1,1))
     pbounds = attr.ib(default=(-1,1))
@@ -108,7 +105,6 @@ class DLENSALOT_Data(DLENSALOT_Concept):
     data_type = attr.ib(default=None)
     data_field = attr.ib(default=None)
     beam = attr.ib(default=None)
-    lmax_transf = attr.ib(default=np.nan)
     nside = attr.ib(default=np.nan)
     transferfunction = attr.ib(default=True)
 
@@ -149,7 +145,7 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     lmax_qlm = attr.ib(default=np.nan)
     mmax_qlm = attr.ib(default=np.nan)
     chain = attr.ib(default=None)
-    QE_LENSING_CL_ANALYSIS = attr.ib(default=False)
+    cl_analysis = attr.ib(default=False)
 
 
 @attr.s
@@ -189,6 +185,20 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
     libdir_it = attr.ib(default=None)
     binning = attr.ib(default=-1)
     spectrum_calculator = attr.ib(default=None)
+
+
+@attr.s
+class DLENSALOT_Filter(DLENSALOT_Concept):
+    """_summary_
+
+    Args:
+        DLENSALOT_Concept (_type_): _description_
+    """
+    lmax_filt = attr.ib(default=np.nan)
+    lmax_len = attr.ib(default=np.nan)
+    mmax_len = attr.ib(default=np.nan)
+    lmax_unl = attr.ib(default=np.nan)
+    mmax_unl = attr.ib(default=np.nan)
 
 
 @attr.s
