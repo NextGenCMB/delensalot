@@ -6,12 +6,12 @@ import healpy as hp
 from MSC import pospace
 from plancklens.sims import phas, planck2018_sims
 
-from lenscarf.lerepi.core.metamodel.dlensalot_mm import *
+from lenscarf.lerepi.core.metamodel.dlensalot import *
 
 
 dlensalot_model = DLENSALOT_Model(
     meta = DLENSALOT_Meta(
-        version = 0.9
+        version = '0.9'
     ),
     computing = DLENSALOT_Computing(
         OMP_NUM_THREADS = 16        

@@ -6,7 +6,6 @@
     runs all jobs
 """
 __author__ = "S. Belkner, J. Carron, L. Legrand"
-# TODO this could be the level for _process_Model
 
 import os
 from os.path import join as opj
@@ -37,9 +36,6 @@ class handler():
             parser (_type_): _description_
         """
         self.configfile = handler.load_configfile(parser.config_file, 'configfile')
-        # TODO hack. remove when v1 is gone
-        if 'madel' in self.configfile.dlensalot_model.__dict__:
-            self.configfile.dlensalot_model.madel.__dict__.update(madel_kwargs)
         TEMP = transform(self.configfile.dlensalot_model, l2T_Transformer())
         if parser.status == '':
             if mpi.rank == 0:
