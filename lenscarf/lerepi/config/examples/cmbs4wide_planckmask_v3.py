@@ -9,7 +9,6 @@ from plancklens.sims import phas, planck2018_sims
 from lenscarf.lerepi.core.metamodel.dlensalot_mm import *
 
 
-
 dlensalot_model = DLENSALOT_Model(
     meta = DLENSALOT_Meta(
         version = 0.9
@@ -71,8 +70,8 @@ dlensalot_model = DLENSALOT_Model(
         simidxs = np.arange(0,300),
         simidxs_mf = np.arange(0,300),
         ninvjob_qe_geometry = 'healpix_geometry_qe',
-        lmax_qlm = 4000,
-        mmax_qlm = 4000,
+        lmax_plm = 4000,
+        mmax_plm = 4000,
         cl_analysis = False,
         filter = DLENSALOT_Filter(
             directional = 'aniso',
@@ -96,6 +95,8 @@ dlensalot_model = DLENSALOT_Model(
         cg_tol = 4,
         simidxs = np.arange(0,10),
         itmax = 12,
+        lmax_plm = 4000,
+        mmax_plm = 4000,
         iterator_typ = 'pertmf',
         filter = DLENSALOT_Filter(
             directional = 'aniso',
