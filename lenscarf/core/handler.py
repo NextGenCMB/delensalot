@@ -24,7 +24,6 @@ from lenscarf.lerepi.core.visitor import transform
 from lenscarf.iterators import cs_iterator
 from lenscarf.utils_hp import almxfl, alm_copy
 from lenscarf.iterators.statics import rec as rec
-from lenscarf.iterators import iteration_handler
 from lenscarf.opfilt.bmodes_ninv import template_bfilt
 
 
@@ -241,13 +240,7 @@ class MAP_lr():
         self.qe = QE_lr(dlensalot_model)
         self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
 
-        if self.iterator_typ in ['pertmf', 'constmf']:
-            # TODO this is the interface to the D.lensalot iterators and connects 
-            # to lerepi. Could be simplified, s.t. interfacing happens without the iteration_handler
-            # but directly with cs_iterator, e.g. by adding visitor pattern to cs_iterator
-            self.ith = iteration_handler.transformer(self.iterator_typ)
-        elif self.iterator_typ in ['pertmf_new']:
-            self.ith = cs_iterator.transformer(self.iterator_typ)
+        self.iterator = cs_iterator.transformer(self.iterator_typ)
 
 
     @log_on_start(logging.INFO, "collect_jobs() start")
@@ -310,8 +303,8 @@ class MAP_lr():
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
                     lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
                     if self.itmax >= 0 and rec.maxiterdone(lib_dir_iterator) < self.itmax:
-                        itlib = self.ith(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
-                        itlib_iterator = itlib.get_iterator()
+                        itlib_kwargs = self.init_itlib_iterator(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
+                        itlib_iterator = itlib.get_iterator(**itlib_kwargs)
                         for it in range(self.itmax + 1):
                             log.info("using cg-tol = %.4e"%self.cg_tol(it))
                             log.info("using soltn_cond = %s"%self.soltn_cond(it))
@@ -335,8 +328,8 @@ class MAP_lr():
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
                     log.info("{}: start sim {}".format(mpi.rank, idx))
                     lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
-                    itlib = self.ith(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
-                    itlib_iterator = itlib.get_iterator()
+                    itlib_kwargs = self.init_itlib_iterator(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
+                    itlib_iterator = itlib.get_iterator(**itlib_kwargs)
                     if self.dlm_mod_bool:
                         dlm_mod = self.get_meanfields_it(np.arange(self.itmax+1), calc=False)
                         dlm_mod = (dlm_mod - np.array(rec.load_plms(lib_dir_iterator, np.arange(self.itmax+1)))/self.Nmf) * self.Nmf/(self.Nmf - 1)
@@ -345,6 +338,28 @@ class MAP_lr():
                             _dlm_mod = None if (it == 0 or self.dlm_mod_bool == False) else dlm_mod[it]
                             itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=_dlm_mod, calc=True, Nmf=self.Nmf)
                     log.info("{}: finished sim {}".format(mpi.rank, idx))
+
+
+    def init_itlib_iterator(self, qe, k, simidx, version, libdir_iterators):
+        lib_dir = libdir_iterators(k, simidx, version)
+        if not os.path.exists(lib_dir):
+            os.makedirs(lib_dir)
+        h = 'p'
+        lm_max_dlm = (self.lmax_qlm, self.mmax_qlm)
+        dat_maps = np.array(self.sims_MAP.get_sim_pmap(int(self.simidx)))
+        plm0 = self.qe.get_plm(self.simidx)
+        mf_resp = qe.get_response_meanfield()
+        pp_h0 = qe.R_unl()
+        cpp_prior = self.cpp
+        cls_filt = self.cls_unl
+        ninv_filt = self.filter
+        k_geom = self.k_geom
+        chain_descr = self.chain_descr(self.lmax_unl, self.cg_tol)
+        stepper = self.stepper
+        mf0 = self.qe.get_meanfield(self.simidx)
+        wflm0 = qe.get_wflm(self.simidx)
+
+        return locals()
 
 
     @log_on_start(logging.INFO, "get_plm_it() started")
