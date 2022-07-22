@@ -36,6 +36,10 @@ class DLENSALOT_OBD(DLENSALOT_Concept):
     nlev_dep = attr.ib(default=np.nan, validator=obd.nlev_dep)
 
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 5c89a4d (refactor validator)
 @attr.s
 class DLENSALOT_Meta(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
@@ -260,6 +264,8 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     qest = attr.ib(default=None, validator=qerec.qest)
     cg_tol = attr.ib(default=np.nan, validator=qerec.cg_tol)
     ninvjob_qe_geometry = attr.ib(default=None, validator=qerec.ninvjob_qe_geometry)
+    lmax_filter = attr.ib(default=np.nan, validator=qerec.lmax_filter)
+    mmax_filter = attr.ib(default=np.nan, validator=qerec.mmax_filter)
     lmax_qlm = attr.ib(default=np.nan, validator=qerec.lmax_qlm)
     mmax_qlm = attr.ib(default=np.nan, validator=qerec.mmax_qlm)
     chain = attr.ib(default=None, validator=qerec.chain)
@@ -277,6 +283,11 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     simidxs = attr.ib(default=[], validator=itrec.simidxs)
     simidxs_mf = attr.ib(default=[], validator=itrec.simidxs_mf)
     itmax = attr.ib(default=np.nan, validator=itrec.itmax)
+<<<<<<< HEAD
+=======
+    lmax_filter = attr.ib(default=np.nan, validator=itrec.lmax_filter)
+    mmax_filter = attr.ib(default=np.nan, validator=itrec.mmax_filter)
+>>>>>>> 5c89a4d (refactor validator)
     lmax_plm = attr.ib(default=np.nan, validator=itrec.lmax_plm)
     mmax_plm = attr.ib(default=np.nan, validator=itrec.mmax_plm)
     filter = attr.ib(default=None, validator=itrec.filter)
@@ -334,8 +345,11 @@ class DLENSALOT_Filter(DLENSALOT_Concept):
     """
     directional = attr.ib(default=np.nan, validator=filter.directional)
     data_type = attr.ib(default=np.nan, validator=filter.data_type)
+<<<<<<< HEAD
     lmax = attr.ib(default=np.nan, validator=filter.lmax)
     mmax = attr.ib(default=np.nan, validator=filter.mmax)
+=======
+>>>>>>> 5c89a4d (refactor validator)
     lmax_len = attr.ib(default=np.nan, validator=filter.lmax_len)
     mmax_len = attr.ib(default=np.nan, validator=filter.mmax_len)
     lmax_unl = attr.ib(default=np.nan, validator=filter.lmax_unl)

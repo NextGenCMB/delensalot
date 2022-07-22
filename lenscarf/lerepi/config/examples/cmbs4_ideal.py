@@ -24,7 +24,11 @@ dlensalot_model = DLENSALOT_Model(
         inspect_result = False
     ),
     analysis = DLENSALOT_Analysis(
+<<<<<<< HEAD:lenscarf/lerepi/config/examples/cmbs4_ideal.py
         TEMP_suffix = 'tv4',
+=======
+        TEMP_suffix = 'tv3',
+>>>>>>> 5c89a4d (refactor validator):lenscarf/lerepi/config/examples/cmbs4wide_idealized.py
         key = 'p_p',
         version = '',
         lens_res = 1.7
@@ -51,7 +55,15 @@ dlensalot_model = DLENSALOT_Model(
         lowell_treat = 'trunc',
         nlev_t = 0.5/np.sqrt(2),
         nlev_p = 0.5,
+<<<<<<< HEAD:lenscarf/lerepi/config/examples/cmbs4_ideal.py
         OBD = None,
+=======
+        OBD = DLENSALOT_OBD(
+            libdir = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08b/',
+            rescale = (0.42/0.350500)**2,
+            nlev_dep = 1e4,
+            tpl = 'template_dense'),
+>>>>>>> 5c89a4d (refactor validator):lenscarf/lerepi/config/examples/cmbs4wide_idealized.py
         lmin_tlm = 30,
         lmin_elm = 30,
         lmin_blm = 200,
@@ -92,16 +104,22 @@ dlensalot_model = DLENSALOT_Model(
         simidxs = np.arange(0,10),
         itmax = 12,
 <<<<<<< HEAD:lenscarf/lerepi/config/examples/cmbs4_ideal.py
+<<<<<<< HEAD:lenscarf/lerepi/config/examples/cmbs4_ideal.py
+=======
+>>>>>>> 5c89a4d (refactor validator):lenscarf/lerepi/config/examples/cmbs4wide_idealized.py
         lmax_plm = 4000,
         mmax_plm = 4000,
         lmax_filter = 4000,
         mmax_filter = 4000,
+<<<<<<< HEAD:lenscarf/lerepi/config/examples/cmbs4_ideal.py
 =======
         lmax_qlm = 4000,
         mmax_qlm = 4000,
         lmax_ivf = 4000,
         mmax_ivf = 4000,
 >>>>>>> ddb93f7 (cleanup):lenscarf/lerepi/config/examples/cmbs4wide_planckmask_v3.py
+=======
+>>>>>>> 5c89a4d (refactor validator):lenscarf/lerepi/config/examples/cmbs4wide_idealized.py
         iterator_typ = 'pertmf',
         filter = DLENSALOT_Filter(
             directional = 'aniso',

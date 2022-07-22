@@ -38,8 +38,6 @@ from lenscarf.opfilt.bmodes_ninv import template_dense
 from lenscarf.lerepi.core.visitor import transform
 from lenscarf.lerepi.core.metamodel.dlensalot import DLENSALOT_Model, DLENSALOT_Concept
 from lenscarf.lerepi.config.config_helper import data_functions as df, LEREPI_Constants as lc
-from lenscarf.lerepi.core.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALOT_Model_mm
-
 
 class l2T_Transformer:
     """Directory is built upon runtime, so accessing it here
@@ -47,8 +45,6 @@ class l2T_Transformer:
     Returns:
         _type_: _description_
     """
-
-
     # @log_on_start(logging.INFO, "build() started")
     # @log_on_end(logging.INFO, "build() finished")
     def build(self, cf):
@@ -133,6 +129,11 @@ class l2lensrec_Transformer:
 
             # version -> version
             dl.version = an.version
+
+
+            # simidxs_mf
+            dl.simidxs_mf = cf.analysis.simidxs_mf
+            dl.Nmf = 0 if cf.analysis.version == 'noMF' else len(dl.simidxs_mf)
 
 
             # TEMP_suffix -> TEMP_suffix
@@ -339,44 +340,8 @@ class l2lensrec_Transformer:
                 [dl.chain_model.p0, dl.chain_model.p1, p2, dl.chain_model.p3, dl.chain_model.p4, p5, _p6, _p7]]
 
 
-            # filter
-            dl.qe_filter_directional = qe.filter.directional
-            dl.qe_filter_data_type = qe.filter.data_type
-            if dl.qe_filter_directional == 'aniso':
-                dl.ninvt_desc = l2OBD_Transformer.get_ninvt(cf)
-                dl.ninvp_desc = l2OBD_Transformer.get_ninvp(cf)
-                # TODO filters can be initialised with both, ninvX_desc and ninv_X. But Plancklens' hashcheck will complain if it changed since shapes are different. Not sure which one I want to use in the future..
-                # TODO using ninv_X possibly causes hashcheck to fail, as v1 == v2 won't work on arrays.
-                dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), qe.lmax_qlm, dl.nside, dl.cls_len, dl.transf_tlm, dl.ninvt_desc,
-                    marge_monopole=True, marge_dipole=True, marge_maps=[])
-                if dl.lowell_treat == 'OBD':
-                    transf_elm_loc = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=qe.lmax_qlm)
-                    dl.cinv_p = cinv_p_OBD.cinv_p(opj(dl.TEMP, 'cinv_p'), qe.lmax_qlm, dl.nside, dl.cls_len, transf_elm_loc[:qe.lmax_qlm+1], dl.ninvp_desc, geom=dl.ninvjob_qe_geometry,
-                        chain_descr=dl.chain_descr(qe.lmax_qlm, dl.cg_tol), bmarg_lmax=dl.lmin_blm, zbounds=dl.zbounds, _bmarg_lib_dir=dl.obd_libdir, _bmarg_rescal=dl.obd_rescale, sht_threads=dl.tr)
-                elif dl.lowell_treat == 'trunc' or dl.lowell_treat == None or dl.lowell_treat == 'None':
-                    dl.cinv_p = filt_cinv.cinv_p(opj(dl.TEMP, 'cinv_p'), qe.lmax_qlm, dl.nside, dl.cls_len, dl.transf_elm, dl.ninvp_desc,
-                        chain_descr=dl.chain_descr(qe.lmax_qlm, dl.cg_tol), transf_blm=dl.transf_blm, marge_qmaps=(), marge_umaps=())
-
-                _filter_raw = filt_cinv.library_cinv_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl.cinv_t, dl.cinv_p, dl.cls_len)
-                _ftl_rs = np.ones(qe.lmax_qlm + 1, dtype=float) * (np.arange(qe.lmax_qlm + 1) >= dl.lmin_tlm)
-                _fel_rs = np.ones(qe.lmax_qlm + 1, dtype=float) * (np.arange(qe.lmax_qlm + 1) >= dl.lmin_elm)
-                _fbl_rs = np.ones(qe.lmax_qlm + 1, dtype=float) * (np.arange(qe.lmax_qlm + 1) >= dl.lmin_blm)
-                dl.qe_filter = filt_util.library_ftl(_filter_raw, qe.lmax_qlm, _ftl_rs, _fel_rs, _fbl_rs)
-            elif dl.qe_filter_directional == 'iso':
-                dl.qe_filter = filt_simple.library_fullsky_alms_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
-
-
-            # qlms
-            dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.qe_filter, dl.qe_filter, dl.cls_len['te'], dl.nside, lmax_qlm=qe.lmax_qlm)
-
-
-            # ninvjob_qe_geometry
-            if qe.ninvjob_qe_geometry == 'healpix_geometry_qe':
-                # TODO for QE, isOBD only works with zbounds=(-1,1). Perhaps missing ztrunc on qumaps
-                # Introduce new geometry for now, until either plancklens supports ztrunc, or ztrunced simlib (not sure if it already does)
-                dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl.nside, zbounds=(-1,1))
-            elif qe.ninvjob_qe_geometry == 'healpix_geometry':
-                dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl.nside, zbounds=dl.zbounds)
+            # cg_tol
+            dl.cg_tol = qe.cg_tol
 
 
             # chain
@@ -388,7 +353,48 @@ class l2lensrec_Transformer:
             dl.chain_descr = lambda p2, p5 : [
                 [dl.chain_model.p0, dl.chain_model.p1, p2, dl.chain_model.p3, dl.chain_model.p4, p5, _p6, _p7]]
 
-            hp.alm2cl
+
+            # filter
+            dl.qe_filter_directional = qe.filter.directional
+            dl.qe_filter_data_type = qe.filter.data_type
+            if dl.qe_filter_directional == 'aniso':
+                dl.ninvt_desc = l2OBD_Transformer.get_ninvt(cf)
+                dl.ninvp_desc = l2OBD_Transformer.get_ninvp(cf)
+                lmax_qlm = qe.lmax_qlm
+                # TODO filters can be initialised with both, ninvX_desc and ninv_X. But Plancklens' hashcheck will complain if it changed since shapes are different. Not sure which one I want to use in the future..
+                # TODO using ninv_X possibly causes hashcheck to fail, as v1 == v2 won't work on arrays.
+                dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), lmax_qlm, dl.nside, dl.cls_len, dl.transf_tlm, dl.ninvt_desc,
+                    marge_monopole=True, marge_dipole=True, marge_maps=[])
+                if dl.lowell_treat == 'OBD':
+                    transf_elm_loc = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=lmax_qlm)
+                    dl.cinv_p = cinv_p_OBD.cinv_p(opj(dl.TEMP, 'cinv_p'), lmax_qlm, dl.nside, dl.cls_len, transf_elm_loc[:lmax_qlm+1], dl.ninvp_desc, geom=dl.ninvjob_qe_geometry,
+                        chain_descr=dl.chain_descr(lmax_qlm, dl.cg_tol), bmarg_lmax=dl.lmin_blm, zbounds=dl.zbounds, _bmarg_lib_dir=dl.obd_libdir, _bmarg_rescal=dl.obd_rescale, sht_threads=dl.tr)
+                elif dl.lowell_treat == 'trunc' or dl.lowell_treat == None or dl.lowell_treat == 'None':
+                    dl.cinv_p = filt_cinv.cinv_p(opj(dl.TEMP, 'cinv_p'), lmax_qlm, dl.nside, dl.cls_len, dl.transf_elm, dl.ninvp_desc,
+                        chain_descr=dl.chain_descr(lmax_qlm, dl.cg_tol), transf_blm=dl.transf_blm, marge_qmaps=(), marge_umaps=())
+
+                _filter_raw = filt_cinv.library_cinv_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl.cinv_t, dl.cinv_p, dl.cls_len)
+                _ftl_rs = np.ones(lmax_qlm + 1, dtype=float) * (np.arange(lmax_qlm + 1) >= dl.lmin_tlm)
+                _fel_rs = np.ones(lmax_qlm + 1, dtype=float) * (np.arange(lmax_qlm + 1) >= dl.lmin_elm)
+                _fbl_rs = np.ones(lmax_qlm + 1, dtype=float) * (np.arange(lmax_qlm + 1) >= dl.lmin_blm)
+                dl.filter = filt_util.library_ftl(_filter_raw, lmax_qlm, _ftl_rs, _fel_rs, _fbl_rs)
+            elif dl.qe_filter_directional == 'iso':
+                dl.filter = filt_simple.library_fullsky_alms_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
+
+
+            # qlms
+            dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.ivfs, dl.ivfs, dl.cls_len['te'], dl.nside, lmax_qlm=dl.lmax_qlm)
+
+
+            # ninvjob_qe_geometry
+            if qe.ninvjob_qe_geometry == 'healpix_geometry_qe':
+                # TODO for QE, isOBD only works with zbounds=(-1,1). Perhaps missing ztrunc on qumaps
+                # Introduce new geometry for now, until either plancklens supports ztrunc, or ztrunced simlib (not sure if it already does)
+                dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl.nside, zbounds=(-1,1))
+            elif qe.ninvjob_qe_geometry == 'healpix_geometry':
+                dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl.nside, zbounds=dl.zbounds)
+
+
             # qe_cl_analysis
             dl.cl_analysis = qe.cl_analysis
             if qe.cl_analysis == True:
@@ -931,22 +937,22 @@ def f2b(expr, transformer): # pylint: disable=missing-function-docstring
 def f2c(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build_OBD(expr)
 
-@transform.case(DLENSALOT_Model_mm, l2OBD_Transformer)
+@transform.case(DLENSALOT_Model, l2OBD_Transformer)
 def f4(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)
 
-@transform.case(DLENSALOT_Model_mm, l2d_Transformer)
+@transform.case(DLENSALOT_Model, l2d_Transformer)
 def f5(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)
 
-@transform.case(DLENSALOT_Model_mm, l2j_Transformer)
+@transform.case(DLENSALOT_Model, l2j_Transformer)
 def f1(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)
 
-@transform.case(DLENSALOT_Model_mm, l2T_Transformer)
+@transform.case(DLENSALOT_Model, l2T_Transformer)
 def f2a2(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)
 
-@transform.case(DLENSALOT_Model_mm, l2lensrec_Transformer)
+@transform.case(DLENSALOT_Model, l2lensrec_Transformer)
 def f4(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.mapper(expr)

@@ -1,4 +1,9 @@
+<<<<<<< HEAD
 import numpy as np
+=======
+from lenscarf.lerepi.core.metamodel.dlensalot import *
+
+>>>>>>> 5c89a4d (refactor validator)
 
 class analysis:
     def key(instance, attribute, value):
@@ -115,6 +120,7 @@ class data:
 
 
     def data_type(instance, attribute, value):
+<<<<<<< HEAD
         desc = ['alm', 'map']
         assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
@@ -122,6 +128,15 @@ class data:
     def data_field(instance, attribute, value):
         desc = ['qu', 'eb']
         assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+=======
+        desc = [attribute]
+        assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+
+
+    def data_field(instance, attribute, value):
+        desc = [attribute]
+        assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+>>>>>>> 5c89a4d (refactor validator)
 
 
     def beam(instance, attribute, value):
@@ -146,6 +161,7 @@ class filter:
 
 
     def data_type(instance, attribute, value):
+<<<<<<< HEAD
         desc = ['alm', 'map']
         assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
@@ -156,6 +172,8 @@ class filter:
 
 
     def mmax(instance, attribute, value):
+=======
+>>>>>>> 5c89a4d (refactor validator)
         desc = [attribute]
         assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
@@ -191,11 +209,14 @@ class itrec:
         assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
 
+<<<<<<< HEAD
     def simidxs_mf(instance, attribute, value):
         desc = [attribute]
         assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
 
+=======
+>>>>>>> 5c89a4d (refactor validator)
     def itmax(instance, attribute, value):
         desc = [attribute]
         assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
@@ -251,6 +272,19 @@ class itrec:
         assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
 
+<<<<<<< HEAD
+=======
+    def lmax_filter(instance, attribute, value):
+        desc = [attribute]
+        assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+
+
+    def mmax_filter(instance, attribute, value):
+        desc = [attribute]
+        assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+
+
+>>>>>>> 5c89a4d (refactor validator)
 class job:
     def QE_lensrec(instance, attribute, value):
         desc = [attribute]
@@ -323,6 +357,7 @@ class mapdelensing:
         assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
 
+<<<<<<< HEAD
     def dir_btempl(instance, attribute, value):
         desc = [attribute]
         assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
@@ -332,6 +367,12 @@ class meta:
     def version(instance, attribute, value):
         if type(value) != str:
             raise ValueError('Must be str')
+=======
+class meta:
+    def version(instance, attribute, value):
+        if type(value) != str:
+            raise ValueError('Must be int')
+>>>>>>> 5c89a4d (refactor validator)
         desc = ['0.9']
         assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
@@ -364,6 +405,7 @@ class model:
     def data(instance, attribute, value):
         from lenscarf.lerepi.core.metamodel.dlensalot import DLENSALOT_Data
         desc_type = [DLENSALOT_Data]
+<<<<<<< HEAD
         assert attribute.type in desc_type, TypeError('Must be in {}, but is {}'.format(desc_type, attribute.type))
         
         if value.data_type == 'alm':
@@ -371,10 +413,14 @@ class model:
 
         # lmax and transferfunction must have same length
         assert len(value.class_parameters['cl_transf'])==value.lmax+1, ValueError("Transferfunction length {} must be equal to 'lmax', but is {}".format(value.class_parameters['cl_transf'], value.lmax))
+=======
+        assert attribute.type in desc_type, ValueError('Must be in {}, but is {}'.format(desc_type, attribute.type))
+>>>>>>> 5c89a4d (refactor validator)
 
 
     def noisemodel(instance, attribute, value):
         from lenscarf.lerepi.core.metamodel.dlensalot import DLENSALOT_Noisemodel
+<<<<<<< HEAD
         from lenscarf.lerepi.core.metamodel.dlensalot import DLENSALOT_OBD
         desc_type = [DLENSALOT_Noisemodel]
         assert attribute.type in desc_type, TypeError('Must be in {}, but is {}'.format(desc_type, attribute.type))
@@ -383,6 +429,10 @@ class model:
             assert value.OBD == None, TypeError("lowell_treat = {}: OBD is not used and should be set to None".format(value.lowell_treat))
         elif value.lowell_treat == 'OBD':
             assert value.OBD.type == DLENSALOT_OBD, TypeError("As lowell_treat = 'OBD': OBD must be {}".format(DLENSALOT_OBD))
+=======
+        desc_type = [DLENSALOT_Noisemodel]
+        assert attribute.type in desc_type, ValueError('Must be in {}, but is {}'.format(desc_type, attribute.type))
+>>>>>>> 5c89a4d (refactor validator)
 
 
     def qerec(instance, attribute, value):
@@ -390,9 +440,12 @@ class model:
         desc_type = [DLENSALOT_Qerec]
         assert attribute.type in desc_type, ValueError('Must be in {}, but is {}'.format(desc_type, attribute.type))
 
+<<<<<<< HEAD
         for simidx in value.simidxs_mf:
             assert simidx in value.simidxs, ValueError('Meanfield simidx must be in {}, but is {}'.format(desc_type, attribute.type))
 
+=======
+>>>>>>> 5c89a4d (refactor validator)
 
     def itrec(instance, attribute, value):
         from lenscarf.lerepi.core.metamodel.dlensalot import DLENSALOT_Itrec
@@ -414,8 +467,13 @@ class noisemodel:
 
 
     def OBD(instance, attribute, value):
+<<<<<<< HEAD
         desc_dtype = [type(value), type(None)]
         assert type(value) in desc_dtype, ValueError('Must be in {}, but is {}'.format(desc_dtype, type(value)))
+=======
+        desc = [type(value)]
+        assert type(value) in desc, ValueError('Must be in {}, but is {}'.format(desc, type(value)))
+>>>>>>> 5c89a4d (refactor validator)
 
 
     def lmin_tlm(instance, attribute, value):
@@ -483,8 +541,13 @@ class obd:
 
 
     def tpl(instance, attribute, value):
+<<<<<<< HEAD
         desc = ['template_dense', None]
         assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+=======
+        desc = [attribute]
+        assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+>>>>>>> 5c89a4d (refactor validator)
 
 
     def nlev_dep(instance, attribute, value):
@@ -538,6 +601,19 @@ class qerec:
         assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
 
+<<<<<<< HEAD
+=======
+    def lmax_filter(instance, attribute, value):
+        desc = [attribute]
+        assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+
+
+    def mmax_filter(instance, attribute, value):
+        desc = [attribute]
+        assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+
+
+>>>>>>> 5c89a4d (refactor validator)
     def chain(instance, attribute, value):
         desc = [attribute]
         assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
