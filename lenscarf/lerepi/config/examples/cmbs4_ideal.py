@@ -91,10 +91,17 @@ dlensalot_model = DLENSALOT_Model(
         cg_tol = 4,
         simidxs = np.arange(0,10),
         itmax = 12,
+<<<<<<< HEAD:lenscarf/lerepi/config/examples/cmbs4_ideal.py
         lmax_plm = 4000,
         mmax_plm = 4000,
         lmax_filter = 4000,
         mmax_filter = 4000,
+=======
+        lmax_qlm = 4000,
+        mmax_qlm = 4000,
+        lmax_ivf = 4000,
+        mmax_ivf = 4000,
+>>>>>>> ddb93f7 (cleanup):lenscarf/lerepi/config/examples/cmbs4wide_planckmask_v3.py
         iterator_typ = 'pertmf',
         filter = DLENSALOT_Filter(
             directional = 'aniso',
