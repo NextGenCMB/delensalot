@@ -108,6 +108,7 @@ class DLENSALOT_Data(DLENSALOT_Concept):
     beam = attr.ib(default=None, validator=data.beam)
     nside = attr.ib(default=np.nan, validator=data.nside)
     transferfunction = attr.ib(default=True, validator=data.transferfunction)
+    lmax = attr.ib(default=True, validator=data.transferfunction)
 
 
 @attr.s

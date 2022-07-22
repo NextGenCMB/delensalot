@@ -23,21 +23,22 @@ import time
 import sys
 import numpy as np
 
+import logging
+log = logging.getLogger(__name__)
+from logdecorator import log_on_start, log_on_end
+
+from plancklens.qcinv import multigrid
+
 import scarf
 from lenscarf.utils import cli, read_map
 from lenscarf.utils_hp import Alm, almxfl, alm2cl
 from lenscarf.utils_scarf import scarfjob, pbdGeometry, pbounds
 from lenscarf import utils_dlm
 
-from plancklens.qcinv import multigrid
-from lenscarf.iterators import bfgs, steps
-
-from lenscarf.opfilt import opfilt_base
 from lenscarf import cachers
-
-import logging
-log = logging.getLogger(__name__)
-from logdecorator import log_on_start, log_on_end
+from lenscarf.opfilt import opfilt_base
+from lenscarf.iterators import bfgs, steps
+from lenscarf.lerepi.core.visitor import transform
 
 alm2rlm = lambda alm : alm # get rid of this
 rlm2alm = lambda rlm : rlm
@@ -664,4 +665,9 @@ class iterator_cstmf_bfgs0(iterator_cstmf):
             prt_time(time.time() - t0, label=' Exec. time for descent direction calculation')
         assert self.hess_cacher.is_cached(sk_fname), sk_fname
 
-# TODO add visitor pattern if desired
+
+def transformer(descr):
+    if descr == 'pertmf_new':
+        return iterator_pertmf
+    else:
+        assert 0, "Not yet implemented"

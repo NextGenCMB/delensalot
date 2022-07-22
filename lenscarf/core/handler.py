@@ -20,6 +20,8 @@ from plancklens import utils, qresp
 from lenscarf.core import mpi
 from plancklens.sims import planck2018_sims
 
+from lenscarf.lerepi.core.visitor import transform
+from lenscarf.iterators import cs_iterator
 from lenscarf.utils_hp import almxfl, alm_copy
 from lenscarf.iterators.statics import rec as rec
 from lenscarf.iterators import iteration_handler
@@ -238,10 +240,14 @@ class MAP_lr():
         # TODO not entirely happy how QE dependence is put into MAP_lr but cannot think of anything better at the moment.
         self.qe = QE_lr(dlensalot_model)
         self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
-        # TODO this is the interface to the D.lensalot iterators and connects 
-        # to lerepi. Could be simplified, s.t. interfacing happens without the iteration_handler
-        # but directly with cs_iterator, e.g. by adding visitor pattern to cs_iterator
-        self.ith = iteration_handler.transformer(self.iterator_typ)
+
+        if self.iterator_typ in ['pertmf', 'constmf']:
+            # TODO this is the interface to the D.lensalot iterators and connects 
+            # to lerepi. Could be simplified, s.t. interfacing happens without the iteration_handler
+            # but directly with cs_iterator, e.g. by adding visitor pattern to cs_iterator
+            self.ith = iteration_handler.transformer(self.iterator_typ)
+        elif self.iterator_typ in ['pertmf_new']:
+            self.ith = cs_iterator.transformer(self.iterator_typ)
 
 
     @log_on_start(logging.INFO, "collect_jobs() start")
@@ -339,13 +345,6 @@ class MAP_lr():
                             _dlm_mod = None if (it == 0 or self.dlm_mod_bool == False) else dlm_mod[it]
                             itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=_dlm_mod, calc=True, Nmf=self.Nmf)
                     log.info("{}: finished sim {}".format(mpi.rank, idx))
-
-
-    @log_on_start(logging.INFO, "get_ith_sim() started")
-    @log_on_end(logging.INFO, "get_ith_sim() finished")
-    def get_ith_sim(self, simidx):
-        
-        return self.ith(self.qe, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
 
 
     @log_on_start(logging.INFO, "get_plm_it() started")

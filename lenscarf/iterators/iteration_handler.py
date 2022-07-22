@@ -22,6 +22,62 @@ from lenscarf.opfilt import opfilt_ee_wl
 from lenscarf.opfilt.opfilt_iso_ee_wl import alm_filter_nlev_wl
 
 
+class pertmf():
+    def __init__(self, qe, k:str, simidx:int, version:str, libdir_iterators, lensing_config):
+        """Return iterator instance for simulation idx and qe_key type k
+            Args:
+                k: 'p_p' for Pol-only, 'ptt' for T-only, 'p_eb' for EB-only, etc
+                simidx: simulation index to build iterative lensing estimate on
+                version: string to use to test variants of the iterator with otherwise the same parfile
+                        (here if 'noMF' is in version, will not use any mean-fied at the very first step)
+                cg_tol: tolerance of conjugate-gradient filter
+        """
+        self.__dict__.update(lensing_config.__dict__)
+        self.simidx = simidx
+        self.lensing_config = lensing_config
+        
+        self.libdir_iterator = libdir_iterators(k, simidx, version)
+        if not os.path.exists(self.libdir_iterator):
+            os.makedirs(self.libdir_iterator)
+        self.tr = lensing_config.tr
+
+        self.qe = qe
+        self.mf_resp0 = qe.get_response_meanfield()
+        self.wflm0 = qe.get_wflm(self.simidx)
+        self.R_unl0 = qe.R_unl()
+        self.mf0 = self.qe.get_meanfield(self.simidx)
+        self.plm0 = self.qe.get_plm(self.simidx)
+
+        self.datmaps = self.get_datmaps()
+        # TODO not sure why this happens here. Could be done much earlier
+        self.chain_descr = lensing_config.chain_descr(lensing_config.lmax_unl, lensing_config.cg_tol)
+
+
+    @log_on_start(logging.INFO, "get_datmaps() started")
+    @log_on_end(logging.INFO, "get_datmaps() finished")
+    def get_datmaps(self):
+        datmaps = np.array(self.sims_MAP.get_sim_pmap(int(self.simidx)))
+        log.info('data loaded')
+
+        return datmaps
+
+
+    # TODO choose iterator via visitor pattern. perhaps already in p2lensrec
+    @log_on_start(logging.INFO, "get_iterator() started")
+    @log_on_end(logging.INFO, "get_iterator() finished")
+    def get_iterator(self):
+        """iterator_pertmf needs a whole lot of parameters, which are calculated when initialising this class.
+        Returns:
+            _type_: _description_
+        """
+        iterator = cs_iterator.iterator_pertmf(
+            self.libdir_iterator, 'p', (self.lmax_qlm, self.mmax_qlm), self.datmaps, self.plm0, self.mf_resp0,
+            self.R_unl0, self.cpp, self.cls_unl, self.filter, self.k_geom, self.chain_descr,
+            self.stepper, mf0=self.mf0, wflm0=self.wflm0)
+        
+        return iterator
+
+
 class scarf_iterator_pertmf():
     def __init__(self, qe, k:str, simidx:int, version:str, libdir_iterators, lensing_config):
         """Return iterator instance for simulation idx and qe_key type k
