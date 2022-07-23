@@ -116,7 +116,7 @@ class DLENSALOT_Noisemodel(DLENSALOT_Concept):
         typ:
     """
     lowell_treat = attr.ib(default=None, validator=noisemodel.lowell_treat)
-    OBD = attr.ib(default=None, validator=noisemodel.OBD)
+    OBD = attr.ib(default=None, validator=noisemodel.OBD, type=[DLENSALOT_OBD, type(None)])
     lmin_tlm = attr.ib(default=np.nan, validator=noisemodel.lmin_tlm)
     lmin_elm = attr.ib(default=np.nan, validator=noisemodel.lmin_elm)
     lmin_blm = attr.ib(default=np.nan, validator=noisemodel.lmin_blm)

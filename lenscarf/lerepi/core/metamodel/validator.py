@@ -1,5 +1,4 @@
-from lenscarf.lerepi.core.metamodel.dlensalot import *
-
+import numpy as np
 
 class analysis:
     def key(instance, attribute, value):
@@ -355,13 +354,22 @@ class model:
     def data(instance, attribute, value):
         from lenscarf.lerepi.core.metamodel.dlensalot import DLENSALOT_Data
         desc_type = [DLENSALOT_Data]
-        assert attribute.type in desc_type, ValueError('Must be in {}, but is {}'.format(desc_type, attribute.type))
+        assert attribute.type in desc_type, TypeError('Must be in {}, but is {}'.format(desc_type, attribute.type))
+
+        # lmax and transferfunction must have same length
+        assert len(value.class_parameters['cl_transf'])==value.lmax+1, ValueError("Transferfunction length {} must be equal to 'lmax', but is {}".format(value.class_parameters['cl_transf'], value.lmax))
 
 
     def noisemodel(instance, attribute, value):
         from lenscarf.lerepi.core.metamodel.dlensalot import DLENSALOT_Noisemodel
+        from lenscarf.lerepi.core.metamodel.dlensalot import DLENSALOT_OBD
         desc_type = [DLENSALOT_Noisemodel]
-        assert attribute.type in desc_type, ValueError('Must be in {}, but is {}'.format(desc_type, attribute.type))
+        assert attribute.type in desc_type, TypeError('Must be in {}, but is {}'.format(desc_type, attribute.type))
+    	# if truncated, OBD must be None
+        if value.lowell_treat == 'trunc' or value.lowell_treat == None:
+            assert value.OBD == None, TypeError("lowell_treat = {}: OBD is not used and should be set to None".format(value.lowell_treat))
+        elif value.lowell_treat == 'OBD':
+            assert value.OBD.type == DLENSALOT_OBD, TypeError("As lowell_treat = 'OBD': OBD must be {}".format(DLENSALOT_OBD))
 
 
     def qerec(instance, attribute, value):
@@ -390,8 +398,8 @@ class noisemodel:
 
 
     def OBD(instance, attribute, value):
-        desc = [type(value)]
-        assert type(value) in desc, ValueError('Must be in {}, but is {}'.format(desc, type(value)))
+        desc_dtype = [type(value), type(None)]
+        assert type(value) in desc_dtype, ValueError('Must be in {}, but is {}'.format(desc_dtype, type(value)))
 
 
     def lmin_tlm(instance, attribute, value):

@@ -24,7 +24,7 @@ dlensalot_model = DLENSALOT_Model(
         inspect_result = False
     ),
     analysis = DLENSALOT_Analysis(
-        TEMP_suffix = 'tv3',
+        TEMP_suffix = 'tv4',
         key = 'p_p',
         version = '',
         lens_res = 1.7
