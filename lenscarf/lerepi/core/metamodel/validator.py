@@ -178,6 +178,16 @@ class filter:
         assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
 
+    def lmax(instance, attribute, value):
+        desc = [attribute]
+        assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+
+
+    def mmax(instance, attribute, value):
+        desc = [attribute]
+        assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+
+
     def lmax_len(instance, attribute, value):
         desc = [attribute]
         assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
@@ -210,13 +220,19 @@ class itrec:
 
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 76828a1 (refactor)
     def simidxs_mf(instance, attribute, value):
         desc = [attribute]
         assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
 
+<<<<<<< HEAD
 =======
 >>>>>>> 5c89a4d (refactor validator)
+=======
+>>>>>>> 76828a1 (refactor)
     def itmax(instance, attribute, value):
         desc = [attribute]
         assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
@@ -273,6 +289,7 @@ class itrec:
 
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
     def lmax_filter(instance, attribute, value):
         desc = [attribute]
@@ -285,6 +302,8 @@ class itrec:
 
 
 >>>>>>> 5c89a4d (refactor validator)
+=======
+>>>>>>> 76828a1 (refactor)
 class job:
     def QE_lensrec(instance, attribute, value):
         desc = [attribute]
@@ -371,8 +390,12 @@ class meta:
 class meta:
     def version(instance, attribute, value):
         if type(value) != str:
+<<<<<<< HEAD
             raise ValueError('Must be int')
 >>>>>>> 5c89a4d (refactor validator)
+=======
+            raise ValueError('Must be str')
+>>>>>>> 76828a1 (refactor)
         desc = ['0.9']
         assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
@@ -602,6 +625,7 @@ class qerec:
 
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
     def lmax_filter(instance, attribute, value):
         desc = [attribute]
@@ -614,6 +638,8 @@ class qerec:
 
 
 >>>>>>> 5c89a4d (refactor validator)
+=======
+>>>>>>> 76828a1 (refactor)
     def chain(instance, attribute, value):
         desc = [attribute]
         assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))

@@ -131,11 +131,6 @@ class l2lensrec_Transformer:
             dl.version = an.version
 
 
-            # simidxs_mf
-            dl.simidxs_mf = cf.analysis.simidxs_mf
-            dl.Nmf = 0 if cf.analysis.version == 'noMF' else len(dl.simidxs_mf)
-
-
             # TEMP_suffix -> TEMP_suffix
             dl.TEMP_suffix = an.TEMP_suffix
             dl.TEMP = transform(cf, l2T_Transformer())
@@ -324,24 +319,7 @@ class l2lensrec_Transformer:
             # lmax
             dl.qe_filter_lmax = qe.filter.lmax
             dl.qe_filter_mmax = qe.filter.mmax
-            dl.qe_filter_lmax_unl, dl.qe_filter_mmax_unl = qe.filter.lmax_unl, qe.filter.mmax_unl
-            dl.qe_filter_lmax_len, dl.qe_filter_mmax_len = qe.filter.lmax_len, qe.filter.mmax_len
             dl.lmax_qlm = qe.lmax_qlm
-            dl.mmax_qlm = qe.mmax_qlm
-
-
-            # chain
-            dl.chain_model = qe.chain
-            if dl.chain_model.p6 == 'tr_cg':
-                _p6 = cd_solve.tr_cg
-            if dl.chain_model.p7 == 'cache_mem':
-                _p7 = cd_solve.cache_mem()
-            dl.chain_descr = lambda p2, p5 : [
-                [dl.chain_model.p0, dl.chain_model.p1, p2, dl.chain_model.p3, dl.chain_model.p4, p5, _p6, _p7]]
-
-
-            # cg_tol
-            dl.cg_tol = qe.cg_tol
 
 
             # chain
@@ -360,30 +338,29 @@ class l2lensrec_Transformer:
             if dl.qe_filter_directional == 'aniso':
                 dl.ninvt_desc = l2OBD_Transformer.get_ninvt(cf)
                 dl.ninvp_desc = l2OBD_Transformer.get_ninvp(cf)
-                lmax_qlm = qe.lmax_qlm
                 # TODO filters can be initialised with both, ninvX_desc and ninv_X. But Plancklens' hashcheck will complain if it changed since shapes are different. Not sure which one I want to use in the future..
                 # TODO using ninv_X possibly causes hashcheck to fail, as v1 == v2 won't work on arrays.
-                dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), lmax_qlm, dl.nside, dl.cls_len, dl.transf_tlm, dl.ninvt_desc,
+                dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), qe.lmax_qlm, dl.nside, dl.cls_len, dl.transf_tlm, dl.ninvt_desc,
                     marge_monopole=True, marge_dipole=True, marge_maps=[])
                 if dl.lowell_treat == 'OBD':
-                    transf_elm_loc = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=lmax_qlm)
-                    dl.cinv_p = cinv_p_OBD.cinv_p(opj(dl.TEMP, 'cinv_p'), lmax_qlm, dl.nside, dl.cls_len, transf_elm_loc[:lmax_qlm+1], dl.ninvp_desc, geom=dl.ninvjob_qe_geometry,
-                        chain_descr=dl.chain_descr(lmax_qlm, dl.cg_tol), bmarg_lmax=dl.lmin_blm, zbounds=dl.zbounds, _bmarg_lib_dir=dl.obd_libdir, _bmarg_rescal=dl.obd_rescale, sht_threads=dl.tr)
+                    transf_elm_loc = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=qe.lmax_qlm)
+                    dl.cinv_p = cinv_p_OBD.cinv_p(opj(dl.TEMP, 'cinv_p'), lmax_qlm, dl.nside, dl.cls_len, transf_elm_loc[:qe.lmax_qlm+1], dl.ninvp_desc, geom=dl.ninvjob_qe_geometry,
+                        chain_descr=dl.chain_descr(qe.lmax_qlm, dl.cg_tol), bmarg_lmax=dl.lmin_blm, zbounds=dl.zbounds, _bmarg_lib_dir=dl.obd_libdir, _bmarg_rescal=dl.obd_rescale, sht_threads=dl.tr)
                 elif dl.lowell_treat == 'trunc' or dl.lowell_treat == None or dl.lowell_treat == 'None':
-                    dl.cinv_p = filt_cinv.cinv_p(opj(dl.TEMP, 'cinv_p'), lmax_qlm, dl.nside, dl.cls_len, dl.transf_elm, dl.ninvp_desc,
-                        chain_descr=dl.chain_descr(lmax_qlm, dl.cg_tol), transf_blm=dl.transf_blm, marge_qmaps=(), marge_umaps=())
+                    dl.cinv_p = filt_cinv.cinv_p(opj(dl.TEMP, 'cinv_p'), qe.lmax_qlm, dl.nside, dl.cls_len, dl.transf_elm, dl.ninvp_desc,
+                        chain_descr=dl.chain_descr(qe.lmax_qlm, dl.cg_tol), transf_blm=dl.transf_blm, marge_qmaps=(), marge_umaps=())
 
                 _filter_raw = filt_cinv.library_cinv_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl.cinv_t, dl.cinv_p, dl.cls_len)
-                _ftl_rs = np.ones(lmax_qlm + 1, dtype=float) * (np.arange(lmax_qlm + 1) >= dl.lmin_tlm)
-                _fel_rs = np.ones(lmax_qlm + 1, dtype=float) * (np.arange(lmax_qlm + 1) >= dl.lmin_elm)
-                _fbl_rs = np.ones(lmax_qlm + 1, dtype=float) * (np.arange(lmax_qlm + 1) >= dl.lmin_blm)
-                dl.filter = filt_util.library_ftl(_filter_raw, lmax_qlm, _ftl_rs, _fel_rs, _fbl_rs)
+                _ftl_rs = np.ones(qe.lmax_qlm + 1, dtype=float) * (np.arange(qe.lmax_qlm + 1) >= dl.lmin_tlm)
+                _fel_rs = np.ones(qe.lmax_qlm + 1, dtype=float) * (np.arange(qe.lmax_qlm + 1) >= dl.lmin_elm)
+                _fbl_rs = np.ones(qe.lmax_qlm + 1, dtype=float) * (np.arange(qe.lmax_qlm + 1) >= dl.lmin_blm)
+                dl.filter = filt_util.library_ftl(_filter_raw, qe.lmax_qlm, _ftl_rs, _fel_rs, _fbl_rs)
             elif dl.qe_filter_directional == 'iso':
                 dl.filter = filt_simple.library_fullsky_alms_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
 
 
             # qlms
-            dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.ivfs, dl.ivfs, dl.cls_len['te'], dl.nside, lmax_qlm=dl.lmax_qlm)
+            dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.filter, dl.filter, dl.cls_len['te'], dl.nside, lmax_qlm=qe.lmax_qlm)
 
 
             # ninvjob_qe_geometry
@@ -485,15 +462,15 @@ class l2lensrec_Transformer:
             wee = dl.key == 'p_p'
             dl.ffi = remapping.deflection(dl.lenjob_pbgeometry, dl.lens_res, np.zeros(shape=hp.Alm.getsize(it.lmax_plm)), it.mmax_plm, dl.tr, dl.tr)
             if dl.filter_directional == 'iso':
-                dl.it_filter = opfilt_iso_ee_wl.alm_filter_nlev_wl(dl.nlev_p, dl.ffi, dl.transf_elm, (dl.it_lmax_unl, it.it_mmax_unl), (dl.it_lmax_len, dl.it_mmax_len), wee=wee, transf_b=dl.transf_blm, nlev_b=dl.nlev_p)
-                dl.k_geom = dl.it_filter.ffi.geom
+                dl.filter = opfilt_iso_ee_wl.alm_filter_nlev_wl(dl.nlev_p, dl.ffi, dl.transf_elm, (dl.it_lmax_unl, it.it_mmax_unl), (dl.it_lmax_len, dl.it_mmax_len), wee=wee, transf_b=dl.transf_blm, nlev_b=dl.nlev_p)
+                dl.k_geom = filter.ffi.geom
             elif dl.filter_directional == 'aniso':
                 ninv = [dl.sims_MAP.ztruncify(read_map(ni)) for ni in dl.ninvp_desc]
-                dl.it_filter = opfilt_ee_wl.alm_filter_ninv_wl(
+                dl.filter = opfilt_ee_wl.alm_filter_ninv_wl(
                     dl.ninvjob_geometry, ninv, dl.ffi, dl.transf_elm,
                     (dl.it_lmax_unl, dl.it_mmax_unl), (dl.it_lmax_len, dl.it_mmax_len),
                     dl.tr, dl.tpl, wee=wee, lmin_dotop=min(dl.lmin_elm, dl.lmin_blm), transf_blm=dl.transf_blm)
-                dl.k_geom = dl.it_filter.ffi.geom
+                dl.k_geom = dl.filter.ffi.geom
 
 
             # mfvar

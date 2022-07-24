@@ -55,6 +55,7 @@ dlensalot_model = DLENSALOT_Model(
         lowell_treat = 'trunc',
         nlev_t = 0.5/np.sqrt(2),
         nlev_p = 0.5,
+<<<<<<< HEAD
 <<<<<<< HEAD:lenscarf/lerepi/config/examples/cmbs4_ideal.py
         OBD = None,
 =======
@@ -64,6 +65,9 @@ dlensalot_model = DLENSALOT_Model(
             nlev_dep = 1e4,
             tpl = 'template_dense'),
 >>>>>>> 5c89a4d (refactor validator):lenscarf/lerepi/config/examples/cmbs4wide_idealized.py
+=======
+        OBD = None,
+>>>>>>> 76828a1 (refactor)
         lmin_tlm = 30,
         lmin_elm = 30,
         lmin_blm = 200,
