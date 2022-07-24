@@ -122,16 +122,11 @@ class l2lensrec_Transformer:
         @log_on_end(logging.INFO, "_process_Analysis() finished")
         def _process_Analysis(dl, an):
             # key -> k
-            dl.k = an.key
+            dl.key = an.key
 
 
             # version -> version
             dl.version = an.version
-
-
-            # simidxs_mf
-            dl.simidxs_mf = cf.analysis.simidxs_mf
-            dl.Nmf = 0 if cf.analysis.version == 'noMF' else len(dl.simidxs_mf)
 
 
             # TEMP_suffix -> TEMP_suffix
@@ -315,10 +310,18 @@ class l2lensrec_Transformer:
         def _process_Qerec(dl, qe):
             # simidxs
             dl.QE_simidxs = qe.simidxs
+            dl.QE_simidxs_mf = qe.simidxs_mf
+            dl.Nmf = 0 if cf.analysis.version == 'noMF' else len(dl.QE_simidxs_mf)
 
 
             # cg_tol
             dl.cg_tol = qe.cg_tol
+
+
+            # lmax
+            dl.qe_filter_lmax = qe.filter.lmax
+            dl.qe_filter_mmax = qe.filter.mmax
+            dl.lmax_qlm = qe.lmax_qlm
 
 
             # chain
@@ -337,30 +340,29 @@ class l2lensrec_Transformer:
             if dl.qe_filter_directional == 'aniso':
                 dl.ninvt_desc = l2OBD_Transformer.get_ninvt(cf)
                 dl.ninvp_desc = l2OBD_Transformer.get_ninvp(cf)
-                lmax_qlm = qe.lmax_qlm
                 # TODO filters can be initialised with both, ninvX_desc and ninv_X. But Plancklens' hashcheck will complain if it changed since shapes are different. Not sure which one I want to use in the future..
                 # TODO using ninv_X possibly causes hashcheck to fail, as v1 == v2 won't work on arrays.
-                dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), lmax_qlm, dl.nside, dl.cls_len, dl.transf_tlm, dl.ninvt_desc,
+                dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), qe.lmax_qlm, dl.nside, dl.cls_len, dl.transf_tlm, dl.ninvt_desc,
                     marge_monopole=True, marge_dipole=True, marge_maps=[])
                 if dl.lowell_treat == 'OBD':
-                    transf_elm_loc = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=lmax_qlm)
-                    dl.cinv_p = cinv_p_OBD.cinv_p(opj(dl.TEMP, 'cinv_p'), lmax_qlm, dl.nside, dl.cls_len, transf_elm_loc[:lmax_qlm+1], dl.ninvp_desc, geom=dl.ninvjob_qe_geometry,
-                        chain_descr=dl.chain_descr(lmax_qlm, dl.cg_tol), bmarg_lmax=dl.lmin_blm, zbounds=dl.zbounds, _bmarg_lib_dir=dl.obd_libdir, _bmarg_rescal=dl.obd_rescale, sht_threads=dl.tr)
+                    transf_elm_loc = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=qe.lmax_qlm)
+                    dl.cinv_p = cinv_p_OBD.cinv_p(opj(dl.TEMP, 'cinv_p'), lmax_qlm, dl.nside, dl.cls_len, transf_elm_loc[:qe.lmax_qlm+1], dl.ninvp_desc, geom=dl.ninvjob_qe_geometry,
+                        chain_descr=dl.chain_descr(qe.lmax_qlm, dl.cg_tol), bmarg_lmax=dl.lmin_blm, zbounds=dl.zbounds, _bmarg_lib_dir=dl.obd_libdir, _bmarg_rescal=dl.obd_rescale, sht_threads=dl.tr)
                 elif dl.lowell_treat == 'trunc' or dl.lowell_treat == None or dl.lowell_treat == 'None':
-                    dl.cinv_p = filt_cinv.cinv_p(opj(dl.TEMP, 'cinv_p'), lmax_qlm, dl.nside, dl.cls_len, dl.transf_elm, dl.ninvp_desc,
-                        chain_descr=dl.chain_descr(lmax_qlm, dl.cg_tol), transf_blm=dl.transf_blm, marge_qmaps=(), marge_umaps=())
+                    dl.cinv_p = filt_cinv.cinv_p(opj(dl.TEMP, 'cinv_p'), qe.lmax_qlm, dl.nside, dl.cls_len, dl.transf_elm, dl.ninvp_desc,
+                        chain_descr=dl.chain_descr(qe.lmax_qlm, dl.cg_tol), transf_blm=dl.transf_blm, marge_qmaps=(), marge_umaps=())
 
                 _filter_raw = filt_cinv.library_cinv_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl.cinv_t, dl.cinv_p, dl.cls_len)
-                _ftl_rs = np.ones(lmax_qlm + 1, dtype=float) * (np.arange(lmax_qlm + 1) >= dl.lmin_tlm)
-                _fel_rs = np.ones(lmax_qlm + 1, dtype=float) * (np.arange(lmax_qlm + 1) >= dl.lmin_elm)
-                _fbl_rs = np.ones(lmax_qlm + 1, dtype=float) * (np.arange(lmax_qlm + 1) >= dl.lmin_blm)
-                dl.filter = filt_util.library_ftl(_filter_raw, lmax_qlm, _ftl_rs, _fel_rs, _fbl_rs)
+                _ftl_rs = np.ones(qe.lmax_qlm + 1, dtype=float) * (np.arange(qe.lmax_qlm + 1) >= dl.lmin_tlm)
+                _fel_rs = np.ones(qe.lmax_qlm + 1, dtype=float) * (np.arange(qe.lmax_qlm + 1) >= dl.lmin_elm)
+                _fbl_rs = np.ones(qe.lmax_qlm + 1, dtype=float) * (np.arange(qe.lmax_qlm + 1) >= dl.lmin_blm)
+                dl.filter = filt_util.library_ftl(_filter_raw, qe.lmax_qlm, _ftl_rs, _fel_rs, _fbl_rs)
             elif dl.qe_filter_directional == 'iso':
                 dl.filter = filt_simple.library_fullsky_alms_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
 
 
             # qlms
-            dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.ivfs, dl.ivfs, dl.cls_len['te'], dl.nside, lmax_qlm=dl.lmax_qlm)
+            dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.filter, dl.filter, dl.cls_len['te'], dl.nside, lmax_qlm=qe.lmax_qlm)
 
 
             # ninvjob_qe_geometry
@@ -375,7 +377,7 @@ class l2lensrec_Transformer:
             # qe_cl_analysis
             dl.cl_analysis = qe.cl_analysis
             if qe.cl_analysis == True:
-                # TODO fix numbers for mc ocrrection and total nsims
+                # TODO fix numbers for mc correction and total nsims
                 dl.ss_dict = { k : v for k, v in zip( np.concatenate( [ range(i*60, (i+1)*60) for i in range(0,5) ] ),
                                         np.concatenate( [ np.roll( range(i*60, (i+1)*60), -1 ) for i in range(0,5) ] ) ) }
                 dl.ds_dict = { k : -1 for k in range(300)}
@@ -396,7 +398,7 @@ class l2lensrec_Transformer:
 
             # Lmin -> cpp
             dl.Lmin = qe.Lmin
-            dl.cpp = np.copy(dl.cls_unl['pp'][:dl.lmax_qlm + 1])
+            dl.cpp = np.copy(dl.cls_unl['pp'][:qe.lmax_qlm + 1])
             dl.cpp[:dl.Lmin] *= 0.
 
 
@@ -421,13 +423,14 @@ class l2lensrec_Transformer:
 
             # simidxs
             dl.it_simidxs = it.simidxs
+            dl.it_simidxs_mf = it.simidxs_mf
 
 
             # sims -> sims_MAP
-            if it.filter_directional == 'aniso':
-                dl.sims_MAP = utils_sims.ztrunc_sims(dl.sims, self.nside, [dl.zbounds])
-            elif it.filter_directional == 'iso':
-                dl.sims_MAP = self.sims
+            if it.filter.directional == 'aniso':
+                dl.sims_MAP = utils_sims.ztrunc_sims(dl.sims, dl.nside, [dl.zbounds])
+            elif it.filter.directional == 'iso':
+                dl.sims_MAP = dl.sims
 
 
             # itmax
@@ -438,32 +441,38 @@ class l2lensrec_Transformer:
             dl.iterator_typ = it.iterator_typ
 
 
-            # filter
-            dl.filter_directional = it.filter.directional
-            dl.filter_data_type = it.filter.data_type
-            wee = self.k == 'p_p'
-            dl.ffi = remapping.deflection(dl.lenjob_pbgeometry, self.lensres, np.zeros_like(hp.Alm.getsize(4000)), it.mmax_qlm, self.tr, self.tr)
-            if dl.filter_directional == 'iso':
-                dl.filter = opfilt_iso_ee_wl.alm_filter_nlev_wl(dl.nlev_p, dl.ffi, dl.transf_elm, (it.filter.lmax_unl, it.filter.mmax_unl), (it.filter.lmax_len, it.filter.mmax_len), wee=wee, transf_b=dl.transf_blm, nlev_b=dl.nlev_p)
-                self.k_geom = filter.ffi.geom
-            elif dl.filter_directional == 'aniso':
-                self.get_filter_aniso(dl.sims_MAP, dl.ffi, dl.tpl)
-                ninv = [dl.sims_MAP.ztruncify(read_map(ni)) for ni in self.ninvp_desc]
-                dl.filter = opfilt_ee_wl.alm_filter_ninv_wl(
-                    self.ninvjob_geometry, ninv, dl.ffi, self.transf_elm,
-                    (self.lmax_unl, self.mmax_unl), (self.lmax_len, self.mmax_len),
-                    self.tr, dl.tpl, wee=wee, lmin_dotop=min(self.lmin_elm, self.lmin_blm), transf_blm=self.transf_blm)
-                self.k_geom = filter.ffi.geom
+            # lmax
+            dl.it_filter_lmax = it.filter.lmax
+            dl.it_filter_mmax = it.filter.mmax
+            dl.it_lmax_unl, dl.it_mmax_unl = it.filter.lmax_unl, it.filter.mmax_unl
+            dl.it_lmax_len, dl.it_mmax_len = it.filter.lmax_len, it.filter.mmax_len
 
 
             # lenjob_geometry
             if it.lenjob_geometry == 'thin_gauss':
-                dl.lenjob_geometry = utils_scarf.Geom.get_thingauss_geometry(dl.lmax_unl, 2, zbounds=dl.zbounds_len)
+                dl.lenjob_geometry = utils_scarf.Geom.get_thingauss_geometry(dl.it_lmax_unl, 2, zbounds=dl.zbounds_len)
 
 
             # lenjob_pbgeometry
             if it.lenjob_pbgeometry == 'pbdGeometry':
                 dl.lenjob_pbgeometry = utils_scarf.pbdGeometry(dl.lenjob_geometry, utils_scarf.pbounds(dl.pb_ctr, dl.pb_extent))
+
+
+            # filter
+            dl.filter_directional = it.filter.directional
+            dl.filter_data_type = it.filter.data_type
+            wee = dl.key == 'p_p'
+            dl.ffi = remapping.deflection(dl.lenjob_pbgeometry, dl.lens_res, np.zeros(shape=hp.Alm.getsize(it.lmax_plm)), it.mmax_plm, dl.tr, dl.tr)
+            if dl.filter_directional == 'iso':
+                dl.filter = opfilt_iso_ee_wl.alm_filter_nlev_wl(dl.nlev_p, dl.ffi, dl.transf_elm, (dl.it_lmax_unl, it.it_mmax_unl), (dl.it_lmax_len, dl.it_mmax_len), wee=wee, transf_b=dl.transf_blm, nlev_b=dl.nlev_p)
+                dl.k_geom = filter.ffi.geom
+            elif dl.filter_directional == 'aniso':
+                ninv = [dl.sims_MAP.ztruncify(read_map(ni)) for ni in dl.ninvp_desc]
+                dl.filter = opfilt_ee_wl.alm_filter_ninv_wl(
+                    dl.ninvjob_geometry, ninv, dl.ffi, dl.transf_elm,
+                    (dl.it_lmax_unl, dl.it_mmax_unl), (dl.it_lmax_len, dl.it_mmax_len),
+                    dl.tr, dl.tpl, wee=wee, lmin_dotop=min(dl.lmin_elm, dl.lmin_blm), transf_blm=dl.transf_blm)
+                dl.k_geom = dl.filter.ffi.geom
 
 
             # mfvar
@@ -484,7 +493,7 @@ class l2lensrec_Transformer:
             # stepper
             dl.stepper_model = it.stepper
             if dl.stepper_model.typ == 'harmonicbump':
-                dl.stepper = steps.harmonicbump(dl.lmax_qlm, dl.mmax_qlm, xa=dl.stepper_model.xa, xb=dl.stepper_model.xb)
+                dl.stepper = steps.harmonicbump(it.lmax_plm, it.mmax_plm, xa=dl.stepper_model.xa, xb=dl.stepper_model.xb)
             
 
         dl = DLENSALOT_Concept()    

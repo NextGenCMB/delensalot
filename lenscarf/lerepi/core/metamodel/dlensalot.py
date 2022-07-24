@@ -80,7 +80,6 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     """
     key = attr.ib(default=np.nan, validator=analysis.key)
     version = attr.ib(default=np.nan, validator=analysis.version)
-    simidxs_mf = attr.ib(default=[], validator=analysis.simidxs_mf)
     TEMP_suffix = attr.ib(default=None, validator=analysis.TEMP_suffix)
     lens_res = attr.ib(default=np.nan, validator=analysis.lens_res)
     zbounds =  attr.ib(default=(-1,1), validator=analysis.zbounds)
@@ -95,7 +94,6 @@ class DLENSALOT_Data(DLENSALOT_Concept):
     Attributes:
         DATA_LIBDIR: path to the data
     """
-    simidxs = attr.ib(default=[], validator=data.simidxs)
     class_parameters = attr.ib(default=None, validator=data.class_parameters)
     package_ = attr.ib(default=None, validator=data.package_)
     module_ = attr.ib(default=None, validator=data.module_)
@@ -141,8 +139,6 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     qest = attr.ib(default=None, validator=qerec.qest)
     cg_tol = attr.ib(default=np.nan, validator=qerec.cg_tol)
     ninvjob_qe_geometry = attr.ib(default=None, validator=qerec.ninvjob_qe_geometry)
-    lmax_filter = attr.ib(default=np.nan, validator=qerec.lmax_filter)
-    mmax_filter = attr.ib(default=np.nan, validator=qerec.mmax_filter)
     lmax_qlm = attr.ib(default=np.nan, validator=qerec.lmax_qlm)
     mmax_qlm = attr.ib(default=np.nan, validator=qerec.mmax_qlm)
     chain = attr.ib(default=None, validator=qerec.chain)
@@ -158,9 +154,8 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     """
     tasks = attr.ib(default=None, validator=itrec.tasks)
     simidxs = attr.ib(default=[], validator=itrec.simidxs)
+    simidxs_mf = attr.ib(default=[], validator=itrec.simidxs_mf)
     itmax = attr.ib(default=np.nan, validator=itrec.itmax)
-    lmax_filter = attr.ib(default=np.nan, validator=itrec.lmax_filter)
-    mmax_filter = attr.ib(default=np.nan, validator=itrec.mmax_filter)
     lmax_plm = attr.ib(default=np.nan, validator=itrec.lmax_plm)
     mmax_plm = attr.ib(default=np.nan, validator=itrec.mmax_plm)
     filter = attr.ib(default=None, validator=itrec.filter)
@@ -218,6 +213,8 @@ class DLENSALOT_Filter(DLENSALOT_Concept):
     """
     directional = attr.ib(default=np.nan, validator=filter.directional)
     data_type = attr.ib(default=np.nan, validator=filter.data_type)
+    lmax = attr.ib(default=np.nan, validator=filter.lmax)
+    mmax = attr.ib(default=np.nan, validator=filter.mmax)
     lmax_len = attr.ib(default=np.nan, validator=filter.lmax_len)
     mmax_len = attr.ib(default=np.nan, validator=filter.mmax_len)
     lmax_unl = attr.ib(default=np.nan, validator=filter.lmax_unl)

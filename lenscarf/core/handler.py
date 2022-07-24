@@ -73,8 +73,8 @@ class QE_lr():
             self.mf = lambda simidx: self.get_meanfield(simidx)
             self.plm = lambda simidx: self.get_plm(simidx, self.QE_subtract_meanfield)
             self.mf_resp = lambda: self.get_response_meanfield()
-            self.wflm = lambda simidx: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lmax_unl, self.mmax_unl)
-            self.R_unl = lambda: qresp.get_response(self.k, self.lmax_ivf, 'p', self.cls_unl, self.cls_unl,  {'e': self.fel_unl, 'b': self.fbl_unl, 't':self.ftl_unl}, lmax_qlm=self.lmax_qlm)[0]
+            self.wflm = lambda simidx: alm_copy(self.filter.get_sim_emliklm(simidx), None, self.lmax_unl, self.mmax_unl)
+            self.R_unl = lambda: qresp.get_response(self.key, self.qe_filter_lmax, 'p', self.cls_unl, self.cls_unl,  {'e': self.fel_unl, 'b': self.fbl_unl, 't':self.ftl_unl}, lmax_qlm=self.lmax_qlm)[0]
         else:
             # TODO hack. Only want to access old s08b sim result lib and generate B wf
             self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'zb_terator_%s_%04d_nofg_OBD_solcond_3apr20'%(qe_key, simidx) + version)
@@ -84,7 +84,7 @@ class QE_lr():
     @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self, id=''):
         if self.overwrite_libdir is None:
-            mf_fname = os.path.join(self.TEMP, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, utils.mchash(self.simidxs)))
+            mf_fname = os.path.join(self.TEMP, 'qlms_dd/simMF_k1%s_%s.fits' % (self.key, utils.mchash(self.QE_simidxs_mf)))
             if os.path.isfile(mf_fname):
                 # can safely skip QE. MF exists, so we know QE ran before
                 self.jobs = []
@@ -92,19 +92,19 @@ class QE_lr():
                 self.jobs = []
             elif id == 'All':
                 jobs = []
-                for idx in self.simidxs:
+                for idx in self.QE_simidxs_mf:
                     jobs.append(idx)
                 self.jobs = jobs
             else:
                 # TODO if id='', skip finished simindices
                 jobs = []
-                for idx in self.simidxs:
+                for idx in self.QE_simidxs_mf:
                     jobs.append(idx)
                 self.jobs = jobs
         else:
             # TODO hack. Only want to access old s08b sim result lib and generate B wf
             jobs = []
-            for idx in self.simidxs:
+            for idx in self.QE_simidxs_mf:
                 jobs.append(idx)
             self.jobs = jobs
 
@@ -148,19 +148,19 @@ class QE_lr():
     @log_on_end(logging.INFO, "get_sim_qlm() finished")
     def get_sim_qlm(self, idx):
 
-        return self.qlms_dd.get_sim_qlm(self.k, int(idx))
+        return self.qlms_dd.get_sim_qlm(self.key, int(idx))
 
 
     @log_on_start(logging.INFO, "get_B_wf() started")
     @log_on_end(logging.INFO, "get_B_wf() finished")    
     def get_B_wf(self, simidx):
-        fn = self.libdir_iterators(self.k, simidx, self.version)+'/bwf_qe_%04d.npy'%simidx
-        if not os.path.isdir(self.libdir_iterators(self.k, simidx, self.version)):
-            os.makedirs(self.libdir_iterators(self.k, simidx, self.version))
+        fn = self.libdir_iterators(self.key, simidx, self.version)+'/bwf_qe_%04d.npy'%simidx
+        if not os.path.isdir(self.libdir_iterators(self.key, simidx, self.version)):
+            os.makedirs(self.libdir_iterators(self.key, simidx, self.version))
         if os.path.isfile(fn):
-            bwf = self.ivfs.get_sim_bmliklm(simidx)
+            bwf = self.filter.get_sim_bmliklm(simidx)
         else:
-            bwf = self.ivfs.get_sim_bmliklm(simidx)
+            bwf = self.filter.get_sim_bmliklm(simidx)
             np.save(fn, bwf)
 
         return bwf
@@ -170,27 +170,27 @@ class QE_lr():
     @log_on_end(logging.INFO, "get_wflm() finished")    
     def get_wflm(self, simidx):
 
-        return lambda: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lmax_unl, self.mmax_unl)
+        return lambda: alm_copy(self.filter.get_sim_emliklm(simidx), None, self.lmax_unl, self.mmax_unl)
 
 
     @log_on_start(logging.INFO, "get_R_unl() started")
     @log_on_end(logging.INFO, "get_R_unl() finished")    
     def get_R_unl(self):
 
-        return qresp.get_response(self.k, self.lmax_ivf, 'p', self.cls_unl, self.cls_unl,  {'e': self.fel_unl, 'b': self.fbl_unl, 't':self.ftl_unl}, lmax_qlm=self.lmax_qlm)[0]
+        return qresp.get_response(self.key, self.qe_filter_lmax, 'p', self.cls_unl, self.cls_unl,  {'e': self.fel_unl, 'b': self.fbl_unl, 't':self.ftl_unl}, lmax_qlm=self.lmax_qlm)[0]
 
 
     @log_on_start(logging.INFO, "get_meanfield() started")
     @log_on_end(logging.INFO, "get_meanfield() finished")
     def get_meanfield(self, simidx):
         if self.mfvar == None:
-            mf = self.qlms_dd.get_sim_qlm_mf(self.k, self.simidxs_mf)
-            if simidx in self.simidxs_mf:    
-                mf = (mf - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
+            mf = self.qlms_dd.get_sim_qlm_mf(self.key, self.it_simidxs_mf)
+            if simidx in self.it_simidxs_mf:    
+                mf = (mf - self.qlms_dd.get_sim_qlm(self.key, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
         else:
             mf = hp.read_alm(self.mfvar)
-            if simidx in self.simidxs_mf:    
-                mf = (mf - self.qlms_dd_mfvar.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
+            if simidx in self.it_simidxs_mf:    
+                mf = (mf - self.qlms_dd_mfvar.get_sim_qlm(self.key, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
 
         return mf
 
@@ -198,15 +198,15 @@ class QE_lr():
     @log_on_start(logging.INFO, "get_plm() started")
     @log_on_end(logging.INFO, "get_plm() finished")
     def get_plm(self, simidx, subtract_meanfield=True):
-        lib_dir_iterator = self.libdir_iterators(self.k, simidx, self.version)
+        lib_dir_iterator = self.libdir_iterators(self.key, simidx, self.version)
         if not os.path.exists(lib_dir_iterator):
             os.makedirs(lib_dir_iterator)
         path_plm = opj(lib_dir_iterator, 'phi_plm_it000.npy')
         if not os.path.exists(path_plm):
-            plm  = self.qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate:
+            plm  = self.qlms_dd.get_sim_qlm(self.key, int(simidx))  #Unormalized quadratic estimate:
             if subtract_meanfield:
                 plm -= self.mf(simidx)  # MF-subtracted unnormalized QE
-            R = qresp.get_response(self.k, self.lmax_ivf, 'p', self.cls_len, self.cls_len, {'e': self.fel, 'b': self.fbl, 't':self.ftl}, lmax_qlm=self.lmax_qlm)[0]
+            R = qresp.get_response(self.key, self.qe_filter_lmax, 'p', self.cls_len, self.cls_len, {'e': self.fel, 'b': self.fbl, 't':self.ftl}, lmax_qlm=self.lmax_qlm)[0]
             # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
             WF = self.cpp * utils.cli(self.cpp + utils.cli(R))
             plm = alm_copy(plm,  None, self.lmax_qlm, self.mmax_qlm)
@@ -222,10 +222,10 @@ class QE_lr():
     @log_on_start(logging.INFO, "get_response_meanfield() started")
     @log_on_end(logging.INFO, "get_response_meanfield() finished")
     def get_response_meanfield(self):
-        if self.k in ['p_p'] and not 'noRespMF' in self.version:
-            mf_resp = qresp.get_mf_resp(self.k, self.cls_unl, {'ee': self.fel_unl, 'bb': self.fbl_unl}, self.lmax_ivf, self.lmax_qlm)[0]
+        if self.key in ['p_p'] and not 'noRespMF' in self.version:
+            mf_resp = qresp.get_mf_resp(self.key, self.cls_unl, {'ee': self.fel_unl, 'bb': self.fbl_unl}, self.qe_filter_lmax, self.lmax_qlm)[0]
         else:
-            log.info('*** mf_resp not implemented for key ' + self.k, ', setting it to zero')
+            log.info('*** mf_resp not implemented for key ' + self.key, ', setting it to zero')
             mf_resp = np.zeros(self.lmax_qlm + 1, dtype=float)
 
         return mf_resp
@@ -253,8 +253,8 @@ class MAP_lr():
             # TODO order of task list matters, but shouldn't
             if task == 'calc_phi':
                 self.qe.collect_jobs()
-                for idx in self.simidxs:
-                    lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
+                for idx in self.it_simidxs:
+                    lib_dir_iterator = self.libdir_iterators(self.key, idx, self.version)
                     if rec.maxiterdone(lib_dir_iterator) < self.itmax:
                         _jobs.append(idx)
 
@@ -267,7 +267,7 @@ class MAP_lr():
                 _jobs.append(0)
                 # check = True
                 # for idx in range(self.Nmf):
-                #     lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)   
+                #     lib_dir_iterator = self.libdir_iterators(self.key, idx, self.version)   
                 #     if rec.maxiterdone(lib_dir_iterator) < self.itmax:
                 #         check = False
                 #         break
@@ -279,8 +279,8 @@ class MAP_lr():
                 # TODO making sure that all meanfields are available, but the mpi.barrier() is likely a too strong statement.
                 log.info("Waiting for all ranks to finish their task")
                 mpi.barrier()
-                for idx in self.simidxs:
-                    lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
+                for idx in self.it_simidxs:
+                    lib_dir_iterator = self.libdir_iterators(self.key, idx, self.version)
                     if "calc_phi" in self.tasks:
                         # assume that this is a new analysis, so rec.maxiterdone won't work. Could collect task jobs after finishing previous task run to improve this.
                         _jobs.append(idx)
@@ -301,9 +301,9 @@ class MAP_lr():
             if task == 'calc_phi':
                 self.qe.run()
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
-                    lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
+                    lib_dir_iterator = self.libdir_iterators(self.key, idx, self.version)
                     if self.itmax >= 0 and rec.maxiterdone(lib_dir_iterator) < self.itmax:
-                        itlib_kwargs = self.init_itlib_iterator(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
+                        itlib_kwargs = self.init_itlib_iterator(self.qe, self.key, idx, self.version, self.libdir_iterators, self.dlensalot_model)
                         itlib_iterator = itlib.get_iterator(**itlib_kwargs)
                         for it in range(self.itmax + 1):
                             log.info("using cg-tol = %.4e"%self.cg_tol(it))
@@ -327,8 +327,8 @@ class MAP_lr():
                 log.info('{}, task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
                     log.info("{}: start sim {}".format(mpi.rank, idx))
-                    lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
-                    itlib_kwargs = self.init_itlib_iterator(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
+                    lib_dir_iterator = self.libdir_iterators(self.key, idx, self.version)
+                    itlib_kwargs = self.init_itlib_iterator(self.qe, self.key, idx, self.version, self.libdir_iterators, self.dlensalot_model)
                     itlib_iterator = itlib.get_iterator(**itlib_kwargs)
                     if self.dlm_mod_bool:
                         dlm_mod = self.get_meanfields_it(np.arange(self.itmax+1), calc=False)
@@ -366,7 +366,7 @@ class MAP_lr():
     @log_on_end(logging.INFO, "get_plm_it() finished")
     def get_plm_it(self, simidx, its):
 
-        plms = rec.load_plms(self.libdir_iterators(self.k, simidx, self.version), its)
+        plms = rec.load_plms(self.libdir_iterators(self.key, simidx, self.version), its)
 
         return plms
 
@@ -382,11 +382,11 @@ class MAP_lr():
             else:
                 mf = self.get_meanfield_it(self, it, calc=True)
         else:
-            plm = rec.load_plms(self.libdir_iterators(self.k, self.simidxs[0], self.version), [0])[-1]
+            plm = rec.load_plms(self.libdir_iterators(self.key, self.it_simidxs[0], self.version), [0])[-1]
             mf = np.zeros_like(plm)
-            for simidx in self.simidxs_mf:
+            for simidx in self.it_simidxs_mf:
                 log.info("it {:02d}: adding sim {:03d}/{}".format(it, simidx, self.Nmf))
-                mf += rec.load_plms(self.libdir_iterators(self.k, simidx, self.version), [it])[-1]
+                mf += rec.load_plms(self.libdir_iterators(self.key, simidx, self.version), [it])[-1]
             np.save(fn, mf/self.Nmf)
 
         return mf
@@ -395,7 +395,7 @@ class MAP_lr():
     @log_on_start(logging.INFO, "get_meanfields_it() started")
     @log_on_end(logging.INFO, "get_meanfields_it() finished")
     def get_meanfields_it(self, its, calc=False):
-        plm = rec.load_plms(self.libdir_iterators(self.k, self.simidxs[0], self.version), [0])[-1]
+        plm = rec.load_plms(self.libdir_iterators(self.key, self.it_simidxs[0], self.version), [0])[-1]
         mfs = np.zeros(shape=(len(its),*plm.shape), dtype=np.complex128)
         if calc==True:
             for iti, it in enumerate(its[mpi.rank::mpi.size]):
@@ -475,7 +475,7 @@ class Map_delenser():
     def getfn_blm_lensc(self, simidx, it):
         '''Lenscarf output using Catherinas E and B maps'''
         # TODO this needs cleaner implementation via lambda
-        # _libdir_iterator = self.libdir_iterators(self.k, simidx, self.version)
+        # _libdir_iterator = self.libdir_iterators(self.key, simidx, self.version)
         # return _libdir_iterator+fn(**params)
 
         if self.libdir_iterators == 'overwrite':
@@ -494,11 +494,11 @@ class Map_delenser():
             # TODO fn needs to be defined in l2d
             # TODO only QE it 0 doesn't exists because no modification is done to it. catching this. Can this be done better?
             if it == 0:
-                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024%03d.npy'%(it, it, self.Nmf)
+                return self.libdir_iterators(self.key, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024%03d.npy'%(it, it, self.Nmf)
             if self.dlm_mod_bool:
-                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024_dlmmod%03d.npy'%(it, it, self.Nmf)
+                return self.libdir_iterators(self.key, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024_dlmmod%03d.npy'%(it, it, self.Nmf)
             else:
-                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024%03d.npy'%(it, it, self.Nmf)
+                return self.libdir_iterators(self.key, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024%03d.npy'%(it, it, self.Nmf)
 
             
     # @log_on_start(logging.INFO, "getfn_qumap_cs() started")
@@ -542,7 +542,7 @@ class Map_delenser():
             if self.libdir_iterators == 'overwrite':
                 jobs.append(idx)
             else:
-                lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
+                lib_dir_iterator = self.libdir_iterators(self.key, idx, self.version)
                 if rec.maxiterdone(lib_dir_iterator) >= self.its[-1]:
                     jobs.append(idx)
         self.jobs = jobs

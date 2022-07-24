@@ -150,6 +150,16 @@ class filter:
         assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
 
+    def lmax(instance, attribute, value):
+        desc = [attribute]
+        assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+
+
+    def mmax(instance, attribute, value):
+        desc = [attribute]
+        assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+
+
     def lmax_len(instance, attribute, value):
         desc = [attribute]
         assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
@@ -177,6 +187,11 @@ class itrec:
 
 
     def simidxs(instance, attribute, value):
+        desc = [attribute]
+        assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+
+
+    def simidxs_mf(instance, attribute, value):
         desc = [attribute]
         assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
@@ -232,16 +247,6 @@ class itrec:
 
 
     def mmax_plm(instance, attribute, value):
-        desc = [attribute]
-        assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
-
-
-    def lmax_filter(instance, attribute, value):
-        desc = [attribute]
-        assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
-
-
-    def mmax_filter(instance, attribute, value):
         desc = [attribute]
         assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
@@ -321,7 +326,7 @@ class mapdelensing:
 class meta:
     def version(instance, attribute, value):
         if type(value) != str:
-            raise ValueError('Must be int')
+            raise ValueError('Must be str')
         desc = ['0.9']
         assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
@@ -518,16 +523,6 @@ class qerec:
 
 
     def mmax_qlm(instance, attribute, value):
-        desc = [attribute]
-        assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
-
-
-    def lmax_filter(instance, attribute, value):
-        desc = [attribute]
-        assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
-
-
-    def mmax_filter(instance, attribute, value):
         desc = [attribute]
         assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 

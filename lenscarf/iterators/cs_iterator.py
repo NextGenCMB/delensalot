@@ -667,7 +667,5 @@ class iterator_cstmf_bfgs0(iterator_cstmf):
 
 
 def transformer(descr):
-    if descr == 'pertmf_new':
+    if descr == 'pertmf':
         return iterator_pertmf
-    else:
-        assert 0, "Not yet implemented"
