@@ -319,7 +319,10 @@ class l2lensrec_Transformer:
             # lmax
             dl.qe_filter_lmax = qe.filter.lmax
             dl.qe_filter_mmax = qe.filter.mmax
+            dl.qe_filter_lmax_unl, dl.qe_filter_mmax_unl = qe.filter.lmax_unl, qe.filter.mmax_unl
+            dl.qe_filter_lmax_len, dl.qe_filter_mmax_len = qe.filter.lmax_len, qe.filter.mmax_len
             dl.lmax_qlm = qe.lmax_qlm
+            dl.mmax_qlm = qe.mmax_qlm
 
 
             # chain
@@ -344,7 +347,7 @@ class l2lensrec_Transformer:
                     marge_monopole=True, marge_dipole=True, marge_maps=[])
                 if dl.lowell_treat == 'OBD':
                     transf_elm_loc = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=qe.lmax_qlm)
-                    dl.cinv_p = cinv_p_OBD.cinv_p(opj(dl.TEMP, 'cinv_p'), lmax_qlm, dl.nside, dl.cls_len, transf_elm_loc[:qe.lmax_qlm+1], dl.ninvp_desc, geom=dl.ninvjob_qe_geometry,
+                    dl.cinv_p = cinv_p_OBD.cinv_p(opj(dl.TEMP, 'cinv_p'), qe.lmax_qlm, dl.nside, dl.cls_len, transf_elm_loc[:qe.lmax_qlm+1], dl.ninvp_desc, geom=dl.ninvjob_qe_geometry,
                         chain_descr=dl.chain_descr(qe.lmax_qlm, dl.cg_tol), bmarg_lmax=dl.lmin_blm, zbounds=dl.zbounds, _bmarg_lib_dir=dl.obd_libdir, _bmarg_rescal=dl.obd_rescale, sht_threads=dl.tr)
                 elif dl.lowell_treat == 'trunc' or dl.lowell_treat == None or dl.lowell_treat == 'None':
                     dl.cinv_p = filt_cinv.cinv_p(opj(dl.TEMP, 'cinv_p'), qe.lmax_qlm, dl.nside, dl.cls_len, dl.transf_elm, dl.ninvp_desc,
@@ -354,13 +357,13 @@ class l2lensrec_Transformer:
                 _ftl_rs = np.ones(qe.lmax_qlm + 1, dtype=float) * (np.arange(qe.lmax_qlm + 1) >= dl.lmin_tlm)
                 _fel_rs = np.ones(qe.lmax_qlm + 1, dtype=float) * (np.arange(qe.lmax_qlm + 1) >= dl.lmin_elm)
                 _fbl_rs = np.ones(qe.lmax_qlm + 1, dtype=float) * (np.arange(qe.lmax_qlm + 1) >= dl.lmin_blm)
-                dl.filter = filt_util.library_ftl(_filter_raw, qe.lmax_qlm, _ftl_rs, _fel_rs, _fbl_rs)
+                dl.qe_filter = filt_util.library_ftl(_filter_raw, qe.lmax_qlm, _ftl_rs, _fel_rs, _fbl_rs)
             elif dl.qe_filter_directional == 'iso':
-                dl.filter = filt_simple.library_fullsky_alms_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
+                dl.qe_filter = filt_simple.library_fullsky_alms_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
 
 
             # qlms
-            dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.filter, dl.filter, dl.cls_len['te'], dl.nside, lmax_qlm=qe.lmax_qlm)
+            dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.qe_filter, dl.qe_filter, dl.cls_len['te'], dl.nside, lmax_qlm=qe.lmax_qlm)
 
 
             # ninvjob_qe_geometry
@@ -462,15 +465,15 @@ class l2lensrec_Transformer:
             wee = dl.key == 'p_p'
             dl.ffi = remapping.deflection(dl.lenjob_pbgeometry, dl.lens_res, np.zeros(shape=hp.Alm.getsize(it.lmax_plm)), it.mmax_plm, dl.tr, dl.tr)
             if dl.filter_directional == 'iso':
-                dl.filter = opfilt_iso_ee_wl.alm_filter_nlev_wl(dl.nlev_p, dl.ffi, dl.transf_elm, (dl.it_lmax_unl, it.it_mmax_unl), (dl.it_lmax_len, dl.it_mmax_len), wee=wee, transf_b=dl.transf_blm, nlev_b=dl.nlev_p)
-                dl.k_geom = filter.ffi.geom
+                dl.it_filter = opfilt_iso_ee_wl.alm_filter_nlev_wl(dl.nlev_p, dl.ffi, dl.transf_elm, (dl.it_lmax_unl, it.it_mmax_unl), (dl.it_lmax_len, dl.it_mmax_len), wee=wee, transf_b=dl.transf_blm, nlev_b=dl.nlev_p)
+                dl.k_geom = dl.it_filter.ffi.geom
             elif dl.filter_directional == 'aniso':
                 ninv = [dl.sims_MAP.ztruncify(read_map(ni)) for ni in dl.ninvp_desc]
-                dl.filter = opfilt_ee_wl.alm_filter_ninv_wl(
+                dl.it_filter = opfilt_ee_wl.alm_filter_ninv_wl(
                     dl.ninvjob_geometry, ninv, dl.ffi, dl.transf_elm,
                     (dl.it_lmax_unl, dl.it_mmax_unl), (dl.it_lmax_len, dl.it_mmax_len),
                     dl.tr, dl.tpl, wee=wee, lmin_dotop=min(dl.lmin_elm, dl.lmin_blm), transf_blm=dl.transf_blm)
-                dl.k_geom = dl.filter.ffi.geom
+                dl.k_geom = dl.it_filter.ffi.geom
 
 
             # mfvar
@@ -673,22 +676,7 @@ class l2d_Transformer:
             dl.data_field = cf.data.data_field
 
             dl.TEMP = transform(cf, l2T_Transformer())
-
-            # TODO II
-            # could put btempl paths similar to sim path handling. If D.lensalot handles it, use D.lensalot internal class for it
-            # dl.libdir_iterators = lambda qe_key, simidx, version: de.libdir_it%()
-            # if it==12:
-            #     rootstr = opj(os.environ['CFS'], 'cmbs4/awg/lowellbb/reanalysis/lt_recons/')
-            #     if self.fg == '00':
-            #         return rootstr+'08b.%02d_sebibel_210708_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg), it, simidx)
-            #     elif self.fg == '07':
-            #         return rootstr+'/08b.%02d_sebibel_210910_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg), it, simidx)
-            #     elif self.fg == '09':
-            #         return rootstr+'/08b.%02d_sebibel_210910_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg), it, simidx)
-            # elif it==0:
-            #     return '/global/cscratch1/sd/sebibel/cmbs4/s08b/cILC2021_%s_lmax4000/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20/ffi_p_it0/blm_%04d_it0.npy'%(self.fg, simidx, simidx)    
-          
-            if ma.libdir_it is None:
+            if ma.dir_btempl == 'intern': 
                 dl.libdir_iterators = lambda qe_key, simidx, version: opj(dl.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
                 def fn_btempl_intern(simidx, fg, it):
                     if it == 0:
@@ -768,10 +756,8 @@ class l2d_Transformer:
                 dl.clc_templ = dl.cls_len['bb']
                 dl.clg_templ[0] = 1e-32
                 dl.clg_templ[1] = 1e-32
-            pert_mod_string = ''
-            dl.btemplate_perturbative_lensremap = ma.btemplate_perturbative_lensremap
-            if dl.btemplate_perturbative_lensremap == True:
-                pert_mod_string = 'pertblens'
+                dl.cmb_fid_len = planck2018_sims.cmb_len_ffp10
+
             dl.binning = ma.binning
             if dl.binning == 'binned':
                 dl.lmax = ma.lmax

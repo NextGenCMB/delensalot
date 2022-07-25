@@ -121,6 +121,7 @@ class data:
 
     def data_type(instance, attribute, value):
 <<<<<<< HEAD
+<<<<<<< HEAD
         desc = ['alm', 'map']
         assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
@@ -137,6 +138,15 @@ class data:
         desc = [attribute]
         assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 >>>>>>> 5c89a4d (refactor validator)
+=======
+        desc = ['alm', 'map']
+        assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+
+
+    def data_field(instance, attribute, value):
+        desc = ['qu', 'eb']
+        assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+>>>>>>> f6fb324 (minor)
 
 
     def beam(instance, attribute, value):
@@ -162,6 +172,7 @@ class filter:
 
     def data_type(instance, attribute, value):
 <<<<<<< HEAD
+<<<<<<< HEAD
         desc = ['alm', 'map']
         assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
@@ -176,6 +187,10 @@ class filter:
 >>>>>>> 5c89a4d (refactor validator)
         desc = [attribute]
         assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+=======
+        desc = ['alm', 'map']
+        assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+>>>>>>> f6fb324 (minor)
 
 
     def lmax(instance, attribute, value):
@@ -377,6 +392,9 @@ class mapdelensing:
 
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> f6fb324 (minor)
     def dir_btempl(instance, attribute, value):
         desc = [attribute]
         assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
@@ -464,11 +482,17 @@ class model:
         assert attribute.type in desc_type, ValueError('Must be in {}, but is {}'.format(desc_type, attribute.type))
 
 <<<<<<< HEAD
+<<<<<<< HEAD
         for simidx in value.simidxs_mf:
             assert simidx in value.simidxs, ValueError('Meanfield simidx must be in {}, but is {}'.format(desc_type, attribute.type))
 
 =======
 >>>>>>> 5c89a4d (refactor validator)
+=======
+        for simidx in value.simidxs_mf:
+            assert simidx in value.simidxs, ValueError('Meanfield simidx must be in {}, but is {}'.format(desc_type, attribute.type))
+
+>>>>>>> f6fb324 (minor)
 
     def itrec(instance, attribute, value):
         from lenscarf.lerepi.core.metamodel.dlensalot import DLENSALOT_Itrec
@@ -565,12 +589,17 @@ class obd:
 
     def tpl(instance, attribute, value):
 <<<<<<< HEAD
+<<<<<<< HEAD
         desc = ['template_dense', None]
         assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 =======
         desc = [attribute]
         assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 >>>>>>> 5c89a4d (refactor validator)
+=======
+        desc = ['template_dense', None]
+        assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+>>>>>>> f6fb324 (minor)
 
 
     def nlev_dep(instance, attribute, value):

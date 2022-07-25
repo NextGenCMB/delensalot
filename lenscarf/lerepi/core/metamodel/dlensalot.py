@@ -37,9 +37,12 @@ class DLENSALOT_OBD(DLENSALOT_Concept):
 
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 
 >>>>>>> 5c89a4d (refactor validator)
+=======
+>>>>>>> f6fb324 (minor)
 @attr.s
 class DLENSALOT_Meta(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
