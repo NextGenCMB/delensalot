@@ -36,7 +36,6 @@ class DLENSALOT_OBD(DLENSALOT_Concept):
     nlev_dep = attr.ib(default=np.nan, validator=obd.nlev_dep)
 
 
-
 @attr.s
 class DLENSALOT_Meta(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
@@ -181,8 +180,8 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
     masks = attr.ib(default=None, validator=mapdelensing.masks)
     lmax = attr.ib(default=-1, validator=mapdelensing.lmax)
     Cl_fid = attr.ib(default=-1, validator=mapdelensing.Cl_fid)
-    libdir_it = attr.ib(default=None, validator=mapdelensing.libdir_it)
     binning = attr.ib(default=-1, validator=mapdelensing.binning)
+    dir_btempl = attr.ib(default='intern', validator=mapdelensing.dir_btempl)
     spectrum_calculator = attr.ib(default=None, validator=mapdelensing.spectrum_calculator)
 
 

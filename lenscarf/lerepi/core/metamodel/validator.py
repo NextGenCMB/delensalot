@@ -115,13 +115,13 @@ class data:
 
 
     def data_type(instance, attribute, value):
-        desc = [attribute]
-        assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+        desc = ['alm', 'map']
+        assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
 
     def data_field(instance, attribute, value):
-        desc = [attribute]
-        assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+        desc = ['qu', 'eb']
+        assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
 
     def beam(instance, attribute, value):
@@ -146,8 +146,8 @@ class filter:
 
 
     def data_type(instance, attribute, value):
-        desc = [attribute]
-        assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+        desc = ['alm', 'map']
+        assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
 
     def lmax(instance, attribute, value):
@@ -323,6 +323,11 @@ class mapdelensing:
         assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
 
+    def dir_btempl(instance, attribute, value):
+        desc = [attribute]
+        assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+
+
 class meta:
     def version(instance, attribute, value):
         if type(value) != str:
@@ -360,6 +365,9 @@ class model:
         from lenscarf.lerepi.core.metamodel.dlensalot import DLENSALOT_Data
         desc_type = [DLENSALOT_Data]
         assert attribute.type in desc_type, TypeError('Must be in {}, but is {}'.format(desc_type, attribute.type))
+        
+        if value.data_type == 'alm':
+            assert value.data_field == 'eb', ValueError("I don't think you have qlms, ulms. More likely, you have E/B maps, Q/U maps, or e/b lms.")
 
         # lmax and transferfunction must have same length
         assert len(value.class_parameters['cl_transf'])==value.lmax+1, ValueError("Transferfunction length {} must be equal to 'lmax', but is {}".format(value.class_parameters['cl_transf'], value.lmax))
@@ -381,6 +389,9 @@ class model:
         from lenscarf.lerepi.core.metamodel.dlensalot import DLENSALOT_Qerec
         desc_type = [DLENSALOT_Qerec]
         assert attribute.type in desc_type, ValueError('Must be in {}, but is {}'.format(desc_type, attribute.type))
+
+        for simidx in value.simidxs_mf:
+            assert simidx in value.simidxs, ValueError('Meanfield simidx must be in {}, but is {}'.format(desc_type, attribute.type))
 
 
     def itrec(instance, attribute, value):
@@ -472,8 +483,8 @@ class obd:
 
 
     def tpl(instance, attribute, value):
-        desc = [attribute]
-        assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+        desc = ['template_dense', None]
+        assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
 
     def nlev_dep(instance, attribute, value):
