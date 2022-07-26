@@ -439,18 +439,18 @@ class Map_delenser():
         bcl_L = np.zeros(shape=(len(self.its)+2, len(self.mask_ids), len(self.simidxs), len(self.edges[edges_id])-1))
         
         print('Loading {} sims from {}'.format(len(self.simidxs),  '/'.join([f for f in self.file_op(0, self.fg, 0).split('/')[:-1]])))
-        for simidx, simid in enumerate(self.simidxs):
+        for simidxi, simidx in enumerate(self.simidxs):
             _file_op = self.file_op(simidx, self.fg, 0)
             data = np.load(_file_op)
-            bcl_L[0,:,simidx] = data[0][0]
-            bcl_cs[0,:,simidx] = data[1][0]
+            bcl_L[0,:,simidxi] = data[0][0]
+            bcl_cs[0,:,simidxi] = data[1][0]
 
-            bcl_L[1,:,simidx] = data[0][1]
-            bcl_cs[1,:,simidx] = data[1][1]
+            bcl_L[1,:,simidxi] = data[0][1]
+            bcl_cs[1,:,simidxi] = data[1][1]
 
             for iti, it in enumerate(self.its):
-                bcl_L[2+iti,:,simidx] = data[0][2+iti]
-                bcl_cs[2+iti,:,simidx] = data[1][2+iti]
+                bcl_L[2+iti,:,simidxi] = data[0][2+iti]
+                bcl_cs[2+iti,:,simidxi] = data[1][2+iti]
 
         return bcl_L, bcl_cs
 

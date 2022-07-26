@@ -691,7 +691,7 @@ class l2lensrec_Transformer:
                 # dl.subtract_meanfield = iteration.QE_subtract_meanfield
                 dl.subtract_meanfield = True
             else:
-                dl.subtract_meanfield = True
+                dl.  = True
 
             dl.tasks = it.tasks
             if it.cg_tol < 1.:
