@@ -26,16 +26,24 @@ def _dicthash(dict_in:dict, lmax:int, keys=None):
 class polMAPbiases:
     def __init__(self, config, fidcls_unl, itrmax=6, cacher:cachers.cacher or None = None):
 
-        (nlev_t, nlev_p, beam, lmin, lmax, lmax_qlm) = config
+        (nlev_t, nlev_p, beam, lmin, lmax_ivf, lmax_qlm) = config
 
         self.fidcls_unl = fidcls_unl
         self.config = config
-
-        transfi =  1./ gauss_beam(beam / 180 / 60 * np.pi, lmax=lmax)
-        transfi[:lmin] *= 0
-
-        self.fidcls_noise = {'ee': ( (nlev_p / 180 / 60 * np.pi) * transfi ) ** 2,
-                             'bb': ( (nlev_p / 180 / 60 * np.pi) * transfi) ** 2  }
+        if type(lmin) is tuple:
+            lmin_tlm, lmin_elm, lmin_blm = lmin 
+        elif type(lmin) is int:
+            lmin_tlm = lmin 
+            lmin_elm = lmin 
+            lmin_blm = lmin 
+        print(f'lmin_tlm:{lmin_tlm}, lmin_elm:{lmin_elm}, lmin_blm:{lmin_blm}')
+        transf_tlm   =  gauss_beam(beam/180 / 60 * np.pi, lmax=lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_tlm)
+        transf_elm   =  gauss_beam(beam/180 / 60 * np.pi, lmax=lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_elm)
+        transf_blm   =  gauss_beam(beam/180 / 60 * np.pi, lmax=lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_blm)
+        
+        self.fidcls_noise = {'tt': ( (nlev_t / 180 / 60 * np.pi) * utils.cli(transf_tlm) ) ** 2,
+                             'ee': ( (nlev_p / 180 / 60 * np.pi) * utils.cli(transf_elm) ) ** 2,
+                             'bb': ( (nlev_p / 180 / 60 * np.pi) * utils.cli(transf_blm) ) ** 2  }
 
         self.qe_key = 'p_p'
         self.itrmax= itrmax
@@ -118,7 +126,7 @@ class polMAPbiases:
             self._cacher.cache(fn, r_gg_true * utils.cli(utils.cli(cpp) + r_gg_true))
         return self._cacher.load(fn)
 
-def cls2N0N1(k, cls_cmb_filt, cls_cmb_dat, cls_noise_filt, cls_noise_dat, lmin, lmax, lmax_qlm, doN1mat=False):
+def cls2N0N1(k, cls_cmb_filt, cls_cmb_dat, cls_noise_filt, cls_noise_dat, lmin_ivf, lmax, lmax_qlm, doN1mat=False):
     """"
         Returns QE N0 and N1 from input filtering and data cls
 
@@ -129,13 +137,39 @@ def cls2N0N1(k, cls_cmb_filt, cls_cmb_dat, cls_noise_filt, cls_noise_dat, lmin, 
     """
     assert k == 'p_p'
 
+    if type(lmin_ivf) is tuple:
+        lmin_tlm, lmin_elm, lmin_blm = lmin_ivf
+    elif type(lmin_ivf) is int:
+        lmin_tlm = lmin_ivf 
+        lmin_elm = lmin_ivf 
+        lmin_blm = lmin_ivf
+    lmin_tlm =  max(lmin_tlm, 1) 
+    lmin_elm = max(lmin_elm, 1)  
+    lmin_blm = max(lmin_blm, 1)  
+
     fals = {'ee': utils.cli(cls_cmb_filt['ee'][:lmax + 1] + cls_noise_filt['ee'][:lmax+1]),
             'bb': utils.cli(cls_cmb_filt['bb'][:lmax + 1] + cls_noise_filt['bb'][:lmax+1])}
-    for cl in fals.values():
-        cl[:lmin] *= 0
+
+    for key, cl in fals.items():
+        if key is 'tt':
+            cl[:lmin_tlm] *= 0.
+        elif key is 'ee':
+            cl[:lmin_elm] *= 0.
+        elif key is 'bb':
+            cl[:lmin_blm] *= 0.
+        elif key is 'te':
+            cl[:max(lmin_tlm, lmin_elm)] *= 0.
+
     cls_w = {q: np.copy(cls_cmb_filt[q][:lmax+1]) for q in ['ee', 'bb']}
-    for cl in cls_w.values():
-        cl[:lmin] *= 0
+    for key, cl in cls_w.items():
+        if key is 'tt':
+            cl[:lmin_tlm] *= 0.
+        elif key is 'ee':
+            cl[:lmin_elm] *= 0.
+        elif key is 'bb':
+            cl[:lmin_blm] *= 0.
+        elif key is 'te':
+            cl[:max(lmin_tlm, lmin_elm)] *= 0.
 
     cls_f = {q: np.copy(cls_cmb_dat[q]) for q in ['ee', 'bb']}
     lib = n1_fft.n1_fft(fals, cls_w, cls_f, np.copy(cls_cmb_dat['pp']), lminbox=50, lmaxbox=5000, k2l=None)
@@ -156,8 +190,15 @@ def cls2N0N1(k, cls_cmb_filt, cls_cmb_dat, cls_noise_filt, cls_noise_dat, lmin, 
 
     dat_cls = {'ee': cls_cmb_dat['ee'][:lmax + 1] + cls_noise_dat['ee'][:lmax+1],
                'bb': cls_cmb_dat['bb'][:lmax + 1] + cls_noise_dat['bb'][:lmax+1]}
-    for cl in dat_cls.values():
-        cl[:lmin] *= 0
+    for key, cl in dat_cls.items():
+        if key is 'tt':
+            cl[:lmin_tlm] *= 0.
+        elif key is 'ee':
+            cl[:lmin_elm] *= 0.
+        elif key is 'bb':
+            cl[:lmin_blm] *= 0.
+        elif key is 'te':
+            cl[:max(lmin_tlm, lmin_elm)] *= 0.
 
     cls_ivfs_arr = utils.cls_dot([fals, dat_cls, fals])
     cls_ivfs = dict()
@@ -217,7 +258,16 @@ def get_delcls(qe_key: str, itermax, cls_unl_fid: dict, cls_unl_true:dict, cls_n
 
 
     slic = slice(0, lmax_ivf + 1)
-    lmin_ivf = max(lmin_ivf, 1)
+    if type(lmin_ivf) is tuple:
+        lmin_tlm, lmin_elm, lmin_blm = lmin_ivf
+    elif type(lmin_ivf) is int:
+        lmin_tlm = lmin_ivf 
+        lmin_elm = lmin_ivf 
+        lmin_blm = lmin_ivf
+    lmin_tlm =  max(lmin_tlm, 1) 
+    lmin_elm = max(lmin_elm, 1)  
+    lmin_blm = max(lmin_blm, 1)  
+
     llp2 = np.arange(lmax_qlm + 1, dtype=float) ** 2 * np.arange(1, lmax_qlm + 2, dtype=float) ** 2 / (2. * np.pi)
     delcls_fid = []
     delcls_true = []
@@ -247,7 +297,7 @@ def get_delcls(qe_key: str, itermax, cls_unl_fid: dict, cls_unl_true:dict, cls_n
             assert qe_key in ['p_p']
             if it == 0:
                 print('including imperfect knowledge of E in iterations')
-            slic = slice(lmin_ivf, lmax_ivf + 1)
+            slic = slice(lmin_elm, lmax_ivf + 1)
             rho_sqd_E = np.zeros(len(dls_unl_true[:, 1]))
             rho_sqd_E[slic] = cls_unl_true['ee'][slic] * utils.cli(cls_plen_true['ee'][slic] + cls_noise_true['ee'][slic])
             dls_unl_fid[:, 1] *= rho_sqd_E
@@ -274,7 +324,7 @@ def get_delcls(qe_key: str, itermax, cls_unl_fid: dict, cls_unl_true:dict, cls_n
         dat_delcls = {}
         if qe_key in ['ptt', 'p']:
             fal['tt'] = cls_filt['tt'][slic] + cls_noise_fid['tt'][slic]
-            dat_delcls['tt'] = cls_plen_true['tt'][slic]+ cls_noise_true['ee'][slic]
+            dat_delcls['tt'] = cls_plen_true['tt'][slic]+ cls_noise_true['tt'][slic]
         if qe_key in ['p_p', 'p']:
             fal['ee'] = cls_filt['ee'][slic] + cls_noise_fid['ee'][slic]
             fal['bb'] = cls_filt['bb'][slic] + cls_noise_true['bb'][slic]
@@ -285,10 +335,24 @@ def get_delcls(qe_key: str, itermax, cls_unl_fid: dict, cls_unl_true:dict, cls_n
             dat_delcls['te'] = np.copy(cls_plen_true['te'][slic])
 
         fal = utils.cl_inverse(fal)
-        for cl in fal.values():
-            cl[:lmin_ivf] *= 0.
-        for cl in dat_delcls.values():
-            cl[:lmin_ivf] *= 0.
+        for k, cl in fal.items():
+            if k is 'tt':
+                cl[:lmin_tlm] *= 0.
+            elif k is 'ee':
+                cl[:lmin_elm] *= 0.
+            elif k is 'bb':
+                cl[:lmin_blm] *= 0.
+            elif k is 'te':
+                cl[:max(lmin_tlm, lmin_elm)] *= 0.
+        for k, cl in dat_delcls.items():
+            if k is 'tt':
+                cl[:lmin_tlm] *= 0.
+            elif k is 'ee':
+                cl[:lmin_elm] *= 0.
+            elif k is 'bb':
+                cl[:lmin_blm] *= 0.
+            elif k is 'te':
+                cl[:max(lmin_tlm, lmin_elm)] *= 0.
         cls_ivfs_arr = utils.cls_dot([fal, dat_delcls, fal])
         cls_ivfs = dict()
         for i, a in enumerate(['t', 'e', 'b']):
@@ -362,7 +426,17 @@ def get_biases_iter(qe_key:str, nlev_t:float, nlev_p:float, beam_fwhm:float, cls
     if lmax_qlm is None:
         lmax_qlm = 2 * lmax_ivf
     lmax_qlm = min(lmax_qlm, 2 * lmax_ivf)
-    lmin_ivf = max(lmin_ivf, 1)
+
+    if type(lmin_ivf) is tuple:
+        lmin_tlm, lmin_elm, lmin_blm = lmin_ivf
+    elif type(lmin_ivf) is int:
+        lmin_tlm = lmin_ivf 
+        lmin_elm = lmin_ivf 
+        lmin_blm = lmin_ivf
+    lmin_tlm =  max(lmin_tlm, 1) 
+    lmin_elm = max(lmin_elm, 1)  
+    lmin_blm = max(lmin_blm, 1)  
+
     transfi2 = utils.cli(gauss_beam(beam_fwhm / 180. / 60. * np.pi, lmax_ivf)) ** 2
     llp2 = np.arange(lmax_qlm + 1, dtype=float) ** 2 * np.arange(1, lmax_qlm + 2, dtype=float) ** 2 / (2. * np.pi)
     if datnoise_cls is None:
@@ -408,7 +482,7 @@ def get_biases_iter(qe_key:str, nlev_t:float, nlev_p:float, beam_fwhm:float, cls
             assert qe_key in ['p_p']
             if it == 0:
                 print('including imperfect knowledge of E in iterations')
-            slic = slice(lmin_ivf, lmax_ivf + 1)
+            slic = slice(lmin_elm, lmax_ivf + 1)
             rho_sqd_E = np.zeros(len(dls_unl_true[:, 1]))
             #rho_sqd_E[slic] = cls_unl_dat['ee'][slic] * utils.cli(cls_plen_true['ee'][slic] + datnoise_cls['ee'][slic])
             rho_sqd_E[slic] = cls_len_true['ee'][slic]* utils.cli(cls_len_true['ee'][slic] + datnoise_cls['ee'][slic])
@@ -445,10 +519,24 @@ def get_biases_iter(qe_key:str, nlev_t:float, nlev_p:float, beam_fwhm:float, cls
             fal['te'] = np.copy(cls_filt['te'][:lmax_ivf + 1])
             dat_delcls['te'] = np.copy(cls_plen_true['te'][:lmax_ivf + 1])
         fal = utils.cl_inverse(fal)
-        for cl in fal.values():
-            cl[:lmin_ivf] *= 0.
-        for cl in dat_delcls.values():
-            cl[:lmin_ivf] *= 0.
+        for k, cl in fal.items():
+            if k is 'tt':
+                cl[:lmin_tlm] *= 0.
+            elif k is 'ee':
+                cl[:lmin_elm] *= 0.
+            elif k is 'bb':
+                cl[:lmin_blm] *= 0.
+            elif k is 'te':
+                cl[:max(lmin_tlm, lmin_elm)] *= 0.
+        for k, cl in dat_delcls.items():
+            if k is 'tt':
+                cl[:lmin_tlm] *= 0.
+            elif k is 'ee':
+                cl[:lmin_elm] *= 0.
+            elif k is 'bb':
+                cl[:lmin_blm] *= 0.
+            elif k is 'te':
+                cl[:max(lmin_tlm, lmin_elm)] *= 0.
         cls_ivfs_arr = utils.cls_dot([fal, dat_delcls, fal])
         cls_ivfs = dict()
         for i, a in enumerate(['t', 'e', 'b']):

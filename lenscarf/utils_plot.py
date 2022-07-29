@@ -3,7 +3,7 @@ import matplotlib.pyplot as pl
 import numpy as np 
 
 
-def set_mpl():
+def set_mpl(usetex=True):
     mpl.rcParams['axes.labelsize'] = 20
     mpl.rcParams['font.size'] = 20
     # mpl.rcParams['figure.figsize'] = 6.4, 4.8
@@ -11,10 +11,11 @@ def set_mpl():
 
     mpl.rcParams['mathtext.fontset'] = 'cm'
     mpl.rcParams['mathtext.rm'] = 'serif'
-    mpl.rc('text', usetex=True)
-    # mpl.rcParams['text.latex.preamble'] = [r"\usepackage{amsmath}"]
-    mpl.rcParams['errorbar.capsize'] = 4
     mpl.rc('legend', fontsize=15)
+    mpl.rcParams['errorbar.capsize'] = 4
+    if usetex:
+        mpl.rc('text', usetex=True)
+        mpl.rcParams['text.latex.preamble'] = [r"\usepackage{amsmath}"]
 
 
 def pp2kk(ls):

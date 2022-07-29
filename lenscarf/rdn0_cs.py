@@ -38,7 +38,7 @@ def export_dsss(libdir:str, suffix:str, datidx:int, ss_dict:dict=None):
     arr = np.array([ds.mean() * pp2kki, ss.mean() * pp2kki, ds.sigmas_on_mean()*  pp2kki,  ss.sigmas_on_mean()* pp2kki, np.ones_like(ds.mean()) * ds.N, np.ones_like(ss.mean()) * ss.N])
     fmt = ['%.7e'] * 4 + ['%3i'] * 2
     header = '1e7 kk2pp times  : ds    ss   ds_erroronmean, ss_erroronmean , number of ds sims, number of ss sims'
-    header += '\n' + 'Raw phi-based spec obtained by 1/4 L^2 (L + 1)^7 * 1e7 times this   (ds ss is response-like)'
+    header += '\n' + 'Raw phi-based spec obtained by 1/4 L^2 (L + 1)^2 * 1e7 times this   (ds ss is response-like)'
     fn_dir = output_sim(suffix, datidx)
     if not os.path.exists(fn_dir):
         os.makedirs(fn_dir)
@@ -285,9 +285,6 @@ if __name__ == '__main__':
     parser.add_argument('-itmax', dest='itmax', type=int, default=15, help='maximal iter index')
     parser.add_argument('-tol', dest='tol', type=float, default=5., help='-log10 of cg tolerance default')
     parser.add_argument('-v', dest='v', type=str, default='', help='iterator version')
-
-
-    print('toto')
 
     args = parser.parse_args()
     assert '.py' not in args.par[-3:], "Remove the .py from the param file"
