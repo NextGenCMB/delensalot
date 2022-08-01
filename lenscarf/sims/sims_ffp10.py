@@ -17,12 +17,13 @@ class cmb_len_ffp10:
 
             Args:
                 aberration: aberration parameters (gal. longitude (rad), latitude (rad) and v/c) Defaults to FFP10 values
-                lmin_dlm: Set to zero the deflection field below L=lmin_dlm
+                lmin_dlm: Set to zero the deflection field for L<lmin_dlm
                 cacher: set this to one of lenscarf.cachers in order save maps (nothing saved by default)
                 nbands: if set splits the sky into bands to perform the operations (saves some memory but probably a bit slower)
 
 
         """
+        #FIXME: change the hashkey to get the aberration and the lmin_dlm also ?
 
         nbands = int(nbands + (1 - int(nbands)%2))  # want an odd number to avoid a split just on the equator
         assert nbands <= 10, 'did not check'
@@ -99,7 +100,7 @@ class cmb_len_ffp10:
         dlm[utils_hp.Alm.getidx(lmax_dlm, 1, 1)] += self.delta_vlm[2] # LM = 11
         p2d = np.sqrt(np.arange(lmax_dlm + 1) * np.arange(1, lmax_dlm + 2)) 
         if self.lmin_dlm is not None:
-            p2d[:self.lmin_dlm+1] = 0
+            p2d[:self.lmin_dlm] = 0
         utils_hp.almxfl(dlm, p2d, mmax_dlm, inplace=True)
         return dlm, lmax_dlm, mmax_dlm
 
