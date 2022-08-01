@@ -24,7 +24,7 @@ from lensitbiases import n1_fft
 import healpy as hp
 
 class cpp_sims_lib:
-    def __init__(self, k, itmax, tol, v='', param_file='cmbs4wide_planckmask', label=''):
+    def __init__(self, k, v='', param_file='cmbs4wide_planckmask', label=''):
         """Helper library to plot results from MAP estimation of simulations.
         
         This class loads the results of the runs done with the param_file and the options asked
@@ -35,13 +35,13 @@ class cpp_sims_lib:
         self.param_file = param_file
         self.param = importlib.import_module('lenscarf.params.'+param_file)
         self.k = k
-        self.itmax = itmax
-        self.tol = tol
-        self.tol_iter  = 10 ** (- self.tol) 
+        # self.itmax = itmax
+        # self.tol = tol
+        # self.tol_iter  = 10 ** (- self.tol) 
         # self.imin = imin
         # self.imax = imax
         self.version = v
-        self.iters = np.arange(itmax+1)
+        # self.iters = np.arange(itmax+1)
         self.label = label
         self.TEMP =  self.param.TEMP
         self.lmax_qlm = self.param.lmax_qlm
@@ -66,8 +66,9 @@ class cpp_sims_lib:
         return opj(self.TEMP,'%s_sim%04d'%(self.k, simidx) + self.version)
 
 
-    def get_itlib_sim(self, simidx):
-        return self.param.get_itlib(self.k, simidx, self.version, self.tol_iter)
+    def get_itlib_sim(self, simidx, tol):
+        tol_iter  = 10 ** (- tol) 
+        return self.param.get_itlib(self.k, simidx, self.version, tol_iter)
 
 
     def cacher_sim(self, simidx, verbose=False):
@@ -76,7 +77,6 @@ class cpp_sims_lib:
 
     def get_plm(self, simidx, itr):
         return statics.rec.load_plms(self.libdir_sim(simidx), [itr])[0]
-
 
     def get_plm_input(self, simidx):
         return alm_copy(self.sims_unl.get_sim_plm(simidx), mmaxin=None, lmaxout=self.lmax_qlm, mmaxout=self.mmax_qlm)
@@ -138,11 +138,26 @@ class cpp_sims_lib:
         fn_cpp_it = 'cpp_it_{}'.format(itr)
         cacher = self.cacher_sim(simidx)
         if not cacher.is_cached(fn_cpp_it):
-            cpp = alm2cl(self.get_plm(simidx, itr), self.get_plm(simidx, itr), self.lmax_qlm, self.mmax_qlm, None)
+            plm = self.get_plm(simidx, itr)
+            cpp = alm2cl(plm, plm, self.lmax_qlm, self.mmax_qlm, None)
             cacher.cache(fn_cpp_it, cpp)
         cpp = cacher.load(fn_cpp_it)
         return cpp
-        
+
+
+    def get_cpp_itmax(self, simidx, itmax):
+        cacher = self.cacher_sim(simidx)
+        fn_cpp_it = lambda itr:  'cpp_it_{}'.format(itr)
+        if np.any([not cacher.is_cached(fn_cpp_it(itr)) for itr in np.arange(itmax+1)]):
+            plms = statics.rec.load_plms(self.libdir_sim(simidx), np.arange(itmax+1))
+            for itr in np.arange(itmax+1):
+                if not cacher.is_cached(fn_cpp_it(itr)):
+                    _cpp = alm2cl(plms[itr], plms[itr], self.lmax_qlm, self.mmax_qlm, None)
+                    cacher.cache(fn_cpp_it(itr), _cpp)
+        cpp = []
+        for itr in np.arange(itmax+1):
+            cpp.append(cacher.load(fn_cpp_it(itr)))
+        return cpp        
     
     def get_cpp_qe(self, simidx):
         fn_cpp_qe = 'cpp_qe'
@@ -165,7 +180,8 @@ class cpp_sims_lib:
         return np.load(opj(self.libdir_sim(simidx), 'mf.npy'))
     
 
-    def get_mf(self, simidx, itr, ret_alm=False, verbose=False):
+    def get_mf(self, simidx, itr, tol, ret_alm=False, verbose=False):
+        tol_iter  = 10 ** (- tol) 
         cacher = self.cacher_sim(simidx)
         fn_mf1 = 'mf1_it{}'.format(itr)
         fn_mf2 = 'mf2_it{}'.format(itr)
@@ -175,7 +191,7 @@ class cpp_sims_lib:
             itlib = self.get_itlib_sim(simidx)
             filtr = itlib.filter
             filtr.set_ffi(itlib._get_ffi(itr)) # load here the phi map you want 
-            chain_descr = self.param.chain_descrs(self.param.lmax_unl, self.tol_iter)
+            chain_descr = self.param.chain_descrs(self.param.lmax_unl, tol_iter)
             mchain = multigrid.multigrid_chain(itlib.opfilt, chain_descr, itlib.cls_filt, itlib.filter)
             MF1 = filtr.get_qlms_mf(0, filtr.ffi.pbgeom, mchain, cls_filt=itlib.cls_filt)
             MF2 = filtr.get_qlms_mf(0, filtr.ffi.pbgeom, mchain, cls_filt=itlib.cls_filt)
@@ -235,7 +251,7 @@ class cpp_sims_lib:
             cacher.cache(fn, wf)
         return cacher.load(fn)
 
-    def get_wf_eff(self, itmax_sims=None, itmax_fid=15, version='', do_spline=True, lmin_interp=0, lmax_interp=None,  k=3, s=None, verbose=False):
+    def get_wf_eff(self, itmax_sims=15, itmax_fid=15, version='', do_spline=True, lmin_interp=0, lmax_interp=None,  k=3, s=None, verbose=False):
         """Effective Wiener filter averaged over several simulations
         We spline interpolate the ratio between the effective WF from simulations and the fiducial WF
         We take into account the sky fraction to get the simulated WFs
@@ -250,7 +266,7 @@ class cpp_sims_lib:
             wfcorr_spl: Splined interpolation of the ratio between the effective and the fiducial Wiener filter
         
         """
-        if itmax_sims is None: itmax_sims = self.itmax
+        # if itmax_sims is None: itmax_sims = self.itmax
         wf_fid = self.get_wf_fid(itmax_fid, version=version)
         nsims = self.get_nsims_itmax()
         # sims_idx = self.get_idx_sims_done(itmax=15)
@@ -359,7 +375,7 @@ class cpp_sims_lib:
             RDN0: Normalized realisation dependent bias of Cpp MAP
         """
         rdn0, kds, kss = self.load_rdn0_map(idx)
-        assert self.itmax == 15, "Need to check if the exported RDN0 correspond to the same iteration as the Cpp MAP" 
+        # assert self.itmax == 15, "Need to check if the exported RDN0 correspond to the same iteration as the Cpp MAP" 
         # Fixme  maybe not relevant if everything is converged ?
         RDN0 = rdn0[:self.lmax_qlm+1]
         
@@ -373,10 +389,10 @@ class cpp_sims_lib:
         return RDN0 / self.fsky
         
 
-    def get_nsims_itmax(self):
+    def get_nsims_itmax(self, itmax):
         """Return the number of simulations reconstructed up to itmax"""
         nsim = 0
-        while statics.rec.maxiterdone(self.libdir_sim(nsim)) >= self.itmax:
+        while statics.rec.maxiterdone(self.libdir_sim(nsim)) >= itmax:
             nsim+=1
         return nsim
 
