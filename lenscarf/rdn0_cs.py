@@ -13,7 +13,7 @@ from lenscarf.iterators import cs_iterator
 from lenscarf import cachers, utils_hp
 from lenscarf.utils_scarf import pbdGeometry, pbounds, scarfjob
 from plancklens.qcinv import multigrid
-from plancklens.utils import stats, cli
+from plancklens.utils import stats, cli, mchash
 from plancklens.sims import planck2018_sims
 from os.path import join as opj
 from plancklens.helpers import mpi
@@ -23,14 +23,16 @@ from plancklens.helpers import mpi
 output_dir = opj(os.path.dirname(os.path.dirname(lenscarf.__file__)), 'outputs')
 output_sim = lambda suffix, datidx: opj(output_dir, suffix, 'sim_{:04d}'.format(datidx))
 
+fdir_dsss = lambda itr : f'ds_ss_it{itr}'
+fn_cls_dsss = lambda itr, ss_dict : f'cls_dsss_it{itr}_{mchash(ss_dict)}.dat'
 
-def export_dsss(libdir:str, suffix:str, datidx:int, ss_dict:dict=None):
+def export_dsss(itr:int, libdir:str, suffix:str, datidx:int, ss_dict:dict=None):
     if ss_dict is None:
         Nroll = 10
         Nsims = 100
         ss_dict =  Nroll * (np.arange(Nsims) // Nroll) + (np.arange(Nsims) + 1) % Nroll
 
-    itdir = opj(libdir, 'ds_ss')
+    itdir = opj(libdir, fdir_dsss(itr))
     ds, ss = load_ss_ds(np.arange(len(ss_dict)), ss_dict, itdir, docov=True)
     print(ds.N, ss.N, ds.size)
     lmax = ds.size - 1
@@ -42,7 +44,8 @@ def export_dsss(libdir:str, suffix:str, datidx:int, ss_dict:dict=None):
     fn_dir = output_sim(suffix, datidx)
     if not os.path.exists(fn_dir):
         os.makedirs(fn_dir)
-    np.savetxt(opj(fn_dir, 'cls_dsss.dat'), arr.transpose(), fmt=fmt, header=header)
+    # fn_cldsss = 'cls_dsss_itr{}.dat'
+    np.savetxt(opj(fn_dir, fn_cls_dsss(itr, ss_dict)), arr.transpose(), fmt=fmt, header=header)
 
 def export_nhl(libdir:str, parfile, datidx:int):
     fn_dir = output_sim(parfile.suffix, datidx)
@@ -187,9 +190,15 @@ def ss_ds(itr:int, mcs:np.ndarray, itlib:cs_iterator.qlm_iterator, itlib_phases:
     ffi = itlib.filter.ffi.change_dlm([dlm, None], itlib.mmax_qlm, cachers.cacher_mem())
     itlib.filter.set_ffi(ffi)
     mchain = multigrid.multigrid_chain(itlib.opfilt, itlib.chain_descr, itlib.cls_filt, itlib.filter)
+    
+    if mpi.rank == 0:
+        # Avoid file exists errors when creating the caching directory
+        cachers.cacher_npy(opj(itlib.lib_dir, fdir_dsss(itr)) )
+        cachers.cacher_npy(opj(itlib_phases.lib_dir, fdir_dsss(itr)))
+    mpi.barrier()
 
-    ivf_cacher = cachers.cacher_npy(itlib.lib_dir + '/ds_ss')
-    ivf_phas_cacher = cachers.cacher_npy(itlib_phases.lib_dir + '/ds_ss')
+    ivf_cacher = cachers.cacher_npy(opj(itlib.lib_dir, fdir_dsss(itr)))
+    ivf_phas_cacher = cachers.cacher_npy(opj(itlib_phases.lib_dir, fdir_dsss(itr)))
 
     # data solution: as a check, should match closely the WF estimate in itlib folder
     if mpi.rank == 0:
@@ -329,7 +338,7 @@ if __name__ == '__main__':
     print('Start computing ss ds')
     ss_ds(itr, mcs, itlib, itpha, ss_dict, assert_phases_exist=False)
 
-    export_dsss(itlib.lib_dir, par.suffix, args.datidx, ss_dict)
+    export_dsss(itr, itlib.lib_dir, par.suffix, args.datidx, ss_dict)
     export_cls(itlib.lib_dir, 0,  par.suffix, args.datidx)
     export_cls(itlib.lib_dir, itr,  par.suffix, args.datidx)
     export_nhl(itlib.lib_dir, par, args.datidx)
