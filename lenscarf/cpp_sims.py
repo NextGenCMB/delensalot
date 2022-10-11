@@ -8,6 +8,8 @@ from lenscarf import cachers
 from lenscarf import utils_scarf, utils_sims
 from plancklens.qcinv import multigrid
 from plancklens import nhl 
+from plancklens.utils import mchash
+import plancklens.utils as ut
 from scipy.interpolate import UnivariateSpline as spline
 
 from os.path import join as opj
@@ -22,6 +24,9 @@ from lenscarf import n0n1_iterative
 from lensitbiases import n1_fft
 
 import healpy as hp
+
+
+_write_alm = lambda fn, alm : hp.write_alm(fn, alm, overwrite=True)
 
 class cpp_sims_lib:
     def __init__(self, k, v='', param_file='cmbs4wide_planckmask', label=''):
@@ -145,6 +150,17 @@ class cpp_sims_lib:
         return cpp
 
 
+    # def get_cpp_submf(self, simidx, itr, mf=None):
+    #     fn_cpp_it = 'cpp_it_{}_'.format(itr)
+    #     cacher = self.cacher_sim(simidx)
+    #     if not cacher.is_cached(fn_cpp_it):
+    #         plm = self.get_plm(simidx, itr)
+    #         cpp = alm2cl(plm, plm, self.lmax_qlm, self.mmax_qlm, None)
+    #         cacher.cache(fn_cpp_it, cpp)
+    #     cpp = cacher.load(fn_cpp_it)
+    #     return cpp
+
+
     def get_cpp_itmax(self, simidx, itmax):
         cacher = self.cacher_sim(simidx)
         fn_cpp_it = lambda itr:  'cpp_it_{}'.format(itr)
@@ -177,10 +193,11 @@ class cpp_sims_lib:
         return cpp_qe, R
 
     def get_mf0(self, simidx):
+        """Get the QE mean-field"""
         return np.load(opj(self.libdir_sim(simidx), 'mf.npy'))
     
 
-    def get_mf(self, simidx, itr, tol, ret_alm=False, verbose=False):
+    def get_mf_it(self, simidx, itr, tol, ret_alm=False, verbose=False):
         tol_iter  = 10 ** (- tol) 
         cacher = self.cacher_sim(simidx)
         fn_mf1 = 'mf1_it{}'.format(itr)
@@ -235,23 +252,38 @@ class cpp_sims_lib:
         :math:`\mathcal{W} = \frac{C_{\phi\phi, \mathrm{fid}}}{C_{\phi\phi, \mathrm{fid}} + 1/\mathcal{R}_L}`
  
         """
-        _, _, resp_fid, _ = self.get_N0_N1_iter(itermax=itermax, version=version)
-        return self.cpp_fid[:self.lmax_qlm+1] * utils.cli(self.cpp_fid[:self.lmax_qlm+1] + utils.cli(resp_fid[:self.lmax_qlm+1]))
+        if version == 'wN1_end':
+            _, N1, resp_fid, _ = self.get_N0_N1_iter(itermax=itermax, version='')
+            return self.cpp_fid[:self.lmax_qlm+1] * utils.cli(self.cpp_fid[:self.lmax_qlm+1] + utils.cli(resp_fid[:self.lmax_qlm+1]) + N1[:self.lmax_qlm+1])
 
-    def get_wf_sim(self, simidx, itr):
+        else:
+            _, N1, resp_fid, _ = self.get_N0_N1_iter(itermax=itermax, version=version)
+            return self.cpp_fid[:self.lmax_qlm+1] * utils.cli(self.cpp_fid[:self.lmax_qlm+1] + utils.cli(resp_fid[:self.lmax_qlm+1]))
+
+    def get_wf_sim(self, simidx, itr, mf=False, mc_sims=None):
         """Get the Wiener from the simulations.
 
         :math:`\hat \mathcal{W} = \frac{C_L{\phi^{\rm MAP} \phi{\rm in}}}{C_L{\phi^{\rm in} \phi{\rm in}}}`
         
         """
-        fn = 'wf_sim_it{}'.format(itr)
+        fn = 'wf_sim_it{}'.format(itr) if mf is False else 'wf_sim_it{}_mfsub'.format(itr)
+        # print(fn)
         cacher = self.cacher_sim(simidx)
         if not cacher.is_cached(fn):
-            wf = self.get_cpp_itXinput(simidx, itr) * utils.cli(self.get_cpp_input(simidx)) / self.fsky
+            if mf is False:
+                wf = self.get_cpp_itXinput(simidx, itr) * utils.cli(self.get_cpp_input(simidx)) / self.fsky
+            else:
+                plmin = self.get_plm_input(simidx)
+                # plmit = self.plms[simidx][itr]
+                mf = self.get_mf(itr, mc_sims, simidx)
+                plmit = self.get_plm(simidx, itr) - mf
+                cpp_itXin = alm2cl(plmit, plmin, self.lmax_qlm, self.mmax_qlm, None)
+                
+                wf = cpp_itXin * utils.cli(self.get_cpp_input(simidx)) / self.fsky
             cacher.cache(fn, wf)
         return cacher.load(fn)
 
-    def get_wf_eff(self, itmax_sims=15, itmax_fid=15, version='', do_spline=True, lmin_interp=0, lmax_interp=None,  k=3, s=None, verbose=False):
+    def get_wf_eff(self, itmax_sims=15, itmax_fid=15, mf=False, version='', do_spline=True, lmin_interp=0, lmax_interp=None,  k=3, s=None, verbose=False):
         """Effective Wiener filter averaged over several simulations
         We spline interpolate the ratio between the effective WF from simulations and the fiducial WF
         We take into account the sky fraction to get the simulated WFs
@@ -268,7 +300,7 @@ class cpp_sims_lib:
         """
         # if itmax_sims is None: itmax_sims = self.itmax
         wf_fid = self.get_wf_fid(itmax_fid, version=version)
-        nsims = self.get_nsims_itmax()
+        nsims = self.get_nsims_itmax(itmax_sims)
         # sims_idx = self.get_idx_sims_done(itmax=15)
         print(f'I use {nsims} sims to estimate the effective WF')
         wfsims_bias = np.zeros([nsims, len(wf_fid)])
@@ -277,7 +309,7 @@ class cpp_sims_lib:
     #         wfcorr_full[i] =  ckk_cross[f] *cli(ckk_in[f] * wfpred) 
         for isim in range(nsims):
             if verbose: print(f'wf eff {isim}/{nsims}')
-            wfsims_bias[isim] = self.get_wf_sim(isim, itmax_sims) * utils.cli(wf_fid)
+            wfsims_bias[isim] = self.get_wf_sim(isim, itmax_sims, mf=mf) * utils.cli(wf_fid)
             # wfsims_bias[isim] = self.get_wf_sim(isim, itmax_sims) * utils.cli(wf_fid)
         wfcorr_mean = np.mean(wfsims_bias, axis=0)
         if do_spline:
@@ -291,12 +323,17 @@ class cpp_sims_lib:
         return wf_eff[:self.lmax_qlm+1], wfcorr_spl
 
 
-    def get_num_rdn0(self):
+    def get_num_rdn0(self, itr=50, ss_dict=None):
         "Retunr number of sims with RDN0 estimated"
         idx = 0 
         rdn0_computed = True
+        if ss_dict is None:
+            Nroll = 10
+            Nsims = 100
+            ss_dict =  Nroll * (np.arange(Nsims) // Nroll) + (np.arange(Nsims) + 1) % Nroll
         while rdn0_computed:      
             outputdir = rdn0_cs.output_sim(self.param.suffix, idx)
+            fn = rdn0_cs.fn_cls_dsss(itr, ss_dict)
             fn = opj(outputdir, 'cls_dsss.dat')
             try:
                 kdsfid, kssfid, _, _, _, _ = np.loadtxt(fn).transpose()
@@ -405,3 +442,38 @@ class cpp_sims_lib:
 
     def maxiterdone(self, simidx):
         return statics.rec.maxiterdone(self.libdir_sim(simidx))
+
+    def get_mf(self, itmax, mc_sims, simidx=None):
+        """Get the mean field of the MAP, by averaging MAP estimates from a set simulations (caches the result).
+            Adapted from plancklens.qest.get_sim_qlm_mf
+            Args:
+                itmax: Iteration of the MAP estimator
+                mc_sims: simulation indices to use for the estimate.
+                simidx: idx of simulation considered, to avoid subtracting twice the plm
+
+            Returns:
+                plm_mf: Mean field plm 
+        """
+        this_mcs = np.unique(mc_sims)
+
+        fname = os.path.join(self.cacher_param.lib_dir, 'simMF_k_%s.fits' % (mchash(mc_sims)))
+
+        if not os.path.exists(fname):
+            
+            MF = np.zeros(hp.Alm.getsize(self.lmax_qlm), dtype=complex)
+            if len(this_mcs) == 0: return MF
+            for i, idx in utils.enumerate_progress(this_mcs, label='calculating MF'):
+                MF += self.get_plm(idx, itmax)
+            MF /= len(this_mcs)
+            _write_alm(fname, MF)
+            print("Cached ", fname)
+
+        MF = ut.alm_copy(hp.read_alm(fname), lmax=self.lmax_qlm)
+
+        if simidx is not None and simidx in this_mcs:  # We dont want to include the sim we consider in the mean-field...
+            print(f"Removing sim {simidx} from MF estimate")
+            Nmf = len(this_mcs)
+            MF = (MF - self.get_plm(simidx, itmax) / Nmf) * (Nmf / (Nmf - 1))
+
+
+        return ut.alm_copy(hp.read_alm(fname), lmax=self.lmax_qlm)
