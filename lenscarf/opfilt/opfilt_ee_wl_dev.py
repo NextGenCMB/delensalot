@@ -336,7 +336,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         fl = np.sqrt(fl)
         elm = almxfl(elm_wf, fl, self.mmax_sol, False)
         ffi = ffi.change_geom(q_pbgeom) if q_pbgeom is not ffi.pbgeom else ffi
-        return ffi.gclm2lenmap(elm, self.mmax_sol, spin, False)
+        return ffi.gclm2lenmap([elm, np.zeros_like(elm)], self.mmax_sol, spin, False)
 
 
     def _get_irespmap(self, qudat:np.ndarray, elm_wf:np.ndarray, q_pbgeom:utils_scarf.pbdGeometry):
