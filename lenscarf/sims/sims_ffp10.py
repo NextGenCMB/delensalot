@@ -58,7 +58,7 @@ class cmb_len_ffp10:
 
         # aberration: we must add the difference to the FFP10 aberration
         l, b, v = aberration
-        l_ffp10, b_ffp10, v_ffp10 = aberration
+        l_ffp10, b_ffp10, v_ffp10 = aberration_lbv_ffp10
 
         # \phi_{10} = - \sqrt{4\pi/3} n_z
         # \phi_{11} = + \sqrt{4\pi / 3} \frac{(n_x - i n_y)}{\sqrt{2}}
