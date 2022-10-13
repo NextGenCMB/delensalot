@@ -93,11 +93,12 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         return eblm
 
     def lensbackward(self, eblm):
-        eblm = self.ffi_ee.lensgclm(eblm, self.mmax_len, 2, self.lmax_sol, self.mmax_sol, backwards=True)
+        eblm_ee = self.ffi_ee.lensgclm(eblm, self.mmax_len, 2, self.lmax_sol, self.mmax_sol, backwards=True)
         if self.ffi_eb is not self.ffi_ee: # filling B-mode with second deflection
-            eblm_2 = self.ffi_eb.lensgclm(eblm, self.mmax_len, 2, self.lmax_sol, self.mmax_sol, backwards=True)
-            eblm[0] = 0.5 * (eblm[0] + eblm_2[0])
-        return eblm[0]
+            eblm_eb = self.ffi_eb.lensgclm(eblm, self.mmax_len, 2, self.lmax_sol, self.mmax_sol, backwards=True)
+        else:
+            eblm_eb = eblm_ee
+        return 0.5 * (eblm_ee[0] + eblm_eb[0])
 
     def hashdict(self):
         return {'ninv':self._ninv_hash(), 'transfe':clhash(self.b_transf_elm),'transfb':clhash(self.b_transf_blm),
