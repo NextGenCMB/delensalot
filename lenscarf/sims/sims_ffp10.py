@@ -75,6 +75,9 @@ class cmb_len_ffp10:
             print("Input aberration power %.3e"%(utils_hp.alm2cl(vlm, vlm, 1, 1, 1)[1]))
         self.verbose = verbose
 
+    def hashdict(self):
+        return {'sims': 'FFP10', 'aberration':self.vlm}
+
     @staticmethod
     def _mkbands(nbands: int):
         """Splits the sky in nbands regions with equal numbers of latitude points """
