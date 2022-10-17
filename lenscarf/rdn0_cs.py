@@ -16,22 +16,26 @@ from plancklens.qcinv import multigrid
 from plancklens.utils import stats, cli, mchash
 from plancklens.sims import planck2018_sims
 from os.path import join as opj
-from lenscarf.core import mpi
+from plancklens.helpers import mpi
+from plancklens.filt import filt_cinv, filt_util
+from plancklens import utils, qest, qecl
 
 
 
 output_dir = opj(os.path.dirname(os.path.dirname(lenscarf.__file__)), 'outputs')
-output_sim = lambda suffix, datidx: opj(output_dir, suffix, 'sim_{:04d}'.format(datidx))
+output_sim = lambda qe_key, suffix, datidx: opj(output_dir, suffix, '{}_sim_{:04d}'.format(qe_key, datidx))
 
 fdir_dsss = lambda itr : f'ds_ss_it{itr}'
-fn_cls_dsss = lambda itr, ss_dict : f'cls_dsss_it{itr}_{mchash(ss_dict)}.dat'
+fn_cls_dsss = lambda itr, mcs, Nroll : f'cls_dsss_it{itr}_Nroll{Nroll}_{mchash(mcs)}.dat'
 
-def export_dsss(itr:int, libdir:str, suffix:str, datidx:int, ss_dict:dict=None):
+_ss_dict = lambda mcs, Nroll : {idx: Nroll * (idx // Nroll) + (idx + 1) % Nroll for idx in mcs}
+
+def export_dsss(itr:int, qe_key:str, libdir:str, suffix:str, datidx:int, ss_dict:dict=None, mcs=None, Nroll=None):
     if ss_dict is None:
-        Nroll = 10
-        Nsims = 100
-        ss_dict =  Nroll * (np.arange(Nsims) // Nroll) + (np.arange(Nsims) + 1) % Nroll
-
+        Nroll = 8
+        Nsims = 96
+        mcs = np.arange(0, Nsims)
+        ss_dict =  _ss_dict(mcs, Nroll)
     itdir = opj(libdir, fdir_dsss(itr))
     ds, ss = load_ss_ds(np.arange(len(ss_dict)), ss_dict, itdir, docov=True)
     print(ds.N, ss.N, ds.size)
@@ -41,18 +45,20 @@ def export_dsss(itr:int, libdir:str, suffix:str, datidx:int, ss_dict:dict=None):
     fmt = ['%.7e'] * 4 + ['%3i'] * 2
     header = '1e7 kk2pp times  : ds    ss   ds_erroronmean, ss_erroronmean , number of ds sims, number of ss sims'
     header += '\n' + 'Raw phi-based spec obtained by 1/4 L^2 (L + 1)^2 * 1e7 times this   (ds ss is response-like)'
-    fn_dir = output_sim(suffix, datidx)
+    fn_dir = output_sim(qe_key, suffix,datidx)
     if not os.path.exists(fn_dir):
         os.makedirs(fn_dir)
+    print(opj(fn_dir, fn_cls_dsss(itr, mcs, Nroll)))   
     # fn_cldsss = 'cls_dsss_itr{}.dat'
-    np.savetxt(opj(fn_dir, fn_cls_dsss(itr, ss_dict)), arr.transpose(), fmt=fmt, header=header)
+    np.savetxt(opj(fn_dir, fn_cls_dsss(itr, mcs, Nroll)), arr.transpose(), fmt=fmt, header=header)
 
-def export_nhl(libdir:str, parfile, datidx:int):
-    fn_dir = output_sim(parfile.suffix, datidx)
+def export_nhl(libdir:str, qe_key, parfile, datidx:int):
+    fn_dir = output_sim(qe_key, parfile.suffix, datidx)
     if not os.path.exists(fn_dir):
         os.makedirs(fn_dir)
     fn = os.path.join(fn_dir, 'QE_knhl.dat')
     if not os.path.exists(fn):
+        print(fn)
         GG = ss_ds_QE(libdir, parfile, datidx)
         lmax = len(GG) - 1
         pp2kki = cli(0.25 * np.arange(lmax + 1)** 2 * (np.arange(1, lmax + 2) ** 2) * 1e7)
@@ -64,7 +70,6 @@ def ss_ds_QE(libdir, parfile, datidx):
     # For the QE we use the semi-analytical N0:
     from lenscarf.utils_hp import almxfl, alm2cl
     from plancklens.nhl import get_nhl
-    # TODO: Check if alm_bar should be the WF or the IVF alms 
 
     # if hasattr(itlib.filter, 'n_inv'):
     #     fn = lambda this_idx : 'qu_filtersim_%04d'%this_idx # full sims
@@ -89,7 +94,60 @@ def ss_ds_QE(libdir, parfile, datidx):
     return GG
 
 
-def export_cls(libdir:str, itr:int,suffix:str, datidx:int):
+def get_rdn0_qe(param, datidx, qe_key1, qe_key2, Nsims, Nroll, version=''):
+    """Returns unormalised realization-dependent N0 lensing bias RDN0.
+
+    """
+    assert qe_key1 == qe_key2, "Iterations not defined for different keys, might cause problems"
+    mcs = np.arange(0, Nsims)
+    mcs_sims_less = np.delete(mcs, np.where(mcs==datidx))
+    
+    ss_dict = _ss_dict(mcs, Nroll)
+    # We remove the datidx from the ss_dict
+    delidx = ss_dict.pop(datidx, None)
+    # if datidx in mcs:
+    print(len(ss_dict))
+    print(len(mcs_sims_less))
+    assert len(ss_dict) == len(mcs_sims_less)
+    for i, j in ss_dict.items():
+        if j == datidx:
+            ss_dict[i] = delidx
+    
+    ds_dict = { k : datidx for k in range(Nsims-1)} # This remap all sim. indices to the data maps to build QEs with always the data in one leg
+
+    fn_dir = output_sim(qe_key1, param.suffix, datidx)
+    if not os.path.exists(fn_dir):
+        os.makedirs(fn_dir)
+
+    fn = os.path.join(fn_dir, fn_cls_dsss(0, mcs_sims_less, Nroll))
+    
+    if not os.path.exists(fn):
+        ivfs_d = filt_util.library_shuffle(param.ivfs, ds_dict)
+        ivfs_s = filt_util.library_shuffle(param.ivfs, ss_dict)
+        # itlibdir = param.libdir_iterators(qe_key1, datidx, version)
+
+        libdir = param.TEMP
+        qlms_ds = qest.library_sepTP(opj(libdir, 'qlms_ds'), param.ivfs, ivfs_d, param.cls_len['te'], param.nside, lmax_qlm=param.lmax_qlm)
+        qlms_ss = qest.library_sepTP(opj(libdir, 'qlms_ss'), param.ivfs, ivfs_s, param.cls_len['te'], param.nside, lmax_qlm=param.lmax_qlm)
+
+        qcls_ds = qecl.library(opj(libdir, 'qcls_ds'), qlms_ds, qlms_ds, np.array([]))  # for QE RDN0 calculations
+        qcls_ss = qecl.library(opj(libdir, 'qcls_ss'), qlms_ss, qlms_ss, np.array([]))  # for QE RDN0 / MCN0 calculations
+
+        ds = qcls_ds.get_sim_stats_qcl(qe_key1, mcs_sims_less, k2=qe_key2).mean()
+        ss = qcls_ss.get_sim_stats_qcl(qe_key1, mcs_sims_less, k2=qe_key2).mean()
+        # qe_resp = self.get_qe_resp()
+        # _, qc_resp = self.param.qresp_dd.get_response(self.k1, self.ksource) * self.par.qresp_dd.get_response(self.k2, self.ksource)
+        # return self.get_cl(utils.cli(qe_resp) * (4 * ds - 2. * ss))
+        rdn0 = utils_hp.alm2cl(4 * ds - 2. * ss, 4 * ds - 2. * ss, param.lmax_qlm, param.mmax_qlm, param.lmax_qlm)
+        lmax = len(rdn0) - 1
+        pp2kki = cli(0.25 * np.arange(lmax + 1)** 2 * (np.arange(1, lmax + 2) ** 2) * 1e7)
+        header = 'QE kappa unnormalized rdn0 (4ds - 2ss)'
+        header += '\n' + 'Raw phi-based spec obtained by 1/4 L^2 (L + 1)^7 * 1e7 times this   (ds ss is response-like)'
+        np.savetxt(fn, rdn0 * pp2kki, header=header)
+    return 
+
+
+def export_cls(libdir:str, qe_key:str, itr:int,suffix:str, datidx:int):
     typ = 'QE' if itr == 0 else 'MAP_itr{}'.format(itr)
     plm = get_plm(itr, libdir)
     lmax = utils_hp.Alm.getlmax(plm.size, None)
@@ -100,7 +158,7 @@ def export_cls(libdir:str, itr:int,suffix:str, datidx:int):
     cl_auto = utils_hp.alm2cl(plm, plm, None, None, None)
     pp2kk = 0.25 * np.arange(lmax + 1)** 2 * (np.arange(1, lmax + 2) ** 2) * 1e7
     header ='1e7 kappa %s auto, in auto and %sxin for '%(typ, typ) + suffix
-    fn_dir = output_sim(suffix, datidx)
+    fn_dir = output_sim(qe_key, suffix, datidx)
     if not os.path.exists(fn_dir):
         os.makedirs(fn_dir)
     np.savetxt(fn_dir + '/%s_cls.dat'%typ, np.array([cl_auto * pp2kk, cl_in * pp2kk, cl_x * pp2kk]).transpose(), header=header)
@@ -316,32 +374,22 @@ if __name__ == '__main__':
     
     itlib = par.get_itlib(args.k, args.datidx, args.v, tol_iter(0))
 
-    # print("****Iterator: setting cg-tol to %.4e ****"%tol_iter(i))
-    # print("****Iterator: setting solcond to %s ****"%soltn_cond(i))
 
-    # itlib.chain_descr  = chain_descrs(lmax_unl, tol_iter(i))
-    # itlib.soltn_cond   = soltn_cond(i)
-    # print("doing iter " + str(i))
-    # itlib.iterate(i, 'p')
     itr = args.itmax 
     Nroll = args.Nroll
     Nsims = args.Nsims
 
-    print('titit')
-
-    # TODO : Check if it removes index of data later 
     mcs = np.arange(0, Nsims) # Simulations used to get the RDN0
+    # Note: These sims are not the ones generated by the get_itlib of the param files. They are new gaussian realisations generated on line 243 in ss_ds() function. 
+    # They will be lensed by the deflection field estimate of iter-1, and then Wiener filtered with the same iter-1 deflection etsimate, in order to estimate the phi MAP on it.
 
     # Shift the order of simulations by batches of Nroll
-    ss_dict = {idx: Nroll * (idx // Nroll) + (idx + 1) % Nroll for idx in mcs}
+    ss_dict =  _ss_dict(mcs, Nroll)
 
-    print('Start computing ss ds')
+    # print('Start computing ss ds')
     ss_ds(itr, mcs, itlib, itpha, ss_dict, assert_phases_exist=False)
 
-    export_dsss(itr, itlib.lib_dir, par.suffix, args.datidx, ss_dict)
-    export_cls(itlib.lib_dir, 0,  par.suffix, args.datidx)
-    export_cls(itlib.lib_dir, itr,  par.suffix, args.datidx)
-    export_nhl(itlib.lib_dir, par, args.datidx)
-
-    # mpi.barrier()
-    # if mpi.rank == 0:
+    export_dsss(itr, args.k, itlib.lib_dir, par.suffix, args.datidx, ss_dict, mcs, Nroll)
+    export_cls(itlib.lib_dir, args.k,  0,  par.suffix, args.datidx)
+    export_cls(itlib.lib_dir, args.k, itr,  par.suffix, args.datidx)
+    export_nhl(itlib.lib_dir, args.k, par, args.datidx)
