@@ -67,6 +67,9 @@ class cmb_len_ffp10:
         self.vlm = (vlm - vlm_ffp10) * (-v * np.sqrt(4 * np.pi / 3))
         self.verbose = verbose
 
+    def hashdict(self):
+        return {'sims': 'FFP10', 'aberration':self.vlm}
+
     @staticmethod
     def _mkbands(nbands: int):
         """Splits the sky in nbands regions with equal numbers of latitude points """
