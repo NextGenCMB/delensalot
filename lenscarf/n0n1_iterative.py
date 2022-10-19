@@ -24,7 +24,7 @@ def _dicthash(dict_in:dict, lmax:int, keys=None):
     # NB: got into trouble with default float16 ?!
 
 class polMAPbiases:
-    def __init__(self, config, fidcls_unl, itrmax=6, cacher:cachers.cacher or None = None):
+    def __init__(self, config, fidcls_unl, itrmax=6, cacher:cachers.cacher or None = None, verbose=None):
 
         (nlev_t, nlev_p, beam, lmin, lmax_ivf, lmax_qlm) = config
 
@@ -36,7 +36,8 @@ class polMAPbiases:
             lmin_tlm = lmin 
             lmin_elm = lmin 
             lmin_blm = lmin 
-        print(f'lmin_tlm:{lmin_tlm}, lmin_elm:{lmin_elm}, lmin_blm:{lmin_blm}')
+        if verbose:
+            print(f'lmin_tlm:{lmin_tlm}, lmin_elm:{lmin_elm}, lmin_blm:{lmin_blm}')
         transf_tlm   =  gauss_beam(beam/180 / 60 * np.pi, lmax=lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_tlm)
         transf_elm   =  gauss_beam(beam/180 / 60 * np.pi, lmax=lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_elm)
         transf_blm   =  gauss_beam(beam/180 / 60 * np.pi, lmax=lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_blm)

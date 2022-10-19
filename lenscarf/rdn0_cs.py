@@ -94,51 +94,63 @@ def ss_ds_QE(libdir, parfile, datidx):
     return GG
 
 
-def get_rdn0_qe(param, datidx, qe_key1, qe_key2, Nsims, Nroll, version=''):
+def get_rdn0_qe(param, datidx, qe_key,  Ndatasims, Nmcsims, Nroll, version=''):
     """Returns unormalised realization-dependent N0 lensing bias RDN0.
 
+        Args:
+            param: parameter file instance
+            datidx: index of simulation to use as data
+            qe_key: QE key
+            Ndatasims: Total number of sims used as data (avoid overlap with sims used for MC)
+            Nmcsims: Total number of sims used for MC corrections and RD estimate
+            Nroll: MC sims are shuffled i -> i+1 by batch of Nroll
+            version: Vesion of the estimator/ pipeline used
     """
-    assert qe_key1 == qe_key2, "Iterations not defined for different keys, might cause problems"
-    mcs = np.arange(0, Nsims)
-    mcs_sims_less = np.delete(mcs, np.where(mcs==datidx))
-    
+    mcs = np.arange(Ndatasims, Nmcsims+Ndatasims)
+    # mcs_sims_less = np.delete(mcs, np.where(mcs==datidx))
+    assert datidx not in mcs, "Conflict with the index used as data and indices of sims used for RD corrections"
     ss_dict = _ss_dict(mcs, Nroll)
-    # We remove the datidx from the ss_dict
-    delidx = ss_dict.pop(datidx, None)
-    # if datidx in mcs:
-    print(len(ss_dict))
-    print(len(mcs_sims_less))
-    assert len(ss_dict) == len(mcs_sims_less)
-    for i, j in ss_dict.items():
-        if j == datidx:
-            ss_dict[i] = delidx
-    
-    ds_dict = { k : datidx for k in range(Nsims-1)} # This remap all sim. indices to the data maps to build QEs with always the data in one leg
-
-    fn_dir = output_sim(qe_key1, param.suffix, datidx)
+    print(mpi.rank)
+    # # We remove the datidx from the ss_dict
+    # delidx = ss_dict.pop(datidx, None)
+    # # if datidx in mcs:
+    # print(len(ss_dict))
+    # print(len(mcs_sims_less))
+    # assert len(ss_dict) == len(mcs_sims_less)
+    # for i, j in ss_dict.items():
+    #     if j == datidx:
+    #         assert i != delidx, print('This should not happen if Nroll >2')
+    #         ss_dict[i] = delidx
+    # print(ss_dict)
+    ds_dict = { k : datidx for k in np.arange(Ndatasims, Nmcsims + Ndatasims)} # This remap all sim. indices to the data maps to build QEs with always the data in one leg
+    assert ss_dict.keys() ==ds_dict.keys(), "Make sure that all MC sim indices are affected to the data index"
+    fn_dir = output_sim(qe_key, param.suffix, datidx)
     if not os.path.exists(fn_dir):
         os.makedirs(fn_dir)
 
-    fn = os.path.join(fn_dir, fn_cls_dsss(0, mcs_sims_less, Nroll))
-    
+    fn = os.path.join(fn_dir, fn_cls_dsss(0, mcs, Nroll))
     if not os.path.exists(fn):
+        print(fn)
         ivfs_d = filt_util.library_shuffle(param.ivfs, ds_dict)
         ivfs_s = filt_util.library_shuffle(param.ivfs, ss_dict)
-        # itlibdir = param.libdir_iterators(qe_key1, datidx, version)
-
-        libdir = param.TEMP
-        qlms_ds = qest.library_sepTP(opj(libdir, 'qlms_ds'), param.ivfs, ivfs_d, param.cls_len['te'], param.nside, lmax_qlm=param.lmax_qlm)
+        # libdir = param.libdir_iterators(qe_key, datidx, version)
+        libdir = opj(param.TEMP, 'RD_sims_{}_{}_{}'.format(Ndatasims, Nmcsims, Nroll)) + version
+        # print(libdir)
+        qlms_ds = qest.library_sepTP(opj(libdir, 'qlms_ds_{:04d}'.format(datidx)), param.ivfs, ivfs_d, param.cls_len['te'], param.nside, lmax_qlm=param.lmax_qlm)
         qlms_ss = qest.library_sepTP(opj(libdir, 'qlms_ss'), param.ivfs, ivfs_s, param.cls_len['te'], param.nside, lmax_qlm=param.lmax_qlm)
 
-        qcls_ds = qecl.library(opj(libdir, 'qcls_ds'), qlms_ds, qlms_ds, np.array([]))  # for QE RDN0 calculations
+        qcls_ds = qecl.library(opj(libdir, 'qcls_ds_{:04d}'.format(datidx)), qlms_ds, qlms_ds, np.array([]))  # for QE RDN0 calculations
         qcls_ss = qecl.library(opj(libdir, 'qcls_ss'), qlms_ss, qlms_ss, np.array([]))  # for QE RDN0 / MCN0 calculations
 
-        ds = qcls_ds.get_sim_stats_qcl(qe_key1, mcs_sims_less, k2=qe_key2).mean()
-        ss = qcls_ss.get_sim_stats_qcl(qe_key1, mcs_sims_less, k2=qe_key2).mean()
+        print('Computing Cl_ds')
+        ds = qcls_ds.get_sim_stats_qcl(qe_key, mcs, k2=qe_key).mean()
+        print('Computing Cl_ss')
+        ss = qcls_ss.get_sim_stats_qcl(qe_key, mcs, k2=qe_key).mean()
         # qe_resp = self.get_qe_resp()
         # _, qc_resp = self.param.qresp_dd.get_response(self.k1, self.ksource) * self.par.qresp_dd.get_response(self.k2, self.ksource)
         # return self.get_cl(utils.cli(qe_resp) * (4 * ds - 2. * ss))
-        rdn0 = utils_hp.alm2cl(4 * ds - 2. * ss, 4 * ds - 2. * ss, param.lmax_qlm, param.mmax_qlm, param.lmax_qlm)
+        # rdn0 = utils_hp.alm2cl(4 * ds - 2. * ss, 4 * ds - 2. * ss, param.lmax_qlm, param.mmax_qlm, param.lmax_qlm)
+        rdn0 = 4*ds - 2*ss
         lmax = len(rdn0) - 1
         pp2kki = cli(0.25 * np.arange(lmax + 1)** 2 * (np.arange(1, lmax + 2) ** 2) * 1e7)
         header = 'QE kappa unnormalized rdn0 (4ds - 2ss)'
@@ -386,10 +398,12 @@ if __name__ == '__main__':
     # Shift the order of simulations by batches of Nroll
     ss_dict =  _ss_dict(mcs, Nroll)
 
-    # print('Start computing ss ds')
+    print('Start computing ss ds')
     ss_ds(itr, mcs, itlib, itpha, ss_dict, assert_phases_exist=False)
 
     export_dsss(itr, args.k, itlib.lib_dir, par.suffix, args.datidx, ss_dict, mcs, Nroll)
     export_cls(itlib.lib_dir, args.k,  0,  par.suffix, args.datidx)
     export_cls(itlib.lib_dir, args.k, itr,  par.suffix, args.datidx)
     export_nhl(itlib.lib_dir, args.k, par, args.datidx)
+
+    # get_rdn0_qe(par, args.datidx, args.k, Ndatasims=40, Nmcsims=100, Nroll=10, version=args.v)
