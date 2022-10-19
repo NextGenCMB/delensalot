@@ -111,7 +111,7 @@ def get_ms(dat, binspace=5, bin_multipole=False):
     if bin_multipole:
         return get_weighted_avg(np.mean(dat, axis=0), np.std(dat, axis=0), binspace=binspace)
     else:
-        return np.mean(dat, axis=0), np.std(dat, axis=0)
+        return np.mean(dat, axis=0), np.std(dat, axis=0), np.var(dat, axis=0)
 
 def get_weighted_avg(mean, std, binspace):
     lscan = np.arange(0,len(mean),binspace)

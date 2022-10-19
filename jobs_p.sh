@@ -1,0 +1,2 @@
+srun -c 4 python3 lenscarf/run.py -r /pscratch/sd/s/sebibel/dlensalot/lenscarf/data_08d/ILC_May2022_perlmutter_00_OBD_r100_tol5e5/c08d_v2_perlmutter.py
+srun -c 4 python3 lenscarf/run.py -r /pscratch/sd/s/sebibel/dlensalot/lenscarf/data_08d/ILC_May2022_perlmutter_07_OBD_r100_tol5e5/c08d_v2_perlmutter.py
