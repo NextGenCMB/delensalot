@@ -53,7 +53,7 @@ dlensalot_model = DLENSALOT_Model(
         lmin_tlm = 30,
         lmin_elm = 10,
         lmin_blm = 200,
-        nlev_t = ('cl', opj(os.environ['SCRATCH'], 'data/pico/noise/Clsmooth_julien.npy')),
+        nlev_t = ('cl', D)),
         nlev_p = ('cl', opj(os.environ['SCRATCH'], 'data/pico/noise/Clsmooth_julien.npy')),
         inf = 1e4
     ),

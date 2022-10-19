@@ -691,7 +691,7 @@ class l2lensrec_Transformer:
                 # dl.subtract_meanfield = iteration.QE_subtract_meanfield
                 dl.subtract_meanfield = True
             else:
-                dl.  = True
+                dl.subtract_meanfield  = True
 
             dl.tasks = it.tasks
             if it.cg_tol < 1.:
@@ -1408,11 +1408,13 @@ class l2d_Transformer:
             noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.noisemodel.inf
             if ma.masks != None:
                 dl.masks = dict({ma.masks[0]:{}})
+                dl.binmasks = dict({ma.masks[0]:{}})
                 dl.mask_ids = ma.masks[1]
                 if ma.masks[0] == 'nlevels': 
                     for mask_id in dl.mask_ids:
                         buffer = df.get_nlev_mask(mask_id, noisemodel_rhits_map)
                         dl.masks[ma.masks[0]].update({mask_id:buffer})
+                        dl.binmasks[ma.masks[0]].update({mask_id: np.where(dl.masks[ma.masks[0]][mask_id]>0,1,0)})
                 elif ma.masks[0] == 'masks':
                     dl.mask_ids = np.zeros(shape=len(ma.masks[1]))
                     for fni, fn in enumerate(ma.masks[1]):
@@ -1426,6 +1428,7 @@ class l2d_Transformer:
                         _fsky = float("{:0.3f}".format(np.sum(buffer)/len(buffer)))
                         dl.mask_ids[fni] = _fsky
                         dl.masks[ma.masks[0]].update({_fsky:buffer})
+                        dl.binmasks[ma.masks[0]].update({_fsky: np.where(dl.masks[ma.masks[0]][_fsky]>0,1,0)})
             else:
                 dl.masks = {"no":{1.00:np.ones(shape=hp.nside2npix(dl.nside))}}
                 dl.mask_ids = np.array([1.00])
@@ -1508,6 +1511,7 @@ class l2d_Transformer:
     @log_on_end(logging.INFO, "build_v2() finished")
     def build_v2(self, cf):
         def _process_Madel(dl, ma):
+            dl.data_from_CFS = ma.data_from_CFS
             dl.k = cf.analysis.K
             dl.version = cf.analysis.V
 
@@ -1554,7 +1558,7 @@ class l2d_Transformer:
             # could put btempl paths similar to sim path handling. If D.lensalot handles it, use D.lensalot internal class for it
             # dl.libdir_iterators = lambda qe_key, simidx, version: de.libdir_it%()
             # if it==12:
-            #     rootstr = '/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/lt_recons/'
+            #     rootstr = opj(os.environ['CFS'], 'cmbs4/awg/lowellbb/reanalysis/lt_recons/')
             #     if self.fg == '00':
             #         return rootstr+'08b.%02d_sebibel_210708_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg), it, simidx)
             #     elif self.fg == '07':
@@ -1580,11 +1584,13 @@ class l2d_Transformer:
 
             if ma.masks != None:
                 dl.masks = dict({ma.masks[0]:{}})
+                dl.binmasks = dict({ma.masks[0]:{}})
                 dl.mask_ids = ma.masks[1]
                 if ma.masks[0] == 'nlevels': 
                     for mask_id in dl.mask_ids:
                         buffer = df.get_nlev_mask(mask_id, noisemodel_rhits_map)
                         dl.masks[ma.masks[0]].update({mask_id:buffer})
+                        dl.binmasks[ma.masks[0]].update({mask_id: np.where(dl.masks[ma.masks[0]][mask_id]>0,1,0)})
                 elif ma.masks[0] == 'masks':
                     dl.mask_ids = np.zeros(shape=len(ma.masks[1]))
                     for fni, fn in enumerate(ma.masks[1]):
@@ -1598,6 +1604,7 @@ class l2d_Transformer:
                         _fsky = float("{:0.3f}".format(np.sum(buffer)/len(buffer)))
                         dl.mask_ids[fni] = _fsky
                         dl.masks[ma.masks[0]].update({_fsky:buffer})
+                        dl.binmasks[ma.masks[0]].update({_fsky: np.where(dl.masks[ma.masks[0]][_fsky]>0,1,0)})
             else:
                 dl.masks = {"no":{1.00:np.ones(shape=hp.nside2npix(dl.nside))}}
                 dl.mask_ids = np.array([1.00])

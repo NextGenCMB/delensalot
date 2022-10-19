@@ -170,6 +170,7 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
     libdir_it = attr.ib(default=None)
     binning = attr.ib(default=-1)
     spectrum_calculator = attr.ib(default=None)
+    data_from_CFS = attr.ib(default=True)
 
 
 @attr.s

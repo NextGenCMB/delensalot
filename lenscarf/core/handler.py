@@ -463,9 +463,10 @@ class Map_delenser():
         # _libdir_iterator = self.libdir_iterators(self.k, simidx, self.version)
         # return _libdir_iterator+fn(**params)
 
-        if self.libdir_iterators == 'overwrite':
+        ## TODO add QE lensing templates to CFS dir?
+        if self.data_from_CFS:
+            rootstr = opj(os.environ['CFS'], 'cmbs4/awg/lowellbb/reanalysis/lt_recons/')
             if it==12:
-                rootstr = '/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/lt_recons/'
                 if self.fg == '00':
                     return rootstr+'08b.%02d_sebibel_210708_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg), it, simidx)
                 elif self.fg == '07':
@@ -473,17 +474,38 @@ class Map_delenser():
                 elif self.fg == '09':
                     return rootstr+'/08b.%02d_sebibel_210910_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg), it, simidx)
             elif it==0:
-                return '/global/cscratch1/sd/sebibel/cmbs4/s08b/cILC2021_%s_lmax4000/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20/ffi_p_it0/blm_%04d_it0.npy'%(self.fg, simidx, simidx)    
+                return '/global/cfs/cdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08b/BLT/QE/blm_%04d_fg%02d_it0.npy'%(simidx, int(self.fg))   
         else:
-            # TODO this belongs via config to l2d
-            # TODO fn needs to be defined in l2d
-            # TODO only QE it 0 doesn't exists because no modification is done to it. catching this. Can this be done better?
-            if it == 0:
-                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024%03d.npy'%(it, it, self.Nmf)
-            if self.dlm_mod_bool:
-                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024_dlmmod%03d.npy'%(it, it, self.Nmf)
+            if self.libdir_iterators == 'overwrite':
+                if it==12:
+                    rootstr = opj(os.environ['CFS'], 'cmbs4/awg/lowellbb/reanalysis/lt_recons/')
+                    if self.fg == '00':
+                        return rootstr+'08b.%02d_sebibel_210708_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg), it, simidx)
+                    elif self.fg == '07':
+                        return rootstr+'/08b.%02d_sebibel_210910_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg), it, simidx)
+                    elif self.fg == '09':
+                        return rootstr+'/08b.%02d_sebibel_210910_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg), it, simidx)
+                elif it==0:
+                    return '/global/cscratch1/sd/sebibel/cmbs4/s08b/cILC2021_%s_lmax4000/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20/ffi_p_it0/blm_%04d_it0.npy'%(self.fg, simidx, simidx)    
             else:
-                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024%03d.npy'%(it, it, self.Nmf)
+                # TODO this belongs via config to l2d
+                # TODO fn needs to be defined in l2d
+                # TODO only QE it 0 doesn't exists because no modification is done to it. catching this. Can this be done better?
+                if False:
+                    # TODO this needs to be chosne by hand. Old mfvar naming don't depend on Nmf
+                    if it == 0:
+                        return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(it, it)
+                    if self.dlm_mod_bool:
+                        return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024_dlmmod.npy'%(it, it)
+                    else:
+                        return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(it, it)
+                else:
+                    if it == 0:
+                        return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024%03d.npy'%(it, it, self.Nmf)
+                    if self.dlm_mod_bool:
+                        return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024_dlmmod%03d.npy'%(it, it, self.Nmf)
+                    else:
+                        return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024%03d.npy'%(it, it, self.Nmf)
 
             
     # @log_on_start(logging.INFO, "getfn_qumap_cs() started")
@@ -540,13 +562,15 @@ class Map_delenser():
         @log_on_start(logging.INFO, "_prepare_job() started")
         @log_on_end(logging.INFO, "_prepare_job() finished")
         def _prepare_job(edges=[]):
-            masktype = list(self.masks.keys())[0]
+            ## choose by hand: either binmasks, or masks
+            masktype = list(self.binmasks.keys())[0]
             if self.binning == 'binned':
                 outputdata = np.zeros(shape=(2, 2+len(self.its), len(self.mask_ids), len(edges)-1))
-                for mask_id, mask in self.masks[masktype].items():
+                for mask_id, mask in self.binmasks[masktype].items():
                     self.lib.update({mask_id: self.cl_calc.map2cl_binned(mask, self.clc_templ[:self.lmax_mask], edges, self.lmax_mask)})
+
             elif self.binning == 'unbinned':
-                for mask_id, mask in self.masks[masktype].items():
+                for mask_id, mask in self.binmasks[masktype].items():
                     a = overwrite_anafast() if self.cl_calc == hp else masked_lib(mask, self.cl_calc, self.lmax, self.lmax_mask)
                     outputdata = np.zeros(shape=(2, 2+len(self.its), len(self.mask_ids), self.lmax+1))
                     self.lib.update({mask_id: a})
