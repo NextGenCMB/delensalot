@@ -23,7 +23,7 @@ class qeleg_multi:
         self.cls.append(np.copy(qeleg.cl))
         return self
 
-    def __call__(self, get_alm, geom:Geometry, sht_tr:int, mmax:int or None=None,):
+    def __call__(self, get_alm, geom:Geometry, sht_tr:int, mmax:int or None=None):
         """Returns the spin-weighted real-space map of the estimator.
 
             Args:
