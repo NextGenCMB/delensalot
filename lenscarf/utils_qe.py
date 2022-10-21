@@ -32,7 +32,7 @@ class qeleg_multi:
                 sht_tr: number of openmp threads for transform
                 mmax: set this if inputs alms mmaxes are non-standard
 
-            We first build X_lm in the wanted _{si}X_lm _{so}Y_lm and then convert this alm2map_spin conventions.
+            We first build X_{lm} in the wanted _{si}X_{lm} _{so}Y_{lm} and then convert this alm2map_spin conventions.
 
         """
         lmax = self.get_lmax()
@@ -48,7 +48,6 @@ class qeleg_multi:
             if np.any(gclm[1]):
                 clm += almxfl(gclm[1], sgn_c * cl, mmax, False)
         glm *= -1
-        sht_tr = int(os.environ.get('OMP_NUM_THREADS', '1'))
         if self.spin_ou > 0: clm *= -1
         Red, Imd = geom.alm2map_spin([glm, clm],  abs(self.spin_ou), lmax, mmax, sht_tr, [-1., 1.])
         if self.spin_ou < 0 and self.spin_ou % 2 == 1: Red *= -1
