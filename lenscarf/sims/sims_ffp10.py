@@ -10,25 +10,19 @@ from lenscarf.remapping import deflection
 aberration_lbv_ffp10 = (264. * (np.pi / 180), 48.26 * (np.pi / 180), 0.001234)
 
 class cmb_len_ffp10:
-<<<<<<< HEAD
-    def __init__(self, aberration:tuple[float, float, float]or None=None, lmin_dlm=None, cacher:cachers.cacher or None=None,
-                       lmax_thingauss:int=5120, nbands:int=1, verbose:bool=False):
-=======
-    def __init__(self, aberration:tuple[float, float, float]=aberration_lbv_ffp10,cacher:cachers.cacher or None=None,
-                       lmax_thingauss:int=5120, nbands:int=1, target_res=0.75, verbose:bool=False):
->>>>>>> e4c1005 (target res in sims_ffp10)
+    def __init__(self, aberration:tuple[float, float, float]or None=None, lmin_dlm=0, cacher:cachers.cacher or None=None,
+                       lmax_thingauss:int=5120, nbands:int=1, targetres=0.75, verbose:bool=False):
         """FFP10 lensed cmbs, lensed with independent lenscarf code on thingauss geometry
-
 
             Args:
                 aberration: aberration parameters (gal. longitude (rad), latitude (rad) and v/c) Defaults to FFP10 values
                 lmin_dlm: Set to zero the deflection field for L<lmin_dlm
                 cacher: set this to one of lenscarf.cachers in order save maps (nothing saved by default)
                 nbands: if set splits the sky into bands to perform the operations (saves some memory but probably a bit slower)
-
+                targetres: main accuracy parameter; target resolution in arcmin to perform the deflection operation.
+                           make this smaller for more accurate interpolation
 
         """
-        #FIXME: change the hashkey to get the aberration and the lmin_dlm also ?
 
         nbands = int(nbands + (1 - int(nbands)%2))  # want an odd number to avoid a split just on the equator
         assert nbands <= 10, 'did not check'
@@ -46,7 +40,7 @@ class cmb_len_ffp10:
         self.lmax_thingauss = lmax_thingauss
         self.lmin_dlm = lmin_dlm
 
-        self.targetres = target_res # Main accuracy parameter in arcmin. Defaults matches crudely matches the FFP10 pipeline's
+        self.targetres = targetres  # Main accuracy parameter. This crudely matches the FFP10 pipeline's
 
         zls, zus = self._mkbands(nbands)
         # By construction the central one covers the equator
@@ -80,9 +74,6 @@ class cmb_len_ffp10:
             print("Input aberration power %.3e"%(utils_hp.alm2cl(vlm, vlm, 1, 1, 1)[1]))
         self.verbose = verbose
 
-    def hashdict(self):
-        return {'sims': 'FFP10', 'aberration':self.vlm}
-
     @staticmethod
     def _mkbands(nbands: int):
         """Splits the sky in nbands regions with equal numbers of latitude points """
@@ -98,15 +89,16 @@ class cmb_len_ffp10:
         return zl, zu
 
     def hashdict(self):
-        return {'sims':'ffp10', 'tres':self.targetres, 'lmaxGL':self.lmax_thingauss}
+        return {'sims':'ffp10', 'tres':self.targetres, 'lmaxGL':self.lmax_thingauss, 'lmin_dlm':self.lmin_dlm}
 
     def _get_dlm(self, idx):
         dlm = cmb_unl_ffp10.get_sim_plm(idx)
         lmax_dlm = utils_hp.Alm.getlmax(dlm.size, -1)
         mmax_dlm = lmax_dlm
-        dlm[utils_hp.Alm.getidx(lmax_dlm, 1, 0)] += self.vlm[1] # LM=10 aberration
-        dlm[utils_hp.Alm.getidx(lmax_dlm, 1, 1)] += self.vlm[2] # LM = 11
+        dlm[utils_hp.Alm.getidx(lmax_dlm, 1, 0)] += self.delta_vlm[1] # LM=10 aberration
+        dlm[utils_hp.Alm.getidx(lmax_dlm, 1, 1)] += self.delta_vlm[2] # LM = 11
         p2d = np.sqrt(np.arange(lmax_dlm + 1) * np.arange(1, lmax_dlm + 2))
+        p2d[:self.lmin_dlm] = 0
         utils_hp.almxfl(dlm, p2d, mmax_dlm, inplace=True)
         return dlm, lmax_dlm, mmax_dlm
 
