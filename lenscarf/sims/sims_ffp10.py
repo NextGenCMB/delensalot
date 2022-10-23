@@ -10,8 +10,13 @@ from lenscarf.remapping import deflection
 aberration_lbv_ffp10 = (264. * (np.pi / 180), 48.26 * (np.pi / 180), 0.001234)
 
 class cmb_len_ffp10:
+<<<<<<< HEAD
     def __init__(self, aberration:tuple[float, float, float]or None=None, lmin_dlm=None, cacher:cachers.cacher or None=None,
                        lmax_thingauss:int=5120, nbands:int=1, verbose:bool=False):
+=======
+    def __init__(self, aberration:tuple[float, float, float]=aberration_lbv_ffp10,cacher:cachers.cacher or None=None,
+                       lmax_thingauss:int=5120, nbands:int=1, target_res=0.75, verbose:bool=False):
+>>>>>>> e4c1005 (target res in sims_ffp10)
         """FFP10 lensed cmbs, lensed with independent lenscarf code on thingauss geometry
 
 
@@ -41,7 +46,7 @@ class cmb_len_ffp10:
         self.lmax_thingauss = lmax_thingauss
         self.lmin_dlm = lmin_dlm
 
-        self.targetres = 0.75  # Main accuracy parameter. This crudely matches the FFP10 pipeline's
+        self.targetres = target_res # Main accuracy parameter in arcmin. Defaults matches crudely matches the FFP10 pipeline's
 
         zls, zus = self._mkbands(nbands)
         # By construction the central one covers the equator
