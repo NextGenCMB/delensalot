@@ -1,43 +1,49 @@
 """Iterative reconstruction for masked polarization CMB data
 
+    On idealized, full-sky maps, with homogeneous noise
+    The difference to 'cmbs4wide_planckmask' is usage of a simpler filter instance, which works in harmonic space
 
-
-FIXME's :
-    plancklens independent QEs ?
-    degrade method of _wl_ filters
-    check of invertibility at very first step
-    mf_resp for EB-like ?
-~ cgtol 5 ~ 100 it for QE with planck chain
+    python -itmax 15 -imin 0 -imax 0 -k p_p
 """
 import os
 from os.path import join as opj
 import numpy as np
 import healpy as hp
+import copy
 
 import plancklens
-
-from plancklens import utils, qresp, qest, qecl
+from plancklens import utils
+from plancklens import qresp
+from plancklens import qest, qecl
 from plancklens.qcinv import cd_solve
-from plancklens.sims import maps, phas, planck2018_sims
-from plancklens.filt import filt_cinv, filt_util
 
-from lenscarf import remapping, utils_scarf, utils_sims
+from plancklens.sims import maps, phas
+from plancklens.filt import filt_simple, filt_util
+from lenscarf.sims import sims_ffp10
+from lenscarf import remapping
+from lenscarf import utils_scarf, utils_sims
 from lenscarf.iterators import cs_iterator as scarf_iterator, steps
-from lenscarf.utils import cli, read_map
+
+from lenscarf.utils import cli
 from lenscarf.utils_hp import gauss_beam, almxfl, alm_copy
-from lenscarf.opfilt import opfilt_ee_wl
+from lenscarf.opfilt.opfilt_iso_ee_wl import alm_filter_nlev_wl
+from lenscarf import cachers
+from plancklens.helpers import mpi
 
-suffix = 'cmbs4_planckmask' # descriptor to distinguish this parfile from others...
+suffix = 'cmbs4_delensing_lmindlm1' # descriptor to distinguish this parfile from others...
 TEMP =  opj(os.environ['SCRATCH'], 'lenscarfrecs', suffix)
+DATDIR = opj(os.environ['SCRATCH'],'lenscarfedFFP10_noaberration')
 
-lmax_ivf, mmax_ivf, beam, nlev_t, nlev_p = (3000, 3000, 1., 1., np.sqrt(2.))
+lmax_ivf, mmax_ivf, beam, nlev_t, nlev_p = (3000, 3000, 1., 0.5 / np.sqrt(2), 0.5)
 
-lmin_tlm, lmin_elm, lmin_blm = (2, 2, 2) # The fiducial transfer functions are set to zero below these lmins
+lmin_tlm, lmin_elm, lmin_blm = (2, 2, 200) # The fiducial transfer functions are set to zero below these lmins
 # for delensing useful to cut much more B. It can also help since the cg inversion does not have to reconstruct those.
 
 lmax_qlm, mmax_qlm = (4000, 4000) # Lensing map is reconstructed down to this lmax and mmax
 # NB: the QEs from plancklens does not support mmax != lmax, but the MAP pipeline does
 lmax_unl, mmax_unl = (4000, 4000) # Delensed CMB is reconstructed down to this lmax and mmax
+
+lmin_dlm = 2 # Set to zero all deflection at L=1 when building the sims
 
 
 #----------------- pixelization and geometry info for the input maps and the MAP pipeline and for lensing operations
@@ -48,22 +54,15 @@ ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(nside, zbounds=zbounds)
 zbounds_len = (-1.,1.) # Outside of these bounds the reconstructed maps are assumed to be zero
 pb_ctr, pb_extent = (0., 2 * np.pi) # Longitude cuts, if any, in the form (center of patch, patch extent)
 lenjob_geometry = utils_scarf.Geom.get_thingauss_geometry(lmax_unl, 2, zbounds=zbounds_len)
-lenjob_pbgeometry = utils_scarf.pbdGeometry(lenjob_geometry, utils_scarf.pbounds(pb_ctr, pb_extent))
+lenjob_pbgeometry =utils_scarf.pbdGeometry(lenjob_geometry, utils_scarf.pbounds(pb_ctr, pb_extent))
 lensres = 1.7  # Deflection operations will be performed at this resolution
 Lmin = 2 # The reconstruction of all lensing multipoles below that will not be attempted
-# stepper = steps.nrstep(lmax_qlm, mmax_qlm, val=0.5) # handler of the size steps in the MAP BFGS iterative search
-stepper = steps.harmonicbump(lmax_qlm, mmax_qlm) # here we use a scale dependent step, to get to convergence after iteration 15
-mc_sims_mf_it0 = np.arange(320) # sims to use to build the very first iteration mean-field (QE mean-field)
+stepper = steps.harmonicbump(lmax_qlm, mmax_qlm, xa=400, xb=1500) #reduce the gradient by 0.5 for large scale and by 0.1 for small scales to improve convergence in regimes where the deflection field is not invertible
+mc_sims_mf_it0 = np.array([]) # sims to use to build the very first iteration mean-field (QE mean-field) Here 0 since idealized
 
-# TODO define one simulation to get the index -1 to be the data ? 
-# Or else we will get the data in the mean field estimation and it will mess everythong
 
 # Multigrid chain descriptor
 chain_descrs = lambda lmax_sol, cg_tol : [[0, ["diag_cl"], lmax_sol, nside, np.inf, cg_tol, cd_solve.tr_cg, cd_solve.cache_mem()]]
-#chain_descrs = lambda lmax_sol, cg_tol :  \
-#            [[2, ["split(dense(" + opj(TEMP, 'cinv_p', 'dense.pk') + "), 32, diag_cl)"], 512, 256, 3, 0.0, cd_solve.tr_cg,cd_solve.cache_mem()],
-#             [1, ["split(stage(2),  512, diag_cl)"], 1024, 512, 3, 0.0, cd_solve.tr_cg, cd_solve.cache_mem()],
-#             [0, ["split(stage(1), 1024, diag_cl)"], lmax_sol, nside, np.inf, cg_tol, cd_solve.tr_cg, cd_solve.cache_mem()]]
 libdir_iterators = lambda qe_key, simidx, version: opj(TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
 #------------------
 
@@ -77,7 +76,7 @@ cls_len = utils.camb_clfile(opj(cls_path, 'FFP10_wdipole_lensedCls.dat'))
 transf_tlm   =  gauss_beam(beam/180 / 60 * np.pi, lmax=lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_tlm)
 transf_elm   =  gauss_beam(beam/180 / 60 * np.pi, lmax=lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_elm)
 transf_blm   =  gauss_beam(beam/180 / 60 * np.pi, lmax=lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_blm)
-
+transf_d = {'t':transf_tlm, 'e':transf_elm, 'b':transf_blm}
 # Isotropic approximation to the filtering (used eg for response calculations)
 ftl =  cli(cls_len['tt'][:lmax_ivf + 1] + (nlev_t / 180 / 60 * np.pi) ** 2 * cli(transf_tlm ** 2)) * (transf_tlm > 0)
 fel =  cli(cls_len['ee'][:lmax_ivf + 1] + (nlev_p / 180 / 60 * np.pi) ** 2 * cli(transf_elm ** 2)) * (transf_elm > 0)
@@ -95,31 +94,19 @@ fbl_unl =  cli(cls_unl['bb'][:lmax_ivf + 1] + (nlev_p / 180 / 60 * np.pi) ** 2 *
 pix_phas = phas.pix_lib_phas(opj(os.environ['HOME'], 'pixphas_nside%s'%nside), 3, (hp.nside2npix(nside),)) # T, Q, and U noise phases
 #       actual data transfer function for the sim generation:
 transf_dat =  gauss_beam(beam / 180 / 60 * np.pi, lmax=4096) # (taking here full FFP10 cmb's which are given to 4096)
-sims      = maps.cmb_maps_nlev(planck2018_sims.cmb_len_ffp10(), transf_dat, nlev_t, nlev_p, nside, pix_lib_phas=pix_phas)
+
+if mpi.rank ==0:
+    # Problem of creating dir in parallel if does not exist
+    cacher = cachers.cacher_npy(DATDIR)
+mpi.barrier()
+cacher = cachers.cacher_npy(DATDIR)
+sims      = maps.cmb_maps_nlev(sims_ffp10.cmb_len_ffp10(aberration=(0,0,0), lmin_dlm=lmin_dlm, cacher=cachers.cacher_npy(DATDIR), lmax_thingauss=2 * 4096, nbands=7, verbose=True), transf_dat, nlev_t, nlev_p, nside, pix_lib_phas=pix_phas)
 
 # Makes the simulation library consistent with the zbounds
 sims_MAP  = utils_sims.ztrunc_sims(sims, nside, [zbounds])
 # -------------------------
 
-# List of paths to masks that will be multiplied together to give the total mask
-# Here we use the same in Pol and T, though that would not be necessary
-masks = ['/project/projectdirs/cmb/data/planck2018/pr3/Planck_L08_inputs/PR3vJan18_temp_lensingmask_gPR2_70_psPR2_143_COT2_smicadx12_smicapoldx12_psPR2_217_sz.fits.gz']
-
-
-# List of the inverse noise pixel variance maps, all will be multiplied together
-ninv_t = [np.array([hp.nside2pixarea(nside, degrees=True) * 60 ** 2 / nlev_t ** 2])] + masks
-cinv_t = filt_cinv.cinv_t(opj(TEMP, 'cinv_t'), lmax_ivf,nside, cls_len, transf_tlm, ninv_t,
-                        marge_monopole=True, marge_dipole=True, marge_maps=[])
-
-ninv_p = [[np.array([hp.nside2pixarea(nside, degrees=True) * 60 ** 2 / nlev_p ** 2])] + masks]
-cinv_p = filt_cinv.cinv_p(opj(TEMP, 'cinv_p'), lmax_ivf, nside, cls_len, transf_elm, ninv_p,
-            chain_descr=chain_descrs(lmax_ivf, 1e-5), transf_blm=transf_blm, marge_qmaps=(), marge_umaps=())
-
-ivfs_raw    = filt_cinv.library_cinv_sepTP(opj(TEMP, 'ivfs'), sims, cinv_t, cinv_p, cls_len)
-ftl_rs = np.ones(lmax_ivf + 1, dtype=float) * (np.arange(lmax_ivf + 1) >= lmin_tlm)
-fel_rs = np.ones(lmax_ivf + 1, dtype=float) * (np.arange(lmax_ivf + 1) >= lmin_elm)
-fbl_rs = np.ones(lmax_ivf + 1, dtype=float) * (np.arange(lmax_ivf + 1) >= lmin_blm)
-ivfs   = filt_util.library_ftl(ivfs_raw, lmax_ivf, ftl_rs, fel_rs, fbl_rs)
+ivfs   = filt_simple.library_fullsky_sepTP(opj(TEMP, 'ivfs'), sims, nside, transf_d, cls_len, ftl, fel, fbl, cache=True)
 
 # ---- QE libraries from plancklens to calculate unnormalized QE (qlms) and their spectra (qcls)
 mc_sims_bias = np.arange(60, dtype=int)
@@ -159,8 +146,6 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
     """
     assert k in ['p_eb', 'p_p'], k
     libdir_iterator = libdir_iterators(k, simidx, version)
-    print('Starting get itlib for {}'.format(libdir_iterator))
-
     if not os.path.exists(libdir_iterator):
         os.makedirs(libdir_iterator)
     tr = int(os.environ.get('OMP_NUM_THREADS', 8))
@@ -191,23 +176,28 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
 
     plm0 = np.load(path_plm0)
     R_unl = qresp.get_response(k, lmax_ivf, 'p', cls_unl, cls_unl,  {'e': fel_unl, 'b': fbl_unl, 't':ftl_unl}, lmax_qlm=lmax_qlm)[0]
-    if k in ['p_p'] and not 'noRespMF' in version :
+    if not 'MFresp0' in version and k in ['p_p']:
         mf_resp = qresp.get_mf_resp(k, cls_unl, {'ee': fel_unl, 'bb': fbl_unl}, lmax_ivf, lmax_qlm)[0]
     else:
-        print('*** mf_resp not implemented for key ' + k, ', setting it to zero')
+        print('*** setting MFresp to zero')
         mf_resp = np.zeros(lmax_qlm + 1, dtype=float)
     # Lensing deflection field instance (initiated here with zero deflection)
     ffi = remapping.deflection(lenjob_pbgeometry, lensres, np.zeros_like(plm0), mmax_qlm, tr, tr)
     if k in ['p_p', 'p_eb']:
-        tpl = None # for template projection, here set to None
         wee = k == 'p_p' # keeps or not the EE-like terms in the generalized QEs
-        ninv = [sims_MAP.ztruncify(read_map(ni)) for ni in ninv_p] # inverse pixel noise map on consistent geometry
-        filtr = opfilt_ee_wl.alm_filter_ninv_wl(ninvjob_geometry, ninv, ffi, transf_elm, (lmax_unl, mmax_unl), (lmax_ivf, mmax_ivf), tr, tpl, wee=wee, lmin_dotop=min(lmin_elm, lmin_blm), transf_blm=transf_blm)
-        datmaps = np.array(sims_MAP.get_sim_pmap(int(simidx)))
-
+        # Here multipole cuts are set by the transfer function (those with 0 are not considered)
+        filtr = alm_filter_nlev_wl(nlev_p, ffi, transf_elm, (lmax_unl, mmax_unl), (lmax_ivf, mmax_ivf),
+                                   wee=wee, transf_b=transf_blm, nlev_b=nlev_p)
+        # dat maps must now be given in harmonic space in this idealized configuration
+        sht_job = utils_scarf.scarfjob()
+        sht_job.set_geometry(ninvjob_geometry)
+        sht_job.set_triangular_alm_info(lmax_ivf,mmax_ivf)
+        sht_job.set_nthreads(tr)
+        datmaps = np.array(sht_job.map2alm_spin(sims_MAP.get_sim_pmap(int(simidx)), 2))
     else:
         assert 0
     k_geom = filtr.ffi.geom # Customizable Geometry for position-space operations in calculations of the iterated QEs etc
+
     # Sets to zero all L-modes below Lmin in the iterations:
     iterator = scarf_iterator.iterator_pertmf(libdir_iterator, 'p', (lmax_qlm, mmax_qlm), datmaps,
             plm0, mf_resp, R_unl, cpp, cls_unl, filtr, k_geom, chain_descrs(lmax_unl, cg_tol), stepper
@@ -229,7 +219,7 @@ if __name__ == '__main__':
     tol_iter   = lambda it : 10 ** (- args.tol) # tolerance a fct of iterations ?
     soltn_cond = lambda it: True # Uses (or not) previous E-mode solution as input to search for current iteration one
 
-    from lenscarf.core import mpi
+
     mpi.barrier = lambda : 1 # redefining the barrier (Why ? )
     from lenscarf.iterators.statics import rec as Rec
     jobs = []
@@ -238,12 +228,15 @@ if __name__ == '__main__':
         if Rec.maxiterdone(lib_dir_iterator) < args.itmax:
             jobs.append(idx)
 
+    if mpi.rank ==0:
+        print("Caching things in " + TEMP)
+
+
     for idx in jobs[mpi.rank::mpi.size]:
         lib_dir_iterator = libdir_iterators(args.k, idx, args.v)
         if args.itmax >= 0 and Rec.maxiterdone(lib_dir_iterator) < args.itmax:
             itlib = get_itlib(args.k, idx, args.v, 1.)
             for i in range(args.itmax + 1):
-                # print("Rank {} with size {} is starting iteration {}".format(mpi.rank, mpi.size, i))
                 print("****Iterator: setting cg-tol to %.4e ****"%tol_iter(i))
                 print("****Iterator: setting solcond to %s ****"%soltn_cond(i))
 
