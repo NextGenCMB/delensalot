@@ -5,7 +5,10 @@ from lenscarf.iterators import statics
 from plancklens.sims import planck2018_sims
 from lenscarf import cachers
 from lenscarf import utils_scarf
-from plancklens.utils import mchash
+from plancklens.utils import mchash, cls_dot
+from plancklens import qresp, n0s, nhl
+from plancklens.n1 import n1
+
 from scipy.interpolate import UnivariateSpline as spline
 
 from os.path import join as opj
@@ -51,6 +54,15 @@ class cpp_sims_lib:
         # self.plms = [[None]*(itmax+1)]*(imax+1)
         self.cacher_param = cachers.cacher_npy(opj(self.TEMP, 'cpplib'))
         self.fsky = self.get_fsky() 
+
+        # Cl wieghts used in the QE (either lensed Cls or grad Cls)
+        try:
+            self.cls_weights = self.param.ivfs.cl
+        except AttributeError:
+            self.cls_weights = self.param.ivfs.ivfs.cl
+
+        # Grad cls used for CMB response
+        self.cls_grad = self.param.cls_grad
 
         self.cpp_fid = self.param.cls_unl['pp']
 
@@ -246,21 +258,6 @@ class cpp_sims_lib:
         return cpp   
 
 
-    def get_qe_resp(self, recache=False):
-        # fn_resp_qe = 'resp_qe_{}'.format(self.k) + self.version
-        # cacher = self.cacher_param
-        # if not cacher.is_cached(fn_resp_qe):
-            # R = qresp.get_response(self.k, self.param.lmax_ivf, 'p', self.param.cls_len, self.param.cls_len, {'e': self.param.fel, 'b': self.param.fbl, 't':self.param.ftl}, lmax_qlm=self.param.lmax_qlm)[0]
-            # cacher.cache(fn_resp_qe, R)
-        # R = cacher.load(fn_resp_qe)
-        iterbiases = n0n1_iterative.polMAPbiases(self.config, fidcls_unl=self.param.cls_unl, itrmax = 0, cacher=self.cacher_param)
-        N0_biased, N1_biased_spl, r_gg_fid, r_gg_true = iterbiases.get_n0n1(cls_unl_true=None, cls_noise_true=None, version=self.version)  
-        return r_gg_fid
-
-    def get_map_resp(self, it, version=''):
-        N0_biased, N1_biased_spl, r_gg_fid, r_gg_true = self.get_N0_N1_iter(itermax=it, version=version)
-        return r_gg_fid
-
     def get_mf0(self, simidx):
         """Get the QE mean-field"""
         # return np.load(opj(self.libdir_sim(simidx), 'mf.npy'))
@@ -308,13 +305,62 @@ class cpp_sims_lib:
                 cacher.cache(fn, MF)
             MF = cacher.load(fn)
         return MF
+    
+    def get_qe_resp(self, recache=False, resp_gradcls=True):
+        fn_resp_qe = 'resp_qe_{}'.format(self.k) + self.version
+        if resp_gradcls: 
+            fn_resp_qe += '_gradcls'
+        cacher = self.cacher_param
+        if not cacher.is_cached(fn_resp_qe):
+            R = qresp.get_response(self.k, self.param.lmax_ivf, 'p', self.cls_weights, self.cls_grad, {'e': self.param.fel, 'b': self.param.fbl, 't':self.param.ftl}, lmax_qlm=self.param.lmax_qlm)[0]
+            cacher.cache(fn_resp_qe, R)
+        R = cacher.load(fn_resp_qe)
+        # iterbiases = n0n1_iterative.polMAPbiases(self.config, fidcls_unl=self.param.cls_unl, itrmax = 0, cacher=self.cacher_param)
+        # N0_biased, N1_biased_spl, R, r_gg_true = iterbiases.get_n0n1(cls_unl_true=None, cls_noise_true=None, version=self.version)  
+        return R
 
-    def get_N0_N1_QE(self, version=''):
-        assert self.k =='p_p', 'Biases not implemented fot MV and TT estimators'
+    def get_map_resp(self, it=15, version=''):
+        N0_biased, N1_biased_spl, r_gg_fid, r_gg_true = self.get_N0_N1_iter(itermax=it, version=version)
+        return r_gg_fid
 
-        iterbiases = n0n1_iterative.polMAPbiases(self.config, fidcls_unl=self.param.cls_unl, itrmax = 0, cacher=self.cacher_param)
-        N0_biased, N1_biased_spl, r_gg_fid, r_gg_true = iterbiases.get_n0n1(cls_unl_true=None, cls_noise_true=None, version=version)
-        return N0_biased, N1_biased_spl, r_gg_fid, r_gg_true
+    def get_N0_N1_QE(self, normalize=True, resp_gradcls=True):
+        # iterbiases = n0n1_iterative.polMAPbiases(self.config, fidcls_unl=self.param.cls_unl, itrmax = 0, cacher=self.cacher_param)
+        # N0_biased, N1_biased_spl, r_gg_fid, r_gg_true = iterbiases.get_n0n1(cls_unl_true=None, cls_noise_true=None, version=version)
+        fn_n0 = 'n0_qe_{}'.format(self.k)
+
+
+        resp_qe = self.get_qe_resp(resp_gradcls)
+        # N0_qe = n0s.get_N0(self.parm.beam, self.param.nlev_t, self.param.nlev_p, self.param.lmax_ivf, self.param.lmin_elm, self.param.lmax_qlm, cls_resp, self.cls_weights, joint_TP=False, ksource='p')
+
+        # Isotropic approximation of the filtering, 1/ (C+ N)
+        fal_sepTP = {
+            'tt': self.param.ivfs.get_ftl(),
+            'ee': self.param.ivfs.get_fel(),
+            'bb': self.param.ivfs.get_fbl()}
+            # 'te': np.copy(self.cls_len['te'][:self.lmax_ivf + 1])}
+
+        cls_dat = {spec: utils.cli(fal_sepTP[spec]) for spec in ['tt', 'ee', 'bb']}
+        # Spectra of the inverse-variance filtered maps
+        # In general cls_ivfs = fal * dat_cls * fal^t, with a matrix product in T, E, B space
+        cls_ivfs_sepTP = cls_dot([fal_sepTP, cls_dat, fal_sepTP], ret_dict=True)
+
+        if not self.cacher_param.is_cached(fn_n0):
+            NG, NC, NGC, NCG = nhl.get_nhl(self.k, self.k, self.cls_weights, cls_ivfs_sepTP, self.param.lmax_ivf, self.param.lmax_ivf,
+                                    lmax_out=self.lmax_qlm)
+            self.cacher_param.cache(fn_n0, NG)
+        NG = self.cacher_param.load(fn_n0)
+        
+        n1lib = n1.library_n1(self.cacher_param.lib_dir, self.cls_weights['tt'], self.cls_weights['te'], self.cls_weights['ee'], self.lmax_qlm)
+
+        _n1 = n1lib.get_n1(self.k, 'p',  self.param.cls_unl['pp'], fal_sepTP['tt'], fal_sepTP['ee'], fal_sepTP['bb'], Lmax=self.lmax_qlm)
+
+        if normalize is False:
+            return NG, _n1
+        else:
+            resp_qe = self.get_qe_resp(resp_gradcls)
+            return NG*utils.cli(resp_qe)**2, _n1*utils.cli(resp_qe)**2
+
+        # return N0_biased, N1_biased_spl, r_gg_fid, r_gg_true
 
     def get_N0_N1_iter(self, itermax=15, version=''):
         assert self.k =='p_p', 'Iterative biases not implemented fot MV and TT estimators'       
@@ -463,8 +509,9 @@ class cpp_sims_lib:
         # Reff_Spline[ells] = r_gg_fid[ells] * spline(ells, rdn0[ells] * utils.cli(r_gg_fid[ells]), k=k, s=s)(ells)
         if dospline:
             Reff_Spline[ells] = r_gg_fid[ells] * spline(ells, rdn0[ells] /self.fsky * utils.cli(r_gg_fid[ells]), k=k, s=s)(ells)
+            # Reff_Spline[ells] = r_gg_fid[ells] * spline(ells, rdn0[ells]  * utils.cli(r_gg_fid[ells]), k=k, s=s)(ells)
         else:
-            Reff_Spline = rdn0/self.fsky
+            Reff_Spline = rdn0 /self.fsky
         # kR_eff = np.zeros(4001)
         # R_eff  = r_gg_fid * Reff_Spline
         return Reff_Spline
@@ -523,13 +570,13 @@ class cpp_sims_lib:
             RDN0 *= utils.cli(r_gg_fid[:self.lmax_qlm+1])**2
         return RDN0 / self.fsky
         
-    def get_semi_rdn0_qe(self, datidx, resp=None, return_raw=False):
+    def get_semi_rdn0_qe(self, datidx, normalize=True, resp_gradcls=True):
         """Returns semi analytical realisation-dependent N0 lensing bias
 
             Args:
                 datidx: index of simulation 
                 resp: response to normallise the rdn0
-                return_raw: Return unormalized rdn0
+                normalize: If False returns unormalized rdn0
 
         """
         fn_dir = rdn0_cs.output_sim(self.k, self.param.suffix, datidx)
@@ -539,12 +586,10 @@ class cpp_sims_lib:
             rdn0_cs.export_nhl(self.libdir_sim(datidx), self.k, self.param, datidx)
         GG = np.loadtxt(fn)
         GG *=  pp2kk(np.arange(len(GG))) * 1e7 
-        if resp is None:
-            _, _, resp, _ = self.get_N0_N1_QE()
-        if return_raw is False:
-            GG *= utils.cli(resp[:self.lmax_qlm+1])**2
+        if normalize is True:
+            resp_qe = self.get_qe_resp(resp_gradcls=resp_gradcls)
+            GG *= utils.cli(resp_qe[:self.lmax_qlm+1])**2
         return GG
-
 
     def get_rdn0_qe(self, datidx, Ndatasims, Nmcsims, Nroll):
         """Returns unnormalised realization-dependent N0 lensing bias RDN0.
@@ -582,6 +627,31 @@ class cpp_sims_lib:
     def maxiterdone(self, simidx):
         return statics.rec.maxiterdone(self.libdir_sim(simidx))
 
+
+
+    def get_gauss_cov(self, version='', w=lambda ls : 1.,  edges=None):
+        N0_map, N1_map, map_resp, _ = self.get_N0_N1_iter(15, version=version)
+        N0_qe, N1_qe= self.get_N0_N1_QE(normalize=True)
+        
+        cov_qe = 1/(2*np.arange(self.lmax_qlm+1) +1) / self.fsky * 2 * ((self.cpp_fid[:self.lmax_qlm+1] + N0_qe + N1_qe) * w(np.arange(self.lmax_qlm+1) +1))**2 
+        cov_map = 1/(2*np.arange(self.lmax_qlm+1) +1) / self.fsky * 2 * ((self.cpp_fid[:self.lmax_qlm+1] + N0_map + N1_map) * w(np.arange(self.lmax_qlm+1) +1))**2 
+        
+        if edges is not None:
+            nbins = len(edges) - 1
+            cov_qe_b = np.zeros([nbins, nbins])
+            cov_map_b = np.zeros([nbins, nbins])
+            
+            for i in range(nbins):
+                bins_l = edges[i]
+                bins_u = edges[i+1]
+                ells = np.arange(self.lmax_qlm+1)
+                ii = np.where((ells >= bins_l) & (ells < bins_u))[0]
+                cov_qe_b[i, i] = np.sum(cov_qe[ells[ii]]) / len(ii)**2
+                cov_map_b[i, i] = np.sum(cov_map[ells[ii]])  / len(ii)**2
+            return np.diag(cov_qe_b), np.diag(cov_map_b)
+
+        else:
+            return cov_qe, cov_map
 
 
     # def get_mf_it(self, simidx, itr, tol, ret_alm=False, verbose=False):
