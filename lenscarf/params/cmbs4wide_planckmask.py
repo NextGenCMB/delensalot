@@ -103,7 +103,14 @@ sims_MAP  = utils_sims.ztrunc_sims(sims, nside, [zbounds])
 
 # List of paths to masks that will be multiplied together to give the total mask
 # Here we use the same in Pol and T, though that would not be necessary
-masks = ['/project/projectdirs/cmb/data/planck2018/pr3/Planck_L08_inputs/PR3vJan18_temp_lensingmask_gPR2_70_psPR2_143_COT2_smicadx12_smicapoldx12_psPR2_217_sz.fits.gz']
+# project_dir = os.environ['CFS']
+# masks = [opj(project_dir, 'cmb/data/planck2018/pr3/Planck_L08_inputs/PR3vJan18_temp_lensingmask_gPR2_70_psPR2_143_COT2_smicadx12_smicapoldx12_psPR2_217_sz.fits.gz')]
+
+assert 'NERSC_HOST' in os.environ.keys(), "Can run only at Nersc"
+if os.environ['NERSC_HOST'] == 'cori':
+    masks = ['/project/projectdirs/cmb/data/planck2018/pr3/Planck_L08_inputs/PR3vJan18_temp_lensingmask_gPR2_70_psPR2_143_COT2_smicadx12_smicapoldx12_psPR2_217_sz.fits.gz']
+elif os.environ['NERSC_HOST'] == 'perlmutter':
+    masks = [os.environ["CFS"] + '/cmb/data/planck2018/pr3/Planck_L08_inputs/PR3vJan18_temp_lensingmask_gPR2_70_psPR2_143_COT2_smicadx12_smicapoldx12_psPR2_217_sz.fits.gz']
 
 
 # List of the inverse noise pixel variance maps, all will be multiplied together
