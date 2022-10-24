@@ -253,7 +253,7 @@ class qlm_iterator(object):
             dm = utils_qe.qeleg_multi([2], +1, [utils_qe.get_spin_lower(2, self.lmax_filt)])(get_alm, geom, sht_tr)
             dlens = -0.5 * ((d1[0] - 1j * d1[1]) * dp + (d1[0] + 1j * d1[1]) * dm)
             del dp, dm, d1
-            elm, blm = geom.map2alm_spin(dlens, 2, lmaxb, mmaxb, sht_tr, [-1., 1.])
+            elm, blm = geom.map2alm_spin([dlens.real, dlens.imag], 2, lmaxb, mmaxb, sht_tr, [-1., 1.])
         else: # Applies full remapping
             ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm)
             elm, blm = ffi.lensgclm([elm_wf, np.zeros_like(elm_wf)], self.mmax_filt, 2, lmaxb, mmaxb)
