@@ -36,6 +36,7 @@ class qeleg_multi:
 
         """
         lmax = self.get_lmax()
+        if mmax is None: mmax = lmax
         glm = np.zeros(Alm.getsize(lmax, mmax), dtype=complex)
         clm = np.zeros(Alm.getsize(lmax, mmax), dtype=complex) # X_{lm} is here glm + i clm
         for i, (si, cl) in enumerate(zip(self.spins_in, self.cls)):
