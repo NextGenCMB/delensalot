@@ -2,6 +2,11 @@
 
 
 """
+
+import logging
+log = logging.getLogger(__name__)
+from logdecorator import log_on_start, log_on_end
+
 import numpy as np
 from lenscarf.utils_hp import almxfl, Alm, alm2cl, synalm, default_rng
 from lenscarf.utils import clhash, cli, read_map
@@ -11,9 +16,9 @@ from lenscarf.opfilt import  opfilt_pp, opfilt_base, bmodes_ninv as bni
 from scipy.interpolate import UnivariateSpline as spl
 from lenscarf.utils import timer
 
-
 apply_fini = opfilt_pp.apply_fini
 pre_op_dense = None # not implemented
+
 
 class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
     def __init__(self, ninv_geom:utils_scarf.Geometry, ninv:list, ffi:remapping.deflection, transf:np.ndarray,
@@ -53,7 +58,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
 
         sc_job = utils_scarf.scarfjob()
         if not np.all(ninv_geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
-            print('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
+            log.info('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
             nr = ninv_geom.get_nrings()
             ninv_geom_ = utils_scarf.Geometry(nr, ninv_geom.nph.copy(), ninv_geom.ofs.copy(), 1, ninv_geom.phi0.copy(), ninv_geom.theta.copy(), np.ones(nr, dtype=float))
             # Does not seem to work without the 'copy'
@@ -98,7 +103,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
             else:
                 assert 0
             self._nlevp = nlev_febl
-            print('Using nlevp %.2f amin'%self._nlevp)
+            log.info('Using nlevp %.2f amin'%self._nlevp)
         n_inv_cl_e = self.b_transf_elm ** 2  / (self._nlevp/ 180. / 60. * np.pi) ** 2
         n_inv_cl_b = self.b_transf_blm ** 2  / (self._nlevp/ 180. / 60. * np.pi) ** 2
         return n_inv_cl_e, n_inv_cl_b.copy()
@@ -331,7 +336,7 @@ class pre_op_diag:
         lmax_sol = ninv_filt.lmax_sol
         ninv_fel, ninv_fbl = ninv_filt.get_febl() # (N_lev * transf) ** 2 basically
         if len(ninv_fel) - 1 < lmax_sol: # We extend the transfer fct to avoid predcon. with zero (~ Gauss beam)
-            print("PRE_OP_DIAG: extending E transfer fct from lmax %s to lmax %s"%(len(ninv_fel)-1, lmax_sol))
+            log.info("PRE_OP_DIAG: extending E transfer fct from lmax %s to lmax %s"%(len(ninv_fel)-1, lmax_sol))
             assert np.all(ninv_fel >= 0)
             nz = np.where(ninv_fel > 0)
             spl_sq = spl(np.arange(len(ninv_fel), dtype=float)[nz], np.log(ninv_fel[nz]), k=2, ext='extrapolate')
@@ -360,9 +365,8 @@ def calc_prep(qumaps:np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv_wl):
     """
     assert isinstance(qumaps, np.ndarray)
     assert np.all(ninv_filt.sc_job.geom.weight==1.) # Sum rather than integral, hence requires unit weights
-    qumap= np.copy(qumaps)
+    qumap = np.copy(qumaps)
     ninv_filt.apply_map(qumap)
-
     eblm = ninv_filt.sc_job.map2alm_spin(qumap, 2)
     almxfl(eblm[0], ninv_filt.b_transf_elm, ninv_filt.mmax_len, True)
     almxfl(eblm[1], ninv_filt.b_transf_blm, ninv_filt.mmax_len, True)

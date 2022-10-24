@@ -2,6 +2,10 @@
 
 
 """
+import logging
+log = logging.getLogger(__name__)
+from logdecorator import log_on_start, log_on_end
+
 import numpy as np
 from lenscarf.utils_hp import almxfl, Alm, alm2cl, synalm, default_rng
 from lenscarf.utils import clhash, cli, read_map
@@ -56,7 +60,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
 
         sc_job = utils_scarf.scarfjob()
         if not np.all(ninv_geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
-            print('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
+            log.info('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
             nr = ninv_geom.get_nrings()
             ninv_geom_ = utils_scarf.Geometry(nr, ninv_geom.nph.copy(), ninv_geom.ofs.copy(), 1, ninv_geom.phi0.copy(), ninv_geom.theta.copy(), np.ones(nr, dtype=float))
             # Does not seem to work without the 'copy'
@@ -91,7 +95,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         if self._nlevt is None:
             nlev = 10800. / np.sqrt(np.sum(read_map(self.n_inv)) / (4.0 * np.pi)) / np.pi
             self._nlevt = nlev
-            print('Using nlevt %.2f amin'%self._nlevt)
+            log.info('Using nlevt %.2f amin'%self._nlevt)
         n_inv_cl_t = self.b_transf_tlm ** 2  / (self._nlevt / 180. / 60. * np.pi) ** 2
         return n_inv_cl_t
 
@@ -238,7 +242,7 @@ class pre_op_diag:
         lmax_sol = ninv_filt.lmax_sol
         ninv_ftl = ninv_filt.get_ftl() # (N_lev * transf) ** 2 basically
         if len(ninv_ftl) - 1 < lmax_sol: # We extend the transfer fct to avoid predcon. with zero (~ Gauss beam)
-            print("PRE_OP_DIAG: extending T transfer fct from lmax %s to lmax %s"%(len(ninv_ftl)-1, lmax_sol))
+            log.info("PRE_OP_DIAG: extending T transfer fct from lmax %s to lmax %s"%(len(ninv_ftl)-1, lmax_sol))
             assert np.all(ninv_ftl >= 0)
             nz = np.where(ninv_ftl > 0)
             spl_sq = spl(np.arange(len(ninv_ftl), dtype=float)[nz], np.log(ninv_ftl[nz]), k=2, ext='extrapolate')

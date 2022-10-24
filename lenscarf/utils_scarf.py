@@ -1,5 +1,5 @@
 from __future__ import annotations
-import os
+import os, sys
 import numpy as np
 import scarf
 from lenscarf.utils_sht import st2mmax, lowprimes
@@ -298,7 +298,7 @@ class scarfjob:
             Co-latitudes are :math:`\theta = i \frac{\pi}{Nt-1}, i=0,...,Nt-1`
             Longitudes are :math:`\phi = i \frac{2\pi}{Np}, i=0,...,Np-1`
 
-            Not planning to use this for map2alm directions, weights not optimized
+            Not planning to use this for map2alm directions, weights not optimized.
 
 
         """

@@ -2,9 +2,14 @@ import os
 import numpy as np
 from plancklens.helpers import cachers
 
+import logging
+log = logging.getLogger(__name__)
+from logdecorator import log_on_start, log_on_end
+
 alm2rlm = lambda x : x.copy()
 rlm2alm = lambda x : x.copy()
 
+#TODO this looks like a 'query' class to me. May be refactored.
 class rec:
     """Static methods to reach for iterated lensing maps etc
 
@@ -36,7 +41,7 @@ class rec:
                 if (i + 1) in itrs:
                     ret.append(rlm2alm(rlm))
             else:
-                print("*** Could only build up to itr number %s"%i)
+                log.info("*** Could only build up to itr number %s"%i)
                 return ret
         return ret
 
