@@ -139,7 +139,7 @@ if __name__ == '__main__':
     tol_iter = lambda it : 10 ** (- args.tol)
     soltn_cond = lambda it: True
 
-    from plancklens.helpers import mpi
+    from lenscarf.core import mpi
     mpi.barrier = lambda : 1 # redefining the barrier
     from itercurv.iterators.statics import rec as Rec
     jobs = []

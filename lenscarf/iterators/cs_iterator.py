@@ -26,6 +26,7 @@ import numpy as np
 import scarf
 from lenscarf.utils import cli, read_map
 from lenscarf.utils_hp import Alm, almxfl, alm2cl
+from lenscarf import utils_qe
 from lenscarf.utils_scarf import scarfjob, pbdGeometry, pbounds
 from lenscarf import utils_dlm
 
@@ -35,17 +36,21 @@ from lenscarf.iterators import bfgs, steps
 from lenscarf.opfilt import opfilt_base
 from lenscarf import cachers
 
+import logging
+log = logging.getLogger(__name__)
+from logdecorator import log_on_start, log_on_end
 
 alm2rlm = lambda alm : alm # get rid of this
 rlm2alm = lambda rlm : rlm
 
 
-
+@log_on_start(logging.INFO, " Start of prt_time()")
+@log_on_end(logging.INFO, " Finished prt_time()")
 def prt_time(dt, label=''):
     dh = np.floor(dt / 3600.)
     dm = np.floor(np.mod(dt, 3600.) / 60.)
     ds = np.floor(np.mod(dt, 60))
-    print("\r [" + ('%02d:%02d:%02d' % (dh, dm, ds)) + "] " + label)
+    log.info("\r [" + ('%02d:%02d:%02d' % (dh, dm, ds)) + "] " + label)
     return
 
 typs = ['T', 'QU', 'TQU']
@@ -185,7 +190,11 @@ class qlm_iterator(object):
                 return False
         return True
 
-    def get_template_blm(self, it, it_e, lmaxb=1024, lmin_plm=1, elm_wf:None or np.ndarray=None):
+
+    @log_on_start(logging.INFO, "get_template_blm() started: it={it}, calc={calc}")
+    @log_on_end(logging.INFO, "get_template_blm() finished: it={it}")
+    def get_template_blm(self, it, it_e, lmaxb=1024, lmin_plm=1, elm_wf:None or np.ndarray=None, dlm_mod=None, calc=False, Nmf=None,
+                         perturbative=False):
         """Builds a template B-mode map with the iterated phi and input elm_wf
 
             Args:
@@ -194,6 +203,7 @@ class qlm_iterator(object):
                 elm_wf: Wiener-filtered E-mode (healpy alm array), if not an iterated solution (it_e will ignored if set)
                 lmin_plm: the lensing tracer is zeroed below lmin_plm
                 lmaxb: the B-template is calculated up to lmaxb (defaults to lmax elm_wf)
+                perturbative: use pertubative instead of full remapping if set (may be useful for QE)
 
             Returns:
                 blm healpy array
@@ -203,8 +213,18 @@ class qlm_iterator(object):
 
         """
         cache_cond = (lmin_plm == 1) and (elm_wf is None)
-        fn = 'btempl_p%03d_e%03d_lmax%s' % (it, it_e, lmaxb)
-        if cache_cond:
+        # TODO this needs a cleaner implementation. Duplicate in map_delenser
+        if dlm_mod is not None:
+            dlm_mod_string = '_dlmmod'
+        else:
+            dlm_mod_string = ''
+        if Nmf == None:
+            pass
+        else:
+            dlm_mod_string += "{:03d}".format(Nmf)
+        fn = 'btempl_p%03d_e%03d_lmax%s%s' % (it, it_e, lmaxb, dlm_mod_string)
+        fn += 'perturbative' * perturbative
+        if not calc:
             if self.wf_cacher.is_cached(fn):
                 return self.wf_cacher.load(fn)
         if elm_wf is None:
@@ -219,10 +239,24 @@ class qlm_iterator(object):
         assert Alm.getlmax(elm_wf.size, self.mmax_filt) == self.lmax_filt
         mmaxb = lmaxb
         dlm = self.get_hlm(it, 'p')
+
+        # subtract field from phi
+        if dlm_mod is not None:
+            dlm -= dlm_mod
         self.hlm2dlm(dlm, inplace=True)
         almxfl(dlm, np.arange(self.lmax_qlm + 1, dtype=int) >= lmin_plm, self.mmax_qlm, True)
-        ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm)
-        elm, blm = ffi.lensgclm([elm_wf, np.zeros_like(elm_wf)], self.mmax_filt, 2, lmaxb, mmaxb)
+        if perturbative: # Applies perturbative remapping
+            get_alm = lambda a: elm_wf if a == 'e' else np.zeros_like(elm_wf)
+            geom, sht_tr = self.filter.ffi.geom, self.filter.ffi.sht_tr
+            d1 = geom.alm2map_spin([dlm, np.zeros_like(dlm)], 1, self.lmax_qlm, self.mmax_qlm, sht_tr, [-1., 1.])
+            dp = utils_qe.qeleg_multi([2], +3, [utils_qe.get_spin_raise(2, self.lmax_filt)])(get_alm, geom, sht_tr)
+            dm = utils_qe.qeleg_multi([2], +1, [utils_qe.get_spin_lower(2, self.lmax_filt)])(get_alm, geom, sht_tr)
+            dlens = -0.5 * ((d1[0] - 1j * d1[1]) * dp + (d1[0] + 1j * d1[1]) * dm)
+            del dp, dm, d1
+            elm, blm = geom.map2alm_spin([dlens.real, dlens.imag], 2, lmaxb, mmaxb, sht_tr, [-1., 1.])
+        else: # Applies full remapping
+            ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm)
+            elm, blm = ffi.lensgclm([elm_wf, np.zeros_like(elm_wf)], self.mmax_filt, 2, lmaxb, mmaxb)
         if cache_cond:
             self.wf_cacher.cache(fn, blm)
         return blm
@@ -291,6 +325,8 @@ class qlm_iterator(object):
         return np.sqrt(np.sum(alm2cl(qlm, qlm, self.lmax_qlm, self.mmax_qlm, self.lmax_qlm)))
 
 
+    @log_on_start(logging.INFO, "get_hessian() started: k={k}, key={key}")
+    @log_on_end(logging.INFO, "get_hessian() finished: k={k}, key={key}")
     def get_hessian(self, k, key):
         """Inverse hessian that will produce phi_iter.
 
@@ -309,6 +345,8 @@ class qlm_iterator(object):
         return BFGS_H
 
 
+    @log_on_start(logging.INFO, "build_incr() started: it={it}, key={key}")
+    @log_on_end(logging.INFO, "build_incr() finished: it={it}, key={key}")
     def build_incr(self, it, key, gradn):
         """Search direction
 
@@ -335,7 +373,7 @@ class qlm_iterator(object):
         # get descent direction sk = - H_k gk : (rlm array). Will be cached directly
         sk_fname = 'rlm_sn_%s_%s' % (k, key)
         if not self.hess_cacher.is_cached(sk_fname):
-            print("calculating descent direction" )
+            log.info("calculating descent direction" )
             t0 = time.time()
             incr = BFGS.get_mHkgk(alm2rlm(gradn), k)
             incr = alm2rlm(self.ensure_invertibility(self.get_hlm(it - 1, key), self.stepper.build_incr(incr, it), self.mmax_qlm))
@@ -361,7 +399,7 @@ class qlm_iterator(object):
         k, (g1, g2), w = utils_dlm.dlm2kggo(scjob, self.hlm2dlm(hlm, False), None)
         if not np.all(((1. - k) ** 2 - g1 ** 2 - g2 ** 2) > 0.):
             ii = np.where((1. - k) ** 2 - g1 ** 2 - g2 ** 2  <= 0.)[0]
-            print("******* ensure_invertibility: %s starting point pixels looks weird, cant tell whether the procedure will make sense"%len(ii))
+            log.warning("******* ensure_invertibility: %s starting point pixels looks weird, cant tell whether the procedure will make sense"%len(ii))
         kd, (g1d, g2d), wd = utils_dlm.dlm2kggo(scjob, self.hlm2dlm(incr_hlm, False), None)
         steps = np.ones_like(k)
         M = lambda pixs: (1. - k[pixs] - steps[pixs] * kd[pixs]) ** 2 - (g1[pixs] + steps[pixs] * g1d[pixs]) ** 2 - (g2[pixs] + steps[pixs] * g2d[pixs]) ** 2
@@ -374,9 +412,9 @@ class qlm_iterator(object):
                 steps[pix[ii]] *= 0.5
                 i += 1
             if i < imax:
-                print("check_invert: reduced steps on %s pixel(s) by a factor %s " % (len(ii), 2 ** i))
+                log.info("check_invert: reduced steps on %s pixel(s) by a factor %s " % (len(ii), 2 ** i))
             else: # changing sign of step
-                print("Trying to invert step sign on %s pixel(s)"%(len(ii)))
+                log.info("Trying to invert step sign on %s pixel(s)"%(len(ii)))
                 i = 0
                 steps[pix[ii]] = - 2 ** (-5)
                 imax = 5
@@ -385,7 +423,7 @@ class qlm_iterator(object):
                     steps[pix[ii]] *= 2.
                     i +=1
             if i < imax:
-                print("check_invert: inverted steps on %s pixel(s) by a factor %s " % (len(ii), 2 ** i))
+                log.info("check_invert: inverted steps on %s pixel(s) by a factor %s " % (len(ii), 2 ** i))
 
         del k, g1, g2, g1d, g2d
         lmax = Alm.getlmax(incr_hlm.size, mmax_dlm)
@@ -401,6 +439,8 @@ class qlm_iterator(object):
         almxfl(ret, cli(h2k), mmax_dlm, True)
         return ret
 
+    @log_on_start(logging.INFO, "iterate() started: it={itr}, key={key}")
+    @log_on_end(logging.INFO, "iterate() finished: it={itr}, key={key}")
     def iterate(self, itr, key):
         """Performs iteration number 'itr'
 
@@ -424,6 +464,8 @@ class qlm_iterator(object):
                     shutil.rmtree(opj(self.lib_dir, 'ffi_%s_it%s'%(key, itr)))
 
 
+    @log_on_start(logging.INFO, "calc_gradlik() started: it={itr}, key={key}")
+    @log_on_end(logging.INFO, "calc_gradlik() finished: it={itr}, key={key}")
     def calc_gradlik(self, itr, key, iwantit=False):
         """Computes the quadratic part of the gradient for plm iteration 'itr'
 
@@ -440,7 +482,7 @@ class qlm_iterator(object):
             mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.filter)
             if self._usethisE is not None:
                 if callable(self._usethisE):
-                    print("iterator: using custom WF E")
+                    log.info("iterator: using custom WF E")
                     soltn = self._usethisE(self.filter, itr)
                 else:
                     assert 0, 'dont know what to do this with this E input'
@@ -451,24 +493,27 @@ class qlm_iterator(object):
                     assert soltn.ndim == 1, 'Fix following lines'
                     mchain.solve(soltn, self.dat_maps, dot_op=self.filter.dot_op())
                     fn_wf = 'wflm_%s_it%s' % (key.lower(), itr - 1)
-                    print("caching "  + fn_wf)
+                    log.info("caching "  + fn_wf)
                     self.wf_cacher.cache(fn_wf, soltn)
                 else:
-                    print("Using cached WF solution at iter %s "%itr)
+                    log.info("Using cached WF solution at iter %s "%itr)
 
             t0 = time.time()
             q_geom = pbdGeometry(self.k_geom, pbounds(0., 2 * np.pi))
             G, C = self.filter.get_qlms(self.dat_maps, soltn, q_geom)
             almxfl(G if key.lower() == 'p' else C, self._h2p(self.lmax_qlm), self.mmax_qlm, True)
-            print('get_qlms calculation done; (%.0f secs)'%(time.time() - t0))
+            log.info('get_qlms calculation done; (%.0f secs)'%(time.time() - t0))
             if itr == 1: #We need the gradient at 0 and the yk's to be able to rebuild all gradients
                 fn_lik = '%slm_grad%slik_it%03d' % (self.h, key.lower(), 0)
                 self.cacher.cache(fn_lik, -G if key.lower() == 'p' else -C)
             return -G if key.lower() == 'p' else -C
 
+    @log_on_start(logging.INFO, "calc_graddet() started: it={itr}, key={key}. subclassed")
+    @log_on_end(logging.INFO, "calc_graddet() finished: it={itr}, key={key}. subclassed")
     def calc_graddet(self, itr, key):
         assert 0, 'subclass this'
 
+       
 class iterator_cstmf(qlm_iterator):
     """Constant mean-field
 
@@ -482,13 +527,19 @@ class iterator_cstmf(qlm_iterator):
         super(iterator_cstmf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
                                              ninv_filt, k_geom, chain_descr, stepper, **kwargs)
         assert self.lmax_qlm == Alm.getlmax(mf0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(mf0.size, self.lmax_qlm))
-        self.cacher.cache('mf', almxfl(mf0,  self._h2p(self.lmax_qlm), self.mmax_qlm, False))
+        self.cacher.cache('mf', almxfl(mf0, self._h2p(self.lmax_qlm), self.mmax_qlm, False))
 
+
+    @log_on_start(logging.INFO, "load_graddet() started: it={k}, key={key}")
+    @log_on_end(logging.INFO, "load_graddet() finished: it={k}, key={key}")
     def load_graddet(self, k, key):
         return self.cacher.load('mf')
 
+    @log_on_start(logging.INFO, "calc_graddet() started: it={k}, key={key}")
+    @log_on_end(logging.INFO, "calc_graddet() finished: it={k}, key={key}")
     def calc_graddet(self, k, key):
         return self.cacher.load('mf')
+
 
 class iterator_pertmf(qlm_iterator):
     """Mean field isotropic response applied to current estimate
@@ -504,11 +555,13 @@ class iterator_pertmf(qlm_iterator):
         super(iterator_pertmf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
                                              ninv_filt, k_geom, chain_descr, stepper, **kwargs)
         assert mf_resp.ndim == 1 and mf_resp.size > self.lmax_qlm, mf_resp.shape
-        if mf0 is not None:
+        if mf0 is not None: 
             assert self.lmax_qlm == Alm.getlmax(mf0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(mf0.size, self.lmax_qlm))
-            self.cacher.cache('mf', almxfl(mf0,  self._h2p(self.lmax_qlm), self.mmax_qlm, False))
+            self.cacher.cache('mf', almxfl(mf0, self._h2p(self.lmax_qlm), self.mmax_qlm, False))
         self.p_mf_resp = mf_resp
 
+    @log_on_start(logging.INFO, "load_graddet() started: it={itr}, key={key}")
+    @log_on_end(logging.INFO, "load_graddet() finished: it={itr}, key={key}")
     def load_graddet(self, itr, key):
         assert self.h == 'p', 'check this line is ok for other h'
         mf = almxfl(self.get_hlm(itr - 1, key), self.p_mf_resp * self._h2p(self.lmax_qlm), self.mmax_qlm, False)
@@ -516,6 +569,8 @@ class iterator_pertmf(qlm_iterator):
             mf += self.cacher.load('mf')
         return mf
 
+    @log_on_start(logging.INFO, "calc_graddet() started: it={itr}, key={key}")
+    @log_on_end(logging.INFO, "calc_graddet() finished: it={itr}, key={key}")
     def calc_graddet(self, itr, key):
         assert self.h == 'p', 'check this line is ok for other h'
         mf = almxfl(self.get_hlm(itr - 1, key), self.p_mf_resp * self._h2p(self.lmax_qlm), self.mmax_qlm, False)
@@ -539,6 +594,8 @@ class iterator_simf(qlm_iterator):
         self.mf_key = mf_key
 
 
+    @log_on_start(logging.INFO, "calc_graddet() started: it={itr}, key={key}")
+    @log_on_end(logging.INFO, "calc_graddet() finished: it={itr}, key={key}")
     def calc_graddet(self, itr, key):
         assert self.is_iter_done(itr - 1, key)
         assert itr > 0, itr
@@ -552,7 +609,7 @@ class iterator_simf(qlm_iterator):
         q_geom = pbdGeometry(self.k_geom, pbounds(0., 2 * np.pi))
         G, C = self.filter.get_qlms_mf(self.mf_key, q_geom, mchain, cls_filt=self.cls_filt)
         almxfl(G if key.lower() == 'p' else C, self._h2p(self.lmax_qlm), self.mmax_qlm, True)
-        print('get_qlm_mf calculation done; (%.0f secs)' % (time.time() - t0))
+        log.info('get_qlm_mf calculation done; (%.0f secs)' % (time.time() - t0))
         if itr == 1:  # We need the gradient at 0 and the yk's to be able to rebuild all gradients
             fn_lik = '%slm_grad%sdet_it%03d' % (self.h, key.lower(), 0)
             self.cacher.cache(fn_lik, -G if key.lower() == 'p' else -C)
@@ -576,7 +633,7 @@ class iterator_cstmf_bfgs0(iterator_cstmf):
         s0_fname = 'rlm_sn_%s_%s' % (0, 'p')
         if not self.hess_cacher.is_cached(s0_fname):  # Caching Hessian BFGS yk update :
             self.hess_cacher.cache(s0_fname, alm2rlm(plm0))
-            print("Cached " + s0_fname)
+            log.info("Cached " + s0_fname)
 
     def get_hessian(self, k, key):
         """
@@ -594,6 +651,9 @@ class iterator_cstmf_bfgs0(iterator_cstmf):
             BFGS_H.add_ys('rlm_yn_%s_%s.npy' % (k_, key), 'rlm_sn_%s_%s.npy' % (k_, key), k_)
         return BFGS_H
 
+
+    @log_on_start(logging.INFO, "build_incr() started: it={it}, key={key}")
+    @log_on_end(logging.INFO, "build_incr() finished: it={it}, key={key}")
     def build_incr(self, it, key, gradn):
         assert it > 0, it
         k = it - 1
@@ -610,10 +670,12 @@ class iterator_cstmf_bfgs0(iterator_cstmf):
         # get descent direction sk = - H_k gk : (rlm array). Will be cached directly
         sk_fname = 'rlm_sn_%s_%s' % (k + 1, key)
         if not self.hess_cacher.is_cached(sk_fname):
-            print("rank calculating descent direction")
+            log.info("calculating descent direction")
             t0 = time.time()
             incr = BFGS.get_mHkgk(alm2rlm(gradn), k + 1)
             incr = alm2rlm(self.ensure_invertibility(self.get_hlm(it - 1, key), self.stepper.build_incr(incr, it), self.mmax_qlm))
             self.hess_cacher.cache(sk_fname, incr)
             prt_time(time.time() - t0, label=' Exec. time for descent direction calculation')
         assert self.hess_cacher.is_cached(sk_fname), sk_fname
+
+# TODO add visitor pattern if desired

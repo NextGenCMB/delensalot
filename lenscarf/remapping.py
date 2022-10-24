@@ -3,6 +3,10 @@ from __future__ import annotations
 import time
 import numpy as np
 
+import logging
+log = logging.getLogger(__name__)
+from logdecorator import log_on_start, log_on_end
+
 from lenscarf.skypatch import skypatch
 from lenscarf import interpolators as itp
 from lenscarf.utils_remapping import d2ang, ang2d
@@ -44,7 +48,7 @@ class deflection:
             s2_d += np.sum(alm2cl(dclm, dclm, lmax, mmax_dlm, lmax) * (2 * np.arange(lmax + 1) + 1) ) / (4 * np.pi)
         sig_d = np.sqrt(s2_d)
         assert sig_d < 0.01, ('deflection std is %.2e: this is really too high a value for something sensible'%sig_d)
-        print(" Deflection std %.2e amin"%(sig_d / np.pi * 180 * 60))
+        log.info(" Deflection std %.2e amin"%(sig_d / np.pi * 180 * 60))
         self.sig_d = sig_d
         self.dlm = dglm
         self.dclm = dclm
@@ -223,7 +227,7 @@ class deflection:
                 sli = slice(starts[i], starts[i + 1])
                 bwdang[:, sli] = d2ang(redi[sli], imdi[sli], thts[sli], phis[sli], vt)
             self.cacher.cache(fn, bwdang)
-            print('bwd angles calc, %.2e secs'%(time.time() - t0))
+            log.info('bwd angles calc, %.2e secs'%(time.time() - t0))
             self.tim.add('bwd angles (full map)')
             return bwdang
         return self.cacher.load(fn)

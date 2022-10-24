@@ -10,17 +10,18 @@ from lenscarf.remapping import deflection
 aberration_lbv_ffp10 = (264. * (np.pi / 180), 48.26 * (np.pi / 180), 0.001234)
 
 class cmb_len_ffp10:
-    def __init__(self, aberration:tuple[float, float, float]or None=None, lmin_dlm=None, cacher:cachers.cacher or None=None,
-                       lmax_thingauss:int=5120, nbands:int=1, verbose:bool=False):
-        """FFP10 lensed cmbs, lensed with independent lenscarf code on thingauss geometry
+    def __init__(self, aberration:tuple[float, float, float]or None=None, lmin_dlm=0, cacher:cachers.cacher or None=None,
+                       lmax_thingauss:int=5120, nbands:int=1, targetres=0.75, verbose:bool=False):
 
+        """FFP10 lensed cmbs, lensed with independent lenscarf code on thingauss geometry
 
             Args:
                 aberration: aberration parameters (gal. longitude (rad), latitude (rad) and v/c) Defaults to FFP10 values
                 lmin_dlm: Set to zero the deflection field for L<lmin_dlm
                 cacher: set this to one of lenscarf.cachers in order save maps (nothing saved by default)
                 nbands: if set splits the sky into bands to perform the operations (saves some memory but probably a bit slower)
-
+                targetres: main accuracy parameter; target resolution in arcmin to perform the deflection operation.
+                           make this smaller for more accurate interpolation
 
         """
         #FIXME: change the hashkey to get the aberration and the lmin_dlm also ?
@@ -41,7 +42,7 @@ class cmb_len_ffp10:
         self.lmax_thingauss = lmax_thingauss
         self.lmin_dlm = lmin_dlm
 
-        self.targetres = 0.75  # Main accuracy parameter. This crudely matches the FFP10 pipeline's
+        self.targetres = targetres  # Main accuracy parameter. This crudely matches the FFP10 pipeline's
 
         zls, zus = self._mkbands(nbands)
         # By construction the central one covers the equator
@@ -90,7 +91,7 @@ class cmb_len_ffp10:
         return zl, zu
 
     def hashdict(self):
-        return {'sims':'ffp10', 'tres':self.targetres, 'lmaxGL':self.lmax_thingauss}
+        return {'sims':'ffp10', 'tres':self.targetres, 'lmaxGL':self.lmax_thingauss, 'lmin_dlm':self.lmin_dlm}
 
     def _get_dlm(self, idx):
         dlm = cmb_unl_ffp10.get_sim_plm(idx)
@@ -98,9 +99,10 @@ class cmb_len_ffp10:
         mmax_dlm = lmax_dlm
         dlm[utils_hp.Alm.getidx(lmax_dlm, 1, 0)] += self.delta_vlm[1] # LM=10 aberration
         dlm[utils_hp.Alm.getidx(lmax_dlm, 1, 1)] += self.delta_vlm[2] # LM = 11
-        p2d = np.sqrt(np.arange(lmax_dlm + 1) * np.arange(1, lmax_dlm + 2)) 
-        if self.lmin_dlm is not None:
-            p2d[:self.lmin_dlm] = 0
+
+        p2d = np.sqrt(np.arange(lmax_dlm + 1) * np.arange(1, lmax_dlm + 2))
+        p2d[:self.lmin_dlm] = 0
+
         utils_hp.almxfl(dlm, p2d, mmax_dlm, inplace=True)
         return dlm, lmax_dlm, mmax_dlm
 

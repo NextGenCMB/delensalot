@@ -1,3 +1,7 @@
+import logging
+log = logging.getLogger(__name__)
+from logdecorator import log_on_start, log_on_end
+
 from lenscarf import remapping
 from lenscarf.utils_scarf import Geom, scarfjob
 import numpy as np
@@ -23,12 +27,12 @@ def exactpixel_solver(defl:remapping.deflection, ir:int, ip:int):
     sc_job_pixel.set_pixel_geometry(tht, phi)
     sc_job_check.set_ecp_geometry(2, 2, tbounds=(tht, np.pi))
 
-    print('thetaphi', tht, phi,  Geom.phis(sc_job_pixel.geom, 0))
+    log.info('thetaphi', tht, phi,  Geom.phis(sc_job_pixel.geom, 0))
     phis = np.array([phi])
     TOLAMIN =1e-10
     redi, imdi = -sc_job_pixel.alm2map_spin(dclm, 1)[:,0:1]
     redcheck, imdcheck = -sc_job_check.alm2map_spin(dclm, 1)
-    print(redi[0], imdi[0], redcheck[0], imdcheck[0])
+    log.info(redi[0], imdi[0], redcheck[0], imdcheck[0])
 
     maxres = 10.
     itr = 0
@@ -46,8 +50,8 @@ def exactpixel_solver(defl:remapping.deflection, ir:int, ip:int):
             maxres = np.max(np.sqrt(re_res * re_res + im_res * im_res))
             redi = redi - re_res
             imdi = imdi - im_res
-            print(maxres / np.pi * 180 * 60, sc_job_pixel.geom.theta, Geom.phis(sc_job_pixel.geom, 0))
-    print(itr, ITRMAX, maxres / np.pi * 180 * 60)
+            log.info(maxres / np.pi * 180 * 60, sc_job_pixel.geom.theta, Geom.phis(sc_job_pixel.geom, 0))
+    log.info(itr, ITRMAX, maxres / np.pi * 180 * 60)
     return redi, imdi
 
 def fortran_ecp_solver(defl:remapping.deflection, ir, ip=None):
@@ -62,14 +66,14 @@ def fortran_ecp_solver(defl:remapping.deflection, ir, ip=None):
     if ip is not None:
         assert np.isscalar(ip)
         phis = np.array([phis[ip]])
-        print('thetaphi', tht, phis)
+        log.info('thetaphi', tht, phis)
 
     thts = defl.geom.get_theta(ir) * np.ones(phis.size)
     TOLAMIN =1e-10
     ft = (thts - tht0) * t2grid
     fp = (phis - phi0) %(2. *np.pi) * p2grid
     redi, imdi = -np.array(defl.d1.eval_ongrid(ft, fp))
-    print(redi[0], imdi[0])
+    log.info(redi[0], imdi[0])
 
     maxres = 10.
     itr = 0
@@ -88,7 +92,7 @@ def fortran_ecp_solver(defl:remapping.deflection, ir, ip=None):
             maxres = np.max(res)
             redi = redi - re_res
             imdi = imdi - im_res
-            print(maxres / np.pi * 180 * 60, 'pixel index ' + str(np.argmax(res)))
-    print(itr, ITRMAX, maxres / np.pi * 180 * 60)
+            log.info(maxres / np.pi * 180 * 60, 'pixel index ' + str(np.argmax(res)))
+    log.info(itr, ITRMAX, maxres / np.pi * 180 * 60)
     return redi, imdi
 
