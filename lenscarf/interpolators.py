@@ -21,10 +21,8 @@ class bicubic_ecp_interpolator:
             patch: skypatch instance defining the region boundaries and sampling resolution
             sht_threads: numbers of OMP threads to perform shts with (scarf / ducc)
             fftw_threads: numbers of threads for FFT's
-            fftw_flags: fftw planning flags (see pyfftw doc and note below)
             ns_symmetrize: if set, will also interpolate the patch symmetric wrt the equator
                             (can be used to speed up SHTs)
-
 
         Note:
             The first and last pixels (of the first dimension) match the input colatitude bounds exactly
@@ -32,15 +30,11 @@ class bicubic_ecp_interpolator:
 
 
         Note:
-            On first instantiation pyfftw might spend some extra time calculating a FFT plan. This depends on fftw_flags.
-            A rule of thumb might be to use ('FFTW_ESTIMATE',) if this instance is going to be used only a few times,
-            in which case no time is spent on the planning, and ('FFTW_MEASURE',) if this interpolator is going to be used again and again.
-            This typically leads to ~30 sec planning time for twice faster transforms in many configurations
+            On first instantiation pyfftw spends some extra time calculating a FFT plan
 
 
     """
-    def __init__(self, spin:int, gclm:np.ndarray or list, mmax:int or None, patch:skypatch, sht_threads:int,
-                 fftw_threads:int, fftw_flags=('FFTW_ESTIMATE',),
+    def __init__(self, spin:int, gclm:np.ndarray or list, mmax:int or None, patch:skypatch, sht_threads:int, fftw_threads:int,
                  verbose=False, ns_symmetrize=False):
         # Defines latitude grid from input bounds:
         assert spin >= 0, spin
@@ -104,8 +98,8 @@ class bicubic_ecp_interpolator:
 
             f = pyfftw.empty_aligned(ecp_m_resized.shape, dtype=ftype)
             tmp = pyfftw.empty_aligned(tmp_shape, dtype=complex)
-            fft2 = pyfftw.FFTW(f, tmp, axes=(0, 1), direction='FFTW_FORWARD', threads=fftw_threads, flags=fftw_flags)
-            ifft2 = pyfftw.FFTW(tmp, f, axes=(0, 1), direction='FFTW_BACKWARD', threads=fftw_threads, flags=fftw_flags)
+            fft2 = pyfftw.FFTW(f, tmp, axes=(0, 1), direction='FFTW_FORWARD', threads=fftw_threads)
+            ifft2 = pyfftw.FFTW(tmp, f, axes=(0, 1), direction='FFTW_BACKWARD', threads=fftw_threads)
             tim.add('fftw planning')
 
             fft2(pyfftw.byte_align(ecp_m_resized))
@@ -125,7 +119,7 @@ class bicubic_ecp_interpolator:
         phir_min = imin * 2 * np.pi / ecp_nph
         phir_max = imax * 2 * np.pi / ecp_nph
 
-        # do I need all this stuff?
+        #FIXME: do I need all this stuff?
         self._phir_min = phir_min
         self._phir_max = phir_max
         self._ecp_pctr = patch.pbounds[0]

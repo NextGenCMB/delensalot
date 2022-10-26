@@ -3,7 +3,7 @@ import matplotlib.pyplot as pl
 import numpy as np 
 
 
-def set_mpl(usetex=True):
+def set_mpl():
     mpl.rcParams['axes.labelsize'] = 20
     mpl.rcParams['font.size'] = 20
     # mpl.rcParams['figure.figsize'] = 6.4, 4.8
@@ -11,11 +11,10 @@ def set_mpl(usetex=True):
 
     mpl.rcParams['mathtext.fontset'] = 'cm'
     mpl.rcParams['mathtext.rm'] = 'serif'
-    mpl.rc('legend', fontsize=15)
+    mpl.rc('text', usetex=True)
+    # mpl.rcParams['text.latex.preamble'] = [r"\usepackage{amsmath}"]
     mpl.rcParams['errorbar.capsize'] = 4
-    if usetex:
-        mpl.rc('text', usetex=True)
-        mpl.rcParams['text.latex.preamble'] = [r"\usepackage{amsmath}"]
+    mpl.rc('legend', fontsize=15)
 
 
 def pp2kk(ls):
@@ -27,11 +26,10 @@ def pp2kk(ls):
     return ls**2*(ls+1)**2/4
 
 
-def plot_bnd(bndcl, ax=None, marker=None, *argv, **kwargs):
+def plot_bnd(bndcl, ax=None, *argv, **kwargs):
     if ax is None:
         ax = pl.gca()
-    if marker is None: marker = '.'
-    p = ax.errorbar(bndcl[0], bndcl[1], yerr=bndcl[2], ls='', marker=marker,  *argv, **kwargs)
+    p = ax.errorbar(bndcl[0], bndcl[1], yerr=bndcl[2], *argv, **kwargs)
     return p
 
 
