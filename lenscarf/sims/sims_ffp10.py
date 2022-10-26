@@ -10,24 +10,28 @@ from lenscarf.remapping import deflection
 aberration_lbv_ffp10 = (264. * (np.pi / 180), 48.26 * (np.pi / 180), 0.001234)
 
 class cmb_len_ffp10:
-    def __init__(self, aberration:tuple[float, float, float]=aberration_lbv_ffp10,cacher:cachers.cacher or None=None,
-                       lmax_thingauss:int=5120, nbands:int=1, verbose:bool=False):
-        """FFP10 lensed cmbs, lensed with independent lenscarf code on thingauss geometry
+    def __init__(self, aberration:tuple[float, float, float]or None=None, lmin_dlm=0, cacher:cachers.cacher or None=None,
+                       lmax_thingauss:int=5120, nbands:int=1, targetres=0.75, verbose:bool=False):
 
+        """FFP10 lensed cmbs, lensed with independent lenscarf code on thingauss geometry
 
             Args:
                 aberration: aberration parameters (gal. longitude (rad), latitude (rad) and v/c) Defaults to FFP10 values
+                lmin_dlm: Set to zero the deflection field for L<lmin_dlm
                 cacher: set this to one of lenscarf.cachers in order save maps (nothing saved by default)
                 nbands: if set splits the sky into bands to perform the operations (saves some memory but probably a bit slower)
-
-            Note: (FIXME)
-                 The calculation of the FFT plans by FFTW can totally dominate if doing only very few remappings in the same session
+                targetres: main accuracy parameter; target resolution in arcmin to perform the deflection operation.
+                           make this smaller for more accurate interpolation
 
         """
+        #FIXME: change the hashkey to get the aberration and the lmin_dlm also ?
+
         nbands = int(nbands + (1 - int(nbands)%2))  # want an odd number to avoid a split just on the equator
         assert nbands <= 10, 'did not check'
         if cacher is None:
             cacher = cachers.cacher_none() # This cacher saves nothing
+        if aberration is None:
+            aberration = aberration_lbv_ffp10
         self.cacher = cacher
 
         self.fft_tr = int(os.environ.get('OMP_NUM_THREADS', 1))
@@ -36,8 +40,9 @@ class cmb_len_ffp10:
         self.lmax_len = 4096 # FFP10 lensed CMBs were designed for this lmax
         self.mmax_len = 4096
         self.lmax_thingauss = lmax_thingauss
+        self.lmin_dlm = lmin_dlm
 
-        self.targetres = 0.75  # Main accuracy parameter. This crudely matches the FFP10 pipeline's
+        self.targetres = targetres  # Main accuracy parameter. This crudely matches the FFP10 pipeline's
 
         zls, zus = self._mkbands(nbands)
         # By construction the central one covers the equator
@@ -58,13 +63,17 @@ class cmb_len_ffp10:
 
         # aberration: we must add the difference to the FFP10 aberration
         l, b, v = aberration
-        l_ffp10, b_ffp10, v_ffp10 = aberration
+        l_ffp10, b_ffp10, v_ffp10 = aberration_lbv_ffp10
 
         # \phi_{10} = - \sqrt{4\pi/3} n_z
         # \phi_{11} = + \sqrt{4\pi / 3} \frac{(n_x - i n_y)}{\sqrt{2}}
         vlm = np.array([0., np.cos(b), - np.exp(-1j * l) * np.sin(b) / np.sqrt(2.)])  # LM = 00, 10 and 11
         vlm_ffp10 = np.array([0., np.cos(b_ffp10), - np.exp(-1j * l_ffp10) * np.sin(b_ffp10) / np.sqrt(2.)])
-        self.vlm = (vlm - vlm_ffp10) * (-v * np.sqrt(4 * np.pi / 3))
+        vlm       *= (-v * np.sqrt(4 * np.pi / 3))
+        vlm_ffp10 *= (-v_ffp10 * np.sqrt(4 * np.pi / 3))
+        self.delta_vlm = vlm - vlm_ffp10
+        if verbose:
+            print("Input aberration power %.3e"%(utils_hp.alm2cl(vlm, vlm, 1, 1, 1)[1]))
         self.verbose = verbose
 
     @staticmethod
@@ -81,12 +90,19 @@ class cmb_len_ffp10:
         zu[-1] = 1.
         return zl, zu
 
+    def hashdict(self):
+        return {'sims':'ffp10', 'tres':self.targetres, 'lmaxGL':self.lmax_thingauss, 'lmin_dlm':self.lmin_dlm}
+
     def _get_dlm(self, idx):
         dlm = cmb_unl_ffp10.get_sim_plm(idx)
-        dlm[:len(self.vlm)] += self.vlm # aberration
         lmax_dlm = utils_hp.Alm.getlmax(dlm.size, -1)
         mmax_dlm = lmax_dlm
+        dlm[utils_hp.Alm.getidx(lmax_dlm, 1, 0)] += self.delta_vlm[1] # LM=10 aberration
+        dlm[utils_hp.Alm.getidx(lmax_dlm, 1, 1)] += self.delta_vlm[2] # LM = 11
+
         p2d = np.sqrt(np.arange(lmax_dlm + 1) * np.arange(1, lmax_dlm + 2))
+        p2d[:self.lmin_dlm] = 0
+
         utils_hp.almxfl(dlm, p2d, mmax_dlm, inplace=True)
         return dlm, lmax_dlm, mmax_dlm
 
