@@ -51,8 +51,7 @@ lenjob_geometry = utils_scarf.Geom.get_thingauss_geometry(lmax_unl, 2, zbounds=z
 lenjob_pbgeometry = utils_scarf.pbdGeometry(lenjob_geometry, utils_scarf.pbounds(pb_ctr, pb_extent))
 lensres = 1.7  # Deflection operations will be performed at this resolution
 Lmin = 2 # The reconstruction of all lensing multipoles below that will not be attempted
-# stepper = steps.nrstep(lmax_qlm, mmax_qlm, val=0.5) # handler of the size steps in the MAP BFGS iterative search
-stepper = steps.harmonicbump(lmax_qlm, mmax_qlm) # here we use a scale dependent step, to get to convergence after iteration 15
+stepper = steps.nrstep(lmax_qlm, mmax_qlm, val=0.5) # handler of the size steps in the MAP BFGS iterative search
 mc_sims_mf_it0 = np.arange(320) # sims to use to build the very first iteration mean-field (QE mean-field)
 
 # TODO define one simulation to get the index -1 to be the data ? 
@@ -103,14 +102,7 @@ sims_MAP  = utils_sims.ztrunc_sims(sims, nside, [zbounds])
 
 # List of paths to masks that will be multiplied together to give the total mask
 # Here we use the same in Pol and T, though that would not be necessary
-# project_dir = os.environ['CFS']
-# masks = [opj(project_dir, 'cmb/data/planck2018/pr3/Planck_L08_inputs/PR3vJan18_temp_lensingmask_gPR2_70_psPR2_143_COT2_smicadx12_smicapoldx12_psPR2_217_sz.fits.gz')]
-
-assert 'NERSC_HOST' in os.environ.keys(), "Can run only at Nersc"
-if os.environ['NERSC_HOST'] == 'cori':
-    masks = ['/project/projectdirs/cmb/data/planck2018/pr3/Planck_L08_inputs/PR3vJan18_temp_lensingmask_gPR2_70_psPR2_143_COT2_smicadx12_smicapoldx12_psPR2_217_sz.fits.gz']
-elif os.environ['NERSC_HOST'] == 'perlmutter':
-    masks = [os.environ["CFS"] + '/cmb/data/planck2018/pr3/Planck_L08_inputs/PR3vJan18_temp_lensingmask_gPR2_70_psPR2_143_COT2_smicadx12_smicapoldx12_psPR2_217_sz.fits.gz']
+masks = ['/project/projectdirs/cmb/data/planck2018/pr3/Planck_L08_inputs/PR3vJan18_temp_lensingmask_gPR2_70_psPR2_143_COT2_smicadx12_smicapoldx12_psPR2_217_sz.fits.gz']
 
 
 # List of the inverse noise pixel variance maps, all will be multiplied together
