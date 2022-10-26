@@ -556,7 +556,7 @@ class cpp_sims_lib:
         Returns:
             RDN0: Normalized realisation dependent bias of Cpp MAP
         """
-        rdn0, kds, kss = self.load_rdn0_map(idx, itr, mcs, Nroll)
+        rdn0, _, _ = self.load_rdn0_map(idx, itr, mcs, Nroll)
         # assert self.itmax == 15, "Need to check if the exported RDN0 correspond to the same iteration as the Cpp MAP" 
         # Fixme  maybe not relevant if everything is converged ?
         RDN0 = rdn0[:self.lmax_qlm+1]
@@ -591,21 +591,32 @@ class cpp_sims_lib:
             GG *= utils.cli(resp_qe[:self.lmax_qlm+1])**2
         return GG
 
-    def get_rdn0_qe(self, datidx, Ndatasims, Nmcsims, Nroll):
+    def get_rdn0_qe(self, datidx, Ndatasims=40, Nmcsims=100, Nroll=10):
         """Returns unnormalised realization-dependent N0 lensing bias RDN0.
+        To get the RDN0, we use sims with no overlap with the sims that are used as "data"
+        i.e, we need to define the sims that are used for data, comprised bewteen idx=0 and idx=Ndatasims-1
+        and the sims between idx=Ndatasims and idx=Ndatasims + Nmcsims -1 will be used to get the RDN0 estimate.
+
+        Args:
+            datidx: index of simulation 
+            Ndatasims: sims with index between 0 and Ndatasims-1 are not considered to get the rdn0
+            Nmcsims: sims with index between Ndatasims and Ndatasims + Nmcsims -1 are used to get the rdno
+            Nroll: the allocation of i, j sims is done with j = i+1, by batches of Nroll 
 
         """
+        assert datidx < Ndatasims or datidx > Ndatasims+Nmcsims-1, "Do not estimate the RDN0 for a simulation inside the set of sims used for the RDN0"
         fn_dir = rdn0_cs.output_sim(self.k, self.param.suffix, datidx)
         mcs = np.arange(Ndatasims, Nmcsims+Ndatasims)
         fn = os.path.join(fn_dir, rdn0_cs.fn_cls_dsss(0, mcs, Nroll))
+        print(fn)
         if not os.path.exists(fn):
             print("Running RDN0 estimate for datidx {} with {} {} {}".format(datidx, Ndatasims, Nmcsims, Nroll))
             rdn0_cs.get_rdn0_qe(self.param, datidx, self.k,  Ndatasims, Nmcsims, Nroll, version=self.version)
             
-        rdn0 = np.loadtxt(fn).transpose()
+        rdn0, ds, ss = np.loadtxt(fn).transpose()
         lmax = len(rdn0)-1
         pp2kk = 0.25 * np.arange(lmax + 1)** 2 * (np.arange(1, lmax + 2) ** 2) * 1e7
-        return rdn0 * pp2kk
+        return rdn0 * pp2kk, ds*pp2kk, ss*pp2kk
 
 
 

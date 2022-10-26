@@ -129,6 +129,7 @@ def get_rdn0_qe(param, datidx, qe_key,  Ndatasims, Nmcsims, Nroll, version=''):
         os.makedirs(fn_dir)
 
     fn = os.path.join(fn_dir, fn_cls_dsss(0, mcs, Nroll))
+    # print(fn)
     if not os.path.exists(fn):
         print(fn)
         ivfs_d = filt_util.library_shuffle(param.ivfs, ds_dict)
@@ -153,9 +154,11 @@ def get_rdn0_qe(param, datidx, qe_key,  Ndatasims, Nmcsims, Nroll, version=''):
         rdn0 = 4*ds - 2*ss
         lmax = len(rdn0) - 1
         pp2kki = cli(0.25 * np.arange(lmax + 1)** 2 * (np.arange(1, lmax + 2) ** 2) * 1e7)
-        header = 'QE kappa unnormalized rdn0 (4ds - 2ss)'
+
+        arr = np.array([rdn0*pp2kki, ds*pp2kki, ss*pp2kki])
+        header = 'QE kappa unnormalized rdn0 (4ds - 2ss), ds, ss'
         header += '\n' + 'Raw phi-based spec obtained by 1/4 L^2 (L + 1)^7 * 1e7 times this   (ds ss is response-like)'
-        np.savetxt(fn, rdn0 * pp2kki, header=header)
+        np.savetxt(fn, arr.T, header=header)
     return 
 
 
