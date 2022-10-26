@@ -32,7 +32,6 @@ from plancklens.qcinv import multigrid
 import scarf
 from lenscarf.utils import cli, read_map
 from lenscarf.utils_hp import Alm, almxfl, alm2cl
-from lenscarf import utils_qe
 from lenscarf.utils_scarf import scarfjob, pbdGeometry, pbounds
 from lenscarf import utils_dlm
 
@@ -194,8 +193,7 @@ class qlm_iterator(object):
 
     @log_on_start(logging.INFO, "get_template_blm() started: it={it}, calc={calc}")
     @log_on_end(logging.INFO, "get_template_blm() finished: it={it}")
-    def get_template_blm(self, it, it_e, lmaxb=1024, lmin_plm=1, elm_wf:None or np.ndarray=None, dlm_mod=None, calc=False, Nmf=None,
-                         perturbative=False):
+    def get_template_blm(self, it, it_e, lmaxb=1024, lmin_plm=1, elm_wf:None or np.ndarray=None, dlm_mod=None, calc=False, Nmf=None):
         """Builds a template B-mode map with the iterated phi and input elm_wf
 
             Args:
@@ -204,7 +202,6 @@ class qlm_iterator(object):
                 elm_wf: Wiener-filtered E-mode (healpy alm array), if not an iterated solution (it_e will ignored if set)
                 lmin_plm: the lensing tracer is zeroed below lmin_plm
                 lmaxb: the B-template is calculated up to lmaxb (defaults to lmax elm_wf)
-                perturbative: use pertubative instead of full remapping if set (may be useful for QE)
 
             Returns:
                 blm healpy array
@@ -224,7 +221,6 @@ class qlm_iterator(object):
         else:
             dlm_mod_string += "{:03d}".format(Nmf)
         fn = 'btempl_p%03d_e%03d_lmax%s%s' % (it, it_e, lmaxb, dlm_mod_string)
-        fn += 'perturbative' * perturbative
         if not calc:
             if self.wf_cacher.is_cached(fn):
                 return self.wf_cacher.load(fn)
@@ -246,18 +242,8 @@ class qlm_iterator(object):
             dlm -= dlm_mod
         self.hlm2dlm(dlm, inplace=True)
         almxfl(dlm, np.arange(self.lmax_qlm + 1, dtype=int) >= lmin_plm, self.mmax_qlm, True)
-        if perturbative: # Applies perturbative remapping
-            get_alm = lambda a: elm_wf if a == 'e' else np.zeros_like(elm_wf)
-            geom, sht_tr = self.filter.ffi.geom, self.filter.ffi.sht_tr
-            d1 = geom.alm2map_spin([dlm, np.zeros_like(dlm)], 1, self.lmax_qlm, self.mmax_qlm, sht_tr, [-1., 1.])
-            dp = utils_qe.qeleg_multi([2], +3, [utils_qe.get_spin_raise(2, self.lmax_filt)])(get_alm, geom, sht_tr)
-            dm = utils_qe.qeleg_multi([2], +1, [utils_qe.get_spin_lower(2, self.lmax_filt)])(get_alm, geom, sht_tr)
-            dlens = -0.5 * ((d1[0] - 1j * d1[1]) * dp + (d1[0] + 1j * d1[1]) * dm)
-            del dp, dm, d1
-            elm, blm = geom.map2alm_spin([dlens.real, dlens.imag], 2, lmaxb, mmaxb, sht_tr, [-1., 1.])
-        else: # Applies full remapping
-            ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm)
-            elm, blm = ffi.lensgclm([elm_wf, np.zeros_like(elm_wf)], self.mmax_filt, 2, lmaxb, mmaxb)
+        ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm)
+        elm, blm = ffi.lensgclm([elm_wf, np.zeros_like(elm_wf)], self.mmax_filt, 2, lmaxb, mmaxb)
         if cache_cond:
             self.wf_cacher.cache(fn, blm)
         return blm
