@@ -80,6 +80,7 @@ export OMP_PROC_BIND=false
 # srun -n 4 -c 64 -u --cpu_bind=cores python  $HOME/lenscarf/lenscarf/params/cmbs4wide_delensing_maskpoles.py -k p_p -itmax 15  -imin 0 -imax 3 -tol 4
 # srun -n 4 -c 16 -u --cpu_bind=cores python  $HOME/lenscarf/lenscarf/params/cmbs4wide_delensing_lminb30.py -k p_p -itmax 15  -imin 0 -imax 3 -tol 5
 # srun -n 4 -c 64 -u --cpu_bind=cores python  $HOME/lenscarf/lenscarf/params/cmbs4wide_delensing_lmindlm1.py -k p_p -itmax 30  -imin 0 -imax 3 -tol 5
+srun -n 1 -c 32 -u --cpu_bind=cores python  $HOME/lenscarf/lenscarf/params/cmbs4wide_delensing_lmindlm1.py -k p_p -itmax 30  -imin 0 -imax 0 -tol 5
 # srun -n 4 -c 16 -u --cpu_bind=cores python  $HOME/lenscarf/lenscarf/params/cmbs4wide_delensing_fixedphi.py -k p_p -itmax 15  -imin 0 -imax 3 -tol 5
 # srun -n 1 -c 64 -u --cpu_bind=cores python  $HOME/lenscarf/lenscarf/params/par_s4P_fs.py -k p_p -itmax 15  -imin 0 -imax 0 -tol 5
 
