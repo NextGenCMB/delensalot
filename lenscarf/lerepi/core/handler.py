@@ -54,9 +54,12 @@ class handler():
 
     @log_on_start(logging.INFO, "collect_jobs() Started")
     @log_on_end(logging.INFO, "collect_jobs() Finished")
-    def collect_jobs(self):
+    def collect_jobs(self, job_id):
         """_summary_
-        """        
+        """
+        ## Making sure that specific job request from run() is processed
+        self.configfile.dlensalot_model.job.__dict__[job_id] = True
+        
         if self.parser.status == '':
             self.jobs = transform(self.configfile.dlensalot_model, l2j_Transformer())
         else:

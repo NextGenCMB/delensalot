@@ -23,18 +23,21 @@ class foreground:
         rd_skyyy = '/global/cfs/cdirs/cmbs4/awg/lowellbb/sky_yy/'
         rd_exptxx = '/global/cfs/cdirs/cmbs4/awg/lowellbb/expt_xx/'
         self.fg_beamstring = {'030':'07', '040':'06', '095':'02', '145':'02', '220':'01', '270':'01'}
+        self.simidx = None
         if fg == '00':
             self.fns_sync = rd_exptxx+'gsync/map/gsync_f{freq}_b{fg_beamstring}_ellmin30_map_{nside}_mc_{simidx:04d}.fits'
             self.fns_dust = rd_exptxx+'gdust/map/gdust_f{freq}_b{fg_beamstring}_ellmin30_map_{nside}_mc_{simidx:04d}.fits'
             self.fns_syncdust = None
             self.flavour = 'QU'
             self.coord = 'celestial'
+            self.simidx = 1
         elif fg == '07':
             self.fns_sync = rd_exptxx+'amsync/map/amsync_f{freq}_b{fg_beamstring}_ellmin30_map_{nside}_mc_{simidx:04d}.fits'
             self.fns_dust = rd_exptxx+'amdust/map/amdust_f{freq}_b{fg_beamstring}_ellmin30_map_{nside}_mc_{simidx:04d}.fits'
             self.fns_syncdust = None
             self.flavour = 'QU'
             self.coord = 'celestial'
+            self.simidx = 1
         elif fg == '09':
             self.fns_syncdust = rd_skyyy+'09/vans_d1s1_SOS4_{freq}_tophat_map_{nside}.fits'
             self.flavour = 'QU'
