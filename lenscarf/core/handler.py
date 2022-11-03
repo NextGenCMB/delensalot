@@ -28,6 +28,21 @@ from lenscarf.opfilt.bmodes_ninv import template_bfilt
 
 
 class Notebook_interactor():
+    '''
+    Interface for notebooks,
+     * load per-freq fg/noise/ maps/alms,
+        * QU -> EB and vice versa
+        * map2alm and vice versa
+        * masking if needed
+     * combine per-freq alms,
+        * including weights, beams, pixwindows
+     * calculate power spectra,
+        * per-freq / combined
+        * masking if needed
+        * binning if needed
+     * load power spectra
+        * see read_data() and read_data_v2()
+    '''
     def __init__(self, Interactor_model):
         self.__dict__.update(Interactor_model.__dict__)
 
