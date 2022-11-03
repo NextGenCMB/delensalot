@@ -22,6 +22,7 @@ from plancklens.sims import planck2018_sims
 
 
 from lenscarf.lerepi.core.visitor import transform
+from lenscarf.lerepi.config.config_helper import data_functions as df
 from lenscarf.iterators import cs_iterator
 from lenscarf.utils_hp import almxfl, alm_copy
 from lenscarf.iterators.statics import rec as rec
@@ -104,11 +105,11 @@ class Notebook_interactor():
         if self.fc.flavour == 'QU':
             for freq in self.ec.freqs:
                 if self.fc.fns_syncdust:
-                    buff = hp.read_map(self.fc.fns_syncdust.format(freq=freq, nside=nside), field=(1,2))*mask
+                    buff = hp.read_map(self.fc.fns_syncdust.format(freq=freq, nside=self.nside), field=(1,2))*mask
                 else:
-                    buff = hp.read_map(self.fc.fns_sync.format(freq=freq, nside=nside, simidx=simidx, fg_beamstring=self.fg_beamstring[freq]), field=(1,2))*mask + hp.read_map(fns_dust.format(freq=freq, nside=nside, simidx=simidx, bolo=bolo[freq]), field=(1,2))*mask
+                    buff = hp.read_map(self.fc.fns_sync.format(freq=freq, nside=self.nside, simidx=self.fc.simidx, fg_beamstring=self.fg_beamstring[freq]), field=(1,2))*mask + hp.read_map(self.fc.fns_dust.format(freq=freq, nside=self.nside, simidx=self.fc.simidx, fg_beamstring=self.fg_beamstring[freq]), field=(1,2))*mask
                 self.data['maps']['fg']['map'][freq]['QU'] = buff
-                self.data['maps']['fg']['alm'][freq]['EB'] = np.array(hp.map2alm_spin(buff, spin=2, lmax=lmax))
+                self.data['maps']['fg']['alm'][freq]['EB'] = np.array(hp.map2alm_spin(buff, spin=2, lmax=self.lmax))
                 # print(anas[0].data['maps']['fg']['alm'][freq]['EB'].shape)
         elif self.fc.flavour == 'EB':
             log.error('not yet implemented')
@@ -116,23 +117,23 @@ class Notebook_interactor():
 
     @log_on_start(logging.INFO, "combine() started")
     @log_on_end(logging.INFO, "combine() finished")
-    def combine_alms(self, maps, weights, beam, pixelwindow):
-        nalm = int((lmax+1)*(lmax+2)/2)
+    def combine_alms(self, maps, freq2beam_fwhm=None, weights=None, pixelwindow=True, cache_to='fg'):
+        if weights == None:
+            weights = self.data['weight']
+        if freq2beam_fwhm == None:
+            freq2beam_fwhm = self.ec.freq2beam
+        nalm = int((self.lmax+1)*(self.lmax+2)/2)
         comb_E = np.zeros((nalm), dtype=np.complex128)
         comb_B = np.zeros((nalm), dtype=np.complex128)
-        for freqi, freq in enumerate(freqs):
-            buff = ana.data['maps']['fg']['alm'][freq]['EB']
-            if anai in [0,1]:
-                comb_E += hp.almxfl(hp.almxfl(buff[0], hp.gauss_beam(np.radians(anas[anai].ec.freq2beam[freq]/60), lmax, pol = True)[:,1]), np.squeeze(ana.data['weight'][0,freqi,:lmax]))
-                comb_E = np.nan_to_num(hp.almxfl(comb_E, 1/hp.pixwin(nside, pol=True)[0][:lmax]))
+        for freqi, freq in enumerate(self.ec.freqs):
+            comb_E += hp.almxfl(hp.almxfl(maps[0], hp.gauss_beam(df.a2r(freq2beam_fwhm[freq]), self.lmax, pol = True)[:,1]), np.squeeze(weights[0,freqi,:self.lmax]))
+            comb_B += hp.almxfl(hp.almxfl(maps[1], hp.gauss_beam(df.a2r(freq2beam_fwhm[freq]), self.lmax, pol = True)[:,2]), np.squeeze(weights[1,freqi,:self.lmax]))
+            if pixelwindow:
+                comb_E = np.nan_to_num(hp.almxfl(comb_E, 1/hp.pixwin(self.nside, pol=True)[0][:self.lmax]))
+                comb_B = np.nan_to_num(hp.almxfl(comb_B, 1/hp.pixwin(self.nside, pol=True)[1][:self.lmax]))
 
-                comb_B += hp.almxfl(hp.almxfl(buff[1], hp.gauss_beam(np.radians(anas[anai].ec.freq2beam[freq]/60), lmax, pol = True)[:,2]), np.squeeze(ana.data['weight'][1,freqi,:lmax]))
-                comb_B = np.nan_to_num(hp.almxfl(comb_B, 1/hp.pixwin(nside, pol=True)[1][:lmax]))
-            else:
-                comb_E += hp.almxfl(hp.almxfl(buff[0], hp.gauss_beam(np.radians(anas[anai].ec.freq2beam[freq]/60), lmax, pol = True)[:,1]), np.squeeze(ana.data['weight'][0,freqi,:lmax]))
-                comb_B += hp.almxfl(hp.almxfl(buff[1], hp.gauss_beam(np.radians(anas[anai].ec.freq2beam[freq]/60), lmax, pol = True)[:,2]), np.squeeze(ana.data['weight'][1,freqi,:lmax]))
-
-        self.data['maps']['fg']['alm']['comb']['EB'] = np.array([comb_E, comb_B])
+        self.data['maps'][cache_to]['alm']['comb']['EB'] = np.array([comb_E, comb_B])
+        return self.data['maps'][cache_to]['alm']['comb']['EB']
             
     
     @log_on_start(logging.INFO, "collect_jobs() started")
@@ -518,6 +519,11 @@ class MAP_lr():
 
 class Map_delenser():
     """Script for calculating delensed ILC and Blens spectra using precaulculated Btemplates as input.
+    This is a combination of,
+     * loading the right files,
+     * delensing with the right Btemplates (QE, MAP),
+     * choosing the right power spectrum calculation as in binning, masking, and templating
+     * running across all jobs
     """
 
     def __init__(self, bmd_model):
@@ -528,7 +534,6 @@ class Map_delenser():
         else:
             self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
         self.lib = dict()
-
 
 
     # @log_on_start(logging.INFO, "getfn_blm_lensc() started")

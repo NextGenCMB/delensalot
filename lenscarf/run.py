@@ -49,7 +49,7 @@ class run():
             job = lerepi_handler.get_jobs()[0]
             self.job = lerepi_handler.init_job(job[job_id])
         else:
-            lerepi_handler.collect_jobs()
+            lerepi_handler.collect_jobs(job_id)
             jobs = lerepi_handler.get_jobs()
             for jobdict in jobs:
                 if job_id in jobdict:
