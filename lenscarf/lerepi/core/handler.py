@@ -22,7 +22,7 @@ log.setLevel(logging.INFO)
 from lenscarf.core import mpi
 
 from lenscarf.lerepi.core.visitor import transform
-from lenscarf.lerepi.core.transformer.lerepi2dlensalot import l2j_Transformer, l2T_Transformer
+from lenscarf.lerepi.core.transformer.lerepi2dlensalot import l2j_Transformer, l2T_Transformer, l2ji_Transformer
 from lenscarf.lerepi.core.transformer.lerepi2status import l2j_Transformer as l2js_Transformer
 
 
@@ -64,6 +64,12 @@ class handler():
                 self.jobs = transform(self.configfile.dlensalot_model, l2js_Transformer())
             else:
                 self.jobs = []
+
+
+    @log_on_start(logging.INFO, "make_interactive_job() Started")
+    @log_on_end(logging.INFO, "make_interactive_job() Finished")
+    def make_interactive_job(self):
+        self.jobs = transform(self.configfile.dlensalot_model, l2ji_Transformer())
 
 
     @log_on_start(logging.INFO, "get_jobs() Started")

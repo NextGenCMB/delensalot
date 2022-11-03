@@ -105,4 +105,9 @@ dlensalot_model = DLENSALOT_Model(
         binning = 'binned',
         spectrum_calculator = pospace
     )
+
+    config = DLENSALOT_Config(
+        outdir_plot_root = os.environ['HOME'],
+        outdir_plot_rel = "cmbs4/08b/"
+    )
 )

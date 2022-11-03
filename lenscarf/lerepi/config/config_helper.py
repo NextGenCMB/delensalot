@@ -11,9 +11,10 @@ import healpy as hp
 
 class LEREPI_Constants:
     fs_edges = np.arange(2, 3000, 20)
-    fs_edges = np.arange(2, 3000, 20)
     ioreco_edges = np.array([2, 30, 200, 300, 500, 700, 1000, 1500, 2000, 3000, 4000, 5000])
+    lowell_edges = np.array([2, 200, 300, 500, 700, 1000, 1500, 2000, 3000, 4000, 5000])
     cmbs4_edges = np.array([2, 30, 60, 90, 120, 150, 180, 200, 300, 500, 700, 1000, 1500, 2000, 3000, 4000, 5000])
+    SPDP_edges = np.concatenate([np.arange(2,200,50),np.logspace(np.log(2e2),np.log(4000),40, base=np.e, dtype=int)]) # these are used for calculating residual power spectra on SPDP patch.
 
 
 class data_functions:

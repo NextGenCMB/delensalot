@@ -19,12 +19,122 @@ import healpy as hp
 from plancklens import utils, qresp
 from lenscarf.core import mpi
 
+
+from lenscarf.lerepi.core.visitor import transform
 from lenscarf.iterators import cs_iterator
 from lenscarf.utils_hp import almxfl, alm_copy
 from lenscarf.iterators.statics import rec as rec
 from lenscarf.opfilt.bmodes_ninv import template_bfilt
 
 
+class Notebook_interactor():
+    def __init__(self, Interactor_model):
+        self.__dict__.update(Interactor_model.__dict__)
+
+        
+    @log_on_start(logging.INFO, "read_data() started")
+    @log_on_end(logging.INFO, "read_data() finished")
+    def read_data(self, dm, simids=None, edges=None, dlm_mod=False, dir_idx=0):
+        bcl_cs = np.zeros(shape=(len(self.iterations)+2, len(self.nlevels), len(self.simids), len(self.edges)-1))
+        bcl_L = np.zeros(shape=(len(self.iterations)+2, len(self.nlevels), len(self.simids), len(self.edges)-1))
+        for simidx, simid in enumerate(self.simids):
+            if dm.iteration.dlm_mod:
+                data = np.load(self.TEMP + '/plotdata{}/{}'.format(self.vers_str,self.dirid) + '/ClBBwf_sim%04d_dlmmod_fg%2s_res2b3acm.npy'%(simid, dm.map_delensing.fg))
+            else:
+                data = np.load(self.TEMP + '/plotdata{}/{}'.format(self.vers_str,self.dirid) + '/ClBBwf_sim%04d_fg%2s_res2b3acm.npy'%(simid, dm.map_delensing.fg))
+            # data =  np.load(dirroot_loc + '{}'.format(self.dirid) + '/Lenscarf_plotdata_ClBB_sim%04d_fg%2s_res2b3acm.npy'%(simid, fg))
+            bcl_L[0,:,simidx] = data[0][0]
+            bcl_cs[0,:,simidx] = data[1][0]
+
+            bcl_L[1,:,simidx] = data[0][1]
+            bcl_cs[1,:,simidx] = data[1][1]
+
+            for iti, it in enumerate(self.iterations):
+                bcl_L[2+iti,:,simidx] = data[0][2+iti]
+                bcl_cs[2+iti,:,simidx] = data[1][2+iti]
+
+        print('dirid: {}'.format(self.dirid))
+
+        return bcl_L, bcl_cs
+
+
+    @log_on_start(logging.INFO, "read_data_v2() started")
+    @log_on_end(logging.INFO, "read_data_v2() finished")
+    def read_data_v2(self, edges_id=0):
+        bcl_cs = np.zeros(shape=(len(self.its)+2, len(self.mask_ids), len(self.simidxs), len(self.edges[edges_id])-1))
+        bcl_L = np.zeros(shape=(len(self.its)+2, len(self.mask_ids), len(self.simidxs), len(self.edges[edges_id])-1))
+        
+        print('Loading {} sims from {}'.format(len(self.simidxs),  '/'.join([f for f in self.file_op(0, self.fg, 0).split('/')[:-1]])))
+        for simidxi, simidx in enumerate(self.simidxs):
+            _file_op = self.file_op(simidx, self.fg, 0)
+            data = np.load(_file_op)
+            bcl_L[0,:,simidxi] = data[0][0]
+            bcl_cs[0,:,simidxi] = data[1][0]
+
+            bcl_L[1,:,simidxi] = data[0][1]
+            bcl_cs[1,:,simidxi] = data[1][1]
+
+            for iti, it in enumerate(self.its):
+                bcl_L[2+iti,:,simidxi] = data[0][2+iti]
+                bcl_cs[2+iti,:,simidxi] = data[1][2+iti]
+
+        return bcl_L, bcl_cs
+
+    
+    @log_on_start(logging.INFO, "load_foreground_freqs_mapalm() started")
+    @log_on_end(logging.INFO, "load_foreground_freqs_mapalm() finished")
+    def load_foreground_freqs_mapalm(self, mask=1):
+        if self.fc.flavour == 'QU':
+            for freq in self.ec.freqs:
+                if self.fc.fns_syncdust:
+                    buff = hp.read_map(self.fc.fns_syncdust.format(freq=freq, nside=nside), field=(1,2))*mask
+                else:
+                    buff = hp.read_map(self.fc.fns_sync.format(freq=freq, nside=nside, simidx=simidx, fg_beamstring=self.fg_beamstring[freq]), field=(1,2))*mask + hp.read_map(fns_dust.format(freq=freq, nside=nside, simidx=simidx, bolo=bolo[freq]), field=(1,2))*mask
+                self.data['maps']['fg']['map'][freq]['QU'] = buff
+                self.data['maps']['fg']['alm'][freq]['EB'] = np.array(hp.map2alm_spin(buff, spin=2, lmax=lmax))
+                # print(anas[0].data['maps']['fg']['alm'][freq]['EB'].shape)
+        elif self.fc.flavour == 'EB':
+            log.error('not yet implemented')
+
+
+    @log_on_start(logging.INFO, "combine() started")
+    @log_on_end(logging.INFO, "combine() finished")
+    def combine_alms(self, maps, weights, beam, pixelwindow):
+        nalm = int((lmax+1)*(lmax+2)/2)
+        comb_E = np.zeros((nalm), dtype=np.complex128)
+        comb_B = np.zeros((nalm), dtype=np.complex128)
+        for freqi, freq in enumerate(freqs):
+            buff = ana.data['maps']['fg']['alm'][freq]['EB']
+            if anai in [0,1]:
+                comb_E += hp.almxfl(hp.almxfl(buff[0], hp.gauss_beam(np.radians(anas[anai].ec.freq2beam[freq]/60), lmax, pol = True)[:,1]), np.squeeze(ana.data['weight'][0,freqi,:lmax]))
+                comb_E = np.nan_to_num(hp.almxfl(comb_E, 1/hp.pixwin(nside, pol=True)[0][:lmax]))
+
+                comb_B += hp.almxfl(hp.almxfl(buff[1], hp.gauss_beam(np.radians(anas[anai].ec.freq2beam[freq]/60), lmax, pol = True)[:,2]), np.squeeze(ana.data['weight'][1,freqi,:lmax]))
+                comb_B = np.nan_to_num(hp.almxfl(comb_B, 1/hp.pixwin(nside, pol=True)[1][:lmax]))
+            else:
+                comb_E += hp.almxfl(hp.almxfl(buff[0], hp.gauss_beam(np.radians(anas[anai].ec.freq2beam[freq]/60), lmax, pol = True)[:,1]), np.squeeze(ana.data['weight'][0,freqi,:lmax]))
+                comb_B += hp.almxfl(hp.almxfl(buff[1], hp.gauss_beam(np.radians(anas[anai].ec.freq2beam[freq]/60), lmax, pol = True)[:,2]), np.squeeze(ana.data['weight'][1,freqi,:lmax]))
+
+        self.data['maps']['fg']['alm']['comb']['EB'] = np.array([comb_E, comb_B])
+            
+    
+    @log_on_start(logging.INFO, "collect_jobs() started")
+    @log_on_end(logging.INFO, "collect_jobs() finished")
+    def collect_jobs(self):
+        # TODO fill if needed
+        jobs = []
+        for idx in self.simidxs:
+            jobs.append(idx)
+        self.jobs = jobs
+
+
+    @log_on_start(logging.INFO, "run() started")
+    @log_on_end(logging.INFO, "run() finished")
+    def run(self):
+        # TODO fill if needed
+        return None
+
+        
 class OBD_builder():
     def __init__(self, OBD_model):
         self.__dict__.update(OBD_model.__dict__)
@@ -73,21 +183,28 @@ class QE_lr():
     @log_on_start(logging.INFO, "collect_jobs() started: id={id}")
     @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self, id=''):
-        mf_fname = os.path.join(self.TEMP, 'qlms_dd/simMF_k1%s_%s.fits' % (self.key, utils.mchash(self.QE_simidxs_mf)))
-        if os.path.isfile(mf_fname):
-            # can safely skip QE. MF exists, so we know QE ran before
-            self.jobs = []
-        elif id == "None":
-            self.jobs = []
-        elif id == 'All':
-            jobs = []
-            for idx in self.QE_simidxs_mf:
-                jobs.append(idx)
-            self.jobs = jobs
+        if self.overwrite_libdir is None:
+            mf_fname = os.path.join(self.TEMP, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, utils.mchash(self.simidxs)))
+            if os.path.isfile(mf_fname):
+                # can safely skip QE. MF exists, so we know QE ran before
+                self.jobs = []
+            elif id == "None":
+                self.jobs = []
+            elif id == 'All':
+                jobs = []
+                for idx in self.simidxs:
+                    jobs.append(idx)
+                self.jobs = jobs
+            else:
+                # TODO if id='', skip finished simindices
+                jobs = []
+                for idx in self.simidxs:
+                    jobs.append(idx)
+                self.jobs = jobs
         else:
-            # TODO if id='', skip finished simindices
+            # TODO hack. Only want to access old s08b sim result lib and generate B wf
             jobs = []
-            for idx in self.QE_simidxs_mf:
+            for idx in self.simidxs:
                 jobs.append(idx)
             self.jobs = jobs
 
@@ -128,7 +245,22 @@ class QE_lr():
     @log_on_end(logging.INFO, "get_sim_qlm() finished")
     def get_sim_qlm(self, idx):
 
-        return self.qlms_dd.get_sim_qlm(self.key, int(idx))
+        return self.qlms_dd.get_sim_qlm(self.k, int(idx))
+
+
+    @log_on_start(logging.INFO, "get_B_wf() started")
+    @log_on_end(logging.INFO, "get_B_wf() finished")    
+    def get_B_wf(self, simidx):
+        fn = self.libdir_iterators(self.k, simidx, self.version)+'/bwf_qe_%04d.npy'%simidx
+        if not os.path.isdir(self.libdir_iterators(self.k, simidx, self.version)):
+            os.makedirs(self.libdir_iterators(self.k, simidx, self.version))
+        if os.path.isfile(fn):
+            bwf = self.ivfs.get_sim_bmliklm(simidx)
+        else:
+            bwf = self.ivfs.get_sim_bmliklm(simidx)
+            np.save(fn, bwf)
+
+        return bwf
 
 
     @log_on_start(logging.INFO, "get_wflm() started")
@@ -381,58 +513,10 @@ class Map_delenser():
         self.lib = dict()
 
 
-    @log_on_start(logging.INFO, "read_data() started")
-    @log_on_end(logging.INFO, "read_data() finished")
-    def read_data(self, dm, simids=None, edges=None, dlm_mod=False, dir_idx=0):
-        bcl_cs = np.zeros(shape=(len(self.iterations)+2, len(self.nlevels), len(self.simids), len(self.edges)-1))
-        bcl_L = np.zeros(shape=(len(self.iterations)+2, len(self.nlevels), len(self.simids), len(self.edges)-1))
-        for simidx, simid in enumerate(self.simids):
-            if dm.iteration.dlm_mod:
-                data = np.load(self.TEMP + '/plotdata{}/{}'.format(self.vers_str,self.dirid) + '/ClBBwf_sim%04d_dlmmod_fg%2s_res2b3acm.npy'%(simid, dm.map_delensing.fg))
-            else:
-                data = np.load(self.TEMP + '/plotdata{}/{}'.format(self.vers_str,self.dirid) + '/ClBBwf_sim%04d_fg%2s_res2b3acm.npy'%(simid, dm.map_delensing.fg))
-            # data =  np.load(dirroot_loc + '{}'.format(self.dirid) + '/Lenscarf_plotdata_ClBB_sim%04d_fg%2s_res2b3acm.npy'%(simid, fg))
-            bcl_L[0,:,simidx] = data[0][0]
-            bcl_cs[0,:,simidx] = data[1][0]
 
-            bcl_L[1,:,simidx] = data[0][1]
-            bcl_cs[1,:,simidx] = data[1][1]
-
-            for iti, it in enumerate(self.iterations):
-                bcl_L[2+iti,:,simidx] = data[0][2+iti]
-                bcl_cs[2+iti,:,simidx] = data[1][2+iti]
-
-        print('dirid: {}'.format(self.dirid))
-
-        return bcl_L, bcl_cs
-
-
-    @log_on_start(logging.INFO, "read_data_v2() started")
-    @log_on_end(logging.INFO, "read_data_v2() finished")
-    def read_data_v2(self, edges_id=0):
-        bcl_cs = np.zeros(shape=(len(self.its)+2, len(self.mask_ids), len(self.simidxs), len(self.edges[edges_id])-1))
-        bcl_L = np.zeros(shape=(len(self.its)+2, len(self.mask_ids), len(self.simidxs), len(self.edges[edges_id])-1))
-        
-        print('Loading {} sims from {}'.format(len(self.simidxs),  '/'.join([f for f in self.file_op(0, self.fg, 0).split('/')[:-1]])))
-        for simidx, simid in enumerate(self.simidxs):
-            _file_op = self.file_op(simidx, self.fg, 0)
-            data = np.load(_file_op)
-            bcl_L[0,:,simidx] = data[0][0]
-            bcl_cs[0,:,simidx] = data[1][0]
-
-            bcl_L[1,:,simidx] = data[0][1]
-            bcl_cs[1,:,simidx] = data[1][1]
-
-            for iti, it in enumerate(self.its):
-                bcl_L[2+iti,:,simidx] = data[0][2+iti]
-                bcl_cs[2+iti,:,simidx] = data[1][2+iti]
-
-        return bcl_L, bcl_cs
-
-
-    # @log_on_start(logging.INFO, "getfn_btemplm() started")
-    # @log_on_end(logging.INFO, "getfn_btemplm() finished")
-    def getfn_btemplm(self, simidx, it):
+    # @log_on_start(logging.INFO, "getfn_blm_lensc() started")
+    # @log_on_end(logging.INFO, "getfn_blm_lensc() finished")
+    def getfn_blm_lensc(self, simidx, it):
         '''Lenscarf output using Catherinas E and B maps'''
         # TODO this needs cleaner implementation via lambda
         # _libdir_iterator = self.libdir_iterators(self.key, simidx, self.version)
@@ -623,6 +707,7 @@ class Map_delenser():
         if self.jobs != []:
             if self.binning == 'binned':
                 for edgesi, edges in enumerate(self.edges):
+                    print(self.binning)
                     outputdata = _prepare_job(edges)
                     for idx in self.jobs[mpi.rank::mpi.size]:
                         _file_op = self.file_op(idx, self.fg, edgesi)

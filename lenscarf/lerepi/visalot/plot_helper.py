@@ -10,6 +10,7 @@ matplotlib.rcParams.update({'font.size': 18})
 
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+from matplotlib.colors import ListedColormap
 
 import healpy as hp
 
@@ -24,6 +25,9 @@ from component_separation.cs_util import Config
 from lenscarf.lerepi.core.visitor import transform
 from lenscarf.lerepi.core.transformer.lerepi2dlensalot import l2T_Transformer, transform
 from lenscarf.lerepi.visalot import plot_helper as ph
+
+
+
 
 ll = np.arange(0,200+1,1)
 scale_uk = (2 * ll + 1) * ll**2 * (ll + 1)**2
@@ -147,3 +151,37 @@ def bandpass_alms(alms, lmin, lmax=None):
     fl[lmin:lmax+1] = 1
     
     return hp.almxfl(alms, fl)
+
+
+def get_rotlonlat_mollview(area = 'SPDP'):
+    '''mollview coordinates for different sky patches'''
+    rotation, lonra, latra = None, None, None
+    if area == 'SPDP':
+        rotation = np.array([40,-55])
+        lonra = np.array([-35,35])+rotation[0]
+        latra = np.array([-20,22])+rotation[1]
+    elif area == 'CDP':
+        print("Not yet defined")
+    else:
+        print("Do not understand your input")
+    return rotation, lonra, latra
+
+
+def get_planck_cmap():
+    cmap = ListedColormap(np.loadtxt("/global/homes/s/sebibel/plots/Planck_Parchment_RGB.txt")/255.)
+    cmap.set_bad("gray") # color of missing pixels
+    cmap.set_under("white") # color of background, necessary if you want to use
+    # this colormap directly with hp.mollview(m, cmap=colombi1_cmap)
+    return cmap
+
+def plot_cmap(cmap, minmax):
+    matplotlib.rcParams.update({'font.size': 18})
+    a = np.array([[-minmax,minmax]])
+    plt.figure(figsize=(9, 1.5))
+    img = plt.imshow(a, cmap=cmap)
+    plt.gca().set_visible(False)
+    cax = plt.axes([-0, 1, 1.0, 0.35])
+    nticks = 5
+    ticks = np.arange(-minmax, minmax+(2*minmax/nticks), (2*minmax/nticks))
+    cbar = plt.colorbar(orientation="horizontal", cax=cax, ticks=[-0.30,-0.15,0,0.15,0.30])
+    plt.xlabel('$\mu K$')
