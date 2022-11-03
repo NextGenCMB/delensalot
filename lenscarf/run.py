@@ -32,7 +32,7 @@ logging.getLogger("healpy").disabled = True
 
 
 class run():
-    def __init__(self, config, job_id, verbose=True, madel_kwargs={}):
+    def __init__(self, config, job_id='interactive', verbose=True, madel_kwargs={}):
         if not verbose:
             ConsoleOutputHandler.setLevel(logging.WARNING)
             sys_logger.setLevel(logging.WARNING)
@@ -43,11 +43,17 @@ class run():
         parser.status = ''
 
         lerepi_handler = handler.handler(parser, madel_kwargs)
-        lerepi_handler.collect_jobs()
-        jobs = lerepi_handler.get_jobs()
-        for jobdict in jobs:
-            if job_id in jobdict:
-                self.job = lerepi_handler.init_job(jobdict[job_id])
+        if job_id == 'interactive':
+            ## This is notebook interactive job. (Doesn't appear in config file job list)
+            lerepi_handler.make_interactive_job()
+            job = lerepi_handler.get_jobs()[0]
+            self.job = lerepi_handler.init_job(job[job_id])
+        else:
+            lerepi_handler.collect_jobs()
+            jobs = lerepi_handler.get_jobs()
+            for jobdict in jobs:
+                if job_id in jobdict:
+                    self.job = lerepi_handler.init_job(jobdict[job_id])
 
 
 if __name__ == '__main__':

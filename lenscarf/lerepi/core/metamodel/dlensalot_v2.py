@@ -22,22 +22,6 @@ class DLENSALOT_Concept:
         return _str
 
 
-@attr.s
-class DLENSALOT_Model(DLENSALOT_Concept):
-    """A root model element type of the Dlensalot formalism.
-
-    Attributes:
-        data: 
-    """
-    job = attr.ib(default=-1)
-    analysis = attr.ib(default=-1)
-    data  = attr.ib(default=[])
-    noisemodel = attr.ib(default=[])
-    qerec = attr.ib(default=[])
-    itrec = attr.ib(default=-1)
-    madel = attr.ib(default=-1)
-
-
 # TODO These could become slurm jobs via script using appropriate srun -c XX
 @attr.s
 class DLENSALOT_Job(DLENSALOT_Concept):
@@ -111,7 +95,7 @@ class DLENSALOT_Noisemodel(DLENSALOT_Concept):
     Attributes:
         typ:
     """
-    typ = attr.ib()
+    typ = attr.ib(default=None)
     BMARG_LIBDIR = attr.ib(default=None)
     BMARG_LCUT = attr.ib(default=None)
     BMARG_RESCALE = attr.ib(default=None)
@@ -214,3 +198,32 @@ class DLENSALOT_Stepper(DLENSALOT_Concept):
     mmax_qlm = attr.ib(default=-1)
     xa = attr.ib(default=-1)
     xb = attr.ib(default=-1)
+
+
+@attr.s
+class DLENSALOT_Config(DLENSALOT_Concept):
+    """A root model element type of the Dlensalot formalism.
+
+    Attributes:
+        typ:
+    """
+    outdir_plot_root = attr.ib(default=None)
+    outdir_plot_rel = attr.ib(default=None)
+
+
+
+@attr.s
+class DLENSALOT_Model(DLENSALOT_Concept):
+    """A root model element type of the Dlensalot formalism.
+
+    Attributes:
+        data: 
+    """
+    job = attr.ib(default=DLENSALOT_Job())
+    analysis = attr.ib(default=DLENSALOT_Analysis())
+    data  = attr.ib(default=DLENSALOT_Data())
+    noisemodel = attr.ib(default=DLENSALOT_Noisemodel())
+    qerec = attr.ib(default=DLENSALOT_Qerec())
+    itrec = attr.ib(default=DLENSALOT_Itrec())
+    madel = attr.ib(default=DLENSALOT_Mapdelensing())
+    config = attr.ib(default=DLENSALOT_Config())

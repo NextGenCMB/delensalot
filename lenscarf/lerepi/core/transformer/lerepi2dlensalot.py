@@ -10,6 +10,7 @@ from os.path import join as opj
 import importlib
 import traceback
 
+
 import logging
 log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
@@ -503,14 +504,14 @@ class l2lensrec_Transformer:
                 dl.transf_blm = gauss_beam(df.a2r(cf.data.beam), lmax=an.lmax_ivf) * hp.pixwin(2048, lmax=an.lmax_ivf) * (np.arange(an.lmax_ivf + 1) >= cf.noisemodel.lmin_blm)
 
                 # Isotropic approximation to the filtering (used eg for response calculations)
-                dl.ftl = cli(dl.cls_len['tt'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
-                dl.fel = cli(dl.cls_len['ee'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
-                dl.fbl = cli(dl.cls_len['bb'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
+                dl.ftl = cli(dl.cls_len['tt'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_t[:an.lmax_ivf + 1])**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
+                dl.fel = cli(dl.cls_len['ee'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p[:an.lmax_ivf + 1])**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
+                dl.fbl = cli(dl.cls_len['bb'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p[:an.lmax_ivf + 1])**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
 
                 # Same using unlensed spectra (used for unlensed response used to initiate the MAP curvature matrix)
-                dl.ftl_unl = cli(dl.cls_unl['tt'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
-                dl.fel_unl = cli(dl.cls_unl['ee'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
-                dl.fbl_unl = cli(dl.cls_unl['bb'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
+                dl.ftl_unl = cli(dl.cls_unl['tt'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_t[:an.lmax_ivf + 1])**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
+                dl.fel_unl = cli(dl.cls_unl['ee'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p[:an.lmax_ivf + 1])**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
+                dl.fbl_unl = cli(dl.cls_unl['bb'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p[:an.lmax_ivf + 1])**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
             else:
                 log.info("Don't understand your input.")
                 sys.exit()
@@ -520,8 +521,8 @@ class l2lensrec_Transformer:
         def _process_Data(dl, da):
             dl.imin = da.IMIN
             dl.imax = da.IMAX
-            dl.simidxs = da.simidxs if da.simidxs != [] else np.arange(dl.imin, dl.imax+1)
 
+            dl.simidxs = da.simidxs if da.simidxs is not None else np.arange(dl.imin, dl.imax+1)
             _package = da.package_
             if da.package_.startswith('lerepi'):
                 _package = 'lenscarf.'+da.package_
@@ -1027,7 +1028,7 @@ class l2lensrec_Transformer:
             dl.chain_descr = lambda p2, p5 : [
                 [dl.chain_model.p0, dl.chain_model.p1, p2, dl.chain_model.p3, dl.chain_model.p4, p5, _p6, _p7]]
 
-
+            hp.alm2cl
             # qe_cl_analysis
             dl.cl_analysis = qe.cl_analysis
             if qe.cl_analysis == True:
@@ -1454,6 +1455,9 @@ class l2d_Transformer:
                     if 'ioreco' in ma.edges:
                         dl.edges.append(lc.ioreco_edges) 
                         dl.edges_id.append('ioreco')
+                    if 'lowell' in ma.edges:
+                        dl.edges.append(lc.lowell_edges) 
+                        dl.edges_id.append('lowell')
                     elif 'fs' in ma.edges:
                         dl.edges.append(lc.fs_edges)
                         dl.edges_id.append('fs')
@@ -1530,6 +1534,8 @@ class l2d_Transformer:
             _sims_full_name = '{}.{}'.format(dl._package, dl._module)
             _sims_module = importlib.import_module(_sims_full_name)
             dl.sims = getattr(_sims_module, dl._class)(**dl.class_parameters)
+
+            dl.ec = getattr(_sims_module, 'experiment_config')()
             dl.nside = cf.data.nside
 
             if cf.data.data_type is None:
@@ -1639,6 +1645,9 @@ class l2d_Transformer:
                     if 'ioreco' in ma.edges:
                         dl.edges.append(lc.ioreco_edges) 
                         dl.edges_id.append('ioreco')
+                    if 'lowell' in ma.edges:
+                        dl.edges.append(lc.lowell_edges) 
+                        dl.edges_id.append('lowell')
                     elif 'fs' in ma.edges:
                         dl.edges.append(lc.fs_edges)
                         dl.edges_id.append('fs')
@@ -1689,7 +1698,24 @@ class l2d_Transformer:
                 dl.cl_calc = hp
             else:
                 dl.cl_calc = ma.spectrum_calculator       
-                
+
+        def _process_Config(dl, co):
+            if co.outdir_plot_rel:
+                dl.outdir_plot_rel = co.outdir_rel
+            else:
+                dl.outdir_plot_rel = '{}/{}'.format(cf.data.module_.split('.')[2],cf.data.module_.split('.')[-1])
+                    
+            if co.outdir_plot_root:
+                dl.outdir_plot_root = co.outdir_root
+            else:
+                dl.outdir_plot_root = os.environ['HOME']
+            
+            dl.outdir_plot_abs = opj(dl.outdir_plot_root, dl.outdir_plot_rel)
+            if not os.path.isdir(dl.outdir_plot_abs):
+                os.makedirs(dl.outdir_plot_abs)
+            log.info('Plots will be stored at {}'.format(dl.outdir_plot_abs))
+
+
         def _check_powspeccalculator(clc):
             if dl.binning == 'binned':
                 if 'map2cl_binned' not in clc.__dict__:
@@ -1704,7 +1730,9 @@ class l2d_Transformer:
         dl = DLENSALOT_Concept()
 
         _process_Madel(dl, cf.madel)
+        _process_Config(dl, cf.config)
         _check_powspeccalculator(dl.cl_calc)
+
 
         return dl
 
@@ -1720,6 +1748,86 @@ class l2m_Transformer:
     def build(self, cf):
         assert 0, "Implement if needed"
 
+        
+class l2i_Transformer:
+
+    @log_on_start(logging.INFO, "build() started")
+    @log_on_end(logging.INFO, "build() finished")
+    def build_v2(self, cf):
+
+        def _process_X(dl):
+            dl.data = dict()
+            for key5 in ['maps']:
+                if key5 not in dl.data:
+                    dl.data[key5] = dict()
+                for key0 in ['fg', 'cmb', 'noise', 'cmb_len', 'BLT', 'cs']:
+                    if key0 not in dl.data[key5]:
+                        dl.data[key5][key0] = dict()
+                    for key1 in ['map', 'alm', 'cl', 'cl_patch', 'cl_masked']:
+                        if key1 not in dl.data[key5][key0]:
+                            dl.data[key5][key0][key1] = dict()
+                        for key2 in dl.ec.freqs + ['comb']:
+                            if key2 not in dl.data[key5][key0][key1]:
+                                dl.data[key5][key0][key1][key2] = dict()
+                            for key3 in ['TEB', 'IQU', 'EB', 'QU', 'T', 'E', 'B', 'Q', 'U']:
+                                if key3 not in dl.data[key5][key0][key1][key2]:
+                                    dl.data[key5][key0][key1][key2][key3] = np.array([], dtype=np.complex128)
+
+
+            dl.data['weight'] = np.zeros(shape=(2,*(np.loadtxt(dl.ic.weights_fns.format(dl.fg, 'E')).shape)))
+            for i, flavour in enumerate(['E', 'B']):
+                dl.data['weight'][int(i%len(['E', 'B']))] = np.loadtxt(dl.ic.weights_fns.format(dl.fg, flavour))
+
+        def _process_Madel(dl, ma):
+            pass
+        
+        def _process_Config(dl, co):
+            pass
+
+        def _process_Data(dl, da):
+            dl.imin = da.IMIN
+            dl.imax = da.IMAX
+            dl.simidxs = da.simidxs if da.simidxs is not None else np.arange(dl.imin, dl.imax+1)
+
+            if 'fg' in da.class_parameters:
+                dl.fg = da.class_parameters['fg']
+            dl._package = da.package_
+            dl._module = da.module_
+            dl._class = da.class_
+            dl.class_parameters = da.class_parameters
+            _sims_full_name = '{}.{}'.format(dl._package, dl._module)
+            _sims_module = importlib.import_module(_sims_full_name)
+            dl.sims = getattr(_sims_module, dl._class)(**dl.class_parameters)
+
+            dl.ec = getattr(_sims_module, 'experiment_config')()
+            dl.ic = getattr(_sims_module, 'ILC_config')()
+            dl.fc = getattr(_sims_module, 'foreground')(dl.fg)
+            dl.nside = cf.data.nside
+                
+
+        dl = DLENSALOT_Concept()
+
+        _process_Data(dl, cf.data)
+        _process_X(dl)
+        _process_Madel(dl, cf.madel)
+        _process_Config(dl, cf.config)
+
+        return dl
+            
+
+class l2ji_Transformer:
+    """Extracts parameters needed for the interactive D.Lensalot job
+    """
+    def build(self, cf):
+        
+        def _process_Jobs(jobs):
+            jobs.append({"interactive":((cf, l2i_Transformer()), lenscarf_handler.Notebook_interactor)})
+
+        jobs = []
+        _process_Jobs(jobs)
+
+        return jobs      
+        
 
 class l2j_Transformer:
     """Extracts parameters needed for the specific D.Lensalot jobs
@@ -1744,6 +1852,14 @@ class l2j_Transformer:
 
         return jobs
 
+
+@transform.case(DLENSALOT_Model_v2, l2i_Transformer)
+def f1(expr, transformer): # pylint: disable=missing-function-docstring
+    return transformer.build_v2(expr)
+
+@transform.case(DLENSALOT_Model_v2, l2ji_Transformer)
+def f1(expr, transformer): # pylint: disable=missing-function-docstring
+    return transformer.build(expr)
 
 @transform.case(DLENSALOT_Model, l2j_Transformer)
 def f1(expr, transformer): # pylint: disable=missing-function-docstring

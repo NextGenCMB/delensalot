@@ -8,21 +8,21 @@ from MSC import pospace
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(
         build_OBD = False,
-        QE_lensrec = False,
+        QE_lensrec = True,
         MAP_lensrec = True,
-        map_delensing = True,
+        map_delensing = False,
         inspect_result = False,
         OMP_NUM_THREADS = 16
     ),
     analysis = DLENSALOT_Analysis(
-        TEMP_suffix = 'cut10',
+        TEMP_suffix = 'newrun',
         K = 'p_p',
         V = 'noMF',
         simidxs_mf = np.arange(0),
         ITMAX = 10,
         LENSRES = 1.7,
         Lmin = 2, 
-        lmax_filt = 2048,
+        lmax_filt = 2000,
         lmax_unl = 2500,
         mmax_unl = 2500,
         lmax_ivf = 2000,
@@ -33,7 +33,7 @@ dlensalot_model = DLENSALOT_Model(
     ),
     data = DLENSALOT_Data(
         IMIN = 0,
-        IMAX = 19,
+        IMAX = 2,
         simidxs = np.arange(1,21,2),
         package_ = 'lenscarf',
         module_ = 'lerepi.config.pico.data.sims_90',
@@ -44,7 +44,7 @@ dlensalot_model = DLENSALOT_Model(
         data_type = 'alm',
         data_field = "eb",
         beam = 8.0,
-        lmax_transf = 2048,
+        lmax_transf = 2000,
         nside = 2048
     ),
     noisemodel = DLENSALOT_Noisemodel(
@@ -53,8 +53,8 @@ dlensalot_model = DLENSALOT_Model(
         lmin_tlm = 30,
         lmin_elm = 10,
         lmin_blm = 200,
-        nlev_t = ('cl', D)),
-        nlev_p = ('cl', opj(os.environ['SCRATCH'], 'data/pico/noise/Clsmooth_julien.npy')),
+        nlev_t = ('cl', opj(os.environ['SCRATCH'], 'data/pico/noise/Clsmooth_sim0001_B.npy')),
+        nlev_p = ('cl', opj(os.environ['SCRATCH'], 'data/pico/noise/Clsmooth_sim0001_B.npy')),
         inf = 1e4
     ),
     qerec = DLENSALOT_Qerec(
@@ -78,7 +78,7 @@ dlensalot_model = DLENSALOT_Model(
     ),
     itrec = DLENSALOT_Itrec(
         filter = 'opfilt_iso_ee_wl.alm_filter_nlev_wl',
-        cg_tol = 1e-5,
+        cg_tol = 1e-4,
         tasks = ["calc_phi", "calc_btemplate"], #["calc_phi", "calc_meanfield", "calc_btemplate"],
         lenjob_geometry = 'thin_gauss',
         lenjob_pbgeometry = 'pbdGeometry',
