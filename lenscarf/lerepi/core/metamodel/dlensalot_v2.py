@@ -28,7 +28,7 @@ class DLENSALOT_Job(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
 
     Attributes:
-        QE_delensing:
+        QE_lensrec:
     """
     QE_lensrec = attr.ib(default=-1)
     MAP_lensrec = attr.ib(default=-1)
