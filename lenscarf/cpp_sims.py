@@ -407,7 +407,7 @@ class cpp_sims_lib:
             cacher.cache(fn, wf)
         return cacher.load(fn)
 
-    def get_wf_eff(self, itmax_sims=15, itmax_fid=15, mf=False, mc_sims=None, version='', do_spline=True, lmin_interp=0, lmax_interp=None,  k=3, s=None, verbose=False):
+    def get_wf_eff(self, itmax_sims=15, itmax_fid=15, mf=False, mc_sims=None, version='', do_spline=True, lmin_interp=0, lmax_interp=None,  k=3, s=None, verbose=False, recache=False):
         """Effective Wiener filter averaged over several simulations
         We spline interpolate the ratio between the effective WF from simulations and the fiducial WF
         We take into account the sky fraction to get the simulated WFs
@@ -424,27 +424,34 @@ class cpp_sims_lib:
         
         """
         # if itmax_sims is None: itmax_sims = self.itmax
-        wf_fid = self.get_wf_fid(itmax_fid, version=version)
-        nsims = self.get_nsims_itmax(itmax_sims)
-        # sims_idx = self.get_idx_sims_done(itmax=15)
-        print(f'I use {nsims} sims to estimate the effective WF')
-        wfsims_bias = np.zeros([nsims, len(wf_fid)])
-    #     for i, f in enumerate(dat_files):
-    #         _, ckk_in[f], ckk_cross[f] = np.loadtxt(os.path.join(DIR, f, 'MAP_cls.dat')).transpose()
-    #         wfcorr_full[i] =  ckk_cross[f] *cli(ckk_in[f] * wfpred) 
-        for isim in range(nsims):
-            if verbose: print(f'wf eff {isim}/{nsims}')
-            wfsims_bias[isim] = self.get_wf_sim(isim, itmax_sims, mf=mf, mc_sims=mc_sims) * utils.cli(wf_fid)
-            # wfsims_bias[isim] = self.get_wf_sim(isim, itmax_sims) * utils.cli(wf_fid)
-        wfcorr_mean = np.mean(wfsims_bias, axis=0)
-        if do_spline:
-            wfcorr_spl = np.zeros(len(wf_fid))
-            if lmax_interp is None: lmax_interp=self.lmax_qlm
-            ells = np.arange(lmin_interp, lmax_interp+1)
-            wfcorr_spl[ells] = spline(ells, wfcorr_mean[ells], k=k, s=s)(ells)
-        else:
-            wfcorr_spl = wfcorr_mean
-        wf_eff = wf_fid * wfcorr_spl
+        fn_weff = "wf_eff_{itmax_sims}_{itmax_fid}_{mf}_{version}_{do_spline}_{lmin_interp}_{lmax_interp}_{k}_{s}"
+        fn_wfspline = "wf_spline_{itmax_sims}_{itmax_fid}_{mf}_{version}_{do_spline}_{lmin_interp}_{lmax_interp}_{k}_{s}"
+        if np.any([not self.cacher_param.is_cached(fn) for fn in [fn_weff, fn_wfspline]]) or recache:
+            wf_fid = self.get_wf_fid(itmax_fid, version=version)
+            nsims = self.get_nsims_itmax(itmax_sims)
+            # sims_idx = self.get_idx_sims_done(itmax=15)
+            print(f'I use {nsims} sims to estimate the effective WF')
+            wfsims_bias = np.zeros([nsims, len(wf_fid)])
+        #     for i, f in enumerate(dat_files):
+        #         _, ckk_in[f], ckk_cross[f] = np.loadtxt(os.path.join(DIR, f, 'MAP_cls.dat')).transpose()
+        #         wfcorr_full[i] =  ckk_cross[f] *cli(ckk_in[f] * wfpred) 
+            for isim in range(nsims):
+                if verbose: print(f'wf eff {isim}/{nsims}')
+                wfsims_bias[isim] = self.get_wf_sim(isim, itmax_sims, mf=mf, mc_sims=mc_sims) * utils.cli(wf_fid)
+                # wfsims_bias[isim] = self.get_wf_sim(isim, itmax_sims) * utils.cli(wf_fid)
+            wfcorr_mean = np.mean(wfsims_bias, axis=0)
+            if do_spline:
+                wfcorr_spl = np.zeros(len(wf_fid))
+                if lmax_interp is None: lmax_interp=self.lmax_qlm
+                ells = np.arange(lmin_interp, lmax_interp+1)
+                wfcorr_spl[ells] = spline(ells, wfcorr_mean[ells], k=k, s=s)(ells)
+            else:
+                wfcorr_spl = wfcorr_mean
+            wf_eff = wf_fid * wfcorr_spl
+            self.cacher_param.cache(fn_weff, wf_eff)
+            self.cacher_param.cache(fn_wfspline, wfcorr_spl)
+        wf_eff = self.cacher_param.load(fn_weff)
+        wfcorr_spl = self.cacher_param.load(fn_wfspline)
         return wf_eff[:self.lmax_qlm+1], wfcorr_spl
 
 
@@ -474,6 +481,8 @@ class cpp_sims_lib:
             rdsims = np.arange(0, nrdn0)
         print(f'I average {len(rdsims)} sims with rdn0 to get effective response')
         fn =  'rdn0_mean_{}_Nroll{}_{}_{}'.format(itr, Nroll, mchash(rdsims), mchash(mcs))
+        # fn =  f'Reff_{itr}_Nroll{Nroll}_{mchash(rdsims)}_{mchash(mcs)}_{}'
+
         if not cacher.is_cached(fn):
             # rdn0s = []
             # idx = 0 
@@ -608,15 +617,17 @@ class cpp_sims_lib:
         fn_dir = rdn0_cs.output_sim(self.k, self.param.suffix, datidx)
         mcs = np.arange(Ndatasims, Nmcsims+Ndatasims)
         fn = os.path.join(fn_dir, rdn0_cs.fn_cls_dsss(0, mcs, Nroll))
-        print(fn)
+        # print(fn)
         if not os.path.exists(fn):
             print("Running RDN0 estimate for datidx {} with {} {} {}".format(datidx, Ndatasims, Nmcsims, Nroll))
             rdn0_cs.get_rdn0_qe(self.param, datidx, self.k,  Ndatasims, Nmcsims, Nroll, version=self.version)
             
-        rdn0, ds, ss = np.loadtxt(fn).transpose()
+        # rdn0, ds, ss = np.loadtxt(fn).transpose()
+        rdn0 = np.loadtxt(fn).transpose()
         lmax = len(rdn0)-1
         pp2kk = 0.25 * np.arange(lmax + 1)** 2 * (np.arange(1, lmax + 2) ** 2) * 1e7
-        return rdn0 * pp2kk, ds*pp2kk, ss*pp2kk
+        # return rdn0 * pp2kk, ds*pp2kk, ss*pp2kk
+        return rdn0 * pp2kk
 
 
 

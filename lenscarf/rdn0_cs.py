@@ -162,6 +162,11 @@ def get_rdn0_qe(param, datidx, qe_key,  Ndatasims, Nmcsims, Nroll, version=''):
     return 
 
 
+def get_rdn1_qe(param, datidx, qe_key,  Ndatasims, Nmcsims, Nroll, version=''):
+    """Compute RD-N1, using pairs of sims with the same lensing potential phi"""
+    return 0
+
+
 def export_cls(libdir:str, qe_key:str, itr:int,suffix:str, datidx:int):
     typ = 'QE' if itr == 0 else 'MAP_itr{}'.format(itr)
     plm = get_plm(itr, libdir)
