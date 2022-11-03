@@ -16,11 +16,13 @@ import getpass
 import numpy as np
 import healpy as hp
 
+from scipy.signal import savgol_filter as sf
+
+from MSC import pospace as ps
 from plancklens import utils, qresp
-from lenscarf.core import mpi
 from plancklens.sims import planck2018_sims
 
-
+from lenscarf.core import mpi
 from lenscarf.lerepi.core.visitor import transform
 from lenscarf.lerepi.config.config_helper import data_functions as df
 from lenscarf.iterators import cs_iterator
@@ -102,17 +104,41 @@ class Notebook_interactor():
     @log_on_start(logging.INFO, "load_foreground_freqs_mapalm() started")
     @log_on_end(logging.INFO, "load_foreground_freqs_mapalm() finished")
     def load_foreground_freqs_mapalm(self, mask=1):
+        rot_GC = hp.rotator.Rotator(coord=['G','C'])
         if self.fc.flavour == 'QU':
             for freq in self.ec.freqs:
                 if self.fc.fns_syncdust:
-                    buff = hp.read_map(self.fc.fns_syncdust.format(freq=freq, nside=self.nside), field=(1,2))*mask
+                    buff = hp.read_map(self.fc.fns_syncdust.format(freq=freq, nside=self.nside), field=(1,2))*mask*self.fc.map_fac
                 else:
-                    buff = hp.read_map(self.fc.fns_sync.format(freq=freq, nside=self.nside, simidx=self.fc.simidx, fg_beamstring=self.fg_beamstring[freq]), field=(1,2))*mask + hp.read_map(self.fc.fns_dust.format(freq=freq, nside=self.nside, simidx=self.fc.simidx, fg_beamstring=self.fg_beamstring[freq]), field=(1,2))*mask
-                self.data['maps']['fg']['map'][freq]['QU'] = buff
-                self.data['maps']['fg']['alm'][freq]['EB'] = np.array(hp.map2alm_spin(buff, spin=2, lmax=self.lmax))
-                # print(anas[0].data['maps']['fg']['alm'][freq]['EB'].shape)
+                    buff = hp.read_map(self.fc.fns_sync.format(freq=freq, nside=self.nside, simidx=self.fc.simidx, fg_beamstring=self.fc.fg_beamstring[freq]), field=(1,2))*mask*self.fc.map_fac + hp.read_map(self.fc.fns_dust.format(freq=freq, nside=self.nside, simidx=self.fc.simidx, fg_beamstring=self.fc.fg_beamstring[freq]), field=(1,2))*mask*self.fc.map_fac
+                self.data['maps']['fg']['nlevel']['fs']['map'][freq]['QU'] = buff
+                self.data['maps']['fg']['nlevel']['fs']['alm'][freq]['EB'] = np.array(hp.map2alm_spin(buff, spin=2, lmax=self.lmax))
+                # if self.fg == '09':
+                #     self.data['maps']['fg']['nlevel']['fs']['alm'][freq]['EB'][0] = rot_GC.rotate_alm(self.data['maps']['fg']['nlevel']['fs']['alm'][freq]['EB'][0])
+                #     self.data['maps']['fg']['nlevel']['fs']['alm'][freq]['EB'][1] = rot_GC.rotate_alm(self.data['maps']['fg']['nlevel']['fs']['alm'][freq]['EB'][1])
         elif self.fc.flavour == 'EB':
             log.error('not yet implemented')
+
+
+    @log_on_start(logging.INFO, "QU2EB() started")
+    @log_on_end(logging.INFO, "QU2EB() finished")   
+    def calc_powerspectrum_binned(self, maps_mask, templates, freq='comb', component='cs', nlevel='fs'):
+        ## Template
+
+        self.data['maps'][component]['nlevel']['fs']['cl_template'][freq]['EB'] = templates
+        cl_templ_binned = np.array([[np.mean(cl[int(bl):int(bu+1)])
+            for bl, bu in zip(self.edges[0], self.edges[0][1:])]
+            for cl in templates])
+        self.data['maps'][component]['nlevel']['fs']['cl_template_binned'][freq]['EB'] = cl_templ_binned
+
+        pslibE = ps.map2cl_binned(maps_mask, self.data['maps'][component]['nlevel']['fs']['cl_template'][freq]['EB'][0], self.edges[0], self.lmax)
+        pslibB = ps.map2cl_binned(maps_mask, self.data['maps'][component]['nlevel']['fs']['cl_template'][freq]['EB'][1], self.edges[0], self.lmax)
+
+        self.data['maps'][component]['nlevel'][nlevel]['cl_patch'][freq]['EB']  = np.array([
+            pslibE.map2cl(self.data['maps'][component]['nlevel']['fs']['map'][freq]['EB'][0]),
+            pslibB.map2cl(self.data['maps'][component]['nlevel']['fs']['map'][freq]['EB'][1])
+        ])
+
 
 
     @log_on_start(logging.INFO, "combine() started")

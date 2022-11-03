@@ -7,10 +7,8 @@ __author__ = "S. Belkner, J. Carron, L. Legrand"
 
 import os, sys
 import logging
-import abc
 import traceback
 
-import lenscarf
 from lenscarf.lerepi.core import handler
 import lenscarf.lerepi.etc.dev_helper as dh
 from lenscarf.lerepi.etc.abstract import parserclass
