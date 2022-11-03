@@ -1735,27 +1735,109 @@ class l2i_Transformer:
                 for key0 in ['fg', 'cmb', 'noise', 'cmb_len', 'BLT', 'cs']:
                     if key0 not in dl.data[key5]:
                         dl.data[key5][key0] = dict()
-                    for key1 in ['map', 'alm', 'cl', 'cl_patch', 'cl_masked']:
-                        if key1 not in dl.data[key5][key0]:
-                            dl.data[key5][key0][key1] = dict()
-                        for key2 in dl.ec.freqs + ['comb']:
-                            if key2 not in dl.data[key5][key0][key1]:
-                                dl.data[key5][key0][key1][key2] = dict()
-                            for key3 in ['TEB', 'IQU', 'EB', 'QU', 'T', 'E', 'B', 'Q', 'U']:
-                                if key3 not in dl.data[key5][key0][key1][key2]:
-                                    dl.data[key5][key0][key1][key2][key3] = np.array([], dtype=np.complex128)
-
-
+                    for key3 in ['nlevel']:
+                        if key3 not in dl.data[key5][key0]:
+                            dl.data[key5][key0][key3] = dict()
+                        for key4 in dl.mask_ids + ['fs']:
+                            if key4 not in dl.data[key5][key0][key3]:
+                                dl.data[key5][key0][key3][key4] = dict()
+                            for key1 in ['map', 'alm', 'cl', 'cl_patch', 'cl_masked', 'cl_template', 'cl_template_binned', 'tot']:
+                                if key1 not in dl.data[key5][key0][key3][key4]:
+                                    dl.data[key5][key0][key3][key4][key1] = dict()
+                                for key2 in dl.ec.freqs + ['comb']:
+                                    if key2 not in dl.data[key5][key0][key3][key4][key1]:
+                                        dl.data[key5][key0][key3][key4][key1][key2] = dict()
+                                    for key6 in ['TEB', 'IQU', 'EB', 'QU', 'T', 'E', 'B', 'Q', 'U']:
+                                        if key6 not in dl.data[key5][key0][key3][key4][key1][key2]:
+                                            dl.data[key5][key0][key3][key4][key1][key2][key6] = np.array([], dtype=np.complex128)
+# self.data['maps'][component]['nlevel']['fs']['cl_template'][freq]['EB']
             dl.data['weight'] = np.zeros(shape=(2,*(np.loadtxt(dl.ic.weights_fns.format(dl.fg, 'E')).shape)))
             for i, flavour in enumerate(['E', 'B']):
                 dl.data['weight'][int(i%len(['E', 'B']))] = np.loadtxt(dl.ic.weights_fns.format(dl.fg, flavour))
 
-        def _process_Madel(dl, ma):
-            pass
-        
-        def _process_Config(dl, co):
-            pass
 
+        def _process_Madel(dl, ma):
+            dl.edges = []
+            dl.edges_id = []
+            if ma.edges != -1:
+                # if 'cmbs4' in ma.edges:
+                #     dl.edges.append(lc.cmbs4_edges)
+                #     dl.edges_id.append('cmbs4')
+                # if 'ioreco' in ma.edges:
+                #     dl.edges.append(lc.ioreco_edges) 
+                #     dl.edges_id.append('ioreco')
+                # if 'lowell' in ma.edges:
+                #     dl.edges.append(lc.lowell_edges) 
+                #     dl.edges_id.append('lowell')
+                # elif 'fs' in ma.edges:
+                #     dl.edges.append(lc.fs_edges)
+                #     dl.edges_id.append('fs')
+                dl.edges.append(lc.SPDP_edges)
+                dl.edges_id.append('SPDP')
+            dl.edges = np.array(dl.edges)
+            dl.edges_center = np.array([(e[1:]+e[:-1])/2 for e in dl.edges])
+
+            dl.ll = np.arange(0,dl.edges[0][-1]+1,1)
+            dl.scale_ps = dl.ll*(dl.ll+1)/(2*np.pi)
+            dl.scale_ps_binned = np.take(dl.scale_ps, [int(a) for a in dl.edges_center[0]])
+
+            if cf.noisemodel.rhits_normalised is not None:
+                _mask_path = cf.noisemodel.rhits_normalised[0]
+                dl.base_mask = np.nan_to_num(hp.read_map(_mask_path))
+            else:
+                dl.base_mask = np.ones(shape=hp.nside2npix(cf.data.nside))
+            noisemodel_rhits_map = df.get_nlev_mask(np.inf, dl.base_mask)
+            noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.noisemodel.inf
+
+            if ma.masks != None:
+                dl.masks = dict({ma.masks[0]:{}})
+                dl.binmasks = dict({ma.masks[0]:{}})
+                dl.mask_ids = ma.masks[1]
+                if ma.masks[0] == 'nlevels': 
+                    for mask_id in dl.mask_ids:
+                        buffer = df.get_nlev_mask(mask_id, noisemodel_rhits_map)
+                        dl.masks[ma.masks[0]].update({mask_id:buffer})
+                        dl.binmasks[ma.masks[0]].update({mask_id: np.where(dl.masks[ma.masks[0]][mask_id]>0,1,0)})
+                elif ma.masks[0] == 'masks':
+                    dl.mask_ids = np.zeros(shape=len(ma.masks[1]))
+                    for fni, fn in enumerate(ma.masks[1]):
+                        if fn == None:
+                            buffer = np.ones(shape=hp.nside2npix(dl.nside))
+                            dl.mask_ids[fni] = 1.00
+                        elif fn.endswith('.fits'):
+                            buffer = hp.read_map(fn)
+                        else:
+                            buffer = np.load(fn)
+                        _fsky = float("{:0.3f}".format(np.sum(buffer)/len(buffer)))
+                        dl.mask_ids[fni] = _fsky
+                        dl.masks[ma.masks[0]].update({_fsky:buffer})
+                        dl.binmasks[ma.masks[0]].update({_fsky: np.where(dl.masks[ma.masks[0]][_fsky]>0,1,0)})
+            else:
+                dl.masks = {"no":{1.00:np.ones(shape=hp.nside2npix(dl.nside))}}
+                dl.mask_ids = np.array([1.00])
+
+
+
+
+
+            
+        def _process_Config(dl, co):
+            if co.outdir_plot_rel:
+                dl.outdir_plot_rel = co.outdir_rel
+            else:
+                dl.outdir_plot_rel = '{}/{}'.format(cf.data.module_.split('.')[2],cf.data.module_.split('.')[-1])
+                    
+            if co.outdir_plot_root:
+                dl.outdir_plot_root = co.outdir_root
+            else:
+                dl.outdir_plot_root = os.environ['HOME']
+            
+            dl.outdir_plot_abs = opj(dl.outdir_plot_root, dl.outdir_plot_rel)
+            if not os.path.isdir(dl.outdir_plot_abs):
+                os.makedirs(dl.outdir_plot_abs)
+            log.info('Plots will be stored at {}'.format(dl.outdir_plot_abs))
+
+        
         def _process_Data(dl, da):
             dl.imin = da.IMIN
             dl.imax = da.IMAX
@@ -1775,13 +1857,16 @@ class l2i_Transformer:
             dl.ic = getattr(_sims_module, 'ILC_config')()
             dl.fc = getattr(_sims_module, 'foreground')(dl.fg)
             dl.nside = cf.data.nside
+            
                 
 
         dl = DLENSALOT_Concept()
 
+        dl.lmax = cf.analysis.lmax_filt
+
         _process_Data(dl, cf.data)
-        _process_X(dl)
         _process_Madel(dl, cf.madel)
+        _process_X(dl)
         _process_Config(dl, cf.config)
 
         return dl

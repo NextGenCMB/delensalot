@@ -157,9 +157,9 @@ def get_rotlonlat_mollview(area = 'SPDP'):
     '''mollview coordinates for different sky patches'''
     rotation, lonra, latra = None, None, None
     if area == 'SPDP':
-        rotation = np.array([40,-55])
+        rotation = np.array([40,-60])
         lonra = np.array([-35,35])+rotation[0]
-        latra = np.array([-20,22])+rotation[1]
+        latra = np.array([-15,27])+rotation[1]
     elif area == 'CDP':
         print("Not yet defined")
     else:

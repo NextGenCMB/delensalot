@@ -16,15 +16,19 @@ import getpass
 import numpy as np
 import healpy as hp
 
+from scipy.signal import savgol_filter as sf
+
+from MSC import pospace as ps
 from plancklens import utils, qresp
+from plancklens.sims import planck2018_sims
+
 from lenscarf.core import mpi
-
-
 from lenscarf.lerepi.core.visitor import transform
 from lenscarf.lerepi.config.config_helper import data_functions as df
 from lenscarf.iterators import cs_iterator
 from lenscarf.utils_hp import almxfl, alm_copy
 from lenscarf.iterators.statics import rec as rec
+from lenscarf.iterators import iteration_handler
 from lenscarf.opfilt.bmodes_ninv import template_bfilt
 
 
@@ -100,17 +104,41 @@ class Notebook_interactor():
     @log_on_start(logging.INFO, "load_foreground_freqs_mapalm() started")
     @log_on_end(logging.INFO, "load_foreground_freqs_mapalm() finished")
     def load_foreground_freqs_mapalm(self, mask=1):
+        rot_GC = hp.rotator.Rotator(coord=['G','C'])
         if self.fc.flavour == 'QU':
             for freq in self.ec.freqs:
                 if self.fc.fns_syncdust:
-                    buff = hp.read_map(self.fc.fns_syncdust.format(freq=freq, nside=self.nside), field=(1,2))*mask
+                    buff = hp.read_map(self.fc.fns_syncdust.format(freq=freq, nside=self.nside), field=(1,2))*mask*self.fc.map_fac
                 else:
-                    buff = hp.read_map(self.fc.fns_sync.format(freq=freq, nside=self.nside, simidx=self.fc.simidx, fg_beamstring=self.fg_beamstring[freq]), field=(1,2))*mask + hp.read_map(self.fc.fns_dust.format(freq=freq, nside=self.nside, simidx=self.fc.simidx, fg_beamstring=self.fg_beamstring[freq]), field=(1,2))*mask
-                self.data['maps']['fg']['map'][freq]['QU'] = buff
-                self.data['maps']['fg']['alm'][freq]['EB'] = np.array(hp.map2alm_spin(buff, spin=2, lmax=self.lmax))
-                # print(anas[0].data['maps']['fg']['alm'][freq]['EB'].shape)
+                    buff = hp.read_map(self.fc.fns_sync.format(freq=freq, nside=self.nside, simidx=self.fc.simidx, fg_beamstring=self.fc.fg_beamstring[freq]), field=(1,2))*mask*self.fc.map_fac + hp.read_map(self.fc.fns_dust.format(freq=freq, nside=self.nside, simidx=self.fc.simidx, fg_beamstring=self.fc.fg_beamstring[freq]), field=(1,2))*mask*self.fc.map_fac
+                self.data['maps']['fg']['nlevel']['fs']['map'][freq]['QU'] = buff
+                self.data['maps']['fg']['nlevel']['fs']['alm'][freq]['EB'] = np.array(hp.map2alm_spin(buff, spin=2, lmax=self.lmax))
+                # if self.fg == '09':
+                #     self.data['maps']['fg']['nlevel']['fs']['alm'][freq]['EB'][0] = rot_GC.rotate_alm(self.data['maps']['fg']['nlevel']['fs']['alm'][freq]['EB'][0])
+                #     self.data['maps']['fg']['nlevel']['fs']['alm'][freq]['EB'][1] = rot_GC.rotate_alm(self.data['maps']['fg']['nlevel']['fs']['alm'][freq]['EB'][1])
         elif self.fc.flavour == 'EB':
             log.error('not yet implemented')
+
+
+    @log_on_start(logging.INFO, "QU2EB() started")
+    @log_on_end(logging.INFO, "QU2EB() finished")   
+    def calc_powerspectrum_binned(self, maps_mask, templates, freq='comb', component='cs', nlevel='fs'):
+        ## Template
+
+        self.data['maps'][component]['nlevel']['fs']['cl_template'][freq]['EB'] = templates
+        cl_templ_binned = np.array([[np.mean(cl[int(bl):int(bu+1)])
+            for bl, bu in zip(self.edges[0], self.edges[0][1:])]
+            for cl in templates])
+        self.data['maps'][component]['nlevel']['fs']['cl_template_binned'][freq]['EB'] = cl_templ_binned
+
+        pslibE = ps.map2cl_binned(maps_mask, self.data['maps'][component]['nlevel']['fs']['cl_template'][freq]['EB'][0], self.edges[0], self.lmax)
+        pslibB = ps.map2cl_binned(maps_mask, self.data['maps'][component]['nlevel']['fs']['cl_template'][freq]['EB'][1], self.edges[0], self.lmax)
+
+        self.data['maps'][component]['nlevel'][nlevel]['cl_patch'][freq]['EB']  = np.array([
+            pslibE.map2cl(self.data['maps'][component]['nlevel']['fs']['map'][freq]['EB'][0]),
+            pslibB.map2cl(self.data['maps'][component]['nlevel']['fs']['map'][freq]['EB'][1])
+        ])
+
 
 
     @log_on_start(logging.INFO, "combine() started")
@@ -188,15 +216,23 @@ class OBD_builder():
 class QE_lr():
     def __init__(self, dlensalot_model):
         self.__dict__.update(dlensalot_model.__dict__)
-        self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
-        self.mf = lambda simidx: self.get_meanfield(simidx)
-        self.plm = lambda simidx: self.get_plm(simidx, self.QE_subtract_meanfield)
-        self.mf_resp = lambda: self.get_response_meanfield()
-        self.wflm = lambda simidx: alm_copy(self.filter.get_sim_emliklm(simidx), None, self.lmax_unl, self.mmax_unl)
-        self.R_unl = lambda: qresp.get_response(self.key, self.qe_filter_lmax, 'p', self.cls_unl, self.cls_unl,  {'e': self.fel_unl, 'b': self.fbl_unl, 't':self.ftl_unl}, lmax_qlm=self.lmax_qlm)[0]
+        if 'overwrite_libdir' in dlensalot_model.__dict__:
+            pass
+        else:
+            self.overwrite_libdir = None
+        if self.overwrite_libdir is None:
+            self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
+            self.mf = lambda simidx: self.get_meanfield(simidx)
+            self.plm = lambda simidx: self.get_plm(simidx, self.QE_subtract_meanfield)
+            self.mf_resp = lambda: self.get_response_meanfield()
+            self.wflm = lambda simidx: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lmax_unl, self.mmax_unl)
+            self.R_unl = lambda: qresp.get_response(self.k, self.lmax_ivf, 'p', self.cls_unl, self.cls_unl,  {'e': self.fel_unl, 'b': self.fbl_unl, 't':self.ftl_unl}, lmax_qlm=self.lmax_qlm)[0]
+        else:
+            # TODO hack. Only want to access old s08b sim result lib and generate B wf
+            self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'zb_terator_%s_%04d_nofg_OBD_solcond_3apr20'%(qe_key, simidx) + version)
+      
 
-
-    @log_on_start(logging.INFO, "collect_jobs() started: id={id}")
+    @log_on_start(logging.INFO, "collect_jobs() started: id={id}, overwrite_libdir={self.overwrite_libdir}")
     @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self, id=''):
         if self.overwrite_libdir is None:
@@ -228,33 +264,36 @@ class QE_lr():
     @log_on_start(logging.INFO, "run() started")
     @log_on_end(logging.INFO, "run() finished")
     def run(self):
-        for idx in self.jobs[mpi.rank::mpi.size]:
-            log.info('{}/{}, Starting job {}'.format(mpi.rank,mpi.size,idx))
-            # TODO this triggers the creation of all files for the MAP input, defined by the job array. 
-            # MAP later needs the corresponding values separately via getter. Can I think of something better?
-            self.get_sim_qlm(int(idx))
-            # self.get_wflm(idx)
-            # self.get_response_meanfield()
-            # self.get_R_unl()
-            log.info('{}/{}, finished job {}'.format(mpi.rank,mpi.size,idx))
-        if len(self.jobs)>0:
-            log.info('{} finished qe ivfs tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
-            mpi.barrier()
-            # Tunneling the meanfield-calculation, so only rank 0 calculates it. Otherwise,
-            # some processes will try accessing it too fast, or calculate themselves, which results in
-            # an io error
-            if mpi.rank == 0:
+        if self.overwrite_libdir is None:
+            for idx in self.jobs[mpi.rank::mpi.size]:
+                log.info('{}/{}, Starting job {}'.format(mpi.rank,mpi.size,idx))
+                # TODO this triggers the creation of all files for the MAP input, defined by the job array. 
+                # MAP later needs the corresponding values separately via getter. Can I think of something better?
+                self.get_sim_qlm(int(idx))
+                self.get_response_meanfield()
+                self.get_wflm(idx)
+                self.get_R_unl()
+                # self.get_B_wf(idx)
+                log.info('{}/{}, finished job {}'.format(mpi.rank,mpi.size,idx))
+            if len(self.jobs)>0:
+                log.info('{} finished qe ivfs tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
+                mpi.barrier()
+                # Tunneling the meanfield-calculation, so only rank 0 calculates it. Otherwise,
+                # some processes will try accessing it too fast, or calculate themselves, which results in
+                # an io error
+                log.info("Done waiting. Rank 0 going to calculate meanfield-file.. everyone else waiting.")
+                if mpi.rank == 0:
+                    self.get_meanfield(idx)
+                    log.info("rank finsihed calculating meanfield-file.. everyone else waiting.")
+                mpi.barrier()
+                log.info("Starting mf-calc task")
+            for idx in self.jobs[mpi.rank::mpi.size]:
                 self.get_meanfield(idx)
-                log.info("Rank 0 finished calculating meanfield-file.")
-            mpi.barrier()
-            log.info("Starting mf-calc task")
-        for idx in self.jobs[mpi.rank::mpi.size]:
-            self.get_meanfield(idx)
-            self.get_plm(idx)
-        if len(self.jobs)>0:
-            log.info('{} finished qe mf-calc tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
-            mpi.barrier()
-            log.info('All ranks finished qe mf-calc tasks.')
+                self.get_plm(idx)
+            if len(self.jobs)>0:
+                log.info('{} finished qe mf-calc tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
+                mpi.barrier()
+                log.info('All ranks finished qe mf-calc tasks.')
 
 
     @log_on_start(logging.INFO, "get_sim_qlm() started")
@@ -283,27 +322,27 @@ class QE_lr():
     @log_on_end(logging.INFO, "get_wflm() finished")    
     def get_wflm(self, simidx):
 
-        return lambda: alm_copy(self.qe_filter.get_sim_emliklm(simidx), None, self.qe_filter_lmax_unl, self.qe_filter_mmax_unl)
+        return lambda: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lmax_unl, self.mmax_unl)
 
 
     @log_on_start(logging.INFO, "get_R_unl() started")
     @log_on_end(logging.INFO, "get_R_unl() finished")    
     def get_R_unl(self):
 
-        return qresp.get_response(self.key, self.qe_filter_lmax, 'p', self.cls_unl, self.cls_unl,  {'e': self.fel_unl, 'b': self.fbl_unl, 't':self.ftl_unl}, lmax_qlm=self.lmax_qlm)[0]
+        return qresp.get_response(self.k, self.lmax_ivf, 'p', self.cls_unl, self.cls_unl,  {'e': self.fel_unl, 'b': self.fbl_unl, 't':self.ftl_unl}, lmax_qlm=self.lmax_qlm)[0]
 
 
     @log_on_start(logging.INFO, "get_meanfield() started")
     @log_on_end(logging.INFO, "get_meanfield() finished")
     def get_meanfield(self, simidx):
         if self.mfvar == None:
-            mf = self.qlms_dd.get_sim_qlm_mf(self.key, self.QE_simidxs_mf)
-            if simidx in self.QE_simidxs_mf:    
-                mf = (mf - self.qlms_dd.get_sim_qlm(self.key, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
+            mf = self.qlms_dd.get_sim_qlm_mf(self.k, self.simidxs_mf)
+            if simidx in self.simidxs_mf:    
+                mf = (mf - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
         else:
             mf = hp.read_alm(self.mfvar)
-            if simidx in self.QE_simidxs_mf:    
-                mf = (mf - self.qlms_dd_mfvar.get_sim_qlm(self.key, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
+            if simidx in self.simidxs_mf:    
+                mf = (mf - self.qlms_dd_mfvar.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
 
         return mf
 
@@ -311,15 +350,15 @@ class QE_lr():
     @log_on_start(logging.INFO, "get_plm() started")
     @log_on_end(logging.INFO, "get_plm() finished")
     def get_plm(self, simidx, subtract_meanfield=True):
-        lib_dir_iterator = self.libdir_iterators(self.key, simidx, self.version)
+        lib_dir_iterator = self.libdir_iterators(self.k, simidx, self.version)
         if not os.path.exists(lib_dir_iterator):
             os.makedirs(lib_dir_iterator)
         path_plm = opj(lib_dir_iterator, 'phi_plm_it000.npy')
         if not os.path.exists(path_plm):
-            plm  = self.qlms_dd.get_sim_qlm(self.key, int(simidx))  #Unormalized quadratic estimate:
+            plm  = self.qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate:
             if subtract_meanfield:
                 plm -= self.mf(simidx)  # MF-subtracted unnormalized QE
-            R = qresp.get_response(self.key, self.qe_filter_lmax, 'p', self.cls_len, self.cls_len, {'e': self.fel, 'b': self.fbl, 't':self.ftl}, lmax_qlm=self.lmax_qlm)[0]
+            R = qresp.get_response(self.k, self.lmax_ivf, 'p', self.cls_len, self.cls_len, {'e': self.fel, 'b': self.fbl, 't':self.ftl}, lmax_qlm=self.lmax_qlm)[0]
             # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
             WF = self.cpp * utils.cli(self.cpp + utils.cli(R))
             plm = alm_copy(plm,  None, self.lmax_qlm, self.mmax_qlm)
@@ -335,10 +374,10 @@ class QE_lr():
     @log_on_start(logging.INFO, "get_response_meanfield() started")
     @log_on_end(logging.INFO, "get_response_meanfield() finished")
     def get_response_meanfield(self):
-        if self.key in ['p_p'] and not 'noRespMF' in self.version:
-            mf_resp = qresp.get_mf_resp(self.key, self.cls_unl, {'ee': self.fel_unl, 'bb': self.fbl_unl}, self.qe_filter_lmax, self.lmax_qlm)[0]
+        if self.k in ['p_p'] and not 'noRespMF' in self.version:
+            mf_resp = qresp.get_mf_resp(self.k, self.cls_unl, {'ee': self.fel_unl, 'bb': self.fbl_unl}, self.lmax_ivf, self.lmax_qlm)[0]
         else:
-            log.info('*** mf_resp not implemented for key ' + self.key, ', setting it to zero')
+            log.info('*** mf_resp not implemented for key ' + self.k, ', setting it to zero')
             mf_resp = np.zeros(self.lmax_qlm + 1, dtype=float)
 
         return mf_resp
@@ -353,7 +392,13 @@ class MAP_lr():
         self.qe = QE_lr(dlensalot_model)
         self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
 
-        self.iterator_lib = cs_iterator.transformer(self.iterator_typ)
+        if self.iterator_typ in ['pertmf', 'constmf']:
+            # TODO this is the interface to the D.lensalot iterators and connects 
+            # to lerepi. Could be simplified, s.t. interfacing happens without the iteration_handler
+            # but directly with cs_iterator, e.g. by adding visitor pattern to cs_iterator
+            self.ith = iteration_handler.transformer(self.iterator_typ)
+        elif self.iterator_typ in ['pertmf_new']:
+            self.ith = cs_iterator.transformer(self.iterator_typ)
 
 
     @log_on_start(logging.INFO, "collect_jobs() start")
@@ -366,8 +411,8 @@ class MAP_lr():
             # TODO order of task list matters, but shouldn't
             if task == 'calc_phi':
                 self.qe.collect_jobs()
-                for idx in self.it_simidxs:
-                    lib_dir_iterator = self.libdir_iterators(self.key, idx, self.version)
+                for idx in self.simidxs:
+                    lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
                     if rec.maxiterdone(lib_dir_iterator) < self.itmax:
                         _jobs.append(idx)
 
@@ -378,14 +423,22 @@ class MAP_lr():
                 log.info("Waiting for all ranks to finish their task")
                 mpi.barrier()
                 _jobs.append(0)
+                # check = True
+                # for idx in range(self.Nmf):
+                #     lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)   
+                #     if rec.maxiterdone(lib_dir_iterator) < self.itmax:
+                #         check = False
+                #         break
+                # if check:
+                #     _jobs.append(0)
 
             elif task == 'calc_btemplate':
                 self.qe.collect_jobs()
                 # TODO making sure that all meanfields are available, but the mpi.barrier() is likely a too strong statement.
                 log.info("Waiting for all ranks to finish their task")
                 mpi.barrier()
-                for idx in self.it_simidxs:
-                    lib_dir_iterator = self.libdir_iterators(self.key, idx, self.version)
+                for idx in self.simidxs:
+                    lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
                     if "calc_phi" in self.tasks:
                         # assume that this is a new analysis, so rec.maxiterdone won't work. Could collect task jobs after finishing previous task run to improve this.
                         _jobs.append(idx)
@@ -406,16 +459,14 @@ class MAP_lr():
             if task == 'calc_phi':
                 self.qe.run()
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
-                    lib_dir_iterator = self.libdir_iterators(self.key, idx, self.version)
+                    lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
                     if self.itmax >= 0 and rec.maxiterdone(lib_dir_iterator) < self.itmax:
-                        if not os.path.exists(lib_dir_iterator):
-                            os.makedirs(lib_dir_iterator)
-                        itlib_kwargs = self.init_itlib_iterator(idx, lib_dir_iterator)
-                        itlib_iterator = self.iterator_lib(**itlib_kwargs)
+                        itlib = self.ith(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
+                        itlib_iterator = itlib.get_iterator()
                         for it in range(self.itmax + 1):
                             log.info("using cg-tol = %.4e"%self.cg_tol(it))
                             log.info("using soltn_cond = %s"%self.soltn_cond(it))
-                            itlib_iterator.chain_descr = self.chain_descr(self.it_lmax_unl, self.cg_tol(it))
+                            itlib_iterator.chain_descr = self.chain_descr(self.lmax_unl, self.cg_tol(it))
                             itlib_iterator.soltn_cond = self.soltn_cond(it)
                             itlib_iterator.iterate(it, 'p')
                             log.info('{}, simidx {} done with it {}'.format(mpi.rank, idx, it))
@@ -434,11 +485,9 @@ class MAP_lr():
                 log.info('{}, task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
                     log.info("{}: start sim {}".format(mpi.rank, idx))
-                    lib_dir_iterator = self.libdir_iterators(self.key, idx, self.version)
-                    if not os.path.exists(lib_dir_iterator):
-                        os.makedirs(lib_dir_iterator)
-                    itlib_kwargs = self.init_itlib_iterator(idx, lib_dir_iterator)
-                    itlib_iterator = self.iterator_lib(**itlib_kwargs)
+                    lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
+                    itlib = self.ith(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
+                    itlib_iterator = itlib.get_iterator()
                     if self.dlm_mod_bool:
                         dlm_mod = self.get_meanfields_it(np.arange(self.itmax+1), calc=False)
                         dlm_mod = (dlm_mod - np.array(rec.load_plms(lib_dir_iterator, np.arange(self.itmax+1)))/self.Nmf) * self.Nmf/(self.Nmf - 1)
@@ -449,32 +498,11 @@ class MAP_lr():
                     log.info("{}: finished sim {}".format(mpi.rank, idx))
 
 
-    def init_itlib_iterator(self, simidx, lib_dir):
-        h = 'p'
-        lm_max_dlm = (self.lmax_qlm, self.mmax_qlm)
-        dat_maps = np.array(self.sims_MAP.get_sim_pmap(int(simidx)))
-        plm0 = self.qe.get_plm(simidx)
-        mf_resp = self.qe.get_response_meanfield()
-        pp_h0 = self.qe.R_unl()
-        cpp_prior = self.cpp
-        cls_filt = self.cls_unl
-        ninv_filt = self.it_filter
-        k_geom = self.k_geom
-        chain_descr = self.chain_descr(self.it_lmax_unl, self.cg_tol)
-        stepper = self.stepper
-        mf0 = self.qe.get_meanfield(simidx)
-        wflm0 = self.qe.get_wflm(simidx)
-        ret = locals()
-        ret.pop('self')
-        ret.pop('simidx')
-        return ret
-
-
     @log_on_start(logging.INFO, "get_plm_it() started")
     @log_on_end(logging.INFO, "get_plm_it() finished")
     def get_plm_it(self, simidx, its):
 
-        plms = rec.load_plms(self.libdir_iterators(self.key, simidx, self.version), its)
+        plms = rec.load_plms(self.libdir_iterators(self.k, simidx, self.version), its)
 
         return plms
 
@@ -490,11 +518,11 @@ class MAP_lr():
             else:
                 mf = self.get_meanfield_it(self, it, calc=True)
         else:
-            plm = rec.load_plms(self.libdir_iterators(self.key, self.it_simidxs[0], self.version), [0])[-1]
+            plm = rec.load_plms(self.libdir_iterators(self.k, self.simidxs[0], self.version), [0])[-1]
             mf = np.zeros_like(plm)
-            for simidx in self.it_simidxs_mf:
+            for simidx in self.simidxs_mf:
                 log.info("it {:02d}: adding sim {:03d}/{}".format(it, simidx, self.Nmf))
-                mf += rec.load_plms(self.libdir_iterators(self.key, simidx, self.version), [it])[-1]
+                mf += rec.load_plms(self.libdir_iterators(self.k, simidx, self.version), [it])[-1]
             np.save(fn, mf/self.Nmf)
 
         return mf
@@ -503,7 +531,7 @@ class MAP_lr():
     @log_on_start(logging.INFO, "get_meanfields_it() started")
     @log_on_end(logging.INFO, "get_meanfields_it() finished")
     def get_meanfields_it(self, its, calc=False):
-        plm = rec.load_plms(self.libdir_iterators(self.key, self.it_simidxs[0], self.version), [0])[-1]
+        plm = rec.load_plms(self.libdir_iterators(self.k, self.simidxs[0], self.version), [0])[-1]
         mfs = np.zeros(shape=(len(its),*plm.shape), dtype=np.complex128)
         if calc==True:
             for iti, it in enumerate(its[mpi.rank::mpi.size]):
@@ -539,7 +567,7 @@ class Map_delenser():
     def getfn_blm_lensc(self, simidx, it):
         '''Lenscarf output using Catherinas E and B maps'''
         # TODO this needs cleaner implementation via lambda
-        # _libdir_iterator = self.libdir_iterators(self.key, simidx, self.version)
+        # _libdir_iterator = self.libdir_iterators(self.k, simidx, self.version)
         # return _libdir_iterator+fn(**params)
 
         ## TODO add QE lensing templates to CFS dir?
@@ -609,11 +637,11 @@ class Map_delenser():
             assert 0, "File {} doesn't exist".format(bw_fn)
 
 
-    # @log_on_start(logging.INFO, "get_teblm_fid() started")
-    # @log_on_end(logging.INFO, "get_teblm_fid() finished")
-    def get_teblm_fid(self, simidx):
-        '''Fiducial pure BB-lensing''' 
-        ret = hp.almxfl(utils.alm_copy(self.cmb_len_fid.get_sim_blm(simidx), lmax=self.lmax), self.transf)
+    # @log_on_start(logging.INFO, "get_teblm_ffp10() started")
+    # @log_on_end(logging.INFO, "get_teblm_ffp10() finished")
+    def get_teblm_ffp10(self, simidx):
+        '''Pure BB-lensing from ffp10''' 
+        ret = hp.almxfl(utils.alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(simidx), lmax=self.lmax), self.transf)
 
         return ret
 
@@ -628,7 +656,7 @@ class Map_delenser():
             if self.libdir_iterators == 'overwrite':
                 jobs.append(idx)
             else:
-                lib_dir_iterator = self.libdir_iterators(self.key, idx, self.version)
+                lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
                 if rec.maxiterdone(lib_dir_iterator) >= self.its[-1]:
                     jobs.append(idx)
         self.jobs = jobs
@@ -670,13 +698,18 @@ class Map_delenser():
                     teblm_cs = hp.map2alm([np.zeros_like(map_cs[0]), *map_cs], lmax=self.lmax, pol=False)
                     bmap_cs = hp.alm2map(teblm_cs[2], self.nside)
             elif self.data_type == 'alm':
-                eblm_cs = self.getfn_qumap_cs(idx)
-                bmap_cs = hp.alm2map(eblm_cs[1], self.nside)
+                if self.data_field == 'eb':
+                    eblm_cs = self.getfn_qumap_cs(idx)
+                    bmap_cs = hp.alm2map(eblm_cs[1], self.nside)
+                elif self.data_field == 'qu':
+                    log.error("I don't think you have qlms,ulms")
+                    sys.exit()
 
-            blm_L = self.get_teblm_fid(idx)
+            # TODO fiducial choice should happen at transformer
+            blm_L = self.get_teblm_ffp10(idx)
             bmap_L = hp.alm2map(blm_L, self.nside)
 
-            btemplm_QE = np.load(self.getfn_btemplm(idx, self.fg, 0))
+            btemplm_QE = np.load(self.getfn_blm_lensc(idx, 0))
             btempmap_QE = hp.alm2map(btemplm_QE, nside=self.nside)
 
             return bmap_L, bmap_cs, btempmap_QE
@@ -685,8 +718,8 @@ class Map_delenser():
         # @log_on_start(logging.INFO, "_build_Btemplate_MAP() started")
         # @log_on_end(logging.INFO, "_build_Btemplate_MAP() finished")
         def _build_Btemplate_MAP(idx):
-            fns = [self.getfn_btemplm(idx, self.fg, it) for it in self.its]
-            btemplm_MAP = np.zeros(shape=(len(fns), *np.load(self.getfn_btemplm(idx, self.fg, 0)).shape), dtype=np.complex128)
+            fns = [self.getfn_blm_lensc(idx, it) for it in self.its]
+            btemplm_MAP = np.zeros(shape=(len(fns), *np.load(self.getfn_blm_lensc(idx, 0)).shape), dtype=np.complex128)
             for fni, fn in enumerate(fns):
                 if fn.endswith('.npy'):
                     btemplm_MAP[fni] = np.array(np.load(fn))
