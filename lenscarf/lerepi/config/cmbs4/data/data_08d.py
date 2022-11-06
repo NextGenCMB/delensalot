@@ -42,6 +42,7 @@ class foreground:
             self.flavour = 'QU'
             self.coord = 'celestial'
             self.simidx = 1
+            self.map_fac = 1e6
         elif fg == '07':
             self.fns_sync = rd_exptxx+'amsync/map/amsync_f{freq}_b{fg_beamstring}_ellmin30_map_{nside}_mc_{simidx:04d}.fits'
             self.fns_dust = rd_exptxx+'amdust/map/amdust_f{freq}_b{fg_beamstring}_ellmin30_map_{nside}_mc_{simidx:04d}.fits'
@@ -49,10 +50,13 @@ class foreground:
             self.flavour = 'QU'
             self.coord = 'celestial'
             self.simidx = 1
+            self.map_fac = 1e6
+            # self.amp_template_apo_galactic = 
         elif fg == '09':
             self.fns_syncdust = rd_skyyy+'09/vans_d1s1_SOS4_{freq}_tophat_map_{nside}.fits'
             self.flavour = 'QU'
             self.coord = 'galactic'
+            self.map_fac = 1
     
 
 class ILC_May2022:

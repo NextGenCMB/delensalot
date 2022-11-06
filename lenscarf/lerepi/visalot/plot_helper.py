@@ -174,6 +174,50 @@ def get_planck_cmap():
     # this colormap directly with hp.mollview(m, cmap=colombi1_cmap)
     return cmap
 
+def get_custom_cmap():
+    from matplotlib.colors import ListedColormap, LinearSegmentedColormap
+
+    size_g = 4
+    grey_map = cm.get_cmap('Greys', 32)
+
+    size_bl = 4
+    blue_map = cm.get_cmap('Blues', 32)
+    blues_dld = np.vstack(
+        (blue_map(np.linspace(0.1, 0.8, size_bl)),
+        blue_map(np.linspace(0.8, 0.1, size_bl))))
+
+    greys_light_dld = np.vstack(
+        (grey_map(np.linspace(.8, 0.1, size_g)),
+        grey_map(np.linspace(0.1, .8, size_g))))
+
+    size_o = 8
+    orange_map = cm.get_cmap('Oranges', 32)
+    oranges_dark_dld = np.vstack(
+        (orange_map(np.linspace(0.2, 0.5, size_o)),
+        orange_map(np.linspace(0.5, 0.2, size_o))))
+
+
+    size_gr = 8
+    green_map = cm.get_cmap('Greens', 32)
+    greens_dld = np.vstack(
+        (green_map(np.linspace(0.2, 0.5, size_gr)),
+        green_map(np.linspace(0.5, 0.2, size_gr))))
+
+    size_w = 1
+    white_map = cm.get_cmap('Greys', 32)
+    white = white_map(np.linspace(0.0, 0.1, size_w))
+
+    gb = np.vstack((
+        greens_dld[int(size_o):],
+        blues_dld[int(size_bl):],
+        white[:size_w],
+        greys_light_dld[int(size_g):],
+        oranges_dark_dld[:int(size_o)]
+    ))
+    cmap = ListedColormap(gb)
+    return cmap
+
+
 def plot_cmap(cmap, minmax):
     matplotlib.rcParams.update({'font.size': 18})
     a = np.array([[-minmax,minmax]])
