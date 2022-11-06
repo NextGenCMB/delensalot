@@ -1728,35 +1728,50 @@ class l2i_Transformer:
     def build_v2(self, cf):
 
         def _process_X(dl):
+            # dl.cl = dict()
+            # for key0 in ['fg', 'noise', 'noise_eff', 'cmb_len', 'BLT', 'cs', 'pred', 'pred_eff']:
+            #     if key0 not in dl.data:
+            #         dl.data[key0] = dict()
+            #     for key3 in ['nlevel']:
+            #         if key3 not in dl.data[key0]:
+            #             dl.data[key0] = dict()
+            #         for key4 in dl.mask_ids + ['fs']:
+            #             if key4 not in dl.data[key0]:
+            #                 dl.data[key0][key4] = dict()
+            #             for key1 in ['map', 'alm', 'cl', 'cl_patch', 'cl_masked', 'cl_template', 'cl_template_binned', 'tot']:
+            #                 if key1 not in dl.data[key0][key4]:
+            #                     dl.data[key0][key4][key1] = dict()
+            #                 for key2 in dl.ec.freqs + ['comb']:
+            #                     if key2 not in dl.data[key0][key4][key1]:
+            #                         dl.data[key0][key4][key1][key2] = dict()
+            #                     for key6 in ['TEB', 'IQU', 'EB', 'QU', 'EB_bp', 'QU_bp', 'T', 'E', 'B', 'Q', 'U']:
+            #                         if key6 not in dl.data[key0][key4][key1][key2]:
+            #                             dl.data[key0][key4][key1][key2][key6] = np.array([], dtype=np.complex128)
             dl.data = dict()
-            for key5 in ['maps']:
-                if key5 not in dl.data:
-                    dl.data[key5] = dict()
-                for key0 in ['fg', 'cmb', 'noise', 'cmb_len', 'BLT', 'cs']:
-                    if key0 not in dl.data[key5]:
-                        dl.data[key5][key0] = dict()
-                    for key3 in ['nlevel']:
-                        if key3 not in dl.data[key5][key0]:
-                            dl.data[key5][key0][key3] = dict()
-                        for key4 in dl.mask_ids + ['fs']:
-                            if key4 not in dl.data[key5][key0][key3]:
-                                dl.data[key5][key0][key3][key4] = dict()
-                            for key1 in ['map', 'alm', 'cl', 'cl_patch', 'cl_masked', 'cl_template', 'cl_template_binned', 'tot']:
-                                if key1 not in dl.data[key5][key0][key3][key4]:
-                                    dl.data[key5][key0][key3][key4][key1] = dict()
-                                for key2 in dl.ec.freqs + ['comb']:
-                                    if key2 not in dl.data[key5][key0][key3][key4][key1]:
-                                        dl.data[key5][key0][key3][key4][key1][key2] = dict()
-                                    for key6 in ['TEB', 'IQU', 'EB', 'QU', 'T', 'E', 'B', 'Q', 'U']:
-                                        if key6 not in dl.data[key5][key0][key3][key4][key1][key2]:
-                                            dl.data[key5][key0][key3][key4][key1][key2][key6] = np.array([], dtype=np.complex128)
-# self.data['maps'][component]['nlevel']['fs']['cl_template'][freq]['EB']
+            for key0 in ['fg', 'noise', 'noise_eff', 'cmb_len', 'BLT', 'cs', 'pred', 'pred_eff', 'BLT_QE', 'BLT_MAP', 'BLT_QE_avg', 'BLT_MAP_avg']:
+                if key0 not in dl.data:
+                    dl.data[key0] = dict()
+                for key4 in dl.mask_ids + ['fs']:
+                    if key4 not in dl.data[key0]:
+                        dl.data[key0][key4] = dict()
+                    for key1 in ['map', 'alm', 'cl', 'cl_patch', 'cl_masked', 'cl_template', 'cl_template_binned', 'tot']:
+                        if key1 not in dl.data[key0][key4]:
+                            dl.data[key0][key4][key1] = dict()
+                        for key2 in dl.ec.freqs + ['comb']:
+                            if key2 not in dl.data[key0][key4][key1]:
+                                dl.data[key0][key4][key1][key2] = dict()
+                            for key6 in ['TEB', 'IQU', 'EB', 'QU', 'EB_bp', 'QU_bp', 'T', 'E', 'B', 'Q', 'U', 'E_bp', 'B_bp']:
+                                if key6 not in dl.data[key0][key4][key1][key2]:
+                                    dl.data[key0][key4][key1][key2][key6] = np.array([], dtype=np.complex128)
+# self.data[component]['nlevel']['fs']['cl_template'][freq]['EB']
             dl.data['weight'] = np.zeros(shape=(2,*(np.loadtxt(dl.ic.weights_fns.format(dl.fg, 'E')).shape)))
             for i, flavour in enumerate(['E', 'B']):
                 dl.data['weight'][int(i%len(['E', 'B']))] = np.loadtxt(dl.ic.weights_fns.format(dl.fg, flavour))
 
 
         def _process_Madel(dl, ma):
+            dl.data_from_CFS = True
+            dl.its = ma.iterations 
             dl.edges = []
             dl.edges_id = []
             if ma.edges != -1:
@@ -1818,9 +1833,6 @@ class l2i_Transformer:
 
 
 
-
-
-            
         def _process_Config(dl, co):
             if co.outdir_plot_rel:
                 dl.outdir_plot_rel = co.outdir_rel
@@ -1830,7 +1842,7 @@ class l2i_Transformer:
             if co.outdir_plot_root:
                 dl.outdir_plot_root = co.outdir_root
             else:
-                dl.outdir_plot_root = os.environ['HOME']
+                dl.outdir_plot_root = opj(os.environ['HOME'],'plots')
             
             dl.outdir_plot_abs = opj(dl.outdir_plot_root, dl.outdir_plot_rel)
             if not os.path.isdir(dl.outdir_plot_abs):
@@ -1857,12 +1869,30 @@ class l2i_Transformer:
             dl.ic = getattr(_sims_module, 'ILC_config')()
             dl.fc = getattr(_sims_module, 'foreground')(dl.fg)
             dl.nside = cf.data.nside
+
+            dl.beam = da.beam
+            dl.lmax_transf = da.lmax_transf
+            dl.transf = hp.gauss_beam(df.a2r(dl.beam), lmax=dl.lmax_transf)
             
                 
 
         dl = DLENSALOT_Concept()
-
+        # dl.binning = cf.madel.binning
         dl.lmax = cf.analysis.lmax_filt
+        # dl.version = cf.analysis.V
+        # dl.TEMP = transform(cf, l2T_Transformer())
+        # dl.analysis_path = dl.TEMP.split('/')[-1]
+        # dl.TEMP_DELENSED_SPECTRUM = transform(dl, l2T_Transformer())
+        # if dl.binning == 'binned':
+        #     if dl.dlm_mod_bool:
+        #         dl.file_op = lambda idx, fg, edges_idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edges_idx]) + '/ClBBwf_sim%04d_%s_fg%s_res2b3acm.npy'%(idx, 'dlmmod', fg)
+        #     else:
+        #         dl.file_op = lambda idx, fg, edges_idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edges_idx]) + '/ClBBwf_sim%04d_fg%s_res2b3acm.npy'%(idx, fg)
+        # else:
+        #     if dl.dlm_mod_bool:
+        #         dl.file_op = lambda idx, fg, x: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[0]) + '/ClBBwf_sim%04d_%s_fg%s_res2b3acm.npy'%(idx, 'dlmmod', fg)
+        #     else:
+        #         dl.file_op = lambda idx, fg, x: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[0]) + '/ClBBwf_sim%04d_fg%s_res2b3acm.npy'%(idx, fg)
 
         _process_Data(dl, cf.data)
         _process_Madel(dl, cf.madel)

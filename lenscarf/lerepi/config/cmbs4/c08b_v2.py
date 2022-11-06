@@ -2,6 +2,7 @@ import numpy as np
 
 from lenscarf.lerepi.core.metamodel.dlensalot_v2 import *
 from MSC import pospace
+from os.path import join as opj
 
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(
@@ -106,7 +107,7 @@ dlensalot_model = DLENSALOT_Model(
         spectrum_calculator = pospace
     ),
     config = DLENSALOT_Config(
-        outdir_plot_root = os.environ['HOME'],
+        outdir_plot_root = opj(os.environ['HOME'], 'plots'),
         outdir_plot_rel = "cmbs4/08b/"
     )
 )

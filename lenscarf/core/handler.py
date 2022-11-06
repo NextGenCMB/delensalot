@@ -103,63 +103,169 @@ class Notebook_interactor():
     
     @log_on_start(logging.INFO, "load_foreground_freqs_mapalm() started")
     @log_on_end(logging.INFO, "load_foreground_freqs_mapalm() finished")
-    def load_foreground_freqs_mapalm(self, mask=1):
-        rot_GC = hp.rotator.Rotator(coord=['G','C'])
+    def load_foreground_freqs_mapalm(self, mask=1, rotate_alms=False):
         if self.fc.flavour == 'QU':
             for freq in self.ec.freqs:
                 if self.fc.fns_syncdust:
                     buff = hp.read_map(self.fc.fns_syncdust.format(freq=freq, nside=self.nside), field=(1,2))*mask*self.fc.map_fac
                 else:
                     buff = hp.read_map(self.fc.fns_sync.format(freq=freq, nside=self.nside, simidx=self.fc.simidx, fg_beamstring=self.fc.fg_beamstring[freq]), field=(1,2))*mask*self.fc.map_fac + hp.read_map(self.fc.fns_dust.format(freq=freq, nside=self.nside, simidx=self.fc.simidx, fg_beamstring=self.fc.fg_beamstring[freq]), field=(1,2))*mask*self.fc.map_fac
-                self.data['maps']['fg']['nlevel']['fs']['map'][freq]['QU'] = buff
-                self.data['maps']['fg']['nlevel']['fs']['alm'][freq]['EB'] = np.array(hp.map2alm_spin(buff, spin=2, lmax=self.lmax))
-                # if self.fg == '09':
-                #     self.data['maps']['fg']['nlevel']['fs']['alm'][freq]['EB'][0] = rot_GC.rotate_alm(self.data['maps']['fg']['nlevel']['fs']['alm'][freq]['EB'][0])
-                #     self.data['maps']['fg']['nlevel']['fs']['alm'][freq]['EB'][1] = rot_GC.rotate_alm(self.data['maps']['fg']['nlevel']['fs']['alm'][freq]['EB'][1])
+                self.data['fg']['fs']['map'][freq]['QU'] = buff
+                self.data['fg']['fs']['alm'][freq]['EB'] = np.array(hp.map2alm_spin(buff, spin=2, lmax=self.lmax))
+                if rotate_alms:
+                    rotator = hp.rotator.Rotator(coord=rotate_alms)
+                    self.data['fg']['fs']['alm'][freq]['EB'][0] = rotator.rotate_alm(self.data['fg']['fs']['alm'][freq]['EB'][0])
+                    self.data['fg']['fs']['alm'][freq]['EB'][1] = rotator.rotate_alm(self.data['fg']['fs']['alm'][freq]['EB'][1])
         elif self.fc.flavour == 'EB':
             log.error('not yet implemented')
 
 
-    @log_on_start(logging.INFO, "QU2EB() started")
-    @log_on_end(logging.INFO, "QU2EB() finished")   
-    def calc_powerspectrum_binned(self, maps_mask, templates, freq='comb', component='cs', nlevel='fs'):
+    @log_on_start(logging.INFO, "calc_powerspectrum_binned_fromEB() started")
+    @log_on_end(logging.INFO, "calc_powerspectrum_binned_fromEB() finished")   
+    def calc_powerspectrum_binned_fromEB(self, maps_mask, templates, freq='comb', component='cs', nlevel='fs', edges=None, lmax=None):
         ## Template
 
-        self.data['maps'][component]['nlevel']['fs']['cl_template'][freq]['EB'] = templates
+        if edges is None:
+            edges_loc = np.array([self.edges[0],self.edges[0]])
+        elif len(edges)>2 or len(edges)==1:
+            edges_loc =  np.array([edges, edges])
+        else:
+            edges_loc = edges
+
+        if lmax is None:
+            lmax = self.lmax
+
+        self.data[component]['fs']['cl_template'][freq]['E'] = templates[0]
+        self.data[component]['fs']['cl_template'][freq]['B'] = templates[1]
         cl_templ_binned = np.array([[np.mean(cl[int(bl):int(bu+1)])
-            for bl, bu in zip(self.edges[0], self.edges[0][1:])]
+            for bl, bu in zip(edges_loc[cli], edges_loc[cli][1:])]
+            for cli, cl in enumerate(templates)])
+        self.data[component]['fs']['cl_template_binned'][freq]['E'] = cl_templ_binned[0]
+        self.data[component]['fs']['cl_template_binned'][freq]['B'] = cl_templ_binned[1]
+
+        pslibE = ps.map2cl_binned(maps_mask, self.data[component]['fs']['cl_template'][freq]['E'], edges_loc[0], lmax)
+        pslibB = ps.map2cl_binned(maps_mask, self.data[component]['fs']['cl_template'][freq]['B'], edges_loc[1], lmax)
+
+        # self.data[component][nlevel]['cl_patch'][freq]['E']  = np.array([
+        #     pslibE.map2cl(self.data[component]['fs']['map'][freq]['EB'][0]),
+        #     pslibB.map2cl(self.data[component]['fs']['map'][freq]['EB'][1])
+        # ])
+        self.data[component][nlevel]['cl_patch'][freq]['E']  = pslibE.map2cl(self.data[component]['fs']['map'][freq]['EB'][0])
+        self.data[component][nlevel]['cl_patch'][freq]['B']  = pslibB.map2cl(self.data[component]['fs']['map'][freq]['EB'][1])
+
+        
+    @log_on_start(logging.INFO, "calc_powerspectrum_binned_fromEB() started")
+    @log_on_end(logging.INFO, "calc_powerspectrum_binned_fromEB() finished")   
+    def calc_powerspectrum_unbinned_fromEB(self, maps_mask, freq='comb', component='cs', nlevel='fs', lmax=None):
+        if lmax is None:
+            lmax = self.lmax
+
+        self.data[component][nlevel]['cl_patch'][freq]['E'] = ps.map2cl(self.data[component]['fs']['map'][freq]['EB'][0], maps_mask, lmax, lmax_mask=2*lmax)
+        self.data[component][nlevel]['cl_patch'][freq]['B'] = ps.map2cl(self.data[component]['fs']['map'][freq]['EB'][1], maps_mask, lmax, lmax_mask=2*lmax)
+        
+
+    @log_on_start(logging.INFO, "calc_powerspectrum_binned_fromQU() started")
+    @log_on_end(logging.INFO, "calc_powerspectrum_binned_fromQU() finished")   
+    def calc_powerspectrum_binned_fromQU(self, maps_mask, templates, freq='comb', component='cs', nlevel='fs', edges=None, lmax=None):
+        ## Template
+
+        if edges is None:
+            edges = self.edges
+
+        if lmax is None:
+            lmax = self.lmax
+
+        self.data[component]['fs']['cl_template'][freq]['EB'] = templates
+        cl_templ_binned = np.array([[np.mean(cl[int(bl):int(bu+1)])
+            for bl, bu in zip(edges, edges[1:])]
             for cl in templates])
-        self.data['maps'][component]['nlevel']['fs']['cl_template_binned'][freq]['EB'] = cl_templ_binned
+        self.data[component]['fs']['cl_template_binned'][freq]['EB'] = cl_templ_binned
+        print(edges)
+        pslibQU = ps.map2cl_spin_binned(maps_mask, 2, self.data[component]['fs']['cl_template'][freq]['EB'][0], self.data[component]['fs']['cl_template'][freq]['EB'][1], edges, lmax)
+        self.data[component][nlevel]['cl_patch'][freq]['EB'] = np.array(pslibQU.map2cl(self.data[component]['fs']['map'][freq]['QU']))
 
-        pslibE = ps.map2cl_binned(maps_mask, self.data['maps'][component]['nlevel']['fs']['cl_template'][freq]['EB'][0], self.edges[0], self.lmax)
-        pslibB = ps.map2cl_binned(maps_mask, self.data['maps'][component]['nlevel']['fs']['cl_template'][freq]['EB'][1], self.edges[0], self.lmax)
 
-        self.data['maps'][component]['nlevel'][nlevel]['cl_patch'][freq]['EB']  = np.array([
-            pslibE.map2cl(self.data['maps'][component]['nlevel']['fs']['map'][freq]['EB'][0]),
-            pslibB.map2cl(self.data['maps'][component]['nlevel']['fs']['map'][freq]['EB'][1])
-        ])
+    # @log_on_start(logging.INFO, "getfn_blm_lensc() started")
+    # @log_on_end(logging.INFO, "getfn_blm_lensc() finished")
+    def getfn_blm_lensc(self, simidx, it):
+        '''Lenscarf output using Catherinas E and B maps'''
+        # TODO this needs cleaner implementation via lambda
+        # _libdir_iterator = self.libdir_iterators(self.k, simidx, self.version)
+        # return _libdir_iterator+fn(**params)
 
+        ## TODO add QE lensing templates to CFS dir?
+        if self.data_from_CFS:
+            rootstr = opj(os.environ['CFS'], 'cmbs4/awg/lowellbb/reanalysis/lt_recons/')
+            if it==12:
+                if self.fg == '00':
+                    return rootstr+'08b.%02d_sebibel_210708_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg), it, simidx)
+                elif self.fg == '07':
+                    return rootstr+'/08b.%02d_sebibel_210910_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg), it, simidx)
+                elif self.fg == '09':
+                    return rootstr+'/08b.%02d_sebibel_210910_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg), it, simidx)
+            elif it==0:
+                return '/global/cfs/cdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08b/BLT/QE/blm_%04d_fg%02d_it0.npy'%(simidx, int(self.fg))   
+        else:
+            if self.libdir_iterators == 'overwrite':
+                if it==12:
+                    rootstr = opj(os.environ['CFS'], 'cmbs4/awg/lowellbb/reanalysis/lt_recons/')
+                    if self.fg == '00':
+                        return rootstr+'08b.%02d_sebibel_210708_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg), it, simidx)
+                    elif self.fg == '07':
+                        return rootstr+'/08b.%02d_sebibel_210910_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg), it, simidx)
+                    elif self.fg == '09':
+                        return rootstr+'/08b.%02d_sebibel_210910_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg), it, simidx)
+                elif it==0:
+                    return '/global/cscratch1/sd/sebibel/cmbs4/s08b/cILC2021_%s_lmax4000/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20/ffi_p_it0/blm_%04d_it0.npy'%(self.fg, simidx, simidx)    
+            else:
+                # TODO this belongs via config to l2d
+                # TODO fn needs to be defined in l2d
+                # TODO only QE it 0 doesn't exists because no modification is done to it. catching this. Can this be done better?
+                if False:
+                    # TODO this needs to be chosne by hand. Old mfvar naming don't depend on Nmf
+                    if it == 0:
+                        return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(it, it)
+                    if self.dlm_mod_bool:
+                        return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024_dlmmod.npy'%(it, it)
+                    else:
+                        return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(it, it)
+                else:
+                    if it == 0:
+                        return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024%03d.npy'%(it, it, self.Nmf)
+                    if self.dlm_mod_bool:
+                        return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024_dlmmod%03d.npy'%(it, it, self.Nmf)
+                    else:
+                        return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024%03d.npy'%(it, it, self.Nmf)
+
+            
+    # @log_on_start(logging.INFO, "getfn_qumap_cs() started")
+    # @log_on_end(logging.INFO, "getfn_qumap_cs() finished")
+    def getfn_qumap_cs(self, simidx):
+
+        '''Component separated polarisation maps lm, i.e. lenscarf input'''
+
+        return self.sims.get_sim_pmap(simidx)
 
 
     @log_on_start(logging.INFO, "combine() started")
     @log_on_end(logging.INFO, "combine() finished")
-    def combine_alms(self, maps, freq2beam_fwhm=None, weights=None, pixelwindow=True, cache_to='fg'):
-        if weights == None:
+    def combine_alms(self, freq2beam_fwhm=None, weights=None, pixelwindow=True, component='fg'):
+        if weights is None:
             weights = self.data['weight']
-        if freq2beam_fwhm == None:
+        if freq2beam_fwhm is None:
             freq2beam_fwhm = self.ec.freq2beam
         nalm = int((self.lmax+1)*(self.lmax+2)/2)
         comb_E = np.zeros((nalm), dtype=np.complex128)
         comb_B = np.zeros((nalm), dtype=np.complex128)
         for freqi, freq in enumerate(self.ec.freqs):
-            comb_E += hp.almxfl(hp.almxfl(maps[0], hp.gauss_beam(df.a2r(freq2beam_fwhm[freq]), self.lmax, pol = True)[:,1]), np.squeeze(weights[0,freqi,:self.lmax]))
-            comb_B += hp.almxfl(hp.almxfl(maps[1], hp.gauss_beam(df.a2r(freq2beam_fwhm[freq]), self.lmax, pol = True)[:,2]), np.squeeze(weights[1,freqi,:self.lmax]))
+            comb_E += hp.almxfl(hp.almxfl(self.data[component]['fs']['alm'][freq]['EB'][0], hp.gauss_beam(df.a2r(freq2beam_fwhm[freq]), self.lmax, pol = True)[:,1]), np.squeeze(weights[0,freqi,:self.lmax]))
+            comb_B += hp.almxfl(hp.almxfl(self.data[component]['fs']['alm'][freq]['EB'][1], hp.gauss_beam(df.a2r(freq2beam_fwhm[freq]), self.lmax, pol = True)[:,2]), np.squeeze(weights[1,freqi,:self.lmax]))
             if pixelwindow:
                 comb_E = np.nan_to_num(hp.almxfl(comb_E, 1/hp.pixwin(self.nside, pol=True)[0][:self.lmax]))
                 comb_B = np.nan_to_num(hp.almxfl(comb_B, 1/hp.pixwin(self.nside, pol=True)[1][:self.lmax]))
 
-        self.data['maps'][cache_to]['alm']['comb']['EB'] = np.array([comb_E, comb_B])
-        return self.data['maps'][cache_to]['alm']['comb']['EB']
+        self.data[component]['fs']['map']['comb']['EB'] = np.array([comb_E, comb_B])
+        return self.data[component]['fs']['map']['comb']['EB']
             
     
     @log_on_start(logging.INFO, "collect_jobs() started")
@@ -560,6 +666,55 @@ class Map_delenser():
         else:
             self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
         self.lib = dict()
+
+        
+    @log_on_start(logging.INFO, "read_data() started")
+    @log_on_end(logging.INFO, "read_data() finished")
+    def read_data(self, dm, simids=None, edges=None, dlm_mod=False, dir_idx=0):
+        bcl_cs = np.zeros(shape=(len(self.iterations)+2, len(self.nlevels), len(self.simids), len(self.edges)-1))
+        bcl_L = np.zeros(shape=(len(self.iterations)+2, len(self.nlevels), len(self.simids), len(self.edges)-1))
+        for simidx, simid in enumerate(self.simids):
+            if dm.iteration.dlm_mod:
+                data = np.load(self.TEMP + '/plotdata{}/{}'.format(self.vers_str,self.dirid) + '/ClBBwf_sim%04d_dlmmod_fg%2s_res2b3acm.npy'%(simid, dm.map_delensing.fg))
+            else:
+                data = np.load(self.TEMP + '/plotdata{}/{}'.format(self.vers_str,self.dirid) + '/ClBBwf_sim%04d_fg%2s_res2b3acm.npy'%(simid, dm.map_delensing.fg))
+            # data =  np.load(dirroot_loc + '{}'.format(self.dirid) + '/Lenscarf_plotdata_ClBB_sim%04d_fg%2s_res2b3acm.npy'%(simid, fg))
+            bcl_L[0,:,simidx] = data[0][0]
+            bcl_cs[0,:,simidx] = data[1][0]
+
+            bcl_L[1,:,simidx] = data[0][1]
+            bcl_cs[1,:,simidx] = data[1][1]
+
+            for iti, it in enumerate(self.iterations):
+                bcl_L[2+iti,:,simidx] = data[0][2+iti]
+                bcl_cs[2+iti,:,simidx] = data[1][2+iti]
+
+        print('dirid: {}'.format(self.dirid))
+
+        return bcl_L, bcl_cs
+
+
+    @log_on_start(logging.INFO, "read_data_v2() started")
+    @log_on_end(logging.INFO, "read_data_v2() finished")
+    def read_data_v2(self, edges_id=0):
+        bcl_cs = np.zeros(shape=(len(self.its)+2, len(self.mask_ids), len(self.simidxs), len(self.edges[edges_id])-1))
+        bcl_L = np.zeros(shape=(len(self.its)+2, len(self.mask_ids), len(self.simidxs), len(self.edges[edges_id])-1))
+        
+        print('Loading {} sims from {}'.format(len(self.simidxs),  '/'.join([f for f in self.file_op(0, self.fg, 0).split('/')[:-1]])))
+        for simidxi, simidx in enumerate(self.simidxs):
+            _file_op = self.file_op(simidx, self.fg, 0)
+            data = np.load(_file_op)
+            bcl_L[0,:,simidxi] = data[0][0]
+            bcl_cs[0,:,simidxi] = data[1][0]
+
+            bcl_L[1,:,simidxi] = data[0][1]
+            bcl_cs[1,:,simidxi] = data[1][1]
+
+            for iti, it in enumerate(self.its):
+                bcl_L[2+iti,:,simidxi] = data[0][2+iti]
+                bcl_cs[2+iti,:,simidxi] = data[1][2+iti]
+
+        return bcl_L, bcl_cs
 
 
     # @log_on_start(logging.INFO, "getfn_blm_lensc() started")
