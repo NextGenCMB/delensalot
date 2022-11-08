@@ -493,7 +493,7 @@ class l2lensrec_Transformer:
             dl.imin = da.IMIN
             dl.imax = da.IMAX
 
-            dl.simidxs = da.simidxs if da.simidxs is not None else np.arange(dl.imin, dl.imax+1)
+            dl.simidxs = da.simidxs if da.simidxs != [] else np.arange(dl.imin, dl.imax+1)
             _package = da.package_
             if da.package_.startswith('lerepi'):
                 _package = 'lenscarf.'+da.package_
@@ -1673,12 +1673,12 @@ class l2d_Transformer:
 
         def _process_Config(dl, co):
             if co.outdir_plot_rel:
-                dl.outdir_plot_rel = co.outdir_rel
+                dl.outdir_plot_rel = co.outdir_plot_rel
             else:
                 dl.outdir_plot_rel = '{}/{}'.format(cf.data.module_.split('.')[2],cf.data.module_.split('.')[-1])
                     
             if co.outdir_plot_root:
-                dl.outdir_plot_root = co.outdir_root
+                dl.outdir_plot_root = co.outdir_plot_root
             else:
                 dl.outdir_plot_root = os.environ['HOME']
             

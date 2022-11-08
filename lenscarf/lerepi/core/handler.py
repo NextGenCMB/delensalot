@@ -54,7 +54,7 @@ class handler():
 
     @log_on_start(logging.INFO, "collect_jobs() Started")
     @log_on_end(logging.INFO, "collect_jobs() Finished")
-    def collect_jobs(self, job_id):
+    def collect_jobs(self, job_id=''):
         """_summary_
         """
         ## Making sure that specific job request from run() is processed
