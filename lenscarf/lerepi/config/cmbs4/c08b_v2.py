@@ -2,6 +2,7 @@ import numpy as np
 
 from lenscarf.lerepi.core.metamodel.dlensalot_v2 import *
 from MSC import pospace
+import os
 from os.path import join as opj
 
 dlensalot_model = DLENSALOT_Model(
@@ -14,16 +15,16 @@ dlensalot_model = DLENSALOT_Model(
         OMP_NUM_THREADS = 16
     ),
     analysis = DLENSALOT_Analysis(
-        TEMP_suffix = '',
+        TEMP_suffix = 'numericalcostrun',
         K = 'p_p',
         V = '',
         ITMAX = 12,
-        simidxs_mf = np.arange(0,4),
+        simidxs_mf = np.arange(0,10),
         zbounds =  ('nmr_relative', 100),
         zbounds_len = ('extend', 5.),   
         pbounds = [1.97, 5.71],
         LENSRES = 1.7,
-        Lmin = 4, 
+        Lmin = 2, 
         lmax_filt = 4000,
         lmax_unl = 4000,
         mmax_unl = 4000,
@@ -35,20 +36,22 @@ dlensalot_model = DLENSALOT_Model(
     ),
     data = DLENSALOT_Data(
         IMIN = 0,
-        IMAX = 99,
+        IMAX = 1,
         package_ = 'lenscarf',
         module_ = 'lerepi.config.cmbs4.data.data_08b',
         class_ = 'caterinaILC_May12',
         class_parameters = {
-            'fg': '09'
+            'fg': '00'
         },
+        data_type = 'map',
+        data_field = "qu",
         beam = 2.3,
         lmax_transf = 4000,
         nside = 2048
     ),
     noisemodel = DLENSALOT_Noisemodel(
         typ = 'OBD',
-        BMARG_LIBDIR = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08b/',
+        BMARG_LIBDIR = opj(os.environ['CFS'], 'cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08b/'),
         BMARG_LCUT = 200,
         BMARG_RESCALE = (0.42/0.350500)**2,
         ninvjob_geometry = 'healpix_geometry',
@@ -61,12 +64,13 @@ dlensalot_model = DLENSALOT_Model(
         nlev_dep = 10000.,
         inf = 1e4,
         mask = ('nlev', np.inf),
-        rhits_normalised = ('/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08b/masks/08b_rhits_positive_nonan.fits', np.inf),
+        rhits_normalised = (opj(os.environ['CFS'], 'cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08b/masks/08b_rhits_positive_nonan.fits'), np.inf),
         tpl = 'template_dense'
     ),
     qerec = DLENSALOT_Qerec(
-        FILTER_QE = 'sepTP', # Change only if other than sepTP for QE is desired
-        CG_TOL = 1e-3,
+        ivfs = 'sepTP', # Change only if other than sepTP for QE is desired
+        qlms = 'sepTP',
+        cg_tol = 1e-3,
         ninvjob_qe_geometry = 'healpix_geometry_qe',
         lmax_qlm = 4000,
         mmax_qlm = 4000,
@@ -83,8 +87,8 @@ dlensalot_model = DLENSALOT_Model(
         )
     ),
     itrec = DLENSALOT_Itrec(
-        FILTER = 'opfilt_ee_wl.alm_filter_ninv_wl',
-        TOL = 3,
+        filter = 'opfilt_ee_wl.alm_filter_ninv_wl',
+        cg_tol = 1e-4,
         tasks = ["calc_phi", "calc_meanfield", "calc_btemplate"], #["calc_phi", "calc_meanfield", "calc_btemplate"],
         lenjob_geometry = 'thin_gauss',
         lenjob_pbgeometry = 'pbdGeometry',

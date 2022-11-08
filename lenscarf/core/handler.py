@@ -154,8 +154,8 @@ class Notebook_interactor():
         self.data[component][nlevel]['cl_patch'][freq]['B']  = pslibB.map2cl(self.data[component]['fs']['map'][freq]['EB'][1])
 
         
-    @log_on_start(logging.INFO, "calc_powerspectrum_binned_fromEB() started")
-    @log_on_end(logging.INFO, "calc_powerspectrum_binned_fromEB() finished")   
+    @log_on_start(logging.INFO, "calc_powerspectrum_unbinned_fromEB() started")
+    @log_on_end(logging.INFO, "calc_powerspectrum_unbinned_fromEB() finished")   
     def calc_powerspectrum_unbinned_fromEB(self, maps_mask, freq='comb', component='cs', nlevel='fs', lmax=None):
         if lmax is None:
             lmax = self.lmax
@@ -343,6 +343,7 @@ class QE_lr():
     def collect_jobs(self, id=''):
         if self.overwrite_libdir is None:
             mf_fname = os.path.join(self.TEMP, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, utils.mchash(self.simidxs)))
+            log.info('{} - {}'.format(self.simidxs, id))
             if os.path.isfile(mf_fname):
                 # can safely skip QE. MF exists, so we know QE ran before
                 self.jobs = []
@@ -350,19 +351,19 @@ class QE_lr():
                 self.jobs = []
             elif id == 'All':
                 jobs = []
-                for idx in self.simidxs:
+                for idx in self.simidxs_mf:
                     jobs.append(idx)
                 self.jobs = jobs
             else:
                 # TODO if id='', skip finished simindices
                 jobs = []
-                for idx in self.simidxs:
+                for idx in self.simidxs_mf:
                     jobs.append(idx)
                 self.jobs = jobs
         else:
             # TODO hack. Only want to access old s08b sim result lib and generate B wf
             jobs = []
-            for idx in self.simidxs:
+            for idx in self.simidxs_mf:
                 jobs.append(idx)
             self.jobs = jobs
 
