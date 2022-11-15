@@ -601,7 +601,7 @@ class MAP_lr():
                     for it in range(0, self.itmax + 1):
                         if it <= rec.maxiterdone(lib_dir_iterator):
                             _dlm_mod = None if (it == 0 or self.dlm_mod_bool == False) else dlm_mod[it]
-                            itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=_dlm_mod, calc=True, Nmf=self.Nmf)
+                            itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=_dlm_mod, calc=True, Nmf=self.Nmf, perturbative=self.btemplate_perturbative_lensremap)
                     log.info("{}: finished sim {}".format(mpi.rank, idx))
 
 
@@ -756,19 +756,19 @@ class Map_delenser():
                 # TODO only QE it 0 doesn't exists because no modification is done to it. catching this. Can this be done better?
                 if False:
                     # TODO this needs to be chosne by hand. Old mfvar naming don't depend on Nmf
-                    if it == 0:
-                        return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(it, it)
                     if self.dlm_mod_bool:
                         return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024_dlmmod.npy'%(it, it)
                     else:
                         return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(it, it)
                 else:
-                    if it == 0:
-                        return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024%03d.npy'%(it, it, self.Nmf)
+                    fn = self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024'%(it, it)
                     if self.dlm_mod_bool:
-                        return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024_dlmmod%03d.npy'%(it, it, self.Nmf)
+                        fn += '_dlmmod%03d'%(self.Nmf)
                     else:
-                        return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024%03d.npy'%(it, it, self.Nmf)
+                        fn += '%03d'%(self.Nmf)
+                    if self.btemplate_perturbative_lensremap:
+                        fn += 'perturbative'
+                    return fn+'.npy'
 
             
     # @log_on_start(logging.INFO, "getfn_qumap_cs() started")
