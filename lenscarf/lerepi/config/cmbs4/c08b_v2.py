@@ -8,18 +8,18 @@ from os.path import join as opj
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(
         build_OBD = False,
-        QE_lensrec = False,
-        MAP_lensrec = True,
+        QE_lensrec = True,
+        MAP_lensrec = False,
         map_delensing = False,
         inspect_result = False,
         OMP_NUM_THREADS = 16
     ),
     analysis = DLENSALOT_Analysis(
-        TEMP_suffix = 'numericalcostrun',
+        TEMP_suffix = 'QErun',
         K = 'p_p',
         V = '',
         ITMAX = 12,
-        simidxs_mf = np.arange(0,10),
+        simidxs_mf = np.arange(0,100),
         zbounds =  ('nmr_relative', 100),
         zbounds_len = ('extend', 5.),   
         pbounds = [1.97, 5.71],
@@ -36,7 +36,7 @@ dlensalot_model = DLENSALOT_Model(
     ),
     data = DLENSALOT_Data(
         IMIN = 0,
-        IMAX = 1,
+        IMAX = 99,
         package_ = 'lenscarf',
         module_ = 'lerepi.config.cmbs4.data.data_08b',
         class_ = 'caterinaILC_May12',

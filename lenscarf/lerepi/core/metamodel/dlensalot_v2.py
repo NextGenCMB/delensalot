@@ -148,6 +148,7 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     stepper = attr.ib(default=None)
     overwrite_itdir = attr.ib(default=None)
     tasks = attr.ib(default=None)
+    btemplate_perturbative_lensremap = attr.ib(default=False)
 
 
 @attr.s
@@ -167,6 +168,7 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
     binning = attr.ib(default=-1)
     spectrum_calculator = attr.ib(default=None)
     data_from_CFS = attr.ib(default=True)
+    btemplate_perturbative_lensremap = attr.ib(default=False)
 
 
 @attr.s

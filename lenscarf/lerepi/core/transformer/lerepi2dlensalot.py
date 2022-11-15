@@ -106,8 +106,6 @@ class l2lensrec_Transformer:
     @log_on_start(logging.INFO, "build() started")
     @log_on_end(logging.INFO, "build() finished")
     def build(self, cf):
-<<<<<<< HEAD
-=======
         @log_on_start(logging.INFO, "_process_dataparams() started")
         @log_on_end(logging.INFO, "_process_dataparams() finished")
         def _process_dataparams(dl, data):
@@ -657,6 +655,7 @@ class l2lensrec_Transformer:
             assert it.filter in ['opfilt_ee_wl.alm_filter_ninv_wl', 'opfilt_iso_ee_wl.alm_filter_nlev_wl'] , 'Implement if needed, MAP filter needs to move to l2d'
             dl.filter = it.filter
             dl.ivfs_qe = cf.qerec.ivfs
+            dl.btemplate_perturbative_lensremap = it.btemplate_perturbative_lensremap
 
             # TODO hack. We always want to subtract it atm. But possibly not in the future.
             if "QE_subtract_meanfield" in it.__dict__:
@@ -732,7 +731,6 @@ class l2lensrec_Transformer:
     @log_on_start(logging.INFO, "build_v3() started")
     @log_on_end(logging.INFO, "build_v3() finished")
     def build_v3(self, cf):
->>>>>>> 3b8b5ed (minor update)
 
 
         @log_on_start(logging.INFO, "_process_Meta() started")
@@ -1285,8 +1283,6 @@ class l2d_Transformer:
     @log_on_start(logging.INFO, "build() started")
     @log_on_end(logging.INFO, "build()) finished")
     def build(self, cf):
-<<<<<<< HEAD
-=======
 
         def _process_data(dl, da):
             dl.fg = da.fg
@@ -1471,7 +1467,6 @@ class l2d_Transformer:
     @log_on_start(logging.INFO, "build_v2() started")
     @log_on_end(logging.INFO, "build_v2() finished")
     def build_v2(self, cf):
->>>>>>> 3b8b5ed (minor update)
         def _process_Madel(dl, ma):
             dl.data_from_CFS = ma.data_from_CFS
             dl.k = cf.analysis.K
@@ -1500,9 +1495,6 @@ class l2d_Transformer:
             dl.data_field = cf.data.data_field
 
             dl.TEMP = transform(cf, l2T_Transformer())
-<<<<<<< HEAD
-            if ma.dir_btempl == 'intern': 
-=======
 
             # TODO II
             # could put btempl paths similar to sim path handling. If D.lensalot handles it, use D.lensalot internal class for it
@@ -1519,7 +1511,6 @@ class l2d_Transformer:
             #     return '/global/cscratch1/sd/sebibel/cmbs4/s08b/cILC2021_%s_lmax4000/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20/ffi_p_it0/blm_%04d_it0.npy'%(self.fg, simidx, simidx)    
           
             if ma.libdir_it is None:
->>>>>>> 3b8b5ed (minor update)
                 dl.libdir_iterators = lambda qe_key, simidx, version: opj(dl.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
                 def fn_btempl_intern(simidx, fg, it):
                     if it == 0:
@@ -1599,8 +1590,10 @@ class l2d_Transformer:
                 dl.clc_templ = dl.cls_len['bb']
                 dl.clg_templ[0] = 1e-32
                 dl.clg_templ[1] = 1e-32
-                dl.cmb_fid_len = planck2018_sims.cmb_len_ffp10
-
+            pert_mod_string = ''
+            dl.btemplate_perturbative_lensremap = ma.btemplate_perturbative_lensremap
+            if dl.btemplate_perturbative_lensremap == True:
+                pert_mod_string = 'pertblens'
             dl.binning = ma.binning
             if dl.binning == 'binned':
                 dl.lmax = ma.lmax
@@ -1623,7 +1616,7 @@ class l2d_Transformer:
                 dl.edges = np.array(dl.edges)
                 dl.sha_edges = [hashlib.sha256() for n in range(len(dl.edges))]
                 for n in range(len(dl.edges)):
-                    dl.sha_edges[n].update(str(dl.edges[n]).encode())
+                    dl.sha_edges[n].update((str(dl.edges[n]) + pert_mod_string).encode())
                 dl.dirid = [dl.sha_edges[n].hexdigest()[:4] for n in range(len(dl.edges))]
                 dl.edges_center = np.array([(e[1:]+e[:-1])/2 for e in dl.edges])
                 dl.ct = np.array([[dl.clc_templ[np.array(ec,dtype=int)]for ec in edge] for edge in dl.edges_center])
@@ -1635,7 +1628,7 @@ class l2d_Transformer:
                 dl.edges_center = dl.edges[:,1:]
                 dl.ct = np.ones(shape=len(dl.edges_center))
                 dl.sha_edges = [hashlib.sha256()]
-                dl.sha_edges[0].update('unbinned'.encode())
+                dl.sha_edges[0].update(('unbinned'+pert_mod_string).encode())
                 dl.dirid = [dl.sha_edges[0].hexdigest()[:4]]
             else:
                 log.info("Don't understand your spectrum type")
@@ -1700,6 +1693,8 @@ class l2d_Transformer:
                         sys.exit()
         
         dl = DLENSALOT_Concept()
+
+        dl.btemplate_perturbative_lensremap = cf.itrec.btemplate_perturbative_lensremap
 
         _process_Madel(dl, cf.madel)
         _process_Config(dl, cf.config)

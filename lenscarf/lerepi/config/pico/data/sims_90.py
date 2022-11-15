@@ -18,6 +18,12 @@ from plancklens.sims import phas, planck2018_sims
 import healpy as hp
 
 
+class experiment_config:
+    def __init__(self):
+        pass
+
+       
+
 def get_beam(freq):
 
     return {21: 38.4, 25: 32.0,  30: 28.3,  36: 23.6,  43: 22.2,  52: 18.4,  

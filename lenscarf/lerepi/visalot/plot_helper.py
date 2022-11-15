@@ -218,7 +218,7 @@ def get_custom_cmap():
     return cmap
 
 
-def plot_cmap(cmap, minmax):
+def plot_cmap(cmap, minmax, ticks=[-0.30,-0.15,0,0.15,0.30]):
     matplotlib.rcParams.update({'font.size': 18})
     a = np.array([[-minmax,minmax]])
     plt.figure(figsize=(9, 1.5))
@@ -227,5 +227,5 @@ def plot_cmap(cmap, minmax):
     cax = plt.axes([-0, 1, 1.0, 0.35])
     nticks = 5
     ticks = np.arange(-minmax, minmax+(2*minmax/nticks), (2*minmax/nticks))
-    cbar = plt.colorbar(orientation="horizontal", cax=cax, ticks=[-0.30,-0.15,0,0.15,0.30])
+    cbar = plt.colorbar(orientation="horizontal", cax=cax, ticks=ticks)
     plt.xlabel('$\mu K$')
