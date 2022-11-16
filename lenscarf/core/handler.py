@@ -411,7 +411,7 @@ class QE_lr():
 
             if task == 'calc_phi':
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
-                    self.get_meanfield(idx)
+                    # self.get_meanfield(idx)
                     self.get_plm(idx)
 
             if task == 'calc_blt':
@@ -419,15 +419,15 @@ class QE_lr():
                     self.get_blt(idx)
 
 
-    @log_on_start(logging.INFO, "get_sim_qlm() started")
-    @log_on_end(logging.INFO, "get_sim_qlm() finished")
-    def get_sim_qlm(self, idx):
+    @log_on_start(logging.INFO, "get_sim_qlm({simidx}) started")
+    @log_on_end(logging.INFO, "get_sim_qlm({simidx}) finished")
+    def get_sim_qlm(self, simidx):
 
-        return self.qlms_dd.get_sim_qlm(self.k, int(idx))
+        return self.qlms_dd.get_sim_qlm(self.k, int(simidx))
 
 
-    @log_on_start(logging.INFO, "get_B_wf() started")
-    @log_on_end(logging.INFO, "get_B_wf() finished")    
+    @log_on_start(logging.INFO, "get_B_wf({simidx}) started")
+    @log_on_end(logging.INFO, "get_B_wf({simidx}) finished")    
     def get_B_wf(self, simidx):
         fn = self.libdir_iterators(self.k, simidx, self.version)+'/bwf_qe_%04d.npy'%simidx
         if not os.path.isdir(self.libdir_iterators(self.k, simidx, self.version)):
@@ -441,8 +441,8 @@ class QE_lr():
         return bwf
 
 
-    @log_on_start(logging.INFO, "get_wflm() started")
-    @log_on_end(logging.INFO, "get_wflm() finished")    
+    @log_on_start(logging.INFO, "get_wflm({simidx}) started")
+    @log_on_end(logging.INFO, "get_wflm({simidx}) finished")    
     def get_wflm(self, simidx):
 
         return lambda: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lmax_unl, self.mmax_unl)
@@ -455,8 +455,8 @@ class QE_lr():
         return qresp.get_response(self.k, self.lmax_ivf, 'p', self.cls_unl, self.cls_unl,  {'e': self.fel_unl, 'b': self.fbl_unl, 't':self.ftl_unl}, lmax_qlm=self.lmax_qlm)[0]
 
 
-    @log_on_start(logging.INFO, "get_meanfield() started")
-    @log_on_end(logging.INFO, "get_meanfield() finished")
+    @log_on_start(logging.INFO, "get_meanfield({simidx}) started")
+    @log_on_end(logging.INFO, "get_meanfield({simidx}) finished")
     def get_meanfield(self, simidx):
         if self.mfvar == None:
             mf = self.qlms_dd.get_sim_qlm_mf(self.k, self.simidxs_mf)
@@ -470,8 +470,8 @@ class QE_lr():
         return mf
 
 
-    @log_on_start(logging.INFO, "get_plm() started")
-    @log_on_end(logging.INFO, "get_plm() finished")
+    @log_on_start(logging.INFO, "get_plm({simidx}) started")
+    @log_on_end(logging.INFO, "get_plm({simidx}) finished")
     def get_plm(self, simidx, subtract_meanfield=True):
         lib_dir_iterator = self.libdir_iterators(self.k, simidx, self.version)
         if not os.path.exists(lib_dir_iterator):
@@ -506,8 +506,8 @@ class QE_lr():
         return mf_resp
 
     
-    @log_on_start(logging.INFO, "get_blt() started")
-    @log_on_end(logging.INFO, "get_blt() finished")
+    @log_on_start(logging.INFO, ",get_blt({simidx}) started")
+    @log_on_end(logging.INFO, "get_blt({simidx}) finished")
     def get_blt(self, simidx):
         itlib = self.ith(self, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
         itlib_iterator = itlib.get_iterator()
@@ -629,8 +629,8 @@ class MAP_lr():
                     log.info("{}: finished sim {}".format(mpi.rank, idx))
 
 
-    @log_on_start(logging.INFO, "get_plm_it() started")
-    @log_on_end(logging.INFO, "get_plm_it() finished")
+    @log_on_start(logging.INFO, "get_plm_it({simidx}, {its}) started")
+    @log_on_end(logging.INFO, "get_plm_it({simidx}, {its}) finished")
     def get_plm_it(self, simidx, its):
 
         plms = rec.load_plms(self.libdir_iterators(self.k, simidx, self.version), its)
@@ -638,8 +638,8 @@ class MAP_lr():
         return plms
 
 
-    @log_on_start(logging.INFO, "get_meanfield_it() started: it={it}")
-    @log_on_end(logging.INFO, "get_meanfield_it() finished: it={it}")
+    @log_on_start(logging.INFO, "get_meanfield_it({it}) started}")
+    @log_on_end(logging.INFO, "get_meanfield_it({it}) finished")
     def get_meanfield_it(self, it, calc=False):
         # for mfvar runs, this returns the correct meanfields, as mfvar runs go into distinct itlib dirs.
         fn = opj(self.mf_dirname, 'mf%03d_it%03d.npy'%(self.Nmf, it))
@@ -659,8 +659,8 @@ class MAP_lr():
         return mf
 
 
-    @log_on_start(logging.INFO, "get_meanfields_it() started")
-    @log_on_end(logging.INFO, "get_meanfields_it() finished")
+    @log_on_start(logging.INFO, "get_meanfields_it({its}) started")
+    @log_on_end(logging.INFO, "get_meanfields_it({its}) finished")
     def get_meanfields_it(self, its, calc=False):
         plm = rec.load_plms(self.libdir_iterators(self.k, self.simidxs[0], self.version), [0])[-1]
         mfs = np.zeros(shape=(len(its),*plm.shape), dtype=np.complex128)
