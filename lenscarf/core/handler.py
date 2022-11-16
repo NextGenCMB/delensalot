@@ -16,8 +16,6 @@ import getpass
 import numpy as np
 import healpy as hp
 
-from scipy.signal import savgol_filter as sf
-
 from MSC import pospace as ps
 from plancklens import utils, qresp
 from plancklens.sims import planck2018_sims
