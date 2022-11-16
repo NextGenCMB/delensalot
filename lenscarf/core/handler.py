@@ -322,6 +322,7 @@ class OBD_builder():
 class QE_lr():
     def __init__(self, dlensalot_model):
         self.__dict__.update(dlensalot_model.__dict__)
+        self.dlensalot_model = dlensalot_model
         if 'overwrite_libdir' in dlensalot_model.__dict__:
             pass
         else:
@@ -336,71 +337,86 @@ class QE_lr():
         else:
             # TODO hack. Only want to access old s08b sim result lib and generate B wf
             self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'zb_terator_%s_%04d_nofg_OBD_solcond_3apr20'%(qe_key, simidx) + version)
+
+        self.ith = iteration_handler.transformer('constmf')
       
 
     @log_on_start(logging.INFO, "collect_jobs() started: id={id}, overwrite_libdir={self.overwrite_libdir}")
     @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self, id=''):
-        if self.overwrite_libdir is None:
-            mf_fname = os.path.join(self.TEMP, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, utils.mchash(self.simidxs)))
-            log.info('{} - {}'.format(self.simidxs, id))
-            if os.path.isfile(mf_fname):
-                # can safely skip QE. MF exists, so we know QE ran before
-                self.jobs = []
-            elif id == "None":
-                self.jobs = []
-            elif id == 'All':
-                jobs = []
+        jobs = list(range(len(self.qe_tasks)))
+        for taski, task in enumerate(self.qe_tasks):
+            _jobs = []
+
+            ## Need to calculate all qlms_dd
+            if task == 'calc_meanfield':
+                ## appending all as I trust plancklens to skip existing ivfs
                 for idx in self.simidxs_mf:
-                    jobs.append(idx)
-                self.jobs = jobs
-            else:
-                # TODO if id='', skip finished simindices
-                jobs = []
-                for idx in self.simidxs_mf:
-                    jobs.append(idx)
-                self.jobs = jobs
-        else:
-            # TODO hack. Only want to access old s08b sim result lib and generate B wf
-            jobs = []
-            for idx in self.simidxs_mf:
-                jobs.append(idx)
-            self.jobs = jobs
+                    fname = os.path.join(self.qlms_dd.lib_dir, 'sim_%s_%04d.fits'%(self.k, idx) if idx != -1 else 'dat_%s.fits'%self.k)
+                    if not os.path.isfile(fname):
+                        _jobs.append(idx)
+
+            if task == 'calc_phi':
+                mf_fname = os.path.join(self.TEMP, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, utils.mchash(self.simidxs)))
+                log.info('{} - {}'.format(self.simidxs, id))
+                if os.path.isfile(mf_fname):
+                    # can safely skip unless recalc. MF exists, so we know QE ran before
+                    if id == 'All':
+                        for idx in self.simidxs_mf:
+                            _jobs.append(idx)
+                else:
+                    # TODO if id='', skip finished simindices
+                    for idx in self.simidxs_mf:
+                        _jobs.append(idx)
+
+            if task == 'calc_blt':
+                for idx in self.simidxs:
+                    fname = os.path.join(self.TEMP, '{}_sim{:04d}'.format(self.k, idx), 'btempl_p000_e000_lma1024{}'.format(len(self.simidxs_mf)))
+                    if self.btemplate_perturbative_lensremap:
+                        fname += 'perturbative'
+                    fname += '.npy'
+                    if not os.path.isfile(fname):
+                        _jobs.append(idx)
+
+            jobs[taski] = _jobs
+        self.jobs = jobs
 
 
     @log_on_start(logging.INFO, "run() started")
     @log_on_end(logging.INFO, "run() finished")
     def run(self):
-        if self.overwrite_libdir is None:
-            for idx in self.jobs[mpi.rank::mpi.size]:
-                log.info('{}/{}, Starting job {}'.format(mpi.rank,mpi.size,idx))
-                # TODO this triggers the creation of all files for the MAP input, defined by the job array. 
-                # MAP later needs the corresponding values separately via getter. Can I think of something better?
-                self.get_sim_qlm(int(idx))
-                self.get_response_meanfield()
-                self.get_wflm(idx)
-                self.get_R_unl()
-                # self.get_B_wf(idx)
-                log.info('{}/{}, finished job {}'.format(mpi.rank,mpi.size,idx))
-            if len(self.jobs)>0:
-                log.info('{} finished qe ivfs tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
-                mpi.barrier()
-                # Tunneling the meanfield-calculation, so only rank 0 calculates it. Otherwise,
-                # some processes will try accessing it too fast, or calculate themselves, which results in
-                # an io error
-                log.info("Done waiting. Rank 0 going to calculate meanfield-file.. everyone else waiting.")
-                if mpi.rank == 0:
+
+        for taski, task in enumerate(self.qe_tasks):
+            log.info('{}, task {} started'.format(mpi.rank, task))
+
+            if task == 'calc_meanfield':
+                for idx in self.jobs[taski][mpi.rank::mpi.size]:
+                    self.get_sim_qlm(int(idx))
+                    self.get_response_meanfield()
+                    self.get_wflm(idx)
+                    self.get_R_unl()
+                    # self.get_B_wf(idx)
+                    log.info('{}/{}, finished job {}'.format(mpi.rank,mpi.size,idx))
+                if len(self.jobs[taski])>0:
+                    log.info('{} finished qe ivfs tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
+                    mpi.barrier()
+                    # Tunneling the meanfield-calculation, so only rank 0 calculates it. Otherwise,
+                    # some processes will try accessing it too fast, or calculate themselves, which results in
+                    # an io error
+                    log.info("Done waiting. Rank 0 going to calculate meanfield-file.. everyone else waiting.")
+                    if mpi.rank == 0:
+                        self.get_meanfield(idx)
+                        log.info("rank finsihed calculating meanfield-file.. everyone else waiting.")
+                    mpi.barrier()
+
+            if task == 'calc_phi':
+                for idx in self.jobs[taski][mpi.rank::mpi.size]:
                     self.get_meanfield(idx)
-                    log.info("rank finsihed calculating meanfield-file.. everyone else waiting.")
-                mpi.barrier()
-                log.info("Starting mf-calc task")
-            for idx in self.jobs[mpi.rank::mpi.size]:
-                self.get_meanfield(idx)
-                self.get_plm(idx)
-            if len(self.jobs)>0:
-                log.info('{} finished qe mf-calc tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
-                mpi.barrier()
-                log.info('All ranks finished qe mf-calc tasks.')
+                    self.get_plm(idx)
+
+            if task == 'calc_blt':
+                for idx in self.jobs[taski][mpi.rank::mpi.size]:
+                    self.get_blt(idx)
 
 
     @log_on_start(logging.INFO, "get_sim_qlm() started")
@@ -489,6 +505,14 @@ class QE_lr():
 
         return mf_resp
 
+    
+    @log_on_start(logging.INFO, "get_blt() started")
+    @log_on_end(logging.INFO, "get_blt() finished")
+    def get_blt(self, simidx):
+        itlib = self.ith(self, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
+        itlib_iterator = itlib.get_iterator()
+        itlib_iterator.get_template_blm(0, 0, lmaxb=1024, lmin_plm=1, dlm_mod=None, calc=True, Nmf=self.Nmf, perturbative=self.btemplate_perturbative_lensremap)
+
 
 class MAP_lr():
     def __init__(self, dlensalot_model):
@@ -511,8 +535,8 @@ class MAP_lr():
     @log_on_start(logging.INFO, "collect_jobs() start")
     @log_on_end(logging.INFO, "collect_jobs() finished")
     def collect_jobs(self):
-        jobs = list(range(len(self.tasks)))
-        for taski, task in enumerate(self.tasks):
+        jobs = list(range(len(self.it_tasks)))
+        for taski, task in enumerate(self.it_tasks):
             _jobs = []
 
             # TODO order of task list matters, but shouldn't
@@ -546,7 +570,7 @@ class MAP_lr():
                 mpi.barrier()
                 for idx in self.simidxs:
                     lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
-                    if "calc_phi" in self.tasks:
+                    if "calc_phi" in self.it_tasks:
                         # assume that this is a new analysis, so rec.maxiterdone won't work. Could collect task jobs after finishing previous task run to improve this.
                         _jobs.append(idx)
                     else:
@@ -560,7 +584,7 @@ class MAP_lr():
     @log_on_start(logging.INFO, "run() started")
     @log_on_end(logging.INFO, "run() finished")
     def run(self):
-        for taski, task in enumerate(self.tasks):
+        for taski, task in enumerate(self.it_tasks):
             log.info('{}, task {} started'.format(mpi.rank, task))
 
             if task == 'calc_phi':

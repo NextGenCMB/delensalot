@@ -127,6 +127,7 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     lmax_qlm = attr.ib(default=np.nan)
     mmax_qlm = attr.ib(default=np.nan)
     chain = attr.ib(default=None)
+    tasks = attr.ib(default=None)
     QE_LENSING_CL_ANALYSIS = attr.ib(default=False)
     overwrite_libdir = attr.ib(default=None)
 

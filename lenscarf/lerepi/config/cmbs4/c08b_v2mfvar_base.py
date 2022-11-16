@@ -8,19 +8,19 @@ from os.path import join as opj
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(
         build_OBD = False,
-        QE_lensrec = True,
-        MAP_lensrec = False,
+        QE_lensrec = False,
+        MAP_lensrec = True,
         map_delensing = False,
         inspect_result = False,
         OMP_NUM_THREADS = 16
     ),
     analysis = DLENSALOT_Analysis(
-        TEMP_suffix = 'QErun',
+        TEMP_suffix = 'mfvar',
         K = 'p_p',
         V = '',
         ITMAX = 12,
         simidxs_mf = np.arange(0,100),
-        zbounds =  ('nmr_relative', 100),
+        zbounds =  ('nmr_relative', np.inf),
         zbounds_len = ('extend', 5.),   
         pbounds = [1.97, 5.71],
         LENSRES = 1.7,
@@ -41,7 +41,7 @@ dlensalot_model = DLENSALOT_Model(
         module_ = 'lerepi.config.cmbs4.data.data_08b',
         class_ = 'caterinaILC_May12',
         class_parameters = {
-            'fg': '00'
+            'fg': '09'
         },
         data_type = 'map',
         data_field = "qu",
