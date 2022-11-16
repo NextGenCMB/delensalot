@@ -614,6 +614,7 @@ class l2lensrec_Transformer:
             dl.lmax_qlm = qe.lmax_qlm
             dl.mmax_qlm = qe.mmax_qlm
             dl.cg_tol = qe.cg_tol
+            dl.qe_tasks = qe.tasks
 
             dl.chain_model = qe.chain
             if dl.chain_model.p6 == 'tr_cg':
@@ -695,7 +696,7 @@ class l2lensrec_Transformer:
             else:
                 dl.subtract_meanfield  = True
 
-            dl.tasks = it.tasks
+            dl.it_tasks = it.tasks
             if it.cg_tol < 1.:
                 if 'tol5e5' in cf.analysis.TEMP_suffix:
                     dl.cg_tol = lambda itr : it.cg_tol
@@ -739,7 +740,7 @@ class l2lensrec_Transformer:
         _process_Qerec(dl, cf.qerec)
         _process_Itrec(dl, cf.itrec)
 
-        if "calc_meanfield" in dl.tasks:
+        if "calc_meanfield" in dl.it_tasks:
             if dl.version == '' or dl.version == None:
                 dl.mf_dirname = opj(dl.TEMP, 'mf_{:03d}'.format(dl.Nmf))
             else:
@@ -1523,7 +1524,7 @@ class l2d_Transformer:
             dl.imin = cf.data.IMIN
             dl.imax = cf.data.IMAX
             dl.simidxs = cf.data.simidxs if cf.data.simidxs != [] else np.arange(dl.imin, dl.imax+1)
-            dl.its = ma.iterations
+            dl.its = [0] if ma.iterations == [] else ma.iterations
 
             dl.Nmf = len(cf.analysis.simidxs_mf)
             if 'fg' in cf.data.class_parameters:
@@ -1805,7 +1806,8 @@ class l2i_Transformer:
 
         def _process_Madel(dl, ma):
             dl.data_from_CFS = True
-            dl.its = ma.iterations 
+            print(ma.iterations)
+            dl.its = [0] if ma.iterations == [] else ma.iterations
             dl.edges = []
             dl.edges_id = []
             if ma.edges != -1:
