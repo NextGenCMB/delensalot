@@ -6,19 +6,26 @@
 Welcome to D.lensalot
 ===============================
 
-Curved-sky iterative CMB lensing tools
+Curved-sky quadratic and iterative CMB lensing tools.
+
+Lensing reconstruction, B-lensing template generation and power spectrum calculation of (partially) delensed maps.
+
+
+Includes quadratic estimated and iterative lensing reconstruction on map-level.
+All calculations are done on curved sky.
+
+Quadratic estimated lensing reconstruction comes from the built-in interface to `Plancklens`_.
+Iterative lensing reconstruction comes from the curved sky implementation of `LensIt`_.
+D.lensalot is controlled via :ref:`Configuration Files`.
+
+
+.. _Plancklens: https://github.com/carronj/plancklens
+.. _LensIt: https://github.com/carronj/plancklens
+
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
-
- 
-Usage
-=============
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Starting point:
+   :caption: Usage:
 
    usage/installation
    usage/quickstart
