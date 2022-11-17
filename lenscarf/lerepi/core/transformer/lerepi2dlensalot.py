@@ -38,8 +38,7 @@ from lenscarf.opfilt.bmodes_ninv import template_dense
 from lenscarf.lerepi.core.visitor import transform
 
 from lenscarf.lerepi.config.config_helper import data_functions as df, LEREPI_Constants as lc
-from lenscarf.lerepi.core.metamodel.dlensalot import DLENSALOT_Concept, DLENSALOT_Model
-from lenscarf.lerepi.core.metamodel.dlensalot_v2 import DLENSALOT_Model as DLENSALOT_Model_v2
+from lenscarf.lerepi.core.metamodel.dlensalot_v2 import DLENSALOT_Model as DLENSALOT_Model_v2, DLENSALOT_Concept
 from lenscarf.lerepi.core.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALOT_Model_mm
 
 
