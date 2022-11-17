@@ -53,6 +53,8 @@ class DLENSALOT_Data(DLENSALOT_Concept):
         DATA_LIBDIR: path to the data
     """
     TEMP_suffix = attr.ib(default=-1)
+    data_type = attr.ib(default=None)
+    data_field = attr.ib(default=None)
     fg = attr.ib(default=-1)
     sims = attr.ib(default=-1)
     nside = attr.ib(default=-1)
@@ -101,7 +103,6 @@ class DLENSALOT_Iteration(DLENSALOT_Concept):
         DLENSALOT_Concept (_type_): _description_
     """
     K = attr.ib(default=-1)
-    # version, can be 'noMF
     V = attr.ib(default=-1)
     QE_subtract_meanfield = attr.ib(default=True)
     tasks = attr.ib(default=-1)
@@ -109,22 +110,15 @@ class DLENSALOT_Iteration(DLENSALOT_Concept):
     IMIN = attr.ib(default=-1)
     IMAX = attr.ib(default=-1)
     mfvar = attr.ib(default=-1)
-    # Change the following block only if a full, Planck-like QE lensing power spectrum analysis is desired
-    # This uses 'ds' and 'ss' QE's, crossing data with sims and sims with other sims.
-    # This remaps idx -> idx + 1 by blocks of 60 up to 300. This is used to remap the sim indices for the 'MCN0' debiasing term in the QE spectrum
+    ivfs = attr.ib(default=None)
+    qlms = attr.ib(default=None)
     QE_LENSING_CL_ANALYSIS = attr.ib(default=-1)
-    # Change the following block only if exotic transferfunctions are desired
     STANDARD_TRANSFERFUNCTION = attr.ib(default=-1)
-    # Change the following block only if other than cinv_t, cinv_p, ivfs filters are desired
-    FILTER = attr.ib(default=-1)
-    # Change the following block only if exotic chain descriptor are desired
+    filter = attr.ib(default=-1)
     CHAIN_DESCRIPTOR = attr.ib(default=-1)
-    # Change the following block only if other than sepTP for QE is desired
     FILTER_QE = attr.ib(default=-1)
-    # Choose your iterator. Either pertmf or const_mf
     iterator_typ = attr.ib(default=-1)
-    # The following block defines various multipole limits. Change as desired
-    lmax_filt = attr.ib(default=-1) # unlensed CMB iteration lmax
+    lmax_filt = attr.ib(default=-1)
     lmax_qlm = attr.ib(default=-1)
     mmax_qlm = attr.ib(default=-1)
     lmax_unl = attr.ib(default=-1)
@@ -133,10 +127,9 @@ class DLENSALOT_Iteration(DLENSALOT_Concept):
     mmax_ivf = attr.ib(default=-1)
     lmin_ivf = attr.ib(default=-1)
     mmin_ivf = attr.ib(default=-1)
-    LENSRES = attr.ib(default=-1) # Deflection operations will be performed at this resolution
-    Lmin = attr.ib(default=-1) # The reconstruction of all lensing multipoles below that will not be attempted
-    # Meanfield, OBD, and tol settings
-    CG_TOL = attr.ib(default=-1)
+    LENSRES = attr.ib(default=-1) 
+    Lmin = attr.ib(default=-1)
+    cg_tol = attr.ib(default=-1)
     TOL = attr.ib(default=-1)
     soltn_cond = attr.ib(default=-1)
     nsims_mf = attr.ib(default=-1)
@@ -169,22 +162,15 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
         DLENSALOT_Concept (_type_): _description_
     """
     edges = attr.ib(default=-1)
-    IMIN = attr.ib(default=-1)
-    IMAX = attr.ib(default=-1)
-    droplist = attr.ib(default=-1)
-    ITMAX = attr.ib(default=-1)
-    fg = attr.ib(default=-1)
-    base_mask = attr.ib(default=-1)
-    nlevels = attr.ib(default=-1)
-    nside = attr.ib(default=-1)
-    lmax_cl = attr.ib(default=-1)
-    beam = attr.ib(default=-1)
-    lmax_transf = attr.ib(default=-1)
-    transf = attr.ib(default=-1)
+    dlm_mod = attr.ib(default=False)
+    iterations = attr.ib(default=-1)
+    masks = attr.ib(default=None)
+    lmax = attr.ib(default=-1)
     Cl_fid = attr.ib(default=-1)
-    spectrum_type = attr.ib(default=-1)
+    libdir_it = attr.ib(default=None)
+    binning = attr.ib(default=-1)
     spectrum_calculator = attr.ib(default=None)
-    dlm_mod = attr.ib(default=-1)
+    data_from_CFS = attr.ib(default=True)
 
 
 @attr.s

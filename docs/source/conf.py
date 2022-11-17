@@ -8,7 +8,7 @@
 import os, sys
 # sys.path.insert(0, os.path.abspath("./../"))
 
-autodoc_mock_imports = ['plancklens', 'scarf', 'MSC', 'bicubic', 'fortran']
+autodoc_mock_imports = ['plancklens', 'scarf', 'MSC', 'bicubic', 'fortran', 'mpi4py', 'lenscarf.fortran']
 # sys.path.insert(0, os.path.abspath("./../"))
 
 sys.path.insert(0, "./../")
@@ -90,6 +90,7 @@ html_theme = 'sphinx_rtd_theme'
 #     "rightsidebar": "true",
 #     "relbarbgcolor": "black"
 # }
+html_logo = "_static/dlensalot.PNG"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

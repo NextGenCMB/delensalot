@@ -3,8 +3,10 @@ from os.path import join as opj
 import numpy as np
 import healpy as hp
 
-from lenscarf.lerepi.core.metamodel.dlensalot_v2 import *
+from MSC import pospace
 from plancklens.sims import phas, planck2018_sims
+
+from lenscarf.lerepi.core.metamodel.dlensalot_v2 import *
 
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(
@@ -16,14 +18,11 @@ dlensalot_model = DLENSALOT_Model(
         OMP_NUM_THREADS = 16
     ),
     analysis = DLENSALOT_Analysis(
-        TEMP_suffix = '',
+        TEMP_suffix = 'test',
         K = 'p_p',
         V = '',
         ITMAX = 12,
-        nsims_mf = 0,
-        zbounds =  (-1,1),
-        zbounds_len = (-1,1),   
-        pbounds = [0, 2*np.pi],
+        simidxs_mf = np.arange(0,100),
         LENSRES = 1.7,
         Lmin = 4, 
         lmax_filt = 4000,
@@ -49,6 +48,8 @@ dlensalot_model = DLENSALOT_Model(
             'nside': 2048,
             'pix_lib_phas': phas.pix_lib_phas(opj(os.environ['HOME'], 'pixphas_nside2048'), 3, (hp.nside2npix(2048),))
         },
+        data_type = 'map',
+        data_field = "qu",
         beam = 1.0,
         lmax_transf = 4000,
         nside = 2048
@@ -64,8 +65,9 @@ dlensalot_model = DLENSALOT_Model(
         nlev_p = 0.5
     ),
     qerec = DLENSALOT_Qerec(
-        FILTER_QE = 'sepTP',
-        CG_TOL = 1e-3,
+        ivfs = 'sepTP',
+        qlms = 'sepTP',
+        cg_tol = 1e-3,
         ninvjob_qe_geometry = 'healpix_geometry_qe',
         lmax_qlm = 4000,
         mmax_qlm = 4000,
@@ -81,9 +83,9 @@ dlensalot_model = DLENSALOT_Model(
             p7 = 'cache_mem'
     )),
     itrec = DLENSALOT_Itrec(
-        FILTER = 'opfilt_ee_wl.alm_filter_ninv_wl',
+        filter = 'opfilt_ee_wl.alm_filter_ninv_wl',
         tasks = ["calc_phi", "calc_meanfield", "calc_btemplate"],
-        TOL = 3,
+        cg_tol = 3,
         lenjob_geometry = 'thin_gauss',
         lenjob_pbgeometry = 'pbdGeometry',
         iterator_typ = 'pertmf',
@@ -95,9 +97,12 @@ dlensalot_model = DLENSALOT_Model(
             xb = 1500
     )),
     madel = DLENSALOT_Mapdelensing(
-        edges = ['cmbs4'],
         iterations = [10,12],
-        droplist = np.array([]),
-        nlevels = [np.inf],
-        lmax_cl = 2048,
-    ))
+        edges = ['ioreco'], # overwritten when binning=unbinned
+        masks = ("nlevels", [1.2, 2, 10, 50]),
+        lmax = 2048, # automatically set to 200 when binning=unbinned
+        Cl_fid = 'ffp10',
+        binning = 'binned',
+        spectrum_calculator = pospace
+    )
+)

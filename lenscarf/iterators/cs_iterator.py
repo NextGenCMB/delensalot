@@ -23,6 +23,12 @@ import time
 import sys
 import numpy as np
 
+import logging
+log = logging.getLogger(__name__)
+from logdecorator import log_on_start, log_on_end
+
+from plancklens.qcinv import multigrid
+
 import scarf
 from lenscarf.utils import cli, read_map
 from lenscarf.utils_hp import Alm, almxfl, alm2cl
@@ -30,15 +36,10 @@ from lenscarf import utils_qe
 from lenscarf.utils_scarf import scarfjob, pbdGeometry, pbounds
 from lenscarf import utils_dlm
 
-from plancklens.qcinv import multigrid
-from lenscarf.iterators import bfgs, steps
-
-from lenscarf.opfilt import opfilt_base
 from lenscarf import cachers
-
-import logging
-log = logging.getLogger(__name__)
-from logdecorator import log_on_start, log_on_end
+from lenscarf.opfilt import opfilt_base
+from lenscarf.iterators import bfgs, steps
+from lenscarf.lerepi.core.visitor import transform
 
 alm2rlm = lambda alm : alm # get rid of this
 rlm2alm = lambda rlm : rlm
@@ -325,8 +326,8 @@ class qlm_iterator(object):
         return np.sqrt(np.sum(alm2cl(qlm, qlm, self.lmax_qlm, self.mmax_qlm, self.lmax_qlm)))
 
 
-    @log_on_start(logging.INFO, "get_hessian() started: k={k}, key={key}")
-    @log_on_end(logging.INFO, "get_hessian() finished: k={k}, key={key}")
+    @log_on_start(logging.INFO, "get_hessian(k={k}, key={key}) started")
+    @log_on_end(logging.INFO, "get_hessian(k={k}, key={key}) finished")
     def get_hessian(self, k, key):
         """Inverse hessian that will produce phi_iter.
 
@@ -345,8 +346,8 @@ class qlm_iterator(object):
         return BFGS_H
 
 
-    @log_on_start(logging.INFO, "build_incr() started: it={it}, key={key}")
-    @log_on_end(logging.INFO, "build_incr() finished: it={it}, key={key}")
+    @log_on_start(logging.INFO, "build_incr(it={it}, key={key}) started")
+    @log_on_end(logging.INFO, "build_incr(it={it}, key={key}) finished")
     def build_incr(self, it, key, gradn):
         """Search direction
 
@@ -439,8 +440,8 @@ class qlm_iterator(object):
         almxfl(ret, cli(h2k), mmax_dlm, True)
         return ret
 
-    @log_on_start(logging.INFO, "iterate() started: it={itr}, key={key}")
-    @log_on_end(logging.INFO, "iterate() finished: it={itr}, key={key}")
+    @log_on_start(logging.INFO, "iterate(it={itr}, key={key}) started")
+    @log_on_end(logging.INFO, "iterate(it={itr}, key={key}) finished")
     def iterate(self, itr, key):
         """Performs iteration number 'itr'
 
@@ -464,8 +465,8 @@ class qlm_iterator(object):
                     shutil.rmtree(opj(self.lib_dir, 'ffi_%s_it%s'%(key, itr)))
 
 
-    @log_on_start(logging.INFO, "calc_gradlik() started: it={itr}, key={key}")
-    @log_on_end(logging.INFO, "calc_gradlik() finished: it={itr}, key={key}")
+    @log_on_start(logging.INFO, "calc_gradlik(it={itr}, key={key}) started")
+    @log_on_end(logging.INFO, "calc_gradlik(it={itr}, key={key}) finished")
     def calc_gradlik(self, itr, key, iwantit=False):
         """Computes the quadratic part of the gradient for plm iteration 'itr'
 
@@ -508,8 +509,8 @@ class qlm_iterator(object):
                 self.cacher.cache(fn_lik, -G if key.lower() == 'p' else -C)
             return -G if key.lower() == 'p' else -C
 
-    @log_on_start(logging.INFO, "calc_graddet() started: it={itr}, key={key}. subclassed")
-    @log_on_end(logging.INFO, "calc_graddet() finished: it={itr}, key={key}. subclassed")
+    @log_on_start(logging.INFO, "calc_graddet(it={itr}, key={key}) started, subclassed")
+    @log_on_end(logging.INFO, "calc_graddet(it={itr}, key={key}) finished, subclassed")
     def calc_graddet(self, itr, key):
         assert 0, 'subclass this'
 
@@ -530,13 +531,13 @@ class iterator_cstmf(qlm_iterator):
         self.cacher.cache('mf', almxfl(mf0, self._h2p(self.lmax_qlm), self.mmax_qlm, False))
 
 
-    @log_on_start(logging.INFO, "load_graddet() started: it={k}, key={key}")
-    @log_on_end(logging.INFO, "load_graddet() finished: it={k}, key={key}")
+    @log_on_start(logging.INFO, "load_graddet(it={k}, key={key}) started")
+    @log_on_end(logging.INFO, "load_graddet(it={k}, key={key}) finished")
     def load_graddet(self, k, key):
         return self.cacher.load('mf')
 
-    @log_on_start(logging.INFO, "calc_graddet() started: it={k}, key={key}")
-    @log_on_end(logging.INFO, "calc_graddet() finished: it={k}, key={key}")
+    @log_on_start(logging.INFO, "calc_graddet(it={k}, key={key}) started")
+    @log_on_end(logging.INFO, "calc_graddet(it={k}, key={key}) finished")
     def calc_graddet(self, k, key):
         return self.cacher.load('mf')
 
@@ -560,8 +561,8 @@ class iterator_pertmf(qlm_iterator):
             self.cacher.cache('mf', almxfl(mf0, self._h2p(self.lmax_qlm), self.mmax_qlm, False))
         self.p_mf_resp = mf_resp
 
-    @log_on_start(logging.INFO, "load_graddet() started: it={itr}, key={key}")
-    @log_on_end(logging.INFO, "load_graddet() finished: it={itr}, key={key}")
+    @log_on_start(logging.INFO, "load_graddet(it={itr}, key={key}) started")
+    @log_on_end(logging.INFO, "load_graddet(it={itr}, key={key}) finished")
     def load_graddet(self, itr, key):
         assert self.h == 'p', 'check this line is ok for other h'
         mf = almxfl(self.get_hlm(itr - 1, key), self.p_mf_resp * self._h2p(self.lmax_qlm), self.mmax_qlm, False)
@@ -569,8 +570,8 @@ class iterator_pertmf(qlm_iterator):
             mf += self.cacher.load('mf')
         return mf
 
-    @log_on_start(logging.INFO, "calc_graddet() started: it={itr}, key={key}")
-    @log_on_end(logging.INFO, "calc_graddet() finished: it={itr}, key={key}")
+    @log_on_start(logging.INFO, "calc_graddet(it={itr}, key={key}) started")
+    @log_on_end(logging.INFO, "calc_graddet(it={itr}, key={key}) finished")
     def calc_graddet(self, itr, key):
         assert self.h == 'p', 'check this line is ok for other h'
         mf = almxfl(self.get_hlm(itr - 1, key), self.p_mf_resp * self._h2p(self.lmax_qlm), self.mmax_qlm, False)
@@ -594,8 +595,8 @@ class iterator_simf(qlm_iterator):
         self.mf_key = mf_key
 
 
-    @log_on_start(logging.INFO, "calc_graddet() started: it={itr}, key={key}")
-    @log_on_end(logging.INFO, "calc_graddet() finished: it={itr}, key={key}")
+    @log_on_start(logging.INFO, "calc_graddet(it={itr}, key={key}) started")
+    @log_on_end(logging.INFO, "calc_graddet(it={itr}, key={key}) finished")
     def calc_graddet(self, itr, key):
         assert self.is_iter_done(itr - 1, key)
         assert itr > 0, itr
@@ -652,8 +653,8 @@ class iterator_cstmf_bfgs0(iterator_cstmf):
         return BFGS_H
 
 
-    @log_on_start(logging.INFO, "build_incr() started: it={it}, key={key}")
-    @log_on_end(logging.INFO, "build_incr() finished: it={it}, key={key}")
+    @log_on_start(logging.INFO, "build_incr(it={it}, key={key}) started")
+    @log_on_end(logging.INFO, "build_incr(it={it}, key={key}) finished")
     def build_incr(self, it, key, gradn):
         assert it > 0, it
         k = it - 1
@@ -678,4 +679,9 @@ class iterator_cstmf_bfgs0(iterator_cstmf):
             prt_time(time.time() - t0, label=' Exec. time for descent direction calculation')
         assert self.hess_cacher.is_cached(sk_fname), sk_fname
 
-# TODO add visitor pattern if desired
+
+def transformer(descr):
+    if descr == 'pertmf_new':
+        return iterator_pertmf
+    else:
+        assert 0, "Not yet implemented"

@@ -3,92 +3,103 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to D.lensalot's documentation!
-======================================
+Welcome to D.lensalot
+===============================
+
+Curved-sky quadratic and iterative CMB lensing tools.
+
+Lensing reconstruction, B-lensing template generation and power spectrum calculation of (partially) delensed maps.
+
+
+Includes quadratic estimated and iterative lensing reconstruction on map-level.
+All calculations are done on curved sky.
+
+Quadratic estimated lensing reconstruction comes from the built-in interface to `Plancklens`_.
+Iterative lensing reconstruction comes from the curved sky implementation of `LensIt`_.
+D.lensalot is controlled via :ref:`Configuration Files`.
+
+
+.. _Plancklens: https://github.com/carronj/plancklens
+.. _LensIt: https://github.com/carronj/plancklens
+
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
-
- 
-usage
-=============
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :caption: Usage:
 
    usage/installation
    usage/quickstart
    usage/NERSC
 
 
-model configuration
+Model Configuration
 ====================
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Simple analysis set-up:
 
    config/params
    config/data
 
 
-lensing reconstruction
+Lensing Reconstruction
 =======================
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Numerics:
 
    lensrec/overview
    lensrec/QE
    lensrec/MAP
 
-delensing
+
+Delensing
 ==========
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Internal:
 
    delensing/overview
-   delensing/B-template
+   delensing/B-lensing-template
 
-other
+
+Other
 =============
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Removing nuisance:
 
    other/OBD
    other/other
 
-about
+About
 =============
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Framework:
 
    about/development
    about/publications
    about/people
 
 
-modules
+Modules
 ==========
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: API:
    
    modules/modules
 
 
 
-Indices and tables
+Indices and Tables
 ==================
 
 * :ref:`genindex`
