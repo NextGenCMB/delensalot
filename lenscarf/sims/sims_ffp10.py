@@ -186,6 +186,9 @@ class cmb_len_ffp10_wcurl(cmb_len_ffp10):
                 Note:
                     Note: the curl :`Lmax`: is at most the lensing potential :`Lmax`: here
 
+                Note:
+                    Deflection is defined as $-\eth (\phi + i \Omega)$ ('x' usually stands in plancklens for $\Omega$)
+
 
 
             """
