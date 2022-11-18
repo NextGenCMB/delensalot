@@ -196,8 +196,18 @@ class cmb_len_ffp10_wcurl(cmb_len_ffp10):
 
             assert np.all(clxx >= 0.), 'Somethings wrong with the input'
 
-            self.rclxx = np.sqrt(clxx[lib_phas.lmax])
+            self.rclxx = np.sqrt(clxx[:lib_phas.lmax+1])
             self.lib_phas = lib_phas
+
+        def hashdict(self):
+            ret = {'sims': 'ffp10', 'tres': self.targetres, 'lmaxGL': self.lmax_thingauss,
+                   'lmin_dlm': self.lmin_dlm}
+            cl_aber = utils_hp.alm2cl(self.vlm, self.vlm, 1, 1, 1)
+            if np.any(cl_aber):
+                ret['aberration'] = cl_aber
+            ret['rclxx'] = self.rclxx
+            ret['xphas'] = self.lib_phas.lib_phas[0].hashdict()
+            return ret
 
         def _get_dlm(self, idx):
             dlm = cmb_unl_ffp10.get_sim_plm(idx)
