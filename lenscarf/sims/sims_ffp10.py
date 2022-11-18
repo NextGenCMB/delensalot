@@ -1,6 +1,8 @@
 from __future__ import annotations
 import os
 import numpy as np
+import plancklens.sims.phas
+
 from lenscarf import cachers
 from lenscarf import utils_scarf, utils_hp
 from plancklens.sims.planck2018_sims import cmb_unl_ffp10
@@ -72,6 +74,7 @@ class cmb_len_ffp10:
         vlm       *= (-v * np.sqrt(4 * np.pi / 3))
         vlm_ffp10 *= (-v_ffp10 * np.sqrt(4 * np.pi / 3))
         self.delta_vlm = vlm - vlm_ffp10
+        self.vlm = vlm
         if verbose:
             print("Input aberration power %.3e"%(utils_hp.alm2cl(vlm, vlm, 1, 1, 1)[1]))
         self.verbose = verbose
@@ -91,7 +94,11 @@ class cmb_len_ffp10:
         return zl, zu
 
     def hashdict(self):
-        return {'sims':'ffp10', 'tres':self.targetres, 'lmaxGL':self.lmax_thingauss, 'lmin_dlm':self.lmin_dlm}
+        ret = {'sims':'ffp10', 'tres':self.targetres, 'lmaxGL':self.lmax_thingauss, 'lmin_dlm':self.lmin_dlm}
+        cl_aber = utils_hp.alm2cl(self.vlm, self.vlm, 1, 1, 1)
+        if np.any(cl_aber):
+            ret['aberration'] = cl_aber
+        return ret
 
     def _get_dlm(self, idx):
         dlm = cmb_unl_ffp10.get_sim_plm(idx)
@@ -163,3 +170,43 @@ class cmb_len_ffp10:
             self.cacher.cache(fn_b, len_blm)
             return len_blm
         return self.cacher.load(fn_b)
+
+
+class cmb_len_ffp10_wcurl(cmb_len_ffp10):
+        def __init__(self, clxx:np.ndarray, lib_phas:plancklens.sims.phas.lib_phas, aberration:tuple[float, float, float]or None=None, lmin_dlm=0, cacher:cachers.cacher or None=None,
+                       lmax_thingauss:int=5120, nbands:int=1, targetres=0.75, verbose:bool=False):
+            """FFP10 lensed CMBs, where lensing including an additional lensing curl potential component
+
+                Args:
+                    clxx: lensing curl potential power spectrum
+                    lib_phas: random phases of the curl sims (the code will call the '0'th field index of these phases)
+
+                See mother class for other args
+
+                Note:
+                    Note: the curl :`Lmax`: is at most the lensing potential :`Lmax`: here
+
+
+
+            """
+            super().__init__(aberration=aberration, lmin_dlm=lmin_dlm, cacher=cacher, lmax_thingauss=lmax_thingauss, nbands=nbands, targetres=targetres, verbose=verbose)
+
+            assert np.all(clxx >= 0.), 'Somethings wrong with the input'
+
+            self.rclxx = np.sqrt(clxx[lib_phas.lmax])
+            self.lib_phas = lib_phas
+
+        def _get_dlm(self, idx):
+            dlm = cmb_unl_ffp10.get_sim_plm(idx)
+            lmax_dlm = utils_hp.Alm.getlmax(dlm.size, -1)
+            mmax_dlm = lmax_dlm
+            xlm = utils_hp.almxfl(self.lib_phas.get_sim(idx, idf=0), self.rclxx, None, False)
+            dlm += utils_hp.alm_copy(xlm, None, lmax_dlm, mmax_dlm)
+            dlm[utils_hp.Alm.getidx(lmax_dlm, 1, 0)] += self.delta_vlm[1] # LM=10 aberration
+            dlm[utils_hp.Alm.getidx(lmax_dlm, 1, 1)] += self.delta_vlm[2] # LM = 11
+
+            p2d = np.sqrt(np.arange(lmax_dlm + 1) * np.arange(1, lmax_dlm + 2))
+            p2d[:self.lmin_dlm] = 0
+
+            utils_hp.almxfl(dlm, p2d, mmax_dlm, inplace=True)
+            return dlm, lmax_dlm, mmax_dlm
