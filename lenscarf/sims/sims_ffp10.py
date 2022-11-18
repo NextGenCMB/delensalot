@@ -1,3 +1,10 @@
+"""This modules contains simulations libraries involving the Planck FFP10 CMBs on NERSC
+
+    The FFP10 lensed CMB's contain a number of lensing-related small defects.
+    This module can be used to regenerate customized lensed maps
+
+
+"""
 from __future__ import annotations
 import os
 import numpy as np
@@ -19,14 +26,14 @@ class cmb_len_ffp10:
 
             Args:
                 aberration: aberration parameters (gal. longitude (rad), latitude (rad) and v/c) Defaults to FFP10 values
-                lmin_dlm: Set to zero the deflection field for L<lmin_dlm
+                lmin_dlm: Optionally set to zero the deflection field for L<lmin_dlm
                 cacher: set this to one of lenscarf.cachers in order save maps (nothing saved by default)
                 nbands: if set splits the sky into bands to perform the operations (saves some memory but probably a bit slower)
                 targetres: main accuracy parameter; target resolution in arcmin to perform the deflection operation.
                            make this smaller for more accurate interpolation
 
+
         """
-        #FIXME: change the hashkey to get the aberration and the lmin_dlm also ?
 
         nbands = int(nbands + (1 - int(nbands)%2))  # want an odd number to avoid a split just on the equator
         assert nbands <= 10, 'did not check'
@@ -215,7 +222,7 @@ class cmb_len_ffp10_wcurl(cmb_len_ffp10):
             lmax_dlm = utils_hp.Alm.getlmax(dlm.size, -1)
             mmax_dlm = lmax_dlm
 
-            dlm[utils_hp.Alm.getidx(lmax_dlm, 1, 0)] += self.delta_vlm[1] # LM=10 aberration
+            dlm[utils_hp.Alm.getidx(lmax_dlm, 1, 0)] += self.delta_vlm[1] # LM = 10 aberration
             dlm[utils_hp.Alm.getidx(lmax_dlm, 1, 1)] += self.delta_vlm[2] # LM = 11
 
             # curl mode
