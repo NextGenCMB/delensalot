@@ -1327,7 +1327,6 @@ class l2i_Transformer:
                             if key2 not in dl.prediction[key0][key4][key1]:
                                 dl.prediction[key0][key4][key1][key2] = np.array([], dtype=np.complex128)
 
-            
             dl.data['weight'] = np.zeros(shape=(2,*(np.loadtxt(dl.ic.weights_fns.format(dl.fg, 'E')).shape)))
             for i, flavour in enumerate(['E', 'B']):
                 dl.data['weight'][int(i%len(['E', 'B']))] = np.loadtxt(dl.ic.weights_fns.format(dl.fg, flavour))
