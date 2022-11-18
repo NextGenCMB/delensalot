@@ -6,23 +6,17 @@ __author__ = "S. Belkner, J. Carron, L. Legrand"
 
 import os, sys
 from os.path import join as opj
-import importlib
-import traceback
+
 
 import logging
 log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
 
-import numpy as np
-import healpy as hp
-
-import hashlib
 
 import lenscarf.lerepi.core.sr as sr
 from lenscarf.lerepi.core.visitor import transform
 from lenscarf.lerepi.core.transformer.lerepi2dlensalot import l2T_Transformer
-from lenscarf.lerepi.core.metamodel.dlensalot import DLENSALOT_Model as DLENSALOT_Model, DLENSALOT_Concept
-from lenscarf.lerepi.core.metamodel.dlensalot_v2 import DLENSALOT_Model as DLENSALOT_Model_v2
+from lenscarf.lerepi.core.metamodel.dlensalot_v2 import DLENSALOT_Model as DLENSALOT_Model, DLENSALOT_Concept
 
 
 class l2s_Transformer:
@@ -82,11 +76,3 @@ def f0(expr, transformer): # pylint: disable=missing-function-docstring
 @transform.case(DLENSALOT_Model, l2s_Transformer)
 def f1(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)
-
-@transform.case(DLENSALOT_Model_v2, l2j_Transformer)
-def f2(expr, transformer): # pylint: disable=missing-function-docstring
-    return transformer.build(expr)
-
-@transform.case(DLENSALOT_Model_v2, l2s_Transformer)
-def f3(expr, transformer): # pylint: disable=missing-function-docstring
-    return transformer.build_v2(expr)

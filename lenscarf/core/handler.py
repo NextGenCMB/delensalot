@@ -16,8 +16,6 @@ import getpass
 import numpy as np
 import healpy as hp
 
-from scipy.signal import savgol_filter as sf
-
 from MSC import pospace as ps
 from plancklens import utils, qresp
 from plancklens.sims import planck2018_sims
@@ -46,36 +44,11 @@ class Notebook_interactor():
         * masking if needed
         * binning if needed
      * load power spectra
-        * see read_data() and read_data_v2()
+        * see read_data_v2()
     '''
     def __init__(self, Interactor_model):
         self.__dict__.update(Interactor_model.__dict__)
 
-        
-    @log_on_start(logging.INFO, "read_data() started")
-    @log_on_end(logging.INFO, "read_data() finished")
-    def read_data(self, dm, simids=None, edges=None, dlm_mod=False, dir_idx=0):
-        bcl_cs = np.zeros(shape=(len(self.iterations)+2, len(self.nlevels), len(self.simids), len(self.edges)-1))
-        bcl_L = np.zeros(shape=(len(self.iterations)+2, len(self.nlevels), len(self.simids), len(self.edges)-1))
-        for simidx, simid in enumerate(self.simids):
-            if dm.iteration.dlm_mod:
-                data = np.load(self.TEMP + '/plotdata{}/{}'.format(self.vers_str,self.dirid) + '/ClBBwf_sim%04d_dlmmod_fg%2s_res2b3acm.npy'%(simid, dm.map_delensing.fg))
-            else:
-                data = np.load(self.TEMP + '/plotdata{}/{}'.format(self.vers_str,self.dirid) + '/ClBBwf_sim%04d_fg%2s_res2b3acm.npy'%(simid, dm.map_delensing.fg))
-            # data =  np.load(dirroot_loc + '{}'.format(self.dirid) + '/Lenscarf_plotdata_ClBB_sim%04d_fg%2s_res2b3acm.npy'%(simid, fg))
-            bcl_L[0,:,simidx] = data[0][0]
-            bcl_cs[0,:,simidx] = data[1][0]
-
-            bcl_L[1,:,simidx] = data[0][1]
-            bcl_cs[1,:,simidx] = data[1][1]
-
-            for iti, it in enumerate(self.iterations):
-                bcl_L[2+iti,:,simidx] = data[0][2+iti]
-                bcl_cs[2+iti,:,simidx] = data[1][2+iti]
-
-        print('dirid: {}'.format(self.dirid))
-
-        return bcl_L, bcl_cs
 
 
     @log_on_start(logging.INFO, "read_data_v2() started")
@@ -691,32 +664,9 @@ class Map_delenser():
         else:
             self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
         self.lib = dict()
-
-        
-    @log_on_start(logging.INFO, "read_data() started")
-    @log_on_end(logging.INFO, "read_data() finished")
-    def read_data(self, dm, simids=None, edges=None, dlm_mod=False, dir_idx=0):
-        bcl_cs = np.zeros(shape=(len(self.iterations)+2, len(self.nlevels), len(self.simids), len(self.edges)-1))
-        bcl_L = np.zeros(shape=(len(self.iterations)+2, len(self.nlevels), len(self.simids), len(self.edges)-1))
-        for simidx, simid in enumerate(self.simids):
-            if dm.iteration.dlm_mod:
-                data = np.load(self.TEMP + '/plotdata{}/{}'.format(self.vers_str,self.dirid) + '/ClBBwf_sim%04d_dlmmod_fg%2s_res2b3acm.npy'%(simid, dm.map_delensing.fg))
-            else:
-                data = np.load(self.TEMP + '/plotdata{}/{}'.format(self.vers_str,self.dirid) + '/ClBBwf_sim%04d_fg%2s_res2b3acm.npy'%(simid, dm.map_delensing.fg))
-            # data =  np.load(dirroot_loc + '{}'.format(self.dirid) + '/Lenscarf_plotdata_ClBB_sim%04d_fg%2s_res2b3acm.npy'%(simid, fg))
-            bcl_L[0,:,simidx] = data[0][0]
-            bcl_cs[0,:,simidx] = data[1][0]
-
-            bcl_L[1,:,simidx] = data[0][1]
-            bcl_cs[1,:,simidx] = data[1][1]
-
-            for iti, it in enumerate(self.iterations):
-                bcl_L[2+iti,:,simidx] = data[0][2+iti]
-                bcl_cs[2+iti,:,simidx] = data[1][2+iti]
-
-        print('dirid: {}'.format(self.dirid))
-
-        return bcl_L, bcl_cs
+        self.bcl_L, self.bcl_cs  = self.read_data_v2(edges_id=0)
+        # self.bcl_L = np.array([b[0] for b in self.bcls])
+        # self.bcl_cs = np.array([b[1] for b in self.bcls])
 
 
     @log_on_start(logging.INFO, "read_data_v2() started")
