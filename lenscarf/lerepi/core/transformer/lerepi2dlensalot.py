@@ -1309,11 +1309,10 @@ class l2i_Transformer:
                             for key6 in ['TEB', 'IQU', 'EB', 'QU', 'EB_bp', 'QU_bp', 'T', 'E', 'B', 'Q', 'U', 'E_bp', 'B_bp']:
                                 if key6 not in dl.data[key0][key4][key1][key2]:
                                     dl.data[key0][key4][key1][key2][key6] = np.array([], dtype=np.complex128)
-<<<<<<< HEAD
-=======
+
 # self.data[component]['nlevel']['fs']['cl_template'][freq]['EB']
             
->>>>>>> 9a6a94f (move to job)
+
             dl.prediction = dict()
             for key0 in ['N0', 'N1', 'cl_del']:
                 if key0 not in dl.prediction:
