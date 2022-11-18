@@ -664,6 +664,9 @@ class Map_delenser():
         else:
             self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
         self.lib = dict()
+        self.bcl_L, self.bcl_cs  = self.read_data_v2(edges_id=0)
+        # self.bcl_L = np.array([b[0] for b in self.bcls])
+        # self.bcl_cs = np.array([b[1] for b in self.bcls])
 
 
     @log_on_start(logging.INFO, "read_data_v2() started")
