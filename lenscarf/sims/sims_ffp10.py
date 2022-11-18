@@ -201,7 +201,7 @@ class cmb_len_ffp10_wcurl(cmb_len_ffp10):
             lmax_dlm = utils_hp.Alm.getlmax(dlm.size, -1)
             mmax_dlm = lmax_dlm
             xlm = utils_hp.almxfl(self.lib_phas.get_sim(idx, idf=0), self.rclxx, None, False)
-            dlm += utils_hp.alm_copy(xlm, None, lmax_dlm, mmax_dlm)
+            dlm += 1j * utils_hp.alm_copy(xlm, None, lmax_dlm, mmax_dlm)
             dlm[utils_hp.Alm.getidx(lmax_dlm, 1, 0)] += self.delta_vlm[1] # LM=10 aberration
             dlm[utils_hp.Alm.getidx(lmax_dlm, 1, 1)] += self.delta_vlm[2] # LM = 11
 
