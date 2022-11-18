@@ -998,6 +998,7 @@ class l2d_Transformer:
     @log_on_end(logging.INFO, "build_v2() finished")
     def build_v2(self, cf):
         def _process_Madel(dl, ma):
+
             dl.data_from_CFS = ma.data_from_CFS
             dl.k = cf.analysis.K
             dl.version = cf.analysis.V
@@ -1221,6 +1222,21 @@ class l2d_Transformer:
         _process_Config(dl, cf.config)
         _check_powspeccalculator(dl.cl_calc)
 
+        dl.prediction = dict()
+        for key0 in ['N0', 'N1', 'cl_del']:
+            if key0 not in dl.prediction:
+                dl.prediction[key0] = dict()
+            for key4 in dl.mask_ids + ['fs']:
+                if key4 not in dl.prediction[key0]:
+                    dl.prediction[key0][key4] = dict()
+                for key1 in ['QE', "MAP"]:
+                    if key1 not in dl.prediction[key0][key4]:
+                        dl.prediction[key0][key4][key1] = dict()
+                    for key2 in ['N', 'N_eff']:
+                        if key2 not in dl.prediction[key0][key4][key1]:
+                                dl.prediction[key0][key4][key1][key2] = np.array([], dtype=np.complex128)
+
+
 
         return dl
         
@@ -1247,6 +1263,11 @@ class l2i_Transformer:
                             for key6 in ['TEB', 'IQU', 'EB', 'QU', 'EB_bp', 'QU_bp', 'T', 'E', 'B', 'Q', 'U', 'E_bp', 'B_bp']:
                                 if key6 not in dl.data[key0][key4][key1][key2]:
                                     dl.data[key0][key4][key1][key2][key6] = np.array([], dtype=np.complex128)
+<<<<<<< HEAD
+=======
+# self.data[component]['nlevel']['fs']['cl_template'][freq]['EB']
+            
+>>>>>>> 9a6a94f (move to job)
             dl.prediction = dict()
             for key0 in ['N0', 'N1', 'cl_del']:
                 if key0 not in dl.prediction:
@@ -1259,8 +1280,9 @@ class l2i_Transformer:
                             dl.prediction[key0][key4][key1] = dict()
                         for key2 in ['N', 'N_eff']:
                             if key2 not in dl.prediction[key0][key4][key1]:
-                                	dl.prediction[key0][key4][key1][key2] = np.array([], dtype=np.complex128)
+                                    dl.prediction[key0][key4][key1][key2] = np.array([], dtype=np.complex128)
 
+            
             dl.data['weight'] = np.zeros(shape=(2,*(np.loadtxt(dl.ic.weights_fns.format(dl.fg, 'E')).shape)))
             for i, flavour in enumerate(['E', 'B']):
                 dl.data['weight'][int(i%len(['E', 'B']))] = np.loadtxt(dl.ic.weights_fns.format(dl.fg, flavour))
