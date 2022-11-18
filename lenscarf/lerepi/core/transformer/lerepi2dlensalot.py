@@ -421,6 +421,26 @@ class l2lensrec_Transformer:
                     dl.mfvar = it.mfvar
                 else:
                     log.error('Not sure what to do with this meanfield: {}'.format(it.mfvar))
+            if dl.mfvar:
+                # TODO this is a terrible way of replacing foreground..
+                # the following lines access analysis Y while being an analysis X, 
+                # as realization dependent-mf calculation in core/handler needs qlms_dd_mfvar to remove the correct simulation
+                __dataclass_parameters = cf.data.class_parameters
+                __dataclass_parameters['fg'] = __dataclass_parameters['fg'].replace(dl.fg, dl.version[2:4])
+                if 'fg' in __dataclass_parameters:
+                    _fg = __dataclass_parameters['fg']
+                _package = cf.data.package_
+                _module = cf.data.module_
+                if cf.data.package_.startswith('lerepi'):
+                    _package = 'lenscarf.'+cf.data.package_
+                __sims_full_name = '{}.{}'.format(_package, _module)
+                __sims_module = importlib.import_module(__sims_full_name)
+                _class = cf.data.class_
+                _sims = getattr(__sims_module, _class)(**__dataclass_parameters)
+                TEMPmfvar = dl.TEMP.replace('_{}_'.format(dl.fg), "_{}_".format(dl.version[2:4]))
+                _ivfs_raw = filt_cinv.library_cinv_sepTP(opj(TEMPmfvar, 'ivfs'), _sims, dl.cinv_t, dl.cinv_p, dl.cls_len)
+                _ivfs = filt_util.library_ftl(_ivfs_raw, dl.lmax_ivf, dl.ftl_rs, dl.fel_rs, dl.fbl_rs)
+                dl.qlms_dd_mfvar = qest.library_sepTP(opj(TEMPmfvar, 'qlms_dd'), _ivfs, _ivfs, dl.cls_len['te'], dl.nside, lmax_qlm=dl.lmax_qlm)
             
             dl.stepper_model = it.stepper
             if dl.stepper_model.typ == 'harmonicbump':
