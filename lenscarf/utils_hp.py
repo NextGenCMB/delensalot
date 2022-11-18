@@ -25,6 +25,8 @@ def almxfl(alm:np.ndarray, fl:np.ndarray, mmax:int or None, inplace:bool):
 
     """
     lmax = Alm.getlmax(alm.size, mmax)
+    if mmax is None or mmax < 0:
+        mmax = lmax
     assert fl.size > lmax, (fl.size, lmax)
     if inplace:
         for m in range(mmax + 1):

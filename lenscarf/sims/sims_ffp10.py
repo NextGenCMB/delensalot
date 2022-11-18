@@ -1,6 +1,15 @@
+"""This modules contains simulations libraries involving the Planck FFP10 CMBs on NERSC
+
+    The FFP10 lensed CMB's contain a number of lensing-related small defects.
+    This module can be used to regenerate customized lensed maps
+
+
+"""
 from __future__ import annotations
 import os
 import numpy as np
+import plancklens.sims.phas
+
 from lenscarf import cachers
 from lenscarf import utils_scarf, utils_hp
 from plancklens.sims.planck2018_sims import cmb_unl_ffp10
@@ -17,14 +26,14 @@ class cmb_len_ffp10:
 
             Args:
                 aberration: aberration parameters (gal. longitude (rad), latitude (rad) and v/c) Defaults to FFP10 values
-                lmin_dlm: Set to zero the deflection field for L<lmin_dlm
+                lmin_dlm: Optionally set to zero the deflection field for L<lmin_dlm
                 cacher: set this to one of lenscarf.cachers in order save maps (nothing saved by default)
                 nbands: if set splits the sky into bands to perform the operations (saves some memory but probably a bit slower)
                 targetres: main accuracy parameter; target resolution in arcmin to perform the deflection operation.
                            make this smaller for more accurate interpolation
 
+
         """
-        #FIXME: change the hashkey to get the aberration and the lmin_dlm also ?
 
         nbands = int(nbands + (1 - int(nbands)%2))  # want an odd number to avoid a split just on the equator
         assert nbands <= 10, 'did not check'
@@ -72,6 +81,7 @@ class cmb_len_ffp10:
         vlm       *= (-v * np.sqrt(4 * np.pi / 3))
         vlm_ffp10 *= (-v_ffp10 * np.sqrt(4 * np.pi / 3))
         self.delta_vlm = vlm - vlm_ffp10
+        self.vlm = vlm
         if verbose:
             print("Input aberration power %.3e"%(utils_hp.alm2cl(vlm, vlm, 1, 1, 1)[1]))
         self.verbose = verbose
@@ -91,10 +101,15 @@ class cmb_len_ffp10:
         return zl, zu
 
     def hashdict(self):
-        return {'sims':'ffp10', 'tres':self.targetres, 'lmaxGL':self.lmax_thingauss, 'lmin_dlm':self.lmin_dlm}
+        ret = {'sims':'ffp10', 'tres':self.targetres, 'lmaxGL':self.lmax_thingauss, 'lmin_dlm':self.lmin_dlm}
+        cl_aber = utils_hp.alm2cl(self.vlm, self.vlm, 1, 1, 1)
+        if np.any(cl_aber):
+            ret['aberration'] = cl_aber
+        return ret
 
     def _get_dlm(self, idx):
-        dlm = cmb_unl_ffp10.get_sim_plm(idx)
+        dlm = cmb_unl_ffp10.get_sim_plm(idx) # gradient mode
+        dclm = None # curl mode
         lmax_dlm = utils_hp.Alm.getlmax(dlm.size, -1)
         mmax_dlm = lmax_dlm
         dlm[utils_hp.Alm.getidx(lmax_dlm, 1, 0)] += self.delta_vlm[1] # LM=10 aberration
@@ -104,10 +119,10 @@ class cmb_len_ffp10:
         p2d[:self.lmin_dlm] = 0
 
         utils_hp.almxfl(dlm, p2d, mmax_dlm, inplace=True)
-        return dlm, lmax_dlm, mmax_dlm
+        return dlm, dclm, lmax_dlm, mmax_dlm
 
     def _build_eb(self, idx):
-        dlm, lmax_dlm, mmax_dlm = self._get_dlm(idx)
+        dlm, dclm, lmax_dlm, mmax_dlm = self._get_dlm(idx)
         len_eblm = np.zeros((2, utils_hp.Alm.getsize(self.lmax_len, self.mmax_len)), dtype=complex)
         unl_elm = cmb_unl_ffp10.get_sim_elm(idx)
         unl_blm = cmb_unl_ffp10.get_sim_blm(idx)
@@ -115,20 +130,20 @@ class cmb_len_ffp10:
         mmax_elm = lmax_elm
         assert lmax_elm == utils_hp.Alm.getlmax(unl_blm.size, -1)
         for i, pbdGeom in utils.enumerate_progress(self.pbdGeoms, 'collecting bands'):
-            ffi = deflection(pbdGeom, self.targetres, dlm, mmax_dlm, self.fft_tr, self.sht_tr, verbose=self.verbose)
+            ffi = deflection(pbdGeom, self.targetres, dlm, mmax_dlm, self.fft_tr, self.sht_tr, verbose=self.verbose, dclm=dclm)
             len_eblm += ffi.lensgclm([unl_elm, unl_blm], mmax_elm, 2, self.lmax_len, self.mmax_len)
         return len_eblm
 
     def get_sim_tlm(self, idx):
         fn = 'tlm_%04d' % idx
         if not self.cacher.is_cached(fn):
-            dlm, lmax_dlm, mmax_dlm = self._get_dlm(idx)
+            dlm, dclm, lmax_dlm, mmax_dlm = self._get_dlm(idx)
             unl_tlm = cmb_unl_ffp10.get_sim_tlm(idx)
             len_tlm = np.zeros(utils_hp.Alm.getsize(self.lmax_len, self.mmax_len), dtype=complex)
             lmax_tlm = utils_hp.Alm.getlmax(unl_tlm.size, -1)
             mmax_tlm = lmax_tlm
             for i, pbdGeom in utils.enumerate_progress(self.pbdGeoms, 'collecting bands'):
-                ffi = deflection(pbdGeom, self.targetres, dlm, mmax_dlm, self.fft_tr, self.sht_tr, verbose=self.verbose)
+                ffi = deflection(pbdGeom, self.targetres, dlm, mmax_dlm, self.fft_tr, self.sht_tr, verbose=self.verbose, dclm=dclm)
                 len_tlm += ffi.lensgclm(unl_tlm, mmax_tlm, 0, self.lmax_len, self.mmax_len)
             self.cacher.cache(fn, len_tlm)
             return len_tlm
@@ -163,3 +178,61 @@ class cmb_len_ffp10:
             self.cacher.cache(fn_b, len_blm)
             return len_blm
         return self.cacher.load(fn_b)
+
+
+class cmb_len_ffp10_wcurl(cmb_len_ffp10):
+        def __init__(self, clxx:np.ndarray, lib_phas:plancklens.sims.phas.lib_phas, aberration:tuple[float, float, float]or None=None, lmin_dlm=0, cacher:cachers.cacher or None=None,
+                       lmax_thingauss:int=5120, nbands:int=1, targetres=0.75, verbose:bool=False):
+            """FFP10 lensed CMBs, where lensing including an additional lensing curl potential component
+
+                Args:
+                    clxx: lensing curl potential power spectrum
+                    lib_phas: random phases of the curl sims (the code will call the '0'th field index of these phases)
+
+                See mother class for other args
+
+                Note:
+                    Note: the curl :`Lmax`: is at most the lensing potential :`Lmax`: here
+
+                Note:
+                    Deflection is defined as $-\eth (\phi + i \Omega)$ ('x' usually stands in plancklens for $\Omega$)
+
+
+
+            """
+            super().__init__(aberration=aberration, lmin_dlm=lmin_dlm, cacher=cacher, lmax_thingauss=lmax_thingauss, nbands=nbands, targetres=targetres, verbose=verbose)
+
+            assert np.all(clxx >= 0.), 'Somethings wrong with the input'
+
+            self.rclxx = np.sqrt(clxx[:lib_phas.lmax+1])
+            self.lib_phas = lib_phas
+
+        def hashdict(self):
+            ret = {'sims': 'ffp10', 'tres': self.targetres, 'lmaxGL': self.lmax_thingauss,
+                   'lmin_dlm': self.lmin_dlm}
+            cl_aber = utils_hp.alm2cl(self.vlm, self.vlm, 1, 1, 1)
+            if np.any(cl_aber):
+                ret['aberration'] = cl_aber
+            ret['rclxx'] = self.rclxx
+            ret['xphas'] = self.lib_phas.lib_phas[0].hashdict()
+            return ret
+
+        def _get_dlm(self, idx):
+            dlm = cmb_unl_ffp10.get_sim_plm(idx)
+            lmax_dlm = utils_hp.Alm.getlmax(dlm.size, -1)
+            mmax_dlm = lmax_dlm
+
+            dlm[utils_hp.Alm.getidx(lmax_dlm, 1, 0)] += self.delta_vlm[1] # LM = 10 aberration
+            dlm[utils_hp.Alm.getidx(lmax_dlm, 1, 1)] += self.delta_vlm[2] # LM = 11
+
+            # curl mode
+            dclm = utils_hp.almxfl(self.lib_phas.get_sim(idx, idf=0), self.rclxx, None, False)
+            dclm = utils_hp.alm_copy(dclm, None, lmax_dlm, mmax_dlm)
+
+            # potentials to deflection
+            p2d = np.sqrt(np.arange(lmax_dlm + 1) * np.arange(1, lmax_dlm + 2))
+            p2d[:self.lmin_dlm] = 0
+
+            utils_hp.almxfl(dlm, p2d, mmax_dlm, inplace=True)
+            utils_hp.almxfl(dclm, p2d, mmax_dlm, inplace=True)
+            return dlm, dclm, lmax_dlm, mmax_dlm
