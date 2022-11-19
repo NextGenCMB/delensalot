@@ -41,6 +41,7 @@ Model Configuration
 
    config/params
    config/data
+   config/temp
 
 
 Lensing Reconstruction
