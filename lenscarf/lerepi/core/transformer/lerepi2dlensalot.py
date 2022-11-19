@@ -1268,7 +1268,7 @@ class l2i_Transformer:
 
         def _process_X(dl):
             dl.data = dict()
-            for key0 in ['fg', 'noise', 'noise_eff', 'cmb_len', 'BLT', 'cs', 'pred', 'pred_eff', 'BLT_QE', 'BLT_MAP', 'BLT_QE_avg', 'BLT_MAP_avg']:
+            for key0 in ['cs-cmb', 'cs-cmb-noise', 'fg', 'noise', 'noise_eff', 'cmb_len', 'BLT', 'cs', 'pred', 'pred_eff', 'BLT_QE', 'BLT_MAP', 'BLT_QE_avg', 'BLT_MAP_avg']:
                 if key0 not in dl.data:
                     dl.data[key0] = dict()
                 for key4 in dl.mask_ids + ['fs']:
@@ -1283,14 +1283,7 @@ class l2i_Transformer:
                             for key6 in ['TEB', 'IQU', 'EB', 'QU', 'EB_bp', 'QU_bp', 'T', 'E', 'B', 'Q', 'U', 'E_bp', 'B_bp']:
                                 if key6 not in dl.data[key0][key4][key1][key2]:
                                     dl.data[key0][key4][key1][key2][key6] = np.array([], dtype=np.complex128)
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-# self.data[component]['nlevel']['fs']['cl_template'][freq]['EB']
-            
->>>>>>> 9a6a94f (move to job)
-=======
->>>>>>> f55a1a1 (add prediction object)
+
             dl.prediction = dict()
             for key0 in ['N0', 'N1', 'cl_del']:
                 if key0 not in dl.prediction:

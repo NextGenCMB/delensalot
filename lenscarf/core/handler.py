@@ -153,7 +153,6 @@ class Notebook_interactor():
             for bl, bu in zip(edges, edges[1:])]
             for cl in templates])
         self.data[component]['fs']['cl_template_binned'][freq]['EB'] = cl_templ_binned
-        print(edges)
         pslibQU = ps.map2cl_spin_binned(maps_mask, 2, self.data[component]['fs']['cl_template'][freq]['EB'][0], self.data[component]['fs']['cl_template'][freq]['EB'][1], edges, lmax)
         self.data[component][nlevel]['cl_patch'][freq]['EB'] = np.array(pslibQU.map2cl(self.data[component]['fs']['map'][freq]['QU']))
 
@@ -316,39 +315,50 @@ class QE_lr():
 
     @log_on_start(logging.INFO, "collect_jobs() started: id={id}, overwrite_libdir={self.overwrite_libdir}")
     @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
-    def collect_jobs(self, id=''):
-        jobs = list(range(len(self.qe_tasks)))
-        for taski, task in enumerate(self.qe_tasks):
+    def collect_jobs(self, id=None, recalc=False):
+
+        # id overwrites task-list and is needed if MAP lensrec calls QE lensrec
+        if id == None:
+            _qe_tasks = self.qe_tasks
+        else:
+            _qe_tasks = id
+        jobs = list(range(len(_qe_tasks)))
+        for taski, task in enumerate(_qe_tasks):
             _jobs = []
 
-            ## Need to calculate all qlms_dd
+            ## Calculate realization-independent mf and store in qlms_dd dir
             if task == 'calc_meanfield':
                 ## appending all as I trust plancklens to skip existing ivfs
-                for idx in self.simidxs_mf:
-                    fname = os.path.join(self.qlms_dd.lib_dir, 'sim_%s_%04d.fits'%(self.k, idx) if idx != -1 else 'dat_%s.fits'%self.k)
-                    if not os.path.isfile(fname):
-                        _jobs.append(idx)
-
-            if task == 'calc_phi':
-                mf_fname = os.path.join(self.TEMP, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, utils.mchash(self.simidxs)))
-                log.info('{} - {}'.format(self.simidxs, id))
-                if os.path.isfile(mf_fname):
-                    # can safely skip unless recalc. MF exists, so we know QE ran before
-                    if id == 'All':
-                        for idx in self.simidxs_mf:
-                            _jobs.append(idx)
-                else:
-                    # TODO if id='', skip finished simindices
+                mf_fname = os.path.join(self.TEMP, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, utils.mchash(self.simidxs_mf)))
+                ## if meanfield exists, no need to calculate any of the qlms_dd
+                if not os.path.isfile(mf_fname) or recalc:
+                    ## if meanfield not yet done, collect all qlms_dd which haven't yet been calculated
                     for idx in self.simidxs_mf:
+                        fname = os.path.join(self.qlms_dd.lib_dir, 'sim_%s_%04d.fits'%(self.k, idx) if idx != -1 else 'dat_%s.fits'%self.k)
+                        if not os.path.isfile(fname) or recalc:
+                            _jobs.append(idx)
+
+            ## Calculate realization dependent phi, i.e. plm_it000.
+            if task == 'calc_phi':
+                mf_fname = os.path.join(self.TEMP, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, utils.mchash(self.simidxs_mf)))
+                log.info('{} - {}'.format(self.simidxs, id))
+                ## Skip if meanfield already calculated
+                if os.path.isfile(mf_fname) or recalc:
+                    for idx in self.simidxs_mf:
+                        ## TODO skip all plms already calculated
+                        ## If plm i missing, this task in run() creates all prereqs
                         _jobs.append(idx)
 
+            ## Calculate B-lensing template
             if task == 'calc_blt':
                 for idx in self.simidxs:
                     fname = os.path.join(self.TEMP, '{}_sim{:04d}'.format(self.k, idx), 'btempl_p000_e000_lma1024{}'.format(len(self.simidxs_mf)))
                     if self.btemplate_perturbative_lensremap:
                         fname += 'perturbative'
                     fname += '.npy'
-                    if not os.path.isfile(fname):
+                    if not os.path.isfile(fname) or recalc:
+                        ## TODO if prereq missing, how do I catch this if only calc_blt chosen?
+                        ## Well, in principle user would have to choose the other tasks then.. so should be fine
                         _jobs.append(idx)
 
             jobs[taski] = _jobs
@@ -357,9 +367,11 @@ class QE_lr():
 
     @log_on_start(logging.INFO, "run() started")
     @log_on_end(logging.INFO, "run() finished")
-    def run(self):
-
-        for taski, task in enumerate(self.qe_tasks):
+    def run(self, task=None):
+        ## task may be set from MAP lensrec, as MAP lensrec has prereqs to QE lensrec
+        ## if None, then this is a normal QE lensrec call
+        _tasks = self.qe_tasks if task is None else [task]
+        for taski, task in enumerate(_tasks):
             log.info('{}, task {} started'.format(mpi.rank, task))
 
             if task == 'calc_meanfield':
@@ -384,7 +396,6 @@ class QE_lr():
 
             if task == 'calc_phi':
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
-                    # self.get_meanfield(idx)
                     self.get_plm(idx)
 
             if task == 'calc_blt':
@@ -509,35 +520,41 @@ class MAP_lr():
     @log_on_end(logging.INFO, "collect_jobs() finished")
     def collect_jobs(self):
         jobs = list(range(len(self.it_tasks)))
+        # TODO order of task list matters, but shouldn't
         for taski, task in enumerate(self.it_tasks):
             _jobs = []
 
-            # TODO order of task list matters, but shouldn't
             if task == 'calc_phi':
-                self.qe.collect_jobs()
+                ## Here I only want to calculate files not calculated before, and only for the it job tasks.
+                ## i.e. if no blt task in iterator job, then no blt task in QE job 
+                self.qe.collect_jobs(task, recalc=False)
                 for idx in self.simidxs:
                     lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
+                    ## Skip if itmax phi is calculated
                     if rec.maxiterdone(lib_dir_iterator) < self.itmax:
                         _jobs.append(idx)
 
+            ## Calculate realization independent meanfields up to iteration itmax
+            ## prereq: plms exist for itmax. maxiterdone won't work if calc_phi in task list
             elif task == 'calc_meanfield':
-                self.qe.collect_jobs()
+                ## Don't necessarily depend on QE meanfield being calculated, remove next line
+                self.qe.collect_jobs(task, recalc=False)
                 # TODO need to make sure that all iterator wflms are calculated
                 # either mpi.barrier(), or check all simindices TD(1)
+
+                for idx in self.simidxs_mf:
+                    lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
+                    if "calc_phi" in self.it_tasks:
+                        _jobs.append(0)
+                    elif rec.maxiterdone(lib_dir_iterator) < self.itmax:
+                        _jobs.append(0)
                 log.info("Waiting for all ranks to finish their task")
                 mpi.barrier()
-                _jobs.append(0)
-                # check = True
-                # for idx in range(self.Nmf):
-                #     lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)   
-                #     if rec.maxiterdone(lib_dir_iterator) < self.itmax:
-                #         check = False
-                #         break
-                # if check:
-                #     _jobs.append(0)
 
             elif task == 'calc_btemplate':
-                self.qe.collect_jobs()
+                # TODO align QE and MAP name for calc_btemplate
+                # TODO do not necessarily depend on QE blt being done, next line could be removed
+                self.qe.collect_jobs('calc_blt', recalc=False)
                 # TODO making sure that all meanfields are available, but the mpi.barrier() is likely a too strong statement.
                 log.info("Waiting for all ranks to finish their task")
                 mpi.barrier()
@@ -546,9 +563,8 @@ class MAP_lr():
                     if "calc_phi" in self.it_tasks:
                         # assume that this is a new analysis, so rec.maxiterdone won't work. Could collect task jobs after finishing previous task run to improve this.
                         _jobs.append(idx)
-                    else:
-                        if rec.maxiterdone(lib_dir_iterator) >= self.itmax:
-                            _jobs.append(idx)
+                    elif rec.maxiterdone(lib_dir_iterator) >= self.itmax:
+                        _jobs.append(idx)
 
             jobs[taski] = _jobs
         self.jobs = jobs
@@ -561,7 +577,7 @@ class MAP_lr():
             log.info('{}, task {} started'.format(mpi.rank, task))
 
             if task == 'calc_phi':
-                self.qe.run()
+                self.qe.run(task=task)
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
                     lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
                     if self.itmax >= 0 and rec.maxiterdone(lib_dir_iterator) < self.itmax:
@@ -576,7 +592,7 @@ class MAP_lr():
                             log.info('{}, simidx {} done with it {}'.format(mpi.rank, idx, it))
 
             elif task == 'calc_meanfield':
-                self.qe.run()
+                self.qe.run(task=task)
                 # Must use mpi.barrier() before get_meanfields_it(), otherwise running into fileNotExist errors, as job splitting changes.
                 # TODO could assign it0 mf to whoever is first, but then would need to check if all files exist and either time.sleep() or skip and let the next rank try?
                 # TODO if TD(1) solved, replace np.arange() accordingly
@@ -585,7 +601,7 @@ class MAP_lr():
                 mpi.barrier()
 
             elif task == 'calc_btemplate':
-                self.qe.run()
+                self.qe.run(task='calc_blt')
                 log.info('{}, task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
                     log.info("{}: start sim {}".format(mpi.rank, idx))
@@ -611,7 +627,7 @@ class MAP_lr():
         return plms
 
 
-    @log_on_start(logging.INFO, "get_meanfield_it({it}) started}")
+    @log_on_start(logging.INFO, "get_meanfield_it({it}) started")
     @log_on_end(logging.INFO, "get_meanfield_it({it}) finished")
     def get_meanfield_it(self, it, calc=False):
         # for mfvar runs, this returns the correct meanfields, as mfvar runs go into distinct itlib dirs.
