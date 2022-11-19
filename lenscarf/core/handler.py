@@ -641,7 +641,7 @@ class MAP_lr():
             plm = rec.load_plms(self.libdir_iterators(self.k, self.simidxs[0], self.version), [0])[-1]
             mf = np.zeros_like(plm)
             for simidx in self.simidxs_mf:
-                log.info("it {:02d}: adding sim {:03d}/{}".format(it, simidx, self.Nmf))
+                log.info("it {:02d}: adding sim {:03d}/{}".format(it, simidx, self.Nmf-1))
                 mf += rec.load_plms(self.libdir_iterators(self.k, simidx, self.version), [it])[-1]
             np.save(fn, mf/self.Nmf)
 
@@ -681,9 +681,6 @@ class Map_delenser():
             self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
         self.lib = dict()
         self.bcl_L, self.bcl_cs  = self.read_data_v2(edges_id=0)
-        # self.bcl_L = np.array([b[0] for b in self.bcls])
-        # self.bcl_cs = np.array([b[1] for b in self.bcls])
-
 
     @log_on_start(logging.INFO, "read_data_v2() started")
     @log_on_end(logging.INFO, "read_data_v2() finished")
@@ -711,7 +708,6 @@ class Map_delenser():
     # @log_on_start(logging.INFO, "getfn_blm_lensc() started")
     # @log_on_end(logging.INFO, "getfn_blm_lensc() finished")
     def getfn_blm_lensc(self, simidx, it):
-        '''Lenscarf output using Catherinas E and B maps'''
         # TODO this needs cleaner implementation via lambda
         # _libdir_iterator = self.libdir_iterators(self.k, simidx, self.version)
         # return _libdir_iterator+fn(**params)
