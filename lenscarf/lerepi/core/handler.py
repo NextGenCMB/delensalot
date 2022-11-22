@@ -23,20 +23,23 @@ log.setLevel(logging.INFO)
 from lenscarf.core import mpi
 
 from lenscarf.lerepi.core.visitor import transform
-from lenscarf.lerepi.core.transformer.lerepi2dlensalot import l2j_Transformer, l2T_Transformer
+from lenscarf.lerepi.core.transformer.lerepi2dlensalot import l2j_Transformer, l2T_Transformer, l2ji_Transformer
 from lenscarf.lerepi.core.transformer.lerepi2status import l2j_Transformer as l2js_Transformer
 
 
 class handler():
     """_summary_
     """
-    def __init__(self, parser):
+    def __init__(self, parser, madel_kwargs={}):
         """_summary_
 
         Args:
             parser (_type_): _description_
         """
         self.configfile = handler.load_configfile(parser.config_file, 'configfile')
+        # TODO hack. remove when v1 is gone
+        if 'madel' in self.configfile.dlensalot_model.__dict__:
+            self.configfile.dlensalot_model.madel.__dict__.update(madel_kwargs)
         TEMP = transform(self.configfile.dlensalot_model, l2T_Transformer())
         if parser.status == '':
             if mpi.rank == 0:
@@ -55,13 +58,25 @@ class handler():
 
     @log_on_start(logging.INFO, "collect_jobs() Started")
     @log_on_end(logging.INFO, "collect_jobs() Finished")
-    def collect_jobs(self):
+    def collect_jobs(self, job_id=''):
         """_summary_
-        """        
+        """
+        ## Making sure that specific job request from run() is processed
+        self.configfile.dlensalot_model.job.__dict__[job_id] = True
+        
         if self.parser.status == '':
             self.jobs = transform(self.configfile.dlensalot_model, l2j_Transformer())
         else:
-            self.jobs = transform(self.configfile.dlensalot_model, l2js_Transformer())
+            if mpi.rank == 0:
+                self.jobs = transform(self.configfile.dlensalot_model, l2js_Transformer())
+            else:
+                self.jobs = []
+
+
+    @log_on_start(logging.INFO, "make_interactive_job() Started")
+    @log_on_end(logging.INFO, "make_interactive_job() Finished")
+    def make_interactive_job(self):
+        self.jobs = transform(self.configfile.dlensalot_model, l2ji_Transformer())
 
 
     @log_on_start(logging.INFO, "get_jobs() Started")
@@ -76,7 +91,7 @@ class handler():
         return self.jobs
 
 
-    @log_on_start(logging.INFO, "collect_jobs() Started")
+    @log_on_start(logging.INFO, "init_job() Started")
     @log_on_end(logging.INFO, "init_job() Finished")
     def init_job(self, job):
         log.info('transform started')
@@ -152,7 +167,7 @@ class handler():
                 logging.info('Matching config file found. Resuming where I left off.')
 
 
-    @log_on_start(logging.INFO, "load_configfile() Started")
+    @log_on_start(logging.INFO, "load_configfile() Started: {directory}")
     @log_on_end(logging.INFO, "load_configfile() Finished")
     def load_configfile(directory, descriptor):
         """Load config file
@@ -169,62 +184,4 @@ class handler():
         sys.modules[descriptor] = p
         spec.loader.exec_module(p)
 
-        # printing this for the slurm log file
-        # _str = '---------------------------------------------------\n'
-        # for key, val in p.__dict__.items():
-        #     if key == 'dlensalot_model':
-        #         _str += '{}:\t{}'.format(key, val)
-        #         _str += '\n'
-        #         _str += '---------------------------------------------------\n'
-        # log.info(_str)
-
         return p
-
-
-def purge(parser, TEMP):
-    if parser.purgehashs and mpi.rank == 0:
-        def is_anadir(TEMP):
-            if TEMP.startswith(os.environ['SCRATCH']):
-                return True
-            else:
-                log.error('Not a $SCRATCH dir.')
-                sys.exit()
-
-        def get_hashfiles(TEMP):
-            counter = 0
-            hashfiles = []
-            for dirpath, dirnames, filenames in os.walk(TEMP):
-                _hshfile = [filename for filename in filenames if filename.endswith('hash.pk')]
-                counter += len(_hshfile)
-                if _hshfile != []:
-                    hashfiles.append([dirpath, _hshfile])
-
-            return hashfiles, counter
-
-        if is_anadir(TEMP):
-            log.info("====================================================")
-            log.info("========        PURGING subroutine        ==========")
-            log.info("====================================================")
-            log.info("Will check {} for hash files: ".format(TEMP))
-            hashfiles, counter = get_hashfiles(TEMP)
-            if len(hashfiles)>0:
-                log.info("I find {} hash files,".format(counter))
-                log.info(hashfiles)
-                userinput = input('Please confirm purging with YES: ')
-                if userinput == "YES":
-                    for pths in hashfiles:
-                        for pth in pths[1]:
-                            fn = opj(pths[0],pth)
-                            os.remove(fn)
-                            print("Deleted {}".format(fn))
-                    print('All hashfiles have been deleted.')
-                    hashfiles, counter = get_hashfiles(TEMP)
-                    log.info("I find {} hash files".format(counter))  
-                else:
-                    log.info("Not sure what that answer was.")
-            else:
-                log.info("Cannot find any hash files.".format(counter))  
-
-    log.info("====================================================")
-    log.info("========        PURGING subroutine        ==========")
-    log.info("====================================================")

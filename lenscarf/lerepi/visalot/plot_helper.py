@@ -10,6 +10,7 @@ matplotlib.rcParams.update({'font.size': 18})
 
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+from matplotlib.colors import ListedColormap
 
 import healpy as hp
 
@@ -25,6 +26,9 @@ from lenscarf.lerepi.core.visitor import transform
 from lenscarf.lerepi.core.transformer.lerepi2dlensalot import l2T_Transformer, transform
 from lenscarf.lerepi.visalot import plot_helper as ph
 
+
+
+
 ll = np.arange(0,200+1,1)
 scale_uk = (2 * ll + 1) * ll**2 * (ll + 1)**2
 scale_ps = ll*(ll+1)/(2*np.pi)
@@ -34,6 +38,10 @@ scale_lp = ll**2 * (ll + 1)**2 * 1e7 / (2 * np.pi)
 
 psl = r'$\frac{l(l+1)}{2\pi}C_\ell \/ [\mu K^2]$'
 
+CB_color_cycle = ["#88CCEE", "#CC6677", "#DDCC77", "#117733", "#332288", "#AA4499", 
+"#44AA99", "#999933", "#882255", "#661100", "#6699CC", "#888888"]
+CB_color_cycle_lighter = ["#68ACCE", "#AC4657", "#ADAC57", "#005713", "#130268", "#8A2479", 
+"#248A79", "#797913", "#680235", "#460000", "#4679AC", "#686868"]
 
 def load_paramfile(directory, descriptor):
     """Load parameterfile
@@ -107,7 +115,7 @@ def get_ms(dat, binspace=5, bin_multipole=False):
     if bin_multipole:
         return get_weighted_avg(np.mean(dat, axis=0), np.std(dat, axis=0), binspace=binspace)
     else:
-        return np.mean(dat, axis=0), np.std(dat, axis=0)
+        return np.mean(dat, axis=0), np.std(dat, axis=0), np.var(dat, axis=0)
 
 def get_weighted_avg(mean, std, binspace):
     lscan = np.arange(0,len(mean),binspace)
@@ -143,3 +151,81 @@ def bandpass_alms(alms, lmin, lmax=None):
     fl[lmin:lmax+1] = 1
     
     return hp.almxfl(alms, fl)
+
+
+def get_rotlonlat_mollview(area = 'SPDP'):
+    '''mollview coordinates for different sky patches'''
+    rotation, lonra, latra = None, None, None
+    if area == 'SPDP':
+        rotation = np.array([40,-60])
+        lonra = np.array([-35,35])+rotation[0]
+        latra = np.array([-15,27])+rotation[1]
+    elif area == 'CDP':
+        print("Not yet defined")
+    else:
+        print("Do not understand your input")
+    return rotation, lonra, latra
+
+
+def get_planck_cmap():
+    cmap = ListedColormap(np.loadtxt("/global/homes/s/sebibel/plots/Planck_Parchment_RGB.txt")/255.)
+    cmap.set_bad("gray") # color of missing pixels
+    cmap.set_under("white") # color of background, necessary if you want to use
+    # this colormap directly with hp.mollview(m, cmap=colombi1_cmap)
+    return cmap
+
+def get_custom_cmap():
+    from matplotlib.colors import ListedColormap, LinearSegmentedColormap
+
+    size_g = 4
+    grey_map = cm.get_cmap('Greys', 32)
+
+    size_bl = 4
+    blue_map = cm.get_cmap('Blues', 32)
+    blues_dld = np.vstack(
+        (blue_map(np.linspace(0.1, 0.8, size_bl)),
+        blue_map(np.linspace(0.8, 0.1, size_bl))))
+
+    greys_light_dld = np.vstack(
+        (grey_map(np.linspace(.8, 0.1, size_g)),
+        grey_map(np.linspace(0.1, .8, size_g))))
+
+    size_o = 8
+    orange_map = cm.get_cmap('Oranges', 32)
+    oranges_dark_dld = np.vstack(
+        (orange_map(np.linspace(0.2, 0.5, size_o)),
+        orange_map(np.linspace(0.5, 0.2, size_o))))
+
+
+    size_gr = 8
+    green_map = cm.get_cmap('Greens', 32)
+    greens_dld = np.vstack(
+        (green_map(np.linspace(0.2, 0.5, size_gr)),
+        green_map(np.linspace(0.5, 0.2, size_gr))))
+
+    size_w = 1
+    white_map = cm.get_cmap('Greys', 32)
+    white = white_map(np.linspace(0.0, 0.1, size_w))
+
+    gb = np.vstack((
+        greens_dld[int(size_o):],
+        blues_dld[int(size_bl):],
+        white[:size_w],
+        greys_light_dld[int(size_g):],
+        oranges_dark_dld[:int(size_o)]
+    ))
+    cmap = ListedColormap(gb)
+    return cmap
+
+
+def plot_cmap(cmap, minmax, ticks=[-0.30,-0.15,0,0.15,0.30]):
+    matplotlib.rcParams.update({'font.size': 18})
+    a = np.array([[-minmax,minmax]])
+    plt.figure(figsize=(9, 1.5))
+    img = plt.imshow(a, cmap=cmap)
+    plt.gca().set_visible(False)
+    cax = plt.axes([-0, 1, 1.0, 0.35])
+    nticks = 5
+    ticks = np.arange(-minmax, minmax+(2*minmax/nticks), (2*minmax/nticks))
+    cbar = plt.colorbar(orientation="horizontal", cax=cax, ticks=ticks)
+    plt.xlabel('$\mu K$')

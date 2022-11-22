@@ -11,9 +11,11 @@ import healpy as hp
 
 class LEREPI_Constants:
     fs_edges = np.arange(2, 3000, 20)
-    fs_edges = np.arange(2, 3000, 20)
     ioreco_edges = np.array([2, 30, 200, 300, 500, 700, 1000, 1500, 2000, 3000, 4000, 5000])
+    lowell_edges = np.array([2, 200, 300, 500, 700, 1000, 1500, 2000, 3000, 4000, 5000])
     cmbs4_edges = np.array([2, 30, 60, 90, 120, 150, 180, 200, 300, 500, 700, 1000, 1500, 2000, 3000, 4000, 5000])
+    SPDP_edges = np.concatenate([np.arange(2,200,50),np.logspace(np.log(2e2),np.log(4000),40, base=np.e, dtype=int)]) # these are used for calculating residual power spectra on SPDP patch.
+    SPDP2_edges = np.arange(2,4000,30) # these are used for calculating residual power spectra on SPDP patch.
 
 
 class data_functions:
@@ -28,6 +30,18 @@ class data_functions:
             _type_: _description_
         """
         return val  / 180 / 60 * np.pi
+
+
+    def c2a(val):
+        """Cl2arcmin converter
+
+        Args:
+            val (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
+        return np.sqrt(val) * (60 * 180 / np.pi)
         
 
     def get_nlev_mask(ratio, rhits):

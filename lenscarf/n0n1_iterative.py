@@ -3,13 +3,41 @@ from plancklens import qresp, nhl, utils
 from lenscarf.utils_hp import gauss_beam
 from scipy.interpolate import UnivariateSpline as spl
 from lensitbiases import n1_fft
-from lenspec.utils import dls2cls, cls2dls
+# from lenspec.utils import dls2cls, cls2dls
 import copy
 from plancklens.helpers import cachers
 
 # From Julien Carron lenspec
 
 # TODO: Generalise to TT and MV estimators ?
+
+
+def cls2dls(cls):
+    """Turns cls dict. into camb cl array format"""
+    keys = ['tt', 'ee', 'bb', 'te']
+    lmax = np.max([len(cl) for cl in cls.values()]) - 1
+    dls = np.zeros((lmax + 1, 4), dtype=float)
+    refac = np.arange(lmax + 1) * np.arange(1, lmax + 2, dtype=float) / (2. * np.pi)
+    for i, k in enumerate(keys):
+        cl = cls.get(k, np.zeros(lmax + 1, dtype=float))
+        sli = slice(0, min(len(cl), lmax + 1))
+        dls[sli, i] = cl[sli] * refac[sli]
+    cldd = np.copy(cls.get('pp', None))
+    if cldd is not None:
+        cldd *= np.arange(len(cldd)) ** 2 * np.arange(1, len(cldd) + 1, dtype=float) ** 2 /  (2. * np.pi)
+    return dls, cldd
+
+
+def dls2cls(dls):
+    """Inverse operation to cls2dls"""
+    assert dls.shape[1] == 4
+    lmax = dls.shape[0] - 1
+    cls = {}
+    refac = 2. * np.pi * utils.cli( np.arange(lmax + 1) * np.arange(1, lmax + 2, dtype=float))
+    for i, k in enumerate(['tt', 'ee', 'bb', 'te']):
+        cls[k] = dls[:, i] * refac
+    return cls
+
 
 def _dictcopy(dict_in:dict): # deepcopy of dict of arrays
     return copy.deepcopy(dict_in)

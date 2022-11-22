@@ -32,7 +32,7 @@ from lenscarf.utils import cli
 from lenscarf.utils_hp import gauss_beam, almxfl, alm_copy
 from lenscarf.opfilt.opfilt_iso_ee_wl import alm_filter_nlev_wl
 
-suffix = 'cmbs4_idealized' # descriptor to distinguish this parfile from others...
+suffix = 'cmbs4_idealized2' # descriptor to distinguish this parfile from others...
 TEMP =  opj(os.environ['SCRATCH'], 'lenscarfrecs', suffix)
 
 lmax_ivf, mmax_ivf, beam, nlev_t, nlev_p = (3000, 3000, 1., 1., np.sqrt(2.))
@@ -212,8 +212,8 @@ if __name__ == '__main__':
     tol_iter   = lambda it : 10 ** (- args.tol) # tolerance a fct of iterations ?
     soltn_cond = lambda it: True # Uses (or not) previous E-mode solution as input to search for current iteration one
 
-    from lenscarf.core import mpi
-
+    # from lenscarf.core import mpi
+    from plancklens.helpers import mpi
     mpi.barrier = lambda : 1 # redefining the barrier (Why ? )
     from lenscarf.iterators.statics import rec as Rec
     jobs = []

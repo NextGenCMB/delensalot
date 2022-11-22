@@ -7,17 +7,18 @@ __author__ = "S. Belkner, J. Carron, L. Legrand"
 
 import os, sys
 import logging
-import abc
 import traceback
 
-import lenscarf
-from lenscarf.lerepi.core.parser import lerepi_parser
 from lenscarf.lerepi.core import handler
+import lenscarf.lerepi.etc.dev_helper as dh
+from lenscarf.lerepi.etc.abstract import parserclass
+from lenscarf.lerepi.core.parser import lerepi_parser
+
 
 datefmt = "%m-%d %H:%M"
 FORMAT = '%(levelname)s:: %(asctime)s:: %(name)s.%(funcName)s - %(message)s'
 formatter = logging.Formatter(FORMAT, datefmt=datefmt)
-ConsoleOutputHandler = logging.StreamHandler()
+ConsoleOutputHandler = logging.StreamHandler(sys.stdout)
 ConsoleOutputHandler.setFormatter(formatter)
 ConsoleOutputHandler.setLevel(logging.INFO)
 
@@ -27,28 +28,30 @@ sys_logger.setLevel(logging.INFO)
 logging.basicConfig(level=logging.INFO, handlers=[ConsoleOutputHandler])
 logging.getLogger("healpy").disabled = True
 
-class parserclass:
-    """An abstract element base type for the parser formalism."""
-    __metaclass__ = abc.ABCMeta
-    resume = ''
-    config_file = ''
-    purgehashs = ''
-    status = ''
-
 
 class run():
-    def __init__(self, config, job_id):
+    def __init__(self, config, job_id='interactive', verbose=True, madel_kwargs={}):
+        if not verbose:
+            ConsoleOutputHandler.setLevel(logging.WARNING)
+            sys_logger.setLevel(logging.WARNING)
+            logging.basicConfig(level=logging.WARNING, handlers=[ConsoleOutputHandler])
         parser = parserclass()
         parser.resume =  ""
         parser.config_file = config
         parser.status = ''
 
-        lerepi_handler = handler.handler(parser)
-        lerepi_handler.collect_jobs()
-        jobs = lerepi_handler.get_jobs()
-        for jobdict in jobs:
-            if job_id in jobdict:
-                self.job = lerepi_handler.init_job(jobdict[job_id])
+        lerepi_handler = handler.handler(parser, madel_kwargs)
+        if job_id == 'interactive':
+            ## This is notebook interactive job. (Doesn't appear in config file job list)
+            lerepi_handler.make_interactive_job()
+            job = lerepi_handler.get_jobs()[0]
+            self.job = lerepi_handler.init_job(job[job_id])
+        else:
+            lerepi_handler.collect_jobs(job_id)
+            jobs = lerepi_handler.get_jobs()
+            for jobdict in jobs:
+                if job_id in jobdict:
+                    self.job = lerepi_handler.init_job(jobdict[job_id])
 
 
 if __name__ == '__main__':
@@ -57,8 +60,8 @@ if __name__ == '__main__':
         parser = lparser.get_parser()
 
     lerepi_handler = handler.handler(parser)
-    if "purgehashs" in parser.__dict__:
-        handler.purge(parser, lerepi_handler.TEMP)
+    if dh.dev_subr in parser.__dict__:
+        dh.dev(parser, lerepi_handler.TEMP)
         sys.exit()
     lerepi_handler.collect_jobs()
 

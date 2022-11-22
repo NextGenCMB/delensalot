@@ -13,7 +13,7 @@ has_key = lambda key : key in os.environ.keys()
 cond4mpi4py = not has_key('NERSC_HOST') or (has_key('NERSC_HOST') and has_key('SLURM_SUBMIT_DIR'))
 
 if cond4mpi4py:
-    # try:
+    print('cond4mpi exists')
     from mpi4py import MPI
 
     rank = MPI.COMM_WORLD.Get_rank()
@@ -25,6 +25,8 @@ if cond4mpi4py:
     finalize = MPI.Finalize
     log.info('mpi.py : setup OK, rank %s in %s' % (rank, size))
 else:
+    print('cond4mpi does not exists')
+    log.info("No MPI loaded")
     rank = 0
     size = 1
     barrier = lambda: -1
