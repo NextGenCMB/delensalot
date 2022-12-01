@@ -182,12 +182,13 @@ class cmb_len_ffp10:
 
 class cmb_len_ffp10_wcurl(cmb_len_ffp10):
         def __init__(self, clxx:np.ndarray, lib_phas:plancklens.sims.phas.lib_phas, aberration:tuple[float, float, float]or None=None, lmin_dlm=0, cacher:cachers.cacher or None=None,
-                       lmax_thingauss:int=5120, nbands:int=1, targetres=0.75, verbose:bool=False):
+                       lmax_thingauss:int=5120, nbands:int=1, targetres=0.75, verbose:bool=False, plm_shuffle:callable or None=None):
             """FFP10 lensed CMBs, where lensing including an additional lensing curl potential component
 
                 Args:
                     clxx: lensing curl potential power spectrum
                     lib_phas: random phases of the curl sims (the code will call the '0'th field index of these phases)
+                    plm_shuffle: reassigns deflection indices if set.
 
                 See mother class for other args
 
@@ -206,6 +207,7 @@ class cmb_len_ffp10_wcurl(cmb_len_ffp10):
 
             self.rclxx = np.sqrt(clxx[:lib_phas.lmax+1])
             self.lib_phas = lib_phas
+            self.plm_shuffle = plm_shuffle
 
         def hashdict(self):
             ret = {'sims': 'ffp10', 'tres': self.targetres, 'lmaxGL': self.lmax_thingauss,
@@ -215,10 +217,16 @@ class cmb_len_ffp10_wcurl(cmb_len_ffp10):
                 ret['aberration'] = cl_aber
             ret['rclxx'] = self.rclxx
             ret['xphas'] = self.lib_phas.lib_phas[0].hashdict()
+            if self.plm_shuffle is not None:
+                ret['pshuffle'] = [self.plm_shuffle(idx) for idx in range(20)]
             return ret
 
         def _get_dlm(self, idx):
-            dlm = cmb_unl_ffp10.get_sim_plm(idx)
+            if self.plm_shuffle is None:
+                shuffled_idx = idx
+            else:
+                shuffled_idx = self.plm_shuffle(idx)
+            dlm = cmb_unl_ffp10.get_sim_plm(shuffled_idx)
             lmax_dlm = utils_hp.Alm.getlmax(dlm.size, -1)
             mmax_dlm = lmax_dlm
 
@@ -226,7 +234,7 @@ class cmb_len_ffp10_wcurl(cmb_len_ffp10):
             dlm[utils_hp.Alm.getidx(lmax_dlm, 1, 1)] += self.delta_vlm[2] # LM = 11
 
             # curl mode
-            dclm = utils_hp.almxfl(self.lib_phas.get_sim(idx, idf=0), self.rclxx, None, False)
+            dclm = utils_hp.almxfl(self.lib_phas.get_sim(shuffled_idx, idf=0), self.rclxx, None, False)
             dclm = utils_hp.alm_copy(dclm, None, lmax_dlm, mmax_dlm)
 
             # potentials to deflection
