@@ -31,6 +31,8 @@ class cmb_len_ffp10:
                 nbands: if set splits the sky into bands to perform the operations (saves some memory but probably a bit slower)
                 targetres: main accuracy parameter; target resolution in arcmin to perform the deflection operation.
                            make this smaller for more accurate interpolation
+                plm_shuffle: reassigns deflection indices if set to a callable giving new deflection index.
+                             Useful to generate sims with independent CMB but same deflection, or vice-versa
 
 
         """
@@ -196,7 +198,6 @@ class cmb_len_ffp10_wcurl(cmb_len_ffp10):
                 Args:
                     clxx: lensing curl potential power spectrum
                     lib_phas: random phases of the curl sims (the code will call the '0'th field index of these phases)
-                    plm_shuffle: reassigns deflection indices if set.
 
                 See mother class for other args
 
