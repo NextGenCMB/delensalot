@@ -20,7 +20,7 @@ aberration_lbv_ffp10 = (264. * (np.pi / 180), 48.26 * (np.pi / 180), 0.001234)
 
 class cmb_len_ffp10:
     def __init__(self, aberration:tuple[float, float, float]or None=None, lmin_dlm=0, cacher:cachers.cacher or None=None,
-                       lmax_thingauss:int=5120, nbands:int=1, targetres=0.75, verbose:bool=False):
+                       lmax_thingauss:int=5120, nbands:int=1, targetres=0.75, verbose:bool=False, plm_shuffle:callable or None=None):
 
         """FFP10 lensed cmbs, lensed with independent lenscarf code on thingauss geometry
 
@@ -31,6 +31,8 @@ class cmb_len_ffp10:
                 nbands: if set splits the sky into bands to perform the operations (saves some memory but probably a bit slower)
                 targetres: main accuracy parameter; target resolution in arcmin to perform the deflection operation.
                            make this smaller for more accurate interpolation
+                plm_shuffle: reassigns deflection indices if set to a callable giving new deflection index.
+                             Useful to generate sims with independent CMB but same deflection, or vice-versa
 
 
         """
@@ -86,6 +88,8 @@ class cmb_len_ffp10:
             print("Input aberration power %.3e"%(utils_hp.alm2cl(vlm, vlm, 1, 1, 1)[1]))
         self.verbose = verbose
 
+        self.plm_shuffle = plm_shuffle
+
     @staticmethod
     def _mkbands(nbands: int):
         """Splits the sky in nbands regions with equal numbers of latitude points """
@@ -105,10 +109,16 @@ class cmb_len_ffp10:
         cl_aber = utils_hp.alm2cl(self.vlm, self.vlm, 1, 1, 1)
         if np.any(cl_aber):
             ret['aberration'] = cl_aber
+        if self.plm_shuffle is not None:
+            ret['pshuffle'] = [self.plm_shuffle(idx) for idx in range(20)]
         return ret
 
     def _get_dlm(self, idx):
-        dlm = cmb_unl_ffp10.get_sim_plm(idx) # gradient mode
+        if self.plm_shuffle is None:
+            shuffled_idx = idx
+        else:
+            shuffled_idx = self.plm_shuffle(idx)
+        dlm = cmb_unl_ffp10.get_sim_plm(shuffled_idx) # gradient mode
         dclm = None # curl mode
         lmax_dlm = utils_hp.Alm.getlmax(dlm.size, -1)
         mmax_dlm = lmax_dlm
@@ -182,7 +192,7 @@ class cmb_len_ffp10:
 
 class cmb_len_ffp10_wcurl(cmb_len_ffp10):
         def __init__(self, clxx:np.ndarray, lib_phas:plancklens.sims.phas.lib_phas, aberration:tuple[float, float, float]or None=None, lmin_dlm=0, cacher:cachers.cacher or None=None,
-                       lmax_thingauss:int=5120, nbands:int=1, targetres=0.75, verbose:bool=False):
+                       lmax_thingauss:int=5120, nbands:int=1, targetres=0.75, verbose:bool=False, plm_shuffle:callable or None=None):
             """FFP10 lensed CMBs, where lensing including an additional lensing curl potential component
 
                 Args:
@@ -200,12 +210,14 @@ class cmb_len_ffp10_wcurl(cmb_len_ffp10):
 
 
             """
-            super().__init__(aberration=aberration, lmin_dlm=lmin_dlm, cacher=cacher, lmax_thingauss=lmax_thingauss, nbands=nbands, targetres=targetres, verbose=verbose)
+            super().__init__(aberration=aberration, lmin_dlm=lmin_dlm, cacher=cacher, lmax_thingauss=lmax_thingauss,
+                             nbands=nbands, targetres=targetres, verbose=verbose, plm_shuffle=plm_shuffle)
 
             assert np.all(clxx >= 0.), 'Somethings wrong with the input'
 
             self.rclxx = np.sqrt(clxx[:lib_phas.lmax+1])
             self.lib_phas = lib_phas
+            self.plm_shuffle = plm_shuffle
 
         def hashdict(self):
             ret = {'sims': 'ffp10', 'tres': self.targetres, 'lmaxGL': self.lmax_thingauss,
@@ -215,10 +227,16 @@ class cmb_len_ffp10_wcurl(cmb_len_ffp10):
                 ret['aberration'] = cl_aber
             ret['rclxx'] = self.rclxx
             ret['xphas'] = self.lib_phas.lib_phas[0].hashdict()
+            if self.plm_shuffle is not None:
+                ret['pshuffle'] = [self.plm_shuffle(idx) for idx in range(20)]
             return ret
 
         def _get_dlm(self, idx):
-            dlm = cmb_unl_ffp10.get_sim_plm(idx)
+            if self.plm_shuffle is None:
+                shuffled_idx = idx
+            else:
+                shuffled_idx = self.plm_shuffle(idx)
+            dlm = cmb_unl_ffp10.get_sim_plm(shuffled_idx)
             lmax_dlm = utils_hp.Alm.getlmax(dlm.size, -1)
             mmax_dlm = lmax_dlm
 
@@ -226,7 +244,7 @@ class cmb_len_ffp10_wcurl(cmb_len_ffp10):
             dlm[utils_hp.Alm.getidx(lmax_dlm, 1, 1)] += self.delta_vlm[2] # LM = 11
 
             # curl mode
-            dclm = utils_hp.almxfl(self.lib_phas.get_sim(idx, idf=0), self.rclxx, None, False)
+            dclm = utils_hp.almxfl(self.lib_phas.get_sim(shuffled_idx, idf=0), self.rclxx, None, False)
             dclm = utils_hp.alm_copy(dclm, None, lmax_dlm, mmax_dlm)
 
             # potentials to deflection
