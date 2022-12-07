@@ -449,18 +449,19 @@ class l2lensrec_Transformer:
 
         dl = DLENSALOT_Concept()
         
-        dl.dlm_mod_bool = cf.madel.dlm_mod
+        dl.dlm_mod_bool = cf.madel.dlm_mod[0]
+        dl.dlm_mod_fnsuffix = cf.madel.dlm_mod[1]
         _process_Analysis(dl, cf.analysis)
         _process_Data(dl, cf.data)
         _process_Noisemodel(dl, cf.noisemodel)
         _process_Qerec(dl, cf.qerec)
         _process_Itrec(dl, cf.itrec)
 
-        if "calc_meanfield" in dl.it_tasks:
+        if "calc_meanfield" in dl.it_tasks or 'calc_btemplate' in dl.it_tasks:
             if dl.version == '' or dl.version == None:
-                dl.mf_dirname = opj(dl.TEMP, 'mf_{:03d}'.format(dl.Nmf))
+                dl.mf_dirname = opj(dl.TEMP, 'mf_{:03d}_{}'.format(dl.Nmf, dl.dlm_mod_fnsuffix))
             else:
-                dl.mf_dirname = opj(dl.TEMP, 'mf_{}_{:03d}'.format(dl.version, dl.Nmf))
+                dl.mf_dirname = opj(dl.TEMP, 'mf_{}_{:03d}_{}'.format(dl.version, dl.Nmf, dl.dlm_mod_fnsuffix))
             if not os.path.isdir(dl.mf_dirname) and mpi.rank == 0:
                 os.makedirs(dl.mf_dirname)
 
@@ -781,7 +782,7 @@ class l2lensrec_Transformer:
             # tasks
             dl.tasks = it.tasks
             ## tasks -> mf_dirname
-            if "calc_meanfield" in dl.tasks:
+            if "calc_meanfield" in dl.tasks or 'calc_btemplate' in dl.tasks:
                 if dl.version == '' or dl.version == None:
                     dl.mf_dirname = opj(dl.TEMP, l2T_Transformer.ofj('mf', {'Nmf': dl.Nmf}))
                 else:
@@ -1188,15 +1189,15 @@ class l2d_Transformer:
 
             # TODO II
             # TODO fn needs changing
-            dl.dlm_mod_bool = ma.dlm_mod
+            dl.dlm_mod_bool = ma.dlm_mod[0]
             if dl.binning == 'binned':
                 if dl.dlm_mod_bool:
-                    dl.file_op = lambda idx, fg, edges_idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edges_idx]) + '/ClBBwf_sim%04d_%s_fg%s_res2b3acm.npy'%(idx, 'dlmmod', fg)
+                    dl.file_op = lambda idx, fg, edges_idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edges_idx]) + '/ClBBwf_sim%04d_%s_fg%s_res2b3acm.npy'%(idx, 'dlmmod{}'.format(dl.dlm_mod_fnsuffix), fg)
                 else:
                     dl.file_op = lambda idx, fg, edges_idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edges_idx]) + '/ClBBwf_sim%04d_fg%s_res2b3acm.npy'%(idx, fg)
             else:
                 if dl.dlm_mod_bool:
-                    dl.file_op = lambda idx, fg, x: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[0]) + '/ClBBwf_sim%04d_%s_fg%s_res2b3acm.npy'%(idx, 'dlmmod', fg)
+                    dl.file_op = lambda idx, fg, x: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[0]) + '/ClBBwf_sim%04d_%s_fg%s_res2b3acm.npy'%(idx, 'dlmmod{}'.format(dl.dlm_mod_fnsuffix), fg)
                 else:
                     dl.file_op = lambda idx, fg, x: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[0]) + '/ClBBwf_sim%04d_fg%s_res2b3acm.npy'%(idx, fg)
 
@@ -1268,7 +1269,7 @@ class l2i_Transformer:
 
         def _process_X(dl):
             dl.data = dict()
-            for key0 in ['cs-cmb', 'cs-cmb-noise', 'fg', 'noise', 'noise_eff', 'cmb_len', 'BLT', 'cs', 'pred', 'pred_eff', 'BLT_QE', 'BLT_MAP', 'BLT_QE_avg', 'BLT_MAP_avg']:
+            for key0 in ['cs-cmb', 'cs-cmb-noise', 'fg', 'noise', 'noise_eff', 'mean-field', 'cmb_len', 'BLT', 'cs', 'pred', 'pred_eff', 'BLT_QE', 'BLT_MAP', 'BLT_QE_avg', 'BLT_MAP_avg']:
                 if key0 not in dl.data:
                     dl.data[key0] = dict()
                 for key4 in dl.mask_ids + ['fs']:
@@ -1370,12 +1371,12 @@ class l2i_Transformer:
 
         def _process_Config(dl, co):
             if co.outdir_plot_rel:
-                dl.outdir_plot_rel = co.outdir_rel
+                dl.outdir_plot_rel = co.outdir_plot_rel
             else:
                 dl.outdir_plot_rel = '{}/{}'.format(cf.data.module_.split('.')[2],cf.data.module_.split('.')[-1])
                     
             if co.outdir_plot_root:
-                dl.outdir_plot_root = co.outdir_root
+                dl.outdir_plot_root = co.outdir_plot_root
             else:
                 dl.outdir_plot_root = opj(os.environ['HOME'],'plots')
             

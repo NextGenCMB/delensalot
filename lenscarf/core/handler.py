@@ -178,36 +178,12 @@ class Notebook_interactor():
             elif it==0:
                 return '/global/cfs/cdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08b/BLT/QE/blm_%04d_fg%02d_it0.npy'%(simidx, int(self.fg))   
         else:
-            if self.libdir_iterators == 'overwrite':
-                if it==12:
-                    rootstr = opj(os.environ['CFS'], 'cmbs4/awg/lowellbb/reanalysis/lt_recons/')
-                    if self.fg == '00':
-                        return rootstr+'08b.%02d_sebibel_210708_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg), it, simidx)
-                    elif self.fg == '07':
-                        return rootstr+'/08b.%02d_sebibel_210910_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg), it, simidx)
-                    elif self.fg == '09':
-                        return rootstr+'/08b.%02d_sebibel_210910_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg), it, simidx)
-                elif it==0:
-                    return '/global/cscratch1/sd/sebibel/cmbs4/s08b/cILC2021_%s_lmax4000/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20/ffi_p_it0/blm_%04d_it0.npy'%(self.fg, simidx, simidx)    
+            if it == 0:
+                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024%03d.npy'%(it, it, self.Nmf)
+            if self.dlm_mod_bool:
+                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024_dlmmod%03d.npy'%(it, it, self.Nmf)
             else:
-                # TODO this belongs via config to l2d
-                # TODO fn needs to be defined in l2d
-                # TODO only QE it 0 doesn't exists because no modification is done to it. catching this. Can this be done better?
-                if False:
-                    # TODO this needs to be chosne by hand. Old mfvar naming don't depend on Nmf
-                    if it == 0:
-                        return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(it, it)
-                    if self.dlm_mod_bool:
-                        return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024_dlmmod.npy'%(it, it)
-                    else:
-                        return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(it, it)
-                else:
-                    if it == 0:
-                        return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024%03d.npy'%(it, it, self.Nmf)
-                    if self.dlm_mod_bool:
-                        return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024_dlmmod%03d.npy'%(it, it, self.Nmf)
-                    else:
-                        return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024%03d.npy'%(it, it, self.Nmf)
+                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024%03d.npy'%(it, it, self.Nmf)
 
             
     # @log_on_start(logging.INFO, "getfn_qumap_cs() started")
@@ -352,7 +328,7 @@ class QE_lr():
             ## Calculate B-lensing template
             if task == 'calc_blt':
                 for idx in self.simidxs:
-                    fname = os.path.join(self.TEMP, '{}_sim{:04d}'.format(self.k, idx), 'btempl_p000_e000_lma1024{}'.format(len(self.simidxs_mf)))
+                    fname = os.path.join(self.TEMP, '{}_sim{:04d}'.format(self.k, idx), 'btempl_p000_e000_lmax1024{}'.format(len(self.simidxs_mf)))
                     if self.btemplate_perturbative_lensremap:
                         fname += 'perturbative'
                     fname += '.npy'
@@ -380,7 +356,6 @@ class QE_lr():
                     self.get_response_meanfield()
                     self.get_wflm(idx)
                     self.get_R_unl()
-                    # self.get_B_wf(idx)
                     log.info('{}/{}, finished job {}'.format(mpi.rank,mpi.size,idx))
                 if len(self.jobs[taski])>0:
                     log.info('{} finished qe ivfs tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
@@ -391,7 +366,7 @@ class QE_lr():
                     log.info("Done waiting. Rank 0 going to calculate meanfield-file.. everyone else waiting.")
                     if mpi.rank == 0:
                         self.get_meanfield(idx)
-                        log.info("rank finsihed calculating meanfield-file.. everyone else waiting.")
+                        log.info("rank finished calculating meanfield-file.. everyone else waiting.")
                     mpi.barrier()
 
             if task == 'calc_phi':
@@ -450,7 +425,7 @@ class QE_lr():
             mf = hp.read_alm(self.mfvar)
             if simidx in self.simidxs_mf:    
                 mf = (mf - self.qlms_dd_mfvar.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
-
+ 
         return mf
 
 
@@ -490,12 +465,14 @@ class QE_lr():
         return mf_resp
 
     
-    @log_on_start(logging.INFO, ",get_blt({simidx}) started")
-    @log_on_end(logging.INFO, "get_blt({simidx}) finished")
-    def get_blt(self, simidx):
+    @log_on_start(logging.INFO, ",get_blt({simidx}, {calc}) started")
+    @log_on_end(logging.INFO, "get_blt({simidx}, {calc}) finished")
+    def get_blt(self, simidx, calc=True):
         itlib = self.ith(self, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
         itlib_iterator = itlib.get_iterator()
-        itlib_iterator.get_template_blm(0, 0, lmaxb=1024, lmin_plm=1, dlm_mod=None, calc=True, Nmf=self.Nmf, perturbative=self.btemplate_perturbative_lensremap)
+        ## For QE, dlm_mod by construction doesn't do anything, because mean-field had already been subtracted from plm and we don't want to repeat that
+        dlm_mod = np.zeros_like(self.get_meanfield(simidx))
+        itlib_iterator.get_template_blm(0, 0, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, calc=calc, Nmf=self.Nmf, perturbative=self.btemplate_perturbative_lensremap)
 
 
 class MAP_lr():
@@ -608,13 +585,19 @@ class MAP_lr():
                     lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
                     itlib = self.ith(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
                     itlib_iterator = itlib.get_iterator()
+                    ## TODO move the following lines to get_blt_it()
                     if self.dlm_mod_bool:
                         dlm_mod = self.get_meanfields_it(np.arange(self.itmax+1), calc=False)
-                        dlm_mod = (dlm_mod - np.array(rec.load_plms(lib_dir_iterator, np.arange(self.itmax+1)))/self.Nmf) * self.Nmf/(self.Nmf - 1)
+                        if idx in self.simidxs_mf:
+                            dlm_mod = (dlm_mod - np.array(rec.load_plms(lib_dir_iterator, np.arange(self.itmax+1)))/self.Nmf) * self.Nmf/(self.Nmf - 1)
                     for it in range(0, self.itmax + 1):
                         if it <= rec.maxiterdone(lib_dir_iterator):
-                            _dlm_mod = None if (it == 0 or self.dlm_mod_bool == False) else dlm_mod[it]
-                            itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=_dlm_mod, calc=True, Nmf=self.Nmf, perturbative=self.btemplate_perturbative_lensremap)
+                            if it == 0 and self.dlm_mod_bool:
+                                _dlm_mod = np.zeros_like(self.get_meanfields_it([0], calc=False)[0])
+                            else:
+                                # TODO is this [it] the right index with get_betmplate_blm(it)?
+                                _dlm_mod = None if self.dlm_mod_bool == False else dlm_mod[it]
+                            itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=_dlm_mod, calc=True, Nmf=self.Nmf, perturbative=self.btemplate_perturbative_lensremap, dlm_mod_fnsuffix=self.dlm_mod_fnsuffix)
                     log.info("{}: finished sim {}".format(mpi.rank, idx))
 
 
@@ -631,6 +614,7 @@ class MAP_lr():
     @log_on_end(logging.INFO, "get_meanfield_it({it}) finished")
     def get_meanfield_it(self, it, calc=False):
         # for mfvar runs, this returns the correct meanfields, as mfvar runs go into distinct itlib dirs.
+        print(self.mf_dirname)
         fn = opj(self.mf_dirname, 'mf%03d_it%03d.npy'%(self.Nmf, it))
         if not calc:
             if os.path.isfile(fn):
@@ -662,6 +646,15 @@ class MAP_lr():
 
         return mfs
 
+    @log_on_start(logging.INFO, ",get_blt_it({simidx}, {calc}) started")
+    @log_on_end(logging.INFO, "get_blt_it({simidx}, {calc}) finished")
+    def get_blt_it(self, simidx, calc=True):
+        itlib = self.ith(self, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
+        itlib_iterator = itlib.get_iterator()
+        ## For QE, dlm_mod by construction doesn't do anything, because mean-field had already been subtracted from plm and we don't want to repeat that
+        dlm_mod = np.zeros_like(self.get_meanfield(simidx))
+        itlib_iterator.get_template_blm(0, 0, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, calc=calc, Nmf=self.Nmf, perturbative=self.btemplate_perturbative_lensremap, dlm_mod_fnsuffix=self.dlm_mod_fnsuffix)
+
 
 class Map_delenser():
     """Script for calculating delensed ILC and Blens spectra using precaulculated Btemplates as input.
@@ -674,12 +667,12 @@ class Map_delenser():
 
     def __init__(self, bmd_model):
         self.__dict__.update(bmd_model.__dict__)
-        # TODO hack. Remove and think of a better way of including old data without existing config file
-        if 'libdir_iterators' in bmd_model.__dict__:
-            pass
-        else:
-            self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
         self.lib = dict()
+        # TODO this call inside init only makes sense for the notebook interactor as map_delenser generates these
+        if False:
+            self.bcl_L, self.bcl_cs  = self.read_data_v2(edges_id=0)
+
+    def load_bcl(self):
         self.bcl_L, self.bcl_cs  = self.read_data_v2(edges_id=0)
 
     @log_on_start(logging.INFO, "read_data_v2() started")
@@ -712,7 +705,6 @@ class Map_delenser():
         # _libdir_iterator = self.libdir_iterators(self.k, simidx, self.version)
         # return _libdir_iterator+fn(**params)
 
-        ## TODO add QE lensing templates to CFS dir?
         if self.data_from_CFS:
             rootstr = opj(os.environ['CFS'], 'cmbs4/awg/lowellbb/reanalysis/lt_recons/')
             if it==12:
@@ -725,36 +717,16 @@ class Map_delenser():
             elif it==0:
                 return '/global/cfs/cdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08b/BLT/QE/blm_%04d_fg%02d_it0.npy'%(simidx, int(self.fg))   
         else:
-            if self.libdir_iterators == 'overwrite':
-                if it==12:
-                    rootstr = opj(os.environ['CFS'], 'cmbs4/awg/lowellbb/reanalysis/lt_recons/')
-                    if self.fg == '00':
-                        return rootstr+'08b.%02d_sebibel_210708_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg), it, simidx)
-                    elif self.fg == '07':
-                        return rootstr+'/08b.%02d_sebibel_210910_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg), it, simidx)
-                    elif self.fg == '09':
-                        return rootstr+'/08b.%02d_sebibel_210910_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(self.fg), it, simidx)
-                elif it==0:
-                    return '/global/cscratch1/sd/sebibel/cmbs4/s08b/cILC2021_%s_lmax4000/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20/ffi_p_it0/blm_%04d_it0.npy'%(self.fg, simidx, simidx)    
+            # TODO this belongs via config to l2d
+            # TODO fn needs to be defined in l2d
+            fn = self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024'%(it, it)
+            if self.dlm_mod_bool and it>0:
+                fn += '_dlmmod{}%03d'%(self.Nmf, self.dlm_mod_fnsuffix)
             else:
-                # TODO this belongs via config to l2d
-                # TODO fn needs to be defined in l2d
-                # TODO only QE it 0 doesn't exists because no modification is done to it. catching this. Can this be done better?
-                if False:
-                    # TODO this needs to be chosne by hand. Old mfvar naming don't depend on Nmf
-                    if self.dlm_mod_bool:
-                        return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024_dlmmod.npy'%(it, it)
-                    else:
-                        return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024.npy'%(it, it)
-                else:
-                    fn = self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024'%(it, it)
-                    if self.dlm_mod_bool:
-                        fn += '_dlmmod%03d'%(self.Nmf)
-                    else:
-                        fn += '%03d'%(self.Nmf)
-                    if self.btemplate_perturbative_lensremap:
-                        fn += 'perturbative'
-                    return fn+'.npy'
+                fn += '%03d'%(self.Nmf)
+            if self.btemplate_perturbative_lensremap:
+                fn += 'perturbative'
+            return fn+'.npy'
 
             
     # @log_on_start(logging.INFO, "getfn_qumap_cs() started")
@@ -765,18 +737,6 @@ class Map_delenser():
 
         return self.sims.get_sim_pmap(simidx)
 
-
-    # @log_on_start(logging.INFO, "get_B_wf() started")
-    # @log_on_end(logging.INFO, "get_B_wf() finished")
-    def get_B_wf(self, simidx):
-        '''Component separated polarisation maps lm, i.e. lenscarf input'''
-        # TODO this is a quickfix and works only for already existing bwflm's for 08bb
-        bw_fn = '/global/cscratch1/sd/sebibel/cmbs4/s08b/cILC2021_%s_lmax4000/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20/bwf_qe_%04d.npy'%(self.fg,simidx,simidx)
-        if os.path.isfile(bw_fn):
-
-            return np.load(bw_fn)
-        else:
-            assert 0, "File {} doesn't exist".format(bw_fn)
 
 
     # @log_on_start(logging.INFO, "get_teblm_ffp10() started")
@@ -794,13 +754,9 @@ class Map_delenser():
         # TODO perhaps trigger calc of B-templates here, if needed
         jobs = []
         for idx in self.simidxs:
-            # Overwriting test
-            if self.libdir_iterators == 'overwrite':
+            lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
+            if rec.maxiterdone(lib_dir_iterator) >= self.its[-1]:
                 jobs.append(idx)
-            else:
-                lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
-                if rec.maxiterdone(lib_dir_iterator) >= self.its[-1]:
-                    jobs.append(idx)
         self.jobs = jobs
 
 
@@ -833,16 +789,16 @@ class Map_delenser():
             if self.data_type == 'map':
                 if self.data_field == 'qu':
                     map_cs = self.getfn_qumap_cs(idx)
-                    eblm_cs = hp.map2alm_spin(map_cs*self.base_mask, 2, self.lmax)
-                    bmap_cs = hp.alm2map(eblm_cs[1], self.nside)
+                    # eblm_cs = hp.map2alm_spin(map_cs*self.base_mask, 2, self.lmax)
+                    # bmap_cs = hp.alm2map(eblm_cs[1], self.nside)
                 elif self.data_field == 'eb':
                     map_cs = self.getfn_qumap_cs(idx)
-                    teblm_cs = hp.map2alm([np.zeros_like(map_cs[0]), *map_cs], lmax=self.lmax, pol=False)
-                    bmap_cs = hp.alm2map(teblm_cs[2], self.nside)
+                    # teblm_cs = hp.map2alm([np.zeros_like(map_cs[0]), *map_cs], lmax=self.lmax, pol=False)
+                    # bmap_cs = hp.alm2map(teblm_cs[2], self.nside)
             elif self.data_type == 'alm':
                 if self.data_field == 'eb':
                     eblm_cs = self.getfn_qumap_cs(idx)
-                    bmap_cs = hp.alm2map(eblm_cs[1], self.nside)
+                    # bmap_cs = hp.alm2map(eblm_cs[1], self.nside)
                 elif self.data_field == 'qu':
                     log.error("I don't think you have qlms,ulms")
                     sys.exit()
@@ -853,8 +809,8 @@ class Map_delenser():
 
             btemplm_QE = np.load(self.getfn_blm_lensc(idx, 0))
             btempmap_QE = hp.alm2map(btemplm_QE, nside=self.nside)
-
-            return bmap_L, bmap_cs, btempmap_QE
+            # bmap_cs
+            return bmap_L, np.zeros_like(bmap_L), btempmap_QE
 
 
         # @log_on_start(logging.INFO, "_build_Btemplate_MAP() started")
@@ -874,28 +830,34 @@ class Map_delenser():
 
         @log_on_start(logging.INFO, "_delens() started")
         @log_on_end(logging.INFO, "_delens() finished")
-        def _delens(bmap_L, bmap_cs, btempmap_QE, btempmap_MAP):
+        def _delens(bmap_L, bmap_cs, blt_QE, blt_MAP, blt_QE2=None, blt_MAP2=None):
+            if blt_QE2 is None:
+                blt_QE2 = blt_QE
+            if blt_MAP2 is None:
+                blt_MAP2 = blt_MAP
+
             for mask_idi, mask_id in enumerate(self.mask_ids):
                 log.info("starting mask {}".format(mask_id))
-                bcl_cs = self.lib[mask_id].map2cl(bmap_cs)
+                
                 bcl_L = self.lib[mask_id].map2cl(bmap_L)
+                # bcl_cs = self.lib[mask_id].map2cl(bmap_cs)
 
                 outputdata[0][0][mask_idi] = bcl_L
-                outputdata[1][0][mask_idi] = bcl_cs
+                # outputdata[1][0][mask_idi] = bcl_cs
 
-                btempcl_L_QE = self.lib[mask_id].map2cl(bmap_L-btempmap_QE)
-                btempcl_cs_QE = self.lib[mask_id].map2cl(bmap_cs-btempmap_QE)
+                blt_L_QE = self.lib[mask_id].map2cl(bmap_L-blt_QE, bmap_L-blt_QE2)
+                # btempcl_cs_QE = self.lib[mask_id].map2cl(bmap_cs-btempmap_QE)
 
-                outputdata[0][1][mask_idi] = btempcl_L_QE
-                outputdata[1][1][mask_idi] = btempcl_cs_QE
+                outputdata[0][1][mask_idi] = blt_L_QE
+                # outputdata[1][1][mask_idi] = btempcl_cs_QE
 
                 for iti, it in enumerate(self.its):
                     log.info("starting MAP delensing for iteration {}".format(it))
-                    btempcl_L_MAP = self.lib[mask_id].map2cl(bmap_L-btempmap_MAP[iti])    
-                    btempcl_cs_MAP = self.lib[mask_id].map2cl(bmap_cs-btempmap_MAP[iti])
+                    blt_L_MAP = self.lib[mask_id].map2cl(bmap_L-blt_MAP[iti], bmap_L-blt_MAP2[iti])    
+                    # btempcl_cs_MAP = self.lib[mask_id].map2cl(bmap_cs-blt_MAP[iti])
 
-                    outputdata[0][2+iti][mask_idi] = btempcl_L_MAP
-                    outputdata[1][2+iti][mask_idi] = btempcl_cs_MAP
+                    outputdata[0][2+iti][mask_idi] = blt_L_MAP
+                    # outputdata[1][2+iti][mask_idi] = btempcl_cs_MAP
 
             return outputdata
 
