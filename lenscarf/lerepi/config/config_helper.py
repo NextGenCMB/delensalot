@@ -29,7 +29,19 @@ class data_functions:
         Returns:
             _type_: _description_
         """
-        return val  / 180 / 60 * np.pi
+        return val / 180 / 60 * np.pi
+
+    def r2a(val):
+        """radian2arcmin converter
+
+        Args:
+            val (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
+        return val * 180 * 60 / np.pi
+        
 
 
     def c2a(val):

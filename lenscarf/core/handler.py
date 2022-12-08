@@ -159,7 +159,7 @@ class Notebook_interactor():
 
     # @log_on_start(logging.INFO, "getfn_blm_lensc() started")
     # @log_on_end(logging.INFO, "getfn_blm_lensc() finished")
-    def getfn_blm_lensc(self, simidx, it):
+    def getfn_blm_lensc(self, simidx, it, fn_splitsetsuffix=''):
         '''Lenscarf output using Catherinas E and B maps'''
         # TODO this needs cleaner implementation via lambda
         # _libdir_iterator = self.libdir_iterators(self.k, simidx, self.version)
@@ -179,11 +179,11 @@ class Notebook_interactor():
                 return '/global/cfs/cdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08b/BLT/QE/blm_%04d_fg%02d_it0.npy'%(simidx, int(self.fg))   
         else:
             if it == 0:
-                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024%03d.npy'%(it, it, self.Nmf)
+                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024%s%03d.npy'%(it, it, self.Nmf, fn_splitsetsuffix)
             if self.dlm_mod_bool:
-                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024_dlmmod%03d.npy'%(it, it, self.Nmf)
+                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024_dlmmod%s%03d.npy'%(it, it, self.Nmf, fn_splitsetsuffix)
             else:
-                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024%03d.npy'%(it, it, self.Nmf)
+                return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024%s%03d.npy'%(it, it, self.Nmf, fn_splitsetsuffix)
 
             
     # @log_on_start(logging.INFO, "getfn_qumap_cs() started")
@@ -470,7 +470,8 @@ class QE_lr():
     def get_blt(self, simidx, calc=True):
         itlib = self.ith(self, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
         itlib_iterator = itlib.get_iterator()
-        ## For QE, dlm_mod by construction doesn't do anything, because mean-field had already been subtracted from plm and we don't want to repeat that
+        ## For QE, dlm_mod by construction doesn't do anything, because mean-field had already been subtracted from plm and we don't want to repeat that.
+        ## But we are going to store a new file anyway.
         dlm_mod = np.zeros_like(self.get_meanfield(simidx))
         itlib_iterator.get_template_blm(0, 0, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, calc=calc, Nmf=self.Nmf, perturbative=self.btemplate_perturbative_lensremap)
 
@@ -700,7 +701,7 @@ class Map_delenser():
 
     # @log_on_start(logging.INFO, "getfn_blm_lensc() started")
     # @log_on_end(logging.INFO, "getfn_blm_lensc() finished")
-    def getfn_blm_lensc(self, simidx, it):
+    def getfn_blm_lensc(self, simidx, it, fn_splitsetsuffix=''):
         # TODO this needs cleaner implementation via lambda
         # _libdir_iterator = self.libdir_iterators(self.k, simidx, self.version)
         # return _libdir_iterator+fn(**params)
@@ -720,12 +721,13 @@ class Map_delenser():
             # TODO this belongs via config to l2d
             # TODO fn needs to be defined in l2d
             fn = self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024'%(it, it)
-            if self.dlm_mod_bool and it>0:
-                fn += '_dlmmod{}%03d'%(self.Nmf, self.dlm_mod_fnsuffix)
+            if self.dlm_mod_bool:
+                fn += '_dlmmod%s%03d'%(fn_splitsetsuffix, self.Nmf)
             else:
-                fn += '%03d'%(self.Nmf)
+                fn += '%s%03d'%(fn_splitsetsuffix, self.Nmf)
             if self.btemplate_perturbative_lensremap:
                 fn += 'perturbative'
+                
             return fn+'.npy'
 
             
@@ -807,34 +809,62 @@ class Map_delenser():
             blm_L = self.get_teblm_ffp10(idx)
             bmap_L = hp.alm2map(blm_L, self.nside)
 
-            btemplm_QE = np.load(self.getfn_blm_lensc(idx, 0))
-            btempmap_QE = hp.alm2map(btemplm_QE, nside=self.nside)
+            if self.calc_via_MFsplitset:
+                bltlm_QE1 = np.load(self.getfn_blm_lensc(idx, 0, 'set1'))
+                blt_QE1 = hp.alm2map(bltlm_QE1, nside=self.nside)
+                bltlm_QE2 = np.load(self.getfn_blm_lensc(idx, 0, 'set2'))
+                blt_QE2 = hp.alm2map(bltlm_QE2, nside=self.nside)
+            else:
+                bltlm_QE1 = np.load(self.getfn_blm_lensc(idx, 0))
+                blt_QE1 = hp.alm2map(bltlm_QE1, nside=self.nside)
+                blt_QE2 = np.copy(blt_QE1)
             # bmap_cs
-            return bmap_L, np.zeros_like(bmap_L), btempmap_QE
+            return bmap_L, np.zeros_like(bmap_L), blt_QE1, blt_QE2
 
 
         # @log_on_start(logging.INFO, "_build_Btemplate_MAP() started")
         # @log_on_end(logging.INFO, "_build_Btemplate_MAP() finished")
         def _build_Btemplate_MAP(idx):
-            fns = [self.getfn_blm_lensc(idx, it) for it in self.its]
-            btemplm_MAP = np.zeros(shape=(len(fns), *np.load(self.getfn_blm_lensc(idx, 0)).shape), dtype=np.complex128)
-            for fni, fn in enumerate(fns):
-                if fn.endswith('.npy'):
-                    btemplm_MAP[fni] = np.array(np.load(fn))
-                else:
-                    btemplm_MAP[fni] = np.array(hp.read_alm(fn))   
-            btempmap_MAP = np.array([hp.alm2map(btemplm_MAP[iti], nside=self.nside) for iti in range(len(self.its))])
+            if self.calc_via_MFsplitset:
+                fns = [self.getfn_blm_lensc(idx, it, 'set1') for it in self.its]
+                bltlm_MAP = np.zeros(shape=(len(fns), *np.load(self.getfn_blm_lensc(idx, 0, 'set1')).shape), dtype=np.complex128)
+                for fni, fn in enumerate(fns):
+                    if fn.endswith('.npy'):
+                        bltlm_MAP[fni] = np.array(np.load(fn))
+                    else:
+                        bltlm_MAP[fni] = np.array(hp.read_alm(fn))   
+                blt_MAP1 = np.array([hp.alm2map(bltlm_MAP[iti], nside=self.nside) for iti in range(len(self.its))])
+                
+                fns = [self.getfn_blm_lensc(idx, it, 'set2') for it in self.its]
+                bltlm_MAP = np.zeros(shape=(len(fns), *np.load(self.getfn_blm_lensc(idx, 0, 'set2')).shape), dtype=np.complex128)
+                for fni, fn in enumerate(fns):
+                    if fn.endswith('.npy'):
+                        bltlm_MAP[fni] = np.array(np.load(fn))
+                    else:
+                        bltlm_MAP[fni] = np.array(hp.read_alm(fn))   
+                blt_MAP2 = np.array([hp.alm2map(bltlm_MAP[iti], nside=self.nside) for iti in range(len(self.its))])
+            else:
+                fns = [self.getfn_blm_lensc(idx, it) for it in self.its]
 
-            return btempmap_MAP
+                bltlm_MAP = np.zeros(shape=(len(fns), *np.load(self.getfn_blm_lensc(idx, 0)).shape), dtype=np.complex128)
+                for fni, fn in enumerate(fns):
+                    if fn.endswith('.npy'):
+                        bltlm_MAP[fni] = np.array(np.load(fn))
+                    else:
+                        bltlm_MAP[fni] = np.array(hp.read_alm(fn))   
+                blt_MAP1 = np.array([hp.alm2map(bltlm_MAP[iti], nside=self.nside) for iti in range(len(self.its))])
+                blt_MAP2 = np.copy(blt_MAP1)
 
+            return blt_MAP1, blt_MAP2
 
+                
         @log_on_start(logging.INFO, "_delens() started")
         @log_on_end(logging.INFO, "_delens() finished")
-        def _delens(bmap_L, bmap_cs, blt_QE, blt_MAP, blt_QE2=None, blt_MAP2=None):
+        def _delens(bmap_L, bmap_cs, blt_QE1, blt_MAP1, blt_QE2=None, blt_MAP2=None):
             if blt_QE2 is None:
-                blt_QE2 = blt_QE
+                blt_QE2 = np.copy(blt_QE1)
             if blt_MAP2 is None:
-                blt_MAP2 = blt_MAP
+                blt_MAP2 = np.copy(blt_MAP1)
 
             for mask_idi, mask_id in enumerate(self.mask_ids):
                 log.info("starting mask {}".format(mask_id))
@@ -845,7 +875,7 @@ class Map_delenser():
                 outputdata[0][0][mask_idi] = bcl_L
                 # outputdata[1][0][mask_idi] = bcl_cs
 
-                blt_L_QE = self.lib[mask_id].map2cl(bmap_L-blt_QE, bmap_L-blt_QE2)
+                blt_L_QE = self.lib[mask_id].map2cl(bmap_L-blt_QE1, bmap_L-blt_QE2)
                 # btempcl_cs_QE = self.lib[mask_id].map2cl(bmap_cs-btempmap_QE)
 
                 outputdata[0][1][mask_idi] = blt_L_QE
@@ -853,7 +883,7 @@ class Map_delenser():
 
                 for iti, it in enumerate(self.its):
                     log.info("starting MAP delensing for iteration {}".format(it))
-                    blt_L_MAP = self.lib[mask_id].map2cl(bmap_L-blt_MAP[iti], bmap_L-blt_MAP2[iti])    
+                    blt_L_MAP = self.lib[mask_id].map2cl(bmap_L-blt_MAP1[iti], bmap_L-blt_MAP2[iti])    
                     # btempcl_cs_MAP = self.lib[mask_id].map2cl(bmap_cs-blt_MAP[iti])
 
                     outputdata[0][2+iti][mask_idi] = blt_L_MAP
@@ -864,23 +894,62 @@ class Map_delenser():
         if self.jobs != []:
             if self.binning == 'binned':
                 for edgesi, edges in enumerate(self.edges):
-                    print(self.binning)
                     outputdata = _prepare_job(edges)
                     for idx in self.jobs[mpi.rank::mpi.size]:
                         _file_op = self.file_op(idx, self.fg, edgesi)
                         log.info('will store file at: {}'.format(_file_op))
-                        bmap_L, bmap_cs, btempmap_QE = _build_basemaps(idx)
-                        btempmap_MAP = _build_Btemplate_MAP(idx)
-                        outputdata = _delens(bmap_L, bmap_cs, btempmap_QE, btempmap_MAP)
+                        bmap_L, bmap_cs, blt_QE1, blt_QE2 = _build_basemaps(idx)
+                        if self.subtract_mblt:
+                            if self.calc_via_mbltsplitset:
+                                simidxs_bltmean1 = np.arange(0,int(self.Nmblt/2))
+                                simidxs_bltmean2 = np.arange(int(self.Nmblt/2), self.Nmblt)
+                                if self.calc_via_MFsplitset:
+                                    mblt_QE1 = hp.alm2map(np.mean([np.load(self.getfn_blm_lensc(simidx, 0, 'set1')) for simidx in simidxs_bltmean1 if simidx not in [idx]], axis=0), nside=self.nside)
+                                    mblt_QE2 = hp.alm2map(np.mean([np.load(self.getfn_blm_lensc(simidx, 0, 'set2')) for simidx in simidxs_bltmean2 if simidx not in [idx]], axis=0), nside=self.nside)
+                                else:
+                                    mblt_QE1 = hp.alm2map(np.mean([np.load(self.getfn_blm_lensc(simidx, 0)) for simidx in simidxs_bltmean1 if simidx not in [idx]], axis=0), nside=self.nside)
+                                    mblt_QE2 = hp.alm2map(np.mean([np.load(self.getfn_blm_lensc(simidx, 0)) for simidx in simidxs_bltmean2 if simidx not in [idx]], axis=0), nside=self.nside)
+                            else:
+                                mblt_QE1 = hp.alm2map(np.mean([np.load(self.getfn_blm_lensc(simidx, 0)) for simidx in np.arange(0,self.Nmblt) if simidx not in [idx]], axis=0), nside=self.nside)
+                                mblt_QE2 = np.copy(mblt_QE1)
+                        else:
+                            mblt_QE1 = 0
+                            mblt_QE2 = 0
+                        blt_MAP1, blt_MAP2 = _build_Btemplate_MAP(idx)
+                        if self.subtract_mblt:
+                            if self.calc_via_mbltsplitset:
+                                simidxs_bltmean1 = np.arange(0,int(self.Nmblt/2))
+                                simidxs_bltmean2 = np.arange(int(self.Nmblt/2), self.Nmblt)
+                                if self.calc_via_MFsplitset:
+                                    buff = np.mean([[np.load(self.getfn_blm_lensc(simidx, it, 'set1')) for simidx in simidxs_bltmean1 if simidx not in [idx]] for it in self.its], axis=1)
+                                    mblt_MAP1 = np.array([hp.alm2map(buff[iti], nside=self.nside) for iti, it in enumerate(self.its)])
+                                    buff = np.mean([[np.load(self.getfn_blm_lensc(simidx, it, 'set2')) for simidx in simidxs_bltmean2 if simidx not in [idx]] for it in self.its], axis=1)
+                                    mblt_MAP2 = np.array([hp.alm2map(buff[iti], nside=self.nside) for iti, it in enumerate(self.its)])
+                                else:
+                                    buff = np.mean([[np.load(self.getfn_blm_lensc(simidx, it)) for simidx in simidxs_bltmean1 if simidx not in [idx]] for it in self.its], axis=1)
+                                    mblt_MAP1 = np.array([hp.alm2map(buff[iti], nside=self.nside) for iti, it in enumerate(self.its)])
+                                    buff = np.mean([[np.load(self.getfn_blm_lensc(simidx, it)) for simidx in simidxs_bltmean2 if simidx not in [idx]] for it in self.its], axis=1)
+                                    mblt_MAP2 = np.array([hp.alm2map(buff[iti], nside=self.nside) for iti, it in enumerate(self.its)])
+                            else:
+                                buff = np.mean([[np.load(self.getfn_blm_lensc(simidx, it)) for simidx in np.arange(0,self.Nmf) if simidx not in [idx]] for it in self.its], axis=1)
+                                mblt_MAP1 = np.array([hp.alm2map(buff[iti], nside=self.nside) for iti, it in enumerate(self.its)])
+                                mblt_MAP2 = np.copy(mblt_MAP1)
+                        else:
+                            mblt_MAP1 = 0
+                            mblt_MAP2 = 0
+                        outputdata = _delens(bmap_L, bmap_cs, blt_QE1-mblt_QE1, blt_MAP1-mblt_MAP1, blt_QE2-mblt_QE2, blt_MAP2-mblt_MAP2)
                         np.save(_file_op, outputdata)
             else:
+                if self.subtract_mblt:
+                    log.error("Implement if needed")
+                    sys.exit()
                 outputdata = _prepare_job()
                 for idx in self.jobs[mpi.rank::mpi.size]:
                     _file_op = self.file_op(idx, self.fg, 0)
                     log.info('will store file at: {}'.format(_file_op))
-                    bmap_L, bmap_cs, btempmap_QE = _build_basemaps(idx)
-                    btempmap_MAP = _build_Btemplate_MAP(idx)
-                    outputdata = _delens(bmap_L, bmap_cs, btempmap_QE, btempmap_MAP)
+                    bmap_L, bmap_cs, blt_QE, blt_QE2 = _build_basemaps(idx)
+                    blt_MAP, blt_MAP2 = _build_Btemplate_MAP(idx)
+                    outputdata = _delens(bmap_L, bmap_cs, blt_QE, blt_QE2, blt_MAP, blt_MAP2)
                     np.save(_file_op, outputdata)
 
 
