@@ -1325,7 +1325,7 @@ class l2i_Transformer:
                             dl.prediction[key0][key4][key1] = dict()
                         for key2 in ['N', 'N_eff']:
                             if key2 not in dl.prediction[key0][key4][key1]:
-                                    dl.prediction[key0][key4][key1][key2] = np.array([], dtype=np.complex128)
+                                dl.prediction[key0][key4][key1][key2] = np.array([], dtype=np.complex128)
 
             
             dl.data['weight'] = np.zeros(shape=(2,*(np.loadtxt(dl.ic.weights_fns.format(dl.fg, 'E')).shape)))
