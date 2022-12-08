@@ -669,7 +669,8 @@ class Map_delenser():
     def __init__(self, bmd_model):
         self.__dict__.update(bmd_model.__dict__)
         self.lib = dict()
-        self.bcl_L, self.bcl_cs  = self.read_data_v2(edges_id=0)
+        if False:
+            self.bcl_L, self.bcl_cs  = self.read_data_v2(edges_id=0)
         # self.bcl_L = np.array([b[0] for b in self.bcls])
         # self.bcl_cs = np.array([b[1] for b in self.bcls])
 

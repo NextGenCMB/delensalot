@@ -1204,6 +1204,11 @@ class l2d_Transformer:
             dl.dlm_mod_bool = ma.dlm_mod[0]
             dl.simidxs_mblt = ma.simidxs_mblt
             dl.Nmblt = len(dl.simidxs_mblt)
+            dl.subtract_mblt = ma.subtract_mblt[0]
+            dl.calc_via_mbltsplitset = bool(ma.subtract_mblt[1])
+            dl.dlm_mod_fnsuffix = ma.dlm_mod[1]
+
+            dl.calc_via_MFsplitset = bool(ma.dlm_mod[1])
             if dl.binning == 'binned':
                 if dl.dlm_mod_bool:
                     if dl.subtract_mblt or dl.calc_via_MFsplitset or dl.calc_via_mbltsplitset:
