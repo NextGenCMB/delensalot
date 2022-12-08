@@ -669,15 +669,9 @@ class Map_delenser():
     def __init__(self, bmd_model):
         self.__dict__.update(bmd_model.__dict__)
         self.lib = dict()
-<<<<<<< HEAD
-        # TODO this call inside init only makes sense for the notebook interactor as map_delenser generates these
-        if False:
-            self.bcl_L, self.bcl_cs  = self.read_data_v2(edges_id=0)
-=======
         self.bcl_L, self.bcl_cs  = self.read_data_v2(edges_id=0)
         # self.bcl_L = np.array([b[0] for b in self.bcls])
         # self.bcl_cs = np.array([b[1] for b in self.bcls])
->>>>>>> 9a6a94f (move to job)
 
     def load_bcl(self):
         self.bcl_L, self.bcl_cs  = self.read_data_v2(edges_id=0)
