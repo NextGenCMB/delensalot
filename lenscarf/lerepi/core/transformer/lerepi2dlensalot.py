@@ -1097,23 +1097,22 @@ class l2d_Transformer:
             noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.noisemodel.inf
 
             if ma.masks != None:
-                _innermask = None
+                if ma.ringmask:
+                    _innermask = df.get_nlev_mask(2, noisemodel_rhits_map)
+                else:
+                    _innermask = 0
                 dl.masks = dict({ma.masks[0]:{}})
                 dl.binmasks = dict({ma.masks[0]:{}})
                 dl.mask_ids = ma.masks[1]
                 if ma.masks[0] == 'nlevels': 
                     for mask_id in dl.mask_ids:
                         buffer = df.get_nlev_mask(mask_id, noisemodel_rhits_map)
-                        if mask_id == 2 and ma.ringmask:
-                            innermask = np.copy(buffer)
-                        elif ma.ringmask is False:
-                            innermask = 0
-                        if mask_id > 2:
-                            _innermask_loc = innermask
+                        if mask_id == 2:
+                            innermask = np.copy(_innermask)
                         else:
-                            _innermask_loc = 0
-                        dl.masks[ma.masks[0]].update({mask_id:buffer-_innermask_loc})
-                        dl.binmasks[ma.masks[0]].update({mask_id: np.where(dl.masks[ma.masks[0]][mask_id]>0,1,0)-np.where(_innermask_loc>0,1,0)})
+                            innermask = 0
+                        dl.masks[ma.masks[0]].update({mask_id:buffer-innermask})
+                        dl.binmasks[ma.masks[0]].update({mask_id: np.where(dl.masks[ma.masks[0]][mask_id]>0,1,0)-np.where(innermask>0,1,0)})
                 elif ma.masks[0] == 'masks':
                     dl.mask_ids = np.zeros(shape=len(ma.masks[1]))
                     for fni, fn in enumerate(ma.masks[1]):
@@ -1202,13 +1201,14 @@ class l2d_Transformer:
             # TODO II
             # TODO fn needs changing
             dl.dlm_mod_bool = ma.dlm_mod[0]
+            dl.dlm_mod_fnsuffix = ma.dlm_mod[1]
+            dl.calc_via_MFsplitset = bool(ma.dlm_mod[1])
+
+            dl.subtract_mblt = ma.subtract_mblt[0]
             dl.simidxs_mblt = ma.simidxs_mblt
             dl.Nmblt = len(dl.simidxs_mblt)
-            dl.subtract_mblt = ma.subtract_mblt[0]
             dl.calc_via_mbltsplitset = bool(ma.subtract_mblt[1])
-            dl.dlm_mod_fnsuffix = ma.dlm_mod[1]
-
-            dl.calc_via_MFsplitset = bool(ma.dlm_mod[1])
+            
             if dl.binning == 'binned':
                 if dl.dlm_mod_bool:
                     if dl.subtract_mblt or dl.calc_via_MFsplitset or dl.calc_via_mbltsplitset:
@@ -1287,8 +1287,6 @@ class l2d_Transformer:
                         if key2 not in dl.prediction[key0][key4][key1]:
                                 dl.prediction[key0][key4][key1][key2] = np.array([], dtype=np.complex128)
 
-
-
         return dl
         
 class l2i_Transformer:
@@ -1339,7 +1337,6 @@ class l2i_Transformer:
 
         def _process_Madel(dl, ma):
             dl.data_from_CFS = True
-            print(ma.iterations)
             dl.its = [0] if ma.iterations == [] else ma.iterations
             dl.edges = []
             dl.edges_id = []
