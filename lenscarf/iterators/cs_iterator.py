@@ -199,7 +199,7 @@ class qlm_iterator(object):
 
             Args:
                 it: iteration index of lensing tracer
-                it_e: iteration index of E-tracer
+                it_e: iteration index of E-tracer (use it_e = it + 1 for matching lensing and E-templates)
                 elm_wf: Wiener-filtered E-mode (healpy alm array), if not an iterated solution (it_e will ignored if set)
                 lmin_plm: the lensing tracer is zeroed below lmin_plm
                 lmaxb: the B-template is calculated up to lmaxb (defaults to lmax elm_wf)
@@ -260,6 +260,31 @@ class qlm_iterator(object):
         if cache_cond:
             self.wf_cacher.cache(fn, blm)
         return blm
+
+
+    def get_lik(self, itr):
+        """Returns the componenets of -2 ln p where ln p is the approximation to the posterior"""
+        #FIXME: hack, this assumes this is the no-BB pol iterator etc
+        fn = 'lik_itr%04d'%itr
+        if not self.cacher.is_cached(fn):
+            e_fname = 'wflm_%s_it%s' % ('p', itr)
+            assert self.wf_cacher.is_cached(e_fname), 'cant do lik, Wiener-filtered delensed CMB not available'
+            elm_wf = self.wf_cacher.load(e_fname)
+            self.filter.set_ffi(self._get_ffi(itr))
+            elm = self.opfilt.calc_prep(self.dat_maps, self.cls_filt, self.filter)
+            l2p = 2 * np.arange(self.filter.lmax_sol + 1) + 1
+            lik_qd = np.sum(l2p * alm2cl(elm_wf, elm, self.filter.lmax_sol, self.filter.mmax_sol, self.filter.lmax_sol))
+
+            # Prior term
+            hlm = self.get_hlm(itr, 'p')
+            chh = alm2cl(hlm, hlm, self.lmax_qlm, self.mmax_qlm, self.lmax_qlm)
+            l2p = 2 * np.arange(self.lmax_qlm + 1) + 1
+            lik_pri = np.sum(l2p * chh * cli(self.chh))
+
+            # det part
+            lik_det = 0. # assumed constant here
+            self.cacher.cache(fn, np.array([lik_qd, lik_det, lik_pri]))
+        return self.cacher.load(fn)
 
     def _get_ffi(self, itr):
         dlm = self.get_hlm(itr, 'p')
