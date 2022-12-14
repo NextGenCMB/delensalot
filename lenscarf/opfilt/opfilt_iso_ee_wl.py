@@ -121,6 +121,11 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         if self.verbose:
             print(tim)
 
+    def apply_map(self, eblm:np.ndarray):
+        """Applies noise operator in place"""
+        almxfl(eblm[0], self.inoise_1_elm * cli(self.transf_elm), self.mmax_len, True)
+        almxfl(eblm[1], self.inoise_1_blm * cli(self.transf_elm), self.mmax_len, True)
+
     def synalm(self, unlcmb_cls:dict, cmb_phas=None, get_unlelm=True):
         """Generate some dat maps consistent with noise filter fiducial ingredients
 
