@@ -278,6 +278,7 @@ class qlm_iterator(object):
             dat_copy = np.copy(read_map(self.dat_maps))
             self.filter.apply_map(dat_copy)
             # This only works for 'eb iso' type filters...
+            l2p = 2 * np.arange(self.filter.lmax_len + 1) + 1
             lik_qdcst  = np.sum(l2p * alm2cl(dat_copy[0], self.dat_maps[0], self.filter.lmax_len, self.filter.mmax_len, self.filter.lmax_len))
             lik_qdcst += np.sum(l2p * alm2cl(dat_copy[1], self.dat_maps[1], self.filter.lmax_len, self.filter.mmax_len, self.filter.lmax_len))
             # Prior term
