@@ -24,6 +24,10 @@ class scarf_alm_filter_wl(object):
         """Update of lensing deflection instance"""
         self.ffi = ffi
 
+    def apply_map(self, dat_map:np.ndarray):
+        """Applies inverse noise operator"""
+        assert 0, 'sub-class this'
+
     def get_qlms(self, dat_map:np.ndarray, alm_wf:np.ndarray, q_geom:pbdGeometry, alm_wf_leg2=None or np.ndarray):
         """Estimate of the quadratic likelihood piece, for data dat_map and alm_wf wiener filtered estimate"""
         assert 0, 'sub-class this'

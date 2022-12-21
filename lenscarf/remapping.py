@@ -47,7 +47,8 @@ class deflection:
         if dclm is not None:
             s2_d += np.sum(alm2cl(dclm, dclm, lmax, mmax_dlm, lmax) * (2 * np.arange(lmax + 1) + 1) ) / (4 * np.pi)
         sig_d = np.sqrt(s2_d)
-        assert sig_d < 0.01, ('deflection std is %.2e: this is really too high a value for something sensible'%sig_d)
+        if sig_d >= 0.01:
+            print('deflection std is %.2e amin: this is really too high a value for something sensible'%(sig_d/np.pi * 180 * 60))
         log.info(" Deflection std %.2e amin"%(sig_d / np.pi * 180 * 60))
         self.sig_d = sig_d
         self.dlm = dglm
@@ -366,7 +367,7 @@ class deflection:
             if abs(spin) > 0:
                 lmax = Alm.getlmax(gclm[0].size, mmax)
                 if mmax is None: mmax = lmax
-                return self.geom.alm2map_spin(gclm, 1, lmax, mmax, self.sht_tr, [-1., 1.])
+                return self.geom.alm2map_spin(gclm, spin, lmax, mmax, self.sht_tr, [-1., 1.])
             else:
                 lmax = Alm.getlmax(gclm.size, mmax)
                 if mmax is None: mmax = lmax
@@ -399,6 +400,8 @@ class deflection:
         return lenm
 
     def lensgclm(self, gclm:np.ndarray or list, mmax:int or None, spin, lmax_out, mmax_out:int or None, backwards=False, nomagn=False):
+        if mmax_out is None:
+            mmax_out = lmax_out
         if self.sig_d <= 0: # no actual deflection
             if spin == 0:
                 return alm_copy(gclm, mmax, lmax_out, mmax_out)
