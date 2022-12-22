@@ -25,3 +25,27 @@ For MAP lensing reconstruction, a realization dependent subdirectory :code:`<key
  * a subdirectory :code:`wflms` with the Wiener-filtered lensing potential increments for each iteration and B-lensing templates
  * the QE mean-field :code:`mf.npy`
  * the realization dependend QE lensing potential :code:`phi_plm_it000.npy` (with the normalized QE meanfield-subtracted from it)
+
+
+I propose the following new structure, starting with root,
+
+ * /noisemodel
+
+   * item 
+
+ * /QE
+
+   * mf.npy - rid
+   * plm.npy - rid
+   * /blt - rd
+   * /ivf - rd
+   * /qlm
+
+ * /MAP
+
+   * <idx>
+
+     * wflms
+     * hessian
+     * mf - rd
+     * 
