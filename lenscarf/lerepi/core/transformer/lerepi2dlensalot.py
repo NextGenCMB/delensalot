@@ -1315,7 +1315,6 @@ class l2i_Transformer:
 
 # self.data[component]['nlevel']['fs']['cl_template'][freq]['EB']
             
-
             dl.prediction = dict()
             for key0 in ['N0', 'N1', 'cl_del']:
                 if key0 not in dl.prediction:
