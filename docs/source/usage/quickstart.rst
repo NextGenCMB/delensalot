@@ -22,14 +22,15 @@ Type :code:`python3 lenscarf/run.py [-h]` for quickhelp,
 
 Run D.lensalot
 --------------------
-You can run D.lensalot in two different ways, via a terminal, or 'interactively', e.g. in a notebook.
+
+You can run D.lensalot in two different ways, via a terminal (e.g. to run an analysis), or 'interactively', e.g. in a notebook (to check the results).
 
 
 Terminal Mode
-++++++++++
+++++++++++++++++
 
 
-To run a configutation file :code:`<path-to-config>`, type in your favourite :code:`bash`,
+To run a configutation file `<path-to-config>`, type in your favourite :code:`bash`,
 
 .. code-block:: bash
 
@@ -41,10 +42,13 @@ For example,
 
 .. code-block:: bash
 
-    python3 run.py -p examples/example_c08b.py
+    python3 run.py -p examples/cmbs4_fullsky.py
 
-runs the example configuration for :code:`c08b`.
-This example file runs QE and MAP lensing reconstruction on a CMB-S4 like configuration on the full sky, and generates map delensed power spectra.
+runs the example configuration file :code:`cmbs4_fullsky.py`.
+You may want to open the configuration file to look at its settings, as these are the ones you want to make yourself comfortable with if running D.lensalot.
+
+:code:`cmbs4_fullsky.py` runs QE and MAP lensing reconstruction on a CMB-S4 like configuration on the full sky, i.e. no masking, and generates map delensed power spectra.
+The simulation data used is generated upon runtime, via :code:`data/sims.py`. This is the entry point for the data you want to run D.lensalot on.
 It also calculates the QE and MAP mean-fields along the way.
 Temporary and final results are stored in the :code:`$temp` directory.
 
@@ -64,7 +68,7 @@ If you'd like to know the status of the analysis done with :code:`$path/conf.py`
 
 
 Interactive Mode
-+++++++++++++++++
+++++++++++++++++++++
 
 D.lensalot supports interactive mode, providing direct access to all objects and parameters and step by step execution.
 Check out this `interactive`_ notebook for guidance.
