@@ -1,13 +1,22 @@
-use on NERSC
-=============
+============================
+High Performance Computing
+============================
 
 
-D.lensalot is computationally demanding and therefore needs NERSC.
+D.lensalot is computationally demanding. Depending on your configuration, it may be advisable to use its built-in :code:`MPI`-support.
+D.lensalot will return information upon runtime, if :code:`MPI` is working.
 
-To use D.lensalot on NERSC, you need to load some libraries as well as the GNU compilers (the default ones being Intel), before installing the module.
+In general, D.lensalot distributes the simulations across :code:`MPI`-jobs.
+
+
+NERSC
+------
+
+To use D.lensalot on NERSC, load some libraries as well as the GNU compilers (the default ones being Intel), before installing the module.
 Type these lines in the terminal or include them into your :code:`~/.bash_profile`:
 
 .. code-block:: bash
+    
     module load fftw
     module load gsl
     module load cfitsio

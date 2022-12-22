@@ -192,10 +192,10 @@ class qlm_iterator(object):
         return True
 
 
-    @log_on_start(logging.INFO, "get_template_blm() started: it={it}, calc={calc}")
-    @log_on_end(logging.INFO, "get_template_blm() finished: it={it}")
+    @log_on_start(logging.INFO, "get_template_blm(it={it}, calc={calc}) started")
+    @log_on_end(logging.INFO, "get_template_blm(it={it}) finished")
     def get_template_blm(self, it, it_e, lmaxb=1024, lmin_plm=1, elm_wf:None or np.ndarray=None, dlm_mod=None, calc=False, Nmf=None,
-                         perturbative=False):
+                         perturbative=False, dlm_mod_fnsuffix=''):
         """Builds a template B-mode map with the iterated phi and input elm_wf
 
             Args:
@@ -216,7 +216,7 @@ class qlm_iterator(object):
         cache_cond = (lmin_plm == 1) and (elm_wf is None)
         # TODO this needs a cleaner implementation. Duplicate in map_delenser
         if dlm_mod is not None:
-            dlm_mod_string = '_dlmmod'
+            dlm_mod_string = '_dlmmod{}'.format(dlm_mod_fnsuffix)
         else:
             dlm_mod_string = ''
         if Nmf == None:
@@ -243,7 +243,7 @@ class qlm_iterator(object):
 
         # subtract field from phi
         if dlm_mod is not None:
-            dlm -= dlm_mod
+            dlm = dlm - dlm_mod
         self.hlm2dlm(dlm, inplace=True)
         almxfl(dlm, np.arange(self.lmax_qlm + 1, dtype=int) >= lmin_plm, self.mmax_qlm, True)
         if perturbative: # Applies perturbative remapping
