@@ -15,16 +15,21 @@ class nrstep(object):
         return self.val
 
     def build_incr(self, incrlm, itr):
+        print('incr step val %.5f'%self.val)
         return incrlm * self.val
 
 class harmonicbump(nrstep):
-    def __init__(self, lmax_qlm, mmax_qlm, xa=400, xb=1500, a=0.5, b=0.1, scale=50):
+    def __init__(self, lmax_qlm, mmax_qlm, xa=400, xb=1500, a=0.5, b=0.1, scale=50, flt=None):
         """Harmonic bumpy step that were useful for s06b and s08b
 
         """
         super().__init__(lmax_qlm, mmax_qlm)
+        filt = np.ones(self.lmax_qlm + 1, dtype=float)
+        if flt is not None:
+            filt[:min(len(flt), lmax_qlm+1)] = flt[:min(len(flt), lmax_qlm+1)]
         self.scale = scale
         self.bump_params = (xa, xb, a, b)
+        self.filt = filt
 
     def steplen(self, itr, incrnorm):
         xa, xb, a, b = self.bump_params
@@ -33,7 +38,7 @@ class harmonicbump(nrstep):
 
     def build_incr(self, incrlm, itr):
         fl = self.steplen(itr, incrlm)
-        almxfl(incrlm, fl, self.mmax_qlm, True)
+        almxfl(incrlm, fl * self.filt, self.mmax_qlm, True)
         return incrlm
 
     @staticmethod
