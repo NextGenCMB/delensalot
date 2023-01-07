@@ -1,11 +1,13 @@
+.. _get started:
+
 ============
 Quickstart
 ============
 
-This section discusses how to successfully run your first delensing job. Our final result will be a delensed power spectrum. 
-We provide a minimal working example by delensing simulation data generated at runtime, generate B-lensing templates and find a lensing potential estimate and Wiener-filtered maps.
+This section discusses how to successfully run an iterative lensing reconstruction job and how to calculate a delensed power spectrum from that.
+We provide a minimal working example by delensing simulation data generated at runtime, generate B-lensing templates, calculate a lensing potential estimate and Wiener-filtered maps.
 
-Type :code:`python3 lenscarf/run.py [-h]` for quickhelp,
+Type :code:`python3 dlensalot/run.py [-h]` for help,
 
 .. code-block:: text
     
@@ -23,64 +25,71 @@ Type :code:`python3 lenscarf/run.py [-h]` for quickhelp,
 Run D.lensalot
 --------------------
 
-You can run D.lensalot in two different ways, via a terminal (e.g. to run an analysis), or 'interactively', e.g. in a notebook (to check the results).
+You can run :code:`D.lensalot` in two different ways, via a terminal (e.g. to run an analysis), or 'interactively', e.g. in a notebook (to view results or the analysis parameters).
 
 
 Terminal Mode
 ++++++++++++++++
 
 
-To run a configutation file `<path-to-config>`, type in your favourite :code:`bash`,
+To run a configutation file `<path/to/config.py>`, type in your favourite :code:`bash`,
 
 .. code-block:: bash
 
-    python3 run.py -p <path-to-config>
+    python3 run.py -p <path/to/config.py>
 
-:code:`<path-to-config>` is a relative path, pointing to a config file in :code:`lenscarf/lerepi/config/`.
+:code:`<path/to/config.py>` is a relative path, pointing to a config file in :code:`dlensalot/lerepi/config/`.
 
-For example,
+For example, when inside :code:`D.lensalot`'s root folder, 
 
 .. code-block:: bash
 
     python3 run.py -p examples/cmbs4_fullsky.py
 
 runs the example configuration file :code:`cmbs4_fullsky.py`.
-You may want to open the configuration file to look at its settings, as these are the ones you want to make yourself comfortable with if running D.lensalot.
+You may want to open the configuration file to look at its settings, as these are the ones you want to make yourself comfortable with if running :code:`D.lensalot`.
 
-:code:`cmbs4_fullsky.py` runs QE and MAP lensing reconstruction on a CMB-S4 like configuration on the full sky, i.e. no masking, and generates map delensed power spectra.
-The simulation data used is generated upon runtime, via :code:`data/sims.py`. This is the entry point for the data you want to run D.lensalot on.
-It also calculates the QE and MAP mean-fields along the way.
-Temporary and final results are stored in the :code:`$temp` directory.
-
-If you already have an analysis located at `$path`, with config file `conf.py`, you may resume this analysis with,
+Executing above command copies the configuration file into the :code:`$temp` folder.
+In case the analysis has stopped and you'd like to resume where you left off, simply run your analysis from inside the :code:`$temp` folder with the resume (:code:`-r`) parameter,
 
 .. code-block:: bash
 
-    python3 run.py -r $path/conf.py
+    python3 run.py -r $temp/cmbs4_fullsky.py
 
-This is in particular handy if your run didn't finish, or you would like an additional job to be executed for this analysis.
 
 If you'd like to know the status of the analysis done with :code:`$path/conf.py`, run,
 
 .. code-block:: bash
 
-    python3 run.py -s $path/conf.py
+    python3 run.py -s $temp/cmbs4_fullsky.py
+
+    
+This prints the number of calculated files (Wiener-filtered maps, lensing potentials, ..), per iteration, and for all simulation indices.
+
+
+:code:`cmbs4_fullsky.py` runs QE and MAP lensing reconstruction on a CMB-S4 like configuration on the full sky, i.e. no masking, and generates map delensed power spectra.
+The simulation data is generated upon runtime, via :code:`data/sims.py`,
+and calculates the QE and MAP mean-fields along the way.
+Temporary and final results are stored in the :code:`$temp` directory,
+and we recommend using the 'interactive mode' for accessing them.
+
 
 
 Interactive Mode
 ++++++++++++++++++++
 
-D.lensalot supports interactive mode, providing direct access to all objects and parameters and step by step execution.
+:code:`D.lensalot` supports interactive mode, providing direct access to all objects and parameters and step by step execution.
 Check out this `interactive`_ notebook for guidance.
 
 .. _interactive: https://github.com/NextGenCMB/D.lensalot/blob/main/notebooks/interactive.ipynb
 
-As a minimal working example, run a new analysis with the :code:`map_delensing` job set to :code:`True` as follows,
+As a minimal working example, start a new analysis for :code:`examples/cmbs4_fullsky.py` with the parameter :code:`job_id=map_delensing`,
+
 
 .. code-block:: python
 
-    from lenscarf.run import run
-    my_mapdelensing_job = run(config=<path-to-your-config-file>, job_id='map_delensing').job
+    from dlensalot.run import run
+    my_mapdelensing_job = run(config='examples/cmbs4_fullsky.py', job_id='map_delensing').job
 
 
 :code:`my_mapdelensing_job` contains the D.lensalot model, and all functionalities of the :code:`map_delensing` Job,
@@ -90,26 +99,22 @@ As a minimal working example, run a new analysis with the :code:`map_delensing` 
     my_mapdelensing_job.__dict__.keys()
     >> dict_keys(['data_from_CFS', 'k', 'version', 'imin', 'imax', 'simidxs', 'its', 'Nmf', 'fg', '_package', '_module', '_class', 'class_parameters', 'sims', 'ec', 'nside', 'data_type', 'data_field', 'TEMP', 'libdir_iterators', 'analysis_path', 'base_mask', 'masks', 'binmasks', 'mask_ids', 'beam', 'lmax_transf', 'transf', 'cls_path', 'cls_len', 'clg_templ', 'clc_templ', 'binning', 'lmax', 'lmax_mask', 'edges', 'edges_id', 'sha_edges', 'dirid', 'edges_center', 'ct', 'vers_str', 'TEMP_DELENSED_SPECTRUM', 'dlm_mod_bool', 'file_op', 'cl_calc', 'outdir_plot_rel', 'outdir_plot_root', 'outdir_plot_abs', 'lib', 'jobs'])
 
+We provide an exhaustive list of available jobs and the structure of the D.lensalot model in the :ref:`Configuration Files` section.
 
-And we have access to the simulation data used for this job (here shown an example simulation data)
+To run the analysis, simply execute,
 
 .. code-block:: python
 
-    ana_delensing.sims.__dict__
-    >> {'facunits': 1000000.0,
-    >> 'fg': '00',
-    >> 'path_set1': '/global/cfs/cdirs/cmbs4/awg/lowellbb/reanalysis/foreground_cleaned_maps/08b.00_umilta_210511//cmbs4_08b00_cmb_b02_ellmin30_ellmax4050_map_2048_%04d.fits',
-    >> 'path_noise_set1': '/global/cfs/cdirs/cmbs4/awg/lowellbb/reanalysis/foreground_cleaned_maps/08b.00_umilta_210511//cmbs4_08b00_noise_b02_ellmin30_ellmax4050_map_2048_%04d.fits',
-    >> 'rhitsi': True,
-    >> 'p2mask': '/global/cfs/cdirs/cmbs4/awg/lowellbb/reanalysis/foreground_cleaned_maps/08b.00_umilta_210511//ILC_mask_08b_smooth_30arcmin.fits',
-    >> 'path_set2': '/global/cfs/cdirs/cmbs4/awg/lowellbb/reanalysis/foreground_cleaned_maps/08b.00_umilta_210921//cmbs4_08b00_cmb_b02_ellmin30_ellmax4050_map_2048_%04d.fits',
-    >> 'path_noise_set2': '/global/cfs/cdirs/cmbs4/awg/lowellbb/reanalysis/foreground_cleaned_maps/08b.00_umilta_210921//cmbs4_08b00_noise_b02_ellmin30_ellmax4050_map_2048_%04d.fits'}
+    my_mapdelensing_job.run()
 
-    
-We provide an exhaustive list of available jobs in the :ref:`Configuration Files` section, such as QE lensing reconstruction, MAP lensing reconstruction, and an interactive job helper.
 
-Assess D.lensalot output
----------------------------
+This may take a while.
+Good time to grab a coffee, tea, or drink.
+
+
+View D.lensalot results
+------------------------
+
 
 Depending on your job, you may be interested in the
 
@@ -120,15 +125,18 @@ Depending on your job, you may be interested in the
  * QE or MAP delensed power spectrum.
 
 Which D.lensalot has stored for you at :code:`$temp`.
-We recommend using a dedicated interactive job for this, which can simply be run by running the following line inside your favourite interactive python interface,
+We recommend using a dedicated interactive job for this, and we built a conventient interface to the frequently used outputs.
+If you followed previous section, simply remove the :code:`job_id` parameter,
 
 .. code-block:: python
 
-    from lenscarf.run import run
+    from dlensalot.run import run
     my_dlensalot_results = run(config=<path-to-your-config-file>).job
 
 
-This implicitly runs a :code:`notebook_interactor` job, and provides convenience functions to access the output.
+This provides convenience functions to access the output.
+
+
 Most functions rely on two parameters; :code:`simidx` is the index of the simulation, put :code:`simdix=-1` if you'd like to access your real data.
 :code:`it` is the index of the iteration. Use :code:`it=0` for QE, and :code:`it=-1` for the last iteration, i.e. the MAP result.
 All convencience functions return the data in spherical harmonic coefficients and Healpy-format.
@@ -202,8 +210,6 @@ Simply run the :code:`map_delensing`-job. Then the delensed power spectra with t
 :code:`bcl` has shape :code:`[nit,nmasks,nbins,nsims]`.
 
 
-
-
 Assess D.lensalot analysis
 ---------------------------
 
@@ -212,7 +218,7 @@ To access all variables and functions of a D.lensalot job, simply start an Inter
 
 .. code-block:: python
 
-    from lenscarf.run import run
+    from dlensalot.run import run
     my_dlensalot_job = run(config=<path-to-your-config-file>, job_id=<job-of-my-interest>).job
 
 

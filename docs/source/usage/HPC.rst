@@ -3,10 +3,16 @@ High Performance Computing
 ============================
 
 
-D.lensalot is computationally demanding. Depending on your configuration, it may be advisable to use its built-in :code:`MPI`-support.
-D.lensalot will return information upon runtime, if :code:`MPI` is working.
+D.lensalot is computationally demanding.
+Depending on your configuration, it may be advisable to use its built-in :code:`MPI`-support,
 
-In general, D.lensalot distributes the simulations across :code:`MPI`-jobs.
+In general, D.lensalot distributes simulations across :code:`MPI`-jobs, and will return information about the :code:`MPI`-distribution upon runtime.
+
+To use :code:`MPI`, simply run D.lensalot using slurms :code:`srun` command,
+
+.. code-block:: bash
+
+    srun -n N -c C python3 dlensalot/run.py -p <path/to/config.py>
 
 
 NERSC

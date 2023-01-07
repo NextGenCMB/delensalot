@@ -1,8 +1,8 @@
 .. _Configuration Files:
 
-========================
+====================
 configuration files
-========================
+====================
 
 This section describes how configuration files are structured and used. At the end of this section, you will understand the settings of the example configuration files, know how to modify them for your needs,
 and write a configuration file which uses your very own data.
@@ -19,31 +19,30 @@ Some `example`_ models are provided for different use cases, among them,
 .. _example: https://github.com/NextGenCMB/D.lensalot/tree/main/lenscarf/lerepi/config
 
 
-
 Structure:
 --------------------
 
-A complete Dlensalot model includes the following objects,
+A complete D.lensalot model includes the following objects,
 
 ==================== ===========
         Type         Description
 -------------------- -----------
-    Job              Which jobs to run
-    Analysis         Analysis specific settings
-    Data             Which data to use
+    Job              jobs to run for this analysis
+    Analysis         Analysis settings
+    Data             Data/simulation settings
     Noisemodel       A noisemodel to define the Wiener-filter
-    Qerec            Quadratic estimator lensing reconstruction specific settings
-    Itrec            Iterative delensing lensing reconstruction specific settings
-    Mapdelensing     Delensing specific settings
+    Qerec            Quadratic estimator lensing reconstruction settings
+    Itrec            Iterative lensing reconstruction settings
+    Mapdelensing     Delensing settings
     Config           General configuration
 ==================== ===========
 
-A minimal working configuration file needs a :code:`Job`, :code:`Analysis`, :code:`Data`, :code:`Noisemodel`, and :code:`Config` object.
+A minimal working configuration file includes a :code:`Job`, :code:`Analysis`, :code:`Data`, :code:`Noisemodel`, and :code:`Config` object.
 
 :code:`Job`
 ++++++++++++
 
-* There is a predefined list of Jobs from which the user can choose. Use ``<boolean choice>`` = ``True`` or ``False``,
+* There is a predefined list of jobs from which the user can choose. Use ``<boolean choice>`` = ``True`` or ``False``,
     * build_OBD = <boolean choice>,
     * QE_lensrec = <boolean choice>,
     * MAP_lensrec = <boolean choice>,

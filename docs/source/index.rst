@@ -3,20 +3,21 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-===============================
+======================
 Welcome to D.lensalot
-===============================
+======================
 
-Curved-sky quadratic and iterative CMB lensing tools.
+Curved-sky quadratic and iterative CMB delensing tools.
 
-Lensing reconstruction, B-lensing template generation and power spectrum calculation of (partially) delensed maps.
+Lensing reconstruction, B-lensing template generation and power spectrum calculation of (partially delensed) maps.
 
-
-Includes quadratic estimated and iterative lensing reconstruction on map-level as well as spectrum level.
+Includes quadratic estimated and iterative lensing reconstruction on map-, and spectrum level.
 
 Quadratic estimated lensing reconstruction comes from the built-in interface to `Plancklens`_.
 Iterative lensing reconstruction comes from the curved sky implementation of `LensIt`_.
 D.lensalot is best used via :ref:`Configuration Files`.
+
+If you are new to D.lensalot, go check out how to :ref:`get started`.
 
 
 .. _Plancklens: https://github.com/carronj/plancklens
@@ -37,7 +38,7 @@ Model Configuration
 
 .. toctree::
    :maxdepth: 2
-   :caption: Simple analysis set-up:
+   :caption: Analysis set-up:
 
    config/params
    config/data
@@ -56,7 +57,7 @@ Lensing Reconstruction
    lensrec/MAP
 
 
-Delensing
+Map-level Delensing
 ==========
 
 .. toctree::
@@ -64,21 +65,47 @@ Delensing
    :caption: Internal:
 
    delensing/overview
-   delensing/B-lensing-template
+   delensing/BLT
+
+
+Analytical Prediction
+=====================
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Internal:
+
+   prediction/n0
+   prediction/n1
+   prediction/delensing
+
+
+
+Data Product
+=============
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Internal:
+
+   product/filtered_maps
+   product/phi
+   product/mean-field
+   product/BLT
 
 
 Other
-=============
+=====
 
 .. toctree::
    :maxdepth: 2
    :caption: Removing nuisance:
 
    other/OBD
-   other/other
+   other/input_data
 
 About
-=============
+=======
 
 .. toctree::
    :maxdepth: 2
