@@ -26,15 +26,11 @@ If you are new to D.lensalot, go check out how to :ref:`get started`.
 
 .. toctree::
    :maxdepth: 2
-   :caption: Usage:
+   :caption: First steps:
 
    usage/installation
    usage/quickstart
    usage/HPC
-
-
-Model Configuration
-====================
 
 .. toctree::
    :maxdepth: 2
@@ -43,6 +39,41 @@ Model Configuration
    config/params
    config/data
    config/temp
+
+
+Analytical Prediction
+=====================
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Prediction:
+
+   prediction/n0
+   prediction/n1
+   prediction/delensing
+
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Internal Delensing:
+
+   delensing/overview
+   delensing/B-lensing-template
+
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Product:
+
+   product/products
+
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Removing nuisance:
+
+   other/OBD
+   other/input_data
 
 
 Lensing Reconstruction
@@ -57,62 +88,6 @@ Lensing Reconstruction
    lensrec/MAP
 
 
-Map-level Delensing
-======================
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Internal:
-
-   delensing/overview
-   delensing/B-lensing-template
-
-
-Analytical Prediction
-=====================
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Internal:
-
-   prediction/n0
-   prediction/n1
-   prediction/delensing
-
-
-
-Data Product
-=============
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Internal:
-
-   product/products
-
-
-Other
-=====
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Removing nuisance:
-
-   other/OBD
-   other/input_data
-
-About
-=======
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Framework:
-
-   about/development
-   about/publications
-   about/people
-
-
 Modules
 ==========
 
@@ -121,7 +96,6 @@ Modules
    :caption: API:
    
    modules/modules
-
 
 
 Indices and Tables
