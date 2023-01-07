@@ -1097,8 +1097,9 @@ class l2d_Transformer:
             noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.noisemodel.inf
 
             if ma.masks != None:
+                innermaskid = 10
                 if ma.ringmask:
-                    _innermask = df.get_nlev_mask(2, noisemodel_rhits_map)
+                    _innermask = df.get_nlev_mask(innermaskid, noisemodel_rhits_map)
                 else:
                     _innermask = 0
                 dl.masks = dict({ma.masks[0]:{}})
@@ -1107,7 +1108,7 @@ class l2d_Transformer:
                 if ma.masks[0] == 'nlevels': 
                     for mask_id in dl.mask_ids:
                         buffer = df.get_nlev_mask(mask_id, noisemodel_rhits_map)
-                        if mask_id > 2:
+                        if mask_id > innermaskid:
                             innermask = np.copy(_innermask)
                         else:
                             innermask = 0
