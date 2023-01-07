@@ -9,6 +9,7 @@ The instructions to read the data are provided by a python 'data file', here an 
 and its structure is as follows.
 A :code:`class` which contains the paths to the maps.
 The class must contain the following two :code:`functions` to work for lensing reconstruction: 
+
  * :code:`hashdict()`, return a dictionary describing how to identify the (intermediate) data stored on disk,
  * :code:`<get_sim_map>()`, returns the simulation
 

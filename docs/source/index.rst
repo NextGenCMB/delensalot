@@ -58,14 +58,14 @@ Lensing Reconstruction
 
 
 Map-level Delensing
-==========
+======================
 
 .. toctree::
    :maxdepth: 2
    :caption: Internal:
 
    delensing/overview
-   delensing/BLT
+   delensing/B-lensing-template
 
 
 Analytical Prediction
@@ -88,10 +88,7 @@ Data Product
    :maxdepth: 2
    :caption: Internal:
 
-   product/filtered_maps
-   product/phi
-   product/mean-field
-   product/BLT
+   product/products
 
 
 Other
