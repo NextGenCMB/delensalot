@@ -1431,9 +1431,12 @@ class l2i_Transformer:
             _sims_module = importlib.import_module(_sims_full_name)
             dl.sims = getattr(_sims_module, dl._class)(**dl.class_parameters)
 
-            dl.ec = getattr(_sims_module, 'experiment_config')()
-            dl.ic = getattr(_sims_module, 'ILC_config')()
-            dl.fc = getattr(_sims_module, 'foreground')(dl.fg)
+            if 'experiment_config' in _sims_module.__dict__:
+                dl.ec = getattr(_sims_module, 'experiment_config')()
+            if 'ILC_config' in _sims_module.__dict__:
+                dl.ic = getattr(_sims_module, 'ILC_config')()
+            if 'foreground' in _sims_module.__dict__:
+                dl.fc = getattr(_sims_module, 'foreground')(dl.fg)
             dl.nside = cf.data.nside
 
             dl.beam = da.beam
@@ -1444,6 +1447,7 @@ class l2i_Transformer:
         dl = DLENSALOT_Concept()
         dl.lmax = cf.analysis.lmax_filt
 
+        
         _process_Data(dl, cf.data)
         _process_Madel(dl, cf.madel)
         _process_X(dl)
