@@ -76,11 +76,13 @@ class DLENSALOT_Data(DLENSALOT_Concept):
     """
     IMIN = attr.ib(default=np.nan)
     IMAX = attr.ib(default=np.nan)
+    
     simidxs = attr.ib(default=[])
     class_parameters = attr.ib(default=None)
     package_ = attr.ib(default=None)
     module_ = attr.ib(default=None)
     class_ = attr.ib(default=None)
+    root_path_ = attr.ib(default=None)
     data_type = attr.ib(default=None)
     data_field = attr.ib(default=None)
     beam = attr.ib(default=None)

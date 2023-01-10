@@ -754,12 +754,13 @@ class Map_delenser():
     @log_on_start(logging.INFO, "collect_jobs() started")
     @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self):
-        # TODO perhaps trigger calc of B-templates here, if needed
+        # TODO a valid job is any requested job, as BLTs may also be on CFS
         jobs = []
         for idx in self.simidxs:
-            lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
-            if rec.maxiterdone(lib_dir_iterator) >= self.its[-1]:
-                jobs.append(idx)
+            # lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
+            # if rec.maxiterdone(lib_dir_iterator) >= self.its[-1]:
+            #     jobs.append(idx)
+            jobs.append(idx)
         self.jobs = jobs
 
 
