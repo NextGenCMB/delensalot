@@ -1,7 +1,7 @@
 build/
 lenscarf.egg-info/
-lenscarf/ana/cmbs4/
-lenscarf/ana/pico/
+lenscarf/ana/config/cmbs4/
+lenscarf/ana/config/pico/
 
 ## Fortran gitignore
 # Prerequisites
