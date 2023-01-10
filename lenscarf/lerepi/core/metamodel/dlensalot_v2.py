@@ -21,8 +21,36 @@ class DLENSALOT_Concept:
             _str+="\t{}:\t{}\n".format(k,v)
         return _str
 
+@attr.s
+class DLENSALOT_Chaindescriptor(DLENSALOT_Concept):
+    """A root model element type of the Dlensalot formalism.
 
-# TODO These could become slurm jobs via script using appropriate srun -c XX
+    Attributes:
+        p0: 
+    """
+    p0 = attr.ib(default=0)
+    p1 = attr.ib(default=["diag_cl"])
+    p2 = attr.ib(default=None)
+    p3 = attr.ib(default=2048)
+    p4 = attr.ib(default=np.inf)
+    p5 = attr.ib(default=None)
+    p6 = attr.ib(default='tr_cg')
+    p7 = attr.ib(default='cache_mem')
+
+@attr.s
+class DLENSALOT_Stepper(DLENSALOT_Concept):
+    """A root model element type of the Dlensalot formalism.
+
+    Attributes:
+        typ:
+    """
+    typ = attr.ib(default='harmonicbump')
+    lmax_qlm = attr.ib(default=4000)
+    mmax_qlm = attr.ib(default=4000)
+    xa = attr.ib(default=400)
+    xb = attr.ib(default=1500)
+
+    
 @attr.s
 class DLENSALOT_Job(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
@@ -30,12 +58,12 @@ class DLENSALOT_Job(DLENSALOT_Concept):
     Attributes:
         QE_lensrec:
     """
-    QE_lensrec = attr.ib(default=-1)
-    MAP_lensrec = attr.ib(default=-1)
-    inspect_result = attr.ib(default=-1)
-    map_delensing = attr.ib(default=-1)
-    build_OBD = attr.ib(default=-1)
-    OMP_NUM_THREADS = attr.ib(default=-1)
+    QE_lensrec = attr.ib(default=False)
+    MAP_lensrec = attr.ib(default=False)
+    inspect_result = attr.ib(default=False)
+    map_delensing = attr.ib(default=False)
+    build_OBD = attr.ib(default=False)
+    OMP_NUM_THREADS = attr.ib(default=False)
 
 
 @attr.s
@@ -48,7 +76,7 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     TEMP_suffix = attr.ib(default=None)
 
     K = attr.ib(default=np.nan)
-    V = attr.ib(default=np.nan)
+    V = attr.ib(default='')
     ITMAX = attr.ib(default=np.nan)
     simidxs_mf = attr.ib(default=[])
     LENSRES = attr.ib(default=np.nan)
@@ -101,7 +129,7 @@ class DLENSALOT_Noisemodel(DLENSALOT_Concept):
     BMARG_LIBDIR = attr.ib(default=None)
     BMARG_LCUT = attr.ib(default=None)
     BMARG_RESCALE = attr.ib(default=None)
-    ninvjob_geometry = attr.ib(default=None)
+    ninvjob_geometry = attr.ib(default='healpix_geometry')
     lmin_tlm = attr.ib(default=np.nan)
     lmin_elm = attr.ib(default=np.nan)
     lmin_blm = attr.ib(default=np.nan)
@@ -125,10 +153,10 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     ivfs = attr.ib(default=None)
     qlms = attr.ib(default=None)
     cg_tol = attr.ib(default=np.nan)
-    ninvjob_qe_geometry = attr.ib(default=None)
+    ninvjob_qe_geometry = attr.ib(default='healpix_geometry_qe')
     lmax_qlm = attr.ib(default=np.nan)
     mmax_qlm = attr.ib(default=np.nan)
-    chain = attr.ib(default=None)
+    chain = attr.ib(default=DLENSALOT_Chaindescriptor())
     tasks = attr.ib(default=None)
     QE_LENSING_CL_ANALYSIS = attr.ib(default=False)
     overwrite_libdir = attr.ib(default=None)
@@ -143,12 +171,12 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     """
     filter = attr.ib(default=None)
     cg_tol = attr.ib(default=np.nan)
-    lenjob_geometry = attr.ib(default=None)
-    lenjob_pbgeometry = attr.ib(default=None)
+    lenjob_geometry = attr.ib(default='thin_gauss')
+    lenjob_pbgeometry = attr.ib(default='pbdGeometry')
     iterator_typ = attr.ib(default=None)
     mfvar = attr.ib(default=None)
-    soltn_cond = attr.ib(default=None)
-    stepper = attr.ib(default=None)
+    soltn_cond = attr.ib(default=lambda it: True)
+    stepper = attr.ib(default=DLENSALOT_Stepper())
     overwrite_itdir = attr.ib(default=None)
     tasks = attr.ib(default=None)
     btemplate_perturbative_lensremap = attr.ib(default=False)
@@ -175,37 +203,6 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
     spectrum_calculator = attr.ib(default=None)
     data_from_CFS = attr.ib(default=False)
     btemplate_perturbative_lensremap = attr.ib(default=False)
-
-
-@attr.s
-class DLENSALOT_Chaindescriptor(DLENSALOT_Concept):
-    """A root model element type of the Dlensalot formalism.
-
-    Attributes:
-        p0: 
-    """
-    p0 = attr.ib(default=-1)
-    p1 = attr.ib(default=-1)
-    p2 = attr.ib(default=-1)
-    p3 = attr.ib(default=-1)
-    p4 = attr.ib(default=-1)
-    p5 = attr.ib(default=-1)
-    p6 = attr.ib(default=-1)
-    p7 = attr.ib(default=-1)
-
-
-@attr.s
-class DLENSALOT_Stepper(DLENSALOT_Concept):
-    """A root model element type of the Dlensalot formalism.
-
-    Attributes:
-        typ:
-    """
-    typ = attr.ib(default=-1)
-    lmax_qlm = attr.ib(default=-1)
-    mmax_qlm = attr.ib(default=-1)
-    xa = attr.ib(default=-1)
-    xb = attr.ib(default=-1)
 
 
 @attr.s
