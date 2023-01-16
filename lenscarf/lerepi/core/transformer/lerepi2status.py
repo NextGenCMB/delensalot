@@ -20,24 +20,6 @@ from lenscarf.lerepi.core.metamodel.dlensalot_v2 import DLENSALOT_Model as DLENS
 
 
 class l2s_Transformer:
-    @log_on_start(logging.INFO, "build() started")
-    @log_on_end(logging.INFO, "build() finished")
-    def build(self, cf):
-        def _process_Status(dl):
-            dl.__dict__.update(cf.__dict__)
-            dl.analysispath = l2T_Transformer().build(cf)
-            dl.itmax = cf.iteration.ITMAX
-            dl.version = cf.iteration.V
-            dl.imax = cf.iteration.IMAX
-
-        # TODO build list of files to be checked
-        # build list of modifiers to test the files against, as in version, itmax, mf, ..
-
-        dl = DLENSALOT_Concept()
-        _process_Status(dl)
-
-        
-        return dl
 
     @log_on_start(logging.INFO, "build() started")
     @log_on_end(logging.INFO, "build() finished")
@@ -59,7 +41,7 @@ class l2s_Transformer:
 class l2j_Transformer:
     """Extracts parameters needed for the specific D.Lensalot jobs
     """
-    def build(self, cf):
+    def build_v2(self, cf):
         def _process_Jobs(jobs):
             jobs.append({"report":((cf, l2s_Transformer()), sr.analysisreport)})
 
@@ -71,8 +53,8 @@ class l2j_Transformer:
 
 @transform.case(DLENSALOT_Model, l2j_Transformer)
 def f0(expr, transformer): # pylint: disable=missing-function-docstring
-    return transformer.build(expr)
+    return transformer.build_v2(expr)
 
 @transform.case(DLENSALOT_Model, l2s_Transformer)
 def f1(expr, transformer): # pylint: disable=missing-function-docstring
-    return transformer.build(expr)
+    return transformer.build_v2(expr)

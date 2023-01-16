@@ -159,7 +159,7 @@ def alm_copy(alm, mmaxin:int or None, lmaxout:int, mmaxout:int):
     if (lmaxin == lmaxout) and (mmaxin == mmaxout):
         ret = np.copy(alm)
     else:
-        ret = np.zeros(Alm.getsize(lmaxout, mmaxout), dtype=np.complex)
+        ret = np.zeros(Alm.getsize(lmaxout, mmaxout), dtype=complex)
         lmax_min = min(lmaxout, lmaxin)
         for m in range(0, min(mmaxout, mmaxin) + 1):
             idx_in =  m * (2 * lmaxin + 1 - m) // 2 + m

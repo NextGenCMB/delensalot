@@ -160,15 +160,18 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
         DLENSALOT_Concept (_type_): _description_
     """
     edges = attr.ib(default=-1)
-    dlm_mod = attr.ib(default=False)
+    dlm_mod = attr.ib(default=[False,''])
+    simidxs_mblt = attr.ib(default=[])
+    subtract_mblt = attr.ib(default=[None, None])
     iterations = attr.ib(default=-1)
     masks = attr.ib(default=None)
+    ringmask = attr.ib(default=False)
     lmax = attr.ib(default=-1)
     Cl_fid = attr.ib(default=-1)
     libdir_it = attr.ib(default=None)
     binning = attr.ib(default=-1)
     spectrum_calculator = attr.ib(default=None)
-    data_from_CFS = attr.ib(default=True)
+    data_from_CFS = attr.ib(default=False)
     btemplate_perturbative_lensremap = attr.ib(default=False)
 
 

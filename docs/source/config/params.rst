@@ -1,7 +1,8 @@
 .. _Configuration Files:
 
+========================
 configuration files
-===============================
+========================
 
 All analysis details can be put into a structured, human-readable metamodel.
 D.lensalot interprets this metamodel and executes the chosen Jobs with the chosen configuration.

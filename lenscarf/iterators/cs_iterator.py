@@ -192,15 +192,15 @@ class qlm_iterator(object):
         return True
 
 
-    @log_on_start(logging.INFO, "get_template_blm() started: it={it}, calc={calc}")
-    @log_on_end(logging.INFO, "get_template_blm() finished: it={it}")
+    @log_on_start(logging.INFO, "get_template_blm(it={it}, calc={calc}) started")
+    @log_on_end(logging.INFO, "get_template_blm(it={it}) finished")
     def get_template_blm(self, it, it_e, lmaxb=1024, lmin_plm=1, elm_wf:None or np.ndarray=None, dlm_mod=None, calc=False, Nmf=None,
-                         perturbative=False):
+                         perturbative=False, dlm_mod_fnsuffix=''):
         """Builds a template B-mode map with the iterated phi and input elm_wf
 
             Args:
                 it: iteration index of lensing tracer
-                it_e: iteration index of E-tracer
+                it_e: iteration index of E-tracer (use it_e = it + 1 for matching lensing and E-templates)
                 elm_wf: Wiener-filtered E-mode (healpy alm array), if not an iterated solution (it_e will ignored if set)
                 lmin_plm: the lensing tracer is zeroed below lmin_plm
                 lmaxb: the B-template is calculated up to lmaxb (defaults to lmax elm_wf)
@@ -216,7 +216,7 @@ class qlm_iterator(object):
         cache_cond = (lmin_plm == 1) and (elm_wf is None)
         # TODO this needs a cleaner implementation. Duplicate in map_delenser
         if dlm_mod is not None:
-            dlm_mod_string = '_dlmmod'
+            dlm_mod_string = '_dlmmod{}'.format(dlm_mod_fnsuffix)
         else:
             dlm_mod_string = ''
         if Nmf == None:
@@ -243,7 +243,7 @@ class qlm_iterator(object):
 
         # subtract field from phi
         if dlm_mod is not None:
-            dlm -= dlm_mod
+            dlm = dlm - dlm_mod
         self.hlm2dlm(dlm, inplace=True)
         almxfl(dlm, np.arange(self.lmax_qlm + 1, dtype=int) >= lmin_plm, self.mmax_qlm, True)
         if perturbative: # Applies perturbative remapping
@@ -261,6 +261,38 @@ class qlm_iterator(object):
         if cache_cond:
             self.wf_cacher.cache(fn, blm)
         return blm
+
+
+    def get_lik(self, itr, cache=False):
+        """Returns the components of -2 ln p where ln p is the approximation to the posterior"""
+        #FIXME: hack, this assumes this is the no-BB pol iterator 'iso' lik with no mf.  In general the needed map is the filter's file calc_prep output
+        fn = 'lik_itr%04d'%itr
+        if not self.cacher.is_cached(fn):
+            e_fname = 'wflm_%s_it%s' % ('p', itr)
+            assert self.wf_cacher.is_cached(e_fname), 'cant do lik, Wiener-filtered delensed CMB not available'
+            elm_wf = self.wf_cacher.load(e_fname)
+            self.filter.set_ffi(self._get_ffi(itr))
+            elm = self.opfilt.calc_prep(read_map(self.dat_maps), self.cls_filt, self.filter)
+            l2p = 2 * np.arange(self.filter.lmax_sol + 1) + 1
+            lik_qd = -np.sum(l2p * alm2cl(elm_wf, elm, self.filter.lmax_sol, self.filter.mmax_sol, self.filter.lmax_sol))
+            # quadratic cst term : (X^d N^{-1} X^d)
+            dat_copy = np.copy(read_map(self.dat_maps))
+            self.filter.apply_map(dat_copy)
+            # This only works for 'eb iso' type filters...
+            l2p = 2 * np.arange(self.filter.lmax_len + 1) + 1
+            lik_qdcst  = np.sum(l2p * alm2cl(dat_copy[0], self.dat_maps[0], self.filter.lmax_len, self.filter.mmax_len, self.filter.lmax_len))
+            lik_qdcst += np.sum(l2p * alm2cl(dat_copy[1], self.dat_maps[1], self.filter.lmax_len, self.filter.mmax_len, self.filter.lmax_len))
+            # Prior term
+            hlm = self.get_hlm(itr, 'p')
+            chh = alm2cl(hlm, hlm, self.lmax_qlm, self.mmax_qlm, self.lmax_qlm)
+            l2p = 2 * np.arange(self.lmax_qlm + 1) + 1
+            lik_pri = np.sum(l2p * chh * cli(self.chh))
+            # det part
+            lik_det = 0. # assumed constant here, should fix this for simple cases like constant MFs
+            if cache:
+                self.cacher.cache(fn, np.array([lik_qdcst, lik_qd, lik_det, lik_pri]))
+            return  np.array([lik_qdcst, lik_qd, lik_det, lik_pri])
+        return self.cacher.load(fn)
 
     def _get_ffi(self, itr):
         dlm = self.get_hlm(itr, 'p')

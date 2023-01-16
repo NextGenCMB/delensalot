@@ -1,6 +1,8 @@
 from logging import handlers
 import os, sys
 
+from os.path import join as opj
+
 import logging
 from logdecorator import log_on_start, log_on_end
 log = logging.getLogger(__name__)
@@ -53,6 +55,9 @@ class analysisreport:
         qlms_dd_ct = 0
         for idx in self.jobs:
             for dirpath, dirnames, filenames in os.walk(self.analysispath):
+                for fn in filenames:
+                    with open(opj(dirpath,fn), 'r', encoding = 'latin1') as f:
+                        first_line = f.readline(0)
                 if dirpath.endswith('qlms_dd'):
                     qlms_dd_ct += len([filename for filename in filenames if filename.startswith("sim_p_p")])
         log.info("qlms:")
