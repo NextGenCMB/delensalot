@@ -254,3 +254,24 @@ class cmb_len_ffp10_wcurl(cmb_len_ffp10):
             utils_hp.almxfl(dlm, p2d, mmax_dlm, inplace=True)
             utils_hp.almxfl(dclm, p2d, mmax_dlm, inplace=True)
             return dlm, dclm, lmax_dlm, mmax_dlm
+
+
+
+class cmb_len_ffp10_shuffle_dlm(cmb_len_ffp10):
+    def __init__(self, dlm_idxs:dict={}, aberration:tuple[float, float, float]or None=None, lmin_dlm=0, cacher:cachers.cacher or None=None,
+                       lmax_thingauss:int=5120, nbands:int=1, targetres=0.75, verbose:bool=False):
+
+        r"""Library of simulations with remaped the defelection field indice.
+            Useful for MC-N1 computations.
+
+            Args:
+                dlm_idxs : index idx of this instance points to a sim with defelection field index idxs[idx] but CMB fields index idx
+        """
+
+        super(cmb_len_ffp10_shuffle_dlm, self).__init__(aberration=aberration, lmin_dlm=lmin_dlm, cacher=cacher,
+                       lmax_thingauss=lmax_thingauss, nbands=nbands, targetres=targetres, verbose=verbose)
+        self.dlm_idxs = dlm_idxs
+
+    def _get_dlm(self, idx):
+        assert idx in self.dlm_idxs.keys(), f"Index {idx} is not assigned in the dlm_idxs remapping"
+        return super(cmb_len_ffp10_shuffle_dlm, self)._get_dlm(self.dlm_idxs[idx])
