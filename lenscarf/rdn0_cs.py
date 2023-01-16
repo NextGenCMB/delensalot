@@ -99,7 +99,7 @@ def ss_ds_QE(libdir, parfile, datidx):
     return GG
 
 
-def get_rdn0_qe(param, datidx, qe_key,  Ndatasims, Nmcsims, Nroll, version='', recache=False):
+def get_rdn0_qe(param, datidx, qe_key, Ndatasims=40, Nmcsims=100, Nroll=10, version='', recache=False):
     """Returns unormalised realization-dependent N0 lensing bias RDN0.
 
         Args:
@@ -170,7 +170,7 @@ def get_rdn0_qe(param, datidx, qe_key,  Ndatasims, Nmcsims, Nroll, version='', r
     return rdn0, ds, ss
 
 
-def get_mcn1_qe(param, qe_key,  Ndatasims, Nmcsims, Nroll, version=''):
+def get_mcn1_qe(param, qe_key,  Ndatasims=40, Nmcsims=100, Nroll=10, version=''):
     """Compute mc-N1, using pairs of sims with the same lensing potential phi"""
 
     mcs = np.arange(Ndatasims, Nmcsims+Ndatasims)
