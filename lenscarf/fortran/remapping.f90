@@ -28,16 +28,17 @@ module bicubic
             cubicfilter = (c0 * w0 + c1 * w1 + c2 * w2 + c3 * w3) * 0.16666666666666666d0
         end
 
-        double precision function eval(ftl_map, fx, fy)
+        double precision function eval(ftl_map, fx, fy, nx, ny)
             ! nx : second dimension of array
             ! ny : first dimension of array
+            ! This is inconsistent notation!
             implicit none
-            double precision, intent(in) :: ftl_map(0:,0:), fx, fy
+            double precision, intent(in) :: ftl_map(0:ny-1,0:nx-1), fx, fy
             double precision gx, gy
             integer px, py, nx, ny
             !tex2d2 = ftl_map(modulo(i, ny),modulo(j,  nx))
-            nx = size(ftl_map, 2)
-            ny = size(ftl_map, 1)
+            !nx = size(ftl_map, 2)
+            !ny = size(ftl_map, 1)
             px = floor(fx)
             py = floor(fy)
             gx = fx - px
@@ -168,8 +169,8 @@ module remapping
 
         ft = (tht - tht0) * t2grid
         fp = modulo(phi - phi0, PI2) * p2grid
-        redi = -eval(ref, ft, fp) ! Starting point is -red -i imd
-        imdi = -eval(imf, ft, fp)
+        redi = -eval(ref, ft, fp, np_f, nt_f) ! Starting point is -red -i imd
+        imdi = -eval(imf, ft, fp, np_f, nt_f)
         maxres = 10.
         itr = 0
         tol = max(TOLAMIN / 180 / 60 * DPI, 1d-15)
@@ -178,8 +179,8 @@ module remapping
             call d2ang(redi, imdi, tht, phi, thti, phii)
             ft = (thti - tht0) * t2grid
             fp =  modulo(phii - phi0, PI2) * p2grid
-            red = eval(ref, ft, fp)
-            imd = eval(imf, ft, fp)
+            red = eval(ref, ft, fp, np_f, nt_f)
+            imd = eval(imf, ft, fp, np_f, nt_f)
             call d2ang(red, imd, thti, phii, thtn, phin)
             call ang2d(thtn, tht, phin - phi, re_res, im_res) ! residual deflection field
             maxres = dsqrt(re_res * re_res + im_res * im_res)
