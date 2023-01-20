@@ -38,3 +38,6 @@ jobs:
       - name: test
         run: |
           python ./tests/test_Mi.py
+      - name: testlensing
+        run: |
+          python ./tests/test_lensing.py
