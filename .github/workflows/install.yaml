@@ -23,3 +23,6 @@ jobs:
       - name: Install
         run: |
           pip install -e . --user
+      - name: test
+        run: |
+          python ./tests/test_Mi.py
