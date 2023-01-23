@@ -160,9 +160,9 @@ module remapping
         double precision, intent(in) :: phi, ref(nt_f, np_f), imf(nt_f, np_f)
         double precision, intent(out) :: thti, phii, redi, imdi
         integer, intent(in) :: nt_f, np_f
-        double precision x, y, xi, yi, xn, yn, maxres
+        double precision maxres
         double precision thtn, phin
-        double precision red, imd, re_res, im_res, cosp, sinp, tol
+        double precision red, imd, re_res, im_res, tol
         double precision ft, fp ! tht and phi deflection in grid units
         double precision :: PI2 = DPI * 2
         integer itr
@@ -189,7 +189,7 @@ module remapping
         end do
         if (itr > itrmax) then
             write(*, *) 'redi, imdi solver failed (maxres, itmax)', maxres, itrmax
-            write(*, *),' at tht phi (in deg) ', tht / DPI * 180, phi / DPI * 180
+            write(*, *) ' at tht phi (in deg) ', tht / DPI * 180, phi / DPI * 180
             !if (maxres > 1d-5) then !FIXME: what to do with this?
             !    error stop
             !end if
