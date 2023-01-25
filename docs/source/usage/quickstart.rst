@@ -147,17 +147,17 @@ All convencience functions return the data in spherical harmonic coefficients an
     QE_lensing_potential = my_dlensalot_results.load_plm(simidx=0, it=0)
     MAP_lensing_potential = my_dlensalot_results.load_plm(simidx=0, it=-1)
 
-    QE_mean_field = my_dlensalot_results.load_mf(simidx=0)
-    MAP_mean_field = my_dlensalot_results.load_mf(simidx=0)
+    QE_mean_field = my_dlensalot_results.load_mf(simidx=0, it=0)
+    MAP_mean_field = my_dlensalot_results.load_mf(simidx=0, it=-1)
 
     QE_Blensing_template = my_dlensalot_results.get_blt(simidx=0, it=0)
     MAP_Blensing_template = my_dlensalot_results.get_blt(simidx=0, it=-1)
 
-    QE_Eivf = my_dlensalot_results.get_ivf('E', simidx=0, it=0)
-    MAP_Eivf = my_dlensalot_results.get_ivf('E', simidx=0, it=-1)
+    QE_Eivf = my_dlensalot_results.get_ivf(simidx=0, it=0, 'E')
+    MAP_Eivf = my_dlensalot_results.get_ivf(simidx=0, it=-1, 'E')
 
-    QE_EWF = my_dlensalot_results.get_wf('E', simidx=0, it=0)
-    MAP_EWF = my_dlensalot_results.get_wf('E', simidx=0, it=-1)
+    QE_EWF = my_dlensalot_results.get_wf(simidx=0, it=0, 'E')
+    MAP_EWF = my_dlensalot_results.get_wf(simidx=0, it=-1, 'E')
 
     MAP_Blensing_template = my_dlensalot_results.get_blt(simidx=0, it=-1)
     MAP_Blensing_template = my_dlensalot_results.get_blt(simidx=0, it=-1)
@@ -194,9 +194,9 @@ To calculate delensed maps, simply subtract one from the other.
 
 .. code-block:: python
 
-    fiducial_map = my_dlensalot_results.get_fiducial_map()
+    fiducial_map = my_dlensalot_results.get_fiducial_lm()
     MAP_Blensing_template = my_dlensalot_results.get_blt(simidx=0, it=-1)
-    MAP_delensed_map = fiducial_map - MAP_Blensing_template
+    MAP_delensed_map = fiducial_lm - MAP_Blensing_template
 
 
 If you are working on a masked sky, calculating the power spectrum of this would involve using algoirhtms which handle the mode-coupling. D.lensalot comes with its own implementation for it.

@@ -83,6 +83,11 @@ class Basejob():
     def get_blt(self, simidx, it):
 
         return None
+    
+
+    def get_fiducial_lm(self, simidx):
+
+        return None
 
 
 
