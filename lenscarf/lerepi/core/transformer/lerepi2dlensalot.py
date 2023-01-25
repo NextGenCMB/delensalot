@@ -49,7 +49,6 @@ class l2T_Transformer:
         _type_: _description_
     """
 
-
     # @log_on_start(logging.INFO, "build_v2() started")
     # @log_on_end(logging.INFO, "build_v2() finished")
     def build_v2(self, cf):
