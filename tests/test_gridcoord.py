@@ -1,11 +1,11 @@
 from plancklens import utils
-from lenscarf.utils_scarf import Geom
+from dlensalot.utils_scarf import Geom
 import numpy as np
-import lenscarf
-from lenscarf import utils_scarf as sj
+import dlensalot
+from dlensalot import utils_scarf as sj
 import pylab as pl
-from lenscarf import utils_scarf
-from lenscarf import cachers, remapping
+from dlensalot import utils_scarf
+from dlensalot import cachers, remapping
 from plancklens.utils import camb_clfile
 lmax = 3000
 clee = camb_clfile('../lenscarf/data/cls/FFP10_wdipole_lensedCls.dat')['ee'][:lmax + 1]

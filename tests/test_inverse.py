@@ -1,9 +1,9 @@
-from lenscarf import cachers, remapping
-from lenscarf.utils_scarf import Geom, scarfjob
+from dlensalot import cachers, remapping
+from dlensalot.utils_scarf import Geom, scarfjob
 import numpy as np
-from lenscarf import utils_scarf as sj
+from dlensalot import utils_scarf as sj
 import healpy as hp
-from lenscarf.utils_remapping import d2ang, ang2d
+from dlensalot.utils_remapping import d2ang, ang2d
 
 from plancklens.utils import camb_clfile
 

@@ -2,13 +2,13 @@ import numpy as np
 import os
 from time import time
 import scarf
-from lenscarf import remapping
-from lenscarf import utils_config, utils_hp, utils, utils_sht, utils_scarf
-from lenscarf import cachers
-from lenscarf.opfilt import opfilt_ee_wl, opfilt_pp
-from lenscarf.utils_scarf import Geom, scarfjob, pbdGeometry, pbounds
+from dlensalot import remapping
+from dlensalot import utils_config, utils_hp, utils, utils_sht, utils_scarf
+from dlensalot import cachers
+from dlensalot.opfilt import opfilt_ee_wl, opfilt_pp
+from dlensalot.utils_scarf import Geom, scarfjob, pbdGeometry, pbounds
 from plancklens.utils import camb_clfile
-from lenscarf import qest_wl
+from dlensalot import qest_wl
 # FIXME: qest_wl part of opfilt
 # FIXME: make opfilt classes instead of files?
 # FIXME: fix multigrid always assuming mmax=lmax

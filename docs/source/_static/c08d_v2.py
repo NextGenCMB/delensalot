@@ -1,6 +1,6 @@
 import numpy as np
 
-from lenscarf.lerepi.core.metamodel.dlensalot_v2 import *
+from dlensalot.lerepi.core.metamodel.dlensalot_v2 import *
 from MSC import pospace
 
 dlensalot_model = DLENSALOT_Model(

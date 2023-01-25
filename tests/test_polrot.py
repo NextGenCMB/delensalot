@@ -1,6 +1,6 @@
 import numpy as np
-from lenscarf import utils_hp, remapping, cachers
-from lenscarf.utils_scarf import pbdGeometry, pbounds, scarfjob, Geom
+from dlensalot import utils_hp, remapping, cachers
+from dlensalot.utils_scarf import pbdGeometry, pbounds, scarfjob, Geom
 from plancklens.utils import camb_clfile
 
 def phase_approx(d:remapping.deflection):

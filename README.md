@@ -1,4 +1,7 @@
 ![D.lensalot logo](res/dlensalot2.PNG)
+.. image:: https://mybinder.org/badge_logo.svg
+ :target: https://mybinder.org/v2/gh/NextGenCMB/D.lensalot/blob/sv3/notebooks/examples/interactive_mwe.ipynb/main?urlpath=https%3A%2F%2Fgithub.com%2FNextGenCMB%2FD.lensalot%2Fblob%2Fsv3%2Fnotebooks%2Fexamples%2Finteractive_mwe.ipynb
+ 
 # D.Lensalot 
 (formerly known as Lenscarf)
 Curved-sky iterative CMB lensing tools

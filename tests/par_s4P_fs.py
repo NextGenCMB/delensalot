@@ -4,26 +4,26 @@
 """
 
 
-from lenscarf.iterators import cs_iterator as scarf_iterator, steps
+from dlensalot.iterators import cs_iterator as scarf_iterator, steps
 
 from plancklens.qcinv import cd_solve
 import plancklens
 
-from lenscarf import remapping
+from dlensalot import remapping
 
 import numpy as np
 import os
 from os.path import join as opj
 from plancklens import utils, qresp
-from lenscarf.utils import cli
-from lenscarf.utils_hp import gauss_beam, almxfl, synalm, alm_copy
-from lenscarf.opfilt.opfilt_iso_tt_wl import alm_filter_nlev_wl as tt_filt
-from lenscarf.opfilt.opfilt_iso_ee_wl import alm_filter_nlev_wl as ee_filt
-from lenscarf.opfilt.opfilt_iso_tt import alm_filter_nlev as tt_isofilt
-from lenscarf.opfilt.opfilt_iso_pp import alm_filter_nlev as pp_isofilt
+from dlensalot.utils import cli
+from dlensalot.utils_hp import gauss_beam, almxfl, synalm, alm_copy
+from dlensalot.opfilt.opfilt_iso_tt_wl import alm_filter_nlev_wl as tt_filt
+from dlensalot.opfilt.opfilt_iso_ee_wl import alm_filter_nlev_wl as ee_filt
+from dlensalot.opfilt.opfilt_iso_tt import alm_filter_nlev as tt_isofilt
+from dlensalot.opfilt.opfilt_iso_pp import alm_filter_nlev as pp_isofilt
 
 
-from lenscarf import utils_scarf
+from dlensalot import utils_scarf
 
 suffix = 's4P_fs' # descriptor to distinguish this parfile from others...
 TEMP =  opj(os.environ['SCRATCH'], 'lenscarfrecs', suffix)
@@ -139,7 +139,7 @@ if __name__ == '__main__':
     tol_iter = lambda it : 10 ** (- args.tol)
     soltn_cond = lambda it: True
 
-    from lenscarf.core import mpi
+    from dlensalot.core import mpi
     mpi.barrier = lambda : 1 # redefining the barrier
     from itercurv.iterators.statics import rec as Rec
     jobs = []

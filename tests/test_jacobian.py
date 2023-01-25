@@ -1,7 +1,7 @@
 import numpy as np
 import pylab as pl
-from lenscarf import utils_hp, remapping, cachers, utils_scarf, utils_dlm, utils_remapping
-from lenscarf.utils_scarf import pbdGeometry, pbounds, scarfjob, Geom
+from dlensalot import utils_hp, remapping, cachers, utils_scarf, utils_dlm, utils_remapping
+from dlensalot.utils_scarf import pbdGeometry, pbounds, scarfjob, Geom
 from plancklens.utils import camb_clfile, cli
 from scipy.special import spherical_jn
 

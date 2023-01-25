@@ -1,6 +1,6 @@
-from lenscarf import cachers, remapping
+from dlensalot import cachers, remapping
 import numpy as np
-from lenscarf import utils_scarf as sj
+from dlensalot import utils_scarf as sj
 import healpy as hp
 
 from plancklens.utils import camb_clfile

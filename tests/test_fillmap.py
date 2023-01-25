@@ -1,9 +1,9 @@
 import numpy as np
 import time
-from lenscarf import utils_hp, remapping, cachers
-from lenscarf.utils_scarf import pbdGeometry, pbounds, scarfjob, Geom
+from dlensalot import utils_hp, remapping, cachers
+from dlensalot.utils_scarf import pbdGeometry, pbounds, scarfjob, Geom
 from plancklens.utils import camb_clfile
-from lenscarf.utils_remapping import d2ang, ang2d
+from dlensalot.utils_remapping import d2ang, ang2d
 
 
 def func_fwdangle(red, imd, tht, cost, sint, phis):

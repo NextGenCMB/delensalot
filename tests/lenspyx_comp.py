@@ -1,7 +1,7 @@
 from lenspyx.shts import shts as lpyx_shts, fsht
 from itercurv import utils_shts as usht
-from lenscarf.utils import timer
-from lenscarf.utils_hp import Alm
+from dlensalot.utils import timer
+from dlensalot.utils_hp import Alm
 from lenspyx.bicubic import bicubic as lpyx_bicubic
 
 def lensgclm_band_lpyx(thts, nphi, spin, dx, dy, glm, clm=None):

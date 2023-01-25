@@ -1,8 +1,8 @@
 import numpy as np
-import lenscarf
-from lenscarf import utils_scarf as sj
+import dlensalot
+from dlensalot import utils_scarf as sj
 import pylab as pl
-from lenscarf import utils_scarf
+from dlensalot import utils_scarf
 
 
 
