@@ -30,7 +30,63 @@ from lenscarf.iterators import iteration_handler
 from lenscarf.opfilt.bmodes_ninv import template_bfilt
 
 
-class Notebook_interactor():
+class Basejob():
+    """
+    Base class for all jobs, i.e. convenience functions go in here as they should be accessible from anywhere
+    """
+
+    def __init__(self, qe, model):
+
+        assert 0, "Implement if needed"
+
+
+    @log_on_start(logging.INFO, "collect_jobs() started")
+    @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
+    def collect_jobs(self):
+
+        assert 0, "Implement if needed"
+
+
+    @log_on_start(logging.INFO, "collect_jobs() started")
+    @log_on_end(logging.INFO, "collect_jobs() finished")
+    def run(self):
+
+        assert 0, "Implement if needed"
+
+
+
+    def load_plm(self, simidx, it):
+
+        return None
+
+
+    def load_mf(self, simidx, it):
+
+        return None
+
+
+    def get_blt(self, simidx, it):
+
+        return None
+
+
+    def get_ivf(self, simidx, it, field):
+
+        return None
+
+
+    def get_wf(self, simidx, it, field):
+
+        return None
+
+
+    def get_blt(self, simidx, it):
+
+        return None
+
+
+
+class Notebook_interactor(Basejob):
     '''
     Interface for notebooks,
      * load per-freq fg/noise/ maps/alms,
@@ -233,7 +289,7 @@ class Notebook_interactor():
         return None
 
         
-class OBD_builder():
+class OBD_builder(Basejob):
     def __init__(self, OBD_model):
         self.__dict__.update(OBD_model.__dict__)
 
@@ -267,7 +323,7 @@ class OBD_builder():
         mpi.barrier()
 
 
-class QE_lr():
+class QE_lr(Basejob):
     def __init__(self, dlensalot_model):
         self.__dict__.update(dlensalot_model.__dict__)
         self.dlensalot_model = dlensalot_model
@@ -476,7 +532,7 @@ class QE_lr():
         itlib_iterator.get_template_blm(0, 0, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, calc=calc, Nmf=self.Nmf, perturbative=self.btemplate_perturbative_lensremap)
 
 
-class MAP_lr():
+class MAP_lr(Basejob):
     def __init__(self, dlensalot_model):
         self.__dict__.update(dlensalot_model.__dict__)
         # TODO Only needed to hand over to ith(). in c2d(), prepare an ith model for it
@@ -657,7 +713,7 @@ class MAP_lr():
         itlib_iterator.get_template_blm(0, 0, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, calc=calc, Nmf=self.Nmf, perturbative=self.btemplate_perturbative_lensremap, dlm_mod_fnsuffix=self.dlm_mod_fnsuffix)
 
 
-class Map_delenser():
+class Map_delenser(Basejob):
     """Script for calculating delensed ILC and Blens spectra using precaulculated Btemplates as input.
     This is a combination of,
      * loading the right files,
@@ -954,25 +1010,6 @@ class Map_delenser():
                     outputdata = _delens(bmap_L, bmap_cs, blt_QE, blt_QE2, blt_MAP, blt_MAP2)
                     np.save(_file_op, outputdata)
 
-
-class Inspector():
-    def __init__(self, qe, model):
-
-        assert 0, "Implement if needed"
-
-
-    @log_on_start(logging.INFO, "collect_jobs() started")
-    @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
-    def collect_jobs(self):
-
-        assert 0, "Implement if needed"
-
-
-    @log_on_start(logging.INFO, "collect_jobs() started")
-    @log_on_end(logging.INFO, "collect_jobs() finished")
-    def run(self):
-
-        assert 0, "Implement if needed"
 
 
 class overwrite_anafast():

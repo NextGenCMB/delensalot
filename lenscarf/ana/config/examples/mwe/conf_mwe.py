@@ -3,11 +3,12 @@ from lenscarf.lerepi.core.metamodel.dlensalot_mm import *
 
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(
-        jobs = ["QE_lensrec","MAP_lensrec"],
+        jobs = ["build_noisemodel", "QE_lensrec", "MAP_lensrec"],
         OMP_NUM_THREADS = 16
     ),
     analysis = DLENSALOT_Analysis(
-        K = 'p_p',
+        key = 'p_p',
+        TEMP_suffix = 'my_first_dlensalot_analysis',
         ITMAX = 10,
         lensres = 0.8,
         Lmin = 2, 
@@ -43,8 +44,7 @@ dlensalot_model = DLENSALOT_Model(
         ivfs = 'sepTP',
         qlms = 'sepTP',
         cg_tol = 1e-3,
-        lmax_qlm = 4000,
-        mmax_qlm = 4000
+        lm_max_qlm = (4000, 4000),
     ),
     itrec = DLENSALOT_Itrec(
         tasks = ["calc_phi", "calc_meanfield", "calc_btemplate"], #["calc_phi", "calc_meanfield", "calc_btemplate"],

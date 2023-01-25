@@ -172,8 +172,7 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     qlms = attr.ib(default=None, validator=qerec.qlms)
     cg_tol = attr.ib(default=np.nan, validator=qerec.cg_tol)
     ninvjob_qe_geometry = attr.ib(default=None, validator=qerec.ninvjob_qe_geometry)
-    lmax_qlm = attr.ib(default=np.nan, validator=qerec.lmax_qlm)
-    mmax_qlm = attr.ib(default=np.nan, validator=qerec.mmax_qlm)
+    lm_max_qlm = attr.ib(default=np.nan, validator=qerec.lmax_qlm)
     chain = attr.ib(default=None, validator=qerec.chain)
     cl_analysis = attr.ib(default=False, validator=qerec.cl_analysis)
 
