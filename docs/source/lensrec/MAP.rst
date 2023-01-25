@@ -4,8 +4,10 @@ iterative lensing reconstruction
 
 This section describes the idea behind iterative lensing reconstruction and its most important concept.
 
+
 likelihood
 ---------------
+
 We start with the following likelihood `lh` for which we search the maximum-a-posterioi (MAP) point,
 
 -2 ln(p(X|a)) = X cov^(-1) X + ln(det(cov))
