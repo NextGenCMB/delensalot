@@ -22,26 +22,34 @@ class DLENSALOT_Concept:
             _str+="\t{}:\t{}\n".format(k,v)
         return _str
 
-
 @attr.s
-class DLENSALOT_Meta(DLENSALOT_Concept):
+class DLENSALOT_Chaindescriptor(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
 
     Attributes:
-        version:
+        p0: 
     """
-    version = attr.ib(default=-1, validator=attr.validators.instance_of(str))
-
+    p0 = attr.ib(default=-1, validator=chaindescriptor.p0)
+    p1 = attr.ib(default=-1, validator=chaindescriptor.p1)
+    p2 = attr.ib(default=-1, validator=chaindescriptor.p2)
+    p3 = attr.ib(default=-1, validator=chaindescriptor.p3)
+    p4 = attr.ib(default=-1, validator=chaindescriptor.p4)
+    p5 = attr.ib(default=-1, validator=chaindescriptor.p5)
+    p6 = attr.ib(default=-1, validator=chaindescriptor.p6)
+    p7 = attr.ib(default=-1, validator=chaindescriptor.p7)
 
 @attr.s
-class DLENSALOT_Computing(DLENSALOT_Concept):
+class DLENSALOT_Stepper(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
 
     Attributes:
-        QE_delensing:
+        typ:
     """
-    OMP_NUM_THREADS = attr.ib(default=-1, validator=computing.OMP_NUM_THREADS)
-
+    typ = attr.ib(default=-1, validator=stepper.typ)
+    lmax_qlm = attr.ib(default=-1, validator=stepper.lmax_qlm)
+    mmax_qlm = attr.ib(default=-1, validator=stepper.mmax_qlm)
+    xa = attr.ib(default=-1, validator=stepper.xa)
+    xb = attr.ib(default=-1, validator=stepper.xb)
 
 @attr.s
 class DLENSALOT_Job(DLENSALOT_Concept):
@@ -56,6 +64,47 @@ class DLENSALOT_Job(DLENSALOT_Concept):
     map_delensing = attr.ib(default=-1, validator=job.map_delensing)
     build_OBD = attr.ib(default=-1, validator=job.build_OBD)
 
+@attr.s
+class DLENSALOT_Analysis(DLENSALOT_Concept):
+    """A root model element type of the Dlensalot formalism.
+
+    Attributes:
+        DATA_LIBDIR: path to the data
+    """
+    key = attr.ib(default=np.nan, validator=analysis.key)
+    version = attr.ib(default=np.nan, validator=analysis.version)
+    simidxs_mf = attr.ib(default=[], validator=analysis.simidxs_mf)
+    TEMP_suffix = attr.ib(default='', validator=analysis.TEMP_suffix)
+    lens_res = attr.ib(default=1.7, validator=analysis.lens_res)
+    Lmin = attr.ib(default=1, validator=analysis.Lmin)
+    zbounds = attr.ib(default=(-1,1), validator=analysis.zbounds)
+    zbounds_len = attr.ib(default=(-1,1), validator=analysis.zbounds_len)
+    pbounds = attr.ib(default=(-1,1), validator=analysis.pbounds)
+
+    lmax_filt = attr.ib(default=np.nan, validator=filter.lmax_filt)
+    lm_max_len = attr.ib(default=np.nan, validator=filter.lm_max_len)
+    lm_max_unl = attr.ib(default=np.nan, validator=filter.lm_max_unl)
+    lm_ivf = attr.ib(default=np.nan, validator=filter.lm_ivf)
+
+    STANDARD_TRANSFERFUNCTION = attr.ib(default=True)
+
+@attr.s
+class DLENSALOT_Meta(DLENSALOT_Concept):
+    """A root model element type of the Dlensalot formalism.
+
+    Attributes:
+        version:
+    """
+    version = attr.ib(default=-1, validator=attr.validators.instance_of(str))
+
+@attr.s
+class DLENSALOT_Computing(DLENSALOT_Concept):
+    """A root model element type of the Dlensalot formalism.
+
+    Attributes:
+        QE_delensing:
+    """
+    OMP_NUM_THREADS = attr.ib(default=-1, validator=computing.OMP_NUM_THREADS)
 
 @attr.s
 class DLENSALOT_Model(DLENSALOT_Concept):
@@ -72,24 +121,6 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     qerec = attr.ib(default=[], validator=model.qerec)
     itrec = attr.ib(default=-1, validator=model.itrec)
     madel = attr.ib(default=-1, validator=model.madel)
-
-
-@attr.s
-class DLENSALOT_Analysis(DLENSALOT_Concept):
-    """A root model element type of the Dlensalot formalism.
-
-    Attributes:
-        DATA_LIBDIR: path to the data
-    """
-    key = attr.ib(default=np.nan, validator=analysis.key)
-    version = attr.ib(default=np.nan, validator=analysis.version)
-    simidxs_mf = attr.ib(default=[], validator=analysis.simidxs_mf)
-    TEMP_suffix = attr.ib(default=None, validator=analysis.TEMP_suffix)
-    lens_res = attr.ib(default=np.nan, validator=analysis.lens_res)
-    zbounds =  attr.ib(default=(-1,1), validator=analysis.zbounds)
-    zbounds_len = attr.ib(default=(-1,1), validator=analysis.zbounds_len)
-    pbounds = attr.ib(default=(-1,1), validator=analysis.pbounds)
-
 
 @attr.s
 class DLENSALOT_Data(DLENSALOT_Concept):
@@ -110,7 +141,6 @@ class DLENSALOT_Data(DLENSALOT_Concept):
     transferfunction = attr.ib(default=True, validator=data.transferfunction)
     lmax = attr.ib(default=True, validator=data.transferfunction)
 
-
 @attr.s
 class DLENSALOT_Noisemodel(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
@@ -129,7 +159,6 @@ class DLENSALOT_Noisemodel(DLENSALOT_Concept):
     mask = attr.ib(default=None, validator=noisemodel.mask)
     ninvjob_geometry = attr.ib(default=None, validator=noisemodel.ninvjob_geometry)
 
-
 @attr.s
 class DLENSALOT_Qerec(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
@@ -139,7 +168,6 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     """
     simidxs = attr.ib(default=[], validator=qerec.simidxs)
     simidxs_mf = attr.ib(default=[], validator=qerec.simidxs_mf)
-    Lmin = attr.ib(default=np.nan, validator=qerec.Lmin)
     ivfs = attr.ib(default=None, validator=qerec.ivfs)
     qlms = attr.ib(default=None, validator=qerec.qlms)
     cg_tol = attr.ib(default=np.nan, validator=qerec.cg_tol)
@@ -148,7 +176,6 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     mmax_qlm = attr.ib(default=np.nan, validator=qerec.mmax_qlm)
     chain = attr.ib(default=None, validator=qerec.chain)
     cl_analysis = attr.ib(default=False, validator=qerec.cl_analysis)
-
 
 @attr.s
 class DLENSALOT_Itrec(DLENSALOT_Concept):
@@ -164,11 +191,10 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     cg_tol = attr.ib(default=np.nan, validator=itrec.cg_tol)
     lenjob_geometry = attr.ib(default=None, validator=itrec.lenjob_geometry)
     lenjob_pbgeometry = attr.ib(default=None, validator=itrec.lenjob_pbgeometry)
-    iterator_typ = attr.ib(default=None, validator=itrec.iterator_typ)
-    mfvar = attr.ib(default=None, validator=itrec.mfvar)
+    iterator_typ = attr.ib(default='constmf', validator=itrec.iterator_typ)
+    mfvar = attr.ib(default='', validator=itrec.mfvar)
     soltn_cond = attr.ib(default=None, validator=itrec.soltn_cond)
-    stepper = attr.ib(default=None, validator=itrec.stepper)
-    
+    stepper = attr.ib(default=None, validator=itrec.stepper)  
 
 @attr.s
 class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
@@ -186,52 +212,6 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
     libdir_it = attr.ib(default=None, validator=mapdelensing.libdir_it)
     binning = attr.ib(default=-1, validator=mapdelensing.binning)
     spectrum_calculator = attr.ib(default=None, validator=mapdelensing.spectrum_calculator)
-
-
-@attr.s
-class DLENSALOT_Filter(DLENSALOT_Concept):
-    """_summary_
-
-    Args:
-        DLENSALOT_Concept (_type_): _description_
-    """
-    lmax_filt = attr.ib(default=np.nan, validator=filter.lmax_filt)
-    lmax_len = attr.ib(default=np.nan, validator=filter.lmax_len)
-    mmax_len = attr.ib(default=np.nan, validator=filter.mmax_len)
-    lmax_unl = attr.ib(default=np.nan, validator=filter.lmax_unl)
-    mmax_unl = attr.ib(default=np.nan, validator=filter.mmax_unl)
-
-
-@attr.s
-class DLENSALOT_Chaindescriptor(DLENSALOT_Concept):
-    """A root model element type of the Dlensalot formalism.
-
-    Attributes:
-        p0: 
-    """
-    p0 = attr.ib(default=-1, validator=chaindescriptor.p0)
-    p1 = attr.ib(default=-1, validator=chaindescriptor.p1)
-    p2 = attr.ib(default=-1, validator=chaindescriptor.p2)
-    p3 = attr.ib(default=-1, validator=chaindescriptor.p3)
-    p4 = attr.ib(default=-1, validator=chaindescriptor.p4)
-    p5 = attr.ib(default=-1, validator=chaindescriptor.p5)
-    p6 = attr.ib(default=-1, validator=chaindescriptor.p6)
-    p7 = attr.ib(default=-1, validator=chaindescriptor.p7)
-
-
-@attr.s
-class DLENSALOT_Stepper(DLENSALOT_Concept):
-    """A root model element type of the Dlensalot formalism.
-
-    Attributes:
-        typ:
-    """
-    typ = attr.ib(default=-1, validator=stepper.typ)
-    lmax_qlm = attr.ib(default=-1, validator=stepper.lmax_qlm)
-    mmax_qlm = attr.ib(default=-1, validator=stepper.mmax_qlm)
-    xa = attr.ib(default=-1, validator=stepper.xa)
-    xb = attr.ib(default=-1, validator=stepper.xb)
-
 
 class DLENSALOT_OBD(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.

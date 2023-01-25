@@ -23,6 +23,11 @@ def lens_res(instance, attribute, value):
     assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
 
+def Lmin(instance, attribute, value):
+    desc = [int]
+    assert type(attribute) in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+
+
 def zbounds(instance, attribute, value):
     desc = [attribute]
     assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))

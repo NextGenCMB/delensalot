@@ -88,7 +88,6 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     mmax_ivf = attr.ib(default=np.nan)
     lmin_ivf = attr.ib(default=np.nan)
     mmin_ivf = attr.ib(default=np.nan)
-    lmax_unl = attr.ib(default=np.nan)
     zbounds =  attr.ib(default=(-1,1))
     zbounds_len = attr.ib(default=(-1,1))
     pbounds = attr.ib(default=(-1,1))

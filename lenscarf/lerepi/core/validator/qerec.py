@@ -8,11 +8,6 @@ def simidxs_mf(instance, attribute, value):
     assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
 
-def Lmin(instance, attribute, value):
-    desc = ['map', 'alm']
-    assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
-
-
 def ivfs(instance, attribute, value):
     desc = ['eb', 'qu']
     assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))

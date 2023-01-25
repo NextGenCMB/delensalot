@@ -1,33 +1,23 @@
 import numpy as np
-
-from lenscarf.lerepi.core.metamodel.dlensalot_v2 import *
-import os
-from os.path import join as opj
+from lenscarf.lerepi.core.metamodel.dlensalot_mm import *
 
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(
-        QE_lensrec = True,
-        MAP_lensrec = True,
+        jobs = ["QE_lensrec","MAP_lensrec"],
         OMP_NUM_THREADS = 16
     ),
     analysis = DLENSALOT_Analysis(
-        TEMP_suffix = '',
         K = 'p_p',
-        ITMAX = 5,
-        simidxs_mf = np.arange(0,5),
-        LENSRES = 1.7,
+        ITMAX = 10,
+        lensres = 0.8,
         Lmin = 2, 
         lmax_filt = 4000,
-        lmax_unl = 4000,
-        mmax_unl = 4000,
-        lmax_ivf = 4000,
-        mmax_ivf = 4000,
-        lmin_ivf = 2,
-        mmin_ivf = 2,
+        lm_max_len = (4000, 4000),
+        lm_max_unl = (4000, 4000),
+        lm_ivf = ((2, 4000),(2, 4000)),
     ),
     data = DLENSALOT_Data(
-        IMIN = 0,
-        IMAX = 5,
+        simidxs = np.arange(0,200),
         package_ = 'lenscarf',
         module_ = 'ana.config.examples.mwe.data_mwe.sims_mwe',
         class_ = 'mwe',
@@ -59,8 +49,6 @@ dlensalot_model = DLENSALOT_Model(
     itrec = DLENSALOT_Itrec(
         tasks = ["calc_phi", "calc_meanfield", "calc_btemplate"], #["calc_phi", "calc_meanfield", "calc_btemplate"],
         filter = 'opfilt_ee_wl.alm_filter_ninv_wl',
-        cg_tol = 1e-3,
-        iterator_typ = 'constmf', # Either pertmf or const_mf
-        mfvar = '',
+        cg_tol = 1e-3
     )
 )
