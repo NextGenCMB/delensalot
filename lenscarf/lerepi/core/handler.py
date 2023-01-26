@@ -99,6 +99,7 @@ class handler():
         log.info('transform done')
         log.info('model init started')
         j = job[1](model)
+        
         log.info('model init done')
         log.info('collect_jobs started')
         j.collect_jobs()

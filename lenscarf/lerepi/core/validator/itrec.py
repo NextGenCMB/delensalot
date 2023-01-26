@@ -13,6 +13,11 @@ def itmax(instance, attribute, value):
     assert type(value) in desc, TypeError('Must be in {}, but is {}'.format(desc, type(value)))
 
 
+def btemplate_perturbative_lensremap(instance, attribute, value):
+    desc = [value]
+    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+
+
 def lensres(instance, attribute, value):
     desc = [value]
     assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
@@ -21,7 +26,10 @@ def lensres(instance, attribute, value):
 def lm_max_qlm(instance, attribute, value):
     desc = [int, tuple]
     assert type(value) in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
-    
+
+def lm_max_unl(instance, attribute, value):
+    desc = [tuple, int, list]
+    assert type(value) in desc, ValueError('Must be in {}, but is {}'.format(desc, type(value)))
 
 def filter(instance, attribute, value):
     desc = [value]

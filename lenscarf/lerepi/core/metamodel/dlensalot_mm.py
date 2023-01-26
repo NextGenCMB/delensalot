@@ -29,14 +29,14 @@ class DLENSALOT_Chaindescriptor(DLENSALOT_Concept):
     Attributes:
         p0: 
     """
-    p0 = attr.ib(default=-1, validator=chaindescriptor.p0)
-    p1 = attr.ib(default=-1, validator=chaindescriptor.p1)
-    p2 = attr.ib(default=-1, validator=chaindescriptor.p2)
-    p3 = attr.ib(default=-1, validator=chaindescriptor.p3)
-    p4 = attr.ib(default=-1, validator=chaindescriptor.p4)
-    p5 = attr.ib(default=-1, validator=chaindescriptor.p5)
-    p6 = attr.ib(default=-1, validator=chaindescriptor.p6)
-    p7 = attr.ib(default=-1, validator=chaindescriptor.p7)
+    p0 = attr.ib(default=0, validator=chaindescriptor.p0)
+    p1 = attr.ib(default=["diag_cl"], validator=chaindescriptor.p1)
+    p2 = attr.ib(default=None, validator=chaindescriptor.p2)
+    p3 = attr.ib(default=2048, validator=chaindescriptor.p3)
+    p4 = attr.ib(default=np.inf, validator=chaindescriptor.p4)
+    p5 = attr.ib(default=None, validator=chaindescriptor.p5)
+    p6 = attr.ib(default='tr_cg', validator=chaindescriptor.p6)
+    p7 = attr.ib(default='cache_mem', validator=chaindescriptor.p7)
 
 @attr.s
 class DLENSALOT_Stepper(DLENSALOT_Concept):
@@ -69,15 +69,14 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     """
     key = attr.ib(default='p_p', validator=analysis.key)
     version = attr.ib(default='', validator=analysis.version)
-    simidxs_mf = attr.ib(default=np.array(1), validator=analysis.simidxs_mf)
+    simidxs_mf = attr.ib(default=[], validator=analysis.simidxs_mf)
     TEMP_suffix = attr.ib(default='', validator=analysis.TEMP_suffix)
     Lmin = attr.ib(default=1, validator=analysis.Lmin)
     zbounds = attr.ib(default=(-1,1), validator=analysis.zbounds)
     zbounds_len = attr.ib(default=(-1,1), validator=analysis.zbounds_len)
     pbounds = attr.ib(default=(-1,1), validator=analysis.pbounds)
-    lm_max_len = attr.ib(default=10, validator=filter.lm_max_len)
-    lm_max_unl = attr.ib(default=10, validator=filter.lm_max_unl)
-    lm_ivf = attr.ib(default=10, validator=filter.lm_ivf)
+    lm_max_len = attr.ib(default=(10,10), validator=filter.lm_max_len)
+    lm_ivf = attr.ib(default=((1,10),(1,10)), validator=filter.lm_ivf)
     STANDARD_TRANSFERFUNCTION = attr.ib(default=True)
 
 @attr.s
@@ -121,14 +120,14 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     """
     tasks = attr.ib(default=['calc_phi'], validator=qerec.tasks)
     simidxs = attr.ib(default=-1, validator=qerec.simidxs)
-    simidxs_mf = attr.ib(default=-1, validator=qerec.simidxs_mf)
+    simidxs_mf = attr.ib(default=[], validator=qerec.simidxs_mf)
     ivfs = attr.ib(default=None, validator=qerec.ivfs)
     qlms = attr.ib(default=None, validator=qerec.qlms)
     cg_tol = attr.ib(default=1e-2, validator=qerec.cg_tol)
     filter_directional = attr.ib(default=np.nan, validator=qerec.filter_directional)
     ninvjob_qe_geometry = attr.ib(default=None, validator=qerec.ninvjob_qe_geometry)
-    lm_max_qlm = attr.ib(default=10, validator=qerec.lm_max_qlm)
-    chain = attr.ib(default=None, validator=qerec.chain)
+    lm_max_qlm = attr.ib(default=(10,10), validator=qerec.lm_max_qlm)
+    chain = attr.ib(default=DLENSALOT_Chaindescriptor(), validator=qerec.chain)
     cl_analysis = attr.ib(default=False, validator=qerec.cl_analysis)
 
 @attr.s
@@ -146,13 +145,15 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     iterator_typ = attr.ib(default='default', validator=itrec.cg_tol)
     lensres = attr.ib(default=1.7, validator=itrec.lensres)
     filter_directional = attr.ib(default=np.nan, validator=itrec.filter_directional)
-    lenjob_geometry = attr.ib(default=None, validator=itrec.lenjob_geometry)
-    lenjob_pbgeometry = attr.ib(default=None, validator=itrec.lenjob_pbgeometry)
+    lenjob_geometry = attr.ib(default='thin_gauss', validator=itrec.lenjob_geometry)
+    lenjob_pbgeometry = attr.ib(default='pbdGeometry', validator=itrec.lenjob_pbgeometry)
     iterator_typ = attr.ib(default='constmf', validator=itrec.iterator_typ)
-    lm_max_qlm = attr.ib(default=10, validator=itrec.lm_max_qlm)
+    lm_max_unl = attr.ib(default=(10,10), validator=itrec.lm_max_unl)
+    lm_max_qlm = attr.ib(default=(10,10), validator=itrec.lm_max_qlm)
     mfvar = attr.ib(default='', validator=itrec.mfvar)
     soltn_cond = attr.ib(default=None, validator=itrec.soltn_cond)
-    stepper = attr.ib(default=None, validator=itrec.stepper)  
+    stepper = attr.ib(default=DLENSALOT_Stepper(), validator=itrec.stepper)
+    btemplate_perturbative_lensremap = attr.ib(default=False, validator=itrec.btemplate_perturbative_lensremap)
 
 @attr.s
 class DLENSALOT_Mapdelensing(DLENSALOT_Concept):

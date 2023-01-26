@@ -676,7 +676,6 @@ class MAP_lr(Basejob):
     @log_on_end(logging.INFO, "get_meanfield_it({it}) finished")
     def get_meanfield_it(self, it, calc=False):
         # for mfvar runs, this returns the correct meanfields, as mfvar runs go into distinct itlib dirs.
-        print(self.mf_dirname)
         fn = opj(self.mf_dirname, 'mf%03d_it%03d.npy'%(self.Nmf, it))
         if not calc:
             if os.path.isfile(fn):

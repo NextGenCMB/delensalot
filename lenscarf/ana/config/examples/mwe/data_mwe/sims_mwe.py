@@ -9,8 +9,8 @@ __author__ = "S. Belkner, J. Carron, L. Legrand"
 import os
 from os.path import join as opj
 import numpy as np
-import dlensalot
-from dlensalot.sims import sims_ffp10
+import lenscarf
+from lenscarf.sims import sims_ffp10
 
 class mwe:
     def __init__(self, nlev=1):
@@ -19,8 +19,9 @@ class mwe:
         self.beam = 1
         self.lmax_transf = 4000
         self.nside = 2048
-        self.data_path =  opj(os.path.abspath(dlensalot.__file__),  'dlensalot/lerepi/config/examples/data')
+        self.data_path =  opj(os.path.abspath(lenscarf.__file__),  'dlensalot/lerepi/config/examples/data')
         self.nlev = nlev
+        self.efn='placeholder_%d'
 
 
         self.sims = sims_ffp10.cmb_len_ffp10()
@@ -42,6 +43,11 @@ class mwe:
         ret = np.load(self.efn%idx)
 
         return ret
+    
+    
+    def get_sim_elm_filename(self, idx):
+
+        return self.efn%idx
 
 
     def get_sim_blm(self, idx):

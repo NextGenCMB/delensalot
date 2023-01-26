@@ -13,12 +13,11 @@ dlensalot_model = DLENSALOT_Model(
         TEMP_suffix = 'my_first_dlensalot_analysis',
         Lmin = 2, 
         lm_max_len = (4000, 4000),
-        lm_max_unl = (4000, 4000),
         lm_ivf = ((2, 4000),(2, 4000)),
     ),
     data = DLENSALOT_Data(
         simidxs = np.arange(0,200),
-        package_ = 'dlensalot',
+        package_ = 'lenscarf',
         module_ = 'ana.config.examples.mwe.data_mwe.sims_mwe',
         class_ = 'mwe',
         class_parameters = {
@@ -47,6 +46,7 @@ dlensalot_model = DLENSALOT_Model(
         cg_tol = 1e-3,
         lensres = 0.8,
         iterator_typ = 'fastWF',
+        lm_max_unl = (4000, 4000),
         lm_max_qlm = (4000, 4000)
     )
 )

@@ -1,3 +1,5 @@
+import numpy as np
+
 def tasks(instance, attribute, value):
     desc = ["calc_phi", "calc_meanfield", "calc_blt"]
     assert all(val in desc for val in value), ValueError('Must be in {}, but is {}'.format(desc, value))
@@ -9,8 +11,8 @@ def simidxs(instance, attribute, value):
 
 
 def simidxs_mf(instance, attribute, value):
-    desc = [int]
-    assert type(value) in desc, TypeError('Must be in {}, but is {}'.format(desc, value))
+    desc = [list, np.ndarray]
+    assert type(value) in desc, TypeError('Must be in {}, but is {}'.format(desc, type(value)))
 
 
 def ivfs(instance, attribute, value):
@@ -21,7 +23,7 @@ def ivfs(instance, attribute, value):
 def qlms(instance, attribute, value):
     desc = [value]
     assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
-    
+
 
 def filter_directional(instance, attribute, value):
     desc = [value]
