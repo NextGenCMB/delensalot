@@ -8,7 +8,6 @@ __author__ = "S. Belkner, J. Carron, L. Legrand"
 import os, sys
 from os.path import join as opj
 import importlib
-import traceback
 
 
 import logging
@@ -38,8 +37,7 @@ from lenscarf.opfilt.bmodes_ninv import template_dense
 from lenscarf.lerepi.core.visitor import transform
 
 from lenscarf.lerepi.config.config_helper import data_functions as df, LEREPI_Constants as lc
-from lenscarf.lerepi.core.metamodel.dlensalot_v2 import DLENSALOT_Model as DLENSALOT_Model_v2, DLENSALOT_Concept
-from lenscarf.lerepi.core.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALOT_Model_mm
+from lenscarf.lerepi.core.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALOT_Model_mm, DLENSALOT_Concept
 
 
 class l2T_Transformer:
@@ -48,7 +46,6 @@ class l2T_Transformer:
     Returns:
         _type_: _description_
     """
-
 
     # @log_on_start(logging.INFO, "build_v2() started")
     # @log_on_end(logging.INFO, "build_v2() finished")
@@ -113,372 +110,7 @@ class l2lensrec_Transformer:
         elif cf.meta.version == '0.9':
             return self.build_v3(cf)
 
-
-    @log_on_start(logging.INFO, "build_v2() started")
-    @log_on_end(logging.INFO, "build_v2() finished")
-    def build_v2(self, cf):
-
-        @log_on_start(logging.INFO, "_process_Analysis() started")
-        @log_on_end(logging.INFO, "_process_Analysis() finished")
-        def _process_Analysis(dl, an):
-            dl.temp_suffix = an.TEMP_suffix
-            dl.TEMP = transform(cf, l2T_Transformer())
-            # TODO unclear what this actually does
-            if cf.qerec.overwrite_libdir != '' and cf.qerec.overwrite_libdir != -1 and cf.qerec.overwrite_libdir != None:
-                dl.TEMP = cf.qerec.overwrite_libdir
-                dl.overwrite_libdir = cf.qerec.overwrite_libdir
-            else:
-                dl.overwrite_libdir = None
-            dl.tr = int(os.environ.get('OMP_NUM_THREADS', cf.job.OMP_NUM_THREADS))
-            dl.version = an.V
-            dl.k = an.K
-            dl.itmax = an.ITMAX
-            dl.simidxs_mf = cf.analysis.simidxs_mf
-            dl.Nmf = 0 if cf.analysis.V == 'noMF' else len(dl.simidxs_mf)
-            if an.zbounds[0] == 'nmr_relative':
-                dl.zbounds = df.get_zbounds(hp.read_map(cf.noisemodel.rhits_normalised[0]), an.zbounds[1])
-            elif type(an.zbounds[0]) in [float, int, np.float64]:
-                dl.zbounds = an.zbounds
-            else:
-                log.error('Not sure what to do with this zbounds: {}'.format(an.zbounds))
-                traceback.print_stack()
-                sys.exit()
-
-            if an.zbounds_len[0] == 'extend':
-                dl.zbounds_len = df.extend_zbounds(dl.zbounds, degrees=an.zbounds_len[1])
-            elif an.zbounds_len[0] == 'max':
-                dl.zbounds_len = [-1, 1]
-            elif type(an.zbounds_len[0]) in [float, int, np.float64]:
-                dl.zbounds_len = an.zbounds_len
-            else:
-                log.error('Not sure what to do with this zbounds_len: {}'.format(an.zbounds_len))
-                traceback.print_stack()
-                sys.exit()
-
-            dl.pb_ctr, dl.pb_extent = an.pbounds
-
-            dl.lensres = an.LENSRES
-            dl.Lmin = an.Lmin
-
-            dl.lmax_filt = an.lmax_filt
-            dl.lmax_ivf = an.lmax_ivf
-            dl.lmin_ivf = an.lmin_ivf
-            dl.mmax_ivf = an.mmax_ivf
-            dl.mmin_ivf = an.mmin_ivf
-
-            dl.lmax_unl = an.lmax_unl
-            dl.mmax_unl = an.mmax_unl
-
-            dl.nlev_t = l2OBD_Transformer.get_nlevt(cf)
-            dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
-
-            _cls_path = opj(os.path.dirname(plancklens.__file__), 'data', 'cls')
-            dl.cls_unl = utils.camb_clfile(opj(_cls_path, 'FFP10_wdipole_lenspotentialCls.dat'))
-            dl.cls_len = utils.camb_clfile(opj(_cls_path, 'FFP10_wdipole_lensedCls.dat'))
-
-            dl.STANDARD_TRANSFERFUNCTION  = an.STANDARD_TRANSFERFUNCTION 
-            if dl.STANDARD_TRANSFERFUNCTION == True:
-                # Fiducial model of the transfer function
-                dl.transf_tlm = gauss_beam(df.a2r(cf.data.beam), lmax=an.lmax_ivf) * (np.arange(an.lmax_ivf + 1) >= cf.noisemodel.lmin_tlm)
-                dl.transf_elm = gauss_beam(df.a2r(cf.data.beam), lmax=an.lmax_ivf) * (np.arange(an.lmax_ivf + 1) >= cf.noisemodel.lmin_elm)
-                dl.transf_blm = gauss_beam(df.a2r(cf.data.beam), lmax=an.lmax_ivf) * (np.arange(an.lmax_ivf + 1) >= cf.noisemodel.lmin_blm)
-
-                # Isotropic approximation to the filtering (used eg for response calculations)
-                dl.ftl = cli(dl.cls_len['tt'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
-                dl.fel = cli(dl.cls_len['ee'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
-                dl.fbl = cli(dl.cls_len['bb'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
-
-                # Same using unlensed spectra (used for unlensed response used to initiate the MAP curvature matrix)
-                dl.ftl_unl = cli(dl.cls_unl['tt'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
-                dl.fel_unl = cli(dl.cls_unl['ee'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
-                dl.fbl_unl = cli(dl.cls_unl['bb'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
-
-            elif dl.STANDARD_TRANSFERFUNCTION == 'with_pixwin':
-                # Fiducial model of the transfer function
-                dl.transf_tlm = gauss_beam(df.a2r(cf.data.beam), lmax=an.lmax_ivf) * hp.pixwin(2048, lmax=an.lmax_ivf) * (np.arange(an.lmax_ivf + 1) >= cf.noisemodel.lmin_tlm)
-                dl.transf_elm = gauss_beam(df.a2r(cf.data.beam), lmax=an.lmax_ivf) * hp.pixwin(2048, lmax=an.lmax_ivf) * (np.arange(an.lmax_ivf + 1) >= cf.noisemodel.lmin_elm)
-                dl.transf_blm = gauss_beam(df.a2r(cf.data.beam), lmax=an.lmax_ivf) * hp.pixwin(2048, lmax=an.lmax_ivf) * (np.arange(an.lmax_ivf + 1) >= cf.noisemodel.lmin_blm)
-
-                # Isotropic approximation to the filtering (used eg for response calculations)
-                dl.ftl = cli(dl.cls_len['tt'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_t[:an.lmax_ivf + 1])**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
-                dl.fel = cli(dl.cls_len['ee'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p[:an.lmax_ivf + 1])**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
-                dl.fbl = cli(dl.cls_len['bb'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p[:an.lmax_ivf + 1])**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
-
-                # Same using unlensed spectra (used for unlensed response used to initiate the MAP curvature matrix)
-                dl.ftl_unl = cli(dl.cls_unl['tt'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_t[:an.lmax_ivf + 1])**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
-                dl.fel_unl = cli(dl.cls_unl['ee'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p[:an.lmax_ivf + 1])**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
-                dl.fbl_unl = cli(dl.cls_unl['bb'][:an.lmax_ivf + 1] + df.a2r(dl.nlev_p[:an.lmax_ivf + 1])**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
-            else:
-                log.info("Don't understand your input.")
-                sys.exit()
-
-        @log_on_start(logging.INFO, "_process_Data() started")
-        @log_on_end(logging.INFO, "_process_Data() finished")
-        def _process_Data(dl, da):
-            dl.imin = da.IMIN
-            dl.imax = da.IMAX
-
-            dl.simidxs = da.simidxs if da.simidxs != [] else np.arange(dl.imin, dl.imax+1)
-            _package = da.package_
-            if da.package_.startswith('lerepi'):
-                _package = 'lenscarf.'+da.package_
-
-            _module = da.module_
-            _class = da.class_
-            dl.dataclass_parameters = da.class_parameters
-            dl.nside = da.nside
-
-            _sims_full_name = '{}.{}'.format(_package, _module)
-            _sims_module = importlib.import_module(_sims_full_name)
-            dl.sims = getattr(_sims_module, _class)(**dl.dataclass_parameters)
-
-            if 'fg' in dl.dataclass_parameters:
-                dl.fg = dl.dataclass_parameters['fg']
-
-            if da.data_type is None:
-                log.info("must specify data_type")
-                sys.exit()
-            elif da.data_type in ['map', 'alm']:
-                dl.data_type = da.data_type
-            else:
-                log.info("Don't understand your data_type: {}".format(da.data_type))
-                sys.exit()
-
-            if da.data_field is None:
-                log.info("must specify data_type")
-                sys.exit()
-            elif da.data_field in ['eb', 'qu']:
-                dl.data_field = da.data_field
-            else:
-                log.info("Don't understand your data_field: {}".format(da.data_field))
-                sys.exit()
-
-            dl.beam = da.beam
-            dl.lmax_transf = da.lmax_transf
-            # dl.transf_data = gauss_beam(df.a2r(cf.data.beam), lmax=dl.lmax_transf)
-
-
-        @log_on_start(logging.INFO, "_process_Noisemodel() started")
-        @log_on_end(logging.INFO, "_process_Noisemodel() finished")
-        def _process_Noisemodel(dl, nm):
-            if nm.ninvjob_geometry == 'healpix_geometry':
-                dl.ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(dl.nside, zbounds=dl.zbounds)
-            dl.OBD_type = nm.typ
-            dl.BMARG_LIBDIR = nm.BMARG_LIBDIR
-            dl.BMARG_LCUT = nm.BMARG_LCUT
-            dl.BMARG_RESCALE = nm.BMARG_RESCALE
-
-            if dl.OBD_type == 'OBD':
-                if nm.tpl == 'template_dense':
-                    def tpl_kwargs(lmax_marg, geom, sht_threads, _lib_dir=None, rescal=1.):
-                        return locals()
-                    dl.tpl = template_dense
-                    dl.tpl_kwargs = tpl_kwargs(nm.BMARG_LCUT, dl.ninvjob_geometry, dl.tr, _lib_dir=dl.BMARG_LIBDIR, rescal=dl.BMARG_RESCALE) 
-                else:
-                    assert 0, "Implement if needed"
-                dl.lmin_tlm = nm.lmin_tlm
-                dl.lmin_elm = nm.lmin_elm
-                dl.lmin_blm = nm.lmin_blm
-            elif dl.OBD_type == 'trunc':
-                dl.tpl = None
-                dl.tpl_kwargs = dict()
-                dl.lmin_tlm = nm.lmin_tlm
-                dl.lmin_elm = nm.lmin_elm
-                dl.lmin_blm = nm.lmin_blm
-            elif dl.OBD_type == None or dl.OBD_type == 'None':
-                dl.tpl = None
-                dl.tpl_kwargs = dict()
-                dl.lmin_tlm = 0
-                dl.lmin_elm = 0
-                dl.lmin_blm = 0
-            else:
-                log.error("Don't understand your OBD_type input. Exiting..")
-                traceback.print_stack()
-                sys.exit()
-
-            dl.nlev_t = l2OBD_Transformer.get_nlevt(cf)
-            dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
-            dl.nlev_dep = nm.nlev_dep
-            dl.inf = nm.inf
-            dl.masks = l2OBD_Transformer.get_masks(cf)
-            dl.rhits_normalised = nm.rhits_normalised
-            
-
-        @log_on_start(logging.INFO, "_process_Qerec() started")
-        @log_on_end(logging.INFO, "_process_Qerec() finished")
-        def _process_Qerec(dl, qe):
-            dl.lmax_qlm = qe.lmax_qlm
-            dl.mmax_qlm = qe.mmax_qlm
-            dl.cg_tol = qe.cg_tol
-            dl.qe_tasks = qe.tasks
-
-            dl.chain_model = qe.chain
-            if dl.chain_model.p6 == 'tr_cg':
-                _p6 = cd_solve.tr_cg
-            if dl.chain_model.p7 == 'cache_mem':
-                _p7 = cd_solve.cache_mem()
-            dl.chain_descr = lambda p2, p5 : [
-                [dl.chain_model.p0, dl.chain_model.p1, p2, dl.chain_model.p3, dl.chain_model.p4, p5, _p6, _p7]]
-
-            if qe.ninvjob_qe_geometry == 'healpix_geometry_qe':
-                dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl.nside, zbounds=(-1,1))
-            elif qe.ninvjob_qe_geometry == 'healpix_geometry':
-                dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl.nside, zbounds=dl.zbounds)
-
-            if qe.ivfs == 'sepTP':
-                dl.ninvt_desc = l2OBD_Transformer.get_ninvt(cf)
-                dl.ninvp_desc = l2OBD_Transformer.get_ninvp(cf)
-                dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), dl.lmax_ivf, dl.nside, dl.cls_len, dl.transf_tlm, dl.ninvt_desc,
-                                marge_monopole=True, marge_dipole=True, marge_maps=[])  
-                if dl.OBD_type == 'OBD':
-                    transf_elm_loc = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=dl.lmax_ivf)
-                    dl.cinv_p = cinv_p_OBD.cinv_p(opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, dl.nside, dl.cls_len, transf_elm_loc[:dl.lmax_ivf+1], dl.ninvp_desc, geom=dl.ninvjob_qe_geometry,
-                        chain_descr=dl.chain_descr(dl.lmax_ivf, dl.cg_tol), bmarg_lmax=dl.BMARG_LCUT, zbounds=dl.zbounds, _bmarg_lib_dir=dl.BMARG_LIBDIR, _bmarg_rescal=dl.BMARG_RESCALE, sht_threads=dl.tr)
-                elif dl.OBD_type == 'trunc' or dl.OBD_type == None or dl.OBD_type == 'None':
-                    dl.cinv_p = filt_cinv.cinv_p(opj(dl.TEMP, 'cinv_p'), dl.lmax_ivf, dl.nside, dl.cls_len, dl.transf_elm, dl.ninvp_desc,
-                        chain_descr=dl.chain_descr(dl.lmax_ivf, dl.cg_tol), transf_blm=dl.transf_blm, marge_qmaps=(), marge_umaps=())
-                else:
-                    log.error("Don't understand your OBD_typ input. Exiting..")
-                    traceback.print_stack()
-                    sys.exit()
-                dl.ivfs_raw = filt_cinv.library_cinv_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl.cinv_t, dl.cinv_p, dl.cls_len)
-
-                dl.ftl_rs = np.ones(dl.lmax_ivf + 1, dtype=float) * (np.arange(dl.lmax_ivf + 1) >= dl.lmin_tlm)
-                dl.fel_rs = np.ones(dl.lmax_ivf + 1, dtype=float) * (np.arange(dl.lmax_ivf + 1) >= dl.lmin_elm)
-                dl.fbl_rs = np.ones(dl.lmax_ivf + 1, dtype=float) * (np.arange(dl.lmax_ivf + 1) >= dl.lmin_blm)
-                dl.ivfs   = filt_util.library_ftl(dl.ivfs_raw, dl.lmax_ivf, dl.ftl_rs, dl.fel_rs, dl.fbl_rs)
-            elif qe.ivfs == 'simple':
-                dl.ivfs = filt_simple.library_fullsky_alms_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
-            else:
-                assert 0, 'Implement if needed'
-            dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.ivfs, dl.ivfs, dl.cls_len['te'], dl.nside, lmax_qlm=dl.lmax_qlm)
-
-            dl.QE_LENSING_CL_ANALYSIS = qe.QE_LENSING_CL_ANALYSIS
-            if qe.QE_LENSING_CL_ANALYSIS == True:
-                # TODO fix numbers for mc correction and total nsims
-                dl.ss_dict = { k : v for k, v in zip( np.concatenate( [ range(i*60, (i+1)*60) for i in range(0,5) ] ),
-                                        np.concatenate( [ np.roll( range(i*60, (i+1)*60), -1 ) for i in range(0,5) ] ) ) }
-                dl.ds_dict = { k : -1 for k in range(300)}
-
-                dl.ivfs_d = filt_util.library_shuffle(dl.ivfs, dl.ds_dict)
-                dl.ivfs_s = filt_util.library_shuffle(dl.ivfs, dl.ss_dict)
-
-                dl.qlms_ds = qest.library_sepTP(opj(dl.TEMP, 'qlms_ds'), dl.ivfs, dl.ivfs_d, dl.cls_len['te'], dl.nside, lmax_qlm=dl.lmax_qlm)
-                dl.qlms_ss = qest.library_sepTP(opj(dl.TEMP, 'qlms_ss'), dl.ivfs, dl.ivfs_s, dl.cls_len['te'], dl.nside, lmax_qlm=dl.lmax_qlm)
-
-                dl.mc_sims_bias = np.arange(60, dtype=int)
-                dl.mc_sims_var  = np.arange(60, 300, dtype=int)
-
-                dl.qcls_ds = qecl.library(opj(dl.TEMP, 'qcls_ds'), dl.qlms_ds, dl.qlms_ds, np.array([]))  # for QE RDN0 calculations
-                dl.qcls_ss = qecl.library(opj(dl.TEMP, 'qcls_ss'), dl.qlms_ss, dl.qlms_ss, np.array([]))  # for QE RDN0 / MCN0 calculations
-                dl.qcls_dd = qecl.library(opj(dl.TEMP, 'qcls_dd'), dl.qlms_dd, dl.qlms_dd, dl.mc_sims_bias)
-
-            dl.cpp = np.copy(dl.cls_unl['pp'][:dl.lmax_qlm + 1])
-            dl.cpp[:dl.Lmin] *= 0.
-
-
-        @log_on_start(logging.INFO, "_process_Itrec() started")
-        @log_on_end(logging.INFO, "_process_Itrec() finished")
-        def _process_Itrec(dl, it):
-            assert it.filter in ['opfilt_ee_wl.alm_filter_ninv_wl', 'opfilt_iso_ee_wl.alm_filter_nlev_wl'] , 'Implement if needed, MAP filter needs to move to l2d'
-            dl.filter = it.filter
-            dl.ivfs_qe = cf.qerec.ivfs
-            dl.btemplate_perturbative_lensremap = it.btemplate_perturbative_lensremap
-
-            # TODO hack. We always want to subtract it atm. But possibly not in the future.
-            if "QE_subtract_meanfield" in it.__dict__:
-                # dl.subtract_meanfield = iteration.QE_subtract_meanfield
-                dl.subtract_meanfield = True
-            else:
-                dl.subtract_meanfield  = True
-
-            dl.it_tasks = it.tasks
-            if it.cg_tol < 1.:
-                if 'tol5e5' in cf.analysis.TEMP_suffix:
-                    dl.cg_tol = lambda itr : it.cg_tol
-                else:
-                    dl.cg_tol = lambda itr : it.cg_tol if itr <= 10 else it.cg_tol*0.1
-            else:
-                if 'rinf_tol4' in cf.analysis.TEMP_suffix:
-                    log.warning('tol_iter increased for this run. This is hardcoded.')
-                    dl.cg_tol = lambda itr : 2*10 ** (- it.cg_tol) if itr <= 10 else 2*10 ** (-(it.cg_tol+1))
-                elif 'tol5e5' in cf.analysis.TEMP_suffix:
-                    dl.cg_tol = lambda itr : 1*10 ** (- it.cg_tol) 
-                else:
-                    dl.cg_tol = lambda itr : 1*10 ** (- it.cg_tol) if itr <= 10 else 1*10 ** (-(it.cg_tol+1))
-            dl.soltn_cond = it.soltn_cond
-
-            if it.lenjob_geometry == 'thin_gauss':
-                dl.lenjob_geometry = utils_scarf.Geom.get_thingauss_geometry(dl.lmax_unl, 2, zbounds=dl.zbounds_len)
-            if it.lenjob_pbgeometry == 'pbdGeometry':
-                dl.lenjob_pbgeometry = utils_scarf.pbdGeometry(dl.lenjob_geometry, utils_scarf.pbounds(dl.pb_ctr, dl.pb_extent))
-
-            dl.iterator_typ = it.iterator_typ
-            if it.mfvar == 'same' or it.mfvar == '':
-                dl.mfvar = None
-            elif it.mfvar.startswith('/'):
-                if os.path.isfile(it.mfvar):
-                    dl.mfvar = it.mfvar
-                else:
-                    log.error('Not sure what to do with this meanfield: {}'.format(it.mfvar))
-            if dl.mfvar:
-                # TODO this is a terrible way of replacing foreground..
-                # the following lines access analysis Y while being an analysis X, 
-                # as realization dependent-mf calculation in core/handler needs qlms_dd_mfvar to remove the correct simulation
-                __dataclass_parameters = cf.data.class_parameters
-                __dataclass_parameters['fg'] = __dataclass_parameters['fg'].replace(dl.fg, dl.version[2:4])
-                if 'fg' in __dataclass_parameters:
-                    _fg = __dataclass_parameters['fg']
-                _package = cf.data.package_
-                _module = cf.data.module_
-                if cf.data.package_.startswith('lerepi'):
-                    _package = 'lenscarf.'+cf.data.package_
-                __sims_full_name = '{}.{}'.format(_package, _module)
-                __sims_module = importlib.import_module(__sims_full_name)
-                _class = cf.data.class_
-                _sims = getattr(__sims_module, _class)(**__dataclass_parameters)
-                TEMPmfvar = dl.TEMP.replace('_{}_'.format(dl.fg), "_{}_".format(dl.version[2:4]))
-                _ivfs_raw = filt_cinv.library_cinv_sepTP(opj(TEMPmfvar, 'ivfs'), _sims, dl.cinv_t, dl.cinv_p, dl.cls_len)
-                _ivfs = filt_util.library_ftl(_ivfs_raw, dl.lmax_ivf, dl.ftl_rs, dl.fel_rs, dl.fbl_rs)
-                dl.qlms_dd_mfvar = qest.library_sepTP(opj(TEMPmfvar, 'qlms_dd'), _ivfs, _ivfs, dl.cls_len['te'], dl.nside, lmax_qlm=dl.lmax_qlm)
-            
-            dl.stepper_model = it.stepper
-            if dl.stepper_model.typ == 'harmonicbump':
-                dl.stepper = steps.harmonicbump(dl.lmax_qlm, dl.mmax_qlm, xa=dl.stepper_model.xa, xb=dl.stepper_model.xb)
-
-
-        dl = DLENSALOT_Concept()
-        
-        dl.dlm_mod_bool = cf.madel.dlm_mod[0]
-        dl.dlm_mod_fnsuffix = cf.madel.dlm_mod[1]
-
-
-        _process_Analysis(dl, cf.analysis)
-        _process_Data(dl, cf.data)
-        _process_Noisemodel(dl, cf.noisemodel)
-        _process_Qerec(dl, cf.qerec)
-        _process_Itrec(dl, cf.itrec)
-
-        if "calc_meanfield" in dl.it_tasks or 'calc_btemplate' in dl.it_tasks:
-            if dl.version == '' or dl.version == None:
-                dl.mf_dirname = opj(dl.TEMP, 'mf_{:03d}_{}'.format(dl.Nmf, dl.dlm_mod_fnsuffix))
-            else:
-                dl.mf_dirname = opj(dl.TEMP, 'mf_{}_{:03d}_{}'.format(dl.version, dl.Nmf, dl.dlm_mod_fnsuffix))
-            if not os.path.isdir(dl.mf_dirname) and mpi.rank == 0:
-                os.makedirs(dl.mf_dirname)
-
-        if mpi.rank == 0:
-            log.info("I am going to work with the following values:")
-            _str = '---------------------------------------------------\n'
-            for key, val in dl.__dict__.items():
-                _str += '{}:\t{}'.format(key, val)
-                _str += '\n'
-            _str += '---------------------------------------------------\n'
-            log.info(_str)
-
-        return dl
-
-      
+   
     @log_on_start(logging.INFO, "build_v3() started")
     @log_on_end(logging.INFO, "build_v3() finished")
     def build_v3(self, cf):
@@ -501,26 +133,24 @@ class l2lensrec_Transformer:
         def _process_Analysis(dl, an):
             # key -> k
             dl.k = an.key
-
-
             # version -> version
             dl.version = an.version
-
-
             # simidxs_mf
             dl.simidxs_mf = cf.analysis.simidxs_mf
-            dl.Nmf = 0 if cf.analysis.V == 'noMF' else len(dl.simidxs_mf)
-
-
+            dl.Nmf = 0 if cf.analysis.V == 'noMF' else len(dl.simidxs_mf) ## needed?
             # TEMP_suffix -> TEMP_suffix
             dl.TEMP_suffix = an.TEMP_suffix
             dl.TEMP = transform(cf, l2T_Transformer())
-
-
             # LENSRES
             dl.lens_res = an.lens_res
-
-
+            # Lmin
+            #TODO give user freedom about fiducial model. But needed here for dl.cpp
+            _cls_path = opj(os.path.dirname(plancklens.__file__), 'data', 'cls')
+            dl.cls_unl = utils.camb_clfile(opj(_cls_path, 'FFP10_wdipole_lenspotentialCls.dat'))
+            dl.cls_len = utils.camb_clfile(opj(_cls_path, 'FFP10_wdipole_lensedCls.dat'))
+            dl.Lmin = an.Lmin
+            dl.cpp = np.copy(dl.cls_unl['pp'][:dl.lmax_qlm + 1])
+            dl.cpp[:dl.Lmin] *= 0.
             # zbounds -> zbounds
             if an.zbounds[0] == 'nmr_relative':
                 dl.zbounds = df.get_zbounds(hp.read_map(cf.noisemodel.rhits_normalised[0]), an.zbounds[1])
@@ -529,8 +159,6 @@ class l2lensrec_Transformer:
                 dl.zbounds = df.extend_zbounds(_zbounds, degrees=an.zbounds[1])
             elif type(an.zbounds[0]) in [float, int, np.float64]:
                 dl.zbounds = an.zbounds
-
-
             # zbounds_len
             if an.zbounds_len[0] == 'extend':
                 dl.zbounds_len = df.extend_zbounds(dl.zbounds, degrees=an.zbounds_len[1])
@@ -538,109 +166,27 @@ class l2lensrec_Transformer:
                 dl.zbounds_len = [-1, 1]
             elif type(an.zbounds_len[0]) in [float, int, np.float64]:
                 dl.zbounds_len = an.zbounds_len
-
-
             # pbounds -> pb_ctr, pb_extent
             dl.pb_ctr, dl.pb_extent = an.pbounds
-
-
-        @log_on_start(logging.INFO, "_process_Data() started")
-        @log_on_end(logging.INFO, "_process_Data() finished")
-        def _process_Data(dl, da):
-            # package_
-            _package = da.package_
-
-
-            # module_
-            _module = da.module_
-
-
-            # class_
-            _class = da.class_
-
-
-            # class_parameters -> sims
-            _dataclass_parameters = da.class_parameters
-            if 'fg' in _dataclass_parameters:
-                dl.fg = _dataclass_parameters['fg']
-            _sims_full_name = '{}.{}'.format(_package, _module)
-            _sims_module = importlib.import_module(_sims_full_name)
-            dl.sims = getattr(_sims_module, _class)(**_dataclass_parameters)
-
-
-            # data_type
-            dl.data_type = da.data_type
-
-
-            # data_field
-            dl.data_field = da.data_field
-
-
-            # beam
-            dl.beam = da.beam
-
-
-            # nside
-            dl.nside = da.nside
-
-
-            # transferfunction
-            dl.transferfunction = da.transferfunction
-            data_lmax = da.lmax
-            if dl.transferfunction == 'gauss':
-                _cls_path = opj(os.path.dirname(plancklens.__file__), 'data', 'cls')
-                dl.cls_unl = utils.camb_clfile(opj(_cls_path, 'FFP10_wdipole_lenspotentialCls.dat'))
-                dl.cls_len = utils.camb_clfile(opj(_cls_path, 'FFP10_wdipole_lensedCls.dat'))
-                dl.nlev_t = l2OBD_Transformer.get_nlevt(cf)
-                dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
-
-                # Fiducial model of the transfer function
-                dl.transf_tlm = gauss_beam(df.a2r(cf.data.beam), lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_tlm)
-                dl.transf_elm = gauss_beam(df.a2r(cf.data.beam), lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_elm)
-                dl.transf_blm = gauss_beam(df.a2r(cf.data.beam), lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_blm)
-
-                # Isotropic approximation to the filtering (used eg for response calculations)
-                dl.ftl = cli(dl.cls_len['tt'][:data_lmax + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
-                dl.fel = cli(dl.cls_len['ee'][:data_lmax + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
-                dl.fbl = cli(dl.cls_len['bb'][:data_lmax + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
-
-                # Same using unlensed spectra (used for unlensed response used to initiate the MAP curvature matrix)
-                dl.ftl_unl = cli(dl.cls_unl['tt'][:data_lmax + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
-                dl.fel_unl = cli(dl.cls_unl['ee'][:data_lmax + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
-                dl.fbl_unl = cli(dl.cls_unl['bb'][:data_lmax + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
-            elif dl.transferfunction == 'gauss_with_pixwin':
-                # Fiducial model of the transfer function
-                dl.transf_tlm = gauss_beam(df.a2r(cf.data.beam), lmax=data_lmax) * hp.pixwin(2048, lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_tlm)
-                dl.transf_elm = gauss_beam(df.a2r(cf.data.beam), lmax=data_lmax) * hp.pixwin(2048, lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_elm)
-                dl.transf_blm = gauss_beam(df.a2r(cf.data.beam), lmax=data_lmax) * hp.pixwin(2048, lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_blm)
-
-                # Isotropic approximation to the filtering (used eg for response calculations)
-                dl.ftl = cli(dl.cls_len['tt'][:data_lmax + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
-                dl.fel = cli(dl.cls_len['ee'][:data_lmax + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
-                dl.fbl = cli(dl.cls_len['bb'][:data_lmax + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
-
-                # Same using unlensed spectra (used for unlensed response used to initiate the MAP curvature matrix)
-                dl.ftl_unl = cli(dl.cls_unl['tt'][:data_lmax + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
-                dl.fel_unl = cli(dl.cls_unl['ee'][:data_lmax + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
-                dl.fbl_unl = cli(dl.cls_unl['bb'][:data_lmax + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
+            # lm_max_len -> lm_max_len
+            dl.lm_max_len = an.lm_max_len
+            # lm_max_unl -> lm_max_unl
+            dl.lm_max_unl = an.lm_max_unl
+            # lm_ivf -> lm_ivf
+            dl.lm_ivf = an.lm_ivf
 
 
         @log_on_start(logging.INFO, "_process_Noisemodel() started")
         @log_on_end(logging.INFO, "_process_Noisemodel() finished")
         def _process_Noisemodel(dl, nm):
-            # lmin_tlm
-            dl.lmin_tlm = nm.lmin_tlm
-                
-                
-            # lmin_elm
-            dl.lmin_elm = nm.lmin_elm
-
-
-            # lmin_blm
-            dl.lmin_blm = nm.lmin_blm
-
-
+            # sky_coverage
+            dl.sky_coverage = nm.sky_coverage
+            # spectrum_type
+            dl.spectrum_type = nm.spectrum_type
+            # lmin_teb
+            dl.lmin_teb = nm.lmin_teb
             # lowell_treat
+            ## TODO make prettier
             dl.lowell_treat = nm.lowell_treat
             if dl.lowell_treat == 'OBD':
                 dl.obd_libdir = nm.OBD.libdir
@@ -661,44 +207,83 @@ class l2lensrec_Transformer:
             elif dl.lowell_treat == None or dl.lowell_treat == 'None':
                 dl.tpl = None
                 dl.tpl_kwargs = dict()
-                # TODO are 0s a good value? 
-                dl.lmin_tlm = dl.Lmin
-                dl.lmin_elm = dl.Lmin
-                dl.lmin_blm = dl.Lmin
+                # TODO are 1s a good value? 
+                dl.lmin_tlm = 1
+                dl.lmin_elm = 1
+                dl.lmin_blm = 1
 
 
             # nlev_t
             dl.nlev_t = l2OBD_Transformer.get_nlevt(cf)
-
-
             # nlev_p
             dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
-
-
-            # rhits_normalised
-            dl.rhits_normalised = nm.rhits_normalised
-
-
             # mask
             dl.masks = l2OBD_Transformer.get_masks(cf)
-
-
+            # rhits_normalised
+            dl.rhits_normalised = nm.rhits_normalised
             # ninvjob_geometry
             if nm.ninvjob_geometry == 'healpix_geometry':
                 dl.ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(dl.nside, zbounds=dl.zbounds)
+
       
+
+        @log_on_start(logging.INFO, "_process_Data() started")
+        @log_on_end(logging.INFO, "_process_Data() finished")
+        def _process_Data(dl, da):
+            # simidxs
+            dl.simidxs = da.simidxs
+            # package_
+            _package = da.package_
+            # module_
+            _module = da.module_
+            # class_
+            _class = da.class_
+            # class_parameters -> sims
+            ## TODO what if user wants to add own sims_module outside of dlensalot?
+            _dataclass_parameters = da.class_parameters
+            if 'fg' in _dataclass_parameters:
+                dl.fg = _dataclass_parameters['fg']
+            _sims_full_name = '{}.{}'.format(_package, _module)
+            _sims_module = importlib.import_module(_sims_full_name)
+            dl.sims = getattr(_sims_module, _class)(**_dataclass_parameters)
+            dl.data_type = dl.sims.data_type
+            dl.data_field = dl.sims.data_field
+            dl.beam = dl.sims.beam
+            dl.nside = dl.sims.nside
+            # transferfunction
+            dl.transferfunction = da.transferfunction
+            data_lmax = da.lmax
+            if dl.transferfunction == 'gauss_no_pixwin':
+                # Fiducial model of the transfer function
+                dl.transf_tlm = gauss_beam(df.a2r(cf.data.beam), lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_tlm)
+                dl.transf_elm = gauss_beam(df.a2r(cf.data.beam), lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_elm)
+                dl.transf_blm = gauss_beam(df.a2r(cf.data.beam), lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_blm)
+
+            elif dl.transferfunction == 'gauss_with_pixwin':
+                # Fiducial model of the transfer function
+                dl.transf_tlm = gauss_beam(df.a2r(cf.data.beam), lmax=data_lmax) * hp.pixwin(2048, lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_tlm)
+                dl.transf_elm = gauss_beam(df.a2r(cf.data.beam), lmax=data_lmax) * hp.pixwin(2048, lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_elm)
+                dl.transf_blm = gauss_beam(df.a2r(cf.data.beam), lmax=data_lmax) * hp.pixwin(2048, lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_blm)
+
+            # Isotropic approximation to the filtering (used eg for response calculations)
+            dl.ftl = cli(dl.cls_len['tt'][:data_lmax + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
+            dl.fel = cli(dl.cls_len['ee'][:data_lmax + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
+            dl.fbl = cli(dl.cls_len['bb'][:data_lmax + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
+
+            # Same using unlensed spectra (used for unlensed response used to initiate the MAP curvature matrix)
+            dl.ftl_unl = cli(dl.cls_unl['tt'][:data_lmax + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
+            dl.fel_unl = cli(dl.cls_unl['ee'][:data_lmax + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
+            dl.fbl_unl = cli(dl.cls_unl['bb'][:data_lmax + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
+
 
         @log_on_start(logging.INFO, "_process_Qerec() started")
         @log_on_end(logging.INFO, "_process_Qerec() finished")
         def _process_Qerec(dl, qe):
             # simidxs
             dl.QE_simidxs = qe.simidxs
-
-
             # filter
-            dl.qe_filter_directional = qe.filter.directional
-            dl.qe_filter_data_type = qe.filter.data_type
-            if dl.qe_filter_directional == 'aniso':
+            dl.qe_filter_directional = qe.filter_directional
+            if dl.qe_filter_directional == 'anisotropic':
                 dl.ninvt_desc = l2OBD_Transformer.get_ninvt(cf)
                 dl.ninvp_desc = l2OBD_Transformer.get_ninvp(cf)
                 lmax_plm = qe.lmax_plm
@@ -719,18 +304,12 @@ class l2lensrec_Transformer:
                 _fel_rs = np.ones(lmax_plm + 1, dtype=float) * (np.arange(lmax_plm + 1) >= dl.lmin_elm)
                 _fbl_rs = np.ones(lmax_plm + 1, dtype=float) * (np.arange(lmax_plm + 1) >= dl.lmin_blm)
                 dl.filter = filt_util.library_ftl(_filter_raw, lmax_plm, _ftl_rs, _fel_rs, _fbl_rs)
-            elif dl.qe_filter_directional == 'iso':
+            elif dl.qe_filter_directional == 'isotropic':
                 dl.filter = filt_simple.library_fullsky_alms_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
-
-
             # qlms
             dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.ivfs, dl.ivfs, dl.cls_len['te'], dl.nside, lmax_qlm=dl.lmax_qlm)
-
-
             # cg_tol
             dl.cg_tol = qe.cg_tol
-
-
             # ninvjob_qe_geometry
             if qe.ninvjob_qe_geometry == 'healpix_geometry_qe':
                 # TODO for QE, isOBD only works with zbounds=(-1,1). Perhaps missing ztrunc on qumaps
@@ -738,8 +317,6 @@ class l2lensrec_Transformer:
                 dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl.nside, zbounds=(-1,1))
             elif qe.ninvjob_qe_geometry == 'healpix_geometry':
                 dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl.nside, zbounds=dl.zbounds)
-
-
             # chain
             dl.chain_model = qe.chain
             if dl.chain_model.p6 == 'tr_cg':
@@ -748,8 +325,6 @@ class l2lensrec_Transformer:
                 _p7 = cd_solve.cache_mem()
             dl.chain_descr = lambda p2, p5 : [
                 [dl.chain_model.p0, dl.chain_model.p1, p2, dl.chain_model.p3, dl.chain_model.p4, p5, _p6, _p7]]
-
-            hp.alm2cl
             # qe_cl_analysis
             dl.cl_analysis = qe.cl_analysis
             if qe.cl_analysis == True:
@@ -772,12 +347,6 @@ class l2lensrec_Transformer:
                 dl.qcls_dd = qecl.library(opj(dl.TEMP, 'qcls_dd'), dl.qlms_dd, dl.qlms_dd, dl.mc_sims_bias)
 
 
-            # Lmin -> cpp
-            dl.Lmin = qe.Lmin
-            dl.cpp = np.copy(dl.cls_unl['pp'][:dl.lmax_qlm + 1])
-            dl.cpp[:dl.Lmin] *= 0.
-
-
         @log_on_start(logging.INFO, "_process_Itrec() started")
         @log_on_end(logging.INFO, "_process_Itrec() finished")
         def _process_Itrec(dl, it):
@@ -791,40 +360,28 @@ class l2lensrec_Transformer:
                     dl.mf_dirname = opj(dl.TEMP, l2T_Transformer.ofj('mf', {'version': dl.version, 'Nmf': dl.Nmf}))
                 if not os.path.isdir(dl.mf_dirname) and mpi.rank == 0:
                     os.makedirs(dl.mf_dirname)
-
-
             # cg_tol
             dl.cg_tol = lambda itr : it.cg_tol if itr <= 10 else it.cg_tol*0.1
-
-
             # simidxs
-            dl.it_simidxs = it.simidxs
-
-
+            dl.it_simidxs = it.simidxs if it.simidxs != -1 else dl.simidxs
+            # filter
+            dl.it_filter_directional = it.filter_directional
             # sims -> sims_MAP
-            if it.filter_directional == 'aniso':
+            if it.filter_directional == 'anisotropic':
                 dl.sims_MAP = utils_sims.ztrunc_sims(dl.sims, self.nside, [dl.zbounds])
-            elif it.filter_directional == 'iso':
+            elif it.filter_directional == 'isotropic':
                 dl.sims_MAP = self.sims
-
-
             # itmax
             dl.itmax = it.itmax
-
-
             # iterator_typ
             dl.iterator_typ = it.iterator_typ
-
-
-            # filter
-            dl.filter_directional = it.filter.directional
-            dl.filter_data_type = it.filter.data_type
+            
             wee = self.k == 'p_p'
             dl.ffi = remapping.deflection(dl.lenjob_pbgeometry, self.lensres, np.zeros_like(hp.Alm.getsize(4000)), it.mmax_qlm, self.tr, self.tr)
-            if dl.filter_directional == 'iso':
+            if dl.it_filter_directional == 'isotropic':
                 dl.filter = opfilt_iso_ee_wl.alm_filter_nlev_wl(dl.nlev_p, dl.ffi, dl.transf_elm, (it.filter.lmax_unl, it.filter.mmax_unl), (it.filter.lmax_len, it.filter.mmax_len), wee=wee, transf_b=dl.transf_blm, nlev_b=dl.nlev_p)
                 self.k_geom = filter.ffi.geom
-            elif dl.filter_directional == 'aniso':
+            elif dl.it_filter_directional == 'anisotropic':
                 self.get_filter_aniso(dl.sims_MAP, dl.ffi, dl.tpl)
                 ninv = [dl.sims_MAP.ztruncify(read_map(ni)) for ni in self.ninvp_desc]
                 dl.filter = opfilt_ee_wl.alm_filter_ninv_wl(
@@ -832,18 +389,10 @@ class l2lensrec_Transformer:
                     (self.lmax_unl, self.mmax_unl), (self.lmax_len, self.mmax_len),
                     self.tr, dl.tpl, wee=wee, lmin_dotop=min(self.lmin_elm, self.lmin_blm), transf_blm=self.transf_blm)
                 self.k_geom = filter.ffi.geom
-
-
             # lenjob_geometry
-            if it.lenjob_geometry == 'thin_gauss':
-                dl.lenjob_geometry = utils_scarf.Geom.get_thingauss_geometry(dl.lmax_unl, 2, zbounds=dl.zbounds_len)
-
-
+            dl.lenjob_geometry = utils_scarf.Geom.get_thingauss_geometry(dl.lmax_unl, 2, zbounds=dl.zbounds_len) if it.lenjob_geometry == 'thin_gauss'
             # lenjob_pbgeometry
-            if it.lenjob_pbgeometry == 'pbdGeometry':
-                dl.lenjob_pbgeometry = utils_scarf.pbdGeometry(dl.lenjob_geometry, utils_scarf.pbounds(dl.pb_ctr, dl.pb_extent))
-
-
+            dl.lenjob_pbgeometry = utils_scarf.pbdGeometry(dl.lenjob_geometry, utils_scarf.pbounds(dl.pb_ctr, dl.pb_extent)) if it.lenjob_pbgeometry == 'pbdGeometry'
             # mfvar
             if it.mfvar == 'same' or it.mfvar == '':
                 dl.mfvar = None
@@ -853,12 +402,8 @@ class l2lensrec_Transformer:
                 else:
                     log.error('Not sure what to do with this meanfield: {}'.format(it.mfvar))
                     sys.exit()
-
-
             # soltn_cond
             dl.soltn_cond = it.soltn_cond
-
-
             # stepper
             dl.stepper_model = it.stepper
             if dl.stepper_model.typ == 'harmonicbump':
@@ -1289,7 +834,8 @@ class l2d_Transformer:
                                 dl.prediction[key0][key4][key1][key2] = np.array([], dtype=np.complex128)
 
         return dl
-        
+
+      
 class l2i_Transformer:
 
     @log_on_start(logging.INFO, "build() started")
@@ -1445,7 +991,6 @@ class l2i_Transformer:
             
 
         dl = DLENSALOT_Concept()
-        dl.lmax = cf.analysis.lmax_filt
 
         
         _process_Data(dl, cf.data)
@@ -1494,11 +1039,11 @@ class l2j_Transformer:
         return jobs
 
 
-@transform.case(DLENSALOT_Model_v2, l2i_Transformer)
+@transform.case(DLENSALOT_Model_mm, l2i_Transformer)
 def f1(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build_v2(expr)
 
-@transform.case(DLENSALOT_Model_v2, l2ji_Transformer)
+@transform.case(DLENSALOT_Model_mm, l2ji_Transformer)
 def f1(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)
 
@@ -1506,27 +1051,27 @@ def f1(expr, transformer): # pylint: disable=missing-function-docstring
 def f2b(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build_delsuffix(expr)
 
+@transform.case(DLENSALOT_Model_mm, l2T_Transformer)
+def f2a2(expr, transformer): # pylint: disable=missing-function-docstring
+    return transformer.build_v2(expr)
+
 @transform.case(str, l2T_Transformer)
 def f2c(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build_OBD(expr)
 
-@transform.case(DLENSALOT_Model_v2, l2OBD_Transformer)
+@transform.case(DLENSALOT_Model_mm, l2OBD_Transformer)
 def f4(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build_v2(expr)
 
-@transform.case(DLENSALOT_Model_v2, l2d_Transformer)
+@transform.case(DLENSALOT_Model_mm, l2d_Transformer)
 def f5(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build_v2(expr)
 
-@transform.case(DLENSALOT_Model_v2, l2j_Transformer)
+@transform.case(DLENSALOT_Model_mm, l2j_Transformer)
 def f1(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)
 
-@transform.case(DLENSALOT_Model_v2, l2T_Transformer)
-def f2a2(expr, transformer): # pylint: disable=missing-function-docstring
-    return transformer.build_v2(expr)
-
-@transform.case(DLENSALOT_Model_v2, l2lensrec_Transformer)
+@transform.case(DLENSALOT_Model_mm, l2lensrec_Transformer)
 def f3(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build_v2(expr)
 
