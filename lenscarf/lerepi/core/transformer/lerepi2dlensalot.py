@@ -390,9 +390,9 @@ class l2lensrec_Transformer:
                     self.tr, dl.tpl, wee=wee, lmin_dotop=min(self.lmin_elm, self.lmin_blm), transf_blm=self.transf_blm)
                 self.k_geom = filter.ffi.geom
             # lenjob_geometry
-            dl.lenjob_geometry = utils_scarf.Geom.get_thingauss_geometry(dl.lmax_unl, 2, zbounds=dl.zbounds_len) if it.lenjob_geometry == 'thin_gauss'
+            dl.lenjob_geometry = utils_scarf.Geom.get_thingauss_geometry(dl.lmax_unl, 2, zbounds=dl.zbounds_len) if it.lenjob_geometry == 'thin_gauss' else None
             # lenjob_pbgeometry
-            dl.lenjob_pbgeometry = utils_scarf.pbdGeometry(dl.lenjob_geometry, utils_scarf.pbounds(dl.pb_ctr, dl.pb_extent)) if it.lenjob_pbgeometry == 'pbdGeometry'
+            dl.lenjob_pbgeometry = utils_scarf.pbdGeometry(dl.lenjob_geometry, utils_scarf.pbounds(dl.pb_ctr, dl.pb_extent)) if it.lenjob_pbgeometry == 'pbdGeometry' else None
             # mfvar
             if it.mfvar == 'same' or it.mfvar == '':
                 dl.mfvar = None

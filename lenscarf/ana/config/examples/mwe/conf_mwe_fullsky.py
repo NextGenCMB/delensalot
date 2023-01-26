@@ -1,5 +1,5 @@
 import numpy as np
-from dlensalot.lerepi.core.metamodel.dlensalot_mm import *
+from lenscarf.lerepi.core.metamodel.dlensalot_mm import *
 
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(
@@ -41,7 +41,7 @@ dlensalot_model = DLENSALOT_Model(
         lm_max_qlm = (4000, 4000),
     ),
     itrec = DLENSALOT_Itrec(
-        tasks = ["calc_phi", "calc_meanfield", "calc_btemplate"], #["calc_phi", "calc_meanfield", "calc_btemplate"],
+        tasks = ["calc_phi", "calc_meanfield", "calc_blt"], #["calc_phi", "calc_meanfield", "calc_btemplate"],
         filter_directional = 'isotropic',
         itmax = 10,
         cg_tol = 1e-3,

@@ -1,23 +1,18 @@
 def lmax_filt(instance, attribute, value):
-    if type(attribute) != int:
+    if type(value) != int:
         raise ValueError('Must be int')
 
 
-def lmax_len(instance, attribute, value):
-    desc = ['nmr_relative', 'mr_relative']
-    assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+def lm_max_len(instance, attribute, value):
+    desc = [tuple, int, list]
+    assert type(value) in desc, ValueError('Must be in {}, but is {}'.format(desc, type(value)))
 
 
-def mmax_len(instance, attribute, value):
-    desc = ['max', 'extend']
-    assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+def lm_max_unl(instance, attribute, value):
+    desc = [tuple, int, list]
+    assert type(value) in desc, ValueError('Must be in {}, but is {}'.format(desc, type(value)))
 
 
-def lmax_unl(instance, attribute, value):
-    desc = ['map', 'alm']
-    assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
-
-
-def mmax_unl(instance, attribute, value):
-    desc = ['eb', 'qu']
-    assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+def lm_ivf(instance, attribute, value):
+    desc = [tuple, int, list]
+    assert type(value) in desc, ValueError('Must be in {}, but is {}'.format(desc, type(value)))

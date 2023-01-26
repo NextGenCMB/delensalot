@@ -20,14 +20,14 @@ from MSC import pospace as ps
 from plancklens import utils, qresp
 from plancklens.sims import planck2018_sims
 
-from dlensalot.core import mpi
-from dlensalot.lerepi.core.visitor import transform
-from dlensalot.lerepi.config.config_helper import data_functions as df
-from dlensalot.iterators import cs_iterator
-from dlensalot.utils_hp import almxfl, alm_copy
-from dlensalot.iterators.statics import rec as rec
-from dlensalot.iterators import iteration_handler
-from dlensalot.opfilt.bmodes_ninv import template_bfilt
+from lenscarf.core import mpi
+from lenscarf.lerepi.core.visitor import transform
+from lenscarf.lerepi.config.config_helper import data_functions as df
+from lenscarf.iterators import cs_iterator
+from lenscarf.utils_hp import almxfl, alm_copy
+from lenscarf.iterators.statics import rec as rec
+from lenscarf.iterators import iteration_handler
+from lenscarf.opfilt.bmodes_ninv import template_bfilt
 
 
 class Basejob():
