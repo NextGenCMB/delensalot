@@ -281,6 +281,7 @@ class l2lensrec_Transformer:
             dl.qe_lm_max_qlm = qe.lm_max_qlm
             dl.qe_lmax_qlm = qe.lm_max_qlm[0]
             dl.lmax_qlm = qe.lm_max_qlm[0]
+            dl.mmax_qlm = qe.lm_max_qlm[1]
             # filter
             dl.qe_filter_directional = qe.filter_directional
             if dl.qe_filter_directional == 'anisotropic':
@@ -305,7 +306,7 @@ class l2lensrec_Transformer:
                 _fbl_rs = np.ones(lmax_plm + 1, dtype=float) * (np.arange(lmax_plm + 1) >= dl.lmin_blm)
                 dl.ivfs = filt_util.library_ftl(_filter_raw, lmax_plm, _ftl_rs, _fel_rs, _fbl_rs)
             elif dl.qe_filter_directional == 'isotropic':
-                # dl.ivfs = filt_simple.library_fullsky_alms_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=False)
+                # dl.ivfs = filt_simple.library_fullsky_alms_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
                 dl.ivfs = filt_simple.library_fullsky_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl.nside, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
             # qlms
             dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.ivfs, dl.ivfs, dl.cls_len['te'], dl.nside, lmax_qlm=dl.qe_lmax_qlm)

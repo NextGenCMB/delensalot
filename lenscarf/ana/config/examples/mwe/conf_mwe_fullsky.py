@@ -10,7 +10,7 @@ dlensalot_model = DLENSALOT_Model(
     ),                              
     analysis = DLENSALOT_Analysis(
         key = 'p_p',
-        simidxs = np.arange(0,200),
+        simidxs = np.arange(0,2),
         TEMP_suffix = 'my_first_dlensalot_analysis',
         Lmin = 2, 
         lm_max_len = (4000, 4000),
