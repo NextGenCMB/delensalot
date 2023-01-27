@@ -10,6 +10,9 @@ from os.path import join as opj
 import importlib
 
 
+from plancklens.sims import maps, phas
+from lenscarf.sims import sims_ffp10
+
 import logging
 log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
@@ -132,8 +135,10 @@ class l2lensrec_Transformer:
             dl.k = an.key
             # version -> version
             dl.version = an.version
+            # simidxs
+            dl.simidxs = an.simidxs
             # simidxs_mf
-            dl.simidxs_mf = cf.analysis.simidxs_mf
+            dl.simidxs_mf = an.simidxs_mf if an.simidxs_mf != [] else dl.simidxs
             dl.Nmf = 0 if dl.version == 'noMF' else len(dl.simidxs_mf) ## TODO needed?
             # TEMP_suffix -> TEMP_suffix
             dl.TEMP_suffix = an.TEMP_suffix
@@ -210,8 +215,6 @@ class l2lensrec_Transformer:
         @log_on_start(logging.INFO, "_process_Data() started")
         @log_on_end(logging.INFO, "_process_Data() finished")
         def _process_Data(dl, da):
-            # simidxs
-            dl.simidxs = da.simidxs
             # package_
             _package = da.package_
             # module_
@@ -225,26 +228,38 @@ class l2lensrec_Transformer:
                 dl.fg = _dataclass_parameters['fg']
             _sims_full_name = '{}.{}'.format(_package, _module)
             _sims_module = importlib.import_module(_sims_full_name)
-            dl._sims = getattr(_sims_module, _class)(**_dataclass_parameters)
-            dl.sims = dl._sims.sims
-            dl.data_type = dl._sims.data_type
-            dl.data_field = dl._sims.data_field
-            dl.beam = dl._sims.beam
-            dl.nside = dl._sims.nside
+
+            # dl._sims = getattr(_sims_module, _class)(**_dataclass_parameters)
+            # dl.sims = dl._sims.sims
+            dl.data_type = 'alm'
+            dl.data_field = "eb"
+            dl.beam = 1
+            dl.lmax_transf = 4096
+            dl.nside = 2048
+            dl.nlev_p = 0.5
+            dl.nlev_t = 0.5/np.sqrt(2)
+            pix_phas = phas.pix_lib_phas(opj(os.environ['HOME'], 'pixphas_nside%s'%dl.nside), 3, (hp.nside2npix(dl.nside),)) # T, Q, and U noise phases
+            transf_dat = gauss_beam(dl.beam / 180 / 60 * np.pi, lmax=dl.lmax_transf) # (taking here full FFP10 cmb's which are given to 4096)
+            dl.sims = maps.cmb_maps_nlev(sims_ffp10.cmb_len_ffp10(), transf_dat, dl.nlev_t, dl.nlev_p, dl.nside, pix_lib_phas=pix_phas)
+
+            # dl.data_type = dl._sims.data_type
+            # dl.data_field = dl._sims.data_field
+            # dl.beam = dl._sims.beam
+            # dl.nside = dl._sims.nside
             # transferfunction
             dl.transferfunction = da.transferfunction
-            data_lmax = dl._sims.lmax_transf # TODO or better use lm_max_len?
+            data_lmax = dl.lmax_transf # TODO or better use lm_max_len?
             if dl.transferfunction == 'gauss_no_pixwin':
                 # Fiducial model of the transfer function
-                dl.transf_tlm = gauss_beam(df.a2r(dl._sims.beam), lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[0])
-                dl.transf_elm = gauss_beam(df.a2r(dl._sims.beam), lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[1])
-                dl.transf_blm = gauss_beam(df.a2r(dl._sims.beam), lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[2])
+                dl.transf_tlm = gauss_beam(df.a2r(dl.beam), lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[0])
+                dl.transf_elm = gauss_beam(df.a2r(dl.beam), lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[1])
+                dl.transf_blm = gauss_beam(df.a2r(dl.beam), lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[2])
 
             elif dl.transferfunction == 'gauss_with_pixwin':
                 # Fiducial model of the transfer function
-                dl.transf_tlm = gauss_beam(df.a2r(dl._sims.beam), lmax=data_lmax) * hp.pixwin(2048, lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[0])
-                dl.transf_elm = gauss_beam(df.a2r(dl._sims.beam), lmax=data_lmax) * hp.pixwin(2048, lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[1])
-                dl.transf_blm = gauss_beam(df.a2r(dl._sims.beam), lmax=data_lmax) * hp.pixwin(2048, lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[2])
+                dl.transf_tlm = gauss_beam(df.a2r(dl.beam), lmax=data_lmax) * hp.pixwin(2048, lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[0])
+                dl.transf_elm = gauss_beam(df.a2r(dl.beam), lmax=data_lmax) * hp.pixwin(2048, lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[1])
+                dl.transf_blm = gauss_beam(df.a2r(dl.beam), lmax=data_lmax) * hp.pixwin(2048, lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[2])
 
             # Isotropic approximation to the filtering (used eg for response calculations)
             dl.ftl = cli(dl.cls_len['tt'][:data_lmax + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
@@ -260,10 +275,8 @@ class l2lensrec_Transformer:
         @log_on_start(logging.INFO, "_process_Qerec() started")
         @log_on_end(logging.INFO, "_process_Qerec() finished")
         def _process_Qerec(dl, qe):
-            #
+            # qe_tasks
             dl.qe_tasks = qe.tasks
-            # simidxs
-            dl.QE_simidxs = qe.simidxs
             # lmax_qlm
             dl.qe_lm_max_qlm = qe.lm_max_qlm
             dl.qe_lmax_qlm = qe.lm_max_qlm[0]
@@ -273,7 +286,7 @@ class l2lensrec_Transformer:
             if dl.qe_filter_directional == 'anisotropic':
                 dl.ninvt_desc = l2OBD_Transformer.get_ninvt(cf)
                 dl.ninvp_desc = l2OBD_Transformer.get_ninvp(cf)
-                lmax_plm = qe.lmax_plm
+                lmax_plm = qe.lm_max_qlm[0]
                 # TODO filters can be initialised with both, ninvX_desc and ninv_X. But Plancklens' hashcheck will complain if it changed since shapes are different. Not sure which one I want to use in the future..
                 # TODO using ninv_X possibly causes hashcheck to fail, as v1 == v2 won't work on arrays.
                 dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), lmax_plm, dl.nside, dl.cls_len, dl.transf_tlm, dl.ninvt_desc,
@@ -282,7 +295,7 @@ class l2lensrec_Transformer:
                     transf_elm_loc = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=lmax_plm)
                     dl.cinv_p = cinv_p_OBD.cinv_p(opj(dl.TEMP, 'cinv_p'), lmax_plm, dl.nside, dl.cls_len, transf_elm_loc[:lmax_plm+1], dl.ninvp_desc, geom=dl.ninvjob_qe_geometry,
                         chain_descr=dl.chain_descr(lmax_plm, dl.cg_tol), bmarg_lmax=dl.lmin_blm, zbounds=dl.zbounds, _bmarg_lib_dir=dl.obd_libdir, _bmarg_rescal=dl.obd_rescale, sht_threads=dl.tr)
-                elif dl.lowell_treat == 'trunc' or dl.lowell_treat == None or dl.lowell_treat == 'None':
+                else:
                     dl.cinv_p = filt_cinv.cinv_p(opj(dl.TEMP, 'cinv_p'), lmax_plm, dl.nside, dl.cls_len, dl.transf_elm, dl.ninvp_desc,
                         chain_descr=dl.chain_descr(lmax_plm, dl.cg_tol), transf_blm=dl.transf_blm, marge_qmaps=(), marge_umaps=())
 
@@ -290,11 +303,12 @@ class l2lensrec_Transformer:
                 _ftl_rs = np.ones(lmax_plm + 1, dtype=float) * (np.arange(lmax_plm + 1) >= dl.lmin_tlm)
                 _fel_rs = np.ones(lmax_plm + 1, dtype=float) * (np.arange(lmax_plm + 1) >= dl.lmin_elm)
                 _fbl_rs = np.ones(lmax_plm + 1, dtype=float) * (np.arange(lmax_plm + 1) >= dl.lmin_blm)
-                dl.filter = filt_util.library_ftl(_filter_raw, lmax_plm, _ftl_rs, _fel_rs, _fbl_rs)
+                dl.ivfs = filt_util.library_ftl(_filter_raw, lmax_plm, _ftl_rs, _fel_rs, _fbl_rs)
             elif dl.qe_filter_directional == 'isotropic':
-                dl.filter = filt_simple.library_fullsky_alms_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
+                # dl.ivfs = filt_simple.library_fullsky_alms_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=False)
+                dl.ivfs = filt_simple.library_fullsky_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl.nside, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
             # qlms
-            dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.filter, dl.filter, dl.cls_len['te'], dl.nside, lmax_qlm=dl.qe_lmax_qlm)
+            dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.ivfs, dl.ivfs, dl.cls_len['te'], dl.nside, lmax_qlm=dl.qe_lmax_qlm)
             # cg_tol
             dl.cg_tol = qe.cg_tol
             # ninvjob_qe_geometry
@@ -320,11 +334,11 @@ class l2lensrec_Transformer:
                                         np.concatenate( [ np.roll( range(i*60, (i+1)*60), -1 ) for i in range(0,5) ] ) ) }
                 dl.ds_dict = { k : -1 for k in range(300)}
 
-                dl.ivfs_d = filt_util.library_shuffle(dl.filter, dl.ds_dict)
-                dl.ivfs_s = filt_util.library_shuffle(dl.filter, dl.ss_dict)
+                dl.ivfs_d = filt_util.library_shuffle(dl.ivfs, dl.ds_dict)
+                dl.ivfs_s = filt_util.library_shuffle(dl.ivfs, dl.ss_dict)
 
-                dl.qlms_ds = qest.library_sepTP(opj(dl.TEMP, 'qlms_ds'), dl.filter, dl.ivfs_d, dl.cls_len['te'], dl.nside, lmax_qlm=dl.qe_lmax_qlm)
-                dl.qlms_ss = qest.library_sepTP(opj(dl.TEMP, 'qlms_ss'), dl.filter, dl.ivfs_s, dl.cls_len['te'], dl.nside, lmax_qlm=dl.qe_lmax_qlm)
+                dl.qlms_ds = qest.library_sepTP(opj(dl.TEMP, 'qlms_ds'), dl.ivfs, dl.ivfs_d, dl.cls_len['te'], dl.nside, lmax_qlm=dl.qe_lmax_qlm)
+                dl.qlms_ss = qest.library_sepTP(opj(dl.TEMP, 'qlms_ss'), dl.ivfs, dl.ivfs_s, dl.cls_len['te'], dl.nside, lmax_qlm=dl.qe_lmax_qlm)
 
                 dl.mc_sims_bias = np.arange(60, dtype=int)
                 dl.mc_sims_var  = np.arange(60, 300, dtype=int)
@@ -337,7 +351,7 @@ class l2lensrec_Transformer:
         @log_on_start(logging.INFO, "_process_Itrec() started")
         @log_on_end(logging.INFO, "_process_Itrec() finished")
         def _process_Itrec(dl, it):
-            #
+            # btemplate_perturbative_lensremap
             dl.btemplate_perturbative_lensremap = it.btemplate_perturbative_lensremap
             # tasks
             dl.it_tasks = it.tasks
@@ -361,8 +375,6 @@ class l2lensrec_Transformer:
                     os.makedirs(dl.mf_dirname)
             # cg_tol
             dl.cg_tol = lambda itr : it.cg_tol if itr <= 10 else it.cg_tol*0.1
-            # simidxs
-            dl.it_simidxs = it.simidxs if it.simidxs != -1 else dl.simidxs
             # filter
             dl.it_filter_directional = it.filter_directional
             # sims -> sims_MAP
@@ -377,18 +389,19 @@ class l2lensrec_Transformer:
             # LENSRES
             dl.lensres = it.lensres
             
-            wee = dl.k == 'p_p'
-            dl.ffi = remapping.deflection(dl.lenjob_pbgeometry, dl.lensres, np.zeros(hp.Alm.getsize(4000)), dl.it_lm_max_qlm[1], dl.tr, dl.tr) # TODO 
-            if dl.it_filter_directional == 'isotropic':
-                dl.filter = opfilt_iso_ee_wl.alm_filter_nlev_wl(dl.nlev_p, dl.ffi, dl.transf_elm, dl.lm_max_unl, dl.lm_max_len, wee=wee, transf_b=dl.transf_blm, nlev_b=dl.nlev_p)
-                dl.k_geom = dl.filter.ffi.geom
-            elif dl.it_filter_directional == 'anisotropic':
-                dl.get_filter_aniso(dl.sims_MAP, dl.ffi, dl.tpl)
-                ninv = [dl.sims_MAP.ztruncify(read_map(ni)) for ni in dl.ninvp_desc]
-                dl.filter = opfilt_ee_wl.alm_filter_ninv_wl(
-                    dl.ninvjob_geometry, ninv, dl.ffi, dl.transf_elm, dl.lm_max_unl, dl.lm_max_len,
-                    dl.tr, dl.tpl, wee=wee, lmin_dotop=min(dl.lmin_teb[1], dl.lmin_teb[2]), transf_blm=dl.transf_blm)
-                dl.k_geom = filter.ffi.geom
+            # wee = dl.k == 'p_p'
+            # dl.ffi = remapping.deflection(dl.lenjob_pbgeometry, dl.lensres, np.zeros_like(plm0), dl.it_lm_max_qlm[1], dl.tr, dl.tr) # TODO 
+            # if dl.it_filter_directional == 'isotropic':
+            #     dl.filter = opfilt_iso_ee_wl.alm_filter_nlev_wl(dl.nlev_p, dl.ffi, dl.transf_elm, dl.lm_max_unl, dl.lm_max_len, wee=wee, transf_b=dl.transf_blm, nlev_b=dl.nlev_p)
+            #     dl.k_geom = dl.filter.ffi.geom
+            # elif dl.it_filter_directional == 'anisotropic':
+            #     dl.get_filter_aniso(dl.sims_MAP, dl.ffi, dl.tpl)
+            #     ninv = [dl.sims_MAP.ztruncify(read_map(ni)) for ni in dl.ninvp_desc]
+            #     dl.filter = opfilt_ee_wl.alm_filter_ninv_wl(
+            #         dl.ninvjob_geometry, ninv, dl.ffi, dl.transf_elm, dl.lm_max_unl, dl.lm_max_len,
+            #         dl.tr, dl.tpl, wee=wee, lmin_dotop=min(dl.lmin_teb[1], dl.lmin_teb[2]), transf_blm=dl.transf_blm)
+            #     dl.k_geom = dl.filter.ffi.geom
+
             # mfvar
             if it.mfvar == 'same' or it.mfvar == '':
                 dl.mfvar = None
@@ -580,10 +593,9 @@ class l2d_Transformer:
             dl.k = cf.analysis.K
             dl.version = cf.analysis.V
 
-            dl.simidxs = cf.data.simidxs
             dl.its = [0] if ma.iterations == [] else ma.iterations
-
-            dl.Nmf = len(cf.analysis.simidxs_mf)
+            dl.simidxs_mf = cf.analysis.simidxs_mf if cf.analysis.simidxs_mf != [] else dl.simidxs
+            dl.Nmf = len(dl.simidxs_mf)
             dl.Nblt = len(cf.madel.simidxs_mblt)
             if 'fg' in cf.data.class_parameters:
                 dl.fg = cf.data.class_parameters['fg']
@@ -982,7 +994,7 @@ class l2i_Transformer:
             _sims_full_name = '{}.{}'.format(dl._package, dl._module)
             _sims_module = importlib.import_module(_sims_full_name)
             dl._sims = getattr(_sims_module, dl._class)(**dl.class_parameters)
-            dl.sims=dl._sims.sims
+            dl.sims = dl._sims.sims
 
             if 'experiment_config' in _sims_module.__dict__:
                 dl.ec = getattr(_sims_module, 'experiment_config')()

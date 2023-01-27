@@ -10,13 +10,13 @@ dlensalot_model = DLENSALOT_Model(
     ),                              
     analysis = DLENSALOT_Analysis(
         key = 'p_p',
+        simidxs = np.arange(0,200),
         TEMP_suffix = 'my_first_dlensalot_analysis',
         Lmin = 2, 
         lm_max_len = (4000, 4000),
         lm_ivf = ((2, 4000),(2, 4000)),
     ),
     data = DLENSALOT_Data(
-        simidxs = np.arange(0,200),
         package_ = 'lenscarf',
         module_ = 'ana.config.examples.mwe.data_mwe.sims_mwe',
         class_ = 'mwe',
@@ -32,15 +32,15 @@ dlensalot_model = DLENSALOT_Model(
         nlev_p = 0.25
     ),
     qerec = DLENSALOT_Qerec(
-        tasks = ["calc_phi", "calc_meanfield", "calc_blt"],
+        tasks = ["calc_phi", "calc_meanfield"],
         filter_directional = 'isotropic',
         ivfs = 'sepTP',
         qlms = 'sepTP',
         cg_tol = 1e-3,
-        lm_max_qlm = (4000, 4000),
+        lm_max_qlm = (4000, 4000)
     ),
     itrec = DLENSALOT_Itrec(
-        tasks = ["calc_phi", "calc_meanfield", "calc_blt"], #["calc_phi", "calc_meanfield", "calc_btemplate"],
+        tasks = ["calc_phi", "calc_meanfield"], #["calc_phi", "calc_meanfield", "calc_btemplate"],
         filter_directional = 'isotropic',
         itmax = 10,
         cg_tol = 1e-3,

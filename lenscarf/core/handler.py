@@ -332,25 +332,18 @@ class QE_lr(Basejob):
     def __init__(self, dlensalot_model):
         self.__dict__.update(dlensalot_model.__dict__)
         self.dlensalot_model = dlensalot_model
-        if 'overwrite_libdir' in dlensalot_model.__dict__:
-            pass
-        else:
-            self.overwrite_libdir = None
-        if self.overwrite_libdir is None:
-            self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
-            self.mf = lambda simidx: self.get_meanfield(simidx)
-            self.plm = lambda simidx: self.get_plm(simidx, self.QE_subtract_meanfield)
-            self.mf_resp = lambda: self.get_response_meanfield()
-            self.wflm = lambda simidx: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lmax_unl, self.mmax_unl)
-            self.R_unl = lambda: qresp.get_response(self.k, self.lmax_ivf, 'p', self.cls_unl, self.cls_unl,  {'e': self.fel_unl, 'b': self.fbl_unl, 't':self.ftl_unl}, lmax_qlm=self.lmax_qlm)[0]
-        else:
-            # TODO hack. Only want to access old s08b sim result lib and generate B wf
-            self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'zb_terator_%s_%04d_nofg_OBD_solcond_3apr20'%(qe_key, simidx) + version)
+
+        self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
+        self.mf = lambda simidx: self.get_meanfield(simidx)
+        self.plm = lambda simidx: self.get_plm(simidx, self.QE_subtract_meanfield)
+        self.mf_resp = lambda: self.get_response_meanfield()
+        self.wflm = lambda simidx: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lmax_unl, self.mmax_unl)
+        self.R_unl = lambda: qresp.get_response(self.k, self.lmax_ivf, 'p', self.cls_unl, self.cls_unl,  {'e': self.fel_unl, 'b': self.fbl_unl, 't':self.ftl_unl}, lmax_qlm=self.lmax_qlm)[0]
 
         self.ith = iteration_handler.transformer('constmf')
       
 
-    @log_on_start(logging.INFO, "collect_jobs() started: id={id}, overwrite_libdir={self.overwrite_libdir}")
+    @log_on_start(logging.INFO, "collect_jobs() started: id={id}")
     @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self, id=None, recalc=False):
 
@@ -546,7 +539,7 @@ class MAP_lr(Basejob):
         self.qe = QE_lr(dlensalot_model)
         self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
 
-        if self.iterator_typ in ['pertmf', 'constmf']:
+        if self.iterator_typ in ['pertmf', 'constmf', 'fastWF']:
             # TODO this is the interface to the D.lensalot iterators and connects 
             # to lerepi. Could be simplified, s.t. interfacing happens without the iteration_handler
             # but directly with cs_iterator, e.g. by adding visitor pattern to cs_iterator
@@ -590,7 +583,7 @@ class MAP_lr(Basejob):
                 log.info("Waiting for all ranks to finish their task")
                 mpi.barrier()
 
-            elif task == 'calc_btemplate':
+            elif task == 'calc_blt':
                 # TODO align QE and MAP name for calc_btemplate
                 # TODO do not necessarily depend on QE blt being done, next line could be removed
                 self.qe.collect_jobs('calc_blt', recalc=False)

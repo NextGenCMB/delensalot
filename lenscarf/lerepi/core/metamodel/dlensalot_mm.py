@@ -69,6 +69,7 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     """
     key = attr.ib(default='p_p', validator=analysis.key)
     version = attr.ib(default='', validator=analysis.version)
+    simidxs = attr.ib(default=[], validator=data.simidxs)
     simidxs_mf = attr.ib(default=[], validator=analysis.simidxs_mf)
     TEMP_suffix = attr.ib(default='', validator=analysis.TEMP_suffix)
     Lmin = attr.ib(default=1, validator=analysis.Lmin)
@@ -86,7 +87,6 @@ class DLENSALOT_Data(DLENSALOT_Concept):
     Attributes:
         DATA_LIBDIR: path to the data
     """
-    simidxs = attr.ib(default=[], validator=data.simidxs)
     class_parameters = attr.ib(default=None, validator=data.class_parameters)
     package_ = attr.ib(default=None, validator=data.package_)
     module_ = attr.ib(default=None, validator=data.module_)
@@ -119,8 +119,6 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
         typ:
     """
     tasks = attr.ib(default=['calc_phi'], validator=qerec.tasks)
-    simidxs = attr.ib(default=-1, validator=qerec.simidxs)
-    simidxs_mf = attr.ib(default=[], validator=qerec.simidxs_mf)
     ivfs = attr.ib(default=None, validator=qerec.ivfs)
     qlms = attr.ib(default=None, validator=qerec.qlms)
     cg_tol = attr.ib(default=1e-2, validator=qerec.cg_tol)
@@ -138,7 +136,6 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
         typ:
     """
     tasks = attr.ib(default=['calc_phi'], validator=itrec.tasks)
-    simidxs = attr.ib(default=[0], validator=itrec.simidxs)
     itmax = attr.ib(default=1, validator=itrec.itmax)
     filter = attr.ib(default=None, validator=itrec.filter)
     cg_tol = attr.ib(default=np.nan, validator=itrec.cg_tol)
@@ -151,7 +148,7 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     lm_max_unl = attr.ib(default=(10,10), validator=itrec.lm_max_unl)
     lm_max_qlm = attr.ib(default=(10,10), validator=itrec.lm_max_qlm)
     mfvar = attr.ib(default='', validator=itrec.mfvar)
-    soltn_cond = attr.ib(default=None, validator=itrec.soltn_cond)
+    soltn_cond = attr.ib(default=lambda it: True, validator=itrec.soltn_cond)
     stepper = attr.ib(default=DLENSALOT_Stepper(), validator=itrec.stepper)
     btemplate_perturbative_lensremap = attr.ib(default=False, validator=itrec.btemplate_perturbative_lensremap)
 
