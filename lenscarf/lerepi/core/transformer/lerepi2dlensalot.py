@@ -225,25 +225,26 @@ class l2lensrec_Transformer:
                 dl.fg = _dataclass_parameters['fg']
             _sims_full_name = '{}.{}'.format(_package, _module)
             _sims_module = importlib.import_module(_sims_full_name)
-            dl.sims = getattr(_sims_module, _class)(**_dataclass_parameters)
-            dl.data_type = dl.sims.data_type
-            dl.data_field = dl.sims.data_field
-            dl.beam = dl.sims.beam
-            dl.nside = dl.sims.nside
+            dl._sims = getattr(_sims_module, _class)(**_dataclass_parameters)
+            dl.sims = dl._sims.sims
+            dl.data_type = dl._sims.data_type
+            dl.data_field = dl._sims.data_field
+            dl.beam = dl._sims.beam
+            dl.nside = dl._sims.nside
             # transferfunction
             dl.transferfunction = da.transferfunction
-            data_lmax = dl.sims.lmax_transf # TODO or better use lm_max_len?
+            data_lmax = dl._sims.lmax_transf # TODO or better use lm_max_len?
             if dl.transferfunction == 'gauss_no_pixwin':
                 # Fiducial model of the transfer function
-                dl.transf_tlm = gauss_beam(df.a2r(dl.sims.beam), lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[0])
-                dl.transf_elm = gauss_beam(df.a2r(dl.sims.beam), lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[1])
-                dl.transf_blm = gauss_beam(df.a2r(dl.sims.beam), lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[2])
+                dl.transf_tlm = gauss_beam(df.a2r(dl._sims.beam), lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[0])
+                dl.transf_elm = gauss_beam(df.a2r(dl._sims.beam), lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[1])
+                dl.transf_blm = gauss_beam(df.a2r(dl._sims.beam), lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[2])
 
             elif dl.transferfunction == 'gauss_with_pixwin':
                 # Fiducial model of the transfer function
-                dl.transf_tlm = gauss_beam(df.a2r(dl.sims.beam), lmax=data_lmax) * hp.pixwin(2048, lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[0])
-                dl.transf_elm = gauss_beam(df.a2r(dl.sims.beam), lmax=data_lmax) * hp.pixwin(2048, lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[1])
-                dl.transf_blm = gauss_beam(df.a2r(dl.sims.beam), lmax=data_lmax) * hp.pixwin(2048, lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[2])
+                dl.transf_tlm = gauss_beam(df.a2r(dl._sims.beam), lmax=data_lmax) * hp.pixwin(2048, lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[0])
+                dl.transf_elm = gauss_beam(df.a2r(dl._sims.beam), lmax=data_lmax) * hp.pixwin(2048, lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[1])
+                dl.transf_blm = gauss_beam(df.a2r(dl._sims.beam), lmax=data_lmax) * hp.pixwin(2048, lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[2])
 
             # Isotropic approximation to the filtering (used eg for response calculations)
             dl.ftl = cli(dl.cls_len['tt'][:data_lmax + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
@@ -424,7 +425,7 @@ class l2lensrec_Transformer:
 
         if dl.sky_coverage == 'masked':
             # ninvjob_geometry
-            if nm.ninvjob_geometry == 'healpix_geometry':
+            if cf.noisemodel.ninvjob_geometry == 'healpix_geometry':
                 dl.ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(dl.nside, zbounds=dl.zbounds)
 
 
@@ -592,10 +593,11 @@ class l2d_Transformer:
             dl.class_parameters = cf.data.class_parameters
             _sims_full_name = '{}.{}'.format(dl._package, dl._module)
             _sims_module = importlib.import_module(_sims_full_name)
-            dl.sims = getattr(_sims_module, dl._class)(**dl.class_parameters)
+            dl._sims = getattr(_sims_module, dl._class)(**dl.class_parameters)
+            dl.sims = dl._sims.sims
 
             dl.ec = getattr(_sims_module, 'experiment_config')()
-            dl.nside = cf.data.nside
+            dl.nside = cf._sims.nside
 
             if cf.data.data_type is None:
                 log.info("must specify data_type")
@@ -979,7 +981,8 @@ class l2i_Transformer:
             dl.class_parameters = da.class_parameters
             _sims_full_name = '{}.{}'.format(dl._package, dl._module)
             _sims_module = importlib.import_module(_sims_full_name)
-            dl.sims = getattr(_sims_module, dl._class)(**dl.class_parameters)
+            dl._sims = getattr(_sims_module, dl._class)(**dl.class_parameters)
+            dl.sims=dl._sims.sims
 
             if 'experiment_config' in _sims_module.__dict__:
                 dl.ec = getattr(_sims_module, 'experiment_config')()
@@ -987,10 +990,10 @@ class l2i_Transformer:
                 dl.ic = getattr(_sims_module, 'ILC_config')()
             if 'foreground' in _sims_module.__dict__:
                 dl.fc = getattr(_sims_module, 'foreground')(dl.fg)
-            dl.nside = dl.sims.nside
+            dl.nside = dl._sims.nside
 
-            dl.beam = dl.sims.beam
-            dl.lmax_transf = dl.sims.lmax_transf
+            dl.beam = dl._sims.beam
+            dl.lmax_transf = dl._sims.lmax_transf
             dl.transf = hp.gauss_beam(df.a2r(dl.beam), lmax=dl.lmax_transf)
             
 

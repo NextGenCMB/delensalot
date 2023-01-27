@@ -21,7 +21,7 @@ dlensalot_model = DLENSALOT_Model(
         module_ = 'ana.config.examples.mwe.data_mwe.sims_mwe',
         class_ = 'mwe',
         class_parameters = {
-            'nlev': '0.25'
+            'nlev_p': 0.25
         }
     ),
     noisemodel = DLENSALOT_Noisemodel(
