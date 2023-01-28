@@ -1,5 +1,5 @@
 """
-Full sky iterative delensing on FFP10 simulation polarization data generated on the fly, inclusive of isotropic white noise at 0.25 mu k arcmin.
+Masked sky iterative delensing on FFP10 simulation polarization data generated on the fly, inclusive of isotropic white noise at 0.25 mu k arcmin.
 Here, delensing is done on two simulation sets.
 Simulated maps are used up to lmax 4000.
 The noise model is isotropic and white, and truncates B modes lmin<200
@@ -7,6 +7,8 @@ QE and iterative reconstruction uses isotropic filters, and we apply a fast Wien
 """
 
 import numpy as np
+import plancklens
+from plancklens import utils
 from lenscarf.lerepi.core.metamodel.dlensalot_mm import *
 
 dlensalot_model = DLENSALOT_Model(
@@ -19,18 +21,26 @@ dlensalot_model = DLENSALOT_Model(
     analysis = DLENSALOT_Analysis(
         key = 'p_p',
         simidxs = np.arange(0,2),
-        TEMP_suffix = 'my_first_dlensalot_analysis',
+        TEMP_suffix = 'postborn_GF',
         Lmin = 2, 
         lm_max_len = (4000, 4000),
         lm_ivf = ((2, 4000),(2, 4000)),
     ),
     data = DLENSALOT_Data(
-        package_ = 'lenscarf',
-        module_ = 'ana.config.examples.mwe.data_mwe.sims_mwe',
-        class_ = 'ffp10',
+        package_ = 'n32',
+        module_ = 'sims.sims_postborn',
+        class_ = 'sims_postborn',
         class_parameters = {
-            'nlev_p': 0.25
-        }
+            'lmax_cmb': 4096,
+            'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(plancklens.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
+            'lib_dir': opj(os.environ['HOME'], 'pixphas_nside_GF')
+        },
+        nside = 2048,
+        nlev_t = 1,
+        nlev_p = 1,
+        lmax_transf = 4096,
+        data_type = 'alm',
+        data_field = 'qu'
     ),
     noisemodel = DLENSALOT_Noisemodel(
         sky_coverage = 'isotropic',
@@ -52,7 +62,7 @@ dlensalot_model = DLENSALOT_Model(
         itmax = 10,
         cg_tol = 1e-3,
         lensres = 0.8,
-        iterator_typ = 'fastWF',
+        iterator_typ = 'constmf',
         lm_max_unl = (4000, 4000),
         lm_max_qlm = (4000, 4000)
     )

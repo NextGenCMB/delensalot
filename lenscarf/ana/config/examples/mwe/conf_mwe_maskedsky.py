@@ -22,11 +22,13 @@ dlensalot_model = DLENSALOT_Model(
         TEMP_suffix = 'my_first_dlensalot_analysis',
         Lmin = 2, 
         lm_max_len = (4000, 4000),
-        lm_ivf = ((2, 4000),(2, 4000)),
+        lm_ivf = ((2, 4000),(2, 4000))
+        zbounds =  ('nmr_relative', 100),
+        zbounds_len = ('extend', 5.)
     ),
     data = DLENSALOT_Data(
         package_ = 'lenscarf',
-        module_ = 'ana.config.examples.mwe.data_mwe.sims_mwe',
+        module_ = 'ana.config.examples.mwe.data_mwe.sims_mwe_fullsky',
         class_ = 'mwe',
         class_parameters = {
             'nlev_p': 0.25
@@ -37,7 +39,9 @@ dlensalot_model = DLENSALOT_Model(
         spectrum_type = 'white',
         lmin_teb = (10, 10, 200),
         nlev_t = 0.25/np.sqrt(2),
-        nlev_p = 0.25
+        nlev_p = 0.25,
+        mask = ('nlev', np.inf),
+        rhits_normalised = (opj(os.environ['CFS'], 'cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08b/masks/08b_rhits_positive_nonan.fits'), np.inf)
     ),
     qerec = DLENSALOT_Qerec(
         tasks = ["calc_phi", "calc_meanfield"],

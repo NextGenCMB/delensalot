@@ -13,11 +13,6 @@ def itmax(instance, attribute, value):
     assert type(value) in desc, TypeError('Must be in {}, but is {}'.format(desc, type(value)))
 
 
-def btemplate_perturbative_lensremap(instance, attribute, value):
-    desc = [value]
-    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
-
-
 def lensres(instance, attribute, value):
     desc = [value]
     assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))

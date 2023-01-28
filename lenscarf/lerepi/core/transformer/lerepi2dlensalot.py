@@ -230,9 +230,24 @@ class l2lensrec_Transformer:
             _sims_full_name = '{}.{}'.format(_package, _module)
             _sims_module = importlib.import_module(_sims_full_name)
             dl._sims = getattr(_sims_module, _class)(**_dataclass_parameters)
-            dl.sims = dl._sims.sims
-            dl.data_type = dl._sims.data_type
-            dl.data_field = dl._sims.data_field
+            if 'sims' in dl._sims.__dict__:
+                ## get_sim_pmap comes from sims module directly
+                dl.sims = dl._sims.sims
+                ## sims parameter come from sims module directly
+                dl.data_type = dl._sims.data_type
+                dl.data_field = dl._sims.data_field
+            else:
+                ## get_sim_pmap comes from sims object inside sims module
+                # -> nothing to do here
+                ## sims parameter come from configuration file
+                dl._sims.beam = da.beam
+                dl._sims.data_type = da.data_type
+                dl._sims.data_field = da.data_field
+                dl._sims.lmax_transf = da.lmax_transf
+                dl._sims.nlev_t = da.nlev_t
+                dl._sims.nlev_p = da.nlev_p
+                dl._sims.nside = da.nside
+                dl.sims = dl._sims
             # transferfunction
             dl.transferfunction = da.transferfunction
             if dl.transferfunction == 'gauss_no_pixwin':
@@ -261,6 +276,8 @@ class l2lensrec_Transformer:
         @log_on_start(logging.INFO, "_process_Qerec() started")
         @log_on_end(logging.INFO, "_process_Qerec() finished")
         def _process_Qerec(dl, qe):
+            # btemplate_perturbative_lensremap
+            dl.btemplate_perturbative_lensremap = qe.btemplate_perturbative_lensremap
             # qe_tasks
             dl.qe_tasks = qe.tasks
             # lmax_qlm
@@ -292,8 +309,12 @@ class l2lensrec_Transformer:
                 _fbl_rs = np.ones(lmax_plm + 1, dtype=float) * (np.arange(lmax_plm + 1) >= dl.lmin_blm)
                 dl.ivfs = filt_util.library_ftl(_filter_raw, lmax_plm, _ftl_rs, _fel_rs, _fbl_rs)
             elif dl.qe_filter_directional == 'isotropic':
-                # dl.ivfs = filt_simple.library_fullsky_alms_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
-                dl.ivfs = filt_simple.library_fullsky_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl._sims.nside, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
+
+                if dl._sims.data_type == 'map':
+                    dl.ivfs = filt_simple.library_fullsky_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl._sims.nside, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
+                elif dl._sims.data_type == 'alm':
+                    dl.ivfs = filt_simple.library_fullsky_alms_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
+                
             # qlms
             if qe.qlm_type == 'sepTP':
                 dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.ivfs, dl.ivfs, dl.cls_len['te'], dl._sims.nside, lmax_qlm=dl.qe_lmax_qlm)
@@ -339,8 +360,6 @@ class l2lensrec_Transformer:
         @log_on_start(logging.INFO, "_process_Itrec() started")
         @log_on_end(logging.INFO, "_process_Itrec() finished")
         def _process_Itrec(dl, it):
-            # btemplate_perturbative_lensremap
-            dl.btemplate_perturbative_lensremap = it.btemplate_perturbative_lensremap
             # tasks
             dl.it_tasks = it.tasks
             # lmaxunl
@@ -599,7 +618,6 @@ class l2d_Transformer:
             dl.sims = dl._sims.sims
 
             dl.ec = getattr(_sims_module, 'experiment_config')()
-            dl._sims.nside = cf._sims.nside
 
             if cf.data.data_type is None:
                 log.info("must specify data_type")

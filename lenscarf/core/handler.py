@@ -472,7 +472,8 @@ class QE_lr(Basejob):
     @log_on_end(logging.INFO, "get_meanfield({simidx}) finished")
     def get_meanfield(self, simidx):
         if self.mfvar == None:
-            mf = self.qlms_dd.get_sim_qlm_mf(self.k, self.simidxs_mf)
+            # TODO hack: plancklens needs to be less restrictive with type for simidx. hack for now
+            mf = self.qlms_dd.get_sim_qlm_mf(self.k, [int(simidx_mf) for simidx_mf in self.simidxs_mf])
             if simidx in self.simidxs_mf:    
                 mf = (mf - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
         else:

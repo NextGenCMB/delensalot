@@ -6,6 +6,8 @@ __author__ = "S. Belkner, J. Carron, L. Legrand"
 
 import abc
 import attr
+import os
+from os.path import join as opj
 
 import numpy as np
 from lenscarf.lerepi.core.validator import analysis, chaindescriptor, computing, data, filter, itrec, job, mapdelensing, meta, model, noisemodel, obd, qerec, stepper
@@ -96,7 +98,16 @@ class DLENSALOT_Data(DLENSALOT_Concept):
     module_ = attr.ib(default=None, validator=data.module_)
     class_ = attr.ib(default=None, validator=data.class_)
     transferfunction = attr.ib(default='gauss_with_pixwin', validator=data.transferfunction)
+    data_type = attr.ib(default='map', validator=data.data_type)
+    data_field = attr.ib(default='qu', validator=data.data_field)
+    beam = attr.ib(default=1)
+    nside = attr.ib(default=2048)
+    nlev_t = attr.ib(default=1)
+    nlev_p = attr.ib(default=1)
+    transf_dat = attr.ib(default=None)
+    lmax_transf = attr.ib(default=4096)
     
+
 
 @attr.s
 class DLENSALOT_Noisemodel(DLENSALOT_Concept):
@@ -130,6 +141,8 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     lm_max_qlm = attr.ib(default=(10,10), validator=qerec.lm_max_qlm)
     chain = attr.ib(default=DLENSALOT_Chaindescriptor(), validator=qerec.chain)
     cl_analysis = attr.ib(default=False, validator=qerec.cl_analysis)
+    btemplate_perturbative_lensremap = attr.ib(default=True, validator=qerec.btemplate_perturbative_lensremap)
+
 
 @attr.s
 class DLENSALOT_Itrec(DLENSALOT_Concept):
@@ -153,7 +166,7 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     mfvar = attr.ib(default='', validator=itrec.mfvar)
     soltn_cond = attr.ib(default=lambda it: True, validator=itrec.soltn_cond)
     stepper = attr.ib(default=DLENSALOT_Stepper(), validator=itrec.stepper)
-    btemplate_perturbative_lensremap = attr.ib(default=False, validator=itrec.btemplate_perturbative_lensremap)
+    
 
 @attr.s
 class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
@@ -190,8 +203,8 @@ class DLENSALOT_Config(DLENSALOT_Concept):
     Attributes:
         typ:
     """
-    outdir_plot_root = attr.ib(default=None)
-    outdir_plot_rel = attr.ib(default=None)
+    outdir_plot_root = attr.ib(default=opj(os.environ['HOME'], 'plots'))
+    outdir_plot_rel = attr.ib(default='')
 
 @attr.s
 class DLENSALOT_Meta(DLENSALOT_Concept):
