@@ -231,13 +231,13 @@ class l2lensrec_Transformer:
             _sims_module = importlib.import_module(_sims_full_name)
             dl._sims = getattr(_sims_module, _class)(**_dataclass_parameters)
             if 'sims' in dl._sims.__dict__:
-                ## get_sim_pmap comes from sims module directly
+                ## get_sim_pmap comes from sims object inside sims module
                 dl.sims = dl._sims.sims
                 ## sims parameter come from sims module directly
                 dl.data_type = dl._sims.data_type
                 dl.data_field = dl._sims.data_field
             else:
-                ## get_sim_pmap comes from sims object inside sims module
+                ## get_sim_pmap comes from sims module directly
                 # -> nothing to do here
                 ## sims parameter come from configuration file
                 dl._sims.beam = da.beam
@@ -247,7 +247,11 @@ class l2lensrec_Transformer:
                 dl._sims.nlev_t = da.nlev_t
                 dl._sims.nlev_p = da.nlev_p
                 dl._sims.nside = da.nside
-                dl.sims = dl._sims
+                ## get_sim_pmap comes from plancklens.maps wrapper
+                pix_phas = phas.pix_lib_phas(da.class_parameters['lib_dir'], 3, (hp.nside2npix(dl._sims.nside),))
+                transf_dat = gauss_beam(dl._sims.beam / 180 / 60 * np.pi, lmax=dl._sims.lmax_transf) # (taking here full FFP10 cmb's which are given to 4096)
+                dl.sims = maps.cmb_maps_nlev(sims_ffp10.cmb_len_ffp10(), transf_dat, dl._sims.nlev_t, dl._sims.nlev_p, dl._sims.nside, pix_lib_phas=pix_phas)
+
             # transferfunction
             dl.transferfunction = da.transferfunction
             if dl.transferfunction == 'gauss_no_pixwin':
@@ -309,11 +313,10 @@ class l2lensrec_Transformer:
                 _fbl_rs = np.ones(lmax_plm + 1, dtype=float) * (np.arange(lmax_plm + 1) >= dl.lmin_blm)
                 dl.ivfs = filt_util.library_ftl(_filter_raw, lmax_plm, _ftl_rs, _fel_rs, _fbl_rs)
             elif dl.qe_filter_directional == 'isotropic':
-
                 if dl._sims.data_type == 'map':
                     dl.ivfs = filt_simple.library_fullsky_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl._sims.nside, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
-                elif dl._sims.data_type == 'alm':
-                    dl.ivfs = filt_simple.library_fullsky_alms_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
+                # elif dl._sims.data_type == 'alm':
+                    # dl.ivfs = filt_simple.library_fullsky_alms_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
                 
             # qlms
             if qe.qlm_type == 'sepTP':
