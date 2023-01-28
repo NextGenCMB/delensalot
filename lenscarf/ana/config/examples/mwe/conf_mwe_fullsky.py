@@ -1,7 +1,7 @@
 """
 Full sky iterative delensing on FFP10 simulation polarization data generated on the fly, inclusive of isotropic white noise at 0.25 mu k arcmin.
 Here, delensing is done on two simulation sets.
-Simualted maps are used up to lmax 4000.
+Simulated maps are used up to lmax 4000.
 The noise model is isotropic and white, and truncates B modes lmin<200
 QE and iterative reconstruction uses isotropic filters, and we apply a fast Wiener filtering to the iterative reconstruction 
 """
@@ -26,7 +26,7 @@ dlensalot_model = DLENSALOT_Model(
     ),
     data = DLENSALOT_Data(
         package_ = 'lenscarf',
-        module_ = 'ana.config.examples.mwe.data_mwe.sims_mwe',
+        module_ = 'ana.config.examples.mwe.data_mwe.sims_mwe_fullsky',
         class_ = 'mwe',
         class_parameters = {
             'nlev_p': 0.25
@@ -42,8 +42,7 @@ dlensalot_model = DLENSALOT_Model(
     qerec = DLENSALOT_Qerec(
         tasks = ["calc_phi", "calc_meanfield"],
         filter_directional = 'isotropic',
-        ivfs = 'sepTP',
-        qlms = 'sepTP',
+        qlm_type = 'sepTP',
         cg_tol = 1e-3,
         lm_max_qlm = (4000, 4000)
     ),

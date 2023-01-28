@@ -22,11 +22,11 @@ class mwe:
     def __init__(self, nlev_p=1):
         self.data_type = 'alm'
         self.data_field = "eb"
-        self.beam_FWHM = 1
+        self.beam = 1
         self.lmax_transf = 4096
         self.nside = 2048
         self.nlev_p = nlev_p
-        self.nlev_t = nlev_p/np.sqrt(2)
+        self.nlev_t = nlev_p*np.sqrt(2)
         pix_phas = phas.pix_lib_phas(opj(os.environ['HOME'], 'pixphas_nside%s'%self.nside), 3, (hp.nside2npix(self.nside),)) # T, Q, and U noise phases
         transf_dat = gauss_beam(self.beam / 180 / 60 * np.pi, lmax=self.lmax_transf) # (taking here full FFP10 cmb's which are given to 4096)
         self.sims = maps.cmb_maps_nlev(sims_ffp10.cmb_len_ffp10(), transf_dat, self.nlev_t, self.nlev_p, self.nside, pix_lib_phas=pix_phas)

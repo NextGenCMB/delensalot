@@ -82,7 +82,7 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     pbounds = attr.ib(default=(-1,1), validator=analysis.pbounds)
     lm_max_len = attr.ib(default=(10,10), validator=filter.lm_max_len)
     lm_ivf = attr.ib(default=((1,10),(1,10)), validator=filter.lm_ivf)
-    STANDARD_TRANSFERFUNCTION = attr.ib(default=True)
+
 
 @attr.s
 class DLENSALOT_Data(DLENSALOT_Concept):
@@ -123,8 +123,7 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
         typ:
     """
     tasks = attr.ib(default=['calc_phi'], validator=qerec.tasks)
-    ivfs = attr.ib(default=None, validator=qerec.ivfs)
-    qlms = attr.ib(default=None, validator=qerec.qlms)
+    qlm_type = attr.ib(default='sepTP', validator=qerec.qlms)
     cg_tol = attr.ib(default=1e-2, validator=qerec.cg_tol)
     filter_directional = attr.ib(default=np.nan, validator=qerec.filter_directional)
     ninvjob_qe_geometry = attr.ib(default=None, validator=qerec.ninvjob_qe_geometry)

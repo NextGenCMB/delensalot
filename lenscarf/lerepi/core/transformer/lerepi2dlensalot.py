@@ -229,48 +229,33 @@ class l2lensrec_Transformer:
                 dl.fg = _dataclass_parameters['fg']
             _sims_full_name = '{}.{}'.format(_package, _module)
             _sims_module = importlib.import_module(_sims_full_name)
-
-            # dl._sims = getattr(_sims_module, _class)(**_dataclass_parameters)
-            # dl.sims = dl._sims.sims
-            dl.data_type = 'alm'
-            dl.data_field = "eb"
-            dl.beam = 1
-            dl.lmax_transf = 4096
-            dl.nside = 2048
-            dl.nlev_p = 0.5
-            dl.nlev_t = 0.5/np.sqrt(2)
-            pix_phas = phas.pix_lib_phas(opj(os.environ['HOME'], 'pixphas_nside%s'%dl.nside), 3, (hp.nside2npix(dl.nside),)) # T, Q, and U noise phases
-            transf_dat = gauss_beam(dl.beam / 180 / 60 * np.pi, lmax=dl.lmax_transf) # (taking here full FFP10 cmb's which are given to 4096)
-            dl.sims = maps.cmb_maps_nlev(sims_ffp10.cmb_len_ffp10(), transf_dat, dl.nlev_t, dl.nlev_p, dl.nside, pix_lib_phas=pix_phas)
-
-            # dl.data_type = dl._sims.data_type
-            # dl.data_field = dl._sims.data_field
-            # dl.beam = dl._sims.beam
-            # dl.nside = dl._sims.nside
+            dl._sims = getattr(_sims_module, _class)(**_dataclass_parameters)
+            dl.sims = dl._sims.sims
+            dl.data_type = dl._sims.data_type
+            dl.data_field = dl._sims.data_field
             # transferfunction
             dl.transferfunction = da.transferfunction
-            data_lmax = dl.lmax_transf # TODO or better use lm_max_len?
             if dl.transferfunction == 'gauss_no_pixwin':
                 # Fiducial model of the transfer function
-                dl.transf_tlm = gauss_beam(df.a2r(dl.beam), lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[0])
-                dl.transf_elm = gauss_beam(df.a2r(dl.beam), lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[1])
-                dl.transf_blm = gauss_beam(df.a2r(dl.beam), lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[2])
+                dl.transf_tlm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[0])
+                dl.transf_elm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[1])
+                dl.transf_blm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[2])
 
             elif dl.transferfunction == 'gauss_with_pixwin':
                 # Fiducial model of the transfer function
-                dl.transf_tlm = gauss_beam(df.a2r(dl.beam), lmax=data_lmax) * hp.pixwin(2048, lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[0])
-                dl.transf_elm = gauss_beam(df.a2r(dl.beam), lmax=data_lmax) * hp.pixwin(2048, lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[1])
-                dl.transf_blm = gauss_beam(df.a2r(dl.beam), lmax=data_lmax) * hp.pixwin(2048, lmax=data_lmax) * (np.arange(data_lmax + 1) >= cf.noisemodel.lmin_teb[2])
+                dl.transf_tlm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * hp.pixwin(2048, lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[0])
+                dl.transf_elm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * hp.pixwin(2048, lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[1])
+                dl.transf_blm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * hp.pixwin(2048, lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[2])
 
             # Isotropic approximation to the filtering (used eg for response calculations)
-            dl.ftl = cli(dl.cls_len['tt'][:data_lmax + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
-            dl.fel = cli(dl.cls_len['ee'][:data_lmax + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
-            dl.fbl = cli(dl.cls_len['bb'][:data_lmax + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
+            dl.ftl = cli(dl.cls_len['tt'][:dl._sims.lmax_transf + 1] + df.a2r(dl._sims.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
+            dl.fel = cli(dl.cls_len['ee'][:dl._sims.lmax_transf + 1] + df.a2r(dl._sims.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
+            dl.fbl = cli(dl.cls_len['bb'][:dl._sims.lmax_transf + 1] + df.a2r(dl._sims.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
 
             # Same using unlensed spectra (used for unlensed response used to initiate the MAP curvature matrix)
-            dl.ftl_unl = cli(dl.cls_unl['tt'][:data_lmax + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
-            dl.fel_unl = cli(dl.cls_unl['ee'][:data_lmax + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
-            dl.fbl_unl = cli(dl.cls_unl['bb'][:data_lmax + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
+            dl.ftl_unl = cli(dl.cls_unl['tt'][:dl._sims.lmax_transf + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
+            dl.fel_unl = cli(dl.cls_unl['ee'][:dl._sims.lmax_transf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
+            dl.fbl_unl = cli(dl.cls_unl['bb'][:dl._sims.lmax_transf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
 
 
         @log_on_start(logging.INFO, "_process_Qerec() started")
@@ -291,14 +276,14 @@ class l2lensrec_Transformer:
                 lmax_plm = qe.lm_max_qlm[0]
                 # TODO filters can be initialised with both, ninvX_desc and ninv_X. But Plancklens' hashcheck will complain if it changed since shapes are different. Not sure which one I want to use in the future..
                 # TODO using ninv_X possibly causes hashcheck to fail, as v1 == v2 won't work on arrays.
-                dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), lmax_plm, dl.nside, dl.cls_len, dl.transf_tlm, dl.ninvt_desc,
+                dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), lmax_plm, dl._sims.nside, dl.cls_len, dl.transf_tlm, dl.ninvt_desc,
                     marge_monopole=True, marge_dipole=True, marge_maps=[])
                 if dl.lowell_treat == 'OBD':
                     transf_elm_loc = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=lmax_plm)
-                    dl.cinv_p = cinv_p_OBD.cinv_p(opj(dl.TEMP, 'cinv_p'), lmax_plm, dl.nside, dl.cls_len, transf_elm_loc[:lmax_plm+1], dl.ninvp_desc, geom=dl.ninvjob_qe_geometry,
+                    dl.cinv_p = cinv_p_OBD.cinv_p(opj(dl.TEMP, 'cinv_p'), lmax_plm, dl._sims.nside, dl.cls_len, transf_elm_loc[:lmax_plm+1], dl.ninvp_desc, geom=dl.ninvjob_qe_geometry,
                         chain_descr=dl.chain_descr(lmax_plm, dl.cg_tol), bmarg_lmax=dl.lmin_blm, zbounds=dl.zbounds, _bmarg_lib_dir=dl.obd_libdir, _bmarg_rescal=dl.obd_rescale, sht_threads=dl.tr)
                 else:
-                    dl.cinv_p = filt_cinv.cinv_p(opj(dl.TEMP, 'cinv_p'), lmax_plm, dl.nside, dl.cls_len, dl.transf_elm, dl.ninvp_desc,
+                    dl.cinv_p = filt_cinv.cinv_p(opj(dl.TEMP, 'cinv_p'), lmax_plm, dl._sims.nside, dl.cls_len, dl.transf_elm, dl.ninvp_desc,
                         chain_descr=dl.chain_descr(lmax_plm, dl.cg_tol), transf_blm=dl.transf_blm, marge_qmaps=(), marge_umaps=())
 
                 _filter_raw = filt_cinv.library_cinv_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl.cinv_t, dl.cinv_p, dl.cls_len)
@@ -308,18 +293,19 @@ class l2lensrec_Transformer:
                 dl.ivfs = filt_util.library_ftl(_filter_raw, lmax_plm, _ftl_rs, _fel_rs, _fbl_rs)
             elif dl.qe_filter_directional == 'isotropic':
                 # dl.ivfs = filt_simple.library_fullsky_alms_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
-                dl.ivfs = filt_simple.library_fullsky_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl.nside, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
+                dl.ivfs = filt_simple.library_fullsky_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl._sims.nside, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
             # qlms
-            dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.ivfs, dl.ivfs, dl.cls_len['te'], dl.nside, lmax_qlm=dl.qe_lmax_qlm)
+            if qe.qlm_type == 'sepTP':
+                dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.ivfs, dl.ivfs, dl.cls_len['te'], dl._sims.nside, lmax_qlm=dl.qe_lmax_qlm)
             # cg_tol
             dl.cg_tol = qe.cg_tol
             # ninvjob_qe_geometry
             if qe.ninvjob_qe_geometry == 'healpix_geometry_qe':
                 # TODO for QE, isOBD only works with zbounds=(-1,1). Perhaps missing ztrunc on qumaps
                 # Introduce new geometry for now, until either plancklens supports ztrunc, or ztrunced simlib (not sure if it already does)
-                dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl.nside, zbounds=(-1,1))
+                dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl._sims.nside, zbounds=(-1,1))
             elif qe.ninvjob_qe_geometry == 'healpix_geometry':
-                dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl.nside, zbounds=dl.zbounds)
+                dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl._sims.nside, zbounds=dl.zbounds)
             # chain
             dl.chain_model = qe.chain
             if dl.chain_model.p6 == 'tr_cg':
@@ -339,8 +325,8 @@ class l2lensrec_Transformer:
                 dl.ivfs_d = filt_util.library_shuffle(dl.ivfs, dl.ds_dict)
                 dl.ivfs_s = filt_util.library_shuffle(dl.ivfs, dl.ss_dict)
 
-                dl.qlms_ds = qest.library_sepTP(opj(dl.TEMP, 'qlms_ds'), dl.ivfs, dl.ivfs_d, dl.cls_len['te'], dl.nside, lmax_qlm=dl.qe_lmax_qlm)
-                dl.qlms_ss = qest.library_sepTP(opj(dl.TEMP, 'qlms_ss'), dl.ivfs, dl.ivfs_s, dl.cls_len['te'], dl.nside, lmax_qlm=dl.qe_lmax_qlm)
+                dl.qlms_ds = qest.library_sepTP(opj(dl.TEMP, 'qlms_ds'), dl.ivfs, dl.ivfs_d, dl.cls_len['te'], dl._sims.nside, lmax_qlm=dl.qe_lmax_qlm)
+                dl.qlms_ss = qest.library_sepTP(opj(dl.TEMP, 'qlms_ss'), dl.ivfs, dl.ivfs_s, dl.cls_len['te'], dl._sims.nside, lmax_qlm=dl.qe_lmax_qlm)
 
                 dl.mc_sims_bias = np.arange(60, dtype=int)
                 dl.mc_sims_var  = np.arange(60, 300, dtype=int)
@@ -383,7 +369,7 @@ class l2lensrec_Transformer:
             dl.it_filter_directional = it.filter_directional
             # sims -> sims_MAP
             if it.filter_directional == 'anisotropic':
-                dl.sims_MAP = utils_sims.ztrunc_sims(dl.sims, dl.nside, [dl.zbounds])
+                dl.sims_MAP = utils_sims.ztrunc_sims(dl.sims, dl._sims.nside, [dl.zbounds])
             elif it.filter_directional == 'isotropic':
                 dl.sims_MAP = dl.sims
             # itmax
@@ -443,7 +429,7 @@ class l2lensrec_Transformer:
         if dl.sky_coverage == 'masked':
             # ninvjob_geometry
             if cf.noisemodel.ninvjob_geometry == 'healpix_geometry':
-                dl.ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(dl.nside, zbounds=dl.zbounds)
+                dl.ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(dl._sims.nside, zbounds=dl.zbounds)
 
 
         if mpi.rank == 0:
@@ -481,9 +467,9 @@ class l2OBD_Transformer:
                 sys.exit()
             else:
                 dl.BMARG_LCUT = nm.BMARG_LCUT
-                dl.nside = cf.data.nside
+                dl._sims.nside = cf.data.nside
                 dl.nlev_dep = nm.nlev_dep
-                dl.geom = utils_scarf.Geom.get_healpix_geometry(dl.nside)
+                dl.geom = utils_scarf.Geom.get_healpix_geometry(dl._sims.nside)
                 dl.masks, dl.rhits_map = l2OBD_Transformer.get_masks(cf)
                 dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
                 dl.ninv_p_desc = l2OBD_Transformer.get_ninvp(cf)
@@ -613,7 +599,7 @@ class l2d_Transformer:
             dl.sims = dl._sims.sims
 
             dl.ec = getattr(_sims_module, 'experiment_config')()
-            dl.nside = cf._sims.nside
+            dl._sims.nside = cf._sims.nside
 
             if cf.data.data_type is None:
                 log.info("must specify data_type")
@@ -687,7 +673,7 @@ class l2d_Transformer:
                     dl.mask_ids = np.zeros(shape=len(ma.masks[1]))
                     for fni, fn in enumerate(ma.masks[1]):
                         if fn == None:
-                            buffer = np.ones(shape=hp.nside2npix(dl.nside))
+                            buffer = np.ones(shape=hp.nside2npix(dl._sims.nside))
                             dl.mask_ids[fni] = 1.00
                         elif fn.endswith('.fits'):
                             buffer = hp.read_map(fn)
@@ -698,11 +684,11 @@ class l2d_Transformer:
                         dl.masks[ma.masks[0]].update({_fsky:buffer})
                         dl.binmasks[ma.masks[0]].update({_fsky: np.where(dl.masks[ma.masks[0]][_fsky]>0,1,0)})
             else:
-                dl.masks = {"no":{1.00:np.ones(shape=hp.nside2npix(dl.nside))}}
+                dl.masks = {"no":{1.00:np.ones(shape=hp.nside2npix(dl._sims.nside))}}
                 dl.mask_ids = np.array([1.00])
 
             dl.beam = cf.data.beam
-            dl.lmax_transf = cf.data.lmax_transf
+            dl.lmax_transf = cf._sims.lmax_transf
             if cf.analysis.STANDARD_TRANSFERFUNCTION == True:
                 dl.transf = gauss_beam(df.a2r(dl.beam), lmax=dl.lmax_transf)
             elif cf.analysis.STANDARD_TRANSFERFUNCTION == 'with_pixwin':
@@ -953,7 +939,7 @@ class l2i_Transformer:
                     dl.mask_ids = np.zeros(shape=len(ma.masks[1]))
                     for fni, fn in enumerate(ma.masks[1]):
                         if fn == None:
-                            buffer = np.ones(shape=hp.nside2npix(dl.nside))
+                            buffer = np.ones(shape=hp.nside2npix(dl._sims.nside))
                             dl.mask_ids[fni] = 1.00
                         elif fn.endswith('.fits'):
                             buffer = hp.read_map(fn)
@@ -964,7 +950,7 @@ class l2i_Transformer:
                         dl.masks[ma.masks[0]].update({_fsky:buffer})
                         dl.binmasks[ma.masks[0]].update({_fsky: np.where(dl.masks[ma.masks[0]][_fsky]>0,1,0)})
             else:
-                dl.masks = {"no":{1.00:np.ones(shape=hp.nside2npix(dl.nside))}}
+                dl.masks = {"no":{1.00:np.ones(shape=hp.nside2npix(dl._sims.nside))}}
                 dl.mask_ids = np.array([1.00])
 
 
@@ -1006,7 +992,7 @@ class l2i_Transformer:
                 dl.ic = getattr(_sims_module, 'ILC_config')()
             if 'foreground' in _sims_module.__dict__:
                 dl.fc = getattr(_sims_module, 'foreground')(dl.fg)
-            dl.nside = dl._sims.nside
+            dl._sims.nside = dl._sims.nside
 
             dl.beam = dl._sims.beam
             dl.lmax_transf = dl._sims.lmax_transf
