@@ -123,8 +123,7 @@ class scarf_iterator_pertmf():
         assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
 
         # TODO change naming convention. Should align with map/alm params for ivfs and simdata
-        if self.ivfs_qe == 'simple':
-            log.info("ivfs_qe: {}".format(self.ivfs_qe))
+        if self.qe_filter_directional == 'isotropic':
             sims_MAP = self.sims
         else:
             sims_MAP = utils_sims.ztrunc_sims(self.sims, self.nside, [self.zbounds])
@@ -169,7 +168,7 @@ class scarf_iterator_pertmf():
     @log_on_end(logging.INFO, "get_filter() finished")
     def get_filter(self, sims_MAP=None, ffi=None, tpl=None):
         assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
-        if self.filter == 'opfilt_iso_ee_wl.alm_filter_nlev_wl':
+        if self.it_filter_directional == 'isotropic':
             filter = self.get_filter_iso()
         else:
             filter = self.get_filter_aniso(sims_MAP, ffi, tpl)
@@ -240,7 +239,7 @@ class scarf_iterator_constmf():
     def get_datmaps(self):
         assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
         # TODO change naming convention. Should align with map/alm params for ivfs and simdata
-        if self.ivfs_qe == 'simple':
+        if self.it_filter_directional == 'isotropic':
             self.sims_MAP = self.sims
         else:
             self.sims_MAP  = utils_sims.ztrunc_sims(self.sims, self.nside, [self.zbounds])
@@ -282,7 +281,7 @@ class scarf_iterator_constmf():
     @log_on_end(logging.INFO, "get_filter() finished")
     def get_filter(self, sims_MAP=None, ffi=None, tpl=None):
         assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
-        if self.filter == 'opfilt_iso_ee_wl.alm_filter_nlev_wl':
+        if self.it_filter_directional == 'isotropic':
             filter = self.get_filter_iso()
         else:
             filter = self.get_filter_aniso(sims_MAP, ffi, tpl)

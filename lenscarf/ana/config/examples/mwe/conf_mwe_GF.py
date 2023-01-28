@@ -36,21 +36,22 @@ dlensalot_model = DLENSALOT_Model(
             'lib_dir': opj(os.environ['HOME'], 'pixphas_nside_GF')
         },
         nside = 2048,
-        nlev_t = 1,
-        nlev_p = 1,
+        nlev_t = 0.025,
+        nlev_p = 0.025,
         lmax_transf = 4096,
         data_type = 'map',
-        data_field = 'qu'
+        data_field = 'qu',
+        beam = 1
     ),
     noisemodel = DLENSALOT_Noisemodel(
         sky_coverage = 'isotropic',
         spectrum_type = 'white',
         lmin_teb = (10, 10, 200),
-        nlev_t = 0.25/np.sqrt(2),
-        nlev_p = 0.25
+        nlev_t = 0.025/np.sqrt(2),
+        nlev_p = 0.025
     ),
     qerec = DLENSALOT_Qerec(
-        tasks = ["calc_phi", "calc_meanfield"],
+        tasks = ["calc_phi", "calc_meanfield", "calc_blt"],
         filter_directional = 'isotropic',
         qlm_type = 'sepTP',
         cg_tol = 1e-3,
