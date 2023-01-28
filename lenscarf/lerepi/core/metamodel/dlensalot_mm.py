@@ -17,9 +17,13 @@ class DLENSALOT_Concept:
 
 
     def __str__(self):
+        ## overwrite print to summarize dlensalot model
         _str = ''
         for k, v in self.__dict__.items():
-            _str+="\t{}:\t{}\n".format(k,v)
+            # if type(v) in [list, np.ndarray, tuple]:
+                # _str+="\t{}:\t{}\n".format(k,len(v))
+            # else:
+            _str+="\t {}:\t{}(type:{})\n".format(k,v, type(v))
         return _str
 
 @attr.s
@@ -45,11 +49,11 @@ class DLENSALOT_Stepper(DLENSALOT_Concept):
     Attributes:
         typ:
     """
-    typ = attr.ib(default=-1, validator=stepper.typ)
-    lmax_qlm = attr.ib(default=-1, validator=stepper.lmax_qlm)
-    mmax_qlm = attr.ib(default=-1, validator=stepper.mmax_qlm)
-    xa = attr.ib(default=-1, validator=stepper.xa)
-    xb = attr.ib(default=-1, validator=stepper.xb)
+    typ = attr.ib(default='harmonicbump', validator=stepper.typ)
+    lmax_qlm = attr.ib(default=4000, validator=stepper.lmax_qlm)
+    mmax_qlm = attr.ib(default=4000, validator=stepper.mmax_qlm)
+    xa = attr.ib(default=400, validator=stepper.xa)
+    xb = attr.ib(default=1500, validator=stepper.xb)
 
 @attr.s
 class DLENSALOT_Job(DLENSALOT_Concept):

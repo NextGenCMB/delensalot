@@ -12,6 +12,7 @@ import logging
 log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
 
+import healpy as hp
 import numpy as np
 
 from lenscarf import remapping
@@ -350,22 +351,24 @@ class scarf_iterator_fastWF():
     @log_on_start(logging.INFO, "get_datmaps() started")
     @log_on_end(logging.INFO, "get_datmaps() finished")
     def get_datmaps(self):
+        # TODO these are supposedly alms for fastWF.. how can this be alms in the most efficient way? 
         assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
         # TODO change naming convention. Should align with map/alm params for ivfs and simdata
-        if self.ivfs_qe == 'simple':
+        if self.qe_filter_directional == 'isotropic':
             self.sims_MAP = self.sims
         else:
             self.sims_MAP  = utils_sims.ztrunc_sims(self.sims, self.nside, [self.zbounds])
         datmaps = np.array(self.sims_MAP.get_sim_pmap(int(self.simidx)))
+        ret = np.array([hp.map2alm(datmaps[0], lmax=self.lm_max_len[0], mmax=self.lm_max_len[1]), hp.map2alm(datmaps[1], lmax=self.lm_max_len[0], mmax=self.lm_max_len[1])])
 
-        return datmaps
+        return ret
 
 
     @log_on_start(logging.INFO, "get_filter_iso() started")
     @log_on_end(logging.INFO, "get_filter_iso() finished")
     def get_filter_iso(self):
         wee = self.k == 'p_p'
-        filter = alm_filter_nlev_wl(self.nlev_p, self.ffi, self.transf_elm, (self.lmax_unl, self.mmax_unl), (self.lmax_ivf, self.mmax_ivf),
+        filter = alm_filter_nlev_wl(self.nlev_p, self.ffi, self.transf_elm, self.lm_max_unl, self.lm_max_ivf,
                 wee=wee, transf_b=self.transf_blm, nlev_b=self.nlev_p)
         self.k_geom = filter.ffi.geom
 
@@ -393,12 +396,10 @@ class scarf_iterator_fastWF():
     @log_on_start(logging.INFO, "get_filter() started")
     @log_on_end(logging.INFO, "get_filter() finished")
     def get_filter(self, sims_MAP=None, ffi=None, tpl=None):
-        assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
-        if self.filter == 'opfilt_iso_ee_wl.alm_filter_nlev_wl':
+        if self.it_filter_directional == 'isotropic':
             filter = self.get_filter_iso()
         else:
             filter = self.get_filter_aniso(sims_MAP, ffi, tpl)
-            
         return filter
 
 
@@ -425,6 +426,6 @@ def transformer(descr):
     elif descr == 'constmf':
         return scarf_iterator_constmf
     elif descr == 'fastWF':
-        return cs_iterator_fast
+        return scarf_iterator_fastWF
     else:
         assert 0, "Not yet implemented"

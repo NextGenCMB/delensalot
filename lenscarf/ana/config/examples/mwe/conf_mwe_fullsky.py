@@ -1,3 +1,11 @@
+"""
+Full sky iterative delensing on FFP10 simulation polarization data generated on the fly, inclusive of isotropic white noise at 0.25 mu k arcmin.
+Here, delensing is done on two simulation sets.
+Simualted maps are used up to lmax 4000.
+The noise model is isotropic and white, and truncates B modes lmin<200
+QE and iterative reconstruction uses isotropic filters, and we apply a fast Wiener filtering to the iterative reconstruction 
+"""
+
 import numpy as np
 from lenscarf.lerepi.core.metamodel.dlensalot_mm import *
 

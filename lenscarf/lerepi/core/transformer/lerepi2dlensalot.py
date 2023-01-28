@@ -169,6 +169,7 @@ class l2lensrec_Transformer:
             # pbounds -> pb_ctr, pb_extent
             dl.pb_ctr, dl.pb_extent = an.pbounds
             # lm_max_ivf -> lm_ivf
+            dl.lm_max_ivf = (an.lm_ivf[0][1], an.lm_ivf[1][1])
             dl.lmax_ivf = an.lm_ivf[0][1]
 
 
@@ -358,6 +359,8 @@ class l2lensrec_Transformer:
             dl.it_tasks = it.tasks
             # lmaxunl
             dl.lm_max_unl = it.lm_max_unl
+            dl.lmax_unl = it.lm_max_unl[0]
+            dl.mmax_unl = it.lm_max_unl[1]
             dl.it_lm_max_qlm = it.lm_max_qlm
             # lenjob_pbgeometry
             dl.lenjob_pbgeometry = it.lenjob_pbgeometry
@@ -417,7 +420,7 @@ class l2lensrec_Transformer:
             # stepper
             dl.stepper_model = it.stepper
             if dl.stepper_model.typ == 'harmonicbump':
-                dl.stepper = steps.harmonicbump(dl.qe_lmax_qlm, dl.mmax_qlm, xa=dl.stepper_model.xa, xb=dl.stepper_model.xb)
+                dl.stepper = steps.harmonicbump(dl.stepper_model.lmax_qlm, dl.stepper_model.mmax_qlm, xa=dl.stepper_model.xa, xb=dl.stepper_model.xb)
             
 
         dl = DLENSALOT_Concept()    
