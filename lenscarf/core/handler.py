@@ -338,8 +338,9 @@ class QE_lr(Basejob):
         self.plm = lambda simidx: self.get_plm(simidx, self.QE_subtract_meanfield)
         self.mf_resp = lambda: self.get_response_meanfield()
         self.wflm = lambda simidx: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lmax_unl, self.mmax_unl)
-        self.R_unl = lambda: qresp.get_response(self.k, self.lmax_ivf, 'p', self.cls_unl, self.cls_unl,  {'e': self.fel_unl, 'b': self.fbl_unl, 't':self.ftl_unl}, lmax_qlm=self.lmax_qlm)[0]
+        self.R_unl = lambda: qresp.get_response(self.k, self.lmax_ivf, self.k[0], self.cls_unl, self.cls_unl,  {'e': self.fel_unl, 'b': self.fbl_unl, 't':self.ftl_unl}, lmax_qlm=self.lmax_qlm)[0]
 
+        # TODO only needed for get_blt(), as this is done by cs_iterator.. move 
         self.ith = iteration_handler.transformer('constmf')
       
 
@@ -425,7 +426,7 @@ class QE_lr(Basejob):
 
             if task == 'calc_phi':
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
-                    self.get_plm(idx)
+                    self.get_plm(idx, self.QE_subtract_meanfield)
 
             if task == 'calc_blt':
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
@@ -465,7 +466,7 @@ class QE_lr(Basejob):
     @log_on_end(logging.INFO, "get_R_unl() finished")    
     def get_R_unl(self):
 
-        return qresp.get_response(self.k, self.lmax_ivf, 'p', self.cls_unl, self.cls_unl,  {'e': self.fel_unl, 'b': self.fbl_unl, 't':self.ftl_unl}, lmax_qlm=self.lmax_qlm)[0]
+        return qresp.get_response(self.k, self.lmax_ivf, self.k[0], self.cls_unl, self.cls_unl,  {'e': self.fel_unl, 'b': self.fbl_unl, 't':self.ftl_unl}, lmax_qlm=self.lmax_qlm)[0]
 
 
     @log_on_start(logging.INFO, "get_meanfield({simidx}) started")
@@ -493,9 +494,9 @@ class QE_lr(Basejob):
         path_plm = opj(lib_dir_iterator, 'phi_plm_it000.npy')
         if not os.path.exists(path_plm):
             plm  = self.qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate:
-            if subtract_meanfield:
+            if subtract_meanfield and self.version != 'noMF':
                 plm -= self.mf(simidx)  # MF-subtracted unnormalized QE
-            R = qresp.get_response(self.k, self.lmax_ivf, 'p', self.cls_len, self.cls_len, {'e': self.fel, 'b': self.fbl, 't':self.ftl}, lmax_qlm=self.lmax_qlm)[0]
+            R = qresp.get_response(self.k, self.lmax_ivf, self.k[0], self.cls_len, self.cls_len, {'e': self.fel, 'b': self.fbl, 't':self.ftl}, lmax_qlm=self.lmax_qlm)[0]
             # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
             WF = self.cpp * utils.cli(self.cpp + utils.cli(R))
             plm = alm_copy(plm,  None, self.lmax_qlm, self.mmax_qlm)
@@ -503,7 +504,6 @@ class QE_lr(Basejob):
             almxfl(plm, WF, self.mmax_qlm, True) # Wiener-filter QE
             almxfl(plm, self.cpp > 0, self.mmax_qlm, True)
             np.save(path_plm, plm)
-
         return np.load(path_plm)
 
 
@@ -633,7 +633,7 @@ class MAP_lr(Basejob):
                 self.get_meanfields_it(np.arange(self.itmax+1), calc=True)
                 mpi.barrier()
 
-            elif task == 'calc_btemplate':
+            elif task == 'calc_blt':
                 self.qe.run(task='calc_blt')
                 log.info('{}, task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:

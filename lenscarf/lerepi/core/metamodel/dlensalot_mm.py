@@ -100,12 +100,12 @@ class DLENSALOT_Data(DLENSALOT_Concept):
     transferfunction = attr.ib(default='gauss_with_pixwin', validator=data.transferfunction)
     data_type = attr.ib(default='map', validator=data.data_type)
     data_field = attr.ib(default='qu', validator=data.data_field)
-    beam = attr.ib(default=1)
-    nside = attr.ib(default=2048)
-    nlev_t = attr.ib(default=1)
-    nlev_p = attr.ib(default=1)
+    beam = attr.ib(default=None)
+    nside = attr.ib(default=None)
+    nlev_t = attr.ib(default=None)
+    nlev_p = attr.ib(default=None)
     transf_dat = attr.ib(default=None)
-    lmax_transf = attr.ib(default=4096)
+    lmax_transf = attr.ib(default=None)
     
 
 
@@ -137,12 +137,11 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     qlm_type = attr.ib(default='sepTP', validator=qerec.qlms)
     cg_tol = attr.ib(default=1e-2, validator=qerec.cg_tol)
     filter_directional = attr.ib(default=np.nan, validator=qerec.filter_directional)
-    ninvjob_qe_geometry = attr.ib(default=None, validator=qerec.ninvjob_qe_geometry)
+    ninvjob_qe_geometry = attr.ib(default='healpix_geometry_qe', validator=qerec.ninvjob_qe_geometry)
     lm_max_qlm = attr.ib(default=(10,10), validator=qerec.lm_max_qlm)
     chain = attr.ib(default=DLENSALOT_Chaindescriptor(), validator=qerec.chain)
     cl_analysis = attr.ib(default=False, validator=qerec.cl_analysis)
     btemplate_perturbative_lensremap = attr.ib(default=True, validator=qerec.btemplate_perturbative_lensremap)
-
 
 @attr.s
 class DLENSALOT_Itrec(DLENSALOT_Concept):

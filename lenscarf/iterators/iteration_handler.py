@@ -139,7 +139,7 @@ class scarf_iterator_pertmf():
     @log_on_end(logging.INFO, "get_filter_iso() finished")
     def get_filter_iso(self):
         wee = self.k == 'p_p'
-        filter = alm_filter_nlev_wl(self.nlev_p, self.ffi, self.transf_elm, (self.lmax_unl, self.mmax_unl), (self.lmax_ivf, self.mmax_ivf),
+        filter = alm_filter_nlev_wl(self.nlev_p, self.ffi, self.transf_elm, self.lm_max_unl, self.lm_max_ivf,
                 wee=wee, transf_b=self.transf_blm, nlev_b=self.nlev_p)
         self.k_geom = filter.ffi.geom
         
@@ -252,7 +252,7 @@ class scarf_iterator_constmf():
     @log_on_end(logging.INFO, "get_filter_iso() finished")
     def get_filter_iso(self):
         wee = self.k == 'p_p'
-        filter = alm_filter_nlev_wl(self.nlev_p, self.ffi, self.transf_elm, (self.lmax_unl, self.mmax_unl), (self.lmax_ivf, self.mmax_ivf),
+        filter = alm_filter_nlev_wl(self.nlev_p, self.ffi, self.transf_elm, self.lm_max_unl, self.lm_max_ivf,
                 wee=wee, transf_b=self.transf_blm, nlev_b=self.nlev_p)
         self.k_geom = filter.ffi.geom
 

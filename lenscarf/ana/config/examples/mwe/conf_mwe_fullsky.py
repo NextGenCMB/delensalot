@@ -18,8 +18,9 @@ dlensalot_model = DLENSALOT_Model(
     ),                              
     analysis = DLENSALOT_Analysis(
         key = 'p_p',
+        version = 'noMF',
         simidxs = np.arange(0,2),
-        TEMP_suffix = 'my_first_dlensalot_analysis',
+        TEMP_suffix = 'my_first_dlensalot_analysis2',
         Lmin = 2, 
         lm_max_len = (4000, 4000),
         lm_ivf = ((2, 4000),(2, 4000)),
@@ -30,7 +31,8 @@ dlensalot_model = DLENSALOT_Model(
         class_ = 'ffp10',
         class_parameters = {
             'nlev_p': 0.25
-        }
+        },
+        transferfunction = 'gauss_no_pixwin'
     ),
     noisemodel = DLENSALOT_Noisemodel(
         sky_coverage = 'isotropic',

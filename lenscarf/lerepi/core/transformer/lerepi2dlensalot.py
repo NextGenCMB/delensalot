@@ -232,10 +232,15 @@ class l2lensrec_Transformer:
             dl._sims = getattr(_sims_module, _class)(**_dataclass_parameters)
             if 'sims' in dl._sims.__dict__:
                 ## get_sim_pmap comes from sims object inside sims module
-                dl.sims = dl._sims.sims
+                # dl.sims = dl._sims.sims
                 ## sims parameter come from sims module directly
                 dl.data_type = dl._sims.data_type
                 dl.data_field = dl._sims.data_field
+                pix_phas = phas.pix_lib_phas(opj(os.environ['HOME'], 'pixphas3_nside%s'%dl._sims.nside), 3, (hp.nside2npix(dl._sims.nside),)) # T, Q, and U noise phases
+        
+                transf_dat = gauss_beam(dl._sims.beam / 180 / 60 * np.pi, lmax=dl._sims.lmax_transf) # (taking here full FFP10 cmb's which are given to 4096)
+                dl.sims = maps.cmb_maps_nlev(sims_ffp10.cmb_len_ffp10(), transf_dat, dl._sims.nlev_t, dl._sims.nlev_p, dl._sims.nside, pix_lib_phas=pix_phas)
+
             else:
                 ## get_sim_pmap comes from sims module directly
                 # -> nothing to do here
@@ -284,11 +289,21 @@ class l2lensrec_Transformer:
             dl.btemplate_perturbative_lensremap = qe.btemplate_perturbative_lensremap
             # qe_tasks
             dl.qe_tasks = qe.tasks
+            # QE_subtract_meanfield
+            dl.QE_subtract_meanfield = False if dl.version == 'noMF' else True
             # lmax_qlm
             dl.qe_lm_max_qlm = qe.lm_max_qlm
             dl.qe_lmax_qlm = qe.lm_max_qlm[0]
             dl.lmax_qlm = qe.lm_max_qlm[0]
             dl.mmax_qlm = qe.lm_max_qlm[1]
+            # ninvjob_qe_geometry
+            if qe.ninvjob_qe_geometry == 'healpix_geometry_qe':
+                # TODO for QE, isOBD only works with zbounds=(-1,1). Perhaps missing ztrunc on qumaps
+                # Introduce new geometry for now, until either plancklens supports ztrunc, or ztrunced simlib (not sure if it already does)
+                dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl._sims.nside, zbounds=(-1,1))
+            elif qe.ninvjob_qe_geometry == 'healpix_geometry':
+                dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl._sims.nside, zbounds=dl.zbounds)
+           
             # filter
             dl.qe_filter_directional = qe.filter_directional
             if dl.qe_filter_directional == 'anisotropic':
@@ -300,7 +315,7 @@ class l2lensrec_Transformer:
                 dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), lmax_plm, dl._sims.nside, dl.cls_len, dl.transf_tlm, dl.ninvt_desc,
                     marge_monopole=True, marge_dipole=True, marge_maps=[])
                 if dl.lowell_treat == 'OBD':
-                    transf_elm_loc = gauss_beam(dl.beam/180 / 60 * np.pi, lmax=lmax_plm)
+                    transf_elm_loc = gauss_beam(dl.beam / 180 / 60 * np.pi, lmax=lmax_plm)
                     dl.cinv_p = cinv_p_OBD.cinv_p(opj(dl.TEMP, 'cinv_p'), lmax_plm, dl._sims.nside, dl.cls_len, transf_elm_loc[:lmax_plm+1], dl.ninvp_desc, geom=dl.ninvjob_qe_geometry,
                         chain_descr=dl.chain_descr(lmax_plm, dl.cg_tol), bmarg_lmax=dl.lmin_blm, zbounds=dl.zbounds, _bmarg_lib_dir=dl.obd_libdir, _bmarg_rescal=dl.obd_rescale, sht_threads=dl.tr)
                 else:
@@ -323,13 +338,6 @@ class l2lensrec_Transformer:
                 dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.ivfs, dl.ivfs, dl.cls_len['te'], dl._sims.nside, lmax_qlm=dl.qe_lmax_qlm)
             # cg_tol
             dl.cg_tol = qe.cg_tol
-            # ninvjob_qe_geometry
-            if qe.ninvjob_qe_geometry == 'healpix_geometry_qe':
-                # TODO for QE, isOBD only works with zbounds=(-1,1). Perhaps missing ztrunc on qumaps
-                # Introduce new geometry for now, until either plancklens supports ztrunc, or ztrunced simlib (not sure if it already does)
-                dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl._sims.nside, zbounds=(-1,1))
-            elif qe.ninvjob_qe_geometry == 'healpix_geometry':
-                dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl._sims.nside, zbounds=dl.zbounds)
             # chain
             dl.chain_model = qe.chain
             if dl.chain_model.p6 == 'tr_cg':
