@@ -90,7 +90,6 @@ class Basejob():
         return None
 
 
-
 class Notebook_interactor(Basejob):
     '''
     Interface for notebooks,
@@ -372,10 +371,9 @@ class QE_lr(Basejob):
             ## Calculate realization dependent phi, i.e. plm_it000.
             if task == 'calc_phi':
                 mf_fname = os.path.join(self.TEMP, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, utils.mchash(self.simidxs_mf)))
-                log.info('{} - {}'.format(self.simidxs, id))
                 ## Skip if meanfield already calculated
-                if os.path.isfile(mf_fname) or recalc:
-                    for idx in self.simidxs_mf:
+                if not os.path.isfile(mf_fname) or recalc:
+                    for idx in self.simidxs:
                         ## TODO skip all plms already calculated
                         ## If plm i missing, this task in run() creates all prereqs
                         _jobs.append(idx)
@@ -472,17 +470,20 @@ class QE_lr(Basejob):
     @log_on_start(logging.INFO, "get_meanfield({simidx}) started")
     @log_on_end(logging.INFO, "get_meanfield({simidx}) finished")
     def get_meanfield(self, simidx):
-        if self.mfvar == None:
-            # TODO hack: plancklens needs to be less restrictive with type for simidx. hack for now
-            mf = self.qlms_dd.get_sim_qlm_mf(self.k, [int(simidx_mf) for simidx_mf in self.simidxs_mf])
-            if simidx in self.simidxs_mf:    
-                mf = (mf - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
-        else:
-            mf = hp.read_alm(self.mfvar)
-            if simidx in self.simidxs_mf:    
-                mf = (mf - self.qlms_dd_mfvar.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
- 
-        return mf
+        ret = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, 0))
+        if self.Nmf > 0:
+            if self.mfvar == None:
+                # TODO hack: plancklens needs to be less restrictive with type for simidx. hack for now
+                ret = self.qlms_dd.get_sim_qlm_mf(self.k, [int(simidx_mf) for simidx_mf in self.simidxs_mf])
+                if simidx in self.simidxs_mf:    
+                    ret = (ret - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
+            else:
+                ret = hp.read_alm(self.mfvar)
+                if simidx in self.simidxs_mf:    
+                    ret = (ret - self.qlms_dd_mfvar.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
+            return ret
+        return ret
+        
 
 
     @log_on_start(logging.INFO, "get_plm({simidx}) started")

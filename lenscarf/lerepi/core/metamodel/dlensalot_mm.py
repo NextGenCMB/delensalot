@@ -152,14 +152,12 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     """
     tasks = attr.ib(default=['calc_phi'], validator=itrec.tasks)
     itmax = attr.ib(default=1, validator=itrec.itmax)
-    filter = attr.ib(default=None, validator=itrec.filter)
     cg_tol = attr.ib(default=np.nan, validator=itrec.cg_tol)
-    iterator_typ = attr.ib(default='default', validator=itrec.cg_tol)
+    iterator_typ = attr.ib(default='default', validator=itrec.iterator_type)
     lensres = attr.ib(default=1.7, validator=itrec.lensres)
     filter_directional = attr.ib(default=np.nan, validator=itrec.filter_directional)
     lenjob_geometry = attr.ib(default='thin_gauss', validator=itrec.lenjob_geometry)
     lenjob_pbgeometry = attr.ib(default='pbdGeometry', validator=itrec.lenjob_pbgeometry)
-    iterator_typ = attr.ib(default='constmf', validator=itrec.iterator_typ)
     lm_max_unl = attr.ib(default=(10,10), validator=itrec.lm_max_unl)
     lm_max_qlm = attr.ib(default=(10,10), validator=itrec.lm_max_qlm)
     mfvar = attr.ib(default='', validator=itrec.mfvar)
@@ -183,6 +181,7 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
     libdir_it = attr.ib(default=None, validator=mapdelensing.libdir_it)
     binning = attr.ib(default=-1, validator=mapdelensing.binning)
     spectrum_calculator = attr.ib(default=None, validator=mapdelensing.spectrum_calculator)
+
 
 class DLENSALOT_OBD(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.

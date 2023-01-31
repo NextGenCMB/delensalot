@@ -20,7 +20,7 @@ dlensalot_model = DLENSALOT_Model(
         key = 'p_p',
         version = 'noMF',
         simidxs = np.arange(0,2),
-        TEMP_suffix = 'my_first_dlensalot_analysis2',
+        TEMP_suffix = 'my_first_dlensalot_analysis3',
         Lmin = 2, 
         lm_max_len = (4000, 4000),
         lm_ivf = ((2, 4000),(2, 4000)),
@@ -54,7 +54,7 @@ dlensalot_model = DLENSALOT_Model(
         itmax = 10,
         cg_tol = 1e-3,
         lensres = 0.8,
-        iterator_typ = 'fastWF',
+        iterator_typ = 'constmf',
         lm_max_unl = (4000, 4000),
         lm_max_qlm = (4000, 4000)
     )

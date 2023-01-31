@@ -124,6 +124,8 @@ class deflection:
         if self.d1 is None and self.sig_d > 0.:
             gclm = [self.dlm, np.zeros_like(self.dlm) if self.dclm is None else self.dclm]
             self.d1 = self._build_interpolator(gclm, self.mmax_dlm, 1)
+        else:
+            print(self.d1, self.sig_d)
 
     def fill_map(self, functions:list[callable], dtype=float):
         """Iterates over rings to produce output maps functions of the deflections

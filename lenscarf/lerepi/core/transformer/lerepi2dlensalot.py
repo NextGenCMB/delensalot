@@ -33,8 +33,6 @@ from lenscarf.utils_hp import gauss_beam
 from lenscarf.opfilt import utils_cinv_p as cinv_p_OBD
 import lenscarf.core.handler as lenscarf_handler
 
-from lenscarf.opfilt import opfilt_ee_wl
-from lenscarf.opfilt import opfilt_iso_ee_wl
 from lenscarf.opfilt.bmodes_ninv import template_dense
 
 from lenscarf.lerepi.core.visitor import transform
@@ -125,7 +123,7 @@ class l2lensrec_Transformer:
         @log_on_start(logging.INFO, "_process_Computing() started")
         @log_on_end(logging.INFO, "_process_Computing() finished")
         def _process_Computing(dl, co):
-             dl.tr = int(os.environ.get('OMP_NUM_THREADS', co.OMP_NUM_THREADS))
+            dl.tr = int(os.environ.get('OMP_NUM_THREADS', co.OMP_NUM_THREADS))
 
 
         @log_on_start(logging.INFO, "_process_Analysis() started")
@@ -138,8 +136,8 @@ class l2lensrec_Transformer:
             # simidxs
             dl.simidxs = an.simidxs
             # simidxs_mf
-            dl.simidxs_mf = an.simidxs_mf if an.simidxs_mf != [] else dl.simidxs
-            dl.Nmf = 0 if dl.version == 'noMF' else len(dl.simidxs_mf) ## TODO needed?
+            dl.simidxs_mf = an.simidxs_mf if dl.version != 'noMF' else []
+            dl.Nmf = 0 if dl.version == 'noMF' else len(dl.simidxs_mf)
             # TEMP_suffix -> TEMP_suffix
             dl.TEMP_suffix = an.TEMP_suffix
             dl.TEMP = transform(cf, l2T_Transformer())
@@ -232,15 +230,10 @@ class l2lensrec_Transformer:
             dl._sims = getattr(_sims_module, _class)(**_dataclass_parameters)
             if 'sims' in dl._sims.__dict__:
                 ## get_sim_pmap comes from sims object inside sims module
-                # dl.sims = dl._sims.sims
+                dl.sims = dl._sims.sims
                 ## sims parameter come from sims module directly
                 dl.data_type = dl._sims.data_type
                 dl.data_field = dl._sims.data_field
-                pix_phas = phas.pix_lib_phas(opj(os.environ['HOME'], 'pixphas3_nside%s'%dl._sims.nside), 3, (hp.nside2npix(dl._sims.nside),)) # T, Q, and U noise phases
-        
-                transf_dat = gauss_beam(dl._sims.beam / 180 / 60 * np.pi, lmax=dl._sims.lmax_transf) # (taking here full FFP10 cmb's which are given to 4096)
-                dl.sims = maps.cmb_maps_nlev(sims_ffp10.cmb_len_ffp10(), transf_dat, dl._sims.nlev_t, dl._sims.nlev_p, dl._sims.nside, pix_lib_phas=pix_phas)
-
             else:
                 ## get_sim_pmap comes from sims module directly
                 # -> nothing to do here
@@ -293,6 +286,7 @@ class l2lensrec_Transformer:
             dl.QE_subtract_meanfield = False if dl.version == 'noMF' else True
             # lmax_qlm
             dl.qe_lm_max_qlm = qe.lm_max_qlm
+            dl.lm_max_qlm = qe.lm_max_qlm
             dl.qe_lmax_qlm = qe.lm_max_qlm[0]
             dl.lmax_qlm = qe.lm_max_qlm[0]
             dl.mmax_qlm = qe.lm_max_qlm[1]
@@ -408,19 +402,6 @@ class l2lensrec_Transformer:
             dl.iterator_typ = it.iterator_typ
             # LENSRES
             dl.lensres = it.lensres
-            
-            # wee = dl.k == 'p_p'
-            # dl.ffi = remapping.deflection(dl.lenjob_pbgeometry, dl.lensres, np.zeros_like(plm0), dl.it_lm_max_qlm[1], dl.tr, dl.tr) # TODO 
-            # if dl.it_filter_directional == 'isotropic':
-            #     dl.filter = opfilt_iso_ee_wl.alm_filter_nlev_wl(dl.nlev_p, dl.ffi, dl.transf_elm, dl.lm_max_unl, dl.lm_max_len, wee=wee, transf_b=dl.transf_blm, nlev_b=dl.nlev_p)
-            #     dl.k_geom = dl.filter.ffi.geom
-            # elif dl.it_filter_directional == 'anisotropic':
-            #     dl.get_filter_aniso(dl.sims_MAP, dl.ffi, dl.tpl)
-            #     ninv = [dl.sims_MAP.ztruncify(read_map(ni)) for ni in dl.ninvp_desc]
-            #     dl.filter = opfilt_ee_wl.alm_filter_ninv_wl(
-            #         dl.ninvjob_geometry, ninv, dl.ffi, dl.transf_elm, dl.lm_max_unl, dl.lm_max_len,
-            #         dl.tr, dl.tpl, wee=wee, lmin_dotop=min(dl.lmin_teb[1], dl.lmin_teb[2]), transf_blm=dl.transf_blm)
-            #     dl.k_geom = dl.filter.ffi.geom
 
             # mfvar
             if it.mfvar == 'same' or it.mfvar == '':

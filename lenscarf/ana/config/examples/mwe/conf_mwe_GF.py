@@ -20,6 +20,7 @@ dlensalot_model = DLENSALOT_Model(
     ),                              
     analysis = DLENSALOT_Analysis(
         key = 'p_p',
+        version = 'noMF',
         simidxs = np.arange(0,2),
         TEMP_suffix = 'postborn_GF',
         Lmin = 2, 
@@ -36,8 +37,8 @@ dlensalot_model = DLENSALOT_Model(
             'lib_dir': opj(os.environ['HOME'], 'pixphas_nside_GF')
         },
         nside = 2048,
-        nlev_t = 0.025,
-        nlev_p = 0.025,
+        nlev_t = 0.25/np.sqrt(2),
+        nlev_p = 0.25,
         lmax_transf = 4096,
         data_type = 'map',
         data_field = 'qu',
@@ -47,8 +48,8 @@ dlensalot_model = DLENSALOT_Model(
         sky_coverage = 'isotropic',
         spectrum_type = 'white',
         lmin_teb = (10, 10, 200),
-        nlev_t = 0.025/np.sqrt(2),
-        nlev_p = 0.025
+        nlev_t = 0.25/np.sqrt(2),
+        nlev_p = 0.25
     ),
     qerec = DLENSALOT_Qerec(
         tasks = ["calc_phi", "calc_meanfield", "calc_blt"],

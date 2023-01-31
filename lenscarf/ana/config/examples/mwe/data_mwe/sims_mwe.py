@@ -26,7 +26,7 @@ class ffp10:
         self.nside = 2048
         self.nlev_p = nlev_p
         self.nlev_t = nlev_p/np.sqrt(2)
-        pix_phas = phas.pix_lib_phas(opj(os.environ['HOME'], 'pixphas2_nside%s'%self.nside), 3, (hp.nside2npix(self.nside),)) # T, Q, and U noise phases
+        pix_phas = phas.pix_lib_phas(opj(os.environ['HOME'], 'pixphas3_nside%s'%self.nside), 3, (hp.nside2npix(self.nside),)) # T, Q, and U noise phases
         transf_dat = gauss_beam(self.beam / 180 / 60 * np.pi, lmax=self.lmax_transf) # (taking here full FFP10 cmb's which are given to 4096)
         self.sims = maps.cmb_maps_nlev(sims_ffp10.cmb_len_ffp10(), transf_dat, self.nlev_t, self.nlev_p, self.nside, pix_lib_phas=pix_phas)
 
