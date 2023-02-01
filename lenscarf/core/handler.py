@@ -550,8 +550,8 @@ class MAP_lr(Basejob):
             self.ith = cs_iterator.transformer(self.iterator_typ)
 
 
-    @log_on_start(logging.INFO, "collect_jobs() start")
-    @log_on_end(logging.INFO, "collect_jobs() finished")
+    @log_on_start(logging.INFO, "collect_jobs() started")
+    @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self):
         jobs = list(range(len(self.it_tasks)))
         # TODO order of task list matters, but shouldn't

@@ -13,12 +13,14 @@ import healpy as hp
 
 from plancklens.sims import maps, phas
 
+
+from lenscarf import cachers
 from lenscarf.utils_hp import gauss_beam
 from lenscarf.sims import sims_ffp10
 
 
 class ffp10:
-    def __init__(self, nlev_p=1):
+    def __init__(self, nlev_p=1, cache_path=None):
         self.data_type = 'map'
         self.data_field = "qu"
         self.beam = 1
@@ -28,7 +30,11 @@ class ffp10:
         self.nlev_t = nlev_p/np.sqrt(2)
         pix_phas = phas.pix_lib_phas(opj(os.environ['HOME'], 'pixphas3_nside%s'%self.nside), 3, (hp.nside2npix(self.nside),)) # T, Q, and U noise phases
         transf_dat = gauss_beam(self.beam / 180 / 60 * np.pi, lmax=self.lmax_transf) # (taking here full FFP10 cmb's which are given to 4096)
-        self.sims = maps.cmb_maps_nlev(sims_ffp10.cmb_len_ffp10(), transf_dat, self.nlev_t, self.nlev_p, self.nside, pix_lib_phas=pix_phas)
+        if cache_path is None:
+            cacher = cachers.cacher_none()
+        else:
+            cacher = cachers.cacher_npy(cache_path)
+        self.sims = maps.cmb_maps_nlev(sims_ffp10.cmb_len_ffp10(cacher=cacher), transf_dat, self.nlev_t, self.nlev_p, self.nside, pix_lib_phas=pix_phas)
 
 
     def hashdict(self):

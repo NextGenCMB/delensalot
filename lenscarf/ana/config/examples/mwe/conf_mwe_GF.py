@@ -24,8 +24,8 @@ dlensalot_model = DLENSALOT_Model(
         simidxs = np.arange(0,2),
         TEMP_suffix = 'postborn_GF',
         Lmin = 2, 
-        lm_max_len = (4000, 4000),
-        lm_ivf = ((2, 4000),(2, 4000)),
+        lm_max_len = (3000, 3000),
+        lm_ivf = ((2, 3000),(2, 3000)),
     ),
     data = DLENSALOT_Data(
         package_ = 'n32',
@@ -34,11 +34,11 @@ dlensalot_model = DLENSALOT_Model(
         class_parameters = {
             'lmax_cmb': 4096,
             'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(plancklens.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
-            'lib_dir': opj(os.environ['HOME'], 'pixphas_nside_GF')
+            'lib_dir': opj(os.environ['CSCRATCH'], 'sims_postborn', 'nlevp1.00')
         },
         nside = 2048,
-        nlev_t = 0.25/np.sqrt(2),
-        nlev_p = 0.25,
+        nlev_t = 1.00/np.sqrt(2),
+        nlev_p = 1.00,
         lmax_transf = 4096,
         data_type = 'map',
         data_field = 'qu',
@@ -48,8 +48,8 @@ dlensalot_model = DLENSALOT_Model(
         sky_coverage = 'isotropic',
         spectrum_type = 'white',
         lmin_teb = (10, 10, 200),
-        nlev_t = 0.25/np.sqrt(2),
-        nlev_p = 0.25
+        nlev_t = 1.00/np.sqrt(2),
+        nlev_p = 1.00
     ),
     qerec = DLENSALOT_Qerec(
         tasks = ["calc_phi", "calc_meanfield", "calc_blt"],
@@ -63,9 +63,9 @@ dlensalot_model = DLENSALOT_Model(
         filter_directional = 'isotropic',
         itmax = 10,
         cg_tol = 1e-3,
-        lensres = 0.8,
+        lensres = 1.7,
         iterator_typ = 'constmf',
         lm_max_unl = (4000, 4000),
-        lm_max_qlm = (4000, 4000)
+        lm_max_qlm = (3000, 3000)
     )
 )

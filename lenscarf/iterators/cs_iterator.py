@@ -524,7 +524,6 @@ class qlm_iterator(object):
                 if it_soltn < itr - 1:
                     soltn *= self.soltn_cond
                     assert soltn.ndim == 1, 'Fix following lines'
-                    log.info('inside cs_iterator: dat_maps shape: {}'.format(self.dat_maps.shape))
                     mchain.solve(soltn, self.dat_maps, dot_op=self.filter.dot_op())
                     fn_wf = 'wflm_%s_it%s' % (key.lower(), itr - 1)
                     log.info("caching "  + fn_wf)

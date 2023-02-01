@@ -7,6 +7,9 @@ QE and iterative reconstruction uses isotropic filters, and we apply a fast Wien
 """
 
 import numpy as np
+import os
+from os.path import join as opj
+
 from lenscarf.lerepi.core.metamodel.dlensalot_mm import *
 
 dlensalot_model = DLENSALOT_Model(
@@ -20,7 +23,7 @@ dlensalot_model = DLENSALOT_Model(
         key = 'p_p',
         version = 'noMF',
         simidxs = np.arange(0,2),
-        TEMP_suffix = 'my_first_dlensalot_analysis3',
+        TEMP_suffix = 'my_first_dlensalot_analysis',
         Lmin = 2, 
         lm_max_len = (4000, 4000),
         lm_ivf = ((2, 4000),(2, 4000)),
@@ -30,7 +33,8 @@ dlensalot_model = DLENSALOT_Model(
         module_ = 'ana.config.examples.mwe.data_mwe.sims_mwe',
         class_ = 'ffp10',
         class_parameters = {
-            'nlev_p': 0.25
+            'nlev_p': 1.00,
+            'cache_path': opj(os.environ['CSCRATCH'], 'sims_ffp10','nlevp1.00')
         },
         transferfunction = 'gauss_no_pixwin'
     ),
@@ -38,8 +42,8 @@ dlensalot_model = DLENSALOT_Model(
         sky_coverage = 'isotropic',
         spectrum_type = 'white',
         lmin_teb = (10, 10, 200),
-        nlev_t = 0.25/np.sqrt(2),
-        nlev_p = 0.25
+        nlev_t = 1.00/np.sqrt(2),
+        nlev_p = 1.00
     ),
     qerec = DLENSALOT_Qerec(
         tasks = ["calc_phi", "calc_meanfield"],
