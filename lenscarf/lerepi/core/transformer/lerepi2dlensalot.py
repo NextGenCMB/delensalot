@@ -229,6 +229,7 @@ class l2lensrec_Transformer:
             _sims_module = importlib.import_module(_sims_full_name)
             dl._sims = getattr(_sims_module, _class)(**_dataclass_parameters)
             if 'sims' in dl._sims.__dict__:
+                # TODO not sure if this is still needed
                 ## get_sim_pmap comes from sims object inside sims module
                 dl.sims = dl._sims.sims
                 ## sims parameter come from sims module directly

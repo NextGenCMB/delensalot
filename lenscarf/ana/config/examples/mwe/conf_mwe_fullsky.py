@@ -8,6 +8,8 @@ QE and iterative reconstruction uses isotropic filters, and we apply a fast Wien
 
 import numpy as np
 import os
+import plancklens
+from plancklens import utils
 from os.path import join as opj
 
 from lenscarf.lerepi.core.metamodel.dlensalot_mm import *
@@ -17,25 +19,31 @@ dlensalot_model = DLENSALOT_Model(
         jobs = ["QE_lensrec", "MAP_lensrec"]
     ),
     computing = DLENSALOT_Computing(
-        OMP_NUM_THREADS = 16
+        OMP_NUM_THREADS = 2
     ),                              
     analysis = DLENSALOT_Analysis(
         key = 'p_p',
         version = 'noMF',
         simidxs = np.arange(0,2),
-        TEMP_suffix = 'my_first_dlensalot_analysis',
+        TEMP_suffix = 'my_first_dlensalot_analysis_fastWF',
         Lmin = 2, 
         lm_max_len = (4000, 4000),
-        lm_ivf = ((2, 4000),(2, 4000)),
+        lm_ivf = ((2, 3000),(2, 3000)),
     ),
     data = DLENSALOT_Data(
         package_ = 'lenscarf',
-        module_ = 'ana.config.examples.mwe.data_mwe.sims_mwe',
-        class_ = 'ffp10',
+        module_ = 'sims.generic',
+        class_ = 'sims_cmb_len',
         class_parameters = {
-            'nlev_p': 1.00,
-            'cache_path': opj(os.environ['CSCRATCH'], 'sims_ffp10','nlevp1.00')
+            'lmax': 3000,
+            'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(plancklens.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
+            'lib_dir': opj(os.environ['CSCRATCH'], 'generic','nlevp1.00')
         },
+        nlev_t = 1.00/np.sqrt(2),
+        nlev_p = 1.00,
+        beam = 1.00,
+        lmax_transf = 4096,
+        nside = 2048,
         transferfunction = 'gauss_no_pixwin'
     ),
     noisemodel = DLENSALOT_Noisemodel(
@@ -50,16 +58,16 @@ dlensalot_model = DLENSALOT_Model(
         filter_directional = 'isotropic',
         qlm_type = 'sepTP',
         cg_tol = 1e-3,
-        lm_max_qlm = (4000, 4000)
+        lm_max_qlm = (3000, 3000)
     ),
     itrec = DLENSALOT_Itrec(
         tasks = ["calc_phi", "calc_meanfield"], #["calc_phi", "calc_meanfield", "calc_btemplate"],
         filter_directional = 'isotropic',
         itmax = 10,
         cg_tol = 1e-3,
-        lensres = 0.8,
-        iterator_typ = 'constmf',
-        lm_max_unl = (4000, 4000),
-        lm_max_qlm = (4000, 4000)
+        lensres = 1.7,
+        iterator_typ = 'fastWF',
+        lm_max_unl = (3000, 3000),
+        lm_max_qlm = (3000, 3000)
     )
 )

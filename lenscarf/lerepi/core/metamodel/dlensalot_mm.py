@@ -52,8 +52,8 @@ class DLENSALOT_Stepper(DLENSALOT_Concept):
         typ:
     """
     typ = attr.ib(default='harmonicbump', validator=stepper.typ)
-    lmax_qlm = attr.ib(default=4000, validator=stepper.lmax_qlm)
-    mmax_qlm = attr.ib(default=4000, validator=stepper.mmax_qlm)
+    lmax_qlm = attr.ib(default=3000, validator=stepper.lmax_qlm)
+    mmax_qlm = attr.ib(default=3000, validator=stepper.mmax_qlm)
     xa = attr.ib(default=400, validator=stepper.xa)
     xb = attr.ib(default=1500, validator=stepper.xb)
 

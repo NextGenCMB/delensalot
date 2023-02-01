@@ -56,7 +56,7 @@ dlensalot_model = DLENSALOT_Model(
         filter_directional = 'isotropic',
         qlm_type = 'sepTP',
         cg_tol = 1e-3,
-        lm_max_qlm = (4000, 4000)
+        lm_max_qlm = (3000, 3000)
     ),
     itrec = DLENSALOT_Itrec(
         tasks = ["calc_phi", "calc_meanfield"], #["calc_phi", "calc_meanfield", "calc_btemplate"],

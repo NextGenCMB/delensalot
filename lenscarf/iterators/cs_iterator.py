@@ -85,7 +85,7 @@ class qlm_iterator(object):
         lmax_filt, mmax_filt = ninv_filt.lmax_sol, ninv_filt.mmax_sol
 
         assert len(pp_h0) > lmax_qlm
-        assert Alm.getlmax(plm0.size, mmax_qlm) == lmax_qlm
+        assert Alm.getlmax(plm0.size, mmax_qlm) == lmax_qlm, print(Alm.getlmax(plm0.size, mmax_qlm), lmax_qlm)
         if mmax_qlm is None: mmax_qlm = lmax_qlm
 
         self.h = h
