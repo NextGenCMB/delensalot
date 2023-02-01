@@ -1,5 +1,5 @@
 """
-Full sky iterative delensing on simulation polarization data generated on the fly, without noise or foregrounds.
+Full sky iterative delensing on simulation polarization data generated on the fly, inclusive of noise and without foregrounds.
 Here, delensing is done on two simulation sets.
 Simulated maps are used up to lmax 4000.
 The noise model is isotropic and white, and truncates B modes lmin<200

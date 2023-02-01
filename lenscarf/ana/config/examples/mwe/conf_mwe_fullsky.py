@@ -1,5 +1,5 @@
 """
-Full sky iterative delensing on FFP10 simulation polarization data generated on the fly, inclusive of isotropic white noise at 0.25 mu k arcmin.
+Full sky iterative delensing on ffp10 polarization data generated on the fly, inclusive of isotropic white noise.
 Here, delensing is done on two simulation sets.
 Simulated maps are used up to lmax 4000.
 The noise model is isotropic and white, and truncates B modes lmin<200
