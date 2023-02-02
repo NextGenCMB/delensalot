@@ -149,7 +149,7 @@ class ducc_deflection(deflection):
             if spin == 0:
                 return self.geom.map2alm(m, lmax_out, mmax_out, self.sht_tr)
             else:
-                return self.geom.map2alm_spin(m, spin, lmax_out, mmax_out, self.sht_tr, polrot=polrot)
+                return self.geom.map2alm_spin(m, spin, lmax_out, mmax_out, self.sht_tr)
         else:
             lmax_unl = hp.Alm.getlmax(gclm[0].size if abs(spin) > 0 else gclm.size, mmax)
             inter = ducc0.totalconvolve.Interpolator(lmax_out, spin, 1, epsilon=self.epsilon,
