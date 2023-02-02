@@ -103,7 +103,7 @@ class ducc_deflection(deflection):
                     assert 0 < self.geom.theta[ir] < np.pi, 'Fix this'
                     cot = np.cos(self.geom.theta[ir]) / np.sin(self.geom.theta[ir])
                     d = np.sqrt(t_red ** 2 + i_imd ** 2)
-                    thp_phip_mgamma[2, sli] -= np.arctan2(i_imd, t_red )
+                    thp_phip_mgamma[2, sli]  = -np.arctan2(i_imd, t_red )
                     thp_phip_mgamma[2, sli] += np.arctan2(i_imd, d * np.sin(d) * cot + t_red  * np.cos(d))
                     startpix += len(pixs)
             thp_phip_mgamma = thp_phip_mgamma.transpose()
@@ -118,12 +118,13 @@ class ducc_deflection(deflection):
                           verbose=self.verbose, epsilon=self.epsilon)
 
 
-    def gclm2lenmap(self, gclm:np.ndarray or list, mmax:int or None, spin, backwards:bool, nomagn=False, polrot=True):
+    def gclm2lenmap(self, gclm:np.ndarray or list, mmax:int or None, spin, backwards:bool, nomagn=False, polrot=True, ptg=None):
         assert not backwards, 'backward 2lenmap not implemented at this moment'
         if abs(spin) == 0:
             lmax_unl = hp.Alm.getlmax(gclm.size, mmax)
             blm_T = hp.sphtfunc.blm_gauss(0, lmax=lmax_unl, pol=False)
-            ptg = self._get_ptg()
+            if ptg is None:
+                ptg = self._get_ptg()
             inter_I = ducc0.totalconvolve.Interpolator(np.atleast_2d(gclm), blm_T, separate=False, lmax=lmax_unl, kmax=0,
                                                            epsilon=self.epsilon, ofactor=self.ofactor, nthreads=self.sht_tr)
             return inter_I.interpol(ptg).squeeze()
@@ -132,24 +133,26 @@ class ducc_deflection(deflection):
             blm_GC = blm_gauss(0, lmax_unl, spin)
             inter_QU = ducc0.totalconvolve.Interpolator(
                 gclm, blm_GC, separate=False, lmax=lmax_unl, kmax=abs(spin), epsilon=self.epsilon, nthreads=self.sht_tr)
-            ptg = self._get_ptg()
+            if ptg is None:
+                ptg = self._get_ptg()
             assert polrot
             Q = -np.sqrt(2) * inter_QU.interpol(ptg).squeeze()
             ptg[:, 2] += np.pi / (2 * spin)
             U = -np.sqrt(2) * inter_QU.interpol(ptg).squeeze()
             ptg[:, 2] -= np.pi / (2 * spin) #otherwise modifies the cached gamma
-            return np.array([Q, U])
+            return Q, U
 
     def lensgclm(self, gclm:np.ndarray or list, mmax:int or None, spin, lmax_out, mmax_out:int or None, backwards=False, nomagn=False, polrot=True):
         """Adjoint remapping operation from lensed alm space to unlensed alm space
 
         """
         if not backwards:
-            m = self.gclm2lenmap(gclm, mmax, spin, backwards, nomagn=nomagn)
+            m = self.gclm2lenmap(gclm, mmax, spin, backwards, nomagn=nomagn, polrot=polrot)
             if spin == 0:
                 return self.geom.map2alm(m, lmax_out, mmax_out, self.sht_tr)
             else:
                 return self.geom.map2alm_spin(m, spin, lmax_out, mmax_out, self.sht_tr)
+
         else:
             lmax_unl = hp.Alm.getlmax(gclm[0].size if abs(spin) > 0 else gclm.size, mmax)
             inter = ducc0.totalconvolve.Interpolator(lmax_out, spin, 1, epsilon=self.epsilon,
