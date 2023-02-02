@@ -84,6 +84,7 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     pbounds = attr.ib(default=(0., 2*np.pi), validator=analysis.pbounds)
     lm_max_len = attr.ib(default=(10,10), validator=filter.lm_max_len)
     lm_max_ivf = attr.ib(default=(10,10), validator=filter.lm_ivf)
+    mask = attr.ib(default=None, validator=noisemodel.mask)
 
 @attr.s
 class DLENSALOT_Data(DLENSALOT_Concept):
@@ -120,7 +121,6 @@ class DLENSALOT_Noisemodel(DLENSALOT_Concept):
     nlev_t = attr.ib(default=[], validator=noisemodel.nlev_t)
     nlev_p = attr.ib(default=[], validator=noisemodel.nlev_p)
     rhits_normalised = attr.ib(default=None, validator=noisemodel.rhits_normalised)
-    mask = attr.ib(default=None, validator=noisemodel.mask)
     ninvjob_geometry = attr.ib(default='healpix_geometry', validator=noisemodel.ninvjob_geometry)
 
 @attr.s

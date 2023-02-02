@@ -154,7 +154,7 @@ class l2lensrec_Transformer:
             if an.zbounds[0] == 'nmr_relative':
                 dl.zbounds = df.get_zbounds(hp.read_map(cf.noisemodel.rhits_normalised[0]), an.zbounds[1])
             elif an.zbounds[0] == 'mr_relative':
-                _zbounds = df.get_zbounds(hp.read_map(cf.noisemodel.mask), np.inf)
+                _zbounds = df.get_zbounds(hp.read_map(an.mask), np.inf)
                 dl.zbounds = df.extend_zbounds(_zbounds, degrees=an.zbounds[1])
             elif type(an.zbounds[0]) in [float, int, np.float64]:
                 dl.zbounds = an.zbounds
@@ -176,16 +176,16 @@ class l2lensrec_Transformer:
         def _process_Noisemodel(dl, nm):
             # sky_coverage
             dl.sky_coverage = nm.sky_coverage
+            # TODO even if masked, rhits can be boolean.
             if dl.sky_coverage == 'masked':
                 # mask
                 dl.masks = l2OBD_Transformer.get_masks(cf)
                 # rhits_normalised
-                dl.rhits_normalised = nm.rhits_normalised
+                dl.rhits_normalised = dl.masks if nm.rhits_normalised is None else nm.rhits_normalised
             # spectrum_type
             dl.spectrum_type = nm.spectrum_type
             # lmin_teb
             dl.lmin_teb = nm.lmin_teb
-            # lowell_treat
             ## TODO make prettier
             dl.OBD = nm.OBD
             if dl.OBD:
@@ -295,7 +295,17 @@ class l2lensrec_Transformer:
                 dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl._sims.nside, zbounds=(-1,1))
             elif qe.ninvjob_qe_geometry == 'healpix_geometry':
                 dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl._sims.nside, zbounds=dl.zbounds)
-           
+            # cg_tol
+            dl.cg_tol = qe.cg_tol
+            # chain
+            dl.chain_model = qe.chain
+            if dl.chain_model.p6 == 'tr_cg':
+                _p6 = cd_solve.tr_cg
+            if dl.chain_model.p7 == 'cache_mem':
+                _p7 = cd_solve.cache_mem()
+            dl.chain_descr = lambda p2, p5 : [
+                [dl.chain_model.p0, dl.chain_model.p1, p2, dl.chain_model.p3, dl.chain_model.p4, p5, _p6, _p7]]
+            
             # filter
             dl.qe_filter_directional = qe.filter_directional
             if dl.qe_filter_directional == 'anisotropic':
@@ -306,7 +316,7 @@ class l2lensrec_Transformer:
                 # TODO using ninv_X possibly causes hashcheck to fail, as v1 == v2 won't work on arrays.
                 dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), lmax_plm, dl._sims.nside, dl.cls_len, dl.transf_tlm, dl.ninvt_desc,
                     marge_monopole=True, marge_dipole=True, marge_maps=[])
-                if dl.lowell_treat == 'OBD':
+                if dl.OBD:
                     transf_elm_loc = gauss_beam(dl.beam / 180 / 60 * np.pi, lmax=lmax_plm)
                     dl.cinv_p = cinv_p_OBD.cinv_p(opj(dl.TEMP, 'cinv_p'), lmax_plm, dl._sims.nside, dl.cls_len, transf_elm_loc[:lmax_plm+1], dl.ninvp_desc, geom=dl.ninvjob_qe_geometry,
                         chain_descr=dl.chain_descr(lmax_plm, dl.cg_tol), bmarg_lmax=dl.lmin_blm, zbounds=dl.zbounds, _bmarg_lib_dir=dl.obd_libdir, _bmarg_rescal=dl.obd_rescale, sht_threads=dl.tr)
@@ -328,16 +338,6 @@ class l2lensrec_Transformer:
             # qlms
             if qe.qlm_type == 'sepTP':
                 dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.ivfs, dl.ivfs, dl.cls_len['te'], dl._sims.nside, lmax_qlm=dl.qe_lm_max_qlm[0])
-            # cg_tol
-            dl.cg_tol = qe.cg_tol
-            # chain
-            dl.chain_model = qe.chain
-            if dl.chain_model.p6 == 'tr_cg':
-                _p6 = cd_solve.tr_cg
-            if dl.chain_model.p7 == 'cache_mem':
-                _p7 = cd_solve.cache_mem()
-            dl.chain_descr = lambda p2, p5 : [
-                [dl.chain_model.p0, dl.chain_model.p1, p2, dl.chain_model.p3, dl.chain_model.p4, p5, _p6, _p7]]
             # qe_cl_analysis
             dl.cl_analysis = qe.cl_analysis
             if qe.cl_analysis == True:
@@ -552,19 +552,20 @@ class l2OBD_Transformer:
     # @log_on_start(logging.INFO, "get_masks() started")
     # @log_on_end(logging.INFO, "get_masks() finished")
     def get_masks(cf):
-        # TODO refactor
+        # TODO refactor. I think this here generates a mask from the rhits map..
+        # but this should really be detached from one another
         masks = []
         if cf.noisemodel.rhits_normalised is not None:
             msk = l2OBD_Transformer.get_nlrh_map(cf)
         else:
             msk = np.ones(shape=hp.nside2npix(cf.data.nside))
         masks.append(msk)
-        if cf.noisemodel.mask is not None:
-            if type(cf.noisemodel.mask) == str:
-                _mask = cf.noisemodel.mask
+        if cf.analysis.mask is not None:
+            if type(cf.analysis.mask) == str:
+                _mask = cf.analysis.mask
             elif cf.noisemodel.mask[0] == 'nlev':
                 noisemodel_rhits_map = msk.copy()
-                _mask = df.get_nlev_mask(cf.noisemodel.mask[1], noisemodel_rhits_map)
+                _mask = df.get_nlev_mask(cf.analysis.mask[1], noisemodel_rhits_map)
                 _mask = np.where(_mask>0., 1., 0.)
         else:
             _mask = np.ones(shape=hp.nside2npix(cf.data.nside))
