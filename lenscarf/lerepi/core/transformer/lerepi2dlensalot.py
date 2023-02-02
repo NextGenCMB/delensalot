@@ -129,6 +129,9 @@ class l2lensrec_Transformer:
         @log_on_start(logging.INFO, "_process_Analysis() started")
         @log_on_end(logging.INFO, "_process_Analysis() finished")
         def _process_Analysis(dl, an):
+            # TODO hack
+            dl.dlm_mod_fnsuffix = ''
+            dl.dlm_mod_bool = False
             # key -> k
             dl.k = an.key
             # version -> version
@@ -141,8 +144,6 @@ class l2lensrec_Transformer:
             # TEMP_suffix -> TEMP_suffix
             dl.TEMP_suffix = an.TEMP_suffix
             dl.TEMP = transform(cf, l2T_Transformer())
-            # lm_max_len -> lm_max_len
-            dl.lm_max_len = an.lm_max_len
             # Lmin
             #TODO give user freedom about fiducial model. But needed here for dl.cpp
             _cls_path = opj(os.path.dirname(plancklens.__file__), 'data', 'cls')
@@ -167,8 +168,7 @@ class l2lensrec_Transformer:
             # pbounds -> pb_ctr, pb_extent
             dl.pb_ctr, dl.pb_extent = an.pbounds
             # lm_max_ivf -> lm_ivf
-            dl.lm_max_ivf = (an.lm_ivf[0][1], an.lm_ivf[1][1])
-            dl.lmax_ivf = an.lm_ivf[0][1]
+            dl.lm_max_ivf = an.lm_max_ivf
 
 
         @log_on_start(logging.INFO, "_process_Noisemodel() started")
@@ -287,10 +287,7 @@ class l2lensrec_Transformer:
             dl.QE_subtract_meanfield = False if dl.version == 'noMF' else True
             # lmax_qlm
             dl.qe_lm_max_qlm = qe.lm_max_qlm
-            dl.lm_max_qlm = qe.lm_max_qlm
-            dl.qe_lmax_qlm = qe.lm_max_qlm[0]
-            dl.lmax_qlm = qe.lm_max_qlm[0]
-            dl.mmax_qlm = qe.lm_max_qlm[1]
+
             # ninvjob_qe_geometry
             if qe.ninvjob_qe_geometry == 'healpix_geometry_qe':
                 # TODO for QE, isOBD only works with zbounds=(-1,1). Perhaps missing ztrunc on qumaps
@@ -330,7 +327,7 @@ class l2lensrec_Transformer:
                 
             # qlms
             if qe.qlm_type == 'sepTP':
-                dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.ivfs, dl.ivfs, dl.cls_len['te'], dl._sims.nside, lmax_qlm=dl.qe_lmax_qlm)
+                dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.ivfs, dl.ivfs, dl.cls_len['te'], dl._sims.nside, lmax_qlm=dl.qe_lm_max_qlm[0])
             # cg_tol
             dl.cg_tol = qe.cg_tol
             # chain
@@ -352,8 +349,8 @@ class l2lensrec_Transformer:
                 dl.ivfs_d = filt_util.library_shuffle(dl.ivfs, dl.ds_dict)
                 dl.ivfs_s = filt_util.library_shuffle(dl.ivfs, dl.ss_dict)
 
-                dl.qlms_ds = qest.library_sepTP(opj(dl.TEMP, 'qlms_ds'), dl.ivfs, dl.ivfs_d, dl.cls_len['te'], dl._sims.nside, lmax_qlm=dl.qe_lmax_qlm)
-                dl.qlms_ss = qest.library_sepTP(opj(dl.TEMP, 'qlms_ss'), dl.ivfs, dl.ivfs_s, dl.cls_len['te'], dl._sims.nside, lmax_qlm=dl.qe_lmax_qlm)
+                dl.qlms_ds = qest.library_sepTP(opj(dl.TEMP, 'qlms_ds'), dl.ivfs, dl.ivfs_d, dl.cls_len['te'], dl._sims.nside, lmax_qlm=dl.qe_lm_max_qlm[0])
+                dl.qlms_ss = qest.library_sepTP(opj(dl.TEMP, 'qlms_ss'), dl.ivfs, dl.ivfs_s, dl.cls_len['te'], dl._sims.nside, lmax_qlm=dl.qe_lm_max_qlm[0])
 
                 dl.mc_sims_bias = np.arange(60, dtype=int)
                 dl.mc_sims_var  = np.arange(60, 300, dtype=int)
@@ -370,11 +367,7 @@ class l2lensrec_Transformer:
             dl.it_tasks = it.tasks
             # lmaxunl
             dl.lm_max_unl = it.lm_max_unl
-            dl.lmax_unl = it.lm_max_unl[0]
-            dl.mmax_unl = it.lm_max_unl[1]
             dl.it_lm_max_qlm = it.lm_max_qlm
-            # lenjob_pbgeometry
-            dl.lenjob_pbgeometry = it.lenjob_pbgeometry
             # lenjob_geometry
             dl.lenjob_geometry = utils_scarf.Geom.get_thingauss_geometry(dl.lm_max_unl[0], 2, zbounds=dl.zbounds_len) if it.lenjob_geometry == 'thin_gauss' else None
             # lenjob_pbgeometry
@@ -418,7 +411,8 @@ class l2lensrec_Transformer:
             # stepper
             dl.stepper_model = it.stepper
             if dl.stepper_model.typ == 'harmonicbump':
-                dl.stepper = steps.harmonicbump(dl.stepper_model.lmax_qlm, dl.stepper_model.mmax_qlm, xa=dl.stepper_model.xa, xb=dl.stepper_model.xb)
+                # dl.stepper = steps.harmonicbump(dl.stepper_model.lmax_qlm, dl.stepper_model.mmax_qlm, xa=dl.stepper_model.xa, xb=dl.stepper_model.xb)
+                dl.stepper = steps.nrstep(dl.it_lm_max_qlm[0], dl.it_lm_max_qlm[1], val=0.5) # handler of the size steps in the MAP BFGS iterative search
             
 
         dl = DLENSALOT_Concept()    

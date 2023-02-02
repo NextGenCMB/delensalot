@@ -336,8 +336,8 @@ class QE_lr(Basejob):
         self.mf = lambda simidx: self.get_meanfield(simidx)
         self.plm = lambda simidx: self.get_plm(simidx, self.QE_subtract_meanfield)
         self.mf_resp = lambda: self.get_response_meanfield()
-        self.wflm = lambda simidx: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lmax_unl, self.mmax_unl)
-        self.R_unl = lambda: qresp.get_response(self.k, self.lmax_ivf, self.k[0], self.cls_unl, self.cls_unl,  {'e': self.fel_unl, 'b': self.fbl_unl, 't':self.ftl_unl}, lmax_qlm=self.lmax_qlm)[0]
+        self.wflm = lambda simidx: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
+        self.R_unl = lambda: qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_unl, self.cls_unl,  {'e': self.fel_unl, 'b': self.fbl_unl, 't':self.ftl_unl}, lmax_qlm=self.qe_lm_max_qlm[0])[0]
 
         # TODO only needed for get_blt(), as this is done by cs_iterator.. move 
         self.ith = iteration_handler.transformer('constmf')
@@ -457,14 +457,14 @@ class QE_lr(Basejob):
     @log_on_end(logging.INFO, "get_wflm({simidx}) finished")    
     def get_wflm(self, simidx):
 
-        return lambda: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lmax_unl, self.mmax_unl)
+        return lambda: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
 
 
     @log_on_start(logging.INFO, "get_R_unl() started")
     @log_on_end(logging.INFO, "get_R_unl() finished")    
     def get_R_unl(self):
 
-        return qresp.get_response(self.k, self.lmax_ivf, self.k[0], self.cls_unl, self.cls_unl,  {'e': self.fel_unl, 'b': self.fbl_unl, 't':self.ftl_unl}, lmax_qlm=self.lmax_qlm)[0]
+        return qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_unl, self.cls_unl,  {'e': self.fel_unl, 'b': self.fbl_unl, 't':self.ftl_unl}, lmax_qlm=self.qe_lm_max_qlm[0])[0]
 
 
     @log_on_start(logging.INFO, "get_meanfield({simidx}) started")
@@ -497,13 +497,13 @@ class QE_lr(Basejob):
             plm  = self.qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate:
             if subtract_meanfield and self.version != 'noMF':
                 plm -= self.mf(simidx)  # MF-subtracted unnormalized QE
-            R = qresp.get_response(self.k, self.lmax_ivf, self.k[0], self.cls_len, self.cls_len, {'e': self.fel, 'b': self.fbl, 't':self.ftl}, lmax_qlm=self.lmax_qlm)[0]
+            R = qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_len, self.cls_len, {'e': self.fel, 'b': self.fbl, 't':self.ftl}, lmax_qlm=self.qe_lm_max_qlm[0])[0]
             # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
             WF = self.cpp * utils.cli(self.cpp + utils.cli(R))
-            plm = alm_copy(plm,  None, self.lmax_qlm, self.mmax_qlm)
-            almxfl(plm, utils.cli(R), self.mmax_qlm, True) # Normalized QE
-            almxfl(plm, WF, self.mmax_qlm, True) # Wiener-filter QE
-            almxfl(plm, self.cpp > 0, self.mmax_qlm, True)
+            plm = alm_copy(plm,  None, self.qe_lm_max_qlm[0], self.qe_lm_max_qlm[1])
+            almxfl(plm, utils.cli(R), self.qe_lm_max_qlm[1], True) # Normalized QE
+            almxfl(plm, WF, self.qe_lm_max_qlm[1], True) # Wiener-filter QE
+            almxfl(plm, self.cpp > 0, self.qe_lm_max_qlm[1], True)
             np.save(path_plm, plm)
         return np.load(path_plm)
 
@@ -513,10 +513,10 @@ class QE_lr(Basejob):
     @log_on_end(logging.INFO, "get_response_meanfield() finished")
     def get_response_meanfield(self):
         if self.k in ['p_p'] and not 'noRespMF' in self.version:
-            mf_resp = qresp.get_mf_resp(self.k, self.cls_unl, {'ee': self.fel_unl, 'bb': self.fbl_unl}, self.lmax_ivf, self.lmax_qlm)[0]
+            mf_resp = qresp.get_mf_resp(self.k, self.cls_unl, {'ee': self.fel_unl, 'bb': self.fbl_unl}, self.lm_max_ivf[0], self.qe_lm_max_qlm[0])[0]
         else:
             log.info('*** mf_resp not implemented for key ' + self.k, ', setting it to zero')
-            mf_resp = np.zeros(self.lmax_qlm + 1, dtype=float)
+            mf_resp = np.zeros(self.qe_lm_max_qlm[0] + 1, dtype=float)
 
         return mf_resp
 
@@ -620,7 +620,7 @@ class MAP_lr(Basejob):
                         for it in range(self.itmax + 1):
                             log.info("using cg-tol = %.4e"%self.cg_tol(it))
                             log.info("using soltn_cond = %s"%self.soltn_cond(it))
-                            itlib_iterator.chain_descr = self.chain_descr(self.lmax_unl, self.cg_tol(it))
+                            itlib_iterator.chain_descr = self.chain_descr(self.lm_max_unl[0], self.cg_tol(it))
                             itlib_iterator.soltn_cond = self.soltn_cond(it)
                             itlib_iterator.iterate(it, 'p')
                             log.info('{}, simidx {} done with it {}'.format(mpi.rank, idx, it))
@@ -654,7 +654,7 @@ class MAP_lr(Basejob):
                             else:
                                 # TODO is this [it] the right index with get_betmplate_blm(it)?
                                 _dlm_mod = None if self.dlm_mod_bool == False else dlm_mod[it]
-                            itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=_dlm_mod, calc=True, Nmf=self.Nmf, perturbative=self.btemplate_perturbative_lensremap, dlm_mod_fnsuffix=self.dlm_mod_fnsuffix)
+                            itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=_dlm_mod, calc=True, Nmf=self.Nmf, perturbative=False, dlm_mod_fnsuffix=self.dlm_mod_fnsuffix)
                     log.info("{}: finished sim {}".format(mpi.rank, idx))
 
 
@@ -702,14 +702,23 @@ class MAP_lr(Basejob):
 
         return mfs
 
-    @log_on_start(logging.INFO, ",get_blt_it({simidx}, {calc}) started")
+
+    @log_on_start(logging.INFO, "get_blt_it({simidx}, {calc}) started")
     @log_on_end(logging.INFO, "get_blt_it({simidx}, {calc}) finished")
-    def get_blt_it(self, simidx, calc=True):
-        itlib = self.ith(self, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
-        itlib_iterator = itlib.get_iterator()
-        ## For QE, dlm_mod by construction doesn't do anything, because mean-field had already been subtracted from plm and we don't want to repeat that
-        dlm_mod = np.zeros_like(self.get_meanfield(simidx))
-        itlib_iterator.get_template_blm(0, 0, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, calc=calc, Nmf=self.Nmf, perturbative=self.btemplate_perturbative_lensremap, dlm_mod_fnsuffix=self.dlm_mod_fnsuffix)
+    def get_blt_it(self, simidx, it, calc=False):
+        if 'itlib' in self.__dict__:
+            if simidx != self.itlib.simidx:
+                self.itlib = self.ith(self.qe, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
+                self.itlib_iterator = self.itlib.get_iterator()
+                dlm_mod = np.zeros_like(self.get_meanfield_it(simidx, calc=True))
+                return self.itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, calc=calc, Nmf=self.Nmf, perturbative=False, dlm_mod_fnsuffix=self.dlm_mod_fnsuffix)
+        if 'itlib' not in self.__dict__:
+            self.itlib = self.ith(self.qe, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
+            self.itlib_iterator = self.itlib.get_iterator()
+        dlm_mod = np.zeros_like(self.get_meanfield_it(simidx, calc=True))
+        return self.itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, calc=calc, Nmf=self.Nmf, perturbative=False, dlm_mod_fnsuffix=self.dlm_mod_fnsuffix)
+
+    ## For QE, dlm_mod by construction doesn't do anything, because mean-field had already been subtracted from plm and we don't want to repeat that
 
 
 class Map_delenser(Basejob):

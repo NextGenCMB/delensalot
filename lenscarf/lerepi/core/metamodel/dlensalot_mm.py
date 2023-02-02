@@ -52,8 +52,8 @@ class DLENSALOT_Stepper(DLENSALOT_Concept):
         typ:
     """
     typ = attr.ib(default='harmonicbump', validator=stepper.typ)
-    lmax_qlm = attr.ib(default=3000, validator=stepper.lmax_qlm)
-    mmax_qlm = attr.ib(default=3000, validator=stepper.mmax_qlm)
+    lmax_qlm = attr.ib(default=4000, validator=stepper.lmax_qlm)
+    mmax_qlm = attr.ib(default=4000, validator=stepper.mmax_qlm)
     xa = attr.ib(default=400, validator=stepper.xa)
     xb = attr.ib(default=1500, validator=stepper.xb)
 
@@ -81,10 +81,9 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     Lmin = attr.ib(default=1, validator=analysis.Lmin)
     zbounds = attr.ib(default=(-1,1), validator=analysis.zbounds)
     zbounds_len = attr.ib(default=(-1,1), validator=analysis.zbounds_len)
-    pbounds = attr.ib(default=(-1,1), validator=analysis.pbounds)
+    pbounds = attr.ib(default=(0., 2*np.pi), validator=analysis.pbounds)
     lm_max_len = attr.ib(default=(10,10), validator=filter.lm_max_len)
-    lm_ivf = attr.ib(default=((1,10),(1,10)), validator=filter.lm_ivf)
-
+    lm_max_ivf = attr.ib(default=(10,10), validator=filter.lm_ivf)
 
 @attr.s
 class DLENSALOT_Data(DLENSALOT_Concept):
@@ -107,8 +106,6 @@ class DLENSALOT_Data(DLENSALOT_Concept):
     transf_dat = attr.ib(default=None)
     lmax_transf = attr.ib(default=None)
     
-
-
 @attr.s
 class DLENSALOT_Noisemodel(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
@@ -164,7 +161,6 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     soltn_cond = attr.ib(default=lambda it: True, validator=itrec.soltn_cond)
     stepper = attr.ib(default=DLENSALOT_Stepper(), validator=itrec.stepper)
     
-
 @attr.s
 class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
     """_summary_
@@ -181,7 +177,6 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
     libdir_it = attr.ib(default=None, validator=mapdelensing.libdir_it)
     binning = attr.ib(default=-1, validator=mapdelensing.binning)
     spectrum_calculator = attr.ib(default=None, validator=mapdelensing.spectrum_calculator)
-
 
 class DLENSALOT_OBD(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.

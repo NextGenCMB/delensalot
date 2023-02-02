@@ -24,23 +24,22 @@ dlensalot_model = DLENSALOT_Model(
     analysis = DLENSALOT_Analysis(
         key = 'p_p',
         version = 'noMF',
-        simidxs = np.arange(0,2),
+        simidxs = np.arange(0,1),
         TEMP_suffix = 'my_first_dlensalot_analysis_fastWF',
         Lmin = 2, 
-        lm_max_len = (4000, 4000),
-        lm_ivf = ((2, 3000),(2, 3000)),
+        lm_max_ivf = (3000, 3000),
     ),
     data = DLENSALOT_Data(
         package_ = 'lenscarf',
         module_ = 'sims.generic',
         class_ = 'sims_cmb_len',
         class_parameters = {
-            'lmax': 3000,
+            'lmax': 4000,
             'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(plancklens.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
-            'lib_dir': opj(os.environ['CSCRATCH'], 'generic','nlevp1.00')
+            'lib_dir': opj(os.environ['CSCRATCH'], 'generic_lmax4000','nlevp_sqrt(2)')
         },
-        nlev_t = 1.00/np.sqrt(2),
-        nlev_p = 1.00,
+        nlev_t = 1.00,
+        nlev_p = np.sqrt(2),
         beam = 1.00,
         lmax_transf = 4096,
         nside = 2048,
@@ -49,25 +48,25 @@ dlensalot_model = DLENSALOT_Model(
     noisemodel = DLENSALOT_Noisemodel(
         sky_coverage = 'isotropic',
         spectrum_type = 'white',
-        lmin_teb = (10, 10, 200),
-        nlev_t = 1.00/np.sqrt(2),
-        nlev_p = 1.00
+        lmin_teb = (30, 30, 30),
+        nlev_t = 1.00,
+        nlev_p = np.sqrt(2)
     ),
     qerec = DLENSALOT_Qerec(
-        tasks = ["calc_phi", "calc_meanfield"],
+        tasks = ["calc_phi", "calc_blt"],
         filter_directional = 'isotropic',
         qlm_type = 'sepTP',
         cg_tol = 1e-3,
-        lm_max_qlm = (3000, 3000)
+        lm_max_qlm = (4000, 4000)
     ),
     itrec = DLENSALOT_Itrec(
-        tasks = ["calc_phi", "calc_meanfield"], #["calc_phi", "calc_meanfield", "calc_btemplate"],
+        tasks = ["calc_phi", "calc_blt"],
         filter_directional = 'isotropic',
-        itmax = 10,
-        cg_tol = 1e-3,
+        itmax = 20,
+        cg_tol = 1e-5,
         lensres = 1.7,
         iterator_typ = 'fastWF',
-        lm_max_unl = (3000, 3000),
-        lm_max_qlm = (3000, 3000)
+        lm_max_unl = (4000, 4000),
+        lm_max_qlm = (4000, 4000)
     )
 )

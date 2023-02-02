@@ -54,11 +54,11 @@ class scarf_iterator_pertmf():
         self.plm0 = self.qe.get_plm(self.simidx)
 
         self.ffi = remapping.deflection(self.lenjob_pbgeometry, self.lensres, np.zeros_like(self.plm0),
-            self.mmax_qlm, self.tr, self.tr)
+            self.it_lm_max_qlm[1], self.tr, self.tr)
         self.datmaps = self.get_datmaps()
         self.filter = self.get_filter(self.sims_MAP, self.ffi, self.tpl)
         # TODO not sure why this happens here. Could be done much earlier
-        self.chain_descr = lensing_config.chain_descr(lensing_config.lmax_unl, lensing_config.cg_tol)
+        self.chain_descr = lensing_config.chain_descr(lensing_config.lm_max_unl[0], lensing_config.cg_tol)
 
 
     @log_on_start(logging.INFO, "get_datmaps() started")
@@ -99,7 +99,7 @@ class scarf_iterator_pertmf():
             tpl = self.tpl
         wee = self.k == 'p_p' # keeps or not the EE-like terms in the generalized QEs
         ninv = [sims_MAP.ztruncify(read_map(ni)) for ni in self.ninvp_desc] # inverse pixel noise map on consistent geometry
-        filter = opfilt_ee_wl.alm_filter_ninv_wl(self.ninvjob_geometry, ninv, ffi, self.transf_elm, (self.lmax_unl, self.mmax_unl), (self.lmax_ivf, self.mmax_ivf), self.tr, tpl,
+        filter = opfilt_ee_wl.alm_filter_ninv_wl(self.ninvjob_geometry, ninv, ffi, self.transf_elm, self.lm_max_unl, self.lm_max_ivf, self.tr, tpl,
                                                 wee=wee, lmin_dotop=min(self.lmin_elm, self.lmin_blm), transf_blm=self.transf_blm)
         self.k_geom = filter.ffi.geom # Customizable Geometry for position-space operations in calculations of the iterated QEs etc
 
@@ -128,7 +128,7 @@ class scarf_iterator_pertmf():
             _type_: _description_
         """
         iterator = cs_iterator.iterator_pertmf(
-            self.libdir_iterator, 'p', (self.lmax_qlm, self.mmax_qlm), self.datmaps, self.plm0, self.mf_resp0,
+            self.libdir_iterator, 'p', self.it_lm_max_qlm, self.datmaps, self.plm0, self.mf_resp0,
             self.R_unl0, self.cpp, self.cls_unl, self.filter, self.k_geom, self.chain_descr,
             self.stepper, mf0=self.mf0, wflm0=self.wflm0)
         
@@ -167,12 +167,12 @@ class scarf_iterator_constmf():
         self.plm0 = self.qe.get_plm(self.simidx)
 
         self.ffi = remapping.deflection(self.lenjob_pbgeometry, self.lensres, np.zeros_like(self.plm0),
-            self.mmax_qlm, self.tr, self.tr)
+            self.it_lm_max_qlm[1], self.tr, self.tr)
         self.datmaps = self.get_datmaps()
 
         self.filter = self.get_filter(self.sims_MAP, self.ffi, self.tpl)
         # TODO not sure why this happens here. Could be done much earlier
-        self.chain_descr = lensing_config.chain_descr(lensing_config.lmax_unl, lensing_config.cg_tol)
+        self.chain_descr = lensing_config.chain_descr(lensing_config.lm_max_unl[0], lensing_config.cg_tol)
 
 
     @log_on_start(logging.INFO, "get_datmaps() started")
@@ -216,7 +216,7 @@ class scarf_iterator_constmf():
             tpl = self.tpl
         wee = self.k == 'p_p' # keeps or not the EE-like terms in the generalized QEs
         ninv = [sims_MAP.ztruncify(read_map(ni)) for ni in self.ninvp_desc] # inverse pixel noise map on consistent geometry
-        filter = opfilt_ee_wl.alm_filter_ninv_wl(self.ninvjob_geometry, ninv, ffi, self.transf_elm, (self.lmax_unl, self.mmax_unl), (self.lmax_ivf, self.mmax_ivf), self.tr, tpl,
+        filter = opfilt_ee_wl.alm_filter_ninv_wl(self.ninvjob_geometry, ninv, ffi, self.transf_elm, self.lm_max_unl, self.lm_max_ivf, self.tr, tpl,
                                                 wee=wee, lmin_dotop=min(self.lmin_elm, self.lmin_blm), transf_blm=self.transf_blm)
         self.k_geom = filter.ffi.geom # Customizable Geometry for position-space operations in calculations of the iterated QEs etc
 
@@ -244,7 +244,7 @@ class scarf_iterator_constmf():
             _type_: _description_
         """
         iterator = cs_iterator.iterator_cstmf(
-            self.libdir_iterator, 'p', (self.lmax_qlm, self.mmax_qlm), self.datmaps, self.plm0, self.mf0,
+            self.libdir_iterator, 'p', self.it_lm_max_qlm, self.datmaps, self.plm0, self.mf0,
             self.R_unl0, self.cpp, self.cls_unl, self.filter, self.k_geom, self.chain_descr,
             self.stepper, wflm0=self.wflm0)
         
@@ -276,12 +276,12 @@ class scarf_iterator_fastWF():
         self.mf0 = self.qe.get_meanfield(self.simidx)
         self.plm0 = self.qe.get_plm(self.simidx)
 
-        self.ffi = remapping.deflection(self.lenjob_pbgeometry, self.lensres, np.zeros_like(self.plm0), self.mmax_qlm, self.tr, self.tr)
+        self.ffi = remapping.deflection(self.lenjob_pbgeometry, self.lensres, np.zeros_like(self.plm0), self.it_lm_max_qlm[1], self.tr, self.tr)
         self.datmaps = self.get_datmaps()
 
         self.filter = self.get_filter_iso()
         # TODO not sure why this happens here. Could be done much earlier
-        self.chain_descr = lensing_config.chain_descr(lensing_config.lmax_unl, lensing_config.cg_tol)
+        self.chain_descr = lensing_config.chain_descr(lensing_config.lm_max_unl[0], lensing_config.cg_tol)
 
 
     @log_on_start(logging.INFO, "get_datmaps() started")
@@ -319,7 +319,7 @@ class scarf_iterator_fastWF():
             _type_: _description_
         """
         iterator = cs_iterator_fast.iterator_cstmf(
-            self.libdir_iterator, self.k[0], self.lm_max_qlm, self.datmaps, self.plm0, self.mf0,
+            self.libdir_iterator, self.k[0], self.it_lm_max_qlm, self.datmaps, self.plm0, self.mf0,
             self.R_unl0, self.cpp, self.cls_unl, self.filter, self.k_geom, self.chain_descr,
             self.stepper, wflm0=self.wflm0)
         

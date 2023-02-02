@@ -1,6 +1,6 @@
 def tasks(instance, attribute, value):
-    desc = ["calc_phi", "calc_meanfield", "calc_blt"]
-    assert all(val in desc for val in value), ValueError('Must be in {}, but is {}'.format(desc, value))
+    desc = ['calc_phi', 'calc_meanfield', 'calc_blt']
+    assert all(val in desc for val in value), ValueError('Must be in {}, but is {}. {}'.format(desc, value, [val in desc for val in value]))
 
 
 def simidxs(instance, attribute, value):
