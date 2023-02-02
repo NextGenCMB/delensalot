@@ -9,8 +9,8 @@ def rescale(instance, attribute, value):
 
 
 def tpl(instance, attribute, value):
-    desc = ['max', 'extend']
-    assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+    desc = ['template_dense']
+    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
 
 def nlev_dep(instance, attribute, value):

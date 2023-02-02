@@ -178,6 +178,7 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
     binning = attr.ib(default=-1, validator=mapdelensing.binning)
     spectrum_calculator = attr.ib(default=None, validator=mapdelensing.spectrum_calculator)
 
+@attr.s
 class DLENSALOT_OBD(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
 
@@ -186,8 +187,9 @@ class DLENSALOT_OBD(DLENSALOT_Concept):
     """
     libdir = attr.ib(default=None, validator=obd.libdir)
     rescale = attr.ib(default=None, validator=obd.rescale)
-    tpl = attr.ib(default=None, validator=obd.tpl)
+    tpl = attr.ib(default='template_dense', validator=obd.tpl)
     nlev_dep = attr.ib(default=np.nan, validator=obd.nlev_dep)
+    nside = attr.ib(default=np.nan, validator=obd.nlev_dep)
 
 @attr.s
 class DLENSALOT_Config(DLENSALOT_Concept):
@@ -234,3 +236,4 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     madel = attr.ib(default=DLENSALOT_Mapdelensing(), validator=model.madel)
     config = attr.ib(default=DLENSALOT_Config(), validator=model.config)
     computing = attr.ib(default=DLENSALOT_Config(), validator=model.computing)
+    obd = attr.ib(default=DLENSALOT_OBD(), validator=model.obd)

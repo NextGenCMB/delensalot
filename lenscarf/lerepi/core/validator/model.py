@@ -46,3 +46,8 @@ def config(instance, attribute, value):
 def madel(instance, attribute, value):
     desc = [value]
     assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+
+
+def obd(instance, attribute, value):
+    desc = [value]
+    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))

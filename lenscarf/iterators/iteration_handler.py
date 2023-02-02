@@ -40,10 +40,7 @@ class scarf_iterator_pertmf():
         self.libdir_iterator = libdir_iterators(k, simidx, version)
         if not os.path.exists(self.libdir_iterator):
             os.makedirs(self.libdir_iterator)
-        if lensing_config.tpl is not None:
-            self.tpl = lensing_config.tpl(**lensing_config.tpl_kwargs)
-        else:
-            self.tpl = lensing_config.tpl
+
         self.tr = lensing_config.tr
 
         self.qe = qe
@@ -155,10 +152,7 @@ class scarf_iterator_constmf():
         self.libdir_iterator = libdir_iterators(k, simidx, version)
         if not os.path.exists(self.libdir_iterator):
             os.makedirs(self.libdir_iterator)
-        if lensing_config.tpl is not None:
-            self.tpl = lensing_config.tpl(**lensing_config.tpl_kwargs)
-        else:
-            self.tpl = lensing_config.tpl
+
         self.tr = lensing_config.tr 
         self.qe = qe
         self.wflm0 = qe.get_wflm(self.simidx)
