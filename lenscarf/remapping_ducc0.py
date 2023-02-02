@@ -138,7 +138,7 @@ class ducc_deflection(deflection):
             ptg[:, 2] += np.pi / (2 * spin)
             U = -np.sqrt(2) * inter_QU.interpol(ptg).squeeze()
             ptg[:, 2] -= np.pi / (2 * spin) #otherwise modifies the cached gamma
-            return Q, U
+            return np.array([Q, U])
 
     def lensgclm(self, gclm:np.ndarray or list, mmax:int or None, spin, lmax_out, mmax_out:int or None, backwards=False, nomagn=False, polrot=True):
         """Adjoint remapping operation from lensed alm space to unlensed alm space
