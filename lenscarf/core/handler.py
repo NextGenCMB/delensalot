@@ -140,9 +140,9 @@ class Notebook_interactor(Basejob):
         if self.fc.flavour == 'QU':
             for freq in self.ec.freqs:
                 if self.fc.fns_syncdust:
-                    buff = hp.read_map(self.fc.fns_syncdust.format(freq=freq, nside=self.nside), field=(1,2))*mask*self.fc.map_fac
+                    buff = hp.read_map(self.fc.fns_syncdust.format(freq=freq, nside=self._sims.nside), field=(1,2))*mask*self.fc.map_fac
                 else:
-                    buff = hp.read_map(self.fc.fns_sync.format(freq=freq, nside=self.nside, simidx=self.fc.simidx, fg_beamstring=self.fc.fg_beamstring[freq]), field=(1,2))*mask*self.fc.map_fac + hp.read_map(self.fc.fns_dust.format(freq=freq, nside=self.nside, simidx=self.fc.simidx, fg_beamstring=self.fc.fg_beamstring[freq]), field=(1,2))*mask*self.fc.map_fac
+                    buff = hp.read_map(self.fc.fns_sync.format(freq=freq, nside=self._sims.nside, simidx=self.fc.simidx, fg_beamstring=self.fc.fg_beamstring[freq]), field=(1,2))*mask*self.fc.map_fac + hp.read_map(self.fc.fns_dust.format(freq=freq, nside=self._sims.nside, simidx=self.fc.simidx, fg_beamstring=self.fc.fg_beamstring[freq]), field=(1,2))*mask*self.fc.map_fac
                 self.data['fg']['fs']['map'][freq]['QU'] = buff
                 self.data['fg']['fs']['alm'][freq]['EB'] = np.array(hp.map2alm_spin(buff, spin=2, lmax=self.lmax))
                 if rotate_alms:
@@ -269,8 +269,8 @@ class Notebook_interactor(Basejob):
             comb_E += hp.almxfl(hp.almxfl(self.data[component]['fs']['alm'][freq]['EB'][0], hp.gauss_beam(df.a2r(freq2beam_fwhm[freq]), self.lmax, pol = True)[:,1]), np.squeeze(weights[0,freqi,:self.lmax]))
             comb_B += hp.almxfl(hp.almxfl(self.data[component]['fs']['alm'][freq]['EB'][1], hp.gauss_beam(df.a2r(freq2beam_fwhm[freq]), self.lmax, pol = True)[:,2]), np.squeeze(weights[1,freqi,:self.lmax]))
             if pixelwindow:
-                comb_E = np.nan_to_num(hp.almxfl(comb_E, 1/hp.pixwin(self.nside, pol=True)[0][:self.lmax]))
-                comb_B = np.nan_to_num(hp.almxfl(comb_B, 1/hp.pixwin(self.nside, pol=True)[1][:self.lmax]))
+                comb_E = np.nan_to_num(hp.almxfl(comb_E, 1/hp.pixwin(self._sims.nside, pol=True)[0][:self.lmax]))
+                comb_B = np.nan_to_num(hp.almxfl(comb_B, 1/hp.pixwin(self._sims.nside, pol=True)[1][:self.lmax]))
 
         self.data[component]['fs']['map']['comb']['EB'] = np.array([comb_E, comb_B])
         return self.data[component]['fs']['map']['comb']['EB']
@@ -333,7 +333,7 @@ class QE_lr(Basejob):
         self.dlensalot_model = dlensalot_model
 
         self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
-        self.mf = lambda simidx: self.get_meanfield(simidx)
+        self.mf = lambda simidx: self.get_meanfield(int(simidx))
         self.plm = lambda simidx: self.get_plm(simidx, self.QE_subtract_meanfield)
         self.mf_resp = lambda: self.get_response_meanfield()
         self.wflm = lambda simidx: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
@@ -418,7 +418,7 @@ class QE_lr(Basejob):
                     # an io error
                     log.info("Done waiting. Rank 0 going to calculate meanfield-file.. everyone else waiting.")
                     if mpi.rank == 0:
-                        self.get_meanfield(idx)
+                        self.get_meanfield(int(idx))
                         log.info("rank finished calculating meanfield-file.. everyone else waiting.")
                     mpi.barrier()
 
@@ -496,7 +496,7 @@ class QE_lr(Basejob):
         if not os.path.exists(path_plm):
             plm  = self.qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate:
             if subtract_meanfield and self.version != 'noMF':
-                plm -= self.mf(simidx)  # MF-subtracted unnormalized QE
+                plm -= self.mf(int(simidx))  # MF-subtracted unnormalized QE
             R = qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_len, self.cls_len, {'e': self.fel, 'b': self.fbl, 't':self.ftl}, lmax_qlm=self.qe_lm_max_qlm[0])[0]
             # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
             WF = self.cpp * utils.cli(self.cpp + utils.cli(R))
@@ -521,14 +521,14 @@ class QE_lr(Basejob):
         return mf_resp
 
     
-    @log_on_start(logging.INFO, ",get_blt({simidx}, {calc}) started")
+    @log_on_start(logging.INFO, "get_blt({simidx}, {calc}) started")
     @log_on_end(logging.INFO, "get_blt({simidx}, {calc}) finished")
     def get_blt(self, simidx, calc=True):
         itlib = self.ith(self, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
         itlib_iterator = itlib.get_iterator()
         ## For QE, dlm_mod by construction doesn't do anything, because mean-field had already been subtracted from plm and we don't want to repeat that.
         ## But we are going to store a new file anyway.
-        dlm_mod = np.zeros_like(self.get_meanfield(simidx))
+        dlm_mod = np.zeros_like(self.get_meanfield(int(simidx)))
         itlib_iterator.get_template_blm(0, 0, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, calc=calc, Nmf=self.Nmf, perturbative=self.btemplate_perturbative_lensremap)
 
 
@@ -541,13 +541,12 @@ class MAP_lr(Basejob):
         self.qe = QE_lr(dlensalot_model)
         self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
 
-        if self.iterator_typ in ['pertmf', 'constmf', 'fastWF']:
-            # TODO this is the interface to the D.lensalot iterators and connects 
-            # to lerepi. Could be simplified, s.t. interfacing happens without the iteration_handler
-            # but directly with cs_iterator, e.g. by adding visitor pattern to cs_iterator
-            self.ith = iteration_handler.transformer(self.iterator_typ)
-        elif self.iterator_typ in ['pertmf_new']:
-            self.ith = cs_iterator.transformer(self.iterator_typ)
+        # if self.iterator_typ in ['pertmf', 'constmf', 'fastWF']:
+        # TODO this is the interface to the D.lensalot iterators and connects 
+        # to lerepi. Could be simplified, s.t. interfacing happens without the iteration_handler
+        # but directly with cs_iterator, e.g. by adding visitor pattern to cs_iterator
+        self.ith = iteration_handler.transformer(self.iterator_typ)
+
 
 
     @log_on_start(logging.INFO, "collect_jobs() started")
@@ -858,31 +857,31 @@ class Map_delenser(Basejob):
                 if self.data_field == 'qu':
                     map_cs = self.getfn_qumap_cs(idx)
                     # eblm_cs = hp.map2alm_spin(map_cs*self.base_mask, 2, self.lmax)
-                    # bmap_cs = hp.alm2map(eblm_cs[1], self.nside)
+                    # bmap_cs = hp.alm2map(eblm_cs[1], self.._sims.nside)
                 elif self.data_field == 'eb':
                     map_cs = self.getfn_qumap_cs(idx)
                     # teblm_cs = hp.map2alm([np.zeros_like(map_cs[0]), *map_cs], lmax=self.lmax, pol=False)
-                    # bmap_cs = hp.alm2map(teblm_cs[2], self.nside)
+                    # bmap_cs = hp.alm2map(teblm_cs[2], self.._sims.nside)
             elif self.data_type == 'alm':
                 if self.data_field == 'eb':
                     eblm_cs = self.getfn_qumap_cs(idx)
-                    # bmap_cs = hp.alm2map(eblm_cs[1], self.nside)
+                    # bmap_cs = hp.alm2map(eblm_cs[1], self.._sims.nside)
                 elif self.data_field == 'qu':
                     log.error("I don't think you have qlms,ulms")
                     sys.exit()
 
             # TODO fiducial choice should happen at transformer
             blm_L = self.get_teblm_ffp10(idx)
-            bmap_L = hp.alm2map(blm_L, self.nside)
+            bmap_L = hp.alm2map(blm_L, self._sims.nside)
 
             if self.calc_via_MFsplitset:
                 bltlm_QE1 = np.load(self.getfn_blm_lensc(idx, 0, 'set1'))
-                blt_QE1 = hp.alm2map(bltlm_QE1, nside=self.nside)
+                blt_QE1 = hp.alm2map(bltlm_QE1, nside=self._sims.nside)
                 bltlm_QE2 = np.load(self.getfn_blm_lensc(idx, 0, 'set2'))
-                blt_QE2 = hp.alm2map(bltlm_QE2, nside=self.nside)
+                blt_QE2 = hp.alm2map(bltlm_QE2, nside=self._sims.nside)
             else:
                 bltlm_QE1 = np.load(self.getfn_blm_lensc(idx, 0))
-                blt_QE1 = hp.alm2map(bltlm_QE1, nside=self.nside)
+                blt_QE1 = hp.alm2map(bltlm_QE1, nside=self._sims.nside)
                 blt_QE2 = np.copy(blt_QE1)
             # bmap_cs
             return bmap_L, np.zeros_like(bmap_L), blt_QE1, blt_QE2
@@ -899,7 +898,7 @@ class Map_delenser(Basejob):
                         bltlm_MAP[fni] = np.array(np.load(fn))
                     else:
                         bltlm_MAP[fni] = np.array(hp.read_alm(fn))   
-                blt_MAP1 = np.array([hp.alm2map(bltlm_MAP[iti], nside=self.nside) for iti in range(len(self.its))])
+                blt_MAP1 = np.array([hp.alm2map(bltlm_MAP[iti], nside=self._sims.nside) for iti in range(len(self.its))])
                 
                 fns = [self.getfn_blm_lensc(idx, it, 'set2') for it in self.its]
                 bltlm_MAP = np.zeros(shape=(len(fns), *np.load(self.getfn_blm_lensc(idx, 0, 'set2')).shape), dtype=np.complex128)
@@ -908,7 +907,7 @@ class Map_delenser(Basejob):
                         bltlm_MAP[fni] = np.array(np.load(fn))
                     else:
                         bltlm_MAP[fni] = np.array(hp.read_alm(fn))   
-                blt_MAP2 = np.array([hp.alm2map(bltlm_MAP[iti], nside=self.nside) for iti in range(len(self.its))])
+                blt_MAP2 = np.array([hp.alm2map(bltlm_MAP[iti], nside=self._sims.nside) for iti in range(len(self.its))])
             else:
                 fns = [self.getfn_blm_lensc(idx, it) for it in self.its]
 
@@ -918,7 +917,7 @@ class Map_delenser(Basejob):
                         bltlm_MAP[fni] = np.array(np.load(fn))
                     else:
                         bltlm_MAP[fni] = np.array(hp.read_alm(fn))   
-                blt_MAP1 = np.array([hp.alm2map(bltlm_MAP[iti], nside=self.nside) for iti in range(len(self.its))])
+                blt_MAP1 = np.array([hp.alm2map(bltlm_MAP[iti], nside=self._sims.nside) for iti in range(len(self.its))])
                 blt_MAP2 = np.copy(blt_MAP1)
 
             return blt_MAP1, blt_MAP2
@@ -970,13 +969,13 @@ class Map_delenser(Basejob):
                                 simidxs_bltmean1 = np.arange(0,int(self.Nmblt/2))
                                 simidxs_bltmean2 = np.arange(int(self.Nmblt/2), self.Nmblt)
                                 if self.calc_via_MFsplitset:
-                                    mblt_QE1 = hp.alm2map(np.mean([np.load(self.getfn_blm_lensc(simidx, 0, 'set1')) for simidx in simidxs_bltmean1 if simidx not in [idx]], axis=0), nside=self.nside)
-                                    mblt_QE2 = hp.alm2map(np.mean([np.load(self.getfn_blm_lensc(simidx, 0, 'set2')) for simidx in simidxs_bltmean2 if simidx not in [idx]], axis=0), nside=self.nside)
+                                    mblt_QE1 = hp.alm2map(np.mean([np.load(self.getfn_blm_lensc(simidx, 0, 'set1')) for simidx in simidxs_bltmean1 if simidx not in [idx]], axis=0), nside=self._sims.nside)
+                                    mblt_QE2 = hp.alm2map(np.mean([np.load(self.getfn_blm_lensc(simidx, 0, 'set2')) for simidx in simidxs_bltmean2 if simidx not in [idx]], axis=0), nside=self._sims.nside)
                                 else:
-                                    mblt_QE1 = hp.alm2map(np.mean([np.load(self.getfn_blm_lensc(simidx, 0)) for simidx in simidxs_bltmean1 if simidx not in [idx]], axis=0), nside=self.nside)
-                                    mblt_QE2 = hp.alm2map(np.mean([np.load(self.getfn_blm_lensc(simidx, 0)) for simidx in simidxs_bltmean2 if simidx not in [idx]], axis=0), nside=self.nside)
+                                    mblt_QE1 = hp.alm2map(np.mean([np.load(self.getfn_blm_lensc(simidx, 0)) for simidx in simidxs_bltmean1 if simidx not in [idx]], axis=0), nside=self._sims.nside)
+                                    mblt_QE2 = hp.alm2map(np.mean([np.load(self.getfn_blm_lensc(simidx, 0)) for simidx in simidxs_bltmean2 if simidx not in [idx]], axis=0), nside=self._sims.nside)
                             else:
-                                mblt_QE1 = hp.alm2map(np.mean([np.load(self.getfn_blm_lensc(simidx, 0)) for simidx in np.arange(0,self.Nmblt) if simidx not in [idx]], axis=0), nside=self.nside)
+                                mblt_QE1 = hp.alm2map(np.mean([np.load(self.getfn_blm_lensc(simidx, 0)) for simidx in np.arange(0,self.Nmblt) if simidx not in [idx]], axis=0), nside=self._sims.nside)
                                 mblt_QE2 = np.copy(mblt_QE1)
                         else:
                             mblt_QE1 = 0
@@ -988,17 +987,17 @@ class Map_delenser(Basejob):
                                 simidxs_bltmean2 = np.arange(int(self.Nmblt/2), self.Nmblt)
                                 if self.calc_via_MFsplitset:
                                     buff = np.mean([[np.load(self.getfn_blm_lensc(simidx, it, 'set1')) for simidx in simidxs_bltmean1 if simidx not in [idx]] for it in self.its], axis=1)
-                                    mblt_MAP1 = np.array([hp.alm2map(buff[iti], nside=self.nside) for iti, it in enumerate(self.its)])
+                                    mblt_MAP1 = np.array([hp.alm2map(buff[iti], nside=self._sims.nside) for iti, it in enumerate(self.its)])
                                     buff = np.mean([[np.load(self.getfn_blm_lensc(simidx, it, 'set2')) for simidx in simidxs_bltmean2 if simidx not in [idx]] for it in self.its], axis=1)
-                                    mblt_MAP2 = np.array([hp.alm2map(buff[iti], nside=self.nside) for iti, it in enumerate(self.its)])
+                                    mblt_MAP2 = np.array([hp.alm2map(buff[iti], nside=self._sims.nside) for iti, it in enumerate(self.its)])
                                 else:
                                     buff = np.mean([[np.load(self.getfn_blm_lensc(simidx, it)) for simidx in simidxs_bltmean1 if simidx not in [idx]] for it in self.its], axis=1)
-                                    mblt_MAP1 = np.array([hp.alm2map(buff[iti], nside=self.nside) for iti, it in enumerate(self.its)])
+                                    mblt_MAP1 = np.array([hp.alm2map(buff[iti], nside=self._sims.nside) for iti, it in enumerate(self.its)])
                                     buff = np.mean([[np.load(self.getfn_blm_lensc(simidx, it)) for simidx in simidxs_bltmean2 if simidx not in [idx]] for it in self.its], axis=1)
-                                    mblt_MAP2 = np.array([hp.alm2map(buff[iti], nside=self.nside) for iti, it in enumerate(self.its)])
+                                    mblt_MAP2 = np.array([hp.alm2map(buff[iti], nside=self._sims.nside) for iti, it in enumerate(self.its)])
                             else:
                                 buff = np.mean([[np.load(self.getfn_blm_lensc(simidx, it)) for simidx in np.arange(0,self.Nmf) if simidx not in [idx]] for it in self.its], axis=1)
-                                mblt_MAP1 = np.array([hp.alm2map(buff[iti], nside=self.nside) for iti, it in enumerate(self.its)])
+                                mblt_MAP1 = np.array([hp.alm2map(buff[iti], nside=self._sims.nside) for iti, it in enumerate(self.its)])
                                 mblt_MAP2 = np.copy(mblt_MAP1)
                         else:
                             mblt_MAP1 = 0

@@ -14,7 +14,7 @@ def itmax(instance, attribute, value):
 
 
 def iterator_type(instance, attribute, value):
-    desc = [value]
+    desc = ['pertmf', 'constmf', 'fastWF']
     assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
 

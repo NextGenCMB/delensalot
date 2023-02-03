@@ -140,6 +140,9 @@ class l2lensrec_Transformer:
             dl.simidxs = an.simidxs
             # simidxs_mf
             dl.simidxs_mf = an.simidxs_mf if dl.version != 'noMF' else []
+            # print(dl.simidxs_mf)
+            dl.simidxs_mf = dl.simidxs_mf if dl.simidxs_mf != [] else dl.simidxs
+            # print(dl.simidxs_mf)
             dl.Nmf = 0 if dl.version == 'noMF' else len(dl.simidxs_mf)
             # TEMP_suffix -> TEMP_suffix
             dl.TEMP_suffix = an.TEMP_suffix
@@ -432,7 +435,7 @@ class l2lensrec_Transformer:
         dl.cpp[:dl.Lmin] *= 0.
 
 
-        if dl.sky_coverage == 'masked':
+        if dl.it_filter_directional == 'anisotropic':
             # ninvjob_geometry
             if cf.noisemodel.ninvjob_geometry == 'healpix_geometry':
                 dl.ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(dl._sims.nside, zbounds=dl.zbounds)

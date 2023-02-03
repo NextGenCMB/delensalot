@@ -70,7 +70,7 @@ class scarf_iterator_pertmf():
         if self.qe_filter_directional == 'isotropic':
             sims_MAP = self.sims
         else:
-            sims_MAP = utils_sims.ztrunc_sims(self.sims, self.nside, [self.zbounds])
+            sims_MAP = utils_sims.ztrunc_sims(self.sims, self._sims.nside, [self.zbounds])
         datmaps = np.array(sims_MAP.get_sim_pmap(int(self.simidx)))
 
         self.sims_MAP = sims_MAP
@@ -190,7 +190,7 @@ class scarf_iterator_constmf():
             sht_job.set_nthreads(self.tr)
             return np.array(sht_job.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2))
         else:
-            self.sims_MAP  = utils_sims.ztrunc_sims(self.sims, self.nside, [self.zbounds])
+            self.sims_MAP  = utils_sims.ztrunc_sims(self.sims, self._sims.nside, [self.zbounds])
             return np.array(self.sims_MAP.get_sim_pmap(int(self.simidx)))
 
 

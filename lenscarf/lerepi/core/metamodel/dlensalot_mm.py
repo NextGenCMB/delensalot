@@ -150,7 +150,7 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     tasks = attr.ib(default=['calc_phi'], validator=itrec.tasks)
     itmax = attr.ib(default=1, validator=itrec.itmax)
     cg_tol = attr.ib(default=np.nan, validator=itrec.cg_tol)
-    iterator_typ = attr.ib(default='default', validator=itrec.iterator_type)
+    iterator_typ = attr.ib(default='constmf', validator=itrec.iterator_type)
     lensres = attr.ib(default=1.7, validator=itrec.lensres)
     filter_directional = attr.ib(default=np.nan, validator=itrec.filter_directional)
     lenjob_geometry = attr.ib(default='thin_gauss', validator=itrec.lenjob_geometry)
