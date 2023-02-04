@@ -1,8 +1,7 @@
 """
-Full sky iterative delensing on ffp10 polarization data generated on the fly, inclusive of isotropic white noise.
-Here, delensing is done on two simulation sets.
-Simulated maps are used up to lmax 4000.
-The noise model is isotropic and white, and truncates B modes lmin<30
+Full sky iterative delensing on simulated CMB polarization maps generated on the fly, inclusive of isotropic white noise.
+Delensing is done on one simulation.
+The noise model is isotropic and white.
 QE and iterative reconstruction uses isotropic filters, and we apply a fast Wiener filtering to the iterative reconstruction 
 """
 

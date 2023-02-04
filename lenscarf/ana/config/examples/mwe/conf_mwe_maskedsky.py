@@ -1,8 +1,7 @@
 """
-Masked sky iterative delensing on ffp10 polarization data generated on the fly, inclusive of isotropic white noise.
+Masked sky iterative delensing on simulated CMB polarization data generated on the fly, inclusive of isotropic white noise.
 Here, delensing is done on two simulation sets.
-Simulated maps are used up to lmax 4000.
-The noise model is isotropic and white, and truncates B modes lmin<30.
+The noise model is isotropic and white, and truncates T,E, and B modes at low multipoles.
 QE and iterative reconstruction uses anisotropic filters. 
 """
 
@@ -24,11 +23,11 @@ dlensalot_model = DLENSALOT_Model(
     analysis = DLENSALOT_Analysis(
         key = 'p_p',
         simidxs = np.arange(0,1),
-        simidxs_mf = [0,1,2,3,4,5,6,7,8,9],
+        simidxs_mf = np.arange(0,10),
         TEMP_suffix = 'my_first_dlensalot_analysis_maskedsky',
         Lmin = 2, 
         lm_max_ivf = (3000, 3000),
-        mask = 'mask.fits'
+        mask = '/global/cscratch1/sd/sebibel/dlensalot/lenscarf/generic/sims_cmb_len_lminB30_my_first_dlensalot_analysis_maskedsky/mask.fits'
     ),
     data = DLENSALOT_Data(
         package_ = 'lenscarf',

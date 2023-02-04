@@ -132,6 +132,8 @@ class l2lensrec_Transformer:
             # TODO hack
             dl.dlm_mod_fnsuffix = ''
             dl.dlm_mod_bool = False
+            # mask
+            dl.mask_fn = an.mask
             # key -> k
             dl.k = an.key
             # version -> version
@@ -181,8 +183,6 @@ class l2lensrec_Transformer:
             dl.sky_coverage = nm.sky_coverage
             # TODO even if masked, rhits can be boolean.
             if dl.sky_coverage == 'masked':
-                # mask
-                dl.masks = l2OBD_Transformer.get_masks(cf)
                 # rhits_normalised
                 dl.rhits_normalised = dl.masks if nm.rhits_normalised is None else nm.rhits_normalised
             # spectrum_type
@@ -475,7 +475,6 @@ class l2OBD_Transformer:
                 log.warning("Exiting. Please check your settings.")
                 sys.exit()
             else:
-                dl.BMARG_LCUT = nm.BMARG_LCUT
                 dl._sims.nside = cf.data.nside
                 dl.nlev_dep = nm.nlev_dep
                 dl.geom = utils_scarf.Geom.get_healpix_geometry(dl._sims.nside)
