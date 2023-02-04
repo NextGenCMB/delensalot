@@ -40,6 +40,7 @@ class handler():
         # TODO hack. remove when v1 is gone
         if 'madel' in self.configfile.dlensalot_model.__dict__:
             self.configfile.dlensalot_model.madel.__dict__.update(madel_kwargs)
+        # TODO catch here TEMP dir for build_OBD? or make TEMP builder output buildOBDspecific
         TEMP = transform(self.configfile.dlensalot_model, l2T_Transformer())
         if parser.status == '':
             if mpi.rank == 0:

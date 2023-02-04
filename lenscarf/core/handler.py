@@ -313,7 +313,7 @@ class OBD_builder(Basejob):
         for job in self.jobs:
             bpl = template_bfilt(self.lmin_b, self.geom, self.tr, _lib_dir=self.libdir)
             if not os.path.exists(self.libdir + '/tnit.npy'):
-                bpl._get_rows_mpi(self.ninv_p_desc[0], prefix='')
+                bpl._get_rows_mpi(self.ninv_p, prefix='')
             mpi.barrier()
             if mpi.rank == 0:
                 int(os.environ.get('OMP_NUM_THREADS', 32)) # TODO not sure if this resets anything..

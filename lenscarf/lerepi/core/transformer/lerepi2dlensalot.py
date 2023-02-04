@@ -10,9 +10,6 @@ from os.path import join as opj
 import importlib
 
 
-from plancklens.sims import maps, phas
-from lenscarf.sims import sims_ffp10
-
 import logging
 log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
@@ -21,11 +18,14 @@ import healpy as hp
 import hashlib
 
 import plancklens
-from lenscarf.core import mpi
+from plancklens.sims import maps, phas
+from plancklens.qcinv import opfilt_pp
 from plancklens import qest, qecl, utils
 from plancklens.filt import filt_util, filt_cinv, filt_simple
 from plancklens.qcinv import cd_solve
 
+from lenscarf.core import mpi
+from lenscarf.sims import sims_ffp10
 from lenscarf import utils_scarf, utils_sims, remapping
 from lenscarf.utils import cli, read_map
 from lenscarf.iterators import steps
@@ -52,19 +52,22 @@ class l2T_Transformer:
     # @log_on_start(logging.INFO, "build() started")
     # @log_on_end(logging.INFO, "build() finished")
     def build(self, cf):
-        _suffix = cf.data.class_
-        if 'fg' in cf.data.class_parameters:
-            _suffix +='_%s'%(cf.data.class_parameters['fg'])
-        if cf.noisemodel.OBD:
-            _suffix += '_OBD'
+        if cf.job.jobs == ['build_OBD']:
+            return cf.obd.libdir
         else:
-            _suffix += '_lminB'+str(cf.noisemodel.lmin_teb[2])
+            _suffix = cf.data.class_
+            if 'fg' in cf.data.class_parameters:
+                _suffix +='_%s'%(cf.data.class_parameters['fg'])
+            if cf.noisemodel.OBD:
+                _suffix += '_OBD'
+            else:
+                _suffix += '_lminB'+str(cf.noisemodel.lmin_teb[2])
 
-        if cf.analysis.TEMP_suffix != '':
-            _suffix += '_'+cf.analysis.TEMP_suffix
-        TEMP =  opj(os.environ['SCRATCH'], 'dlensalot', cf.data.package_, cf.data.module_.split('.')[-1], _suffix)
+            if cf.analysis.TEMP_suffix != '':
+                _suffix += '_'+cf.analysis.TEMP_suffix
+            TEMP =  opj(os.environ['SCRATCH'], 'dlensalot', cf.data.package_, cf.data.module_.split('.')[-1], _suffix)
 
-        return TEMP
+            return TEMP
 
 
     # @log_on_start(logging.INFO, "build_delsuffix() started")
@@ -468,6 +471,9 @@ class l2OBD_Transformer:
             dl.nside = od.nside
             dl.libdir = od.libdir
             dl.nlev_dep = od.nlev_dep
+            dl.beam = od.beam
+            dl.nside = od.nside
+            dl.lmax = od.lmax
 
             if os.path.isfile(opj(dl.libdir,'tniti.npy')):
                 # TODO need to test if it is the right tniti.npy
@@ -480,17 +486,20 @@ class l2OBD_Transformer:
         @log_on_end(logging.INFO, "_process_Noisemodel() finished")
         def _process_Noisemodel(dl, nm):
             dl.lmin_b = nm.lmin_teb[2]
-            dl.nlev_dep = nm.nlev_dep
             dl.geom = utils_scarf.Geom.get_healpix_geometry(dl.nside)
             dl.masks, dl.rhits_map = l2OBD_Transformer.get_masks(cf)
             dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
-            dl.ninv_p_desc = l2OBD_Transformer.get_ninvp(cf)
+            dl.ninv_p_desc = l2OBD_Transformer.get_ninvp(cf, dl.nside)
 
+            b_transf = gauss_beam(df.a2r(dl.beam), lmax=dl.lmax) # TODO ninv_p doesn't depend on this anyway, right?
+            dl.ninv_p = np.array(opfilt_pp.alm_filter_ninv(dl.ninv_p_desc, b_transf, marge_qmaps=(), marge_umaps=()).get_ninv())
+            
 
         dl = DLENSALOT_Concept()
 
-        _TEMP = transform(cf, l2T_Transformer())
-        dl.TEMP = transform(_TEMP, l2T_Transformer())
+        # dl.TEMP = transform(cf, l2T_Transformer())
+        dl.TEMP = transform(cf, l2T_Transformer())
+        # dl.TEMP = dl.libdir
 
         _process_Computing(dl, cf.computing)
         _process_Analysis(dl, cf.analysis)
@@ -544,22 +553,26 @@ class l2OBD_Transformer:
 
     @log_on_start(logging.INFO, "get_ninvt() started")
     @log_on_end(logging.INFO, "get_ninvt() finished")
-    def get_ninvt(cf):
+    def get_ninvt(cf, nside=np.nan):
+        if np.isnan(nside):
+            nside = cf.data.nside
         nlev_t = l2OBD_Transformer.get_nlevt(cf)
         masks, noisemodel_rhits_map =  l2OBD_Transformer.get_masks(cf)
         noisemodel_norm = np.max(noisemodel_rhits_map)
-        ninv_desc = [np.array([hp.nside2pixarea(cf.data.nside, degrees=True) * 60 ** 2 / nlev_t ** 2])/noisemodel_norm] + masks
+        ninv_desc = [np.array([hp.nside2pixarea(nside, degrees=True) * 60 ** 2 / nlev_t ** 2])/noisemodel_norm] + masks
 
         return ninv_desc
 
 
     @log_on_start(logging.INFO, "get_ninvp() started")
     @log_on_end(logging.INFO, "get_ninvp() finished")
-    def get_ninvp(cf):
+    def get_ninvp(cf, nside=np.nan):
+        if np.isnan(nside):
+            nside = cf.data.nside
         nlev_p = l2OBD_Transformer.get_nlevp(cf)
         masks, noisemodel_rhits_map =  l2OBD_Transformer.get_masks(cf)
         noisemodel_norm = np.max(noisemodel_rhits_map)
-        ninv_desc = [[np.array([hp.nside2pixarea(cf.data.nside, degrees=True) * 60 ** 2 / nlev_p ** 2])/noisemodel_norm] + masks]
+        ninv_desc = [[np.array([hp.nside2pixarea(nside, degrees=True) * 60 ** 2 / nlev_p ** 2])/noisemodel_norm] + masks]
 
         return ninv_desc
 

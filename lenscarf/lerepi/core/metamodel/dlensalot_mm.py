@@ -93,7 +93,7 @@ class DLENSALOT_Data(DLENSALOT_Concept):
     Attributes:
         DATA_LIBDIR: path to the data
     """
-    class_parameters = attr.ib(default=None, validator=data.class_parameters)
+    class_parameters = attr.ib(default={}, validator=data.class_parameters)
     package_ = attr.ib(default=None, validator=data.package_)
     module_ = attr.ib(default=None, validator=data.module_)
     class_ = attr.ib(default=None, validator=data.class_)
@@ -185,11 +185,13 @@ class DLENSALOT_OBD(DLENSALOT_Concept):
     Attributes:
         BMARG_LIBDIR:
     """
-    libdir = attr.ib(default=None, validator=obd.libdir)
-    rescale = attr.ib(default=None, validator=obd.rescale)
+    libdir = attr.ib(default='', validator=obd.libdir)
+    rescale = attr.ib(default=np.nan, validator=obd.rescale)
     tpl = attr.ib(default='template_dense', validator=obd.tpl)
     nlev_dep = attr.ib(default=np.nan, validator=obd.nlev_dep)
-    nside = attr.ib(default=np.nan, validator=obd.nlev_dep)
+    nside = attr.ib(default=np.nan)
+    lmax = attr.ib(default=np.nan)
+    beam = attr.ib(default=np.nan)
 
 @attr.s
 class DLENSALOT_Config(DLENSALOT_Concept):
