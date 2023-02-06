@@ -538,7 +538,7 @@ class QE_lr(Basejob):
         ## For QE, dlm_mod by construction doesn't do anything, because mean-field had already been subtracted from plm and we don't want to repeat that.
         ## But we are going to store a new file anyway.
         dlm_mod = np.zeros_like(self.get_meanfield(int(simidx)))
-        itlib_iterator.get_template_blm(0, 0, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, calc=calc, Nmf=self.Nmf, perturbative=self.btemplate_perturbative_lensremap)
+        return itlib_iterator.get_template_blm(0, 0, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, calc=calc, Nmf=self.Nmf, perturbative=self.btemplate_perturbative_lensremap)
 
 
 class MAP_lr(Basejob):
