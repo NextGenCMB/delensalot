@@ -12,11 +12,13 @@ log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
 import datetime
 import getpass
+import copy
 
 import numpy as np
 import healpy as hp
 
 from MSC import pospace as ps
+import plancklens
 from plancklens import utils, qresp
 from plancklens.sims import planck2018_sims
 
@@ -28,6 +30,7 @@ from lenscarf.utils_hp import almxfl, alm_copy
 from lenscarf.iterators.statics import rec as rec
 from lenscarf.iterators import iteration_handler
 from lenscarf.opfilt.bmodes_ninv import template_bfilt
+
 
 
 class Basejob():
@@ -528,6 +531,20 @@ class QE_lr(Basejob):
             mf_resp = np.zeros(self.qe_lm_max_qlm[0] + 1, dtype=float)
 
         return mf_resp
+
+
+    def get_mean_field_normalized(self, simidx):
+
+        mf_QE = copy.deepcopy(self.get_meanfield(simidx))
+        cpp_loc = self.cpp
+        R = qresp.get_response(self.k, self.lm_max_ivf[0], 'p', self.cls_len, self.cls_len, {'e': self.fel, 'b': self.fbl, 't':self.ftl}, lmax_qlm=self.lm_max_ivf[0])[0]
+        WF = cpp_loc * utils.cli(cpp_loc + utils.cli(R))
+        almxfl(mf_QE, utils.cli(R), self.qe_lm_max_qlm[1], True) # Normalized QE
+        almxfl(mf_QE, WF, self.qe_lm_max_qlm[1], True) # Wiener-filter QE
+        almxfl(mf_QE, cpp_loc > 0, self.qe_lm_max_qlm[1], True)
+
+        return mf_QE
+
 
     
     @log_on_start(logging.INFO, "get_blt({simidx}, {calc}) started")
