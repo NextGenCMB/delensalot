@@ -643,9 +643,9 @@ class MAP_lr(Basejob):
                         itlib = self.ith(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
                         itlib_iterator = itlib.get_iterator()
                         for it in range(self.itmax + 1):
-                            log.info("using cg-tol = %.4e"%self.cg_tol(it))
+                            log.info("using cg-tol = %.4e"%self.it_cg_tol(it))
                             log.info("using soltn_cond = %s"%self.soltn_cond(it))
-                            itlib_iterator.it_chain_descr = self.it_chain_descr(self.lm_max_unl[0], self.cg_tol(it))
+                            itlib_iterator.chain_descr = self.it_chain_descr(self.lm_max_unl[0], self.it_cg_tol(it))
                             itlib_iterator.soltn_cond = self.soltn_cond(it)
                             itlib_iterator.iterate(it, 'p')
                             log.info('{}, simidx {} done with it {}'.format(mpi.rank, idx, it))

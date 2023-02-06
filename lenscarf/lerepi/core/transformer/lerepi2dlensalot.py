@@ -413,7 +413,7 @@ class l2lensrec_Transformer:
                 if not os.path.isdir(dl.mf_dirname) and mpi.rank == 0:
                     os.makedirs(dl.mf_dirname)
             # cg_tol
-            dl.cg_tol = lambda itr : it.cg_tol if itr <= 10 else it.cg_tol*0.1
+            dl.it_cg_tol = lambda itr : it.cg_tol if itr <= 10 else it.cg_tol*0.1
             # filter
             dl.it_filter_directional = it.filter_directional
             # sims -> sims_MAP

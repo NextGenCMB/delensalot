@@ -19,11 +19,8 @@ import plancklens
 from plancklens import utils, qresp, n0s
 from plancklens.sims import planck2018_sims
 
-import lenscarf.lerepi as lerepi
-from lenscarf.lerepi.core import handler
 
-from lenscarf.utils import read_map, cli
-from lenscarf.iterators.statics import rec
+
 
 from MSC import pospace as ps
 from component_separation.cs_util import Config
