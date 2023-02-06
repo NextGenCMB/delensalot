@@ -6,6 +6,7 @@ __author__ = "S. Belkner, J. Carron, L. Legrand"
 
 
 import os, sys
+import copy
 from os.path import join as opj
 import importlib
 
@@ -198,6 +199,8 @@ class l2lensrec_Transformer:
         def _process_OBD(dl, od):
             dl.obd_libdir = od.libdir
             dl.obd_rescale = od.rescale
+            if cf.noisemodel.ninvjob_geometry == 'healpix_geometry':
+                dl.ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(cf.data.nside, zbounds=dl.zbounds)
             dl.tpl = template_dense(dl.lmin_teb[2], dl.ninvjob_geometry, dl.tr, _lib_dir=dl.obd_libdir, rescal=dl.obd_rescale)
   
 
@@ -251,9 +254,9 @@ class l2lensrec_Transformer:
 
             elif dl.transferfunction == 'gauss_with_pixwin':
                 # Fiducial model of the transfer function
-                dl.transf_tlm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * hp.pixwin(2048, lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[0])
-                dl.transf_elm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * hp.pixwin(2048, lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[1])
-                dl.transf_blm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * hp.pixwin(2048, lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[2])
+                dl.transf_tlm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * hp.pixwin(dl._sims.nside, lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[0])
+                dl.transf_elm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * hp.pixwin(dl._sims.nside, lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[1])
+                dl.transf_blm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * hp.pixwin(dl._sims.nside, lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[2])
 
             # Isotropic approximation to the filtering (used eg for response calculations)
             dl.ftl = cli(dl.cls_len['tt'][:dl._sims.lmax_transf + 1] + df.a2r(dl._sims.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
@@ -275,6 +278,21 @@ class l2lensrec_Transformer:
             dl.qe_tasks = qe.tasks
             # QE_subtract_meanfield
             dl.QE_subtract_meanfield = False if dl.version == 'noMF' else True
+            ## if QE_subtract_meanfield is True, mean-field needs to be calculated either way.
+            ## also move calc_meanfield to the front, so it is calculated first. The following lines assume that all other tasks are in the right order...
+            ## TODO allow user to provide task-list unordered
+            if dl.QE_subtract_meanfield:
+                if 'calc_meanfield' not in dl.qe_tasks:
+                    dl.qe_tasks = ['calc_meanfield'].append(dl.qe_tasks)
+                elif dl.qe_tasks[0] != 'calc_meanfield':
+                    if dl.qe_tasks[1] == 'calc_meanfield':
+                        buffer = copy.deepcopy(dl.qe_tasks[0])
+                        dl.qe_tasks[0] = 'calc_meanfield'
+                        dl.qe_tasks[1] = buffer
+                    else:
+                        buffer = copy.deepcopy(dl.qe_tasks[0])
+                        dl.qe_tasks[0] = 'calc_meanfieldasd'
+                        dl.qe_tasks[2] = buffer
             # lmax_qlm
             dl.qe_lm_max_qlm = qe.lm_max_qlm
 
@@ -307,9 +325,9 @@ class l2lensrec_Transformer:
                 dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), lmax_plm, dl._sims.nside, dl.cls_len, dl.transf_tlm, dl.ninvt_desc,
                     marge_monopole=True, marge_dipole=True, marge_maps=[])
                 if dl.OBD:
-                    transf_elm_loc = gauss_beam(dl.beam / 180 / 60 * np.pi, lmax=lmax_plm)
+                    transf_elm_loc = gauss_beam(dl._sims.beam / 180 / 60 * np.pi, lmax=lmax_plm)
                     dl.cinv_p = cinv_p_OBD.cinv_p(opj(dl.TEMP, 'cinv_p'), lmax_plm, dl._sims.nside, dl.cls_len, transf_elm_loc[:lmax_plm+1], dl.ninvp_desc, geom=dl.ninvjob_qe_geometry,
-                        chain_descr=dl.chain_descr(lmax_plm, dl.cg_tol), bmarg_lmax=dl.lmin_teb[0], zbounds=dl.zbounds, _bmarg_lib_dir=dl.obd_libdir, _bmarg_rescal=dl.obd_rescale, sht_threads=dl.tr)
+                        chain_descr=dl.chain_descr(lmax_plm, dl.cg_tol), bmarg_lmax=dl.lmin_teb[2], zbounds=dl.zbounds, _bmarg_lib_dir=dl.obd_libdir, _bmarg_rescal=dl.obd_rescale, sht_threads=dl.tr)
                 else:
                     dl.cinv_p = filt_cinv.cinv_p(opj(dl.TEMP, 'cinv_p'), lmax_plm, dl._sims.nside, dl.cls_len, dl.transf_elm, dl.ninvp_desc,
                         chain_descr=dl.chain_descr(lmax_plm, dl.cg_tol), transf_blm=dl.transf_blm, marge_qmaps=(), marge_umaps=())
@@ -320,8 +338,7 @@ class l2lensrec_Transformer:
                 _fbl_rs = np.ones(lmax_plm + 1, dtype=float) * (np.arange(lmax_plm + 1) >= dl.lmin_teb[2])
                 dl.ivfs = filt_util.library_ftl(_filter_raw, lmax_plm, _ftl_rs, _fel_rs, _fbl_rs)
             elif dl.qe_filter_directional == 'isotropic':
-                if dl._sims.data_type == 'map':
-                    dl.ivfs = filt_simple.library_fullsky_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl._sims.nside, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
+                dl.ivfs = filt_simple.library_fullsky_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl._sims.nside, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
                 # elif dl._sims.data_type == 'alm':
                     # dl.ivfs = filt_simple.library_fullsky_alms_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
                 
@@ -479,7 +496,6 @@ class l2OBD_Transformer:
                 # TODO need to test if it is the right tniti.npy
                 log.warning("tniti.npy in destination dir {} already exists.".format(dl.libdir))
                 log.warning("Exiting. Please check your settings.")
-                sys.exit()
 
 
         @log_on_start(logging.INFO, "_process_Noisemodel() started")

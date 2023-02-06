@@ -326,7 +326,8 @@ class OBD_builder(Basejob):
                     tniti = np.linalg.inv(tnit + np.diag((1. / (self.nlev_dep / 180. / 60. * np.pi) ** 2) * np.ones(tnit.shape[0])))
                     np.save(self.libdir + '/tniti.npy', tniti)
                     readme = '{}: tniti.npy. created from user {} using lerepi/D.lensalot with the following settings: {}'.format(getpass.getuser(), datetime.date.today(), self.__dict__)
-                    np.savetxt(self.libdir + '/README.txt', readme)
+                    with open(self.libdir + '/README.txt', 'w') as f:
+                        f.write(readme)
                 else:
                     log.info('Matrix already created')
         mpi.barrier()
@@ -340,7 +341,7 @@ class QE_lr(Basejob):
         self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
         self.mf = lambda simidx: self.get_meanfield(int(simidx))
         self.plm = lambda simidx: self.get_plm(simidx, self.QE_subtract_meanfield)
-        self.mf_resp = lambda: self.get_response_meanfield()
+        # self.mf_resp = lambda: self.get_response_meanfield()
         self.wflm = lambda simidx: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
         self.R_unl = lambda: qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_unl, self.cls_unl,  {'e': self.fel_unl, 'b': self.fbl_unl, 't':self.ftl_unl}, lmax_qlm=self.qe_lm_max_qlm[0])[0]
 
@@ -348,20 +349,19 @@ class QE_lr(Basejob):
         self.ith = iteration_handler.transformer('constmf')
       
 
-    @log_on_start(logging.INFO, "collect_jobs() started: id={id}")
+    @log_on_start(logging.INFO, "collect_jobs() started: qe_tasks={qe_tasks}")
     @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
-    def collect_jobs(self, id=None, recalc=False):
+    def collect_jobs(self, qe_tasks=None, recalc=False):
 
-        # id overwrites task-list and is needed if MAP lensrec calls QE lensrec
-        if id == None:
-            _qe_tasks = self.qe_tasks
-        else:
-            _qe_tasks = id
+        # qe_tasks overwrites task-list and is needed if MAP lensrec calls QE lensrec
+        _qe_tasks = self.qe_tasks if qe_tasks == None else qe_tasks
+
         jobs = list(range(len(_qe_tasks)))
         for taski, task in enumerate(_qe_tasks):
             _jobs = []
 
             ## Calculate realization-independent mf and store in qlms_dd dir
+
             if task == 'calc_meanfield':
                 ## appending all as I trust plancklens to skip existing ivfs
                 mf_fname = os.path.join(self.TEMP, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, utils.mchash(self.simidxs_mf)))
@@ -371,7 +371,7 @@ class QE_lr(Basejob):
                     for idx in self.simidxs_mf:
                         fname = os.path.join(self.qlms_dd.lib_dir, 'sim_%s_%04d.fits'%(self.k, idx) if idx != -1 else 'dat_%s.fits'%self.k)
                         if not os.path.isfile(fname) or recalc:
-                            _jobs.append(idx)
+                            _jobs.append(int(idx))
 
             ## Calculate realization dependent phi, i.e. plm_it000.
             if task == 'calc_phi':
@@ -386,6 +386,7 @@ class QE_lr(Basejob):
             ## Calculate B-lensing template
             if task == 'calc_blt':
                 for idx in self.simidxs:
+                    # TODO remove hardcoded fname generation in the next line, perhaps use cacher
                     fname = os.path.join(self.TEMP, '{}_sim{:04d}'.format(self.k, idx), 'btempl_p000_e000_lmax1024{}'.format(len(self.simidxs_mf)))
                     if self.btemplate_perturbative_lensremap:
                         fname += 'perturbative'
@@ -410,10 +411,12 @@ class QE_lr(Basejob):
 
             if task == 'calc_meanfield':
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
+                    # In principle it is enough to calculate qlms. 
+                    # self.get_plm(idx, self.QE_subtract_meanfield)
                     self.get_sim_qlm(int(idx))
-                    self.get_response_meanfield()
-                    self.get_wflm(idx)
-                    self.get_R_unl()
+                    # self.get_response_meanfield()
+                    # self.get_wflm(idx)
+                    # self.get_R_unl()
                     log.info('{}/{}, finished job {}'.format(mpi.rank,mpi.size,idx))
                 if len(self.jobs[taski])>0:
                     log.info('{} finished qe ivfs tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
