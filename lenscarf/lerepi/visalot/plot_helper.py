@@ -1,32 +1,16 @@
 import numpy as np
-import abc
 import os, sys
-import hashlib
 
 import importlib.util as iu
-
 import matplotlib
 matplotlib.rcParams.update({'font.size': 18})
 
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
 from matplotlib.colors import ListedColormap
 
 import healpy as hp
-
-import lenscarf.lerepi as lerepi
-from lenscarf.lerepi.core import handler
-
-from lenscarf.utils import read_map, cli
-from lenscarf.iterators.statics import rec
-
-from component_separation.cs_util import Config
-
-from lenscarf.lerepi.core.visitor import transform
-from lenscarf.lerepi.core.transformer.lerepi2dlensalot import l2T_Transformer, transform
-from lenscarf.lerepi.visalot import plot_helper as ph
-
-
+import matplotlib.colors as mcolors
+from matplotlib.colors import ListedColormap
 
 
 ll = np.arange(0,200+1,1)
@@ -60,10 +44,6 @@ def load_paramfile(directory, descriptor):
 
     return p
 
-
-def load_config():
-
-    return 
 
 def clamp(val, minimum=0, maximum=255):
     if val < minimum:
@@ -100,7 +80,7 @@ def colorscale(hexstr, scalefactor):
 
     return "#%02x%02x%02x" % (int(r), int(g), int(b))
 
-import matplotlib.colors as mcolors
+
 colors1 = plt.cm.Greys(np.linspace(0., .5, 128))
 colors2 = [plt.cm.Blues(np.linspace(0.6, 1., 128)), plt.cm.Reds(np.linspace(0.8, 1., 128)), plt.cm.Wistia(np.linspace(0.4, 1., 128)), plt.cm.Greens(np.linspace(0.6, 1., 128))]
 mymap = []
@@ -175,7 +155,6 @@ def get_planck_cmap():
     return cmap
 
 def get_custom_cmap():
-    from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 
     size_g = 4
     grey_map = cm.get_cmap('Greys', 32)

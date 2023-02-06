@@ -533,7 +533,7 @@ class QE_lr(Basejob):
         return mf_resp
 
 
-    def get_mean_field_normalized(self, simidx):
+    def get_meanfield_normalized(self, simidx):
 
         mf_QE = copy.deepcopy(self.get_meanfield(simidx))
         cpp_loc = self.cpp
@@ -645,7 +645,7 @@ class MAP_lr(Basejob):
                         for it in range(self.itmax + 1):
                             log.info("using cg-tol = %.4e"%self.cg_tol(it))
                             log.info("using soltn_cond = %s"%self.soltn_cond(it))
-                            itlib_iterator.chain_descr = self.chain_descr(self.lm_max_unl[0], self.cg_tol(it))
+                            itlib_iterator.it_chain_descr = self.it_chain_descr(self.lm_max_unl[0], self.cg_tol(it))
                             itlib_iterator.soltn_cond = self.soltn_cond(it)
                             itlib_iterator.iterate(it, 'p')
                             log.info('{}, simidx {} done with it {}'.format(mpi.rank, idx, it))

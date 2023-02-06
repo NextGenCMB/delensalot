@@ -39,7 +39,8 @@ from lenscarf.opfilt.bmodes_ninv import template_dense
 from lenscarf.lerepi.core.visitor import transform
 
 from lenscarf.lerepi.config.config_helper import data_functions as df, LEREPI_Constants as lc
-from lenscarf.lerepi.core.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALOT_Model_mm, DLENSALOT_Concept
+from lenscarf.lerepi.core.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALOT_Model_mm, DLENSALOT_Concept, DLENSALOT_Chaindescriptor
+
 
 
 class l2T_Transformer:
@@ -307,17 +308,25 @@ class l2lensrec_Transformer:
             dl.cg_tol = qe.cg_tol
 
             # chain
-            if qe.chain == None:
-                dl.chain_descr = lambda a,b: None
-                dl.chain_model = dl.chain_descr
-            else:
-                dl.chain_model = qe.chain
-                if dl.chain_model.p6 == 'tr_cg':
-                    _p6 = cd_solve.tr_cg
-                if dl.chain_model.p7 == 'cache_mem':
-                    _p7 = cd_solve.cache_mem()
-                dl.chain_descr = lambda p2, p5 : [
-                    [dl.chain_model.p0, dl.chain_model.p1, p2, dl.chain_model.p3, dl.chain_model.p4, p5, _p6, _p7]]
+            # if qe.chain == None:
+            #     dl.chain_descr = lambda a,b: None
+            #     dl.chain_model = dl.chain_descr
+            # else:
+            #     dl.chain_model = qe.chain
+            #     if dl.chain_model.p6 == 'tr_cg':
+            #         _p6 = cd_solve.tr_cg
+            #     if dl.chain_model.p7 == 'cache_mem':
+            #         _p7 = cd_solve.cache_mem()
+            #     dl.chain_descr = lambda p2, p5 : [
+            #         [dl.chain_model.p0, dl.chain_model.p1, p2, dl.chain_model.p3, dl.chain_model.p4, p5, _p6, _p7]]
+
+            dl.chain_model = qe.chain
+            if dl.chain_model.p6 == 'tr_cg':
+                _p6 = cd_solve.tr_cg
+            if dl.chain_model.p7 == 'cache_mem':
+                _p7 = cd_solve.cache_mem()
+            dl.chain_descr = lambda p2, p5 : [
+                [dl.chain_model.p0, dl.chain_model.p1, p2, dl.chain_model.p3, dl.chain_model.p4, p5, _p6, _p7]]
             
             # filter
             dl.qe_filter_directional = qe.filter_directional
@@ -380,6 +389,16 @@ class l2lensrec_Transformer:
             # lmaxunl
             dl.lm_max_unl = it.lm_max_unl
             dl.it_lm_max_qlm = it.lm_max_qlm
+
+            # chain
+            dl.it_chain_model = DLENSALOT_Chaindescriptor()
+            dl.it_chain_model.p3 = dl._sims.nside
+            if dl.it_chain_model.p6 == 'tr_cg':
+                _p6 = cd_solve.tr_cg
+            if dl.it_chain_model.p7 == 'cache_mem':
+                _p7 = cd_solve.cache_mem()
+            dl.it_chain_descr = lambda p2, p5 : [
+                [dl.it_chain_model.p0, dl.it_chain_model.p1, p2, dl.it_chain_model.p3, dl.it_chain_model.p4, p5, _p6, _p7]]
             # lenjob_geometry
             dl.lenjob_geometry = utils_scarf.Geom.get_thingauss_geometry(dl.lm_max_unl[0], 2, zbounds=dl.zbounds_len) if it.lenjob_geometry == 'thin_gauss' else None
             # lenjob_pbgeometry

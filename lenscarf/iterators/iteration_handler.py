@@ -55,7 +55,7 @@ class scarf_iterator_pertmf():
         self.datmaps = self.get_datmaps()
         self.filter = self.get_filter(self.sims_MAP, self.ffi, self.tpl)
         # TODO not sure why this happens here. Could be done much earlier
-        self.chain_descr = lensing_config.chain_descr(lensing_config.lm_max_unl[0], lensing_config.cg_tol)
+        self.it_chain_descr = lensing_config.it_chain_descr(lensing_config.lm_max_unl[0], lensing_config.cg_tol)
 
 
     @log_on_start(logging.INFO, "get_datmaps() started")
@@ -126,7 +126,7 @@ class scarf_iterator_pertmf():
         """
         iterator = cs_iterator.iterator_pertmf(
             self.libdir_iterator, 'p', self.it_lm_max_qlm, self.datmaps, self.plm0, self.mf_resp0,
-            self.R_unl0, self.cpp, self.cls_unl, self.filter, self.k_geom, self.chain_descr,
+            self.R_unl0, self.cpp, self.cls_unl, self.filter, self.k_geom, self.it_chain_descr,
             self.stepper, mf0=self.mf0, wflm0=self.wflm0)
         
         return iterator
@@ -166,7 +166,7 @@ class scarf_iterator_constmf():
 
         self.filter = self.get_filter(self.sims_MAP, self.ffi, self.tpl)
         # TODO not sure why this happens here. Could be done much earlier
-        self.chain_descr = lensing_config.chain_descr(lensing_config.lm_max_unl[0], lensing_config.cg_tol)
+        self.it_chain_descr = lensing_config.it_chain_descr(lensing_config.lm_max_unl[0], lensing_config.cg_tol)
 
 
     @log_on_start(logging.INFO, "get_datmaps() started")
@@ -239,7 +239,7 @@ class scarf_iterator_constmf():
         """
         iterator = cs_iterator.iterator_cstmf(
             self.libdir_iterator, 'p', self.it_lm_max_qlm, self.datmaps, self.plm0, self.mf0,
-            self.R_unl0, self.cpp, self.cls_unl, self.filter, self.k_geom, self.chain_descr,
+            self.R_unl0, self.cpp, self.cls_unl, self.filter, self.k_geom, self.it_chain_descr,
             self.stepper, wflm0=self.wflm0)
         
         return iterator
@@ -275,7 +275,7 @@ class scarf_iterator_fastWF():
 
         self.filter = self.get_filter_iso()
         # TODO not sure why this happens here. Could be done much earlier
-        self.chain_descr = lensing_config.chain_descr(lensing_config.lm_max_unl[0], lensing_config.cg_tol)
+        self.it_chain_descr = lensing_config.it_chain_descr(lensing_config.lm_max_unl[0], lensing_config.cg_tol)
 
 
     @log_on_start(logging.INFO, "get_datmaps() started")
@@ -314,7 +314,7 @@ class scarf_iterator_fastWF():
         """
         iterator = cs_iterator_fast.iterator_cstmf(
             self.libdir_iterator, self.k[0], self.it_lm_max_qlm, self.datmaps, self.plm0, self.mf0,
-            self.R_unl0, self.cpp, self.cls_unl, self.filter, self.k_geom, self.chain_descr,
+            self.R_unl0, self.cpp, self.cls_unl, self.filter, self.k_geom, self.it_chain_descr,
             self.stepper, wflm0=self.wflm0)
         
         return iterator
