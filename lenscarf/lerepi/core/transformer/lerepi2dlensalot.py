@@ -27,7 +27,7 @@ from plancklens.qcinv import cd_solve
 
 from lenscarf.core import mpi
 from lenscarf.sims import sims_ffp10
-from lenscarf import utils_scarf, utils_sims, remapping
+from lenscarf import utils_scarf, utils_sims
 from lenscarf.utils import cli, read_map
 from lenscarf.iterators import steps
 from lenscarf.utils_hp import gauss_beam
@@ -308,26 +308,18 @@ class l2lensrec_Transformer:
             dl.cg_tol = qe.cg_tol
 
             # chain
-            # if qe.chain == None:
-            #     dl.chain_descr = lambda a,b: None
-            #     dl.chain_model = dl.chain_descr
-            # else:
-            #     dl.chain_model = qe.chain
-            #     if dl.chain_model.p6 == 'tr_cg':
-            #         _p6 = cd_solve.tr_cg
-            #     if dl.chain_model.p7 == 'cache_mem':
-            #         _p7 = cd_solve.cache_mem()
-            #     dl.chain_descr = lambda p2, p5 : [
-            #         [dl.chain_model.p0, dl.chain_model.p1, p2, dl.chain_model.p3, dl.chain_model.p4, p5, _p6, _p7]]
+            if qe.chain == None:
+                dl.chain_descr = lambda a,b: None
+                dl.chain_model = dl.chain_descr
+            else:
+                dl.chain_model = qe.chain
+                if dl.chain_model.p6 == 'tr_cg':
+                    _p6 = cd_solve.tr_cg
+                if dl.chain_model.p7 == 'cache_mem':
+                    _p7 = cd_solve.cache_mem()
+                dl.chain_descr = lambda p2, p5 : [
+                    [dl.chain_model.p0, dl.chain_model.p1, p2, dl.chain_model.p3, dl.chain_model.p4, p5, _p6, _p7]]
 
-            dl.chain_model = qe.chain
-            if dl.chain_model.p6 == 'tr_cg':
-                _p6 = cd_solve.tr_cg
-            if dl.chain_model.p7 == 'cache_mem':
-                _p7 = cd_solve.cache_mem()
-            dl.chain_descr = lambda p2, p5 : [
-                [dl.chain_model.p0, dl.chain_model.p1, p2, dl.chain_model.p3, dl.chain_model.p4, p5, _p6, _p7]]
-            
             # filter
             dl.qe_filter_directional = qe.filter_directional
             if dl.qe_filter_directional == 'anisotropic':
@@ -537,7 +529,6 @@ class l2OBD_Transformer:
 
         dl = DLENSALOT_Concept()
 
-        # dl.TEMP = transform(cf, l2T_Transformer())
         dl.TEMP = transform(cf, l2T_Transformer())
         # dl.TEMP = dl.libdir
 
@@ -682,20 +673,6 @@ class l2d_Transformer:
             # Remove and think of a better way of including old data without existing config file
             dl.TEMP = transform(cf, l2T_Transformer())
 
-            # TODO II
-            # could put btempl paths similar to sim path handling. If D.lensalot handles it, use D.lensalot internal class for it
-            # dl.libdir_iterators = lambda qe_key, simidx, version: de.libdir_it%()
-            # if it==12:
-            #     rootstr = opj(os.environ['CFS'], 'cmbs4/awg/lowellbb/reanalysis/lt_recons/')
-            #     if dl.fg == '00':
-            #         return rootstr+'08b.%02d_sebibel_210708_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(dl.fg), it, simidx)
-            #     elif dl.fg == '07':
-            #         return rootstr+'/08b.%02d_sebibel_210910_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(dl.fg), it, simidx)
-            #     elif dl.fg == '09':
-            #         return rootstr+'/08b.%02d_sebibel_210910_ilc_iter/blm_csMAP_obd_scond_lmaxcmb4000_iter_%03d_elm011_sim_%04d.fits'%(int(dl.fg), it, simidx)
-            # elif it==0:
-            #     return '/global/cscratch1/sd/sebibel/cmbs4/s08b/cILC2021_%s_lmax4000/zb_terator_p_p_%04d_nofg_OBD_solcond_3apr20/ffi_p_it0/blm_%04d_it0.npy'%(dl.fg, simidx, simidx)    
-          
             if ma.libdir_it is None:
                 dl.libdir_iterators = lambda qe_key, simidx, version: opj(dl.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
             else:

@@ -25,7 +25,7 @@ dlensalot_model = DLENSALOT_Model(
         simidxs = np.arange(0,1),
         simidxs_mf = np.arange(0,20),
         TEMP_suffix = 'my_first_dlensalot_analysis_maskedsky',
-        Lmin = 2, 
+        Lmin = 5, 
         lm_max_ivf = (1024, 1024),
         mask = opj(os.environ['SCRATCH'], 'dlensalot/lenscarf/generic/sims_cmb_len_lminB30_my_first_dlensalot_analysis_maskedsky/mask.fits')
     ),

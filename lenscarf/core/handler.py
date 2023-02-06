@@ -18,14 +18,11 @@ import numpy as np
 import healpy as hp
 
 from MSC import pospace as ps
-import plancklens
 from plancklens import utils, qresp
 from plancklens.sims import planck2018_sims
 
 from lenscarf.core import mpi
-from lenscarf.lerepi.core.visitor import transform
 from lenscarf.lerepi.config.config_helper import data_functions as df
-from lenscarf.iterators import cs_iterator
 from lenscarf.utils_hp import almxfl, alm_copy
 from lenscarf.iterators.statics import rec as rec
 from lenscarf.iterators import iteration_handler
