@@ -316,13 +316,19 @@ class OBD_builder(Basejob):
                 bpl._get_rows_mpi(self.ninv_p, prefix='')
             mpi.barrier()
             if mpi.rank == 0:
-                int(os.environ.get('OMP_NUM_THREADS', 32)) # TODO not sure if this resets anything..
-                tnit = bpl._build_tnit()
-                np.save(self.libdir + '/tnit.npy', tnit)
-                tniti = np.linalg.inv(tnit + np.diag((1. / (self.nlev_dep / 180. / 60. * np.pi) ** 2) * np.ones(tnit.shape[0])))
-                np.save(self.libdir + '/tniti.npy', tniti)
-                readme = '{}: This tniti has been created from user {} using lerepi/D.lensalot with the following settings: {}'.format(getpass.getuser(), datetime.date.today(), self.__dict__)
-                np.save(self.libdir + '/README.txt', readme)
+                if not os.path.exists(self.libdir + '/tnit.npy'):
+                    tnit = bpl._build_tnit()
+                    np.save(self.libdir + '/tnit.npy', tnit)
+                else:
+                    tnit = np.load(self.libdir + '/tnit.npy')
+                if not os.path.exists(self.libdir + '/tniti.npy'):
+                    log.info('inverting')
+                    tniti = np.linalg.inv(tnit + np.diag((1. / (self.nlev_dep / 180. / 60. * np.pi) ** 2) * np.ones(tnit.shape[0])))
+                    np.save(self.libdir + '/tniti.npy', tniti)
+                    readme = '{}: tniti.npy. created from user {} using lerepi/D.lensalot with the following settings: {}'.format(getpass.getuser(), datetime.date.today(), self.__dict__)
+                    np.savetxt(self.libdir + '/README.txt', readme)
+                else:
+                    log.info('Matrix already created')
         mpi.barrier()
 
 

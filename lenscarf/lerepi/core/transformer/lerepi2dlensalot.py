@@ -465,7 +465,7 @@ class l2OBD_Transformer:
             dl.mask_fn = an.mask
 
 
-        @log_on_start(logging.INFO, "() started")
+        @log_on_start(logging.INFO, "_process_OBD() started")
         @log_on_end(logging.INFO, "_process_OBD() finished")
         def _process_OBD(dl, od):
             dl.nside = od.nside
@@ -482,7 +482,7 @@ class l2OBD_Transformer:
                 sys.exit()
 
 
-        @log_on_start(logging.INFO, "() started")
+        @log_on_start(logging.INFO, "_process_Noisemodel() started")
         @log_on_end(logging.INFO, "_process_Noisemodel() finished")
         def _process_Noisemodel(dl, nm):
             dl.lmin_b = nm.lmin_teb[2]

@@ -1,3 +1,6 @@
+import os
+from os.path import join as opj
+
 import numpy as np
 from lenscarf.lerepi.core.metamodel.dlensalot_mm import *
 
@@ -6,10 +9,10 @@ dlensalot_model = DLENSALOT_Model(
         jobs = ["build_OBD"]
     ),
     computing = DLENSALOT_Computing(
-        OMP_NUM_THREADS = 4
+        OMP_NUM_THREADS = 2
     ),
     analysis = DLENSALOT_Analysis(
-        mask = '/global/cscratch1/sd/sebibel/OBDmatrix_nside128_lmax300/mask.fits'
+        mask = opj(os.environ['SCRATCH'],'OBDmatrix_nside128_lmax300/mask.fits')
     ),
     noisemodel = DLENSALOT_Noisemodel(
         sky_coverage = 'masked',
@@ -17,7 +20,7 @@ dlensalot_model = DLENSALOT_Model(
         lmin_teb = (10, 10, 200),
         nlev_t = 1.00,
         nlev_p = np.sqrt(2),
-        rhits_normalised = ('/global/cscratch1/sd/sebibel/OBDmatrix_nside128_lmax300/mask.fits', np.inf),
+        rhits_normalised = (opj(os.environ['SCRATCH'],'OBDmatrix_nside128_lmax300/rhits.fits'), np.inf),
     ),
     obd = DLENSALOT_OBD(
         libdir = opj(os.environ['SCRATCH'], 'OBDmatrix_nside128_lmax300'),

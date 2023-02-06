@@ -234,7 +234,7 @@ class template_bfilt(object):
     def _build_tnit(self, prefix=''):
         tnit = np.zeros((self.nmodes, self.nmodes), dtype=float)
         for i, a in enumerate_progress(range(self.nmodes), label='collecting Pmat rows'):
-            fname = os.path.join(self.lib_dir, prefix + 'row%05d.npy'%a)
+            fname = os.path.join(self.lib_dir, 'rows', prefix + 'row%05d.npy'%a)
             assert os.path.exists(fname), fname
             tnit[:, a]  = np.load(fname)
             tnit[a, :] = tnit[:, a]
@@ -253,8 +253,10 @@ class template_bfilt(object):
         else: #Here, we assume that NiQQ = NiUU, and NiQU is negligible
             NiQQ, NiUU, NiQU = NiQQ_NiUU_NiQU[0], NiQQ_NiUU_NiQU[0], None
         assert self.nmodes <= 99999, 'ops, naming in the lines below'
+        if not os.path.exists(os.path.join(self.lib_dir, 'rows')):
+            os.makedirs(os.path.join(self.lib_dir, 'rows'))
         for ai, a in enumerate_progress(range(self.nmodes)[mpi.rank::mpi.size], label='Calculating Pmat row'):
-            fname = os.path.join(self.lib_dir, prefix + 'row%05d.npy'%a)
+            fname = os.path.join(self.lib_dir, 'rows', prefix + 'row%05d.npy'%a)
             if not os.path.exists(fname):
                 _NiQ = np.copy(NiQQ)  # Building Ni_{QX} R_bX
                 _NiU = np.copy(NiUU)  # Building Ni_{UX} R_bX
