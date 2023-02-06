@@ -215,5 +215,22 @@ module remapping
         !$OMP END PARALLEL DO
     end subroutine solve_pixs
 
+    subroutine fwd_angles(npix, red, imd, thts, phis, thtps, phips)
+        implicit none
+        integer, intent(in) :: npix
+        double precision, intent(in) :: red(npix), imd(npix), thts(npix), phis(npix)
+        double precision, intent(out) :: thtps(npix), phips(npix)
+        double precision thtp, phip
+        integer ip
+        !$OMP PARALLEL DO DEFAULT(NONE)&
+        !$OMP SHARED(thts, phis, red, imd, thtps, phips, npix)&
+        !$OMP PRIVATE(ip, thtp, phip)
+        do ip = 1, npix
+            call d2ang_scal(red(ip), imd(ip), thts(ip), phis(ip), thtp, phip)
+            thtps(ip) = thtp
+            phips(ip) = phip
+        end do
+        !$OMP END PARALLEL DO
+    end subroutine fwd_angles
 
 end module remapping
