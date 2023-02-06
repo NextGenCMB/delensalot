@@ -186,7 +186,7 @@ class DLENSALOT_OBD(DLENSALOT_Concept):
         BMARG_LIBDIR:
     """
     libdir = attr.ib(default='', validator=obd.libdir)
-    rescale = attr.ib(default=np.nan, validator=obd.rescale)
+    rescale = attr.ib(default=1, validator=obd.rescale)
     tpl = attr.ib(default='template_dense', validator=obd.tpl)
     nlev_dep = attr.ib(default=np.nan, validator=obd.nlev_dep)
     nside = attr.ib(default=np.nan)

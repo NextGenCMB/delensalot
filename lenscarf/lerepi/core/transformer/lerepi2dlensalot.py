@@ -305,14 +305,19 @@ class l2lensrec_Transformer:
                 dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl._sims.nside, zbounds=dl.zbounds)
             # cg_tol
             dl.cg_tol = qe.cg_tol
+
             # chain
-            dl.chain_model = qe.chain
-            if dl.chain_model.p6 == 'tr_cg':
-                _p6 = cd_solve.tr_cg
-            if dl.chain_model.p7 == 'cache_mem':
-                _p7 = cd_solve.cache_mem()
-            dl.chain_descr = lambda p2, p5 : [
-                [dl.chain_model.p0, dl.chain_model.p1, p2, dl.chain_model.p3, dl.chain_model.p4, p5, _p6, _p7]]
+            if qe.chain == None:
+                dl.chain_descr = lambda a,b: None
+                dl.chain_model = dl.chain_descr
+            else:
+                dl.chain_model = qe.chain
+                if dl.chain_model.p6 == 'tr_cg':
+                    _p6 = cd_solve.tr_cg
+                if dl.chain_model.p7 == 'cache_mem':
+                    _p7 = cd_solve.cache_mem()
+                dl.chain_descr = lambda p2, p5 : [
+                    [dl.chain_model.p0, dl.chain_model.p1, p2, dl.chain_model.p3, dl.chain_model.p4, p5, _p6, _p7]]
             
             # filter
             dl.qe_filter_directional = qe.filter_directional
