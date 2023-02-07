@@ -231,6 +231,7 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     Attributes:
         data: 
     """
+
     meta = attr.ib(default=DLENSALOT_Meta(), validator=model.meta)
     job = attr.ib(default=DLENSALOT_Job(), validator=model.job)
     analysis = attr.ib(default=DLENSALOT_Analysis(), validator=model.analysis)
@@ -240,5 +241,5 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     itrec = attr.ib(default=DLENSALOT_Itrec(), validator=model.itrec)
     madel = attr.ib(default=DLENSALOT_Mapdelensing(), validator=model.madel)
     config = attr.ib(default=DLENSALOT_Config(), validator=model.config)
-    computing = attr.ib(default=DLENSALOT_Config(), validator=model.computing)
+    computing = attr.ib(default=DLENSALOT_Computing(), validator=model.computing)
     obd = attr.ib(default=DLENSALOT_OBD(), validator=model.obd)

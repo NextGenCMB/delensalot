@@ -130,9 +130,8 @@ class l2lensrec_Transformer:
         @log_on_start(logging.INFO, "_process_Analysis() started")
         @log_on_end(logging.INFO, "_process_Analysis() finished")
         def _process_Analysis(dl, an):
-            # TODO hack
-            dl.dlm_mod_fnsuffix = ''
-            dl.dlm_mod_bool = False
+            # dlm_mod
+            dl.dlm_mod_bool = cf.madel.dlm_mod
             # mask
             dl.mask_fn = an.mask
             # key -> k
