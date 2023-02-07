@@ -58,6 +58,7 @@ class Geom:
 
     @staticmethod
     def fsky(geom:scarf.Geometry):
+        """Area of the sky covered by the pixelization"""
         return np.sum(geom.weight * geom.nph) / (4 * np.pi)
 
     @staticmethod
