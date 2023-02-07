@@ -466,12 +466,15 @@ class l2lensrec_Transformer:
 
 
         if mpi.rank == 0:
-            log.info("I am going to work with the following values:")
-            _str = '---------------------------------------------------\n'
+            _str = "\nConfiguration:"+3*'\n---------------------------------------------------\n'
             for key, val in dl.__dict__.items():
-                _str += '{}:\t{}'.format(key, val)
+                keylen = len(str(key))
+                if type(val) in [list, np.ndarray, np.array, dict]:
+                    _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(type(val))
+                else:
+                    _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(val)
                 _str += '\n'
-            _str += '---------------------------------------------------\n'
+            _str += 3*'---------------------------------------------------\n'
             log.info(_str)
 
         return dl

@@ -11,7 +11,7 @@ from os.path import join as opj
 
 import numpy as np
 from lenscarf.lerepi.core.validator import analysis, chaindescriptor, computing, data, filter, itrec, job, mapdelensing, meta, model, noisemodel, obd, qerec, stepper
-
+from attrs import validators
 
 class DLENSALOT_Concept:
     """An abstract element base type for the Dlensalot formalism."""
@@ -21,11 +21,13 @@ class DLENSALOT_Concept:
     def __str__(self):
         ## overwrite print to summarize dlensalot model
         _str = ''
-        for k, v in self.__dict__.items():
-            # if type(v) in [list, np.ndarray, tuple]:
-                # _str+="\t{}:\t{}\n".format(k,len(v))
-            # else:
-            _str+="\t {}:\t{}(type:{})\n".format(k,v, type(v))
+        for key, val in self.__dict__.items():
+            keylen = len(str(key))
+            if type(val) in [list, np.ndarray, np.array, dict]:
+                _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(type(val))
+            else:
+                _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(val)
+            _str += '\n'
         return _str
 
 @attr.s
@@ -73,8 +75,8 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     Attributes:
         DATA_LIBDIR: path to the data
     """
-    key = attr.ib(default='p_p', validator=analysis.key)
-    version = attr.ib(default='', validator=analysis.version)
+    key = attr.ib(default='p_p', validator=[validators.instance_of(str), analysis.key], type=str)
+    version = attr.ib(default='', validator=[validators.instance_of(str), analysis.version], type=str)
     simidxs = attr.ib(default=[], validator=data.simidxs)
     simidxs_mf = attr.ib(default=[], validator=analysis.simidxs_mf)
     TEMP_suffix = attr.ib(default='', validator=analysis.TEMP_suffix)
@@ -93,6 +95,7 @@ class DLENSALOT_Data(DLENSALOT_Concept):
     Attributes:
         DATA_LIBDIR: path to the data
     """
+
     class_parameters = attr.ib(default={}, validator=data.class_parameters)
     package_ = attr.ib(default=None, validator=data.package_)
     module_ = attr.ib(default=None, validator=data.module_)

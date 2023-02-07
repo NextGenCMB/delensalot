@@ -34,6 +34,17 @@ class Basejob():
     """
     Base class for all jobs, i.e. convenience functions go in here as they should be accessible from anywhere
     """
+    def __str__(self):
+        ## overwrite print to summarize dlensalot model
+        _str = ''
+        for key, val in self.__dict__.items():
+            keylen = len(str(key))
+            if type(val) in [list, np.ndarray, np.array, dict]:
+                _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(type(val))
+            else:
+                _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(val)
+            _str += '\n'
+        return _str
 
     def __init__(self, qe, model):
 
@@ -728,19 +739,20 @@ class MAP_lr(Basejob):
     @log_on_start(logging.INFO, "get_blt_it({simidx}, {calc}) started")
     @log_on_end(logging.INFO, "get_blt_it({simidx}, {calc}) finished")
     def get_blt_it(self, simidx, it, calc=False):
+        # TODO this method is not yet ready. dlm_mod needs fixing.
         if 'itlib' in self.__dict__:
             if simidx != self.itlib.simidx:
                 self.itlib = self.ith(self.qe, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
                 self.itlib_iterator = self.itlib.get_iterator()
-                dlm_mod = np.zeros_like(self.get_meanfield_it(simidx, calc=True))
+                dlm_mod = np.zeros_like(self.get_plm_it(simidx, 0))
                 return self.itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, calc=calc, Nmf=self.Nmf, perturbative=False, dlm_mod_fnsuffix=self.dlm_mod_fnsuffix)
         if 'itlib' not in self.__dict__:
             self.itlib = self.ith(self.qe, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
             self.itlib_iterator = self.itlib.get_iterator()
-        dlm_mod = np.zeros_like(self.get_meanfield_it(simidx, calc=True))
+        dlm_mod = np.zeros_like(self.get_meanfield_it(simidx, 0))
         return self.itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, calc=calc, Nmf=self.Nmf, perturbative=False, dlm_mod_fnsuffix=self.dlm_mod_fnsuffix)
 
-    ## For QE, dlm_mod by construction doesn't do anything, because mean-field had already been subtracted from plm and we don't want to repeat that
+    ## For QE, dlm_mod by construction doesn't do anything, because mean-field was already subtracted from plm and we don't want to repeat that
 
 
 class Map_delenser(Basejob):

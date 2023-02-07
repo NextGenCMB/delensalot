@@ -33,5 +33,5 @@ def pbounds(instance, attribute, value):
     assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
 def Lmin(instance, attribute, value):
-    desc = [value]
-    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+    desc = [int]
+    assert type(value) in desc, TypeError('Must be one of {}, but is {}'.format(desc, type(value)))
