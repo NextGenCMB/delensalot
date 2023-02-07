@@ -249,26 +249,26 @@ class l2lensrec_Transformer:
             dl.transferfunction = da.transferfunction
             if dl.transferfunction == 'gauss_no_pixwin':
                 # Fiducial model of the transfer function
-                dl.transf_tlm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[0])
-                dl.transf_elm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[1])
-                dl.transf_blm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[2])
-
+                transf_tlm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[0])
+                transf_elm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[1])
+                transf_blm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[2])
             elif dl.transferfunction == 'gauss_with_pixwin':
                 # Fiducial model of the transfer function
-                dl.transf_tlm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * hp.pixwin(dl._sims.nside, lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[0])
-                dl.transf_elm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * hp.pixwin(dl._sims.nside, lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[1])
-                dl.transf_blm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * hp.pixwin(dl._sims.nside, lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[2])
-
+                transf_tlm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * hp.pixwin(dl._sims.nside, lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[0])
+                transf_elm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * hp.pixwin(dl._sims.nside, lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[1])
+                transf_blm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * hp.pixwin(dl._sims.nside, lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[2])
+            dl.ttebl = {'t': transf_tlm, 'e': transf_elm, 'b':transf_blm}
             # Isotropic approximation to the filtering (used eg for response calculations)
-            dl.ftl = cli(dl.cls_len['tt'][:dl._sims.lmax_transf + 1] + df.a2r(dl._sims.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
-            dl.fel = cli(dl.cls_len['ee'][:dl._sims.lmax_transf + 1] + df.a2r(dl._sims.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
-            dl.fbl = cli(dl.cls_len['bb'][:dl._sims.lmax_transf + 1] + df.a2r(dl._sims.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
+            ftl_len = cli(dl.cls_len['tt'][:dl._sims.lmax_transf + 1] + df.a2r(dl._sims.nlev_t)**2 * cli(dl.ttebl['t'] ** 2)) * (dl.ttebl['t'] > 0)
+            fel_len = cli(dl.cls_len['ee'][:dl._sims.lmax_transf + 1] + df.a2r(dl._sims.nlev_p)**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
+            fbl_len = cli(dl.cls_len['bb'][:dl._sims.lmax_transf + 1] + df.a2r(dl._sims.nlev_p)**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
+            dl.ftebl_len = {'t': ftl_len, 'e': fel_len, 'b':fbl_len}
 
             # Same using unlensed spectra (used for unlensed response used to initiate the MAP curvature matrix)
-            dl.ftl_unl = cli(dl.cls_unl['tt'][:dl._sims.lmax_transf + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.transf_tlm ** 2)) * (dl.transf_tlm > 0)
-            dl.fel_unl = cli(dl.cls_unl['ee'][:dl._sims.lmax_transf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_elm ** 2)) * (dl.transf_elm > 0)
-            dl.fbl_unl = cli(dl.cls_unl['bb'][:dl._sims.lmax_transf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.transf_blm ** 2)) * (dl.transf_blm > 0)
-
+            ftl_unl = cli(dl.cls_unl['tt'][:dl._sims.lmax_transf + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.ttebl['t'] ** 2)) * (dl.ttebl['t'] > 0)
+            fel_unl = cli(dl.cls_unl['ee'][:dl._sims.lmax_transf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
+            fbl_unl = cli(dl.cls_unl['bb'][:dl._sims.lmax_transf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
+            dl.ftebl_unl = {'t': ftl_unl, 'e': fel_unl, 'b':fbl_unl}
 
         @log_on_start(logging.INFO, "_process_Qerec() started")
         @log_on_end(logging.INFO, "_process_Qerec() finished")
@@ -328,15 +328,15 @@ class l2lensrec_Transformer:
                 lmax_plm = qe.lm_max_qlm[0]
                 # TODO filters can be initialised with both, ninvX_desc and ninv_X. But Plancklens' hashcheck will complain if it changed since shapes are different. Not sure which one I want to use in the future..
                 # TODO using ninv_X possibly causes hashcheck to fail, as v1 == v2 won't work on arrays.
-                dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), lmax_plm, dl._sims.nside, dl.cls_len, dl.transf_tlm, dl.ninvt_desc,
+                dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), lmax_plm, dl._sims.nside, dl.cls_len, dl.ttebl['t'], dl.ninvt_desc,
                     marge_monopole=True, marge_dipole=True, marge_maps=[])
                 if dl.OBD:
                     transf_elm_loc = gauss_beam(dl._sims.beam / 180 / 60 * np.pi, lmax=lmax_plm)
                     dl.cinv_p = cinv_p_OBD.cinv_p(opj(dl.TEMP, 'cinv_p'), lmax_plm, dl._sims.nside, dl.cls_len, transf_elm_loc[:lmax_plm+1], dl.ninvp_desc, geom=dl.ninvjob_qe_geometry,
                         chain_descr=dl.chain_descr(lmax_plm, dl.cg_tol), bmarg_lmax=dl.lmin_teb[2], zbounds=dl.zbounds, _bmarg_lib_dir=dl.obd_libdir, _bmarg_rescal=dl.obd_rescale, sht_threads=dl.tr)
                 else:
-                    dl.cinv_p = filt_cinv.cinv_p(opj(dl.TEMP, 'cinv_p'), lmax_plm, dl._sims.nside, dl.cls_len, dl.transf_elm, dl.ninvp_desc,
-                        chain_descr=dl.chain_descr(lmax_plm, dl.cg_tol), transf_blm=dl.transf_blm, marge_qmaps=(), marge_umaps=())
+                    dl.cinv_p = filt_cinv.cinv_p(opj(dl.TEMP, 'cinv_p'), lmax_plm, dl._sims.nside, dl.cls_len, dl.ttebl['e'], dl.ninvp_desc,
+                        chain_descr=dl.chain_descr(lmax_plm, dl.cg_tol), transf_blm=dl.ttebl['b'], marge_qmaps=(), marge_umaps=())
 
                 _filter_raw = filt_cinv.library_cinv_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl.cinv_t, dl.cinv_p, dl.cls_len)
                 _ftl_rs = np.ones(lmax_plm + 1, dtype=float) * (np.arange(lmax_plm + 1) >= dl.lmin_teb[0])
@@ -344,9 +344,9 @@ class l2lensrec_Transformer:
                 _fbl_rs = np.ones(lmax_plm + 1, dtype=float) * (np.arange(lmax_plm + 1) >= dl.lmin_teb[2])
                 dl.ivfs = filt_util.library_ftl(_filter_raw, lmax_plm, _ftl_rs, _fel_rs, _fbl_rs)
             elif dl.qe_filter_directional == 'isotropic':
-                dl.ivfs = filt_simple.library_fullsky_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl._sims.nside, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
+                dl.ivfs = filt_simple.library_fullsky_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl._sims.nside, dl.ttebl, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
                 # elif dl._sims.data_type == 'alm':
-                    # dl.ivfs = filt_simple.library_fullsky_alms_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, {'t':dl.transf_tlm, 'e':dl.transf_elm, 'b':dl.transf_blm}, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
+                    # dl.ivfs = filt_simple.library_fullsky_alms_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl.ttebl, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
                 
             # qlms
             if qe.qlm_type == 'sepTP':

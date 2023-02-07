@@ -78,8 +78,8 @@ class scarf_iterator_pertmf():
     @log_on_end(logging.INFO, "get_filter_iso() finished")
     def get_filter_iso(self):
         wee = self.k == 'p_p'
-        filter = alm_filter_nlev_wl(self.nlev_p, self.ffi, self.transf_elm, self.lm_max_unl, self.lm_max_ivf,
-                wee=wee, transf_b=self.transf_blm, nlev_b=self.nlev_p)
+        filter = alm_filter_nlev_wl(self.nlev_p, self.ffi, self.ttebl['e'], self.lm_max_unl, self.lm_max_ivf,
+                wee=wee, transf_b=self.ttebl['b'], nlev_b=self.nlev_p)
         self.k_geom = filter.ffi.geom
         
         return filter
@@ -96,8 +96,8 @@ class scarf_iterator_pertmf():
             tpl = self.tpl
         wee = self.k == 'p_p' # keeps or not the EE-like terms in the generalized QEs
         ninv = [sims_MAP.ztruncify(read_map(ni)) for ni in self.ninvp_desc] # inverse pixel noise map on consistent geometry
-        filter = opfilt_ee_wl.alm_filter_ninv_wl(self.ninvjob_geometry, ninv, ffi, self.transf_elm, self.lm_max_unl, self.lm_max_ivf, self.tr, tpl,
-                                                wee=wee, lmin_dotop=min(self.lmin_teb[1], self.lmin_teb[2]), transf_blm=self.transf_blm)
+        filter = opfilt_ee_wl.alm_filter_ninv_wl(self.ninvjob_geometry, ninv, ffi, self.ttebl['e'], self.lm_max_unl, self.lm_max_ivf, self.tr, tpl,
+                                                wee=wee, lmin_dotop=min(self.lmin_teb[1], self.lmin_teb[2]), transf_blm=self.ttebl['b'])
         self.k_geom = filter.ffi.geom # Customizable Geometry for position-space operations in calculations of the iterated QEs etc
 
         return filter
@@ -192,8 +192,8 @@ class scarf_iterator_constmf():
     @log_on_end(logging.INFO, "get_filter_iso() finished")
     def get_filter_iso(self):
         wee = self.k == 'p_p'
-        filter = alm_filter_nlev_wl(self.nlev_p, self.ffi, self.transf_elm, self.lm_max_unl, self.lm_max_ivf,
-                wee=wee, transf_b=self.transf_blm, nlev_b=self.nlev_p)
+        filter = alm_filter_nlev_wl(self.nlev_p, self.ffi, self.ttebl['e'], self.lm_max_unl, self.lm_max_ivf,
+                wee=wee, transf_b=self.ttebl['b'], nlev_b=self.nlev_p)
         self.k_geom = filter.ffi.geom
 
         return filter
@@ -210,8 +210,8 @@ class scarf_iterator_constmf():
             tpl = self.tpl
         wee = self.k == 'p_p' # keeps or not the EE-like terms in the generalized QEs
         ninv = [sims_MAP.ztruncify(read_map(ni)) for ni in self.ninvp_desc] # inverse pixel noise map on consistent geometry
-        filter = opfilt_ee_wl.alm_filter_ninv_wl(self.ninvjob_geometry, ninv, ffi, self.transf_elm, self.lm_max_unl, self.lm_max_ivf, self.tr, tpl,
-                                                wee=wee, lmin_dotop=min(self.lmin_teb[1], self.lmin_teb[2]), transf_blm=self.transf_blm)
+        filter = opfilt_ee_wl.alm_filter_ninv_wl(self.ninvjob_geometry, ninv, ffi, self.ttebl['e'], self.lm_max_unl, self.lm_max_ivf, self.tr, tpl,
+                                                wee=wee, lmin_dotop=min(self.lmin_teb[1], self.lmin_teb[2]), transf_blm=self.ttebl['b'])
         self.k_geom = filter.ffi.geom # Customizable Geometry for position-space operations in calculations of the iterated QEs etc
 
         return filter
@@ -297,8 +297,8 @@ class scarf_iterator_fastWF():
     @log_on_end(logging.INFO, "get_filter_iso() finished")
     def get_filter_iso(self):
         wee = self.k == 'p_p'
-        filter = alm_filter_nlev_wl(self.nlev_p, self.ffi, self.transf_elm, self.lm_max_unl, self.lm_max_ivf,
-                wee=wee, transf_b=self.transf_blm, nlev_b=self.nlev_p)
+        filter = alm_filter_nlev_wl(self.nlev_p, self.ffi, self.ttebl['b'], self.lm_max_unl, self.lm_max_ivf,
+                wee=wee, transf_b=self.ttebl['b'], nlev_b=self.nlev_p)
         self.k_geom = filter.ffi.geom
 
         return filter

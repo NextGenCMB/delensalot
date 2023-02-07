@@ -66,17 +66,17 @@ class Basejob():
 
 
 
-    def load_plm(self, simidx, it):
+    def load_plm_it(self, simidx, it):
 
         return None
 
 
-    def load_mf(self, simidx, it):
+    def load_mf_it(self, simidx, it, normalized=True):
 
         return None
 
 
-    def get_blt(self, simidx, it):
+    def get_blt_it(self, simidx, it):
 
         return None
 
@@ -89,14 +89,9 @@ class Basejob():
     def get_wf(self, simidx, it, field):
 
         return None
-
-
-    def get_blt(self, simidx, it):
-
-        return None
     
 
-    def get_fiducial_lm(self, simidx):
+    def get_fiducial_sim(self, simidx, field):
 
         return None
 
@@ -352,9 +347,8 @@ class QE_lr(Basejob):
         self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
         self.mf = lambda simidx: self.get_meanfield(int(simidx))
         self.plm = lambda simidx: self.get_plm(simidx, self.QE_subtract_meanfield)
-        # self.mf_resp = lambda: self.get_response_meanfield()
         self.wflm = lambda simidx: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
-        self.R_unl = lambda: qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_unl, self.cls_unl,  {'e': self.fel_unl, 'b': self.fbl_unl, 't':self.ftl_unl}, lmax_qlm=self.qe_lm_max_qlm[0])[0]
+        self.R_unl = lambda: qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_unl, self.cls_unl,  self.ftebl_unl, lmax_qlm=self.qe_lm_max_qlm[0])[0]
 
         # TODO only needed for get_blt(), as this is done by cs_iterator.. move 
         self.ith = iteration_handler.transformer('constmf')
@@ -483,7 +477,7 @@ class QE_lr(Basejob):
     @log_on_end(logging.INFO, "get_R_unl() finished")    
     def get_R_unl(self):
 
-        return qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_unl, self.cls_unl,  {'e': self.fel_unl, 'b': self.fbl_unl, 't':self.ftl_unl}, lmax_qlm=self.qe_lm_max_qlm[0])[0]
+        return qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_unl, self.cls_unl, self.fteb_unl, lmax_qlm=self.qe_lm_max_qlm[0])[0]
 
 
     @log_on_start(logging.INFO, "get_meanfield({simidx}) started")
@@ -516,7 +510,7 @@ class QE_lr(Basejob):
             plm  = self.qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate:
             if subtract_meanfield and self.version != 'noMF':
                 plm -= self.mf(int(simidx))  # MF-subtracted unnormalized QE
-            R = qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_len, self.cls_len, {'e': self.fel, 'b': self.fbl, 't':self.ftl}, lmax_qlm=self.qe_lm_max_qlm[0])[0]
+            R = qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=self.qe_lm_max_qlm[0])[0]
             # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
             WF = self.cpp * utils.cli(self.cpp + utils.cli(R))
             plm = alm_copy(plm,  None, self.qe_lm_max_qlm[0], self.qe_lm_max_qlm[1])
@@ -533,7 +527,7 @@ class QE_lr(Basejob):
     @log_on_end(logging.INFO, "get_response_meanfield() finished")
     def get_response_meanfield(self):
         if self.k in ['p_p'] and not 'noRespMF' in self.version:
-            mf_resp = qresp.get_mf_resp(self.k, self.cls_unl, {'ee': self.fel_unl, 'bb': self.fbl_unl}, self.lm_max_ivf[0], self.qe_lm_max_qlm[0])[0]
+            mf_resp = qresp.get_mf_resp(self.k, self.cls_unl, {'ee': self.ftebl_len['e'], 'bb': self.ftebl_len['b']}, self.lm_max_ivf[0], self.qe_lm_max_qlm[0])[0]
         else:
             log.info('*** mf_resp not implemented for key ' + self.k, ', setting it to zero')
             mf_resp = np.zeros(self.qe_lm_max_qlm[0] + 1, dtype=float)
@@ -545,7 +539,7 @@ class QE_lr(Basejob):
 
         mf_QE = copy.deepcopy(self.get_meanfield(simidx))
         cpp_loc = self.cpp
-        R = qresp.get_response(self.k, self.lm_max_ivf[0], 'p', self.cls_len, self.cls_len, {'e': self.fel, 'b': self.fbl, 't':self.ftl}, lmax_qlm=self.lm_max_ivf[0])[0]
+        R = qresp.get_response(self.k, self.lm_max_ivf[0], 'p', self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=self.lm_max_ivf[0])[0]
         WF = cpp_loc * utils.cli(cpp_loc + utils.cli(R))
         almxfl(mf_QE, utils.cli(R), self.qe_lm_max_qlm[1], True) # Normalized QE
         almxfl(mf_QE, WF, self.qe_lm_max_qlm[1], True) # Wiener-filter QE
@@ -554,7 +548,6 @@ class QE_lr(Basejob):
         return mf_QE
 
 
-    
     @log_on_start(logging.INFO, "get_blt({simidx}, {calc}) started")
     @log_on_end(logging.INFO, "get_blt({simidx}, {calc}) finished")
     def get_blt(self, simidx, calc=True):
@@ -562,7 +555,7 @@ class QE_lr(Basejob):
         itlib_iterator = itlib.get_iterator()
         ## For QE, dlm_mod by construction doesn't do anything, because mean-field had already been subtracted from plm and we don't want to repeat that.
         ## But we are going to store a new file anyway.
-        dlm_mod = np.zeros_like(self.get_meanfield(int(simidx)))
+        dlm_mod = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, int(simidx)))
         return itlib_iterator.get_template_blm(0, 0, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, calc=calc, Nmf=self.Nmf, perturbative=self.btemplate_perturbative_lensremap)
 
 
@@ -578,9 +571,8 @@ class MAP_lr(Basejob):
         # if self.iterator_typ in ['pertmf', 'constmf', 'fastWF']:
         # TODO this is the interface to the D.lensalot iterators and connects 
         # to lerepi. Could be simplified, s.t. interfacing happens without the iteration_handler
-        # but directly with cs_iterator, e.g. by adding visitor pattern to cs_iterator
+        # but directly with cs_iterator, e.g. by adding visitor pattern
         self.ith = iteration_handler.transformer(self.iterator_typ)
-
 
 
     @log_on_start(logging.INFO, "collect_jobs() started")
@@ -619,9 +611,6 @@ class MAP_lr(Basejob):
                 mpi.barrier()
 
             elif task == 'calc_blt':
-                # TODO align QE and MAP name for calc_btemplate
-                # TODO do not necessarily depend on QE blt being done, next line could be removed
-                self.qe.collect_jobs('calc_blt', recalc=False)
                 # TODO making sure that all meanfields are available, but the mpi.barrier() is likely a too strong statement.
                 log.info("Waiting for all ranks to finish their task")
                 mpi.barrier()
@@ -658,7 +647,7 @@ class MAP_lr(Basejob):
                             itlib_iterator.iterate(it, 'p')
                             log.info('{}, simidx {} done with it {}'.format(mpi.rank, idx, it))
 
-            elif task == 'calc_meanfield':
+            if task == 'calc_meanfield':
                 self.qe.run(task=task)
                 # Must use mpi.barrier() before get_meanfields_it(), otherwise running into fileNotExist errors, as job splitting changes.
                 # TODO could assign it0 mf to whoever is first, but then would need to check if all files exist and either time.sleep() or skip and let the next rank try?
@@ -667,28 +656,13 @@ class MAP_lr(Basejob):
                 self.get_meanfields_it(np.arange(self.itmax+1), calc=True)
                 mpi.barrier()
 
-            elif task == 'calc_blt':
-                self.qe.run(task='calc_blt')
+            if task == 'calc_blt':
                 log.info('{}, task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
-                for idx in self.jobs[taski][mpi.rank::mpi.size]:
-                    log.info("{}: start sim {}".format(mpi.rank, idx))
-                    lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
-                    itlib = self.ith(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
-                    itlib_iterator = itlib.get_iterator()
-                    ## TODO move the following lines to get_blt_it()
-                    if self.dlm_mod_bool:
-                        dlm_mod = self.get_meanfields_it(np.arange(self.itmax+1), calc=False)
-                        if idx in self.simidxs_mf:
-                            dlm_mod = (dlm_mod - np.array(rec.load_plms(lib_dir_iterator, np.arange(self.itmax+1)))/self.Nmf) * self.Nmf/(self.Nmf - 1)
-                    for it in range(0, self.itmax + 1):
-                        if it <= rec.maxiterdone(lib_dir_iterator):
-                            if it == 0 and self.dlm_mod_bool:
-                                _dlm_mod = np.zeros_like(self.get_meanfields_it([0], calc=False)[0])
-                            else:
-                                # TODO is this [it] the right index with get_betmplate_blm(it)?
-                                _dlm_mod = None if self.dlm_mod_bool == False else dlm_mod[it]
-                            itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=_dlm_mod, calc=True, Nmf=self.Nmf, perturbative=False, dlm_mod_fnsuffix=self.dlm_mod_fnsuffix)
-                    log.info("{}: finished sim {}".format(mpi.rank, idx))
+                for simidx in self.jobs[taski][mpi.rank::mpi.size]:
+                    lib_dir_iterator = self.libdir_iterators(self.k, simidx, self.version)
+                    self.itlib = self.ith(self.qe, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
+                    self.itlib_iterator = itlib.get_iterator()
+                    self.get_blt_it(idx, np.arange(self.itmax+1))
 
 
     @log_on_start(logging.INFO, "get_plm_it({simidx}, {its}) started")
@@ -736,23 +710,22 @@ class MAP_lr(Basejob):
         return mfs
 
 
-    @log_on_start(logging.INFO, "get_blt_it({simidx}, {calc}) started")
-    @log_on_end(logging.INFO, "get_blt_it({simidx}, {calc}) finished")
-    def get_blt_it(self, simidx, it, calc=False):
-        # TODO this method is not yet ready. dlm_mod needs fixing.
-        if 'itlib' in self.__dict__:
-            if simidx != self.itlib.simidx:
-                self.itlib = self.ith(self.qe, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
-                self.itlib_iterator = self.itlib.get_iterator()
-                dlm_mod = np.zeros_like(self.get_plm_it(simidx, 0))
-                return self.itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, calc=calc, Nmf=self.Nmf, perturbative=False, dlm_mod_fnsuffix=self.dlm_mod_fnsuffix)
+    @log_on_start(logging.INFO, "get_blt_it({simidx}, {its}) started")
+    @log_on_end(logging.INFO, "get_blt_it({simidx}, {its}) finished")
+    def get_blt_it(self, simidx, it):
         if 'itlib' not in self.__dict__:
             self.itlib = self.ith(self.qe, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
             self.itlib_iterator = self.itlib.get_iterator()
-        dlm_mod = np.zeros_like(self.get_meanfield_it(simidx, 0))
-        return self.itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, calc=calc, Nmf=self.Nmf, perturbative=False, dlm_mod_fnsuffix=self.dlm_mod_fnsuffix)
-
-    ## For QE, dlm_mod by construction doesn't do anything, because mean-field was already subtracted from plm and we don't want to repeat that
+        if simidx != self.itlib.simidx:
+            self.itlib = self.ith(self.qe, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
+            self.itlib_iterator = self.itlib.get_iterator()
+        
+        dlm_mod = None
+        if self.dlm_mod_bool and it>0 and it<=rec.maxiterdone(self.lib_dir_iterator):
+            dlm_mod = self.get_meanfields_it([it], calc=False)
+            if simidx in self.simidxs_mf:
+                dlm_mod = (dlm_mod - np.array(rec.load_plms(self.lib_dir_iterator, [it]))/self.Nmf) * self.Nmf/(self.Nmf - 1)
+            return self.itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, Nmf=self.Nmf, perturbative=False)
 
 
 class Map_delenser(Basejob):
