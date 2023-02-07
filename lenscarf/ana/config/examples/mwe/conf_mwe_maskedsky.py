@@ -5,8 +5,6 @@ The noise model is isotropic and white, and truncates T,E, and B modes at low mu
 QE and iterative reconstruction uses anisotropic filters. 
 """
 
-# TODO pixwin? at simulations + reconstruction? Or can be ignored?
-
 import numpy as np
 import os
 import plancklens

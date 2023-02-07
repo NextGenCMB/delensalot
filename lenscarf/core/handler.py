@@ -539,7 +539,7 @@ class QE_lr(Basejob):
 
         mf_QE = copy.deepcopy(self.get_meanfield(simidx))
         cpp_loc = self.cpp
-        R = qresp.get_response(self.k, self.lm_max_ivf[0], 'p', self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=self.lm_max_ivf[0])[0]
+        R = qresp.get_response(self.k, self.lm_max_ivf[0], 'p', self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=self.qe_lm_max_qlm[0])[0]
         WF = cpp_loc * utils.cli(cpp_loc + utils.cli(R))
         almxfl(mf_QE, utils.cli(R), self.qe_lm_max_qlm[1], True) # Normalized QE
         almxfl(mf_QE, WF, self.qe_lm_max_qlm[1], True) # Wiener-filter QE

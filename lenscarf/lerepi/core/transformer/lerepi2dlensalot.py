@@ -182,7 +182,7 @@ class l2lensrec_Transformer:
         def _process_Noisemodel(dl, nm):
             # sky_coverage
             dl.sky_coverage = nm.sky_coverage
-            # TODO assuming that masked sky comes with a hits-count map.
+            # TODO assuming that masked sky comes with a hits-count map. If not, take mask
             if dl.sky_coverage == 'masked':
                 # rhits_normalised
                 dl.rhits_normalised = dl.masks if nm.rhits_normalised is None else nm.rhits_normalised
@@ -260,6 +260,7 @@ class l2lensrec_Transformer:
                 transf_elm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * hp.pixwin(dl._sims.nside, lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[1])
                 transf_blm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * hp.pixwin(dl._sims.nside, lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[2])
             dl.ttebl = {'t': transf_tlm, 'e': transf_elm, 'b':transf_blm}
+
             # Isotropic approximation to the filtering (used eg for response calculations)
             ftl_len = cli(dl.cls_len['tt'][:dl._sims.lmax_transf + 1] + df.a2r(dl._sims.nlev_t)**2 * cli(dl.ttebl['t'] ** 2)) * (dl.ttebl['t'] > 0)
             fel_len = cli(dl.cls_len['ee'][:dl._sims.lmax_transf + 1] + df.a2r(dl._sims.nlev_p)**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
@@ -295,7 +296,7 @@ class l2lensrec_Transformer:
                             dl.qe_tasks[1] = buffer
                         else:
                             buffer = copy.deepcopy(dl.qe_tasks[0])
-                            dl.qe_tasks[0] = 'calc_meanfieldasd'
+                            dl.qe_tasks[0] = 'calc_meanfield'
                             dl.qe_tasks[2] = buffer
             # lmax_qlm
             dl.qe_lm_max_qlm = qe.lm_max_qlm
@@ -347,7 +348,7 @@ class l2lensrec_Transformer:
                 _fbl_rs = np.ones(lmax_plm + 1, dtype=float) * (np.arange(lmax_plm + 1) >= dl.lmin_teb[2])
                 dl.ivfs = filt_util.library_ftl(_filter_raw, lmax_plm, _ftl_rs, _fel_rs, _fbl_rs)
             elif dl.qe_filter_directional == 'isotropic':
-                dl.ivfs = filt_simple.library_fullsky_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl._sims.nside, dl.ttebl, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
+                dl.ivfs = filt_simple.library_fullsky_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl._sims.nside, dl.ttebl, dl.cls_len, dl.ftebl_len['t'], dl.ftebl_len['e'], dl.ftebl_len['b'], cache=True)
                 # elif dl._sims.data_type == 'alm':
                     # dl.ivfs = filt_simple.library_fullsky_alms_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl.ttebl, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
                 
@@ -545,14 +546,6 @@ class l2OBD_Transformer:
         return dl
 
 
-    # @log_on_start(logging.INFO, "get_nlrh_map() started")
-    # @log_on_end(logging.INFO, "get_nlrh_map() finished")
-    def get_nlrh_map(cf):
-        noisemodel_rhits_map = df.get_nlev_mask(cf.noisemodel.rhits_normalised[1], hp.read_map(cf.noisemodel.rhits_normalised[0]))
-
-        return noisemodel_rhits_map
-
-
     # @log_on_start(logging.INFO, "get_nlevt() started")
     # @log_on_end(logging.INFO, "get_nlevt() finished")
     def get_nlevt(cf):
@@ -613,11 +606,11 @@ class l2OBD_Transformer:
     # @log_on_start(logging.INFO, "get_masks() started")
     # @log_on_end(logging.INFO, "get_masks() finished")
     def get_masks(cf):
-        # TODO refactor. I think this here generates a mask from the rhits map..
+        # TODO refactor. This here generates a mask from the rhits map..
         # but this should really be detached from one another
         masks = []
         if cf.noisemodel.rhits_normalised is not None:
-            msk = l2OBD_Transformer.get_nlrh_map(cf)
+            msk = df.get_nlev_mask(cf.noisemodel.rhits_normalised[1], hp.read_map(cf.noisemodel.rhits_normalised[0]))
         else:
             msk = np.ones(shape=hp.nside2npix(cf.data.nside))
         masks.append(msk)
