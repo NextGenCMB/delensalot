@@ -57,6 +57,11 @@ class Geom:
         return int(np.sum(geom.nph))
 
     @staticmethod
+    def fsky(geom:scarf.Geometry):
+        """Area of the sky covered by the pixelization"""
+        return np.sum(geom.weight * geom.nph) / (4 * np.pi)
+    
+    @staticmethod
     def phis(geom:scarf.Geometry, ir):
         assert ir < geom.get_nrings(), (ir, geom.get_nrings())
         nph = geom.get_nph(ir)

@@ -393,7 +393,7 @@ class QE_lr(Basejob):
                 for idx in self.simidxs:
                     # TODO remove hardcoded fname generation in the next line, perhaps use cacher
                     fname = os.path.join(self.TEMP, '{}_sim{:04d}'.format(self.k, idx), 'btempl_p000_e000_lmax1024{}'.format(len(self.simidxs_mf)))
-                    if self.btemplate_perturbative_lensremap:
+                    if self.blt_pert:
                         fname += 'perturbative'
                     fname += '.npy'
                     if not os.path.isfile(fname) or recalc:
@@ -548,15 +548,15 @@ class QE_lr(Basejob):
         return mf_QE
 
 
-    @log_on_start(logging.INFO, "get_blt({simidx}, {calc}) started")
-    @log_on_end(logging.INFO, "get_blt({simidx}, {calc}) finished")
-    def get_blt(self, simidx, calc=True):
+    @log_on_start(logging.INFO, "get_blt({simidx}) started")
+    @log_on_end(logging.INFO, "get_blt({simidx}) finished")
+    def get_blt(self, simidx):
         itlib = self.ith(self, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
         itlib_iterator = itlib.get_iterator()
         ## For QE, dlm_mod by construction doesn't do anything, because mean-field had already been subtracted from plm and we don't want to repeat that.
         ## But we are going to store a new file anyway.
         dlm_mod = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, int(simidx)))
-        return itlib_iterator.get_template_blm(0, 0, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, calc=calc, Nmf=self.Nmf, perturbative=self.btemplate_perturbative_lensremap)
+        return itlib_iterator.get_template_blm(0, 0, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, perturbative=self.blt_pert)
 
 
 class MAP_lr(Basejob):
@@ -659,10 +659,10 @@ class MAP_lr(Basejob):
             if task == 'calc_blt':
                 log.info('{}, task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
                 for simidx in self.jobs[taski][mpi.rank::mpi.size]:
-                    lib_dir_iterator = self.libdir_iterators(self.k, simidx, self.version)
+                    self.lib_dir_iterator = self.libdir_iterators(self.k, simidx, self.version)
                     self.itlib = self.ith(self.qe, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
-                    self.itlib_iterator = itlib.get_iterator()
-                    self.get_blt_it(idx, np.arange(self.itmax+1))
+                    self.itlib_iterator = self.itlib.get_iterator()
+                    self.get_blt_it(simidx, self.itmax)
 
 
     @log_on_start(logging.INFO, "get_plm_it({simidx}, {its}) started")
@@ -710,8 +710,8 @@ class MAP_lr(Basejob):
         return mfs
 
 
-    @log_on_start(logging.INFO, "get_blt_it({simidx}, {its}) started")
-    @log_on_end(logging.INFO, "get_blt_it({simidx}, {its}) finished")
+    @log_on_start(logging.INFO, "get_blt_it({simidx}, {it}) started")
+    @log_on_end(logging.INFO, "get_blt_it({simidx}, {it}) finished")
     def get_blt_it(self, simidx, it):
         if 'itlib' not in self.__dict__:
             self.itlib = self.ith(self.qe, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
@@ -720,12 +720,13 @@ class MAP_lr(Basejob):
             self.itlib = self.ith(self.qe, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
             self.itlib_iterator = self.itlib.get_iterator()
         
-        dlm_mod = None
+        dlm_mod = np.array(0)
         if self.dlm_mod_bool and it>0 and it<=rec.maxiterdone(self.lib_dir_iterator):
             dlm_mod = self.get_meanfields_it([it], calc=False)
             if simidx in self.simidxs_mf:
                 dlm_mod = (dlm_mod - np.array(rec.load_plms(self.lib_dir_iterator, [it]))/self.Nmf) * self.Nmf/(self.Nmf - 1)
-            return self.itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, Nmf=self.Nmf, perturbative=False)
+        if it>0 and it<=rec.maxiterdone(self.lib_dir_iterator):
+            return self.itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, perturbative=False)
 
 
 class Map_delenser(Basejob):
@@ -797,7 +798,7 @@ class Map_delenser(Basejob):
                 fn += '_dlmmod%s%03d'%(fn_splitsetsuffix, self.Nmf)
             else:
                 fn += '%s%03d'%(fn_splitsetsuffix, self.Nmf)
-            if self.btemplate_perturbative_lensremap:
+            if self.blt_pert:
                 fn += 'perturbative'
                 
             return fn+'.npy'

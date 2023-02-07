@@ -141,7 +141,7 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     lm_max_qlm = attr.ib(default=(10,10), validator=qerec.lm_max_qlm)
     chain = attr.ib(default=DLENSALOT_Chaindescriptor(), validator=qerec.chain)
     cl_analysis = attr.ib(default=False, validator=qerec.cl_analysis)
-    btemplate_perturbative_lensremap = attr.ib(default=True, validator=qerec.btemplate_perturbative_lensremap)
+    blt_pert = attr.ib(default=True, validator=qerec.btemplate_perturbative_lensremap)
 
 @attr.s
 class DLENSALOT_Itrec(DLENSALOT_Concept):

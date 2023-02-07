@@ -192,7 +192,7 @@ class qlm_iterator(object):
         return True
 
 
-    @log_on_start(logging.INFO, "get_template_blm(it={it}, calc={calc}) started")
+    @log_on_start(logging.INFO, "get_template_blm(it={it}) started")
     @log_on_end(logging.INFO, "get_template_blm(it={it}) finished")
     def get_template_blm(self, it, it_e, lmaxb=1024, lmin_plm=1, elm_wf:None or np.ndarray=None, dlm_mod=None, perturbative=False):
         """Builds a template B-mode map with the iterated phi and input elm_wf

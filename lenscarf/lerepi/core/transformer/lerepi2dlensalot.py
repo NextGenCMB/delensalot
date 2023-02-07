@@ -42,6 +42,8 @@ from lenscarf.lerepi.config.config_helper import data_functions as df, LEREPI_Co
 from lenscarf.lerepi.core.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALOT_Model_mm, DLENSALOT_Concept, DLENSALOT_Chaindescriptor
 
 
+# TODO if rhits
+
 
 class l2T_Transformer:
     # TODO this needs a big refactoring. Suggest working via cachers
@@ -273,8 +275,8 @@ class l2lensrec_Transformer:
         @log_on_start(logging.INFO, "_process_Qerec() started")
         @log_on_end(logging.INFO, "_process_Qerec() finished")
         def _process_Qerec(dl, qe):
-            # btemplate_perturbative_lensremap
-            dl.btemplate_perturbative_lensremap = qe.btemplate_perturbative_lensremap
+            # blt_pert
+            dl.blt_pert = qe.blt_pert
             # qe_tasks
             dl.qe_tasks = qe.tasks
             # QE_subtract_meanfield
@@ -282,18 +284,19 @@ class l2lensrec_Transformer:
             ## if QE_subtract_meanfield is True, mean-field needs to be calculated either way.
             ## also move calc_meanfield to the front, so it is calculated first. The following lines assume that all other tasks are in the right order...
             ## TODO allow user to provide task-list unordered
-            if dl.QE_subtract_meanfield:
-                if 'calc_meanfield' not in dl.qe_tasks:
-                    dl.qe_tasks = ['calc_meanfield'].append(dl.qe_tasks)
-                elif dl.qe_tasks[0] != 'calc_meanfield':
-                    if dl.qe_tasks[1] == 'calc_meanfield':
-                        buffer = copy.deepcopy(dl.qe_tasks[0])
-                        dl.qe_tasks[0] = 'calc_meanfield'
-                        dl.qe_tasks[1] = buffer
-                    else:
-                        buffer = copy.deepcopy(dl.qe_tasks[0])
-                        dl.qe_tasks[0] = 'calc_meanfieldasd'
-                        dl.qe_tasks[2] = buffer
+            if 'calc_phi' in dl.qe_tasks:
+                if dl.QE_subtract_meanfield:
+                    if 'calc_meanfield' not in dl.qe_tasks:
+                        dl.qe_tasks = ['calc_meanfield'].append(dl.qe_tasks)
+                    elif dl.qe_tasks[0] != 'calc_meanfield':
+                        if dl.qe_tasks[1] == 'calc_meanfield':
+                            buffer = copy.deepcopy(dl.qe_tasks[0])
+                            dl.qe_tasks[0] = 'calc_meanfield'
+                            dl.qe_tasks[1] = buffer
+                        else:
+                            buffer = copy.deepcopy(dl.qe_tasks[0])
+                            dl.qe_tasks[0] = 'calc_meanfieldasd'
+                            dl.qe_tasks[2] = buffer
             # lmax_qlm
             dl.qe_lm_max_qlm = qe.lm_max_qlm
 
@@ -381,7 +384,6 @@ class l2lensrec_Transformer:
             # lmaxunl
             dl.lm_max_unl = it.lm_max_unl
             dl.it_lm_max_qlm = it.lm_max_qlm
-
             # chain
             dl.it_chain_model = DLENSALOT_Chaindescriptor()
             dl.it_chain_model.p3 = dl._sims.nside
@@ -547,9 +549,6 @@ class l2OBD_Transformer:
     # @log_on_end(logging.INFO, "get_nlrh_map() finished")
     def get_nlrh_map(cf):
         noisemodel_rhits_map = df.get_nlev_mask(cf.noisemodel.rhits_normalised[1], hp.read_map(cf.noisemodel.rhits_normalised[0]))
-        # TODO hopefully don't need the next line anymore.. rhitsmap should be s.t. no pixel is infinite
-        # noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.noisemodel.inf
-
 
         return noisemodel_rhits_map
 
@@ -743,8 +742,8 @@ class l2d_Transformer:
                 dl.clg_templ[0] = 1e-32
                 dl.clg_templ[1] = 1e-32
             pert_mod_string = ''
-            dl.btemplate_perturbative_lensremap = ma.btemplate_perturbative_lensremap
-            if dl.btemplate_perturbative_lensremap == True:
+            dl.blt_pert = ma.blt_pert
+            if dl.blt_pert == True:
                 pert_mod_string = 'pertblens'
             dl.binning = ma.binning
             if dl.binning == 'binned':
@@ -862,7 +861,7 @@ class l2d_Transformer:
         
         dl = DLENSALOT_Concept()
 
-        dl.btemplate_perturbative_lensremap = cf.itrec.btemplate_perturbative_lensremap
+        dl.blt_pert = cf.itrec.blt_pert
 
         _process_Madel(dl, cf.madel)
         _process_Config(dl, cf.config)
@@ -936,18 +935,6 @@ class l2i_Transformer:
             dl.edges = []
             dl.edges_id = []
             if ma.edges != -1:
-                # if 'cmbs4' in ma.edges:
-                #     dl.edges.append(lc.cmbs4_edges)
-                #     dl.edges_id.append('cmbs4')
-                # if 'ioreco' in ma.edges:
-                #     dl.edges.append(lc.ioreco_edges) 
-                #     dl.edges_id.append('ioreco')
-                # if 'lowell' in ma.edges:
-                #     dl.edges.append(lc.lowell_edges) 
-                #     dl.edges_id.append('lowell')
-                # elif 'fs' in ma.edges:
-                #     dl.edges.append(lc.fs_edges)
-                #     dl.edges_id.append('fs')
                 dl.edges.append(lc.SPDP_edges)
                 dl.edges_id.append('SPDP')
             dl.edges = np.array(dl.edges)

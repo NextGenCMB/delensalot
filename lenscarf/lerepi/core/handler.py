@@ -150,7 +150,7 @@ class handler():
                         for k, v in val.__dict__.items():
                             if v.__str__() != configfile.dlensalot_model.__dict__[key].__dict__[k].__str__():
                                 if callable(v):
-                                    # If it's a function, we can test if bytecode is the same as a simple check won't work due to pointing to memory location
+                                    # If function, we can test if bytecode is the same as a simple check won't work due to pointing to memory location
                                     if v.__code__.co_code != configfile.dlensalot_model.__dict__[key].__dict__[k].__code__.co_code:
                                         logging.error("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
                                         logging.error('Exit. Check config file.')
