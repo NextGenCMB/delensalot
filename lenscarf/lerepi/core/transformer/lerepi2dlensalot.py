@@ -242,7 +242,10 @@ class l2lensrec_Transformer:
                 dl._sims.nlev_p = da.nlev_p
                 dl._sims.nside = da.nside
                 ## get_sim_pmap comes from plancklens.maps wrapper
-                pix_phas = phas.pix_lib_phas(da.class_parameters['lib_dir'], 3, (hp.nside2npix(dl._sims.nside),))
+                if 'lib_dir' in da.class_parameters:
+                    pix_phas = phas.pix_lib_phas(da.class_parameters['lib_dir'], 3, (hp.nside2npix(dl._sims.nside),))
+                else:
+                    pix_phas = phas.pix_lib_phas(da.class_parameters['cacher'].lib_dir, 3, (hp.nside2npix(dl._sims.nside),))
                 transf_dat = gauss_beam(dl._sims.beam / 180 / 60 * np.pi, lmax=dl._sims.lmax_transf) # (taking here full FFP10 cmb's which are given to 4096)
                 dl.sims = maps.cmb_maps_nlev(dl._sims, transf_dat, dl._sims.nlev_t, dl._sims.nlev_p, dl._sims.nside, pix_lib_phas=pix_phas)
 

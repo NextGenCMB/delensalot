@@ -11,7 +11,7 @@ log = logging.getLogger(__name__)
 verbose = True
 has_key = lambda key : key in os.environ.keys()
 cond4mpi4py = not has_key('NERSC_HOST') or (has_key('NERSC_HOST') and has_key('SLURM_SUBMIT_DIR'))
-
+print(cond4mpi4py)
 if cond4mpi4py:
     print('cond4mpi exists')
     from mpi4py import MPI

@@ -621,6 +621,8 @@ class MAP_lr(Basejob):
                         _jobs.append(idx)
                     elif rec.maxiterdone(lib_dir_iterator) >= self.itmax:
                         _jobs.append(idx)
+                    else:
+                        log.info("Nothing to compute, as maxiterdone:{} < itermax:{}".format(rec.maxiterdone(lib_dir_iterator), self.itmax))
 
             jobs[taski] = _jobs
         self.jobs = jobs
