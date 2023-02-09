@@ -75,7 +75,7 @@ class qlm_iterator(object):
                 pp_h0: the starting hessian estimate. (cl array, ~ 1 / N0 of the lensing potential)
                 cpp_prior: fiducial lensing potential spectrum used for the prior term
                 cls_filt (dict): dictionary containing the filter cmb unlensed spectra (here, only 'ee' is required)
-                k_geom: scarf geometry for once-per-iterations opertations (like cehcking for invertibility etc)
+                k_geom: scarf geometry for once-per-iterations operations (like checking for invertibility etc, QE evals...)
                 stepper: custom calculation of NR-step
                 wflm0(optional): callable with Wiener-filtered CMB map search starting point
 
@@ -532,7 +532,11 @@ class qlm_iterator(object):
                     log.info("Using cached WF solution at iter %s "%itr)
 
             t0 = time.time()
-            q_geom = pbdGeometry(self.k_geom, pbounds(0., 2 * np.pi))
+            if ffi.pbgeom.geom is self.k_geom and ffi.pbgeom.pbound == pbounds(0., 2 * np.pi):
+                # This just avoids having to recalculate angles on a new geom etc
+                q_geom  = ffi.pbgeom
+            else:
+                q_geom = pbdGeometry(self.k_geom, pbounds(0., 2 * np.pi))
             G, C = self.filter.get_qlms(self.dat_maps, soltn, q_geom)
             almxfl(G if key.lower() == 'p' else C, self._h2p(self.lmax_qlm), self.mmax_qlm, True)
             log.info('get_qlms calculation done; (%.0f secs)'%(time.time() - t0))
