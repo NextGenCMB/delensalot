@@ -47,7 +47,7 @@ dlensalot_model = DLENSALOT_Model(
     noisemodel = DLENSALOT_Noisemodel(
         sky_coverage = 'isotropic',
         spectrum_type = 'white',
-        lmin_teb = (30, 30, 30),
+        lmin_teb = (30, 30, 200),
         nlev_t = 1.00,
         nlev_p = np.sqrt(2)
     ),
