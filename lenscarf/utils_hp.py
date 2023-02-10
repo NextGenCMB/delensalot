@@ -138,7 +138,7 @@ def alm2cl(alm:np.ndarray, blm:np.ndarray or None, lmax:int or None, mmax:int or
         return ret
     return cl
 
-def alm_copy(alm, mmaxin:int or None, lmaxout:int, mmaxout:int):
+def alm_copy(alm:np.ndarray, mmaxin:int or None, lmaxout:int, mmaxout:int):
     """Copies the healpy alm array, with the option to change its lmax
 
         Parameters
@@ -159,7 +159,7 @@ def alm_copy(alm, mmaxin:int or None, lmaxout:int, mmaxout:int):
     if (lmaxin == lmaxout) and (mmaxin == mmaxout):
         ret = np.copy(alm)
     else:
-        ret = np.zeros(Alm.getsize(lmaxout, mmaxout), dtype=complex)
+        ret = np.zeros(Alm.getsize(lmaxout, mmaxout), dtype=alm.dtype)
         lmax_min = min(lmaxout, lmaxin)
         for m in range(0, min(mmaxout, mmaxin) + 1):
             idx_in =  m * (2 * lmaxin + 1 - m) // 2 + m
