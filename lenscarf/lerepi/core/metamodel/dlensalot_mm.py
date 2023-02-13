@@ -135,7 +135,7 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     """
     tasks = attr.ib(default=['calc_phi'], validator=qerec.tasks)
     qlm_type = attr.ib(default='sepTP', validator=qerec.qlms)
-    cg_tol = attr.ib(default=1e-2, validator=qerec.cg_tol)
+    cg_tol = attr.ib(default=1e-4, validator=qerec.cg_tol)
     filter_directional = attr.ib(default=np.nan, validator=qerec.filter_directional)
     ninvjob_qe_geometry = attr.ib(default='healpix_geometry_qe', validator=qerec.ninvjob_qe_geometry)
     lm_max_qlm = attr.ib(default=(10,10), validator=qerec.lm_max_qlm)

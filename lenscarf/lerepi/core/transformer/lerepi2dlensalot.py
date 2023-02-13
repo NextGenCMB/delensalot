@@ -251,28 +251,29 @@ class l2lensrec_Transformer:
 
             # transferfunction
             dl.transferfunction = da.transferfunction
+            lmax_filter = dl.lm_max_ivf[0]
             if dl.transferfunction == 'gauss_no_pixwin':
                 # Fiducial model of the transfer function
-                transf_tlm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[0])
-                transf_elm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[1])
-                transf_blm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[2])
+                transf_tlm = gauss_beam(df.a2r(dl._sims.beam), lmax=lmax_filter) * (np.arange(lmax_filter + 1) >= cf.noisemodel.lmin_teb[0])
+                transf_elm = gauss_beam(df.a2r(dl._sims.beam), lmax=lmax_filter) * (np.arange(lmax_filter + 1) >= cf.noisemodel.lmin_teb[1])
+                transf_blm = gauss_beam(df.a2r(dl._sims.beam), lmax=lmax_filter) * (np.arange(lmax_filter + 1) >= cf.noisemodel.lmin_teb[2])
             elif dl.transferfunction == 'gauss_with_pixwin':
                 # Fiducial model of the transfer function
-                transf_tlm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * hp.pixwin(dl._sims.nside, lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[0])
-                transf_elm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * hp.pixwin(dl._sims.nside, lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[1])
-                transf_blm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl._sims.lmax_transf) * hp.pixwin(dl._sims.nside, lmax=dl._sims.lmax_transf) * (np.arange(dl._sims.lmax_transf + 1) >= cf.noisemodel.lmin_teb[2])
+                transf_tlm = gauss_beam(df.a2r(dl._sims.beam), lmax=lmax_filter) * hp.pixwin(dl._sims.nside, lmax=lmax_filter) * (np.arange(lmax_filter + 1) >= cf.noisemodel.lmin_teb[0])
+                transf_elm = gauss_beam(df.a2r(dl._sims.beam), lmax=lmax_filter) * hp.pixwin(dl._sims.nside, lmax=lmax_filter) * (np.arange(lmax_filter + 1) >= cf.noisemodel.lmin_teb[1])
+                transf_blm = gauss_beam(df.a2r(dl._sims.beam), lmax=lmax_filter) * hp.pixwin(dl._sims.nside, lmax=lmax_filter) * (np.arange(lmax_filter + 1) >= cf.noisemodel.lmin_teb[2])
             dl.ttebl = {'t': transf_tlm, 'e': transf_elm, 'b':transf_blm}
 
             # Isotropic approximation to the filtering (used eg for response calculations)
-            ftl_len = cli(dl.cls_len['tt'][:dl._sims.lmax_transf + 1] + df.a2r(dl._sims.nlev_t)**2 * cli(dl.ttebl['t'] ** 2)) * (dl.ttebl['t'] > 0)
-            fel_len = cli(dl.cls_len['ee'][:dl._sims.lmax_transf + 1] + df.a2r(dl._sims.nlev_p)**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
-            fbl_len = cli(dl.cls_len['bb'][:dl._sims.lmax_transf + 1] + df.a2r(dl._sims.nlev_p)**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
+            ftl_len = cli(dl.cls_len['tt'][:lmax_filter + 1] + df.a2r(dl._sims.nlev_t)**2 * cli(dl.ttebl['t'] ** 2)) * (dl.ttebl['t'] > 0)
+            fel_len = cli(dl.cls_len['ee'][:lmax_filter + 1] + df.a2r(dl._sims.nlev_p)**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
+            fbl_len = cli(dl.cls_len['bb'][:lmax_filter + 1] + df.a2r(dl._sims.nlev_p)**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
             dl.ftebl_len = {'t': ftl_len, 'e': fel_len, 'b':fbl_len}
 
             # Same using unlensed spectra (used for unlensed response used to initiate the MAP curvature matrix)
-            ftl_unl = cli(dl.cls_unl['tt'][:dl._sims.lmax_transf + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.ttebl['t'] ** 2)) * (dl.ttebl['t'] > 0)
-            fel_unl = cli(dl.cls_unl['ee'][:dl._sims.lmax_transf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
-            fbl_unl = cli(dl.cls_unl['bb'][:dl._sims.lmax_transf + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
+            ftl_unl = cli(dl.cls_unl['tt'][:lmax_filter + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.ttebl['t'] ** 2)) * (dl.ttebl['t'] > 0)
+            fel_unl = cli(dl.cls_unl['ee'][:lmax_filter + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
+            fbl_unl = cli(dl.cls_unl['bb'][:lmax_filter + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
             dl.ftebl_unl = {'t': ftl_unl, 'e': fel_unl, 'b':fbl_unl}
 
         @log_on_start(logging.INFO, "_process_Qerec() started")
@@ -319,6 +320,8 @@ class l2lensrec_Transformer:
                 dl.chain_model = dl.chain_descr
             else:
                 dl.chain_model = qe.chain
+                dl.chain_model.p3 = dl._sims.nside
+                
                 if dl.chain_model.p6 == 'tr_cg':
                     _p6 = cd_solve.tr_cg
                 if dl.chain_model.p7 == 'cache_mem':
@@ -462,9 +465,8 @@ class l2lensrec_Transformer:
         # TODO here goes anything that needs info from different classes
 
         # fiducial
-        dl.cpp = np.copy(dl.cls_unl['pp'][:dl.it_lm_max_qlm[0] + 1]) ## TODO could be added via 'fiducial' parameter in dlensalot config for user
+        dl.cpp = np.copy(dl.cls_unl['pp'][:dl.qe_lm_max_qlm[0] + 1]) ## TODO could be added via 'fiducial' parameter in dlensalot config for user
         dl.cpp[:dl.Lmin] *= 0.
-
 
         if dl.it_filter_directional == 'anisotropic':
             # ninvjob_geometry

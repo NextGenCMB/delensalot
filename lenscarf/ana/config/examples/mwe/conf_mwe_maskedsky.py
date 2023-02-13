@@ -61,7 +61,7 @@ dlensalot_model = DLENSALOT_Model(
         lm_max_qlm = (2048, 2048)
     ),
     itrec = DLENSALOT_Itrec(
-        tasks = ["calc_blt"],
+        tasks = ["calc_phi"],
         filter_directional = 'anisotropic',
         itmax = 12,
         cg_tol = 1e-4,

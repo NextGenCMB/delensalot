@@ -14,10 +14,10 @@ dlensalot_model = DLENSALOT_Model(
         key = 'p_p',
         version = 'noMF',
         simidxs = np.arange(0,1),
-        TEMP_suffix = 'my_first_dlensalot_analysis_applyOBD',
+        TEMP_suffix = 'my_first_dlensalot_analysis_applyOBD_nsidelens512_new',
         Lmin = 2, 
-        lm_max_ivf = (300, 300),
-        mask = opj(os.environ['SCRATCH'], 'OBDmatrix', 'nside128_lmax1024_lcut100/mask.fits')
+        lm_max_ivf = (1024, 1024),
+        mask = opj(os.environ['SCRATCH'], 'OBDmatrix', 'nside512_lmax1024_lcut100/mask.fits')
     ),
     data = DLENSALOT_Data(
         package_ = 'lenscarf',
@@ -26,7 +26,8 @@ dlensalot_model = DLENSALOT_Model(
         class_parameters = {
             'lmax': 1024,
             'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(plancklens.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
-            'lib_dir': opj(os.environ['CSCRATCH'], 'generic_lmax300', 'nlevp_sqrt(2)')
+            'lib_dir': opj(os.environ['CSCRATCH'], 'generic_lmax1024_nsidelen512', 'nlevp_sqrt(2)'),
+            'nside_lens': 512
         },
         nlev_t = 1.00,
         nlev_p = np.sqrt(2),
@@ -42,14 +43,16 @@ dlensalot_model = DLENSALOT_Model(
         lmin_teb = (10, 10, 100),
         nlev_t = 1.00,
         nlev_p = np.sqrt(2),
-        rhits_normalised = (opj(os.environ['SCRATCH'], 'OBDmatrix', 'nside128_lmax1024_lcut100/rhits.fits'), np.inf),
+        rhits_normalised = (opj(os.environ['SCRATCH'], 'OBDmatrix', 'nside512_lmax1024_lcut100/rhits.fits'), np.inf),
     ),
     qerec = DLENSALOT_Qerec(
-        tasks = ["calc_phi", "calc_blt"],
+        tasks = ["calc_phi"],
         filter_directional = 'anisotropic',
-        qlm_type = 'sepTP'
+        qlm_type = 'sepTP',
+        lm_max_qlm = (1024, 1024),
+        cg_tol = 1e-3
     ),
     obd = DLENSALOT_OBD(
-        libdir = opj(os.environ['SCRATCH'], 'OBDmatrix', 'nside128_lmax1024_lcut100')
+        libdir = opj(os.environ['SCRATCH'], 'OBDmatrix', 'nside512_lmax1024_lcut100')
     )
 )
