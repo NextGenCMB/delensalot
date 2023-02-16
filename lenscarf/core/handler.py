@@ -539,7 +539,7 @@ class QE_lr(Basejob):
 
         mf_QE = copy.deepcopy(self.get_meanfield(simidx))
         cpp_loc = self.cpp
-        R = qresp.get_response(self.k, self.lm_max_ivf[0], 'p', self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=self.lm_max_ivf[0])[0]
+        R = qresp.get_response(self.k, self.lm_max_ivf[0], 'p', self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=self.qe_lm_max_qlm[0])[0]
         WF = cpp_loc * utils.cli(cpp_loc + utils.cli(R))
         almxfl(mf_QE, utils.cli(R), self.qe_lm_max_qlm[1], True) # Normalized QE
         almxfl(mf_QE, WF, self.qe_lm_max_qlm[1], True) # Wiener-filter QE
@@ -621,6 +621,8 @@ class MAP_lr(Basejob):
                         _jobs.append(idx)
                     elif rec.maxiterdone(lib_dir_iterator) >= self.itmax:
                         _jobs.append(idx)
+                    else:
+                        log.info("Nothing to compute, as maxiterdone:{} < itermax:{}".format(rec.maxiterdone(lib_dir_iterator), self.itmax))
 
             jobs[taski] = _jobs
         self.jobs = jobs
@@ -719,14 +721,17 @@ class MAP_lr(Basejob):
         if simidx != self.itlib.simidx:
             self.itlib = self.ith(self.qe, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
             self.itlib_iterator = self.itlib.get_iterator()
-        
-        dlm_mod = np.array(0)
+
+        self.lib_dir_iterator = self.libdir_iterators(self.k, simidx, self.version)
+        dlm_mod = np.zeros_like(rec.load_plms(self.lib_dir_iterator, [0])[0])
         if self.dlm_mod_bool and it>0 and it<=rec.maxiterdone(self.lib_dir_iterator):
             dlm_mod = self.get_meanfields_it([it], calc=False)
             if simidx in self.simidxs_mf:
                 dlm_mod = (dlm_mod - np.array(rec.load_plms(self.lib_dir_iterator, [it]))/self.Nmf) * self.Nmf/(self.Nmf - 1)
         if it>0 and it<=rec.maxiterdone(self.lib_dir_iterator):
             return self.itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, perturbative=False)
+        elif it==0:
+            return self.itlib_iterator.get_template_blm(0, 0, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, perturbative=self.blt_pert)
 
 
 class Map_delenser(Basejob):

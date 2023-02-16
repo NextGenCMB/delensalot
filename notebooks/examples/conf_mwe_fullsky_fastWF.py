@@ -18,15 +18,16 @@ dlensalot_model = DLENSALOT_Model(
         jobs = ["QE_lensrec", "MAP_lensrec"]
     ),
     computing = DLENSALOT_Computing(
-        OMP_NUM_THREADS = 2
+        OMP_NUM_THREADS = 4
     ),                              
     analysis = DLENSALOT_Analysis(
         key = 'p_p',
         version = 'noMF',
         simidxs = np.arange(0,1),
-        TEMP_suffix = 'my_first_dlensalot_analysis_fastWF',
+        TEMP_suffix = 'my_first_dlensalot_analysis_fastWF_lownoise',
         Lmin = 2, 
         lm_max_ivf = (3000, 3000),
+        lmin_teb = (2, 2, 200)
     ),
     data = DLENSALOT_Data(
         package_ = 'lenscarf',
@@ -35,10 +36,10 @@ dlensalot_model = DLENSALOT_Model(
         class_parameters = {
             'lmax': 4000,
             'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(plancklens.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
-            'lib_dir': opj(os.environ['CSCRATCH'], 'generic_lmax4000','nlevp_sqrt(2)')
+            'lib_dir': opj(os.environ['CSCRATCH'], 'sims', 'generic', 'nside2048', 'lmax4000', 'nlevp_sqrt(2)')
         },
         nlev_t = 1.00,
-        nlev_p = np.sqrt(2),
+        nlev_p = np.sqrt(2)
         beam = 1.00,
         lmax_transf = 4096,
         nside = 2048,
@@ -47,7 +48,6 @@ dlensalot_model = DLENSALOT_Model(
     noisemodel = DLENSALOT_Noisemodel(
         sky_coverage = 'isotropic',
         spectrum_type = 'white',
-        lmin_teb = (30, 30, 30),
         nlev_t = 1.00,
         nlev_p = np.sqrt(2)
     ),
@@ -55,7 +55,7 @@ dlensalot_model = DLENSALOT_Model(
         tasks = ["calc_phi", "calc_blt"],
         filter_directional = 'isotropic',
         qlm_type = 'sepTP',
-        cg_tol = 1e-3,
+        cg_tol = 1e-5,
         lm_max_qlm = (4000, 4000)
     ),
     itrec = DLENSALOT_Itrec(

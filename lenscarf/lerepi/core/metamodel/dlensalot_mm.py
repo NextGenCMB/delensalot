@@ -7,6 +7,7 @@ __author__ = "S. Belkner, J. Carron, L. Legrand"
 import abc
 import attr
 import os
+import psutil
 from os.path import join as opj
 
 import numpy as np
@@ -87,6 +88,7 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     lm_max_len = attr.ib(default=(10,10), validator=filter.lm_max_len)
     lm_max_ivf = attr.ib(default=(10,10), validator=filter.lm_ivf)
     mask = attr.ib(default=None, validator=noisemodel.mask)
+    lmin_teb = attr.ib(default=(10,10,10), validator=noisemodel.lmin_teb)
 
 @attr.s
 class DLENSALOT_Data(DLENSALOT_Concept):
@@ -101,8 +103,6 @@ class DLENSALOT_Data(DLENSALOT_Concept):
     module_ = attr.ib(default=None, validator=data.module_)
     class_ = attr.ib(default=None, validator=data.class_)
     transferfunction = attr.ib(default='gauss_with_pixwin', validator=data.transferfunction)
-    data_type = attr.ib(default='map', validator=data.data_type)
-    data_field = attr.ib(default='qu', validator=data.data_field)
     beam = attr.ib(default=None)
     nside = attr.ib(default=None)
     nlev_t = attr.ib(default=None)
@@ -120,7 +120,6 @@ class DLENSALOT_Noisemodel(DLENSALOT_Concept):
     sky_coverage = attr.ib(default='isotropic', validator=noisemodel.sky_coverage)
     spectrum_type = attr.ib(default='white', validator=noisemodel.spectrum_type)
     OBD = attr.ib(default=False, validator=noisemodel.OBD)
-    lmin_teb = attr.ib(default=(10,10,10), validator=noisemodel.lmin_teb)
     nlev_t = attr.ib(default=[], validator=noisemodel.nlev_t)
     nlev_p = attr.ib(default=[], validator=noisemodel.nlev_p)
     rhits_normalised = attr.ib(default=None, validator=noisemodel.rhits_normalised)
@@ -135,7 +134,7 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     """
     tasks = attr.ib(default=['calc_phi'], validator=qerec.tasks)
     qlm_type = attr.ib(default='sepTP', validator=qerec.qlms)
-    cg_tol = attr.ib(default=1e-2, validator=qerec.cg_tol)
+    cg_tol = attr.ib(default=1e-4, validator=qerec.cg_tol)
     filter_directional = attr.ib(default=np.nan, validator=qerec.filter_directional)
     ninvjob_qe_geometry = attr.ib(default='healpix_geometry_qe', validator=qerec.ninvjob_qe_geometry)
     lm_max_qlm = attr.ib(default=(10,10), validator=qerec.lm_max_qlm)
@@ -222,7 +221,7 @@ class DLENSALOT_Computing(DLENSALOT_Concept):
     Attributes:
         QE_delensing:
     """
-    OMP_NUM_THREADS = attr.ib(default=-1, validator=computing.OMP_NUM_THREADS)
+    OMP_NUM_THREADS = attr.ib(default=int(psutil.cpu_count()/psutil.cpu_count(logical=False)), validator=computing.OMP_NUM_THREADS)
 
 @attr.s
 class DLENSALOT_Model(DLENSALOT_Concept):
@@ -231,6 +230,7 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     Attributes:
         data: 
     """
+
     meta = attr.ib(default=DLENSALOT_Meta(), validator=model.meta)
     job = attr.ib(default=DLENSALOT_Job(), validator=model.job)
     analysis = attr.ib(default=DLENSALOT_Analysis(), validator=model.analysis)
@@ -240,5 +240,5 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     itrec = attr.ib(default=DLENSALOT_Itrec(), validator=model.itrec)
     madel = attr.ib(default=DLENSALOT_Mapdelensing(), validator=model.madel)
     config = attr.ib(default=DLENSALOT_Config(), validator=model.config)
-    computing = attr.ib(default=DLENSALOT_Config(), validator=model.computing)
+    computing = attr.ib(default=DLENSALOT_Computing(), validator=model.computing)
     obd = attr.ib(default=DLENSALOT_OBD(), validator=model.obd)

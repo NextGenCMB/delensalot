@@ -5,8 +5,6 @@ The noise model is isotropic and white, and truncates T,E, and B modes at low mu
 QE and iterative reconstruction uses anisotropic filters. 
 """
 
-# TODO pixwin? at simulations + reconstruction? Or can be ignored?
-
 import numpy as np
 import os
 import plancklens
@@ -20,16 +18,17 @@ dlensalot_model = DLENSALOT_Model(
         jobs = ["QE_lensrec", "MAP_lensrec"]
     ),
     computing = DLENSALOT_Computing(
-        OMP_NUM_THREADS = 2
+        OMP_NUM_THREADS = 4
     ),                              
     analysis = DLENSALOT_Analysis(
         key = 'p_p',
         simidxs = np.arange(0,1),
-        simidxs_mf = np.arange(0,40),
-        TEMP_suffix = 'my_first_dlensalot_analysis_maskedsky_nside1024',
+        simidxs_mf = np.arange(0,60),
+        TEMP_suffix = 'my_first_dlensalot_analysis_maskedsky',
         Lmin = 2, 
         lm_max_ivf = (2048, 2048),
-        mask = opj(os.environ['SCRATCH'], 'dlensalot/lenscarf/generic/sims_cmb_len_lminB200_my_first_dlensalot_analysis_maskedsky_nside1024/mask.fits')
+        lmin_teb = (10, 10, 200),
+        mask = opj(os.environ['SCRATCH'], 'dlensalot/lenscarf/generic/sims_cmb_len_lminB200_my_first_dlensalot_analysis_maskedsky/mask.fits')
     ),
     data = DLENSALOT_Data(
         package_ = 'lenscarf',
@@ -50,22 +49,21 @@ dlensalot_model = DLENSALOT_Model(
     noisemodel = DLENSALOT_Noisemodel(
         sky_coverage = 'isotropic',
         spectrum_type = 'white',
-        lmin_teb = (10, 10, 200),
         nlev_t = 1.00,
         nlev_p = np.sqrt(2),
-        rhits_normalised = (opj(os.environ['SCRATCH'], 'dlensalot/lenscarf/generic/sims_cmb_len_lminB200_my_first_dlensalot_analysis_maskedsky_nside1024/rhits.fits'), np.inf)
+        rhits_normalised = (opj(os.environ['SCRATCH'], 'dlensalot/lenscarf/generic/sims_cmb_len_lminB200_my_first_dlensalot_analysis_maskedsky/rhits.fits'), np.inf)
     ),
     qerec = DLENSALOT_Qerec(
         tasks = ["calc_phi","calc_meanfield", "calc_blt"],
         filter_directional = 'anisotropic',
         qlm_type = 'sepTP',
-        cg_tol = 1e-3,
+        cg_tol = 1e-4,
         lm_max_qlm = (2048, 2048)
     ),
     itrec = DLENSALOT_Itrec(
-        tasks = ["calc_phi","calc_meanfield", "calc_blt"],
+        tasks = ["calc_phi"],
         filter_directional = 'anisotropic',
-        itmax = 1,
+        itmax = 12,
         cg_tol = 1e-4,
         lensres = 1.7,
         iterator_typ = 'constmf',
