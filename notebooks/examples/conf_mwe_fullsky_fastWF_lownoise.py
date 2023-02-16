@@ -55,14 +55,14 @@ dlensalot_model = DLENSALOT_Model(
         tasks = ["calc_phi", "calc_blt"],
         filter_directional = 'isotropic',
         qlm_type = 'sepTP',
-        cg_tol = 1e-5,
+        cg_tol = 1e-6,
         lm_max_qlm = (4000, 4000)
     ),
     itrec = DLENSALOT_Itrec(
         tasks = ["calc_phi", "calc_blt"],
         filter_directional = 'isotropic',
         itmax = 10,
-        cg_tol = 1e-5,
+        cg_tol = 1e-6,
         lensres = 1.7,
         iterator_typ = 'fastWF',
         lm_max_unl = (4000, 4000),
