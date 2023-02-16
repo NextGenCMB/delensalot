@@ -721,14 +721,17 @@ class MAP_lr(Basejob):
         if simidx != self.itlib.simidx:
             self.itlib = self.ith(self.qe, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
             self.itlib_iterator = self.itlib.get_iterator()
-        
-        dlm_mod = np.array(0)
+
+        self.lib_dir_iterator = self.libdir_iterators(self.k, simidx, self.version)
+        dlm_mod = np.zeros_like(rec.load_plms(self.lib_dir_iterator, [0])[0])
         if self.dlm_mod_bool and it>0 and it<=rec.maxiterdone(self.lib_dir_iterator):
             dlm_mod = self.get_meanfields_it([it], calc=False)
             if simidx in self.simidxs_mf:
                 dlm_mod = (dlm_mod - np.array(rec.load_plms(self.lib_dir_iterator, [it]))/self.Nmf) * self.Nmf/(self.Nmf - 1)
         if it>0 and it<=rec.maxiterdone(self.lib_dir_iterator):
             return self.itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, perturbative=False)
+        elif it==0:
+            return self.itlib_iterator.get_template_blm(0, 0, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, perturbative=self.blt_pert)
 
 
 class Map_delenser(Basejob):

@@ -65,7 +65,7 @@ class l2T_Transformer:
             if cf.noisemodel.OBD:
                 _suffix += '_OBD'
             else:
-                _suffix += '_lminB'+str(cf.noisemodel.lmin_teb[2])
+                _suffix += '_lminB'+str(cf.analysis.lmin_teb[2])
 
             if cf.analysis.TEMP_suffix != '':
                 _suffix += '_'+cf.analysis.TEMP_suffix
@@ -136,6 +136,8 @@ class l2lensrec_Transformer:
             dl.mask_fn = an.mask
             # key -> k
             dl.k = an.key
+            # lmin_teb
+            dl.lmin_teb = an.lmin_teb
             # version -> version
             dl.version = an.version
             # simidxs
@@ -187,8 +189,7 @@ class l2lensrec_Transformer:
                 dl.rhits_normalised = dl.masks if nm.rhits_normalised is None else nm.rhits_normalised
             # spectrum_type
             dl.spectrum_type = nm.spectrum_type
-            # lmin_teb
-            dl.lmin_teb = nm.lmin_teb
+
             dl.OBD = nm.OBD
             # nlev_t
             dl.nlev_t = l2OBD_Transformer.get_nlevt(cf)
@@ -235,8 +236,6 @@ class l2lensrec_Transformer:
                 # -> nothing to do here
                 ## sims parameter come from configuration file
                 dl._sims.beam = da.beam
-                dl._sims.data_type = da.data_type
-                dl._sims.data_field = da.data_field
                 dl._sims.lmax_transf = da.lmax_transf
                 dl._sims.nlev_t = da.nlev_t
                 dl._sims.nlev_p = da.nlev_p
@@ -254,14 +253,14 @@ class l2lensrec_Transformer:
             lmax_filter = dl.lm_max_ivf[0]
             if dl.transferfunction == 'gauss_no_pixwin':
                 # Fiducial model of the transfer function
-                transf_tlm = gauss_beam(df.a2r(dl._sims.beam), lmax=lmax_filter) * (np.arange(lmax_filter + 1) >= cf.noisemodel.lmin_teb[0])
-                transf_elm = gauss_beam(df.a2r(dl._sims.beam), lmax=lmax_filter) * (np.arange(lmax_filter + 1) >= cf.noisemodel.lmin_teb[1])
-                transf_blm = gauss_beam(df.a2r(dl._sims.beam), lmax=lmax_filter) * (np.arange(lmax_filter + 1) >= cf.noisemodel.lmin_teb[2])
+                transf_tlm = gauss_beam(df.a2r(dl._sims.beam), lmax=lmax_filter) * (np.arange(lmax_filter + 1) >= dl.lmin_teb[0])
+                transf_elm = gauss_beam(df.a2r(dl._sims.beam), lmax=lmax_filter) * (np.arange(lmax_filter + 1) >= dl.lmin_teb[1])
+                transf_blm = gauss_beam(df.a2r(dl._sims.beam), lmax=lmax_filter) * (np.arange(lmax_filter + 1) >= dl.lmin_teb[2])
             elif dl.transferfunction == 'gauss_with_pixwin':
                 # Fiducial model of the transfer function
-                transf_tlm = gauss_beam(df.a2r(dl._sims.beam), lmax=lmax_filter) * hp.pixwin(dl._sims.nside, lmax=lmax_filter) * (np.arange(lmax_filter + 1) >= cf.noisemodel.lmin_teb[0])
-                transf_elm = gauss_beam(df.a2r(dl._sims.beam), lmax=lmax_filter) * hp.pixwin(dl._sims.nside, lmax=lmax_filter) * (np.arange(lmax_filter + 1) >= cf.noisemodel.lmin_teb[1])
-                transf_blm = gauss_beam(df.a2r(dl._sims.beam), lmax=lmax_filter) * hp.pixwin(dl._sims.nside, lmax=lmax_filter) * (np.arange(lmax_filter + 1) >= cf.noisemodel.lmin_teb[2])
+                transf_tlm = gauss_beam(df.a2r(dl._sims.beam), lmax=lmax_filter) * hp.pixwin(dl._sims.nside, lmax=lmax_filter) * (np.arange(lmax_filter + 1) >= dl.lmin_teb[0])
+                transf_elm = gauss_beam(df.a2r(dl._sims.beam), lmax=lmax_filter) * hp.pixwin(dl._sims.nside, lmax=lmax_filter) * (np.arange(lmax_filter + 1) >= dl.lmin_teb[1])
+                transf_blm = gauss_beam(df.a2r(dl._sims.beam), lmax=lmax_filter) * hp.pixwin(dl._sims.nside, lmax=lmax_filter) * (np.arange(lmax_filter + 1) >= dl.lmin_teb[2])
             dl.ttebl = {'t': transf_tlm, 'e': transf_elm, 'b':transf_blm}
 
             # Isotropic approximation to the filtering (used eg for response calculations)
@@ -508,6 +507,7 @@ class l2OBD_Transformer:
         def _process_Analysis(dl, an):
             dl.TEMP_suffix = an.TEMP_suffix,
             dl.mask_fn = an.mask
+            dl.lmin_teb = an.lmin_teb
 
 
         @log_on_start(logging.INFO, "_process_OBD() started")
@@ -529,7 +529,7 @@ class l2OBD_Transformer:
         @log_on_start(logging.INFO, "_process_Noisemodel() started")
         @log_on_end(logging.INFO, "_process_Noisemodel() finished")
         def _process_Noisemodel(dl, nm):
-            dl.lmin_b = nm.lmin_teb[2]
+            dl.lmin_b = dl.lmin_teb[2]
             dl.geom = utils_scarf.Geom.get_healpix_geometry(dl.nside)
             dl.masks, dl.rhits_map = l2OBD_Transformer.get_masks(cf)
             dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
