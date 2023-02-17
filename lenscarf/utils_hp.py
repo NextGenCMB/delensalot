@@ -59,7 +59,7 @@ def gauss_beam(fwhm:float, lmax:int):
 
     """
     l = np.arange(lmax + 1)
-    bl = np.exp(-0.5 * l * (l + 1) *  (fwhm / np.sqrt(8.0 * np.log(2.0))) ** 2)
+    bl = np.exp(-0.5 * l * (l + 1) * (fwhm / np.sqrt(8.0 * np.log(2.0))) ** 2)
     return bl
 
 def synalm(cl:np.ndarray, lmax:int, mmax:int or None):
