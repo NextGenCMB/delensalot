@@ -544,8 +544,6 @@ class qlm_iterator(object):
        
 class iterator_cstmf(qlm_iterator):
     """Constant mean-field
-
-
     """
 
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,

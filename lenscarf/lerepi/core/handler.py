@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 
 from lenscarf.core import mpi
-
+from lenscarf.lerepi.core.validator import safelist
 from lenscarf.lerepi.core.visitor import transform
 from lenscarf.lerepi.core.transformer.lerepi2dlensalot import l2j_Transformer, l2T_Transformer, l2ji_Transformer
 from lenscarf.lerepi.core.transformer.lerepi2status import l2j_Transformer as l2js_Transformer
@@ -146,24 +146,6 @@ class handler():
             configfile (_type_): _description_
             TEMP (_type_): _description_
         """
-        safelist = [
-            'version',
-            'jobs',
-            'simidxs',
-            'simidxs_mf',
-            'tasks',
-            'cl_analysis',
-            'blt_pert',
-            'itmax',
-            'cg_tol',
-            'mfvar',
-            'dlm_mod',
-            'spectrum_calculator',
-            'binning',
-            'outdir_plot_root',
-            'outdir_plot_rel',
-            'OMP_NUM_THREADS',
-        ]
         dostore = False
         # This is only done if not resuming. Otherwise file would already exist
         if os.path.isfile(parser.config_file) and parser.config_file.endswith('.py'):
