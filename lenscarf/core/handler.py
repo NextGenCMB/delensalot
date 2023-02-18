@@ -46,12 +46,14 @@ class Basejob():
             _str += '\n'
         return _str
 
+
     def __init__(self, qe, model):
 
         assert 0, "Overwrite"
 
+
     @log_on_start(logging.INFO, "collect_jobs() started")
-    @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}"    )
+    @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
     @base_exception_handler
     def collect_jobs(self):
 
@@ -59,7 +61,7 @@ class Basejob():
 
 
     @log_on_start(logging.INFO, "collect_jobs() started")
-    @log_on_end(logging.INFO, "collect_jobs() finished"    )
+    @log_on_end(logging.INFO, "collect_jobs() finished")
     @base_exception_handler
     def run(self):
 
@@ -72,13 +74,13 @@ class Basejob():
 
 
     @base_exception_handler
-    def load_plm_it(self, simidx, it):
+    def get_plm_it(self, simidx, it):
 
         assert 0, "Implement if needed"
 
 
     @base_exception_handler
-    def load_mf_it(self, simidx, it, normalized=True):
+    def get_mf_it(self, simidx, it, normalized=True):
 
         assert 0, "Implement if needed"
 
@@ -128,7 +130,7 @@ class Notebook_interactor(Basejob):
 
 
     @log_on_start(logging.INFO, "read_data_v2() started")
-    @log_on_end(logging.INFO, "read_data_v2() finished"    )
+    @log_on_end(logging.INFO, "read_data_v2() finished")
     @base_exception_handler
     def read_data_v2(self, edges_id=0):
         bcl_cs = np.zeros(shape=(len(self.its)+2, len(self.mask_ids), len(self.simidxs), len(self.edges[edges_id])-1))
@@ -152,7 +154,7 @@ class Notebook_interactor(Basejob):
 
 
     @log_on_start(logging.INFO, "load_foreground_freqs_mapalm() started")
-    @log_on_end(logging.INFO, "load_foreground_freqs_mapalm() finished"    )
+    @log_on_end(logging.INFO, "load_foreground_freqs_mapalm() finished")
     @base_exception_handler
     def load_foreground_freqs_mapalm(self, mask=1, rotate_alms=False):
         if self.fc.flavour == 'QU':
@@ -243,7 +245,7 @@ class Notebook_interactor(Basejob):
 
 
     # @log_on_start(logging.INFO, "getfn_blm_lensc() started")
-    # @log_on_end(logging.INFO, "getfn_blm_lensc() finished"    )
+    # @log_on_end(logging.INFO, "getfn_blm_lensc() finished")
     @base_exception_handler
     def getfn_blm_lensc(self, simidx, it, fn_splitsetsuffix=''):
         '''Lenscarf output using Catherinas E and B maps'''
@@ -338,7 +340,7 @@ class OBD_builder(Basejob):
 
 
     @log_on_start(logging.INFO, "run() started")
-    @log_on_end(logging.INFO, "run() finished"    )
+    @log_on_end(logging.INFO, "run() finished")
     @base_exception_handler
     def run(self):
         # This fakes the collect/run structure, as bpl takes care of MPI 
@@ -381,7 +383,7 @@ class QE_lr(Basejob):
       
 
     @log_on_start(logging.INFO, "collect_jobs(qe_tasks={qe_tasks}, recalc={recalc}) started")
-    @log_on_end(logging.INFO, "collect_jobs(qe_tasks={qe_tasks}, recalc={recalc}) finished: jobs={self.jobs}"    )
+    @log_on_end(logging.INFO, "collect_jobs(qe_tasks={qe_tasks}, recalc={recalc}) finished: jobs={self.jobs}")
     @base_exception_handler
     def collect_jobs(self, qe_tasks=None, recalc=False):
 
@@ -433,7 +435,7 @@ class QE_lr(Basejob):
 
 
     @log_on_start(logging.INFO, "run(task={task}) started")
-    @log_on_end(logging.INFO, "run(task={task}) finished"    )
+    @log_on_end(logging.INFO, "run(task={task}) finished")
     @base_exception_handler
     def run(self, task=None):
         ## task may be set from MAP lensrec, as MAP lensrec has prereqs to QE lensrec
@@ -473,7 +475,7 @@ class QE_lr(Basejob):
 
 
     @log_on_start(logging.INFO, "get_sim_qlm(simidx={simidx}) started")
-    @log_on_end(logging.INFO, "get_sim_qlm(simidx={simidx}) finished"    )
+    @log_on_end(logging.INFO, "get_sim_qlm(simidx={simidx}) finished")
     @base_exception_handler
     def get_sim_qlm(self, simidx):
 
@@ -510,7 +512,7 @@ class QE_lr(Basejob):
 
 
     @log_on_start(logging.INFO, "get_meanfield(simidx={simidx}) started")
-    @log_on_end(logging.INFO, "get_meanfield(simidx={simidx}) finished"    )
+    @log_on_end(logging.INFO, "get_meanfield(simidx={simidx}) finished")
     @base_exception_handler
     def get_meanfield(self, simidx):
         ret = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, 0))
@@ -530,7 +532,7 @@ class QE_lr(Basejob):
 
 
     @log_on_start(logging.INFO, "get_plm(simidx={simidx}, sub_mf={sub_mf}) started")
-    @log_on_end(logging.INFO, "get_plm(simidx={simidx}, sub_mf={sub_mf}) finished"    )
+    @log_on_end(logging.INFO, "get_plm(simidx={simidx}, sub_mf={sub_mf}) finished")
     @base_exception_handler
     def get_plm(self, simidx, sub_mf=True):
         lib_dir_iterator = self.libdir_iterators(self.k, simidx, self.version)
@@ -555,7 +557,7 @@ class QE_lr(Basejob):
 
     # TODO this could be done before, inside c2d()
     @log_on_start(logging.INFO, "get_response_meanfield() started")
-    @log_on_end(logging.INFO, "get_response_meanfield() finished"    )
+    @log_on_end(logging.INFO, "get_response_meanfield() finished")
     @base_exception_handler
     def get_response_meanfield(self):
         if self.k in ['p_p'] and not 'noRespMF' in self.version:
@@ -567,7 +569,7 @@ class QE_lr(Basejob):
         return mf_resp
 
     @log_on_start(logging.INFO, "get_meanfield_normalized(simidx={simidx}) started")
-    @log_on_end(logging.INFO, "get_meanfield_normalized(simidx={simidx}) finished"    )
+    @log_on_end(logging.INFO, "get_meanfield_normalized(simidx={simidx}) finished")
     @base_exception_handler
     def get_meanfield_normalized(self, simidx):
 
@@ -583,7 +585,7 @@ class QE_lr(Basejob):
 
 
     @log_on_start(logging.INFO, "get_blt({simidx}) started")
-    @log_on_end(logging.INFO, "get_blt({simidx}) finished"    )
+    @log_on_end(logging.INFO, "get_blt({simidx}) finished")
     @base_exception_handler
     def get_blt(self, simidx):
         itlib = self.ith(self, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
@@ -611,7 +613,7 @@ class MAP_lr(Basejob):
 
 
     @log_on_start(logging.INFO, "collect_jobs() started")
-    @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}"    )
+    @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
     @base_exception_handler
     def collect_jobs(self):
         jobs = list(range(len(self.it_tasks)))
@@ -665,7 +667,7 @@ class MAP_lr(Basejob):
 
 
     @log_on_start(logging.INFO, "run() started")
-    @log_on_end(logging.INFO, "run() finished"    )
+    @log_on_end(logging.INFO, "run() finished")
     @base_exception_handler
     def run(self):
         for taski, task in enumerate(self.it_tasks):
@@ -705,7 +707,7 @@ class MAP_lr(Basejob):
 
 
     @log_on_start(logging.INFO, "get_plm_it(simidx={simidx}, its={its}) started")
-    @log_on_end(logging.INFO, "get_plm_it(simidx={simidx}, its={its}) finished"    )
+    @log_on_end(logging.INFO, "get_plm_it(simidx={simidx}, its={its}) finished")
     @base_exception_handler
     def get_plm_it(self, simidx, its):
 
@@ -715,7 +717,7 @@ class MAP_lr(Basejob):
 
 
     @log_on_start(logging.INFO, "get_meanfield_it(it={it}, calc={calc}) started")
-    @log_on_end(logging.INFO, "get_meanfield_it(it={it}, calc={calc}) finished"    )
+    @log_on_end(logging.INFO, "get_meanfield_it(it={it}, calc={calc}) finished")
     @base_exception_handler
     def get_meanfield_it(self, it, calc=False):
         # for mfvar runs, this returns the correct meanfields, as mfvar runs go into distinct itlib dirs.
@@ -737,7 +739,7 @@ class MAP_lr(Basejob):
 
 
     @log_on_start(logging.INFO, "get_meanfields_it(its={its}, calc={calc}) started")
-    @log_on_end(logging.INFO, "get_meanfields_it(its={its}, calc={calc}) finished"    )
+    @log_on_end(logging.INFO, "get_meanfields_it(its={its}, calc={calc}) finished")
     @base_exception_handler
     def get_meanfields_it(self, its, calc=False):
         plm = rec.load_plms(self.libdir_iterators(self.k, self.simidxs[0], self.version), [0])[-1]
@@ -753,7 +755,7 @@ class MAP_lr(Basejob):
 
 
     @log_on_start(logging.INFO, "get_blt_it(simidx={simidx}, it={it}) started")
-    @log_on_end(logging.INFO, "get_blt_it(simidx={simidx}, it={it}) finished"    )
+    @log_on_end(logging.INFO, "get_blt_it(simidx={simidx}, it={it}) finished")
     @base_exception_handler
     def get_blt_it(self, simidx, it):
         if 'itlib' not in self.__dict__:
@@ -796,7 +798,7 @@ class Map_delenser(Basejob):
         self.bcl_L, self.bcl_cs  = self.read_data_v2(edges_id=0)
 
     @log_on_start(logging.INFO, "read_data_v2() started")
-    @log_on_end(logging.INFO, "read_data_v2() finished"    )
+    @log_on_end(logging.INFO, "read_data_v2() finished")
     @base_exception_handler
     def read_data_v2(self, edges_id=0):
         bcl_cs = np.zeros(shape=(len(self.its)+2, len(self.mask_ids), len(self.simidxs), len(self.edges[edges_id])-1))
@@ -820,7 +822,7 @@ class Map_delenser(Basejob):
 
 
     # @log_on_start(logging.INFO, "getfn_blm_lensc() started")
-    # @log_on_end(logging.INFO, "getfn_blm_lensc() finished"    )
+    # @log_on_end(logging.INFO, "getfn_blm_lensc() finished")
     @base_exception_handler
     def getfn_blm_lensc(self, simidx, it, fn_splitsetsuffix=''):
         # TODO this needs cleaner implementation via lambda
@@ -853,7 +855,7 @@ class Map_delenser(Basejob):
 
             
     # @log_on_start(logging.INFO, "getfn_qumap_cs() started")
-    # @log_on_end(logging.INFO, "getfn_qumap_cs() finished"    )
+    # @log_on_end(logging.INFO, "getfn_qumap_cs() finished")
     @base_exception_handler
     def getfn_qumap_cs(self, simidx):
 
@@ -864,7 +866,7 @@ class Map_delenser(Basejob):
 
 
     # @log_on_start(logging.INFO, "get_teblm_ffp10() started")
-    # @log_on_end(logging.INFO, "get_teblm_ffp10() finished"    )
+    # @log_on_end(logging.INFO, "get_teblm_ffp10() finished")
     @base_exception_handler
     def get_teblm_ffp10(self, simidx):
         '''Pure BB-lensing from ffp10''' 
@@ -874,7 +876,7 @@ class Map_delenser(Basejob):
 
 
     @log_on_start(logging.INFO, "collect_jobs() started")
-    @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}"    )
+    @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
     @base_exception_handler
     def collect_jobs(self):
         # TODO a valid job is any requested job, as BLTs may also be on CFS
@@ -888,7 +890,7 @@ class Map_delenser(Basejob):
 
 
     @log_on_start(logging.INFO, "run() started")
-    @log_on_end(logging.INFO, "run() finished"    )
+    @log_on_end(logging.INFO, "run() finished")
     @base_exception_handler
     def run(self):
         
