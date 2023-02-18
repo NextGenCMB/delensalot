@@ -6,7 +6,6 @@
     runs all jobs
 """
 __author__ = "S. Belkner, J. Carron, L. Legrand"
-# TODO this could be the level for _process_Model
 
 import os
 from os.path import join as opj
@@ -40,6 +39,11 @@ class handler():
         # TODO hack. remove when v1 is gone
         if 'madel' in self.configfile.dlensalot_model.__dict__:
             self.configfile.dlensalot_model.madel.__dict__.update(madel_kwargs)
+        if 'job_id' in parser.__dict__:
+            if parser.job_id is None:
+                pass
+            else:
+                self.configfile.dlensalot_model.job.__dict__.update({'jobs': parser.job_id})
         # TODO catch here TEMP dir for build_OBD? or make TEMP builder output buildOBDspecific
         TEMP = transform(self.configfile.dlensalot_model, l2T_Transformer())
         if parser.status == '':
@@ -63,7 +67,8 @@ class handler():
         """_summary_
         """
         ## Making sure that specific job request from run() is processed
-        self.configfile.dlensalot_model.job.__dict__[job_id] = True
+        self.configfile.dlensalot_model.job.jobs.append(job_id)
+        self.job_id = job_id
         
         if self.parser.status == '':
             self.jobs = transform(self.configfile.dlensalot_model, l2j_Transformer())
@@ -119,11 +124,16 @@ class handler():
                 job = val[1]
 
                 log.info("Starting job {}".format(job_id))
+
                 model = transform(conf, transformer)
-                log.info("Model collected {}".format(model))
+                # log.info("Model collected {}".format(model))
+                
                 j = job(model)
+                
                 j.collect_jobs()
+                
                 j.run()
+                
 
 
     @log_on_start(logging.INFO, "store() Started")
@@ -136,26 +146,51 @@ class handler():
             configfile (_type_): _description_
             TEMP (_type_): _description_
         """
+        safelist = [
+            'version',
+            'jobs',
+            'simidxs',
+            'simidxs_mf',
+            'tasks',
+            'cl_analysis',
+            'blt_pert',
+            'itmax',
+            'cg_tol',
+            'mfvar',
+            'dlm_mod',
+            'spectrum_calculator',
+            'binning',
+            'outdir_plot_root',
+            'outdir_plot_rel',
+            'OMP_NUM_THREADS',
+        ]
         dostore = False
-        if parser.resume == '':
-            dostore = True
-            # This is only done if not resuming. Otherwise file would already exist
-            if os.path.isfile(parser.config_file) and parser.config_file.endswith('.py'):
-                # if the file already exists, check if something changed
-                if os.path.isfile(TEMP+'/'+parser.config_file.split('/')[-1]):
-                    dostore = False
-                    logging.warning('config file {} already exist. Checking differences.'.format(TEMP+'/'+parser.config_file.split('/')[-1]))
-                    configfile_old = handler.load_configfile(TEMP+'/'+parser.config_file.split('/')[-1], 'configfile_old')   
-                    for key, val in configfile_old.dlensalot_model.__dict__.items():
-                        for k, v in val.__dict__.items():
-                            if v.__str__() != configfile.dlensalot_model.__dict__[key].__dict__[k].__str__():
-                                if callable(v):
-                                    # If function, we can test if bytecode is the same as a simple check won't work due to pointing to memory location
-                                    if v.__code__.co_code != configfile.dlensalot_model.__dict__[key].__dict__[k].__code__.co_code:
-                                        logging.error("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
-                                        logging.error('Exit. Check config file.')
-                                        sys.exit()
-                    logging.info('config file look the same. Resuming where I left off last time.')
+        # This is only done if not resuming. Otherwise file would already exist
+        if os.path.isfile(parser.config_file) and parser.config_file.endswith('.py'):
+            # if the file already exists, check if something changed
+            if os.path.isfile(TEMP+'/'+parser.config_file.split('/')[-1]):
+                logging.warning('config file {} already exist. Checking differences.'.format(TEMP+'/'+parser.config_file.split('/')[-1]))
+                configfile_old = handler.load_configfile(TEMP+'/'+parser.config_file.split('/')[-1], 'configfile_old')   
+                for key, val in configfile_old.dlensalot_model.__dict__.items():
+                    for k, v in val.__dict__.items():
+                        if v.__str__() != configfile.dlensalot_model.__dict__[key].__dict__[k].__str__():
+                            log.info('Different item found')
+                            if k.__str__() in safelist:
+                                logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
+                                dostore = True
+                            else:
+                                # if callable(v):
+                                #     # If function, we can test if bytecode is the same as a simple check won't work due to pointing to memory location
+                                #     if v.__code__.co_code != configfile.dlensalot_model.__dict__[key].__dict__[k].__code__.co_code:
+                                #         logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
+                                #         logging.warning('Exit. Check config file.')
+                                #         sys.exit()
+                                # else:
+                                    dostore = False
+                                    logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
+                                    logging.warning('Not part of safelist. Changing this value will likely result in a wrong analysis. Exit. Check config file.')
+                                    sys.exit()
+                logging.info('config file comparison done. No conflicts found.')
 
         if dostore:
             if mpi.rank == 0:

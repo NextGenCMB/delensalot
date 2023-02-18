@@ -473,17 +473,17 @@ class l2lensrec_Transformer:
                 dl.ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(dl._sims.nside, zbounds=dl.zbounds)
 
 
-        if mpi.rank == 0:
-            _str = "\nConfiguration:"+3*'\n---------------------------------------------------\n'
-            for key, val in dl.__dict__.items():
-                keylen = len(str(key))
-                if type(val) in [list, np.ndarray, np.array, dict]:
-                    _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(type(val))
-                else:
-                    _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(val)
-                _str += '\n'
-            _str += 3*'---------------------------------------------------\n'
-            log.info(_str)
+        # if mpi.rank == 0:
+        #     _str = "\nConfiguration:"+3*'\n---------------------------------------------------\n'
+        #     for key, val in dl.__dict__.items():
+        #         keylen = len(str(key))
+        #         if type(val) in [list, np.ndarray, np.array, dict]:
+        #             _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(type(val))
+        #         else:
+        #             _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(val)
+        #         _str += '\n'
+        #     _str += 3*'---------------------------------------------------\n'
+        #     log.info(_str)
 
         return dl
 
