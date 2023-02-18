@@ -53,16 +53,16 @@ class handler():
         self.TEMP = TEMP
 
 
-    @log_on_start(logging.INFO, "check_mpi() Started")
-    @log_on_end(logging.INFO, "check_mpi() Finished")
+    @log_on_start(logging.DEBUG, "check_mpi() Started")
+    @log_on_end(logging.DEBUG, "check_mpi() Finished")
     def check_mpi(self):
         """_summary_
         """        
         log.info("rank: {}, size: {}".format(mpi.rank, mpi.size))
 
 
-    @log_on_start(logging.INFO, "collect_jobs() Started")
-    @log_on_end(logging.INFO, "collect_jobs() Finished")
+    @log_on_start(logging.DEBUG, "collect_jobs() Started")
+    @log_on_end(logging.DEBUG, "collect_jobs() Finished")
     def collect_jobs(self, job_id=''):
         """_summary_
         """

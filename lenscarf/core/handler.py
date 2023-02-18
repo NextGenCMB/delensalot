@@ -48,14 +48,14 @@ class Basejob():
 
     def __init__(self, qe, model):
 
-        assert 0, "Implement if needed"
+        assert 0, "Overwrite"
 
 
     @log_on_start(logging.INFO, "collect_jobs() started")
     @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self):
 
-        assert 0, "Implement if needed"
+        assert 0, "Overwrite"
 
 
     @log_on_start(logging.INFO, "collect_jobs() started")
@@ -65,35 +65,39 @@ class Basejob():
         assert 0, "Implement if needed"
 
 
+    def get_qlm_it(self, simidx, it):
+
+        assert 0, "Implement if needed"
+
 
     def load_plm_it(self, simidx, it):
 
-        return None
+        assert 0, "Implement if needed"
 
 
     def load_mf_it(self, simidx, it, normalized=True):
 
-        return None
+        assert 0, "Implement if needed"
 
 
     def get_blt_it(self, simidx, it):
 
-        return None
+        assert 0, "Implement if needed"
 
 
     def get_ivf(self, simidx, it, field):
 
-        return None
+        assert 0, "Implement if needed"
 
 
     def get_wf(self, simidx, it, field):
 
-        return None
+        assert 0, "Implement if needed"
     
 
     def get_fiducial_sim(self, simidx, field):
 
-        return None
+        assert 0, "Implement if needed"
 
 
 class Notebook_interactor(Basejob):
@@ -354,8 +358,8 @@ class QE_lr(Basejob):
         self.ith = iteration_handler.transformer('constmf')
       
 
-    @log_on_start(logging.INFO, "collect_jobs() started: qe_tasks={qe_tasks}")
-    @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
+    @log_on_start(logging.INFO, "collect_jobs(qe_tasks={qe_tasks}, recalc={recalc}) started")
+    @log_on_end(logging.INFO, "collect_jobs(qe_tasks={qe_tasks}, recalc={recalc}) finished: jobs={self.jobs}")
     def collect_jobs(self, qe_tasks=None, recalc=False):
 
         # qe_tasks overwrites task-list and is needed if MAP lensrec calls QE lensrec
@@ -405,8 +409,8 @@ class QE_lr(Basejob):
         self.jobs = jobs
 
 
-    @log_on_start(logging.INFO, "run() started")
-    @log_on_end(logging.INFO, "run() finished")
+    @log_on_start(logging.INFO, "run(task={task}) started")
+    @log_on_end(logging.INFO, "run(task={task}) finished")
     def run(self, task=None):
         ## task may be set from MAP lensrec, as MAP lensrec has prereqs to QE lensrec
         ## if None, then this is a normal QE lensrec call
@@ -444,15 +448,15 @@ class QE_lr(Basejob):
                     self.get_blt(idx)
 
 
-    @log_on_start(logging.INFO, "get_sim_qlm({simidx}) started")
-    @log_on_end(logging.INFO, "get_sim_qlm({simidx}) finished")
+    @log_on_start(logging.INFO, "get_sim_qlm(simidx={simidx}) started")
+    @log_on_end(logging.INFO, "get_sim_qlm(simidx={simidx}) finished")
     def get_sim_qlm(self, simidx):
 
         return self.qlms_dd.get_sim_qlm(self.k, int(simidx))
 
 
-    @log_on_start(logging.INFO, "get_B_wf({simidx}) started")
-    @log_on_end(logging.INFO, "get_B_wf({simidx}) finished")    
+    @log_on_start(logging.INFO, "get_B_wf(simidx={simidx}) started")
+    @log_on_end(logging.INFO, "get_B_wf(simidx={simidx}) finished")    
     def get_B_wf(self, simidx):
         fn = self.libdir_iterators(self.k, simidx, self.version)+'/bwf_qe_%04d.npy'%simidx
         if not os.path.isdir(self.libdir_iterators(self.k, simidx, self.version)):
@@ -466,8 +470,8 @@ class QE_lr(Basejob):
         return bwf
 
 
-    @log_on_start(logging.INFO, "get_wflm({simidx}) started")
-    @log_on_end(logging.INFO, "get_wflm({simidx}) finished")    
+    @log_on_start(logging.INFO, "get_wflm(simidx={simidx}) started")
+    @log_on_end(logging.INFO, "get_wflm(simidx={simidx}) finished")    
     def get_wflm(self, simidx):
 
         return lambda: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
@@ -480,8 +484,8 @@ class QE_lr(Basejob):
         return qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_unl, self.cls_unl, self.fteb_unl, lmax_qlm=self.qe_lm_max_qlm[0])[0]
 
 
-    @log_on_start(logging.INFO, "get_meanfield({simidx}) started")
-    @log_on_end(logging.INFO, "get_meanfield({simidx}) finished")
+    @log_on_start(logging.INFO, "get_meanfield(simidx={simidx}) started")
+    @log_on_end(logging.INFO, "get_meanfield(simidx={simidx}) finished")
     def get_meanfield(self, simidx):
         ret = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, 0))
         if self.Nmf > 0:
@@ -499,16 +503,16 @@ class QE_lr(Basejob):
         
 
 
-    @log_on_start(logging.INFO, "get_plm({simidx}) started")
-    @log_on_end(logging.INFO, "get_plm({simidx}) finished")
-    def get_plm(self, simidx, subtract_meanfield=True):
+    @log_on_start(logging.INFO, "get_plm(simidx={simidx}, sub_mf={sub_mf}) started")
+    @log_on_end(logging.INFO, "get_plm(simidx={simidx}, sub_mf={sub_mf}) finished")
+    def get_plm(self, simidx, sub_mf=True):
         lib_dir_iterator = self.libdir_iterators(self.k, simidx, self.version)
         if not os.path.exists(lib_dir_iterator):
             os.makedirs(lib_dir_iterator)
         path_plm = opj(lib_dir_iterator, 'phi_plm_it000.npy')
         if not os.path.exists(path_plm):
             plm  = self.qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate:
-            if subtract_meanfield and self.version != 'noMF':
+            if sub_mf and self.version != 'noMF':
                 plm -= self.mf(int(simidx))  # MF-subtracted unnormalized QE
             R = qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=self.qe_lm_max_qlm[0])[0]
             # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
@@ -534,7 +538,8 @@ class QE_lr(Basejob):
 
         return mf_resp
 
-
+    @log_on_start(logging.INFO, "get_meanfield_normalized(simidx={simidx}) started")
+    @log_on_end(logging.INFO, "get_meanfield_normalized(simidx={simidx}) finished")
     def get_meanfield_normalized(self, simidx):
 
         mf_QE = copy.deepcopy(self.get_meanfield(simidx))
@@ -667,8 +672,8 @@ class MAP_lr(Basejob):
                     self.get_blt_it(simidx, self.itmax)
 
 
-    @log_on_start(logging.INFO, "get_plm_it({simidx}, {its}) started")
-    @log_on_end(logging.INFO, "get_plm_it({simidx}, {its}) finished")
+    @log_on_start(logging.INFO, "get_plm_it(simidx={simidx}, its={its}) started")
+    @log_on_end(logging.INFO, "get_plm_it(simidx={simidx}, its={its}) finished")
     def get_plm_it(self, simidx, its):
 
         plms = rec.load_plms(self.libdir_iterators(self.k, simidx, self.version), its)
@@ -676,8 +681,8 @@ class MAP_lr(Basejob):
         return plms
 
 
-    @log_on_start(logging.INFO, "get_meanfield_it({it}) started")
-    @log_on_end(logging.INFO, "get_meanfield_it({it}) finished")
+    @log_on_start(logging.INFO, "get_meanfield_it(it={it}, calc={calc}) started")
+    @log_on_end(logging.INFO, "get_meanfield_it(it={it}, calc={calc}) finished")
     def get_meanfield_it(self, it, calc=False):
         # for mfvar runs, this returns the correct meanfields, as mfvar runs go into distinct itlib dirs.
         fn = opj(self.mf_dirname, 'mf%03d_it%03d.npy'%(self.Nmf, it))
@@ -697,8 +702,8 @@ class MAP_lr(Basejob):
         return mf
 
 
-    @log_on_start(logging.INFO, "get_meanfields_it({its}) started")
-    @log_on_end(logging.INFO, "get_meanfields_it({its}) finished")
+    @log_on_start(logging.INFO, "get_meanfields_it(its={its}, calc={calc}) started")
+    @log_on_end(logging.INFO, "get_meanfields_it(its={its}, calc={calc}) finished")
     def get_meanfields_it(self, its, calc=False):
         plm = rec.load_plms(self.libdir_iterators(self.k, self.simidxs[0], self.version), [0])[-1]
         mfs = np.zeros(shape=(len(its),*plm.shape), dtype=np.complex128)
@@ -712,8 +717,8 @@ class MAP_lr(Basejob):
         return mfs
 
 
-    @log_on_start(logging.INFO, "get_blt_it({simidx}, {it}) started")
-    @log_on_end(logging.INFO, "get_blt_it({simidx}, {it}) finished")
+    @log_on_start(logging.INFO, "get_blt_it(simidx={simidx}, it={it}) started")
+    @log_on_end(logging.INFO, "get_blt_it(simidx={simidx}, it={it}) finished")
     def get_blt_it(self, simidx, it):
         if 'itlib' not in self.__dict__:
             self.itlib = self.ith(self.qe, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
