@@ -58,7 +58,7 @@ class handler():
     def check_mpi(self):
         """_summary_
         """        
-        log.info("rank: {}, size: {}".format(mpi.rank, mpi.size))
+        log.info("rank: {}, size: {}, name: {}".format(mpi.rank, mpi.size, mpi.name))
 
 
     @log_on_start(logging.DEBUG, "collect_jobs() Started")
@@ -71,7 +71,9 @@ class handler():
         self.job_id = job_id
         
         if self.parser.status == '':
+            self.check_mpi()
             self.jobs = transform(self.configfile.dlensalot_model, l2j_Transformer())
+            self.check_mpi()
         else:
             if mpi.rank == 0:
                 self.jobs = transform(self.configfile.dlensalot_model, l2js_Transformer())
@@ -122,9 +124,9 @@ class handler():
                 conf = val[0][0]
                 transformer = val[0][1]
                 job = val[1]
-
+                self.check_mpi()
                 log.info("Starting job {}".format(job_id))
-
+                self.check_mpi()
                 model = transform(conf, transformer)
                 # log.info("Model collected {}".format(model))
                 
