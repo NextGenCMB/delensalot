@@ -212,7 +212,7 @@ class qlm_iterator(object):
                 It can be a real lot better to keep the same L range as the iterations
 
         """
-        cache_cond = (lmin_plm == 1) and (elm_wf is None)
+        cache_cond = (lmin_plm >= 1) and (elm_wf is None)
 
         fn_blt = 'blt_p%03d_e%03d_lmax%s'%(it, it_e, lmaxb)
         fn_blt += '_dlmmod' * dlm_mod.any()

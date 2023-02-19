@@ -175,7 +175,8 @@ class handler():
                                     logging.warning('Not part of safelist. Changing this value will likely result in a wrong analysis. Exit. Check config file.')
                                     sys.exit()
                 logging.info('config file comparison done. No conflicts found.')
-
+            else:
+                dostore = True
         if dostore:
             if mpi.rank == 0:
                 if not os.path.exists(TEMP):

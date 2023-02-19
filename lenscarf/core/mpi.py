@@ -8,10 +8,34 @@ import os
 import logging
 log = logging.getLogger(__name__)
 
+def is_notebook() -> bool:
+    try:
+        shell = get_ipython().__class__.__name__
+        if shell == 'ZMQInteractiveShell':
+            return True   # Jupyter notebook or qtconsole
+        elif shell == 'TerminalInteractiveShell':
+            return False  # Terminal running IPython
+        else:
+            return False  # Other type (?)
+    except NameError:
+        return False
+    
+def is_local() -> bool:
+    try:
+        shell = get_ipython().__class__.__name__
+        if shell == 'ZMQInteractiveShell':
+            return True   # Jupyter notebook or qtconsole
+        elif shell == 'TerminalInteractiveShell':
+            return False  # Terminal running IPython
+        else:
+            return False  # Other type (?)
+    except NameError:
+        return False
+    
 verbose = True
 has_key = lambda key : key in os.environ.keys()
-cond4mpi4py = not has_key('NERSC_HOST') or (has_key('SLURM_SUBMIT_DIR') and has_key('NERSC_HOST'))
-if cond4mpi4py:
+cond4mpi4py = has_key('NERSC_HOST') or (has_key('SLURM_SUBMIT_DIR') and has_key('NERSC_HOST'))
+if not is_notebook() and cond4mpi4py:
     print('cond4mpi exists')
     from mpi4py import MPI
 
@@ -32,3 +56,8 @@ else:
     finalize = lambda: -1
     receive = lambda val, src : 0
     send = lambda val, dst : 0
+    import platform
+    
+    import multiprocessing
+    
+    name = "{} with {} cpus".format( platform.processor(),multiprocessing.cpu_count())

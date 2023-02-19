@@ -1,12 +1,19 @@
 """Generic cmb-only sims module
 
 """
-import numpy as np, healpy as hp
+
 import os
+
+import numpy as np, healpy as hp
+import pickle as pk
+
+import logging
+log = logging.getLogger(__name__)
+
 from plancklens.helpers import mpi
 from plancklens.sims import cmbs, phas
 from plancklens import utils
-import pickle as pk
+
 
 verbose = False
 
@@ -80,7 +87,7 @@ class sims_cmb_len(object):
         try:
             import lenspyx
         except ImportError:
-            print("Could not import lenspyx module")
+            log.info("Could not import lenspyx module")
             lenspyx = None
         self.lens_module = lenspyx
         self.verbose=verbose

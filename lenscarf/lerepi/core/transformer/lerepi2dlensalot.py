@@ -124,7 +124,9 @@ class l2lensrec_Transformer:
         @log_on_start(logging.DEBUG, "_process_Computing() started")
         @log_on_end(logging.DEBUG, "_process_Computing() finished")
         def _process_Computing(dl, co):
-            dl.tr = int(os.environ.get('OMP_NUM_THREADS', co.OMP_NUM_THREADS))
+            dl.tr = co.OMP_NUM_THREADS
+            os.environ["OMP_NUM_THREADS"] = str(dl.tr)
+            log.info("OMP_NUM_THREADS: {} and {}".format(dl.tr, os.environ.get('OMP_NUM_THREADS')))
 
 
         @log_on_start(logging.DEBUG, "_process_Analysis() started")

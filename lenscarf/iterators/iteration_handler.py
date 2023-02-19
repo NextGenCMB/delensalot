@@ -45,9 +45,11 @@ class scarf_iterator():
         self.qe = qe
         self.wflm0 = qe.get_wflm(self.simidx)
         self.R_unl0 = qe.R_unl()
-        self.mf0 = self.qe.get_meanfield(self.simidx)
-        self.plm0 = self.qe.get_plm(self.simidx)
-
+        if self.QE_subtract_meanfield:
+            self.mf0 = self.qe.get_meanfield(self.simidx)
+        else:
+            self.mf0 = np.zeros_like(self.wflm0())
+        self.plm0 = self.qe.get_plm(self.simidx, self.QE_subtract_meanfield)
         self.ffi = remapping.deflection(self.lenjob_pbgeometry, self.lensres, np.zeros_like(self.plm0),
             self.it_lm_max_qlm[1], self.tr, self.tr)
         self.datmaps = self.get_datmaps()
@@ -190,7 +192,7 @@ class scarf_iterator_fastWF(scarf_iterator):
 
     @log_on_start(logging.INFO, "get_filter_iso() started")
     @log_on_end(logging.INFO, "get_filter_iso() finished")
-    def get_filter(self):
+    def get_filter(self, *args, **kwargs):
         wee = self.k == 'p_p'
         filter = alm_filter_nlev_wl(self.nlev_p, self.ffi, self.ttebl['b'], self.lm_max_unl, self.lm_max_ivf,
                 wee=wee, transf_b=self.ttebl['b'], nlev_b=self.nlev_p)

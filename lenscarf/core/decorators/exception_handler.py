@@ -1,9 +1,10 @@
 import traceback
+import sys
 
 def base(func):
     def inner_function(*args, **kwargs):
         try:
-            func(*args, **kwargs)
+            return func(*args, **kwargs)
         except Exception as err:
             # expection formatter. Don't want all these logdecorator functions in the trace.
             _msg = "".join(traceback.format_exception(type(err), err, err.__traceback__))
@@ -19,4 +20,9 @@ def base(func):
                     else:
                         msg += line + '\n'
             print(msg)
+            sys.exit()
     return inner_function
+
+
+# def base(func):
+#     return func

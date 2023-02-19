@@ -18,7 +18,7 @@ dlensalot_model = DLENSALOT_Model(
         jobs = ["QE_lensrec", "MAP_lensrec"]
     ),
     computing = DLENSALOT_Computing(
-        OMP_NUM_THREADS = 4
+        OMP_NUM_THREADS = 1
     ),                              
     analysis = DLENSALOT_Analysis(
         key = 'p_p',
@@ -34,12 +34,12 @@ dlensalot_model = DLENSALOT_Model(
         module_ = 'sims.generic',
         class_ = 'sims_cmb_len',
         class_parameters = {
-            'lmax': 4000,
+            'lmax': 4096,
             'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(plancklens.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
-            'lib_dir': opj(os.environ['CSCRATCH'], 'sims', 'generic', 'nside2048', 'lmax4000', 'nlevp_sqrt(2)')
+            'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'generic', 'nside2048', 'lmax4096', 'nlevp_sqrt(2)')
         },
         nlev_t = 1.00,
-        nlev_p = np.sqrt(2)
+        nlev_p = np.sqrt(2),
         beam = 1.00,
         lmax_transf = 4096,
         nside = 2048,
