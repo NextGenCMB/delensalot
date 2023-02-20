@@ -155,9 +155,8 @@ class l2lensrec_Transformer:
             dl.TEMP = transform(cf, l2T_Transformer())
             # Lmin
             #TODO give user freedom about fiducial model. But needed here for dl.cpp
-            _cls_path = opj(os.path.dirname(plancklens.__file__), 'data', 'cls')
-            dl.cls_unl = utils.camb_clfile(opj(_cls_path, 'FFP10_wdipole_lenspotentialCls.dat'))
-            dl.cls_len = utils.camb_clfile(opj(_cls_path, 'FFP10_wdipole_lensedCls.dat'))
+            dl.cls_unl = utils.camb_clfile(an.cls_unl)
+            dl.cls_len = utils.camb_clfile(an.cls_len)
             dl.Lmin = an.Lmin
             # zbounds -> zbounds
             if an.zbounds[0] == 'nmr_relative':
@@ -467,7 +466,8 @@ class l2lensrec_Transformer:
         # TODO here goes anything that needs info from different classes
 
         # fiducial
-        dl.cpp = np.copy(dl.cls_unl['pp'][:dl.qe_lm_max_qlm[0] + 1]) ## TODO could be added via 'fiducial' parameter in dlensalot config for user
+
+        dl.cpp = utils.camb_clfile(cf.analysis.cpp)['pp'][:dl.qe_lm_max_qlm[0] + 1] ## TODO could be added via 'fiducial' parameter in dlensalot config for user
         dl.cpp[:dl.Lmin] *= 0.
 
         if dl.it_filter_directional == 'anisotropic':
@@ -741,8 +741,8 @@ class l2d_Transformer:
                 log.info("Don't understand your STANDARD_TRANSFERFUNCTION: {}".format(cf.analysis.STANDARD_TRANSFERFUNCTION))
             
             if ma.Cl_fid == 'ffp10':
-                dl.cls_path = opj(os.path.dirname(plancklens.__file__), 'data', 'cls')
-                dl.cls_len = utils.camb_clfile(opj(dl.cls_path, 'FFP10_wdipole_lensedCls.dat'))
+                dl.cls_unl = utils.camb_clfile(cf.analysis.cls_unl)
+                dl.cls_len = utils.camb_clfile(cf.analysis.cls_len)
                 dl.clg_templ = dl.cls_len['ee']
                 dl.clc_templ = dl.cls_len['bb']
                 dl.clg_templ[0] = 1e-32
