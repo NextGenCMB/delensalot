@@ -32,6 +32,15 @@ def is_local() -> bool:
     except NameError:
         return False
     
+
+def check_MPI(func):
+    def inner_function(*args, **kwargs):
+        log.info("rank: {}, size: {}, name: {}".format(rank, size, name))
+        return func(*args, **kwargs)
+    return inner_function
+    
+    
+
 verbose = True
 has_key = lambda key : key in os.environ.keys()
 cond4mpi4py = has_key('NERSC_HOST') or (has_key('SLURM_SUBMIT_DIR') and has_key('NERSC_HOST'))

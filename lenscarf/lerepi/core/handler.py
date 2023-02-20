@@ -20,6 +20,7 @@ log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 
 from lenscarf.core import mpi
+from lenscarf.core.mpi import check_MPI
 from lenscarf.lerepi.core.validator import safelist
 from lenscarf.lerepi.core.visitor import transform
 from lenscarf.lerepi.core.transformer.lerepi2dlensalot import l2j_Transformer, l2T_Transformer, l2ji_Transformer
@@ -52,15 +53,7 @@ class handler():
         self.parser = parser
         self.TEMP = TEMP
 
-
-    @log_on_start(logging.DEBUG, "check_mpi() Started")
-    @log_on_end(logging.DEBUG, "check_mpi() Finished")
-    def check_mpi(self):
-        """_summary_
-        """        
-        log.info("rank: {}, size: {}, name: {}".format(mpi.rank, mpi.size, mpi.name))
-
-
+    @check_MPI
     @log_on_start(logging.DEBUG, "collect_jobs() Started")
     @log_on_end(logging.DEBUG, "collect_jobs() Finished")
     def collect_jobs(self, job_id=''):
@@ -71,9 +64,7 @@ class handler():
         self.job_id = job_id
         
         if self.parser.status == '':
-            self.check_mpi()
             self.jobs = transform(self.configfile.dlensalot_model, l2j_Transformer())
-            self.check_mpi()
         else:
             if mpi.rank == 0:
                 self.jobs = transform(self.configfile.dlensalot_model, l2js_Transformer())
@@ -115,7 +106,7 @@ class handler():
 
         return j
 
-
+    @check_MPI
     @log_on_start(logging.INFO, "run() Started")
     @log_on_end(logging.INFO, "run() Finished")
     def run(self):
@@ -124,9 +115,8 @@ class handler():
                 conf = val[0][0]
                 transformer = val[0][1]
                 job = val[1]
-                self.check_mpi()
+                
                 log.info("Starting job {}".format(job_id))
-                self.check_mpi()
                 model = transform(conf, transformer)
                 # log.info("Model collected {}".format(model))
                 
