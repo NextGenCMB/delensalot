@@ -446,8 +446,8 @@ class l2lensrec_Transformer:
             dl.stepper_model = it.stepper
             if dl.stepper_model.typ == 'harmonicbump':
                 # TODO undo hardcoding, make it userchoice
-                # dl.stepper = steps.harmonicbump(dl.stepper_model.lmax_qlm, dl.stepper_model.mmax_qlm, xa=dl.stepper_model.xa, xb=dl.stepper_model.xb)
-                dl.stepper = steps.nrstep(dl.it_lm_max_qlm[0], dl.it_lm_max_qlm[1], val=0.5) # handler of the size steps in the MAP BFGS iterative search
+                dl.stepper = steps.harmonicbump(dl.stepper_model.lmax_qlm, dl.stepper_model.mmax_qlm, xa=dl.stepper_model.xa, xb=dl.stepper_model.xb)
+                # dl.stepper = steps.nrstep(dl.it_lm_max_qlm[0], dl.it_lm_max_qlm[1], val=0.5) # handler of the size steps in the MAP BFGS iterative search
             
 
         dl = DLENSALOT_Concept()    
@@ -468,7 +468,7 @@ class l2lensrec_Transformer:
 
         # fiducial
 
-        dl.cpp = utils.camb_clfile(cf.analysis.cpp)Z ## TODO could be added via 'fiducial' parameter in dlensalot config for user
+        dl.cpp = utils.camb_clfile(cf.analysis.cpp)['pp'][:dl.qe_lm_max_qlm[0] + 1]  ## TODO could be added via 'fiducial' parameter in dlensalot config for user
         dl.cpp[:dl.Lmin] *= 0.
 
         if dl.it_filter_directional == 'anisotropic':
