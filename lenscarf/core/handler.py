@@ -17,11 +17,11 @@ import copy
 import numpy as np
 import healpy as hp
 
-
 from plancklens import utils, qresp
 from plancklens.sims import planck2018_sims
 
 from lenscarf.core import mpi
+from lenscarf.core.mpi import check_MPI
 from lenscarf.lerepi.config.config_helper import data_functions as df
 from lenscarf.utils_hp import almxfl, alm_copy
 from lenscarf.iterators.statics import rec as rec
@@ -140,7 +140,7 @@ class Notebook_interactor(Basejob):
      * load power spectra
         * see read_data_v2()
     '''
-    
+    @check_MPI
     def __init__(self, Interactor_model):
         from MSC import pospace as ps
         self.__dict__.update(Interactor_model.__dict__)
@@ -338,6 +338,7 @@ class Notebook_interactor(Basejob):
 
         
 class OBD_builder(Basejob):
+    @check_MPI
     def __init__(self, OBD_model):
         self.__dict__.update(OBD_model.__dict__)
 
@@ -380,6 +381,8 @@ class OBD_builder(Basejob):
 
 
 class QE_lr(Basejob):
+
+    @check_MPI
     def __init__(self, dlensalot_model):
         self.__dict__.update(dlensalot_model.__dict__)
         self.dlensalot_model = dlensalot_model
@@ -593,6 +596,7 @@ class QE_lr(Basejob):
             
 
 class MAP_lr(Basejob):
+    @check_MPI
     def __init__(self, dlensalot_model):
         self.__dict__.update(dlensalot_model.__dict__)
         # TODO Only needed to hand over to ith(). in c2d(), prepare an ith model for it
@@ -781,7 +785,7 @@ class Map_delenser(Basejob):
      * choosing the right power spectrum calculation as in binning, masking, and templating
      * running across all jobs
     """
-
+    @check_MPI
     def __init__(self, bmd_model):
         self.__dict__.update(bmd_model.__dict__)
         self.lib = dict()
@@ -1072,7 +1076,6 @@ class Map_delenser(Basejob):
                     blt_MAP, blt_MAP2 = _build_Btemplate_MAP(idx)
                     outputdata = _delens(bmap_L, bmap_cs, blt_QE, blt_QE2, blt_MAP, blt_MAP2)
                     np.save(_file_op, outputdata)
-
 
 
 class overwrite_anafast():

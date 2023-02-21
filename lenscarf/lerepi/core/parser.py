@@ -26,7 +26,7 @@ class lerepi_parser():
         __argparser.add_argument('-p', dest='new', type=str, default='', help='Relative path to config file to run analysis.')
         __argparser.add_argument('-r', dest='resume', type=str, default='', help='Absolute path to config file to resume.')
         __argparser.add_argument('-s', dest='status', type=str, default='', help='Absolute path for the analysis to write a report.')
-        __argparser.add_argument('-job', dest='job_id', type=str, default=None, help='Execute job, overwrites config file')
+        __argparser.add_argument('-job_id', dest='job_id', type=str, default=None, help='Execute job, overwrites config file')
         dmode = __argparser.add_argument('-devmode', dest='devmode', type=str, default=None, help='Only for development purposes')
         hide_args([dmode])
         # Only in devmode can purgehashs be accessed

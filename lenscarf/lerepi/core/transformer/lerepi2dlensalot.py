@@ -25,6 +25,7 @@ from plancklens import qest, qecl, utils
 from plancklens.filt import filt_util, filt_cinv, filt_simple
 from plancklens.qcinv import cd_solve
 
+from lenscarf.core.mpi import check_MPI
 from lenscarf.core import mpi
 from lenscarf.sims import sims_ffp10
 from lenscarf import utils_scarf, utils_sims
@@ -109,7 +110,7 @@ class l2lensrec_Transformer:
         # elif cf.meta.version == '0.9':
         #     return self.build_v3(cf)
 
-   
+    @check_MPI
     @log_on_start(logging.INFO, "build() started")
     @log_on_end(logging.INFO, "build() finished")
     def build(self, cf):
@@ -467,7 +468,7 @@ class l2lensrec_Transformer:
 
         # fiducial
 
-        dl.cpp = utils.camb_clfile(cf.analysis.cpp)['pp'][:dl.qe_lm_max_qlm[0] + 1] ## TODO could be added via 'fiducial' parameter in dlensalot config for user
+        dl.cpp = utils.camb_clfile(cf.analysis.cpp)Z ## TODO could be added via 'fiducial' parameter in dlensalot config for user
         dl.cpp[:dl.Lmin] *= 0.
 
         if dl.it_filter_directional == 'anisotropic':
@@ -495,7 +496,7 @@ class l2OBD_Transformer:
     """Extracts all parameters needed for building consistent OBD
     """
 
-
+    @check_MPI
     @log_on_start(logging.INFO, "build() started")
     @log_on_end(logging.INFO, "build() finished")
     def build(self, cf):
@@ -645,7 +646,7 @@ class l2d_Transformer:
     Returns:
         _type_: _description_
     """
-
+    @check_MPI
     @log_on_start(logging.INFO, "build() started")
     @log_on_end(logging.INFO, "build() finished")
     def build(self, cf):
@@ -892,6 +893,7 @@ class l2d_Transformer:
       
 class l2i_Transformer:
 
+    @check_MPI
     @log_on_start(logging.INFO, "build() started")
     @log_on_end(logging.INFO, "build() finished")
     def build(self, cf):
@@ -1044,6 +1046,7 @@ class l2i_Transformer:
 class l2ji_Transformer:
     """Extracts parameters needed for the interactive D.Lensalot job
     """
+    @check_MPI
     def build(self, cf):
         
         def _process_Jobs(jobs):
@@ -1058,6 +1061,7 @@ class l2ji_Transformer:
 class l2j_Transformer:
     """Extracts parameters needed for the specific D.Lensalot jobs
     """
+    @check_MPI
     def build(self, cf):
         
         # TODO if the pf.X objects were distinguishable by X2X_Transformer, could replace the seemingly redundant checks here.

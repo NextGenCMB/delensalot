@@ -44,7 +44,7 @@ class handler():
             if parser.job_id is None:
                 pass
             else:
-                self.configfile.dlensalot_model.job.__dict__.update({'jobs': parser.job_id})
+                self.configfile.dlensalot_model.job.__dict__.update({'jobs': [parser.job_id]})
         # TODO catch here TEMP dir for build_OBD? or make TEMP builder output buildOBDspecific
         TEMP = transform(self.configfile.dlensalot_model, l2T_Transformer())
         if parser.status == '':
