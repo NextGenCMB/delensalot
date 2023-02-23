@@ -85,7 +85,7 @@ class qlm_iterator(object):
         lmax_filt, mmax_filt = ninv_filt.lmax_sol, ninv_filt.mmax_sol
 
         assert len(pp_h0) > lmax_qlm
-        assert Alm.getlmax(plm0.size, mmax_qlm) == lmax_qlm
+        assert Alm.getlmax(plm0.size, mmax_qlm) == lmax_qlm, print(Alm.getlmax(plm0.size, mmax_qlm), lmax_qlm)
         if mmax_qlm is None: mmax_qlm = lmax_qlm
 
         self.h = h
@@ -192,10 +192,9 @@ class qlm_iterator(object):
         return True
 
 
-    @log_on_start(logging.INFO, "get_template_blm(it={it}, calc={calc}) started")
+    @log_on_start(logging.INFO, "get_template_blm(it={it}) started")
     @log_on_end(logging.INFO, "get_template_blm(it={it}) finished")
-    def get_template_blm(self, it, it_e, lmaxb=1024, lmin_plm=1, elm_wf:None or np.ndarray=None, dlm_mod=None, calc=False, Nmf=None,
-                         perturbative=False, dlm_mod_fnsuffix=''):
+    def get_template_blm(self, it, it_e, lmaxb=1024, lmin_plm=1, elm_wf:None or np.ndarray=None, dlm_mod=None, perturbative=False):
         """Builds a template B-mode map with the iterated phi and input elm_wf
 
             Args:
@@ -213,21 +212,14 @@ class qlm_iterator(object):
                 It can be a real lot better to keep the same L range as the iterations
 
         """
-        cache_cond = (lmin_plm == 1) and (elm_wf is None)
-        # TODO this needs a cleaner implementation. Duplicate in map_delenser
-        if dlm_mod is not None:
-            dlm_mod_string = '_dlmmod{}'.format(dlm_mod_fnsuffix)
-        else:
-            dlm_mod_string = ''
-        if Nmf == None:
-            pass
-        else:
-            dlm_mod_string += "{:03d}".format(Nmf)
-        fn = 'btempl_p%03d_e%03d_lmax%s%s' % (it, it_e, lmaxb, dlm_mod_string)
-        fn += 'perturbative' * perturbative
-        if not calc:
-            if self.wf_cacher.is_cached(fn):
-                return self.wf_cacher.load(fn)
+        cache_cond = (lmin_plm >= 1) and (elm_wf is None)
+
+        fn_blt = 'blt_p%03d_e%03d_lmax%s'%(it, it_e, lmaxb)
+        fn_blt += '_dlmmod' * dlm_mod.any()
+        fn_blt += 'perturbative' * perturbative
+        
+        if self.wf_cacher.is_cached(fn_blt):
+            return self.wf_cacher.load(fn_blt)
         if elm_wf is None:
             if it_e > 0:
                 e_fname = 'wflm_%s_it%s' % ('p', it_e - 1)
@@ -244,6 +236,7 @@ class qlm_iterator(object):
         # subtract field from phi
         if dlm_mod is not None:
             dlm = dlm - dlm_mod
+
         self.hlm2dlm(dlm, inplace=True)
         almxfl(dlm, np.arange(self.lmax_qlm + 1, dtype=int) >= lmin_plm, self.mmax_qlm, True)
         if perturbative: # Applies perturbative remapping
@@ -258,8 +251,10 @@ class qlm_iterator(object):
         else: # Applies full remapping
             ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm)
             elm, blm = ffi.lensgclm([elm_wf, np.zeros_like(elm_wf)], self.mmax_filt, 2, lmaxb, mmaxb)
+
         if cache_cond:
-            self.wf_cacher.cache(fn, blm)
+            self.wf_cacher.cache(fn_blt, blm)
+
         return blm
 
 
@@ -553,8 +548,6 @@ class qlm_iterator(object):
        
 class iterator_cstmf(qlm_iterator):
     """Constant mean-field
-
-
     """
 
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,

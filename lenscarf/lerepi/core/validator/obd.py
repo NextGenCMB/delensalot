@@ -1,18 +1,17 @@
 def libdir(instance, attribute, value):
-    if type(attribute) != int:
-        raise ValueError('Must be int')
+    if type(value) != str:
+        raise ValueError('Must be str')
 
 
 def rescale(instance, attribute, value):
-    desc = ['nmr_relative', 'mr_relative']
-    assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
-
+    if type(value) not in [float, int]:
+        raise ValueError('Must be float or int')
 
 def tpl(instance, attribute, value):
-    desc = ['max', 'extend']
-    assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+    desc = ['template_dense']
+    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
 
 def nlev_dep(instance, attribute, value):
-    desc = ['map', 'alm']
-    assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+    if type(value) not in [float, int]:
+        raise ValueError('Must be float or int')

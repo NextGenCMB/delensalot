@@ -2,10 +2,13 @@
 Installation
 ==============
 
-Download the project to your computer, navigate to the root folder and execute the command,
+Download the project at `github`_, navigate to the root folder and execute,
 
 .. code-block:: bash
 
     python setup.py install
 
-For this to work, an older gnu compiler, `gcc 7` is currently needed, as a newer version is more restrictive to type checking.
+:code:`D.lensalot` currently requires an older gnu compiler, `gcc 7`, to work.
+The only reason for this incompatibility is that a newer version is more restrictive to type checking.
+
+.. _`github`: https://github.com/NextGenCMB/D.lensalot/

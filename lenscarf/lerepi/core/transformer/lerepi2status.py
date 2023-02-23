@@ -16,7 +16,7 @@ from logdecorator import log_on_start, log_on_end
 import lenscarf.lerepi.core.sr as sr
 from lenscarf.lerepi.core.visitor import transform
 from lenscarf.lerepi.core.transformer.lerepi2dlensalot import l2T_Transformer
-from lenscarf.lerepi.core.metamodel.dlensalot_v2 import DLENSALOT_Model as DLENSALOT_Model, DLENSALOT_Concept
+from lenscarf.lerepi.core.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALOT_Model, DLENSALOT_Concept
 
 
 class l2s_Transformer:
@@ -34,7 +34,6 @@ class l2s_Transformer:
         dl = DLENSALOT_Concept()
         _process_Status(dl)
 
-        
         return dl
 
 
