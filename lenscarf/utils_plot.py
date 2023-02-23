@@ -62,6 +62,13 @@ def binned(arr, lmin, lmax, bls, bus, reterr=True):
     return (ret, err) if reterr else ret
 
 
+def cov2corr(covariance):
+    v = np.sqrt(np.diag(covariance))
+    outer_v = np.outer(v, v)
+    correlation = covariance / outer_v
+    correlation[covariance == 0] = 0
+    return correlation
+
 
 # def binned(Cl, nzell, bins_l, bins_u, w=lambda ell: np.ones(len(ell), dtype=float), return_err=False, meanorsum='mean', error='ste'):
 #     """Bins a cl array according to bin edges and multipole to consider

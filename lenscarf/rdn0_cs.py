@@ -17,9 +17,11 @@ from plancklens.utils import stats, cli, mchash
 from plancklens.sims import planck2018_sims
 from os.path import join as opj
 from plancklens.helpers import mpi
-from plancklens.filt import filt_cinv, filt_util
+from plancklens.filt import filt_cinv, filt_util, filt_simple
 from plancklens import utils, qest, qecl
-
+from plancklens.sims import maps
+from lenscarf.sims import sims_ffp10
+from lenscarf import utils_sims
 
 
 output_dir = opj(os.path.dirname(os.path.dirname(lenscarf.__file__)), 'outputs')
@@ -28,7 +30,10 @@ output_sim = lambda qe_key, suffix, datidx: opj(output_dir, suffix, '{}_sim_{:04
 fdir_dsss = lambda itr : f'ds_ss_it{itr}'
 fn_cls_dsss = lambda itr, mcs, Nroll : f'cls_dsss_it{itr}_Nroll{Nroll}_{mchash(mcs)}.dat'
 
-_ss_dict = lambda mcs, Nroll : {idx: Nroll * (idx // Nroll) + (idx + 1) % Nroll for idx in mcs}
+fdir_mcn1 = lambda qe_key, suffix: opj(output_dir, suffix, f'{qe_key}_mcn1')
+fncl_ss = lambda mcs, Nroll : f'cls_ss_Nroll{Nroll}_{mchash(mcs)}.dat'
+
+_ss_dict = lambda mcs, Nroll : {idx: int(Nroll * (idx // Nroll) + (idx + 1) % Nroll) for idx in mcs}
 
 def export_dsss(itr:int, qe_key:str, libdir:str, suffix:str, datidx:int, ss_dict:dict=None, mcs=None, Nroll=None):
     if ss_dict is None:
@@ -94,7 +99,7 @@ def ss_ds_QE(libdir, parfile, datidx):
     return GG
 
 
-def get_rdn0_qe(param, datidx, qe_key,  Ndatasims, Nmcsims, Nroll, version=''):
+def get_rdn0_qe(param, datidx, qe_key, Ndatasims=40, Nmcsims=100, Nroll=10, version='', recache=False):
     """Returns unormalised realization-dependent N0 lensing bias RDN0.
 
         Args:
@@ -110,7 +115,7 @@ def get_rdn0_qe(param, datidx, qe_key,  Ndatasims, Nmcsims, Nroll, version=''):
     # mcs_sims_less = np.delete(mcs, np.where(mcs==datidx))
     assert datidx not in mcs, "Conflict with the index used as data and indices of sims used for RD corrections"
     ss_dict = _ss_dict(mcs, Nroll)
-    print(mpi.rank)
+    # print(mpi.rank)
     # # We remove the datidx from the ss_dict
     # delidx = ss_dict.pop(datidx, None)
     # # if datidx in mcs:
@@ -129,7 +134,8 @@ def get_rdn0_qe(param, datidx, qe_key,  Ndatasims, Nmcsims, Nroll, version=''):
         os.makedirs(fn_dir)
 
     fn = os.path.join(fn_dir, fn_cls_dsss(0, mcs, Nroll))
-    if not os.path.exists(fn):
+    # print(fn)
+    if not os.path.exists(fn) or recache:
         print(fn)
         ivfs_d = filt_util.library_shuffle(param.ivfs, ds_dict)
         ivfs_s = filt_util.library_shuffle(param.ivfs, ss_dict)
@@ -153,10 +159,77 @@ def get_rdn0_qe(param, datidx, qe_key,  Ndatasims, Nmcsims, Nroll, version=''):
         rdn0 = 4*ds - 2*ss
         lmax = len(rdn0) - 1
         pp2kki = cli(0.25 * np.arange(lmax + 1)** 2 * (np.arange(1, lmax + 2) ** 2) * 1e7)
-        header = 'QE kappa unnormalized rdn0 (4ds - 2ss)'
+
+        arr = np.array([rdn0*pp2kki, ds*pp2kki, ss*pp2kki])
+        header = 'QE kappa unnormalized rdn0 (4ds - 2ss), ds, ss'
         header += '\n' + 'Raw phi-based spec obtained by 1/4 L^2 (L + 1)^7 * 1e7 times this   (ds ss is response-like)'
-        np.savetxt(fn, rdn0 * pp2kki, header=header)
-    return 
+        np.savetxt(fn, arr.T, header=header)
+    
+    print(np.shape(np.loadtxt(fn)))
+    rdn0, ds, ss = np.loadtxt(fn).T
+    return rdn0, ds, ss
+
+
+def get_mcn1_qe(param, qe_key,  Ndatasims=40, Nmcsims=100, Nroll=10, version=''):
+    """Compute mc-N1, using pairs of sims with the same lensing potential phi"""
+
+    mcs = np.arange(Ndatasims, Nmcsims+Ndatasims)
+    # mcs_sims_less = np.delete(mcs, np.where(mcs==datidx))
+    # assert datidx not in mcs, "Conflict with the index used as data and indices of sims used for RD corrections"
+    dlm_dict = _ss_dict(mcs, Nroll)
+    
+    fn_dir = fdir_mcn1(qe_key, param.suffix)
+    if not os.path.exists(fn_dir) and mpi.rank == 0:
+        os.makedirs(fn_dir)
+    mpi.barrier()
+    fn = os.path.join(fn_dir, fncl_ss(mcs, Nroll))
+
+    if not os.path.exists(fn):
+        print(fn)
+        libdir = param.DATDIR + f'_dlmshift_{Nroll}_{mchash(mcs)}'
+        sims_shift      = maps.cmb_maps_nlev(sims_ffp10.cmb_len_ffp10_shuffle_dlm(dlm_dict, aberration=(0,0,0), cacher=cachers.cacher_npy(libdir), lmax_thingauss=2 * 4096, nbands=7, verbose=True), param.transf_dat, param.nlev_t, param.nlev_p, param.nside, pix_lib_phas=param.pix_phas)
+
+        # Makes the simulation library consistent with the zbounds
+        # sims_MAP  = utils_sims.ztrunc_sims(sims_shift, param.nside, [param.zbounds])
+
+        if type(param.ivfs) == filt_util.library_ftl:
+            ivfs_raw    = filt_cinv.library_cinv_sepTP(opj(param.TEMP, 'ivfs_mcn1'), sims_shift, param.cinv_t, param.cinv_p, param.cls_len)
+            ftl_rs = np.ones(param.lmax_ivf + 1, dtype=float) * (np.arange(param.lmax_ivf + 1) >= param.lmin_tlm)
+            fel_rs = np.ones(param.lmax_ivf + 1, dtype=float) * (np.arange(param.lmax_ivf + 1) >= param.lmin_elm)
+            fbl_rs = np.ones(param.lmax_ivf + 1, dtype=float) * (np.arange(param.lmax_ivf + 1) >= param.lmin_blm)
+            ivfs_len   = filt_util.library_ftl(ivfs_raw, param.lmax_ivf, ftl_rs, fel_rs, fbl_rs)
+
+        elif type(param.ivfs) == filt_simple.library_fullsky_sepTP:
+            print('full sky')
+            ivfs_len   = filt_simple.library_fullsky_sepTP(opj(param.TEMP, 'ivfs_mcn1'), sims_shift, param.nside, param.transf_d, param.cls_len, param.ftl, param.fel, param.fbl, cache=True)
+
+        ivfs_s = filt_util.library_shuffle(param.ivfs, dlm_dict)
+
+        libdir = opj(param.TEMP, 'MCN1_sims_{}_{}_{}'.format(Ndatasims, Nmcsims, Nroll)) + version
+        print(libdir)
+        qlms_ss = qest.library_sepTP(opj(libdir, 'qlms_ss'), ivfs_s, ivfs_len, param.cls_len['te'], param.nside, lmax_qlm=param.lmax_qlm)
+        qcls_ss = qecl.library(opj(libdir, 'qcls_ss'), qlms_ss, qlms_ss, np.array([])) 
+
+        print('Computing Cl_ss')
+        for idx in mcs[mpi.rank::mpi.size]:
+            print(f'Running sim idx {idx}')
+            qcls_ss.get_sim_qcl(qe_key, int(idx), k2=qe_key)
+        
+        mpi.barrier()
+        if mpi.rank == 0:
+            ss = qcls_ss.get_sim_stats_qcl(qe_key, mcs, k2=qe_key).mean()
+
+            lmax = len(ss) - 1
+            pp2kki = cli(0.25 * np.arange(lmax + 1)** 2 * (np.arange(1, lmax + 2) ** 2) * 1e7)
+
+            arr = np.array([ss*pp2kki])
+            header = 'QE kappa unnormalized mcn1'
+            header += '\n' + 'Raw phi-based spec obtained by 1/4 L^2 (L + 1)^7 * 1e7 times this   (ss is response-like)'
+            np.savetxt(fn, arr.T, header=header)
+        mpi.barrier()
+        
+    ss_n1 = np.loadtxt(fn).T
+    return ss_n1
 
 
 def export_cls(libdir:str, qe_key:str, itr:int,suffix:str, datidx:int):
@@ -405,5 +478,3 @@ if __name__ == '__main__':
     export_cls(itlib.lib_dir, args.k,  0,  par.suffix, args.datidx)
     export_cls(itlib.lib_dir, args.k, itr,  par.suffix, args.datidx)
     export_nhl(itlib.lib_dir, args.k, par, args.datidx)
-
-    # get_rdn0_qe(par, args.datidx, args.k, Ndatasims=40, Nmcsims=100, Nroll=10, version=args.v)

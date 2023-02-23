@@ -78,7 +78,7 @@ class cinv_p(filt_cinv.cinv):
                 hp.write_map(os.path.join(self.lib_dir,  "fmask.fits.gz"),  self._calc_mask())
         else:
             mpi.receive(hash_flag, source=0)
-        utils.hash_check(pk.load(open(os.path.join(lib_dir, "filt_hash.pk"), 'rb')), self.hashdict())
+        utils.hash_check(pk.load(open(os.path.join(lib_dir, "filt_hash.pk"), 'rb')), self.hashdict(), fn=os.path.join(lib_dir, "filt_hash.pk"))
 
 
     def hashdict(self):

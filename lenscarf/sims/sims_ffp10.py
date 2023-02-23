@@ -131,17 +131,23 @@ class cmb_len_ffp10:
         utils_hp.almxfl(dlm, p2d, mmax_dlm, inplace=True)
         return dlm, dclm, lmax_dlm, mmax_dlm
 
-    def _build_eb(self, idx):
+    def _build_eb(self, idx, unl_elm=None, unl_blm=None, lmax_len=None, mmax_len=None):
         dlm, dclm, lmax_dlm, mmax_dlm = self._get_dlm(idx)
-        len_eblm = np.zeros((2, utils_hp.Alm.getsize(self.lmax_len, self.mmax_len)), dtype=complex)
-        unl_elm = cmb_unl_ffp10.get_sim_elm(idx)
-        unl_blm = cmb_unl_ffp10.get_sim_blm(idx)
+        if lmax_len is None:
+            lmax_len = self.lmax_len
+        if mmax_len is None:
+            mmax_len = min(lmax_len, self.mmax_len)
+        len_eblm = np.zeros((2, utils_hp.Alm.getsize(lmax_len, mmax_len)), dtype=complex)
+        if unl_elm is None:
+            unl_elm = cmb_unl_ffp10.get_sim_elm(idx)
+        if unl_blm is None:
+            unl_blm = cmb_unl_ffp10.get_sim_blm(idx)
         lmax_elm = utils_hp.Alm.getlmax(unl_elm.size, -1)
         mmax_elm = lmax_elm
         assert lmax_elm == utils_hp.Alm.getlmax(unl_blm.size, -1)
         for i, pbdGeom in utils.enumerate_progress(self.pbdGeoms, 'collecting bands'):
             ffi = deflection(pbdGeom, self.targetres, dlm, mmax_dlm, self.fft_tr, self.sht_tr, verbose=self.verbose, dclm=dclm)
-            len_eblm += ffi.lensgclm([unl_elm, unl_blm], mmax_elm, 2, self.lmax_len, self.mmax_len)
+            len_eblm += ffi.lensgclm([unl_elm, unl_blm], mmax_elm, 2, lmax_len, mmax_len)
         return len_eblm
 
     def get_sim_tlm(self, idx):
@@ -254,3 +260,24 @@ class cmb_len_ffp10_wcurl(cmb_len_ffp10):
             utils_hp.almxfl(dlm, p2d, mmax_dlm, inplace=True)
             utils_hp.almxfl(dclm, p2d, mmax_dlm, inplace=True)
             return dlm, dclm, lmax_dlm, mmax_dlm
+
+
+
+class cmb_len_ffp10_shuffle_dlm(cmb_len_ffp10):
+    def __init__(self, dlm_idxs:dict={}, aberration:tuple[float, float, float]or None=None, lmin_dlm=0, cacher:cachers.cacher or None=None,
+                       lmax_thingauss:int=5120, nbands:int=1, targetres=0.75, verbose:bool=False):
+
+        r"""Library of simulations with remaped the defelection field indice.
+            Useful for MC-N1 computations.
+
+            Args:
+                dlm_idxs : index idx of this instance points to a sim with defelection field index idxs[idx] but CMB fields index idx
+        """
+
+        super(cmb_len_ffp10_shuffle_dlm, self).__init__(aberration=aberration, lmin_dlm=lmin_dlm, cacher=cacher,
+                       lmax_thingauss=lmax_thingauss, nbands=nbands, targetres=targetres, verbose=verbose)
+        self.dlm_idxs = dlm_idxs
+
+    def _get_dlm(self, idx):
+        assert idx in self.dlm_idxs.keys(), f"Index {idx} is not assigned in the dlm_idxs remapping"
+        return super(cmb_len_ffp10_shuffle_dlm, self)._get_dlm(self.dlm_idxs[idx])
