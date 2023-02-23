@@ -591,8 +591,8 @@ class QE_lr(Basejob):
         ## But we are going to store a new file anyway.
         dlm_mod = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, int(simidx)))
         
-        lmin_plm = 10 if self.iterator_typ == 'fastWF' else self.Lmin
-        return itlib_iterator.get_template_blm(0, 0, lmaxb=1024, lmin_plm=lmin_plm, dlm_mod=dlm_mod, perturbative=self.blt_pert)
+        # lmin_plm = 10 if self.iterator_typ == 'fastWF' else self.Lmin
+        return itlib_iterator.get_template_blm(0, 0, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, perturbative=self.blt_pert)
             
 
 class MAP_lr(Basejob):
@@ -758,7 +758,7 @@ class MAP_lr(Basejob):
     @log_on_start(logging.INFO, "get_blt_it(simidx={simidx}, it={it}) started")
     @log_on_end(logging.INFO, "get_blt_it(simidx={simidx}, it={it}) finished")
     def get_blt_it(self, simidx, it):
-        self.blt_lmin_plm = 1
+        # self.blt_lmin_plm = 1
         if 'itlib' not in self.__dict__:
             self.itlib = self.ith(self.qe, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
             self.itlib_iterator = self.itlib.get_iterator()
@@ -773,9 +773,9 @@ class MAP_lr(Basejob):
             if simidx in self.simidxs_mf:
                 dlm_mod = (dlm_mod - np.array(rec.load_plms(self.lib_dir_iterator, [it]))/self.Nmf) * self.Nmf/(self.Nmf - 1)
         if it>0 and it<=rec.maxiterdone(self.lib_dir_iterator):
-            return self.itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=self.blt_lmin_plm, dlm_mod=dlm_mod, perturbative=False)
+            return self.itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, perturbative=False)
         elif it==0:
-            return self.itlib_iterator.get_template_blm(0, 0, lmaxb=1024, lmin_plm=self.blt_lmin_plm, dlm_mod=dlm_mod, perturbative=self.blt_pert)
+            return self.itlib_iterator.get_template_blm(0, 0, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, perturbative=self.blt_pert)
 
 
 class Map_delenser(Basejob):

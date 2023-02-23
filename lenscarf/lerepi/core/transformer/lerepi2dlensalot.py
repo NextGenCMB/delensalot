@@ -222,6 +222,7 @@ class l2lensrec_Transformer:
             # class_parameters -> sims
             ## TODO what if user wants to add own sims_module outside of dlensalot?
             _dataclass_parameters = da.class_parameters
+            dl.class_parameters = da.class_parameters
             if 'fg' in _dataclass_parameters:
                 dl.fg = _dataclass_parameters['fg']
             _sims_full_name = '{}.{}'.format(_package, _module)
