@@ -43,7 +43,7 @@ def check_MPI(func):
 
 verbose = True
 has_key = lambda key : key in os.environ.keys()
-cond4mpi4py = has_key('NERSC_HOST') or (has_key('SLURM_SUBMIT_DIR') and has_key('NERSC_HOST'))
+cond4mpi4py = not has_key('NERSC_HOST') or (has_key('SLURM_SUBMIT_DIR') and has_key('NERSC_HOST'))
 if not is_notebook() and cond4mpi4py:
     print('cond4mpi exists')
     from mpi4py import MPI

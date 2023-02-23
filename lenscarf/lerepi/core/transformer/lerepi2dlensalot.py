@@ -157,6 +157,7 @@ class l2lensrec_Transformer:
             # Lmin
             #TODO give user freedom about fiducial model. But needed here for dl.cpp
             dl.cls_unl = utils.camb_clfile(an.cls_unl)
+            # if 
             dl.cls_len = utils.camb_clfile(an.cls_len)
             dl.Lmin = an.Lmin
             # zbounds -> zbounds
@@ -226,55 +227,46 @@ class l2lensrec_Transformer:
             _sims_full_name = '{}.{}'.format(_package, _module)
             _sims_module = importlib.import_module(_sims_full_name)
             dl._sims = getattr(_sims_module, _class)(**_dataclass_parameters)
-            if 'sims' in dl._sims.__dict__:
-                # TODO not sure if this is still needed
-                ## get_sim_pmap comes from sims object inside sims module
-                dl.sims = dl._sims.sims
-                ## sims parameter come from sims module directly
-                dl.data_type = dl._sims.data_type
-                dl.data_field = dl._sims.data_field
+            ## get_sim_pmap comes from sims module directly
+            # -> nothing to do here
+            ## sims parameter come from configuration file
+            dl._sims.beam = da.beam
+            dl._sims.lmax_transf = da.lmax_transf
+            dl._sims.nlev_t = da.nlev_t
+            dl._sims.nlev_p = da.nlev_p
+            dl._sims.nside = da.nside
+            ## get_sim_pmap comes from plancklens.maps wrapper
+            if 'lib_dir' in da.class_parameters:
+                pix_phas = phas.pix_lib_phas(da.class_parameters['lib_dir'], 3, (hp.nside2npix(dl._sims.nside),))
             else:
-                ## get_sim_pmap comes from sims module directly
-                # -> nothing to do here
-                ## sims parameter come from configuration file
-                dl._sims.beam = da.beam
-                dl._sims.lmax_transf = da.lmax_transf
-                dl._sims.nlev_t = da.nlev_t
-                dl._sims.nlev_p = da.nlev_p
-                dl._sims.nside = da.nside
-                ## get_sim_pmap comes from plancklens.maps wrapper
-                if 'lib_dir' in da.class_parameters:
-                    pix_phas = phas.pix_lib_phas(da.class_parameters['lib_dir'], 3, (hp.nside2npix(dl._sims.nside),))
-                else:
-                    pix_phas = phas.pix_lib_phas(da.class_parameters['cacher'].lib_dir, 3, (hp.nside2npix(dl._sims.nside),))
-                transf_dat = gauss_beam(dl._sims.beam / 180 / 60 * np.pi, lmax=dl._sims.lmax_transf) # (taking here full FFP10 cmb's which are given to 4096)
-                dl.sims = maps.cmb_maps_nlev(dl._sims, transf_dat, dl._sims.nlev_t, dl._sims.nlev_p, dl._sims.nside, pix_lib_phas=pix_phas)
+                pix_phas = phas.pix_lib_phas(da.class_parameters['cacher'].lib_dir, 3, (hp.nside2npix(dl._sims.nside),))
+            transf_dat = gauss_beam(dl._sims.beam / 180 / 60 * np.pi, lmax=dl._sims.lmax_transf)
+            dl.sims = maps.cmb_maps_nlev(dl._sims, transf_dat, dl._sims.nlev_t, dl._sims.nlev_p, dl._sims.nside, pix_lib_phas=pix_phas)
 
             # transferfunction
             dl.transferfunction = da.transferfunction
-            lmax_filter = dl.lm_max_ivf[0]
             if dl.transferfunction == 'gauss_no_pixwin':
                 # Fiducial model of the transfer function
-                transf_tlm = gauss_beam(df.a2r(dl._sims.beam), lmax=lmax_filter) * (np.arange(lmax_filter + 1) >= dl.lmin_teb[0])
-                transf_elm = gauss_beam(df.a2r(dl._sims.beam), lmax=lmax_filter) * (np.arange(lmax_filter + 1) >= dl.lmin_teb[1])
-                transf_blm = gauss_beam(df.a2r(dl._sims.beam), lmax=lmax_filter) * (np.arange(lmax_filter + 1) >= dl.lmin_teb[2])
+                transf_tlm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[0])
+                transf_elm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[1])
+                transf_blm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[2])
             elif dl.transferfunction == 'gauss_with_pixwin':
                 # Fiducial model of the transfer function
-                transf_tlm = gauss_beam(df.a2r(dl._sims.beam), lmax=lmax_filter) * hp.pixwin(dl._sims.nside, lmax=lmax_filter) * (np.arange(lmax_filter + 1) >= dl.lmin_teb[0])
-                transf_elm = gauss_beam(df.a2r(dl._sims.beam), lmax=lmax_filter) * hp.pixwin(dl._sims.nside, lmax=lmax_filter) * (np.arange(lmax_filter + 1) >= dl.lmin_teb[1])
-                transf_blm = gauss_beam(df.a2r(dl._sims.beam), lmax=lmax_filter) * hp.pixwin(dl._sims.nside, lmax=lmax_filter) * (np.arange(lmax_filter + 1) >= dl.lmin_teb[2])
+                transf_tlm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(dl._sims.nside, lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[0])
+                transf_elm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(dl._sims.nside, lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[1])
+                transf_blm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(dl._sims.nside, lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[2])
             dl.ttebl = {'t': transf_tlm, 'e': transf_elm, 'b':transf_blm}
 
             # Isotropic approximation to the filtering (used eg for response calculations)
-            ftl_len = cli(dl.cls_len['tt'][:lmax_filter + 1] + df.a2r(dl._sims.nlev_t)**2 * cli(dl.ttebl['t'] ** 2)) * (dl.ttebl['t'] > 0)
-            fel_len = cli(dl.cls_len['ee'][:lmax_filter + 1] + df.a2r(dl._sims.nlev_p)**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
-            fbl_len = cli(dl.cls_len['bb'][:lmax_filter + 1] + df.a2r(dl._sims.nlev_p)**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
+            ftl_len = cli(dl.cls_len['tt'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl._sims.nlev_t)**2 * cli(dl.ttebl['t'] ** 2)) * (dl.ttebl['t'] > 0)
+            fel_len = cli(dl.cls_len['ee'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl._sims.nlev_p)**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
+            fbl_len = cli(dl.cls_len['bb'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl._sims.nlev_p)**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
             dl.ftebl_len = {'t': ftl_len, 'e': fel_len, 'b':fbl_len}
 
             # Same using unlensed spectra (used for unlensed response used to initiate the MAP curvature matrix)
-            ftl_unl = cli(dl.cls_unl['tt'][:lmax_filter + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.ttebl['t'] ** 2)) * (dl.ttebl['t'] > 0)
-            fel_unl = cli(dl.cls_unl['ee'][:lmax_filter + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
-            fbl_unl = cli(dl.cls_unl['bb'][:lmax_filter + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
+            ftl_unl = cli(dl.cls_unl['tt'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.ttebl['t'] ** 2)) * (dl.ttebl['t'] > 0)
+            fel_unl = cli(dl.cls_unl['ee'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
+            fbl_unl = cli(dl.cls_unl['bb'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
             dl.ftebl_unl = {'t': ftl_unl, 'e': fel_unl, 'b':fbl_unl}
 
 
@@ -446,6 +438,10 @@ class l2lensrec_Transformer:
             dl.stepper_model = it.stepper
             if dl.stepper_model.typ == 'harmonicbump':
                 # TODO undo hardcoding, make it userchoice
+                # TODO this should be checked via validator accordingly
+                if dl.stepper_model.lmax_qlm == -1 and dl.stepper_model.mmax_qlm == -1:
+                    dl.stepper_model.lmax_qlm = dl.it_lm_max_qlm[0]
+                    dl.stepper_model.mmax_qlm = dl.it_lm_max_qlm[1]
                 dl.stepper = steps.harmonicbump(dl.stepper_model.lmax_qlm, dl.stepper_model.mmax_qlm, xa=dl.stepper_model.xa, xb=dl.stepper_model.xb)
                 # dl.stepper = steps.nrstep(dl.it_lm_max_qlm[0], dl.it_lm_max_qlm[1], val=0.5) # handler of the size steps in the MAP BFGS iterative search
             

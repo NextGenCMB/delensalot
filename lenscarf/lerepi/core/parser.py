@@ -15,7 +15,7 @@ from os import walk
 
 import lenscarf.lerepi as lerepi
 
-# TODO Add DLENSALOT_Job configs
+
 class lerepi_parser():
     def __init__(self):
 

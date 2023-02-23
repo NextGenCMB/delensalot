@@ -24,7 +24,7 @@ dlensalot_model = DLENSALOT_Model(
         key = 'p_p',
         version = 'noMF',
         simidxs = np.arange(0,1),
-        TEMP_suffix = 'my_first_dlensalot_analysis_fastWF',
+        TEMP_suffix = 'mfda_fastWF',
         Lmin = 2, 
         lm_max_ivf = (3000, 3000),
         lmin_teb = (2, 2, 200)
@@ -41,7 +41,7 @@ dlensalot_model = DLENSALOT_Model(
         nlev_t = 1.00,
         nlev_p = np.sqrt(2),
         beam = 1.00,
-        lmax_transf = 4096,
+        lmax_transf = 3000,
         nside = 2048,
         transferfunction = 'gauss_no_pixwin'
     ),
@@ -56,16 +56,16 @@ dlensalot_model = DLENSALOT_Model(
         filter_directional = 'isotropic',
         qlm_type = 'sepTP',
         cg_tol = 1e-5,
-        lm_max_qlm = (4000, 4000)
+        lm_max_qlm = (3000, 3000)
     ),
     itrec = DLENSALOT_Itrec(
         tasks = ["calc_phi", "calc_blt"],
         filter_directional = 'isotropic',
         itmax = 10,
         cg_tol = 1e-5,
-        lensres = 1.7,
+        lensres = 1.0,
         iterator_typ = 'fastWF',
-        lm_max_unl = (4000, 4000),
-        lm_max_qlm = (4000, 4000)
+        lm_max_unl = (3200, 3200),
+        lm_max_qlm = (3000, 3000)
     )
 )

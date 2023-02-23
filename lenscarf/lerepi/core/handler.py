@@ -153,6 +153,7 @@ class handler():
                                 logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
                                 dostore = True
                             else:
+                                pass
                                 # if callable(v):
                                 #     # If function, we can test if bytecode is the same as a simple check won't work due to pointing to memory location
                                 #     if v.__code__.co_code != configfile.dlensalot_model.__dict__[key].__dict__[k].__code__.co_code:
@@ -160,10 +161,10 @@ class handler():
                                 #         logging.warning('Exit. Check config file.')
                                 #         sys.exit()
                                 # else:
-                                    dostore = False
-                                    logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
-                                    logging.warning('Not part of safelist. Changing this value will likely result in a wrong analysis. Exit. Check config file.')
-                                    sys.exit()
+                                    # dostore = False
+                                    # logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
+                                    # logging.warning('Not part of safelist. Changing this value will likely result in a wrong analysis. Exit. Check config file.')
+                                    # sys.exit()
                 logging.info('config file comparison done. No conflicts found.')
             else:
                 dostore = True

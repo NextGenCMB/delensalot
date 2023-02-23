@@ -24,9 +24,9 @@ dlensalot_model = DLENSALOT_Model(
         key = 'p_p',
         version = 'noMF',
         simidxs = np.arange(0,1),
-        TEMP_suffix = 'my_first_dlensalot_analysis',
+        TEMP_suffix = 'mfda',
         Lmin = 2, 
-        lm_max_ivf = (4000, 4000),
+        lm_max_ivf = (3000, 3000),
         lmin_teb = (2, 2, 200)
     ),
     data = DLENSALOT_Data(
@@ -36,12 +36,12 @@ dlensalot_model = DLENSALOT_Model(
         class_parameters = {
             'lmax': 4096,
             'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(plancklens.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
-            'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'generic', 'nside2048', 'lmax4096', 'nlevp_1')
+            'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'generic', 'nside2048', 'lmax4096', 'nlevp_sqrt(2)')
         },
         nlev_t = 1.00,
-        nlev_p = 1.00,
+        nlev_p = np.sqrt(2),
         beam = 1.00,
-        lmax_transf = 4096,
+        lmax_transf = 3000,
         nside = 2048,
         transferfunction = 'gauss_no_pixwin'
     ),
@@ -49,23 +49,23 @@ dlensalot_model = DLENSALOT_Model(
         sky_coverage = 'isotropic',
         spectrum_type = 'white',
         nlev_t = 1.00,
-        nlev_p = 1.00
+        nlev_p = np.sqrt(2)
     ),
     qerec = DLENSALOT_Qerec(
         tasks = ["calc_phi", "calc_blt"],
         filter_directional = 'isotropic',
         qlm_type = 'sepTP',
-        cg_tol = 1e-5,
-        lm_max_qlm = (4000, 4000)
+        cg_tol = 1e-6,
+        lm_max_qlm = (3000, 3000)
     ),
     itrec = DLENSALOT_Itrec(
         tasks = ["calc_phi", "calc_blt"],
         filter_directional = 'isotropic',
-        itmax = 10,
-        cg_tol = 1e-5,
-        lensres = 1.7,
+        itmax = 5,
+        cg_tol = 1e-6,
+        lensres = 1.0,
         iterator_typ = 'constmf',
-        lm_max_unl = (4000, 4000),
-        lm_max_qlm = (4000, 4000)
+        lm_max_unl = (3200, 3200),
+        lm_max_qlm = (3000, 3000)
     )
 )
