@@ -39,9 +39,12 @@ def d2ang(red, imd, tht, phi, version, sint_dphi=False):
     """
     assert version in [1, 0, -1], version
     d = np.sqrt(red ** 2 + imd ** 2)
-    assert np.max(d) <= 0.01, (np.max(d), np.max(np.abs(red)), np.max(np.abs(imd)), 'CMB Lensing deflections should never be that big')
-
-    sind_d = 1. + _sind_d_m1(d)  # sin(d) / d avoiding division by zero or near zero, assuming small deflections
+    if np.max(d) > 0.01:
+        #print(np.max(d), np.max(np.abs(red)), np.max(np.abs(imd)), 'CMB Lensing deflections should never be that big')
+        from scipy.special import j0
+        sind_d = j0(d)
+    else:
+        sind_d = 1. + _sind_d_m1(d)  # sin(d) / d avoiding division by zero or near zero, assuming small deflections
 
     if version == 0:  #---'close' to equator, where cost ~ 0
         cost = np.cos(tht)

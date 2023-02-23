@@ -28,16 +28,17 @@ module bicubic
             cubicfilter = (c0 * w0 + c1 * w1 + c2 * w2 + c3 * w3) * 0.16666666666666666d0
         end
 
-        double precision function eval(ftl_map, fx, fy)
+        double precision function eval(ftl_map, fx, fy, nx, ny)
             ! nx : second dimension of array
             ! ny : first dimension of array
+            ! This is inconsistent notation!
             implicit none
-            double precision, intent(in) :: ftl_map(0:,0:), fx, fy
+            double precision, intent(in) :: ftl_map(0:ny-1,0:nx-1), fx, fy
             double precision gx, gy
             integer px, py, nx, ny
             !tex2d2 = ftl_map(modulo(i, ny),modulo(j,  nx))
-            nx = size(ftl_map, 2)
-            ny = size(ftl_map, 1)
+            !nx = size(ftl_map, 2)
+            !ny = size(ftl_map, 1)
             px = floor(fx)
             py = floor(fy)
             gx = fx - px
@@ -104,23 +105,23 @@ module remapping
             cost = dcos(tht)
             costp = cost * dcos(d) - Red * sind_d * dsqrt(1.d0 - cost * cost)
             thtp = dacos(costp)
-            phip = modulo(phi + dasin(Imd / dsqrt(1. - costp * costp) * sind_d), PI2) ! ok except for absurdly large d
+            phip = modulo(phi + dasin(Imd / dsqrt(1.d0 - costp * costp) * sind_d), PI2) ! ok except for absurdly large d
             return
         end if
-        e_d = 2 * dsin(d * 0.5) ** 2
+        e_d = 2d0 * dsin(d * 0.5d0) ** 2
         sint = dsin(tht)
 
         if (version == 1) then
-            e_t = 2 * dsin(tht * 0.5) ** 2
+            e_t = 2d0 * dsin(tht * 0.5d0) ** 2
             e_tp = e_t + e_d - e_t * e_d +  Red * sind_d * sint
         else if (version == -1) then
-            e_t = 2 * dcos(tht * 0.5) ** 2
+            e_t = 2d0 * dcos(tht * 0.5d0) ** 2
             e_tp = e_t + e_d - e_t * e_d -  Red * sind_d * sint
         else
             write(*, *) 'invalid version parameter (must be in (-1, 0, 1))', version
             error stop
         end if
-        sintp = dsqrt(dmax1(0.d0, e_tp * (2 - e_tp)))
+        sintp = dsqrt(dmax1(0.d0, e_tp * (2d0 - e_tp)))
         ! FIXME:
         !: the max is here to avoid machine roundoffs resulting in nans, when tht itself is machine precision to zero
         !: in practice it seems that when one tries to land exactly on the poles this reduces the precision to max 1e-11
@@ -140,7 +141,7 @@ module remapping
         double precision, intent(out) :: red, imd
         double precision sintp, sind, norm
         sintp = dsin(thtp)
-        red = dsin(thtp - tht) - 2 * dsin(dphi * 0.5d0) ** 2 * dcos(tht) * sintp  ! Red sind / d
+        red = dsin(thtp - tht) - 2d0 * dsin(dphi * 0.5d0) ** 2 * dcos(tht) * sintp  ! Red sind / d
         imd = dsin(dphi) * sintp  ! Imd sind / d
         sind = dsqrt(red * red + imd * imd)
         if (sind > 0d0) then
@@ -159,17 +160,17 @@ module remapping
         double precision, intent(in) :: phi, ref(nt_f, np_f), imf(nt_f, np_f)
         double precision, intent(out) :: thti, phii, redi, imdi
         integer, intent(in) :: nt_f, np_f
-        double precision x, y, xi, yi, xn, yn, maxres
+        double precision maxres
         double precision thtn, phin
-        double precision red, imd, re_res, im_res, cosp, sinp, tol
+        double precision red, imd, re_res, im_res, tol
         double precision ft, fp ! tht and phi deflection in grid units
-        double precision :: PI2 = DPI * 2
+        double precision :: PI2 = DPI * 2d0
         integer itr
 
         ft = (tht - tht0) * t2grid
         fp = modulo(phi - phi0, PI2) * p2grid
-        redi = -eval(ref, ft, fp) ! Starting point is -red -i imd
-        imdi = -eval(imf, ft, fp)
+        redi = -eval(ref, ft, fp, np_f, nt_f) ! Starting point is -red -i imd
+        imdi = -eval(imf, ft, fp, np_f, nt_f)
         maxres = 10.
         itr = 0
         tol = max(TOLAMIN / 180 / 60 * DPI, 1d-15)
@@ -178,8 +179,8 @@ module remapping
             call d2ang(redi, imdi, tht, phi, thti, phii)
             ft = (thti - tht0) * t2grid
             fp =  modulo(phii - phi0, PI2) * p2grid
-            red = eval(ref, ft, fp)
-            imd = eval(imf, ft, fp)
+            red = eval(ref, ft, fp, np_f, nt_f)
+            imd = eval(imf, ft, fp, np_f, nt_f)
             call d2ang(red, imd, thti, phii, thtn, phin)
             call ang2d(thtn, tht, phin - phi, re_res, im_res) ! residual deflection field
             maxres = dsqrt(re_res * re_res + im_res * im_res)
@@ -188,7 +189,7 @@ module remapping
         end do
         if (itr > itrmax) then
             write(*, *) 'redi, imdi solver failed (maxres, itmax)', maxres, itrmax
-            write(*, *),' at tht phi (in deg) ', tht / DPI * 180, phi / DPI * 180
+            write(*, *) ' at tht phi (in deg) ', tht / DPI * 180, phi / DPI * 180
             !if (maxres > 1d-5) then !FIXME: what to do with this?
             !    error stop
             !end if
@@ -214,5 +215,161 @@ module remapping
         !$OMP END PARALLEL DO
     end subroutine solve_pixs
 
+    subroutine pointing(npix, nring, red, imd, thts, phi0s, nphis, ptg, ofs)
+        implicit none
+        integer, intent(in) :: npix, nring
+        integer, intent(in) :: nphis(nring), ofs(nring)
+        double precision, intent(in) :: red(npix), imd(npix), thts(nring), phi0s(nring)
+        double precision, intent(out) :: ptg(3, npix)
+        double precision phi, dphi, thtp, phip, sint, cost, cott, d, sind_d, e_t, e_d, e_tp, costp, sintp, gamma
+        double precision :: PI2 = DPI * 2d0
+        integer ir, ip, pix, version
+        ! This will not work right on the poles
+        ! This assumes d ** 2 < 0.01
 
+        !$OMP PARALLEL DO DEFAULT(NONE)&
+        !$OMP SHARED(PI2, thts, red, imd, ptg, nphis, phi0s, npix, nring, ofs)&
+        !$OMP PRIVATE(ip, thtp, phip,gamma, e_t, sint, cost, cott, e_d, e_tp, costp, sintp, pix, phi, dphi, version, d, sind_d)
+        do ir = 1, nring
+            sint = dsin(thts(ir))
+            cost = dcos(thts(ir))
+            cott = cost / sint
+            version = nint(1d0 - 2d0 * thts(ir) / DPI)
+            pix = ofs(ir) + 1
+            phi = phi0s(ir)
+            dphi =  PI2  / nphis(ir)
+            if (version == 0) then
+                do ip = 1, nphis(ir)
+                    d = red(pix) * red(pix) + imd(pix) * imd(pix)
+                    sind_d = 1d0 - d / 6d0 * (1d0 - d / 20d0 * (1d0 - d / 42d0))
+                    d = dsqrt(d)
+                    costp = cost * dcos(d) - red(pix) * sind_d * sint
+                    thtp = dacos(costp)
+                    phip = modulo(phi + dasin(imd(pix) / dsqrt(1. - costp * costp) * sind_d), PI2) ! ok except for absurdly large d
+                    gamma = datan2(imd(pix), red(pix)) - datan2(imd(pix), d * sind_d * d * cott + red(pix) * dcos(d))
+                    ptg(1, pix) = thtp
+                    ptg(2, pix) = phip
+                    ptg(3, pix) = -gamma
+                    pix = pix + 1
+                    phi = phi  + dphi
+                end do
+            else if (version == 1) then
+                e_t = 2d0 * dsin(thts(ir) * 0.5d0) ** 2
+                do ip = 1, nphis(ir)
+                    d = red(pix) * red(pix) + imd(pix) * imd(pix)
+                    sind_d = 1d0 - d / 6d0 * (1d0 - d / 20d0 * (1d0 - d / 42d0))
+                    d = dsqrt(d)
+                    e_d = 2d0 * dsin(d * 0.5d0) ** 2
+                    e_tp = e_t + e_d - e_t * e_d + red(pix) * sind_d * sint
+                    sintp = dsqrt(dmax1(0d0, e_tp * (2d0 - e_tp)))
+                    thtp = dasin(sintp)
+                    phip = modulo(phi + datan2(imd(pix) * sind_d, (1d0 - e_d) * sint + red(pix) * sind_d * (1d0 - e_t)), PI2)
+                    gamma = datan2(imd(pix), red(pix)) - datan2(imd(pix), d * sind_d * d * cott + red(pix) * dcos(d))
+                    ptg(1, pix) = thtp
+                    ptg(2, pix) = phip
+                    ptg(3, pix) = -gamma
+                    pix = pix + 1
+                    phi = phi  + dphi
+                end do
+            else if (version == -1) then
+                e_t = 2d0 * dcos(thts(ir) * 0.5d0) ** 2
+                do ip = 1, nphis(ir)
+                    d = red(pix) * red(pix) + imd(pix) * imd(pix)
+                    sind_d = 1d0 - d / 6d0 * (1d0 - d / 20d0 * (1d0 - d / 42d0))
+                    d = dsqrt(d)
+                    e_d = 2d0 * dsin(d * 0.5d0) ** 2
+                    e_tp = e_t + e_d - e_t * e_d - red(pix) * sind_d * sint
+                    sintp = dsqrt(dmax1(0d0, e_tp * (2d0 - e_tp)))
+                    thtp = DPI - dasin(sintp)
+                    phip = modulo(phi + datan2(imd(pix) * sind_d, (1d0 - e_d) * sint + red(pix) * sind_d * (e_t - 1d0)), PI2)
+                    gamma = datan2(imd(pix), red(pix)) - datan2(imd(pix), d * sind_d * d * cott + red(pix) * dcos(d))
+                    ptg(1, pix) = thtp
+                    ptg(2, pix) = phip
+                    ptg(3, pix) = -gamma
+                    pix = pix + 1
+                    phi = phi  + dphi
+                end do
+            end if
+        end do
+        !$OMP END PARALLEL DO
+    end subroutine pointing
+    subroutine fpointing(npix, nring, red, imd, thts, phi0s, nphis, ptg, ofs)
+        implicit none
+        integer, intent(in) :: npix, nring
+        integer, intent(in) :: nphis(nring), ofs(nring)
+        double precision, intent(in) :: red(npix), imd(npix), thts(nring), phi0s(nring)
+        real, intent(out) :: ptg(3, npix)
+        real thtp, phip, gamma
+        double precision phi, dphi, sint, cost, cott, d, sind_d, e_t, e_d, e_tp, costp, sintp
+        double precision :: PI2 = DPI * 2d0
+        integer ir, ip, pix, version
+        ! This will not work right on the poles
+        ! This assumes d ** 2 < 0.01
+
+        !$OMP PARALLEL DO DEFAULT(NONE)&
+        !$OMP SHARED(PI2, thts, red, imd, ptg, nphis, phi0s, npix, nring, ofs)&
+        !$OMP PRIVATE(ip, thtp, phip,gamma, e_t, sint, cost, cott, e_d, e_tp, costp, sintp, pix, phi, dphi, version, d, sind_d)
+        do ir = 1, nring
+            sint = dsin(thts(ir))
+            cost = dcos(thts(ir))
+            cott = cost / sint
+            version = nint(1d0 - 2d0 * thts(ir) / DPI)
+            pix = ofs(ir) + 1
+            phi = phi0s(ir)
+            dphi =  PI2  / nphis(ir)
+            if (version == 0) then
+                do ip = 1, nphis(ir)
+                    d = red(pix) * red(pix) + imd(pix) * imd(pix)
+                    sind_d = 1d0 - d / 6d0 * (1d0 - d / 20d0 * (1d0 - d / 42d0))
+                    d = dsqrt(d)
+                    costp = cost * dcos(d) - red(pix) * sind_d * sint
+                    thtp = dacos(costp)
+                    phip = modulo(phi + dasin(imd(pix) / dsqrt(1. - costp * costp) * sind_d), PI2) ! ok except for absurdly large d
+                    gamma = datan2(imd(pix), red(pix)) - datan2(imd(pix), d * sind_d * d * cott + red(pix) * dcos(d))
+                    ptg(1, pix) = thtp
+                    ptg(2, pix) = phip
+                    ptg(3, pix) = -gamma
+                    pix = pix + 1
+                    phi = phi  + dphi
+                end do
+            else if (version == 1) then
+                e_t = 2d0 * dsin(thts(ir) * 0.5d0) ** 2
+                do ip = 1, nphis(ir)
+                    d = red(pix) * red(pix) + imd(pix) * imd(pix)
+                    sind_d = 1d0 - d / 6d0 * (1d0 - d / 20d0 * (1d0 - d / 42d0))
+                    d = dsqrt(d)
+                    e_d = 2d0 * dsin(d * 0.5d0) ** 2
+                    e_tp = e_t + e_d - e_t * e_d + red(pix) * sind_d * sint
+                    sintp = dsqrt(dmax1(0d0, e_tp * (2d0 - e_tp)))
+                    thtp = dasin(sintp)
+                    phip = modulo(phi + datan2(imd(pix) * sind_d, (1d0 - e_d) * sint + red(pix) * sind_d * (1d0 - e_t)), PI2)
+                    gamma = datan2(imd(pix), red(pix)) - datan2(imd(pix), d * sind_d * d * cott + red(pix) * dcos(d))
+                    ptg(1, pix) = thtp
+                    ptg(2, pix) = phip
+                    ptg(3, pix) = -gamma
+                    pix = pix + 1
+                    phi = phi  + dphi
+                end do
+            else if (version == -1) then
+                e_t = 2d0 * dcos(thts(ir) * 0.5d0) ** 2
+                do ip = 1, nphis(ir)
+                    d = red(pix) * red(pix) + imd(pix) * imd(pix)
+                    sind_d = 1d0 - d / 6d0 * (1d0 - d / 20d0 * (1d0 - d / 42d0))
+                    d = dsqrt(d)
+                    e_d = 2d0 * dsin(d * 0.5d0) ** 2
+                    e_tp = e_t + e_d - e_t * e_d - red(pix) * sind_d * sint
+                    sintp = dsqrt(dmax1(0d0, e_tp * (2d0 - e_tp)))
+                    thtp = DPI - dasin(sintp)
+                    phip = modulo(phi + datan2(imd(pix) * sind_d, (1d0 - e_d) * sint + red(pix) * sind_d * (e_t - 1d0)), PI2)
+                    gamma = datan2(imd(pix), red(pix)) - datan2(imd(pix), d * sind_d * d * cott + red(pix) * dcos(d))
+                    ptg(1, pix) = thtp
+                    ptg(2, pix) = phip
+                    ptg(3, pix) = -gamma
+                    pix = pix + 1
+                    phi = phi  + dphi
+                end do
+            end if
+        end do
+        !$OMP END PARALLEL DO
+    end subroutine fpointing
 end module remapping
