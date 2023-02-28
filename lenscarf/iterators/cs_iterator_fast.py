@@ -92,7 +92,7 @@ class iterator_cstmf(lenscarf.iterators.cs_iterator.qlm_iterator):
                 delT = ffi.lensgclm(delT, self.filter.mmax_len, 0, self.filter.lmax_len, self.filter.mmax_len, backwards=True, nomagn=True)
                 almxfl(delT, self.filter.transf, mmax, True)
 
-            self.filter.set_ffi(self.filter.ffi.change_dlm([np.zeros_like(dlm), None], self.mmax_qlm, cachers.cacher_mem()))
+            self.filter.set_ffi(self.filter.ffi.change_dlm([np.zeros_like(dlm), None], self.mmax_qlm, cachers.cacher_mem(safe=False)))
             mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.filter)
             soltn, it_soltn = self.load_soltn(itr, key)
             if it_soltn < itr - 1:
