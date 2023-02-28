@@ -140,7 +140,7 @@ class pre_op_diag:
 
 
         flmat_tt = cli(s_cls['tt'][:lmax_sol + 1]) + ninv_ftl[:lmax_sol + 1]
-        self.flmat_tt = cli(flmat_tt) * (s_cls['ee'][:lmax_sol +1] > 0.)
+        self.flmat_tt = cli(flmat_tt) * (s_cls['tt'][:lmax_sol +1] > 0.)
 
         self.lmax = ninv_filt.lmax_sol
         self.mmax = ninv_filt.mmax_sol
