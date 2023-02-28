@@ -74,7 +74,7 @@ class iterator_cstmf(lenscarf.iterators.cs_iterator.qlm_iterator):
             assert key in ['p'], key + '  not implemented'
             dlm = self.get_hlm(itr - 1, key)
             self.hlm2dlm(dlm, True)
-            ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm, cachers.cacher_mem())
+            ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm, cachers.cacher_mem(safe=False))
             # Here we delens the data and set then the defl to zero in the filters
             # and we assume dat is EB
             mmax = None  # FIXME: here should be data actual mmax. We assume same as lmax
