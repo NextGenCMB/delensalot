@@ -25,6 +25,8 @@ from plancklens import qest, qecl, utils
 from plancklens.filt import filt_util, filt_cinv, filt_simple
 from plancklens.qcinv import cd_solve
 
+from lenspyx.remapping import utils_geom
+
 from lenscarf.core.mpi import check_MPI
 from lenscarf.core import mpi
 from lenscarf.sims import sims_ffp10
@@ -34,11 +36,8 @@ from lenscarf.iterators import steps
 from lenscarf.utils_hp import gauss_beam
 from lenscarf.opfilt import utils_cinv_p as cinv_p_OBD
 import lenscarf.core.handler as lenscarf_handler
-
 from lenscarf.opfilt.bmodes_ninv import template_dense
-
 from lenscarf.lerepi.core.visitor import transform
-
 from lenscarf.lerepi.config.config_helper import data_functions as df, LEREPI_Constants as lc
 from lenscarf.lerepi.core.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALOT_Model_mm, DLENSALOT_Concept, DLENSALOT_Chaindescriptor
 
@@ -396,7 +395,8 @@ class l2lensrec_Transformer:
                 [dl.it_chain_model.p0, dl.it_chain_model.p1, p2, dl.it_chain_model.p3, dl.it_chain_model.p4, p5, _p6, _p7]]
             # lenjob_geometry
             # TODO lm_max_unl should be a bit larger here for geometry, perhaps add + X (~500)
-            dl.lenjob_geometry = utils_scarf.Geom.get_thingauss_geometry(dl.lm_max_unl[0], 2, zbounds=dl.zbounds_len) if it.lenjob_geometry == 'thin_gauss' else None
+            # dl.lenjob_geometry = utils_scarf.Geom.get_thingauss_geometry(dl.lm_max_unl[0], 2, zbounds=dl.zbounds_len) if it.lenjob_geometry == 'thin_gauss' else None
+            dl.lenjob_geometry = utils_geom.Geom.get_thingauss_geometry(dl.lm_max_unl[0], 2)
             # lenjob_pbgeometry
             dl.lenjob_pbgeometry = utils_scarf.pbdGeometry(dl.lenjob_geometry, utils_scarf.pbounds(dl.pb_ctr, dl.pb_extent)) if it.lenjob_pbgeometry == 'pbdGeometry' else None
             

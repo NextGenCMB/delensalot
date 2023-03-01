@@ -17,6 +17,7 @@ import healpy as hp
 
 from lenscarf import remapping
 from lenscarf import utils_sims, utils_scarf
+from lenspyx.remapping.deflection import deflection
 from lenscarf.utils_hp import alm_copy, almxfl
 from lenscarf.iterators import cs_iterator, cs_iterator_fast
 from lenscarf.utils import read_map
@@ -52,8 +53,9 @@ class scarf_iterator():
         else:
             self.mf0 = np.zeros(shape=hp.Alm.getsize(self.it_lm_max_qlm[0]))
         self.plm0 = self.qe.get_plm(self.simidx, self.QE_subtract_meanfield)
-        self.ffi = remapping.deflection(self.lenjob_pbgeometry, self.lensres, np.zeros_like(self.plm0),
-            self.it_lm_max_qlm[1], self.tr, self.tr)
+        self.ffi = deflection(self.lenjob_geometry, np.zeros_like(self.plm0), self.it_lm_max_qlm[1], numthreads=self.tr, verbosity=1)
+        # self.ffi = lenspyx.remapping.deflection.deflection(self.lenjob_pbgeometry, self.lensres, np.zeros_like(self.plm0),
+            # self.it_lm_max_qlm[1], self.tr, self.tr)
         self.datmaps = self.get_datmaps()
         self.filter = self.get_filter()
         # TODO not sure why this happens here. Could be done much earlier
