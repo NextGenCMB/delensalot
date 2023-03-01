@@ -136,8 +136,8 @@ class pre_op_diag:
             spl_sq = spl(np.arange(len(ninv_ftl), dtype=float)[nz], np.log(ninv_ftl[nz]), k=2, ext='extrapolate')
             ninv_ftl = np.exp(spl_sq(np.arange(lmax_sol + 1, dtype=float)))
 
-        flmat_tt = cli(s_cls['tt'][:lmax_sol + 1]) * ninv_filt.rescali ** 2 + ninv_ftl[:lmax_sol + 1]
-        self.flmat_tt = cli(flmat_tt) * (s_cls['tt'][:lmax_sol + 1] > 0.)
+        flmat_tt = cli(s_cls['tt'][:lmax_sol + 1]) + ninv_ftl[:lmax_sol + 1]
+        self.flmat_tt = cli(flmat_tt * ninv_filt.rescali ** 2) * (s_cls['tt'][:lmax_sol + 1] > 0.)
 
         self.lmax = ninv_filt.lmax_sol
         self.mmax = ninv_filt.mmax_sol
