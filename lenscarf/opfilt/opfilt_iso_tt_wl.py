@@ -93,6 +93,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         tlm[:] = self.ffi.lensgclm(tlmc, self.mmax_len, 0, self.lmax_sol, self.mmax_sol, backwards=True)
         if self.dorescal:
             almxfl(tlm, self.rescali, self.mmax_sol, True)
+        # TODO: should add here the projection into cls > 0
 
     def get_qlms(self, tlm_dat: np.ndarray, tlm_wf: np.ndarray, q_pbgeom: utils_scarf.pbdGeometry, alm_wf_leg2=None):
         """Get lensing generaliazed QE consistent with filter assumptions
@@ -194,8 +195,7 @@ def calc_prep(tlm:np.ndarray, s_cls:dict, ninv_filt:alm_filter_nlev_wl):
     """
     assert isinstance(tlm, np.ndarray)
     assert Alm.getlmax(tlm.size, ninv_filt.mmax_len) == ninv_filt.lmax_len, (Alm.getlmax(tlm.size, ninv_filt.mmax_len), ninv_filt.lmax_len)
-    tlmc = np.copy(tlm)
-    almxfl(tlmc, ninv_filt.inoise_1, ninv_filt.mmax_len, True)
-    tlmc = ninv_filt.ffi.lensgclm(tlmc, ninv_filt.mmax_len, 0, ninv_filt.lmax_sol,ninv_filt.mmax_sol, backwards=True)
+    tlmc = almxfl(tlm, ninv_filt.inoise_1, ninv_filt.mmax_len, False)
+    tlmc = ninv_filt.ffi.lensgclm(tlmc, ninv_filt.mmax_len, 0, ninv_filt.lmax_sol, ninv_filt.mmax_sol, backwards=True)
     almxfl(tlmc, ninv_filt.rescali * (s_cls['tt'][ninv_filt.lmax_sol + 1] > 0.), ninv_filt.mmax_sol, True)
     return tlmc

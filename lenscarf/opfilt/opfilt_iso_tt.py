@@ -70,7 +70,7 @@ class alm_filter_nlev:
         """
         lmax_unl = Alm.getlmax(tlm.size, self.mmax_sol)
         assert lmax_unl == self.lmax_sol, (lmax_unl, self.lmax_sol)
-        almxfl(tlm, self.inoise_2 * self.rescali, self.mmax_len, inplace=True)
+        almxfl(tlm, self.inoise_2 * self.rescali ** 2, self.mmax_len, inplace=True)
 
     def get_qlms(self, tlm_dat: np.ndarray, tlm_wf: np.ndarray, q_pbgeom: utils_scarf.pbdGeometry, lmax_qlm, mmax_qlm):
         """Get lensing generaliazed QE consistent with filter assumptions
@@ -178,7 +178,8 @@ class dot_op:
             Note: here by defaults the scalar product is sum(Dl) instead of sum(Cl) !
 
         """
-        if mmax is None or mmax < 0: mmax = lmax
+        if mmax is None or mmax < 0:
+            mmax = lmax
         self.lmax = lmax
         self.mmax = min(mmax, lmax)
         self.scal = np.arange(lmax + 1) * np.arange(1, lmax + 2) * (2 * np.arange(self.lmax + 1) + 1) / (2. * np.pi)
@@ -204,8 +205,7 @@ class fwd_op:
         self.mmax_sol = ninv_filt.mmax_sol
 
     def hashdict(self):
-        return {'icltt': clhash(self.icls['tt']),'iclbb': clhash(self.icls['bb']),
-                'n_inv_filt': self.ninv_filt.hashdict()}
+        return {'icltt': clhash(self.icls['tt']), 'ninv_filt': self.ninv_filt.hashdict()}
 
     def __call__(self, tlm):
         return self.calc(tlm)
@@ -213,6 +213,7 @@ class fwd_op:
     def calc(self, tlm):
         nlm = np.copy(tlm)
         self.ninv_filt.apply_alm(nlm)
+        #TODO: in principle the icls > 0 should already be ok?
         nlm = almxfl(nlm + almxfl(tlm, self.icls['tt'], self.mmax_sol, False), self.icls['tt'] > 0., self.mmax_sol, False)
         return nlm
 
