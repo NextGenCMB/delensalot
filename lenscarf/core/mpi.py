@@ -3,10 +3,13 @@
 """
 
 from __future__ import print_function
-import os
-
 import logging
 log = logging.getLogger(__name__)
+
+import os
+import platform
+import multiprocessing
+
 
 def is_notebook() -> bool:
     try:
@@ -55,6 +58,7 @@ if not is_notebook() and cond4mpi4py:
     receive = MPI.COMM_WORLD.Recv
     barrier = MPI.COMM_WORLD.Barrier
     finalize = MPI.Finalize
+    name = "{} with {} cpus".format( platform.processor(),multiprocessing.cpu_count())
     log.info('mpi.py : setup OK, rank %s in %s' % (rank, size))
 else:
     print('cond4mpi does not exists')
@@ -65,8 +69,6 @@ else:
     finalize = lambda: -1
     receive = lambda val, src : 0
     send = lambda val, dst : 0
-    import platform
-    
-    import multiprocessing
+
     
     name = "{} with {} cpus".format( platform.processor(),multiprocessing.cpu_count())
