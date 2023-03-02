@@ -464,8 +464,10 @@ class l2lensrec_Transformer:
         # TODO here goes anything that needs info from different classes
 
         # fiducial
-
-        dl.cpp = utils.camb_clfile(cf.analysis.cpp)['pp'][:dl.qe_lm_max_qlm[0] + 1]  ## TODO could be added via 'fiducial' parameter in dlensalot config for user
+        if cf.analysis.endswith('npy'):
+            dl.cpp = np.load(cf.analysis.cpp)[:dl.qe_lm_max_qlm[0] + 1,1]
+        else:
+            dl.cpp = utils.camb_clfile(cf.analysis.cpp)['pp'][:dl.qe_lm_max_qlm[0] + 1] 
         dl.cpp[:dl.Lmin] *= 0.
 
         if dl.it_filter_directional == 'anisotropic':
