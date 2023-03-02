@@ -464,7 +464,7 @@ class l2lensrec_Transformer:
         # TODO here goes anything that needs info from different classes
 
         # fiducial
-        if cf.analysis.endswith('npy'):
+        if cf.analysis.cpp.endswith('npy'):
             dl.cpp = np.load(cf.analysis.cpp)[:dl.qe_lm_max_qlm[0] + 1,1]
         else:
             dl.cpp = utils.camb_clfile(cf.analysis.cpp)['pp'][:dl.qe_lm_max_qlm[0] + 1] 
