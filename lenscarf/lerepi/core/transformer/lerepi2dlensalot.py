@@ -443,7 +443,7 @@ class l2lensrec_Transformer:
                 if dl.stepper_model.lmax_qlm == -1 and dl.stepper_model.mmax_qlm == -1:
                     dl.stepper_model.lmax_qlm = dl.it_lm_max_qlm[0]
                     dl.stepper_model.mmax_qlm = dl.it_lm_max_qlm[1]
-                dl.stepper = steps.harmonicbump(dl.stepper_model.lmax_qlm, dl.stepper_model.mmax_qlm, xa=dl.stepper_model.xa, xb=dl.stepper_model.xb)
+                dl.stepper = steps.harmonicbump(dl.stepper_model.lmax_qlm, a=0.5, b=0.1, dl.stepper_model.mmax_qlm, xa=dl.stepper_model.xa, xb=dl.stepper_model.xb)
                 # dl.stepper = steps.nrstep(dl.it_lm_max_qlm[0], dl.it_lm_max_qlm[1], val=0.5) # handler of the size steps in the MAP BFGS iterative search
             
 
