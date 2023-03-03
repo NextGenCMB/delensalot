@@ -1,6 +1,8 @@
 build/
 lenscarf.egg-info/
 
+outputs/*
+
 ## Fortran gitignore
 # Prerequisites
 *.d
