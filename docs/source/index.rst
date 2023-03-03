@@ -3,46 +3,77 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-===============================
+======================
 Welcome to D.lensalot
-===============================
+======================
 
-Curved-sky quadratic and iterative CMB lensing tools.
+Curved-sky quadratic and iterative CMB delensing tools.
 
-Lensing reconstruction, B-lensing template generation and power spectrum calculation of (partially) delensed maps.
+Lensing reconstruction, B-lensing template generation and power spectrum calculation of (partially delensed) maps.
 
-
-Includes quadratic estimated and iterative lensing reconstruction on map-level.
-All calculations are done on curved sky.
+Includes quadratic estimated and iterative lensing reconstruction on map-, and spectrum level.
 
 Quadratic estimated lensing reconstruction comes from the built-in interface to `Plancklens`_.
 Iterative lensing reconstruction comes from the curved sky implementation of `LensIt`_.
-D.lensalot is controlled via :ref:`Configuration Files`.
+D.lensalot is best used via :ref:`Configuration Files`.
+
+If you are new to D.lensalot, go check out how to :ref:`get started`.
 
 
 .. _Plancklens: https://github.com/carronj/plancklens
-.. _LensIt: https://github.com/carronj/plancklens
+.. _LensIt: https://github.com/carronj/LensIt
 
 
 .. toctree::
    :maxdepth: 2
-   :caption: Usage:
+   :caption: First steps:
 
    usage/installation
    usage/quickstart
-   usage/NERSC
-
-
-Model Configuration
-====================
+   usage/HPC
 
 .. toctree::
    :maxdepth: 2
-   :caption: Simple analysis set-up:
+   :caption: Analysis set-up:
 
    config/params
    config/data
    config/temp
+
+
+Analytical Prediction
+=====================
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Prediction:
+
+   prediction/n0
+   prediction/n1
+   prediction/delensing
+
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Internal Delensing:
+
+   delensing/overview
+   delensing/B-lensing-template
+
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Product:
+
+   product/products
+
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Removing nuisance:
+
+   other/OBD
+   other/input_data
 
 
 Lensing Reconstruction
@@ -57,39 +88,6 @@ Lensing Reconstruction
    lensrec/MAP
 
 
-Delensing
-==========
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Internal:
-
-   delensing/overview
-   delensing/B-lensing-template
-
-
-Other
-=============
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Removing nuisance:
-
-   other/OBD
-   other/other
-
-About
-=============
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Framework:
-
-   about/development
-   about/publications
-   about/people
-
-
 Modules
 ==========
 
@@ -98,7 +96,6 @@ Modules
    :caption: API:
    
    modules/modules
-
 
 
 Indices and Tables

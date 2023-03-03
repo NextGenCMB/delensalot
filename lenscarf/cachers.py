@@ -53,15 +53,24 @@ class cacher_npy(cacher):
 
 
 class cacher_mem(cacher):
-    def __init__(self):
+    def __init__(self, safe=True):
+        """Makes copies if safe is set, otherwise returns and cache the reference
+
+        """
         self._cache = dict()
+        self.safe = safe
 
     def cache(self, fn, obj):
-        self._cache[fn] = np.copy(obj)
-
+        if self.safe:
+            self._cache[fn] = np.copy(obj)
+        else:
+            self._cache[fn] = obj
     def load(self, fn):
         assert fn in self._cache.keys()
-        return np.copy(self._cache[fn])
+        if self.safe:
+            return np.copy(self._cache[fn])
+        else:
+            return self._cache[fn]
 
     def is_cached(self, fn):
         return fn in self._cache.keys()

@@ -26,8 +26,8 @@ For MAP lensing reconstruction, a realization dependent subdirectory :code:`<key
  * the QE mean-field :code:`mf.npy`
  * the realization dependend QE lensing potential :code:`phi_plm_it000.npy` (with the normalized QE meanfield-subtracted from it)
 
-
-I propose the following new structure, starting with root,
+.. 
+  I propose the following new structure, starting with root,
 
  * /noisemodel
 

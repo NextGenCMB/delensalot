@@ -49,7 +49,9 @@ class iterator_cstmf(lenscarf.iterators.cs_iterator.qlm_iterator):
                  chain_descr, stepper:steps.nrstep, **kwargs):
         super(iterator_cstmf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
                                              ninv_filt, k_geom, chain_descr, stepper, **kwargs)
-        assert self.lmax_qlm == Alm.getlmax(mf0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(mf0.size, self.lmax_qlm))
+
+        assert self.lmax_qlm == Alm.getlmax(mf0.size, self.mmax_qlm), (self.lmax_qlm, mf0.size, Alm.getlmax(mf0.size, self.lmax_qlm))
+
         self.cacher.cache('mf', almxfl(mf0, self._h2p(self.lmax_qlm), self.mmax_qlm, False))
 
 
@@ -78,6 +80,7 @@ class iterator_cstmf(lenscarf.iterators.cs_iterator.qlm_iterator):
             # Here we delens the data and set then the defl to zero in the filters
             # and we assume dat is EB
             mmax = None  # FIXME: here should be data actual mmax. We assume same as lmax
+
             #: FIXME total unsafe hack to see if this is pol or TT rec:
             PorT = 'ee' in self.opfilt.__name__.split('.')[-1]
             if PorT: # Pol rec.

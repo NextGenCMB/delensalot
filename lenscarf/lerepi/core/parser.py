@@ -15,7 +15,7 @@ from os import walk
 
 import lenscarf.lerepi as lerepi
 
-# TODO Add DLENSALOT_Job configs
+
 class lerepi_parser():
     def __init__(self):
 
@@ -26,7 +26,8 @@ class lerepi_parser():
         __argparser.add_argument('-p', dest='new', type=str, default='', help='Relative path to config file to run analysis.')
         __argparser.add_argument('-r', dest='resume', type=str, default='', help='Absolute path to config file to resume.')
         __argparser.add_argument('-s', dest='status', type=str, default='', help='Absolute path for the analysis to write a report.')
-        dmode = __argparser.add_argument('-devmode', dest='devmode', type=str, default=False, help='Only for development purposes')
+        __argparser.add_argument('-job_id', dest='job_id', type=str, default=None, help='Execute job, overwrites config file')
+        dmode = __argparser.add_argument('-devmode', dest='devmode', type=str, default=None, help='Only for development purposes')
         hide_args([dmode])
         # Only in devmode can purgehashs be accessed
         if '-devmode' in sys.argv[1:]:
@@ -102,6 +103,12 @@ class lerepi_parser():
                 else:
                     log.error("ERROR: Cannot find file {}".format(paramfile_path))
                     assert 0, "I see the following options: {}".format(f)
+                    
+        def _validate_job(job_id):
+            if job_id  in ['QE_lensrec', 'MAP_lensrec', 'OBD_builder', None]:
+                return True
+            else:
+                assert 0, log.error("Job_id must be in {} but is {}".format(['QE_lensrec', 'MAP_lensrec', 'OBD_builder'], job_id))
 
         if self.parser.new == '' and self.parser.resume == '' and self.parser.status == '' and self.parser.purgehashs == '':
             assert 0, 'Choose one of the available options to get going.'
@@ -113,6 +120,8 @@ class lerepi_parser():
         if _validate_r(self.parser.resume):
             pass
         if _validate_p(self.parser.new):
+            pass
+        if _validate_job(self.parser.job_id):
             pass
 
         return True

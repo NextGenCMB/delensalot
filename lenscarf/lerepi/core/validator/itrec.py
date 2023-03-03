@@ -1,53 +1,76 @@
 def tasks(instance, attribute, value):
-    desc = ['nmr_relative', 'mr_relative']
-    assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+    desc = ['calc_phi', 'calc_meanfield', 'calc_blt']
+    assert all(val in desc for val in value), ValueError('Must be in {}, but is {}. {}'.format(desc, value, [val in desc for val in value]))
 
 
 def simidxs(instance, attribute, value):
-    desc = ['max', 'extend']
-    assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+    desc = [list]
+    assert type(value) in desc, TypeError('Must be in {}, but is {}'.format(desc, type(value)))
 
 
 def itmax(instance, attribute, value):
-    desc = ['map', 'alm']
-    assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+    desc = [int]
+    assert type(value) in desc, TypeError('Must be in {}, but is {}'.format(desc, type(value)))
 
+
+def iterator_type(instance, attribute, value):
+    desc = ['pertmf', 'constmf', 'fastWF']
+    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+
+
+def lensres(instance, attribute, value):
+    desc = [value]
+    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+
+
+def lm_max_qlm(instance, attribute, value):
+    desc = [int, tuple]
+    assert type(value) in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+
+def lm_max_unl(instance, attribute, value):
+    desc = [tuple, int, list]
+    assert type(value) in desc, ValueError('Must be in {}, but is {}'.format(desc, type(value)))
 
 def filter(instance, attribute, value):
-    desc = ['eb', 'qu']
-    assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+    desc = [value]
+    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
 
 def cg_tol(instance, attribute, value):
-    desc = ['gauss', 'gauss_with_pixwin']
-    assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+    desc = [value]
+    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+
+
+def filter_directional(instance, attribute, value):
+    desc = [value]
+    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
 
 def lenjob_geometry(instance, attribute, value):
-    desc = ['sepTP', 'simple']
-    assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+    desc = [value]
+    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
     
 def lenjob_pbgeometry(instance, attribute, value):
-    desc = ['nmr_relative', 'mr_relative']
-    assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+    desc = [value]
+    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
 
 def iterator_typ(instance, attribute, value):
-    desc = ['max', 'extend']
-    assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+    desc = [value]
+    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
 
 def mfvar(instance, attribute, value):
-    desc = ['map', 'alm']
-    assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+    desc = [value]
+    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
 
 def soltn_cond(instance, attribute, value):
-    desc = ['eb', 'qu']
-    assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+    desc = [value]
+    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
 
 def stepper(instance, attribute, value):
-    desc = ['gauss', 'gauss_with_pixwin']
-    assert attribute in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+    desc = [value]
+    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))

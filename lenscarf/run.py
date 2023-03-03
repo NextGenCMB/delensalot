@@ -35,6 +35,10 @@ class run():
             ConsoleOutputHandler.setLevel(logging.WARNING)
             sys_logger.setLevel(logging.WARNING)
             logging.basicConfig(level=logging.WARNING, handlers=[ConsoleOutputHandler])
+        else:
+            ConsoleOutputHandler.setLevel(logging.INFO)
+            sys_logger.setLevel(logging.INFO)
+            logging.basicConfig(level=logging.INFO, handlers=[ConsoleOutputHandler])
         parser = parserclass()
         parser.resume =  ""
         parser.config_file = config
@@ -64,6 +68,7 @@ if __name__ == '__main__':
         dh.dev(parser, lerepi_handler.TEMP)
         sys.exit()
     lerepi_handler.collect_jobs()
+    lerepi_handler.check_mpi()
 
     try:
         lerepi_handler.run()

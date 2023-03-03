@@ -124,6 +124,8 @@ class deflection:
         if self.d1 is None and self.sig_d > 0.:
             gclm = [self.dlm, np.zeros_like(self.dlm) if self.dclm is None else self.dclm]
             self.d1 = self._build_interpolator(gclm, self.mmax_dlm, 1)
+        else:
+            print(self.d1, self.sig_d)
 
     def fill_map(self, functions:list[callable], dtype=float):
         """Iterates over rings to produce output maps functions of the deflections
@@ -154,16 +156,18 @@ class deflection:
         assert startpix == npix, (startpix, npix)
         return m.squeeze()
 
-    def _fwd_angles(self):
+    def _fwd_angles(self, fortran=False):
         """Builds deflected angles for the forward deflection field for the pixels inside the patch
 
 
         """
         fn = 'fwdang'
         if not self.cacher.is_cached(fn):
-            npix = Geom.pbounds2npix(self.geom, self._pbds)
             dclm = np.zeros_like(self.dlm) if self.dclm is None else self.dclm
             red, imd = self.geom.alm2map_spin([self.dlm, dclm], 1, self.lmax_dlm, self.mmax_dlm, self.sht_tr, [-1., 1.])
+            if fortran:
+                assert 0, 'fix this'
+            npix = Geom.pbounds2npix(self.geom, self._pbds)
             thp_phip= np.zeros( (2, npix), dtype=float)
             startpix = 0
             for ir in np.argsort(self.geom.ofs): # We must follow the ordering of scarf position-space map
@@ -233,7 +237,7 @@ class deflection:
             return bwdang
         return self.cacher.load(fn)
 
-    def _fwd_polrot(self):
+    def _fwd_polrot(self): #FIXME this recalculate d1 (already done in angles)
         fn = 'fwdpolrot'
         if not self.cacher.is_cached(fn):
             self.tim.reset_t0()
@@ -362,7 +366,7 @@ class deflection:
             T *= self._bwd_magn()[pixs]
         return T
 
-    def gclm2lenmap(self, gclm:np.ndarray or list, mmax:int or None, spin, backwards:bool, nomagn=False):
+    def gclm2lenmap(self, gclm:np.ndarray or list, mmax:int or None, spin, backwards:bool, nomagn=False, polrot=True):
         if self.sig_d <= 0:
             if abs(spin) > 0:
                 lmax = Alm.getlmax(gclm[0].size, mmax)
@@ -388,8 +392,11 @@ class deflection:
                 self.tim.add('det Mi')
             lenm = Geom.pbdmap2map(self.geom, lenm_pbded, self._pbds)
         else:
-            gamma = self._bwd_polrot if backwards else self._fwd_polrot
-            lenm_pbded = np.exp(1j * spin * gamma()) * (lenm_pbded[0] + 1j * lenm_pbded[1])
+            if polrot:
+                gamma = self._bwd_polrot if backwards else self._fwd_polrot
+                lenm_pbded = np.exp(1j * spin * gamma()) * (lenm_pbded[0] + 1j * lenm_pbded[1])
+            else:
+                lenm_pbded =  lenm_pbded[0] + 1j * lenm_pbded[1]
             self.tim.add('pol rot')
             if backwards and not nomagn:
                 lenm_pbded *= self._bwd_magn()
@@ -397,18 +404,21 @@ class deflection:
             lenm = [Geom.pbdmap2map(self.geom, lenm_pbded.real, self._pbds),
                     Geom.pbdmap2map(self.geom, lenm_pbded.imag, self._pbds)]
         self.tim.add('truncated array filling')
+        if self.verbose:
+            print(self.tim)
         return lenm
 
-    def lensgclm(self, gclm:np.ndarray or list, mmax:int or None, spin, lmax_out, mmax_out:int or None, backwards=False, nomagn=False):
+    def lensgclm(self, gclm:np.ndarray or list, mmax:int or None, spin, lmax_out, mmax_out:int or None, backwards=False, nomagn=False, polrot=True):
         if mmax_out is None:
             mmax_out = lmax_out
         if self.sig_d <= 0: # no actual deflection
+            #FIXME: this is not correct if the pixelization is cut-sky !! giving it up for now
             if spin == 0:
                 return alm_copy(gclm, mmax, lmax_out, mmax_out)
             glmret = alm_copy(gclm[0], mmax, lmax_out, mmax_out)
             return np.array([glmret, alm_copy(gclm[1], mmax, lmax_out, mmax_out) if gclm[1] is not None else np.zeros_like(glmret)])
         self.tim.reset_t0()
-        lenm = self.gclm2lenmap(gclm, mmax, spin, backwards, nomagn=nomagn)
+        lenm = self.gclm2lenmap(gclm, mmax, spin, backwards, nomagn=nomagn, polrot=polrot)
         self.tim.add('gclm2lenmap, total')
         if mmax_out is None: mmax_out = lmax_out
         if spin > 0:

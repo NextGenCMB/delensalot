@@ -193,7 +193,7 @@ class cpp_sims_lib:
         return cpp_in
 
 
-    def get_cpp_itXinput(self, simidx, itr):
+    def abcef(self, simidx, itr):
         fn = 'cpp_in_x_it{}'.format(itr)
         cacher = self.cacher_sim(simidx)
         if not cacher.is_cached(fn):

@@ -1,5 +1,8 @@
 build/
 lenscarf.egg-info/
+lenscarf/ana/config/cmbs4/
+lenscarf/ana/config/pico/
+install/*
 
 outputs/*
 
