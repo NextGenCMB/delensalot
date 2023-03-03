@@ -3,11 +3,12 @@
 
 """
 import numpy as np
-from lenscarf.utils_hp import almxfl, Alm, default_rng, synalm
+from lenscarf.utils_hp import almxfl, Alm, synalm
 from lenscarf.utils import timer, clhash
 from lenscarf import utils_scarf, remapping
 from lenscarf.opfilt import opfilt_iso_tt, opfilt_base
 from plancklens.utils import cli
+import time
 
 fwd_op = opfilt_iso_tt.fwd_op
 dot_op = opfilt_iso_tt.dot_op
@@ -77,7 +78,23 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
     def dot_op(self):
         return dot_op(self.lmax_sol, self.mmax_sol)
 
-    def get_ftl(self):
+    def get_ftl(self, len=False):
+        if len:#FIXME
+            print("Building fancy inverse noise cls!")
+            from plancklens import lensedcls
+            from lenspyx.utils_hp import alm2cl
+            from scipy.interpolate import UnivariateSpline as spl
+            npts = (self.lmax_sol + self.lmax_len) // 2 + 1 + 2000
+            lib = lensedcls.lensed2pcf(npts, alm2cl(self.ffi.dlm, self.ffi.dlm, self.ffi.lmax_dlm, self.ffi.mmax_dlm, self.ffi.lmax_dlm))
+            ls = np.unique(np.int_(np.linspace(1, self.lmax_sol, 300)))
+            ls = np.insert(ls, 0, 0)
+            if self.lmax_sol not in ls:
+                ls = np.insert(ls, ls.size, self.lmax_sol)
+            ret = spl(ls, lib.get_leninoisecls(self.get_ftl(len=False), ls), k=1, s=0, ext='zeros')(np.arange(self.lmax_sol+1))
+            print(ret[1:10] / self.get_ftl(len=False)[1:10])
+            print(ret[self.lmax_len-10:self.lmax_len+1] / self.get_ftl(len=False)[self.lmax_len-10:self.lmax_len + 1])
+
+            return ret
         return np.copy(self.inoise_2)
 
     def apply_alm(self, tlm:np.ndarray):
@@ -89,7 +106,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         if self.dorescal:
             almxfl(tlm, self.rescali, self.mmax_sol, True)
         tlmc = self.ffi.lensgclm(tlm, self.mmax_sol, 0, self.lmax_len, self.mmax_len)
-        almxfl(tlmc, self.inoise_2, self.mmax_len, inplace=True)
+        almxfl(tlmc, self.inoise_2, self.mmax_len, True)
         tlm[:] = self.ffi.lensgclm(tlmc, self.mmax_len, 0, self.lmax_sol, self.mmax_sol, backwards=True)
         if self.dorescal:
             almxfl(tlm, self.rescali, self.mmax_sol, True)
@@ -188,7 +205,7 @@ def calc_prep(tlm:np.ndarray, s_cls:dict, ninv_filt:alm_filter_nlev_wl):
 
         Args:
             tlm: input data temperature tlm
-            s_cls: CMB spectra dictionary (here only 'ee' key required)
+            s_cls: CMB spectra dictionary (here only 'tt' key required)
             ninv_filt: inverse-variance filtering instance
 
 
@@ -197,5 +214,5 @@ def calc_prep(tlm:np.ndarray, s_cls:dict, ninv_filt:alm_filter_nlev_wl):
     assert Alm.getlmax(tlm.size, ninv_filt.mmax_len) == ninv_filt.lmax_len, (Alm.getlmax(tlm.size, ninv_filt.mmax_len), ninv_filt.lmax_len)
     tlmc = almxfl(tlm, ninv_filt.inoise_1, ninv_filt.mmax_len, False)
     tlmc = ninv_filt.ffi.lensgclm(tlmc, ninv_filt.mmax_len, 0, ninv_filt.lmax_sol, ninv_filt.mmax_sol, backwards=True)
-    almxfl(tlmc, ninv_filt.rescali * (s_cls['tt'][ninv_filt.lmax_sol + 1] > 0.), ninv_filt.mmax_sol, True)
+    almxfl(tlmc, ninv_filt.rescali * (s_cls['tt'][:ninv_filt.lmax_sol + 1] > 0.), ninv_filt.mmax_sol, True)
     return tlmc
