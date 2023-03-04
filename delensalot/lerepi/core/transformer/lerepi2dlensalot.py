@@ -70,7 +70,7 @@ class l2T_Transformer:
 
             if cf.analysis.TEMP_suffix != '':
                 _suffix += '_'+cf.analysis.TEMP_suffix
-            TEMP =  opj(os.environ['SCRATCH'], 'dlensalot', cf.data.package_, cf.data.module_.split('.')[-1], _suffix)
+            TEMP =  opj(os.environ['SCRATCH'], cf.data.package_, cf.data.module_.split('.')[-1], _suffix)
 
             return TEMP
 
