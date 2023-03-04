@@ -125,11 +125,11 @@ class sims_cmb_len(object):
 
     def get_sim_plm(self, idx):
         fn = os.path.join(self.lib_dir, 'plm_in_%04d_lmax%s.fits'%(idx, self.lmax_plm))
+        plm = self.unlcmbs.get_sim_plm(self.offset_index(idx, self.offset_plm[0], self.offset_plm[1]))
         if not os.path.exists(fn):
-            plm = self.unlcmbs.get_sim_plm(self.offset_index(idx, self.offset_plm[0], self.offset_plm[1]))
             if self.cache_plm:
                 hp.write_alm(fn, plm)
-            return plm
+        return plm
 
     def get_sim_olm(self, idx):
         if 'o' in self.fields:
