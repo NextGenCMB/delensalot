@@ -28,12 +28,12 @@ optional arguments:
 
 ## Run a configuration file
 
-To run a configutation file `<path-to-config/conf.py>`, type in your favourite `bash`,
+To run a configuration file `<path-to-config/conf.py>`, type in your favorite `bash`,
 ```
 python3 run.py -r <path-to-config/conf.py>
 ```
 
-Delensalot supports MPI,
+D.lensalot supports MPI,
 
 ```
 srun --nodes <nnodes> -n <taskspernode> python3 run.py -r <path-to-config/conf.py>
