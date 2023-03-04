@@ -35,7 +35,7 @@ dlensalot_model = DLENSALOT_Model(
         class_parameters = {
             'lmax': 4000,
             'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(plancklens.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
-            'lib_dir': opj(os.environ['CSCRATCH'], 'generic_lmax4000','nlevp_sqrt(2)')
+            'lib_dir': opj(os.environ['SCRATCH'], 'generic_lmax4000','nlevp_sqrt(2)')
         },
         nlev_t = 1.00,
         nlev_p = np.sqrt(2),

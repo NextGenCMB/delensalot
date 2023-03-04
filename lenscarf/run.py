@@ -64,6 +64,7 @@ if __name__ == '__main__':
         dh.dev(parser, lerepi_handler.TEMP)
         sys.exit()
     lerepi_handler.collect_jobs()
+    # lerepi_handler.check_mpi()
 
     try:
         lerepi_handler.run()

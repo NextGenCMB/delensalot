@@ -25,6 +25,9 @@ class pbounds:
     def __repr__(self):
         return "ctr:%.2f range:%.2f"%(self.pctr, self.hext * 2)
 
+    def __eq__(self, other:pbounds):
+        return self.pctr == other.pctr and self.hext == other.hext
+
     def get_range(self):
         return 2 * self.hext
 
@@ -60,7 +63,7 @@ class Geom:
     def fsky(geom:scarf.Geometry):
         """Area of the sky covered by the pixelization"""
         return np.sum(geom.weight * geom.nph) / (4 * np.pi)
-    
+
     @staticmethod
     def phis(geom:scarf.Geometry, ir):
         assert ir < geom.get_nrings(), (ir, geom.get_nrings())
