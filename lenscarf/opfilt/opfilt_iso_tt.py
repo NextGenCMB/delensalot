@@ -14,17 +14,10 @@ from lenscarf import utils_scarf
 from scipy.interpolate import UnivariateSpline as spl
 
 pre_op_dense = None # not implemented
-def apply_fini(*args, **kwargs):
-    """cg-inversion post-operation
 
-        If nothing output is Wiener-filtered CMB
-
-
-    """
-    pass
 
 class alm_filter_nlev:
-    def __init__(self, nlev_t:float, transf:np.ndarray, alm_info:tuple, verbose=False):
+    def __init__(self, nlev_t:float, transf:np.ndarray, alm_info:tuple, verbose=False, rescal=None):
         r"""Version of alm_filter_ninv_wl for full-sky maps filtered with homogeneous noise levels
 
 
@@ -32,7 +25,7 @@ class alm_filter_nlev:
                     nlev_t: filtering noise level in uK-amin
                     transf: transfer function (beam, pixel window, mutlipole cuts, ...)
                     alm_info: lmax and mmax of unlensed CMB
-
+                    rescal: the WF will search for the sol of Tlm * rescal(l) if set (should not change anything)
 
                 Note:
                     All operations are in harmonic space.
@@ -58,6 +51,11 @@ class alm_filter_nlev:
 
         self._nthreads = int(os.environ.get('OMP_NUM_THREADS', 1))
 
+        if rescal is None:
+            rescal = np.ones(lmax_sol + 1, dtype=float)
+        assert rescal.size > lmax_sol and np.all(rescal >= 0.)
+        self.dorescal = np.any(rescal != 1.)
+        self.rescali = cli(rescal)
 
     def hashdict(self):
         return {'transf': clhash(self.transf), 'inoise2':clhash(self.inoise_2),
@@ -72,7 +70,7 @@ class alm_filter_nlev:
         """
         lmax_unl = Alm.getlmax(tlm.size, self.mmax_sol)
         assert lmax_unl == self.lmax_sol, (lmax_unl, self.lmax_sol)
-        almxfl(tlm, self.inoise_2, self.mmax_len, inplace=True)
+        almxfl(tlm, self.inoise_2 * self.rescali ** 2, self.mmax_len, inplace=True)
 
     def get_qlms(self, tlm_dat: np.ndarray, tlm_wf: np.ndarray, q_pbgeom: utils_scarf.pbdGeometry, lmax_qlm, mmax_qlm):
         """Get lensing generaliazed QE consistent with filter assumptions
@@ -132,15 +130,14 @@ class pre_op_diag:
         lmax_sol = ninv_filt.lmax_sol
         ninv_ftl = ninv_filt.get_ftl()
         if len(ninv_ftl) - 1 < lmax_sol: # We extend the transfer fct to avoid predcon. with zero (~ Gauss beam)
-            log.info("PRE_OP_DIAG: extending T transfer fct from lmax %s to lmax %s"%(len(ninv_ftl)-1, lmax_sol))
+            print("PRE_OP_DIAG: extending T transfer fct from lmax %s to lmax %s"%(len(ninv_ftl)-1, lmax_sol))
             assert np.all(ninv_ftl >= 0.)
             nz = np.where(ninv_ftl > 0.)
             spl_sq = spl(np.arange(len(ninv_ftl), dtype=float)[nz], np.log(ninv_ftl[nz]), k=2, ext='extrapolate')
             ninv_ftl = np.exp(spl_sq(np.arange(lmax_sol + 1, dtype=float)))
 
-
         flmat_tt = cli(s_cls['tt'][:lmax_sol + 1]) + ninv_ftl[:lmax_sol + 1]
-        self.flmat_tt = cli(flmat_tt) * (s_cls['ee'][:lmax_sol +1] > 0.)
+        self.flmat_tt = cli(flmat_tt * ninv_filt.rescali ** 2) * (s_cls['tt'][:lmax_sol + 1] > 0.)
 
         self.lmax = ninv_filt.lmax_sol
         self.mmax = ninv_filt.mmax_sol
@@ -150,9 +147,7 @@ class pre_op_diag:
 
     def calc(self, tlm):
         assert Alm.getsize(self.lmax, self.mmax) == tlm.size, (self.lmax, self.mmax, Alm.getlmax(tlm.size, self.mmax))
-        ret = np.copy(tlm)
-        almxfl(ret, self.flmat_tt, self.mmax, True)
-        return ret
+        return almxfl(tlm, self.flmat_tt, self.mmax, False)
 
 def calc_prep(tlm:np.ndarray, s_cls:dict, ninv_filt:alm_filter_nlev):
     """cg-inversion pre-operation  (D^t B^t N^{-1} X^{dat})
@@ -168,9 +163,8 @@ def calc_prep(tlm:np.ndarray, s_cls:dict, ninv_filt:alm_filter_nlev):
     assert Alm.getsize(tlm.size, ninv_filt.mmax_len) == ninv_filt.lmax_len, (Alm.getsize(tlm.size, ninv_filt.mmax_len), ninv_filt.lmax_len)
     assert ninv_filt.lmax_len == ninv_filt.lmax_sol
     assert ninv_filt.mmax_len == ninv_filt.mmax_sol
-    tlmc = np.copy(tlm)
-    almxfl(tlmc, ninv_filt.inoise_1 * (s_cls['tt'][:ninv_filt.lmax_len + 1] > 0.), ninv_filt.mmax_len, True)
-    return tlmc
+    return almxfl(tlm, ninv_filt.rescali * ninv_filt.inoise_1 * (s_cls['tt'][:ninv_filt.lmax_len + 1] > 0.), ninv_filt.mmax_len, False)
+
 
 class dot_op:
     def __init__(self, lmax:int, mmax:int or None):
@@ -184,10 +178,14 @@ class dot_op:
             Note: here by defaults the scalar product is sum(Dl) instead of sum(Cl) !
 
         """
-        if mmax is None or mmax < 0: mmax = lmax
+        if mmax is None or mmax < 0:
+            mmax = lmax
         self.lmax = lmax
         self.mmax = min(mmax, lmax)
         self.scal = np.arange(lmax + 1) * np.arange(1, lmax + 2) * (2 * np.arange(self.lmax + 1) + 1) / (2. * np.pi)
+        #FIXME
+        self.scal = (2 * np.arange(self.lmax + 1) + 1)
+        print("Cl norm!")
 
     def __call__(self, tlm1, tlm2):
         assert tlm1.size == Alm.getsize(self.lmax, self.mmax), (tlm1.size, Alm.getsize(self.lmax, self.mmax))
@@ -196,19 +194,18 @@ class dot_op:
 
 
 class fwd_op:
-    """Forward operation for polarization-only, no primordial B power cg filter
+    """Forward operation for temperature-only
 
 
     """
     def __init__(self, s_cls:dict, ninv_filt:alm_filter_nlev):
-        self.icls = {'tt':cli(s_cls['tt'])}
+        self.icls = {'tt': cli(s_cls['tt'][:ninv_filt.lmax_sol + 1]) * ninv_filt.rescali ** 2}
         self.ninv_filt = ninv_filt
         self.lmax_sol = ninv_filt.lmax_sol
         self.mmax_sol = ninv_filt.mmax_sol
 
     def hashdict(self):
-        return {'icltt': clhash(self.icls['tt']),'iclbb': clhash(self.icls['bb']),
-                'n_inv_filt': self.ninv_filt.hashdict()}
+        return {'icltt': clhash(self.icls['tt']), 'ninv_filt': self.ninv_filt.hashdict()}
 
     def __call__(self, tlm):
         return self.calc(tlm)
@@ -216,5 +213,13 @@ class fwd_op:
     def calc(self, tlm):
         nlm = np.copy(tlm)
         self.ninv_filt.apply_alm(nlm)
+        #TODO: in principle the icls > 0 should already be ok?
         nlm = almxfl(nlm + almxfl(tlm, self.icls['tt'], self.mmax_sol, False), self.icls['tt'] > 0., self.mmax_sol, False)
         return nlm
+
+def apply_fini(alm, s_cls, ninv_filt:alm_filter_nlev):
+    """ This final operation turns the Wiener-filtered CMB cg-solution to the inverse-variance filtered CMB.
+
+    """
+    if ninv_filt.dorescal:
+        almxfl(alm, ninv_filt.rescali, ninv_filt.mmax_sol, inplace=True)
