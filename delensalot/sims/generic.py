@@ -52,7 +52,7 @@ class sims_cmb_len(object):
 
     """
     def __init__(self, lib_dir, lmax, cls_unl, lib_pha=None, offsets_plm=None, offsets_cmbunl=None,
-                 dlmax=1024, nside_lens=4096, facres=0, nbands=8, verbose=True):
+                 dlmax=1024, nside_lens=4096, facres=0, nbands=8, cache_plm=True, verbose=True):
         if not os.path.exists(lib_dir) and mpi.rank == 0:
             os.makedirs(lib_dir)
         mpi.barrier()
@@ -67,10 +67,12 @@ class sims_cmb_len(object):
 
         self.lmax = lmax
         self.dlmax = dlmax
+        self.lmax_plm = lmax + dlmax
         # lenspyx parameters:
         self.nside_lens = nside_lens
         self.nbands = nbands
         self.facres = facres
+        self.cache_plm = cache_plm
 
         self.unlcmbs = cmbs.sims_cmb_unl(cls_unl, lib_pha)
         self.lib_dir = lib_dir
@@ -122,7 +124,12 @@ class sims_cmb_len(object):
             assert 0,(field,self.fields)
 
     def get_sim_plm(self, idx):
-        return self.unlcmbs.get_sim_plm(self.offset_index(idx, self.offset_plm[0], self.offset_plm[1]))
+        fn = os.path.join(self.lib_dir, 'plm_in_%04d_lmax%s.fits'%(idx, self.lmax_plm))
+        if not os.path.exists(fn):
+            plm = self.unlcmbs.get_sim_plm(self.offset_index(idx, self.offset_plm[0], self.offset_plm[1]))
+            if self.cache_plm:
+                hp.write_alm(fn, plm)
+            return plm
 
     def get_sim_olm(self, idx):
         if 'o' in self.fields:
