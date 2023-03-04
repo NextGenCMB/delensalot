@@ -2,13 +2,13 @@ import numpy as np
 import os
 from time import time
 import scarf
-from lenscarf import remapping
-from lenscarf import utils_config, utils_hp, utils, utils_sht, utils_scarf
-from lenscarf import cachers
-from lenscarf.opfilt import opfilt_ee_wl, opfilt_pp
-from lenscarf.utils_scarf import Geom, scarfjob, pbdGeometry, pbounds
+from delensalot import remapping
+from delensalot import utils_config, utils_hp, utils, utils_sht, utils_scarf
+from delensalot import cachers
+from delensalot.opfilt import opfilt_ee_wl, opfilt_pp
+from delensalot.utils_scarf import Geom, scarfjob, pbdGeometry, pbounds
 from plancklens.utils import camb_clfile
-from lenscarf import qest_wl
+from delensalot import qest_wl
 # FIXME: qest_wl part of opfilt
 # FIXME: make opfilt classes instead of files?
 # FIXME: fix multigrid always assuming mmax=lmax
@@ -68,19 +68,19 @@ transf = utils_hp.gauss_beam(fwhm / 180 / 60 * np.pi, lmax_len)
 n_inv = [np.nan_to_num(utils.read_map(IPVMAP)[hp_start:hp_end])]
 
 # deflection instance:
-cldd = w_lensing * camb_clfile('../lenscarf/data/cls/FFP10_wdipole_lenspotentialCls.dat')['pp'][:lmax_dlm + 1]
+cldd = w_lensing * camb_clfile('../delensalot/data/cls/FFP10_wdipole_lenspotentialCls.dat')['pp'][:lmax_dlm + 1]
 cldd *= np.sqrt(np.arange(lmax_dlm + 1) *  np.arange(1, lmax_dlm + 2))
 #dlm = hp.synalm(cldd, lmax=lmax_dlm, mmax=mmax_dlm) # get segfault with nontrivial mmax and new=True ?!
 dlm = utils_hp.synalm(cldd, lmax_dlm, mmax_dlm)
 
-#cacher = cachers.cacher_npy('/Users/jcarron/OneDrive - unige.ch/lenscarf/temp/test_opfilt')
+#cacher = cachers.cacher_npy('/Users/jcarron/OneDrive - unige.ch/delensalot/temp/test_opfilt')
 cacher = cachers.cacher_mem()
 
 
 
 if __name__ == '__main__':
     import argparse
-    parser = argparse.ArgumentParser(description='test of lenscarf-based opfilt')
+    parser = argparse.ArgumentParser(description='test of delensalot-based opfilt')
     parser.add_argument('-lensgeom', dest='lensgeom', type=str, default='healpix', help='lens geometry choice')
     parser.add_argument('-run', dest='run', action='store_true', help='build and filter one sim')
     parser.add_argument('-sht', dest='sht', type=int, default=8, help='threads number for SHTs')
@@ -117,7 +117,7 @@ if __name__ == '__main__':
     if args.run: # build and filter one Gaussian sim
         print("Building G. sims")
 
-        cl_len = camb_clfile('../lenscarf/data/cls/FFP10_wdipole_lensedCls.dat')
+        cl_len = camb_clfile('../delensalot/data/cls/FFP10_wdipole_lensedCls.dat')
         elm = utils_hp.synalm(cl_len['ee'], lmax_len, mmax_len)
         blm = utils_hp.synalm(cl_len['bb'], lmax_len, mmax_len) * w_lensing
         utils_hp.almxfl(elm, transf, mmax_len, True)
@@ -158,7 +158,7 @@ if __name__ == '__main__':
                         lmax_CMB=lmax_len,  lmin_CMB=10, lmax_out=lmax_dlm)[0]['p_p']
 
         ls = np.arange(2, lmax_dlm + 1)
-        cl_unl = camb_clfile('../lenscarf/data/cls/FFP10_wdipole_lenspotentialCls.dat')
+        cl_unl = camb_clfile('../delensalot/data/cls/FFP10_wdipole_lenspotentialCls.dat')
         w = ls ** 2 * (ls + 1) ** 2 * 1e7 /2./np.pi
         pl.loglog(ls, w *  utils_hp.alm2cl(qlms_g, qlms_g, lmax_dlm, mmax_dlm, lmax_dlm)[ls] * N0[ls] ** 2)
         pl.loglog(ls, w *  utils_hp.alm2cl(qlms_g_EB, qlms_g_EB, lmax_dlm, mmax_dlm, lmax_dlm)[ls] * N0[ls] ** 2)

@@ -1,6 +1,6 @@
 import numpy as np
 
-from lenscarf.lerepi.core.metamodel.dlensalot_v2 import *
+from delensalot.lerepi.core.metamodel.dlensalot_v2 import *
 from MSC import pospace
 
 dlensalot_model = DLENSALOT_Model(
@@ -36,7 +36,7 @@ dlensalot_model = DLENSALOT_Model(
         IMIN = 0,
         IMAX = 3,
         simidxs = np.arange(0,4),
-        package_ = 'lenscarf',
+        package_ = 'delensalot',
         module_ = 'lerepi.config.cmbs4.data.data_08d',
         class_ = 'ILC_May2022',
         class_parameters = {

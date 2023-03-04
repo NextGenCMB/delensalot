@@ -31,7 +31,7 @@ minmal working example
 The `minimal working example simulation module`_ generates, very naively, t,e, and b spherical harmonics from a FFP10 power spectrum, and at :code:`nside=2048` at runtime,
 and adds a Gaussian noise to it.
 
-.. _`minimal working example simulation module`: https://github.com/NextGenCMB/D.lensalot/blob/main/lenscarf/lenscarf/lerepi/config/examples/mwe/data_mwe/sims_mwe.py
+.. _`minimal working example simulation module`: https://github.com/NextGenCMB/D.lensalot/blob/main/delensalot/delensalot/lerepi/config/examples/mwe/data_mwe/sims_mwe.py
 
 The noise level can be set via the class parameter :code:`nlev`.
 
@@ -64,7 +64,7 @@ To use the minimal working example (mwe) in a configuration file, the :code:`DLE
 
 A configuration file for the minimal working example can be found `here`_.
 
-.. _`here`: https://github.com/NextGenCMB/D.lensalot/blob/main/lenscarf/lenscarf/lerepi/config/examples/mwe/conf_mwe.py
+.. _`here`: https://github.com/NextGenCMB/D.lensalot/blob/main/delensalot/delensalot/lerepi/config/examples/mwe/conf_mwe.py
 
 
 example FFP10
@@ -98,7 +98,7 @@ A :code:`DLENSALOT_Data`-object using this simulation module, generating 100 sim
     )
 
 
-.. _`FFP10 simulation module`: https://github.com/NextGenCMB/D.lensalot/blob/main/lenscarf/sims/sims_ffp10.py
+.. _`FFP10 simulation module`: https://github.com/NextGenCMB/D.lensalot/blob/main/delensalot/sims/sims_ffp10.py
 
 
 

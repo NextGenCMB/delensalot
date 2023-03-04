@@ -1,6 +1,6 @@
 ![D.lensalot logo](res/dlensalot2.PNG)
 # D.Lensalot 
-(formerly known as Lenscarf)
+(formerly known as delensalot)
 Curved-sky iterative CMB lensing tools
 
 ## Installation
@@ -33,13 +33,13 @@ To run a configutation file `<path-to-config>`, type in your favourite `bash`,
 ```
 python3 run.py -p <path-to-config>
 ```
-`<path-to-config>` is a relative path, pointing to a config file in `lenscarf/lerepi/config/`.
+`<path-to-config>` is a relative path, pointing to a config file in `delensalot/lerepi/config/`.
 
 For example,
 ```
 python3 run.py -p examples/example_c08b.py
 ```
-runs the example configuration for `c08b`. See [lenscarf/lerepi/README](https://github.com/NextGenCMB/lenscarf/blob/f/mergelerepi/lenscarf/lerepi/README.rst) for a description of the configuation parameters
+runs the example configuration for `c08b`. See [delensalot/lerepi/README](https://github.com/NextGenCMB/delensalot/blob/f/mergelerepi/delensalot/lerepi/README.rst) for a description of the configuation parameters
 
 If you already have an analysis, located at `$path`, with config file `conf.py`, you may resume this analysis with,
 ```
@@ -53,12 +53,12 @@ python3 run.py -s $path/conf.py
 
 ## interactive mode
 
-D.lensalot supports interactive mode. See `lenscarf/notebooks/interactive.ipynb` for guidance.
+D.lensalot supports interactive mode. See `delensalot/notebooks/interactive.ipynb` for guidance.
 
 
 ## Inspect your results
 
-`lenscarf/notebooks` and `lenscarf/scripts` may be of some help.
+`delensalot/notebooks` and `delensalot/scripts` may be of some help.
 
 
 ## Use on NERSC

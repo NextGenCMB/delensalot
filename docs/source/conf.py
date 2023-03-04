@@ -8,7 +8,7 @@
 import os, sys
 # sys.path.insert(0, os.path.abspath("./../"))
 
-autodoc_mock_imports = ['plancklens', 'scarf', 'MSC', 'bicubic', 'fortran', 'mpi4py', 'lenscarf.fortran']
+autodoc_mock_imports = ['plancklens', 'scarf', 'MSC', 'bicubic', 'fortran', 'mpi4py', 'delensalot.fortran']
 # sys.path.insert(0, os.path.abspath("./../"))
 
 sys.path.insert(0, "./../")

@@ -10,11 +10,11 @@ import os
 import numpy as np
 import plancklens.sims.phas
 
-from lenscarf import cachers
-from lenscarf import utils_scarf, utils_hp
+from delensalot import cachers
+from delensalot import utils_scarf, utils_hp
 from plancklens.sims.planck2018_sims import cmb_unl_ffp10
 from plancklens import utils
-from lenscarf.remapping import deflection
+from delensalot.remapping import deflection
 
 aberration_lbv_ffp10 = (264. * (np.pi / 180), 48.26 * (np.pi / 180), 0.001234)
 
@@ -22,12 +22,12 @@ class cmb_len_ffp10:
     def __init__(self, aberration:tuple[float, float, float]or None=None, lmin_dlm=0, cacher:cachers.cacher or None=None,
                        lmax_thingauss:int=5120, nbands:int=1, targetres=0.75, verbose:bool=False, plm_shuffle:callable or None=None):
 
-        """FFP10 lensed cmbs, lensed with independent lenscarf code on thingauss geometry
+        """FFP10 lensed cmbs, lensed with independent delensalot code on thingauss geometry
 
             Args:
                 aberration: aberration parameters (gal. longitude (rad), latitude (rad) and v/c) Defaults to FFP10 values
                 lmin_dlm: Optionally set to zero the deflection field for L<lmin_dlm
-                cacher: set this to one of lenscarf.cachers in order save maps (nothing saved by default)
+                cacher: set this to one of delensalot.cachers in order save maps (nothing saved by default)
                 nbands: if set splits the sky into bands to perform the operations (saves some memory but probably a bit slower)
                 targetres: main accuracy parameter; target resolution in arcmin to perform the deflection operation.
                            make this smaller for more accurate interpolation
