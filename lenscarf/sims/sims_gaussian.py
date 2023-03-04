@@ -47,7 +47,7 @@ class sims_gaussian(generic.sims_cmb_len):
 
 
     def get_sim_plm(self, idx):
-        fn = os.path.join(self.lib_dir, 'plm_in_lmax%s.fits'%self.lmax_plm)
+        fn = os.path.join(self.lib_dir, 'plm_in_%04d_lmax%s.fits'%(idx, self.lmax_plm))
         if not os.path.exists(fn):
             plm = self.unlcmbs.get_sim_plm(self.offset_index(idx, self.offset_plm[0], self.offset_plm[1]))
             if self.cache_plm:
