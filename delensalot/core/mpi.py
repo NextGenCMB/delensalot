@@ -3,10 +3,13 @@
 """
 
 from __future__ import print_function
-import os
-
 import logging
 log = logging.getLogger(__name__)
+
+import os
+import platform
+import multiprocessing
+
 
 def is_notebook() -> bool:
     try:
@@ -38,7 +41,9 @@ def check_MPI(func):
         log.info("rank: {}, size: {}, name: {}".format(rank, size, name))
         return func(*args, **kwargs)
     return inner_function
-    
+
+def check_MPI_inline():
+    log.info("rank: {}, size: {}, name: {}".format(rank, size, name))
     
 
 verbose = True
@@ -48,13 +53,21 @@ if not is_notebook() and cond4mpi4py:
     print('cond4mpi exists')
     from mpi4py import MPI
 
+
     rank = MPI.COMM_WORLD.Get_rank()
     size = MPI.COMM_WORLD.Get_size()
-    comm = MPI.COMM_WORLD
-    send = MPI.COMM_WORLD.Send
-    receive = MPI.COMM_WORLD.Recv
     barrier = MPI.COMM_WORLD.Barrier
+    ANY_SOURCE = MPI.ANY_SOURCE
+    send = MPI.COMM_WORLD.send
+    receive = MPI.COMM_WORLD.recv
+    bcast = MPI.COMM_WORLD.bcast
+    status = MPI.Status
+    iprobe = MPI.COMM_WORLD.Iprobe
+    Ibcast = MPI.COMM_WORLD.Ibcast
+    Isend = MPI.COMM_WORLD.Isend
+    Ireceive = MPI.COMM_WORLD.Irecv
     finalize = MPI.Finalize
+    name = "{} with {} cpus".format( platform.processor(),multiprocessing.cpu_count())
     log.info('mpi.py : setup OK, rank %s in %s' % (rank, size))
 else:
     print('cond4mpi does not exists')
@@ -63,10 +76,9 @@ else:
     size = 1
     barrier = lambda: -1
     finalize = lambda: -1
-    receive = lambda val, src : 0
-    send = lambda val, dst : 0
-    import platform
-    
-    import multiprocessing
-    
+    bcast = lambda _: 0
+    send = lambda _, dest: 0
+    receive = lambda _, source: 0
+    ANY_SOURCE = 0
+
     name = "{} with {} cpus".format( platform.processor(),multiprocessing.cpu_count())
