@@ -12,6 +12,8 @@ import healpy as hp
 import matplotlib.colors as mcolors
 from matplotlib.colors import ListedColormap
 
+from lenscarf.lerepi.config.config_helper import data_functions as df
+
 
 ll = np.arange(0,200+1,1)
 scale_uk = (2 * ll + 1) * ll**2 * (ll + 1)**2
@@ -58,6 +60,37 @@ def load_paramfile(directory, descriptor):
     spec.loader.exec_module(p)
 
     return p
+
+def plot_noiseandcmb(ana):
+    LL = np.arange(0, 6001, 1)
+
+    tnoise = hp.anafast(ana.sims.get_sim_tnoise(0), lmax=6000)
+    qnoise = hp.anafast(ana.sims.get_sim_qnoise(0), lmax=6000)
+    unoise = hp.anafast(ana.sims.get_sim_unoise(0), lmax=6000)
+
+
+    scale_factor_ps = (LL * (LL + 1)) / (2 * np.pi)
+    beam = np.exp(LL*(LL+1)*df.a2r(1/60)/(8*np.log(2)))
+    plt.plot(scale_factor_ps*ana.cls_len['tt'][:6001], label=r'$C_\ell^{TT}$')
+    plt.plot(scale_factor_ps*ana.cls_len['ee'][:6001], label=r'$C_\ell^{EE}$')
+    plt.plot(scale_factor_ps*ana.cls_len['bb'][:6001], label=r'$C_\ell^{BB}$')
+    plt.plot(scale_factor_ps*(1/(2.728*1e6))**2*np.exp(LL*(LL+1)*ldf.a2r(1/60)/(8*np.log(2))), label=r'$C_\ell^{TT, {\rm Noise}}$')
+    plt.plot(scale_factor_ps*(np.sqrt(2)/(2.728*1e6))**2*beam, label=r'$C_\ell^{P, {\rm Noise}}$')
+    plt.plot(scale_factor_ps*tnoise*beam*1e-6, label=r'$C_\ell^{TT, {\rm Noise, emp}}$')
+    plt.plot(scale_factor_ps*qnoise*beam*1e-6, label=r'$C_\ell^{Q, {\rm Noise, emp}}$')
+    plt.plot(scale_factor_ps*unoise*beam*1e-6, label=r'$C_\ell^{U, {\rm Noise, emp}}$')
+    plt.xlim(1e3,6e3)
+    print(ana.nlev_t, ana.nlev_p)
+    plt.yscale('log')
+    plt.ylim(1e-3,1e6)
+    plt.xlim(100,5000)
+    plt.vlines(4000,1e-3,1e5, label='lmax len', color='grey')
+    plt.vlines(4250,1e-3,1e5, label='4250', color='black')
+    plt.legend(loc='lower left', bbox_to_anchor=[1,0.0])
+    plt.title('CMB-S4 like settings')
+    plt.xlabel('Multipole, $\ell$')
+    plt.ylabel(r"$\ell(\ell+1)C_\ell/2\pi$")
+    # plt.loglog()
 
 
 def clamp(val, minimum=0, maximum=255):

@@ -13,6 +13,7 @@ from logdecorator import log_on_start, log_on_end
 import datetime
 import getpass
 import copy
+import importlib
 
 import numpy as np
 import healpy as hp
@@ -20,10 +21,21 @@ import healpy as hp
 from plancklens import utils, qresp
 from plancklens.sims import planck2018_sims
 
+from plancklens.sims import maps, phas
+from plancklens.qcinv import opfilt_pp
+from plancklens import qest, qecl, utils
+from plancklens.filt import filt_util, filt_cinv, filt_simple
+
+
+from delensalot.sims import sims_ffp10
+from delensalot.opfilt import utils_cinv_p as cinv_p_OBD
+from delensalot.opfilt.bmodes_ninv import template_dense
+
+
 from delensalot.core import mpi
 from delensalot.core.mpi import check_MPI
 from delensalot.lerepi.config.config_helper import data_functions as df
-from delensalot.utils_hp import almxfl, alm_copy
+from delensalot.utils_hp import almxfl, alm_copy, gauss_beam
 from delensalot.iterators.statics import rec as rec
 from delensalot.iterators import iteration_handler
 from delensalot.opfilt.bmodes_ninv import template_bfilt
@@ -49,7 +61,19 @@ class Basejob():
 
     def __init__(self, qe, model):
 
-        assert 0, "Overwrite"
+
+        _sims_module = importlib.import_module(self._sims_full_name)
+        self._sims = getattr(_sims_module, self._class)(**self._dataclass_parameters)
+
+        b_transf = gauss_beam(df.a2r(self.beam), lmax=self.lmax) # TODO ninv_p doesn't depend on this anyway, right?
+        self.ninv_p = np.array(opfilt_pp.alm_filter_ninv(self.ninv_p_desc, b_transf, marge_qmaps=(), marge_umaps=()).get_ninv())
+
+        if 'lib_dir' in self.class_parameters:
+            pix_phas = phas.pix_lib_phas(self.class_parameters['lib_dir'], 3, (hp.nside2npix(self._sims.nside),))
+        else:
+            pix_phas = phas.pix_lib_phas(self.class_parameters['cacher'].lib_dir, 3, (hp.nside2npix(self._sims.nside),))
+        transf_dat = gauss_beam(self._sims.beam / 180 / 60 * np.pi, lmax=self._sims.lmax_transf)
+        self.sims = maps.cmb_maps_nlev(self._sims, transf_dat, self._sims.nlev_t, self._sims.nlev_p, self._sims.nside, pix_lib_phas=pix_phas)
 
 
     # @base_exception_handler
@@ -342,6 +366,8 @@ class OBD_builder(Basejob):
     def __init__(self, OBD_model):
         self.__dict__.update(OBD_model.__dict__)
 
+        self.tpl = template_dense(self.lmin_teb[2], self.ninvjob_geometry, self.tr, _lib_dir=self.obd_libdir, rescal=self.obd_rescale)
+
 
     # @base_exception_handler
     @log_on_start(logging.INFO, "collect_jobs() started")
@@ -380,12 +406,105 @@ class OBD_builder(Basejob):
         mpi.barrier()
 
 
+class Sim_generator(Basejob):
+
+    @check_MPI
+    def __init__(self, dlensalot_model):
+        self.__dict__.update(dlensalot_model.__dict__)
+        self.dlensalot_model = dlensalot_model
+
+        first_rank = mpi.bcast(mpi.rank)
+        if first_rank == mpi.rank:
+            if not os.path.exists(self.lib_dir):
+                os.makedirs(self.lib_dir)
+            for n in range(mpi.size):
+                if n != mpi.rank:
+                    mpi.send(1, dest=n)
+        else:
+            mpi.receive(None, source=mpi.ANY_SOURCE)
+
+
+    # @base_exception_handler
+    @log_on_start(logging.INFO, "collect_jobs(qe_tasks={qe_tasks}, recalc={recalc}) started")
+    @log_on_end(logging.INFO, "collect_jobs(qe_tasks={qe_tasks}, recalc={recalc}) finished: jobs={self.jobs}")
+    def collect_jobs(self, qe_tasks=None, recalc=False):
+
+        jobs = []
+        for simidx in self.simidxs:
+            # TODO remove hardcoded fname generation in the next line, perhaps use cacher
+            def check(simidx):
+                return True
+            if check(simidx):
+                jobs.append(simidx)
+
+        self.jobs = jobs
+
+
+    # @base_exception_handler
+    @log_on_start(logging.INFO, "run(task={task}) started")
+    @log_on_end(logging.INFO, "run(task={task}) finished")
+    def run(self, task=None):
+
+        for idx in self.jobs[mpi.rank::mpi.size]:
+            # In principle it is enough to calculate qlms. 
+            # self.get_plm(idx, self.QE_subtract_meanfield)
+            self.generate_sim(int(idx))
+
+
+    
 class QE_lr(Basejob):
 
     @check_MPI
     def __init__(self, dlensalot_model):
         self.__dict__.update(dlensalot_model.__dict__)
         self.dlensalot_model = dlensalot_model
+
+        if self.cl_analysis == True:
+            # TODO fix numbers for mc ocrrection and total nsims
+            self.ss_dict = { k : v for k, v in zip( np.concatenate( [ range(i*60, (i+1)*60) for i in range(0,5) ] ),
+                                    np.concatenate( [ np.roll( range(i*60, (i+1)*60), -1 ) for i in range(0,5) ] ) ) }
+            self.ds_dict = { k : -1 for k in range(300)}
+
+            self.ivfs_d = filt_util.library_shuffle(self.ivfs, self.ds_dict)
+            self.ivfs_s = filt_util.library_shuffle(self.ivfs, self.ss_dict)
+
+            self.qlms_ds = qest.library_sepTP(opj(self.TEMP, 'qlms_ds'), self.ivfs, self.ivfs_d, self.cls_len['te'], self._sims.nside, lmax_qlm=self.qe_lm_max_qlm[0])
+            self.qlms_ss = qest.library_sepTP(opj(self.TEMP, 'qlms_ss'), self.ivfs, self.ivfs_s, self.cls_len['te'], self._sims.nside, lmax_qlm=self.qe_lm_max_qlm[0])
+
+            self.mc_sims_bias = np.arange(60, dtype=int)
+            self.mc_sims_var  = np.arange(60, 300, dtype=int)
+
+            self.qcls_ds = qecl.library(opj(self.TEMP, 'qcls_ds'), self.qlms_ds, self.qlms_ds, np.array([]))  # for QE RDN0 calculations
+            self.qcls_ss = qecl.library(opj(self.TEMP, 'qcls_ss'), self.qlms_ss, self.qlms_ss, np.array([]))  # for QE RDN0 / MCN0 calculations
+            self.qcls_dd = qecl.library(opj(self.TEMP, 'qcls_dd'), self.qlms_dd, self.qlms_dd, self.mc_sims_bias)
+
+        if self.qe_filter_directional == 'anisotropic':
+            lmax_plm = self.lm_max_qlm[0]
+            # TODO filters can be initialised with both, ninvX_desc and ninv_X. But Plancklens' hashcheck will complain if it changed since shapes are different. Not sure which one I want to use in the future..
+            # TODO using ninv_X possibly causes hashcheck to fail, as v1 == v2 won't work on arrays.
+            self.cinv_t = filt_cinv.cinv_t(opj(self.TEMP, 'cinv_t'), lmax_plm, self._sims.nside, self.cls_len, self.ttebl['t'], self.ninvt_desc,
+                marge_monopole=True, marge_dipole=True, marge_maps=[])
+            if self.OBD:
+                transf_elm_loc = gauss_beam(self._sims.beam / 180 / 60 * np.pi, lmax=lmax_plm)
+                self.cinv_p = cinv_p_OBD.cinv_p(opj(self.TEMP, 'cinv_p'), lmax_plm, self._sims.nside, self.cls_len, transf_elm_loc[:lmax_plm+1], self.ninvp_desc, geom=self.ninvjob_qe_geometry,
+                    chain_descr=self.chain_descr(lmax_plm, self.cg_tol), bmarg_lmax=self.lmin_teb[2], zbounds=self.zbounds, _bmarg_lib_dir=self.obd_libdir, _bmarg_rescal=self.obd_rescale, sht_threads=self.tr)
+            else:
+                self.cinv_p = filt_cinv.cinv_p(opj(self.TEMP, 'cinv_p'), lmax_plm, self._sims.nside, self.cls_len, self.ttebl['e'], self.ninvp_desc,
+                    chain_descr=self.chain_descr(lmax_plm, self.cg_tol), transf_blm=self.ttebl['b'], marge_qmaps=(), marge_umaps=())
+
+            _filter_raw = filt_cinv.library_cinv_sepTP(opj(self.TEMP, 'ivfs'), self.sims, self.cinv_t, self.cinv_p, self.cls_len)
+            _ftl_rs = np.ones(lmax_plm + 1, dtype=float) * (np.arange(lmax_plm + 1) >= self.lmin_teb[0])
+            _fel_rs = np.ones(lmax_plm + 1, dtype=float) * (np.arange(lmax_plm + 1) >= self.lmin_teb[1])
+            _fbl_rs = np.ones(lmax_plm + 1, dtype=float) * (np.arange(lmax_plm + 1) >= self.lmin_teb[2])
+            self.ivfs = filt_util.library_ftl(_filter_raw, lmax_plm, _ftl_rs, _fel_rs, _fbl_rs)
+        elif self.qe_filter_directional == 'isotropic':
+            self.ivfs = filt_simple.library_fullsky_sepTP(opj(self.TEMP, 'ivfs'), self.sims, self._sims.nside, self.ttebl, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
+            # elif self._sims.data_type == 'alm':
+                # self.ivfs = filt_simple.library_fullsky_alms_sepTP(opj(self.TEMP, 'ivfs'), self.sims, self.ttebl, self.cls_len, self.ftl, self.fel, self.fbl, cache=True)
+
+        # qlms
+        if self.qlm_type == 'sepTP':
+            self.qlms_dd = qest.library_sepTP(opj(self.TEMP, 'qlms_dd'), self.ivfs, self.ivfs, self.cls_len['te'], self._sims.nside, lmax_qlm=self.qe_lm_max_qlm[0])
 
         self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
         self.mf = lambda simidx: self.get_meanfield(int(simidx))
@@ -403,9 +522,13 @@ class QE_lr(Basejob):
 
         jobs = list(range(len(_qe_tasks)))
         for taski, task in enumerate(_qe_tasks):
+            ## task_dependence
+            ## calc_mf -> calc_phi, calc_blt -> calc_phi, (calc_mf)
+
             _jobs = []
 
             ## Calculate realization-independent mf and store in qlms_dd dir
+
 
             if task == 'calc_meanfield':
                 ## appending all as I trust plancklens to skip existing ivfs
@@ -624,7 +747,7 @@ class MAP_lr(Basejob):
             if task == 'calc_phi':
                 ## Here I only want to calculate files not calculated before, and only for the it job tasks.
                 ## i.e. if no blt task in iterator job, then no blt task in QE job 
-                self.qe.collect_jobs(task, recalc=False)
+                self.self.collect_jobs(task, recalc=False)
                 for idx in self.simidxs:
                     lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
                     ## Skip if itmax phi is calculated

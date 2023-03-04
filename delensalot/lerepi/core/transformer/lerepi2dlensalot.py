@@ -8,7 +8,6 @@ __author__ = "S. Belkner, J. Carron, L. Legrand"
 import os, sys
 import copy
 from os.path import join as opj
-import importlib
 
 
 import logging
@@ -18,32 +17,79 @@ import numpy as np
 import healpy as hp
 import hashlib
 
-import plancklens
-from plancklens.sims import maps, phas
-from plancklens.qcinv import opfilt_pp
-from plancklens import qest, qecl, utils
-from plancklens.filt import filt_util, filt_cinv, filt_simple
 from plancklens.qcinv import cd_solve
+from plancklens import utils
 
-from delensalot.core.mpi import check_MPI
 from delensalot.core import mpi
-from delensalot.sims import sims_ffp10
-from delensalot import utils_scarf, utils_sims
-from delensalot.utils import cli, read_map
-from delensalot.iterators import steps
+from delensalot.core.mpi import check_MPI
 from delensalot.utils_hp import gauss_beam
-from delensalot.opfilt import utils_cinv_p as cinv_p_OBD
-import delensalot.core.handler as delensalot_handler
+from delensalot import utils_scarf, utils_sims
 
-from delensalot.opfilt.bmodes_ninv import template_dense
-
+from delensalot.utils import cli, read_map
 from delensalot.lerepi.core.visitor import transform
+from delensalot.iterators import steps
 
+import delensalot.core.handler as delensalot_handler
 from delensalot.lerepi.config.config_helper import data_functions as df, LEREPI_Constants as lc
 from delensalot.lerepi.core.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALOT_Model_mm, DLENSALOT_Concept, DLENSALOT_Chaindescriptor
 
 
 # TODO swap rhits with ninv
+class l2base_Transformer():
+
+
+    @log_on_start(logging.DEBUG, "_process_Data() started")
+    @log_on_end(logging.DEBUG, "_process_Data() finished")
+    def _process_Data(dl, da):
+        # package_
+        _package = da.package_
+        # module_
+        _module = da.module_
+        # class_
+        dl._class = da.class_
+        # class_parameters -> sims
+        ## TODO what if user wants to add own sims_module outside of dlensalot?
+        _dataclass_parameters = da.class_parameters
+        dl.class_parameters = da.class_parameters
+        if 'fg' in _dataclass_parameters:
+            dl.fg = _dataclass_parameters['fg']
+        dl._sims_full_name = '{}.{}'.format(_package, _module)
+        ## get_sim_pmap comes from sims module directly
+        # -> nothing to do here
+        ## sims parameter come from configuration file
+        dl._sims.beam = da.beam
+        dl._sims.lmax_transf = da.lmax_transf
+        dl._sims.nlev_t = da.nlev_t
+        dl._sims.nlev_p = da.nlev_p
+        dl._sims.nside = da.nside
+        ## get_sim_pmap comes from plancklens.maps wrapper
+
+
+        # transferfunction
+        dl.transferfunction = da.transferfunction
+        if dl.transferfunction == 'gauss_no_pixwin':
+            # Fiducial model of the transfer function
+            transf_tlm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[0])
+            transf_elm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[1])
+            transf_blm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[2])
+        elif dl.transferfunction == 'gauss_with_pixwin':
+            # Fiducial model of the transfer function
+            transf_tlm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(da.nside, lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[0])
+            transf_elm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(da.nside, lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[1])
+            transf_blm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(da.nside, lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[2])
+        dl.ttebl = {'t': transf_tlm, 'e': transf_elm, 'b':transf_blm}
+
+        # Isotropic approximation to the filtering (used eg for response calculations)
+        ftl_len = cli(dl.cls_len['tt'][:dl.lm_max_ivf[0] + 1] + df.a2r(da.nlev_t)**2 * cli(dl.ttebl['t'] ** 2)) * (dl.ttebl['t'] > 0)
+        fel_len = cli(dl.cls_len['ee'][:dl.lm_max_ivf[0] + 1] + df.a2r(da.nlev_p)**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
+        fbl_len = cli(dl.cls_len['bb'][:dl.lm_max_ivf[0] + 1] + df.a2r(da.nlev_p)**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
+        dl.ftebl_len = {'t': ftl_len, 'e': fel_len, 'b':fbl_len}
+
+        # Same using unlensed spectra (used for unlensed response used to initiate the MAP curvature matrix)
+        ftl_unl = cli(dl.cls_unl['tt'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.ttebl['t'] ** 2)) * (dl.ttebl['t'] > 0)
+        fel_unl = cli(dl.cls_unl['ee'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
+        fbl_unl = cli(dl.cls_unl['bb'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
+        dl.ftebl_unl = {'t': ftl_unl, 'e': fel_unl, 'b':fbl_unl}
 
 
 class l2T_Transformer:
@@ -95,6 +141,23 @@ class l2T_Transformer:
                 buff += "_{}{:.3f}".format(key, val)
 
         return buff
+
+
+
+class l2simgen_Transformer(l2base_Transformer):
+    """_summary_
+    """
+
+    @check_MPI
+    @log_on_start(logging.INFO, "build() started")
+    @log_on_end(logging.INFO, "build() finished")
+    def build(self, cf):
+
+        dl = DLENSALOT_Concept()    
+
+        super()._process_Data(dl, cf.data)
+
+        return dl
 
 
 class l2lensrec_Transformer:
@@ -207,7 +270,6 @@ class l2lensrec_Transformer:
             dl.obd_rescale = od.rescale
             if cf.noisemodel.ninvjob_geometry == 'healpix_geometry':
                 dl.ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(cf.data.nside, zbounds=dl.zbounds)
-            dl.tpl = template_dense(dl.lmin_teb[2], dl.ninvjob_geometry, dl.tr, _lib_dir=dl.obd_libdir, rescal=dl.obd_rescale)
   
 
         @log_on_start(logging.DEBUG, "_process_Data() started")
@@ -218,16 +280,14 @@ class l2lensrec_Transformer:
             # module_
             _module = da.module_
             # class_
-            _class = da.class_
+            dl._class = da.class_
             # class_parameters -> sims
             ## TODO what if user wants to add own sims_module outside of dlensalot?
             _dataclass_parameters = da.class_parameters
             dl.class_parameters = da.class_parameters
             if 'fg' in _dataclass_parameters:
                 dl.fg = _dataclass_parameters['fg']
-            _sims_full_name = '{}.{}'.format(_package, _module)
-            _sims_module = importlib.import_module(_sims_full_name)
-            dl._sims = getattr(_sims_module, _class)(**_dataclass_parameters)
+            dl._sims_full_name = '{}.{}'.format(_package, _module)
             ## get_sim_pmap comes from sims module directly
             # -> nothing to do here
             ## sims parameter come from configuration file
@@ -237,31 +297,26 @@ class l2lensrec_Transformer:
             dl._sims.nlev_p = da.nlev_p
             dl._sims.nside = da.nside
             ## get_sim_pmap comes from plancklens.maps wrapper
-            if 'lib_dir' in da.class_parameters:
-                pix_phas = phas.pix_lib_phas(da.class_parameters['lib_dir'], 3, (hp.nside2npix(dl._sims.nside),))
-            else:
-                pix_phas = phas.pix_lib_phas(da.class_parameters['cacher'].lib_dir, 3, (hp.nside2npix(dl._sims.nside),))
-            transf_dat = gauss_beam(dl._sims.beam / 180 / 60 * np.pi, lmax=dl._sims.lmax_transf)
-            dl.sims = maps.cmb_maps_nlev(dl._sims, transf_dat, dl._sims.nlev_t, dl._sims.nlev_p, dl._sims.nside, pix_lib_phas=pix_phas)
+
 
             # transferfunction
             dl.transferfunction = da.transferfunction
             if dl.transferfunction == 'gauss_no_pixwin':
                 # Fiducial model of the transfer function
-                transf_tlm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[0])
-                transf_elm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[1])
-                transf_blm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[2])
+                transf_tlm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[0])
+                transf_elm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[1])
+                transf_blm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[2])
             elif dl.transferfunction == 'gauss_with_pixwin':
                 # Fiducial model of the transfer function
-                transf_tlm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(dl._sims.nside, lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[0])
-                transf_elm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(dl._sims.nside, lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[1])
-                transf_blm = gauss_beam(df.a2r(dl._sims.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(dl._sims.nside, lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[2])
+                transf_tlm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(da.nside, lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[0])
+                transf_elm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(da.nside, lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[1])
+                transf_blm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(da.nside, lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[2])
             dl.ttebl = {'t': transf_tlm, 'e': transf_elm, 'b':transf_blm}
 
             # Isotropic approximation to the filtering (used eg for response calculations)
-            ftl_len = cli(dl.cls_len['tt'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl._sims.nlev_t)**2 * cli(dl.ttebl['t'] ** 2)) * (dl.ttebl['t'] > 0)
-            fel_len = cli(dl.cls_len['ee'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl._sims.nlev_p)**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
-            fbl_len = cli(dl.cls_len['bb'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl._sims.nlev_p)**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
+            ftl_len = cli(dl.cls_len['tt'][:dl.lm_max_ivf[0] + 1] + df.a2r(da.nlev_t)**2 * cli(dl.ttebl['t'] ** 2)) * (dl.ttebl['t'] > 0)
+            fel_len = cli(dl.cls_len['ee'][:dl.lm_max_ivf[0] + 1] + df.a2r(da.nlev_p)**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
+            fbl_len = cli(dl.cls_len['bb'][:dl.lm_max_ivf[0] + 1] + df.a2r(da.nlev_p)**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
             dl.ftebl_len = {'t': ftl_len, 'e': fel_len, 'b':fbl_len}
 
             # Same using unlensed spectra (used for unlensed response used to initiate the MAP curvature matrix)
@@ -274,6 +329,9 @@ class l2lensrec_Transformer:
         @log_on_start(logging.DEBUG, "_process_Qerec() started")
         @log_on_end(logging.DEBUG, "_process_Qerec() finished")
         def _process_Qerec(dl, qe):
+
+            dl.ninvt_desc = l2OBD_Transformer.get_ninvt(cf)
+            dl.ninvp_desc = l2OBD_Transformer.get_ninvp(cf)
             # blt_pert
             dl.blt_pert = qe.blt_pert
             # qe_tasks
@@ -326,55 +384,9 @@ class l2lensrec_Transformer:
 
             # filter
             dl.qe_filter_directional = qe.filter_directional
-            if dl.qe_filter_directional == 'anisotropic':
-                dl.ninvt_desc = l2OBD_Transformer.get_ninvt(cf)
-                dl.ninvp_desc = l2OBD_Transformer.get_ninvp(cf)
-                lmax_plm = qe.lm_max_qlm[0]
-                # TODO filters can be initialised with both, ninvX_desc and ninv_X. But Plancklens' hashcheck will complain if it changed since shapes are different. Not sure which one I want to use in the future..
-                # TODO using ninv_X possibly causes hashcheck to fail, as v1 == v2 won't work on arrays.
-                dl.cinv_t = filt_cinv.cinv_t(opj(dl.TEMP, 'cinv_t'), lmax_plm, dl._sims.nside, dl.cls_len, dl.ttebl['t'], dl.ninvt_desc,
-                    marge_monopole=True, marge_dipole=True, marge_maps=[])
-                if dl.OBD:
-                    transf_elm_loc = gauss_beam(dl._sims.beam / 180 / 60 * np.pi, lmax=lmax_plm)
-                    dl.cinv_p = cinv_p_OBD.cinv_p(opj(dl.TEMP, 'cinv_p'), lmax_plm, dl._sims.nside, dl.cls_len, transf_elm_loc[:lmax_plm+1], dl.ninvp_desc, geom=dl.ninvjob_qe_geometry,
-                        chain_descr=dl.chain_descr(lmax_plm, dl.cg_tol), bmarg_lmax=dl.lmin_teb[2], zbounds=dl.zbounds, _bmarg_lib_dir=dl.obd_libdir, _bmarg_rescal=dl.obd_rescale, sht_threads=dl.tr)
-                else:
-                    dl.cinv_p = filt_cinv.cinv_p(opj(dl.TEMP, 'cinv_p'), lmax_plm, dl._sims.nside, dl.cls_len, dl.ttebl['e'], dl.ninvp_desc,
-                        chain_descr=dl.chain_descr(lmax_plm, dl.cg_tol), transf_blm=dl.ttebl['b'], marge_qmaps=(), marge_umaps=())
 
-                _filter_raw = filt_cinv.library_cinv_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl.cinv_t, dl.cinv_p, dl.cls_len)
-                _ftl_rs = np.ones(lmax_plm + 1, dtype=float) * (np.arange(lmax_plm + 1) >= dl.lmin_teb[0])
-                _fel_rs = np.ones(lmax_plm + 1, dtype=float) * (np.arange(lmax_plm + 1) >= dl.lmin_teb[1])
-                _fbl_rs = np.ones(lmax_plm + 1, dtype=float) * (np.arange(lmax_plm + 1) >= dl.lmin_teb[2])
-                dl.ivfs = filt_util.library_ftl(_filter_raw, lmax_plm, _ftl_rs, _fel_rs, _fbl_rs)
-            elif dl.qe_filter_directional == 'isotropic':
-                dl.ivfs = filt_simple.library_fullsky_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl._sims.nside, dl.ttebl, dl.cls_len, dl.ftebl_len['t'], dl.ftebl_len['e'], dl.ftebl_len['b'], cache=True)
-                # elif dl._sims.data_type == 'alm':
-                    # dl.ivfs = filt_simple.library_fullsky_alms_sepTP(opj(dl.TEMP, 'ivfs'), dl.sims, dl.ttebl, dl.cls_len, dl.ftl, dl.fel, dl.fbl, cache=True)
-                
-            # qlms
-            if qe.qlm_type == 'sepTP':
-                dl.qlms_dd = qest.library_sepTP(opj(dl.TEMP, 'qlms_dd'), dl.ivfs, dl.ivfs, dl.cls_len['te'], dl._sims.nside, lmax_qlm=dl.qe_lm_max_qlm[0])
             # qe_cl_analysis
             dl.cl_analysis = qe.cl_analysis
-            if qe.cl_analysis == True:
-                # TODO fix numbers for mc ocrrection and total nsims
-                dl.ss_dict = { k : v for k, v in zip( np.concatenate( [ range(i*60, (i+1)*60) for i in range(0,5) ] ),
-                                        np.concatenate( [ np.roll( range(i*60, (i+1)*60), -1 ) for i in range(0,5) ] ) ) }
-                dl.ds_dict = { k : -1 for k in range(300)}
-
-                dl.ivfs_d = filt_util.library_shuffle(dl.ivfs, dl.ds_dict)
-                dl.ivfs_s = filt_util.library_shuffle(dl.ivfs, dl.ss_dict)
-
-                dl.qlms_ds = qest.library_sepTP(opj(dl.TEMP, 'qlms_ds'), dl.ivfs, dl.ivfs_d, dl.cls_len['te'], dl._sims.nside, lmax_qlm=dl.qe_lm_max_qlm[0])
-                dl.qlms_ss = qest.library_sepTP(opj(dl.TEMP, 'qlms_ss'), dl.ivfs, dl.ivfs_s, dl.cls_len['te'], dl._sims.nside, lmax_qlm=dl.qe_lm_max_qlm[0])
-
-                dl.mc_sims_bias = np.arange(60, dtype=int)
-                dl.mc_sims_var  = np.arange(60, 300, dtype=int)
-
-                dl.qcls_ds = qecl.library(opj(dl.TEMP, 'qcls_ds'), dl.qlms_ds, dl.qlms_ds, np.array([]))  # for QE RDN0 calculations
-                dl.qcls_ss = qecl.library(opj(dl.TEMP, 'qcls_ss'), dl.qlms_ss, dl.qlms_ss, np.array([]))  # for QE RDN0 / MCN0 calculations
-                dl.qcls_dd = qecl.library(opj(dl.TEMP, 'qcls_dd'), dl.qlms_dd, dl.qlms_dd, dl.mc_sims_bias)
 
 
         @log_on_start(logging.DEBUG, "_process_Itrec() started")
@@ -474,18 +486,6 @@ class l2lensrec_Transformer:
                 dl.ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(dl._sims.nside, zbounds=dl.zbounds)
 
 
-        # if mpi.rank == 0:
-        #     _str = "\nConfiguration:"+3*'\n---------------------------------------------------\n'
-        #     for key, val in dl.__dict__.items():
-        #         keylen = len(str(key))
-        #         if type(val) in [list, np.ndarray, np.array, dict]:
-        #             _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(type(val))
-        #         else:
-        #             _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(val)
-        #         _str += '\n'
-        #     _str += 3*'---------------------------------------------------\n'
-        #     log.info(_str)
-
         return dl
 
 
@@ -537,9 +537,6 @@ class l2OBD_Transformer:
             dl.masks, dl.rhits_map = l2OBD_Transformer.get_masks(cf)
             dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
             dl.ninv_p_desc = l2OBD_Transformer.get_ninvp(cf, dl.nside)
-
-            b_transf = gauss_beam(df.a2r(dl.beam), lmax=dl.lmax) # TODO ninv_p doesn't depend on this anyway, right?
-            dl.ninv_p = np.array(opfilt_pp.alm_filter_ninv(dl.ninv_p_desc, b_transf, marge_qmaps=(), marge_umaps=()).get_ninv())
             
 
         dl = DLENSALOT_Concept()
@@ -1063,6 +1060,8 @@ class l2j_Transformer:
         
         # TODO if the pf.X objects were distinguishable by X2X_Transformer, could replace the seemingly redundant checks here.
         def _process_Jobs(jobs, jb):
+            if "generate_sim" in jb.jobs:
+                jobs.append({"generate_sims":((cf, l2simgen_Transformer()), delensalot_handler.Sim_generator)})
             if "build_OBD" in jb.jobs:
                 jobs.append({"build_OBD":((cf, l2OBD_Transformer()), delensalot_handler.OBD_builder)})
             if "QE_lensrec" in jb.jobs:
@@ -1078,6 +1077,10 @@ class l2j_Transformer:
 
 
 @transform.case(DLENSALOT_Model_mm, l2i_Transformer)
+def f1(expr, transformer): # pylint: disable=missing-function-docstring
+    return transformer.build(expr)
+
+@transform.case(DLENSALOT_Model_mm, l2simgen_Transformer)
 def f1(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)
 
