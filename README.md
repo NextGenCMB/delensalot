@@ -63,6 +63,5 @@ Documentation may be found [HERE]
 
 ## Use with HPC
 D.lensalot is computationally demanding.
-Alternative, add the above lines to your `~/.bash_profile`
-
+We have parallelized the computations across the simulation index in most cases.
 To use D.lensalot on any HPC infrastructure, set up MPI accordingly. Your HPC-center can help.
