@@ -27,9 +27,9 @@ import healpy as hp
 
 
 _write_alm = lambda fn, alm : hp.write_alm(fn, alm, overwrite=True)
-
+ 
 class cpp_sims_lib:
-    def __init__(self, k, v='', param_file='cmbs4wide_planckmask', label=''):
+    def __init__(self, k, v='', param_file='cmbs4wide_planckmask', label='', module='lenscarf'):
         """Helper library to plot results from MAP estimation of simulations.
         
         This class loads the results of the runs done with the param_file and the options asked
@@ -38,7 +38,12 @@ class cpp_sims_lib:
         
         # Load the parameters defined in the param_file
         self.param_file = param_file
-        self.param = importlib.import_module('lenscarf.params.'+param_file)
+        if 'n32' in module:
+            import n32
+            self.param = importlib.import_module('n32.params.'+param_file)
+        else:
+            self.param = importlib.import_module('lenscarf.params.'+param_file)
+
         self.k = k
         # self.itmax = itmax
         # self.tol = tol
@@ -72,9 +77,12 @@ class cpp_sims_lib:
                        self.param.lmax_ivf, self.param.lmax_qlm)
 
 
-        if type(self.param.sims.sims_cmb_len).__name__ == 'cmb_len_ffp10':
-            self.sims_unl = planck2018_sims.cmb_unl_ffp10() 
-
+        # if type(self.param.sims.sims_cmb_len).__name__ == 'cmb_len_ffp10':
+        #     self.sims_unl = planck2018_sims.cmb_unl_ffp10() 
+        # elif type(self.param.sims.sims_cmb_len).__name__ == 'sims_postborn':
+        #     self.sims_unl = self.param.sims.sims_cmb_len
+        # else:
+        #     assert 0, "I do not know what are the unlensed sims"
 
     def libdir_sim(self, simidx):
         return opj(self.TEMP,'%s_sim%04d'%(self.k, simidx) + self.version)
@@ -113,8 +121,16 @@ class cpp_sims_lib:
         else:
             return self.param.qlms_dd.get_sim_qlm(self.k, int(simidx)) 
 
+    def get_sim_plm(self, idx):
+        """Returns the simulated plm, depening if it is a sims_ffp10 or a new sim"""
+        if type(self.param.sims.sims_cmb_len).__name__ == 'cmb_len_ffp10':
+            return planck2018_sims.cmb_unl_ffp10().get_sim_plm(idx)
+        else:
+            return self.param.sims.sims_cmb_len.get_sim_plm(idx)
+
     def get_plm_input(self, simidx, use_cache=True, recache=False):
-        if self.param.sims.sims_cmb_len.plm_shuffle is None:
+    
+        if (not hasattr(self.param.sims.sims_cmb_len, 'plm_shuffle')) or self.param.sims.sims_cmb_len.plm_shuffle is None:
             shuffled_idx = simidx
         else:
             shuffled_idx = self.param.sims.sims_cmb_len.plm_shuffle(simidx)
@@ -123,12 +139,12 @@ class cpp_sims_lib:
             cacher = cachers.cacher_npy(self.libdir_sim(simidx))
             fn = f"phi_plm_input"
             if not cacher.is_cached(fn) or recache:
-                plm_in = alm_copy(self.sims_unl.get_sim_plm(shuffled_idx), mmaxin=None, lmaxout=self.lmax_qlm, mmaxout=self.mmax_qlm)
+                plm_in = alm_copy(self.get_sim_plm(shuffled_idx), mmaxin=None, lmaxout=self.lmax_qlm, mmaxout=self.mmax_qlm)
                 cacher.cache(fn, plm_in)
             plm_in = cacher.load(fn)
             return plm_in
         else:
-            return alm_copy(self.sims_unl.get_sim_plm(shuffled_idx), mmaxin=None, lmaxout=self.lmax_qlm, mmaxout=self.mmax_qlm)
+            return alm_copy(self.get_sim_plm(shuffled_idx), mmaxin=None, lmaxout=self.lmax_qlm, mmaxout=self.mmax_qlm)
 
 
     def get_eblm_dat(self, simidx, lmaxout=1024):
@@ -189,6 +205,18 @@ class cpp_sims_lib:
         cpp_itXin = cacher.load(fn)
         return cpp_itXin
     
+
+    def get_cpp_qeXinput(self, simidx):
+        fn = 'cpp_in_x_qe'
+        cacher = self.cacher_sim(simidx)
+        if not cacher.is_cached(fn):
+            plmin = self.get_plm_input(simidx)
+            plmqe = self.get_plm_qe(simidx)
+            cpp_itXin = self.get_cl(plmqe, plmin)
+            cacher.cache(fn, cpp_itXin)
+        cpp_itXin = cacher.load(fn)
+        return cpp_itXin
+
 
     def get_cpp(self, simidx, itr, sub_mf=False, splitMF=True, mf_sims=None, recache=False):
         """Returns unnormalized Cpp MAP 

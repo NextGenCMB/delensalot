@@ -300,7 +300,7 @@ def get_delcls(qe_key: str, itermax, cls_unl_fid: dict, cls_unl_true:dict, cls_n
     llp2 = np.arange(lmax_qlm + 1, dtype=float) ** 2 * np.arange(1, lmax_qlm + 2, dtype=float) ** 2 / (2. * np.pi)
     delcls_fid = []
     delcls_true = []
-
+    rho = []
     N0_unbiased = np.inf
     N1_unbiased = np.inf
     dls_unl_fid, cldd_fid = cls2dls(cls_unl_fid)
@@ -321,7 +321,8 @@ def get_delcls(qe_key: str, itermax, cls_unl_fid: dict, cls_unl_true:dict, cls_n
             # The cross-correlation coefficient is identical for the Rfid-biased QE or the rescaled one
             rho_sqd_phi = np.zeros(len(cldd_true))
             rho_sqd_phi[:lmax_qlm + 1] = cldd_true[:lmax_qlm + 1] * utils.cli(cldd_true[:lmax_qlm + 1] + llp2 * (N0_unbiased[:lmax_qlm + 1] + N1_unbiased[:lmax_qlm + 1]))
-
+            # print(rho_sqd_phi[10])
+            # print(rho_sqd_phi[-1])
         if 'wE' in version:
             assert qe_key in ['p_p']
             if it == 0:
@@ -397,11 +398,11 @@ def get_delcls(qe_key: str, itermax, cls_unl_fid: dict, cls_unl_true:dict, cls_n
 
         cls_plen_true['pp'] = cldd_true * utils.cli(np.arange(len(cldd_true)) ** 2 * np.arange(1, len(cldd_true) + 1, dtype=float) ** 2 / (2. * np.pi))
         cls_plen_fid['pp'] = cldd_fid * utils.cli(np.arange(len(cldd_fid)) ** 2 * np.arange(1, len(cldd_fid) + 1, dtype=float) ** 2 / (2. * np.pi))
-        if 'wE' and it>0:
+        if 'wE' in version and it>0:
             # Need to convert the template of the lensing power spectrum: Cldd*rho, into the reidual lensing of the map: Cldd*(1-rho)
             cls_plen_true['pp'] =  cls_plen_true['pp'] *utils.cli( rho_sqd_phi) * (1. - rho_sqd_phi) 
             cls_plen_fid['pp'] =  cls_plen_fid['pp'] *utils.cli( rho_sqd_phi) * (1. - rho_sqd_phi) 
-        elif 'wE' and it ==0:
+        elif 'wE' in version and it ==0:
             cls_plen_true['pp'] =  cls2dls(cls_unl_true)[1] * utils.cli(np.arange(len(cldd_true)) ** 2 * np.arange(1, len(cldd_true) + 1, dtype=float) ** 2 /  (2. * np.pi))
             cls_plen_fid['pp'] =  cls2dls(cls_unl_fid)[1] * utils.cli(np.arange(len(cldd_fid)) ** 2 * np.arange(1, len(cldd_fid) + 1, dtype=float) ** 2 /  (2. * np.pi))
         
@@ -418,6 +419,7 @@ def get_delcls(qe_key: str, itermax, cls_unl_fid: dict, cls_unl_true:dict, cls_n
         else:
             N1_unbiased = np.zeros(lmax_qlm + 1, dtype=float)
 
+        rho.append(rho_sqd_phi)
         delcls_fid.append(cls_plen_fid)
         delcls_true.append(cls_plen_true)
 
@@ -489,8 +491,8 @@ def get_biases_iter(qe_key:str, nlev_t:float, nlev_p:float, beam_fwhm:float, cls
     N1s_biased = []
     N1s_unbiased = []
 
-    R_fids = []
-    R_fids = []
+    R_fid = []
+    R_true = []
 
     delcls_fid = []
     delcls_true = []
@@ -607,6 +609,8 @@ def get_biases_iter(qe_key:str, nlev_t:float, nlev_p:float, beam_fwhm:float, cls
             N1_biased = np.zeros(lmax_qlm + 1, dtype=float)
             N1_unbiased = np.zeros(lmax_qlm + 1, dtype=float)
 
+        R_fid.append(r_gg_fid)
+        R_true.append(r_gg_true)
 
         delcls_fid.append(cls_plen_fid)
         delcls_true.append(cls_plen_true)
@@ -614,4 +618,4 @@ def get_biases_iter(qe_key:str, nlev_t:float, nlev_p:float, beam_fwhm:float, cls
         N1s_biased.append(N1_biased)
         N1s_unbiased.append(N1_unbiased)
 
-    return np.array(N0s_biased), np.array(N0s_unbiased), delcls_fid, delcls_true
+    return np.array(N0s_biased), np.array(N0s_unbiased), np.array(N1s_biased), np.array(N1s_unbiased), delcls_fid, delcls_true, np.array(R_fid), np.array(R_true)

@@ -42,7 +42,7 @@ class cacher_npy(cacher):
         assert os.path.exists(p), p
         if self.verbose:
             print("Loading " + fn + '.npy')
-        return np.load(p)
+        return np.load(p, allow_pickle=True)
 
     def is_cached(self, fn):
         return os.path.exists(self._path(fn))
