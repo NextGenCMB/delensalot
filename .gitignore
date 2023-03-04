@@ -1,7 +1,7 @@
 build/
-lenscarf.egg-info/
-lenscarf/ana/config/cmbs4/
-lenscarf/ana/config/pico/
+delensalot.egg-info/
+delensalot/ana/config/cmbs4/
+delensalot/ana/config/pico/
 install/*
 
 outputs/*
