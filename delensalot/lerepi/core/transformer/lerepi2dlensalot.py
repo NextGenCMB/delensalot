@@ -23,7 +23,7 @@ from plancklens import utils
 from delensalot.core import mpi
 from delensalot.core.mpi import check_MPI
 from delensalot.utils_hp import gauss_beam
-from delensalot import utils_scarf, utils_sims
+from delensalot import utils_scarf
 
 from delensalot.utils import cli, read_map
 from delensalot.lerepi.core.visitor import transform
@@ -40,7 +40,7 @@ class l2base_Transformer():
 
     @log_on_start(logging.DEBUG, "_process_Data() started")
     @log_on_end(logging.DEBUG, "_process_Data() finished")
-    def _process_Data(dl, da):
+    def _process_Data(self, dl, da):
         # package_
         _package = da.package_
         # module_
@@ -48,22 +48,19 @@ class l2base_Transformer():
         # class_
         dl._class = da.class_
         # class_parameters -> sims
-        ## TODO what if user wants to add own sims_module outside of dlensalot?
-        _dataclass_parameters = da.class_parameters
-        dl.class_parameters = da.class_parameters
-        if 'fg' in _dataclass_parameters:
-            dl.fg = _dataclass_parameters['fg']
+        dl.sims_class_parameters = da.class_parameters
+        if 'fg' in dl.sims_class_parameters:
+            dl.fg = dl.sims_class_parameters['fg']
         dl._sims_full_name = '{}.{}'.format(_package, _module)
         ## get_sim_pmap comes from sims module directly
         # -> nothing to do here
         ## sims parameter come from configuration file
-        dl._sims.beam = da.beam
-        dl._sims.lmax_transf = da.lmax_transf
-        dl._sims.nlev_t = da.nlev_t
-        dl._sims.nlev_p = da.nlev_p
-        dl._sims.nside = da.nside
+        dl.sims_beam = da.beam
+        dl.sims_lmax_transf = da.lmax_transf
+        dl.sims_nlev_t = da.nlev_t
+        dl.sims_nlev_p = da.nlev_p
+        dl.sims_nside = da.nside
         ## get_sim_pmap comes from plancklens.maps wrapper
-
 
         # transferfunction
         dl.transferfunction = da.transferfunction
@@ -90,6 +87,7 @@ class l2base_Transformer():
         fel_unl = cli(dl.cls_unl['ee'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
         fbl_unl = cli(dl.cls_unl['bb'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
         dl.ftebl_unl = {'t': ftl_unl, 'e': fel_unl, 'b':fbl_unl}
+
 
 
 class l2T_Transformer:
@@ -160,7 +158,7 @@ class l2simgen_Transformer(l2base_Transformer):
         return dl
 
 
-class l2lensrec_Transformer:
+class l2lensrec_Transformer(l2base_Transformer):
     """_summary_
     """
 
@@ -198,6 +196,8 @@ class l2lensrec_Transformer:
         def _process_Analysis(dl, an):
             # dlm_mod
             dl.dlm_mod_bool = cf.madel.dlm_mod
+            # beam
+            dl.beam = an.beam
             # mask
             dl.mask_fn = an.mask
             # key -> k
@@ -272,59 +272,6 @@ class l2lensrec_Transformer:
                 dl.ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(cf.data.nside, zbounds=dl.zbounds)
   
 
-        @log_on_start(logging.DEBUG, "_process_Data() started")
-        @log_on_end(logging.DEBUG, "_process_Data() finished")
-        def _process_Data(dl, da):
-            # package_
-            _package = da.package_
-            # module_
-            _module = da.module_
-            # class_
-            dl._class = da.class_
-            # class_parameters -> sims
-            ## TODO what if user wants to add own sims_module outside of dlensalot?
-            _dataclass_parameters = da.class_parameters
-            dl.class_parameters = da.class_parameters
-            if 'fg' in _dataclass_parameters:
-                dl.fg = _dataclass_parameters['fg']
-            dl._sims_full_name = '{}.{}'.format(_package, _module)
-            ## get_sim_pmap comes from sims module directly
-            # -> nothing to do here
-            ## sims parameter come from configuration file
-            dl._sims.beam = da.beam
-            dl._sims.lmax_transf = da.lmax_transf
-            dl._sims.nlev_t = da.nlev_t
-            dl._sims.nlev_p = da.nlev_p
-            dl._sims.nside = da.nside
-            ## get_sim_pmap comes from plancklens.maps wrapper
-
-
-            # transferfunction
-            dl.transferfunction = da.transferfunction
-            if dl.transferfunction == 'gauss_no_pixwin':
-                # Fiducial model of the transfer function
-                transf_tlm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[0])
-                transf_elm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[1])
-                transf_blm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[2])
-            elif dl.transferfunction == 'gauss_with_pixwin':
-                # Fiducial model of the transfer function
-                transf_tlm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(da.nside, lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[0])
-                transf_elm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(da.nside, lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[1])
-                transf_blm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(da.nside, lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[2])
-            dl.ttebl = {'t': transf_tlm, 'e': transf_elm, 'b':transf_blm}
-
-            # Isotropic approximation to the filtering (used eg for response calculations)
-            ftl_len = cli(dl.cls_len['tt'][:dl.lm_max_ivf[0] + 1] + df.a2r(da.nlev_t)**2 * cli(dl.ttebl['t'] ** 2)) * (dl.ttebl['t'] > 0)
-            fel_len = cli(dl.cls_len['ee'][:dl.lm_max_ivf[0] + 1] + df.a2r(da.nlev_p)**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
-            fbl_len = cli(dl.cls_len['bb'][:dl.lm_max_ivf[0] + 1] + df.a2r(da.nlev_p)**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
-            dl.ftebl_len = {'t': ftl_len, 'e': fel_len, 'b':fbl_len}
-
-            # Same using unlensed spectra (used for unlensed response used to initiate the MAP curvature matrix)
-            ftl_unl = cli(dl.cls_unl['tt'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.ttebl['t'] ** 2)) * (dl.ttebl['t'] > 0)
-            fel_unl = cli(dl.cls_unl['ee'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
-            fbl_unl = cli(dl.cls_unl['bb'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
-            dl.ftebl_unl = {'t': ftl_unl, 'e': fel_unl, 'b':fbl_unl}
-
 
         @log_on_start(logging.DEBUG, "_process_Qerec() started")
         @log_on_end(logging.DEBUG, "_process_Qerec() finished")
@@ -357,13 +304,15 @@ class l2lensrec_Transformer:
             # lmax_qlm
             dl.qe_lm_max_qlm = qe.lm_max_qlm
 
+            dl.qlm_type = qe.qlm_type
+
             # ninvjob_qe_geometry
             if qe.ninvjob_qe_geometry == 'healpix_geometry_qe':
                 # TODO for QE, isOBD only works with zbounds=(-1,1). Perhaps missing ztrunc on qumaps
                 # Introduce new geometry for now, until either plancklens supports ztrunc, or ztrunced simlib (not sure if it already does)
-                dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl._sims.nside, zbounds=(-1,1))
+                dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl.sims_nside, zbounds=(-1,1))
             elif qe.ninvjob_qe_geometry == 'healpix_geometry':
-                dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl._sims.nside, zbounds=dl.zbounds)
+                dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl.sims_nside, zbounds=dl.zbounds)
             # cg_tol
             dl.cg_tol = qe.cg_tol
 
@@ -373,7 +322,7 @@ class l2lensrec_Transformer:
                 dl.chain_model = dl.chain_descr
             else:
                 dl.chain_model = qe.chain
-                dl.chain_model.p3 = dl._sims.nside
+                dl.chain_model.p3 = dl.sims_nside
                 
                 if dl.chain_model.p6 == 'tr_cg':
                     _p6 = cd_solve.tr_cg
@@ -399,7 +348,7 @@ class l2lensrec_Transformer:
             dl.it_lm_max_qlm = it.lm_max_qlm
             # chain
             dl.it_chain_model = DLENSALOT_Chaindescriptor()
-            dl.it_chain_model.p3 = dl._sims.nside
+            dl.it_chain_model.p3 = dl.sims_nside
             if dl.it_chain_model.p6 == 'tr_cg':
                 _p6 = cd_solve.tr_cg
             if dl.it_chain_model.p7 == 'cache_mem':
@@ -424,11 +373,6 @@ class l2lensrec_Transformer:
             dl.it_cg_tol = lambda itr : it.cg_tol if itr <= 10 else it.cg_tol*0.1
             # filter
             dl.it_filter_directional = it.filter_directional
-            # sims -> sims_MAP
-            if it.filter_directional == 'anisotropic':
-                dl.sims_MAP = utils_sims.ztrunc_sims(dl.sims, dl._sims.nside, [dl.zbounds])
-            elif it.filter_directional == 'isotropic':
-                dl.sims_MAP = dl.sims
             # itmax
             dl.itmax = it.itmax
             # iterator_typ
@@ -468,7 +412,7 @@ class l2lensrec_Transformer:
             _process_OBD(dl, cf.obd)
         else:
             dl.tpl = None
-        _process_Data(dl, cf.data)
+        super()._process_Data(dl, cf.data)
         _process_Qerec(dl, cf.qerec)
         _process_Itrec(dl, cf.itrec)
 
@@ -483,7 +427,7 @@ class l2lensrec_Transformer:
         if dl.it_filter_directional == 'anisotropic':
             # ninvjob_geometry
             if cf.noisemodel.ninvjob_geometry == 'healpix_geometry':
-                dl.ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(dl._sims.nside, zbounds=dl.zbounds)
+                dl.ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(dl.sims_nside, zbounds=dl.zbounds)
 
 
         return dl
@@ -712,7 +656,7 @@ class l2d_Transformer:
                     dl.mask_ids = np.zeros(shape=len(ma.masks[1]))
                     for fni, fn in enumerate(ma.masks[1]):
                         if fn == None:
-                            buffer = np.ones(shape=hp.nside2npix(dl._sims.nside))
+                            buffer = np.ones(shape=hp.nside2npix(dl.sims_nside))
                             dl.mask_ids[fni] = 1.00
                         elif fn.endswith('.fits'):
                             buffer = hp.read_map(fn)
@@ -723,7 +667,7 @@ class l2d_Transformer:
                         dl.masks[ma.masks[0]].update({_fsky:buffer})
                         dl.binmasks[ma.masks[0]].update({_fsky: np.where(dl.masks[ma.masks[0]][_fsky]>0,1,0)})
             else:
-                dl.masks = {"no":{1.00:np.ones(shape=hp.nside2npix(dl._sims.nside))}}
+                dl.masks = {"no":{1.00:np.ones(shape=hp.nside2npix(dl.sims_nside))}}
                 dl.mask_ids = np.array([1.00])
 
             dl.beam = cf.data.beam
@@ -968,7 +912,7 @@ class l2i_Transformer:
                     dl.mask_ids = np.zeros(shape=len(ma.masks[1]))
                     for fni, fn in enumerate(ma.masks[1]):
                         if fn == None:
-                            buffer = np.ones(shape=hp.nside2npix(dl._sims.nside))
+                            buffer = np.ones(shape=hp.nside2npix(dl.sims_nside))
                             dl.mask_ids[fni] = 1.00
                         elif fn.endswith('.fits'):
                             buffer = hp.read_map(fn)
@@ -979,7 +923,7 @@ class l2i_Transformer:
                         dl.masks[ma.masks[0]].update({_fsky:buffer})
                         dl.binmasks[ma.masks[0]].update({_fsky: np.where(dl.masks[ma.masks[0]][_fsky]>0,1,0)})
             else:
-                dl.masks = {"no":{1.00:np.ones(shape=hp.nside2npix(dl._sims.nside))}}
+                dl.masks = {"no":{1.00:np.ones(shape=hp.nside2npix(dl.sims_nside))}}
                 dl.mask_ids = np.array([1.00])
 
 
@@ -1020,9 +964,9 @@ class l2i_Transformer:
                 dl.ic = getattr(_sims_module, 'ILC_config')()
             if 'foreground' in _sims_module.__dict__:
                 dl.fc = getattr(_sims_module, 'foreground')(dl.fg)
-            dl._sims.nside = dl._sims.nside
+            dl.sims_nside = da.nside
 
-            dl.beam = dl._sims.beam
+            dl.sims_beam = da.beam
             dl.lmax_transf = dl._sims.lmax_transf
             dl.transf = hp.gauss_beam(df.a2r(dl.beam), lmax=dl.lmax_transf)
             

@@ -25,7 +25,7 @@ from delensalot.opfilt.opfilt_iso_ee_wl import alm_filter_nlev_wl
 
 class scarf_iterator():
 
-    def __init__(self, qe, k:str, simidx:int, version:str, libdir_iterators, lensing_config):
+    def __init__(self, qe, k:str, simidx:int, version:str, sims_MAP, libdir_iterators, lensing_config):
         """Iterator instance for simulation idx and qe_key type k
             Args:
                 k: 'p_p' for Pol-only, 'ptt' for T-only, 'p_eb' for EB-only, etc
@@ -38,6 +38,7 @@ class scarf_iterator():
         self.simidx = simidx
         self.version = version
         self.__dict__.update(lensing_config.__dict__)
+        self.sims_MAP = sims_MAP
         
         self.libdir_iterator = libdir_iterators(k, simidx, version)
         if not os.path.exists(self.libdir_iterator):
@@ -68,7 +69,7 @@ class scarf_iterator():
         if self.it_filter_directional == 'isotropic':
             # dat maps must now be given in harmonic space in this idealized configuration
             sht_job = utils_scarf.scarfjob()
-            ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(self._sims.nside, zbounds=self.zbounds)
+            ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(self.sims_nside, zbounds=self.zbounds)
             sht_job.set_geometry(ninvjob_geometry)
             sht_job.set_triangular_alm_info(*self.lm_max_ivf)
             sht_job.set_nthreads(self.tr)
@@ -105,8 +106,8 @@ class scarf_iterator():
 
 class scarf_iterator_pertmf(scarf_iterator):
 
-    def __init__(self, qe, k:str, simidx:int, version:str, libdir_iterators, lensing_config):
-        super(scarf_iterator_pertmf, self).__init__(qe, k, simidx, version, libdir_iterators, lensing_config)
+    def __init__(self, qe, k:str, simidx:int, version:str, sims_MAP, libdir_iterators, lensing_config):
+        super(scarf_iterator_pertmf, self).__init__(qe, k, simidx, version, sims_MAP, libdir_iterators, lensing_config)
         self.mf_resp0 = qe.get_response_meanfield()
 
 
@@ -127,7 +128,7 @@ class scarf_iterator_pertmf(scarf_iterator):
 
 
 class scarf_iterator_constmf(scarf_iterator):
-    def __init__(self, qe, k:str, simidx:int, version:str, libdir_iterators, lensing_config):
+    def __init__(self, qe, k:str, simidx:int, version:str, sims_MAP, libdir_iterators, lensing_config):
         """Return constmf iterator instance for simulation idx and qe_key type k
 
             Args:
@@ -138,7 +139,7 @@ class scarf_iterator_constmf(scarf_iterator):
                 cg_tol: tolerance of conjugate-gradient filter
 
         """ 
-        super(scarf_iterator_constmf, self).__init__(qe, k, simidx, version, libdir_iterators, lensing_config)
+        super(scarf_iterator_constmf, self).__init__(qe, k, simidx, version, sims_MAP, libdir_iterators, lensing_config)
 
 
     @log_on_start(logging.INFO, "get_iterator() started")
@@ -180,7 +181,7 @@ class scarf_iterator_fastWF(scarf_iterator):
         # dat maps must now be given in harmonic space in this idealized configuration
         self.sims_MAP = self.sims
         sht_job = utils_scarf.scarfjob()
-        ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(self._sims.nside, zbounds=self.zbounds)
+        ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(self.sims_nside, zbounds=self.zbounds)
         sht_job.set_geometry(ninvjob_geometry)
         sht_job.set_triangular_alm_info(*self.lm_max_ivf)
         sht_job.set_nthreads(self.tr)

@@ -29,6 +29,10 @@ logging.basicConfig(level=logging.INFO, handlers=[ConsoleOutputHandler])
 logging.getLogger("healpy").disabled = True
 
 
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
+
+
 class run():
     def __init__(self, config, job_id='interactive', verbose=True, madel_kwargs={}):
         if not verbose:
@@ -39,23 +43,33 @@ class run():
             ConsoleOutputHandler.setLevel(logging.INFO)
             sys_logger.setLevel(logging.INFO)
             logging.basicConfig(level=logging.INFO, handlers=[ConsoleOutputHandler])
-        parser = parserclass()
-        parser.resume =  ""
-        parser.config_file = config
-        parser.status = ''
+        self.parser = parserclass()
+        self.parser.resume =  ""
+        self.parser.config_file = config
+        self.parser.status = ''
 
-        lerepi_handler = handler.handler(parser, madel_kwargs)
-        if job_id == 'interactive':
-            ## This is notebook interactive job. (Doesn't appear in config file job list)
-            lerepi_handler.make_interactive_job()
-            job = lerepi_handler.get_jobs()[0]
-            self.job = lerepi_handler.init_job(job[job_id])
-        else:
-            lerepi_handler.collect_jobs(job_id)
-            jobs = lerepi_handler.get_jobs()
-            for jobdict in jobs:
-                if job_id in jobdict:
-                    self.job = lerepi_handler.init_job(jobdict[job_id])
+        self.job_id = job_id
+        self.lerepi_handler = handler.handler(self.parser, madel_kwargs)
+        # self.lerepi_handler.collect_jobs(self.job_id)
+        self.lerepi_handler.collect_job(self.job_id)
+        self.model = self._build_model()
+
+
+    def run(self):
+        self.init_job()
+        self.lerepi_handler.run(self.job_id)
+
+
+    def init_job(self):
+        self.job = self.lerepi_handler.init_job(self.lerepi_handler.jobs[0][self.job_id], self.model)
+
+
+    def _build_model(self):
+        self.model = self.lerepi_handler.build_model(self.lerepi_handler.jobs[0][self.job_id])
+        
+        return self.model
+
+
 
 
 if __name__ == '__main__':

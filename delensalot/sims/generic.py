@@ -52,7 +52,7 @@ class sims_cmb_len(object):
 
     """
     def __init__(self, lib_dir, lmax, cls_unl, lib_pha=None, offsets_plm=None, offsets_cmbunl=None,
-                 dlmax=1024, nside_lens=4096, facres=0, nbands=8, verbose=True):
+                 dlmax=1024, nside_lens=4096, facres=0, nbands=8, cache_plm=True, verbose=True):
 
         fields = _get_fields(cls_unl)
 

@@ -12,7 +12,7 @@ import healpy as hp
 import matplotlib.colors as mcolors
 from matplotlib.colors import ListedColormap
 
-from lenscarf.lerepi.config.config_helper import data_functions as df
+from delensalot.lerepi.config.config_helper import data_functions as df
 
 
 ll = np.arange(0,200+1,1)

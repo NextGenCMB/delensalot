@@ -53,7 +53,25 @@ class handler():
         self.parser = parser
         self.TEMP = TEMP
 
-    @check_MPI
+
+    @log_on_start(logging.DEBUG, "collect_jobs() Started")
+    @log_on_end(logging.DEBUG, "collect_jobs() Finished")
+    def collect_job(self, job_id=''):
+        """_summary_
+        """
+        ## Making sure that specific job request from run() is processed
+        self.configfile.dlensalot_model.job.jobs = [job_id]
+        self.job_id = job_id
+        
+        if self.parser.status == '':
+            self.jobs = transform(self.configfile.dlensalot_model, l2j_Transformer())
+        else:
+            if mpi.rank == 0:
+                self.jobs = transform(self.configfile.dlensalot_model, l2js_Transformer())
+            else:
+                self.jobs = []
+
+
     @log_on_start(logging.DEBUG, "collect_jobs() Started")
     @log_on_end(logging.DEBUG, "collect_jobs() Finished")
     def collect_jobs(self, job_id=''):
@@ -78,53 +96,59 @@ class handler():
         self.jobs = transform(self.configfile.dlensalot_model, l2ji_Transformer())
 
 
-    @log_on_start(logging.INFO, "get_jobs() Started")
-    @log_on_end(logging.INFO, "get_jobs() Finished")
-    def get_jobs(self):
-        """_summary_
-
-        Returns:
-            _type_: _description_
-        """        
-
-        return self.jobs
+    @log_on_start(logging.INFO, "build_model() Started")
+    @log_on_end(logging.INFO, "build_model() Finished")
+    def build_model(self, job):
+        return transform(*job[0])
 
 
     @log_on_start(logging.INFO, "init_job() Started")
     @log_on_end(logging.INFO, "init_job() Finished")
-    def init_job(self, job):
-        log.info('transform started')
-        model = transform(*job[0])
-        log.info('transform done')
-        log.info('model init started')
+    def init_job(self, job, model):
         j = job[1](model)
-        
-        log.info('model init done')
-        log.info('collect_jobs started')
-        j.collect_jobs()
-        log.info('collect_jobs done')
+        # j.collect_jobs()
 
         return j
+    
+
+    # @log_on_start(logging.INFO, "init_job() Started")
+    # @log_on_end(logging.INFO, "init_job() Finished")
+    # def init_job(self, job):
+    #     model = transform(*job[0])
+    #     j = job[1](model)
+    #     # j.collect_jobs()
+
+    #     return j
+
 
     @check_MPI
     @log_on_start(logging.INFO, "run() Started")
     @log_on_end(logging.INFO, "run() Finished")
-    def run(self):
+    def run(self, job_choice=[]):
+        log.info(job_choice)
+        if job_choice == []:
+            for jobdict in self.jobs:
+                for job_id, val in jobdict.items():
+                    job_choice.append(job_id)
         for jobdict in self.jobs:
             for job_id, val in jobdict.items():
-                conf = val[0][0]
-                transformer = val[0][1]
-                job = val[1]
-                
-                log.info("Starting job {}".format(job_id))
-                model = transform(conf, transformer)
-                # log.info("Model collected {}".format(model))
-                
-                j = job(model)
-                
-                j.collect_jobs()
-                
-                j.run()
+                if job_choice == job_id:
+                    conf = val[0][0]
+                    transformer = val[0][1]
+                    job = val[1]
+                    
+                    model = transform(conf, transformer)
+
+                    # first_rank = mpi.bcast(mpi.rank)
+                    # if first_rank == mpi.rank:
+                    if mpi.rank == 0:              
+                        delensalot_job = job(model)
+                        [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
+                    else:
+                        mpi.receive(1, source=mpi.ANY_SOURCE)
+                        delensalot_job = job(model)
+                    delensalot_job.collect_jobs()    
+                    delensalot_job.run()
                 
 
 

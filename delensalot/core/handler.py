@@ -34,6 +34,7 @@ from delensalot.opfilt.bmodes_ninv import template_dense
 
 from delensalot.core import mpi
 from delensalot.core.mpi import check_MPI
+from delensalot import utils_sims
 from delensalot.lerepi.config.config_helper import data_functions as df
 from delensalot.utils_hp import almxfl, alm_copy, gauss_beam
 from delensalot.iterators.statics import rec as rec
@@ -59,21 +60,23 @@ class Basejob():
         return _str
 
 
-    def __init__(self, qe, model):
-
+    def __init__(self, model):
+        self.__dict__.update(model.__dict__)
 
         _sims_module = importlib.import_module(self._sims_full_name)
-        self._sims = getattr(_sims_module, self._class)(**self._dataclass_parameters)
+        self._sims = getattr(_sims_module, self._class)(**self.sims_class_parameters)
+        transf_dat = gauss_beam(self.sims_beam / 180 / 60 * np.pi, lmax=self.sims_lmax_transf)
 
-        b_transf = gauss_beam(df.a2r(self.beam), lmax=self.lmax) # TODO ninv_p doesn't depend on this anyway, right?
-        self.ninv_p = np.array(opfilt_pp.alm_filter_ninv(self.ninv_p_desc, b_transf, marge_qmaps=(), marge_umaps=()).get_ninv())
+        
+        # b_transf = gauss_beam(df.a2r(self.beam), lmax=self.lmax) # TODO ninv_p doesn't depend on this anyway, right?
+        # self.ninv_p = np.array(opfilt_pp.alm_filter_ninv(self.ninv_p_desc, b_transf, marge_qmaps=(), marge_umaps=()).get_ninv())
 
-        if 'lib_dir' in self.class_parameters:
-            pix_phas = phas.pix_lib_phas(self.class_parameters['lib_dir'], 3, (hp.nside2npix(self._sims.nside),))
+        if 'lib_dir' in self.sims_class_parameters:
+            pix_phas = phas.pix_lib_phas(self.sims_class_parameters['lib_dir'], 3, (hp.nside2npix(self.sims_nside),))
         else:
-            pix_phas = phas.pix_lib_phas(self.class_parameters['cacher'].lib_dir, 3, (hp.nside2npix(self._sims.nside),))
-        transf_dat = gauss_beam(self._sims.beam / 180 / 60 * np.pi, lmax=self._sims.lmax_transf)
-        self.sims = maps.cmb_maps_nlev(self._sims, transf_dat, self._sims.nlev_t, self._sims.nlev_p, self._sims.nside, pix_lib_phas=pix_phas)
+            pix_phas = phas.pix_lib_phas(self.sims_class_parameters['cacher'].lib_dir, 3, (hp.nside2npix(self.sims_nside),))
+        
+        self.sims = maps.cmb_maps_nlev(self._sims, transf_dat, self.sims_nlev_t, self.sims_nlev_p, self.sims_nside, pix_lib_phas=pix_phas)
 
 
     # @base_exception_handler
@@ -451,11 +454,11 @@ class Sim_generator(Basejob):
             self.generate_sim(int(idx))
 
 
-    
 class QE_lr(Basejob):
 
     @check_MPI
     def __init__(self, dlensalot_model):
+        super().__init__(dlensalot_model)
         self.__dict__.update(dlensalot_model.__dict__)
         self.dlensalot_model = dlensalot_model
 
@@ -468,8 +471,8 @@ class QE_lr(Basejob):
             self.ivfs_d = filt_util.library_shuffle(self.ivfs, self.ds_dict)
             self.ivfs_s = filt_util.library_shuffle(self.ivfs, self.ss_dict)
 
-            self.qlms_ds = qest.library_sepTP(opj(self.TEMP, 'qlms_ds'), self.ivfs, self.ivfs_d, self.cls_len['te'], self._sims.nside, lmax_qlm=self.qe_lm_max_qlm[0])
-            self.qlms_ss = qest.library_sepTP(opj(self.TEMP, 'qlms_ss'), self.ivfs, self.ivfs_s, self.cls_len['te'], self._sims.nside, lmax_qlm=self.qe_lm_max_qlm[0])
+            self.qlms_ds = qest.library_sepTP(opj(self.TEMP, 'qlms_ds'), self.ivfs, self.ivfs_d, self.cls_len['te'], self.sims_nside, lmax_qlm=self.qe_lm_max_qlm[0])
+            self.qlms_ss = qest.library_sepTP(opj(self.TEMP, 'qlms_ss'), self.ivfs, self.ivfs_s, self.cls_len['te'], self.sims_nside, lmax_qlm=self.qe_lm_max_qlm[0])
 
             self.mc_sims_bias = np.arange(60, dtype=int)
             self.mc_sims_var  = np.arange(60, 300, dtype=int)
@@ -479,39 +482,54 @@ class QE_lr(Basejob):
             self.qcls_dd = qecl.library(opj(self.TEMP, 'qcls_dd'), self.qlms_dd, self.qlms_dd, self.mc_sims_bias)
 
         if self.qe_filter_directional == 'anisotropic':
-            lmax_plm = self.lm_max_qlm[0]
-            # TODO filters can be initialised with both, ninvX_desc and ninv_X. But Plancklens' hashcheck will complain if it changed since shapes are different. Not sure which one I want to use in the future..
-            # TODO using ninv_X possibly causes hashcheck to fail, as v1 == v2 won't work on arrays.
-            self.cinv_t = filt_cinv.cinv_t(opj(self.TEMP, 'cinv_t'), lmax_plm, self._sims.nside, self.cls_len, self.ttebl['t'], self.ninvt_desc,
-                marge_monopole=True, marge_dipole=True, marge_maps=[])
-            if self.OBD:
-                transf_elm_loc = gauss_beam(self._sims.beam / 180 / 60 * np.pi, lmax=lmax_plm)
-                self.cinv_p = cinv_p_OBD.cinv_p(opj(self.TEMP, 'cinv_p'), lmax_plm, self._sims.nside, self.cls_len, transf_elm_loc[:lmax_plm+1], self.ninvp_desc, geom=self.ninvjob_qe_geometry,
-                    chain_descr=self.chain_descr(lmax_plm, self.cg_tol), bmarg_lmax=self.lmin_teb[2], zbounds=self.zbounds, _bmarg_lib_dir=self.obd_libdir, _bmarg_rescal=self.obd_rescale, sht_threads=self.tr)
-            else:
-                self.cinv_p = filt_cinv.cinv_p(opj(self.TEMP, 'cinv_p'), lmax_plm, self._sims.nside, self.cls_len, self.ttebl['e'], self.ninvp_desc,
-                    chain_descr=self.chain_descr(lmax_plm, self.cg_tol), transf_blm=self.ttebl['b'], marge_qmaps=(), marge_umaps=())
-
+            self.init_cinv_t()
+            self.init_cinv_p()
             _filter_raw = filt_cinv.library_cinv_sepTP(opj(self.TEMP, 'ivfs'), self.sims, self.cinv_t, self.cinv_p, self.cls_len)
-            _ftl_rs = np.ones(lmax_plm + 1, dtype=float) * (np.arange(lmax_plm + 1) >= self.lmin_teb[0])
-            _fel_rs = np.ones(lmax_plm + 1, dtype=float) * (np.arange(lmax_plm + 1) >= self.lmin_teb[1])
-            _fbl_rs = np.ones(lmax_plm + 1, dtype=float) * (np.arange(lmax_plm + 1) >= self.lmin_teb[2])
-            self.ivfs = filt_util.library_ftl(_filter_raw, lmax_plm, _ftl_rs, _fel_rs, _fbl_rs)
+            _ftl_rs = np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[0])
+            _fel_rs = np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[1])
+            _fbl_rs = np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[2])
+            self.ivfs = filt_util.library_ftl(_filter_raw, self.lm_max_qlm[0], _ftl_rs, _fel_rs, _fbl_rs)
         elif self.qe_filter_directional == 'isotropic':
-            self.ivfs = filt_simple.library_fullsky_sepTP(opj(self.TEMP, 'ivfs'), self.sims, self._sims.nside, self.ttebl, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
-            # elif self._sims.data_type == 'alm':
+            self.ivfs = filt_simple.library_fullsky_sepTP(opj(self.TEMP, 'ivfs'), self.sims, self.sims_nside, self.ttebl, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
+            # elif self.sims_data_type == 'alm':
                 # self.ivfs = filt_simple.library_fullsky_alms_sepTP(opj(self.TEMP, 'ivfs'), self.sims, self.ttebl, self.cls_len, self.ftl, self.fel, self.fbl, cache=True)
 
         # qlms
         if self.qlm_type == 'sepTP':
-            self.qlms_dd = qest.library_sepTP(opj(self.TEMP, 'qlms_dd'), self.ivfs, self.ivfs, self.cls_len['te'], self._sims.nside, lmax_qlm=self.qe_lm_max_qlm[0])
+            self.qlms_dd = qest.library_sepTP(opj(self.TEMP, 'qlms_dd'), self.ivfs, self.ivfs, self.cls_len['te'], self.sims_nside, lmax_qlm=self.qe_lm_max_qlm[0])
 
         self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
         self.mf = lambda simidx: self.get_meanfield(int(simidx))
         self.plm = lambda simidx: self.get_plm(simidx, self.QE_subtract_meanfield)
         self.wflm = lambda simidx: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
         self.R_unl = lambda: qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_unl, self.cls_unl,  self.ftebl_unl, lmax_qlm=self.qe_lm_max_qlm[0])[0]
-      
+
+        ## Faking here sims_MAP for calc_blt as it needs iteration_handler
+        if 'calc_blt' in self.qe_tasks:
+            self.sims_MAP = self.sims
+
+
+    def init_cinv(self):
+        self.cinv_t = filt_cinv.cinv_t(opj(self.TEMP, 'cinv_t'),
+            self.lm_max_qlm[0], self.sims_nside, self.cls_len,
+            self.ttebl['t'], self.ninvt_desc,
+            marge_monopole=True, marge_dipole=True, marge_maps=[])
+
+        transf_elm_loc = gauss_beam(self.sims_beam / 180 / 60 * np.pi, lmax=self.lm_max_qlm[0])
+        if self.OBD:
+            self.cinv_p = cinv_p_OBD.cinv_p(opj(self.TEMP, 'cinv_p'),
+                self.lm_max_qlm[0], self.sims_nside, self.cls_len,
+                transf_elm_loc[:self.lm_max_qlm[0]+1], self.ninvp_desc, geom=self.ninvjob_qe_geometry,
+                chain_descr=self.chain_descr(self.lm_max_qlm[0], self.cg_tol), bmarg_lmax=self.lmin_teb[2],
+                zbounds=self.zbounds, _bmarg_lib_dir=self.obd_libdir, _bmarg_rescal=self.obd_rescale,
+                sht_threads=self.tr)
+        else:
+            self.cinv_p = filt_cinv.cinv_p(opj(self.TEMP, 'cinv_p'),
+                self.lm_max_qlm[0], self.sims_nside, self.cls_len,
+                self.ttebl['e'], self.ninvp_desc, chain_descr=self.chain_descr(self.lm_max_qlm[0], self.cg_tol),
+                transf_blm=self.ttebl['b'], marge_qmaps=(), marge_umaps=())
+
+
     # @base_exception_handler
     @log_on_start(logging.INFO, "collect_jobs(qe_tasks={qe_tasks}, recalc={recalc}) started")
     @log_on_end(logging.INFO, "collect_jobs(qe_tasks={qe_tasks}, recalc={recalc}) finished: jobs={self.jobs}")
@@ -707,8 +725,7 @@ class QE_lr(Basejob):
     def get_blt(self, simidx):
         # TODO only needed for get_blt(), as this is done by cs_iterator.. move 
         self.ith = iteration_handler.transformer(self.iterator_typ)
-
-        itlib = self.ith(self, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
+        itlib = self.ith(self, self.k, simidx, self.version, self.sims_MAP, self.libdir_iterators, self.dlensalot_model)
         itlib_iterator = itlib.get_iterator()
         ## For QE, dlm_mod by construction doesn't do anything, because mean-field had already been subtracted from plm and we don't want to repeat that.
         ## But we are going to store a new file anyway.
@@ -721,9 +738,16 @@ class QE_lr(Basejob):
 class MAP_lr(Basejob):
     @check_MPI
     def __init__(self, dlensalot_model):
+        super().__init__(dlensalot_model)
         self.__dict__.update(dlensalot_model.__dict__)
         # TODO Only needed to hand over to ith(). in c2d(), prepare an ith model for it
         self.dlensalot_model = dlensalot_model
+
+        # sims -> sims_MAP
+        if self.it_filter_directional == 'anisotropic':
+            self.sims_MAP = utils_sims.ztrunc_sims(self.sims, self.sims_nside, [self.zbounds])
+        elif self.it_filter_directional == 'isotropic':
+            self.sims_MAP = self.sims
         # TODO not entirely happy how QE dependence is put into MAP_lr but cannot think of anything better at the moment.
         self.qe = QE_lr(dlensalot_model)
         self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
@@ -747,7 +771,7 @@ class MAP_lr(Basejob):
             if task == 'calc_phi':
                 ## Here I only want to calculate files not calculated before, and only for the it job tasks.
                 ## i.e. if no blt task in iterator job, then no blt task in QE job 
-                self.self.collect_jobs(task, recalc=False)
+                self.qe.collect_jobs(task, recalc=False)
                 for idx in self.simidxs:
                     lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
                     ## Skip if itmax phi is calculated
@@ -801,7 +825,7 @@ class MAP_lr(Basejob):
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
                     lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
                     if self.itmax >= 0 and rec.maxiterdone(lib_dir_iterator) < self.itmax:
-                        itlib = self.ith(self.qe, self.k, idx, self.version, self.libdir_iterators, self.dlensalot_model)
+                        itlib = self.ith(self.qe, self.k, idx, self.version, self.sims_MAP, self.libdir_iterators, self.dlensalot_model)
                         itlib_iterator = itlib.get_iterator()
                         for it in range(self.itmax + 1):
                             log.info("using cg-tol = %.4e"%self.it_cg_tol(it))
@@ -883,10 +907,10 @@ class MAP_lr(Basejob):
     def get_blt_it(self, simidx, it):
         # self.blt_lmin_plm = 1
         if 'itlib' not in self.__dict__:
-            self.itlib = self.ith(self.qe, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
+            self.itlib = self.ith(self.qe, self.k, simidx, self.version, self.sims_MAP, self.libdir_iterators, self.dlensalot_model)
             self.itlib_iterator = self.itlib.get_iterator()
         if simidx != self.itlib.simidx:
-            self.itlib = self.ith(self.qe, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
+            self.itlib = self.ith(self.qe, self.k, simidx, self.version, self.sims_MAP, self.libdir_iterators, self.dlensalot_model)
             self.itlib_iterator = self.itlib.get_iterator()
 
         self.lib_dir_iterator = self.libdir_iterators(self.k, simidx, self.version)

@@ -96,7 +96,7 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     cls_unl = attr.ib(default=opj(opj(os.path.dirname(plancklens.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat'))
     cls_len = attr.ib(default=opj(opj(os.path.dirname(plancklens.__file__), 'data', 'cls'), 'FFP10_wdipole_lensedCls.dat'))
     cpp = attr.ib(default=opj(opj(os.path.dirname(plancklens.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat'))
-    
+    beam = attr.ib(default=None)
 
 @attr.s
 class DLENSALOT_Data(DLENSALOT_Concept):
