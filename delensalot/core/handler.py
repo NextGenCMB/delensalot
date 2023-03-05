@@ -62,11 +62,9 @@ class Basejob():
 
     def __init__(self, model):
         self.__dict__.update(model.__dict__)
-
         _sims_module = importlib.import_module(self._sims_full_name)
         self._sims = getattr(_sims_module, self._class)(**self.sims_class_parameters)
         transf_dat = gauss_beam(self.sims_beam / 180 / 60 * np.pi, lmax=self.sims_lmax_transf)
-
         
         # b_transf = gauss_beam(df.a2r(self.beam), lmax=self.lmax) # TODO ninv_p doesn't depend on this anyway, right?
         # self.ninv_p = np.array(opfilt_pp.alm_filter_ninv(self.ninv_p_desc, b_transf, marge_qmaps=(), marge_umaps=()).get_ninv())
@@ -366,7 +364,7 @@ class Notebook_interactor(Basejob):
         
 class OBD_builder(Basejob):
     @check_MPI
-    def __init__(self, OBD_model):
+    def __init__(self, OBD_model, diasable_mpi=False):
         self.__dict__.update(OBD_model.__dict__)
 
         self.tpl = template_dense(self.lmin_teb[2], self.ninvjob_geometry, self.tr, _lib_dir=self.obd_libdir, rescal=self.obd_rescale)
@@ -411,11 +409,11 @@ class OBD_builder(Basejob):
 
 class Sim_generator(Basejob):
 
-    @check_MPI
     def __init__(self, dlensalot_model):
-        self.__dict__.update(dlensalot_model.__dict__)
+        super().__init__(dlensalot_model)
         self.dlensalot_model = dlensalot_model
 
+        self.lib_dir = self.sims_class_parameters['lib_dir']
         first_rank = mpi.bcast(mpi.rank)
         if first_rank == mpi.rank:
             if not os.path.exists(self.lib_dir):
@@ -428,13 +426,12 @@ class Sim_generator(Basejob):
 
 
     # @base_exception_handler
-    @log_on_start(logging.INFO, "collect_jobs(qe_tasks={qe_tasks}, recalc={recalc}) started")
-    @log_on_end(logging.INFO, "collect_jobs(qe_tasks={qe_tasks}, recalc={recalc}) finished: jobs={self.jobs}")
-    def collect_jobs(self, qe_tasks=None, recalc=False):
+    @log_on_start(logging.INFO, "collect_jobs() started")
+    @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
+    def collect_jobs(self):
 
         jobs = []
         for simidx in self.simidxs:
-            # TODO remove hardcoded fname generation in the next line, perhaps use cacher
             def check(simidx):
                 return True
             if check(simidx):
@@ -444,14 +441,20 @@ class Sim_generator(Basejob):
 
 
     # @base_exception_handler
-    @log_on_start(logging.INFO, "run(task={task}) started")
-    @log_on_end(logging.INFO, "run(task={task}) finished")
-    def run(self, task=None):
+    @log_on_start(logging.INFO, "run() started")
+    @log_on_end(logging.INFO, "run() finished")
+    def run(self):
+        for simidx in self.jobs[mpi.rank::mpi.size]:
+            self.generate_sim(int(simidx))
 
-        for idx in self.jobs[mpi.rank::mpi.size]:
-            # In principle it is enough to calculate qlms. 
-            # self.get_plm(idx, self.QE_subtract_meanfield)
-            self.generate_sim(int(idx))
+
+    @log_on_start(logging.INFO, "generate_sim(simidx={simidx}) started")
+    @log_on_end(logging.INFO, "generate_sim(simidx={simidx}) finished")
+    def generate_sim(self, simidx):
+        self._sims.get_sim_alm(simidx, 't')
+        self._sims.get_sim_alm(simidx, 'e')
+        self._sims.get_sim_alm(simidx, 'b')
+        self._sims.get_sim_plm(simidx)
 
 
 class QE_lr(Basejob):
@@ -459,7 +462,6 @@ class QE_lr(Basejob):
     @check_MPI
     def __init__(self, dlensalot_model):
         super().__init__(dlensalot_model)
-        self.__dict__.update(dlensalot_model.__dict__)
         self.dlensalot_model = dlensalot_model
 
         if self.cl_analysis == True:
@@ -739,7 +741,6 @@ class MAP_lr(Basejob):
     @check_MPI
     def __init__(self, dlensalot_model):
         super().__init__(dlensalot_model)
-        self.__dict__.update(dlensalot_model.__dict__)
         # TODO Only needed to hand over to ith(). in c2d(), prepare an ith model for it
         self.dlensalot_model = dlensalot_model
 

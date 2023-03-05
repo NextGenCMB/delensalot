@@ -109,16 +109,6 @@ class handler():
         # j.collect_jobs()
 
         return j
-    
-
-    # @log_on_start(logging.INFO, "init_job() Started")
-    # @log_on_end(logging.INFO, "init_job() Finished")
-    # def init_job(self, job):
-    #     model = transform(*job[0])
-    #     j = job[1](model)
-    #     # j.collect_jobs()
-
-    #     return j
 
 
     @check_MPI
@@ -139,10 +129,10 @@ class handler():
                     
                     model = transform(conf, transformer)
 
-                    # first_rank = mpi.bcast(mpi.rank)
-                    # if first_rank == mpi.rank:
-                    if mpi.rank == 0:              
+                    if mpi.rank == 0:
+                        mpi.disable()
                         delensalot_job = job(model)
+                        mpi.enable()
                         [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
                     else:
                         mpi.receive(1, source=mpi.ANY_SOURCE)
@@ -150,7 +140,6 @@ class handler():
                     delensalot_job.collect_jobs()    
                     delensalot_job.run()
                 
-
 
     @log_on_start(logging.INFO, "store() Started")
     @log_on_end(logging.INFO, "store() Finished")
@@ -172,23 +161,20 @@ class handler():
                 for key, val in configfile_old.dlensalot_model.__dict__.items():
                     for k, v in val.__dict__.items():
                         if v.__str__() != configfile.dlensalot_model.__dict__[key].__dict__[k].__str__():
-                            log.info('Different item found')
+                            logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
                             if k.__str__() in safelist:
-                                logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
                                 dostore = True
-                            else:
-                                pass
                                 # if callable(v):
                                 #     # If function, we can test if bytecode is the same as a simple check won't work due to pointing to memory location
                                 #     if v.__code__.co_code != configfile.dlensalot_model.__dict__[key].__dict__[k].__code__.co_code:
                                 #         logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
                                 #         logging.warning('Exit. Check config file.')
                                 #         sys.exit()
-                                # else:
-                                    # dostore = False
-                                    # logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
-                                    # logging.warning('Not part of safelist. Changing this value will likely result in a wrong analysis. Exit. Check config file.')
-                                    # sys.exit()
+                            else:
+                                dostore = False
+                                logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
+                                logging.warning('Not part of safelist. Changing this value will likely result in a wrong analysis. Exit. Check config file.')
+                                sys.exit()
                 logging.info('config file comparison done. No conflicts found.')
             else:
                 dostore = True

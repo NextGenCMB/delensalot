@@ -40,7 +40,7 @@ class l2base_Transformer():
 
     @log_on_start(logging.DEBUG, "_process_Data() started")
     @log_on_end(logging.DEBUG, "_process_Data() finished")
-    def _process_Data(self, dl, da):
+    def _process_Data(self, dl, da, cf):
         # package_
         _package = da.package_
         # module_
@@ -62,31 +62,58 @@ class l2base_Transformer():
         dl.sims_nside = da.nside
         ## get_sim_pmap comes from plancklens.maps wrapper
 
-        # transferfunction
-        dl.transferfunction = da.transferfunction
-        if dl.transferfunction == 'gauss_no_pixwin':
-            # Fiducial model of the transfer function
-            transf_tlm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[0])
-            transf_elm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[1])
-            transf_blm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[2])
-        elif dl.transferfunction == 'gauss_with_pixwin':
-            # Fiducial model of the transfer function
-            transf_tlm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(da.nside, lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[0])
-            transf_elm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(da.nside, lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[1])
-            transf_blm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(da.nside, lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[2])
-        dl.ttebl = {'t': transf_tlm, 'e': transf_elm, 'b':transf_blm}
 
-        # Isotropic approximation to the filtering (used eg for response calculations)
-        ftl_len = cli(dl.cls_len['tt'][:dl.lm_max_ivf[0] + 1] + df.a2r(da.nlev_t)**2 * cli(dl.ttebl['t'] ** 2)) * (dl.ttebl['t'] > 0)
-        fel_len = cli(dl.cls_len['ee'][:dl.lm_max_ivf[0] + 1] + df.a2r(da.nlev_p)**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
-        fbl_len = cli(dl.cls_len['bb'][:dl.lm_max_ivf[0] + 1] + df.a2r(da.nlev_p)**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
-        dl.ftebl_len = {'t': ftl_len, 'e': fel_len, 'b':fbl_len}
-
-        # Same using unlensed spectra (used for unlensed response used to initiate the MAP curvature matrix)
-        ftl_unl = cli(dl.cls_unl['tt'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.ttebl['t'] ** 2)) * (dl.ttebl['t'] > 0)
-        fel_unl = cli(dl.cls_unl['ee'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
-        fbl_unl = cli(dl.cls_unl['bb'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
-        dl.ftebl_unl = {'t': ftl_unl, 'e': fel_unl, 'b':fbl_unl}
+    @log_on_start(logging.DEBUG, "_process_Analysis() started")
+    @log_on_end(logging.DEBUG, "_process_Analysis() finished")
+    def _process_Analysis(self, dl, an, cf):
+        # dlm_mod
+        dl.dlm_mod_bool = cf.madel.dlm_mod
+        # beam
+        dl.beam = an.beam
+        # mask
+        dl.mask_fn = an.mask
+        # key -> k
+        dl.k = an.key
+        # lmin_teb
+        dl.lmin_teb = an.lmin_teb
+        # version -> version
+        dl.version = an.version
+        # simidxs
+        dl.simidxs = an.simidxs
+        # simidxs_mf
+        dl.simidxs_mf = an.simidxs_mf if dl.version != 'noMF' else []
+        # print(dl.simidxs_mf)
+        dl.simidxs_mf = dl.simidxs_mf if dl.simidxs_mf != [] else dl.simidxs
+        # print(dl.simidxs_mf)
+        dl.Nmf = 0 if dl.version == 'noMF' else len(dl.simidxs_mf)
+        # TEMP_suffix -> TEMP_suffix
+        dl.TEMP_suffix = an.TEMP_suffix
+        dl.TEMP = transform(cf, l2T_Transformer())
+        # Lmin
+        #TODO give user freedom about fiducial model. But needed here for dl.cpp
+        dl.cls_unl = utils.camb_clfile(an.cls_unl)
+        # if 
+        dl.cls_len = utils.camb_clfile(an.cls_len)
+        dl.Lmin = an.Lmin
+        # zbounds -> zbounds
+        if an.zbounds[0] == 'nmr_relative':
+            dl.zbounds = df.get_zbounds(hp.read_map(cf.noisemodel.rhits_normalised[0]), an.zbounds[1])
+        elif an.zbounds[0] == 'mr_relative':
+            _zbounds = df.get_zbounds(hp.read_map(an.mask), np.inf)
+            dl.zbounds = df.extend_zbounds(_zbounds, degrees=an.zbounds[1])
+        elif type(an.zbounds[0]) in [float, int, np.float64]:
+            dl.zbounds = an.zbounds
+        # zbounds_len
+        if an.zbounds_len[0] == 'extend':
+            dl.zbounds_len = df.extend_zbounds(dl.zbounds, degrees=an.zbounds_len[1])
+        elif an.zbounds_len[0] == 'max':
+            dl.zbounds_len = [-1, 1]
+        elif type(an.zbounds_len[0]) in [float, int, np.float64]:
+            dl.zbounds_len = an.zbounds_len
+        # pbounds -> pb_ctr, pb_extent
+        dl.pb_ctr, dl.pb_extent = an.pbounds
+        # lm_max_ivf -> lm_ivf
+        dl.lm_max_ivf = an.lm_max_ivf
 
 
 
@@ -146,16 +173,17 @@ class l2simgen_Transformer(l2base_Transformer):
     """_summary_
     """
 
-    @check_MPI
     @log_on_start(logging.INFO, "build() started")
     @log_on_end(logging.INFO, "build() finished")
     def build(self, cf):
 
         dl = DLENSALOT_Concept()    
 
-        super()._process_Data(dl, cf.data)
+        super()._process_Data(dl, cf.data, cf)
+        super()._process_Analysis(dl, cf.analysis, cf)
 
         return dl
+
 
 
 class l2lensrec_Transformer(l2base_Transformer):
@@ -171,7 +199,7 @@ class l2lensrec_Transformer(l2base_Transformer):
         # elif cf.meta.version == '0.9':
         #     return self.build_v3(cf)
 
-    @check_MPI
+
     @log_on_start(logging.INFO, "build() started")
     @log_on_end(logging.INFO, "build() finished")
     def build(self, cf):
@@ -194,54 +222,7 @@ class l2lensrec_Transformer(l2base_Transformer):
         @log_on_start(logging.DEBUG, "_process_Analysis() started")
         @log_on_end(logging.DEBUG, "_process_Analysis() finished")
         def _process_Analysis(dl, an):
-            # dlm_mod
-            dl.dlm_mod_bool = cf.madel.dlm_mod
-            # beam
-            dl.beam = an.beam
-            # mask
-            dl.mask_fn = an.mask
-            # key -> k
-            dl.k = an.key
-            # lmin_teb
-            dl.lmin_teb = an.lmin_teb
-            # version -> version
-            dl.version = an.version
-            # simidxs
-            dl.simidxs = an.simidxs
-            # simidxs_mf
-            dl.simidxs_mf = an.simidxs_mf if dl.version != 'noMF' else []
-            # print(dl.simidxs_mf)
-            dl.simidxs_mf = dl.simidxs_mf if dl.simidxs_mf != [] else dl.simidxs
-            # print(dl.simidxs_mf)
-            dl.Nmf = 0 if dl.version == 'noMF' else len(dl.simidxs_mf)
-            # TEMP_suffix -> TEMP_suffix
-            dl.TEMP_suffix = an.TEMP_suffix
-            dl.TEMP = transform(cf, l2T_Transformer())
-            # Lmin
-            #TODO give user freedom about fiducial model. But needed here for dl.cpp
-            dl.cls_unl = utils.camb_clfile(an.cls_unl)
-            # if 
-            dl.cls_len = utils.camb_clfile(an.cls_len)
-            dl.Lmin = an.Lmin
-            # zbounds -> zbounds
-            if an.zbounds[0] == 'nmr_relative':
-                dl.zbounds = df.get_zbounds(hp.read_map(cf.noisemodel.rhits_normalised[0]), an.zbounds[1])
-            elif an.zbounds[0] == 'mr_relative':
-                _zbounds = df.get_zbounds(hp.read_map(an.mask), np.inf)
-                dl.zbounds = df.extend_zbounds(_zbounds, degrees=an.zbounds[1])
-            elif type(an.zbounds[0]) in [float, int, np.float64]:
-                dl.zbounds = an.zbounds
-            # zbounds_len
-            if an.zbounds_len[0] == 'extend':
-                dl.zbounds_len = df.extend_zbounds(dl.zbounds, degrees=an.zbounds_len[1])
-            elif an.zbounds_len[0] == 'max':
-                dl.zbounds_len = [-1, 1]
-            elif type(an.zbounds_len[0]) in [float, int, np.float64]:
-                dl.zbounds_len = an.zbounds_len
-            # pbounds -> pb_ctr, pb_extent
-            dl.pb_ctr, dl.pb_extent = an.pbounds
-            # lm_max_ivf -> lm_ivf
-            dl.lm_max_ivf = an.lm_max_ivf
+            super()._process_Analysis(dl, an, cf)
 
 
         @log_on_start(logging.DEBUG, "_process_Noisemodel() started")
@@ -270,6 +251,37 @@ class l2lensrec_Transformer(l2base_Transformer):
             dl.obd_rescale = od.rescale
             if cf.noisemodel.ninvjob_geometry == 'healpix_geometry':
                 dl.ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(cf.data.nside, zbounds=dl.zbounds)
+
+
+        @log_on_start(logging.DEBUG, "_process_Data() started")
+        @log_on_end(logging.DEBUG, "_process_Data() finished")       
+        def _process_Data(dl, da):
+            super()._process_Data(dl, da, cf)
+            # transferfunction
+            dl.transferfunction = da.transferfunction
+            if dl.transferfunction == 'gauss_no_pixwin':
+                # Fiducial model of the transfer function
+                transf_tlm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[0])
+                transf_elm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[1])
+                transf_blm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[2])
+            elif dl.transferfunction == 'gauss_with_pixwin':
+                # Fiducial model of the transfer function
+                transf_tlm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(da.nside, lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[0])
+                transf_elm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(da.nside, lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[1])
+                transf_blm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(da.nside, lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[2])
+            dl.ttebl = {'t': transf_tlm, 'e': transf_elm, 'b':transf_blm}
+
+            # Isotropic approximation to the filtering (used eg for response calculations)
+            ftl_len = cli(dl.cls_len['tt'][:dl.lm_max_ivf[0] + 1] + df.a2r(da.nlev_t)**2 * cli(dl.ttebl['t'] ** 2)) * (dl.ttebl['t'] > 0)
+            fel_len = cli(dl.cls_len['ee'][:dl.lm_max_ivf[0] + 1] + df.a2r(da.nlev_p)**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
+            fbl_len = cli(dl.cls_len['bb'][:dl.lm_max_ivf[0] + 1] + df.a2r(da.nlev_p)**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
+            dl.ftebl_len = {'t': ftl_len, 'e': fel_len, 'b':fbl_len}
+
+            # Same using unlensed spectra (used for unlensed response used to initiate the MAP curvature matrix)
+            ftl_unl = cli(dl.cls_unl['tt'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.ttebl['t'] ** 2)) * (dl.ttebl['t'] > 0)
+            fel_unl = cli(dl.cls_unl['ee'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
+            fbl_unl = cli(dl.cls_unl['bb'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
+            dl.ftebl_unl = {'t': ftl_unl, 'e': fel_unl, 'b':fbl_unl}
   
 
 
@@ -412,7 +424,7 @@ class l2lensrec_Transformer(l2base_Transformer):
             _process_OBD(dl, cf.obd)
         else:
             dl.tpl = None
-        super()._process_Data(dl, cf.data)
+        _process_Data(dl, cf.data)
         _process_Qerec(dl, cf.qerec)
         _process_Itrec(dl, cf.itrec)
 
@@ -1005,7 +1017,7 @@ class l2j_Transformer:
         # TODO if the pf.X objects were distinguishable by X2X_Transformer, could replace the seemingly redundant checks here.
         def _process_Jobs(jobs, jb):
             if "generate_sim" in jb.jobs:
-                jobs.append({"generate_sims":((cf, l2simgen_Transformer()), delensalot_handler.Sim_generator)})
+                jobs.append({"generate_sim":((cf, l2simgen_Transformer()), delensalot_handler.Sim_generator)})
             if "build_OBD" in jb.jobs:
                 jobs.append({"build_OBD":((cf, l2OBD_Transformer()), delensalot_handler.OBD_builder)})
             if "QE_lensrec" in jb.jobs:
