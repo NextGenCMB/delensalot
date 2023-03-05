@@ -1,12 +1,19 @@
 """Generic cmb-only sims module
 
 """
-import numpy as np, healpy as hp
+
 import os
+
+import numpy as np, healpy as hp
+import pickle as pk
+
+import logging
+log = logging.getLogger(__name__)
+
 from plancklens.helpers import mpi
 from plancklens.sims import cmbs, phas
 from plancklens import utils
-import pickle as pk
+
 
 verbose = False
 
@@ -46,16 +53,22 @@ class sims_cmb_len(object):
     """
     def __init__(self, lib_dir, lmax, cls_unl, lib_pha=None, offsets_plm=None, offsets_cmbunl=None,
                  dlmax=1024, nside_lens=4096, facres=0, nbands=8, verbose=True):
-        if not os.path.exists(lib_dir) and mpi.rank == 0:
-            os.makedirs(lib_dir)
-        mpi.barrier()
+        first_rank = mpi.bcast(mpi.rank)
+        if first_rank == mpi.rank:
+            if not os.path.exists(lib_dir):
+                os.makedirs(lib_dir)
+            for n in range(mpi.size):
+                if n != mpi.rank:
+                    mpi.send(1, dest=n)
+        else:
+            mpi.receive(None, source=mpi.ANY_SOURCE)
         fields = _get_fields(cls_unl)
 
-        if lib_pha is None and mpi.rank == 0:
-            lib_pha = phas.lib_phas(os.path.join(lib_dir, 'phas'), len(fields), lmax + dlmax)
+        if lib_pha is None:
+            lib_pha = phas.lib_phas(lib_dir, len(fields), lmax + dlmax)
         else:  # Check that the lib_alms are compatible :
             assert lib_pha.lmax == lmax + dlmax
-        mpi.barrier()
+
 
 
         self.lmax = lmax
@@ -73,14 +86,20 @@ class sims_cmb_len(object):
         self.offset_cmb = offsets_cmbunl if offsets_cmbunl is not None else (1, 0)
 
         fn_hash = os.path.join(lib_dir, 'sim_hash.pk')
-        if mpi.rank == 0 and not os.path.exists(fn_hash) :
-            pk.dump(self.hashdict(), open(fn_hash, 'wb'), protocol=2)
-        mpi.barrier()
+        first_rank = mpi.bcast(mpi.rank)
+        if first_rank == mpi.rank:
+            if not os.path.exists(fn_hash):
+                pk.dump(self.hashdict(), open(fn_hash, 'wb'), protocol=2)
+            for n in range(mpi.size):
+                if n != mpi.rank:
+                    mpi.send(1, dest=n)
+        else:
+            mpi.receive(None, source=mpi.ANY_SOURCE)
         utils.hash_check(self.hashdict(), pk.load(open(fn_hash, 'rb')))
         try:
             import lenspyx
         except ImportError:
-            print("Could not import lenspyx module")
+            log.info("Could not import lenspyx module")
             lenspyx = None
         self.lens_module = lenspyx
         self.verbose=verbose

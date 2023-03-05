@@ -17,17 +17,17 @@ import copy
 import numpy as np
 import healpy as hp
 
-from MSC import pospace as ps
 from plancklens import utils, qresp
 from plancklens.sims import planck2018_sims
 
 from lenscarf.core import mpi
+from lenscarf.core.mpi import check_MPI
 from lenscarf.lerepi.config.config_helper import data_functions as df
 from lenscarf.utils_hp import almxfl, alm_copy
 from lenscarf.iterators.statics import rec as rec
 from lenscarf.iterators import iteration_handler
 from lenscarf.opfilt.bmodes_ninv import template_bfilt
-
+from lenscarf.core.decorators.exception_handler import base as base_exception_handler
 
 
 class Basejob():
@@ -46,18 +46,21 @@ class Basejob():
             _str += '\n'
         return _str
 
+
     def __init__(self, qe, model):
 
-        assert 0, "Implement if needed"
+        assert 0, "Overwrite"
 
 
+    # @base_exception_handler
     @log_on_start(logging.INFO, "collect_jobs() started")
     @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self):
 
-        assert 0, "Implement if needed"
+        assert 0, "Overwrite"
 
 
+    # @base_exception_handler
     @log_on_start(logging.INFO, "collect_jobs() started")
     @log_on_end(logging.INFO, "collect_jobs() finished")
     def run(self):
@@ -65,35 +68,60 @@ class Basejob():
         assert 0, "Implement if needed"
 
 
+    # @base_exception_handler
+    @log_on_start(logging.INFO, "collect_jobs() started")
+    @log_on_end(logging.INFO, "collect_jobs() finished")
+    def get_qlm_it(self, simidx, it):
 
-    def load_plm_it(self, simidx, it):
-
-        return None
-
-
-    def load_mf_it(self, simidx, it, normalized=True):
-
-        return None
+        assert 0, "Implement if needed"
 
 
+    # @base_exception_handler
+    @log_on_start(logging.INFO, "collect_jobs() started")
+    @log_on_end(logging.INFO, "collect_jobs() finished")
+    def get_plm_it(self, simidx, it):
+
+        assert 0, "Implement if needed"
+
+
+    # @base_exception_handler
+    @log_on_start(logging.INFO, "collect_jobs() started")
+    @log_on_end(logging.INFO, "collect_jobs() finished")
+    def get_mf_it(self, simidx, it, normalized=True):
+
+        assert 0, "Implement if needed"
+
+
+    # @base_exception_handler
+    @log_on_start(logging.INFO, "collect_jobs() started")
+    @log_on_end(logging.INFO, "collect_jobs() finished")
     def get_blt_it(self, simidx, it):
 
-        return None
+        assert 0, "Implement if needed"
 
 
+    # @base_exception_handler
+    @log_on_start(logging.INFO, "collect_jobs() started")
+    @log_on_end(logging.INFO, "collect_jobs() finished")
     def get_ivf(self, simidx, it, field):
 
-        return None
+        assert 0, "Implement if needed"
 
 
+    # @base_exception_handler
+    @log_on_start(logging.INFO, "collect_jobs() started")
+    @log_on_end(logging.INFO, "collect_jobs() finished")
     def get_wf(self, simidx, it, field):
 
-        return None
+        assert 0, "Implement if needed"
     
 
+    # @base_exception_handler
+    @log_on_start(logging.INFO, "collect_jobs() started")
+    @log_on_end(logging.INFO, "collect_jobs() finished")
     def get_fiducial_sim(self, simidx, field):
 
-        return None
+        assert 0, "Implement if needed"
 
 
 class Notebook_interactor(Basejob):
@@ -112,11 +140,13 @@ class Notebook_interactor(Basejob):
      * load power spectra
         * see read_data_v2()
     '''
+    @check_MPI
     def __init__(self, Interactor_model):
+        from MSC import pospace as ps
         self.__dict__.update(Interactor_model.__dict__)
 
 
-
+    # @base_exception_handler
     @log_on_start(logging.INFO, "read_data_v2() started")
     @log_on_end(logging.INFO, "read_data_v2() finished")
     def read_data_v2(self, edges_id=0):
@@ -139,7 +169,8 @@ class Notebook_interactor(Basejob):
 
         return bcl_L, bcl_cs
 
-    
+
+    # @base_exception_handler
     @log_on_start(logging.INFO, "load_foreground_freqs_mapalm() started")
     @log_on_end(logging.INFO, "load_foreground_freqs_mapalm() finished")
     def load_foreground_freqs_mapalm(self, mask=1, rotate_alms=False):
@@ -159,8 +190,9 @@ class Notebook_interactor(Basejob):
             log.error('not yet implemented')
 
 
+    # @base_exception_handler
     @log_on_start(logging.INFO, "calc_powerspectrum_binned_fromEB() started")
-    @log_on_end(logging.INFO, "calc_powerspectrum_binned_fromEB() finished")   
+    @log_on_end(logging.INFO, "calc_powerspectrum_binned_fromEB() finished") 
     def calc_powerspectrum_binned_fromEB(self, maps_mask, templates, freq='comb', component='cs', nlevel='fs', edges=None, lmax=None):
         ## Template
 
@@ -192,19 +224,21 @@ class Notebook_interactor(Basejob):
         self.data[component][nlevel]['cl_patch'][freq]['E']  = pslibE.map2cl(self.data[component]['fs']['map'][freq]['EB'][0])
         self.data[component][nlevel]['cl_patch'][freq]['B']  = pslibB.map2cl(self.data[component]['fs']['map'][freq]['EB'][1])
 
-        
+
+    # @base_exception_handler
     @log_on_start(logging.INFO, "calc_powerspectrum_unbinned_fromEB() started")
-    @log_on_end(logging.INFO, "calc_powerspectrum_unbinned_fromEB() finished")   
+    @log_on_end(logging.INFO, "calc_powerspectrum_unbinned_fromEB() finished")
     def calc_powerspectrum_unbinned_fromEB(self, maps_mask, freq='comb', component='cs', nlevel='fs', lmax=None):
         if lmax is None:
             lmax = self.lmax
 
         self.data[component][nlevel]['cl_patch'][freq]['E'] = ps.map2cl(self.data[component]['fs']['map'][freq]['EB'][0], maps_mask, lmax, lmax_mask=2*lmax)
         self.data[component][nlevel]['cl_patch'][freq]['B'] = ps.map2cl(self.data[component]['fs']['map'][freq]['EB'][1], maps_mask, lmax, lmax_mask=2*lmax)
-        
 
+
+    # @base_exception_handler
     @log_on_start(logging.INFO, "calc_powerspectrum_binned_fromQU() started")
-    @log_on_end(logging.INFO, "calc_powerspectrum_binned_fromQU() finished")   
+    @log_on_end(logging.INFO, "calc_powerspectrum_binned_fromQU() finished")
     def calc_powerspectrum_binned_fromQU(self, maps_mask, templates, freq='comb', component='cs', nlevel='fs', edges=None, lmax=None):
         ## Template
 
@@ -223,8 +257,10 @@ class Notebook_interactor(Basejob):
         self.data[component][nlevel]['cl_patch'][freq]['EB'] = np.array(pslibQU.map2cl(self.data[component]['fs']['map'][freq]['QU']))
 
 
-    # @log_on_start(logging.INFO, "getfn_blm_lensc() started")
-    # @log_on_end(logging.INFO, "getfn_blm_lensc() finished")
+
+    # @base_exception_handler
+    @log_on_start(logging.DEBUG, "getfn_blm_lensc() started")
+    @log_on_end(logging.DEBUG, "getfn_blm_lensc() finished")
     def getfn_blm_lensc(self, simidx, it, fn_splitsetsuffix=''):
         '''Lenscarf output using Catherinas E and B maps'''
         # TODO this needs cleaner implementation via lambda
@@ -251,9 +287,9 @@ class Notebook_interactor(Basejob):
             else:
                 return self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024%s%03d.npy'%(it, it, self.Nmf, fn_splitsetsuffix)
 
-            
-    # @log_on_start(logging.INFO, "getfn_qumap_cs() started")
-    # @log_on_end(logging.INFO, "getfn_qumap_cs() finished")
+    # @base_exception_handler
+    @log_on_start(logging.DEBUG, "getfn_qumap_cs() started")
+    @log_on_end(logging.DEBUG, "getfn_qumap_cs() finished")
     def getfn_qumap_cs(self, simidx):
 
         '''Component separated polarisation maps lm, i.e. lenscarf input'''
@@ -261,8 +297,9 @@ class Notebook_interactor(Basejob):
         return self.sims.get_sim_pmap(simidx)
 
 
+    # @base_exception_handler
     @log_on_start(logging.INFO, "combine() started")
-    @log_on_end(logging.INFO, "combine() finished")
+    @log_on_end(logging.INFO, "combine() finished")    
     def combine_alms(self, freq2beam_fwhm=None, weights=None, pixelwindow=True, component='fg'):
         if weights is None:
             weights = self.data['weight']
@@ -281,9 +318,9 @@ class Notebook_interactor(Basejob):
         self.data[component]['fs']['map']['comb']['EB'] = np.array([comb_E, comb_B])
         return self.data[component]['fs']['map']['comb']['EB']
             
-    
+    # @base_exception_handler
     @log_on_start(logging.INFO, "collect_jobs() started")
-    @log_on_end(logging.INFO, "collect_jobs() finished")
+    @log_on_end(logging.INFO, "collect_jobs() finished")    
     def collect_jobs(self):
         # TODO fill if needed
         jobs = []
@@ -292,6 +329,7 @@ class Notebook_interactor(Basejob):
         self.jobs = jobs
 
 
+    # @base_exception_handler
     @log_on_start(logging.INFO, "run() started")
     @log_on_end(logging.INFO, "run() finished")
     def run(self):
@@ -300,10 +338,12 @@ class Notebook_interactor(Basejob):
 
         
 class OBD_builder(Basejob):
+    @check_MPI
     def __init__(self, OBD_model):
         self.__dict__.update(OBD_model.__dict__)
 
 
+    # @base_exception_handler
     @log_on_start(logging.INFO, "collect_jobs() started")
     @log_on_end(logging.INFO, "collect_jobs() finished")
     def collect_jobs(self):
@@ -312,6 +352,7 @@ class OBD_builder(Basejob):
         self.jobs = jobs
 
 
+    # @base_exception_handler
     @log_on_start(logging.INFO, "run() started")
     @log_on_end(logging.INFO, "run() finished")
     def run(self):
@@ -340,6 +381,8 @@ class OBD_builder(Basejob):
 
 
 class QE_lr(Basejob):
+
+    @check_MPI
     def __init__(self, dlensalot_model):
         self.__dict__.update(dlensalot_model.__dict__)
         self.dlensalot_model = dlensalot_model
@@ -349,13 +392,10 @@ class QE_lr(Basejob):
         self.plm = lambda simidx: self.get_plm(simidx, self.QE_subtract_meanfield)
         self.wflm = lambda simidx: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
         self.R_unl = lambda: qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_unl, self.cls_unl,  self.ftebl_unl, lmax_qlm=self.qe_lm_max_qlm[0])[0]
-
-        # TODO only needed for get_blt(), as this is done by cs_iterator.. move 
-        self.ith = iteration_handler.transformer('constmf')
       
-
-    @log_on_start(logging.INFO, "collect_jobs() started: qe_tasks={qe_tasks}")
-    @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
+    # @base_exception_handler
+    @log_on_start(logging.INFO, "collect_jobs(qe_tasks={qe_tasks}, recalc={recalc}) started")
+    @log_on_end(logging.INFO, "collect_jobs(qe_tasks={qe_tasks}, recalc={recalc}) finished: jobs={self.jobs}")
     def collect_jobs(self, qe_tasks=None, recalc=False):
 
         # qe_tasks overwrites task-list and is needed if MAP lensrec calls QE lensrec
@@ -404,9 +444,9 @@ class QE_lr(Basejob):
             jobs[taski] = _jobs
         self.jobs = jobs
 
-
-    @log_on_start(logging.INFO, "run() started")
-    @log_on_end(logging.INFO, "run() finished")
+    # @base_exception_handler
+    @log_on_start(logging.INFO, "run(task={task}) started")
+    @log_on_end(logging.INFO, "run(task={task}) finished")
     def run(self, task=None):
         ## task may be set from MAP lensrec, as MAP lensrec has prereqs to QE lensrec
         ## if None, then this is a normal QE lensrec call
@@ -444,35 +484,23 @@ class QE_lr(Basejob):
                     self.get_blt(idx)
 
 
-    @log_on_start(logging.INFO, "get_sim_qlm({simidx}) started")
-    @log_on_end(logging.INFO, "get_sim_qlm({simidx}) finished")
+    # @base_exception_handler
+    @log_on_start(logging.INFO, "get_sim_qlm(simidx={simidx}) started")
+    @log_on_end(logging.INFO, "get_sim_qlm(simidx={simidx}) finished")
     def get_sim_qlm(self, simidx):
 
         return self.qlms_dd.get_sim_qlm(self.k, int(simidx))
 
 
-    @log_on_start(logging.INFO, "get_B_wf({simidx}) started")
-    @log_on_end(logging.INFO, "get_B_wf({simidx}) finished")    
-    def get_B_wf(self, simidx):
-        fn = self.libdir_iterators(self.k, simidx, self.version)+'/bwf_qe_%04d.npy'%simidx
-        if not os.path.isdir(self.libdir_iterators(self.k, simidx, self.version)):
-            os.makedirs(self.libdir_iterators(self.k, simidx, self.version))
-        if os.path.isfile(fn):
-            bwf = self.ivfs.get_sim_bmliklm(simidx)
-        else:
-            bwf = self.ivfs.get_sim_bmliklm(simidx)
-            np.save(fn, bwf)
-
-        return bwf
-
-
-    @log_on_start(logging.INFO, "get_wflm({simidx}) started")
-    @log_on_end(logging.INFO, "get_wflm({simidx}) finished")    
+    # @base_exception_handler
+    @log_on_start(logging.INFO, "get_wflm(simidx={simidx}) started")
+    @log_on_end(logging.INFO, "get_wflm(simidx={simidx}) finished")    
     def get_wflm(self, simidx):
 
         return lambda: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
 
 
+    # @base_exception_handler
     @log_on_start(logging.INFO, "get_R_unl() started")
     @log_on_end(logging.INFO, "get_R_unl() finished")    
     def get_R_unl(self):
@@ -480,8 +508,9 @@ class QE_lr(Basejob):
         return qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_unl, self.cls_unl, self.fteb_unl, lmax_qlm=self.qe_lm_max_qlm[0])[0]
 
 
-    @log_on_start(logging.INFO, "get_meanfield({simidx}) started")
-    @log_on_end(logging.INFO, "get_meanfield({simidx}) finished")
+    # @base_exception_handler
+    @log_on_start(logging.INFO, "get_meanfield(simidx={simidx}) started")
+    @log_on_end(logging.INFO, "get_meanfield(simidx={simidx}) finished")
     def get_meanfield(self, simidx):
         ret = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, 0))
         if self.Nmf > 0:
@@ -498,17 +527,17 @@ class QE_lr(Basejob):
         return ret
         
 
-
-    @log_on_start(logging.INFO, "get_plm({simidx}) started")
-    @log_on_end(logging.INFO, "get_plm({simidx}) finished")
-    def get_plm(self, simidx, subtract_meanfield=True):
+    # @base_exception_handler
+    @log_on_start(logging.INFO, "get_plm(simidx={simidx}, sub_mf={sub_mf}) started")
+    @log_on_end(logging.INFO, "get_plm(simidx={simidx}, sub_mf={sub_mf}) finished")
+    def get_plm(self, simidx, sub_mf=True):
         lib_dir_iterator = self.libdir_iterators(self.k, simidx, self.version)
         if not os.path.exists(lib_dir_iterator):
             os.makedirs(lib_dir_iterator)
         path_plm = opj(lib_dir_iterator, 'phi_plm_it000.npy')
         if not os.path.exists(path_plm):
             plm  = self.qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate:
-            if subtract_meanfield and self.version != 'noMF':
+            if sub_mf and self.version != 'noMF':
                 plm -= self.mf(int(simidx))  # MF-subtracted unnormalized QE
             R = qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=self.qe_lm_max_qlm[0])[0]
             # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
@@ -518,7 +547,6 @@ class QE_lr(Basejob):
             almxfl(plm, WF, self.qe_lm_max_qlm[1], True) # Wiener-filter QE
             almxfl(plm, self.cpp > 0, self.qe_lm_max_qlm[1], True)
             np.save(path_plm, plm)
-            
         return np.load(path_plm)
 
 
@@ -534,7 +562,9 @@ class QE_lr(Basejob):
 
         return mf_resp
 
-
+    # @base_exception_handler
+    @log_on_start(logging.INFO, "get_meanfield_normalized(simidx={simidx}) started")
+    @log_on_end(logging.INFO, "get_meanfield_normalized(simidx={simidx}) finished")
     def get_meanfield_normalized(self, simidx):
 
         mf_QE = copy.deepcopy(self.get_meanfield(simidx))
@@ -548,18 +578,25 @@ class QE_lr(Basejob):
         return mf_QE
 
 
+    # @base_exception_handler
     @log_on_start(logging.INFO, "get_blt({simidx}) started")
     @log_on_end(logging.INFO, "get_blt({simidx}) finished")
     def get_blt(self, simidx):
+        # TODO only needed for get_blt(), as this is done by cs_iterator.. move 
+        self.ith = iteration_handler.transformer(self.iterator_typ)
+
         itlib = self.ith(self, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
         itlib_iterator = itlib.get_iterator()
         ## For QE, dlm_mod by construction doesn't do anything, because mean-field had already been subtracted from plm and we don't want to repeat that.
         ## But we are going to store a new file anyway.
         dlm_mod = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, int(simidx)))
+        
+        # lmin_plm = 10 if self.iterator_typ == 'fastWF' else self.Lmin
         return itlib_iterator.get_template_blm(0, 0, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, perturbative=self.blt_pert)
-
+            
 
 class MAP_lr(Basejob):
+    @check_MPI
     def __init__(self, dlensalot_model):
         self.__dict__.update(dlensalot_model.__dict__)
         # TODO Only needed to hand over to ith(). in c2d(), prepare an ith model for it
@@ -575,6 +612,7 @@ class MAP_lr(Basejob):
         self.ith = iteration_handler.transformer(self.iterator_typ)
 
 
+    # # @base_exception_handler
     @log_on_start(logging.INFO, "collect_jobs() started")
     @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self):
@@ -628,6 +666,7 @@ class MAP_lr(Basejob):
         self.jobs = jobs
 
 
+    # @base_exception_handler
     @log_on_start(logging.INFO, "run() started")
     @log_on_end(logging.INFO, "run() finished")
     def run(self):
@@ -667,8 +706,9 @@ class MAP_lr(Basejob):
                     self.get_blt_it(simidx, self.itmax)
 
 
-    @log_on_start(logging.INFO, "get_plm_it({simidx}, {its}) started")
-    @log_on_end(logging.INFO, "get_plm_it({simidx}, {its}) finished")
+    # # @base_exception_handler
+    @log_on_start(logging.INFO, "get_plm_it(simidx={simidx}, its={its}) started")
+    @log_on_end(logging.INFO, "get_plm_it(simidx={simidx}, its={its}) finished")
     def get_plm_it(self, simidx, its):
 
         plms = rec.load_plms(self.libdir_iterators(self.k, simidx, self.version), its)
@@ -676,8 +716,9 @@ class MAP_lr(Basejob):
         return plms
 
 
-    @log_on_start(logging.INFO, "get_meanfield_it({it}) started")
-    @log_on_end(logging.INFO, "get_meanfield_it({it}) finished")
+    # # @base_exception_handler
+    @log_on_start(logging.INFO, "get_meanfield_it(it={it}, calc={calc}) started")
+    @log_on_end(logging.INFO, "get_meanfield_it(it={it}, calc={calc}) finished")
     def get_meanfield_it(self, it, calc=False):
         # for mfvar runs, this returns the correct meanfields, as mfvar runs go into distinct itlib dirs.
         fn = opj(self.mf_dirname, 'mf%03d_it%03d.npy'%(self.Nmf, it))
@@ -697,8 +738,9 @@ class MAP_lr(Basejob):
         return mf
 
 
-    @log_on_start(logging.INFO, "get_meanfields_it({its}) started")
-    @log_on_end(logging.INFO, "get_meanfields_it({its}) finished")
+    # @base_exception_handler
+    @log_on_start(logging.INFO, "get_meanfields_it(its={its}, calc={calc}) started")
+    @log_on_end(logging.INFO, "get_meanfields_it(its={its}, calc={calc}) finished")
     def get_meanfields_it(self, its, calc=False):
         plm = rec.load_plms(self.libdir_iterators(self.k, self.simidxs[0], self.version), [0])[-1]
         mfs = np.zeros(shape=(len(its),*plm.shape), dtype=np.complex128)
@@ -712,6 +754,7 @@ class MAP_lr(Basejob):
         return mfs
 
 
+    # @base_exception_handler
     @log_on_start(logging.INFO, "get_blt_it(simidx={simidx}, it={it}) started")
     @log_on_end(logging.INFO, "get_blt_it(simidx={simidx}, it={it}) finished")
     def get_blt_it(self, simidx, it):
@@ -742,7 +785,7 @@ class Map_delenser(Basejob):
      * choosing the right power spectrum calculation as in binning, masking, and templating
      * running across all jobs
     """
-
+    @check_MPI
     def __init__(self, bmd_model):
         self.__dict__.update(bmd_model.__dict__)
         self.lib = dict()
@@ -754,6 +797,7 @@ class Map_delenser(Basejob):
     def load_bcl(self):
         self.bcl_L, self.bcl_cs  = self.read_data_v2(edges_id=0)
 
+    # @base_exception_handler
     @log_on_start(logging.INFO, "read_data_v2() started")
     @log_on_end(logging.INFO, "read_data_v2() finished")
     def read_data_v2(self, edges_id=0):
@@ -828,6 +872,7 @@ class Map_delenser(Basejob):
         return ret
 
 
+    # @base_exception_handler
     @log_on_start(logging.INFO, "collect_jobs() started")
     @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self):
@@ -841,6 +886,7 @@ class Map_delenser(Basejob):
         self.jobs = jobs
 
 
+    # @base_exception_handler
     @log_on_start(logging.INFO, "run() started")
     @log_on_end(logging.INFO, "run() finished")
     def run(self):
@@ -1030,7 +1076,6 @@ class Map_delenser(Basejob):
                     blt_MAP, blt_MAP2 = _build_Btemplate_MAP(idx)
                     outputdata = _delens(bmap_L, bmap_cs, blt_QE, blt_QE2, blt_MAP, blt_MAP2)
                     np.save(_file_op, outputdata)
-
 
 
 class overwrite_anafast():

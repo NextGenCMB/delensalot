@@ -76,6 +76,7 @@ else:
     size = 1
     barrier = lambda: -1
     finalize = lambda: -1
+    bcast = lambda _: 0
     receive = lambda val, src : 0
     send = lambda val, dst : 0
 
