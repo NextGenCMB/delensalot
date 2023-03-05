@@ -6,7 +6,6 @@
     runs all jobs
 """
 __author__ = "S. Belkner, J. Carron, L. Legrand"
-# TODO this could be the level for _process_Model
 
 import os
 from os.path import join as opj
@@ -21,7 +20,8 @@ log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 
 from lenscarf.core import mpi
-
+from lenscarf.core.mpi import check_MPI
+from lenscarf.lerepi.core.validator import safelist
 from lenscarf.lerepi.core.visitor import transform
 from lenscarf.lerepi.core.transformer.lerepi2dlensalot import l2j_Transformer, l2T_Transformer, l2ji_Transformer
 from lenscarf.lerepi.core.transformer.lerepi2status import l2j_Transformer as l2js_Transformer
@@ -53,24 +53,14 @@ class handler():
         self.parser = parser
         self.TEMP = TEMP
 
-
-    @log_on_start(logging.INFO, "check_mpi() Started")
-    @log_on_end(logging.INFO, "check_mpi() Finished")
-    def check_mpi(self):
-        """_summary_
-        """        
-        log.info("rank: {}, size: {}, name: {}".format(mpi.rank, mpi.size, mpi.name))
-
-
-    @log_on_start(logging.INFO, "collect_jobs() Started")
-    @log_on_end(logging.INFO, "collect_jobs() Finished")
+    @check_MPI
+    @log_on_start(logging.DEBUG, "collect_jobs() Started")
+    @log_on_end(logging.DEBUG, "collect_jobs() Finished")
     def collect_jobs(self, job_id=''):
         """_summary_
         """
         ## Making sure that specific job request from run() is processed
-        print(self.configfile.dlensalot_model.job.jobs, job_id)
         self.configfile.dlensalot_model.job.jobs.append(job_id)
-        
         self.job_id = job_id
         
         if self.parser.status == '':
@@ -116,7 +106,7 @@ class handler():
 
         return j
 
-
+    @check_MPI
     @log_on_start(logging.INFO, "run() Started")
     @log_on_end(logging.INFO, "run() Finished")
     def run(self):
@@ -125,16 +115,15 @@ class handler():
                 conf = val[0][0]
                 transformer = val[0][1]
                 job = val[1]
-
+                
                 log.info("Starting job {}".format(job_id))
-
                 model = transform(conf, transformer)
                 # log.info("Model collected {}".format(model))
-                self.check_mpi()
+                
                 j = job(model)
-                self.check_mpi()
+                
                 j.collect_jobs()
-                self.check_mpi()
+                
                 j.run()
                 
 
@@ -149,24 +138,6 @@ class handler():
             configfile (_type_): _description_
             TEMP (_type_): _description_
         """
-        safelist = [
-            'version',
-            'jobs',
-            'simidxs',
-            'simidxs_mf',
-            'tasks',
-            'cl_analysis',
-            'blt_pert',
-            'itmax',
-            'cg_tol',
-            'mfvar',
-            'dlm_mod',
-            'spectrum_calculator',
-            'binning',
-            'outdir_plot_root',
-            'outdir_plot_rel',
-            'OMP_NUM_THREADS',
-        ]
         dostore = False
         # This is only done if not resuming. Otherwise file would already exist
         if os.path.isfile(parser.config_file) and parser.config_file.endswith('.py'):
@@ -182,6 +153,7 @@ class handler():
                                 logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
                                 dostore = True
                             else:
+                                pass
                                 # if callable(v):
                                 #     # If function, we can test if bytecode is the same as a simple check won't work due to pointing to memory location
                                 #     if v.__code__.co_code != configfile.dlensalot_model.__dict__[key].__dict__[k].__code__.co_code:
@@ -189,12 +161,13 @@ class handler():
                                 #         logging.warning('Exit. Check config file.')
                                 #         sys.exit()
                                 # else:
-                                    dostore = False
-                                    logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
-                                    logging.warning('Not part of safelist. Changing this value will likely result in a wrong analysis. Exit. Check config file.')
-                                    sys.exit()
+                                    # dostore = False
+                                    # logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
+                                    # logging.warning('Not part of safelist. Changing this value will likely result in a wrong analysis. Exit. Check config file.')
+                                    # sys.exit()
                 logging.info('config file comparison done. No conflicts found.')
-
+            else:
+                dostore = True
         if dostore:
             if mpi.rank == 0:
                 if not os.path.exists(TEMP):
