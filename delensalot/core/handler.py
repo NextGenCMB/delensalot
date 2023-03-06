@@ -458,6 +458,8 @@ class QE_lr(Basejob):
         super().__init__(dlensalot_model)
         self.dlensalot_model = dlensalot_model
 
+        self.simgen = Sim_generator(dlensalot_model)
+
         if self.cl_analysis == True:
             # TODO fix numbers for mc ocrrection and total nsims
             self.ss_dict = { k : v for k, v in zip( np.concatenate( [ range(i*60, (i+1)*60) for i in range(0,5) ] ),
@@ -493,8 +495,7 @@ class QE_lr(Basejob):
         # qlms
         if self.qlm_type == 'sepTP':
             self.qlms_dd = qest.library_sepTP(opj(self.TEMP, 'qlms_dd'), self.ivfs, self.ivfs, self.cls_len['te'], self.sims_nside, lmax_qlm=self.qe_lm_max_qlm[0])
-
-        self.simgen = Sim_generator(dlensalot_model)
+    
         self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
 
         for simidx in self.simidxs:
@@ -729,6 +730,8 @@ class MAP_lr(Basejob):
         super().__init__(dlensalot_model)
         # TODO Only needed to hand over to ith(). in c2d(), prepare an ith model for it
         self.dlensalot_model = dlensalot_model
+        self.qe = QE_lr(dlensalot_model)
+        self.simgen = Sim_generator(dlensalot_model)
 
         ## tasks -> mf_dirname
         if "calc_meanfield" in self.it_tasks or 'calc_blt' in self.it_tasks:
@@ -740,16 +743,8 @@ class MAP_lr(Basejob):
             self.sims_MAP = utils_sims.ztrunc_sims(self.sims, self.sims_nside, [self.zbounds])
         elif self.it_filter_directional == 'isotropic':
             self.sims_MAP = self.sims
-        # TODO not entirely happy how QE dependence is put into MAP_lr but cannot think of anything better at the moment.
-        self.qe = QE_lr(dlensalot_model)
-        self.simgen = Sim_generator(dlensalot_model)
 
         self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
-
-        # if self.iterator_typ in ['pertmf', 'constmf', 'fastWF']:
-        # TODO this is the interface to the D.lensalot iterators and connects 
-        # to lerepi. Could be simplified, s.t. interfacing happens without the iteration_handler
-        # but directly with cs_iterator, e.g. by adding visitor pattern
         self.ith = iteration_handler.transformer(self.iterator_typ)
 
 
