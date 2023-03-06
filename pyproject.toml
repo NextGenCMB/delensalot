@@ -7,7 +7,7 @@ name = "delensalot"
 version = "1.0"
 authors = [
     "Julien Carron <jcarron@gmail.com>",
-    "Sebastian Belkner, <sebastianbelkner@gmail.com>",
+    "Sebastian Belkner <sebastianbelkner@gmail.com>",
 ]
 description = "CMB lensing, and QE and iterative lensing reconstruction and delensing on curved-sky"
 
