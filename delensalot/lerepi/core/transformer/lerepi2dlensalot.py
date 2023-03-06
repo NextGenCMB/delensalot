@@ -20,8 +20,6 @@ import hashlib
 from plancklens.qcinv import cd_solve
 from plancklens import utils
 
-from delensalot.core import mpi
-from delensalot.core.mpi import check_MPI
 from delensalot.utils_hp import gauss_beam
 from delensalot import utils_scarf
 
@@ -373,14 +371,10 @@ class l2lensrec_Transformer(l2base_Transformer):
             # lenjob_pbgeometry
             dl.lenjob_pbgeometry = utils_scarf.pbdGeometry(dl.lenjob_geometry, utils_scarf.pbounds(dl.pb_ctr, dl.pb_extent)) if it.lenjob_pbgeometry == 'pbdGeometry' else None
             
-            ## tasks -> mf_dirname
-            if "calc_meanfield" in dl.it_tasks or 'calc_blt' in dl.it_tasks:
-                if dl.version == '' or dl.version == None:
-                    dl.mf_dirname = opj(dl.TEMP, l2T_Transformer.ofj('mf', {'Nmf': dl.Nmf}))
-                else:
-                    dl.mf_dirname = opj(dl.TEMP, l2T_Transformer.ofj('mf', {'version': dl.version, 'Nmf': dl.Nmf}))
-                if not os.path.isdir(dl.mf_dirname) and mpi.rank == 0:
-                    os.makedirs(dl.mf_dirname)
+            if dl.version == '' or dl.version == None:
+                dl.mf_dirname = opj(dl.TEMP, l2T_Transformer.ofj('mf', [['Nmf', dl.Nmf]]))
+            else:
+                dl.mf_dirname = opj(dl.TEMP, l2T_Transformer.ofj('mf', [['version', dl.version], ['Nmf', dl.Nmf]]))
             # cg_tol
             dl.it_cg_tol = lambda itr : it.cg_tol if itr <= 10 else it.cg_tol*0.1
             # filter
@@ -449,7 +443,6 @@ class l2OBD_Transformer:
     """Extracts all parameters needed for building consistent OBD
     """
 
-    @check_MPI
     @log_on_start(logging.INFO, "build() started")
     @log_on_end(logging.INFO, "build() finished")
     def build(self, cf):
@@ -596,7 +589,7 @@ class l2d_Transformer:
     Returns:
         _type_: _description_
     """
-    @check_MPI
+
     @log_on_start(logging.INFO, "build() started")
     @log_on_end(logging.INFO, "build() finished")
     def build(self, cf):
@@ -738,16 +731,9 @@ class l2d_Transformer:
                 dl.sha_edges = [hashlib.sha256()]
                 dl.sha_edges[0].update(('unbinned'+pert_mod_string + cf.madel.ringmask*'ringmask').encode())
                 dl.dirid = [dl.sha_edges[0].hexdigest()[:4]]
-            else:
-                log.info("Don't understand your spectrum type")
-                sys.exit()
 
             dl.vers_str = '/{}'.format(dl.version) if dl.version != '' else 'base'
             dl.TEMP_DELENSED_SPECTRUM = transform(dl, l2T_Transformer())
-            for dir_id in dl.dirid:
-                if mpi.rank == 0:
-                    if not(os.path.isdir(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dir_id))):
-                        os.makedirs(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dir_id))
 
             # TODO II
             # TODO fn needs changing
@@ -816,7 +802,8 @@ class l2d_Transformer:
                     if 'anafast' not in clc.__dict__:
                         log.error("Spectrum calculator doesn't provide needed function map2cl() or anafast() for unbinned spectrum calculation")
                         sys.exit()
-        
+
+
         dl = DLENSALOT_Concept()
 
         dl.blt_pert = cf.itrec.blt_pert
@@ -843,11 +830,9 @@ class l2d_Transformer:
       
 class l2i_Transformer:
 
-    @check_MPI
     @log_on_start(logging.INFO, "build() started")
     @log_on_end(logging.INFO, "build() finished")
     def build(self, cf):
-
 
         def _process_X(dl):
             dl.data = dict()
@@ -996,7 +981,7 @@ class l2i_Transformer:
 class l2ji_Transformer:
     """Extracts parameters needed for the interactive D.Lensalot job
     """
-    @check_MPI
+
     def build(self, cf):
         
         def _process_Jobs(jobs):
@@ -1011,7 +996,7 @@ class l2ji_Transformer:
 class l2j_Transformer:
     """Extracts parameters needed for the specific D.Lensalot jobs
     """
-    @check_MPI
+
     def build(self, cf):
         
         # TODO if the pf.X objects were distinguishable by X2X_Transformer, could replace the seemingly redundant checks here.

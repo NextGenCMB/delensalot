@@ -738,11 +738,17 @@ class QE_lr(Basejob):
             
 
 class MAP_lr(Basejob):
+
     @check_MPI
     def __init__(self, dlensalot_model):
         super().__init__(dlensalot_model)
         # TODO Only needed to hand over to ith(). in c2d(), prepare an ith model for it
         self.dlensalot_model = dlensalot_model
+
+        ## tasks -> mf_dirname
+        if "calc_meanfield" in self.it_tasks or 'calc_blt' in self.it_tasks:
+            if not os.path.isdir(self.mf_dirname) and mpi.rank == 0:
+                os.makedirs(self.mf_dirname)
 
         # sims -> sims_MAP
         if self.it_filter_directional == 'anisotropic':
@@ -934,10 +940,16 @@ class Map_delenser(Basejob):
      * choosing the right power spectrum calculation as in binning, masking, and templating
      * running across all jobs
     """
+    
     @check_MPI
     def __init__(self, bmd_model):
         self.__dict__.update(bmd_model.__dict__)
         self.lib = dict()
+
+        for dir_id in dl.dirid:
+            if mpi.rank == 0:
+                if not(os.path.isdir(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dir_id))):
+                    os.makedirs(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dir_id))
         if False:
             self.bcl_L, self.bcl_cs  = self.read_data_v2(edges_id=0)
         # self.bcl_L = np.array([b[0] for b in self.bcls])

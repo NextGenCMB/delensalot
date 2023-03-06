@@ -25,7 +25,7 @@ setup(
                                 'delensalot/data/cls/FFP10_wdipole_lenspotentialCls.dat',
                                 'delensalot/data/cls/FFP10_wdipole_params.ini'])],
     url='https://github.com/carronj/delensalot',
-    author='Julien Carron',
+    author='Julien Carron, Sebastian Belkner',
     author_email='to.jcarron@gmail.com',
     description='Iterative CMB lensing curved-sky package based on scarf SHTs',
     install_requires=['numpy', 'pyfftw', 'healpy', 'logdecorator', 'psutil'], #removed mpi4py for travis tests
