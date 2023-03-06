@@ -115,14 +115,15 @@ class handler():
     @log_on_start(logging.INFO, "run() Started")
     @log_on_end(logging.INFO, "run() Finished")
     def run(self, job_choice=[]):
-        log.info(job_choice)
+        
         if job_choice == []:
             for jobdict in self.jobs:
                 for job_id, val in jobdict.items():
                     job_choice.append(job_id)
+    
         for jobdict in self.jobs:
             for job_id, val in jobdict.items():
-                if job_choice == job_id:
+                if job_id in job_choice:
                     conf = val[0][0]
                     transformer = val[0][1]
                     job = val[1]
@@ -135,8 +136,8 @@ class handler():
                         mpi.enable()
                         [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
                     else:
-                        mpi.receive(1, source=mpi.ANY_SOURCE)
-                        delensalot_job = job(model)
+                        mpi.receive(None, source=mpi.ANY_SOURCE)
+                    delensalot_job = job(model)
                     delensalot_job.collect_jobs()    
                     delensalot_job.run()
                 

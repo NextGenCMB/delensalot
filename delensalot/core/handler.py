@@ -66,6 +66,7 @@ class Basejob():
         self._sims = getattr(_sims_module, self._class)(**self.sims_class_parameters)
         transf_dat = gauss_beam(self.sims_beam / 180 / 60 * np.pi, lmax=self.sims_lmax_transf)
         
+        
         # b_transf = gauss_beam(df.a2r(self.beam), lmax=self.lmax) # TODO ninv_p doesn't depend on this anyway, right?
         # self.ninv_p = np.array(opfilt_pp.alm_filter_ninv(self.ninv_p_desc, b_transf, marge_qmaps=(), marge_umaps=()).get_ninv())
 
@@ -422,7 +423,9 @@ class Sim_generator(Basejob):
                 if n != mpi.rank:
                     mpi.send(1, dest=n)
         else:
+            log.info('rank {} waiting'.format(mpi.rank))
             mpi.receive(None, source=mpi.ANY_SOURCE)
+            log.info('rank {} unstuck'.format(mpi.rank))
 
 
     # @base_exception_handler
@@ -445,7 +448,9 @@ class Sim_generator(Basejob):
     @log_on_end(logging.INFO, "run() finished")
     def run(self):
         for simidx in self.jobs[mpi.rank::mpi.size]:
+            log.info("rank {} (size {}) generating sim {}".format(mpi.rank, mpi.size, simidx))
             self.generate_sim(int(simidx))
+            log.info("rank {} (size {}) generated sim {}".format(mpi.rank, mpi.size, simidx))
 
 
     @log_on_start(logging.INFO, "generate_sim(simidx={simidx}) started")

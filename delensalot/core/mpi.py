@@ -54,7 +54,6 @@ def enable():
     cond4mpi4py = not has_key('NERSC_HOST') or (has_key('SLURM_SUBMIT_DIR') and has_key('NERSC_HOST'))
     if not is_notebook() and cond4mpi4py:
         print('cond4mpi exists')
-        from mpi4py import MPI
         init()
         print('mpi.py : setup OK, rank %s in %s' % (rank, size))
     else:
@@ -76,7 +75,7 @@ def disable():
 
 def init():
     global barrier, send, receive, bcast, ANY_SOURCE, name, rank, size, finalize, disabled
-
+    from mpi4py import MPI
     rank = MPI.COMM_WORLD.Get_rank()
     size = MPI.COMM_WORLD.Get_size()
     barrier = MPI.COMM_WORLD.Barrier

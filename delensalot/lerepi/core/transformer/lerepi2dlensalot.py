@@ -33,12 +33,15 @@ from delensalot.lerepi.core.metamodel.dlensalot_mm import DLENSALOT_Model as DLE
 
 
 # TODO swap rhits with ninv
-class l2base_Transformer():
+class l2base_Transformer:
+
+    def __init__(self):
+        pass
 
 
     @log_on_start(logging.DEBUG, "_process_Data() started")
     @log_on_end(logging.DEBUG, "_process_Data() finished")
-    def _process_Data(self, dl, da, cf):
+    def process_Data(dl, da, cf):
         # package_
         _package = da.package_
         # module_
@@ -63,7 +66,7 @@ class l2base_Transformer():
 
     @log_on_start(logging.DEBUG, "_process_Analysis() started")
     @log_on_end(logging.DEBUG, "_process_Analysis() finished")
-    def _process_Analysis(self, dl, an, cf):
+    def process_Analysis(dl, an, cf):
         # dlm_mod
         dl.dlm_mod_bool = cf.madel.dlm_mod
         # beam
@@ -177,8 +180,8 @@ class l2simgen_Transformer(l2base_Transformer):
 
         dl = DLENSALOT_Concept()    
 
-        super()._process_Data(dl, cf.data, cf)
-        super()._process_Analysis(dl, cf.analysis, cf)
+        l2base_Transformer.process_Data(dl, cf.data, cf)
+        l2base_Transformer.process_Analysis(dl, cf.analysis, cf)
 
         return dl
 
@@ -187,6 +190,7 @@ class l2simgen_Transformer(l2base_Transformer):
 class l2lensrec_Transformer(l2base_Transformer):
     """_summary_
     """
+
 
     def mapper(self, cf):
         return self.build(cf)
@@ -220,7 +224,8 @@ class l2lensrec_Transformer(l2base_Transformer):
         @log_on_start(logging.DEBUG, "_process_Analysis() started")
         @log_on_end(logging.DEBUG, "_process_Analysis() finished")
         def _process_Analysis(dl, an):
-            super()._process_Analysis(dl, an, cf)
+            # super(l2base_Transformer, self)
+            l2base_Transformer.process_Analysis(dl, an, cf)
 
 
         @log_on_start(logging.DEBUG, "_process_Noisemodel() started")
@@ -254,7 +259,7 @@ class l2lensrec_Transformer(l2base_Transformer):
         @log_on_start(logging.DEBUG, "_process_Data() started")
         @log_on_end(logging.DEBUG, "_process_Data() finished")       
         def _process_Data(dl, da):
-            super()._process_Data(dl, da, cf)
+            l2base_Transformer.process_Data(dl, da, cf)
             # transferfunction
             dl.transferfunction = da.transferfunction
             if dl.transferfunction == 'gauss_no_pixwin':
