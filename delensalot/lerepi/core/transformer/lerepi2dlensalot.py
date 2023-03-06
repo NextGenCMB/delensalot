@@ -17,13 +17,14 @@ import numpy as np
 import healpy as hp
 import hashlib
 
+## TODO don't like this import here. Not sure how to remove
 from plancklens.qcinv import cd_solve
 
 from delensalot import utils_scarf
 from delensalot.utils_hp import gauss_beam
 from delensalot.utils import cli, read_map, camb_clfile
+from delensalot.iterators.steps import harmonicbump, nrstep 
 from delensalot.lerepi.core.visitor import transform
-from delensalot.iterators import steps
 
 import delensalot.core.handler as delensalot_handler
 from delensalot.lerepi.config.config_helper import data_functions as df, LEREPI_Constants as lc
@@ -408,7 +409,7 @@ class l2lensrec_Transformer(l2base_Transformer):
                 if dl.stepper_model.lmax_qlm == -1 and dl.stepper_model.mmax_qlm == -1:
                     dl.stepper_model.lmax_qlm = dl.it_lm_max_qlm[0]
                     dl.stepper_model.mmax_qlm = dl.it_lm_max_qlm[1]
-                dl.stepper = steps.harmonicbump(dl.stepper_model.lmax_qlm, dl.stepper_model.mmax_qlm, xa=dl.stepper_model.xa, xb=dl.stepper_model.xb)
+                dl.stepper = harmonicbump(dl.stepper_model.lmax_qlm, dl.stepper_model.mmax_qlm, xa=dl.stepper_model.xa, xb=dl.stepper_model.xb)
                 # dl.stepper = steps.nrstep(dl.it_lm_max_qlm[0], dl.it_lm_max_qlm[1], val=0.5) # handler of the size steps in the MAP BFGS iterative search
             
 
