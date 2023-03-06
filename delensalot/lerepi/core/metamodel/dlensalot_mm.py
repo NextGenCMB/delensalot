@@ -4,17 +4,14 @@
 """
 __author__ = "S. Belkner, J. Carron, L. Legrand"
 
-import abc
-import attr
-import os
-import psutil
-from os.path import join as opj
-
-import plancklens
-
-import numpy as np
-from delensalot.lerepi.core.validator import analysis, chaindescriptor, computing, data, filter, itrec, job, mapdelensing, meta, model, noisemodel, obd, qerec, stepper
+import abc, attr, psutil, os
 from attrs import validators
+from os.path import join as opj
+import numpy as np
+
+import delensalot
+from delensalot.lerepi.core.validator import analysis, chaindescriptor, computing, data, filter, itrec, job, mapdelensing, meta, model, noisemodel, obd, qerec, stepper
+
 
 class DLENSALOT_Concept:
     """An abstract element base type for the Dlensalot formalism."""
@@ -93,9 +90,9 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     lm_max_ivf = attr.ib(default=(10,10), validator=filter.lm_ivf)
     mask = attr.ib(default=None, validator=noisemodel.mask)
     lmin_teb = attr.ib(default=(10,10,10), validator=noisemodel.lmin_teb)
-    cls_unl = attr.ib(default=opj(opj(os.path.dirname(plancklens.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat'))
-    cls_len = attr.ib(default=opj(opj(os.path.dirname(plancklens.__file__), 'data', 'cls'), 'FFP10_wdipole_lensedCls.dat'))
-    cpp = attr.ib(default=opj(opj(os.path.dirname(plancklens.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat'))
+    cls_unl = attr.ib(default=opj(opj(os.path.dirname(delensalot.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat'))
+    cls_len = attr.ib(default=opj(opj(os.path.dirname(delensalot.__file__), 'data', 'cls'), 'FFP10_wdipole_lensedCls.dat'))
+    cpp = attr.ib(default=opj(opj(os.path.dirname(delensalot.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat'))
     beam = attr.ib(default=None)
 
 @attr.s

@@ -10,36 +10,26 @@ from os.path import join as opj
 import logging
 log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
-import datetime
-import getpass
-import copy
-import importlib
+import datetime, getpass, copy, importlib
 
 import numpy as np
 import healpy as hp
 
-from plancklens import utils, qresp
-from plancklens.sims import planck2018_sims
-
-from plancklens.sims import maps, phas
+from plancklens import utils, qresp, qest, qecl, utils
+from plancklens.sims import maps, phas, planck2018_sims
 from plancklens.qcinv import opfilt_pp
-from plancklens import qest, qecl, utils
 from plancklens.filt import filt_util, filt_cinv, filt_simple
 
-
+from delensalot import utils_sims
 from delensalot.sims import sims_ffp10
-from delensalot.opfilt import utils_cinv_p as cinv_p_OBD
-from delensalot.opfilt.bmodes_ninv import template_dense
-
-
 from delensalot.core import mpi
 from delensalot.core.mpi import check_MPI
-from delensalot import utils_sims
-from delensalot.lerepi.config.config_helper import data_functions as df
-from delensalot.utils_hp import almxfl, alm_copy, gauss_beam
-from delensalot.iterators.statics import rec as rec
 from delensalot.iterators import iteration_handler
-from delensalot.opfilt.bmodes_ninv import template_bfilt
+from delensalot.iterators.statics import rec as rec
+from delensalot.utils_hp import almxfl, alm_copy, gauss_beam
+from delensalot.opfilt import utils_cinv_p as cinv_p_OBD
+from delensalot.opfilt.bmodes_ninv import template_dense, template_bfilt
+from delensalot.lerepi.config.config_helper import data_functions as df
 from delensalot.core.decorators.exception_handler import base as base_exception_handler
 
 
@@ -166,6 +156,7 @@ class Notebook_interactor(Basejob):
      * load power spectra
         * see read_data_v2()
     '''
+
     @check_MPI
     def __init__(self, Interactor_model):
         from MSC import pospace as ps
@@ -945,16 +936,16 @@ class Map_delenser(Basejob):
      * choosing the right power spectrum calculation as in binning, masking, and templating
      * running across all jobs
     """
-    
+
     @check_MPI
     def __init__(self, bmd_model):
         self.__dict__.update(bmd_model.__dict__)
         self.lib = dict()
 
-        for dir_id in dl.dirid:
+        for dir_id in self.dirid:
             if mpi.rank == 0:
-                if not(os.path.isdir(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dir_id))):
-                    os.makedirs(dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dir_id))
+                if not(os.path.isdir(self.TEMP_DELENSED_SPECTRUM + '/{}'.format(dir_id))):
+                    os.makedirs(self.TEMP_DELENSED_SPECTRUM + '/{}'.format(dir_id))
         if False:
             self.bcl_L, self.bcl_cs  = self.read_data_v2(edges_id=0)
         # self.bcl_L = np.array([b[0] for b in self.bcls])

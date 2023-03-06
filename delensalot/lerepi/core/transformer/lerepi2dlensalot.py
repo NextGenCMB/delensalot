@@ -18,12 +18,10 @@ import healpy as hp
 import hashlib
 
 from plancklens.qcinv import cd_solve
-from plancklens import utils
 
-from delensalot.utils_hp import gauss_beam
 from delensalot import utils_scarf
-
-from delensalot.utils import cli, read_map
+from delensalot.utils_hp import gauss_beam
+from delensalot.utils import cli, read_map, camb_clfile
 from delensalot.lerepi.core.visitor import transform
 from delensalot.iterators import steps
 
@@ -92,9 +90,9 @@ class l2base_Transformer:
         dl.TEMP = transform(cf, l2T_Transformer())
         # Lmin
         #TODO give user freedom about fiducial model. But needed here for dl.cpp
-        dl.cls_unl = utils.camb_clfile(an.cls_unl)
+        dl.cls_unl = camb_clfile(an.cls_unl)
         # if 
-        dl.cls_len = utils.camb_clfile(an.cls_len)
+        dl.cls_len = camb_clfile(an.cls_len)
         dl.Lmin = an.Lmin
         # zbounds -> zbounds
         if an.zbounds[0] == 'nmr_relative':
@@ -432,7 +430,7 @@ class l2lensrec_Transformer(l2base_Transformer):
 
         # fiducial
 
-        dl.cpp = utils.camb_clfile(cf.analysis.cpp)['pp'][:dl.qe_lm_max_qlm[0] + 1]  ## TODO could be added via 'fiducial' parameter in dlensalot config for user
+        dl.cpp = camb_clfile(cf.analysis.cpp)['pp'][:dl.qe_lm_max_qlm[0] + 1]  ## TODO could be added via 'fiducial' parameter in dlensalot config for user
         dl.cpp[:dl.Lmin] *= 0.
 
         if dl.it_filter_directional == 'anisotropic':
@@ -690,8 +688,8 @@ class l2d_Transformer:
                 log.info("Don't understand your STANDARD_TRANSFERFUNCTION: {}".format(cf.analysis.STANDARD_TRANSFERFUNCTION))
             
             if ma.Cl_fid == 'ffp10':
-                dl.cls_unl = utils.camb_clfile(cf.analysis.cls_unl)
-                dl.cls_len = utils.camb_clfile(cf.analysis.cls_len)
+                dl.cls_unl = camb_clfile(cf.analysis.cls_unl)
+                dl.cls_len = camb_clfile(cf.analysis.cls_len)
                 dl.clg_templ = dl.cls_len['ee']
                 dl.clc_templ = dl.cls_len['bb']
                 dl.clg_templ[0] = 1e-32
