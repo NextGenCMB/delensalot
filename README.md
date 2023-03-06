@@ -54,8 +54,9 @@ D.lensalot supports interactive mode. See `delensalot/notebooks/examples/` for g
 # Dependencies
 
  based on
-  * [Scarf](https://github.com/samuelsimko/scarf)
   * [Plancklens](https://github.com/carronj/plancklens)
+  * [Scarf](https://github.com/samuelsimko/scarf)
+  * [DUCC](https://github.com/mreineck/ducc)
 
 ## Doc
 Documentation may be found [HERE]
