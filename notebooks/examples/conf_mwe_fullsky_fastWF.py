@@ -36,11 +36,7 @@ dlensalot_model = DLENSALOT_Model(
         class_parameters = {
             'lmax': 4096,
             'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(plancklens.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
-<<<<<<< HEAD:lenscarf/ana/config/examples/mwe/conf_mwe_fullsky_fastWF.py
-            'lib_dir': opj(os.environ['SCRATCH'], 'generic_lmax4000','nlevp_sqrt(2)')
-=======
             'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'generic', 'nside2048', 'lmax4096', 'nlevp_sqrt(2)')
->>>>>>> 696379d7f399523e86a412a454a7595280b9f75e:notebooks/examples/conf_mwe_fullsky_fastWF.py
         },
         nlev_t = 1.00,
         nlev_p = np.sqrt(2),
