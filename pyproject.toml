@@ -1,0 +1,45 @@
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[project]
+name = "delensalot"
+version = "1.0"
+authors = [
+    "Julien Carron <jcarron@gmail.com>",
+    "Sebastian Belkner, <sebastianbelkner@gmail.com>",
+]
+description = "CMB lensing, and QE and iterative lensing reconstruction and delensing on curved-sky"
+
+[tool.poetry]
+readme = "README.md"
+repository = "https://github.com/NextGenCMB/D.lensalot"
+documentation = "https://github.com/NextGenCMB/D.lensalot/docs/"
+
+requires-python = ">=3.7"
+keywords = ["CMB", "Cosmology"]
+license = {text = "GPL-2.0"}
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[tool.poetry.dependencies]
+requests = ">=0.0.0"
+numpy = ">=0.0.0"
+pyfftw = ">=0.0.0"
+healpy = ">=0.0.0"
+logdecorator = ">=0.0.0"
+psutil = ">=0.0.0"
+ducc0 = ">=0.0.0"
+python = "^3.7"
+
+dynamic = ["version", "description"]
+
+
+[project.scripts]
+my-script = "my_package.module:function"
+
+# ... other project metadata fields as specified in:
+#     https://packaging.python.org/en/latest/specifications/declaring-project-metadata/
