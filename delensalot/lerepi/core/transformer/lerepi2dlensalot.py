@@ -116,6 +116,13 @@ class l2base_Transformer:
         dl.lm_max_ivf = an.lm_max_ivf
 
 
+    @log_on_start(logging.DEBUG, "_process_Meta() started")
+    @log_on_end(logging.DEBUG, "_process_Meta() finished")
+    def process_Meta(dl, me, cf):
+        print(me)
+        dl.dversion = me.version
+
+
 
 class l2T_Transformer:
     # TODO this needs a big refactoring. Suggest working via cachers
@@ -181,6 +188,7 @@ class l2simgen_Transformer(l2base_Transformer):
 
         l2base_Transformer.process_Data(dl, cf.data, cf)
         l2base_Transformer.process_Analysis(dl, cf.analysis, cf)
+        l2base_Transformer.process_Meta(dl, cf.meta, cf)
 
         return dl
 

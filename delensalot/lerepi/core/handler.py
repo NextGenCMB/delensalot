@@ -160,22 +160,26 @@ class handler():
                 logging.warning('config file {} already exist. Checking differences.'.format(TEMP+'/'+parser.config_file.split('/')[-1]))
                 configfile_old = handler.load_configfile(TEMP+'/'+parser.config_file.split('/')[-1], 'configfile_old')   
                 for key, val in configfile_old.dlensalot_model.__dict__.items():
-                    for k, v in val.__dict__.items():
-                        if v.__str__() != configfile.dlensalot_model.__dict__[key].__dict__[k].__str__():
-                            logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
-                            if k.__str__() in safelist:
-                                dostore = True
-                                # if callable(v):
-                                #     # If function, we can test if bytecode is the same as a simple check won't work due to pointing to memory location
-                                #     if v.__code__.co_code != configfile.dlensalot_model.__dict__[key].__dict__[k].__code__.co_code:
-                                #         logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
-                                #         logging.warning('Exit. Check config file.')
-                                #         sys.exit()
-                            else:
-                                dostore = False
+                    if hasattr(val, '__dict__'):
+                        for k, v in val.__dict__.items():
+                            if v.__str__() != configfile.dlensalot_model.__dict__[key].__dict__[k].__str__():
                                 logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
-                                logging.warning('Not part of safelist. Changing this value will likely result in a wrong analysis. Exit. Check config file.')
-                                sys.exit()
+                                if k.__str__() in safelist:
+                                    dostore = True
+                                    # if callable(v):
+                                    #     # If function, we can test if bytecode is the same as a simple check won't work due to pointing to memory location
+                                    #     if v.__code__.co_code != configfile.dlensalot_model.__dict__[key].__dict__[k].__code__.co_code:
+                                    #         logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
+                                    #         logging.warning('Exit. Check config file.')
+                                    #         sys.exit()
+                                else:
+                                    dostore = False
+                                    logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
+                                    logging.warning('Not part of safelist. Changing this value will likely result in a wrong analysis. Exit. Check config file.')
+                                    sys.exit()
+                    else:
+                        ## Catching the infamous defaultstodictkey. Pass for now
+                        pass
                 logging.info('config file comparison done. No conflicts found.')
             else:
                 dostore = True

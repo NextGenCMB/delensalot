@@ -5,12 +5,22 @@
 __author__ = "S. Belkner, J. Carron, L. Legrand"
 
 import abc, attr, psutil, os
+if "SCRATCH" not in os.environ:
+    os.environ["SCRATCH"] = os.path.expanduser("~")+'/SCRATCH/'
+    
 from attrs import validators
+
+
 from os.path import join as opj
 import numpy as np
 
+from plancklens import utils
+
 import delensalot
-from delensalot.lerepi.core.validator import analysis, chaindescriptor, computing, data, filter, itrec, job, mapdelensing, meta, model, noisemodel, obd, qerec, stepper
+from delensalot.lerepi.core.metamodel import DL_NotAValue, DL_DEFAULT
+
+from delensalot.lerepi.core.validator import analysis, chaindescriptor, computing, data, filter as v_filter, itrec, job, mapdelensing, meta, model, noisemodel, obd, qerec, stepper
+
 
 
 class DLENSALOT_Concept:
@@ -81,13 +91,13 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     version = attr.ib(default='', validator=[validators.instance_of(str), analysis.version], type=str)
     simidxs = attr.ib(default=[], validator=data.simidxs)
     simidxs_mf = attr.ib(default=[], validator=analysis.simidxs_mf)
-    TEMP_suffix = attr.ib(default='', validator=analysis.TEMP_suffix)
+    TEMP_suffix = attr.ib(default='default', validator=analysis.TEMP_suffix)
     Lmin = attr.ib(default=1, validator=analysis.Lmin)
     zbounds = attr.ib(default=(-1,1), validator=analysis.zbounds)
     zbounds_len = attr.ib(default=(-1,1), validator=analysis.zbounds_len)
     pbounds = attr.ib(default=(0., 2*np.pi), validator=analysis.pbounds)
-    lm_max_len = attr.ib(default=(10,10), validator=filter.lm_max_len)
-    lm_max_ivf = attr.ib(default=(10,10), validator=filter.lm_ivf)
+    lm_max_len = attr.ib(default=(10,10), validator=v_filter.lm_max_len)
+    lm_max_ivf = attr.ib(default=(10,10), validator=v_filter.lm_ivf)
     mask = attr.ib(default=None, validator=noisemodel.mask)
     lmin_teb = attr.ib(default=(10,10,10), validator=noisemodel.lmin_teb)
     cls_unl = attr.ib(default=opj(opj(os.path.dirname(delensalot.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat'))
@@ -103,10 +113,10 @@ class DLENSALOT_Data(DLENSALOT_Concept):
         DATA_LIBDIR: path to the data
     """
 
-    class_parameters = attr.ib(default={}, validator=data.class_parameters)
-    package_ = attr.ib(default=None, validator=data.package_)
-    module_ = attr.ib(default=None, validator=data.module_)
-    class_ = attr.ib(default=None, validator=data.class_)
+    class_parameters = attr.ib(default={'lmax': 1024, 'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(delensalot.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')), 'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'default')}, validator=data.class_parameters)
+    package_ = attr.ib(default='delensalot', validator=data.package_)
+    module_ = attr.ib(default='sims.generic', validator=data.module_)
+    class_ = attr.ib(default='sims_cmb_len', validator=data.class_)
     transferfunction = attr.ib(default='gauss_with_pixwin', validator=data.transferfunction)
     beam = attr.ib(default=None)
     nside = attr.ib(default=None)
@@ -211,13 +221,15 @@ class DLENSALOT_Config(DLENSALOT_Concept):
     outdir_plot_rel = attr.ib(default='')
 
 @attr.s
+# @add_defaults
 class DLENSALOT_Meta(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
 
     Attributes:
         version:
     """
-    version = attr.ib(default='', validator=attr.validators.instance_of(str))
+    version = attr.ib(default=DL_NotAValue, validator=attr.validators.instance_of(str))
+
 
 @attr.s
 class DLENSALOT_Computing(DLENSALOT_Concept):
@@ -228,6 +240,7 @@ class DLENSALOT_Computing(DLENSALOT_Concept):
     """
     OMP_NUM_THREADS = attr.ib(default=int(psutil.cpu_count()/psutil.cpu_count(logical=False)), validator=computing.OMP_NUM_THREADS)
 
+
 @attr.s
 class DLENSALOT_Model(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
@@ -235,7 +248,8 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     Attributes:
         data: 
     """
-
+    
+    defaults_to = attr.ib(default='default')
     meta = attr.ib(default=DLENSALOT_Meta(), validator=model.meta)
     job = attr.ib(default=DLENSALOT_Job(), validator=model.job)
     analysis = attr.ib(default=DLENSALOT_Analysis(), validator=model.analysis)
@@ -247,3 +261,11 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     config = attr.ib(default=DLENSALOT_Config(), validator=model.config)
     computing = attr.ib(default=DLENSALOT_Computing(), validator=model.computing)
     obd = attr.ib(default=DLENSALOT_OBD(), validator=model.obd)
+
+    def __attrs_post_init__(self):
+        for key, val in list(filter(lambda x: '__' not in x[0] and x[0] != 'defaults_to', self.__dict__.items())):
+            for k, v in val.__dict__.items():
+                if v == DL_NotAValue:
+                    if key in DL_DEFAULT[self.defaults_to]:
+                        if k in DL_DEFAULT[self.defaults_to][key]:
+                            self.__dict__[key].__dict__.update({k: DL_DEFAULT[self.defaults_to][key][k]})

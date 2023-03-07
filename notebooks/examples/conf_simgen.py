@@ -1,8 +1,5 @@
 """
-Full sky iterative delensing on simulated CMB polarization maps generated on the fly, inclusive of isotropic white noise.
-Delensing is done on one simulation.
-The noise model is isotropic and white.
-QE and iterative reconstruction uses isotropic filters, and we apply a fast Wiener filtering to the iterative reconstruction 
+Simulates CMB polarization maps generated on the fly, inclusive of isotropic white noise.
 """
 
 import numpy as np
@@ -12,9 +9,12 @@ from plancklens import utils
 from os.path import join as opj
 
 from delensalot.lerepi.core.metamodel.dlensalot_mm import *
+from delensalot.lerepi.core.metamodel import defaults
 
 
 dlensalot_model = DLENSALOT_Model(
+    defaultstodictkey = 'T',
+
     job = DLENSALOT_Job(
         jobs = ["QE_lensrec", "MAP_lensrec"]
     ),
@@ -45,28 +45,5 @@ dlensalot_model = DLENSALOT_Model(
         lmax_transf = 3000,
         nside = 2048,
         transferfunction = 'gauss_no_pixwin'
-    ),
-    noisemodel = DLENSALOT_Noisemodel(
-        sky_coverage = 'isotropic',
-        spectrum_type = 'white',
-        nlev_t = 1.00,
-        nlev_p = np.sqrt(2)
-    ),
-    qerec = DLENSALOT_Qerec(
-        tasks = ["calc_phi", "calc_blt"],
-        filter_directional = 'isotropic',
-        qlm_type = 'sepTP',
-        cg_tol = 1e-6,
-        lm_max_qlm = (3000, 3000)
-    ),
-    itrec = DLENSALOT_Itrec(
-        tasks = ["calc_phi", "calc_blt"],
-        filter_directional = 'isotropic',
-        itmax = 5,
-        cg_tol = 1e-5,
-        lensres = 1.0,
-        iterator_typ = 'constmf',
-        lm_max_unl = (3200, 3200),
-        lm_max_qlm = (3000, 3000)
     )
 )
