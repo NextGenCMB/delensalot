@@ -18,7 +18,7 @@ documentation = "https://github.com/NextGenCMB/D.lensalot/docs/"
 
 requires-python = ">=3.7"
 keywords = ["CMB", "Cosmology"]
-license = {text = "GPL-2.0"}
+license = "GPL-2.0"
 classifiers = [
     "Development Status :: 4 - Beta",
     "Programming Language :: Python :: 3",
