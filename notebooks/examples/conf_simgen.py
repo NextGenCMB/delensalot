@@ -13,6 +13,7 @@ from os.path import join as opj
 
 from delensalot.lerepi.core.metamodel.dlensalot_mm import *
 
+
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(
         jobs = ["QE_lensrec", "MAP_lensrec"]
