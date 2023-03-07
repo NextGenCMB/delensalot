@@ -23,11 +23,24 @@ DL_DEFAULT_P = {
     }
 }
 
+DL_DEFAULT_CMBS4_FS_P = {
+    'meta': {
+        'version': "0.2"
+    },
+    'data': {
+        'beam': 10,
+        'nlev_t': 10,
+        'nlev_p': 10,
+    }
+}
+
+
 
 DL_DEFAULT = dict({
     "T": DL_DEFAULT_T,
     "P": DL_DEFAULT_P,
-    "default": DL_DEFAULT_P
+    "default": DL_DEFAULT_P,
+    "FS_CMB-S4_Pol": DL_DEFAULT_CMBS4_FS_P,
     })
 
 

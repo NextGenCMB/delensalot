@@ -1,15 +1,10 @@
 """
-Simulates CMB polarization maps generated on the fly, inclusive of isotropic white noise.
+Our shortest Config yet, CMB-S4 polarization 
 """
 
-import numpy as np
-import os
-import plancklens
-from plancklens import utils
-from os.path import join as opj
+from delensalot.lerepi.core.metamodel.dlensalot_mm import DLENSALOT_Model, DLENSALOT_Job
 
-from delensalot.lerepi.core.metamodel import dlensalot_mm
-from delensalot.lerepi.core.metamodel.dlensalot_mm import *
-
-
-dlensalot_model = DLENSALOT_Model(defaults_to='T')
+dlensalot_model = DLENSALOT_Model(
+        defaults_to='FS_CMB-S4_Pol',
+        job = DLENSALOT_Job(jobs = ["MAP_lensrec"])
+    )

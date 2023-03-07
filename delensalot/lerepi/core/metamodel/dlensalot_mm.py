@@ -27,17 +27,17 @@ class DLENSALOT_Concept:
     __metaclass__ = abc.ABCMeta
 
 
-    # def __str__(self):
-    #     ## overwrite print to summarize dlensalot model
-    #     _str = ''
-    #     for key, val in self.__dict__.items():
-    #         keylen = len(str(key))
-    #         if type(val) in [list, np.ndarray, np.array, dict]:
-    #             _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(type(val))
-    #         else:
-    #             _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(val)
-    #         _str += '\n'
-    #     return _str
+    def __str__(self):
+        ## overwrite print to summarize dlensalot model
+        _str = ''
+        for key, val in self.__dict__.items():
+            keylen = len(str(key))
+            if type(val) in [list, np.ndarray, np.array, dict]:
+                _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(type(val))
+            else:
+                _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(val)
+            _str += '\n'
+        return _str
 
 
 @attr.s
@@ -113,7 +113,6 @@ class DLENSALOT_Data(DLENSALOT_Concept):
         DATA_LIBDIR: path to the data
     """
 
-    # defaults_to = attr.ib(default='default')
     class_parameters = attr.ib(default={'lmax': 1024, 'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(delensalot.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')), 'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'default')}, validator=data.class_parameters)
     package_ = attr.ib(default='delensalot', validator=data.package_)
     module_ = attr.ib(default='sims.generic', validator=data.module_)
@@ -126,10 +125,6 @@ class DLENSALOT_Data(DLENSALOT_Concept):
     transf_dat = attr.ib(default=DEFAULT_NotAValue)
     lmax_transf = attr.ib(default=DEFAULT_NotAValue)
 
-
-    # def __attrs_post_init__(self):
-    #     if self.beam ==  DEFAULT_NotAValue:
-    #         self.beam = DL_DEFAULT[self.defaults_to]['data']['beam']
     
 @attr.s
 class DLENSALOT_Noisemodel(DLENSALOT_Concept):
@@ -267,6 +262,7 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     config = attr.ib(default=DLENSALOT_Config(), validator=model.config)
     computing = attr.ib(default=DLENSALOT_Computing(), validator=model.computing)
     obd = attr.ib(default=DLENSALOT_OBD(), validator=model.obd)
+    
 
     def __attrs_post_init__(self):
         print("Using {}".format(DL_DEFAULT))
