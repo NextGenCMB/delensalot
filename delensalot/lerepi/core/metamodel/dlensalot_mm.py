@@ -17,8 +17,7 @@ import numpy as np
 from plancklens import utils
 
 import delensalot
-from delensalot.lerepi.core.metamodel import DL_NotAValue, DL_DEFAULT
-
+from delensalot.lerepi.core.metamodel import DEFAULT_NotAValue, DL_DEFAULT
 from delensalot.lerepi.core.validator import analysis, chaindescriptor, computing, data, filter as v_filter, itrec, job, mapdelensing, meta, model, noisemodel, obd, qerec, stepper
 
 
@@ -28,17 +27,18 @@ class DLENSALOT_Concept:
     __metaclass__ = abc.ABCMeta
 
 
-    def __str__(self):
-        ## overwrite print to summarize dlensalot model
-        _str = ''
-        for key, val in self.__dict__.items():
-            keylen = len(str(key))
-            if type(val) in [list, np.ndarray, np.array, dict]:
-                _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(type(val))
-            else:
-                _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(val)
-            _str += '\n'
-        return _str
+    # def __str__(self):
+    #     ## overwrite print to summarize dlensalot model
+    #     _str = ''
+    #     for key, val in self.__dict__.items():
+    #         keylen = len(str(key))
+    #         if type(val) in [list, np.ndarray, np.array, dict]:
+    #             _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(type(val))
+    #         else:
+    #             _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(val)
+    #         _str += '\n'
+    #     return _str
+
 
 @attr.s
 class DLENSALOT_Chaindescriptor(DLENSALOT_Concept):
@@ -113,17 +113,23 @@ class DLENSALOT_Data(DLENSALOT_Concept):
         DATA_LIBDIR: path to the data
     """
 
+    # defaults_to = attr.ib(default='default')
     class_parameters = attr.ib(default={'lmax': 1024, 'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(delensalot.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')), 'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'default')}, validator=data.class_parameters)
     package_ = attr.ib(default='delensalot', validator=data.package_)
     module_ = attr.ib(default='sims.generic', validator=data.module_)
     class_ = attr.ib(default='sims_cmb_len', validator=data.class_)
     transferfunction = attr.ib(default='gauss_with_pixwin', validator=data.transferfunction)
-    beam = attr.ib(default=None)
-    nside = attr.ib(default=None)
-    nlev_t = attr.ib(default=None)
-    nlev_p = attr.ib(default=None)
-    transf_dat = attr.ib(default=None)
-    lmax_transf = attr.ib(default=None)
+    beam = attr.ib(default=DEFAULT_NotAValue)
+    nside = attr.ib(default=DEFAULT_NotAValue)
+    nlev_t = attr.ib(default=DEFAULT_NotAValue)
+    nlev_p = attr.ib(default=DEFAULT_NotAValue)
+    transf_dat = attr.ib(default=DEFAULT_NotAValue)
+    lmax_transf = attr.ib(default=DEFAULT_NotAValue)
+
+
+    # def __attrs_post_init__(self):
+    #     if self.beam ==  DEFAULT_NotAValue:
+    #         self.beam = DL_DEFAULT[self.defaults_to]['data']['beam']
     
 @attr.s
 class DLENSALOT_Noisemodel(DLENSALOT_Concept):
@@ -202,7 +208,7 @@ class DLENSALOT_OBD(DLENSALOT_Concept):
     Attributes:
         BMARG_LIBDIR:
     """
-    libdir = attr.ib(default='', validator=obd.libdir)
+    libdir = attr.ib(default=DEFAULT_NotAValue, validator=obd.libdir)
     rescale = attr.ib(default=1, validator=obd.rescale)
     tpl = attr.ib(default='template_dense', validator=obd.tpl)
     nlev_dep = attr.ib(default=np.nan, validator=obd.nlev_dep)
@@ -228,7 +234,7 @@ class DLENSALOT_Meta(DLENSALOT_Concept):
     Attributes:
         version:
     """
-    version = attr.ib(default=DL_NotAValue, validator=attr.validators.instance_of(str))
+    version = attr.ib(default=DEFAULT_NotAValue, validator=attr.validators.instance_of(int))
 
 
 @attr.s
@@ -263,9 +269,16 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     obd = attr.ib(default=DLENSALOT_OBD(), validator=model.obd)
 
     def __attrs_post_init__(self):
+        print("Using {}".format(DL_DEFAULT))
         for key, val in list(filter(lambda x: '__' not in x[0] and x[0] != 'defaults_to', self.__dict__.items())):
             for k, v in val.__dict__.items():
-                if v == DL_NotAValue:
+                if v == DEFAULT_NotAValue:
+                    print('found one: {}, {}'.format(k, v))
                     if key in DL_DEFAULT[self.defaults_to]:
                         if k in DL_DEFAULT[self.defaults_to][key]:
                             self.__dict__[key].__dict__.update({k: DL_DEFAULT[self.defaults_to][key][k]})
+                            print('Replacing {} {} with {}'.format(k, v, DL_DEFAULT[self.defaults_to][key][k]))
+                        else:
+                            print('couldnt find matching default value for k {}'.format(key))
+                    else:
+                        print('couldnt find matching default value for key {}'.format(key))

@@ -1,5 +1,8 @@
+from delensalot.lerepi.core.metamodel import DEFAULT_NotAValue
+
+
 def libdir(instance, attribute, value):
-    if type(value) != str:
+    if type(value) != str and value != DEFAULT_NotAValue:
         raise ValueError('Must be str')
 
 

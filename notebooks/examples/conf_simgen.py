@@ -9,11 +9,10 @@ from plancklens import utils
 from os.path import join as opj
 
 from delensalot.lerepi.core.metamodel.dlensalot_mm import *
-from delensalot.lerepi.core.metamodel import defaults
 
 
 dlensalot_model = DLENSALOT_Model(
-    defaultstodictkey = 'T',
+    defaults_to = 'T',
 
     job = DLENSALOT_Job(
         jobs = ["QE_lensrec", "MAP_lensrec"]
