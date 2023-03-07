@@ -180,24 +180,24 @@ def cls2N0N1(k, cls_cmb_filt, cls_cmb_dat, cls_noise_filt, cls_noise_dat, lmin_i
             'bb': utils.cli(cls_cmb_filt['bb'][:lmax + 1] + cls_noise_filt['bb'][:lmax+1])}
 
     for key, cl in fals.items():
-        if key is 'tt':
+        if key == 'tt':
             cl[:lmin_tlm] *= 0.
-        elif key is 'ee':
+        elif key == 'ee':
             cl[:lmin_elm] *= 0.
-        elif key is 'bb':
+        elif key == 'bb':
             cl[:lmin_blm] *= 0.
-        elif key is 'te':
+        elif key == 'te':
             cl[:max(lmin_tlm, lmin_elm)] *= 0.
 
     cls_w = {q: np.copy(cls_cmb_filt[q][:lmax+1]) for q in ['ee', 'bb']}
     for key, cl in cls_w.items():
-        if key is 'tt':
+        if key == 'tt':
             cl[:lmin_tlm] *= 0.
-        elif key is 'ee':
+        elif key == 'ee':
             cl[:lmin_elm] *= 0.
-        elif key is 'bb':
+        elif key == 'bb':
             cl[:lmin_blm] *= 0.
-        elif key is 'te':
+        elif key == 'te':
             cl[:max(lmin_tlm, lmin_elm)] *= 0.
 
     cls_f = {q: np.copy(cls_cmb_dat[q]) for q in ['ee', 'bb']}
@@ -220,13 +220,13 @@ def cls2N0N1(k, cls_cmb_filt, cls_cmb_dat, cls_noise_filt, cls_noise_dat, lmin_i
     dat_cls = {'ee': cls_cmb_dat['ee'][:lmax + 1] + cls_noise_dat['ee'][:lmax+1],
                'bb': cls_cmb_dat['bb'][:lmax + 1] + cls_noise_dat['bb'][:lmax+1]}
     for key, cl in dat_cls.items():
-        if key is 'tt':
+        if key == 'tt':
             cl[:lmin_tlm] *= 0.
-        elif key is 'ee':
+        elif key == 'ee':
             cl[:lmin_elm] *= 0.
-        elif key is 'bb':
+        elif key == 'bb':
             cl[:lmin_blm] *= 0.
-        elif key is 'te':
+        elif key == 'te':
             cl[:max(lmin_tlm, lmin_elm)] *= 0.
 
     cls_ivfs_arr = utils.cls_dot([fals, dat_cls, fals])
@@ -368,22 +368,22 @@ def get_delcls(qe_key: str, itermax, cls_unl_fid: dict, cls_unl_true:dict, cls_n
 
         fal = utils.cl_inverse(fal)
         for k, cl in fal.items():
-            if k is 'tt':
+            if k == 'tt':
                 cl[:lmin_tlm] *= 0.
-            elif k is 'ee':
+            elif k == 'ee':
                 cl[:lmin_elm] *= 0.
-            elif k is 'bb':
+            elif k == 'bb':
                 cl[:lmin_blm] *= 0.
-            elif k is 'te':
+            elif k == 'te':
                 cl[:max(lmin_tlm, lmin_elm)] *= 0.
         for k, cl in dat_delcls.items():
-            if k is 'tt':
+            if k == 'tt':
                 cl[:lmin_tlm] *= 0.
-            elif k is 'ee':
+            elif k == 'ee':
                 cl[:lmin_elm] *= 0.
-            elif k is 'bb':
+            elif k == 'bb':
                 cl[:lmin_blm] *= 0.
-            elif k is 'te':
+            elif k == 'te':
                 cl[:max(lmin_tlm, lmin_elm)] *= 0.
         cls_ivfs_arr = utils.cls_dot([fal, dat_delcls, fal])
         cls_ivfs = dict()
@@ -561,22 +561,22 @@ def get_biases_iter(qe_key:str, nlev_t:float, nlev_p:float, beam_fwhm:float, cls
             dat_delcls['te'] = np.copy(cls_plen_true['te'][:lmax_ivf + 1])
         fal = utils.cl_inverse(fal)
         for k, cl in fal.items():
-            if k is 'tt':
+            if k == 'tt':
                 cl[:lmin_tlm] *= 0.
-            elif k is 'ee':
+            elif k == 'ee':
                 cl[:lmin_elm] *= 0.
-            elif k is 'bb':
+            elif k == 'bb':
                 cl[:lmin_blm] *= 0.
-            elif k is 'te':
+            elif k == 'te':
                 cl[:max(lmin_tlm, lmin_elm)] *= 0.
         for k, cl in dat_delcls.items():
-            if k is 'tt':
+            if k == 'tt':
                 cl[:lmin_tlm] *= 0.
-            elif k is 'ee':
+            elif k == 'ee':
                 cl[:lmin_elm] *= 0.
-            elif k is 'bb':
+            elif k == 'bb':
                 cl[:lmin_blm] *= 0.
-            elif k is 'te':
+            elif k == 'te':
                 cl[:max(lmin_tlm, lmin_elm)] *= 0.
         cls_ivfs_arr = utils.cls_dot([fal, dat_delcls, fal])
         cls_ivfs = dict()
