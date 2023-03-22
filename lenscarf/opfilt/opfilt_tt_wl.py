@@ -150,6 +150,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         tim.add('transf')
 
         # backward lensing with magn. mult. here
+        # TODO: inplace
         tlm[:]= self.ffi.lensgclm(tlm_len, self.mmax_len, 0, self.lmax_sol, self.mmax_sol, backwards=True)
         tim.add('lensgclm bwd')
         if self.verbose:

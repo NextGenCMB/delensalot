@@ -65,6 +65,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         else:
             ninv_geom_ = ninv_geom
         assert np.all(ninv_geom_.weight == 1.)
+        #TODO:
         sc_job.set_geometry(ninv_geom_)
         sc_job.set_nthreads(sht_threads)
         sc_job.set_triangular_alm_info(lmax_len, mmax_len)
@@ -418,5 +419,6 @@ class fwd_op:
         nlm = np.copy(elm)
         self.ninv_filt.apply_alm(nlm)
         nlm += almxfl(elm, self.iclee, self.mmax_sol, False)
+        #TODO:
         almxfl(nlm, self.iclee > 0., self.mmax_sol, True)
         return nlm

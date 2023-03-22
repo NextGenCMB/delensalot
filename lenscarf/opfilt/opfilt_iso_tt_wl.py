@@ -107,6 +107,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
             almxfl(tlm, self.rescali, self.mmax_sol, True)
         tlmc = self.ffi.lensgclm(tlm, self.mmax_sol, 0, self.lmax_len, self.mmax_len)
         almxfl(tlmc, self.inoise_2, self.mmax_len, True)
+        # TODO: inplace:
         tlm[:] = self.ffi.lensgclm(tlmc, self.mmax_len, 0, self.lmax_sol, self.mmax_sol, backwards=True)
         if self.dorescal:
             almxfl(tlm, self.rescali, self.mmax_sol, True)
