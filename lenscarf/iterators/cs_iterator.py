@@ -44,6 +44,20 @@ alm2rlm = lambda alm : alm # get rid of this
 rlm2alm = lambda rlm : rlm
 
 
+ctype = {np.dtype(np.float32): np.complex64,
+         np.dtype(np.float64): np.complex128,
+         np.dtype(np.longfloat): np.longcomplex,
+         np.float32: np.complex64,
+         np.float64: np.complex128,
+         np.longfloat: np.longcomplex}
+rtype = {np.dtype(np.complex64): np.float32,
+         np.dtype(np.complex128): np.float64,
+         np.dtype(np.longcomplex): np.longfloat,
+         np.complex64: np.float32,
+         np.complex128: np.float64,
+         np.longcomplex: np.longfloat}
+
+
 @log_on_start(logging.INFO, " Start of prt_time()")
 @log_on_end(logging.INFO, " Finished prt_time()")
 def prt_time(dt, label=''):
@@ -321,8 +335,9 @@ class qlm_iterator(object):
                 return self.wf_cacher.load(fname), i
         if callable(self.wflm0):
             return self.wflm0(), -1
-        # TODO: for MV this need a change
-        return np.zeros((1, Alm.getsize(self.lmax_filt, self.mmax_filt)), dtype=complex).squeeze(), -1
+        dtyp = self.dat_maps.dtype if np.iscomplexobj(self.dat_maps) else rtype[self.dat_maps.dtype]
+        # TODO: for MV or more comps this need a change
+        return np.zeros((1, Alm.getsize(self.lmax_filt, self.mmax_filt)), dtype=dtyp).squeeze(), -1
 
 
     def load_graddet(self, itr, key):
