@@ -4,6 +4,19 @@ import numpy as np
 import hashlib
 import json
 
+ctype = {np.dtype(np.float32): np.complex64,
+         np.dtype(np.float64): np.complex128,
+         np.dtype(np.longfloat): np.longcomplex,
+         np.float32: np.complex64,
+         np.float64: np.complex128,
+         np.longfloat: np.longcomplex}
+rtype = {np.dtype(np.complex64): np.float32,
+         np.dtype(np.complex128): np.float64,
+         np.dtype(np.longcomplex): np.longfloat,
+         np.complex64: np.float32,
+         np.complex128: np.float64,
+         np.longcomplex: np.longfloat}
+
 class timer:
     def __init__(self, verbose, prefix='', suffix=''):
         self.t0 = time()

@@ -24,7 +24,7 @@ import sys
 import numpy as np
 
 import scarf
-from lenscarf.utils import cli, read_map
+from lenscarf.utils import cli, read_map, rtype
 from lenscarf.utils_hp import Alm, almxfl, alm2cl
 from lenscarf import utils_qe
 from lenscarf.utils_scarf import scarfjob, pbdGeometry, pbounds
@@ -44,18 +44,6 @@ alm2rlm = lambda alm : alm # get rid of this
 rlm2alm = lambda rlm : rlm
 
 
-ctype = {np.dtype(np.float32): np.complex64,
-         np.dtype(np.float64): np.complex128,
-         np.dtype(np.longfloat): np.longcomplex,
-         np.float32: np.complex64,
-         np.float64: np.complex128,
-         np.longfloat: np.longcomplex}
-rtype = {np.dtype(np.complex64): np.float32,
-         np.dtype(np.complex128): np.float64,
-         np.dtype(np.longcomplex): np.longfloat,
-         np.complex64: np.float32,
-         np.complex128: np.float64,
-         np.longcomplex: np.longfloat}
 
 
 @log_on_start(logging.INFO, " Start of prt_time()")

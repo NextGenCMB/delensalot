@@ -16,7 +16,7 @@ from lenspyx.remapping.utils_geom import pbdGeometry
 from lenspyx import remapping
 from scipy.interpolate import UnivariateSpline as spl
 from lenscarf.opfilt import opfilt_ee_wl, opfilt_base
-
+from lenscarf.utils import rtype, ctype
 pre_op_dense = None # not implemented
 dot_op = opfilt_ee_wl.dot_op
 fwd_op = opfilt_ee_wl.fwd_op
@@ -114,6 +114,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         almxfl(eblm[1], self.inoise_2_blm, self.mmax_len, inplace=True)
         self.tim.add('transf')
 
+        #TODO
         # NB: inplace is fine but only if precision of elm array matches that of the interpolator
         #self.ffi.lensgclm(eblm, self.mmax_len, 2, self.lmax_sol, self.mmax_sol,
         #                         backwards=True, gclm_out=elm_2d, out_sht_mode='GRAD_ONLY')
@@ -146,6 +147,37 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         eblm[1] += synalm((np.ones(self.lmax_len + 1) * (self.nlev_blm / 180 / 60 * np.pi) ** 2) * (self.transf_blm > 0), self.lmax_len, self.mmax_len)
         return elm, eblm if get_unlelm else eblm
 
+    def _get_qlms_old(self, eblm_dat: np.ndarray or list, elm_wf: np.ndarray, q_pbgeom: pbdGeometry, alm_wf_leg2:None or np.ndarray =None):
+        """Get lensing generaliazed QE consistent with filter assumptions
+
+            Args:
+                eblm_dat: input polarization maps (geom must match that of the filter)
+                elm_wf: Wiener-filtered CMB maps (alm arrays)
+                alm_wf_leg2: Wiener-filtered CMB maps of gradient leg, if different from ivf leg (alm arrays)
+                q_pbgeom: scarf pbounded-geometry of for the position-space mutliplication of the legs
+
+            All implementation signs are super-weird but end result should be correct...
+
+        """
+        assert alm_wf_leg2 is None
+        assert Alm.getlmax(eblm_dat[0].size, self.mmax_len) == self.lmax_len, (Alm.getlmax(eblm_dat[0].size, self.mmax_len), self.lmax_len)
+        assert Alm.getlmax(eblm_dat[1].size, self.mmax_len) == self.lmax_len, (Alm.getlmax(eblm_dat[1].size, self.mmax_len), self.lmax_len)
+        assert Alm.getlmax(elm_wf.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(elm_wf.size, self.mmax_sol), self.lmax_sol)
+        repmap, impmap = self._get_irespmap(eblm_dat, elm_wf, q_pbgeom)
+        Gs, Cs = self._get_gpmap(elm_wf, 3, q_pbgeom)  # 2 pos.space maps
+        GC = (repmap - 1j * impmap) * (Gs + 1j * Cs)  # (-2 , +3)
+        Gs, Cs = self._get_gpmap(elm_wf, 1, q_pbgeom)
+        GC -= (repmap + 1j * impmap) * (Gs - 1j * Cs)  # (+2 , -1)
+        del repmap, impmap, Gs, Cs
+        lmax_qlm, mmax_qlm = self.ffi.lmax_dlm, self.ffi.mmax_dlm
+        GC_r = GC.view(rtype[GC.dtype]).reshape((GC.size, 2)).T  # real view onto complex array
+        G, C = q_pbgeom.geom.adjoint_synthesis(GC_r, 1, lmax_qlm, mmax_qlm, self.ffi.sht_tr)
+        del GC
+        fl = - np.sqrt(np.arange(lmax_qlm + 1, dtype=float) * np.arange(1, lmax_qlm + 2))
+        almxfl(G, fl, mmax_qlm, True)
+        almxfl(C, fl, mmax_qlm, True)
+        return G, C
+
     def get_qlms(self, eblm_dat: np.ndarray or list, elm_wf: np.ndarray, q_pbgeom: pbdGeometry, alm_wf_leg2:None or np.ndarray =None):
         """Get lensing generaliazed QE consistent with filter assumptions
 
@@ -158,29 +190,27 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
             All implementation signs are super-weird but end result should be correct...
 
         """
+        assert alm_wf_leg2 is None
         assert Alm.getlmax(eblm_dat[0].size, self.mmax_len) == self.lmax_len, (Alm.getlmax(eblm_dat[0].size, self.mmax_len), self.lmax_len)
         assert Alm.getlmax(eblm_dat[1].size, self.mmax_len) == self.lmax_len, (Alm.getlmax(eblm_dat[1].size, self.mmax_len), self.lmax_len)
         assert Alm.getlmax(elm_wf.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(elm_wf.size, self.mmax_sol), self.lmax_sol)
-        # TODO improve
-        #ebwf = np.array([elm_wf, np.zeros_like(elm_wf)])
-        repmap, impmap = self._get_irespmap(eblm_dat, elm_wf, q_pbgeom)
-        assert alm_wf_leg2 is None
-        #if alm_wf_leg2 is not None:
-        #    assert Alm.getlmax(alm_wf_leg2.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(alm_wf_leg2.size, self.mmax_sol), self.lmax_sol)
-        #    ebwf[0, :] = alm_wf_leg2
-        Gs, Cs = self._get_gpmap(elm_wf, 3, q_pbgeom)  # 2 pos.space maps
-        GC = (repmap - 1j * impmap) * (Gs + 1j * Cs)  # (-2 , +3)
-        Gs, Cs = self._get_gpmap(elm_wf, 1, q_pbgeom)
-        GC -= (repmap + 1j * impmap) * (Gs - 1j * Cs)  # (+2 , -1)
-        del repmap, impmap, Gs, Cs
+        resmap_c = np.empty((q_pbgeom.geom.npix(),), dtype=elm_wf.dtype)
+        resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
+        self._get_irespmap(eblm_dat, elm_wf, q_pbgeom, map_out=resmap_r) # inplace onto resmap_c and resmap_r
+
+        gcs_r = self._get_gpmap(elm_wf, 3, q_pbgeom)  # 2 pos.space maps, uses then complex view onto real array
+        gc_c = resmap_c.conj() * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3)
+        gcs_r = self._get_gpmap(elm_wf, 1, q_pbgeom)
+        gc_c -= resmap_c * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze().conj()  # (+2 , -1)
+        del resmap_c, resmap_r, gcs_r
         lmax_qlm, mmax_qlm = self.ffi.lmax_dlm, self.ffi.mmax_dlm
-        #TODO: view, nmxpr
-        G, C = q_pbgeom.geom.adjoint_synthesis(np.array([GC.real, GC.imag]), 1, lmax_qlm, mmax_qlm, self.ffi.sht_tr)
-        del GC
+        gc_r = gc_c.view(rtype[gc_c.dtype]).reshape((gc_c.size, 2)).T  # real view onto complex array
+        gc = q_pbgeom.geom.adjoint_synthesis(gc_r, 1, lmax_qlm, mmax_qlm, self.ffi.sht_tr)
+        del gc_r, gc_c
         fl = - np.sqrt(np.arange(lmax_qlm + 1, dtype=float) * np.arange(1, lmax_qlm + 2))
-        almxfl(G, fl, mmax_qlm, True)
-        almxfl(C, fl, mmax_qlm, True)
-        return G, C
+        almxfl(gc[0], fl, mmax_qlm, True)
+        almxfl(gc[1], fl, mmax_qlm, True)
+        return gc
 
     def get_qlms_mf(self, mfkey, q_pbgeom:pbdGeometry, mchain, phas=None, cls_filt:dict or None=None):
         """Mean-field estimate using tricks of Carron Lewis appendix
@@ -225,8 +255,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         almxfl(C, fl, mmax_qlm, True)
         return G, C
 
-
-    def _get_irespmap(self, eblm_dat:np.ndarray, eblm_wf:np.ndarray, q_pbgeom:pbdGeometry):
+    def _get_irespmap(self, eblm_dat:np.ndarray, eblm_wf:np.ndarray, q_pbgeom:pbdGeometry, map_out=None):
         """Builds inverse variance weighted map to feed into the QE
 
 
@@ -241,7 +270,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         ebwf += eblm_dat
         almxfl(ebwf[0], self.inoise_1_elm * 0.5 * self.wee, self.mmax_len, True)  # Factor of 1/2 because of \dagger rather than ^{-1}
         almxfl(ebwf[1], self.inoise_1_blm * 0.5,            self.mmax_len, True)
-        return q_pbgeom.geom.synthesis(ebwf, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr)
+        return q_pbgeom.geom.synthesis(ebwf, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, map=map_out)
 
     def _get_gpmap(self, elm_wf:np.ndarray, spin:int, q_pbgeom:pbdGeometry):
         """Wiener-filtered gradient leg to feed into the QE
@@ -263,7 +292,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         fl[:spin] *= 0.
         fl = np.sqrt(fl)
         elm = np.atleast_2d(almxfl(elm_wf, fl, self.mmax_sol, False))
-        ffi = self.ffi.change_geom(q_pbgeom) if q_pbgeom is not self.ffi.pbgeom else self.ffi
+        ffi = self.ffi.change_geom(q_pbgeom.geom) if q_pbgeom is not self.ffi.pbgeom else self.ffi
         return ffi.gclm2lenmap(elm, self.mmax_sol, spin, False)
 
 class pre_op_diag:
