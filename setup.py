@@ -28,7 +28,7 @@ setup(
     author='Julien Carron',
     author_email='to.jcarron@gmail.com',
     description='Iterative CMB lensing curved-sky package based on scarf SHTs',
-    install_requires=['numpy', 'pyfftw', 'healpy', 'logdecorator', 'psutil'], #removed mpi4py for travis tests
+    install_requires=['numpy', 'pyfftw', 'healpy', 'logdecorator', 'psutil', 'ducc0'], #removed mpi4py for travis tests
     requires=['numpy'],
     long_description=long_description,
     configuration=configuration)

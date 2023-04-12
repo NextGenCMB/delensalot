@@ -248,7 +248,7 @@ class qlm_iterator(object):
             dlens = -0.5 * ((d1[0] - 1j * d1[1]) * dp + (d1[0] + 1j * d1[1]) * dm)
             del dp, dm, d1
             elm, blm = geom.map2alm_spin([dlens.real, dlens.imag], 2, lmaxb, mmaxb, sht_tr, [-1., 1.])
-        else: # Applies full remapping
+        else: # Applies full remapping (this will re-calculate the angles)
             ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm)
             elm, blm = ffi.lensgclm([elm_wf, np.zeros_like(elm_wf)], self.mmax_filt, 2, lmaxb, mmaxb)
 
@@ -292,7 +292,7 @@ class qlm_iterator(object):
     def _get_ffi(self, itr):
         dlm = self.get_hlm(itr, 'p')
         self.hlm2dlm(dlm, inplace=True)
-        ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm, cachers.cacher_mem())
+        ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm, cachers.cacher_mem(safe=False))
         return ffi
 
     def get_hlm(self, itr, key):
@@ -410,13 +410,17 @@ class qlm_iterator(object):
         assert self.hess_cacher.is_cached(sk_fname), sk_fname
 
     def ensure_invertibility(self, hlm, incr_hlm, mmax_dlm):
-        """Build new plm increment from current estimate and increment
+        """Build new plm increment from current estimate and updated estimate
 
             This checks the determinant of the magn matrix to ensure invertibility.
 
             The increment is reduced by factors of two on the pixels where the determinant is < 0
 
         """
+        if True:
+            print('** NB: check invertibility is disabled')
+            # Was not any useful really and in fact it looks completely wrong ?!
+            return incr_hlm
         lmax_dlm = Alm.getlmax(hlm.size, mmax_dlm)
         if mmax_dlm is None or mmax_dlm < 0: mmax_dlm = lmax_dlm
         scjob = scarfjob()
@@ -430,6 +434,7 @@ class qlm_iterator(object):
             log.warning("******* ensure_invertibility: %s starting point pixels looks weird, cant tell whether the procedure will make sense"%len(ii))
         kd, (g1d, g2d), wd = utils_dlm.dlm2kggo(scjob, self.hlm2dlm(incr_hlm, False), None)
         steps = np.ones_like(k)
+        # The following look wrong, kd is the fully updated phi map, k the previous point. should be eg k + step (kd - k) ?
         M = lambda pixs: (1. - k[pixs] - steps[pixs] * kd[pixs]) ** 2 - (g1[pixs] + steps[pixs] * g1d[pixs]) ** 2 - (g2[pixs] + steps[pixs] * g2d[pixs]) ** 2
         pix = np.where(((1. - k - steps * kd) ** 2 - (g1 + steps * g1d) ** 2 - (g2 + steps * g2d) ** 2) <= 0.)[0]
         if len(pix) > 0:
@@ -505,7 +510,7 @@ class qlm_iterator(object):
             assert key in ['p'], key + '  not implemented'
             dlm = self.get_hlm(itr - 1, key)
             self.hlm2dlm(dlm, True)
-            ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm, cachers.cacher_mem())
+            ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm, cachers.cacher_mem(safe=False))
             self.filter.set_ffi(ffi)
             mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.filter)
             if self._usethisE is not None:
@@ -529,7 +534,7 @@ class qlm_iterator(object):
             t0 = time.time()
             if ffi.pbgeom.geom is self.k_geom and ffi.pbgeom.pbound == pbounds(0., 2 * np.pi):
                 # This just avoids having to recalculate angles on a new geom etc
-                q_geom  = ffi.pbgeom
+                q_geom = ffi.pbgeom
             else:
                 q_geom = pbdGeometry(self.k_geom, pbounds(0., 2 * np.pi))
             G, C = self.filter.get_qlms(self.dat_maps, soltn, q_geom)
@@ -632,7 +637,7 @@ class iterator_simf(qlm_iterator):
         assert key in ['p'], key + '  not implemented'
         dlm = self.get_hlm(itr - 1, key)
         self.hlm2dlm(dlm, True)
-        ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm, cachers.cacher_mem())
+        ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm, cachers.cacher_mem(safe=False))
         self.filter.set_ffi(ffi)
         mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.filter)
         t0 = time.time()
