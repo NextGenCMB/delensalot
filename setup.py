@@ -9,12 +9,6 @@ with open("README.md", "r") as fh:
 
 def configuration(parent_package='', top_path=''):
     config = Configuration('', parent_package, top_path)
-    for ext in ['.f90', '.f95']:
-        modules = glob.glob('lenscarf/fortran/*' + ext)
-        for modu in modules:
-            nam = modu.split('/')[-1].replace(ext, '')
-            config.add_extension('lenscarf.fortran.' + nam, ['lenscarf/fortran/%s'%nam + ext],
-                extra_link_args=['-lgomp'],libraries=['gomp'], extra_f90_compile_args=['-fopenmp', '-w' , '-O3', '-ffast-math'])
     return config
 
 setup(
