@@ -2,7 +2,7 @@ import logging
 log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
 
-from lenscarf import remapping
+from lenspyx import remapping
 from lenscarf.utils_scarf import Geom, scarfjob
 import numpy as np
 from lenscarf.utils_remapping import d2ang, ang2d

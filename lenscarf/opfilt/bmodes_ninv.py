@@ -19,7 +19,7 @@ from plancklens.qcinv import opfilt_pp
 from lenscarf import utils_scarf as us
 import lenscarf.utils_sims as usims
 from lenscarf.utils_hp import Alm
-from lenscarf.core import healpix_hack as hph
+# from lenscarf.core import healpix_hack as hph
 
 from lenscarf.utils import enumerate_progress, read_map
 

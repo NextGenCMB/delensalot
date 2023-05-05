@@ -14,7 +14,7 @@ from lenscarf import cachers
 from lenscarf import utils_scarf, utils_hp
 from plancklens.sims.planck2018_sims import cmb_unl_ffp10
 from plancklens import utils
-from lenscarf.remapping import deflection
+from lenspyx.remapping import deflection
 
 aberration_lbv_ffp10 = (264. * (np.pi / 180), 48.26 * (np.pi / 180), 0.001234)
 

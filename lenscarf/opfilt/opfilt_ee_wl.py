@@ -11,7 +11,7 @@ import numpy as np
 from lenscarf.utils_hp import almxfl, Alm, alm2cl, synalm, default_rng
 from lenscarf.utils import clhash, cli, read_map
 from lenscarf import  utils_scarf
-from lenscarf import remapping
+from lenspyx import remapping
 from lenscarf.opfilt import  opfilt_pp, opfilt_base, bmodes_ninv as bni
 from scipy.interpolate import UnivariateSpline as spl
 from lenscarf.utils import timer

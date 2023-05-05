@@ -13,7 +13,7 @@ import numpy as np
 from lenscarf.utils_hp import almxfl, Alm, synalm
 from lenscarf.utils import timer, cli
 from lenscarf import utils_scarf
-from lenscarf import remapping
+from lenspyx import remapping
 from scipy.interpolate import UnivariateSpline as spl
 from lenscarf.opfilt import opfilt_ee_wl, opfilt_base
 
@@ -107,7 +107,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         tim.reset_t0()
         lmax_unl = Alm.getlmax(elm.size, self.mmax_sol)
         assert lmax_unl == self.lmax_sol, (lmax_unl, self.lmax_sol)
-        eblm = self.ffi.lensgclm([elm, np.zeros_like(elm)], self.mmax_sol, 2, self.lmax_len, self.mmax_len)
+        eblm = self.ffi.lensgclm(np.array([elm, np.zeros_like(elm)]), self.mmax_sol, 2, self.lmax_len, self.mmax_len)
         tim.add('lensgclm fwd')
 
         almxfl(eblm[0], self.inoise_2_elm, self.mmax_len, inplace=True)

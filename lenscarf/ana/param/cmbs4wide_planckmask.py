@@ -21,7 +21,7 @@ from plancklens.qcinv import cd_solve
 from plancklens.sims import maps, phas, planck2018_sims
 from plancklens.filt import filt_cinv, filt_util
 
-from lenscarf import remapping, utils_scarf, utils_sims
+from lenspyx import remapping, utils_scarf, utils_sims
 from lenscarf.iterators import cs_iterator as scarf_iterator, steps
 from lenscarf.utils import cli, read_map
 from lenscarf.utils_hp import gauss_beam, almxfl, alm_copy

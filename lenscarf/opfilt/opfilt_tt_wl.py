@@ -10,7 +10,7 @@ import numpy as np
 from lenscarf.utils_hp import almxfl, Alm, alm2cl, synalm, default_rng
 from lenscarf.utils import clhash, cli, read_map
 from lenscarf import  utils_scarf
-from lenscarf import remapping
+from lenspyx import remapping
 from lenscarf.opfilt import opfilt_base, tmodes_ninv as tni
 
 from scipy.interpolate import UnivariateSpline as spl

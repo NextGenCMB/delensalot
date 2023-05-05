@@ -15,7 +15,6 @@ from logdecorator import log_on_start, log_on_end
 import numpy as np
 import healpy as hp
 
-from lenscarf import remapping
 from lenscarf import utils_sims, utils_scarf
 from lenspyx.remapping.deflection import deflection
 from lenscarf.utils_hp import alm_copy, almxfl
