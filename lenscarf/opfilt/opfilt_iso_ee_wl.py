@@ -137,7 +137,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         """
         elm = synalm(unlcmb_cls['ee'], self.lmax_sol, self.mmax_sol) if cmb_phas is None else cmb_phas
         assert Alm.getlmax(elm.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(elm.size, self.mmax_sol), self.lmax_sol)
-        eblm = self.ffi.lensgclm(np.array([elm, elm * 0]), self.mmax_sol, 2, self.lmax_len, self.mmax_len, False)
+        eblm = self.ffi.lensgclm(np.array([elm, elm * 0]), self.mmax_sol, 2, self.lmax_len, self.mmax_len, backwards=False)
         almxfl(eblm[0], self.transf_elm, self.mmax_len, True)
         almxfl(eblm[1], self.transf_blm, self.mmax_len, True)
         eblm[0] += synalm((np.ones(self.lmax_len + 1) * (self.nlev_elm / 180 / 60 * np.pi) ** 2) * (self.transf_elm > 0), self.lmax_len, self.mmax_len)
@@ -231,7 +231,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
 
         """
         assert len(eblm_dat) == 2
-        ebwf = self.ffi.lensgclm(eblm_wf, self.mmax_sol, 2, self.lmax_len, self.mmax_len, False)
+        ebwf = self.ffi.lensgclm(eblm_wf, self.mmax_sol, 2, self.lmax_len, self.mmax_len, backwards=False)
         almxfl(ebwf[0], self.transf_elm, self.mmax_len, True)
         almxfl(ebwf[1], self.transf_blm, self.mmax_len, True)
         ebwf[:] = eblm_dat - ebwf
@@ -258,7 +258,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         fl = np.arange(i1, lmax + i1 + 1, dtype=float) * np.arange(i2, lmax + i2 + 1)
         fl[:spin] *= 0.
         fl = np.sqrt(fl)
-        eblm = [almxfl(eblm_wf[0], fl, self.mmax_sol, False), almxfl(eblm_wf[1], fl, self.mmax_sol, False)]
+        eblm = np.array([almxfl(eblm_wf[0], fl, self.mmax_sol, False), almxfl(eblm_wf[1], fl, self.mmax_sol, False)])
         ffi = self.ffi.change_geom(q_pbgeom) if q_pbgeom is not self.ffi.pbgeom else self.ffi
         return ffi.gclm2lenmap(eblm, self.mmax_sol, spin, False)
 
