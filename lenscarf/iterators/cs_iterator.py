@@ -250,7 +250,7 @@ class qlm_iterator(object):
             elm, blm = geom.map2alm_spin([dlens.real, dlens.imag], 2, lmaxb, mmaxb, sht_tr, [-1., 1.])
         else: # Applies full remapping
             ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm)
-            elm, blm = ffi.lensgclm([elm_wf, np.zeros_like(elm_wf)], self.mmax_filt, 2, lmaxb, mmaxb)
+            elm, blm = ffi.lensgclm(np.array([elm_wf, np.zeros_like(elm_wf)]), self.mmax_filt, 2, lmaxb, mmaxb)
 
         if cache_cond:
             self.wf_cacher.cache(fn_blt, blm)
