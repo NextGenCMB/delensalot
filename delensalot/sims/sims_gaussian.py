@@ -26,7 +26,7 @@ class sims_gaussian(generic.sims_cmb_len):
 
     """
     def __init__(self, lib_dir, lmax_cmb, cls_unl:dict, wcurl=False,
-                 dlmax=1024, nside_lens=4096, facres=0, nbands=8, cache_plm=True):
+                 dlmax=1024, nside_lens=4096, epsilon=1e-5, cache_plm=True):
 
         lmax_plm = lmax_cmb + dlmax
         mmax_plm = lmax_plm
@@ -37,13 +37,14 @@ class sims_gaussian(generic.sims_cmb_len):
 
         self.cache_plm = cache_plm
         self.wcurl = wcurl
+        self.epsilon = epsilon
         
         cmb_cls = {}
         for k in cls_unl.keys():
                 cmb_cls[k] = np.copy(cls_unl[k][:lmax_cmb + dlmax + 1])
 
         super(sims_gaussian, self).__init__(lib_dir,  lmax_cmb, cmb_cls,
-            dlmax=dlmax, nside_lens=nside_lens, facres=facres, nbands=nbands)
+            dlmax=dlmax, nside_lens=nside_lens, epsilon=self.epsilon)
 
 
     def get_sim_plm(self, idx):

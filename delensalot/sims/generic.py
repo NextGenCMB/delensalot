@@ -10,7 +10,7 @@ import pickle as pk
 import logging
 log = logging.getLogger(__name__)
 
-from plancklens.helpers import mpi
+from delensalot.core import mpi
 from plancklens.sims import cmbs, phas
 from plancklens import utils
 
@@ -46,13 +46,13 @@ class sims_cmb_len(object):
             offsets_cmbunl: offset unlensed cmb (useful e.g. for MCN1), tuple with block_size and offsets
             dlmax(defaults to 1024): unlensed cmbs are produced up to lmax + dlmax, for accurate lensing at lmax
             nside_lens(defaults to 4096): healpy resolution at which the lensed maps are produced
-            facres(defaults to 0): sets the interpolation resolution in lenspyx
-            nbands(defaults to 16): number of band-splits in *lenspyx.alm2lenmap(_spin)*
+            epsilon(defaults to 0): sets the interpolation resolution in lenspyx
+
             verbose(defaults to True): lenspyx timing info printout
 
     """
     def __init__(self, lib_dir, lmax, cls_unl, lib_pha=None, offsets_plm=None, offsets_cmbunl=None,
-                 dlmax=1024, nside_lens=4096, facres=0, nbands=8, verbose=True):
+                 dlmax=1024, nside_lens=4096, epsilon=1e-5, verbose=True):
         first_rank = mpi.bcast(mpi.rank)
         if first_rank == mpi.rank:
             if not os.path.exists(lib_dir):
@@ -75,9 +75,8 @@ class sims_cmb_len(object):
         self.lmax_plm = lmax + dlmax
         # lenspyx parameters:
         self.nside_lens = nside_lens
-        self.nbands = nbands
-        self.facres = facres
         self.cache_plm = True
+        self.epsilon = epsilon
 
         self.unlcmbs = cmbs.sims_cmb_unl(cls_unl, lib_pha)
         self.lib_dir = lib_dir
@@ -115,7 +114,7 @@ class sims_cmb_len(object):
     def hashdict(self):
         return {'unl_cmbs': self.unlcmbs.hashdict(),'lmax':self.lmax,
                 'offset_plm':self.offset_plm, 'offset_cmb':self.offset_cmb,
-                'nside_lens':self.nside_lens, 'facres':self.facres}
+                'nside_lens':self.nside_lens, 'facres':self.epsilon}
 
     def _is_full(self):
         return self.unlcmbs.lib_pha.is_full()
@@ -165,8 +164,7 @@ class sims_cmb_len(object):
         dlm, dclm, _, _ = self._get_dlm(idx)
         assert 'o' not in self.fields, 'not implemented'
 
-        Qlen, Ulen = self.lens_module.alm2lenmap_spin([elm, blm], [dlm, dclm], self.nside_lens, 2,
-                                                nband=self.nbands, facres=self.facres, verbose=self.verbose)
+        Qlen, Ulen = self.lens_module.alm2lenmap_spin(np.array([elm, blm]), np.array([dlm, dclm]), 2, epsilon=self.epsilon, verbose=self.verbose)
         elm, blm = hp.map2alm_spin([Qlen, Ulen], 2, lmax=self.lmax)
         del Qlen, Ulen
         hp.write_alm(os.path.join(self.lib_dir, 'sim_%04d_elm.fits' % idx), elm)
@@ -182,8 +180,7 @@ class sims_cmb_len(object):
 
             lmaxd = hp.Alm.getlmax(dlm.size)
             hp.almxfl(dlm, np.sqrt(np.arange(lmaxd + 1, dtype=float) * np.arange(1, lmaxd + 2)), inplace=True)
-            Tlen = self.lens_module.alm2lenmap(tlm, [dlm, None], self.nside_lens,
-                                               facres=self.facres, nband=self.nbands, verbose=self.verbose)
+            Tlen = self.lens_module.alm2lenmap(np.array(tlm), np.array([dlm, None]), epsilon=self.epsilon, verbose=self.verbose)
             hp.write_alm(fname, hp.map2alm(Tlen, lmax=self.lmax, iter=0))
         return hp.read_alm(fname)
 
