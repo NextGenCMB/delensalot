@@ -25,27 +25,12 @@ from plancklens import qest, qecl, utils
 from plancklens.filt import filt_util, filt_cinv, filt_simple
 from plancklens.qcinv import cd_solve
 
-<<<<<<< HEAD:lenscarf/lerepi/core/transformer/lerepi2dlensalot.py
 from lenspyx.remapping import utils_geom
 
-from lenscarf.core.mpi import check_MPI
-from lenscarf.core import mpi
-from lenscarf.sims import sims_ffp10
-from lenscarf import utils_scarf, utils_sims
-from lenscarf.utils import cli, read_map
-from lenscarf.iterators import steps
-from lenscarf.utils_hp import gauss_beam
-from lenscarf.opfilt import utils_cinv_p as cinv_p_OBD
-import lenscarf.core.handler as lenscarf_handler
-from lenscarf.opfilt.bmodes_ninv import template_dense
-from lenscarf.lerepi.core.visitor import transform
-from lenscarf.lerepi.config.config_helper import data_functions as df, LEREPI_Constants as lc
-from lenscarf.lerepi.core.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALOT_Model_mm, DLENSALOT_Concept, DLENSALOT_Chaindescriptor
-=======
 from delensalot.core.mpi import check_MPI
 from delensalot.core import mpi
 from delensalot.sims import sims_ffp10
-from delensalot import utils_scarf, utils_sims
+from delensalot import utils_geom, utils_sims
 from delensalot.utils import cli, read_map
 from delensalot.iterators import steps
 from delensalot.utils_hp import gauss_beam
@@ -58,7 +43,6 @@ from delensalot.lerepi.core.visitor import transform
 
 from delensalot.lerepi.config.config_helper import data_functions as df, LEREPI_Constants as lc
 from delensalot.lerepi.core.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALOT_Model_mm, DLENSALOT_Concept, DLENSALOT_Chaindescriptor
->>>>>>> main:delensalot/lerepi/core/transformer/lerepi2dlensalot.py
 
 
 # TODO swap rhits with ninv
@@ -224,7 +208,7 @@ class l2lensrec_Transformer:
             dl.obd_libdir = od.libdir
             dl.obd_rescale = od.rescale
             if cf.noisemodel.ninvjob_geometry == 'healpix_geometry':
-                dl.ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(cf.data.nside, zbounds=dl.zbounds)
+                dl.ninvjob_geometry = utils_geom.Geom.get_healpix_geometry(cf.data.nside, zbounds=dl.zbounds)
             dl.tpl = template_dense(dl.lmin_teb[2], dl.ninvjob_geometry, dl.tr, _lib_dir=dl.obd_libdir, rescal=dl.obd_rescale)
   
 
@@ -321,9 +305,9 @@ class l2lensrec_Transformer:
             if qe.ninvjob_qe_geometry == 'healpix_geometry_qe':
                 # TODO for QE, isOBD only works with zbounds=(-1,1). Perhaps missing ztrunc on qumaps
                 # Introduce new geometry for now, until either plancklens supports ztrunc, or ztrunced simlib (not sure if it already does)
-                dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl._sims.nside, zbounds=(-1,1))
+                dl.ninvjob_qe_geometry = utils_geom.Geom.get_healpix_geometry(dl._sims.nside, zbounds=(-1,1))
             elif qe.ninvjob_qe_geometry == 'healpix_geometry':
-                dl.ninvjob_qe_geometry = utils_scarf.Geom.get_healpix_geometry(dl._sims.nside, zbounds=dl.zbounds)
+                dl.ninvjob_qe_geometry = utils_geom.Geom.get_healpix_geometry(dl._sims.nside, zbounds=dl.zbounds)
             # cg_tol
             dl.cg_tol = qe.cg_tol
 
@@ -414,10 +398,10 @@ class l2lensrec_Transformer:
                 [dl.it_chain_model.p0, dl.it_chain_model.p1, p2, dl.it_chain_model.p3, dl.it_chain_model.p4, p5, _p6, _p7]]
             # lenjob_geometry
             # TODO lm_max_unl should be a bit larger here for geometry, perhaps add + X (~500)
-            # dl.lenjob_geometry = utils_scarf.Geom.get_thingauss_geometry(dl.lm_max_unl[0], 2, zbounds=dl.zbounds_len) if it.lenjob_geometry == 'thin_gauss' else None
+            # dl.lenjob_geometry = utils_geom.Geom.get_thingauss_geometry(dl.lm_max_unl[0], 2, zbounds=dl.zbounds_len) if it.lenjob_geometry == 'thin_gauss' else None
             dl.lenjob_geometry = utils_geom.Geom.get_thingauss_geometry(dl.lm_max_unl[0], 2)
             # lenjob_pbgeometry
-            dl.lenjob_pbgeometry = utils_scarf.pbdGeometry(dl.lenjob_geometry, utils_scarf.pbounds(dl.pb_ctr, dl.pb_extent)) if it.lenjob_pbgeometry == 'pbdGeometry' else None
+            dl.lenjob_pbgeometry = utils_geom.pbdGeometry(dl.lenjob_geometry, utils_geom.pbounds(dl.pb_ctr, dl.pb_extent)) if it.lenjob_pbgeometry == 'pbdGeometry' else None
             
             ## tasks -> mf_dirname
             if "calc_meanfield" in dl.it_tasks or 'calc_blt' in dl.it_tasks:
@@ -483,24 +467,17 @@ class l2lensrec_Transformer:
         # TODO here goes anything that needs info from different classes
 
         # fiducial
-<<<<<<< HEAD:lenscarf/lerepi/core/transformer/lerepi2dlensalot.py
-        if cf.analysis.cpp.endswith('npy'):
-            dl.cpp = np.load(cf.analysis.cpp)[:dl.qe_lm_max_qlm[0] + 1,1]
-        else:
-            dl.cpp = utils.camb_clfile(cf.analysis.cpp)['pp'][:dl.qe_lm_max_qlm[0] + 1] 
-=======
         # TODO hack
         if 'smoothed_phi_empiric_halofit' in cf.analysis.cpp:
             dl.cpp = np.load(cf.analysis.cpp)[:dl.qe_lm_max_qlm[0] + 1,1]
         else:
             dl.cpp = utils.camb_clfile(cf.analysis.cpp)['pp'][:dl.qe_lm_max_qlm[0] + 1] ## TODO could be added via 'fiducial' parameter in dlensalot config for user
->>>>>>> main:delensalot/lerepi/core/transformer/lerepi2dlensalot.py
         dl.cpp[:dl.Lmin] *= 0.
 
         if dl.it_filter_directional == 'anisotropic':
             # ninvjob_geometry
             if cf.noisemodel.ninvjob_geometry == 'healpix_geometry':
-                dl.ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(dl._sims.nside, zbounds=dl.zbounds)
+                dl.ninvjob_geometry = utils_geom.Geom.get_healpix_geometry(dl._sims.nside, zbounds=dl.zbounds)
 
 
         # if mpi.rank == 0:
@@ -562,7 +539,7 @@ class l2OBD_Transformer:
         @log_on_end(logging.DEBUG, "_process_Noisemodel() finished")
         def _process_Noisemodel(dl, nm):
             dl.lmin_b = dl.lmin_teb[2]
-            dl.geom = utils_scarf.Geom.get_healpix_geometry(dl.nside)
+            dl.geom = utils_geom.Geom.get_healpix_geometry(dl.nside)
             dl.masks, dl.rhits_map = l2OBD_Transformer.get_masks(cf)
             dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
             dl.ninv_p_desc = l2OBD_Transformer.get_ninvp(cf, dl.nside)

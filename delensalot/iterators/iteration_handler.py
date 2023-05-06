@@ -15,7 +15,7 @@ from logdecorator import log_on_start, log_on_end
 import numpy as np
 import healpy as hp
 
-from delensalot import remapping
+from lenspyx.remapping import deflection
 from delensalot import utils_sims, utils_scarf
 from delensalot.utils_hp import alm_copy, almxfl
 from delensalot.iterators import cs_iterator, cs_iterator_fast

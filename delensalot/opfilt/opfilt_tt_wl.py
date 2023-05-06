@@ -28,7 +28,7 @@ def apply_fini(*args, **kwargs):
     pass
 
 class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
-    def __init__(self, ninv_geom:utils_geom.Geometry, ninv: np.ndarray, ffi:remapping.deflection, transf:np.ndarray,
+    def __init__(self, ninv_geom:utils_geom.Geom, ninv: np.ndarray, ffi:remapping.deflection, transf:np.ndarray,
                  unlalm_info:tuple, lenalm_info:tuple, sht_threads:int,verbose=False, lmin_dotop=0, tpl:tni.template_tfilt or None =None):
         r"""CMB inverse-variance and Wiener filtering instance, using unlensed E and lensing deflection
 
@@ -62,7 +62,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         if not np.all(ninv_geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
             log.info('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
             nr = ninv_geom.get_nrings()
-            ninv_geom_ = utils_geom.Geometry(nr, ninv_geom.nph.copy(), ninv_geom.ofs.copy(), 1, ninv_geom.phi0.copy(), ninv_geom.theta.copy(), np.ones(nr, dtype=float))
+            ninv_geom_ = utils_geom.Geom(nr, ninv_geom.nph.copy(), ninv_geom.ofs.copy(), 1, ninv_geom.phi0.copy(), ninv_geom.theta.copy(), np.ones(nr, dtype=float))
             # Does not seem to work without the 'copy'
         else:
             ninv_geom_ = ninv_geom

@@ -77,7 +77,7 @@ class sims_cmb_len(object):
         self.nside_lens = nside_lens
         self.nbands = nbands
         self.facres = facres
-        self.cache_plm = cache_plm
+        self.cache_plm = True
 
         self.unlcmbs = cmbs.sims_cmb_unl(cls_unl, lib_pha)
         self.lib_dir = lib_dir

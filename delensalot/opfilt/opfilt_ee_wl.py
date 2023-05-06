@@ -21,7 +21,7 @@ pre_op_dense = None # not implemented
 
 
 class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
-    def __init__(self, ninv_geom:utils_geom.Geometry, ninv:list, ffi:remapping.deflection, transf:np.ndarray,
+    def __init__(self, ninv_geom:utils_geom.Geom, ninv:list, ffi:remapping.deflection, transf:np.ndarray,
                  unlalm_info:tuple, lenalm_info:tuple, sht_threads:int,tpl:bni.template_dense or None,
                  transf_blm:np.ndarray or None=None, verbose=False, lmin_dotop=0, wee=True):
         r"""CMB inverse-variance and Wiener filtering instance, using unlensed E and lensing deflection
@@ -60,7 +60,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         if not np.all(ninv_geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
             log.info('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
             nr = ninv_geom.get_nrings()
-            ninv_geom_ = utils_geom.Geometry(nr, ninv_geom.nph.copy(), ninv_geom.ofs.copy(), 1, ninv_geom.phi0.copy(), ninv_geom.theta.copy(), np.ones(nr, dtype=float))
+            ninv_geom_ = utils_geom.Geom(nr, ninv_geom.nph.copy(), ninv_geom.ofs.copy(), 1, ninv_geom.phi0.copy(), ninv_geom.theta.copy(), np.ones(nr, dtype=float))
             # Does not seem to work without the 'copy'
         else:
             ninv_geom_ = ninv_geom

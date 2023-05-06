@@ -15,7 +15,7 @@ from scipy.interpolate import UnivariateSpline as spl
 
 
 class alm_filter_ninv(object):
-    def __init__(self, ninv_geom:utils_geom.Geometry, ninv:list, transf:np.ndarray,
+    def __init__(self, ninv_geom:utils_geom.Geom, ninv:list, transf:np.ndarray,
                  unlalm_info:tuple, lenalm_info:tuple, sht_threads:int, tpl:tni.template_tfilt or None=None, verbose=False):
         r"""CMB inverse-variance and Wiener filtering instance, to use for cg-inversion
 
@@ -45,7 +45,7 @@ class alm_filter_ninv(object):
         if not np.all(ninv_geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
             log.info('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
             nr = ninv_geom.get_nrings()
-            ninv_geom_ = utils_geom.Geometry(nr, ninv_geom.nph.copy(), ninv_geom.ofs.copy(), 1, ninv_geom.phi0.copy(), ninv_geom.theta.copy(), np.ones(nr, dtype=float))
+            ninv_geom_ = utils_geom.Geom(nr, ninv_geom.nph.copy(), ninv_geom.ofs.copy(), 1, ninv_geom.phi0.copy(), ninv_geom.theta.copy(), np.ones(nr, dtype=float))
             # Does not seem to work without the 'copy'
         else:
             ninv_geom_ = ninv_geom

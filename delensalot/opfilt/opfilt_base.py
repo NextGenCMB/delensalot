@@ -1,5 +1,5 @@
 import numpy as np
-from delensalot import remapping
+from lenspyx import remapping
 from lenspyx.remapping.utils_geom import pbdGeometry
 
 class scarf_alm_filter_wl(object):

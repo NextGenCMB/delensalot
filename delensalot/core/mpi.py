@@ -77,16 +77,9 @@ else:
     barrier = lambda: -1
     bcast = lambda _: 0
     finalize = lambda: -1
-<<<<<<< HEAD:lenscarf/core/mpi.py
-    receive = lambda val, src : 0
-    send = lambda val, dst : 0
-
-    
-=======
     bcast = lambda _: 0
     send = lambda _, dest: 0
     receive = lambda _, source: 0
     ANY_SOURCE = 0
 
->>>>>>> main:delensalot/core/mpi.py
     name = "{} with {} cpus".format( platform.processor(),multiprocessing.cpu_count())
