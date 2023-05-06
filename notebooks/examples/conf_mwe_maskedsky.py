@@ -11,7 +11,7 @@ import plancklens
 from plancklens import utils
 from os.path import join as opj
 
-from lenscarf.lerepi.core.metamodel.dlensalot_mm import *
+from delensalot.lerepi.core.metamodel.dlensalot_mm import *
 
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(
@@ -28,10 +28,10 @@ dlensalot_model = DLENSALOT_Model(
         Lmin = 2, 
         lm_max_ivf = (4000, 4000),
         lmin_teb = (10, 10, 200),
-        mask = opj(os.environ['SCRATCH'], 'dlensalot/lenscarf/generic/sims_cmb_len_lminB200_mfda_maskedsky/mask.fits')
+        mask = opj(os.environ['SCRATCH'], 'dlensalot/delensalot/generic/sims_cmb_len_lminB200_mfda_maskedsky/mask.fits')
     ),
     data = DLENSALOT_Data(
-        package_ = 'lenscarf',
+        package_ = 'delensalot',
         module_ = 'sims.generic',
         class_ = 'sims_cmb_len',
         class_parameters = {
@@ -51,7 +51,7 @@ dlensalot_model = DLENSALOT_Model(
         spectrum_type = 'white',
         nlev_t = 1.00,
         nlev_p = np.sqrt(2),
-        rhits_normalised = (opj(os.environ['SCRATCH'], 'dlensalot/lenscarf/generic/sims_cmb_len_lminB200_mfda_maskedsky/rhits.fits'), np.inf)
+        rhits_normalised = (opj(os.environ['SCRATCH'], 'dlensalot/delensalot/generic/sims_cmb_len_lminB200_mfda_maskedsky/rhits.fits'), np.inf)
     ),
     qerec = DLENSALOT_Qerec(
         tasks = ["calc_phi","calc_meanfield", "calc_blt"],

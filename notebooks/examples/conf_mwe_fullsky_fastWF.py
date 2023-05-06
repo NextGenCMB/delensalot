@@ -11,7 +11,7 @@ import plancklens
 from plancklens import utils
 from os.path import join as opj
 
-from lenscarf.lerepi.core.metamodel.dlensalot_mm import *
+from delensalot.lerepi.core.metamodel.dlensalot_mm import *
 
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(
@@ -30,7 +30,7 @@ dlensalot_model = DLENSALOT_Model(
         lmin_teb = (2, 2, 200)
     ),
     data = DLENSALOT_Data(
-        package_ = 'lenscarf',
+        package_ = 'delensalot',
         module_ = 'sims.generic',
         class_ = 'sims_cmb_len',
         class_parameters = {

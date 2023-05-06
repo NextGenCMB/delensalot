@@ -4,6 +4,6 @@ core
 module reference
 
 
-.. automodule:: lenscarf.core.handler
+.. automodule:: delensalot.core.handler
    :members:
    :undoc-members:

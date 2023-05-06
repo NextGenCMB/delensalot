@@ -1,7 +1,7 @@
 import numpy as np
 import plancklens
 from plancklens import utils
-from lenscarf.lerepi.core.metamodel.dlensalot_mm import *
+from delensalot.lerepi.core.metamodel.dlensalot_mm import *
 
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(
@@ -21,7 +21,7 @@ dlensalot_model = DLENSALOT_Model(
         mask = opj(os.environ['SCRATCH'], 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100', 'mask.fits'),
     ),
     data = DLENSALOT_Data(
-        package_ = 'lenscarf',
+        package_ = 'delensalot',
         module_ = 'sims.generic',
         class_ = 'sims_cmb_len',
         class_parameters = {

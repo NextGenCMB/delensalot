@@ -1,6 +1,5 @@
 ![D.lensalot logo](res/dlensalot2.PNG)
-# D.Lensalot 
-(formerly known as Lenscarf)
+# delensalot
 Curved-sky iterative CMB lensing tools
 
 ## Installation
@@ -17,7 +16,7 @@ Type `python3 run.py [-h]` for quickhelp,
 ```
 usage: run.py [-h] [-p NEW] [-r RESUME] [-s STATUS] [-purgehashs PURGEHASHS]
 
-D.lensalot entry point.
+delensalot entry point.
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -29,59 +28,41 @@ optional arguments:
 
 ## Run a configuration file
 
-To run a configutation file `<path-to-config>`, type in your favourite `bash`,
+To run a configuration file `<path-to-config/conf.py>`, type in your favorite `bash`,
 ```
-python3 run.py -p <path-to-config>
-```
-`<path-to-config>` is a relative path, pointing to a config file in `lenscarf/lerepi/config/`.
-
-For example,
-```
-python3 run.py -p examples/example_c08b.py
-```
-runs the example configuration for `c08b`. See [lenscarf/lerepi/README](https://github.com/NextGenCMB/lenscarf/blob/f/mergelerepi/lenscarf/lerepi/README.rst) for a description of the configuation parameters
-
-If you already have an analysis, located at `$path`, with config file `conf.py`, you may resume this analysis with,
-```
-python3 run.py -r $path/conf.py
+python3 run.py -r <path-to-config/conf.py>
 ```
 
-If you'd like to know the status of the analysis done with `$path/conf.py`, run,
+delensalot supports MPI,
+
 ```
-python3 run.py -s $path/conf.py
+srun --nodes <nnodes> -n <taskspernode> python3 run.py -r <path-to-config/conf.py>
+```
+
+If you'd like to know the status of the analysis done with `<path-to-config/conf.py>`, run,
+```
+python3 run.py -s <path-to-config/conf.py>
 ```
 
 ## interactive mode
 
-D.lensalot supports interactive mode. See `lenscarf/notebooks/interactive.ipynb` for guidance.
+delensalot supports interactive mode. See `delensalot/notebooks/examples/` for guidance.
 
 
-## Inspect your results
-
-`lenscarf/notebooks` and `lenscarf/scripts` may be of some help.
-
-
-## Use on NERSC
-D.lensalot is computationally demanding and therefore needs NERSC.
-Alternative, add the above lines to your `~/.bash_profile`
-
-To use D.lensalot on NERSC, you need to load some libraries as well as the GNU compilers (the default ones being Intel), before installing the module.
-Type these lines in the terminal or include them into your `~/.bash_profile`:
-
-```
-module load fftw
-module load gsl
-module load cfitsio
-module swap PrgEnv-intel PrgEnv-gnu
-module load python
-```
 
 
 # Dependencies
 
- based on
-  * [Scarf](https://github.com/samuelsimko/scarf)
+ uses
   * [Plancklens](https://github.com/carronj/plancklens)
+  * [lenspyx](https://github.com/carronj/lenspyx)
+  * [DUCC](https://github.com/mreineck/ducc)
 
 ## Doc
 Documentation may be found [HERE]
+
+
+## Use with HPC
+delensalot is computationally demanding.
+We have parallelized the computations across the simulation index in most cases.
+To use delensalot on any HPC infrastructure, set up MPI accordingly. Your HPC-center can help.

@@ -1,8 +1,8 @@
-from lenscarf import cachers, remapping
+from delensalot import cachers, remapping
 import numpy as np
-from lenscarf import utils_scarf as sj
+from delensalot import utils_scarf as sj
 import healpy as hp
-from lenscarf.utils_scarf import pbdGeometry, pbounds
+from delensalot.utils_scarf import pbdGeometry, pbounds
 
 from plancklens.utils import camb_clfile
 
@@ -13,8 +13,8 @@ j.set_ecp_geometry(100, 100,  tbounds=(0.0, np.pi/10))
 
 lmaxin = 3999
 lmaxout = 2999
-clee = camb_clfile('./lenscarf/data/cls/FFP10_wdipole_lensedCls.dat')['ee'][:lmaxin + 1]
-clpp = camb_clfile('./lenscarf/data/cls/FFP10_wdipole_lenspotentialCls.dat')['pp'][:lmaxin + 1]
+clee = camb_clfile('./delensalot/data/cls/FFP10_wdipole_lensedCls.dat')['ee'][:lmaxin + 1]
+clpp = camb_clfile('./delensalot/data/cls/FFP10_wdipole_lenspotentialCls.dat')['pp'][:lmaxin + 1]
 
 glm = hp.synalm(clee, new=True)
 plm = hp.synalm(clpp, new=True)

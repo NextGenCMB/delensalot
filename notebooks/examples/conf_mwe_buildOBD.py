@@ -2,7 +2,7 @@ import os
 from os.path import join as opj
 
 import numpy as np
-from lenscarf.lerepi.core.metamodel.dlensalot_mm import *
+from delensalot.lerepi.core.metamodel.dlensalot_mm import *
 
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(

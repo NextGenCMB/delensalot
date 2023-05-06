@@ -4,18 +4,18 @@ iterators
 module reference
 
 
-.. automodule:: lenscarf.iterators.bfgs
+.. automodule:: delensalot.iterators.bfgs
    :members:
    :undoc-members:
 
-.. automodule:: lenscarf.iterators.cs_iterator
+.. automodule:: delensalot.iterators.cs_iterator
    :members:
    :undoc-members:
 
-.. automodule:: lenscarf.iterators.iteration_handler
+.. automodule:: delensalot.iterators.iteration_handler
    :members:
    :undoc-members:
 
-.. automodule:: lenscarf.iterators.statics
+.. automodule:: delensalot.iterators.statics
    :members:
    :undoc-members:

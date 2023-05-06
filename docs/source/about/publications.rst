@@ -10,6 +10,6 @@ This is a non-exhaustive list of publications of D.lensalot, and its predecessor
  *  `Another another paper`_
 
 
-.. _One paper: https://github.com/NextGenCMB/D.lensalot/tree/main/lenscarf/lerepi/config
-.. _Another paper: https://github.com/NextGenCMB/D.lensalot/tree/main/lenscarf/lerepi/config
-.. _Another another paper: https://github.com/NextGenCMB/D.lensalot/tree/main/lenscarf/lerepi/config
+.. _One paper: https://github.com/NextGenCMB/D.lensalot/tree/main/delensalot/lerepi/config
+.. _Another paper: https://github.com/NextGenCMB/D.lensalot/tree/main/delensalot/lerepi/config
+.. _Another another paper: https://github.com/NextGenCMB/D.lensalot/tree/main/delensalot/lerepi/config
