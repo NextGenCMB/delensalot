@@ -169,4 +169,4 @@ More `example`_ models are provided for different use cases, among them,
 
 
 
-.. _example: https://github.com/NextGenCMB/D.lensalot/tree/main/lenscarf/lerepi/config
+.. _example: https://github.com/NextGenCMB/D.lensalot/tree/main/delensalot/lerepi/config

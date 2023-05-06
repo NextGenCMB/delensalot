@@ -7,23 +7,23 @@ module reference
 core
 -------
 
-.. automodule:: lenscarf.lerepi.core.handler
+.. automodule:: delensalot.lerepi.core.handler
    :members:
    :undoc-members:
 
-.. automodule:: lenscarf.lerepi.core.parser
+.. automodule:: delensalot.lerepi.core.parser
    :members:
    :undoc-members:
 
-.. automodule:: lenscarf.lerepi.core.sr
+.. automodule:: delensalot.lerepi.core.sr
    :members:
    :undoc-members:
 
-.. automodule:: lenscarf.lerepi.core.metamodel.dlensalot_v2
+.. automodule:: delensalot.lerepi.core.metamodel.dlensalot_v2
    :members:
    :undoc-members:
 
-.. automodule:: lenscarf.lerepi.core.transformer
+.. automodule:: delensalot.lerepi.core.transformer
    :members:
    :undoc-members: 
 
@@ -31,13 +31,13 @@ core
 config
 -------
 
-.. automodule:: lenscarf.lerepi.config.config_helper
+.. automodule:: delensalot.lerepi.config.config_helper
    :members:
    :undoc-members:
 
 visalot
 --------
 
-.. automodule:: lenscarf.lerepi.visalot.plot_helper
+.. automodule:: delensalot.lerepi.visalot.plot_helper
    :members:
    :undoc-members:
