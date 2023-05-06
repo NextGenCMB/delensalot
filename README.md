@@ -1,5 +1,5 @@
 ![D.lensalot logo](res/dlensalot2.PNG)
-# D.Lensalot
+# delensalot
 Curved-sky iterative CMB lensing tools
 
 ## Installation
@@ -16,7 +16,7 @@ Type `python3 run.py [-h]` for quickhelp,
 ```
 usage: run.py [-h] [-p NEW] [-r RESUME] [-s STATUS] [-purgehashs PURGEHASHS]
 
-D.lensalot entry point.
+delensalot entry point.
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -33,7 +33,7 @@ To run a configuration file `<path-to-config/conf.py>`, type in your favorite `b
 python3 run.py -r <path-to-config/conf.py>
 ```
 
-D.lensalot supports MPI,
+delensalot supports MPI,
 
 ```
 srun --nodes <nnodes> -n <taskspernode> python3 run.py -r <path-to-config/conf.py>
@@ -46,22 +46,23 @@ python3 run.py -s <path-to-config/conf.py>
 
 ## interactive mode
 
-D.lensalot supports interactive mode. See `delensalot/notebooks/examples/` for guidance.
+delensalot supports interactive mode. See `delensalot/notebooks/examples/` for guidance.
 
 
 
 
 # Dependencies
 
- based on
-  * [Scarf](https://github.com/samuelsimko/scarf)
+ uses
   * [Plancklens](https://github.com/carronj/plancklens)
+  * [lenspyx](https://github.com/carronj/lenspyx)
+  * [DUCC](https://github.com/mreineck/ducc)
 
 ## Doc
 Documentation may be found [HERE]
 
 
 ## Use with HPC
-D.lensalot is computationally demanding.
+delensalot is computationally demanding.
 We have parallelized the computations across the simulation index in most cases.
-To use D.lensalot on any HPC infrastructure, set up MPI accordingly. Your HPC-center can help.
+To use delensalot on any HPC infrastructure, set up MPI accordingly. Your HPC-center can help.
