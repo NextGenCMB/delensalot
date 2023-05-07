@@ -24,7 +24,7 @@ dlensalot_model = DLENSALOT_Model(
         key = 'p_p',
         version = 'noMF',
         simidxs = np.arange(0,1),
-        TEMP_suffix = 'mfda',
+        TEMP_suffix = 'mfda_newdeflection_newsims',
         Lmin = 2, 
         lm_max_ivf = (3000, 3000),
         lmin_teb = (2, 2, 200)
@@ -36,7 +36,7 @@ dlensalot_model = DLENSALOT_Model(
         class_parameters = {
             'lmax': 4096,
             'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(plancklens.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
-            'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'generic', 'nside2048', 'lmax4096', 'nlevp_sqrt(2)')
+            'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'generic_newdefl', 'nside2048', 'lmax4096', 'nlevp_sqrt(2)')
         },
         nlev_t = 1.00,
         nlev_p = np.sqrt(2),

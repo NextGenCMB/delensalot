@@ -1,6 +1,6 @@
 """Module for curved-sky iterative lensing estimation
 
-    Version revised on July 23 2021
+    Version revised on March 2023 2023
 
         Among the changes:
             * delensalot'ed this with great improvements in execution time
@@ -104,7 +104,7 @@ class qlm_iterator(object):
         self.stepper = stepper
         self.soltn_cond = soltn_cond
 
-        self.dat_maps = dat_maps
+        self.dat_maps = np.array(dat_maps)
 
         self.chh = cpp_prior[:lmax_qlm+1] * self._p2h(lmax_qlm) ** 2
         self.hh_h0 = cli(pp_h0[:lmax_qlm + 1] * self._h2p(lmax_qlm) ** 2 + cli(self.chh))  #~ (1/Cpp + 1/N0)^-1
@@ -250,7 +250,7 @@ class qlm_iterator(object):
             elm, blm = geom.map2alm_spin([dlens.real, dlens.imag], 2, lmaxb, mmaxb, sht_tr, [-1., 1.])
         else: # Applies full remapping (this will re-calculate the angles)
             ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm)
-            elm, blm = ffi.lensgclm([elm_wf, np.zeros_like(elm_wf)], self.mmax_filt, 2, lmaxb, mmaxb)
+            elm, blm = ffi.lensgclm(np.array([elm_wf, np.zeros_like(elm_wf)]), self.mmax_filt, 2, lmaxb, mmaxb)
 
         if cache_cond:
             self.wf_cacher.cache(fn_blt, blm)

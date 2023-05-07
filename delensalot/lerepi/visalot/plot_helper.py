@@ -33,10 +33,14 @@ CB_color_cycle_lighter = ["#68ACCE", "#AC4657", "#ADAC57", "#005713", "#130268",
 def movavg(data, window=20):
     y = data
     average_y = []
-    for i in range(window - 1):
+    for i in range(int((window - 1)/2)):
         average_y.insert(0, np.nan)
+        # average_y.insert(-1, np.nan)
+        
     for i in range(len(y) - window + 1):
-        average_y.append(np.mean(y[i:i+window]))
+        average_y.append(np.mean(y[i : i + window]))
+    for i in range(int((window - 1)/2)+1):
+        average_y.append(np.nan)
     return np.array(average_y)
 
 

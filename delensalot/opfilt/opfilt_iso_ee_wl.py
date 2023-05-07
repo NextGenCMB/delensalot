@@ -12,8 +12,8 @@ from logdecorator import log_on_start, log_on_end
 import numpy as np
 from delensalot.utils_hp import almxfl, Alm, synalm
 from delensalot.utils import timer, cli
-from delensalot import utils_scarf
-from delensalot import remapping
+from lenspyx.remapping import utils_geom
+from lenspyx import remapping
 from scipy.interpolate import UnivariateSpline as spl
 from delensalot.opfilt import opfilt_ee_wl, opfilt_base
 
@@ -107,7 +107,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         tim.reset_t0()
         lmax_unl = Alm.getlmax(elm.size, self.mmax_sol)
         assert lmax_unl == self.lmax_sol, (lmax_unl, self.lmax_sol)
-        eblm = self.ffi.lensgclm([elm, np.zeros_like(elm)], self.mmax_sol, 2, self.lmax_len, self.mmax_len)
+        eblm = self.ffi.lensgclm(np.array([elm, np.zeros_like(elm)]), self.mmax_sol, 2, self.lmax_len, self.mmax_len)
         tim.add('lensgclm fwd')
 
         almxfl(eblm[0], self.inoise_2_elm, self.mmax_len, inplace=True)
@@ -137,14 +137,14 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         """
         elm = synalm(unlcmb_cls['ee'], self.lmax_sol, self.mmax_sol) if cmb_phas is None else cmb_phas
         assert Alm.getlmax(elm.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(elm.size, self.mmax_sol), self.lmax_sol)
-        eblm = self.ffi.lensgclm(np.array([elm, elm * 0]), self.mmax_sol, 2, self.lmax_len, self.mmax_len, False)
+        eblm = self.ffi.lensgclm(np.array([elm, elm * 0]), self.mmax_sol, 2, self.lmax_len, self.mmax_len, backwards=False)
         almxfl(eblm[0], self.transf_elm, self.mmax_len, True)
         almxfl(eblm[1], self.transf_blm, self.mmax_len, True)
         eblm[0] += synalm((np.ones(self.lmax_len + 1) * (self.nlev_elm / 180 / 60 * np.pi) ** 2) * (self.transf_elm > 0), self.lmax_len, self.mmax_len)
         eblm[1] += synalm((np.ones(self.lmax_len + 1) * (self.nlev_blm / 180 / 60 * np.pi) ** 2) * (self.transf_blm > 0), self.lmax_len, self.mmax_len)
         return elm, eblm if get_unlelm else eblm
 
-    def get_qlms(self, eblm_dat: np.ndarray or list, elm_wf: np.ndarray, q_pbgeom: utils_scarf.pbdGeometry, alm_wf_leg2:None or np.ndarray =None):
+    def get_qlms(self, eblm_dat: np.ndarray or list, elm_wf: np.ndarray, q_pbgeom: utils_geom.pbdGeometry, alm_wf_leg2:None or np.ndarray =None):
         """Get lensing generaliazed QE consistent with filter assumptions
 
             Args:
@@ -178,7 +178,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         almxfl(C, fl, mmax_qlm, True)
         return G, C
 
-    def get_qlms_mf(self, mfkey, q_pbgeom:utils_scarf.pbdGeometry, mchain, phas=None, cls_filt:dict or None=None):
+    def get_qlms_mf(self, mfkey, q_pbgeom:utils_geom.pbdGeometry, mchain, phas=None, cls_filt:dict or None=None):
         """Mean-field estimate using tricks of Carron Lewis appendix
 
 
@@ -222,7 +222,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         return G, C
 
 
-    def _get_irespmap(self, eblm_dat:np.ndarray, eblm_wf:np.ndarray or list, q_pbgeom:utils_scarf.pbdGeometry):
+    def _get_irespmap(self, eblm_dat:np.ndarray, eblm_wf:np.ndarray or list, q_pbgeom:utils_geom.pbdGeometry):
         """Builds inverse variance weighted map to feed into the QE
 
 
@@ -231,7 +231,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
 
         """
         assert len(eblm_dat) == 2
-        ebwf = self.ffi.lensgclm(eblm_wf, self.mmax_sol, 2, self.lmax_len, self.mmax_len, False)
+        ebwf = self.ffi.lensgclm(eblm_wf, self.mmax_sol, 2, self.lmax_len, self.mmax_len, backwards=False)
         almxfl(ebwf[0], self.transf_elm, self.mmax_len, True)
         almxfl(ebwf[1], self.transf_blm, self.mmax_len, True)
         ebwf[:] = eblm_dat - ebwf
@@ -239,7 +239,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         almxfl(ebwf[1], self.inoise_1_blm * 0.5,            self.mmax_len, True)
         return q_pbgeom.geom.alm2map_spin(ebwf, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
 
-    def _get_gpmap(self, eblm_wf:np.ndarray or list, spin:int, q_pbgeom:utils_scarf.pbdGeometry):
+    def _get_gpmap(self, eblm_wf:np.ndarray or list, spin:int, q_pbgeom:utils_geom.pbdGeometry):
         """Wiener-filtered gradient leg to feed into the QE
 
 
@@ -258,7 +258,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         fl = np.arange(i1, lmax + i1 + 1, dtype=float) * np.arange(i2, lmax + i2 + 1)
         fl[:spin] *= 0.
         fl = np.sqrt(fl)
-        eblm = [almxfl(eblm_wf[0], fl, self.mmax_sol, False), almxfl(eblm_wf[1], fl, self.mmax_sol, False)]
+        eblm = np.array([almxfl(eblm_wf[0], fl, self.mmax_sol, False), almxfl(eblm_wf[1], fl, self.mmax_sol, False)])
         ffi = self.ffi.change_geom(q_pbgeom) if q_pbgeom is not self.ffi.pbgeom else self.ffi
         return ffi.gclm2lenmap(eblm, self.mmax_sol, spin, False)
 

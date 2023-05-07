@@ -21,11 +21,19 @@ from plancklens.qcinv import cd_solve
 from plancklens.sims import maps, phas, planck2018_sims
 from plancklens.filt import filt_cinv, filt_util
 
+<<<<<<< HEAD:lenscarf/ana/param/cmbs4wide_planckmask.py
+from lenspyx import remapping, utils_scarf, utils_sims
+from lenscarf.iterators import cs_iterator as scarf_iterator, steps
+from lenscarf.utils import cli, read_map
+from lenscarf.utils_hp import gauss_beam, almxfl, alm_copy
+from lenscarf.opfilt import opfilt_ee_wl
+=======
 from delensalot import remapping, utils_scarf, utils_sims
 from delensalot.iterators import cs_iterator as scarf_iterator, steps
 from delensalot.utils import cli, read_map
 from delensalot.utils_hp import gauss_beam, almxfl, alm_copy
 from delensalot.opfilt import opfilt_ee_wl
+>>>>>>> main:delensalot/ana/param/cmbs4wide_planckmask.py
 
 suffix = 'cmbs4_planckmask' # descriptor to distinguish this parfile from others...
 TEMP =  opj(os.environ['SCRATCH'], 'delensalotrecs', suffix)

@@ -50,6 +50,12 @@ class pbdGeometry:
         self.pbound = pbound
 
 
+
+    def fsky(self):
+        """Area of the sky covered by the pixelization"""
+        return np.sum(self.geom.weight * self.geom.nph) / (4 * np.pi)
+
+
 class Geom:
     """This collects simple static methods for scarf Geometry class
 

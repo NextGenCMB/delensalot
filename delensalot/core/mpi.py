@@ -85,5 +85,23 @@ def init():
     bcast = MPI.COMM_WORLD.bcast
     finalize = MPI.Finalize
     name = "{} with {} cpus".format( platform.processor(),multiprocessing.cpu_count())
+<<<<<<< HEAD
 
 enable()
+=======
+    log.info('mpi.py : setup OK, rank %s in %s' % (rank, size))
+else:
+    print('cond4mpi does not exists')
+    log.info("No MPI loaded")
+    rank = 0
+    size = 1
+    barrier = lambda: -1
+    bcast = lambda _: 0
+    finalize = lambda: -1
+    bcast = lambda _: 0
+    send = lambda _, dest: 0
+    receive = lambda _, source: 0
+    ANY_SOURCE = 0
+
+    name = "{} with {} cpus".format( platform.processor(),multiprocessing.cpu_count())
+>>>>>>> 2afa1a5a8f709aefa71762c59280961fb3fed31c

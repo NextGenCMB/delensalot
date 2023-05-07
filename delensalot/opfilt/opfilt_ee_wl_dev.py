@@ -10,8 +10,8 @@ from logdecorator import log_on_start, log_on_end
 import numpy as np
 from delensalot.utils_hp import almxfl, Alm, alm2cl, synalm, default_rng
 from delensalot.utils import clhash, cli, read_map
-from delensalot import  utils_scarf
-from delensalot import remapping
+from lenspyx.remapping import utils_geom
+from lenspyx import remapping
 from delensalot.opfilt import  opfilt_pp, opfilt_base, bmodes_ninv as bni
 from scipy.interpolate import UnivariateSpline as spl
 from delensalot.utils import timer
@@ -21,7 +21,7 @@ pre_op_dense = None # not implemented
 
 
 class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
-    def __init__(self, ninv_geom:utils_scarf.Geometry, ninv:list, ffi_ee:remapping.deflection, ffi_eb:remapping.deflection,
+    def __init__(self, ninv_geom:utils_geom.Geom, ninv:list, ffi_ee:remapping.deflection, ffi_eb:remapping.deflection,
                  transf:np.ndarray, unlalm_info:tuple, lenalm_info:tuple, sht_threads:int,tpl:bni.template_dense or None,
                  transf_blm:np.ndarray or None=None, verbose=False, lmin_dotop=0):
         r"""CMB inverse-variance and Wiener filtering instance, using unlensed E and lensing deflection
@@ -59,11 +59,11 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         self.ffi_eb = ffi_eb
         self.ffi_ee = ffi_ee
 
-        sc_job = utils_scarf.scarfjob()
+        sc_job = utils_geom.scarfjob()
         if not np.all(ninv_geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
             log.info('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
             nr = ninv_geom.get_nrings()
-            ninv_geom_ = utils_scarf.Geometry(nr, ninv_geom.nph.copy(), ninv_geom.ofs.copy(), 1, ninv_geom.phi0.copy(), ninv_geom.theta.copy(), np.ones(nr, dtype=float))
+            ninv_geom_ = utils_geom.Geom(nr, ninv_geom.nph.copy(), ninv_geom.ofs.copy(), 1, ninv_geom.phi0.copy(), ninv_geom.theta.copy(), np.ones(nr, dtype=float))
             # Does not seem to work without the 'copy'
         else:
             ninv_geom_ = ninv_geom
@@ -102,7 +102,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
 
     def hashdict(self):
         return {'ninv':self._ninv_hash(), 'transfe':clhash(self.b_transf_elm),'transfb':clhash(self.b_transf_blm),
-                'geom':utils_scarf.Geom.hashdict(self.sc_job.geom),
+                'geom':utils_geom.Geom.hashdict(self.sc_job.geom),
                 'deflection_ee':self.ffi_ee.hashdict(),'deflection_eb':self.ffi_eb.hashdict(),
                 'unalm':(self.lmax_sol, self.mmax_sol), 'lenalm':(self.lmax_len, self.mmax_len) }
 
@@ -219,15 +219,15 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         del eblm # Adding noise
         if len(self.n_inv) == 1: # QQ = UU
             pixnoise = np.sqrt(cli(self.n_inv[0]))
-            QU[0] += default_rng().standard_normal(utils_scarf.Geom.npix(self.ninv_geom)) * pixnoise
-            QU[1] += default_rng().standard_normal(utils_scarf.Geom.npix(self.ninv_geom)) * pixnoise
+            QU[0] += default_rng().standard_normal(utils_geom.Geom.npix(self.ninv_geom)) * pixnoise
+            QU[1] += default_rng().standard_normal(utils_geom.Geom.npix(self.ninv_geom)) * pixnoise
         elif len(self.n_inv) == 3: #QQ UU QU
             assert 0, 'this is not implemented at the moment, but this is easy'
         else:
             assert 0, 'you should never land here'
         return elm, QU if get_unlelm else QU
 
-    def get_qlms(self, qudat: np.ndarray or list, elm_wf: np.ndarray, q_pbgeom: utils_scarf.pbdGeometry, alm_wf_leg2 :None or np.ndarray=None):
+    def get_qlms(self, qudat: np.ndarray or list, elm_wf: np.ndarray, q_pbgeom: utils_geom.pbdGeometry, alm_wf_leg2 :None or np.ndarray=None):
         """
 
             Args:
@@ -239,7 +239,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
             Note: all implementation signs are super-weird but end result correct...
         """
         assert len(qudat) == 2
-        assert (qudat[0].size == utils_scarf.Geom.npix(self.ninv_geom)) and (qudat[0].size == qudat[1].size)
+        assert (qudat[0].size == utils_geom.Geom.npix(self.ninv_geom)) and (qudat[0].size == qudat[1].size)
         (repmap_e, impmap_e), (repmap_b, impmap_b) = self._get_irespmap(qudat, elm_wf, q_pbgeom)
         if alm_wf_leg2 is not None:
             elm_wf[:] = alm_wf_leg2
@@ -271,7 +271,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
             almxfl(G, fl, mmax_qlm, True)
         return (Gee, Cee), (Geb, Ceb)
 
-    def get_qlms_mf(self, mfkey, q_pbgeom:utils_scarf.pbdGeometry, mchain, phas=None, cls_filt:dict or None=None):
+    def get_qlms_mf(self, mfkey, q_pbgeom:utils_geom.pbdGeometry, mchain, phas=None, cls_filt:dict or None=None):
         """Mean-field estimate using tricks of Carron Lewis appendix
 
 
@@ -279,10 +279,10 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         if mfkey in [1]: # This should be B^t x, D dC D^t B^t Covi x, x random phases in pixel space here
             if phas is None:
                 # unit variance phases in Q U space
-                phas = np.array([default_rng().standard_normal(utils_scarf.Geom.npix(self.ninv_geom)),
-                                 default_rng().standard_normal(utils_scarf.Geom.npix(self.ninv_geom))])
-            assert phas[0].size == utils_scarf.Geom.npix(self.ninv_geom)
-            assert phas[1].size == utils_scarf.Geom.npix(self.ninv_geom)
+                phas = np.array([default_rng().standard_normal(utils_geom.Geom.npix(self.ninv_geom)),
+                                 default_rng().standard_normal(utils_geom.Geom.npix(self.ninv_geom))])
+            assert phas[0].size == utils_geom.Geom.npix(self.ninv_geom)
+            assert phas[1].size == utils_geom.Geom.npix(self.ninv_geom)
 
             soltn = np.zeros(Alm.getsize(self.lmax_sol, self.mmax_sol), dtype=complex)
             mchain.solve(soltn, phas, dot_op=self.dot_op())
@@ -316,7 +316,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         almxfl(C, fl, mmax_qlm, True)
         return G, C
 
-    def _get_gpmap(self, elm_wf:np.ndarray or list, spin:int, q_pbgeom:utils_scarf.pbdGeometry, ffi:remapping.deflection):
+    def _get_gpmap(self, elm_wf:np.ndarray or list, spin:int, q_pbgeom:utils_geom.pbdGeometry, ffi:remapping.deflection):
         """Wiener-filtered gradient leg to feed into the QE
 
 
@@ -339,7 +339,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         return ffi.gclm2lenmap([elm, np.zeros_like(elm)], self.mmax_sol, spin, False)
 
 
-    def _get_irespmap(self, qudat:np.ndarray, elm_wf:np.ndarray, q_pbgeom:utils_scarf.pbdGeometry):
+    def _get_irespmap(self, qudat:np.ndarray, elm_wf:np.ndarray, q_pbgeom:utils_geom.pbdGeometry):
         """Builds inverse variance weighted map to feed into the QE
 
 

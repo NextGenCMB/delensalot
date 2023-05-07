@@ -80,7 +80,6 @@ class iterator_cstmf(delensalot.iterators.cs_iterator.qlm_iterator):
             # Here we delens the data and set then the defl to zero in the filters
             # and we assume dat is EB
             mmax = None  # FIXME: here should be data actual mmax. We assume same as lmax
-
             #: FIXME total unsafe hack to see if this is pol or TT rec:
             PorT = 'ee' in self.opfilt.__name__.split('.')[-1]
             if PorT: # Pol rec.

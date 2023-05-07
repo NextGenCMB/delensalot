@@ -5,7 +5,8 @@
 import numpy as np
 from delensalot.utils_hp import almxfl, Alm, synalm
 from delensalot.utils import timer, clhash
-from delensalot import utils_scarf, remapping
+from lenspyx import remapping
+from lenspyx.remapping import utils_geom
 from delensalot.opfilt import opfilt_iso_tt, opfilt_base
 from plancklens.utils import cli
 import time
@@ -112,7 +113,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
             almxfl(tlm, self.rescali, self.mmax_sol, True)
         # TODO: should add here the projection into cls > 0
 
-    def get_qlms(self, tlm_dat: np.ndarray, tlm_wf: np.ndarray, q_pbgeom: utils_scarf.pbdGeometry, alm_wf_leg2=None):
+    def get_qlms(self, tlm_dat: np.ndarray, tlm_wf: np.ndarray, q_pbgeom: utils_geom.pbdGeometry, alm_wf_leg2=None):
         """Get lensing generaliazed QE consistent with filter assumptions
 
             Args:
@@ -137,7 +138,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         almxfl(C, fl, self.ffi.mmax_dlm, True)
         return G, C
 
-    def get_qlms_mf(self, mfkey, q_pbgeom:utils_scarf.pbdGeometry, mchain, phas=None, cls_filt:dict or None=None):
+    def get_qlms_mf(self, mfkey, q_pbgeom:utils_geom.pbdGeometry, mchain, phas=None, cls_filt:dict or None=None):
         """Mean-field estimate using tricks of Carron Lewis appendix
 
 
@@ -174,7 +175,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         almxfl(C, fl, mmax_qlm, True)
         return G, C
 
-    def _get_irestmap(self, tlm_dat:np.ndarray, tlm_wf:np.ndarray, q_pbgeom:utils_scarf.pbdGeometry):
+    def _get_irestmap(self, tlm_dat:np.ndarray, tlm_wf:np.ndarray, q_pbgeom:utils_geom.pbdGeometry):
         """Builds inverse variance weighted map to feed into the QE
 
 
@@ -186,7 +187,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         almxfl(twf, self.inoise_1, self.mmax_len, True)
         return q_pbgeom.geom.alm2map(twf, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
 
-    def _get_gtmap(self, tlm_wf:np.ndarray, q_pbgeom:utils_scarf.pbdGeometry):
+    def _get_gtmap(self, tlm_wf:np.ndarray, q_pbgeom:utils_geom.pbdGeometry):
         """Wiener-filtered gradient leg to feed into the QE
 
 

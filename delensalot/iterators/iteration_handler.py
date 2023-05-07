@@ -15,8 +15,15 @@ from logdecorator import log_on_start, log_on_end
 import numpy as np
 import healpy as hp
 
+<<<<<<< HEAD
 from delensalot import remapping
 from delensalot import utils_scarf
+=======
+from lenspyx.remapping import deflection
+from delensalot import utils_sims, utils_scarf
+from delensalot.utils_hp import alm_copy, almxfl
+from delensalot.iterators import cs_iterator, cs_iterator_fast
+>>>>>>> 2afa1a5a8f709aefa71762c59280961fb3fed31c
 from delensalot.utils import read_map
 from delensalot.iterators import cs_iterator, cs_iterator_fast
 from delensalot.opfilt.opfilt_ee_wl import alm_filter_ninv_wl
@@ -52,8 +59,9 @@ class scarf_iterator():
         else:
             self.mf0 = np.zeros(shape=hp.Alm.getsize(self.it_lm_max_qlm[0]))
         self.plm0 = self.qe.get_plm(self.simidx, self.QE_subtract_meanfield)
-        self.ffi = remapping.deflection(self.lenjob_pbgeometry, self.lensres, np.zeros_like(self.plm0),
-            self.it_lm_max_qlm[1], self.tr, self.tr)
+        self.ffi = deflection(self.lenjob_geometry, np.zeros_like(self.plm0), self.it_lm_max_qlm[1], numthreads=self.tr, verbosity=1)
+        # self.ffi = lenspyx.remapping.deflection.deflection(self.lenjob_pbgeometry, self.lensres, np.zeros_like(self.plm0),
+            # self.it_lm_max_qlm[1], self.tr, self.tr)
         self.datmaps = self.get_datmaps()
         self.filter = self.get_filter()
         # TODO not sure why this happens here. Could be done much earlier

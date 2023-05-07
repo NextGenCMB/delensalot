@@ -82,7 +82,6 @@ if __name__ == '__main__':
         sys.exit()
     lerepi_handler.collect_jobs()
 
-
     try:
         lerepi_handler.run()
     except Exception as err:

@@ -908,7 +908,6 @@ class MAP_lr(Basejob):
         elif it==0:
             return self.itlib_iterator.get_template_blm(0, 0, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, perturbative=self.blt_pert)
 
-
 class Map_delenser(Basejob):
     """Script for calculating delensed ILC and Blens spectra using precaulculated Btemplates as input.
     This is a combination of,
