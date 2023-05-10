@@ -24,15 +24,9 @@ from plancklens.qcinv import cd_solve
 from plancklens.sims import maps, phas, planck2018_sims
 from plancklens.filt import filt_simple, filt_util
 
-<<<<<<< HEAD:lenscarf/ana/param/cmbs4wide_idealized.py
-from lenspyx import remapping
-from lenscarf import utils_scarf, utils_sims
-from lenscarf.iterators import cs_iterator as scarf_iterator, steps
-=======
 from delensalot import remapping
 from delensalot import utils_scarf, utils_sims
 from delensalot.iterators import cs_iterator as scarf_iterator, steps
->>>>>>> main:delensalot/ana/param/cmbs4wide_idealized.py
 
 from delensalot.utils import cli
 from delensalot.utils_hp import gauss_beam, almxfl, alm_copy
