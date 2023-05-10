@@ -10,7 +10,7 @@ import os
 import numpy as np
 from delensalot.utils_hp import almxfl, Alm
 from delensalot.utils import timer, cli
-from delensalot import utils_scarf
+from lenspyx.remapping import utils_geom
 from scipy.interpolate import UnivariateSpline as spl
 from delensalot.opfilt import opfilt_pp
 
@@ -71,7 +71,7 @@ class alm_filter_nlev:
         almxfl(eblm[0], self.inoise_2, self.mmax_len, inplace=True)
         almxfl(eblm[1], self.inoise_2, self.mmax_len, inplace=True)
 
-    def get_qlms(self, eblm_dat: np.ndarray or list, eblm_wf: np.ndarray, q_pbgeom: utils_scarf.pbdGeometry, lmax_qlm, mmax_qlm):
+    def get_qlms(self, eblm_dat: np.ndarray or list, eblm_wf: np.ndarray, q_pbgeom: utils_geom.pbdGeometry, lmax_qlm, mmax_qlm):
         """Get lensing generaliazed QE consistent with filter assumptions
 
             Args:
@@ -102,7 +102,7 @@ class alm_filter_nlev:
         almxfl(C, fl, mmax_qlm, True)
         return G, C
 
-    def _get_irespmap(self, eblm_dat:np.ndarray, eblm_wf:np.ndarray or list, q_pbgeom:utils_scarf.pbdGeometry):
+    def _get_irespmap(self, eblm_dat:np.ndarray, eblm_wf:np.ndarray or list, q_pbgeom:utils_geom.pbdGeometry):
         """Builds inverse variance weighted map to feed into the QE
 
 
@@ -119,7 +119,7 @@ class alm_filter_nlev:
         almxfl(ebwf[1], self.inoise_1 * 0.5,            self.mmax_len, True)
         return q_pbgeom.geom.alm2map_spin(ebwf, 2, self.lmax_len, self.mmax_len, self._nthreads, (-1., 1.))
 
-    def _get_gpmap(self, eblm_wf:np.ndarray or list, spin:int, q_pbgeom:utils_scarf.pbdGeometry):
+    def _get_gpmap(self, eblm_wf:np.ndarray or list, spin:int, q_pbgeom:utils_geom.pbdGeometry):
         """Wiener-filtered gradient leg to feed into the QE
 
 

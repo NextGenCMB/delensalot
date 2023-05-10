@@ -2,8 +2,8 @@ numpy
 healpy
 logdecorator
 psutil
-# plancklens # https://github.com/carronj/plancklens.git
-# scarf # git clone --recurse-submodules https://github.com/samuelsimko/scarf
+# plancklens @ git+https://github.com/carronj/plancklens
+# lenspyx @ git+https://github.com/carronj/lenspyx
+# scarf @ git+https://github.com/samuelsimko/scarf
 # attrs # pip install --upgrade attrs
-# lenspyx # https://github.com/carronj/lenspyx.git
 # MSC

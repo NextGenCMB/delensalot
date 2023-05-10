@@ -1,6 +1,6 @@
 import numpy as np
-from delensalot import remapping
-from delensalot.utils_scarf import pbdGeometry
+from lenspyx import remapping
+from lenspyx.remapping.utils_geom import pbdGeometry
 
 class scarf_alm_filter_wl(object):
     def __init__(self, lmax_sol:int, mmax_sol:int, ffi:remapping.deflection):

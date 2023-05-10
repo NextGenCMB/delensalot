@@ -15,11 +15,12 @@ from plancklens import utils
 from delensalot.core import mpi
 from plancklens.qcinv import opfilt_pp
 
+from lenspyx.remapping import utils_geom as lug
 
 from delensalot import utils_scarf as us
 import delensalot.utils_sims as usims
 from delensalot.utils_hp import Alm
-from delensalot.core import healpix_hack as hph
+# from delensalot.core import healpix_hack as hph
 
 from delensalot.utils import enumerate_progress, read_map
 
@@ -351,13 +352,13 @@ class eblm_filter_ninv(opfilt_pp.alm_filter_ninv):
                     umap -= pmodes[1]
             else:
                 log.info("apply_map: cuts %s %s"%(self.blm_range[0], self.blm_range[1]))
-                elm, blm = hph.map2alm_spin([qmap, umap], 2, lmax=min(3 * self.nside - 1, self.blm_range[1]))
+                elm, blm = lug.map2alm_spin(np.array([qmap, umap]), 2, lmax=min(3 * self.nside - 1, self.blm_range[1]), mmax=min(3 * self.nside - 1, self.blm_range[1]), nthreads=4)
                 if self.blm_range[0] > 2: # approx taking out the low-ell B-modes
                     b_ftl = np.ones(hp.Alm.getlmax(blm.size) + 1, dtype=float)
                     b_ftl[:self.blm_range[0]] *= 0.
                     hp.almxfl(blm, b_ftl, inplace=True)
 
-                q, u = hph.alm2map_spin([elm, blm], self.nside, 2, hp.Alm.getlmax(elm.size), zbounds=self.zbounds)
+                q, u = lug.alm2map_spin(np.array([elm, blm]), 2, lmax=hp.Alm.getlmax(elm.size), mmax=hp.Alm.getlmax(elm.size), nthreads=4, zbounds=self.zbounds)
                 qmap[:] = q * self.n_inv[0]
                 umap[:] = u * self.n_inv[0]
 

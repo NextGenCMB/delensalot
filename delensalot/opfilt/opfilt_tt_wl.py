@@ -9,8 +9,8 @@ from logdecorator import log_on_start, log_on_end
 import numpy as np
 from delensalot.utils_hp import almxfl, Alm, alm2cl, synalm, default_rng
 from delensalot.utils import clhash, cli, read_map
-from delensalot import  utils_scarf
-from delensalot import remapping
+from lenspyx.remapping import utils_geom
+from lenspyx import remapping
 from delensalot.opfilt import opfilt_base, tmodes_ninv as tni
 
 from scipy.interpolate import UnivariateSpline as spl
@@ -28,7 +28,7 @@ def apply_fini(*args, **kwargs):
     pass
 
 class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
-    def __init__(self, ninv_geom:utils_scarf.Geometry, ninv: np.ndarray, ffi:remapping.deflection, transf:np.ndarray,
+    def __init__(self, ninv_geom:utils_geom.Geom, ninv: np.ndarray, ffi:remapping.deflection, transf:np.ndarray,
                  unlalm_info:tuple, lenalm_info:tuple, sht_threads:int,verbose=False, lmin_dotop=0, tpl:tni.template_tfilt or None =None):
         r"""CMB inverse-variance and Wiener filtering instance, using unlensed E and lensing deflection
 
@@ -58,16 +58,16 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         self.lmin_dotop = lmin_dotop
 
 
-        sc_job = utils_scarf.scarfjob()
+        sc_job = utils_geom.scarfjob()
         if not np.all(ninv_geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
             log.info('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
             nr = ninv_geom.get_nrings()
-            ninv_geom_ = utils_scarf.Geometry(nr, ninv_geom.nph.copy(), ninv_geom.ofs.copy(), 1, ninv_geom.phi0.copy(), ninv_geom.theta.copy(), np.ones(nr, dtype=float))
+            ninv_geom_ = utils_geom.Geom(nr, ninv_geom.nph.copy(), ninv_geom.ofs.copy(), 1, ninv_geom.phi0.copy(), ninv_geom.theta.copy(), np.ones(nr, dtype=float))
             # Does not seem to work without the 'copy'
         else:
             ninv_geom_ = ninv_geom
         assert np.all(ninv_geom_.weight == 1.)
-        assert utils_scarf.Geom.npix(ninv_geom_) == ninv.size, (utils_scarf.Geom.npix(ninv_geom_), ninv.size)
+        assert utils_geom.Geom.npix(ninv_geom_) == ninv.size, (utils_geom.Geom.npix(ninv_geom_), ninv.size)
         sc_job.set_geometry(ninv_geom_)
         sc_job.set_nthreads(sht_threads)
         sc_job.set_triangular_alm_info(lmax_len, mmax_len)
@@ -83,7 +83,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
 
     def hashdict(self):
         return {'ninv':self._ninv_hash(), 'transf':clhash(self.b_transf_tlm),
-                'geom':utils_scarf.Geom.hashdict(self.sc_job.geom),
+                'geom':utils_geom.Geom.hashdict(self.sc_job.geom),
                 'deflection':self.ffi.hashdict(),
                 'unalm':(self.lmax_sol, self.mmax_sol), 'lenalm':(self.lmax_len, self.mmax_len) }
 
@@ -171,10 +171,10 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         # cant use here sc_job since it is using the unit weight transforms
         T = self.ninv_geom.alm2map(tlm_len, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
         pixnoise = np.sqrt(cli(self.n_inv))
-        T += default_rng().standard_normal(utils_scarf.Geom.npix(self.ninv_geom)) * pixnoise
+        T += default_rng().standard_normal(utils_geom.Geom.npix(self.ninv_geom)) * pixnoise
         return T
 
-    def get_qlms(self, tlm_dat: np.ndarray, tlm_wf: np.ndarray, q_pbgeom: utils_scarf.pbdGeometry, alm_wf_leg2=None):
+    def get_qlms(self, tlm_dat: np.ndarray, tlm_wf: np.ndarray, q_pbgeom: utils_geom.pbdGeometry, alm_wf_leg2=None):
         """Get lensing generaliazed QE consistent with filter assumptions
 
             Args:
@@ -200,7 +200,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         return G, C
 
 
-    def _get_gtmap(self, tlm_wf:np.ndarray, q_pbgeom:utils_scarf.pbdGeometry):
+    def _get_gtmap(self, tlm_wf:np.ndarray, q_pbgeom:utils_geom.pbdGeometry):
         """Wiener-filtered gradient leg to feed into the QE
 
 
@@ -214,7 +214,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         return ffi.gclm2lenmap([almxfl(tlm_wf, fl, self.mmax_sol, False), np.zeros_like(tlm_wf)], self.mmax_sol, 1, False)
 
 
-    def _get_irestmap(self, tdat:np.ndarray, twf:np.ndarray, q_pbgeom:utils_scarf.pbdGeometry):
+    def _get_irestmap(self, tdat:np.ndarray, twf:np.ndarray, q_pbgeom:utils_geom.pbdGeometry):
         """Builds inverse variance weighted map to feed into the QE
 
 

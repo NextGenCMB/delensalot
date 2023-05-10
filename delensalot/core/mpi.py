@@ -75,6 +75,7 @@ else:
     rank = 0
     size = 1
     barrier = lambda: -1
+    bcast = lambda _: 0
     finalize = lambda: -1
     bcast = lambda _: 0
     send = lambda _, dest: 0

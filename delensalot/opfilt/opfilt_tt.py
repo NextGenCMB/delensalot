@@ -9,13 +9,13 @@ from logdecorator import log_on_start, log_on_end
 import numpy as np
 from delensalot.utils_hp import almxfl, Alm, alm2cl
 from delensalot.utils import timer, cli, clhash, read_map
-from delensalot import  utils_scarf
+from lenspyx.remapping import utils_geom
 from delensalot.opfilt import tmodes_ninv as tni
 from scipy.interpolate import UnivariateSpline as spl
 
 
 class alm_filter_ninv(object):
-    def __init__(self, ninv_geom:utils_scarf.Geometry, ninv:list, transf:np.ndarray,
+    def __init__(self, ninv_geom:utils_geom.Geom, ninv:list, transf:np.ndarray,
                  unlalm_info:tuple, lenalm_info:tuple, sht_threads:int, tpl:tni.template_tfilt or None=None, verbose=False):
         r"""CMB inverse-variance and Wiener filtering instance, to use for cg-inversion
 
@@ -41,11 +41,11 @@ class alm_filter_ninv(object):
         self.lmax_sol = lmax_unl
         self.mmax_sol = min(lmax_unl, mmax_unl)
 
-        sc_job = utils_scarf.scarfjob()
+        sc_job = utils_geom.scarfjob()
         if not np.all(ninv_geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
             log.info('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
             nr = ninv_geom.get_nrings()
-            ninv_geom_ = utils_scarf.Geometry(nr, ninv_geom.nph.copy(), ninv_geom.ofs.copy(), 1, ninv_geom.phi0.copy(), ninv_geom.theta.copy(), np.ones(nr, dtype=float))
+            ninv_geom_ = utils_geom.Geom(nr, ninv_geom.nph.copy(), ninv_geom.ofs.copy(), 1, ninv_geom.phi0.copy(), ninv_geom.theta.copy(), np.ones(nr, dtype=float))
             # Does not seem to work without the 'copy'
         else:
             ninv_geom_ = ninv_geom
@@ -67,7 +67,7 @@ class alm_filter_ninv(object):
 
     def hashdict(self):
         return {'ninv':self._ninv_hash(), 'transf':clhash(self.b_transf),
-                'geom':utils_scarf.Geom.hashdict(self.sc_job.geom),
+                'geom':utils_geom.Geom.hashdict(self.sc_job.geom),
                 'unalm':(self.lmax_sol, self.mmax_sol),
                 'lenalm':(self.lmax_len, self.mmax_len) }
 
@@ -127,7 +127,7 @@ class alm_filter_ninv(object):
             tmap -= pmodes
 
 
-    def _get_gtmap(self, tlm_wf:np.ndarray, q_pbgeom:utils_scarf.pbdGeometry):
+    def _get_gtmap(self, tlm_wf:np.ndarray, q_pbgeom:utils_geom.pbdGeometry):
         """Wiener-filtered gradient leg to feed into the QE
 
 
@@ -140,7 +140,7 @@ class alm_filter_ninv(object):
         gclm = (almxfl(tlm_wf, fl, self.mmax_sol, False), np.zeros_like(tlm_wf))
         return q_pbgeom.geom.alm2map_spin(gclm, 1 , self.lmax_sol, self.mmax_sol, self.sc_job.nthreads, [-1., 1.])
 
-    def _get_irestmap(self, tdat:np.ndarray, twf:np.ndarray, q_pbgeom:utils_scarf.pbdGeometry):
+    def _get_irestmap(self, tdat:np.ndarray, twf:np.ndarray, q_pbgeom:utils_geom.pbdGeometry):
         """Builds inverse variance weighted map to feed into the QE
 
 
