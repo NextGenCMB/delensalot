@@ -4,6 +4,8 @@ from plancklens import utils
 from os.path import join as opj
 import numpy as np
 
+import delensalot
+
 DEFAULT_NotAValue = -123456789
 DEFAULT_NotValid = 9876543210123456789
 
@@ -52,12 +54,30 @@ DL_DEFAULT_CMBS4_FS_P = {
         'key' : 'p_p',
         'version' : 'noMF',
         'simidxs' : np.arange(0,1),
-        'TEMP_suffix' : 'mfda_wdefault',
+        'TEMP_suffix' : 'mfda',
         'Lmin' : 1, 
         'lm_max_ivf' : (4000, 4000),
-        'lmin_teb' : (2, 2, 200)
+        'lmin_teb' : (2, 2, 200),
+        'simidxs_mf' : [],
+        'zbounds' : (-1,1),
+        'zbounds_len' : (-1,1),
+        'pbounds' : (0., 2*np.pi),
+        'lm_max_len' : (4000, 4000),
+        'mask' : None,
+        'cls_unl' : opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
+        'cls_len' : opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lensedCls.dat'),
+        'cpp' : opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
+        'beam' : 1.0,
     },
     'qerec':{
+        'tasks': ['calc_phi'],
+        'qlm_type': 'sepTP',
+        'cg_tol': 1e-4,
+        'filter_directional': np.nan,
+        'ninvjob_qe_geometry': 'healpix_geometry_qe',
+        'lm_max_qlm': (10,10),
+        'cl_analysis': False,
+        'blt_pert': True,
         'chain': {
             'p0' : 0,
             'p1' : ["diag_cl"],
@@ -89,9 +109,19 @@ DL_DEFAULT_CMBS4_FS_P = {
             'p6' : 'tr_cg',
             'p7' : 'cache_mem'
         },
-    }
+        'tasks': ['calc_phi'],
+        'itmax': 1,
+        'cg_tol': 1e-5,
+        'iterator_typ': 'constmf',
+        'filter_directional': 'isotropic',
+        'lenjob_geometry': 'thin_gauss',
+        'lenjob_pbgeometry': 'pbdGeometry',
+        'lm_max_unl': (10,10),
+        'lm_max_qlm': (10,10),
+        'mfvar': '',
+        'soltn_cond': lambda it: True,
+        }
 }
-
 
 
 DL_DEFAULT = dict({
