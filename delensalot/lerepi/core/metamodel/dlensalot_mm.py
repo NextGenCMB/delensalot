@@ -167,19 +167,19 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     Attributes:
         typ:
     """
-    tasks = attr.ib(default=['calc_phi'], on_setattr=itrec.tasks)
-    itmax = attr.ib(default=1, on_setattr=itrec.itmax)
-    cg_tol = attr.ib(default=np.nan, on_setattr=itrec.cg_tol)
-    iterator_typ = attr.ib(default='constmf', on_setattr=itrec.iterator_type)
-    chain = attr.ib(default=DLENSALOT_Chaindescriptor(), on_setattr=qerec.chain)
-    filter_directional = attr.ib(default=np.nan, on_setattr=itrec.filter_directional)
-    lenjob_geometry = attr.ib(default='thin_gauss', on_setattr=itrec.lenjob_geometry)
-    lenjob_pbgeometry = attr.ib(default='pbdGeometry', on_setattr=itrec.lenjob_pbgeometry)
-    lm_max_unl = attr.ib(default=(10,10), on_setattr=itrec.lm_max_unl)
-    lm_max_qlm = attr.ib(default=(10,10), on_setattr=itrec.lm_max_qlm)
-    mfvar = attr.ib(default='', on_setattr=itrec.mfvar)
-    soltn_cond = attr.ib(default=lambda it: True, on_setattr=itrec.soltn_cond)
-    stepper = attr.ib(default=DLENSALOT_Stepper(), on_setattr=itrec.stepper)
+    tasks =                 attr.ib(default=['calc_phi'], on_setattr=itrec.tasks)
+    itmax =                 attr.ib(default=1, on_setattr=itrec.itmax)
+    cg_tol =                attr.ib(default=np.nan, on_setattr=itrec.cg_tol)
+    iterator_typ =          attr.ib(default='constmf', on_setattr=itrec.iterator_type)
+    chain =                 attr.ib(default=DLENSALOT_Chaindescriptor(), on_setattr=qerec.chain)
+    filter_directional =    attr.ib(default=np.nan, on_setattr=itrec.filter_directional)
+    lenjob_geometry =       attr.ib(default='thin_gauss', on_setattr=itrec.lenjob_geometry)
+    lenjob_pbgeometry =     attr.ib(default='pbdGeometry', on_setattr=itrec.lenjob_pbgeometry)
+    lm_max_unl =            attr.ib(default=(10,10), on_setattr=itrec.lm_max_unl)
+    lm_max_qlm =            attr.ib(default=(10,10), on_setattr=itrec.lm_max_qlm)
+    mfvar =                 attr.ib(default='', on_setattr=itrec.mfvar)
+    soltn_cond =            attr.ib(default=lambda it: True, on_setattr=itrec.soltn_cond)
+    stepper =               attr.ib(default=DLENSALOT_Stepper(), on_setattr=itrec.stepper)
     
 @attr.s
 class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
