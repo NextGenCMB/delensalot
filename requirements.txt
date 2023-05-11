@@ -5,5 +5,5 @@ psutil
 # plancklens @ git+https://github.com/carronj/plancklens
 # lenspyx @ git+https://github.com/carronj/lenspyx
 # scarf @ git+https://github.com/samuelsimko/scarf
-# attrs # pip install --upgrade attrs
+attrs # pip install --upgrade attrs
 # MSC
