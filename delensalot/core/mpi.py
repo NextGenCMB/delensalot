@@ -12,12 +12,14 @@ import multiprocessing
 
 
 def check_MPI(func):
+    global name, rank, size
     def inner_function(*args, **kwargs):
         log.info("rank: {}, size: {}, name: {}".format(rank, size, name))
         return func(*args, **kwargs)
     return inner_function
 
 def check_MPI_inline():
+    global name, rank, size
     log.info("rank: {}, size: {}, name: {}".format(rank, size, name))
 
 
@@ -32,22 +34,10 @@ def is_notebook() -> bool:
             return False  # Other type (?)
     except NameError:
         return False
-    
-def is_local() -> bool:
-    try:
-        shell = get_ipython().__class__.__name__
-        if shell == 'ZMQInteractiveShell':
-            return True   # Jupyter notebook or qtconsole
-        elif shell == 'TerminalInteractiveShell':
-            return False  # Terminal running IPython
-        else:
-            return False  # Other type (?)
-    except NameError:
-        return False
 
 
 def enable():
-    global disabled, verbose, has_key, cond4mpi4py
+    global disabled, verbose, has_key, cond4mpi4py, name
     disabled = False
     verbose = True
     has_key = lambda key : key in os.environ.keys()
@@ -85,5 +75,6 @@ def init():
     receive = MPI.COMM_WORLD.recv
     bcast = MPI.COMM_WORLD.bcast
     finalize = MPI.Finalize
-    name = "{} with {} cpus".format( platform.processor(),multiprocessing.cpu_count())
     log.info('mpi.py : setup OK, rank %s in %s' % (rank, size))
+
+enable()

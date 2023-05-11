@@ -124,6 +124,7 @@ class DLENSALOT_Data(DLENSALOT_Concept):
     nlev_p = attr.ib(default=DEFAULT_NotAValue)
     transf_dat = attr.ib(default=DEFAULT_NotAValue)
     lmax_transf = attr.ib(default=DEFAULT_NotAValue)
+    epsilon = attr.ib(default=DEFAULT_NotAValue)
 
     
 @attr.s

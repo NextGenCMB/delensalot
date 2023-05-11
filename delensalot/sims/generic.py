@@ -46,13 +46,13 @@ class sims_cmb_len(object):
             offsets_cmbunl: offset unlensed cmb (useful e.g. for MCN1), tuple with block_size and offsets
             dlmax(defaults to 1024): unlensed cmbs are produced up to lmax + dlmax, for accurate lensing at lmax
             nside_lens(defaults to 4096): healpy resolution at which the lensed maps are produced
-            epsilon(defaults to 0): sets the interpolation resolution in lenspyx
+            epsilon(defaults to 1e-5): sets the interpolation resolution in lenspyx
 
             verbose(defaults to True): lenspyx timing info printout
 
     """
     def __init__(self, lib_dir, lmax, cls_unl, lib_pha=None, offsets_plm=None, offsets_cmbunl=None,
-                 dlmax=1024, nside_lens=4096, epsilon=0, nbands=8, cache_plm=True, verbose=True):
+                 dlmax=1024, nside_lens=4096, epsilon=1e-5, nbands=8, cache_plm=True, verbose=True):
 
         fields = _get_fields(cls_unl)
 
@@ -166,13 +166,13 @@ class sims_cmb_len(object):
     def get_sim_tlm(self, idx):
         fname = os.path.join(self.lib_dir, 'sim_%04d_tlm.fits' % idx)
         if not os.path.exists(fname):
-            tlm= self.unlcmbs.get_sim_tlm(self.offset_index(idx, self.offset_cmb[0], self.offset_cmb[1]))
+            tlm = self.unlcmbs.get_sim_tlm(self.offset_index(idx, self.offset_cmb[0], self.offset_cmb[1]))
             dlm = self.get_sim_plm(idx)
             assert 'o' not in self.fields, 'not implemented'
 
             lmaxd = hp.Alm.getlmax(dlm.size)
             hp.almxfl(dlm, np.sqrt(np.arange(lmaxd + 1, dtype=float) * np.arange(1, lmaxd + 2)), inplace=True)
-            Tlen = self.lens_module.alm2lenmap(np.array(tlm), np.array([dlm, None]), epsilon=self.epsilon, verbose=self.verbose)
+            Tlen = self.lens_module.alm2lenmap(np.array(tlm), [dlm, None], epsilon=self.epsilon, verbose=self.verbose)
             hp.write_alm(fname, hp.map2alm(Tlen, lmax=self.lmax, iter=0))
         return hp.read_alm(fname)
 

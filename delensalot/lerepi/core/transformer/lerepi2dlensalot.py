@@ -27,7 +27,6 @@ from delensalot.core.mpi import check_MPI
 from delensalot.core import mpi
 from delensalot.sims import sims_ffp10
 from delensalot import utils_sims
-from delensalot.utils import cli, read_map
 from delensalot.iterators import steps
 from delensalot.utils_hp import gauss_beam
 from delensalot.utils import cli, read_map, camb_clfile
@@ -68,6 +67,7 @@ class l2base_Transformer:
         dl.sims_nlev_t = da.nlev_t
         dl.sims_nlev_p = da.nlev_p
         dl.sims_nside = da.nside
+        dl.epsilon = da.epsilon
         ## get_sim_pmap comes from plancklens.maps wrapper
 
 
@@ -341,9 +341,9 @@ class l2lensrec_Transformer(l2base_Transformer):
             if qe.ninvjob_qe_geometry == 'healpix_geometry_qe':
                 # TODO for QE, isOBD only works with zbounds=(-1,1). Perhaps missing ztrunc on qumaps
                 # Introduce new geometry for now, until either plancklens supports ztrunc, or ztrunced simlib (not sure if it already does)
-                dl.ninvjob_qe_geometry = dug.Geom.get_healpix_geometry(dl._sims.nside, zbounds=(-1,1))
+                dl.ninvjob_qe_geometry = dug.Geom.get_healpix_geometry(dl.sims_nside, zbounds=(-1,1))
             elif qe.ninvjob_qe_geometry == 'healpix_geometry':
-                dl.ninvjob_qe_geometry = dug.Geom.get_healpix_geometry(dl._sims.nside, zbounds=dl.zbounds)
+                dl.ninvjob_qe_geometry = dug.Geom.get_healpix_geometry(dl.sims_nside, zbounds=dl.zbounds)
             # cg_tol
             dl.cg_tol = qe.cg_tol
 
@@ -394,9 +394,9 @@ class l2lensrec_Transformer(l2base_Transformer):
             dl.lenjob_pbgeometry = lug.pbdGeometry(dl.lenjob_geometry, lug.pbounds(dl.pb_ctr, dl.pb_extent)) if it.lenjob_pbgeometry == 'pbdGeometry' else None
             
             if dl.version == '' or dl.version == None:
-                dl.mf_dirname = opj(dl.TEMP, l2T_Transformer.ofj('mf', [['Nmf', dl.Nmf]]))
+                dl.mf_dirname = opj(dl.TEMP, l2T_Transformer.ofj('mf', {'Nmf': dl.Nmf}))
             else:
-                dl.mf_dirname = opj(dl.TEMP, l2T_Transformer.ofj('mf', [['version', dl.version], ['Nmf', dl.Nmf]]))
+                dl.mf_dirname = opj(dl.TEMP, l2T_Transformer.ofj('mf', {'version': dl.version, 'Nmf': dl.Nmf}))
             # cg_tol
             dl.it_cg_tol = lambda itr : it.cg_tol if itr <= 10 else it.cg_tol*0.1
             # filter
@@ -452,7 +452,7 @@ class l2lensrec_Transformer(l2base_Transformer):
         if 'smoothed_phi_empiric_halofit' in cf.analysis.cpp:
             dl.cpp = np.load(cf.analysis.cpp)[:dl.qe_lm_max_qlm[0] + 1,1]
         else:
-            dl.cpp = utils.camb_clfile(cf.analysis.cpp)['pp'][:dl.qe_lm_max_qlm[0] + 1] ## TODO could be added via 'fiducial' parameter in dlensalot config for user
+            dl.cpp = camb_clfile(cf.analysis.cpp)['pp'][:dl.qe_lm_max_qlm[0] + 1] ## TODO could be added via 'fiducial' parameter in dlensalot config for user
         dl.cpp[:dl.Lmin] *= 0.
 
         if dl.it_filter_directional == 'anisotropic':

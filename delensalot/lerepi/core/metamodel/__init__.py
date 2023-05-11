@@ -83,7 +83,8 @@ DL_DEFAULT_TEMPLATE  = {
         'nside': DEFAULT_NotValid, 
         'package_': DEFAULT_NotValid, 
         'transf_dat': DEFAULT_NotValid, 
-        'transferfunction': DEFAULT_NotValid
+        'transferfunction': DEFAULT_NotValid,
+        'epsilon': DEFAULT_NotValid
     },
     'noisemodel': {
         'OBD': DEFAULT_NotValid, 
