@@ -13,6 +13,6 @@ def lm_max_unl(instance, attribute, value):
     assert type(value) in desc, ValueError('Must be in {}, but is {}'.format(desc, type(value)))
 
 
-def lm_ivf(instance, attribute, value):
+def lm_max_ivf(instance, attribute, value):
     desc = [tuple, int, list]
     assert type(value) in desc, ValueError('Must be in {}, but is {}'.format(desc, type(value)))

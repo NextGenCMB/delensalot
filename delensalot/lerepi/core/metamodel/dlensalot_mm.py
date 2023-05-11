@@ -47,14 +47,14 @@ class DLENSALOT_Chaindescriptor(DLENSALOT_Concept):
     Attributes:
         p0: 
     """
-    p0 = attr.ib(default=0, validator=chaindescriptor.p0)
-    p1 = attr.ib(default=["diag_cl"], validator=chaindescriptor.p1)
-    p2 = attr.ib(default=None, validator=chaindescriptor.p2)
-    p3 = attr.ib(default=2048, validator=chaindescriptor.p3)
-    p4 = attr.ib(default=np.inf, validator=chaindescriptor.p4)
-    p5 = attr.ib(default=None, validator=chaindescriptor.p5)
-    p6 = attr.ib(default='tr_cg', validator=chaindescriptor.p6)
-    p7 = attr.ib(default='cache_mem', validator=chaindescriptor.p7)
+    p0 = attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p0, on_setattr=chaindescriptor.p0)
+    p1 = attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p1, on_setattr=chaindescriptor.p1)
+    p2 = attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p2, on_setattr=chaindescriptor.p2)
+    p3 = attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p3, on_setattr=chaindescriptor.p3)
+    p4 = attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p4, on_setattr=chaindescriptor.p4)
+    p5 = attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p5, on_setattr=chaindescriptor.p5)
+    p6 = attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p6, on_setattr=chaindescriptor.p6)
+    p7 = attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p7, on_setattr=chaindescriptor.p7)
 
 @attr.s
 class DLENSALOT_Stepper(DLENSALOT_Concept):
@@ -96,8 +96,8 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     zbounds = attr.ib(default=(-1,1), validator=analysis.zbounds)
     zbounds_len = attr.ib(default=(-1,1), validator=analysis.zbounds_len)
     pbounds = attr.ib(default=(0., 2*np.pi), validator=analysis.pbounds)
-    lm_max_len = attr.ib(default=(10,10), validator=v_filter.lm_max_len)
-    lm_max_ivf = attr.ib(default=(10,10), validator=v_filter.lm_ivf)
+    lm_max_len = attr.ib(default=DEFAULT_NotAValue, validator=v_filter.lm_max_len)
+    lm_max_ivf = attr.ib(default=DEFAULT_NotAValue, validator=v_filter.lm_max_ivf, on_setattr=v_filter.lm_max_ivf)
     mask = attr.ib(default=None, validator=noisemodel.mask)
     lmin_teb = attr.ib(default=(10,10,10), validator=noisemodel.lmin_teb)
     cls_unl = attr.ib(default=opj(opj(os.path.dirname(delensalot.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat'))
@@ -170,7 +170,7 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     itmax = attr.ib(default=1, validator=itrec.itmax)
     cg_tol = attr.ib(default=np.nan, validator=itrec.cg_tol)
     iterator_typ = attr.ib(default='constmf', validator=itrec.iterator_type)
-    lensres = attr.ib(default=1.7, validator=itrec.lensres)
+    chain = attr.ib(default=DLENSALOT_Chaindescriptor(), validator=qerec.chain)
     filter_directional = attr.ib(default=np.nan, validator=itrec.filter_directional)
     lenjob_geometry = attr.ib(default='thin_gauss', validator=itrec.lenjob_geometry)
     lenjob_pbgeometry = attr.ib(default='pbdGeometry', validator=itrec.lenjob_pbgeometry)
@@ -266,16 +266,28 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     
 
     def __attrs_post_init__(self):
-        print("Using {}".format(DL_DEFAULT))
+        """
+        The logic is as follow:
+         * All variables default to 'DEFAULT_NotAValue' upon start - validator checks and passes due to 'DEFAULT_NotAValue' being allowed
+         * Upon loading config file:
+            * 1st init: all user-variables are set, validator checks
+            * 2nd init (this function here): remaining variables with value 'DEFAULT_NotAValue' are set to user-specified 'default_to'-dictionary
+         * 'on_setattr' takes care of validating post-init, thus all default-dict keys are validated
+
+        """
+        print("Using {}:\n\t{}".format(self.defaults_to, DL_DEFAULT[self.defaults_to]))
         for key, val in list(filter(lambda x: '__' not in x[0] and x[0] != 'defaults_to', self.__dict__.items())):
             for k, v in val.__dict__.items():
-                if v == DEFAULT_NotAValue:
-                    print('found one: {}, {}'.format(k, v))
-                    if key in DL_DEFAULT[self.defaults_to]:
-                        if k in DL_DEFAULT[self.defaults_to][key]:
-                            self.__dict__[key].__dict__.update({k: DL_DEFAULT[self.defaults_to][key][k]})
-                            print('Replacing {} {} with {}'.format(k, v, DL_DEFAULT[self.defaults_to][key][k]))
+                if type(v) == type(DEFAULT_NotAValue):
+                    if v == DEFAULT_NotAValue:
+                        print('found item which needs replacing: {} = {}'.format(k, v))
+                        if key in DL_DEFAULT[self.defaults_to]:
+                            if k in DL_DEFAULT[self.defaults_to][key]:
+                                self.__dict__[key].__dict__.update({k: DL_DEFAULT[self.defaults_to][key][k]})
+                                print('Replacing {} {} with {}'.format(k, v, DL_DEFAULT[self.defaults_to][key][k]))
+                            else:
+                                print('couldnt find matching default value for k {}'.format(key))
                         else:
-                            print('couldnt find matching default value for k {}'.format(key))
-                    else:
-                        print('couldnt find matching default value for key {}'.format(key))
+                            print('couldnt find matching default value for key {}'.format(key))
+
+        

@@ -1,3 +1,11 @@
+import os
+import plancklens
+from plancklens import utils
+from os.path import join as opj
+import numpy as np
+
+from delensalot.lerepi.core.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALOT_Model_mm, DLENSALOT_Concept, DLENSALOT_Chaindescriptor, DLENSALOT_Stepper
+
 DEFAULT_NotAValue = -123456789
 DEFAULT_NotValid = 9876543210123456789
 
@@ -28,9 +36,50 @@ DL_DEFAULT_CMBS4_FS_P = {
         'version': "0.2"
     },
     'data': {
-        'beam': 10,
-        'nlev_t': 10,
-        'nlev_p': 10,
+        'beam': 1.,
+        'nlev_t': 1.,
+        'nlev_p': 1.,
+        'epsilon': 1e-5,
+        'nside': 2048,
+        'class_parameters': {
+            'lmax': 4096,
+            'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(plancklens.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
+            'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'generic', 'nside2048', 'lmax4096', 'nlevp_sqrt(2)')
+        },
+        'lmax_transf' : 4500,
+        'transferfunction': 'gauss_no_pixwin'
+    },
+    'analysis': { 
+        'key' : 'p_p',
+        'version' : 'noMF',
+        'simidxs' : np.arange(0,1),
+        'TEMP_suffix' : 'mfda_wdefault',
+        'Lmin' : 1, 
+        'lm_max_ivf' : (4000, 4000),
+        'lmin_teb' : (2, 2, 200)
+    },
+    'qerec':{
+        'chain': DLENSALOT_Chaindescriptor(
+            p0 = 0,
+            p1 = ["diag_cl"],
+            p2 = None,
+            p3 = 2048,
+            p4 = np.inf,
+            p5 = None,
+            p6 = 'tr_cg',
+            p7 = 'cache_mem'
+        )
+    },
+    'itrec': {
+        'stepper': DLENSALOT_Stepper(
+            typ = 'harmonicbump',
+            lmax_qlm = 4000,
+            mmax_qlm = 4000,
+            a  = 0.5,
+            b  = 0.499,
+            xa = 400,
+            xb = 1500
+        )
     }
 }
 
@@ -40,7 +89,7 @@ DL_DEFAULT = dict({
     "T": DL_DEFAULT_T,
     "P": DL_DEFAULT_P,
     "default": DL_DEFAULT_P,
-    "FS_CMB-S4_Pol": DL_DEFAULT_CMBS4_FS_P,
+    "P_FS_CMBS4": DL_DEFAULT_CMBS4_FS_P,
     })
 
 
@@ -113,7 +162,6 @@ DL_DEFAULT_TEMPLATE  = {
         'itmax': DEFAULT_NotValid, 
         'lenjob_geometry': DEFAULT_NotValid, 
         'lenjob_pbgeometry': DEFAULT_NotValid, 
-        'lensres': DEFAULT_NotValid, 
         'lm_max_qlm': DEFAULT_NotValid, 
         'lm_max_unl': DEFAULT_NotValid, 
         'mfvar': DEFAULT_NotValid, 
@@ -149,3 +197,6 @@ DL_DEFAULT_TEMPLATE  = {
         'tpl': DEFAULT_NotValid
     }
 }
+
+def get_default(default_key):
+    return DL_DEFAULT[default_key]

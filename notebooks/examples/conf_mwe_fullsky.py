@@ -14,8 +14,9 @@ from os.path import join as opj
 from delensalot.lerepi.core.metamodel.dlensalot_mm import *
 
 dlensalot_model = DLENSALOT_Model(
+    defaults_to = 'P_FS_CMBS4',
     job = DLENSALOT_Job(
-        jobs = ["QE_lensrec", "MAP_lensrec"]
+        jobs = ["generate_sim", "QE_lensrec", "MAP_lensrec"]
     ),
     computing = DLENSALOT_Computing(
         OMP_NUM_THREADS = 1
@@ -23,10 +24,10 @@ dlensalot_model = DLENSALOT_Model(
     analysis = DLENSALOT_Analysis(
         key = 'p_p',
         version = 'noMF',
-        simidxs = np.arange(0,1),
-        TEMP_suffix = 'mfda',
+        simidxs = np.arange(0,2),
+        TEMP_suffix = 'mfda_wdefault',
         Lmin = 2, 
-        lm_max_ivf = (3000, 3000),
+        # lm_max_ivf = (3000, 3000),
         lmin_teb = (2, 2, 200)
     ),
     data = DLENSALOT_Data(
@@ -62,8 +63,7 @@ dlensalot_model = DLENSALOT_Model(
         tasks = ["calc_phi", "calc_blt"],
         filter_directional = 'isotropic',
         itmax = 5,
-        cg_tol = 1e-5,
-        lensres = 1.0,
+        cg_tol = 1e-6,
         iterator_typ = 'constmf',
         lm_max_unl = (3200, 3200),
         lm_max_qlm = (3000, 3000)
