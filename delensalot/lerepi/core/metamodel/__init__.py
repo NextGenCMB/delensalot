@@ -4,10 +4,9 @@ from plancklens import utils
 from os.path import join as opj
 import numpy as np
 
-from delensalot.lerepi.core.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALOT_Model_mm, DLENSALOT_Concept, DLENSALOT_Chaindescriptor, DLENSALOT_Stepper
-
 DEFAULT_NotAValue = -123456789
 DEFAULT_NotValid = 9876543210123456789
+
 
 DL_DEFAULT_T = {
     'meta': {
@@ -59,27 +58,37 @@ DL_DEFAULT_CMBS4_FS_P = {
         'lmin_teb' : (2, 2, 200)
     },
     'qerec':{
-        'chain': DLENSALOT_Chaindescriptor(
-            p0 = 0,
-            p1 = ["diag_cl"],
-            p2 = None,
-            p3 = 2048,
-            p4 = np.inf,
-            p5 = None,
-            p6 = 'tr_cg',
-            p7 = 'cache_mem'
-        )
+        'chain': {
+            'p0' : 0,
+            'p1' : ["diag_cl"],
+            'p2' : None,
+            'p3' : 2048,
+            'p4' : np.inf,
+            'p5' : None,
+            'p6' : 'tr_cg',
+            'p7' : 'cache_mem'
+        },
     },
     'itrec': {
-        'stepper': DLENSALOT_Stepper(
-            typ = 'harmonicbump',
-            lmax_qlm = 4000,
-            mmax_qlm = 4000,
-            a  = 0.5,
-            b  = 0.499,
-            xa = 400,
-            xb = 1500
-        )
+        'stepper':{
+            'typ' : 'harmonicbump',
+            'lmax_qlm' : 4000,
+            'mmax_qlm' : 4000,
+            'a'  : 0.5,
+            'b'  : 0.499,
+            'xa' : 400,
+            'xb' : 1500
+        },
+        'chain': {
+            'p0' : 0,
+            'p1' : ["diag_cl"],
+            'p2' : None,
+            'p3' : 2048,
+            'p4' : np.inf,
+            'p5' : None,
+            'p6' : 'tr_cg',
+            'p7' : 'cache_mem'
+        },
     }
 }
 

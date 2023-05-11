@@ -378,7 +378,7 @@ class l2lensrec_Transformer(l2base_Transformer):
             dl.lm_max_unl = it.lm_max_unl
             dl.it_lm_max_qlm = it.lm_max_qlm
             # chain
-            dl.it_chain_model = DLENSALOT_Chaindescriptor()
+            dl.it_chain_model = it.chain
             dl.it_chain_model.p3 = dl.sims_nside
             if dl.it_chain_model.p6 == 'tr_cg':
                 _p6 = cd_solve.tr_cg
@@ -405,8 +405,6 @@ class l2lensrec_Transformer(l2base_Transformer):
             dl.itmax = it.itmax
             # iterator_typ
             dl.iterator_typ = it.iterator_typ
-            # LENSRES
-            dl.lensres = it.lensres
 
             # mfvar
             if it.mfvar == 'same' or it.mfvar == '':

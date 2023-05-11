@@ -47,14 +47,14 @@ class DLENSALOT_Chaindescriptor(DLENSALOT_Concept):
     Attributes:
         p0: 
     """
-    p0 = attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p0, on_setattr=chaindescriptor.p0)
-    p1 = attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p1, on_setattr=chaindescriptor.p1)
-    p2 = attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p2, on_setattr=chaindescriptor.p2)
-    p3 = attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p3, on_setattr=chaindescriptor.p3)
-    p4 = attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p4, on_setattr=chaindescriptor.p4)
-    p5 = attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p5, on_setattr=chaindescriptor.p5)
-    p6 = attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p6, on_setattr=chaindescriptor.p6)
-    p7 = attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p7, on_setattr=chaindescriptor.p7)
+    p1 = attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p1)
+    p0 = attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p0)
+    p2 = attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p2)
+    p3 = attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p3)
+    p4 = attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p4)
+    p5 = attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p5)
+    p6 = attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p6)
+    p7 = attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p7)
 
 @attr.s
 class DLENSALOT_Stepper(DLENSALOT_Concept):
@@ -63,13 +63,14 @@ class DLENSALOT_Stepper(DLENSALOT_Concept):
     Attributes:
         typ:
     """
-    typ = attr.ib(default='harmonicbump', validator=stepper.typ)
-    lmax_qlm = attr.ib(default=-1, validator=stepper.lmax_qlm)
-    mmax_qlm = attr.ib(default=-1, validator=stepper.mmax_qlm)
-    a = attr.ib(default=0.5)
-    b = attr.ib(default=0.499)
-    xa = attr.ib(default=400, validator=stepper.xa)
-    xb = attr.ib(default=1500, validator=stepper.xb)
+    typ =       attr.ib(default=DEFAULT_NotAValue, validator=stepper.typ, on_setattr=stepper.typ)
+    lmax_qlm =  attr.ib(default=DEFAULT_NotAValue, validator=stepper.lmax_qlm, on_setattr=stepper.lmax_qlm)
+    mmax_qlm =  attr.ib(default=DEFAULT_NotAValue, validator=stepper.mmax_qlm, on_setattr=stepper.mmax_qlm)
+    a =         attr.ib(default=DEFAULT_NotAValue, validator=stepper.a, on_setattr=stepper.a)
+    b =         attr.ib(default=DEFAULT_NotAValue, validator=stepper.b, on_setattr=stepper.b)
+    xa =        attr.ib(default=DEFAULT_NotAValue, validator=stepper.xa, on_setattr=stepper.xa)
+    xb =        attr.ib(default=DEFAULT_NotAValue, validator=stepper.xb, on_setattr=stepper.xb)
+
 
 @attr.s
 class DLENSALOT_Job(DLENSALOT_Concept):
@@ -278,16 +279,26 @@ class DLENSALOT_Model(DLENSALOT_Concept):
         print("Using {}:\n\t{}".format(self.defaults_to, DL_DEFAULT[self.defaults_to]))
         for key, val in list(filter(lambda x: '__' not in x[0] and x[0] != 'defaults_to', self.__dict__.items())):
             for k, v in val.__dict__.items():
-                if type(v) == type(DEFAULT_NotAValue):
+                if k in ['chain', 'stepper']:
+                    for ke, va in v.__dict__.items():
+                        if type(va) == type(DEFAULT_NotAValue):
+                            if key in DL_DEFAULT[self.defaults_to]:
+                                if k in DL_DEFAULT[self.defaults_to][key]:
+                                    if ke in DL_DEFAULT[self.defaults_to][key][k]:
+                                        self.__dict__[key].__dict__[k].__dict__.update({ke: DL_DEFAULT[self.defaults_to][key][k][ke]})
+                                        print('Replacing {}={} with {}'.format(ke, va, DL_DEFAULT[self.defaults_to][key][k][ke]))
+                elif type(v) == type(DEFAULT_NotAValue):
                     if v == DEFAULT_NotAValue:
                         print('found item which needs replacing: {} = {}'.format(k, v))
                         if key in DL_DEFAULT[self.defaults_to]:
                             if k in DL_DEFAULT[self.defaults_to][key]:
                                 self.__dict__[key].__dict__.update({k: DL_DEFAULT[self.defaults_to][key][k]})
-                                print('Replacing {} {} with {}'.format(k, v, DL_DEFAULT[self.defaults_to][key][k]))
+                                print('Replacing {}={} with {}'.format(k, v, DL_DEFAULT[self.defaults_to][key][k]))
                             else:
                                 print('couldnt find matching default value for k {}'.format(key))
                         else:
                             print('couldnt find matching default value for key {}'.format(key))
+
+
 
         

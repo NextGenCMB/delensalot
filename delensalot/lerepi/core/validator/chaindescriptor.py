@@ -1,12 +1,14 @@
 import numpy as np
 
+from delensalot.lerepi.core.metamodel import DEFAULT_NotAValue
+
 def p0(instance, attribute, value):
     if type(value) != int:
         raise ValueError('Must be int')
 
 
 def p1(instance, attribute, value):
-    desc = [['diag_cl']]
+    desc = [['diag_cl'], ]
     assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
 
