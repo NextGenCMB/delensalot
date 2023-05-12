@@ -16,10 +16,7 @@ dlensalot_model = DLENSALOT_Model(
 
     job = DLENSALOT_Job(
         jobs = ["generate_sim"]
-    ),
-    computing = DLENSALOT_Computing(
-        OMP_NUM_THREADS = 1
-    ),                              
+    ),                             
     analysis = DLENSALOT_Analysis(
         key = 'p_p',
         simidxs = np.arange(0,1),
