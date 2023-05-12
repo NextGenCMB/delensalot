@@ -1,10 +1,10 @@
-.. D.lensalot documentation master file, created by
+.. delensalot documentation master file, created by
    sphinx-quickstart on Wed Jun 29 13:23:51 2022.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
 ======================
-Welcome to D.lensalot
+Welcome to delensalot
 ======================
 
 Curved-sky quadratic and iterative CMB delensing tools.
@@ -15,9 +15,9 @@ Includes quadratic estimated and iterative lensing reconstruction on map-, and s
 
 Quadratic estimated lensing reconstruction comes from the built-in interface to `Plancklens`_.
 Iterative lensing reconstruction comes from the curved sky implementation of `LensIt`_.
-D.lensalot is best used via :ref:`Configuration Files`.
+delensalot is best used via :ref:`Configuration Files`.
 
-If you are new to D.lensalot, go check out how to :ref:`get started`.
+If you are new to delensalot, go check out how to :ref:`get started`.
 
 
 .. _Plancklens: https://github.com/carronj/plancklens

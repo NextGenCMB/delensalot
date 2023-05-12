@@ -4,7 +4,7 @@
 setting up an iterator, (e.g. permf or constmf), and decide which object on iteration level will be used, (e.g. cg, bfgs, filter).
     
 """
-__author__ = "S. Belkner, J. Carron, L. Legrand"
+
 
 import os, sys
 

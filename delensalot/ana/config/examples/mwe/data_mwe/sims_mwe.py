@@ -3,7 +3,7 @@
 """sims.py: Template module for accessing data, for the user to adapt to their needs.
     
 """
-__author__ = "S. Belkner, J. Carron, L. Legrand"
+
 
 
 import os

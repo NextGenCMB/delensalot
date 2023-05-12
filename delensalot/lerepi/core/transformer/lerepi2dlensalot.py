@@ -2,7 +2,7 @@
 
 """lerepi2dlensalot.py: transformer module to build dlensalot model from configuation file
 """
-__author__ = "S. Belkner, J. Carron, L. Legrand"
+
 
 
 import os, sys
@@ -1001,7 +1001,7 @@ class l2i_Transformer:
             
 
 class l2ji_Transformer:
-    """Extracts parameters needed for the interactive D.Lensalot job
+    """Extracts parameters needed for the interactive delensalot job
     """
 
     def build(self, cf):
@@ -1016,7 +1016,7 @@ class l2ji_Transformer:
         
 
 class l2j_Transformer:
-    """Extracts parameters needed for the specific D.Lensalot jobs
+    """Extracts parameters needed for the specific delensalot jobs
     """
 
     def build(self, cf):

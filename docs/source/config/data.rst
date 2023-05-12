@@ -6,7 +6,7 @@ This section describes how to use simulation modules used for lensing reconstruc
 At the end, you will understand the structure of the data file, adapt it to your liking, and create your very own to read in your data.
 
 
-D.lensalot uses a single T,E, and B map to perform lensing reconstruction.
+delensalot uses a single T,E, and B map to perform lensing reconstruction.
 These can be simulated maps, or real data.
 They can come both, in spherical harmonics, or pixel space.
 We assume the data to be in `HealPix`_-format.
@@ -22,7 +22,7 @@ Each class must contain the following two :code:`functions` to work for lensing 
  * :code:`hashdict()`, return a dictionary describing how to identify the (intermediate) data stored on disk,
  * :code:`<get_sim_map>()`, returns the simulation map
 
-All other functions are optional; vanilla D.lensalot will not use them.
+All other functions are optional; vanilla delensalot will not use them.
 
 
 minmal working example
@@ -31,7 +31,7 @@ minmal working example
 The `minimal working example simulation module`_ generates, very naively, t,e, and b spherical harmonics from a FFP10 power spectrum, and at :code:`nside=2048` at runtime,
 and adds a Gaussian noise to it.
 
-.. _`minimal working example simulation module`: https://github.com/NextGenCMB/D.lensalot/blob/main/delensalot/delensalot/lerepi/config/examples/mwe/data_mwe/sims_mwe.py
+.. _`minimal working example simulation module`: https://github.com/NextGenCMB/delensalot/blob/main/delensalot/delensalot/lerepi/config/examples/mwe/data_mwe/sims_mwe.py
 
 The noise level can be set via the class parameter :code:`nlev`.
 
@@ -64,7 +64,7 @@ To use the minimal working example (mwe) in a configuration file, the :code:`DLE
 
 A configuration file for the minimal working example can be found `here`_.
 
-.. _`here`: https://github.com/NextGenCMB/D.lensalot/blob/main/delensalot/delensalot/lerepi/config/examples/mwe/conf_mwe.py
+.. _`here`: https://github.com/NextGenCMB/delensalot/blob/main/delensalot/delensalot/lerepi/config/examples/mwe/conf_mwe.py
 
 
 example FFP10
@@ -72,7 +72,7 @@ example FFP10
 
 The `FFP10 simulation module`_ is more sophisticated.
 
-D.lensalot comes with a `FFP10 simulation module`_, again generating simulations on the fly.
+delensalot comes with a `FFP10 simulation module`_, again generating simulations on the fly.
 They are stored in a :code:`$temp` directory after generating them.
 
 ..  literalinclude:: /_static/sims_ffp10.py
@@ -98,7 +98,7 @@ A :code:`DLENSALOT_Data`-object using this simulation module, generating 100 sim
     )
 
 
-.. _`FFP10 simulation module`: https://github.com/NextGenCMB/D.lensalot/blob/main/delensalot/sims/sims_ffp10.py
+.. _`FFP10 simulation module`: https://github.com/NextGenCMB/delensalot/blob/main/delensalot/sims/sims_ffp10.py
 
 
 

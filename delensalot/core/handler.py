@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-"""handler.py: This module receives input from lerepi, handles D.lensalot jobs and runs them.
+"""handler.py: This module receives input from lerepi, handles delensalot jobs and runs them.
     
 """
-__author__ = "S. Belkner, J. Carron, L. Legrand"
+
 
 import os, sys
 from os.path import join as opj
@@ -389,7 +389,7 @@ class OBD_builder(Basejob):
                     log.info('inverting')
                     tniti = np.linalg.inv(tnit + np.diag((1. / (self.nlev_dep / 180. / 60. * np.pi) ** 2) * np.ones(tnit.shape[0])))
                     np.save(self.libdir + '/tniti.npy', tniti)
-                    readme = '{}: tniti.npy. created from user {} using lerepi/D.lensalot with the following settings: {}'.format(getpass.getuser(), datetime.date.today(), self.__dict__)
+                    readme = '{}: tniti.npy. created from user {} using lerepi/delensalot with the following settings: {}'.format(getpass.getuser(), datetime.date.today(), self.__dict__)
                     with open(self.libdir + '/README.txt', 'w') as f:
                         f.write(readme)
                 else:

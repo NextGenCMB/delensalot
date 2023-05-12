@@ -2,7 +2,7 @@
 
 """parser.py: Read and validate terminal user input and store param file to TEMP directory
 """
-__author__ = "S. Belkner, J. Carron, L. Legrand"
+
 
 
 import logging
@@ -22,7 +22,7 @@ class lerepi_parser():
         def hide_args(arglist):
             for action in arglist:
                 action.help=argparse.SUPPRESS
-        __argparser = argparse.ArgumentParser(description='D.lensalot entry point.')
+        __argparser = argparse.ArgumentParser(description='delensalot entry point.')
         __argparser.add_argument('-p', dest='new', type=str, default='', help='Relative path to config file to run analysis.')
         __argparser.add_argument('-r', dest='resume', type=str, default='', help='Absolute path to config file to resume.')
         __argparser.add_argument('-s', dest='status', type=str, default='', help='Absolute path for the analysis to write a report.')

@@ -1,4 +1,4 @@
 dev
 =====
 
-Files related to direct dev of D.lensalot
+Files related to direct dev of delensalot

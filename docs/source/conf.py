@@ -23,7 +23,7 @@ sys.path.insert(0, "./../")
 
 # -- Project information -----------------------------------------------------
 
-project = 'D.lensalot'
+project = 'delensalot'
 copyright = '2022, S. Belkner, J. Carron, L. Legrand'
 author = 'S. Belkner, J. Carron, L. Legrand'
 

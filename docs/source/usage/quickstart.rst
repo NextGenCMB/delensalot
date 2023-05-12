@@ -13,7 +13,7 @@ Type :code:`python3 dlensalot/run.py [-h]` for help,
     
     usage: run.py [-h] [-p NEW] [-r RESUME] [-s STATUS] [-purgehashs PURGEHASHS]
 
-    D.lensalot entry point.
+    delensalot entry point.
 
     optional arguments:
     -h, --help            show this help message and exit
@@ -22,10 +22,10 @@ Type :code:`python3 dlensalot/run.py [-h]` for help,
     -s STATUS             Absolute path for the analysis to write a report.
 
 
-Run D.lensalot
+Run delensalot
 --------------------
 
-You can run :code:`D.lensalot` in two different ways, via a terminal (e.g. to run an analysis), or 'interactively', e.g. in a notebook (to view results or the analysis parameters).
+You can run :code:`delensalot` in two different ways, via a terminal (e.g. to run an analysis), or 'interactively', e.g. in a notebook (to view results or the analysis parameters).
 
 
 Terminal Mode
@@ -40,14 +40,14 @@ To run a configutation file `<path/to/config.py>`, type in your favourite :code:
 
 :code:`<path/to/config.py>` is a relative path, pointing to a config file in :code:`dlensalot/lerepi/config/`.
 
-For example, when inside :code:`D.lensalot`'s root folder, 
+For example, when inside :code:`delensalot`'s root folder, 
 
 .. code-block:: bash
 
     python3 run.py -p examples/cmbs4_fullsky.py
 
 runs the example configuration file :code:`cmbs4_fullsky.py`.
-You may want to open the configuration file to look at its settings, as these are the ones you want to make yourself comfortable with if running :code:`D.lensalot`.
+You may want to open the configuration file to look at its settings, as these are the ones you want to make yourself comfortable with if running :code:`delensalot`.
 
 Executing above command copies the configuration file into the :code:`$temp` folder.
 In case the analysis has stopped and you'd like to resume where you left off, simply run your analysis from inside the :code:`$temp` folder with the resume (:code:`-r`) parameter,
@@ -78,10 +78,10 @@ and we recommend using the 'interactive mode' for accessing them.
 Interactive Mode
 ++++++++++++++++++++
 
-:code:`D.lensalot` supports interactive mode, providing direct access to all objects and parameters and step by step execution.
+:code:`delensalot` supports interactive mode, providing direct access to all objects and parameters and step by step execution.
 Check out this `interactive`_ notebook for guidance.
 
-.. _interactive: https://github.com/NextGenCMB/D.lensalot/blob/main/notebooks/interactive.ipynb
+.. _interactive: https://github.com/NextGenCMB/delensalot/blob/main/notebooks/interactive.ipynb
 
 As a minimal working example, start a new analysis for :code:`examples/cmbs4_fullsky.py` with the parameter :code:`job_id=map_delensing`,
 
@@ -92,14 +92,14 @@ As a minimal working example, start a new analysis for :code:`examples/cmbs4_ful
     my_mapdelensing_job = run(config='examples/cmbs4_fullsky.py', job_id='map_delensing').job
 
 
-:code:`my_mapdelensing_job` contains the D.lensalot model, and all functionalities of the :code:`map_delensing` Job,
+:code:`my_mapdelensing_job` contains the delensalot model, and all functionalities of the :code:`map_delensing` Job,
 
 .. code-block:: python
 
     my_mapdelensing_job.__dict__.keys()
     >> dict_keys(['data_from_CFS', 'k', 'version', 'imin', 'imax', 'simidxs', 'its', 'Nmf', 'fg', '_package', '_module', '_class', 'class_parameters', 'sims', 'ec', 'nside', 'data_type', 'data_field', 'TEMP', 'libdir_iterators', 'analysis_path', 'base_mask', 'masks', 'binmasks', 'mask_ids', 'beam', 'lmax_transf', 'transf', 'cls_path', 'cls_len', 'clg_templ', 'clc_templ', 'binning', 'lmax', 'lmax_mask', 'edges', 'edges_id', 'sha_edges', 'dirid', 'edges_center', 'ct', 'vers_str', 'TEMP_DELENSED_SPECTRUM', 'dlm_mod_bool', 'file_op', 'cl_calc', 'outdir_plot_rel', 'outdir_plot_root', 'outdir_plot_abs', 'lib', 'jobs'])
 
-We provide an exhaustive list of available jobs and the structure of the D.lensalot model in the :ref:`Configuration Files` section.
+We provide an exhaustive list of available jobs and the structure of the delensalot model in the :ref:`Configuration Files` section.
 
 To run the analysis, simply execute,
 
@@ -112,7 +112,7 @@ This may take a while.
 Good time to grab a coffee, tea, or drink.
 
 
-View D.lensalot results
+View delensalot results
 ------------------------
 
 
@@ -124,7 +124,7 @@ Depending on your job, you may be interested in the
  * inverse variance, or QE or MAP Wiener-filtered maps,
  * QE or MAP delensed power spectrum.
 
-Which D.lensalot has stored for you at :code:`$temp`.
+Which delensalot has stored for you at :code:`$temp`.
 We recommend using a dedicated interactive job for this, and we built a conventient interface to the frequently used outputs.
 If you followed previous section, simply remove the :code:`job_id` parameter,
 
@@ -199,7 +199,7 @@ To calculate delensed maps, simply subtract one from the other.
     MAP_delensed_map = fiducial_map - MAP_Blensing_template
 
 
-If you are working on a masked sky, calculating the power spectrum of this would involve using algoirhtms which handle the mode-coupling. D.lensalot comes with its own implementation for it.
+If you are working on a masked sky, calculating the power spectrum of this would involve using algoirhtms which handle the mode-coupling. delensalot comes with its own implementation for it.
 Simply run the :code:`map_delensing`-job. Then the delensed power spectra with the mask and binning defined inside the configuration file are available via,
 
 .. code-block:: python
@@ -210,10 +210,10 @@ Simply run the :code:`map_delensing`-job. Then the delensed power spectra with t
 :code:`bcl` has shape :code:`[nit,nmasks,nbins,nsims]`.
 
 
-Assess D.lensalot analysis
+Assess delensalot analysis
 ---------------------------
 
-To access all variables and functions of a D.lensalot job, simply start an Interactive Mode with the :code:`<job-of-my-interest>`.
+To access all variables and functions of a delensalot job, simply start an Interactive Mode with the :code:`<job-of-my-interest>`.
 
 
 .. code-block:: python

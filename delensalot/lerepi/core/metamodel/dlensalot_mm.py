@@ -2,17 +2,13 @@
 
 """dlensalot_mm.py: Contains the metamodel of the Dlensalot formalism.
 """
-__author__ = "S. Belkner, J. Carron, L. Legrand"
 
 import abc, attr, psutil, os
+from os.path import join as opj
+from attrs import validators
+import numpy as np
 if "SCRATCH" not in os.environ:
     os.environ["SCRATCH"] = os.path.expanduser("~")+'/SCRATCH/'
-    
-from attrs import validators
-
-
-from os.path import join as opj
-import numpy as np
 
 from plancklens import utils
 
@@ -294,9 +290,9 @@ class DLENSALOT_Model(DLENSALOT_Concept):
                                 self.__dict__[key].__dict__.update({k: DL_DEFAULT[self.defaults_to][key][k]})
                                 # print('\t{}={}'.format(k, DL_DEFAULT[self.defaults_to][key][k]))
                             else:
-                                print('couldnt find matching default value for k {}'.format(key))
+                                log.info('couldnt find matching default value for k {}'.format(key))
                         else:
-                            print('couldnt find matching default value for key {}'.format(key))
+                            log.info('couldnt find matching default value for key {}'.format(key))
 
 
 

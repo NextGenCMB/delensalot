@@ -4,8 +4,8 @@
 configuration files
 ====================
 
-D.lensalot is best used via configuration files, defining all analysis details in a structured, human-readable metamodel.
-This section describes the structure of configuration files, used for running D.lensalot jobs.
+delensalot is best used via configuration files, defining all analysis details in a structured, human-readable metamodel.
+This section describes the structure of configuration files, used for running delensalot jobs.
 
 At the end of this section, you will understand `example`_ configuration files, and know how to modify parameters,
 and to write a configuration file to perfrom lensing reconstruction on your very own data.
@@ -14,7 +14,7 @@ and to write a configuration file to perfrom lensing reconstruction on your very
 Structure:
 -------------
 
-A complete D.lensalot model includes the following objects,
+A complete delensalot model includes the following objects,
 
 ==================== ===========
         Type         Description
@@ -72,7 +72,7 @@ Default and valid values for each are defined via validators and may be found in
 ----------------------------------------------- -----------------------------------------------------------------------------
     IMIN (int)                                  minimum simulation index
     IMAX (int)                                  maximum simulation index, will autogenerate simindices between IMAX and IMIN if both set
-    simidxs (array-like int)                    similar to above. Simulation indices to run D.lensalot jobs on
+    simidxs (array-like int)                    similar to above. Simulation indices to run delensalot jobs on
     package\_ (str)                             package name of the data (can be, e.g. 'dlensalot')
     module\_ (str)                              module name of the data (can be, e.g. dlensalot.config.example.data.ffp10) (?)
     class\_ (str)                               class name of the data (can be, e.g. cmbs4_no_foreground) 
@@ -169,4 +169,4 @@ More `example`_ models are provided for different use cases, among them,
 
 
 
-.. _example: https://github.com/NextGenCMB/D.lensalot/tree/main/delensalot/lerepi/config
+.. _example: https://github.com/NextGenCMB/delensalot/tree/main/delensalot/lerepi/config

@@ -2,7 +2,7 @@
 
 """lerepi2status.py: transformer module to build status report model from lerepi configuration file
 """
-__author__ = "S. Belkner, J. Carron, L. Legrand"
+
 
 import os, sys
 from os.path import join as opj
@@ -38,7 +38,7 @@ class l2s_Transformer:
 
 
 class l2j_Transformer:
-    """Extracts parameters needed for the specific D.Lensalot jobs
+    """Extracts parameters needed for the specific delensalot jobs
     """
     def build_v2(self, cf):
         def _process_Jobs(jobs):

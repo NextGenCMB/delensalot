@@ -2,7 +2,7 @@ lerepi
 ===========
 
 CMB lensing reconstruction pipelines for various experiments (CMB-S4, PICO)
-Introduces config files for user-friendliy D.lensalot handling
+Introduces config files for user-friendliy delensalot handling
 
 
 dlensalot model v2:

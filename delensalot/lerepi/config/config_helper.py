@@ -2,7 +2,7 @@
 
 """config_helper.py: functions for defining config parameter input variables.
 """
-__author__ = "S. Belkner, J. Carron, L. Legrand"
+
 
 
 import numpy as np

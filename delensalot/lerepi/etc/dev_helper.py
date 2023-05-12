@@ -4,7 +4,7 @@
     Reasong you'd like to use this is, for example if you change the dirstructure of an existing analysis and don't want to rerun it,
     or you feed in the same noisemodel but from a different directory, to an existing analysis..
 """
-__author__ = "S. Belkner, J. Carron, L. Legrand"
+
 
 import os, sys
 from os.path import join as opj

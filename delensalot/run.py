@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-"""run.py: Entry point for running D.lensalot
+"""run.py: Entry point for running delensalot
 """
-__author__ = "S. Belkner, J. Carron, L. Legrand"
+
 
 
 import os, sys

@@ -4,12 +4,12 @@
 Analysis results
 ===================
 
-:code:`D.lensalot` uses an analysis result directory :code:`TEMP` to store the analysis setting, intermediate and final results.
+:code:`delensalot` uses an analysis result directory :code:`TEMP` to store the analysis setting, intermediate and final results.
 Among those are files related to the noise model, QE and MAP filtering, QE and MAP lensing potentials, and mean-fields.
 
 At the root of :code:`TEMP` is the the configuration file used in this analysis.
 
-For the noise model :code:`D.lensalot` stores, 
+For the noise model :code:`delensalot` stores, 
 
  * Noise inverted power spectra for both T and P in :code:`cinv_t` and :code:`cinv_p` 
 

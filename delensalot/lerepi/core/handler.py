@@ -5,7 +5,7 @@
     Extracts models needed for each job via x2y_Transformer
     runs all jobs
 """
-__author__ = "S. Belkner, J. Carron, L. Legrand"
+
 
 import os
 from os.path import join as opj

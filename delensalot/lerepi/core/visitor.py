@@ -6,7 +6,7 @@ mimic some kind of visitor pattern.
 Based on:
 https://stackoverflow.com/a/56098472
 """
-__author__ = "S. Belkner, J. Carron, L. Legrand"
+
 
 
 class _Visitor:
