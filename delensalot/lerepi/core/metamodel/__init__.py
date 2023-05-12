@@ -3,8 +3,7 @@ from os.path import join as opj
 import numpy as np
 import psutil
 
-import plancklens
-from plancklens import utils
+from delensalot import utils
 
 import delensalot
 
@@ -26,7 +25,7 @@ DL_DEFAULT_CMBS4_FS_T = {
         'nside': 2048,
         'class_parameters': {
             'lmax': 4096,
-            'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(plancklens.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
+            'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(delensalot.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
             'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'generic', 'nside2048', 'lmax4096', 'nlevp_sqrt(2)')
         },
         'lmax_transf': 4500,
@@ -39,7 +38,7 @@ DL_DEFAULT_CMBS4_FS_T = {
         'key': 'ptt',
         'version': 'noMF',
         'simidxs': np.arange(0,1),
-        'TEMP_suffix': 'mfda',
+        'TEMP_suffix': 'T_FS_CMBS4',
         'Lmin': 1, 
         'lm_max_ivf': (4000, 4000),
         'lmin_teb': (2, 2, 200),
@@ -159,7 +158,7 @@ DL_DEFAULT_CMBS4_FS_P = {
         'nside': 2048,
         'class_parameters': {
             'lmax': 4096,
-            'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(plancklens.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
+            'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(delensalot.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
             'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'generic', 'nside2048', 'lmax4096', 'nlevp_sqrt(2)')
         },
         'lmax_transf': 4500,
@@ -172,7 +171,7 @@ DL_DEFAULT_CMBS4_FS_P = {
         'key': 'p_p',
         'version': 'noMF',
         'simidxs': np.arange(0,1),
-        'TEMP_suffix': 'mfda',
+        'TEMP_suffix': 'P_FS_CMBS4',
         'Lmin': 1, 
         'lm_max_ivf': (4000, 4000),
         'lmin_teb': (2, 2, 200),
@@ -292,7 +291,7 @@ DL_DEFAULT_CMBS4_MS_P = {
         'nside': 2048,
         'class_parameters': {
             'lmax': 4096,
-            'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(plancklens.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
+            'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(delensalot.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
             'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'generic', 'nside2048', 'lmax4096', 'nlevp_sqrt(2)')
         },
         'lmax_transf': 4500,
@@ -305,7 +304,7 @@ DL_DEFAULT_CMBS4_MS_P = {
         'key': 'p_p',
         'version': 'noMF',
         'simidxs': np.arange(0,1),
-        'TEMP_suffix': 'mfda',
+        'TEMP_suffix': 'P_MS_CMBS4',
         'Lmin': 1, 
         'lm_max_ivf': (4000, 4000),
         'lmin_teb': (2, 2, 200),

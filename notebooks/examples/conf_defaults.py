@@ -1,9 +1,10 @@
 """
-Our shortest Config yet, CMB-S4 polarization on full sky
+Simulates CMB polarization maps generated on the fly, inclusive of isotropic white noise.
 """
 
-from delensalot.lerepi.core.metamodel.dlensalot_mm import DLENSALOT_Model, DLENSALOT_Job
+from delensalot.lerepi.core.metamodel.dlensalot_mm import DLENSALOT_Model
+
 
 dlensalot_model = DLENSALOT_Model(
-        defaults_to = 'P_FS_CMBS4'
-    )
+    defaults_to = 'P_FS_CMBS4'
+)
