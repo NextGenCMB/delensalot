@@ -12,6 +12,10 @@ if "SCRATCH" not in os.environ:
 
 from plancklens import utils
 
+import logging
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
+
 import delensalot
 from delensalot.lerepi.core.metamodel import DEFAULT_NotAValue, DL_DEFAULT
 from delensalot.lerepi.core.validator import analysis, chaindescriptor, computing, data, filter as v_filter, itrec, job, mapdelensing, meta, model, noisemodel, obd, qerec, stepper
@@ -43,14 +47,14 @@ class DLENSALOT_Chaindescriptor(DLENSALOT_Concept):
     Attributes:
         p0: 
     """
-    p1 =                    attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p1)
-    p0 =                    attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p0)
-    p2 =                    attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p2)
-    p3 =                    attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p3)
-    p4 =                    attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p4)
-    p5 =                    attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p5)
-    p6 =                    attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p6)
-    p7 =                    attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p7)
+    p1 =                    attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p1)
+    p0 =                    attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p0)
+    p2 =                    attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p2)
+    p3 =                    attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p3)
+    p4 =                    attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p4)
+    p5 =                    attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p5)
+    p6 =                    attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p6)
+    p7 =                    attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p7)
 
 @attr.s
 class DLENSALOT_Stepper(DLENSALOT_Concept):
@@ -247,7 +251,7 @@ class DLENSALOT_Model(DLENSALOT_Concept):
         data: 
     """
     
-    defaults_to =           attr.ib(default='default')
+    defaults_to =           attr.ib(default='P_FS_CMBS4')
     meta =                  attr.ib(default=DLENSALOT_Meta(), on_setattr=model.meta)
     job =                   attr.ib(default=DLENSALOT_Job(), on_setattr=model.job)
     analysis =              attr.ib(default=DLENSALOT_Analysis(), on_setattr=model.analysis)
@@ -269,9 +273,10 @@ class DLENSALOT_Model(DLENSALOT_Concept):
             * 1st init: all user-variables are set, validator checks
             * 2nd init (this function here): remaining variables with value 'DEFAULT_NotAValue' are set to user-specified 'default_to'-dictionary
          * 'on_setattr' takes care of validating post-init, thus all default-dict keys are validated
+         comment: __attrs_post_init must be in DLENSALOT_Model, as this is the only one who knows of the default dictionary (defaults_to), and cannot simply be passed along to sub-classes.
 
         """
-        print("Setting default, using {}:\n\t{}".format(self.defaults_to, DL_DEFAULT[self.defaults_to]))
+        log.info("Setting default, using {}:\n\t{}".format(self.defaults_to, DL_DEFAULT[self.defaults_to]))
         for key, val in list(filter(lambda x: '__' not in x[0] and x[0] != 'defaults_to', self.__dict__.items())):
             for k, v in val.__dict__.items():
                 if k in ['chain', 'stepper']:

@@ -15,7 +15,7 @@ dlensalot_model = DLENSALOT_Model(
     defaults_to = 'T',
 
     job = DLENSALOT_Job(
-        jobs = ["QE_lensrec", "MAP_lensrec"]
+        jobs = ["generate_sim"]
     ),
     computing = DLENSALOT_Computing(
         OMP_NUM_THREADS = 1

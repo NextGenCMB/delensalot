@@ -443,18 +443,18 @@ class Sim_generator(Basejob):
     @log_on_start(logging.INFO, "generate_sim(simidx={simidx}) started")
     @log_on_end(logging.INFO, "generate_sim(simidx={simidx}) finished")
     def generate_sim(self, simidx):
-        self._sims.get_sim_alm(simidx, 't')
-        self._sims.get_sim_alm(simidx, 'e')
-        self._sims.get_sim_alm(simidx, 'b')
-        self._sims.get_sim_plm(simidx)
+        if self.k in ['ptt', 'mv']:
+            self._sims.get_sim_alm(simidx, 't', ret=False)
+        if self.k in ['p_p', 'mv', 'p_eb', 'pbe', 'pee', 'pbb', 'peb']:
+            self._sims.get_sim_alm(simidx, 'e', ret=False)
+            self._sims.get_sim_alm(simidx, 'b', ret=False)
+        self._sims.get_sim_plm(simidx, ret=False)
 
 
 class QE_lr(Basejob):
 
     @check_MPI
     def __init__(self, dlensalot_model):
-        ## TODO QE_lr and MAP_lr depends on simulations. They create it themselves automatically, but mpi can cause troubles.
-        ## TODO suggest to have explicit simgen dependence
         super().__init__(dlensalot_model)
         self.dlensalot_model = dlensalot_model
 
@@ -491,7 +491,6 @@ class QE_lr(Basejob):
             self.ivfs = filt_simple.library_fullsky_sepTP(opj(self.TEMP, 'ivfs'), self.sims, self.sims_nside, self.ttebl, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
             # elif self.sims_data_type == 'alm':
                 # self.ivfs = filt_simple.library_fullsky_alms_sepTP(opj(self.TEMP, 'ivfs'), self.sims, self.ttebl, self.cls_len, self.ftl, self.fel, self.fbl, cache=True)
-
         # qlms
         if self.qlm_type == 'sepTP':
             self.qlms_dd = qest.library_sepTP(opj(self.TEMP, 'qlms_dd'), self.ivfs, self.ivfs, self.cls_len['te'], self.sims_nside, lmax_qlm=self.qe_lm_max_qlm[0])

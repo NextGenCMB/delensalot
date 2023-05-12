@@ -385,6 +385,7 @@ class l2lensrec_Transformer(l2base_Transformer):
                 _p7 = cd_solve.cache_mem()
             dl.it_chain_descr = lambda p2, p5 : [
                 [dl.it_chain_model.p0, dl.it_chain_model.p1, p2, dl.it_chain_model.p3, dl.it_chain_model.p4, p5, _p6, _p7]]
+            
             # lenjob_geometry
             # TODO lm_max_unl should be a bit larger here for geometry, perhaps add + X (~500)
             # dl.lenjob_geometry = lug.Geom.get_thingauss_geometry(dl.lm_max_unl[0], 2, zbounds=dl.zbounds_len) if it.lenjob_geometry == 'thin_gauss' else None

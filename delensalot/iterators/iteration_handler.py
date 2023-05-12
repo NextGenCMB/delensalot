@@ -161,7 +161,7 @@ class scarf_iterator_constmf(scarf_iterator):
 
 
 class scarf_iterator_fastWF(scarf_iterator):
-    def __init__(self, qe, k:str, simidx:int, version:str, libdir_iterators, lensing_config):
+    def __init__(self, qe, k:str, simidx:int, version:str, sims_MAP, libdir_iterators, lensing_config):
         """Return constmf iterator instance for simulation idx and qe_key type k, fast WF for idealized fullsky case.
 
             Args:
@@ -170,7 +170,7 @@ class scarf_iterator_fastWF(scarf_iterator):
                 cg_tol: tolerance of conjugate-gradient filter
 
         """
-        super(scarf_iterator_fastWF, self).__init__(qe, k, simidx, version, libdir_iterators, lensing_config)
+        super(scarf_iterator_fastWF, self).__init__(qe, k, simidx, version, sims_MAP, libdir_iterators, lensing_config)
 
 
     @log_on_start(logging.INFO, "get_datmaps() started")
@@ -181,7 +181,6 @@ class scarf_iterator_fastWF(scarf_iterator):
         # self.sims_MAP = self._sims
 
         # dat maps must now be given in harmonic space in this idealized configuration
-        self.sims_MAP = self.sims
         sht_job = utils_scarf.scarfjob()
         ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(self.sims_nside, zbounds=self.zbounds)
         sht_job.set_geometry(ninvjob_geometry)
