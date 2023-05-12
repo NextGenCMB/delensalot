@@ -19,7 +19,7 @@ dlensalot_model = DLENSALOT_Model(
     ),                          
     analysis = DLENSALOT_Analysis(
         key = 'p_p',
-        simidxs = np.arange(0,2),
+        simidxs = np.arange(0,1),
         TEMP_suffix = 'mfda',
     ),
     data = DLENSALOT_Data(
