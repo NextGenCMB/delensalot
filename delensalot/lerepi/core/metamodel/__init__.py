@@ -3,6 +3,7 @@ import plancklens
 from plancklens import utils
 from os.path import join as opj
 import numpy as np
+import psutil
 
 import delensalot
 
@@ -48,7 +49,10 @@ DL_DEFAULT_CMBS4_FS_P = {
             'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'generic', 'nside2048', 'lmax4096', 'nlevp_sqrt(2)')
         },
         'lmax_transf' : 4500,
-        'transferfunction': 'gauss_no_pixwin'
+        'transferfunction': 'gauss_no_pixwin',
+        'package_': 'delensalot', 
+        'module_': 'sims.generic', 
+        'class_': 'sims_cmb_len', 
     },
     'analysis': { 
         'key' : 'p_p',
@@ -75,7 +79,7 @@ DL_DEFAULT_CMBS4_FS_P = {
         'cg_tol': 1e-4,
         'filter_directional': np.nan,
         'ninvjob_qe_geometry': 'healpix_geometry_qe',
-        'lm_max_qlm': (10,10),
+        'lm_max_qlm': (4000,4000),
         'cl_analysis': False,
         'blt_pert': True,
         'chain': {
@@ -116,10 +120,49 @@ DL_DEFAULT_CMBS4_FS_P = {
         'filter_directional': 'isotropic',
         'lenjob_geometry': 'thin_gauss',
         'lenjob_pbgeometry': 'pbdGeometry',
-        'lm_max_unl': (10,10),
-        'lm_max_qlm': (10,10),
+        'lm_max_unl': (4500,4500),
+        'lm_max_qlm': (4000,4000),
         'mfvar': '',
         'soltn_cond': lambda it: True,
+        },
+        'noisemodel': {
+            'sky_coverage': 'isotropic',
+            'spectrum_type': 'white',
+            'OBD': False,
+            'nlev_t': 1.0,
+            'nlev_p': 1.0,
+            'rhits_normalised': None,
+            'ninvjob_geometry': 'healpix_geometry',
+        },
+        'mapdelensing': {
+            'edges': -1,
+            'dlm_mod': False,
+            'iterations': -1,
+            'masks': None,
+            'lmax': -1,
+            'Cl_fid': -1,
+            'libdir_it': None,
+            'binning': -1,
+            'spectrum_calculator': None,
+        },
+        'computing': {
+            'OMP_NUM_THREADS' : int(psutil.cpu_count()/psutil.cpu_count(logical=False))
+        },
+        'meta': {
+            'version': 1.0.0
+        },
+        'obd': {
+            'libdir': DEFAULT_NotAValue,
+            'rescale': 1,
+            'tpl': 'template_dense'
+            'nlev_dep': 1e4,
+            'nside': 2048,
+            'lmax': 200,
+            'beam': 1.0,
+        },
+        'config': {
+            'outdir_plot_root': opj(os.environ['HOME'], 'plots'),
+            'outdir_plot_rel': ''
         }
 }
 

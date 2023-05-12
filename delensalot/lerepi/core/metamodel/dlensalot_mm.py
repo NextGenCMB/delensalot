@@ -47,14 +47,14 @@ class DLENSALOT_Chaindescriptor(DLENSALOT_Concept):
     Attributes:
         p0: 
     """
-    p1 = attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p1)
-    p0 = attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p0)
-    p2 = attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p2)
-    p3 = attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p3)
-    p4 = attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p4)
-    p5 = attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p5)
-    p6 = attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p6)
-    p7 = attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p7)
+    p1 =                    attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p1)
+    p0 =                    attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p0)
+    p2 =                    attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p2)
+    p3 =                    attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p3)
+    p4 =                    attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p4)
+    p5 =                    attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p5)
+    p6 =                    attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p6)
+    p7 =                    attr.ib(default=DEFAULT_NotAValue, on_setattr=chaindescriptor.p7)
 
 @attr.s
 class DLENSALOT_Stepper(DLENSALOT_Concept):
@@ -63,13 +63,13 @@ class DLENSALOT_Stepper(DLENSALOT_Concept):
     Attributes:
         typ:
     """
-    typ =       attr.ib(default=DEFAULT_NotAValue, on_setattr=stepper.typ)
-    lmax_qlm =  attr.ib(default=DEFAULT_NotAValue, on_setattr=stepper.lmax_qlm)
-    mmax_qlm =  attr.ib(default=DEFAULT_NotAValue, on_setattr=stepper.mmax_qlm)
-    a =         attr.ib(default=DEFAULT_NotAValue, on_setattr=stepper.a)
-    b =         attr.ib(default=DEFAULT_NotAValue, on_setattr=stepper.b)
-    xa =        attr.ib(default=DEFAULT_NotAValue, on_setattr=stepper.xa)
-    xb =        attr.ib(default=DEFAULT_NotAValue, on_setattr=stepper.xb)
+    typ =                   attr.ib(default=DEFAULT_NotAValue, on_setattr=stepper.typ)
+    lmax_qlm =              attr.ib(default=DEFAULT_NotAValue, on_setattr=stepper.lmax_qlm)
+    mmax_qlm =              attr.ib(default=DEFAULT_NotAValue, on_setattr=stepper.mmax_qlm)
+    a =                     attr.ib(default=DEFAULT_NotAValue, on_setattr=stepper.a)
+    b =                     attr.ib(default=DEFAULT_NotAValue, on_setattr=stepper.b)
+    xa =                    attr.ib(default=DEFAULT_NotAValue, on_setattr=stepper.xa)
+    xb =                    attr.ib(default=DEFAULT_NotAValue, on_setattr=stepper.xb)
 
 
 @attr.s
@@ -79,7 +79,7 @@ class DLENSALOT_Job(DLENSALOT_Concept):
     Attributes:
         QE_delensing:
     """
-    jobs = attr.ib(default=['inspect_result'], on_setattr=job.jobs)
+    jobs =                  attr.ib(default=['inspect_result'], on_setattr=job.jobs)
 
 @attr.s
 class DLENSALOT_Analysis(DLENSALOT_Concept):
@@ -88,23 +88,23 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     Attributes:
         DATA_LIBDIR: path to the data
     """
-    key =           attr.ib(default=DEFAULT_NotAValue, on_setattr=[validators.instance_of(str), analysis.key], type=str)
-    version =       attr.ib(default=DEFAULT_NotAValue, on_setattr=[validators.instance_of(str), analysis.version], type=str)
-    simidxs =       attr.ib(default=DEFAULT_NotAValue, on_setattr=data.simidxs)
-    simidxs_mf =    attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.simidxs_mf)
-    TEMP_suffix =   attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.TEMP_suffix)
-    Lmin =          attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.Lmin)
-    zbounds =       attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.zbounds)
-    zbounds_len =   attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.zbounds_len)
-    pbounds =       attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.pbounds)
-    lm_max_len =    attr.ib(default=DEFAULT_NotAValue, on_setattr=v_filter.lm_max_len)
-    lm_max_ivf =    attr.ib(default=DEFAULT_NotAValue, on_setattr=v_filter.lm_max_ivf)
-    mask =          attr.ib(default=DEFAULT_NotAValue, on_setattr=noisemodel.mask)
-    lmin_teb =      attr.ib(default=DEFAULT_NotAValue, on_setattr=noisemodel.lmin_teb)
-    cls_unl =       attr.ib(default=DEFAULT_NotAValue)
-    cls_len =       attr.ib(default=DEFAULT_NotAValue)
-    cpp =           attr.ib(default=DEFAULT_NotAValue)
-    beam =          attr.ib(default=DEFAULT_NotAValue)
+    key =                   attr.ib(default=DEFAULT_NotAValue, on_setattr=[validators.instance_of(str), analysis.key], type=str)
+    version =               attr.ib(default=DEFAULT_NotAValue, on_setattr=[validators.instance_of(str), analysis.version], type=str)
+    simidxs =               attr.ib(default=DEFAULT_NotAValue, on_setattr=data.simidxs)
+    simidxs_mf =            attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.simidxs_mf)
+    TEMP_suffix =           attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.TEMP_suffix)
+    Lmin =                  attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.Lmin)
+    zbounds =               attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.zbounds)
+    zbounds_len =           attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.zbounds_len)
+    pbounds =               attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.pbounds)
+    lm_max_len =            attr.ib(default=DEFAULT_NotAValue, on_setattr=v_filter.lm_max_len)
+    lm_max_ivf =            attr.ib(default=DEFAULT_NotAValue, on_setattr=v_filter.lm_max_ivf)
+    mask =                  attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.mask)
+    lmin_teb =              attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.lmin_teb)
+    cls_unl =               attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.cls_unl)
+    cls_len =               attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.cls_len)
+    cpp =                   attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.cpp)
+    beam =                  attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.beam)
 
 @attr.s
 class DLENSALOT_Data(DLENSALOT_Concept):
@@ -114,18 +114,17 @@ class DLENSALOT_Data(DLENSALOT_Concept):
         DATA_LIBDIR: path to the data
     """
 
-    class_parameters = attr.ib(default={'lmax': 1024, 'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(delensalot.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')), 'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'default')}, on_setattr=data.class_parameters)
-    package_ = attr.ib(default='delensalot', on_setattr=data.package_)
-    module_ = attr.ib(default='sims.generic', on_setattr=data.module_)
-    class_ = attr.ib(default='sims_cmb_len', on_setattr=data.class_)
-    transferfunction = attr.ib(default='gauss_with_pixwin', on_setattr=data.transferfunction)
-    beam = attr.ib(default=DEFAULT_NotAValue)
-    nside = attr.ib(default=DEFAULT_NotAValue)
-    nlev_t = attr.ib(default=DEFAULT_NotAValue)
-    nlev_p = attr.ib(default=DEFAULT_NotAValue)
-    transf_dat = attr.ib(default=DEFAULT_NotAValue)
-    lmax_transf = attr.ib(default=DEFAULT_NotAValue)
-    epsilon = attr.ib(default=DEFAULT_NotAValue)
+    class_parameters =      attr.ib(default=DEFAULT_NotAValue, on_setattr=data.class_parameters)
+    package_ =              attr.ib(default=DEFAULT_NotAValue, on_setattr=data.package_)
+    module_ =               attr.ib(default=DEFAULT_NotAValue, on_setattr=data.module_)
+    class_ =                attr.ib(default=DEFAULT_NotAValue, on_setattr=data.class_)
+    transferfunction =      attr.ib(default=DEFAULT_NotAValue, on_setattr=data.transferfunction)
+    beam =                  attr.ib(default=DEFAULT_NotAValue, on_setattr=data.beam)
+    nside =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=data.nside)
+    nlev_t =                attr.ib(default=DEFAULT_NotAValue, on_setattr=data.nlev_t)
+    nlev_p =                attr.ib(default=DEFAULT_NotAValue, on_setattr=data.nlev_p)
+    lmax_transf =           attr.ib(default=DEFAULT_NotAValue, on_setattr=data.lmax_transf)
+    epsilon =               attr.ib(default=DEFAULT_NotAValue, on_setattr=data.epsilon)
 
     
 @attr.s
@@ -135,13 +134,13 @@ class DLENSALOT_Noisemodel(DLENSALOT_Concept):
     Attributes:
         typ:
     """
-    sky_coverage = attr.ib(default='isotropic', on_setattr=noisemodel.sky_coverage)
-    spectrum_type = attr.ib(default='white', on_setattr=noisemodel.spectrum_type)
-    OBD = attr.ib(default=False, on_setattr=noisemodel.OBD)
-    nlev_t = attr.ib(default=[], on_setattr=noisemodel.nlev_t)
-    nlev_p = attr.ib(default=[], on_setattr=noisemodel.nlev_p)
-    rhits_normalised = attr.ib(default=None, on_setattr=noisemodel.rhits_normalised)
-    ninvjob_geometry = attr.ib(default='healpix_geometry', on_setattr=noisemodel.ninvjob_geometry)
+    sky_coverage =          attr.ib(default=DEFAULT_NotAValue, on_setattr=noisemodel.sky_coverage)
+    spectrum_type =         attr.ib(default=DEFAULT_NotAValue, on_setattr=noisemodel.spectrum_type)
+    OBD =                   attr.ib(default=DEFAULT_NotAValue, on_setattr=noisemodel.OBD)
+    nlev_t =                attr.ib(default=DEFAULT_NotAValue, on_setattr=noisemodel.nlev_t)
+    nlev_p =                attr.ib(default=DEFAULT_NotAValue, on_setattr=noisemodel.nlev_p)
+    rhits_normalised =      attr.ib(default=DEFAULT_NotAValue, on_setattr=noisemodel.rhits_normalised)
+    ninvjob_geometry =      attr.ib(default=DEFAULT_NotAValue, on_setattr=noisemodel.ninvjob_geometry)
 
 @attr.s
 class DLENSALOT_Qerec(DLENSALOT_Concept):
@@ -150,15 +149,15 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     Attributes:
         typ:
     """
-    tasks = attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.tasks)
-    qlm_type = attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.qlms)
-    cg_tol = attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.cg_tol)
-    filter_directional = attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.filter_directional)
-    ninvjob_qe_geometry = attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.ninvjob_qe_geometry)
-    lm_max_qlm = attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.lm_max_qlm)
-    chain = attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.chain)
-    cl_analysis = attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.cl_analysis)
-    blt_pert = attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.btemplate_perturbative_lensremap)
+    tasks =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.tasks)
+    qlm_type =              attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.qlms)
+    cg_tol =                attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.cg_tol)
+    filter_directional =    attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.filter_directional)
+    ninvjob_qe_geometry =   attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.ninvjob_qe_geometry)
+    lm_max_qlm =            attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.lm_max_qlm)
+    chain =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.chain)
+    cl_analysis =           attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.cl_analysis)
+    blt_pert =              attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.btemplate_perturbative_lensremap)
 
 @attr.s
 class DLENSALOT_Itrec(DLENSALOT_Concept):
@@ -167,19 +166,19 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     Attributes:
         typ:
     """
-    tasks =                 attr.ib(default=['calc_phi'], on_setattr=itrec.tasks)
-    itmax =                 attr.ib(default=1, on_setattr=itrec.itmax)
-    cg_tol =                attr.ib(default=np.nan, on_setattr=itrec.cg_tol)
-    iterator_typ =          attr.ib(default='constmf', on_setattr=itrec.iterator_type)
-    chain =                 attr.ib(default=DLENSALOT_Chaindescriptor(), on_setattr=qerec.chain)
-    filter_directional =    attr.ib(default=np.nan, on_setattr=itrec.filter_directional)
-    lenjob_geometry =       attr.ib(default='thin_gauss', on_setattr=itrec.lenjob_geometry)
-    lenjob_pbgeometry =     attr.ib(default='pbdGeometry', on_setattr=itrec.lenjob_pbgeometry)
-    lm_max_unl =            attr.ib(default=(10,10), on_setattr=itrec.lm_max_unl)
-    lm_max_qlm =            attr.ib(default=(10,10), on_setattr=itrec.lm_max_qlm)
-    mfvar =                 attr.ib(default='', on_setattr=itrec.mfvar)
-    soltn_cond =            attr.ib(default=lambda it: True, on_setattr=itrec.soltn_cond)
-    stepper =               attr.ib(default=DLENSALOT_Stepper(), on_setattr=itrec.stepper)
+    tasks =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.tasks)
+    itmax =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.itmax)
+    cg_tol =                attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.cg_tol)
+    iterator_typ =          attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.iterator_type)
+    chain =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.chain)
+    filter_directional =    attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.filter_directional)
+    lenjob_geometry =       attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.lenjob_geometry)
+    lenjob_pbgeometry =     attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.lenjob_pbgeometry)
+    lm_max_unl =            attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.lm_max_unl)
+    lm_max_qlm =            attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.lm_max_qlm)
+    mfvar =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.mfvar)
+    soltn_cond =            attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.soltn_cond)
+    stepper =               attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.stepper)
     
 @attr.s
 class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
@@ -188,15 +187,15 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
     Args:
         DLENSALOT_Concept (_type_): _description_
     """
-    edges = attr.ib(default=-1, on_setattr=mapdelensing.edges)
-    dlm_mod = attr.ib(default=False, on_setattr=mapdelensing.dlm_mod)
-    iterations = attr.ib(default=-1, on_setattr=mapdelensing.iterations)
-    masks = attr.ib(default=None, on_setattr=mapdelensing.masks)
-    lmax = attr.ib(default=-1, on_setattr=mapdelensing.lmax)
-    Cl_fid = attr.ib(default=-1, on_setattr=mapdelensing.Cl_fid)
-    libdir_it = attr.ib(default=None, on_setattr=mapdelensing.libdir_it)
-    binning = attr.ib(default=-1, on_setattr=mapdelensing.binning)
-    spectrum_calculator = attr.ib(default=None, on_setattr=mapdelensing.spectrum_calculator)
+    edges =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.edges)
+    dlm_mod =               attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.dlm_mod)
+    iterations =            attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.iterations)
+    masks =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.masks)
+    lmax =                  attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.lmax)
+    Cl_fid =                attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.Cl_fid)
+    libdir_it =             attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.libdir_it)
+    binning =               attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.binning)
+    spectrum_calculator =   attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.spectrum_calculator)
 
 @attr.s
 class DLENSALOT_OBD(DLENSALOT_Concept):
@@ -205,13 +204,13 @@ class DLENSALOT_OBD(DLENSALOT_Concept):
     Attributes:
         BMARG_LIBDIR:
     """
-    libdir = attr.ib(default=DEFAULT_NotAValue, on_setattr=obd.libdir)
-    rescale = attr.ib(default=1, on_setattr=obd.rescale)
-    tpl = attr.ib(default='template_dense', on_setattr=obd.tpl)
-    nlev_dep = attr.ib(default=np.nan, on_setattr=obd.nlev_dep)
-    nside = attr.ib(default=np.nan)
-    lmax = attr.ib(default=np.nan)
-    beam = attr.ib(default=np.nan)
+    libdir =                attr.ib(default=DEFAULT_NotAValue, on_setattr=obd.libdir)
+    rescale =               attr.ib(default=DEFAULT_NotAValue, on_setattr=obd.rescale)
+    tpl =                   attr.ib(default=DEFAULT_NotAValue, on_setattr=obd.tpl)
+    nlev_dep =              attr.ib(default=DEFAULT_NotAValue, on_setattr=obd.nlev_dep)
+    nside =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=obd.nside)
+    lmax =                  attr.ib(default=DEFAULT_NotAValue, on_setattr=obd.lmax)
+    beam =                  attr.ib(default=DEFAULT_NotAValue, on_setattr=obd.beam)
 
 @attr.s
 class DLENSALOT_Config(DLENSALOT_Concept):
@@ -220,8 +219,8 @@ class DLENSALOT_Config(DLENSALOT_Concept):
     Attributes:
         typ:
     """
-    outdir_plot_root = attr.ib(default=opj(os.environ['HOME'], 'plots'))
-    outdir_plot_rel = attr.ib(default='')
+    outdir_plot_root =      attr.ib(default=opj(os.environ['HOME'], 'plots'))
+    outdir_plot_rel =       attr.ib(default='')
 
 @attr.s
 # @add_defaults
@@ -231,7 +230,7 @@ class DLENSALOT_Meta(DLENSALOT_Concept):
     Attributes:
         version:
     """
-    version = attr.ib(default=DEFAULT_NotAValue, on_setattr=attr.validators.instance_of(int))
+    version =               attr.ib(default=DEFAULT_NotAValue, on_setattr=attr.validators.instance_of(int))
 
 
 @attr.s
@@ -241,7 +240,7 @@ class DLENSALOT_Computing(DLENSALOT_Concept):
     Attributes:
         QE_delensing:
     """
-    OMP_NUM_THREADS = attr.ib(default=int(psutil.cpu_count()/psutil.cpu_count(logical=False)), on_setattr=computing.OMP_NUM_THREADS)
+    OMP_NUM_THREADS =       attr.ib(default=DEFAULT_NotAValue, on_setattr=computing.OMP_NUM_THREADS)
 
 
 @attr.s
@@ -252,18 +251,18 @@ class DLENSALOT_Model(DLENSALOT_Concept):
         data: 
     """
     
-    defaults_to = attr.ib(default='default')
-    meta = attr.ib(default=DLENSALOT_Meta(), on_setattr=model.meta)
-    job = attr.ib(default=DLENSALOT_Job(), on_setattr=model.job)
-    analysis = attr.ib(default=DLENSALOT_Analysis(), on_setattr=model.analysis)
-    data  = attr.ib(default=DLENSALOT_Data(), on_setattr=model.data)
-    noisemodel = attr.ib(default=DLENSALOT_Noisemodel(), on_setattr=model.noisemodel)
-    qerec = attr.ib(default=DLENSALOT_Qerec(), on_setattr=model.qerec)
-    itrec = attr.ib(default=DLENSALOT_Itrec(), on_setattr=model.itrec)
-    madel = attr.ib(default=DLENSALOT_Mapdelensing(), on_setattr=model.madel)
-    config = attr.ib(default=DLENSALOT_Config(), on_setattr=model.config)
-    computing = attr.ib(default=DLENSALOT_Computing(), on_setattr=model.computing)
-    obd = attr.ib(default=DLENSALOT_OBD(), on_setattr=model.obd)
+    defaults_to =           attr.ib(default='default')
+    meta =                  attr.ib(default=DLENSALOT_Meta(), on_setattr=model.meta)
+    job =                   attr.ib(default=DLENSALOT_Job(), on_setattr=model.job)
+    analysis =              attr.ib(default=DLENSALOT_Analysis(), on_setattr=model.analysis)
+    data  =                 attr.ib(default=DLENSALOT_Data(), on_setattr=model.data)
+    noisemodel =            attr.ib(default=DLENSALOT_Noisemodel(), on_setattr=model.noisemodel)
+    qerec =                 attr.ib(default=DLENSALOT_Qerec(), on_setattr=model.qerec)
+    itrec =                 attr.ib(default=DLENSALOT_Itrec(), on_setattr=model.itrec)
+    madel =                 attr.ib(default=DLENSALOT_Mapdelensing(), on_setattr=model.madel)
+    config =                attr.ib(default=DLENSALOT_Config(), on_setattr=model.config)
+    computing =             attr.ib(default=DLENSALOT_Computing(), on_setattr=model.computing)
+    obd =                   attr.ib(default=DLENSALOT_OBD(), on_setattr=model.obd)
     
 
     def __attrs_post_init__(self):
