@@ -79,7 +79,7 @@ class DLENSALOT_Job(DLENSALOT_Concept):
     Attributes:
         QE_delensing:
     """
-    jobs =                  attr.ib(default=['inspect_result'], on_setattr=job.jobs)
+    jobs =                  attr.ib(default=DEFAULT_NotAValue, validator=job.jobs)
 
 @attr.s
 class DLENSALOT_Analysis(DLENSALOT_Concept):
@@ -155,7 +155,7 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     filter_directional =    attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.filter_directional)
     ninvjob_qe_geometry =   attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.ninvjob_qe_geometry)
     lm_max_qlm =            attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.lm_max_qlm)
-    chain =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.chain)
+    chain =                 attr.ib(default=DLENSALOT_Chaindescriptor(), on_setattr=qerec.chain)
     cl_analysis =           attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.cl_analysis)
     blt_pert =              attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.btemplate_perturbative_lensremap)
 
@@ -170,7 +170,7 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     itmax =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.itmax)
     cg_tol =                attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.cg_tol)
     iterator_typ =          attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.iterator_type)
-    chain =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.chain)
+    chain =                 attr.ib(default=DLENSALOT_Chaindescriptor(), on_setattr=itrec.chain)
     filter_directional =    attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.filter_directional)
     lenjob_geometry =       attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.lenjob_geometry)
     lenjob_pbgeometry =     attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.lenjob_pbgeometry)
@@ -178,7 +178,7 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     lm_max_qlm =            attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.lm_max_qlm)
     mfvar =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.mfvar)
     soltn_cond =            attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.soltn_cond)
-    stepper =               attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.stepper)
+    stepper =               attr.ib(default=DLENSALOT_Stepper(), on_setattr=itrec.stepper)
     
 @attr.s
 class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
@@ -275,7 +275,7 @@ class DLENSALOT_Model(DLENSALOT_Concept):
          * 'on_setattr' takes care of validating post-init, thus all default-dict keys are validated
 
         """
-        print("Using {}:\n\t{}".format(self.defaults_to, DL_DEFAULT[self.defaults_to]))
+        print("Setting default, using {}:\n\t{}".format(self.defaults_to, DL_DEFAULT[self.defaults_to]))
         for key, val in list(filter(lambda x: '__' not in x[0] and x[0] != 'defaults_to', self.__dict__.items())):
             for k, v in val.__dict__.items():
                 if k in ['chain', 'stepper']:
@@ -285,14 +285,14 @@ class DLENSALOT_Model(DLENSALOT_Concept):
                                 if k in DL_DEFAULT[self.defaults_to][key]:
                                     if ke in DL_DEFAULT[self.defaults_to][key][k]:
                                         self.__dict__[key].__dict__[k].__dict__.update({ke: DL_DEFAULT[self.defaults_to][key][k][ke]})
-                                        print('Replacing {}={} with {}'.format(ke, va, DL_DEFAULT[self.defaults_to][key][k][ke]))
+                                        # print('\t{}={}'.format(ke, DL_DEFAULT[self.defaults_to][key][k][ke]))
                 elif type(v) == type(DEFAULT_NotAValue):
                     if v == DEFAULT_NotAValue:
-                        print('found item which needs replacing: {} = {}'.format(k, v))
+                        # print('found item which needs replacing: {} = {}'.format(k, v))
                         if key in DL_DEFAULT[self.defaults_to]:
                             if k in DL_DEFAULT[self.defaults_to][key]:
                                 self.__dict__[key].__dict__.update({k: DL_DEFAULT[self.defaults_to][key][k]})
-                                print('Replacing {}={} with {}'.format(k, v, DL_DEFAULT[self.defaults_to][key][k]))
+                                # print('\t{}={}'.format(k, DL_DEFAULT[self.defaults_to][key][k]))
                             else:
                                 print('couldnt find matching default value for k {}'.format(key))
                         else:

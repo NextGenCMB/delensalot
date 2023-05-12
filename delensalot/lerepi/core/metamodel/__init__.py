@@ -37,6 +37,9 @@ DL_DEFAULT_CMBS4_FS_P = {
     'meta': {
         'version': "0.2"
     },
+    'job':{
+        'jobs': ['generate_sim']
+    },
     'data': {
         'beam': 1.,
         'nlev_t': 1.,
@@ -125,45 +128,42 @@ DL_DEFAULT_CMBS4_FS_P = {
         'mfvar': '',
         'soltn_cond': lambda it: True,
         },
-        'noisemodel': {
-            'sky_coverage': 'isotropic',
-            'spectrum_type': 'white',
-            'OBD': False,
-            'nlev_t': 1.0,
-            'nlev_p': 1.0,
-            'rhits_normalised': None,
-            'ninvjob_geometry': 'healpix_geometry',
-        },
-        'mapdelensing': {
-            'edges': -1,
-            'dlm_mod': False,
-            'iterations': -1,
-            'masks': None,
-            'lmax': -1,
-            'Cl_fid': -1,
-            'libdir_it': None,
-            'binning': -1,
-            'spectrum_calculator': None,
-        },
-        'computing': {
-            'OMP_NUM_THREADS' : int(psutil.cpu_count()/psutil.cpu_count(logical=False))
-        },
-        'meta': {
-            'version': 1.0.0
-        },
-        'obd': {
-            'libdir': DEFAULT_NotAValue,
-            'rescale': 1,
-            'tpl': 'template_dense'
-            'nlev_dep': 1e4,
-            'nside': 2048,
-            'lmax': 200,
-            'beam': 1.0,
-        },
-        'config': {
-            'outdir_plot_root': opj(os.environ['HOME'], 'plots'),
-            'outdir_plot_rel': ''
-        }
+    'noisemodel': {
+        'sky_coverage': 'isotropic',
+        'spectrum_type': 'white',
+        'OBD': False,
+        'nlev_t': 1.0,
+        'nlev_p': 1.0,
+        'rhits_normalised': None,
+        'ninvjob_geometry': 'healpix_geometry',
+    },
+    'madel': {
+        'edges': -1,
+        'dlm_mod': False,
+        'iterations': -1,
+        'masks': None,
+        'lmax': -1,
+        'Cl_fid': -1,
+        'libdir_it': None,
+        'binning': -1,
+        'spectrum_calculator': None,
+    },
+    'computing': {
+        'OMP_NUM_THREADS' : int(psutil.cpu_count()/psutil.cpu_count(logical=False))
+    },
+    'obd': {
+        'libdir': DEFAULT_NotAValue,
+        'rescale': 1,
+        'tpl': 'template_dense',
+        'nlev_dep': 1e4,
+        'nside': 2048,
+        'lmax': 200,
+        'beam': 1.0,
+    },
+    'config': {
+        'outdir_plot_root': opj(os.environ['HOME'], 'plots'),
+        'outdir_plot_rel': ''
+    }
 }
 
 

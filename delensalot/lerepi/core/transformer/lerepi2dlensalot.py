@@ -127,7 +127,6 @@ class l2base_Transformer:
     @log_on_start(logging.DEBUG, "_process_Meta() started")
     @log_on_end(logging.DEBUG, "_process_Meta() finished")
     def process_Meta(dl, me, cf):
-        print(me)
         dl.dversion = me.version
 
 
@@ -1034,7 +1033,6 @@ class l2j_Transformer:
                 jobs.append({"MAP_lensrec":((cf, l2lensrec_Transformer()), delensalot_handler.MAP_lr)})
             if "map_delensing" in jb.jobs:
                 jobs.append({"map_delensing":((cf, l2d_Transformer()), delensalot_handler.Map_delenser)})
-
         jobs = []
         _process_Jobs(jobs, cf.job)
         return jobs
