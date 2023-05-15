@@ -11,6 +11,7 @@ import numpy as np
 from delensalot.utils_hp import almxfl, Alm, alm2cl, synalm, default_rng
 from delensalot.utils import clhash, cli, read_map
 from lenspyx.remapping import utils_geom
+from delensalot import utils_scarf
 from lenspyx import remapping
 from delensalot.opfilt import  opfilt_pp, opfilt_base, bmodes_ninv as bni
 from scipy.interpolate import UnivariateSpline as spl
@@ -56,11 +57,11 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         self.wee = wee
 
 
-        sc_job = utils_geom.scarfjob()
+        sc_job = utils_scarf.scarfjob()
         if not np.all(ninv_geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
             log.info('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
             nr = ninv_geom.get_nrings()
-            ninv_geom_ = utils_geom.Geom(nr, ninv_geom.nph.copy(), ninv_geom.ofs.copy(), 1, ninv_geom.phi0.copy(), ninv_geom.theta.copy(), np.ones(nr, dtype=float))
+            ninv_geom_ = utils_scarf.Geometry(nr, ninv_geom.nph.copy(), ninv_geom.ofs.copy(), 1, ninv_geom.phi0.copy(), ninv_geom.theta.copy(), np.ones(nr, dtype=float))
             # Does not seem to work without the 'copy'
         else:
             ninv_geom_ = ninv_geom

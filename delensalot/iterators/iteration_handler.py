@@ -52,11 +52,11 @@ class base_iterator():
         if self.QE_subtract_meanfield:
             self.mf0 = self.qe.get_meanfield(self.simidx)
         else:
-            self.mf0 = np.zeros(shape=hp.Alm.getsize(self.it_lm_max_qlm[0]))
+            self.mf0 = np.zeros(shape=hp.Alm.getsize(self.lm_max_qlm[0]))
         self.plm0 = self.qe.get_plm(self.simidx, self.QE_subtract_meanfield)
-        self.ffi = deflection(self.lenjob_geometry, np.zeros_like(self.plm0), self.it_lm_max_qlm[1], numthreads=self.tr, verbosity=1)
+        self.ffi = deflection(self.lenjob_geometry, np.zeros_like(self.plm0), self.lm_max_qlm[1], numthreads=self.tr, verbosity=1)
         # self.ffi = lenspyx.remapping.deflection.deflection(self.lenjob_pbgeometry, self.lensres, np.zeros_like(self.plm0),
-            # self.it_lm_max_qlm[1], self.tr, self.tr)
+            # self.lm_max_qlm[1], self.tr, self.tr)
         self.datmaps = self.get_datmaps()
         self.filter = self.get_filter()
         # TODO not sure why this happens here. Could be done much earlier
@@ -86,7 +86,10 @@ class base_iterator():
         def get_filter_aniso():
             wee = self.k == 'p_p' # keeps or not the EE-like terms in the generalized QEs
             ninv = [self.sims_MAP.ztruncify(read_map(ni)) for ni in self.ninvp_desc] # inverse pixel noise map on consistent geometry
-            filter = alm_filter_ninv_wl(self.ninvjob_geometry, ninv, self.ffi, self.ttebl['e'], self.lm_max_unl, self.lm_max_ivf, self.tr, self.tpl,
+
+            ## TODO use old scarf geom for now, but switch to lenspyx soon. filter currently does not support lenspyx geom, as no `scarfjob` objects exist anymore
+            ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(self.sims_nside, zbounds=self.zbounds)
+            filter = alm_filter_ninv_wl(ninvjob_geometry, ninv, self.ffi, self.ttebl['e'], self.lm_max_unl, self.lm_max_ivf, self.tr, self.tpl,
                                                     wee=wee, lmin_dotop=min(self.lmin_teb[1], self.lmin_teb[2]), transf_blm=self.ttebl['b'])
             self.k_geom = filter.ffi.geom # Customizable Geometry for position-space operations in calculations of the iterated QEs etc
 
@@ -122,7 +125,7 @@ class iterator_pertmf(base_iterator):
             _type_: _description_
         """
         iterator = cs_iterator.iterator_pertmf(
-            self.libdir_iterator, 'p', self.it_lm_max_qlm, self.datmaps, self.plm0, self.mf_resp0,
+            self.libdir_iterator, 'p', self.lm_max_qlm, self.datmaps, self.plm0, self.mf_resp0,
             self.R_unl0, self.cpp, self.cls_unl, self.filter, self.k_geom, self.it_chain_descr,
             self.stepper, mf0=self.mf0, wflm0=self.wflm0)
         
@@ -153,7 +156,7 @@ class iterator_constmf(base_iterator):
             _type_: _description_
         """
         iterator = cs_iterator.iterator_cstmf(
-            self.libdir_iterator, 'p', self.it_lm_max_qlm, self.datmaps, self.plm0, self.mf0,
+            self.libdir_iterator, 'p', self.lm_max_qlm, self.datmaps, self.plm0, self.mf0,
             self.R_unl0, self.cpp, self.cls_unl, self.filter, self.k_geom, self.it_chain_descr,
             self.stepper, wflm0=self.wflm0)
         
@@ -209,7 +212,7 @@ class iterator_fastWF(base_iterator):
             _type_: _description_
         """
         iterator = cs_iterator_fast.iterator_cstmf(
-            self.libdir_iterator, self.k[0], self.it_lm_max_qlm, self.datmaps, self.plm0, self.mf0,
+            self.libdir_iterator, self.k[0], self.lm_max_qlm, self.datmaps, self.plm0, self.mf0,
             self.R_unl0, self.cpp, self.cls_unl, self.filter, self.k_geom, self.it_chain_descr,
             self.stepper, wflm0=self.wflm0)
         

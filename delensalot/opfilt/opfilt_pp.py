@@ -10,6 +10,7 @@ import numpy as np
 from delensalot.utils_hp import almxfl, Alm, alm2cl
 from delensalot.utils import timer, cli, clhash, read_map
 from lenspyx.remapping import utils_geom
+from delensalot import utils_scarf
 from delensalot.opfilt import bmodes_ninv as bni
 from scipy.interpolate import UnivariateSpline as spl
 
@@ -42,11 +43,11 @@ class alm_filter_ninv(object):
         self.lmax_sol = lmax_unl
         self.mmax_sol = min(lmax_unl, mmax_unl)
 
-        sc_job = utils_geom.scarfjob()
+        sc_job = utils_scarf.scarfjob()
         if not np.all(ninv_geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
             log.info('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
             nr = ninv_geom.get_nrings()
-            ninv_geom_ = utils_geom.Geom(nr, ninv_geom.nph.copy(), ninv_geom.ofs.copy(), 1, ninv_geom.phi0.copy(), ninv_geom.theta.copy(), np.ones(nr, dtype=float))
+            ninv_geom_ = utils_scarf.Geom(nr, ninv_geom.nph.copy(), ninv_geom.ofs.copy(), 1, ninv_geom.phi0.copy(), ninv_geom.theta.copy(), np.ones(nr, dtype=float))
             # Does not seem to work without the 'copy'
         else:
             ninv_geom_ = ninv_geom
@@ -167,7 +168,7 @@ class alm_filter_ninv(object):
 
         """
         assert len(qudat) == 2 and len(eblm_wf)
-        assert (qudat[0].size == utils_geom.Geom.npix(self.ninv_geom)) and (qudat[0].size == qudat[1].size)
+        assert (qudat[0].size == utils_scarf.Geom.npix(self.ninv_geom)) and (qudat[0].size == qudat[1].size)
 
         repmap, impmap = self._get_irespmap(qudat, eblm_wf, q_pbgeom)
         Gs, Cs = self._get_gpmap(eblm_wf, 3, q_pbgeom)  # 2 pos.space maps

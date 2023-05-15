@@ -505,7 +505,10 @@ class QE_lr(Basejob):
 
         ## Faking here sims_MAP for calc_blt as it needs iteration_handler
         if 'calc_blt' in self.qe_tasks:
-            self.sims_MAP = self.sims
+            if self.it_filter_directional == 'anisotropic':
+                self.sims_MAP = utils_sims.ztrunc_sims(self.sims, self.sims_nside, [self.zbounds])
+            elif self.it_filter_directional == 'isotropic':
+                self.sims_MAP = self.sims
 
 
     def init_cinv(self):
