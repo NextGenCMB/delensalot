@@ -32,6 +32,7 @@ from delensalot.utils_hp import gauss_beam
 from delensalot.utils import cli, read_map, camb_clfile
 from delensalot.iterators.steps import harmonicbump, nrstep 
 from delensalot.lerepi.core.visitor import transform
+from delensalot.opfilt.bmodes_ninv import template_dense
 
 import delensalot.core.handler as delensalot_handler
 from delensalot.lerepi.config.config_helper import data_functions as df, LEREPI_Constants as lc
@@ -251,6 +252,9 @@ class l2lensrec_Transformer(l2base_Transformer):
             if dl.sky_coverage == 'masked':
                 # rhits_normalised
                 dl.rhits_normalised = dl.masks if nm.rhits_normalised is None else nm.rhits_normalised
+                dl.fsky = np.mean(l2OBD_Transformer.get_ninvp(cf)[0][1]) ## calculating fsky, but quite expensive. and if ninvp changes, this could have negative effect on fsky calc
+            else:
+                dl.fsky = 1.0
             # spectrum_type
             dl.spectrum_type = nm.spectrum_type
 
@@ -269,6 +273,7 @@ class l2lensrec_Transformer(l2base_Transformer):
             if cf.noisemodel.ninvjob_geometry == 'healpix_geometry':
                 dl.ninvjob_geometry = dug.Geom.get_healpix_geometry(cf.data.nside, zbounds=dl.zbounds)
             dl.tpl = template_dense(dl.lmin_teb[2], dl.ninvjob_geometry, dl.tr, _lib_dir=dl.obd_libdir, rescal=dl.obd_rescale)
+
   
 
         @log_on_start(logging.DEBUG, "_process_Data() started")
@@ -317,7 +322,7 @@ class l2lensrec_Transformer(l2base_Transformer):
             dl.QE_subtract_meanfield = False if dl.version == 'noMF' else True
             ## if QE_subtract_meanfield is True, mean-field needs to be calculated either way.
             ## also move calc_meanfield to the front, so it is calculated first. The following lines assume that all other tasks are in the right order...
-            ## TODO allow user to provide task-list unordered
+            ## TODO allow user to provide task-list unsorted
             if 'calc_phi' in dl.qe_tasks:
                 if dl.QE_subtract_meanfield:
                     if 'calc_meanfield' not in dl.qe_tasks:
@@ -332,7 +337,7 @@ class l2lensrec_Transformer(l2base_Transformer):
                             dl.qe_tasks[0] = 'calc_meanfield'
                             dl.qe_tasks[2] = buffer
             # lmax_qlm
-            dl.qe_lm_max_qlm = qe.lm_max_qlm
+            dl.lm_max_qlm = qe.lm_max_qlm
 
             dl.qlm_type = qe.qlm_type
 
@@ -375,7 +380,7 @@ class l2lensrec_Transformer(l2base_Transformer):
             dl.it_tasks = it.tasks
             # lmaxunl
             dl.lm_max_unl = it.lm_max_unl
-            dl.it_lm_max_qlm = it.lm_max_qlm
+            dl.lm_max_qlm = it.lm_max_qlm
             # chain
             dl.it_chain_model = it.chain
             dl.it_chain_model.p3 = dl.sims_nside
@@ -423,10 +428,10 @@ class l2lensrec_Transformer(l2base_Transformer):
                 # TODO undo hardcoding, make it userchoice
                 # TODO this should be checked via validator accordingly
                 if dl.stepper_model.lmax_qlm == -1 and dl.stepper_model.mmax_qlm == -1:
-                    dl.stepper_model.lmax_qlm = dl.it_lm_max_qlm[0]
-                    dl.stepper_model.mmax_qlm = dl.it_lm_max_qlm[1]
+                    dl.stepper_model.lmax_qlm = dl.lm_max_qlm[0]
+                    dl.stepper_model.mmax_qlm = dl.lm_max_qlm[1]
                 dl.stepper = steps.harmonicbump(dl.stepper_model.lmax_qlm, dl.stepper_model.mmax_qlm, a=dl.stepper_model.a, b=dl.stepper_model.b, xa=dl.stepper_model.xa, xb=dl.stepper_model.xb)
-                # dl.stepper = steps.nrstep(dl.it_lm_max_qlm[0], dl.it_lm_max_qlm[1], val=0.5) # handler of the size steps in the MAP BFGS iterative search
+                # dl.stepper = steps.nrstep(dl.lm_max_qlm[0], dl.lm_max_qlm[1], val=0.5) # handler of the size steps in the MAP BFGS iterative search
             
 
         dl = DLENSALOT_Concept()    
@@ -448,9 +453,9 @@ class l2lensrec_Transformer(l2base_Transformer):
         # fiducial
         # TODO hack
         if 'smoothed_phi_empiric_halofit' in cf.analysis.cpp:
-            dl.cpp = np.load(cf.analysis.cpp)[:dl.qe_lm_max_qlm[0] + 1,1]
+            dl.cpp = np.load(cf.analysis.cpp)[:dl.lm_max_qlm[0] + 1,1]
         else:
-            dl.cpp = camb_clfile(cf.analysis.cpp)['pp'][:dl.qe_lm_max_qlm[0] + 1] ## TODO could be added via 'fiducial' parameter in dlensalot config for user
+            dl.cpp = camb_clfile(cf.analysis.cpp)['pp'][:dl.lm_max_qlm[0] + 1] ## TODO could be added via 'fiducial' parameter in dlensalot config for user
         dl.cpp[:dl.Lmin] *= 0.
 
         if dl.it_filter_directional == 'anisotropic':
@@ -494,6 +499,7 @@ class l2OBD_Transformer:
             dl.beam = od.beam
             dl.nside = od.nside
             dl.lmax = od.lmax
+            dl.rescale = od.rescale
 
             if os.path.isfile(opj(dl.libdir,'tniti.npy')):
                 # TODO need to test if it is the right tniti.npy

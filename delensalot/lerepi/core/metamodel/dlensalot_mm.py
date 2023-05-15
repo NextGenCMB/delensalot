@@ -154,7 +154,7 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     cg_tol =                attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.cg_tol)
     filter_directional =    attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.filter_directional)
     ninvjob_qe_geometry =   attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.ninvjob_qe_geometry)
-    lm_max_qlm =            attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.lm_max_qlm)
+    lm_max_qlm =            attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.lm_max_qlm) # TODO qe.lm_max_qlm and it.lm_max_qlm must be same. Test at validator?
     chain =                 attr.ib(default=DLENSALOT_Chaindescriptor(), on_setattr=qerec.chain)
     cl_analysis =           attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.cl_analysis)
     blt_pert =              attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.btemplate_perturbative_lensremap)

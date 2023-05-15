@@ -28,7 +28,7 @@ from delensalot.iterators import iteration_handler
 from delensalot.iterators.statics import rec as rec
 from delensalot.utils_hp import almxfl, alm_copy, gauss_beam
 from delensalot.opfilt import utils_cinv_p as cinv_p_OBD
-from delensalot.opfilt.bmodes_ninv import template_dense, template_bfilt
+from delensalot.opfilt.bmodes_ninv import template_bfilt
 from delensalot.lerepi.config.config_helper import data_functions as df
 from delensalot.core.decorators.exception_handler import base as base_exception_handler
 
@@ -354,8 +354,7 @@ class OBD_builder(Basejob):
     @check_MPI
     def __init__(self, OBD_model, diasable_mpi=False):
         self.__dict__.update(OBD_model.__dict__)
-
-        self.tpl = template_dense(self.lmin_teb[2], self.ninvjob_geometry, self.tr, _lib_dir=self.obd_libdir, rescal=self.obd_rescale)
+        # self.tpl = template_dense(self.lmin_teb[2], self.geom, self.tr, _lib_dir=self.libdir, rescal=self.rescale)
         b_transf = gauss_beam(df.a2r(self.beam), lmax=self.lmax) # TODO ninv_p doesn't depend on this anyway, right?
         self.ninv_p = np.array(opfilt_pp.alm_filter_ninv(self.ninv_p_desc, b_transf, marge_qmaps=(), marge_umaps=()).get_ninv())
 
@@ -469,8 +468,8 @@ class QE_lr(Basejob):
             self.ivfs_d = filt_util.library_shuffle(self.ivfs, self.ds_dict)
             self.ivfs_s = filt_util.library_shuffle(self.ivfs, self.ss_dict)
 
-            self.qlms_ds = qest.library_sepTP(opj(self.TEMP, 'qlms_ds'), self.ivfs, self.ivfs_d, self.cls_len['te'], self.sims_nside, lmax_qlm=self.qe_lm_max_qlm[0])
-            self.qlms_ss = qest.library_sepTP(opj(self.TEMP, 'qlms_ss'), self.ivfs, self.ivfs_s, self.cls_len['te'], self.sims_nside, lmax_qlm=self.qe_lm_max_qlm[0])
+            self.qlms_ds = qest.library_sepTP(opj(self.TEMP, 'qlms_ds'), self.ivfs, self.ivfs_d, self.cls_len['te'], self.sims_nside, lmax_qlm=self.lm_max_qlm[0])
+            self.qlms_ss = qest.library_sepTP(opj(self.TEMP, 'qlms_ss'), self.ivfs, self.ivfs_s, self.cls_len['te'], self.sims_nside, lmax_qlm=self.lm_max_qlm[0])
 
             self.mc_sims_bias = np.arange(60, dtype=int)
             self.mc_sims_var  = np.arange(60, 300, dtype=int)
@@ -480,8 +479,7 @@ class QE_lr(Basejob):
             self.qcls_dd = qecl.library(opj(self.TEMP, 'qcls_dd'), self.qlms_dd, self.qlms_dd, self.mc_sims_bias)
 
         if self.qe_filter_directional == 'anisotropic':
-            self.init_cinv_t()
-            self.init_cinv_p()
+            self.init_cinv()
             _filter_raw = filt_cinv.library_cinv_sepTP(opj(self.TEMP, 'ivfs'), self.sims, self.cinv_t, self.cinv_p, self.cls_len)
             _ftl_rs = np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[0])
             _fel_rs = np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[1])
@@ -493,7 +491,7 @@ class QE_lr(Basejob):
                 # self.ivfs = filt_simple.library_fullsky_alms_sepTP(opj(self.TEMP, 'ivfs'), self.sims, self.ttebl, self.cls_len, self.ftl, self.fel, self.fbl, cache=True)
         # qlms
         if self.qlm_type == 'sepTP':
-            self.qlms_dd = qest.library_sepTP(opj(self.TEMP, 'qlms_dd'), self.ivfs, self.ivfs, self.cls_len['te'], self.sims_nside, lmax_qlm=self.qe_lm_max_qlm[0])
+            self.qlms_dd = qest.library_sepTP(opj(self.TEMP, 'qlms_dd'), self.ivfs, self.ivfs, self.cls_len['te'], self.sims_nside, lmax_qlm=self.lm_max_qlm[0])
     
         self.libdir_iterators = lambda qe_key, simidx, version: opj(self.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
 
@@ -503,7 +501,7 @@ class QE_lr(Basejob):
                 os.makedirs(lib_dir_iterator)
         self.mf = lambda simidx: self.get_meanfield(int(simidx))
         self.plm = lambda simidx: self.get_plm(simidx, self.QE_subtract_meanfield)
-        self.R_unl = lambda: qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_unl, self.cls_unl,  self.ftebl_unl, lmax_qlm=self.qe_lm_max_qlm[0])[0]
+        self.R_unl = lambda: qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_unl, self.cls_unl,  self.ftebl_unl, lmax_qlm=self.lm_max_qlm[0])[0]
 
         ## Faking here sims_MAP for calc_blt as it needs iteration_handler
         if 'calc_blt' in self.qe_tasks:
@@ -512,22 +510,22 @@ class QE_lr(Basejob):
 
     def init_cinv(self):
         self.cinv_t = filt_cinv.cinv_t(opj(self.TEMP, 'cinv_t'),
-            self.lm_max_qlm[0], self.sims_nside, self.cls_len,
+            self.lm_max_ivf[0], self.sims_nside, self.cls_len,
             self.ttebl['t'], self.ninvt_desc,
             marge_monopole=True, marge_dipole=True, marge_maps=[])
 
-        transf_elm_loc = gauss_beam(self.sims_beam / 180 / 60 * np.pi, lmax=self.lm_max_qlm[0])
+        transf_elm_loc = gauss_beam(self.sims_beam / 180 / 60 * np.pi, lmax=self.lm_max_ivf[0])
         if self.OBD:
             self.cinv_p = cinv_p_OBD.cinv_p(opj(self.TEMP, 'cinv_p'),
-                self.lm_max_qlm[0], self.sims_nside, self.cls_len,
-                transf_elm_loc[:self.lm_max_qlm[0]+1], self.ninvp_desc, geom=self.ninvjob_qe_geometry,
-                chain_descr=self.chain_descr(self.lm_max_qlm[0], self.cg_tol), bmarg_lmax=self.lmin_teb[2],
+                self.lm_max_ivf[0], self.sims_nside, self.cls_len,
+                transf_elm_loc[:self.lm_max_ivf[0]+1], self.ninvp_desc, geom=self.ninvjob_qe_geometry,
+                chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol), bmarg_lmax=self.lmin_teb[2],
                 zbounds=self.zbounds, _bmarg_lib_dir=self.obd_libdir, _bmarg_rescal=self.obd_rescale,
                 sht_threads=self.tr)
         else:
             self.cinv_p = filt_cinv.cinv_p(opj(self.TEMP, 'cinv_p'),
-                self.lm_max_qlm[0], self.sims_nside, self.cls_len,
-                self.ttebl['e'], self.ninvp_desc, chain_descr=self.chain_descr(self.lm_max_qlm[0], self.cg_tol),
+                self.lm_max_ivf[0], self.sims_nside, self.cls_len,
+                self.ttebl['e'], self.ninvp_desc, chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol),
                 transf_blm=self.ttebl['b'], marge_qmaps=(), marge_umaps=())
 
 
@@ -555,7 +553,7 @@ class QE_lr(Basejob):
                     ## if meanfield not yet done, collect all qlms_dd which haven't yet been calculated
                     for simidx in self.simidxs_mf:
                         ## TODO this filename must match plancklens filename.. refactor
-                        fn_qlm = os.path.join(self.qlms_dd.lib_dir, 'sim_%s_%04d.fits'%(self.k, idx) if idx != -1 else 'dat_%s.fits'%self.k)
+                        fn_qlm = os.path.join(self.qlms_dd.lib_dir, 'sim_%s_%04d.fits'%(self.k, simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
                         if not os.path.isfile(fn_qlm) or recalc:
                             _jobs.append(int(simidx))
 
@@ -637,7 +635,7 @@ class QE_lr(Basejob):
     @log_on_end(logging.INFO, "get_R_unl() finished")    
     def get_R_unl(self):
 
-        return qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_unl, self.cls_unl, self.fteb_unl, lmax_qlm=self.qe_lm_max_qlm[0])[0]
+        return qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_unl, self.cls_unl, self.fteb_unl, lmax_qlm=self.lm_max_qlm[0])[0]
 
 
     # @base_exception_handler
@@ -670,13 +668,13 @@ class QE_lr(Basejob):
             plm  = self.qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate:
             if sub_mf and self.version != 'noMF':
                 plm -= self.mf(int(simidx))  # MF-subtracted unnormalized QE
-            R = qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=self.qe_lm_max_qlm[0])[0]
+            R = qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=self.lm_max_qlm[0])[0]
             # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
             WF = self.cpp * utils.cli(self.cpp + utils.cli(R))
-            plm = alm_copy(plm,  None, self.qe_lm_max_qlm[0], self.qe_lm_max_qlm[1])
-            almxfl(plm, utils.cli(R), self.qe_lm_max_qlm[1], True) # Normalized QE
-            almxfl(plm, WF, self.qe_lm_max_qlm[1], True) # Wiener-filter QE
-            almxfl(plm, self.cpp > 0, self.qe_lm_max_qlm[1], True)
+            plm = alm_copy(plm,  None, self.lm_max_qlm[0], self.lm_max_qlm[1])
+            almxfl(plm, utils.cli(R), self.lm_max_qlm[1], True) # Normalized QE
+            almxfl(plm, WF, self.lm_max_qlm[1], True) # Wiener-filter QE
+            almxfl(plm, self.cpp > 0, self.lm_max_qlm[1], True)
             np.save(fn_plm, plm)
 
         return np.load(fn_plm)
@@ -686,10 +684,10 @@ class QE_lr(Basejob):
     @log_on_end(logging.INFO, "get_response_meanfield() finished")
     def get_response_meanfield(self):
         if self.k in ['p_p'] and not 'noRespMF' in self.version:
-            mf_resp = qresp.get_mf_resp(self.k, self.cls_unl, {'ee': self.ftebl_len['e'], 'bb': self.ftebl_len['b']}, self.lm_max_ivf[0], self.qe_lm_max_qlm[0])[0]
+            mf_resp = qresp.get_mf_resp(self.k, self.cls_unl, {'ee': self.ftebl_len['e'], 'bb': self.ftebl_len['b']}, self.lm_max_ivf[0], self.lm_max_qlm[0])[0]
         else:
             log.info('*** mf_resp not implemented for key ' + self.k, ', setting it to zero')
-            mf_resp = np.zeros(self.qe_lm_max_qlm[0] + 1, dtype=float)
+            mf_resp = np.zeros(self.lm_max_qlm[0] + 1, dtype=float)
 
         return mf_resp
 
@@ -699,11 +697,11 @@ class QE_lr(Basejob):
     def get_meanfield_normalized(self, simidx):
 
         mf_QE = copy.deepcopy(self.get_meanfield(simidx))
-        R = qresp.get_response(self.k, self.lm_max_ivf[0], 'p', self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=self.qe_lm_max_qlm[0])[0]
+        R = qresp.get_response(self.k, self.lm_max_ivf[0], 'p', self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=self.lm_max_qlm[0])[0]
         WF = self.cpp * utils.cli(self.cpp + utils.cli(R))
-        almxfl(mf_QE, utils.cli(R), self.qe_lm_max_qlm[1], True) # Normalized QE
-        almxfl(mf_QE, WF, self.qe_lm_max_qlm[1], True) # Wiener-filter QE
-        almxfl(mf_QE, self.cpp > 0, self.qe_lm_max_qlm[1], True)
+        almxfl(mf_QE, utils.cli(R), self.lm_max_qlm[1], True) # Normalized QE
+        almxfl(mf_QE, WF, self.lm_max_qlm[1], True) # Wiener-filter QE
+        almxfl(mf_QE, self.cpp > 0, self.lm_max_qlm[1], True)
 
         return mf_QE
 
@@ -906,6 +904,7 @@ class MAP_lr(Basejob):
             return self.itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, perturbative=False)
         elif it==0:
             return self.itlib_iterator.get_template_blm(0, 0, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, perturbative=self.blt_pert)
+
 
 class Map_delenser(Basejob):
     """Script for calculating delensed ILC and Blens spectra using precaulculated Btemplates as input.

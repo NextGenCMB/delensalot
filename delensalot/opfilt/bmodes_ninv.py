@@ -78,7 +78,9 @@ def alm2rlm(alm):
 
 class template_bfilt(object):
     def __init__(self, lmax_marg:int, geom:scarf.Geometry, sht_threads:int, _lib_dir=None):
-        """Here all B-modes up to lmax are set to infinite noise
+        """
+        Class for building tniti matrix.
+        Here all B-modes up to lmax are set to infinite noise
 
             Args:
                 lmax_marg: all B-mulitpoles up to and inclusive of lmax are marginalized
@@ -267,6 +269,9 @@ class template_bfilt(object):
 
 
 class template_dense(template_bfilt):
+    """
+    Class for loading existing tniti matrix. Cannot be used for building it.
+    """
     def __init__(self, lmax_marg:int, geom:scarf.Geometry, sht_threads:int, _lib_dir=None, rescal=1.):
         assert os.path.exists(os.path.join(_lib_dir, 'tniti.npy')), os.path.join(_lib_dir, 'tniti.npy')
         super().__init__(lmax_marg, geom, sht_threads, _lib_dir=_lib_dir)

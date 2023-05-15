@@ -50,7 +50,7 @@ dlensalot_model = DLENSALOT_Model(
         filter_directional = 'anisotropic',
         qlm_type = 'sepTP',
         lm_max_qlm = (1024, 1024),
-        cg_tol = 1e-3
+        cg_tol = 1e-5
     ),
     obd = DLENSALOT_OBD(
         libdir = opj(os.environ['SCRATCH'], 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100'),
