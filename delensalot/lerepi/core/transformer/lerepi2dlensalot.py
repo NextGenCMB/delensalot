@@ -461,7 +461,7 @@ class l2lensrec_Transformer(l2base_Transformer):
         if dl.it_filter_directional == 'anisotropic':
             # ninvjob_geometry
             if cf.noisemodel.ninvjob_geometry == 'healpix_geometry':
-                dl.ninvjob_geometry = dug.Geom.get_healpix_geometry(dl._sims.nside, zbounds=dl.zbounds)
+                dl.ninvjob_geometry = dug.Geom.get_healpix_geometry(dl.sims_nside, zbounds=dl.zbounds)
 
 
         return dl

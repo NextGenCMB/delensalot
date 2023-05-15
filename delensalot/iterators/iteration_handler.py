@@ -24,7 +24,7 @@ from delensalot.iterators import cs_iterator, cs_iterator_fast
 from delensalot.opfilt.opfilt_ee_wl import alm_filter_ninv_wl
 from delensalot.opfilt.opfilt_iso_ee_wl import alm_filter_nlev_wl
 
-class scarf_iterator():
+class base_iterator():
 
     def __init__(self, qe, k:str, simidx:int, version:str, sims_MAP, libdir_iterators, lensing_config):
         """Iterator instance for simulation idx and qe_key type k
@@ -106,10 +106,10 @@ class scarf_iterator():
         return filter
         
 
-class scarf_iterator_pertmf(scarf_iterator):
+class iterator_pertmf(base_iterator):
 
     def __init__(self, qe, k:str, simidx:int, version:str, sims_MAP, libdir_iterators, lensing_config):
-        super(scarf_iterator_pertmf, self).__init__(qe, k, simidx, version, sims_MAP, libdir_iterators, lensing_config)
+        super(iterator_pertmf, self).__init__(qe, k, simidx, version, sims_MAP, libdir_iterators, lensing_config)
         self.mf_resp0 = qe.get_response_meanfield()
 
 
@@ -129,7 +129,7 @@ class scarf_iterator_pertmf(scarf_iterator):
         return iterator
 
 
-class scarf_iterator_constmf(scarf_iterator):
+class iterator_constmf(base_iterator):
     def __init__(self, qe, k:str, simidx:int, version:str, sims_MAP, libdir_iterators, lensing_config):
         """Return constmf iterator instance for simulation idx and qe_key type k
 
@@ -141,7 +141,7 @@ class scarf_iterator_constmf(scarf_iterator):
                 cg_tol: tolerance of conjugate-gradient filter
 
         """ 
-        super(scarf_iterator_constmf, self).__init__(qe, k, simidx, version, sims_MAP, libdir_iterators, lensing_config)
+        super(iterator_constmf, self).__init__(qe, k, simidx, version, sims_MAP, libdir_iterators, lensing_config)
 
 
     @log_on_start(logging.INFO, "get_iterator() started")
@@ -160,7 +160,7 @@ class scarf_iterator_constmf(scarf_iterator):
         return iterator
 
 
-class scarf_iterator_fastWF(scarf_iterator):
+class iterator_fastWF(base_iterator):
     def __init__(self, qe, k:str, simidx:int, version:str, sims_MAP, libdir_iterators, lensing_config):
         """Return constmf iterator instance for simulation idx and qe_key type k, fast WF for idealized fullsky case.
 
@@ -170,7 +170,7 @@ class scarf_iterator_fastWF(scarf_iterator):
                 cg_tol: tolerance of conjugate-gradient filter
 
         """
-        super(scarf_iterator_fastWF, self).__init__(qe, k, simidx, version, sims_MAP, libdir_iterators, lensing_config)
+        super(iterator_fastWF, self).__init__(qe, k, simidx, version, sims_MAP, libdir_iterators, lensing_config)
 
 
     @log_on_start(logging.INFO, "get_datmaps() started")
@@ -219,10 +219,10 @@ class scarf_iterator_fastWF(scarf_iterator):
 # TODO Change into a proper visitor pattern
 def transformer(descr):
     if descr == 'pertmf':
-        return scarf_iterator_pertmf
+        return iterator_pertmf
     elif descr == 'constmf':
-        return scarf_iterator_constmf
+        return iterator_constmf
     elif descr == 'fastWF':
-        return scarf_iterator_fastWF
+        return iterator_fastWF
     else:
         assert 0, "Not yet implemented"
