@@ -22,6 +22,7 @@ dlensalot_model = DLENSALOT_Model(
     ),                              
     analysis = DLENSALOT_Analysis(
         key = 'p_p',
+        version = '',
         simidxs = np.arange(0,1),
         simidxs_mf = np.arange(0,20),
         TEMP_suffix = 'mfda_maskedsky',
@@ -53,7 +54,8 @@ dlensalot_model = DLENSALOT_Model(
     qerec = DLENSALOT_Qerec(
         tasks = ["calc_phi","calc_meanfield", "calc_blt"],
         filter_directional = 'anisotropic',
-        lm_max_qlm = (4000, 4000)
+        lm_max_qlm = (4000, 4000),
+        cg_tol = 1e-3
     ),
     itrec = DLENSALOT_Itrec(
         tasks = ["calc_phi"],
