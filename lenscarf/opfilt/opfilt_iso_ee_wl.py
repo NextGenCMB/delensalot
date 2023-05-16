@@ -10,7 +10,7 @@ log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
 
 import numpy as np
-from lenspyx.utils_hp import almxfl, Alm, synalm
+from lenspyx.utils_hp import almxfl,   Alm, synalm
 from lenspyx.utils import timer, cli
 from lenspyx.remapping.utils_geom import pbdGeometry
 from lenspyx import remapping
@@ -107,19 +107,18 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         lmax_unl = Alm.getlmax(elm.size, self.mmax_sol)
         assert lmax_unl == self.lmax_sol, (lmax_unl, self.lmax_sol)
         # View to the same array for GRAD_ONLY mode:
-        elm_2d = elm.reshape(1, elm.size)
+        elm_2d = elm.reshape((1, elm.size))
         eblm = self.ffi.lensgclm(elm_2d, self.mmax_sol, 2, self.lmax_len, self.mmax_len)
         self.tim.add('lensgclm fwd')
         almxfl(eblm[0], self.inoise_2_elm, self.mmax_len, inplace=True)
         almxfl(eblm[1], self.inoise_2_blm, self.mmax_len, inplace=True)
         self.tim.add('transf')
 
-        #TODO
         # NB: inplace is fine but only if precision of elm array matches that of the interpolator
-        #self.ffi.lensgclm(eblm, self.mmax_len, 2, self.lmax_sol, self.mmax_sol,
-        #                         backwards=True, gclm_out=elm_2d, out_sht_mode='GRAD_ONLY')
-        elm[:] = self.ffi.lensgclm(eblm, self.mmax_len, 2, self.lmax_sol, self.mmax_sol,
-                         backwards=True, out_sht_mode='GRAD_ONLY').squeeze()
+        self.ffi.lensgclm(eblm, self.mmax_len, 2, self.lmax_sol, self.mmax_sol,
+                                 backwards=True, gclm_out=elm_2d, out_sht_mode='GRAD_ONLY')
+        #elm[:] = self.ffi.lensgclm(eblm, self.mmax_len, 2, self.lmax_sol, self.mmax_sol,
+        #                 backwards=True, out_sht_mode='GRAD_ONLY').squeeze()
         self.tim.add('lensgclm bwd')
         if self.verbose:
             print(self.tim)
