@@ -21,7 +21,6 @@ from plancklens.qcinv import opfilt_pp
 from plancklens.filt import filt_util, filt_cinv, filt_simple
 
 from delensalot import utils_sims
-from delensalot.sims import sims_ffp10
 from delensalot.core import mpi
 from delensalot.core.mpi import check_MPI
 from delensalot.iterators import iteration_handler
@@ -912,15 +911,15 @@ class MAP_lr(Basejob):
 class Map_delenser(Basejob):
     """Script for calculating delensed ILC and Blens spectra using precaulculated Btemplates as input.
     This is a combination of,
-     * loading the right files,
-     * delensing with the right Btemplates (QE, MAP),
-     * choosing the right power spectrum calculation as in binning, masking, and templating
+     * loading files,
+     * delensing with Btemplates (QE, MAP),
+     * choosing power spectrum calculation as in binning, masking, and templating
      * running across all jobs
     """
 
     @check_MPI
-    def __init__(self, bmd_model):
-        self.__dict__.update(bmd_model.__dict__)
+    def __init__(self, dlensalot_model):
+        self.__dict__.update(dlensalot_model.__dict__)
         self.lib = dict()
 
         for dir_id in self.dirid:
@@ -931,6 +930,10 @@ class Map_delenser(Basejob):
             self.bcl_L, self.bcl_cs  = self.read_data_v2(edges_id=0)
         # self.bcl_L = np.array([b[0] for b in self.bcls])
         # self.bcl_cs = np.array([b[1] for b in self.bcls])
+
+        self.simgen = Sim_generator(dlensalot_model)
+        _sims_module = importlib.import_module(self._sims_full_name)
+        self.ec = getattr(_sims_module, 'experiment_config')()
 
     def load_bcl(self):
         self.bcl_L, self.bcl_cs  = self.read_data_v2(edges_id=0)
