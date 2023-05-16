@@ -115,6 +115,7 @@ DL_DEFAULT_CMBS4_FS_T = {
         'ninvjob_geometry': 'healpix_geometry',
     },
     'madel': {
+        'data_from_CFS': False,
         'edges': -1,
         'dlm_mod': False,
         'iterations': -1,

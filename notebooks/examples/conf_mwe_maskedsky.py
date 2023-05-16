@@ -7,8 +7,8 @@ QE and iterative reconstruction uses anisotropic filters.
 
 import numpy as np
 import os
-import plancklens
-from plancklens import utils
+import delensalot
+from delensalot import utils
 from os.path import join as opj
 
 from delensalot.lerepi.core.metamodel.dlensalot_mm import *
@@ -27,14 +27,14 @@ dlensalot_model = DLENSALOT_Model(
         simidxs_mf = np.arange(0,20),
         TEMP_suffix = 'mfda_maskedsky',
         Lmin = 1, 
-        lm_max_ivf = (4000, 4000),
+        lm_max_ivf = (3000, 3000),
         lmin_teb = (10, 10, 200),
         mask = opj(os.environ['SCRATCH'], 'delensalot/generic/sims_cmb_len_lminB200_mfda_maskedsky/mask.fits')
     ),
     data = DLENSALOT_Data(
         class_parameters = {
             'lmax': 4096,
-            'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(plancklens.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
+            'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(delensalot.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
             'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'generic', 'nside2048', 'lmax4096', 'nlevp_sqrt(2)')
         },
         nlev_t = 1.00,
@@ -54,14 +54,14 @@ dlensalot_model = DLENSALOT_Model(
     qerec = DLENSALOT_Qerec(
         tasks = ["calc_phi","calc_meanfield", "calc_blt"],
         filter_directional = 'anisotropic',
-        lm_max_qlm = (4000, 4000),
+        lm_max_qlm = (3000, 3000),
         cg_tol = 1e-3
     ),
     itrec = DLENSALOT_Itrec(
         tasks = ["calc_phi"],
         filter_directional = 'anisotropic',
         itmax = 5,
-        lm_max_unl = (4000, 4000),
-        lm_max_qlm = (4000, 4000)
+        lm_max_unl = (3200, 3200),
+        lm_max_qlm = (3000, 3000)
     )
 )

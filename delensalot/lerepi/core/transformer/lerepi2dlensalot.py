@@ -835,7 +835,7 @@ class l2d_Transformer:
 
         dl = DLENSALOT_Concept()
 
-        dl.blt_pert = cf.itrec.blt_pert
+        dl.blt_pert = cf.qerec.blt_pert
 
         _process_Madel(dl, cf.madel)
         _process_Config(dl, cf.config)
@@ -1038,8 +1038,8 @@ class l2j_Transformer:
                 jobs.append({"QE_lensrec":((cf, l2lensrec_Transformer()), delensalot_handler.QE_lr)})
             if "MAP_lensrec" in jb.jobs:
                 jobs.append({"MAP_lensrec":((cf, l2lensrec_Transformer()), delensalot_handler.MAP_lr)})
-            if "map_delensing" in jb.jobs:
-                jobs.append({"map_delensing":((cf, l2d_Transformer()), delensalot_handler.Map_delenser)})
+            if "delens" in jb.jobs:
+                jobs.append({"delens":((cf, l2d_Transformer()), delensalot_handler.Map_delenser)})
         jobs = []
         _process_Jobs(jobs, cf.job)
         return jobs

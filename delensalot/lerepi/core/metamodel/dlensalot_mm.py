@@ -10,8 +10,6 @@ import numpy as np
 if "SCRATCH" not in os.environ:
     os.environ["SCRATCH"] = os.path.expanduser("~")+'/SCRATCH/'
 
-from plancklens import utils
-
 import logging
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
@@ -187,6 +185,7 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
     Args:
         DLENSALOT_Concept (_type_): _description_
     """
+    data_from_CFS =         attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.data_from_CFS)
     edges =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.edges)
     dlm_mod =               attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.dlm_mod)
     iterations =            attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.iterations)
