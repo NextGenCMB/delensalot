@@ -1,5 +1,6 @@
 """
-Simulates CMB polarization maps generated on the fly, inclusive of isotropic white noise.
+Our shortest configuration file. All parameters default to an idealizaed CMB-S4-like setting for polarization data.
+Simulates CMB polarization maps generated on the fly, inclusive of isotropic white noise. Performs QE and iterative reconstruction on the full-sky.
 """
 
 from delensalot.lerepi.core.metamodel.dlensalot_mm import DLENSALOT_Model
