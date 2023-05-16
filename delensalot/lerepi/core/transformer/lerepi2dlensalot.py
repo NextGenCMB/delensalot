@@ -3,8 +3,6 @@
 """lerepi2dlensalot.py: transformer module to build dlensalot model from configuation file
 """
 
-
-
 import os, sys
 import copy
 from os.path import join as opj
@@ -36,7 +34,7 @@ from delensalot.opfilt.bmodes_ninv import template_dense
 
 import delensalot.core.handler as delensalot_handler
 from delensalot.lerepi.config.config_helper import data_functions as df, LEREPI_Constants as lc
-from delensalot.lerepi.core.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALOT_Model_mm, DLENSALOT_Concept, DLENSALOT_Chaindescriptor
+from delensalot.lerepi.core.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALOT_Model_mm, DLENSALOT_Concept
 
 
 # TODO swap rhits with ninv
@@ -613,7 +611,7 @@ class l2OBD_Transformer:
 
 
 class l2d_Transformer:
-    """Directory is built upon runtime, so accessing it here
+    """_summary_
 
     Returns:
         _type_: _description_

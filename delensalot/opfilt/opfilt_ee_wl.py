@@ -152,7 +152,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         tim.reset_t0()
         lmax_unl =Alm.getlmax(elm.size, self.mmax_sol)
         assert lmax_unl == self.lmax_sol, (lmax_unl, self.lmax_sol)
-        eblm = self.ffi.lensgclm([elm, np.zeros_like(elm)], self.mmax_sol, 2, self.lmax_len, self.mmax_len)
+        eblm = self.ffi.lensgclm(np.array([elm, np.zeros_like(elm)]), self.mmax_sol, 2, self.lmax_len, self.mmax_len)
         tim.add('lensgclm fwd')
 
         almxfl(eblm[0], self.b_transf_elm, self.mmax_len, inplace=True)
@@ -317,7 +317,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         assert len(qudat) == 2 and len(ebwf) == 2
         assert np.all(self.sc_job.geom.weight == 1.) # sum rather than integrals
 
-        ebwf = self.ffi.lensgclm(ebwf, self.mmax_sol, 2, self.lmax_len, self.mmax_len, False)
+        ebwf = self.ffi.lensgclm(np.array(ebwf), self.mmax_sol, 2, self.lmax_len, self.mmax_len, False)
         almxfl(ebwf[0], self.b_transf_elm, self.mmax_len, True)
         almxfl(ebwf[1], self.b_transf_blm, self.mmax_len, True)
         qu = qudat - self.sc_job.alm2map_spin(ebwf, 2)
