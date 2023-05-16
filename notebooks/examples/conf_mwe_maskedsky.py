@@ -63,6 +63,7 @@ dlensalot_model = DLENSALOT_Model(
         tasks = ["calc_phi"],
         filter_directional = 'anisotropic',
         itmax = 5,
+        cg_tol = 1e-3,
         lm_max_unl = (3200, 3200),
         lm_max_qlm = (3000, 3000)
     )

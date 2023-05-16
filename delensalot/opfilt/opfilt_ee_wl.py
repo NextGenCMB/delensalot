@@ -152,6 +152,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         tim.reset_t0()
         lmax_unl =Alm.getlmax(elm.size, self.mmax_sol)
         assert lmax_unl == self.lmax_sol, (lmax_unl, self.lmax_sol)
+        
         eblm = self.ffi.lensgclm(np.array([elm, np.zeros_like(elm)]), self.mmax_sol, 2, self.lmax_len, self.mmax_len)
         tim.add('lensgclm fwd')
 
@@ -191,7 +192,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         """
         elm = synalm(unlcmb_cls['ee'], self.lmax_sol, self.mmax_sol) if cmb_phas is None else cmb_phas
         assert Alm.getlmax(elm.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(elm.size, self.mmax_sol), self.lmax_sol)
-        eblm = self.ffi.lensgclm(np.array([elm, elm * 0]), self.mmax_sol, 2, self.lmax_len, self.mmax_len, False)
+        eblm = self.ffi.lensgclm(np.array([elm, elm * 0]), self.mmax_sol, 2, self.lmax_len, self.mmax_len)
         almxfl(eblm[0], self.b_transf_elm, self.mmax_len, True)
         almxfl(eblm[1], self.b_transf_blm, self.mmax_len, True)
         # cant use here sc_job since it is using the unit weight transforms
@@ -301,7 +302,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         fl = np.arange(i1, lmax + i1 + 1, dtype=float) * np.arange(i2, lmax + i2 + 1)
         fl[:spin] *= 0.
         fl = np.sqrt(fl)
-        eblm = [almxfl(eblm_wf[0], fl, self.mmax_sol, False), almxfl(eblm_wf[1], fl, self.mmax_sol, False)]
+        eblm = np.array([almxfl(eblm_wf[0], fl, self.mmax_sol, False), almxfl(eblm_wf[1], fl, self.mmax_sol, False)])
         ffi = self.ffi.change_geom(q_pbgeom) if q_pbgeom is not self.ffi.pbgeom else self.ffi
         return ffi.gclm2lenmap(eblm, self.mmax_sol, spin, False)
 
@@ -317,7 +318,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         assert len(qudat) == 2 and len(ebwf) == 2
         assert np.all(self.sc_job.geom.weight == 1.) # sum rather than integrals
 
-        ebwf = self.ffi.lensgclm(np.array(ebwf), self.mmax_sol, 2, self.lmax_len, self.mmax_len, False)
+        ebwf = self.ffi.lensgclm(np.array(ebwf), self.mmax_sol, 2, self.lmax_len, self.mmax_len)
         almxfl(ebwf[0], self.b_transf_elm, self.mmax_len, True)
         almxfl(ebwf[1], self.b_transf_blm, self.mmax_len, True)
         qu = qudat - self.sc_job.alm2map_spin(ebwf, 2)

@@ -95,7 +95,7 @@ DL_DEFAULT_CMBS4_FS_T = {
         },
         'tasks': ['calc_phi'],
         'itmax': 1,
-        'cg_tol': 1e-5,
+        'cg_tol': 1e-3,
         'iterator_typ': 'constmf',
         'filter_directional': 'isotropic',
         'lenjob_geometry': 'thin_gauss',
