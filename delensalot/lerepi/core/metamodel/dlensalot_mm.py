@@ -61,13 +61,13 @@ class DLENSALOT_Stepper(DLENSALOT_Concept):
     Attributes:
         typ:
     """
-    typ =                   attr.ib(default=DEFAULT_NotAValue, on_setattr=stepper.typ)
-    lmax_qlm =              attr.ib(default=DEFAULT_NotAValue, on_setattr=stepper.lmax_qlm)
-    mmax_qlm =              attr.ib(default=DEFAULT_NotAValue, on_setattr=stepper.mmax_qlm)
-    a =                     attr.ib(default=DEFAULT_NotAValue, on_setattr=stepper.a)
-    b =                     attr.ib(default=DEFAULT_NotAValue, on_setattr=stepper.b)
-    xa =                    attr.ib(default=DEFAULT_NotAValue, on_setattr=stepper.xa)
-    xb =                    attr.ib(default=DEFAULT_NotAValue, on_setattr=stepper.xb)
+    typ =                   attr.ib(default=DEFAULT_NotAValue, validator=stepper.typ)
+    lmax_qlm =              attr.ib(default=DEFAULT_NotAValue, validator=stepper.lmax_qlm) # must match lm_max_qlm -> validator
+    mmax_qlm =              attr.ib(default=DEFAULT_NotAValue, validator=stepper.mmax_qlm) # must match lm_max_qlm -> validator
+    a =                     attr.ib(default=DEFAULT_NotAValue, validator=stepper.a)
+    b =                     attr.ib(default=DEFAULT_NotAValue, validator=stepper.b)
+    xa =                    attr.ib(default=DEFAULT_NotAValue, validator=stepper.xa)
+    xb =                    attr.ib(default=DEFAULT_NotAValue, validator=stepper.xb)
 
 
 @attr.s
@@ -189,12 +189,13 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
     edges =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.edges)
     dlm_mod =               attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.dlm_mod)
     iterations =            attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.iterations)
-    masks =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.masks)
+    nlevels =               attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.nlevels)
     lmax =                  attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.lmax)
     Cl_fid =                attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.Cl_fid)
     libdir_it =             attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.libdir_it)
     binning =               attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.binning)
     spectrum_calculator =   attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.spectrum_calculator)
+    masks_fn =              attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.masks)
 
 @attr.s
 class DLENSALOT_OBD(DLENSALOT_Concept):

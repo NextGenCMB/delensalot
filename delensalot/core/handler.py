@@ -933,7 +933,7 @@ class Map_delenser(Basejob):
 
         self.simgen = Sim_generator(dlensalot_model)
         _sims_module = importlib.import_module(self._sims_full_name)
-        self.ec = getattr(_sims_module, 'experiment_config')()
+        # self.ec = getattr(_sims_module, 'experiment_config')()
 
     def load_bcl(self):
         self.bcl_L, self.bcl_cs  = self.read_data_v2(edges_id=0)
@@ -1032,21 +1032,39 @@ class Map_delenser(Basejob):
     @log_on_end(logging.INFO, "run() finished")
     def run(self):
         
+        # @log_on_start(logging.INFO, "_prepare_job() started")
+        # @log_on_end(logging.INFO, "_prepare_job() finished")
+        # def _prepare_job(edges=[]):
+        #     ## choose by hand: either binmasks, or masks
+        #     masktype = list(self.binmasks.keys())[0]
+        #     if self.binning == 'binned':
+        #         outputdata = np.zeros(shape=(2, 2+len(self.its), len(self.mask_ids), len(edges)-1))
+        #         for mask_id, mask in self.binmasks[masktype].items():
+        #             self.lib.update({mask_id: self.cl_calc.map2cl_binned(mask, self.clc_templ[:self.lmax_mask], edges, self.lmax_mask)})
+
+        #     elif self.binning == 'unbinned':
+        #         for mask_id, mask in self.binmasks[masktype].items():
+        #             a = overwrite_anafast() if self.cl_calc == hp else masked_lib(mask, self.cl_calc, self.lmax, self.lmax_mask)
+        #             outputdata = np.zeros(shape=(2, 2+len(self.its), len(self.mask_ids), self.lmax+1))
+        #             self.lib.update({mask_id: a})
+
+        #     return outputdata
+        
+
         @log_on_start(logging.INFO, "_prepare_job() started")
         @log_on_end(logging.INFO, "_prepare_job() finished")
         def _prepare_job(edges=[]):
-            ## choose by hand: either binmasks, or masks
-            masktype = list(self.binmasks.keys())[0]
             if self.binning == 'binned':
-                outputdata = np.zeros(shape=(2, 2+len(self.its), len(self.mask_ids), len(edges)-1))
-                for mask_id, mask in self.binmasks[masktype].items():
-                    self.lib.update({mask_id: self.cl_calc.map2cl_binned(mask, self.clc_templ[:self.lmax_mask], edges, self.lmax_mask)})
+                print(self.its, self.nlevels, edges)
+                outputdata = np.zeros(shape=(2, 2+len(self.its), len(self.nlevels), len(edges)-1))
+                for nlevel, val in self.binmasks.items():
+                    self.lib.update({nlevel: self.cl_calc.map2cl_binned(nlevel, self.clc_templ[:self.lmax_mask], edges, self.lmax_mask)})
 
             elif self.binning == 'unbinned':
-                for mask_id, mask in self.binmasks[masktype].items():
-                    a = overwrite_anafast() if self.cl_calc == hp else masked_lib(mask, self.cl_calc, self.lmax, self.lmax_mask)
-                    outputdata = np.zeros(shape=(2, 2+len(self.its), len(self.mask_ids), self.lmax+1))
-                    self.lib.update({mask_id: a})
+                for nlevel, val in self.binmasks.items():
+                    a = overwrite_anafast() if self.cl_calc == hp else masked_lib(nlevel, self.cl_calc, self.lmax, self.lmax_mask)
+                    outputdata = np.zeros(shape=(2, 2+len(self.its), len(self.nlevels), self.lmax+1))
+                    self.lib.update({nlevel: a})
 
             return outputdata
 
@@ -1159,52 +1177,51 @@ class Map_delenser(Basejob):
 
         if self.jobs != []:
             if self.binning == 'binned':
-                for edgesi, edges in enumerate(self.edges):
-                    outputdata = _prepare_job(edges)
-                    for idx in self.jobs[mpi.rank::mpi.size]:
-                        _file_op = self.file_op(idx, self.fg, edgesi)
-                        log.info('will store file at: {}'.format(_file_op))
-                        bmap_L, bmap_cs, blt_QE1, blt_QE2 = _build_basemaps(idx)
-                        if self.subtract_mblt:
-                            if self.calc_via_mbltsplitset:
-                                simidxs_bltmean1 = np.arange(0,int(self.Nmblt/2))
-                                simidxs_bltmean2 = np.arange(int(self.Nmblt/2), self.Nmblt)
-                                if self.calc_via_MFsplitset:
-                                    mblt_QE1 = hp.alm2map(np.mean([np.load(self.getfn_blm_lensc(simidx, 0, 'set1')) for simidx in simidxs_bltmean1 if simidx not in [idx]], axis=0), nside=self._sims.nside)
-                                    mblt_QE2 = hp.alm2map(np.mean([np.load(self.getfn_blm_lensc(simidx, 0, 'set2')) for simidx in simidxs_bltmean2 if simidx not in [idx]], axis=0), nside=self._sims.nside)
-                                else:
-                                    mblt_QE1 = hp.alm2map(np.mean([np.load(self.getfn_blm_lensc(simidx, 0)) for simidx in simidxs_bltmean1 if simidx not in [idx]], axis=0), nside=self._sims.nside)
-                                    mblt_QE2 = hp.alm2map(np.mean([np.load(self.getfn_blm_lensc(simidx, 0)) for simidx in simidxs_bltmean2 if simidx not in [idx]], axis=0), nside=self._sims.nside)
+                outputdata = _prepare_job(self.edges)
+                for idx in self.jobs[mpi.rank::mpi.size]:
+                    _file_op = self.file_op(idx)
+                    log.info('will store file at: {}'.format(_file_op))
+                    bmap_L, bmap_cs, blt_QE1, blt_QE2 = _build_basemaps(idx)
+                    if self.subtract_mblt:
+                        if self.calc_via_mbltsplitset:
+                            simidxs_bltmean1 = np.arange(0,int(self.Nmblt/2))
+                            simidxs_bltmean2 = np.arange(int(self.Nmblt/2), self.Nmblt)
+                            if self.calc_via_MFsplitset:
+                                mblt_QE1 = hp.alm2map(np.mean([np.load(self.getfn_blm_lensc(simidx, 0, 'set1')) for simidx in simidxs_bltmean1 if simidx not in [idx]], axis=0), nside=self._sims.nside)
+                                mblt_QE2 = hp.alm2map(np.mean([np.load(self.getfn_blm_lensc(simidx, 0, 'set2')) for simidx in simidxs_bltmean2 if simidx not in [idx]], axis=0), nside=self._sims.nside)
                             else:
-                                mblt_QE1 = hp.alm2map(np.mean([np.load(self.getfn_blm_lensc(simidx, 0)) for simidx in np.arange(0,self.Nmblt) if simidx not in [idx]], axis=0), nside=self._sims.nside)
-                                mblt_QE2 = np.copy(mblt_QE1)
+                                mblt_QE1 = hp.alm2map(np.mean([np.load(self.getfn_blm_lensc(simidx, 0)) for simidx in simidxs_bltmean1 if simidx not in [idx]], axis=0), nside=self._sims.nside)
+                                mblt_QE2 = hp.alm2map(np.mean([np.load(self.getfn_blm_lensc(simidx, 0)) for simidx in simidxs_bltmean2 if simidx not in [idx]], axis=0), nside=self._sims.nside)
                         else:
-                            mblt_QE1 = 0
-                            mblt_QE2 = 0
-                        blt_MAP1, blt_MAP2 = _build_Btemplate_MAP(idx)
-                        if self.subtract_mblt:
-                            if self.calc_via_mbltsplitset:
-                                simidxs_bltmean1 = np.arange(0,int(self.Nmblt/2))
-                                simidxs_bltmean2 = np.arange(int(self.Nmblt/2), self.Nmblt)
-                                if self.calc_via_MFsplitset:
-                                    buff = np.mean([[np.load(self.getfn_blm_lensc(simidx, it, 'set1')) for simidx in simidxs_bltmean1 if simidx not in [idx]] for it in self.its], axis=1)
-                                    mblt_MAP1 = np.array([hp.alm2map(buff[iti], nside=self._sims.nside) for iti, it in enumerate(self.its)])
-                                    buff = np.mean([[np.load(self.getfn_blm_lensc(simidx, it, 'set2')) for simidx in simidxs_bltmean2 if simidx not in [idx]] for it in self.its], axis=1)
-                                    mblt_MAP2 = np.array([hp.alm2map(buff[iti], nside=self._sims.nside) for iti, it in enumerate(self.its)])
-                                else:
-                                    buff = np.mean([[np.load(self.getfn_blm_lensc(simidx, it)) for simidx in simidxs_bltmean1 if simidx not in [idx]] for it in self.its], axis=1)
-                                    mblt_MAP1 = np.array([hp.alm2map(buff[iti], nside=self._sims.nside) for iti, it in enumerate(self.its)])
-                                    buff = np.mean([[np.load(self.getfn_blm_lensc(simidx, it)) for simidx in simidxs_bltmean2 if simidx not in [idx]] for it in self.its], axis=1)
-                                    mblt_MAP2 = np.array([hp.alm2map(buff[iti], nside=self._sims.nside) for iti, it in enumerate(self.its)])
-                            else:
-                                buff = np.mean([[np.load(self.getfn_blm_lensc(simidx, it)) for simidx in np.arange(0,self.Nmf) if simidx not in [idx]] for it in self.its], axis=1)
+                            mblt_QE1 = hp.alm2map(np.mean([np.load(self.getfn_blm_lensc(simidx, 0)) for simidx in np.arange(0,self.Nmblt) if simidx not in [idx]], axis=0), nside=self._sims.nside)
+                            mblt_QE2 = np.copy(mblt_QE1)
+                    else:
+                        mblt_QE1 = 0
+                        mblt_QE2 = 0
+                    blt_MAP1, blt_MAP2 = _build_Btemplate_MAP(idx)
+                    if self.subtract_mblt:
+                        if self.calc_via_mbltsplitset:
+                            simidxs_bltmean1 = np.arange(0,int(self.Nmblt/2))
+                            simidxs_bltmean2 = np.arange(int(self.Nmblt/2), self.Nmblt)
+                            if self.calc_via_MFsplitset:
+                                buff = np.mean([[np.load(self.getfn_blm_lensc(simidx, it, 'set1')) for simidx in simidxs_bltmean1 if simidx not in [idx]] for it in self.its], axis=1)
                                 mblt_MAP1 = np.array([hp.alm2map(buff[iti], nside=self._sims.nside) for iti, it in enumerate(self.its)])
-                                mblt_MAP2 = np.copy(mblt_MAP1)
+                                buff = np.mean([[np.load(self.getfn_blm_lensc(simidx, it, 'set2')) for simidx in simidxs_bltmean2 if simidx not in [idx]] for it in self.its], axis=1)
+                                mblt_MAP2 = np.array([hp.alm2map(buff[iti], nside=self._sims.nside) for iti, it in enumerate(self.its)])
+                            else:
+                                buff = np.mean([[np.load(self.getfn_blm_lensc(simidx, it)) for simidx in simidxs_bltmean1 if simidx not in [idx]] for it in self.its], axis=1)
+                                mblt_MAP1 = np.array([hp.alm2map(buff[iti], nside=self._sims.nside) for iti, it in enumerate(self.its)])
+                                buff = np.mean([[np.load(self.getfn_blm_lensc(simidx, it)) for simidx in simidxs_bltmean2 if simidx not in [idx]] for it in self.its], axis=1)
+                                mblt_MAP2 = np.array([hp.alm2map(buff[iti], nside=self._sims.nside) for iti, it in enumerate(self.its)])
                         else:
-                            mblt_MAP1 = 0
-                            mblt_MAP2 = 0
-                        outputdata = _delens(bmap_L, bmap_cs, blt_QE1-mblt_QE1, blt_MAP1-mblt_MAP1, blt_QE2-mblt_QE2, blt_MAP2-mblt_MAP2)
-                        np.save(_file_op, outputdata)
+                            buff = np.mean([[np.load(self.getfn_blm_lensc(simidx, it)) for simidx in np.arange(0,self.Nmf) if simidx not in [idx]] for it in self.its], axis=1)
+                            mblt_MAP1 = np.array([hp.alm2map(buff[iti], nside=self._sims.nside) for iti, it in enumerate(self.its)])
+                            mblt_MAP2 = np.copy(mblt_MAP1)
+                    else:
+                        mblt_MAP1 = 0
+                        mblt_MAP2 = 0
+                    outputdata = _delens(bmap_L, bmap_cs, blt_QE1-mblt_QE1, blt_MAP1-mblt_MAP1, blt_QE2-mblt_QE2, blt_MAP2-mblt_MAP2)
+                    np.save(_file_op, outputdata)
             else:
                 if self.subtract_mblt:
                     log.error("Implement if needed")

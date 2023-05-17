@@ -42,7 +42,7 @@ dlensalot_model = DLENSALOT_Model(
         nlev_t = 1.00,
         nlev_p = np.sqrt(2),
         beam = 1.00,
-        lmax_transf = 3000,
+        lmax_transf = 4096,
         nside = 2048,
         transferfunction = 'gauss_no_pixwin'
     ),
@@ -65,6 +65,15 @@ dlensalot_model = DLENSALOT_Model(
         itmax = 5,
         cg_tol = 1e-3,
         lm_max_unl = (3200, 3200),
-        lm_max_qlm = (3000, 3000)
+        lm_max_qlm = (3000, 3000),
+        stepper = DLENSALOT_Stepper(
+            typ = 'harmonicbump',
+            lmax_qlm = 3000,
+            mmax_qlm = 3000,
+            a = 0.5,
+            b = 0.499,
+            xa = 400,
+            xb = 1500
+        ),
     )
 )

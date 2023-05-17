@@ -4,8 +4,10 @@ import numpy as np
 import psutil
 
 from delensalot import utils
+from MSC import pospace
 
 import delensalot
+from delensalot.lerepi.config.config_helper import LEREPI_Constants as lc
 
 DEFAULT_NotAValue = -123456789
 DEFAULT_NotValid = 9876543210123456789
@@ -116,15 +118,16 @@ DL_DEFAULT_CMBS4_FS_T = {
     },
     'madel': {
         'data_from_CFS': False,
-        'edges': -1,
+        'edges': lc.cmbs4_edges,
+        'nlevels': [np.inf],
         'dlm_mod': False,
-        'iterations': -1,
-        'masks': None,
-        'lmax': -1,
-        'Cl_fid': -1,
+        'iterations': [5],
+        'masks_fn': None,
+        'lmax': 1024,
+        'Cl_fid': 'ffp10',
         'libdir_it': None,
-        'binning': -1,
-        'spectrum_calculator': None,
+        'binning': 'binned',
+        'spectrum_calculator': pospace,
     },
     'computing': {
         'OMP_NUM_THREADS': int(psutil.cpu_count()/psutil.cpu_count(logical=False))
@@ -249,15 +252,17 @@ DL_DEFAULT_CMBS4_FS_P = {
         'ninvjob_geometry': 'healpix_geometry',
     },
     'madel': {
-        'edges': -1,
+        'data_from_CFS': False,
+        'edges': lc.cmbs4_edges,
+        'nlevels': [np.inf],
         'dlm_mod': False,
-        'iterations': -1,
-        'masks': None,
-        'lmax': -1,
-        'Cl_fid': -1,
+        'iterations': [5],
+        'masks_fn': None,
+        'lmax': 1024,
+        'Cl_fid': 'ffp10',
         'libdir_it': None,
-        'binning': -1,
-        'spectrum_calculator': None,
+        'binning': 'binned',
+        'spectrum_calculator': pospace,
     },
     'computing': {
         'OMP_NUM_THREADS': int(psutil.cpu_count()/psutil.cpu_count(logical=False))
@@ -382,15 +387,17 @@ DL_DEFAULT_CMBS4_MS_P = {
         'ninvjob_geometry': 'healpix_geometry',
     },
     'madel': {
-        'edges': -1,
+        'data_from_CFS': False,
+        'edges': lc.cmbs4_edges,
+        'nlevels': [np.inf],
         'dlm_mod': False,
-        'iterations': -1,
-        'masks': None,
-        'lmax': -1,
-        'Cl_fid': -1,
+        'iterations': [5],
+        'masks_fn': None,
+        'lmax': 1024,
+        'Cl_fid': 'ffp10',
         'libdir_it': None,
-        'binning': -1,
-        'spectrum_calculator': None,
+        'binning': 'binned',
+        'spectrum_calculator': pospace,
     },
     'computing': {
         'OMP_NUM_THREADS': int(psutil.cpu_count()/psutil.cpu_count(logical=False))

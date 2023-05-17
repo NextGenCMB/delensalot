@@ -14,6 +14,10 @@ def iterations(instance, attribute, value):
     desc = [value]
     assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
+def nlevels(instance, attribute, value):
+    desc = [value]
+    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+
 def masks(instance, attribute, value):
     desc = [value]
     assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))

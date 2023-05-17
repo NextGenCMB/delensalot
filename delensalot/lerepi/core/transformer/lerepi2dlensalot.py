@@ -423,11 +423,8 @@ class l2lensrec_Transformer(l2base_Transformer):
             # stepper
             dl.stepper_model = it.stepper
             if dl.stepper_model.typ == 'harmonicbump':
-                # TODO undo hardcoding, make it userchoice
-                # TODO this should be checked via validator accordingly
-                if dl.stepper_model.lmax_qlm == -1 and dl.stepper_model.mmax_qlm == -1:
-                    dl.stepper_model.lmax_qlm = dl.lm_max_qlm[0]
-                    dl.stepper_model.mmax_qlm = dl.lm_max_qlm[1]
+                dl.stepper_model.lmax_qlm = dl.lm_max_qlm[0]
+                dl.stepper_model.mmax_qlm = dl.lm_max_qlm[1]
                 dl.stepper = steps.harmonicbump(dl.stepper_model.lmax_qlm, dl.stepper_model.mmax_qlm, a=dl.stepper_model.a, b=dl.stepper_model.b, xa=dl.stepper_model.xa, xb=dl.stepper_model.xb)
                 # dl.stepper = steps.nrstep(dl.lm_max_qlm[0], dl.lm_max_qlm[1], val=0.5) # handler of the size steps in the MAP BFGS iterative search
             
@@ -609,244 +606,6 @@ class l2OBD_Transformer:
 
         return masks, msk
 
-
-class l2d_Transformer:
-    """delenser-job model transfer
-
-    Returns:
-        _type_: _description_
-    """
-
-    @log_on_start(logging.INFO, "build() started")
-    @log_on_end(logging.INFO, "build() finished")
-    def build(self, cf):
-
-
-        def _process_Madel(dl, ma):
-
-            dl.data_from_CFS = ma.data_from_CFS
-            dl.k = cf.analysis.key
-            dl.version = cf.analysis.version
-
-            dl.iterations = [0] if ma.iterations == [] else ma.iterations
-            dl.simidxs_mf = cf.analysis.simidxs_mf if cf.analysis.simidxs_mf != [] else dl.simidxs
-            dl.Nmf = len(dl.simidxs_mf)
-            dl.Nblt = len(cf.madel.simidxs_mblt)
-            if 'fg' in cf.data.class_parameters:
-                dl.fg = cf.data.class_parameters['fg']
-
-            l2base_Transformer.process_Data(dl, cf.data, cf)
-
-            dl.data_type = cf.data.data_type
-            dl.data_field = cf.data.data_field
-
-            # TODO hack. this is only needed to access old s08b data
-            # Remove and think of a better way of including old data without existing config file
-            dl.TEMP = transform(cf, l2T_Transformer())
-
-            if ma.libdir_it is None:
-                dl.libdir_iterators = lambda qe_key, simidx, version: opj(dl.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
-            else:
-                dl.libdir_iterators = 'overwrite'
-            dl.analysis_path = dl.TEMP.split('/')[-1]
-
-            if cf.noisemodel.rhits_normalised is not None:
-                _mask_path = cf.noisemodel.rhits_normalised[0]
-                dl.base_mask = np.nan_to_num(hp.read_map(_mask_path))
-            else:
-                dl.base_mask = np.ones(shape=hp.nside2npix(cf.data.nside))
-            noisemodel_rhits_map = df.get_nlev_mask(np.inf, dl.base_mask)
-            noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.noisemodel.inf
-
-            if ma.masks != None:
-                innermaskid = 10
-                if ma.ringmask:
-                    _innermask = df.get_nlev_mask(innermaskid, noisemodel_rhits_map)
-                else:
-                    _innermask = 0
-                dl.masks = dict({ma.masks[0]:{}})
-                dl.binmasks = dict({ma.masks[0]:{}})
-                dl.mask_ids = ma.masks[1]
-                if ma.masks[0] == 'nlevels': 
-                    for mask_id in dl.mask_ids:
-                        buffer = df.get_nlev_mask(mask_id, noisemodel_rhits_map)
-                        if mask_id > innermaskid:
-                            innermask = np.copy(_innermask)
-                        else:
-                            innermask = 0
-                        dl.masks[ma.masks[0]].update({mask_id:buffer-innermask})
-                        dl.binmasks[ma.masks[0]].update({mask_id: np.where(dl.masks[ma.masks[0]][mask_id]>0,1,0)})
-                elif ma.masks[0] == 'masks':
-                    dl.mask_ids = np.zeros(shape=len(ma.masks[1]))
-                    for fni, fn in enumerate(ma.masks[1]):
-                        if fn == None:
-                            buffer = np.ones(shape=hp.nside2npix(dl.sims_nside))
-                            dl.mask_ids[fni] = 1.00
-                        elif fn.endswith('.fits'):
-                            buffer = hp.read_map(fn)
-                        else:
-                            buffer = np.load(fn)
-                        _fsky = float("{:0.3f}".format(np.sum(buffer)/len(buffer)))
-                        dl.mask_ids[fni] = _fsky
-                        dl.masks[ma.masks[0]].update({_fsky:buffer})
-                        dl.binmasks[ma.masks[0]].update({_fsky: np.where(dl.masks[ma.masks[0]][_fsky]>0,1,0)})
-            else:
-                dl.masks = {"no":{1.00:np.ones(shape=hp.nside2npix(dl.sims_nside))}}
-                dl.mask_ids = np.array([1.00])
-
-            dl.beam = cf.data.beam
-            dl.lmax_transf = cf._sims.lmax_transf
-            if cf.analysis.STANDARD_TRANSFERFUNCTION == True:
-                dl.transf = gauss_beam(df.a2r(dl.beam), lmax=dl.lmax_transf)
-            elif cf.analysis.STANDARD_TRANSFERFUNCTION == 'with_pixwin':
-                dl.transf = gauss_beam(df.a2r(dl.beam), lmax=dl.lmax_transf) * hp.pixwin(cf.data.nside, lmax=dl.lmax_transf)
-            else:
-                log.info("Don't understand your STANDARD_TRANSFERFUNCTION: {}".format(cf.analysis.STANDARD_TRANSFERFUNCTION))
-            
-            if ma.Cl_fid == 'ffp10':
-                dl.cls_unl = camb_clfile(cf.analysis.cls_unl)
-                dl.cls_len = camb_clfile(cf.analysis.cls_len)
-                dl.clg_templ = dl.cls_len['ee']
-                dl.clc_templ = dl.cls_len['bb']
-                dl.clg_templ[0] = 1e-32
-                dl.clg_templ[1] = 1e-32
-            pert_mod_string = ''
-            dl.blt_pert = ma.blt_pert
-            if dl.blt_pert == True:
-                pert_mod_string = 'pertblens'
-            dl.binning = ma.binning
-            if dl.binning == 'binned':
-                dl.lmax = ma.lmax
-                dl.lmax_mask = 3*dl.lmax-1
-                dl.edges = []
-                dl.edges_id = []
-                if ma.edges != -1:
-                    if 'cmbs4' in ma.edges:
-                        dl.edges.append(lc.cmbs4_edges)
-                        dl.edges_id.append('cmbs4')
-                    if 'ioreco' in ma.edges:
-                        dl.edges.append(lc.ioreco_edges) 
-                        dl.edges_id.append('ioreco')
-                    if 'lowell' in ma.edges:
-                        dl.edges.append(lc.lowell_edges) 
-                        dl.edges_id.append('lowell')
-                    elif 'fs' in ma.edges:
-                        dl.edges.append(lc.fs_edges)
-                        dl.edges_id.append('fs')
-                dl.edges = np.array(dl.edges)
-                dl.sha_edges = [hashlib.sha256() for n in range(len(dl.edges))]
-                for n in range(len(dl.edges)):
-                    dl.sha_edges[n].update((str(dl.edges[n]) + pert_mod_string + cf.madel.ringmask*'ringmask').encode())
-                dl.dirid = [dl.sha_edges[n].hexdigest()[:4] for n in range(len(dl.edges))]
-                dl.edges_center = np.array([(e[1:]+e[:-1])/2 for e in dl.edges])
-                dl.ct = np.array([[dl.clc_templ[np.array(ec,dtype=int)]for ec in edge] for edge in dl.edges_center])
-            elif dl.binning == 'unbinned':
-                dl.lmax = 200
-                dl.lmax_mask = 6*dl.lmax-1
-                dl.edges = np.array([np.arange(0,dl.lmax+2)])
-                dl.edges_id = [dl.binning]
-                dl.edges_center = dl.edges[:,1:]
-                dl.ct = np.ones(shape=len(dl.edges_center))
-                dl.sha_edges = [hashlib.sha256()]
-                dl.sha_edges[0].update(('unbinned'+pert_mod_string + cf.madel.ringmask*'ringmask').encode())
-                dl.dirid = [dl.sha_edges[0].hexdigest()[:4]]
-
-            dl.vers_str = '/{}'.format(dl.version) if dl.version != '' else 'base'
-            dl.TEMP_DELENSED_SPECTRUM = transform(dl, l2T_Transformer())
-
-            # TODO II
-            # TODO fn needs changing
-            dl.dlm_mod_bool = ma.dlm_mod[0]
-            dl.dlm_mod_fnsuffix = ma.dlm_mod[1]
-            dl.calc_via_MFsplitset = bool(ma.dlm_mod[1])
-
-            dl.subtract_mblt = ma.subtract_mblt[0]
-            dl.simidxs_mblt = ma.simidxs_mblt
-            dl.Nmblt = len(dl.simidxs_mblt)
-            dl.calc_via_mbltsplitset = bool(ma.subtract_mblt[1])
-            
-            if dl.binning == 'binned':
-                if dl.dlm_mod_bool:
-                    if dl.subtract_mblt or dl.calc_via_MFsplitset or dl.calc_via_mbltsplitset:
-                        splitset_fnsuffix = dl.subtract_mblt * '_mblt' + dl.calc_via_MFsplitset * '_MFsplit'  + dl.calc_via_mbltsplitset * '_mbltsplit'
-                    else:
-                        splitset_fnsuffix = ''
-                    dl.file_op = lambda idx, fg, edges_idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edges_idx]) + '/ClBBwf_sim%04d_%s_fg%s_res2b3acm.npy'%(idx, 'dlmmod{}{}'.format(dl.dlm_mod_fnsuffix, splitset_fnsuffix), fg)
-                else:
-                    if dl.subtract_mblt or dl.calc_via_MFsplitset or dl.calc_via_mbltsplitset:
-                        splitset_fnsuffix = dl.subtract_mblt * '_mblt' + dl.calc_via_MFsplitset * '_MFsplit'  + dl.calc_via_mbltsplitset * '_mbltsplit'
-                    else:
-                        splitset_fnsuffix = ''
-                    dl.file_op = lambda idx, fg, edges_idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edges_idx]) + '/ClBBwf_sim%04d_fg%s_res2b3acm%s.npy'%(idx, fg, splitset_fnsuffix)
-            else:
-                if dl.subtract_mblt or dl.calc_via_MFsplitset or dl.calc_via_mbltsplitset:
-                    log.error("Implement for unbinned if needed")
-                    sys.exit()
-                if dl.dlm_mod_bool:
-                    dl.file_op = lambda idx, fg, x: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[0]) + '/ClBBwf_sim%04d_%s_fg%s_res2b3acm.npy'%(idx, 'dlmmod{}'.format(dl.dlm_mod_fnsuffix), fg)
-                else:
-                    dl.file_op = lambda idx, fg, x: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[0]) + '/ClBBwf_sim%04d_fg%s_res2b3acm.npy'%(idx, fg)
-
-            if ma.spectrum_calculator == None:
-                log.info("Using Healpy as powerspectrum calculator")
-                dl.cl_calc = hp
-            else:
-                dl.cl_calc = ma.spectrum_calculator       
-
-
-        def _process_Config(dl, co):
-            if co.outdir_plot_rel:
-                dl.outdir_plot_rel = co.outdir_plot_rel
-            else:
-                dl.outdir_plot_rel = '{}/{}'.format(cf.data.module_.split('.')[2],cf.data.module_.split('.')[-1])
-                    
-            if co.outdir_plot_root:
-                dl.outdir_plot_root = co.outdir_plot_root
-            else:
-                dl.outdir_plot_root = os.environ['HOME']
-            
-            dl.outdir_plot_abs = opj(dl.outdir_plot_root, dl.outdir_plot_rel)
-            if not os.path.isdir(dl.outdir_plot_abs):
-                os.makedirs(dl.outdir_plot_abs)
-            log.info('Plots will be stored at {}'.format(dl.outdir_plot_abs))
-
-
-        def _check_powspeccalculator(clc):
-            if dl.binning == 'binned':
-                if 'map2cl_binned' not in clc.__dict__:
-                    log.error("Spectrum calculator doesn't provide needed function map2cl_binned() for binned spectrum calculation")
-                    sys.exit()
-            elif dl.binning == 'unbinned':
-                if 'map2cl' not in clc.__dict__:
-                    if 'anafast' not in clc.__dict__:
-                        log.error("Spectrum calculator doesn't provide needed function map2cl() or anafast() for unbinned spectrum calculation")
-                        sys.exit()
-
-
-        dl = DLENSALOT_Concept()
-
-        dl.blt_pert = cf.qerec.blt_pert
-
-        _process_Madel(dl, cf.madel)
-        _process_Config(dl, cf.config)
-        _check_powspeccalculator(dl.cl_calc)
-
-        dl.prediction = dict()
-        for key0 in ['N0', 'N1', 'cl_del']:
-            if key0 not in dl.prediction:
-                dl.prediction[key0] = dict()
-            for key4 in dl.mask_ids + ['fs']:
-                if key4 not in dl.prediction[key0]:
-                    dl.prediction[key0][key4] = dict()
-                for key1 in ['QE', "MAP"]:
-                    if key1 not in dl.prediction[key0][key4]:
-                        dl.prediction[key0][key4][key1] = dict()
-                    for key2 in ['N', 'N_eff']:
-                        if key2 not in dl.prediction[key0][key4][key1]:
-                                dl.prediction[key0][key4][key1][key2] = np.array([], dtype=np.complex128)
-        return dl
-
-
 class l2delens_Transformer:
     """delenser-job model transfer
 
@@ -903,21 +662,11 @@ class l2delens_Transformer:
 
         def _process_Madel(dl, ma):
             dl.data_from_CFS = ma.data_from_CFS
-            dl.iterations = [0] if ma.iterations == [] else ma.iterations
-            dl.simidxs_mf = cf.analysis.simidxs_mf if cf.analysis.simidxs_mf != [] else dl.simidxs
-            dl.Nmf = len(dl.simidxs_mf)
-            dl.Nblt = len(cf.madel.simidxs_mblt)
-
-            dl.data_type = cf.data.data_type
-            dl.data_field = cf.data.data_field
-
-            # TODO hack. this is only needed to access old s08b data
-            # Remove and think of a better way of including old data without existing config file
+            dl.its = [0] if ma.iterations == [] else ma.iterations
             dl.TEMP = transform(cf, l2T_Transformer())
-
             dl.libdir_iterators = lambda qe_key, simidx, version: opj(dl.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
             dl.analysis_path = dl.TEMP.split('/')[-1]
-            dl.blt_pert = ma.blt_pert
+            dl.blt_pert = cf.qerec.blt_pert
 
             ## Masking
             if cf.noisemodel.rhits_normalised is not None:
@@ -926,37 +675,34 @@ class l2delens_Transformer:
             else:
                 dl.base_mask = np.ones(shape=hp.nside2npix(cf.data.nside))
             noisemodel_rhits_map = df.get_nlev_mask(np.inf, dl.base_mask)
-            noisemodel_rhits_map[noisemodel_rhits_map == np.inf] = cf.noisemodel.inf
-
-            if ma.masks != None:
-                dl.masks = dict({ma.masks[0]:{}})
-                dl.binmasks = dict({ma.masks[0]:{}})
-                dl.mask_ids = ma.masks[1]
-                if ma.masks[0] == 'nlevels': 
-                    for mask_id in dl.mask_ids:
-                        buffer = df.get_nlev_mask(mask_id, noisemodel_rhits_map)
-
-                        dl.masks[ma.masks[0]].update({mask_id:buffer})
-                        dl.binmasks[ma.masks[0]].update({mask_id: np.where(dl.masks[ma.masks[0]][mask_id]>0,1,0)})
-                elif ma.masks[0] == 'masks':
-                    dl.mask_ids = np.zeros(shape=len(ma.masks[1]))
-                    for fni, fn in enumerate(ma.masks[1]):
-                        if fn == None:
-                            buffer = np.ones(shape=hp.nside2npix(dl.sims_nside))
-                            dl.mask_ids[fni] = 1.00
-                        elif fn.endswith('.fits'):
-                            buffer = hp.read_map(fn)
-                        else:
-                            buffer = np.load(fn)
-                        _fsky = float("{:0.3f}".format(np.sum(buffer)/len(buffer)))
-                        dl.mask_ids[fni] = _fsky
-                        dl.masks[ma.masks[0]].update({_fsky:buffer})
-                        dl.binmasks[ma.masks[0]].update({_fsky: np.where(dl.masks[ma.masks[0]][_fsky]>0,1,0)})
+            if ma.nlevels == None or ma.nlevels == [] or ma.nlevels == False:
+                dl.nlevels = np.array([np.inf])
             else:
-                dl.masks = {"no":{1.00:np.ones(shape=hp.nside2npix(dl.sims_nside))}}
-                dl.mask_ids = np.array([1.00])
+                dl.nlevels = ma.nlevels
+            dl.masks = {nlevel: [] for nlevel in dl.nlevels} 
+            dl.binmasks = {nlevel: [] for nlevel in dl.nlevels}
 
-            
+            for nlevel, value in dl.masks.items():
+                    dl.masks[nlevel] = df.get_nlev_mask(nlevel, noisemodel_rhits_map)
+                    dl.binmasks[nlevel] = np.where(dl.masks[nlevel]>0,1,0)
+
+            ## TODO if config file contains masks_fn, create new masks
+            # if ma.masks_fn == 'masks':
+            #     dl.mask_ids = np.zeros(shape=len(ma.masks[1]))
+            #     for fni, fn in enumerate(ma.masks[1]):
+            #         if fn == None:
+            #             buffer = np.ones(shape=hp.nside2npix(dl.sims_nside))
+            #             dl.mask_ids[fni] = 1.00
+            #         elif fn.endswith('.fits'):
+            #             buffer = hp.read_map(fn)
+            #         else:
+            #             buffer = np.load(fn)
+            #         _fsky = float("{:0.3f}".format(np.sum(buffer)/len(buffer)))
+            #         dl.mask_ids[fni] = _fsky
+            #         dl.masks[ma.masks[0]].update({_fsky:buffer})
+            #         dl.binmasks[ma.masks[0]].update({_fsky: np.where(dl.masks[ma.masks[0]][_fsky]>0,1,0)})
+
+   
             ## Binning and power spectrum calculator specific preparation
             if ma.Cl_fid == 'ffp10':
                 dl.cls_unl = camb_clfile(cf.analysis.cls_unl)
@@ -970,79 +716,34 @@ class l2delens_Transformer:
             if dl.binning == 'binned':
                 dl.lmax = ma.lmax
                 dl.lmax_mask = 3*dl.lmax-1
-                dl.edges = []
-                dl.edges_id = []
-                if ma.edges != -1:
-                    if 'cmbs4' in ma.edges:
-                        dl.edges.append(lc.cmbs4_edges)
-                        dl.edges_id.append('cmbs4')
-                    if 'ioreco' in ma.edges:
-                        dl.edges.append(lc.ioreco_edges) 
-                        dl.edges_id.append('ioreco')
-                    if 'lowell' in ma.edges:
-                        dl.edges.append(lc.lowell_edges) 
-                        dl.edges_id.append('lowell')
-                    elif 'fs' in ma.edges:
-                        dl.edges.append(lc.fs_edges)
-                        dl.edges_id.append('fs')
-                dl.edges = np.array(dl.edges)
-                dl.sha_edges = [hashlib.sha256() for n in range(len(dl.edges))]
-                for n in range(len(dl.edges)):
-                    dl.sha_edges[n].update((str(dl.edges[n])).encode())
-                dl.dirid = [dl.sha_edges[n].hexdigest()[:4] for n in range(len(dl.edges))]
-                dl.edges_center = np.array([(e[1:]+e[:-1])/2 for e in dl.edges])
-                dl.ct = np.array([[dl.clc_templ[np.array(ec,dtype=int)]for ec in edge] for edge in dl.edges_center])
+                dl.edges = ma.edges
+                dl.edges_center = (dl.edges[1:]+dl.edges[:-1])/2.
+                dl.sha_edges = hashlib.sha256()
+                dl.sha_edges.update((str(dl.edges)).encode())
+                dl.dirid = dl.sha_edges.hexdigest()[:4]
+                dl.ct = dl.clc_templ[np.array(dl.edges_center, dtype=int)] # TODO marginalising over binrange would probably be better
+
             elif dl.binning == 'unbinned':
                 dl.lmax = 200
-                dl.lmax_mask = 6*dl.lmax-1
-                dl.edges = np.array([np.arange(0,dl.lmax+2)])
-                dl.edges_id = [dl.binning]
-                dl.edges_center = dl.edges[:,1:]
+                dl.lmax_mask = 3*dl.lmax-1
+                dl.edges = np.arange(0,dl.lmax+2)
+                dl.edges_center = dl.edges[1:]
                 dl.ct = np.ones(shape=len(dl.edges_center))
-                dl.sha_edges = [hashlib.sha256()]
-                dl.sha_edges[0].update(('unbinned').encode())
-                dl.dirid = [dl.sha_edges[0].hexdigest()[:4]]
-
+                dl.sha_edges = hashlib.sha256()
+                dl.sha_edges.update(('unbinned').encode())
+                dl.dirid = dl.sha_edges.hexdigest()[:4]
 
             dl.vers_str = '/{}'.format(dl.version) if dl.version != '' else 'base'
             dl.TEMP_DELENSED_SPECTRUM = transform(dl, l2T_Transformer())
-
-            # TODO II
-            # TODO fn needs changing
-            dl.dlm_mod_bool = ma.dlm_mod[0]
-            dl.dlm_mod_fnsuffix = ma.dlm_mod[1]
-            dl.calc_via_MFsplitset = bool(ma.dlm_mod[1])
-
-            dl.subtract_mblt = ma.subtract_mblt[0]
-            dl.simidxs_mblt = ma.simidxs_mblt
-            dl.Nmblt = len(dl.simidxs_mblt)
-            dl.calc_via_mbltsplitset = bool(ma.subtract_mblt[1])
-
 
 
             ## storage directories
             ## TODO replace with cachers
             if dl.binning == 'binned':
-                if dl.dlm_mod_bool:
-                    if dl.subtract_mblt or dl.calc_via_MFsplitset or dl.calc_via_mbltsplitset:
-                        splitset_fnsuffix = dl.subtract_mblt * '_mblt' + dl.calc_via_MFsplitset * '_MFsplit'  + dl.calc_via_mbltsplitset * '_mbltsplit'
-                    else:
-                        splitset_fnsuffix = ''
-                    dl.file_op = lambda idx, fg, edges_idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edges_idx]) + '/ClBBwf_sim%04d_%s_fg%s_res2b3acm.npy'%(idx, 'dlmmod{}{}'.format(dl.dlm_mod_fnsuffix, splitset_fnsuffix), fg)
-                else:
-                    if dl.subtract_mblt or dl.calc_via_MFsplitset or dl.calc_via_mbltsplitset:
-                        splitset_fnsuffix = dl.subtract_mblt * '_mblt' + dl.calc_via_MFsplitset * '_MFsplit'  + dl.calc_via_mbltsplitset * '_mbltsplit'
-                    else:
-                        splitset_fnsuffix = ''
-                    dl.file_op = lambda idx, fg, edges_idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[edges_idx]) + '/ClBBwf_sim%04d_fg%s_res2b3acm%s.npy'%(idx, fg, splitset_fnsuffix)
+                dl.file_op = lambda idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid) + '/ClBB_sim%04d.npy'%(idx)
             else:
-                if dl.subtract_mblt or dl.calc_via_MFsplitset or dl.calc_via_mbltsplitset:
-                    log.error("Implement for unbinned if needed")
-                    sys.exit()
-                if dl.dlm_mod_bool:
-                    dl.file_op = lambda idx, fg, x: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[0]) + '/ClBBwf_sim%04d_%s_fg%s_res2b3acm.npy'%(idx, 'dlmmod{}'.format(dl.dlm_mod_fnsuffix), fg)
-                else:
-                    dl.file_op = lambda idx, fg, x: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid[0]) + '/ClBBwf_sim%04d_fg%s_res2b3acm.npy'%(idx, fg)
+                dl.file_op = lambda idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid) + '/ClBB_sim%04d.npy'%(idx)
+
 
             if ma.spectrum_calculator == None:
                 log.info("Using Healpy as powerspectrum calculator")
@@ -1050,19 +751,11 @@ class l2delens_Transformer:
             else:
                 dl.cl_calc = ma.spectrum_calculator       
 
-
         def _process_Config(dl, co):
-            if co.outdir_plot_rel:
-                dl.outdir_plot_rel = co.outdir_plot_rel
-            else:
-                dl.outdir_plot_rel = '{}/{}'.format(cf.data.module_.split('.')[2],cf.data.module_.split('.')[-1])
-                    
-            if co.outdir_plot_root:
-                dl.outdir_plot_root = co.outdir_plot_root
-            else:
-                dl.outdir_plot_root = os.environ['HOME']
-            
+            dl.outdir_plot_rel = co.outdir_plot_rel
+            dl.outdir_plot_root = co.outdir_plot_root          
             dl.outdir_plot_abs = opj(dl.outdir_plot_root, dl.outdir_plot_rel)
+            
             if not os.path.isdir(dl.outdir_plot_abs):
                 os.makedirs(dl.outdir_plot_abs)
             log.info('Plots will be stored at {}'.format(dl.outdir_plot_abs))
@@ -1087,26 +780,12 @@ class l2delens_Transformer:
         _process_Meta(dl, cf.meta)
         _process_Computing(dl, cf.computing)
         _process_Analysis(dl, cf.analysis)
+        _process_Data(dl, cf.data)
         _process_Madel(dl, cf.madel)
         _process_Config(dl, cf.config)
         _check_powspeccalculator(dl.cl_calc)
-    
-        _process_Data(dl, cf.data)
 
 
-        dl.prediction = dict()
-        for key0 in ['N0', 'N1', 'cl_del']:
-            if key0 not in dl.prediction:
-                dl.prediction[key0] = dict()
-            for key4 in dl.mask_ids + ['fs']:
-                if key4 not in dl.prediction[key0]:
-                    dl.prediction[key0][key4] = dict()
-                for key1 in ['QE', "MAP"]:
-                    if key1 not in dl.prediction[key0][key4]:
-                        dl.prediction[key0][key4][key1] = dict()
-                    for key2 in ['N', 'N_eff']:
-                        if key2 not in dl.prediction[key0][key4][key1]:
-                                dl.prediction[key0][key4][key1][key2] = np.array([], dtype=complex)
         return dl
 
 
@@ -1293,7 +972,7 @@ class l2j_Transformer:
             if "MAP_lensrec" in jb.jobs:
                 jobs.append({"MAP_lensrec":((cf, l2lensrec_Transformer()), delensalot_handler.MAP_lr)})
             if "delens" in jb.jobs:
-                jobs.append({"delens":((cf, l2d_Transformer()), delensalot_handler.Map_delenser)})
+                jobs.append({"delens":((cf, l2delens_Transformer()), delensalot_handler.Map_delenser)})
         jobs = []
         _process_Jobs(jobs, cf.job)
         return jobs
@@ -1323,7 +1002,7 @@ def f2a2(expr, transformer): # pylint: disable=missing-function-docstring
 def f4(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)
 
-@transform.case(DLENSALOT_Model_mm, l2d_Transformer)
+@transform.case(DLENSALOT_Model_mm, l2delens_Transformer)
 def f5(expr, transformer): # pylint: disable=missing-function-docstring
     return transformer.build(expr)
 

@@ -15,5 +15,4 @@ safelist = [
     'outdir_plot_root',
     'outdir_plot_rel',
     'OMP_NUM_THREADS',
-    'lm_max_ivf',
 ]
