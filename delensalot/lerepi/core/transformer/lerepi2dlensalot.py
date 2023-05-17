@@ -644,7 +644,8 @@ class l2delens_Transformer:
         @log_on_end(logging.DEBUG, "_process_Data() finished")       
         def _process_Data(dl, da):
             l2base_Transformer.process_Data(dl, da, cf)
-
+            dl.data_type = 'map'
+            dl.data_field = 'qu'
             # transferfunction
             dl.transferfunction = da.transferfunction
             if dl.transferfunction == 'gauss_no_pixwin':
@@ -714,18 +715,18 @@ class l2delens_Transformer:
 
             dl.binning = ma.binning
             if dl.binning == 'binned':
-                dl.lmax = ma.lmax
-                dl.lmax_mask = 3*dl.lmax-1
+                dl.lmax = 200 #ma.lmax
+                dl.lmax_mask = 3*ma.lmax-1
                 dl.edges = ma.edges
                 dl.edges_center = (dl.edges[1:]+dl.edges[:-1])/2.
                 dl.sha_edges = hashlib.sha256()
                 dl.sha_edges.update((str(dl.edges)).encode())
                 dl.dirid = dl.sha_edges.hexdigest()[:4]
-                dl.ct = dl.clc_templ[np.array(dl.edges_center, dtype=int)] # TODO marginalising over binrange would probably be better
+                dl.ct = dl.clc_templ[np.array(dl.edges, dtype=int)] # TODO marginalising over binrange would probably be better
 
             elif dl.binning == 'unbinned':
                 dl.lmax = 200
-                dl.lmax_mask = 3*dl.lmax-1
+                dl.lmax_mask = 3*ma.lmax-1
                 dl.edges = np.arange(0,dl.lmax+2)
                 dl.edges_center = dl.edges[1:]
                 dl.ct = np.ones(shape=len(dl.edges_center))

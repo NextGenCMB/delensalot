@@ -4,6 +4,7 @@ safelist = [
     'simidxs',
     'simidxs_mf',
     'tasks',
+    'iterations',
     'cl_analysis',
     'blt_pert',
     'itmax',

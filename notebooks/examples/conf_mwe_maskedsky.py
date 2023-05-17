@@ -7,10 +7,13 @@ QE and iterative reconstruction uses anisotropic filters.
 
 import numpy as np
 import os
-import delensalot
-from delensalot import utils
 from os.path import join as opj
 
+from MSC import pospace
+
+import delensalot
+from delensalot import utils
+from delensalot.lerepi.config.config_helper import LEREPI_Constants as lc
 from delensalot.lerepi.core.metamodel.dlensalot_mm import *
 
 dlensalot_model = DLENSALOT_Model(
@@ -62,7 +65,7 @@ dlensalot_model = DLENSALOT_Model(
     itrec = DLENSALOT_Itrec(
         tasks = ["calc_phi"],
         filter_directional = 'anisotropic',
-        itmax = 5,
+        itmax = 2,
         cg_tol = 1e-3,
         lm_max_unl = (3200, 3200),
         lm_max_qlm = (3000, 3000),
@@ -75,5 +78,16 @@ dlensalot_model = DLENSALOT_Model(
             xa = 400,
             xb = 1500
         ),
+    ),
+    madel = DLENSALOT_Mapdelensing(
+        data_from_CFS = False,
+        edges = lc.cmbs4_edges,
+        iterations = [1],
+        masks_fn = [opj(os.environ['SCRATCH'], 'delensalot/generic/sims_cmb_len_lminB200_mfda_maskedsky/mask.fits')],
+        lmax = 1024,
+        Cl_fid = 'ffp10',
+        libdir_it = None,
+        binning = 'binned',
+        spectrum_calculator = pospace,
     )
 )

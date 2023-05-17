@@ -259,6 +259,7 @@ DL_DEFAULT_CMBS4_FS_P = {
         'iterations': [5],
         'masks_fn': None,
         'lmax': 1024,
+        'lmax_mask': lc.cmbs4_edges[-1],
         'Cl_fid': 'ffp10',
         'libdir_it': None,
         'binning': 'binned',
