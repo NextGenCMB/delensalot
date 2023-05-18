@@ -107,9 +107,12 @@ class Basejob():
     @log_on_start(logging.INFO, "collect_jobs() started")
     @log_on_end(logging.INFO, "collect_jobs() finished")
     def get_blt_it(self, simidx, it):
-
-        assert 0, "Implement if needed"
-
+        fn = self.libdir_iterators(self.k, simidx, self.version)+'/wflms/blt_p%03d_e%03d_lmax1024'%(it, it)
+        if self.blt_pert and it==0:
+            fn += 'perturbative'
+        fn += '.npy'
+        return np.load(fn, 0)
+    
 
     # @base_exception_handler
     @log_on_start(logging.INFO, "collect_jobs() started")
@@ -689,9 +692,9 @@ class MAP_lr(Basejob):
             if simidx in self.simidxs_mf:
                 dlm_mod = (dlm_mod - np.array(rec.load_plms(self.lib_dir_iterator, [it]))/self.Nmf) * self.Nmf/(self.Nmf - 1)
         if it>0 and it<=rec.maxiterdone(self.lib_dir_iterator):
-            return self.itlib_iterator.get_template_blm(it, it, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, perturbative=False)
+            return self.itlib_iterator.get_template_blm(it, it, lmaxb=self.lm_max_blt[0], lmin_plm=1, dlm_mod=dlm_mod, perturbative=False)
         elif it==0:
-            return self.itlib_iterator.get_template_blm(0, 0, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, perturbative=self.blt_pert)
+            return self.itlib_iterator.get_template_blm(0, 0, lmaxb=self.lm_max_blt[0], lmin_plm=1, dlm_mod=dlm_mod, perturbative=self.blt_pert)
 
 
 class Map_delenser(Basejob):
@@ -742,21 +745,6 @@ class Map_delenser(Basejob):
         return bcl_L
 
 
-    # @log_on_start(logging.INFO, "getfn_blm_lensc() started")
-    # @log_on_end(logging.INFO, "getfn_blm_lensc() finished")
-    def getfn_blm_lensc(self, simidx, it, fn_splitsetsuffix=''):
-        # TODO this needs cleaner implementation via lambda
-        # _libdir_iterator = self.libdir_iterators(self.k, simidx, self.version)
-        # return _libdir_iterator+fn(**params)
-
-        # TODO this belongs via config to l2d
-        # TODO fn needs to be defined in l2d
-        fn = self.libdir_iterators(self.k, simidx, self.version)+'/wflms/blt_p%03d_e%03d_lmax1024'%(it, it)
-        if self.blt_pert and it==0:
-            fn += 'perturbative'
-        return fn+'.npy'
-
-
     # @base_exception_handler
     @log_on_start(logging.INFO, "collect_jobs() started")
     @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
@@ -771,8 +759,8 @@ class Map_delenser(Basejob):
         self.jobs = jobs
 
     def get_residualblens(self, simidx, it):
-        input_blensing = almxfl(alm_copy(self._sims.get_sim_blm(0), self._sims.lmax, 1024,1024), self.ttebl['e']) 
-        blt = self.get_blt_it(simidx, self.itmax)
+        input_blensing = almxfl(alm_copy(self._sims.get_sim_blm(0), self._sims.lmax, *self.lm_max_blt), self.ttebl['e'], self.lm_max_blt[0], inplace=False) 
+        blt = self.get_blt_it(simidx, it)
         return blt - input_blensing
 
 
@@ -826,7 +814,7 @@ class Map_delenser(Basejob):
             blm_L = hp.almxfl(alm_copy(self._sims.get_sim_alm(idx, 'b', ret=True), self._sims.lmax, 1024, 1024), self.ttebl['e'])
             bmap_L = hp.alm2map(blm_L, self.sims_nside)
 
-            bltlm_QE1 = np.load(self.getfn_blm_lensc(idx, 0))
+            bltlm_QE1 = self.get_blt_it(simidx, 0)
             blt_QE1 = hp.alm2map(bltlm_QE1, nside=self.sims_nside)
             blt_QE2 = np.copy(blt_QE1)
             return bmap_L, np.zeros_like(bmap_L), blt_QE1, blt_QE2
@@ -834,14 +822,9 @@ class Map_delenser(Basejob):
 
         # @log_on_start(logging.INFO, "_build_Btemplate_MAP() started")
         # @log_on_end(logging.INFO, "_build_Btemplate_MAP() finished")
-        def _build_Btemplate_MAP(idx):
-            fns = [self.getfn_blm_lensc(idx, it) for it in self.its]
-            bltlm_MAP = np.zeros(shape=(len(fns), *np.load(self.getfn_blm_lensc(idx, 0)).shape), dtype=np.complex128)
-            for fni, fn in enumerate(fns):
-                if fn.endswith('.npy'):
-                    bltlm_MAP[fni] = np.array(np.load(fn))
-                else:
-                    bltlm_MAP[fni] = np.array(hp.read_alm(fn))   
+        def _build_Btemplate_MAP(simidx):
+            bltlm_MAP = np.array([self.get_blt_it(simidx, it) for it in self.its])
+
             blt_MAP1 = np.array([hp.alm2map(bltlm_MAP[iti], nside=self.sims_nside) for iti in range(len(self.its))])
             blt_MAP2 = np.copy(blt_MAP1)
 

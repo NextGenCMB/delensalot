@@ -8,6 +8,10 @@ def version(instance, attribute, value):
     desc = [value]
     assert value in desc or value == DEFAULT_NotAValue, ValueError('Must be in {}, but is {}'.format(desc, value))
 
+def lm_max_blt(instance, attribute, value):
+    desc = [value]
+    assert value in desc or value == DEFAULT_NotAValue, ValueError('Must be in {}, but is {}'.format(desc, value))
+
 def simidxs_mf(instance, attribute, value):
     desc = [value]
     assert value in desc or value == DEFAULT_NotAValue, ValueError('Must be in {}, but is {}'.format(desc, value))

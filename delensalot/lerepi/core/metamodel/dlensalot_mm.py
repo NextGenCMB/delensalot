@@ -97,6 +97,7 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     pbounds =               attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.pbounds)
     lm_max_len =            attr.ib(default=DEFAULT_NotAValue, on_setattr=v_filter.lm_max_len)
     lm_max_ivf =            attr.ib(default=DEFAULT_NotAValue, on_setattr=v_filter.lm_max_ivf)
+    lm_max_blt =            attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.lm_max_blt)
     mask =                  attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.mask)
     lmin_teb =              attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.lmin_teb)
     cls_unl =               attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.cls_unl)

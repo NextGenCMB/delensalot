@@ -122,6 +122,8 @@ class l2base_Transformer:
         # lm_max_ivf -> lm_ivf
         dl.lm_max_ivf = an.lm_max_ivf
 
+        dl.lm_max_blt = an.lm_max_blt
+
 
     @log_on_start(logging.DEBUG, "_process_Meta() started")
     @log_on_end(logging.DEBUG, "_process_Meta() finished")
