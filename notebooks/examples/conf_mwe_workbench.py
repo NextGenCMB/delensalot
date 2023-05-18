@@ -50,7 +50,7 @@ dlensalot_model = DLENSALOT_Model(
         rhits_normalised = (opj(os.environ['SCRATCH'], 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100', 'rhits.fits'), np.inf)
     ),
     qerec = DLENSALOT_Qerec(
-        tasks = ["calc_phi"],
+        tasks = ["calc_phi", "calc_blt"],
         filter_directional = 'anisotropic',
         qlm_type = 'sepTP',
         lm_max_qlm = (1024, 1024),
@@ -62,7 +62,7 @@ dlensalot_model = DLENSALOT_Model(
     madel = DLENSALOT_Mapdelensing(
         data_from_CFS = False,
         edges = lc.cmbs4_edges,
-        iterations = [1],
+        iterations = [0],
         masks_fn = [opj(os.environ['SCRATCH'], 'delensalot/generic/sims_cmb_len_lminB200_mfda_maskedsky/mask.fits')],
         lmax = 1000,
         Cl_fid = 'ffp10',

@@ -592,10 +592,10 @@ class MAP_lr(Basejob):
             if task == 'calc_phi':
                 self.simgen.run()
                 self.qe.run(task=task)
-                for idx in self.jobs[taski][mpi.rank::mpi.size]:
-                    lib_dir_iterator = self.libdir_iterators(self.k, idx, self.version)
+                for simidx in self.jobs[taski][mpi.rank::mpi.size]:
+                    lib_dir_iterator = self.libdir_iterators(self.k, simidx, self.version)
                     if self.itmax >= 0 and rec.maxiterdone(lib_dir_iterator) < self.itmax:
-                        itlib = self.ith(self.qe, self.k, idx, self.version, self.sims_MAP, self.libdir_iterators, self.dlensalot_model)
+                        itlib = self.ith(self.qe, self.k, simidx, self.version, self.sims_MAP, self.libdir_iterators, self.dlensalot_model)
                         itlib_iterator = itlib.get_iterator()
                         for it in range(self.itmax + 1):
                             log.info("using cg-tol = %.4e"%self.it_cg_tol(it))
@@ -603,7 +603,7 @@ class MAP_lr(Basejob):
                             itlib_iterator.chain_descr = self.it_chain_descr(self.lm_max_unl[0], self.it_cg_tol(it))
                             itlib_iterator.soltn_cond = self.soltn_cond(it)
                             itlib_iterator.iterate(it, 'p')
-                            log.info('{}, simidx {} done with it {}'.format(mpi.rank, idx, it))
+                            log.info('{}, simidx {} done with it {}'.format(mpi.rank, simidx, it))
 
             if task == 'calc_meanfield':
                 self.qe.run(task=task)
@@ -618,7 +618,7 @@ class MAP_lr(Basejob):
                 log.info('{}, task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
                 for simidx in self.jobs[taski][mpi.rank::mpi.size]:
                     self.lib_dir_iterator = self.libdir_iterators(self.k, simidx, self.version)
-                    self.itlib = self.ith(self.qe, self.k, simidx, self.version, self.libdir_iterators, self.dlensalot_model)
+                    self.itlib = self.ith(self.qe, self.k, simidx, self.version, self.sims_MAP, self.libdir_iterators, self.dlensalot_model)
                     self.itlib_iterator = self.itlib.get_iterator()
                     self.get_blt_it(simidx, self.itmax)
 
@@ -708,12 +708,10 @@ class Map_delenser(Basejob):
         self.__dict__.update(dlensalot_model.__dict__)
         self.lib = dict()
 
-        for dir_id in self.dirid:
-            if mpi.rank == 0:
-                if not(os.path.isdir(self.TEMP_DELENSED_SPECTRUM + '/{}'.format(dir_id))):
-                    os.makedirs(self.TEMP_DELENSED_SPECTRUM + '/{}'.format(dir_id))
-        if False:
-            self.bcl_L, self.bcl_cs  = self.read_data_v2(edges_id=0)
+        if mpi.rank == 0:
+            if not(os.path.isdir(self.TEMP_DELENSED_SPECTRUM + '/{}'.format(self.dirid))):
+                os.makedirs(self.TEMP_DELENSED_SPECTRUM + '/{}'.format(self.dirid))
+
         # self.bcl_L = np.array([b[0] for b in self.bcls])
         # self.bcl_cs = np.array([b[1] for b in self.bcls])
 
@@ -723,30 +721,25 @@ class Map_delenser(Basejob):
         # self.ec = getattr(_sims_module, 'experiment_config')()
 
     def load_bcl(self):
-        self.bcl_L, self.bcl_cs  = self.read_data_v2(edges_id=0)
+        self.bcl_L, self.bcl_cs  = self.read_data(edges_id=0)
 
     # @base_exception_handler
-    @log_on_start(logging.INFO, "read_data_v2() started")
-    @log_on_end(logging.INFO, "read_data_v2() finished")
-    def read_data_v2(self, edges_id=0):
-        bcl_cs = np.zeros(shape=(len(self.its)+2, len(self.mask_ids), len(self.simidxs), len(self.edges[edges_id])-1))
-        bcl_L = np.zeros(shape=(len(self.its)+2, len(self.mask_ids), len(self.simidxs), len(self.edges[edges_id])-1))
+    @log_on_start(logging.INFO, "read_data() started")
+    @log_on_end(logging.INFO, "read_data() finished")
+    def read_data(self, edges_id=0):
+        bcl_L = np.zeros(shape=(len(self.its)+2, len(self.nlevels), len(self.simidxs), len(self.edges)-1))
         
-        print('Loading {} sims from {}'.format(len(self.simidxs),  '/'.join([f for f in self.file_op(0, self.fg, 0).split('/')[:-1]])))
+        print('Loading {} sims'.format(len(self.simidxs)))
         for simidxi, simidx in enumerate(self.simidxs):
-            _file_op = self.file_op(simidx, self.fg, 0)
+            _file_op = self.file_op(simidx)
             data = np.load(_file_op)
             bcl_L[0,:,simidxi] = data[0][0]
-            bcl_cs[0,:,simidxi] = data[1][0]
-
             bcl_L[1,:,simidxi] = data[0][1]
-            bcl_cs[1,:,simidxi] = data[1][1]
 
             for iti, it in enumerate(self.its):
                 bcl_L[2+iti,:,simidxi] = data[0][2+iti]
-                bcl_cs[2+iti,:,simidxi] = data[1][2+iti]
 
-        return bcl_L, bcl_cs
+        return bcl_L
 
 
     # @log_on_start(logging.INFO, "getfn_blm_lensc() started")
@@ -758,25 +751,10 @@ class Map_delenser(Basejob):
 
         # TODO this belongs via config to l2d
         # TODO fn needs to be defined in l2d
-        fn = self.libdir_iterators(self.k, simidx, self.version)+'/wflms/btempl_p%03d_e%03d_lmax1024'%(it, it)
-        if self.dlm_mod_bool:
-            fn += '_dlmmod%s%03d'%(fn_splitsetsuffix, self.Nmf)
-        else:
-            fn += '%s%03d'%(fn_splitsetsuffix, self.Nmf)
-        if self.blt_pert:
+        fn = self.libdir_iterators(self.k, simidx, self.version)+'/wflms/blt_p%03d_e%03d_lmax1024'%(it, it)
+        if self.blt_pert and it==0:
             fn += 'perturbative'
-            
         return fn+'.npy'
-
-
-    # @log_on_start(logging.INFO, "get_teblm_ffp10() started")
-    # @log_on_end(logging.INFO, "get_teblm_ffp10() finished")
-    def get_teblm_ffp10(self, simidx):
-        '''Pure BB-lensing from ffp10''' 
-        # ret = hp.almxfl(alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(simidx), lmax=self.lmax), self.transf)
-        ret = hp.almxfl(alm_copy(self._sims.get_sim_alm(simidx, 'b', ret=True), self._sims.lmax, self.lmax, self.lmax), self.ttebl['b'])
-
-        return ret
 
 
     # @base_exception_handler
@@ -791,6 +769,11 @@ class Map_delenser(Basejob):
             #     jobs.append(idx)
             jobs.append(idx)
         self.jobs = jobs
+
+    def get_residualblens(self, simidx, it):
+        input_blensing = almxfl(alm_copy(self._sims.get_sim_blm(0), self._sims.lmax, 1024,1024), self.ttebl['e']) 
+        blt = self.get_blt_it(simidx, self.itmax)
+        return blt - input_blensing
 
 
     # @base_exception_handler
@@ -838,8 +821,9 @@ class Map_delenser(Basejob):
         # @log_on_start(logging.INFO, "_build_basemaps() started")
         # @log_on_end(logging.INFO, "_build_basemaps() finished")
         def _build_basemaps(idx):
-            # TODO fiducial choice should happen at transformer
-            blm_L = self.get_teblm_ffp10(idx)
+            # TODO remove hardcoded 1024. This must be same as lmax of blt
+            # TODO using self.ttebl['e'] for now, as this doesn't have the low-ell cut, in general
+            blm_L = hp.almxfl(alm_copy(self._sims.get_sim_alm(idx, 'b', ret=True), self._sims.lmax, 1024, 1024), self.ttebl['e'])
             bmap_L = hp.alm2map(blm_L, self.sims_nside)
 
             bltlm_QE1 = np.load(self.getfn_blm_lensc(idx, 0))
@@ -858,7 +842,7 @@ class Map_delenser(Basejob):
                     bltlm_MAP[fni] = np.array(np.load(fn))
                 else:
                     bltlm_MAP[fni] = np.array(hp.read_alm(fn))   
-            blt_MAP1 = np.array([hp.alm2map(bltlm_MAP[iti], nside=self._sims.nside) for iti in range(len(self.its))])
+            blt_MAP1 = np.array([hp.alm2map(bltlm_MAP[iti], nside=self.sims_nside) for iti in range(len(self.its))])
             blt_MAP2 = np.copy(blt_MAP1)
 
             return blt_MAP1, blt_MAP2
@@ -872,27 +856,27 @@ class Map_delenser(Basejob):
             if blt_MAP2 is None:
                 blt_MAP2 = np.copy(blt_MAP1)
 
-            for mask_idi, mask_id in enumerate(self.mask_ids):
-                log.info("starting mask {}".format(mask_id))
+            for nleveli, nlevel in enumerate(self.masks):
+                log.info("starting mask {}".format(nleveli))
                 
-                bcl_L = self.lib[mask_id].map2cl(bmap_L)
+                bcl_L = self.lib[nlevel].map2cl(bmap_L)
                 # bcl_cs = self.lib[mask_id].map2cl(bmap_cs)
 
-                outputdata[0][0][mask_idi] = bcl_L
+                outputdata[0][0][nleveli] = bcl_L
                 # outputdata[1][0][mask_idi] = bcl_cs
 
-                blt_L_QE = self.lib[mask_id].map2cl(bmap_L-blt_QE1, bmap_L-blt_QE2)
+                blt_L_QE = self.lib[nlevel].map2cl(bmap_L-blt_QE1, bmap_L-blt_QE2)
                 # btempcl_cs_QE = self.lib[mask_id].map2cl(bmap_cs-btempmap_QE)
 
-                outputdata[0][1][mask_idi] = blt_L_QE
+                outputdata[0][1][nleveli] = blt_L_QE
                 # outputdata[1][1][mask_idi] = btempcl_cs_QE
 
                 for iti, it in enumerate(self.its):
                     log.info("starting MAP delensing for iteration {}".format(it))
-                    blt_L_MAP = self.lib[mask_id].map2cl(bmap_L-blt_MAP1[iti], bmap_L-blt_MAP2[iti])    
+                    blt_L_MAP = self.lib[nlevel].map2cl(bmap_L-blt_MAP1[iti], bmap_L-blt_MAP2[iti])    
                     # btempcl_cs_MAP = self.lib[mask_id].map2cl(bmap_cs-blt_MAP[iti])
 
-                    outputdata[0][2+iti][mask_idi] = blt_L_MAP
+                    outputdata[0][2+iti][nleveli] = blt_L_MAP
                     # outputdata[1][2+iti][mask_idi] = btempcl_cs_MAP
 
             return outputdata

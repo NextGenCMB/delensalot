@@ -10,6 +10,9 @@ import delensalot
 from delensalot import utils
 from os.path import join as opj
 
+from MSC import pospace
+
+from delensalot.lerepi.config.config_helper import LEREPI_Constants as lc
 from delensalot.lerepi.core.metamodel.dlensalot_mm import *
 
 dlensalot_model = DLENSALOT_Model(
@@ -39,11 +42,24 @@ dlensalot_model = DLENSALOT_Model(
         nlev_p = np.sqrt(2)
     ),
     qerec = DLENSALOT_Qerec(
+        tasks = ["calc_phi", "calc_blt"],
         lm_max_qlm = (4000, 4000)
     ),
     itrec = DLENSALOT_Itrec(
+        tasks = ["calc_phi", "calc_blt"],
         itmax = 5,
         lm_max_unl = (4200, 4200),
         lm_max_qlm = (4000, 4000)
+    ),
+    madel = DLENSALOT_Mapdelensing(
+        data_from_CFS = False,
+        edges = lc.cmbs4_edges,
+        iterations = [5],
+        masks_fn = [opj(os.environ['SCRATCH'], 'delensalot/generic/sims_cmb_len_lminB200_mfda/mask.fits')],
+        lmax = 1024,
+        Cl_fid = 'ffp10',
+        libdir_it = None,
+        binning = 'binned',
+        spectrum_calculator = pospace,
     )
 )
