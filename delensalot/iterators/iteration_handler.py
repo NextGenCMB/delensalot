@@ -54,7 +54,7 @@ class base_iterator():
         else:
             self.mf0 = np.zeros(shape=hp.Alm.getsize(self.lm_max_qlm[0]))
         self.plm0 = self.qe.get_plm(self.simidx, self.QE_subtract_meanfield)
-        self.ffi = deflection(self.lenjob_geometry, np.zeros_like(self.plm0), self.lm_max_qlm[1], numthreads=self.tr, verbosity=1)
+        self.ffi = deflection(self.lenjob_geometry, np.zeros_like(self.plm0), self.lm_max_qlm[1], numthreads=self.tr, verbosity=self.verbose)
         # self.ffi = lenspyx.remapping.deflection.deflection(self.lenjob_pbgeometry, self.lensres, np.zeros_like(self.plm0),
             # self.lm_max_qlm[1], self.tr, self.tr)
         self.datmaps = self.get_datmaps()

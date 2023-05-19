@@ -10,6 +10,7 @@ from os.path import join as opj
 
 import logging
 log = logging.getLogger(__name__)
+loglevel = log.getEffectiveLevel()
 from logdecorator import log_on_start, log_on_end
 import numpy as np
 import healpy as hp
@@ -47,6 +48,10 @@ class l2base_Transformer:
     @log_on_start(logging.DEBUG, "_process_Data() started")
     @log_on_end(logging.DEBUG, "_process_Data() finished")
     def process_Data(dl, da, cf):
+        if loglevel <= 20:
+            dl.verbose = True
+        elif loglevel >= 30:
+            dl.verbose = False
         # package_
         _package = da.package_
         # module_
@@ -403,7 +408,7 @@ class l2lensrec_Transformer(l2base_Transformer):
             else:
                 dl.mf_dirname = opj(dl.TEMP, l2T_Transformer.ofj('mf', {'version': dl.version, 'Nmf': dl.Nmf}))
             # cg_tol
-            dl.it_cg_tol = lambda itr : it.cg_tol if itr <= 10 else it.cg_tol*0.1
+            dl.it_cg_tol = lambda itr : it.cg_tol if itr <= 1 else it.cg_tol*0.01
             # filter
             dl.it_filter_directional = it.filter_directional
             # itmax

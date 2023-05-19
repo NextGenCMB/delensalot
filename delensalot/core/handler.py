@@ -210,6 +210,7 @@ class Sim_generator(Basejob):
     def collect_jobs(self):
         ## TODO implement
         jobs = []
+        simidxs_ = np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))))
         for simidx in self.simidxs:
             def check(simidx):
                 return True

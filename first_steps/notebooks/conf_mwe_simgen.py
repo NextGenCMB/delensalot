@@ -27,9 +27,9 @@ dlensalot_model = DLENSALOT_Model(
         module_ = 'sims.generic',
         class_ = 'sims_cmb_len',
         class_parameters = {
-            'lmax': 6144,
+            'lmax': 5976,
             'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(plancklens.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
-            'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'generic', 'nside2048', 'lmax6144', 'nlevp_sqrt(2)')
+            'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'generic', 'nside2048', 'lmax5976', 'nlevp_sqrt(2)')
         },
         nlev_t = 1.00,
         nlev_p = np.sqrt(2),
