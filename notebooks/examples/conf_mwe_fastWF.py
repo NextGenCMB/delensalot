@@ -20,7 +20,7 @@ dlensalot_model = DLENSALOT_Model(
     analysis = DLENSALOT_Analysis(
         key = 'p_p',
         simidxs = np.arange(0,1),
-        TEMP_suffix = 'mfda_fWF',
+        TEMP_suffix = 'my_first_dlensalot_analysis_fastWF',
         Lmin = 10
     ),
     data = DLENSALOT_Data(

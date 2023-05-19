@@ -28,13 +28,13 @@ dlensalot_model = DLENSALOT_Model(
         version = '',
         simidxs = np.arange(0,1),
         simidxs_mf = np.arange(0,5),
-        TEMP_suffix = 'mfda_maskedsky_south',
+        TEMP_suffix = 'mfda_maskedsky',
         Lmin = 1, 
         lm_max_ivf = (3000, 3000),
         lmin_teb = (10, 10, 200),
         zbounds = ('mr_relative', 10.),
         zbounds_len = ('extend', 5.),
-        mask = opj(os.environ['SCRATCH'], 'delensalot/generic/sims_cmb_len_lminB200_mfda_maskedsky_south/mask.fits')
+        mask = opj(os.environ['SCRATCH'], 'delensalot/generic/sims_cmb_len_lminB200_mfda_maskedsky/mask.fits')
     ),
     data = DLENSALOT_Data(
         class_parameters = {
@@ -54,7 +54,7 @@ dlensalot_model = DLENSALOT_Model(
         spectrum_type = 'white',
         nlev_t = 1.00,
         nlev_p = np.sqrt(2),
-        rhits_normalised = (opj(os.environ['SCRATCH'], 'delensalot/generic/sims_cmb_len_lminB200_mfda_maskedsky_south/mask.fits'), np.inf)
+        rhits_normalised = (opj(os.environ['SCRATCH'], 'delensalot/generic/sims_cmb_len_lminB200_mfda_maskedsky/mask.fits'), np.inf)
     ),
     qerec = DLENSALOT_Qerec(
         tasks = ["calc_phi", "calc_meanfield", "calc_blt"],

@@ -23,7 +23,7 @@ dlensalot_model = DLENSALOT_Model(
     analysis = DLENSALOT_Analysis(
         key = 'p_p',
         simidxs = np.arange(0,1),
-        TEMP_suffix = 'mfda',
+        TEMP_suffix = 'my_first_dlensalot_analysis_fullsky',
     ),
     data = DLENSALOT_Data(
         class_parameters = {
@@ -55,7 +55,7 @@ dlensalot_model = DLENSALOT_Model(
         data_from_CFS = False,
         edges = lc.cmbs4_edges,
         iterations = [5],
-        masks_fn = [opj(os.environ['SCRATCH'], 'delensalot/generic/sims_cmb_len_lminB200_mfda/mask.fits')],
+        masks_fn = [opj(os.environ['SCRATCH'], 'delensalot/generic/sims_cmb_len_lminB200_my_first_dlensalot_analysis_fullsky/mask.fits')],
         lmax = 1024,
         Cl_fid = 'ffp10',
         libdir_it = None,
