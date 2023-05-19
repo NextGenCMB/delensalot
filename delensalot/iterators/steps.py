@@ -38,7 +38,7 @@ class harmonicbump(nrstep):
 
     def build_incr(self, incrlm, itr):
         fl = self.steplen(itr, incrlm)
-        np.save('/mnt/c/Users/sebas/OneDrive/SCRATCH/delensalot/generic/sims_cmb_len_lminB200_mfda_maskedsky/p_p_sim0000noMF/increment_it{}'.format(itr), incrlm)
+        np.save('/mnt/c/Users/sebas/OneDrive/SCRATCH/delensalot/generic/sims_cmb_len_lminB200_mfda_maskedsky_center/p_p_sim0000/increment_it{}'.format(itr), incrlm)
         almxfl(incrlm, fl * self.filt, self.mmax_qlm, True)
         return incrlm
 

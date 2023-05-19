@@ -642,6 +642,13 @@ class l2delens_Transformer:
             l2base_Transformer.process_Analysis(dl, an, cf)
 
 
+        @log_on_start(logging.DEBUG, "_process_Noisemodel() started")
+        @log_on_end(logging.DEBUG, "_process_Noisemodel() finished")
+        def _process_Noisemodel(dl, an):
+            dl.nlev_t = l2OBD_Transformer.get_nlevt(cf)
+            dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
+
+
         @log_on_start(logging.DEBUG, "_process_Data() started")
         @log_on_end(logging.DEBUG, "_process_Data() finished")       
         def _process_Data(dl, da):
@@ -662,6 +669,59 @@ class l2delens_Transformer:
                 transf_blm = gauss_beam(df.a2r(da.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(da.nside, lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[2])
             dl.ttebl = {'t': transf_tlm, 'e': transf_elm, 'b':transf_blm}
 
+            # Isotropic approximation to the filtering (used eg for response calculations)
+            ftl_len = cli(dl.cls_len['tt'][:dl.lm_max_ivf[0] + 1] + df.a2r(da.nlev_t)**2 * cli(dl.ttebl['t'] ** 2)) * (dl.ttebl['t'] > 0)
+            fel_len = cli(dl.cls_len['ee'][:dl.lm_max_ivf[0] + 1] + df.a2r(da.nlev_p)**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
+            fbl_len = cli(dl.cls_len['bb'][:dl.lm_max_ivf[0] + 1] + df.a2r(da.nlev_p)**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
+            dl.ftebl_len = {'t': ftl_len, 'e': fel_len, 'b':fbl_len}
+
+            # Same using unlensed spectra (used for unlensed response used to initiate the MAP curvature matrix)
+            ftl_unl = cli(dl.cls_unl['tt'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.ttebl['t'] ** 2)) * (dl.ttebl['t'] > 0)
+            fel_unl = cli(dl.cls_unl['ee'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
+            fbl_unl = cli(dl.cls_unl['bb'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
+            dl.ftebl_unl = {'t': ftl_unl, 'e': fel_unl, 'b':fbl_unl}
+
+        @log_on_start(logging.DEBUG, "_process_Qerec() started")
+        @log_on_end(logging.DEBUG, "_process_Qerec() finished")
+        def _process_Qerec(dl, qe):
+
+            dl.ninvt_desc = l2OBD_Transformer.get_ninvt(cf)
+            dl.ninvp_desc = l2OBD_Transformer.get_ninvp(cf)
+            # blt_pert
+            dl.blt_pert = qe.blt_pert
+
+            # QE_subtract_meanfield
+            dl.QE_subtract_meanfield = False if dl.version == 'noMF' else True
+
+            # lmax_qlm
+            dl.lm_max_qlm = qe.lm_max_qlm
+            dl.qlm_type = qe.qlm_type
+
+            # filter
+            dl.qe_filter_directional = qe.filter_directional
+
+
+        @log_on_start(logging.DEBUG, "_process_Itrec() started")
+        @log_on_end(logging.DEBUG, "_process_Itrec() finished")
+        def _process_Itrec(dl, it):
+            # tasks
+
+            dl.lm_max_unl = it.lm_max_unl
+            dl.lm_max_qlm = it.lm_max_qlm
+            # chain
+
+            # cg_tol
+            dl.it_cg_tol = lambda itr : it.cg_tol if itr <= 10 else it.cg_tol*0.1
+            # filter
+            dl.it_filter_directional = it.filter_directional
+            # itmax
+            dl.itmax = it.itmax
+            # iterator_typ
+            dl.iterator_typ = it.iterator_typ
+            # soltn_cond
+            dl.soltn_cond = it.soltn_cond
+
+            
 
         def _process_Madel(dl, ma):
             dl.data_from_CFS = ma.data_from_CFS
@@ -782,11 +842,20 @@ class l2delens_Transformer:
 
         _process_Meta(dl, cf.meta)
         _process_Computing(dl, cf.computing)
+        _process_Noisemodel(dl, cf.noisemodel)
         _process_Analysis(dl, cf.analysis)
         _process_Data(dl, cf.data)
         _process_Madel(dl, cf.madel)
         _process_Config(dl, cf.config)
         _check_powspeccalculator(dl.cl_calc)
+
+        # Need a few attributes for predictions (like ftebl, lm_max_qlm, ..)
+        _process_Qerec(dl, cf.qerec)
+        _process_Itrec(dl, cf.itrec)
+
+
+        dl.cpp = camb_clfile(cf.analysis.cpp)['pp'][:dl.lm_max_qlm[0] + 1] ## TODO could be added via 'fiducial' parameter in dlensalot config for user
+        dl.cpp[:dl.Lmin] *= 0.
 
 
         return dl

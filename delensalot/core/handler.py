@@ -90,9 +90,11 @@ class Basejob():
     # @base_exception_handler
     @log_on_start(logging.INFO, "collect_jobs() started")
     @log_on_end(logging.INFO, "collect_jobs() finished")
-    def get_plm_it(self, simidx, it):
+    def get_plm_it(self, simidx, its):
 
-        assert 0, "Implement if needed"
+        plms = rec.load_plms(self.libdir_iterators(self.k, simidx, self.version), its)
+
+        return plms
 
 
     # @base_exception_handler
@@ -111,7 +113,7 @@ class Basejob():
         if self.blt_pert and it==0:
             fn += 'perturbative'
         fn += '.npy'
-        return np.load(fn, 0)
+        return np.load(fn)
     
 
     # @base_exception_handler
@@ -508,7 +510,7 @@ class QE_lr(Basejob):
         ## For QE, dlm_mod by construction doesn't do anything, because mean-field had already been subtracted from plm and we don't want to repeat that.
         dlm_mod = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, int(simidx)))
         
-        return itlib_iterator.get_template_blm(0, 0, lmaxb=1024, lmin_plm=1, dlm_mod=dlm_mod, perturbative=self.blt_pert)
+        return itlib_iterator.get_template_blm(0, 0, lmaxb=self.lm_max_blt[0], lmin_plm=1, dlm_mod=dlm_mod, perturbative=self.blt_pert)
             
 
 class MAP_lr(Basejob):
@@ -760,9 +762,8 @@ class Map_delenser(Basejob):
         self.jobs = jobs
 
     def get_residualblens(self, simidx, it):
-        input_blensing = almxfl(alm_copy(self._sims.get_sim_blm(0), self._sims.lmax, *self.lm_max_blt), self.ttebl['e'], self.lm_max_blt[0], inplace=False) 
-        blt = self.get_blt_it(simidx, it)
-        return blt - input_blensing
+        input_blensing = almxfl(alm_copy(self._sims.get_sim_blm(simidx), self._sims.lmax, *self.lm_max_blt), self.ttebl['e'], self.lm_max_blt[0], inplace=False) 
+        return input_blensing - self.get_blt_it(simidx, it)
 
 
     # @base_exception_handler
@@ -809,10 +810,10 @@ class Map_delenser(Basejob):
 
         # @log_on_start(logging.INFO, "_build_basemaps() started")
         # @log_on_end(logging.INFO, "_build_basemaps() finished")
-        def _build_basemaps(idx):
+        def _build_basemaps(simidx):
             # TODO remove hardcoded 1024. This must be same as lmax of blt
             # TODO using self.ttebl['e'] for now, as this doesn't have the low-ell cut, in general
-            blm_L = hp.almxfl(alm_copy(self._sims.get_sim_alm(idx, 'b', ret=True), self._sims.lmax, 1024, 1024), self.ttebl['e'])
+            blm_L = hp.almxfl(alm_copy(self._sims.get_sim_alm(idx, 'b', ret=True), self._sims.lmax, self.lmax_blt, self.lmax_blt), self.ttebl['e'])
             bmap_L = hp.alm2map(blm_L, self.sims_nside)
 
             bltlm_QE1 = self.get_blt_it(simidx, 0)
@@ -825,8 +826,7 @@ class Map_delenser(Basejob):
         # @log_on_end(logging.INFO, "_build_Btemplate_MAP() finished")
         def _build_Btemplate_MAP(simidx):
             bltlm_MAP = np.array([self.get_blt_it(simidx, it) for it in self.its])
-
-            blt_MAP1 = np.array([hp.alm2map(bltlm_MAP[iti], nside=self.sims_nside) for iti in range(len(self.its))])
+            blt_MAP1 = np.array([hp.alm2map(bltlm_MAP[iti], nside=self.sims_nside) for iti, it in enumerate(self.its)])
             blt_MAP2 = np.copy(blt_MAP1)
 
             return blt_MAP1, blt_MAP2
