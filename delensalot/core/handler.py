@@ -734,6 +734,7 @@ class Map_delenser(Basejob):
         
         print('Loading {} sims'.format(len(self.simidxs)))
         for simidxi, simidx in enumerate(self.simidxs):
+
             _file_op = self.file_op(simidx)
             data = np.load(_file_op)
             bcl_L[0,:,simidxi] = data[0][0]
