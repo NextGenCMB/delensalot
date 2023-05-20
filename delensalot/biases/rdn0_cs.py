@@ -9,9 +9,9 @@ python rdn0_cs.py -par cmbs4wide_idealized -k p_p -datidx 0
 
 import numpy as np, os
 import delensalot
-from delensalot.iterators import cs_iterator
-from delensalot import cachers, utils_hp
-from delensalot.utils_scarf import pbdGeometry, pbounds, scarfjob
+from delensalot.core.iterator import cs_iterator
+from delensalot.core import cachers
+from delensalot.core.helper.utils_scarf import pbdGeometry, pbounds, scarfjob
 from plancklens.qcinv import multigrid
 from plancklens.utils import stats, cli, mchash
 from plancklens.sims import planck2018_sims
@@ -21,7 +21,7 @@ from plancklens.filt import filt_cinv, filt_util, filt_simple
 from plancklens import utils, qest, qecl
 from plancklens.sims import maps
 from delensalot.sims import sims_ffp10
-from delensalot.core.utility import utils_sims
+from delensalot.utility import utils_sims, utils_hp
 
 
 output_dir = opj(os.path.dirname(os.path.dirname(delensalot.__file__)), 'outputs')
@@ -73,7 +73,7 @@ def export_nhl(libdir:str, qe_key, parfile, datidx:int):
 
 def ss_ds_QE(libdir, parfile, datidx):
     # For the QE we use the semi-analytical N0:
-    from delensalot.utils_hp import almxfl, alm2cl
+    from delensalot.utility.utils_hp import almxfl, alm2cl
     from plancklens.nhl import get_nhl
 
     # if hasattr(itlib.filter, 'n_inv'):

@@ -8,11 +8,11 @@ from logdecorator import log_on_start, log_on_end
 
 import os
 import numpy as np
-from delensalot.utils_hp import almxfl, Alm
+from delensalot.utility.utils_hp import almxfl, Alm
 from delensalot.utils import timer, cli
 from lenspyx.remapping import utils_geom
 from scipy.interpolate import UnivariateSpline as spl
-from delensalot.opfilt import opfilt_pp
+from delensalot.core.opfilt import opfilt_pp
 
 pre_op_dense = None # not implemented
 dot_op = opfilt_pp.dot_op

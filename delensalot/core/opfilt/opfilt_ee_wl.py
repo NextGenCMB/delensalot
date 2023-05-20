@@ -8,12 +8,12 @@ log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
 
 import numpy as np
-from delensalot.utils_hp import almxfl, Alm, alm2cl, synalm, default_rng
+from delensalot.utility.utils_hp import almxfl, Alm, alm2cl, synalm, default_rng
 from delensalot.utils import clhash, cli, read_map
 from lenspyx.remapping import utils_geom
-from delensalot import utils_scarf
+from delensalot.core.helper import utils_scarf
 from lenspyx import remapping
-from delensalot.opfilt import  opfilt_pp, opfilt_base, bmodes_ninv as bni
+from delensalot.core.opfilt import opfilt_pp, opfilt_base, bmodes_ninv as bni
 from scipy.interpolate import UnivariateSpline as spl
 from delensalot.utils import timer
 

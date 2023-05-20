@@ -1,4 +1,4 @@
-from delensalot.lerepi.core.metamodel import DEFAULT_NotAValue
+from delensalot.config.metamodel import DEFAULT_NotAValue
 
 def jobs(instance, attribute, value):
     desc = ['generate_sim', 'build_OBD', 'QE_lensrec', 'MAP_lensrec', 'delens']

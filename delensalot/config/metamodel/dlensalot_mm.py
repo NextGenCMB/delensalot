@@ -15,8 +15,8 @@ log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 
 import delensalot
-from delensalot.lerepi.core.metamodel import DEFAULT_NotAValue, DL_DEFAULT
-from delensalot.lerepi.core.validator import analysis, chaindescriptor, computing, data, filter as v_filter, itrec, job, mapdelensing, meta, model, noisemodel, obd, qerec, stepper
+from delensalot.config.metamodel import DEFAULT_NotAValue, DL_DEFAULT
+from delensalot.config.validator import analysis, chaindescriptor, computing, data, filter as v_filter, itrec, job, mapdelensing, meta, model, noisemodel, obd, qerec, stepper
 
 
 

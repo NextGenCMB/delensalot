@@ -1,7 +1,7 @@
 import numpy as np
 import scarf
-from delensalot.utils_hp import almxfl
-from delensalot import utils_scarf
+from delensalot.utility.utils_hp import almxfl
+from delensalot.core.helper import utils_scarf
 from delensalot.utils import cli
 from delensalot.utils import read_map
 

@@ -7,11 +7,11 @@ log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
 
 import numpy as np
-from delensalot.utils_hp import almxfl, Alm, alm2cl
+from delensalot.utility.utils_hp import almxfl, Alm, alm2cl
 from delensalot.utils import timer, cli, clhash, read_map
 from lenspyx.remapping import utils_geom
-from delensalot import utils_scarf
-from delensalot.opfilt import bmodes_ninv as bni
+from delensalot.core.helper import utils_scarf
+from delensalot.core.opfilt import bmodes_ninv as bni
 from scipy.interpolate import UnivariateSpline as spl
 
 

@@ -17,9 +17,8 @@ from plancklens.qcinv import opfilt_pp
 
 from lenspyx.remapping import utils_geom as lug
 
-from delensalot import utils_scarf as us
-import delensalot.core.utility.utils_sims as usims
-from delensalot.utils_hp import Alm
+from delensalot.core.helper import utils_scarf as us
+from delensalot.utility.utils_hp import Alm
 # from delensalot.core import healpix_hack as hph
 
 from delensalot.utils import enumerate_progress, read_map

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-"""parser.py: Read and validate terminal user input and store param file to TEMP directory
+"""parser.py: Read and validate terminal user input
 """
 
 
@@ -13,7 +13,7 @@ import argparse
 import os, sys
 from os import walk
 
-import delensalot.lerepi as lerepi
+import delensalot.config as config
 
 
 class lerepi_parser():
@@ -23,7 +23,6 @@ class lerepi_parser():
             for action in arglist:
                 action.help=argparse.SUPPRESS
         __argparser = argparse.ArgumentParser(description='delensalot entry point.')
-        __argparser.add_argument('-p', dest='new', type=str, default='', help='Relative path to config file to run analysis.')
         __argparser.add_argument('-r', dest='resume', type=str, default='', help='Absolute path to config file to resume.')
         __argparser.add_argument('-s', dest='status', type=str, default='', help='Absolute path for the analysis to write a report.')
         __argparser.add_argument('-job_id', dest='job_id', type=str, default=None, help='Execute job, overwrites config file')
@@ -83,26 +82,6 @@ class lerepi_parser():
                 else:
                     log.error('Cannot find config file to resume at {}'.format(resume_fn))
                     assert 0, "I see the following options: {}".format(f)
-
-        def _validate_p(new_fn):
-            if new_fn != '':
-                _f = []
-                module_path = os.path.dirname(lerepi.__file__)
-                log.info(module_path)
-                for (dirpath, dirnames, filenames) in walk(module_path+'/config/'):
-                    _f.extend(filenames)
-                    break
-                f = [s for s in _f if s.startswith('c_')]
-                paramfile_path = module_path+'/config/'+new_fn
-                log.info("User config file: {}".format(paramfile_path))
-                if os.path.exists(paramfile_path):
-                    # if new run is asked, check path
-                    log.info("New run requested with with {}".format(paramfile_path))
-                    self.parser.config_file = paramfile_path
-                    return True
-                else:
-                    log.error("ERROR: Cannot find file {}".format(paramfile_path))
-                    assert 0, "I see the following options: {}".format(f)
                     
         def _validate_job(job_id):
             if job_id in ['QE_lensrec', 'MAP_lensrec', 'OBD_builder', None]:
@@ -118,8 +97,6 @@ class lerepi_parser():
         if _validate_s(self.parser.status):
             pass
         if _validate_r(self.parser.resume):
-            pass
-        if _validate_p(self.parser.new):
             pass
         if _validate_job(self.parser.job_id):
             pass

@@ -3,7 +3,7 @@ Our shortest configuration file. All parameters default to an idealizaed CMB-S4-
 Simulates CMB polarization maps generated on the fly, inclusive of isotropic white noise. Performs QE and iterative reconstruction on the full-sky.
 """
 
-from delensalot.lerepi.core.metamodel.dlensalot_mm import DLENSALOT_Model
+from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model
 
 dlensalot_model = DLENSALOT_Model(
     defaults_to = 'P_FS_CMBS4'

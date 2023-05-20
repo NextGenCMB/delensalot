@@ -16,17 +16,15 @@ import numpy as np
 
 import scarf
 
-import delensalot.iterators.cs_iterator
+import delensalot.core.iterator.cs_iterator
 from delensalot.utils import cli, read_map
-from delensalot.utils_hp import Alm, almxfl, alm2cl
-from delensalot.core.utility import utils_qe
-from delensalot.utils_scarf import scarfjob, pbdGeometry, pbounds
-from delensalot import utils_dlm
+from delensalot.utility.utils_hp import Alm, almxfl, alm2cl
+from delensalot.core.helper.utils_scarf import scarfjob, pbdGeometry, pbounds
 
 from plancklens.qcinv import multigrid
-from delensalot.iterators import bfgs, steps
+from delensalot.core.iterator import steps
 
-from delensalot.opfilt import opfilt_base
+from delensalot.core.opfilt import opfilt_base
 from delensalot import cachers
 
 import logging
@@ -37,7 +35,7 @@ alm2rlm = lambda alm : alm # get rid of this
 rlm2alm = lambda rlm : rlm
 
 
-class iterator_cstmf(delensalot.iterators.cs_iterator.qlm_iterator):
+class iterator_cstmf(delensalot.core.iterator.cs_iterator.qlm_iterator):
     """Constant mean-field
 
 

@@ -20,22 +20,17 @@ import hashlib
 from plancklens.qcinv import cd_solve
 
 from lenspyx.remapping import utils_geom as lug
-import delensalot.utils_scarf as dug
+import delensalot.core.helper.utils_scarf as dug
 
-from delensalot.core.mpi import check_MPI
-from delensalot.core import mpi
-from delensalot.sims import sims_ffp10
-from delensalot.core.utility import utils_sims
-from delensalot.iterators import steps
-from delensalot.core.utility.utils_hp import gauss_beam
-from delensalot.utils import cli, read_map, camb_clfile
-from delensalot.iterators.steps import harmonicbump, nrstep 
-from delensalot.lerepi.core.visitor import transform
-from delensalot.opfilt.bmodes_ninv import template_dense
+from delensalot.utils import cli, camb_clfile
 
+from delensalot.core.iterator import steps
+from delensalot.utility.utils_hp import gauss_beam
 import delensalot.core.handler as delensalot_handler
-from delensalot.lerepi.config.config_helper import data_functions as df, LEREPI_Constants as lc
-from delensalot.lerepi.core.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALOT_Model_mm, DLENSALOT_Concept
+from delensalot.core.opfilt.bmodes_ninv import template_dense
+from delensalot.config.visitor import transform
+from delensalot.config.config_helper import data_functions as df, LEREPI_Constants as lc
+from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALOT_Model_mm, DLENSALOT_Concept
 
 
 # TODO swap rhits with ninv

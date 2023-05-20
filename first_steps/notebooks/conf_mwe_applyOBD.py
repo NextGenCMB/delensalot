@@ -1,7 +1,7 @@
 import numpy as np
 import plancklens
 from plancklens import utils
-from delensalot.lerepi.core.metamodel.dlensalot_mm import *
+from delensalot.config.metamodel.dlensalot_mm import *
 
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(

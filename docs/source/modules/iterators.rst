@@ -4,18 +4,18 @@ iterators
 module reference
 
 
-.. automodule:: delensalot.iterators.bfgs
+.. automodule:: delensalot.core.iterator.bfgs
    :members:
    :undoc-members:
 
-.. automodule:: delensalot.iterators.cs_iterator
+.. automodule:: delensalot.core.iterator.cs_iterator
    :members:
    :undoc-members:
 
-.. automodule:: delensalot.iterators.iteration_handler
+.. automodule:: delensalot.core.iterator.iteration_handler
    :members:
    :undoc-members:
 
-.. automodule:: delensalot.iterators.statics
+.. automodule:: delensalot.core.iterator.statics
    :members:
    :undoc-members:

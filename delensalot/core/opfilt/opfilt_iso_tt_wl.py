@@ -3,11 +3,11 @@
 
 """
 import numpy as np
-from delensalot.utils_hp import almxfl, Alm, synalm
+from delensalot.utility.utils_hp import almxfl, Alm, synalm
 from delensalot.utils import timer, clhash
 from lenspyx import remapping
 from lenspyx.remapping import utils_geom
-from delensalot.opfilt import opfilt_iso_tt, opfilt_base
+from delensalot.core.opfilt import opfilt_iso_tt, opfilt_base
 from plancklens.utils import cli
 import time
 

@@ -7,23 +7,23 @@ module reference
 core
 -------
 
-.. automodule:: delensalot.lerepi.core.handler
+.. automodule:: delensalot.config.handler
    :members:
    :undoc-members:
 
-.. automodule:: delensalot.lerepi.core.parser
+.. automodule:: delensalot.config.parser
    :members:
    :undoc-members:
 
-.. automodule:: delensalot.lerepi.core.sr
+.. automodule:: delensalot.config.sr
    :members:
    :undoc-members:
 
-.. automodule:: delensalot.lerepi.core.metamodel.dlensalot_v2
+.. automodule:: delensalot.config.metamodel.dlensalot_v2
    :members:
    :undoc-members:
 
-.. automodule:: delensalot.lerepi.core.transformer
+.. automodule:: delensalot.config.transformer
    :members:
    :undoc-members: 
 
@@ -31,7 +31,7 @@ core
 config
 -------
 
-.. automodule:: delensalot.lerepi.config.config_helper
+.. automodule:: delensalot.config.config_helper
    :members:
    :undoc-members:
 

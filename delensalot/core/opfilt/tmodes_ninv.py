@@ -9,8 +9,8 @@ from logdecorator import log_on_start, log_on_end
 import os
 import numpy as np
 import scarf
-from delensalot import utils_scarf as us
-from delensalot.utils_hp import Alm
+from delensalot.core.helper import utils_scarf as us
+from delensalot.utility.utils_hp import Alm
 from delensalot.utils import enumerate_progress, read_map
 
 

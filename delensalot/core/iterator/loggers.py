@@ -6,7 +6,7 @@
 import time
 import os
 from os.path import join as opj
-from delensalot.iterators import cs_iterator
+from delensalot.core.iterator import cs_iterator
 
 
 class logger(object):

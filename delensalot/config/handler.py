@@ -21,10 +21,10 @@ log.setLevel(logging.INFO)
 
 from delensalot.core import mpi
 from delensalot.core.mpi import check_MPI
-from delensalot.lerepi.core.validator import safelist
-from delensalot.lerepi.core.visitor import transform
-from delensalot.lerepi.core.transformer.lerepi2dlensalot import l2j_Transformer, l2T_Transformer, l2ji_Transformer
-from delensalot.lerepi.core.transformer.lerepi2status import l2j_Transformer as l2js_Transformer
+from delensalot.config.validator import safelist
+from delensalot.config.visitor import transform
+from delensalot.config.transformer.lerepi2dlensalot import l2j_Transformer, l2T_Transformer, l2ji_Transformer
+from delensalot.config.transformer.lerepi2status import l2j_Transformer as l2js_Transformer
 
 
 class handler():

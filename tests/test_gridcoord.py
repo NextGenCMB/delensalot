@@ -1,11 +1,11 @@
 from plancklens import utils
 from delensalot.core import cachers
-from delensalot.utils_scarf import Geom
+from delensalot.core.helper.utils_scarf import Geom
 import numpy as np
 import delensalot
-from delensalot import utils_scarf as sj
+from delensalot.core.helper import utils_scarf as sj
 import pylab as pl
-from delensalot import utils_scarf
+from delensalot.core.helper import utils_scarf
 from delensalot import remapping
 from plancklens.utils import camb_clfile
 lmax = 3000

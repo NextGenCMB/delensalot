@@ -1,6 +1,6 @@
 import numpy as np
 
-from delensalot.lerepi.core.metamodel import DEFAULT_NotAValue
+from delensalot.config.metamodel import DEFAULT_NotAValue
 
 def p0(instance, attribute, value):
     if type(value) != int:

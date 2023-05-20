@@ -24,7 +24,7 @@ from plancklens.qcinv import util, util_alm
 from plancklens.filt import filt_cinv
 
 import plancklens.utils as utils
-from delensalot.opfilt import bmodes_ninv
+from delensalot.core.opfilt import bmodes_ninv
 
 class cinv_p(filt_cinv.cinv):
     r"""Polarization-only inverse-variance (or Wiener-)filtering instance.

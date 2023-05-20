@@ -1,6 +1,6 @@
 import numpy as np
 from plancklens import qresp, nhl, utils
-from delensalot.core.utility.utils_hp import gauss_beam
+from delensalot.utility.utils_hp import gauss_beam
 from scipy.interpolate import UnivariateSpline as spl
 from lensitbiases import n1_fft
 # from lenspec.utils import dls2cls, cls2dls

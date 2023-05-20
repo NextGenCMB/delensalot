@@ -8,7 +8,7 @@ from logdecorator import log_on_start, log_on_end
 
 import os
 import numpy as np
-from delensalot.utils_hp import almxfl, Alm, alm2cl
+from delensalot.utility.utils_hp import almxfl, Alm, alm2cl
 from delensalot.utils import timer, cli, clhash
 from lenspyx.remapping import utils_geom
 from scipy.interpolate import UnivariateSpline as spl

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
-from delensalot.utils_scarf import Geom
+from delensalot.core.helper.utils_scarf import Geom
 from plancklens.sims import maps
 
 

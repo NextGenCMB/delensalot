@@ -49,7 +49,7 @@ To use the minimal working example (mwe) in a configuration file, the :code:`DLE
         IMIN = 0,
         IMAX = 1,
         package_ = 'dlensalot',
-        module_ = 'lerepi.config.examples.mwe.data_mwe.sims_mwe',
+        module_ = 'config.examples.mwe.data_mwe.sims_mwe',
         class_ = 'mwe',
         class_parameters = {
             'nlev': '0.25'

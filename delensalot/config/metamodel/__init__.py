@@ -7,7 +7,7 @@ from delensalot import utils
 from MSC import pospace
 
 import delensalot
-from delensalot.lerepi.config.config_helper import LEREPI_Constants as lc
+from delensalot.config.config_helper import LEREPI_Constants as lc
 
 DEFAULT_NotAValue = -123456789
 DEFAULT_NotValid = 9876543210123456789

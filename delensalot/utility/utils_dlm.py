@@ -1,7 +1,7 @@
 import numpy as np
 
-from delensalot.utils_scarf import scarfjob
-from delensalot.core.utility.utils_hp import almxfl, Alm
+from delensalot.core.helper.utils_scarf import scarfjob
+from delensalot.utility.utils_hp import almxfl, Alm
 
 def get_spin_raise(s:int, lmax:int):
     r"""Response coefficient of spin-s spherical harmonic to spin raising operator.

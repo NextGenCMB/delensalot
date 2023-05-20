@@ -13,8 +13,8 @@ from MSC import pospace
 
 import delensalot
 from delensalot import utils
-from delensalot.lerepi.config.config_helper import LEREPI_Constants as lc
-from delensalot.lerepi.core.metamodel.dlensalot_mm import *
+from delensalot.config.config_helper import LEREPI_Constants as lc
+from delensalot.config.metamodel.dlensalot_mm import *
 
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(

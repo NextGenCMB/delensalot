@@ -1,7 +1,9 @@
 import numpy as np
-import plancklens
-from plancklens import utils
-from delensalot.lerepi.core.metamodel.dlensalot_mm import *
+import delensalot
+from delensalot import utils
+import os
+from os.path import join as opj
+from delensalot.config.metamodel.dlensalot_mm import *
 
 dlensalot_model = DLENSALOT_Model(
     job = DLENSALOT_Job(
@@ -26,7 +28,7 @@ dlensalot_model = DLENSALOT_Model(
         class_ = 'sims_cmb_len',
         class_parameters = {
             'lmax': 1024,
-            'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(plancklens.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
+            'cls_unl': utils.camb_clfile(opj(os.path.dirname(delensalot.__file__, 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
             'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'generic', 'nside512', 'lmax1024', 'nlevp_sqrt(2)'),
             'nside_lens': 512
         },

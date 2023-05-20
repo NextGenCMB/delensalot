@@ -10,7 +10,7 @@ import delensalot
 from delensalot import utils
 from os.path import join as opj
 
-from delensalot.lerepi.core.metamodel.dlensalot_mm import *
+from delensalot.config.metamodel.dlensalot_mm import *
 
 dlensalot_model = DLENSALOT_Model(
     defaults_to = 'P_FS_CMBS4',

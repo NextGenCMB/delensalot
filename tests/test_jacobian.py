@@ -3,9 +3,9 @@ import pylab as pl
 from delensalot import remapping, utils_scarf
 from delensalot.core import cachers
 from delensalot.core.helper import utils_remapping
-from delensalot.core.utility import utils_dlm
-from delensalot.core.utility import utils_hp
-from delensalot.utils_scarf import pbdGeometry, pbounds, scarfjob, Geom
+from delensalot.utility import utils_dlm
+from delensalot.utility import utils_hp
+from delensalot.core.helper.utils_scarf import pbdGeometry, pbounds, scarfjob, Geom
 from plancklens.utils import camb_clfile, cli
 from scipy.special import spherical_jn
 

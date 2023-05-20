@@ -13,10 +13,10 @@ log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
 
 
-import delensalot.lerepi.core.sr as sr
-from delensalot.lerepi.core.visitor import transform
-from delensalot.lerepi.core.transformer.lerepi2dlensalot import l2T_Transformer
-from delensalot.lerepi.core.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALOT_Model, DLENSALOT_Concept
+import delensalot.config.sr as sr
+from delensalot.config.visitor import transform
+from delensalot.config.transformer.lerepi2dlensalot import l2T_Transformer
+from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALOT_Model, DLENSALOT_Concept
 
 
 class l2s_Transformer:

@@ -1,6 +1,6 @@
 import numpy as np
 
-from delensalot.lerepi.core.metamodel.dlensalot_v2 import *
+from delensalot.config.metamodel.dlensalot_v2 import *
 from MSC import pospace
 
 dlensalot_model = DLENSALOT_Model(
@@ -37,7 +37,7 @@ dlensalot_model = DLENSALOT_Model(
         IMAX = 3,
         simidxs = np.arange(0,4),
         package_ = 'delensalot',
-        module_ = 'lerepi.config.cmbs4.data.data_08d',
+        module_ = 'config.cmbs4.data.data_08d',
         class_ = 'ILC_May2022',
         class_parameters = {
             'fg': '00'

@@ -1,6 +1,6 @@
 """Module for curved-sky iterative lensing estimation
 
-    Version revised on March 2023 2023
+    Version revised on March 2023
 
         Among the changes:
             * delensalot'ed this with great improvements in execution time
@@ -31,15 +31,14 @@ from plancklens.qcinv import multigrid
 
 import scarf
 from delensalot.utils import cli, read_map
-from delensalot.core.utility.utils_hp import Alm, almxfl, alm2cl
-from delensalot.core.utility import utils_qe
-from delensalot.utils_scarf import scarfjob, pbdGeometry, pbounds
-from delensalot.core.utility import utils_dlm
+from delensalot.utility.utils_hp import Alm, almxfl, alm2cl
+from delensalot.utility import utils_qe
+from delensalot.core.helper.utils_scarf import scarfjob, pbdGeometry, pbounds
+from delensalot.utility import utils_dlm
 
 from delensalot.core import cachers
-from delensalot.opfilt import opfilt_base
-from delensalot.iterators import bfgs, steps
-from delensalot.lerepi.core.visitor import transform
+from delensalot.core.opfilt import opfilt_base
+from delensalot.core.iterator import bfgs, steps
 
 alm2rlm = lambda alm : alm # get rid of this
 rlm2alm = lambda rlm : rlm
@@ -95,7 +94,7 @@ class qlm_iterator(object):
         self.hess_cacher = cachers.cacher_npy(opj(self.lib_dir, 'hessian'))
         self.wf_cacher = cachers.cacher_npy(opj(self.lib_dir, 'wflms'))
         if logger is None:
-            from delensalot.iterators import loggers
+            from delensalot.core.iterator import loggers
             logger = loggers.logger_norms(opj(lib_dir, 'history_increment.txt'))
         self.logger = logger
 
@@ -712,10 +711,3 @@ class iterator_cstmf_bfgs0(iterator_cstmf):
             self.hess_cacher.cache(sk_fname, incr)
             prt_time(time.time() - t0, label=' Exec. time for descent direction calculation')
         assert self.hess_cacher.is_cached(sk_fname), sk_fname
-
-
-def transformer(descr):
-    if descr == 'pertmf_new':
-        return iterator_pertmf
-    else:
-        assert 0, "Not yet implemented"

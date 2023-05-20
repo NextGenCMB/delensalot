@@ -1,9 +1,9 @@
 from delensalot import remapping
 import numpy as np
-from delensalot import utils_scarf as sj
+from delensalot.core.helper import utils_scarf as sj
 import healpy as hp
 from delensalot.core import cachers
-from delensalot.utils_scarf import pbdGeometry, pbounds
+from delensalot.core.helper.utils_scarf import pbdGeometry, pbounds
 
 from plancklens.utils import camb_clfile
 

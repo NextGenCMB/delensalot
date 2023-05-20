@@ -2,8 +2,8 @@ import numpy as np
 import time
 from delensalot import remapping
 from delensalot.core import cachers
-from delensalot.core.utility import utils_hp
-from delensalot.utils_scarf import pbdGeometry, pbounds, scarfjob, Geom
+from delensalot.utility import utils_hp
+from delensalot.core.helper.utils_scarf import pbdGeometry, pbounds, scarfjob, Geom
 from plancklens.utils import camb_clfile
 from delensalot.core.helper.utils_remapping import d2ang, ang2d
 

@@ -18,20 +18,20 @@ import numpy as np
 import healpy as hp
 
 from plancklens import qresp, qest, qecl, utils
-from plancklens.sims import maps, phas, planck2018_sims
+from plancklens.sims import maps, phas
 from plancklens.qcinv import opfilt_pp
 from plancklens.filt import filt_util, filt_cinv, filt_simple
 
-from delensalot.core.utility import utils_sims
-from delensalot.core.utility import utils_hp
+from delensalot.utility import utils_sims
+from delensalot.utility.utils_hp import almxfl, alm_copy, gauss_beam
+from delensalot.config.config_helper import data_functions as df
 from delensalot.core.mpi import check_MPI
-from delensalot.iterators import iteration_handler
-from delensalot.iterators.statics import rec as rec
-from delensalot.core.utility.utils_hp import almxfl, alm_copy, gauss_beam
-from delensalot.opfilt import utils_cinv_p as cinv_p_OBD
-from delensalot.opfilt.bmodes_ninv import template_bfilt
-from delensalot.lerepi.config.config_helper import data_functions as df
-from delensalot.core.decorators.exception_handler import base as base_exception_handler
+from delensalot.core.iterator import iteration_handler
+from delensalot.core.iterator.statics import rec as rec
+from delensalot.core.opfilt import utils_cinv_p as cinv_p_OBD
+from delensalot.core.opfilt.bmodes_ninv import template_bfilt
+
+from delensalot.core.decorator.exception_handler import base as base_exception_handler
 
 
 class Basejob():

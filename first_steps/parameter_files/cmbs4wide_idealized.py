@@ -25,13 +25,13 @@ from plancklens.sims import maps, phas, planck2018_sims
 from plancklens.filt import filt_simple, filt_util
 
 from delensalot import remapping
-from delensalot import utils_scarf
-from delensalot.core.utility import utils_sims
-from delensalot.iterators import cs_iterator as scarf_iterator, steps
+from delensalot.core.helper import utils_scarf
+from delensalot.utility import utils_sims
+from delensalot.core.iterator import cs_iterator as scarf_iterator, steps
 
 from delensalot.utils import cli
-from delensalot.utils_hp import gauss_beam, almxfl, alm_copy
-from delensalot.opfilt.opfilt_iso_ee_wl import alm_filter_nlev_wl
+from delensalot.utility.utils_hp import gauss_beam, almxfl, alm_copy
+from delensalot.core.opfilt.opfilt_iso_ee_wl import alm_filter_nlev_wl
 
 suffix = 'cmbs4_idealized2' # descriptor to distinguish this parfile from others...
 TEMP =  opj(os.environ['SCRATCH'], 'delensalotrecs', suffix)
@@ -216,7 +216,7 @@ if __name__ == '__main__':
     # from delensalot.core import mpi
     from plancklens.helpers import mpi
     mpi.barrier = lambda : 1 # redefining the barrier (Why ? )
-    from delensalot.iterators.statics import rec as Rec
+    from delensalot.core.iterator.statics import rec as Rec
     jobs = []
     for idx in np.arange(args.imin, args.imax + 1):
         lib_dir_iterator = libdir_iterators(args.k, idx, args.v)

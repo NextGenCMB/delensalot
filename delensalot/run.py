@@ -9,10 +9,10 @@ import os, sys
 import logging
 import traceback
 
-from delensalot.lerepi.core import handler
+from delensalot.config import handler
 import delensalot.lerepi.etc.dev_helper as dh
 from delensalot.lerepi.etc.abstract import parserclass
-from delensalot.lerepi.core.parser import lerepi_parser
+from delensalot.config.parser import lerepi_parser
 
 
 datefmt = "%m-%d %H:%M"

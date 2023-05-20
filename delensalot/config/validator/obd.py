@@ -1,4 +1,4 @@
-from delensalot.lerepi.core.metamodel import DEFAULT_NotAValue
+from delensalot.config.metamodel import DEFAULT_NotAValue
 
 
 def libdir(instance, attribute, value):
