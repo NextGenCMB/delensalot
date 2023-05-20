@@ -10,8 +10,8 @@ import logging
 import traceback
 
 from delensalot.config import handler
-import delensalot.lerepi.etc.dev_helper as dh
-from delensalot.lerepi.etc.abstract import parserclass
+import delensalot.config.etc.dev_helper as dh
+from delensalot.config.etc.abstract import parserclass
 from delensalot.config.parser import lerepi_parser
 
 

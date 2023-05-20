@@ -2,7 +2,7 @@ from __future__ import annotations
 import os, sys
 import numpy as np
 import scarf
-from delensalot.utils_sht import st2mmax, lowprimes
+from delensalot.core.helper.utils_sht import st2mmax, lowprimes
 from delensalot.utils import clhash
 
 

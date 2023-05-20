@@ -5,7 +5,7 @@ log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
 
 import numpy as np
-from delensalot import cachers
+from delensalot.core import cachers
 
 class BFGS_Hessian(object):
     """
