@@ -360,7 +360,6 @@ class QE_lr(Basejob):
 
             ## Calculate realization dependent phi, i.e. plm_it000.
             if task == 'calc_phi':
-                self.simgen.run()
                 ## TODO this filename must match plancklens filename.. refactor
                 fn_mf = os.path.join(self.TEMP, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, utils.mchash(self.simidxs_mf)))
                 ## Skip if meanfield already calculated
@@ -387,7 +386,6 @@ class QE_lr(Basejob):
         ## if None, then this is a normal QE lensrec call
 
         self.simgen.run()
-
         _tasks = self.qe_tasks if task is None else [task]
         
         for taski, task in enumerate(_tasks):
