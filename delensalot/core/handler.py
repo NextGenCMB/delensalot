@@ -213,7 +213,7 @@ class Sim_generator(Basejob):
         ## TODO implement
         jobs = []
         simidxs_ = np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))))
-        for simidx in self.simidxs:
+        for simidx in simidxs_:
             def check(simidx):
                 return True
             if check(simidx):
@@ -235,6 +235,11 @@ class Sim_generator(Basejob):
     @log_on_start(logging.INFO, "generate_sim(simidx={simidx}) started")
     @log_on_end(logging.INFO, "generate_sim(simidx={simidx}) finished")
     def generate_sim(self, simidx):
+        """
+        comment for a future me: 
+            simulation library stores the lensed cmbs without noise. later, delensalot.iterator uses get_sim_pmap() which combines noise and lensed CMB at runtime, and is never stored.
+            _sims. accesses the lensed CMB library.
+        """
         if self.k in ['ptt', 'mv']:
             self._sims.get_sim_alm(simidx, 't', ret=False)
         if self.k in ['p_p', 'mv', 'p_eb', 'pbe', 'pee', 'pbb', 'peb']:
@@ -380,7 +385,11 @@ class QE_lr(Basejob):
     def run(self, task=None):
         ## task may be set from MAP lensrec, as MAP lensrec has prereqs to QE lensrec
         ## if None, then this is a normal QE lensrec call
+
+        self.simgen.run()
+
         _tasks = self.qe_tasks if task is None else [task]
+        
         for taski, task in enumerate(_tasks):
             log.info('{}, task {} started'.format(mpi.rank, task))
 
