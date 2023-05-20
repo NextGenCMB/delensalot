@@ -9,9 +9,10 @@ from __future__ import annotations
 import os
 import numpy as np
 import plancklens.sims.phas
+from delensalot.core import cachers
 
-from delensalot import cachers
-from delensalot import utils_scarf, utils_hp
+from delensalot.core.utility import utils_hp
+from delensalot import utils_scarf
 from plancklens.sims.planck2018_sims import cmb_unl_ffp10
 from plancklens import utils
 from lenspyx.remapping import deflection

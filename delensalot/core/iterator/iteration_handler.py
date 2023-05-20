@@ -9,6 +9,8 @@ setting up an iterator, (e.g. permf or constmf), and decide which object on iter
 import os, sys
 
 import logging
+
+from delensalot.core.utility import utils_sims
 log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
 
@@ -16,8 +18,8 @@ import numpy as np
 import healpy as hp
 
 from lenspyx.remapping import deflection
-from delensalot import utils_sims, utils_scarf
-from delensalot.utils_hp import alm_copy, almxfl
+from delensalot import utils_scarf
+from delensalot.core.utility.utils_hp import alm_copy, almxfl
 from delensalot.iterators import cs_iterator, cs_iterator_fast
 from delensalot.utils import read_map
 from delensalot.iterators import cs_iterator, cs_iterator_fast

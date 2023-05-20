@@ -21,7 +21,7 @@ from plancklens.filt import filt_cinv, filt_util, filt_simple
 from plancklens import utils, qest, qecl
 from plancklens.sims import maps
 from delensalot.sims import sims_ffp10
-from delensalot import utils_sims
+from delensalot.core.utility import utils_sims
 
 
 output_dir = opj(os.path.dirname(os.path.dirname(delensalot.__file__)), 'outputs')

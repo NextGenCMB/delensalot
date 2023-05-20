@@ -3,8 +3,9 @@ import os
 from time import time
 import scarf
 from delensalot import remapping
-from delensalot import utils_config, utils_hp, utils, utils_sht, utils_scarf
-from delensalot import cachers
+from delensalot import utils_config, utils, utils_sht, utils_scarf
+from delensalot.core import cachers
+from delensalot.core.utility import utils_hp
 from delensalot.opfilt import opfilt_ee_wl, opfilt_pp
 from delensalot.utils_scarf import Geom, scarfjob, pbdGeometry, pbounds
 from plancklens.utils import camb_clfile

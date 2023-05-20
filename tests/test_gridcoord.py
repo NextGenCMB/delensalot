@@ -1,11 +1,12 @@
 from plancklens import utils
+from delensalot.core import cachers
 from delensalot.utils_scarf import Geom
 import numpy as np
 import delensalot
 from delensalot import utils_scarf as sj
 import pylab as pl
 from delensalot import utils_scarf
-from delensalot import cachers, remapping
+from delensalot import remapping
 from plancklens.utils import camb_clfile
 lmax = 3000
 clee = camb_clfile('../delensalot/data/cls/FFP10_wdipole_lensedCls.dat')['ee'][:lmax + 1]

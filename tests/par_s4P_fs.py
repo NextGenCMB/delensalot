@@ -16,7 +16,7 @@ import os
 from os.path import join as opj
 from plancklens import utils, qresp
 from delensalot.utils import cli
-from delensalot.utils_hp import gauss_beam, almxfl, synalm, alm_copy
+from delensalot.core.utility.utils_hp import gauss_beam, almxfl, synalm, alm_copy
 from delensalot.opfilt.opfilt_iso_tt_wl import alm_filter_nlev_wl as tt_filt
 from delensalot.opfilt.opfilt_iso_ee_wl import alm_filter_nlev_wl as ee_filt
 from delensalot.opfilt.opfilt_iso_tt import alm_filter_nlev as tt_isofilt

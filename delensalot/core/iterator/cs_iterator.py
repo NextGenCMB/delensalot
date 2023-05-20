@@ -31,12 +31,12 @@ from plancklens.qcinv import multigrid
 
 import scarf
 from delensalot.utils import cli, read_map
-from delensalot.utils_hp import Alm, almxfl, alm2cl
-from delensalot import utils_qe
+from delensalot.core.utility.utils_hp import Alm, almxfl, alm2cl
+from delensalot.core.utility import utils_qe
 from delensalot.utils_scarf import scarfjob, pbdGeometry, pbounds
-from delensalot import utils_dlm
+from delensalot.core.utility import utils_dlm
 
-from delensalot import cachers
+from delensalot.core import cachers
 from delensalot.opfilt import opfilt_base
 from delensalot.iterators import bfgs, steps
 from delensalot.lerepi.core.visitor import transform

@@ -1,7 +1,7 @@
 import os
 import numpy as np
 from scarf import Geometry
-from delensalot.utils_hp import Alm, almxfl
+from delensalot.core.utility.utils_hp import Alm, almxfl
 
 class qeleg_multi:
     """Quadratic estimator leg instance

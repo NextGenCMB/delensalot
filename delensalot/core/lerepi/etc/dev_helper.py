@@ -1,7 +1,7 @@
 """dev_helper.py: somewhat hide hash-purging subroutine from users,
     as this should really only be used from developers.
 
-    Reasong you'd like to use this is, for example if you change the dirstructure of an existing analysis and don't want to rerun it,
+    Reason you'd like to use this is, for example if you change the dirstructure of an existing analysis and don't want to rerun it,
     or you feed in the same noisemodel but from a different directory, to an existing analysis..
 """
 

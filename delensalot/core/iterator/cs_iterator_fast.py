@@ -19,7 +19,7 @@ import scarf
 import delensalot.iterators.cs_iterator
 from delensalot.utils import cli, read_map
 from delensalot.utils_hp import Alm, almxfl, alm2cl
-from delensalot import utils_qe
+from delensalot.core.utility import utils_qe
 from delensalot.utils_scarf import scarfjob, pbdGeometry, pbounds
 from delensalot import utils_dlm
 

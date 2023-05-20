@@ -25,9 +25,9 @@ import delensalot.utils_scarf as dug
 from delensalot.core.mpi import check_MPI
 from delensalot.core import mpi
 from delensalot.sims import sims_ffp10
-from delensalot import utils_sims
+from delensalot.core.utility import utils_sims
 from delensalot.iterators import steps
-from delensalot.utils_hp import gauss_beam
+from delensalot.core.utility.utils_hp import gauss_beam
 from delensalot.utils import cli, read_map, camb_clfile
 from delensalot.iterators.steps import harmonicbump, nrstep 
 from delensalot.lerepi.core.visitor import transform

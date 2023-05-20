@@ -8,7 +8,7 @@ import pylab as pl
 from plancklens import utils, qresp
 import plancklens
 from delensalot.utils import cli
-from delensalot.utils_hp import gauss_beam, almxfl, alm2cl, synalm, alm_copy
+from delensalot.core.utility.utils_hp import gauss_beam, almxfl, alm2cl, synalm, alm_copy
 from delensalot.opfilt.opfilt_iso_tt import alm_filter_nlev
 from delensalot import utils_scarf
 from plancklens.sims import planck2018_sims

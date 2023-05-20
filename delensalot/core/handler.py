@@ -8,6 +8,8 @@
 import os, sys
 from os.path import join as opj
 import logging
+
+from delensalot.core import mpi
 log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
 import datetime, getpass, copy, importlib
@@ -20,12 +22,12 @@ from plancklens.sims import maps, phas, planck2018_sims
 from plancklens.qcinv import opfilt_pp
 from plancklens.filt import filt_util, filt_cinv, filt_simple
 
-from delensalot import utils_sims, utils_hp
-from delensalot.core import mpi
+from delensalot.core.utility import utils_sims
+from delensalot.core.utility import utils_hp
 from delensalot.core.mpi import check_MPI
 from delensalot.iterators import iteration_handler
 from delensalot.iterators.statics import rec as rec
-from delensalot.utils_hp import almxfl, alm_copy, gauss_beam
+from delensalot.core.utility.utils_hp import almxfl, alm_copy, gauss_beam
 from delensalot.opfilt import utils_cinv_p as cinv_p_OBD
 from delensalot.opfilt.bmodes_ninv import template_bfilt
 from delensalot.lerepi.config.config_helper import data_functions as df

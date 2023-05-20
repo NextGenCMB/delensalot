@@ -1,5 +1,7 @@
 import numpy as np
-from delensalot import utils_hp, remapping, cachers
+from delensalot import remapping
+from delensalot.core import cachers
+from delensalot.core.utility import utils_hp
 from delensalot.utils_scarf import pbdGeometry, pbounds, scarfjob, Geom
 from plancklens.utils import camb_clfile
 

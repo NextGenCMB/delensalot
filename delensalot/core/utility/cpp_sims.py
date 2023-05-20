@@ -4,7 +4,7 @@ from delensalot import utils
 from delensalot.utils import cli
 from delensalot.iterators import statics
 from plancklens.sims import planck2018_sims
-from delensalot import cachers
+from delensalot.core import cachers
 from delensalot import utils_scarf
 from plancklens.utils import mchash, cls_dot, stats
 from plancklens import qresp, n0s, nhl
@@ -15,11 +15,11 @@ from scipy.interpolate import UnivariateSpline as spline
 from os.path import join as opj
 import os
 import importlib
-from delensalot.utils_hp import alm_copy
+from delensalot.core.utility.utils_hp import alm_copy
 from delensalot.utils import read_map
-from delensalot.utils_plot import pp2kk, bnd
+from delensalot.core.utility.utils_plot import pp2kk, bnd
 from delensalot.biases import rdn0_cs
-from delensalot import utils_hp as uhp
+from delensalot.core.utility import utils_hp as uhp
 from delensalot.biases import n0n1_iterative
 
 
