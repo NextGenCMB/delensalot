@@ -60,13 +60,13 @@ dlensalot_model = DLENSALOT_Model(
         tasks = ["calc_phi", "calc_meanfield", "calc_blt"],
         filter_directional = 'anisotropic',
         lm_max_qlm = (3000, 3000),
-        cg_tol = 1e-3
+        cg_tol = 1e-4
     ),
     itrec = DLENSALOT_Itrec(
         tasks = ["calc_phi"],
         filter_directional = 'anisotropic',
         itmax = 5,
-        cg_tol = 1e-3,
+        cg_tol = 1e-4,
         lm_max_unl = (3200, 3200),
         lm_max_qlm = (3000, 3000),
         stepper = DLENSALOT_Stepper(

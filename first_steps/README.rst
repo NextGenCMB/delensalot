@@ -1,4 +1,4 @@
-Notebooks
+First steps
 ==========
 
-Notebooks for running simple tasks on lerepi. Mainly inspecting results and meant as tutorials for delensalot
+Tutorials and example scripts to get started with `delensalot`.

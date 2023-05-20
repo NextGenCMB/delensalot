@@ -18,9 +18,9 @@ import importlib
 from delensalot.utils_hp import alm_copy
 from delensalot.utils import read_map
 from delensalot.utils_plot import pp2kk, bnd
-from delensalot import rdn0_cs
+from delensalot.biases import rdn0_cs
 from delensalot import utils_hp as uhp
-from delensalot import n0n1_iterative
+from delensalot.biases import n0n1_iterative
 
 
 import healpy as hp
