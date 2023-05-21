@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
-"""lerepi2dlensalot.py: transformer module to build dlensalot model from configuation file
+"""lerepi2dlensalot.py: transformer module to build delensalot model from configuation file
+The transform.case functions at the very bottom of this module choose, depending on the delensalot job, the transformer class. The transformer class build a suitable delensalot model from the configuration file, which can be understood from the core functions and dependencies (such as plancklens).
+Each transformer is split into initializing the individual delensalot metamodel root model elements. 
 """
 
 import os, sys
@@ -35,7 +37,8 @@ from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALO
 
 # TODO swap rhits with ninv
 class l2base_Transformer:
-
+    """Initializes attributes needed across all Jobs, or which are at least handy to have
+    """    
     def __init__(self):
         pass
 
@@ -134,10 +137,7 @@ class l2base_Transformer:
 
 class l2T_Transformer:
     # TODO this needs a big refactoring. Suggest working via cachers
-    """Directory is built upon runtime, so accessing it here
-
-    Returns:
-        _type_: _description_
+    """global access for custom TEMP directory name, so that any job stores the data at the same place.
     """
 
     # @log_on_start(logging.INFO, "build() started")
@@ -185,7 +185,7 @@ class l2T_Transformer:
 
 
 class l2simgen_Transformer(l2base_Transformer):
-    """_summary_
+    """Transformer for generating a delensalot model for the generation of simulation job
     """
 
     @log_on_start(logging.INFO, "build() started")
@@ -203,7 +203,7 @@ class l2simgen_Transformer(l2base_Transformer):
 
 
 class l2lensrec_Transformer(l2base_Transformer):
-    """_summary_
+    """Transformer for generating a delensalot model for the lensing reconstruction jobs (QE and MAP)
     """
 
 
@@ -465,7 +465,7 @@ class l2lensrec_Transformer(l2base_Transformer):
 
 
 class l2OBD_Transformer:
-    """Extracts all parameters needed for building consistent OBD
+    """Transformer for generating a delensalot model for the calculation of the OBD matrix
     """
 
     @log_on_start(logging.INFO, "build() started")
@@ -608,11 +608,9 @@ class l2OBD_Transformer:
 
         return masks, msk
 
-class l2delens_Transformer:
-    """delenser-job model transfer
 
-    Returns:
-        _type_: _description_
+class l2delens_Transformer:
+    """Transformer for generating a delensalot model for the map delensing job
     """
 
     @log_on_start(logging.INFO, "build() started")
@@ -854,7 +852,9 @@ class l2delens_Transformer:
 
 
 class l2i_Transformer:
-    
+    """Transformer for generating a delensalot model for the interactive job
+    """
+
     import importlib
     @log_on_start(logging.INFO, "build() started")
     @log_on_end(logging.INFO, "build() finished")
@@ -1005,7 +1005,7 @@ class l2i_Transformer:
             
 
 class l2ji_Transformer:
-    """Extracts parameters needed for the interactive delensalot job
+    """Mapper between job and transformer. Here, only maps for interactive jobs
     """
 
     def build(self, cf):
@@ -1020,7 +1020,7 @@ class l2ji_Transformer:
         
 
 class l2j_Transformer:
-    """Extracts parameters needed for the specific delensalot jobs
+    """Mapper between job and transformer
     """
 
     def build(self, cf):

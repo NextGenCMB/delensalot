@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
-"""__init__.py: Mainly collection of default values for delensalot model.
+"""metamodel.__init__.py: \
+    The metamodel defines the available attributes and their valid values a delensalot configuration file can have.
+    The init file is mainly a collection of default values for delensalot model.
     These dictionaries are, depending on the configuration, loaded at instantiation of a delensalot model.
 """
 

@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
 """handler.py: Base handler for lensing reconstruction pipelines.
-    Collects lerepi jobs defined in DLENSALOT_jobs
-    Extracts models needed for each job via x2y_Transformer
-    runs all jobs
+    Handles configuration file and makes sure analysis doesn't overwrite TEMP directory with altered configuration.
+    Collects delensalot jobs defined in DLENSALOT_jobs.
+    Extracts models needed for each delensalot job via x2y_Transformer.
+    Runs all delensalot jobs.
 """
 
 
@@ -28,14 +29,10 @@ from delensalot.config.transformer.lerepi2status import l2j_Transformer as l2js_
 
 
 class handler():
-    """_summary_
+    """Load config file and handle command line arguments 
     """
-    def __init__(self, parser, madel_kwargs={}):
-        """_summary_
 
-        Args:
-            parser (_type_): _description_
-        """
+    def __init__(self, parser, madel_kwargs={}):
         self.configfile = handler.load_configfile(parser.config_file, 'configfile')
         # TODO hack. remove when v1 is gone
         if 'madel' in self.configfile.dlensalot_model.__dict__:
@@ -57,8 +54,12 @@ class handler():
     @log_on_start(logging.DEBUG, "collect_jobs() Started")
     @log_on_end(logging.DEBUG, "collect_jobs() Finished")
     def collect_job(self, job_id=''):
-        """_summary_
-        """
+        """Deprecated.
+
+        Args:
+            job_id (str, optional): _description_. Defaults to ''.
+        """      
+
         ## Making sure that specific job request from run() is processed
         self.configfile.dlensalot_model.job.jobs = [job_id]
         self.job_id = job_id
@@ -75,9 +76,13 @@ class handler():
     @log_on_start(logging.DEBUG, "collect_jobs() Started")
     @log_on_end(logging.DEBUG, "collect_jobs() Finished")
     def collect_jobs(self, job_id=''):
-        """_summary_
+        """collect all requested jobs and build a mapping between the job, and their respective transformer
+        This is called from both, terminal and interacitve runs.
+
+        Args:
+            job_id (str, optional): A specific job which should be performed. This one is not necessarily defined in the configuration file. It is handed over via command line or in interactive mode. Defaults to ''.
         """
-        ## Making sure that specific job request from run() is processed
+
         self.configfile.dlensalot_model.job.jobs.append(job_id)
         self.job_id = job_id
         
@@ -93,18 +98,39 @@ class handler():
     @log_on_start(logging.INFO, "make_interactive_job() Started")
     @log_on_end(logging.INFO, "make_interactive_job() Finished")
     def make_interactive_job(self):
+        """Deprecated.
+        """
+
         self.jobs = transform(self.configfile.dlensalot_model, l2ji_Transformer())
 
 
     @log_on_start(logging.INFO, "build_model() Started")
     @log_on_end(logging.INFO, "build_model() Finished")
     def build_model(self, job):
+        """pass-through for executing delensalot model building. Used from interactive mode.
+
+        Args:
+            job (str): job identifier
+
+        Returns:
+            DLENSALOT_Model: A model
+        """    
+
         return transform(*job[0])
 
 
     @log_on_start(logging.INFO, "init_job() Started")
     @log_on_end(logging.INFO, "init_job() Finished")
     def init_job(self, job, model):
+        """pass-through for initializing the job using the delensalot model. This esentially calls the init function of the `core.handler.<job_class>`. Used from interactive mode.
+
+        Args:
+            job (list): mapper
+            model (DLENSALOT_Model): A delensalot model
+
+        Returns:
+            job: an initialized <job_class>
+        """        
         j = job[1](model)
         # j.collect_jobs()
 
@@ -115,7 +141,11 @@ class handler():
     @log_on_start(logging.INFO, "run() Started")
     @log_on_end(logging.INFO, "run() Finished")
     def run(self, job_choice=[]):
-        
+        """pass-through for running the delensalot job This esentially calls the run function of the `core.handler.<job_class>`. Used from interactive mode.
+
+        Args:
+            job_choice (list, optional): A specific job which should be performed. This one is not necessarily defined in the configuration file. It is handed over via command line or in interactive mode. Defaults to [].
+        """        
         if job_choice == []:
             for jobdict in self.jobs:
                 for job_id, val in jobdict.items():
@@ -148,9 +178,9 @@ class handler():
         """ Store the dlensalot_model as config file in TEMP, to use if run resumed
 
         Args:
-            parser (_type_): _description_
-            configfile (_type_): _description_
-            TEMP (_type_): _description_
+            parser (object): command line parser object
+            configfile (str): the name of the configuration file
+            TEMP (str): The location at which the configuration file (and all intermediate and final products of the analysis) will be stored
         """
         dostore = False
         # This is only done if not resuming. Otherwise file would already exist
@@ -198,15 +228,16 @@ class handler():
     @log_on_start(logging.INFO, "load_configfile() Started: {directory}")
     @log_on_end(logging.INFO, "load_configfile() Finished")
     def load_configfile(directory, descriptor):
-        """Load config file
+        """Helper method for loading the configuration file.
 
         Args:
-            directory (_type_): _description_
-            descriptor (_type_): _description_
+            directory (_type_): The directory to read from.
+            descriptor (_type_): Identifier with which the configuration file is stored in memory.
 
         Returns:
-            _type_: _description_
-        """
+            object: the configuration file
+        """        
+        
         spec = iu.spec_from_file_location('configfile', directory)
         p = iu.module_from_spec(spec)
         sys.modules[descriptor] = p

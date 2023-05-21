@@ -34,6 +34,8 @@ log.setLevel(logging.INFO)
 
 
 class run():
+    """Entry point for the interactive mode
+    """
     def __init__(self, config, job_id='interactive', verbose=True, madel_kwargs={}):
         os.environ['USE_PLANCKLENS_MPI'] = "False"
         if not verbose:
@@ -72,6 +74,8 @@ class run():
 
 
 if __name__ == '__main__':
+    """Entry point for the command line
+    """
     lparser = lerepi_parser()
     if lparser.validate():
         parser = lparser.get_parser()
