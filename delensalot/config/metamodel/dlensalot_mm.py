@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
-"""dlensalot_mm.py: Contains the metamodel of the Dlensalot formalism.
+"""dlensalot_mm.py: Contains classes defining the metamodel of the Dlensalot formalism.
+    The metamodel is a structured representation, with the `DLENSALOT_Model` as the main building block.
+    We use the attr package. It provides handy ways of validation and defaulting.
 """
 
 import abc, attr, psutil, os
@@ -26,7 +28,12 @@ class DLENSALOT_Concept:
 
 
     def __str__(self):
-        ## overwrite print to summarize dlensalot model
+        """ overwrites __str__ to summarize dlensalot model in a prettier way
+
+        Returns:
+            str: A table with all attributes of the model
+        """        
+        ##
         _str = ''
         for key, val in self.__dict__.items():
             keylen = len(str(key))
@@ -43,7 +50,14 @@ class DLENSALOT_Chaindescriptor(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
 
     Attributes:
-        p0: 
+        p0: TBD
+        p1: TBD
+        p2: TBD
+        p3: TBD
+        p4: TBD
+        p5: TBD
+        p6: TBD
+        p7: TBD
     """
     p1 =                    attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p1)
     p0 =                    attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p0)
@@ -57,10 +71,19 @@ class DLENSALOT_Chaindescriptor(DLENSALOT_Concept):
 @attr.s
 class DLENSALOT_Stepper(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
+    Defines the stepper function. The stepper function controls how the increment in the likelihood search is added to the current solution.
+    Currently, this is pretty much just the harmonicbump class.
 
     Attributes:
-        typ:
+        typ (str): The name of the stepper function
+        lmax_qlm (int): maximum `\ell` of the lensing potential reconstruction
+        mmax_qlm (int): maximum `m` of the lensing potential reconstruction
+        a: TBD
+        b: TBD
+        xa: TBD
+        xb: TBD
     """
+   
     typ =                   attr.ib(default=DEFAULT_NotAValue, validator=stepper.typ)
     lmax_qlm =              attr.ib(default=DEFAULT_NotAValue, validator=stepper.lmax_qlm) # must match lm_max_qlm -> validator
     mmax_qlm =              attr.ib(default=DEFAULT_NotAValue, validator=stepper.mmax_qlm) # must match lm_max_qlm -> validator
@@ -73,9 +96,10 @@ class DLENSALOT_Stepper(DLENSALOT_Concept):
 @attr.s
 class DLENSALOT_Job(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
+    delensalot can executte different jobs (QE reconstruction, simulation generation, MAP reconstruction, delensing, ..) which is controlled here.
 
     Attributes:
-        QE_delensing:
+        jobs (list[str]): Job identifier(s)
     """
     jobs =                  attr.ib(default=DEFAULT_NotAValue, validator=job.jobs)
 
@@ -84,7 +108,24 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
 
     Attributes:
-        DATA_LIBDIR: path to the data
+        key (str): reconstruction estimator key
+        version (str): specific configuration for the esimator (e.g. `noMF`, which turns off mean-field subtraction)
+        simidxs (np.array[int]): simulation indices to use for the delensalot job
+        simidxs_mf (np.array[int]): simulation indices to use for the calculation of the mean-field
+        TEMP_suffix (str): identifier to customize TEMP directory of the analysis
+        Lmin (int): minimum L for reconstructing the lensing potential
+        zbounds (tuple[int] or tuple[str,float]): latitudinal boundary (-1 to 1), or identifier together with noise level ratio treshold at which lensing reconstruction is perfromed.
+        zbounds_len (tuple[int]): latitudinal extended boundary at which lensing reconstruction is performed, and used for iterative lensing reconstruction
+        pbounds (tuple[int]): longitudinal boundary at which lensing reconstruction is perfromed
+        lm_max_len (tuple[int]): 
+        lm_max_ivf (tuple[int]): maximum `\ell` and m for which inverse variance filtering is done
+        lm_max_blt (tuple[int]): maximum `\ell` and m for which B-lensing template is calculated
+        mask (list[str]): TBD
+        lmin_teb (int): minimum `\ell` and m of the data which the reconstruction uses, and is set to zero below via the transfer function
+        cls_unl (str): path to the fiducial unlensed CAMB-like CMB data
+        cls_len (str): path to the fiducial lensed CAMB-like CMB data
+        cpp (str): path to the power spectrum of the prior for the iterative reconstruction
+        beam (float): 
     """
     key =                   attr.ib(default=DEFAULT_NotAValue, on_setattr=[validators.instance_of(str), analysis.key], type=str)
     version =               attr.ib(default=DEFAULT_NotAValue, on_setattr=[validators.instance_of(str), analysis.version], type=str)
@@ -110,7 +151,17 @@ class DLENSALOT_Data(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
 
     Attributes:
-        DATA_LIBDIR: path to the data
+        class_parameters (type): TBD
+        package_ (type): TBD
+        module_ (type): TBD
+        class_ (type): TBD
+        transferfunction (type): TBD
+        beam (type): TBD
+        nside (type): TBD
+        nlev_t (type): TBD
+        nlev_p (type): TBD
+        lmax_transf (type): TBD
+        epsilon (type): TBD
     """
 
     class_parameters =      attr.ib(default=DEFAULT_NotAValue, on_setattr=data.class_parameters)
@@ -131,7 +182,13 @@ class DLENSALOT_Noisemodel(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
 
     Attributes:
-        typ:
+        sky_coverage (type): TBD
+        spectrum_type (type): TBD
+        OBD (type): TBD
+        nlev_t (type): TBD
+        nlev_p (type): TBD
+        rhits_normalised (type): TBD
+        ninvjob_geometry (type): TBD
     """
     sky_coverage =          attr.ib(default=DEFAULT_NotAValue, on_setattr=noisemodel.sky_coverage)
     spectrum_type =         attr.ib(default=DEFAULT_NotAValue, on_setattr=noisemodel.spectrum_type)
@@ -146,7 +203,15 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
 
     Attributes:
-        typ:
+        tasks (type): TBD
+        qlm_type (type): TBD
+        cg_tol (type): TBD
+        filter_directional (type): TBD
+        ninvjob_qe_geometry (type): TBD
+        lm_max_qlm (type): TBD
+        chain (type): TBD
+        cl_analysis (type): TBD
+        blt_pert (type): TBD
     """
     tasks =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.tasks)
     qlm_type =              attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.qlms)
@@ -163,7 +228,19 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
 
     Attributes:
-        typ:
+        tasks (type): TBD
+        itmax (type): TBD
+        cg_tol (type): TBD
+        iterator_typ (type): TBD
+        chain (type): TBD
+        filter_directional (type): TBD
+        lenjob_geometry (type): TBD
+        lenjob_pbgeometry (type): TBD
+        lm_max_unl (type): TBD
+        lm_max_qlm (type): TBD
+        mfvar (type): TBD
+        soltn_cond (type): TBD
+        stepper (type): TBD
     """
     tasks =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.tasks)
     itmax =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.itmax)
@@ -183,8 +260,18 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
 class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
     """_summary_
 
-    Args:
-        DLENSALOT_Concept (_type_): _description_
+    Attributes:
+        data_from_CFS (type): TBD
+        edges (type): TBD
+        dlm_mod (type): TBD
+        iterations (type): TBD
+        nlevels (type): TBD
+        lmax (type): TBD
+        Cl_fid (type): TBD
+        libdir_it (type): TBD
+        binning (type): TBD
+        spectrum_calculator (type): TBD
+        masks_fn (type): TBD
     """
     data_from_CFS =         attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.data_from_CFS)
     edges =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.edges)
@@ -203,7 +290,13 @@ class DLENSALOT_OBD(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
 
     Attributes:
-        BMARG_LIBDIR:
+        libdir (type): TBD
+        rescale (type): TBD
+        tpl (type): TBD
+        nlev_dep (type): TBD
+        nside (type): TBD
+        lmax (type): TBD
+        beam (type): TBD
     """
     libdir =                attr.ib(default=DEFAULT_NotAValue, on_setattr=obd.libdir)
     rescale =               attr.ib(default=DEFAULT_NotAValue, on_setattr=obd.rescale)
@@ -218,7 +311,8 @@ class DLENSALOT_Config(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
 
     Attributes:
-        typ:
+        outdir_plot_root (type): TBD
+        outdir_plot_rel (type): TBD
     """
     outdir_plot_root =      attr.ib(default=opj(os.environ['HOME'], 'plots'))
     outdir_plot_rel =       attr.ib(default='')
@@ -229,7 +323,7 @@ class DLENSALOT_Meta(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
 
     Attributes:
-        version:
+        version (str): version control of the delensalot model
     """
     version =               attr.ib(default=DEFAULT_NotAValue, on_setattr=attr.validators.instance_of(int))
 
@@ -239,7 +333,7 @@ class DLENSALOT_Computing(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
 
     Attributes:
-        QE_delensing:
+        OMP_NUM_THREADS (int): number of threads used per Job
     """
     OMP_NUM_THREADS =       attr.ib(default=DEFAULT_NotAValue, on_setattr=computing.OMP_NUM_THREADS)
 
@@ -249,7 +343,18 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
 
     Attributes:
-        data: 
+        defaults_to (type): TBD
+        meta (type): TBD
+        job (type): TBD
+        analysis (type): TBD
+        data (type): TBD
+        noisemodel (type): TBD
+        qerec (type): TBD
+        itrec (type): TBD
+        madel (type): TBD
+        config (type): TBD
+        computing (type): TBD
+        obd (type): TBD
     """
     
     defaults_to =           attr.ib(default='P_FS_CMBS4')

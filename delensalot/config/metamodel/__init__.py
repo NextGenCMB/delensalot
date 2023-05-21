@@ -1,3 +1,9 @@
+#!/usr/bin/env python
+
+"""__init__.py: Mainly collection of default values for delensalot model.
+    These dictionaries are, depending on the configuration, loaded at instantiation of a delensalot model.
+"""
+
 import os
 from os.path import join as opj
 import numpy as np
