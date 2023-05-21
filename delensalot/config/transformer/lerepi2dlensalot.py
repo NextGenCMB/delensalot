@@ -800,14 +800,6 @@ class l2delens_Transformer:
             dl.TEMP_DELENSED_SPECTRUM = transform(dl, l2T_Transformer())
 
 
-            ## storage directories
-            ## TODO replace with cachers
-            if dl.binning == 'binned':
-                dl.file_op = lambda idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid) + '/ClBB_sim%04d.npy'%(idx)
-            else:
-                dl.file_op = lambda idx: dl.TEMP_DELENSED_SPECTRUM + '/{}'.format(dl.dirid) + '/ClBB_sim%04d.npy'%(idx)
-
-
             if ma.spectrum_calculator == None:
                 log.info("Using Healpy as powerspectrum calculator")
                 dl.cl_calc = hp
