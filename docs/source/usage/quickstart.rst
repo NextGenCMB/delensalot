@@ -17,7 +17,6 @@ Type :code:`python3 dlensalot/run.py [-h]` for help,
 
     optional arguments:
     -h, --help            show this help message and exit
-    -p NEW                Relative path to config file to run analysis.
     -r RESUME             Absolute path to config file to resume.
     -s STATUS             Absolute path for the analysis to write a report.
 
@@ -36,7 +35,7 @@ To run a configutation file `<path/to/config.py>`, type in your favourite :code:
 
 .. code-block:: bash
 
-    python3 run.py -p <path/to/config.py>
+    python3 run.py -r <path/to/config.py>
 
 :code:`<path/to/config.py>` is a relative path, pointing to a config file in :code:`dlensalot/lerepi/config/`.
 
@@ -44,33 +43,43 @@ For example, when inside :code:`delensalot`'s root folder,
 
 .. code-block:: bash
 
-    python3 run.py -p examples/cmbs4_fullsky.py
+    python3 run.py -r first_steps/notebooks/conf_mwe_fullsky.py
 
-runs the example configuration file :code:`cmbs4_fullsky.py`.
+runs the example configuration file :code:`conf_mwe_fullsky.py`.
 You may want to open the configuration file to look at its settings, as these are the ones you want to make yourself comfortable with if running :code:`delensalot`.
 
-Executing above command copies the configuration file into the :code:`$temp` folder.
-In case the analysis has stopped and you'd like to resume where you left off, simply run your analysis from inside the :code:`$temp` folder with the resume (:code:`-r`) parameter,
+Executing above command copies the configuration file into the :code:`$TEMP` folder.
+In case the analysis has stopped and you'd like to resume where you left off, simply run the same command again and it will resume the analysis.
+
+.. note::
+    In case of the configuration file pointing to an already existing configuration file in the against the configuration file stored in the :code:`$TEMP` folder, this will trigger a validation process of the two files to make sure they match
 
 .. code-block:: bash
 
-    python3 run.py -r $temp/cmbs4_fullsky.py
+    python3 run.py -r first_steps/notebooks/conf_mwe_fullsky.py
+
+Or use the stored configuration file directly,
+
+.. code-block:: bash
+
+    python3 run.py -r $TEMP/conf_mwe_fullsky.py
+
 
 
 If you'd like to know the status of the analysis done with :code:`$path/conf.py`, run,
 
 .. code-block:: bash
 
-    python3 run.py -s $temp/cmbs4_fullsky.py
+    python3 run.py -s $TEMP/conf_mwe_fullsky.py
 
     
 This prints the number of calculated files (Wiener-filtered maps, lensing potentials, ..), per iteration, and for all simulation indices.
 
 
-:code:`cmbs4_fullsky.py` runs QE and MAP lensing reconstruction on a CMB-S4 like configuration on the full sky, i.e. no masking, and generates map delensed power spectra.
+:code:`conf_mwe_fullsky.py` runs QE and MAP lensing reconstruction on a CMB-S4 like configuration on the full sky, i.e. no masking, and generates map delensed power spectra.
 The simulation data is generated upon runtime, via :code:`data/sims.py`,
 and calculates the QE and MAP mean-fields along the way.
-Temporary and final results are stored in the :code:`$temp` directory,
+Temporary and final results are stored in the :code:`$TEMP` directory,
 and we recommend using the 'interactive mode' for accessing them.
 
 
@@ -79,40 +88,15 @@ Interactive Mode
 ++++++++++++++++++++
 
 :code:`delensalot` supports interactive mode, providing direct access to all objects and parameters and step by step execution.
-Check out this `interactive`_ notebook for guidance.
+Check out the `interactive`_ notebooks for guidance.
 
-.. _interactive: https://github.com/NextGenCMB/delensalot/blob/main/notebooks/interactive.ipynb
+.. _interactive: https://github.com/NextGenCMB/delensalot/blob/main/first_steps/notebooks/
 
-As a minimal working example, start a new analysis for :code:`examples/cmbs4_fullsky.py` with the parameter :code:`job_id=map_delensing`,
-
-
-.. code-block:: python
-
-    from dlensalot.run import run
-    my_mapdelensing_job = run(config='examples/cmbs4_fullsky.py', job_id='map_delensing').job
-
-
-:code:`my_mapdelensing_job` contains the delensalot model, and all functionalities of the :code:`map_delensing` Job,
-
-.. code-block:: python
-
-    my_mapdelensing_job.__dict__.keys()
-    >> dict_keys(['data_from_CFS', 'k', 'version', 'imin', 'imax', 'simidxs', 'its', 'Nmf', 'fg', '_package', '_module', '_class', 'class_parameters', 'sims', 'ec', 'nside', 'data_type', 'data_field', 'TEMP', 'libdir_iterators', 'analysis_path', 'base_mask', 'masks', 'binmasks', 'mask_ids', 'beam', 'lmax_transf', 'transf', 'cls_path', 'cls_len', 'clg_templ', 'clc_templ', 'binning', 'lmax', 'lmax_mask', 'edges', 'edges_id', 'sha_edges', 'dirid', 'edges_center', 'ct', 'vers_str', 'TEMP_DELENSED_SPECTRUM', 'dlm_mod_bool', 'file_op', 'cl_calc', 'outdir_plot_rel', 'outdir_plot_root', 'outdir_plot_abs', 'lib', 'jobs'])
 
 We provide an exhaustive list of available jobs and the structure of the delensalot model in the :ref:`Configuration Files` section.
 
-To run the analysis, simply execute,
 
-.. code-block:: python
-
-    my_mapdelensing_job.run()
-
-
-This may take a while.
-Good time to grab a coffee, tea, or drink.
-
-
-View delensalot results
+View the delensalot analysis results
 ------------------------
 
 
@@ -124,14 +108,14 @@ Depending on your job, you may be interested in the
  * inverse variance, or QE or MAP Wiener-filtered maps,
  * QE or MAP delensed power spectrum.
 
-Which delensalot has stored for you at :code:`$temp`.
+Which delensalot has stored for you at :code:`$TEMP`.
 We recommend using a dedicated interactive job for this, and we built a conventient interface to the frequently used outputs.
 If you followed previous section, simply remove the :code:`job_id` parameter,
 
 .. code-block:: python
 
     from dlensalot.run import run
-    my_dlensalot_results = run(config=<path-to-your-config-file>).job
+    my_dlensalot_results = run(config=<path-to-your-config-file>).init_job()
 
 
 This provides convenience functions to access the output.

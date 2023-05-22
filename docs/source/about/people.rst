@@ -13,7 +13,7 @@ Past dev team.
 -
 
 
-With highly valuable contributions from,
+With highly valuable contribution from,
 
 Samuel Simko,
 

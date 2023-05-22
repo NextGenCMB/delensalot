@@ -63,17 +63,9 @@ Analytical Prediction
 
 .. toctree::
    :maxdepth: 2
-   :caption: Product:
-
-   product/products
-
-
-.. toctree::
-   :maxdepth: 2
    :caption: Removing nuisance:
 
    other/OBD
-   other/input_data
 
 
 Lensing Reconstruction

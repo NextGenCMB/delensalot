@@ -34,10 +34,3 @@ where `s` is the expected signal, and `N` is the noise.
 For iterative lensing reconstruction, `s` is given by the unlensed CMB E field `Eunl`, times the lensing operation `Lambda`,
 
 s = Lambda Eunl
-
-
-
-Lensing Potential
--------------------
-
-We find the lensing potential by .. (?)

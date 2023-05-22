@@ -1,3 +1,7 @@
 ==========================
 N1
 ==========================
+
+delensalot can predict the N1 bias with the :code:`biases` module found `here`_ 
+
+.. _`here`: https://github.com/NextGenCMB/delensalot/tree/main/delensalot/biases

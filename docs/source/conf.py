@@ -24,7 +24,7 @@ sys.path.insert(0, "./../")
 # -- Project information -----------------------------------------------------
 
 project = 'delensalot'
-copyright = '2022, S. Belkner, J. Carron, L. Legrand'
+copyright = '2023, S. Belkner, J. Carron, L. Legrand'
 author = 'S. Belkner, J. Carron, L. Legrand'
 
 # The full version, including alpha/beta/rc tags
@@ -99,7 +99,7 @@ exclude_patterns = []
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_rtd_theme'
+html_theme = 'sphinxdoc'
 # html_theme_options = {
 #     "rightsidebar": "true",
 #     "relbarbgcolor": "black"
