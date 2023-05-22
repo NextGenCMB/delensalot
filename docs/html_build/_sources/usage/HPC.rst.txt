@@ -1,0 +1,22 @@
+============================
+High Performance Computing
+============================
+
+delensalot is computationally demanding.
+Depending on your configuration, it may be advisable to use its built-in :code:`MPI`-support,
+
+In general, delensalot distributes simulations across :code:`MPI`-jobs, and will return information about the :code:`MPI`-distribution upon runtime.
+
+To use :code:`MPI`, simply run delensalot using slurms :code:`srun` command,
+
+.. code-block:: bash
+
+    srun -n N -c C python3 dlensalot/run.py -p <path/to/config.py>
+
+
+NERSC
+------
+
+Please see the NERSC help for detailed support.
+
+.. _help: https://docs.nersc.gov/development/programming-models/mpi/

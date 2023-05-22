@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>modules &mdash; delensalot 1.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/graphviz.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="core" href="core.html" />
+    <link rel="prev" title="publication" href="../about/publications.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> delensalot
+            <img src="../_static/dlensalot.PNG" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">First steps:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/quickstart.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/HPC.html">High Performance Computing</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Analysis setup:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../config/params.html">configuration files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../config/data.html">data and simulations access</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../config/temp.html">Analysis results</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Prediction:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../prediction/n0.html">N0</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../prediction/n1.html">N1</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../prediction/delensing.html">Delensing</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Internal Delensing:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../delensing/overview.html">Internal Delensing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../delensing/B-lensing-template.html">B-template construction</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Remove nuisances:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../other/OBD.html">Overlapping B-mode deprojection (OBD)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Lensing reconstruction:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../lensrec/overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../lensrec/QE.html">quadratic estimator lensing reconstruction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../lensrec/MAP.html">iterative lensing reconstruction</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../about/development.html">Development</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about/people.html">people</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about/publications.html">publication</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">modules</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="core.html">core</a></li>
+<li class="toctree-l2"><a class="reference internal" href="config.html">config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sims.html">sims</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">delensalot</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">modules</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/modules/modules.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="modules">
+<h1>modules<a class="headerlink" href="#modules" title="Permalink to this heading"></a></h1>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="core.html">core</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="core.html#module-delensalot.core.handler">handler</a></li>
+<li class="toctree-l2"><a class="reference internal" href="core.html#module-delensalot.core.iterator">iterator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="core.html#opfilt">opfilt</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="config.html">config</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="config.html#module-delensalot.config.handler">handler</a></li>
+<li class="toctree-l2"><a class="reference internal" href="config.html#module-delensalot.config.parser">parser</a></li>
+<li class="toctree-l2"><a class="reference internal" href="config.html#dlensalot-mm">dlensalot_mm</a></li>
+<li class="toctree-l2"><a class="reference internal" href="config.html#module-delensalot.config.config_helper">config_helper</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sims.html">sims</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sims.html#generic">generic</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../about/publications.html" class="btn btn-neutral float-left" title="publication" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="core.html" class="btn btn-neutral float-right" title="core" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, S. Belkner, J. Carron, L. Legrand.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
