@@ -5,21 +5,17 @@
     We use the attr package. It provides handy ways of validation and defaulting.
 """
 
-import abc, attr, psutil, os
+import abc, attr, os
 from os.path import join as opj
 from attrs import validators
 import numpy as np
-if "SCRATCH" not in os.environ:
-    os.environ["SCRATCH"] = os.path.expanduser("~")+'/SCRATCH/'
 
 import logging
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 
-import delensalot
 from delensalot.config.metamodel import DEFAULT_NotAValue, DEFAULT_NotASTR, DL_DEFAULT
 from delensalot.config.validator import analysis, chaindescriptor, computing, data, filter as v_filter, itrec, job, mapdelensing, meta, model, noisemodel, obd, qerec, stepper
-
 
 
 class DLENSALOT_Concept:
@@ -60,8 +56,8 @@ class DLENSALOT_Chaindescriptor(DLENSALOT_Concept):
         p6: TBD
         p7: TBD
     """
-    p1 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p1)
     p0 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p0)
+    p1 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p1)
     p2 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p2)
     p3 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p3)
     p4 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p4)

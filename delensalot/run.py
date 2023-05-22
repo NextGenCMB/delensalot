@@ -4,7 +4,6 @@
 """
 
 
-
 import os, sys
 import logging
 import traceback
@@ -27,8 +26,6 @@ sys_logger.addHandler(ConsoleOutputHandler)
 sys_logger.setLevel(logging.INFO)
 logging.basicConfig(level=logging.INFO, handlers=[ConsoleOutputHandler])
 logging.getLogger("healpy").disabled = True
-
-
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 
@@ -60,7 +57,7 @@ class run():
         self.parser.status = ''
 
         self.job_id = job_id
-        self.lerepi_handler = handler.handler(self.parser)
+        self.lerepi_handler = handler.handler(self.parser, config_model)
         self.lerepi_handler.collect_job(self.job_id)
         self.model = self._build_model()
 

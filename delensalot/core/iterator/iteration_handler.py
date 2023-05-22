@@ -57,7 +57,6 @@ class base_iterator():
         self.ffi = deflection(self.lenjob_geometry, np.zeros_like(self.plm0), self.lm_max_qlm[1], numthreads=self.tr, verbosity=self.verbose)
         # self.ffi = lenspyx.remapping.deflection.deflection(self.lenjob_pbgeometry, self.lensres, np.zeros_like(self.plm0),
             # self.lm_max_qlm[1], self.tr, self.tr)
-        self.datmaps = self.get_datmaps()
         self.filter = self.get_filter()
         # TODO not sure why this happens here. Could be done much earlier
         self.it_chain_descr = lensing_config.it_chain_descr(lensing_config.lm_max_unl[0], lensing_config.it_cg_tol)
@@ -126,6 +125,7 @@ class iterator_pertmf(base_iterator):
         Returns:
             _type_: _description_
         """
+        self.datmaps = self.get_datmaps()
         iterator = cs_iterator.iterator_pertmf(
             self.libdir_iterator, 'p', self.lm_max_qlm, self.datmaps, self.plm0, self.mf_resp0,
             self.R_unl0, self.cpp, self.cls_unl, self.filter, self.k_geom, self.it_chain_descr,
@@ -157,6 +157,7 @@ class iterator_constmf(base_iterator):
         Returns:
             _type_: _description_
         """
+        self.datmaps = self.get_datmaps()
         iterator = cs_iterator.iterator_cstmf(
             self.libdir_iterator, 'p', self.lm_max_qlm, self.datmaps, self.plm0, self.mf0,
             self.R_unl0, self.cpp, self.cls_unl, self.filter, self.k_geom, self.it_chain_descr,
@@ -213,6 +214,7 @@ class iterator_fastWF(base_iterator):
         Returns:
             _type_: _description_
         """
+        self.datmaps = self.get_datmaps()
         iterator = cs_iterator_fast.iterator_cstmf(
             self.libdir_iterator, self.k[0], self.lm_max_qlm, self.datmaps, self.plm0, self.mf0,
             self.R_unl0, self.cpp, self.cls_unl, self.filter, self.k_geom, self.it_chain_descr,

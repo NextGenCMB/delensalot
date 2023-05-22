@@ -3,25 +3,23 @@
 """handler.py: This module collects the delensalot jobs. It receives the delensalot model build for the respective job. They all initialize needed modules and directories, collect the computing-jobs, and run the computing-jobs, with MPI support, if available.
     
 """
-
-
-import os, sys
+import os
 from os.path import join as opj
-import logging
-
-from delensalot.core import mpi
-log = logging.getLogger(__name__)
-from logdecorator import log_on_start, log_on_end
-import datetime, getpass, copy, importlib
 
 import numpy as np
 import healpy as hp
+
+import logging
+log = logging.getLogger(__name__)
+from logdecorator import log_on_start, log_on_end
+import datetime, getpass, copy, importlib
 
 from plancklens import qresp, qest, qecl, utils
 from plancklens.sims import maps, phas
 from plancklens.qcinv import opfilt_pp
 from plancklens.filt import filt_util, filt_cinv, filt_simple
 
+from delensalot.core import mpi
 from delensalot.utility import utils_sims
 from delensalot.utility.utils_hp import almxfl, alm_copy, gauss_beam
 from delensalot.config.config_helper import data_functions as df
@@ -30,7 +28,6 @@ from delensalot.core.iterator import iteration_handler
 from delensalot.core.iterator.statics import rec as rec
 from delensalot.core.opfilt import utils_cinv_p as cinv_p_OBD
 from delensalot.core.opfilt.bmodes_ninv import template_bfilt
-
 from delensalot.core.decorator.exception_handler import base as base_exception_handler
 
 
@@ -55,7 +52,7 @@ class Basejob():
         self.__dict__.update(model.__dict__)
         _sims_module = importlib.import_module(self._sims_full_name)
         self._sims = getattr(_sims_module, self._class)(**self.sims_class_parameters)
-        transf_dat = gauss_beam(self.sims_beam / 180 / 60 * np.pi, lmax=self.sims_lmax_transf)
+        transf_dat = gauss_beam(self.sims_beam/180/60 * np.pi, lmax=self.sims_lmax_transf)
 
         self.libdir_QE = opj(self.TEMP, 'QE')
         if not os.path.exists(self.libdir_QE):
@@ -721,9 +718,9 @@ class MAP_lr(Basejob):
             if simidx in self.simidxs_mf:
                 dlm_mod = (dlm_mod - np.array(rec.load_plms(self.libdir_MAPidx, [it]))/self.Nmf) * self.Nmf/(self.Nmf - 1)
         if it>0 and it<=rec.maxiterdone(self.libdir_MAPidx):
-            return self.itlib_iterator.get_template_blm(it, it, lmaxb=self.lm_max_blt[0], lmin_plm=1, dlm_mod=dlm_mod, perturbative=False)
+            return self.itlib_iterator.get_template_blm(it, it, lmaxb=self.lm_max_blt[0], lmin_plm=self.Lmin, dlm_mod=dlm_mod, perturbative=False)
         elif it==0:
-            return self.itlib_iterator.get_template_blm(0, 0, lmaxb=self.lm_max_blt[0], lmin_plm=1, dlm_mod=dlm_mod, perturbative=self.blt_pert)
+            return self.itlib_iterator.get_template_blm(0, 0, lmaxb=self.lm_max_blt[0], lmin_plm=self.Lmin, dlm_mod=dlm_mod, perturbative=self.blt_pert)
 
 
 class Map_delenser(Basejob):

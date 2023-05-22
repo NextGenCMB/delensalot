@@ -32,11 +32,11 @@ class handler():
     """Load config file and handle command line arguments 
     """
 
-    def __init__(self, parser, configfile=None):
-        if configfile is None:
+    def __init__(self, parser, config_model=None):
+        if config_model is None:
             self.configfile = handler.load_configfile(parser.config_file, 'configfile')
         else:
-            self.configfile = configfile
+            self.configfile = config_model
         if 'job_id' in parser.__dict__:
             if parser.job_id is None:
                 pass

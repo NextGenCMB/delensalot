@@ -9,10 +9,9 @@ import numpy as np
 import os
 from os.path import join as opj
 
-from MSC import pospace
-
 import delensalot
 from delensalot import utils
+import delensalot.core.power.pospace as pospace
 from delensalot.config.config_helper import LEREPI_Constants as lc
 from delensalot.config.metamodel.dlensalot_mm import *
 

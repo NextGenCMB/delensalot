@@ -10,7 +10,7 @@ import delensalot
 from delensalot import utils
 from os.path import join as opj
 
-from MSC import pospace
+import delensalot.core.power.pospace as pospace
 
 from delensalot.config.config_helper import LEREPI_Constants as lc
 from delensalot.config.metamodel.dlensalot_mm import *
@@ -28,7 +28,7 @@ dlensalot_model = DLENSALOT_Model(
     data = DLENSALOT_Data(
         class_parameters = {
             'lmax': 4096,
-            'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(delensalot.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
+            'cls_unl': utils.camb_clfile(opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat')),
             'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'generic', 'nside2048', 'lmax4096', 'nlevp_sqrt(2)')
         },
         nlev_t = 1.00,

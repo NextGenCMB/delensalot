@@ -7,17 +7,13 @@
 """
 
 import os
-if "SCRATCH" not in os.environ:
-    # By default, data will be stored right at the current working directory. However, this may not be a safe place, so perhaps choose something else
-    os.environ["SCRATCH"] = "./SCRATCH"
 from os.path import join as opj
 import numpy as np
 import psutil
 
-from delensalot import utils
-from MSC import pospace
-
 import delensalot
+from delensalot import utils
+import delensalot.core.power.pospace as pospace
 from delensalot.config.config_helper import LEREPI_Constants as lc
 
 DEFAULT_NotAValue = -123456789
