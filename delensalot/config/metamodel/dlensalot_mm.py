@@ -48,6 +48,7 @@ class DLENSALOT_Concept:
 @attr.s
 class DLENSALOT_Chaindescriptor(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
+    This class collects all configurations related to conjugate gradient solver.
 
     Attributes:
         p0: TBD
@@ -106,6 +107,7 @@ class DLENSALOT_Job(DLENSALOT_Concept):
 @attr.s
 class DLENSALOT_Analysis(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
+    This class collects all configurations related to the specific analysis performed on the data.
 
     Attributes:
         key (str): reconstruction estimator key
@@ -149,31 +151,24 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
 @attr.s
 class DLENSALOT_Data(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
+    This class collects all configurations related to the input CMB maps.
 
     Attributes:
-        class_parameters (type): TBD
-        package_ (type): TBD
-        module_ (type): TBD
-        class_ (type): TBD
-        transferfunction (type): TBD
-        beam (type): TBD
-        nside (type): TBD
+        class_parameters (dict): parameters of the class of the data
+        package_ (type): package name of the data (can be, e.g. 'delensalot')
+        module_ (type): module name of the data (can be, e.g. sims.generic) (?)
+        class_ (type): class name of the data (can be, e.g. sims_cmb_len) 
+        transferfunction (str): predefined isotropic transfer function. Can bei either with or without pixelwindow function applied
+        beam (float): assuming a Gaussian beam, this defines the FWHM in arcmin
+        nside (int): resolution of the data
         nlev_t (type): TBD
         nlev_p (type): TBD
-        lmax_transf (type): TBD
-        epsilon (type): TBD
-            IMIN (int)                                  minimum simulation index
-    IMAX (int)                                  maximum simulation index, will autogenerate simindices between IMAX and IMIN if both set
-    simidxs (array-like int)                    similar to above. Simulation indices to run delensalot jobs on
-    package\_ (str)                             package name of the data (can be, e.g. 'dlensalot')
-    module\_ (str)                              module name of the data (can be, e.g. dlensalot.config.example.data.ffp10) (?)
-    class\_ (str)                               class name of the data (can be, e.g. cmbs4_no_foreground) 
-    class_parameters (dict-like)                parameters of the class of the data                 
-    data_type (str)                             data may come on spherical harmonics or real space. Can be either 'map' or 'alm'
-    data_field (str)                            data may be spin-2 or spin-0. Can either be 'qu' or 'eb'
-    beam (float)                                assuming a Gaussian beam, this defines the FWHM in arcmin
-    lmax_transf (int)                           maxmimum multipole to apply transfer function to data
-    nside (int)                                 resolution of the data
+        lmax_transf (int): maxmimum multipole to apply transfer function to data
+        epsilon (float): lenspyx precision    
+
+    comment:
+        data_type (str)                             data may come on spherical harmonics or real space. Can be either 'map' or 'alm'
+        data_field (str)                            data may be spin-2 or spin-0. Can either be 'qu' or 'eb'                                                  
     """
 
     class_parameters =      attr.ib(default=DEFAULT_NotAValue, on_setattr=data.class_parameters)
@@ -192,31 +187,16 @@ class DLENSALOT_Data(DLENSALOT_Concept):
 @attr.s
 class DLENSALOT_Noisemodel(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
+    This class collects all configurations related to the noise model used for Wiener-filtering the data.
 
     Attributes:
-        sky_coverage (type): TBD
+        sky_coverage (type): Can be either 'masked' or 'unmasked'
         spectrum_type (type): TBD
-        OBD (type): TBD
-        nlev_t (type): TBD
-        nlev_p (type): TBD
-        rhits_normalised (type): TBD
-        ninvjob_geometry (type): TBD
-            #     typ (str)                                   OBD identifier. Can be 'OBD', 'trunc', or None
-    # BMARG_LIBDIR (str)                          path to the OBD matrix
-    # BMARG_LCUT (int)                            maximum multipole to deproject B-modes
-    # BMARG_RESCALE (float)                       rescaling of OBD matrix amplitude. Useful if matrix calculated, but noiselevel changed
-    # ninvjob_geometry (str)                      geometry of the noise map (?)
-    # lmin_tlm (int)                              minimum multipole to deproject B-modes. Modes below will be discarded completely
-    # lmin_elm (int)                              minimum multipole to deproject B-modes. Modes below will be discarded completely
-    # lmin_blm (int)                              minimum multipole to deproject B-modes. Modes below will be discarded completely
-    # CENTRALNLEV_UKAMIN (float)                  central noise level in muK arcmin, for both temperature and polarization. If set, temperature central noise level will be scaled by 1/sqrt(2) 
-    # nlev_t (float)                              central noise level of temperature data in muK arcmin. If set, overrides :code:`CENTRALNLEV_UKAMIN`
-    # nlev_p (float)                              central noise level of polarization data in muK arcmin. If set, overrides :code:`CENTRALNLEV_UKAMIN`
-    # nlev_dep (float)                            deprojection factor, or, strength of B-mode deprojection (?)
-    # inf (float)                                 deprojection factor, or, strength of B-mode deprojection (?)
-    # mask (tuple)                                OBD matrix, and noise model, will be calculated for this mask. To use an existing mask, set it to ('mask', <path1>). To create mask upon runtime tracing the noise level, set it to ('nlev', <inverse hits-count multiplier>)
-    # rhits_normalised (tuple)                    path to the hits-count map, used to calculate the noise levels, and the mask tracing the noise level. Second entry in tuple is the <inverse hits-count multiplier>.
-    tpl (str)                                   function name for calculating OBD matrix
+        OBD (type): OBD identifier. Can be 'OBD', 'trunc', or None. Defines how lowest B-modes will be handled.
+        nlev_t (float): (central) noise level of temperature data in muK arcmin.
+        nlev_p (float): (central) noise level of polarization data in muK arcmin.
+        rhits_normalised (str): path to the hits-count map, used to calculate the noise levels, and the mask tracing the noise level. Second entry in tuple is the <inverse hits-count multiplier>.
+        ninvjob_geometry (type): geometry of the noise map
     """
     sky_coverage =          attr.ib(default=DEFAULT_NotAValue, on_setattr=noisemodel.sky_coverage)
     spectrum_type =         attr.ib(default=DEFAULT_NotAValue, on_setattr=noisemodel.spectrum_type)
@@ -229,25 +209,19 @@ class DLENSALOT_Noisemodel(DLENSALOT_Concept):
 @attr.s
 class DLENSALOT_Qerec(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
+    This class collects all configurations related to the quadratic estimator reconstruction job.
 
     Attributes:
-        tasks (type): TBD
-        qlm_type (type): TBD
-        cg_tol (type): TBD
-        filter_directional (type): TBD
-        ninvjob_qe_geometry (type): TBD
-        lm_max_qlm (type): TBD
-        chain (type): TBD
-        cl_analysis (type): TBD
-        blt_pert (type): TBD
-                #     ivfs (str)                              Inverse variance filter identifier. Can be 'sepTP' or 'jTP'
-        # qlms (str)                              lensing potential estimator identifier. Can be 'sepTP' or 'jTP'
-        # cg_tol (float)                          tolerance of the conjugate gradient method
-        # tasks (array-like of str)               tasks to perfrom. Can be any combination of :code:`calc_phi`, :code:`calc_meanfield`, :code:`calc_blt`
-        # ninvjob_qe_geometry (str)               noise model spherical harmonic geometry. Can be, e.g. 'healpix_geometry_qe' (?)
-        # lmmax_qlm (tuple of int)                maximum multipole coefficients to reconstruct the lensing potential
-        # QE_LENSING_CL_ANALYSIS (bool)           calculation of the lensing potential power spectra (?)
-        # chain (DLENSALOT_Chaindescriptor)       configuration of the conjugate gradient method. Configures the chain and preconditioner
+        tasks (list[tuple]): tasks to perfrom. Can be any combination of :code:`calc_phi`, :code:`calc_meanfield`, :code:`calc_blt`
+        qlm_type (str): lensing potential estimator identifier. Can be 'sepTP' or 'jTP'
+        cg_tol (float): tolerance of the conjugate gradient method
+        filter_directional (str): can be either 'isotropic' (unmasked sky) or 'isotropic' (masked sky)
+        ninvjob_qe_geometry (str): noise model spherical harmonic geometry. Can be, e.g. 'healpix_geometry_qe' (?)
+        lm_max_qlm (type):  maximum multipole `\ell` and m to reconstruct the lensing potential
+        chain (DLENSALOT_Chaindescriptor): configuration of the conjugate gradient method. Configures the chain and preconditioner
+        cl_analysis (bool): If tru, performs lensing power spectrum analysis
+        blt_pert (bool): If True, delensing is performed perurbitivly (recommended)
+    
     """
 
     tasks =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.tasks)
@@ -263,30 +237,23 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
 @attr.s
 class DLENSALOT_Itrec(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
+    This class collects all configurations related to the iterative reconstruction job.
 
     Attributes:
-        tasks (type): TBD
-        itmax (type): TBD
-        cg_tol (type): TBD
-        iterator_typ (type): TBD
-        chain (type): TBD
-        filter_directional (type): TBD
-        lenjob_geometry (type): TBD
-        lenjob_pbgeometry (type): TBD
-        lm_max_unl (type): TBD
-        lm_max_qlm (type): TBD
-        mfvar (type): TBD
+        tasks (list[str]): tasks to perfrom. Can be any combination of :code:`calc_phi`, :code:`calc_meanfield`, :code:`calc_blt`
+        itmax (int): maximum number of iterations
+        cg_tol (float): tolerance of the conjugate gradient method
+        iterator_typ (str): mean-field handling identifier. Can be either 'const_mf' or 'pert_mf'
+        chain (DLENSALOT_Chaindescriptor): configuration for the conjugate gradient solver
+        filter_directional (str): can be either 'isotropic' (unmasked sky) or 'isotropic' (masked sky)
+        lenjob_geometry (str): can be 'healpix_geometry', 'thin_gauss' or 'pbdGeometry'
+        lenjob_pbgeometry (str): can be 'healpix_geometry', 'thin_gauss' or 'pbdGeometry'
+        lm_max_unl (tuple[int]): maximum multipoles `\ell` and m for reconstruction the unlensed CMB
+        lm_max_qlm (tuple[int]): maximum multipoles L and m for reconstruction the lensing potential
+        mfvar (str): path to precalculated mean-field, to be used instead
         soltn_cond (type): TBD
-        stepper (type): TBD
-            filter (str)                                filter identifier. Can be any class inside the :code:`dlensalot.opfilt` module
-    cg_tol (float)                              tolerance of the conjugate gradient method
-    tasks (array-like of str)                   tasks to perfrom. Can be any combination of :code:`calc_phi`, :code:`calc_meanfield`, :code:`calc_blt`
-    lenjob_geometry (str)                       can be 'healpix_geometry', 'thin_gauss' or 'pbdGeometry'
-    lenjob_pbgeometry (str)                     can be 'healpix_geometry', 'thin_gauss' or 'pbdGeometry'
-    iterator_typ (str)                          mean-field handling identifier. Can be either 'const_mf' or 'pert_mf'
-    mfvar (str)                                 path to precalculated mean-field, to be used instead
-    soltn_cond (func)                           - (?)
-    stepper (DLENSALOT_STEPPER)                 configuration about updating the current likelihood iteration point with the likelihood gradient
+        stepper (DLENSALOT_STEPPER): configuration for updating the current likelihood iteration point with the likelihood gradient
+              
     """
     tasks =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.tasks)
     itmax =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.itmax)
@@ -304,21 +271,23 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     
 @attr.s
 class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
-    """_summary_
+    """A root model element type of the Dlensalot formalism.
+    This class collects all configurations related to the internal map delensing job.
 
     Attributes:
-        data_from_CFS (type): TBD
-        edges (type): TBD
-        dlm_mod (type): TBD
-        iterations (type): TBD
-        nlevels (type): TBD
-        lmax (type): TBD
-        Cl_fid (type): TBD
+        data_from_CFS (bool): if set, use B-lensing templates located at the $CFS directory instead of the $TEMP directory
+        edges (np.array): binning to calculate the (delensed) power spectrum on
+        dlm_mod (bool): if set, modfies the lensing potential before calculating the B-lensing template
+        iterations (list[int]): which iterations to calculate delensed power spectrum for
+        nlevels (list[float]): noiselevel ratio treshold up to which the maps are delensed, uses the rhits_normalized map to generate masks.
+        lmax (int): maximum multipole to calculate the (delensed) power spectrum
+        Cl_fid (type): fiducial power spectrum, and needed for template calculation of the binned power spectrum package
         libdir_it (type): TBD
-        binning (type): TBD
-        spectrum_calculator (type): TBD
-        masks_fn (type): TBD
+        binning (type): can be either 'binned' or 'unbinned'. If 'unbinned', overwrites :code:`edges` and calculates power spectrum for each multipole
+        spectrum_calculator (package): name of the package of the power spectrum calculator. Can be 'healpy' if :code:`binning=unbinned`
+        masks_fn (list[str]): the sky patches to calculate the power spectra on. Note that this is different to using `nlevels`. Here, no tresholds are calculated, but masks are used 'as is' for delensing.             
     """
+
     data_from_CFS =         attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.data_from_CFS)
     edges =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.edges)
     dlm_mod =               attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.dlm_mod)
@@ -334,15 +303,16 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
 @attr.s
 class DLENSALOT_OBD(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
+    This class collects all configurations related to the overlapping B-mode deprojection.
 
     Attributes:
-        libdir (type): TBD
-        rescale (type): TBD
-        tpl (type): TBD
-        nlev_dep (type): TBD
+        libdir (str): path to the OBD matrix
+        rescale (float): rescaling of OBD matrix amplitude. Useful if matrix already calculated, but noiselevel changed
+        tpl (type): function name for calculating OBD matrix
+        nlev_dep (float): deprojection factor, or, strength of B-mode deprojection
         nside (type): TBD
-        lmax (type): TBD
-        beam (type): TBD
+        lmax (int): maximum multipole to deproject B-modes
+        beam (type): TBD                         
     """
     libdir =                attr.ib(default=DEFAULT_NotAValue, on_setattr=obd.libdir)
     rescale =               attr.ib(default=DEFAULT_NotAValue, on_setattr=obd.rescale)
@@ -355,10 +325,11 @@ class DLENSALOT_OBD(DLENSALOT_Concept):
 @attr.s
 class DLENSALOT_Config(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
+    This class collects all configurations related to general behaviour to the operating system. 
 
     Attributes:
-        outdir_plot_root (type): TBD
-        outdir_plot_rel (type): TBD
+        outdir_plot_root (str): Root path for the plots to be stored at
+        outdir_plot_rel (str): relative path folder for the plots to be stored at
     """
     outdir_plot_root =      attr.ib(default=opj(os.environ['HOME'], 'plots'))
     outdir_plot_rel =       attr.ib(default='')
@@ -367,6 +338,7 @@ class DLENSALOT_Config(DLENSALOT_Concept):
 # @add_defaults
 class DLENSALOT_Meta(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
+    This class collects all configurations related to internal behaviour of delensalot.
 
     Attributes:
         version (str): version control of the delensalot model
@@ -377,6 +349,7 @@ class DLENSALOT_Meta(DLENSALOT_Concept):
 @attr.s
 class DLENSALOT_Computing(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
+    This class collects all configurations related to the usage of computing resources.
 
     Attributes:
         OMP_NUM_THREADS (int): number of threads used per Job
@@ -389,29 +362,19 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
 
     Attributes:
-        defaults_to (type): TBD
-        meta (type): TBD
-        job (type): TBD
-        analysis (type): TBD
-        data (type): TBD
-        noisemodel (type): TBD
-        qerec (type): TBD
-        itrec (type): TBD
-        madel (type): TBD
-        config (type): TBD
-        computing (type): TBD
-        obd (type): TBD
-            edges (array-like of str)                   binning to calculate the (delensed) power spectrum on. Can be any combination of 'ioreco', 'cmbs4'
-    iterations (array-like of int)              which iterations to calculate delensed power spectrum for
-    dlm_mod (tuple)                             if set, modfies the lensing potential before calculating the B-lensing template
-    ringmask (bool)                             if set, use ring mask instead of full mask
-    data_from_CFS (bool)                        if set, use B-lensing templates located at the $CFS directory instead of the $temp directory
-    subtract_mblt (tuple)                       if set, subtract the mean-B-lensing template from the B-lensing template before delensing
-    masks (tuple)                               the sky patches to calculate the power spectra on. Can either be 'masks' and a list of paths to masks, or 'nlevels' and a list of <inverse hits-count multiplier>'s
-    lmax (int)                                  maximum multipole to calculate the (delensed) power spectrum
-    Cl_fid (str)                                fiducial power spectrum
-    binning (str)                               can be either 'binned' or 'unbinned'. If 'unbinned', overwrites :code:`edges` and calculates power spectrum for each multipole
-    spectrum_calculator (package)               name of the package of the power spectrum calculator. Can be 'healpy' if :code:`binning=unbinned`
+        defaults_to (str): Identifier for default-dictionary if user hasn't specified value in configuration file
+        meta (DLENSALOT_Meta): configurations related to internal behaviour of delensalot
+        job (DLENSALOT_Job): delensalot can executte different jobs (QE reconstruction, simulation generation, MAP reconstruction, delensing, ..) which is controlled here
+        analysis (DLENSALOT_Analysis): configurations related to the specific analysis performed on the data
+        data (DLENSALOT_Data): configurations related to the input CMB maps
+        noisemodel (DLENSALOT_Noisemodel): configurations related to the noise model used for Wiener-filtering the data
+        qerec (DLENSALOT_Qerec): configurations related to the quadratic estimator reconstruction job
+        itrec (DLENSALOT_Itrec): configurations related to the iterative reconstruction job
+        madel (DLENSALOT_Mapdelensing): configurations related to the internal map delensing job
+        config (DLENSALOT_Config): configurations related to general behaviour to the operating system
+        computing (DLENSALOT_Computing): configurations related to the usage of computing resources
+        obd (DLENSALOT_OBD): configurations related to the overlapping B-mode deprojection
+
     """
     
     defaults_to =           attr.ib(default='P_FS_CMBS4')
