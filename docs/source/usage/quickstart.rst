@@ -203,7 +203,7 @@ To access all variables and functions of a delensalot job, simply start an Inter
 .. code-block:: python
 
     from dlensalot.run import run
-    my_dlensalot_job = run(config=<path-to-your-config-file>, job_id=<job-of-my-interest>).job
+    my_dlensalot_job = run(config=<path-to-your-config-file>, job_id=<job-of-my-interest>).init_job()
 
 
 If e.g. :code:`<job-of-my-interest>='MAP_lensrec`, then :code:`my_dlensalot_job` will give you access to the Wiener-filters, response functions, noise models, simulation data, the remapping, etc.
@@ -211,5 +211,4 @@ If e.g. :code:`<job-of-my-interest>='MAP_lensrec`, then :code:`my_dlensalot_job`
 
 .. code-block:: python
 
-    my_dlensalot_job.__dict__.keys()
-    >> dict_keys([])
+    print(my_dlensalot_job.model)
