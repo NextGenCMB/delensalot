@@ -9,7 +9,7 @@ import os, sys
 import logging
 import traceback
 
-from delensalot.config import handler
+import delensalot.config.handler as handler
 import delensalot.config.etc.dev_helper as dh
 from delensalot.config.etc.abstract import parserclass
 from delensalot.config.parser import lerepi_parser

@@ -379,7 +379,7 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     
     defaults_to =           attr.ib(default='P_FS_CMBS4')
     meta =                  attr.ib(default=DLENSALOT_Meta(), on_setattr=model.meta)
-    job =                   attr.ib(default=DLENSALOT_Job(), on_setattr=model.job)
+    job =                   attr.ib(default=DLENSALOT_Job(), on_setattr=model.jo    b)
     analysis =              attr.ib(default=DLENSALOT_Analysis(), on_setattr=model.analysis)
     data  =                 attr.ib(default=DLENSALOT_Data(), on_setattr=model.data)
     noisemodel =            attr.ib(default=DLENSALOT_Noisemodel(), on_setattr=model.noisemodel)
