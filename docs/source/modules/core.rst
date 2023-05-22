@@ -4,28 +4,41 @@ core
 module reference
 
 
+.. automodule:: delensalot.core
+   :members:
+   :undoc-members:
+
+
+handler
+--------
+
 .. automodule:: delensalot.core.handler
    :members:
    :undoc-members:
 
 
 iterator
-==========
+---------
+   
+.. automodule:: delensalot.core.iterator
+   :members:
+   :undoc-members:
 
-module reference
+
+.. automodule:: delensalot.core.iterator.iteration_handler
+   :members:
+   :undoc-members:
+
+
+.. automodule:: delensalot.core.iterator.cs_iterator
+   :members:
+   :undoc-members:
 
 
 .. automodule:: delensalot.core.iterator.bfgs
    :members:
    :undoc-members:
 
-.. automodule:: delensalot.core.iterator.cs_iterator
-   :members:
-   :undoc-members:
-
-.. automodule:: delensalot.core.iterator.iteration_handler
-   :members:
-   :undoc-members:
 
 .. automodule:: delensalot.core.iterator.statics
    :members:
@@ -34,6 +47,12 @@ module reference
 
 opfilt
 -------
+
+module reference
+
+.. automodule:: delensalot.core.opfilt
+   :members:
+   :undoc-members:
 
 .. automodule:: delensalot.core.opfilt.bmodes_ninv
    :members:

@@ -37,15 +37,12 @@ Guide
 
 .. toctree::
    :maxdepth: 2
-   :caption: Analysis set-up:
+   :caption: Analysis setup:
 
    config/params
    config/data
    config/temp
 
-
-Analytical Prediction
--------------------------
 
 .. toctree::
    :maxdepth: 2
@@ -66,37 +63,30 @@ Analytical Prediction
 
 .. toctree::
    :maxdepth: 2
-   :caption: Removing nuisance:
+   :caption: Remove nuisances:
 
    other/OBD
 
 
-Lensing Reconstruction
--------------------------
 
 .. toctree::
    :maxdepth: 2
-   :caption: Numerics:
+   :caption: Lensing reconstruction:
 
    lensrec/overview
    lensrec/QE
    lensrec/MAP
 
 
-Development
------------
-
 .. toctree::
    :maxdepth: 2
-   :caption: Numerics:
+   :caption: About:
 
    about/development
    about/people
    about/publications
 
 
-API
-==========
 
 .. toctree::
    :maxdepth: 2
