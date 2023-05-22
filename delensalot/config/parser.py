@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-"""parser.py: Read and validate terminal user input
+"""parser.py: Read and validate user input from terminal
 """
 
 

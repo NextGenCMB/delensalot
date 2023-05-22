@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-"""config_helper.py: functions for defining config parameter input variables.
+"""config_helper.py: functions and constants which come in handy for configuration files.
 """
 
 

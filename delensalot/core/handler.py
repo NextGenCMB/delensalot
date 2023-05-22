@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-"""handler.py: This module receives input from lerepi, handles delensalot jobs and runs them.
+"""handler.py: This module collects the delensalot jobs. It receives the delensalot model build for the respective job. They all initialize needed modules and directories, collect the computing-jobs, and run the computing-jobs, with MPI support, if available.
     
 """
 
@@ -169,6 +169,8 @@ class Basejob():
 
        
 class OBD_builder(Basejob):
+    """OBD matrix builder Job. Calculates the OBD matrix, used to correctly deproject the B-modes at a masked sky.
+    """
     @check_MPI
     def __init__(self, OBD_model, diasable_mpi=False):
         self.__dict__.update(OBD_model.__dict__)
@@ -215,7 +217,8 @@ class OBD_builder(Basejob):
 
 
 class Sim_generator(Basejob):
-
+    """Simulation generation Job. Generates simulations for the requested configuration.
+    """
     def __init__(self, dlensalot_model):
         super().__init__(dlensalot_model)
 
@@ -274,7 +277,8 @@ class Sim_generator(Basejob):
 
 
 class QE_lr(Basejob):
-
+    """Quadratic estimate lensing reconstruction Job. Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.
+    """
     @check_MPI
     def __init__(self, dlensalot_model):
         super().__init__(dlensalot_model)
@@ -540,6 +544,8 @@ class QE_lr(Basejob):
             
 
 class MAP_lr(Basejob):
+    """Iterative lensing reconstruction Job. Depends on class QE_lr, and class Sim_generator.  Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.
+    """
 
     @check_MPI
     def __init__(self, dlensalot_model):
@@ -721,12 +727,10 @@ class MAP_lr(Basejob):
 
 
 class Map_delenser(Basejob):
-    """Script for calculating delensed ILC and Blens spectra using precaulculated Btemplates as input.
+    """Map delenser Job for calculating delensed ILC and Blens spectra using precaulculated Btemplates as input.
     This is a combination of,
-     * loading files,
      * delensing with Btemplates (QE, MAP),
      * choosing power spectrum calculation as in binning, masking, and templating
-     * running across all jobs
     """
 
     @check_MPI
@@ -1043,13 +1047,16 @@ class Notebook_interactor(Basejob):
 
  
 class overwrite_anafast():
+    """Convenience class for overwriting method name
+    """    
 
     def map2cl(self, *args, **kwargs):
         return hp.anafast(*args, **kwargs)
 
 
 class masked_lib:
-
+    """Convenience class for handling method names
+    """   
     def __init__(self, mask, cl_calc, lmax, lmax_mask):
         self.mask = mask
         self.cl_calc = cl_calc

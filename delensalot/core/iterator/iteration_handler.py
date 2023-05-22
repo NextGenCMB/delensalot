@@ -110,6 +110,8 @@ class base_iterator():
         
 
 class iterator_pertmf(base_iterator):
+    """Return perturbative-mean-field iterator instance for simulation idx and qe_key type k
+    """
 
     def __init__(self, qe, k:str, simidx:int, version:str, sims_MAP, libdir_iterators, lensing_config):
         super(iterator_pertmf, self).__init__(qe, k, simidx, version, sims_MAP, libdir_iterators, lensing_config)
@@ -165,7 +167,7 @@ class iterator_constmf(base_iterator):
 
 class iterator_fastWF(base_iterator):
     def __init__(self, qe, k:str, simidx:int, version:str, sims_MAP, libdir_iterators, lensing_config):
-        """Return constmf iterator instance for simulation idx and qe_key type k, fast WF for idealized fullsky case.
+        """Return fast Wiener-filtering constmf iterator instance for simulation idx and qe_key type k, fast WF for idealized fullsky case.
 
             Args:
                 k: 'p_p' for Pol-only, 'ptt' for T-only, 'p_eb' for EB-only, etc
