@@ -4,6 +4,11 @@
 Quickstart
 =================
 
+
+We recommend that you check out the tutorials in the form of `interactive notebooks`_ specifically made for you. 
+
+.. _`interactive notebooks`: https://github.com/NextGenCMB/delensalot/tree/simgenjob/first_steps/notebooks
+
 This section discusses how to successfully run an iterative lensing reconstruction job and how to calculate a delensed power spectrum from that.
 We provide a minimal working example by delensing simulation data generated at runtime, generate B-lensing templates, calculate a lensing potential estimate and Wiener-filtered maps.
 
