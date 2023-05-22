@@ -79,7 +79,9 @@ class Basejob():
         # else:
         #   self.fns_blt_QE =  lambda a,b,c: opj(self.libdir_CFS, 'BLT', 'abcd%s%d%s'.format(a,b,c))
         # self.fns_mf_QE =  lambda a,b,c: opj(self.libdir_QE, 'MF', 'abcd%s%d%s'.format(a,b,c))
-
+        # self.libdir_Blens = 
+        # self.libdir_BLT_QE = 
+        # self.libdir_BLT_MAP = 
 
 
     # @base_exception_handler
@@ -734,9 +736,6 @@ class Map_delenser(Basejob):
         self.lib = dict()
         self.simgen = Sim_generator(dlensalot_model)
         self.libdir_delenser = opj(self.TEMP, 'delensing/{}'.format(self.dirid))
-        self.libdir_Blens = 
-        self.libdir_BLT_QE = 
-        self.libdir_BLT_MAP = 
         if mpi.rank == 0:
             if not(os.path.isdir(self.libdir_delenser)):
                 os.makedirs(self.libdir_delenser)
