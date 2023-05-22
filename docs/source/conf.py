@@ -4,9 +4,9 @@
 # list see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+
 # -- Path setup --------------------------------------------------------------
 import os, sys
-# sys.path.insert(0, os.path.abspath("./../"))
 
 autodoc_mock_imports = ['plancklens', 'scarf', 'MSC', 'bicubic', 'mpi4py', 'attr', 'attrs', 'lensitbiases']
 # sys.path.insert(0, os.path.abspath("./../"))
@@ -38,13 +38,16 @@ release = '1.0'
 # ones.
 
 extensions = [
+    'sphinx_rtd_theme',
     "sphinx.ext.autodoc",
     "sphinx.ext.coverage",
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
     "sphinx.ext.graphviz",
-    'sphinx.ext.mathjax'
+    'sphinx.ext.mathjax',
 ]
+
+html_theme_path = ['/home/belkner/anaconda3/envs/delensalot/lib/python3.11/site-packages/sphinx_rtd_theme',]
 
 html_theme_options = {
     # 'logo_only': False,
@@ -99,7 +102,7 @@ exclude_patterns = []
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'classic'
+html_theme = 'sphinx_rtd_theme'
 # html_theme_options = {
 #     "rightsidebar": "true",
 #     "relbarbgcolor": "black"
