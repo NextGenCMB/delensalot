@@ -8,7 +8,7 @@
 import os, sys
 # sys.path.insert(0, os.path.abspath("./../"))
 
-autodoc_mock_imports = ['plancklens', 'scarf', 'MSC', 'bicubic', 'fortran', 'mpi4py', 'delensalot.fortran']
+autodoc_mock_imports = ['plancklens', 'scarf', 'MSC', 'bicubic', 'mpi4py', 'attr', 'attrs', 'lensitbiases']
 # sys.path.insert(0, os.path.abspath("./../"))
 
 sys.path.insert(0, "./../")
@@ -47,17 +47,17 @@ extensions = [
 ]
 
 html_theme_options = {
-    'logo_only': False,
-    'display_version': True,
-    'prev_next_buttons_location': 'bottom',
-    'style_external_links': False,
-    'vcs_pageview_mode': '',
+    # 'logo_only': False,
+    # 'display_version': True,
+    # 'prev_next_buttons_location': 'bottom',
+    # 'style_external_links': False,
+    # 'vcs_pageview_mode': '',
     # Toc options
-    'collapse_navigation': True,
-    'sticky_navigation': True,
-    'navigation_depth': 4,
-    'includehidden': True,
-    'titles_only': True
+    # 'collapse_navigation': True,
+    # 'sticky_navigation': True,
+    # 'navigation_depth': 4,
+    # 'includehidden': True,
+    # 'titles_only': True
 }
 
 
@@ -99,7 +99,7 @@ exclude_patterns = []
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinxdoc'
+html_theme = 'classic'
 # html_theme_options = {
 #     "rightsidebar": "true",
 #     "relbarbgcolor": "black"

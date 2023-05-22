@@ -4,6 +4,6 @@ sims
 module reference
 
 
-.. automodule:: delensalot.sims.generic.py
+.. automodule:: delensalot.sims.generic
    :members:
    :undoc-members:

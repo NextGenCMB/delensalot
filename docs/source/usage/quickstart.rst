@@ -1,8 +1,8 @@
 .. _get started:
 
-============
+=================
 Quickstart
-============
+=================
 
 This section discusses how to successfully run an iterative lensing reconstruction job and how to calculate a delensed power spectrum from that.
 We provide a minimal working example by delensing simulation data generated at runtime, generate B-lensing templates, calculate a lensing potential estimate and Wiener-filtered maps.
@@ -97,7 +97,7 @@ We provide an exhaustive list of available jobs and the structure of the delensa
 
 
 View the delensalot analysis results
-------------------------
+----------------------------------------------------
 
 
 Depending on your job, you may be interested in the

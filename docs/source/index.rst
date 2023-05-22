@@ -24,6 +24,9 @@ If you are new to delensalot, go check out how to :ref:`get started`.
 .. _LensIt: https://github.com/carronj/LensIt
 
 
+Guide
+==========
+
 .. toctree::
    :maxdepth: 2
    :caption: First steps:
@@ -42,7 +45,7 @@ If you are new to delensalot, go check out how to :ref:`get started`.
 
 
 Analytical Prediction
-=====================
+-------------------------
 
 .. toctree::
    :maxdepth: 2
@@ -69,7 +72,7 @@ Analytical Prediction
 
 
 Lensing Reconstruction
-=======================
+-------------------------
 
 .. toctree::
    :maxdepth: 2
@@ -80,7 +83,19 @@ Lensing Reconstruction
    lensrec/MAP
 
 
-Modules
+Development
+-----------
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Numerics:
+
+   about/development
+   about/people
+   about/publications
+
+
+API
 ==========
 
 .. toctree::

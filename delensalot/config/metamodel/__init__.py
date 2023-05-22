@@ -7,6 +7,7 @@
 """
 
 import os
+os.environ['SCRATCH'] ='/home/SCRATCH'
 from os.path import join as opj
 import numpy as np
 import psutil

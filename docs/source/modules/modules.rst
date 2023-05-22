@@ -7,7 +7,5 @@ modules
    :caption: Contents:
 
    core
-   iterators
-   lerepi
-   opfilt
+   config
    sims
