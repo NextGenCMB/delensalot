@@ -58,8 +58,8 @@ class Basejob():
         transf_dat = gauss_beam(self.sims_beam / 180 / 60 * np.pi, lmax=self.sims_lmax_transf)
 
         self.libdir_QE = opj(self.TEMP, 'QE')
-        if not os.path.exists(self.libdir):
-            os.makedirs(self.libdir)
+        if not os.path.exists(self.libdir_QE):
+            os.makedirs(self.libdir_QE)
         self.libdir_MAP = lambda qe_key, simidx, version: opj(self.TEMP, 'MAP/%s'%(qe_key), 'sim%04d'%(simidx) + version)
         for simidx in self.simidxs:
             libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)

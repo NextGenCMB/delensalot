@@ -1,13 +1,15 @@
 #!/usr/bin/env python
 
-"""metamodel.__init__.py: \
+"""metamodel.__init__.py:
     The metamodel defines the available attributes and their valid values a delensalot configuration file can have.
     The init file is mainly a collection of default values for delensalot model.
     These dictionaries are, depending on the configuration, loaded at instantiation of a delensalot model.
 """
 
 import os
-os.environ['SCRATCH'] ='/home/SCRATCH'
+if "SCRATCH" not in os.environ:
+    # By default, data will be stored right at the current working directory. However, this may not be a safe place, so perhaps choose something else
+    os.environ["SCRATCH"] = "./SCRATCH"
 from os.path import join as opj
 import numpy as np
 import psutil
@@ -19,6 +21,7 @@ import delensalot
 from delensalot.config.config_helper import LEREPI_Constants as lc
 
 DEFAULT_NotAValue = -123456789
+DEFAULT_NotASTR = '.-.,.-.,'
 DEFAULT_NotValid = 9876543210123456789
 
 DL_DEFAULT_CMBS4_FS_T = {
@@ -36,7 +39,7 @@ DL_DEFAULT_CMBS4_FS_T = {
         'nside': 2048,
         'class_parameters': {
             'lmax': 4096,
-            'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(delensalot.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
+            'cls_unl': utils.camb_clfile(opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat')),
             'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'generic', 'nside2048', 'lmax4096', 'nlevp_sqrt(2)')
         },
         'lmax_transf': 4500,

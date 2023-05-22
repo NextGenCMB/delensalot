@@ -17,7 +17,7 @@ log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 
 import delensalot
-from delensalot.config.metamodel import DEFAULT_NotAValue, DL_DEFAULT
+from delensalot.config.metamodel import DEFAULT_NotAValue, DEFAULT_NotASTR, DL_DEFAULT
 from delensalot.config.validator import analysis, chaindescriptor, computing, data, filter as v_filter, itrec, job, mapdelensing, meta, model, noisemodel, obd, qerec, stepper
 
 
@@ -60,14 +60,14 @@ class DLENSALOT_Chaindescriptor(DLENSALOT_Concept):
         p6: TBD
         p7: TBD
     """
-    p1 =                    attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p1)
-    p0 =                    attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p0)
-    p2 =                    attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p2)
-    p3 =                    attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p3)
-    p4 =                    attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p4)
-    p5 =                    attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p5)
-    p6 =                    attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p6)
-    p7 =                    attr.ib(default=DEFAULT_NotAValue, validator=chaindescriptor.p7)
+    p1 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p1)
+    p0 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p0)
+    p2 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p2)
+    p3 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p3)
+    p4 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p4)
+    p5 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p5)
+    p6 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p6)
+    p7 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p7)
 
 @attr.s
 class DLENSALOT_Stepper(DLENSALOT_Concept):
@@ -85,13 +85,13 @@ class DLENSALOT_Stepper(DLENSALOT_Concept):
         xb: TBD
     """
    
-    typ =                   attr.ib(default=DEFAULT_NotAValue, validator=stepper.typ)
-    lmax_qlm =              attr.ib(default=DEFAULT_NotAValue, validator=stepper.lmax_qlm) # must match lm_max_qlm -> validator
-    mmax_qlm =              attr.ib(default=DEFAULT_NotAValue, validator=stepper.mmax_qlm) # must match lm_max_qlm -> validator
-    a =                     attr.ib(default=DEFAULT_NotAValue, validator=stepper.a)
-    b =                     attr.ib(default=DEFAULT_NotAValue, validator=stepper.b)
-    xa =                    attr.ib(default=DEFAULT_NotAValue, validator=stepper.xa)
-    xb =                    attr.ib(default=DEFAULT_NotAValue, validator=stepper.xb)
+    typ =                   attr.field(default=DEFAULT_NotAValue, validator=stepper.typ)
+    lmax_qlm =              attr.field(default=DEFAULT_NotAValue, validator=stepper.lmax_qlm) # must match lm_max_qlm -> validator
+    mmax_qlm =              attr.field(default=DEFAULT_NotAValue, validator=stepper.mmax_qlm) # must match lm_max_qlm -> validator
+    a =                     attr.field(default=DEFAULT_NotAValue, validator=stepper.a)
+    b =                     attr.field(default=DEFAULT_NotAValue, validator=stepper.b)
+    xa =                    attr.field(default=DEFAULT_NotAValue, validator=stepper.xa)
+    xb =                    attr.field(default=DEFAULT_NotAValue, validator=stepper.xb)
 
 
 @attr.s
@@ -102,7 +102,7 @@ class DLENSALOT_Job(DLENSALOT_Concept):
     Attributes:
         jobs (list[str]): Job identifier(s)
     """
-    jobs =                  attr.ib(default=DEFAULT_NotAValue, validator=job.jobs)
+    jobs =                  attr.field(default=DEFAULT_NotAValue, validator=job.jobs)
 
 @attr.s
 class DLENSALOT_Analysis(DLENSALOT_Concept):
@@ -110,43 +110,43 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     This class collects all configurations related to the specific analysis performed on the data.
 
     Attributes:
-        key (str): reconstruction estimator key
-        version (str): specific configuration for the esimator (e.g. `noMF`, which turns off mean-field subtraction)
-        simidxs (np.array[int]): simulation indices to use for the delensalot job
-        simidxs_mf (np.array[int]): simulation indices to use for the calculation of the mean-field
-        TEMP_suffix (str): identifier to customize TEMP directory of the analysis
-        Lmin (int): minimum L for reconstructing the lensing potential
-        zbounds (tuple[int] or tuple[str,float]): latitudinal boundary (-1 to 1), or identifier together with noise level ratio treshold at which lensing reconstruction is perfromed.
-        zbounds_len (tuple[int]): latitudinal extended boundary at which lensing reconstruction is performed, and used for iterative lensing reconstruction
-        pbounds (tuple[int]): longitudinal boundary at which lensing reconstruction is perfromed
-        lm_max_len (tuple[int]): 
-        lm_max_ivf (tuple[int]): maximum `\ell` and m for which inverse variance filtering is done
-        lm_max_blt (tuple[int]): maximum `\ell` and m for which B-lensing template is calculated
-        mask (list[str]): TBD
-        lmin_teb (int): minimum `\ell` and m of the data which the reconstruction uses, and is set to zero below via the transfer function
-        cls_unl (str): path to the fiducial unlensed CAMB-like CMB data
-        cls_len (str): path to the fiducial lensed CAMB-like CMB data
-        cpp (str): path to the power spectrum of the prior for the iterative reconstruction
-        beam (float): 
+        key (str):                          reconstruction estimator key
+        version (str):                      specific configuration for the esimator (e.g. `noMF`, which turns off mean-field subtraction)
+        simidxs (np.array[int]):            simulation indices to use for the delensalot job
+        simidxs_mf (np.array[int]):         simulation indices to use for the calculation of the mean-field
+        TEMP_suffix (str):                  identifier to customize TEMP directory of the analysis
+        Lmin (int):                         minimum L for reconstructing the lensing potential
+        zbounds (tuple[int or str,float]):  latitudinal boundary (-1 to 1), or identifier together with noise level ratio treshold at which lensing reconstruction is perfromed.
+        zbounds_len (tuple[int]):           latitudinal extended boundary at which lensing reconstruction is performed, and used for iterative lensing reconstruction
+        pbounds (tuple[int]):               longitudinal boundary at which lensing reconstruction is perfromed
+        lm_max_len (tuple[int]):            TODO: TBD (deprecated?)
+        lm_max_ivf (tuple[int]):            maximum `\ell` and m for which inverse variance filtering is done
+        lm_max_blt (tuple[int]):            maximum `\ell` and m for which B-lensing template is calculated
+        mask (list[str]):                   TBD
+        lmin_teb (int):                     minimum `\ell` and m of the data which the reconstruction uses, and is set to zero below via the transfer function
+        cls_unl (str):                      path to the fiducial unlensed CAMB-like CMB data
+        cls_len (str):                      path to the fiducial lensed CAMB-like CMB data
+        cpp (str):                          path to the power spectrum of the prior for the iterative reconstruction
+        beam (float):                       TBD
     """
-    key =                   attr.ib(default=DEFAULT_NotAValue, on_setattr=[validators.instance_of(str), analysis.key], type=str)
-    version =               attr.ib(default=DEFAULT_NotAValue, on_setattr=[validators.instance_of(str), analysis.version], type=str)
-    simidxs =               attr.ib(default=DEFAULT_NotAValue, on_setattr=data.simidxs)
-    simidxs_mf =            attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.simidxs_mf)
-    TEMP_suffix =           attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.TEMP_suffix)
-    Lmin =                  attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.Lmin)
-    zbounds =               attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.zbounds)
-    zbounds_len =           attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.zbounds_len)
-    pbounds =               attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.pbounds)
-    lm_max_len =            attr.ib(default=DEFAULT_NotAValue, on_setattr=v_filter.lm_max_len)
-    lm_max_ivf =            attr.ib(default=DEFAULT_NotAValue, on_setattr=v_filter.lm_max_ivf)
-    lm_max_blt =            attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.lm_max_blt)
-    mask =                  attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.mask)
-    lmin_teb =              attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.lmin_teb)
-    cls_unl =               attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.cls_unl)
-    cls_len =               attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.cls_len)
-    cpp =                   attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.cpp)
-    beam =                  attr.ib(default=DEFAULT_NotAValue, on_setattr=analysis.beam)
+    key =                   attr.field(default=DEFAULT_NotASTR, on_setattr=[validators.instance_of(str), analysis.key], type=str)
+    version =               attr.field(default=DEFAULT_NotAValue, on_setattr=[validators.instance_of(str), analysis.version], type=str)
+    simidxs =               attr.field(default=DEFAULT_NotAValue, on_setattr=data.simidxs)
+    simidxs_mf =            attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.simidxs_mf)
+    TEMP_suffix =           attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.TEMP_suffix)
+    Lmin =                  attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.Lmin)
+    zbounds =               attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.zbounds)
+    zbounds_len =           attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.zbounds_len)
+    pbounds =               attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.pbounds)
+    lm_max_len =            attr.field(default=DEFAULT_NotAValue, on_setattr=v_filter.lm_max_len)
+    lm_max_ivf =            attr.field(default=DEFAULT_NotAValue, on_setattr=v_filter.lm_max_ivf)
+    lm_max_blt =            attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.lm_max_blt)
+    mask =                  attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.mask)
+    lmin_teb =              attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.lmin_teb)
+    cls_unl =               attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.cls_unl)
+    cls_len =               attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.cls_len)
+    cpp =                   attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.cpp)
+    beam =                  attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.beam)
 
 @attr.s
 class DLENSALOT_Data(DLENSALOT_Concept):
@@ -154,34 +154,34 @@ class DLENSALOT_Data(DLENSALOT_Concept):
     This class collects all configurations related to the input CMB maps.
 
     Attributes:
-        class_parameters (dict): parameters of the class of the data
-        package_ (type): package name of the data (can be, e.g. 'delensalot')
-        module_ (type): module name of the data (can be, e.g. sims.generic) (?)
-        class_ (type): class name of the data (can be, e.g. sims_cmb_len) 
+        class_parameters (dic): parameters of the class of the data
+        package_ (str):         package name of the data (can be, e.g. 'delensalot')
+        module_ (str):      	module name of the data (can be, e.g. sims.generic) (?)
+        class_ (str):           class name of the data (can be, e.g. sims_cmb_len) 
         transferfunction (str): predefined isotropic transfer function. Can bei either with or without pixelwindow function applied
-        beam (float): assuming a Gaussian beam, this defines the FWHM in arcmin
-        nside (int): resolution of the data
-        nlev_t (type): TBD
-        nlev_p (type): TBD
-        lmax_transf (int): maxmimum multipole to apply transfer function to data
-        epsilon (float): lenspyx precision    
+        beam (float):           assuming a Gaussian beam, this defines the FWHM in arcmin
+        nside (int):            resolution of the data
+        nlev_t (type):          TBD
+        nlev_p (type):          TBD
+        lmax_transf (int):      maxmimum multipole to apply transfer function to data
+        epsilon (float):        lenspyx precision    
 
     comment:
-        data_type (str)                             data may come on spherical harmonics or real space. Can be either 'map' or 'alm'
-        data_field (str)                            data may be spin-2 or spin-0. Can either be 'qu' or 'eb'                                                  
+        data_type (str)         data may come on spherical harmonics or real space. Can be either 'map' or 'alm'
+        data_field (str)        data may be spin-2 or spin-0. Can either be 'qu' or 'eb'                                                  
     """
 
-    class_parameters =      attr.ib(default=DEFAULT_NotAValue, on_setattr=data.class_parameters)
-    package_ =              attr.ib(default=DEFAULT_NotAValue, on_setattr=data.package_)
-    module_ =               attr.ib(default=DEFAULT_NotAValue, on_setattr=data.module_)
-    class_ =                attr.ib(default=DEFAULT_NotAValue, on_setattr=data.class_)
-    transferfunction =      attr.ib(default=DEFAULT_NotAValue, on_setattr=data.transferfunction)
-    beam =                  attr.ib(default=DEFAULT_NotAValue, on_setattr=data.beam)
-    nside =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=data.nside)
-    nlev_t =                attr.ib(default=DEFAULT_NotAValue, on_setattr=data.nlev_t)
-    nlev_p =                attr.ib(default=DEFAULT_NotAValue, on_setattr=data.nlev_p)
-    lmax_transf =           attr.ib(default=DEFAULT_NotAValue, on_setattr=data.lmax_transf)
-    epsilon =               attr.ib(default=DEFAULT_NotAValue, on_setattr=data.epsilon)
+    class_parameters =      attr.field(default=DEFAULT_NotAValue, on_setattr=data.class_parameters)
+    package_ =              attr.field(default=DEFAULT_NotAValue, on_setattr=data.package_)
+    module_ =               attr.field(default=DEFAULT_NotAValue, on_setattr=data.module_)
+    class_ =                attr.field(default=DEFAULT_NotAValue, on_setattr=data.class_)
+    transferfunction =      attr.field(default=DEFAULT_NotAValue, on_setattr=data.transferfunction)
+    beam =                  attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
+    nside =                 attr.field(default=DEFAULT_NotAValue, on_setattr=data.nside)
+    nlev_t =                attr.field(default=DEFAULT_NotAValue, on_setattr=data.nlev_t)
+    nlev_p =                attr.field(default=DEFAULT_NotAValue, on_setattr=data.nlev_p)
+    lmax_transf =           attr.field(default=DEFAULT_NotAValue, on_setattr=data.lmax_transf)
+    epsilon =               attr.field(default=DEFAULT_NotAValue, on_setattr=data.epsilon)
 
     
 @attr.s
@@ -190,21 +190,21 @@ class DLENSALOT_Noisemodel(DLENSALOT_Concept):
     This class collects all configurations related to the noise model used for Wiener-filtering the data.
 
     Attributes:
-        sky_coverage (type): Can be either 'masked' or 'unmasked'
-        spectrum_type (type): TBD
-        OBD (type): OBD identifier. Can be 'OBD', 'trunc', or None. Defines how lowest B-modes will be handled.
-        nlev_t (float): (central) noise level of temperature data in muK arcmin.
-        nlev_p (float): (central) noise level of polarization data in muK arcmin.
+        sky_coverage (str):     Can be either 'masked' or 'unmasked'
+        spectrum_type (str):    TBD
+        OBD (str):              OBD identifier. Can be 'OBD', 'trunc', or None. Defines how lowest B-modes will be handled.
+        nlev_t (float):         (central) noise level of temperature data in muK arcmin.
+        nlev_p (float):         (central) noise level of polarization data in muK arcmin.
         rhits_normalised (str): path to the hits-count map, used to calculate the noise levels, and the mask tracing the noise level. Second entry in tuple is the <inverse hits-count multiplier>.
-        ninvjob_geometry (type): geometry of the noise map
+        ninvjob_geometry (str): geometry of the noise map
     """
-    sky_coverage =          attr.ib(default=DEFAULT_NotAValue, on_setattr=noisemodel.sky_coverage)
-    spectrum_type =         attr.ib(default=DEFAULT_NotAValue, on_setattr=noisemodel.spectrum_type)
-    OBD =                   attr.ib(default=DEFAULT_NotAValue, on_setattr=noisemodel.OBD)
-    nlev_t =                attr.ib(default=DEFAULT_NotAValue, on_setattr=noisemodel.nlev_t)
-    nlev_p =                attr.ib(default=DEFAULT_NotAValue, on_setattr=noisemodel.nlev_p)
-    rhits_normalised =      attr.ib(default=DEFAULT_NotAValue, on_setattr=noisemodel.rhits_normalised)
-    ninvjob_geometry =      attr.ib(default=DEFAULT_NotAValue, on_setattr=noisemodel.ninvjob_geometry)
+    sky_coverage =          attr.field(default=DEFAULT_NotAValue, on_setattr=noisemodel.sky_coverage)
+    spectrum_type =         attr.field(default=DEFAULT_NotAValue, on_setattr=noisemodel.spectrum_type)
+    OBD =                   attr.field(default=DEFAULT_NotAValue, on_setattr=noisemodel.OBD)
+    nlev_t =                attr.field(default=DEFAULT_NotAValue, on_setattr=noisemodel.nlev_t)
+    nlev_p =                attr.field(default=DEFAULT_NotAValue, on_setattr=noisemodel.nlev_p)
+    rhits_normalised =      attr.field(default=DEFAULT_NotAValue, on_setattr=noisemodel.rhits_normalised)
+    ninvjob_geometry =      attr.field(default=DEFAULT_NotAValue, on_setattr=noisemodel.ninvjob_geometry)
 
 @attr.s
 class DLENSALOT_Qerec(DLENSALOT_Concept):
@@ -212,27 +212,27 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     This class collects all configurations related to the quadratic estimator reconstruction job.
 
     Attributes:
-        tasks (list[tuple]): tasks to perfrom. Can be any combination of :code:`calc_phi`, :code:`calc_meanfield`, :code:`calc_blt`
-        qlm_type (str): lensing potential estimator identifier. Can be 'sepTP' or 'jTP'
-        cg_tol (float): tolerance of the conjugate gradient method
-        filter_directional (str): can be either 'isotropic' (unmasked sky) or 'isotropic' (masked sky)
-        ninvjob_qe_geometry (str): noise model spherical harmonic geometry. Can be, e.g. 'healpix_geometry_qe' (?)
-        lm_max_qlm (type):  maximum multipole `\ell` and m to reconstruct the lensing potential
+        tasks (list[tuple]):        tasks to perfrom. Can be any combination of :code:`calc_phi`, :code:`calc_meanfield`, :code:`calc_blt`
+        qlm_type (str):             lensing potential estimator identifier. Can be 'sepTP' or 'jTP'
+        cg_tol (float):             tolerance of the conjugate gradient method
+        filter_directional (str):   can be either 'isotropic' (unmasked sky) or 'isotropic' (masked sky)
+        ninvjob_qe_geometry (str):  noise model spherical harmonic geometry. Can be, e.g. 'healpix_geometry_qe' (?)
+        lm_max_qlm (type):          maximum multipole `\ell` and m to reconstruct the lensing potential
         chain (DLENSALOT_Chaindescriptor): configuration of the conjugate gradient method. Configures the chain and preconditioner
-        cl_analysis (bool): If tru, performs lensing power spectrum analysis
-        blt_pert (bool): If True, delensing is performed perurbitivly (recommended)
+        cl_analysis (bool):         If tru, performs lensing power spectrum analysis
+        blt_pert (bool):            If True, delensing is performed perurbitivly (recommended)
     
     """
 
-    tasks =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.tasks)
-    qlm_type =              attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.qlms)
-    cg_tol =                attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.cg_tol)
-    filter_directional =    attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.filter_directional)
-    ninvjob_qe_geometry =   attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.ninvjob_qe_geometry)
-    lm_max_qlm =            attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.lm_max_qlm) # TODO qe.lm_max_qlm and it.lm_max_qlm must be same. Test at validator?
-    chain =                 attr.ib(default=DLENSALOT_Chaindescriptor(), on_setattr=qerec.chain)
-    cl_analysis =           attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.cl_analysis)
-    blt_pert =              attr.ib(default=DEFAULT_NotAValue, on_setattr=qerec.btemplate_perturbative_lensremap)
+    tasks =                 attr.field(default=DEFAULT_NotAValue, on_setattr=qerec.tasks)
+    qlm_type =              attr.field(default=DEFAULT_NotAValue, on_setattr=qerec.qlms)
+    cg_tol =                attr.field(default=DEFAULT_NotAValue, on_setattr=qerec.cg_tol)
+    filter_directional =    attr.field(default=DEFAULT_NotAValue, on_setattr=qerec.filter_directional)
+    ninvjob_qe_geometry =   attr.field(default=DEFAULT_NotAValue, on_setattr=qerec.ninvjob_qe_geometry)
+    lm_max_qlm =            attr.field(default=DEFAULT_NotAValue, on_setattr=qerec.lm_max_qlm) # TODO qe.lm_max_qlm and it.lm_max_qlm must be same. Test at validator?
+    chain =                 attr.field(default=DLENSALOT_Chaindescriptor(), on_setattr=qerec.chain)
+    cl_analysis =           attr.field(default=DEFAULT_NotAValue, on_setattr=qerec.cl_analysis)
+    blt_pert =              attr.field(default=DEFAULT_NotAValue, on_setattr=qerec.btemplate_perturbative_lensremap)
 
 @attr.s
 class DLENSALOT_Itrec(DLENSALOT_Concept):
@@ -240,34 +240,34 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     This class collects all configurations related to the iterative reconstruction job.
 
     Attributes:
-        tasks (list[str]): tasks to perfrom. Can be any combination of :code:`calc_phi`, :code:`calc_meanfield`, :code:`calc_blt`
-        itmax (int): maximum number of iterations
-        cg_tol (float): tolerance of the conjugate gradient method
-        iterator_typ (str): mean-field handling identifier. Can be either 'const_mf' or 'pert_mf'
+        tasks (list[str]):          tasks to perfrom. Can be any combination of :code:`calc_phi`, :code:`calc_meanfield`, :code:`calc_blt`
+        itmax (int):                maximum number of iterations
+        cg_tol (float):             tolerance of the conjugate gradient method
+        iterator_typ (str):         mean-field handling identifier. Can be either 'const_mf' or 'pert_mf'
         chain (DLENSALOT_Chaindescriptor): configuration for the conjugate gradient solver
-        filter_directional (str): can be either 'isotropic' (unmasked sky) or 'isotropic' (masked sky)
-        lenjob_geometry (str): can be 'healpix_geometry', 'thin_gauss' or 'pbdGeometry'
-        lenjob_pbgeometry (str): can be 'healpix_geometry', 'thin_gauss' or 'pbdGeometry'
-        lm_max_unl (tuple[int]): maximum multipoles `\ell` and m for reconstruction the unlensed CMB
-        lm_max_qlm (tuple[int]): maximum multipoles L and m for reconstruction the lensing potential
-        mfvar (str): path to precalculated mean-field, to be used instead
-        soltn_cond (type): TBD
-        stepper (DLENSALOT_STEPPER): configuration for updating the current likelihood iteration point with the likelihood gradient
+        filter_directional (str):   can be either 'isotropic' (unmasked sky) or 'isotropic' (masked sky)
+        lenjob_geometry (str):      can be 'healpix_geometry', 'thin_gauss' or 'pbdGeometry'
+        lenjob_pbgeometry (str):    can be 'healpix_geometry', 'thin_gauss' or 'pbdGeometry'
+        lm_max_unl (tuple[int]):    maximum multipoles `\ell` and m for reconstruction the unlensed CMB
+        lm_max_qlm (tuple[int]):    maximum multipoles L and m for reconstruction the lensing potential
+        mfvar (str):                path to precalculated mean-field, to be used instead
+        soltn_cond (type):          TBD
+        stepper (DLENSALOT_STEPPER):configuration for updating the current likelihood iteration point with the likelihood gradient
               
     """
-    tasks =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.tasks)
-    itmax =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.itmax)
-    cg_tol =                attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.cg_tol)
-    iterator_typ =          attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.iterator_type)
-    chain =                 attr.ib(default=DLENSALOT_Chaindescriptor(), on_setattr=itrec.chain)
-    filter_directional =    attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.filter_directional)
-    lenjob_geometry =       attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.lenjob_geometry)
-    lenjob_pbgeometry =     attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.lenjob_pbgeometry)
-    lm_max_unl =            attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.lm_max_unl)
-    lm_max_qlm =            attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.lm_max_qlm)
-    mfvar =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.mfvar)
-    soltn_cond =            attr.ib(default=DEFAULT_NotAValue, on_setattr=itrec.soltn_cond)
-    stepper =               attr.ib(default=DLENSALOT_Stepper(), on_setattr=itrec.stepper)
+    tasks =                 attr.field(default=DEFAULT_NotAValue, on_setattr=itrec.tasks)
+    itmax =                 attr.field(default=DEFAULT_NotAValue, on_setattr=itrec.itmax)
+    cg_tol =                attr.field(default=DEFAULT_NotAValue, on_setattr=itrec.cg_tol)
+    iterator_typ =          attr.field(default=DEFAULT_NotAValue, on_setattr=itrec.iterator_type)
+    chain =                 attr.field(default=DLENSALOT_Chaindescriptor(), on_setattr=itrec.chain)
+    filter_directional =    attr.field(default=DEFAULT_NotAValue, on_setattr=itrec.filter_directional)
+    lenjob_geometry =       attr.field(default=DEFAULT_NotAValue, on_setattr=itrec.lenjob_geometry)
+    lenjob_pbgeometry =     attr.field(default=DEFAULT_NotAValue, on_setattr=itrec.lenjob_pbgeometry)
+    lm_max_unl =            attr.field(default=DEFAULT_NotAValue, on_setattr=itrec.lm_max_unl)
+    lm_max_qlm =            attr.field(default=DEFAULT_NotAValue, on_setattr=itrec.lm_max_qlm)
+    mfvar =                 attr.field(default=DEFAULT_NotAValue, on_setattr=itrec.mfvar)
+    soltn_cond =            attr.field(default=DEFAULT_NotAValue, on_setattr=itrec.soltn_cond)
+    stepper =               attr.field(default=DLENSALOT_Stepper(), on_setattr=itrec.stepper)
     
 @attr.s
 class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
@@ -275,30 +275,30 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
     This class collects all configurations related to the internal map delensing job.
 
     Attributes:
-        data_from_CFS (bool): if set, use B-lensing templates located at the $CFS directory instead of the $TEMP directory
-        edges (np.array): binning to calculate the (delensed) power spectrum on
-        dlm_mod (bool): if set, modfies the lensing potential before calculating the B-lensing template
+        data_from_CFS (bool):   if set, use B-lensing templates located at the $CFS directory instead of the $TEMP directory
+        edges (np.array):       binning to calculate the (delensed) power spectrum on
+        dlm_mod (bool):         if set, modfies the lensing potential before calculating the B-lensing template
         iterations (list[int]): which iterations to calculate delensed power spectrum for
-        nlevels (list[float]): noiselevel ratio treshold up to which the maps are delensed, uses the rhits_normalized map to generate masks.
-        lmax (int): maximum multipole to calculate the (delensed) power spectrum
-        Cl_fid (type): fiducial power spectrum, and needed for template calculation of the binned power spectrum package
-        libdir_it (type): TBD
-        binning (type): can be either 'binned' or 'unbinned'. If 'unbinned', overwrites :code:`edges` and calculates power spectrum for each multipole
+        nlevels (list[float]):  noiselevel ratio treshold up to which the maps are delensed, uses the rhits_normalized map to generate masks.
+        lmax (int):             maximum multipole to calculate the (delensed) power spectrum
+        Cl_fid (type):          fiducial power spectrum, and needed for template calculation of the binned power spectrum package
+        libdir_it (type):       TBD
+        binning (type):         can be either 'binned' or 'unbinned'. If 'unbinned', overwrites :code:`edges` and calculates power spectrum for each multipole
         spectrum_calculator (package): name of the package of the power spectrum calculator. Can be 'healpy' if :code:`binning=unbinned`
-        masks_fn (list[str]): the sky patches to calculate the power spectra on. Note that this is different to using `nlevels`. Here, no tresholds are calculated, but masks are used 'as is' for delensing.             
+        masks_fn (list[str]):   the sky patches to calculate the power spectra on. Note that this is different to using `nlevels`. Here, no tresholds are calculated, but masks are used 'as is' for delensing.             
     """
 
-    data_from_CFS =         attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.data_from_CFS)
-    edges =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.edges)
-    dlm_mod =               attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.dlm_mod)
-    iterations =            attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.iterations)
-    nlevels =               attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.nlevels)
-    lmax =                  attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.lmax)
-    Cl_fid =                attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.Cl_fid)
-    libdir_it =             attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.libdir_it)
-    binning =               attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.binning)
-    spectrum_calculator =   attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.spectrum_calculator)
-    masks_fn =              attr.ib(default=DEFAULT_NotAValue, on_setattr=mapdelensing.masks)
+    data_from_CFS =         attr.field(default=DEFAULT_NotAValue, on_setattr=mapdelensing.data_from_CFS)
+    edges =                 attr.field(default=DEFAULT_NotAValue, on_setattr=mapdelensing.edges)
+    dlm_mod =               attr.field(default=DEFAULT_NotAValue, on_setattr=mapdelensing.dlm_mod)
+    iterations =            attr.field(default=DEFAULT_NotAValue, on_setattr=mapdelensing.iterations)
+    nlevels =               attr.field(default=DEFAULT_NotAValue, on_setattr=mapdelensing.nlevels)
+    lmax =                  attr.field(default=DEFAULT_NotAValue, on_setattr=mapdelensing.lmax)
+    Cl_fid =                attr.field(default=DEFAULT_NotAValue, on_setattr=mapdelensing.Cl_fid)
+    libdir_it =             attr.field(default=DEFAULT_NotAValue, on_setattr=mapdelensing.libdir_it)
+    binning =               attr.field(default=DEFAULT_NotAValue, on_setattr=mapdelensing.binning)
+    spectrum_calculator =   attr.field(default=DEFAULT_NotAValue, on_setattr=mapdelensing.spectrum_calculator)
+    masks_fn =              attr.field(default=DEFAULT_NotAValue, on_setattr=mapdelensing.masks)
 
 @attr.s
 class DLENSALOT_OBD(DLENSALOT_Concept):
@@ -306,21 +306,21 @@ class DLENSALOT_OBD(DLENSALOT_Concept):
     This class collects all configurations related to the overlapping B-mode deprojection.
 
     Attributes:
-        libdir (str): path to the OBD matrix
-        rescale (float): rescaling of OBD matrix amplitude. Useful if matrix already calculated, but noiselevel changed
-        tpl (type): function name for calculating OBD matrix
-        nlev_dep (float): deprojection factor, or, strength of B-mode deprojection
-        nside (type): TBD
-        lmax (int): maximum multipole to deproject B-modes
-        beam (type): TBD                         
+        libdir (str):       path to the OBD matrix
+        rescale (float):    rescaling of OBD matrix amplitude. Useful if matrix already calculated, but noiselevel changed
+        tpl (type):         function name for calculating OBD matrix
+        nlev_dep (float):   deprojection factor, or, strength of B-mode deprojection
+        nside (type):       TBD
+        lmax (int):         maximum multipole to deproject B-modes
+        beam (type):        TBD                         
     """
-    libdir =                attr.ib(default=DEFAULT_NotAValue, on_setattr=obd.libdir)
-    rescale =               attr.ib(default=DEFAULT_NotAValue, on_setattr=obd.rescale)
-    tpl =                   attr.ib(default=DEFAULT_NotAValue, on_setattr=obd.tpl)
-    nlev_dep =              attr.ib(default=DEFAULT_NotAValue, on_setattr=obd.nlev_dep)
-    nside =                 attr.ib(default=DEFAULT_NotAValue, on_setattr=obd.nside)
-    lmax =                  attr.ib(default=DEFAULT_NotAValue, on_setattr=obd.lmax)
-    beam =                  attr.ib(default=DEFAULT_NotAValue, on_setattr=obd.beam)
+    libdir =                attr.field(default=DEFAULT_NotAValue, on_setattr=obd.libdir)
+    rescale =               attr.field(default=DEFAULT_NotAValue, on_setattr=obd.rescale)
+    tpl =                   attr.field(default=DEFAULT_NotAValue, on_setattr=obd.tpl)
+    nlev_dep =              attr.field(default=DEFAULT_NotAValue, on_setattr=obd.nlev_dep)
+    nside =                 attr.field(default=DEFAULT_NotAValue, on_setattr=obd.nside)
+    lmax =                  attr.field(default=DEFAULT_NotAValue, on_setattr=obd.lmax)
+    beam =                  attr.field(default=DEFAULT_NotAValue, on_setattr=obd.beam)
 
 @attr.s
 class DLENSALOT_Config(DLENSALOT_Concept):
@@ -328,11 +328,11 @@ class DLENSALOT_Config(DLENSALOT_Concept):
     This class collects all configurations related to general behaviour to the operating system. 
 
     Attributes:
-        outdir_plot_root (str): Root path for the plots to be stored at
-        outdir_plot_rel (str): relative path folder for the plots to be stored at
+        outdir_plot_root (str): root path for the plots to be stored at
+        outdir_plot_rel (str):  relative path folder for the plots to be stored at
     """
-    outdir_plot_root =      attr.ib(default=opj(os.environ['HOME'], 'plots'))
-    outdir_plot_rel =       attr.ib(default='')
+    outdir_plot_root =      attr.field(default=opj(os.environ['HOME'], 'plots'))
+    outdir_plot_rel =       attr.field(default='')
 
 @attr.s
 # @add_defaults
@@ -341,9 +341,9 @@ class DLENSALOT_Meta(DLENSALOT_Concept):
     This class collects all configurations related to internal behaviour of delensalot.
 
     Attributes:
-        version (str): version control of the delensalot model
+        version (str):  version control of the delensalot model
     """
-    version =               attr.ib(default=DEFAULT_NotAValue, on_setattr=attr.validators.instance_of(int))
+    version =               attr.field(default=DEFAULT_NotAValue, on_setattr=attr.validators.instance_of(int))
 
 
 @attr.s
@@ -352,9 +352,9 @@ class DLENSALOT_Computing(DLENSALOT_Concept):
     This class collects all configurations related to the usage of computing resources.
 
     Attributes:
-        OMP_NUM_THREADS (int): number of threads used per Job
+        OMP_NUM_THREADS (int):  number of threads used per Job
     """
-    OMP_NUM_THREADS =       attr.ib(default=DEFAULT_NotAValue, on_setattr=computing.OMP_NUM_THREADS)
+    OMP_NUM_THREADS =       attr.field(default=DEFAULT_NotAValue, on_setattr=computing.OMP_NUM_THREADS)
 
 
 @attr.s
@@ -362,33 +362,33 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
 
     Attributes:
-        defaults_to (str): Identifier for default-dictionary if user hasn't specified value in configuration file
-        meta (DLENSALOT_Meta): configurations related to internal behaviour of delensalot
-        job (DLENSALOT_Job): delensalot can executte different jobs (QE reconstruction, simulation generation, MAP reconstruction, delensing, ..) which is controlled here
-        analysis (DLENSALOT_Analysis): configurations related to the specific analysis performed on the data
-        data (DLENSALOT_Data): configurations related to the input CMB maps
-        noisemodel (DLENSALOT_Noisemodel): configurations related to the noise model used for Wiener-filtering the data
-        qerec (DLENSALOT_Qerec): configurations related to the quadratic estimator reconstruction job
-        itrec (DLENSALOT_Itrec): configurations related to the iterative reconstruction job
+        defaults_to (str):              Identifier for default-dictionary if user hasn't specified value in configuration file
+        meta (DLENSALOT_Meta):          configurations related to internal behaviour of delensalot
+        job (DLENSALOT_Job):            delensalot can executte different jobs (QE reconstruction, simulation generation, MAP reconstruction, delensing, ..) which is controlled here
+        analysis (DLENSALOT_Analysis):  configurations related to the specific analysis performed on the data
+        data (DLENSALOT_Data):          configurations related to the input CMB maps
+        noisemodel (DLENSALOT_Noisemodel):  configurations related to the noise model used for Wiener-filtering the data
+        qerec (DLENSALOT_Qerec):        configurations related to the quadratic estimator reconstruction job
+        itrec (DLENSALOT_Itrec):        configurations related to the iterative reconstruction job
         madel (DLENSALOT_Mapdelensing): configurations related to the internal map delensing job
-        config (DLENSALOT_Config): configurations related to general behaviour to the operating system
-        computing (DLENSALOT_Computing): configurations related to the usage of computing resources
-        obd (DLENSALOT_OBD): configurations related to the overlapping B-mode deprojection
+        config (DLENSALOT_Config):      configurations related to general behaviour to the operating system
+        computing (DLENSALOT_Computing):    configurations related to the usage of computing resources
+        obd (DLENSALOT_OBD):            configurations related to the overlapping B-mode deprojection
 
     """
     
-    defaults_to =           attr.ib(default='P_FS_CMBS4')
-    meta =                  attr.ib(default=DLENSALOT_Meta(), on_setattr=model.meta)
-    job =                   attr.ib(default=DLENSALOT_Job(), on_setattr=model.jo    b)
-    analysis =              attr.ib(default=DLENSALOT_Analysis(), on_setattr=model.analysis)
-    data  =                 attr.ib(default=DLENSALOT_Data(), on_setattr=model.data)
-    noisemodel =            attr.ib(default=DLENSALOT_Noisemodel(), on_setattr=model.noisemodel)
-    qerec =                 attr.ib(default=DLENSALOT_Qerec(), on_setattr=model.qerec)
-    itrec =                 attr.ib(default=DLENSALOT_Itrec(), on_setattr=model.itrec)
-    madel =                 attr.ib(default=DLENSALOT_Mapdelensing(), on_setattr=model.madel)
-    config =                attr.ib(default=DLENSALOT_Config(), on_setattr=model.config)
-    computing =             attr.ib(default=DLENSALOT_Computing(), on_setattr=model.computing)
-    obd =                   attr.ib(default=DLENSALOT_OBD(), on_setattr=model.obd)
+    defaults_to =           attr.field(default='P_FS_CMBS4')
+    meta =                  attr.field(default=DLENSALOT_Meta(), on_setattr=model.meta)
+    job =                   attr.field(default=DLENSALOT_Job(), on_setattr=model.job)
+    analysis =              attr.field(default=DLENSALOT_Analysis(), on_setattr=model.analysis)
+    data  =                 attr.field(default=DLENSALOT_Data(), on_setattr=model.data)
+    noisemodel =            attr.field(default=DLENSALOT_Noisemodel(), on_setattr=model.noisemodel)
+    qerec =                 attr.field(default=DLENSALOT_Qerec(), on_setattr=model.qerec)
+    itrec =                 attr.field(default=DLENSALOT_Itrec(), on_setattr=model.itrec)
+    madel =                 attr.field(default=DLENSALOT_Mapdelensing(), on_setattr=model.madel)
+    config =                attr.field(default=DLENSALOT_Config(), on_setattr=model.config)
+    computing =             attr.field(default=DLENSALOT_Computing(), on_setattr=model.computing)
+    obd =                   attr.field(default=DLENSALOT_OBD(), on_setattr=model.obd)
     
 
     def __attrs_post_init__(self):

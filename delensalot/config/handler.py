@@ -32,11 +32,11 @@ class handler():
     """Load config file and handle command line arguments 
     """
 
-    def __init__(self, parser, madel_kwargs={}):
-        self.configfile = handler.load_configfile(parser.config_file, 'configfile')
-        # TODO hack. remove when v1 is gone
-        if 'madel' in self.configfile.dlensalot_model.__dict__:
-            self.configfile.dlensalot_model.madel.__dict__.update(madel_kwargs)
+    def __init__(self, parser, configfile=None):
+        if configfile is None:
+            self.configfile = handler.load_configfile(parser.config_file, 'configfile')
+        else:
+            self.configfile = configfile
         if 'job_id' in parser.__dict__:
             if parser.job_id is None:
                 pass

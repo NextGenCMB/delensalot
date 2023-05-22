@@ -36,7 +36,15 @@ log.setLevel(logging.INFO)
 class run():
     """Entry point for the interactive mode
     """
-    def __init__(self, config, job_id='interactive', verbose=True, madel_kwargs={}):
+    def __init__(self, config_fn, job_id='generate_sim', config_model=None, verbose=True):
+        """Entry point for the interactive mode. This initializes a 'runner'-objects which provides all functionalities to run delensalot analyses
+
+        Args:
+            config_fn (str): The config file for the analysis.
+            job_id (str, optional): Identifier to choose the delensalot job. Valid values are: ['generate_sim', 'build_OBD', 'QE_lensrec', 'MAP_lensrec', 'delens']. Defaults to 'generate_sim'.
+            config_model (DLENSALOT_Model): A delensalot model instance. If not None, this overwrites `config_fn`
+            verbose (bool, optional): If true, sets logging information to DEBUG, otherwise INFO. Defaults to True.
+        """        
         os.environ['USE_PLANCKLENS_MPI'] = "False"
         if not verbose:
             ConsoleOutputHandler.setLevel(logging.WARNING)
@@ -48,11 +56,11 @@ class run():
             logging.basicConfig(level=logging.INFO, handlers=[ConsoleOutputHandler])
         self.parser = parserclass()
         self.parser.resume =  ""
-        self.parser.config_file = config
+        self.parser.config_file = config_fn
         self.parser.status = ''
 
         self.job_id = job_id
-        self.lerepi_handler = handler.handler(self.parser, madel_kwargs)
+        self.lerepi_handler = handler.handler(self.parser)
         self.lerepi_handler.collect_job(self.job_id)
         self.model = self._build_model()
 
