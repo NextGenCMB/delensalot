@@ -24,7 +24,7 @@ class ztrunc_sims:
         npix = 0
         for zbounds in zbounds_list:
             tht_min, tht_max = np.arccos(zbounds[1]), np.arccos(zbounds[0])
-            hp_trunc = utils_geom.Geom.get_healpix_geometry(nside).restrict(tht_min, tht_max)
+            hp_trunc = utils_geom.Geom.get_healpix_geometry(nside).restrict(tht_min, tht_max, False)
             hp_start = hp_geom.ofs[np.where(hp_geom.theta == np.min(hp_trunc.theta))[0]][0]
             this_npix = hp_trunc.npix()
             hp_end = hp_start + this_npix
