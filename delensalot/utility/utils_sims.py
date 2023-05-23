@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
-import lenspyx.remapping.utils_geom as import utils_geom
+from lenspyx.remapping import utils_geom
 from plancklens.sims import maps
 
 
