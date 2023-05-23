@@ -35,7 +35,6 @@ from lenspyx.remapping.utils_geom import pbdGeometry, pbounds
 from delensalot.utils import cli, read_map
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl
 from delensalot.utility import utils_qe
-from delensalot.core.helper import utils_dlm
 
 from delensalot.core import cachers
 from delensalot.core.opfilt import opfilt_base
