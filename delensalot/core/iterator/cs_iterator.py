@@ -404,7 +404,7 @@ class qlm_iterator(object):
             log.info("calculating descent direction" )
             t0 = time.time()
             incr = BFGS.get_mHkgk(alm2rlm(gradn), k)
-            incr = alm2rlm(self.stepper.build_incr(incr, it), self.mmax_qlm)
+            incr = alm2rlm(self.stepper.build_incr(incr, it))
             self.hess_cacher.cache(sk_fname, incr)
             prt_time(time.time() - t0, label=' Exec. time for descent direction calculation')
         assert self.hess_cacher.is_cached(sk_fname), sk_fname
