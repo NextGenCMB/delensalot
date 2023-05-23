@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
-import lenspyx.remapping.utils_geom as import utils_geom
+from lenspyx.remapping import utils_geom
 from plancklens.sims import maps
 
 
@@ -15,7 +15,7 @@ class ztrunc_sims:
 
 
     """
-    def __init__(self, sims:maps.cmb_maps, nside:int, zbounds_list:tuple[float, float]):
+    def __init__(self, sims:maps.cmb_maps, nside:int, zbounds_list:list[tuple[float, float]]):
         self.sims = sims
 
         hp_geom  = utils_geom.Geom.get_healpix_geometry(nside)
@@ -23,7 +23,8 @@ class ztrunc_sims:
         slics_m = []
         npix = 0
         for zbounds in zbounds_list:
-            hp_trunc = utils_geom.Geom.get_healpix_geometry(nside)
+            tht_min, tht_max = np.arccos(zbounds[1]), np.arccos(zbounds[0])
+            hp_trunc = utils_geom.Geom.get_healpix_geometry(nside).restrict(tht_min, tht_max)
             hp_start = hp_geom.ofs[np.where(hp_geom.theta == np.min(hp_trunc.theta))[0]][0]
             this_npix = hp_trunc.npix()
             hp_end = hp_start + this_npix
