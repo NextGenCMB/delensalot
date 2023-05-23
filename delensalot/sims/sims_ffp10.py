@@ -9,10 +9,12 @@ from __future__ import annotations
 import os
 import numpy as np
 import plancklens.sims.phas
+
+import lenspyx.remapping.utils_geom as utils_geom
+
 from delensalot.core import cachers
 
 from delensalot.utility import utils_hp
-from delensalot.core.helper import utils_scarf
 from plancklens.sims.planck2018_sims import cmb_unl_ffp10
 from plancklens import utils
 from lenspyx.remapping import deflection
@@ -58,16 +60,17 @@ class cmb_len_ffp10:
 
         zls, zus = self._mkbands(nbands)
         # By construction the central one covers the equator
-        len_geoms = [utils_scarf.Geom.get_thingauss_geometry(lmax_thingauss, 2, zbounds=(zls[nbands//2], zus[nbands//2]))]
+        len_geoms = [utils_geom.Geom.get_thingauss_geometry(lmax_thingauss, 2)]
+        len_geoms[0].restrict(zls[nbands//2], zus[nbands//2])
         for ib in range(nbands//2):
             # and the other ones are symmetric w.r.t. the equator. We merge them to get faster SHTs
-            geom_south = utils_scarf.Geom.get_thingauss_geometry(lmax_thingauss, 2, zbounds=(zls[ib], zus[ib]))
-            geom_north = utils_scarf.Geom.get_thingauss_geometry(lmax_thingauss, 2, zbounds=(zls[nbands-ib-1], zus[nbands-ib-1]))
-            len_geoms.append(utils_scarf.Geom.merge([geom_north, geom_south]))
-        pbdGeoms = [utils_scarf.pbdGeometry(len_geom, utils_scarf.pbounds(np.pi, 2 * np.pi)) for len_geom in len_geoms]
+            geom_south = utils_geom.Geom.get_thingauss_geometry(lmax_thingauss, 2, zbounds=(zls[ib], zus[ib]))
+            geom_north = utils_geom.Geom.get_thingauss_geometry(lmax_thingauss, 2, zbounds=(zls[nbands-ib-1], zus[nbands-ib-1]))
+            len_geoms.append(utils_geom.Geom.merge([geom_north, geom_south]))
+        pbdGeoms = [utils_geom.pbdGeometry(len_geom, utils_geom.pbounds(np.pi, 2 * np.pi)) for len_geom in len_geoms]
 
         # Sanity check, we cant have rings overlap
-        ref_geom = utils_scarf.Geom.get_thingauss_geometry(self.lmax_thingauss, 2)
+        ref_geom = utils_geom.Geom.get_thingauss_geometry(self.lmax_thingauss, 2)
         tht_all = np.concatenate([pbgeo.geom.theta for pbgeo in pbdGeoms])
         assert np.all(np.sort(ref_geom.theta) == np.sort(tht_all))
 

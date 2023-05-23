@@ -1,6 +1,5 @@
 import os
 import numpy as np
-from scarf import Geometry
 from delensalot.utility.utils_hp import Alm, almxfl
 
 class qeleg_multi:
@@ -23,12 +22,12 @@ class qeleg_multi:
         self.cls.append(np.copy(qeleg.cl))
         return self
 
-    def __call__(self, get_alm, geom:Geometry, sht_tr:int, mmax:int or None=None):
+    def __call__(self, get_alm, geom, sht_tr:int, mmax:int or None=None):
         """Returns the spin-weighted real-space map of the estimator.
 
             Args:
                 get_alm: callable with 'e' ,'b' or 't' depending on instance spins
-                geom:scarf geometry used to build the position-space map
+                geom: lenspyx geometry used to build the position-space map
                 sht_tr: number of openmp threads for transform
                 mmax: set this if inputs alms mmaxes are non-standard
 

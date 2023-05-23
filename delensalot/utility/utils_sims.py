@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
-from delensalot.core.helper.utils_scarf import Geom
+import lenspyx.remapping.utils_geom as import utils_geom
 from plancklens.sims import maps
 
 
@@ -15,17 +15,17 @@ class ztrunc_sims:
 
 
     """
-    def __init__(self, sims:maps.cmb_maps, nside:int, zbounds_list:[tuple[float, float]]):
+    def __init__(self, sims:maps.cmb_maps, nside:int, zbounds_list:tuple[float, float]):
         self.sims = sims
 
-        hp_geom  = Geom.get_healpix_geometry(nside)
+        hp_geom  = utils_geom.Geom.get_healpix_geometry(nside)
         slics = []
         slics_m = []
         npix = 0
         for zbounds in zbounds_list:
-            hp_trunc = Geom.get_healpix_geometry(nside, zbounds=zbounds)
+            hp_trunc = utils_geom.Geom.get_healpix_geometry(nside)
             hp_start = hp_geom.ofs[np.where(hp_geom.theta == np.min(hp_trunc.theta))[0]][0]
-            this_npix = Geom.npix(hp_trunc)
+            this_npix = hp_trunc.npix()
             hp_end = hp_start + this_npix
             slics.append(slice(hp_start, hp_end))
             slics_m.append(slice(npix, npix + this_npix))
