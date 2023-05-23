@@ -14,7 +14,7 @@ import time
 import sys
 import numpy as np
 
-import scarf
+import lenspyx.remapping.utils_geom as utils_geom
 
 from plancklens.qcinv import multigrid
 
@@ -24,7 +24,6 @@ from delensalot.core import cachers
 from delensalot.core.iterator import steps
 import delensalot.core.iterator.cs_iterator
 from delensalot.core.opfilt import opfilt_base
-from delensalot.core.helper.utils_scarf import scarfjob, pbdGeometry, pbounds
 
 
 import logging
@@ -43,7 +42,7 @@ class iterator_cstmf(delensalot.core.iterator.cs_iterator.qlm_iterator):
 
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
                  dat_maps:list or np.ndarray, plm0:np.ndarray, mf0:np.ndarray, pp_h0:np.ndarray,
-                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.scarf_alm_filter_wl, k_geom:scarf.Geometry,
+                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.alm_filter_wl, k_geom:utils_geom.Geom,
                  chain_descr, stepper:steps.nrstep, **kwargs):
         super(iterator_cstmf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
                                              ninv_filt, k_geom, chain_descr, stepper, **kwargs)
@@ -109,11 +108,11 @@ class iterator_cstmf(delensalot.core.iterator.cs_iterator.qlm_iterator):
                 log.info("Using cached WF solution at iter %s "%itr)
 
             t0 = time.time()
-            if ffi.pbgeom.geom is self.k_geom and ffi.pbgeom.pbound == pbounds(0., 2 * np.pi):
+            if ffi.pbgeom.geom is self.k_geom and ffi.pbgeom.pbound == utils_geom.pbounds(0., 2 * np.pi):
                 # This just avoids having to recalculate angles on a new geom etc
                 q_geom = ffi.pbgeom
             else:
-                q_geom = pbdGeometry(self.k_geom, pbounds(0., 2 * np.pi))
+                q_geom = utils_geom.Geometry(self.k_geom, utils_geom.pbounds(0., 2 * np.pi))
             self.filter.set_ffi(ffi)
             G, C = self.filter.get_qlms(self.dat_maps, soltn, q_geom)
             almxfl(G if key.lower() == 'p' else C, self._h2p(self.lmax_qlm), self.mmax_qlm, True)

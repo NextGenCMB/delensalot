@@ -1,4 +1,4 @@
-"""Scarf-geometry based inverse-variance filters, inclusive of CMB lensing remapping
+"""Lenspyx-geometry based inverse-variance filters, inclusive of CMB lensing remapping
 
 
 """
@@ -28,7 +28,7 @@ def _extend_cl(cl, lmax):
     return ret
 
 
-class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
+class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
     def __init__(self, nlev_t:float or np.ndarray, ffi:remapping.deflection, transf:np.ndarray, unlalm_info:tuple, lenalm_info:tuple, verbose=False, rescal=None):
         r"""Version of alm_filter_ninv_wl for full-sky maps filtered with homogeneous noise levels
 
@@ -120,7 +120,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
                 tlm_dat: input temperature data maps (geom must match that of the filter)
                 tlm_wf: Wiener-filtered T CMB map (alm arrays)
                 alm_wf_leg2: Gradient leg Wiener-filtered T CMB map (alm arrays), if different from ivf leg
-                q_pbgeom: scarf pbounded-geometry of for the position-space mutliplication of the legs
+                q_pbgeom: lenspyx pbounded-geometry of for the position-space mutliplication of the legs
 
             All implementation signs are super-weird but end result should be correct...
 
@@ -201,7 +201,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
         return ffi.gclm2lenmap([almxfl(tlm_wf, fl, self.mmax_sol, False), np.zeros_like(tlm_wf)], self.mmax_sol, 1, False)
 
 
-def calc_prep(tlm:np.ndarray, s_cls:dict, ninv_filt:alm_filter_nlev_wl):
+def calc_prep(tlm:np.ndarray, s_cls:dict, ninv_filt:alm_filter_nlev_wl, sht_threads:int=4):
     """cg-inversion pre-operation  (D^t B^t N^{-1} X^{dat})
 
         Args:

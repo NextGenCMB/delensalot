@@ -1,4 +1,4 @@
-"""Scarf-geometry based inverse-variance filters, inclusive of CMB lensing remapping
+"""Lenspyx-geometry based inverse-variance filters, inclusive of CMB lensing remapping
 
 
 """
@@ -78,7 +78,7 @@ class alm_filter_nlev:
             Args:
                 tlm_dat: input temperature data maps (geom must match that of the filter)
                 tlm_wf: Wiener-filtered T CMB map (alm arrays)
-                q_pbgeom: scarf pbounded-geometry of for the position-space mutliplication of the legs
+                q_pbgeom: lenspyx pbounded-geometry of for the position-space mutliplication of the legs
                 lmax_qlm: maximum l of l,m output
                 mmax_qlm: maximum m of l,m output
 
@@ -149,7 +149,7 @@ class pre_op_diag:
         assert Alm.getsize(self.lmax, self.mmax) == tlm.size, (self.lmax, self.mmax, Alm.getlmax(tlm.size, self.mmax))
         return almxfl(tlm, self.flmat_tt, self.mmax, False)
 
-def calc_prep(tlm:np.ndarray, s_cls:dict, ninv_filt:alm_filter_nlev):
+def calc_prep(tlm:np.ndarray, s_cls:dict, ninv_filt:alm_filter_nlev, sht_threads:int=4):
     """cg-inversion pre-operation  (D^t B^t N^{-1} X^{dat})
 
         Args:

@@ -22,7 +22,6 @@ import hashlib
 from plancklens.qcinv import cd_solve
 
 from lenspyx.remapping import utils_geom as lug
-import delensalot.core.helper.utils_scarf as dug
 
 from delensalot.utils import cli, camb_clfile
 
@@ -272,7 +271,8 @@ class l2lensrec_Transformer(l2base_Transformer):
             dl.obd_libdir = od.libdir
             dl.obd_rescale = od.rescale
             if cf.noisemodel.ninvjob_geometry == 'healpix_geometry':
-                dl.ninvjob_geometry = dug.Geom.get_healpix_geometry(cf.data.nside, zbounds=dl.zbounds)
+                dl.ninvjob_geometry = lug.Geom.get_healpix_geometry(dl.sims_nside)
+                dl.ninvjob_geometry = dl.ninvjob_geometry.restrict(*dl.zbounds, northsouth_sym=True)
             dl.tpl = template_dense(dl.lmin_teb[2], dl.ninvjob_geometry, dl.tr, _lib_dir=dl.obd_libdir, rescal=dl.obd_rescale)
 
   
@@ -346,9 +346,11 @@ class l2lensrec_Transformer(l2base_Transformer):
             if qe.ninvjob_qe_geometry == 'healpix_geometry_qe':
                 # TODO for QE, isOBD only works with zbounds=(-1,1). Perhaps missing ztrunc on qumaps
                 # Introduce new geometry for now, until either plancklens supports ztrunc, or ztrunced simlib (not sure if it already does)
-                dl.ninvjob_qe_geometry = dug.Geom.get_healpix_geometry(dl.sims_nside, zbounds=(-1,1))
+                dl.ninvjob_qe_geometry = lug.Geom.get_healpix_geometry(dl.sims_nside)
+                dl.ninvjob_qe_geometry = dl.ninvjob_geometry.restrict(-1,1, northsouth_sym=True)
             elif qe.ninvjob_qe_geometry == 'healpix_geometry':
-                dl.ninvjob_qe_geometry = dug.Geom.get_healpix_geometry(dl.sims_nside, zbounds=dl.zbounds)
+                dl.ninvjob_qe_geometry = lug.Geom.get_healpix_geometry(dl.sims_nside)
+                dl.ninvjob_qe_geometry = dl.ninvjob_geometry.restrict(*dl.zbounds, northsouth_sym=True)
             # cg_tol
             dl.cg_tol = qe.cg_tol
 
@@ -437,11 +439,11 @@ class l2lensrec_Transformer(l2base_Transformer):
         _process_Computing(dl, cf.computing)
         _process_Analysis(dl, cf.analysis)
         _process_Noisemodel(dl, cf.noisemodel)
+        _process_Data(dl, cf.data)
         if dl.OBD:
             _process_OBD(dl, cf.obd)
         else:
             dl.tpl = None
-        _process_Data(dl, cf.data)
         _process_Qerec(dl, cf.qerec)
         _process_Itrec(dl, cf.itrec)
 
@@ -459,7 +461,8 @@ class l2lensrec_Transformer(l2base_Transformer):
         if dl.it_filter_directional == 'anisotropic':
             # ninvjob_geometry
             if cf.noisemodel.ninvjob_geometry == 'healpix_geometry':
-                dl.ninvjob_geometry = dug.Geom.get_healpix_geometry(dl.sims_nside, zbounds=dl.zbounds)
+                dl.ninvjob_geometry = lug.Geom.get_healpix_geometry(dl.sims_nside)
+                dl.ninvjob_geometry = dl.ninvjob_geometry.restrict(*dl.zbounds, northsouth_sym=True)
 
 
         return dl
@@ -509,7 +512,7 @@ class l2OBD_Transformer:
         @log_on_end(logging.DEBUG, "_process_Noisemodel() finished")
         def _process_Noisemodel(dl, nm):
             dl.lmin_b = dl.lmin_teb[2]
-            dl.geom = dug.Geom.get_healpix_geometry(dl.nside)
+            dl.geom = lug.Geom.get_healpix_geometry(dl.sims_nside)
             dl.masks, dl.rhits_map = l2OBD_Transformer.get_masks(cf)
             dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
             dl.ninv_p_desc = l2OBD_Transformer.get_ninvp(cf, dl.nside)

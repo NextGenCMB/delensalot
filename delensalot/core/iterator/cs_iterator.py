@@ -29,12 +29,13 @@ from logdecorator import log_on_start, log_on_end
 
 from plancklens.qcinv import multigrid
 
-import scarf
+import lenspyx.remapping.utils_geom as utils_geom
+from lenspyx.remapping.utils_geom import pbdGeometry, pbounds
+
 from delensalot.utils import cli, read_map
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl
 from delensalot.utility import utils_qe
-from delensalot.core.helper.utils_scarf import scarfjob, pbdGeometry, pbounds
-from delensalot.utility import utils_dlm
+from delensalot.core.helper import utils_dlm
 
 from delensalot.core import cachers
 from delensalot.core.opfilt import opfilt_base
@@ -60,8 +61,8 @@ class qlm_iterator(object):
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
                  dat_maps:list or np.ndarray, plm0:np.ndarray, pp_h0:np.ndarray,
                  cpp_prior:np.ndarray, cls_filt:dict,
-                 ninv_filt:opfilt_base.scarf_alm_filter_wl,
-                 k_geom:scarf.Geometry,
+                 ninv_filt:opfilt_base.alm_filter_wl,
+                 k_geom:utils_geom.Geom,
                  chain_descr, stepper:steps.nrstep,
                  logger=None,
                  NR_method=100, tidy=0, verbose=True, soltn_cond=True, wflm0=None, _usethisE=None):
@@ -74,7 +75,7 @@ class qlm_iterator(object):
                 pp_h0: the starting hessian estimate. (cl array, ~ 1 / N0 of the lensing potential)
                 cpp_prior: fiducial lensing potential spectrum used for the prior term
                 cls_filt (dict): dictionary containing the filter cmb unlensed spectra (here, only 'ee' is required)
-                k_geom: scarf geometry for once-per-iterations operations (like checking for invertibility etc, QE evals...)
+                k_geom: lenspyx geometry for once-per-iterations operations (like checking for invertibility etc, QE evals...)
                 stepper: custom calculation of NR-step
                 wflm0(optional): callable with Wiener-filtered CMB map search starting point
 
@@ -266,7 +267,7 @@ class qlm_iterator(object):
             assert self.wf_cacher.is_cached(e_fname), 'cant do lik, Wiener-filtered delensed CMB not available'
             elm_wf = self.wf_cacher.load(e_fname)
             self.filter.set_ffi(self._get_ffi(itr))
-            elm = self.opfilt.calc_prep(read_map(self.dat_maps), self.cls_filt, self.filter)
+            elm = self.opfilt.calc_prep(read_map(self.dat_maps), self.cls_filt, self.filter, self.tr)
             l2p = 2 * np.arange(self.filter.lmax_sol + 1) + 1
             lik_qd = -np.sum(l2p * alm2cl(elm_wf, elm, self.filter.lmax_sol, self.filter.mmax_sol, self.filter.lmax_sol))
             # quadratic cst term : (X^d N^{-1} X^d)
@@ -403,73 +404,11 @@ class qlm_iterator(object):
             log.info("calculating descent direction" )
             t0 = time.time()
             incr = BFGS.get_mHkgk(alm2rlm(gradn), k)
-            incr = alm2rlm(self.ensure_invertibility(self.get_hlm(it - 1, key), self.stepper.build_incr(incr, it), self.mmax_qlm))
+            incr = alm2rlm(self.stepper.build_incr(incr, it), self.mmax_qlm)
             self.hess_cacher.cache(sk_fname, incr)
             prt_time(time.time() - t0, label=' Exec. time for descent direction calculation')
         assert self.hess_cacher.is_cached(sk_fname), sk_fname
 
-    def ensure_invertibility(self, hlm, incr_hlm, mmax_dlm):
-        """Build new plm increment from current estimate and updated estimate
-
-            This checks the determinant of the magn matrix to ensure invertibility.
-
-            The increment is reduced by factors of two on the pixels where the determinant is < 0
-
-        """
-        if True:
-            print('** NB: check invertibility is disabled')
-            # Was not any useful really and in fact it looks completely wrong ?!
-            return incr_hlm
-        lmax_dlm = Alm.getlmax(hlm.size, mmax_dlm)
-        if mmax_dlm is None or mmax_dlm < 0: mmax_dlm = lmax_dlm
-        scjob = scarfjob()
-        scjob.set_geometry(self.k_geom)
-        scjob.set_nthreads(self.filter.ffi.sht_tr)
-        scjob.set_triangular_alm_info(lmax_dlm, mmax_dlm)
-
-        k, (g1, g2), w = utils_dlm.dlm2kggo(scjob, self.hlm2dlm(hlm, False), None)
-        if not np.all(((1. - k) ** 2 - g1 ** 2 - g2 ** 2) > 0.):
-            ii = np.where((1. - k) ** 2 - g1 ** 2 - g2 ** 2  <= 0.)[0]
-            log.warning("******* ensure_invertibility: %s starting point pixels looks weird, cant tell whether the procedure will make sense"%len(ii))
-        kd, (g1d, g2d), wd = utils_dlm.dlm2kggo(scjob, self.hlm2dlm(incr_hlm, False), None)
-        steps = np.ones_like(k)
-        # The following look wrong, kd is the fully updated phi map, k the previous point. should be eg k + step (kd - k) ?
-        M = lambda pixs: (1. - k[pixs] - steps[pixs] * kd[pixs]) ** 2 - (g1[pixs] + steps[pixs] * g1d[pixs]) ** 2 - (g2[pixs] + steps[pixs] * g2d[pixs]) ** 2
-        pix = np.where(((1. - k - steps * kd) ** 2 - (g1 + steps * g1d) ** 2 - (g2 + steps * g2d) ** 2) <= 0.)[0]
-        if len(pix) > 0:
-            i = 0
-            imax = 10
-            while np.any(M(pix) < 0.) and i < imax:
-                ii = np.where(M(pix) < 0.)[0]
-                steps[pix[ii]] *= 0.5
-                i += 1
-            if i < imax:
-                log.info("check_invert: reduced steps on %s pixel(s) by a factor %s " % (len(ii), 2 ** i))
-            else: # changing sign of step
-                log.info("Trying to invert step sign on %s pixel(s)"%(len(ii)))
-                i = 0
-                steps[pix[ii]] = - 2 ** (-5)
-                imax = 5
-                while np.any(M(pix) < 0.) and i < imax:
-                    ii = np.where(M(pix) < 0.)[0]
-                    steps[pix[ii]] *= 2.
-                    i +=1
-            if i < imax:
-                log.info("check_invert: inverted steps on %s pixel(s) by a factor %s " % (len(ii), 2 ** i))
-
-        del k, g1, g2, g1d, g2d
-        lmax = Alm.getlmax(incr_hlm.size, mmax_dlm)
-        if self.h == 'p':
-            h2k = 0.5 * np.arange(lmax + 1, dtype=float) * np.arange(1, lmax + 2, dtype=float)
-        elif self.h == 'k':
-            h2k = np.ones(lmax + 1, dtype=float)
-        elif self.h == 'd':
-            h2k = 0.5 * np.sqrt(np.arange(lmax + 1, dtype=float) * np.arange(1, lmax + 2, dtype=float))
-        else:
-            assert 0, self.h + ' not implemented'
-        ret = scjob.map2alm(steps * kd)
-        almxfl(ret, cli(h2k), mmax_dlm, True)
-        return ret
 
     @log_on_start(logging.INFO, "iterate(it={itr}, key={key}) started")
     @log_on_end(logging.INFO, "iterate(it={itr}, key={key}) finished")
@@ -556,7 +495,7 @@ class iterator_cstmf(qlm_iterator):
 
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
                  dat_maps:list or np.ndarray, plm0:np.ndarray, mf0:np.ndarray, pp_h0:np.ndarray,
-                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.scarf_alm_filter_wl, k_geom:scarf.Geometry,
+                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.alm_filter_wl, k_geom:utils_geom.Geom,
                  chain_descr, stepper:steps.nrstep, **kwargs):
         super(iterator_cstmf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
                                              ninv_filt, k_geom, chain_descr, stepper, **kwargs)
@@ -584,7 +523,7 @@ class iterator_pertmf(qlm_iterator):
 
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
                  dat_maps:list or np.ndarray, plm0:np.ndarray, mf_resp:np.ndarray, pp_h0:np.ndarray,
-                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.scarf_alm_filter_wl, k_geom:scarf.Geometry,
+                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.alm_filter_wl, k_geom:utils_geom.Geom,
                  chain_descr, stepper:steps.nrstep, mf0=None, **kwargs):
         super(iterator_pertmf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
                                              ninv_filt, k_geom, chain_descr, stepper, **kwargs)
@@ -621,7 +560,7 @@ class iterator_simf(qlm_iterator):
 
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
                  dat_maps:list or np.ndarray, plm0:np.ndarray, mf_key:int, pp_h0:np.ndarray,
-                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.scarf_alm_filter_wl, k_geom:scarf.Geometry,
+                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.alm_filter_wl, k_geom:utils_geom.Geom,
                  chain_descr, stepper:steps.nrstep, **kwargs):
         super(iterator_simf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
                                              ninv_filt, k_geom, chain_descr, stepper, **kwargs)
@@ -658,7 +597,7 @@ class iterator_cstmf_bfgs0(iterator_cstmf):
     """
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
                  dat_maps:list or np.ndarray, plm0:np.ndarray, mf0:np.ndarray, pp_h0:np.ndarray, df0:str,
-                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.scarf_alm_filter_wl, k_geom:scarf.Geometry,
+                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.alm_filter_wl, k_geom:utils_geom.Geom,
                  chain_descr, stepper:steps.nrstep, **kwargs):
         super(iterator_cstmf_bfgs0, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, mf0, pp_h0, cpp_prior, cls_filt,
                                              ninv_filt, k_geom, chain_descr, stepper, **kwargs)

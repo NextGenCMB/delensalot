@@ -8,8 +8,7 @@ from logdecorator import log_on_start, log_on_end
 
 import os
 import numpy as np
-import scarf
-from delensalot.core.helper import utils_scarf as us
+from lenspyx.remapping import utils_geom
 from delensalot.utility.utils_hp import Alm
 from delensalot.utils import enumerate_progress, read_map
 
@@ -61,12 +60,12 @@ def alm2rlm(alm):
 
 
 class template_tfilt(object):
-    def __init__(self, lmax_marg:int, geom:scarf.Geometry, sht_threads:int, _lib_dir=None):
+    def __init__(self, lmax_marg:int, geom:utils_geom.Geom, sht_threads:int, _lib_dir=None):
         """Here all T-modes up to lmax are set to infinite noise
 
             Args:
                 lmax_marg: all T-mulitpoles up to and inclusive of lmax are marginalized
-                geom: scarf geometry of SHTs
+                geom: lenspyx geometry of SHTs
                 sht_threads: number of OMP threads for SHTs
                 _lib_dir: some stuff might be cached there in some cases
 
@@ -77,18 +76,14 @@ class template_tfilt(object):
         self.nmodes = (lmax_marg + 1) * lmax_marg + lmax_marg + 1 - 0
         if not np.all(geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
             log.info('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
-            nr = geom.get_nrings()
-            geom_ = us.Geometry(nr, geom.nph.copy(), geom.ofs.copy(), 1, geom.phi0.copy(), geom.theta.copy(), np.ones(nr, dtype=float))
+            geom_ = utils_geom.Geom(geom.theta.copy(), geom.phi0.copy(), geom.nph.copy(), geom.ofs.copy(), np.ones(len(geom.ofs), dtype=float))
         else:
             geom_ = geom
             # Does not seem to work without the 'copy'
-        sc_job = us.scarfjob()
-        sc_job.set_geometry(geom_)
-        sc_job.set_triangular_alm_info(lmax_marg, lmax_marg)
-        sc_job.set_nthreads(sht_threads)
+        self.geom_ = geom_
+        self.sht_threads = sht_threads
+        self.npix = self.geom_.npix()
 
-        self.sc_job = sc_job
-        self.npix = us.Geom.npix(sc_job.geom)
         self.lib_dir = None
         if _lib_dir is not None and lmax_marg > 10: #just to avoid problems if user does not understand what is doing...
             if not os.path.exists(_lib_dir):
@@ -96,7 +91,7 @@ class template_tfilt(object):
             self.lib_dir = _lib_dir
 
     def hashdict(self):
-        return {'lmax':self.lmax, 'geom':us.Geom.hashdict(self.sc_job.geom)}
+        return {'lmax':self.lmax}
 
     @staticmethod
     def get_nmodes(lmax):
@@ -132,8 +127,8 @@ class template_tfilt(object):
         assert tmap.size == self.npix, (self.npix, tmap.size)
         tlm = self._rlm2blm(coeffs)
         this_lmax = Alm.getlmax(tlm.size, -1)
-        self.sc_job.set_triangular_alm_info(this_lmax, this_lmax)
-        tmap *= self.sc_job.alm2map(tlm)
+        self.geom_.set_triangular_alm_info(this_lmax, this_lmax)
+        tmap *= self.geom_.alm2map(tlm)
 
     def accum(self, tmap, coeffs):
         """Forward template operation
@@ -145,8 +140,8 @@ class template_tfilt(object):
         assert (len(coeffs) <= self.nmodes)
         tlm = self._rlm2blm(coeffs)
         this_lmax = Alm.getlmax(tlm.size, -1)
-        self.sc_job.set_triangular_alm_info(this_lmax, this_lmax)
-        tmap += self.sc_job.alm2map(tlm)
+        self.geom_.set_triangular_alm_info(this_lmax, this_lmax)
+        tmap += self.geom_.alm2map(tlm)
 
     def dot(self, tmap):
         """Backward template operation.
@@ -156,8 +151,8 @@ class template_tfilt(object):
 
         """
         assert tmap.size == self.npix
-        self.sc_job.set_triangular_alm_info(self.lmax, self.lmax)
-        tlm = self.sc_job.map2alm(tmap)
+        self.geom_.set_triangular_alm_info(self.lmax, self.lmax)
+        tlm = self.geom_.map2alm(tmap)
         return self._blm2rlm(tlm) # Units weight transform
 
     def build_tnit(self, NiT):
@@ -205,14 +200,14 @@ class template_tfilt(object):
 
 
 class template_dense(template_tfilt):
-    def __init__(self, lmax_marg:int, geom:scarf.Geometry, sht_threads:int, _lib_dir=None, rescal=1.):
+    def __init__(self, lmax_marg:int, geom:utils_geom.Geom, sht_threads:int, _lib_dir=None, rescal=1.):
         """Dense harmonic mode template projection matrix instance
 
             Typically used with a precomputed matrix
 
             Args:
                 lmax_marg: maximum projected multipole (inclusive)
-                geom: scarf geometry of the data maps
+                geom: lenspyx geometry of the data maps
                 sht_threads: number of threads per SHT
                 _lib_dir(optional): the instance will look for a matrix cached there if set
                 rescal(optional): rescales the matrix by this factor. Useful if the original matrix was calculated using
@@ -226,7 +221,7 @@ class template_dense(template_tfilt):
         self._tniti = None # will load this when needed
 
     def hashdict(self):
-        return {'lmax':self.lmax, 'geom':us.Geom.hashdict(self.sc_job.geom),  'rescal':self.rescal}
+        return {'lmax':self.lmax,  'rescal':self.rescal}
 
     def tniti(self):
         if self._tniti is None:

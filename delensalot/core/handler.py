@@ -389,7 +389,7 @@ class QE_lr(Basejob):
             if task == 'calc_blt':
                 for simidx in self.simidxs:
                     ## TODO this filename must match the one created in get_template_blm()... refactor..
-                    fn_blt = os.path.join(self.libdir_QE, 'BLT/blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lmax_blt) + 'perturbative' * self.blt_pert + '.npy')
+                    fn_blt = os.path.join(self.libdir_QE, 'BLT/blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
                     if not os.path.isfile(fn_blt) or recalc:
                         _jobs.append(simidx)
 
@@ -784,7 +784,7 @@ class Map_delenser(Basejob):
     def get_maps(self, simidx):
         # TODO using self.ttebl['e'] for now, as this doesn't have the low-ell cut, in general should use an uncut-transferfunction?
         # TODO blm_L is configuration dependent. Best case is that sims module provides `get_sim_blm()`, then we can leave this here as is.
-        blm_L = hp.almxfl(alm_copy(self.sims.get_sim_blm(simidx, ret=True), self._sims.lmax, self.lmax_blt, self.lmax_blt), self.ttebl['e'])
+        blm_L = hp.almxfl(alm_copy(self.sims.get_sim_blm(simidx, ret=True), self._sims.lmax, *self.lm_max_blt), self.ttebl['e'])
         bmap_L = hp.alm2map(blm_L, self.sims_nside)
 
         blt_QE1, blt_QE2 = self._build_BLT_QE(simidx)

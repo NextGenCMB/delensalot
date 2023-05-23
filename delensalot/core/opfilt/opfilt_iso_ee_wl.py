@@ -1,4 +1,4 @@
-"""Scarf-geometry based inverse-variance filters, inclusive of CMB lensing remapping
+"""Lenspyx-geometry based inverse-variance filters, inclusive of CMB lensing remapping
 
     This module collects filter instances working on idealized skies with homogeneous or colored noise spectra
 
@@ -32,7 +32,7 @@ def _extend_cl(cl, lmax):
     ret[:min(len(cl), lmax+1)]= np.copy(cl[:min(len(cl), lmax+1)])
     return ret
 
-class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
+class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
     def __init__(self, nlev_p:float or np.ndarray, ffi:remapping.deflection, transf:np.ndarray, unlalm_info:tuple, lenalm_info:tuple,
                  transf_b:None or np.ndarray=None, nlev_b:None or float or np.ndarray=None, wee=True, verbose=False):
         r"""Version of alm_filter_ninv_wl for full-sky maps filtered with homogeneous noise levels
@@ -151,7 +151,7 @@ class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
                 eblm_dat: input polarization maps (geom must match that of the filter)
                 elm_wf: Wiener-filtered CMB maps (alm arrays)
                 alm_wf_leg2: Wiener-filtered CMB maps of gradient leg, if different from ivf leg (alm arrays)
-                q_pbgeom: scarf pbounded-geometry of for the position-space mutliplication of the legs
+                q_pbgeom: lenspyx pbounded-geometry of for the position-space mutliplication of the legs
 
             All implementation signs are super-weird but end result should be correct...
 
@@ -290,7 +290,7 @@ class pre_op_diag:
         return almxfl(elm, self.flmat, self.mmax, False)
 
 
-def calc_prep(eblm:np.ndarray, s_cls:dict, ninv_filt:alm_filter_nlev_wl):
+def calc_prep(eblm:np.ndarray, s_cls:dict, ninv_filt:alm_filter_nlev_wl, sht_threads:int=4):
     """cg-inversion pre-operation
 
         This performs :math:`D_\phi^t B^t N^{-1} X^{\rm dat}`
@@ -307,6 +307,6 @@ def calc_prep(eblm:np.ndarray, s_cls:dict, ninv_filt:alm_filter_nlev_wl):
     eblmc = np.copy(eblm)
     almxfl(eblmc[0], ninv_filt.inoise_1_elm, ninv_filt.mmax_len, True)
     almxfl(eblmc[1], ninv_filt.inoise_1_blm, ninv_filt.mmax_len, True)
-    elm, blm = ninv_filt.ffi.lensgclm(eblmc, ninv_filt.mmax_len, 2, ninv_filt.lmax_sol,ninv_filt.mmax_sol, backwards=True)
+    elm, blm = ninv_filt.ffi.lensgclm(eblmc, ninv_filt.mmax_len, 2, ninv_filt.lmax_sol, ninv_filt.mmax_sol, sht_threads, backwards=True)
     almxfl(elm, s_cls['ee'] > 0., ninv_filt.mmax_sol, True)
     return elm

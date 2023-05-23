@@ -16,9 +16,10 @@ import numpy as np
 import healpy as hp
 
 from lenspyx.remapping import deflection
+from lenspyx.remapping import utils_geom
 
 from delensalot.utils import read_map
-from delensalot.core.helper import utils_scarf
+
 from delensalot.core.iterator import cs_iterator, cs_iterator_fast
 from delensalot.core.iterator import cs_iterator, cs_iterator_fast
 from delensalot.core.opfilt.opfilt_ee_wl import alm_filter_ninv_wl
@@ -69,12 +70,9 @@ class base_iterator():
         # TODO change naming convention. Should align with map/alm params for ivfs and simdata
         if self.it_filter_directional == 'isotropic':
             # dat maps must now be given in harmonic space in this idealized configuration
-            sht_job = utils_scarf.scarfjob()
-            ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(self.sims_nside, zbounds=self.zbounds)
-            sht_job.set_geometry(ninvjob_geometry)
-            sht_job.set_triangular_alm_info(*self.lm_max_ivf)
-            sht_job.set_nthreads(self.tr)
-            return np.array(sht_job.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2))
+            job = utils_geom.Geom.get_healpix_geometry(self.sims_nside)
+            job = job.restrict(*self.zbounds, northsouth_sym=True)
+            return np.array(job.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2, *self.lm_max_ivf, nthreads=self.tr))
         else:
             return np.array(self.sims_MAP.get_sim_pmap(int(self.simidx)))
         
@@ -86,8 +84,7 @@ class base_iterator():
             wee = self.k == 'p_p' # keeps or not the EE-like terms in the generalized QEs
             ninv = [self.sims_MAP.ztruncify(read_map(ni)) for ni in self.ninvp_desc] # inverse pixel noise map on consistent geometry
 
-            ## TODO use old scarf geom for now, but switch to lenspyx soon. filter currently does not support lenspyx geom, as no `scarfjob` objects exist anymore
-            ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(self.sims_nside, zbounds=self.zbounds)
+            ninvjob_geometry = utils_geom.Geom.get_healpix_geometry(self.sims_nside, zbounds=self.zbounds)
             filter = alm_filter_ninv_wl(ninvjob_geometry, ninv, self.ffi, self.ttebl['e'], self.lm_max_unl, self.lm_max_ivf, self.tr, self.tpl,
                                                     wee=wee, lmin_dotop=min(self.lmin_teb[1], self.lmin_teb[2]), transf_blm=self.ttebl['b'])
             self.k_geom = filter.ffi.geom # Customizable Geometry for position-space operations in calculations of the iterated QEs etc
@@ -187,12 +184,9 @@ class iterator_fastWF(base_iterator):
         # self.sims_MAP = self._sims
 
         # dat maps must now be given in harmonic space in this idealized configuration
-        sht_job = utils_scarf.scarfjob()
-        ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(self.sims_nside, zbounds=self.zbounds)
-        sht_job.set_geometry(ninvjob_geometry)
-        sht_job.set_triangular_alm_info(*self.lm_max_ivf)
-        sht_job.set_nthreads(self.tr)
-        return np.array(sht_job.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2))
+        job = utils_geom.Geom.get_healpix_geometry(self.sims_nside)
+        job = job.restrict(*self.zbounds, northsouth_sym=True)
+        return np.array(job.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2, *self.lm_max_ivf, nthreads=self.tr))
         
 
     @log_on_start(logging.INFO, "get_filter() started")

@@ -1,7 +1,12 @@
 """Helper function to get often used noise level and beam of CMB experiments"""
 
 import numpy as np 
-from delensalot.core.helper import utils_scarf as us
+try:
+    import scarf
+    from delensalot.core.helper import utils_scarf as us
+except:
+    print("Couldn't find scarf installation")
+
 
 def get_config(exp):
     """Returns noise levels, beam size and multipole cuts for some configurations

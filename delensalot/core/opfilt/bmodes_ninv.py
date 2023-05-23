@@ -5,7 +5,6 @@
 import os, sys
 import numpy as np
 import healpy as hp
-import scarf
 
 import logging
 log = logging.getLogger(__name__)
@@ -15,11 +14,8 @@ from plancklens import utils
 from delensalot.core import mpi
 from plancklens.qcinv import opfilt_pp
 
-from lenspyx.remapping import utils_geom as lug
-
-from delensalot.core.helper import utils_scarf as us
+from lenspyx.remapping import utils_geom
 from delensalot.utility.utils_hp import Alm
-# from delensalot.core import healpix_hack as hph
 
 from delensalot.utils import enumerate_progress, read_map
 
@@ -76,14 +72,14 @@ def alm2rlm(alm):
 
 
 class template_bfilt(object):
-    def __init__(self, lmax_marg:int, geom:scarf.Geometry, sht_threads:int, _lib_dir=None):
+    def __init__(self, lmax_marg:int, geom:utils_geom.Geom, sht_threads:int, _lib_dir=None):
         """
         Class for building tniti matrix.
         Here all B-modes up to lmax are set to infinite noise
 
             Args:
                 lmax_marg: all B-mulitpoles up to and inclusive of lmax are marginalized
-                geom: scarf geometry of SHTs
+                geom: lenspyx geometry of SHTs
                 sht_threads: number of OMP threads for SHTs
                 _lib_dir: some stuff might be cached there in some cases
 
@@ -94,28 +90,30 @@ class template_bfilt(object):
         self.nmodes = int((lmax_marg + 1) * lmax_marg + lmax_marg + 1 - 4)
         if not np.all(geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
             log.info('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
-            nr = geom.get_nrings()
-            geom_ = us.Geometry(nr, geom.nph.copy(), geom.ofs.copy(), 1, geom.phi0.copy(), geom.theta.copy(), np.ones(nr, dtype=float))
+            # old signature: "nrings"_a, "nph"_a, "ofs"_a, "stride"_a, "phi0"_a, "theta"_a, "wgt"_a
+            # nr = geom.get_nrings()
+            # old geom: geom_ = us.Geometry(nr, geom.nph.copy(), geom.ofs.copy(), 1, geom.phi0.copy(), geom.theta.copy(), np.ones(nr, dtype=float))
+            # new signature: (self, thet:, phi0, nphi, ringstart, w)
+            # new geom_
+            geom_ = utils_geom.Geom(geom.theta.copy(), geom.phi0.copy(), geom.nph.copy(), geom.ofs.copy(), np.ones(len(geom.ofs), dtype=float))
         else:
             geom_ = geom
             # Does not seem to work without the 'copy'
-        sc_job = us.scarfjob()
-        sc_job.set_geometry(geom_)
-        sc_job.set_triangular_alm_info(lmax_marg, lmax_marg)
-        sc_job.set_nthreads(sht_threads)
+        self.geom = geom_
+        self.npix = geom_.npix()
 
-        self.sc_job = sc_job
-        self.npix = us.Geom.npix(sc_job.geom)
         self.lib_dir = None
         if _lib_dir is not None and lmax_marg > 10: #just to avoid problems if user does not understand what is doing...
             if not os.path.exists(_lib_dir):
                 os.makedirs(_lib_dir)
             self.lib_dir = _lib_dir
 
+        sht_threads = sht_threads
+
 
     def hashdict(self):
 
-        return {'lmax':self.lmax, 'geom':us.Geom.hashdict(self.sc_job.geom)}
+        return {'lmax':self.lmax,}
 
 
     @staticmethod
@@ -165,9 +163,9 @@ class template_bfilt(object):
         assert qumap[1].size == self.npix, (self.npix, qumap[1].size)
         blm = self._rlm2blm(coeffs)
         elm = np.zeros_like(blm)
+
         this_lmax = Alm.getlmax(blm.size, -1)
-        self.sc_job.set_triangular_alm_info(this_lmax, this_lmax)
-        q, u = self.sc_job.alm2map_spin([elm, blm], 2)
+        q, u = self.geom.alm2map_spin([elm, blm], 2, this_lmax, this_lmax. self.sht_threads)
         qumap[0] *= q
         qumap[1] *= u
 
@@ -183,8 +181,7 @@ class template_bfilt(object):
         blm = self._rlm2blm(coeffs)
         elm = np.zeros_like(blm)
         this_lmax = Alm.getlmax(blm.size, -1)
-        self.sc_job.set_triangular_alm_info(this_lmax, this_lmax)
-        q, u = self.sc_job.alm2map_spin([elm, blm], 2)
+        q, u = self.geom.alm2map_spin([elm, blm], 2, this_lmax, this_lmax, self.sht_threads)
         qumap[0] += q
         qumap[1] += u
 
@@ -199,8 +196,7 @@ class template_bfilt(object):
         
         assert len(qumap) == 2
         assert qumap[0].size == self.npix and qumap[1].size == self.npix, ' '.join([str(qumap[1].shape), str(self.npix)])
-        self.sc_job.set_triangular_alm_info(self.lmax, self.lmax)
-        blm = self.sc_job.map2alm_spin(qumap, 2)[1]
+        blm = self.geom.map2alm_spin(qumap, 2, self.lmax, self.lmax, self.sht_threads)[1]
 
         return self._blm2rlm(blm) # Units weight transform
 
@@ -271,14 +267,14 @@ class template_dense(template_bfilt):
     """
     Class for loading existing tniti matrix. Cannot be used for building it.
     """
-    def __init__(self, lmax_marg:int, geom:scarf.Geometry, sht_threads:int, _lib_dir=None, rescal=1.):
+    def __init__(self, lmax_marg:int, geom:utils_geom.Geom, sht_threads:int, _lib_dir=None, rescal=1.):
         assert os.path.exists(os.path.join(_lib_dir, 'tniti.npy')), os.path.join(_lib_dir, 'tniti.npy')
         super().__init__(lmax_marg, geom, sht_threads, _lib_dir=_lib_dir)
         self.rescal = rescal
         self._tniti = None # will load this when needed
 
     def hashdict(self):
-        return {'lmax':self.lmax, 'geom':us.Geom.hashdict(self.sc_job.geom),  'rescal':self.rescal}
+        return {'lmax':self.lmax, 'rescal':self.rescal}
 
     def tniti(self):
         if self._tniti is None:

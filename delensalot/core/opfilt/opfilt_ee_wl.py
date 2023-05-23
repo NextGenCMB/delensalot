@@ -1,4 +1,4 @@
-"""Scarf-geometry based inverse-variance filters, inclusive of CMB lensing remapping
+"""Lenspyx-geometry based inverse-variance filters, inclusive of CMB lensing remapping
 
 
 """
@@ -11,7 +11,6 @@ import numpy as np
 from delensalot.utility.utils_hp import almxfl, Alm, alm2cl, synalm, default_rng
 from delensalot.utils import clhash, cli, read_map
 from lenspyx.remapping import utils_geom
-from delensalot.core.helper import utils_scarf
 from lenspyx import remapping
 from delensalot.core.opfilt import opfilt_pp, opfilt_base, bmodes_ninv as bni
 from scipy.interpolate import UnivariateSpline as spl
@@ -21,20 +20,20 @@ apply_fini = opfilt_pp.apply_fini
 pre_op_dense = None # not implemented
 
 
-class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
+class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
     def __init__(self, ninv_geom:utils_geom.Geom, ninv:list, ffi:remapping.deflection, transf:np.ndarray,
                  unlalm_info:tuple, lenalm_info:tuple, sht_threads:int,tpl:bni.template_dense or None,
                  transf_blm:np.ndarray or None=None, verbose=False, lmin_dotop=0, wee=True):
         r"""CMB inverse-variance and Wiener filtering instance, using unlensed E and lensing deflection
 
             Args:
-                ninv_geom: scarf geometry for the inverse-pixel-noise variance SHTs
+                ninv_geom: lenspyx geometry for the inverse-pixel-noise variance SHTs
                 ninv: list of inverse-pixel noise variance maps (either 1 (QQ=UU) or 3  (QQ UU and QU noise) arrays of the right size)
                 ffi: remapping.deflection instance that performs the forward and backward lensing
                 transf: E-CMB transfer function
                 unlalm_info: tuple of int, lmax and mmax of unlensed CMB
                 lenalm_info: tuple of int, lmax and mmax of lensed CMB
-                sht_threads: number of threads for scarf SHTs
+                sht_threads: number of threads for lenspyx SHTs
                 verbose: some printout if set, defaults to False
                 wee: includes the EE-like term in the generalized QE
                 transf_blm: B-CMB transfer function (if different from E)
@@ -57,20 +56,20 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         self.wee = wee
 
 
-        sc_job = utils_scarf.scarfjob()
+        
         if not np.all(ninv_geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
             log.info('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
             nr = ninv_geom.get_nrings()
-            ninv_geom_ = utils_scarf.Geometry(nr, ninv_geom.nph.copy(), ninv_geom.ofs.copy(), 1, ninv_geom.phi0.copy(), ninv_geom.theta.copy(), np.ones(nr, dtype=float))
+            geom_ = utils_geom.Geom(nr, ninv_geom.nph.copy(), ninv_geom.ofs.copy(), 1, ninv_geom.phi0.copy(), ninv_geom.theta.copy(), np.ones(nr, dtype=float))
             # Does not seem to work without the 'copy'
         else:
-            ninv_geom_ = ninv_geom
-        assert np.all(ninv_geom_.weight == 1.)
-        sc_job.set_geometry(ninv_geom_)
-        sc_job.set_nthreads(sht_threads)
-        sc_job.set_triangular_alm_info(lmax_len, mmax_len)
+            geom_ = ninv_geom
+        assert np.all(geom_.weight == 1.)
+        self.sht_threads = sht_threads
+
+
         self.ninv_geom = ninv_geom
-        self.sc_job = sc_job
+        self.geom_ = geom_
 
         self.verbose=verbose
 
@@ -81,7 +80,6 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
 
     def hashdict(self):
         return {'ninv':self._ninv_hash(), 'transfe':clhash(self.b_transf_elm),'transfb':clhash(self.b_transf_blm),
-                'geom':utils_geom.Geom.hashdict(self.sc_job.geom),
                 'deflection':self.ffi.hashdict(),
                 'unalm':(self.lmax_sol, self.mmax_sol), 'lenalm':(self.lmax_len, self.mmax_len) }
 
@@ -160,14 +158,14 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         almxfl(eblm[1], self.b_transf_blm, self.mmax_len, inplace=True)
         tim.add('transf')
 
-        qumap = self.sc_job.alm2map_spin(eblm, 2)
-        tim.add('alm2map_spin lmax %s mmax %s nrings %s'%(self.lmax_len, self.mmax_len, self.sc_job.geom.get_nrings()))
+        qumap = self.geom_.alm2map_spin(eblm, 2, self.lmax_len, self.mmax_len, self.sht_threads)
+        tim.add('alm2map_spin lmax %s mmax %s nrings %s'%(self.lmax_len, self.mmax_len, len(self.geom_.ofs)))
 
         self.apply_map(qumap)  # applies N^{-1}
         tim.add('apply ninv')
 
-        eblm = self.sc_job.map2alm_spin(qumap, 2)
-        tim.add('map2alm_spin lmax %s mmax %s nrings %s'%(self.lmax_len, self.mmax_len, self.sc_job.geom.get_nrings()))
+        eblm = self.geom_.map2alm_spin(qumap, 2, self.lmax_len, self.mmax_len, self.sht_threads)
+        tim.add('map2alm_spin lmax %s mmax %s nrings %s'%(self.lmax_len, self.mmax_len, len(self.geom_.ofs)))
 
         # The map2alm is here a sum rather than integral, so geom.weights are assumed to be unity
         almxfl(eblm[0], self.b_transf_elm, self.mmax_len, inplace=True)
@@ -195,7 +193,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         eblm = self.ffi.lensgclm(np.array([elm, elm * 0]), self.mmax_sol, 2, self.lmax_len, self.mmax_len)
         almxfl(eblm[0], self.b_transf_elm, self.mmax_len, True)
         almxfl(eblm[1], self.b_transf_blm, self.mmax_len, True)
-        # cant use here sc_job since it is using the unit weight transforms
+        # cant use here geom_ since it is using the unit weight transforms
         QU = self.ninv_geom.alm2map_spin(eblm, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
         del eblm # Adding noise
         if len(self.n_inv) == 1: # QQ = UU
@@ -215,7 +213,7 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
                 qudat: input polarization maps (geom must match that of the filter)
                 elm_wf: Wiener-filtered CMB maps (alm arrays)
                 alm_wf_leg2: gradient leg Winer filtered CMB, if different from ivf leg
-                q_pbgeom: scarf pbounded-geometry of for the position-space mutliplication of the legs
+                q_pbgeom: lenspyx pbounded-geometry of for the position-space mutliplication of the legs
 
             Note: all implementation signs are super-weird but end result correct...
         """
@@ -316,14 +314,14 @@ class alm_filter_ninv_wl(opfilt_base.scarf_alm_filter_wl):
         """
 
         assert len(qudat) == 2 and len(ebwf) == 2
-        assert np.all(self.sc_job.geom.weight == 1.) # sum rather than integrals
+        assert np.all(self.geom_.weight == 1.) # sum rather than integrals
 
         ebwf = self.ffi.lensgclm(np.array(ebwf), self.mmax_sol, 2, self.lmax_len, self.mmax_len)
         almxfl(ebwf[0], self.b_transf_elm, self.mmax_len, True)
         almxfl(ebwf[1], self.b_transf_blm, self.mmax_len, True)
-        qu = qudat - self.sc_job.alm2map_spin(ebwf, 2)
+        qu = qudat - self.geom_.alm2map_spin(ebwf, 2, self.lmax_len, self.mmax_len, self.sht_threads)
         self.apply_map(qu)
-        ebwf = self.sc_job.map2alm_spin(qu, 2)
+        ebwf = self.geom_.map2alm_spin(qu, 2, self.lmax_len, self.mmax_len, self.sht_threads)
         almxfl(ebwf[0], self.b_transf_elm * 0.5 * self.wee, self.mmax_len, True)  # Factor of 1/2 because of \dagger rather than ^{-1}
         almxfl(ebwf[1], self.b_transf_blm * 0.5, self.mmax_len, True)
         return q_pbgeom.geom.alm2map_spin(ebwf, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
@@ -355,7 +353,7 @@ class pre_op_diag:
         assert Alm.getsize(self.lmax, self.mmax) == elm.size, (self.lmax, self.mmax, Alm.getlmax(elm.size, self.mmax))
         return almxfl(elm, self.flmat, self.mmax, False)
 
-def calc_prep(qumaps:np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv_wl):
+def calc_prep(qumaps:np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv_wl, sht_threads:int=4):
     """cg-inversion pre-operation  (D^t B^t N^{-1} X^{dat})
 
         Args:
@@ -366,10 +364,10 @@ def calc_prep(qumaps:np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv_wl):
 
     """
     assert isinstance(qumaps, np.ndarray)
-    assert np.all(ninv_filt.sc_job.geom.weight==1.) # Sum rather than integral, hence requires unit weights
+    assert np.all(ninv_filt.geom_.weight==1.) # Sum rather than integral, hence requires unit weights
     qumap = np.copy(qumaps)
     ninv_filt.apply_map(qumap)
-    eblm = ninv_filt.sc_job.map2alm_spin(qumap, 2)
+    eblm = ninv_filt.geom_.map2alm_spin(np.array(qumaps), 2, ninv_filt.lmax_sol, ninv_filt.mmax_sol, sht_threads)
     almxfl(eblm[0], ninv_filt.b_transf_elm, ninv_filt.mmax_len, True)
     almxfl(eblm[1], ninv_filt.b_transf_blm, ninv_filt.mmax_len, True)
     elm, blm = ninv_filt.ffi.lensgclm(eblm, ninv_filt.mmax_len, 2, ninv_filt.lmax_sol, ninv_filt.mmax_sol, backwards=True)

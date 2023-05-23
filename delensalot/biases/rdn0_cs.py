@@ -7,11 +7,17 @@ python rdn0_cs.py -par cmbs4wide_idealized -k p_p -datidx 0
 
 """
 
+try:
+    import scarf
+    from delensalot.core.helper.utils_scarf import pbdGeometry, pbounds, scarfjob
+except:
+    print("Couldn't find scarf installation")
+
 import numpy as np, os
 import delensalot
 from delensalot.core.iterator import cs_iterator
 from delensalot.core import cachers
-from delensalot.core.helper.utils_scarf import pbdGeometry, pbounds, scarfjob
+
 from plancklens.qcinv import multigrid
 from plancklens.utils import stats, cli, mchash
 from plancklens.sims import planck2018_sims
