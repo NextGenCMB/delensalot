@@ -21,7 +21,6 @@ from lenspyx.remapping import utils_geom
 from delensalot.utils import read_map
 
 from delensalot.core.iterator import cs_iterator, cs_iterator_fast
-from delensalot.core.iterator import cs_iterator, cs_iterator_fast
 from delensalot.core.opfilt.opfilt_ee_wl import alm_filter_ninv_wl
 from delensalot.core.opfilt.opfilt_iso_ee_wl import alm_filter_nlev_wl
 
@@ -55,7 +54,8 @@ class base_iterator():
         else:
             self.mf0 = np.zeros(shape=hp.Alm.getsize(self.lm_max_qlm[0]))
         self.plm0 = self.qe.get_plm(self.simidx, self.QE_subtract_meanfield)
-        self.ffi = deflection(self.lenjob_geometry, np.zeros_like(self.plm0), self.lm_max_qlm[1], numthreads=self.tr, verbosity=self.verbose)
+        self.ffi = deflection(self.lenjob_geometry, np.zeros_like(self.plm0), self.lm_max_qlm[1],
+                              numthreads=self.tr, verbosity=self.verbose, epsilon=self.epsilon)
         # self.ffi = lenspyx.remapping.deflection.deflection(self.lenjob_pbgeometry, self.lensres, np.zeros_like(self.plm0),
             # self.lm_max_qlm[1], self.tr, self.tr)
         self.filter = self.get_filter()
