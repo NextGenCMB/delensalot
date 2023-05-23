@@ -272,7 +272,8 @@ class l2lensrec_Transformer(l2base_Transformer):
             dl.obd_rescale = od.rescale
             if cf.noisemodel.ninvjob_geometry == 'healpix_geometry':
                 dl.ninvjob_geometry = lug.Geom.get_healpix_geometry(dl.sims_nside)
-                dl.ninvjob_geometry = dl.ninvjob_geometry.restrict(*dl.zbounds, northsouth_sym=True)
+                thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
+                dl.ninvjob_geometry = dl.ninvjob_geometry.restrict(*thtbounds, northsouth_sym=False)
             dl.tpl = template_dense(dl.lmin_teb[2], dl.ninvjob_geometry, dl.tr, _lib_dir=dl.obd_libdir, rescal=dl.obd_rescale)
 
   
@@ -347,10 +348,13 @@ class l2lensrec_Transformer(l2base_Transformer):
                 # TODO for QE, isOBD only works with zbounds=(-1,1). Perhaps missing ztrunc on qumaps
                 # Introduce new geometry for now, until either plancklens supports ztrunc, or ztrunced simlib (not sure if it already does)
                 dl.ninvjob_qe_geometry = lug.Geom.get_healpix_geometry(dl.sims_nside)
-                dl.ninvjob_qe_geometry = dl.ninvjob_qe_geometry.restrict(-1,1, northsouth_sym=True)
+                thtbounds = (np.arccos(1), np.arccos(-1))
+                dl.ninvjob_qe_geometry = dl.ninvjob_qe_geometry.restrict(*thtbounds, northsouth_sym=False)
             elif qe.ninvjob_qe_geometry == 'healpix_geometry':
                 dl.ninvjob_qe_geometry = lug.Geom.get_healpix_geometry(dl.sims_nside)
-                dl.ninvjob_qe_geometry = dl.ninvjob_qe_geometry.restrict(*dl.zbounds, northsouth_sym=True)
+                thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
+                dl.ninvjob_qe_geometry = dl.ninvjob_qe_geometry.restrict(*thtbounds, northsouth_sym=False)
+
             # cg_tol
             dl.cg_tol = qe.cg_tol
 
@@ -462,7 +466,8 @@ class l2lensrec_Transformer(l2base_Transformer):
             # ninvjob_geometry
             if cf.noisemodel.ninvjob_geometry == 'healpix_geometry':
                 dl.ninvjob_geometry = lug.Geom.get_healpix_geometry(dl.sims_nside)
-                dl.ninvjob_geometry = dl.ninvjob_geometry.restrict(*dl.zbounds, northsouth_sym=True)
+                thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
+                dl.ninvjob_geometry = dl.ninvjob_geometry.restrict(*thtbounds, northsouth_sym=False)
 
 
         return dl
