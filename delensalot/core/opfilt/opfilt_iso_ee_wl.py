@@ -231,7 +231,7 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
 
         """
         assert len(eblm_dat) == 2
-        ebwf = self.ffi.lensgclm(eblm_wf, self.mmax_sol, 2, self.lmax_len, self.mmax_len, backwards=False)
+        ebwf = self.ffi.lensgclm(np.array(eblm_wf), self.mmax_sol, 2, self.lmax_len, self.mmax_len, backwards=False)
         almxfl(ebwf[0], self.transf_elm, self.mmax_len, True)
         almxfl(ebwf[1], self.transf_blm, self.mmax_len, True)
         ebwf[:] = eblm_dat - ebwf
@@ -307,6 +307,6 @@ def calc_prep(eblm:np.ndarray, s_cls:dict, ninv_filt:alm_filter_nlev_wl, sht_thr
     eblmc = np.copy(eblm)
     almxfl(eblmc[0], ninv_filt.inoise_1_elm, ninv_filt.mmax_len, True)
     almxfl(eblmc[1], ninv_filt.inoise_1_blm, ninv_filt.mmax_len, True)
-    elm, blm = ninv_filt.ffi.lensgclm(eblmc, ninv_filt.mmax_len, 2, ninv_filt.lmax_sol, ninv_filt.mmax_sol, sht_threads, backwards=True)
+    elm, blm = ninv_filt.ffi.lensgclm(np.array(eblmc), ninv_filt.mmax_len, 2, ninv_filt.lmax_sol, ninv_filt.mmax_sol, backwards=True)
     almxfl(elm, s_cls['ee'] > 0., ninv_filt.mmax_sol, True)
     return elm

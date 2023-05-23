@@ -347,10 +347,10 @@ class l2lensrec_Transformer(l2base_Transformer):
                 # TODO for QE, isOBD only works with zbounds=(-1,1). Perhaps missing ztrunc on qumaps
                 # Introduce new geometry for now, until either plancklens supports ztrunc, or ztrunced simlib (not sure if it already does)
                 dl.ninvjob_qe_geometry = lug.Geom.get_healpix_geometry(dl.sims_nside)
-                dl.ninvjob_qe_geometry = dl.ninvjob_geometry.restrict(-1,1, northsouth_sym=True)
+                dl.ninvjob_qe_geometry = dl.ninvjob_qe_geometry.restrict(-1,1, northsouth_sym=True)
             elif qe.ninvjob_qe_geometry == 'healpix_geometry':
                 dl.ninvjob_qe_geometry = lug.Geom.get_healpix_geometry(dl.sims_nside)
-                dl.ninvjob_qe_geometry = dl.ninvjob_geometry.restrict(*dl.zbounds, northsouth_sym=True)
+                dl.ninvjob_qe_geometry = dl.ninvjob_qe_geometry.restrict(*dl.zbounds, northsouth_sym=True)
             # cg_tol
             dl.cg_tol = qe.cg_tol
 

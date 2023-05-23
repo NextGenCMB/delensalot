@@ -1,11 +1,13 @@
 """Helper function to get often used noise level and beam of CMB experiments"""
 
 import numpy as np 
+import sys
 try:
     import scarf
     from delensalot.core.helper import utils_scarf as us
 except:
-    print("Couldn't find scarf installation")
+    print("config/cmbexperiment.py: Couldn't find scarf installation")
+    sys.exit()
 
 
 def get_config(exp):
