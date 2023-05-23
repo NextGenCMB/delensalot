@@ -1,9 +1,11 @@
 import numpy as np
 import time
-from delensalot import utils_hp, remapping, cachers
-from delensalot.utils_scarf import pbdGeometry, pbounds, scarfjob, Geom
+from delensalot import remapping
+from delensalot.core import cachers
+from delensalot.utility import utils_hp
+from delensalot.core.helper.utils_scarf import pbdGeometry, pbounds, scarfjob, Geom
 from plancklens.utils import camb_clfile
-from delensalot.utils_remapping import d2ang, ang2d
+from delensalot.core.helper.utils_remapping import d2ang, ang2d
 
 
 def func_fwdangle(red, imd, tht, cost, sint, phis):

@@ -1,6 +1,8 @@
 import numpy as np
-from delensalot import utils_hp, remapping, cachers
-from delensalot.utils_scarf import pbdGeometry, pbounds, scarfjob, Geom
+from delensalot import remapping
+from delensalot.core import cachers
+from delensalot.utility import utils_hp
+from delensalot.core.helper.utils_scarf import pbdGeometry, pbounds, scarfjob, Geom
 from plancklens.utils import camb_clfile
 
 def phase_approx(d:remapping.deflection):

@@ -1,18 +1,17 @@
 #!/usr/bin/env python
 
-"""run.py: Entry point for running D.lensalot
+"""run.py: Entry point for running delensalot
 """
-__author__ = "S. Belkner, J. Carron, L. Legrand"
 
 
 import os, sys
 import logging
 import traceback
 
-from delensalot.lerepi.core import handler
-import delensalot.lerepi.etc.dev_helper as dh
-from delensalot.lerepi.etc.abstract import parserclass
-from delensalot.lerepi.core.parser import lerepi_parser
+import delensalot.config.handler as handler
+import delensalot.config.etc.dev_helper as dh
+from delensalot.config.etc.abstract import parserclass
+from delensalot.config.parser import lerepi_parser
 
 
 datefmt = "%m-%d %H:%M"
@@ -27,10 +26,23 @@ sys_logger.addHandler(ConsoleOutputHandler)
 sys_logger.setLevel(logging.INFO)
 logging.basicConfig(level=logging.INFO, handlers=[ConsoleOutputHandler])
 logging.getLogger("healpy").disabled = True
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
 
 
 class run():
-    def __init__(self, config, job_id='interactive', verbose=True, madel_kwargs={}):
+    """Entry point for the interactive mode
+    """
+    def __init__(self, config_fn, job_id='generate_sim', config_model=None, verbose=True):
+        """Entry point for the interactive mode. This initializes a 'runner'-objects which provides all functionalities to run delensalot analyses
+
+        Args:
+            config_fn (str): The config file for the analysis.
+            job_id (str, optional): Identifier to choose the delensalot job. Valid values are: ['generate_sim', 'build_OBD', 'QE_lensrec', 'MAP_lensrec', 'delens']. Defaults to 'generate_sim'.
+            config_model (DLENSALOT_Model): A delensalot model instance. If not None, this overwrites `config_fn`
+            verbose (bool, optional): If true, sets logging information to DEBUG, otherwise INFO. Defaults to True.
+        """        
+        os.environ['USE_PLANCKLENS_MPI'] = "False"
         if not verbose:
             ConsoleOutputHandler.setLevel(logging.WARNING)
             sys_logger.setLevel(logging.WARNING)
@@ -39,26 +51,36 @@ class run():
             ConsoleOutputHandler.setLevel(logging.INFO)
             sys_logger.setLevel(logging.INFO)
             logging.basicConfig(level=logging.INFO, handlers=[ConsoleOutputHandler])
-        parser = parserclass()
-        parser.resume =  ""
-        parser.config_file = config
-        parser.status = ''
+        self.parser = parserclass()
+        self.parser.resume =  ""
+        self.parser.config_file = config_fn
+        self.parser.status = ''
 
-        lerepi_handler = handler.handler(parser, madel_kwargs)
-        if job_id == 'interactive':
-            ## This is notebook interactive job. (Doesn't appear in config file job list)
-            lerepi_handler.make_interactive_job()
-            job = lerepi_handler.get_jobs()[0]
-            self.job = lerepi_handler.init_job(job[job_id])
-        else:
-            lerepi_handler.collect_jobs(job_id)
-            jobs = lerepi_handler.get_jobs()
-            for jobdict in jobs:
-                if job_id in jobdict:
-                    self.job = lerepi_handler.init_job(jobdict[job_id])
+        self.job_id = job_id
+        self.lerepi_handler = handler.handler(self.parser, config_model)
+        self.lerepi_handler.collect_job(self.job_id)
+        self.model = self._build_model()
+
+
+    def run(self):
+        self.init_job()
+        self.lerepi_handler.run([self.job_id])
+        return self.job
+
+
+    def init_job(self):
+        self.job = self.lerepi_handler.init_job(self.lerepi_handler.jobs[0][self.job_id], self.model)
+        return self.job
+
+
+    def _build_model(self):
+        self.model = self.lerepi_handler.build_model(self.lerepi_handler.jobs[0][self.job_id])
+        return self.model
 
 
 if __name__ == '__main__':
+    """Entry point for the command line
+    """
     lparser = lerepi_parser()
     if lparser.validate():
         parser = lparser.get_parser()

@@ -1,7 +1,11 @@
 import numpy as np
 import pylab as pl
-from delensalot import utils_hp, remapping, cachers, utils_scarf, utils_dlm, utils_remapping
-from delensalot.utils_scarf import pbdGeometry, pbounds, scarfjob, Geom
+from delensalot import remapping, utils_scarf
+from delensalot.core import cachers
+from delensalot.core.helper import utils_remapping
+from delensalot.core.helper import utils_dlm
+from delensalot.utility import utils_hp
+from delensalot.core.helper.utils_scarf import pbdGeometry, pbounds, scarfjob, Geom
 from plancklens.utils import camb_clfile, cli
 from scipy.special import spherical_jn
 

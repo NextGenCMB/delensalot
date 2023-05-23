@@ -4,11 +4,11 @@
 # list see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+
 # -- Path setup --------------------------------------------------------------
 import os, sys
-# sys.path.insert(0, os.path.abspath("./../"))
 
-autodoc_mock_imports = ['plancklens', 'scarf', 'MSC', 'bicubic', 'fortran', 'mpi4py', 'delensalot.fortran']
+autodoc_mock_imports = ['plancklens', 'scarf', 'MSC', 'bicubic', 'mpi4py', 'attr', 'attrs', 'lensitbiases']
 # sys.path.insert(0, os.path.abspath("./../"))
 
 sys.path.insert(0, "./../")
@@ -23,8 +23,8 @@ sys.path.insert(0, "./../")
 
 # -- Project information -----------------------------------------------------
 
-project = 'D.lensalot'
-copyright = '2022, S. Belkner, J. Carron, L. Legrand'
+project = 'delensalot'
+copyright = '2023, S. Belkner, J. Carron, L. Legrand'
 author = 'S. Belkner, J. Carron, L. Legrand'
 
 # The full version, including alpha/beta/rc tags
@@ -38,13 +38,16 @@ release = '1.0'
 # ones.
 
 extensions = [
+    'sphinx_rtd_theme',
     "sphinx.ext.autodoc",
     "sphinx.ext.coverage",
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
     "sphinx.ext.graphviz",
-    'sphinx.ext.mathjax'
+    'sphinx.ext.mathjax',
 ]
+
+html_theme_path = ['/home/belkner/anaconda3/envs/delensalot/lib/python3.11/site-packages/sphinx_rtd_theme',]
 
 html_theme_options = {
     'logo_only': False,
@@ -53,10 +56,10 @@ html_theme_options = {
     'style_external_links': False,
     'vcs_pageview_mode': '',
     # Toc options
-    'collapse_navigation': True,
+    # 'collapse_navigation': True,
     'sticky_navigation': True,
     'navigation_depth': 4,
-    'includehidden': True,
+    # 'includehidden': True,
     'titles_only': True
 }
 

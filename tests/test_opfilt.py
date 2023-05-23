@@ -3,10 +3,11 @@ import os
 from time import time
 import scarf
 from delensalot import remapping
-from delensalot import utils_config, utils_hp, utils, utils_sht, utils_scarf
-from delensalot import cachers
-from delensalot.opfilt import opfilt_ee_wl, opfilt_pp
-from delensalot.utils_scarf import Geom, scarfjob, pbdGeometry, pbounds
+from delensalot import utils_config, utils, utils_sht, utils_scarf
+from delensalot.core import cachers
+from delensalot.utility import utils_hp
+from delensalot.core.opfilt import opfilt_ee_wl, opfilt_pp
+from delensalot.core.helper.utils_scarf import Geom, scarfjob, pbdGeometry, pbounds
 from plancklens.utils import camb_clfile
 from delensalot import qest_wl
 # FIXME: qest_wl part of opfilt

@@ -1,4 +1,4 @@
-![D.lensalot logo](res/dlensalot2.PNG)
+![delensalot logo](res/dlensalot2.PNG)
 # delensalot
 Curved-sky iterative CMB lensing tools
 

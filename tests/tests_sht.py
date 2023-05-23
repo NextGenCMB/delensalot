@@ -5,7 +5,7 @@ import numpy as np
 from time import time
 from ducc0 import sht
 import delensalot
-from delensalot.utils_scarf import scarfjob
+from delensalot.core.helper.utils_scarf import scarfjob
 
 def test_backforth(geom, spin):
     """Tests quadrature accuracy of different pixelization by just going back and forth

@@ -46,22 +46,14 @@ class sims_cmb_len(object):
             offsets_cmbunl: offset unlensed cmb (useful e.g. for MCN1), tuple with block_size and offsets
             dlmax(defaults to 1024): unlensed cmbs are produced up to lmax + dlmax, for accurate lensing at lmax
             nside_lens(defaults to 4096): healpy resolution at which the lensed maps are produced
-            epsilon(defaults to 0): sets the interpolation resolution in lenspyx
+            epsilon(defaults to 1e-5): sets the interpolation resolution in lenspyx
 
             verbose(defaults to True): lenspyx timing info printout
 
     """
     def __init__(self, lib_dir, lmax, cls_unl, lib_pha=None, offsets_plm=None, offsets_cmbunl=None,
-                 dlmax=1024, nside_lens=4096, epsilon=1e-5, verbose=True):
-        first_rank = mpi.bcast(mpi.rank)
-        if first_rank == mpi.rank:
-            if not os.path.exists(lib_dir):
-                os.makedirs(lib_dir)
-            for n in range(mpi.size):
-                if n != mpi.rank:
-                    mpi.send(1, dest=n)
-        else:
-            mpi.receive(None, source=mpi.ANY_SOURCE)
+                 dlmax=1024, nside_lens=4096, epsilon=1e-5, nbands=8, cache_plm=True, verbose=True):
+
         fields = _get_fields(cls_unl)
 
         if lib_pha is None:
@@ -119,27 +111,28 @@ class sims_cmb_len(object):
     def _is_full(self):
         return self.unlcmbs.lib_pha.is_full()
 
-    def get_sim_alm(self, idx, field):
+    def get_sim_alm(self, idx, field, ret=True):
         if field == 't':
-            return self.get_sim_tlm(idx)
+            return self.get_sim_tlm(idx, ret)
         elif field == 'e':
-            return self.get_sim_elm(idx)
+            return self.get_sim_elm(idx, ret)
         elif field == 'b':
-            return self.get_sim_blm(idx)
+            return self.get_sim_blm(idx, ret)
         elif field == 'p':
-            return self.get_sim_plm(idx)
+            return self.get_sim_plm(idx, ret)
         elif field == 'o':
             return self.get_sim_olm(idx)
         else :
-            assert 0,(field,self.fields)
+            assert 0, (field,self.fields)
 
-    def get_sim_plm(self, idx):
+    def get_sim_plm(self, idx, ret=True):
         fn = os.path.join(self.lib_dir, 'plm_in_%04d_lmax%s.fits'%(idx, self.lmax_plm))
-        plm = self.unlcmbs.get_sim_plm(self.offset_index(idx, self.offset_plm[0], self.offset_plm[1]))
         if not os.path.exists(fn):
+            plm = self.unlcmbs.get_sim_plm(self.offset_index(idx, self.offset_plm[0], self.offset_plm[1]))
             if self.cache_plm:
                 hp.write_alm(fn, plm)
-        return plm
+        if ret:
+            return hp.read_alm(fn)
 
     def get_sim_olm(self, idx):
         if 'o' in self.fields:
@@ -171,27 +164,30 @@ class sims_cmb_len(object):
         del elm
         hp.write_alm(os.path.join(self.lib_dir, 'sim_%04d_blm.fits' % idx), blm)
 
-    def get_sim_tlm(self, idx):
+    def get_sim_tlm(self, idx, ret=True):
         fname = os.path.join(self.lib_dir, 'sim_%04d_tlm.fits' % idx)
         if not os.path.exists(fname):
-            tlm= self.unlcmbs.get_sim_tlm(self.offset_index(idx, self.offset_cmb[0], self.offset_cmb[1]))
+            tlm = self.unlcmbs.get_sim_tlm(self.offset_index(idx, self.offset_cmb[0], self.offset_cmb[1]))
             dlm = self.get_sim_plm(idx)
             assert 'o' not in self.fields, 'not implemented'
 
             lmaxd = hp.Alm.getlmax(dlm.size)
             hp.almxfl(dlm, np.sqrt(np.arange(lmaxd + 1, dtype=float) * np.arange(1, lmaxd + 2)), inplace=True)
-            Tlen = self.lens_module.alm2lenmap(np.array(tlm), np.array([dlm, None]), epsilon=self.epsilon, verbose=self.verbose)
+            Tlen = self.lens_module.alm2lenmap(np.array(tlm), [dlm, None], epsilon=self.epsilon, verbose=self.verbose)
             hp.write_alm(fname, hp.map2alm(Tlen, lmax=self.lmax, iter=0))
-        return hp.read_alm(fname)
+        if ret:
+            return hp.read_alm(fname)
 
-    def get_sim_elm(self, idx):
+    def get_sim_elm(self, idx, ret=True):
         fname = os.path.join(self.lib_dir, 'sim_%04d_elm.fits' % idx)
         if not os.path.exists(fname):
             self._cache_eblm(idx)
-        return hp.read_alm(fname)
+        if ret:
+            return hp.read_alm(fname)
 
-    def get_sim_blm(self, idx):
+    def get_sim_blm(self, idx, ret=True):
         fname = os.path.join(self.lib_dir, 'sim_%04d_blm.fits' % idx)
         if not os.path.exists(fname):
             self._cache_eblm(idx)
-        return hp.read_alm(fname)
+        if ret:
+            return hp.read_alm(fname)
