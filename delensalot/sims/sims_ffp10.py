@@ -61,7 +61,7 @@ class cmb_len_ffp10:
         zls, zus = self._mkbands(nbands)
         # By construction the central one covers the equator
         len_geoms = [utils_geom.Geom.get_thingauss_geometry(lmax_thingauss, 2)]
-        len_geoms[0].restrict(zls[nbands//2], zus[nbands//2])
+        # len_geoms[0].restrict(zls[nbands//2], zus[nbands//2])
         for ib in range(nbands//2):
             # and the other ones are symmetric w.r.t. the equator. We merge them to get faster SHTs
             geom_south = utils_geom.Geom.get_thingauss_geometry(lmax_thingauss, 2, zbounds=(zls[ib], zus[ib]))

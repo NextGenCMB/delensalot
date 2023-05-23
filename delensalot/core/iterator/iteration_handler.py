@@ -71,7 +71,7 @@ class base_iterator():
         if self.it_filter_directional == 'isotropic':
             # dat maps must now be given in harmonic space in this idealized configuration
             job = utils_geom.Geom.get_healpix_geometry(self.sims_nside)
-            job = job.restrict(*self.zbounds, northsouth_sym=True)
+            # job = job.restrict(*self.zbounds, northsouth_sym=False)
             return np.array(job.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2, *self.lm_max_ivf, nthreads=self.tr))
         else:
             return np.array(self.sims_MAP.get_sim_pmap(int(self.simidx)))
@@ -185,7 +185,7 @@ class iterator_fastWF(base_iterator):
 
         # dat maps must now be given in harmonic space in this idealized configuration
         job = utils_geom.Geom.get_healpix_geometry(self.sims_nside)
-        job = job.restrict(*self.zbounds, northsouth_sym=True)
+        # job = job.restrict(*self.zbounds, northsouth_sym=False)
         return np.array(job.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2, *self.lm_max_ivf, nthreads=self.tr))
         
 
