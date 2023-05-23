@@ -31,7 +31,7 @@ DL_DEFAULT_CMBS4_FS_T = {
         'beam': 1.,
         'nlev_t': 1.,
         'nlev_p': 1.,
-        'epsilon': 1e-5,
+        'epsilon': 1e-7,
         'nside': 2048,
         'class_parameters': {
             'lmax': 4096,
@@ -167,7 +167,7 @@ DL_DEFAULT_CMBS4_FS_P = {
         'beam': 1.,
         'nlev_t': 1.,
         'nlev_p': 1.,
-        'epsilon': 1e-5,
+        'epsilon': 1e-7,
         'nside': 2048,
         'class_parameters': {
             'lmax': 4096,
@@ -304,7 +304,7 @@ DL_DEFAULT_CMBS4_MS_P = {
         'beam': 1.,
         'nlev_t': 1.,
         'nlev_p': 1.,
-        'epsilon': 1e-5,
+        'epsilon': 1e-7,
         'nside': 2048,
         'class_parameters': {
             'lmax': 4096,
