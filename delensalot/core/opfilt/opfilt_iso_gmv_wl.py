@@ -306,7 +306,7 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
 
 
         """
-        twf = tlm_dat - almxfl(self.ffi.lensgclm(tlm_wf, self.mmax_sol, 0, self.lmax_len, self.mmax_len), self.transf_tlm, self.mmax_len, False)
+        twf = tlm_dat - almxfl(self.ffi.lensgclm(tlm_wf, self.mmax_sol, 0, self.lmax_len, self.mmax_len).squeeze(), self.transf_tlm, self.mmax_len, False)
         almxfl(twf, self.inoise_1_tlm, self.mmax_len, True)
         return q_pbgeom.geom.synthesis(twf, 0, self.lmax_len, self.mmax_len, self.ffi.sht_tr).squeeze()
 
