@@ -32,7 +32,8 @@ def _extend_cl(cl, lmax):
     ret[:min(len(cl), lmax+1)]= np.copy(cl[:min(len(cl), lmax+1)])
     return ret
 
-class alm_filter_nlev_wl(opfilt_base.scarf_alm_filter_wl):
+
+class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
     def __init__(self, nlev_p:float or np.ndarray, ffi:remapping.deflection, transf:np.ndarray, unlalm_info:tuple, lenalm_info:tuple,
                         verbose=False):
         r"""Version of alm_filter_ninv_wl for full-sky maps filtered with homogeneous noise levels
