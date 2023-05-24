@@ -139,7 +139,7 @@ DL_DEFAULT_CMBS4_FS_T = {
         'spectrum_calculator': pospace,
     },
     'computing': {
-        'OMP_NUM_THREADS': int(psutil.cpu_count()/psutil.cpu_count(logical=False))
+        'OMP_NUM_THREADS': int(psutil.cpu_count()) #2*int(psutil.cpu_count()/psutil.cpu_count(logical=False))
     },
     'obd': {
         'libdir': DEFAULT_NotAValue,
@@ -276,7 +276,7 @@ DL_DEFAULT_CMBS4_FS_P = {
         'spectrum_calculator': pospace,
     },
     'computing': {
-        'OMP_NUM_THREADS': int(psutil.cpu_count()/psutil.cpu_count(logical=False))
+        'OMP_NUM_THREADS': int(psutil.cpu_count()) #2*int(psutil.cpu_count()/psutil.cpu_count(logical=False))
     },
     'obd': {
         'libdir': DEFAULT_NotAValue,
@@ -412,7 +412,7 @@ DL_DEFAULT_CMBS4_MS_P = {
         'spectrum_calculator': pospace,
     },
     'computing': {
-        'OMP_NUM_THREADS': int(psutil.cpu_count()/psutil.cpu_count(logical=False))
+        'OMP_NUM_THREADS': int(psutil.cpu_count()) #2*int(psutil.cpu_count()/psutil.cpu_count(logical=False))
     },
     'obd': {
         'libdir': DEFAULT_NotAValue,
@@ -526,7 +526,7 @@ DL_DEFAULT_TEMPLATE  = {
         'outdir_plot_root': DEFAULT_NotValid
     },
     'computing': {
-        'OMP_NUM_THREADS'
+        'OMP_NUM_THREADS': DEFAULT_NotValid,
     },
     'obd': {
         'beam': DEFAULT_NotValid, 
