@@ -9,6 +9,9 @@ Download the project to your computer, navigate to the root folder and execute t
 python setup.py install
 ```
 
+You will need to install `jupyter` for the tutorials found in `first_steps/notebooks/`, and possibly an `ipykernel` to create a jupyter-kernel out of the environment in which you install `delensalot`.
+<!-- TODO: Add explicit instructions -->
+
 
 # Usage
 
@@ -25,6 +28,43 @@ optional arguments:
   -s STATUS             Absolute path for the analysis to write a report.
 
 ```
+
+## The quickest way: map2map_del()
+
+The following shows how to obtain a delensed B map from observed Q and U maps, with just one line of code and five parameters!
+
+First we generate some mock data, which is beamed and contains noise.
+```
+
+import healpy as hp
+import numpy as np
+
+import delensalot
+from delensalot.utility.utils_hp import gauss_beam
+
+noise = np.sqrt(2)
+lmax_sims = 4096
+lmax_cmb = 3000
+nside = 2048
+sims_beam = 1.
+
+transf = gauss_beam(sims_beam/180/60 * np.pi, lmax=lmax_sims)
+elm = hp.almxfl(hp.synalm(delensalot.cls_len['ee'], lmax=lmax_sims), transf)
+blm = hp.almxfl(hp.synalm(delensalot.cls_len['bb'], lmax=lmax_sims), transf)
+skymaps = hp.alm2map_spin([elm, blm], nside=nside, spin=2, lmax=lmax_sims)
+
+noise_cl = cls=np.ones(shape=lmax_sims)*180/60*np.pi*noise
+
+vamin = np.sqrt(hp.nside2pixarea(nside, degrees=True)) * 60
+obsmaps = noise/vamin * np.array([hp.alm2map(hp.synalm(noise_cl),nside=2048)+skymaps[0],hp.alm2map(hp.synalm(noise_cl),nside=2048)+skymaps[1]])
+```
+
+Finally, all we have to do is call `map2map_del()`,
+```
+delensedmap = delensalot.map2map_del(obsmaps, lmax_cmb=lmax_cmb, beam=sims_beam, itmax=5, noise=noise, verbose=True)
+```
+
+
 
 ## Run a configuration file
 
@@ -46,8 +86,7 @@ python3 run.py -s <path-to-config/conf.py>
 
 ## interactive mode
 
-delensalot supports interactive mode. See `delensalot/notebooks/examples/` for guidance.
-
+delensalot supports interactive mode. See `first_steps/notebooks/` for or tutorials.
 
 
 

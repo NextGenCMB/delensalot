@@ -125,7 +125,7 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
         cpp (str):                          path to the power spectrum of the prior for the iterative reconstruction
         beam (float):                       TBD
     """
-    key =                   attr.field(default=DEFAULT_NotASTR, on_setattr=[validators.instance_of(str), analysis.key], type=str)
+    key =                   attr.field(default=DEFAULT_NotAValue, on_setattr=[validators.instance_of(str), analysis.key], type=str)
     version =               attr.field(default=DEFAULT_NotAValue, on_setattr=[validators.instance_of(str), analysis.version], type=str)
     simidxs =               attr.field(default=DEFAULT_NotAValue, on_setattr=data.simidxs)
     simidxs_mf =            attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.simidxs_mf)
@@ -178,6 +178,8 @@ class DLENSALOT_Data(DLENSALOT_Concept):
     nlev_p =                attr.field(default=DEFAULT_NotAValue, on_setattr=data.nlev_p)
     lmax_transf =           attr.field(default=DEFAULT_NotAValue, on_setattr=data.lmax_transf)
     epsilon =               attr.field(default=DEFAULT_NotAValue, on_setattr=data.epsilon)
+    maps =                  attr.field(default=DEFAULT_NotAValue, on_setattr=data.maps)
+    phi =                   attr.field(default=DEFAULT_NotAValue, on_setattr=data.phi)
 
     
 @attr.s

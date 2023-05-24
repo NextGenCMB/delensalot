@@ -60,16 +60,14 @@ class l2base_Transformer:
         if 'fg' in dl.sims_class_parameters:
             dl.fg = dl.sims_class_parameters['fg']
         dl._sims_full_name = '{}.{}'.format(_package, _module)
-        ## get_sim_pmap comes from sims module directly
-        # -> nothing to do here
-        ## sims parameter come from configuration file
         dl.sims_beam = da.beam
         dl.sims_lmax_transf = da.lmax_transf
         dl.sims_nlev_t = da.nlev_t
         dl.sims_nlev_p = da.nlev_p
         dl.sims_nside = da.nside
         dl.epsilon = da.epsilon
-        ## get_sim_pmap comes from plancklens.maps wrapper
+        dl.parameter_maps = da.maps
+        dl.parameter_phi = da.phi
 
 
     @log_on_start(logging.DEBUG, "_process_Analysis() started")
@@ -233,7 +231,6 @@ class l2lensrec_Transformer(l2base_Transformer):
         def _process_Computing(dl, co):
             dl.tr = co.OMP_NUM_THREADS
             os.environ["OMP_NUM_THREADS"] = str(dl.tr)
-            log.info("OMP_NUM_THREADS: {} and {}".format(dl.tr, os.environ.get('OMP_NUM_THREADS')))
 
 
         @log_on_start(logging.DEBUG, "_process_Analysis() started")
