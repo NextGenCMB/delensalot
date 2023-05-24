@@ -24,6 +24,7 @@ dlensalot_model = DLENSALOT_Model(
         key = 'p_p',
         simidxs = np.arange(0,1),
         TEMP_suffix = 'my_first_dlensalot_analysis_fullsky',
+        lm_max_ivf = (3000, 3000),
     ),
     data = DLENSALOT_Data(
         class_parameters = {
