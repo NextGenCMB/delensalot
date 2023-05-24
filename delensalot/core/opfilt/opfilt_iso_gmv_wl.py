@@ -183,8 +183,8 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         assert Alm.getlmax(teblm_dat[0].size, self.mmax_len) == self.lmax_len, (Alm.getlmax(teblm_dat[0].size, self.mmax_len), self.lmax_len)
         assert Alm.getlmax(teblm_dat[1].size, self.mmax_len) == self.lmax_len, (Alm.getlmax(teblm_dat[1].size, self.mmax_len), self.lmax_len)
         assert Alm.getlmax(teblm_dat[2].size, self.mmax_len) == self.lmax_len, (Alm.getlmax(teblm_dat[2].size, self.mmax_len), self.lmax_len)
-        assert Alm.getlmax(telm_wf.size[0], self.mmax_sol) == self.lmax_sol, (Alm.getlmax(telm_wf[0].size, self.mmax_sol), self.lmax_sol)
-        assert Alm.getlmax(telm_wf.size[1], self.mmax_sol) == self.lmax_sol, (Alm.getlmax(telm_wf[1].size, self.mmax_sol), self.lmax_sol)
+        assert Alm.getlmax(telm_wf[0].size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(telm_wf[0].size, self.mmax_sol), self.lmax_sol)
+        assert Alm.getlmax(telm_wf[0].size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(telm_wf[1].size, self.mmax_sol), self.lmax_sol)
 
         tlm_wf, elm_wf = telm_wf
         tlm_dat = teblm_dat[0]
