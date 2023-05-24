@@ -15,7 +15,7 @@ You will need to install `jupyter` for the tutorials found in `first_steps/noteb
 ## Installation troubles
 
 Frequent problems are
- * `attrs`. If there are errors related to the metamodel, make sure you have `attrs` (not `attr`, which is a different package) installed and updated/upgraded.
+ * `attrs`. If there are errors related to the metamodel, make sure you have `attrs` (not `attr`, which is a different package) installed and updated/upgraded (version 23.1.0 should do)
  * ..
 
 # Usage
