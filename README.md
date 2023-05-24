@@ -66,7 +66,7 @@ elm = hp.almxfl(hp.synalm(delensalot.cls_len['ee'], lmax=lmax_sims), transf)
 blm = hp.almxfl(hp.synalm(delensalot.cls_len['bb'], lmax=lmax_sims), transf)
 skymaps = hp.alm2map_spin([elm, blm], nside=nside, spin=2, lmax=lmax_sims)
 
-noise_cl = cls=np.ones(shape=lmax_sims)*180/60*np.pi*noise
+noise_cl = np.sqrt(np.ones(shape=lmax_sims)) * (60 * 180 / np.pi)
 
 vamin = np.sqrt(hp.nside2pixarea(nside, degrees=True)) * 60
 obsmaps = noise/vamin * np.array([hp.alm2map(hp.synalm(noise_cl),nside=2048)+skymaps[0],hp.alm2map(hp.synalm(noise_cl),nside=2048)+skymaps[1]])
