@@ -38,7 +38,7 @@ import delensalot
 delensedmap = delensalot.map2map_del(obsmaps, lmax_cmb=lmax_cmb, beam=beam, itmax=itmax, noise=noise, verbose=True)
 ```
 
-here `obsmaps` is the observed Q and U map you may have... gotten from somewhere. Then all what is left to do is tell delensalot about the maximum \ell (`lmax_cmb`) of your CMB map you'd like to use, the beam (sims_beam) inside the observed maps, how many iterations (itmax) you'd like to perfrom, and the noise level (noise) of the observation.
+here `obsmaps` is the observed Q and U map you may have... gotten from somewhere. Then all what is left to do is tell delensalot about the maximum \ell (`lmax_cmb`) of your CMB map you'd like to use, the beam (`sims_beam`) inside the observed maps, how many iterations (`itmax`) you'd like to perfrom, and the noise level (`noise`) of the observation.
 
 
 The following can help creating some mock data to test it
