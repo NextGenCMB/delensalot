@@ -1,6 +1,6 @@
 """
 Full sky iterative delensing on simulated CMB polarization maps generated on the fly, inclusive of isotropic white noise.
-QE and iterative reconstruction use isotropic filters, deproject B-modes l<200, and reconstruct unlensed CMB up to 4200.
+QE and iterative reconstruction use isotropic filters, deproject B-modes l<200, and reconstruct unlensed CMB up to 3200.
 Parameters not listed here default to 'P_FS_CMBS4'
 """
 
@@ -34,7 +34,7 @@ dlensalot_model = DLENSALOT_Model(
         nlev_t = 1.00,
         nlev_p = np.sqrt(2),
         beam = 1.00,
-        lmax_transf = 4000,
+        lmax_transf = 3000,
         nside = 2048,
     ),
     noisemodel = DLENSALOT_Noisemodel(
@@ -43,18 +43,20 @@ dlensalot_model = DLENSALOT_Model(
     ),
     qerec = DLENSALOT_Qerec(
         tasks = ["calc_phi", "calc_blt"],
-        lm_max_qlm = (4000, 4000)
+        lm_max_qlm = (3000, 3000),
+        cg_tol = 1e-4
     ),
     itrec = DLENSALOT_Itrec(
         tasks = ["calc_phi", "calc_blt"],
-        itmax = 5,
-        lm_max_unl = (4200, 4200),
-        lm_max_qlm = (4000, 4000)
+        itmax = 2,
+        lm_max_unl = (3200, 3200),
+        lm_max_qlm = (3000, 3000),
+        cg_tol = 1e-4
     ),
     madel = DLENSALOT_Mapdelensing(
         data_from_CFS = False,
         edges = lc.cmbs4_edges,
-        iterations = [5],
+        iterations = [2],
         masks_fn = [opj(os.environ['SCRATCH'], 'delensalot/generic/sims_cmb_len_lminB200_my_first_dlensalot_analysis_fullsky/mask.fits')],
         lmax = 1024,
         Cl_fid = 'ffp10',

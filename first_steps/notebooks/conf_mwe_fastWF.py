@@ -1,6 +1,6 @@
 """
 Full sky iterative delensing on simulated CMB polarization maps generated on the fly, inclusive of isotropic white noise.
-QE and iterative reconstruction use isotropic filters, deproject B-modes l<200, and reconstruct unlensed CMB up to 4200. iterative rec uses fastWF
+QE and iterative reconstruction use isotropic filters, deproject B-modes l<200, and reconstruct unlensed CMB up to 4200. iterative rec uses fastWF.
 Parameters not listed here default to 'P_FS_CMBS4'
 """
 

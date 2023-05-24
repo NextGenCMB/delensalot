@@ -34,7 +34,7 @@ dlensalot_model = DLENSALOT_Model(
         nlev_t = 1.00,
         nlev_p = np.sqrt(2),
         beam = 1.00,
-        lmax_transf = 3000,
+        lmax_transf = 5976,
         nside = 2048,
     )
 )

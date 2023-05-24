@@ -1,6 +1,6 @@
 """
 Masked sky iterative delensing on simulated CMB polarization data generated on the fly, inclusive of isotropic white noise.
-Here, delensing is done on two simulation sets.
+Here, delensing is done on one simulation set, the meanfield is calculated from 5 simulations.
 The noise model is isotropic and white, and truncates T,E, and B modes at low multipoles.
 QE and iterative reconstruction uses anisotropic filters. 
 """

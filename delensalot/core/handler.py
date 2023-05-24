@@ -133,16 +133,13 @@ class Basejob():
     def get_blt_it(self, simidx, it):
         # TODO if data on CFS (or elsewhere), I need to redirect this. but how to do it nicely?
         if self.data_from_CFS:
-            fn = self.libdir_blt_MAP_CFS(self.k, simidx, self.version)
+            fn_blt = self.libdir_blt_MAP_CFS(self.k, simidx, self.version)
         else:
             if it == 0:
-                fn = self.libdir_QE(self.k, simidx, self.version)
+                fn_blt = os.path.join(self.libdir_QE, 'BLT/blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
             elif it >0:
-                fn = self.libdir_MAP(self.k, simidx, self.version)
-        if self.blt_pert and it==0:
-            fn += 'perturbative'
-        fn += '.npy'
-        return np.load(fn)
+                fn_blt = os.path.join(self.libdir_MAP_blt, 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, it, it, self.lm_max_blt[0]) + '.npy')
+        return np.load(fn_blt)
     
 
     # @base_exception_handler
@@ -598,7 +595,6 @@ class MAP_lr(Basejob):
                 for simidx in self.simidxs:
                     libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
                     if rec.maxiterdone(libdir_MAPidx) < self.itmax:
-                        log.info('{}<{}'.format(rec.maxiterdone(libdir_MAPidx), self.itmax))
                         _jobs.append(simidx)
 
             ## Calculate realization independent meanfields up to iteration itmax
@@ -798,13 +794,13 @@ class Map_delenser(Basejob):
     def get_maps(self, simidx):
         # TODO using self.ttebl['e'] for now, as this doesn't have the low-ell cut, in general should use an uncut-transferfunction?
         # TODO blm_L is configuration dependent. Best case is that sims module provides `get_sim_blm()`, then we can leave this here as is.
-        blm_L = hp.almxfl(alm_copy(self.sims.get_sim_blm(simidx, ret=True), self._sims.lmax, *self.lm_max_blt), self.ttebl['e'])
+        blm_L = hp.almxfl(alm_copy(self._sims.get_sim_blm(simidx, ret=True), self._sims.lmax, *self.lm_max_blt), self.ttebl['e'])
         bmap_L = hp.alm2map(blm_L, self.sims_nside)
 
         blt_QE1, blt_QE2 = self._build_BLT_QE(simidx)
         blt_MAP1, blt_MAP2 = self._build_BLT_MAP(simidx)
 
-        return (blm_L, bmap_L, blt_QE1, blt_QE2, blt_MAP1, blt_MAP2)
+        return (bmap_L, blt_QE1, blt_QE2, blt_MAP1, blt_MAP2)
     
 
     # @log_on_start(logging.INFO, "_build_basemaps() started")
@@ -819,7 +815,7 @@ class Map_delenser(Basejob):
     # @log_on_start(logging.INFO, "_build_Btemplate_MAP() started")
     # @log_on_end(logging.INFO, "_build_Btemplate_MAP() finished")
     def _build_BLT_MAP(self, simidx):
-        bltlm_MAP = np.array([self.get_blt_it(simidx, it) for it in self.its])
+        bltlm_MAP = np.array([self.get_blt_it(simidx, it) for it in self.its], dtype=complex)
         blt_MAP1 = np.array([hp.alm2map(bltlm_MAP[iti], nside=self.sims_nside) for iti, it in enumerate(self.its)])
         blt_MAP2 = np.copy(blt_MAP1)
 
