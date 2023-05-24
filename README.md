@@ -31,9 +31,17 @@ optional arguments:
 
 ## The quickest way: map2map_del()
 
-The following shows how to obtain a delensed B map from observed Q and U maps, with just one line of code and five parameters!
 
-First we generate some mock data, which is beamed and contains noise.
+The fastest way for you to get a delensed B map is to just import delensalot and run `map2map_del()`:
+```
+import delensalot
+delensedmap = delensalot.map2map_del(obsmaps, lmax_cmb=lmax_cmb, beam=beam, itmax=itmax, noise=noise, verbose=True)
+```
+
+here `obsmaps` is the observed Q and U map you may have... gotten from somewhere. Then all what is left to do is tell delensalot about the maximum \ell (`lmax_cmb`) of your CMB map you'd like to use, the beam (sims_beam) inside the observed maps, how many iterations (itmax) you'd like to perfrom, and the noise level (noise) of the observation.
+
+
+The following can help creating some mock data to test it
 ```
 
 import healpy as hp
@@ -58,12 +66,6 @@ noise_cl = cls=np.ones(shape=lmax_sims)*180/60*np.pi*noise
 vamin = np.sqrt(hp.nside2pixarea(nside, degrees=True)) * 60
 obsmaps = noise/vamin * np.array([hp.alm2map(hp.synalm(noise_cl),nside=2048)+skymaps[0],hp.alm2map(hp.synalm(noise_cl),nside=2048)+skymaps[1]])
 ```
-
-Finally, all we have to do is call `map2map_del()`,
-```
-delensedmap = delensalot.map2map_del(obsmaps, lmax_cmb=lmax_cmb, beam=sims_beam, itmax=5, noise=noise, verbose=True)
-```
-
 
 
 ## Run a configuration file
