@@ -93,6 +93,7 @@ class qlm_iterator(object):
         self.cacher = cachers.cacher_npy(lib_dir)
         self.hess_cacher = cachers.cacher_npy(opj(self.lib_dir, 'hessian'))
         self.wf_cacher = cachers.cacher_npy(opj(self.lib_dir, 'wflms'))
+        self.blt_cacher = cachers.cacher_npy(opj(self.lib_dir, 'BLT/'))
         if logger is None:
             from delensalot.core.iterator import loggers
             logger = loggers.logger_norms(opj(lib_dir, 'history_increment.txt'))
@@ -217,8 +218,8 @@ class qlm_iterator(object):
         fn_blt += '_dlmmod' * dlm_mod.any()
         fn_blt += 'perturbative' * perturbative
         
-        if self.wf_cacher.is_cached(fn_blt):
-            return self.wf_cacher.load(fn_blt)
+        if self.blt_cacher.is_cached(fn_blt):
+            return self.blt_cacher.load(fn_blt)
         if elm_wf is None:
             if it_e > 0:
                 e_fname = 'wflm_%s_it%s' % ('p', it_e - 1)
@@ -252,7 +253,7 @@ class qlm_iterator(object):
             elm, blm = ffi.lensgclm(np.array([elm_wf, np.zeros_like(elm_wf)]), self.mmax_filt, 2, lmaxb, mmaxb)
 
         if cache_cond:
-            self.wf_cacher.cache(fn_blt, blm)
+            self.blt_cacher.cache(fn_blt, blm)
 
         return blm
 
