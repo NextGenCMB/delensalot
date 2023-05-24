@@ -62,6 +62,10 @@ class Basejob():
             libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
             if not os.path.exists(libdir_MAPidx):
                 os.makedirs(libdir_MAPidx)
+
+        self.libdir_MAP_blt = opj(self.TEMP, 'MAP/BLT/')
+        if not os.path.exists(self.libdir_MAP_blt):
+            os.makedirs(self.libdir_MAP_blt)
         
         if 'lib_dir' in self.sims_class_parameters:
             pix_phas = phas.pix_lib_phas(self.sims_class_parameters['lib_dir'], 3, (hp.nside2npix(self.sims_nside),))
@@ -232,24 +236,29 @@ class Sim_generator(Basejob):
 
 
     # @base_exception_handler
-    @log_on_start(logging.INFO, "collect_jobs() started")
-    @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
+    @log_on_start(logging.INFO, "Sim.collect_jobs() started")
+    @log_on_end(logging.INFO, "Sim.collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self):
         ## TODO implement
         jobs = []
         simidxs_ = np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))))
         for simidx in simidxs_:
-            def check(simidx):
-                return True
-            if check(simidx):
+            def isdone(simidx):
+                if self.k in ['ptt', 'mv']:
+                    fields = ['t', 'e', 'b']
+                elif self.k in ['p_p', 'mv', 'p_eb', 'pbe', 'pee', 'pbb', 'peb']:
+                    fields = ['e', 'b']
+                fns_sim = [os.path.join(self.lib_dir, 'sim_%04d_%slm.fits' %(simidx, field)) for field in fields]
+                return np.all([os.path.exists(fn_sim) for fn_sim in fns_sim])
+            if not isdone(simidx):
                 jobs.append(simidx)
 
         self.jobs = jobs
 
 
     # @base_exception_handler
-    @log_on_start(logging.INFO, "run() started")
-    @log_on_end(logging.INFO, "run() finished")
+    @log_on_start(logging.INFO, "Sim.run() started")
+    @log_on_end(logging.INFO, "Sim.run() finished")
     def run(self):
         for simidx in self.jobs[mpi.rank::mpi.size]:
             log.info("rank {} (size {}) generating sim {}".format(mpi.rank, mpi.size, simidx))
@@ -257,8 +266,8 @@ class Sim_generator(Basejob):
             log.info("rank {} (size {}) generated sim {}".format(mpi.rank, mpi.size, simidx))
 
 
-    @log_on_start(logging.INFO, "generate_sim(simidx={simidx}) started")
-    @log_on_end(logging.INFO, "generate_sim(simidx={simidx}) finished")
+    @log_on_start(logging.INFO, "Sim.generate_sim(simidx={simidx}) started")
+    @log_on_end(logging.INFO, "Sim.generate_sim(simidx={simidx}) finished")
     def generate_sim(self, simidx):
         """
         comment for a future me: 
@@ -351,8 +360,8 @@ class QE_lr(Basejob):
 
 
     # @base_exception_handler
-    @log_on_start(logging.INFO, "collect_jobs(qe_tasks={qe_tasks}, recalc={recalc}) started")
-    @log_on_end(logging.INFO, "collect_jobs(qe_tasks={qe_tasks}, recalc={recalc}) finished: jobs={self.jobs}")
+    @log_on_start(logging.INFO, "QE.collect_jobs(qe_tasks={qe_tasks}, recalc={recalc}) started")
+    @log_on_end(logging.INFO, "QE.collect_jobs(qe_tasks={qe_tasks}, recalc={recalc}) finished: jobs={self.jobs}")
     def collect_jobs(self, qe_tasks=None, recalc=False):
 
         self.simgen.collect_jobs()
@@ -383,7 +392,9 @@ class QE_lr(Basejob):
                 ## Skip if meanfield already calculated
                 if not os.path.isfile(fn_mf) or recalc:
                     for simidx in self.simidxs:
-                        _jobs.append(simidx)
+                        fn_qlm = os.path.join(self.qlms_dd.lib_dir, 'sim_%s_%04d.fits'%(self.k, simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
+                        if not os.path.isfile(fn_qlm) or recalc:
+                            _jobs.append(simidx)
 
             ## Calculate B-lensing template
             if task == 'calc_blt':
@@ -397,8 +408,8 @@ class QE_lr(Basejob):
         self.jobs = jobs
 
     # @base_exception_handler
-    @log_on_start(logging.INFO, "run(task={task}) started")
-    @log_on_end(logging.INFO, "run(task={task}) finished")
+    @log_on_start(logging.INFO, "QE.run(task={task}) started")
+    @log_on_end(logging.INFO, "QE.run(task={task}) finished")
     def run(self, task=None):
         ## task may be set from MAP lensrec, as MAP lensrec has prereqs to QE lensrec
         ## if None, then this is a normal QE lensrec call
@@ -436,32 +447,32 @@ class QE_lr(Basejob):
 
 
     # @base_exception_handler
-    @log_on_start(logging.INFO, "get_sim_qlm(simidx={simidx}) started")
-    @log_on_end(logging.INFO, "get_sim_qlm(simidx={simidx}) finished")
+    @log_on_start(logging.INFO, "QE.get_sim_qlm(simidx={simidx}) started")
+    @log_on_end(logging.INFO, "QE.get_sim_qlm(simidx={simidx}) finished")
     def get_sim_qlm(self, simidx):
 
         return self.qlms_dd.get_sim_qlm(self.k, int(simidx))
 
 
     # @base_exception_handler
-    @log_on_start(logging.INFO, "get_wflm(simidx={simidx}) started")
-    @log_on_end(logging.INFO, "get_wflm(simidx={simidx}) finished")    
+    @log_on_start(logging.INFO, "QE.get_wflm(simidx={simidx}) started")
+    @log_on_end(logging.INFO, "QE.get_wflm(simidx={simidx}) finished")    
     def get_wflm(self, simidx):
 
         return lambda: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
 
 
     # @base_exception_handler
-    @log_on_start(logging.INFO, "get_R_unl() started")
-    @log_on_end(logging.INFO, "get_R_unl() finished")    
+    @log_on_start(logging.INFO, "QE.get_R_unl() started")
+    @log_on_end(logging.INFO, "QE.get_R_unl() finished")    
     def get_R_unl(self):
 
         return qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_unl, self.cls_unl, self.fteb_unl, lmax_qlm=self.lm_max_qlm[0])[0]
 
 
     # @base_exception_handler
-    @log_on_start(logging.INFO, "get_meanfield(simidx={simidx}) started")
-    @log_on_end(logging.INFO, "get_meanfield(simidx={simidx}) finished")
+    @log_on_start(logging.INFO, "QE.get_meanfield(simidx={simidx}) started")
+    @log_on_end(logging.INFO, "QE.get_meanfield(simidx={simidx}) finished")
     def get_meanfield(self, simidx):
         ret = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, 0))
         if self.Nmf > 0:
@@ -480,8 +491,8 @@ class QE_lr(Basejob):
         
 
     # @base_exception_handler
-    @log_on_start(logging.INFO, "get_plm(simidx={simidx}, sub_mf={sub_mf}) started")
-    @log_on_end(logging.INFO, "get_plm(simidx={simidx}, sub_mf={sub_mf}) finished")
+    @log_on_start(logging.INFO, "QE.get_plm(simidx={simidx}, sub_mf={sub_mf}) started")
+    @log_on_end(logging.INFO, "QE.get_plm(simidx={simidx}, sub_mf={sub_mf}) finished")
     def get_plm(self, simidx, sub_mf=True):
         # libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
         fn_plm = opj(self.libdir_QE, 'phi_plm_it000.npy')
@@ -501,8 +512,8 @@ class QE_lr(Basejob):
         return np.load(fn_plm)
 
 
-    @log_on_start(logging.INFO, "get_response_meanfield() started")
-    @log_on_end(logging.INFO, "get_response_meanfield() finished")
+    @log_on_start(logging.INFO, "QE.get_response_meanfield() started")
+    @log_on_end(logging.INFO, "QE.get_response_meanfield() finished")
     def get_response_meanfield(self):
         if self.k in ['p_p'] and not 'noRespMF' in self.version:
             mf_resp = qresp.get_mf_resp(self.k, self.cls_unl, {'ee': self.ftebl_len['e'], 'bb': self.ftebl_len['b']}, self.lm_max_ivf[0], self.lm_max_qlm[0])[0]
@@ -513,8 +524,8 @@ class QE_lr(Basejob):
         return mf_resp
 
     # @base_exception_handler
-    @log_on_start(logging.INFO, "get_meanfield_normalized(simidx={simidx}) started")
-    @log_on_end(logging.INFO, "get_meanfield_normalized(simidx={simidx}) finished")
+    @log_on_start(logging.INFO, "QE.get_meanfield_normalized(simidx={simidx}) started")
+    @log_on_end(logging.INFO, "QE.get_meanfield_normalized(simidx={simidx}) finished")
     def get_meanfield_normalized(self, simidx):
         mf_QE = copy.deepcopy(self.get_meanfield(simidx))
         R = qresp.get_response(self.k, self.lm_max_ivf[0], 'p', self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=self.lm_max_qlm[0])[0]
@@ -527,17 +538,21 @@ class QE_lr(Basejob):
 
 
     # @base_exception_handler
-    @log_on_start(logging.INFO, "get_blt({simidx}) started")
-    @log_on_end(logging.INFO, "get_blt({simidx}) finished")
+    @log_on_start(logging.INFO, "QE.get_blt({simidx}) started")
+    @log_on_end(logging.INFO, "QE.get_blt({simidx}) finished")
     def get_blt(self, simidx):
-        # TODO only needed for get_blt(), as this is done by cs_iterator.. move 
-        self.ith = iteration_handler.transformer(self.iterator_typ)
-        itlib = self.ith(self, self.k, simidx, self.version, self.sims_MAP, self.libdir_MAP, self.dlensalot_model)
-        itlib_iterator = itlib.get_iterator()
-        ## For QE, dlm_mod by construction doesn't do anything, because mean-field had already been subtracted from plm and we don't want to repeat that.
-        dlm_mod = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, int(simidx)))
-        
-        return itlib_iterator.get_template_blm(0, 0, lmaxb=self.lm_max_blt[0], lmin_plm=1, dlm_mod=dlm_mod, perturbative=self.blt_pert)
+        # TODO only needed for get_blt(), as this is done by cs_iterator.. move
+        fn_blt = os.path.join(self.libdir_QE, 'BLT/blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
+        if not os.path.exists(fn_blt):
+            self.ith = iteration_handler.transformer(self.iterator_typ)
+            itlib = self.ith(self, self.k, simidx, self.version, self.sims_MAP, self.libdir_MAP, self.dlensalot_model)
+            itlib_iterator = itlib.get_iterator()
+            ## For QE, dlm_mod by construction doesn't do anything, because mean-field had already been subtracted from plm and we don't want to repeat that.
+            dlm_mod = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, int(simidx)))
+            
+            blt = itlib_iterator.get_template_blm(0, 0, lmaxb=self.lm_max_blt[0], lmin_plm=1, dlm_mod=dlm_mod, perturbative=self.blt_pert)
+            np.save(fn_blt, blt)
+        return np.load(fn_blt)
             
 
 class MAP_lr(Basejob):
@@ -567,8 +582,8 @@ class MAP_lr(Basejob):
 
 
     # # @base_exception_handler
-    @log_on_start(logging.INFO, "collect_jobs() started")
-    @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
+    @log_on_start(logging.INFO, "MAP.map.collect_jobs() started")
+    @log_on_end(logging.INFO, "MAP.collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self):
         jobs = list(range(len(self.it_tasks)))
         # TODO order of task list matters, but shouldn't
@@ -583,6 +598,7 @@ class MAP_lr(Basejob):
                 for simidx in self.simidxs:
                     libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
                     if rec.maxiterdone(libdir_MAPidx) < self.itmax:
+                        log.info('{}<{}'.format(rec.maxiterdone(libdir_MAPidx), self.itmax))
                         _jobs.append(simidx)
 
             ## Calculate realization independent meanfields up to iteration itmax
@@ -598,26 +614,22 @@ class MAP_lr(Basejob):
                         _jobs.append(0)
 
             elif task == 'calc_blt':
+                self.qe.collect_jobs(task, recalc=False)
                 for simidx in self.simidxs:
-                    libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
-                    if "calc_phi" in self.it_tasks:
-                        # assume that this is a new analysis, so rec.maxiterdone won't work. Could collect task jobs after finishing previous task run to improve this.
+                    fns_blt = np.array([os.path.join(self.libdir_MAP_blt, 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, it, it, self.lm_max_blt[0]) + '.npy') for it in np.arange(1,self.itmax+1)])
+                    if not np.all([os.path.exists(fn_blt) for fn_blt in fns_blt]):
                         _jobs.append(simidx)
-                    elif rec.maxiterdone(libdir_MAPidx) >= self.itmax:
-                        _jobs.append(simidx)
-                    else:
-                        log.info("Nothing to compute, as maxiterdone:{} < itermax:{}".format(rec.maxiterdone(libdir_MAPidx), self.itmax))
 
             jobs[taski] = _jobs
         self.jobs = jobs
 
 
     # @base_exception_handler
-    @log_on_start(logging.INFO, "run() started")
-    @log_on_end(logging.INFO, "run() finished")
+    @log_on_start(logging.INFO, "MAP.run() started")
+    @log_on_end(logging.INFO, "MAP.run() finished")
     def run(self):
         for taski, task in enumerate(self.it_tasks):
-            log.info('{}, task {} started'.format(mpi.rank, task))
+            log.info('{}, task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
 
             if task == 'calc_phi':
                 self.simgen.run()
@@ -628,8 +640,6 @@ class MAP_lr(Basejob):
                         itlib = self.ith(self.qe, self.k, simidx, self.version, self.sims_MAP, self.libdir_MAP, self.dlensalot_model)
                         itlib_iterator = itlib.get_iterator()
                         for it in range(self.itmax + 1):
-                            log.info("using cg-tol = %.4e"%self.it_cg_tol(it))
-                            log.info("using soltn_cond = %s"%self.soltn_cond(it))
                             itlib_iterator.chain_descr = self.it_chain_descr(self.lm_max_unl[0], self.it_cg_tol(it))
                             itlib_iterator.soltn_cond = self.soltn_cond(it)
                             itlib_iterator.iterate(it, 'p')
@@ -644,17 +654,18 @@ class MAP_lr(Basejob):
                 mpi.barrier()
 
             if task == 'calc_blt':
-                log.info('{}, task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
+                self.qe.run(task=task)
                 for simidx in self.jobs[taski][mpi.rank::mpi.size]:
                     self.libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
                     self.itlib = self.ith(self.qe, self.k, simidx, self.version, self.sims_MAP, self.libdir_MAP, self.dlensalot_model)
                     self.itlib_iterator = self.itlib.get_iterator()
-                    self.get_blt_it(simidx, self.itmax)
+                    for it in range(self.itmax + 1):
+                        self.get_blt_it(simidx, it)
 
 
     # # @base_exception_handler
-    @log_on_start(logging.INFO, "get_plm_it(simidx={simidx}, its={its}) started")
-    @log_on_end(logging.INFO, "get_plm_it(simidx={simidx}, its={its}) finished")
+    @log_on_start(logging.INFO, "MAP.get_plm_it(simidx={simidx}, its={its}) started")
+    @log_on_end(logging.INFO, "MAP.get_plm_it(simidx={simidx}, its={its}) finished")
     def get_plm_it(self, simidx, its):
 
         plms = rec.load_plms(self.libdir_MAP(self.k, simidx, self.version), its)
@@ -663,8 +674,8 @@ class MAP_lr(Basejob):
 
 
     # # @base_exception_handler
-    @log_on_start(logging.INFO, "get_meanfield_it(it={it}, calc={calc}) started")
-    @log_on_end(logging.INFO, "get_meanfield_it(it={it}, calc={calc}) finished")
+    @log_on_start(logging.INFO, "MAP.get_meanfield_it(it={it}, calc={calc}) started")
+    @log_on_end(logging.INFO, "MAP.get_meanfield_it(it={it}, calc={calc}) finished")
     def get_meanfield_it(self, it, calc=False):
         fn = opj(self.mf_dirname, 'mf%03d_it%03d.npy'%(self.Nmf, it))
         if not calc:
@@ -684,8 +695,8 @@ class MAP_lr(Basejob):
 
 
     # @base_exception_handler
-    @log_on_start(logging.INFO, "get_meanfields_it(its={its}, calc={calc}) started")
-    @log_on_end(logging.INFO, "get_meanfields_it(its={its}, calc={calc}) finished")
+    @log_on_start(logging.INFO, "MAP.get_meanfields_it(its={its}, calc={calc}) started")
+    @log_on_end(logging.INFO, "MAP.get_meanfields_it(its={its}, calc={calc}) finished")
     def get_meanfields_it(self, its, calc=False):
         plm = rec.load_plms(self.libdir_MAP(self.k, self.simidxs[0], self.version), [0])[-1]
         mfs = np.zeros(shape=(len(its),*plm.shape), dtype=np.complex128)
@@ -700,27 +711,30 @@ class MAP_lr(Basejob):
 
 
     # @base_exception_handler
-    @log_on_start(logging.INFO, "get_blt_it(simidx={simidx}, it={it}) started")
-    @log_on_end(logging.INFO, "get_blt_it(simidx={simidx}, it={it}) finished")
+    @log_on_start(logging.INFO, "MAP.get_blt_it(simidx={simidx}, it={it}) started")
+    @log_on_end(logging.INFO, "MAP.get_blt_it(simidx={simidx}, it={it}) finished")
     def get_blt_it(self, simidx, it):
         # self.blt_lmin_plm = 1
-        if 'itlib' not in self.__dict__:
-            self.itlib = self.ith(self.qe, self.k, simidx, self.version, self.sims_MAP, self.libdir_MAP, self.dlensalot_model)
-            self.itlib_iterator = self.itlib.get_iterator()
-        if simidx != self.itlib.simidx:
-            self.itlib = self.ith(self.qe, self.k, simidx, self.version, self.sims_MAP, self.libdir_MAP, self.dlensalot_model)
-            self.itlib_iterator = self.itlib.get_iterator()
-
-        self.libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
-        dlm_mod = np.zeros_like(rec.load_plms(self.libdir_MAPidx, [0])[0])
-        if self.dlm_mod_bool and it>0 and it<=rec.maxiterdone(self.libdir_MAPidx):
-            dlm_mod = self.get_meanfields_it([it], calc=False)
-            if simidx in self.simidxs_mf:
-                dlm_mod = (dlm_mod - np.array(rec.load_plms(self.libdir_MAPidx, [it]))/self.Nmf) * self.Nmf/(self.Nmf - 1)
-        if it>0 and it<=rec.maxiterdone(self.libdir_MAPidx):
-            return self.itlib_iterator.get_template_blm(it, it, lmaxb=self.lm_max_blt[0], lmin_plm=self.Lmin, dlm_mod=dlm_mod, perturbative=False)
-        elif it==0:
-            return self.itlib_iterator.get_template_blm(0, 0, lmaxb=self.lm_max_blt[0], lmin_plm=self.Lmin, dlm_mod=dlm_mod, perturbative=self.blt_pert)
+        if it == 0:
+            return self.qe.get_blt(simidx)
+        fn_blt = os.path.join(self.libdir_MAP_blt, 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, it, it, self.lm_max_blt[0]) + '.npy')
+        if not os.path.exists(fn_blt):     
+            if 'itlib' not in self.__dict__:
+                self.itlib = self.ith(self.qe, self.k, simidx, self.version, self.sims_MAP, self.libdir_MAP, self.dlensalot_model)
+                self.itlib_iterator = self.itlib.get_iterator()
+            if simidx != self.itlib.simidx:
+                self.itlib = self.ith(self.qe, self.k, simidx, self.version, self.sims_MAP, self.libdir_MAP, self.dlensalot_model)
+                self.itlib_iterator = self.itlib.get_iterator()
+            self.libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
+            dlm_mod = np.zeros_like(rec.load_plms(self.libdir_MAPidx, [0])[0])
+            if self.dlm_mod_bool and it>0 and it<=rec.maxiterdone(self.libdir_MAPidx):
+                dlm_mod = self.get_meanfields_it([it], calc=False)
+                if simidx in self.simidxs_mf:
+                    dlm_mod = (dlm_mod - np.array(rec.load_plms(self.libdir_MAPidx, [it]))/self.Nmf) * self.Nmf/(self.Nmf - 1)
+            if it<=rec.maxiterdone(self.libdir_MAPidx):
+                blt = self.itlib_iterator.get_template_blm(it, it, lmaxb=self.lm_max_blt[0], lmin_plm=self.Lmin, dlm_mod=dlm_mod, perturbative=False)
+                np.save(fn_blt, blt)
+        return np.load(fn_blt)
 
 
 class Map_delenser(Basejob):
