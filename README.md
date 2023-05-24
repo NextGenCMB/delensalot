@@ -20,19 +20,6 @@ Frequent problems are
 
 # Usage
 
-Type `python3 run.py [-h]` for quickhelp,
-```
-usage: run.py [-h] [-p NEW] [-r RESUME] [-s STATUS] [-purgehashs PURGEHASHS]
-
-delensalot entry point.
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -p NEW                Relative path to config file to run analysis.
-  -r RESUME             Absolute path to config file to resume.
-  -s STATUS             Absolute path for the analysis to write a report.
-
-```
 
 ## The quickest way: map2map_del()
 
@@ -76,7 +63,7 @@ obsmaps = noise/vamin * np.array([hp.alm2map(hp.synalm(noise_cl),nside=2048)+sky
 ## Run a configuration file
 
 To run a configuration file `<path-to-config/conf.py>`, type in your favorite `bash`,
-```
+``` 
 python3 run.py -r <path-to-config/conf.py>
 ```
 
@@ -95,6 +82,22 @@ python3 run.py -s <path-to-config/conf.py>
 
 delensalot supports interactive mode. See `first_steps/notebooks/` for or tutorials.
 
+
+## help
+
+Type `python3 run.py [-h]` for quickhelp,
+```
+usage: run.py [-h] [-p NEW] [-r RESUME] [-s STATUS] [-purgehashs PURGEHASHS]
+
+delensalot entry point.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -p NEW                Relative path to config file to run analysis.
+  -r RESUME             Absolute path to config file to resume.
+  -s STATUS             Absolute path for the analysis to write a report.
+
+```
 
 
 # Dependencies
