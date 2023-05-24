@@ -2,7 +2,7 @@
 # delensalot
 Curved-sky iterative CMB lensing tools
 
-## Installation
+# Installation
 Download the project to your computer, navigate to the root folder and execute the command,
 
 ``` 
@@ -12,6 +12,11 @@ python setup.py install
 You will need to install `jupyter` for the tutorials found in `first_steps/notebooks/`, and possibly an `ipykernel` to create a jupyter-kernel out of the environment in which you install `delensalot`.
 <!-- TODO: Add explicit instructions -->
 
+## Installation troubles
+
+Frequent problems are
+ * `attrs`. If there are errors related to the metamodel, make sure you have `attrs` (not `attr`, which is a different package) installed and updated/upgraded.
+ * ..
 
 # Usage
 
