@@ -241,7 +241,7 @@ class Sim_generator(Basejob):
         simidxs_ = np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))))
         for simidx in simidxs_:
             def isdone(simidx):
-                if self.k in ['ptt', 'mv']:
+                if self.k in ['ptt', 'p']:
                     fields = ['t', 'e', 'b']
                 elif self.k in ['p_p', 'mv', 'p_eb', 'pbe', 'pee', 'pbb', 'peb']:
                     fields = ['e', 'b']
