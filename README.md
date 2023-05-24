@@ -24,40 +24,17 @@ Frequent problems are
 ## The quickest way: map2map_del()
 
 
-The fastest way for you to get a delensed B map is to just import delensalot and run `map2map_del()`:
+The fastest way for you to get a delensed B map is to just import `delensalot` and run `map2map_del()`:
 ```
 import delensalot
 delensedmap = delensalot.map2map_del(obsmaps, lmax_cmb=lmax_cmb, beam=beam, itmax=itmax, noise=noise, verbose=True)
 ```
 
-here `obsmaps` is the observed Q and U map you may have... gotten from somewhere. Then all what is left to do is tell delensalot about the maximum \ell (`lmax_cmb`) of your CMB map you'd like to use, the beam (`sims_beam`) inside the observed maps, how many iterations (`itmax`) you'd like to perfrom, and the noise level (`noise`) of the observation.
-
-
-The following can help creating some mock data to test it
-```
-
-import healpy as hp
-import numpy as np
-
-import delensalot
-from delensalot.utility.utils_hp import gauss_beam
-
-noise = np.sqrt(2)
-lmax_sims = 4096
-lmax_cmb = 3000
-nside = 2048
-sims_beam = 1.
-
-transf = gauss_beam(sims_beam/180/60 * np.pi, lmax=lmax_sims)
-elm = hp.almxfl(hp.synalm(delensalot.cls_len['ee'], lmax=lmax_sims), transf)
-blm = hp.almxfl(hp.synalm(delensalot.cls_len['bb'], lmax=lmax_sims), transf)
-skymaps = hp.alm2map_spin([elm, blm], nside=nside, spin=2, lmax=lmax_sims)
-
-noise_cl = np.sqrt(np.ones(shape=lmax_sims)) * (60 * 180 / np.pi)
-
-vamin = np.sqrt(hp.nside2pixarea(nside, degrees=True)) * 60
-obsmaps = noise/vamin * np.array([hp.alm2map(hp.synalm(noise_cl),nside=2048)+skymaps[0],hp.alm2map(hp.synalm(noise_cl),nside=2048)+skymaps[1]])
-```
+here `obsmaps` is the observed Q and U map you may have... gotten from somewhere. Then all what is left to do is to tell `delensalot` about,
+ * the maximum \ell (`lmax_cmb`) of your CMB map you'd like to use,
+ * the beam (`sims_beam`) of the transfer function of the observed maps,
+ * how many iterations (`itmax`) you'd like to perform,
+ * and the noise level (`noise`) of the observation.
 
 
 ## Run a configuration file
@@ -80,7 +57,7 @@ python3 run.py -s <path-to-config/conf.py>
 
 ## interactive mode
 
-delensalot supports interactive mode. See `first_steps/notebooks/` for or tutorials.
+delensalot supports interactive mode. See `first_steps/notebooks/` for our tutorials.
 
 
 ## help
@@ -112,6 +89,11 @@ Documentation may be found [HERE]
 
 
 ## Use with HPC
-delensalot is computationally demanding.
-We have parallelized the computations across the simulation index in most cases.
-To use delensalot on any HPC infrastructure, set up MPI accordingly. Your HPC-center can help.
+`delensalot` can be computationally demanding.
+We have parallelized the computations across the simulation index in most cases. Assuming you have MPI set up and `srun` is available, you can simply run MPI-supported `delensalot` via,
+
+```
+srun -MPI_paramX X -MPI_paramY Y python3 <path-to-delensalot>/run.py -r <path-to-config-file>
+```
+
+If you have troubles, your HPC-center can help.
