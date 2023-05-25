@@ -23,12 +23,14 @@ from delensalot.core import mpi
 from delensalot.utility import utils_sims
 from delensalot.utility.utils_hp import almxfl, alm_copy, gauss_beam
 from delensalot.config.config_helper import data_functions as df
+from delensalot.config.metamodel import DEFAULT_NotAValue
 from delensalot.core.mpi import check_MPI
 from delensalot.core.iterator import iteration_handler
 from delensalot.core.iterator.statics import rec as rec
 from delensalot.core.opfilt import utils_cinv_p as cinv_p_OBD
 from delensalot.core.opfilt.bmodes_ninv import template_bfilt
 from delensalot.core.decorator.exception_handler import base as base_exception_handler
+from delensalot.sims.generic import parameter_sims
 
 
 class Basejob():
@@ -72,17 +74,10 @@ class Basejob():
         else:
             pix_phas = phas.pix_lib_phas(self.sims_class_parameters['cacher'].lib_dir, 3, (hp.nside2npix(self.sims_nside),))
         
-        self.sims = maps.cmb_maps_nlev(self._sims, transf_dat, self.sims_nlev_t, self.sims_nlev_p, self.sims_nside, pix_lib_phas=pix_phas)
-
-        # TODO could collect here all filenames which are used throughout jobs. Centralizing would increase tractability.
-        # if self.data_from_CFS:
-        #   self.fns_blt_QE =  lambda a,b,c: opj(self.libdir_QE, 'BLT', 'abcd%s%d%s'.format(a,b,c))
-        # else:
-        #   self.fns_blt_QE =  lambda a,b,c: opj(self.libdir_CFS, 'BLT', 'abcd%s%d%s'.format(a,b,c))
-        # self.fns_mf_QE =  lambda a,b,c: opj(self.libdir_QE, 'MF', 'abcd%s%d%s'.format(a,b,c))
-        # self.libdir_Blens = 
-        # self.libdir_BLT_QE = 
-        # self.libdir_BLT_MAP = 
+        if type(self.parameter_maps) in [np.ndarray, np.array, tuple]:
+            self.sims = parameter_sims(self.parameter_maps, self.parameter_phi)
+        elif self.parameter_maps == DEFAULT_NotAValue:
+            self.sims = maps.cmb_maps_nlev(self._sims, transf_dat, self.sims_nlev_t, self.sims_nlev_p, self.sims_nside, pix_lib_phas=pix_phas)
 
 
     # @base_exception_handler
@@ -245,7 +240,7 @@ class Sim_generator(Basejob):
                     fields = ['t', 'e', 'b']
                 elif self.k in ['p_p', 'mv', 'p_eb', 'pbe', 'pee', 'pbb', 'peb']:
                     fields = ['e', 'b']
-                fns_sim = [os.path.join(self.lib_dir, 'sim_%04d_%slm.fits' %(simidx, field)) for field in fields]
+                fns_sim = [os.path.join(self.lib_dir, 'sim_%04d_%slm.fits'%(simidx, field)) for field in fields]
                 return np.all([os.path.exists(fn_sim) for fn_sim in fns_sim])
             if not isdone(simidx):
                 jobs.append(simidx)
@@ -286,26 +281,9 @@ class QE_lr(Basejob):
     def __init__(self, dlensalot_model):
         super().__init__(dlensalot_model)
         self.dlensalot_model = dlensalot_model
-        self.simgen = Sim_generator(dlensalot_model)
+        if not isinstance(self.sims, parameter_sims):
+            self.simgen = Sim_generator(dlensalot_model)
 
-        if self.cl_analysis == True:
-            # TODO fix numbers for mc ocrrection and total nsims
-            self.ss_dict = { k : v for k, v in zip( np.concatenate( [ range(i*60, (i+1)*60) for i in range(0,5) ] ),
-                                    np.concatenate( [ np.roll( range(i*60, (i+1)*60), -1 ) for i in range(0,5) ] ) ) }
-            self.ds_dict = { k : -1 for k in range(300)}
-
-            self.ivfs_d = filt_util.library_shuffle(self.ivfs, self.ds_dict)
-            self.ivfs_s = filt_util.library_shuffle(self.ivfs, self.ss_dict)
-
-            self.qlms_ds = qest.library_sepTP(opj(self.libdir_QE, 'qlms_ds'), self.ivfs, self.ivfs_d, self.cls_len['te'], self.sims_nside, lmax_qlm=self.lm_max_qlm[0])
-            self.qlms_ss = qest.library_sepTP(opj(self.libdir_QE, 'qlms_ss'), self.ivfs, self.ivfs_s, self.cls_len['te'], self.sims_nside, lmax_qlm=self.lm_max_qlm[0])
-
-            self.mc_sims_bias = np.arange(60, dtype=int)
-            self.mc_sims_var  = np.arange(60, 300, dtype=int)
-
-            self.qcls_ds = qecl.library(opj(self.libdir_QE, 'qcls_ds'), self.qlms_ds, self.qlms_ds, np.array([]))  # for QE RDN0 calculations
-            self.qcls_ss = qecl.library(opj(self.libdir_QE, 'qcls_ss'), self.qlms_ss, self.qlms_ss, np.array([]))  # for QE RDN0 / MCN0 calculations
-            self.qcls_dd = qecl.library(opj(self.libdir_QE, 'qcls_dd'), self.qlms_dd, self.qlms_dd, self.mc_sims_bias)
 
         if self.qe_filter_directional == 'anisotropic':
             self.init_cinv()
@@ -334,6 +312,25 @@ class QE_lr(Basejob):
             elif self.it_filter_directional == 'isotropic':
                 self.sims_MAP = self.sims
 
+        if self.cl_analysis == True:
+            # TODO fix numbers for mc ocrrection and total nsims
+            self.ss_dict = { k : v for k, v in zip( np.concatenate( [ range(i*60, (i+1)*60) for i in range(0,5) ] ),
+                                    np.concatenate( [ np.roll( range(i*60, (i+1)*60), -1 ) for i in range(0,5) ] ) ) }
+            self.ds_dict = { k : -1 for k in range(300)}
+
+            self.ivfs_d = filt_util.library_shuffle(self.ivfs, self.ds_dict)
+            self.ivfs_s = filt_util.library_shuffle(self.ivfs, self.ss_dict)
+
+            self.qlms_ds = qest.library_sepTP(opj(self.libdir_QE, 'qlms_ds'), self.ivfs, self.ivfs_d, self.cls_len['te'], self.sims_nside, lmax_qlm=self.lm_max_qlm[0])
+            self.qlms_ss = qest.library_sepTP(opj(self.libdir_QE, 'qlms_ss'), self.ivfs, self.ivfs_s, self.cls_len['te'], self.sims_nside, lmax_qlm=self.lm_max_qlm[0])
+
+            self.mc_sims_bias = np.arange(60, dtype=int)
+            self.mc_sims_var  = np.arange(60, 300, dtype=int)
+
+            self.qcls_ds = qecl.library(opj(self.libdir_QE, 'qcls_ds'), self.qlms_ds, self.qlms_ds, np.array([]))  # for QE RDN0 calculations
+            self.qcls_ss = qecl.library(opj(self.libdir_QE, 'qcls_ss'), self.qlms_ss, self.qlms_ss, np.array([]))  # for QE RDN0 / MCN0 calculations
+            self.qcls_dd = qecl.library(opj(self.libdir_QE, 'qcls_dd'), self.qlms_dd, self.qlms_dd, self.mc_sims_bias)
+
 
     def init_cinv(self):
         self.cinv_t = filt_cinv.cinv_t(opj(self.libdir_QE, 'cinv_t'),
@@ -341,7 +338,7 @@ class QE_lr(Basejob):
             self.ttebl['t'], self.ninvt_desc,
             marge_monopole=True, marge_dipole=True, marge_maps=[])
 
-        transf_elm_loc = gauss_beam(self.sims_beam / 180 / 60 * np.pi, lmax=self.lm_max_ivf[0])
+        transf_elm_loc = gauss_beam(self.beam / 180 / 60 * np.pi, lmax=self.lm_max_ivf[0])
         if self.OBD:
             self.cinv_p = cinv_p_OBD.cinv_p(opj(self.libdir_QE, 'cinv_p'),
                 self.lm_max_ivf[0], self.sims_nside, self.cls_len,
@@ -361,7 +358,8 @@ class QE_lr(Basejob):
     @log_on_end(logging.INFO, "QE.collect_jobs(qe_tasks={qe_tasks}, recalc={recalc}) finished: jobs={self.jobs}")
     def collect_jobs(self, qe_tasks=None, recalc=False):
 
-        self.simgen.collect_jobs()
+        if not isinstance(self.sims, parameter_sims):
+            self.simgen.collect_jobs()
         # qe_tasks overwrites task-list and is needed if MAP lensrec calls QE lensrec
         _qe_tasks = self.qe_tasks if qe_tasks == None else qe_tasks
         jobs = list(range(len(_qe_tasks)))
@@ -410,8 +408,9 @@ class QE_lr(Basejob):
     def run(self, task=None):
         ## task may be set from MAP lensrec, as MAP lensrec has prereqs to QE lensrec
         ## if None, then this is a normal QE lensrec call
+        if not isinstance(self.sims, parameter_sims):
+            self.simgen.run()
 
-        self.simgen.run()
         _tasks = self.qe_tasks if task is None else [task]
         
         for taski, task in enumerate(_tasks):
@@ -493,6 +492,7 @@ class QE_lr(Basejob):
     def get_plm(self, simidx, sub_mf=True):
         # libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
         fn_plm = opj(self.libdir_QE, 'phi_plm_it000.npy')
+        plm  = self.qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate:
         if not os.path.exists(fn_plm):
             plm  = self.qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate:
             if sub_mf and self.version != 'noMF':
@@ -757,7 +757,7 @@ class Map_delenser(Basejob):
     @log_on_start(logging.INFO, "collect_jobs() started")
     @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self):
-        # TODO a valid job is any requested job, as BLTs may also be on CFS
+        # TODO a valid job is any requested job?, as BLTs may also be on CFS
         jobs = []
         for idx in self.simidxs:
             jobs.append(idx)
@@ -809,6 +809,7 @@ class Map_delenser(Basejob):
         bltlm_QE1 = self.get_blt_it(simidx, 0)
         blt_QE1 = hp.alm2map(bltlm_QE1, nside=self.sims_nside)
         blt_QE2 = np.copy(blt_QE1)
+
         return blt_QE1, blt_QE2
 
 
@@ -820,6 +821,16 @@ class Map_delenser(Basejob):
         blt_MAP2 = np.copy(blt_MAP1)
 
         return blt_MAP1, blt_MAP2
+    
+
+    # @log_on_start(logging.INFO, "get_basemap() started")
+    # @log_on_end(logging.INFO, "get_basemap() finished")  
+    def get_basemap(self, simidx):
+        if self.basemap == 'lens':
+            return almxfl(alm_copy(self._sims.get_sim_blm(simidx), self._sims.lmax, *self.lm_max_blt), self.ttebl['e'], self.lm_max_blt[0], inplace=False) 
+        else:
+            bmap = hp.alm2map(hp.map2alm_spin(self.sims.get_sim_pmap(simidx), lmax=2000, spin=2)[1], nside=2048) 
+            return hp.map2alm(bmap, lmax = self.lm_max_blt[0])
     
 
     @log_on_start(logging.INFO, "_delens() started")
@@ -850,8 +861,9 @@ class Map_delenser(Basejob):
     @log_on_start(logging.INFO, "get_residualblens() started")
     @log_on_end(logging.INFO, "get_residualblens() finished")
     def get_residualblens(self, simidx, it):
-        input_blensing = almxfl(alm_copy(self._sims.get_sim_blm(simidx), self._sims.lmax, *self.lm_max_blt), self.ttebl['e'], self.lm_max_blt[0], inplace=False) 
-        return input_blensing - self.get_blt_it(simidx, it)
+        basemap = self.get_basemap(simidx)
+        
+        return basemap - self.get_blt_it(simidx, it)
     
 
     # @base_exception_handler

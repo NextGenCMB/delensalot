@@ -27,6 +27,9 @@ from delensalot.config.visitor import transform
 from delensalot.config.transformer.lerepi2dlensalot import l2j_Transformer, l2T_Transformer, l2ji_Transformer
 from delensalot.config.transformer.lerepi2status import l2j_Transformer as l2js_Transformer
 
+class abc:
+    def __init__(self):
+        pass
 
 class handler():
     """Load config file and handle command line arguments 
@@ -36,7 +39,8 @@ class handler():
         if config_model is None:
             self.configfile = handler.load_configfile(parser.config_file, 'configfile')
         else:
-            self.configfile = config_model
+            self.configfile = abc()
+            self.configfile.dlensalot_model = config_model
         if 'job_id' in parser.__dict__:
             if parser.job_id is None:
                 pass

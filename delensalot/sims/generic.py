@@ -14,6 +14,7 @@ from delensalot.core import mpi
 from plancklens.sims import cmbs, phas
 from plancklens import utils
 
+from plancklens.utils import clhash, hash_check
 
 verbose = False
 
@@ -191,3 +192,20 @@ class sims_cmb_len(object):
             self._cache_eblm(idx)
         if ret:
             return hp.read_alm(fname)
+        
+
+class parameter_sims:
+
+    def __init__(self, maps, phi):
+        self.maps = maps
+        self.phi = phi
+
+    def get_sim_pmap(self, index):
+        return self.maps
+    
+    def get_sim_plm(self, index):
+        return self.phi
+    
+    def hashdict(self):
+        ret = {'rhits':1, 'sim_lib':2, 'units':3, 'path2sim0':4}
+        return ret

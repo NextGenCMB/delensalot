@@ -24,6 +24,14 @@ def data_type(instance, attribute, value):
     desc = [value]
     assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
+def maps(instance, attribute, value):
+    desc = [value]
+    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+
+def phi(instance, attribute, value):
+    desc = [value]
+    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+
 def data_field(instance, attribute, value):
     desc = [value]
     assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))

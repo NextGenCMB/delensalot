@@ -123,10 +123,11 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
         cls_unl (str):                      path to the fiducial unlensed CAMB-like CMB data
         cls_len (str):                      path to the fiducial lensed CAMB-like CMB data
         cpp (str):                          path to the power spectrum of the prior for the iterative reconstruction
-        beam (float):                       TBD
+        beam (float):                       The beam used in the filters
     """
-    key =                   attr.field(default=DEFAULT_NotASTR, on_setattr=[validators.instance_of(str), analysis.key], type=str)
+    key =                   attr.field(default=DEFAULT_NotAValue, on_setattr=[validators.instance_of(str), analysis.key], type=str)
     version =               attr.field(default=DEFAULT_NotAValue, on_setattr=[validators.instance_of(str), analysis.version], type=str)
+    reconstruction_method = attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.reconstruction_method)
     simidxs =               attr.field(default=DEFAULT_NotAValue, on_setattr=data.simidxs)
     simidxs_mf =            attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.simidxs_mf)
     TEMP_suffix =           attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.TEMP_suffix)
@@ -178,6 +179,8 @@ class DLENSALOT_Data(DLENSALOT_Concept):
     nlev_p =                attr.field(default=DEFAULT_NotAValue, on_setattr=data.nlev_p)
     lmax_transf =           attr.field(default=DEFAULT_NotAValue, on_setattr=data.lmax_transf)
     epsilon =               attr.field(default=DEFAULT_NotAValue, on_setattr=data.epsilon)
+    maps =                  attr.field(default=DEFAULT_NotAValue, on_setattr=data.maps)
+    phi =                   attr.field(default=DEFAULT_NotAValue, on_setattr=data.phi)
 
     
 @attr.s
@@ -271,17 +274,18 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
     This class collects all configurations related to the internal map delensing job.
 
     Attributes:
-        data_from_CFS (bool):   if set, use B-lensing templates located at the $CFS directory instead of the $TEMP directory
-        edges (np.array):       binning to calculate the (delensed) power spectrum on
-        dlm_mod (bool):         if set, modfies the lensing potential before calculating the B-lensing template
-        iterations (list[int]): which iterations to calculate delensed power spectrum for
+        data_from_CFS (bool):   if set, use B-lensing templates located at the $CFS directory instead of the $TEMP directory\n
+        edges (np.array):       binning to calculate the (delensed) power spectrum on\n
+        dlm_mod (bool):         if set, modfies the lensing potential before calculating the B-lensing template\n
+        iterations (list[int]): which iterations to calculate delensed power spectrum for\n
         nlevels (list[float]):  noiselevel ratio treshold up to which the maps are delensed, uses the rhits_normalized map to generate masks.
-        lmax (int):             maximum multipole to calculate the (delensed) power spectrum
-        Cl_fid (type):          fiducial power spectrum, and needed for template calculation of the binned power spectrum package
-        libdir_it (type):       TBD
-        binning (type):         can be either 'binned' or 'unbinned'. If 'unbinned', overwrites :code:`edges` and calculates power spectrum for each multipole
-        spectrum_calculator (package): name of the package of the power spectrum calculator. Can be 'healpy' if :code:`binning=unbinned`
-        masks_fn (list[str]):   the sky patches to calculate the power spectra on. Note that this is different to using `nlevels`. Here, no tresholds are calculated, but masks are used 'as is' for delensing.             
+        lmax (int):             maximum multipole to calculate the (delensed) power spectrum\n
+        Cl_fid (type):          fiducial power spectrum, and needed for template calculation of the binned power spectrum package\n
+        libdir_it (type):       TBD\n
+        binning (type):         can be either 'binned' or 'unbinned'. If 'unbinned', overwrites :code:`edges` and calculates power spectrum for each multipole\n
+        spectrum_calculator (package): name of the package of the power spectrum calculator. Can be 'healpy' if :code:`binning=unbinned`\n
+        masks_fn (list[str]):   the sky patches to calculate the power spectra on. Note that this is different to using `nlevels`. Here, no tresholds are calculated, but masks are used 'as is' for delensing.\n
+        basemap (str):          the delensed map Bdel is calculated as Bdel = basemap - blt. Basemap can be two things: 'obs' or 'lens', where 'obs' will use the observed sky map, and lens will use the pure B-lensing map.
     """
 
     data_from_CFS =         attr.field(default=DEFAULT_NotAValue, on_setattr=mapdelensing.data_from_CFS)
@@ -295,6 +299,7 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
     binning =               attr.field(default=DEFAULT_NotAValue, on_setattr=mapdelensing.binning)
     spectrum_calculator =   attr.field(default=DEFAULT_NotAValue, on_setattr=mapdelensing.spectrum_calculator)
     masks_fn =              attr.field(default=DEFAULT_NotAValue, on_setattr=mapdelensing.masks)
+    basemap =               attr.field(default=DEFAULT_NotAValue, on_setattr=mapdelensing.basemap)
 
 @attr.s
 class DLENSALOT_OBD(DLENSALOT_Concept):

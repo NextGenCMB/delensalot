@@ -60,16 +60,14 @@ class l2base_Transformer:
         if 'fg' in dl.sims_class_parameters:
             dl.fg = dl.sims_class_parameters['fg']
         dl._sims_full_name = '{}.{}'.format(_package, _module)
-        ## get_sim_pmap comes from sims module directly
-        # -> nothing to do here
-        ## sims parameter come from configuration file
         dl.sims_beam = da.beam
         dl.sims_lmax_transf = da.lmax_transf
         dl.sims_nlev_t = da.nlev_t
         dl.sims_nlev_p = da.nlev_p
         dl.sims_nside = da.nside
         dl.epsilon = da.epsilon
-        ## get_sim_pmap comes from plancklens.maps wrapper
+        dl.parameter_maps = da.maps
+        dl.parameter_phi = da.phi
 
 
     @log_on_start(logging.DEBUG, "_process_Analysis() started")
@@ -83,6 +81,8 @@ class l2base_Transformer:
         dl.mask_fn = an.mask
         # key -> k
         dl.k = an.key
+        # reconstruction_method
+        dl.reconstruction_method = an.reconstruction_method
         # lmin_teb
         dl.lmin_teb = an.lmin_teb
         # version -> version
@@ -233,7 +233,6 @@ class l2lensrec_Transformer(l2base_Transformer):
         def _process_Computing(dl, co):
             dl.tr = co.OMP_NUM_THREADS
             os.environ["OMP_NUM_THREADS"] = str(dl.tr)
-            log.info("OMP_NUM_THREADS: {} and {}".format(dl.tr, os.environ.get('OMP_NUM_THREADS')))
 
 
         @log_on_start(logging.DEBUG, "_process_Analysis() started")
@@ -737,6 +736,7 @@ class l2delens_Transformer:
             dl.libdir_iterators = lambda qe_key, simidx, version: opj(dl.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
             dl.analysis_path = dl.TEMP.split('/')[-1]
             dl.blt_pert = cf.qerec.blt_pert
+            dl.basemap = ma.basemap
 
             ## Masking
             if cf.noisemodel.rhits_normalised is not None:

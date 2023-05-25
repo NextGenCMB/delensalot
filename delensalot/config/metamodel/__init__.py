@@ -65,7 +65,7 @@ DL_DEFAULT_CMBS4_FS_T = {
         'beam': 1.0,
     },
     'qerec':{
-        'tasks': ['calc_phi'],
+        'tasks': ['calc_phi', 'calc_blt'],
         'qlm_type': 'sepTP',
         'cg_tol': 1e-4,
         'filter_directional': 'isotropic',
@@ -104,7 +104,7 @@ DL_DEFAULT_CMBS4_FS_T = {
             'p6': 'tr_cg',
             'p7': 'cache_mem'
         },
-        'tasks': ['calc_phi'],
+        'tasks': ['calc_phi', 'calc_blt'],
         'itmax': 1,
         'cg_tol': 1e-3,
         'iterator_typ': 'constmf',
@@ -137,6 +137,7 @@ DL_DEFAULT_CMBS4_FS_T = {
         'libdir_it': None,
         'binning': 'binned',
         'spectrum_calculator': pospace,
+        'basemap': 'lens'
     },
     'computing': {
         'OMP_NUM_THREADS': int(psutil.cpu_count()) #2*int(psutil.cpu_count()/psutil.cpu_count(logical=False))
@@ -201,7 +202,7 @@ DL_DEFAULT_CMBS4_FS_P = {
         'beam': 1.0,
     },
     'qerec':{
-        'tasks': ['calc_phi'],
+        'tasks': ['calc_phi', 'calc_blt'],
         'qlm_type': 'sepTP',
         'cg_tol': 1e-4,
         'filter_directional': 'isotropic',
@@ -240,7 +241,7 @@ DL_DEFAULT_CMBS4_FS_P = {
             'p6': 'tr_cg',
             'p7': 'cache_mem'
         },
-        'tasks': ['calc_phi'],
+        'tasks': ['calc_phi', 'calc_blt'],
         'itmax': 1,
         'cg_tol': 1e-5,
         'iterator_typ': 'constmf',
@@ -274,6 +275,7 @@ DL_DEFAULT_CMBS4_FS_P = {
         'libdir_it': None,
         'binning': 'binned',
         'spectrum_calculator': pospace,
+        'basemap': 'lens'
     },
     'computing': {
         'OMP_NUM_THREADS': int(psutil.cpu_count()) #2*int(psutil.cpu_count()/psutil.cpu_count(logical=False))
@@ -338,7 +340,7 @@ DL_DEFAULT_CMBS4_MS_P = {
         'beam': 1.0,
     },
     'qerec':{
-        'tasks': ['calc_phi'],
+        'tasks': ['calc_phi', 'calc_blt'],
         'qlm_type': 'sepTP',
         'cg_tol': 1e-4,
         'filter_directional': 'isotropic',
@@ -377,7 +379,7 @@ DL_DEFAULT_CMBS4_MS_P = {
             'p6': 'tr_cg',
             'p7': 'cache_mem'
         },
-        'tasks': ['calc_phi'],
+        'tasks': ['calc_phi', 'calc_blt'],
         'itmax': 1,
         'cg_tol': 1e-5,
         'iterator_typ': 'constmf',
@@ -410,6 +412,7 @@ DL_DEFAULT_CMBS4_MS_P = {
         'libdir_it': None,
         'binning': 'binned',
         'spectrum_calculator': pospace,
+        'basemap': 'lens'
     },
     'computing': {
         'OMP_NUM_THREADS': int(psutil.cpu_count()) #2*int(psutil.cpu_count()/psutil.cpu_count(logical=False))

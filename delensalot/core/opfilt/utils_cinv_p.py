@@ -2,8 +2,6 @@
 
 """OBD'd version of Plancklens.filt.filt_cinf.cinv_p. This is exactly itercurvs filt.utils_cinv_p
 
-Returns:
-    _type_: _description_
 """
 
 # TODO proper integration into .opfilt structure?

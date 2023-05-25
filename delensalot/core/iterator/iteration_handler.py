@@ -23,6 +23,7 @@ from delensalot.utils import read_map
 from delensalot.core.iterator import cs_iterator, cs_iterator_fast
 from delensalot.core.opfilt.opfilt_ee_wl import alm_filter_ninv_wl
 from delensalot.core.opfilt.opfilt_iso_ee_wl import alm_filter_nlev_wl
+# from delensalot.core.opfilt.opfilt_iso_eenob_wl import alm_filter_nlev_wl
 
 class base_iterator():
 
@@ -87,7 +88,7 @@ class base_iterator():
 
             ninvjob_geometry = utils_geom.Geom.get_healpix_geometry(self.sims_nside, zbounds=self.zbounds)
             filter = alm_filter_ninv_wl(ninvjob_geometry, ninv, self.ffi, self.ttebl['e'], self.lm_max_unl, self.lm_max_ivf, self.tr, self.tpl,
-                                                    wee=wee, lmin_dotop=min(self.lmin_teb[1], self.lmin_teb[2]), transf_blm=self.ttebl['b'])
+                wee=wee, lmin_dotop=min(self.lmin_teb[1], self.lmin_teb[2]), transf_blm=self.ttebl['b'])
             self.k_geom = filter.ffi.geom # Customizable Geometry for position-space operations in calculations of the iterated QEs etc
 
             return filter
