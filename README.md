@@ -3,7 +3,7 @@
 Curved-sky iterative CMB lensing tools
 
 # Installation
-Download the project to your computer, navigate to the root folder and execute the command,
+Download the project, navigate to the root folder and execute the command,
 
 ``` 
 python setup.py install
@@ -21,10 +21,10 @@ Frequent problems are
 # Usage
 
 
-## The quickest way: map2map_del()
+## The quickest way: `map2map_del()` or `map2map_blt()`
 
-
-The fastest way for you to get a delensed B map is to just import `delensalot` and run `map2map_del()`:
+delensalot comes with two handy functions to get you started very easily.
+To get a delensed B map, simply import `delensalot` and run `map2map_del()`:
 ```
 import delensalot
 delensedmap = delensalot.map2map_del(obsmaps, lmax_cmb=lmax_cmb, beam=beam, itmax=itmax, noise=noise, verbose=True)
@@ -35,6 +35,12 @@ here `obsmaps` is the observed Q and U map you may have... gotten from somewhere
  * the beam (`sims_beam`) of the transfer function of the observed maps,
  * how many iterations (`itmax`) you'd like to perform,
  * and the noise level (`noise`) of the observation.
+
+If you are interested in the B-lensing template, instead use `map2map_blt()`,
+```
+import delensalot
+delensedmap = delensalot.map2map_blt(obsmaps, lmax_cmb=lmax_cmb, beam=beam, itmax=itmax, noise=noise, verbose=True)
+```
 
 
 ## Run a configuration file

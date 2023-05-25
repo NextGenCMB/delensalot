@@ -74,7 +74,7 @@ class Basejob():
         else:
             pix_phas = phas.pix_lib_phas(self.sims_class_parameters['cacher'].lib_dir, 3, (hp.nside2npix(self.sims_nside),))
         
-        if type(self.parameter_maps) in [np.ndarray, np.array]:
+        if type(self.parameter_maps) in [np.ndarray, np.array, tuple]:
             self.sims = parameter_sims(self.parameter_maps, self.parameter_phi)
         elif self.parameter_maps == DEFAULT_NotAValue:
             self.sims = maps.cmb_maps_nlev(self._sims, transf_dat, self.sims_nlev_t, self.sims_nlev_p, self.sims_nside, pix_lib_phas=pix_phas)
@@ -757,7 +757,7 @@ class Map_delenser(Basejob):
     @log_on_start(logging.INFO, "collect_jobs() started")
     @log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self):
-        # TODO a valid job is any requested job, as BLTs may also be on CFS
+        # TODO a valid job is any requested job?, as BLTs may also be on CFS
         jobs = []
         for idx in self.simidxs:
             jobs.append(idx)
@@ -809,6 +809,7 @@ class Map_delenser(Basejob):
         bltlm_QE1 = self.get_blt_it(simidx, 0)
         blt_QE1 = hp.alm2map(bltlm_QE1, nside=self.sims_nside)
         blt_QE2 = np.copy(blt_QE1)
+
         return blt_QE1, blt_QE2
 
 
@@ -820,6 +821,16 @@ class Map_delenser(Basejob):
         blt_MAP2 = np.copy(blt_MAP1)
 
         return blt_MAP1, blt_MAP2
+    
+
+    # @log_on_start(logging.INFO, "get_basemap() started")
+    # @log_on_end(logging.INFO, "get_basemap() finished")  
+    def get_basemap(self, simidx):
+        if self.basemap == 'lens':
+            return almxfl(alm_copy(self._sims.get_sim_blm(simidx), self._sims.lmax, *self.lm_max_blt), self.ttebl['e'], self.lm_max_blt[0], inplace=False) 
+        else:
+            bmap = hp.alm2map(hp.map2alm_spin(self.sims.get_sim_pmap(simidx), lmax=2000, spin=2)[1], nside=2048) 
+            return hp.map2alm(bmap, lmax = self.lm_max_blt[0])
     
 
     @log_on_start(logging.INFO, "_delens() started")
@@ -850,8 +861,9 @@ class Map_delenser(Basejob):
     @log_on_start(logging.INFO, "get_residualblens() started")
     @log_on_end(logging.INFO, "get_residualblens() finished")
     def get_residualblens(self, simidx, it):
-        input_blensing = almxfl(alm_copy(self._sims.get_sim_blm(simidx), self._sims.lmax, *self.lm_max_blt), self.ttebl['e'], self.lm_max_blt[0], inplace=False) 
-        return input_blensing - self.get_blt_it(simidx, it)
+        basemap = self.get_basemap(simidx)
+        
+        return basemap - self.get_blt_it(simidx, it)
     
 
     # @base_exception_handler

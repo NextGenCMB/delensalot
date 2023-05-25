@@ -734,6 +734,7 @@ class l2delens_Transformer:
             dl.libdir_iterators = lambda qe_key, simidx, version: opj(dl.TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
             dl.analysis_path = dl.TEMP.split('/')[-1]
             dl.blt_pert = cf.qerec.blt_pert
+            dl.basemap = ma.basemap
 
             ## Masking
             if cf.noisemodel.rhits_normalised is not None:
