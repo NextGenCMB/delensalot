@@ -69,7 +69,10 @@ class base_iterator():
             job = utils_geom.Geom.get_healpix_geometry(self.sims_nside)
             thtbounds = (np.arccos(self.zbounds[1]), np.arccos(self.zbounds[0]))
             job = job.restrict(*thtbounds, northsouth_sym=False)
-            return np.array(job.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2, *self.lm_max_ivf, nthreads=self.tr))
+            if self.k in ['pee']:
+                return np.array(job.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2, *self.lm_max_ivf, nthreads=self.tr))[0]
+            else:
+                return np.array(job.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2, *self.lm_max_ivf, nthreads=self.tr))
         else:
             return np.array(self.sims_MAP.get_sim_pmap(int(self.simidx)))
         
@@ -160,26 +163,17 @@ class iterator_fastWF(base_iterator):
     @log_on_start(logging.INFO, "get_datmaps() started")
     @log_on_end(logging.INFO, "get_datmaps() finished")
     def get_datmaps(self):
-        # TODO these are supposedly alms for fastWF.. how can this be alms in the most efficient way? 
         assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
         # self.sims_MAP = self._sims
 
-        # dat maps must now be given in harmonic space in this idealized configuration
         job = utils_geom.Geom.get_healpix_geometry(self.sims_nside)
         thtbounds = (np.arccos(self.zbounds[1]), np.arccos(self.zbounds[0]))
         job = job.restrict(*thtbounds, northsouth_sym=False)
-        return np.array(job.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2, *self.lm_max_ivf, nthreads=self.tr))
         
-
-    @log_on_start(logging.INFO, "get_filter() started")
-    @log_on_end(logging.INFO, "get_filter() finished")
-    def get_filter(self):
-        wee = self.k == 'p_p'
-        filter = alm_filter_nlev_wl(self.nlev_p, self.ffi, self.ttebl['b'], self.lm_max_unl, self.lm_max_ivf,
-                wee=wee, transf_b=self.ttebl['b'], nlev_b=self.nlev_p)
-        self.k_geom = filter.ffi.geom
-
-        return filter
+        if self.k in ['pee']:
+            return np.array(job.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2, *self.lm_max_ivf, nthreads=self.tr))[0]
+        else:
+            return np.array(job.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2, *self.lm_max_ivf, nthreads=self.tr))
 
 
     @log_on_start(logging.INFO, "get_iterator() started")
@@ -208,4 +202,5 @@ def transformer(descr):
     elif descr == 'fastWF':
         return iterator_fastWF
     else:
+        log.info(descr)
         assert 0, "Not yet implemented"

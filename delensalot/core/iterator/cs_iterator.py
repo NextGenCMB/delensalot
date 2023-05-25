@@ -226,7 +226,7 @@ class qlm_iterator(object):
                 assert self.wf_cacher.is_cached(e_fname)
                 elm_wf = self.wf_cacher.load(e_fname)
             elif it_e == 0:
-                elm_wf = self.wflm0()
+                elm_wf = self.filter.transf
             else:
                 assert 0,'dont know what to do with it_e = ' + str(it_e)
         assert Alm.getlmax(elm_wf.size, self.mmax_filt) == self.lmax_filt

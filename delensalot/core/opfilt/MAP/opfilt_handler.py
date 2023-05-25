@@ -19,7 +19,7 @@ class iso_transformer:
                 'ffi': cf.ffi,
                 'transf': cf.ttebl['e'],
                 'unlalm_info': cf.lm_max_unl,
-                'lenalm_info': cf.lm_max_unl,
+                'lenalm_info': cf.lm_max_ivf,
                 'wee': cf.k == 'p_p',
                 'transf_b': cf.ttebl['b'],
                 'nlev_b': cf.nlev_p,
@@ -30,7 +30,13 @@ class iso_transformer:
     def build_opfilt_iso_ee(self, cf):
         assert 0, "Implement if needed"
         def extract():
-            return {}
+            return {
+                'nlev_p': cf.nlev_p,
+                'ffi': cf.ffi,
+                'transf': cf.ttebl['e'],
+                'unlalm_info': cf.lm_max_unl,
+                'lenalm_info': cf.lm_max_ivf,   
+            }
         return opfilt_iso_ee.alm_filter_nlev_wl(**extract())
     
     def build_opfilt_iso_gmv(self, cf):
