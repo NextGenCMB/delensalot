@@ -167,7 +167,7 @@ def calc_prep(maps:np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv, sht_thread
     assert ninv_filt.lmax_sol == ninv_filt.lmax_len, (ninv_filt.lmax_sol, ninv_filt.lmax_len)  # not implemented wo lensing
     assert ninv_filt.mmax_sol == ninv_filt.mmax_len, (ninv_filt.mmax_sol, ninv_filt.mmax_len)
     assert np.all(ninv_filt.geom_.weight==1.) # Sum rather than integral, hence requires unit weights
-    tmap= np.copy(maps)
+    tmap = np.copy(maps)
     ninv_filt.apply_map(tmap)
     tlm = ninv_filt.geom_.map2alm(tmap, ninv_filt.lmax_len, ninv_filt.mmax_len, sht_threads)
     lmax_tr = len(ninv_filt.b_transf) - 1
