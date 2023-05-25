@@ -81,6 +81,8 @@ class l2base_Transformer:
         dl.mask_fn = an.mask
         # key -> k
         dl.k = an.key
+        # reconstruction_method
+        dl.reconstruction_method = an.reconstruction_method
         # lmin_teb
         dl.lmin_teb = an.lmin_teb
         # version -> version

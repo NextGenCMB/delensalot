@@ -367,7 +367,7 @@ def calc_prep(qumaps:np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv_wl, sht_t
     assert np.all(ninv_filt.geom_.weight==1.) # Sum rather than integral, hence requires unit weights
     qumap = np.copy(qumaps)
     ninv_filt.apply_map(qumap)
-    eblm = ninv_filt.geom_.map2alm_spin(np.array(qumaps), 2, ninv_filt.lmax_sol, ninv_filt.mmax_sol, sht_threads)
+    eblm = ninv_filt.geom_.map2alm_spin(np.array(qumap), 2, ninv_filt.lmax_sol, ninv_filt.mmax_sol, sht_threads)
     almxfl(eblm[0], ninv_filt.b_transf_elm, ninv_filt.mmax_len, True)
     almxfl(eblm[1], ninv_filt.b_transf_blm, ninv_filt.mmax_len, True)
     elm, blm = ninv_filt.ffi.lensgclm(eblm, ninv_filt.mmax_len, 2, ninv_filt.lmax_sol, ninv_filt.mmax_sol, backwards=True)

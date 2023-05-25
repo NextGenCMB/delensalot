@@ -123,10 +123,11 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
         cls_unl (str):                      path to the fiducial unlensed CAMB-like CMB data
         cls_len (str):                      path to the fiducial lensed CAMB-like CMB data
         cpp (str):                          path to the power spectrum of the prior for the iterative reconstruction
-        beam (float):                       TBD
+        beam (float):                       The beam used in the filters
     """
     key =                   attr.field(default=DEFAULT_NotAValue, on_setattr=[validators.instance_of(str), analysis.key], type=str)
     version =               attr.field(default=DEFAULT_NotAValue, on_setattr=[validators.instance_of(str), analysis.version], type=str)
+    reconstruction_method = attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.reconstruction_method)
     simidxs =               attr.field(default=DEFAULT_NotAValue, on_setattr=data.simidxs)
     simidxs_mf =            attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.simidxs_mf)
     TEMP_suffix =           attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.TEMP_suffix)

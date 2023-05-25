@@ -53,7 +53,6 @@ def map2map_del(maps, lmax_cmb, beam, itmax, noise, verbose=False):
     delensalot_runner = run(config_fn='', job_id='MAP_lensrec', config_model=dlensalot_model, verbose=verbose)
     delensalot_runner.run()
     delensalot_runner = run(config_fn='', job_id='delens', config_model=dlensalot_model, verbose=verbose)
-    # delensalot_runner.run()
     ana_mwe = delensalot_runner.init_job()
 
     return hp.alm2map(ana_mwe.get_residualblens(ana_mwe.simidxs[0], ana_mwe.its[-1]), nside=2048)

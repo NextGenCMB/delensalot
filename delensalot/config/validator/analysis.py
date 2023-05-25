@@ -16,6 +16,10 @@ def simidxs_mf(instance, attribute, value):
     desc = [value]
     assert value in desc or value == DEFAULT_NotAValue, ValueError('Must be in {}, but is {}'.format(desc, value))
 
+def reconstruction_method(instance, attribute, value):
+    desc = [value]
+    assert value in desc or value == DEFAULT_NotAValue, ValueError('Must be in {}, but is {}'.format(desc, value))
+
 def TEMP_suffix(instance, attribute, value):
     desc = [value]
     assert value in desc or value == DEFAULT_NotAValue, ValueError('Must be in {}, but is {}'.format(desc, value))
