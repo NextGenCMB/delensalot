@@ -74,7 +74,7 @@ class base_iterator():
             job = utils_geom.Geom.get_healpix_geometry(self.sims_nside)
             thtbounds = (np.arccos(self.zbounds[1]), np.arccos(self.zbounds[0]))
             job = job.restrict(*thtbounds, northsouth_sym=False)
-            return np.array(job.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2, *self.lm_max_ivf, nthreads=self.tr))[0]
+            return np.array(job.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2, *self.lm_max_ivf, nthreads=self.tr))
         else:
             return np.array(self.sims_MAP.get_sim_pmap(int(self.simidx)))
         
@@ -189,7 +189,7 @@ class iterator_fastWF(base_iterator):
         job = utils_geom.Geom.get_healpix_geometry(self.sims_nside)
         thtbounds = (np.arccos(self.zbounds[1]), np.arccos(self.zbounds[0]))
         job = job.restrict(*thtbounds, northsouth_sym=False)
-        return np.array(job.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2, *self.lm_max_ivf, nthreads=self.tr))[0]
+        return np.array(job.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2, *self.lm_max_ivf, nthreads=self.tr))
         
 
     @log_on_start(logging.INFO, "get_filter() started")
