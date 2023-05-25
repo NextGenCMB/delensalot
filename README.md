@@ -23,7 +23,7 @@ Frequent problems are
 
 ## The quickest way: `map2map_del()` or `map2map_blt()`
 
-delensalot comes with two handy functions to get you started very easily.
+`delensalot` comes with two handy functions to get you started very easily.
 To get a delensed B map, simply import `delensalot` and run `map2map_del()`:
 ```
 import delensalot
