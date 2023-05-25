@@ -2,10 +2,14 @@
 """
 
 from delensalot.config.visitor import transform
-from delensalot.core.opfilt import utils_cinv_p
+from delensalot.core.opfilt import utils_cinv_p # these are aniso with OBD
+from delensalot.core.opfilt import utils_cinv_p # these are aniso without OBD
+
+from delensalot.core.opfilt import opfilt_iso_pp, opfilt_iso_tt # these are iso QE
+from delensalot.core.opfilt import opfilt_iso_ee_wl, opfilt_iso_eenob_wl, opfilt_iso_gmv_wl, opfilt_iso_tt_wl # these are iso MAP
+
 from delensalot.core.opfilt import bmodes_ninv, tmodes_ninv # these are merely for creating OBD (OTD) matrices
-from delensalot.core.opfilt import opfilt_iso_ee_wl, opfilt_iso_eenob_wl, opfilt_iso_gmv_wl, opfilt_iso_pp, opfilt_iso_tt, opfilt_iso_tt_wl
-from delensalot.core.opfilt import opfilt_ee_wl, opfilt_ee_wl_dev, opfilt_pp, opfilt_tt, opfilt_tt_wl
+from delensalot.core.opfilt import opfilt_ee_wl, opfilt_ee_wl_dev, opfilt_pp, opfilt_tt, opfilt_tt_wl # these are aniso MAP with and without OBD
 
 
 class iso_transfomer:

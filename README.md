@@ -39,7 +39,7 @@ here `obsmaps` is the observed Q and U map you may have... gotten from somewhere
 If you are interested in the B-lensing template, instead use `map2map_blt()`,
 ```
 import delensalot
-delensedmap = delensalot.map2map_blt(obsmaps, lmax_cmb=lmax_cmb, beam=beam, itmax=itmax, noise=noise, verbose=True)
+Blenstemplate = delensalot.map2map_blt(obsmaps, lmax_cmb=lmax_cmb, beam=beam, itmax=itmax, noise=noise, verbose=True)
 ```
 
 
