@@ -20,13 +20,13 @@ from plancklens.qcinv import opfilt_pp
 from plancklens.filt import filt_util, filt_cinv, filt_simple
 
 from delensalot.utils import read_map
+from delensalot.utility import utils_qe, utils_sims
+from delensalot.utility.utils_hp import Alm, almxfl, alm_copy, gauss_beam
+
 from delensalot.core import mpi
 from delensalot.core.mpi import check_MPI
 
 from delensalot.sims.generic import parameter_sims
-
-from delensalot.utility import utils_sims
-from delensalot.utility.utils_hp import almxfl, alm_copy, gauss_beam
 
 from delensalot.config.config_helper import data_functions as df
 from delensalot.config.metamodel import DEFAULT_NotAValue
@@ -549,13 +549,53 @@ class QE_lr(Basejob):
         fn_blt = os.path.join(self.libdir_QE, 'BLT/blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
         if not os.path.exists(fn_blt):
             self.ith = iteration_handler.transformer(self.iterator_typ)
-            itlib = self.ith(self, self.k, simidx, self.version, self.sims_MAP, self.libdir_MAP, self.dlensalot_model)
+            itlib = self.ith(self, self.k, simidx, self.version, self.sims_MAP, self.libdir_MAP, self.dlensalot_model, isQE=True)
             itlib_iterator = itlib.get_iterator()
             ## For QE, dlm_mod by construction doesn't do anything, because mean-field had already been subtracted from plm and we don't want to repeat that.
             dlm_mod = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, int(simidx)))
             
             blt = itlib_iterator.get_template_blm(0, 0, lmaxb=self.lm_max_blt[0], lmin_plm=1, dlm_mod=dlm_mod, perturbative=self.blt_pert)
             np.save(fn_blt, blt)
+        return np.load(fn_blt)
+    
+
+    # @base_exception_handler
+    @log_on_start(logging.INFO, "QE.get_blt({simidx}) started")
+    @log_on_end(logging.INFO, "QE.get_blt({simidx}) finished")
+    def get_blt_new(self, simidx):
+
+        def get_template_blm(it, it_e, lmaxb=1024, lmin_plm=1, perturbative=False):
+            fn_blt = 'blt_p%03d_e%03d_lmax%s'%(it, it_e, lmaxb)
+            fn_blt += 'perturbative' * perturbative      
+
+            elm_wf = self.filter.transf
+            assert Alm.getlmax(elm_wf.size, self.mmax_filt) == self.lmax_filt
+            mmaxb = lmaxb
+            dlm = self.get_hlm(it, 'p')
+            self.hlm2dlm(dlm, inplace=True)
+            almxfl(dlm, np.arange(self.lmax_qlm + 1, dtype=int) >= lmin_plm, self.mmax_qlm, True)
+            if perturbative: # Applies perturbative remapping
+                get_alm = lambda a: elm_wf if a == 'e' else np.zeros_like(elm_wf)
+                geom, sht_tr = self.filter.ffi.geom, self.filter.ffi.sht_tr
+                d1 = geom.alm2map_spin([dlm, np.zeros_like(dlm)], 1, self.lmax_qlm, self.mmax_qlm, sht_tr, [-1., 1.])
+                dp = utils_qe.qeleg_multi([2], +3, [utils_qe.get_spin_raise(2, self.lmax_filt)])(get_alm, geom, sht_tr)
+                dm = utils_qe.qeleg_multi([2], +1, [utils_qe.get_spin_lower(2, self.lmax_filt)])(get_alm, geom, sht_tr)
+                dlens = -0.5 * ((d1[0] - 1j * d1[1]) * dp + (d1[0] + 1j * d1[1]) * dm)
+                del dp, dm, d1
+                elm, blm = geom.map2alm_spin([dlens.real, dlens.imag], 2, lmaxb, mmaxb, sht_tr, [-1., 1.])
+            else: # Applies full remapping (this will re-calculate the angles)
+                ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm)
+                elm, blm = ffi.lensgclm(np.array([elm_wf, np.zeros_like(elm_wf)]), self.mmax_filt, 2, lmaxb, mmaxb)
+
+                self.blt_cacher.cache(fn_blt, blm)
+
+            return blm
+        
+        fn_blt = os.path.join(self.libdir_QE, 'BLT/blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
+        if not os.path.exists(fn_blt):
+            blt = get_template_blm(0, 0, lmaxb=self.lm_max_blt[0], lmin_plm=self.Lmin, perturbative=self.blt_pert)
+            np.save(fn_blt, blt)
+
         return np.load(fn_blt)
             
 
@@ -886,6 +926,20 @@ class Map_delenser(Basejob):
                 bcl_L[2+iti,:,simidxi] = data[0][2+iti]
 
         return bcl_L
+    
+    def hlm2dlm(self, hlm, inplace):
+        if self.h == 'd':
+            return hlm if inplace else hlm.copy()
+        if self.h == 'p':
+            h2d = np.sqrt(np.arange(self.lmax_qlm + 1, dtype=float) * np.arange(1, self.lmax_qlm + 2, dtype=float))
+        elif self.h == 'k':
+            h2d = cli(0.5 * np.sqrt(np.arange(self.lmax_qlm + 1, dtype=float) * np.arange(1, self.lmax_qlm + 2, dtype=float)))
+        else:
+            assert 0, self.h + ' not implemented'
+        if inplace:
+            almxfl(hlm, h2d, self.mmax_qlm, True)
+        else:
+            return  almxfl(hlm, h2d, self.mmax_qlm, False)
     
 
 class Notebook_interactor(Basejob):

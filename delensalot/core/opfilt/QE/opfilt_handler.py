@@ -15,7 +15,12 @@ class iso_transformer:
 
     def build_opfilt_iso_pp(self, cf):
         def extract():
-            return {}
+            return {
+                'nlev_p': cf.nlev_p,
+                'transf': cf.ttebl['e'],
+                'alm_info': cf.lm_max_unl,
+                'wee': cf.k == 'p_p',
+            }
         return opfilt_iso_pp.alm_filter_nlev(**extract())
 
     def build_opfilt_iso_tt(self, cf):
@@ -38,23 +43,23 @@ class aniso_transformer:
 
 @transform.case(DLENSALOT_Concept, iso_transformer)
 def f1(expr, transformer): # pylint: disable=missing-function-docstring
-    if expr.key in ['p_p', 'p_eb', 'p_be', 'peb', 'pee', 'pbb']:
+    if expr.k in ['p_p', 'p_eb', 'p_be', 'peb', 'pee', 'pbb']:
         return transformer.build_opfilt_iso_pp(expr)
-    elif expr.key in ['ptt']:
+    elif expr.k in ['ptt']:
         return transformer.build_opfilt_iso_tt(expr)
-    elif expr.key == 'p_te':
+    elif expr.k == 'p_te':
         assert 0, "implement if needed"
-    elif expr.key == 'p_et':
+    elif expr.k == 'p_et':
         assert 0, "implement if needed"
-    elif expr.key == 'pte':
+    elif expr.k == 'pte':
         assert 0, "implement if needed"
-    elif expr.key == 'p_tb':
+    elif expr.k == 'p_tb':
         assert 0, "implement if needed"
-    elif expr.key == 'pbt':
+    elif expr.k == 'pbt':
         assert 0, "implement if needed"
-    elif expr.key == 'ptb':
+    elif expr.k == 'ptb':
         assert 0, "implement if needed"
-    elif expr.key == 'pp':
+    elif expr.k == 'pp':
         assert 0, "implement if needed"
 
 
@@ -64,17 +69,17 @@ def f1(expr, transformer): # pylint: disable=missing-function-docstring
         return transformer.build_opfilt_pp(expr)
     elif expr.k in ['ptt']:
         return transformer.build_opfilt_tt(expr)
-    elif expr.key == 'p_te':
+    elif expr.k == 'p_te':
         assert 0, "implement if needed"
-    elif expr.key == 'p_et':
+    elif expr.k == 'p_et':
         assert 0, "implement if needed"
-    elif expr.key == 'pte':
+    elif expr.k == 'pte':
         assert 0, "implement if needed"
-    elif expr.key == 'p_tb':
+    elif expr.k == 'p_tb':
         assert 0, "implement if needed"
-    elif expr.key == 'pbt':
+    elif expr.k == 'pbt':
         assert 0, "implement if needed"
-    elif expr.key == 'ptb':
+    elif expr.k == 'ptb':
         assert 0, "implement if needed"
-    elif expr.key == 'pp':
+    elif expr.k == 'pp':
         assert 0, "implement if needed"
