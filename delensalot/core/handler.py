@@ -19,18 +19,25 @@ from plancklens.sims import maps, phas
 from plancklens.qcinv import opfilt_pp
 from plancklens.filt import filt_util, filt_cinv, filt_simple
 
+from delensalot.utils import read_map
 from delensalot.core import mpi
+from delensalot.core.mpi import check_MPI
+
+from delensalot.sims.generic import parameter_sims
+
 from delensalot.utility import utils_sims
 from delensalot.utility.utils_hp import almxfl, alm_copy, gauss_beam
+
 from delensalot.config.config_helper import data_functions as df
 from delensalot.config.metamodel import DEFAULT_NotAValue
-from delensalot.core.mpi import check_MPI
+from delensalot.config.visitor import transform
+
 from delensalot.core.iterator import iteration_handler
 from delensalot.core.iterator.statics import rec as rec
+from delensalot.core.decorator.exception_handler import base as base_exception_handler
+
 from delensalot.core.opfilt import utils_cinv_p as cinv_p_OBD
 from delensalot.core.opfilt.bmodes_ninv import template_bfilt
-from delensalot.core.decorator.exception_handler import base as base_exception_handler
-from delensalot.sims.generic import parameter_sims
 
 
 class Basejob():
@@ -283,7 +290,7 @@ class QE_lr(Basejob):
         self.dlensalot_model = dlensalot_model
         if not isinstance(self.sims, parameter_sims):
             self.simgen = Sim_generator(dlensalot_model)
-
+        # self.filter_ = transform(self.configfile.dlensalot_model, opfilt_handler_QE())
 
         if self.qe_filter_directional == 'anisotropic':
             self.init_cinv()
@@ -572,9 +579,9 @@ class MAP_lr(Basejob):
         # sims -> sims_MAP
         if self.it_filter_directional == 'anisotropic':
             self.sims_MAP = utils_sims.ztrunc_sims(self.sims, self.sims_nside, [self.zbounds])
+            self.ninv = [self.sims_MAP.ztruncify(read_map(ni)) for ni in self.ninvp_desc] # inverse pixel noise map on consistent geometry
         elif self.it_filter_directional == 'isotropic':
             self.sims_MAP = self.sims
-
         self.ith = iteration_handler.transformer(self.iterator_typ)
 
 

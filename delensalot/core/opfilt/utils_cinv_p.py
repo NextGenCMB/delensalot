@@ -4,8 +4,6 @@
 
 """
 
-# TODO proper integration into .opfilt structure?
-
 import sys, os
 import numpy as np
 import healpy as hp

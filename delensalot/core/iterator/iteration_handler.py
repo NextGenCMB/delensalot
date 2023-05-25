@@ -5,7 +5,6 @@ setting up an iterator, (e.g. permf or constmf), and decide which object on iter
     
 """
 
-
 import os, sys
 
 import logging
@@ -15,19 +14,16 @@ from logdecorator import log_on_start, log_on_end
 import numpy as np
 import healpy as hp
 
-from lenspyx.remapping import deflection
 from lenspyx.remapping import utils_geom
 
-from delensalot.utils import read_map
-
+from delensalot.config.visitor import transform
+from delensalot.core.opfilt.opfilt_handler import MAP_transfomer
 from delensalot.core.iterator import cs_iterator, cs_iterator_fast
-from delensalot.core.opfilt.opfilt_ee_wl import alm_filter_ninv_wl
-from delensalot.core.opfilt.opfilt_iso_ee_wl import alm_filter_nlev_wl
-# from delensalot.core.opfilt.opfilt_iso_eenob_wl import alm_filter_nlev_wl
+
 
 class base_iterator():
 
-    def __init__(self, qe, k:str, simidx:int, version:str, sims_MAP, libdir_iterators, lensing_config):
+    def __init__(self, qe, k:str, simidx:int, version:str, sims_MAP, libdir_iterators, iterator_config):
         """Iterator instance for simulation idx and qe_key type k
             Args:
                 k: 'p_p' for Pol-only, 'ptt' for T-only, 'p_eb' for EB-only, etc
@@ -39,14 +35,15 @@ class base_iterator():
         self.k = k
         self.simidx = simidx
         self.version = version
-        self.__dict__.update(lensing_config.__dict__)
+        self.__dict__.update(iterator_config.__dict__)
+        self.iterator_config = iterator_config
         self.sims_MAP = sims_MAP
         
         self.libdir_iterator = libdir_iterators(k, simidx, version)
         if not os.path.exists(self.libdir_iterator):
             os.makedirs(self.libdir_iterator)
 
-        self.tr = lensing_config.tr 
+        self.tr = iterator_config.tr 
         self.qe = qe
         self.wflm0 = qe.get_wflm(self.simidx)
         self.R_unl0 = qe.R_unl()
@@ -55,13 +52,11 @@ class base_iterator():
         else:
             self.mf0 = np.zeros(shape=hp.Alm.getsize(self.lm_max_qlm[0]))
         self.plm0 = self.qe.get_plm(self.simidx, self.QE_subtract_meanfield)
-        self.ffi = deflection(self.lenjob_geometry, np.zeros_like(self.plm0), self.lm_max_qlm[1],
-                              numthreads=self.tr, verbosity=self.verbose, epsilon=self.epsilon)
         # self.ffi = lenspyx.remapping.deflection.deflection(self.lenjob_pbgeometry, self.lensres, np.zeros_like(self.plm0),
             # self.lm_max_qlm[1], self.tr, self.tr)
         self.filter = self.get_filter()
         # TODO not sure why this happens here. Could be done much earlier
-        self.it_chain_descr = lensing_config.it_chain_descr(lensing_config.lm_max_unl[0], lensing_config.it_cg_tol)
+        self.it_chain_descr = iterator_config.it_chain_descr(iterator_config.lm_max_unl[0], iterator_config.it_cg_tol)
 
 
     @log_on_start(logging.INFO, "get_datmaps() started")
@@ -81,28 +76,12 @@ class base_iterator():
 
     @log_on_start(logging.INFO, "get_filter() started")
     @log_on_end(logging.INFO, "get_filter() finished")
-    def get_filter(self):
-        def get_filter_aniso():
-            wee = self.k == 'p_p' # keeps or not the EE-like terms in the generalized QEs
-            ninv = [self.sims_MAP.ztruncify(read_map(ni)) for ni in self.ninvp_desc] # inverse pixel noise map on consistent geometry
-
-            ninvjob_geometry = utils_geom.Geom.get_healpix_geometry(self.sims_nside, zbounds=self.zbounds)
-            filter = alm_filter_ninv_wl(ninvjob_geometry, ninv, self.ffi, self.ttebl['e'], self.lm_max_unl, self.lm_max_ivf, self.tr, self.tpl,
-                wee=wee, lmin_dotop=min(self.lmin_teb[1], self.lmin_teb[2]), transf_blm=self.ttebl['b'])
-            self.k_geom = filter.ffi.geom # Customizable Geometry for position-space operations in calculations of the iterated QEs etc
-
-            return filter
-
-        def get_filter_iso():
-            wee = self.k == 'p_p'
-            filter = alm_filter_nlev_wl(self.nlev_p, self.ffi, self.ttebl['e'], self.lm_max_unl, self.lm_max_ivf,
-                    wee=wee, transf_b=self.ttebl['b'], nlev_b=self.nlev_p)
-            self.k_geom = filter.ffi.geom
-            
-            return filter
-        
+    def get_filter(self): 
         assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
-        filter = get_filter_iso() if self.it_filter_directional == 'isotropic' else get_filter_aniso()
+
+        filter_MAP = transform(self.iterator_config, MAP_transfomer())
+        filter = transform(self.iterator_config, filter_MAP())
+        self.k_geom = filter.ffi.geom # Customizable Geometry for position-space operations in calculations of the iterated QEs etc
         
         return filter
         
@@ -111,8 +90,8 @@ class iterator_pertmf(base_iterator):
     """Return perturbative-mean-field iterator instance for simulation idx and qe_key type k
     """
 
-    def __init__(self, qe, k:str, simidx:int, version:str, sims_MAP, libdir_iterators, lensing_config):
-        super(iterator_pertmf, self).__init__(qe, k, simidx, version, sims_MAP, libdir_iterators, lensing_config)
+    def __init__(self, qe, k:str, simidx:int, version:str, sims_MAP, libdir_iterators, iterator_config):
+        super(iterator_pertmf, self).__init__(qe, k, simidx, version, sims_MAP, libdir_iterators, iterator_config)
         self.mf_resp0 = qe.get_response_meanfield()
 
 
@@ -134,7 +113,7 @@ class iterator_pertmf(base_iterator):
 
 
 class iterator_constmf(base_iterator):
-    def __init__(self, qe, k:str, simidx:int, version:str, sims_MAP, libdir_iterators, lensing_config):
+    def __init__(self, qe, k:str, simidx:int, version:str, sims_MAP, libdir_iterators, iterator_config):
         """Return constmf iterator instance for simulation idx and qe_key type k
 
             Args:
@@ -145,7 +124,7 @@ class iterator_constmf(base_iterator):
                 cg_tol: tolerance of conjugate-gradient filter
 
         """ 
-        super(iterator_constmf, self).__init__(qe, k, simidx, version, sims_MAP, libdir_iterators, lensing_config)
+        super(iterator_constmf, self).__init__(qe, k, simidx, version, sims_MAP, libdir_iterators, iterator_config)
 
 
     @log_on_start(logging.INFO, "get_iterator() started")
@@ -166,7 +145,7 @@ class iterator_constmf(base_iterator):
 
 
 class iterator_fastWF(base_iterator):
-    def __init__(self, qe, k:str, simidx:int, version:str, sims_MAP, libdir_iterators, lensing_config):
+    def __init__(self, qe, k:str, simidx:int, version:str, sims_MAP, libdir_iterators, iterator_config):
         """Return fast Wiener-filtering constmf iterator instance for simulation idx and qe_key type k, fast WF for idealized fullsky case.
 
             Args:
@@ -175,7 +154,7 @@ class iterator_fastWF(base_iterator):
                 cg_tol: tolerance of conjugate-gradient filter
 
         """
-        super(iterator_fastWF, self).__init__(qe, k, simidx, version, sims_MAP, libdir_iterators, lensing_config)
+        super(iterator_fastWF, self).__init__(qe, k, simidx, version, sims_MAP, libdir_iterators, iterator_config)
 
 
     @log_on_start(logging.INFO, "get_datmaps() started")

@@ -22,6 +22,7 @@ import hashlib
 from plancklens.qcinv import cd_solve
 
 from lenspyx.remapping import utils_geom as lug
+from lenspyx.remapping import deflection
 
 from delensalot.utils import cli, camb_clfile
 
@@ -262,6 +263,7 @@ class l2lensrec_Transformer(l2base_Transformer):
             dl.nlev_t = l2OBD_Transformer.get_nlevt(cf)
             # nlev_p
             dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
+            
 
 
         @log_on_start(logging.DEBUG, "_process_OBD() started")
@@ -435,6 +437,7 @@ class l2lensrec_Transformer(l2base_Transformer):
                 dl.stepper_model.mmax_qlm = dl.lm_max_qlm[1]
                 dl.stepper = steps.harmonicbump(dl.stepper_model.lmax_qlm, dl.stepper_model.mmax_qlm, a=dl.stepper_model.a, b=dl.stepper_model.b, xa=dl.stepper_model.xa, xb=dl.stepper_model.xb)
                 # dl.stepper = steps.nrstep(dl.lm_max_qlm[0], dl.lm_max_qlm[1], val=0.5) # handler of the size steps in the MAP BFGS iterative search
+            dl.ffi = deflection(dl.lenjob_geometry, np.zeros(shape=hp.Alm.getsize(*dl.lm_max_qlm)), dl.lm_max_qlm[1], numthreads=dl.tr, verbosity=dl.verbose, epsilon=dl.epsilon)
             
 
         dl = DLENSALOT_Concept()    

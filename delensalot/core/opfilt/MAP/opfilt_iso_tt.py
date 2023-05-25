@@ -2,14 +2,19 @@
 
 
 """
+import time
 import numpy as np
-from delensalot.utility.utils_hp import almxfl, Alm, synalm
-from delensalot.utils import timer, clhash
+
+from plancklens.utils import cli
+
 from lenspyx import remapping
 from lenspyx.remapping import utils_geom
-from delensalot.core.opfilt import opfilt_iso_tt, opfilt_base
-from plancklens.utils import cli
-import time
+
+from delensalot.utility.utils_hp import almxfl, Alm, synalm
+from delensalot.utils import timer, clhash
+from delensalot.core.opfilt.QE import opfilt_iso_tt
+from delensalot.core.opfilt import opfilt_base
+
 
 fwd_op = opfilt_iso_tt.fwd_op
 dot_op = opfilt_iso_tt.dot_op
