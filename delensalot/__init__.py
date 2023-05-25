@@ -2,7 +2,8 @@ import os
 from os.path import join as opj
 if "SCRATCH" not in os.environ:
     os.environ["SCRATCH"] = "./SCRATCH"
-
+import hashlib
+import numpy as np
 import psutil
 import healpy as hp
 from delensalot.run import run
@@ -26,12 +27,17 @@ def map2map_del(maps, lmax_cmb, beam, itmax, noise, verbose=False):
     Returns:
         np.array: delensed B map
     """
+
+    pm = np.round(np.sum([m[::100] for m in maps]),5)
+    hlib = hashlib.sha256()
+    hlib.update((str([pm,lmax_cmb,beam,noise])).encode())
+    suffix = hlib.hexdigest()[:4]
     len2TP = {3: 'T', 2: 'P'}
     dlensalot_model = DLENSALOT_Model(
         defaults_to = '{}_FS_CMBS4'.format(len2TP[len(maps)]),
         data = DLENSALOT_Data(maps=maps),
         analysis = DLENSALOT_Analysis(
-            # TEMP_suffix = '{}_{}_{}'.format(),
+            TEMP_suffix = suffix,
             beam = beam,
             lm_max_ivf = (lmax_cmb,lmax_cmb),
             # lm_max_blt=(lmax_blt,lmax_blt), lmin_teb=(2,2,lmax_blt)
@@ -67,12 +73,16 @@ def map2map_blt(maps, lmax_cmb, beam, itmax, noise, verbose=False):
     Returns:
         np.array: B-lensing template
     """
+    pm = np.round(np.sum([m[::100] for m in maps]),5)
+    hlib = hashlib.sha256()
+    hlib.update((str([pm,lmax_cmb,beam,noise])).encode())
+    suffix = hlib.hexdigest()[:4]
     len2TP = {3: 'T', 2: 'P'}
     dlensalot_model = DLENSALOT_Model(
         defaults_to = '{}_FS_CMBS4'.format(len2TP[len(maps)]),
         data = DLENSALOT_Data(maps=maps),
         analysis = DLENSALOT_Analysis(
-            # TEMP_suffix = '{}_{}_{}'.format(),
+            TEMP_suffix = suffix,
             beam = beam,
             lm_max_ivf = (lmax_cmb,lmax_cmb),
             # lm_max_blt=(lmax_blt,lmax_blt), lmin_teb=(2,2,lmax_blt)
