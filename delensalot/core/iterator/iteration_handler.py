@@ -22,8 +22,8 @@ from delensalot.utils import read_map
 
 from delensalot.core.iterator import cs_iterator, cs_iterator_fast
 from delensalot.core.opfilt.opfilt_ee_wl import alm_filter_ninv_wl
-# from delensalot.core.opfilt.opfilt_iso_ee_wl import alm_filter_nlev_wl
-from delensalot.core.opfilt.opfilt_iso_eenob_wl import alm_filter_nlev_wl
+from delensalot.core.opfilt.opfilt_iso_ee_wl import alm_filter_nlev_wl
+# from delensalot.core.opfilt.opfilt_iso_eenob_wl import alm_filter_nlev_wl
 
 class base_iterator():
 
@@ -95,7 +95,8 @@ class base_iterator():
 
         def get_filter_iso():
             wee = self.k == 'p_p'
-            filter = alm_filter_nlev_wl(self.nlev_p, self.ffi, self.ttebl['e'], self.lm_max_unl, self.lm_max_ivf)
+            filter = alm_filter_nlev_wl(self.nlev_p, self.ffi, self.ttebl['e'], self.lm_max_unl, self.lm_max_ivf,
+                    wee=wee, transf_b=self.ttebl['b'], nlev_b=self.nlev_p)
             self.k_geom = filter.ffi.geom
             
             return filter
@@ -194,8 +195,9 @@ class iterator_fastWF(base_iterator):
     @log_on_start(logging.INFO, "get_filter() started")
     @log_on_end(logging.INFO, "get_filter() finished")
     def get_filter(self):
-        # wee = self.k == 'p_p'
-        filter = alm_filter_nlev_wl(self.nlev_p, self.ffi, self.ttebl['b'], self.lm_max_unl, self.lm_max_ivf)
+        wee = self.k == 'p_p'
+        filter = alm_filter_nlev_wl(self.nlev_p, self.ffi, self.ttebl['b'], self.lm_max_unl, self.lm_max_ivf,
+                wee=wee, transf_b=self.ttebl['b'], nlev_b=self.nlev_p)
         self.k_geom = filter.ffi.geom
 
         return filter
