@@ -80,7 +80,7 @@ class iterator_cstmf(delensalot.core.iterator.cs_iterator.qlm_iterator):
             # and we assume dat is EB
             mmax = None  # FIXME: here should be data actual mmax. We assume same as lmax
             #: FIXME total unsafe hack to see if this is pol or TT rec:
-            PorT = 'pp' in self.opfilt.__name__.split('.')[-1] or 'ee' in self.opfilt.__name__.split('.')[-1]
+            PorT = 'p' in self.opfilt.__name__.split('.')[-1] or 'e' in self.opfilt.__name__.split('.')[-1]
             if PorT: # Pol rec.
                 delEB = np.empty_like(self.dat_maps)
                 delEB[0] = almxfl(self.dat_maps[0], cli(self.filter.transf_elm), mmax, False)

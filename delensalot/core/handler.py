@@ -545,14 +545,11 @@ class QE_lr(Basejob):
     @log_on_start(logging.INFO, "QE.get_blt({simidx}) started")
     @log_on_end(logging.INFO, "QE.get_blt({simidx}) finished")
     def get_blt(self, simidx):
-        # TODO only needed for get_blt(), as this is done by cs_iterator.. move
         fn_blt = os.path.join(self.libdir_QE, 'BLT/blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
         if not os.path.exists(fn_blt):
-            itlib_iterator = transform(self.dlensalot_model, iterator_transformer(self.qe, self.k, simidx, self.version, self.sims_MAP, self.libdir_MAP, self.dlensalot_model))
-
+            itlib_iterator = transform(self.dlensalot_model, iterator_transformer(self, self.k, simidx, self.version, self.sims_MAP, self.libdir_MAP, self.dlensalot_model))
             ## For QE, dlm_mod by construction doesn't do anything, because mean-field had already been subtracted from plm and we don't want to repeat that.
             dlm_mod = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, int(simidx)))
-            
             blt = itlib_iterator.get_template_blm(0, 0, lmaxb=self.lm_max_blt[0], lmin_plm=1, dlm_mod=dlm_mod, perturbative=self.blt_pert)
             np.save(fn_blt, blt)
         return np.load(fn_blt)
@@ -757,10 +754,7 @@ class MAP_lr(Basejob):
             return self.qe.get_blt(simidx)
         fn_blt = os.path.join(self.libdir_MAP_blt, 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, it, it, self.lm_max_blt[0]) + '.npy')
         if not os.path.exists(fn_blt):     
-            if 'itlib' not in self.__dict__:
-                self.itlib_iterator = transform(self.dlensalot_model, iterator_transformer(self.qe, self.k, simidx, self.version, self.sims_MAP, self.libdir_MAP, self.dlensalot_model))
-            if simidx != self.itlib.simidx:
-                self.itlib_iterator = transform(self.dlensalot_model, iterator_transformer(self.qe, self.k, simidx, self.version, self.sims_MAP, self.libdir_MAP, self.dlensalot_model))
+            self.itlib_iterator = transform(self.dlensalot_model, iterator_transformer(self.qe, self.k, simidx, self.version, self.sims_MAP, self.libdir_MAP, self.dlensalot_model))
             self.libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
             dlm_mod = np.zeros_like(rec.load_plms(self.libdir_MAPidx, [0])[0])
             if self.dlm_mod_bool and it>0 and it<=rec.maxiterdone(self.libdir_MAPidx):

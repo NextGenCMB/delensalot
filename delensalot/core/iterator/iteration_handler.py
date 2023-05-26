@@ -117,12 +117,12 @@ class iterator_transformer(base_iterator):
 
         def extract():
             return {
-                'libdir_iterator': self.libdir_iterator,
+                'lib_dir': self.libdir_iterator,
                 'h': cf.k[0],
                 'lm_max_dlm': cf.lm_max_qlm,
                 'dat_maps': self.get_datmaps(),
                 'plm0': self.plm0,
-                'mf_resp': cf.qe.get_response_meanfield(),
+                'mf_resp': self.qe.get_response_meanfield(),
                 'pp_h0': self.R_unl0,
                 'cpp_prior': cf.cpp,
                 'cls_filt': cf.cls_unl,
@@ -140,13 +140,12 @@ class iterator_transformer(base_iterator):
         assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
         def extract():
             return {
-                'libdir_iterator': self.libdir_iterator,
+                'lib_dir': self.libdir_iterator,
                 'h': cf.k[0],
                 'lm_max_dlm': cf.lm_max_qlm,
                 'dat_maps': self.get_datmaps(),
                 'plm0': self.plm0,
                 'mf0': self.mf0,
-                'mf_resp': self.mf0,
                 'pp_h0': self.R_unl0,
                 'cpp_prior': cf.cpp,
                 'cls_filt': cf.cls_unl,
@@ -165,4 +164,4 @@ def f1(expr, transformer): # pylint: disable=missing-function-docstring
     elif expr.iterator_typ in ['pertmf']:
         return transformer.build_pertmf_iterator(expr)
     elif expr.iterator_typ in ['fastWF']:
-        return transformer.build_pertmf_iterator(expr)
+        return transformer.build_fastwf_iterator(expr)
