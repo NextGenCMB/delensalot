@@ -167,8 +167,8 @@ class iterator_fastWF(base_iterator):
         super(iterator_fastWF, self).__init__(qe, k, simidx, version, sims_MAP, libdir_iterators, iterator_config, isQE)
 
 
-    @log_on_start(logging.INFO, "get_datmaps() started")
-    @log_on_end(logging.INFO, "get_datmaps() finished")
+    @log_on_start(logging.INFO, "fastWF.get_datmaps() started")
+    @log_on_end(logging.INFO, "fastWF.get_datmaps() finished")
     def get_datmaps(self):
         assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
         # self.sims_MAP = self._sims
@@ -183,8 +183,8 @@ class iterator_fastWF(base_iterator):
             return np.array(job.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2, *self.lm_max_ivf, nthreads=self.tr))
 
 
-    @log_on_start(logging.INFO, "get_iterator() started")
-    @log_on_end(logging.INFO, "get_iterator() finished")
+    @log_on_start(logging.INFO, "fastWF.get_iterator() started")
+    @log_on_end(logging.INFO, "fastWF.get_iterator() finished")
     def get_iterator(self):
         """iterator_pertmf needs a whole lot of parameters, which are calculated when initialising this class.
 

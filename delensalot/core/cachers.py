@@ -45,6 +45,7 @@ class cacher_npy(cacher):
         return np.load(p, allow_pickle=True)
 
     def is_cached(self, fn):
+        print(self._path(fn))
         return os.path.exists(self._path(fn))
 
     def remove(self, fn):

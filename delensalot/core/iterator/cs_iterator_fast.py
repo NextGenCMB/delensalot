@@ -52,16 +52,18 @@ class iterator_cstmf(delensalot.core.iterator.cs_iterator.qlm_iterator):
         self.cacher.cache('mf', almxfl(mf0, self._h2p(self.lmax_qlm), self.mmax_qlm, False))
 
 
-    @log_on_start(logging.INFO, "load_graddet() started: it={k}, key={key}")
-    @log_on_end(logging.INFO, "load_graddet() finished: it={k}, key={key}")
+    @log_on_start(logging.INFO, "fastWF.load_graddet() started: it={k}, key={key}")
+    @log_on_end(logging.INFO, "fastWF.load_graddet() finished: it={k}, key={key}")
     def load_graddet(self, k, key):
         return self.cacher.load('mf')
 
-    @log_on_start(logging.INFO, "calc_graddet() started: it={k}, key={key}")
-    @log_on_end(logging.INFO, "calc_graddet() finished: it={k}, key={key}")
+    @log_on_start(logging.INFO, "fastWF.calc_graddet() started: it={k}, key={key}")
+    @log_on_end(logging.INFO, "fastWF.calc_graddet() finished: it={k}, key={key}")
     def calc_graddet(self, k, key):
         return self.cacher.load('mf')
 
+    @log_on_start(logging.INFO, "fastWF.calc_gradlik() started: it={itr}, key={key}")
+    @log_on_end(logging.INFO, "fastWF.calc_gradlik() finished: it={itr}, key={key}")
     def calc_gradlik(self, itr, key, iwantit=False):
         """Computes the quadratic part of the gradient for plm iteration 'itr'
 
@@ -92,8 +94,10 @@ class iterator_cstmf(delensalot.core.iterator.cs_iterator.qlm_iterator):
                 almxfl(delT, self.filter.transf, mmax, True)
 
             self.filter.set_ffi(self.filter.ffi.change_dlm([np.zeros_like(dlm), None], self.mmax_qlm, cachers.cacher_mem(safe=False)))
+            print("np.sum(dlm): {}".format(np.sum(self.filter.ffi.dlm)))
             mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.filter)
             soltn, it_soltn = self.load_soltn(itr, key)
+            log.info("it_soltn < itr = {}: {} < {}".format(it_soltn < itr, it_soltn, itr))
             if it_soltn < itr - 1:
                 soltn *= self.soltn_cond
                 assert soltn.ndim == 1, 'Fix following lines'

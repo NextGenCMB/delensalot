@@ -285,9 +285,12 @@ class QE_lr(Basejob):
     """Quadratic estimate lensing reconstruction Job. Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.
     """
     @check_MPI
-    def __init__(self, dlensalot_model):
+    def __init__(self, dlensalot_model, caller='QE'):
+        if caller == 'MAP':
+            dlensalot_model.qe_tasks = dlensalot_model.it_tasks
         super().__init__(dlensalot_model)
         self.dlensalot_model = dlensalot_model
+        
         if not isinstance(self.sims, parameter_sims):
             self.simgen = Sim_generator(dlensalot_model)
         # self.filter_ = transform(self.configfile.dlensalot_model, opfilt_handler_QE())
@@ -361,28 +364,23 @@ class QE_lr(Basejob):
 
 
     # @base_exception_handler
-    @log_on_start(logging.INFO, "QE.collect_jobs(qe_tasks={qe_tasks}, recalc={recalc}) started")
-    @log_on_end(logging.INFO, "QE.collect_jobs(qe_tasks={qe_tasks}, recalc={recalc}) finished: jobs={self.jobs}")
-    def collect_jobs(self, qe_tasks=None, recalc=False):
+    @log_on_start(logging.INFO, "QE.collect_jobs(recalc={recalc}) started")
+    @log_on_end(logging.INFO, "QE.collect_jobs(recalc={recalc}) finished: jobs={self.jobs}")
+    def collect_jobs(self, recalc=False):
 
         if not isinstance(self.sims, parameter_sims):
             self.simgen.collect_jobs()
         # qe_tasks overwrites task-list and is needed if MAP lensrec calls QE lensrec
-        _qe_tasks = self.qe_tasks if qe_tasks == None else qe_tasks
-        jobs = list(range(len(_qe_tasks)))
-        for taski, task in enumerate(_qe_tasks):
+        jobs = list(range(len(self.qe_tasks)))
+        for taski, task in enumerate(self.qe_tasks):
             ## task_dependence
             ## calc_mf -> calc_phi, calc_blt -> calc_phi, (calc_mf)
             _jobs = []
 
             if task == 'calc_meanfield':
-                ## TODO this filename must match plancklens filename.. refactor
                 fn_mf = os.path.join(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, utils.mchash(self.simidxs_mf)))
-                ## if meanfield exists, no need to calculate any of the qlms_dd
                 if not os.path.isfile(fn_mf) or recalc:
-                    ## if meanfield not yet done, collect all qlms_dd which haven't yet been calculated
                     for simidx in self.simidxs_mf:
-                        ## TODO this filename must match plancklens filename.. refactor
                         fn_qlm = os.path.join(self.qlms_dd.lib_dir, 'sim_%s_%04d.fits'%(self.k, simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
                         if not os.path.isfile(fn_qlm) or recalc:
                             _jobs.append(int(simidx))
@@ -500,6 +498,7 @@ class QE_lr(Basejob):
         # libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
         fn_plm = opj(self.libdir_QE, 'phi_plm_it000.npy')
         plm  = self.qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate:
+        log.info(fn_plm)
         if not os.path.exists(fn_plm):
             plm  = self.qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate:
             if sub_mf and self.version != 'noMF':
@@ -609,7 +608,7 @@ class MAP_lr(Basejob):
         # TODO Only needed to hand over to ith(). in c2d(), prepare an ith model for it
         self.dlensalot_model = dlensalot_model
         self.simgen = Sim_generator(dlensalot_model)
-        self.qe = QE_lr(dlensalot_model)
+        self.qe = QE_lr(dlensalot_model, caller='MAP')
 
         ## tasks -> mf_dirname
         if "calc_meanfield" in self.it_tasks or 'calc_blt' in self.it_tasks:
@@ -629,6 +628,8 @@ class MAP_lr(Basejob):
     @log_on_start(logging.INFO, "MAP.map.collect_jobs() started")
     @log_on_end(logging.INFO, "MAP.collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self):
+        self.simgen.collect_jobs()
+        self.qe.collect_jobs(recalc=False)
         jobs = list(range(len(self.it_tasks)))
         # TODO order of task list matters, but shouldn't
         for taski, task in enumerate(self.it_tasks):
@@ -637,8 +638,6 @@ class MAP_lr(Basejob):
             if task == 'calc_phi':
                 ## Here I only want to calculate files not calculated before, and only for the it job tasks.
                 ## i.e. if no blt task in iterator job, then no blt task in QE job 
-                self.simgen.collect_jobs()
-                self.qe.collect_jobs(task, recalc=False)
                 for simidx in self.simidxs:
                     libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
                     if rec.maxiterdone(libdir_MAPidx) < self.itmax:
@@ -657,7 +656,6 @@ class MAP_lr(Basejob):
                         _jobs.append(0)
 
             elif task == 'calc_blt':
-                self.qe.collect_jobs(task, recalc=False)
                 for simidx in self.simidxs:
                     fns_blt = np.array([os.path.join(self.libdir_MAP_blt, 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, it, it, self.lm_max_blt[0]) + '.npy') for it in np.arange(1,self.itmax+1)])
                     if not np.all([os.path.exists(fn_blt) for fn_blt in fns_blt]):

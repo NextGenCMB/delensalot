@@ -180,6 +180,7 @@ class qlm_iterator(object):
         if itr <= 0:
             return self.cacher.is_cached('%s_%slm_it000' % ({'p': 'phi', 'o': 'om'}[key], self.h))
         sk_fname = lambda k: 'rlm_sn_%s_%s' % (k, 'p')
+        log.info("{}, {}".format(sk_fname(itr - 1), self.hess_cacher.lib_dir))
         return self.hess_cacher.is_cached(sk_fname(itr - 1)) #FIXME
 
     def _is_qd_grad_done(self, itr, key):
@@ -419,6 +420,7 @@ class qlm_iterator(object):
 
         """
         assert key.lower() in ['p', 'o'], key  # potential or curl potential.
+        log.info("is_iter_done(itr, key) = {}, {} {}".format(self.is_iter_done(itr, key), itr, key))
         if not self.is_iter_done(itr, key):
             assert self.is_iter_done(itr - 1, key), 'previous iteration not done'
             self.logger.on_iterstart(itr, key, self)

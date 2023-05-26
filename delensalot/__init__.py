@@ -14,6 +14,7 @@ from delensalot.utils import camb_clfile
 cls_len = camb_clfile(opj(os.path.dirname(__file__), 'data/cls/FFP10_wdipole_lensedCls.dat'))
 cpp = camb_clfile(opj(os.path.dirname(__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'))['pp']
 
+
 def map2delblm(maps, lmax_cmb, beam, itmax, noise, verbose=False, use_approximateWF=True):
     """Calculates a delensed B map on the full sky. Configuration is a faithful default. 
 
@@ -106,7 +107,7 @@ def map2bltlm(maps, lmax_cmb, beam, itmax, noise, verbose=False, use_approximate
         # qerec = DLENSALOT_Qerec(),
         itrec = DLENSALOT_Itrec(
         itmax=itmax,
-        lm_max_unl=(lmax_cmb+200,lmax_cmb+200),
+        lm_max_unl=(lmax_cmb,lmax_cmb),
         iterator_typ = approxWF2itt[use_approximateWF],
         ),
         computing = DLENSALOT_Computing(OMP_NUM_THREADS=min([psutil.cpu_count()-1,8])),

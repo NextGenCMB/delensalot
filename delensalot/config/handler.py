@@ -188,6 +188,7 @@ class handler():
         """
         dostore = False
         # This is only done if not resuming. Otherwise file would already exist
+        log.info(parser.config_file)
         if os.path.isfile(parser.config_file) and parser.config_file.endswith('.py'):
             # if the file already exists, check if something changed
             if os.path.isfile(TEMP+'/'+parser.config_file.split('/')[-1]):
@@ -227,6 +228,7 @@ class handler():
             if parser.resume == '':
                 # Only give this info when not resuming
                 logging.info('Matching config file found. Resuming where I left off.')
+                logging.info(TEMP+'/'+parser.config_file.split('/')[-1])
 
 
     @log_on_start(logging.INFO, "load_configfile() Started: {directory}")
