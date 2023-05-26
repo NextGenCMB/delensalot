@@ -180,7 +180,6 @@ class qlm_iterator(object):
         if itr <= 0:
             return self.cacher.is_cached('%s_%slm_it000' % ({'p': 'phi', 'o': 'om'}[key], self.h))
         sk_fname = lambda k: 'rlm_sn_%s_%s' % (k, 'p')
-        log.info("{}, {}".format(sk_fname(itr - 1), self.hess_cacher.lib_dir))
         return self.hess_cacher.is_cached(sk_fname(itr - 1)) #FIXME
 
     def _is_qd_grad_done(self, itr, key):

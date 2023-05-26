@@ -77,7 +77,6 @@ class aniso_transformer:
         return opfilt_tt.alm_filter_ninv_wl(**extract())
 
 
-
 @transform.case(DLENSALOT_Concept, iso_transformer)
 def f1(expr, transformer): # pylint: disable=missing-function-docstring
     if expr.k in ['p_p', 'p_eb', 'p_be', 'peb', 'pbb']:
