@@ -70,7 +70,7 @@ def map2delblm(maps, lmax_cmb, beam, itmax, noise, verbose=False, use_approximat
     return ana_mwe.get_residualblens(ana_mwe.simidxs[0], ana_mwe.its[-1])
 
 
-def map2bltlm(maps, lmax_cmb, beam, itmax, noise, verbose=False, use_approximateWF=True):
+def map2tempblm(maps, lmax_cmb, beam, itmax, noise, verbose=False, use_approximateWF=True):
     """Calculates a B-lensing template on the full sky. Configuration is a faithful default. 
 
     Args:

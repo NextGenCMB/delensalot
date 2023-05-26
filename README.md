@@ -21,13 +21,13 @@ Frequent problems are
 # Usage
 
 
-## The quickest way: `map2map_del()` or `map2map_blt()`
+## The quickest way: `map2delblm()` or `map2tempblm()`
 
 `delensalot` comes with two handy functions to get you started very easily.
 To get a delensed B map, simply import `delensalot` and run `map2map_del()`:
 ```
 import delensalot
-delensedmap = delensalot.map2map_del(obsmaps, lmax_cmb=lmax_cmb, beam=beam, itmax=itmax, noise=noise, verbose=True)
+delensedmap = delensalot.map2delblm(obsmaps, lmax_cmb=lmax_cmb, beam=beam, itmax=itmax, noise=noise, verbose=True)
 ```
 
 here `obsmaps` is the observed Q and U map you may have... gotten from somewhere. Then all what is left to do is to tell `delensalot` about,
@@ -36,10 +36,10 @@ here `obsmaps` is the observed Q and U map you may have... gotten from somewhere
  * how many iterations (`itmax`) you'd like to perform,
  * and the noise level (`noise`) of the observation.
 
-If you are interested in the B-lensing template, instead use `map2map_blt()`,
+If you are interested in the B-lensing template, instead use `map2zlm()`,
 ```
 import delensalot
-Blenstemplate = delensalot.map2map_blt(obsmaps, lmax_cmb=lmax_cmb, beam=beam, itmax=itmax, noise=noise, verbose=True)
+Blenstemplate = delensalot.map2tempblm(obsmaps, lmax_cmb=lmax_cmb, beam=beam, itmax=itmax, noise=noise, verbose=True)
 ```
 
 
