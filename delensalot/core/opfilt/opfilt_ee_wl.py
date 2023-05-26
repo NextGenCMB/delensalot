@@ -395,7 +395,7 @@ def calc_prep(qumaps:np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv_wl):
     almxfl(eblm[0], ninv_filt.b_transf_elm, ninv_filt.mmax_len, True)
     almxfl(eblm[1], ninv_filt.b_transf_blm, ninv_filt.mmax_len, True)
     elm = ninv_filt.ffi.lensgclm(eblm, ninv_filt.mmax_len, 2, ninv_filt.lmax_sol, ninv_filt.mmax_sol,
-                                      backwards=True, out_sht_mode='GRAD_ONLY')
+                                      backwards=True, out_sht_mode='GRAD_ONLY').squeeze()
     almxfl(elm, s_cls['ee'] > 0., ninv_filt.mmax_sol, True)
     return elm
 
