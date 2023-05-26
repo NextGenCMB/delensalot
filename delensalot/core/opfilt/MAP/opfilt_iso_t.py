@@ -12,15 +12,15 @@ from lenspyx.remapping import utils_geom
 
 from delensalot.utility.utils_hp import almxfl, Alm, synalm
 from delensalot.utils import timer, clhash
-from delensalot.core.opfilt.QE import opfilt_iso_tt
+from delensalot.core.opfilt.QE import opfilt_iso_t
 from delensalot.core.opfilt import opfilt_base
 
 
-fwd_op = opfilt_iso_tt.fwd_op
-dot_op = opfilt_iso_tt.dot_op
-pre_op_diag = opfilt_iso_tt.pre_op_diag
+fwd_op = opfilt_iso_t.fwd_op
+dot_op = opfilt_iso_t.dot_op
+pre_op_diag = opfilt_iso_t.pre_op_diag
 pre_op_dense = None # not implemented
-apply_fini = opfilt_iso_tt.apply_fini
+apply_fini = opfilt_iso_t.apply_fini
 
 def _extend_cl(cl, lmax):
     """Forces input to an array of size lmax + 1

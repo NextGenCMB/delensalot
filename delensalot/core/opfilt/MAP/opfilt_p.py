@@ -15,10 +15,10 @@ from lenspyx import remapping
 
 from delensalot.utils import clhash, cli, read_map, timer
 from delensalot.utility.utils_hp import almxfl, Alm, alm2cl, synalm, default_rng
-from delensalot.core.opfilt.QE import opfilt_pp
+from delensalot.core.opfilt.QE import opfilt_p
 from delensalot.core.opfilt import opfilt_base, bmodes_ninv as bni
 
-apply_fini = opfilt_pp.apply_fini
+apply_fini = opfilt_p.apply_fini
 pre_op_dense = None # not implemented
 
 
