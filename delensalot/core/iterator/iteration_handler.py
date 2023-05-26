@@ -80,6 +80,7 @@ class base_iterator():
 
         filter_MAP = transform(self.iterator_config, MAP_transformer())
         filter = transform(self.iterator_config, filter_MAP())
+        log.info(filter)
         self.k_geom = filter.ffi.geom # Customizable Geometry for position-space operations in calculations of the iterated QEs etc
         
         return filter
@@ -153,6 +154,7 @@ class iterator_transformer(base_iterator):
                 'k_geom': self.filter.ffi.geom,
                 'chain_descr': self.it_chain_descr,
                 'stepper': cf.stepper,
+                'wflm0': self.wflm0,
             }
         return cs_iterator_fast.iterator_cstmf(**extract())
 
