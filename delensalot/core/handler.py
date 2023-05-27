@@ -603,7 +603,8 @@ class QE_lr(Basejob):
             np.save(fn_blt, blt)
 
         return np.load(fn_blt)
-            
+
+
     @log_on_start(logging.INFO, "get_filter() started")
     @log_on_end(logging.INFO, "get_filter() finished")
     def get_filter(self): 
@@ -769,10 +770,10 @@ class MAP_lr(Basejob):
     def get_blt_it(self, simidx, it):
         # self.blt_lmin_plm = 1
         if it == 0:
+            self.qe.itlib_iterator = transform(self, iterator_transformer(self, simidx, self.dlensalot_model))
             return self.qe.get_blt(simidx)
         fn_blt = os.path.join(self.libdir_MAP_blt, 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, it, it, self.lm_max_blt[0]) + '.npy')
         if not os.path.exists(fn_blt):     
-            self.itlib_iterator = transform(self, iterator_transformer(self, simidx, self.dlensalot_model))
             self.libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
             dlm_mod = np.zeros_like(rec.load_plms(self.libdir_MAPidx, [0])[0])
             if self.dlm_mod_bool and it>0 and it<=rec.maxiterdone(self.libdir_MAPidx):

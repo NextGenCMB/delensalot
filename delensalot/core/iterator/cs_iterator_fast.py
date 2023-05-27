@@ -72,6 +72,7 @@ class iterator_cstmf(delensalot.core.iterator.cs_iterator.qlm_iterator):
         assert itr > 0, itr
         assert key.lower() in ['p', 'o'], key  # potential or curl potential.
         if not self._is_qd_grad_done(itr, key) or iwantit:
+            log.info("before loading dlm")
             assert key in ['p'], key + '  not implemented'
             dlm = self.get_hlm(itr - 1, key)
             self.hlm2dlm(dlm, True)
@@ -81,6 +82,7 @@ class iterator_cstmf(delensalot.core.iterator.cs_iterator.qlm_iterator):
             mmax = None  # FIXME: here should be data actual mmax. We assume same as lmax
             #: FIXME total unsafe hack to see if this is pol or TT rec:
             PorT = 'p' in self.opfilt.__name__.split('.')[-1] or 'e' in self.opfilt.__name__.split('.')[-1]
+            log.info("before lensing")
             if PorT: # Pol rec.
                 delEB = np.empty_like(self.dat_maps)
                 delEB[0] = almxfl(self.dat_maps[0], cli(self.filter.transf_elm), mmax, False)
@@ -92,8 +94,8 @@ class iterator_cstmf(delensalot.core.iterator.cs_iterator.qlm_iterator):
                 delT = almxfl(self.dat_maps, cli(self.filter.transf), mmax, False)
                 delT = ffi.lensgclm(delT, self.filter.mmax_len, 0, self.filter.lmax_len, self.filter.mmax_len, backwards=True, nomagn=True)
                 almxfl(delT, self.filter.transf, mmax, True)
-
             self.filter.set_ffi(self.filter.ffi.change_dlm([np.zeros_like(dlm), None], self.mmax_qlm, cachers.cacher_mem(safe=False)))
+            log.info("multigrid.multigrid_chain")
             mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.filter)
             soltn, it_soltn = self.load_soltn(itr, key)
 
