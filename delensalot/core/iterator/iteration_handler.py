@@ -17,7 +17,6 @@ import healpy as hp
 from lenspyx.remapping import utils_geom
 from delensalot.core.iterator import cs_iterator, cs_iterator_fast
 
-
 class base_iterator():
 
     def __init__(self, job_model, simidx:int, delensalot_model):

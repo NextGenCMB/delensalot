@@ -416,6 +416,7 @@ class QE_lr(Basejob):
             jobs[taski] = _jobs
         self.jobs = jobs
 
+
     # @base_exception_handler
     @log_on_start(logging.INFO, "QE.run(task={task}) started")
     @log_on_end(logging.INFO, "QE.run(task={task}) finished")
@@ -452,10 +453,9 @@ class QE_lr(Basejob):
                     self.get_plm(idx, self.QE_subtract_meanfield)
 
             if task == 'calc_blt':
-                
                 for simidx in self.jobs[taski][mpi.rank::mpi.size]:
                     # ## Faking here MAP filters
-                    self.itlib_iterator = transform(MAP_job, iterator_transformer(self.MAP_job, simidx, self.dlensalot_model))
+                    self.itlib_iterator = transform(self.MAP_job, iterator_transformer(self.MAP_job, simidx, self.dlensalot_model))
                     self.get_blt(simidx)
 
 

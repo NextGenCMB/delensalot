@@ -1,11 +1,10 @@
 """opfilt.opfilt_handler.py: interface to opfilt via transformer
 """
 
-from delensalot.config.visitor import transform
-from delensalot.core.opfilt import QE_opfilt_iso_p, QE_opfilt_iso_t # these are iso QE
+from delensalot.core.opfilt import MAP_opfilt_iso_tp, QE_opfilt_iso_p, QE_opfilt_iso_t # these are iso QE
 from delensalot.core.opfilt import QE_opfilt_aniso_p, QE_opfilt_aniso_t # these are aniso QE
 
-from delensalot.core.opfilt import MAP_opfilt_iso_e, MAP_opfilt_iso_gpt, MAP_opfilt_iso_p, MAP_opfilt_iso_t # these are iso MAP
+from delensalot.core.opfilt import MAP_opfilt_iso_e, MAP_opfilt_iso_p, MAP_opfilt_iso_t # these are iso MAP
 from delensalot.core.opfilt import MAP_opfilt_aniso_p, MAP_opfilt_aniso_t # these are aniso MAP with and without OBD
 
 
@@ -85,7 +84,7 @@ class MAP_iso_transformer:
         assert 0, "Implement if needed"
         def extract():
             return {}
-        return MAP_opfilt_iso_gpt.alm_filter_nlev_wl(**extract())
+        return MAP_opfilt_iso_tp.alm_filter_nlev_wl(**extract())
 
     def build_opfilt_iso_tt(self, cf):
         assert 0, "Implement if needed"
