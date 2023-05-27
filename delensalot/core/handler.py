@@ -86,6 +86,7 @@ class Basejob():
             self.sims = parameter_sims(self.parameter_maps, self.parameter_phi)
         elif self.parameter_maps == DEFAULT_NotAValue:
             self.sims = maps.cmb_maps_nlev(self._sims, transf_dat, self.sims_nlev_t, self.sims_nlev_p, self.sims_nside, pix_lib_phas=pix_phas)
+        self.config_model = model
 
 
     # @base_exception_handler
