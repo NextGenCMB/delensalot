@@ -293,9 +293,14 @@ class QE_lr(Basejob):
     """Quadratic estimate lensing reconstruction Job. Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.
     """
     @check_MPI
-    def __init__(self, dlensalot_model, caller='QE'):
-        if caller == 'MAP':
+    def __init__(self, dlensalot_model, caller=None):
+        if caller is not None:
             dlensalot_model.qe_tasks = dlensalot_model.it_tasks
+            ## TODO. Current solution to fake an iteration handler for QE to calc blt is to initialize one MAP_job here.
+            ## In the future, I want to remove get_template_blm from the iteration_handler, at least for QE.
+            if 'calc_blt' in dlensalot_model.qe_tasks:
+                self.MAP_job = caller
+
         super().__init__(dlensalot_model)
         self.dlensalot_model = dlensalot_model
         
@@ -623,8 +628,10 @@ class MAP_lr(Basejob):
         super().__init__(dlensalot_model)
         # TODO Only needed to hand over to ith(). in c2d(), prepare an ith model for it
         self.dlensalot_model = dlensalot_model
+        
+        # TODO This is not the prettiest way to provide MAP_lr with QE and Simgen dependency.. probably better to just put it as a separate job into the job-list.. so do this in config_handler... same with Sim_generator? 
         self.simgen = Sim_generator(dlensalot_model)
-        self.qe = QE_lr(dlensalot_model, caller='MAP')
+        self.qe = QE_lr(dlensalot_model, caller=self)
 
         ## tasks -> mf_dirname
         if "calc_meanfield" in self.it_tasks or 'calc_blt' in self.it_tasks:
