@@ -117,11 +117,11 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         self.tim.add('transf')
 
         # NB: inplace is fine but only if precision of elm array matches that of the interpolator
-        # self.ffi.lensgclm(eblm, self.mmax_len, 2, self.lmax_sol, self.mmax_sol,
-        #                          backwards=True, gclm_out=elm_2d, out_sht_mode='GRAD_ONLY')
+        self.ffi.lensgclm(eblm, self.mmax_len, 2, self.lmax_sol, self.mmax_sol,
+                                 backwards=True, gclm_out=elm_2d, out_sht_mode='GRAD_ONLY')
         #elm[:] = self.ffi.lensgclm(eblm, self.mmax_len, 2, self.lmax_sol, self.mmax_sol,
         #                 backwards=True, out_sht_mode='GRAD_ONLY').squeeze()
-        elm[:] = self.ffi.lensgclm(eblm, self.mmax_len, 2, self.lmax_sol, self.mmax_sol, backwards=True, out_sht_mode='GRAD_ONLY')
+        # elm[:] = self.ffi.lensgclm(eblm, self.mmax_len, 2, self.lmax_sol, self.mmax_sol, backwards=True, out_sht_mode='GRAD_ONLY')
         self.tim.add('lensgclm bwd')
         if self.verbose:
             print(self.tim)
