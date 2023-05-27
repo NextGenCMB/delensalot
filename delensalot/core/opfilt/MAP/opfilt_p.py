@@ -8,15 +8,15 @@ log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
 
 import numpy as np
-from scipy.interpolate import UnivariateSpline as spl
-
+from delensalot.utility.utils_hp import almxfl, Alm, alm2cl, synalm, default_rng
+from delensalot.utils import clhash, cli, read_map
 from lenspyx.remapping import utils_geom
 from lenspyx import remapping
-
-from delensalot.utils import clhash, cli, read_map, timer
-from delensalot.utility.utils_hp import almxfl, Alm, alm2cl, synalm, default_rng
+from lenspyx.remapping.deflection_028 import rtype, ctype
 from delensalot.core.opfilt.QE import opfilt_p
 from delensalot.core.opfilt import opfilt_base, bmodes_ninv as bni
+from scipy.interpolate import UnivariateSpline as spl
+from delensalot.utils import timer
 
 apply_fini = opfilt_p.apply_fini
 pre_op_dense = None # not implemented
@@ -57,21 +57,8 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         self.lmin_dotop = lmin_dotop
         self.wee = wee
 
-
-        
-        if not np.all(ninv_geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
-            log.info('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
-            nr = ninv_geom.get_nrings()
-            geom_ = utils_geom.Geom(nr, ninv_geom.nph.copy(), ninv_geom.ofs.copy(), 1, ninv_geom.phi0.copy(), ninv_geom.theta.copy(), np.ones(nr, dtype=float))
-            # Does not seem to work without the 'copy'
-        else:
-            geom_ = ninv_geom
-        assert np.all(geom_.weight == 1.)
         self.sht_threads = sht_threads
-
-
         self.ninv_geom = ninv_geom
-        self.geom_ = geom_
 
         self.verbose=verbose
 
@@ -152,21 +139,23 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         tim.reset_t0()
         lmax_unl =Alm.getlmax(elm.size, self.mmax_sol)
         assert lmax_unl == self.lmax_sol, (lmax_unl, self.lmax_sol)
-        
-        eblm = self.ffi.lensgclm(np.array([elm, np.zeros_like(elm)]), self.mmax_sol, 2, self.lmax_len, self.mmax_len)
+        assert elm.ndim == 1
+        elm2d = elm.reshape((1, elm.size))
+        eblm = self.ffi.lensgclm(elm2d, self.mmax_sol, 2, self.lmax_len, self.mmax_len)
         tim.add('lensgclm fwd')
 
         almxfl(eblm[0], self.b_transf_elm, self.mmax_len, inplace=True)
         almxfl(eblm[1], self.b_transf_blm, self.mmax_len, inplace=True)
         tim.add('transf')
 
-        qumap = self.geom_.alm2map_spin(eblm, 2, self.lmax_len, self.mmax_len, self.sht_threads)
+        qumap = self.ninv_geom.synthesis(eblm, 2, self.lmax_len, self.mmax_len, self.sht_threads)
         tim.add('alm2map_spin lmax %s mmax %s nrings %s'%(self.lmax_len, self.mmax_len, len(self.geom_.ofs)))
 
         self.apply_map(qumap)  # applies N^{-1}
         tim.add('apply ninv')
 
-        eblm = self.geom_.map2alm_spin(qumap, 2, self.lmax_len, self.mmax_len, self.sht_threads)
+        eblm = self.ninv_geom.adjoint_synthesis(qumap, 2, self.lmax_len, self.mmax_len, self.sht_threads,
+                                                apply_weights=False)
         tim.add('map2alm_spin lmax %s mmax %s nrings %s'%(self.lmax_len, self.mmax_len, len(self.geom_.ofs)))
 
         # The map2alm is here a sum rather than integral, so geom.weights are assumed to be unity
@@ -174,9 +163,9 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         almxfl(eblm[1], self.b_transf_blm, self.mmax_len, inplace=True)
         tim.add('transf')
 
-        # backward lensing with magn. mult. here
-        eblm = self.ffi.lensgclm(eblm, self.mmax_len, 2, self.lmax_sol, self.mmax_sol, backwards=True)
-        elm[:] = eblm[0]
+        # Writing onto elm2d
+        self.ffi.lensgclm(eblm, self.mmax_len, 2, self.lmax_sol, self.mmax_sol,
+                                backwards=True, out_sht_mode='GRAD_ONLY', gclm_out=elm2d)
         tim.add('lensgclm bwd')
         if self.verbose:
             print(tim)
@@ -192,7 +181,7 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         """
         elm = synalm(unlcmb_cls['ee'], self.lmax_sol, self.mmax_sol) if cmb_phas is None else cmb_phas
         assert Alm.getlmax(elm.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(elm.size, self.mmax_sol), self.lmax_sol)
-        eblm = self.ffi.lensgclm(np.array([elm, elm * 0]), self.mmax_sol, 2, self.lmax_len, self.mmax_len)
+        eblm = self.ffi.lensgclm(elm, self.mmax_sol, 2, self.lmax_len, self.mmax_len)
         almxfl(eblm[0], self.b_transf_elm, self.mmax_len, True)
         almxfl(eblm[1], self.b_transf_blm, self.mmax_len, True)
         # cant use here geom_ since it is using the unit weight transforms
@@ -208,7 +197,7 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
             assert 0, 'you should never land here'
         return elm, QU if get_unlelm else QU
 
-    def get_qlms(self, qudat: np.ndarray or list, elm_wf: np.ndarray, q_pbgeom: utils_geom.pbdGeometry, alm_wf_leg2 :None or np.ndarray=None):
+    def get_qlms_old(self, qudat: np.ndarray or list, elm_wf: np.ndarray, q_pbgeom: utils_geom.pbdGeometry, alm_wf_leg2 :None or np.ndarray=None):
         """
 
             Args:
@@ -238,6 +227,40 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         almxfl(G, fl, mmax_qlm, True)
         almxfl(C, fl, mmax_qlm, True)
         return G, C
+
+    def get_qlms(self, eblm_dat: np.ndarray or list, elm_wf: np.ndarray, q_pbgeom: utils_geom.pbdGeometry, alm_wf_leg2:None or np.ndarray =None):
+        """Get lensing generaliazed QE consistent with filter assumptions
+
+            Args:
+                eblm_dat: input polarization maps (geom must match that of the filter)
+                elm_wf: Wiener-filtered CMB maps (alm arrays)
+                alm_wf_leg2: Wiener-filtered CMB maps of gradient leg, if different from ivf leg (alm arrays)
+                q_pbgeom: scarf pbounded-geometry of for the position-space mutliplication of the legs
+
+            All implementation signs are super-weird but end result should be correct...
+
+        """
+        assert alm_wf_leg2 is None
+        assert Alm.getlmax(eblm_dat[0].size, self.mmax_len) == self.lmax_len, (Alm.getlmax(eblm_dat[0].size, self.mmax_len), self.lmax_len)
+        assert Alm.getlmax(eblm_dat[1].size, self.mmax_len) == self.lmax_len, (Alm.getlmax(eblm_dat[1].size, self.mmax_len), self.lmax_len)
+        assert Alm.getlmax(elm_wf.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(elm_wf.size, self.mmax_sol), self.lmax_sol)
+        resmap_c = np.empty((q_pbgeom.geom.npix(),), dtype=elm_wf.dtype)
+        resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
+        self._get_irespmap(eblm_dat, elm_wf, q_pbgeom, map_out=resmap_r) # inplace onto resmap_c and resmap_r
+
+        gcs_r = self._get_gpmap(elm_wf, 3, q_pbgeom)  # 2 pos.space maps, uses then complex view onto real array
+        gc_c = resmap_c.conj() * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3)
+        gcs_r = self._get_gpmap(elm_wf, 1, q_pbgeom)
+        gc_c -= resmap_c * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze().conj()  # (+2 , -1)
+        del resmap_c, resmap_r, gcs_r
+        lmax_qlm, mmax_qlm = self.ffi.lmax_dlm, self.ffi.mmax_dlm
+        gc_r = gc_c.view(rtype[gc_c.dtype]).reshape((gc_c.size, 2)).T  # real view onto complex array
+        gc = q_pbgeom.geom.adjoint_synthesis(gc_r, 1, lmax_qlm, mmax_qlm, self.ffi.sht_tr)
+        del gc_r, gc_c
+        fl = - np.sqrt(np.arange(lmax_qlm + 1, dtype=float) * np.arange(1, lmax_qlm + 2))
+        almxfl(gc[0], fl, mmax_qlm, True)
+        almxfl(gc[1], fl, mmax_qlm, True)
+        return gc
 
     def get_qlms_mf(self, mfkey, q_pbgeom:utils_geom.pbdGeometry, mchain, phas=None, cls_filt:dict or None=None):
         """Mean-field estimate using tricks of Carron Lewis appendix
@@ -283,7 +306,7 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         almxfl(C, fl, mmax_qlm, True)
         return G, C
 
-    def _get_gpmap(self, eblm_wf:np.ndarray or list, spin:int, q_pbgeom:utils_geom.pbdGeometry):
+    def _get_gpmap(self, elm_wf:np.ndarray, spin:int, q_pbgeom:utils_geom.pbdGeometry):
         """Wiener-filtered gradient leg to feed into the QE
 
 
@@ -294,19 +317,19 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
 
 
         """
-        assert len(eblm_wf) == 2
-        assert  Alm.getlmax(eblm_wf[0].size, self.mmax_sol)== self.lmax_sol, ( Alm.getlmax(eblm_wf[0].size, self.mmax_sol), self.lmax_sol)
+        assert elm_wf.ndim == 1
+        assert Alm.getlmax(elm_wf.size, self.mmax_sol) == self.lmax_sol
         assert spin in [1, 3], spin
-        lmax = Alm.getlmax(eblm_wf[0].size, self.mmax_sol)
+        lmax = Alm.getlmax(elm_wf.size, self.mmax_sol)
         i1, i2 = (2, -1) if spin == 1 else (-2, 3)
         fl = np.arange(i1, lmax + i1 + 1, dtype=float) * np.arange(i2, lmax + i2 + 1)
         fl[:spin] *= 0.
         fl = np.sqrt(fl)
-        eblm = np.array([almxfl(eblm_wf[0], fl, self.mmax_sol, False), almxfl(eblm_wf[1], fl, self.mmax_sol, False)])
-        ffi = self.ffi.change_geom(q_pbgeom) if q_pbgeom is not self.ffi.pbgeom else self.ffi
-        return ffi.gclm2lenmap(eblm, self.mmax_sol, spin, False)
+        ffi = self.ffi.change_geom(q_pbgeom.geom) if q_pbgeom is not self.ffi.pbgeom else self.ffi
+        elm = almxfl(elm_wf, fl, self.mmax_sol, False).reshape((1, elm_wf.size))
+        return ffi.gclm2lenmap(elm, self.mmax_sol, spin, False)
 
-    def _get_irespmap(self, qudat:np.ndarray, ebwf:np.ndarray or list, q_pbgeom:utils_geom.pbdGeometry):
+    def _get_irespmap(self, qudat:np.ndarray, ebwf:np.ndarray or list, q_pbgeom:utils_geom.pbdGeometry, map_out=None):
         """Builds inverse variance weighted map to feed into the QE
 
 
@@ -316,17 +339,16 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         """
 
         assert len(qudat) == 2 and len(ebwf) == 2
-        assert np.all(self.geom_.weight == 1.) # sum rather than integrals
-
-        ebwf = self.ffi.lensgclm(np.array(ebwf), self.mmax_sol, 2, self.lmax_len, self.mmax_len)
-        almxfl(ebwf[0], self.b_transf_elm, self.mmax_len, True)
-        almxfl(ebwf[1], self.b_transf_blm, self.mmax_len, True)
-        qu = qudat - self.geom_.alm2map_spin(ebwf, 2, self.lmax_len, self.mmax_len, self.sht_threads)
+        tebwf = self.ffi.lensgclm(np.array(ebwf), self.mmax_sol, 2, self.lmax_len, self.mmax_len)
+        almxfl(tebwf[0], self.b_transf_elm, self.mmax_len, True)
+        almxfl(tebwf[1], self.b_transf_blm, self.mmax_len, True)
+        qu = qudat - self.ninv_geom.synthesis(ebwf, 2, self.lmax_len, self.mmax_len, self.sht_threads)
         self.apply_map(qu)
-        ebwf = self.geom_.map2alm_spin(qu, 2, self.lmax_len, self.mmax_len, self.sht_threads)
-        almxfl(ebwf[0], self.b_transf_elm * 0.5 * self.wee, self.mmax_len, True)  # Factor of 1/2 because of \dagger rather than ^{-1}
-        almxfl(ebwf[1], self.b_transf_blm * 0.5, self.mmax_len, True)
-        return q_pbgeom.geom.alm2map_spin(ebwf, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
+        self.ninv_geom.adjoint_synthesis(qu, 2, self.lmax_len, self.mmax_len, self.sht_threads,
+                                                apply_weights=False, alm=tebwf)
+        almxfl(tebwf[0], self.b_transf_elm * 0.5 * self.wee, self.mmax_len, True)  # Factor of 1/2 because of \dagger rather than ^{-1}
+        almxfl(tebwf[1], self.b_transf_blm * 0.5, self.mmax_len, True)
+        return q_pbgeom.geom.synthesis(tebwf, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, map=map_out)
 
 
 class pre_op_diag:
@@ -355,7 +377,8 @@ class pre_op_diag:
         assert Alm.getsize(self.lmax, self.mmax) == elm.size, (self.lmax, self.mmax, Alm.getlmax(elm.size, self.mmax))
         return almxfl(elm, self.flmat, self.mmax, False)
 
-def calc_prep(qumaps:np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv_wl, sht_threads:int=4):
+
+def calc_prep(qumaps:np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv_wl):
     """cg-inversion pre-operation  (D^t B^t N^{-1} X^{dat})
 
         Args:
@@ -366,13 +389,14 @@ def calc_prep(qumaps:np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv_wl, sht_t
 
     """
     assert isinstance(qumaps, np.ndarray)
-    assert np.all(ninv_filt.geom_.weight==1.) # Sum rather than integral, hence requires unit weights
     qumap = np.copy(qumaps)
     ninv_filt.apply_map(qumap)
-    eblm = ninv_filt.geom_.map2alm_spin(np.array(qumap), 2, ninv_filt.lmax_sol, ninv_filt.mmax_sol, sht_threads)
+    eblm = ninv_filt.ninv_geom.adjoint_synthesis(qumap, 2, ninv_filt.lmax_sol, ninv_filt.mmax_sol, ninv_filt.sht_threads,
+                                                 apply_weights=False)
     almxfl(eblm[0], ninv_filt.b_transf_elm, ninv_filt.mmax_len, True)
     almxfl(eblm[1], ninv_filt.b_transf_blm, ninv_filt.mmax_len, True)
-    elm, blm = ninv_filt.ffi.lensgclm(eblm, ninv_filt.mmax_len, 2, ninv_filt.lmax_sol, ninv_filt.mmax_sol, backwards=True)
+    elm = ninv_filt.ffi.lensgclm(eblm, ninv_filt.mmax_len, 2, ninv_filt.lmax_sol, ninv_filt.mmax_sol,
+                                      backwards=True, out_sht_mode='GRAD_ONLY').squeeze()
     almxfl(elm, s_cls['ee'] > 0., ninv_filt.mmax_sol, True)
     return elm
 

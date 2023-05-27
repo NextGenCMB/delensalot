@@ -419,7 +419,6 @@ class qlm_iterator(object):
 
         """
         assert key.lower() in ['p', 'o'], key  # potential or curl potential.
-        log.info("is_iter_done(itr, key) = {}, {} {}".format(self.is_iter_done(itr, key), itr, key))
         if not self.is_iter_done(itr, key):
             assert self.is_iter_done(itr - 1, key), 'previous iteration not done'
             self.logger.on_iterstart(itr, key, self)

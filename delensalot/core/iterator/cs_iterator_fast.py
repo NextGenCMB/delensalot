@@ -94,11 +94,9 @@ class iterator_cstmf(delensalot.core.iterator.cs_iterator.qlm_iterator):
                 almxfl(delT, self.filter.transf, mmax, True)
 
             self.filter.set_ffi(self.filter.ffi.change_dlm([np.zeros_like(dlm), None], self.mmax_qlm, cachers.cacher_mem(safe=False)))
-            log.info("PorT: {}".format(PorT))
-            print("np.sum(dlm): {}".format(np.sum(self.filter.ffi.dlm)))
             mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.filter)
             soltn, it_soltn = self.load_soltn(itr, key)
-            log.info("it_soltn < itr-1 = {}: {} < {}: {}".format(it_soltn < itr-1, it_soltn, itr-1, soltn))
+
             if it_soltn < itr - 1:
                 soltn *= self.soltn_cond
                 assert soltn.ndim == 1, 'Fix following lines'
