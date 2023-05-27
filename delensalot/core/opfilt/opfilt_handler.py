@@ -2,7 +2,6 @@
 """
 
 from delensalot.config.visitor import transform
-from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Concept
 from delensalot.core.opfilt import QE_opfilt_iso_p, QE_opfilt_iso_t # these are iso QE
 from delensalot.core.opfilt import QE_opfilt_aniso_p, QE_opfilt_aniso_t # these are aniso QE
 
@@ -119,5 +118,3 @@ class MAP_aniso_transformer:
         def extract():
             return {}
         return MAP_opfilt_aniso_t.alm_filter_ninv_wl(**extract())
-
-
