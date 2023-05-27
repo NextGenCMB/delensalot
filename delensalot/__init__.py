@@ -109,7 +109,7 @@ def map2tempblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, ver
         # qerec = DLENSALOT_Qerec(),
         itrec = DLENSALOT_Itrec(
         itmax=itmax,
-        lm_max_unl=(lmax_cmb,lmax_cmb),
+        lm_max_unl=(lmax_cmb+200,lmax_cmb+200),
         iterator_typ = approxWF2itt[use_approximateWF],
         ),
         computing = DLENSALOT_Computing(OMP_NUM_THREADS=min([psutil.cpu_count()-1,8])),

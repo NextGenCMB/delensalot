@@ -24,7 +24,7 @@ from delensalot.core.iterator import cs_iterator, cs_iterator_fast
 
 class base_iterator():
 
-    def __init__(self, qe, k:str, simidx:int, version:str, sims_MAP, libdir_iterators, iterator_config):
+    def __init__(self, qe, simidx:int, job_model):
         """Iterator instance for simulation idx and qe_key type k
             Args:
                 k: 'p_p' for Pol-only, 'ptt' for T-only, 'p_eb' for EB-only, etc
@@ -33,27 +33,22 @@ class base_iterator():
                         (here if 'noMF' is in version, will not use any mean-fied at the very first step)
                 cg_tol: tolerance of conjugate-gradient filter
         """
-        self.k = k
         self.simidx = simidx
-        self.version = version
-        self.__dict__.update(iterator_config.__dict__)
-        self.iterator_config = iterator_config
-        self.sims_MAP = sims_MAP
+        self.__dict__.update(job_model.__dict__)
+        self.iterator_config = job_model
         
-        self.libdir_iterator = libdir_iterators(k, simidx, version)
+        self.libdir_iterator = self.libdir_MAP(self.k, simidx, self.version)
         if not os.path.exists(self.libdir_iterator):
             os.makedirs(self.libdir_iterator)
 
-        self.tr = iterator_config.tr 
-        self.qe = qe
-        self.wflm0 = qe.get_wflm(self.simidx)
-        self.R_unl0 = qe.R_unl()
-        self.mf0 = qe.get_meanfield(self.simidx) if self.QE_subtract_meanfield else np.zeros(shape=hp.Alm.getsize(self.lm_max_qlm[0]))
+        self.tr = self.iterator_config.tr 
+        self.wflm0 = self.qe.get_wflm(self.simidx)
+        self.R_unl0 = self.qe.R_unl()
+        self.mf0 = self.qe.get_meanfield(self.simidx) if self.QE_subtract_meanfield else np.zeros(shape=hp.Alm.getsize(self.lm_max_qlm[0]))
         self.plm0 = self.qe.get_plm(self.simidx, self.QE_subtract_meanfield)
-        self.filter = self.get_filter()
         # TODO not sure why this happens here. Could be done much earlier
-        self.it_chain_descr = iterator_config.it_chain_descr(iterator_config.lm_max_unl[0], iterator_config.it_cg_tol)
-
+        self.it_chain_descr = self.iterator_config.it_chain_descr(self.iterator_config.lm_max_unl[0], self.iterator_config.it_cg_tol)
+        
 
     @log_on_start(logging.INFO, "get_datmaps() started")
     @log_on_end(logging.INFO, "get_datmaps() finished")
@@ -73,22 +68,11 @@ class base_iterator():
             return np.array(self.sims_MAP.get_sim_pmap(int(self.simidx)))
         
 
-    @log_on_start(logging.INFO, "get_filter() started")
-    @log_on_end(logging.INFO, "get_filter() finished")
-    def get_filter(self): 
-        assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
-
-        filter_MAP = transform(self.iterator_config, MAP_transformer())
-        filter = transform(self.iterator_config, filter_MAP())
-        self.k_geom = filter.ffi.geom # Customizable Geometry for position-space operations in calculations of the iterated QEs etc
-        
-        return filter
-        
-
 class iterator_transformer(base_iterator):
 
-    def __init__(self, qe, k, simidx, version, sims_MAP, libdir_iterators, iterator_config):
-        super(iterator_transformer, self).__init__(qe, k, simidx, version, sims_MAP, libdir_iterators, iterator_config)
+    def __init__(self, qe, simidx, job_model):
+        super(iterator_transformer, self).__init__(qe, simidx, job_model)
+
 
     def build_constmf_iterator(self, cf):
 
@@ -103,8 +87,8 @@ class iterator_transformer(base_iterator):
                 'pp_h0': self.R_unl0,
                 'cpp_prior': cf.cpp,
                 'cls_filt': cf.cls_unl,
-                'ninv_filt': self.filter,
-                'k_geom': self.filter.ffi.geom,
+                'ninv_filt': cf.filter,
+                'k_geom': cf.filter.ffi.geom,
                 'chain_descr': self.it_chain_descr,
                 'stepper': cf.stepper,
                 'wflm0': self.wflm0,
@@ -126,8 +110,8 @@ class iterator_transformer(base_iterator):
                 'pp_h0': self.R_unl0,
                 'cpp_prior': cf.cpp,
                 'cls_filt': cf.cls_unl,
-                'ninv_filt': self.filter,
-                'k_geom': self.filter.ffi.geom,
+                'ninv_filt': cf.filter,
+                'k_geom': cf.filter.ffi.geom,
                 'chain_descr': self.it_chain_descr,
                 'stepper': cf.stepper,
                 'mf0': self.mf0,
@@ -149,20 +133,10 @@ class iterator_transformer(base_iterator):
                 'pp_h0': self.R_unl0,
                 'cpp_prior': cf.cpp,
                 'cls_filt': cf.cls_unl,
-                'ninv_filt': self.filter,
-                'k_geom': self.filter.ffi.geom,
+                'ninv_filt': cf.filter,
+                'k_geom': cf.filter.ffi.geom,
                 'chain_descr': self.it_chain_descr,
                 'stepper': cf.stepper,
                 'wflm0': self.wflm0,
             }
         return cs_iterator_fast.iterator_cstmf(**extract())
-
-
-@transform.case(DLENSALOT_Concept, iterator_transformer)
-def f1(expr, transformer): # pylint: disable=missing-function-docstring
-    if expr.iterator_typ in ['constmf']:
-        return transformer.build_constmf_iterator(expr)
-    elif expr.iterator_typ in ['pertmf']:
-        return transformer.build_pertmf_iterator(expr)
-    elif expr.iterator_typ in ['fastWF']:
-        return transformer.build_fastwf_iterator(expr)
