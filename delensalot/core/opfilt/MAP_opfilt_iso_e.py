@@ -16,13 +16,12 @@ from lenspyx.utils import timer, cli
 from lenspyx.utils_hp import almxfl, Alm, synalm
 from lenspyx.remapping.utils_geom import pbdGeometry
 
-from delensalot.core.opfilt import opfilt_base
-from delensalot.core.opfilt.MAP import opfilt_p
+from delensalot.core.opfilt import opfilt_base, MAP_opfilt_aniso_p
 
 pre_op_dense = None # not implemented
-dot_op = opfilt_p.dot_op
-fwd_op = opfilt_p.fwd_op
-apply_fini = opfilt_p.apply_fini
+dot_op = MAP_opfilt_aniso_p.dot_op
+fwd_op = MAP_opfilt_aniso_p.fwd_op
+apply_fini = MAP_opfilt_aniso_p.apply_fini
 
 def _extend_cl(cl, lmax):
     """Forces input to an array of size lmax + 1
