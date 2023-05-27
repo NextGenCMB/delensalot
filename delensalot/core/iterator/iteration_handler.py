@@ -20,7 +20,7 @@ from delensalot.core.iterator import cs_iterator, cs_iterator_fast
 
 class base_iterator():
 
-    def __init__(self, qe, simidx:int, job_model):
+    def __init__(self, job_model, simidx:int, delensalot_model):
         """Iterator instance for simulation idx and qe_key type k
             Args:
                 k: 'p_p' for Pol-only, 'ptt' for T-only, 'p_eb' for EB-only, etc
@@ -31,7 +31,7 @@ class base_iterator():
         """
         self.simidx = simidx
         self.__dict__.update(job_model.__dict__)
-        self.iterator_config = job_model
+        self.iterator_config = delensalot_model
         
         self.libdir_iterator = self.libdir_MAP(self.k, simidx, self.version)
         if not os.path.exists(self.libdir_iterator):

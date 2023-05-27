@@ -17,7 +17,7 @@ from delensalot.config.etc.abstract import parserclass
 from delensalot.config.parser import lerepi_parser
 
 
-datefmt = "%m-%d %H:%M"
+datefmt = "%m-%d %H:%M:%S"
 FORMAT = '%(levelname)s:: %(asctime)s:: %(name)s.%(funcName)s - %(message)s'
 formatter = logging.Formatter(FORMAT, datefmt=datefmt)
 ConsoleOutputHandler = logging.StreamHandler(sys.stdout)

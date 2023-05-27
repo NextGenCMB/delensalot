@@ -28,7 +28,7 @@ from delensalot.core.mpi import check_MPI
 
 from delensalot.sims.generic import parameter_sims
 
-from delensalot.config.visitor import transform
+from delensalot.config.visitor import transform, transform3d
 from delensalot.core.opfilt.opfilt_handler import QE_transformer, MAP_transformer
 from delensalot.config.config_helper import data_functions as df
 from delensalot.config.metamodel import DEFAULT_NotAValue
@@ -168,6 +168,7 @@ class Basejob():
     def get_fiducial_sim(self, simidx, field):
 
         assert 0, "Implement if needed"
+
 
     @log_on_start(logging.INFO, "get_filter() started")
     @log_on_end(logging.INFO, "get_filter() finished")
@@ -349,6 +350,7 @@ class QE_lr(Basejob):
             self.qcls_dd = qecl.library(opj(self.libdir_QE, 'qcls_dd'), self.qlms_dd, self.qlms_dd, self.mc_sims_bias)
         self.filter = self.get_filter()
 
+
     def init_cinv(self):
         self.cinv_t = filt_cinv.cinv_t(opj(self.libdir_QE, 'cinv_t'),
             self.lm_max_ivf[0], self.sims_nside, self.cls_len,
@@ -450,8 +452,11 @@ class QE_lr(Basejob):
                     self.get_plm(idx, self.QE_subtract_meanfield)
 
             if task == 'calc_blt':
-                for idx in self.jobs[taski][mpi.rank::mpi.size]:
-                    self.get_blt(idx)
+                
+                for simidx in self.jobs[taski][mpi.rank::mpi.size]:
+                    # ## Faking here MAP filters
+                    self.itlib_iterator = transform(MAP_job, iterator_transformer(self.MAP_job, simidx, self.dlensalot_model))
+                    self.get_blt(simidx)
 
 
     # @base_exception_handler
@@ -553,10 +558,9 @@ class QE_lr(Basejob):
     def get_blt(self, simidx):
         fn_blt = os.path.join(self.libdir_QE, 'BLT/blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
         if not os.path.exists(fn_blt):
-            itlib_iterator = transform(self.dlensalot_model, iterator_transformer(self, simidx))
             ## For QE, dlm_mod by construction doesn't do anything, because mean-field had already been subtracted from plm and we don't want to repeat that.
             dlm_mod = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, int(simidx)))
-            blt = itlib_iterator.get_template_blm(0, 0, lmaxb=self.lm_max_blt[0], lmin_plm=1, dlm_mod=dlm_mod, perturbative=self.blt_pert)
+            blt = self.itlib_iterator.get_template_blm(0, 0, lmaxb=self.lm_max_blt[0], lmin_plm=1, dlm_mod=dlm_mod, perturbative=self.blt_pert)
             np.save(fn_blt, blt)
         return np.load(fn_blt)
     
@@ -688,7 +692,7 @@ class MAP_lr(Basejob):
                 for simidx in self.jobs[taski][mpi.rank::mpi.size]:
                     libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
                     if self.itmax >= 0 and rec.maxiterdone(libdir_MAPidx) < self.itmax:
-                        itlib_iterator = transform(self.dlensalot_model, iterator_transformer(self.qe, simidx))
+                        itlib_iterator = transform(self, iterator_transformer(self, simidx, self.dlensalot_model))
                         for it in range(self.itmax + 1):
                             itlib_iterator.chain_descr = self.it_chain_descr(self.lm_max_unl[0], self.it_cg_tol(it))
                             itlib_iterator.soltn_cond = self.soltn_cond(it)
@@ -707,7 +711,7 @@ class MAP_lr(Basejob):
                 self.qe.run(task=task)
                 for simidx in self.jobs[taski][mpi.rank::mpi.size]:
                     self.libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
-                    self.itlib_iterator = transform(self.dlensalot_model, iterator_transformer(self.qe, simidx))
+                    self.itlib_iterator = transform(self, iterator_transformer(self, simidx, self.dlensalot_model))
                     for it in range(self.itmax + 1):
                         self.get_blt_it(simidx, it)
 
@@ -768,7 +772,7 @@ class MAP_lr(Basejob):
             return self.qe.get_blt(simidx)
         fn_blt = os.path.join(self.libdir_MAP_blt, 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, it, it, self.lm_max_blt[0]) + '.npy')
         if not os.path.exists(fn_blt):     
-            self.itlib_iterator = transform(self.dlensalot_model, iterator_transformer(self.qe, simidx))
+            self.itlib_iterator = transform(self, iterator_transformer(self, simidx, self.dlensalot_model))
             self.libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
             dlm_mod = np.zeros_like(rec.load_plms(self.libdir_MAPidx, [0])[0])
             if self.dlm_mod_bool and it>0 and it<=rec.maxiterdone(self.libdir_MAPidx):
