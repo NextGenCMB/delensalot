@@ -15,7 +15,7 @@ cls_len = camb_clfile(opj(os.path.dirname(__file__), 'data/cls/FFP10_wdipole_len
 cpp = camb_clfile(opj(os.path.dirname(__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'))['pp']
 
 
-def map2delblm(maps, lmax_cmb, beam, itmax, noise, verbose=False, use_approximateWF=True):
+def map2delblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, verbose=False):
     """Calculates a delensed B map on the full sky. Configuration is a faithful default. 
 
     Args:
@@ -24,6 +24,7 @@ def map2delblm(maps, lmax_cmb, beam, itmax, noise, verbose=False, use_approximat
         beam (float): beam (transfer functions) [arcmin] of the maps.
         itmax (int): number of iterations for the iterative reconstruction.
         noise (float): noise level [muK arcmin] of the maps (noise in map should be white and isotropic). 
+        use_approximateWF (bool): If true, uses approximate Wiener-filtering in the conjugate gradient solver.
         verbose (bool, optional): print log.info messages. Defaults to False.
 
     Returns:
@@ -70,7 +71,7 @@ def map2delblm(maps, lmax_cmb, beam, itmax, noise, verbose=False, use_approximat
     return ana_mwe.get_residualblens(ana_mwe.simidxs[0], ana_mwe.its[-1])
 
 
-def map2tempblm(maps, lmax_cmb, beam, itmax, noise, verbose=False, use_approximateWF=True):
+def map2tempblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, verbose=False):
     """Calculates a B-lensing template on the full sky. Configuration is a faithful default. 
 
     Args:
@@ -79,6 +80,7 @@ def map2tempblm(maps, lmax_cmb, beam, itmax, noise, verbose=False, use_approxima
         beam (float): beam (transfer functions) [arcmin] of the maps.
         itmax (int): number of iterations for the iterative reconstruction.
         noise (float): noise level [muK arcmin] of the maps (noise in map should be white and isotropic). 
+        use_approximateWF (bool): If true, uses approximate Wiener-filtering in the conjugate gradient solver.
         verbose (bool, optional): print log.info messages. Defaults to False.
 
     Returns:

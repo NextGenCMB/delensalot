@@ -16,8 +16,8 @@ import healpy as hp
 
 from lenspyx.remapping import utils_geom
 
-from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Concept
 from delensalot.config.visitor import transform
+from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Concept
 from delensalot.core.opfilt.opfilt_handler import MAP_transformer 
 from delensalot.core.iterator import cs_iterator, cs_iterator_fast
 
@@ -80,7 +80,6 @@ class base_iterator():
 
         filter_MAP = transform(self.iterator_config, MAP_transformer())
         filter = transform(self.iterator_config, filter_MAP())
-        log.info(filter)
         self.k_geom = filter.ffi.geom # Customizable Geometry for position-space operations in calculations of the iterated QEs etc
         
         return filter

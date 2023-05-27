@@ -28,11 +28,10 @@ from delensalot.core.mpi import check_MPI
 
 from delensalot.sims.generic import parameter_sims
 
+from delensalot.config.visitor import transform
 from delensalot.config.config_helper import data_functions as df
 from delensalot.config.metamodel import DEFAULT_NotAValue
-from delensalot.config.visitor import transform
-
-from delensalot.core.iterator import iteration_handler
+from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Concept
 from delensalot.core.iterator.iteration_handler import iterator_transformer
 from delensalot.core.iterator.statics import rec as rec
 from delensalot.core.decorator.exception_handler import base as base_exception_handler
@@ -1112,7 +1111,15 @@ class Notebook_interactor(Basejob):
         # TODO fill if needed
         return None
 
- 
+
+
+class job_transformer:
+    def build_QElensrec_job():
+        return 'implement'
+    def build_MAPlensrec_job():
+        return 'implement'
+
+
 class overwrite_anafast():
     """Convenience class for overwriting method name
     """    
@@ -1132,3 +1139,11 @@ class masked_lib:
 
     def map2cl(self, map):
         return self.cl_calc.map2cl(map, self.mask, self.lmax, self.lmax_mask)
+
+
+@transform.case(DLENSALOT_Concept, job_id, job_transformer)
+def f1(expr, transformer): # pylint: disable=missing-function-docstring
+    if job_id = 'QE_lensrec':
+        return transformer.build_MAPlensrec_job()
+    if job_id = 'MAP_lensrec':
+        return transformer.build_MAPlensrec_job()
