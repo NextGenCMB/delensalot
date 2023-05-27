@@ -5,7 +5,7 @@ from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Concept
 
 from delensalot.config.visitor import transform
 
-from delensalot.core.opfilt.MAP import opfilt_iso_e, opfilt_iso_gpt, opfilt_iso_p_old, opfilt_iso_p_new, opfilt_iso_t, opfilt_p # these are iso MAP
+from delensalot.core.opfilt.MAP import opfilt_iso_e, opfilt_iso_gpt, opfilt_iso_p, opfilt_iso_t, opfilt_p # these are iso MAP
 from delensalot.core.opfilt.MAP import opfilt_t # these are aniso MAP with and without OBD
 
 
@@ -23,7 +23,7 @@ class iso_transformer:
                 'transf_b': cf.ttebl['b'],
                 'nlev_b': cf.nlev_p,
             }
-        return opfilt_iso_p_new.alm_filter_nlev_wl(**extract())
+        return opfilt_iso_p.alm_filter_nlev_wl(**extract())
     
     def build_opfilt_iso_ee(self, cf):
         assert 0, "Implement if needed"
