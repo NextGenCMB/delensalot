@@ -25,6 +25,7 @@ jobs:
         run: |
           git clone --recurse-submodules https://github.com/carronj/plancklens.git
           cd plancklens
+          pip install numpy
           pip install -r requirements.txt
           pip install .
       - name: install
