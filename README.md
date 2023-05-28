@@ -36,7 +36,7 @@ here `obsmaps` is the observed Q and U map you may have... gotten from somewhere
  * how many iterations (`itmax`) you'd like to perform,
  * and the noise level (`noise`) of the observation.
 
-If you are interested in the B-lensing template, instead use `map2zlm()`,
+If you are interested in the B-lensing template, instead use `map2tempblm()`,
 ```
 import delensalot
 Blenstemplate = delensalot.map2tempblm(obsmaps, lmax_cmb=lmax_cmb, beam=beam, itmax=itmax, noise=noise, verbose=True)
