@@ -19,7 +19,7 @@ jobs:
       - name: Install dependencies
         run: |
           python3 -m pip install numpy --user
-          if [ -f requirements.txt ]; then pip install --user -r requirements.txt; fi
+          if [ -f requirements.txt ]; then pip install -r requirements.txt --user ; fi
 #       - name: install plancklens
 #         run: |
 #           git clone https://github.com/carronj/plancklens.git
