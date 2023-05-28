@@ -18,8 +18,9 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          python3 -m pip install numpy --user
-          if [ -f requirements.txt ]; then pip install -r requirements.txt --user ; fi
+          python -m pip install numpy --user
+          python -m pip install --upgrade pip setuptools wheel --user
+          if [ -f requirements.txt ]; then pip install -r requirements.txt --user; fi
 #       - name: install plancklens
 #         run: |
 #           git clone https://github.com/carronj/plancklens.git
