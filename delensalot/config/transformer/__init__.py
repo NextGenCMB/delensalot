@@ -5,7 +5,21 @@ from delensalot.config.transformer.lerepi2dlensalot import l2delensalotjob_Trans
 from delensalot.core.handler import OBD_builder, Sim_generator, QE_lr, MAP_lr, Map_delenser
 from delensalot.core.opfilt.opfilt_handler import QE_transformer, MAP_transformer, QE_iso_transformer, QE_aniso_transformer, MAP_iso_transformer, MAP_aniso_transformer
 
-@transform3d.case(DLENSALOT_Model_mm, str, l2delensalotjob_Transformer) ## TODO maybe use triple dispatcher here
+@transform3d.case(DLENSALOT_Model_mm, str, l2delensalotjob_Transformer)
+def f1(expr, job_id, transformer): # pylint: disable=missing-function-docstring
+    if "generate_sim" == job_id:
+        return transformer.build_generate_sim(expr)
+    if "build_OBD" == job_id:
+        return transformer.build_OBD_builder(expr)
+    if "QE_lensrec" == job_id:
+        return transformer.build_QE_lensrec(expr)
+    if "MAP_lensrec" == job_id:
+        return transformer.build_MAP_lensrec(expr)
+    if "delens" == job_id:
+        return transformer.build_delens(expr)
+    
+
+@transform3d.case(DLENSALOT_Concept, str, l2delensalotjob_Transformer)
 def f1(expr, job_id, transformer): # pylint: disable=missing-function-docstring
     if "generate_sim" == job_id:
         return transformer.build_generate_sim(expr)

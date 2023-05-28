@@ -540,7 +540,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             ## TODO. Current solution to fake an iteration handler for QE to calc blt is to initialize one here.
             ## In the future, I want to remove get_template_blm from the iteration_handler, at least for QE.
             if 'calc_blt' in dl.qe_tasks or 'calc_blt' in dl.it_tasks:
-                dl.MAP_job = transform3d(dl, 'MAP_lensrec', l2delensalotjob_Transformer())
+                dl.MAP_job = transform3d(cf, 'MAP_lensrec', l2delensalotjob_Transformer())
             return dl
 
         return QE_lr(extract())

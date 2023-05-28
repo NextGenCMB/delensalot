@@ -59,27 +59,47 @@ class run():
         self.parser.config_file = config_fn
         self.parser.status = ''
 
-        self.job_id = job_id
+        self.delensalotjob = job_id
         self.config_handler = config_handler(self.parser, config_model)
 
 
+    def collect_model(self):
+        if mpi.size > 1:
+            if mpi.rank == 0:
+                mpi.disable()
+                self.config_handler.collect_model(self.delensalotjob)
+                mpi.enable()
+                [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
+            else:
+                mpi.receive(None, source=mpi.ANY_SOURCE)
+
+        return self.config_handler.collect_model(self.delensalotjob)
+    
+
+    def collect_models(self):
+        if mpi.size > 1:
+            if mpi.rank == 0:
+                mpi.disable()
+                self.config_handler.collect_models(self.delensalotjob)
+                mpi.enable()
+                [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
+            else:
+                mpi.receive(None, source=mpi.ANY_SOURCE)
+
+        return self.config_handler.collect_models(self.delensalotjob)
+
+
     def run(self):
-        self.init_job()
-        self.config_handler.run()
-        return self.config_handler.jobs[0]
+
+        return self.collect_model()
 
 
     def init_job(self):
-        if mpi.rank == 0:
-            mpi.disable()
-            self.config_handler.collect_job(self.job_id)
-            mpi.enable()
-            [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
-        else:
-            mpi.receive(None, source=mpi.ANY_SOURCE)
-        self.config_handler.collect_job(self.job_id)
 
-        return self.config_handler.jobs[0]
+
+        self.config_handler.run(self.delensalotjob)
+
+        return self.config_handler.delensalotjobs[0]
 
 
 

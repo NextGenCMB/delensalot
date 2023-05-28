@@ -72,7 +72,6 @@ class Basejob():
             libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
             if not os.path.exists(libdir_MAPidx):
                 os.makedirs(libdir_MAPidx)
-
         self.libdir_MAP_blt = opj(self.TEMP, 'MAP/BLT/')
         if not os.path.exists(self.libdir_MAP_blt):
             os.makedirs(self.libdir_MAP_blt)
@@ -88,6 +87,7 @@ class Basejob():
             # self.sims = self._sims
             self.sims = maps.cmb_maps_nlev(self._sims, transf_dat, self.sims_nlev_t, self.sims_nlev_p, self.sims_nside, pix_lib_phas=pix_phas)
         self.config_model = model
+        self.jobs = []
 
 
     # @base_exception_handler
@@ -196,6 +196,8 @@ class OBD_builder(Basejob):
         jobs = [1]
         self.jobs = jobs
 
+        return jobs
+
 
     # @base_exception_handler
     @log_on_start(logging.INFO, "run() started")
@@ -262,6 +264,8 @@ class Sim_generator(Basejob):
                 jobs.append(simidx)
 
         self.jobs = jobs
+
+        return jobs
 
 
     # @base_exception_handler
@@ -421,6 +425,8 @@ class QE_lr(Basejob):
 
             jobs[taski] = _jobs
         self.jobs = jobs
+
+        return jobs
 
 
     # @base_exception_handler
@@ -687,6 +693,8 @@ class MAP_lr(Basejob):
             jobs[taski] = _jobs
         self.jobs = jobs
 
+        return jobs
+
 
     # @base_exception_handler
     @log_on_start(logging.INFO, "MAP.run() started")
@@ -832,6 +840,8 @@ class Map_delenser(Basejob):
         for idx in self.simidxs:
             jobs.append(idx)
         self.jobs = jobs
+
+        return jobs
 
 
     # @base_exception_handler
