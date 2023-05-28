@@ -22,22 +22,22 @@ log.setLevel(logging.INFO)
 
 from delensalot.core import mpi
 from delensalot.core.mpi import check_MPI
+
 from delensalot.config.validator import safelist
-from delensalot.config.visitor import transform
-from delensalot.config.transformer.lerepi2dlensalot import l2j_Transformer, l2T_Transformer, l2ji_Transformer
-from delensalot.config.transformer.lerepi2status import l2j_Transformer as l2js_Transformer
+from delensalot.config.visitor import transform, transform3d
+from delensalot.config.transformer.lerepi2dlensalot import l2T_Transformer, l2delensalotjob_Transformer
 
 class abc:
     def __init__(self):
         pass
 
-class handler():
+class config_handler():
     """Load config file and handle command line arguments 
     """
 
     def __init__(self, parser, config_model=None):
         if config_model is None:
-            self.configfile = handler.load_configfile(parser.config_file, 'configfile')
+            self.configfile = config_handler.load_configfile(parser.config_file, 'configfile')
         else:
             self.configfile = abc()
             self.configfile.dlensalot_model = config_model
@@ -67,14 +67,7 @@ class handler():
         ## Making sure that specific job request from run() is processed
         self.configfile.dlensalot_model.job.jobs = [job_id]
         self.job_id = job_id
-        
-        if self.parser.status == '':
-            self.jobs = transform(self.configfile.dlensalot_model, l2j_Transformer())
-        else:
-            if mpi.rank == 0:
-                self.jobs = transform(self.configfile.dlensalot_model, l2js_Transformer())
-            else:
-                self.jobs = []
+        self.jobs = [transform3d(self.configfile.dlensalot_model, job_id, l2delensalotjob_Transformer())]
 
 
     @log_on_start(logging.DEBUG, "collect_jobs() Started")
@@ -90,90 +83,24 @@ class handler():
         self.configfile.dlensalot_model.job.jobs.append(job_id)
         self.job_id = job_id
         
-        if self.parser.status == '':
-            self.jobs = transform(self.configfile.dlensalot_model, l2j_Transformer())
-        else:
-            if mpi.rank == 0:
-                self.jobs = transform(self.configfile.dlensalot_model, l2js_Transformer())
-            else:
-                self.jobs = []
-
-
-    @log_on_start(logging.INFO, "make_interactive_job() Started")
-    @log_on_end(logging.INFO, "make_interactive_job() Finished")
-    def make_interactive_job(self):
-        """Deprecated.
-        """
-
-        self.jobs = transform(self.configfile.dlensalot_model, l2ji_Transformer())
-
-
-    @log_on_start(logging.INFO, "build_model() Started")
-    @log_on_end(logging.INFO, "build_model() Finished")
-    def build_model(self, job):
-        """pass-through for executing delensalot model building. Used from interactive mode.
-
-        Args:
-            job (str): job identifier
-
-        Returns:
-            DLENSALOT_Model: A model
-        """    
-
-        return transform(*job[0])
-
-
-    @log_on_start(logging.INFO, "init_job() Started")
-    @log_on_end(logging.INFO, "init_job() Finished")
-    def init_job(self, job, model):
-        """pass-through for initializing the job using the delensalot model. This esentially calls the init function of the `core.handler.<job_class>`. Used from interactive mode.
-
-        Args:
-            job (list): mapper
-            model (DLENSALOT_Model): A delensalot model
-
-        Returns:
-            job: an initialized <job_class>
-        """        
-        j = job[1](model)
-        # j.collect_jobs()
-
-        return j
+        self.jobs = []
+        for job_id in self.configfile.dlensalot_model.job.jobs:
+            self.jobs.append(transform(self.configfile.dlensalot_model, job_id, l2delensalotjob_Transformer()))
 
 
     @check_MPI
     @log_on_start(logging.INFO, "run() Started")
     @log_on_end(logging.INFO, "run() Finished")
-    def run(self, job_choice=[]):
+    def run(self):
         """pass-through for running the delensalot job This esentially calls the run function of the `core.handler.<job_class>`. Used from interactive mode.
 
         Args:
             job_choice (list, optional): A specific job which should be performed. This one is not necessarily defined in the configuration file. It is handed over via command line or in interactive mode. Defaults to [].
         """        
-        if job_choice == []:
-            for jobdict in self.jobs:
-                for job_id, val in jobdict.items():
-                    job_choice.append(job_id)
-    
-        for jobdict in self.jobs:
-            for job_id, val in jobdict.items():
-                if job_id in job_choice:
-                    conf = val[0][0]
-                    transformer = val[0][1]
-                    job = val[1]
-                    
-                    model = transform(conf, transformer)
+        for job in self.jobs:
+            job.collect_jobs()    
+            job.run()
 
-                    if mpi.rank == 0:
-                        mpi.disable()
-                        delensalot_job = job(model)
-                        mpi.enable()
-                        [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
-                    else:
-                        mpi.receive(None, source=mpi.ANY_SOURCE)
-                    delensalot_job = job(model)
-                    delensalot_job.collect_jobs()    
-                    delensalot_job.run()
                 
 
     @log_on_start(logging.INFO, "store() Started")
@@ -188,11 +115,12 @@ class handler():
         """
         dostore = False
         # This is only done if not resuming. Otherwise file would already exist
+        log.info(parser.config_file)
         if os.path.isfile(parser.config_file) and parser.config_file.endswith('.py'):
             # if the file already exists, check if something changed
             if os.path.isfile(TEMP+'/'+parser.config_file.split('/')[-1]):
                 logging.warning('config file {} already exist. Checking differences.'.format(TEMP+'/'+parser.config_file.split('/')[-1]))
-                configfile_old = handler.load_configfile(TEMP+'/'+parser.config_file.split('/')[-1], 'configfile_old')   
+                configfile_old = config_handler.load_configfile(TEMP+'/'+parser.config_file.split('/')[-1], 'configfile_old')   
                 for key, val in configfile_old.dlensalot_model.__dict__.items():
                     if hasattr(val, '__dict__'):
                         for k, v in val.__dict__.items():
@@ -227,6 +155,7 @@ class handler():
             if parser.resume == '':
                 # Only give this info when not resuming
                 logging.info('Matching config file found. Resuming where I left off.')
+                logging.info(TEMP+'/'+parser.config_file.split('/')[-1])
 
 
     @log_on_start(logging.INFO, "load_configfile() Started: {directory}")

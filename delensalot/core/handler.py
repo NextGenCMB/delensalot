@@ -19,18 +19,26 @@ from plancklens.sims import maps, phas
 from plancklens.qcinv import opfilt_pp
 from plancklens.filt import filt_util, filt_cinv, filt_simple
 
+from delensalot.utils import read_map
+from delensalot.utility import utils_qe, utils_sims
+from delensalot.utility.utils_hp import Alm, almxfl, alm_copy, gauss_beam
+
 from delensalot.core import mpi
-from delensalot.utility import utils_sims
-from delensalot.utility.utils_hp import almxfl, alm_copy, gauss_beam
+from delensalot.core.mpi import check_MPI
+
+from delensalot.sims.generic import parameter_sims
+
+from delensalot.config.visitor import transform, transform3d
+from delensalot.core.opfilt.opfilt_handler import QE_transformer, MAP_transformer
 from delensalot.config.config_helper import data_functions as df
 from delensalot.config.metamodel import DEFAULT_NotAValue
-from delensalot.core.mpi import check_MPI
-from delensalot.core.iterator import iteration_handler
+from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Concept
+from delensalot.core.iterator.iteration_handler import iterator_transformer
 from delensalot.core.iterator.statics import rec as rec
+from delensalot.core.decorator.exception_handler import base as base_exception_handler
+
 from delensalot.core.opfilt import utils_cinv_p as cinv_p_OBD
 from delensalot.core.opfilt.bmodes_ninv import template_bfilt
-from delensalot.core.decorator.exception_handler import base as base_exception_handler
-from delensalot.sims.generic import parameter_sims
 
 
 class Basejob():
@@ -77,7 +85,9 @@ class Basejob():
         if type(self.parameter_maps) in [np.ndarray, np.array, tuple]:
             self.sims = parameter_sims(self.parameter_maps, self.parameter_phi)
         elif self.parameter_maps == DEFAULT_NotAValue:
+            # self.sims = self._sims
             self.sims = maps.cmb_maps_nlev(self._sims, transf_dat, self.sims_nlev_t, self.sims_nlev_p, self.sims_nside, pix_lib_phas=pix_phas)
+        self.config_model = model
 
 
     # @base_exception_handler
@@ -160,7 +170,13 @@ class Basejob():
 
         assert 0, "Implement if needed"
 
-       
+
+    @log_on_start(logging.INFO, "get_filter() started")
+    @log_on_end(logging.INFO, "get_filter() finished")
+    def get_filter(self): 
+        assert 0, 'overwrite'
+
+
 class OBD_builder(Basejob):
     """OBD matrix builder Job. Calculates the OBD matrix, used to correctly deproject the B-modes at a masked sky.
     """
@@ -278,12 +294,20 @@ class QE_lr(Basejob):
     """Quadratic estimate lensing reconstruction Job. Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.
     """
     @check_MPI
-    def __init__(self, dlensalot_model):
+    def __init__(self, dlensalot_model, caller=None):
+        if caller is not None:
+            dlensalot_model.qe_tasks = dlensalot_model.it_tasks
+            ## TODO. Current solution to fake an iteration handler for QE to calc blt is to initialize one MAP_job here.
+            ## In the future, I want to remove get_template_blm from the iteration_handler, at least for QE.
+            if 'calc_blt' in dlensalot_model.qe_tasks:
+                self.MAP_job = caller
+
         super().__init__(dlensalot_model)
         self.dlensalot_model = dlensalot_model
+        
         if not isinstance(self.sims, parameter_sims):
             self.simgen = Sim_generator(dlensalot_model)
-
+        # self.filter_ = transform(self.configfile.dlensalot_model, opfilt_handler_QE())
 
         if self.qe_filter_directional == 'anisotropic':
             self.init_cinv()
@@ -330,6 +354,7 @@ class QE_lr(Basejob):
             self.qcls_ds = qecl.library(opj(self.libdir_QE, 'qcls_ds'), self.qlms_ds, self.qlms_ds, np.array([]))  # for QE RDN0 calculations
             self.qcls_ss = qecl.library(opj(self.libdir_QE, 'qcls_ss'), self.qlms_ss, self.qlms_ss, np.array([]))  # for QE RDN0 / MCN0 calculations
             self.qcls_dd = qecl.library(opj(self.libdir_QE, 'qcls_dd'), self.qlms_dd, self.qlms_dd, self.mc_sims_bias)
+        self.filter = self.get_filter()
 
 
     def init_cinv(self):
@@ -354,28 +379,23 @@ class QE_lr(Basejob):
 
 
     # @base_exception_handler
-    @log_on_start(logging.INFO, "QE.collect_jobs(qe_tasks={qe_tasks}, recalc={recalc}) started")
-    @log_on_end(logging.INFO, "QE.collect_jobs(qe_tasks={qe_tasks}, recalc={recalc}) finished: jobs={self.jobs}")
-    def collect_jobs(self, qe_tasks=None, recalc=False):
+    @log_on_start(logging.INFO, "QE.collect_jobs(recalc={recalc}) started")
+    @log_on_end(logging.INFO, "QE.collect_jobs(recalc={recalc}) finished: jobs={self.jobs}")
+    def collect_jobs(self, recalc=False):
 
         if not isinstance(self.sims, parameter_sims):
             self.simgen.collect_jobs()
         # qe_tasks overwrites task-list and is needed if MAP lensrec calls QE lensrec
-        _qe_tasks = self.qe_tasks if qe_tasks == None else qe_tasks
-        jobs = list(range(len(_qe_tasks)))
-        for taski, task in enumerate(_qe_tasks):
+        jobs = list(range(len(self.qe_tasks)))
+        for taski, task in enumerate(self.qe_tasks):
             ## task_dependence
             ## calc_mf -> calc_phi, calc_blt -> calc_phi, (calc_mf)
             _jobs = []
 
             if task == 'calc_meanfield':
-                ## TODO this filename must match plancklens filename.. refactor
                 fn_mf = os.path.join(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, utils.mchash(self.simidxs_mf)))
-                ## if meanfield exists, no need to calculate any of the qlms_dd
                 if not os.path.isfile(fn_mf) or recalc:
-                    ## if meanfield not yet done, collect all qlms_dd which haven't yet been calculated
                     for simidx in self.simidxs_mf:
-                        ## TODO this filename must match plancklens filename.. refactor
                         fn_qlm = os.path.join(self.qlms_dd.lib_dir, 'sim_%s_%04d.fits'%(self.k, simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
                         if not os.path.isfile(fn_qlm) or recalc:
                             _jobs.append(int(simidx))
@@ -401,6 +421,7 @@ class QE_lr(Basejob):
 
             jobs[taski] = _jobs
         self.jobs = jobs
+
 
     # @base_exception_handler
     @log_on_start(logging.INFO, "QE.run(task={task}) started")
@@ -438,8 +459,10 @@ class QE_lr(Basejob):
                     self.get_plm(idx, self.QE_subtract_meanfield)
 
             if task == 'calc_blt':
-                for idx in self.jobs[taski][mpi.rank::mpi.size]:
-                    self.get_blt(idx)
+                for simidx in self.jobs[taski][mpi.rank::mpi.size]:
+                    # ## Faking here MAP filters
+                    self.itlib_iterator = transform(self.MAP_job, iterator_transformer(self.MAP_job, simidx, self.dlensalot_model))
+                    self.get_blt(simidx)
 
 
     # @base_exception_handler
@@ -493,6 +516,7 @@ class QE_lr(Basejob):
         # libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
         fn_plm = opj(self.libdir_QE, 'phi_plm_it000.npy')
         plm  = self.qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate:
+        log.info(fn_plm)
         if not os.path.exists(fn_plm):
             plm  = self.qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate:
             if sub_mf and self.version != 'noMF':
@@ -538,19 +562,63 @@ class QE_lr(Basejob):
     @log_on_start(logging.INFO, "QE.get_blt({simidx}) started")
     @log_on_end(logging.INFO, "QE.get_blt({simidx}) finished")
     def get_blt(self, simidx):
-        # TODO only needed for get_blt(), as this is done by cs_iterator.. move
         fn_blt = os.path.join(self.libdir_QE, 'BLT/blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
         if not os.path.exists(fn_blt):
-            self.ith = iteration_handler.transformer(self.iterator_typ)
-            itlib = self.ith(self, self.k, simidx, self.version, self.sims_MAP, self.libdir_MAP, self.dlensalot_model)
-            itlib_iterator = itlib.get_iterator()
             ## For QE, dlm_mod by construction doesn't do anything, because mean-field had already been subtracted from plm and we don't want to repeat that.
             dlm_mod = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, int(simidx)))
-            
-            blt = itlib_iterator.get_template_blm(0, 0, lmaxb=self.lm_max_blt[0], lmin_plm=1, dlm_mod=dlm_mod, perturbative=self.blt_pert)
+            blt = self.itlib_iterator.get_template_blm(0, 0, lmaxb=self.lm_max_blt[0], lmin_plm=1, dlm_mod=dlm_mod, perturbative=self.blt_pert)
             np.save(fn_blt, blt)
         return np.load(fn_blt)
-            
+    
+
+    # @base_exception_handler
+    @log_on_start(logging.INFO, "QE.get_blt({simidx}) started")
+    @log_on_end(logging.INFO, "QE.get_blt({simidx}) finished")
+    def get_blt_new(self, simidx):
+
+        def get_template_blm(it, it_e, lmaxb=1024, lmin_plm=1, perturbative=False):
+            fn_blt = 'blt_p%03d_e%03d_lmax%s'%(it, it_e, lmaxb)
+            fn_blt += 'perturbative' * perturbative      
+
+            elm_wf = self.filter.transf
+            assert Alm.getlmax(elm_wf.size, self.mmax_filt) == self.lmax_filt
+            mmaxb = lmaxb
+            dlm = self.get_hlm(it, 'p')
+            self.hlm2dlm(dlm, inplace=True)
+            almxfl(dlm, np.arange(self.lmax_qlm + 1, dtype=int) >= lmin_plm, self.mmax_qlm, True)
+            if perturbative: # Applies perturbative remapping
+                get_alm = lambda a: elm_wf if a == 'e' else np.zeros_like(elm_wf)
+                geom, sht_tr = self.filter.ffi.geom, self.filter.ffi.sht_tr
+                d1 = geom.alm2map_spin([dlm, np.zeros_like(dlm)], 1, self.lmax_qlm, self.mmax_qlm, sht_tr, [-1., 1.])
+                dp = utils_qe.qeleg_multi([2], +3, [utils_qe.get_spin_raise(2, self.lmax_filt)])(get_alm, geom, sht_tr)
+                dm = utils_qe.qeleg_multi([2], +1, [utils_qe.get_spin_lower(2, self.lmax_filt)])(get_alm, geom, sht_tr)
+                dlens = -0.5 * ((d1[0] - 1j * d1[1]) * dp + (d1[0] + 1j * d1[1]) * dm)
+                del dp, dm, d1
+                elm, blm = geom.map2alm_spin([dlens.real, dlens.imag], 2, lmaxb, mmaxb, sht_tr, [-1., 1.])
+            else: # Applies full remapping (this will re-calculate the angles)
+                ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm)
+                elm, blm = ffi.lensgclm(np.array([elm_wf, np.zeros_like(elm_wf)]), self.mmax_filt, 2, lmaxb, mmaxb)
+
+                self.blt_cacher.cache(fn_blt, blm)
+
+            return blm
+        
+        fn_blt = os.path.join(self.libdir_QE, 'BLT/blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
+        if not os.path.exists(fn_blt):
+            blt = get_template_blm(0, 0, lmaxb=self.lm_max_blt[0], lmin_plm=self.Lmin, perturbative=self.blt_pert)
+            np.save(fn_blt, blt)
+
+        return np.load(fn_blt)
+
+
+    @log_on_start(logging.INFO, "get_filter() started")
+    @log_on_end(logging.INFO, "get_filter() finished")
+    def get_filter(self): 
+        assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
+        QE_filters = transform(self, QE_transformer())
+        filter = transform(self, QE_filters())
+        return filter
+    
 
 class MAP_lr(Basejob):
     """Iterative lensing reconstruction Job. Depends on class QE_lr, and class Sim_generator.  Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.
@@ -561,8 +629,10 @@ class MAP_lr(Basejob):
         super().__init__(dlensalot_model)
         # TODO Only needed to hand over to ith(). in c2d(), prepare an ith model for it
         self.dlensalot_model = dlensalot_model
+        
+        # TODO This is not the prettiest way to provide MAP_lr with QE and Simgen dependency.. probably better to just put it as a separate job into the job-list.. so do this in config_handler... same with Sim_generator? 
         self.simgen = Sim_generator(dlensalot_model)
-        self.qe = QE_lr(dlensalot_model)
+        self.qe = QE_lr(dlensalot_model, caller=self)
 
         ## tasks -> mf_dirname
         if "calc_meanfield" in self.it_tasks or 'calc_blt' in self.it_tasks:
@@ -572,16 +642,17 @@ class MAP_lr(Basejob):
         # sims -> sims_MAP
         if self.it_filter_directional == 'anisotropic':
             self.sims_MAP = utils_sims.ztrunc_sims(self.sims, self.sims_nside, [self.zbounds])
+            self.ninv = [self.sims_MAP.ztruncify(read_map(ni)) for ni in self.ninvp_desc] # inverse pixel noise map on consistent geometry
         elif self.it_filter_directional == 'isotropic':
             self.sims_MAP = self.sims
-
-        self.ith = iteration_handler.transformer(self.iterator_typ)
-
+        self.filter = self.get_filter()
 
     # # @base_exception_handler
     @log_on_start(logging.INFO, "MAP.map.collect_jobs() started")
     @log_on_end(logging.INFO, "MAP.collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self):
+        self.simgen.collect_jobs()
+        self.qe.collect_jobs(recalc=False)
         jobs = list(range(len(self.it_tasks)))
         # TODO order of task list matters, but shouldn't
         for taski, task in enumerate(self.it_tasks):
@@ -590,8 +661,6 @@ class MAP_lr(Basejob):
             if task == 'calc_phi':
                 ## Here I only want to calculate files not calculated before, and only for the it job tasks.
                 ## i.e. if no blt task in iterator job, then no blt task in QE job 
-                self.simgen.collect_jobs()
-                self.qe.collect_jobs(task, recalc=False)
                 for simidx in self.simidxs:
                     libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
                     if rec.maxiterdone(libdir_MAPidx) < self.itmax:
@@ -610,7 +679,6 @@ class MAP_lr(Basejob):
                         _jobs.append(0)
 
             elif task == 'calc_blt':
-                self.qe.collect_jobs(task, recalc=False)
                 for simidx in self.simidxs:
                     fns_blt = np.array([os.path.join(self.libdir_MAP_blt, 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, it, it, self.lm_max_blt[0]) + '.npy') for it in np.arange(1,self.itmax+1)])
                     if not np.all([os.path.exists(fn_blt) for fn_blt in fns_blt]):
@@ -633,8 +701,7 @@ class MAP_lr(Basejob):
                 for simidx in self.jobs[taski][mpi.rank::mpi.size]:
                     libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
                     if self.itmax >= 0 and rec.maxiterdone(libdir_MAPidx) < self.itmax:
-                        itlib = self.ith(self.qe, self.k, simidx, self.version, self.sims_MAP, self.libdir_MAP, self.dlensalot_model)
-                        itlib_iterator = itlib.get_iterator()
+                        itlib_iterator = transform(self, iterator_transformer(self, simidx, self.dlensalot_model))
                         for it in range(self.itmax + 1):
                             itlib_iterator.chain_descr = self.it_chain_descr(self.lm_max_unl[0], self.it_cg_tol(it))
                             itlib_iterator.soltn_cond = self.soltn_cond(it)
@@ -653,8 +720,7 @@ class MAP_lr(Basejob):
                 self.qe.run(task=task)
                 for simidx in self.jobs[taski][mpi.rank::mpi.size]:
                     self.libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
-                    self.itlib = self.ith(self.qe, self.k, simidx, self.version, self.sims_MAP, self.libdir_MAP, self.dlensalot_model)
-                    self.itlib_iterator = self.itlib.get_iterator()
+                    self.itlib_iterator = transform(self, iterator_transformer(self, simidx, self.dlensalot_model))
                     for it in range(self.itmax + 1):
                         self.get_blt_it(simidx, it)
 
@@ -667,7 +733,7 @@ class MAP_lr(Basejob):
         plms = rec.load_plms(self.libdir_MAP(self.k, simidx, self.version), its)
 
         return plms
-
+    
 
     # # @base_exception_handler
     @log_on_start(logging.INFO, "MAP.get_meanfield_it(it={it}, calc={calc}) started")
@@ -712,15 +778,10 @@ class MAP_lr(Basejob):
     def get_blt_it(self, simidx, it):
         # self.blt_lmin_plm = 1
         if it == 0:
+            self.qe.itlib_iterator = transform(self, iterator_transformer(self, simidx, self.dlensalot_model))
             return self.qe.get_blt(simidx)
         fn_blt = os.path.join(self.libdir_MAP_blt, 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, it, it, self.lm_max_blt[0]) + '.npy')
         if not os.path.exists(fn_blt):     
-            if 'itlib' not in self.__dict__:
-                self.itlib = self.ith(self.qe, self.k, simidx, self.version, self.sims_MAP, self.libdir_MAP, self.dlensalot_model)
-                self.itlib_iterator = self.itlib.get_iterator()
-            if simidx != self.itlib.simidx:
-                self.itlib = self.ith(self.qe, self.k, simidx, self.version, self.sims_MAP, self.libdir_MAP, self.dlensalot_model)
-                self.itlib_iterator = self.itlib.get_iterator()
             self.libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
             dlm_mod = np.zeros_like(rec.load_plms(self.libdir_MAPidx, [0])[0])
             if self.dlm_mod_bool and it>0 and it<=rec.maxiterdone(self.libdir_MAPidx):
@@ -731,6 +792,15 @@ class MAP_lr(Basejob):
                 blt = self.itlib_iterator.get_template_blm(it, it, lmaxb=self.lm_max_blt[0], lmin_plm=self.Lmin, dlm_mod=dlm_mod, perturbative=False)
                 np.save(fn_blt, blt)
         return np.load(fn_blt)
+
+
+    @log_on_start(logging.INFO, "get_filter() started")
+    @log_on_end(logging.INFO, "get_filter() finished")
+    def get_filter(self): 
+        assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
+        MAP_filters = transform(self, MAP_transformer())
+        filter = transform(self, MAP_filters())
+        return filter
 
 
 class Map_delenser(Basejob):
@@ -879,6 +949,20 @@ class Map_delenser(Basejob):
                 bcl_L[2+iti,:,simidxi] = data[0][2+iti]
 
         return bcl_L
+    
+    def hlm2dlm(self, hlm, inplace):
+        if self.h == 'd':
+            return hlm if inplace else hlm.copy()
+        if self.h == 'p':
+            h2d = np.sqrt(np.arange(self.lmax_qlm + 1, dtype=float) * np.arange(1, self.lmax_qlm + 2, dtype=float))
+        elif self.h == 'k':
+            h2d = cli(0.5 * np.sqrt(np.arange(self.lmax_qlm + 1, dtype=float) * np.arange(1, self.lmax_qlm + 2, dtype=float)))
+        else:
+            assert 0, self.h + ' not implemented'
+        if inplace:
+            almxfl(hlm, h2d, self.mmax_qlm, True)
+        else:
+            return  almxfl(hlm, h2d, self.mmax_qlm, False)
     
 
 class Notebook_interactor(Basejob):
@@ -1064,7 +1148,8 @@ class Notebook_interactor(Basejob):
         # TODO fill if needed
         return None
 
- 
+
+
 class overwrite_anafast():
     """Convenience class for overwriting method name
     """    

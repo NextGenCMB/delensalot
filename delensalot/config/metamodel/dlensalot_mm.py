@@ -254,19 +254,19 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
         stepper (DLENSALOT_STEPPER):configuration for updating the current likelihood iteration point with the likelihood gradient
               
     """
-    tasks =                 attr.field(default=DEFAULT_NotAValue, on_setattr=itrec.tasks)
-    itmax =                 attr.field(default=DEFAULT_NotAValue, on_setattr=itrec.itmax)
-    cg_tol =                attr.field(default=DEFAULT_NotAValue, on_setattr=itrec.cg_tol)
-    iterator_typ =          attr.field(default=DEFAULT_NotAValue, on_setattr=itrec.iterator_type)
-    chain =                 attr.field(default=DLENSALOT_Chaindescriptor(), on_setattr=itrec.chain)
-    filter_directional =    attr.field(default=DEFAULT_NotAValue, on_setattr=itrec.filter_directional)
-    lenjob_geometry =       attr.field(default=DEFAULT_NotAValue, on_setattr=itrec.lenjob_geometry)
-    lenjob_pbgeometry =     attr.field(default=DEFAULT_NotAValue, on_setattr=itrec.lenjob_pbgeometry)
-    lm_max_unl =            attr.field(default=DEFAULT_NotAValue, on_setattr=itrec.lm_max_unl)
-    lm_max_qlm =            attr.field(default=DEFAULT_NotAValue, on_setattr=itrec.lm_max_qlm)
-    mfvar =                 attr.field(default=DEFAULT_NotAValue, on_setattr=itrec.mfvar)
-    soltn_cond =            attr.field(default=DEFAULT_NotAValue, on_setattr=itrec.soltn_cond)
-    stepper =               attr.field(default=DLENSALOT_Stepper(), on_setattr=itrec.stepper)
+    tasks =                 attr.field(default=DEFAULT_NotAValue, validator=itrec.tasks)
+    itmax =                 attr.field(default=DEFAULT_NotAValue, validator=itrec.itmax)
+    cg_tol =                attr.field(default=DEFAULT_NotAValue, validator=itrec.cg_tol)
+    iterator_typ =          attr.field(default=DEFAULT_NotAValue, validator=itrec.iterator_type)
+    chain =                 attr.field(default=DLENSALOT_Chaindescriptor(), validator=itrec.chain)
+    filter_directional =    attr.field(default=DEFAULT_NotAValue, validator=itrec.filter_directional)
+    lenjob_geometry =       attr.field(default=DEFAULT_NotAValue, validator=itrec.lenjob_geometry)
+    lenjob_pbgeometry =     attr.field(default=DEFAULT_NotAValue, validator=itrec.lenjob_pbgeometry)
+    lm_max_unl =            attr.field(default=DEFAULT_NotAValue, validator=itrec.lm_max_unl)
+    lm_max_qlm =            attr.field(default=DEFAULT_NotAValue, validator=itrec.lm_max_qlm)
+    mfvar =                 attr.field(default=DEFAULT_NotAValue, validator=itrec.mfvar)
+    soltn_cond =            attr.field(default=DEFAULT_NotAValue, validator=itrec.soltn_cond)
+    stepper =               attr.field(default=DLENSALOT_Stepper(), validator=itrec.stepper)
     
 @attr.s
 class DLENSALOT_Mapdelensing(DLENSALOT_Concept):

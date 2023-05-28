@@ -193,7 +193,6 @@ class sims_cmb_len(object):
         if ret:
             return hp.read_alm(fname)
         
-
 class parameter_sims:
 
     def __init__(self, maps, phi):

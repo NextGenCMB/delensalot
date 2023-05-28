@@ -22,3 +22,5 @@ safelist = [
     'OMP_NUM_THREADS',
     'rhits_normalised',
 ]
+
+DEFAULT_NotAValue = -123456789
