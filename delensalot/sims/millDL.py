@@ -18,7 +18,7 @@ class millDL:
     def __init__(self, nlev_p, beam, lib_dir=None):
         self.path = '/global/cfs/cdirs/cmb/data/generic/mmDL/healpix/%05d'
         self.fnsQ = 'lensed_cmb_Q_%05d.fits'
-        self.fnsU = 'lensed_cmb_Q_%05d.fits'
+        self.fnsU = 'lensed_cmb_U_%05d.fits'
         self.pix_lib_phas = phas.pix_lib_phas(lib_dir, 3, (hp.nside2npix(2048),))
         self.nlev_p = nlev_p
         self.cl_transf_P = gauss_beam(df.a2r(beam), lmax=4096)
@@ -62,4 +62,5 @@ class millDL:
         return Q + self.get_sim_qnoise(simidx), U + self.get_sim_unoise(simidx)
 
     def hashdict(self):
-        return {}
+        return {'cl_transf': '731e3b17d3aaaeb5f97d6e36f3e8cb45a1d01759', 'pixphas': {'nfields': 3, 'shape': (50331648,)},
+                'nlev_t': 1.00, 'nlev_p': np.sqrt(2), 'nside': 2048, 'sims_cmb_len': {}}
