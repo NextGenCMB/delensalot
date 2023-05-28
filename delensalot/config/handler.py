@@ -57,36 +57,42 @@ class config_handler():
 
     @log_on_start(logging.DEBUG, "collect_jobs() Started")
     @log_on_end(logging.DEBUG, "collect_jobs() Finished")
-    def collect_job(self, job_id=''):
-        """Deprecated.
+    def collect_model(self, djob_id=''):
+        """
 
         Args:
             job_id (str, optional): _description_. Defaults to ''.
         """      
 
         ## Making sure that specific job request from run() is processed
-        self.configfile.dlensalot_model.job.jobs = [job_id]
-        self.job_id = job_id
-        self.jobs = [transform3d(self.configfile.dlensalot_model, job_id, l2delensalotjob_Transformer())]
+        self.configfile.dlensalot_model.job.jobs = [djob_id]
+        self.djob_id = djob_id
+        self.djobmodels = [transform3d(self.configfile.dlensalot_model, djob_id, l2delensalotjob_Transformer())]
+
+        return self.djobmodels[0]
 
 
     @log_on_start(logging.DEBUG, "collect_jobs() Started")
     @log_on_end(logging.DEBUG, "collect_jobs() Finished")
-    def collect_jobs(self, job_id=''):
+    def collect_models(self, djob_id=''):
         """collect all requested jobs and build a mapping between the job, and their respective transformer
         This is called from both, terminal and interacitve runs.
 
         Args:
             job_id (str, optional): A specific job which should be performed. This one is not necessarily defined in the configuration file. It is handed over via command line or in interactive mode. Defaults to ''.
         """
-
-        self.configfile.dlensalot_model.job.jobs.append(job_id)
-        self.job_id = job_id
+        if djob_id != '' and djob_id not in self.configfile.dlensalot_model.job.jobs:
+            self.configfile.dlensalot_model.job.jobs.append(djob_id)
+        self.djob_ids = self.configfile.dlensalot_model.job.jobs
         
-        self.jobs = []
-        for job_id in self.configfile.dlensalot_model.job.jobs:
-            self.jobs.append(transform(self.configfile.dlensalot_model, job_id, l2delensalotjob_Transformer()))
-
+        self.djobmodels = []
+        for job_id in self.djob_ids:
+            # if job_id in ['QE_lensrec', 'MAP_lensrec']:
+                self.djobmodels.append(transform3d(self.configfile.dlensalot_model, job_id, l2delensalotjob_Transformer()))
+                # self.djobmodels.append(transform(self.configfile.dlensalot_model, l2delensalotjob_Transformer()))
+        
+        return self.djobmodels
+        
 
     @check_MPI
     @log_on_start(logging.INFO, "run() Started")
