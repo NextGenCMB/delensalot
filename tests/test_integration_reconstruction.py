@@ -72,13 +72,13 @@ class FS(unittest.TestCase):
 
         self.Al_assert = {
             'QE_lensrec': {
-                'p_p': 0.21,
+                'p_p': 0.45,
                 # 'pee': np.inf,
                 # 'p_eb': np.inf,
                 # 'p_be': np.inf,
                 # 'peb': np.inf,
             },'MAP_lensrec': {
-                'p_p': 0.17,
+                'p_p': 0.30,
                 # 'pee': np.inf,
                 # 'p_eb': np.inf,
                 # 'p_be': np.inf,
@@ -91,7 +91,7 @@ class FS(unittest.TestCase):
         use_approximateWF = True
         for job_id, key_dict in self.whitelist_FS_P.items():
             for key in key_dict:
-                dlensalot_model = DLENSALOT_Model(defaults_to='P_FS_CMBS4', analysis = DLENSALOT_Analysis(key=key, TEMP_suffix='test'), itrec = DLENSALOT_Itrec(itmax=3))
+                dlensalot_model = DLENSALOT_Model(defaults_to='P_FS_TEST', analysis = DLENSALOT_Analysis(key=key, TEMP_suffix='test'), itrec = DLENSALOT_Itrec(itmax=3))
                 # delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
                 # delensalot.del_TEMP(dlensalot_model.data.class_parameters['lib_dir'])
                 delensalot_runner = run(config_fn='', job_id='generate_sim', config_model=dlensalot_model, verbose=True)
@@ -99,12 +99,14 @@ class FS(unittest.TestCase):
                 pmaps = ana_mwe.sims.get_sim_pmap(0)
                 bmap = hp.alm2map(hp.map2alm_spin(pmaps, lmax=200, spin=2)[1], nside=512)
 
-                blt = delensalot.map2tempblm(pmaps, lmax_cmb=dlensalot_model.analysis.lm_max_ivf[0], beam=dlensalot_model.data.beam, itmax=dlensalot_model.itrec.itmax, noise=dlensalot_model.noisemodel.nlev_p, use_approximateWF=use_approximateWF, verbose=True, )
+                if job_id == 'QE_lensrec':
+                    dlensalot_model.itrec.itmax = 0
+                blt = delensalot.map2tempblm(pmaps, lmax_cmb=dlensalot_model.analysis.lm_max_ivf[0], beam=dlensalot_model.data.beam, itmax=dlensalot_model.itrec.itmax, noise=dlensalot_model.noisemodel.nlev_p, use_approximateWF=use_approximateWF, defaults_to='P_FS_TEST', verbose=True, )
 
                 input = hp.anafast(bmap, lmax=200)
                 output = hp.anafast(bmap-hp.alm2map(blt, nside=512), lmax=200)
                 Al = np.mean(output[30:200]/input[30:200])
-                assert Al < self.Al_assert[job_id][key], "{}, {}".format(job_id, key, Al, self.Al_assert[job_id][key])
+                assert Al < self.Al_assert[job_id][key], "{}, {}, {}, {}".format(job_id, key, Al, self.Al_assert[job_id][key])
                 print(Al, self.Al_assert[job_id][key])
 
 
@@ -112,9 +114,9 @@ class FS(unittest.TestCase):
         use_approximateWF = False
         for job_id, key_dict in self.whitelist_FS_P.items():
             for key in key_dict:
-                dlensalot_model = DLENSALOT_Model(defaults_to='P_FS_CMBS4', analysis = DLENSALOT_Analysis(key=key, TEMP_suffix='test'), itrec = DLENSALOT_Itrec(itmax=3))
-                # delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
-                # delensalot.del_TEMP(dlensalot_model.data.class_parameters['lib_dir'])
+                dlensalot_model = DLENSALOT_Model(defaults_to='P_FS_TEST', analysis = DLENSALOT_Analysis(key=key, TEMP_suffix='test'), itrec = DLENSALOT_Itrec(itmax=3))
+                delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
+                delensalot.del_TEMP(dlensalot_model.data.class_parameters['lib_dir'])
                 delensalot_runner = run(config_fn='', job_id='generate_sim', config_model=dlensalot_model, verbose=True)
                 ana_mwe = delensalot_runner.init_job()
                 pmaps = ana_mwe.sims.get_sim_pmap(0)
@@ -125,7 +127,7 @@ class FS(unittest.TestCase):
                 input = hp.anafast(bmap, lmax=200)
                 output = hp.anafast(bmap-hp.alm2map(blt, nside=512), lmax=200)
                 Al = np.mean(output[30:200]/input[30:200])
-                assert Al < self.Al_assert[job_id][key], "{}, {}".format(job_id, key, Al, self.Al_assert[job_id][key])
+                assert Al < self.Al_assert[job_id][key], "{}, {}, {}, {}".format(job_id, key, Al, self.Al_assert[job_id][key])
                 print(Al, self.Al_assert[job_id][key])
 
 

@@ -422,7 +422,3 @@ class DLENSALOT_Model(DLENSALOT_Concept):
                                 log.info('couldnt find matching default value for k {}'.format(key))
                         else:
                             log.info('couldnt find matching default value for key {}'.format(key))
-
-
-
-        

@@ -74,7 +74,7 @@ def map2delblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, verb
     return ana_mwe.get_residualblens(ana_mwe.simidxs[0], ana_mwe.its[-1])
 
 
-def map2tempblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, verbose=False):
+def map2tempblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, defaults_to='P_FS_CMBS4', verbose=False):
     """Calculates a B-lensing template on the full sky. Configuration is a faithful default. 
 
     Args:
@@ -99,8 +99,9 @@ def map2tempblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, ver
         Lmin = 10
     else:
         Lmin = 1
+    default_values = '{}_FS_CMBS4'.format(len2TP[len(maps)]) if 'CMBS4' in defaults_to else defaults_to
     dlensalot_model = DLENSALOT_Model(
-        defaults_to = '{}_FS_CMBS4'.format(len2TP[len(maps)]),
+        defaults_to = default_values,
         data = DLENSALOT_Data(maps=maps),
         analysis = DLENSALOT_Analysis(
             TEMP_suffix = suffix,
