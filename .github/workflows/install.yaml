@@ -27,8 +27,5 @@ jobs:
           pip install -e .
       - name: test
         run: |
-          python -m unittest tests/test_integration_filter.FS
-          python -m unittest tests/test_integration_filter.MS
-#       - name: testlensing
-#         run: |
-#           python ./tests/test_lensing.py
+          python -m unittest tests.test_integration_filter.FS
+          python -m unittest tests.test_integration_filter.MS
