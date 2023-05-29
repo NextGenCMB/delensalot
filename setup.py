@@ -22,7 +22,12 @@ setup(
     author='Julien Carron, Sebastian Belkner',
     author_email='to.jcarron@gmail.com, to.sebastianbelkner@gmail.com',
     description='Iterative CMB lensing reconstruction on curved-sky',
-    install_requires=['numpy', 'healpy', 'logdecorator', 'psutil', 'lenspyx', 'attrs'], #removed mpi4py for travis tests
+    install_requires=[
+        'numpy',
+        'healpy',
+        'logdecorator',
+        'psutil',
+        'lenspyx @ git+https://github.com/carronj/lenspyx', 'attrs'], #removed mpi4py for travis tests
     requires=['numpy'],
     long_description=long_description,
     configuration=configuration)
