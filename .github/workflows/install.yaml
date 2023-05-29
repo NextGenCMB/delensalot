@@ -1,6 +1,6 @@
 name: Python package
 
-on: [push]
+on: [pull_request]
 
 jobs:
   build:
@@ -22,20 +22,13 @@ jobs:
           python -m pip install numpy --user
           python -m pip install --upgrade pip setuptools wheel --user
           if [ -f requirements.txt ]; then pip install -r requirements.txt --user; fi
-#       - name: install plancklens
-#         run: |
-#           git clone https://github.com/carronj/plancklens.git
-#           cd plancklens
-#           pip3 install numpy --user
-#           pip3 install -r requirements.txt
-#           pip3 install . --user
       - name: install
         run: |
           pip install -e .
       - name: test
         run: |
-          python -m unittest test_integration_filter.FS
-          python -m unittest test_integration_filter.MS
+          python -m unittest tests/test_integration_filter.FS
+          python -m unittest tests/test_integration_filter.MS
 #       - name: testlensing
 #         run: |
 #           python ./tests/test_lensing.py
