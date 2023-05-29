@@ -11,11 +11,14 @@ from plancklens.sims.maps import cmb_maps_nlev
 
 from plancklens.sims import phas
 
+from delensalot.core import cachers
 from delensalot.utility.utils_hp import gauss_beam
 from delensalot.config.config_helper import data_functions as df, LEREPI_Constants as lc
      
 class millDL:
     def __init__(self, nlev_p, beam, lib_dir=None):
+        
+        self.cacher = cachers.cacher_mem(safe=True)
         self.path = '/global/cfs/cdirs/cmb/data/generic/mmDL/healpix/%05d'
         self.fnsQ = 'lensed_cmb_Q_%05d.fits'
         self.fnsU = 'lensed_cmb_U_%05d.fits'
@@ -52,14 +55,18 @@ class millDL:
         return self.nlev_p / vamin * self.pix_lib_phas.get_sim(simidx, idf=2)
 
     def get_sim_pmap(self, simidx):
-        Qmap = hp.read_map(opj(self.path.format(simidx), self.fnsQ.format(simidx)))
-        Umap = hp.read_map(opj(self.path.format(simidx), self.fnsU.format(simidx)))
-        elm, blm = hp.map2alm_spin([Qmap, Umap], lmax=4096)
-        hp.almxfl(elm,self.cl_transf_P,inplace=True)
-        hp.almxfl(blm, self.cl_transf_P, inplace=True)
-        Q,U = hp.alm2map_spin([elm,blm], self.nside, 2, hp.Alm.getlmax(elm.size))
+        fn = 'pmaps_{}'.format(simidx)
+        if not self.cacher.is_cached(fn):
+            Qmap = hp.read_map(opj(self.path.format(simidx), self.fnsQ.format(simidx)))
+            Umap = hp.read_map(opj(self.path.format(simidx), self.fnsU.format(simidx)))
+            elm, blm = hp.map2alm_spin([Qmap, Umap], 2, lmax=4096)
+            hp.almxfl(elm, self.cl_transf_P,inplace=True)
+            hp.almxfl(blm, self.cl_transf_P, inplace=True)
+            Q, U = hp.alm2map_spin([elm,blm], self.nside, 2, hp.Alm.getlmax(elm.size))
+            self.cacher.cache(fn, np.array([Q + self.get_sim_qnoise(simidx), U + self.get_sim_unoise(simidx)]))
 
-        return Q + self.get_sim_qnoise(simidx), U + self.get_sim_unoise(simidx)
+        return self.cacher.load(fn)
+
 
     def hashdict(self):
         return {'cl_transf': '731e3b17d3aaaeb5f97d6e36f3e8cb45a1d01759', 'pixphas': {'nfields': 3, 'shape': (50331648,)},

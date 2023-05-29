@@ -1,4 +1,4 @@
-"""Generic cmb-only sims module
+"""Generic cmb-only sims module. cls_unl camb-like
 
 """
 
