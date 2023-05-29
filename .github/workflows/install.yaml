@@ -32,9 +32,10 @@ jobs:
       - name: install
         run: |
           pip install -e .
-#       - name: test
-#         run: |
-#           python ./tests/test_Mi.py
+      - name: test
+        run: |
+          python -m unittest test_integration_filter.FS
+          python -m unittest test_integration_filter.MS
 #       - name: testlensing
 #         run: |
 #           python ./tests/test_lensing.py
