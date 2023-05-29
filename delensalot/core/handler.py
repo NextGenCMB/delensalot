@@ -524,7 +524,6 @@ class QE_lr(Basejob):
     @log_on_start(logging.INFO, "QE.get_plm(simidx={simidx}, sub_mf={sub_mf}) started")
     @log_on_end(logging.INFO, "QE.get_plm(simidx={simidx}, sub_mf={sub_mf}) finished")
     def get_plm(self, simidx, sub_mf=True):
-        # libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
         libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
         fn_plm = opj(libdir_MAPidx, 'phi_plm_it000.npy') # Note: careful, this one doesn't have a simidx, so make sure it ends up in a simidx_directory (like MAP)
         if not os.path.exists(fn_plm):
