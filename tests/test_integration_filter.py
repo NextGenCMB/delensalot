@@ -1,4 +1,4 @@
-"""Tests if all models initialize correct filter classes for,
+"""Integration test: Setting up the correct filter means that validator/, transformer/lerepi2delensalot, core/handler (and iteration_handler) did work together, so these 'modules' are integrated. Testing this for,
     - estimator keys
     - full sky / masked sky
     Tests are considered successfull if the correct filters are initialized

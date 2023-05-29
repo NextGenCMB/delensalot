@@ -1,4 +1,4 @@
-"""Tests if all models initialize for all defaults,
+"""Integration test: Setting up the correct model means that validator/, transformer/lerepi2delensalot, and core/handler did work together, so these 'modules' are integrated. Testing this for,
     - Full sky - polarization
     - Full sky - temperature
     - Masked sky - polarization
