@@ -519,10 +519,8 @@ class QE_lr(Basejob):
     @log_on_start(logging.INFO, "QE.get_plm(simidx={simidx}, sub_mf={sub_mf}) started")
     @log_on_end(logging.INFO, "QE.get_plm(simidx={simidx}, sub_mf={sub_mf}) finished")
     def get_plm(self, simidx, sub_mf=True):
-        # libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
-        fn_plm = opj(self.libdir_QE, 'phi_plm_it000.npy')
-        plm  = self.qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate:
-        log.info(fn_plm)
+        libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
+        fn_plm = opj(libdir_MAPidx, 'phi_plm_it000.npy') # Note: careful, this one doesn't have a simidx, so make sure it ends up in a simidx_directory (like MAP)
         if not os.path.exists(fn_plm):
             plm  = self.qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate:
             if sub_mf and self.version != 'noMF':
