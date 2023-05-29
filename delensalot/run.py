@@ -7,6 +7,7 @@
 import os, sys
 import logging
 import traceback
+import shutil
 
 from delensalot.core import mpi
 from delensalot.core.mpi import check_MPI
@@ -22,15 +23,15 @@ FORMAT = '%(levelname)s:: %(asctime)s:: %(name)s.%(funcName)s - %(message)s'
 formatter = logging.Formatter(FORMAT, datefmt=datefmt)
 ConsoleOutputHandler = logging.StreamHandler(sys.stdout)
 ConsoleOutputHandler.setFormatter(formatter)
-ConsoleOutputHandler.setLevel(logging.INFO)
+ConsoleOutputHandler.setLevel(logging.WARNING)
 
 sys_logger = logging.getLogger(__name__)
 sys_logger.addHandler(ConsoleOutputHandler)
-sys_logger.setLevel(logging.INFO)
-logging.basicConfig(level=logging.INFO, handlers=[ConsoleOutputHandler])
+sys_logger.setLevel(logging.WARNING)
+logging.basicConfig(level=logging.WARNING, handlers=[ConsoleOutputHandler])
 logging.getLogger("healpy").disabled = True
 log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
+log.setLevel(logging.WARNING)
 
 
 class run():
@@ -95,12 +96,9 @@ class run():
 
 
     def init_job(self):
-
-
         self.config_handler.run(self.delensalotjob)
 
         return self.config_handler.delensalotjobs[0]
-
 
 
 if __name__ == '__main__':

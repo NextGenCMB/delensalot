@@ -1,4 +1,4 @@
-import os
+import os, sys
 from os.path import join as opj
 if "SCRATCH" not in os.environ:
     os.environ["SCRATCH"] = "./SCRATCH"
@@ -8,9 +8,12 @@ import psutil
 import healpy as hp
 from delensalot.run import run
 
-from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model, DLENSALOT_Data, DLENSALOT_Qerec, DLENSALOT_Itrec, DLENSALOT_Computing, DLENSALOT_Noisemodel, DLENSALOT_Analysis, DLENSALOT_Mapdelensing
-from delensalot.utils import camb_clfile
+import shutil
 
+from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model, DLENSALOT_Data, DLENSALOT_Qerec, DLENSALOT_Itrec, DLENSALOT_Computing, DLENSALOT_Noisemodel, DLENSALOT_Analysis, DLENSALOT_Mapdelensing
+
+
+from delensalot.utils import camb_clfile
 cls_len = camb_clfile(opj(os.path.dirname(__file__), 'data/cls/FFP10_wdipole_lensedCls.dat'))
 cpp = camb_clfile(opj(os.path.dirname(__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'))['pp']
 
@@ -123,3 +126,8 @@ def map2tempblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, ver
     ana_mwe = delensalot_runner.init_job()
 
     return ana_mwe.get_blt_it(ana_mwe.simidxs[0], ana_mwe.itmax)
+
+
+def del_TEMP(path):
+    if os.path.exists(path):
+        shutil.rmtree(path)

@@ -6,7 +6,7 @@ from __future__ import print_function
 import logging
 log = logging.getLogger(__name__)
 
-import os
+import os, sys, importlib
 import platform
 import multiprocessing
 
@@ -21,6 +21,22 @@ def check_MPI(func):
 def check_MPI_inline():
     global name, rank, size
     log.info("rank: {}, size: {}, name: {}".format(rank, size, name))
+
+
+def isinstalled():
+    # For illustrative purposes.
+    name = 'MPI'
+
+    if name in sys.modules:
+        print(f"{name!r} already in sys.modules")
+    elif (spec := importlib.util.find_spec(name)) is not None:
+        # If you choose to perform the actual import ...
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
+        spec.loader.exec_module(module)
+        print(f"{name!r} has been imported")
+    else:
+        print(f"can't find the {name!r} module")
 
 
 def is_notebook() -> bool:
@@ -44,13 +60,16 @@ def enable():
     cond4mpi4py = not has_key('NERSC_HOST') or (has_key('SLURM_SUBMIT_DIR') and has_key('NERSC_HOST'))
     name = "{} with {} cpus".format(platform.processor(),multiprocessing.cpu_count())
 
-    if not is_notebook() and cond4mpi4py:
+    if not is_notebook() and cond4mpi4py and isinstalled():
+        print(cond4mpi4py)
         print('cond4mpi exists')
         init()
         print('mpi.py : setup OK, rank %s in %s' % (rank, size))
     else:
         print('cond4mpi does not exists. No MPI loaded')
         disable()
+
+
 
 def disable():
     global barrier, send, receive, bcast, ANY_SOURCE, name, rank, size, finalize, disabled

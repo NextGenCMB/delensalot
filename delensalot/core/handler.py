@@ -313,20 +313,14 @@ class QE_lr(Basejob):
             self.simgen = Sim_generator(dlensalot_model)
         # self.filter_ = transform(self.configfile.dlensalot_model, opfilt_handler_QE())
 
-        if self.qe_filter_directional == 'anisotropic':
-            self.init_cinv()
-            _filter_raw = filt_cinv.library_cinv_sepTP(opj(self.libdir_QE, 'ivfs'), self.sims, self.cinv_t, self.cinv_p, self.cls_len)
-            _ftl_rs = np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[0])
-            _fel_rs = np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[1])
-            _fbl_rs = np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[2])
-            self.ivfs = filt_util.library_ftl(_filter_raw, self.lm_max_qlm[0], _ftl_rs, _fel_rs, _fbl_rs)
-        elif self.qe_filter_directional == 'isotropic':
+        if self.qe_filter_directional == 'isotropic':
             self.ivfs = filt_simple.library_fullsky_sepTP(opj(self.libdir_QE, 'ivfs'), self.sims, self.sims_nside, self.ttebl, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
-            # elif self.sims_data_type == 'alm':
-                # self.ivfs = filt_simple.library_fullsky_alms_sepTP(opj(self.libdir_QE, 'ivfs'), self.sims, self.ttebl, self.cls_len, self.ftl, self.fel, self.fbl, cache=True)
-        if self.qlm_type == 'sepTP':
-            self.qlms_dd = qest.library_sepTP(opj(self.libdir_QE, 'qlms_dd'), self.ivfs, self.ivfs, self.cls_len['te'], self.sims_nside, lmax_qlm=self.lm_max_qlm[0])
-    
+            if self.qlm_type == 'sepTP':
+                self.qlms_dd = qest.library_sepTP(opj(self.libdir_QE, 'qlms_dd'), self.ivfs, self.ivfs, self.cls_len['te'], self.sims_nside, lmax_qlm=self.lm_max_qlm[0])
+        else:
+            ## Wait for instantiation, as plancklens triggers cinv_calc...
+            pass
+
         self.mf = lambda simidx: self.get_meanfield(int(simidx))
         self.plm = lambda simidx: self.get_plm(simidx, self.QE_subtract_meanfield)
         self.R_unl = lambda: qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_unl, self.cls_unl,  self.ftebl_unl, lmax_qlm=self.lm_max_qlm[0])[0]
@@ -437,6 +431,17 @@ class QE_lr(Basejob):
         ## if None, then this is a normal QE lensrec call
         if not isinstance(self.sims, parameter_sims):
             self.simgen.run()
+
+
+        # Only now instantiate filters
+        if self.qe_filter_directional == 'anisotropic':
+            self.init_cinv()
+            _filter_raw = filt_cinv.library_cinv_sepTP(opj(self.libdir_QE, 'ivfs'), self.sims, self.cinv_t, self.cinv_p, self.cls_len)
+            _ftl_rs = np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[0])
+            _fel_rs = np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[1])
+            _fbl_rs = np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[2])
+            self.ivfs = filt_util.library_ftl(_filter_raw, self.lm_max_qlm[0], _ftl_rs, _fel_rs, _fbl_rs)
+            self.qlms_dd = qest.library_sepTP(opj(self.libdir_QE, 'qlms_dd'), self.ivfs, self.ivfs, self.cls_len['te'], self.sims_nside, lmax_qlm=self.lm_max_qlm[0])
 
         _tasks = self.qe_tasks if task is None else [task]
         
@@ -620,7 +625,6 @@ class QE_lr(Basejob):
     @log_on_start(logging.INFO, "get_filter() started")
     @log_on_end(logging.INFO, "get_filter() finished")
     def get_filter(self): 
-        assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
         QE_filters = transform(self, QE_transformer())
         filter = transform(self, QE_filters())
         return filter
@@ -648,7 +652,10 @@ class MAP_lr(Basejob):
         # sims -> sims_MAP
         if self.it_filter_directional == 'anisotropic':
             self.sims_MAP = utils_sims.ztrunc_sims(self.sims, self.sims_nside, [self.zbounds])
-            self.ninv = [self.sims_MAP.ztruncify(read_map(ni)) for ni in self.ninvp_desc] # inverse pixel noise map on consistent geometry
+            if self.k in ['ptt']:
+                self.ninv = self.sims_MAP.ztruncify(read_map(self.ninvt_desc)) # inverse pixel noise map on consistent geometry
+            else:
+                self.ninv = [self.sims_MAP.ztruncify(read_map(ni)) for ni in self.ninvp_desc] # inverse pixel noise map on consistent geometry
         elif self.it_filter_directional == 'isotropic':
             self.sims_MAP = self.sims
         self.filter = self.get_filter()
@@ -784,7 +791,6 @@ class MAP_lr(Basejob):
     @log_on_start(logging.INFO, "MAP.get_blt_it(simidx={simidx}, it={it}) started")
     @log_on_end(logging.INFO, "MAP.get_blt_it(simidx={simidx}, it={it}) finished")
     def get_blt_it(self, simidx, it):
-        # self.blt_lmin_plm = 1
         if it == 0:
             self.qe.itlib_iterator = transform(self, iterator_transformer(self, simidx, self.dlensalot_model))
             return self.qe.get_blt(simidx)
@@ -805,7 +811,6 @@ class MAP_lr(Basejob):
     @log_on_start(logging.INFO, "get_filter() started")
     @log_on_end(logging.INFO, "get_filter() finished")
     def get_filter(self): 
-        assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
         MAP_filters = transform(self, MAP_transformer())
         filter = transform(self, MAP_filters())
         return filter
