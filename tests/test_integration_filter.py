@@ -12,7 +12,7 @@
 
 
 import unittest
-
+import shutil
 import os
 if "SCRATCH" not in os.environ:
     os.environ["SCRATCH"] = "./SCRATCH"
@@ -172,3 +172,6 @@ class MS(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+    temppath = os.environ["SCRATCH"]+"/delensalot"
+    if os.path.exists(temppath):
+        shutil.rmtree(temppath)

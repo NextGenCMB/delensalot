@@ -413,14 +413,11 @@ class DLENSALOT_Model(DLENSALOT_Concept):
                                 if k in DL_DEFAULT[self.defaults_to][key]:
                                     if ke in DL_DEFAULT[self.defaults_to][key][k]:
                                         self.__dict__[key].__dict__[k].__dict__.update({ke: DL_DEFAULT[self.defaults_to][key][k][ke]})
-                                        # print('\t{}={}'.format(ke, DL_DEFAULT[self.defaults_to][key][k][ke]))
                 elif type(v) == type(DEFAULT_NotAValue):
                     if v == DEFAULT_NotAValue:
-                        # print('found item which needs replacing: {} = {}'.format(k, v))
                         if key in DL_DEFAULT[self.defaults_to]:
                             if k in DL_DEFAULT[self.defaults_to][key]:
                                 self.__dict__[key].__dict__.update({k: DL_DEFAULT[self.defaults_to][key][k]})
-                                # print('\t{}={}'.format(k, DL_DEFAULT[self.defaults_to][key][k]))
                             else:
                                 log.info('couldnt find matching default value for k {}'.format(key))
                         else:
