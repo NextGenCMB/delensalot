@@ -874,7 +874,7 @@ DL_DEFAULT_TEST_FS_P = {
         'version': 'noMF',
         'simidxs': np.arange(0,1),
         'TEMP_suffix': 'P_FS_TEST',
-        'Lmin': 1, 
+        'Lmin': 10, 
         'lm_max_ivf': (3000, 3000),
         'lm_max_blt': (512, 512),
         'lmin_teb': (2, 2, 200),

@@ -15,7 +15,7 @@ import unittest
 import shutil
 import os
 if "SCRATCH" not in os.environ:
-    os.environ["SCRATCH"] = "./SCRATCH"
+    os.environ["SCRATCH"] = "./TESTSCRATCH"
 from os.path import join as opj
 import healpy as hp
 import numpy as np
@@ -88,21 +88,26 @@ class FS(unittest.TestCase):
 
 
     def test_P_approx(self):
-        use_approximateWF = True
         for job_id, key_dict in self.whitelist_FS_P.items():
             for key in key_dict:
-                dlensalot_model = DLENSALOT_Model(defaults_to='P_FS_TEST', analysis = DLENSALOT_Analysis(key=key, TEMP_suffix='test'), itrec = DLENSALOT_Itrec(itmax=3))
-                # delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
-                # delensalot.del_TEMP(dlensalot_model.data.class_parameters['lib_dir'])
+                dlensalot_model = DLENSALOT_Model(
+                    defaults_to='P_FS_TEST',
+                )
+                ## generate skyobs maps
+                delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
+                delensalot.del_TEMP(dlensalot_model.data.class_parameters['lib_dir'])
                 delensalot_runner = run(config_fn='', job_id='generate_sim', config_model=dlensalot_model, verbose=True)
-                ana_mwe = delensalot_runner.init_job()
-                pmaps = ana_mwe.sims.get_sim_pmap(0)
+                ana = delensalot_runner.init_job()
+                pmaps = ana.sims.get_sim_pmap(0)
                 bmap = hp.alm2map(hp.map2alm_spin(pmaps, lmax=200, spin=2)[1], nside=512)
 
-                if job_id == 'QE_lensrec':
-                    dlensalot_model.itrec.itmax = 0
-                blt = delensalot.map2tempblm(pmaps, lmax_cmb=dlensalot_model.analysis.lm_max_ivf[0], beam=dlensalot_model.data.beam, itmax=dlensalot_model.itrec.itmax, noise=dlensalot_model.noisemodel.nlev_p, use_approximateWF=use_approximateWF, defaults_to='P_FS_TEST', verbose=True, )
+                ## delens the skyobs maps
+                delensalot_runner = run(config_fn='', job_id='MAP_lensrec', config_model=dlensalot_model, verbose=True)
+                delensalot_runner.run()
+                ana = delensalot_runner.init_job()
+                blt = ana.get_blt_it(ana.simidxs[0], ana.itmax)
 
+                ## evaluate the skyobs maps
                 input = hp.anafast(bmap, lmax=200)
                 output = hp.anafast(bmap-hp.alm2map(blt, nside=512), lmax=200)
                 Al = np.mean(output[30:200]/input[30:200])
@@ -111,19 +116,27 @@ class FS(unittest.TestCase):
 
 
     def test_P(self):
-        use_approximateWF = False
         for job_id, key_dict in self.whitelist_FS_P.items():
             for key in key_dict:
-                dlensalot_model = DLENSALOT_Model(defaults_to='P_FS_TEST', analysis = DLENSALOT_Analysis(key=key, TEMP_suffix='test'), itrec = DLENSALOT_Itrec(itmax=3))
+                dlensalot_model = DLENSALOT_Model(
+                    defaults_to='P_FS_TEST',
+                    itrec = DLENSALOT_Itrec(iterator_typ='constmf'),
+                )
+                ## generate skyobs maps
                 delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
                 delensalot.del_TEMP(dlensalot_model.data.class_parameters['lib_dir'])
                 delensalot_runner = run(config_fn='', job_id='generate_sim', config_model=dlensalot_model, verbose=True)
-                ana_mwe = delensalot_runner.init_job()
-                pmaps = ana_mwe.sims.get_sim_pmap(0)
+                ana = delensalot_runner.init_job()
+                pmaps = ana.sims.get_sim_pmap(0)
                 bmap = hp.alm2map(hp.map2alm_spin(pmaps, lmax=200, spin=2)[1], nside=512)
 
-                blt = delensalot.map2tempblm(pmaps, lmax_cmb=dlensalot_model.analysis.lm_max_ivf[0], beam=dlensalot_model.data.beam, itmax=dlensalot_model.itrec.itmax, noise=dlensalot_model.noisemodel.nlev_p, use_approximateWF=use_approximateWF, verbose=True, )
+                ## delens the skyobs maps - build a new delensalot model
+                delensalot_runner = run(config_fn='', job_id='MAP_lensrec', config_model=dlensalot_model, verbose=True)
+                delensalot_runner.run()
+                ana = delensalot_runner.init_job()
+                blt = ana.get_blt_it(ana.simidxs[0], ana.itmax)
 
+                ## evaluate the skyobs maps
                 input = hp.anafast(bmap, lmax=200)
                 output = hp.anafast(bmap-hp.alm2map(blt, nside=512), lmax=200)
                 Al = np.mean(output[30:200]/input[30:200])
@@ -133,6 +146,7 @@ class FS(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main(exit=False)
+    # TODO following lines don't seem to be executed
     temppath = os.environ["SCRATCH"]+"/delensalot"
     if os.path.exists(temppath):
         shutil.rmtree(temppath)

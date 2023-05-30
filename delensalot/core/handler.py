@@ -167,7 +167,8 @@ class Basejob():
     @log_on_start(logging.INFO, "collect_jobs() started")
     @log_on_end(logging.INFO, "collect_jobs() finished")
     def get_fiducial_sim(self, simidx, field):
-
+        """_summary_
+        """   
         assert 0, "Implement if needed"
 
 
