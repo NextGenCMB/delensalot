@@ -18,17 +18,24 @@ import lenspyx
 from plancklens.sims import phas
 from delensalot.core import cachers
 
+import delensalot
+from delensalot.utils import camb_clfile
+
 
 
 class iso_white_noise:
 
-    def __init__(self, nlev_p, nside, lib_dir=None, fnsQ=None, fnsU=None, lib_dir_phas=None):
+    def __init__(self, nlev_p, nside, lmax=None, lib_dir=None, fnsQ=None, fnsU=None):
         self.lib_dir = lib_dir
         if lib_dir is None:        
             self.nlev_p = nlev_p
             self.nside = nside
+            self.lmax = lmax
+            lib_dir_phas = os.environ['SCRATCH']+'/sims/nside{}/phas/'.format(nside) # TODO phas should go to sims dir..
             self.pix_lib_phas = phas.pix_lib_phas(lib_dir_phas, 3, (hp.nside2npix(nside),))
         else:
+            if fnsQ is None or fnsU is None:
+                assert 0, "must provide filenames for Q and U noise"
             self.fnsQ = fnsQ
             self.fnsU = fnsU  
 
@@ -69,25 +76,21 @@ class iso_white_noise:
 
 
 class Cls:
-    def __init__(self, nside, lmax, lib_dir=None, fns=None, CAMB_file=None, simidxs=None):
-        # TODO same decisison-tree as in Xobs: if unlensed Cls are stored somewhere, grab them. Otherwise, simulate lensed maps using lenspyx
+    def __init__(self, nside, lmax, CAMB_fn=None, simidxs=None):
         self.nside = nside
-        self.fns = fns
         self.lmax = lmax
-        self.lib_dir = lib_dir
-        self.CAMB_file = CAMB_file
+        if CAMB_fn is None:
+            self.CAMB_file = camb_clfile(opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'))
+        else:
+            self.CAMB_fn = CAMB_fn
+            self.CAMB_file = camb_clfile(CAMB_fn)
         self.cacher = cachers.cacher_mem(safe=True) #TODO might as well use a numpy cacher
 
 
     def get_TEBunl(self, simidx):
         fn = 'cls_{}'.format(simidx)
         if not self.cacher.is_cached(fn):
-            if self.lib_dir is None:
-                ClT, ClE, ClB = self.from_cambfile()
-            else:
-                ClT = hp.read_map(opj(self.lib_dir, self.fns['T'].format(simidx)))
-                ClE = hp.read_map(opj(self.lib_dir, self.fns['E'].format(simidx)))
-                ClB = hp.read_map(opj(self.lib_dir, self.fns['B'].format(simidx)))
+            ClT, ClE, ClB = self.CAMB_file['tt'], self.CAMB_file['ee'], self.CAMB_file['bb']
             self.cacher.cache(fn, np.array([ClT, ClE, ClB]))
         return self.cacher.load(fn)   
         
@@ -95,38 +98,26 @@ class Cls:
     def get_sim_clphi(self, simidx):
         fn = 'clphi_{}'.format(simidx)
         if not self.cacher.is_cached(fn):
-            if self.lib_dir is None:
-                Qunl, Uunl = self.cl2alm(self.cls_lib.get_TEBunl())
-            else:
-                if self.fnsQ.format(simidx).endswith('npy'):
-                    #TODO delensalotify this
-                    Uunl = np.load(opj(self.lib_dir, self.fnsU.format(simidx)))
-                elif self.fnsQ.format(simidx).endswith('fits'):
-                    Uunl = np.load(opj(self.lib_dir, self.fnsU.format(simidx)))
-            self.cacher.cache(fn, np.array([Qunl, Uunl]))
-
-        return self.cacher.load(fn)    
-    
-    def from_cambfile():
-        return 'something'
-    
-
-    def cl2alm(self, cls):
-        return 'something'
+            ClP = self.CAMB_file['pp']
+            self.cacher.cache(fn, np.array(ClP))
+        return self.cacher.load(fn)   
 
 
 class Xunl:
-    def __init__(self, nside, lmax, cls_lib=None, lib_dir=None, fnsQ=None, fnsU=None, fnsP=None, simidxs=None):
-        # TODO same decisison-tree as in Xobs: if unlensed maps are stored somewhere, grab them. Otherwise, simulate lensed maps using lenspyx
+    def __init__(self, nside, lmax, cls_lib=None, lib_dir=None, fnsQ=None, fnsU=None, fnsP=None, simidxs=None, lib_dir_phi=None):
         self.lib_dir = lib_dir
-        if lib_dir is None: # need being generated
+        self.lib_dir_phi = lib_dir_phi
+        if lib_dir is None or lib_dir_phi is None: # need being generated
             self.lmax = lmax
             self.nside = nside
             self.simidxs = simidxs
+            if cls_lib is None:
+                assert 0, 'must provide cls_lib in this case'
             self.cls_lib = cls_lib
-        else:
+        if lib_dir is not None:
             self.fnsQ = fnsQ
             self.fnsU = fnsU
+        if lib_dir_phi is not None:
             self.fnsP = fnsP
             
         self.cacher = cachers.cacher_mem(safe=True) #TODO might as well use a numpy cacher
@@ -136,7 +127,8 @@ class Xunl:
         fn = 'unlmap_{}'.format(simidx)
         if not self.cacher.is_cached(fn):
             if self.lib_dir is None:
-                Qunl, Uunl = self.cl2alm(self.cls_lib.get_TEBunl())
+                Cls = self.cls_lib.get_TEBunl()
+                Qunl, Uunl = self.cl2alm(Cls)
             else:
                 if self.fnsQ.format(simidx).endswith('npy'):
                     #TODO delensalotify this
@@ -153,23 +145,33 @@ class Xunl:
     def get_sim_phi(self, simidx):
         fn = 'phi_{}'.format(simidx)
         if not self.cacher.is_cached(fn):
-            if self.lib_dir is None:
-                Phi = self.unl_lib.get_sim_clphi(simidx)
-                print('here')
+            if self.lib_dir_phi is None:
+                ClP = self.cls_lib.get_sim_clphi(simidx)
+                Phi = self.clp2alm(ClP, simidx)
             else:
                 if self.fnsP.format(simidx+1).endswith('npy'):
                     #TODO delensalotify this
-                    Phi = np.load(opj(self.lib_dir, self.fnsP.format(simidx+1)))*1e-3
+                    Phi = np.load(opj(self.lib_dir_phi, self.fnsP.format(simidx)))
                 elif self.fnsP.format(simidx).endswith('fits'):
-                    Phi = np.load(opj(self.lib_dir, self.fnsP.format(simidx+1)))*1e-3
+                    Phi = np.load(opj(self.lib_dir_phi, self.fnsP.format(simidx)))
             self.cacher.cache(fn, Phi)
         return self.cacher.load(fn)
+
+
+    def cl2alm(self, cls):
+        elm, blm = hp.synalm(cls[1], self.lmax), hp.synalm(cls[2], self.lmax)
+        return hp.alm2map_spin([elm, blm], spin=2, nside=self.nside)
     
+
+    def clp2alm(self, clp, simidx):
+        plm = hp.synalm(clp, self.lmax)
+        return hp.alm2map(plm, nside=self.nside)
 
 
 class Xsky:
     def __init__(self, nside, lmax, unl_lib=None, lib_dir=None, fnsQ=None, fnsU=None, simidxs=None, spin=None):
         self.lib_dir = lib_dir
+
         if lib_dir is None: # need being generated
             self.nside = nside
             self.lmax = lmax
@@ -202,14 +204,15 @@ class Xsky:
 
 
     def unl2len(self, Xunl, phi, **kwargs):
-        alms = hp.map2alm_spin(Xunl, lmax=self.lmax, spin=self.spin)
+        alms = np.array(hp.map2alm_spin(Xunl, lmax=self.lmax, spin=2))
         philm = hp.map2alm(phi, lmax=self.lmax)
+        # TODO flexible geometry choice
         return lenspyx.alm2lenmap_spin(alms, philm, geometry=('healpix', {'nside': self.nside}), **kwargs)
     
 
 class Xobs:
 
-    def __init__(self, lmax, cl_transf_P, len_lib=None, noise_lib=None, lib_dir=None, fnsQ=None, fnsU=None, simidxs=None, beam=None, nside=None, nlev_p=None, lib_dir_noise=None, fnsQnoise=None, fnsUnoise=None, lib_dir_phas=None):
+    def __init__(self, lmax, transfunction, len_lib=None, noise_lib=None, lib_dir=None, fnsQ=None, fnsU=None, simidxs=None, beam=None, nside=None, nlev_p=None, lib_dir_noise=None, fnsQnoise=None, fnsUnoise=None):
         self.simidxs = simidxs
         self.lib_dir = lib_dir
         if lib_dir is None:
@@ -220,10 +223,10 @@ class Xobs:
             if noise_lib is None:
                 if nside is None or nlev_p is None:
                     assert 0, "Need nside and nlev_p for generating noise"
-                self.noise_lib = iso_white_noise(nside=nside, nlev_p=nlev_p, fnsQ=fnsQnoise, fnsU=fnsUnoise, lib_dir=lib_dir_noise, lib_dir_phas=lib_dir_phas)
+                self.noise_lib = iso_white_noise(nside=nside, nlev_p=nlev_p, fnsQ=fnsQnoise, fnsU=fnsUnoise, lib_dir=lib_dir_noise)
             else:
                 self.noise_lib = noise_lib
-            self.cl_transf_P = cl_transf_P
+            self.transfunction = transfunction
             self.lmax = lmax
             self.beam = beam
             self.nside = nside
@@ -262,15 +265,15 @@ class Xobs:
         Qnoise, Unoise = QUnoise
         elm, blm = hp.map2alm_spin([Qsky, Usky], 2, lmax=self.lmax)
         # delensalotify this
-        hp.almxfl(elm, self.cl_transf_P, inplace=True)
-        hp.almxfl(blm, self.cl_transf_P, inplace=True)
+        hp.almxfl(elm, self.transfunction, inplace=True)
+        hp.almxfl(blm, self.transfunction, inplace=True)
         beamedQ, beamedU = hp.alm2map_spin([elm,blm], self.nside, 2, hp.Alm.getlmax(elm.size))
         return np.array([beamedQ + Qnoise, beamedU + Unoise])
         
 
 class Simhandler:
 
-    def __init__(self, data, cls_lib=None, unl_lib=None, len_lib=None, obs_lib=None, noise_lib=None, lib_dir_noise=None, lib_dir=None, fnsQ=None, fnsU=None, fnsP=None, simidxs=None, beam=None, nside=None, lmax=None, cl_transf_P=None, nlev_p=None, fnsQnoise=None, fnsUnoise=None, lib_dir_phas=None, spin=None):
+    def __init__(self, flavour, space='map', cls_lib=None, unl_lib=None, obs_lib=None, len_lib=None, noise_lib=None, lib_dir_noise=None, lib_dir=None, lib_dir_phi=None, fnsQ=None, fnsU=None, fnsP=None, simidxs=None, beam=None, nside=None, lmax=None, transfunction=None, nlev_p=None, fnsQnoise=None, fnsUnoise=None, spin=None, CAMB_fn=None):
         """either provide,
                 lib_dir (skyobs maps are on disk),
             or a library which,
@@ -279,8 +282,8 @@ class Simhandler:
                 synthesizes unlensed CMB maps
             Simhandler will take care of the rest
         """
-        self.cls_lib = cls_lib
-        if data == 'obs':
+        spin = 2 # FIXME hardcoded for now
+        if flavour == 'obs':
             if lib_dir is not None:
                 self.lib_dir = lib_dir
                 self.Qfns = fnsQ
@@ -288,20 +291,23 @@ class Simhandler:
                 self.simidxs = simidxs
                 self.beam = beam
                 self.nside = nside
-                self.obs_lib = Xobs(cl_transf_P=cl_transf_P, lmax=lmax, lib_dir=lib_dir, fnsQ=fnsQ, fnsU=fnsU, simidxs=simidxs, beam=beam, nside=nside)
-        if data == 'sky':
-            self.len_lib = Xsky(unl_lib=unl_lib, lmax=lmax, lib_dir=lib_dir, fnsQ=fnsQ, fnsU=fnsU, simidxs=simidxs, nside=nside, spin=spin)
-            self.obs_lib = Xobs(len_lib=self.len_lib, cl_transf_P=cl_transf_P, lmax=lmax, nlev_p=nlev_p, noise_lib=noise_lib, nside=nside, lib_dir_noise=lib_dir_noise, fnsQnoise=fnsQnoise, fnsUnoise=fnsUnoise, lib_dir_phas=lib_dir_phas)
+                self.obs_lib = Xobs(transfunction=transfunction, lmax=lmax, lib_dir=lib_dir, fnsQ=fnsQ, fnsU=fnsU, simidxs=simidxs, beam=beam, nside=nside) if obs_lib is None else obs_lib
+        if flavour == 'sky':
+            self.len_lib = Xsky(unl_lib=unl_lib, lmax=lmax, lib_dir=lib_dir, fnsQ=fnsQ, fnsU=fnsU, simidxs=simidxs, nside=nside, spin=spin) if len_lib is None else len_lib
+            self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev_p=nlev_p, noise_lib=noise_lib, nside=nside, lib_dir_noise=lib_dir_noise, fnsQnoise=fnsQnoise, fnsUnoise=fnsUnoise)
             self.noise_lib = self.obs_lib.noise_lib
-        if data == 'unl':
-            self.unl_lib = Xunl(lmax=lmax, lib_dir=lib_dir, fnsQ=fnsQ, fnsU=fnsU, fnsP=fnsP, simidxs=simidxs, nside=nside)
+        if flavour == 'unl':
+            if (lib_dir_phi is None or lib_dir is None) and cls_lib is None:
+                cls_lib = Cls(nside=nside, lmax=lmax, CAMB_fn=CAMB_fn, simidxs=simidxs)
+            self.cls_lib = cls_lib # just to be safe..
+            self.unl_lib = Xunl(lmax=lmax, lib_dir=lib_dir, fnsQ=fnsQ, fnsU=fnsU, fnsP=fnsP, simidxs=simidxs, nside=nside, lib_dir_phi=lib_dir_phi, cls_lib=cls_lib) if unl_lib is None else unl_lib
             self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, simidxs=simidxs, nside=nside, spin=spin)
-            self.obs_lib = Xobs(len_lib=self.len_lib, cl_transf_P=cl_transf_P, lmax=lmax, nlev_p=nlev_p, noise_lib=noise_lib, nside=nside, lib_dir_noise=lib_dir_noise, fnsQnoise=fnsQnoise, fnsUnoise=fnsUnoise, lib_dir_phas=lib_dir_phas)
+            self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev_p=nlev_p, noise_lib=noise_lib, nside=nside, lib_dir_noise=lib_dir_noise, fnsQnoise=fnsQnoise, fnsUnoise=fnsUnoise)
             self.noise_lib = self.obs_lib.noise_lib
-        if data == 'cls':
-            self.unl_lib = Xunl(cls_lib=self.cls_lib, lmax=lmax, lib_dir=lib_dir, fnsQ=fnsQ, fnsU=fnsU, fnsP=fnsP, simidxs=simidxs, nside=nside)
+        if flavour == 'cls':
+            self.unl_lib = Xunl(cls_lib=cls_lib, lmax=lmax, lib_dir=lib_dir, fnsQ=fnsQ, fnsU=fnsU, fnsP=fnsP, simidxs=simidxs, nside=nside, lib_dir_phi=lib_dir_phi)
             self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, simidxs=simidxs, nside=nside, spin=spin)
-            self.obs_lib = Xobs(len_lib=self.len_lib, cl_transf_P=cl_transf_P, lmax=lmax, nlev_p=nlev_p, noise_lib=noise_lib, nside=nside, lib_dir_noise=lib_dir_noise, fnsQnoise=fnsQnoise, fnsUnoise=fnsUnoise, lib_dir_phas=lib_dir_phas)
+            self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev_p=nlev_p, noise_lib=noise_lib, nside=nside, lib_dir_noise=lib_dir_noise, fnsQnoise=fnsQnoise, fnsUnoise=fnsUnoise)
         self.cacher = cachers.cacher_mem(safe=True) #TODO might as well use a numpy cacher
 
     def get_sim_pmap(self, simidx):

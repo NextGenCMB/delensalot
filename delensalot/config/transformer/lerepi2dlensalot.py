@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
-"""lerepi2dlensalot.py: transformer module to build delensalot model from configuation file
-The transform.case functions at the very bottom of this module choose, depending on the delensalot job, the transformer class. The transformer class build a suitable delensalot model from the configuration file, which can be understood from the core functions and dependencies (such as plancklens).
+"""lerepi2dlensalot.py: transformer module to build job model and global params from configuation file.
 Each transformer is split into initializing the individual delensalot metamodel root model elements. 
 """
 
@@ -24,15 +23,16 @@ from plancklens.qcinv import cd_solve
 from lenspyx.remapping import utils_geom as lug
 from lenspyx.remapping import deflection
 
+from delensalot.sims.sims_lib import Simhandler
+
 from delensalot.utils import cli, camb_clfile
-from delensalot.config.visitor import transform, transform3d
+from delensalot.utility.utils_hp import gauss_beam
 
 from delensalot.core.iterator import steps
-from delensalot.utility.utils_hp import gauss_beam
 from delensalot.core.handler import OBD_builder, Sim_generator, QE_lr, MAP_lr, Map_delenser
 from delensalot.core.opfilt.bmodes_ninv import template_dense
 
-
+from delensalot.config.visitor import transform, transform3d
 from delensalot.config.config_helper import data_functions as df, LEREPI_Constants as lc
 from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALOT_Model_mm, DLENSALOT_Concept
 
@@ -48,6 +48,7 @@ class l2base_Transformer:
     @log_on_start(logging.DEBUG, "_process_Data() started")
     @log_on_end(logging.DEBUG, "_process_Data() finished")
     def process_Data(dl, da, cf):
+        #TODO replace with new simshandler
         if loglevel <= 20:
             dl.verbose = True
         elif loglevel >= 30:
@@ -59,6 +60,7 @@ class l2base_Transformer:
         # class_
         dl._class = da.class_
         # class_parameters -> sims
+        
         dl.sims_class_parameters = da.class_parameters
         if 'fg' in dl.sims_class_parameters:
             dl.fg = dl.sims_class_parameters['fg']
@@ -71,6 +73,27 @@ class l2base_Transformer:
         dl.epsilon = da.epsilon
         dl.parameter_maps = da.maps
         dl.parameter_phi = da.phi
+
+
+    @log_on_start(logging.DEBUG, "_process_Data() started")
+    @log_on_end(logging.DEBUG, "_process_Data() finished")
+    def process_Simulation(dl, si, cf):
+
+        dl.space = si.space
+        dl.flavour = si.flavour
+        dl.lmax = si.lmax
+        dl.nside = si.nside
+        dl.lib_dir = si.lib_dir
+        dl.lib_dir_noise = si.lib_dir_noise
+        dl.lib_dir_phi = si.lib_dir_phi
+        dl.transfunction = si.transfunction
+        dl.nlev_p = si.nlev_p
+        dl.fnsQ = si.fnsQ
+        dl.fnsU = si.fnsU    
+        dl.fnsQnoise = si.fnsQnoise
+        dl.fnsUnoise = si.fnsUnoise
+        dl.spin = si.spin
+        dl.simulation = Simhandler(**si.__dict__)
 
 
     @log_on_start(logging.DEBUG, "_process_Analysis() started")
@@ -375,6 +398,12 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.ftebl_unl = {'t': ftl_unl, 'e': fel_unl, 'b':fbl_unl}
         
 
+                @log_on_start(logging.DEBUG, "_process_Simulation() started")
+                @log_on_end(logging.DEBUG, "_process_Simulation() finished")       
+                def _process_Simulation(dl, si):
+                    l2base_Transformer.process_Simulation(dl, si, cf)
+
+
                 @log_on_start(logging.DEBUG, "_process_Qerec() started")
                 @log_on_end(logging.DEBUG, "_process_Qerec() finished")
                 def _process_Qerec(dl, qe):
@@ -508,6 +537,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_Analysis(dl, cf.analysis)
                 _process_Noisemodel(dl, cf.noisemodel)
                 _process_Data(dl, cf.data)
+                _process_Simulation(dl, cf.simulation)
                 if dl.OBD:
                     _process_OBD(dl, cf.obd)
                 else:
@@ -635,7 +665,13 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     fel_unl = cli(dl.cls_unl['ee'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
                     fbl_unl = cli(dl.cls_unl['bb'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
                     dl.ftebl_unl = {'t': ftl_unl, 'e': fel_unl, 'b':fbl_unl}
-        
+
+
+                @log_on_start(logging.DEBUG, "_process_Simulation() started")
+                @log_on_end(logging.DEBUG, "_process_Simulation() finished")       
+                def _process_Simulation(dl, si):
+                    l2base_Transformer.process_Simulation(dl, si, cf)
+
 
                 @log_on_start(logging.DEBUG, "_process_Qerec() started")
                 @log_on_end(logging.DEBUG, "_process_Qerec() finished")
@@ -770,6 +806,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_Analysis(dl, cf.analysis)
                 _process_Noisemodel(dl, cf.noisemodel)
                 _process_Data(dl, cf.data)
+                _process_Simulation(dl, cf.simulation)
                 if dl.OBD:
                     _process_OBD(dl, cf.obd)
                 else:
