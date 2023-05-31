@@ -8,13 +8,16 @@ import os, sys
 import logging
 import traceback
 
-import delensalot.config.handler as handler
+from delensalot.core import mpi
+from delensalot.core.mpi import check_MPI
+
+from delensalot.config.handler import config_handler
 import delensalot.config.etc.dev_helper as dh
 from delensalot.config.etc.abstract import parserclass
 from delensalot.config.parser import lerepi_parser
 
 
-datefmt = "%m-%d %H:%M"
+datefmt = "%m-%d %H:%M:%S"
 FORMAT = '%(levelname)s:: %(asctime)s:: %(name)s.%(funcName)s - %(message)s'
 formatter = logging.Formatter(FORMAT, datefmt=datefmt)
 ConsoleOutputHandler = logging.StreamHandler(sys.stdout)
@@ -56,26 +59,48 @@ class run():
         self.parser.config_file = config_fn
         self.parser.status = ''
 
-        self.job_id = job_id
-        self.lerepi_handler = handler.handler(self.parser, config_model)
-        self.lerepi_handler.collect_job(self.job_id)
-        self.model = self._build_model()
+        self.delensalotjob = job_id
+        self.config_handler = config_handler(self.parser, config_model)
+
+
+    def collect_model(self):
+        if mpi.size > 1:
+            if mpi.rank == 0:
+                mpi.disable()
+                self.config_handler.collect_model(self.delensalotjob)
+                mpi.enable()
+                [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
+            else:
+                mpi.receive(None, source=mpi.ANY_SOURCE)
+
+        return self.config_handler.collect_model(self.delensalotjob)
+    
+
+    def collect_models(self):
+        if mpi.size > 1:
+            if mpi.rank == 0:
+                mpi.disable()
+                self.config_handler.collect_models(self.delensalotjob)
+                mpi.enable()
+                [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
+            else:
+                mpi.receive(None, source=mpi.ANY_SOURCE)
+
+        return self.config_handler.collect_models(self.delensalotjob)
 
 
     def run(self):
-        self.init_job()
-        self.lerepi_handler.run([self.job_id])
-        return self.job
+
+        return self.collect_model()
 
 
     def init_job(self):
-        self.job = self.lerepi_handler.init_job(self.lerepi_handler.jobs[0][self.job_id], self.model)
-        return self.job
 
 
-    def _build_model(self):
-        self.model = self.lerepi_handler.build_model(self.lerepi_handler.jobs[0][self.job_id])
-        return self.model
+        self.config_handler.run(self.delensalotjob)
+
+        return self.config_handler.delensalotjobs[0]
+
 
 
 if __name__ == '__main__':
@@ -85,14 +110,14 @@ if __name__ == '__main__':
     if lparser.validate():
         parser = lparser.get_parser()
 
-    lerepi_handler = handler.handler(parser)
+    config_handler = config_handler(parser)
     if dh.dev_subr in parser.__dict__:
-        dh.dev(parser, lerepi_handler.TEMP)
+        dh.dev(parser, config_handler.TEMP)
         sys.exit()
-    lerepi_handler.collect_jobs()
+    config_handler.collect_jobs()
 
     try:
-        lerepi_handler.run()
+        config_handler.run()
     except Exception as err:
         # expection formatter. Don't want all these logdecorator functions in the trace.
         _msg = "".join(traceback.format_exception(type(err), err, err.__traceback__))

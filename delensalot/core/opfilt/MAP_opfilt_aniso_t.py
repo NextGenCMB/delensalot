@@ -5,16 +5,15 @@
 import logging
 log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
-
-import numpy as np
-from delensalot.utility.utils_hp import almxfl, Alm, alm2cl, synalm, default_rng
-from delensalot.utils import clhash, cli, read_map
-from lenspyx.remapping import utils_geom
-from lenspyx import remapping
-from delensalot.core.opfilt import opfilt_base, tmodes_ninv as tni
-
 from scipy.interpolate import UnivariateSpline as spl
-from delensalot.utils import timer
+import numpy as np
+
+from lenspyx import remapping
+from lenspyx.remapping import utils_geom
+
+from delensalot.utils import clhash, cli, read_map, timer
+from delensalot.utility.utils_hp import almxfl, Alm, alm2cl, synalm, default_rng
+from delensalot.core.opfilt import opfilt_base, tmodes_ninv as tni
 
 
 pre_op_dense = None # not implemented

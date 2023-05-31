@@ -8,16 +8,18 @@ from logdecorator import log_on_start, log_on_end
 
 import os
 import numpy as np
-from delensalot.utility.utils_hp import almxfl, Alm
-from delensalot.utils import timer, cli
-from lenspyx.remapping import utils_geom
 from scipy.interpolate import UnivariateSpline as spl
-from delensalot.core.opfilt import opfilt_pp
+
+from lenspyx.remapping import utils_geom
+
+from delensalot.utils import timer, cli
+from delensalot.utility.utils_hp import almxfl, Alm
+from delensalot.core.opfilt import QE_opfilt_aniso_p
 
 pre_op_dense = None # not implemented
-dot_op = opfilt_pp.dot_op
-fwd_op = opfilt_pp.fwd_op
-apply_fini = opfilt_pp.apply_fini
+dot_op = QE_opfilt_aniso_p.dot_op
+fwd_op = QE_opfilt_aniso_p.fwd_op
+apply_fini = QE_opfilt_aniso_p.apply_fini
 
 class alm_filter_nlev:
     def __init__(self, nlev_p:float, transf:np.ndarray, alm_info:tuple, verbose=False, wee=True):

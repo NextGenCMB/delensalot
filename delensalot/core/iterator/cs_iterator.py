@@ -230,7 +230,7 @@ class qlm_iterator(object):
                 elm_wf = self.wflm0()
             else:
                 assert 0,'dont know what to do with it_e = ' + str(it_e)
-        assert Alm.getlmax(elm_wf.size, self.mmax_filt) == self.lmax_filt
+        assert Alm.getlmax(elm_wf.size, self.mmax_filt) == self.lmax_filt, "{}, {}, {}, {}".format(elm_wf.size, self.mmax_filt, Alm.getlmax(elm_wf.size, self.mmax_filt), self.lmax_filt)
         mmaxb = lmaxb
         dlm = self.get_hlm(it, 'p')
 

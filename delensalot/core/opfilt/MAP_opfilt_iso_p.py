@@ -8,19 +8,21 @@
 import logging
 log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
-
 import numpy as np
+from scipy.interpolate import UnivariateSpline as spl
+
+from lenspyx import remapping
 from lenspyx.utils_hp import almxfl,   Alm, synalm
 from lenspyx.utils import timer, cli
 from lenspyx.remapping.utils_geom import pbdGeometry
-from lenspyx import remapping
-from scipy.interpolate import UnivariateSpline as spl
-from delensalot.core.opfilt import opfilt_ee_wl, opfilt_base
 from lenspyx.remapping.deflection_028 import rtype, ctype
+
+from delensalot.core.opfilt import opfilt_base, MAP_opfilt_aniso_p
+
 pre_op_dense = None # not implemented
-dot_op = opfilt_ee_wl.dot_op
-fwd_op = opfilt_ee_wl.fwd_op
-apply_fini = opfilt_ee_wl.apply_fini
+dot_op = MAP_opfilt_aniso_p.dot_op
+fwd_op = MAP_opfilt_aniso_p.fwd_op
+apply_fini = MAP_opfilt_aniso_p.apply_fini
 
 def _extend_cl(cl, lmax):
     """Forces input to an array of size lmax + 1
@@ -120,6 +122,7 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
                                  backwards=True, gclm_out=elm_2d, out_sht_mode='GRAD_ONLY')
         #elm[:] = self.ffi.lensgclm(eblm, self.mmax_len, 2, self.lmax_sol, self.mmax_sol,
         #                 backwards=True, out_sht_mode='GRAD_ONLY').squeeze()
+        # elm[:] = self.ffi.lensgclm(eblm, self.mmax_len, 2, self.lmax_sol, self.mmax_sol, backwards=True, out_sht_mode='GRAD_ONLY')
         self.tim.add('lensgclm bwd')
         if self.verbose:
             print(self.tim)

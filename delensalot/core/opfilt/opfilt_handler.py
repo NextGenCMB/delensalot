@@ -1,129 +1,119 @@
 """opfilt.opfilt_handler.py: interface to opfilt via transformer
 """
 
-from delensalot.config.visitor import transform
-from delensalot.core.opfilt import utils_cinv_p # these are aniso with OBD
-from delensalot.core.opfilt import utils_cinv_p # these are aniso without OBD
+from delensalot.core.opfilt import MAP_opfilt_iso_tp, QE_opfilt_iso_p, QE_opfilt_iso_t # these are iso QE
+from delensalot.core.opfilt import QE_opfilt_aniso_p, QE_opfilt_aniso_t # these are aniso QE
 
-from delensalot.core.opfilt import opfilt_iso_pp, opfilt_iso_tt # these are iso QE
-from delensalot.core.opfilt import opfilt_iso_ee_wl, opfilt_iso_eenob_wl, opfilt_iso_gmv_wl, opfilt_iso_tt_wl # these are iso MAP
-
-from delensalot.core.opfilt import bmodes_ninv, tmodes_ninv # these are merely for creating OBD (OTD) matrices
-from delensalot.core.opfilt import opfilt_ee_wl, opfilt_ee_wl_dev, opfilt_pp, opfilt_tt, opfilt_tt_wl # these are aniso MAP with and without OBD
+from delensalot.core.opfilt import MAP_opfilt_iso_e, MAP_opfilt_iso_p, MAP_opfilt_iso_t # these are iso MAP
+from delensalot.core.opfilt import MAP_opfilt_aniso_p, MAP_opfilt_aniso_t # these are aniso MAP with and without OBD
 
 
-class iso_transfomer:
-    def build_opfilt_ee_wl(cf):
+class QE_transformer:
+    def build_iso(self, cf):
+        return QE_iso_transformer
+    def build_aniso(self, cf):
+        return QE_aniso_transformer
+
+
+class QE_iso_transformer:
+
+    def build_opfilt_iso_pp(self, cf):
+        def extract():
+            return {
+                'nlev_p': cf.nlev_p,
+                'transf': cf.ttebl['e'],
+                'alm_info': cf.lm_max_unl,
+                'wee': cf.k == 'p_p',
+            }
+        return QE_opfilt_iso_p.alm_filter_nlev(**extract())
+
+    def build_opfilt_iso_tt(self, cf):
         def extract():
             return {}
-        return opfilt_iso_ee_wl(**extract())
+        return QE_opfilt_iso_t.alm_filter_nlev(**extract())
+
+
+class QE_aniso_transformer:
+    def build_opfilt_pp(self, cf):
+        def extract():
+            return {}
+        return QE_opfilt_aniso_p.alm_filter_ninv(**extract())
     
-    def build_opfilt_ee_wl(cf):
+    def build_opfilt_tt(self, cf):
         def extract():
             return {}
-        return opfilt_iso_eenob_wl(**extract())
+        return QE_opfilt_aniso_t.alm_filter_ninv(**extract())
+
+
+class MAP_transformer:
+    def build_iso(self, cf):
+        return MAP_iso_transformer
+    def build_aniso(self, cf):
+        return MAP_aniso_transformer
+
+
+class MAP_iso_transformer:
+
+    def build_opfilt_iso_pp(self, cf):
+        def extract():
+            return {
+                'nlev_p': cf.nlev_p,
+                'ffi': cf.ffi,
+                'transf': cf.ttebl['e'],
+                'unlalm_info': cf.lm_max_unl,
+                'lenalm_info': cf.lm_max_ivf,
+                'wee': cf.k == 'p_p',
+                'transf_b': cf.ttebl['b'],
+                'nlev_b': cf.nlev_p,
+            }
+        return MAP_opfilt_iso_p.alm_filter_nlev_wl(**extract())
     
-    def build_opfilt_ee_wl(cf):
+    def build_opfilt_iso_ee(self, cf):
+        assert 0, "Implement if needed"
         def extract():
-            return {}
-        return opfilt_iso_gmv_wl(**extract())
+            return {
+                'nlev_p': cf.nlev_p,
+                'ffi': cf.ffi,
+                'transf': cf.ttebl['e'],
+                'unlalm_info': cf.lm_max_unl,
+                'lenalm_info': cf.lm_max_ivf,   
+            }
+        return MAP_opfilt_iso_e.alm_filter_nlev_wl(**extract())
     
-    def build_opfilt_ee_wl(cf):
+    def build_opfilt_iso_gmv(self, cf):
+        assert 0, "Implement if needed"
         def extract():
             return {}
-        return opfilt_iso_pp(**extract())
+        return MAP_opfilt_iso_tp.alm_filter_nlev_wl(**extract())
+
+    def build_opfilt_iso_tt(self, cf):
+        assert 0, "Implement if needed"
+        def extract():
+            return {}
+        return MAP_opfilt_iso_t.alm_filter_nlev_wl(**extract())
+
+
+class MAP_aniso_transformer:
+
+    def build_opfilt_pp(self, cf):
+        def extract():
+            return {
+                'ninv_geom': cf.ninvjob_geometry,
+                'ninv': cf.ninv,
+                'ffi': cf.ffi,
+                'transf': cf.ttebl['e'],
+                'unlalm_info': cf.lm_max_unl,
+                'lenalm_info': cf.lm_max_ivf,
+                'sht_threads': cf.tr,
+                'tpl': cf.tpl,
+                'transf_blm': cf.ttebl['b'],
+                'verbose': cf.verbose,
+                'lmin_dotop': cf.min(cf.lmin_teb[1], cf.lmin_teb[2]),
+                'wee': cf.k == 'p_p'
+            }        
+        return MAP_opfilt_aniso_p.alm_filter_ninv_wl(**extract())
     
-    def build_opfilt_ee_wl(cf):
+    def build_opfilt_tt(self, cf):
         def extract():
             return {}
-        return opfilt_iso_tt(**extract())
-    
-    def build_opfilt_ee_wl(cf):
-        def extract():
-            return {}
-        return opfilt_iso_tt_wl(**extract())
-
-
-class aniso_transformer:
-    def build(cf):
-        def extract():
-            return {}
-        return opfilt_ee_wl(**extract())
-    
-    def build(cf):
-        def extract():
-            return {}
-        return opfilt_ee_wl_dev(**extract())
-    
-    def build(cf):
-        def extract():
-            return {}
-        return opfilt_pp(**extract())
-    
-    def build(cf):
-        def extract():
-            return {}
-        return opfilt_tt(**extract())
-    
-    def build(cf):
-        def extract():
-            return {}
-        return opfilt_tt_wl(**extract())
-
-
-@transform.case('p_p', iso_transfomer)
-def f5(expr, transformer): # pylint: disable=missing-function-docstring
-    return transformer.build_opfilt_ee_wl(expr)
-
-@transform.case('p_eb', iso_transfomer)
-def f5(expr, transformer): # pylint: disable=missing-function-docstring
-    return transformer.build(expr)
-
-@transform.case('p_be', iso_transfomer)
-def f5(expr, transformer): # pylint: disable=missing-function-docstring
-    return transformer.build(expr)
-
-@transform.case('peb', iso_transfomer)
-def f5(expr, transformer): # pylint: disable=missing-function-docstring
-    return transformer.build(expr)
-
-@transform.case('pee', iso_transfomer)
-def f1(expr, transformer): # pylint: disable=missing-function-docstring
-    return transformer.build(expr)
-
-@transform.case('ptt', iso_transfomer)
-def f1(expr, transformer): # pylint: disable=missing-function-docstring
-    return transformer.build(expr)
-
-@transform.case('pp', iso_transfomer)
-def f3(expr, transformer): # pylint: disable=missing-function-docstring
-    return transformer.build(expr)
-
-
-@transform.case('p_p', aniso_transformer)
-def f5(expr, transformer): # pylint: disable=missing-function-docstring
-    return transformer.build_opfilt_ee_wl(expr)
-
-@transform.case('p_eb', aniso_transformer)
-def f5(expr, transformer): # pylint: disable=missing-function-docstring
-    return transformer.build(expr)
-
-@transform.case('p_be', aniso_transformer)
-def f5(expr, transformer): # pylint: disable=missing-function-docstring
-    return transformer.build(expr)
-
-@transform.case('peb', aniso_transformer)
-def f5(expr, transformer): # pylint: disable=missing-function-docstring
-    return transformer.build(expr)
-
-@transform.case('pee', aniso_transformer)
-def f1(expr, transformer): # pylint: disable=missing-function-docstring
-    return transformer.build(expr)
-
-@transform.case('ptt', aniso_transformer)
-def f1(expr, transformer): # pylint: disable=missing-function-docstring
-    return transformer.build(expr)
-
-@transform.case('pp', aniso_transformer)
-def f3(expr, transformer): # pylint: disable=missing-function-docstring
-    return transformer.build(expr)
+        return MAP_opfilt_aniso_t.alm_filter_ninv_wl(**extract())

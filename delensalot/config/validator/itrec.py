@@ -1,6 +1,11 @@
+from delensalot.config.validator import DEFAULT_NotAValue
+
 def tasks(instance, attribute, value):
     desc = ['calc_phi', 'calc_meanfield', 'calc_blt']
-    assert all(val in desc for val in value), ValueError('Must be in {}, but is {}. {}'.format(desc, value, [val in desc for val in value]))
+    if value == DEFAULT_NotAValue:
+        pass
+    else:
+        assert all(val in desc for val in value), ValueError('Must be in {}, but is {}. {}'.format(desc, value, [val in desc for val in value]))
 
 def simidxs(instance, attribute, value):
     desc = [list]
@@ -8,11 +13,17 @@ def simidxs(instance, attribute, value):
 
 def itmax(instance, attribute, value):
     desc = [int]
-    assert type(value) in desc, TypeError('Must be in {}, but is {}'.format(desc, type(value)))
+    if value == DEFAULT_NotAValue:
+        pass
+    else:
+        assert type(value) in desc, TypeError('Must be in {}, but is {}'.format(desc, type(value)))
 
 def iterator_type(instance, attribute, value):
     desc = ['pertmf', 'constmf', 'fastWF']
-    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+    if value == DEFAULT_NotAValue:
+        pass
+    else:
+        assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
 
 def chain(instance, attribute, value):
     desc = [value]
