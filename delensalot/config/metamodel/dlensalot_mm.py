@@ -216,12 +216,16 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
     transfunction = attr.field(default=None, on_setattr=data.beam)
     nlev_p =        attr.field(default=None, on_setattr=data.beam)
     fnsP =          attr.field(default=None, on_setattr=data.beam)
+    fnsE =          attr.field(default=None, on_setattr=data.beam)
+    fnsB =          attr.field(default=None, on_setattr=data.beam) 
     fnsQ =          attr.field(default=None, on_setattr=data.beam)
     fnsU =          attr.field(default=None, on_setattr=data.beam)    
     fnsQnoise =     attr.field(default=None, on_setattr=data.beam)
     fnsUnoise =     attr.field(default=None, on_setattr=data.beam)
+    fnsEnoise =     attr.field(default=None, on_setattr=data.beam)
+    fnsBnoise =     attr.field(default=None, on_setattr=data.beam)
     spin =          attr.field(default=None, on_setattr=data.beam)
-    CAMB_fn =     attr.field(default=None, on_setattr=data.beam)
+    CAMB_fn =       attr.field(default=None, on_setattr=data.beam)
     
 @attr.s
 class DLENSALOT_Noisemodel(DLENSALOT_Concept):

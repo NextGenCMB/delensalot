@@ -79,20 +79,20 @@ class l2base_Transformer:
     @log_on_end(logging.DEBUG, "_process_Data() finished")
     def process_Simulation(dl, si, cf):
 
-        dl.space = si.space
-        dl.flavour = si.flavour
-        dl.lmax = si.lmax
-        dl.nside = si.nside
-        dl.lib_dir = si.lib_dir
-        dl.lib_dir_noise = si.lib_dir_noise
-        dl.lib_dir_phi = si.lib_dir_phi
-        dl.transfunction = si.transfunction
-        dl.nlev_p = si.nlev_p
-        dl.fnsQ = si.fnsQ
-        dl.fnsU = si.fnsU    
-        dl.fnsQnoise = si.fnsQnoise
-        dl.fnsUnoise = si.fnsUnoise
-        dl.spin = si.spin
+        # dl.space = si.space
+        # dl.flavour = si.flavour
+        # dl.lmax = si.lmax
+        # dl.nside = si.nside
+        # dl.lib_dir = si.lib_dir
+        # dl.lib_dir_noise = si.lib_dir_noise
+        # dl.lib_dir_phi = si.lib_dir_phi
+        # dl.transfunction = si.transfunction
+        # dl.nlev_p = si.nlev_p
+        # dl.fnsQ = si.fnsQ
+        # dl.fnsU = si.fnsU    
+        # dl.fnsQnoise = si.fnsQnoise
+        # dl.fnsUnoise = si.fnsUnoise
+        # dl.spin = si.spin
         dl.simulation = Simhandler(**si.__dict__)
 
 
