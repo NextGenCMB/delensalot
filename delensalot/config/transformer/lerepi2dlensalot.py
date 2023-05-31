@@ -78,22 +78,7 @@ class l2base_Transformer:
     @log_on_start(logging.DEBUG, "_process_Data() started")
     @log_on_end(logging.DEBUG, "_process_Data() finished")
     def process_Simulation(dl, si, cf):
-
-        # dl.space = si.space
-        # dl.flavour = si.flavour
-        # dl.lmax = si.lmax
-        # dl.nside = si.nside
-        # dl.lib_dir = si.lib_dir
-        # dl.lib_dir_noise = si.lib_dir_noise
-        # dl.lib_dir_phi = si.lib_dir_phi
-        # dl.transfunction = si.transfunction
-        # dl.nlev_p = si.nlev_p
-        # dl.fnsQ = si.fnsQ
-        # dl.fnsU = si.fnsU    
-        # dl.fnsQnoise = si.fnsQnoise
-        # dl.fnsUnoise = si.fnsUnoise
-        # dl.spin = si.spin
-        dl.simulation = Simhandler(**si.__dict__)
+        dl.simulationdata = Simhandler(**si.__dict__)
 
 
     @log_on_start(logging.DEBUG, "_process_Analysis() started")
@@ -160,7 +145,7 @@ class l2base_Transformer:
 
 
 class l2T_Transformer:
-    # TODO this needs a big refactoring. Suggest working via cachers
+    # TODO this needs refactoring. Suggest working via cachers
     """global access for custom TEMP directory name, so that any job stores the data at the same place.
     """
 
@@ -184,15 +169,6 @@ class l2T_Transformer:
             TEMP =  opj(os.environ['SCRATCH'], cf.data.package_, cf.data.module_.split('.')[-1], _suffix)
 
             return TEMP
-
-
-    # @log_on_start(logging.INFO, "build_delsuffix() started")
-    # @log_on_end(logging.INFO, "build_delsuffix() finished")
-    def build_delsuffix(self, dl):
-        if dl.version == '':
-            return os.path.join(dl.TEMP, 'plotdata', 'base')
-        else:
-            return os.path.join(dl.TEMP, 'plotdata', dl.version)
 
 
     def ofj(desc, kwargs):
@@ -537,7 +513,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_Analysis(dl, cf.analysis)
                 _process_Noisemodel(dl, cf.noisemodel)
                 _process_Data(dl, cf.data)
-                _process_Simulation(dl, cf.simulation)
+                _process_Simulation(dl, cf.simulationdata)
                 if dl.OBD:
                     _process_OBD(dl, cf.obd)
                 else:
@@ -806,7 +782,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_Analysis(dl, cf.analysis)
                 _process_Noisemodel(dl, cf.noisemodel)
                 _process_Data(dl, cf.data)
-                _process_Simulation(dl, cf.simulation)
+                _process_Simulation(dl, cf.simulationdata)
                 if dl.OBD:
                     _process_OBD(dl, cf.obd)
                 else:

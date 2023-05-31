@@ -59,8 +59,7 @@ class Basejob():
 
     def __init__(self, model):
         self.__dict__.update(model.__dict__)
-        _sims_module = importlib.import_module(self._sims_full_name)
-        self._sims = getattr(_sims_module, self._class)(**self.sims_class_parameters)
+
         transf_dat = gauss_beam(self.sims_beam/180/60 * np.pi, lmax=self.sims_lmax_transf)
 
         self.libdir_QE = opj(self.TEMP, 'QE')
@@ -74,17 +73,7 @@ class Basejob():
         self.libdir_MAP_blt = opj(self.TEMP, 'MAP/BLT/')
         if not os.path.exists(self.libdir_MAP_blt):
             os.makedirs(self.libdir_MAP_blt)
-        
-        if 'lib_dir' in self.sims_class_parameters:
-            pix_phas = phas.pix_lib_phas(self.sims_class_parameters['lib_dir'], 3, (hp.nside2npix(self.sims_nside),))
-        else:
-            pix_phas = phas.pix_lib_phas(self.sims_class_parameters['cacher'].lib_dir, 3, (hp.nside2npix(self.sims_nside),))
-        
-        if type(self.parameter_maps) in [np.ndarray, np.array, tuple]:
-            self.sims = parameter_sims(self.parameter_maps, self.parameter_phi)
-        elif self.parameter_maps == DEFAULT_NotAValue:
-            # self.sims = self._sims
-            self.sims = maps.cmb_maps_nlev(self._sims, transf_dat, self.sims_nlev_t, self.sims_nlev_p, self.sims_nside, pix_lib_phas=pix_phas)
+         
         self.config_model = model
         self.jobs = []
 
@@ -249,22 +238,14 @@ class Sim_generator(Basejob):
     @log_on_end(logging.INFO, "Sim.collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self):
         ## TODO implement
+        # If Simhandler used, this here should ask simhandler.isdone(fn.format(simidx))
         jobs = []
         simidxs_ = np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))))
         for simidx in simidxs_:
-            def isdone(simidx):
-                if self.k in ['ptt', 'p']:
-                    fields = ['t', 'e', 'b']
-                elif self.k in ['p_p', 'mv', 'p_eb', 'pbe', 'pee', 'pbb', 'peb']:
-                    fields = ['e', 'b']
-                fns_sim = [os.path.join(self.lib_dir, 'sim_%04d_%slm.fits'%(simidx, field)) for field in fields]
-                return np.all([os.path.exists(fn_sim) for fn_sim in fns_sim])
-            if not isdone(simidx):
+            if self.simulationdata.isdone(simidx):
                 jobs.append(simidx)
-
         self.jobs = jobs
-
-        return jobs
+        return self.jobs
 
 
     # @base_exception_handler
@@ -301,19 +282,19 @@ class QE_lr(Basejob):
         if caller is not None:
             dlensalot_model.qe_tasks = dlensalot_model.it_tasks
             ## TODO. Current solution to fake an iteration handler for QE to calc blt is to initialize one MAP_job here.
-            ## In the future, I want to remove get_template_blm from the iteration_handler, at least for QE.
+            ## In the future, I want to remove get_template_blm from the iteration_handler for QE.
             if 'calc_blt' in dlensalot_model.qe_tasks:
                 self.MAP_job = caller
 
         super().__init__(dlensalot_model)
         self.dlensalot_model = dlensalot_model
         
-        if not isinstance(self.sims, parameter_sims):
+        if not isinstance(self.simulationdata, parameter_sims):
             self.simgen = Sim_generator(dlensalot_model)
         # self.filter_ = transform(self.configfile.dlensalot_model, opfilt_handler_QE())
 
         if self.qe_filter_directional == 'isotropic':
-            self.ivfs = filt_simple.library_fullsky_sepTP(opj(self.libdir_QE, 'ivfs'), self.sims, self.sims_nside, self.ttebl, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
+            self.ivfs = filt_simple.library_fullsky_sepTP(opj(self.libdir_QE, 'ivfs'), self.simulationdata, self.sims_nside, self.ttebl, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
             if self.qlm_type == 'sepTP':
                 self.qlms_dd = qest.library_sepTP(opj(self.libdir_QE, 'qlms_dd'), self.ivfs, self.ivfs, self.cls_len['te'], self.sims_nside, lmax_qlm=self.lm_max_qlm[0])
         else:
@@ -329,9 +310,9 @@ class QE_lr(Basejob):
             if not os.path.exists(opj(self.libdir_QE, 'BLT')):
                 os.makedirs(opj(self.libdir_QE, 'BLT'))
             if self.it_filter_directional == 'anisotropic':
-                self.sims_MAP = utils_sims.ztrunc_sims(self.sims, self.sims_nside, [self.zbounds])
+                self.sims_MAP = utils_sims.ztrunc_sims(self.simulationdata, self.sims_nside, [self.zbounds])
             elif self.it_filter_directional == 'isotropic':
-                self.sims_MAP = self.sims
+                self.sims_MAP = self.simulationdata
 
         if self.cl_analysis == True:
             # TODO fix numbers for mc ocrrection and total nsims
@@ -380,7 +361,7 @@ class QE_lr(Basejob):
     @log_on_end(logging.INFO, "QE.collect_jobs(recalc={recalc}) finished: jobs={self.jobs}")
     def collect_jobs(self, recalc=False):
 
-        if not isinstance(self.sims, parameter_sims):
+        if not isinstance(self.simulationdata, parameter_sims):
             self.simgen.collect_jobs()
         # qe_tasks overwrites task-list and is needed if MAP lensrec calls QE lensrec
         jobs = list(range(len(self.qe_tasks)))
@@ -428,14 +409,14 @@ class QE_lr(Basejob):
     def run(self, task=None):
         ## task may be set from MAP lensrec, as MAP lensrec has prereqs to QE lensrec
         ## if None, then this is a normal QE lensrec call
-        if not isinstance(self.sims, parameter_sims):
+        if not isinstance(self.simulationdata, parameter_sims):
             self.simgen.run()
 
 
         # Only now instantiate filters
         if self.qe_filter_directional == 'anisotropic':
             self.init_cinv()
-            _filter_raw = filt_cinv.library_cinv_sepTP(opj(self.libdir_QE, 'ivfs'), self.sims, self.cinv_t, self.cinv_p, self.cls_len)
+            _filter_raw = filt_cinv.library_cinv_sepTP(opj(self.libdir_QE, 'ivfs'), self.simulationdata, self.cinv_t, self.cinv_p, self.cls_len)
             _ftl_rs = np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[0])
             _fel_rs = np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[1])
             _fbl_rs = np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[2])
@@ -648,13 +629,13 @@ class MAP_lr(Basejob):
 
         # sims -> sims_MAP
         if self.it_filter_directional == 'anisotropic':
-            self.sims_MAP = utils_sims.ztrunc_sims(self.sims, self.sims_nside, [self.zbounds])
+            self.sims_MAP = utils_sims.ztrunc_sims(self.simulationdata, self.sims_nside, [self.zbounds])
             if self.k in ['ptt']:
                 self.ninv = self.sims_MAP.ztruncify(read_map(self.ninvt_desc)) # inverse pixel noise map on consistent geometry
             else:
                 self.ninv = [self.sims_MAP.ztruncify(read_map(ni)) for ni in self.ninvp_desc] # inverse pixel noise map on consistent geometry
         elif self.it_filter_directional == 'isotropic':
-            self.sims_MAP = self.sims
+            self.sims_MAP = self.simulationdata
         self.filter = self.get_filter()
 
     # # @base_exception_handler

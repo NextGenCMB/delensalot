@@ -1,11 +1,10 @@
 import os, sys
 from os.path import join as opj
 if "SCRATCH" not in os.environ:
-    os.environ["SCRATCH"] = "./SCRATCH"
+    os.environ["SCRATCH"] = "./SCRATCH/delensalot/"
 import hashlib
 import numpy as np
 import psutil
-import healpy as hp
 from delensalot.run import run
 
 import shutil

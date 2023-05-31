@@ -186,28 +186,36 @@ class DLENSALOT_Data(DLENSALOT_Concept):
 @attr.s
 class DLENSALOT_Simulation(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
-    This class collects all configurations related to the input CMB maps.
+    This class collects all configurations related to the input maps, and values can differ from the noise model and analysis.
 
     Attributes:
-        class_parameters (dic): parameters of the class of the data
-        package_ (str):         package name of the data (can be, e.g. 'delensalot')
-        module_ (str):      	module name of the data (can be, e.g. sims.generic) (?)
-        class_ (str):           class name of the data (can be, e.g. sims_cmb_len) 
-        transferfunction (str): predefined isotropic transfer function. Can bei either with or without pixelwindow function applied
-        beam (float):           assuming a Gaussian beam, this defines the FWHM in arcmin
-        nside (int):            resolution of the data
-        nlev_t (type):          TBD
-        nlev_p (type):          TBD
-        lmax_transf (int):      maxmimum multipole to apply transfer function to data
-        epsilon (float):        lenspyx precision    
-
-    comment:
-        data_type (str)         data may come on spherical harmonics or real space. Can be either 'map' or 'alm'
-        data_field (str)        data may be spin-2 or spin-0. Can either be 'qu' or 'eb'                                                  
+        space =         TBD
+        flavour =       TBD
+        lmax =          TBD
+        nside =         TBD
+        lib_dir =       TBD
+        lib_dir_noise = TBD
+        lib_dir_phi =   TBD
+        transfunction = TBD
+        nlev_p =        TBD
+        fnsP =          TBD
+        fnsE =          TBD
+        fnsB =          TBD 
+        fnsQ =          TBD
+        fnsU =          TBD    
+        fnsQnoise =     TBD
+        fnsUnoise =     TBD
+        fnsEnoise =     TBD
+        fnsBnoise =     TBD
+        spin =          TBD
+        CAMB_fn =       TBD
+        epsilon =
+                                               
     """
 
     space =         attr.field(default=None, on_setattr=data.beam)
     flavour =       attr.field(default=None, on_setattr=data.beam)
+    maps =          attr.field(default=None, on_setattr=data.beam)
     lmax =          attr.field(default=None, on_setattr=data.beam)
     nside =         attr.field(default=None, on_setattr=data.beam)
     lib_dir =       attr.field(default=None, on_setattr=data.beam)
@@ -215,17 +223,11 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
     lib_dir_phi =   attr.field(default=None, on_setattr=data.beam)
     transfunction = attr.field(default=None, on_setattr=data.beam)
     nlev_p =        attr.field(default=None, on_setattr=data.beam)
-    fnsP =          attr.field(default=None, on_setattr=data.beam)
-    fnsE =          attr.field(default=None, on_setattr=data.beam)
-    fnsB =          attr.field(default=None, on_setattr=data.beam) 
-    fnsQ =          attr.field(default=None, on_setattr=data.beam)
-    fnsU =          attr.field(default=None, on_setattr=data.beam)    
-    fnsQnoise =     attr.field(default=None, on_setattr=data.beam)
-    fnsUnoise =     attr.field(default=None, on_setattr=data.beam)
-    fnsEnoise =     attr.field(default=None, on_setattr=data.beam)
-    fnsBnoise =     attr.field(default=None, on_setattr=data.beam)
+    fns =           attr.field(default=None, on_setattr=data.beam)
+    fnsnoise =      attr.field(default=None, on_setattr=data.beam)
     spin =          attr.field(default=None, on_setattr=data.beam)
     CAMB_fn =       attr.field(default=None, on_setattr=data.beam)
+    epsilon =       attr.field(default=1e-7, on_setattr=data.beam) #must have value for all models, otherwise lenspyx will be unhappy with None
     
 @attr.s
 class DLENSALOT_Noisemodel(DLENSALOT_Concept):
@@ -427,7 +429,7 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     job =                   attr.field(default=DLENSALOT_Job(), on_setattr=model.job)
     analysis =              attr.field(default=DLENSALOT_Analysis(), on_setattr=model.analysis)
     data =                  attr.field(default=DLENSALOT_Data(), on_setattr=model.data)
-    simulation =            attr.field(default=DLENSALOT_Simulation(), on_setattr=model.data)
+    simulationdata =        attr.field(default=DLENSALOT_Simulation(), on_setattr=model.data)
     noisemodel =            attr.field(default=DLENSALOT_Noisemodel(), on_setattr=model.noisemodel)
     qerec =                 attr.field(default=DLENSALOT_Qerec(), on_setattr=model.qerec)
     itrec =                 attr.field(default=DLENSALOT_Itrec(), on_setattr=model.itrec)

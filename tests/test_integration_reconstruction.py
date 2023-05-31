@@ -15,7 +15,7 @@ import unittest
 import shutil
 import os
 if "SCRATCH" not in os.environ:
-    os.environ["SCRATCH"] = "./SCRATCH"
+    os.environ["SCRATCH"] = "./SCRATCH/delensalot/test/"
 from os.path import join as opj
 import healpy as hp
 import numpy as np

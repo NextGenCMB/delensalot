@@ -1,4 +1,5 @@
 import sys
+import healpy as hp
 from time import time
 import numpy as np
 import hashlib
@@ -199,3 +200,10 @@ def dls2cls(dls):
     for i, k in enumerate(['tt', 'ee', 'bb', 'te']):
         cls[k] = dls[:, i] * refac
     return cls
+
+def load_file(fn):
+    if fn.endswith('.npy'):
+        data = np.load(fn)
+    elif fn.endswith('.fits'):
+        data = hp.read_map(fn)
+    return data

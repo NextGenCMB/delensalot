@@ -3,7 +3,7 @@
     alms_unl
     alm_len + noise
     obs_sky
-and is a mapper between them, so that get_sim_pmap()  
+and is a mapper between them, so that get_sim_pmap() always returns observed maps.
 
 """
 
@@ -19,73 +19,43 @@ from plancklens.sims import phas
 from delensalot.core import cachers
 
 import delensalot
-from delensalot.utils import camb_clfile
-
+from delensalot.utils import load_file, camb_clfile
 
 
 class iso_white_noise:
 
-    def __init__(self, nlev_p, nside, lmax=None, lib_dir=None, fnsQ=None, fnsU=None, fnsE=None, fnsB=None, spin=None):
+    def __init__(self, nlev_p, nside, lmax=None, lib_dir=None, fns=None, spin=None):
         self.lib_dir = lib_dir
         self.spin = spin
         self.nside = nside
         self.lmax = lmax
         if lib_dir is None:        
             self.nlev_p = nlev_p
-            lib_dir_phas = os.environ['SCRATCH']+'/sims/nside{}/phas/'.format(nside) # TODO phas should go to sims dir..
+            lib_dir_phas = os.environ['SCRATCH']+'/delensalot/sims/nside{}/phas/'.format(nside) # TODO phas should go to sims dir..
             self.pix_lib_phas = phas.pix_lib_phas(lib_dir_phas, 3, (hp.nside2npix(nside),))
         else:
-            if spin == 2:
-                if fnsQ is None or fnsU is None:
-                    assert 0, "must provide filenames for Q and U noise"
-                self.fnsQ = fnsQ
-                self.fnsU = fnsU
-            elif spin == 0:
-                if fnsE is None or fnsB is None:
-                    assert 0, "must provide filenames for E and B noise"
-                self.fnsE = fnsE
-                self.fnsB = fnsB 
+            if fns is None:
+                assert 0, "must provide fns"
+            self.fns = fns
 
         self.cacher = cachers.cacher_mem(safe=True) #TODO might as well use a numpy cacher
-        # TODO same decisison-tree as in Xobs: if noise maps are stored somewhere, grab them. Otherwise, simulate noise
-
 
     def get_sim_noise(self, simidx, spin=2):
         fn = 'noise_spin{}_{}'.format(spin, simidx)
         if not self.cacher.is_cached(fn):
             if self.lib_dir is None:
                 vamin = np.sqrt(hp.nside2pixarea(self.nside, degrees=True)) * 60
-                Qnoise = self.nlev_p / vamin * self.pix_lib_phas.get_sim(simidx, idf=1)
-                Unoise = self.nlev_p / vamin * self.pix_lib_phas.get_sim(simidx, idf=2)
+                noise1 = self.nlev_p / vamin * self.pix_lib_phas.get_sim(simidx, idf=1)
+                noise2 = self.nlev_p / vamin * self.pix_lib_phas.get_sim(simidx, idf=2)
                 if spin == 0:
-                    Enoise, Bnoise = hp.alm2map_spin(hp.map2alm_spin([Qnoise, Unoise], spin=2, lmax=self.lmax), lmax=self.lmax, spin=0, nside=self.nside)
+                    noise1, noise2 = hp.alm2map_spin(hp.map2alm_spin([noise1, noise2], spin=2, lmax=self.lmax), lmax=self.lmax, spin=0, nside=self.nside)
             else:
-                if self.spin == 2:
-                    if self.fnsQ.format(simidx).endswith('npy'):
-                        #TODO delensalotify this
-                        Qnoise = np.load(opj(self.lib_dir, self.fnsQ.format(simidx)))
-                        Unoise = np.load(opj(self.lib_dir, self.fnsU.format(simidx)))
-                    elif self.fnsQ.format(simidx).endswith('fits'):
-                        Qnoise = hp.read_map(opj(self.lib_dir, self.fnsQ.format(simidx)))
-                        Unoise = hp.read_map(opj(self.lib_dir, self.fnsU.format(simidx)))
-                    if spin == 0:
-                        Enoise, Bnoise = hp.alm2map_spin(hp.map2alm_spin([Qnoise, Unoise], spin=2, lmax=self.lmax), lmax=self.lmax, spin=0, nside=self.nside)
-                elif self.spin == 0:
-                    if self.fnsE.format(simidx).endswith('npy'):
-                        #TODO delensalotify this
-                        Enoise = np.load(opj(self.lib_dir, self.fnsE.format(simidx)))
-                        Bnoise = np.load(opj(self.lib_dir, self.fnsB.format(simidx)))
-                    elif self.fnsB.format(simidx).endswith('fits'):
-                        Enoise = hp.read_map(opj(self.lib_dir, self.fnsE.format(simidx)))
-                        Bnoise = hp.read_map(opj(self.lib_dir, self.fnsB.format(simidx)))
-                    if spin == 2:
-                        Qnoise, Unoise = hp.alm2map_spin(hp.map2alm_spin([Enoise, Bnoise], spin=0, lmax=self.lmax), lmax=self.lmax, spin=2, nside=self.nside)
-            if spin == 2:
-                self.cacher.cache(fn, np.array([Qnoise, Unoise]))
-            elif spin == 0:
-                self.cacher.cache(fn, np.array([Enoise, Bnoise]))  
+                noise1 = load_file(self.fns[0].format(simidx))
+                noise2 = load_file(self.fns[1].format(simidx))
+                if self.spin != spin:
+                    noise1, noise2 = hp.alm2map_spin(hp.map2alm_spin([noise1, noise2], spin=self.spin, lmax=self.lmax), lmax=self.lmax, spin=spin, nside=self.nside)
+            self.cacher.cache(fn, np.array([noise1, noise2]))  
         return self.cacher.load(fn)
-
 
 
 class Cls:
@@ -117,7 +87,7 @@ class Cls:
 
 
 class Xunl:
-    def __init__(self, lmax, cls_lib=None, lib_dir=None, fnsE=None, fnsB=None, fnsP=None, simidxs=None, lib_dir_phi=None):
+    def __init__(self, lmax, cls_lib=None, lib_dir=None, fns=None, fnsP=None, simidxs=None, lib_dir_phi=None):
         self.lib_dir = lib_dir
         self.lib_dir_phi = lib_dir_phi
         if lib_dir is None or lib_dir_phi is None: # need being generated
@@ -128,8 +98,7 @@ class Xunl:
             else:
                 self.cls_lib = cls_lib
         if lib_dir is not None:
-            self.fnsE = fnsE
-            self.fnsB = fnsB
+            self.fns = fns
         if lib_dir_phi is not None:
             self.fnsP = fnsP
             
@@ -141,48 +110,41 @@ class Xunl:
         if not self.cacher.is_cached(fn):
             if self.lib_dir is None:
                 Cls = self.cls_lib.get_TEBunl(simidx)
-                Eunl, Bunl = self.cl2alm(Cls)
+                Eunl, Bunl = self.cl2alm(Cls, seed=simidx)
             else:
-                if self.fnsE.format(simidx).endswith('npy'):
-                    #TODO delensalotify this
-                    Eunl = np.load(opj(self.lib_dir, self.fnsE.format(simidx)))
-                    Bunl = np.load(opj(self.lib_dir, self.fnsB.format(simidx)))
-                elif self.fnsE.format(simidx).endswith('fits'):
-                    Eunl = np.load(opj(self.lib_dir, self.fnsE.format(simidx)))
-                    Bunl = np.load(opj(self.lib_dir, self.fnsB.format(simidx)))
+                Eunl = load_file(opj(self.lib_dir, self.fns[0].format(simidx)))
+                Bunl = load_file(opj(self.lib_dir, self.fns[1].format(simidx)))               
             self.cacher.cache(fn, np.array([Eunl, Bunl]))
 
         return self.cacher.load(fn)
 
 
     def get_sim_philm(self, simidx):
-        fn = 'phi_{}'.format(simidx)
+        fn = 'philm_{}'.format(simidx)
         if not self.cacher.is_cached(fn):
             if self.lib_dir_phi is None:
                 ClP = self.cls_lib.get_sim_clphi(simidx)
-                Phi = self.clp2alm(ClP, simidx)
+                philm = self.clp2alm(ClP, simidx)
             else:
-                if self.fnsP.format(simidx+1).endswith('npy'):
-                    #TODO delensalotify this
-                    Phi = np.load(opj(self.lib_dir_phi, self.fnsP.format(simidx)))
-                elif self.fnsP.format(simidx).endswith('fits'):
-                    Phi = np.load(opj(self.lib_dir_phi, self.fnsP.format(simidx)))
-            self.cacher.cache(fn, Phi)
+                philm = load_file(opj(self.lib_dir_phi, self.fnsP.format(simidx)))
+            self.cacher.cache(fn, philm)
         return self.cacher.load(fn)
 
 
-    def cl2alm(self, cls):
+    def cl2alm(self, cls, seed):
+        np.random.seed(seed)
         alms = hp.synalm(cls, self.lmax, new=True)
         return alms[1:]
     
 
-    def clp2alm(self, clp, simidx):
+    def clp2alm(self, clp, seed):
+        np.random.seed(seed)
         plm = hp.synalm(clp, self.lmax)
         return plm
 
 
 class Xsky:
-    def __init__(self, nside, lmax, unl_lib=None, lib_dir=None, fnsQ=None, fnsU=None, fnsE=None, fnsB=None, simidxs=None, spin=None):
+    def __init__(self, nside, lmax, unl_lib=None, lib_dir=None, fns=None, simidxs=None, spin=None, epsilon=1e-7):
         self.lib_dir = lib_dir
         self.spin = spin
         self.nside = nside
@@ -190,19 +152,11 @@ class Xsky:
         if lib_dir is None: # need being generated
             self.unl_lib = unl_lib
             self.simidxs = simidxs
+            self.epsilon = epsilon
         else:
-            if spin == 0:
-                if fnsE is None and fnsB is None:
-                    assert 0, 'you need to provide fnsE and fnsB' 
-            elif spin == 2:
-                if fnsQ is None and fnsU is None:
-                    assert 0, 'you need to provide fnsQ and fnsU' 
-            else:
-                assert 0, 'dont understand your spin'
-            self.fnsE = fnsE
-            self.fnsB = fnsB
-            self.fnsQ = fnsQ
-            self.fnsU = fnsU
+            if fns is None:
+                assert 0, 'you need to provide fns' 
+            self.fns = fns
 
         self.cacher = cachers.cacher_mem(safe=True) #TODO might as well use a numpy cacher
 
@@ -213,34 +167,15 @@ class Xsky:
             if self.lib_dir is None:
                 Qunllm, Uunllm = self.unl_lib.get_sim_unllm(simidx)
                 philm = self.unl_lib.get_sim_philm(simidx)
-                Qsky, Usky = self.unl2len(np.array([Qunllm, Uunllm]), philm, spin=self.spin)
+                sky = self.unl2len(np.array([Qunllm, Uunllm]), philm, spin=self.spin, epsilon=self.epsilon)
                 if spin == 0:
-                    Esky, Bsky = hp.alm2map_spin(hp.map2alm_spin([Qsky, Usky], spin=2, lmax=self.lmax), lmax=self.lmax, spin=0, nside=self.nside)
+                    sky = hp.alm2map_spin(hp.map2alm_spin(sky, spin=2, lmax=self.lmax), lmax=self.lmax, spin=0, nside=self.nside)
             else:
-                if self.spin == 2:
-                    if self.fnsQ.format(simidx).endswith('npy'):
-                        #TODO delensalotify this
-                        Qsky = np.load(opj(self.lib_dir, self.fnsQ.format(simidx)))
-                        Usky = np.load(opj(self.lib_dir, self.fnsU.format(simidx)))
-                    elif self.fnsQ.format(simidx).endswith('fits'):
-                        Qsky = np.load(opj(self.lib_dir, self.fnsQ.format(simidx)))
-                        Usky = np.load(opj(self.lib_dir, self.fnsU.format(simidx)))
-                    if spin == 0:
-                        Esky, Bsky = hp.alm2map_spin(hp.map2alm_spin([Qsky, Usky], spin=2, lmax=self.lmax), lmax=self.lmax, spin=0, nside=self.nside)
-                elif self.spin == 0:
-                    if self.fnsE.format(simidx).endswith('npy'):
-                        #TODO delensalotify this
-                        Esky = np.load(opj(self.lib_dir, self.fnsE.format(simidx)))
-                        Bsky = np.load(opj(self.lib_dir, self.fnsB.format(simidx)))
-                    elif self.fnsE.format(simidx).endswith('fits'):
-                        Esky = hp.read_map(opj(self.lib_dir, self.fnsE.format(simidx)))
-                        Bsky = hp.read_map(opj(self.lib_dir, self.fnsB.format(simidx)))
-                    if spin == 2:
-                        Qsky, Usky = hp.alm2map_spin(hp.map2alm_spin([Esky, Bsky], spin=0, lmax=self.lmax), lmax=self.lmax, spin=2, nside=self.nside)
-            if spin == 2:
-                self.cacher.cache(fn, np.array([Qsky, Usky]))
-            elif spin == 0:
-                self.cacher.cache(fn, np.array([Esky, Bsky]))
+                sky1 = load_file(opj(self.lib_dir, self.fns[0].format(simidx)))
+                sky2 = load_file(opj(self.lib_dir, self.fns[1].format(simidx)))
+                if self.spin != spin:
+                    sky = hp.alm2map_spin(hp.map2alm_spin(np.array([sky1, sky2]), spin=self.spin, lmax=self.lmax), lmax=self.lmax, spin=spin, nside=self.nside)
+            self.cacher.cache(fn, np.array(sky))
         return self.cacher.load(fn)
 
 
@@ -253,88 +188,75 @@ class Xsky:
 
 class Xobs:
 
-    def __init__(self, lmax, transfunction=None, len_lib=None, noise_lib=None, lib_dir=None, fnsQ=None, fnsU=None, fnsE=None, fnsB=None, simidxs=None, nside=None, nlev_p=None, lib_dir_noise=None, fnsQnoise=None, fnsUnoise=None, fnsEnoise=None, fnsBnoise=None, spin=None):
+    def __init__(self, lmax, maps=None, transfunction=None, len_lib=None, noise_lib=None, lib_dir=None, fns=None, simidxs=None, nside=None, nlev_p=None, lib_dir_noise=None, fnsnoise=None, spin=None):
         self.simidxs = simidxs
         self.lib_dir = lib_dir
         self.spin = spin
         self.lmax = lmax
         self.nside = nside
-        if lib_dir is None:
-            if len_lib is None:
-                assert 0, "Either len_lib or lib_dir must be not None"
-            else:
-                self.len_lib = len_lib
-            if noise_lib is None:
-                if lib_dir_noise is None:
-                    if nside is None or nlev_p is None:
-                        assert 0, "Need nside and nlev_p for generating noise"
-                self.noise_lib = iso_white_noise(nside=nside, nlev_p=nlev_p, lmax=lmax, fnsQ=fnsQnoise, fnsU=fnsUnoise, fnsE=fnsEnoise, fnsB=fnsBnoise, lib_dir=lib_dir_noise, spin=spin)
-            else:
-                self.noise_lib = noise_lib
-            self.transfunction = transfunction
-            
-            self.nlev_p = nlev_p
-        elif lib_dir is not None:
-            if spin == 0:
-                if fnsE is None and fnsB is None:
-                    assert 0, 'you need to provide fnsE and fnsB' 
-            elif spin == 2:
-                if fnsQ is None and fnsU is None:
-                    assert 0, 'you need to provide fnsQ and fnsU' 
-            else:
-                assert 0, 'dont understand your spin'
-            self.fnsE = fnsE
-            self.fnsB = fnsB
-            self.fnsQ = fnsQ
-            self.fnsU = fnsU
-
+        
         self.cacher = cachers.cacher_mem(safe=True) #TODO might as well use a numpy cacher
+        self.maps = maps
+        if self.maps is not None:
+            fn = 'pmap_spin{}_{}'.format(spin, 0)
+            self.cacher.cache(fn, np.array(self.maps))
+        else:
+            if lib_dir is None:
+                if len_lib is None:
+                    assert 0, "Either len_lib or lib_dir must be not None"
+                else:
+                    self.len_lib = len_lib
+                if noise_lib is None:
+                    if lib_dir_noise is None:
+                        if nside is None or nlev_p is None:
+                            assert 0, "Need nside and nlev_p for generating noise"
+                    self.noise_lib = iso_white_noise(nside=nside, nlev_p=nlev_p, lmax=lmax, fns=fnsnoise,lib_dir=lib_dir_noise, spin=spin)
+                else:
+                    self.noise_lib = noise_lib
+                self.transfunction = transfunction       
+                self.nlev_p = nlev_p
+            elif lib_dir is not None:
+                if fns is None:
+                    assert 0, 'you need to provide fns' 
+                self.fns = fns
+
+
+    def get_sim_tmap(self, simidx):  
+        assert 0, 'implement if needed'
 
 
     def get_sim_pmap(self, simidx, spin=2):  
         fn = 'pmap_spin{}_{}'.format(spin, simidx)
         if not self.cacher.is_cached(fn):
-            if self.lib_dir is None: # sky maps come from len_lib, and we add noise
-                #TODO delensalotify this
-                QUEBobs = self.sky2obs(self.len_lib.get_sim_skymap(simidx, spin=spin), self.noise_lib.get_sim_noise(simidx, spin=spin), spin=spin)
-                self.cacher.cache(fn, QUEBobs)
-            elif self.lib_dir is not None:  # observed maps are somewhere
-                if self.spin == 2:
-                    if self.fnsQ.format(simidx).endswith('npy'):
-                        #TODO delensalotify this
-                        Qobs = np.load(opj(self.lib_dir, self.fnsQ.format(simidx)))
-                        Uobs = np.load(opj(self.lib_dir, self.fnsU.format(simidx)))
-                    elif self.fnsQ.format(simidx).endswith('fits'):
-                        Qobs = hp.read_map(opj(self.lib_dir, self.fnsQ.format(simidx)))
-                        Uobs = hp.read_map(opj(self.lib_dir, self.fnsU.format(simidx)))
-                    if spin == 0:
-                        Eobs, Bobs = hp.alm2map_spin(hp.map2alm_spin([Qobs, Uobs], spin=2, lmax=self.lmax), lmax=self.lmax, spin=0, nside=self.nside)
-                elif self.spin == 0:
-                    if self.fnsE.format(simidx).endswith('npy'):
-                        #TODO delensalotify this
-                        Eobs = np.load(opj(self.lib_dir, self.fnsE.format(simidx)))
-                        Bobs = np.load(opj(self.lib_dir, self.fnsB.format(simidx)))
-                    elif self.fnsE.format(simidx).endswith('fits'):
-                        Eobs = hp.read_map(opj(self.lib_dir, self.fnsE.format(simidx)))
-                        Bobs = hp.read_map(opj(self.lib_dir, self.fnsB.format(simidx)))
-                    if spin == 2:
-                        Qobs, Uobs = hp.alm2map_spin(hp.map2alm_spin([Eobs, Bobs], spin=0, lmax=self.lmax), lmax=self.lmax, spin=2, nside=self.nside)
-                if spin == 2:
-                    self.cacher.cache(fn, np.array([Qobs, Uobs]))
-                elif spin == 0:
-                    self.cacher.cache(fn, np.array([Eobs, Bobs]))
+            fn_other = 'pmap_spin{}_{}'.format(self.spin, simidx)
+            if not self.cacher.is_cached(fn_other):
+                if self.lib_dir is None: # sky maps come from len_lib, and we add noise
+                    obs = self.sky2obs(self.len_lib.get_sim_skymap(simidx, spin=spin), self.noise_lib.get_sim_noise(simidx, spin=spin), spin=spin)
+                elif self.lib_dir is not None:  # observed maps are somewhere
+                    obs1 = load_file(opj(self.lib_dir, self.fns[0].format(simidx)))
+                    obs2 = load_file(opj(self.lib_dir, self.fns[1].format(simidx)))
+                    obs = np.array([obs1, obs2])
+                    if self.spin != spin:
+                        obs = hp.alm2map_spin(hp.map2alm_spin(obs, spin=self.spin, lmax=self.lmax), lmax=self.lmax, spin=spin, nside=self.nside)
+                self.cacher.cache(fn, np.array(obs))
+            else:
+                obs1, obs2 = self.cacher.load(fn_other)
+                obs = hp.alm2map_spin(hp.map2alm_spin(np.array([obs1, obs2]), spin=self.spin, lmax=self.lmax), lmax=self.lmax, spin=spin, nside=self.nside)
+                self.cacher.cache(fn, np.array(obs))
         return self.cacher.load(fn)
     
 
-    def sky2obs(self, QUEBsky, QUEBnoise, spin):
-        QEsky, UBsky = QUEBsky
-        QEnoise, UBnoise = QUEBnoise
-        elm, blm = hp.map2alm_spin([QEsky, UBsky], spin, lmax=self.lmax)
-        # delensalotify this
+    def get_sim_obsmap(self, simidx, spin=2):
+        self.get_sim_pmap(simidx=simidx, spin=spin)
+    
+
+    def sky2obs(self, sky, noise, spin):
+        elm, blm = hp.map2alm_spin(sky, spin, lmax=self.lmax)
         hp.almxfl(elm, self.transfunction, inplace=True)
         hp.almxfl(blm, self.transfunction, inplace=True)
-        beamedQE, beamedUB = hp.alm2map_spin([elm,blm], self.nside, spin, hp.Alm.getlmax(elm.size))
-        return np.array([beamedQE + QEnoise, beamedUB + UBnoise])
+        beamed = np.array(hp.alm2map_spin([elm,blm], self.nside, spin, hp.Alm.getlmax(elm.size)))
+        return beamed+noise  # np.array([beamed[0] + noise[0], beamed[1] + noise[1]])
+   
   
     def get_sim_noise(self, simidx, spin=2):
         return self.noise_lib.get_sim_noise(simidx, spin=spin)
@@ -342,57 +264,70 @@ class Xobs:
 
 class Simhandler:
 
-    def __init__(self, flavour, space='map', cls_lib=None, unl_lib=None, obs_lib=None, len_lib=None, noise_lib=None, lib_dir_noise=None, lib_dir=None, lib_dir_phi=None, fnsQ=None, fnsU=None, fnsE=None, fnsB=None, fnsP=None, simidxs=None, beam=None, nside=None, lmax=None, transfunction=None, nlev_p=None, fnsQnoise=None, fnsUnoise=None, fnsEnoise=None, fnsBnoise=None, spin=None, CAMB_fn=None):
-        """either provide,
-                lib_dir (skyobs maps are on disk),
-            or a library which,
-                generates skyobs maps,
-                generates lensed CMB maps, 
-                synthesizes unlensed CMB maps
-            Simhandler will take care of the rest
+    def __init__(self, flavour, space='map', maps=None, cls_lib=None, unl_lib=None, obs_lib=None, len_lib=None, noise_lib=None, lib_dir_noise=None, lib_dir=None, lib_dir_phi=None, fns=None, fnsP=None, simidxs=None, nside=None, lmax=None, transfunction=None, nlev_p=None, fnsnoise=None, spin=None, CAMB_fn=None, epsilon=1e-7):
+        """_summary_
+
+        Args:
+            flavour (_type_): _description_
+            space (str, optional): _description_. Defaults to 'map'.
+            maps (_type_, optional): _description_. Defaults to None.
+            cls_lib (_type_, optional): _description_. Defaults to None.
+            unl_lib (_type_, optional): _description_. Defaults to None.
+            obs_lib (_type_, optional): _description_. Defaults to None.
+            len_lib (_type_, optional): _description_. Defaults to None.
+            noise_lib (_type_, optional): _description_. Defaults to None.
+            lib_dir_noise (_type_, optional): _description_. Defaults to None.
+            lib_dir (_type_, optional): _description_. Defaults to None.
+            lib_dir_phi (_type_, optional): _description_. Defaults to None.
+            fns (_type_, optional): _description_. Defaults to None.
+            fnsP (_type_, optional): _description_. Defaults to None.
+            simidxs (_type_, optional): _description_. Defaults to None.
+            nside (_type_, optional): _description_. Defaults to None.
+            lmax (_type_, optional): _description_. Defaults to None.
+            transfunction (_type_, optional): _description_. Defaults to None.
+            nlev_p (_type_, optional): _description_. Defaults to None.
+            fnsnoise (_type_, optional): _description_. Defaults to None.
+            spin (_type_, optional): _description_. Defaults to None.
+            CAMB_fn (_type_, optional): _description_. Defaults to None.
+            epsilon (_type_, optional): _description_. Defaults to 1e-7.
         """
         self.spin = spin
         self.lmax = lmax
         if flavour == 'obs':
             if lib_dir is not None:
                 self.lib_dir = lib_dir
-                if spin == 0:
-                    if fnsE is None and fnsB is None:
-                        assert 0, 'you need to provide fnsE and fnsB' 
-                elif spin == 2:
-                    if fnsQ is None and fnsU is None:
-                        assert 0, 'you need to provide fnsQ and fnsU' 
-                else:
-                    assert 0, 'dont understand your spin'
-                self.fnsQ = fnsQ
-                self.fnsU = fnsU
-                self.fnsE = fnsE
-                self.fnsB = fnsB
+                if fns is None:
+                    assert 0, 'you need to provide fns' 
+                self.fns = fns
                 self.simidxs = simidxs
                 self.nside = nside
-                self.obs_lib = Xobs(transfunction=transfunction, lmax=lmax, lib_dir=lib_dir, fnsQ=fnsQ, fnsU=fnsU, fnsE=fnsE, fnsB=fnsB, simidxs=simidxs, nside=nside, spin=spin) if obs_lib is None else obs_lib
+                self.obs_lib = Xobs(maps=maps, transfunction=transfunction, lmax=lmax, lib_dir=lib_dir, fns=fns, simidxs=simidxs, nside=nside, spin=spin) if obs_lib is None else obs_lib
         if flavour == 'sky':
-            self.len_lib = Xsky(unl_lib=unl_lib, lmax=lmax, lib_dir=lib_dir, fnsQ=fnsQ, fnsU=fnsU, fnsE=fnsE, fnsB=fnsB, simidxs=simidxs, nside=nside, spin=spin) if len_lib is None else len_lib
-            self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev_p=nlev_p, noise_lib=noise_lib, nside=nside, lib_dir_noise=lib_dir_noise, fnsQnoise=fnsQnoise, fnsUnoise=fnsUnoise, fnsEnoise=fnsEnoise, fnsBnoise=fnsBnoise, spin=spin)
+            self.len_lib = Xsky(maps=maps, unl_lib=unl_lib, lmax=lmax, lib_dir=lib_dir, fns=fns, simidxs=simidxs, nside=nside, spin=spin, epsilon=epsilon) if len_lib is None else len_lib
+            self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev_p=nlev_p, noise_lib=noise_lib, nside=nside, lib_dir_noise=lib_dir_noise, fnsnoise=fnsnoise, spin=spin)
             self.noise_lib = self.obs_lib.noise_lib
         if flavour == 'unl':
             self.spin = 0 # there are genrally no qlms, ulms, therefore here we can safely assume that data is spin0
             if (lib_dir_phi is None or lib_dir is None) and cls_lib is None:
                 cls_lib = Cls(lmax=lmax, CAMB_fn=CAMB_fn, simidxs=simidxs)
             self.cls_lib = cls_lib # just to be safe..
-            self.unl_lib = Xunl(lmax=lmax, lib_dir=lib_dir, fnsE=fnsE, fnsB=fnsB, fnsP=fnsP, simidxs=simidxs, lib_dir_phi=lib_dir_phi, cls_lib=cls_lib) if unl_lib is None else unl_lib
-            self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, simidxs=simidxs, nside=nside, spin=self.spin)
-            self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev_p=nlev_p, noise_lib=noise_lib, nside=nside, lib_dir_noise=lib_dir_noise, fnsQnoise=fnsQnoise, fnsUnoise=fnsUnoise, fnsEnoise=fnsEnoise, fnsBnoise=fnsBnoise, spin=self.spin)
+            self.unl_lib = Xunl(lmax=lmax, lib_dir=lib_dir, fns=fns, fnsP=fnsP, simidxs=simidxs, lib_dir_phi=lib_dir_phi, cls_lib=cls_lib) if unl_lib is None else unl_lib
+            self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, simidxs=simidxs, nside=nside, spin=self.spin, epsilon=epsilon)
+            self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev_p=nlev_p, noise_lib=noise_lib, nside=nside, lib_dir_noise=lib_dir_noise, fnsnoise=fnsnoise, spin=self.spin)
             self.noise_lib = self.obs_lib.noise_lib
         if flavour == 'cls':
-            self.unl_lib = Xunl(cls_lib=cls_lib, lmax=lmax, lib_dir=lib_dir, fnsE=fnsE, fnsB=fnsB, fnsP=fnsP, simidxs=simidxs, nside=nside, lib_dir_phi=lib_dir_phi)
-            self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, simidxs=simidxs, nside=nside, spin=spin)
-            self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev_p=nlev_p, noise_lib=noise_lib, nside=nside, lib_dir_noise=lib_dir_noise, fnsQnoise=fnsQnoise, fnsUnoise=fnsUnoise, fnsEnoise=fnsEnoise, fnsBnoise=fnsBnoise, spin=spin)
+            assert 0, 'implement if needed'
+            self.unl_lib = Xunl(cls_lib=cls_lib, lmax=lmax, lib_dir=lib_dir, fns=fns, fnsP=fnsP, simidxs=simidxs, nside=nside, lib_dir_phi=lib_dir_phi)
+            self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, simidxs=simidxs, nside=nside, spin=spin, epsilon=epsilon)
+            self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev_p=nlev_p, noise_lib=noise_lib, nside=nside, lib_dir_noise=lib_dir_noise, fnsnoise=fnsnoise, spin=spin)
             self.noise_lib = self.obs_lib.noise_lib
         self.cacher = cachers.cacher_mem(safe=True) #TODO might as well use a numpy cacher
 
     def get_sim_pmap(self, simidx, spin=2):
-        return self.obs_lib.get_sim_pmap(simidx, spin=spin)
+        fn = 'pmap_spin{}_{}'.format(spin, simidx)
+        if not self.cacher.is_cached(fn):
+            self.cacher.cache(fn, self.obs_lib.get_sim_pmap(simidx, spin=spin))
+        return self.cacher.load(fn)
     
     def get_sim_noise(self, simidx, spin=2):
         return self.noise_lib.get_sim_noise(simidx, spin=spin)
@@ -402,3 +337,18 @@ class Simhandler:
 
     def get_sim_unllm(self, simidx):
         return self.unl_lib.get_sim_unlmap(simidx)
+    
+    def isdone(self, simidx):
+        fn = 'pmap_spin{}_{}'.format(2, simidx)
+        if self.cacher.is_cached(fn):
+            return True
+        if os.path.exists(self.obs_lib.fns[0](simidx)):
+            return True
+    
+    # compatibility with Plancklens
+    def hashdict(self):
+        return {}
+
+    # compatibility with Plancklens
+    def get_sim_tmap(self, simidx, spin=2):
+        return self.obs_lib.get_sim_tmap(simidx, spin=spin)
