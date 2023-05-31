@@ -50,8 +50,8 @@ class iso_white_noise:
                 if spin == 0:
                     noise1, noise2 = hp.alm2map_spin(hp.map2alm_spin([noise1, noise2], spin=2, lmax=self.lmax), lmax=self.lmax, spin=0, nside=self.nside)
             else:
-                noise1 = load_file(self.fns[0].format(simidx))
-                noise2 = load_file(self.fns[1].format(simidx))
+                noise1 = load_file(opj(self.lib_dir, self.fns[0].format(simidx)))
+                noise2 = load_file(opj(self.lib_dir, self.fns[1].format(simidx)))
                 if self.spin != spin:
                     noise1, noise2 = hp.alm2map_spin(hp.map2alm_spin([noise1, noise2], spin=self.spin, lmax=self.lmax), lmax=self.lmax, spin=spin, nside=self.nside)
             self.cacher.cache(fn, np.array([noise1, noise2]))  
@@ -173,8 +173,9 @@ class Xsky:
             else:
                 sky1 = load_file(opj(self.lib_dir, self.fns[0].format(simidx)))
                 sky2 = load_file(opj(self.lib_dir, self.fns[1].format(simidx)))
+                sky = np.array([sky1, sky2])
                 if self.spin != spin:
-                    sky = hp.alm2map_spin(hp.map2alm_spin(np.array([sky1, sky2]), spin=self.spin, lmax=self.lmax), lmax=self.lmax, spin=spin, nside=self.nside)
+                    sky = hp.alm2map_spin(hp.map2alm_spin(sky, spin=self.spin, lmax=self.lmax), lmax=self.lmax, spin=spin, nside=self.nside)
             self.cacher.cache(fn, np.array(sky))
         return self.cacher.load(fn)
 
@@ -303,7 +304,7 @@ class Simhandler:
                 self.nside = nside
                 self.obs_lib = Xobs(maps=maps, transfunction=transfunction, lmax=lmax, lib_dir=lib_dir, fns=fns, simidxs=simidxs, nside=nside, spin=spin) if obs_lib is None else obs_lib
         if flavour == 'sky':
-            self.len_lib = Xsky(maps=maps, unl_lib=unl_lib, lmax=lmax, lib_dir=lib_dir, fns=fns, simidxs=simidxs, nside=nside, spin=spin, epsilon=epsilon) if len_lib is None else len_lib
+            self.len_lib = Xsky(unl_lib=unl_lib, lmax=lmax, lib_dir=lib_dir, fns=fns, simidxs=simidxs, nside=nside, spin=spin, epsilon=epsilon) if len_lib is None else len_lib
             self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev_p=nlev_p, noise_lib=noise_lib, nside=nside, lib_dir_noise=lib_dir_noise, fnsnoise=fnsnoise, spin=spin)
             self.noise_lib = self.obs_lib.noise_lib
         if flavour == 'unl':
