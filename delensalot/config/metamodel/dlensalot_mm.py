@@ -224,9 +224,13 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
     transfunction = attr.field(default=None, on_setattr=data.beam)
     nlev_p =        attr.field(default=None, on_setattr=data.beam)
     fns =           attr.field(default=None, on_setattr=data.beam)
+    fnsP =          attr.field(default=None, on_setattr=data.beam)
     fnsnoise =      attr.field(default=None, on_setattr=data.beam)
     spin =          attr.field(default=None, on_setattr=data.beam)
     CAMB_fn =       attr.field(default=None, on_setattr=data.beam)
+    clphi_fn =      attr.field(default=None, on_setattr=data.beam)
+    phi_space =     attr.field(default=None, on_setattr=data.beam)
+    phi_field =     attr.field(default=None, on_setattr=data.beam)
     epsilon =       attr.field(default=1e-7, on_setattr=data.beam) #must have value for all models, otherwise lenspyx will be unhappy with None
     
 @attr.s
