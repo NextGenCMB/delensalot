@@ -49,11 +49,12 @@ def cld2clp(cld, lmax):
 
 class iso_white_noise:
 
-    def __init__(self, nlev_p, nside, lmax=None, lib_dir=None, fns=None, spin=None):
+    def __init__(self, nlev_p, nside, lmax=None, lib_dir=None, fns=None, spin=None, space=None):
         self.lib_dir = lib_dir
         self.spin = spin
         self.nside = nside
         self.lmax = lmax
+        self.space = space
         if lib_dir is None:        
             self.nlev_p = nlev_p
             lib_dir_phas = os.environ['SCRATCH']+'/delensalot/sims/nside{}/phas/'.format(nside)
@@ -378,9 +379,9 @@ class Xsky:
                         if space == 'map':
                             sky = hp.alm2map_spin(sky, spin=spin, lmax=self.lmax)
             else:
-                sky1, sky2 = self.cacher.load(fn_other)
+                sky = self.cacher.load(fn_other)
                 if space == 'map':
-                    sky = hp.alm2map_spin(hp.map2alm_spin(np.array([sky1, sky2]), spin=self.spin, lmax=self.lmax), lmax=self.lmax, spin=spin, nside=self.nside)
+                    sky = hp.alm2map_spin(hp.map2alm_spin(np.array(sky), spin=self.spin, lmax=self.lmax), lmax=self.lmax, spin=spin, nside=self.nside)
             self.cacher.cache(fn, np.array(sky))
         return self.cacher.load(fn)
 
@@ -436,7 +437,7 @@ class Xobs:
                     if lib_dir_noise is None:
                         if nside is None or nlev_p is None:
                             assert 0, "Need nside and nlev_p for generating noise"
-                    self.noise_lib = iso_white_noise(nside=nside, nlev_p=nlev_p, lmax=lmax, fns=fnsnoise,lib_dir=lib_dir_noise, spin=spin)
+                    self.noise_lib = iso_white_noise(nside=nside, nlev_p=nlev_p, lmax=lmax, fns=fnsnoise,lib_dir=lib_dir_noise, space=space, spin=spin)
                 else:
                     self.noise_lib = noise_lib
                 self.transfunction = transfunction       
@@ -472,17 +473,20 @@ class Xobs:
                     obs1 = load_file(opj(self.lib_dir, self.fns[0].format(simidx)))
                     obs2 = load_file(opj(self.lib_dir, self.fns[1].format(simidx)))
                     obs = np.array([obs1, obs2])
-                    if space == 'map':
-                        if self.spin != spin:
-                            obs = hp.alm2map_spin(hp.map2alm_spin(obs, spin=self.spin, lmax=self.lmax), lmax=self.lmax, spin=spin, nside=self.nside)
-                    elif space == 'alm':
-                        obs = hp.map2alm_spin(obs, spin=self.spin, lmax=self.lmax)
+                    if self.space == 'map':
+                        if space == 'map':
+                            if self.spin != spin:
+                                obs = hp.alm2map_spin(hp.map2alm_spin(obs, spin=self.spin, lmax=self.lmax), lmax=self.lmax, spin=spin, nside=self.nside)
+                        elif space == 'alm':
+                            obs = hp.map2alm_spin(obs, spin=self.spin, lmax=self.lmax)
+                    elif self.space == 'alm':
+                        if space == 'map':
+                            obs = hp.alm2map_spin(obs, lmax=self.lmax, spin=spin, nside=self.nside)
             else:
-                obs1, obs2 = self.cacher.load(fn_other)
-                obs = np.array([obs1, obs2])
+                obs = np.array(self.cacher.load(fn_other))
                 if space == 'map':
                     obs = hp.alm2map_spin(hp.map2alm_spin(obs, spin=self.spin, lmax=self.lmax), lmax=self.lmax, spin=spin, nside=self.nside)
-            self.cacher.cache(fn, np.array(obs))
+            self.cacher.cache(fn, obs)
         return self.cacher.load(fn)
 
 
@@ -575,7 +579,14 @@ class Simhandler:
                 assert 0, 'implement if needed'
         elif space in ['alm']:
             if flavour == 'obs':
-                assert 0, 'implement if needed' # unlikely this will ever be needed
+                if lib_dir is not None:
+                    self.lib_dir = lib_dir
+                    if fns is None:
+                        assert 0, 'you need to provide fns' 
+                    self.fns = fns
+                    self.simidxs = simidxs
+                    self.nside = nside
+                    self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, lib_dir=lib_dir, fns=fns, simidxs=simidxs, nside=nside, spin=spin) if obs_lib is None else obs_lib
             if flavour == 'sky':
                 assert 0, 'implement if needed'
             if flavour == 'unl':
@@ -583,9 +594,9 @@ class Simhandler:
                 if (lib_dir_phi is None or lib_dir is None) and cls_lib is None:
                     cls_lib = Cls(lmax=lmax, CAMB_fn=CAMB_fn, phi_fn=clphi_fn, phi_field=phi_field, simidxs=simidxs)
                 self.cls_lib = cls_lib # just to be safe..
-                self.unl_lib = Xunl(lmax=lmax, lib_dir=lib_dir, fns=fns, fnsP=fnsP, phi_field=phi_field, simidxs=simidxs, lib_dir_phi=lib_dir_phi, phi_space=phi_space, cls_lib=cls_lib) if unl_lib is None else unl_lib
-                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, simidxs=simidxs, nside=nside, spin=self.spin, epsilon=epsilon)
-                self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev_p=nlev_p, noise_lib=noise_lib, nside=nside, lib_dir_noise=lib_dir_noise, fnsnoise=fnsnoise, spin=self.spin)
+                self.unl_lib = Xunl(lmax=lmax, lib_dir=lib_dir, fns=fns, fnsP=fnsP, phi_field=phi_field, simidxs=simidxs, lib_dir_phi=lib_dir_phi, space=space,  phi_space=phi_space, cls_lib=cls_lib) if unl_lib is None else unl_lib
+                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, simidxs=simidxs, nside=nside, spin=self.spin, space=space, epsilon=epsilon)
+                self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev_p=nlev_p, noise_lib=noise_lib, nside=nside, lib_dir_noise=lib_dir_noise, fnsnoise=fnsnoise, space=space, spin=self.spin)
                 self.noise_lib = self.obs_lib.noise_lib
         if space == 'cl':
             if flavour == 'obs':
@@ -602,16 +613,13 @@ class Simhandler:
         self.cacher = cachers.cacher_mem(safe=True) #TODO might as well use a numpy cacher
 
     def get_sim_sky(self, simidx, space, field, spin):
-        assert 0, 'implement'
         return self.len_lib.get_sim_sky(simidx=simidx, space=space, field=field, spin=spin)
 
     def get_sim_unl(self, simidx, space, field, spin):
-        assert 0, 'implement'
         return self.unl_lib.get_sim_unl(simidx=simidx, space=space, field=field, spin=spin)
     
     def get_sim_obs(self, simidx, space, field, spin):
-        assert 0, 'implement'
-        return self.unl_lib.get_sim_obs(simidx=simidx, space=space, field=field, spin=spin)
+        return self.obs_lib.get_sim_obs(simidx=simidx, space=space, field=field, spin=spin)
     
     def get_sim_noise(self, simidx, space, field, spin=2):
         return self.noise_lib.get_sim_noise(simidx, spin=spin, space=space, field=field)
