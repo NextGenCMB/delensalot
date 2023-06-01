@@ -49,14 +49,14 @@ def cld2clp(cld, lmax):
 
 class iso_white_noise:
 
-    def __init__(self, nlev_p, nside, lmax=None, lib_dir=None, fns=None, spin=None, space=None):
+    def __init__(self, nlev, nside, lmax=None, lib_dir=None, fns=None, spin=None, space=None):
         self.lib_dir = lib_dir
         self.spin = spin
         self.nside = nside
         self.lmax = lmax
         self.space = space
         if lib_dir is None:        
-            self.nlev_p = nlev_p
+            self.nlev = nlev
             lib_dir_phas = os.environ['SCRATCH']+'/delensalot/sims/nside{}/phas/'.format(nside)
             self.pix_lib_phas = phas.pix_lib_phas(lib_dir_phas, 3, (hp.nside2npix(nside),))
         else:
@@ -70,31 +70,51 @@ class iso_white_noise:
     def get_sim_noise(self, simidx, space, field, spin=2):
         if space == 'alm' and spin == 2:
             assert 0, "I don't think you want qlms ulms."
+        if field == 'temperature' and spin == 2:
+            assert 0, "I don't think you want spin-2 temperature."
+        if field == 'temperature' and 'T' not in self.nlev:
+            assert 0, "need to provide T key in nlev"
+        if field == 'polarization' and 'P' not in self.nlev:
+            assert 0, "need to provide T key in nlev"
         fn = 'noise_space{}_spin{}_field{}_{}'.format(space, spin, field, simidx)
         if not self.cacher.is_cached(fn):
             if self.lib_dir is None:
                 vamin = np.sqrt(hp.nside2pixarea(self.nside, degrees=True)) * 60
-                noise1 = self.nlev_p / vamin * self.pix_lib_phas.get_sim(simidx, idf=1)
-                noise2 = self.nlev_p / vamin * self.pix_lib_phas.get_sim(simidx, idf=2) # TODO this always produces qu-noise?
-                noise = np.array([noise1, noise2])
-                if space == 'map':
-                    if spin == 0:
-                        noise = hp.alm2map_spin(hp.map2alm_spin(noise, spin=2, lmax=self.lmax), lmax=self.lmax, spin=0, nside=self.nside)
-                elif space == 'alm':
-                    noise = hp.map2alm_spin(noise, spin=2, lmax=self.lmax)
-            else:
-                noise1 = load_file(opj(self.lib_dir, self.fns[0].format(simidx)))
-                noise2 = load_file(opj(self.lib_dir, self.fns[1].format(simidx)))
-                noise = np.array([noise1, noise2])
-                if self.space == 'map':
-                    if space == 'alm':
-                        noise = hp.map2alm_spin(noise, spin=self.spin, lmax=self.lmax)
-                    elif space == 'map':
-                        if self.spin != spin:
-                            noise = hp.alm2map_spin(hp.map2alm_spin(noise, spin=self.spin, lmax=self.lmax), lmax=self.lmax, spin=spin, nside=self.nside)
-                elif self.space == 'alm':
+                if field == 'polarization':
+                    noise1 = self.nlev['P'] / vamin * self.pix_lib_phas.get_sim(simidx, idf=1)
+                    noise2 = self.nlev['P'] / vamin * self.pix_lib_phas.get_sim(simidx, idf=2) # TODO this always produces qu-noise?
+                    noise = np.array([noise1, noise2])
                     if space == 'map':
-                         noise = hp.alm2map_spin(noise, spin=spin, lmax=self.lmax)
+                        if spin == 0:
+                            noise = hp.alm2map_spin(hp.map2alm_spin(noise, spin=2, lmax=self.lmax), lmax=self.lmax, spin=0, nside=self.nside)
+                    elif space == 'alm':
+                        noise = hp.map2alm_spin(noise, spin=2, lmax=self.lmax)
+                elif field == 'temperature':
+                    noise = self.nlev['T'] / vamin * self.pix_lib_phas.get_sim(simidx, idf=0)
+                    if space == 'alm':
+                        noise = hp.map2alm(noise, lmax=self.lmax)
+            else:
+                if field == 'polarization':
+                    noise1 = load_file(opj(self.lib_dir, self.fns[0].format(simidx)))
+                    noise2 = load_file(opj(self.lib_dir, self.fns[1].format(simidx)))
+                    noise = np.array([noise1, noise2])
+                    if self.space == 'map':
+                        if space == 'alm':
+                            noise = hp.map2alm_spin(noise, spin=self.spin, lmax=self.lmax)
+                        elif space == 'map':
+                            if self.spin != spin:
+                                noise = hp.alm2map_spin(hp.map2alm_spin(noise, spin=self.spin, lmax=self.lmax), lmax=self.lmax, spin=spin, nside=self.nside)
+                    elif self.space == 'alm':
+                        if space == 'map':
+                            noise = hp.alm2map_spin(noise, spin=spin, lmax=self.lmax)
+                elif field == 'temperature':
+                    noise = np.array(load_file(opj(self.lib_dir, self.fns.format(simidx))))
+                    if self.space == 'map':
+                        if space == 'alm':
+                            noise = hp.map2alm(noise, lmax=self.lmax)
+                    elif self.space == 'alm':
+                        if space == 'map':
+                            noise = hp.alm2map(noise, lmax=self.lmax, nside=self.nside)
             self.cacher.cache(fn, noise)  
         return self.cacher.load(fn)
 
@@ -181,26 +201,40 @@ class Xunl:
         """
         if space == 'alm' and spin == 2:
             assert 0, "I don't think you want qlms ulms."
+        if field == 'temperature' and spin == 2:
+            assert 0, "I don't think you want spin-2 temperature."
         fn = 'unl_space{}_spin{}_field{}_{}'.format(space, spin, field, simidx)
         if not self.cacher.is_cached(fn):
             if self.lib_dir is None:
                 Cls = self.cls_lib.get_TEBunl(simidx)
-                unl = np.array(self.cl2alm(Cls, field='polarization', seed=simidx))
+                unl = np.array(self.cl2alm(Cls, field=field, seed=simidx))
                 if space == 'map':
-                    unl = hp.alm2map_spin(unl, nside=self.nside, lmax=self.lmax, spin=spin)
+                    if field == 'polarization':
+                        unl = hp.alm2map_spin(unl, nside=self.nside, lmax=self.lmax, spin=spin)
+                    elif field == 'temperature':
+                        unl = hp.alm2map(unl, nside=self.nside, lmax=self.lmax)
             else:
-                Eunl = load_file(opj(self.lib_dir, self.fns[0].format(simidx)))
-                Bunl = load_file(opj(self.lib_dir, self.fns[1].format(simidx)))
-                unl =  np.array([Eunl, Bunl])
-                if self.space == 'map':
-                    if space == 'alm':
-                        unl = hp.map2alm_spin(unl, spin=self.spin, lmax=self.lmax)
-                    elif space == 'map':
-                        if self.spin != spin:
-                            unl = hp.alm2map_spin(hp.map2alm_spin(unl, spin=self.spin, lmax=self.lmax), lmax=self.lmax, spin=spin, nside=self.nside)
-                elif self.space == 'alm':
-                    if space == 'map':
-                         unl = hp.alm2map_spin(unl, spin=spin, lmax=self.lmax)
+                if field  == 'polarization':
+                    unl1 = load_file(opj(self.lib_dir, self.fns[0].format(simidx)))
+                    unl2 = load_file(opj(self.lib_dir, self.fns[1].format(simidx)))
+                    unl =  np.array([unl1, unl2])
+                    if self.space == 'map':
+                        if space == 'alm':
+                            unl = hp.map2alm_spin(unl, spin=self.spin, lmax=self.lmax)
+                        elif space == 'map':
+                            if self.spin != spin:
+                                unl = hp.alm2map_spin(hp.map2alm_spin(unl, spin=self.spin, lmax=self.lmax), lmax=self.lmax, spin=spin, nside=self.nside)
+                    elif self.space == 'alm':
+                        if space == 'map':
+                            unl = hp.alm2map_spin(unl, spin=spin, lmax=self.lmax)
+                elif field == 'temperature':
+                    unl = np.array(load_file(opj(self.lib_dir, self.fns.format(simidx))))
+                    if self.space == 'map':
+                        if space == 'alm':
+                            unl = hp.map2alm(unl, lmax=self.lmax)
+                    elif self.space == 'alm':
+                        if space == 'map':
+                            unl = hp.alm2map(unl, lmax=self.lmax, nside=self.nside)
             self.cacher.cache(fn, unl)
         return self.cacher.load(fn)
     
@@ -255,13 +289,13 @@ class Xunl:
 
 
     def cl2alm(self, cls, field, seed):
-        # TODO implement all fields
         np.random.seed(seed)
         if field == 'polarization':
             alms = hp.synalm(cls, self.lmax, new=True)
             return alms[1:]
-        else:
-            assert 0, 'implement if needed'
+        elif field == 'temperature':
+            alm = hp.synalm(cls[0], self.lmax)
+            return alm
     
 
     def clp2plm(self, clp, seed):
@@ -303,6 +337,8 @@ class Xsky:
         """
         if space == 'alm' and spin == 2:
             assert 0, "I don't think you want qlms ulms."
+        if field == 'temperature' and spin == 2:
+            assert 0, "I don't think you want spin-2 temperature."
         fn = 'len_space{}_spin{}_field{}_{}'.format(space, spin, field, simidx)
         if not self.cacher.is_cached(fn):
             fn_other = 'len_space{}_spin{}_field{}_{}'.format(space, self.spin, field, simidx)
@@ -310,25 +346,39 @@ class Xsky:
                 if self.lib_dir is None:
                     unl = self.unl_lib.get_sim_unl(simidx, space='alm', field=field, spin=0)
                     philm = self.unl_lib.get_sim_phi(simidx, space='alm')
-                    sky = self.unl2len(unl, philm, spin=self.spin, epsilon=self.epsilon)
-                    if space == 'map':
-                        if spin == 0:
-                            sky = hp.alm2map_spin(hp.map2alm_spin(sky, spin=2, lmax=self.lmax), lmax=self.lmax, spin=0, nside=self.nside)
-                    elif space == 'alm':
-                        sky = hp.map2alm_spin(sky, lmax=self.lmax, spin=2)
-                else:
-                    sky1 = load_file(opj(self.lib_dir, self.fns[0].format(simidx)))
-                    sky2 = load_file(opj(self.lib_dir, self.fns[1].format(simidx)))
-                    sky = np.array([sky1, sky2])
-                    if self.space == 'map':
-                        if space == 'alm':
-                            sky = hp.map2alm_spin(sky, spin=self.spin, lmax=self.lmax)
-                        elif space == 'map':
-                            if self.spin != spin:
-                                sky = hp.alm2map_spin(hp.map2alm_spin(sky, spin=self.spin, lmax=self.lmax), lmax=self.lmax, spin=spin, nside=self.nside)
-                    elif self.space == 'alm':
+                    if field == 'polarization':
+                        sky = self.unl2len(unl, philm, spin=2, epsilon=self.epsilon)
                         if space == 'map':
-                            sky = hp.alm2map_spin(sky, spin=spin, lmax=self.lmax)
+                            if spin == 0:
+                                sky = hp.alm2map_spin(hp.map2alm_spin(sky, spin=2, lmax=self.lmax), lmax=self.lmax, spin=0, nside=self.nside)
+                        elif space == 'alm':
+                            sky = hp.map2alm_spin(sky, lmax=self.lmax, spin=2)
+                    elif field == 'temperature':
+                        sky = self.unl2len(unl, philm, spin=0, epsilon=self.epsilon)
+                        if space == 'alm':
+                            sky = hp.map2alm(sky, lmax=self.lmax)
+                else:
+                    if field == 'polarization':
+                        sky1 = load_file(opj(self.lib_dir, self.fns[0].format(simidx)))
+                        sky2 = load_file(opj(self.lib_dir, self.fns[1].format(simidx)))
+                        sky = np.array([sky1, sky2])
+                        if self.space == 'map':
+                            if space == 'alm':
+                                sky = hp.map2alm_spin(sky, spin=self.spin, lmax=self.lmax)
+                            elif space == 'map':
+                                if self.spin != spin:
+                                    sky = hp.alm2map_spin(hp.map2alm_spin(sky, spin=self.spin, lmax=self.lmax), lmax=self.lmax, spin=spin, nside=self.nside)
+                        elif self.space == 'alm':
+                            if space == 'map':
+                                sky = hp.alm2map_spin(sky, spin=spin, lmax=self.lmax)
+                    elif field == 'temperature':
+                        sky = np.array(load_file(opj(self.lib_dir, self.fns.format(simidx))))
+                        if self.space == 'map':
+                            if space == 'alm':
+                                sky = hp.map2alm(sky, lmax=self.lmax)
+                        elif self.space == 'alm':
+                            if space == 'map':
+                                sky = hp.alm2map(sky, lmax=self.lmax, nside=self.nside)
             else:
                 sky = self.cacher.load(fn_other)
                 if space == 'map':
@@ -338,15 +388,13 @@ class Xsky:
     
 
     def unl2len(self, Xlm, philm, **kwargs):
-        # This is always polarization for now, therefore hardcoding spin # FIXME once we support temp
-        kwargs['spin'] = 2
         ll = np.arange(0,self.unl_lib.lmax_phi+1,1)
         return lenspyx.alm2lenmap_spin(Xlm, hp.almxfl(philm,  np.sqrt(ll*(ll+1))), geometry=('healpix', {'nside': self.nside}), **kwargs)
 
 
 class Xobs:
 
-    def __init__(self, lmax, maps=None, transfunction=None, len_lib=None, noise_lib=None, lib_dir=None, fns=None, simidxs=None, nside=None, nlev_p=None, lib_dir_noise=None, fnsnoise=None, spin=None, space=None):
+    def __init__(self, lmax, maps=None, transfunction=None, len_lib=None, noise_lib=None, lib_dir=None, fns=None, simidxs=None, nside=None, nlev=None, lib_dir_noise=None, fnsnoise=None, spin=None, space=None):
         self.simidxs = simidxs
         self.lib_dir = lib_dir
         self.spin = spin
@@ -367,13 +415,12 @@ class Xobs:
                     self.len_lib = len_lib
                 if noise_lib is None:
                     if lib_dir_noise is None:
-                        if nside is None or nlev_p is None:
-                            assert 0, "Need nside and nlev_p for generating noise"
-                    self.noise_lib = iso_white_noise(nside=nside, nlev_p=nlev_p, lmax=lmax, fns=fnsnoise,lib_dir=lib_dir_noise, space=space, spin=spin)
+                        if nside is None or nlev is None:
+                            assert 0, "Need nside and nlev for generating noise"
+                    self.noise_lib = iso_white_noise(nside=nside, nlev=nlev, lmax=lmax, fns=fnsnoise,lib_dir=lib_dir_noise, space=space, spin=spin)
                 else:
                     self.noise_lib = noise_lib
                 self.transfunction = transfunction       
-                self.nlev_p = nlev_p
             elif lib_dir is not None:
                 if fns is None:
                     assert 0, 'you need to provide fns' 
@@ -395,25 +442,41 @@ class Xobs:
         """
         if space == 'alm' and spin == 2:
             assert 0, "I don't think you want qlms ulms."
+        if field == 'temperature' and spin == 2:
+            assert 0, "I don't think you want spin-2 temperature."
         fn = 'len_space{}_spin{}_field{}_{}'.format(space, spin, field, simidx)
         if not self.cacher.is_cached(fn):
             fn_other = 'len_space{}_spin{}_field{}_{}'.format(space, self.spin, field, simidx)
             if not self.cacher.is_cached(fn_other):
                 if self.lib_dir is None: # sky maps come from len_lib, and we add noise
-                    obs = self.sky2obs(self.len_lib.get_sim_sky(simidx, spin=spin, space=space, field=field), self.noise_lib.get_sim_noise(simidx, spin=spin, field=field, space=space), spin=spin, space=space)
+                    obs = self.sky2obs(
+                        self.len_lib.get_sim_sky(simidx, spin=spin, space=space, field=field),
+                        self.noise_lib.get_sim_noise(simidx, spin=spin, field=field, space=space),
+                        spin=spin,
+                        space=space,
+                        field=field)
                 elif self.lib_dir is not None:  # observed maps are somewhere
-                    obs1 = load_file(opj(self.lib_dir, self.fns[0].format(simidx)))
-                    obs2 = load_file(opj(self.lib_dir, self.fns[1].format(simidx)))
-                    obs = np.array([obs1, obs2])
-                    if self.space == 'map':
-                        if space == 'map':
-                            if self.spin != spin:
-                                obs = hp.alm2map_spin(hp.map2alm_spin(obs, spin=self.spin, lmax=self.lmax), lmax=self.lmax, spin=spin, nside=self.nside)
-                        elif space == 'alm':
-                            obs = hp.map2alm_spin(obs, spin=self.spin, lmax=self.lmax)
-                    elif self.space == 'alm':
-                        if space == 'map':
-                            obs = hp.alm2map_spin(obs, lmax=self.lmax, spin=spin, nside=self.nside)
+                    if field == 'polarization':
+                        obs1 = load_file(opj(self.lib_dir, self.fns[0].format(simidx)))
+                        obs2 = load_file(opj(self.lib_dir, self.fns[1].format(simidx)))
+                        obs = np.array([obs1, obs2])
+                        if self.space == 'map':
+                            if space == 'map':
+                                if self.spin != spin:
+                                    obs = hp.alm2map_spin(hp.map2alm_spin(obs, spin=self.spin, lmax=self.lmax), lmax=self.lmax, spin=spin, nside=self.nside)
+                            elif space == 'alm':
+                                obs = hp.map2alm_spin(obs, spin=self.spin, lmax=self.lmax)
+                        elif self.space == 'alm':
+                            if space == 'map':
+                                obs = hp.alm2map_spin(obs, lmax=self.lmax, spin=spin, nside=self.nside)
+                    elif field == 'temperature':
+                        obs = np.array(load_file(opj(self.lib_dir, self.fns.format(simidx))))
+                        if self.space == 'map':
+                            if space == 'alm':
+                                obs = hp.map2alm(obs, lmax=self.lmax)
+                        elif self.space == 'alm':
+                            if space == 'map':
+                                obs = hp.alm2map(obs, lmax=self.lmax, nside=self.nside)
             else:
                 obs = np.array(self.cacher.load(fn_other))
                 if space == 'map':
@@ -426,15 +489,24 @@ class Xobs:
         assert 0, 'implement if needed'
 
 
-    def sky2obs(self, sky, noise, spin, space):
-        if space == 'map':
-            sky = hp.map2alm_spin(sky, spin, lmax=self.lmax)
-        hp.almxfl(sky[0], self.transfunction, inplace=True)
-        hp.almxfl(sky[1], self.transfunction, inplace=True)
-        if space == 'map':
-            return np.array(hp.alm2map_spin(sky, self.nside, spin, hp.Alm.getlmax(sky[0].size)))+noise
-        else:
-            return sky+noise  # np.array([beamed[0] + noise[0], beamed[1] + noise[1]])
+    def sky2obs(self, sky, noise, spin, space, field):
+        if field == 'polarization':
+            if space == 'map':
+                sky = hp.map2alm_spin(sky, spin=spin, lmax=self.lmax)
+            hp.almxfl(sky[0], self.transfunction, inplace=True)
+            hp.almxfl(sky[1], self.transfunction, inplace=True)
+            if space == 'map':
+                return np.array(hp.alm2map_spin(sky, self.nside, spin, lmax=self.lmax)) + noise
+            else:
+                return sky+noise
+        elif field == 'temperature':
+            if space == 'map':
+                sky = hp.map2alm(sky, lmax=self.lmax)
+            hp.almxfl(sky, self.transfunction, inplace=True)
+            if space == 'map':
+                return np.array(hp.alm2map(sky, nside=self.nside, lmax=self.lmax)) + noise
+            else:
+                return sky + noise
 
 
     def get_sim_noise(self, simidx, space, field, spin=2):
@@ -443,7 +515,7 @@ class Xobs:
 
 class Simhandler:
 
-    def __init__(self, flavour, space=None, maps=None, cls_lib=None, unl_lib=None, obs_lib=None, len_lib=None, noise_lib=None, lib_dir_noise=None, lib_dir=None, lib_dir_phi=None, fns=None, fnsP=None, simidxs=None, nside=None, lmax=None, transfunction=None, nlev_p=None, fnsnoise=None, spin=None, CAMB_fn=None, clphi_fn=None, phi_field=None, phi_space=None, epsilon=1e-7):
+    def __init__(self, flavour, space=None, maps=None, cls_lib=None, unl_lib=None, obs_lib=None, len_lib=None, noise_lib=None, lib_dir_noise=None, lib_dir=None, lib_dir_phi=None, fns=None, fnsP=None, simidxs=None, nside=None, lmax=None, transfunction=None, nlev=None, fnsnoise=None, spin=None, CAMB_fn=None, clphi_fn=None, phi_field=None, phi_space=None, epsilon=1e-7):
         """_summary_
 
         Args:
@@ -464,7 +536,7 @@ class Simhandler:
             nside (_type_, optional): _description_. Defaults to None.
             lmax (_type_, optional): _description_. Defaults to None.
             transfunction (_type_, optional): _description_. Defaults to None.
-            nlev_p (_type_, optional): _description_. Defaults to None.
+            nlev (_type_, optional): _description_. Defaults to None.
             fnsnoise (_type_, optional): _description_. Defaults to None.
             spin (_type_, optional): _description_. Defaults to None.
             CAMB_fn (_type_, optional): _description_. Defaults to None.
@@ -484,7 +556,7 @@ class Simhandler:
                     self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, lib_dir=lib_dir, fns=fns, simidxs=simidxs, nside=nside, spin=spin) if obs_lib is None else obs_lib
             if flavour == 'sky':
                 self.len_lib = Xsky(unl_lib=unl_lib, lmax=lmax, lib_dir=lib_dir, fns=fns, space=space, simidxs=simidxs, nside=nside, spin=spin, epsilon=epsilon) if len_lib is None else len_lib
-                self.obs_lib = Xobs(len_lib=self.len_lib, space=space, transfunction=transfunction, lmax=lmax, nlev_p=nlev_p, noise_lib=noise_lib, nside=nside, lib_dir_noise=lib_dir_noise, fnsnoise=fnsnoise, spin=spin)
+                self.obs_lib = Xobs(len_lib=self.len_lib, space=space, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, nside=nside, lib_dir_noise=lib_dir_noise, fnsnoise=fnsnoise, spin=spin)
                 self.noise_lib = self.obs_lib.noise_lib
             if flavour == 'unl':
                 assert 0, 'implement if needed'
@@ -507,7 +579,7 @@ class Simhandler:
                 self.cls_lib = cls_lib # just to be safe..
                 self.unl_lib = Xunl(lmax=lmax, lib_dir=lib_dir, fns=fns, fnsP=fnsP, phi_field=phi_field, simidxs=simidxs, lib_dir_phi=lib_dir_phi, space=space,  phi_space=phi_space, cls_lib=cls_lib) if unl_lib is None else unl_lib
                 self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, simidxs=simidxs, nside=nside, spin=self.spin, space=space, epsilon=epsilon)
-                self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev_p=nlev_p, noise_lib=noise_lib, nside=nside, lib_dir_noise=lib_dir_noise, fnsnoise=fnsnoise, space=space, spin=self.spin)
+                self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, nside=nside, lib_dir_noise=lib_dir_noise, fnsnoise=fnsnoise, space=space, spin=self.spin)
                 self.noise_lib = self.obs_lib.noise_lib
         if space == 'cl':
             if flavour == 'obs':
@@ -519,7 +591,7 @@ class Simhandler:
                 self.cls_lib = Cls(lmax=lmax, CAMB_fn=CAMB_fn, phi_fn=clphi_fn, phi_field=phi_field, simidxs=simidxs)
                 self.unl_lib = Xunl(cls_lib=cls_lib, lmax=lmax, fnsP=fnsP, phi_field=phi_field, lib_dir_phi=lib_dir_phi, phi_space=phi_space, simidxs=simidxs)
                 self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, simidxs=simidxs, nside=nside, spin=spin, epsilon=epsilon)
-                self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev_p=nlev_p, noise_lib=noise_lib, nside=nside, lib_dir_noise=lib_dir_noise, fnsnoise=fnsnoise, spin=spin)
+                self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, nside=nside, lib_dir_noise=lib_dir_noise, fnsnoise=fnsnoise, spin=spin)
                 self.noise_lib = self.obs_lib.noise_lib
         self.cacher = cachers.cacher_mem(safe=True) #TODO might as well use a numpy cacher
 
@@ -553,7 +625,6 @@ class Simhandler:
     # compatibility with Plancklens
     def get_sim_pmap(self, simidx):
         return self.get_sim_obs(simidx=simidx, space='map', field='polarization', spin=2)
-
 
     def get_sim_unllm(self, simidx):
         return self.unl_lib.get_sim_unllm(simidx)
