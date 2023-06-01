@@ -97,24 +97,6 @@ class iso_white_noise:
                          noise = hp.alm2map_spin(noise, spin=spin, lmax=self.lmax)
             self.cacher.cache(fn, noise)  
         return self.cacher.load(fn)
-    
-
-    def get_sim_noise_old(self, simidx, space, spin=2):
-        fn = 'noise_spin{}_{}'.format(spin, simidx)
-        if not self.cacher.is_cached(fn):
-            if self.lib_dir is None:
-                vamin = np.sqrt(hp.nside2pixarea(self.nside, degrees=True)) * 60
-                noise1 = self.nlev_p / vamin * self.pix_lib_phas.get_sim(simidx, idf=1)
-                noise2 = self.nlev_p / vamin * self.pix_lib_phas.get_sim(simidx, idf=2)
-                if spin == 0:
-                    noise1, noise2 = hp.alm2map_spin(hp.map2alm_spin([noise1, noise2], spin=2, lmax=self.lmax), lmax=self.lmax, spin=0, nside=self.nside)
-            else:
-                noise1 = load_file(opj(self.lib_dir, self.fns[0].format(simidx)))
-                noise2 = load_file(opj(self.lib_dir, self.fns[1].format(simidx)))
-                if self.spin != spin:
-                    noise1, noise2 = hp.alm2map_spin(hp.map2alm_spin([noise1, noise2], spin=self.spin, lmax=self.lmax), lmax=self.lmax, spin=spin, nside=self.nside)
-            self.cacher.cache(fn, np.array([noise1, noise2]))  
-        return self.cacher.load(fn)
 
 
 class Cls:
@@ -254,37 +236,6 @@ class Xunl:
         return self.cacher.load(fn)
     
 
-    def get_sim_unllm(self, simidx):
-        fn = 'unllm_{}'.format(simidx)
-        if not self.cacher.is_cached(fn):
-            if self.lib_dir is None:
-                Cls = self.cls_lib.get_TEBunl(simidx)
-                Eunl, Bunl = self.cl2alm(Cls, field='polarization', seed=simidx)
-            else:
-                Eunl = load_file(opj(self.lib_dir, self.fns[0].format(simidx)))
-                Bunl = load_file(opj(self.lib_dir, self.fns[1].format(simidx)))               
-            self.cacher.cache(fn, np.array([Eunl, Bunl]))
-
-        return self.cacher.load(fn)
-
-
-    def get_sim_philm(self, simidx):
-        fn = 'philm_{}'.format(simidx)
-        if not self.cacher.is_cached(fn):
-            if self.lib_dir_phi is None:
-                Clpf = self.cls_lib.get_sim_clphi(simidx)
-                self.phi_field = self.cls_lib.phi_field
-                Clp = self.clpf2clppot(Clpf)
-                phi = self.clp2plm(Clp, simidx)
-            else:
-                phi = load_file(opj(self.lib_dir_phi, self.fnsP.format(simidx)))
-                if self.phi_space == 'map':
-                    phi = hp.map2alm(phi)
-                phi = self.pflm2plm(phi)
-            self.cacher.cache(fn, phi)
-        return self.cacher.load(fn)
-
-
     def pflm2plm(self, philm):
         if self.phi_field == 'kappa':
             return klm2plm(philm, self.lmax_phi)
@@ -358,7 +309,7 @@ class Xsky:
             if not self.cacher.is_cached(fn_other):
                 if self.lib_dir is None:
                     unl = self.unl_lib.get_sim_unl(simidx, space='alm', field=field, spin=0)
-                    philm = self.unl_lib.get_sim_philm(simidx)
+                    philm = self.unl_lib.get_sim_phi(simidx, space='alm')
                     sky = self.unl2len(unl, philm, spin=self.spin, epsilon=self.epsilon)
                     if space == 'map':
                         if spin == 0:
@@ -382,25 +333,6 @@ class Xsky:
                 sky = self.cacher.load(fn_other)
                 if space == 'map':
                     sky = hp.alm2map_spin(hp.map2alm_spin(np.array(sky), spin=self.spin, lmax=self.lmax), lmax=self.lmax, spin=spin, nside=self.nside)
-            self.cacher.cache(fn, np.array(sky))
-        return self.cacher.load(fn)
-
-
-    def get_sim_skymap(self, simidx, spin=2):
-        fn = 'sky_spin{}_{}'.format(spin, simidx)
-        if not self.cacher.is_cached(fn):
-            if self.lib_dir is None:
-                Qunllm, Uunllm = self.unl_lib.get_sim_unllm(simidx)
-                philm = self.unl_lib.get_sim_philm(simidx)
-                sky = self.unl2len(np.array([Qunllm, Uunllm]), philm, spin=self.spin, epsilon=self.epsilon)
-                if spin == 0:
-                    sky = hp.alm2map_spin(hp.map2alm_spin(sky, spin=2, lmax=self.lmax), lmax=self.lmax, spin=0, nside=self.nside)
-            else:
-                sky1 = load_file(opj(self.lib_dir, self.fns[0].format(simidx)))
-                sky2 = load_file(opj(self.lib_dir, self.fns[1].format(simidx)))
-                sky = np.array([sky1, sky2])
-                if self.spin != spin:
-                    sky = hp.alm2map_spin(hp.map2alm_spin(sky, spin=self.spin, lmax=self.lmax), lmax=self.lmax, spin=spin, nside=self.nside)
             self.cacher.cache(fn, np.array(sky))
         return self.cacher.load(fn)
     
@@ -487,27 +419,6 @@ class Xobs:
                 if space == 'map':
                     obs = hp.alm2map_spin(hp.map2alm_spin(obs, spin=self.spin, lmax=self.lmax), lmax=self.lmax, spin=spin, nside=self.nside)
             self.cacher.cache(fn, obs)
-        return self.cacher.load(fn)
-
-
-    def get_sim_pmap(self, simidx, spin=2):  
-        fn = 'pmap_spin{}_{}'.format(spin, simidx)
-        if not self.cacher.is_cached(fn):
-            fn_other = 'pmap_spin{}_{}'.format(self.spin, simidx)
-            if not self.cacher.is_cached(fn_other):
-                if self.lib_dir is None: # sky maps come from len_lib, and we add noise
-                    obs = self.sky2obs(self.len_lib.get_sim_skymap(simidx, spin=spin), self.noise_lib.get_sim_noise(simidx, spin=spin), spin=spin, space='map')
-                elif self.lib_dir is not None:  # observed maps are somewhere
-                    obs1 = load_file(opj(self.lib_dir, self.fns[0].format(simidx)))
-                    obs2 = load_file(opj(self.lib_dir, self.fns[1].format(simidx)))
-                    obs = np.array([obs1, obs2])
-                    if self.spin != spin:
-                        obs = hp.alm2map_spin(hp.map2alm_spin(obs, spin=self.spin, lmax=self.lmax), lmax=self.lmax, spin=spin, nside=self.nside)
-                self.cacher.cache(fn, np.array(obs))
-            else:
-                obs1, obs2 = self.cacher.load(fn_other)
-                obs = hp.alm2map_spin(hp.map2alm_spin(np.array([obs1, obs2]), spin=self.spin, lmax=self.lmax), lmax=self.lmax, spin=spin, nside=self.nside)
-                self.cacher.cache(fn, np.array(obs))
         return self.cacher.load(fn)
     
 
@@ -636,20 +547,13 @@ class Simhandler:
     # compatibility with Plancklens
     def hashdict(self):
         return {}
-
     # compatibility with Plancklens
     def get_sim_tmap(self, simidx, spin=2):
         return self.obs_lib.get_sim_tmap(simidx, spin=spin)
-    
+    # compatibility with Plancklens
+    def get_sim_pmap(self, simidx):
+        return self.get_sim_obs(simidx=simidx, space='map', field='polarization', spin=2)
 
-    ### Deprecated
-    def get_sim_pmap(self, simidx, spin=2):
-        fn = 'pmap_spin{}_{}'.format(spin, simidx)
-        if not self.cacher.is_cached(fn):
-            self.cacher.cache(fn, self.obs_lib.get_sim_pmap(simidx, spin=spin))
-        return self.cacher.load(fn)
-    def get_sim_skymap(self, simidx, spin=2):
-        return self.len_lib.get_sim_skymap(simidx, spin=spin)
+
     def get_sim_unllm(self, simidx):
         return self.unl_lib.get_sim_unllm(simidx)
-    
