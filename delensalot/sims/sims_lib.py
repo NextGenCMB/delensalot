@@ -339,7 +339,7 @@ class Xsky:
             assert 0, "I don't think you want qlms ulms."
         if field == 'temperature' and spin == 2:
             assert 0, "I don't think you want spin-2 temperature."
-        fn = 'len_space{}_spin{}_field{}_{}'.format(space, spin, field, simidx)
+        fn = 'sky_space{}_spin{}_field{}_{}'.format(space, spin, field, simidx)
         if not self.cacher.is_cached(fn):
             fn_other = 'len_space{}_spin{}_field{}_{}'.format(space, self.spin, field, simidx)
             if not self.cacher.is_cached(fn_other):
@@ -444,7 +444,7 @@ class Xobs:
             assert 0, "I don't think you want qlms ulms."
         if field == 'temperature' and spin == 2:
             assert 0, "I don't think you want spin-2 temperature."
-        fn = 'len_space{}_spin{}_field{}_{}'.format(space, spin, field, simidx)
+        fn = 'obs_space{}_spin{}_field{}_{}'.format(space, spin, field, simidx)
         if not self.cacher.is_cached(fn):
             fn_other = 'len_space{}_spin{}_field{}_{}'.format(space, self.spin, field, simidx)
             if not self.cacher.is_cached(fn_other):
@@ -608,23 +608,25 @@ class Simhandler:
         return self.noise_lib.get_sim_noise(simidx, spin=spin, space=space, field=field)
     
 
-    def isdone(self, simidx):
-        fn = 'pmap_spin{}_{}'.format(2, simidx)
+    def isdone(self, simidx, field, spin, space='map', flavour='obs'):
+        fn = '{}_space{}_spin{}_field{}_{}'.format(flavour, space, spin, field, simidx)
         if self.cacher.is_cached(fn):
             return True
-        if os.path.exists(self.obs_lib.fns[0](simidx)):
-            return True
+        if field == 'polarization':
+            if os.path.exists(opj(self.obs_lib.lib_dir, self.obs_lib.fns[0].format(simidx))) and os.path.exists(opj(self.obs_lib.lib_dir, self.obs_lib.fns[1].format(simidx))):
+                return True
+        if field == 'temperature':
+            if os.path.exists(opj(self.obs_lib.lib_dir, self.obs_lib.fns.format(simidx))):
+                return True
+        return False
         
-
+        
     # compatibility with Plancklens
     def hashdict(self):
         return {}
     # compatibility with Plancklens
-    def get_sim_tmap(self, simidx, spin=2):
-        return self.obs_lib.get_sim_tmap(simidx, spin=spin)
+    def get_sim_tmap(self, simidx):
+        return self.get_sim_obs(simidx=simidx, space='map', field='temperature', spin=0)
     # compatibility with Plancklens
     def get_sim_pmap(self, simidx):
         return self.get_sim_obs(simidx=simidx, space='map', field='polarization', spin=2)
-
-    def get_sim_unllm(self, simidx):
-        return self.unl_lib.get_sim_unllm(simidx)
