@@ -319,11 +319,12 @@ class Xunl:
 
 
 class Xsky:
-    def __init__(self, nside, lmax, unl_lib=None, lib_dir=None, fns=None, simidxs=None, spin=None, epsilon=1e-7):
+    def __init__(self, nside, lmax, unl_lib=None, lib_dir=None, fns=None, simidxs=None, spin=None, epsilon=1e-7, space=None):
         self.lib_dir = lib_dir
         self.spin = spin
         self.nside = nside
         self.lmax = lmax
+        self.space = space
         if lib_dir is None: # need being generated
             self.unl_lib = unl_lib
             self.simidxs = simidxs
@@ -412,12 +413,13 @@ class Xsky:
 
 class Xobs:
 
-    def __init__(self, lmax, maps=None, transfunction=None, len_lib=None, noise_lib=None, lib_dir=None, fns=None, simidxs=None, nside=None, nlev_p=None, lib_dir_noise=None, fnsnoise=None, spin=None):
+    def __init__(self, lmax, maps=None, transfunction=None, len_lib=None, noise_lib=None, lib_dir=None, fns=None, simidxs=None, nside=None, nlev_p=None, lib_dir_noise=None, fnsnoise=None, spin=None, space=None):
         self.simidxs = simidxs
         self.lib_dir = lib_dir
         self.spin = spin
         self.lmax = lmax
         self.nside = nside
+        self.space = space
         
         self.cacher = cachers.cacher_mem(safe=True) #TODO might as well use a numpy cacher
         self.maps = maps
