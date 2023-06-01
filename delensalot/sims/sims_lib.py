@@ -137,8 +137,7 @@ class Xunl:
             self.fnsP = fnsP
             if self.phi_space is None:
                 assert 0, 'need to give phi_space (map or alm)'
-        else:
-            self.lmax_phi = lmax + 1024
+        self.lmax_phi = lmax + 1024
             
         self.cacher = cachers.cacher_mem(safe=True) #TODO might as well use a numpy cacher
 
@@ -370,6 +369,13 @@ class Simhandler:
                 self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev_p=nlev_p, noise_lib=noise_lib, nside=nside, lib_dir_noise=lib_dir_noise, fnsnoise=fnsnoise, spin=spin)
                 self.noise_lib = self.obs_lib.noise_lib
             if flavour == 'unl':
+                assert 0, 'implement if needed'
+        elif space in ['alm']:
+            if flavour == 'obs':
+                assert 0, 'implement if needed' # unlikely this will ever be needed
+            if flavour == 'sky':
+                assert 0, 'implement if needed'
+            if flavour == 'unl':
                 self.spin = 0 # there are genrally no qlms, ulms, therefore here we can safely assume that data is spin0
                 if (lib_dir_phi is None or lib_dir is None) and cls_lib is None:
                     cls_lib = Cls(lmax=lmax, CAMB_fn=CAMB_fn, phi_fn=clphi_fn, phi_field=phi_field, simidxs=simidxs)
@@ -378,13 +384,18 @@ class Simhandler:
                 self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, simidxs=simidxs, nside=nside, spin=self.spin, epsilon=epsilon)
                 self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev_p=nlev_p, noise_lib=noise_lib, nside=nside, lib_dir_noise=lib_dir_noise, fnsnoise=fnsnoise, spin=self.spin)
                 self.noise_lib = self.obs_lib.noise_lib
-        if space == 'cl' and flavour == 'unl':
-            self.spin = 0 # there are genrally no qcls, ucls, therefore here we can safely assume that data is spin0
-            self.cls_lib = Cls(lmax=lmax, CAMB_fn=CAMB_fn, phi_fn=clphi_fn, phi_field=phi_field, simidxs=simidxs)
-            self.unl_lib = Xunl(cls_lib=cls_lib, lmax=lmax, fnsP=fnsP, phi_field=phi_field, lib_dir_phi=lib_dir_phi, phi_space=phi_space, simidxs=simidxs)
-            self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, simidxs=simidxs, nside=nside, spin=spin, epsilon=epsilon)
-            self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev_p=nlev_p, noise_lib=noise_lib, nside=nside, lib_dir_noise=lib_dir_noise, fnsnoise=fnsnoise, spin=spin)
-            self.noise_lib = self.obs_lib.noise_lib
+        if space == 'cl':
+            if flavour == 'obs':
+                assert 0, 'implement if needed' # unlikely this will ever be needed
+            if flavour == 'sky':
+                assert 0, 'implement if needed' # unlikely this will ever be needed
+            if flavour == 'unl':
+                self.spin = 0 # there are genrally no qcls, ucls, therefore here we can safely assume that data is spin0
+                self.cls_lib = Cls(lmax=lmax, CAMB_fn=CAMB_fn, phi_fn=clphi_fn, phi_field=phi_field, simidxs=simidxs)
+                self.unl_lib = Xunl(cls_lib=cls_lib, lmax=lmax, fnsP=fnsP, phi_field=phi_field, lib_dir_phi=lib_dir_phi, phi_space=phi_space, simidxs=simidxs)
+                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, simidxs=simidxs, nside=nside, spin=spin, epsilon=epsilon)
+                self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev_p=nlev_p, noise_lib=noise_lib, nside=nside, lib_dir_noise=lib_dir_noise, fnsnoise=fnsnoise, spin=spin)
+                self.noise_lib = self.obs_lib.noise_lib
         self.cacher = cachers.cacher_mem(safe=True) #TODO might as well use a numpy cacher
 
     def get_sim_pmap(self, simidx, spin=2):
