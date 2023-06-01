@@ -23,21 +23,25 @@ from delensalot.utils import load_file, cli
 
 
 def klm2plm(klm, lmax):
+    assert 0, 'check factor'
     LL = np.arange(0,lmax+1,1)
     factor = LL*(LL+1)/2
     return hp.almxfl(klm, cli(factor))
 
 def dlm2plm(dlm, lmax):
+    assert 0, 'check factor'
     LL = np.arange(0,lmax+1,1)
     factor = np.sqrt(LL*(LL+1))
     return hp.almxfl(dlm, cli(factor))
 
 def clk2clp(clk, lmax):
+    assert 0, 'check factor'
     LL = np.arange(0,lmax+1,1)
     factor = (LL*(LL+1)/2)**2
     return hp.almxfl(clk, cli(factor))
 
 def cld2clp(cld, lmax):
+    assert 0, 'check factor'
     LL = np.arange(0,lmax+1,1)
     factor = LL*(LL+1)
     return hp.almxfl(cld, cli(factor))
@@ -142,6 +146,25 @@ class Xunl:
         self.cacher = cachers.cacher_mem(safe=True) #TODO might as well use a numpy cacher
 
 
+    def get_sim_unl(self, simidx, space, field, spin=2):
+        """returns an unlensed simulation field (temp,pol,cross) in space (map, alm) and as spin (0,2). Note, spin is only applicable for pol, and returns QU for spin=2, and EB for spin=0.
+
+        Args:
+            simidx (_type_): _description_
+            space (_type_): _description_
+            spin (int, optional): _description_. Defaults to 2.
+
+        Returns:
+            _type_: _description_
+        """        
+        fn = 'unl_space{}_spin{}_field{}_{}'.format(space, spin, field, simidx)
+        if not self.cacher.is_cached(fn):
+            assert 0, 'implement'
+            unl=None
+            self.cacher.cache(fn, np.array(unl))
+        return self.cacher.load(fn)
+    
+
     def get_sim_unllm(self, simidx):
         fn = 'unllm_{}'.format(simidx)
         if not self.cacher.is_cached(fn):
@@ -221,6 +244,26 @@ class Xsky:
         self.cacher = cachers.cacher_mem(safe=True) #TODO might as well use a numpy cacher
 
 
+    def get_sim_sky(self, simidx, space, field, spin=2):
+        """returns a lensed simulation field (temp,pol,cross) in space (map, alm) and as spin (0,2). Note, spin is only applicable for pol, and returns QU for spin=2, and EB for spin=0.
+
+        Args:
+            simidx (_type_): _description_
+            space (_type_): _description_
+            field (_type_): _description_
+            spin (int, optional): _description_. Defaults to 2.
+
+        Returns:
+            _type_: _description_
+        """        
+        fn = 'len_space{}_spin{}_field{}_{}'.format(space, spin, field, simidx)
+        if not self.cacher.is_cached(fn):
+            assert 0, 'implement'
+            sky = None
+            self.cacher.cache(fn, np.array(sky))
+        return self.cacher.load(fn)
+
+
     def get_sim_skymap(self, simidx, spin=2):
         fn = 'sky_spin{}_{}'.format(spin, simidx)
         if not self.cacher.is_cached(fn):
@@ -238,7 +281,7 @@ class Xsky:
                     sky = hp.alm2map_spin(hp.map2alm_spin(sky, spin=self.spin, lmax=self.lmax), lmax=self.lmax, spin=spin, nside=self.nside)
             self.cacher.cache(fn, np.array(sky))
         return self.cacher.load(fn)
-
+    
 
     def unl2len(self, Xlm, philm, **kwargs):
         # This is always polarization for now, therefore hardcoding spin # FIXME once we support temp
@@ -282,8 +325,24 @@ class Xobs:
                 self.fns = fns
 
 
-    def get_sim_tmap(self, simidx):  
-        assert 0, 'implement if needed'
+    def get_sim_obs(self, simidx, space, field, spin=2):
+        """returns an observed simulation field (temp,pol,cross) in space (map, alm) and as spin (0,2). Note, spin is only applicable for pol, and returns QU for spin=2, and EB for spin=0.
+
+        Args:
+            simidx (_type_): _description_
+            space (_type_): _description_
+            field (_type_): _description_
+            spin (int, optional): _description_. Defaults to 2.
+
+        Returns:
+            _type_: _description_
+        """        
+        fn = 'len_space{}_spin{}_field{}_{}'.format(space, spin, field, simidx)
+        if not self.cacher.is_cached(fn):
+            assert 0, 'implement'
+            sky = None
+            self.cacher.cache(fn, np.array(sky))
+        return self.cacher.load(fn)
 
 
     def get_sim_pmap(self, simidx, spin=2):  
@@ -307,15 +366,15 @@ class Xobs:
         return self.cacher.load(fn)
     
 
-    def get_sim_obsmap(self, simidx, spin=2):
-        self.get_sim_pmap(simidx=simidx, spin=spin)
-    
+    def get_sim_tmap(self, simidx):  
+        assert 0, 'implement if needed'
+
 
     def sky2obs(self, sky, noise, spin):
-        elm, blm = hp.map2alm_spin(sky, spin, lmax=self.lmax)
-        hp.almxfl(elm, self.transfunction, inplace=True)
-        hp.almxfl(blm, self.transfunction, inplace=True)
-        beamed = np.array(hp.alm2map_spin([elm,blm], self.nside, spin, hp.Alm.getlmax(elm.size)))
+        sky = hp.map2alm_spin(sky, spin, lmax=self.lmax)
+        hp.almxfl(sky[0], self.transfunction, inplace=True)
+        hp.almxfl(sky[1], self.transfunction, inplace=True)
+        beamed = np.array(hp.alm2map_spin(sky, self.nside, spin, hp.Alm.getlmax(elm.size)))
         return beamed+noise  # np.array([beamed[0] + noise[0], beamed[1] + noise[1]])
    
   
@@ -398,6 +457,18 @@ class Simhandler:
                 self.noise_lib = self.obs_lib.noise_lib
         self.cacher = cachers.cacher_mem(safe=True) #TODO might as well use a numpy cacher
 
+    def get_sim_sky(self, simidx, space, field, spin):
+        assert 0, 'implement'
+        return self.len_lib.get_sim_sky(simidx=simidx, space=space, field=field, spin=spin)
+
+    def get_sim_unl(self, simidx, space, field, spin):
+        assert 0, 'implement'
+        return self.unl_lib.get_sim_unl(simidx=simidx, space=space, field=field, spin=spin)
+    
+    def get_sim_obs(self, simidx, space, field, spin):
+        assert 0, 'implement'
+        return self.unl_lib.get_sim_obs(simidx=simidx, space=space, field=field, spin=spin)
+    
     def get_sim_pmap(self, simidx, spin=2):
         fn = 'pmap_spin{}_{}'.format(spin, simidx)
         if not self.cacher.is_cached(fn):
