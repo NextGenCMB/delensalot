@@ -222,7 +222,7 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
     lib_dir_noise = attr.field(default=None, on_setattr=data.beam)
     lib_dir_phi =   attr.field(default=None, on_setattr=data.beam)
     transfunction = attr.field(default=None, on_setattr=data.beam)
-    nlev_p =        attr.field(default=None, on_setattr=data.beam)
+    nlev =          attr.field(default=None, on_setattr=data.beam)
     fns =           attr.field(default=None, on_setattr=data.beam)
     fnsP =          attr.field(default=None, on_setattr=data.beam)
     fnsnoise =      attr.field(default=None, on_setattr=data.beam)
@@ -232,6 +232,7 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
     phi_space =     attr.field(default=None, on_setattr=data.beam)
     phi_field =     attr.field(default=None, on_setattr=data.beam)
     epsilon =       attr.field(default=1e-7, on_setattr=data.beam) #must have value for all models, otherwise lenspyx will be unhappy with None
+    geometry =      attr.field(default=None, on_setattr=data.beam)
     
 @attr.s
 class DLENSALOT_Noisemodel(DLENSALOT_Concept):
