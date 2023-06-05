@@ -11,7 +11,7 @@ from delensalot import utils
 from os.path import join as opj
 
 import delensalot.core.power.pospace as pospace
-
+from delensalot.utility.utils_hp import gauss_beam
 from delensalot.config.config_helper import LEREPI_Constants as lc
 from delensalot.config.metamodel.dlensalot_mm import *
 
@@ -26,21 +26,32 @@ dlensalot_model = DLENSALOT_Model(
         TEMP_suffix = 'my_first_dlensalot_analysis_fullsky',
         lm_max_ivf = (3000, 3000),
     ),
-    data = DLENSALOT_Data(
-        class_parameters = {
-            'lmax': 4096,
-            'cls_unl': utils.camb_clfile(opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat')),
-            'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'generic', 'nside2048', 'lmax4096', 'nlevp_sqrt(2)')
-        },
-        nlev_t = 1.00,
-        nlev_p = np.sqrt(2),
-        beam = 1.00,
-        lmax_transf = 3000,
-        nside = 2048,
+    # data = DLENSALOT_Data(
+    #     class_parameters = {
+    #         'lmax': 4096,
+    #         'cls_unl': utils.camb_clfile(opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat')),
+    #         'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'generic', 'nside2048', 'lmax4096', 'nlevp_sqrt(2)')
+    #     },
+    #     nlev_t = 1.00,
+    #     nlev_p = np.sqrt(2),
+    #     beam = 1.00,
+    #     lmax_transf = 3000,
+    #     nside = 2048,
+    # ),
+    simulationdata = DLENSALOT_Simulation(
+        space = 'cl', 
+        flavour = 'unl',
+        lmax = 4096,
+        transfunction = gauss_beam(1.0/180/60 * np.pi, lmax=4096),
+        nlev = {'P': np.sqrt(10)},
+        geometry = ('healpix',{'nside': 2048}),
+        phi_field = 'potential',
+        CAMB_fn = opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
+        clphi_fn = opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
     ),
     noisemodel = DLENSALOT_Noisemodel(
-        nlev_t = 1.00,
-        nlev_p = np.sqrt(2)
+        nlev_t = np.sqrt(5),
+        nlev_p = np.sqrt(10)
     ),
     qerec = DLENSALOT_Qerec(
         tasks = ["calc_phi", "calc_blt"],

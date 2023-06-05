@@ -5,14 +5,11 @@ if "SCRATCH" not in os.environ:
 import hashlib
 import numpy as np
 import psutil
-from delensalot.run import run
-
 import shutil
-
-from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model, DLENSALOT_Data, DLENSALOT_Qerec, DLENSALOT_Itrec, DLENSALOT_Computing, DLENSALOT_Noisemodel, DLENSALOT_Analysis, DLENSALOT_Mapdelensing
-
-
+from delensalot.run import run
 from delensalot.utils import camb_clfile
+from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model, DLENSALOT_Qerec, DLENSALOT_Itrec, DLENSALOT_Computing, DLENSALOT_Noisemodel, DLENSALOT_Analysis, DLENSALOT_Mapdelensing
+
 cls_len = camb_clfile(opj(os.path.dirname(__file__), 'data/cls/FFP10_wdipole_lensedCls.dat'))
 cpp = camb_clfile(opj(os.path.dirname(__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'))['pp']
 

@@ -11,6 +11,8 @@ import healpy as hp
 
 import logging
 log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
+
 from logdecorator import log_on_start, log_on_end
 import datetime, getpass, copy, importlib
 
@@ -59,8 +61,6 @@ class Basejob():
 
     def __init__(self, model):
         self.__dict__.update(model.__dict__)
-
-        transf_dat = gauss_beam(self.sims_beam/180/60 * np.pi, lmax=self.sims_lmax_transf)
 
         self.libdir_QE = opj(self.TEMP, 'QE')
         if not os.path.exists(self.libdir_QE):
@@ -220,17 +220,18 @@ class Sim_generator(Basejob):
     """
     def __init__(self, dlensalot_model):
         super().__init__(dlensalot_model)
-
-        self.lib_dir = self.sims_class_parameters['lib_dir']
-        first_rank = mpi.bcast(mpi.rank)
-        if first_rank == mpi.rank:
-            if not os.path.exists(self.lib_dir):
-                os.makedirs(self.lib_dir)
-            for n in range(mpi.size):
-                if n != mpi.rank:
-                    mpi.send(1, dest=n)
-        else:
-            mpi.receive(None, source=mpi.ANY_SOURCE)
+        if self.simulationdata.libdir is None:
+            self.libdir = opj(os.environ['SCRATCH'], 'sims', str(self.simulationdata.geometry))
+            self.simulationdata.libdir = self.libdir
+            first_rank = mpi.bcast(mpi.rank)
+            if first_rank == mpi.rank:
+                if not os.path.exists(self.libdir):
+                    os.makedirs(self.libdir)
+                for n in range(mpi.size):
+                    if n != mpi.rank:
+                        mpi.send(1, dest=n)
+            else:
+                mpi.receive(None, source=mpi.ANY_SOURCE)
 
 
     # @base_exception_handler
@@ -242,7 +243,7 @@ class Sim_generator(Basejob):
         jobs = []
         simidxs_ = np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))))
         for simidx in simidxs_:
-            if self.simulationdata.isdone(simidx):
+            if not self.simulationdata.isdone(simidx, field='polarization', spin=2):
                 jobs.append(simidx)
         self.jobs = jobs
         return self.jobs
@@ -266,12 +267,14 @@ class Sim_generator(Basejob):
             simulation library stores the lensed cmbs without noise. later, delensalot.iterator uses get_sim_pmap() which combines noise and lensed CMB at runtime, and is never stored.
             _sims. accesses the lensed CMB library.
         """
-        if self.k in ['ptt', 'mv']:
-            self._sims.get_sim_alm(simidx, 't', ret=False)
-        if self.k in ['p_p', 'mv', 'p_eb', 'pbe', 'pee', 'pbb', 'peb']:
-            self._sims.get_sim_alm(simidx, 'e', ret=False)
-            self._sims.get_sim_alm(simidx, 'b', ret=False)
-        self._sims.get_sim_plm(simidx, ret=False)
+        if self.k in ['p_p', 'p_eb', 'peb', 'p_be']:
+            QUobs = self.simulationdata.get_sim_obs(simidx, spin=2, space='map', field='polarization')
+            np.save(opj(self.libdir, self.simulationdata.fns[0].format(simidx)), QUobs[0])
+            np.save(opj(self.libdir, self.simulationdata.fns[1].format(simidx)), QUobs[1])
+
+        if self.k in ['ptt', 'p']:
+            Tobs = self.simulationdata.get_sim_obs(simidx, spin=0, space='map', field='temperature')
+            np.save(opj(self.libdir, self.simulationdata.fn(simidx)), Tobs)
 
 
 class QE_lr(Basejob):
@@ -313,6 +316,7 @@ class QE_lr(Basejob):
                 self.sims_MAP = utils_sims.ztrunc_sims(self.simulationdata, self.sims_nside, [self.zbounds])
             elif self.it_filter_directional == 'isotropic':
                 self.sims_MAP = self.simulationdata
+
 
         if self.cl_analysis == True:
             # TODO fix numbers for mc ocrrection and total nsims

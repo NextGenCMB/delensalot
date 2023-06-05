@@ -114,7 +114,6 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
         Lmin (int):                         minimum L for reconstructing the lensing potential
         zbounds (tuple[int or str,float]):  latitudinal boundary (-1 to 1), or identifier together with noise level ratio treshold at which lensing reconstruction is perfromed.
         zbounds_len (tuple[int]):           latitudinal extended boundary at which lensing reconstruction is performed, and used for iterative lensing reconstruction
-        pbounds (tuple[int]):               longitudinal boundary at which lensing reconstruction is perfromed
         lm_max_len (tuple[int]):            TODO: TBD (deprecated?)
         lm_max_ivf (tuple[int]):            maximum `\ell` and m for which inverse variance filtering is done
         lm_max_blt (tuple[int]):            maximum `\ell` and m for which B-lensing template is calculated
@@ -134,7 +133,6 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     Lmin =                  attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.Lmin)
     zbounds =               attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.zbounds)
     zbounds_len =           attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.zbounds_len)
-    pbounds =               attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.pbounds)
     lm_max_len =            attr.field(default=DEFAULT_NotAValue, on_setattr=v_filter.lm_max_len)
     lm_max_ivf =            attr.field(default=DEFAULT_NotAValue, on_setattr=v_filter.lm_max_ivf)
     lm_max_blt =            attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.lm_max_blt)
@@ -144,39 +142,7 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     cls_len =               attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.cls_len)
     cpp =                   attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.cpp)
     beam =                  attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.beam)
-
-@attr.s
-class DLENSALOT_Data(DLENSALOT_Concept):
-    """A root model element type of the Dlensalot formalism.
-    This class collects all configurations related to the input CMB maps.
-
-    Attributes:
-        class_parameters (dic): parameters of the class of the data
-        package_ (str):         package name of the data (can be, e.g. 'delensalot')
-        module_ (str):      	module name of the data (can be, e.g. sims.generic) (?)
-        class_ (str):           class name of the data (can be, e.g. sims_cmb_len) 
-        transferfunction (str): predefined isotropic transfer function. Can bei either with or without pixelwindow function applied
-        beam (float):           assuming a Gaussian beam, this defines the FWHM in arcmin
-        nside (int):            resolution of the data
-        nlev_t (type):          TBD
-        nlev_p (type):          TBD
-        lmax_transf (int):      maxmimum multipole to apply transfer function to data
-        epsilon (float):        lenspyx precision    
-
-    comment:
-        data_type (str)         data may come on spherical harmonics or real space. Can be either 'map' or 'alm'
-        data_field (str)        data may be spin-2 or spin-0. Can either be 'qu' or 'eb'                                                  
-    """
-
-    class_parameters =      attr.field(default=DEFAULT_NotAValue, on_setattr=data.class_parameters)
-    package_ =              attr.field(default=DEFAULT_NotAValue, on_setattr=data.package_)
-    module_ =               attr.field(default=DEFAULT_NotAValue, on_setattr=data.module_)
-    class_ =                attr.field(default=DEFAULT_NotAValue, on_setattr=data.class_)
-    transferfunction =      attr.field(default=DEFAULT_NotAValue, on_setattr=data.transferfunction)
-    beam =                  attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
-    nside =                 attr.field(default=DEFAULT_NotAValue, on_setattr=data.nside)
-    nlev_t =                attr.field(default=DEFAULT_NotAValue, on_setattr=data.nlev_t)
-    nlev_p =                attr.field(default=DEFAULT_NotAValue, on_setattr=data.nlev_p)
+    transfunction =         attr.field(default=DEFAULT_NotAValue, on_setattr=data.transferfunction)
     lmax_transf =           attr.field(default=DEFAULT_NotAValue, on_setattr=data.lmax_transf)
     epsilon =               attr.field(default=DEFAULT_NotAValue, on_setattr=data.epsilon)
     maps =                  attr.field(default=DEFAULT_NotAValue, on_setattr=data.maps)
@@ -193,9 +159,9 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
         flavour =       TBD
         lmax =          TBD
         nside =         TBD
-        lib_dir =       TBD
-        lib_dir_noise = TBD
-        lib_dir_phi =   TBD
+        libdir =       TBD
+        libdir_noise = TBD
+        libdir_phi =   TBD
         transfunction = TBD
         nlev_p =        TBD
         fnsP =          TBD
@@ -217,10 +183,9 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
     flavour =       attr.field(default=None, on_setattr=data.beam)
     maps =          attr.field(default=None, on_setattr=data.beam)
     lmax =          attr.field(default=None, on_setattr=data.beam)
-    nside =         attr.field(default=None, on_setattr=data.beam)
-    lib_dir =       attr.field(default=None, on_setattr=data.beam)
-    lib_dir_noise = attr.field(default=None, on_setattr=data.beam)
-    lib_dir_phi =   attr.field(default=None, on_setattr=data.beam)
+    libdir =       attr.field(default=None, on_setattr=data.beam)
+    libdir_noise = attr.field(default=None, on_setattr=data.beam)
+    libdir_phi =   attr.field(default=None, on_setattr=data.beam)
     transfunction = attr.field(default=None, on_setattr=data.beam)
     nlev =          attr.field(default=None, on_setattr=data.beam)
     fns =           attr.field(default=None, on_setattr=data.beam)
@@ -254,7 +219,10 @@ class DLENSALOT_Noisemodel(DLENSALOT_Concept):
     nlev_t =                attr.field(default=DEFAULT_NotAValue, on_setattr=noisemodel.nlev_t)
     nlev_p =                attr.field(default=DEFAULT_NotAValue, on_setattr=noisemodel.nlev_p)
     rhits_normalised =      attr.field(default=DEFAULT_NotAValue, on_setattr=noisemodel.rhits_normalised)
-    ninvjob_geometry =      attr.field(default=DEFAULT_NotAValue, on_setattr=noisemodel.ninvjob_geometry)
+    geometry =              attr.field(default=DEFAULT_NotAValue, on_setattr=noisemodel.ninvjob_geometry)
+    zbounds =               attr.field(default=DEFAULT_NotAValue, on_setattr=noisemodel.ninvjob_geometry)
+    nivt_map =              attr.field(default=DEFAULT_NotAValue, on_setattr=noisemodel.ninvjob_geometry)
+    nivp_map =              attr.field(default=DEFAULT_NotAValue, on_setattr=noisemodel.ninvjob_geometry)
 
 @attr.s
 class DLENSALOT_Qerec(DLENSALOT_Concept):
@@ -433,7 +401,7 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     meta =                  attr.field(default=DLENSALOT_Meta(), on_setattr=model.meta)
     job =                   attr.field(default=DLENSALOT_Job(), on_setattr=model.job)
     analysis =              attr.field(default=DLENSALOT_Analysis(), on_setattr=model.analysis)
-    data =                  attr.field(default=DLENSALOT_Data(), on_setattr=model.data)
+    # data =                  attr.field(default=DLENSALOT_Data(), on_setattr=model.data)
     simulationdata =        attr.field(default=DLENSALOT_Simulation(), on_setattr=model.data)
     noisemodel =            attr.field(default=DLENSALOT_Noisemodel(), on_setattr=model.noisemodel)
     qerec =                 attr.field(default=DLENSALOT_Qerec(), on_setattr=model.qerec)
