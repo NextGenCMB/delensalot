@@ -92,12 +92,11 @@ class FS(unittest.TestCase):
         for job_id, key_dict in self.whitelist_FS_P.items():
             for key in key_dict:
                 dlensalot_model = DLENSALOT_Model(defaults_to='P_FS_TEST', analysis = DLENSALOT_Analysis(key=key, TEMP_suffix='test'), itrec = DLENSALOT_Itrec(itmax=3))
-                # delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
-                # delensalot.del_TEMP(dlensalot_model.data.class_parameters['lib_dir'])
+                delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
                 delensalot_runner = run(config_fn='', job_id='generate_sim', config_model=dlensalot_model, verbose=True)
                 ana_mwe = delensalot_runner.init_job()
-                pmaps = ana_mwe.sims.get_sim_pmap(0)
-                bmap = hp.alm2map(hp.map2alm_spin(pmaps, lmax=200, spin=2)[1], nside=512)
+                pmaps = ana_mwe.simulationdata.get_sim_sky(simidx=0, field='polarization', space='map', spin=0)
+                bmap = ana_mwe.simulationdata.get_sim_obs(simidx=0, field='polarization', space='map', spin=0)
 
                 if job_id == 'QE_lensrec':
                     dlensalot_model.itrec.itmax = 0
@@ -116,11 +115,10 @@ class FS(unittest.TestCase):
             for key in key_dict:
                 dlensalot_model = DLENSALOT_Model(defaults_to='P_FS_TEST', analysis = DLENSALOT_Analysis(key=key, TEMP_suffix='test'), itrec = DLENSALOT_Itrec(itmax=3))
                 delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
-                delensalot.del_TEMP(dlensalot_model.data.class_parameters['lib_dir'])
                 delensalot_runner = run(config_fn='', job_id='generate_sim', config_model=dlensalot_model, verbose=True)
                 ana_mwe = delensalot_runner.init_job()
-                pmaps = ana_mwe.sims.get_sim_pmap(0)
-                bmap = hp.alm2map(hp.map2alm_spin(pmaps, lmax=200, spin=2)[1], nside=512)
+                pmaps = ana_mwe.simulationdata.get_sim_sky(simidx=0, field='polarization', space='map', spin=0)
+                bmap = ana_mwe.simulationdata.get_sim_obs(simidx=0, field='polarization', space='map', spin=0)
 
                 blt = delensalot.map2tempblm(pmaps, lmax_cmb=dlensalot_model.analysis.lm_max_ivf[0], beam=dlensalot_model.data.beam, itmax=dlensalot_model.itrec.itmax, noise=dlensalot_model.noisemodel.nlev_p, use_approximateWF=use_approximateWF, verbose=True, )
 
