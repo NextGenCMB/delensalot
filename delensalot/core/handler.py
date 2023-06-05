@@ -219,7 +219,7 @@ class Sim_generator(Basejob):
     """
     def __init__(self, dlensalot_model):
         super().__init__(dlensalot_model)
-        if self.simulationdata.libdir is None:
+        if self.simulationdata.libdir is DEFAULT_NotAValue:
             self.libdir = opj(os.environ['SCRATCH'], 'sims', str(self.simulationdata.geometry))
             self.simulationdata.libdir = self.libdir
             first_rank = mpi.bcast(mpi.rank)
@@ -337,21 +337,21 @@ class QE_lr(Basejob):
     def init_cinv(self):
         self.cinv_t = filt_cinv.cinv_t(opj(self.libdir_QE, 'cinv_t'),
             self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
-            self.ttebl['t'], self.ninvt_desc,
+            self.ttebl['t'], self.nivt_desc,
             marge_monopole=True, marge_dipole=True, marge_maps=[])
 
         transf_elm_loc = gauss_beam(self.beam / 180 / 60 * np.pi, lmax=self.lm_max_ivf[0])
         if self.OBD:
             self.cinv_p = cinv_p_OBD.cinv_p(opj(self.libdir_QE, 'cinv_p'),
                 self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
-                transf_elm_loc[:self.lm_max_ivf[0]+1], self.ninvp_desc, geom=self.ninvjob_qe_geometry,
+                transf_elm_loc[:self.lm_max_ivf[0]+1], self.nivp_desc, geom=self.ninvjob_qe_geometry,
                 chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol), bmarg_lmax=self.lmin_teb[2],
                 zbounds=self.zbounds, _bmarg_lib_dir=self.obd_libdir_QE, _bmarg_rescal=self.obd_rescale,
                 sht_threads=self.tr)
         else:
             self.cinv_p = filt_cinv.cinv_p(opj(self.TEMP, 'cinv_p'),
                 self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
-                self.ttebl['e'], self.ninvp_desc, chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol),
+                self.ttebl['e'], self.nivp_desc, chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol),
                 transf_blm=self.ttebl['b'], marge_qmaps=(), marge_umaps=())
 
 
@@ -617,7 +617,7 @@ class MAP_lr(Basejob):
         # TODO Only needed to hand over to ith(). in c2d(), prepare an ith model for it
         self.dlensalot_model = dlensalot_model
         
-        # TODO This is not the prettiest way to provide MAP_lr with QE and Simgen dependency.. probably better to just put it as a separate job into the job-list.. so do this in config_handler... same with Sim_generator? 
+        # TODO This is not the prettiest way to provide MAP_lr with QE and Simgen dependency.. probably better to just put it as a separate job into the job-list.. so do this in config_handler... same with Sim_generator?
         self.simgen = Sim_generator(dlensalot_model)
         self.qe = QE_lr(dlensalot_model, caller=self)
 
@@ -630,9 +630,9 @@ class MAP_lr(Basejob):
         if self.it_filter_directional == 'anisotropic':
             self.sims_MAP = utils_sims.ztrunc_sims(self.simulationdata, self.nivjob_geominfo[1]['nside'], [self.zbounds])
             if self.k in ['ptt']:
-                self.ninv = self.sims_MAP.ztruncify(read_map(self.ninvt_desc)) # inverse pixel noise map on consistent geometry
+                self.ninv = self.sims_MAP.ztruncify(read_map(self.nivt_desc)) # inverse pixel noise map on consistent geometry
             else:
-                self.ninv = [self.sims_MAP.ztruncify(read_map(ni)) for ni in self.ninvp_desc] # inverse pixel noise map on consistent geometry
+                self.ninv = [self.sims_MAP.ztruncify(read_map(ni)) for ni in self.nivp_desc] # inverse pixel noise map on consistent geometry
         elif self.it_filter_directional == 'isotropic':
             self.sims_MAP = self.simulationdata
         self.filter = self.get_filter()

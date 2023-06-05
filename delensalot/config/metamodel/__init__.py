@@ -13,6 +13,7 @@ import psutil
 
 import delensalot
 from delensalot import utils
+from delensalot.utility.utils_hp import gauss_beam
 import delensalot.core.power.pospace as pospace
 from delensalot.config.config_helper import LEREPI_Constants as lc
 
@@ -27,21 +28,16 @@ DL_DEFAULT_CMBS4_FS_T = {
     'job':{
         'jobs': ["generate_sim", "QE_lensrec", "MAP_lensrec"]
     },
-    'data': {
-        'beam': 1.,
-        'nlev_t': 1.,
-        'nlev_p': 1.,
-        'nside': 2048,
-        'class_parameters': {
-            'lmax': 4096,
-            'cls_unl': utils.camb_clfile(opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat')),
-            'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'generic', 'nside2048', 'lmax4096', 'nlevp_sqrt(2)')
-        },
-        'lmax_transf': 4500,
-        'transferfunction': 'gauss_no_pixwin',
-        'package_': 'delensalot', 
-        'module_': 'sims.generic', 
-        'class_': 'sims_cmb_len', 
+    'simulationdata': {
+        'space': 'cl', 
+        'flavour': 'unl',
+        'lmax': 4096,
+        'transfunction': gauss_beam(1.0/180/60 * np.pi, lmax=4096),
+        'nlev': {'T': 1./np.sqrt(2)},
+        'geometry': ('healpix',{'nside': 2048}),
+        'phi_field': 'potential',
+        'CAMB_fn': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
+        'clphi_fn': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
     },
     'analysis': { 
         'key': 'ptt',
@@ -121,7 +117,7 @@ DL_DEFAULT_CMBS4_FS_T = {
         'sky_coverage': 'unmasked',
         'spectrum_type': 'white',
         'OBD': False,
-        'nlev_t': 1.0,
+        'nlev_t': 1.0/np.sqrt(2),
         'nlev_p': 1.0,
         'rhits_normalised': None,
         'geometry': ('healpix',{'nside': 2048}),
@@ -167,21 +163,17 @@ DL_DEFAULT_CMBS4_FS_P = {
     'job':{
         'jobs': ["generate_sim", "QE_lensrec", "MAP_lensrec"]
     },
-    'data': {
-        'beam': 1.,
-        'nlev_t': 1.,
-        'nlev_p': 1.,
-        'nside': 2048,
-        'class_parameters': {
-            'lmax': 4096,
-            'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(delensalot.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
-            'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'generic', 'nside2048', 'lmax4096', 'nlevp_sqrt(2)')
-        },
-        'lmax_transf': 4500,
-        'transferfunction': 'gauss_no_pixwin',
-        'package_': 'delensalot', 
-        'module_': 'sims.generic', 
-        'class_': 'sims_cmb_len', 
+    'simulationdata': {
+        'space': 'cl', 
+        'flavour': 'unl',
+        'lmax': 4096,
+        'transfunction': gauss_beam(1.0/180/60 * np.pi, lmax=4096),
+        'nlev': {'P': 1.},
+        'geometry': ('healpix',{'nside': 2048}),
+        'phi_field': 'potential',
+        'CAMB_fn': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
+        'clphi_fn': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
+        'epsilon': 1e-7,
     },
     'analysis': { 
         'key': 'p_p',
@@ -261,7 +253,7 @@ DL_DEFAULT_CMBS4_FS_P = {
         'sky_coverage': 'unmasked',
         'spectrum_type': 'white',
         'OBD': False,
-        'nlev_t': 1.0,
+        'nlev_t': 1.0/np.sqrt(2),
         'nlev_p': 1.0,
         'rhits_normalised': None,
         'geometry': ('healpix',{'nside': 2048}),
@@ -308,21 +300,17 @@ DL_DEFAULT_CMBS4_FS_TP = {
     'job':{
         'jobs': ["generate_sim", "QE_lensrec", "MAP_lensrec"]
     },
-    'data': {
-        'beam': 1.,
-        'nlev_t': 1.,
-        'nlev_p': 1.,
-        'nside': 2048,
-        'class_parameters': {
-            'lmax': 4096,
-            'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(delensalot.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
-            'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'generic', 'nside2048', 'lmax4096', 'nlevp_sqrt(2)')
-        },
-        'lmax_transf': 4500,
-        'transferfunction': 'gauss_no_pixwin',
-        'package_': 'delensalot', 
-        'module_': 'sims.generic', 
-        'class_': 'sims_cmb_len', 
+    'simulationdata': {
+        'space': 'cl', 
+        'flavour': 'unl',
+        'lmax': 4096,
+        'transfunction': gauss_beam(1.0/180/60 * np.pi, lmax=4096),
+        'nlev': {'P': 1.0, 'T': 1./np.sqrt(2)},
+        'geometry': ('healpix',{'nside': 2048}),
+        'phi_field': 'potential',
+        'CAMB_fn': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
+        'clphi_fn': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
+        'epsilon': 1e-7,
     },
     'analysis': { 
         'key': 'p_tp',
@@ -449,22 +437,17 @@ DL_DEFAULT_CMBS4_MS_T = {
     'job':{
         'jobs': ["generate_sim", "QE_lensrec", "MAP_lensrec"]
     },
-    'data': {
-        'beam': 1.,
-        'nlev_t': 1.,
-        'nlev_p': 1.,
+    'simulationdata': {
+        'space': 'cl', 
+        'flavour': 'unl',
+        'lmax': 4096,
+        'transfunction': gauss_beam(1.0/180/60 * np.pi, lmax=4096),
+        'nlev': {'P': 1.0, 'T': 1./np.sqrt(2)},
+        'geometry': ('healpix',{'nside': 2048}),
+        'phi_field': 'potential',
+        'CAMB_fn': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
+        'clphi_fn': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
         'epsilon': 1e-7,
-        'nside': 2048,
-        'class_parameters': {
-            'lmax': 4096,
-            'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(delensalot.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
-            'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'generic', 'nside2048', 'lmax4096', 'nlevp_sqrt(2)')
-        },
-        'lmax_transf': 4500,
-        'transferfunction': 'gauss_no_pixwin',
-        'package_': 'delensalot', 
-        'module_': 'sims.generic', 
-        'class_': 'sims_cmb_len', 
     },
     'analysis': { 
         'key': 'ptt',
@@ -589,22 +572,17 @@ DL_DEFAULT_CMBS4_MS_P = {
     'job':{
         'jobs': ["generate_sim", "QE_lensrec", "MAP_lensrec"]
     },
-    'data': {
-        'beam': 1.,
-        'nlev_t': 1.,
-        'nlev_p': 1.,
+    'simulationdata': {
+        'space': 'cl', 
+        'flavour': 'unl',
+        'lmax': 4096,
+        'transfunction': gauss_beam(1.0/180/60 * np.pi, lmax=4096),
+        'nlev': {'P': 1.0, 'T': 1./np.sqrt(2)},
+        'geometry': ('healpix',{'nside': 2048}),
+        'phi_field': 'potential',
+        'CAMB_fn': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
+        'clphi_fn': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
         'epsilon': 1e-7,
-        'nside': 2048,
-        'class_parameters': {
-            'lmax': 4096,
-            'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(delensalot.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
-            'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'generic', 'nside2048', 'lmax4096', 'nlevp_sqrt(2)')
-        },
-        'lmax_transf': 4500,
-        'transferfunction': 'gauss_no_pixwin',
-        'package_': 'delensalot', 
-        'module_': 'sims.generic', 
-        'class_': 'sims_cmb_len', 
     },
     'analysis': { 
         'key': 'p_p',
@@ -730,21 +708,17 @@ DL_DEFAULT_CMBS4_MS_TP = {
     'job':{
         'jobs': ["generate_sim", "QE_lensrec", "MAP_lensrec"]
     },
-    'data': {
-        'beam': 1.,
-        'nlev_t': 1.,
-        'nlev_p': 1.,
-        'nside': 2048,
-        'class_parameters': {
-            'lmax': 4096,
-            'cls_unl': utils.camb_clfile(opj(opj(os.path.dirname(delensalot.__file__), 'data', 'cls'), 'FFP10_wdipole_lenspotentialCls.dat')),
-            'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'generic', 'nside2048', 'lmax4096', 'nlevp_sqrt(2)')
-        },
-        'lmax_transf': 4500,
-        'transferfunction': 'gauss_no_pixwin',
-        'package_': 'delensalot', 
-        'module_': 'sims.generic', 
-        'class_': 'sims_cmb_len', 
+    'simulationdata': {
+        'space': 'cl', 
+        'flavour': 'unl',
+        'lmax': 4096,
+        'transfunction': gauss_beam(1.0/180/60 * np.pi, lmax=4096),
+        'nlev': {'P': 1.0, 'T': 1./np.sqrt(2)},
+        'geometry': ('healpix',{'nside': 2048}),
+        'phi_field': 'potential',
+        'CAMB_fn': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
+        'clphi_fn': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
+        'epsilon': 1e-7,
     },
     'analysis': { 
         'key': 'p_tp',
@@ -892,6 +866,18 @@ DL_DEFAULT_TEST_FS_P = {
         'beam': 1.0,
         'transfunction': 'gauss_no_pixwin',
     },
+    'simulationdata': {
+        'space': 'cl', 
+        'flavour': 'unl',
+        'lmax': 4096,
+        'transfunction': gauss_beam(1.0/180/60 * np.pi, lmax=4096),
+        'nlev': {'P': 1.0, 'T': 1./np.sqrt(2)},
+        'geometry': ('healpix',{'nside': 2048}),
+        'phi_field': 'potential',
+        'CAMB_fn': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
+        'clphi_fn': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
+        'epsilon': 1e-7,
+    },
     'qerec':{
         'tasks': ['calc_phi', 'calc_blt'],
         'qlm_type': 'sepTP',
@@ -1015,6 +1001,18 @@ DL_DEFAULT_TEST_FS_T = {
         'cpp': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
         'beam': 1.0,
         'transfunction': 'gauss_no_pixwin',
+    },
+    'simulationdata': {
+        'space': 'cl', 
+        'flavour': 'unl',
+        'lmax': 4096,
+        'transfunction': gauss_beam(1.0/180/60 * np.pi, lmax=4096),
+        'nlev': {'P': 1.0, 'T': 1./np.sqrt(2)},
+        'geometry': ('healpix',{'nside': 2048}),
+        'phi_field': 'potential',
+        'CAMB_fn': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
+        'clphi_fn': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
+        'epsilon': 1e-7,
     },
     'qerec':{
         'tasks': ['calc_phi', 'calc_blt'],
@@ -1140,6 +1138,18 @@ DL_DEFAULT_TEST_FS_TP = {
         'beam': 1.0,
         'transfunction': 'gauss_no_pixwin',
     },
+    'simulationdata': {
+        'space': 'cl', 
+        'flavour': 'unl',
+        'lmax': 4096,
+        'transfunction': gauss_beam(1.0/180/60 * np.pi, lmax=4096),
+        'nlev': {'P': 1.0, 'T': 1./np.sqrt(2)},
+        'geometry': ('healpix',{'nside': 2048}),
+        'phi_field': 'potential',
+        'CAMB_fn': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
+        'clphi_fn': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
+        'epsilon': 1e-7,
+    },
     'qerec':{
         'tasks': ['calc_phi', 'calc_blt'],
         'qlm_type': 'sepTP',
@@ -1243,5 +1253,7 @@ DL_DEFAULT = dict({
     "P_MS_CMBS4": DL_DEFAULT_CMBS4_MS_P,
     "TP_FS_CMBS4": DL_DEFAULT_CMBS4_FS_TP,
     "P_MS_CMBS4": DL_DEFAULT_CMBS4_MS_TP,
+    "T_FS_TEST": DL_DEFAULT_TEST_FS_T,
     "P_FS_TEST": DL_DEFAULT_TEST_FS_P,
+    "TP_FS_TEST": DL_DEFAULT_TEST_FS_TP,
 })

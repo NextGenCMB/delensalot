@@ -222,13 +222,13 @@ class l2OBD_Transformer:
         noisemodel_norm = np.max(noisemodel_rhits_map)
         if cf.noisemodel.nivp_map is None:
             if dl.nivjob_geominfo[0] == 'healpix':
-                ninv_desc = [np.array([hp.nside2pixarea(dl.nivjob_geominfo[1]['nside'], degrees=True) * 60 ** 2 / nlev_p ** 2])/noisemodel_norm] + masks
+                ninv_desc = [[np.array([hp.nside2pixarea(dl.nivjob_geominfo[1]['nside'], degrees=True) * 60 ** 2 / nlev_p ** 2])/noisemodel_norm] + masks]
             else:
                 vamin =  4*np.pi * (180/np.pi)**2 / dl.lenjob_geomlib.npix()
-                ninv_desc = [np.array([vamin * 60 ** 2 / nlev_p ** 2])/noisemodel_norm] + masks
+                ninv_desc = [[np.array([vamin * 60 ** 2 / nlev_p ** 2])/noisemodel_norm] + masks]
         else:
             niv = np.load(cf.noisemodel.nivp_map)
-            ninv_desc = [niv] + masks
+            ninv_desc = [[niv] + masks]
         return ninv_desc
 
 
@@ -318,7 +318,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     # TODO assuming that masked sky comes with a hits-count map. If not, take mask
                     if dl.sky_coverage == 'masked':
                         dl.rhits_normalised = nm.rhits_normalised
-                        dl.fsky = np.mean(l2OBD_Transformer.get_nivp(cf)[0][1], dl) ## calculating fsky, but quite expensive. and if ninvp changes, this could have negative effect on fsky calc
+                        dl.fsky = np.mean(l2OBD_Transformer.get_nivp_desc(cf, dl)[0][1]) ## calculating fsky, but quite expensive. and if nivp changes, this could have negative effect on fsky calc
                     else:
                         dl.fsky = 1.0
                     dl.spectrum_type = nm.spectrum_type

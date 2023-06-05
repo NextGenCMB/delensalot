@@ -17,6 +17,7 @@ import lenspyx
 from lenspyx.lensing import get_geom
 from plancklens.sims import phas
 from delensalot.core import cachers
+from delensalot.config.metamodel import DEFAULT_NotAValue
 
 import delensalot
 from delensalot.utils import load_file, cli
@@ -49,21 +50,21 @@ def cld2clp(cld, lmax):
 
 class iso_white_noise:
 
-    def __init__(self, nlev, lmax=None, libdir=None, fns=None, spin=None, space=None, geometry=None):
+    def __init__(self, nlev, lmax=DEFAULT_NotAValue, libdir=DEFAULT_NotAValue, fns=DEFAULT_NotAValue, spin=DEFAULT_NotAValue, space=DEFAULT_NotAValue, geometry=DEFAULT_NotAValue):
         self.geometry = geometry
-        if geometry is None:
+        if geometry is DEFAULT_NotAValue:
             self.geometry = ('healpix', {'nside':2048})
         self.geom_lib = get_geom(geometry)
         self.libdir = libdir
         self.spin = spin
         self.lmax = lmax
         self.space = space
-        if libdir is None:        
+        if libdir is DEFAULT_NotAValue:        
             self.nlev = nlev
             libdir_phas = os.environ['SCRATCH']+'/sims/{}/phas/'.format(str(geometry))
             self.pix_lib_phas = phas.pix_lib_phas(libdir_phas, 3, (self.geom_lib.npix(),))
         else:
-            if fns is None:
+            if fns is DEFAULT_NotAValue:
                 assert 0, "must provide fns"
             self.fns = fns
 
@@ -81,7 +82,7 @@ class iso_white_noise:
             assert 0, "need to provide T key in nlev"
         fn = 'noise_space{}_spin{}_field{}_{}'.format(space, spin, field, simidx)
         if not self.cacher.is_cached(fn):
-            if self.libdir is None:
+            if self.libdir is DEFAULT_NotAValue:
                 if self.geometry[0] == 'healpix':
                     vamin = np.sqrt(hp.nside2pixarea(self.geometry[1]['nside'], degrees=True)) * 60
                 else:
@@ -148,10 +149,10 @@ class iso_white_noise:
 
 
 class Cls:
-    def __init__(self, lmax, CAMB_fn=None, simidxs=None, phi_fn=None, phi_field='potential'):
+    def __init__(self, lmax, CAMB_fn=DEFAULT_NotAValue, simidxs=DEFAULT_NotAValue, phi_fn=DEFAULT_NotAValue, phi_field='potential'):
         self.lmax = lmax
         self.simidxs = simidxs
-        if CAMB_fn is None:
+        if CAMB_fn is DEFAULT_NotAValue:
             self.CAMB_fn = opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat')
             self.CAMB_file = load_file(self.CAMB_fn)
         else:
@@ -159,7 +160,7 @@ class Cls:
             self.CAMB_file = load_file(CAMB_fn)
         if phi_fn == 'None':
             self.phi_fn = None
-        elif phi_fn is None:
+        elif phi_fn is DEFAULT_NotAValue:
             self.phi_fn = self.CAMB_fn
             self.phi_file = load_file(self.phi_fn)['pp']
             self.phi_field = phi_field # assuming that CAMB file is 'potential'
@@ -187,9 +188,9 @@ class Cls:
 
 
 class Xunl:
-    def __init__(self, lmax, cls_lib=None, libdir=None, fns=None, fnsP=None, simidxs=None, libdir_phi=None, phi_field='potential', phi_space=None, space=None, geometry=None, isfrozen=False):
+    def __init__(self, lmax, cls_lib=DEFAULT_NotAValue, libdir=DEFAULT_NotAValue, fns=DEFAULT_NotAValue, fnsP=DEFAULT_NotAValue, simidxs=DEFAULT_NotAValue, libdir_phi=DEFAULT_NotAValue, phi_field='potential', phi_space=DEFAULT_NotAValue, space=DEFAULT_NotAValue, geometry=DEFAULT_NotAValue, isfrozen=False):
         self.geometry = geometry
-        if geometry is None:
+        if geometry is DEFAULT_NotAValue:
             self.geometry = ('healpix', {'nside':2048})
         self.geom_lib = get_geom(self.geometry)
         self.libdir = libdir
@@ -199,20 +200,20 @@ class Xunl:
         self.phi_field = phi_field
         self.phi_space = phi_space
 
-        if libdir is None or libdir_phi is None: # need being generated
+        if libdir is DEFAULT_NotAValue or libdir_phi is DEFAULT_NotAValue: # need being generated
             self.lmax = lmax
             self.simidxs = simidxs
-            if cls_lib is None:
+            if cls_lib is DEFAULT_NotAValue:
                 self.cls_lib = Cls(lmax=lmax, phi_field=phi_field)
             else:
                 self.cls_lib = cls_lib
-        if libdir is not None:
+        if libdir is not DEFAULT_NotAValue:
             self.fns = fns
-            if self.space is None:
+            if self.space is DEFAULT_NotAValue:
                 assert 0, 'need to give space (map or alm)'
-        if libdir_phi is not None:
+        if libdir_phi is not DEFAULT_NotAValue:
             self.fnsP = fnsP
-            if self.phi_space is None:
+            if self.phi_space is DEFAULT_NotAValue:
                 assert 0, 'need to give phi_space (map or alm)'
         self.lmax_phi = lmax + 1024
         self.isfrozen = isfrozen
@@ -220,7 +221,7 @@ class Xunl:
         self.cacher = cachers.cacher_mem(safe=True) #TODO might as well use a numpy cacher
 
 
-    def get_sim_unl(self, simidx, space, field, spin=2, geometry=None):
+    def get_sim_unl(self, simidx, space, field, spin=2, geometry=DEFAULT_NotAValue):
         """returns an unlensed simulation field (temp,pol,cross) in space (map, alm) and as spin (0,2). Note, spin is only applicable for pol, and returns QU for spin=2, and EB for spin=0.
 
         Args:
@@ -237,7 +238,7 @@ class Xunl:
             assert 0, "I don't think you want spin-2 temperature."
         fn = 'unl_space{}_spin{}_field{}_{}'.format(space, spin, field, simidx)
         if not self.cacher.is_cached(fn):
-            if self.libdir is None and not self.isfrozen:
+            if self.libdir is DEFAULT_NotAValue and not self.isfrozen:
                 Cls = self.cls_lib.get_TEBunl(simidx)
                 unl = np.array(self.cl2alm(Cls, field=field, seed=simidx))
                 if space == 'map':
@@ -305,7 +306,7 @@ class Xunl:
         """        
         fn = 'phi_space{}_{}'.format(space, simidx)
         if not self.cacher.is_cached(fn):
-            if self.libdir_phi is None:
+            if self.libdir_phi is DEFAULT_NotAValue:
                 Clpf = self.cls_lib.get_sim_clphi(simidx)
                 self.phi_field = self.cls_lib.phi_field
                 Clp = self.clpf2clppot(Clpf)
@@ -313,6 +314,7 @@ class Xunl:
                 if space == 'map':
                     phi = self.geom_lib.alm2map(phi, lmax=self.lmax_phi, mmax=self.lmax, nthreads=4)
             else:
+                print(self.fnsP)
                 phi = load_file(opj(self.libdir_phi, self.fnsP.format(simidx)))
                 if self.phi_space == 'map':
                     phi = self.geom_lib.map2alm(phi, lmax=self.lmax_phi, mmax=self.lmax, nthreads=4)
@@ -358,21 +360,21 @@ class Xunl:
 
 
 class Xsky:
-    def __init__(self, lmax, unl_lib=None, libdir=None, fns=None, simidxs=None, spin=None, epsilon=1e-7, space=None, geometry=None, isfrozen=False):
+    def __init__(self, lmax, unl_lib=DEFAULT_NotAValue, libdir=DEFAULT_NotAValue, fns=DEFAULT_NotAValue, simidxs=DEFAULT_NotAValue, spin=DEFAULT_NotAValue, epsilon=1e-7, space=DEFAULT_NotAValue, geometry=DEFAULT_NotAValue, isfrozen=False):
         self.geometry = geometry
-        if geometry is None:
+        if geometry is DEFAULT_NotAValue:
             self.geometry = ('healpix', {'nside':2048})
         self.geom_lib = get_geom(self.geometry)
         self.libdir = libdir
         self.spin = spin
         self.lmax = lmax
         self.space = space
-        if libdir is None: # need being generated
+        if libdir is DEFAULT_NotAValue: # need being generated
             self.unl_lib = unl_lib
             self.simidxs = simidxs
             self.epsilon = epsilon
         else:
-            if fns is None:
+            if fns is DEFAULT_NotAValue:
                 assert 0, 'you need to provide fns' 
             self.fns = fns
         self.isfrozen = isfrozen
@@ -400,7 +402,7 @@ class Xsky:
         if not self.cacher.is_cached(fn):
             fn_other = 'len_space{}_spin{}_field{}_{}'.format(space, self.spin, field, simidx)
             if not self.cacher.is_cached(fn_other):
-                if self.libdir is None and not self.isfrozen:
+                if self.libdir is DEFAULT_NotAValue and not self.isfrozen:
                     unl = self.unl_lib.get_sim_unl(simidx, space='alm', field=field, spin=0)
                     philm = self.unl_lib.get_sim_phi(simidx, space='alm')
                     if field == 'polarization':
@@ -472,9 +474,9 @@ class Xsky:
 
 class Xobs:
 
-    def __init__(self, lmax, maps=None, transfunction=None, len_lib=None, noise_lib=None, libdir=None, fns=None, simidxs=None, nlev=None, libdir_noise=None, fnsnoise=None, spin=None, space=None, geometry=None):
+    def __init__(self, lmax, maps=DEFAULT_NotAValue, transfunction=DEFAULT_NotAValue, len_lib=DEFAULT_NotAValue, noise_lib=DEFAULT_NotAValue, libdir=DEFAULT_NotAValue, fns=DEFAULT_NotAValue, simidxs=DEFAULT_NotAValue, nlev=DEFAULT_NotAValue, libdir_noise=DEFAULT_NotAValue, fnsnoise=DEFAULT_NotAValue, spin=DEFAULT_NotAValue, space=DEFAULT_NotAValue, geometry=DEFAULT_NotAValue):
         self.geometry = geometry
-        if geometry is None:
+        if geometry is DEFAULT_NotAValue:
             self.geometry = ('healpix', {'nside':2048})
         self.geom_lib = get_geom(self.geometry)
         self.simidxs = simidxs
@@ -485,26 +487,26 @@ class Xobs:
         
         self.cacher = cachers.cacher_mem(safe=True) #TODO might as well use a numpy cacher
         self.maps = maps
-        if self.maps is not None:
+        if self.maps is not DEFAULT_NotAValue:
             fn = 'pmap_spin{}_{}'.format(spin, 0)
             self.cacher.cache(fn, np.array(self.maps))
         else:
-            if libdir is None:
+            if libdir is DEFAULT_NotAValue:
                 self.fns = ['Qmapobs_{}.npy', 'Umapobs_{}.npy']
-                if len_lib is None:
+                if len_lib is DEFAULT_NotAValue:
                     assert 0, "Either len_lib or libdir must be not None"
                 else:
                     self.len_lib = len_lib
-                if noise_lib is None:
-                    if libdir_noise is None:
-                        if nlev is None:
+                if noise_lib is DEFAULT_NotAValue:
+                    if libdir_noise is DEFAULT_NotAValue:
+                        if nlev is DEFAULT_NotAValue:
                             assert 0, "Need nlev for generating noise"
                     self.noise_lib = iso_white_noise(nlev=nlev, lmax=lmax, fns=fnsnoise,libdir=libdir_noise, space=space, spin=spin, geometry=self.geometry)
                 else:
                     self.noise_lib = noise_lib
                 self.transfunction = transfunction       
-            elif libdir is not None:
-                if fns is None:
+            elif libdir is not DEFAULT_NotAValue:
+                if fns is DEFAULT_NotAValue:
                     assert 0, 'you need to provide fns' 
                 self.fns = fns
 
@@ -530,14 +532,14 @@ class Xobs:
         if not self.cacher.is_cached(fn):
             fn_other = 'obs_space{}_spin{}_field{}_{}'.format(space, self.spin, field, simidx)
             if not self.cacher.is_cached(fn_other):
-                if self.libdir is None: # sky maps come from len_lib, and we add noise
+                if self.libdir is DEFAULT_NotAValue: # sky maps come from len_lib, and we add noise
                     obs = self.sky2obs(
                         self.len_lib.get_sim_sky(simidx, spin=spin, space=space, field=field),
                         self.noise_lib.get_sim_noise(simidx, spin=spin, field=field, space=space),
                         spin=spin,
                         space=space,
                         field=field)
-                elif self.libdir is not None:  # observed maps are somewhere
+                elif self.libdir is not DEFAULT_NotAValue:  # observed maps are somewhere
                     if field == 'polarization':
                         obs1 = load_file(opj(self.libdir, self.fns[0].format(simidx)))
                         obs2 = load_file(opj(self.libdir, self.fns[1].format(simidx)))
@@ -622,7 +624,7 @@ class Xobs:
 
 class Simhandler:
 
-    def __init__(self, flavour, space=None, maps=None, cls_lib=None, unl_lib=None, obs_lib=None, len_lib=None, noise_lib=None, libdir_noise=None, libdir=None, libdir_phi=None, fns=None, fnsP=None, simidxs=None, lmax=None, transfunction=None, nlev=None, fnsnoise=None, spin=None, CAMB_fn=None, clphi_fn=None, phi_field=None, phi_space=None, epsilon=1e-7, geometry=None):
+    def __init__(self, flavour, space=DEFAULT_NotAValue, maps=DEFAULT_NotAValue, cls_lib=DEFAULT_NotAValue, unl_lib=DEFAULT_NotAValue, obs_lib=DEFAULT_NotAValue, len_lib=DEFAULT_NotAValue, noise_lib=DEFAULT_NotAValue, libdir_noise=DEFAULT_NotAValue, libdir=DEFAULT_NotAValue, libdir_phi=DEFAULT_NotAValue, fns=DEFAULT_NotAValue, fnsP=DEFAULT_NotAValue, simidxs=DEFAULT_NotAValue, lmax=DEFAULT_NotAValue, transfunction=DEFAULT_NotAValue, nlev=DEFAULT_NotAValue, fnsnoise=DEFAULT_NotAValue, spin=DEFAULT_NotAValue, CAMB_fn=DEFAULT_NotAValue, clphi_fn=DEFAULT_NotAValue, phi_field=DEFAULT_NotAValue, phi_space=DEFAULT_NotAValue, epsilon=1e-7, geometry=DEFAULT_NotAValue):
         """_summary_
 
         Args:
@@ -652,36 +654,44 @@ class Simhandler:
         self.lmax = lmax
         if space == 'map':
             if flavour == 'obs':
-                if libdir is not None:
+                if libdir is not DEFAULT_NotAValue:
                     self.libdir = libdir
-                    if fns is None:
+                    if fns is DEFAULT_NotAValue:
                         assert 0, 'you need to provide fns' 
                     self.fns = fns
                     self.simidxs = simidxs
-                    self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, libdir=libdir, fns=fns, simidxs=simidxs, spin=spin, geometry=geometry) if obs_lib is None else obs_lib
+                    self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, libdir=libdir, fns=fns, simidxs=simidxs, spin=spin, geometry=geometry) if obs_lib is DEFAULT_NotAValue else obs_lib
+                    self.noise_lib = self.obs_lib.noise_lib
+                    self.libdir = self.obs_lib.libdir
+                    self.geometry = self.obs_lib.geometry
+                    self.fns = self.obs_lib.fns
             if flavour == 'sky':
-                self.len_lib = Xsky(unl_lib=unl_lib, lmax=lmax, libdir=libdir, fns=fns, space=space, simidxs=simidxs, spin=spin, epsilon=epsilon, geometry=geometry) if len_lib is None else len_lib
+                self.len_lib = Xsky(unl_lib=unl_lib, lmax=lmax, libdir=libdir, fns=fns, space=space, simidxs=simidxs, spin=spin, epsilon=epsilon, geometry=geometry) if len_lib is DEFAULT_NotAValue else len_lib
                 self.obs_lib = Xobs(len_lib=self.len_lib, space=space, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, spin=spin, geometry=geometry)
                 self.noise_lib = self.obs_lib.noise_lib
             if flavour == 'unl':
                 assert 0, 'implement if needed'
         elif space in ['alm']:
             if flavour == 'obs':
-                if libdir is not None:
+                if libdir is not DEFAULT_NotAValue:
                     self.libdir = libdir
-                    if fns is None:
+                    if fns is DEFAULT_NotAValue:
                         assert 0, 'you need to provide fns' 
                     self.fns = fns
                     self.simidxs = simidxs
-                    self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, libdir=libdir, fns=fns, simidxs=simidxs, spin=spin, geometry=geometry) if obs_lib is None else obs_lib
+                    self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, libdir=libdir, fns=fns, simidxs=simidxs, spin=spin, geometry=geometry) if obs_lib is DEFAULT_NotAValue else obs_lib
+                    self.noise_lib = self.obs_lib.noise_lib
+                    self.libdir = self.obs_lib.libdir
+                    self.geometry = self.obs_lib.geometry
+                    self.fns = self.obs_lib.fns
             if flavour == 'sky':
                 assert 0, 'implement if needed'
             if flavour == 'unl':
                 self.spin = 0 # there are genrally no qlms, ulms, therefore here we can safely assume that data is spin0
-                if (libdir_phi is None or libdir is None) and cls_lib is None:
+                if (libdir_phi is DEFAULT_NotAValue or libdir is DEFAULT_NotAValue) and cls_lib is DEFAULT_NotAValue:
                     cls_lib = Cls(lmax=lmax, CAMB_fn=CAMB_fn, phi_fn=clphi_fn, phi_field=phi_field, simidxs=simidxs)
                 self.cls_lib = cls_lib # just to be safe..
-                self.unl_lib = Xunl(lmax=lmax, libdir=libdir, fns=fns, fnsP=fnsP, phi_field=phi_field, simidxs=simidxs, libdir_phi=libdir_phi, space=space,  phi_space=phi_space, cls_lib=cls_lib, geometry=geometry) if unl_lib is None else unl_lib
+                self.unl_lib = Xunl(lmax=lmax, libdir=libdir, fns=fns, fnsP=fnsP, phi_field=phi_field, simidxs=simidxs, libdir_phi=libdir_phi, space=space,  phi_space=phi_space, cls_lib=cls_lib, geometry=geometry) if unl_lib is DEFAULT_NotAValue else unl_lib
                 self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, simidxs=simidxs, spin=self.spin, space=space, epsilon=epsilon, geometry=geometry)
                 self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, space=space, spin=self.spin, geometry=geometry)
                 self.noise_lib = self.obs_lib.noise_lib
@@ -717,7 +727,7 @@ class Simhandler:
     
 
     def get_sim_phi(self, simidx, space):
-        return self.unl_lib.get_sim_phi(simidx, space=space)
+        return self.unl_lib.get_sim_phi(simidx=simidx, space=space)
     
 
     def isdone(self, simidx, field, spin, space='map', flavour='obs'):

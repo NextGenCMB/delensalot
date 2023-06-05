@@ -178,25 +178,25 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
                                                
     """
 
-    space =         attr.field(default=None, on_setattr=data.beam)
-    flavour =       attr.field(default=None, on_setattr=data.beam)
-    maps =          attr.field(default=None, on_setattr=data.beam)
-    lmax =          attr.field(default=None, on_setattr=data.beam)
-    libdir =        attr.field(default=None, on_setattr=data.beam)
-    libdir_noise =  attr.field(default=None, on_setattr=data.beam)
-    libdir_phi =    attr.field(default=None, on_setattr=data.beam)
-    transfunction = attr.field(default=None, on_setattr=data.beam)
-    nlev =          attr.field(default=None, on_setattr=data.beam)
-    fns =           attr.field(default=None, on_setattr=data.beam)
-    fnsP =          attr.field(default=None, on_setattr=data.beam)
-    fnsnoise =      attr.field(default=None, on_setattr=data.beam)
-    spin =          attr.field(default=None, on_setattr=data.beam)
-    CAMB_fn =       attr.field(default=None, on_setattr=data.beam)
-    clphi_fn =      attr.field(default=None, on_setattr=data.beam)
-    phi_space =     attr.field(default=None, on_setattr=data.beam)
-    phi_field =     attr.field(default=None, on_setattr=data.beam)
-    epsilon =       attr.field(default=1e-7, on_setattr=data.beam) #must have value for all models, otherwise lenspyx will be unhappy with None
-    geometry =      attr.field(default=None, on_setattr=data.beam)
+    space =         attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
+    flavour =       attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
+    maps =          attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
+    lmax =          attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
+    libdir =        attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
+    libdir_noise =  attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
+    libdir_phi =    attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
+    transfunction = attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
+    nlev =          attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
+    fns =           attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
+    fnsP =          attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
+    fnsnoise =      attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
+    spin =          attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
+    CAMB_fn =       attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
+    clphi_fn =      attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
+    phi_space =     attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
+    phi_field =     attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
+    epsilon =       attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam) #must have value for all models, otherwise lenspyx will be unhappy with None
+    geometry =      attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
     
 @attr.s
 class DLENSALOT_Noisemodel(DLENSALOT_Concept):

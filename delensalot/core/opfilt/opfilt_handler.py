@@ -41,8 +41,8 @@ class QE_aniso_transformer:
     def build_opfilt_aniso_p(self, cf):
         def extract():
             return {
-                'ninv_geom': cf.ninvjob_geometry,
-                'ninv': cf.ninvp_desc,
+                'ninv_geom': cf.nivjob_geomlib,
+                'ninv': cf.nivp_desc,
                 'transf': cf.ttebl['e'],
                 'unlalm_info': cf.lm_max_unl,
                 'lenalm_info': cf.lm_max_ivf,
@@ -53,8 +53,8 @@ class QE_aniso_transformer:
     def build_opfilt_aniso_t(self, cf):
         def extract():
             return {
-                'ninv_geom': cf.ninvjob_geometry,
-                'ninv': cf.ninvt_desc,
+                'ninv_geom': cf.nivjob_geomlib,
+                'ninv': cf.nivt_desc,
                 'transf': cf.ttebl['t'],
                 'unlalm_info': cf.lm_max_unl,
                 'lenalm_info': cf.lm_max_ivf,
@@ -127,7 +127,7 @@ class MAP_aniso_transformer:
     def build_opfilt_aniso_t(self, cf):
         def extract():
             return {
-                'ninv_geom': cf.ninvjob_geometry,
+                'ninv_geom': cf.nivjob_geomlib,
                 'ninv': cf.ninv,
                 'ffi': cf.ffi,
                 'transf': cf.ttebl['t'],
@@ -143,7 +143,7 @@ class MAP_aniso_transformer:
     def build_opfilt_aniso_p(self, cf):
         def extract():
             return {
-                'ninv_geom': cf.ninvjob_geometry,
+                'ninv_geom': cf.nivjob_geomlib,
                 'ninv': cf.ninv,
                 'ffi': cf.ffi,
                 'transf': cf.ttebl['e'],
