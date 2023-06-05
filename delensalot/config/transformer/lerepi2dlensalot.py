@@ -724,7 +724,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
 
                 dl.TEMP = transform(cf, l2T_Transformer())
-                # dl.TEMP = dl.libdir
 
                 _process_Computing(dl, cf.computing)
                 _process_Noisemodel(dl, cf.noisemodel)
@@ -770,7 +769,11 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
                 @log_on_start(logging.DEBUG, "_process_Noisemodel() started")
                 @log_on_end(logging.DEBUG, "_process_Noisemodel() finished")
-                def _process_Noisemodel(dl, an):
+                def _process_Noisemodel(dl, nm):
+                    dl.nivjob_geomlib = get_geom(nm.geometry)
+                    dl.nivjob_geominfo = nm.geometry
+                    thtbounds = (np.arccos(cf.analysis.zbounds[1]), np.arccos(cf.analysis.zbounds[0]))
+                    dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
                     dl.nlev_t = l2OBD_Transformer.get_nlevt(cf)
                     dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
 
@@ -813,7 +816,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                         _mask_path = cf.noisemodel.rhits_normalised[0]
                         dl.base_mask = np.nan_to_num(hp.read_map(_mask_path))
                     else:
-                        dl.base_mask = np.ones(shape=hp.nside2npix(cf.data.nside))
+                        dl.base_mask = np.ones(shape=hp.nside2npix(cf.noisemodel.geometry[1]['nside']))
                     noisemodel_rhits_map = df.get_nlev_mask(np.inf, dl.base_mask)
                     if ma.nlevels == None or ma.nlevels == [] or ma.nlevels == False:
                         dl.nlevels = np.array([np.inf])
@@ -823,24 +826,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.binmasks = {nlevel: [] for nlevel in dl.nlevels}
 
                     for nlevel, value in dl.masks.items():
-                            dl.masks[nlevel] = df.get_nlev_mask(nlevel, noisemodel_rhits_map)
-                            dl.binmasks[nlevel] = np.where(dl.masks[nlevel]>0,1,0)
-
-                    ## TODO if config file contains masks_fn, create new masks
-                    # if ma.masks_fn == 'masks':
-                    #     dl.mask_ids = np.zeros(shape=len(ma.masks[1]))
-                    #     for fni, fn in enumerate(ma.masks[1]):
-                    #         if fn == None:
-                    #             buffer = np.ones(shape=hp.nside2npix(dl.sims_nside))
-                    #             dl.mask_ids[fni] = 1.00
-                    #         elif fn.endswith('.fits'):
-                    #             buffer = hp.read_map(fn)
-                    #         else:
-                    #             buffer = np.load(fn)
-                    #         _fsky = float("{:0.3f}".format(np.sum(buffer)/len(buffer)))
-                    #         dl.mask_ids[fni] = _fsky
-                    #         dl.masks[ma.masks[0]].update({_fsky:buffer})
-                    #         dl.binmasks[ma.masks[0]].update({_fsky: np.where(dl.masks[ma.masks[0]][_fsky]>0,1,0)})
+                        dl.masks[nlevel] = df.get_nlev_mask(nlevel, noisemodel_rhits_map)
+                        dl.binmasks[nlevel] = np.where(dl.masks[nlevel]>0,1,0)
 
         
                     ## Binning and power spectrum calculator specific preparation
@@ -874,8 +861,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                         dl.dirid = dl.sha_edges.hexdigest()[:4]
 
                     dl.vers_str = '/{}'.format(dl.version) if dl.version != '' else 'base'
-                    dl.TEMP_DELENSED_SPECTRUM = transform(dl, l2T_Transformer())
-
 
                     if ma.spectrum_calculator == None:
                         log.info("Using Healpy as powerspectrum calculator")
@@ -906,11 +891,10 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                                 sys.exit()
 
 
-                dl = DLENSALOT_Concept()
-
                 dl.blt_pert = cf.qerec.blt_pert
                 _process_Meta(dl, cf.meta)
                 _process_Computing(dl, cf.computing)
+                dl.simulationdata = Simhandler(**cf.simulationdata.__dict__)
                 _process_Noisemodel(dl, cf.noisemodel)
                 _process_Analysis(dl, cf.analysis)
                 _process_Madel(dl, cf.madel)

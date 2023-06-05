@@ -245,7 +245,6 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     qlm_type =              attr.field(default=DEFAULT_NotAValue, on_setattr=qerec.qlms)
     cg_tol =                attr.field(default=DEFAULT_NotAValue, on_setattr=qerec.cg_tol)
     filter_directional =    attr.field(default=DEFAULT_NotAValue, on_setattr=qerec.filter_directional)
-    nivjob_geometry =       attr.field(default=DEFAULT_NotAValue, on_setattr=qerec.ninvjob_qe_geometry)
     lm_max_qlm =            attr.field(default=DEFAULT_NotAValue, on_setattr=qerec.lm_max_qlm) # TODO qe.lm_max_qlm and it.lm_max_qlm must be same. Test at validator?
     chain =                 attr.field(default=DLENSALOT_Chaindescriptor(), on_setattr=qerec.chain)
     cl_analysis =           attr.field(default=DEFAULT_NotAValue, on_setattr=qerec.cl_analysis)
