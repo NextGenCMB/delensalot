@@ -26,7 +26,7 @@ from delensalot import utils
 from delensalot.utility.utils_hp import gauss_beam
 from delensalot.config.visitor import transform, transform3d
 from delensalot.config.transformer.lerepi2dlensalot import l2delensalotjob_Transformer, l2T_Transformer
-from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model, DLENSALOT_Analysis, DLENSALOT_Data, DLENSALOT_Job, DLENSALOT_Itrec
+from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model, DLENSALOT_Analysis, DLENSALOT_Job, DLENSALOT_Itrec
 from delensalot.core.opfilt import MAP_opfilt_aniso_p, MAP_opfilt_aniso_t, MAP_opfilt_iso_p, MAP_opfilt_iso_t, MAP_opfilt_iso_e, MAP_opfilt_iso_tp, QE_opfilt_aniso_p, QE_opfilt_aniso_t, QE_opfilt_iso_p, QE_opfilt_iso_t
 
 class FS(unittest.TestCase):
