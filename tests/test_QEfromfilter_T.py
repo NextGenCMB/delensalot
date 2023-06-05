@@ -7,10 +7,10 @@ import os
 import pylab as pl
 from plancklens import utils, qresp
 import plancklens
-from lenscarf.utils import cli
-from lenscarf.utils_hp import gauss_beam, almxfl, alm2cl, synalm, alm_copy
-from lenscarf.opfilt.opfilt_iso_tt import alm_filter_nlev
-from lenscarf import utils_scarf
+from delensalot.utils import cli
+from delensalot.utility.utils_hp import gauss_beam, almxfl, alm2cl, synalm, alm_copy
+from delensalot.core.opfilt.opfilt_iso_tt import alm_filter_nlev
+from delensalot.core.helper import utils_scarf
 from plancklens.sims import planck2018_sims
 
 cls_path = os.path.join(os.path.dirname(plancklens.__file__), 'data', 'cls')

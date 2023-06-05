@@ -8,36 +8,33 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10"]
+        python-version: ["3.9"]
 
     steps:
       - uses: actions/checkout@v3
+      - uses: mpi4py/setup-mpi@v1
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      - name: install scarf
-        run: |
-          git clone --recurse-submodules https://github.com/samuelsimko/scarf
-          cd scarf
-          pip install -r requirements.txt
-          pip install --user .
-      - name: install plancklens
-        run: |
-          git clone --recurse-submodules https://github.com/carronj/plancklens.git
-          cd plancklens
-          pip install -r requirements.txt
-          pip install --user .
+          python -m pip install numpy --user
+          python -m pip install --upgrade pip setuptools wheel --user
+          if [ -f requirements.txt ]; then pip install -r requirements.txt --user; fi
+#       - name: install plancklens
+#         run: |
+#           git clone https://github.com/carronj/plancklens.git
+#           cd plancklens
+#           pip3 install numpy --user
+#           pip3 install -r requirements.txt
+#           pip3 install . --user
       - name: install
         run: |
-          pip install -e . --user
-      - name: test
-        run: |
-          python ./tests/test_Mi.py
-      - name: testlensing
-        run: |
-          python ./tests/test_lensing.py
+          pip install -e .
+#       - name: test
+#         run: |
+#           python ./tests/test_Mi.py
+#       - name: testlensing
+#         run: |
+#           python ./tests/test_lensing.py

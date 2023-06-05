@@ -1,9 +1,10 @@
-from lenscarf import cachers, remapping
-from lenscarf.utils_scarf import Geom, scarfjob
+from delensalot import remapping
+from delensalot.core import cachers
+from delensalot.core.helper.utils_scarf import Geom, scarfjob
 import numpy as np
-from lenscarf import utils_scarf as sj
+from delensalot.core.helper import utils_scarf as sj
 import healpy as hp
-from lenscarf.utils_remapping import d2ang, ang2d
+from delensalot.core.helper.utils_remapping import d2ang, ang2d
 
 from plancklens.utils import camb_clfile
 
@@ -13,8 +14,8 @@ j = sj.scarfjob()
 j.set_ecp_geometry(100, 100, tbounds=(0.0, np.pi / 10))  # This one is more tricky since has th == 0
 
 lmax = 3000
-clee = camb_clfile('../lenscarf/data/cls/FFP10_wdipole_lensedCls.dat')['ee'][:lmax + 1]
-clpp = camb_clfile('../lenscarf/data/cls/FFP10_wdipole_lenspotentialCls.dat')['pp'][:lmax + 1]
+clee = camb_clfile('../delensalot/data/cls/FFP10_wdipole_lensedCls.dat')['ee'][:lmax + 1]
+clpp = camb_clfile('../delensalot/data/cls/FFP10_wdipole_lenspotentialCls.dat')['pp'][:lmax + 1]
 
 glm = hp.synalm(clee, new=True)
 plm = hp.synalm(clpp, new=True)

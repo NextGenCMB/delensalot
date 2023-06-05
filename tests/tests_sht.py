@@ -4,8 +4,8 @@ import healpy as hp
 import numpy as np
 from time import time
 from ducc0 import sht
-import lenscarf
-from lenscarf.utils_scarf import scarfjob
+import delensalot
+from delensalot.core.helper.utils_scarf import scarfjob
 
 def test_backforth(geom, spin):
     """Tests quadrature accuracy of different pixelization by just going back and forth
@@ -76,7 +76,7 @@ def test_backforth(geom, spin):
 
 if __name__ == '__main__':
     from plancklens import utils
-    clpath = os.path.dirname(lenscarf.__file__)
+    clpath = os.path.dirname(delensalot.__file__)
     cl_len = utils.camb_clfile(clpath + '/data/cls/FFP10_wdipole_lensedCls.dat')
     lmax = 4000
     glm = hp.synalm(cl_len['ee'][:lmax + 1], new=True)

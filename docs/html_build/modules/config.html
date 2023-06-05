@@ -1,0 +1,1662 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>config &mdash; delensalot 1.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/graphviz.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="sims" href="sims.html" />
+    <link rel="prev" title="core" href="core.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> delensalot
+            <img src="../_static/dlensalot.PNG" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">First steps:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/quickstart.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/HPC.html">High Performance Computing</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Analysis setup:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../config/params.html">configuration files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../config/data.html">data and simulations access</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../config/temp.html">Analysis results</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Prediction:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../prediction/n0.html">N0</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../prediction/n1.html">N1</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../prediction/delensing.html">Delensing</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Internal Delensing:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../delensing/overview.html">Internal Delensing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../delensing/B-lensing-template.html">B-template construction</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Remove nuisances:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../other/OBD.html">Overlapping B-mode deprojection (OBD)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Lensing reconstruction:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../lensrec/overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../lensrec/QE.html">quadratic estimator lensing reconstruction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../lensrec/MAP.html">iterative lensing reconstruction</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../about/development.html">Development</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about/people.html">people</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about/publications.html">publication</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">modules</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="core.html">core</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sims.html">sims</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">delensalot</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">modules</a></li>
+      <li class="breadcrumb-item active">config</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/modules/config.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="config">
+<h1>config<a class="headerlink" href="#config" title="Permalink to this heading"></a></h1>
+<p>module reference</p>
+<span class="target" id="module-delensalot.config"></span><p>config.__init__.py: The config module handles the communication to the user, the configuration files, and the mapping between a configuration file to a valid delensalot model</p>
+<section id="module-delensalot.config.handler">
+<span id="handler"></span><h2>handler<a class="headerlink" href="#module-delensalot.config.handler" title="Permalink to this heading"></a></h2>
+<p>handler.py: Base handler for lensing reconstruction pipelines.
+Handles configuration file and makes sure analysis doesn’t overwrite TEMP directory with altered configuration.
+Collects delensalot jobs defined in DLENSALOT_jobs.
+Extracts models needed for each delensalot job via x2y_Transformer.
+Runs all delensalot jobs.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="delensalot.config.handler.handler">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.config.handler.</span></span><span class="sig-name descname"><span class="pre">handler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parser</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">madel_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.config.handler.handler" title="Permalink to this definition"></a></dt>
+<dd><p>Load config file and handle command line arguments</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="delensalot.config.handler.handler.build_model">
+<span class="sig-name descname"><span class="pre">build_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.config.handler.handler.build_model" title="Permalink to this definition"></a></dt>
+<dd><p>pass-through for executing delensalot model building. Used from interactive mode.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>job</strong> (<em>str</em>) – job identifier</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A model</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model" title="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model">DLENSALOT_Model</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="delensalot.config.handler.handler.collect_job">
+<span class="sig-name descname"><span class="pre">collect_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.config.handler.handler.collect_job" title="Permalink to this definition"></a></dt>
+<dd><p>Deprecated.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>job_id</strong> (<em>str</em><em>, </em><em>optional</em>) – _description_. Defaults to ‘’.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="delensalot.config.handler.handler.collect_jobs">
+<span class="sig-name descname"><span class="pre">collect_jobs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.config.handler.handler.collect_jobs" title="Permalink to this definition"></a></dt>
+<dd><p>collect all requested jobs and build a mapping between the job, and their respective transformer
+This is called from both, terminal and interacitve runs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>job_id</strong> (<em>str</em><em>, </em><em>optional</em>) – A specific job which should be performed. This one is not necessarily defined in the configuration file. It is handed over via command line or in interactive mode. Defaults to ‘’.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="delensalot.config.handler.handler.init_job">
+<span class="sig-name descname"><span class="pre">init_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.config.handler.handler.init_job" title="Permalink to this definition"></a></dt>
+<dd><p>pass-through for initializing the job using the delensalot model. This esentially calls the init function of the <cite>core.handler.&lt;job_class&gt;</cite>. Used from interactive mode.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>job</strong> (<em>list</em>) – mapper</p></li>
+<li><p><strong>model</strong> (<a class="reference internal" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model" title="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model"><em>DLENSALOT_Model</em></a>) – A delensalot model</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>an initialized &lt;job_class&gt;</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>job</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="delensalot.config.handler.handler.load_configfile">
+<span class="sig-name descname"><span class="pre">load_configfile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">descriptor</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.config.handler.handler.load_configfile" title="Permalink to this definition"></a></dt>
+<dd><p>Helper method for loading the configuration file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>directory</strong> (<em>_type_</em>) – The directory to read from.</p></li>
+<li><p><strong>descriptor</strong> (<em>_type_</em>) – Identifier with which the configuration file is stored in memory.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>the configuration file</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>object</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="delensalot.config.handler.handler.make_interactive_job">
+<span class="sig-name descname"><span class="pre">make_interactive_job</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.config.handler.handler.make_interactive_job" title="Permalink to this definition"></a></dt>
+<dd><p>Deprecated.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="delensalot.config.handler.handler.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.config.handler.handler.run" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="delensalot.config.handler.handler.store">
+<span class="sig-name descname"><span class="pre">store</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parser</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">configfile</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">TEMP</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.config.handler.handler.store" title="Permalink to this definition"></a></dt>
+<dd><p>Store the dlensalot_model as config file in TEMP, to use if run resumed</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>parser</strong> (<em>object</em>) – command line parser object</p></li>
+<li><p><strong>configfile</strong> (<em>str</em>) – the name of the configuration file</p></li>
+<li><p><strong>TEMP</strong> (<em>str</em>) – The location at which the configuration file (and all intermediate and final products of the analysis) will be stored</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-delensalot.config.parser">
+<span id="parser"></span><h2>parser<a class="headerlink" href="#module-delensalot.config.parser" title="Permalink to this heading"></a></h2>
+<p>parser.py: Read and validate user input from terminal</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="delensalot.config.parser.lerepi_parser">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.config.parser.</span></span><span class="sig-name descname"><span class="pre">lerepi_parser</span></span><a class="headerlink" href="#delensalot.config.parser.lerepi_parser" title="Permalink to this definition"></a></dt>
+<dd><dl class="py method">
+<dt class="sig sig-object py" id="delensalot.config.parser.lerepi_parser.get_parser">
+<span class="sig-name descname"><span class="pre">get_parser</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.config.parser.lerepi_parser.get_parser" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="delensalot.config.parser.lerepi_parser.validate">
+<span class="sig-name descname"><span class="pre">validate</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.config.parser.lerepi_parser.validate" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="dlensalot-mm">
+<h2>dlensalot_mm<a class="headerlink" href="#dlensalot-mm" title="Permalink to this heading"></a></h2>
+<span class="target" id="module-delensalot.config.metamodel.dlensalot_mm"></span><p>dlensalot_mm.py: Contains classes defining the metamodel of the Dlensalot formalism.
+The metamodel is a structured representation, with the <cite>DLENSALOT_Model</cite> as the main building block.
+We use the attr package. It provides handy ways of validation and defaulting.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.config.metamodel.dlensalot_mm.</span></span><span class="sig-name descname"><span class="pre">DLENSALOT_Analysis</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis" title="Permalink to this definition"></a></dt>
+<dd><p>A root model element type of the Dlensalot formalism.
+This class collects all configurations related to the specific analysis performed on the data.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.key">
+<span class="sig-name descname"><span class="pre">key</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.key" title="Permalink to this definition"></a></dt>
+<dd><p>reconstruction estimator key</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.version">
+<span class="sig-name descname"><span class="pre">version</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.version" title="Permalink to this definition"></a></dt>
+<dd><p>specific configuration for the esimator (e.g. <cite>noMF</cite>, which turns off mean-field subtraction)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.simidxs">
+<span class="sig-name descname"><span class="pre">simidxs</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.simidxs" title="Permalink to this definition"></a></dt>
+<dd><p>simulation indices to use for the delensalot job</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.array[int]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.simidxs_mf">
+<span class="sig-name descname"><span class="pre">simidxs_mf</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.simidxs_mf" title="Permalink to this definition"></a></dt>
+<dd><p>simulation indices to use for the calculation of the mean-field</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.array[int]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.TEMP_suffix">
+<span class="sig-name descname"><span class="pre">TEMP_suffix</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.TEMP_suffix" title="Permalink to this definition"></a></dt>
+<dd><p>identifier to customize TEMP directory of the analysis</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.Lmin">
+<span class="sig-name descname"><span class="pre">Lmin</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.Lmin" title="Permalink to this definition"></a></dt>
+<dd><p>minimum L for reconstructing the lensing potential</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.zbounds">
+<span class="sig-name descname"><span class="pre">zbounds</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.zbounds" title="Permalink to this definition"></a></dt>
+<dd><p>latitudinal boundary (-1 to 1), or identifier together with noise level ratio treshold at which lensing reconstruction is perfromed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple[int] or tuple[str,float]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.zbounds_len">
+<span class="sig-name descname"><span class="pre">zbounds_len</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.zbounds_len" title="Permalink to this definition"></a></dt>
+<dd><p>latitudinal extended boundary at which lensing reconstruction is performed, and used for iterative lensing reconstruction</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple[int]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.pbounds">
+<span class="sig-name descname"><span class="pre">pbounds</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.pbounds" title="Permalink to this definition"></a></dt>
+<dd><p>longitudinal boundary at which lensing reconstruction is perfromed</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple[int]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.lm_max_len">
+<span class="sig-name descname"><span class="pre">lm_max_len</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.lm_max_len" title="Permalink to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple[int]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.lm_max_ivf">
+<span class="sig-name descname"><span class="pre">lm_max_ivf</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.lm_max_ivf" title="Permalink to this definition"></a></dt>
+<dd><p>maximum <cite>ell</cite> and m for which inverse variance filtering is done</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple[int]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.lm_max_blt">
+<span class="sig-name descname"><span class="pre">lm_max_blt</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.lm_max_blt" title="Permalink to this definition"></a></dt>
+<dd><p>maximum <cite>ell</cite> and m for which B-lensing template is calculated</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple[int]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.mask">
+<span class="sig-name descname"><span class="pre">mask</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.mask" title="Permalink to this definition"></a></dt>
+<dd><p>TBD</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.lmin_teb">
+<span class="sig-name descname"><span class="pre">lmin_teb</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.lmin_teb" title="Permalink to this definition"></a></dt>
+<dd><p>minimum <cite>ell</cite> and m of the data which the reconstruction uses, and is set to zero below via the transfer function</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.cls_unl">
+<span class="sig-name descname"><span class="pre">cls_unl</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.cls_unl" title="Permalink to this definition"></a></dt>
+<dd><p>path to the fiducial unlensed CAMB-like CMB data</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.cls_len">
+<span class="sig-name descname"><span class="pre">cls_len</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.cls_len" title="Permalink to this definition"></a></dt>
+<dd><p>path to the fiducial lensed CAMB-like CMB data</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.cpp">
+<span class="sig-name descname"><span class="pre">cpp</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.cpp" title="Permalink to this definition"></a></dt>
+<dd><p>path to the power spectrum of the prior for the iterative reconstruction</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.beam">
+<span class="sig-name descname"><span class="pre">beam</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis.beam" title="Permalink to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Chaindescriptor">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.config.metamodel.dlensalot_mm.</span></span><span class="sig-name descname"><span class="pre">DLENSALOT_Chaindescriptor</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Chaindescriptor" title="Permalink to this definition"></a></dt>
+<dd><p>A root model element type of the Dlensalot formalism.
+This class collects all configurations related to conjugate gradient solver.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Chaindescriptor.p0">
+<span class="sig-name descname"><span class="pre">p0</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Chaindescriptor.p0" title="Permalink to this definition"></a></dt>
+<dd><p>TBD</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Chaindescriptor.p1">
+<span class="sig-name descname"><span class="pre">p1</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Chaindescriptor.p1" title="Permalink to this definition"></a></dt>
+<dd><p>TBD</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Chaindescriptor.p2">
+<span class="sig-name descname"><span class="pre">p2</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Chaindescriptor.p2" title="Permalink to this definition"></a></dt>
+<dd><p>TBD</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Chaindescriptor.p3">
+<span class="sig-name descname"><span class="pre">p3</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Chaindescriptor.p3" title="Permalink to this definition"></a></dt>
+<dd><p>TBD</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Chaindescriptor.p4">
+<span class="sig-name descname"><span class="pre">p4</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Chaindescriptor.p4" title="Permalink to this definition"></a></dt>
+<dd><p>TBD</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Chaindescriptor.p5">
+<span class="sig-name descname"><span class="pre">p5</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Chaindescriptor.p5" title="Permalink to this definition"></a></dt>
+<dd><p>TBD</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Chaindescriptor.p6">
+<span class="sig-name descname"><span class="pre">p6</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Chaindescriptor.p6" title="Permalink to this definition"></a></dt>
+<dd><p>TBD</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Chaindescriptor.p7">
+<span class="sig-name descname"><span class="pre">p7</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Chaindescriptor.p7" title="Permalink to this definition"></a></dt>
+<dd><p>TBD</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Computing">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.config.metamodel.dlensalot_mm.</span></span><span class="sig-name descname"><span class="pre">DLENSALOT_Computing</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Computing" title="Permalink to this definition"></a></dt>
+<dd><p>A root model element type of the Dlensalot formalism.
+This class collects all configurations related to the usage of computing resources.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Computing.OMP_NUM_THREADS">
+<span class="sig-name descname"><span class="pre">OMP_NUM_THREADS</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Computing.OMP_NUM_THREADS" title="Permalink to this definition"></a></dt>
+<dd><p>number of threads used per Job</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Concept">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.config.metamodel.dlensalot_mm.</span></span><span class="sig-name descname"><span class="pre">DLENSALOT_Concept</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Concept" title="Permalink to this definition"></a></dt>
+<dd><p>An abstract element base type for the Dlensalot formalism.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Concept.__str__">
+<span class="sig-name descname"><span class="pre">__str__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Concept.__str__" title="Permalink to this definition"></a></dt>
+<dd><p>overwrites __str__ to summarize dlensalot model in a prettier way</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A table with all attributes of the model</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Config">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.config.metamodel.dlensalot_mm.</span></span><span class="sig-name descname"><span class="pre">DLENSALOT_Config</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Config" title="Permalink to this definition"></a></dt>
+<dd><p>A root model element type of the Dlensalot formalism.
+This class collects all configurations related to general behaviour to the operating system.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Config.outdir_plot_root">
+<span class="sig-name descname"><span class="pre">outdir_plot_root</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Config.outdir_plot_root" title="Permalink to this definition"></a></dt>
+<dd><p>Root path for the plots to be stored at</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Config.outdir_plot_rel">
+<span class="sig-name descname"><span class="pre">outdir_plot_rel</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Config.outdir_plot_rel" title="Permalink to this definition"></a></dt>
+<dd><p>relative path folder for the plots to be stored at</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Data">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.config.metamodel.dlensalot_mm.</span></span><span class="sig-name descname"><span class="pre">DLENSALOT_Data</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Data" title="Permalink to this definition"></a></dt>
+<dd><p>A root model element type of the Dlensalot formalism.
+This class collects all configurations related to the input CMB maps.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Data.class_parameters">
+<span class="sig-name descname"><span class="pre">class_parameters</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Data.class_parameters" title="Permalink to this definition"></a></dt>
+<dd><p>parameters of the class of the data</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Data.package_">
+<span class="sig-name descname"><span class="pre">package_</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Data.package_" title="Permalink to this definition"></a></dt>
+<dd><p>package name of the data (can be, e.g. ‘delensalot’)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>type</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Data.module_">
+<span class="sig-name descname"><span class="pre">module_</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Data.module_" title="Permalink to this definition"></a></dt>
+<dd><p>module name of the data (can be, e.g. sims.generic) (?)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>type</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Data.class_">
+<span class="sig-name descname"><span class="pre">class_</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Data.class_" title="Permalink to this definition"></a></dt>
+<dd><p>class name of the data (can be, e.g. sims_cmb_len)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>type</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Data.transferfunction">
+<span class="sig-name descname"><span class="pre">transferfunction</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Data.transferfunction" title="Permalink to this definition"></a></dt>
+<dd><p>predefined isotropic transfer function. Can bei either with or without pixelwindow function applied</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Data.beam">
+<span class="sig-name descname"><span class="pre">beam</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Data.beam" title="Permalink to this definition"></a></dt>
+<dd><p>assuming a Gaussian beam, this defines the FWHM in arcmin</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Data.nside">
+<span class="sig-name descname"><span class="pre">nside</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Data.nside" title="Permalink to this definition"></a></dt>
+<dd><p>resolution of the data</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Data.nlev_t">
+<span class="sig-name descname"><span class="pre">nlev_t</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Data.nlev_t" title="Permalink to this definition"></a></dt>
+<dd><p>TBD</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>type</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Data.nlev_p">
+<span class="sig-name descname"><span class="pre">nlev_p</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Data.nlev_p" title="Permalink to this definition"></a></dt>
+<dd><p>TBD</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>type</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Data.lmax_transf">
+<span class="sig-name descname"><span class="pre">lmax_transf</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Data.lmax_transf" title="Permalink to this definition"></a></dt>
+<dd><p>maxmimum multipole to apply transfer function to data</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Data.epsilon">
+<span class="sig-name descname"><span class="pre">epsilon</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Data.epsilon" title="Permalink to this definition"></a></dt>
+<dd><p>lenspyx precision</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="simple">
+<dt>comment:</dt><dd><p>data_type (str)                             data may come on spherical harmonics or real space. Can be either ‘map’ or ‘alm’
+data_field (str)                            data may be spin-2 or spin-0. Can either be ‘qu’ or ‘eb’</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.config.metamodel.dlensalot_mm.</span></span><span class="sig-name descname"><span class="pre">DLENSALOT_Itrec</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec" title="Permalink to this definition"></a></dt>
+<dd><p>A root model element type of the Dlensalot formalism.
+This class collects all configurations related to the iterative reconstruction job.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec.tasks">
+<span class="sig-name descname"><span class="pre">tasks</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec.tasks" title="Permalink to this definition"></a></dt>
+<dd><p>tasks to perfrom. Can be any combination of <code class="code docutils literal notranslate"><span class="pre">calc_phi</span></code>, <code class="code docutils literal notranslate"><span class="pre">calc_meanfield</span></code>, <code class="code docutils literal notranslate"><span class="pre">calc_blt</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec.itmax">
+<span class="sig-name descname"><span class="pre">itmax</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec.itmax" title="Permalink to this definition"></a></dt>
+<dd><p>maximum number of iterations</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec.cg_tol">
+<span class="sig-name descname"><span class="pre">cg_tol</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec.cg_tol" title="Permalink to this definition"></a></dt>
+<dd><p>tolerance of the conjugate gradient method</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec.iterator_typ">
+<span class="sig-name descname"><span class="pre">iterator_typ</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec.iterator_typ" title="Permalink to this definition"></a></dt>
+<dd><p>mean-field handling identifier. Can be either ‘const_mf’ or ‘pert_mf’</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec.chain">
+<span class="sig-name descname"><span class="pre">chain</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec.chain" title="Permalink to this definition"></a></dt>
+<dd><p>configuration for the conjugate gradient solver</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Chaindescriptor" title="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Chaindescriptor">DLENSALOT_Chaindescriptor</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec.filter_directional">
+<span class="sig-name descname"><span class="pre">filter_directional</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec.filter_directional" title="Permalink to this definition"></a></dt>
+<dd><p>can be either ‘isotropic’ (unmasked sky) or ‘isotropic’ (masked sky)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec.lenjob_geometry">
+<span class="sig-name descname"><span class="pre">lenjob_geometry</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec.lenjob_geometry" title="Permalink to this definition"></a></dt>
+<dd><p>can be ‘healpix_geometry’, ‘thin_gauss’ or ‘pbdGeometry’</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec.lenjob_pbgeometry">
+<span class="sig-name descname"><span class="pre">lenjob_pbgeometry</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec.lenjob_pbgeometry" title="Permalink to this definition"></a></dt>
+<dd><p>can be ‘healpix_geometry’, ‘thin_gauss’ or ‘pbdGeometry’</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec.lm_max_unl">
+<span class="sig-name descname"><span class="pre">lm_max_unl</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec.lm_max_unl" title="Permalink to this definition"></a></dt>
+<dd><p>maximum multipoles <cite>ell</cite> and m for reconstruction the unlensed CMB</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple[int]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec.lm_max_qlm">
+<span class="sig-name descname"><span class="pre">lm_max_qlm</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec.lm_max_qlm" title="Permalink to this definition"></a></dt>
+<dd><p>maximum multipoles L and m for reconstruction the lensing potential</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple[int]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec.mfvar">
+<span class="sig-name descname"><span class="pre">mfvar</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec.mfvar" title="Permalink to this definition"></a></dt>
+<dd><p>path to precalculated mean-field, to be used instead</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec.soltn_cond">
+<span class="sig-name descname"><span class="pre">soltn_cond</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec.soltn_cond" title="Permalink to this definition"></a></dt>
+<dd><p>TBD</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>type</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec.stepper">
+<span class="sig-name descname"><span class="pre">stepper</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec.stepper" title="Permalink to this definition"></a></dt>
+<dd><p>configuration for updating the current likelihood iteration point with the likelihood gradient</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>DLENSALOT_STEPPER</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Job">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.config.metamodel.dlensalot_mm.</span></span><span class="sig-name descname"><span class="pre">DLENSALOT_Job</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Job" title="Permalink to this definition"></a></dt>
+<dd><p>A root model element type of the Dlensalot formalism.
+delensalot can executte different jobs (QE reconstruction, simulation generation, MAP reconstruction, delensing, ..) which is controlled here.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Job.jobs">
+<span class="sig-name descname"><span class="pre">jobs</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Job.jobs" title="Permalink to this definition"></a></dt>
+<dd><p>Job identifier(s)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Mapdelensing">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.config.metamodel.dlensalot_mm.</span></span><span class="sig-name descname"><span class="pre">DLENSALOT_Mapdelensing</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Mapdelensing" title="Permalink to this definition"></a></dt>
+<dd><p>A root model element type of the Dlensalot formalism.
+This class collects all configurations related to the internal map delensing job.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Mapdelensing.data_from_CFS">
+<span class="sig-name descname"><span class="pre">data_from_CFS</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Mapdelensing.data_from_CFS" title="Permalink to this definition"></a></dt>
+<dd><p>if set, use B-lensing templates located at the $CFS directory instead of the $TEMP directory</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Mapdelensing.edges">
+<span class="sig-name descname"><span class="pre">edges</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Mapdelensing.edges" title="Permalink to this definition"></a></dt>
+<dd><p>binning to calculate the (delensed) power spectrum on</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.array</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Mapdelensing.dlm_mod">
+<span class="sig-name descname"><span class="pre">dlm_mod</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Mapdelensing.dlm_mod" title="Permalink to this definition"></a></dt>
+<dd><p>if set, modfies the lensing potential before calculating the B-lensing template</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Mapdelensing.iterations">
+<span class="sig-name descname"><span class="pre">iterations</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Mapdelensing.iterations" title="Permalink to this definition"></a></dt>
+<dd><p>which iterations to calculate delensed power spectrum for</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[int]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Mapdelensing.nlevels">
+<span class="sig-name descname"><span class="pre">nlevels</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Mapdelensing.nlevels" title="Permalink to this definition"></a></dt>
+<dd><p>noiselevel ratio treshold up to which the maps are delensed, uses the rhits_normalized map to generate masks.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[float]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Mapdelensing.lmax">
+<span class="sig-name descname"><span class="pre">lmax</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Mapdelensing.lmax" title="Permalink to this definition"></a></dt>
+<dd><p>maximum multipole to calculate the (delensed) power spectrum</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Mapdelensing.Cl_fid">
+<span class="sig-name descname"><span class="pre">Cl_fid</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Mapdelensing.Cl_fid" title="Permalink to this definition"></a></dt>
+<dd><p>fiducial power spectrum, and needed for template calculation of the binned power spectrum package</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>type</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Mapdelensing.libdir_it">
+<span class="sig-name descname"><span class="pre">libdir_it</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Mapdelensing.libdir_it" title="Permalink to this definition"></a></dt>
+<dd><p>TBD</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>type</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Mapdelensing.binning">
+<span class="sig-name descname"><span class="pre">binning</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Mapdelensing.binning" title="Permalink to this definition"></a></dt>
+<dd><p>can be either ‘binned’ or ‘unbinned’. If ‘unbinned’, overwrites <code class="code docutils literal notranslate"><span class="pre">edges</span></code> and calculates power spectrum for each multipole</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>type</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Mapdelensing.spectrum_calculator">
+<span class="sig-name descname"><span class="pre">spectrum_calculator</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Mapdelensing.spectrum_calculator" title="Permalink to this definition"></a></dt>
+<dd><p>name of the package of the power spectrum calculator. Can be ‘healpy’ if <code class="code docutils literal notranslate"><span class="pre">binning=unbinned</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>package</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Mapdelensing.masks_fn">
+<span class="sig-name descname"><span class="pre">masks_fn</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Mapdelensing.masks_fn" title="Permalink to this definition"></a></dt>
+<dd><p>the sky patches to calculate the power spectra on. Note that this is different to using <cite>nlevels</cite>. Here, no tresholds are calculated, but masks are used ‘as is’ for delensing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Meta">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.config.metamodel.dlensalot_mm.</span></span><span class="sig-name descname"><span class="pre">DLENSALOT_Meta</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Meta" title="Permalink to this definition"></a></dt>
+<dd><p>A root model element type of the Dlensalot formalism.
+This class collects all configurations related to internal behaviour of delensalot.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Meta.version">
+<span class="sig-name descname"><span class="pre">version</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Meta.version" title="Permalink to this definition"></a></dt>
+<dd><p>version control of the delensalot model</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.config.metamodel.dlensalot_mm.</span></span><span class="sig-name descname"><span class="pre">DLENSALOT_Model</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model" title="Permalink to this definition"></a></dt>
+<dd><p>A root model element type of the Dlensalot formalism.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model.defaults_to">
+<span class="sig-name descname"><span class="pre">defaults_to</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model.defaults_to" title="Permalink to this definition"></a></dt>
+<dd><p>Identifier for default-dictionary if user hasn’t specified value in configuration file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model.meta">
+<span class="sig-name descname"><span class="pre">meta</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model.meta" title="Permalink to this definition"></a></dt>
+<dd><p>configurations related to internal behaviour of delensalot</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Meta" title="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Meta">DLENSALOT_Meta</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model.job">
+<span class="sig-name descname"><span class="pre">job</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model.job" title="Permalink to this definition"></a></dt>
+<dd><p>delensalot can executte different jobs (QE reconstruction, simulation generation, MAP reconstruction, delensing, ..) which is controlled here</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Job" title="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Job">DLENSALOT_Job</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model.analysis">
+<span class="sig-name descname"><span class="pre">analysis</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model.analysis" title="Permalink to this definition"></a></dt>
+<dd><p>configurations related to the specific analysis performed on the data</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis" title="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Analysis">DLENSALOT_Analysis</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model.data">
+<span class="sig-name descname"><span class="pre">data</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model.data" title="Permalink to this definition"></a></dt>
+<dd><p>configurations related to the input CMB maps</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Data" title="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Data">DLENSALOT_Data</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model.noisemodel">
+<span class="sig-name descname"><span class="pre">noisemodel</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model.noisemodel" title="Permalink to this definition"></a></dt>
+<dd><p>configurations related to the noise model used for Wiener-filtering the data</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Noisemodel" title="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Noisemodel">DLENSALOT_Noisemodel</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model.qerec">
+<span class="sig-name descname"><span class="pre">qerec</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model.qerec" title="Permalink to this definition"></a></dt>
+<dd><p>configurations related to the quadratic estimator reconstruction job</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Qerec" title="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Qerec">DLENSALOT_Qerec</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model.itrec">
+<span class="sig-name descname"><span class="pre">itrec</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model.itrec" title="Permalink to this definition"></a></dt>
+<dd><p>configurations related to the iterative reconstruction job</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec" title="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Itrec">DLENSALOT_Itrec</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model.madel">
+<span class="sig-name descname"><span class="pre">madel</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model.madel" title="Permalink to this definition"></a></dt>
+<dd><p>configurations related to the internal map delensing job</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Mapdelensing" title="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Mapdelensing">DLENSALOT_Mapdelensing</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model.config">
+<span class="sig-name descname"><span class="pre">config</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model.config" title="Permalink to this definition"></a></dt>
+<dd><p>configurations related to general behaviour to the operating system</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Config" title="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Config">DLENSALOT_Config</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model.computing">
+<span class="sig-name descname"><span class="pre">computing</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model.computing" title="Permalink to this definition"></a></dt>
+<dd><p>configurations related to the usage of computing resources</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Computing" title="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Computing">DLENSALOT_Computing</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model.obd">
+<span class="sig-name descname"><span class="pre">obd</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Model.obd" title="Permalink to this definition"></a></dt>
+<dd><p>configurations related to the overlapping B-mode deprojection</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_OBD" title="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_OBD">DLENSALOT_OBD</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Noisemodel">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.config.metamodel.dlensalot_mm.</span></span><span class="sig-name descname"><span class="pre">DLENSALOT_Noisemodel</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Noisemodel" title="Permalink to this definition"></a></dt>
+<dd><p>A root model element type of the Dlensalot formalism.
+This class collects all configurations related to the noise model used for Wiener-filtering the data.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Noisemodel.sky_coverage">
+<span class="sig-name descname"><span class="pre">sky_coverage</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Noisemodel.sky_coverage" title="Permalink to this definition"></a></dt>
+<dd><p>Can be either ‘masked’ or ‘unmasked’</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>type</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Noisemodel.spectrum_type">
+<span class="sig-name descname"><span class="pre">spectrum_type</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Noisemodel.spectrum_type" title="Permalink to this definition"></a></dt>
+<dd><p>TBD</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>type</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Noisemodel.OBD">
+<span class="sig-name descname"><span class="pre">OBD</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Noisemodel.OBD" title="Permalink to this definition"></a></dt>
+<dd><p>OBD identifier. Can be ‘OBD’, ‘trunc’, or None. Defines how lowest B-modes will be handled.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>type</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Noisemodel.nlev_t">
+<span class="sig-name descname"><span class="pre">nlev_t</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Noisemodel.nlev_t" title="Permalink to this definition"></a></dt>
+<dd><p>(central) noise level of temperature data in muK arcmin.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Noisemodel.nlev_p">
+<span class="sig-name descname"><span class="pre">nlev_p</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Noisemodel.nlev_p" title="Permalink to this definition"></a></dt>
+<dd><p>(central) noise level of polarization data in muK arcmin.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Noisemodel.rhits_normalised">
+<span class="sig-name descname"><span class="pre">rhits_normalised</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Noisemodel.rhits_normalised" title="Permalink to this definition"></a></dt>
+<dd><p>path to the hits-count map, used to calculate the noise levels, and the mask tracing the noise level. Second entry in tuple is the &lt;inverse hits-count multiplier&gt;.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Noisemodel.ninvjob_geometry">
+<span class="sig-name descname"><span class="pre">ninvjob_geometry</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Noisemodel.ninvjob_geometry" title="Permalink to this definition"></a></dt>
+<dd><p>geometry of the noise map</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>type</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_OBD">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.config.metamodel.dlensalot_mm.</span></span><span class="sig-name descname"><span class="pre">DLENSALOT_OBD</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_OBD" title="Permalink to this definition"></a></dt>
+<dd><p>A root model element type of the Dlensalot formalism.
+This class collects all configurations related to the overlapping B-mode deprojection.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_OBD.libdir">
+<span class="sig-name descname"><span class="pre">libdir</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_OBD.libdir" title="Permalink to this definition"></a></dt>
+<dd><p>path to the OBD matrix</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_OBD.rescale">
+<span class="sig-name descname"><span class="pre">rescale</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_OBD.rescale" title="Permalink to this definition"></a></dt>
+<dd><p>rescaling of OBD matrix amplitude. Useful if matrix already calculated, but noiselevel changed</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_OBD.tpl">
+<span class="sig-name descname"><span class="pre">tpl</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_OBD.tpl" title="Permalink to this definition"></a></dt>
+<dd><p>function name for calculating OBD matrix</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>type</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_OBD.nlev_dep">
+<span class="sig-name descname"><span class="pre">nlev_dep</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_OBD.nlev_dep" title="Permalink to this definition"></a></dt>
+<dd><p>deprojection factor, or, strength of B-mode deprojection</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_OBD.nside">
+<span class="sig-name descname"><span class="pre">nside</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_OBD.nside" title="Permalink to this definition"></a></dt>
+<dd><p>TBD</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>type</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_OBD.lmax">
+<span class="sig-name descname"><span class="pre">lmax</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_OBD.lmax" title="Permalink to this definition"></a></dt>
+<dd><p>maximum multipole to deproject B-modes</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_OBD.beam">
+<span class="sig-name descname"><span class="pre">beam</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_OBD.beam" title="Permalink to this definition"></a></dt>
+<dd><p>TBD</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>type</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Qerec">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.config.metamodel.dlensalot_mm.</span></span><span class="sig-name descname"><span class="pre">DLENSALOT_Qerec</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Qerec" title="Permalink to this definition"></a></dt>
+<dd><p>A root model element type of the Dlensalot formalism.
+This class collects all configurations related to the quadratic estimator reconstruction job.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Qerec.tasks">
+<span class="sig-name descname"><span class="pre">tasks</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Qerec.tasks" title="Permalink to this definition"></a></dt>
+<dd><p>tasks to perfrom. Can be any combination of <code class="code docutils literal notranslate"><span class="pre">calc_phi</span></code>, <code class="code docutils literal notranslate"><span class="pre">calc_meanfield</span></code>, <code class="code docutils literal notranslate"><span class="pre">calc_blt</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[tuple]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Qerec.qlm_type">
+<span class="sig-name descname"><span class="pre">qlm_type</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Qerec.qlm_type" title="Permalink to this definition"></a></dt>
+<dd><p>lensing potential estimator identifier. Can be ‘sepTP’ or ‘jTP’</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Qerec.cg_tol">
+<span class="sig-name descname"><span class="pre">cg_tol</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Qerec.cg_tol" title="Permalink to this definition"></a></dt>
+<dd><p>tolerance of the conjugate gradient method</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Qerec.filter_directional">
+<span class="sig-name descname"><span class="pre">filter_directional</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Qerec.filter_directional" title="Permalink to this definition"></a></dt>
+<dd><p>can be either ‘isotropic’ (unmasked sky) or ‘isotropic’ (masked sky)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Qerec.ninvjob_qe_geometry">
+<span class="sig-name descname"><span class="pre">ninvjob_qe_geometry</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Qerec.ninvjob_qe_geometry" title="Permalink to this definition"></a></dt>
+<dd><p>noise model spherical harmonic geometry. Can be, e.g. ‘healpix_geometry_qe’ (?)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Qerec.lm_max_qlm">
+<span class="sig-name descname"><span class="pre">lm_max_qlm</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Qerec.lm_max_qlm" title="Permalink to this definition"></a></dt>
+<dd><p>maximum multipole <cite>ell</cite> and m to reconstruct the lensing potential</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>type</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Qerec.chain">
+<span class="sig-name descname"><span class="pre">chain</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Qerec.chain" title="Permalink to this definition"></a></dt>
+<dd><p>configuration of the conjugate gradient method. Configures the chain and preconditioner</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Chaindescriptor" title="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Chaindescriptor">DLENSALOT_Chaindescriptor</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Qerec.cl_analysis">
+<span class="sig-name descname"><span class="pre">cl_analysis</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Qerec.cl_analysis" title="Permalink to this definition"></a></dt>
+<dd><p>If tru, performs lensing power spectrum analysis</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Qerec.blt_pert">
+<span class="sig-name descname"><span class="pre">blt_pert</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Qerec.blt_pert" title="Permalink to this definition"></a></dt>
+<dd><p>If True, delensing is performed perurbitivly (recommended)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Stepper">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.config.metamodel.dlensalot_mm.</span></span><span class="sig-name descname"><span class="pre">DLENSALOT_Stepper</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Stepper" title="Permalink to this definition"></a></dt>
+<dd><p>A root model element type of the Dlensalot formalism.
+Defines the stepper function. The stepper function controls how the increment in the likelihood search is added to the current solution.
+Currently, this is pretty much just the harmonicbump class.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Stepper.typ">
+<span class="sig-name descname"><span class="pre">typ</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Stepper.typ" title="Permalink to this definition"></a></dt>
+<dd><p>The name of the stepper function</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Stepper.lmax_qlm">
+<span class="sig-name descname"><span class="pre">lmax_qlm</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Stepper.lmax_qlm" title="Permalink to this definition"></a></dt>
+<dd><p>maximum <cite>ell</cite> of the lensing potential reconstruction</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Stepper.mmax_qlm">
+<span class="sig-name descname"><span class="pre">mmax_qlm</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Stepper.mmax_qlm" title="Permalink to this definition"></a></dt>
+<dd><p>maximum <cite>m</cite> of the lensing potential reconstruction</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Stepper.a">
+<span class="sig-name descname"><span class="pre">a</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Stepper.a" title="Permalink to this definition"></a></dt>
+<dd><p>TBD</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Stepper.b">
+<span class="sig-name descname"><span class="pre">b</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Stepper.b" title="Permalink to this definition"></a></dt>
+<dd><p>TBD</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Stepper.xa">
+<span class="sig-name descname"><span class="pre">xa</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Stepper.xa" title="Permalink to this definition"></a></dt>
+<dd><p>TBD</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Stepper.xb">
+<span class="sig-name descname"><span class="pre">xb</span></span><a class="headerlink" href="#delensalot.config.metamodel.dlensalot_mm.DLENSALOT_Stepper.xb" title="Permalink to this definition"></a></dt>
+<dd><p>TBD</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-delensalot.config.config_helper">
+<span id="config-helper"></span><h2>config_helper<a class="headerlink" href="#module-delensalot.config.config_helper" title="Permalink to this heading"></a></h2>
+<p>config_helper.py: functions and constants which come in handy for configuration files.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="delensalot.config.config_helper.LEREPI_Constants">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.config.config_helper.</span></span><span class="sig-name descname"><span class="pre">LEREPI_Constants</span></span><a class="headerlink" href="#delensalot.config.config_helper.LEREPI_Constants" title="Permalink to this definition"></a></dt>
+<dd><dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.config_helper.LEREPI_Constants.SPDP2_edges">
+<span class="sig-name descname"><span class="pre">SPDP2_edges</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">array([</span>&#160;&#160; <span class="pre">2,</span>&#160;&#160; <span class="pre">32,</span>&#160;&#160; <span class="pre">62,</span>&#160;&#160; <span class="pre">92,</span>&#160; <span class="pre">122,</span>&#160; <span class="pre">152,</span>&#160; <span class="pre">182,</span>&#160; <span class="pre">212,</span>&#160; <span class="pre">242,</span>&#160; <span class="pre">272,</span>&#160; <span class="pre">302,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">332,</span>&#160; <span class="pre">362,</span>&#160; <span class="pre">392,</span>&#160; <span class="pre">422,</span>&#160; <span class="pre">452,</span>&#160; <span class="pre">482,</span>&#160; <span class="pre">512,</span>&#160; <span class="pre">542,</span>&#160; <span class="pre">572,</span>&#160; <span class="pre">602,</span>&#160; <span class="pre">632,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">662,</span>&#160; <span class="pre">692,</span>&#160; <span class="pre">722,</span>&#160; <span class="pre">752,</span>&#160; <span class="pre">782,</span>&#160; <span class="pre">812,</span>&#160; <span class="pre">842,</span>&#160; <span class="pre">872,</span>&#160; <span class="pre">902,</span>&#160; <span class="pre">932,</span>&#160; <span class="pre">962,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">992,</span> <span class="pre">1022,</span> <span class="pre">1052,</span> <span class="pre">1082,</span> <span class="pre">1112,</span> <span class="pre">1142,</span> <span class="pre">1172,</span> <span class="pre">1202,</span> <span class="pre">1232,</span> <span class="pre">1262,</span> <span class="pre">1292,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">1322,</span> <span class="pre">1352,</span> <span class="pre">1382,</span> <span class="pre">1412,</span> <span class="pre">1442,</span> <span class="pre">1472,</span> <span class="pre">1502,</span> <span class="pre">1532,</span> <span class="pre">1562,</span> <span class="pre">1592,</span> <span class="pre">1622,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">1652,</span> <span class="pre">1682,</span> <span class="pre">1712,</span> <span class="pre">1742,</span> <span class="pre">1772,</span> <span class="pre">1802,</span> <span class="pre">1832,</span> <span class="pre">1862,</span> <span class="pre">1892,</span> <span class="pre">1922,</span> <span class="pre">1952,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">1982,</span> <span class="pre">2012,</span> <span class="pre">2042,</span> <span class="pre">2072,</span> <span class="pre">2102,</span> <span class="pre">2132,</span> <span class="pre">2162,</span> <span class="pre">2192,</span> <span class="pre">2222,</span> <span class="pre">2252,</span> <span class="pre">2282,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">2312,</span> <span class="pre">2342,</span> <span class="pre">2372,</span> <span class="pre">2402,</span> <span class="pre">2432,</span> <span class="pre">2462,</span> <span class="pre">2492,</span> <span class="pre">2522,</span> <span class="pre">2552,</span> <span class="pre">2582,</span> <span class="pre">2612,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">2642,</span> <span class="pre">2672,</span> <span class="pre">2702,</span> <span class="pre">2732,</span> <span class="pre">2762,</span> <span class="pre">2792,</span> <span class="pre">2822,</span> <span class="pre">2852,</span> <span class="pre">2882,</span> <span class="pre">2912,</span> <span class="pre">2942,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">2972,</span> <span class="pre">3002,</span> <span class="pre">3032,</span> <span class="pre">3062,</span> <span class="pre">3092,</span> <span class="pre">3122,</span> <span class="pre">3152,</span> <span class="pre">3182,</span> <span class="pre">3212,</span> <span class="pre">3242,</span> <span class="pre">3272,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">3302,</span> <span class="pre">3332,</span> <span class="pre">3362,</span> <span class="pre">3392,</span> <span class="pre">3422,</span> <span class="pre">3452,</span> <span class="pre">3482,</span> <span class="pre">3512,</span> <span class="pre">3542,</span> <span class="pre">3572,</span> <span class="pre">3602,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">3632,</span> <span class="pre">3662,</span> <span class="pre">3692,</span> <span class="pre">3722,</span> <span class="pre">3752,</span> <span class="pre">3782,</span> <span class="pre">3812,</span> <span class="pre">3842,</span> <span class="pre">3872,</span> <span class="pre">3902,</span> <span class="pre">3932,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">3962,</span> <span class="pre">3992])</span></em><a class="headerlink" href="#delensalot.config.config_helper.LEREPI_Constants.SPDP2_edges" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.config_helper.LEREPI_Constants.SPDP_edges">
+<span class="sig-name descname"><span class="pre">SPDP_edges</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">array([</span>&#160;&#160; <span class="pre">2,</span>&#160;&#160; <span class="pre">52,</span>&#160; <span class="pre">102,</span>&#160; <span class="pre">152,</span>&#160; <span class="pre">199,</span>&#160; <span class="pre">215,</span>&#160; <span class="pre">233,</span>&#160; <span class="pre">251,</span>&#160; <span class="pre">271,</span>&#160; <span class="pre">293,</span>&#160; <span class="pre">317,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">342,</span>&#160; <span class="pre">369,</span>&#160; <span class="pre">399,</span>&#160; <span class="pre">431,</span>&#160; <span class="pre">465,</span>&#160; <span class="pre">502,</span>&#160; <span class="pre">542,</span>&#160; <span class="pre">586,</span>&#160; <span class="pre">633,</span>&#160; <span class="pre">683,</span>&#160; <span class="pre">738,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">797,</span>&#160; <span class="pre">860,</span>&#160; <span class="pre">929,</span> <span class="pre">1003,</span> <span class="pre">1083,</span> <span class="pre">1170,</span> <span class="pre">1263,</span> <span class="pre">1364,</span> <span class="pre">1473,</span> <span class="pre">1591,</span> <span class="pre">1718,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">1855,</span> <span class="pre">2003,</span> <span class="pre">2163,</span> <span class="pre">2336,</span> <span class="pre">2522,</span> <span class="pre">2724,</span> <span class="pre">2941,</span> <span class="pre">3176,</span> <span class="pre">3430,</span> <span class="pre">3704,</span> <span class="pre">3999])</span></em><a class="headerlink" href="#delensalot.config.config_helper.LEREPI_Constants.SPDP_edges" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.config_helper.LEREPI_Constants.cmbs4_edges">
+<span class="sig-name descname"><span class="pre">cmbs4_edges</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">array([</span>&#160;&#160; <span class="pre">2,</span>&#160;&#160; <span class="pre">30,</span>&#160;&#160; <span class="pre">60,</span>&#160;&#160; <span class="pre">90,</span>&#160; <span class="pre">120,</span>&#160; <span class="pre">150,</span>&#160; <span class="pre">180,</span>&#160; <span class="pre">200,</span>&#160; <span class="pre">300,</span>&#160; <span class="pre">500,</span>&#160; <span class="pre">700,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">1000,</span> <span class="pre">1500,</span> <span class="pre">2000,</span> <span class="pre">3000,</span> <span class="pre">4000,</span> <span class="pre">5000])</span></em><a class="headerlink" href="#delensalot.config.config_helper.LEREPI_Constants.cmbs4_edges" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.config_helper.LEREPI_Constants.fs_edges">
+<span class="sig-name descname"><span class="pre">fs_edges</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">array([</span>&#160;&#160; <span class="pre">2,</span>&#160;&#160; <span class="pre">22,</span>&#160;&#160; <span class="pre">42,</span>&#160;&#160; <span class="pre">62,</span>&#160;&#160; <span class="pre">82,</span>&#160; <span class="pre">102,</span>&#160; <span class="pre">122,</span>&#160; <span class="pre">142,</span>&#160; <span class="pre">162,</span>&#160; <span class="pre">182,</span>&#160; <span class="pre">202,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">222,</span>&#160; <span class="pre">242,</span>&#160; <span class="pre">262,</span>&#160; <span class="pre">282,</span>&#160; <span class="pre">302,</span>&#160; <span class="pre">322,</span>&#160; <span class="pre">342,</span>&#160; <span class="pre">362,</span>&#160; <span class="pre">382,</span>&#160; <span class="pre">402,</span>&#160; <span class="pre">422,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">442,</span>&#160; <span class="pre">462,</span>&#160; <span class="pre">482,</span>&#160; <span class="pre">502,</span>&#160; <span class="pre">522,</span>&#160; <span class="pre">542,</span>&#160; <span class="pre">562,</span>&#160; <span class="pre">582,</span>&#160; <span class="pre">602,</span>&#160; <span class="pre">622,</span>&#160; <span class="pre">642,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">662,</span>&#160; <span class="pre">682,</span>&#160; <span class="pre">702,</span>&#160; <span class="pre">722,</span>&#160; <span class="pre">742,</span>&#160; <span class="pre">762,</span>&#160; <span class="pre">782,</span>&#160; <span class="pre">802,</span>&#160; <span class="pre">822,</span>&#160; <span class="pre">842,</span>&#160; <span class="pre">862,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">882,</span>&#160; <span class="pre">902,</span>&#160; <span class="pre">922,</span>&#160; <span class="pre">942,</span>&#160; <span class="pre">962,</span>&#160; <span class="pre">982,</span> <span class="pre">1002,</span> <span class="pre">1022,</span> <span class="pre">1042,</span> <span class="pre">1062,</span> <span class="pre">1082,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">1102,</span> <span class="pre">1122,</span> <span class="pre">1142,</span> <span class="pre">1162,</span> <span class="pre">1182,</span> <span class="pre">1202,</span> <span class="pre">1222,</span> <span class="pre">1242,</span> <span class="pre">1262,</span> <span class="pre">1282,</span> <span class="pre">1302,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">1322,</span> <span class="pre">1342,</span> <span class="pre">1362,</span> <span class="pre">1382,</span> <span class="pre">1402,</span> <span class="pre">1422,</span> <span class="pre">1442,</span> <span class="pre">1462,</span> <span class="pre">1482,</span> <span class="pre">1502,</span> <span class="pre">1522,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">1542,</span> <span class="pre">1562,</span> <span class="pre">1582,</span> <span class="pre">1602,</span> <span class="pre">1622,</span> <span class="pre">1642,</span> <span class="pre">1662,</span> <span class="pre">1682,</span> <span class="pre">1702,</span> <span class="pre">1722,</span> <span class="pre">1742,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">1762,</span> <span class="pre">1782,</span> <span class="pre">1802,</span> <span class="pre">1822,</span> <span class="pre">1842,</span> <span class="pre">1862,</span> <span class="pre">1882,</span> <span class="pre">1902,</span> <span class="pre">1922,</span> <span class="pre">1942,</span> <span class="pre">1962,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">1982,</span> <span class="pre">2002,</span> <span class="pre">2022,</span> <span class="pre">2042,</span> <span class="pre">2062,</span> <span class="pre">2082,</span> <span class="pre">2102,</span> <span class="pre">2122,</span> <span class="pre">2142,</span> <span class="pre">2162,</span> <span class="pre">2182,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">2202,</span> <span class="pre">2222,</span> <span class="pre">2242,</span> <span class="pre">2262,</span> <span class="pre">2282,</span> <span class="pre">2302,</span> <span class="pre">2322,</span> <span class="pre">2342,</span> <span class="pre">2362,</span> <span class="pre">2382,</span> <span class="pre">2402,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">2422,</span> <span class="pre">2442,</span> <span class="pre">2462,</span> <span class="pre">2482,</span> <span class="pre">2502,</span> <span class="pre">2522,</span> <span class="pre">2542,</span> <span class="pre">2562,</span> <span class="pre">2582,</span> <span class="pre">2602,</span> <span class="pre">2622,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">2642,</span> <span class="pre">2662,</span> <span class="pre">2682,</span> <span class="pre">2702,</span> <span class="pre">2722,</span> <span class="pre">2742,</span> <span class="pre">2762,</span> <span class="pre">2782,</span> <span class="pre">2802,</span> <span class="pre">2822,</span> <span class="pre">2842,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">2862,</span> <span class="pre">2882,</span> <span class="pre">2902,</span> <span class="pre">2922,</span> <span class="pre">2942,</span> <span class="pre">2962,</span> <span class="pre">2982])</span></em><a class="headerlink" href="#delensalot.config.config_helper.LEREPI_Constants.fs_edges" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.config_helper.LEREPI_Constants.ioreco_edges">
+<span class="sig-name descname"><span class="pre">ioreco_edges</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">array([</span>&#160;&#160; <span class="pre">2,</span>&#160;&#160; <span class="pre">30,</span>&#160; <span class="pre">200,</span>&#160; <span class="pre">300,</span>&#160; <span class="pre">500,</span>&#160; <span class="pre">700,</span> <span class="pre">1000,</span> <span class="pre">1500,</span> <span class="pre">2000,</span> <span class="pre">3000,</span> <span class="pre">4000,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">5000])</span></em><a class="headerlink" href="#delensalot.config.config_helper.LEREPI_Constants.ioreco_edges" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="delensalot.config.config_helper.LEREPI_Constants.lowell_edges">
+<span class="sig-name descname"><span class="pre">lowell_edges</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">array([</span>&#160;&#160; <span class="pre">2,</span>&#160; <span class="pre">200,</span>&#160; <span class="pre">300,</span>&#160; <span class="pre">500,</span>&#160; <span class="pre">700,</span> <span class="pre">1000,</span> <span class="pre">1500,</span> <span class="pre">2000,</span> <span class="pre">3000,</span> <span class="pre">4000,</span> <span class="pre">5000])</span></em><a class="headerlink" href="#delensalot.config.config_helper.LEREPI_Constants.lowell_edges" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="delensalot.config.config_helper.data_functions">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.config.config_helper.</span></span><span class="sig-name descname"><span class="pre">data_functions</span></span><a class="headerlink" href="#delensalot.config.config_helper.data_functions" title="Permalink to this definition"></a></dt>
+<dd><dl class="py method">
+<dt class="sig sig-object py" id="delensalot.config.config_helper.data_functions.a2r">
+<span class="sig-name descname"><span class="pre">a2r</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.config.config_helper.data_functions.a2r" title="Permalink to this definition"></a></dt>
+<dd><p>arcmin2radian converter</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>val</strong> (<em>_type_</em>) – _description_</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>_description_</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>_type_</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="delensalot.config.config_helper.data_functions.c2a">
+<span class="sig-name descname"><span class="pre">c2a</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.config.config_helper.data_functions.c2a" title="Permalink to this definition"></a></dt>
+<dd><p>Cl2arcmin converter</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>val</strong> (<em>_type_</em>) – _description_</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>_description_</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>_type_</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="delensalot.config.config_helper.data_functions.extend_zbounds">
+<span class="sig-name descname"><span class="pre">extend_zbounds</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">degrees</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.config.config_helper.data_functions.extend_zbounds" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="delensalot.config.config_helper.data_functions.get_nlev_mask">
+<span class="sig-name descname"><span class="pre">get_nlev_mask</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rhits</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.config.config_helper.data_functions.get_nlev_mask" title="Permalink to this definition"></a></dt>
+<dd><p>Mask built thresholding the relative hit counts map
+.. note:: Same as 06b</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="delensalot.config.config_helper.data_functions.get_zbounds">
+<span class="sig-name descname"><span class="pre">get_zbounds</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hits_ratio</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">inf</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.config.config_helper.data_functions.get_zbounds" title="Permalink to this definition"></a></dt>
+<dd><p>Cos-tht bounds for thresholded mask</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="delensalot.config.config_helper.data_functions.r2a">
+<span class="sig-name descname"><span class="pre">r2a</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.config.config_helper.data_functions.r2a" title="Permalink to this definition"></a></dt>
+<dd><p>radian2arcmin converter</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>val</strong> (<em>_type_</em>) – _description_</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>_description_</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>_type_</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="core.html" class="btn btn-neutral float-left" title="core" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="sims.html" class="btn btn-neutral float-right" title="sims" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, S. Belkner, J. Carron, L. Legrand.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

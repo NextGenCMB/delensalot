@@ -1,10 +1,12 @@
 import pylab as pl
-from lenscarf import cachers, remapping
+from delensalot import remapping
 import numpy as np
-from lenscarf import utils_scarf as sj
+from delensalot.core.helper import utils_scarf as sj
 import healpy as hp
-from lenscarf import utils_config
+from delensalot import utils_config
 from plancklens.utils import camb_clfile
+
+from delensalot.core import cachers
 
 
 # PBOUNDS = (np.pi, 2* np.pi)
@@ -19,11 +21,11 @@ lmaxin = 3999
 lmaxout = 2999
 mmax_dlm = lmaxin
 mmax_glm = lmaxin
-clee = camb_clfile('./lenscarf/data/cls/FFP10_wdipole_lenspotentialCls.dat')['ee'][:lmaxin + 1]
-clbb = camb_clfile('./lenscarf/data/cls/FFP10_wdipole_lensedCls.dat')['bb'][:lmaxin + 1]
-clee_len = camb_clfile('./lenscarf/data/cls/FFP10_wdipole_lensedCls.dat')['ee'][:lmaxin + 1]
+clee = camb_clfile('./delensalot/data/cls/FFP10_wdipole_lenspotentialCls.dat')['ee'][:lmaxin + 1]
+clbb = camb_clfile('./delensalot/data/cls/FFP10_wdipole_lensedCls.dat')['bb'][:lmaxin + 1]
+clee_len = camb_clfile('./delensalot/data/cls/FFP10_wdipole_lensedCls.dat')['ee'][:lmaxin + 1]
 
-clpp = camb_clfile('./lenscarf/data/cls/FFP10_wdipole_lenspotentialCls.dat')['pp'][:lmaxin + 1]
+clpp = camb_clfile('./delensalot/data/cls/FFP10_wdipole_lenspotentialCls.dat')['pp'][:lmaxin + 1]
 
 glm = hp.synalm(clee, new=True)
 plm = hp.synalm(clpp, new=True)

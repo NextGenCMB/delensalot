@@ -1,15 +1,16 @@
 from plancklens import utils
-from lenscarf.utils_scarf import Geom
+from delensalot.core import cachers
+from delensalot.core.helper.utils_scarf import Geom
 import numpy as np
-import lenscarf
-from lenscarf import utils_scarf as sj
+import delensalot
+from delensalot.core.helper import utils_scarf as sj
 import pylab as pl
-from lenscarf import utils_scarf
-from lenscarf import cachers, remapping
+from delensalot.core.helper import utils_scarf
+from delensalot import remapping
 from plancklens.utils import camb_clfile
 lmax = 3000
-clee = camb_clfile('../lenscarf/data/cls/FFP10_wdipole_lensedCls.dat')['ee'][:lmax + 1]
-clpp = camb_clfile('../lenscarf/data/cls/FFP10_wdipole_lenspotentialCls.dat')['pp'][:lmax + 1]
+clee = camb_clfile('../delensalot/data/cls/FFP10_wdipole_lensedCls.dat')['ee'][:lmax + 1]
+clpp = camb_clfile('../delensalot/data/cls/FFP10_wdipole_lenspotentialCls.dat')['pp'][:lmax + 1]
 
 import healpy as hp
 glm = hp.synalm(clee, new=True)

@@ -1,9 +1,11 @@
 import numpy as np
 import time
-from lenscarf import utils_hp, remapping, cachers
-from lenscarf.utils_scarf import pbdGeometry, pbounds, scarfjob, Geom
+from delensalot import remapping
+from delensalot.core import cachers
+from delensalot.utility import utils_hp
+from delensalot.core.helper.utils_scarf import pbdGeometry, pbounds, scarfjob, Geom
 from plancklens.utils import camb_clfile
-from lenscarf.utils_remapping import d2ang, ang2d
+from delensalot.core.helper.utils_remapping import d2ang, ang2d
 
 
 def func_fwdangle(red, imd, tht, cost, sint, phis):
@@ -30,7 +32,7 @@ if __name__ == '__main__':
     lenjob = scarfjob()
     lenjob.set_healpix_geometry(2048)
     # deflection instance:
-    cldd = camb_clfile('../lenscarf/data/cls/FFP10_wdipole_lenspotentialCls.dat')['pp'][:lmax_dlm + 1]
+    cldd = camb_clfile('../delensalot/data/cls/FFP10_wdipole_lenspotentialCls.dat')['pp'][:lmax_dlm + 1]
     cldd *= np.sqrt(np.arange(lmax_dlm + 1) *  np.arange(1, lmax_dlm + 2))
     dlm = utils_hp.synalm(cldd, lmax_dlm, mmax_dlm)
     d_geom = pbdGeometry(lenjob.geom, pbounds(np.pi, 2 * np.pi))
