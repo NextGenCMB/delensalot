@@ -274,6 +274,7 @@ class cpp_sims_lib:
         fn_cpp_qe = 'cpp_qe_raw' + splitMF*'_splitMF'
         cacher = self.cacher_sim(simidx)
         if not cacher.is_cached(fn_cpp_qe) or recache:
+            print(f"Computing Cpp qe for sim {simidx}")
             plmqe  = self.param.qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate
 
             # QE mean-field
@@ -338,8 +339,8 @@ class cpp_sims_lib:
 
 
         Nmf = len(mf_sims)
-        if hasattr(self.param, 'qlms_dd_fid'):
-            # In this case the sims are different so there is no overlap of MF sims with the data sim
+        if not hasattr(self.param, 'qlms_dd_fid'):
+            # In this case the sims are the same so there is a risk of overlap of MF sims with the data sim
             for simid in np.atleast_1d(simidx):
                 if simid in mf_sims:
                     mf0 = (mf0 - self.param.qlms_dd.get_sim_qlm(self.k, int(simid)) / Nmf) * (Nmf / (Nmf - 1))
@@ -730,7 +731,7 @@ class cpp_sims_lib:
             Nroll: the allocation of i, j sims is done with j = i+1, by batches of Nroll 
 
         """
-        assert datidx < Ndatasims or datidx > Ndatasims+Nmcsims-1, "Do not estimate the RDN0 for a simulation inside the set of sims used for the RDN0"
+        assert datidx < Ndatasims or datidx > Ndatasims+Nmcsims-1, f"Do not estimate the RDN0 for a simulation inside the set of sims used for the RDN0, here datidx={datidx}, Ndatasims={Ndatasims}, Nmcsims={Nmcsims}"
         fn_dir = rdn0_cs.output_sim(self.k, self.param.suffix, datidx)
         mcs = np.arange(Ndatasims, Nmcsims+Ndatasims)
         fn = os.path.join(fn_dir, rdn0_cs.fn_cls_dsss(0, mcs, Nroll))
@@ -998,7 +999,7 @@ class cpp_sims_lib:
         else:
             return bnd_map_n0rat, bias_map_n0resp
 
-    def get_sim_cov(self,  wf_it,  qe_resp, map_resp, N1_map, bias_map_resp, lmin, lmax, edges, nsims=40, itr=50, sub_mf=True, mc_sims=np.arange(0, 40),  w= lambda ls: 1):
+    def get_sim_cov(self,  wf_it,  qe_resp, map_resp, N1_map, bias_map_resp, lmin, lmax, edges, nsims_qe=40, nsims_qe_rd=None, nsims_map=40, itr=50, sub_mf=True, mc_sims=np.arange(0, 40),  w= lambda ls: 1):
         """Get Clpp covariance matrix from a set of simulations
         
         Args: 
@@ -1016,27 +1017,34 @@ class cpp_sims_lib:
         bnd_map =  stats(nbin, xcoord=ellb, docov=True)
         bnd_qe =  stats(nbin, xcoord=ellb, docov=True)
 
-        for i in range(nsims):
-            cpp_map = self.get_cpp(i, itr, sub_mf=sub_mf, mf_sims=mc_sims, splitMF=True)
-            cpp_qe = self.get_cpp_qe_raw(i, splitMF=True)    
+        if nsims_qe_rd is None: nsims_qe_rd=nsims_qe
 
+        for i in range(nsims_map):
+            _cpp_map = self.get_cpp(i, itr, sub_mf=sub_mf, mf_sims=mc_sims, splitMF=True)
             RDN0_map  = self.get_rdn0_map(i, itr =itr, Reff=map_resp,  useReff=True)
+            
+            cpp_map = _cpp_map*utils.cli(wf_it)**2 /self.fsky
+            cpp_map_rd = _cpp_map*utils.cli(wf_it)**2 /self.fsky - (RDN0_map+N1_map) * bias_map_resp
 
+            bnd_map.add(bnd(cpp_map,  lmin, lmax, edges, weight=w)[1])
+            bnd_map_rd.add(bnd(cpp_map_rd,  lmin, lmax, edges, weight=w)[1])
+            
+        for i in range(nsims_qe):
+            _cpp_qe = self.get_cpp_qe_raw(i, splitMF=True)    
+            
+            cpp_qe =  (_cpp_qe/self.fsky)*utils.cli(qe_resp) **2
+        
+            bnd_qe.add(bnd(cpp_qe,  lmin, lmax, edges, weight=w)[1])
+
+
+        for i in range(nsims_qe_rd):
+            # i+=140
+            _cpp_qe = self.get_cpp_qe_raw(i, splitMF=True)    
             rdn0_qe= self.get_rdn0_qe(i, 40, 100, 10)[0]
             
-            # cpp_map_rd = cpp_map*utils.cli(wf_it)**2 /self.fsky - RDN0_map
-            cpp_map_rd = cpp_map*utils.cli(wf_it)**2 /self.fsky - (RDN0_map+N1_map) * bias_map_resp
-            cpp_qe_rd =  (cpp_qe/self.fsky - rdn0_qe)*utils.cli(qe_resp) **2
-            
-            cpp_map = cpp_map*utils.cli(wf_it)**2 /self.fsky
-            cpp_qe =  (cpp_qe/self.fsky)*utils.cli(qe_resp) **2
-            
-
-            bnd_map_rd.add(bnd(cpp_map_rd,  lmin, lmax, edges, weight=w)[1])
-            bnd_qe_rd.add(bnd(cpp_qe_rd,  lmin, lmax, edges, weight=w)[1])
-            
-            bnd_map.add(bnd(cpp_map,  lmin, lmax, edges, weight=w)[1])
-            bnd_qe.add(bnd(cpp_qe,  lmin, lmax, edges, weight=w)[1])
+            cpp_qe_rd =  (_cpp_qe/self.fsky - rdn0_qe)*utils.cli(qe_resp) **2            
+        
+            bnd_qe_rd.add(bnd(cpp_qe_rd,  lmin, lmax, edges, weight=w)[1])   
 
         return bnd_qe.cov(), bnd_map.cov(), bnd_qe_rd.cov(), bnd_map_rd.cov()
 
