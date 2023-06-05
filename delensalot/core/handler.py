@@ -261,11 +261,6 @@ class Sim_generator(Basejob):
     @log_on_start(logging.INFO, "Sim.generate_sim(simidx={simidx}) started")
     @log_on_end(logging.INFO, "Sim.generate_sim(simidx={simidx}) finished")
     def generate_sim(self, simidx):
-        """
-        comment for a future me: 
-            simulation library stores the lensed cmbs without noise. later, delensalot.iterator uses get_sim_pmap() which combines noise and lensed CMB at runtime, and is never stored.
-            accesses the lensed CMB library.
-        """
         if self.k in ['p_p', 'p_eb', 'peb', 'p_be']:
             QUobs = self.simulationdata.get_sim_obs(simidx, spin=2, space='map', field='polarization')
             np.save(opj(self.libdir, self.simulationdata.fns[0].format(simidx)), QUobs[0])
@@ -896,8 +891,7 @@ class Map_delenser(Basejob):
         if self.basemap == 'lens':
             return almxfl(alm_copy(self.simulationdata.get_sim_sky(simidx, space='alm', spin=0, field='polarization')[1], self.simulationdata.lmax, *self.lm_max_blt), self.ttebl['e'], self.lm_max_blt[0], inplace=False) 
         else:
-            bmap = hp.alm2map(hp.map2alm_spin(self.sims.get_sim_pmap(simidx), lmax=2000, spin=2)[1], nside=2048) 
-            return hp.map2alm(bmap, lmax = self.lm_max_blt[0])
+            return almxfl(alm_copy(self.simulationdata.get_sim_obs(simidx, space='alm', spin=0, field='polarization')[1], self.simulationdata.lmax, *self.lm_max_blt), self.ttebl['e'], self.lm_max_blt[0], inplace=False) 
     
 
     @log_on_start(logging.INFO, "_delens() started")
