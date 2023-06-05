@@ -52,13 +52,10 @@ class base_iterator():
         # TODO change naming convention. Should align with map/alm params for ivfs and simdata
         if self.it_filter_directional == 'isotropic':
             # dat maps must now be given in harmonic space in this idealized configuration
-            job = utils_geom.Geom.get_healpix_geometry(self.sims_nside)
-            thtbounds = (np.arccos(self.zbounds[1]), np.arccos(self.zbounds[0]))
-            job = job.restrict(*thtbounds, northsouth_sym=False)
             if self.k in ['pee']:
-                return np.array(job.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2, *self.lm_max_ivf, nthreads=self.tr))[0]
+                return np.array(self.nivjob_geomlib.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2, *self.lm_max_ivf, nthreads=self.tr))[0]
             else:
-                return np.array(job.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2, *self.lm_max_ivf, nthreads=self.tr))
+                return np.array(self.nivjob_geomlib.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2, *self.lm_max_ivf, nthreads=self.tr))
         else:
             return np.array(self.sims_MAP.get_sim_pmap(int(self.simidx)))
         

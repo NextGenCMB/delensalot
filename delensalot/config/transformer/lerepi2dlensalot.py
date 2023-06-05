@@ -91,7 +91,6 @@ class l2base_Transformer:
         dl.lm_max_ivf = an.lm_max_ivf
         dl.lm_max_blt = an.lm_max_blt
         dl.sims_lmax_transf = an.lmax_transf
-        dl.epsilon = an.epsilon
         dl.parameter_maps = an.maps
         dl.parameter_phi = an.phi
         dl.transfunction = an.transfunction
@@ -392,12 +391,10 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 @log_on_start(logging.DEBUG, "_process_Itrec() started")
                 @log_on_end(logging.DEBUG, "_process_Itrec() finished")
                 def _process_Itrec(dl, it):
-                    # tasks
                     dl.it_tasks = it.tasks
-                    # lmaxunl
                     dl.lm_max_unl = it.lm_max_unl
                     dl.lm_max_qlm = it.lm_max_qlm
-                    # chain
+                    dl.epsilon = it.epsilon
                     dl.it_chain_model = it.chain
                     dl.it_chain_model.p3 = dl.nivjob_geominfo[1]['nside']
                     if dl.it_chain_model.p6 == 'tr_cg':
@@ -407,11 +404,11 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.it_chain_descr = lambda p2, p5 : [
                         [dl.it_chain_model.p0, dl.it_chain_model.p1, p2, dl.it_chain_model.p3, dl.it_chain_model.p4, p5, _p6, _p7]]
                     
-                    dl.lenjob_geominfo = it.geometry
-                    dl.lenjob_geomlib = get_geom(it.geometry)
-                    if it.lenpbdgeometry[0] == 'pbd':
-                        dl.lenjob_pbdgeominfo = it.lenpbdgeometry
-                        dl.lenjob_pbdgeomlib = lug.pbdGeometry(dl.lenjob_geomlib, lug.pbounds(*it.lenpbdgeometry[0]))
+                    dl.lenjob_geominfo = it.lenjob_geometry
+                    dl.lenjob_geomlib = get_geom(it.lenjob_geometry)
+                    if it.lenjob_pbdgeometry[0] == 'pbd':
+                        dl.lenjob_pbdgeominfo = it.lenjob_pbdgeometry
+                        dl.lenjob_pbdgeomlib = lug.pbdGeometry(dl.lenjob_geomlib, lug.pbounds(*it.lenjob_pbdgeometry[1]))
 
                     if dl.version == '' or dl.version == None:
                         dl.mf_dirname = opj(dl.TEMP, l2T_Transformer.ofj('mf', {'Nmf': dl.Nmf}))
@@ -468,12 +465,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     
                 dl.cpp[:dl.Lmin] *= 0.
 
-                if dl.it_filter_directional == 'anisotropic':
-                    # ninvjob_geometry
-                    dl.nivjob_geomlib = get_geom(nm.geometry)
-                    thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
-                    dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
-
             dl = DLENSALOT_Concept()
             _process_components(dl)
             ## TODO. Current solution to fake an iteration handler for QE to calc blt is to initialize one here.
@@ -517,7 +508,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.sky_coverage = nm.sky_coverage
                     # TODO assuming that masked sky comes with a hits-count map. If not, take mask
                     dl.nivjob_geomlib = get_geom(nm.geometry)
-                    thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
+                    dl.nivjob_geominfo = nm.geometry
+                    thtbounds = (np.arccos(cf.analysis.zbounds[1]), np.arccos(cf.analysis.zbounds[0]))
                     dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
                     if dl.sky_coverage == 'masked':
                         dl.rhits_normalised = nm.rhits_normalised
@@ -538,9 +530,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 def _process_OBD(dl, od):
                     dl.obd_libdir = od.libdir
                     dl.obd_rescale = od.rescale
-                    dl.nivjob_geomlib = get_geom(nm.geometry)
-                    thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
-                    dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
                     dl.tpl = template_dense(dl.lmin_teb[2], dl.ninvjob_geometry, dl.tr, _lib_dir=dl.obd_libdir, rescal=dl.obd_rescale)
 
 
@@ -578,14 +567,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                                     buffer = copy.deepcopy(dl.qe_tasks[0])
                                     dl.qe_tasks[0] = 'calc_meanfield'
                                     dl.qe_tasks[2] = buffer
-                    # lmax_qlm
                     dl.lm_max_qlm = qe.lm_max_qlm
-
                     dl.qlm_type = qe.qlm_type
-
-                    dl.nivjob_geomlib = get_geom(nm.geometry)
-                    thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
-                    dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
                     dl.cg_tol = qe.cg_tol
 
                     if qe.chain == None:
@@ -593,7 +576,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                         dl.chain_model = dl.chain_descr
                     else:
                         dl.chain_model = qe.chain
-                        dl.chain_model.p3 = dl.sims_nside
+                        dl.chain_model.p3 = dl.nivjob_geominfo[1]['nside']
                         
                         if dl.chain_model.p6 == 'tr_cg':
                             _p6 = cd_solve.tr_cg
@@ -602,24 +585,20 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                         dl.chain_descr = lambda p2, p5 : [
                             [dl.chain_model.p0, dl.chain_model.p1, p2, dl.chain_model.p3, dl.chain_model.p4, p5, _p6, _p7]]
 
-                    # filter
                     dl.qe_filter_directional = qe.filter_directional
-
-                    # qe_cl_analysis
                     dl.cl_analysis = qe.cl_analysis
 
 
                 @log_on_start(logging.DEBUG, "_process_Itrec() started")
                 @log_on_end(logging.DEBUG, "_process_Itrec() finished")
                 def _process_Itrec(dl, it):
-                    # tasks
                     dl.it_tasks = it.tasks
-                    # lmaxunl
                     dl.lm_max_unl = it.lm_max_unl
                     dl.lm_max_qlm = it.lm_max_qlm
+                    dl.epsilon = it.epsilon
                     # chain
                     dl.it_chain_model = it.chain
-                    dl.it_chain_model.p3 = dl.sims_nside
+                    dl.it_chain_model.p3 = dl.nivjob_geominfo[1]['nside']
                     if dl.it_chain_model.p6 == 'tr_cg':
                         _p6 = cd_solve.tr_cg
                     if dl.it_chain_model.p7 == 'cache_mem':
@@ -627,11 +606,11 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.it_chain_descr = lambda p2, p5 : [
                         [dl.it_chain_model.p0, dl.it_chain_model.p1, p2, dl.it_chain_model.p3, dl.it_chain_model.p4, p5, _p6, _p7]]
                     
-                    dl.lenjob_geominfo = it.geometry
-                    dl.lenjob_geomlib = get_geom(it.geometry)
-                    if it.lenpbdgeometry[0] == 'pbd':
-                        dl.lenjob_pbdgeominfo = it.lenpbdgeometry
-                        dl.lenjob_pbdgeomlib = lug.pbdGeometry(dl.lenjob_geomlib, lug.pbounds(*it.lenpbdgeometry[0]))
+                    dl.lenjob_geominfo = it.lenjob_geometry
+                    dl.lenjob_geomlib = get_geom(it.lenjob_geometry)
+                    if it.lenjob_pbdgeometry[0] == 'pbd':
+                        dl.lenjob_pbdgeominfo = it.lenjob_pbdgeometry
+                        dl.lenjob_pbdgeomlib = lug.pbdGeometry(dl.lenjob_geomlib, lug.pbounds(*it.lenjob_pbdgeometry[1]))
                     
                     if dl.version == '' or dl.version == None:
                         dl.mf_dirname = opj(dl.TEMP, l2T_Transformer.ofj('mf', {'Nmf': dl.Nmf}))
@@ -684,11 +663,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.cpp = camb_clfile(cf.analysis.cpp)['pp'][:dl.lm_max_qlm[0] + 1] ## TODO could be added via 'fiducial' parameter in dlensalot config for user
                 dl.cpp[:dl.Lmin] *= 0.
 
-                if dl.it_filter_directional == 'anisotropic':
-                    dl.nivjob_geomlib = get_geom(nm.geometry)
-                    thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
-                    dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
-
             dl = DLENSALOT_Concept()
             _process_components(dl)
             return dl
@@ -739,7 +713,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 def _process_Noisemodel(dl, nm):
                     dl.lmin_b = dl.lmin_teb[2]
                     dl.nivjob_geomlib = get_geom(nm.geometry)
-                    thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
+                    dl.nivjob_geominfo = nm.geometry
+                    thtbounds = (np.arccos(cf.analysis.zbounds[1]), np.arccos(cf.analysis.zbounds[0]))
                     dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
                     dl.masks, dl.rhits_map = l2OBD_Transformer.get_masks(cf, dl)
                     dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)

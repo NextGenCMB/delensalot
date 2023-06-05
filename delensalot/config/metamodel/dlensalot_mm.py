@@ -144,7 +144,6 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     beam =                  attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.beam)
     transfunction =         attr.field(default=DEFAULT_NotAValue, on_setattr=data.transferfunction)
     lmax_transf =           attr.field(default=DEFAULT_NotAValue, on_setattr=data.lmax_transf)
-    epsilon =               attr.field(default=DEFAULT_NotAValue, on_setattr=data.epsilon)
     maps =                  attr.field(default=DEFAULT_NotAValue, on_setattr=data.maps)
     phi =                   attr.field(default=DEFAULT_NotAValue, on_setattr=data.phi)
 
@@ -246,7 +245,7 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     qlm_type =              attr.field(default=DEFAULT_NotAValue, on_setattr=qerec.qlms)
     cg_tol =                attr.field(default=DEFAULT_NotAValue, on_setattr=qerec.cg_tol)
     filter_directional =    attr.field(default=DEFAULT_NotAValue, on_setattr=qerec.filter_directional)
-    ninvjob_qe_geometry =   attr.field(default=DEFAULT_NotAValue, on_setattr=qerec.ninvjob_qe_geometry)
+    nivjob_geometry =       attr.field(default=DEFAULT_NotAValue, on_setattr=qerec.ninvjob_qe_geometry)
     lm_max_qlm =            attr.field(default=DEFAULT_NotAValue, on_setattr=qerec.lm_max_qlm) # TODO qe.lm_max_qlm and it.lm_max_qlm must be same. Test at validator?
     chain =                 attr.field(default=DLENSALOT_Chaindescriptor(), on_setattr=qerec.chain)
     cl_analysis =           attr.field(default=DEFAULT_NotAValue, on_setattr=qerec.cl_analysis)
@@ -280,12 +279,13 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     chain =                 attr.field(default=DLENSALOT_Chaindescriptor(), validator=itrec.chain)
     filter_directional =    attr.field(default=DEFAULT_NotAValue, validator=itrec.filter_directional)
     lenjob_geometry =       attr.field(default=DEFAULT_NotAValue, validator=itrec.lenjob_geometry)
-    lenjob_pbgeometry =     attr.field(default=DEFAULT_NotAValue, validator=itrec.lenjob_pbgeometry)
+    lenjob_pbdgeometry =    attr.field(default=DEFAULT_NotAValue, validator=itrec.lenjob_pbgeometry)
     lm_max_unl =            attr.field(default=DEFAULT_NotAValue, validator=itrec.lm_max_unl)
     lm_max_qlm =            attr.field(default=DEFAULT_NotAValue, validator=itrec.lm_max_qlm)
     mfvar =                 attr.field(default=DEFAULT_NotAValue, validator=itrec.mfvar)
     soltn_cond =            attr.field(default=DEFAULT_NotAValue, validator=itrec.soltn_cond)
     stepper =               attr.field(default=DLENSALOT_Stepper(), validator=itrec.stepper)
+    epsilon =               attr.field(default=DEFAULT_NotAValue, on_setattr=data.epsilon)
     
 @attr.s
 class DLENSALOT_Mapdelensing(DLENSALOT_Concept):

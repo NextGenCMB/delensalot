@@ -297,9 +297,9 @@ class QE_lr(Basejob):
         # self.filter_ = transform(self.configfile.dlensalot_model, opfilt_handler_QE())
 
         if self.qe_filter_directional == 'isotropic':
-            self.ivfs = filt_simple.library_fullsky_sepTP(opj(self.libdir_QE, 'ivfs'), self.simulationdata, self.sims_nside, self.ttebl, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
+            self.ivfs = filt_simple.library_fullsky_sepTP(opj(self.libdir_QE, 'ivfs'), self.simulationdata, self.nivjob_geominfo[1]['nside'], self.ttebl, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
             if self.qlm_type == 'sepTP':
-                self.qlms_dd = qest.library_sepTP(opj(self.libdir_QE, 'qlms_dd'), self.ivfs, self.ivfs, self.cls_len['te'], self.sims_nside, lmax_qlm=self.lm_max_qlm[0])
+                self.qlms_dd = qest.library_sepTP(opj(self.libdir_QE, 'qlms_dd'), self.ivfs, self.ivfs, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
         else:
             ## Wait for instantiation, as plancklens triggers cinv_calc...
             pass
@@ -313,7 +313,8 @@ class QE_lr(Basejob):
             if not os.path.exists(opj(self.libdir_QE, 'BLT')):
                 os.makedirs(opj(self.libdir_QE, 'BLT'))
             if self.it_filter_directional == 'anisotropic':
-                self.sims_MAP = utils_sims.ztrunc_sims(self.simulationdata, self.sims_nside, [self.zbounds])
+                # TODO reimplement ztrunc
+                self.sims_MAP = utils_sims.ztrunc_sims(self.simulationdata, self.nivjob_geominfo[1]['nside'], [self.zbounds])
             elif self.it_filter_directional == 'isotropic':
                 self.sims_MAP = self.simulationdata
 
@@ -327,8 +328,8 @@ class QE_lr(Basejob):
             self.ivfs_d = filt_util.library_shuffle(self.ivfs, self.ds_dict)
             self.ivfs_s = filt_util.library_shuffle(self.ivfs, self.ss_dict)
 
-            self.qlms_ds = qest.library_sepTP(opj(self.libdir_QE, 'qlms_ds'), self.ivfs, self.ivfs_d, self.cls_len['te'], self.sims_nside, lmax_qlm=self.lm_max_qlm[0])
-            self.qlms_ss = qest.library_sepTP(opj(self.libdir_QE, 'qlms_ss'), self.ivfs, self.ivfs_s, self.cls_len['te'], self.sims_nside, lmax_qlm=self.lm_max_qlm[0])
+            self.qlms_ds = qest.library_sepTP(opj(self.libdir_QE, 'qlms_ds'), self.ivfs, self.ivfs_d, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
+            self.qlms_ss = qest.library_sepTP(opj(self.libdir_QE, 'qlms_ss'), self.ivfs, self.ivfs_s, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
 
             self.mc_sims_bias = np.arange(60, dtype=int)
             self.mc_sims_var  = np.arange(60, 300, dtype=int)
@@ -341,21 +342,21 @@ class QE_lr(Basejob):
 
     def init_cinv(self):
         self.cinv_t = filt_cinv.cinv_t(opj(self.libdir_QE, 'cinv_t'),
-            self.lm_max_ivf[0], self.sims_nside, self.cls_len,
+            self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
             self.ttebl['t'], self.ninvt_desc,
             marge_monopole=True, marge_dipole=True, marge_maps=[])
 
         transf_elm_loc = gauss_beam(self.beam / 180 / 60 * np.pi, lmax=self.lm_max_ivf[0])
         if self.OBD:
             self.cinv_p = cinv_p_OBD.cinv_p(opj(self.libdir_QE, 'cinv_p'),
-                self.lm_max_ivf[0], self.sims_nside, self.cls_len,
+                self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
                 transf_elm_loc[:self.lm_max_ivf[0]+1], self.ninvp_desc, geom=self.ninvjob_qe_geometry,
                 chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol), bmarg_lmax=self.lmin_teb[2],
                 zbounds=self.zbounds, _bmarg_lib_dir=self.obd_libdir_QE, _bmarg_rescal=self.obd_rescale,
                 sht_threads=self.tr)
         else:
             self.cinv_p = filt_cinv.cinv_p(opj(self.TEMP, 'cinv_p'),
-                self.lm_max_ivf[0], self.sims_nside, self.cls_len,
+                self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
                 self.ttebl['e'], self.ninvp_desc, chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol),
                 transf_blm=self.ttebl['b'], marge_qmaps=(), marge_umaps=())
 
@@ -425,7 +426,7 @@ class QE_lr(Basejob):
             _fel_rs = np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[1])
             _fbl_rs = np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[2])
             self.ivfs = filt_util.library_ftl(_filter_raw, self.lm_max_qlm[0], _ftl_rs, _fel_rs, _fbl_rs)
-            self.qlms_dd = qest.library_sepTP(opj(self.libdir_QE, 'qlms_dd'), self.ivfs, self.ivfs, self.cls_len['te'], self.sims_nside, lmax_qlm=self.lm_max_qlm[0])
+            self.qlms_dd = qest.library_sepTP(opj(self.libdir_QE, 'qlms_dd'), self.ivfs, self.ivfs, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
 
         _tasks = self.qe_tasks if task is None else [task]
         
@@ -633,7 +634,7 @@ class MAP_lr(Basejob):
 
         # sims -> sims_MAP
         if self.it_filter_directional == 'anisotropic':
-            self.sims_MAP = utils_sims.ztrunc_sims(self.simulationdata, self.sims_nside, [self.zbounds])
+            self.sims_MAP = utils_sims.ztrunc_sims(self.simulationdata, self.nivjob_geominfo[1]['nside'], [self.zbounds])
             if self.k in ['ptt']:
                 self.ninv = self.sims_MAP.ztruncify(read_map(self.ninvt_desc)) # inverse pixel noise map on consistent geometry
             else:
@@ -862,7 +863,7 @@ class Map_delenser(Basejob):
         # TODO using self.ttebl['e'] for now, as this doesn't have the low-ell cut, in general should use an uncut-transferfunction?
         # TODO blm_L is configuration dependent. Best case is that sims module provides `get_sim_blm()`, then we can leave this here as is.
         blm_L = hp.almxfl(alm_copy(self._sims.get_sim_blm(simidx, ret=True), self._sims.lmax, *self.lm_max_blt), self.ttebl['e'])
-        bmap_L = hp.alm2map(blm_L, self.sims_nside)
+        bmap_L = hp.alm2map(blm_L, self.nivjob_geominfo[1]['nside'])
 
         blt_QE1, blt_QE2 = self._build_BLT_QE(simidx)
         blt_MAP1, blt_MAP2 = self._build_BLT_MAP(simidx)
@@ -874,7 +875,7 @@ class Map_delenser(Basejob):
     # @log_on_end(logging.INFO, "_build_basemaps() finished")
     def _build_BLT_QE(self, simidx):
         bltlm_QE1 = self.get_blt_it(simidx, 0)
-        blt_QE1 = hp.alm2map(bltlm_QE1, nside=self.sims_nside)
+        blt_QE1 = hp.alm2map(bltlm_QE1, nside=self.nivjob_geominfo[1]['nside'])
         blt_QE2 = np.copy(blt_QE1)
 
         return blt_QE1, blt_QE2
@@ -884,7 +885,7 @@ class Map_delenser(Basejob):
     # @log_on_end(logging.INFO, "_build_Btemplate_MAP() finished")
     def _build_BLT_MAP(self, simidx):
         bltlm_MAP = np.array([self.get_blt_it(simidx, it) for it in self.its], dtype=complex)
-        blt_MAP1 = np.array([hp.alm2map(bltlm_MAP[iti], nside=self.sims_nside) for iti, it in enumerate(self.its)])
+        blt_MAP1 = np.array([hp.alm2map(bltlm_MAP[iti], nside=self.nivjob_geominfo[1]['nside']) for iti, it in enumerate(self.its)])
         blt_MAP2 = np.copy(blt_MAP1)
 
         return blt_MAP1, blt_MAP2
