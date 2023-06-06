@@ -761,6 +761,7 @@ class Simhandler:
                 if phi_fn != DNaV:
                     assert phi_field != DNaV, "need to provide phi_field"
                     assert phi_space == 'cl', "please set phi_space='cl', just to be sure."
+                self.fns = ['Qmapobs_{}.npy', 'Umapobs_{}.npy'] # TODO don't like how it's defined here. Also.. this assumes data is Q and U, and map space, and polarization.. FIXME
                 self.spin = 0 # there are genrally no qcls, ucls, therefore here we can safely assume that data is spin0
                 self.cls_lib = Cls(lmax=lmax, phi_lmax=lmax, CMB_fn=CMB_fn, phi_fn=phi_fn, phi_field=phi_field, simidxs=simidxs)
                 self.unl_lib = Xunl(cls_lib=self.cls_lib, lmax=lmax, fnsP=fnsP, phi_field=phi_field, libdir_phi=libdir_phi, phi_space=phi_space, simidxs=simidxs, geometry=geometry)
@@ -769,7 +770,7 @@ class Simhandler:
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = self.obs_lib.libdir
                 self.geometry = self.obs_lib.geometry
-                self.fns = self.obs_lib.fns
+                # self.fns = self.obs_lib.fns
 
         self.cacher = cachers.cacher_mem(safe=True) #TODO might as well use a numpy cacher
 
