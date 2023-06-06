@@ -46,14 +46,14 @@ class l2base_Transformer:
         pass
 
 
-    @log_on_start(logging.DEBUG, "process_Simulation() started")
-    @log_on_end(logging.DEBUG, "process_Simulation() finished")
+    #@log_on_start(logging.DEBUG, "process_Simulation() started")
+    #@log_on_end(logging.DEBUG, "process_Simulation() finished")
     def process_Simulation(dl, si, cf):
         dl.simulationdata = Simhandler(**si.__dict__)
 
 
-    @log_on_start(logging.DEBUG, "_process_Analysis() started")
-    @log_on_end(logging.DEBUG, "_process_Analysis() finished")
+    #@log_on_start(logging.DEBUG, "_process_Analysis() started")
+    #@log_on_end(logging.DEBUG, "_process_Analysis() finished")
     def process_Analysis(dl, an, cf):
         if loglevel <= 20:
             dl.verbose = True
@@ -118,8 +118,8 @@ class l2base_Transformer:
         dl.ftebl_unl = {'t': ftl_unl, 'e': fel_unl, 'b':fbl_unl}
 
 
-    @log_on_start(logging.DEBUG, "_process_Meta() started")
-    @log_on_end(logging.DEBUG, "_process_Meta() finished")
+    #@log_on_start(logging.DEBUG, "_process_Meta() started")
+    #@log_on_end(logging.DEBUG, "_process_Meta() finished")
     def process_Meta(dl, me, cf):
         dl.dversion = me.version
 
@@ -129,8 +129,8 @@ class l2T_Transformer:
     """global access for custom TEMP directory name, so that any job stores the data at the same place.
     """
 
-    # @log_on_start(logging.INFO, "build() started")
-    # @log_on_end(logging.INFO, "build() finished")
+    # #@log_on_start(logging.INFO, "build() started")
+    # #@log_on_end(logging.INFO, "build() finished")
     def build(self, cf):
         if cf.job.jobs == ['build_OBD']:
             return cf.obd.libdir
@@ -165,8 +165,8 @@ class l2OBD_Transformer:
     """Transformer for generating a delensalot model for the calculation of the OBD matrix
     """
 
-    @log_on_start(logging.DEBUG, "get_nlevt() started")
-    @log_on_end(logging.DEBUG, "get_nlevt() finished")
+    #@log_on_start(logging.DEBUG, "get_nlevt() started")
+    #@log_on_end(logging.DEBUG, "get_nlevt() finished")
     def get_nlevt(cf):
         if type(cf.noisemodel.nlev_t) in [float, np.float64, int]:
             _nlev_t = cf.noisemodel.nlev_t
@@ -180,8 +180,8 @@ class l2OBD_Transformer:
         return _nlev_t
 
 
-    @log_on_start(logging.DEBUG, "get_nlevp() started")
-    @log_on_end(logging.DEBUG, "get_nlevp() finished")
+    #@log_on_start(logging.DEBUG, "get_nlevp() started")
+    #@log_on_end(logging.DEBUG, "get_nlevp() finished")
     def get_nlevp(cf):
         _nlev_p = 0
         if type(cf.noisemodel.nlev_p) in [float, np.float64, int]:
@@ -196,8 +196,8 @@ class l2OBD_Transformer:
         return _nlev_p
 
 
-    @log_on_start(logging.DEBUG, "get_nivt_desc() started")
-    @log_on_end(logging.DEBUG, "get_nivt_desc() finished")
+    #@log_on_start(logging.DEBUG, "get_nivt_desc() started")
+    #@log_on_end(logging.DEBUG, "get_nivt_desc() finished")
     def get_nivt_desc(cf, dl):
         nlev_t = l2OBD_Transformer.get_nlevt(cf)
         masks, noisemodel_rhits_map =  l2OBD_Transformer.get_masks(cf, dl)
@@ -214,8 +214,8 @@ class l2OBD_Transformer:
         return ninv_desc
 
 
-    @log_on_start(logging.DEBUG, "get_nivp_desc() started")
-    @log_on_end(logging.DEBUG, "get_nivp_desc() finished")
+    #@log_on_start(logging.DEBUG, "get_nivp_desc() started")
+    #@log_on_end(logging.DEBUG, "get_nivp_desc() finished")
     def get_nivp_desc(cf, dl):
         nlev_p = l2OBD_Transformer.get_nlevt(cf)
         masks, noisemodel_rhits_map =  l2OBD_Transformer.get_masks(cf, dl)
@@ -232,8 +232,8 @@ class l2OBD_Transformer:
         return ninv_desc
 
 
-    @log_on_start(logging.DEBUG, "get_masks() started")
-    @log_on_end(logging.DEBUG, "get_masks() finished")
+    #@log_on_start(logging.DEBUG, "get_masks() started")
+    #@log_on_end(logging.DEBUG, "get_masks() finished")
     def get_masks(cf, dl):
         # TODO refactor. This here generates a mask from the rhits map..
         # but this should really be detached from one another
@@ -284,31 +284,31 @@ class l2delensalotjob_Transformer(l2base_Transformer):
     def build_QE_lensrec(self, cf):
         """Transformer for generating a delensalot model for the lensing reconstruction jobs (QE and MAP)
         """
-        @log_on_start(logging.INFO, "extract() started")
-        @log_on_end(logging.INFO, "extract() finished")
+        #@log_on_start(logging.INFO, "extract() started")
+        #@log_on_end(logging.INFO, "extract() finished")
         def extract():
             def _process_components(dl):
-                @log_on_start(logging.DEBUG, "_process_Meta() started")
-                @log_on_end(logging.DEBUG, "_process_Meta() finished")
+                #@log_on_start(logging.DEBUG, "_process_Meta() started")
+                #@log_on_end(logging.DEBUG, "_process_Meta() finished")
                 def _process_Meta(dl, me):
                     dl.dversion = me.version
 
 
-                @log_on_start(logging.DEBUG, "_process_Computing() started")
-                @log_on_end(logging.DEBUG, "_process_Computing() finished")
+                #@log_on_start(logging.DEBUG, "_process_Computing() started")
+                #@log_on_end(logging.DEBUG, "_process_Computing() finished")
                 def _process_Computing(dl, co):
                     dl.tr = co.OMP_NUM_THREADS
                     os.environ["OMP_NUM_THREADS"] = str(dl.tr)
 
 
-                @log_on_start(logging.DEBUG, "_process_Analysis() started")
-                @log_on_end(logging.DEBUG, "_process_Analysis() finished")
+                #@log_on_start(logging.DEBUG, "_process_Analysis() started")
+                #@log_on_end(logging.DEBUG, "_process_Analysis() finished")
                 def _process_Analysis(dl, an):
                     l2base_Transformer.process_Analysis(dl, an, cf)
 
 
-                @log_on_start(logging.DEBUG, "_process_Noisemodel() started")
-                @log_on_end(logging.DEBUG, "_process_Noisemodel() finished")
+                #@log_on_start(logging.DEBUG, "_process_Noisemodel() started")
+                #@log_on_end(logging.DEBUG, "_process_Noisemodel() finished")
                 def _process_Noisemodel(dl, nm):
                     dl.sky_coverage = nm.sky_coverage
                     dl.nivjob_geomlib = get_geom(nm.geometry)
@@ -331,22 +331,22 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.nivp_desc = l2OBD_Transformer.get_nivp_desc(cf, dl)
 
 
-                @log_on_start(logging.DEBUG, "_process_OBD() started")
-                @log_on_end(logging.DEBUG, "_process_OBD() finished")
+                #@log_on_start(logging.DEBUG, "_process_OBD() started")
+                #@log_on_end(logging.DEBUG, "_process_OBD() finished")
                 def _process_OBD(dl, od):
                     dl.obd_libdir = od.libdir
                     dl.obd_rescale = od.rescale
                     dl.tpl = template_dense(dl.lmin_teb[2], dl.nivjob_geomlib, dl.tr, _lib_dir=dl.obd_libdir, rescal=dl.obd_rescale)
 
 
-                @log_on_start(logging.DEBUG, "_process_Simulation() started")
-                @log_on_end(logging.DEBUG, "_process_Simulation() finished")       
+                #@log_on_start(logging.DEBUG, "_process_Simulation() started")
+                #@log_on_end(logging.DEBUG, "_process_Simulation() finished")       
                 def _process_Simulation(dl, si):
                     l2base_Transformer.process_Simulation(dl, si, cf)
 
 
-                @log_on_start(logging.DEBUG, "_process_Qerec() started")
-                @log_on_end(logging.DEBUG, "_process_Qerec() finished")
+                #@log_on_start(logging.DEBUG, "_process_Qerec() started")
+                #@log_on_end(logging.DEBUG, "_process_Qerec() finished")
                 def _process_Qerec(dl, qe):
                     dl.blt_pert = qe.blt_pert
                     dl.qe_tasks = qe.tasks
@@ -388,8 +388,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.cl_analysis = qe.cl_analysis
 
 
-                @log_on_start(logging.DEBUG, "_process_Itrec() started")
-                @log_on_end(logging.DEBUG, "_process_Itrec() finished")
+                #@log_on_start(logging.DEBUG, "_process_Itrec() started")
+                #@log_on_end(logging.DEBUG, "_process_Itrec() finished")
                 def _process_Itrec(dl, it):
                     dl.it_tasks = it.tasks
                     dl.lm_max_unl = it.lm_max_unl
@@ -479,31 +479,31 @@ class l2delensalotjob_Transformer(l2base_Transformer):
     def build_MAP_lensrec(self, cf):
         """Transformer for generating a delensalot model for the lensing reconstruction jobs (QE and MAP)
         """
-        @log_on_start(logging.INFO, "extract() started")
-        @log_on_end(logging.INFO, "extract() finished")
+        #@log_on_start(logging.INFO, "extract() started")
+        #@log_on_end(logging.INFO, "extract() finished")
         def extract():
             def _process_components(dl):
-                @log_on_start(logging.DEBUG, "_process_Meta() started")
-                @log_on_end(logging.DEBUG, "_process_Meta() finished")
+                #@log_on_start(logging.DEBUG, "_process_Meta() started")
+                #@log_on_end(logging.DEBUG, "_process_Meta() finished")
                 def _process_Meta(dl, me):
                     dl.dversion = me.version
 
 
-                @log_on_start(logging.DEBUG, "_process_Computing() started")
-                @log_on_end(logging.DEBUG, "_process_Computing() finished")
+                #@log_on_start(logging.DEBUG, "_process_Computing() started")
+                #@log_on_end(logging.DEBUG, "_process_Computing() finished")
                 def _process_Computing(dl, co):
                     dl.tr = co.OMP_NUM_THREADS
                     os.environ["OMP_NUM_THREADS"] = str(dl.tr)
 
 
-                @log_on_start(logging.DEBUG, "_process_Analysis() started")
-                @log_on_end(logging.DEBUG, "_process_Analysis() finished")
+                #@log_on_start(logging.DEBUG, "_process_Analysis() started")
+                #@log_on_end(logging.DEBUG, "_process_Analysis() finished")
                 def _process_Analysis(dl, an):
                     l2base_Transformer.process_Analysis(dl, an, cf)
 
 
-                @log_on_start(logging.DEBUG, "_process_Noisemodel() started")
-                @log_on_end(logging.DEBUG, "_process_Noisemodel() finished")
+                #@log_on_start(logging.DEBUG, "_process_Noisemodel() started")
+                #@log_on_end(logging.DEBUG, "_process_Noisemodel() finished")
                 def _process_Noisemodel(dl, nm):
                     dl.sky_coverage = nm.sky_coverage
                     # TODO assuming that masked sky comes with a hits-count map. If not, take mask
@@ -525,22 +525,22 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
                     
 
-                @log_on_start(logging.DEBUG, "_process_OBD() started")
-                @log_on_end(logging.DEBUG, "_process_OBD() finished")
+                #@log_on_start(logging.DEBUG, "_process_OBD() started")
+                #@log_on_end(logging.DEBUG, "_process_OBD() finished")
                 def _process_OBD(dl, od):
                     dl.obd_libdir = od.libdir
                     dl.obd_rescale = od.rescale
                     dl.tpl = template_dense(dl.lmin_teb[2], dl.ninvjob_geometry, dl.tr, _lib_dir=dl.obd_libdir, rescal=dl.obd_rescale)
 
 
-                @log_on_start(logging.DEBUG, "_process_Simulation() started")
-                @log_on_end(logging.DEBUG, "_process_Simulation() finished")       
+                #@log_on_start(logging.DEBUG, "_process_Simulation() started")
+                #@log_on_end(logging.DEBUG, "_process_Simulation() finished")       
                 def _process_Simulation(dl, si):
                     l2base_Transformer.process_Simulation(dl, si, cf)
 
 
-                @log_on_start(logging.DEBUG, "_process_Qerec() started")
-                @log_on_end(logging.DEBUG, "_process_Qerec() finished")
+                #@log_on_start(logging.DEBUG, "_process_Qerec() started")
+                #@log_on_end(logging.DEBUG, "_process_Qerec() finished")
                 def _process_Qerec(dl, qe):
 
                     dl.nivt_desc = l2OBD_Transformer.get_nivt_desc(cf, dl)
@@ -589,8 +589,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.cl_analysis = qe.cl_analysis
 
 
-                @log_on_start(logging.DEBUG, "_process_Itrec() started")
-                @log_on_end(logging.DEBUG, "_process_Itrec() finished")
+                #@log_on_start(logging.DEBUG, "_process_Itrec() started")
+                #@log_on_end(logging.DEBUG, "_process_Itrec() finished")
                 def _process_Itrec(dl, it):
                     dl.it_tasks = it.tasks
                     dl.lm_max_unl = it.lm_max_unl
@@ -673,26 +673,26 @@ class l2delensalotjob_Transformer(l2base_Transformer):
     def build_OBD_builder(self, cf):
         """Transformer for generating a delensalot model for the lensing reconstruction jobs (QE and MAP)
         """
-        @log_on_start(logging.INFO, "extract() started")
-        @log_on_end(logging.INFO, "extract() finished")
+        #@log_on_start(logging.INFO, "extract() started")
+        #@log_on_end(logging.INFO, "extract() finished")
         def extract():
             def _process_components(dl):
-                @log_on_start(logging.INFO, "_process_Computing() started")
-                @log_on_end(logging.INFO, "_process_Computing() finished")
+                #@log_on_start(logging.INFO, "_process_Computing() started")
+                #@log_on_end(logging.INFO, "_process_Computing() finished")
                 def _process_Computing(dl, co):
                     dl.tr = int(os.environ.get('OMP_NUM_THREADS', co.OMP_NUM_THREADS))
 
 
-                @log_on_start(logging.DEBUG, "_process_Analysis() started")
-                @log_on_end(logging.DEBUG, "_process_Analysis() finished")
+                #@log_on_start(logging.DEBUG, "_process_Analysis() started")
+                #@log_on_end(logging.DEBUG, "_process_Analysis() finished")
                 def _process_Analysis(dl, an):
                     dl.TEMP_suffix = an.TEMP_suffix,
                     dl.mask_fn = an.mask
                     dl.lmin_teb = an.lmin_teb
 
 
-                @log_on_start(logging.DEBUG, "_process_OBD() started")
-                @log_on_end(logging.DEBUG, "_process_OBD() finished")
+                #@log_on_start(logging.DEBUG, "_process_OBD() started")
+                #@log_on_end(logging.DEBUG, "_process_OBD() finished")
                 def _process_OBD(dl, od):
                     dl.nside = od.nside
                     dl.libdir = od.libdir
@@ -708,8 +708,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                         log.warning("Exiting. Please check your settings.")
 
 
-                @log_on_start(logging.DEBUG, "_process_Noisemodel() started")
-                @log_on_end(logging.DEBUG, "_process_Noisemodel() finished")
+                #@log_on_start(logging.DEBUG, "_process_Noisemodel() started")
+                #@log_on_end(logging.DEBUG, "_process_Noisemodel() finished")
                 def _process_Noisemodel(dl, nm):
                     dl.lmin_b = dl.lmin_teb[2]
                     dl.nivjob_geomlib = get_geom(nm.geometry)
@@ -742,33 +742,33 @@ class l2delensalotjob_Transformer(l2base_Transformer):
     def build_delenser(self, cf):
         """Transformer for generating a delensalot model for the lensing reconstruction jobs (QE and MAP)
         """
-        @log_on_start(logging.INFO, "extract() started")
-        @log_on_end(logging.INFO, "extract() finished")
+        #@log_on_start(logging.INFO, "extract() started")
+        #@log_on_end(logging.INFO, "extract() finished")
         def extract():
             def _process_components(dl):
-                @log_on_start(logging.DEBUG, "_process_Meta() started")
-                @log_on_end(logging.DEBUG, "_process_Meta() finished")
+                #@log_on_start(logging.DEBUG, "_process_Meta() started")
+                #@log_on_end(logging.DEBUG, "_process_Meta() finished")
                 def _process_Meta(dl, me):
                     dl.dversion = me.version
 
 
-                @log_on_start(logging.DEBUG, "_process_Computing() started")
-                @log_on_end(logging.DEBUG, "_process_Computing() finished")
+                #@log_on_start(logging.DEBUG, "_process_Computing() started")
+                #@log_on_end(logging.DEBUG, "_process_Computing() finished")
                 def _process_Computing(dl, co):
                     dl.tr = co.OMP_NUM_THREADS
                     os.environ["OMP_NUM_THREADS"] = str(dl.tr)
                     log.info("OMP_NUM_THREADS: {} and {}".format(dl.tr, os.environ.get('OMP_NUM_THREADS')))
 
 
-                @log_on_start(logging.DEBUG, "_process_Analysis() started")
-                @log_on_end(logging.DEBUG, "_process_Analysis() finished")
+                #@log_on_start(logging.DEBUG, "_process_Analysis() started")
+                #@log_on_end(logging.DEBUG, "_process_Analysis() finished")
                 def _process_Analysis(dl, an):
                     # super(l2base_Transformer, self)
                     l2base_Transformer.process_Analysis(dl, an, cf)
 
 
-                @log_on_start(logging.DEBUG, "_process_Noisemodel() started")
-                @log_on_end(logging.DEBUG, "_process_Noisemodel() finished")
+                #@log_on_start(logging.DEBUG, "_process_Noisemodel() started")
+                #@log_on_end(logging.DEBUG, "_process_Noisemodel() finished")
                 def _process_Noisemodel(dl, nm):
                     dl.nivjob_geomlib = get_geom(nm.geometry)
                     dl.nivjob_geominfo = nm.geometry
@@ -778,8 +778,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
 
 
-                @log_on_start(logging.DEBUG, "_process_Qerec() started")
-                @log_on_end(logging.DEBUG, "_process_Qerec() finished")
+                #@log_on_start(logging.DEBUG, "_process_Qerec() started")
+                #@log_on_end(logging.DEBUG, "_process_Qerec() finished")
                 def _process_Qerec(dl, qe):
                     dl.nivt_desc = l2OBD_Transformer.get_nivt_desc(cf, dl)
                     dl.nivp_desc = l2OBD_Transformer.get_nivp_desc(cf, dl)
@@ -790,8 +790,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.qe_filter_directional = qe.filter_directional
 
 
-                @log_on_start(logging.DEBUG, "_process_Itrec() started")
-                @log_on_end(logging.DEBUG, "_process_Itrec() finished")
+                #@log_on_start(logging.DEBUG, "_process_Itrec() started")
+                #@log_on_end(logging.DEBUG, "_process_Itrec() finished")
                 def _process_Itrec(dl, it):
                     dl.lm_max_unl = it.lm_max_unl
                     dl.lm_max_qlm = it.lm_max_qlm

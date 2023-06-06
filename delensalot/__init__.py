@@ -8,7 +8,7 @@ import psutil
 import shutil
 from delensalot.run import run
 from delensalot.utils import camb_clfile
-from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model, DLENSALOT_Qerec, DLENSALOT_Itrec, DLENSALOT_Computing, DLENSALOT_Noisemodel, DLENSALOT_Analysis, DLENSALOT_Mapdelensing
+from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model, DLENSALOT_Qerec, DLENSALOT_Itrec, DLENSALOT_Computing, DLENSALOT_Noisemodel, DLENSALOT_Analysis, DLENSALOT_Mapdelensing, DLENSALOT_Simulation
 
 cls_len = camb_clfile(opj(os.path.dirname(__file__), 'data/cls/FFP10_wdipole_lensedCls.dat'))
 cpp = camb_clfile(opj(os.path.dirname(__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'))['pp']
@@ -42,7 +42,7 @@ def map2delblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, verb
         Lmin = 1
     dlensalot_model = DLENSALOT_Model(
         defaults_to = '{}_FS_CMBS4'.format(len2TP[len(maps)]),
-        data = DLENSALOT_Data(maps=maps),
+        simulationdata = DLENSALOT_Simulation(maps=maps),
         analysis = DLENSALOT_Analysis(
             TEMP_suffix = suffix,
             beam = beam,
@@ -98,7 +98,7 @@ def map2tempblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, def
     default_values = '{}_FS_CMBS4'.format(len2TP[len(maps)]) if 'CMBS4' in defaults_to else defaults_to
     dlensalot_model = DLENSALOT_Model(
         defaults_to = default_values,
-        data = DLENSALOT_Data(maps=maps),
+        simulationdata = DLENSALOT_Simulation(maps=maps),
         analysis = DLENSALOT_Analysis(
             TEMP_suffix = suffix,
             beam = beam,
