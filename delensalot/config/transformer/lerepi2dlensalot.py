@@ -91,8 +91,6 @@ class l2base_Transformer:
         dl.lm_max_ivf = an.lm_max_ivf
         dl.lm_max_blt = an.lm_max_blt
         dl.sims_lmax_transf = an.lmax_transf
-        dl.parameter_maps = an.maps
-        dl.parameter_phi = an.phi
         dl.transfunction = an.transfunction
         if dl.transfunction == 'gauss_no_pixwin':
             transf_tlm = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[0])
@@ -183,7 +181,6 @@ class l2OBD_Transformer:
     #@log_on_start(logging.DEBUG, "get_nlevp() started")
     #@log_on_end(logging.DEBUG, "get_nlevp() finished")
     def get_nlevp(cf):
-        _nlev_p = 0
         if type(cf.noisemodel.nlev_p) in [float, np.float64, int]:
                 _nlev_p = cf.noisemodel.nlev_p
         elif type(cf.noisemodel.nlev_p) == tuple:

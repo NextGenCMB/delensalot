@@ -144,8 +144,6 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     beam =                  attr.field(default=DEFAULT_NotAValue, on_setattr=analysis.beam)
     transfunction =         attr.field(default=DEFAULT_NotAValue, on_setattr=data.transferfunction)
     lmax_transf =           attr.field(default=DEFAULT_NotAValue, on_setattr=data.lmax_transf)
-    maps =                  attr.field(default=DEFAULT_NotAValue, on_setattr=data.maps)
-    phi =                   attr.field(default=DEFAULT_NotAValue, on_setattr=data.phi)
 
 
 @attr.s
@@ -180,6 +178,7 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
 
     space =         attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
     flavour =       attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
+    field =       attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
     maps =          attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
     lmax =          attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
     libdir =        attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)

@@ -210,7 +210,9 @@ class Xunl:
 
         if libdir_phi == DNaV: # need being generated
             if cls_lib == DNaV:
-                self.cls_lib = Cls(lmax=lmax, phi_field=self.phi_field)
+                if phi_lmax == DNaV:
+                    self.phi_lmax = lmax + 1024
+                self.cls_lib = Cls(lmax=lmax, phi_field=self.phi_field, phi_lmax=self.phi_lmax)
             else:
                 self.cls_lib = cls_lib
         if libdir != DNaV:
@@ -385,7 +387,7 @@ class Xsky:
         self.space = space
         if libdir == DNaV: # need being generated
             if unl_lib == DNaV:
-                self.unl_lib = Xunl(cls_lib=DNaV, lmax=lmax, simidxs=simidxs, geometry=self.geometry)
+                self.unl_lib = Xunl(lmax=lmax, simidxs=simidxs, geometry=self.geometry)
             else:
                 self.unl_lib = unl_lib
             self.simidxs = simidxs
@@ -497,7 +499,7 @@ class Xsky:
 
 class Xobs:
 
-    def __init__(self, lmax, maps=DNaV, transfunction=DNaV, len_lib=DNaV, unl_lib=DNaV, epsilon=DNaV, noise_lib=DNaV, libdir=DNaV, fns=DNaV, simidxs=DNaV, nlev=DNaV, libdir_noise=DNaV, fnsnoise=DNaV, spin=DNaV, space=DNaV, geometry=DNaV):
+    def __init__(self, lmax, maps=DNaV, transfunction=DNaV, len_lib=DNaV, unl_lib=DNaV, epsilon=DNaV, noise_lib=DNaV, libdir=DNaV, fns=DNaV, simidxs=DNaV, nlev=DNaV, libdir_noise=DNaV, fnsnoise=DNaV, spin=DNaV, space=DNaV, geometry=DNaV, field=DNaV):
         self.geometry = geometry
         if geometry == DNaV:
             self.geometry = ('healpix', {'nside':2048})
@@ -512,8 +514,8 @@ class Xobs:
         
         self.cacher = cachers.cacher_mem(safe=True) #TODO might as well use a numpy cacher
         self.maps = maps
-        if self.maps != DNaV:
-            fn = 'pmap_spin{}_{}'.format(spin, 0)
+        if np.all(self.maps != DNaV):
+            fn = 'obs_space{}_spin{}_field{}_{}'.format(space, spin, field, 0)
             self.cacher.cache(fn, np.array(self.maps))
         else:
             if libdir == DNaV:
@@ -526,6 +528,8 @@ class Xobs:
                         if nlev == DNaV:
                             assert 0, "Need nlev for generating noise"
                     self.noise_lib = iso_white_noise(nlev=nlev, lmax=lmax, fns=fnsnoise,libdir=libdir_noise, space=space, spin=spin, geometry=self.geometry)
+                if np.all(transfunction == DNaV):
+                    assert 0, 'need to give transfunction'
                 self.transfunction = transfunction       
             elif libdir != DNaV:
                 if self.space == DNaV:
@@ -556,8 +560,13 @@ class Xobs:
             assert 0, "I don't think you want spin-2 temperature."
         fn = 'obs_space{}_spin{}_field{}_{}'.format(space, spin, field, simidx)
         if not self.cacher.is_cached(fn):
-            fn_other = 'obs_space{}_spin{}_field{}_{}'.format(space, self.spin, field, simidx)
-            if not self.cacher.is_cached(fn_other):
+            fn_otherspin = 'obs_space{}_spin{}_field{}_{}'.format(space, self.spin, field, simidx)
+            # fn_otherspacespin = ''
+            # if self.space == 'alm':
+            #     fn_otherspacespin = 'obs_space{}_spin{}_field{}_{}'.format(self.space, 0, field, simidx)
+            # elif self.space == 'map':
+            #     fn_otherspacespin = 'obs_space{}_spin{}_field{}_{}'.format(self.space, self.spin, field, simidx)
+            if not self.cacher.is_cached(fn_otherspin): # and not self.cacher.is_cached(fn_otherspacespin):
                 if self.libdir == DNaV: # sky maps come from len_lib, and we add noise
                     obs = self.sky2obs(
                         self.len_lib.get_sim_sky(simidx, spin=spin, space=space, field=field),
@@ -593,8 +602,8 @@ class Xobs:
                         elif self.space == 'alm':
                             if space == 'map':
                                 if spin == 0:
-                                    obs1 = self.geom_lib.alm2map(obs[0], lmax=self.lmax, spin=spin, mmax=self.lmax, nthreads=4)
-                                    obs2 = self.geom_lib.alm2map(obs[1], lmax=self.lmax, spin=spin, mmax=self.lmax, nthreads=4)
+                                    obs1 = self.geom_lib.alm2map(obs[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                                    obs2 = self.geom_lib.alm2map(obs[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
                                     obs = np.array([obs1, obs2])
                                 else:
                                     obs = self.geom_lib.alm2map_spin(obs, lmax=self.lmax, spin=spin, mmax=self.lmax, nthreads=4)
@@ -606,10 +615,35 @@ class Xobs:
                         elif self.space == 'alm':
                             if space == 'map':
                                 obs = self.geom_lib.alm2map(obs, lmax=self.lmax, mmax=self.lmax, nthreads=4)
-            else:
-                obs = np.array(self.cacher.load(fn_other))
+            elif self.cacher.is_cached(fn_otherspin):
+                obs = np.array(self.cacher.load(fn_otherspin))
                 if space == 'map':
-                    obs = self.geom_lib.alm2map_spin(self.geom_lib.map2alm_spin(obs, spin=self.spin, lmax=self.lmax, mmax=self.lmax, nthreads=4), lmax=self.lmax, spin=spin, mmax=self.lmax, nthreads=4)
+                    if self.spin == 2:
+                        obs1 = self.geom_lib.map2alm(obs[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                        obs2 = self.geom_lib.map2alm(obs[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                        obs = np.array([obs1, obs2])
+                        obs = self.geom_lib.alm2map_spin(obs, lmax=self.lmax, spin=self.spin, mmax=self.lmax, nthreads=4)
+                    else:
+                        obs = self.geom_lib.map2alm_spin(obs, spin=self.spin, lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                        obs1 = self.geom_lib.alm2map(obs[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                        obs2 = self.geom_lib.alm2map(obs[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                        obs = np.array([obs1, obs2])
+            # elif self.cacher.is_cached(fn_otherspacespin):
+            #     if self.space == 'alm':
+            #         obs = np.array(self.cacher.load(fn_otherspacespin))
+            #         if self.spin == 0:
+            #             obs1 = self.geom_lib.map2alm(obs[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+            #             obs2 = self.geom_lib.map2alm(obs[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+            #             obs = np.array([obs1, obs2])
+            #         elif self.spin == 2:
+            #             obs = self.geom_lib.map2alm_spin(obs, lmax=self.lmax, spin=spin, mmax=self.lmax, nthreads=4)
+            #     elif self.space == 'map':
+            #         if self.spin == 0:
+            #             obs1 = self.geom_lib.map2alm(obs[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+            #             obs2 = self.geom_lib.map2alm(obs[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+            #             obs = np.array([obs1, obs2])
+            #         elif self.spin == 2:
+            #             obs = self.geom_lib.map2alm_spin(obs, lmax=self.lmax, spin=self.spin, mmax=self.lmax, nthreads=4)
             self.cacher.cache(fn, obs)
         return self.cacher.load(fn)
     
@@ -650,7 +684,7 @@ class Xobs:
 
 class Simhandler:
 
-    def __init__(self, flavour, space, maps=DNaV, cls_lib=DNaV, unl_lib=DNaV, obs_lib=DNaV, len_lib=DNaV, noise_lib=DNaV, libdir_noise=DNaV, libdir=DNaV, libdir_phi=DNaV, fns=DNaV, fnsP=DNaV, simidxs=DNaV, lmax=DNaV, transfunction=DNaV, nlev=DNaV, fnsnoise=DNaV, spin=0, CMB_fn=DNaV, phi_fn=DNaV, phi_field=DNaV, phi_space=DNaV, epsilon=1e-7, geometry=DNaV, phi_lmax=DNaV):
+    def __init__(self, flavour, space, maps=DNaV, cls_lib=DNaV, unl_lib=DNaV, obs_lib=DNaV, len_lib=DNaV, noise_lib=DNaV, libdir_noise=DNaV, libdir=DNaV, libdir_phi=DNaV, fns=DNaV, fnsP=DNaV, simidxs=DNaV, lmax=DNaV, transfunction=DNaV, nlev=DNaV, fnsnoise=DNaV, spin=0, CMB_fn=DNaV, phi_fn=DNaV, phi_field=DNaV, phi_space=DNaV, epsilon=1e-7, geometry=DNaV, phi_lmax=DNaV, field=DNaV):
         """_summary_
 
         Args:
@@ -681,11 +715,16 @@ class Simhandler:
         if space == 'map':
             if flavour == 'obs':
                 self.simidxs = simidxs
-                assert libdir != DNaV, "need to provide libdir"
-                assert fns != DNaV, 'you need to provide fns' 
-                assert lmax != DNaV, "need to provide lmax"
-                assert spin != DNaV, "need to provide spin"
-                self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, libdir=libdir, fns=fns, simidxs=simidxs, spin=spin, geometry=geometry) if obs_lib == DNaV else obs_lib
+                if np.all(maps == DNaV):
+                    assert libdir != DNaV, "need to provide libdir"
+                    assert fns != DNaV, 'you need to provide fns' 
+                    assert lmax != DNaV, "need to provide lmax"
+                    assert spin != DNaV, "need to provide spin"
+                else:
+                    assert spin != DNaV, "need to provide spin"
+                    assert lmax != DNaV, "need to provide lmax"
+                    assert field != DNaV, "need to provide field"
+                self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, libdir=libdir, fns=fns, simidxs=simidxs, spin=spin, geometry=geometry, field=field) if obs_lib == DNaV else obs_lib
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = self.obs_lib.libdir
                 self.geometry = self.obs_lib.geometry
@@ -792,7 +831,7 @@ class Simhandler:
 
     def isdone(self, simidx, field, spin, space='map', flavour='obs'):
         fn = '{}_space{}_spin{}_field{}_{}'.format(flavour, space, spin, field, simidx)
-        if self.cacher.is_cached(fn):
+        if self.obs_lib.cacher.is_cached(fn):
             return True
         if field == 'polarization':
             if os.path.exists(opj(self.libdir, self.fns[0].format(simidx))) and os.path.exists(opj(self.libdir, self.fns[1].format(simidx))):

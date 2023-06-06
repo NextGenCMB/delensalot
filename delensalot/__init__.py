@@ -65,9 +65,9 @@ def map2delblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, verb
     delensalot_runner = run(config_fn='', job_id='MAP_lensrec', config_model=dlensalot_model, verbose=verbose)
     delensalot_runner.run()
     delensalot_runner = run(config_fn='', job_id='delens', config_model=dlensalot_model, verbose=verbose)
-    ana_mwe = delensalot_runner.init_job()
+    ana = delensalot_runner.init_job()
 
-    return ana_mwe.get_residualblens(ana_mwe.simidxs[0], ana_mwe.its[-1])
+    return ana.get_residualblens(ana.simidxs[0], ana.its[-1])
 
 
 def map2tempblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, defaults_to='P_FS_CMBS4', verbose=False):

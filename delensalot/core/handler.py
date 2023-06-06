@@ -856,13 +856,19 @@ class Map_delenser(Basejob):
     def get_maps(self, simidx):
         # TODO using self.ttebl['e'] for now, as this doesn't have the low-ell cut, in general should use an uncut-transferfunction?
         # TODO blm_L is configuration dependent. Best case is that sims module provides `get_sim_blm()`, then we can leave this here as is.
+        # TODO choice of lens or obs for delensing is missing?
         blm_L = hp.almxfl(alm_copy(self.simulationdata.get_sim_sky(simidx, space='alm', spin=0, field='polarization')[1], self.simulationdata.lmax, *self.lm_max_blt), self.ttebl['e'])
         bmap_L = hp.alm2map(blm_L, self.nivjob_geominfo[1]['nside'])
+        # if self.basemap == 'lens':
+        #     return almxfl(alm_copy(self.simulationdata.get_sim_sky(simidx, space='map', spin=2, field='polarization')[1], self.simulationdata.lmax, *self.lm_max_blt), self.ttebl['e'], self.lm_max_blt[0], inplace=False) 
+        # else:
+        #     return almxfl(alm_copy(self.simulationdata.get_sim_obs(simidx, space='map', spin=2, field='polarization')[1], self.simulationdata.lmax, *self.lm_max_blt), self.ttebl['e'], self.lm_max_blt[0], inplace=False) 
+        # basemap = hp.alm2map(self.get_basemap(simidx))
 
         blt_QE1, blt_QE2 = self._build_BLT_QE(simidx)
         blt_MAP1, blt_MAP2 = self._build_BLT_MAP(simidx)
 
-        return (bmap_L, blt_QE1, blt_QE2, blt_MAP1, blt_MAP2)
+        return (basemap, blt_QE1, blt_QE2, blt_MAP1, blt_MAP2)
     
 
     # #@log_on_start(logging.INFO, "_build_basemaps() started")
