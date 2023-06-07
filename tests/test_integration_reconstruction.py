@@ -92,7 +92,7 @@ class FS(unittest.TestCase):
         for job_id, key_dict in self.whitelist_FS_P.items():
             for key in key_dict:
                 dlensalot_model = DLENSALOT_Model(defaults_to='P_FS_TEST', analysis = DLENSALOT_Analysis(key=key, TEMP_suffix='test'), itrec = DLENSALOT_Itrec(itmax=3))
-                # delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
+                delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
                 delensalot_runner = run(config_fn='', job_id='generate_sim', config_model=dlensalot_model, verbose=True)
                 ana_mwe = delensalot_runner.init_job()
                 bsky = ana_mwe.simulationdata.get_sim_sky(simidx=0, field='polarization', space='map', spin=0)[1]

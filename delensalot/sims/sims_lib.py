@@ -150,8 +150,11 @@ class iso_white_noise:
 
 class Cls:
     def __init__(self, lmax=DNaV, phi_lmax=DNaV, CMB_fn=DNaV, simidxs=DNaV, phi_fn=DNaV, phi_field='potential'):
+        assert lmax != DNaV, "need to provide lmax"
         self.lmax = lmax
         self.phi_lmax = phi_lmax
+        if phi_lmax == DNaV:
+            self.phi_lmax = lmax + 1024
         self.simidxs = simidxs
         if CMB_fn == DNaV:
             self.CMB_fn = opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat')
@@ -210,9 +213,8 @@ class Xunl:
 
         if libdir_phi == DNaV: # need being generated
             if cls_lib == DNaV:
-                if phi_lmax == DNaV:
-                    self.phi_lmax = lmax + 1024
                 self.cls_lib = Cls(lmax=lmax, phi_field=self.phi_field, phi_lmax=self.phi_lmax)
+                self.phi_lmax = self.cls_lib.phi_lmax
             else:
                 self.cls_lib = cls_lib
         if libdir != DNaV:
@@ -623,6 +625,7 @@ class Xobs:
                     elif self.space == 'alm':
                         if space == 'map':
                             obs = self.geom_lib.alm2map(obs, lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                self.cacher.cache(fn, obs)
             self.cacher.cache(fn, obs)
         elif self.cacher.is_cached(fn):
             log.info('found "{}"'.format(fn))
@@ -746,6 +749,7 @@ class Simhandler:
         """
         self.spin = spin
         self.lmax = lmax
+        self.phi_lmax = phi_lmax
         if space == 'map':
             if flavour == 'obs':
                 self.simidxs = simidxs
@@ -791,7 +795,7 @@ class Simhandler:
                     assert phi_lmax != DNaV, "need to provide phi_lmax"
                     assert phi_field != DNaV, "need to provide phi_field"
                     assert phi_space == 'cl', "please set phi_space='cl', just to be sure."
-                    self.cls_lib = Cls(phi_lmax=lmax, phi_fn=phi_fn, phi_field=phi_field, simidxs=simidxs)
+                    self.cls_lib = Cls(phi_lmax=phi_lmax, phi_fn=phi_fn, phi_field=phi_field, simidxs=simidxs)
                     self.unl_lib = Xunl(cls_lib=self.cls_lib, lmax=lmax, libdir=libdir, fns=fns, phi_field=phi_field, simidxs=simidxs, space=space, phi_space=phi_space, phi_lmax=phi_lmax, geometry=geometry, spin=spin) if unl_lib == DNaV else unl_lib
                 self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, simidxs=simidxs, spin=self.spin, space=space, epsilon=epsilon, geometry=geometry)
                 self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, space=space, spin=self.spin, geometry=geometry)
@@ -836,7 +840,7 @@ class Simhandler:
                     assert phi_space == 'cl', "please set phi_space='cl', just to be sure."
                 self.fns = ['Qmapobs_{}.npy', 'Umapobs_{}.npy'] # TODO don't like how it's defined here. Also.. this assumes data is Q and U, and map space, and polarization.. FIXME
                 self.spin = 0 # there are genrally no qcls, ucls, therefore here we can safely assume that data is spin0
-                self.cls_lib = Cls(lmax=lmax, phi_lmax=lmax, CMB_fn=CMB_fn, phi_fn=phi_fn, phi_field=phi_field, simidxs=simidxs)
+                self.cls_lib = Cls(lmax=lmax, phi_lmax=phi_lmax, CMB_fn=CMB_fn, phi_fn=phi_fn, phi_field=phi_field, simidxs=simidxs)
                 self.unl_lib = Xunl(cls_lib=self.cls_lib, lmax=lmax, fnsP=fnsP, phi_field=phi_field, libdir_phi=libdir_phi, phi_space=phi_space, simidxs=simidxs, geometry=geometry)
                 self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, simidxs=simidxs, spin=spin, epsilon=epsilon, geometry=geometry)
                 self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, spin=spin, geometry=geometry)

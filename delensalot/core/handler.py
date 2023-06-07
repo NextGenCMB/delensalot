@@ -222,6 +222,10 @@ class Sim_generator(Basejob):
         if self.simulationdata.libdir is DEFAULT_NotAValue:
             self.libdir = opj(os.environ['SCRATCH'], 'sims', str(self.simulationdata.geometry))
             self.simulationdata.libdir = self.libdir
+            self.simulationdata.obs_lib.fns = self.simulationdata.fns
+            self.simulationdata.obs_lib.libdir = self.libdir
+            self.simulationdata.obs_lib.space = 'map'
+            self.simulationdata.obs_lib.spin = 2
             first_rank = mpi.bcast(mpi.rank)
             if first_rank == mpi.rank:
                 if not os.path.exists(self.libdir):
@@ -286,8 +290,7 @@ class QE_lr(Basejob):
         super().__init__(dlensalot_model)
         self.dlensalot_model = dlensalot_model
         
-        if not isinstance(self.simulationdata, parameter_sims):
-            self.simgen = Sim_generator(dlensalot_model)
+        self.simgen = Sim_generator(dlensalot_model)
         # self.filter_ = transform(self.configfile.dlensalot_model, opfilt_handler_QE())
 
         if self.qe_filter_directional == 'isotropic':
