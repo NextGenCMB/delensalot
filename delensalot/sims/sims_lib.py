@@ -254,7 +254,7 @@ class Xunl:
             assert 0, "I don't think you want spin-2 temperature."
         fn = 'unl_space{}_spin{}_field{}_{}'.format(space, spin, field, simidx)
         if not self.cacher.is_cached(fn):
-            if self.libdir == DNaV and not self.isfrozen:
+            if self.libdir == DNaV:
                 Cls = self.cls_lib.get_TEBunl(simidx)
                 unl = np.array(self.cl2alm(Cls, field=field, seed=simidx))
                 if space == 'map':
@@ -427,7 +427,7 @@ class Xsky:
         if not self.cacher.is_cached(fn):
             fn_other = 'len_space{}_spin{}_field{}_{}'.format(space, self.spin, field, simidx)
             if not self.cacher.is_cached(fn_other):
-                if self.libdir == DNaV and not self.isfrozen:
+                if self.libdir == DNaV:
                     unl = self.unl_lib.get_sim_unl(simidx, space='alm', field=field, spin=0)
                     philm = self.unl_lib.get_sim_phi(simidx, space='alm')
                     if field == 'polarization':
@@ -559,91 +559,124 @@ class Xobs:
         if field == 'temperature' and spin == 2:
             assert 0, "I don't think you want spin-2 temperature."
         fn = 'obs_space{}_spin{}_field{}_{}'.format(space, spin, field, simidx)
-        if not self.cacher.is_cached(fn):
-            fn_otherspin = 'obs_space{}_spin{}_field{}_{}'.format(space, self.spin, field, simidx)
-            # fn_otherspacespin = ''
-            # if self.space == 'alm':
-            #     fn_otherspacespin = 'obs_space{}_spin{}_field{}_{}'.format(self.space, 0, field, simidx)
-            # elif self.space == 'map':
-            #     fn_otherspacespin = 'obs_space{}_spin{}_field{}_{}'.format(self.space, self.spin, field, simidx)
-            if not self.cacher.is_cached(fn_otherspin): # and not self.cacher.is_cached(fn_otherspacespin):
-                if self.libdir == DNaV: # sky maps come from len_lib, and we add noise
-                    obs = self.sky2obs(
-                        self.len_lib.get_sim_sky(simidx, spin=spin, space=space, field=field),
-                        self.noise_lib.get_sim_noise(simidx, spin=spin, field=field, space=space),
-                        spin=spin,
-                        space=space,
-                        field=field)
-                elif self.libdir != DNaV:  # observed maps are somewhere
-                    if field == 'polarization':
-                        obs1 = load_file(opj(self.libdir, self.fns[0].format(simidx)))
-                        obs2 = load_file(opj(self.libdir, self.fns[1].format(simidx)))
-                        obs = np.array([obs1, obs2])
-                        if self.space == 'map':
-                            if space == 'map':
-                                if self.spin != spin:
-                                    if self.spin == 0:
-                                        alm_buffer1 = self.geom_lib.map2alm(obs[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
-                                        alm_buffer2 = self.geom_lib.map2alm(obs[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
-                                        obs = self.geom_lib.alm2map_spin([alm_buffer1,alm_buffer2], lmax=self.lmax, spin=spin, mmax=self.lmax, nthreads=4)
-                                    elif self.spin == 2:
-                                        alm_buffer = self.geom_lib.map2alm_spin(obs, spin=self.spin, lmax=self.lmax, mmax=self.lmax, nthreads=4)
-                                        obs1 = self.geom_lib.alm2map(alm_buffer[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
-                                        obs2 = self.geom_lib.alm2map(alm_buffer[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
-                                        obs = np.array([obs1, obs2])
-                                    # obs = self.geom_lib.alm2map_spin(self.geom_lib.map2alm_spin(obs, spin=self.spin, lmax=self.lmax, mmax=self.lmax, nthreads=4), lmax=self.lmax, spin=spin, mmax=self.lmax, nthreads=4)
-                            elif space == 'alm':
+        log.info('requesting "{}"'.format(fn))
+        fn_otherspin = 'obs_space{}_spin{}_field{}_{}'.format(space, self.spin, field, simidx)
+        fn_otherspace = ''
+        fn_otherspacespin = ''
+        if self.space == 'alm':
+            fn_otherspace = 'obs_space{}_spin{}_field{}_{}'.format('alm', 0, field, simidx)
+        elif self.space == 'map':
+            fn_otherspace = 'obs_space{}_spin{}_field{}_{}'.format('map', spin, field, simidx)
+        if self.space == 'alm':
+            fn_otherspacespin = 'obs_space{}_spin{}_field{}_{}'.format('alm', 0, field, simidx)
+        elif self.space == 'map':
+            fn_otherspacespin = 'obs_space{}_spin{}_field{}_{}'.format('map', self.spin, field, simidx)
+
+        if not self.cacher.is_cached(fn) and not self.cacher.is_cached(fn_otherspin) and not self.cacher.is_cached(fn_otherspacespin) and not self.cacher.is_cached(fn_otherspace):
+            log.info('..nothing cached..')
+            if self.libdir == DNaV: # sky maps come from len_lib, and we add noise
+                log.info('.., generating.')
+                obs = self.sky2obs(
+                    self.len_lib.get_sim_sky(simidx, spin=spin, space=space, field=field),
+                    self.noise_lib.get_sim_noise(simidx, spin=spin, field=field, space=space),
+                    spin=spin,
+                    space=space,
+                    field=field)
+            elif self.libdir != DNaV:  # observed maps are somewhere
+                log.info('.., but stored on disk.')
+                if field == 'polarization':
+                    obs1 = load_file(opj(self.libdir, self.fns[0].format(simidx)))
+                    obs2 = load_file(opj(self.libdir, self.fns[1].format(simidx)))
+                    obs = np.array([obs1, obs2])
+                    if self.space == 'map':
+                        if space == 'map':
+                            if self.spin != spin:
                                 if self.spin == 0:
-                                    obs1 = self.geom_lib.map2alm(obs[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
-                                    obs2 = self.geom_lib.map2alm(obs[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                                    alm_buffer1 = self.geom_lib.map2alm(obs[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                                    alm_buffer2 = self.geom_lib.map2alm(obs[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                                    obs = self.geom_lib.alm2map_spin([alm_buffer1,alm_buffer2], lmax=self.lmax, spin=spin, mmax=self.lmax, nthreads=4)
+                                elif self.spin == 2:
+                                    alm_buffer = self.geom_lib.map2alm_spin(obs, spin=self.spin, lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                                    obs1 = self.geom_lib.alm2map(alm_buffer[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                                    obs2 = self.geom_lib.alm2map(alm_buffer[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
                                     obs = np.array([obs1, obs2])
-                                else:
-                                    obs = self.geom_lib.map2alm_spin(obs, spin=self.spin, lmax=self.lmax, mmax=self.lmax, nthreads=4)
-                        elif self.space == 'alm':
-                            if space == 'map':
-                                if spin == 0:
-                                    obs1 = self.geom_lib.alm2map(obs[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
-                                    obs2 = self.geom_lib.alm2map(obs[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
-                                    obs = np.array([obs1, obs2])
-                                else:
-                                    obs = self.geom_lib.alm2map_spin(obs, lmax=self.lmax, spin=spin, mmax=self.lmax, nthreads=4)
-                    elif field == 'temperature':
-                        obs = np.array(load_file(opj(self.libdir, self.fns.format(simidx))))
-                        if self.space == 'map':
-                            if space == 'alm':
-                                obs = self.geom_lib.map2alm(obs, lmax=self.lmax, mmax=self.lmax, nthreads=4)
-                        elif self.space == 'alm':
-                            if space == 'map':
-                                obs = self.geom_lib.alm2map(obs, lmax=self.lmax, mmax=self.lmax, nthreads=4)
-            elif self.cacher.is_cached(fn_otherspin):
-                obs = np.array(self.cacher.load(fn_otherspin))
-                if space == 'map':
-                    if self.spin == 2:
-                        obs1 = self.geom_lib.map2alm(obs[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
-                        obs2 = self.geom_lib.map2alm(obs[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
-                        obs = np.array([obs1, obs2])
-                        obs = self.geom_lib.alm2map_spin(obs, lmax=self.lmax, spin=self.spin, mmax=self.lmax, nthreads=4)
-                    else:
-                        obs = self.geom_lib.map2alm_spin(obs, spin=self.spin, lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                        elif space == 'alm':
+                            if self.spin == 0:
+                                obs1 = self.geom_lib.map2alm(obs[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                                obs2 = self.geom_lib.map2alm(obs[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                                obs = np.array([obs1, obs2])
+                            else:
+                                obs = self.geom_lib.map2alm_spin(obs, spin=self.spin, lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                    elif self.space == 'alm':
+                        if space == 'map':
+                            if spin == 0:
+                                obs1 = self.geom_lib.alm2map(obs[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                                obs2 = self.geom_lib.alm2map(obs[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                                obs = np.array([obs1, obs2])
+                            else:
+                                obs = self.geom_lib.alm2map_spin(obs, lmax=self.lmax, spin=spin, mmax=self.lmax, nthreads=4)
+                elif field == 'temperature':
+                    obs = np.array(load_file(opj(self.libdir, self.fns.format(simidx))))
+                    if self.space == 'map':
+                        if space == 'alm':
+                            obs = self.geom_lib.map2alm(obs, lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                    elif self.space == 'alm':
+                        if space == 'map':
+                            obs = self.geom_lib.alm2map(obs, lmax=self.lmax, mmax=self.lmax, nthreads=4)
+            self.cacher.cache(fn, obs)
+        elif self.cacher.is_cached(fn):
+            log.info('found "{}"'.format(fn))
+            pass
+        elif self.cacher.is_cached(fn_otherspin):
+            log.info('found "{}"'.format(fn_otherspin))
+            obs = np.array(self.cacher.load(fn_otherspin))
+            if space == 'map':
+                if self.spin == 2:
+                    obs1 = self.geom_lib.map2alm(obs[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                    obs2 = self.geom_lib.map2alm(obs[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                    obs = np.array([obs1, obs2])
+                    obs = self.geom_lib.alm2map_spin(obs, lmax=self.lmax, spin=self.spin, mmax=self.lmax, nthreads=4)
+                else:
+                    obs = self.geom_lib.map2alm_spin(obs, spin=self.spin, lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                    obs1 = self.geom_lib.alm2map(obs[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                    obs2 = self.geom_lib.alm2map(obs[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                    obs = np.array([obs1, obs2])
+            self.cacher.cache(fn, obs)
+        elif self.cacher.is_cached(fn_otherspace):
+            log.info('found "{}"'.format(fn_otherspace))
+            obs = np.array(self.cacher.load(fn_otherspace))
+            if field == 'polarization':
+                if self.space == 'alm':
+                    if spin == 0:
                         obs1 = self.geom_lib.alm2map(obs[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
                         obs2 = self.geom_lib.alm2map(obs[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
                         obs = np.array([obs1, obs2])
-            # elif self.cacher.is_cached(fn_otherspacespin):
-            #     if self.space == 'alm':
-            #         obs = np.array(self.cacher.load(fn_otherspacespin))
-            #         if self.spin == 0:
-            #             obs1 = self.geom_lib.map2alm(obs[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
-            #             obs2 = self.geom_lib.map2alm(obs[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
-            #             obs = np.array([obs1, obs2])
-            #         elif self.spin == 2:
-            #             obs = self.geom_lib.map2alm_spin(obs, lmax=self.lmax, spin=spin, mmax=self.lmax, nthreads=4)
-            #     elif self.space == 'map':
-            #         if self.spin == 0:
-            #             obs1 = self.geom_lib.map2alm(obs[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
-            #             obs2 = self.geom_lib.map2alm(obs[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
-            #             obs = np.array([obs1, obs2])
-            #         elif self.spin == 2:
-            #             obs = self.geom_lib.map2alm_spin(obs, lmax=self.lmax, spin=self.spin, mmax=self.lmax, nthreads=4)
+                    elif spin == 2:
+                        obs = self.geom_lib.alm2map_spin(obs, lmax=self.lmax, spin=spin, mmax=self.lmax, nthreads=4)
+                elif self.space == 'map':
+                    if self.spin == 0:
+                        alm_buffer1 = self.geom_lib.map2alm(obs[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                        alm_buffer2 = self.geom_lib.map2alm(obs[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                        obs = np.array([alm_buffer1, alm_buffer2])
+                    elif self.spin == 2:
+                        obs = self.geom_lib.map2alm_spin(obs, spin=self.spin, lmax=self.lmax, mmax=self.lmax, nthreads=4)
+            elif field == 'temperature':
+                if self.space == 'alm': 
+                    obs1 = self.geom_lib.alm2map(obs[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                    obs2 = self.geom_lib.alm2map(obs[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                    obs = np.array([obs1, obs2])
+                elif self.space == 'map':
+                    alm_buffer1 = self.geom_lib.map2alm(obs[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                    alm_buffer2 = self.geom_lib.map2alm(obs[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                    obs = np.array([alm_buffer1, alm_buffer2])
+            self.cacher.cache(fn, obs)
+        elif self.cacher.is_cached(fn_otherspacespin):
+            log.info('found "{}"'.format(fn_otherspacespin))
+            obs = np.array(self.cacher.load(fn_otherspacespin))
+            if self.space == 'alm':
+                obs = self.geom_lib.alm2map_spin(obs, lmax=self.lmax, spin=spin, mmax=self.lmax, nthreads=4)
+            elif self.space == 'map':
+                obs = self.geom_lib.map2alm_spin(obs, spin=self.spin, lmax=self.lmax, mmax=self.lmax, nthreads=4)
             self.cacher.cache(fn, obs)
         return self.cacher.load(fn)
     
