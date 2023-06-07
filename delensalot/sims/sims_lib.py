@@ -698,7 +698,8 @@ class Xobs:
                     sky2 = self.geom_lib.alm2map(sky[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
                     sky = np.array([sky1, sky2])
                 elif spin == 2:
-                    return np.array(self.geom_lib.alm2map_spin(sky, spin=spin, lmax=self.lmax, mmax=self.lmax, nthreads=4)) + noise
+                    sky = np.array(self.geom_lib.alm2map_spin(sky, spin=spin, lmax=self.lmax, mmax=self.lmax, nthreads=4))
+                return sky + noise
             else:
                 return sky + noise
         elif field == 'temperature':

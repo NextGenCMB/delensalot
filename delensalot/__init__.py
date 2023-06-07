@@ -16,6 +16,7 @@ cpp = camb_clfile(opj(os.path.dirname(__file__), 'data', 'cls', 'FFP10_wdipole_l
 def anafast(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, verbose=False):
     map2delblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF, verbose)
 
+
 def map2delblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, verbose=False):
     """Calculates a delensed B map on the full sky. Configuration is a faithful default. 
 
@@ -32,7 +33,7 @@ def map2delblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, verb
         np.array: delensed B map
     """
 
-    assert lmax_cmb < 3*hp.get_nside(maps), "lmax too large"
+    assert lmax_cmb-1 < 3*hp.get_nside(maps), "lmax too large: {} < {}".format(lmax_cmb, 3*hp.get_nside(maps)-1)
     assert len(maps) < 3, 'only temperature (spin-0) and polarization (spin-2) currently supported'
     if len(maps) == 1:
         assert 'T' in noise, "need to provide 'T'-key in noise"
@@ -107,7 +108,7 @@ def map2tempblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, def
     Returns:
         np.array: B-lensing template
     """
-    assert lmax_cmb < 3*hp.get_nside(maps), "lmax too large"
+    assert lmax_cmb-1 < 3*hp.get_nside(maps), "lmax too large: {} < {}".format(lmax_cmb, 3*hp.get_nside(maps)-1)
     assert len(maps) < 3, 'only temperature (spin-0) and polarization (spin-2) currently supported'
     if len(maps) == 1:
         assert 'T' in noise, "need to provide 'T'-key in noise"

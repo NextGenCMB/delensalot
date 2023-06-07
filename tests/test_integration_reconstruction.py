@@ -72,13 +72,13 @@ class FS(unittest.TestCase):
 
         self.Al_assert = {
             'QE_lensrec': {
-                'p_p': 0.45,
+                'p_p': 0.38,
                 # 'pee': np.inf,
                 # 'p_eb': np.inf,
                 # 'p_be': np.inf,
                 # 'peb': np.inf,
             },'MAP_lensrec': {
-                'p_p': 0.30,
+                'p_p': 0.29,
                 # 'pee': np.inf,
                 # 'p_eb': np.inf,
                 # 'p_be': np.inf,
@@ -92,18 +92,18 @@ class FS(unittest.TestCase):
         for job_id, key_dict in self.whitelist_FS_P.items():
             for key in key_dict:
                 dlensalot_model = DLENSALOT_Model(defaults_to='P_FS_TEST', analysis = DLENSALOT_Analysis(key=key, TEMP_suffix='test'), itrec = DLENSALOT_Itrec(itmax=3))
-                delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
+                # delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
                 delensalot_runner = run(config_fn='', job_id='generate_sim', config_model=dlensalot_model, verbose=True)
                 ana_mwe = delensalot_runner.init_job()
-                pmaps = ana_mwe.simulationdata.get_sim_sky(simidx=0, field='polarization', space='map', spin=0)
-                bmap = ana_mwe.simulationdata.get_sim_obs(simidx=0, field='polarization', space='map', spin=0)
+                bsky = ana_mwe.simulationdata.get_sim_sky(simidx=0, field='polarization', space='map', spin=0)[1]
+                obs = ana_mwe.simulationdata.get_sim_obs(simidx=0, field='polarization', space='map', spin=2)
 
                 if job_id == 'QE_lensrec':
                     dlensalot_model.itrec.itmax = 0
-                blt = delensalot.map2tempblm(pmaps, lmax_cmb=dlensalot_model.analysis.lm_max_ivf[0], beam=dlensalot_model.data.beam, itmax=dlensalot_model.itrec.itmax, noise=dlensalot_model.noisemodel.nlev_p, use_approximateWF=use_approximateWF, defaults_to='P_FS_TEST', verbose=True, )
+                blt = delensalot.map2tempblm(obs, lmax_cmb=dlensalot_model.analysis.lm_max_ivf[0], beam=dlensalot_model.analysis.beam, itmax=dlensalot_model.itrec.itmax, noise={'P':dlensalot_model.noisemodel.nlev_p}, use_approximateWF=use_approximateWF, defaults_to='P_FS_TEST', verbose=True, )
 
-                input = hp.anafast(bmap, lmax=200)
-                output = hp.anafast(bmap-hp.alm2map(blt, nside=512), lmax=200)
+                input = hp.anafast(bsky, lmax=200)
+                output = hp.anafast(bsky-hp.alm2map(blt, nside=1024), lmax=200)
                 Al = np.mean(output[30:200]/input[30:200])
                 assert Al < self.Al_assert[job_id][key], "{}, {}, {}, {}".format(job_id, key, Al, self.Al_assert[job_id][key])
                 print(Al, self.Al_assert[job_id][key])
@@ -117,13 +117,13 @@ class FS(unittest.TestCase):
                 delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
                 delensalot_runner = run(config_fn='', job_id='generate_sim', config_model=dlensalot_model, verbose=True)
                 ana_mwe = delensalot_runner.init_job()
-                pmaps = ana_mwe.simulationdata.get_sim_sky(simidx=0, field='polarization', space='map', spin=0)
-                bmap = ana_mwe.simulationdata.get_sim_obs(simidx=0, field='polarization', space='map', spin=0)
+                bsky = ana_mwe.simulationdata.get_sim_sky(simidx=0, field='polarization', space='map', spin=0)[1]
+                obs = ana_mwe.simulationdata.get_sim_obs(simidx=0, field='polarization', space='map', spin=2)
 
-                blt = delensalot.map2tempblm(pmaps, lmax_cmb=dlensalot_model.analysis.lm_max_ivf[0], beam=dlensalot_model.data.beam, itmax=dlensalot_model.itrec.itmax, noise=dlensalot_model.noisemodel.nlev_p, use_approximateWF=use_approximateWF, verbose=True, )
+                blt = delensalot.map2tempblm(obs, lmax_cmb=dlensalot_model.analysis.lm_max_ivf[0], beam=dlensalot_model.analysis.beam, itmax=dlensalot_model.itrec.itmax, noise={'P':dlensalot_model.noisemodel.nlev_p}, use_approximateWF=use_approximateWF, verbose=True, )
 
-                input = hp.anafast(bmap, lmax=200)
-                output = hp.anafast(bmap-hp.alm2map(blt, nside=512), lmax=200)
+                input = hp.anafast(bsky, lmax=200)
+                output = hp.anafast(bsky-hp.alm2map(blt, nside=1024), lmax=200)
                 Al = np.mean(output[30:200]/input[30:200])
                 assert Al < self.Al_assert[job_id][key], "{}, {}, {}, {}".format(job_id, key, Al, self.Al_assert[job_id][key])
                 print(Al, self.Al_assert[job_id][key])

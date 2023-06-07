@@ -421,7 +421,7 @@ class DLENSALOT_Model(DLENSALOT_Concept):
          comment: __attrs_post_init must be in DLENSALOT_Model, as this is the only one who knows of the default dictionary (defaults_to), and cannot simply be passed along to sub-classes.
 
         """
-        log.info("Setting default, using {}:\n\t{}".format(self.defaults_to, DL_DEFAULT[self.defaults_to]))
+        # log.info("Setting default, using {}:\n\t{}".format(self.defaults_to, DL_DEFAULT[self.defaults_to]))
         for key, val in list(filter(lambda x: '__' not in x[0] and x[0] != 'defaults_to', self.__dict__.items())):
             for k, v in val.__dict__.items():
                 if k in ['chain', 'stepper']:
