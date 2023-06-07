@@ -13,6 +13,9 @@ cls_len = camb_clfile(opj(os.path.dirname(__file__), 'data/cls/FFP10_wdipole_len
 cpp = camb_clfile(opj(os.path.dirname(__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'))['pp']
 
 
+def anafast(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, verbose=False):
+    map2delblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF, verbose)
+
 def map2delblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, verbose=False):
     """Calculates a delensed B map on the full sky. Configuration is a faithful default. 
 
@@ -30,12 +33,18 @@ def map2delblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, verb
     """
 
     assert lmax_cmb < 3*hp.get_nside(maps), "lmax too large"
+    assert len(maps) < 3, 'only temperature (spin-0) and polarization (spin-2) currently supported'
+    if len(maps) == 1:
+        assert 'T' in noise, "need to provide 'T'-key in noise"
+    if len(maps) == 2:
+        assert 'P' in noise, "need to provide 'P'-key in noise"
     pm = np.round(np.sum([m[::100] for m in maps]),5)
     hlib = hashlib.sha256()
     hlib.update((str([pm,lmax_cmb,beam,noise,use_approximateWF])).encode())
     suffix = hlib.hexdigest()[:4]
     len2TP = {1: 'T', 2: 'P', 3: 'TP'}
     len2field = {1: 'temperature', 2: 'polarization', 3: 'cross'}
+    len2spin = {1: 0, 2: 2}
     approxWF2itt = {False: 'constmf', True: 'fastWF'}
     if use_approximateWF:
         Lmin = 10
@@ -49,7 +58,7 @@ def map2delblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, verb
             flavour = 'obs',
             field = '{}'.format(len2field[len(maps)]),
             lmax = lmax_cmb,
-            spin = 2,
+            spin = len2spin[len(maps)],
             geometry = ('healpix', {'nside': hp.get_nside(maps)})
         ),
         analysis = DLENSALOT_Analysis(
@@ -67,7 +76,7 @@ def map2delblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, verb
             OMP_NUM_THREADS=min([psutil.cpu_count()-1,8])
         ),
         noisemodel = DLENSALOT_Noisemodel(
-            nlev_p=noise['P'],
+            nlev_p=noise[len2TP[len(maps)]],
             geometry = ('healpix', {'nside': hp.get_nside(maps)})
         ),
         madel = DLENSALOT_Mapdelensing(
@@ -99,12 +108,18 @@ def map2tempblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, def
         np.array: B-lensing template
     """
     assert lmax_cmb < 3*hp.get_nside(maps), "lmax too large"
+    assert len(maps) < 3, 'only temperature (spin-0) and polarization (spin-2) currently supported'
+    if len(maps) == 1:
+        assert 'T' in noise, "need to provide 'T'-key in noise"
+    if len(maps) == 2:
+        assert 'P' in noise, "need to provide 'P'-key in noise"
     pm = np.round(np.sum([m[::100] for m in maps]),5)
     hlib = hashlib.sha256()
     hlib.update((str([pm,lmax_cmb,beam,noise,use_approximateWF])).encode())
     suffix = hlib.hexdigest()[:4]
     len2TP = {1: 'T', 2: 'P', 3: 'TP'}
     len2field = {1: 'temperature', 2: 'polarization', 3: 'cross'}
+    len2spin = {1: 0, 2: 2}
     approxWF2itt = {False: 'constmf', True: 'fastWF'}
     if use_approximateWF:
         Lmin = 10
@@ -118,7 +133,7 @@ def map2tempblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, def
             flavour = 'obs',
             field = '{}'.format(len2field[len(maps)]),
             lmax = lmax_cmb,
-            spin = 2,
+            spin = len2spin[len(maps)],
             geometry = ('healpix', {'nside': hp.get_nside(maps)})
         ),
         analysis = DLENSALOT_Analysis(
@@ -136,7 +151,7 @@ def map2tempblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, def
             OMP_NUM_THREADS=min([psutil.cpu_count()-1,8])
         ),
         noisemodel = DLENSALOT_Noisemodel(
-            nlev_p=noise['P'],
+            nlev_p=noise[len2TP[len(maps)]],
             geometry = ('healpix', {'nside': hp.get_nside(maps)})
         ),
         madel = DLENSALOT_Mapdelensing(
