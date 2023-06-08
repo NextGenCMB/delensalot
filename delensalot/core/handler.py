@@ -221,8 +221,11 @@ class Sim_generator(Basejob):
     def __init__(self, dlensalot_model):
         super().__init__(dlensalot_model)
         if self.simulationdata.flavour == 'obs' and self.simulationdata.libdir != DEFAULT_NotAValue and self.simulationdata.fns != DEFAULT_NotAValue:
-            # Here, obs data is provided and nothing needs to be generated
-            pass
+            # Here, obs data is provided and nothing needs to be generated. But we need to update the sim_generator and give it the info
+            self.libdir = self.simulationdata.libdir
+            self.fns = self.simulationdata.fns
+            # self.libdir_sky = self.simulationdata.len_lib.libdir
+            # self.fns_sky = self.simulationdata.len_lib.fns
         else:
             # some flavour may be provided, but we need to generate the obs maps from this. so Sim_generator() gets its own libdir and fns, and later updates simhandler with it.
             self.libdir = opj(os.environ['SCRATCH'], 'simulation/', str(self.simulationdata.geometry), str(self.simulationdata.nlev))
@@ -261,8 +264,8 @@ class Sim_generator(Basejob):
 
 
     # @base_exception_handler
-    #@log_on_start(logging.INFO, "Sim.collect_jobs() started")
-    #@log_on_end(logging.INFO, "Sim.collect_jobs() finished: jobs={self.jobs}")
+    @log_on_start(logging.INFO, "Sim.collect_jobs() started")
+    @log_on_end(logging.INFO, "Sim.collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self):
         jobs = []
         simidxs_ = np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))))
@@ -274,8 +277,8 @@ class Sim_generator(Basejob):
 
 
     # @base_exception_handler
-    #@log_on_start(logging.INFO, "Sim.run() started")
-    #@log_on_end(logging.INFO, "Sim.run() finished")
+    @log_on_start(logging.INFO, "Sim.run() started")
+    @log_on_end(logging.INFO, "Sim.run() finished")
     def run(self):
         for simidx in self.jobs[mpi.rank::mpi.size]:
             log.info("rank {} (size {}) generating sim {}".format(mpi.rank, mpi.size, simidx))
@@ -295,10 +298,12 @@ class Sim_generator(Basejob):
 
         if self.simulationdata.flavour != 'sky':
             # only overwrite if sky data has not been provided already
-            self.simulationdata.len_lib.fns = self.fns_sky
-            self.simulationdata.len_lib.libdir = self.libdir_sky
-            self.simulationdata.len_lib.space = 'map'
-            self.simulationdata.len_lib.spin = 2
+            if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
+                # only overwrite if maps are not in memory (this is but the case for map2delblm and map2tempblm)
+                self.simulationdata.len_lib.fns = self.fns_sky
+                self.simulationdata.len_lib.libdir = self.libdir_sky
+                self.simulationdata.len_lib.space = 'map'
+                self.simulationdata.len_lib.spin = 2
 
 
     #@log_on_start(logging.INFO, "Sim.generate_sim(simidx={simidx}) started")

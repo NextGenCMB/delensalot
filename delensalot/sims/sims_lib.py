@@ -233,7 +233,13 @@ class Xunl:
                 assert 0, 'need to give phi_space (map or alm)'
             self.phi_lmax = phi_lmax
         else:
-            self.phi_lmax = lmax + 1024
+            if 'nside' in  self.geometry[1]:
+                geom_lmax = 3*self.geometry[1]['nside']
+            elif 'lmax' in  self.geometry[1]:
+                geom_lmax = self.geometry[1]['lmax']
+            else:
+                geom_lmax = lmax + 1024
+            self.phi_lmax = np.min([lmax + 1024, geom_lmax])
         self.isfrozen = isfrozen
             
         self.cacher = cachers.cacher_mem(safe=True) #TODO might as well use a numpy cacher
@@ -428,7 +434,7 @@ class Xsky:
         fn = 'sky_space{}_spin{}_field{}_{}'.format(space, spin, field, simidx)
         log.info('requesting "{}"'.format(fn))
         if not self.cacher.is_cached(fn):
-            fn_other = 'len_space{}_spin{}_field{}_{}'.format(space, self.spin, field, simidx)
+            fn_other = 'sky_space{}_spin{}_field{}_{}'.format(space, self.spin, field, simidx)
             if not self.cacher.is_cached(fn_other):
                 log.info('..nothing cached..')
                 if self.libdir == DNaV:
