@@ -33,20 +33,18 @@ dlensalot_model = DLENSALOT_Model(
         lmin_teb = (10, 10, 200),
         zbounds = ('mr_relative', 10.),
         zbounds_len = ('extend', 5.),
+        beam = 1.0,
         mask = opj(os.environ['SCRATCH'], 'delensalot/generic/sims_cmb_len_lminB200_mfda_maskedsky/mask.fits')
     ),
-    data = DLENSALOT_Data(
-        class_parameters = {
-            'lmax': 4096,
-            'cls_unl': utils.camb_clfile(opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat')),
-            'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'generic', 'nside2048', 'lmax4096', 'nlevp_sqrt(2)')
-        },
-        nlev_t = 1.00,
-        nlev_p = np.sqrt(2),
-        beam = 1.00,
-        lmax_transf = 4096,
-        nside = 2048,
-        transferfunction = 'gauss_no_pixwin'
+    simulationdata = DLENSALOT_Simulation(
+        space = 'cl', 
+        flavour = 'unl',
+        lmax = 4096,
+        phi_lmax = 5120,
+        transfunction = gauss_beam(1.0/180/60 * np.pi, lmax=4096),
+        nlev = {'P': np.sqrt(2)},
+        geometry = ('healpix', {'nside': 2048}),
+        CMB_fn = opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
     ),
     noisemodel = DLENSALOT_Noisemodel(
         sky_coverage = 'masked',
