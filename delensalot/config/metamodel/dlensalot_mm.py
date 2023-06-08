@@ -178,7 +178,7 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
 
     space =         attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
     flavour =       attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
-    field =       attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
+    field =         attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
     maps =          attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
     lmax =          attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
     libdir =        attr.field(default=DEFAULT_NotAValue, on_setattr=data.beam)
