@@ -170,9 +170,9 @@ class OBD_builder(Basejob):
     @check_MPI
     def __init__(self, OBD_model, diasable_mpi=False):
         self.__dict__.update(OBD_model.__dict__)
-        # self.tpl = template_dense(self.lmin_teb[2], self.geom, self.tr, _lib_dir=self.libdir_QE, rescal=self.rescale)
+        # self.tpl = template_dense(self.lmin_teb[2], self.geom, self.tr, _lib_dir=self.libdir, rescal=self.rescale)
         b_transf = gauss_beam(df.a2r(self.beam), lmax=self.lmax) # TODO ninv_p doesn't depend on this anyway, right?
-        self.ninv_p = np.array(opfilt_pp.alm_filter_ninv(self.ninv_p_desc, b_transf, marge_qmaps=(), marge_umaps=()).get_ninv())
+        self.nivp = np.array(opfilt_pp.alm_filter_ninv(self.nivp_desc, b_transf, marge_qmaps=(), marge_umaps=()).get_ninv())
 
 
     # @base_exception_handler
@@ -192,22 +192,22 @@ class OBD_builder(Basejob):
     def run(self):
         # This fakes the collect/run structure, as bpl takes care of MPI 
         for job in self.jobs:
-            bpl = template_bfilt(self.lmin_b, self.geom, self.tr, _lib_dir=self.libdir)
-            if not os.path.exists(self.libdir_QE+ '/tnit.npy'):
-                bpl._get_rows_mpi(self.ninv_p, prefix='')
+            bpl = template_bfilt(self.lmin_b, self.nivjob_geomlib, self.tr, _lib_dir=self.libdir)
+            if not os.path.exists(self.libdir+ '/tnit.npy'):
+                bpl._get_rows_mpi(self.nivp, prefix='')
             mpi.barrier()
             if mpi.rank == 0:
-                if not os.path.exists(self.libdir_QE+ '/tnit.npy'):
+                if not os.path.exists(self.libdir+ '/tnit.npy'):
                     tnit = bpl._build_tnit()
-                    np.save(self.libdir_QE+ '/tnit.npy', tnit)
+                    np.save(self.libdir+ '/tnit.npy', tnit)
                 else:
-                    tnit = np.load(self.libdir_QE+ '/tnit.npy')
-                if not os.path.exists(self.libdir_QE+ '/tniti.npy'):
+                    tnit = np.load(self.libdir+ '/tnit.npy')
+                if not os.path.exists(self.libdir+ '/tniti.npy'):
                     log.info('inverting')
                     tniti = np.linalg.inv(tnit + np.diag((1. / (self.nlev_dep / 180. / 60. * np.pi) ** 2) * np.ones(tnit.shape[0])))
-                    np.save(self.libdir_QE+ '/tniti.npy', tniti)
+                    np.save(self.libdir+ '/tniti.npy', tniti)
                     readme = '{}: tniti.npy. created from user {} using lerepi/delensalot with the following settings: {}'.format(getpass.getuser(), datetime.date.today(), self.__dict__)
-                    with open(self.libdir_QE+ '/README.txt', 'w') as f:
+                    with open(self.libdir+ '/README.txt', 'w') as f:
                         f.write(readme)
                 else:
                     log.info('Matrix already created')
@@ -446,7 +446,7 @@ class QE_lr(Basejob):
         if self.OBD:
             self.cinv_p = cinv_p_OBD.cinv_p(opj(self.libdir_QE, 'cinv_p'),
                 self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
-                transf_elm_loc[:self.lm_max_ivf[0]+1], self.nivp_desc, geom=self.ninvjob_qe_geometry,
+                transf_elm_loc[:self.lm_max_ivf[0]+1], self.nivp_desc, geom=self.nivjob_qe_geometry,
                 chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol), bmarg_lmax=self.lmin_teb[2],
                 zbounds=self.zbounds, _bmarg_lib_dir=self.obd_libdir_QE, _bmarg_rescal=self.obd_rescale,
                 sht_threads=self.tr)
@@ -730,9 +730,9 @@ class MAP_lr(Basejob):
         if self.it_filter_directional == 'anisotropic':
             self.sims_MAP = utils_sims.ztrunc_sims(self.simulationdata, self.nivjob_geominfo[1]['nside'], [self.zbounds])
             if self.k in ['ptt']:
-                self.ninv = self.sims_MAP.ztruncify(read_map(self.nivt_desc)) # inverse pixel noise map on consistent geometry
+                self.niv = self.sims_MAP.ztruncify(read_map(self.nivt_desc)) # inverse pixel noise map on consistent geometry
             else:
-                self.ninv = [self.sims_MAP.ztruncify(read_map(ni)) for ni in self.nivp_desc] # inverse pixel noise map on consistent geometry
+                self.niv = [self.sims_MAP.ztruncify(read_map(ni)) for ni in self.nivp_desc] # inverse pixel noise map on consistent geometry
         elif self.it_filter_directional == 'isotropic':
             self.sims_MAP = self.simulationdata
         self.filter = self.get_filter()

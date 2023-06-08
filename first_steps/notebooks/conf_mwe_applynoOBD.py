@@ -17,10 +17,11 @@ dlensalot_model = DLENSALOT_Model(
         version = 'noMF',
         simidxs = np.arange(0,1),
         TEMP_suffix = 'my_first_dlensalot_analysis_applynoOBD',
-        Lmin = 2, 
+        Lmin = 1,
+        beam = 1.0,
         lm_max_ivf = (1024, 1024),
         lmin_teb = (10, 10, 100),
-        mask = opj(os.environ['SCRATCH'], 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100', 'mask.fits'),
+        mask = opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100', 'mask.fits'),
     ),
     simulationdata = DLENSALOT_Simulation(
         space = 'cl', 
@@ -38,7 +39,8 @@ dlensalot_model = DLENSALOT_Model(
         spectrum_type = 'white',
         nlev_t = 1.00,
         nlev_p = np.sqrt(2),
-        rhits_normalised = (opj(os.environ['SCRATCH'], 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100', 'rhits.fits'), np.inf)
+        geometry = ('healpix', {'nside': 512}),
+        rhits_normalised = (opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100', 'rhits.fits'), np.inf)
     ),
     qerec = DLENSALOT_Qerec(
         tasks = ["calc_phi"],

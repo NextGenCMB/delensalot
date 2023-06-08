@@ -690,11 +690,9 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 #@log_on_start(logging.DEBUG, "_process_OBD() started")
                 #@log_on_end(logging.DEBUG, "_process_OBD() finished")
                 def _process_OBD(dl, od):
-                    dl.nside = od.nside
                     dl.libdir = od.libdir
                     dl.nlev_dep = od.nlev_dep
                     dl.beam = od.beam
-                    dl.nside = od.nside
                     dl.lmax = od.lmax
                     dl.rescale = od.rescale
 
@@ -714,16 +712,16 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
                     dl.masks, dl.rhits_map = l2OBD_Transformer.get_masks(cf, dl)
                     dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
-                    dl.ninv_p_desc = l2OBD_Transformer.get_ninvp(cf, dl.nside)
-                    dl.ninv_t_desc = l2OBD_Transformer.get_ninvt(cf, dl.nside)
+                    dl.nivp_desc = l2OBD_Transformer.get_nivp_desc(cf, dl)
+                    dl.nivt_desc = l2OBD_Transformer.get_nivt_desc(cf, dl)
                     
 
 
                 dl.TEMP = transform(cf, l2T_Transformer())
 
                 _process_Computing(dl, cf.computing)
-                _process_Noisemodel(dl, cf.noisemodel)
                 _process_Analysis(dl, cf.analysis)
+                _process_Noisemodel(dl, cf.noisemodel)
                 _process_OBD(dl, cf.obd)
                 
                 return dl
@@ -732,7 +730,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             _process_components(dl)
             return dl
 
-        return MAP_lr(extract())
+        return OBD_builder(extract())
 
 
     def build_delenser(self, cf):

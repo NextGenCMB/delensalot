@@ -337,7 +337,6 @@ class DLENSALOT_OBD(DLENSALOT_Concept):
     rescale =               attr.field(default=DEFAULT_NotAValue, on_setattr=obd.rescale)
     tpl =                   attr.field(default=DEFAULT_NotAValue, on_setattr=obd.tpl)
     nlev_dep =              attr.field(default=DEFAULT_NotAValue, on_setattr=obd.nlev_dep)
-    nside =                 attr.field(default=DEFAULT_NotAValue, on_setattr=obd.nside)
     lmax =                  attr.field(default=DEFAULT_NotAValue, on_setattr=obd.lmax)
     beam =                  attr.field(default=DEFAULT_NotAValue, on_setattr=obd.beam)
 
