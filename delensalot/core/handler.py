@@ -302,10 +302,11 @@ class Sim_generator(Basejob):
             if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
                 # only overwrite if maps are not in memory (this is but the case for map2delblm and map2tempblm)
                 if 'len_lib' in self.simulationdata.__dict__:
-                    self.simulationdata.len_lib.fns = self.fns_sky
-                    self.simulationdata.len_lib.libdir = self.libdir_sky
-                    self.simulationdata.len_lib.space = 'map'
-                    self.simulationdata.len_lib.spin = 2
+                    if self.simulationdata.libdir == DEFAULT_NotAValue and self.simulationdata.fns == DEFAULT_NotAValue:
+                        self.simulationdata.len_lib.fns = self.fns_sky
+                        self.simulationdata.len_lib.libdir = self.libdir_sky
+                        self.simulationdata.len_lib.space = 'map'
+                        self.simulationdata.len_lib.spin = 2
 
 
     #@log_on_start(logging.INFO, "Sim.generate_sim(simidx={simidx}) started")
