@@ -21,6 +21,7 @@ safelist = [
     'outdir_plot_rel',
     'OMP_NUM_THREADS',
     'rhits_normalised',
+    'masks_fn',
 ]
 
 DEFAULT_NotAValue = -123456789

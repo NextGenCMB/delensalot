@@ -1,10 +1,12 @@
 import os, sys
 from os.path import join as opj
-if "SCRATCH" not in os.environ:
-    os.environ["SCRATCH"] = "./SCRATCH/delensalot/"
 import hashlib, psutil, shutil
 import numpy as np
 import healpy as hp
+if "SCRATCH" not in os.environ:
+    os.environ["SCRATCH"] = opj(os.path.dirname(__file__),"reconstruction/")
+    if not os.path.exists(os.environ["SCRATCH"]):
+        os.makedirs(os.environ["SCRATCH"])
 from delensalot.run import run
 from delensalot.utils import camb_clfile
 from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model, DLENSALOT_Qerec, DLENSALOT_Itrec, DLENSALOT_Computing, DLENSALOT_Noisemodel, DLENSALOT_Analysis, DLENSALOT_Mapdelensing, DLENSALOT_Simulation

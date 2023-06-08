@@ -26,7 +26,7 @@ from lenspyx.lensing import get_geom
 
 from delensalot.sims.sims_lib import Simhandler
 
-from delensalot.utils import cli, camb_clfile
+from delensalot.utils import cli, camb_clfile, load_file
 from delensalot.utility.utils_hp import gauss_beam
 
 from delensalot.core.iterator import steps
@@ -140,8 +140,7 @@ class l2T_Transformer:
             if cf.analysis.TEMP_suffix != '':
                 _suffix = cf.analysis.TEMP_suffix
             _suffix += '_OBD' if cf.noisemodel.OBD else '_lminB'+str(cf.analysis.lmin_teb[2])
-            # TEMP =  opj(os.environ['SCRATCH'], cf.data.package_, cf.data.module_.split('.')[-1], _suffix)
-            TEMP =  opj(os.environ['SCRATCH'], _suffix)
+            TEMP =  opj(os.environ['SCRATCH'], 'analysis', _suffix)
 
             return TEMP
 
@@ -819,14 +818,25 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                         dl.nlevels = np.array([np.inf])
                     else:
                         dl.nlevels = ma.nlevels
-                    dl.masks = {nlevel: [] for nlevel in dl.nlevels} 
-                    dl.binmasks = {nlevel: [] for nlevel in dl.nlevels}
+                    dl.masks = {'nlevel': {nlevel: [] for nlevel in dl.nlevels}}
+                    dl.binmasks = {'nlevel': {nlevel: [] for nlevel in dl.nlevels}}
+                    if len(ma.masks_fn) > 0:
+                        if os.path.exists(ma.masks_fn[0]):
+                            dl.masks_fromfn = [load_file(m) for m in ma.masks_fn]
+                            dl.masks.update({'mask': {maskid: [] for maskid in range(len(ma.masks_fn))}})
+                            dl.binmasks.update({'mask': {maskid: [] for maskid in range(len(ma.masks_fn))}})
+                        else:
+                            assert 0, "I was expecting a mask from masks_fn, but couldn't find it. {}".format(ma.masks_fn[0])
+                    else:
+                        dl.masks_fromfn = []
+                    for maskflavour, masks in dl.masks.items():
+                        for maskid, mask in masks.items():
+                            if maskflavour == 'nlevel':
+                                dl.masks[maskflavour][maskid] = df.get_nlev_mask(maskid, noisemodel_rhits_map)
+                            else:
+                                dl.masks[maskflavour][maskid] = dl.masks_fromfn[maskid]
+                            dl.binmasks[maskflavour][maskid] = np.where(dl.masks[maskflavour][maskid]>0,1,0)
 
-                    for nlevel, value in dl.masks.items():
-                        dl.masks[nlevel] = df.get_nlev_mask(nlevel, noisemodel_rhits_map)
-                        dl.binmasks[nlevel] = np.where(dl.masks[nlevel]>0,1,0)
-
-        
                     ## Binning and power spectrum calculator specific preparation
                     if ma.Cl_fid == 'ffp10':
                         dl.cls_unl = camb_clfile(cf.analysis.cls_unl)
@@ -838,7 +848,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
                     dl.binning = ma.binning
                     if dl.binning == 'binned':
-                        dl.lmax = 200 #ma.lmax
+                        dl.lmax = ma.lmax
+                        assert dl.lmax >= 1024, "if lmax too small, power spectrum calculation will be biased"
                         dl.lmax_mask = 3*ma.lmax-1
                         dl.edges = ma.edges
                         dl.edges_center = (dl.edges[1:]+dl.edges[:-1])/2.
@@ -848,7 +859,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                         dl.ct = dl.clc_templ[np.array(dl.edges, dtype=int)] # TODO marginalising over binrange would probably be better
 
                     elif dl.binning == 'unbinned':
-                        dl.lmax = 200
+                        dl.lmax = ma.lmax
                         dl.lmax_mask = 3*ma.lmax-1
                         dl.edges = np.arange(0,dl.lmax+2)
                         dl.edges_center = dl.edges[1:]

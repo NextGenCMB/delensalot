@@ -61,7 +61,7 @@ class iso_white_noise:
         self.space = space
         if libdir == DNaV:        
             self.nlev = nlev
-            libdir_phas = os.environ['SCRATCH']+'/sims/{}/phas/'.format(str(geometry))
+            libdir_phas = os.environ['SCRATCH']+'/simulation/{}/phas/'.format(str(geometry))
             self.pix_lib_phas = phas.pix_lib_phas(libdir_phas, 3, (self.geom_lib.npix(),))
         else:
             if fns == DNaV:
@@ -426,10 +426,13 @@ class Xsky:
         if field == 'temperature' and spin == 2:
             assert 0, "I don't think you want spin-2 temperature."
         fn = 'sky_space{}_spin{}_field{}_{}'.format(space, spin, field, simidx)
+        log.info('requesting "{}"'.format(fn))
         if not self.cacher.is_cached(fn):
             fn_other = 'len_space{}_spin{}_field{}_{}'.format(space, self.spin, field, simidx)
             if not self.cacher.is_cached(fn_other):
+                log.info('..nothing cached..')
                 if self.libdir == DNaV:
+                    log.info('.., generating.')
                     unl = self.unl_lib.get_sim_unl(simidx, space='alm', field=field, spin=0)
                     philm = self.unl_lib.get_sim_phi(simidx, space='alm')
                     if field == 'polarization':
@@ -447,6 +450,7 @@ class Xsky:
                         if space == 'alm':
                             sky = self.geom_lib.map2alm(sky, lmax=self.lmax, mmax=self.lmax, nthreads=4)
                 else:
+                    log.info('.., but stored on disk.')
                     if field == 'polarization':
                         sky1 = load_file(opj(self.libdir, self.fns[0].format(simidx)))
                         sky2 = load_file(opj(self.libdir, self.fns[1].format(simidx)))
@@ -513,6 +517,7 @@ class Xobs:
         self.lmax = lmax
         self.space = space
         self.noise_lib = noise_lib
+        self.fullsky = True #FIXME make it dependent on userdata: if Xobs is set via simhandler, then check if user data is full sky or not.
         
         self.cacher = cachers.cacher_mem(safe=True) #TODO might as well use a numpy cacher
         self.maps = maps
@@ -560,6 +565,9 @@ class Xobs:
             assert 0, "I don't think you want qlms ulms."
         if field == 'temperature' and spin == 2:
             assert 0, "I don't think you want spin-2 temperature."
+        if not self.fullsky:
+            assert self.spin == spin, "can only provide existing data"
+            assert self.space == space, "can only provide existing data"
         fn = 'obs_space{}_spin{}_field{}_{}'.format(space, spin, field, simidx)
         log.info('requesting "{}"'.format(fn))
         fn_otherspin = 'obs_space{}_spin{}_field{}_{}'.format(space, self.spin, field, simidx)
@@ -720,7 +728,9 @@ class Xobs:
   
 
 class Simhandler:
+    """Entry point for data handling and generating simulations. Data can be cl, unl, len, or obs, .. and alms or maps. Simhandler connects the individual libraries and decides what can be generated. E.g.: If obs data provided, len data cannot be generated. This structure makes sure we don't "hallucinate" data.
 
+    """
     def __init__(self, flavour, space, maps=DNaV, cls_lib=DNaV, unl_lib=DNaV, obs_lib=DNaV, len_lib=DNaV, noise_lib=DNaV, libdir_noise=DNaV, libdir=DNaV, libdir_phi=DNaV, fns=DNaV, fnsP=DNaV, simidxs=DNaV, lmax=DNaV, transfunction=DNaV, nlev=DNaV, fnsnoise=DNaV, spin=0, CMB_fn=DNaV, phi_fn=DNaV, phi_field=DNaV, phi_space=DNaV, epsilon=1e-7, geometry=DNaV, phi_lmax=DNaV, field=DNaV):
         """_summary_
 
@@ -750,6 +760,8 @@ class Simhandler:
         self.spin = spin
         self.lmax = lmax
         self.phi_lmax = phi_lmax
+        self.flavour = flavour
+        self.space = space
         if space == 'map':
             if flavour == 'obs':
                 self.simidxs = simidxs
@@ -765,7 +777,6 @@ class Simhandler:
                 self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, libdir=libdir, fns=fns, simidxs=simidxs, spin=spin, geometry=geometry, field=field) if obs_lib == DNaV else obs_lib
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = self.obs_lib.libdir
-                self.geometry = self.obs_lib.geometry
                 self.fns = self.obs_lib.fns
             if flavour == 'sky':
                 assert libdir != DNaV, "need to provide libdir"
@@ -777,6 +788,8 @@ class Simhandler:
                 self.len_lib = Xsky(unl_lib=unl_lib, lmax=lmax, libdir=libdir, fns=fns, space=space, simidxs=simidxs, spin=spin, epsilon=epsilon, geometry=geometry) if len_lib == DNaV else len_lib
                 self.obs_lib = Xobs(len_lib=self.len_lib, space=space, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, spin=spin, geometry=geometry)
                 self.noise_lib = self.obs_lib.noise_lib
+                self.libdir = self.len_lib.libdir
+                self.fns = self.len_lib.fns
             if flavour == 'unl':
                 assert libdir != DNaV, "need to provide libdir"
                 assert fns != DNaV, 'you need to provide fns' 
@@ -800,6 +813,8 @@ class Simhandler:
                 self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, simidxs=simidxs, spin=self.spin, space=space, epsilon=epsilon, geometry=geometry)
                 self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, space=space, spin=self.spin, geometry=geometry)
                 self.noise_lib = self.obs_lib.noise_lib
+                self.libdir = self.unl_lib.libdir
+                self.fns = self.unl_lib.fns
         elif space in ['alm']:
             if flavour == 'obs':
                 if libdir != DNaV:
@@ -811,7 +826,6 @@ class Simhandler:
                     self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, libdir=libdir, fns=fns, simidxs=simidxs, spin=spin, geometry=geometry) if obs_lib == DNaV else obs_lib
                     self.noise_lib = self.obs_lib.noise_lib
                     self.libdir = self.obs_lib.libdir
-                    self.geometry = self.obs_lib.geometry
                     self.fns = self.obs_lib.fns
             if flavour == 'sky':
                 assert 0, 'implement if needed'
@@ -824,6 +838,8 @@ class Simhandler:
                 self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, simidxs=simidxs, spin=self.spin, space=space, epsilon=epsilon, geometry=geometry)
                 self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, space=space, spin=self.spin, geometry=geometry)
                 self.noise_lib = self.obs_lib.noise_lib
+                self.libdir = self.unl_lib.libdir
+                self.fns = self.unl_lib.fns
         elif space == 'cl':
             if flavour == 'obs':
                 assert 0, 'implement if needed' # unlikely this will ever be needed
@@ -838,17 +854,16 @@ class Simhandler:
                 if phi_fn != DNaV:
                     assert phi_field != DNaV, "need to provide phi_field"
                     assert phi_space == 'cl', "please set phi_space='cl', just to be sure."
-                self.fns = ['Qmapobs_{}.npy', 'Umapobs_{}.npy'] # TODO don't like how it's defined here. Also.. this assumes data is Q and U, and map space, and polarization.. FIXME
                 self.spin = 0 # there are genrally no qcls, ucls, therefore here we can safely assume that data is spin0
                 self.cls_lib = Cls(lmax=lmax, phi_lmax=phi_lmax, CMB_fn=CMB_fn, phi_fn=phi_fn, phi_field=phi_field, simidxs=simidxs)
                 self.unl_lib = Xunl(cls_lib=self.cls_lib, lmax=lmax, fnsP=fnsP, phi_field=phi_field, libdir_phi=libdir_phi, phi_space=phi_space, simidxs=simidxs, geometry=geometry)
                 self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, simidxs=simidxs, spin=spin, epsilon=epsilon, geometry=geometry)
                 self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, spin=spin, geometry=geometry)
                 self.noise_lib = self.obs_lib.noise_lib
-                self.libdir = self.obs_lib.libdir
-                self.geometry = self.obs_lib.geometry
-                # self.fns = self.obs_lib.fns
+                self.libdir = DNaV # settings this here explicit for a future me, so I see it easier
+                self.fns = DNaV # settings this here explicit for a future me, so I see it easier
 
+        self.geometry = self.obs_lib.geometry # Sim_generator() needs this. I let obs_lib decide the final geometry.
         self.cacher = cachers.cacher_mem(safe=True) #TODO might as well use a numpy cacher
 
     def get_sim_sky(self, simidx, space, field, spin):
@@ -872,11 +887,13 @@ class Simhandler:
         if self.obs_lib.cacher.is_cached(fn):
             return True
         if field == 'polarization':
-            if os.path.exists(opj(self.libdir, self.fns[0].format(simidx))) and os.path.exists(opj(self.libdir, self.fns[1].format(simidx))):
-                return True
+            if self.libdir != DNaV and self.fns != DNaV:
+                if os.path.exists(opj(self.libdir, self.fns[0].format(simidx))) and os.path.exists(opj(self.libdir, self.fns[1].format(simidx))):
+                    return True
         if field == 'temperature':
-            if os.path.exists(opj(self.libdir, self.fns.format(simidx))):
-                return True
+            if self.libdir != DNaV and self.fns != DNaV:
+                if os.path.exists(opj(self.libdir, self.fns.format(simidx))):
+                    return True
         return False
         
         

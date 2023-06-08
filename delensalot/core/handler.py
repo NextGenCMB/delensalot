@@ -216,16 +216,17 @@ class OBD_builder(Basejob):
 
 class Sim_generator(Basejob):
     """Simulation generation Job. Generates simulations for the requested configuration.
+        * If any libdir exists, then a flavour of data is provided. Therefore, can only check by making sure flavour == obs, and fns exist.
     """
     def __init__(self, dlensalot_model):
         super().__init__(dlensalot_model)
-        if self.simulationdata.libdir is DEFAULT_NotAValue:
-            self.libdir = opj(os.environ['SCRATCH'], 'sims', str(self.simulationdata.geometry))
-            self.simulationdata.libdir = self.libdir
-            self.simulationdata.obs_lib.fns = self.simulationdata.fns
-            self.simulationdata.obs_lib.libdir = self.libdir
-            self.simulationdata.obs_lib.space = 'map'
-            self.simulationdata.obs_lib.spin = 2
+        if self.simulationdata.flavour == 'obs' and self.simulationdata.libdir != DEFAULT_NotAValue and self.simulationdata.fns != DEFAULT_NotAValue:
+            # Here, obs data is provided and nothing needs to be generated
+            pass
+        else:
+            # some flavour may be provided, but we need to generate the obs maps from this. so Sim_generator() gets its own libdir and fns, and later updates simhandler with it.
+            self.libdir = opj(os.environ['SCRATCH'], 'simulation/', str(self.simulationdata.geometry))
+            self.fns = ['Qmapobs_{}.npy', 'Umapobs_{}.npy']
             first_rank = mpi.bcast(mpi.rank)
             if first_rank == mpi.rank:
                 if not os.path.exists(self.libdir):
@@ -235,14 +236,30 @@ class Sim_generator(Basejob):
                         mpi.send(1, dest=n)
             else:
                 mpi.receive(None, source=mpi.ANY_SOURCE)
+        
+        # if Sim_generator() already produced the obs maps, then the jobmodel of course doesnt know of it, so need to update jobmodel manually. Since sim_lib hasnt gotten the libdir and fns info yet, need to check this manually. self.libdir and self.fns only exists when Sim_generator() believes it should generate data.
+        if self.libdir != DEFAULT_NotAValue and self.fns != DEFAULT_NotAValue:
+            simidxs_ = np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))))
+            check_ = True  
+            for simidx in simidxs_:
+                if self.k in ['p_p', 'p_eb', 'peb', 'p_be']: 
+                    if os.path.exists(opj(self.libdir, self.fns[0].format(simidx))) and os.path.exists(opj(self.libdir, self.fns[1].format(simidx))):
+                        pass
+                    else:
+                        check_ = False
+                if self.k in ['ptt', 'p']:
+                    if os.path.exists(opj(self.libdir, self.fns.format(simidx))):
+                        pass
+                    else:
+                        check_ = False
+            if check_:
+                self.postrun()
 
 
     # @base_exception_handler
     #@log_on_start(logging.INFO, "Sim.collect_jobs() started")
     #@log_on_end(logging.INFO, "Sim.collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self):
-        ## TODO implement
-        # If Simhandler used, this here should ask simhandler.isdone(fn.format(simidx))
         jobs = []
         simidxs_ = np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))))
         for simidx in simidxs_:
@@ -258,8 +275,19 @@ class Sim_generator(Basejob):
     def run(self):
         for simidx in self.jobs[mpi.rank::mpi.size]:
             log.info("rank {} (size {}) generating sim {}".format(mpi.rank, mpi.size, simidx))
-            self.generate_sim(int(simidx))
+            self.generate_sim(simidx)
             log.info("rank {} (size {}) generated sim {}".format(mpi.rank, mpi.size, simidx))
+        self.postrun()
+
+
+    def postrun(self):
+        self.simulationdata.libdir = self.libdir
+        self.simulationdata.fns = self.fns
+
+        self.simulationdata.obs_lib.fns = self.fns
+        self.simulationdata.obs_lib.libdir = self.libdir
+        self.simulationdata.obs_lib.space = 'map'
+        self.simulationdata.obs_lib.spin = 2
 
 
     #@log_on_start(logging.INFO, "Sim.generate_sim(simidx={simidx}) started")
@@ -267,12 +295,12 @@ class Sim_generator(Basejob):
     def generate_sim(self, simidx):
         if self.k in ['p_p', 'p_eb', 'peb', 'p_be']:
             QUobs = self.simulationdata.get_sim_obs(simidx, spin=2, space='map', field='polarization')
-            np.save(opj(self.libdir, self.simulationdata.fns[0].format(simidx)), QUobs[0])
-            np.save(opj(self.libdir, self.simulationdata.fns[1].format(simidx)), QUobs[1])
+            np.save(opj(self.libdir, self.fns[0].format(simidx)), QUobs[0])
+            np.save(opj(self.libdir, self.fns[1].format(simidx)), QUobs[1])
 
         if self.k in ['ptt', 'p']:
             Tobs = self.simulationdata.get_sim_obs(simidx, spin=0, space='map', field='temperature')
-            np.save(opj(self.libdir, self.simulationdata.fn(simidx)), Tobs)
+            np.save(opj(self.libdir, self.fn(simidx)), Tobs)
 
 
 class QE_lr(Basejob):
@@ -808,6 +836,10 @@ class Map_delenser(Basejob):
         super().__init__(dlensalot_model)
 
         self.lib = dict()
+        if 'nlevel' in self.binmasks:
+            self.lib.update({'nlevel': {}})
+        if 'mask' in self.binmasks:
+            self.lib.update({'mask': {}})
         self.simgen = Sim_generator(dlensalot_model)
         self.libdir_delenser = opj(self.TEMP, 'delensing/{}'.format(self.dirid))
         if mpi.rank == 0:
@@ -837,57 +869,24 @@ class Map_delenser(Basejob):
         if self.jobs != []:
             for simidx in self.jobs[mpi.rank::mpi.size]:
                 log.debug('will store file at: {}'.format(self.fns(simidx)))
-                map_collection = self.get_maps(simidx)
-                self.delens(simidx, outputdata, *map_collection)
+                self.delens(simidx, outputdata)
 
 
     def _prepare_job(self):
         if self.binning == 'binned':
-            outputdata = np.zeros(shape=(2, 2+len(self.its), len(self.nlevels), len(self.edges)-1))
-            for nlevel, mask in self.binmasks.items():
-                ## for a future me: ell-max of clc_templ must be edges[-1], lmax_mask can be anything...
-                self.lib.update({nlevel: self.cl_calc.map2cl_binned(mask, self.clc_templ, self.edges, self.lmax_mask)})
+            outputdata = np.zeros(shape=(2, 2+len(self.its), len(self.nlevels)+len(self.masks_fromfn), len(self.edges)-1))
+            for maskflavour, masks in self.binmasks.items():
+                for maskid, mask in masks.items():
+                    ## for a future me: ell-max of clc_templ must be edges[-1], lmax_mask can be anything...
+                    self.lib[maskflavour].update({maskid: self.cl_calc.map2cl_binned(mask, self.clc_templ, self.edges, self.lmax_mask)})
         elif self.binning == 'unbinned':
-            for nlevel, mask in self.binmasks.items():
-                a = overwrite_anafast() if self.cl_calc == hp else masked_lib(mask, self.cl_calc, self.lmax, self.lmax_mask)
-                outputdata = np.zeros(shape=(2, 2+len(self.its), len(self.nlevels), self.lmax+1))
-                self.lib.update({nlevel: a})
+            for maskflavour, masks in self.binmasks.items():
+                for maskid, mask in masks.items():
+                    a = overwrite_anafast() if self.cl_calc == hp else masked_lib(mask, self.cl_calc, self.lmax, self.lmax_mask)
+                    outputdata = np.zeros(shape=(2, 2+len(self.its), len(self.nlevels)+len(self.masks_fromfn), self.lmax+1))
+                    self.lib[maskflavour].update({maskid: a})
 
         return outputdata
-    
-
-    def get_maps(self, simidx):
-        # TODO using self.ttebl['e'] for now, as this doesn't have the low-ell cut, in general should use an uncut-transferfunction?
-        # TODO blm_L is configuration dependent. Best case is that sims module provides `get_sim_blm()`, then we can leave this here as is.
-        # TODO choice of lens or obs for delensing is missing?
-
-        blm_L = self.get_basemap(simidx)
-        bmap_L = self.nivjob_geomlib.alm2map(blm_L, lmax=self.lmax, mmax=self.lmax, nthreads=self.tr)
-
-        blt_QE1, blt_QE2 = self._build_BLT_QE(simidx)
-        blt_MAP1, blt_MAP2 = self._build_BLT_MAP(simidx)
-
-        return (bmap_L, blt_QE1, blt_QE2, blt_MAP1, blt_MAP2)
-    
-
-    # #@log_on_start(logging.INFO, "_build_basemaps() started")
-    # #@log_on_end(logging.INFO, "_build_basemaps() finished")
-    def _build_BLT_QE(self, simidx):
-        bltlm_QE1 = self.get_blt_it(simidx, 0)
-        blt_QE1 = self.nivjob_geomlib.alm2map(bltlm_QE1, lmax=self.lmax, mmax=self.lmax, nthreads=self.tr)
-        blt_QE2 = np.copy(blt_QE1)
-
-        return blt_QE1, blt_QE2
-
-
-    # #@log_on_start(logging.INFO, "_build_Btemplate_MAP() started")
-    # #@log_on_end(logging.INFO, "_build_Btemplate_MAP() finished")
-    def _build_BLT_MAP(self, simidx):
-        bltlm_MAP = np.array([self.get_blt_it(simidx, it) for it in self.its], dtype=complex)
-        blt_MAP1 = np.array([hp.alm2map(bltlm_MAP[iti], nside=self.nivjob_geominfo[1]['nside']) for iti, it in enumerate(self.its)])
-        blt_MAP2 = np.copy(blt_MAP1)
-
-        return blt_MAP1, blt_MAP2
     
 
     # #@log_on_start(logging.INFO, "get_basemap() started")
@@ -896,30 +895,35 @@ class Map_delenser(Basejob):
         if self.basemap == 'lens':
             return almxfl(alm_copy(self.simulationdata.get_sim_sky(simidx, space='alm', spin=0, field='polarization')[1], self.simulationdata.lmax, *self.lm_max_blt), self.ttebl['e'], self.lm_max_blt[0], inplace=False) 
         else:
-            return almxfl(alm_copy(self.simulationdata.get_sim_obs(simidx, space='alm', spin=0, field='polarization')[1], self.simulationdata.lmax, *self.lm_max_blt), self.ttebl['e'], self.lm_max_blt[0], inplace=False) 
+            return alm_copy(self.simulationdata.get_sim_obs(simidx, space='alm', spin=0, field='polarization')[1], self.simulationdata.lmax, *self.lm_max_blt)
     
 
     #@log_on_start(logging.INFO, "_delens() started")
     #@log_on_end(logging.INFO, "_delens() finished")
-    def delens(self, simidx, outputdata, bmap_L, blt_QE1, blt_QE2, blt_MAP1, blt_MAP2):
-        if blt_QE2 is None:
-            blt_QE2 = np.copy(blt_QE1)
-        if blt_MAP2 is None:
-            blt_MAP2 = np.copy(blt_MAP1)
+    def delens(self, simidx, outputdata):
+        blm_L = self.get_basemap(simidx)
+        blt_QE = self.get_blt_it(simidx, 0)
+        
+        bdel_QE = self.nivjob_geomlib.alm2map(blm_L-blt_QE, *self.lm_max_blt, nthreads=4)
+        maskcounter = 0
+        for maskflavour, masks in self.binmasks.items():
+            for maskid, mask in masks.items():
+                log.debug("starting mask {} {}".format(maskflavour, maskid))
+                
+                bcl_L = self.lib[maskflavour][maskid].map2cl(self.nivjob_geomlib.alm2map(blm_L, *self.lm_max_blt, nthreads=4))
+                outputdata[0][0][maskcounter] = bcl_L
 
-        for nleveli, nlevel in enumerate(self.masks):
-            log.debug("starting mask {}".format(nleveli))
-            
-            bcl_L = self.lib[nlevel].map2cl(bmap_L)
-            outputdata[0][0][nleveli] = bcl_L
+                blt_L_QE = self.lib[maskflavour][maskid].map2cl(bdel_QE)
+                outputdata[0][1][maskcounter] = blt_L_QE
 
-            blt_L_QE = self.lib[nlevel].map2cl(bmap_L-blt_QE1, bmap_L-blt_QE2)
-            outputdata[0][1][nleveli] = blt_L_QE
+                for iti, it in enumerate(self.its):
+                    blt_MAP = self.get_blt_it(simidx, it)
+                    bdel_MAP = self.nivjob_geomlib.alm2map(blm_L-blt_MAP, *self.lm_max_blt, nthreads=4)
+                    log.info("starting MAP delensing for iteration {}".format(it))
+                    blt_L_MAP = self.lib[maskflavour][maskid].map2cl(bdel_MAP)    
+                    outputdata[0][2+iti][maskcounter] = blt_L_MAP
 
-            for iti, it in enumerate(self.its):
-                log.info("starting MAP delensing for iteration {}".format(it))
-                blt_L_MAP = self.lib[nlevel].map2cl(bmap_L-blt_MAP1[iti], bmap_L-blt_MAP2[iti])    
-                outputdata[0][2+iti][nleveli] = blt_L_MAP
+                maskcounter+=1
 
         np.save(self.fns(simidx), outputdata)
             
@@ -936,7 +940,7 @@ class Map_delenser(Basejob):
     #@log_on_start(logging.INFO, "read_data() started")
     #@log_on_end(logging.INFO, "read_data() finished")
     def read_data(self):
-        bcl_L = np.zeros(shape=(len(self.its)+2, len(self.nlevels), len(self.simidxs), len(self.edges)-1))
+        bcl_L = np.zeros(shape=(len(self.its)+2, len(self.nlevels)+len(self.masks_fromfn), len(self.simidxs), len(self.edges)-1))
         for simidxi, simidx in enumerate(self.simidxs):
             data = np.load(self.fns(simidx))
             bcl_L[0,:,simidxi] = data[0][0]
@@ -945,7 +949,8 @@ class Map_delenser(Basejob):
                 bcl_L[2+iti,:,simidxi] = data[0][2+iti]
 
         return bcl_L
-    
+
+
     def hlm2dlm(self, hlm, inplace):
         if self.h == 'd':
             return hlm if inplace else hlm.copy()
@@ -959,6 +964,7 @@ class Map_delenser(Basejob):
             almxfl(hlm, h2d, self.mmax_qlm, True)
         else:
             return  almxfl(hlm, h2d, self.mmax_qlm, False)
+
 
 class overwrite_anafast():
     """Convenience class for overwriting method name
