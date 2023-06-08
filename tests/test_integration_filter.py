@@ -136,7 +136,7 @@ class MS(unittest.TestCase):
     def test_maskedsky_T(self):
         for job_id, key_dict in self.whitelist_MS_T.items():
             for key in key_dict:
-                dlensalot_model = DLENSALOT_Model(defaults_to='T_MS_CMBS4', analysis = DLENSALOT_Analysis(key=key))
+                dlensalot_model = DLENSALOT_Model(defaults_to='T_FS_TEST', analysis = DLENSALOT_Analysis(key=key))
                 delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
                 model = transform3d(dlensalot_model, job_id, l2delensalotjob_Transformer())
                 assert type(model.filter) in self.whitelist_MS_T[job_id][key], "{} != {} for key {}".format(model.filter, self.whitelist_MS_T[job_id][key], key)
@@ -145,7 +145,7 @@ class MS(unittest.TestCase):
     def test_maskedsky_P(self):
         for job_id, key_dict in self.whitelist_MS_P.items():
             for key in key_dict:
-                dlensalot_model = DLENSALOT_Model(defaults_to='P_MS_CMBS4', analysis = DLENSALOT_Analysis(key=key))
+                dlensalot_model = DLENSALOT_Model(defaults_to='P_MS_TEST', analysis = DLENSALOT_Analysis(key=key))
                 delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
                 model = transform3d(dlensalot_model, job_id, l2delensalotjob_Transformer())
                 assert type(model.filter) in self.whitelist_MS_P[job_id][key], "{} != {} for key {}".format(model.filter, self.whitelist_MS_P[job_id][key], key)
@@ -154,7 +154,7 @@ class MS(unittest.TestCase):
     def test_maskedsky_TP(self):
         for job_id, key_dict in self.whitelist_MS_TP.items():
             for key in key_dict:
-                dlensalot_model = DLENSALOT_Model(defaults_to='TP_MS_CMBS4', analysis = DLENSALOT_Analysis(key=key))
+                dlensalot_model = DLENSALOT_Model(defaults_to='TP_MS_TEST', analysis = DLENSALOT_Analysis(key=key))
                 delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
                 model = transform3d(dlensalot_model, job_id, l2delensalotjob_Transformer())
                 assert type(model.filter) in self.whitelist_MS_TP[job_id][key], "{} != {} for key {}".format(model.filter, self.whitelist_MS_TP[job_id][key], key)
