@@ -13,6 +13,7 @@ from os.path import join as opj
 import numpy as np
 import healpy as hp
 
+import delensalot
 from delensalot.run import run
 from delensalot.config.visitor import transform, transform3d
 from delensalot.core.opfilt.opfilt_handler import QE_transformer, MAP_transformer

@@ -14,6 +14,7 @@
 import unittest
 import shutil
 import os
+import delensalot
 from delensalot.config.visitor import transform, transform3d
 from delensalot.config.transformer.lerepi2dlensalot import l2delensalotjob_Transformer, l2T_Transformer
 from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model, DLENSALOT_Analysis
