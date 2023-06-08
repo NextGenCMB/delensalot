@@ -214,9 +214,9 @@ class Xunl:
         if libdir_phi == DNaV: # need being generated
             if cls_lib == DNaV:
                 self.cls_lib = Cls(lmax=lmax, phi_field=self.phi_field, phi_lmax=self.phi_lmax)
-                self.phi_lmax = self.cls_lib.phi_lmax
             else:
                 self.cls_lib = cls_lib
+            self.phi_lmax = self.cls_lib.phi_lmax
         if libdir != DNaV:
             if self.space == DNaV:
                 assert 0, 'need to give space (map or alm)'
@@ -224,14 +224,19 @@ class Xunl:
             if self.fns == DNaV:
                 assert 0, 'need to give fns'
             if self.spin == DNaV:
-                assert 0, 'need to give spin'           
+                assert 0, 'need to give spin'
+        else:
+            if cls_lib == DNaV:
+                self.cls_lib = Cls(lmax=lmax, phi_field=self.phi_field, phi_lmax=self.phi_lmax)
+            else:
+                self.cls_lib = cls_lib        
+            self.phi_lmax = self.cls_lib.phi_lmax     
         if libdir_phi != DNaV:
             self.fnsP = fnsP
             if self.fnsP == DNaV:
                 assert 0, 'need to give fnsP'
             if self.phi_space == DNaV:
                 assert 0, 'need to give phi_space (map or alm)'
-            self.phi_lmax = phi_lmax
         else:
             if 'nside' in  self.geometry[1]:
                 geom_lmax = 3*self.geometry[1]['nside']
@@ -533,14 +538,14 @@ class Xobs:
         else:
             if libdir == DNaV:
                 if len_lib == DNaV:
-                    self.len_lib = Xsky(unl_lib=unl_lib, lmax=lmax, libdir=libdir, fns=fns, space=space, simidxs=simidxs, spin=spin, epsilon=epsilon, geometry=geometry)
+                    self.len_lib = Xsky(unl_lib=unl_lib, lmax=lmax, libdir=libdir, fns=fns, space=space, simidxs=simidxs, epsilon=epsilon, geometry=geometry)
                 else:
                     self.len_lib = len_lib
                 if noise_lib == DNaV:
                     if libdir_noise == DNaV:
                         if nlev == DNaV:
                             assert 0, "Need nlev for generating noise"
-                    self.noise_lib = iso_white_noise(nlev=nlev, lmax=lmax, fns=fnsnoise,libdir=libdir_noise, space=space, spin=spin, geometry=self.geometry)
+                    self.noise_lib = iso_white_noise(nlev=nlev, lmax=lmax, fns=fnsnoise,libdir=libdir_noise, space=space, geometry=self.geometry)
                 if np.all(transfunction == DNaV):
                     assert 0, 'need to give transfunction'
                 self.transfunction = transfunction       
@@ -793,7 +798,7 @@ class Simhandler:
                 assert nlev != DNaV, "need to provide nlev"
                 assert np.all(transfunction != DNaV), "need to provide transfunction"
                 self.len_lib = Xsky(unl_lib=unl_lib, lmax=lmax, libdir=libdir, fns=fns, space=space, simidxs=simidxs, spin=spin, epsilon=epsilon, geometry=geometry) if len_lib == DNaV else len_lib
-                self.obs_lib = Xobs(len_lib=self.len_lib, space=space, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, spin=spin, geometry=geometry)
+                self.obs_lib = Xobs(len_lib=self.len_lib, space=space, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, geometry=geometry)
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = self.len_lib.libdir
                 self.fns = self.len_lib.fns
@@ -817,12 +822,14 @@ class Simhandler:
                     assert phi_space == 'cl', "please set phi_space='cl', just to be sure."
                     self.cls_lib = Cls(phi_lmax=phi_lmax, phi_fn=phi_fn, phi_field=phi_field, simidxs=simidxs)
                     self.unl_lib = Xunl(cls_lib=self.cls_lib, lmax=lmax, libdir=libdir, fns=fns, phi_field=phi_field, simidxs=simidxs, space=space, phi_space=phi_space, phi_lmax=phi_lmax, geometry=geometry, spin=spin) if unl_lib == DNaV else unl_lib
-                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, simidxs=simidxs, spin=self.spin, space=space, epsilon=epsilon, geometry=geometry)
-                self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, space=space, spin=self.spin, geometry=geometry)
+                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, simidxs=simidxs, space=space, epsilon=epsilon, geometry=geometry)
+                self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, space=space, geometry=geometry)
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = self.unl_lib.libdir
                 self.fns = self.unl_lib.fns
         elif space in ['alm']:
+            self.spin = 0 # there are genrally no qlms, ulms, therefore here we can safely assume that data is spin0
+            spin = 0
             if flavour == 'obs':
                 if libdir != DNaV:
                     self.libdir = libdir
@@ -830,42 +837,41 @@ class Simhandler:
                         assert 0, 'you need to provide fns' 
                     self.fns = fns
                     self.simidxs = simidxs
-                    self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, libdir=libdir, fns=fns, simidxs=simidxs, spin=spin, geometry=geometry) if obs_lib == DNaV else obs_lib
+                    self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, libdir=libdir, fns=fns, simidxs=simidxs, spin=self.spin, geometry=geometry) if obs_lib == DNaV else obs_lib
                     self.noise_lib = self.obs_lib.noise_lib
                     self.libdir = self.obs_lib.libdir
                     self.fns = self.obs_lib.fns
             if flavour == 'sky':
                 assert 0, 'implement if needed'
             if flavour == 'unl':
-                self.spin = 0 # there are genrally no qlms, ulms, therefore here we can safely assume that data is spin0
                 if (libdir_phi == DNaV or libdir == DNaV) and cls_lib == DNaV:
                     cls_lib = Cls(lmax=lmax, CMB_fn=CMB_fn, phi_fn=phi_fn, phi_field=phi_field, simidxs=simidxs)
                 self.cls_lib = cls_lib # just to be safe..
-                self.unl_lib = Xunl(lmax=lmax, libdir=libdir, fns=fns, fnsP=fnsP, phi_field=phi_field, simidxs=simidxs, libdir_phi=libdir_phi, space=space,  phi_space=phi_space, cls_lib=cls_lib, geometry=geometry) if unl_lib == DNaV else unl_lib
-                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, simidxs=simidxs, spin=self.spin, space=space, epsilon=epsilon, geometry=geometry)
+                self.unl_lib = Xunl(lmax=lmax, libdir=libdir, fns=fns, fnsP=fnsP, phi_field=phi_field, simidxs=simidxs, libdir_phi=libdir_phi, space=space, phi_space=phi_space, cls_lib=cls_lib, geometry=geometry, spin=self.spin) if unl_lib == DNaV else unl_lib
+                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, simidxs=simidxs, space=space, epsilon=epsilon, geometry=geometry)
                 self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, space=space, spin=self.spin, geometry=geometry)
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = self.unl_lib.libdir
                 self.fns = self.unl_lib.fns
         elif space == 'cl':
+            self.spin = 0 # there are genrally no qcls, ucls, therefore here we can safely assume that data is spin0
+            spin = 0
             if flavour == 'obs':
                 assert 0, 'implement if needed' # unlikely this will ever be needed
             if flavour == 'sky':
                 assert 0, 'implement if needed' # unlikely this will ever be needed
             if flavour == 'unl':
                 assert np.all(transfunction != DNaV), "need to provide transfunction"
-                assert spin == 0, "Forcing spin to zero here. But just to make sure, please pass spin=0"
                 assert lmax != DNaV, "need to provide lmax"
                 assert nlev != DNaV, "need to provide nlev"
                 assert phi_lmax != DNaV, "need to provide phi_lmax"
                 if phi_fn != DNaV:
                     assert phi_field != DNaV, "need to provide phi_field"
-                    assert phi_space == 'cl', "please set phi_space='cl', just to be sure."
-                self.spin = 0 # there are genrally no qcls, ucls, therefore here we can safely assume that data is spin0
+                
                 self.cls_lib = Cls(lmax=lmax, phi_lmax=phi_lmax, CMB_fn=CMB_fn, phi_fn=phi_fn, phi_field=phi_field, simidxs=simidxs)
                 self.unl_lib = Xunl(cls_lib=self.cls_lib, lmax=lmax, fnsP=fnsP, phi_field=phi_field, libdir_phi=libdir_phi, phi_space=phi_space, simidxs=simidxs, geometry=geometry)
-                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, simidxs=simidxs, spin=spin, epsilon=epsilon, geometry=geometry)
-                self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, spin=spin, geometry=geometry)
+                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, simidxs=simidxs, epsilon=epsilon, geometry=geometry)
+                self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, geometry=geometry)
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = DNaV # settings this here explicit for a future me, so I see it easier
                 self.fns = DNaV # settings this here explicit for a future me, so I see it easier

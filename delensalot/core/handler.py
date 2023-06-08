@@ -239,28 +239,29 @@ class Sim_generator(Basejob):
                         mpi.send(1, dest=n)
             else:
                 mpi.receive(None, source=mpi.ANY_SOURCE)
-        if self.simulationdata.flavour != 'sky':
-            # it is handy to store the sky simulations, as often, only noise levels and beam change for an analysis.
-            self.libdir_sky = opj(os.environ['SCRATCH'], 'simulation/', str(self.simulationdata.geometry))
-            self.fns_sky = ['Qmapsky_{}.npy', 'Umapsky_{}.npy']
-        
-        # if Sim_generator() already produced the obs maps, then the jobmodel of course doesnt know of it, so need to update jobmodel manually. Since sim_lib hasnt gotten the libdir and fns info yet, need to check this manually. self.libdir and self.fns only exists when Sim_generator() believes it should generate data.
-        if self.libdir != DEFAULT_NotAValue and self.fns != DEFAULT_NotAValue:
-            simidxs_ = np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))))
-            check_ = True  
-            for simidx in simidxs_:
-                if self.k in ['p_p', 'p_eb', 'peb', 'p_be']: 
-                    if os.path.exists(opj(self.libdir, self.fns[0].format(simidx))) and os.path.exists(opj(self.libdir, self.fns[1].format(simidx))):
-                        pass
-                    else:
-                        check_ = False
-                if self.k in ['ptt', 'p']:
-                    if os.path.exists(opj(self.libdir, self.fns.format(simidx))):
-                        pass
-                    else:
-                        check_ = False
-            if check_:
-                self.postrun()
+            if self.simulationdata.flavour != 'sky':
+                if self.simulationdata.libdir == DEFAULT_NotAValue and self.simulationdata.fns == DEFAULT_NotAValue:
+                    # it is handy to store the sky simulations, as often, only noise levels and beam change for an analysis.
+                    self.libdir_sky = opj(os.environ['SCRATCH'], 'simulation/', str(self.simulationdata.geometry))
+                    self.fns_sky = ['Qmapsky_{}.npy', 'Umapsky_{}.npy']
+            
+            # if Sim_generator() already produced the obs maps, then the jobmodel of course doesnt know of it, so need to update jobmodel manually. Since sim_lib hasnt gotten the libdir and fns info yet, need to check this manually. self.libdir and self.fns only exists when Sim_generator() believes it should generate data.
+            if self.libdir != DEFAULT_NotAValue and self.fns != DEFAULT_NotAValue:
+                simidxs_ = np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))))
+                check_ = True  
+                for simidx in simidxs_:
+                    if self.k in ['p_p', 'p_eb', 'peb', 'p_be']: 
+                        if os.path.exists(opj(self.libdir, self.fns[0].format(simidx))) and os.path.exists(opj(self.libdir, self.fns[1].format(simidx))):
+                            pass
+                        else:
+                            check_ = False
+                    if self.k in ['ptt', 'p']:
+                        if os.path.exists(opj(self.libdir, self.fns.format(simidx))):
+                            pass
+                        else:
+                            check_ = False
+                if check_:
+                    self.postrun()
 
 
     # @base_exception_handler
@@ -300,10 +301,11 @@ class Sim_generator(Basejob):
             # only overwrite if sky data has not been provided already
             if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
                 # only overwrite if maps are not in memory (this is but the case for map2delblm and map2tempblm)
-                self.simulationdata.len_lib.fns = self.fns_sky
-                self.simulationdata.len_lib.libdir = self.libdir_sky
-                self.simulationdata.len_lib.space = 'map'
-                self.simulationdata.len_lib.spin = 2
+                if 'len_lib' in self.simulationdata.__dict__:
+                    self.simulationdata.len_lib.fns = self.fns_sky
+                    self.simulationdata.len_lib.libdir = self.libdir_sky
+                    self.simulationdata.len_lib.space = 'map'
+                    self.simulationdata.len_lib.spin = 2
 
 
     #@log_on_start(logging.INFO, "Sim.generate_sim(simidx={simidx}) started")
@@ -418,8 +420,7 @@ class QE_lr(Basejob):
     #@log_on_end(logging.INFO, "QE.collect_jobs(recalc={recalc}) finished: jobs={self.jobs}")
     def collect_jobs(self, recalc=False):
 
-        if not isinstance(self.simulationdata, parameter_sims):
-            self.simgen.collect_jobs()
+        self.simgen.collect_jobs()
         # qe_tasks overwrites task-list and is needed if MAP lensrec calls QE lensrec
         jobs = list(range(len(self.qe_tasks)))
         for taski, task in enumerate(self.qe_tasks):
@@ -466,8 +467,7 @@ class QE_lr(Basejob):
     def run(self, task=None):
         ## task may be set from MAP lensrec, as MAP lensrec has prereqs to QE lensrec
         ## if None, then this is a normal QE lensrec call
-        if not isinstance(self.simulationdata, parameter_sims):
-            self.simgen.run()
+        self.simgen.run()
 
 
         # Only now instantiate filters
