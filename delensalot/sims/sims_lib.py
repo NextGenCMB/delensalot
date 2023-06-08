@@ -61,7 +61,7 @@ class iso_white_noise:
         self.space = space
         if libdir == DNaV:        
             self.nlev = nlev
-            libdir_phas = os.environ['SCRATCH']+'/simulation/{}/phas/'.format(str(geometry))
+            libdir_phas = os.environ['SCRATCH']+'/simulation/{}/{}/phas/'.format(str(geometry),str(nlev))
             self.pix_lib_phas = phas.pix_lib_phas(libdir_phas, 3, (self.geom_lib.npix(),))
         else:
             if fns == DNaV:
@@ -762,6 +762,7 @@ class Simhandler:
         self.phi_lmax = phi_lmax
         self.flavour = flavour
         self.space = space
+        self.nlev = nlev
         if space == 'map':
             if flavour == 'obs':
                 self.simidxs = simidxs

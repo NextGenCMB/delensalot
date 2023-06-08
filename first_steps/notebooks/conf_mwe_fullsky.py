@@ -23,8 +23,8 @@ dlensalot_model = DLENSALOT_Model(
         key = 'p_p',
         simidxs = np.arange(0,1),
         TEMP_suffix = 'my_first_dlensalot_analysis_fullsky',
-        lm_max_ivf = (3000, 3000),
         beam = 1.0,
+        lm_max_ivf = (4000, 4000),
     ),
     simulationdata = DLENSALOT_Simulation(
         space = 'cl', 
@@ -32,13 +32,13 @@ dlensalot_model = DLENSALOT_Model(
         lmax = 4096,
         phi_lmax = 5120,
         transfunction = gauss_beam(1.0/180/60 * np.pi, lmax=4096),
-        nlev = {'P': np.sqrt(10)},
+        nlev = {'P': np.sqrt(2)},
         geometry = ('healpix', {'nside': 2048}),
         CMB_fn = opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
     ),
     noisemodel = DLENSALOT_Noisemodel(
-        nlev_t = np.sqrt(5),
-        nlev_p = np.sqrt(10),
+        nlev_t = np.sqrt(1),
+        nlev_p = np.sqrt(2),
         geometry = ('healpix', {'nside': 2048}),
     ),
     qerec = DLENSALOT_Qerec(
@@ -49,7 +49,7 @@ dlensalot_model = DLENSALOT_Model(
     itrec = DLENSALOT_Itrec(
         tasks = ["calc_phi", "calc_blt"],
         itmax = 3,
-        lm_max_unl = (3200, 3200),
+        lm_max_unl = (4200, 4200),
         lm_max_qlm = (3000, 3000),
         cg_tol = 1e-5
     ),

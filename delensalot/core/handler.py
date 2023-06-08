@@ -225,7 +225,7 @@ class Sim_generator(Basejob):
             pass
         else:
             # some flavour may be provided, but we need to generate the obs maps from this. so Sim_generator() gets its own libdir and fns, and later updates simhandler with it.
-            self.libdir = opj(os.environ['SCRATCH'], 'simulation/', str(self.simulationdata.geometry))
+            self.libdir = opj(os.environ['SCRATCH'], 'simulation/', str(self.simulationdata.geometry), str(self.simulationdata.nlev))
             self.fns = ['Qmapobs_{}.npy', 'Umapobs_{}.npy']
             first_rank = mpi.bcast(mpi.rank)
             if first_rank == mpi.rank:

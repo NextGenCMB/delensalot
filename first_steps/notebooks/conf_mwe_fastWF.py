@@ -6,10 +6,12 @@ Parameters not listed here default to 'P_FS_CMBS4'
 
 import numpy as np
 import os
-import delensalot
-from delensalot import utils
 from os.path import join as opj
 
+import delensalot
+import delensalot.core.power.pospace as pospace
+from delensalot.utility.utils_hp import gauss_beam
+from delensalot.config.config_helper import LEREPI_Constants as lc
 from delensalot.config.metamodel.dlensalot_mm import *
 
 dlensalot_model = DLENSALOT_Model(
@@ -21,31 +23,35 @@ dlensalot_model = DLENSALOT_Model(
         key = 'p_p',
         simidxs = np.arange(0,1),
         TEMP_suffix = 'my_first_dlensalot_analysis_fastWF',
-        Lmin = 10
+        Lmin = 10,
+        lm_max_ivf = (4000, 4000),
     ),
-    data = DLENSALOT_Data(
-        class_parameters = {
-            'lmax': 4096,
-            'cls_unl': utils.camb_clfile(opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat')),
-            'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'generic', 'nside2048', 'lmax4096', 'nlevp_sqrt(2)')
-        },
-        nlev_t = 1.00,
-        nlev_p = np.sqrt(2),
-        beam = 1.00,
-        lmax_transf = 4000,
-        nside = 2048,
+    simulationdata = DLENSALOT_Simulation(
+        space = 'cl', 
+        flavour = 'unl',
+        lmax = 4096,
+        phi_lmax = 5120,
+        transfunction = gauss_beam(1.0/180/60 * np.pi, lmax=4096),
+        nlev = {'P': np.sqrt(2)},
+        geometry = ('healpix', {'nside': 2048}),
+        CMB_fn = opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
     ),
     noisemodel = DLENSALOT_Noisemodel(
-        nlev_t = 1.00,
-        nlev_p = np.sqrt(2)
+        nlev_t = np.sqrt(1),
+        nlev_p = np.sqrt(2),
+        geometry = ('healpix', {'nside': 2048}),
     ),
     qerec = DLENSALOT_Qerec(
-        lm_max_qlm = (4000, 4000)
+        tasks = ["calc_phi", "calc_blt"],
+        lm_max_qlm = (3000, 3000),
+        cg_tol = 1e-5
     ),
     itrec = DLENSALOT_Itrec(
+        tasks = ["calc_phi", "calc_blt"],
         iterator_typ = 'fastWF',
         itmax = 5,
         lm_max_unl = (4200, 4200),
-        lm_max_qlm = (4000, 4000)
-    )
+        lm_max_qlm = (3000, 3000),
+        cg_tol = 1e-5
+    ),
 )
