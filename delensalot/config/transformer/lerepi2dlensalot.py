@@ -613,7 +613,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     else:
                         dl.mf_dirname = opj(dl.TEMP, l2T_Transformer.ofj('mf', {'version': dl.version, 'Nmf': dl.Nmf}))
                     # cg_tol
-                    dl.it_cg_tol = lambda itr : it.cg_tol if itr <= 1 else it.cg_tol*0.1
+                    dl.it_cg_tol = lambda itr : it.cg_tol if itr <= 1 else it.cg_tol
                     # filter
                     dl.it_filter_directional = it.filter_directional
                     # itmax

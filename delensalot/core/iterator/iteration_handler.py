@@ -58,7 +58,8 @@ class base_iterator():
             elif self.k in ['p']:
                 QUobs = np.array(self.nivjob_geomlib.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2, *self.lm_max_ivf, nthreads=self.tr))
                 Tobs = self.nivjob_geomlib.map2alm(self.sims_MAP.get_sim_tmap(int(self.simidx)), *self.lm_max_ivf, nthreads=self.tr)
-                return np.array([Tobs, QUobs])
+                ret = np.array([Tobs, *QUobs])
+                return ret
         else:
             if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
                 return np.array(self.sims_MAP.get_sim_pmap(int(self.simidx)))

@@ -229,14 +229,14 @@ class Sim_generator(Basejob):
             self.libdir_sky = opj(os.environ['SCRATCH'], 'simulation/', str(self.simulationdata.geometry))
             self.libdir = opj(os.environ['SCRATCH'], 'simulation/', str(self.simulationdata.geometry), str(self.simulationdata.nlev))
             if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']: 
-                self.fns = ['Qmapobs_{}.npy', 'Umapobs_{}.npy']
-                self.fns_sky = ['Qmapsky_{}.npy', 'Umapsky_{}.npy']
+                self.fns = {'Q': 'Qmapobs_{}.npy', 'U': 'Umapobs_{}.npy'}
+                self.fns_sky = {'Q': 'Qmapsky_{}.npy', 'U': 'Umapsky_{}.npy'}
             elif self.k in ['ptt']:
-                self.fns = 'Tmapobs_{}.npy'
-                self.fns_sky = 'Tmapsky_{}.npy'
+                self.fns = {'T': 'Tmapobs_{}.npy'}
+                self.fns_sky = {'T': 'Tmapsky_{}.npy'}
             elif self.k in ['p']:
-                self.fns = ['Tmapobs_{}.npy', 'Qmapobs_{}.npy', 'Umapobs_{}.npy']
-                self.fns_sky = ['Tmapsky_{}.npy', 'Qmapsky_{}.npy', 'Umapsky_{}.npy']
+                self.fns = {'T': 'Tmapobs_{}.npy', 'Q': 'Qmapobs_{}.npy', 'U': 'Umapobs_{}.npy'}
+                self.fns_sky = {'T': 'Tmapsky_{}.npy', 'Q': 'Qmapsky_{}.npy', 'U': 'Umapsky_{}.npy'}
             first_rank = mpi.bcast(mpi.rank)
             if first_rank == mpi.rank:
                 if not os.path.exists(self.libdir):
@@ -251,14 +251,14 @@ class Sim_generator(Basejob):
                     # it is handy to store the sky simulations, as often, only noise levels and beam change for an analysis.
                     self.libdir_sky = opj(os.environ['SCRATCH'], 'simulation/', str(self.simulationdata.geometry))
                     if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']: 
-                        self.fns = ['Qmapobs_{}.npy', 'Umapobs_{}.npy']
-                        self.fns_sky = ['Qmapsky_{}.npy', 'Umapsky_{}.npy']
+                        self.fns = {'Q': 'Qmapobs_{}.npy', 'U': 'Umapobs_{}.npy'}
+                        self.fns_sky = {'Q': 'Qmapsky_{}.npy', 'U': 'Umapsky_{}.npy'}
                     elif self.k in ['ptt']:
-                        self.fns = 'Tmapobs_{}.npy'
-                        self.fns_sky = 'Tmapsky_{}.npy'
+                        self.fns = {'T': 'Tmapobs_{}.npy'}
+                        self.fns_sky = {'T': 'Tmapsky_{}.npy'}
                     elif self.k in ['p']:
-                        self.fns = ['Tmapobs_{}.npy', 'Qmapobs_{}.npy', 'Umapobs_{}.npy']
-                        self.fns_sky = ['Tmapsky_{}.npy', 'Qmapsky_{}.npy', 'Umapsky_{}.npy']
+                        self.fns = {'T': 'Tmapobs_{}.npy', 'Q': 'Qmapobs_{}.npy', 'U': 'Umapobs_{}.npy'}
+                        self.fns_sky = {'T': 'Tmapsky_{}.npy', 'Q': 'Qmapsky_{}.npy', 'U': 'Umapsky_{}.npy'}
             
             # if Sim_generator() already produced the obs maps, then the jobmodel of course doesnt know of it, so need to update jobmodel manually. Since sim_lib hasnt gotten the libdir and fns info yet, need to check this manually. self.libdir and self.fns only exists when Sim_generator() believes it should generate data.
             if self.libdir != DEFAULT_NotAValue and self.fns != DEFAULT_NotAValue:
@@ -266,17 +266,17 @@ class Sim_generator(Basejob):
                 check_ = True  
                 for simidx in simidxs_:
                     if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']: 
-                        if os.path.exists(opj(self.libdir, self.fns[0].format(simidx))) and os.path.exists(opj(self.libdir, self.fns[1].format(simidx))):
+                        if os.path.exists(opj(self.libdir, self.fns['Q'].format(simidx))) and os.path.exists(opj(self.libdir, self.fns['U'].format(simidx))):
                             pass
                         else:
                             check_ = False
                     if self.k in ['ptt']:
-                        if os.path.exists(opj(self.libdir, self.fns.format(simidx))):
+                        if os.path.exists(opj(self.libdir, self.fns['T'].format(simidx))):
                             pass
                         else:
                             check_ = False
                     if self.k in ['p']:
-                        if os.path.exists(opj(self.libdir, self.fns[0].format(simidx))) and os.path.exists(opj(self.libdir, self.fns[1].format(simidx))) and os.path.exists(opj(self.libdir, self.fns[2].format(simidx))):
+                        if os.path.exists(opj(self.libdir, self.fns['T'].format(simidx))) and os.path.exists(opj(self.libdir, self.fns['Q'].format(simidx))) and os.path.exists(opj(self.libdir, self.fns['U'].format(simidx))):
                             pass
                         else:
                             check_ = False
@@ -322,39 +322,39 @@ class Sim_generator(Basejob):
             if self.simulationdata.flavour != 'sky':
                 # only save sky maps if data has not been provided by user. We only get here if sim_generator generates simulations.
                 QUsky = self.simulationdata.get_sim_sky(simidx, spin=2, space='map', field='polarization')
-                np.save(opj(self.libdir_sky, self.fns_sky[0].format(simidx)), QUsky[0])
-                np.save(opj(self.libdir_sky, self.fns_sky[1].format(simidx)), QUsky[1])
+                np.save(opj(self.libdir_sky, self.fns_sky['Q'].format(simidx)), QUsky[0])
+                np.save(opj(self.libdir_sky, self.fns_sky['U'].format(simidx)), QUsky[1])
 
             QUobs = self.simulationdata.get_sim_obs(simidx, spin=2, space='map', field='polarization')
-            np.save(opj(self.libdir, self.fns[0].format(simidx)), QUobs[0])
-            np.save(opj(self.libdir, self.fns[1].format(simidx)), QUobs[1])
+            np.save(opj(self.libdir, self.fns['Q'].format(simidx)), QUobs[0])
+            np.save(opj(self.libdir, self.fns['U'].format(simidx)), QUobs[1])
 
         elif self.k in ['ptt']:
             if self.simulationdata.flavour != 'sky':
                 # only save sky maps if data has not been provided by used. We only get here if sim_generator generates simulations.
                 Tsky = self.simulationdata.get_sim_sky(simidx, spin=0, space='map', field='temperature')
-                np.save(opj(self.libdir_sky, self.fns_sky.format(simidx)), Tsky)
+                np.save(opj(self.libdir_sky, self.fns_sky['T'].format(simidx)), Tsky)
 
             Tobs = self.simulationdata.get_sim_obs(simidx, spin=0, space='map', field='temperature')
-            np.save(opj(self.libdir, self.fns.format(simidx)), Tobs)
+            np.save(opj(self.libdir, self.fns['T'].format(simidx)), Tobs)
 
         elif self.k in ['p']:
             if self.simulationdata.flavour != 'sky':
                 # only save sky maps if data has not been provided by user. We only get here if sim_generator generates simulations.
                 QUsky = self.simulationdata.get_sim_sky(simidx, spin=2, space='map', field='polarization')
-                np.save(opj(self.libdir_sky, self.fns_sky[0].format(simidx)), QUsky[0])
-                np.save(opj(self.libdir_sky, self.fns_sky[1].format(simidx)), QUsky[1])
+                np.save(opj(self.libdir_sky, self.fns_sky['Q'].format(simidx)), QUsky[0])
+                np.save(opj(self.libdir_sky, self.fns_sky['U'].format(simidx)), QUsky[1])
             if self.simulationdata.flavour != 'sky':
                 # only save sky maps if data has not been provided by used. We only get here if sim_generator generates simulations.
                 Tsky = self.simulationdata.get_sim_sky(simidx, spin=0, space='map', field='temperature')
-                np.save(opj(self.libdir_sky, self.fns_sky.format(simidx)), Tsky)
+                np.save(opj(self.libdir_sky, self.fns_sky['T'].format(simidx)), Tsky)
 
             QUobs = self.simulationdata.get_sim_obs(simidx, spin=2, space='map', field='polarization')
-            np.save(opj(self.libdir, self.fns[0].format(simidx)), QUobs[0])
-            np.save(opj(self.libdir, self.fns[1].format(simidx)), QUobs[1])
+            np.save(opj(self.libdir, self.fns['Q'].format(simidx)), QUobs[0])
+            np.save(opj(self.libdir, self.fns['U'].format(simidx)), QUobs[1])
 
             Tobs = self.simulationdata.get_sim_obs(simidx, spin=0, space='map', field='temperature')
-            np.save(opj(self.libdir, self.fns.format(simidx)), Tobs)
+            np.save(opj(self.libdir, self.fns['T'].format(simidx)), Tobs)
 
 
     def postrun(self):
@@ -438,7 +438,7 @@ class QE_lr(Basejob):
             self.qcls_ds = qecl.library(opj(self.libdir_QE, 'qcls_ds'), self.qlms_ds, self.qlms_ds, np.array([]))  # for QE RDN0 calculations
             self.qcls_ss = qecl.library(opj(self.libdir_QE, 'qcls_ss'), self.qlms_ss, self.qlms_ss, np.array([]))  # for QE RDN0 / MCN0 calculations
             self.qcls_dd = qecl.library(opj(self.libdir_QE, 'qcls_dd'), self.qlms_dd, self.qlms_dd, self.mc_sims_bias)
-        self.filter = self.get_filter()
+        # self.filter = self.get_filter()
 
 
     def init_cinv(self):
@@ -576,11 +576,12 @@ class QE_lr(Basejob):
     #@log_on_start(logging.INFO, "QE.get_wflm(simidx={simidx}) started")
     #@log_on_end(logging.INFO, "QE.get_wflm(simidx={simidx}) finished")    
     def get_wflm(self, simidx):
-        # FIXME add all keys
         if self.k in ['ptt']:
             return lambda: alm_copy(self.ivfs.get_sim_tmliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
-        else:
+        elif self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
             return lambda: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
+        elif self.k in ['p']:
+            return lambda: np.array([alm_copy(self.ivfs.get_sim_tmliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1]), alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])])
 
 
     # @base_exception_handler

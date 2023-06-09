@@ -127,7 +127,7 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         # View to the same array for GRAD_ONLY mode:
         eblm = self.ffi.lensgclm(telm[1:],  self.mmax_sol, 2, self.lmax_len, self.mmax_len)
         tlm  = self.ffi.lensgclm(telm[0:1], self.mmax_sol, 0, self.lmax_len, self.mmax_len)
-        tlm.reshape((1, tlm.size))
+        tlm = tlm.reshape((1, tlm.size))
         self.tim.add('lensgclm fwd')
         almxfl( tlm[0], self.inoise_2_tlm, self.mmax_len, inplace=True)
         almxfl(eblm[0], self.inoise_2_elm, self.mmax_len, inplace=True)

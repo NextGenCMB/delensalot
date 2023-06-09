@@ -106,8 +106,8 @@ class iso_white_noise:
                         noise = self.geom_lib.map2alm(noise, lmax=self.lmax, mmax=self.lmax, nthreads=4)
             else:
                 if field == 'polarization':
-                    noise1 = load_file(opj(self.libdir, self.fns[0].format(simidx)))
-                    noise2 = load_file(opj(self.libdir, self.fns[1].format(simidx)))
+                    noise1 = load_file(opj(self.libdir, self.fns['Q'].format(simidx)))
+                    noise2 = load_file(opj(self.libdir, self.fns['U'].format(simidx)))
                     noise = np.array([noise1, noise2])
                     if self.space == 'map':
                         if space == 'alm':
@@ -137,7 +137,7 @@ class iso_white_noise:
                             elif spin == 2:
                                 noise = self.geom_lib.alm2map_spin(noise, spin=spin, lmax=self.lmax, mmax=self.lmax, nthreads=4)       
                 elif field == 'temperature':
-                    noise = np.array(load_file(opj(self.libdir, self.fns.format(simidx))))
+                    noise = np.array(load_file(opj(self.libdir, self.fns['T'].format(simidx))))
                     if self.space == 'map':
                         if space == 'alm':
                             noise = self.geom_lib.map2alm(noise, lmax=self.lmax, mmax=self.lmax, nthreads=4)
@@ -282,8 +282,8 @@ class Xunl:
                         unl = self.geom_lib.alm2map(unl, lmax=self.lmax, mmax=self.lmax, nthreads=4)
             else:
                 if field  == 'polarization':
-                    unl1 = load_file(opj(self.libdir, self.fns[0].format(simidx)))
-                    unl2 = load_file(opj(self.libdir, self.fns[1].format(simidx)))
+                    unl1 = load_file(opj(self.libdir, self.fns['Q'].format(simidx)))
+                    unl2 = load_file(opj(self.libdir, self.fns['U'].format(simidx)))
                     unl =  np.array([unl1, unl2])
                     if self.space == 'map':
                         if space == 'alm':
@@ -311,7 +311,7 @@ class Xunl:
                             elif spin == 2:
                                 unl = self.geom_lib.alm2map_spin(unl, spin=spin, lmax=self.lmax, mmax=self.lmax, nthreads=4)
                 elif field == 'temperature':
-                    unl = np.array(load_file(opj(self.libdir, self.fns.format(simidx))))
+                    unl = np.array(load_file(opj(self.libdir, self.fns['T'].format(simidx))))
                     if self.space == 'map':
                         if space == 'alm':
                             unl = self.geom_lib.map2alm(unl, lmax=self.lmax, mmax=self.lmax, nthreads=4)
@@ -377,8 +377,8 @@ class Xunl:
             alms = hp.synalm(cls, self.lmax, new=True)
             return alms[1:]
         elif field == 'temperature':
-            alm = hp.synalm(cls[0], self.lmax)
-            return alm
+            alm = hp.synalm(cls, self.lmax)
+            return alm[0]
     
 
     def clp2plm(self, clp, seed):
@@ -463,8 +463,8 @@ class Xsky:
                 else:
                     log.info('.., but stored on disk.')
                     if field == 'polarization':
-                        sky1 = load_file(opj(self.libdir, self.fns[0].format(simidx)))
-                        sky2 = load_file(opj(self.libdir, self.fns[1].format(simidx)))
+                        sky1 = load_file(opj(self.libdir, self.fns['Q'].format(simidx)))
+                        sky2 = load_file(opj(self.libdir, self.fns['U'].format(simidx)))
                         sky = np.array([sky1, sky2])
                         if self.space == 'map':
                             if space == 'alm':
@@ -494,7 +494,7 @@ class Xsky:
                                 else:
                                     sky = self.geom_lib.alm2map_spin(sky, spin=spin, lmax=self.lmax, mmax=self.lmax, nthreads=4)
                     elif field == 'temperature':
-                        sky = np.array(load_file(opj(self.libdir, self.fns.format(simidx))))
+                        sky = np.array(load_file(opj(self.libdir, self.fns['T'].format(simidx))))
                         if self.space == 'map':
                             if space == 'alm':
                                 sky = self.geom_lib.map2alm(sky, lmax=self.lmax, mmax=self.lmax, nthreads=4)
@@ -606,8 +606,8 @@ class Xobs:
             elif self.libdir != DNaV:  # observed maps are somewhere
                 log.info('.., but stored on disk.')
                 if field == 'polarization':
-                    obs1 = load_file(opj(self.libdir, self.fns[0].format(simidx)))
-                    obs2 = load_file(opj(self.libdir, self.fns[1].format(simidx)))
+                    obs1 = load_file(opj(self.libdir, self.fns['Q'].format(simidx)))
+                    obs2 = load_file(opj(self.libdir, self.fns['U'].format(simidx)))
                     obs = np.array([obs1, obs2])
                     if self.space == 'map':
                         if space == 'map':
@@ -637,7 +637,7 @@ class Xobs:
                             else:
                                 obs = self.geom_lib.alm2map_spin(obs, lmax=self.lmax, spin=spin, mmax=self.lmax, nthreads=4)
                 elif field == 'temperature':
-                    obs = np.array(load_file(opj(self.libdir, self.fns.format(simidx))))
+                    obs = np.array(load_file(opj(self.libdir, self.fns['T'].format(simidx))))
                     if self.space == 'map':
                         if space == 'alm':
                             obs = self.geom_lib.map2alm(obs, lmax=self.lmax, mmax=self.lmax, nthreads=4)
@@ -901,11 +901,11 @@ class Simhandler:
             return True
         if field == 'polarization':
             if self.libdir != DNaV and self.fns != DNaV:
-                if os.path.exists(opj(self.libdir, self.fns[0].format(simidx))) and os.path.exists(opj(self.libdir, self.fns[1].format(simidx))):
+                if os.path.exists(opj(self.libdir, self.fns['Q'].format(simidx))) and os.path.exists(opj(self.libdir, self.fns['U'].format(simidx))):
                     return True
         if field == 'temperature':
             if self.libdir != DNaV and self.fns != DNaV:
-                if os.path.exists(opj(self.libdir, self.fns.format(simidx))):
+                if os.path.exists(opj(self.libdir, self.fns['T'].format(simidx))):
                     return True
         return False
         
