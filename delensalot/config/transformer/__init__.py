@@ -50,7 +50,8 @@ def f1(expr, transformer): # pylint: disable=missing-function-docstring
     elif expr.k in ['ptt']:
         return transformer.build_opfilt_iso_t(expr)
     elif expr.k == 'p':
-        return transformer.build_opfilt_iso_tp(expr)
+        assert 0, "implement if needed"
+        # return transformer.build_opfilt_iso_tp(expr)
     elif expr.k == 'p_et':
         assert 0, "implement if needed"
     elif expr.k == 'pte':

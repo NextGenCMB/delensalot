@@ -128,7 +128,7 @@ class MAP_aniso_transformer:
         def extract():
             return {
                 'ninv_geom': cf.nivjob_geomlib,
-                'ninv': cf.ninv,
+                'ninv': cf.niv,
                 'ffi': cf.ffi,
                 'transf': cf.ttebl['t'],
                 'unlalm_info': cf.lm_max_unl,
@@ -144,7 +144,7 @@ class MAP_aniso_transformer:
         def extract():
             return {
                 'ninv_geom': cf.nivjob_geomlib,
-                'ninv': cf.ninv,
+                'ninv': cf.niv,
                 'ffi': cf.ffi,
                 'transf': cf.ttebl['e'],
                 'unlalm_info': cf.lm_max_unl,

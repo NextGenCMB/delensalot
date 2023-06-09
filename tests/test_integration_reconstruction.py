@@ -70,13 +70,13 @@ class FS(unittest.TestCase):
 
         self.Al_assert = {
             'QE_lensrec': {
-                'p_p': 0.38,
+                'p_p': 0.39,
                 # 'pee': np.inf,
                 # 'p_eb': np.inf,
                 # 'p_be': np.inf,
                 # 'peb': np.inf,
             },'MAP_lensrec': {
-                'p_p': 0.29,
+                'p_p': 0.30,
                 # 'pee': np.inf,
                 # 'p_eb': np.inf,
                 # 'p_be': np.inf,
@@ -86,6 +86,8 @@ class FS(unittest.TestCase):
 
 
     def test_P_approx(self):
+        """ P_FS_TEST may be somewhat too low for proper reconstruction (cg solver wouldn't converge), but works for fastWF. Result probably quite inaccurate, but this test checks if reconstruction runs until the end, which is what we want to test here 
+        """        
         use_approximateWF = True
         for job_id, key_dict in self.whitelist_FS_P.items():
             for key in key_dict:
@@ -108,6 +110,7 @@ class FS(unittest.TestCase):
 
 
     def test_P(self):
+        assert 0, 'cg-solver will not converge, change defaults if this should be integrated into workflow.'
         use_approximateWF = False
         for job_id, key_dict in self.whitelist_FS_P.items():
             for key in key_dict:

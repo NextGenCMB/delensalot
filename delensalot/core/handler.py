@@ -438,7 +438,10 @@ class QE_lr(Basejob):
             self.qcls_ds = qecl.library(opj(self.libdir_QE, 'qcls_ds'), self.qlms_ds, self.qlms_ds, np.array([]))  # for QE RDN0 calculations
             self.qcls_ss = qecl.library(opj(self.libdir_QE, 'qcls_ss'), self.qlms_ss, self.qlms_ss, np.array([]))  # for QE RDN0 / MCN0 calculations
             self.qcls_dd = qecl.library(opj(self.libdir_QE, 'qcls_dd'), self.qlms_dd, self.qlms_dd, self.mc_sims_bias)
-        # self.filter = self.get_filter()
+
+        # FIXME currently only used for testing filter integration. These QE filter are not used for QE reoconstruction, but will be in the near future when Plancklens dependency is dropped. 
+        if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee', 'ptt']:
+            self.filter = self.get_filter()
 
 
     def init_cinv(self):

@@ -52,7 +52,7 @@ class base_iterator():
         if self.it_filter_directional == 'isotropic':
             # dat maps must now be given in harmonic space in this idealized configuration
             if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
-                return np.array(self.nivjob_geomlib.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2, *self.lm_max_ivf, nthreads=self.tr))[0]
+                return np.array(self.nivjob_geomlib.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2, *self.lm_max_ivf, nthreads=self.tr))
             elif self.k in ['ptt']:
                 return self.nivjob_geomlib.map2alm(self.sims_MAP.get_sim_tmap(int(self.simidx)), *self.lm_max_ivf, nthreads=self.tr)
             elif self.k in ['p']:
