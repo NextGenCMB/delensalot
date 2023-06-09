@@ -526,7 +526,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 def _process_OBD(dl, od):
                     dl.obd_libdir = od.libdir
                     dl.obd_rescale = od.rescale
-                    dl.tpl = template_dense(dl.lmin_teb[2], dl.ninvjob_geometry, dl.tr, _lib_dir=dl.obd_libdir, rescal=dl.obd_rescale)
+                    dl.tpl = template_dense(dl.lmin_teb[2], dl.nivjob_geomlib, dl.tr, _lib_dir=dl.obd_libdir, rescal=dl.obd_rescale)
 
 
                 #@log_on_start(logging.DEBUG, "_process_Simulation() started")

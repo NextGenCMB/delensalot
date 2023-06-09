@@ -1,8 +1,9 @@
 import numpy as np
-import delensalot
-from delensalot import utils
 import os
 from os.path import join as opj
+import delensalot
+from delensalot import utils
+from delensalot.utility.utils_hp import gauss_beam
 from delensalot.config.metamodel.dlensalot_mm import *
 
 dlensalot_model = DLENSALOT_Model(

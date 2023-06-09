@@ -1,6 +1,7 @@
 import numpy as np
-import plancklens
-from plancklens import utils
+
+import delensalot
+from delensalot.utility.utils_hp import gauss_beam
 from delensalot.config.metamodel.dlensalot_mm import *
 
 dlensalot_model = DLENSALOT_Model(
@@ -19,7 +20,7 @@ dlensalot_model = DLENSALOT_Model(
         lm_max_ivf = (1024, 1024),
         lmin_teb = (10, 10, 100),
         beam = 1.0,
-        mask = opj(os.environ['SCRATCH'], 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100', 'mask.fits'),
+        mask = opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100', 'mask.fits'),
     ),
     simulationdata = DLENSALOT_Simulation(
         space = 'cl', 
@@ -38,7 +39,7 @@ dlensalot_model = DLENSALOT_Model(
         nlev_t = 1.00,
         nlev_p = np.sqrt(2),
         geometry = ('healpix', {'nside': 512}),
-        rhits_normalised = (opj(os.environ['SCRATCH'], 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100', 'rhits.fits'), np.inf)
+        rhits_normalised = (opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100', 'rhits.fits'), np.inf)
     ),
     qerec = DLENSALOT_Qerec(
         tasks = ["calc_phi"],
@@ -48,6 +49,6 @@ dlensalot_model = DLENSALOT_Model(
         cg_tol = 1e-5
     ),
     obd = DLENSALOT_OBD(
-        libdir = opj(os.environ['SCRATCH'], 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100'),
+        libdir = opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100'),
     )
 )

@@ -48,16 +48,22 @@ class base_iterator():
     @log_on_start(logging.INFO, "get_datmaps() started")
     @log_on_end(logging.INFO, "get_datmaps() finished")
     def get_datmaps(self):
-        assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
-        # TODO change naming convention. Should align with map/alm params for ivfs and simdata
+        # assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
         if self.it_filter_directional == 'isotropic':
             # dat maps must now be given in harmonic space in this idealized configuration
-            if self.k in ['pee']:
+            if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
                 return np.array(self.nivjob_geomlib.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2, *self.lm_max_ivf, nthreads=self.tr))[0]
-            else:
-                return np.array(self.nivjob_geomlib.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2, *self.lm_max_ivf, nthreads=self.tr))
+            elif self.k in ['ptt']:
+                return self.nivjob_geomlib.map2alm(self.sims_MAP.get_sim_tmap(int(self.simidx)), *self.lm_max_ivf, nthreads=self.tr)
+            elif self.k in ['p']:
+                QUobs = np.array(self.nivjob_geomlib.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2, *self.lm_max_ivf, nthreads=self.tr))
+                Tobs = self.nivjob_geomlib.map2alm(self.sims_MAP.get_sim_tmap(int(self.simidx)), *self.lm_max_ivf, nthreads=self.tr)
+                return np.array([Tobs, QUobs])
         else:
-            return np.array(self.sims_MAP.get_sim_pmap(int(self.simidx)))
+            if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
+                return np.array(self.sims_MAP.get_sim_pmap(int(self.simidx)))
+            else:
+                assert 0, 'implement if needed'
         
 
 class iterator_transformer(base_iterator):
