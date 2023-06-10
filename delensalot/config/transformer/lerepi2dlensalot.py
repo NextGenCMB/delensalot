@@ -763,6 +763,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 #@log_on_end(logging.DEBUG, "_process_Analysis() finished")
                 def _process_Analysis(dl, an):
                     # super(l2base_Transformer, self)
+                    dl.nlev_t = l2OBD_Transformer.get_nlevt(cf)
+                    dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
                     l2base_Transformer.process_Analysis(dl, an, cf)
 
 
@@ -906,8 +908,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_Meta(dl, cf.meta)
                 _process_Computing(dl, cf.computing)
                 dl.simulationdata = Simhandler(**cf.simulationdata.__dict__)
-                _process_Noisemodel(dl, cf.noisemodel)
                 _process_Analysis(dl, cf.analysis)
+                _process_Noisemodel(dl, cf.noisemodel)
                 _process_Madel(dl, cf.madel)
                 _process_Config(dl, cf.config)
                 _check_powspeccalculator(dl.cl_calc)

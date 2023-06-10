@@ -919,7 +919,7 @@ class Simhandler:
         libs = ['obs_lib', 'noise_lib', 'unl_lib', 'len_lib']
         for lib in libs:
             if lib in self.__dict__:
-                for key in self.obs_lib.cacher._cache.keys():
+                for key in np.copy(self.obs_lib.cacher._cache.keys()):
                     self.obs_lib.cacher.remove(key)
 
     def isdone(self, simidx, field, spin, space='map', flavour='obs'):
