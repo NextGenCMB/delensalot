@@ -356,8 +356,7 @@ class Sim_generator(Basejob):
                             if not os.path.isfile(fnT) or not os.path.isfile(fnQ) or not os.path.isfile(fnU):
                                 _jobs.append(simidx)             
                 jobs[taski] = _jobs
-            self.jobs = jobs
-
+        self.jobs = jobs
         return jobs
 
 
