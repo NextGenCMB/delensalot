@@ -277,7 +277,10 @@ class Sim_generator(Basejob):
 
 
     def simulationdata_isdone(self, simidx, field, spin):
+        """DEPRECATED
+        """        
         jobs = []
+
         simidxs_ = np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))))
         for simidx in simidxs_:
             if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
@@ -299,22 +302,23 @@ class Sim_generator(Basejob):
     def collect_jobs(self):
         jobs = []
         simidxs_ = np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))))
-        for simidx in simidxs_:
-            if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
-                fnQ = opj(self.libdir, self.fns['Q'].format(simidx))
-                fnU = opj(self.libdir, self.fns['U'].format(simidx))
-                if not os.path.isfile(fnQ) or not os.path.isfile(fnU):
-                    jobs.append(simidx)
-            elif self.k in ['ptt']:
-                fnT = opj(self.libdir, self.fns['T'].format(simidx))
-                if not os.path.isfile(fnT):
-                    jobs.append(simidx)
-            elif self.k in ['p']:
-                fnT = opj(self.libdir, self.fns['T'].format(simidx))
-                fnQ = opj(self.libdir, self.fns['Q'].format(simidx))
-                fnU = opj(self.libdir, self.fns['U'].format(simidx))
-                if not os.path.isfile(fnT) or not os.path.isfile(fnQ) or not os.path.isfile(fnU):
-                    jobs.append(simidx)
+        if np.all(self.simulationdata.maps == DEFAULT_NotAValue):
+            for simidx in simidxs_:
+                if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
+                    fnQ = opj(self.libdir, self.fns['Q'].format(simidx))
+                    fnU = opj(self.libdir, self.fns['U'].format(simidx))
+                    if not os.path.isfile(fnQ) or not os.path.isfile(fnU):
+                        jobs.append(simidx)
+                elif self.k in ['ptt']:
+                    fnT = opj(self.libdir, self.fns['T'].format(simidx))
+                    if not os.path.isfile(fnT):
+                        jobs.append(simidx)
+                elif self.k in ['p']:
+                    fnT = opj(self.libdir, self.fns['T'].format(simidx))
+                    fnQ = opj(self.libdir, self.fns['Q'].format(simidx))
+                    fnU = opj(self.libdir, self.fns['U'].format(simidx))
+                    if not os.path.isfile(fnT) or not os.path.isfile(fnQ) or not os.path.isfile(fnU):
+                        jobs.append(simidx)
 
         self.jobs = jobs
         return self.jobs

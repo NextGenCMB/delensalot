@@ -21,6 +21,7 @@ from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model, DLENSALOT_
 
 from delensalot.core.opfilt import MAP_opfilt_aniso_p, MAP_opfilt_aniso_t, MAP_opfilt_iso_p, MAP_opfilt_iso_t, MAP_opfilt_iso_e, MAP_opfilt_iso_tp, QE_opfilt_aniso_p, QE_opfilt_aniso_t, QE_opfilt_iso_p, QE_opfilt_iso_t
 
+os.environ['SCRATCH'] += 'test'
 
 class FS(unittest.TestCase):
     """Full sky - temperature

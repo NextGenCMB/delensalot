@@ -24,6 +24,7 @@ from delensalot.core.iterator.iteration_handler import iterator_transformer
 from delensalot.core.opfilt import MAP_opfilt_aniso_p, MAP_opfilt_aniso_t, MAP_opfilt_iso_p, MAP_opfilt_iso_t, MAP_opfilt_iso_e
 from delensalot.core.opfilt import QE_opfilt_aniso_p, QE_opfilt_aniso_t, QE_opfilt_iso_p, QE_opfilt_iso_t
 
+os.environ['SCRATCH'] += 'test'
 
 class Modeltester_FS_P(unittest.TestCase):
     """Full sky - polarization

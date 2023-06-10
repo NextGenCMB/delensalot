@@ -3,10 +3,10 @@
     - full sky / masked sky
     Tests are considered successfull if residual lensing amplitude is within expectation
 
-    COMMENT: For some reason, asserting fails if both classes are tested at the same time, i.e. `python -m unittest test_integration_filter` but this failing has nothing to do with delensalot itself.
+    COMMENT: For some reason, asserting fails if both classes are tested at the same time, i.e. `python3 -m unittest test_integration_reconstruction` but this failing has nothing to do with delensalot itself.
     Recommend to use,
-        `python -m unittest test_integration_filter.FS`,
-        `python -m unittest test_integration_filter.MS`
+        `python3 -m unittest test_integration_reconstruction.FS`,
+        `python3 -m unittest test_integration_reconstruction.MS`
     individually.
 """
 
@@ -26,6 +26,8 @@ from delensalot.config.visitor import transform, transform3d
 from delensalot.config.transformer.lerepi2dlensalot import l2delensalotjob_Transformer, l2T_Transformer
 from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model, DLENSALOT_Analysis, DLENSALOT_Job, DLENSALOT_Itrec
 from delensalot.core.opfilt import MAP_opfilt_aniso_p, MAP_opfilt_aniso_t, MAP_opfilt_iso_p, MAP_opfilt_iso_t, MAP_opfilt_iso_e, MAP_opfilt_iso_tp, QE_opfilt_aniso_p, QE_opfilt_aniso_t, QE_opfilt_iso_p, QE_opfilt_iso_t
+
+os.environ['SCRATCH'] += 'test'
 
 class FS(unittest.TestCase):
     """Full sky - temperature
