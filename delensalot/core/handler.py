@@ -307,13 +307,13 @@ class Sim_generator(Basejob):
                     jobs.append(simidx)
             elif self.k in ['ptt']:
                 fnT = opj(self.libdir, self.fns['T'].format(simidx))
-                if not os.path.isfile(fnQ):
+                if not os.path.isfile(fnT):
                     jobs.append(simidx)
             elif self.k in ['p']:
                 fnT = opj(self.libdir, self.fns['T'].format(simidx))
                 fnQ = opj(self.libdir, self.fns['Q'].format(simidx))
                 fnU = opj(self.libdir, self.fns['U'].format(simidx))
-                if not os.path.isfile(fnQ) or not os.path.isfile(fnU):
+                if not os.path.isfile(fnT) or not os.path.isfile(fnQ) or not os.path.isfile(fnU):
                     jobs.append(simidx)
 
         self.jobs = jobs
