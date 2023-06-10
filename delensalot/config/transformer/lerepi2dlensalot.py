@@ -90,7 +90,6 @@ class l2base_Transformer:
             dl.zbounds_len = an.zbounds_len
         dl.lm_max_ivf = an.lm_max_ivf
         dl.lm_max_blt = an.lm_max_blt
-        dl.sims_lmax_transf = an.lmax_transf
         dl.transfunction = an.transfunction
         if dl.transfunction == 'gauss_no_pixwin':
             transf_tlm = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[0])
@@ -300,6 +299,10 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 #@log_on_start(logging.DEBUG, "_process_Analysis() started")
                 #@log_on_end(logging.DEBUG, "_process_Analysis() finished")
                 def _process_Analysis(dl, an):
+                    # nlev_t
+                    dl.nlev_t = l2OBD_Transformer.get_nlevt(cf)
+                    # nlev_p
+                    dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
                     l2base_Transformer.process_Analysis(dl, an, cf)
 
 
@@ -309,7 +312,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.sky_coverage = nm.sky_coverage
                     dl.nivjob_geomlib = get_geom(nm.geometry)
                     dl.nivjob_geominfo = nm.geometry
-                    thtbounds = (np.arccos(cf.analysis.zbounds[1]), np.arccos(cf.analysis.zbounds[0]))
+                    thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
                     dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
                     # TODO assuming that masked sky comes with a hits-count map. If not, take mask
                     if dl.sky_coverage == 'masked':
@@ -438,8 +441,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
                 _process_Meta(dl, cf.meta)
                 _process_Computing(dl, cf.computing)
-                _process_Noisemodel(dl, cf.noisemodel)
                 _process_Analysis(dl, cf.analysis)
+                _process_Noisemodel(dl, cf.noisemodel)
                 _process_Simulation(dl, cf.simulationdata)
                 if dl.OBD:
                     _process_OBD(dl, cf.obd)
@@ -495,6 +498,10 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 #@log_on_start(logging.DEBUG, "_process_Analysis() started")
                 #@log_on_end(logging.DEBUG, "_process_Analysis() finished")
                 def _process_Analysis(dl, an):
+                    # nlev_t
+                    dl.nlev_t = l2OBD_Transformer.get_nlevt(cf)
+                    # nlev_p
+                    dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
                     l2base_Transformer.process_Analysis(dl, an, cf)
 
 
@@ -505,7 +512,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     # TODO assuming that masked sky comes with a hits-count map. If not, take mask
                     dl.nivjob_geomlib = get_geom(nm.geometry)
                     dl.nivjob_geominfo = nm.geometry
-                    thtbounds = (np.arccos(cf.analysis.zbounds[1]), np.arccos(cf.analysis.zbounds[0]))
+                    thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
                     dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
                     if dl.sky_coverage == 'masked':
                         dl.rhits_normalised = nm.rhits_normalised
@@ -643,8 +650,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 
                 _process_Meta(dl, cf.meta)
                 _process_Computing(dl, cf.computing)
-                _process_Noisemodel(dl, cf.noisemodel)
                 _process_Analysis(dl, cf.analysis)
+                _process_Noisemodel(dl, cf.noisemodel)
                 _process_Simulation(dl, cf.simulationdata)
                 if dl.OBD:
                     _process_OBD(dl, cf.obd)
@@ -708,15 +715,13 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.lmin_b = dl.lmin_teb[2]
                     dl.nivjob_geomlib = get_geom(nm.geometry)
                     dl.nivjob_geominfo = nm.geometry
-                    thtbounds = (np.arccos(cf.analysis.zbounds[1]), np.arccos(cf.analysis.zbounds[0]))
+                    thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
                     dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
                     dl.masks, dl.rhits_map = l2OBD_Transformer.get_masks(cf, dl)
                     dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
                     dl.nivp_desc = l2OBD_Transformer.get_nivp_desc(cf, dl)
                     dl.nivt_desc = l2OBD_Transformer.get_nivt_desc(cf, dl)
                     
-
-
                 dl.TEMP = transform(cf, l2T_Transformer())
 
                 _process_Computing(dl, cf.computing)
@@ -766,7 +771,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 def _process_Noisemodel(dl, nm):
                     dl.nivjob_geomlib = get_geom(nm.geometry)
                     dl.nivjob_geominfo = nm.geometry
-                    thtbounds = (np.arccos(cf.analysis.zbounds[1]), np.arccos(cf.analysis.zbounds[0]))
+                    thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
                     dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
                     dl.nlev_t = l2OBD_Transformer.get_nlevt(cf)
                     dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)

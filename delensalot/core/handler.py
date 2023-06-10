@@ -69,9 +69,9 @@ class Basejob():
             libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
             if not os.path.exists(libdir_MAPidx):
                 os.makedirs(libdir_MAPidx)
-        self.libdir_MAP_blt = opj(self.TEMP, 'MAP/BLT/')
-        if not os.path.exists(self.libdir_MAP_blt):
-            os.makedirs(self.libdir_MAP_blt)
+            self.libdir_blt = opj(libdir_MAPidx, 'BLT/')
+            if not os.path.exists(self.libdir_blt):
+                os.makedirs(self.libdir_blt)
          
         self.config_model = model
         self.jobs = []
@@ -128,9 +128,9 @@ class Basejob():
             fn_blt = self.libdir_blt_MAP_CFS(self.k, simidx, self.version)
         else:
             if it == 0:
-                fn_blt = opj(self.libdir_QE, 'BLT/blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
+                fn_blt = opj(self.libdir_blt, 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
             elif it >0:
-                fn_blt = opj(self.libdir_MAP_blt, 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, it, it, self.lm_max_blt[0]) + '.npy')
+                fn_blt = opj(self.libdir_blt, 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, it, it, self.lm_max_blt[0]) + '.npy')
         return np.load(fn_blt)
     
 
@@ -228,15 +228,7 @@ class Sim_generator(Basejob):
             # some flavour may be provided, but we need to generate the obs maps from this. so Sim_generator() gets its own libdir and fns, and later updates simhandler with it.
             self.libdir_sky = opj(os.environ['SCRATCH'], 'simulation/', str(self.simulationdata.geometry))
             self.libdir = opj(os.environ['SCRATCH'], 'simulation/', str(self.simulationdata.geometry), str(self.simulationdata.nlev))
-            if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']: 
-                self.fns = {'Q': 'Qmapobs_{}.npy', 'U': 'Umapobs_{}.npy'}
-                self.fns_sky = {'Q': 'Qmapsky_{}.npy', 'U': 'Umapsky_{}.npy'}
-            elif self.k in ['ptt']:
-                self.fns = {'T': 'Tmapobs_{}.npy'}
-                self.fns_sky = {'T': 'Tmapsky_{}.npy'}
-            elif self.k in ['p']:
-                self.fns = {'T': 'Tmapobs_{}.npy', 'Q': 'Qmapobs_{}.npy', 'U': 'Umapobs_{}.npy'}
-                self.fns_sky = {'T': 'Tmapsky_{}.npy', 'Q': 'Qmapsky_{}.npy', 'U': 'Umapsky_{}.npy'}
+            self.fns, self.fns_sky = self.set_basename()
             first_rank = mpi.bcast(mpi.rank)
             if first_rank == mpi.rank:
                 if not os.path.exists(self.libdir):
@@ -250,15 +242,7 @@ class Sim_generator(Basejob):
                 if self.simulationdata.libdir == DEFAULT_NotAValue and self.simulationdata.fns == DEFAULT_NotAValue:
                     # it is handy to store the sky simulations, as often, only noise levels and beam change for an analysis.
                     self.libdir_sky = opj(os.environ['SCRATCH'], 'simulation/', str(self.simulationdata.geometry))
-                    if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']: 
-                        self.fns = {'Q': 'Qmapobs_{}.npy', 'U': 'Umapobs_{}.npy'}
-                        self.fns_sky = {'Q': 'Qmapsky_{}.npy', 'U': 'Umapsky_{}.npy'}
-                    elif self.k in ['ptt']:
-                        self.fns = {'T': 'Tmapobs_{}.npy'}
-                        self.fns_sky = {'T': 'Tmapsky_{}.npy'}
-                    elif self.k in ['p']:
-                        self.fns = {'T': 'Tmapobs_{}.npy', 'Q': 'Qmapobs_{}.npy', 'U': 'Umapobs_{}.npy'}
-                        self.fns_sky = {'T': 'Tmapsky_{}.npy', 'Q': 'Qmapsky_{}.npy', 'U': 'Umapsky_{}.npy'}
+                    self.fns, self.fns_sky = self.set_basename()
             
             # if Sim_generator() already produced the obs maps, then the jobmodel of course doesnt know of it, so need to update jobmodel manually. Since sim_lib hasnt gotten the libdir and fns info yet, need to check this manually. self.libdir and self.fns only exists when Sim_generator() believes it should generate data.
             if self.libdir != DEFAULT_NotAValue and self.fns != DEFAULT_NotAValue:
@@ -266,28 +250,33 @@ class Sim_generator(Basejob):
                 check_ = True  
                 for simidx in simidxs_:
                     if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']: 
-                        if os.path.exists(opj(self.libdir, self.fns['Q'].format(simidx))) and os.path.exists(opj(self.libdir, self.fns['U'].format(simidx))):
-                            pass
-                        else:
+                        if not (os.path.exists(opj(self.libdir, self.fns['Q'].format(simidx))) and os.path.exists(opj(self.libdir, self.fns['U'].format(simidx)))):
                             check_ = False
                     if self.k in ['ptt']:
                         if os.path.exists(opj(self.libdir, self.fns['T'].format(simidx))):
-                            pass
-                        else:
                             check_ = False
                     if self.k in ['p']:
-                        if os.path.exists(opj(self.libdir, self.fns['T'].format(simidx))) and os.path.exists(opj(self.libdir, self.fns['Q'].format(simidx))) and os.path.exists(opj(self.libdir, self.fns['U'].format(simidx))):
-                            pass
-                        else:
+                        if (os.path.exists(opj(self.libdir, self.fns['T'].format(simidx))) and os.path.exists(opj(self.libdir, self.fns['Q'].format(simidx))) and os.path.exists(opj(self.libdir, self.fns['U'].format(simidx)))):
                             check_ = False
                 if check_:
+                    # Only if all data is generated, update the simulation library states.
                     self.postrun()
 
 
-    # @base_exception_handler
-    @log_on_start(logging.INFO, "Sim.collect_jobs() started")
-    @log_on_end(logging.INFO, "Sim.collect_jobs() finished: jobs={self.jobs}")
-    def collect_jobs(self):
+    def set_basename(self):
+        if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']: 
+            fns = {'Q': 'Qmapobs_{}.npy', 'U': 'Umapobs_{}.npy'}
+            fns_sky = {'Q': 'Qmapsky_{}.npy', 'U': 'Umapsky_{}.npy'}
+        elif self.k in ['ptt']:
+            fns = {'T': 'Tmapobs_{}.npy'}
+            fns_sky = {'T': 'Tmapsky_{}.npy'}
+        elif self.k in ['p']:
+            fns = {'T': 'Tmapobs_{}.npy', 'Q': 'Qmapobs_{}.npy', 'U': 'Umapobs_{}.npy'}
+            fns_sky = {'T': 'Tmapsky_{}.npy', 'Q': 'Qmapsky_{}.npy', 'U': 'Umapsky_{}.npy'}
+        return fns, fns_sky
+
+
+    def simulationdata_isdone(self, simidx, field, spin):
         jobs = []
         simidxs_ = np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))))
         for simidx in simidxs_:
@@ -305,6 +294,33 @@ class Sim_generator(Basejob):
 
 
     # @base_exception_handler
+    @log_on_start(logging.INFO, "Sim.collect_jobs() started")
+    @log_on_end(logging.INFO, "Sim.collect_jobs() finished: jobs={self.jobs}")
+    def collect_jobs(self):
+        jobs = []
+        simidxs_ = np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))))
+        for simidx in simidxs_:
+            if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
+                fnQ = opj(self.libdir, self.fns['Q'].format(simidx))
+                fnU = opj(self.libdir, self.fns['U'].format(simidx))
+                if not os.path.isfile(fnQ) or not os.path.isfile(fnU):
+                    jobs.append(simidx)
+            elif self.k in ['ptt']:
+                fnT = opj(self.libdir, self.fns['T'].format(simidx))
+                if not os.path.isfile(fnQ):
+                    jobs.append(simidx)
+            elif self.k in ['p']:
+                fnT = opj(self.libdir, self.fns['T'].format(simidx))
+                fnQ = opj(self.libdir, self.fns['Q'].format(simidx))
+                fnU = opj(self.libdir, self.fns['U'].format(simidx))
+                if not os.path.isfile(fnQ) or not os.path.isfile(fnU):
+                    jobs.append(simidx)
+
+        self.jobs = jobs
+        return self.jobs
+
+
+    # @base_exception_handler
     @log_on_start(logging.INFO, "Sim.run() started")
     @log_on_end(logging.INFO, "Sim.run() finished")
     def run(self):
@@ -312,6 +328,7 @@ class Sim_generator(Basejob):
             log.info("rank {} (size {}) generating sim {}".format(mpi.rank, mpi.size, simidx))
             self.generate_sim(simidx)
             log.info("rank {} (size {}) generated sim {}".format(mpi.rank, mpi.size, simidx))
+            self.simulationdata.purgecache()
         self.postrun()
 
 
@@ -411,8 +428,6 @@ class QE_lr(Basejob):
 
         ## Faking here sims_MAP for calc_blt as it needs iteration_handler
         if 'calc_blt' in self.qe_tasks:
-            if not os.path.exists(opj(self.libdir_QE, 'BLT')):
-                os.makedirs(opj(self.libdir_QE, 'BLT'))
             if self.it_filter_directional == 'anisotropic':
                 # TODO reimplement ztrunc
                 self.sims_MAP = utils_sims.ztrunc_sims(self.simulationdata, self.nivjob_geominfo[1]['nside'], [self.zbounds])
@@ -502,7 +517,7 @@ class QE_lr(Basejob):
             if task == 'calc_blt':
                 for simidx in self.simidxs:
                     ## TODO this filename must match the one created in get_template_blm()... refactor..
-                    fn_blt = opj(self.libdir_QE, 'BLT/blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
+                    fn_blt = opj(self.libdir_blt, 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
                     if not os.path.isfile(fn_blt) or recalc:
                         _jobs.append(simidx)
 
@@ -666,11 +681,11 @@ class QE_lr(Basejob):
     #@log_on_start(logging.INFO, "QE.get_blt({simidx}) started")
     #@log_on_end(logging.INFO, "QE.get_blt({simidx}) finished")
     def get_blt(self, simidx):
-        fn_blt = opj(self.libdir_QE, 'BLT/blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
+        fn_blt = opj(self.libdir_blt, 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
         if not os.path.exists(fn_blt):
             ## For QE, dlm_mod by construction doesn't do anything, because mean-field had already been subtracted from plm and we don't want to repeat that.
             dlm_mod = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, int(simidx)))
-            blt = self.itlib_iterator.get_template_blm(0, 0, lmaxb=self.lm_max_blt[0], lmin_plm=self.Lmin, dlm_mod=dlm_mod, perturbative=self.blt_pert)
+            blt = self.itlib_iterator.get_template_blm(0, 0, lmaxb=self.lm_max_blt[0], lmin_plm=self.Lmin, dlm_mod=dlm_mod, perturbative=self.blt_pert, k=self.k)
             np.save(fn_blt, blt)
         return np.load(fn_blt)
     
@@ -786,7 +801,7 @@ class MAP_lr(Basejob):
 
             elif task == 'calc_blt':
                 for simidx in self.simidxs:
-                    fns_blt = np.array([opj(self.libdir_MAP_blt, 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, it, it, self.lm_max_blt[0]) + '.npy') for it in np.arange(1,self.itmax+1)])
+                    fns_blt = np.array([opj(self.libdir_blt, 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, it, it, self.lm_max_blt[0]) + '.npy') for it in np.arange(1,self.itmax+1)])
                     if not np.all([os.path.exists(fn_blt) for fn_blt in fns_blt]):
                         _jobs.append(simidx)
 
@@ -887,7 +902,7 @@ class MAP_lr(Basejob):
         if it == 0:
             self.qe.itlib_iterator = transform(self, iterator_transformer(self, simidx, self.dlensalot_model))
             return self.qe.get_blt(simidx)
-        fn_blt = opj(self.libdir_MAP_blt, 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, it, it, self.lm_max_blt[0]) + '.npy')
+        fn_blt = opj(self.libdir_blt, 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, it, it, self.lm_max_blt[0]) + '.npy')
         if not os.path.exists(fn_blt):     
             self.libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
             dlm_mod = np.zeros_like(rec.load_plms(self.libdir_MAPidx, [0])[0])
@@ -896,7 +911,7 @@ class MAP_lr(Basejob):
                 if simidx in self.simidxs_mf:
                     dlm_mod = (dlm_mod - np.array(rec.load_plms(self.libdir_MAPidx, [it]))/self.Nmf) * self.Nmf/(self.Nmf - 1)
             if it<=rec.maxiterdone(self.libdir_MAPidx):
-                blt = self.itlib_iterator.get_template_blm(it, it, lmaxb=self.lm_max_blt[0], lmin_plm=self.Lmin, dlm_mod=dlm_mod, perturbative=False)
+                blt = self.itlib_iterator.get_template_blm(it, it, lmaxb=self.lm_max_blt[0], lmin_plm=np.max([self.Lmin,5]), dlm_mod=dlm_mod, perturbative=False, k=self.k)
                 np.save(fn_blt, blt)
         return np.load(fn_blt)
 

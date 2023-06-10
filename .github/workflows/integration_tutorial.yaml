@@ -1,0 +1,29 @@
+name: Integration filter test
+
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9"]
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: mpi4py/setup-mpi@v1
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install numpy --user
+          python -m pip install --upgrade pip setuptools wheel --user
+          if [ -f requirements.txt ]; then pip install -r requirements.txt --user; fi
+      - name: install
+        run: |
+          pip install -e .
+      - name: test
+        run: |
+          
+          python3 -m unittest test_integration_tutorial.Tutorial

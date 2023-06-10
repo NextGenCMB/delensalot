@@ -1,65 +1,260 @@
 import numpy as np
+from delensalot.config.metamodel import DEFAULT_NotAValue
 
-def simidxs(instance, attribute, value):
-    desc = [list, int, np.ndarray]
-    assert type(value) in desc, TypeError('Must be in {}, but is {}'.format(desc, type(value)))
+# if [], doesn't check for value
+valid_value = {
+    'flavour': [],
+    'space': [],
+    'maps': [],
+    'geometry': [],
+    'field': [],
+    'libdir': [],
+    'libdir_noise': [],
+    'libdir_phi': [],
+    'fns': [],
+    'fnsnoise': [],
+    'fnsP': [],
+    'lmax': [],
+    'transfunction': [],
+    'nlev': [],
+    'spin': [],
+    'CMB_fn': [],
+    'phi_fn': [],
+    'phi_field': [],
+    'phi_space': [],
+    'phi_lmax': [],
+    'epsilon': [],
+}
+# if [], doesn't check for bounds
+valid_bound = {
+    'flavour': [],
+    'space': [],
+    'maps': [],
+    'geometry': [],
+    'field': [],
+    'libdir': [],
+    'libdir_noise': [],
+    'libdir_phi': [],
+    'fns': [],
+    'fnsnoise': [],
+    'fnsP': [],
+    'lmax': [],
+    'transfunction': [],
+    'nlev': [],
+    'spin': [],
+    'CMB_fn': [],
+    'phi_fn': [],
+    'phi_field': [],
+    'phi_space': [],
+    'phi_lmax': [],
+    'epsilon': [],
+}
 
-def class_parameters(instance, attribute, value):
-    desc = [value]
-    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+# if [], doesn't check for type
+valid_type = {
+    'flavour': [],
+    'space': [],
+    'maps': [],
+    'geometry': [],
+    'field': [],
+    'libdir': [],
+    'libdir_noise': [],
+    'libdir_phi': [],
+    'fns': [],
+    'fnsnoise': [],
+    'fnsP': [],
+    'lmax': [],
+    'transfunction': [],
+    'nlev': [],
+    'spin': [],
+    'CMB_fn': [],
+    'phi_fn': [],
+    'phi_field': [],
+    'phi_space': [],
+    'phi_lmax': [],
+    'epsilon': [],
+}
 
-def package_(instance, attribute, value):
-    desc = [value]
-    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+def flavour(instance, attribute, value):
+    if np.all(value != DEFAULT_NotAValue):
+        assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
+        if valid_bound[attribute.name] != []:
+            if len(valid_bound[attribute.name]) == 1:
+                assert np.all(value >= valid_bound[attribute.name][0]), ValueError('Must be leq {}, but is {}'.format(valid_bound[attribute.name][0], value))
+            if len(valid_bound[attribute.name]) == 2:
+                assert np.all(value <= valid_bound[attribute.name][1]), ValueError('Must be seq {}, but is {}'.format(valid_bound[attribute.name][1], value))
 
-def module_(instance, attribute, value):
-    desc = [value]
-    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
-
-def class_(instance, attribute, value):
-    desc = [value]
-    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
-
-def data_type(instance, attribute, value):
-    desc = [value]
-    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+def space(instance, attribute, value):
+    if np.all(value != DEFAULT_NotAValue):
+        assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
+        if valid_bound[attribute.name] != []:
+            if len(valid_bound[attribute.name]) == 1:
+                assert np.all(value >= valid_bound[attribute.name][0]), ValueError('Must be leq {}, but is {}'.format(valid_bound[attribute.name][0], value))
+            if len(valid_bound[attribute.name]) == 2:
+                assert np.all(value <= valid_bound[attribute.name][1]), ValueError('Must be seq {}, but is {}'.format(valid_bound[attribute.name][1], value))
 
 def maps(instance, attribute, value):
-    desc = [value]
-    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+    if np.all(value != DEFAULT_NotAValue):
+        assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
+        if valid_bound[attribute.name] != []:
+            if len(valid_bound[attribute.name]) == 1:
+                assert np.all(value >= valid_bound[attribute.name][0]), ValueError('Must be leq {}, but is {}'.format(valid_bound[attribute.name][0], value))
+            if len(valid_bound[attribute.name]) == 2:
+                assert np.all(value <= valid_bound[attribute.name][1]), ValueError('Must be seq {}, but is {}'.format(valid_bound[attribute.name][1], value))
 
-def phi(instance, attribute, value):
-    desc = [value]
-    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+def geometry(instance, attribute, value):
+    if np.all(value != DEFAULT_NotAValue):
+        assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
+        if valid_bound[attribute.name] != []:
+            if len(valid_bound[attribute.name]) == 1:
+                assert np.all(value >= valid_bound[attribute.name][0]), ValueError('Must be leq {}, but is {}'.format(valid_bound[attribute.name][0], value))
+            if len(valid_bound[attribute.name]) == 2:
+                assert np.all(value <= valid_bound[attribute.name][1]), ValueError('Must be seq {}, but is {}'.format(valid_bound[attribute.name][1], value))
 
-def data_field(instance, attribute, value):
-    desc = [value]
-    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+def field(instance, attribute, value):
+    if np.all(value != DEFAULT_NotAValue):
+        assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
+        if valid_bound[attribute.name] != []:
+            if len(valid_bound[attribute.name]) == 1:
+                assert np.all(value >= valid_bound[attribute.name][0]), ValueError('Must be leq {}, but is {}'.format(valid_bound[attribute.name][0], value))
+            if len(valid_bound[attribute.name]) == 2:
+                assert np.all(value <= valid_bound[attribute.name][1]), ValueError('Must be seq {}, but is {}'.format(valid_bound[attribute.name][1], value))
 
-def beam(instance, attribute, value):
-    desc = [value]
-    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+def libdir(instance, attribute, value):
+    if np.all(value != DEFAULT_NotAValue):
+        assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
+        if valid_bound[attribute.name] != []:
+            if len(valid_bound[attribute.name]) == 1:
+                assert np.all(value >= valid_bound[attribute.name][0]), ValueError('Must be leq {}, but is {}'.format(valid_bound[attribute.name][0], value))
+            if len(valid_bound[attribute.name]) == 2:
+                assert np.all(value <= valid_bound[attribute.name][1]), ValueError('Must be seq {}, but is {}'.format(valid_bound[attribute.name][1], value))
 
-def nside(instance, attribute, value):
-    desc = [value]
-    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+def libdir_noise(instance, attribute, value):
+    if np.all(value != DEFAULT_NotAValue):
+        assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
+        if valid_bound[attribute.name] != []:
+            if len(valid_bound[attribute.name]) == 1:
+                assert np.all(value >= valid_bound[attribute.name][0]), ValueError('Must be leq {}, but is {}'.format(valid_bound[attribute.name][0], value))
+            if len(valid_bound[attribute.name]) == 2:
+                assert np.all(value <= valid_bound[attribute.name][1]), ValueError('Must be seq {}, but is {}'.format(valid_bound[attribute.name][1], value))
 
-def transferfunction(instance, attribute, value):
-    desc = [value]
-    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+def libdir_phi(instance, attribute, value):
+    if np.all(value != DEFAULT_NotAValue):
+        assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
+        if valid_bound[attribute.name] != []:
+            if len(valid_bound[attribute.name]) == 1:
+                assert np.all(value >= valid_bound[attribute.name][0]), ValueError('Must be leq {}, but is {}'.format(valid_bound[attribute.name][0], value))
+            if len(valid_bound[attribute.name]) == 2:
+                assert np.all(value <= valid_bound[attribute.name][1]), ValueError('Must be seq {}, but is {}'.format(valid_bound[attribute.name][1], value))
+
+def fns(instance, attribute, value):
+    if np.all(value != DEFAULT_NotAValue):
+        assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
+        if valid_bound[attribute.name] != []:
+            if len(valid_bound[attribute.name]) == 1:
+                assert np.all(value >= valid_bound[attribute.name][0]), ValueError('Must be leq {}, but is {}'.format(valid_bound[attribute.name][0], value))
+            if len(valid_bound[attribute.name]) == 2:
+                assert np.all(value <= valid_bound[attribute.name][1]), ValueError('Must be seq {}, but is {}'.format(valid_bound[attribute.name][1], value))
+
+def fnsnoise(instance, attribute, value):
+    if np.all(value != DEFAULT_NotAValue):
+        assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
+        if valid_bound[attribute.name] != []:
+            if len(valid_bound[attribute.name]) == 1:
+                assert np.all(value >= valid_bound[attribute.name][0]), ValueError('Must be leq {}, but is {}'.format(valid_bound[attribute.name][0], value))
+            if len(valid_bound[attribute.name]) == 2:
+                assert np.all(value <= valid_bound[attribute.name][1]), ValueError('Must be seq {}, but is {}'.format(valid_bound[attribute.name][1], value))
+
+def fnsP(instance, attribute, value):
+    if np.all(value != DEFAULT_NotAValue):
+        assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
+        if valid_bound[attribute.name] != []:
+            if len(valid_bound[attribute.name]) == 1:
+                assert np.all(value >= valid_bound[attribute.name][0]), ValueError('Must be leq {}, but is {}'.format(valid_bound[attribute.name][0], value))
+            if len(valid_bound[attribute.name]) == 2:
+                assert np.all(value <= valid_bound[attribute.name][1]), ValueError('Must be seq {}, but is {}'.format(valid_bound[attribute.name][1], value))
+
+def lmax(instance, attribute, value):
+    if np.all(value != DEFAULT_NotAValue):
+        assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
+        if valid_bound[attribute.name] != []:
+            if len(valid_bound[attribute.name]) == 1:
+                assert np.all(value >= valid_bound[attribute.name][0]), ValueError('Must be leq {}, but is {}'.format(valid_bound[attribute.name][0], value))
+            if len(valid_bound[attribute.name]) == 2:
+                assert np.all(value <= valid_bound[attribute.name][1]), ValueError('Must be seq {}, but is {}'.format(valid_bound[attribute.name][1], value))
+
+def transfunction(instance, attribute, value):
+    if np.all(value != DEFAULT_NotAValue):
+        assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
+        if valid_bound[attribute.name] != []:
+            if len(valid_bound[attribute.name]) == 1:
+                assert np.all(value >= valid_bound[attribute.name][0]), ValueError('Must be leq {}, but is {}'.format(valid_bound[attribute.name][0], value))
+            if len(valid_bound[attribute.name]) == 2:
+                assert np.all(value <= valid_bound[attribute.name][1]), ValueError('Must be seq {}, but is {}'.format(valid_bound[attribute.name][1], value))
+
+def nlev(instance, attribute, value):
+    if np.all(value != DEFAULT_NotAValue):
+        assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
+        if valid_bound[attribute.name] != []:
+            if len(valid_bound[attribute.name]) == 1:
+                assert np.all(value >= valid_bound[attribute.name][0]), ValueError('Must be leq {}, but is {}'.format(valid_bound[attribute.name][0], value))
+            if len(valid_bound[attribute.name]) == 2:
+                assert np.all(value <= valid_bound[attribute.name][1]), ValueError('Must be seq {}, but is {}'.format(valid_bound[attribute.name][1], value))
+
+def spin(instance, attribute, value):
+    if np.all(value != DEFAULT_NotAValue):
+        assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
+        if valid_bound[attribute.name] != []:
+            if len(valid_bound[attribute.name]) == 1:
+                assert np.all(value >= valid_bound[attribute.name][0]), ValueError('Must be leq {}, but is {}'.format(valid_bound[attribute.name][0], value))
+            if len(valid_bound[attribute.name]) == 2:
+                assert np.all(value <= valid_bound[attribute.name][1]), ValueError('Must be seq {}, but is {}'.format(valid_bound[attribute.name][1], value))
+
+def CMB_fn(instance, attribute, value):
+    if np.all(value != DEFAULT_NotAValue):
+        assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
+        if valid_bound[attribute.name] != []:
+            if len(valid_bound[attribute.name]) == 1:
+                assert np.all(value >= valid_bound[attribute.name][0]), ValueError('Must be leq {}, but is {}'.format(valid_bound[attribute.name][0], value))
+            if len(valid_bound[attribute.name]) == 2:
+                assert np.all(value <= valid_bound[attribute.name][1]), ValueError('Must be seq {}, but is {}'.format(valid_bound[attribute.name][1], value))
+
+def phi_fn(instance, attribute, value):
+    if np.all(value != DEFAULT_NotAValue):
+        assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
+        if valid_bound[attribute.name] != []:
+            if len(valid_bound[attribute.name]) == 1:
+                assert np.all(value >= valid_bound[attribute.name][0]), ValueError('Must be leq {}, but is {}'.format(valid_bound[attribute.name][0], value))
+            if len(valid_bound[attribute.name]) == 2:
+                assert np.all(value <= valid_bound[attribute.name][1]), ValueError('Must be seq {}, but is {}'.format(valid_bound[attribute.name][1], value))
+
+def phi_field(instance, attribute, value):
+    if np.all(value != DEFAULT_NotAValue):
+        assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
+        if valid_bound[attribute.name] != []:
+            if len(valid_bound[attribute.name]) == 1:
+                assert np.all(value >= valid_bound[attribute.name][0]), ValueError('Must be leq {}, but is {}'.format(valid_bound[attribute.name][0], value))
+            if len(valid_bound[attribute.name]) == 2:
+                assert np.all(value <= valid_bound[attribute.name][1]), ValueError('Must be seq {}, but is {}'.format(valid_bound[attribute.name][1], value))
+
+def phi_space(instance, attribute, value):
+    if np.all(value != DEFAULT_NotAValue):
+        assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
+        if valid_bound[attribute.name] != []:
+            if len(valid_bound[attribute.name]) == 1:
+                assert np.all(value >= valid_bound[attribute.name][0]), ValueError('Must be leq {}, but is {}'.format(valid_bound[attribute.name][0], value))
+            if len(valid_bound[attribute.name]) == 2:
+                assert np.all(value <= valid_bound[attribute.name][1]), ValueError('Must be seq {}, but is {}'.format(valid_bound[attribute.name][1], value))
+
+def phi_lmax(instance, attribute, value):
+    if np.all(value != DEFAULT_NotAValue):
+        assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
+        if valid_bound[attribute.name] != []:
+            if len(valid_bound[attribute.name]) == 1:
+                assert np.all(value >= valid_bound[attribute.name][0]), ValueError('Must be leq {}, but is {}'.format(valid_bound[attribute.name][0], value))
+            if len(valid_bound[attribute.name]) == 2:
+                assert np.all(value <= valid_bound[attribute.name][1]), ValueError('Must be seq {}, but is {}'.format(valid_bound[attribute.name][1], value))
 
 def epsilon(instance, attribute, value):
-    desc = [value]
-    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
-
-def lmax_transf(instance, attribute, value):
-    desc = [value]
-    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
-
-def nlev_t(instance, attribute, value):
-    desc = [value]
-    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
-
-def nlev_p(instance, attribute, value):
-    desc = [value]
-    assert value in desc, ValueError('Must be in {}, but is {}'.format(desc, value))
+    if np.all(value != DEFAULT_NotAValue):
+        assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
