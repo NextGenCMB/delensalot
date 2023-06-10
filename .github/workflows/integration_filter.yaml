@@ -1,4 +1,4 @@
-name: Integration filter test
+name: Integration filter
 
 on: [push, pull_request]
 jobs:

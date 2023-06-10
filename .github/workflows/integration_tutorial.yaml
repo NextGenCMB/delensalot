@@ -1,4 +1,4 @@
-name: Integration filter test
+name: Integration tutorial
 
 on: [push, pull_request]
 jobs:
@@ -26,4 +26,4 @@ jobs:
       - name: test
         run: |
           
-          python3 -m unittest test_integration_tutorial.Tutorial
+          python3 -m unittest tests.test_integration_tutorial.Tutorial
