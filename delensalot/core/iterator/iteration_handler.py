@@ -50,19 +50,45 @@ class base_iterator():
     def get_datmaps(self):
         # assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
         if self.it_filter_directional == 'isotropic':
-            # dat maps must now be given in harmonic space in this idealized configuration
+            # dat maps must now be given in harmonic space in this idealized configuration. sims_MAP is not used here, as no truncation happens in idealized setting.
             if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
-                return np.array(self.nivjob_geomlib.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2, *self.lm_max_ivf, nthreads=self.tr))
+                return self.nivjob_geomlib.map2alm_spin(
+                    np.copy(self.simulationdata.get_sim_obs(
+                        self.simidx,
+                        space='map',
+                        spin=2,
+                        field='polarization')),
+                    2, *self.lm_max_ivf, nthreads=self.tr)
+
             elif self.k in ['ptt']:
-                return self.nivjob_geomlib.map2alm(self.sims_MAP.get_sim_tmap(int(self.simidx)), *self.lm_max_ivf, nthreads=self.tr)
+                return self.nivjob_geomlib.map2alm(
+                    np.copy(self.simulationdata.get_sim_obs(
+                        self.simidx,
+                        space='map',
+                        spin=0,
+                        field='temperature')),
+                    *self.lm_max_ivf, nthreads=self.tr)
+
             elif self.k in ['p']:
-                QUobs = np.array(self.nivjob_geomlib.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2, *self.lm_max_ivf, nthreads=self.tr))
-                Tobs = self.nivjob_geomlib.map2alm(self.sims_MAP.get_sim_tmap(int(self.simidx)), *self.lm_max_ivf, nthreads=self.tr)
+                QUobs = self.nivjob_geomlib.map2alm_spin(
+                    np.copy(self.simulationdata.get_sim_obs(
+                        self.simidx,
+                        space='map',
+                        spin=2,
+                        field='polarization')),
+                    2, *self.lm_max_ivf, nthreads=self.tr)
+                Tobs = self.nivjob_geomlib.map2alm(
+                    np.copy(self.simulationdata.get_sim_obs(
+                        self.simidx,
+                        space='map',
+                        spin=0,
+                        field='temperature')),
+                    *self.lm_max_ivf, nthreads=self.tr)
                 ret = np.array([Tobs, *QUobs])
                 return ret
         else:
             if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
-                return np.array(self.sims_MAP.get_sim_pmap(int(self.simidx)))
+                return np.array(self.sims_MAP.get_sim_pmap(self.simidx))
             else:
                 assert 0, 'implement if needed'
         
