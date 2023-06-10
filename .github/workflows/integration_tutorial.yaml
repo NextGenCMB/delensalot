@@ -26,4 +26,9 @@ jobs:
       - name: test
         run: |
           
-          python3 -m unittest tests.test_integration_tutorial.Tutorial
+          python3 -m unittest tests.test_integration_tutorial.Tutorial.test_conf_mwe_applynoOBD
+          python3 -m unittest tests.test_integration_tutorial.Tutorial.test_conf_mwe_applyOBD
+          python3 -m unittest tests.test_integration_tutorial.Tutorial.test_conf_mwe_buildOBD
+          python3 -m unittest tests.test_integration_tutorial.Tutorial.test_conf_mwe_fastWF
+          python3 -m unittest tests.test_integration_tutorial.Tutorial.test_conf_mwe_fullsky
+          python3 -m unittest tests.test_integration_tutorial.Tutorial.test_conf_mwe_maskedsky

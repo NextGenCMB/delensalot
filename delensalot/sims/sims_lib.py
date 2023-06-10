@@ -796,8 +796,6 @@ class Simhandler:
         self.space = space
         self.nlev = nlev
         self.maps = maps
-        print(self.maps)
-        print('-------------')
         if space == 'map':
             if flavour == 'obs':
                 if np.all(maps == DNaV):
