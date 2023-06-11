@@ -121,8 +121,9 @@ class Basejob():
     #@log_on_start(logging.INFO, "collect_jobs() started")
     #@log_on_end(logging.INFO, "collect_jobs() finished")
     def get_blt_it(self, simidx, it):
-        # TODO if data on CFS (or elsewhere), I need to redirect this. but how to do it nicely?
         if self.data_from_CFS:
+            # TODO probably enough to just check if libdir_blt_MAP_CFS is empty
+            assert 0, 'implement if needed'
             fn_blt = self.libdir_blt_MAP_CFS(self.k, simidx, self.version)
         else:
             if it == 0:
@@ -168,8 +169,7 @@ class OBD_builder(Basejob):
     @check_MPI
     def __init__(self, OBD_model, diasable_mpi=False):
         self.__dict__.update(OBD_model.__dict__)
-        # self.tpl = template_dense(self.lmin_teb[2], self.geom, self.tr, _lib_dir=self.libdir, rescal=self.rescale)
-        b_transf = gauss_beam(df.a2r(self.beam), lmax=self.lmax) # TODO ninv_p doesn't depend on this anyway, right?
+        b_transf = gauss_beam(df.a2r(self.beam), lmax=self.lmax)
         self.nivp = np.array(opfilt_pp.alm_filter_ninv(self.nivp_desc, b_transf, marge_qmaps=(), marge_umaps=()).get_ninv())
 
 
@@ -239,7 +239,7 @@ class Sim_generator(Basejob):
                 self.libdir_sky = opj(os.environ['SCRATCH'], 'simulation/', str(self.simulationdata.geometry))
                 self.fns_sky = self.set_basename_sky()
 
-            self.libdir = opj(os.environ['SCRATCH'], 'simulation/', str(self.simulationdata.geometry), str(self.simulationdata.nlev))
+            self.libdir = opj(os.environ['SCRATCH'], 'simulation/', str(self.simulationdata.geometry), str(self.simulationdata.nlev)+self.libdir_suffix)
             self.fns = self.set_basename_obs()
             
             first_rank = mpi.bcast(mpi.rank)
@@ -268,7 +268,24 @@ class Sim_generator(Basejob):
                         check_ = False
                         break
             if check_: # (3)
-                self.postrun()
+                self.postrun_obs()
+
+            check_ = True  
+            for simidx in simidxs_: # (2)
+                if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']: 
+                    if not (os.path.exists(opj(self.libdir_sky, self.fns_sky['Q'].format(simidx))) and os.path.exists(opj(self.libdir_sky, self.fns_sky['U'].format(simidx)))):
+                        check_ = False
+                        break
+                elif self.k in ['ptt']:
+                    if not os.path.exists(opj(self.libdir_sky, self.fns_sky['T'].format(simidx))):
+                        check_ = False
+                        break
+                elif self.k in ['p']:
+                    if not (os.path.exists(opj(self.libdir_sky, self.fns_sky['T'].format(simidx))) and os.path.exists(opj(self.libdir_sky, self.fns_sky['Q'].format(simidx))) and os.path.exists(opj(self.libdir_sky, self.fns_sky['U'].format(simidx)))):
+                        check_ = False
+                        break
+            if check_: # (3)
+                self.postrun_sky()
 
 
     def set_basename_sky(self):
@@ -288,27 +305,6 @@ class Sim_generator(Basejob):
         elif self.k in ['p']:
             fns = {'T': 'Tmapobs_{}.npy', 'Q': 'Qmapobs_{}.npy', 'U': 'Umapobs_{}.npy'}
         return fns
-
-
-    def simulationdata_isdone(self, simidx, field, spin):
-        """DEPRECATED
-        """        
-        jobs = []
-
-        simidxs_ = np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))))
-        for simidx in simidxs_:
-            if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
-                if not self.simulationdata.isdone(simidx, field='polarization', spin=2):
-                    jobs.append(simidx)
-            elif self.k in ['ptt']:
-                if not self.simulationdata.isdone(simidx, field='temperature', spin=0):
-                    jobs.append(simidx)
-            elif self.k in ['p']:
-                if not self.simulationdata.isdone(simidx, field='temperature', spin=0) or not self.simulationdata.isdone(simidx, field='polarization', spin=2):
-                    jobs.append(simidx)
-        self.jobs = jobs
-        return self.jobs
-
 
     # @base_exception_handler
     @log_on_start(logging.INFO, "Sim.collect_jobs() started")
@@ -375,7 +371,8 @@ class Sim_generator(Basejob):
                     self.generate_obs(simidx)
                 self.simulationdata.purgecache()
                 log.info("rank {} (size {}) generated sim {}".format(mpi.rank, mpi.size, simidx))
-        self.postrun()
+        self.postrun_sky()
+        self.postrun_obs()
 
 
     #@log_on_start(logging.INFO, "Sim.generate_sim(simidx={simidx}) started")
@@ -418,21 +415,25 @@ class Sim_generator(Basejob):
             Tobs = self.simulationdata.get_sim_obs(simidx, spin=0, space='map', field='temperature')
             np.save(opj(self.libdir, self.fns['T'].format(simidx)), Tobs)
 
-    def postrun(self):
+    def postrun_obs(self):
         # we always enter postrun, even from other jobs (like QE_lensrec). So making sure we are not accidently overwriting libdirs and fns
         if self.simulationdata.flavour != 'sky' and self.simulationdata.flavour != 'obs' and np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
             self.simulationdata.libdir = self.libdir
             self.simulationdata.fns = self.fns
-            if self.simulationdata.flavour != 'sky':
-                self.simulationdata.len_lib.fns = self.fns_sky
-                self.simulationdata.len_lib.libdir = self.libdir_sky
-                self.simulationdata.len_lib.space = 'map'
-                self.simulationdata.len_lib.spin = 2
             if self.simulationdata.flavour != 'obs':
                 self.simulationdata.obs_lib.fns = self.fns
                 self.simulationdata.obs_lib.libdir = self.libdir
                 self.simulationdata.obs_lib.space = 'map'
                 self.simulationdata.obs_lib.spin = 2
+
+    def postrun_sky(self):
+        # we always enter postrun, even from other jobs (like QE_lensrec). So making sure we are not accidently overwriting libdirs and fns
+        if self.simulationdata.flavour != 'sky' and self.simulationdata.flavour != 'obs' and np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
+            if self.simulationdata.flavour != 'sky':
+                self.simulationdata.len_lib.fns = self.fns_sky
+                self.simulationdata.len_lib.libdir = self.libdir_sky
+                self.simulationdata.len_lib.space = 'map'
+                self.simulationdata.len_lib.spin = 2
 
 
 class QE_lr(Basejob):
@@ -479,7 +480,7 @@ class QE_lr(Basejob):
 
 
         if self.cl_analysis == True:
-            # TODO fix numbers for mc ocrrection and total nsims
+            # TODO fix numbers for mc correction and total nsims
             self.ss_dict = { k : v for k, v in zip( np.concatenate( [ range(i*60, (i+1)*60) for i in range(0,5) ] ),
                                     np.concatenate( [ np.roll( range(i*60, (i+1)*60), -1 ) for i in range(0,5) ] ) ) }
             self.ds_dict = { k : -1 for k in range(300)}
@@ -547,7 +548,7 @@ class QE_lr(Basejob):
 
             ## Calculate realization dependent phi, i.e. plm_it000.
             if task == 'calc_phi':
-                ## TODO this filename must match plancklens filename.. refactor
+                ## this filename must match plancklens filename
                 fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, utils.mchash(self.simidxs_mf)))
                 ## Skip if meanfield already calculated
                 if not os.path.isfile(fn_mf) or recalc:
@@ -559,7 +560,7 @@ class QE_lr(Basejob):
             ## Calculate B-lensing template
             if task == 'calc_blt':
                 for simidx in self.simidxs:
-                    ## TODO this filename must match the one created in get_template_blm()... refactor..
+                    ## this filename must match the one created in get_template_blm()
                     fn_blt = opj(self.libdir_blt, 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
                     if not os.path.isfile(fn_blt) or recalc:
                         _jobs.append(simidx)
@@ -660,7 +661,7 @@ class QE_lr(Basejob):
         ret = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, 0))
         if self.Nmf > 0:
             if self.mfvar == None:
-                # TODO hack: plancklens needs to be less restrictive with type for simidx. hack for now
+                # FIXME plancklens needs to be less restrictive with type for simidx.
                 ret = self.qlms_dd.get_sim_qlm_mf(self.k, [int(simidx_mf) for simidx_mf in self.simidxs_mf])
                 if simidx in self.simidxs_mf:    
                     ret = (ret - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
@@ -788,14 +789,14 @@ class MAP_lr(Basejob):
     @check_MPI
     def __init__(self, dlensalot_model):
         super().__init__(dlensalot_model)
-        # TODO Only needed to hand over to ith(). in c2d(), prepare an ith model for it
+        # TODO Only needed to hand over to ith()
         self.dlensalot_model = dlensalot_model
         
         # TODO This is not the prettiest way to provide MAP_lr with QE and Simgen dependency.. probably better to just put it as a separate job into the job-list.. so do this in config_handler... same with Sim_generator?
         self.simgen = Sim_generator(dlensalot_model)
         self.simulationdata = self.simgen.simulationdata
         self.qe = QE_lr(dlensalot_model, caller=self)
-        self.qe.simulationdata = self.simgen.simulationdata # just to be sure...
+        self.qe.simulationdata = self.simgen.simulationdata # just to be sure, so we have a single truth in MAP_lr. 
 
         ## tasks -> mf_dirname
         if "calc_meanfield" in self.it_tasks or 'calc_blt' in self.it_tasks:
@@ -835,8 +836,6 @@ class MAP_lr(Basejob):
             ## Calculate realization independent meanfields up to iteration itmax
             ## prereq: plms exist for itmax. maxiterdone won't work if calc_phi in task list
             elif task == 'calc_meanfield':
-                # TODO need to make sure that all iterator wflms are calculated
-                # either mpi.barrier(), or check all simindices TD(1)
                 for simidx in self.simidxs_mf:
                     libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
                     if "calc_phi" in self.it_tasks:
@@ -878,7 +877,6 @@ class MAP_lr(Basejob):
 
             if task == 'calc_meanfield':
                 self.qe.run(task=task)
-                # TODO if TD(1) solved, replace np.arange() accordingly
                 # TODO I don't like barriers and not sure if they are still needed
                 mpi.barrier()
                 self.get_meanfields_it(np.arange(self.itmax+1), calc=True)

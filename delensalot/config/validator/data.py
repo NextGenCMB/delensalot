@@ -24,6 +24,7 @@ valid_value = {
     'phi_space': [],
     'phi_lmax': [],
     'epsilon': [],
+    'libdir_suffix': [],
 }
 # if [], doesn't check for bounds
 valid_bound = {
@@ -48,6 +49,7 @@ valid_bound = {
     'phi_space': [],
     'phi_lmax': [],
     'epsilon': [],
+    'libdir_suffix': [],
 }
 
 # if [], doesn't check for type
@@ -73,7 +75,18 @@ valid_type = {
     'phi_space': [],
     'phi_lmax': [],
     'epsilon': [],
+    'libdir_suffix': [],
 }
+
+def libdir_suffix(instance, attribute, value):
+    if np.all(value != DEFAULT_NotAValue):
+        assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
+        if valid_bound[attribute.name] != []:
+            if len(valid_bound[attribute.name]) == 1:
+                assert np.all(value >= valid_bound[attribute.name][0]), ValueError('Must be leq {}, but is {}'.format(valid_bound[attribute.name][0], value))
+            if len(valid_bound[attribute.name]) == 2:
+                assert np.all(value <= valid_bound[attribute.name][1]), ValueError('Must be seq {}, but is {}'.format(valid_bound[attribute.name][1], value))
+
 
 def flavour(instance, attribute, value):
     if np.all(value != DEFAULT_NotAValue):

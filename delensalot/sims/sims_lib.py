@@ -14,7 +14,7 @@ import logging
 log = logging.getLogger(__name__)
 
 import lenspyx
-from lenspyx.lensing import get_geom
+# from lenspyx.lensing import get_geom
 from plancklens.sims import phas
 from delensalot.core import cachers
 from delensalot.config.metamodel import DEFAULT_NotAValue as DNaV
@@ -69,7 +69,7 @@ class iso_white_noise:
                 assert 0, "must provide fns"
             self.fns = fns
 
-        self.cacher = cachers.cacher_mem(safe=True) #TODO might as well use a numpy cacher
+        self.cacher = cachers.cacher_mem(safe=True)
 
 
     def get_sim_noise(self, simidx, space, field, spin=2):
@@ -98,7 +98,7 @@ class iso_white_noise:
                 if self.geometry[0] == 'healpix':
                     vamin = np.sqrt(hp.nside2pixarea(self.geometry[1]['nside'], degrees=True)) * 60
                 else:
-                    ## TODO this is a rough estimate, based on total sky coverage / npix()
+                    ## FIXME this is a rough estimate, based on total sky coverage / npix()
                     vamin =  np.sqrt(4*np.pi) * (180/np.pi) / self.geom_lib.npix() * 60
                 if field == 'polarization':
                     noise1 = self.nlev['P'] / vamin * self.pix_lib_phas.get_sim(simidx, idf=1)
@@ -186,7 +186,7 @@ class Cls:
             self.phi_fn = phi_fn
             self.phi_file = load_file(self.phi_fn)['pp']
             self.phi_field = phi_field
-        self.cacher = cachers.cacher_mem(safe=True) #TODO might as well use a numpy cacher
+        self.cacher = cachers.cacher_mem(safe=True)
 
 
     def get_TEBunl(self, simidx):
@@ -253,6 +253,7 @@ class Xunl:
             if self.phi_space == DNaV:
                 assert 0, 'need to give phi_space (map or alm)'
         else:
+            #TODO make sure I didn't screw up phi_lmax
             if 'nside' in  self.geometry[1]:
                 geom_lmax = 3*self.geometry[1]['nside']
             elif 'lmax' in  self.geometry[1]:
@@ -262,7 +263,7 @@ class Xunl:
             self.phi_lmax = np.min([lmax + 1024, geom_lmax])
         self.isfrozen = isfrozen
             
-        self.cacher = cachers.cacher_mem(safe=True) #TODO might as well use a numpy cacher
+        self.cacher = cachers.cacher_mem(safe=True)
 
 
     def get_sim_unl(self, simidx, space, field, spin=2):
@@ -435,7 +436,7 @@ class Xsky:
                 assert 0, 'you need to provide fns' 
         self.isfrozen = isfrozen
 
-        self.cacher = cachers.cacher_mem(safe=True) #TODO might as well use a numpy cacher
+        self.cacher = cachers.cacher_mem(safe=True)
 
 
     def get_sim_sky(self, simidx, space, field, spin=2):
@@ -520,6 +521,7 @@ class Xsky:
                             if space == 'map':
                                 sky = self.geom_lib.alm2map(sky, lmax=self.lmax, mmax=self.lmax, nthreads=4)
             else:
+                log.info('found "{}"'.format(fn_other))
                 sky = self.cacher.load(fn_other)
                 if space == 'map':
                     sky = self.geom_lib.alm2map_spin(self.geom_lib.map2alm_spin(sky, spin=self.spin, lmax=self.lmax, mmax=self.lmax, nthreads=4), lmax=self.lmax, spin=spin, mmax=self.lmax, nthreads=4)
@@ -549,7 +551,7 @@ class Xobs:
         self.noise_lib = noise_lib
         self.fullsky = True #FIXME make it dependent on userdata: if Xobs is set via simhandler, then check if user data is full sky or not.
         
-        self.cacher = cachers.cacher_mem(safe=True) #TODO might as well use a numpy cacher
+        self.cacher = cachers.cacher_mem(safe=True)
         self.maps = maps
         if np.all(self.maps != DNaV):
             fn = 'obs_space{}_spin{}_field{}_{}'.format(space, spin, field, 0)
@@ -616,8 +618,8 @@ class Xobs:
             if self.libdir == DNaV: # sky maps come from len_lib, and we add noise
                 log.info('.., generating.')
                 obs = self.sky2obs(
-                    self.len_lib.get_sim_sky(simidx, spin=spin, space=space, field=field),
-                    self.noise_lib.get_sim_noise(simidx, spin=spin, field=field, space=space),
+                    np.copy(self.len_lib.get_sim_sky(simidx, spin=spin, space=space, field=field)),
+                    np.copy(self.noise_lib.get_sim_noise(simidx, spin=spin, field=field, space=space)),
                     spin=spin,
                     space=space,
                     field=field)
@@ -760,7 +762,7 @@ class Simhandler:
     """Entry point for data handling and generating simulations. Data can be cl, unl, len, or obs, .. and alms or maps. Simhandler connects the individual libraries and decides what can be generated. E.g.: If obs data provided, len data cannot be generated. This structure makes sure we don't "hallucinate" data
 
     """
-    def __init__(self, flavour, space, geometry=DNaV, maps=DNaV, field=DNaV, cls_lib=DNaV, unl_lib=DNaV, len_lib=DNaV, obs_lib=DNaV, noise_lib=DNaV, libdir=DNaV, libdir_noise=DNaV, libdir_phi=DNaV, fns=DNaV, fnsnoise=DNaV, fnsP=DNaV, lmax=DNaV, transfunction=DNaV, nlev=DNaV, spin=0, CMB_fn=DNaV, phi_fn=DNaV, phi_field=DNaV, phi_space=DNaV, epsilon=1e-7, phi_lmax=DNaV):
+    def __init__(self, flavour, space, geometry=DNaV, maps=DNaV, field=DNaV, cls_lib=DNaV, unl_lib=DNaV, len_lib=DNaV, obs_lib=DNaV, noise_lib=DNaV, libdir=DNaV, libdir_noise=DNaV, libdir_phi=DNaV, fns=DNaV, fnsnoise=DNaV, fnsP=DNaV, lmax=DNaV, transfunction=DNaV, nlev=DNaV, spin=0, CMB_fn=DNaV, phi_fn=DNaV, phi_field=DNaV, phi_space=DNaV, epsilon=1e-7, phi_lmax=DNaV, libdir_suffix=DNaV):
         """Entry point for simulation data handling.
         Simhandler() connects the individual librariers together accordingly, depending on the provided data.
         It never stores data on disk itself, only in memory.
@@ -897,7 +899,7 @@ class Simhandler:
                 self.fns = DNaV # settings this here explicit for a future me, so I see it easier
 
         self.geometry = self.obs_lib.geometry # Sim_generator() needs this. I let obs_lib decide the final geometry.
-        self.cacher = cachers.cacher_mem(safe=True) #TODO might as well use a numpy cacher
+        self.cacher = cachers.cacher_mem(safe=True)
 
     def get_sim_sky(self, simidx, space, field, spin):
         return self.len_lib.get_sim_sky(simidx=simidx, space=space, field=field, spin=spin)
@@ -919,8 +921,9 @@ class Simhandler:
         libs = ['obs_lib', 'noise_lib', 'unl_lib', 'len_lib']
         for lib in libs:
             if lib in self.__dict__:
-                for key in np.copy(self.obs_lib.cacher._cache.keys()):
-                    self.obs_lib.cacher.remove(key)
+                if len(list(self.obs_lib.cacher._cache.keys())) > 0:
+                    for key in np.copy(list(self.obs_lib.cacher._cache.keys())):
+                        self.obs_lib.cacher.remove(key)
 
     def isdone(self, simidx, field, spin, space='map', flavour='obs'):
         fn = '{}_space{}_spin{}_field{}_{}'.format(flavour, space, spin, field, simidx)
@@ -948,3 +951,28 @@ class Simhandler:
     # compatibility with Plancklens
     def get_sim_pmap(self, simidx):
         return self.get_sim_obs(simidx=simidx, space='map', field='polarization', spin=2)
+
+
+class anafast_clone():
+
+    def __init__(self, geometry):
+        self.nside = geometry[1]['nside']
+        self.npixel = hp.nside2npix(self.nside)
+
+    def map2alm(self, map, lmax, mmax, nthreads):
+        return hp.map2alm(map, lmax=lmax)
+
+    def map2alm_spin(self, map, spin, lmax, mmax, nthreads):
+        return hp.map2alm_spin(map, lmax=lmax, spin=spin)
+
+    def alm2map(self, alm, lmax, mmax, nthreads):
+         return hp.alm2map(alm, lmax=lmax, nside=self.nside)
+
+    def alm2map_spin(self, alm, spin, lmax, mmax, nthreads):
+        return hp.alm2map_spin(alm, lmax=lmax, spin=spin, nside=self.nside)
+
+    def npix(self):
+        return self.npixel
+
+def get_geom(geometry):
+    return anafast_clone(geometry)

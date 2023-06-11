@@ -48,7 +48,6 @@ class config_handler():
                 pass
             else:
                 self.configfile.dlensalot_model.job.__dict__.update({'jobs': [parser.job_id]})
-        # TODO catch here TEMP dir for build_OBD? or make TEMP builder output buildOBDspecific
         TEMP = transform(self.configfile.dlensalot_model, l2T_Transformer())
         if parser.status == '':
             if mpi.rank == 0:
@@ -83,6 +82,7 @@ class config_handler():
         Args:
             job_id (str, optional): A specific job which should be performed. This one is not necessarily defined in the configuration file. It is handed over via command line or in interactive mode. Defaults to ''.
         """
+        # TODO to remove job-dependencies: create a list of jobs up to the requested job.
         if isinstance(djob_id, str):
             djob_id = [djob_id]
         self.configfile.dlensalot_model.job.jobs = djob_id

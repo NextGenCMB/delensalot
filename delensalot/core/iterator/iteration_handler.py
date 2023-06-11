@@ -41,7 +41,6 @@ class base_iterator():
         self.R_unl0 = self.qe.R_unl()
         self.mf0 = self.qe.get_meanfield(self.simidx) if self.QE_subtract_meanfield else np.zeros(shape=hp.Alm.getsize(self.lm_max_qlm[0]))
         self.plm0 = self.qe.get_plm(self.simidx, self.QE_subtract_meanfield)
-        # TODO not sure why this happens here. Could be done much earlier
         self.it_chain_descr = self.iterator_config.it_chain_descr(self.iterator_config.lm_max_unl[0], self.iterator_config.it_cg_tol)
         
 

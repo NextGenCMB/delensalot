@@ -38,7 +38,6 @@ from delensalot.config.config_helper import data_functions as df, LEREPI_Constan
 from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALOT_Model_mm, DLENSALOT_Concept
 
 
-# TODO swap rhits with ninv
 class l2base_Transformer:
     """Initializes attributes needed across all Jobs, or which are at least handy to have
     """    
@@ -122,7 +121,7 @@ class l2base_Transformer:
 
 
 class l2T_Transformer:
-    # TODO this needs refactoring. Suggest working via cachers
+    # TODO this could use refactoring. Better name generation
     """global access for custom TEMP directory name, so that any job stores the data at the same place.
     """
 
@@ -131,11 +130,7 @@ class l2T_Transformer:
     def build(self, cf):
         if cf.job.jobs == ['build_OBD']:
             return cf.obd.libdir
-        else:
-            # _suffix = cf.data.class_
-            # if 'fg' in cf.data.class_parameters:
-                # _suffix +='_%s'%(cf.data.class_parameters['fg'])
-               
+        else:       
             if cf.analysis.TEMP_suffix != '':
                 _suffix = cf.analysis.TEMP_suffix
             _suffix += '_OBD' if cf.noisemodel.OBD else '_lminB'+str(cf.analysis.lmin_teb[2])
@@ -212,7 +207,7 @@ class l2OBD_Transformer:
     #@log_on_start(logging.DEBUG, "get_nivp_desc() started")
     #@log_on_end(logging.DEBUG, "get_nivp_desc() finished")
     def get_nivp_desc(cf, dl):
-        nlev_p = l2OBD_Transformer.get_nlevt(cf)
+        nlev_p = l2OBD_Transformer.get_nlevp(cf)
         masks, noisemodel_rhits_map =  l2OBD_Transformer.get_masks(cf, dl)
         noisemodel_norm = np.max(noisemodel_rhits_map)
         if cf.noisemodel.nivp_map is None:
@@ -271,6 +266,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             dl = DLENSALOT_Concept()
             _process_Analysis(dl, cf.analysis, cf)
             l2base_Transformer.process_Meta(dl, cf.meta, cf)
+            dl.libdir_suffix = cf.simulationdata.libdir_suffix
             dl.simulationdata = Simhandler(**cf.simulationdata.__dict__)
             return dl
         return Sim_generator(extract())
@@ -299,9 +295,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 #@log_on_start(logging.DEBUG, "_process_Analysis() started")
                 #@log_on_end(logging.DEBUG, "_process_Analysis() finished")
                 def _process_Analysis(dl, an):
-                    # nlev_t
                     dl.nlev_t = l2OBD_Transformer.get_nlevt(cf)
-                    # nlev_p
                     dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
                     l2base_Transformer.process_Analysis(dl, an, cf)
 
@@ -314,7 +308,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.nivjob_geominfo = nm.geometry
                     thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
                     dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
-                    # TODO assuming that masked sky comes with a hits-count map. If not, take mask
                     if dl.sky_coverage == 'masked':
                         dl.rhits_normalised = nm.rhits_normalised
                         dl.fsky = np.mean(l2OBD_Transformer.get_nivp_desc(cf, dl)[0][1]) ## calculating fsky, but quite expensive. and if nivp changes, this could have negative effect on fsky calc
@@ -341,6 +334,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 #@log_on_start(logging.DEBUG, "_process_Simulation() started")
                 #@log_on_end(logging.DEBUG, "_process_Simulation() finished")       
                 def _process_Simulation(dl, si):
+                    dl.libdir_suffix = cf.simulationdata.libdir_suffix
                     l2base_Transformer.process_Simulation(dl, si, cf)
 
 
@@ -369,7 +363,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.lm_max_qlm = qe.lm_max_qlm
                     dl.qlm_type = qe.qlm_type
 
-                    ## FIXME cg chain currently only works with healpix
+                    ## FIXME cg chain currently only works with healpix geometry
                     dl.cg_tol = qe.cg_tol
                     if qe.chain == None:
                         dl.chain_descr = lambda a,b: None
@@ -409,6 +403,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                         dl.lenjob_pbdgeominfo = it.lenjob_pbdgeometry
                         dl.lenjob_pbdgeomlib = lug.pbdGeometry(dl.lenjob_geomlib, lug.pbounds(*it.lenjob_pbdgeometry[1]))
 
+                    # TODO this needs cleaner implementation
                     if dl.version == '' or dl.version == None:
                         dl.mf_dirname = opj(dl.TEMP, l2T_Transformer.ofj('mf', {'Nmf': dl.Nmf}))
                     else:
@@ -418,7 +413,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.itmax = it.itmax
                     dl.iterator_typ = it.iterator_typ
 
-                    # mfvar
+                    # TODO this needs cleaner implementation
                     if it.mfvar == 'same' or it.mfvar == '':
                         dl.mfvar = None
                     elif it.mfvar.startswith('/'):
@@ -427,15 +422,15 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                         else:
                             log.error('Not sure what to do with this meanfield: {}'.format(it.mfvar))
                             sys.exit()
-                    # soltn_cond
                     dl.soltn_cond = it.soltn_cond
-                    # stepper
+
+                    # TODO this needs cleaner implementation
                     dl.stepper_model = it.stepper
                     if dl.stepper_model.typ == 'harmonicbump':
                         dl.stepper_model.lmax_qlm = dl.lm_max_qlm[0]
                         dl.stepper_model.mmax_qlm = dl.lm_max_qlm[1]
                         dl.stepper = steps.harmonicbump(dl.stepper_model.lmax_qlm, dl.stepper_model.mmax_qlm, a=dl.stepper_model.a, b=dl.stepper_model.b, xa=dl.stepper_model.xa, xb=dl.stepper_model.xb)
-                        # dl.stepper = steps.nrstep(dl.lm_max_qlm[0], dl.lm_max_qlm[1], val=0.5) # handler of the size steps in the MAP BFGS iterative search
+
                     dl.ffi = deflection(dl.lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(*dl.lm_max_qlm)), dl.lm_max_qlm[1], numthreads=dl.tr, verbosity=dl.verbose, epsilon=dl.epsilon)
 
 
@@ -451,11 +446,12 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_Qerec(dl, cf.qerec)
                 _process_Itrec(dl, cf.itrec)
 
+                # TODO this needs cleaner implementation. 
                 if 'smoothed_phi_empiric_halofit' in cf.analysis.cpp:
                     dl.cpp = np.load(cf.analysis.cpp)[:dl.lm_max_qlm[0] + 1,1]
                 elif cf.analysis.cpp.endswith('dat'):
                     # assume its a camb-like file
-                    dl.cpp = camb_clfile(cf.analysis.cpp)['pp'][:dl.lm_max_qlm[0] + 1] ## TODO could be added via 'fiducial' parameter in dlensalot config for user
+                    dl.cpp = camb_clfile(cf.analysis.cpp)['pp'][:dl.lm_max_qlm[0] + 1] 
                 elif os.path.exists(os.path.dirname(cf.analysis.cpp)):
                     dl.cpp = np.load(cf.analysis.cpp)[:dl.lm_max_qlm[0] + 1,1]
                     LL = np.arange(0,dl.lm_max_qlm[0] + 1,1)
@@ -468,6 +464,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             _process_components(dl)
             ## TODO. Current solution to fake an iteration handler for QE to calc blt is to initialize one here.
             ## In the future, I want to remove get_template_blm from the iteration_handler, at least for QE.
+            ## this would then also simplify the QE transformer a lot (no MAP dependency anymore)
             if 'calc_blt' in dl.qe_tasks or 'calc_blt' in dl.it_tasks:
                 dl.MAP_job = transform3d(cf, 'MAP_lensrec', l2delensalotjob_Transformer())
             return dl
@@ -498,9 +495,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 #@log_on_start(logging.DEBUG, "_process_Analysis() started")
                 #@log_on_end(logging.DEBUG, "_process_Analysis() finished")
                 def _process_Analysis(dl, an):
-                    # nlev_t
                     dl.nlev_t = l2OBD_Transformer.get_nlevt(cf)
-                    # nlev_p
                     dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
                     l2base_Transformer.process_Analysis(dl, an, cf)
 
@@ -509,7 +504,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 #@log_on_end(logging.DEBUG, "_process_Noisemodel() finished")
                 def _process_Noisemodel(dl, nm):
                     dl.sky_coverage = nm.sky_coverage
-                    # TODO assuming that masked sky comes with a hits-count map. If not, take mask
                     dl.nivjob_geomlib = get_geom(nm.geometry)
                     dl.nivjob_geominfo = nm.geometry
                     thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
@@ -522,9 +516,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.spectrum_type = nm.spectrum_type
 
                     dl.OBD = nm.OBD
-                    # nlev_t
                     dl.nlev_t = l2OBD_Transformer.get_nlevt(cf)
-                    # nlev_p
                     dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
                     
 
@@ -539,6 +531,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 #@log_on_start(logging.DEBUG, "_process_Simulation() started")
                 #@log_on_end(logging.DEBUG, "_process_Simulation() finished")       
                 def _process_Simulation(dl, si):
+                    dl.libdir_suffix = cf.simulationdata.libdir_suffix
                     l2base_Transformer.process_Simulation(dl, si, cf)
 
 
@@ -663,7 +656,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 if 'smoothed_phi_empiric_halofit' in cf.analysis.cpp:
                     dl.cpp = np.load(cf.analysis.cpp)[:dl.lm_max_qlm[0] + 1,1]
                 else:
-                    dl.cpp = camb_clfile(cf.analysis.cpp)['pp'][:dl.lm_max_qlm[0] + 1] ## TODO could be added via 'fiducial' parameter in dlensalot config for user
+                    dl.cpp = camb_clfile(cf.analysis.cpp)['pp'][:dl.lm_max_qlm[0] + 1]
                 dl.cpp[:dl.Lmin] *= 0.
 
             dl = DLENSALOT_Concept()
@@ -831,7 +824,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                             dl.masks.update({'mask': {maskid: [] for maskid in range(len(ma.masks_fn))}})
                             dl.binmasks.update({'mask': {maskid: [] for maskid in range(len(ma.masks_fn))}})
                         else:
-                            assert 0, "I was expecting a mask from masks_fn, but couldn't find it. {}".format(ma.masks_fn[0])
+                           log.warning("I was expecting a mask from masks_fn, but couldn't find it. {}".format(ma.masks_fn[0]))
+                           dl.masks_fromfn = []
                     else:
                         dl.masks_fromfn = []
                     for maskflavour, masks in dl.masks.items():
@@ -907,6 +901,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 dl.blt_pert = cf.qerec.blt_pert
                 _process_Meta(dl, cf.meta)
                 _process_Computing(dl, cf.computing)
+                dl.libdir_suffix = cf.simulationdata.libdir_suffix
                 dl.simulationdata = Simhandler(**cf.simulationdata.__dict__)
                 _process_Analysis(dl, cf.analysis)
                 _process_Noisemodel(dl, cf.noisemodel)
@@ -918,7 +913,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_Qerec(dl, cf.qerec)
                 _process_Itrec(dl, cf.itrec)
 
-                dl.cpp = camb_clfile(cf.analysis.cpp)['pp'][:dl.lm_max_qlm[0] + 1] ## TODO could be added via 'fiducial' parameter in dlensalot config for user
+                dl.cpp = camb_clfile(cf.analysis.cpp)['pp'][:dl.lm_max_qlm[0] + 1]
                 dl.cpp[:dl.Lmin] *= 0.
 
                 return dl
@@ -929,7 +924,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
         return Map_delenser(extract())
     
-
 
 @transform.case(DLENSALOT_Model_mm, l2T_Transformer)
 def f2a2(expr, transformer): # pylint: disable=missing-function-docstring

@@ -4,6 +4,7 @@ The init contains a helper attribute and is accessed when two configuration file
 
 safelist = [
     'version',
+    'key',
     'jobs',
     'simidxs',
     'simidxs_mf',

@@ -114,7 +114,6 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
         Lmin (int):                         minimum L for reconstructing the lensing potential
         zbounds (tuple[int or str,float]):  latitudinal boundary (-1 to 1), or identifier together with noise level ratio treshold at which lensing reconstruction is perfromed.
         zbounds_len (tuple[int]):           latitudinal extended boundary at which lensing reconstruction is performed, and used for iterative lensing reconstruction
-        lm_max_len (tuple[int]):            TODO: TBD (deprecated?)
         lm_max_ivf (tuple[int]):            maximum `\ell` and m for which inverse variance filtering is done
         lm_max_blt (tuple[int]):            maximum `\ell` and m for which B-lensing template is calculated
         mask (list[str]):                   TBD
@@ -133,7 +132,6 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     Lmin =                  attr.field(default=DEFAULT_NotAValue, validator=analysis.Lmin)
     zbounds =               attr.field(default=DEFAULT_NotAValue, validator=analysis.zbounds)
     zbounds_len =           attr.field(default=DEFAULT_NotAValue, validator=analysis.zbounds_len)
-    lm_max_len =            attr.field(default=DEFAULT_NotAValue, validator=v_filter.lm_max_len)
     lm_max_ivf =            attr.field(default=DEFAULT_NotAValue, validator=v_filter.lm_max_ivf)
     lm_max_blt =            attr.field(default=DEFAULT_NotAValue, validator=analysis.lm_max_blt)
     mask =                  attr.field(default=DEFAULT_NotAValue, validator=analysis.mask)
@@ -196,6 +194,7 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
     phi_space =     attr.field(default=DEFAULT_NotAValue, validator=data.phi_space)
     phi_lmax =      attr.field(default=DEFAULT_NotAValue, validator=data.phi_lmax)
     epsilon =       attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
+    libdir_suffix = attr.field(default='', validator=data.libdir_suffix)
     
 @attr.s
 class DLENSALOT_Noisemodel(DLENSALOT_Concept):
@@ -244,7 +243,7 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     qlm_type =              attr.field(default=DEFAULT_NotAValue, validator=qerec.qlms)
     cg_tol =                attr.field(default=DEFAULT_NotAValue, validator=qerec.cg_tol)
     filter_directional =    attr.field(default=DEFAULT_NotAValue, validator=qerec.filter_directional)
-    lm_max_qlm =            attr.field(default=DEFAULT_NotAValue, validator=qerec.lm_max_qlm) # TODO qe.lm_max_qlm and it.lm_max_qlm must be same. Test at validator?
+    lm_max_qlm =            attr.field(default=DEFAULT_NotAValue, validator=qerec.lm_max_qlm) # TODO move this to analysis, lmax must be same in qe and it
     chain =                 attr.field(default=DLENSALOT_Chaindescriptor(), validator=qerec.chain)
     cl_analysis =           attr.field(default=DEFAULT_NotAValue, validator=qerec.cl_analysis)
     blt_pert =              attr.field(default=DEFAULT_NotAValue, validator=qerec.btemplate_perturbative_lensremap)
@@ -424,17 +423,19 @@ class DLENSALOT_Model(DLENSALOT_Concept):
             for k, v in val.__dict__.items():
                 if k in ['chain', 'stepper']:
                     for ke, va in v.__dict__.items():
-                        if type(va) == type(DEFAULT_NotAValue):
+                        if np.all(va == DEFAULT_NotAValue):
                             if key in DL_DEFAULT[self.defaults_to]:
                                 if k in DL_DEFAULT[self.defaults_to][key]:
                                     if ke in DL_DEFAULT[self.defaults_to][key][k]:
                                         self.__dict__[key].__dict__[k].__dict__.update({ke: DL_DEFAULT[self.defaults_to][key][k][ke]})
-                elif type(v) == type(DEFAULT_NotAValue):
-                    if v == DEFAULT_NotAValue:
-                        if key in DL_DEFAULT[self.defaults_to]:
-                            if k in DL_DEFAULT[self.defaults_to][key]:
-                                self.__dict__[key].__dict__.update({k: DL_DEFAULT[self.defaults_to][key][k]})
-                            else:
-                                log.info('couldnt find matching default value for k {}'.format(key))
+                elif np.all(v == DEFAULT_NotAValue):
+                    if key in DL_DEFAULT[self.defaults_to]:
+                        if k in DL_DEFAULT[self.defaults_to][key]:
+                            # log.info('\t\t{}: Found default for k {}: {}'. format(key, k, DL_DEFAULT[self.defaults_to][key][k]))
+                            self.__dict__[key].__dict__.update({k: DL_DEFAULT[self.defaults_to][key][k]})
                         else:
-                            log.info('couldnt find matching default value for key {}'.format(key))
+                            if key not in ['simulationdata']:
+                                # It is ok to not have defaults for simulationdata, as the simlib will handle it
+                                log.info('{}: couldnt find matching default value for {}'.format(key, k))
+                    else:
+                        log.info('couldnt find matching default value for key {}'.format(key))
