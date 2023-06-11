@@ -8,7 +8,7 @@
 # -- Path setup --------------------------------------------------------------
 import os, sys
 
-autodoc_mock_imports = ['plancklens', ', 'MSC', 'bicubic', 'mpi4py', 'attr', 'attrs', 'lensitbiases']
+autodoc_mock_imports = ['plancklens', 'MSC', 'bicubic', 'mpi4py', 'attr', 'attrs', 'lensitbiases']
 # sys.path.insert(0, os.path.abspath("./../"))
 
 sys.path.insert(0, "./../")
@@ -24,8 +24,8 @@ sys.path.insert(0, "./../")
 # -- Project information -----------------------------------------------------
 
 project = 'delensalot'
-copyright = '2023, S. Belkner, J. Carron, L. Legrand'
-author = 'S. Belkner, J. Carron, L. Legrand'
+copyright = '2023, S. Belkner, J. Carron'
+author = 'S. Belkner, J. Carron'
 
 # The full version, including alpha/beta/rc tags
 release = '1.0'

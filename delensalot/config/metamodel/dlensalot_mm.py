@@ -45,7 +45,7 @@ class DLENSALOT_Concept:
 class DLENSALOT_Chaindescriptor(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to conjugate gradient solver. There are currently not many options for this. Better don't touch it.
-
+    
     Attributes:
         p0: 0
         p1: type of the conditioner. Can be in ["diag_cl"]
@@ -56,6 +56,7 @@ class DLENSALOT_Chaindescriptor(DLENSALOT_Concept):
         p6: `tr_cg`: value of cd_solve.tr_cg
         p7: cacher setting
     """
+    # TODO change names after testing various chains - can we find better heuristics?
     p0 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p0)
     p1 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p1)
     p2 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p2)
@@ -70,7 +71,7 @@ class DLENSALOT_Stepper(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
     Defines the stepper function. The stepper function controls how the increment in the likelihood search is added to the current solution.
     Currently, this is pretty much just the harmonicbump class.
-
+    
     Attributes:
         typ (str): The name of the stepper function
         lmax_qlm (int): maximum `\ell` of the lensing potential reconstruction
@@ -80,7 +81,7 @@ class DLENSALOT_Stepper(DLENSALOT_Concept):
         xa: TBD
         xb: TBD
     """
-   
+    # FIXME this is very 'harmonicbump'-specific.
     typ =                   attr.field(default=DEFAULT_NotAValue, validator=stepper.typ)
     lmax_qlm =              attr.field(default=DEFAULT_NotAValue, validator=stepper.lmax_qlm) # must match lm_max_qlm -> validator
     mmax_qlm =              attr.field(default=DEFAULT_NotAValue, validator=stepper.mmax_qlm) # must match lm_max_qlm -> validator
@@ -124,22 +125,22 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
         beam (float):                       The beam used in the filters
     """
     key =                   attr.field(default=DEFAULT_NotAValue, validator=analysis.key)
-    version =               attr.field(default=DEFAULT_NotAValue, validator=analysis.version)
-    reconstruction_method = attr.field(default=DEFAULT_NotAValue, validator=analysis.reconstruction_method)
+    version =               attr.field(default=DEFAULT_NotAValue, validator=analysis.version) # TODO either make it more useful, or remove
+    reconstruction_method = attr.field(default=DEFAULT_NotAValue, validator=analysis.reconstruction_method) # TODO implement if needed
     simidxs =               attr.field(default=DEFAULT_NotAValue, validator=analysis.simidxs)
     simidxs_mf =            attr.field(default=DEFAULT_NotAValue, validator=analysis.simidxs_mf)
     TEMP_suffix =           attr.field(default=DEFAULT_NotAValue, validator=analysis.TEMP_suffix)
     Lmin =                  attr.field(default=DEFAULT_NotAValue, validator=analysis.Lmin)
     zbounds =               attr.field(default=DEFAULT_NotAValue, validator=analysis.zbounds)
-    zbounds_len =           attr.field(default=DEFAULT_NotAValue, validator=analysis.zbounds_len)
+    zbounds_len =           attr.field(default=DEFAULT_NotAValue, validator=analysis.zbounds_len) # TODO rename
     lm_max_ivf =            attr.field(default=DEFAULT_NotAValue, validator=v_filter.lm_max_ivf)
     lm_max_blt =            attr.field(default=DEFAULT_NotAValue, validator=analysis.lm_max_blt)
-    mask =                  attr.field(default=DEFAULT_NotAValue, validator=analysis.mask)
+    mask =                  attr.field(default=DEFAULT_NotAValue, validator=analysis.mask) # TODO is this used? 
     lmin_teb =              attr.field(default=DEFAULT_NotAValue, validator=analysis.lmin_teb)
     cls_unl =               attr.field(default=DEFAULT_NotAValue, validator=analysis.cls_unl)
     cls_len =               attr.field(default=DEFAULT_NotAValue, validator=analysis.cls_len)
     cpp =                   attr.field(default=DEFAULT_NotAValue, validator=analysis.cpp)
-    beam =                  attr.field(default=DEFAULT_NotAValue, validator=analysis.beam)
+    beam =                  attr.field(default=DEFAULT_NotAValue, validator=analysis.beam) # FIXME beam AND transfunction?
     transfunction =         attr.field(default=DEFAULT_NotAValue, validator=analysis.transfunction)
 
 
@@ -213,13 +214,13 @@ class DLENSALOT_Noisemodel(DLENSALOT_Concept):
     sky_coverage =          attr.field(default=DEFAULT_NotAValue, validator=noisemodel.sky_coverage)
     spectrum_type =         attr.field(default=DEFAULT_NotAValue, validator=noisemodel.spectrum_type)
     OBD =                   attr.field(default=DEFAULT_NotAValue, validator=noisemodel.OBD)
-    nlev_t =                attr.field(default=DEFAULT_NotAValue, validator=noisemodel.nlev_t)
+    nlev_t =                attr.field(default=DEFAULT_NotAValue, validator=noisemodel.nlev_t) # TODO combine with nlev_p to dictionary
     nlev_p =                attr.field(default=DEFAULT_NotAValue, validator=noisemodel.nlev_p)
+    geometry =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geometry) # FIXME this must match the data geometry.. validate accordingly
+    zbounds =               attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geometry) # FIXME is this used? How is it different to Analysis.zbounds?
     rhits_normalised =      attr.field(default=DEFAULT_NotAValue, validator=noisemodel.rhits_normalised)
-    geometry =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geometry)
-    zbounds =               attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geometry)
-    nivt_map =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geometry)
-    nivp_map =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geometry)
+    nivt_map =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geometry) # TODO test if it works
+    nivp_map =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geometry) # TODO test if it works
 
 @attr.s
 class DLENSALOT_Qerec(DLENSALOT_Concept):
@@ -245,7 +246,7 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     filter_directional =    attr.field(default=DEFAULT_NotAValue, validator=qerec.filter_directional)
     lm_max_qlm =            attr.field(default=DEFAULT_NotAValue, validator=qerec.lm_max_qlm) # TODO move this to analysis, lmax must be same in qe and it
     chain =                 attr.field(default=DLENSALOT_Chaindescriptor(), validator=qerec.chain)
-    cl_analysis =           attr.field(default=DEFAULT_NotAValue, validator=qerec.cl_analysis)
+    cl_analysis =           attr.field(default=DEFAULT_NotAValue, validator=qerec.cl_analysis) # TODO make this useful or remove
     blt_pert =              attr.field(default=DEFAULT_NotAValue, validator=qerec.btemplate_perturbative_lensremap)
 
 @attr.s
@@ -272,14 +273,14 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     tasks =                 attr.field(default=DEFAULT_NotAValue, validator=itrec.tasks)
     itmax =                 attr.field(default=DEFAULT_NotAValue, validator=itrec.itmax)
     cg_tol =                attr.field(default=DEFAULT_NotAValue, validator=itrec.cg_tol)
-    iterator_typ =          attr.field(default=DEFAULT_NotAValue, validator=itrec.iterator_type)
+    iterator_typ =          attr.field(default=DEFAULT_NotAValue, validator=itrec.iterator_type) # TODO rename
     chain =                 attr.field(default=DLENSALOT_Chaindescriptor(), validator=itrec.chain)
     filter_directional =    attr.field(default=DEFAULT_NotAValue, validator=itrec.filter_directional)
     lenjob_geometry =       attr.field(default=DEFAULT_NotAValue, validator=itrec.lenjob_geometry)
     lenjob_pbdgeometry =    attr.field(default=DEFAULT_NotAValue, validator=itrec.lenjob_pbgeometry)
     lm_max_unl =            attr.field(default=DEFAULT_NotAValue, validator=itrec.lm_max_unl)
     lm_max_qlm =            attr.field(default=DEFAULT_NotAValue, validator=itrec.lm_max_qlm)
-    mfvar =                 attr.field(default=DEFAULT_NotAValue, validator=itrec.mfvar)
+    mfvar =                 attr.field(default=DEFAULT_NotAValue, validator=itrec.mfvar) # TODO rename and check if it still works 
     soltn_cond =            attr.field(default=DEFAULT_NotAValue, validator=itrec.soltn_cond)
     stepper =               attr.field(default=DLENSALOT_Stepper(), validator=itrec.stepper)
     epsilon =               attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
@@ -332,11 +333,11 @@ class DLENSALOT_OBD(DLENSALOT_Concept):
         beam (type):        TBD                         
     """
     libdir =                attr.field(default=DEFAULT_NotAValue, validator=obd.libdir)
-    rescale =               attr.field(default=DEFAULT_NotAValue, validator=obd.rescale)
+    rescale =               attr.field(default=DEFAULT_NotAValue, validator=obd.rescale) # TODO this is a very specific parameter.. keep?
     tpl =                   attr.field(default=DEFAULT_NotAValue, validator=obd.tpl)
     nlev_dep =              attr.field(default=DEFAULT_NotAValue, validator=obd.nlev_dep)
     lmax =                  attr.field(default=DEFAULT_NotAValue, validator=obd.lmax)
-    beam =                  attr.field(default=DEFAULT_NotAValue, validator=obd.beam)
+    beam =                  attr.field(default=DEFAULT_NotAValue, validator=obd.beam) # TODO why not use beam from analysis? or transfunction..
 
 @attr.s
 class DLENSALOT_Config(DLENSALOT_Concept):
@@ -352,7 +353,7 @@ class DLENSALOT_Config(DLENSALOT_Concept):
 
 @attr.s
 # @add_defaults
-class DLENSALOT_Meta(DLENSALOT_Concept):
+class DLENSALOT_Meta(DLENSALOT_Concept): # TODO do we really need a Meta?
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to internal behaviour of delensalot.
 
