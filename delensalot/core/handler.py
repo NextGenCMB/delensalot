@@ -238,11 +238,11 @@ class Sim_generator(Basejob):
             else:
                 # some flavour provided, and we need to generate the sky and obs maps from this.
                 lenjob_geomstr = str(self.simulationdata.len_lib.lenjob_geominfo)
-                self.libdir_sky = opj(os.environ['SCRATCH'], 'simulation/', str(self.simulationdata.geometry), lenjob_geomstr)
+                self.libdir_sky = opj(os.environ['SCRATCH'], 'simulation/', str(self.simulationdata.geominfo), lenjob_geomstr)
                 self.fns_sky = self.set_basename_sky()
                 self.fnsP = 'philm_{}.npy'
 
-            self.libdir = opj(os.environ['SCRATCH'], 'simulation/', str(self.simulationdata.geometry), lenjob_geomstr, str(self.simulationdata.nlev)+self.libdir_suffix)
+            self.libdir = opj(os.environ['SCRATCH'], 'simulation/', str(self.simulationdata.geominfo), lenjob_geomstr, str(self.simulationdata.nlev)+self.libdir_suffix)
             self.fns = self.set_basename_obs()
             
             first_rank = mpi.bcast(mpi.rank)

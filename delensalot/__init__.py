@@ -69,7 +69,7 @@ def map2delblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, verb
             field = '{}'.format(len2field[len(maps)]),
             lmax = lmax_cmb,
             spin = len2spin[len(maps)],
-            geometry = ('healpix', {'nside': hp.get_nside(maps)})
+            geominfo = ('healpix', {'nside': hp.get_nside(maps)})
         ),
         analysis = DLENSALOT_Analysis(
             TEMP_suffix = suffix,
@@ -87,7 +87,7 @@ def map2delblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, verb
         ),
         noisemodel = DLENSALOT_Noisemodel(
             nlev_p=noise[len2TP[len(maps)]],
-            geometry = ('healpix', {'nside': hp.get_nside(maps)})
+            geominfo = ('healpix', {'nside': hp.get_nside(maps)})
         ),
         madel = DLENSALOT_Mapdelensing(
             iterations = [itmax],
@@ -144,7 +144,7 @@ def map2tempblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, def
             field = '{}'.format(len2field[len(maps)]),
             lmax = lmax_cmb,
             spin = len2spin[len(maps)],
-            geometry = ('healpix', {'nside': hp.get_nside(maps)})
+            geominfo = ('healpix', {'nside': hp.get_nside(maps)})
         ),
         analysis = DLENSALOT_Analysis(
             TEMP_suffix = suffix,
@@ -162,7 +162,7 @@ def map2tempblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, def
         ),
         noisemodel = DLENSALOT_Noisemodel(
             nlev_p=noise[len2TP[len(maps)]],
-            geometry = ('healpix', {'nside': hp.get_nside(maps)})
+            geominfo = ('healpix', {'nside': hp.get_nside(maps)})
         ),
         madel = DLENSALOT_Mapdelensing(
             iterations = [itmax],

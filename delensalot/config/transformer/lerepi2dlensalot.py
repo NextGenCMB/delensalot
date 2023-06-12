@@ -281,8 +281,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 #@log_on_end(logging.DEBUG, "_process_Noisemodel() finished")
                 def _process_Noisemodel(dl, nm):
                     dl.sky_coverage = nm.sky_coverage
-                    dl.nivjob_geomlib = get_geom(nm.geometry)
-                    dl.nivjob_geominfo = nm.geometry
+                    dl.nivjob_geomlib = get_geom(nm.geominfo)
+                    dl.nivjob_geominfo = nm.geominfo
                     thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
                     dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
                     if dl.sky_coverage == 'masked':
@@ -373,8 +373,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.it_chain_descr = lambda p2, p5 : [
                         [dl.it_chain_model.p0, dl.it_chain_model.p1, p2, dl.it_chain_model.p3, dl.it_chain_model.p4, p5, _p6, _p7]]
                     
-                    dl.lenjob_geominfo = it.lenjob_geometry
-                    dl.lenjob_geomlib = get_geom(it.lenjob_geometry)
+                    dl.lenjob_geominfo = it.lenjob_geominfo
+                    dl.lenjob_geomlib = get_geom(it.lenjob_geominfo)
                     thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
                     dl.lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
                     if it.lenjob_pbdgeometry[0] == 'pbd':
@@ -481,8 +481,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 #@log_on_end(logging.DEBUG, "_process_Noisemodel() finished")
                 def _process_Noisemodel(dl, nm):
                     dl.sky_coverage = nm.sky_coverage
-                    dl.nivjob_geomlib = get_geom(nm.geometry)
-                    dl.nivjob_geominfo = nm.geometry
+                    dl.nivjob_geomlib = get_geom(nm.geominfo)
+                    dl.nivjob_geominfo = nm.geominfo
                     thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
                     dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
                     if dl.sky_coverage == 'masked':
@@ -575,8 +575,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.it_chain_descr = lambda p2, p5 : [
                         [dl.it_chain_model.p0, dl.it_chain_model.p1, p2, dl.it_chain_model.p3, dl.it_chain_model.p4, p5, _p6, _p7]]
                     
-                    dl.lenjob_geominfo = it.lenjob_geometry
-                    dl.lenjob_geomlib = get_geom(it.lenjob_geometry)
+                    dl.lenjob_geominfo = it.lenjob_geominfo
+                    dl.lenjob_geomlib = get_geom(it.lenjob_geominfo)
                     if it.lenjob_pbdgeometry[0] == 'pbd':
                         dl.lenjob_pbdgeominfo = it.lenjob_pbdgeometry
                         dl.lenjob_pbdgeomlib = lug.pbdGeometry(dl.lenjob_geomlib, lug.pbounds(*it.lenjob_pbdgeometry[1]))
@@ -672,8 +672,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 #@log_on_end(logging.DEBUG, "_process_Noisemodel() finished")
                 def _process_Noisemodel(dl, nm):
                     dl.lmin_b = dl.lmin_teb[2]
-                    dl.nivjob_geomlib = get_geom(nm.geometry)
-                    dl.nivjob_geominfo = nm.geometry
+                    dl.nivjob_geomlib = get_geom(nm.geominfo)
+                    dl.nivjob_geominfo = nm.geominfo
                     thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
                     dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
                     dl.masks, dl.rhits_map = l2OBD_Transformer.get_masks(cf, dl)
@@ -729,8 +729,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 #@log_on_start(logging.DEBUG, "_process_Noisemodel() started")
                 #@log_on_end(logging.DEBUG, "_process_Noisemodel() finished")
                 def _process_Noisemodel(dl, nm):
-                    dl.nivjob_geomlib = get_geom(nm.geometry)
-                    dl.nivjob_geominfo = nm.geometry
+                    dl.nivjob_geomlib = get_geom(nm.geominfo)
+                    dl.nivjob_geominfo = nm.geominfo
                     thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
                     dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
                     dl.nlev = l2OBD_Transformer.get_nlev(cf)
@@ -774,7 +774,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                         _mask_path = cf.noisemodel.rhits_normalised[0]
                         dl.base_mask = np.nan_to_num(hp.read_map(_mask_path))
                     else:
-                        dl.base_mask = np.ones(shape=hp.nside2npix(cf.noisemodel.geometry[1]['nside']))
+                        dl.base_mask = np.ones(shape=hp.nside2npix(cf.noisemodel.geominfo[1]['nside']))
                     noisemodel_rhits_map = df.get_nlev_mask(np.inf, dl.base_mask)
                     if ma.nlevels == None or ma.nlevels == [] or ma.nlevels == False:
                         dl.nlevels = np.array([np.inf])

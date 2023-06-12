@@ -44,7 +44,7 @@ dlensalot_model = DLENSALOT_Model(
         phi_lmax = 5120,
         transfunction = gauss_beam(1.0/180/60 * np.pi, lmax=4096),
         nlev = {'P': np.sqrt(2), 'T': np.sqrt(1)},
-        geometry = ('healpix', {'nside': 2048}),
+        geominfo = ('healpix', {'nside': 2048}),
         lenjob_geominfo = ('thingauss', {'lmax': 5120, 'smax': 3}),
         CMB_fn = opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
     ),

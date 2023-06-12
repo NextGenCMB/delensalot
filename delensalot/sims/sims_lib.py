@@ -51,17 +51,17 @@ def cld2clp(cld, lmax):
 class iso_white_noise:
     """class for generating very simple isotropic white noise
     """
-    def __init__(self, nlev, lmax=DNaV, libdir=DNaV, fns=DNaV, spin=DNaV, space=DNaV, geometry=DNaV):
-        self.geometry = geometry
-        if geometry == DNaV:
-            self.geometry = ('healpix', {'nside':2048})
-        self.geom_lib = get_geom(geometry)
+    def __init__(self, nlev, lmax=DNaV, libdir=DNaV, fns=DNaV, spin=DNaV, space=DNaV, geominfo=DNaV):
+        self.geominfo = geominfo
+        if geominfo == DNaV:
+            self.geominfo = ('healpix', {'nside':2048})
+        self.geom_lib = get_geom(geominfo)
         self.libdir = libdir
         self.spin = spin
         self.lmax = lmax
         self.space = space
         if libdir == DNaV:
-            self.libdir_phas = os.environ['SCRATCH']+'/simulation/{}/phas/{}/'.format(str(geometry),str(nlev))
+            self.libdir_phas = os.environ['SCRATCH']+'/simulation/{}/phas/{}/'.format(str(geominfo),str(nlev))
             self.nlev = nlev
             self.pix_lib_phas = phas.pix_lib_phas(self.libdir_phas, 3, (self.geom_lib.npix(),))
         else:
@@ -95,14 +95,14 @@ class iso_white_noise:
         fn = 'noise_space{}_spin{}_field{}_{}'.format(space, spin, field, simidx)
         if not self.cacher.is_cached(fn):
             if self.libdir == DNaV:
-                if self.geometry[0] == 'healpix':
-                    vamin = np.sqrt(hp.nside2pixarea(self.geometry[1]['nside'], degrees=True)) * 60
+                if self.geominfo[0] == 'healpix':
+                    vamin = np.sqrt(hp.nside2pixarea(self.geominfo[1]['nside'], degrees=True)) * 60
                 else:
                     ## FIXME this is a rough estimate, based on total sky coverage / npix()
                     vamin =  np.sqrt(4*np.pi) * (180/np.pi) / self.geom_lib.npix() * 60
                 if field == 'polarization':
                     noise1 = self.nlev['P'] / vamin * self.pix_lib_phas.get_sim(simidx, idf=1)
-                    noise2 = self.nlev['P'] / vamin * self.pix_lib_phas.get_sim(simidx, idf=2) # TODO this always produces qu-noise in healpix geometry?
+                    noise2 = self.nlev['P'] / vamin * self.pix_lib_phas.get_sim(simidx, idf=2) # TODO this always produces qu-noise in healpix geominfo?
                     noise = np.array([noise1, noise2])
                     if space == 'map':
                         if spin == 0:
@@ -208,11 +208,11 @@ class Cls:
 class Xunl:
     """class for generating unlensed CMB and phi realizations from power spectra
     """    
-    def __init__(self, lmax, cls_lib=DNaV, libdir=DNaV, fns=DNaV, fnsP=DNaV, libdir_phi=DNaV, phi_field='potential', phi_space=DNaV, phi_lmax=DNaV, space=DNaV, geometry=DNaV, isfrozen=False, spin=DNaV):
-        self.geometry = geometry
-        if geometry == DNaV:
-            self.geometry = ('healpix', {'nside':2048})
-        self.geom_lib = get_geom(self.geometry)
+    def __init__(self, lmax, cls_lib=DNaV, libdir=DNaV, fns=DNaV, fnsP=DNaV, libdir_phi=DNaV, phi_field='potential', phi_space=DNaV, phi_lmax=DNaV, space=DNaV, geominfo=DNaV, isfrozen=False, spin=DNaV):
+        self.geominfo = geominfo
+        if geominfo == DNaV:
+            self.geominfo = ('healpix', {'nside':2048})
+        self.geom_lib = get_geom(self.geominfo)
         self.libdir = libdir
         self.space = space
         self.spin = spin
@@ -254,10 +254,10 @@ class Xunl:
                 assert 0, 'need to give phi_space (map or alm)'
         else:
             #TODO make sure I didn't screw up phi_lmax
-            if 'nside' in  self.geometry[1]:
-                geom_lmax = 3*self.geometry[1]['nside']
-            elif 'lmax' in  self.geometry[1]:
-                geom_lmax = self.geometry[1]['lmax']
+            if 'nside' in  self.geominfo[1]:
+                geom_lmax = 3*self.geominfo[1]['nside']
+            elif 'lmax' in  self.geominfo[1]:
+                geom_lmax = self.geominfo[1]['lmax']
             else:
                 geom_lmax = lmax + 1024
             self.phi_lmax = np.min([lmax + 1024, geom_lmax])
@@ -407,11 +407,11 @@ class Xunl:
 class Xsky:
     """class for generating lensed CMB and phi realizations from unlensed realizations, using lenspyx for the lensing operation
     """    
-    def __init__(self, lmax, unl_lib=DNaV, libdir=DNaV, fns=DNaV, spin=DNaV, epsilon=1e-7, space=DNaV, geometry=DNaV, isfrozen=False, lenjob_geominfo=DNaV):
-        self.geometry = geometry
-        if geometry == DNaV:
-            self.geometry = ('healpix', {'nside':2048})
-        self.geom_lib = get_geom(self.geometry)
+    def __init__(self, lmax, unl_lib=DNaV, libdir=DNaV, fns=DNaV, spin=DNaV, epsilon=1e-7, space=DNaV, geominfo=DNaV, isfrozen=False, lenjob_geominfo=DNaV):
+        self.geominfo = geominfo
+        if geominfo == DNaV:
+            self.geominfo = ('healpix', {'nside':2048})
+        self.geom_lib = get_geom(self.geominfo)
         self.libdir = libdir
         self.fns = fns
         self.spin = spin
@@ -419,7 +419,7 @@ class Xsky:
         self.space = space
         if libdir == DNaV: # need being generated
             if unl_lib == DNaV:
-                self.unl_lib = Xunl(lmax=lmax, geometry=self.geometry)
+                self.unl_lib = Xunl(lmax=lmax, geominfo=self.geominfo)
             else:
                 self.unl_lib = unl_lib
             
@@ -537,17 +537,17 @@ class Xsky:
 
     def unl2len(self, Xlm, philm, **kwargs):
         ll = np.arange(0,self.unl_lib.phi_lmax+1,1)
-        return lenspyx.alm2lenmap_spin(Xlm, hp.almxfl(philm,  np.sqrt(ll*(ll+1))), geometry=self.lenjob_geominfo, **kwargs)
+        return lenspyx.alm2lenmap_spin(Xlm, hp.almxfl(philm,  np.sqrt(ll*(ll+1))), geominfo=self.lenjob_geominfo, **kwargs)
 
 
 class Xobs:
     """class for generating observed CMB realizations from sky maps together with a noise realization and transfer function to mimick an experiment
     """
-    def __init__(self, lmax, maps=DNaV, transfunction=DNaV, len_lib=DNaV, unl_lib=DNaV, epsilon=DNaV, noise_lib=DNaV, libdir=DNaV, fns=DNaV, nlev=DNaV, libdir_noise=DNaV, fnsnoise=DNaV, spin=DNaV, space=DNaV, geometry=DNaV, field=DNaV):
-        self.geometry = geometry
-        if geometry == DNaV:
-            self.geometry = ('healpix', {'nside':2048})
-        self.geom_lib = get_geom(self.geometry)
+    def __init__(self, lmax, maps=DNaV, transfunction=DNaV, len_lib=DNaV, unl_lib=DNaV, epsilon=DNaV, noise_lib=DNaV, libdir=DNaV, fns=DNaV, nlev=DNaV, libdir_noise=DNaV, fnsnoise=DNaV, spin=DNaV, space=DNaV, geominfo=DNaV, field=DNaV):
+        self.geominfo = geominfo
+        if geominfo == DNaV:
+            self.geominfo = ('healpix', {'nside':2048})
+        self.geom_lib = get_geom(self.geominfo)
         
         self.libdir = libdir
         self.fns = fns
@@ -565,14 +565,14 @@ class Xobs:
         else:
             if libdir == DNaV:
                 if len_lib == DNaV:
-                    self.len_lib = Xsky(unl_lib=unl_lib, lmax=lmax, libdir=libdir, fns=fns, space=space, epsilon=epsilon, geometry=geometry)
+                    self.len_lib = Xsky(unl_lib=unl_lib, lmax=lmax, libdir=libdir, fns=fns, space=space, epsilon=epsilon, geominfo=geominfo)
                 else:
                     self.len_lib = len_lib
                 if noise_lib == DNaV:
                     if libdir_noise == DNaV:
                         if nlev == DNaV:
                             assert 0, "need nlev for generating noise"
-                        self.noise_lib = iso_white_noise(nlev=nlev, lmax=lmax, fns=fnsnoise,libdir=libdir_noise, space=space, geometry=self.geometry)
+                        self.noise_lib = iso_white_noise(nlev=nlev, lmax=lmax, fns=fnsnoise,libdir=libdir_noise, space=space, geominfo=self.geominfo)
                 if np.all(transfunction == DNaV):
                     assert 0, 'need to give transfunction'
                 self.transfunction = transfunction       
@@ -764,7 +764,7 @@ class Simhandler:
     """Entry point for data handling and generating simulations. Data can be cl, unl, len, or obs, .. and alms or maps. Simhandler connects the individual libraries and decides what can be generated. E.g.: If obs data provided, len data cannot be generated. This structure makes sure we don't "hallucinate" data
 
     """
-    def __init__(self, flavour, space, geometry=DNaV, maps=DNaV, field=DNaV, cls_lib=DNaV, unl_lib=DNaV, len_lib=DNaV, obs_lib=DNaV, noise_lib=DNaV, libdir=DNaV, libdir_noise=DNaV, libdir_phi=DNaV, fns=DNaV, fnsnoise=DNaV, fnsP=DNaV, lmax=DNaV, transfunction=DNaV, nlev=DNaV, spin=0, CMB_fn=DNaV, phi_fn=DNaV, phi_field=DNaV, phi_space=DNaV, epsilon=1e-7, phi_lmax=DNaV, libdir_suffix=DNaV, lenjob_geominfo=DNaV):
+    def __init__(self, flavour, space, geominfo=DNaV, maps=DNaV, field=DNaV, cls_lib=DNaV, unl_lib=DNaV, len_lib=DNaV, obs_lib=DNaV, noise_lib=DNaV, libdir=DNaV, libdir_noise=DNaV, libdir_phi=DNaV, fns=DNaV, fnsnoise=DNaV, fnsP=DNaV, lmax=DNaV, transfunction=DNaV, nlev=DNaV, spin=0, CMB_fn=DNaV, phi_fn=DNaV, phi_field=DNaV, phi_space=DNaV, epsilon=1e-7, phi_lmax=DNaV, libdir_suffix=DNaV, lenjob_geominfo=DNaV):
         """Entry point for simulation data handling.
         Simhandler() connects the individual librariers together accordingly, depending on the provided data.
         It never stores data on disk itself, only in memory.
@@ -774,7 +774,7 @@ class Simhandler:
             flavour      (str): Can be in ['obs', 'sky', 'unl'] and defines the type of data provided.
             space        (str): Can be in ['map', 'alm', 'cl'] and defines the space of the data provided.
             maps         (np.array, optional): These maps will be put into the cacher directly. They are used for settings in which no data is generated or accesed on disk, but directly provided (like in `delensalot.anafast()`) Defaults to DNaV.
-            geometry     (tuple, optional): Lenspyx geometry descriptor, describes the geometry of the data provided (e.g. `('healpix', 'nside': 2048)). Defaults to DNaV.
+            geominfo     (tuple, optional): Lenspyx geominfo descriptor, describes the geominfo of the data provided (e.g. `('healpix', 'nside': 2048)). Defaults to DNaV.
             field        (str, optional): the type of data provided, can be in ['temperature', 'polarization']. Defaults to DNaV.
             libdir       (str, optional): directory of the data provided. Defaults to DNaV.
             libdir_noise (str, optional): directory of the noise provided. Defaults to DNaV.
@@ -811,7 +811,7 @@ class Simhandler:
                     assert spin != DNaV, "need to provide spin"
                     assert lmax != DNaV, "need to provide lmax"
                     assert field != DNaV, "need to provide field"
-                self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, libdir=libdir, fns=fns, spin=spin, geometry=geometry, field=field) if obs_lib == DNaV else obs_lib
+                self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, libdir=libdir, fns=fns, spin=spin, geominfo=geominfo, field=field) if obs_lib == DNaV else obs_lib
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = self.obs_lib.libdir
                 self.fns = self.obs_lib.fns
@@ -822,8 +822,8 @@ class Simhandler:
                 assert spin != DNaV, "need to provide spin"
                 assert nlev != DNaV, "need to provide nlev"
                 assert np.all(transfunction != DNaV), "need to provide transfunction"
-                self.len_lib = Xsky(unl_lib=unl_lib, lmax=lmax, libdir=libdir, fns=fns, space=space, spin=spin, epsilon=epsilon, geometry=geometry, lenjob_geominfo=lenjob_geominfo) if len_lib == DNaV else len_lib
-                self.obs_lib = Xobs(len_lib=self.len_lib, space=space, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, geometry=geometry)
+                self.len_lib = Xsky(unl_lib=unl_lib, lmax=lmax, libdir=libdir, fns=fns, space=space, spin=spin, epsilon=epsilon, geominfo=geominfo, lenjob_geominfo=lenjob_geominfo) if len_lib == DNaV else len_lib
+                self.obs_lib = Xobs(len_lib=self.len_lib, space=space, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, geominfo=geominfo)
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = self.len_lib.libdir
                 self.fns = self.len_lib.fns
@@ -839,16 +839,16 @@ class Simhandler:
                     assert fnsP != DNaV, "need to provide fnsP"
                     assert phi_lmax != DNaV, "need to provide phi_lmax"
                     assert phi_space != DNaV, "need to provide phi_space"
-                    self.unl_lib = Xunl(lmax=lmax, libdir=libdir, fns=fns, fnsP=fnsP, phi_field=phi_field, libdir_phi=libdir_phi, space=space, phi_space=phi_space, phi_lmax=phi_lmax, geometry=geometry, spin=spin) if unl_lib == DNaV else unl_lib
+                    self.unl_lib = Xunl(lmax=lmax, libdir=libdir, fns=fns, fnsP=fnsP, phi_field=phi_field, libdir_phi=libdir_phi, space=space, phi_space=phi_space, phi_lmax=phi_lmax, geominfo=geominfo, spin=spin) if unl_lib == DNaV else unl_lib
                 elif libdir_phi == DNaV:
                     assert phi_fn != DNaV, "need to provide phi_fn"
                     assert phi_lmax != DNaV, "need to provide phi_lmax"
                     assert phi_field != DNaV, "need to provide phi_field"
                     assert phi_space == 'cl', "please set phi_space='cl', just to be sure."
                     self.cls_lib = Cls(phi_lmax=phi_lmax, phi_fn=phi_fn, phi_field=phi_field)
-                    self.unl_lib = Xunl(cls_lib=self.cls_lib, lmax=lmax, libdir=libdir, fns=fns, phi_field=phi_field, space=space, phi_space=phi_space, phi_lmax=phi_lmax, geometry=geometry, spin=spin) if unl_lib == DNaV else unl_lib
-                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, space=space, epsilon=epsilon, geometry=geometry, lenjob_geominfo=lenjob_geominfo)
-                self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, space=space, geometry=geometry)
+                    self.unl_lib = Xunl(cls_lib=self.cls_lib, lmax=lmax, libdir=libdir, fns=fns, phi_field=phi_field, space=space, phi_space=phi_space, phi_lmax=phi_lmax, geominfo=geominfo, spin=spin) if unl_lib == DNaV else unl_lib
+                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, space=space, epsilon=epsilon, geominfo=geominfo, lenjob_geominfo=lenjob_geominfo)
+                self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, space=space, geominfo=geominfo)
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = self.unl_lib.libdir
                 self.fns = self.unl_lib.fns
@@ -861,7 +861,7 @@ class Simhandler:
                     if fns == DNaV:
                         assert 0, 'you need to provide fns' 
                     self.fns = fns
-                    self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, libdir=libdir, fns=fns, spin=self.spin, geometry=geometry) if obs_lib == DNaV else obs_lib
+                    self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, libdir=libdir, fns=fns, spin=self.spin, geominfo=geominfo) if obs_lib == DNaV else obs_lib
                     self.noise_lib = self.obs_lib.noise_lib
                     self.libdir = self.obs_lib.libdir
                     self.fns = self.obs_lib.fns
@@ -871,9 +871,9 @@ class Simhandler:
                 if (libdir_phi == DNaV or libdir == DNaV) and cls_lib == DNaV:
                     cls_lib = Cls(lmax=lmax, CMB_fn=CMB_fn, phi_fn=phi_fn, phi_field=phi_field)
                 self.cls_lib = cls_lib # just to be safe..
-                self.unl_lib = Xunl(lmax=lmax, libdir=libdir, fns=fns, fnsP=fnsP, phi_field=phi_field, libdir_phi=libdir_phi, space=space, phi_space=phi_space, cls_lib=cls_lib, geometry=geometry, spin=self.spin) if unl_lib == DNaV else unl_lib
-                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, space=space, epsilon=epsilon, geometry=geometry, lenjob_geominfo=lenjob_geominfo)
-                self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, space=space, spin=self.spin, geometry=geometry)
+                self.unl_lib = Xunl(lmax=lmax, libdir=libdir, fns=fns, fnsP=fnsP, phi_field=phi_field, libdir_phi=libdir_phi, space=space, phi_space=phi_space, cls_lib=cls_lib, geominfo=geominfo, spin=self.spin) if unl_lib == DNaV else unl_lib
+                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, space=space, epsilon=epsilon, geominfo=geominfo, lenjob_geominfo=lenjob_geominfo)
+                self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, space=space, spin=self.spin, geominfo=geominfo)
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = self.unl_lib.libdir
                 self.fns = self.unl_lib.fns
@@ -893,14 +893,14 @@ class Simhandler:
                     assert phi_field != DNaV, "need to provide phi_field"
                 
                 self.cls_lib = Cls(lmax=lmax, phi_lmax=phi_lmax, CMB_fn=CMB_fn, phi_fn=phi_fn, phi_field=phi_field)
-                self.unl_lib = Xunl(cls_lib=self.cls_lib, lmax=lmax, fnsP=fnsP, phi_field=phi_field, libdir_phi=libdir_phi, phi_space=phi_space, geometry=geometry)
-                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, epsilon=epsilon, geometry=geometry, lenjob_geominfo=lenjob_geominfo)
-                self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, geometry=geometry)
+                self.unl_lib = Xunl(cls_lib=self.cls_lib, lmax=lmax, fnsP=fnsP, phi_field=phi_field, libdir_phi=libdir_phi, phi_space=phi_space, geominfo=geominfo)
+                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, epsilon=epsilon, geominfo=geominfo, lenjob_geominfo=lenjob_geominfo)
+                self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, geominfo=geominfo)
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = DNaV # settings this here explicit for a future me, so I see it easier
                 self.fns = DNaV # settings this here explicit for a future me, so I see it easier
 
-        self.geometry = self.obs_lib.geometry # Sim_generator() needs this. I let obs_lib decide the final geometry.
+        self.geominfo = self.obs_lib.geominfo # Sim_generator() needs this. I let obs_lib decide the final geominfo.
         self.cacher = cachers.cacher_mem(safe=True)
 
     def get_sim_sky(self, simidx, space, field, spin):
@@ -957,8 +957,8 @@ class Simhandler:
 
 class anafast_clone():
 
-    def __init__(self, geometry):
-        self.nside = geometry[1]['nside']
+    def __init__(self, geominfo):
+        self.nside = geominfo[1]['nside']
         self.npixel = hp.nside2npix(self.nside)
 
     def map2alm(self, map, lmax, mmax, nthreads):
@@ -976,6 +976,6 @@ class anafast_clone():
     def npix(self):
         return self.npixel
 
-def get_geom(geometry):
-    return lp_get_geom(geometry)
-    # return anafast_clone(geometry)
+def get_geom(geominfo):
+    return lp_get_geom(geominfo)
+    # return anafast_clone(geominfo)

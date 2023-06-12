@@ -33,24 +33,26 @@ dlensalot_model = DLENSALOT_Model(
         phi_lmax = 5120,
         transfunction = gauss_beam(1.0/180/60 * np.pi, lmax=4096),
         nlev = {'P': np.sqrt(2), 'T': np.sqrt(1)},
-        geometry = ('healpix', {'nside': 2048}),
+        geominfo = ('healpix', {'nside': 2048}),
+        lenjob_geominfo = ('thingauss', {'lmax': 4200 + 300, 'smax': 3}),
         CMB_fn = opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
     ),
     noisemodel = DLENSALOT_Noisemodel(
         nlev = {'P': np.sqrt(2), 'T': np.sqrt(1)},
-        geometry = ('healpix', {'nside': 2048}),
+        geominfo = ('healpix', {'nside': 2048}),
     ),
     qerec = DLENSALOT_Qerec(
         tasks = ["calc_phi", "calc_blt"],
-        lm_max_qlm = (3000, 3000),
+        lm_max_qlm = (4000, 4000),
         cg_tol = 1e-7
     ),
     itrec = DLENSALOT_Itrec(
         tasks = ["calc_phi", "calc_blt"],
         iterator_typ = 'fastWF',
         itmax = 5,
+        lenjob_geominfo = ('thingauss', {'lmax': 4200 + 300, 'smax': 3}),
         lm_max_unl = (4200, 4200),
-        lm_max_qlm = (3000, 3000),
+        lm_max_qlm = (4000, 4000),
         cg_tol = 1e-5
     ),
 )

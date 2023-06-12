@@ -10,8 +10,8 @@ valid_value = {
     'iterator_typ': ['pertmf', 'constmf', 'fastWF'],
     'chain': [],
     'filter_directional': [],
-    'lenjob_geometry': [],
-    'lenjob_pbdgeometry': [],
+    'lenjob_geominfo': [],
+    'lenjob_pbdgeominfo': [],
     'lm_max_unl': [],
     'lm_max_qlm': [],
     'mfvar': [],
@@ -27,8 +27,8 @@ valid_bound = {
     'iterator_typ': [],
     'chain': [],
     'filter_directional': [],
-    'lenjob_geometry': [],
-    'lenjob_pbdgeometry': [],
+    'lenjob_geominfo': [],
+    'lenjob_pbdgeominfo': [],
     'lm_max_unl': [],
     'lm_max_qlm': [],
     'mfvar': [],
@@ -45,8 +45,8 @@ valid_type = {
     'iterator_typ': [],
     'chain': [],
     'filter_directional': [],
-    'lenjob_geometry': [],
-    'lenjob_pbdgeometry': [],
+    'lenjob_geominfo': [],
+    'lenjob_pbdgeominfo': [],
     'lm_max_unl': [],
     'lm_max_qlm': [],
     'mfvar': [],
@@ -142,7 +142,7 @@ def filter_directional(instance, attribute, value):
             if len(valid_bound[attribute.name]) == 2:
                 assert np.all(value <= valid_bound[attribute.name][1]), ValueError('Must be seq {}, but is {}'.format(valid_bound[attribute.name][1], value))
 
-def lenjob_geometry(instance, attribute, value):
+def lenjob_geominfo(instance, attribute, value):
     if np.all(value != DEFAULT_NotAValue):
         assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
         if valid_bound[attribute.name] != []:
@@ -151,7 +151,7 @@ def lenjob_geometry(instance, attribute, value):
             if len(valid_bound[attribute.name]) == 2:
                 assert np.all(value <= valid_bound[attribute.name][1]), ValueError('Must be seq {}, but is {}'.format(valid_bound[attribute.name][1], value))
 
-def lenjob_pbgeometry(instance, attribute, value):
+def lenjob_pbgeominfo(instance, attribute, value):
     if np.all(value != DEFAULT_NotAValue):
         assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
         if valid_bound[attribute.name] != []:

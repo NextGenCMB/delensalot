@@ -104,7 +104,7 @@ def cg_tol(instance, attribute, value):
         assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
 
     
-def ninvjob_qe_geometry(instance, attribute, value):
+def ninvjob_qe_geominfo(instance, attribute, value):
     if np.all(value != DEFAULT_NotAValue):
         assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
         if valid_bound[attribute.name] != []:

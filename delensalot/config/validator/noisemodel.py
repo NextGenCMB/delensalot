@@ -8,7 +8,7 @@ valid_value = {
     'OBD': [],
     'nlev': [],
     'rhits_normalised': [],
-    'geometry': [],
+    'geominfo': [],
     'zbounds': [],
     'nivt_map': [],
     'nivp_map': [],
@@ -21,7 +21,7 @@ valid_bound = {
     'OBD': [],
     'nlev': [],
     'rhits_normalised': [],
-    'geometry': [],
+    'geominfo': [],
     'zbounds': [],
     'nivt_map': [],
     'nivp_map': [],
@@ -34,7 +34,7 @@ valid_type = {
     'OBD': [],
     'nlev': [],
     'rhits_normalised': [],
-    'geometry': [],
+    'geominfo': [],
     'zbounds': [],
     'nivt_map': [],
     'nivp_map': [],
@@ -112,6 +112,6 @@ def mask(instance, attribute, value):
             if len(valid_bound[attribute.name]) == 2:
                 assert np.all(value <= valid_bound[attribute.name][1]), ValueError('Must be seq {}, but is {}'.format(valid_bound[attribute.name][1], value))
 
-def ninvjob_geometry(instance, attribute, value):
+def ninvjob_geominfo(instance, attribute, value):
     if np.all(value != DEFAULT_NotAValue):
         assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))

@@ -153,7 +153,7 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
         flavour      (str): Can be in ['obs', 'sky', 'unl'] and defines the type of data provided.
         space        (str): Can be in ['map', 'alm', 'cl'] and defines the space of the data provided.
         maps         (np.array, optional): These maps will be put into the cacher directly. They are used for settings in which no data is generated or accesed on disk, but directly provided (like in `delensalot.anafast()`) Defaults to DNaV.
-        geometry     (tuple, optional): Lenspyx geometry descriptor, describes the geometry of the data provided (e.g. `('healpix', 'nside': 2048)). Defaults to DNaV.
+        geominfo     (tuple, optional): Lenspyx geometry descriptor, describes the geometry of the data provided (e.g. `('healpix', 'nside': 2048)). Defaults to DNaV.
         field        (str, optional): the type of data provided, can be in ['temperature', 'polarization']. Defaults to DNaV.
         libdir       (str, optional): directory of the data provided. Defaults to DNaV.
         libdir_noise (str, optional): directory of the noise provided. Defaults to DNaV.
@@ -177,7 +177,7 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
     flavour =       attr.field(default=DEFAULT_NotAValue, validator=data.flavour)
     space =         attr.field(default=DEFAULT_NotAValue, validator=data.space)
     maps =          attr.field(default=DEFAULT_NotAValue, validator=data.maps)
-    geometry =      attr.field(default=DEFAULT_NotAValue, validator=data.geometry)
+    geominfo =      attr.field(default=DEFAULT_NotAValue, validator=data.geometry)
     lenjob_geominfo=attr.field(default=DEFAULT_NotAValue, validator=data.geometry)
     field =         attr.field(default=DEFAULT_NotAValue, validator=data.field)
     libdir =        attr.field(default=DEFAULT_NotAValue, validator=data.libdir)
@@ -210,13 +210,13 @@ class DLENSALOT_Noisemodel(DLENSALOT_Concept):
         nlev_t (float):         (central) noise level of temperature data in muK arcmin.
         nlev_p (float):         (central) noise level of polarization data in muK arcmin.
         rhits_normalised (str): path to the hits-count map, used to calculate the noise levels, and the mask tracing the noise level. Second entry in tuple is the <inverse hits-count multiplier>.
-        ninvjob_geometry (str): geometry of the noise map
+        geominfo (tuple): geometry of the noise map
     """
     sky_coverage =          attr.field(default=DEFAULT_NotAValue, validator=noisemodel.sky_coverage)
     spectrum_type =         attr.field(default=DEFAULT_NotAValue, validator=noisemodel.spectrum_type)
     OBD =                   attr.field(default=DEFAULT_NotAValue, validator=noisemodel.OBD)
     nlev =                  attr.field(default=DEFAULT_NotAValue, validator=noisemodel.nlev_t)
-    geometry =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geometry) # FIXME this must match the data geometry.. validate accordingly
+    geominfo =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geometry) # FIXME this must match the data geometry.. validate accordingly
     zbounds =               attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geometry) # FIXME is this used? How is it different to Analysis.zbounds?
     rhits_normalised =      attr.field(default=DEFAULT_NotAValue, validator=noisemodel.rhits_normalised)
     nivt_map =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geometry) # TODO test if it works
@@ -232,7 +232,6 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
         qlm_type (str):             lensing potential estimator identifier. Can be 'sepTP' or 'jTP'
         cg_tol (float):             tolerance of the conjugate gradient method
         filter_directional (str):   can be either 'isotropic' (unmasked sky) or 'isotropic' (masked sky)
-        ninvjob_qe_geometry (str):  noise model spherical harmonic geometry. Can be, e.g. 'healpix_geometry_qe' (?)
         lm_max_qlm (type):          maximum multipole `\ell` and m to reconstruct the lensing potential
         chain (DLENSALOT_Chaindescriptor): configuration of the conjugate gradient method. Configures the chain and preconditioner
         cl_analysis (bool):         If tru, performs lensing power spectrum analysis
@@ -261,7 +260,7 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
         iterator_typ (str):         mean-field handling identifier. Can be either 'const_mf' or 'pert_mf'
         chain (DLENSALOT_Chaindescriptor): configuration for the conjugate gradient solver
         filter_directional (str):   can be either 'isotropic' (unmasked sky) or 'isotropic' (masked sky)
-        lenjob_geometry (str):      can be 'healpix_geometry', 'thin_gauss' or 'pbdGeometry'
+        lenjob_geominfo (str):      can be 'healpix_geometry', 'thin_gauss' or 'pbdGeometry'
         lenjob_pbgeometry (str):    can be 'healpix_geometry', 'thin_gauss' or 'pbdGeometry'
         lm_max_unl (tuple[int]):    maximum multipoles `\ell` and m for reconstruction the unlensed CMB
         lm_max_qlm (tuple[int]):    maximum multipoles L and m for reconstruction the lensing potential
@@ -276,7 +275,7 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     iterator_typ =          attr.field(default=DEFAULT_NotAValue, validator=itrec.iterator_type) # TODO rename
     chain =                 attr.field(default=DLENSALOT_Chaindescriptor(), validator=itrec.chain)
     filter_directional =    attr.field(default=DEFAULT_NotAValue, validator=itrec.filter_directional)
-    lenjob_geometry =       attr.field(default=DEFAULT_NotAValue, validator=itrec.lenjob_geometry)
+    lenjob_geominfo =       attr.field(default=DEFAULT_NotAValue, validator=itrec.lenjob_geometry)
     lenjob_pbdgeometry =    attr.field(default=DEFAULT_NotAValue, validator=itrec.lenjob_pbgeometry)
     lm_max_unl =            attr.field(default=DEFAULT_NotAValue, validator=itrec.lm_max_unl)
     lm_max_qlm =            attr.field(default=DEFAULT_NotAValue, validator=itrec.lm_max_qlm)
