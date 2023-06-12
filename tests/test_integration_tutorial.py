@@ -3,7 +3,8 @@
     - full sky / masked sky
     Tests are considered successfull if the correct filters are initialized
 
-    python3 -m unittest test_integration_tutorial.Tutorial.test_conf_mwe_applyOBD
+    e.g.,
+        python3 -m unittest test_integration_tutorial.Tutorial.test_conf_mwe_applyOBD
 
 """
 
@@ -38,7 +39,6 @@ class Tutorial(unittest.TestCase):
 
         self.job_ids = ['generate_sim', 'QE_lensrec', 'MAP_lensrec']
 
-        
     def test_conf_mwe_applynoOBD(self):
         m = np.zeros(hp.nside2npix(1))
         m[[4]] = 1

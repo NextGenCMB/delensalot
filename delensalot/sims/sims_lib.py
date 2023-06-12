@@ -537,7 +537,7 @@ class Xsky:
 
     def unl2len(self, Xlm, philm, **kwargs):
         ll = np.arange(0,self.unl_lib.phi_lmax+1,1)
-        return lenspyx.alm2lenmap_spin(Xlm, hp.almxfl(philm,  np.sqrt(ll*(ll+1))), geominfo=self.lenjob_geominfo, **kwargs)
+        return lenspyx.alm2lenmap_spin(Xlm, hp.almxfl(philm,  np.sqrt(ll*(ll+1))), geometry=self.lenjob_geominfo, **kwargs)
 
 
 class Xobs:
