@@ -45,19 +45,19 @@ dlensalot_model = DLENSALOT_Model(
         transfunction = gauss_beam(1.0/180/60 * np.pi, lmax=4096),
         nlev = {'P': np.sqrt(2), 'T': np.sqrt(1)},
         geometry = ('healpix', {'nside': 2048}),
+        lenjob_geominfo = ('thingauss', {'lmax': 5120, 'smax': 3}),
         CMB_fn = opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
     ),
     noisemodel = DLENSALOT_Noisemodel(
         sky_coverage = 'masked',
         spectrum_type = 'white',
-        nlev_t = 1.00,
-        nlev_p = np.sqrt(2),
+        nlev = {'P': np.sqrt(2), 'T': np.sqrt(1)},
         rhits_normalised = (opj(os.environ['SCRATCH'], 'analysis/mfda_maskedsky_lminB200/mask.fits'), np.inf)
     ),
     qerec = DLENSALOT_Qerec(
         tasks = ["calc_phi", "calc_meanfield", "calc_blt"],
         filter_directional = 'anisotropic',
-        lm_max_qlm = (3000, 3000),
+        lm_max_qlm = (4000, 4000),
         cg_tol = 1e-5
     ),
     itrec = DLENSALOT_Itrec(
@@ -66,11 +66,11 @@ dlensalot_model = DLENSALOT_Model(
         itmax = 1,
         cg_tol = 1e-5,
         lm_max_unl = (3200, 3200),
-        lm_max_qlm = (3000, 3000),
+        lm_max_qlm = (4000, 4000),
         stepper = DLENSALOT_Stepper(
             typ = 'harmonicbump',
-            lmax_qlm = 3000,
-            mmax_qlm = 3000,
+            lmax_qlm = 4000,
+            mmax_qlm = 4000,
             a = 0.5,
             b = 0.499,
             xa = 400,

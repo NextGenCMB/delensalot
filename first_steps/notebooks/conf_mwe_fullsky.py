@@ -37,8 +37,7 @@ dlensalot_model = DLENSALOT_Model(
         CMB_fn = opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
     ),
     noisemodel = DLENSALOT_Noisemodel(
-        nlev_t = np.sqrt(1),
-        nlev_p = np.sqrt(2),
+        nlev = {'P': np.sqrt(2), 'T': np.sqrt(1)},
         geometry = ('healpix', {'nside': 2048}),
     ),
     qerec = DLENSALOT_Qerec(

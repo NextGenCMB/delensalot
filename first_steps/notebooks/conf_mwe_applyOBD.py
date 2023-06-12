@@ -36,8 +36,7 @@ dlensalot_model = DLENSALOT_Model(
         OBD = True,
         sky_coverage = 'masked',
         spectrum_type = 'white',
-        nlev_t = 1.00,
-        nlev_p = np.sqrt(2),
+        nlev = {'P': np.sqrt(2), 'T': np.sqrt(1)},
         geometry = ('healpix', {'nside': 512}),
         rhits_normalised = (opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100', 'rhits.fits'), np.inf)
     ),

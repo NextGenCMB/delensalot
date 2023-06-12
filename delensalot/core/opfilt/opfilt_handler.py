@@ -20,7 +20,7 @@ class QE_iso_transformer:
     def build_opfilt_iso_p(self, cf):
         def extract():
             return {
-                'nlev_p': cf.nlev_p,
+                'nlev_p': cf.nlev['P'],
                 'transf': cf.ttebl['e'],
                 'alm_info': cf.lm_max_unl,
                 'wee': cf.k == 'p_p',
@@ -30,7 +30,7 @@ class QE_iso_transformer:
     def build_opfilt_iso_t(self, cf):
         def extract():
             return {
-                'nlev_t': cf.nlev_t,
+                'nlev_t': cf.nlev['T'],
                 'transf': cf.ttebl['t'],
                 'alm_info': cf.lm_max_unl,
             }
@@ -75,7 +75,7 @@ class MAP_iso_transformer:
     def build_opfilt_iso_t(self, cf):
         def extract():
             return {
-                'nlev_t': cf.nlev_t,
+                'nlev_t': cf.nlev['T'],
                 'ffi': cf.ffi,
                 'transf': cf.ttebl['t'],
                 'unlalm_info': cf.lm_max_unl,
@@ -86,21 +86,21 @@ class MAP_iso_transformer:
     def build_opfilt_iso_p(self, cf):
         def extract():
             return {
-                'nlev_p': cf.nlev_p,
+                'nlev_p': cf.nlev['P'],
                 'ffi': cf.ffi,
                 'transf': cf.ttebl['e'],
                 'unlalm_info': cf.lm_max_unl,
                 'lenalm_info': cf.lm_max_ivf,
                 'wee': cf.k == 'p_p',
                 'transf_b': cf.ttebl['b'],
-                'nlev_b': cf.nlev_p,
+                'nlev_b': cf.nlev['P'],
             }
         return MAP_opfilt_iso_p.alm_filter_nlev_wl(**extract())
     
     def build_opfilt_iso_e(self, cf):
         def extract():
             return {
-                'nlev_p': cf.nlev_p,
+                'nlev_p': cf.nlev['P'],
                 'ffi': cf.ffi,
                 'transf': cf.ttebl['e'],
                 'unlalm_info': cf.lm_max_unl,
@@ -111,8 +111,8 @@ class MAP_iso_transformer:
     def build_opfilt_iso_tp(self, cf):
         def extract():
             return {
-                'nlev_p': cf.nlev_p,
-                'nlev_t': cf.nlev_t,
+                'nlev_p': cf.nlev['P'],
+                'nlev_t': cf.nlev['T'],
                 'ffi': cf.ffi,
                 'transf': cf.ttebl['t'],
                 'transf_e': cf.ttebl['e'],

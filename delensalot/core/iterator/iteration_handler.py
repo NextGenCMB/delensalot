@@ -15,6 +15,7 @@ import numpy as np
 import healpy as hp
 
 from lenspyx.remapping import utils_geom
+from delensalot.utility.utils_hp import alm_copy
 from delensalot.core.iterator import cs_iterator, cs_iterator_fast
 
 class base_iterator():
@@ -47,43 +48,24 @@ class base_iterator():
     @log_on_start(logging.INFO, "get_datmaps() started")
     @log_on_end(logging.INFO, "get_datmaps() finished")
     def get_datmaps(self):
-        # assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
         if self.it_filter_directional == 'isotropic':
             # dat maps must now be given in harmonic space in this idealized configuration. sims_MAP is not used here, as no truncation happens in idealized setting.
             if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
-                return self.nivjob_geomlib.map2alm_spin(
-                    np.copy(self.simulationdata.get_sim_obs(
-                        self.simidx,
-                        space='map',
-                        spin=2,
-                        field='polarization')),
-                    2, *self.lm_max_ivf, nthreads=self.tr)
-
+                return alm_copy(
+                    self.simulationdata.get_sim_obs(self.simidx, space='alm', spin=0, field='polarization'),
+                    None, *self.lm_max_ivf)
             elif self.k in ['ptt']:
-                return self.nivjob_geomlib.map2alm(
-                    np.copy(self.simulationdata.get_sim_obs(
-                        self.simidx,
-                        space='map',
-                        spin=0,
-                        field='temperature')),
-                    *self.lm_max_ivf, nthreads=self.tr)
-
+                return alm_copy(
+                    self.simulationdata.get_sim_obs(self.simidx, space='alm', spin=0, field='temperature'),
+                    None, *self.lm_max_ivf)
             elif self.k in ['p']:
-                QUobs = self.nivjob_geomlib.map2alm_spin(
-                    np.copy(self.simulationdata.get_sim_obs(
-                        self.simidx,
-                        space='map',
-                        spin=2,
-                        field='polarization')),
-                    2, *self.lm_max_ivf, nthreads=self.tr)
-                Tobs = self.nivjob_geomlib.map2alm(
-                    np.copy(self.simulationdata.get_sim_obs(
-                        self.simidx,
-                        space='map',
-                        spin=0,
-                        field='temperature')),
-                    *self.lm_max_ivf, nthreads=self.tr)
-                ret = np.array([Tobs, *QUobs])
+                EBobs = alm_copy(
+                    self.simulationdata.get_sim_obs(self.simidx, space='alm', spin=0, field='polarization'),
+                    None, *self.lm_max_ivf)
+                Tobs = alm_copy(
+                    self.simulationdata.get_sim_obs(self.simidx, space='alm', spin=0, field='temperature'),
+                    None, *self.lm_max_ivf)         
+                ret = np.array([Tobs, *EBobs])
                 return ret
         else:
             if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:

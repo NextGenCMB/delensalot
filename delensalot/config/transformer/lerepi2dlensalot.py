@@ -89,12 +89,12 @@ class l2base_Transformer:
             dl.zbounds_len = an.zbounds_len
         dl.lm_max_ivf = an.lm_max_ivf
         dl.lm_max_blt = an.lm_max_blt
-        dl.transfunction = an.transfunction
-        if dl.transfunction == 'gauss_no_pixwin':
+        dl.transfunction_desc = an.transfunction_desc
+        if dl.transfunction_desc == 'gauss_no_pixwin':
             transf_tlm = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[0])
             transf_elm = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[1])
             transf_blm = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[2])
-        elif dl.transfunction == 'gauss_with_pixwin':
+        elif dl.transfunction_desc == 'gauss_with_pixwin':
             assert dl.nivjob_geominfo[0] == 'healpix', 'implement non-healpix pixelwindow function'
             transf_tlm = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(dl.nivjob_geominfo[1]['nside'], lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[0])
             transf_elm = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(dl.nivjob_geominfo[1]['nside'], lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[1])
@@ -102,15 +102,15 @@ class l2base_Transformer:
         dl.ttebl = {'t': transf_tlm, 'e': transf_elm, 'b':transf_blm}
 
         # Isotropic approximation to the filtering (used eg for response calculations)
-        ftl_len = cli(dl.cls_len['tt'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.ttebl['t'] ** 2)) * (dl.ttebl['t'] > 0)
-        fel_len = cli(dl.cls_len['ee'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
-        fbl_len = cli(dl.cls_len['bb'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
+        ftl_len = cli(dl.cls_len['tt'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev['T'])**2 * cli(dl.ttebl['t'] ** 2)) * (dl.ttebl['t'] > 0)
+        fel_len = cli(dl.cls_len['ee'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev['P'])**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
+        fbl_len = cli(dl.cls_len['bb'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev['P'])**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
         dl.ftebl_len = {'t': ftl_len, 'e': fel_len, 'b':fbl_len}
 
         # Same using unlensed spectra (used for unlensed response used to initiate the MAP curvature matrix)
-        ftl_unl = cli(dl.cls_unl['tt'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev_t)**2 * cli(dl.ttebl['t'] ** 2)) * (dl.ttebl['t'] > 0)
-        fel_unl = cli(dl.cls_unl['ee'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
-        fbl_unl = cli(dl.cls_unl['bb'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev_p)**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
+        ftl_unl = cli(dl.cls_unl['tt'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev['T'])**2 * cli(dl.ttebl['t'] ** 2)) * (dl.ttebl['t'] > 0)
+        fel_unl = cli(dl.cls_unl['ee'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev['P'])**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
+        fbl_unl = cli(dl.cls_unl['bb'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev['P'])**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
         dl.ftebl_unl = {'t': ftl_unl, 'e': fel_unl, 'b':fbl_unl}
 
 
@@ -156,48 +156,25 @@ class l2OBD_Transformer:
     """Transformer for generating a delensalot model for the calculation of the OBD matrix
     """
 
-    #@log_on_start(logging.DEBUG, "get_nlevt() started")
-    #@log_on_end(logging.DEBUG, "get_nlevt() finished")
-    def get_nlevt(cf):
-        if type(cf.noisemodel.nlev_t) in [float, np.float64, int]:
-            _nlev_t = cf.noisemodel.nlev_t
-        elif type(cf.noisemodel.nlev_t) == tuple:
-            _nlev_t = np.load(cf.noisemodel.nlev_t[1])
-            _nlev_t[:3] = 0
-            if cf.noisemodel.nlev_t[0] == 'cl':
-                # assume that nlev comes as cl. Scale to arcmin
-                _nlev_t = df.c2a(_nlev_t)
-                
-        return _nlev_t
-
-
-    #@log_on_start(logging.DEBUG, "get_nlevp() started")
-    #@log_on_end(logging.DEBUG, "get_nlevp() finished")
-    def get_nlevp(cf):
-        if type(cf.noisemodel.nlev_p) in [float, np.float64, int]:
-                _nlev_p = cf.noisemodel.nlev_p
-        elif type(cf.noisemodel.nlev_p) == tuple:
-            _nlev_p = np.load(cf.noisemodel.nlev_p[1])
-            _nlev_p[:3] = 0
-            if cf.noisemodel.nlev_p[0] == 'cl':
-                # assume that nlev comes as cl. Scale to arcmin
-                _nlev_p = df.c2a(_nlev_p)
-        
-        return _nlev_p
+    #@log_on_start(logging.DEBUG, "get_nlev() started")
+    #@log_on_end(logging.DEBUG, "get_nlev() finished")
+    def get_nlev(cf):
+        return cf.noisemodel.nlev
 
 
     #@log_on_start(logging.DEBUG, "get_nivt_desc() started")
     #@log_on_end(logging.DEBUG, "get_nivt_desc() finished")
     def get_nivt_desc(cf, dl):
-        nlev_t = l2OBD_Transformer.get_nlevt(cf)
+        nlev = l2OBD_Transformer.get_nlev(cf)
         masks, noisemodel_rhits_map =  l2OBD_Transformer.get_masks(cf, dl)
         noisemodel_norm = np.max(noisemodel_rhits_map)
         if cf.noisemodel.nivt_map is None:
             if dl.nivjob_geominfo[0] == 'healpix':
-                ninv_desc = [np.array([hp.nside2pixarea(dl.nivjob_geominfo[1]['nside'], degrees=True) * 60 ** 2 / nlev_t ** 2])/noisemodel_norm] + masks
+                ninv_desc = [np.array([hp.nside2pixarea(dl.nivjob_geominfo[1]['nside'], degrees=True) * 60 ** 2 / nlev['T'] ** 2])/noisemodel_norm] + masks
             else:
+                assert 0, 'needs testing, please choose Healpix geom for nivjob for now'
                 vamin =  4*np.pi * (180/np.pi)**2 / dl.geom_lib.npix()
-                ninv_desc = [np.array([vamin * 60 ** 2 / nlev_t ** 2])/noisemodel_norm] + masks
+                ninv_desc = [np.array([vamin * 60 ** 2 / nlev['T'] ** 2])/noisemodel_norm] + masks
         else:
             niv = np.load(cf.noisemodel.nivt_map)
             ninv_desc = [niv] + masks
@@ -207,15 +184,16 @@ class l2OBD_Transformer:
     #@log_on_start(logging.DEBUG, "get_nivp_desc() started")
     #@log_on_end(logging.DEBUG, "get_nivp_desc() finished")
     def get_nivp_desc(cf, dl):
-        nlev_p = l2OBD_Transformer.get_nlevp(cf)
+        nlev = l2OBD_Transformer.get_nlev(cf)
         masks, noisemodel_rhits_map =  l2OBD_Transformer.get_masks(cf, dl)
         noisemodel_norm = np.max(noisemodel_rhits_map)
         if cf.noisemodel.nivp_map is None:
             if dl.nivjob_geominfo[0] == 'healpix':
-                ninv_desc = [[np.array([hp.nside2pixarea(dl.nivjob_geominfo[1]['nside'], degrees=True) * 60 ** 2 / nlev_p ** 2])/noisemodel_norm] + masks]
+                ninv_desc = [[np.array([hp.nside2pixarea(dl.nivjob_geominfo[1]['nside'], degrees=True) * 60 ** 2 / nlev['P'] ** 2])/noisemodel_norm] + masks]
             else:
+                assert 0, 'needs testing, pleasechoose Healpix geom for nivjob for now'
                 vamin =  4*np.pi * (180/np.pi)**2 / dl.lenjob_geomlib.npix()
-                ninv_desc = [[np.array([vamin * 60 ** 2 / nlev_p ** 2])/noisemodel_norm] + masks]
+                ninv_desc = [[np.array([vamin * 60 ** 2 / nlev['P'] ** 2])/noisemodel_norm] + masks]
         else:
             niv = np.load(cf.noisemodel.nivp_map)
             ninv_desc = [[niv] + masks]
@@ -295,8 +273,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 #@log_on_start(logging.DEBUG, "_process_Analysis() started")
                 #@log_on_end(logging.DEBUG, "_process_Analysis() finished")
                 def _process_Analysis(dl, an):
-                    dl.nlev_t = l2OBD_Transformer.get_nlevt(cf)
-                    dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
+                    dl.nlev = l2OBD_Transformer.get_nlev(cf)
                     l2base_Transformer.process_Analysis(dl, an, cf)
 
 
@@ -316,8 +293,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.spectrum_type = nm.spectrum_type
 
                     dl.OBD = nm.OBD
-                    dl.nlev_t = l2OBD_Transformer.get_nlevt(cf)
-                    dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
+                    dl.nlev = l2OBD_Transformer.get_nlev(cf)
 
                     dl.nivt_desc = l2OBD_Transformer.get_nivt_desc(cf, dl)
                     dl.nivp_desc = l2OBD_Transformer.get_nivp_desc(cf, dl)
@@ -399,6 +375,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     
                     dl.lenjob_geominfo = it.lenjob_geometry
                     dl.lenjob_geomlib = get_geom(it.lenjob_geometry)
+                    thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
+                    dl.lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
                     if it.lenjob_pbdgeometry[0] == 'pbd':
                         dl.lenjob_pbdgeominfo = it.lenjob_pbdgeometry
                         dl.lenjob_pbdgeomlib = lug.pbdGeometry(dl.lenjob_geomlib, lug.pbounds(*it.lenjob_pbdgeometry[1]))
@@ -495,8 +473,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 #@log_on_start(logging.DEBUG, "_process_Analysis() started")
                 #@log_on_end(logging.DEBUG, "_process_Analysis() finished")
                 def _process_Analysis(dl, an):
-                    dl.nlev_t = l2OBD_Transformer.get_nlevt(cf)
-                    dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
+                    dl.nlev = l2OBD_Transformer.get_nlev(cf)
                     l2base_Transformer.process_Analysis(dl, an, cf)
 
 
@@ -516,8 +493,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.spectrum_type = nm.spectrum_type
 
                     dl.OBD = nm.OBD
-                    dl.nlev_t = l2OBD_Transformer.get_nlevt(cf)
-                    dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
+                    dl.nlev = l2OBD_Transformer.get_nlev(cf)
                     
 
                 #@log_on_start(logging.DEBUG, "_process_OBD() started")
@@ -541,11 +517,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
                     dl.nivt_desc = l2OBD_Transformer.get_nivt_desc(cf, dl)
                     dl.nivp_desc = l2OBD_Transformer.get_nivp_desc(cf, dl)
-                    # blt_pert
                     dl.blt_pert = qe.blt_pert
-                    # qe_tasks
                     dl.qe_tasks = qe.tasks
-                    # QE_subtract_meanfield
                     dl.QE_subtract_meanfield = False if dl.version == 'noMF' else True
                     ## if QE_subtract_meanfield is True, mean-field needs to be calculated either way.
                     ## also move calc_meanfield to the front, so it is calculated first. The following lines assume that all other tasks are in the right order...
@@ -612,16 +585,11 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                         dl.mf_dirname = opj(dl.TEMP, l2T_Transformer.ofj('mf', {'Nmf': dl.Nmf}))
                     else:
                         dl.mf_dirname = opj(dl.TEMP, l2T_Transformer.ofj('mf', {'version': dl.version, 'Nmf': dl.Nmf}))
-                    # cg_tol
                     dl.it_cg_tol = lambda itr : it.cg_tol if itr <= 1 else it.cg_tol
-                    # filter
                     dl.it_filter_directional = it.filter_directional
-                    # itmax
                     dl.itmax = it.itmax
-                    # iterator_typ
                     dl.iterator_typ = it.iterator_typ
 
-                    # mfvar
                     if it.mfvar == 'same' or it.mfvar == '':
                         dl.mfvar = None
                     elif it.mfvar.startswith('/'):
@@ -630,9 +598,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                         else:
                             log.error('Not sure what to do with this meanfield: {}'.format(it.mfvar))
                             sys.exit()
-                    # soltn_cond
                     dl.soltn_cond = it.soltn_cond
-                    # stepper
                     dl.stepper_model = it.stepper
                     if dl.stepper_model.typ == 'harmonicbump':
                         dl.stepper_model.lmax_qlm = dl.lm_max_qlm[0]
@@ -711,7 +677,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
                     dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
                     dl.masks, dl.rhits_map = l2OBD_Transformer.get_masks(cf, dl)
-                    dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
+                    dl.nlev = l2OBD_Transformer.get_nlev(cf)
                     dl.nivp_desc = l2OBD_Transformer.get_nivp_desc(cf, dl)
                     dl.nivt_desc = l2OBD_Transformer.get_nivt_desc(cf, dl)
                     
@@ -756,8 +722,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 #@log_on_end(logging.DEBUG, "_process_Analysis() finished")
                 def _process_Analysis(dl, an):
                     # super(l2base_Transformer, self)
-                    dl.nlev_t = l2OBD_Transformer.get_nlevt(cf)
-                    dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
+                    dl.nlev = l2OBD_Transformer.get_nlev(cf)
                     l2base_Transformer.process_Analysis(dl, an, cf)
 
 
@@ -768,8 +733,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.nivjob_geominfo = nm.geometry
                     thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
                     dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
-                    dl.nlev_t = l2OBD_Transformer.get_nlevt(cf)
-                    dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
+                    dl.nlev = l2OBD_Transformer.get_nlev(cf)
 
 
                 #@log_on_start(logging.DEBUG, "_process_Qerec() started")

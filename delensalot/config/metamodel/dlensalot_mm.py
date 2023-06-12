@@ -140,8 +140,8 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     cls_unl =               attr.field(default=DEFAULT_NotAValue, validator=analysis.cls_unl)
     cls_len =               attr.field(default=DEFAULT_NotAValue, validator=analysis.cls_len)
     cpp =                   attr.field(default=DEFAULT_NotAValue, validator=analysis.cpp)
-    beam =                  attr.field(default=DEFAULT_NotAValue, validator=analysis.beam) # FIXME beam AND transfunction?
-    transfunction =         attr.field(default=DEFAULT_NotAValue, validator=analysis.transfunction)
+    beam =                  attr.field(default=DEFAULT_NotAValue, validator=analysis.beam)
+    transfunction_desc =    attr.field(default=DEFAULT_NotAValue, validator=analysis.transfunction)
 
 
 @attr.s
@@ -178,6 +178,7 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
     space =         attr.field(default=DEFAULT_NotAValue, validator=data.space)
     maps =          attr.field(default=DEFAULT_NotAValue, validator=data.maps)
     geometry =      attr.field(default=DEFAULT_NotAValue, validator=data.geometry)
+    lenjob_geominfo=attr.field(default=DEFAULT_NotAValue, validator=data.geometry)
     field =         attr.field(default=DEFAULT_NotAValue, validator=data.field)
     libdir =        attr.field(default=DEFAULT_NotAValue, validator=data.libdir)
     libdir_noise =  attr.field(default=DEFAULT_NotAValue, validator=data.libdir_noise)
@@ -214,8 +215,7 @@ class DLENSALOT_Noisemodel(DLENSALOT_Concept):
     sky_coverage =          attr.field(default=DEFAULT_NotAValue, validator=noisemodel.sky_coverage)
     spectrum_type =         attr.field(default=DEFAULT_NotAValue, validator=noisemodel.spectrum_type)
     OBD =                   attr.field(default=DEFAULT_NotAValue, validator=noisemodel.OBD)
-    nlev_t =                attr.field(default=DEFAULT_NotAValue, validator=noisemodel.nlev_t) # TODO combine with nlev_p to dictionary
-    nlev_p =                attr.field(default=DEFAULT_NotAValue, validator=noisemodel.nlev_p)
+    nlev =                  attr.field(default=DEFAULT_NotAValue, validator=noisemodel.nlev_t)
     geometry =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geometry) # FIXME this must match the data geometry.. validate accordingly
     zbounds =               attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geometry) # FIXME is this used? How is it different to Analysis.zbounds?
     rhits_normalised =      attr.field(default=DEFAULT_NotAValue, validator=noisemodel.rhits_normalised)

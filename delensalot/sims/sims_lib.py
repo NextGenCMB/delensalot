@@ -14,7 +14,7 @@ import logging
 log = logging.getLogger(__name__)
 
 import lenspyx
-# from lenspyx.lensing import get_geom
+from lenspyx.lensing import get_geom as lp_get_geom
 from plancklens.sims import phas
 from delensalot.core import cachers
 from delensalot.config.metamodel import DEFAULT_NotAValue as DNaV
@@ -60,10 +60,10 @@ class iso_white_noise:
         self.spin = spin
         self.lmax = lmax
         self.space = space
-        if libdir == DNaV:        
+        if libdir == DNaV:
+            self.libdir_phas = os.environ['SCRATCH']+'/simulation/{}/phas/{}/'.format(str(geometry),str(nlev))
             self.nlev = nlev
-            libdir_phas = os.environ['SCRATCH']+'/simulation/{}/{}/phas/'.format(str(geometry),str(nlev))
-            self.pix_lib_phas = phas.pix_lib_phas(libdir_phas, 3, (self.geom_lib.npix(),))
+            self.pix_lib_phas = phas.pix_lib_phas(self.libdir_phas, 3, (self.geom_lib.npix(),))
         else:
             if fns == DNaV:
                 assert 0, "must provide fns"
@@ -389,7 +389,7 @@ class Xunl:
 
 
     def cl2alm(self, cls, field, seed):
-        np.random.seed(seed)
+        np.random.seed(seed) # check if this starting point is random
         if field == 'polarization':
             alms = hp.synalm(cls, self.lmax, new=True)
             return alms[1:]
@@ -407,7 +407,7 @@ class Xunl:
 class Xsky:
     """class for generating lensed CMB and phi realizations from unlensed realizations, using lenspyx for the lensing operation
     """    
-    def __init__(self, lmax, unl_lib=DNaV, libdir=DNaV, fns=DNaV, spin=DNaV, epsilon=1e-7, space=DNaV, geometry=DNaV, isfrozen=False):
+    def __init__(self, lmax, unl_lib=DNaV, libdir=DNaV, fns=DNaV, spin=DNaV, epsilon=1e-7, space=DNaV, geometry=DNaV, isfrozen=False, lenjob_geominfo=DNaV):
         self.geometry = geometry
         if geometry == DNaV:
             self.geometry = ('healpix', {'nside':2048})
@@ -436,11 +436,17 @@ class Xsky:
                 assert 0, 'you need to provide fns' 
         self.isfrozen = isfrozen
 
+        if lenjob_geominfo == DNaV:
+            self.lenjob_geominfo = ('thingauss', {'lmax':lmax+1024})
+        else:
+            self.lenjob_geominfo = lenjob_geominfo
+        self.lenjob_geomlib = lp_get_geom(self.lenjob_geominfo)
+
         self.cacher = cachers.cacher_mem(safe=True)
 
 
     def get_sim_sky(self, simidx, space, field, spin=2):
-        """returns a lensed simulation field (temp,pol,cross) in space (map, alm) and as spin (0,2). Note, spin is only applicable for pol, and returns QU for spin=2, and EB for spin=0.
+        """returns a lensed simulation field (temperature, polarization) in space (map, alm) and as spin (0,2). Note, spin is only applicable for pol, and returns QU for spin=2, and EB for spin=0.
 
         Args:
             simidx (_type_): _description_
@@ -469,16 +475,16 @@ class Xsky:
                         sky = self.unl2len(unl, philm, spin=2, epsilon=self.epsilon)
                         if space == 'map':
                             if spin == 0:
-                                alm_buffer = self.geom_lib.map2alm_spin(sky, spin=2, lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                                alm_buffer = self.lenjob_geomlib.map2alm_spin(sky, spin=2, lmax=self.lmax, mmax=self.lmax, nthreads=4)
                                 sky1 = self.geom_lib.alm2map(alm_buffer[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
                                 sky2 = self.geom_lib.alm2map(alm_buffer[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
                                 sky = np.array([sky1, sky2])
                         elif space == 'alm':
-                            sky = self.geom_lib.map2alm_spin(sky, lmax=self.lmax, spin=2, mmax=self.lmax, nthreads=4)
+                            sky = self.lenjob_geomlib.map2alm_spin(sky, lmax=self.lmax, spin=2, mmax=self.lmax, nthreads=4)
                     elif field == 'temperature':
                         sky = self.unl2len(unl, philm, spin=0, epsilon=self.epsilon)
                         if space == 'alm':
-                            sky = self.geom_lib.map2alm(sky, lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                            sky = self.lenjob_geomlib.map2alm(sky, lmax=self.lmax, mmax=self.lmax, nthreads=4)
                 else:
                     log.info('.., but stored on disk.')
                     if field == 'polarization':
@@ -488,19 +494,19 @@ class Xsky:
                         if self.space == 'map':
                             if space == 'alm':
                                 if self.spin == 0:
-                                    sky1 = self.geom_lib.map2alm(sky[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
-                                    sky2 = self.geom_lib.map2alm(sky[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                                    sky1 = self.lenjob_geomlib.map2alm(sky[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                                    sky2 = self.lenjob_geomlib.map2alm(sky[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
                                     sky = np.array([sky1, sky2])
                                 else:
-                                    sky = self.geom_lib.map2alm_spin(sky, spin=self.spin, lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                                    sky = self.lenjob_geomlib.map2alm_spin(sky, spin=self.spin, lmax=self.lmax, mmax=self.lmax, nthreads=4)
                             elif space == 'map':
                                 if self.spin != spin:
                                     if self.spin == 0:
-                                        alm_buffer1 = self.geom_lib.map2alm(sky[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
-                                        alm_buffer2 = self.geom_lib.map2alm(sky[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                                        alm_buffer1 = self.lenjob_geomlib.map2alm(sky[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                                        alm_buffer2 = self.lenjob_geomlib.map2alm(sky[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
                                         sky = self.geom_lib.alm2map_spin([alm_buffer1,alm_buffer2], lmax=self.lmax, spin=spin, mmax=self.lmax, nthreads=4)
                                     elif self.spin == 2:
-                                        alm_buffer = self.geom_lib.map2alm_spin(sky, spin=self.spin, lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                                        alm_buffer = self.lenjob_geomlib.map2alm_spin(sky, spin=self.spin, lmax=self.lmax, mmax=self.lmax, nthreads=4)
                                         sky1 = self.geom_lib.alm2map(alm_buffer[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
                                         sky2 = self.geom_lib.alm2map(alm_buffer[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
                                         sky = np.array([sky1, sky2])
@@ -516,7 +522,7 @@ class Xsky:
                         sky = np.array(load_file(opj(self.libdir, self.fns['T'].format(simidx))))
                         if self.space == 'map':
                             if space == 'alm':
-                                sky = self.geom_lib.map2alm(sky, lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                                sky = self.lenjob_geomlib.map2alm(sky, lmax=self.lmax, mmax=self.lmax, nthreads=4)
                         elif self.space == 'alm':
                             if space == 'map':
                                 sky = self.geom_lib.alm2map(sky, lmax=self.lmax, mmax=self.lmax, nthreads=4)
@@ -524,14 +530,14 @@ class Xsky:
                 log.info('found "{}"'.format(fn_other))
                 sky = self.cacher.load(fn_other)
                 if space == 'map':
-                    sky = self.geom_lib.alm2map_spin(self.geom_lib.map2alm_spin(sky, spin=self.spin, lmax=self.lmax, mmax=self.lmax, nthreads=4), lmax=self.lmax, spin=spin, mmax=self.lmax, nthreads=4)
+                    sky = self.geom_lib.alm2map_spin(self.lenjob_geomlib.map2alm_spin(sky, spin=self.spin, lmax=self.lmax, mmax=self.lmax, nthreads=4), lmax=self.lmax, spin=spin, mmax=self.lmax, nthreads=4)
             self.cacher.cache(fn, np.array(sky))
         return self.cacher.load(fn)
     
 
     def unl2len(self, Xlm, philm, **kwargs):
         ll = np.arange(0,self.unl_lib.phi_lmax+1,1)
-        return lenspyx.alm2lenmap_spin(Xlm, hp.almxfl(philm,  np.sqrt(ll*(ll+1))), geometry=self.geometry, **kwargs)
+        return lenspyx.alm2lenmap_spin(Xlm, hp.almxfl(philm,  np.sqrt(ll*(ll+1))), geometry=self.lenjob_geominfo, **kwargs)
 
 
 class Xobs:
@@ -565,8 +571,8 @@ class Xobs:
                 if noise_lib == DNaV:
                     if libdir_noise == DNaV:
                         if nlev == DNaV:
-                            assert 0, "Need nlev for generating noise"
-                    self.noise_lib = iso_white_noise(nlev=nlev, lmax=lmax, fns=fnsnoise,libdir=libdir_noise, space=space, geometry=self.geometry)
+                            assert 0, "need nlev for generating noise"
+                        self.noise_lib = iso_white_noise(nlev=nlev, lmax=lmax, fns=fnsnoise,libdir=libdir_noise, space=space, geometry=self.geometry)
                 if np.all(transfunction == DNaV):
                     assert 0, 'need to give transfunction'
                 self.transfunction = transfunction       
@@ -704,13 +710,9 @@ class Xobs:
                         obs = self.geom_lib.map2alm_spin(obs, spin=self.spin, lmax=self.lmax, mmax=self.lmax, nthreads=4)
             elif field == 'temperature':
                 if self.space == 'alm': 
-                    obs1 = self.geom_lib.alm2map(obs[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
-                    obs2 = self.geom_lib.alm2map(obs[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
-                    obs = np.array([obs1, obs2])
+                    obs = self.geom_lib.alm2map(obs, lmax=self.lmax, mmax=self.lmax, nthreads=4)
                 elif self.space == 'map':
-                    alm_buffer1 = self.geom_lib.map2alm(obs[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
-                    alm_buffer2 = self.geom_lib.map2alm(obs[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
-                    obs = np.array([alm_buffer1, alm_buffer2])
+                    obs = self.geom_lib.map2alm(obs, lmax=self.lmax, mmax=self.lmax, nthreads=4)
             self.cacher.cache(fn, obs)
         elif self.cacher.is_cached(fn_otherspacespin):
             log.info('found "{}"'.format(fn_otherspacespin))
@@ -727,11 +729,11 @@ class Xobs:
         if field == 'polarization':
             if space == 'map':
                 if spin == 0:
-                    sky1 = self.geom_lib.map2alm(sky[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
-                    sky2 = self.geom_lib.map2alm(sky[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                    sky1 = self.len_lib.lenjob_geomlib.map2alm(sky[0], lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                    sky2 = self.len_lib.lenjob_geomlib.map2alm(sky[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
                     sky = np.array([sky1, sky2])
                 elif spin == 2:
-                    sky = self.geom_lib.map2alm_spin(sky, spin=spin, lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                    sky = self.len_lib.lenjob_geomlib.map2alm_spin(sky, spin=spin, lmax=self.lmax, mmax=self.lmax, nthreads=4)
             hp.almxfl(sky[0], self.transfunction, inplace=True)
             hp.almxfl(sky[1], self.transfunction, inplace=True)
             if space == 'map':
@@ -746,7 +748,7 @@ class Xobs:
                 return sky + noise
         elif field == 'temperature':
             if space == 'map':
-                sky = self.geom_lib.map2alm(sky, lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                sky = self.len_lib.lenjob_geomlib.map2alm(sky, lmax=self.lmax, mmax=self.lmax, nthreads=4)
             hp.almxfl(sky, self.transfunction, inplace=True)
             if space == 'map':
                 return np.array(self.geom_lib.alm2map(sky, lmax=self.lmax, mmax=self.lmax, nthreads=4)) + noise
@@ -762,7 +764,7 @@ class Simhandler:
     """Entry point for data handling and generating simulations. Data can be cl, unl, len, or obs, .. and alms or maps. Simhandler connects the individual libraries and decides what can be generated. E.g.: If obs data provided, len data cannot be generated. This structure makes sure we don't "hallucinate" data
 
     """
-    def __init__(self, flavour, space, geometry=DNaV, maps=DNaV, field=DNaV, cls_lib=DNaV, unl_lib=DNaV, len_lib=DNaV, obs_lib=DNaV, noise_lib=DNaV, libdir=DNaV, libdir_noise=DNaV, libdir_phi=DNaV, fns=DNaV, fnsnoise=DNaV, fnsP=DNaV, lmax=DNaV, transfunction=DNaV, nlev=DNaV, spin=0, CMB_fn=DNaV, phi_fn=DNaV, phi_field=DNaV, phi_space=DNaV, epsilon=1e-7, phi_lmax=DNaV, libdir_suffix=DNaV):
+    def __init__(self, flavour, space, geometry=DNaV, maps=DNaV, field=DNaV, cls_lib=DNaV, unl_lib=DNaV, len_lib=DNaV, obs_lib=DNaV, noise_lib=DNaV, libdir=DNaV, libdir_noise=DNaV, libdir_phi=DNaV, fns=DNaV, fnsnoise=DNaV, fnsP=DNaV, lmax=DNaV, transfunction=DNaV, nlev=DNaV, spin=0, CMB_fn=DNaV, phi_fn=DNaV, phi_field=DNaV, phi_space=DNaV, epsilon=1e-7, phi_lmax=DNaV, libdir_suffix=DNaV, lenjob_geominfo=DNaV):
         """Entry point for simulation data handling.
         Simhandler() connects the individual librariers together accordingly, depending on the provided data.
         It never stores data on disk itself, only in memory.
@@ -820,7 +822,7 @@ class Simhandler:
                 assert spin != DNaV, "need to provide spin"
                 assert nlev != DNaV, "need to provide nlev"
                 assert np.all(transfunction != DNaV), "need to provide transfunction"
-                self.len_lib = Xsky(unl_lib=unl_lib, lmax=lmax, libdir=libdir, fns=fns, space=space, spin=spin, epsilon=epsilon, geometry=geometry) if len_lib == DNaV else len_lib
+                self.len_lib = Xsky(unl_lib=unl_lib, lmax=lmax, libdir=libdir, fns=fns, space=space, spin=spin, epsilon=epsilon, geometry=geometry, lenjob_geominfo=lenjob_geominfo) if len_lib == DNaV else len_lib
                 self.obs_lib = Xobs(len_lib=self.len_lib, space=space, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, geometry=geometry)
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = self.len_lib.libdir
@@ -845,7 +847,7 @@ class Simhandler:
                     assert phi_space == 'cl', "please set phi_space='cl', just to be sure."
                     self.cls_lib = Cls(phi_lmax=phi_lmax, phi_fn=phi_fn, phi_field=phi_field)
                     self.unl_lib = Xunl(cls_lib=self.cls_lib, lmax=lmax, libdir=libdir, fns=fns, phi_field=phi_field, space=space, phi_space=phi_space, phi_lmax=phi_lmax, geometry=geometry, spin=spin) if unl_lib == DNaV else unl_lib
-                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, space=space, epsilon=epsilon, geometry=geometry)
+                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, space=space, epsilon=epsilon, geometry=geometry, lenjob_geominfo=lenjob_geominfo)
                 self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, space=space, geometry=geometry)
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = self.unl_lib.libdir
@@ -870,7 +872,7 @@ class Simhandler:
                     cls_lib = Cls(lmax=lmax, CMB_fn=CMB_fn, phi_fn=phi_fn, phi_field=phi_field)
                 self.cls_lib = cls_lib # just to be safe..
                 self.unl_lib = Xunl(lmax=lmax, libdir=libdir, fns=fns, fnsP=fnsP, phi_field=phi_field, libdir_phi=libdir_phi, space=space, phi_space=phi_space, cls_lib=cls_lib, geometry=geometry, spin=self.spin) if unl_lib == DNaV else unl_lib
-                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, space=space, epsilon=epsilon, geometry=geometry)
+                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, space=space, epsilon=epsilon, geometry=geometry, lenjob_geominfo=lenjob_geominfo)
                 self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, space=space, spin=self.spin, geometry=geometry)
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = self.unl_lib.libdir
@@ -892,7 +894,7 @@ class Simhandler:
                 
                 self.cls_lib = Cls(lmax=lmax, phi_lmax=phi_lmax, CMB_fn=CMB_fn, phi_fn=phi_fn, phi_field=phi_field)
                 self.unl_lib = Xunl(cls_lib=self.cls_lib, lmax=lmax, fnsP=fnsP, phi_field=phi_field, libdir_phi=libdir_phi, phi_space=phi_space, geometry=geometry)
-                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, epsilon=epsilon, geometry=geometry)
+                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, epsilon=epsilon, geometry=geometry, lenjob_geominfo=lenjob_geominfo)
                 self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, geometry=geometry)
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = DNaV # settings this here explicit for a future me, so I see it easier
@@ -975,4 +977,5 @@ class anafast_clone():
         return self.npixel
 
 def get_geom(geometry):
-    return anafast_clone(geometry)
+    return lp_get_geom(geometry)
+    # return anafast_clone(geometry)
