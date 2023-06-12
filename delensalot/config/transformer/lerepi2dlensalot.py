@@ -377,9 +377,9 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.lenjob_geomlib = get_geom(it.lenjob_geominfo)
                     thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
                     dl.lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
-                    if it.lenjob_pbdgeometry[0] == 'pbd':
-                        dl.lenjob_pbdgeominfo = it.lenjob_pbdgeometry
-                        dl.lenjob_pbdgeomlib = lug.pbdGeometry(dl.lenjob_geomlib, lug.pbounds(*it.lenjob_pbdgeometry[1]))
+                    if it.lenjob_pbdgeominfo[0] == 'pbd':
+                        dl.lenjob_pbdgeominfo = it.lenjob_pbdgeominfo
+                        dl.lenjob_pbdgeomlib = lug.pbdGeometry(dl.lenjob_geomlib, lug.pbounds(*it.lenjob_pbdgeominfo[1]))
 
                     # TODO this needs cleaner implementation
                     if dl.version == '' or dl.version == None:
@@ -577,9 +577,9 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     
                     dl.lenjob_geominfo = it.lenjob_geominfo
                     dl.lenjob_geomlib = get_geom(it.lenjob_geominfo)
-                    if it.lenjob_pbdgeometry[0] == 'pbd':
-                        dl.lenjob_pbdgeominfo = it.lenjob_pbdgeometry
-                        dl.lenjob_pbdgeomlib = lug.pbdGeometry(dl.lenjob_geomlib, lug.pbounds(*it.lenjob_pbdgeometry[1]))
+                    if it.lenjob_pbdgeominfo[0] == 'pbd':
+                        dl.lenjob_pbdgeominfo = it.lenjob_pbdgeominfo
+                        dl.lenjob_pbdgeomlib = lug.pbdGeometry(dl.lenjob_geomlib, lug.pbounds(*it.lenjob_pbdgeominfo[1]))
                     
                     if dl.version == '' or dl.version == None:
                         dl.mf_dirname = opj(dl.TEMP, l2T_Transformer.ofj('mf', {'Nmf': dl.Nmf}))

@@ -153,7 +153,7 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
         flavour      (str): Can be in ['obs', 'sky', 'unl'] and defines the type of data provided.
         space        (str): Can be in ['map', 'alm', 'cl'] and defines the space of the data provided.
         maps         (np.array, optional): These maps will be put into the cacher directly. They are used for settings in which no data is generated or accesed on disk, but directly provided (like in `delensalot.anafast()`) Defaults to DNaV.
-        geominfo     (tuple, optional): Lenspyx geometry descriptor, describes the geometry of the data provided (e.g. `('healpix', 'nside': 2048)). Defaults to DNaV.
+        geominfo     (tuple, optional): Lenspyx geominfo descriptor, describes the geominfo of the data provided (e.g. `('healpix', 'nside': 2048)). Defaults to DNaV.
         field        (str, optional): the type of data provided, can be in ['temperature', 'polarization']. Defaults to DNaV.
         libdir       (str, optional): directory of the data provided. Defaults to DNaV.
         libdir_noise (str, optional): directory of the noise provided. Defaults to DNaV.
@@ -177,8 +177,8 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
     flavour =       attr.field(default=DEFAULT_NotAValue, validator=data.flavour)
     space =         attr.field(default=DEFAULT_NotAValue, validator=data.space)
     maps =          attr.field(default=DEFAULT_NotAValue, validator=data.maps)
-    geominfo =      attr.field(default=DEFAULT_NotAValue, validator=data.geometry)
-    lenjob_geominfo=attr.field(default=DEFAULT_NotAValue, validator=data.geometry)
+    geominfo =      attr.field(default=DEFAULT_NotAValue, validator=data.geominfo)
+    lenjob_geominfo=attr.field(default=DEFAULT_NotAValue, validator=data.geominfo)
     field =         attr.field(default=DEFAULT_NotAValue, validator=data.field)
     libdir =        attr.field(default=DEFAULT_NotAValue, validator=data.libdir)
     libdir_noise =  attr.field(default=DEFAULT_NotAValue, validator=data.libdir_noise)
@@ -210,17 +210,17 @@ class DLENSALOT_Noisemodel(DLENSALOT_Concept):
         nlev_t (float):         (central) noise level of temperature data in muK arcmin.
         nlev_p (float):         (central) noise level of polarization data in muK arcmin.
         rhits_normalised (str): path to the hits-count map, used to calculate the noise levels, and the mask tracing the noise level. Second entry in tuple is the <inverse hits-count multiplier>.
-        geominfo (tuple): geometry of the noise map
+        geominfo (tuple): geominfo of the noise map
     """
     sky_coverage =          attr.field(default=DEFAULT_NotAValue, validator=noisemodel.sky_coverage)
     spectrum_type =         attr.field(default=DEFAULT_NotAValue, validator=noisemodel.spectrum_type)
     OBD =                   attr.field(default=DEFAULT_NotAValue, validator=noisemodel.OBD)
     nlev =                  attr.field(default=DEFAULT_NotAValue, validator=noisemodel.nlev_t)
-    geominfo =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geometry) # FIXME this must match the data geometry.. validate accordingly
-    zbounds =               attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geometry) # FIXME is this used? How is it different to Analysis.zbounds?
+    geominfo =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geominfo) # FIXME this must match the data geominfo.. validate accordingly
+    zbounds =               attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geominfo) # FIXME is this used? How is it different to Analysis.zbounds?
     rhits_normalised =      attr.field(default=DEFAULT_NotAValue, validator=noisemodel.rhits_normalised)
-    nivt_map =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geometry) # TODO test if it works
-    nivp_map =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geometry) # TODO test if it works
+    nivt_map =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geominfo) # TODO test if it works
+    nivp_map =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geominfo) # TODO test if it works
 
 @attr.s
 class DLENSALOT_Qerec(DLENSALOT_Concept):
@@ -260,8 +260,8 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
         iterator_typ (str):         mean-field handling identifier. Can be either 'const_mf' or 'pert_mf'
         chain (DLENSALOT_Chaindescriptor): configuration for the conjugate gradient solver
         filter_directional (str):   can be either 'isotropic' (unmasked sky) or 'isotropic' (masked sky)
-        lenjob_geominfo (str):      can be 'healpix_geometry', 'thin_gauss' or 'pbdGeometry'
-        lenjob_pbgeometry (str):    can be 'healpix_geometry', 'thin_gauss' or 'pbdGeometry'
+        lenjob_geominfo (str):      can be 'healpix_geominfo', 'thin_gauss' or 'pbdGeometry'
+        lenjob_pbgeominfo (str):    can be 'healpix_geominfo', 'thin_gauss' or 'pbdGeometry'
         lm_max_unl (tuple[int]):    maximum multipoles `\ell` and m for reconstruction the unlensed CMB
         lm_max_qlm (tuple[int]):    maximum multipoles L and m for reconstruction the lensing potential
         mfvar (str):                path to precalculated mean-field, to be used instead
@@ -275,8 +275,8 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     iterator_typ =          attr.field(default=DEFAULT_NotAValue, validator=itrec.iterator_type) # TODO rename
     chain =                 attr.field(default=DLENSALOT_Chaindescriptor(), validator=itrec.chain)
     filter_directional =    attr.field(default=DEFAULT_NotAValue, validator=itrec.filter_directional)
-    lenjob_geominfo =       attr.field(default=DEFAULT_NotAValue, validator=itrec.lenjob_geometry)
-    lenjob_pbdgeometry =    attr.field(default=DEFAULT_NotAValue, validator=itrec.lenjob_pbgeometry)
+    lenjob_geominfo =       attr.field(default=DEFAULT_NotAValue, validator=itrec.lenjob_geominfo)
+    lenjob_pbdgeominfo =    attr.field(default=DEFAULT_NotAValue, validator=itrec.lenjob_pbgeominfo)
     lm_max_unl =            attr.field(default=DEFAULT_NotAValue, validator=itrec.lm_max_unl)
     lm_max_qlm =            attr.field(default=DEFAULT_NotAValue, validator=itrec.lm_max_qlm)
     mfvar =                 attr.field(default=DEFAULT_NotAValue, validator=itrec.mfvar) # TODO rename and check if it still works 

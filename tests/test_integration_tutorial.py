@@ -3,6 +3,8 @@
     - full sky / masked sky
     Tests are considered successfull if the correct filters are initialized
 
+    python3 -m unittest test_integration_tutorial.Tutorial.test_conf_mwe_applyOBD
+
 """
 
 
