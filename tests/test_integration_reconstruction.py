@@ -4,10 +4,10 @@
     Tests are considered successfull if residual lensing amplitude is within expectation
 
     COMMENT: For some reason, asserting fails if both classes are tested at the same time, i.e. `python3 -m unittest test_integration_reconstruction` but this failing has nothing to do with delensalot itself.
-    Recommend to use,
-        `python3 -m unittest test_integration_reconstruction.FS`,
-        `python3 -m unittest test_integration_reconstruction.MS`
-    individually.
+    
+    E.g.,
+        python3 -m unittest test_integration_reconstruction.FS.test_P_approx
+
 """
 
 
@@ -21,7 +21,7 @@ import numpy as np
 import delensalot
 from delensalot.run import run
 from delensalot import utils
-from delensalot.utility.utils_hp import gauss_beam
+from delensalot.utility.utils_hp import gauss_beam, alm_copy
 from delensalot.config.visitor import transform, transform3d
 from delensalot.config.transformer.lerepi2dlensalot import l2delensalotjob_Transformer, l2T_Transformer
 from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model, DLENSALOT_Analysis, DLENSALOT_Job, DLENSALOT_Itrec
@@ -72,13 +72,13 @@ class FS(unittest.TestCase):
 
         self.Al_assert = {
             'QE_lensrec': {
-                'p_p': 0.39,
+                'p_p': 0.32,
                 # 'pee': np.inf,
                 # 'p_eb': np.inf,
                 # 'p_be': np.inf,
                 # 'peb': np.inf,
             },'MAP_lensrec': {
-                'p_p': 0.30,
+                'p_p': 0.20,
                 # 'pee': np.inf,
                 # 'p_eb': np.inf,
                 # 'p_be': np.inf,
@@ -97,15 +97,25 @@ class FS(unittest.TestCase):
                 delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
                 delensalot_runner = run(config_fn='', job_id='generate_sim', config_model=dlensalot_model, verbose=True)
                 ana_mwe = delensalot_runner.init_job()
-                bsky = ana_mwe.simulationdata.get_sim_sky(simidx=0, field='polarization', space='map', spin=0)[1]
-                obs = ana_mwe.simulationdata.get_sim_obs(simidx=0, field='polarization', space='map', spin=2)
+                bsky = ana_mwe.simulationdata.get_sim_sky(simidx=0, field='polarization', space='alm', spin=0)[1]
+                
+                obs = ana_mwe.simulationdata.get_sim_obs(simidx=0, field='polarization', space='alm', spin=0)
 
                 if job_id == 'QE_lensrec':
                     dlensalot_model.itrec.itmax = 0
-                blt = delensalot.map2tempblm(obs, lmax_cmb=dlensalot_model.analysis.lm_max_ivf[0], beam=dlensalot_model.analysis.beam, itmax=dlensalot_model.itrec.itmax, noise={'P':dlensalot_model.noisemodel.nlev_p}, use_approximateWF=use_approximateWF, defaults_to='P_FS_TEST', verbose=True, )
+                blt = delensalot.map2tempblm(
+                    hp.alm2map_spin(obs, nside=ana_mwe.simulationdata.geominfo[1]['nside'], spin=2, lmax=ana_mwe.simulationdata.lmax), 
+                    lmax_cmb=dlensalot_model.analysis.lm_max_ivf[0], 
+                    beam=dlensalot_model.analysis.beam, 
+                    itmax=dlensalot_model.itrec.itmax, 
+                    nlev=dlensalot_model.noisemodel.nlev, 
+                    use_approximateWF=use_approximateWF, 
+                    defaults_to='P_FS_TEST', 
+                    verbose=True, )
 
-                input = hp.anafast(bsky, lmax=200)
-                output = hp.anafast(bsky-hp.alm2map(blt, nside=1024), lmax=200)
+                bsky = alm_copy(bsky, None, hp.Alm.getlmax(blt.size), hp.Alm.getlmax(blt.size))
+                input = hp.alm2cl(bsky, lmax=200)
+                output = hp.alm2cl(bsky-blt, lmax=200)
                 Al = np.mean(output[30:200]/input[30:200])
                 assert Al < self.Al_assert[job_id][key], "{}, {}, {}, {}".format(job_id, key, Al, self.Al_assert[job_id][key])
                 print(Al, self.Al_assert[job_id][key])
@@ -120,13 +130,13 @@ class FS(unittest.TestCase):
                 delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
                 delensalot_runner = run(config_fn='', job_id='generate_sim', config_model=dlensalot_model, verbose=True)
                 ana_mwe = delensalot_runner.init_job()
-                bsky = ana_mwe.simulationdata.get_sim_sky(simidx=0, field='polarization', space='map', spin=0)[1]
-                obs = ana_mwe.simulationdata.get_sim_obs(simidx=0, field='polarization', space='map', spin=2)
+                bsky = ana_mwe.simulationdata.get_sim_sky(simidx=0, field='polarization', space='alm', spin=0)[1]
+                obs = ana_mwe.simulationdata.get_sim_obs(simidx=0, field='polarization', space='alm', spin=0)
 
-                blt = delensalot.map2tempblm(obs, lmax_cmb=dlensalot_model.analysis.lm_max_ivf[0], beam=dlensalot_model.analysis.beam, itmax=dlensalot_model.itrec.itmax, noise={'P':dlensalot_model.noisemodel.nlev_p}, use_approximateWF=use_approximateWF, verbose=True, )
+                blt = delensalot.map2tempblm(obs, lmax_cmb=dlensalot_model.analysis.lm_max_ivf[0], beam=dlensalot_model.analysis.beam, itmax=dlensalot_model.itrec.itmax, nlev=dlensalot_model.noisemodel.nlev, use_approximateWF=use_approximateWF, verbose=True, )
 
-                input = hp.anafast(bsky, lmax=200)
-                output = hp.anafast(bsky-hp.alm2map(blt, nside=1024), lmax=200)
+                input = hp.alm2cl(bsky, lmax=200)
+                output = hp.alm2cl(bsky-blt, lmax=200)
                 Al = np.mean(output[30:200]/input[30:200])
                 assert Al < self.Al_assert[job_id][key], "{}, {}, {}, {}".format(job_id, key, Al, self.Al_assert[job_id][key])
                 print(Al, self.Al_assert[job_id][key])
