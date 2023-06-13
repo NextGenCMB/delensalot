@@ -22,11 +22,11 @@ cls_len = camb_clfile(opj(os.path.dirname(__file__), 'data/cls/FFP10_wdipole_len
 cpp = camb_clfile(opj(os.path.dirname(__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'))['pp']
 
 
-def anafast(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, verbose=False):
-    map2delblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF, verbose)
+def anafast(maps, lmax_cmb, beam, itmax, nlev, use_approximateWF=False, verbose=False):
+    map2delblm(maps, lmax_cmb, beam, itmax, nlev, use_approximateWF, verbose)
 
 
-def map2delblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, verbose=False):
+def map2delblm(maps, lmax_cmb, beam, itmax, nlev, use_approximateWF=False, verbose=False):
     """Calculates a delensed B map on the full sky. Configuration is a faithful default. 
 
     Args:
@@ -34,7 +34,7 @@ def map2delblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, verb
         lmax_cmb (int): delensed B map will be build up to this value.
         beam (float): beam (transfer functions) [arcmin] of the maps.
         itmax (int): number of iterations for the iterative reconstruction.
-        noise (float): noise level [muK arcmin] of the maps (noise in map should be white and isotropic). 
+        nlev (float): noise level [muK arcmin] of the maps (noise in map should be white and isotropic). 
         use_approximateWF (bool): If true, uses approximate Wiener-filtering in the conjugate gradient solver.
         verbose (bool, optional): print log.info messages. Defaults to False.
 
@@ -45,12 +45,12 @@ def map2delblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, verb
     assert lmax_cmb-1 < 3*hp.get_nside(maps), "lmax too large: {} < {}".format(lmax_cmb, 3*hp.get_nside(maps)-1)
     assert len(maps) < 3, 'only temperature (spin-0) and polarization (spin-2) currently supported'
     if len(maps) == 1:
-        assert 'T' in noise, "need to provide 'T'-key in noise"
+        assert 'T' in nlev, "need to provide 'T'-key in nlev"
     if len(maps) == 2:
-        assert 'P' in noise, "need to provide 'P'-key in noise"
+        assert 'P' in nlev, "need to provide 'P'-key in nlev"
     pm = np.round(np.sum([m[::100] for m in maps]),5)
     hlib = hashlib.sha256()
-    hlib.update((str([pm,lmax_cmb,beam,noise,use_approximateWF])).encode())
+    hlib.update((str([pm,lmax_cmb,beam,nlev,use_approximateWF])).encode())
     suffix = hlib.hexdigest()[:4]
     len2TP = {1: 'T', 2: 'P', 3: 'TP'}
     len2field = {1: 'temperature', 2: 'polarization', 3: 'cross'}
@@ -86,7 +86,7 @@ def map2delblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, verb
             OMP_NUM_THREADS=min([psutil.cpu_count()-1,8])
         ),
         noisemodel = DLENSALOT_Noisemodel(
-            nlev_p=noise[len2TP[len(maps)]],
+            nlev = nlev,
             geominfo = ('healpix', {'nside': hp.get_nside(maps)})
         ),
         madel = DLENSALOT_Mapdelensing(
@@ -102,7 +102,7 @@ def map2delblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, verb
     return ana.get_residualblens(ana.simidxs[0], ana.its[-1])
 
 
-def map2tempblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, defaults_to='P_FS_CMBS4', verbose=False):
+def map2tempblm(maps, lmax_cmb, beam, itmax, nlev, use_approximateWF=False, defaults_to='P_FS_CMBS4', verbose=False):
     """Calculates a B-lensing template on the full sky. Configuration is a faithful default. 
 
     Args:
@@ -110,7 +110,7 @@ def map2tempblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, def
         lmax_cmb (int): delensed B map will be build up to this value.
         beam (float): beam (transfer functions) [arcmin] of the maps.
         itmax (int): number of iterations for the iterative reconstruction.
-        noise (float): noise level [muK arcmin] of the maps (noise in map should be white and isotropic). 
+        nlev (float): noise level [muK arcmin] of the maps (noise in map should be white and isotropic). 
         use_approximateWF (bool): If true, uses approximate Wiener-filtering in the conjugate gradient solver.
         verbose (bool, optional): print log.info messages. Defaults to False.
 
@@ -120,12 +120,12 @@ def map2tempblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, def
     assert lmax_cmb-1 < 3*hp.get_nside(maps), "lmax too large: {} < {}".format(lmax_cmb, 3*hp.get_nside(maps)-1)
     assert len(maps) < 3, 'only temperature (spin-0) and polarization (spin-2) currently supported'
     if len(maps) == 1:
-        assert 'T' in noise, "need to provide 'T'-key in noise"
+        assert 'T' in nlev, "need to provide 'T'-key in nlev"
     if len(maps) == 2:
-        assert 'P' in noise, "need to provide 'P'-key in noise"
+        assert 'P' in nlev, "need to provide 'P'-key in nlev"
     pm = np.round(np.sum([m[::100] for m in maps]),5)
     hlib = hashlib.sha256()
-    hlib.update((str([pm,lmax_cmb,beam,noise,use_approximateWF])).encode())
+    hlib.update((str([pm,lmax_cmb,beam,nlev,use_approximateWF])).encode())
     suffix = hlib.hexdigest()[:4]
     len2TP = {1: 'T', 2: 'P', 3: 'TP'}
     len2field = {1: 'temperature', 2: 'polarization', 3: 'cross'}
@@ -161,7 +161,7 @@ def map2tempblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, def
             OMP_NUM_THREADS=min([psutil.cpu_count()-1,8])
         ),
         noisemodel = DLENSALOT_Noisemodel(
-            nlev_p=noise[len2TP[len(maps)]],
+            nlev = nlev,
             geominfo = ('healpix', {'nside': hp.get_nside(maps)})
         ),
         madel = DLENSALOT_Mapdelensing(

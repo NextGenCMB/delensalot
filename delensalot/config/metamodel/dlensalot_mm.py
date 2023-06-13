@@ -327,7 +327,6 @@ class DLENSALOT_OBD(DLENSALOT_Concept):
         rescale (float):    rescaling of OBD matrix amplitude. Useful if matrix already calculated, but noiselevel changed
         tpl (type):         function name for calculating OBD matrix
         nlev_dep (float):   deprojection factor, or, strength of B-mode deprojection
-        nside (type):       TBD
         lmax (int):         maximum multipole to deproject B-modes
         beam (type):        TBD                         
     """
