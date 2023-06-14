@@ -262,7 +262,6 @@ class Sim_generator(Basejob):
             check_ = True  
             for simidx in simidxs_: # (2)
                 if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']: 
-                    print(self.fns)
                     if not (os.path.exists(opj(self.libdir, self.fns['E'].format(simidx))) and os.path.exists(opj(self.libdir, self.fns['B'].format(simidx)))):
                         check_ = False
                         break
@@ -284,7 +283,6 @@ class Sim_generator(Basejob):
                 # if data is below sky, I need to check. otherwise we know they exist
                 check_ = True  
                 for simidx in simidxs_: # (2)
-                    print(self.fns_sky)
                     if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']: 
                         if not (os.path.exists(opj(self.libdir_sky, self.fns_sky['E'].format(simidx))) and os.path.exists(opj(self.libdir_sky, self.fns_sky['B'].format(simidx)))):
                             check_ = False
@@ -715,7 +713,7 @@ class QE_lr(Basejob):
             R = qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=self.lm_max_qlm[0])[0]
             # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
             WF = self.cpp * utils.cli(self.cpp + utils.cli(R))
-            plm = alm_copy(plm,  None, self.lm_max_qlm[0], self.lm_max_qlm[1])
+            plm = alm_copy(plm, None, self.lm_max_qlm[0], self.lm_max_qlm[1])
             almxfl(plm, utils.cli(R), self.lm_max_qlm[1], True) # Normalized QE
             almxfl(plm, WF, self.lm_max_qlm[1], True) # Wiener-filter QE
             almxfl(plm, self.cpp > 0, self.lm_max_qlm[1], True)
