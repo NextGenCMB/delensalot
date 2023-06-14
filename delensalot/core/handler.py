@@ -228,7 +228,10 @@ class Sim_generator(Basejob):
         super().__init__(dlensalot_model)
         if self.simulationdata.flavour == 'obs' or np.all(self.simulationdata.obs_lib.maps != DEFAULT_NotAValue): # (1)
             # Here, obs data is provided and nothing needs to be generated
-            pass
+            if np.all(self.simulationdata.obs_lib.maps != DEFAULT_NotAValue):
+                log.info('Will use data provided in memory')
+            else:
+                log.info('Will use obs data stored at {} with filenames {}'.format(self.simulationdata.libdir, str(self.simulationdata.fns)))
         else:
             if self.simulationdata.flavour == 'sky':
                 # Here, sky data is provided and obs needs to be generated
@@ -259,7 +262,8 @@ class Sim_generator(Basejob):
             check_ = True  
             for simidx in simidxs_: # (2)
                 if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']: 
-                    if not (os.path.exists(opj(self.libdir, self.fns['Q'].format(simidx))) and os.path.exists(opj(self.libdir, self.fns['U'].format(simidx)))):
+                    print(self.fns)
+                    if not (os.path.exists(opj(self.libdir, self.fns['E'].format(simidx))) and os.path.exists(opj(self.libdir, self.fns['B'].format(simidx)))):
                         check_ = False
                         break
                 elif self.k in ['ptt']:
@@ -267,46 +271,55 @@ class Sim_generator(Basejob):
                         check_ = False
                         break
                 elif self.k in ['p']:
-                    if not (os.path.exists(opj(self.libdir, self.fns['T'].format(simidx))) and os.path.exists(opj(self.libdir, self.fns['Q'].format(simidx))) and os.path.exists(opj(self.libdir, self.fns['U'].format(simidx)))):
+                    if not (os.path.exists(opj(self.libdir, self.fns['T'].format(simidx))) and os.path.exists(opj(self.libdir, self.fns['E'].format(simidx))) and os.path.exists(opj(self.libdir, self.fns['B'].format(simidx)))):
                         check_ = False
                         break
             if check_: # (3)
                 self.postrun_obs()
+                log.info('Will use obs data at {} with filenames {}'.format(self.libdir, str(self.fns)))
+            else:
+                log.info('obs data will be stored at {} with filenames {}'.format(self.libdir, str(self.fns)))
 
-            check_ = True  
-            for simidx in simidxs_: # (2)
-                if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']: 
-                    if not (os.path.exists(opj(self.libdir_sky, self.fns_sky['Q'].format(simidx))) and os.path.exists(opj(self.libdir_sky, self.fns_sky['U'].format(simidx)))):
-                        check_ = False
-                        break
-                elif self.k in ['ptt']:
-                    if not os.path.exists(opj(self.libdir_sky, self.fns_sky['T'].format(simidx))):
-                        check_ = False
-                        break
-                elif self.k in ['p']:
-                    if not (os.path.exists(opj(self.libdir_sky, self.fns_sky['T'].format(simidx))) and os.path.exists(opj(self.libdir_sky, self.fns_sky['Q'].format(simidx))) and os.path.exists(opj(self.libdir_sky, self.fns_sky['U'].format(simidx)))):
-                        check_ = False
-                        break
-            if check_: # (3)
-                self.postrun_sky()
+            if self.simulationdata.flavour != 'sky':
+                # if data is below sky, I need to check. otherwise we know they exist
+                check_ = True  
+                for simidx in simidxs_: # (2)
+                    print(self.fns_sky)
+                    if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']: 
+                        if not (os.path.exists(opj(self.libdir_sky, self.fns_sky['E'].format(simidx))) and os.path.exists(opj(self.libdir_sky, self.fns_sky['B'].format(simidx)))):
+                            check_ = False
+                            break
+                    elif self.k in ['ptt']:
+                        if not os.path.exists(opj(self.libdir_sky, self.fns_sky['T'].format(simidx))):
+                            check_ = False
+                            break
+                    elif self.k in ['p']:
+                        if not (os.path.exists(opj(self.libdir_sky, self.fns_sky['T'].format(simidx))) and os.path.exists(opj(self.libdir_sky, self.fns_sky['E'].format(simidx))) and os.path.exists(opj(self.libdir_sky, self.fns_sky['B'].format(simidx)))):
+                            check_ = False
+                            break
+                if check_: # (3)
+                    self.postrun_sky()
+                    log.info('Will use sky data at {} with filenames {}'.format(self.libdir_sky, str(self.fns_sky)))
+                else:
+                    log.info('sky data will be stored at {} with filenames {}'.format(self.libdir_sky, str(self.fns_sky)))
 
 
     def set_basename_sky(self):
         if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']: 
-            fns_sky = {'Q': 'Ealmsky_{}.npy', 'U': 'Balmsky_{}.npy'}
+            fns_sky = {'E': 'Ealmsky_{}.npy', 'B': 'Balmsky_{}.npy'}
         elif self.k in ['ptt']:
             fns_sky = {'T': 'Talmsky_{}.npy'}
         elif self.k in ['p']:
-            fns_sky = {'T': 'Talmsky_{}.npy', 'Q': 'Ealmsky_{}.npy', 'U': 'Balmsky_{}.npy'}
+            fns_sky = {'T': 'Talmsky_{}.npy', 'E': 'Ealmsky_{}.npy', 'B': 'Balmsky_{}.npy'}
         return fns_sky
 
     def set_basename_obs(self):
         if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']: 
-            fns = {'Q': 'Ealmobs_{}.npy', 'U': 'Balmobs_{}.npy'}
+            fns = {'E': 'Ealmobs_{}.npy', 'B': 'Balmobs_{}.npy'}
         elif self.k in ['ptt']:
             fns = {'T': 'Talmobs_{}.npy'}
         elif self.k in ['p']:
-            fns = {'T': 'Talmobs_{}.npy', 'Q': 'Ealmobs_{}.npy', 'U': 'Balmobs_{}.npy'}
+            fns = {'T': 'Talmobs_{}.npy', 'E': 'Ealmobs_{}.npy', 'B': 'Balmobs_{}.npy'}
         return fns
 
     # @base_exception_handler
@@ -321,8 +334,8 @@ class Sim_generator(Basejob):
                 if task == 'generate_sky':
                     for simidx in simidxs_:
                         if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
-                            fnQ = opj(self.libdir_sky, self.fns_sky['Q'].format(simidx))
-                            fnU = opj(self.libdir_sky, self.fns_sky['U'].format(simidx))
+                            fnQ = opj(self.libdir_sky, self.fns_sky['E'].format(simidx))
+                            fnU = opj(self.libdir_sky, self.fns_sky['B'].format(simidx))
                             if not os.path.isfile(fnQ) or not os.path.isfile(fnU) or not os.path.exists(opj(self.libdir_sky, self.fnsP.format(simidx))):
                                 _jobs.append(simidx)
                         elif self.k in ['ptt']:
@@ -331,16 +344,16 @@ class Sim_generator(Basejob):
                                 _jobs.append(simidx)
                         elif self.k in ['p']:
                             fnT = opj(self.libdir_sky, self.fns_sky['T'].format(simidx))
-                            fnQ = opj(self.libdir_sky, self.fns_sky['Q'].format(simidx))
-                            fnU = opj(self.libdir_sky, self.fns_sky['U'].format(simidx))
+                            fnQ = opj(self.libdir_sky, self.fns_sky['E'].format(simidx))
+                            fnU = opj(self.libdir_sky, self.fns_sky['B'].format(simidx))
                             if not os.path.isfile(fnT) or not os.path.isfile(fnQ) or not os.path.isfile(fnU) or not os.path.exists(opj(self.libdir_sky, self.fnsP.format(simidx))):
                                 _jobs.append(simidx)
 
                 if task == 'generate_obs':
                     for simidx in simidxs_:
                         if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
-                            fnQ = opj(self.libdir, self.fns['Q'].format(simidx))
-                            fnU = opj(self.libdir, self.fns['U'].format(simidx))
+                            fnQ = opj(self.libdir, self.fns['E'].format(simidx))
+                            fnU = opj(self.libdir, self.fns['B'].format(simidx))
                             if not os.path.isfile(fnQ) or not os.path.isfile(fnU):
                                 _jobs.append(simidx)
                         elif self.k in ['ptt']:
@@ -349,8 +362,8 @@ class Sim_generator(Basejob):
                                 _jobs.append(simidx)
                         elif self.k in ['p']:
                             fnT = opj(self.libdir, self.fns['T'].format(simidx))
-                            fnQ = opj(self.libdir, self.fns['Q'].format(simidx))
-                            fnU = opj(self.libdir, self.fns['U'].format(simidx))
+                            fnQ = opj(self.libdir, self.fns['E'].format(simidx))
+                            fnU = opj(self.libdir, self.fns['B'].format(simidx))
                             if not os.path.isfile(fnT) or not os.path.isfile(fnQ) or not os.path.isfile(fnU):
                                 _jobs.append(simidx)             
                 jobs[taski] = _jobs
@@ -373,8 +386,9 @@ class Sim_generator(Basejob):
                     self.generate_obs(simidx)
                 self.simulationdata.purgecache()
                 log.info("rank {} (size {}) generated sim {}".format(mpi.rank, mpi.size, simidx))
-        self.postrun_sky()
-        self.postrun_obs()
+        if np.all(self.simulationdata.maps == DEFAULT_NotAValue):
+            self.postrun_sky()
+            self.postrun_obs()
 
 
     #@log_on_start(logging.INFO, "Sim.generate_sim(simidx={simidx}) started")
@@ -384,10 +398,10 @@ class Sim_generator(Basejob):
             phi = self.simulationdata.get_sim_phi(simidx, space='alm')
             np.save(opj(self.libdir_sky, self.fnsP.format(simidx)), phi)
         if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
-            if not (os.path.exists(opj(self.libdir_sky, self.fns_sky['Q'].format(simidx))) and os.path.exists(opj(self.libdir_sky, self.fns_sky['U'].format(simidx)))):
+            if not (os.path.exists(opj(self.libdir_sky, self.fns_sky['E'].format(simidx))) and os.path.exists(opj(self.libdir_sky, self.fns_sky['B'].format(simidx)))):
                 EBsky = self.simulationdata.get_sim_sky(simidx, spin=0, space='alm', field='polarization')
-                np.save(opj(self.libdir_sky, self.fns_sky['Q'].format(simidx)), EBsky[0])
-                np.save(opj(self.libdir_sky, self.fns_sky['U'].format(simidx)), EBsky[1])
+                np.save(opj(self.libdir_sky, self.fns_sky['E'].format(simidx)), EBsky[0])
+                np.save(opj(self.libdir_sky, self.fns_sky['B'].format(simidx)), EBsky[1])
 
         elif self.k in ['ptt']:
             if not os.path.exists(opj(self.libdir_sky, self.fns_sky['T'].format(simidx))):
@@ -395,10 +409,10 @@ class Sim_generator(Basejob):
                 np.save(opj(self.libdir_sky, self.fns_sky['T'].format(simidx)), Tsky)
 
         elif self.k in ['p']:
-            if not (os.path.exists(opj(self.libdir_sky, self.fns_sky['Q'].format(simidx))) and os.path.exists(opj(self.libdir_sky, self.fns_sky['U'].format(simidx)))):
+            if not (os.path.exists(opj(self.libdir_sky, self.fns_sky['E'].format(simidx))) and os.path.exists(opj(self.libdir_sky, self.fns_sky['B'].format(simidx)))):
                 EBsky = self.simulationdata.get_sim_sky(simidx, spin=0, space='alm', field='polarization')
-                np.save(opj(self.libdir_sky, self.fns_sky['Q'].format(simidx)), EBsky[0])
-                np.save(opj(self.libdir_sky, self.fns_sky['U'].format(simidx)), EBsky[1])
+                np.save(opj(self.libdir_sky, self.fns_sky['E'].format(simidx)), EBsky[0])
+                np.save(opj(self.libdir_sky, self.fns_sky['B'].format(simidx)), EBsky[1])
             if not os.path.exists(opj(self.libdir_sky, self.fns_sky['T'].format(simidx))):
                 Tsky = self.simulationdata.get_sim_sky(simidx, spin=0, space='alm', field='temperature')
                 np.save(opj(self.libdir_sky, self.fns_sky['T'].format(simidx)), Tsky)
@@ -408,10 +422,10 @@ class Sim_generator(Basejob):
     #@log_on_end(logging.INFO, "Sim.generate_sim(simidx={simidx}) finished")
     def generate_obs(self, simidx):
         if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
-            if not (os.path.exists(opj(self.libdir, self.fns['Q'].format(simidx))) and os.path.exists(opj(self.libdir, self.fns['U'].format(simidx)))):
+            if not (os.path.exists(opj(self.libdir, self.fns['E'].format(simidx))) and os.path.exists(opj(self.libdir, self.fns['B'].format(simidx)))):
                 EBobs = self.simulationdata.get_sim_obs(simidx, spin=0, space='alm', field='polarization')
-                np.save(opj(self.libdir, self.fns['Q'].format(simidx)), EBobs[0])
-                np.save(opj(self.libdir, self.fns['U'].format(simidx)), EBobs[1])
+                np.save(opj(self.libdir, self.fns['E'].format(simidx)), EBobs[0])
+                np.save(opj(self.libdir, self.fns['B'].format(simidx)), EBobs[1])
 
         elif self.k in ['ptt']:
             if not os.path.exists(opj(self.libdir, self.fns['T'].format(simidx))):
@@ -419,10 +433,10 @@ class Sim_generator(Basejob):
                 np.save(opj(self.libdir, self.fns['T'].format(simidx)), Tobs)
 
         elif self.k in ['p']:
-            if not (os.path.exists(opj(self.libdir, self.fns['Q'].format(simidx))) and os.path.exists(opj(self.libdir, self.fns['U'].format(simidx)))):
+            if not (os.path.exists(opj(self.libdir, self.fns['E'].format(simidx))) and os.path.exists(opj(self.libdir, self.fns['B'].format(simidx)))):
                 EBobs = self.simulationdata.get_sim_obs(simidx, spin=0, space='alm', field='polarization')
-                np.save(opj(self.libdir, self.fns['Q'].format(simidx)), EBobs[0])
-                np.save(opj(self.libdir, self.fns['U'].format(simidx)), EBobs[1])
+                np.save(opj(self.libdir, self.fns['E'].format(simidx)), EBobs[0])
+                np.save(opj(self.libdir, self.fns['B'].format(simidx)), EBobs[1])
             if not os.path.exists(opj(self.libdir, self.fns['T'].format(simidx))):
                 Tobs = self.simulationdata.get_sim_obs(simidx, spin=0, space='alm', field='temperature')
                 np.save(opj(self.libdir, self.fns['T'].format(simidx)), Tobs)
@@ -1052,7 +1066,12 @@ class Map_delenser(Basejob):
         if self.basemap == 'lens':
             return almxfl(alm_copy(self.simulationdata.get_sim_sky(simidx, space='alm', spin=0, field='polarization')[1], self.simulationdata.lmax, *self.lm_max_blt), self.ttebl['e'], self.lm_max_blt[0], inplace=False) 
         else:
-            return alm_copy(self.simulationdata.get_sim_obs(simidx, space='alm', spin=0, field='polarization')[1], self.simulationdata.lmax, *self.lm_max_blt)
+            # only checking for map to save some memory..
+            if np.all(self.simulationdata.maps == DEFAULT_NotAValue):
+                return alm_copy(self.simulationdata.get_sim_obs(simidx, space='alm', spin=0, field='polarization')[1], self.simulationdata.lmax, *self.lm_max_blt)
+            else:
+                return hp.map2alm_spin(self.simulationdata.get_sim_obs(simidx, space='map', spin=2, field='polarization'), spin=2, lmax=self.lm_max_blt[0], mmax=self.lm_max_blt[1])[1]
+
     
 
     #@log_on_start(logging.INFO, "_delens() started")

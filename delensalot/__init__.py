@@ -22,11 +22,12 @@ cls_len = camb_clfile(opj(os.path.dirname(__file__), 'data/cls/FFP10_wdipole_len
 cpp = camb_clfile(opj(os.path.dirname(__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'))['pp']
 
 
-def anafast(maps, lmax_cmb, beam, itmax, nlev, use_approximateWF=False, verbose=False):
-    map2delblm(maps, lmax_cmb, beam, itmax, nlev, use_approximateWF, verbose)
+def anafast(maps, lmax_cmb, beam, itmax, nlev, use_approximateWF=False, defaults_to='P_FS_CMBS4', verbose=False):
+    delblm = map2delblm(maps, lmax_cmb, beam, itmax, nlev, use_approximateWF, defaults_to, verbose)
+    return hp.alm2cl(delblm)
 
 
-def map2delblm(maps, lmax_cmb, beam, itmax, nlev, use_approximateWF=False, verbose=False):
+def map2delblm(maps, lmax_cmb, beam, itmax, nlev, use_approximateWF=False, defaults_to='P_FS_CMBS4', verbose=False):
     """Calculates a delensed B map on the full sky. Configuration is a faithful default. 
 
     Args:
@@ -61,7 +62,7 @@ def map2delblm(maps, lmax_cmb, beam, itmax, nlev, use_approximateWF=False, verbo
     else:
         Lmin = 1
     dlensalot_model = DLENSALOT_Model(
-        defaults_to = '{}_FS_CMBS4'.format(len2TP[len(maps)]),
+        defaults_to = '{}'.format(len2TP[len(maps)])+defaults_to[1:],
         simulationdata = DLENSALOT_Simulation(
             maps = maps,
             space = 'map',
@@ -127,6 +128,7 @@ def map2tempblm(maps, lmax_cmb, beam, itmax, nlev, use_approximateWF=False, defa
     hlib = hashlib.sha256()
     hlib.update((str([pm,lmax_cmb,beam,nlev,use_approximateWF])).encode())
     suffix = hlib.hexdigest()[:4]
+
     len2TP = {1: 'T', 2: 'P', 3: 'TP'}
     len2field = {1: 'temperature', 2: 'polarization', 3: 'cross'}
     len2spin = {1: 0, 2: 2}
@@ -136,7 +138,7 @@ def map2tempblm(maps, lmax_cmb, beam, itmax, nlev, use_approximateWF=False, defa
     else:
         Lmin = 1
     dlensalot_model = DLENSALOT_Model(
-        defaults_to = '{}_FS_CMBS4'.format(len2TP[len(maps)]),
+        defaults_to = '{}'.format(len2TP[len(maps)])+defaults_to[1:],
         simulationdata = DLENSALOT_Simulation(
             maps = maps,
             space = 'map',

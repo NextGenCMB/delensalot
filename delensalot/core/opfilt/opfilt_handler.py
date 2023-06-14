@@ -116,6 +116,7 @@ class MAP_iso_transformer:
                 'ffi': cf.ffi,
                 'transf': cf.ttebl['t'],
                 'transf_e': cf.ttebl['e'],
+                'transf_b': cf.ttebl['b'],
                 'unlalm_info': cf.lm_max_unl,
                 'lenalm_info': cf.lm_max_ivf,   
             }

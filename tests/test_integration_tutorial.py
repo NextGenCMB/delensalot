@@ -5,6 +5,11 @@
 
     e.g.,
         python3 -m unittest test_integration_tutorial.Tutorial.test_conf_mwe_applyOBD
+        python3 -m unittest test_integration_tutorial.Tutorial.test_conf_mwe_applynoOBD
+        python3 -m unittest test_integration_tutorial.Tutorial.test_conf_mwe_buildOBD
+        python3 -m unittest test_integration_tutorial.Tutorial.test_conf_mwe_maskedsky
+        python3 -m unittest test_integration_tutorial.Tutorial.test_conf_mwe_fullsky
+        python3 -m unittest test_integration_tutorial.Tutorial.test_conf_mwe_fastWF
 
 """
 

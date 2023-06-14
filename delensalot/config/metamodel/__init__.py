@@ -271,7 +271,7 @@ DL_DEFAULT_CMBS4_FS_P = {
         'nlevels': [np.inf],
         'dlm_mod': False,
         'iterations': [5],
-        'masks_fn': None,
+        'masks_fn': [],
         'lmax': 1024,
         'lmax_mask': lc.cmbs4_edges[-1],
         'Cl_fid': 'ffp10',
