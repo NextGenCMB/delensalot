@@ -72,13 +72,13 @@ class FS(unittest.TestCase):
 
         self.Al_assert = {
             'QE_lensrec': {
-                'p_p': 0.32,
+                'p_p': 0.29, # 0.28669273301356524
                 # 'pee': np.inf,
                 # 'p_eb': np.inf,
                 # 'p_be': np.inf,
                 # 'peb': np.inf,
             },'MAP_lensrec': {
-                'p_p': 0.20,
+                'p_p': 0.16, # 0.1435979648409691
                 # 'pee': np.inf,
                 # 'p_eb': np.inf,
                 # 'p_be': np.inf,
