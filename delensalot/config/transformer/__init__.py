@@ -16,7 +16,7 @@ def f1(expr, job_id, transformer): # pylint: disable=missing-function-docstring
     if "MAP_lensrec" == job_id:
         return transformer.build_MAP_lensrec(expr)
     if "delens" == job_id:
-        return transformer.build_delens(expr)
+        return transformer.build_delenser(expr)
     else:
         assert 0, 'Dont understand your key: {}'.format(job_id)
     
@@ -32,7 +32,7 @@ def f1(expr, job_id, transformer): # pylint: disable=missing-function-docstring
     if "MAP_lensrec" == job_id:
         return transformer.build_MAP_lensrec(expr)
     if "delens" == job_id:
-        return transformer.build_delens(expr)
+        return transformer.build_delenser(expr)
     else:
         assert 0, 'Dont understand your key: {}'.format(job_id)
 
@@ -51,6 +51,7 @@ def f1(expr, transformer): # pylint: disable=missing-function-docstring
         return transformer.build_opfilt_iso_t(expr)
     elif expr.k == 'p':
         assert 0, "implement if needed"
+        # return transformer.build_opfilt_iso_tp(expr)
     elif expr.k == 'p_et':
         assert 0, "implement if needed"
     elif expr.k == 'pte':

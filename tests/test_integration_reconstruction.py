@@ -3,19 +3,17 @@
     - full sky / masked sky
     Tests are considered successfull if residual lensing amplitude is within expectation
 
-    COMMENT: For some reason, asserting fails if both classes are tested at the same time, i.e. `python -m unittest test_integration_filter` but this failing has nothing to do with delensalot itself.
-    Recommend to use,
-        `python -m unittest test_integration_filter.FS`,
-        `python -m unittest test_integration_filter.MS`
-    individually.
+    COMMENT: For some reason, asserting fails if both classes are tested at the same time, i.e. `python3 -m unittest test_integration_reconstruction` but this failing has nothing to do with delensalot itself.
+    
+    E.g.,
+        python3 -m unittest test_integration_reconstruction.FS.test_P_approx
+
 """
 
 
 import unittest
 import shutil
 import os
-if "SCRATCH" not in os.environ:
-    os.environ["SCRATCH"] = "./TESTSCRATCH"
 from os.path import join as opj
 import healpy as hp
 import numpy as np
@@ -23,11 +21,13 @@ import numpy as np
 import delensalot
 from delensalot.run import run
 from delensalot import utils
-from delensalot.utility.utils_hp import gauss_beam
+from delensalot.utility.utils_hp import gauss_beam, alm_copy
 from delensalot.config.visitor import transform, transform3d
 from delensalot.config.transformer.lerepi2dlensalot import l2delensalotjob_Transformer, l2T_Transformer
-from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model, DLENSALOT_Analysis, DLENSALOT_Data, DLENSALOT_Job, DLENSALOT_Itrec
+from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model, DLENSALOT_Analysis, DLENSALOT_Job, DLENSALOT_Itrec
 from delensalot.core.opfilt import MAP_opfilt_aniso_p, MAP_opfilt_aniso_t, MAP_opfilt_iso_p, MAP_opfilt_iso_t, MAP_opfilt_iso_e, MAP_opfilt_iso_tp, QE_opfilt_aniso_p, QE_opfilt_aniso_t, QE_opfilt_iso_p, QE_opfilt_iso_t
+
+os.environ['SCRATCH'] += 'test'
 
 class FS(unittest.TestCase):
     """Full sky - temperature
@@ -72,13 +72,13 @@ class FS(unittest.TestCase):
 
         self.Al_assert = {
             'QE_lensrec': {
-                'p_p': 0.45,
+                'p_p': 0.29, # 0.28669273301356524
                 # 'pee': np.inf,
                 # 'p_eb': np.inf,
                 # 'p_be': np.inf,
                 # 'peb': np.inf,
             },'MAP_lensrec': {
-                'p_p': 0.30,
+                'p_p': 0.16, # 0.1435979648409691
                 # 'pee': np.inf,
                 # 'p_eb': np.inf,
                 # 'p_be': np.inf,
@@ -88,57 +88,55 @@ class FS(unittest.TestCase):
 
 
     def test_P_approx(self):
+        """ P_FS_TEST may be somewhat too low for proper reconstruction (cg solver wouldn't converge), but works for fastWF. Result probably quite inaccurate, but this test checks if reconstruction runs until the end, which is what we want to test here 
+        """        
+        use_approximateWF = True
         for job_id, key_dict in self.whitelist_FS_P.items():
             for key in key_dict:
-                dlensalot_model = DLENSALOT_Model(
-                    defaults_to='P_FS_TEST',
-                )
-                ## generate skyobs maps
+                dlensalot_model = DLENSALOT_Model(defaults_to='P_FS_TEST', analysis = DLENSALOT_Analysis(key=key, TEMP_suffix='test'), itrec = DLENSALOT_Itrec(itmax=3))
                 delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
-                delensalot.del_TEMP(dlensalot_model.data.class_parameters['lib_dir'])
                 delensalot_runner = run(config_fn='', job_id='generate_sim', config_model=dlensalot_model, verbose=True)
-                ana = delensalot_runner.init_job()
-                pmaps = ana.sims.get_sim_pmap(0)
-                bmap = hp.alm2map(hp.map2alm_spin(pmaps, lmax=200, spin=2)[1], nside=512)
+                ana_mwe = delensalot_runner.init_job()
+                bsky = ana_mwe.simulationdata.get_sim_sky(simidx=0, field='polarization', space='alm', spin=0)[1]
+                
+                obs = ana_mwe.simulationdata.get_sim_obs(simidx=0, field='polarization', space='alm', spin=0)
 
-                ## delens the skyobs maps
-                delensalot_runner = run(config_fn='', job_id='MAP_lensrec', config_model=dlensalot_model, verbose=True)
-                delensalot_runner.run()
-                ana = delensalot_runner.init_job()
-                blt = ana.get_blt_it(ana.simidxs[0], ana.itmax)
+                if job_id == 'QE_lensrec':
+                    dlensalot_model.itrec.itmax = 0
+                blt = delensalot.map2tempblm(
+                    hp.alm2map_spin(obs, nside=ana_mwe.simulationdata.geominfo[1]['nside'], spin=2, lmax=ana_mwe.simulationdata.lmax), 
+                    lmax_cmb=dlensalot_model.analysis.lm_max_ivf[0], 
+                    beam=dlensalot_model.analysis.beam, 
+                    itmax=dlensalot_model.itrec.itmax, 
+                    nlev=dlensalot_model.noisemodel.nlev, 
+                    use_approximateWF=use_approximateWF, 
+                    defaults_to='P_FS_TEST', 
+                    verbose=True, )
 
-                ## evaluate the skyobs maps
-                input = hp.anafast(bmap, lmax=200)
-                output = hp.anafast(bmap-hp.alm2map(blt, nside=512), lmax=200)
+                bsky = alm_copy(bsky, None, hp.Alm.getlmax(blt.size), hp.Alm.getlmax(blt.size))
+                input = hp.alm2cl(bsky, lmax=200)
+                output = hp.alm2cl(bsky-blt, lmax=200)
                 Al = np.mean(output[30:200]/input[30:200])
                 assert Al < self.Al_assert[job_id][key], "{}, {}, {}, {}".format(job_id, key, Al, self.Al_assert[job_id][key])
                 print(Al, self.Al_assert[job_id][key])
 
 
     def test_P(self):
+        assert 0, 'cg-solver will not converge, change defaults if this should be integrated into workflow.'
+        use_approximateWF = False
         for job_id, key_dict in self.whitelist_FS_P.items():
             for key in key_dict:
-                dlensalot_model = DLENSALOT_Model(
-                    defaults_to='P_FS_TEST',
-                    itrec = DLENSALOT_Itrec(iterator_typ='constmf'),
-                )
-                ## generate skyobs maps
+                dlensalot_model = DLENSALOT_Model(defaults_to='P_FS_TEST', analysis = DLENSALOT_Analysis(key=key, TEMP_suffix='test'), itrec = DLENSALOT_Itrec(itmax=3))
                 delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
-                delensalot.del_TEMP(dlensalot_model.data.class_parameters['lib_dir'])
                 delensalot_runner = run(config_fn='', job_id='generate_sim', config_model=dlensalot_model, verbose=True)
-                ana = delensalot_runner.init_job()
-                pmaps = ana.sims.get_sim_pmap(0)
-                bmap = hp.alm2map(hp.map2alm_spin(pmaps, lmax=200, spin=2)[1], nside=512)
+                ana_mwe = delensalot_runner.init_job()
+                bsky = ana_mwe.simulationdata.get_sim_sky(simidx=0, field='polarization', space='alm', spin=0)[1]
+                obs = ana_mwe.simulationdata.get_sim_obs(simidx=0, field='polarization', space='alm', spin=0)
 
-                ## delens the skyobs maps - build a new delensalot model
-                delensalot_runner = run(config_fn='', job_id='MAP_lensrec', config_model=dlensalot_model, verbose=True)
-                delensalot_runner.run()
-                ana = delensalot_runner.init_job()
-                blt = ana.get_blt_it(ana.simidxs[0], ana.itmax)
+                blt = delensalot.map2tempblm(obs, lmax_cmb=dlensalot_model.analysis.lm_max_ivf[0], beam=dlensalot_model.analysis.beam, itmax=dlensalot_model.itrec.itmax, nlev=dlensalot_model.noisemodel.nlev, use_approximateWF=use_approximateWF, verbose=True, )
 
-                ## evaluate the skyobs maps
-                input = hp.anafast(bmap, lmax=200)
-                output = hp.anafast(bmap-hp.alm2map(blt, nside=512), lmax=200)
+                input = hp.alm2cl(bsky, lmax=200)
+                output = hp.alm2cl(bsky-blt, lmax=200)
                 Al = np.mean(output[30:200]/input[30:200])
                 assert Al < self.Al_assert[job_id][key], "{}, {}, {}, {}".format(job_id, key, Al, self.Al_assert[job_id][key])
                 print(Al, self.Al_assert[job_id][key])
@@ -146,7 +144,6 @@ class FS(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main(exit=False)
-    # TODO following lines don't seem to be executed
     temppath = os.environ["SCRATCH"]+"/delensalot"
     if os.path.exists(temppath):
         shutil.rmtree(temppath)

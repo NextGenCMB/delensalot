@@ -20,6 +20,8 @@ from logdecorator import log_on_start, log_on_end
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 
+import numpy as np
+
 from delensalot.core import mpi
 from delensalot.core.mpi import check_MPI
 
@@ -46,7 +48,6 @@ class config_handler():
                 pass
             else:
                 self.configfile.dlensalot_model.job.__dict__.update({'jobs': [parser.job_id]})
-        # TODO catch here TEMP dir for build_OBD? or make TEMP builder output buildOBDspecific
         TEMP = transform(self.configfile.dlensalot_model, l2T_Transformer())
         if parser.status == '':
             if mpi.rank == 0:
@@ -81,15 +82,14 @@ class config_handler():
         Args:
             job_id (str, optional): A specific job which should be performed. This one is not necessarily defined in the configuration file. It is handed over via command line or in interactive mode. Defaults to ''.
         """
-        if djob_id != '' and djob_id not in self.configfile.dlensalot_model.job.jobs:
-            self.configfile.dlensalot_model.job.jobs.append(djob_id)
+        # TODO to remove job-dependencies: create a list of jobs up to the requested job.
+        if isinstance(djob_id, str):
+            djob_id = [djob_id]
+        self.configfile.dlensalot_model.job.jobs = djob_id
         self.djob_ids = self.configfile.dlensalot_model.job.jobs
-        
         self.djobmodels = []
         for job_id in self.djob_ids:
-            # if job_id in ['QE_lensrec', 'MAP_lensrec']:
-                self.djobmodels.append(transform3d(self.configfile.dlensalot_model, job_id, l2delensalotjob_Transformer()))
-                # self.djobmodels.append(transform(self.configfile.dlensalot_model, l2delensalotjob_Transformer()))
+            self.djobmodels.append(transform3d(self.configfile.dlensalot_model, job_id, l2delensalotjob_Transformer()))
         
         return self.djobmodels
         
@@ -107,7 +107,6 @@ class config_handler():
             job.collect_jobs()    
             job.run()
 
-                
 
     @log_on_start(logging.INFO, "store() Started")
     @log_on_end(logging.INFO, "store() Finished")

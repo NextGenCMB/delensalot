@@ -22,15 +22,15 @@ FORMAT = '%(levelname)s:: %(asctime)s:: %(name)s.%(funcName)s - %(message)s'
 formatter = logging.Formatter(FORMAT, datefmt=datefmt)
 ConsoleOutputHandler = logging.StreamHandler(sys.stdout)
 ConsoleOutputHandler.setFormatter(formatter)
-ConsoleOutputHandler.setLevel(logging.WARNING)
+ConsoleOutputHandler.setLevel(logging.INFO)
 
 sys_logger = logging.getLogger(__name__)
 sys_logger.addHandler(ConsoleOutputHandler)
-sys_logger.setLevel(logging.WARNING)
-logging.basicConfig(level=logging.WARNING, handlers=[ConsoleOutputHandler])
+sys_logger.setLevel(logging.INFO)
+logging.basicConfig(level=logging.INFO, handlers=[ConsoleOutputHandler])
 logging.getLogger("healpy").disabled = True
 log = logging.getLogger(__name__)
-log.setLevel(logging.WARNING)
+log.setLevel(logging.INFO)
 
 
 class run():

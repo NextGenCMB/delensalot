@@ -14,16 +14,14 @@
 import unittest
 import shutil
 import os
-if "SCRATCH" not in os.environ:
-    os.environ["SCRATCH"] = "./SCRATCH"
-
 import delensalot
 from delensalot.config.visitor import transform, transform3d
 from delensalot.config.transformer.lerepi2dlensalot import l2delensalotjob_Transformer, l2T_Transformer
-from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model, DLENSALOT_Analysis, DLENSALOT_Data
+from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model, DLENSALOT_Analysis
 
 from delensalot.core.opfilt import MAP_opfilt_aniso_p, MAP_opfilt_aniso_t, MAP_opfilt_iso_p, MAP_opfilt_iso_t, MAP_opfilt_iso_e, MAP_opfilt_iso_tp, QE_opfilt_aniso_p, QE_opfilt_aniso_t, QE_opfilt_iso_p, QE_opfilt_iso_t
 
+os.environ['SCRATCH'] += 'test'
 
 class FS(unittest.TestCase):
     """Full sky - temperature
@@ -69,9 +67,8 @@ class FS(unittest.TestCase):
     def test_fullsky_T(self):
         for job_id, key_dict in self.whitelist_FS_T.items():
             for key in key_dict:
-                dlensalot_model = DLENSALOT_Model(defaults_to='T_FS_CMBS4', analysis = DLENSALOT_Analysis(key=key), data = DLENSALOT_Data(nside=512))
+                dlensalot_model = DLENSALOT_Model(defaults_to='T_FS_TEST', analysis = DLENSALOT_Analysis(key=key))
                 delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
-                delensalot.del_TEMP(dlensalot_model.data.class_parameters['lib_dir'])
                 model = transform3d(dlensalot_model, job_id, l2delensalotjob_Transformer())
                 assert type(model.filter) in self.whitelist_FS_T[job_id][key], "{} != {} for key {}".format(model.filter, self.whitelist_FS_T[job_id][key], key)
                 del model, dlensalot_model
@@ -79,9 +76,8 @@ class FS(unittest.TestCase):
     def test_fullsky_P(self):
         for job_id, key_dict in self.whitelist_FS_P.items():
             for key in key_dict:
-                dlensalot_model = DLENSALOT_Model(defaults_to='P_FS_CMBS4', analysis = DLENSALOT_Analysis(key=key), data = DLENSALOT_Data(nside=512))
+                dlensalot_model = DLENSALOT_Model(defaults_to='P_FS_TEST', analysis = DLENSALOT_Analysis(key=key))
                 delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
-                delensalot.del_TEMP(dlensalot_model.data.class_parameters['lib_dir'])
                 model = transform3d(dlensalot_model, job_id, l2delensalotjob_Transformer())
                 assert type(model.filter) in self.whitelist_FS_P[job_id][key], "{} != {} for key {}".format(model.filter, self.whitelist_FS_P[job_id][key], key)
                 del model, dlensalot_model
@@ -89,9 +85,8 @@ class FS(unittest.TestCase):
     def test_fullsky_TP(self):
         for job_id, key_dict in self.whitelist_FS_TP.items():
             for key in key_dict:
-                dlensalot_model = DLENSALOT_Model(defaults_to='TP_FS_CMBS4', analysis = DLENSALOT_Analysis(key=key), data = DLENSALOT_Data(nside=512))
+                dlensalot_model = DLENSALOT_Model(defaults_to='TP_FS_TEST', analysis = DLENSALOT_Analysis(key=key))
                 delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
-                delensalot.del_TEMP(dlensalot_model.data.class_parameters['lib_dir'])
                 model = transform3d(dlensalot_model, job_id, l2delensalotjob_Transformer())
                 assert type(model.filter) in self.whitelist_FS_TP[job_id][key], "{} != {} for key {}".format(model.filter, self.whitelist_FS_TP[job_id][key], key)
                 del model, dlensalot_model
@@ -142,9 +137,8 @@ class MS(unittest.TestCase):
     def test_maskedsky_T(self):
         for job_id, key_dict in self.whitelist_MS_T.items():
             for key in key_dict:
-                dlensalot_model = DLENSALOT_Model(defaults_to='T_MS_CMBS4', analysis = DLENSALOT_Analysis(key=key), data = DLENSALOT_Data(nside=512))
+                dlensalot_model = DLENSALOT_Model(defaults_to='T_FS_TEST', analysis = DLENSALOT_Analysis(key=key))
                 delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
-                delensalot.del_TEMP(dlensalot_model.data.class_parameters['lib_dir'])
                 model = transform3d(dlensalot_model, job_id, l2delensalotjob_Transformer())
                 assert type(model.filter) in self.whitelist_MS_T[job_id][key], "{} != {} for key {}".format(model.filter, self.whitelist_MS_T[job_id][key], key)
                 del model, dlensalot_model
@@ -152,9 +146,8 @@ class MS(unittest.TestCase):
     def test_maskedsky_P(self):
         for job_id, key_dict in self.whitelist_MS_P.items():
             for key in key_dict:
-                dlensalot_model = DLENSALOT_Model(defaults_to='P_MS_CMBS4', analysis = DLENSALOT_Analysis(key=key), data = DLENSALOT_Data(nside=512))
+                dlensalot_model = DLENSALOT_Model(defaults_to='P_MS_TEST', analysis = DLENSALOT_Analysis(key=key))
                 delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
-                delensalot.del_TEMP(dlensalot_model.data.class_parameters['lib_dir'])
                 model = transform3d(dlensalot_model, job_id, l2delensalotjob_Transformer())
                 assert type(model.filter) in self.whitelist_MS_P[job_id][key], "{} != {} for key {}".format(model.filter, self.whitelist_MS_P[job_id][key], key)
                 del model, dlensalot_model
@@ -162,9 +155,8 @@ class MS(unittest.TestCase):
     def test_maskedsky_TP(self):
         for job_id, key_dict in self.whitelist_MS_TP.items():
             for key in key_dict:
-                dlensalot_model = DLENSALOT_Model(defaults_to='TP_MS_CMBS4', analysis = DLENSALOT_Analysis(key=key), data = DLENSALOT_Data(nside=512))
+                dlensalot_model = DLENSALOT_Model(defaults_to='TP_MS_TEST', analysis = DLENSALOT_Analysis(key=key))
                 delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
-                delensalot.del_TEMP(dlensalot_model.data.class_parameters['lib_dir'])
                 model = transform3d(dlensalot_model, job_id, l2delensalotjob_Transformer())
                 assert type(model.filter) in self.whitelist_MS_TP[job_id][key], "{} != {} for key {}".format(model.filter, self.whitelist_MS_TP[job_id][key], key)
                 del model, dlensalot_model

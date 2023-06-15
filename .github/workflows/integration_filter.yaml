@@ -1,6 +1,6 @@
-name: Integration filter test
+name: Integration filter
 
-on: [push, pull_request]
+on: [pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest

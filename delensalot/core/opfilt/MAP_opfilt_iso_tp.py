@@ -12,7 +12,7 @@ import numpy as np
 
 from lenspyx import remapping
 from lenspyx.utils import timer, cli
-from lenspyx.utils_hp import almxfl,   Alm, synalm, alm2cl
+from lenspyx.utils_hp import almxfl, Alm, synalm, alm2cl
 from lenspyx.remapping.utils_geom import pbdGeometry
 from lenspyx.remapping.deflection_028 import rtype, ctype
 
@@ -90,7 +90,7 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         self.inoise_1_tlm  = _extend_cl(transf_tlm ** 1 ,lmax_len) * cli(nlev_tlm ** 2) * (180 * 60 / np.pi) ** 2
 
         self.inoise_2_elm  = _extend_cl(transf_elm ** 2, lmax_len) * cli(nlev_elm ** 2) * (180 * 60 / np.pi) ** 2
-        self.inoise_1_elm  = _extend_cl(transf_elm ** 1 ,lmax_len) * cli(nlev_elm ** 2) * (180 * 60 / np.pi) ** 2
+        self.inoise_1_elm  = _extend_cl(transf_elm ** 1, lmax_len) * cli(nlev_elm ** 2) * (180 * 60 / np.pi) ** 2
 
         self.inoise_2_blm = _extend_cl(transf_blm ** 2, lmax_len) * cli(nlev_blm ** 2) * (180 * 60 / np.pi) ** 2
         self.inoise_1_blm = _extend_cl(transf_blm ** 1, lmax_len) * cli(nlev_blm ** 2) * (180 * 60 / np.pi) ** 2
@@ -127,7 +127,7 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         # View to the same array for GRAD_ONLY mode:
         eblm = self.ffi.lensgclm(telm[1:],  self.mmax_sol, 2, self.lmax_len, self.mmax_len)
         tlm  = self.ffi.lensgclm(telm[0:1], self.mmax_sol, 0, self.lmax_len, self.mmax_len)
-        tlm.reshape((1, tlm.size))
+        tlm = tlm.reshape((1, tlm.size))
         self.tim.add('lensgclm fwd')
         almxfl( tlm[0], self.inoise_2_tlm, self.mmax_len, inplace=True)
         almxfl(eblm[0], self.inoise_2_elm, self.mmax_len, inplace=True)
@@ -187,7 +187,7 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         assert Alm.getlmax(teblm_dat[1].size, self.mmax_len) == self.lmax_len, (Alm.getlmax(teblm_dat[1].size, self.mmax_len), self.lmax_len)
         assert Alm.getlmax(teblm_dat[2].size, self.mmax_len) == self.lmax_len, (Alm.getlmax(teblm_dat[2].size, self.mmax_len), self.lmax_len)
         assert Alm.getlmax(telm_wf[0].size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(telm_wf[0].size, self.mmax_sol), self.lmax_sol)
-        assert Alm.getlmax(telm_wf[0].size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(telm_wf[1].size, self.mmax_sol), self.lmax_sol)
+        assert Alm.getlmax(telm_wf[1].size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(telm_wf[1].size, self.mmax_sol), self.lmax_sol)
 
         tlm_wf, elm_wf = telm_wf
         tlm_dat = teblm_dat[0]

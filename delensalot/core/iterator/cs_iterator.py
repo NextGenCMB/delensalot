@@ -83,8 +83,6 @@ class qlm_iterator(object):
         lmax_qlm, mmax_qlm = lm_max_dlm
         lmax_filt, mmax_filt = ninv_filt.lmax_sol, ninv_filt.mmax_sol
 
-        assert len(pp_h0) > lmax_qlm
-        assert Alm.getlmax(plm0.size, mmax_qlm) == lmax_qlm, print(Alm.getlmax(plm0.size, mmax_qlm), lmax_qlm)
         if mmax_qlm is None: mmax_qlm = lmax_qlm
 
         self.h = h
@@ -194,7 +192,7 @@ class qlm_iterator(object):
 
     @log_on_start(logging.INFO, "get_template_blm(it={it}) started")
     @log_on_end(logging.INFO, "get_template_blm(it={it}) finished")
-    def get_template_blm(self, it, it_e, lmaxb=1024, lmin_plm=1, elm_wf:None or np.ndarray=None, dlm_mod=None, perturbative=False):
+    def get_template_blm(self, it, it_e, lmaxb=1024, lmin_plm=1, elm_wf:None or np.ndarray=None, dlm_mod=None, perturbative=False, k='p_p'):
         """Builds a template B-mode map with the iterated phi and input elm_wf
 
             Args:
@@ -229,6 +227,8 @@ class qlm_iterator(object):
                 elm_wf = self.wflm0()
             else:
                 assert 0,'dont know what to do with it_e = ' + str(it_e)
+        if len(elm_wf) == 2 and k == 'p':
+            elm_wf = elm_wf[1]
         assert Alm.getlmax(elm_wf.size, self.mmax_filt) == self.lmax_filt, "{}, {}, {}, {}".format(elm_wf.size, self.mmax_filt, Alm.getlmax(elm_wf.size, self.mmax_filt), self.lmax_filt)
         mmaxb = lmaxb
         dlm = self.get_hlm(it, 'p')

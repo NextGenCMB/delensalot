@@ -1,4 +1,4 @@
-name: Integration reconstruction test
+name: Integration reconstruction
 
 on: [pull_request]
 
