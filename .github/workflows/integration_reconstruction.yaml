@@ -1,10 +1,9 @@
-name: Install
+name: Integration reconstruction test
 
-on: [push, pull_request]
+on: [pull_request]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -25,3 +24,6 @@ jobs:
       - name: install
         run: |
           pip install -e .
+      - name: test Full sky reconstruction on polarization. approximate Wiener-filter
+        run: |
+          python -m unittest tests.test_integration_reconstruction.FS.test_P_approx

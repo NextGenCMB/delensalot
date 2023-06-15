@@ -1,10 +1,8 @@
-name: Install
+name: Integration filter test
 
 on: [push, pull_request]
-
 jobs:
   build:
-
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -25,3 +23,7 @@ jobs:
       - name: install
         run: |
           pip install -e .
+      - name: test
+        run: |
+          python -m unittest tests.test_integration_filter.FS
+          python -m unittest tests.test_integration_filter.MS

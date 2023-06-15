@@ -22,15 +22,15 @@ FORMAT = '%(levelname)s:: %(asctime)s:: %(name)s.%(funcName)s - %(message)s'
 formatter = logging.Formatter(FORMAT, datefmt=datefmt)
 ConsoleOutputHandler = logging.StreamHandler(sys.stdout)
 ConsoleOutputHandler.setFormatter(formatter)
-ConsoleOutputHandler.setLevel(logging.INFO)
+ConsoleOutputHandler.setLevel(logging.WARNING)
 
 sys_logger = logging.getLogger(__name__)
 sys_logger.addHandler(ConsoleOutputHandler)
-sys_logger.setLevel(logging.INFO)
-logging.basicConfig(level=logging.INFO, handlers=[ConsoleOutputHandler])
+sys_logger.setLevel(logging.WARNING)
+logging.basicConfig(level=logging.WARNING, handlers=[ConsoleOutputHandler])
 logging.getLogger("healpy").disabled = True
 log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
+log.setLevel(logging.WARNING)
 
 
 class run():
@@ -90,17 +90,15 @@ class run():
 
 
     def run(self):
+        self.collect_models()
+        self.config_handler.run()
 
-        return self.collect_model()
+        return self.config_handler.djobmodels
 
 
     def init_job(self):
-
-
-        self.config_handler.run(self.delensalotjob)
-
-        return self.config_handler.delensalotjobs[0]
-
+        
+        return self.collect_model()
 
 
 if __name__ == '__main__':

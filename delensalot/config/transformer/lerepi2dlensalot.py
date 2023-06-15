@@ -318,7 +318,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     # TODO assuming that masked sky comes with a hits-count map. If not, take mask
                     if dl.sky_coverage == 'masked':
                         # rhits_normalised
-                        dl.rhits_normalised = dl.masks if nm.rhits_normalised is None else nm.rhits_normalised
+                        dl.rhits_normalised = nm.rhits_normalised
                         dl.fsky = np.mean(l2OBD_Transformer.get_ninvp(cf)[0][1]) ## calculating fsky, but quite expensive. and if ninvp changes, this could have negative effect on fsky calc
                     else:
                         dl.fsky = 1.0
@@ -580,7 +580,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     # TODO assuming that masked sky comes with a hits-count map. If not, take mask
                     if dl.sky_coverage == 'masked':
                         # rhits_normalised
-                        dl.rhits_normalised = dl.masks if nm.rhits_normalised is None else nm.rhits_normalised
+                        dl.rhits_normalised = nm.rhits_normalised
                         dl.fsky = np.mean(l2OBD_Transformer.get_ninvp(cf)[0][1]) ## calculating fsky, but quite expensive. and if ninvp changes, this could have negative effect on fsky calc
                     else:
                         dl.fsky = 1.0
@@ -843,6 +843,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.masks, dl.rhits_map = l2OBD_Transformer.get_masks(cf)
                     dl.nlev_p = l2OBD_Transformer.get_nlevp(cf)
                     dl.ninv_p_desc = l2OBD_Transformer.get_ninvp(cf, dl.nside)
+                    dl.ninv_t_desc = l2OBD_Transformer.get_ninvt(cf, dl.nside)
                     
 
 

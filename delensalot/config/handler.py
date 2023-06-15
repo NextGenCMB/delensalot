@@ -103,7 +103,7 @@ class config_handler():
         Args:
             job_choice (list, optional): A specific job which should be performed. This one is not necessarily defined in the configuration file. It is handed over via command line or in interactive mode. Defaults to [].
         """        
-        for job in self.jobs:
+        for job in self.djobmodels:
             job.collect_jobs()    
             job.run()
 
@@ -134,12 +134,6 @@ class config_handler():
                                 logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
                                 if k.__str__() in safelist:
                                     dostore = True
-                                    # if callable(v):
-                                    #     # If function, we can test if bytecode is the same as a simple check won't work due to pointing to memory location
-                                    #     if v.__code__.co_code != configfile.dlensalot_model.__dict__[key].__dict__[k].__code__.co_code:
-                                    #         logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
-                                    #         logging.warning('Exit. Check config file.')
-                                    #         sys.exit()
                                 else:
                                     dostore = False
                                     logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))

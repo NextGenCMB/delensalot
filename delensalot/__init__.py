@@ -1,4 +1,4 @@
-import os
+import os, sys
 from os.path import join as opj
 if "SCRATCH" not in os.environ:
     os.environ["SCRATCH"] = "./SCRATCH"
@@ -8,9 +8,12 @@ import psutil
 import healpy as hp
 from delensalot.run import run
 
-from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model, DLENSALOT_Data, DLENSALOT_Qerec, DLENSALOT_Itrec, DLENSALOT_Computing, DLENSALOT_Noisemodel, DLENSALOT_Analysis, DLENSALOT_Mapdelensing
-from delensalot.utils import camb_clfile
+import shutil
 
+from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model, DLENSALOT_Data, DLENSALOT_Qerec, DLENSALOT_Itrec, DLENSALOT_Computing, DLENSALOT_Noisemodel, DLENSALOT_Analysis, DLENSALOT_Mapdelensing
+
+
+from delensalot.utils import camb_clfile
 cls_len = camb_clfile(opj(os.path.dirname(__file__), 'data/cls/FFP10_wdipole_lensedCls.dat'))
 cpp = camb_clfile(opj(os.path.dirname(__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'))['pp']
 
@@ -71,7 +74,7 @@ def map2delblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, verb
     return ana_mwe.get_residualblens(ana_mwe.simidxs[0], ana_mwe.its[-1])
 
 
-def map2tempblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, verbose=False):
+def map2tempblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, defaults_to='P_FS_CMBS4', verbose=False):
     """Calculates a B-lensing template on the full sky. Configuration is a faithful default. 
 
     Args:
@@ -96,8 +99,9 @@ def map2tempblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, ver
         Lmin = 10
     else:
         Lmin = 1
+    default_values = '{}_FS_CMBS4'.format(len2TP[len(maps)]) if 'CMBS4' in defaults_to else defaults_to
     dlensalot_model = DLENSALOT_Model(
-        defaults_to = '{}_FS_CMBS4'.format(len2TP[len(maps)]),
+        defaults_to = default_values,
         data = DLENSALOT_Data(maps=maps),
         analysis = DLENSALOT_Analysis(
             TEMP_suffix = suffix,
@@ -123,3 +127,8 @@ def map2tempblm(maps, lmax_cmb, beam, itmax, noise, use_approximateWF=False, ver
     ana_mwe = delensalot_runner.init_job()
 
     return ana_mwe.get_blt_it(ana_mwe.simidxs[0], ana_mwe.itmax)
+
+
+def del_TEMP(path):
+    if os.path.exists(path):
+        shutil.rmtree(path)

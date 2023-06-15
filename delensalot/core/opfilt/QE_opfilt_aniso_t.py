@@ -45,7 +45,7 @@ class alm_filter_ninv(object):
 
         if not np.all(ninv_geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
             log.info('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
-            ninv_geom_ = utils_geom.Geom(nr, ninv_geom.nph.copy(), ninv_geom.ofs.copy(), 1, ninv_geom.phi0.copy(), ninv_geom.theta.copy(), np.ones(len(ninv_geom.ofs), dtype=float))
+            ninv_geom_ = utils_geom.Geom(ninv_geom.theta.copy(), ninv_geom.phi0.copy(), ninv_geom.nph.copy(), ninv_geom.ofs.copy(), np.ones(len(ninv_geom.ofs), dtype=float))
             # Does not seem to work without the 'copy'
         else:
             ninv_geom_ = ninv_geom
