@@ -704,16 +704,20 @@ class QE_lr(Basejob):
     # @base_exception_handler
     #@log_on_start(logging.INFO, "QE.get_plm(simidx={simidx}, sub_mf={sub_mf}) started")
     #@log_on_end(logging.INFO, "QE.get_plm(simidx={simidx}, sub_mf={sub_mf}) finished")
-    def get_plm(self, simidx, sub_mf=True):
+    def get_plm(self, simidx, sub_mf=True, N1=np.array([])):
         libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
-        fn_plm = opj(libdir_MAPidx, 'phi_plm_it000.npy') # Note: careful, this one doesn't have a simidx, so make sure it ends up in a simidx_directory (like MAP)
+        if N1.size == 0:
+            N1 = 0
+            fn_plm = opj(libdir_MAPidx, 'phi_plm_it000.npy') # Note: careful, this one doesn't have a simidx, so make sure it ends up in a simidx_directory (like MAP)
+        else:
+            fn_plm = opj(libdir_MAPidx, 'phi_plm_it000{}.npy'.format('_wN1'))
         if not os.path.exists(fn_plm):
             plm  = self.qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate:
             if sub_mf and self.version != 'noMF':
                 plm -= self.mf(int(simidx))  # MF-subtracted unnormalized QE
             R = qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=self.lm_max_qlm[0])[0]
             # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
-            WF = self.cpp * utils.cli(self.cpp + utils.cli(R))
+            WF = self.cpp * utils.cli(self.cpp + utils.cli(R) + N1)
             plm = alm_copy(plm, None, self.lm_max_qlm[0], self.lm_max_qlm[1])
             almxfl(plm, utils.cli(R), self.lm_max_qlm[1], True) # Normalized QE
             almxfl(plm, WF, self.lm_max_qlm[1], True) # Wiener-filter QE
