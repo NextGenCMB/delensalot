@@ -259,7 +259,7 @@ class Sim_generator(Basejob):
             else:
                 mpi.receive(None, source=mpi.ANY_SOURCE)
             
-            simidxs_ = np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))))
+            simidxs_ = np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))), dtype=int)
             check_ = True  
             for simidx in simidxs_: # (2)
                 if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']: 
@@ -329,9 +329,11 @@ class Sim_generator(Basejob):
         if np.all(self.simulationdata.maps == DEFAULT_NotAValue) and self.simulationdata.flavour != 'obs':
             for taski, task in enumerate(['generate_sky', 'generate_obs']):
                 _jobs = []
-                simidxs_ = np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))))
+                simidxs_ = np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))), dtype=int)
+                # print(self.simidxs, self.simidxs.dtype, self.simidxs_mf, simidxs_)
                 if task == 'generate_sky':
                     for simidx in simidxs_:
+                        print(simidx)
                         if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
                             fnQ = opj(self.libdir_sky, self.fns_sky['E'].format(simidx))
                             fnU = opj(self.libdir_sky, self.fns_sky['B'].format(simidx))
@@ -347,6 +349,7 @@ class Sim_generator(Basejob):
                             fnU = opj(self.libdir_sky, self.fns_sky['B'].format(simidx))
                             if not os.path.isfile(fnT) or not os.path.isfile(fnQ) or not os.path.isfile(fnU) or not os.path.exists(opj(self.libdir_sky, self.fnsP.format(simidx))):
                                 _jobs.append(simidx)
+                        print(_jobs)
 
                 if task == 'generate_obs':
                     for simidx in simidxs_:
@@ -364,7 +367,8 @@ class Sim_generator(Basejob):
                             fnQ = opj(self.libdir, self.fns['E'].format(simidx))
                             fnU = opj(self.libdir, self.fns['B'].format(simidx))
                             if not os.path.isfile(fnT) or not os.path.isfile(fnQ) or not os.path.isfile(fnU):
-                                _jobs.append(simidx)             
+                                _jobs.append(simidx)        
+                    print(_jobs)    
                 jobs[taski] = _jobs
             self.jobs = jobs
         else:
@@ -1015,7 +1019,7 @@ class Map_delenser(Basejob):
         if mpi.rank == 0:
             if not(os.path.isdir(self.libdir_delenser)):
                 os.makedirs(self.libdir_delenser)
-        self.fns = lambda simidx: opj(self.libdir_delenser, 'ClBB_sim%04d.npy'%(simidx))
+        self.fns = opj(self.libdir_delenser, 'ClBB_sim%04d.npy')
 
 
     # @base_exception_handler

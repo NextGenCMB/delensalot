@@ -397,7 +397,7 @@ class Xunl:
 
 
     def cl2alm(self, cls, field, seed):
-        np.random.seed(seed) # check if this starting point is random
+        np.random.seed(int(seed)) # check if this starting point is random
         if field == 'polarization':
             alms = hp.synalm(cls, self.lmax, new=True)
             return alms[1:]
@@ -407,7 +407,7 @@ class Xunl:
     
 
     def clp2plm(self, clp, seed):
-        np.random.seed(seed)
+        np.random.seed(int(seed))
         plm = hp.synalm(clp, self.phi_lmax)
         return plm
 
