@@ -213,7 +213,10 @@ class qlm_iterator(object):
         cache_cond = (lmin_plm >= 1) and (elm_wf is None)
 
         fn_blt = 'blt_p%03d_e%03d_lmax%s'%(it, it_e, lmaxb)
-        fn_blt += '_dlmmod' * dlm_mod.any()
+        if dlm_mod is None:
+            pass
+        else:
+            fn_blt += '_dlmmod' * dlm_mod.any()
         fn_blt += 'perturbative' * perturbative
         
         if self.blt_cacher.is_cached(fn_blt):
