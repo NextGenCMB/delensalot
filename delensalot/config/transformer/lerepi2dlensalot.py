@@ -66,8 +66,8 @@ class l2base_Transformer:
         dl.lmin_teb = an.lmin_teb
         dl.version = an.version
         dl.simidxs = an.simidxs
-        dl.simidxs_mf = an.simidxs_mf if dl.version != 'noMF' else []
-        dl.simidxs_mf = dl.simidxs_mf if dl.simidxs_mf != [] else dl.simidxs
+        dl.simidxs_mf = np.array(an.simidxs_mf) if dl.version != 'noMF' else np.array([])
+        dl.simidxs_mf = dl.simidxs_mf if dl.simidxs_mf.size == 0 else np.array(dl.simidxs)
         dl.Nmf = 0 if dl.version == 'noMF' else len(dl.simidxs_mf)
         dl.TEMP_suffix = an.TEMP_suffix
         dl.TEMP = transform(cf, l2T_Transformer())
@@ -235,8 +235,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 dl.lmin_teb = an.lmin_teb
                 dl.version = an.version
                 dl.simidxs = an.simidxs
-                dl.simidxs_mf = an.simidxs_mf if dl.version != 'noMF' else []
-                dl.simidxs_mf = dl.simidxs_mf if dl.simidxs_mf != [] else dl.simidxs
+                dl.simidxs_mf = np.array(an.simidxs_mf) if dl.version != 'noMF' else np.array([])
+                dl.simidxs_mf = dl.simidxs_mf if dl.simidxs_mf.size == 0 else np.array(dl.simidxs)
 
                 dl.TEMP_suffix = an.TEMP_suffix
                 dl.TEMP = transform(cf, l2T_Transformer())
