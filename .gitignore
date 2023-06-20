@@ -5,6 +5,8 @@ delensalot/ana/config/pico/
 install/*
 SCRATCH/
 reconstruction/
+TESTSCRATCH/
+
 outputs/*
 
 ## Fortran gitignore
