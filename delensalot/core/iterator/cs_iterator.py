@@ -31,6 +31,7 @@ from plancklens.qcinv import multigrid
 
 import lenspyx.remapping.utils_geom as utils_geom
 from lenspyx.remapping.utils_geom import pbdGeometry, pbounds
+from lenspyx.remapping.deflection_028 import rtype
 
 from delensalot.utils import cli, read_map
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl
@@ -242,15 +243,18 @@ class qlm_iterator(object):
         if perturbative: # Applies perturbative remapping
             get_alm = lambda a: elm_wf if a == 'e' else np.zeros_like(elm_wf)
             geom, sht_tr = self.filter.ffi.geom, self.filter.ffi.sht_tr
-            d1 = geom.alm2map_spin([dlm, np.zeros_like(dlm)], 1, self.lmax_qlm, self.mmax_qlm, sht_tr, [-1., 1.])
+            d1_c = np.empty((geom.npix(),), dtype=elm_wf.dtype)
+            d1_r = d1_c.view(rtype[d1_c.dtype]).reshape((d1_c.size, 2)).T  # real view onto complex array
+            geom.synthesis(dlm, 1, self.lmax_qlm, self.mmax_qlm, sht_tr, map=d1_r, mode='GRAD_ONLY')
             dp = utils_qe.qeleg_multi([2], +3, [utils_qe.get_spin_raise(2, self.lmax_filt)])(get_alm, geom, sht_tr)
             dm = utils_qe.qeleg_multi([2], +1, [utils_qe.get_spin_lower(2, self.lmax_filt)])(get_alm, geom, sht_tr)
-            dlens = -0.5 * ((d1[0] - 1j * d1[1]) * dp + (d1[0] + 1j * d1[1]) * dm)
-            del dp, dm, d1
-            elm, blm = geom.map2alm_spin([dlens.real, dlens.imag], 2, lmaxb, mmaxb, sht_tr, [-1., 1.])
+            dlens_c = -0.5 * ((d1_c.conj()) * dp + d1_c * dm)
+            dlens_r = dlens_c.view(rtype[dlens_c.dtype]).reshape((dlens_c.size, 2)).T  # real view onto complex array
+            del dp, dm, d1_c
+            blm = geom.adjoint_synthesis(dlens_r, 2, lmaxb, mmaxb, sht_tr)[1]
         else: # Applies full remapping (this will re-calculate the angles)
             ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm)
-            elm, blm = ffi.lensgclm(np.array([elm_wf, np.zeros_like(elm_wf)]), self.mmax_filt, 2, lmaxb, mmaxb)
+            blm = ffi.lensgclm(elm_wf, self.mmax_filt, 2, lmaxb, mmaxb)[1]
 
         if cache_cond:
             self.blt_cacher.cache(fn_blt, blm)
@@ -267,7 +271,7 @@ class qlm_iterator(object):
             assert self.wf_cacher.is_cached(e_fname), 'cant do lik, Wiener-filtered delensed CMB not available'
             elm_wf = self.wf_cacher.load(e_fname)
             self.filter.set_ffi(self._get_ffi(itr))
-            elm = self.opfilt.calc_prep(read_map(self.dat_maps), self.cls_filt, self.filter, self.tr)
+            elm = self.opfilt.calc_prep(read_map(self.dat_maps), self.cls_filt, self.filter, self.filter.ffi.sht_tr)
             l2p = 2 * np.arange(self.filter.lmax_sol + 1) + 1
             lik_qd = -np.sum(l2p * alm2cl(elm_wf, elm, self.filter.lmax_sol, self.filter.mmax_sol, self.filter.lmax_sol))
             # quadratic cst term : (X^d N^{-1} X^d)
