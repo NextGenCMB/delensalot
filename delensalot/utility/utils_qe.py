@@ -1,6 +1,7 @@
 import os
 import numpy as np
 from delensalot.utility.utils_hp import Alm, almxfl
+from lenspyx.remapping.utils_geom import Geom
 
 class qeleg_multi:
     """Quadratic estimator leg instance
@@ -22,7 +23,7 @@ class qeleg_multi:
         self.cls.append(np.copy(qeleg.cl))
         return self
 
-    def __call__(self, get_alm, geom, sht_tr:int, mmax:int or None=None):
+    def __call__(self, get_alm, geom: Geom, sht_tr:int, mmax:int or None=None):
         """Returns the spin-weighted real-space map of the estimator.
 
             Args:
@@ -36,20 +37,19 @@ class qeleg_multi:
         """
         lmax = self.get_lmax()
         if mmax is None: mmax = lmax
-        glm = np.zeros(Alm.getsize(lmax, mmax), dtype=complex)
-        clm = np.zeros(Alm.getsize(lmax, mmax), dtype=complex) # X_{lm} is here glm + i clm
+        tgclm = np.zeros((2, Alm.getsize(lmax, mmax)), dtype=complex)
         for i, (si, cl) in enumerate(zip(self.spins_in, self.cls)):
             assert si in [0, -2, 2], str(si) + ' input spin not implemented'
             gclm = [get_alm('e'), get_alm('b')] if abs(si) == 2 else [-get_alm('t'), 0.]
             assert len(gclm) == 2
             sgn_g = -(-1) ** si if si < 0 else -1
             sgn_c = (-1) ** si if si < 0 else -1
-            glm += almxfl(gclm[0], sgn_g * cl, mmax, False)
+            tgclm[0] += almxfl(gclm[0], sgn_g * cl, mmax, False)
             if np.any(gclm[1]):
-                clm += almxfl(gclm[1], sgn_c * cl, mmax, False)
-        glm *= -1
-        if self.spin_ou > 0: clm *= -1
-        Red, Imd = geom.alm2map_spin([glm, clm],  abs(self.spin_ou), lmax, mmax, sht_tr, [-1., 1.])
+                tgclm[1] += almxfl(gclm[1], sgn_c * cl, mmax, False)
+        tgclm[0] *= -1
+        if self.spin_ou > 0: tgclm[1] *= -1
+        Red, Imd = geom.synthesis(tgclm,  abs(self.spin_ou), lmax, mmax, sht_tr)
         if self.spin_ou < 0 and self.spin_ou % 2 == 1: Red *= -1
         if self.spin_ou < 0 and self.spin_ou % 2 == 0: Imd *= -1
         return Red + 1j * Imd
