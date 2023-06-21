@@ -142,7 +142,7 @@ class alm_filter_ninv(object):
         almxfl(twf_len, self.b_transf, self.mmax_len, True)
         t = tdat - self.geom.synthesis(twf_len, 0, self.lmax_len, self.mmax_len, self.sht_threads)
         self.apply_map(t)
-        twf_len = self.geom.adjoint_synthesis(t, 0, apply_weights=False)
+        twf_len = self.geom.adjoint_synthesis(t, 0, apply_weights=False).squeeze()
         almxfl(twf_len, self.b_transf, self.mmax_len, True)  # Factor of 1/2 because of \dagger rather than ^{-1}
         return q_pbgeom.geom.synthesis(twf_len, 0, self.lmax_len, self.mmax_len, self.sht_threads)
 
@@ -162,7 +162,7 @@ def calc_prep(maps:np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv):
     assert ninv_filt.mmax_sol == ninv_filt.mmax_len, (ninv_filt.mmax_sol, ninv_filt.mmax_len)
     tmap = np.copy(maps)
     ninv_filt.apply_map(tmap)
-    tlm = ninv_filt.geom.adjoint_synthesis(tmap, 0, ninv_filt.lmax_len, ninv_filt.mmax_len, ninv_filt.sht_threads, apply_weights=False)
+    tlm = ninv_filt.geom.adjoint_synthesis(tmap, 0, ninv_filt.lmax_len, ninv_filt.mmax_len, ninv_filt.sht_threads, apply_weights=False).squeeze()
     lmax_tr = len(ninv_filt.b_transf) - 1
     almxfl(tlm, ninv_filt.b_transf * (s_cls['tt'][:lmax_tr+1] > 0.), ninv_filt.mmax_len, inplace=True)
     return tlm
