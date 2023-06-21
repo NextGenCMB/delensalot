@@ -4,6 +4,8 @@ delensalot/ana/config/cmbs4/
 delensalot/ana/config/pico/
 install/*
 SCRATCH/
+reconstruction/
+TESTSCRATCH/
 
 outputs/*
 

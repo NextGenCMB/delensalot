@@ -1,4 +1,4 @@
-"""Generic cmb-only sims module
+"""Generic cmb-only sims module. cls_unl camb-like
 
 """
 
@@ -82,13 +82,15 @@ class sims_cmb_len(object):
         first_rank = mpi.bcast(mpi.rank)
         if first_rank == mpi.rank:
             if not os.path.exists(fn_hash):
-                pk.dump(self.hashdict(), open(fn_hash, 'wb'), protocol=2)
+                with open(fn_hash, 'wb') as f:
+                    pk.dump(self.hashdict(), f, protocol=2)
             for n in range(mpi.size):
                 if n != mpi.rank:
                     mpi.send(1, dest=n)
         else:
             mpi.receive(None, source=mpi.ANY_SOURCE)
-        utils.hash_check(self.hashdict(), pk.load(open(fn_hash, 'rb')))
+        with open(fn_hash, 'rb') as f:
+            utils.hash_check(self.hashdict(), pk.load(f))
         try:
             import lenspyx
         except ImportError:
@@ -192,19 +194,3 @@ class sims_cmb_len(object):
             self._cache_eblm(idx)
         if ret:
             return hp.read_alm(fname)
-        
-class parameter_sims:
-
-    def __init__(self, maps, phi):
-        self.maps = maps
-        self.phi = phi
-
-    def get_sim_pmap(self, index):
-        return self.maps
-    
-    def get_sim_plm(self, index):
-        return self.phi
-    
-    def hashdict(self):
-        ret = {'rhits':1, 'sim_lib':2, 'units':3, 'path2sim0':4}
-        return ret

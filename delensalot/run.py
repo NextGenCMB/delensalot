@@ -90,17 +90,15 @@ class run():
 
 
     def run(self):
+        self.collect_models()
+        self.config_handler.run()
 
-        return self.collect_model()
+        return self.config_handler.djobmodels
 
 
     def init_job(self):
-
-
-        self.config_handler.run(self.delensalotjob)
-
-        return self.config_handler.delensalotjobs[0]
-
+        
+        return self.collect_model()
 
 
 if __name__ == '__main__':

@@ -62,7 +62,7 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
             # Does not seem to work without the 'copy'
         else:
             geom_ = ninv_geom
-        assert np.all(ninv_geom_.weight == 1.)
+        assert np.all(geom_.weight == 1.)
         assert utils_geom.Geom.npix(geom_) == ninv.size, (geom_.npix(), ninv.size)
         self.sht_threads = sht_threads
         self.ninv_geom = ninv_geom

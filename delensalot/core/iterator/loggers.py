@@ -2,7 +2,6 @@
 
 
 """
-# TODO move to .core
 import time
 import os
 from os.path import join as opj

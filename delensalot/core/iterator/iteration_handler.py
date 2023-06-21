@@ -15,19 +15,12 @@ import numpy as np
 import healpy as hp
 
 from lenspyx.remapping import utils_geom
+from delensalot.utility.utils_hp import alm_copy
 from delensalot.core.iterator import cs_iterator, cs_iterator_fast
 
 class base_iterator():
 
     def __init__(self, job_model, simidx:int, delensalot_model):
-        """Iterator instance for simulation idx and qe_key type k
-            Args:
-                k: 'p_p' for Pol-only, 'ptt' for T-only, 'p_eb' for EB-only, etc
-                simidx: simulation index to build iterative lensing estimate on
-                version: string to use to test variants of the iterator with otherwise the same parfile
-                        (here if 'noMF' is in version, will not use any mean-fied at the very first step)
-                cg_tol: tolerance of conjugate-gradient filter
-        """
         self.simidx = simidx
         self.__dict__.update(job_model.__dict__)
         self.iterator_config = delensalot_model
@@ -41,26 +34,36 @@ class base_iterator():
         self.R_unl0 = self.qe.R_unl()
         self.mf0 = self.qe.get_meanfield(self.simidx) if self.QE_subtract_meanfield else np.zeros(shape=hp.Alm.getsize(self.lm_max_qlm[0]))
         self.plm0 = self.qe.get_plm(self.simidx, self.QE_subtract_meanfield)
-        # TODO not sure why this happens here. Could be done much earlier
         self.it_chain_descr = self.iterator_config.it_chain_descr(self.iterator_config.lm_max_unl[0], self.iterator_config.it_cg_tol)
         
 
     @log_on_start(logging.INFO, "get_datmaps() started")
     @log_on_end(logging.INFO, "get_datmaps() finished")
     def get_datmaps(self):
-        assert self.k in ['p_p', 'p_eb'], '{} not supported. Implement if needed'.format(self.k)
-        # TODO change naming convention. Should align with map/alm params for ivfs and simdata
         if self.it_filter_directional == 'isotropic':
-            # dat maps must now be given in harmonic space in this idealized configuration
-            job = utils_geom.Geom.get_healpix_geometry(self.sims_nside)
-            thtbounds = (np.arccos(self.zbounds[1]), np.arccos(self.zbounds[0]))
-            job = job.restrict(*thtbounds, northsouth_sym=False)
-            if self.k in ['pee']:
-                return np.array(job.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2, *self.lm_max_ivf, nthreads=self.tr))[0]
-            else:
-                return np.array(job.map2alm_spin(self.sims_MAP.get_sim_pmap(int(self.simidx)), 2, *self.lm_max_ivf, nthreads=self.tr))
+            # dat maps must now be given in harmonic space in this idealized configuration. sims_MAP is not used here, as no truncation happens in idealized setting.
+            if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
+                return alm_copy(
+                    self.simulationdata.get_sim_obs(self.simidx, space='alm', spin=0, field='polarization'),
+                    None, *self.lm_max_ivf)
+            elif self.k in ['ptt']:
+                return alm_copy(
+                    self.simulationdata.get_sim_obs(self.simidx, space='alm', spin=0, field='temperature'),
+                    None, *self.lm_max_ivf)
+            elif self.k in ['p']:
+                EBobs = alm_copy(
+                    self.simulationdata.get_sim_obs(self.simidx, space='alm', spin=0, field='polarization'),
+                    None, *self.lm_max_ivf)
+                Tobs = alm_copy(
+                    self.simulationdata.get_sim_obs(self.simidx, space='alm', spin=0, field='temperature'),
+                    None, *self.lm_max_ivf)         
+                ret = np.array([Tobs, *EBobs])
+                return ret
         else:
-            return np.array(self.sims_MAP.get_sim_pmap(int(self.simidx)))
+            if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
+                return np.array(self.sims_MAP.get_sim_pmap(self.simidx))
+            else:
+                assert 0, 'implement if needed'
         
 
 class iterator_transformer(base_iterator):

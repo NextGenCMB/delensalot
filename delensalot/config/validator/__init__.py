@@ -4,6 +4,7 @@ The init contains a helper attribute and is accessed when two configuration file
 
 safelist = [
     'version',
+    'key',
     'jobs',
     'simidxs',
     'simidxs_mf',
@@ -21,6 +22,7 @@ safelist = [
     'outdir_plot_rel',
     'OMP_NUM_THREADS',
     'rhits_normalised',
+    'masks_fn',
 ]
 
 DEFAULT_NotAValue = -123456789

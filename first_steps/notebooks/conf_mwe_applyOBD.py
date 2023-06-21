@@ -1,6 +1,7 @@
 import numpy as np
-import plancklens
-from plancklens import utils
+
+import delensalot
+from delensalot.utility.utils_hp import gauss_beam
 from delensalot.config.metamodel.dlensalot_mm import *
 
 dlensalot_model = DLENSALOT_Model(
@@ -15,35 +16,30 @@ dlensalot_model = DLENSALOT_Model(
         version = 'noMF',
         simidxs = np.arange(0,1),
         TEMP_suffix = 'my_first_dlensalot_analysis_applyOBD',
-        Lmin = 2, 
+        Lmin = 1, 
         lm_max_ivf = (1024, 1024),
         lmin_teb = (10, 10, 100),
-        mask = opj(os.environ['SCRATCH'], 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100', 'mask.fits'),
+        beam = 1.0,
+        mask = opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100', 'mask.fits'),
     ),
-    data = DLENSALOT_Data(
-        package_ = 'delensalot',
-        module_ = 'sims.generic',
-        class_ = 'sims_cmb_len',
-        class_parameters = {
-            'lmax': 1024,
-            'cls_unl': utils.camb_clfile(opj(os.path.dirname(plancklens.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat')),
-            'lib_dir': opj(os.environ['SCRATCH'], 'sims', 'generic', 'nside512', 'lmax1024', 'nlevp_sqrt(2)'),
-            'nside_lens': 512
-        },
-        nlev_t = 1.00,
-        nlev_p = np.sqrt(2),
-        beam = 1.00,
-        lmax_transf = 1024,
-        nside = 512,
-        transferfunction = 'gauss_no_pixwin'
-    ), 
+    simulationdata = DLENSALOT_Simulation(
+        space = 'cl', 
+        flavour = 'unl',
+        lmax = 1024,
+        phi_lmax = 1536,
+        transfunction = gauss_beam(1.0/180/60 * np.pi, lmax=1024),
+        nlev = {'P': np.sqrt(2)},
+        geominfo = ('healpix', {'nside': 512}),
+        lenjob_geominfo = ('thingauss', {'lmax': 1024 + 300, 'smax': 3}),
+        CMB_fn = opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
+    ),
     noisemodel = DLENSALOT_Noisemodel(
         OBD = True,
         sky_coverage = 'masked',
         spectrum_type = 'white',
-        nlev_t = 1.00,
-        nlev_p = np.sqrt(2),
-        rhits_normalised = (opj(os.environ['SCRATCH'], 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100', 'rhits.fits'), np.inf)
+        nlev = {'P': np.sqrt(2), 'T': np.sqrt(1)},
+        geominfo = ('healpix', {'nside': 512}),
+        rhits_normalised = (opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100', 'rhits.fits'), np.inf)
     ),
     qerec = DLENSALOT_Qerec(
         tasks = ["calc_phi"],
@@ -53,6 +49,6 @@ dlensalot_model = DLENSALOT_Model(
         cg_tol = 1e-5
     ),
     obd = DLENSALOT_OBD(
-        libdir = opj(os.environ['SCRATCH'], 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100'),
+        libdir = opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100'),
     )
 )

@@ -16,7 +16,9 @@ def f1(expr, job_id, transformer): # pylint: disable=missing-function-docstring
     if "MAP_lensrec" == job_id:
         return transformer.build_MAP_lensrec(expr)
     if "delens" == job_id:
-        return transformer.build_delens(expr)
+        return transformer.build_delenser(expr)
+    else:
+        assert 0, 'Dont understand your key: {}'.format(job_id)
     
 
 @transform3d.case(DLENSALOT_Concept, str, l2delensalotjob_Transformer)
@@ -30,7 +32,9 @@ def f1(expr, job_id, transformer): # pylint: disable=missing-function-docstring
     if "MAP_lensrec" == job_id:
         return transformer.build_MAP_lensrec(expr)
     if "delens" == job_id:
-        return transformer.build_delens(expr)
+        return transformer.build_delenser(expr)
+    else:
+        assert 0, 'Dont understand your key: {}'.format(job_id)
 
 @transform.case(DLENSALOT_Concept, QE_transformer)
 def f1(expr, transformer): # pylint: disable=missing-function-docstring
@@ -42,11 +46,12 @@ def f1(expr, transformer): # pylint: disable=missing-function-docstring
 @transform.case(QE_lr, QE_iso_transformer)
 def f1(expr, transformer): # pylint: disable=missing-function-docstring
     if expr.k in ['p_p', 'p_eb', 'p_be', 'peb', 'pee', 'pbb']:
-        return transformer.build_opfilt_iso_pp(expr)
+        return transformer.build_opfilt_iso_p(expr)
     elif expr.k in ['ptt']:
-        return transformer.build_opfilt_iso_tt(expr)
-    elif expr.k == 'p_te':
+        return transformer.build_opfilt_iso_t(expr)
+    elif expr.k == 'p':
         assert 0, "implement if needed"
+        # return transformer.build_opfilt_iso_tp(expr)
     elif expr.k == 'p_et':
         assert 0, "implement if needed"
     elif expr.k == 'pte':
@@ -63,9 +68,9 @@ def f1(expr, transformer): # pylint: disable=missing-function-docstring
 @transform.case(QE_lr, QE_aniso_transformer)
 def f1(expr, transformer): # pylint: disable=missing-function-docstring
     if expr.k in ['p_p', 'p_eb', 'p_be', 'peb', 'pee', 'pbb']:
-        return transformer.build_opfilt_pp(expr)
+        return transformer.build_opfilt_aniso_p(expr)
     elif expr.k in ['ptt']:
-        return transformer.build_opfilt_tt(expr)
+        return transformer.build_opfilt_aniso_t(expr)
     elif expr.k == 'p_te':
         assert 0, "implement if needed"
     elif expr.k == 'p_et':
@@ -98,13 +103,13 @@ def f1(expr, transformer): # pylint: disable=missing-function-docstring
 @transform.case(MAP_lr, MAP_iso_transformer)
 def f1(expr, transformer): # pylint: disable=missing-function-docstring
     if expr.k in ['p_p', 'p_eb', 'p_be', 'peb', 'pbb']:
-        return transformer.build_opfilt_iso_pp(expr)
+        return transformer.build_opfilt_iso_p(expr)
     elif expr.k == 'pee':
-        return transformer.build_opfilt_iso_ee(expr)
+        return transformer.build_opfilt_iso_e(expr)
     elif expr.k == 'ptt':
-        return transformer.build_opfilt_iso_tt(expr)
+        return transformer.build_opfilt_iso_t(expr)
     elif expr.k == 'p':
-        return transformer.build_opfilt_iso_gmv(expr)
+        return transformer.build_opfilt_iso_tp(expr)
     elif expr.k == 'p_te':
         assert 0, "implement if needed"
     elif expr.k == 'p_et':
@@ -123,11 +128,11 @@ def f1(expr, transformer): # pylint: disable=missing-function-docstring
 @transform.case(MAP_lr, MAP_aniso_transformer)
 def f1(expr, transformer): # pylint: disable=missing-function-docstring
     if expr.k in ['p_p', 'p_eb', 'p_be', 'peb', 'pbb']:
-        return transformer.build_opfilt_iso_pp(expr)
+        return transformer.build_opfilt_aniso_p(expr)
     elif expr.k == 'pee':
-        return transformer.build_opfilt_iso_ee(expr)
+        assert 0, "implement if needed"
     elif expr.k == 'ptt':
-        return transformer.build_opfilt_tt(expr)
+        return transformer.build_opfilt_aniso_t(expr)
     elif expr.k == 'p':
         assert 0, "implement if needed"
     elif expr.k == 'p_te':

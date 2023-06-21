@@ -89,11 +89,6 @@ class template_bfilt(object):
         self.nmodes = int((lmax_marg + 1) * lmax_marg + lmax_marg + 1 - 4)
         if not np.all(geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
             log.info('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
-            # old signature: "nrings"_a, "nph"_a, "ofs"_a, "stride"_a, "phi0"_a, "theta"_a, "wgt"_a
-            # nr = geom.get_nrings()
-            # old geom: geom_ = us.Geometry(nr, geom.nph.copy(), geom.ofs.copy(), 1, geom.phi0.copy(), geom.theta.copy(), np.ones(nr, dtype=float))
-            # new signature: (self, thet:, phi0, nphi, ringstart, w)
-            # new geom_
             geom_ = utils_geom.Geom(geom.theta.copy(), geom.phi0.copy(), geom.nph.copy(), geom.ofs.copy(), np.ones(len(geom.ofs), dtype=float))
         else:
             geom_ = geom
@@ -107,7 +102,7 @@ class template_bfilt(object):
                 os.makedirs(_lib_dir)
             self.lib_dir = _lib_dir
 
-        sht_threads = sht_threads
+        self.sht_threads = sht_threads
 
 
     def hashdict(self):
@@ -164,7 +159,7 @@ class template_bfilt(object):
         elm = np.zeros_like(blm)
 
         this_lmax = Alm.getlmax(blm.size, -1)
-        q, u = self.geom.alm2map_spin([elm, blm], 2, this_lmax, this_lmax. self.sht_threads)
+        q, u = self.geom.alm2map_spin([elm, blm], 2, this_lmax, this_lmax, self.sht_threads)
         qumap[0] *= q
         qumap[1] *= u
 
