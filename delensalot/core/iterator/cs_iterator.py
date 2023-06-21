@@ -245,7 +245,7 @@ class qlm_iterator(object):
             geom, sht_tr = self.filter.ffi.geom, self.filter.ffi.sht_tr
             d1_c = np.empty((geom.npix(),), dtype=elm_wf.dtype)
             d1_r = d1_c.view(rtype[d1_c.dtype]).reshape((d1_c.size, 2)).T  # real view onto complex array
-            geom.synthesis(dlm, 1, self.lmax_qlm, self.mmax_qlm, sht_tr, map=d1_r)
+            geom.synthesis(dlm, 1, self.lmax_qlm, self.mmax_qlm, sht_tr, map=d1_r, mode='GRAD_ONLY')
             dp = utils_qe.qeleg_multi([2], +3, [utils_qe.get_spin_raise(2, self.lmax_filt)])(get_alm, geom, sht_tr)
             dm = utils_qe.qeleg_multi([2], +1, [utils_qe.get_spin_lower(2, self.lmax_filt)])(get_alm, geom, sht_tr)
             dlens_c = -0.5 * ((d1_c.conj()) * dp + d1_c * dm)
