@@ -44,6 +44,13 @@ class Foreground(object):
         SN_map = abs(mappa) / np.std(mappa)
         mask =  np.where(mappa > threshold, 1, 0)
         return mask
+    
+    @staticmethod
+    def smooth_map(mappa: np.ndarray, fwhm: float, nside: int):
+        """
+        Smooths the input map.
+        """
+        return hp.smoothing(mappa, fwhm = np.radians(fwhm))
 
 
 class PointSourcesSimple(Foreground):
@@ -62,15 +69,16 @@ class PointSourcesSimple(Foreground):
         return hp.almxfl(plm, factor)
     
 
-    def _get_position_from_kappa_default(self, rng, kappa: np.ndarray, factor: float = 0.5) -> np.ndarray:
+    @staticmethod
+    def _get_position_from_kappa_default(rng, kappa: np.ndarray, factor: float = 0.5) -> np.ndarray:
         """
         Returns the positions of the point sources from the input kappa map.
         """
         positions = np.where(rng.poisson(1+kappa*factor) > 0)[0]
         return positions
     
-    
-    def _get_position_from_kappa_alternative(self, rng, kappa: np.ndarray, factor: float = 0.5) -> np.ndarray:
+    @staticmethod
+    def _get_position_from_kappa_alternative(rng, kappa: np.ndarray, factor: float = 0.5) -> np.ndarray:
         """
         Returns the positions of the point sources from the input kappa map.
         """
@@ -88,7 +96,7 @@ class PointSourcesSimple(Foreground):
         
             klm = self.phi_lm_to_kappa_lm(plm)
             kmap = hp.alm2map(klm, self.nside, verbose = False)
-            positions = np.where(rng.poisson(abs(kmap)*factor) > 0)[0]
+            positions = self._get_position_from_kappa_default(rng, kmap, factor)
             nsources = len(positions)
 
         else:
