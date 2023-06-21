@@ -28,7 +28,8 @@ def apply_fini(*args, **kwargs):
 
 class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
     def __init__(self, ninv_geom:utils_geom.Geom, ninv: np.ndarray, ffi:remapping.deflection, transf:np.ndarray,
-                 unlalm_info:tuple, lenalm_info:tuple, sht_threads:int,verbose=False, lmin_dotop=0, tpl:tni.template_tfilt or None =None):
+                 unlalm_info:tuple, lenalm_info:tuple, sht_threads:int,verbose=False, lmin_dotop=0, tpl:tni.template_tfilt or None =None,
+                 extra_ninv: np.ndarray = None):
         r"""CMB inverse-variance and Wiener filtering instance, using unlensed E and lensing deflection
 
             Args:
@@ -40,6 +41,7 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
                 lenalm_info: tuple of int, lmax and mmax of lensed CMB
                 sht_threads: number of threads for lenspyx SHTs
                 verbose: some printout if set, defaults to False
+                extra_ninv: np.ndarray, extra map for inverse noise filtering to be applied to the observed map
 
         """
         lmax_unl, mmax_unl = unlalm_info
@@ -75,6 +77,9 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
 
         self.template = tpl
 
+        self.extra_ninv = extra_ninv # I do not use this one for the diagonal pre-conditioned CG
+        ## assume extra_inv will enter in the form: B^t extra_ninv B, then I want to take the inverse of this
+
     def hashdict(self):
         return {'ninv':self._ninv_hash(), 'transf':clhash(self.b_transf_tlm),
                 'deflection':self.ffi.hashdict(),
@@ -101,6 +106,28 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
 
         """
         tmap *= self.n_inv
+
+        if self.extra_ninv is not None:
+            """
+            Here I am doing this:
+            N^{-1} - N^{-1}B^t \hat{S}^2 B N^{-1}, applied on X map
+
+            This assumes that we have a small perturbation to the noise.
+
+            Note that for now here the noise is diagonal in pixel space. This is not the case for the extra piece of here.
+            """
+            B = tmap.copy()
+            B = self.geom_.map2alm(B.copy(), self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
+            B = almxfl(B, self.b_transf_tlm, self.mmax_len, inplace = False)
+            B = self.geom_.alm2map(B.copy(), self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
+            B *= self.extra_ninv
+            B = self.geom_.map2alm(B.copy(), self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
+            B = almxfl(B, self.b_transf_tlm, self.mmax_len, inplace = False)
+            B = self.geom_.alm2map(B.copy(), self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
+            B *= self.n_inv
+            tmap -= B
+
+
         if self.template is not None:
             ts = [self.template] # Hack, this is only meant for one template
             coeffs = np.concatenate(([t.dot(tmap) for t in ts]))
