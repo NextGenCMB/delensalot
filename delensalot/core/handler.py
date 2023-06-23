@@ -5,6 +5,7 @@
 """
 import os
 from os.path import join as opj
+import hashlib
 
 import numpy as np
 import healpy as hp
@@ -17,7 +18,6 @@ from logdecorator import log_on_start, log_on_end
 import datetime, getpass, copy, importlib
 
 from plancklens import qresp, qest, qecl, utils
-from plancklens.sims import maps, phas
 from plancklens.qcinv import opfilt_pp
 from plancklens.filt import filt_util, filt_cinv, filt_simple
 
@@ -246,7 +246,10 @@ class Sim_generator(Basejob):
                 self.fns_sky = self.set_basename_sky()
                 self.fnsP = 'philm_{}.npy'
 
-            self.libdir = opj(os.environ['SCRATCH'], 'simulation/', str(self.simulationdata.geominfo), lenjob_geomstr, str(self.simulationdata.nlev)+self.libdir_suffix)
+            hlib = hashlib.sha256()
+            hlib.update(str(self.simulationdata.transfunction).encode())
+            transcode = hlib.hexdigest()[:4]
+            self.libdir = opj(os.environ['SCRATCH'], 'simulation/', str(self.simulationdata.geominfo), lenjob_geomstr, str(sorted(self.simulationdata.nlev.items()))+self.libdir_suffix,  'transf_{}'.format(str(transcode)))
             self.fns = self.set_basename_obs()
             
             first_rank = mpi.bcast(mpi.rank)
@@ -259,7 +262,7 @@ class Sim_generator(Basejob):
             else:
                 mpi.receive(None, source=mpi.ANY_SOURCE)
             
-            simidxs_ = np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))))
+            simidxs_ = np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))), dtype=int)
             check_ = True  
             for simidx in simidxs_: # (2)
                 if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']: 
@@ -329,7 +332,7 @@ class Sim_generator(Basejob):
         if np.all(self.simulationdata.maps == DEFAULT_NotAValue) and self.simulationdata.flavour != 'obs':
             for taski, task in enumerate(['generate_sky', 'generate_obs']):
                 _jobs = []
-                simidxs_ = np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))))
+                simidxs_ = np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))), dtype=int)
                 if task == 'generate_sky':
                     for simidx in simidxs_:
                         if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
@@ -704,7 +707,7 @@ class QE_lr(Basejob):
     # @base_exception_handler
     #@log_on_start(logging.INFO, "QE.get_plm(simidx={simidx}, sub_mf={sub_mf}) started")
     #@log_on_end(logging.INFO, "QE.get_plm(simidx={simidx}, sub_mf={sub_mf}) finished")
-    def get_plm(self, simidx, sub_mf=True, N1=np.array([])):
+    def get_plm_n1(self, simidx, sub_mf=True, N1=np.array([])):
         libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
         if N1.size == 0:
             N1 = 0
@@ -718,6 +721,25 @@ class QE_lr(Basejob):
             R = qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=self.lm_max_qlm[0])[0]
             # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
             WF = self.cpp * utils.cli(self.cpp + utils.cli(R) + N1)
+            plm = alm_copy(plm, None, self.lm_max_qlm[0], self.lm_max_qlm[1])
+            almxfl(plm, utils.cli(R), self.lm_max_qlm[1], True) # Normalized QE
+            almxfl(plm, WF, self.lm_max_qlm[1], True) # Wiener-filter QE
+            almxfl(plm, self.cpp > 0, self.lm_max_qlm[1], True)
+            np.save(fn_plm, plm)
+
+        return np.load(fn_plm)
+
+
+    def get_plm(self, simidx, sub_mf=True):
+        libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
+        fn_plm = opj(libdir_MAPidx, 'phi_plm_it000.npy') # Note: careful, this one doesn't have a simidx, so make sure it ends up in a simidx_directory (like MAP)
+        if not os.path.exists(fn_plm):
+            plm  = self.qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate:
+            if sub_mf and self.version != 'noMF':
+                plm -= self.mf(int(simidx))  # MF-subtracted unnormalized QE
+            R = qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=self.lm_max_qlm[0])[0]
+            # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
+            WF = self.cpp * utils.cli(self.cpp + utils.cli(R))
             plm = alm_copy(plm, None, self.lm_max_qlm[0], self.lm_max_qlm[1])
             almxfl(plm, utils.cli(R), self.lm_max_qlm[1], True) # Normalized QE
             almxfl(plm, WF, self.lm_max_qlm[1], True) # Wiener-filter QE

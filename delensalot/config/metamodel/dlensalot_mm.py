@@ -18,6 +18,9 @@ from delensalot.config.metamodel import DEFAULT_NotAValue, DEFAULT_NotASTR, DL_D
 from delensalot.config.validator import analysis, chaindescriptor, computing, data, filter as v_filter, itrec, job, mapdelensing, meta, model, noisemodel, obd, qerec, stepper
 
 
+import importlib.util
+
+
 class DLENSALOT_Concept:
     """An abstract element base type for the Dlensalot formalism."""
     __metaclass__ = abc.ABCMeta
@@ -418,6 +421,12 @@ class DLENSALOT_Model(DLENSALOT_Concept):
 
         """
         # log.info("Setting default, using {}:\n\t{}".format(self.defaults_to, DL_DEFAULT[self.defaults_to]))
+
+        # spec = importlib.util.spec_from_file_location("default", "./../defaults/{}.py".format(self.defaults_to))
+        # default_module = importlib.util.module_from_spec(spec)
+        # sys.modules["default"] = default_module
+        # spec.loader.exec_module(foo)
+        # default_dict = default_module.default_dict
         for key, val in list(filter(lambda x: '__' not in x[0] and x[0] != 'defaults_to', self.__dict__.items())):
             for k, v in val.__dict__.items():
                 if k in ['chain', 'stepper']:
