@@ -29,14 +29,17 @@ def isinstalled():
 
     if name in sys.modules:
         print(f"{name!r} already in sys.modules")
+        return True
     elif (spec := importlib.util.find_spec(name)) is not None:
         # If you choose to perform the actual import ...
         module = importlib.util.module_from_spec(spec)
         sys.modules[name] = module
         spec.loader.exec_module(module)
         print(f"{name!r} has been imported")
+        return True
     else:
         print(f"can't find the {name!r} module")
+        return False
 
 
 def is_notebook() -> bool:
@@ -57,7 +60,8 @@ def enable():
     disabled = False
     verbose = True
     has_key = lambda key : key in os.environ.keys()
-    cond4mpi4py = not has_key('NERSC_HOST') or (has_key('SLURM_SUBMIT_DIR') and has_key('NERSC_HOST'))
+    cond4mpi4py = 'srun' in os.environ['_']
+    # cond4mpi4py = not has_key('NERSC_HOST') or (has_key('SLURM_SUBMIT_DIR') and has_key('NERSC_HOST'))
     name = "{} with {} cpus".format(platform.processor(),multiprocessing.cpu_count())
 
     if not is_notebook() and cond4mpi4py and isinstalled():
@@ -72,6 +76,7 @@ def enable():
 
 
 def disable():
+    print('disabling')
     global barrier, send, receive, bcast, ANY_SOURCE, name, rank, size, finalize, disabled
     barrier = lambda: -1
     send = lambda _, dest: 0
@@ -96,4 +101,4 @@ def init():
     finalize = MPI.Finalize
     log.info('mpi.py : setup OK, rank %s in %s' % (rank, size))
 
-enable()
+# enable()

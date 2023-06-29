@@ -9,7 +9,6 @@ import logging
 import traceback
 
 from delensalot.core import mpi
-from delensalot.core.mpi import check_MPI
 
 from delensalot.config.handler import config_handler
 import delensalot.config.etc.dev_helper as dh
