@@ -87,6 +87,7 @@ def disable():
     rank = 0
     size = 1
     finalize = lambda: -1
+    log.info('mpi.py : diabled, rank %s in %s' % (rank, size))
 
 def init():
     global barrier, send, receive, bcast, ANY_SOURCE, name, rank, size, finalize, disabled
@@ -101,4 +102,4 @@ def init():
     finalize = MPI.Finalize
     log.info('mpi.py : setup OK, rank %s in %s' % (rank, size))
 
-# enable()
+enable()

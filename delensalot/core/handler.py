@@ -242,11 +242,12 @@ class Sim_generator(Basejob):
             else:
                 # some flavour provided, and we need to generate the sky and obs maps from this.
                 lenjob_geomstr = str(self.simulationdata.len_lib.lenjob_geominfo)
-                self.libdir_sky = opj(os.environ['SCRATCH'], 'simulation/', str(self.simulationdata.geominfo), lenjob_geomstr)
+                self.libdir_suffix = 'generic' if self.libdir_suffix == '' else self.libdir_suffix
+                self.libdir_sky = opj(os.environ['SCRATCH'], 'simulation/', self.libdir_suffix, str(self.simulationdata.geominfo), lenjob_geomstr)
                 self.fns_sky = self.set_basename_sky()
                 self.fnsP = 'philm_{}.npy'
-
-            self.libdir = opj(os.environ['SCRATCH'], 'simulation/', str(self.simulationdata.geominfo), lenjob_geomstr, str(self.simulationdata.nlev)+self.libdir_suffix)
+            self.libdir_suffix = 'generic' if self.libdir_suffix == '' else self.libdir_suffix
+            self.libdir = opj(os.environ['SCRATCH'], 'simulation/', self.libdir_suffix, str(self.simulationdata.geominfo), lenjob_geomstr, str(self.simulationdata.nlev))
             self.fns = self.set_basename_obs()
             
             first_rank = mpi.bcast(mpi.rank)
@@ -333,7 +334,6 @@ class Sim_generator(Basejob):
                 # print(self.simidxs, self.simidxs.dtype, self.simidxs_mf, simidxs_)
                 if task == 'generate_sky':
                     for simidx in simidxs_:
-                        print(simidx)
                         if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
                             fnQ = opj(self.libdir_sky, self.fns_sky['E'].format(simidx))
                             fnU = opj(self.libdir_sky, self.fns_sky['B'].format(simidx))
@@ -349,7 +349,6 @@ class Sim_generator(Basejob):
                             fnU = opj(self.libdir_sky, self.fns_sky['B'].format(simidx))
                             if not os.path.isfile(fnT) or not os.path.isfile(fnQ) or not os.path.isfile(fnU) or not os.path.exists(opj(self.libdir_sky, self.fnsP.format(simidx))):
                                 _jobs.append(simidx)
-                        print(_jobs)
 
                 if task == 'generate_obs':
                     for simidx in simidxs_:
@@ -367,8 +366,7 @@ class Sim_generator(Basejob):
                             fnQ = opj(self.libdir, self.fns['E'].format(simidx))
                             fnU = opj(self.libdir, self.fns['B'].format(simidx))
                             if not os.path.isfile(fnT) or not os.path.isfile(fnQ) or not os.path.isfile(fnU):
-                                _jobs.append(simidx)        
-                    print(_jobs)    
+                                _jobs.append(simidx)          
                 jobs[taski] = _jobs
             self.jobs = jobs
         else:
@@ -465,6 +463,8 @@ class Sim_generator(Basejob):
 
             self.simulationdata.unl_lib.libdir_phi = self.libdir_sky
             self.simulationdata.unl_lib.fnsP = self.fnsP
+            self.simulationdata.unl_lib.phi_field = 'potential'
+            self.simulationdata.unl_lib.phi_space = 'alm' # we always safe phi as lm's
 
 
 class QE_lr(Basejob):
