@@ -25,7 +25,7 @@ def check_MPI_inline():
 
 def isinstalled():
     # For illustrative purposes.
-    name = 'MPI'
+    name = 'mpi4py'
 
     if name in sys.modules:
         print(f"{name!r} already in sys.modules")
