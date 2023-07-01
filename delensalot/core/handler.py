@@ -649,12 +649,14 @@ class QE_lr(Basejob):
             if task == 'calc_phi':
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
                     self.get_plm(idx, self.QE_subtract_meanfield)
+                    self.simulationdata.purgecache()
 
             if task == 'calc_blt':
                 for simidx in self.jobs[taski][mpi.rank::mpi.size]:
                     # ## Faking here MAP filters
                     self.itlib_iterator = transform(self.MAP_job, iterator_transformer(self.MAP_job, simidx, self.dlensalot_model))
                     self.get_blt(simidx)
+                    self.simulationdata.purgecache()
 
 
     # @base_exception_handler

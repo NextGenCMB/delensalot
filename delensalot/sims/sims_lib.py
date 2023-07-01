@@ -60,6 +60,7 @@ class iso_white_noise:
         self.space = space
         if libdir == DNaV:
             self.nlev = nlev
+            assert libdir_suffix != DNaV, 'must give libdir_suffix'
             self.libdir_phas = os.environ['SCRATCH']+'/simulation/{}/{}/phas/{}/'.format(libdir_suffix,str(geominfo),str(sorted(self.nlev.items())))
             self.pix_lib_phas = phas.pix_lib_phas(self.libdir_phas, 3, (self.geom_lib.npix(),))
         else:
@@ -182,12 +183,27 @@ class Cls:
             self.phi_fn = None
         elif phi_fn == DNaV:
             self.phi_fn = self.CMB_fn
-            self.phi_file = load_file(self.phi_fn)['pp']
+            buff = load_file(self.phi_fn)
+            if self.phi_fn.endswith('npy'):
+                if len(buff) > 1:
+                    self.phi_file = load_file(self.phi_fn)[:,1]
+                else:
+                    self.phi_file = load_file(self.phi_fn)
+            else:
+                self.phi_file = load_file(self.phi_fn)['pp']
             self.phi_field = phi_field # assuming that CAMB file is 'potential'
         else:
             self.phi_fn = phi_fn
-            self.phi_file = load_file(self.phi_fn)['pp']
+            buff = load_file(self.phi_fn)
+            if self.phi_fn.endswith('npy'):
+                if len(buff) > 1:
+                    self.phi_file = load_file(self.phi_fn)[:,1]
+                else:
+                    self.phi_file = load_file(self.phi_fn)
+            else:
+                self.phi_file = load_file(self.phi_fn)['pp']
             self.phi_field = phi_field
+        log.info("phi_fn is {}".format(self.phi_fn))
         self.cacher = cachers.cacher_mem(safe=True)
 
 
@@ -211,8 +227,6 @@ class Xunl:
     """class for generating unlensed CMB and phi realizations from power spectra
     """    
     def __init__(self, lmax, cls_lib=DNaV, libdir=DNaV, fns=DNaV, fnsP=DNaV, libdir_phi=DNaV, phi_field='potential', phi_space=DNaV, phi_lmax=DNaV, space=DNaV, geominfo=DNaV, isfrozen=False, spin=DNaV):
-        print('xunl')
-        print(libdir_phi)
         self.geominfo = geominfo
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
@@ -361,6 +375,7 @@ class Xunl:
         fn = 'phi_space{}_{}'.format(space, simidx)
         if not self.cacher.is_cached(fn):
             if self.libdir_phi == DNaV:
+                log.info('generating phi from cl')
                 Clpf = self.cls_lib.get_sim_clphi(simidx)
                 self.phi_field = self.cls_lib.phi_field
                 Clp = self.clpf2clppot(Clpf)
@@ -485,6 +500,7 @@ class Xsky:
                     log.info('.., generating.')
                     unl = self.unl_lib.get_sim_unl(simidx, space='alm', field=field, spin=0)
                     philm = self.unl_lib.get_sim_phi(simidx, space='alm')
+                    
                     if field == 'polarization':
                         sky = self.unl2len(unl, philm, spin=2, epsilon=self.epsilon)
                         if space == 'map':
@@ -595,7 +611,7 @@ class Xobs:
                     if libdir_noise == DNaV:
                         if nlev == DNaV:
                             assert 0, "need nlev for generating noise"
-                        self.noise_lib = iso_white_noise(nlev=nlev, lmax=lmax, fns=fnsnoise,libdir=libdir_noise, space=space, geominfo=self.geominfo)
+                        self.noise_lib = iso_white_noise(nlev=nlev, lmax=lmax, fns=fnsnoise,libdir=libdir_noise, space=space, geominfo=self.geominfo, libdir_suffix=libdir_suffix)
                 if np.all(transfunction == DNaV):
                     assert 0, 'need to give transfunction'
                 self.transfunction = transfunction       
