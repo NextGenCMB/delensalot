@@ -111,7 +111,7 @@ if __name__ == '__main__':
     if dh.dev_subr in parser.__dict__:
         dh.dev(parser, config_handler.TEMP)
         sys.exit()
-    config_handler.collect_jobs()
+    config_handler.collect_models()
 
     try:
         config_handler.run()

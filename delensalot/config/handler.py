@@ -38,6 +38,7 @@ class config_handler():
     """
 
     def __init__(self, parser, config_model=None):
+        sorted_joblist = ['generate_sim', 'QE_lensrec', 'MAP_lensrec', 'OBD_builder']
         if config_model is None:
             self.configfile = config_handler.load_configfile(parser.config_file, 'configfile')
         else:
@@ -47,7 +48,15 @@ class config_handler():
             if parser.job_id is None:
                 pass
             else:
-                self.configfile.dlensalot_model.job.__dict__.update({'jobs': [parser.job_id]})
+                self.configfile.dlensalot_model.job.jobs = []
+                if parser.job_id != "":
+                    for sortedjob in sorted_joblist:
+                        if sortedjob == parser.job_id:
+                            self.configfile.dlensalot_model.job.jobs.append(sortedjob)
+                            break
+                        else:
+                            self.configfile.dlensalot_model.job.jobs.append(sortedjob)
+                print(self.configfile.dlensalot_model.job.jobs)
         TEMP = transform(self.configfile.dlensalot_model, l2T_Transformer())
         if parser.status == '':
             if mpi.rank == 0:
@@ -56,8 +65,8 @@ class config_handler():
         self.TEMP = TEMP
 
 
-    @log_on_start(logging.DEBUG, "collect_jobs() Started")
-    @log_on_end(logging.DEBUG, "collect_jobs() Finished")
+    @log_on_start(logging.DEBUG, "collect_model() Started")
+    @log_on_end(logging.DEBUG, "collect_model() Finished")
     def collect_model(self, djob_id=''):
         """
 
@@ -73,8 +82,8 @@ class config_handler():
         return self.djobmodels[0]
 
 
-    @log_on_start(logging.DEBUG, "collect_jobs() Started")
-    @log_on_end(logging.DEBUG, "collect_jobs() Finished")
+    @log_on_start(logging.DEBUG, "collect_models() Started")
+    @log_on_end(logging.DEBUG, "collect_models() Finished")
     def collect_models(self, djob_id=''):
         """collect all requested jobs and build a mapping between the job, and their respective transformer
         This is called from both, terminal and interacitve runs.
@@ -82,15 +91,11 @@ class config_handler():
         Args:
             job_id (str, optional): A specific job which should be performed. This one is not necessarily defined in the configuration file. It is handed over via command line or in interactive mode. Defaults to ''.
         """
-        # TODO to remove job-dependencies: create a list of jobs up to the requested job.
-        if isinstance(djob_id, str):
-            djob_id = [djob_id]
-        self.configfile.dlensalot_model.job.jobs = djob_id
-        self.djob_ids = self.configfile.dlensalot_model.job.jobs
         self.djobmodels = []
-        for job_id in self.djob_ids:
+        print(self.configfile.dlensalot_model.job.jobs)
+        print('-------------------')
+        for job_id in self.configfile.dlensalot_model.job.jobs:
             self.djobmodels.append(transform3d(self.configfile.dlensalot_model, job_id, l2delensalotjob_Transformer()))
-        
         return self.djobmodels
         
 
@@ -102,7 +107,7 @@ class config_handler():
 
         Args:
             job_choice (list, optional): A specific job which should be performed. This one is not necessarily defined in the configuration file. It is handed over via command line or in interactive mode. Defaults to [].
-        """        
+        """ 
         for job in self.djobmodels:
             job.collect_jobs()    
             job.run()
