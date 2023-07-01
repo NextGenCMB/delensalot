@@ -39,6 +39,8 @@ from delensalot.core.decorator.exception_handler import base as base_exception_h
 from delensalot.core.opfilt import utils_cinv_p as cinv_p_OBD
 from delensalot.core.opfilt.bmodes_ninv import template_bfilt
 
+def get_dirname(s):
+    return s.replace('(', '').replace(')', '').replace('{', '').replace('}', '').replace(' ', '').replace('\'', '').replace('\"', '').replace(':', '_').replace(',', '_').replace('[', '').replace(']', '')
 
 class Basejob():
     """
@@ -241,13 +243,13 @@ class Sim_generator(Basejob):
                 lenjob_geomstr = 'unknown_lensinggeometry'
             else:
                 # some flavour provided, and we need to generate the sky and obs maps from this.
-                lenjob_geomstr = str(self.simulationdata.len_lib.lenjob_geominfo)
+                lenjob_geomstr = get_dirname(str(self.simulationdata.len_lib.lenjob_geominfo))
                 self.libdir_suffix = 'generic' if self.libdir_suffix == '' else self.libdir_suffix
-                self.libdir_sky = opj(os.environ['SCRATCH'], 'simulation/', self.libdir_suffix, str(self.simulationdata.geominfo), lenjob_geomstr)
+                self.libdir_sky = opj(os.environ['SCRATCH'], 'simulation/', self.libdir_suffix, get_dirname(str(self.simulationdata.geominfo)), lenjob_geomstr)
                 self.fns_sky = self.set_basename_sky()
                 self.fnsP = 'philm_{}.npy'
             self.libdir_suffix = 'generic' if self.libdir_suffix == '' else self.libdir_suffix
-            self.libdir = opj(os.environ['SCRATCH'], 'simulation/', self.libdir_suffix, str(self.simulationdata.geominfo), lenjob_geomstr, str(self.simulationdata.nlev))
+            self.libdir = opj(os.environ['SCRATCH'], 'simulation/', self.libdir_suffix, get_dirname(str(self.simulationdata.geominfo)), get_dirname(lenjob_geomstr), get_dirname(str(sorted(self.simulationdata.nlev.items()))))
             self.fns = self.set_basename_obs()
             
             first_rank = mpi.bcast(mpi.rank)

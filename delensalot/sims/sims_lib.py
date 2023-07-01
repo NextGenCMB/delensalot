@@ -46,6 +46,9 @@ def cld2clp(cld, lmax):
     return hp.almxfl(cld, cli(factor))
 
 
+def get_dirname(s):
+    return s.replace('(', '').replace(')', '').replace('{', '').replace('}', '').replace(' ', '').replace('\'', '').replace('\"', '').replace(':', '_').replace(',', '_').replace('[', '').replace(']', '')
+
 class iso_white_noise:
     """class for generating very simple isotropic white noise
     """
@@ -61,7 +64,7 @@ class iso_white_noise:
         if libdir == DNaV:
             self.nlev = nlev
             assert libdir_suffix != DNaV, 'must give libdir_suffix'
-            self.libdir_phas = os.environ['SCRATCH']+'/simulation/{}/{}/phas/{}/'.format(libdir_suffix,str(geominfo),str(sorted(self.nlev.items())))
+            self.libdir_phas = os.environ['SCRATCH']+'/simulation/{}/{}/phas/{}/'.format(libdir_suffix, get_dirname(str(geominfo)), get_dirname(str(sorted(self.nlev.items()))))
             self.pix_lib_phas = phas.pix_lib_phas(self.libdir_phas, 3, (self.geom_lib.npix(),))
         else:
             if fns == DNaV:
