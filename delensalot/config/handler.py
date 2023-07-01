@@ -56,8 +56,8 @@ class config_handler():
         self.TEMP = TEMP
 
 
-    @log_on_start(logging.DEBUG, "collect_jobs() Started")
-    @log_on_end(logging.DEBUG, "collect_jobs() Finished")
+    @log_on_start(logging.DEBUG, "collect_model() Started")
+    @log_on_end(logging.DEBUG, "collect_model() Finished")
     def collect_model(self, djob_id=''):
         """
 
@@ -73,8 +73,8 @@ class config_handler():
         return self.djobmodels[0]
 
 
-    @log_on_start(logging.DEBUG, "collect_jobs() Started")
-    @log_on_end(logging.DEBUG, "collect_jobs() Finished")
+    @log_on_start(logging.DEBUG, "collect_models() Started")
+    @log_on_end(logging.DEBUG, "collect_models() Finished")
     def collect_models(self, djob_id=''):
         """collect all requested jobs and build a mapping between the job, and their respective transformer
         This is called from both, terminal and interacitve runs.
@@ -84,13 +84,12 @@ class config_handler():
         """
         # TODO to remove job-dependencies: create a list of jobs up to the requested job.
         if isinstance(djob_id, str):
-            djob_id = [djob_id]
-        self.configfile.dlensalot_model.job.jobs = djob_id
+            if djob_id != "":
+                self.configfile.dlensalot_model.job.jobs.append(djob_id)
         self.djob_ids = self.configfile.dlensalot_model.job.jobs
         self.djobmodels = []
         for job_id in self.djob_ids:
             self.djobmodels.append(transform3d(self.configfile.dlensalot_model, job_id, l2delensalotjob_Transformer()))
-        
         return self.djobmodels
         
 
