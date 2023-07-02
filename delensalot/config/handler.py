@@ -56,7 +56,6 @@ class config_handler():
                             break
                         else:
                             self.configfile.dlensalot_model.job.jobs.append(sortedjob)
-                print(self.configfile.dlensalot_model.job.jobs)
         TEMP = transform(self.configfile.dlensalot_model, l2T_Transformer())
         if parser.status == '':
             if mpi.rank == 0:
@@ -92,8 +91,6 @@ class config_handler():
             job_id (str, optional): A specific job which should be performed. This one is not necessarily defined in the configuration file. It is handed over via command line or in interactive mode. Defaults to ''.
         """
         self.djobmodels = []
-        print(self.configfile.dlensalot_model.job.jobs)
-        print('-------------------')
         for job_id in self.configfile.dlensalot_model.job.jobs:
             self.djobmodels.append(transform3d(self.configfile.dlensalot_model, job_id, l2delensalotjob_Transformer()))
         return self.djobmodels
@@ -181,3 +178,16 @@ class config_handler():
         spec.loader.exec_module(p)
 
         return p
+
+
+    def purge_TEMPdir():
+        TEMP = transform(self.configfile.dlensalot_model, l2T_Transformer())
+        print('I would remove TEMPdir {}'.format(TEMP))
+        # os.rmdir(TEMP)
+
+
+    def purge_TEMPconf():
+        TEMP = transform(self.configfile.dlensalot_model, l2T_Transformer())
+        TEMPconf = TEMP +'/'+self.parser.config_file.split('/')[-1]
+        print('I would remove TEMPconf {}'.format(TEMP))
+        # os.rmdir(TEMP)

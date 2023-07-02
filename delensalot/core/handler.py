@@ -1020,9 +1020,8 @@ class Map_delenser(Basejob):
             self.lib.update({'mask': {}})
         self.simgen = Sim_generator(dlensalot_model)
         self.libdir_delenser = opj(self.TEMP, 'delensing/{}'.format(self.dirid))
-        if mpi.rank == 0:
-            if not(os.path.isdir(self.libdir_delenser)):
-                os.makedirs(self.libdir_delenser)
+        if not(os.path.isdir(self.libdir_delenser)):
+            os.makedirs(self.libdir_delenser)
         self.fns = opj(self.libdir_delenser, 'ClBB_sim%04d.npy')
 
 

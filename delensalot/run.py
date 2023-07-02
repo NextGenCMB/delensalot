@@ -57,6 +57,7 @@ class run():
         self.parser.resume =  ""
         self.parser.config_file = config_fn
         self.parser.status = ''
+        self.parser.job_id = job_id
 
         self.delensalotjob = job_id
         self.config_handler = config_handler(self.parser, config_model)
@@ -79,13 +80,13 @@ class run():
         if mpi.size > 1:
             if mpi.rank == 0:
                 mpi.disable()
-                self.config_handler.collect_models(self.delensalotjob)
+                self.config_handler.collect_models()
                 mpi.enable()
                 [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
             else:
                 mpi.receive(None, source=mpi.ANY_SOURCE)
 
-        return self.config_handler.collect_models(self.delensalotjob)
+        return self.config_handler.collect_models()
 
 
     def run(self):
@@ -98,6 +99,14 @@ class run():
     def init_job(self):
         
         return self.collect_model()
+    
+
+    def purge_TEMPdir():
+        self.config_handler.purge_TEMPdir()
+
+
+    def purge_TEMPconf():
+        self.config_handler.purge_TEMPconf()
 
 
 if __name__ == '__main__':
@@ -111,6 +120,15 @@ if __name__ == '__main__':
     if dh.dev_subr in parser.__dict__:
         dh.dev(parser, config_handler.TEMP)
         sys.exit()
+
+    if mpi.size > 1:
+        if mpi.rank == 0:
+            mpi.disable()
+            config_handler.collect_models()
+            mpi.enable()
+            [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
+        else:
+            mpi.receive(None, source=mpi.ANY_SOURCE)
     config_handler.collect_models()
 
     try:
