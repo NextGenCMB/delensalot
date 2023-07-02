@@ -182,12 +182,12 @@ class config_handler():
 
     def purge_TEMPdir(self):
         TEMP = transform(self.configfile.dlensalot_model, l2T_Transformer())
-        print('I would remove TEMPdir {}'.format(TEMP))
-        # os.rmdir(TEMP)
+        shutil.rmtree(TEMP, ignore_errors=True)
+        log.info('Purged {}'.format(TEMP))
 
 
     def purge_TEMPconf(self):
         TEMP = transform(self.configfile.dlensalot_model, l2T_Transformer())
         TEMPconf = TEMP +'/'+self.parser.config_file.split('/')[-1]
-        print('I would remove TEMPconf {}'.format(TEMPconf))
-        # os.rmdir(TEMP)
+        os.remove(TEMPconf)
+        log.info('Purged {}'.format(TEMPconf))
