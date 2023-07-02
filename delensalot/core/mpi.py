@@ -56,27 +56,25 @@ def is_notebook() -> bool:
 
 
 def enable():
-    global disabled, verbose, has_key, cond4mpi4py, name
+    global disabled, verbose, has_key, mpisupport, name
     disabled = False
     verbose = True
     has_key = lambda key : key in os.environ.keys()
-    cond4mpi4py = 'srun' in os.environ['_']
-    # cond4mpi4py = not has_key('NERSC_HOST') or (has_key('SLURM_SUBMIT_DIR') and has_key('NERSC_HOST'))
+    mpisupport = 'srun' in os.environ['_'] or 'mpirun' in os.environ['_']
+    pmisupport = 'PMI_SIZE' in os.environ.keys()
+    # mpisupport = not has_key('NERSC_HOST') or (has_key('SLURM_SUBMIT_DIR') and has_key('NERSC_HOST'))
     name = "{} with {} cpus".format(platform.processor(),multiprocessing.cpu_count())
 
-    if not is_notebook() and cond4mpi4py and isinstalled():
-        print(cond4mpi4py)
-        print('cond4mpi exists')
+    if not is_notebook() and (mpisupport or pmisupport) and isinstalled():
+        print('mpisupport: {}, pmisupport: {}'.format(mpisupport, pmisupport))
         init()
-        print('mpi.py : setup OK, rank %s in %s' % (rank, size))
     else:
-        print('cond4mpi does not exists. No MPI loaded')
+        print('mpisupport: {}, pmisupport: {}'.format(mpisupport, pmisupport))
         disable()
 
 
 
 def disable():
-    print('disabling')
     global barrier, send, receive, bcast, ANY_SOURCE, name, rank, size, finalize, disabled
     barrier = lambda: -1
     send = lambda _, dest: 0
