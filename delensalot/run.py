@@ -101,11 +101,11 @@ class run():
         return self.collect_model()
     
 
-    def purge_TEMPdir():
+    def purge_TEMPdir(self):
         self.config_handler.purge_TEMPdir()
 
 
-    def purge_TEMPconf():
+    def purge_TEMPconf(self):
         self.config_handler.purge_TEMPconf()
 
 
