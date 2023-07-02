@@ -847,7 +847,6 @@ class Simhandler:
         self.nlev = nlev
         self.maps = maps
         self.transfunction = transfunction
-        self.beam = beam
         if space == 'map':
             if flavour == 'obs':
                 if np.all(maps == DNaV):
