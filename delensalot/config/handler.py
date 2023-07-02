@@ -57,9 +57,6 @@ class config_handler():
                         else:
                             self.configfile.dlensalot_model.job.jobs.append(sortedjob)
         TEMP = transform(self.configfile.dlensalot_model, l2T_Transformer())
-        if parser.status == '':
-            if mpi.rank == 0:
-                self.store(parser, self.configfile, TEMP)
         self.parser = parser
         self.TEMP = TEMP
 
@@ -72,7 +69,9 @@ class config_handler():
         Args:
             job_id (str, optional): _description_. Defaults to ''.
         """      
-
+        if self.parser.status == '':
+            if mpi.rank == 0:
+                self.store(self.parser, self.configfile, self.TEMP)
         ## Making sure that specific job request from run() is processed
         self.configfile.dlensalot_model.job.jobs = [djob_id]
         self.djob_id = djob_id
@@ -90,6 +89,9 @@ class config_handler():
         Args:
             job_id (str, optional): A specific job which should be performed. This one is not necessarily defined in the configuration file. It is handed over via command line or in interactive mode. Defaults to ''.
         """
+        if self.parser.status == '':
+            if mpi.rank == 0:
+                self.store(self.parser, self.configfile, self.TEMP)
         self.djobmodels = []
         for job_id in self.configfile.dlensalot_model.job.jobs:
             self.djobmodels.append(transform3d(self.configfile.dlensalot_model, job_id, l2delensalotjob_Transformer()))

@@ -64,7 +64,7 @@ class iso_white_noise:
         if libdir == DNaV:
             self.nlev = nlev
             assert libdir_suffix != DNaV, 'must give libdir_suffix'
-            self.libdir_phas = os.environ['SCRATCH']+'/simulation/{}/{}/phas/{}/'.format(libdir_suffix, get_dirname(str(geominfo)), get_dirname(str(sorted(self.nlev.items()))))
+            self.libdir_phas = os.environ['SCRATCH']+'/simulation/{}/{}/phas/{}/'.format(libdir_suffix, get_dirname(str(geominfo)), get_dirname(str(sorted(self.nlev.items()))), )
             self.pix_lib_phas = phas.pix_lib_phas(self.libdir_phas, 3, (self.geom_lib.npix(),))
         else:
             if fns == DNaV:
@@ -846,6 +846,7 @@ class Simhandler:
         self.space = space
         self.nlev = nlev
         self.maps = maps
+        self.transfunction = transfunction
         if space == 'map':
             if flavour == 'obs':
                 if np.all(maps == DNaV):

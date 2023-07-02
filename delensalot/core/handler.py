@@ -8,6 +8,7 @@ from os.path import join as opj
 
 import numpy as np
 import healpy as hp
+import hashlib
 
 import logging
 log = logging.getLogger(__name__)
@@ -242,6 +243,9 @@ class Sim_generator(Basejob):
                 self.fns_sky = self.simulationdata.fns
                 lenjob_geomstr = 'unknown_lensinggeometry'
             else:
+                hlib = hashlib.sha256()
+                hlib.update(str(self.simulationdata.transfunction).encode())
+                transfunctioncode = hlib.hexdigest()[:4]
                 # some flavour provided, and we need to generate the sky and obs maps from this.
                 lenjob_geomstr = get_dirname(str(self.simulationdata.len_lib.lenjob_geominfo))
                 self.libdir_suffix = 'generic' if self.libdir_suffix == '' else self.libdir_suffix
@@ -249,7 +253,7 @@ class Sim_generator(Basejob):
                 self.fns_sky = self.set_basename_sky()
                 self.fnsP = 'philm_{}.npy'
             self.libdir_suffix = 'generic' if self.libdir_suffix == '' else self.libdir_suffix
-            self.libdir = opj(os.environ['SCRATCH'], 'simulation/', self.libdir_suffix, get_dirname(str(self.simulationdata.geominfo)), get_dirname(lenjob_geomstr), get_dirname(str(sorted(self.simulationdata.nlev.items()))))
+            self.libdir = opj(os.environ['SCRATCH'], 'simulation/', self.libdir_suffix, get_dirname(str(self.simulationdata.geominfo)), get_dirname(lenjob_geomstr), get_dirname(str(sorted(self.simulationdata.nlev.items())))) # +'_{}'.format(transfunctioncode)
             self.fns = self.set_basename_obs()
             
             first_rank = mpi.bcast(mpi.rank)
@@ -563,7 +567,6 @@ class QE_lr(Basejob):
     #@log_on_end(logging.INFO, "QE.collect_jobs(recalc={recalc}) finished: jobs={self.jobs}")
     def collect_jobs(self, recalc=False):
 
-        self.simgen.collect_jobs()
         # qe_tasks overwrites task-list and is needed if MAP lensrec calls QE lensrec
         jobs = list(range(len(self.qe_tasks)))
         for taski, task in enumerate(self.qe_tasks):
@@ -620,7 +623,6 @@ class QE_lr(Basejob):
     def run(self, task=None):
         ## task may be set from MAP lensrec, as MAP lensrec has prereqs to QE lensrec
         ## if None, then this is a normal QE lensrec call
-        self.simgen.run()
 
         # Only now instantiate aniso filter
         if self.qe_filter_directional == 'anisotropic':
@@ -853,8 +855,6 @@ class MAP_lr(Basejob):
     #@log_on_start(logging.INFO, "MAP.map.collect_jobs() started")
     #@log_on_end(logging.INFO, "MAP.collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self):
-        self.simgen.collect_jobs()
-        self.qe.collect_jobs(recalc=False)
         jobs = list(range(len(self.it_tasks)))
         # TODO order of task list matters, but shouldn't
         for taski, task in enumerate(self.it_tasks):
@@ -896,10 +896,7 @@ class MAP_lr(Basejob):
     def run(self):
         for taski, task in enumerate(self.it_tasks):
             log.info('{}, task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
-
             if task == 'calc_phi':
-                self.simgen.run()
-                self.qe.run(task=task)
                 for simidx in self.jobs[taski][mpi.rank::mpi.size]:
                     libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
                     if self.itmax >= 0 and rec.maxiterdone(libdir_MAPidx) < self.itmax:
@@ -911,14 +908,12 @@ class MAP_lr(Basejob):
                             log.info('{}, simidx {} done with it {}'.format(mpi.rank, simidx, it))
 
             if task == 'calc_meanfield':
-                self.qe.run(task=task)
                 # TODO I don't like barriers and not sure if they are still needed
                 mpi.barrier()
                 self.get_meanfields_it(np.arange(self.itmax+1), calc=True)
                 mpi.barrier()
 
             if task == 'calc_blt':
-                self.qe.run(task=task)
                 for simidx in self.jobs[taski][mpi.rank::mpi.size]:
                     self.libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
                     self.itlib_iterator = transform(self, iterator_transformer(self, simidx, self.dlensalot_model))
