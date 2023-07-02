@@ -107,7 +107,8 @@ class config_handler():
         Args:
             job_choice (list, optional): A specific job which should be performed. This one is not necessarily defined in the configuration file. It is handed over via command line or in interactive mode. Defaults to [].
         """ 
-        for job in self.djobmodels:
+        for jobi, job in enumerate(self.djobmodels):
+            print('running job {}'.format(self.configfile.dlensalot_model.job.jobs[jobi]))
             job.collect_jobs()    
             job.run()
 

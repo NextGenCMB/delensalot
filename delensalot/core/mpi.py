@@ -59,6 +59,7 @@ def enable():
     global disabled, verbose, has_key, mpisupport, name
     disabled = False
     verbose = True
+    print(os.environ.keys())
     has_key = lambda key : key in os.environ.keys()
     mpisupport = 'srun' in os.environ['_'] or 'mpirun' in os.environ['_']
     pmisupport = 'PMI_SIZE' in os.environ.keys()
@@ -90,7 +91,7 @@ def disable():
     log.info('mpi.py : diabled, rank %s in %s' % (rank, size))
 
 def init():
-    
+
     global barrier, send, receive, bcast, ANY_SOURCE, name, rank, size, finalize, disabled
     print('enabling mpi')
     from mpi4py import MPI
