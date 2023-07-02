@@ -75,7 +75,9 @@ def enable():
 
 
 def disable():
+    
     global barrier, send, receive, bcast, ANY_SOURCE, name, rank, size, finalize, disabled
+    print('disabling mpi')
     barrier = lambda: -1
     send = lambda _, dest: 0
     receive = lambda _, source: 0
@@ -88,7 +90,9 @@ def disable():
     log.info('mpi.py : diabled, rank %s in %s' % (rank, size))
 
 def init():
+    
     global barrier, send, receive, bcast, ANY_SOURCE, name, rank, size, finalize, disabled
+    print('enabling mpi')
     from mpi4py import MPI
     rank = MPI.COMM_WORLD.Get_rank()
     size = MPI.COMM_WORLD.Get_size()
