@@ -62,7 +62,7 @@ def enable():
     print(os.environ.keys())
     has_key = lambda key : key in os.environ.keys()
     mpisupport = 'srun' in os.environ['_'] or 'mpirun' in os.environ['_']
-    pmisupport = 'PMI_SIZE' in os.environ.keys()
+    pmisupport = 'PMI_CRAY_NO_SMP_ORDER' in os.environ.keys()
     # mpisupport = not has_key('NERSC_HOST') or (has_key('SLURM_SUBMIT_DIR') and has_key('NERSC_HOST'))
     name = "{} with {} cpus".format(platform.processor(),multiprocessing.cpu_count())
 
