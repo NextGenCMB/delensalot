@@ -386,7 +386,7 @@ class Xunl:
                 if space == 'map':
                     phi = self.geom_lib.alm2map(phi, lmax=self.phi_lmax, mmax=self.phi_lmax, nthreads=4)
             else:
-                print('phi field at {} is {}'.format(opj(self.libdir_phi, self.fnsP.format(simidx)), self.phi_field))
+                # print('phi field at {} is {}'.format(opj(self.libdir_phi, self.fnsP.format(simidx)), self.phi_field))
                 if self.phi_space == 'map':
                     phi = np.array(load_file(opj(self.libdir_phi, self.fnsP.format(simidx))), dtype=float)
                 else:

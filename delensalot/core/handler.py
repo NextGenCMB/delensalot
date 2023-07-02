@@ -984,7 +984,7 @@ class MAP_lr(Basejob):
                 if simidx in self.simidxs_mf:
                     dlm_mod = (dlm_mod - np.array(rec.load_plms(self.libdir_MAPidx, [it]))/self.Nmf) * self.Nmf/(self.Nmf - 1)
             if it<=rec.maxiterdone(self.libdir_MAPidx):
-                blt = self.itlib_iterator.get_template_blm(it, it, lmaxb=self.lm_max_blt[0], lmin_plm=np.max([self.Lmin,5]), dlm_mod=dlm_mod, perturbative=False, k=self.k)
+                blt = self.itlib_iterator.get_template_blm(it, it-1, lmaxb=self.lm_max_blt[0], lmin_plm=np.max([self.Lmin,5]), dlm_mod=dlm_mod, perturbative=False, k=self.k)
                 np.save(fn_blt, blt)
         return np.load(fn_blt)
 
