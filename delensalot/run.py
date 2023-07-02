@@ -112,17 +112,21 @@ class run():
 if __name__ == '__main__':
     """Entry point for the command line
     """
+    os.environ['USE_PLANCKLENS_MPI'] = "False"
     lparser = lerepi_parser()
     if lparser.validate():
         parser = lparser.get_parser()
 
     config_handler = config_handler(parser)
+    print(1)
     if dh.dev_subr in parser.__dict__:
         dh.dev(parser, config_handler.TEMP)
         sys.exit()
-
+    print(1.1)
     if mpi.size > 1:
+        print(1.2)
         if mpi.rank == 0:
+            print(1.3)
             mpi.disable()
             config_handler.collect_models()
             mpi.enable()
@@ -130,6 +134,7 @@ if __name__ == '__main__':
         else:
             mpi.receive(None, source=mpi.ANY_SOURCE)
     config_handler.collect_models()
+    print(2)
 
     try:
         config_handler.run()

@@ -59,7 +59,6 @@ def enable():
     global disabled, verbose, has_key, mpisupport, name
     disabled = False
     verbose = True
-    print(os.environ.keys())
     has_key = lambda key : key in os.environ.keys()
     mpisupport = 'srun' in os.environ['_'] or 'mpirun' in os.environ['_']
     pmisupport = 'PMI_CRAY_NO_SMP_ORDER' in os.environ.keys()
@@ -88,7 +87,7 @@ def disable():
     rank = 0
     size = 1
     finalize = lambda: -1
-    log.info('mpi.py : diabled, rank %s in %s' % (rank, size))
+    log.info('mpi.py : disabled, rank %s in %s' % (rank, size))
 
 def init():
 
