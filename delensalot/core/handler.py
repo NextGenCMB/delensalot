@@ -829,7 +829,7 @@ class MAP_lr(Basejob):
         # TODO Only needed to hand over to ith()
         self.dlensalot_model = dlensalot_model
         
-        # TODO This is not the prettiest way to provide MAP_lr with QE and Simgen dependency.. probably better to just put it as a separate job into the job-list.. so do this in config_handler... same with Sim_generator?
+        # FIXME remnant of previous solution how jobs were dependent on each other. This can perhaps be simplified now.
         self.simgen = Sim_generator(dlensalot_model)
         self.simulationdata = self.simgen.simulationdata
         self.qe = QE_lr(dlensalot_model, caller=self)
