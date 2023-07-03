@@ -49,6 +49,11 @@ def cld2clp(cld, lmax):
 def get_dirname(s):
     return s.replace('(', '').replace(')', '').replace('{', '').replace('}', '').replace(' ', '').replace('\'', '').replace('\"', '').replace(':', '_').replace(',', '_').replace('[', '').replace(']', '')
 
+def dict2roundeddict(d):
+    for k,v in d.items():
+        d[k] = np.around(v,3)
+    return d
+
 class iso_white_noise:
     """class for generating very simple isotropic white noise
     """
@@ -64,7 +69,8 @@ class iso_white_noise:
         if libdir == DNaV:
             self.nlev = nlev
             assert libdir_suffix != DNaV, 'must give libdir_suffix'
-            self.libdir_phas = os.environ['SCRATCH']+'/simulation/{}/{}/phas/{}/'.format(libdir_suffix, get_dirname(str(geominfo)), get_dirname(str(sorted(self.nlev.items()))), )
+            nlev_round = dict2roundeddict(self.nlev)
+            self.libdir_phas = os.environ['SCRATCH']+'/simulation/{}/{}/phas/{}/'.format(libdir_suffix, get_dirname(str(geominfo)), get_dirname(str(sorted(nlev_round.items()))))
             self.pix_lib_phas = phas.pix_lib_phas(self.libdir_phas, 3, (self.geom_lib.npix(),))
         else:
             if fns == DNaV:

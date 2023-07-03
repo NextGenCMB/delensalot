@@ -43,6 +43,11 @@ from delensalot.core.opfilt.bmodes_ninv import template_bfilt
 def get_dirname(s):
     return s.replace('(', '').replace(')', '').replace('{', '').replace('}', '').replace(' ', '').replace('\'', '').replace('\"', '').replace(':', '_').replace(',', '_').replace('[', '').replace(']', '')
 
+def dict2roundeddict(d):
+    s = ''
+    for k,v in d.items():
+        d[k] = np.around(v,3)
+    return d
 class Basejob():
     """
     Base class for all jobs, i.e. convenience functions go in here as they should be accessible from anywhere
@@ -253,7 +258,8 @@ class Sim_generator(Basejob):
                 self.fns_sky = self.set_basename_sky()
                 self.fnsP = 'philm_{}.npy'
             self.libdir_suffix = 'generic' if self.libdir_suffix == '' else self.libdir_suffix
-            self.libdir = opj(os.environ['SCRATCH'], 'simulation/', self.libdir_suffix, get_dirname(str(self.simulationdata.geominfo)), get_dirname(lenjob_geomstr), get_dirname(str(sorted(self.simulationdata.nlev.items())))) # +'_{}'.format(transfunctioncode)
+            nlev_round = dict2roundeddict(self.simulationdata.nlev)
+            self.libdir = opj(os.environ['SCRATCH'], 'simulation/', self.libdir_suffix, get_dirname(str(self.simulationdata.geominfo)), get_dirname(lenjob_geomstr), get_dirname(str(sorted(nlev_round.items()))), '{}'.format(transfunctioncode)) # 
             self.fns = self.set_basename_obs()
             
             first_rank = mpi.bcast(mpi.rank)
