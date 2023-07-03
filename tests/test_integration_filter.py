@@ -5,8 +5,8 @@
 
     COMMENT: For some reason, asserting fails if both classes are tested at the same time, i.e. `python -m unittest test_integration_filter` but this failing has nothing to do with delensalot itself.
     Recommend to use,
-        `python -m unittest test_integration_filter.FS`,
-        `python -m unittest test_integration_filter.MS`
+        `python3 -m unittest test_integration_filter.FS`,
+        `python3 -m unittest test_integration_filter.MS`
     individually.
 """
 

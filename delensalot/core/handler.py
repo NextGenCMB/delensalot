@@ -8,6 +8,7 @@ from os.path import join as opj
 
 import numpy as np
 import healpy as hp
+import hashlib
 
 import logging
 log = logging.getLogger(__name__)
@@ -39,7 +40,14 @@ from delensalot.core.decorator.exception_handler import base as base_exception_h
 from delensalot.core.opfilt import utils_cinv_p as cinv_p_OBD
 from delensalot.core.opfilt.bmodes_ninv import template_bfilt
 
+def get_dirname(s):
+    return s.replace('(', '').replace(')', '').replace('{', '').replace('}', '').replace(' ', '').replace('\'', '').replace('\"', '').replace(':', '_').replace(',', '_').replace('[', '').replace(']', '')
 
+def dict2roundeddict(d):
+    s = ''
+    for k,v in d.items():
+        d[k] = np.around(v,3)
+    return d
 class Basejob():
     """
     Base class for all jobs, i.e. convenience functions go in here as they should be accessible from anywhere
@@ -240,13 +248,18 @@ class Sim_generator(Basejob):
                 self.fns_sky = self.simulationdata.fns
                 lenjob_geomstr = 'unknown_lensinggeometry'
             else:
+                hlib = hashlib.sha256()
+                hlib.update(str(self.simulationdata.transfunction).encode())
+                transfunctioncode = hlib.hexdigest()[:4]
                 # some flavour provided, and we need to generate the sky and obs maps from this.
-                lenjob_geomstr = str(self.simulationdata.len_lib.lenjob_geominfo)
-                self.libdir_sky = opj(os.environ['SCRATCH'], 'simulation/', str(self.simulationdata.geominfo), lenjob_geomstr)
+                lenjob_geomstr = get_dirname(str(self.simulationdata.len_lib.lenjob_geominfo))
+                self.libdir_suffix = 'generic' if self.libdir_suffix == '' else self.libdir_suffix
+                self.libdir_sky = opj(os.environ['SCRATCH'], 'simulation/', self.libdir_suffix, get_dirname(str(self.simulationdata.geominfo)), lenjob_geomstr)
                 self.fns_sky = self.set_basename_sky()
                 self.fnsP = 'philm_{}.npy'
-
-            self.libdir = opj(os.environ['SCRATCH'], 'simulation/', str(self.simulationdata.geominfo), lenjob_geomstr, str(self.simulationdata.nlev)+self.libdir_suffix)
+            self.libdir_suffix = 'generic' if self.libdir_suffix == '' else self.libdir_suffix
+            nlev_round = dict2roundeddict(self.simulationdata.nlev)
+            self.libdir = opj(os.environ['SCRATCH'], 'simulation/', self.libdir_suffix, get_dirname(str(self.simulationdata.geominfo)), get_dirname(lenjob_geomstr), get_dirname(str(sorted(nlev_round.items()))), '{}'.format(transfunctioncode)) # 
             self.fns = self.set_basename_obs()
             
             first_rank = mpi.bcast(mpi.rank)
@@ -333,7 +346,6 @@ class Sim_generator(Basejob):
                 # print(self.simidxs, self.simidxs.dtype, self.simidxs_mf, simidxs_)
                 if task == 'generate_sky':
                     for simidx in simidxs_:
-                        print(simidx)
                         if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
                             fnQ = opj(self.libdir_sky, self.fns_sky['E'].format(simidx))
                             fnU = opj(self.libdir_sky, self.fns_sky['B'].format(simidx))
@@ -349,7 +361,6 @@ class Sim_generator(Basejob):
                             fnU = opj(self.libdir_sky, self.fns_sky['B'].format(simidx))
                             if not os.path.isfile(fnT) or not os.path.isfile(fnQ) or not os.path.isfile(fnU) or not os.path.exists(opj(self.libdir_sky, self.fnsP.format(simidx))):
                                 _jobs.append(simidx)
-                        print(_jobs)
 
                 if task == 'generate_obs':
                     for simidx in simidxs_:
@@ -367,8 +378,7 @@ class Sim_generator(Basejob):
                             fnQ = opj(self.libdir, self.fns['E'].format(simidx))
                             fnU = opj(self.libdir, self.fns['B'].format(simidx))
                             if not os.path.isfile(fnT) or not os.path.isfile(fnQ) or not os.path.isfile(fnU):
-                                _jobs.append(simidx)        
-                    print(_jobs)    
+                                _jobs.append(simidx)          
                 jobs[taski] = _jobs
             self.jobs = jobs
         else:
@@ -387,7 +397,8 @@ class Sim_generator(Basejob):
                     self.generate_sky(simidx)
                 if task == 'generate_obs':
                     self.generate_obs(simidx)
-                self.simulationdata.purgecache()
+                if self.simulationdata.obs_lib.maps == DEFAULT_NotAValue:
+                    self.simulationdata.purgecache()
                 log.info("rank {} (size {}) generated sim {}".format(mpi.rank, mpi.size, simidx))
         if np.all(self.simulationdata.maps == DEFAULT_NotAValue):
             self.postrun_sky()
@@ -465,6 +476,8 @@ class Sim_generator(Basejob):
 
             self.simulationdata.unl_lib.libdir_phi = self.libdir_sky
             self.simulationdata.unl_lib.fnsP = self.fnsP
+            self.simulationdata.unl_lib.phi_field = 'potential'
+            self.simulationdata.unl_lib.phi_space = 'alm' # we always safe phi as lm's
 
 
 class QE_lr(Basejob):
@@ -561,7 +574,6 @@ class QE_lr(Basejob):
     #@log_on_end(logging.INFO, "QE.collect_jobs(recalc={recalc}) finished: jobs={self.jobs}")
     def collect_jobs(self, recalc=False):
 
-        self.simgen.collect_jobs()
         # qe_tasks overwrites task-list and is needed if MAP lensrec calls QE lensrec
         jobs = list(range(len(self.qe_tasks)))
         for taski, task in enumerate(self.qe_tasks):
@@ -618,7 +630,6 @@ class QE_lr(Basejob):
     def run(self, task=None):
         ## task may be set from MAP lensrec, as MAP lensrec has prereqs to QE lensrec
         ## if None, then this is a normal QE lensrec call
-        self.simgen.run()
 
         # Only now instantiate aniso filter
         if self.qe_filter_directional == 'anisotropic':
@@ -649,12 +660,16 @@ class QE_lr(Basejob):
             if task == 'calc_phi':
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
                     self.get_plm(idx, self.QE_subtract_meanfield)
+                    if self.simulationdata.obs_lib.maps == DEFAULT_NotAValue:
+                        self.simulationdata.purgecache()
 
             if task == 'calc_blt':
                 for simidx in self.jobs[taski][mpi.rank::mpi.size]:
                     # ## Faking here MAP filters
                     self.itlib_iterator = transform(self.MAP_job, iterator_transformer(self.MAP_job, simidx, self.dlensalot_model))
                     self.get_blt(simidx)
+                    if self.simulationdata.obs_lib.maps == DEFAULT_NotAValue:
+                        self.simulationdata.purgecache()
 
 
     # @base_exception_handler
@@ -823,7 +838,7 @@ class MAP_lr(Basejob):
         # TODO Only needed to hand over to ith()
         self.dlensalot_model = dlensalot_model
         
-        # TODO This is not the prettiest way to provide MAP_lr with QE and Simgen dependency.. probably better to just put it as a separate job into the job-list.. so do this in config_handler... same with Sim_generator?
+        # FIXME remnant of previous solution how jobs were dependent on each other. This can perhaps be simplified now.
         self.simgen = Sim_generator(dlensalot_model)
         self.simulationdata = self.simgen.simulationdata
         self.qe = QE_lr(dlensalot_model, caller=self)
@@ -849,8 +864,6 @@ class MAP_lr(Basejob):
     #@log_on_start(logging.INFO, "MAP.map.collect_jobs() started")
     #@log_on_end(logging.INFO, "MAP.collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self):
-        self.simgen.collect_jobs()
-        self.qe.collect_jobs(recalc=False)
         jobs = list(range(len(self.it_tasks)))
         # TODO order of task list matters, but shouldn't
         for taski, task in enumerate(self.it_tasks):
@@ -892,10 +905,7 @@ class MAP_lr(Basejob):
     def run(self):
         for taski, task in enumerate(self.it_tasks):
             log.info('{}, task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
-
             if task == 'calc_phi':
-                self.simgen.run()
-                self.qe.run(task=task)
                 for simidx in self.jobs[taski][mpi.rank::mpi.size]:
                     libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
                     if self.itmax >= 0 and rec.maxiterdone(libdir_MAPidx) < self.itmax:
@@ -905,21 +915,23 @@ class MAP_lr(Basejob):
                             itlib_iterator.soltn_cond = self.soltn_cond(it)
                             itlib_iterator.iterate(it, 'p')
                             log.info('{}, simidx {} done with it {}'.format(mpi.rank, simidx, it))
+                    if self.simulationdata.obs_lib.maps == DEFAULT_NotAValue:
+                        self.simulationdata.purgecache()
 
             if task == 'calc_meanfield':
-                self.qe.run(task=task)
                 # TODO I don't like barriers and not sure if they are still needed
                 mpi.barrier()
                 self.get_meanfields_it(np.arange(self.itmax+1), calc=True)
                 mpi.barrier()
 
             if task == 'calc_blt':
-                self.qe.run(task=task)
                 for simidx in self.jobs[taski][mpi.rank::mpi.size]:
                     self.libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
                     self.itlib_iterator = transform(self, iterator_transformer(self, simidx, self.dlensalot_model))
                     for it in range(self.itmax + 1):
                         self.get_blt_it(simidx, it)
+                    if self.simulationdata.obs_lib.maps == DEFAULT_NotAValue:
+                        self.simulationdata.purgecache()
 
 
     # # @base_exception_handler
@@ -985,7 +997,7 @@ class MAP_lr(Basejob):
                 if simidx in self.simidxs_mf:
                     dlm_mod = (dlm_mod - np.array(rec.load_plms(self.libdir_MAPidx, [it]))/self.Nmf) * self.Nmf/(self.Nmf - 1)
             if it<=rec.maxiterdone(self.libdir_MAPidx):
-                blt = self.itlib_iterator.get_template_blm(it, it, lmaxb=self.lm_max_blt[0], lmin_plm=np.max([self.Lmin,5]), dlm_mod=dlm_mod, perturbative=False, k=self.k)
+                blt = self.itlib_iterator.get_template_blm(it, it-1, lmaxb=self.lm_max_blt[0], lmin_plm=np.max([self.Lmin,5]), dlm_mod=dlm_mod, perturbative=False, k=self.k)
                 np.save(fn_blt, blt)
         return np.load(fn_blt)
 
@@ -1016,9 +1028,8 @@ class Map_delenser(Basejob):
             self.lib.update({'mask': {}})
         self.simgen = Sim_generator(dlensalot_model)
         self.libdir_delenser = opj(self.TEMP, 'delensing/{}'.format(self.dirid))
-        if mpi.rank == 0:
-            if not(os.path.isdir(self.libdir_delenser)):
-                os.makedirs(self.libdir_delenser)
+        if not(os.path.isdir(self.libdir_delenser)):
+            os.makedirs(self.libdir_delenser)
         self.fns = opj(self.libdir_delenser, 'ClBB_sim%04d.npy')
 
 

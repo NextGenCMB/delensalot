@@ -78,7 +78,7 @@ class FS(unittest.TestCase):
                 # 'p_be': np.inf,
                 # 'peb': np.inf,
             },'MAP_lensrec': {
-                'p_p': 0.16, # 0.1435979648409691
+                'p_p': 0.16, # 0.10060576537910079
                 # 'pee': np.inf,
                 # 'p_eb': np.inf,
                 # 'p_be': np.inf,

@@ -42,10 +42,14 @@ class base_iterator():
     def get_datmaps(self):
         if self.it_filter_directional == 'isotropic':
             # dat maps must now be given in harmonic space in this idealized configuration. sims_MAP is not used here, as no truncation happens in idealized setting.
-            if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
+            if self.k in ['p_p', 'p_eb', 'peb', 'p_be']:
                 return alm_copy(
                     self.simulationdata.get_sim_obs(self.simidx, space='alm', spin=0, field='polarization'),
                     None, *self.lm_max_ivf)
+            if self.k in ['pee']:
+                return alm_copy(
+                    self.simulationdata.get_sim_obs(self.simidx, space='alm', spin=0, field='polarization'),
+                    None, *self.lm_max_ivf)[0]
             elif self.k in ['ptt']:
                 return alm_copy(
                     self.simulationdata.get_sim_obs(self.simidx, space='alm', spin=0, field='temperature'),
