@@ -17,7 +17,7 @@ from delensalot.utils import read_map, cli
 from delensalot.biases import n0n1_iterative
 from delensalot.biases import rdn0_cs
 from delensalot.core import cachers
-from delensalot.core.helper import utils_scarf
+# from delensalot.core.helper import utils_scarf
 from delensalot.core.iterator import statics
 from delensalot.utility import utils_hp as uhp
 from delensalot.utility.utils_hp import alm_copy
@@ -146,18 +146,19 @@ class cpp_sims_lib:
             return alm_copy(self.get_sim_plm(shuffled_idx), mmaxin=None, lmaxout=self.lmax_qlm, mmaxout=self.mmax_qlm)
 
 
-    def get_eblm_dat(self, simidx, lmaxout=1024):
-        QU_maps = self.param.sims_MAP.get_sim_pmap(simidx)
-        tr = int(os.environ.get('OMP_NUM_THREADS', 8))
-        sht_job = utils_scarf.scarfjob()
-        sht_job.set_geometry(self.param.ninvjob_geometry)
-        sht_job.set_triangular_alm_info(self.param.lmax_ivf,self.param.mmax_ivf)
-        sht_job.set_nthreads(tr)
-        elm, blm = np.array(sht_job.map2alm_spin(QU_maps, 2))
-        lmaxdat = hp.sphtfunc.Alm.getlmax(elm.size)
-        elm = uhp.alm_copy(elm, mmaxin=lmaxdat, lmaxout=lmaxout, mmaxout=lmaxout)
-        blm = uhp.alm_copy(blm, mmaxin=lmaxdat, lmaxout=lmaxout, mmaxout=lmaxout)
-        return elm, blm
+    # def get_eblm_dat(self, simidx, lmaxout=1024):
+    #FIXME: There is no more scarf, geometries have been moved to lenspyx
+    #     QU_maps = self.param.sims_MAP.get_sim_pmap(simidx)
+    #     tr = int(os.environ.get('OMP_NUM_THREADS', 8))
+    #     sht_job = utils_scarf.scarfjob()
+    #     sht_job.set_geometry(self.param.ninvjob_geometry)
+    #     sht_job.set_triangular_alm_info(self.param.lmax_ivf,self.param.mmax_ivf)
+    #     sht_job.set_nthreads(tr)
+    #     elm, blm = np.array(sht_job.map2alm_spin(QU_maps, 2))
+    #     lmaxdat = hp.sphtfunc.Alm.getlmax(elm.size)
+    #     elm = uhp.alm_copy(elm, mmaxin=lmaxdat, lmaxout=lmaxout, mmaxout=lmaxout)
+    #     blm = uhp.alm_copy(blm, mmaxin=lmaxdat, lmaxout=lmaxout, mmaxout=lmaxout)
+    #     return elm, blm
 
 
     def get_fsky(self):
