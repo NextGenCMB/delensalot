@@ -4,7 +4,6 @@
 """
 import logging
 log = logging.getLogger(__name__)
-from logdecorator import log_on_start, log_on_end
 
 import numpy as np
 from scipy.interpolate import UnivariateSpline as spl
@@ -24,7 +23,7 @@ class alm_filter_ninv(object):
             Args:
                 ninv_geom: lenspyx geometry for the inverse-pixel-noise variance SHTs
                 ninv: list of inverse-pixel noise variance maps (itself can be (a list of) string, or array, or ...)
-                transf: CMB transfer function (assumed to be the same in E and B)
+                transf: CMB transfer function
                 unlalm_info: tuple of int, lmax and mmax of unlensed CMB
                 lenalm_info: tuple of int, lmax and mmax of lensed CMB
                 sht_threads: number of threads for lenspyx SHTs
@@ -43,14 +42,7 @@ class alm_filter_ninv(object):
         self.lmax_sol = lmax_unl
         self.mmax_sol = min(lmax_unl, mmax_unl)
 
-        if not np.all(ninv_geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
-            log.info('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
-            ninv_geom_ = utils_geom.Geom(ninv_geom.theta.copy(), ninv_geom.phi0.copy(), ninv_geom.nph.copy(), ninv_geom.ofs.copy(), np.ones(len(ninv_geom.ofs), dtype=float))
-            # Does not seem to work without the 'copy'
-        else:
-            ninv_geom_ = ninv_geom
-        assert np.all(ninv_geom_.weight == 1.)
-        self.geom_ = ninv_geom_
+        self.geom = ninv_geom
         self.sht_threads = sht_threads
         self.ninv_geom = ninv_geom
         self.verbose=verbose
@@ -83,20 +75,21 @@ class alm_filter_ninv(object):
         assert self.lmax_sol == self.lmax_len, (self.lmax_sol, self.lmax_len) # not implemented wo lensing
         assert self.mmax_sol == self.mmax_len, (self.mmax_sol, self.mmax_len)
 
-        tim = timer(True, prefix='opfilt_pp')
+        tim = timer(True, prefix='opfilt_tt')
         lmax_unl = Alm.getlmax(tlm.size, self.mmax_sol)
         assert lmax_unl == self.lmax_sol, (lmax_unl, self.lmax_sol)
         almxfl(tlm, self.b_transf, self.mmax_len, inplace=True)
         tim.add('transf')
 
-        tmap = self.geom_.alm2map(tlm, self.lmax_len, self.mmax_len, self.sht_threads)
-        tim.add('alm2map_spin lmax %s mmax %s nrings %s'%(self.lmax_len, self.mmax_len, len(self.geom_.ofs)))
+        tmap = self.geom.synthesis(tlm, 0, self.lmax_len, self.mmax_len, self.sht_threads)
+        tim.add('alm2map_spin lmax %s mmax %s nrings %s'%(self.lmax_len, self.mmax_len, len(self.geom.ofs)))
 
         self.apply_map(tmap)  # applies N^{-1}
         tim.add('apply ninv')
 
-        tlm[:] = self.geom_.map2alm(tmap)
-        tim.add('map2alm_spin lmax %s mmax %s nrings %s'%(self.lmax_len, self.mmax_len, len(self.geom_.ofs)))
+        tlm_2d = tlm.reshape((1, tlm.size))
+        self.geom.adjoint_synthesis(tmap, 0, self.lmax_len, self.mmax_len, self.sht_threads, alm=tlm_2d, apply_weights=False)
+        tim.add('map2alm_spin lmax %s mmax %s nrings %s'%(self.lmax_len, self.mmax_len, len(self.geom.ofs)))
 
         # The map2alm is here a sum rather than integral, so geom.weights are assumed to be unity
         almxfl(tlm, self.b_transf, self.mmax_len, inplace=True)
@@ -133,8 +126,8 @@ class alm_filter_ninv(object):
         """
         assert  Alm.getlmax(tlm_wf.size, self.mmax_sol)== self.lmax_sol, ( Alm.getlmax(tlm_wf.size, self.mmax_sol), self.lmax_sol)
         fl = -np.sqrt(np.arange(self.lmax_sol + 1) * np.arange(1, self.lmax_sol + 2))
-        gclm = (almxfl(tlm_wf, fl, self.mmax_sol, False), np.zeros_like(tlm_wf))
-        return q_pbgeom.geom.alm2map_spin(gclm, 1 , self.lmax_sol, self.mmax_sol, self.sht_threads, [-1., 1.])
+        gclm = almxfl(tlm_wf, fl, self.mmax_sol, False)
+        return q_pbgeom.geom.synthesis(gclm, 1 , self.lmax_sol, self.mmax_sol, self.sht_threads)
 
     def _get_irestmap(self, tdat:np.ndarray, twf:np.ndarray, q_pbgeom:utils_geom.pbdGeometry):
         """Builds inverse variance weighted map to feed into the QE
@@ -145,18 +138,17 @@ class alm_filter_ninv(object):
 
         """
 
-        assert np.all(self.geom_.weight == 1.) # sum rather than integrals
         twf_len = np.copy(twf)
         almxfl(twf_len, self.b_transf, self.mmax_len, True)
-        t = tdat - self.geom_.alm2map(twf_len, self.lmax_len, self.mmax_len, self.sht_threads)
+        t = tdat - self.geom.synthesis(twf_len, 0, self.lmax_len, self.mmax_len, self.sht_threads)
         self.apply_map(t)
-        twf_len = self.geom_.map2alm(t)
+        twf_len = self.geom.adjoint_synthesis(t, 0, apply_weights=False).squeeze()
         almxfl(twf_len, self.b_transf, self.mmax_len, True)  # Factor of 1/2 because of \dagger rather than ^{-1}
-        return q_pbgeom.geom.alm2map(twf_len, self.lmax_len, self.mmax_len, self.sht_threads, (-1., 1.))
+        return q_pbgeom.geom.synthesis(twf_len, 0, self.lmax_len, self.mmax_len, self.sht_threads)
 
 pre_op_dense = None # not implemented
 
-def calc_prep(maps:np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv, sht_threads:int=4):
+def calc_prep(maps:np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv):
     """cg-inversion pre-operation  (D^t B^t N^{-1} X^{dat})
 
         Args:
@@ -168,10 +160,9 @@ def calc_prep(maps:np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv, sht_thread
     """
     assert ninv_filt.lmax_sol == ninv_filt.lmax_len, (ninv_filt.lmax_sol, ninv_filt.lmax_len)  # not implemented wo lensing
     assert ninv_filt.mmax_sol == ninv_filt.mmax_len, (ninv_filt.mmax_sol, ninv_filt.mmax_len)
-    assert np.all(ninv_filt.geom_.weight==1.) # Sum rather than integral, hence requires unit weights
     tmap = np.copy(maps)
     ninv_filt.apply_map(tmap)
-    tlm = ninv_filt.geom_.map2alm(tmap, ninv_filt.lmax_len, ninv_filt.mmax_len, sht_threads)
+    tlm = ninv_filt.geom.adjoint_synthesis(tmap, 0, ninv_filt.lmax_len, ninv_filt.mmax_len, ninv_filt.sht_threads, apply_weights=False).squeeze()
     lmax_tr = len(ninv_filt.b_transf) - 1
     almxfl(tlm, ninv_filt.b_transf * (s_cls['tt'][:lmax_tr+1] > 0.), ninv_filt.mmax_len, inplace=True)
     return tlm

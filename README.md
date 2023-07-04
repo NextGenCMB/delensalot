@@ -5,7 +5,7 @@
 [![Integration tutorial](https://github.com/NextGenCMB/delensalot/actions/workflows/integration_tutorial.yaml/badge.svg?branch=sims&event=pull_request)](https://github.com/NextGenCMB/delensalot/actions/workflows/integration_tutorial.yaml)
 
 # delensalot
-Curved-sky iterative CMB lensing tools
+Curved-sky iterative CMB lensing reconstruction and bias calculation
 
 # Installation
 Download the project, navigate to the root folder and execute the command,
@@ -14,6 +14,13 @@ Download the project, navigate to the root folder and execute the command,
 python setup.py install
 ```
 
+Make sure that you have the latest `plancklens` and that you are using the `plancklensdev` branch
+```
+cd plancklens
+git checkout plancklensdev
+```
+This is needed to give delensalot control over plancklens's mpi implementation, which we conveniently set up at this branch.
+
 You will need to install `jupyter` for the tutorials found in `first_steps/notebooks/`, and possibly an `ipykernel` to create a jupyter-kernel out of the environment in which you install `delensalot`.
 <!-- TODO: Add explicit instructions -->
 
@@ -21,14 +28,19 @@ You will need to install `jupyter` for the tutorials found in `first_steps/noteb
 
 Frequent problems are
  * `attrs`. If there are errors related to the metamodel, make sure you have `attrs` (not `attr`, which is a different package) installed and updated/upgraded (version 23.1.0 should do)
- * ..
+ * `astropy`. If there are errors related to ducc0, chances are it's because of an old `astropy` installation. Make sure you have the latest `astropy`.
 
 # Usage
 
-
-## The quickest way: `map2delblm()` or `map2tempblm()`
+## The quickest way: `anafast()`, `map2delblm()` or `map2tempblm()`
 
 `delensalot` comes with two handy functions to get you started very easily.
+To get a delensed power spectrum, simply import `delensalot` and run `anafast()`:
+```
+import delensalot
+delensedmap = delensalot.anafast(obsmaps, lmax_cmb=lmax_cmb, beam=beam, itmax=itmax, noise=noise, verbose=True)
+```
+
 To get a delensed B map, simply import `delensalot` and run `map2delblm()`:
 ```
 import delensalot
@@ -46,7 +58,6 @@ If you are interested in the B-lensing template, instead use `map2tempblm()`,
 import delensalot
 Blenstemplate = delensalot.map2tempblm(obsmaps, lmax_cmb=lmax_cmb, beam=beam, itmax=itmax, noise=noise, verbose=True)
 ```
-
 
 ## Run a configuration file
 
@@ -81,8 +92,7 @@ delensalot entry point.
 
 optional arguments:
   -h, --help            show this help message and exit
-  -p NEW                Relative path to config file to run analysis.
-  -r RESUME             Absolute path to config file to resume.
+  -r RESUME             Absolute path to config file to run/resume.
   -s STATUS             Absolute path for the analysis to write a report.
 
 ```
