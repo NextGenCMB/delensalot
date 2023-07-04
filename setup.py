@@ -27,7 +27,8 @@ setup(
         'healpy',
         'logdecorator',
         'psutil',
-        'lenspyx @ git+https://github.com/carronj/lenspyx', 'attrs'], #removed mpi4py for travis tests
+        'plancklens @ git+https://github.com/carronj/plancklens@plancklensdev',
+        'lenspyx @ git+https://github.com/carronj/lenspyx', 'attrs'],
     requires=['numpy'],
     long_description=long_description,
     configuration=configuration)
