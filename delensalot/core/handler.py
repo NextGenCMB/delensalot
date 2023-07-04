@@ -257,17 +257,9 @@ class Sim_generator(Basejob):
                 self.libdir_sky = opj(os.environ['SCRATCH'], 'simulation/', self.libdir_suffix, get_dirname(str(self.simulationdata.geominfo)), lenjob_geomstr)
                 self.fns_sky = self.set_basename_sky()
                 self.fnsP = 'philm_{}.npy'
-<<<<<<< HEAD
-
-            hlib = hashlib.sha256()
-            hlib.update(str(self.simulationdata.transfunction).encode())
-            transcode = hlib.hexdigest()[:4]
-            self.libdir = opj(os.environ['SCRATCH'], 'simulation/', str(self.simulationdata.geominfo), lenjob_geomstr, str(sorted(self.simulationdata.nlev.items()))+self.libdir_suffix,  'transf_{}'.format(str(transcode)))
-=======
             self.libdir_suffix = 'generic' if self.libdir_suffix == '' else self.libdir_suffix
             nlev_round = dict2roundeddict(self.simulationdata.nlev)
             self.libdir = opj(os.environ['SCRATCH'], 'simulation/', self.libdir_suffix, get_dirname(str(self.simulationdata.geominfo)), get_dirname(lenjob_geomstr), get_dirname(str(sorted(nlev_round.items()))), '{}'.format(transfunctioncode)) # 
->>>>>>> 77bad1fb6eac7c53fb18f9e156acd301898dfe35
             self.fns = self.set_basename_obs()
             
             first_rank = mpi.bcast(mpi.rank)
@@ -351,10 +343,7 @@ class Sim_generator(Basejob):
             for taski, task in enumerate(['generate_sky', 'generate_obs']):
                 _jobs = []
                 simidxs_ = np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))), dtype=int)
-<<<<<<< HEAD
-=======
                 # print(self.simidxs, self.simidxs.dtype, self.simidxs_mf, simidxs_)
->>>>>>> 77bad1fb6eac7c53fb18f9e156acd301898dfe35
                 if task == 'generate_sky':
                     for simidx in simidxs_:
                         if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:

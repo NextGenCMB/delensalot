@@ -8,9 +8,9 @@ from delensalot import utils
 from delensalot.utility.utils_hp import gauss_beam
 import delensalot.core.power.pospace as pospace
 from delensalot.config.config_helper import LEREPI_Constants as lc
+from delensalot.config.metamodel import DEFAULT_NotAValue, DEFAULT_NotASTR
 
-
-DL_DEFAULT_CMBS4_FS_T = {
+DL_DEFAULT = {
     'meta': {
         'version': "0.2"
     },
@@ -19,7 +19,8 @@ DL_DEFAULT_CMBS4_FS_T = {
     },
     'simulationdata': {
         'space': 'cl',
-        'lenjob_geominfo': ('thingauss',{'lmax': 4500, 'smax': 3}), 
+        'lenjob_geominfo': ('thingauss',{'lmax': 4500, 'smax': 3}),
+        'phi_space': 'cl', 
         'flavour': 'unl',
         'lmax': 4096,
         'phi_lmax': 5120,
@@ -29,16 +30,17 @@ DL_DEFAULT_CMBS4_FS_T = {
         'phi_field': 'potential',
         'CMB_fn': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
         'phi_fn': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
+        'epsilon': 1e-7,
         'spin': 0,
     },
     'analysis': { 
-        'key': 'ptt',
+        'key': 'p',
         'version': 'noMF',
         'simidxs': np.arange(0,1),
-        'TEMP_suffix': 'T_FS_CMBS4',
+        'TEMP_suffix': 'P_FS_CMBS4',
         'Lmin': 5, 
         'lm_max_ivf': (4000, 4000),
-        'lm_max_blt': (1024, 1024),
+        'lm_max_blt': (1024,1024),
         'lmin_teb': (2, 2, 200),
         'simidxs_mf': [],
         'zbounds': (-1,1),
@@ -55,7 +57,7 @@ DL_DEFAULT_CMBS4_FS_T = {
     'qerec':{
         'tasks': ['calc_phi', 'calc_blt'],
         'qlm_type': 'sepTP',
-        'cg_tol': 1e-7,
+        'cg_tol': 1e-4,
         'filter_directional': 'isotropic',
         'geominfo': ('healpix',{'nside': 2048}),
         'lm_max_qlm': (4000,4000),
@@ -94,17 +96,17 @@ DL_DEFAULT_CMBS4_FS_T = {
         },
         'tasks': ['calc_phi', 'calc_blt'],
         'itmax': 1,
-        'cg_tol': 1e-6,
+        'cg_tol': 1e-5,
         'iterator_typ': 'constmf',
         'filter_directional': 'isotropic',
         'lenjob_geominfo': ('thingauss',{'lmax': 4500, 'smax': 3}),
-        'lenjob_pbdgeominfo': ('pbd', (0., 2*np.pi)),
+        'lenjob_pbdgeominfo': ('pbd', (0., np.pi)),
         'lm_max_unl': (4500,4500),
         'lm_max_qlm': (4000,4000),
         'mfvar': '',
         'soltn_cond': lambda it: True,
         'epsilon': 1e-7,
-        },
+    },
     'noisemodel': {
         'sky_coverage': 'unmasked',
         'spectrum_type': 'white',
@@ -123,6 +125,7 @@ DL_DEFAULT_CMBS4_FS_T = {
         'iterations': [5],
         'masks_fn': None,
         'lmax': 1024,
+        'lmax_mask': lc.cmbs4_edges[-1],
         'Cl_fid': 'ffp10',
         'libdir_it': None,
         'binning': 'binned',
