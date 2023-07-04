@@ -108,7 +108,7 @@ class config_handler():
             job_choice (list, optional): A specific job which should be performed. This one is not necessarily defined in the configuration file. It is handed over via command line or in interactive mode. Defaults to [].
         """ 
         for jobi, job in enumerate(self.djobmodels):
-            print('running job {}'.format(self.configfile.dlensalot_model.job.jobs[jobi]))
+            log.info('running job {}'.format(self.configfile.dlensalot_model.job.jobs[jobi]))
             job.collect_jobs()    
             job.run()
 
@@ -134,7 +134,10 @@ class config_handler():
                 for key, val in configfile_old.dlensalot_model.__dict__.items():
                     if hasattr(val, '__dict__'):
                         for k, v in val.__dict__.items():
-                            if v.__str__() != configfile.dlensalot_model.__dict__[key].__dict__[k].__str__():
+                            if callable(v):
+                                # skipping functions
+                                pass
+                            elif v.__str__() != configfile.dlensalot_model.__dict__[key].__dict__[k].__str__():
                                 logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
                                 if k.__str__() in safelist:
                                     dostore = True

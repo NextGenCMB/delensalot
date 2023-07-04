@@ -448,3 +448,6 @@ class DLENSALOT_Model(DLENSALOT_Concept):
                                 log.info('{}: couldnt find matching default value for {}'.format(key, k))
                     else:
                         log.info('couldnt find matching default value for key {}'.format(key))
+                elif callable(v):
+                    # Cannot evaluate functions, so hopefully they didn't change..
+                    pass
