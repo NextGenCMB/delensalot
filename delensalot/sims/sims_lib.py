@@ -607,7 +607,6 @@ class Xobs:
         self.fullsky = True #FIXME make it dependent on userdata: if Xobs is set via simhandler, then check if user data is full sky or not.
         self.cacher = cachers.cacher_mem(safe=True)
         self.maps = maps
-        print(len_lib)
         if np.all(self.maps != DNaV):
             fn = 'obs_space{}_spin{}_field{}_{}'.format(space, spin, field, 0)
             self.cacher.cache(fn, np.array(self.maps))

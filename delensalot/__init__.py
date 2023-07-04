@@ -21,13 +21,14 @@ from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model, DLENSALOT_
 cls_len = camb_clfile(opj(os.path.dirname(__file__), 'data/cls/FFP10_wdipole_lensedCls.dat'))
 cpp = camb_clfile(opj(os.path.dirname(__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'))['pp']
 
+__defaults_to = 'default_CMBS4_fullsky_polarization'
 
-def anafast(maps, lmax_cmb, beam, itmax, nlev, use_approximateWF=False, defaults_to='P_FS_CMBS4', verbose=False):
-    delblm = map2delblm(maps, lmax_cmb, beam, itmax, nlev, use_approximateWF, defaults_to, verbose)
+def anafast(maps, lmax_cmb, beam, itmax, nlev, use_approximateWF=False, verbose=False):
+    delblm = map2delblm(maps, lmax_cmb, beam, itmax, nlev, use_approximateWF, verbose)
     return hp.alm2cl(delblm)
 
 
-def map2delblm(maps, lmax_cmb, beam, itmax, nlev, use_approximateWF=False, defaults_to='P_FS_CMBS4', verbose=False):
+def map2delblm(maps, lmax_cmb, beam, itmax, nlev, use_approximateWF=False, verbose=False):
     """Calculates a delensed B map on the full sky. Configuration is a faithful default. 
 
     Args:
@@ -53,7 +54,7 @@ def map2delblm(maps, lmax_cmb, beam, itmax, nlev, use_approximateWF=False, defau
     hlib = hashlib.sha256()
     hlib.update((str([pm,lmax_cmb,beam,nlev,use_approximateWF])).encode())
     suffix = hlib.hexdigest()[:4]
-    len2TP = {1: 'T', 2: 'P', 3: 'TP'}
+    len2TP = {1: 'temperature', 2: 'polarization', 3: 'combination'}
     len2field = {1: 'temperature', 2: 'polarization', 3: 'cross'}
     len2spin = {1: 0, 2: 2}
     approxWF2itt = {False: 'constmf', True: 'fastWF'}
@@ -62,7 +63,7 @@ def map2delblm(maps, lmax_cmb, beam, itmax, nlev, use_approximateWF=False, defau
     else:
         Lmin = 1
     dlensalot_model = DLENSALOT_Model(
-        defaults_to = '{}'.format(len2TP[len(maps)])+defaults_to[1:],
+        defaults_to = __defaults_to.replace('polarization', len2TP[len(maps)]),
         simulationdata = DLENSALOT_Simulation(
             maps = maps,
             space = 'map',
@@ -103,7 +104,7 @@ def map2delblm(maps, lmax_cmb, beam, itmax, nlev, use_approximateWF=False, defau
     return ana.get_residualblens(ana.simidxs[0], ana.its[-1])
 
 
-def map2tempblm(maps, lmax_cmb, beam, itmax, nlev, use_approximateWF=False, defaults_to='P_FS_CMBS4', verbose=False):
+def map2tempblm(maps, lmax_cmb, beam, itmax, nlev, use_approximateWF=False, verbose=False):
     """Calculates a B-lensing template on the full sky. Configuration is a faithful default. 
 
     Args:
@@ -124,12 +125,13 @@ def map2tempblm(maps, lmax_cmb, beam, itmax, nlev, use_approximateWF=False, defa
         assert 'T' in nlev, "need to provide 'T'-key in nlev"
     if len(maps) == 2:
         assert 'P' in nlev, "need to provide 'P'-key in nlev"
+    
     pm = np.round(np.sum([m[::100] for m in maps]),5)
     hlib = hashlib.sha256()
     hlib.update((str([pm,lmax_cmb,beam,nlev,use_approximateWF])).encode())
     suffix = hlib.hexdigest()[:4]
 
-    len2TP = {1: 'T', 2: 'P', 3: 'TP'}
+    len2TP = {1: 'temperature', 2: 'polarization', 3: 'combination'}
     len2field = {1: 'temperature', 2: 'polarization', 3: 'cross'}
     len2spin = {1: 0, 2: 2}
     approxWF2itt = {False: 'constmf', True: 'fastWF'}
@@ -138,7 +140,7 @@ def map2tempblm(maps, lmax_cmb, beam, itmax, nlev, use_approximateWF=False, defa
     else:
         Lmin = 1
     dlensalot_model = DLENSALOT_Model(
-        defaults_to = '{}'.format(len2TP[len(maps)])+defaults_to[1:],
+        defaults_to = __defaults_to.replace('polarization', len2TP[len(maps)]),
         simulationdata = DLENSALOT_Simulation(
             maps = maps,
             space = 'map',

@@ -1,4 +1,4 @@
-name: Integration reconstruction
+name: unit reconstruction
 
 on: [pull_request]
 
@@ -26,4 +26,4 @@ jobs:
           pip install -e .
       - name: test Full sky reconstruction on polarization. approximate Wiener-filter
         run: |
-          python -m unittest tests.test_integration_reconstruction.FS.test_P_approx
+          python -m unittest tests.test_unit_reconstruction.FS.test_P_approx

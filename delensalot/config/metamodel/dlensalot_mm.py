@@ -5,8 +5,9 @@
     We use the attr package. It provides handy ways of validation and defaulting.
 """
 
-import abc, attr, os
+import abc, attr, os, sys
 from os.path import join as opj
+from pathlib import Path
 from attrs import validators
 import numpy as np
 
@@ -14,8 +15,11 @@ import logging
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 
-from delensalot.config.metamodel import DEFAULT_NotAValue, DEFAULT_NotASTR, DL_DEFAULT
+from delensalot.config.metamodel import DEFAULT_NotAValue, DEFAULT_NotASTR
 from delensalot.config.validator import analysis, chaindescriptor, computing, data, filter as v_filter, itrec, job, mapdelensing, meta, model, noisemodel, obd, qerec, stepper
+
+
+import importlib.util
 
 
 class DLENSALOT_Concept:
@@ -392,7 +396,7 @@ class DLENSALOT_Model(DLENSALOT_Concept):
 
     """
     
-    defaults_to =           attr.field(default='P_FS_CMBS4')
+    defaults_to =           attr.field(default='default_CMBS4_fullsky_polarization')
     meta =                  attr.field(default=DLENSALOT_Meta(), validator=model.meta)
     job =                   attr.field(default=DLENSALOT_Job(), validator=model.job)
     analysis =              attr.field(default=DLENSALOT_Analysis(), validator=model.analysis)
@@ -417,24 +421,33 @@ class DLENSALOT_Model(DLENSALOT_Concept):
          comment: __attrs_post_init must be in DLENSALOT_Model, as this is the only one who knows of the default dictionary (defaults_to), and cannot simply be passed along to sub-classes.
 
         """
-        # log.info("Setting default, using {}:\n\t{}".format(self.defaults_to, DL_DEFAULT[self.defaults_to]))
+        # log.info("Setting default, using {}:\n\t{}".format(self.defaults_to, default_dict))
+
+        spec = importlib.util.spec_from_file_location("default", opj(Path(__file__).parent.parent, "default/{}.py".format(self.defaults_to.replace('.py', ''))))
+        default_module = importlib.util.module_from_spec(spec)
+        sys.modules["default"] = default_module
+        spec.loader.exec_module(default_module)
+        default_dict = default_module.DL_DEFAULT
         for key, val in list(filter(lambda x: '__' not in x[0] and x[0] != 'defaults_to', self.__dict__.items())):
             for k, v in val.__dict__.items():
                 if k in ['chain', 'stepper']:
                     for ke, va in v.__dict__.items():
                         if np.all(va == DEFAULT_NotAValue):
-                            if key in DL_DEFAULT[self.defaults_to]:
-                                if k in DL_DEFAULT[self.defaults_to][key]:
-                                    if ke in DL_DEFAULT[self.defaults_to][key][k]:
-                                        self.__dict__[key].__dict__[k].__dict__.update({ke: DL_DEFAULT[self.defaults_to][key][k][ke]})
+                            if key in default_dict:
+                                if k in default_dict[key]:
+                                    if ke in default_dict[key][k]:
+                                        self.__dict__[key].__dict__[k].__dict__.update({ke: default_dict[key][k][ke]})
                 elif np.all(v == DEFAULT_NotAValue):
-                    if key in DL_DEFAULT[self.defaults_to]:
-                        if k in DL_DEFAULT[self.defaults_to][key]:
-                            # log.info('\t\t{}: Found default for k {}: {}'. format(key, k, DL_DEFAULT[self.defaults_to][key][k]))
-                            self.__dict__[key].__dict__.update({k: DL_DEFAULT[self.defaults_to][key][k]})
+                    if key in default_dict:
+                        if k in default_dict[key]:
+                            # log.info('\t\t{}: Found default for k {}: {}'. format(key, k, default_dict[key][k]))
+                            self.__dict__[key].__dict__.update({k: default_dict[key][k]})
                         else:
                             if key not in ['simulationdata']:
                                 # It is ok to not have defaults for simulationdata, as the simlib will handle it
                                 log.info('{}: couldnt find matching default value for {}'.format(key, k))
                     else:
                         log.info('couldnt find matching default value for key {}'.format(key))
+                elif callable(v):
+                    # Cannot evaluate functions, so hopefully they didn't change..
+                    pass

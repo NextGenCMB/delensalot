@@ -1,12 +1,12 @@
-"""Integration test: Full QE and MAP reconstruction. Testing this for,
+"""unit test: Full QE and MAP reconstruction. Testing this for,
     - estimator keys
     - full sky / masked sky
     Tests are considered successfull if residual lensing amplitude is within expectation
 
-    COMMENT: For some reason, asserting fails if both classes are tested at the same time, i.e. `python3 -m unittest test_integration_reconstruction` but this failing has nothing to do with delensalot itself.
+    COMMENT: For some reason, asserting fails if both classes are tested at the same time, i.e. `python3 -m unittest test_unit_reconstruction` but this failing has nothing to do with delensalot itself.
     
     E.g.,
-        python3 -m unittest test_integration_reconstruction.FS.test_P_approx
+        python3 -m unittest test_unit_reconstruction.FS.test_P_approx
 
 """
 
@@ -93,7 +93,7 @@ class FS(unittest.TestCase):
         use_approximateWF = True
         for job_id, key_dict in self.whitelist_FS_P.items():
             for key in key_dict:
-                dlensalot_model = DLENSALOT_Model(defaults_to='P_FS_TEST', analysis = DLENSALOT_Analysis(key=key, TEMP_suffix='test'), itrec = DLENSALOT_Itrec(itmax=3))
+                dlensalot_model = DLENSALOT_Model(defaults_to='default_test_fullsky_polarization', analysis = DLENSALOT_Analysis(key=key, TEMP_suffix='test'), itrec = DLENSALOT_Itrec(itmax=3))
                 delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
                 delensalot_runner = run(config_fn='', job_id='generate_sim', config_model=dlensalot_model, verbose=True)
                 ana_mwe = delensalot_runner.init_job()
@@ -110,7 +110,6 @@ class FS(unittest.TestCase):
                     itmax=dlensalot_model.itrec.itmax, 
                     nlev=dlensalot_model.noisemodel.nlev, 
                     use_approximateWF=use_approximateWF, 
-                    defaults_to='P_FS_TEST', 
                     verbose=True, )
 
                 bsky = alm_copy(bsky, None, hp.Alm.getlmax(blt.size), hp.Alm.getlmax(blt.size))
@@ -126,7 +125,7 @@ class FS(unittest.TestCase):
         use_approximateWF = False
         for job_id, key_dict in self.whitelist_FS_P.items():
             for key in key_dict:
-                dlensalot_model = DLENSALOT_Model(defaults_to='P_FS_TEST', analysis = DLENSALOT_Analysis(key=key, TEMP_suffix='test'), itrec = DLENSALOT_Itrec(itmax=3))
+                dlensalot_model = DLENSALOT_Model(defaults_to='default_test_fullsky_polarization', analysis = DLENSALOT_Analysis(key=key, TEMP_suffix='test'), itrec = DLENSALOT_Itrec(itmax=3))
                 delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
                 delensalot_runner = run(config_fn='', job_id='generate_sim', config_model=dlensalot_model, verbose=True)
                 ana_mwe = delensalot_runner.init_job()
