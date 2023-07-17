@@ -14,8 +14,9 @@ class nrstep(object):
         return self.val
 
     def build_incr(self, incrlm, itr):
-        print('incr step val %.5f'%self.val)
+        #print('incr step val %.5f'%self.val)
         return incrlm * self.val
+        #return almxfl(incrlm, self.val, self.mmax_qlm, False)
 
 class harmonicbump(nrstep):
     def __init__(self, lmax_qlm, mmax_qlm, xa=400, xb=1500, a=0.5, b=0.1, scale=50, flt=None):
