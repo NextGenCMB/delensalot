@@ -58,15 +58,11 @@ def prt_time(dt, label=''):
 typs = ['T', 'QU', 'TQU']
 
 
-class qlm_iterator(csit.qlm_iterator):
+class iterator_pertmf(csit.iterator_pertmf):
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
-                 dat_maps:list or np.ndarray, plm0:np.ndarray, pp_h0:np.ndarray,
-                 cpp_prior:np.ndarray, cls_filt:dict,
-                 ninv_filt:opfilt_base.alm_filter_wl,
-                 k_geom:utils_geom.Geom,
-                 chain_descr, stepper:steps.nrstep,
-                 logger=None,
-                 NR_method=100, tidy=0, verbose=True, soltn_cond=True, wflm0=None, _usethisE=None, kappa0: float = 1., ymu: float = 0., cly: np.ndarray = None):
+                 dat_maps:list or np.ndarray, plm0:np.ndarray, mf_resp:np.ndarray, pp_h0:np.ndarray,
+                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.alm_filter_wl, k_geom:utils_geom.Geom,
+                 chain_descr, stepper:steps.nrstep, mf0=None, **kwargs):
         """Lensing map iterator
 
             The bfgs hessian updates are called 'hlm's and are either in plm, dlm or klm space
@@ -82,11 +78,23 @@ class qlm_iterator(csit.qlm_iterator):
 
         """
 
-        super().__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt, ninv_filt, k_geom,
-                            chain_descr, stepper, logger, NR_method, tidy, verbose, soltn_cond, wflm0, _usethisE)
-        
+        super(csit.iterator_pertmf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
+                                             ninv_filt, k_geom, chain_descr, stepper, **kwargs)
+        assert mf_resp.ndim == 1 and mf_resp.size > self.lmax_qlm, mf_resp.shape
+        if mf0 is not None: 
+            assert self.lmax_qlm == Alm.getlmax(mf0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(mf0.size, self.lmax_qlm))
+            self.cacher.cache('mf', almxfl(mf0, self._h2p(self.lmax_qlm), self.mmax_qlm, False))
+        self.p_mf_resp = mf_resp
+
+
+        self.q_geom = pbdGeometry(self.k_geom, pbounds(0., 2 * np.pi))
+
+        kappa0 = 1.0272441232149767
+        ymu = 0.023049319395827456
+        cly = None
         self.kappa0 = kappa0
-        self.cly = cly
+        self.cly = cly if cly is not None else np.loadtxt("/users/odarwish/fgcmblensing/bispectrum/clgaussian.txt")
+        self.ymu = ymu #mean of Gaussian filed
 
 
     def phi_to_kappa(self, phi_lm):
@@ -94,13 +102,18 @@ class qlm_iterator(csit.qlm_iterator):
         factor = ells*(ells+1)/2
         return almxfl(phi_lm, factor, self.mmax_qlm, False)
     
+
+    def kappa_to_phi(self, kappa_lm):
+        ells = np.arange(0, self.lmax_qlm+1, 1)
+        factor = ells*(ells+1)/2
+        return almxfl(kappa_lm, cli(factor), self.mmax_qlm, False)
+    
     def alm2map(self, alm):
-        return self.filter.geom.alm2map(alm, self.lmax_qlm, self.mmax_qlm, self.ffi.sht_tr, (-1., 1.))
+        return self.q_geom.alm2map(alm, self.lmax_qlm, self.mmax_qlm, self.ffi.sht_tr, (-1., 1.))
     
     def map2alm(self, map):
-        return self.filter.geom.map2alm(map, self.lmax_qlm, self.mmax_qlm, self.ffi.sht_tr, (-1., 1.))
+        return self.q_geom.map2alm(map, self.lmax_qlm, self.mmax_qlm, self.ffi.sht_tr, (-1., 1.))
     
-
     def kappa_shifted(self, kappa):
         return kappa+self.kappa0
     
@@ -109,6 +122,10 @@ class qlm_iterator(csit.qlm_iterator):
         return y
 
     def load_gradpri(self, itr, key):
+        """
+        Log-normal gradient with respect to p_lm
+        """
+
         assert key in ['p'], key + ' not implemented'
         assert self.is_iter_done(itr -1 , key)
         ret = self.get_hlm(itr, key)
@@ -125,6 +142,9 @@ class qlm_iterator(csit.qlm_iterator):
         kappa_shifted = self.kappa_shifted(kappa)
 
         ret = -(1/kappa_shifted*y_filtered+1/np.abs(kappa_shifted))
+
+        ret = self.kappa_to_phi(ret)
+
         return ret
 
     
