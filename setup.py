@@ -13,7 +13,7 @@ def configuration(parent_package='', top_path=''):
 
 setup(
     name='delensalot',
-    version='0.0.1',
+    version='0.1',
     packages=['delensalot'],
     data_files=[('delensalot/data/cls', ['delensalot/data/cls/FFP10_wdipole_lensedCls.dat',
                                 'delensalot/data/cls/FFP10_wdipole_lenspotentialCls.dat',
