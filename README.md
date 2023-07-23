@@ -2,7 +2,7 @@
 [![Install](https://github.com/NextGenCMB/delensalot/actions/workflows/install.yaml/badge.svg?branch=sims&event=pull_request)](https://github.com/NextGenCMB/delensalot/actions/workflows/install.yaml)
 [![Documentation Status](https://readthedocs.org/projects/delensalot/badge/?version=latest)](https://delensalot.readthedocs.io/en/latest/?badge=latest)
 [![Integration filter](https://github.com/NextGenCMB/delensalot/actions/workflows/integration_filter.yaml/badge.svg?branch=sims&event=pull_request)](https://github.com/NextGenCMB/delensalot/actions/workflows/integration_filter.yaml)
-[![Integration reconstruction](https://github.com/NextGenCMB/delensalot/actions/workflows/integration_reconstruction.yaml/badge.svg?branch=sims&event=pull_request)](https://github.com/NextGenCMB/delensalot/actions/workflows/integration_reconstruction.yaml)
+[![Integration reconstruction](https://github.com/NextGenCMB/delensalot/actions/workflows/unit_reconstruction.yaml/badge.svg?branch=sims&event=pull_request)](https://github.com/NextGenCMB/delensalot/actions/workflows/integration_reconstruction.yaml)
 [![Integration tutorial](https://github.com/NextGenCMB/delensalot/actions/workflows/integration_tutorial.yaml/badge.svg?branch=sims&event=pull_request)](https://github.com/NextGenCMB/delensalot/actions/workflows/integration_tutorial.yaml)
 
 # delensalot
