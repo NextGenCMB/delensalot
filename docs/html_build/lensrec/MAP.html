@@ -111,26 +111,7 @@
              
   <section id="iterative-lensing-reconstruction">
 <h1>iterative lensing reconstruction<a class="headerlink" href="#iterative-lensing-reconstruction" title="Permalink to this heading"></a></h1>
-<p>This section describes the idea behind iterative lensing reconstruction and its most important concept.</p>
-<section id="likelihood">
-<h2>likelihood<a class="headerlink" href="#likelihood" title="Permalink to this heading"></a></h2>
-<p>We start with the following likelihood <cite>lh</cite> for which we search the maximum-a-posterioi (MAP) point,</p>
-<p>-2 ln(p(X|a)) = X cov^(-1) X + ln(det(cov))</p>
-<p>where <cite>p</cite> is the data model, <cite>X</cite> is the data, <cite>a</cite> is the deflection field, and <cite>cov</cite> is the data-covariance.
-We find the MAP point by following the gradient of the likelihood, which is done iteratively.</p>
-<p>We choose a starting point for <cite>a</cite>, calculate the gradient of the likelihood and update <cite>a</cite> with it,
-and repeat this until <cite>a</cite> has converged.</p>
-<p>This gradient splits naturally into three pieces.
-A term quadratic in the data <cite>gqd</cite>, a so called mean-field, and a prior term.</p>
-</section>
-<section id="wiener-filter">
-<h2>Wiener-filter<a class="headerlink" href="#wiener-filter" title="Permalink to this heading"></a></h2>
-<p>Calculating <cite>gqd</cite> includes a Wiener-filtering of the data,</p>
-<p>Ewf = (s/(s+N)) E,</p>
-<p>where <cite>s</cite> is the expected signal, and <cite>N</cite> is the noise.
-For iterative lensing reconstruction, <cite>s</cite> is given by the unlensed CMB E field <cite>Eunl</cite>, times the lensing operation <cite>Lambda</cite>,</p>
-<p>s = Lambda Eunl</p>
-</section>
+<p>TBD</p>
 </section>
 
 

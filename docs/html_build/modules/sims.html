@@ -117,76 +117,130 @@
   <section id="sims">
 <h1>sims<a class="headerlink" href="#sims" title="Permalink to this heading"></a></h1>
 <p>module reference</p>
-<span class="target" id="module-delensalot.sims"></span><section id="generic">
-<h2>generic<a class="headerlink" href="#generic" title="Permalink to this heading"></a></h2>
-<span class="target" id="module-delensalot.sims.generic"></span><p>Generic cmb-only sims module. cls_unl camb-like</p>
-<dl class="py class">
-<dt class="sig sig-object py" id="delensalot.sims.generic.sims_cmb_len">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.sims.generic.</span></span><span class="sig-name descname"><span class="pre">sims_cmb_len</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lib_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lmax</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cls_unl</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lib_pha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">offsets_plm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">offsets_cmbunl</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dlmax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1024</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nside_lens</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4096</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epsilon</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-07</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nbands</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_plm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.sims.generic.sims_cmb_len" title="Permalink to this definition"></a></dt>
-<dd><p>Lensed CMB skies simulation library.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>To produce the lensed CMB, the package lenspyx is mandatory</p>
-</div>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>These sims do not contain aberration or modulation</p>
-</div>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>lib_dir</strong> – lensed cmb alms will be cached there</p></li>
-<li><p><strong>lmax</strong> – lensed cmbs are produced up to lmax</p></li>
-<li><p><strong>cls_unl</strong> (<em>dict</em>) – unlensed cmbs power spectra</p></li>
-<li><p><strong>lib_pha</strong> (<em>optional</em>) – random phases library for the unlensed maps (see <em>plancklens.sims.phas</em>)</p></li>
-<li><p><strong>offsets_plm</strong> – offset lensing plm simulation index (useful e.g. for MCN1), tuple with block_size and offsets</p></li>
-<li><p><strong>offsets_cmbunl</strong> – offset unlensed cmb (useful e.g. for MCN1), tuple with block_size and offsets</p></li>
-<li><p><strong>dlmax</strong> (<em>defaults to 1024</em>) – unlensed cmbs are produced up to lmax + dlmax, for accurate lensing at lmax</p></li>
-<li><p><strong>nside_lens</strong> (<em>defaults to 4096</em>) – healpy resolution at which the lensed maps are produced</p></li>
-<li><p><strong>epsilon</strong> (<em>defaults to 1e-5</em>) – sets the interpolation resolution in lenspyx</p></li>
-<li><p><strong>verbose</strong> (<em>defaults to True</em>) – lenspyx timing info printout</p></li>
+<span class="target" id="module-delensalot.sims"></span><section id="module-delensalot.sims.sims_lib">
+<span id="sims-lib"></span><h2>sims_lib<a class="headerlink" href="#module-delensalot.sims.sims_lib" title="Permalink to this heading"></a></h2>
+<dl class="simple">
+<dt>sims/sims_lib.py: library for collecting and handling simulations. Eventually, delensalot needs a <cite>get_sim_pmap()</cite> and <cite>get_sim_tmap()</cite>, which are the maps of the observed sky. But data may come as cls, unlensed alms, …, . So this module allows to start analysis with,</dt><dd><ul class="simple">
+<li><p>cls,</p></li>
+<li><p>alms_unl</p></li>
+<li><p>alm_len + noise</p></li>
+<li><p>obs_sky</p></li>
 </ul>
 </dd>
 </dl>
+<p>and is a mapper between them, so that <cite>get_sim_pmap()</cite> and <cite>get_sim_tmap()</cite> always returns observed maps.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="delensalot.sims.sims_lib.Cls">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.sims.sims_lib.</span></span><span class="sig-name descname"><span class="pre">Cls</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lmax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">phi_lmax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">CMB_fn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">phi_fn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">phi_field</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'potential'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.sims.sims_lib.Cls" title="Permalink to this definition"></a></dt>
+<dd><p>class for accessing CAMB-like file for CMB power spectra, optionally a distinct file for the lensing potential</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="delensalot.sims.sims_lib.Simhandler">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.sims.sims_lib.</span></span><span class="sig-name descname"><span class="pre">Simhandler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">flavour</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">space</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geominfo=-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maps=-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">field=-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cls_lib=-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">unl_lib=-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">len_lib=-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">obs_lib=-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">noise_lib=-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">libdir=-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">libdir_noise=-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">libdir_phi=-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fns=-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fnsnoise=-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fnsP=-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lmax=-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transfunction=-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nlev=-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spin=0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">CMB_fn=-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">phi_fn=-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">phi_field=-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">phi_space=-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epsilon=1e-07</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">phi_lmax=-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">libdir_suffix=-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lenjob_geominfo=-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cacher=&lt;delensalot.core.cachers.cacher_mem</span> <span class="pre">object&gt;</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.sims.sims_lib.Simhandler" title="Permalink to this definition"></a></dt>
+<dd><p>Entry point for data handling and generating simulations. Data can be cl, unl, len, or obs, .. and alms or maps. Simhandler connects the individual libraries and decides what can be generated. E.g.: If obs data provided, len data cannot be generated. This structure makes sure we don’t “hallucinate” data</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="delensalot.sims.sims_lib.Xobs">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.sims.sims_lib.</span></span><span class="sig-name descname"><span class="pre">Xobs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lmax</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transfunction</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">len_lib</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">unl_lib</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epsilon</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">noise_lib</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">libdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fns</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nlev</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">libdir_noise</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fnsnoise</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">space</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geominfo</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">field</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cacher</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">libdir_suffix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.sims.sims_lib.Xobs" title="Permalink to this definition"></a></dt>
+<dd><p>class for generating observed CMB realizations from sky maps together with a noise realization and transfer function to mimick an experiment</p>
 <dl class="py method">
-<dt class="sig sig-object py" id="delensalot.sims.generic.sims_cmb_len.get_sim_alm">
-<span class="sig-name descname"><span class="pre">get_sim_alm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">idx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">field</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ret</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.sims.generic.sims_cmb_len.get_sim_alm" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dt class="sig sig-object py" id="delensalot.sims.sims_lib.Xobs.get_sim_obs">
+<span class="sig-name descname"><span class="pre">get_sim_obs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simidx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">space</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">field</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.sims.sims_lib.Xobs.get_sim_obs" title="Permalink to this definition"></a></dt>
+<dd><p>_summary_</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>simidx</strong> (<em>_type_</em>) – _description_</p></li>
+<li><p><strong>space</strong> (<em>_type_</em>) – _description_</p></li>
+<li><p><strong>field</strong> (<em>_type_</em>) – _description_</p></li>
+<li><p><strong>spin</strong> (<em>int</em><em>, </em><em>optional</em>) – _description_. Defaults to 2.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>_description_</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>_type_</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="delensalot.sims.sims_lib.Xsky">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.sims.sims_lib.</span></span><span class="sig-name descname"><span class="pre">Xsky</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lmax</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">unl_lib</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">libdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fns</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epsilon</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-07</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">space</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geominfo</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">isfrozen</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lenjob_geominfo</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.sims.sims_lib.Xsky" title="Permalink to this definition"></a></dt>
+<dd><p>class for generating lensed CMB and phi realizations from unlensed realizations, using lenspyx for the lensing operation</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="delensalot.sims.sims_lib.Xsky.get_sim_sky">
+<span class="sig-name descname"><span class="pre">get_sim_sky</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simidx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">space</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">field</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.sims.sims_lib.Xsky.get_sim_sky" title="Permalink to this definition"></a></dt>
+<dd><p>returns a lensed simulation field (temperature, polarization) in space (map, alm) and as spin (0,2). Note, spin is only applicable for pol, and returns QU for spin=2, and EB for spin=0.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>simidx</strong> (<em>_type_</em>) – _description_</p></li>
+<li><p><strong>space</strong> (<em>_type_</em>) – _description_</p></li>
+<li><p><strong>field</strong> (<em>_type_</em>) – _description_</p></li>
+<li><p><strong>spin</strong> (<em>int</em><em>, </em><em>optional</em>) – _description_. Defaults to 2.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>_description_</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>_type_</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="delensalot.sims.sims_lib.Xunl">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.sims.sims_lib.</span></span><span class="sig-name descname"><span class="pre">Xunl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lmax</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cls_lib</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">libdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fns</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fnsP</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">libdir_phi</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">phi_field</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'potential'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">phi_space</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">phi_lmax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">space</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geominfo</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">isfrozen</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-123456789</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.sims.sims_lib.Xunl" title="Permalink to this definition"></a></dt>
+<dd><p>class for generating unlensed CMB and phi realizations from power spectra</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="delensalot.sims.sims_lib.Xunl.get_sim_phi">
+<span class="sig-name descname"><span class="pre">get_sim_phi</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simidx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">space</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.sims.sims_lib.Xunl.get_sim_phi" title="Permalink to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>simidx</strong> (<em>_type_</em>) – _description_</p></li>
+<li><p><strong>space</strong> (<em>_type_</em>) – _description_</p></li>
+<li><p><strong>spin</strong> (<em>int</em><em>, </em><em>optional</em>) – _description_. Defaults to 2.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>_description_</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>_type_</p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="delensalot.sims.generic.sims_cmb_len.get_sim_blm">
-<span class="sig-name descname"><span class="pre">get_sim_blm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">idx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ret</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.sims.generic.sims_cmb_len.get_sim_blm" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.sims.generic.sims_cmb_len.get_sim_elm">
-<span class="sig-name descname"><span class="pre">get_sim_elm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">idx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ret</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.sims.generic.sims_cmb_len.get_sim_elm" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.sims.generic.sims_cmb_len.get_sim_olm">
-<span class="sig-name descname"><span class="pre">get_sim_olm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">idx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.sims.generic.sims_cmb_len.get_sim_olm" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.sims.generic.sims_cmb_len.get_sim_plm">
-<span class="sig-name descname"><span class="pre">get_sim_plm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">idx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ret</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.sims.generic.sims_cmb_len.get_sim_plm" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.sims.generic.sims_cmb_len.get_sim_tlm">
-<span class="sig-name descname"><span class="pre">get_sim_tlm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">idx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ret</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.sims.generic.sims_cmb_len.get_sim_tlm" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.sims.generic.sims_cmb_len.hashdict">
-<span class="sig-name descname"><span class="pre">hashdict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.sims.generic.sims_cmb_len.hashdict" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.sims.generic.sims_cmb_len.offset_index">
-<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">offset_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">idx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">block_size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">offset</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.sims.generic.sims_cmb_len.offset_index" title="Permalink to this definition"></a></dt>
-<dd><p>Offset index by amount ‘offset’ cyclically within blocks of size block_size</p>
+<dt class="sig sig-object py" id="delensalot.sims.sims_lib.Xunl.get_sim_unl">
+<span class="sig-name descname"><span class="pre">get_sim_unl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simidx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">space</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">field</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.sims.sims_lib.Xunl.get_sim_unl" title="Permalink to this definition"></a></dt>
+<dd><p>returns an unlensed simulation field (temp,pol) in space (map, alm) and as spin (0,2). Note, spin is only applicable for pol, and returns QU for spin=2, and EB for spin=0.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>simidx</strong> (<em>_type_</em>) – _description_</p></li>
+<li><p><strong>space</strong> (<em>_type_</em>) – _description_</p></li>
+<li><p><strong>field</strong> (<em>_type_</em>) – _description_</p></li>
+<li><p><strong>spin</strong> (<em>int</em><em>, </em><em>optional</em>) – _description_. Defaults to 2.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>_description_</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>_type_</p>
+</dd>
+</dl>
 </dd></dl>
 
 </dd></dl>
