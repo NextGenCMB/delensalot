@@ -4,15 +4,15 @@ config
 
 module reference
 
-.. automodule:: delensalot.config
-   :undoc-members:
+.. .. automodule:: delensalot.config
+..    :undoc-members:
 
-handler
----------
+.. handler
+.. ---------
 
-.. automodule:: delensalot.config.handler
-   :members: config_handler
-   :undoc-members:
+.. .. automodule:: delensalot.config.handler
+..    :members: config_handler
+..    :undoc-members:
 
 
 dlensalot_mm
