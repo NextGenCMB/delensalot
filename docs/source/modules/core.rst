@@ -20,17 +20,15 @@ iterator
    
 .. automodule:: delensalot.core.iterator
    :members: iteration_handler, cs_iterator
-   :undoc-members:
 
 
 .. automodule:: delensalot.core.iterator.iteration_handler
-   :members:
-   :undoc-members:
+   :members: iterator_transformer
 
 
 .. automodule:: delensalot.core.iterator.cs_iterator
-   :members: iterator_transformer
-   :undoc-members:
+   :members: qlm_iterator
+
 
 
 opfilt
@@ -40,11 +38,9 @@ module reference
 
 .. automodule:: delensalot.core.opfilt
    :members: opfilt_handler
-   :undoc-members:
 
 .. automodule:: delensalot.core.opfilt.opfilt_handler
    :members: QE_transformer, QE_iso_transformer, QE_aniso_transformer, MAP_transformer, MAP_iso_transformer, MAP_aniso_transformer 
-   :undoc-members:
 
 .. .. automodule:: delensalot.core.opfilt.opfilt_base
 ..    :members:
