@@ -2,7 +2,7 @@ numpy
 healpy
 logdecorator
 psutil
-# plancklens @ git+https://github.com/carronj/plancklens
+plancklens @ git+https://github.com/carronj/plancklens
 lenspyx @ git+https://github.com/carronj/lenspyx
 attrs # pip install --upgrade attrs
 # MSC
