@@ -41,19 +41,3 @@ module reference
 
 .. automodule:: delensalot.core.opfilt.opfilt_handler
    :members: QE_transformer, QE_iso_transformer, QE_aniso_transformer, MAP_transformer, MAP_iso_transformer, MAP_aniso_transformer 
-
-.. .. automodule:: delensalot.core.opfilt.opfilt_base
-..    :members:
-..    :undoc-members:
-
-.. .. automodule:: delensalot.core.opfilt.opfilt_ee_wl
-..    :members:
-..    :undoc-members:
-
-.. .. automodule:: delensalot.core.opfilt.opfilt_iso_ee_wl
-..    :members:
-..    :undoc-members:
-
-.. .. automodule:: delensalot.core.opfilt.utils_cinv_p
-..    :members:
-..    :undoc-members: 
