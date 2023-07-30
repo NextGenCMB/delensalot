@@ -148,14 +148,14 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         tim.add('transf')
 
         qumap = self.ninv_geom.synthesis(eblm, 2, self.lmax_len, self.mmax_len, self.sht_threads)
-        tim.add('alm2map_spin lmax %s mmax %s nrings %s'%(self.lmax_len, self.mmax_len, len(self.geom_.ofs)))
+        tim.add('alm2map_spin lmax %s mmax %s nrings %s'%(self.lmax_len, self.mmax_len, len(self.ninv_geom.ofs)))
 
         self.apply_map(qumap)  # applies N^{-1}
         tim.add('apply ninv')
 
         eblm = self.ninv_geom.adjoint_synthesis(qumap, 2, self.lmax_len, self.mmax_len, self.sht_threads,
                                                 apply_weights=False)
-        tim.add('map2alm_spin lmax %s mmax %s nrings %s'%(self.lmax_len, self.mmax_len, len(self.geom_.ofs)))
+        tim.add('map2alm_spin lmax %s mmax %s nrings %s'%(self.lmax_len, self.mmax_len, len(self.ninv_geom.ofs)))
 
         # The map2alm is here a sum rather than integral, so geom.weights are assumed to be unity
         almxfl(eblm[0], self.b_transf_elm, self.mmax_len, inplace=True)
@@ -240,8 +240,8 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
 
         """
         assert alm_wf_leg2 is None
-        assert Alm.getlmax(eblm_dat[0].size, self.mmax_len) == self.lmax_len, (Alm.getlmax(eblm_dat[0].size, self.mmax_len), self.lmax_len)
-        assert Alm.getlmax(eblm_dat[1].size, self.mmax_len) == self.lmax_len, (Alm.getlmax(eblm_dat[1].size, self.mmax_len), self.lmax_len)
+        assert eblm_dat[0].size == self.ninv_geom.npix(), (Alm.getlmax(eblm_dat[0].size, self.mmax_len), self.ninv_geom.npix())
+        assert eblm_dat[1].size == self.ninv_geom.npix(), (Alm.getlmax(eblm_dat[1].size, self.mmax_len), self.ninv_geom.npix())
         assert Alm.getlmax(elm_wf.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(elm_wf.size, self.mmax_sol), self.lmax_sol)
         resmap_c = np.empty((q_pbgeom.geom.npix(),), dtype=elm_wf.dtype)
         resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
@@ -337,11 +337,11 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
 
         """
 
-        assert len(qudat) == 2 and len(ebwf) == 2
-        tebwf = self.ffi.lensgclm(np.array(ebwf), self.mmax_sol, 2, self.lmax_len, self.mmax_len)
+        assert len(qudat) == 2, (len(qudat), len(ebwf))
+        tebwf = self.ffi.lensgclm(ebwf, self.mmax_sol, 2, self.lmax_len, self.mmax_len)
         almxfl(tebwf[0], self.b_transf_elm, self.mmax_len, True)
         almxfl(tebwf[1], self.b_transf_blm, self.mmax_len, True)
-        qu = qudat - self.ninv_geom.synthesis(ebwf, 2, self.lmax_len, self.mmax_len, self.sht_threads)
+        qu = qudat - self.ninv_geom.synthesis(tebwf, 2, self.lmax_len, self.mmax_len, self.sht_threads)
         self.apply_map(qu)
         self.ninv_geom.adjoint_synthesis(qu, 2, self.lmax_len, self.mmax_len, self.sht_threads,
                                                 apply_weights=False, alm=tebwf)
@@ -390,7 +390,7 @@ def calc_prep(qumaps:np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv_wl):
     assert isinstance(qumaps, np.ndarray)
     qumap = np.copy(qumaps)
     ninv_filt.apply_map(qumap)
-    eblm = ninv_filt.ninv_geom.adjoint_synthesis(qumap, 2, ninv_filt.lmax_sol, ninv_filt.mmax_sol, ninv_filt.sht_threads,
+    eblm = ninv_filt.ninv_geom.adjoint_synthesis(qumap, 2, ninv_filt.lmax_len, ninv_filt.mmax_len, ninv_filt.sht_threads,
                                                  apply_weights=False)
     almxfl(eblm[0], ninv_filt.b_transf_elm, ninv_filt.mmax_len, True)
     almxfl(eblm[1], ninv_filt.b_transf_blm, ninv_filt.mmax_len, True)
