@@ -13,7 +13,7 @@ def configuration(parent_package='', top_path=''):
 
 setup(
     name='delensalot',
-    version='0.0.1',
+    version='0.1',
     packages=['delensalot'],
     data_files=[('delensalot/data/cls', ['delensalot/data/cls/FFP10_wdipole_lensedCls.dat',
                                 'delensalot/data/cls/FFP10_wdipole_lenspotentialCls.dat',
@@ -27,7 +27,8 @@ setup(
         'healpy',
         'logdecorator',
         'psutil',
-        'lenspyx @ git+https://github.com/carronj/lenspyx', 'attrs'], #removed mpi4py for travis tests
+        # 'plancklens @ git+https://github.com/carronj/plancklens@plancklensdev',
+        'lenspyx @ git+https://github.com/carronj/lenspyx', 'attrs'],
     requires=['numpy'],
     long_description=long_description,
     configuration=configuration)

@@ -123,100 +123,9 @@
 <span id="handler"></span><h2>handler<a class="headerlink" href="#module-delensalot.core.handler" title="Permalink to this heading"></a></h2>
 <p>handler.py: This module collects the delensalot jobs. It receives the delensalot model build for the respective job. They all initialize needed modules and directories, collect the computing-jobs, and run the computing-jobs, with MPI support, if available.</p>
 <dl class="py class">
-<dt class="sig sig-object py" id="delensalot.core.handler.Basejob">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.core.handler.</span></span><span class="sig-name descname"><span class="pre">Basejob</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.Basejob" title="Permalink to this definition"></a></dt>
-<dd><p>Base class for all jobs, i.e. convenience functions go in here as they should be accessible from anywhere</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.Basejob.collect_jobs">
-<span class="sig-name descname"><span class="pre">collect_jobs</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.Basejob.collect_jobs" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.Basejob.get_blt_it">
-<span class="sig-name descname"><span class="pre">get_blt_it</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simidx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">it</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.Basejob.get_blt_it" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.Basejob.get_fiducial_sim">
-<span class="sig-name descname"><span class="pre">get_fiducial_sim</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simidx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">field</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.Basejob.get_fiducial_sim" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.Basejob.get_filter">
-<span class="sig-name descname"><span class="pre">get_filter</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.Basejob.get_filter" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.Basejob.get_ivf">
-<span class="sig-name descname"><span class="pre">get_ivf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simidx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">it</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">field</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.Basejob.get_ivf" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.Basejob.get_mf_it">
-<span class="sig-name descname"><span class="pre">get_mf_it</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simidx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">it</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalized</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.Basejob.get_mf_it" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.Basejob.get_plm_it">
-<span class="sig-name descname"><span class="pre">get_plm_it</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simidx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">its</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.Basejob.get_plm_it" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.Basejob.get_qlm_it">
-<span class="sig-name descname"><span class="pre">get_qlm_it</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simidx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">it</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.Basejob.get_qlm_it" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.Basejob.get_wf">
-<span class="sig-name descname"><span class="pre">get_wf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simidx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">it</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">field</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.Basejob.get_wf" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.Basejob.run">
-<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.Basejob.run" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
-<dl class="py class">
 <dt class="sig sig-object py" id="delensalot.core.handler.MAP_lr">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.core.handler.</span></span><span class="sig-name descname"><span class="pre">MAP_lr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.MAP_lr" title="Permalink to this definition"></a></dt>
 <dd><p>Iterative lensing reconstruction Job. Depends on class QE_lr, and class Sim_generator.  Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.MAP_lr.collect_jobs">
-<span class="sig-name descname"><span class="pre">collect_jobs</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.MAP_lr.collect_jobs" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.MAP_lr.get_blt_it">
-<span class="sig-name descname"><span class="pre">get_blt_it</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simidx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">it</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.MAP_lr.get_blt_it" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.MAP_lr.get_filter">
-<span class="sig-name descname"><span class="pre">get_filter</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.MAP_lr.get_filter" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.MAP_lr.get_meanfield_it">
-<span class="sig-name descname"><span class="pre">get_meanfield_it</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">it</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">calc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.MAP_lr.get_meanfield_it" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.MAP_lr.get_meanfields_it">
-<span class="sig-name descname"><span class="pre">get_meanfields_it</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">its</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">calc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.MAP_lr.get_meanfields_it" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.MAP_lr.get_plm_it">
-<span class="sig-name descname"><span class="pre">get_plm_it</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simidx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">its</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.MAP_lr.get_plm_it" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.MAP_lr.run">
-<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.MAP_lr.run" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
 </dd></dl>
 
 <dl class="py class">
@@ -230,133 +139,18 @@ This is a combination of,</p>
 <li><p>choosing power spectrum calculation as in binning, masking, and templating</p></li>
 </ul>
 </div></blockquote>
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.Map_delenser.collect_jobs">
-<span class="sig-name descname"><span class="pre">collect_jobs</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.Map_delenser.collect_jobs" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.Map_delenser.delens">
-<span class="sig-name descname"><span class="pre">delens</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simidx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outputdata</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.Map_delenser.delens" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.Map_delenser.get_basemap">
-<span class="sig-name descname"><span class="pre">get_basemap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simidx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.Map_delenser.get_basemap" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.Map_delenser.get_residualblens">
-<span class="sig-name descname"><span class="pre">get_residualblens</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simidx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">it</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.Map_delenser.get_residualblens" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.Map_delenser.hlm2dlm">
-<span class="sig-name descname"><span class="pre">hlm2dlm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hlm</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inplace</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.Map_delenser.hlm2dlm" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.Map_delenser.read_data">
-<span class="sig-name descname"><span class="pre">read_data</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.Map_delenser.read_data" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.Map_delenser.run">
-<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.Map_delenser.run" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
 </dd></dl>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="delensalot.core.handler.OBD_builder">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.core.handler.</span></span><span class="sig-name descname"><span class="pre">OBD_builder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.OBD_builder" title="Permalink to this definition"></a></dt>
 <dd><p>OBD matrix builder Job. Calculates the OBD matrix, used to correctly deproject the B-modes at a masked sky.</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.OBD_builder.collect_jobs">
-<span class="sig-name descname"><span class="pre">collect_jobs</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.OBD_builder.collect_jobs" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.OBD_builder.run">
-<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.OBD_builder.run" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
 </dd></dl>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="delensalot.core.handler.QE_lr">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.core.handler.</span></span><span class="sig-name descname"><span class="pre">QE_lr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.QE_lr" title="Permalink to this definition"></a></dt>
 <dd><p>Quadratic estimate lensing reconstruction Job. Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.QE_lr.collect_jobs">
-<span class="sig-name descname"><span class="pre">collect_jobs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">recalc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.QE_lr.collect_jobs" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.QE_lr.get_R_unl">
-<span class="sig-name descname"><span class="pre">get_R_unl</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.QE_lr.get_R_unl" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.QE_lr.get_blt">
-<span class="sig-name descname"><span class="pre">get_blt</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simidx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.QE_lr.get_blt" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.QE_lr.get_blt_new">
-<span class="sig-name descname"><span class="pre">get_blt_new</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simidx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.QE_lr.get_blt_new" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.QE_lr.get_filter">
-<span class="sig-name descname"><span class="pre">get_filter</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.QE_lr.get_filter" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.QE_lr.get_meanfield">
-<span class="sig-name descname"><span class="pre">get_meanfield</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simidx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.QE_lr.get_meanfield" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.QE_lr.get_meanfield_normalized">
-<span class="sig-name descname"><span class="pre">get_meanfield_normalized</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simidx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.QE_lr.get_meanfield_normalized" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.QE_lr.get_plm">
-<span class="sig-name descname"><span class="pre">get_plm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simidx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sub_mf</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.QE_lr.get_plm" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.QE_lr.get_response_meanfield">
-<span class="sig-name descname"><span class="pre">get_response_meanfield</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.QE_lr.get_response_meanfield" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.QE_lr.get_sim_qlm">
-<span class="sig-name descname"><span class="pre">get_sim_qlm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simidx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.QE_lr.get_sim_qlm" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.QE_lr.get_wflm">
-<span class="sig-name descname"><span class="pre">get_wflm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simidx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.QE_lr.get_wflm" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.QE_lr.init_aniso_filter">
-<span class="sig-name descname"><span class="pre">init_aniso_filter</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.QE_lr.init_aniso_filter" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.QE_lr.init_cinv">
-<span class="sig-name descname"><span class="pre">init_cinv</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.QE_lr.init_cinv" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.QE_lr.run">
-<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">task</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.QE_lr.run" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
 </dd></dl>
 
 <dl class="py class">
@@ -364,68 +158,6 @@ This is a combination of,</p>
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.core.handler.</span></span><span class="sig-name descname"><span class="pre">Sim_generator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dlensalot_model</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.Sim_generator" title="Permalink to this definition"></a></dt>
 <dd><p>Simulation generation Job. Generates simulations for the requested configuration.
 * If any libdir exists, then a flavour of data is provided. Therefore, can only check by making sure flavour == obs, and fns exist.</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.Sim_generator.collect_jobs">
-<span class="sig-name descname"><span class="pre">collect_jobs</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.Sim_generator.collect_jobs" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.Sim_generator.generate_obs">
-<span class="sig-name descname"><span class="pre">generate_obs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simidx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.Sim_generator.generate_obs" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.Sim_generator.generate_sky">
-<span class="sig-name descname"><span class="pre">generate_sky</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simidx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.Sim_generator.generate_sky" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.Sim_generator.postrun_obs">
-<span class="sig-name descname"><span class="pre">postrun_obs</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.Sim_generator.postrun_obs" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.Sim_generator.postrun_sky">
-<span class="sig-name descname"><span class="pre">postrun_sky</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.Sim_generator.postrun_sky" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.Sim_generator.run">
-<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.Sim_generator.run" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.Sim_generator.set_basename_obs">
-<span class="sig-name descname"><span class="pre">set_basename_obs</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.Sim_generator.set_basename_obs" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.Sim_generator.set_basename_sky">
-<span class="sig-name descname"><span class="pre">set_basename_sky</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.Sim_generator.set_basename_sky" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
-<dl class="py class">
-<dt class="sig sig-object py" id="delensalot.core.handler.masked_lib">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.core.handler.</span></span><span class="sig-name descname"><span class="pre">masked_lib</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mask</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cl_calc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lmax</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lmax_mask</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.masked_lib" title="Permalink to this definition"></a></dt>
-<dd><p>Convenience class for handling method names</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.masked_lib.map2cl">
-<span class="sig-name descname"><span class="pre">map2cl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">map</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.masked_lib.map2cl" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
-<dl class="py class">
-<dt class="sig sig-object py" id="delensalot.core.handler.overwrite_anafast">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.core.handler.</span></span><span class="sig-name descname"><span class="pre">overwrite_anafast</span></span><a class="headerlink" href="#delensalot.core.handler.overwrite_anafast" title="Permalink to this definition"></a></dt>
-<dd><p>Convenience class for overwriting method name</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.handler.overwrite_anafast.map2cl">
-<span class="sig-name descname"><span class="pre">map2cl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.handler.overwrite_anafast.map2cl" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
 </dd></dl>
 
 </section>
@@ -480,568 +212,109 @@ setting up an iterator, (e.g. permf or constmf), and decide which object on iter
 <p>#FIXME: loading of total gradient seems mixed up with loading of quadratic gradient…
 #TODO: make plm0 possibly a path?
 #FIXME: Chh = 0 not resulting in 0 estimate</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.alm2rlm">
-<span class="sig-prename descclassname"><span class="pre">delensalot.core.iterator.cs_iterator.</span></span><span class="sig-name descname"><span class="pre">alm2rlm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">alm</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.alm2rlm" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py class">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.iterator_cstmf">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.core.iterator.cs_iterator.</span></span><span class="sig-name descname"><span class="pre">iterator_cstmf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lib_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">h</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lm_max_dlm</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dat_maps</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plm0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mf0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pp_h0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cpp_prior</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cls_filt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ninv_filt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#delensalot.core.opfilt.opfilt_base.alm_filter_wl" title="delensalot.core.opfilt.opfilt_base.alm_filter_wl"><span class="pre">alm_filter_wl</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">k_geom</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Geom</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chain_descr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stepper</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">nrstep</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.iterator_cstmf" title="Permalink to this definition"></a></dt>
-<dd><p>Constant mean-field</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.iterator_cstmf.calc_graddet">
-<span class="sig-name descname"><span class="pre">calc_graddet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">k</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.iterator_cstmf.calc_graddet" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.iterator_cstmf.load_graddet">
-<span class="sig-name descname"><span class="pre">load_graddet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">k</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.iterator_cstmf.load_graddet" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
-<dl class="py class">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.iterator_cstmf_bfgs0">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.core.iterator.cs_iterator.</span></span><span class="sig-name descname"><span class="pre">iterator_cstmf_bfgs0</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lib_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">h</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lm_max_dlm</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dat_maps</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plm0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mf0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pp_h0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cpp_prior</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cls_filt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ninv_filt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#delensalot.core.opfilt.opfilt_base.alm_filter_wl" title="delensalot.core.opfilt.opfilt_base.alm_filter_wl"><span class="pre">alm_filter_wl</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">k_geom</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Geom</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chain_descr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stepper</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">nrstep</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.iterator_cstmf_bfgs0" title="Permalink to this definition"></a></dt>
-<dd><p>Variant of the iterator where the initial curvature guess is itself a bfgs update from phi =0 to input plm</p>
-<p>df0 is gradient estimate for phi == 0, (- qlms calcualted with unlensed weight and filtering)</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.iterator_cstmf_bfgs0.build_incr">
-<span class="sig-name descname"><span class="pre">build_incr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">it</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gradn</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.iterator_cstmf_bfgs0.build_incr" title="Permalink to this definition"></a></dt>
-<dd><p>Search direction</p>
-<dl>
-<dt>BGFS method with ‘self.NR method’ BFGS updates to the hessian.</dt><dd><p>Initial hessian are built from N0s.</p>
-<dl class="field-list simple">
-<dt class="field-odd">param it<span class="colon">:</span></dt>
-<dd class="field-odd"><p>current iteration level. Will produce the increment to phi_{k-1}, from gradient est. g_{k-1}
-phi_{k_1} + output = phi_k</p>
-</dd>
-<dt class="field-even">param key<span class="colon">:</span></dt>
-<dd class="field-even"><p>‘p’ or ‘o’</p>
-</dd>
-<dt class="field-odd">param gradn<span class="colon">:</span></dt>
-<dd class="field-odd"><p>current estimate of the gradient (alm array)</p>
-</dd>
-<dt class="field-even">return<span class="colon">:</span></dt>
-<dd class="field-even"><p>increment for next iteration (alm array)</p>
-</dd>
-</dl>
-<p>s_k = x_k+1 - x_k = - H_k g_k
-y_k = g_k+1 - g_k</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.iterator_cstmf_bfgs0.get_hessian">
-<span class="sig-name descname"><span class="pre">get_hessian</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">k</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.iterator_cstmf_bfgs0.get_hessian" title="Permalink to this definition"></a></dt>
-<dd><p>We need the inverse hessian that will produce phi_iter.</p>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="py class">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.iterator_pertmf">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.core.iterator.cs_iterator.</span></span><span class="sig-name descname"><span class="pre">iterator_pertmf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lib_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">h</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lm_max_dlm</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dat_maps</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plm0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mf_resp</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pp_h0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cpp_prior</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cls_filt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ninv_filt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#delensalot.core.opfilt.opfilt_base.alm_filter_wl" title="delensalot.core.opfilt.opfilt_base.alm_filter_wl"><span class="pre">alm_filter_wl</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">k_geom</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Geom</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chain_descr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stepper</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">nrstep</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mf0</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.iterator_pertmf" title="Permalink to this definition"></a></dt>
-<dd><p>Mean field isotropic response applied to current estimate</p>
-<p>A constant term can also be added (‘mf0’)</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.iterator_pertmf.calc_graddet">
-<span class="sig-name descname"><span class="pre">calc_graddet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">itr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.iterator_pertmf.calc_graddet" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.iterator_pertmf.load_graddet">
-<span class="sig-name descname"><span class="pre">load_graddet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">itr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.iterator_pertmf.load_graddet" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
-<dl class="py class">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.iterator_simf">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.core.iterator.cs_iterator.</span></span><span class="sig-name descname"><span class="pre">iterator_simf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lib_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">h</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lm_max_dlm</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dat_maps</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plm0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mf_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pp_h0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cpp_prior</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cls_filt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ninv_filt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#delensalot.core.opfilt.opfilt_base.alm_filter_wl" title="delensalot.core.opfilt.opfilt_base.alm_filter_wl"><span class="pre">alm_filter_wl</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">k_geom</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Geom</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chain_descr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stepper</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">nrstep</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.iterator_simf" title="Permalink to this definition"></a></dt>
-<dd><p>Monte-Carlo evaluation of mean-field</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.iterator_simf.calc_graddet">
-<span class="sig-name descname"><span class="pre">calc_graddet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">itr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.iterator_simf.calc_graddet" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.prt_time">
-<span class="sig-prename descclassname"><span class="pre">delensalot.core.iterator.cs_iterator.</span></span><span class="sig-name descname"><span class="pre">prt_time</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.prt_time" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py class">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.qlm_iterator">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.core.iterator.cs_iterator.</span></span><span class="sig-name descname"><span class="pre">qlm_iterator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lib_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">h</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lm_max_dlm</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dat_maps</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plm0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pp_h0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cpp_prior</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cls_filt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ninv_filt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#delensalot.core.opfilt.opfilt_base.alm_filter_wl" title="delensalot.core.opfilt.opfilt_base.alm_filter_wl"><span class="pre">alm_filter_wl</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">k_geom</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Geom</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chain_descr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stepper</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">nrstep</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">NR_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tidy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">soltn_cond</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wflm0</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_usethisE</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.qlm_iterator" title="Permalink to this definition"></a></dt>
-<dd><dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.qlm_iterator.build_incr">
-<span class="sig-name descname"><span class="pre">build_incr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">it</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gradn</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.qlm_iterator.build_incr" title="Permalink to this definition"></a></dt>
-<dd><p>Search direction</p>
-<dl>
-<dt>BGFS method with ‘self.NR method’ BFGS updates to the hessian.</dt><dd><p>Initial hessian are built from N0s.</p>
-<dl class="field-list simple">
-<dt class="field-odd">param it<span class="colon">:</span></dt>
-<dd class="field-odd"><p>current iteration level. Will produce the increment to phi_{k-1}, from gradient est. g_{k-1}
-phi_{k_1} + output = phi_k</p>
-</dd>
-<dt class="field-even">param key<span class="colon">:</span></dt>
-<dd class="field-even"><p>‘p’ or ‘o’</p>
-</dd>
-<dt class="field-odd">param gradn<span class="colon">:</span></dt>
-<dd class="field-odd"><p>current estimate of the gradient (alm array)</p>
-</dd>
-<dt class="field-even">return<span class="colon">:</span></dt>
-<dd class="field-even"><p>increment for next iteration (alm array)</p>
-</dd>
-</dl>
-<p>s_k = x_k+1 - x_k = - H_k g_k
-y_k = g_k+1 - g_k</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.qlm_iterator.calc_graddet">
-<span class="sig-name descname"><span class="pre">calc_graddet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">itr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.qlm_iterator.calc_graddet" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.qlm_iterator.calc_gradlik">
-<span class="sig-name descname"><span class="pre">calc_gradlik</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">itr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">iwantit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.qlm_iterator.calc_gradlik" title="Permalink to this definition"></a></dt>
-<dd><p>Computes the quadratic part of the gradient for plm iteration ‘itr’</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.qlm_iterator.calc_norm">
-<span class="sig-name descname"><span class="pre">calc_norm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">qlm</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.qlm_iterator.calc_norm" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.qlm_iterator.get_hessian">
-<span class="sig-name descname"><span class="pre">get_hessian</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">k</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.qlm_iterator.get_hessian" title="Permalink to this definition"></a></dt>
-<dd><p>Inverse hessian that will produce phi_iter.</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.qlm_iterator.get_hlm">
-<span class="sig-name descname"><span class="pre">get_hlm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">itr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.qlm_iterator.get_hlm" title="Permalink to this definition"></a></dt>
-<dd><p>Loads current estimate</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.qlm_iterator.get_lik">
-<span class="sig-name descname"><span class="pre">get_lik</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">itr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.qlm_iterator.get_lik" title="Permalink to this definition"></a></dt>
-<dd><p>Returns the components of -2 ln p where ln p is the approximation to the posterior</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.qlm_iterator.get_template_blm">
-<span class="sig-name descname"><span class="pre">get_template_blm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">it</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">it_e</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lmaxb</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1024</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lmin_plm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">elm_wf</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dlm_mod</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">perturbative</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'p_p'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.qlm_iterator.get_template_blm" title="Permalink to this definition"></a></dt>
-<dd><p>Builds a template B-mode map with the iterated phi and input elm_wf</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>it</strong> – iteration index of lensing tracer</p></li>
-<li><p><strong>it_e</strong> – iteration index of E-tracer (use it_e = it + 1 for matching lensing and E-templates)</p></li>
-<li><p><strong>elm_wf</strong> – Wiener-filtered E-mode (healpy alm array), if not an iterated solution (it_e will ignored if set)</p></li>
-<li><p><strong>lmin_plm</strong> – the lensing tracer is zeroed below lmin_plm</p></li>
-<li><p><strong>lmaxb</strong> – the B-template is calculated up to lmaxb (defaults to lmax elm_wf)</p></li>
-<li><p><strong>perturbative</strong> – use pertubative instead of full remapping if set (may be useful for QE)</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>blm healpy array</p>
-</dd>
-</dl>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>It can be a real lot better to keep the same L range as the iterations</p>
-</div>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.qlm_iterator.hlm2dlm">
-<span class="sig-name descname"><span class="pre">hlm2dlm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hlm</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inplace</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.qlm_iterator.hlm2dlm" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.qlm_iterator.is_iter_done">
-<span class="sig-name descname"><span class="pre">is_iter_done</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">itr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.qlm_iterator.is_iter_done" title="Permalink to this definition"></a></dt>
-<dd><p>Returns True if the iteration ‘itr’ has been performed already and False if not</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.qlm_iterator.iterate">
-<span class="sig-name descname"><span class="pre">iterate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">itr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.qlm_iterator.iterate" title="Permalink to this definition"></a></dt>
-<dd><p>Performs iteration number ‘itr’</p>
-<p>This is done by collecting the gradients at level iter, and the lower level potential</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.qlm_iterator.load_graddet">
-<span class="sig-name descname"><span class="pre">load_graddet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">itr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.qlm_iterator.load_graddet" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.qlm_iterator.load_gradient">
-<span class="sig-name descname"><span class="pre">load_gradient</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">itr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.qlm_iterator.load_gradient" title="Permalink to this definition"></a></dt>
-<dd><p>Loads the total gradient at iteration iter.</p>
-<p>All necessary alm’s must have been calculated previously</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.qlm_iterator.load_gradpri">
-<span class="sig-name descname"><span class="pre">load_gradpri</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">itr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.qlm_iterator.load_gradpri" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.qlm_iterator.load_gradquad">
-<span class="sig-name descname"><span class="pre">load_gradquad</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">k</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.qlm_iterator.load_gradquad" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.qlm_iterator.load_soltn">
-<span class="sig-name descname"><span class="pre">load_soltn</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">itr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.qlm_iterator.load_soltn" title="Permalink to this definition"></a></dt>
-<dd><p>Load starting point for the conjugate gradient inversion.</p>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="delensalot.core.iterator.cs_iterator.rlm2alm">
-<span class="sig-prename descclassname"><span class="pre">delensalot.core.iterator.cs_iterator.</span></span><span class="sig-name descname"><span class="pre">rlm2alm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rlm</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.cs_iterator.rlm2alm" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<span class="target" id="module-delensalot.core.iterator.bfgs"></span><dl class="py class">
-<dt class="sig sig-object py" id="delensalot.core.iterator.bfgs.BFGS_Hessian">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.core.iterator.bfgs.</span></span><span class="sig-name descname"><span class="pre">BFGS_Hessian</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cacher</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">cacher</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">apply_H0k</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">callable</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">paths2ys</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">paths2ss</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dot_op</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">callable</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">L</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">apply_B0k</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.bfgs.BFGS_Hessian" title="Permalink to this definition"></a></dt>
-<dd><p>Class to evaluate the update to inverse Hessian matrix in the L-BFGS scheme.
-(see wikipedia article if nothing else).</p>
-<p>H is $B^-1$ form that article.
-$$B_k+1 = B  + yy^t / (y^ts) - B s s^t B / (s^t Bk s))$$   (all k on the RHS)
-$$H_k+1 = (1 - sy^t / (y^t s) ) H (1 - ys^t / (y^ts))) + ss^t / (y^t s)$$.</p>
-<p>Determinant of B:
-$$ln det Bk+1 = ln det Bk + ln( s^ty / s^t B s)$$.
-For quasi Newton, $$s_k = x_k1 - x_k = - alpha_k Hk grad_k with alpha_k$$ newton step-length.</p>
-<blockquote>
-<div><dl class="simple">
-<dt>–&gt; $$s^t B s at k is alpha_k^2 g_k H g_k$$</dt><dd><p>$$s^t y is  - alpha_k (g_k+1 - g_k) H g_k$$</p>
-</dd>
-</dl>
-</div></blockquote>
-<p>This leads to $$ln|B_k + 1| = ln <a href="#id3"><span class="problematic" id="id4">|B_k|</span></a> + ln(1 - 1/alpha_k g_k+1 H g_k / (gk H gk))$$</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.bfgs.BFGS_Hessian.add_ys">
-<span class="sig-name descname"><span class="pre">add_ys</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path2y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path2s</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.bfgs.BFGS_Hessian.add_ys" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.bfgs.BFGS_Hessian.applyH">
-<span class="sig-name descname"><span class="pre">applyH</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_depth</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.bfgs.BFGS_Hessian.applyH" title="Permalink to this definition"></a></dt>
-<dd><p>Recursive calculation of H_k x, for any x.
-This uses the product form update H_new = (1 - rho s y^t) H (1 - rho y s^t) + rho ss^t
-:param x: vector to apply the inverse Hessian to
-:param k: iter level. Output is H_k x.
-:param _depth : internal, for internal bookkeeping.
-:return:</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.bfgs.BFGS_Hessian.get_gk">
-<span class="sig-name descname"><span class="pre">get_gk</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">k</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha_k0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.bfgs.BFGS_Hessian.get_gk" title="Permalink to this definition"></a></dt>
-<dd><p>Reconstruct gradient at xk, given the first newton step length at step max(0,k-L)
-! this is very badly behaved numerically.</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.bfgs.BFGS_Hessian.get_lndet_update">
-<span class="sig-name descname"><span class="pre">get_lndet_update</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">k</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha_k</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha_k0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.bfgs.BFGS_Hessian.get_lndet_update" title="Permalink to this definition"></a></dt>
-<dd><p>Return update to B log determinant, lndet B_k+1 = lndet B_k + output.</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.bfgs.BFGS_Hessian.get_mHkgk">
-<span class="sig-name descname"><span class="pre">get_mHkgk</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gk</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_fname</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.bfgs.BFGS_Hessian.get_mHkgk" title="Permalink to this definition"></a></dt>
-<dd><p>Obtains - H_k g_k with L-BFGS two-loop recursion.
-:param gk: grad f(x_k)
-:param k: iterate index
-:return: - H_k g_k according to L-BFGS.
-If output_fname is set then output is saved in file and nothing is returned.
-Should be fine with k == 0</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.bfgs.BFGS_Hessian.get_sBs">
-<span class="sig-name descname"><span class="pre">get_sBs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">k</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha_k</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha_k0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.bfgs.BFGS_Hessian.get_sBs" title="Permalink to this definition"></a></dt>
-<dd><p>Reconstruct s^Bs at x_k, given the first newton step length at step max(0,k-L) and current step alpha_k.</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.bfgs.BFGS_Hessian.s">
-<span class="sig-name descname"><span class="pre">s</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.bfgs.BFGS_Hessian.s" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.bfgs.BFGS_Hessian.sample_Gaussian">
-<span class="sig-name descname"><span class="pre">sample_Gaussian</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">k</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x_0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rng_state</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.bfgs.BFGS_Hessian.sample_Gaussian" title="Permalink to this definition"></a></dt>
-<dd><p>sample from a MV zero-mean Gaussian with covariance matrix H, at iteration level k,
-given input x_0 random vector with covariance H_0.
-Since H is the inverse Hessian, then H is roughly the covariance matrix of the parameters in a line search.
-:param k:
-:param x_0:
-:return:</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.bfgs.BFGS_Hessian.y">
-<span class="sig-name descname"><span class="pre">y</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.bfgs.BFGS_Hessian.y" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
-<span class="target" id="module-delensalot.core.iterator.statics"></span><dl class="py function">
-<dt class="sig sig-object py" id="delensalot.core.iterator.statics.alm2rlm">
-<span class="sig-prename descclassname"><span class="pre">delensalot.core.iterator.statics.</span></span><span class="sig-name descname"><span class="pre">alm2rlm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.statics.alm2rlm" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py class">
-<dt class="sig sig-object py" id="delensalot.core.iterator.statics.rec">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.core.iterator.statics.</span></span><span class="sig-name descname"><span class="pre">rec</span></span><a class="headerlink" href="#delensalot.core.iterator.statics.rec" title="Permalink to this definition"></a></dt>
-<dd><p>Static methods to reach for iterated lensing maps etc</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.statics.rec.is_iter_done">
-<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_iter_done</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lib_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">itr</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.statics.rec.is_iter_done" title="Permalink to this definition"></a></dt>
-<dd><p>Returns True if the iteration ‘itr’ has been performed already and False if not</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.statics.rec.load_elm">
-<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">load_elm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lib_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">itr</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.statics.rec.load_elm" title="Permalink to this definition"></a></dt>
-<dd><p>Load delensing E-map at iteration ‘itr’</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.statics.rec.load_grad">
-<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">load_grad</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lib_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">itr</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.statics.rec.load_grad" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.statics.rec.load_plms">
-<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">load_plms</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lib_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">itrs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.statics.rec.load_plms" title="Permalink to this definition"></a></dt>
-<dd><p>Loads plms for the requested itrs</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.iterator.statics.rec.maxiterdone">
-<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">maxiterdone</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lib_dir</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.statics.rec.maxiterdone" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="delensalot.core.iterator.statics.rlm2alm">
-<span class="sig-prename descclassname"><span class="pre">delensalot.core.iterator.statics.</span></span><span class="sig-name descname"><span class="pre">rlm2alm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.iterator.statics.rlm2alm" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
 </section>
 <section id="opfilt">
 <h2>opfilt<a class="headerlink" href="#opfilt" title="Permalink to this heading"></a></h2>
 <p>module reference</p>
 <span class="target" id="module-delensalot.core.opfilt"></span><p>opfilt.__init__.py: These are QE and MAP filters, and include both isotropic (unmasked sky) and isotropic (masked sky) versions.
 The e/p/t/gpt refer to E-only/polarization/temperature/generalized-polarization-temperature</p>
-<span class="target" id="module-delensalot.core.opfilt.bmodes_ninv"></span><p>Module for harmonic curl modes template deprojection of a spin-2 field (e.g. B-modes)</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="delensalot.core.opfilt.bmodes_ninv.alm2rlm">
-<span class="sig-prename descclassname"><span class="pre">delensalot.core.opfilt.bmodes_ninv.</span></span><span class="sig-name descname"><span class="pre">alm2rlm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">alm</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.bmodes_ninv.alm2rlm" title="Permalink to this definition"></a></dt>
-<dd><p>converts a complex alm to ‘real harmonic’ coefficients rlm.</p>
-</dd></dl>
-
+<span class="target" id="module-delensalot.core.opfilt.opfilt_handler"></span><p>opfilt.opfilt_handler.py: interface to opfilt via transformer</p>
 <dl class="py class">
-<dt class="sig sig-object py" id="delensalot.core.opfilt.bmodes_ninv.eblm_filter_ninv">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.core.opfilt.bmodes_ninv.</span></span><span class="sig-name descname"><span class="pre">eblm_filter_ninv</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.bmodes_ninv.eblm_filter_ninv" title="Permalink to this definition"></a></dt>
-<dd><p>Identical to <em>plancklens</em> polarization filter, but adding the $B$-marginalization possibility</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>n_inv is inverse pixel variance map (no volume factors or units)</p>
-<p>set bmarg_lib_dir only to calculate the rows of the template with mpi later on, for very large bmarg_lmax</p>
-<p>blm_range is only a way to approximately project out some modes,
-you dont want to mix this with bmarg_lmax which is exact template marginalisation</p>
-</div>
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.opfilt.bmodes_ninv.eblm_filter_ninv.apply_map">
-<span class="sig-name descname"><span class="pre">apply_map</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">qumap</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.bmodes_ninv.eblm_filter_ninv.apply_map" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="delensalot.core.opfilt.bmodes_ninv.lmax2nlm">
-<span class="sig-prename descclassname"><span class="pre">delensalot.core.opfilt.bmodes_ninv.</span></span><span class="sig-name descname"><span class="pre">lmax2nlm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lmax</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.bmodes_ninv.lmax2nlm" title="Permalink to this definition"></a></dt>
-<dd><p>returns the length of the complex alm array required for maximum multipole lmax.</p>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="delensalot.core.opfilt.bmodes_ninv.nlm2lmax">
-<span class="sig-prename descclassname"><span class="pre">delensalot.core.opfilt.bmodes_ninv.</span></span><span class="sig-name descname"><span class="pre">nlm2lmax</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">nlm</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.bmodes_ninv.nlm2lmax" title="Permalink to this definition"></a></dt>
-<dd><p>returns the lmax for an array of alm with length nlm.</p>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="delensalot.core.opfilt.bmodes_ninv.rlm2alm">
-<span class="sig-prename descclassname"><span class="pre">delensalot.core.opfilt.bmodes_ninv.</span></span><span class="sig-name descname"><span class="pre">rlm2alm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rlm</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.bmodes_ninv.rlm2alm" title="Permalink to this definition"></a></dt>
-<dd><p>converts ‘real harmonic’ coefficients rlm to complex alm.</p>
-</dd></dl>
-
-<dl class="py class">
-<dt class="sig sig-object py" id="delensalot.core.opfilt.bmodes_ninv.template_bfilt">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.core.opfilt.bmodes_ninv.</span></span><span class="sig-name descname"><span class="pre">template_bfilt</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lmax_marg</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geom</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Geom</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sht_threads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_lib_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.bmodes_ninv.template_bfilt" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="delensalot.core.opfilt.opfilt_handler.MAP_aniso_transformer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.core.opfilt.opfilt_handler.</span></span><span class="sig-name descname"><span class="pre">MAP_aniso_transformer</span></span><a class="headerlink" href="#delensalot.core.opfilt.opfilt_handler.MAP_aniso_transformer" title="Permalink to this definition"></a></dt>
 <dd><dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.opfilt.bmodes_ninv.template_bfilt.accum">
-<span class="sig-name descname"><span class="pre">accum</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">qumap</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coeffs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.bmodes_ninv.template_bfilt.accum" title="Permalink to this definition"></a></dt>
-<dd><p>Forward template operation</p>
-<p>Turns the input real harmonic <em>coeffs</em> to blm and send to Q, U.
-This plus-adds the input <em>qumap</em></p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.opfilt.bmodes_ninv.template_bfilt.apply_qu">
-<span class="sig-name descname"><span class="pre">apply_qu</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">qumap</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coeffs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.bmodes_ninv.template_bfilt.apply_qu" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="delensalot.core.opfilt.opfilt_handler.MAP_aniso_transformer.build_opfilt_aniso_p">
+<span class="sig-name descname"><span class="pre">build_opfilt_aniso_p</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cf</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.opfilt_handler.MAP_aniso_transformer.build_opfilt_aniso_p" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.opfilt.bmodes_ninv.template_bfilt.apply_qumode">
-<span class="sig-name descname"><span class="pre">apply_qumode</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">qumap</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.bmodes_ninv.template_bfilt.apply_qumode" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.opfilt.bmodes_ninv.template_bfilt.build_tnit">
-<span class="sig-name descname"><span class="pre">build_tnit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">NiQQ_NiUU_NiQU</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.bmodes_ninv.template_bfilt.build_tnit" title="Permalink to this definition"></a></dt>
-<dd><p>Return the nmodes x nmodes matrix (T^t N^{-1} T )_{bl bl’}’</p>
-<blockquote>
-<div><p>For unit inverse noise matrices on the full-sky this is a diagonal matrix
-with diagonal :math:<a href="#id1"><span class="problematic" id="id2">`</span></a>N_{</p>
-</div></blockquote>
-<p>m pix} / (4pi)`.</p>
-<blockquote>
-<div><p>If input inverse noise matrices are the inverse pixel noise in uK, this give 1/noise level ** 2 in uK-rad squared</p>
-</div></blockquote>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.opfilt.bmodes_ninv.template_bfilt.dot">
-<span class="sig-name descname"><span class="pre">dot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">qumap</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.bmodes_ninv.template_bfilt.dot" title="Permalink to this definition"></a></dt>
-<dd><p>Backward template operation.</p>
-<p>Turns the input qu maps into the real harmonic coefficient B-modes up to lmax.
-This includes a factor npix / 4pi, as the transpose differs from the inverse by that factor</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.opfilt.bmodes_ninv.template_bfilt.get_modelmax">
-<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_modelmax</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mode</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.bmodes_ninv.template_bfilt.get_modelmax" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.opfilt.bmodes_ninv.template_bfilt.get_nmodes">
-<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_nmodes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lmax</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.bmodes_ninv.template_bfilt.get_nmodes" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.opfilt.bmodes_ninv.template_bfilt.hashdict">
-<span class="sig-name descname"><span class="pre">hashdict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.bmodes_ninv.template_bfilt.hashdict" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="delensalot.core.opfilt.opfilt_handler.MAP_aniso_transformer.build_opfilt_aniso_t">
+<span class="sig-name descname"><span class="pre">build_opfilt_aniso_t</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cf</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.opfilt_handler.MAP_aniso_transformer.build_opfilt_aniso_t" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
 
 </dd></dl>
 
 <dl class="py class">
-<dt class="sig sig-object py" id="delensalot.core.opfilt.bmodes_ninv.template_dense">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.core.opfilt.bmodes_ninv.</span></span><span class="sig-name descname"><span class="pre">template_dense</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lmax_marg</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geom</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Geom</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sht_threads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_lib_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rescal</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.bmodes_ninv.template_dense" title="Permalink to this definition"></a></dt>
-<dd><p>Class for loading existing tniti matrix. Cannot be used for building it.</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.opfilt.bmodes_ninv.template_dense.hashdict">
-<span class="sig-name descname"><span class="pre">hashdict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.bmodes_ninv.template_dense.hashdict" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.opfilt.bmodes_ninv.template_dense.tniti">
-<span class="sig-name descname"><span class="pre">tniti</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.bmodes_ninv.template_dense.tniti" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
-<span class="target" id="module-delensalot.core.opfilt.opfilt_base"></span><dl class="py class">
-<dt class="sig sig-object py" id="delensalot.core.opfilt.opfilt_base.alm_filter_wl">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.core.opfilt.opfilt_base.</span></span><span class="sig-name descname"><span class="pre">alm_filter_wl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lmax_sol</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mmax_sol</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ffi</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">deflection</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.opfilt_base.alm_filter_wl" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="delensalot.core.opfilt.opfilt_handler.MAP_iso_transformer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.core.opfilt.opfilt_handler.</span></span><span class="sig-name descname"><span class="pre">MAP_iso_transformer</span></span><a class="headerlink" href="#delensalot.core.opfilt.opfilt_handler.MAP_iso_transformer" title="Permalink to this definition"></a></dt>
 <dd><dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.opfilt.opfilt_base.alm_filter_wl.apply_map">
-<span class="sig-name descname"><span class="pre">apply_map</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dat_map</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.opfilt_base.alm_filter_wl.apply_map" title="Permalink to this definition"></a></dt>
-<dd><p>Applies inverse noise operator</p>
-</dd></dl>
+<dt class="sig sig-object py" id="delensalot.core.opfilt.opfilt_handler.MAP_iso_transformer.build_opfilt_iso_e">
+<span class="sig-name descname"><span class="pre">build_opfilt_iso_e</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cf</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.opfilt_handler.MAP_iso_transformer.build_opfilt_iso_e" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.opfilt.opfilt_base.alm_filter_wl.dot_op">
-<span class="sig-name descname"><span class="pre">dot_op</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.opfilt_base.alm_filter_wl.dot_op" title="Permalink to this definition"></a></dt>
-<dd><p>This must give the scalar product instance betweem two cg-solution estimates</p>
-</dd></dl>
+<dt class="sig sig-object py" id="delensalot.core.opfilt.opfilt_handler.MAP_iso_transformer.build_opfilt_iso_p">
+<span class="sig-name descname"><span class="pre">build_opfilt_iso_p</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cf</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.opfilt_handler.MAP_iso_transformer.build_opfilt_iso_p" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.opfilt.opfilt_base.alm_filter_wl.get_qlms">
-<span class="sig-name descname"><span class="pre">get_qlms</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dat_map:</span> <span class="pre">~numpy.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alm_wf:</span> <span class="pre">~numpy.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q_geom:</span> <span class="pre">~lenspyx.remapping.utils_geom.pbdGeometry</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alm_wf_leg2=&lt;class</span> <span class="pre">'numpy.ndarray'&gt;</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.opfilt_base.alm_filter_wl.get_qlms" title="Permalink to this definition"></a></dt>
-<dd><p>Estimate of the quadratic likelihood piece, for data dat_map and alm_wf wiener filtered estimate</p>
-</dd></dl>
+<dt class="sig sig-object py" id="delensalot.core.opfilt.opfilt_handler.MAP_iso_transformer.build_opfilt_iso_t">
+<span class="sig-name descname"><span class="pre">build_opfilt_iso_t</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cf</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.opfilt_handler.MAP_iso_transformer.build_opfilt_iso_t" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.opfilt.opfilt_base.alm_filter_wl.get_qlms_mf">
-<span class="sig-name descname"><span class="pre">get_qlms_mf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mfkey</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q_pbgeom</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pbdGeometry</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mchain</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">phas</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cls_filt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.opfilt_base.alm_filter_wl.get_qlms_mf" title="Permalink to this definition"></a></dt>
-<dd><p>Estimate of the quadratic likelihood piece, for data dat_map and alm_wf wiener filtered estimate</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.opfilt.opfilt_base.alm_filter_wl.set_ffi">
-<span class="sig-name descname"><span class="pre">set_ffi</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ffi</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">deflection</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.opfilt_base.alm_filter_wl.set_ffi" title="Permalink to this definition"></a></dt>
-<dd><p>Update of lensing deflection instance</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.opfilt.opfilt_base.alm_filter_wl.synalm">
-<span class="sig-name descname"><span class="pre">synalm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cmbcls</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cmb_phas</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.opfilt_base.alm_filter_wl.synalm" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="delensalot.core.opfilt.opfilt_handler.MAP_iso_transformer.build_opfilt_iso_tp">
+<span class="sig-name descname"><span class="pre">build_opfilt_iso_tp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cf</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.opfilt_handler.MAP_iso_transformer.build_opfilt_iso_tp" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
 
 </dd></dl>
 
-<span class="target" id="module-delensalot.core.opfilt.utils_cinv_p"></span><p>OBD’d version of Plancklens.filt.filt_cinf.cinv_p. This is exactly itercurvs filt.utils_cinv_p</p>
 <dl class="py class">
-<dt class="sig sig-object py" id="delensalot.core.opfilt.utils_cinv_p.cinv_p">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.core.opfilt.utils_cinv_p.</span></span><span class="sig-name descname"><span class="pre">cinv_p</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.utils_cinv_p.cinv_p" title="Permalink to this definition"></a></dt>
-<dd><p>Polarization-only inverse-variance (or Wiener-)filtering instance.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>lib_dir</strong> – mask and other things will be cached there</p></li>
-<li><p><strong>lmax</strong> – filtered alm’s are reconstructed up to lmax</p></li>
-<li><p><strong>nside</strong> – healpy resolution of maps to filter</p></li>
-<li><p><strong>cl</strong> – fiducial CMB spectra used to filter the data (dict with ‘tt’ key)</p></li>
-<li><p><strong>transf</strong> – CMB maps transfer function (array)</p></li>
-<li><p><strong>ninv</strong> – inverse pixel variance maps. Must be a list of either 3 (QQ, QU, UU) or 1 (QQ = UU noise) elements.
-These element are themselves list of paths or of healpy maps with consistent nside.</p></li>
-</ul>
-</dd>
-</dl>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>this implementation does not support template projection</p>
-</div>
-<dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.opfilt.utils_cinv_p.cinv_p.apply_ivf">
-<span class="sig-name descname"><span class="pre">apply_ivf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tmap</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">soltn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.utils_cinv_p.cinv_p.apply_ivf" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="delensalot.core.opfilt.opfilt_handler.MAP_transformer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.core.opfilt.opfilt_handler.</span></span><span class="sig-name descname"><span class="pre">MAP_transformer</span></span><a class="headerlink" href="#delensalot.core.opfilt.opfilt_handler.MAP_transformer" title="Permalink to this definition"></a></dt>
+<dd><dl class="py method">
+<dt class="sig sig-object py" id="delensalot.core.opfilt.opfilt_handler.MAP_transformer.build_aniso">
+<span class="sig-name descname"><span class="pre">build_aniso</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cf</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.opfilt_handler.MAP_transformer.build_aniso" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="delensalot.core.opfilt.utils_cinv_p.cinv_p.hashdict">
-<span class="sig-name descname"><span class="pre">hashdict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.utils_cinv_p.cinv_p.hashdict" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="delensalot.core.opfilt.opfilt_handler.MAP_transformer.build_iso">
+<span class="sig-name descname"><span class="pre">build_iso</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cf</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.opfilt_handler.MAP_transformer.build_iso" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="delensalot.core.opfilt.opfilt_handler.QE_aniso_transformer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.core.opfilt.opfilt_handler.</span></span><span class="sig-name descname"><span class="pre">QE_aniso_transformer</span></span><a class="headerlink" href="#delensalot.core.opfilt.opfilt_handler.QE_aniso_transformer" title="Permalink to this definition"></a></dt>
+<dd><dl class="py method">
+<dt class="sig sig-object py" id="delensalot.core.opfilt.opfilt_handler.QE_aniso_transformer.build_opfilt_aniso_p">
+<span class="sig-name descname"><span class="pre">build_opfilt_aniso_p</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cf</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.opfilt_handler.QE_aniso_transformer.build_opfilt_aniso_p" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="delensalot.core.opfilt.opfilt_handler.QE_aniso_transformer.build_opfilt_aniso_t">
+<span class="sig-name descname"><span class="pre">build_opfilt_aniso_t</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cf</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.opfilt_handler.QE_aniso_transformer.build_opfilt_aniso_t" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="delensalot.core.opfilt.opfilt_handler.QE_iso_transformer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.core.opfilt.opfilt_handler.</span></span><span class="sig-name descname"><span class="pre">QE_iso_transformer</span></span><a class="headerlink" href="#delensalot.core.opfilt.opfilt_handler.QE_iso_transformer" title="Permalink to this definition"></a></dt>
+<dd><dl class="py method">
+<dt class="sig sig-object py" id="delensalot.core.opfilt.opfilt_handler.QE_iso_transformer.build_opfilt_iso_p">
+<span class="sig-name descname"><span class="pre">build_opfilt_iso_p</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cf</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.opfilt_handler.QE_iso_transformer.build_opfilt_iso_p" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="delensalot.core.opfilt.opfilt_handler.QE_iso_transformer.build_opfilt_iso_t">
+<span class="sig-name descname"><span class="pre">build_opfilt_iso_t</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cf</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.opfilt_handler.QE_iso_transformer.build_opfilt_iso_t" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="delensalot.core.opfilt.opfilt_handler.QE_transformer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">delensalot.core.opfilt.opfilt_handler.</span></span><span class="sig-name descname"><span class="pre">QE_transformer</span></span><a class="headerlink" href="#delensalot.core.opfilt.opfilt_handler.QE_transformer" title="Permalink to this definition"></a></dt>
+<dd><dl class="py method">
+<dt class="sig sig-object py" id="delensalot.core.opfilt.opfilt_handler.QE_transformer.build_aniso">
+<span class="sig-name descname"><span class="pre">build_aniso</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cf</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.opfilt_handler.QE_transformer.build_aniso" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="delensalot.core.opfilt.opfilt_handler.QE_transformer.build_iso">
+<span class="sig-name descname"><span class="pre">build_iso</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cf</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#delensalot.core.opfilt.opfilt_handler.QE_transformer.build_iso" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
 
 </dd></dl>

@@ -193,7 +193,7 @@ class qlm_iterator(object):
 
     @log_on_start(logging.INFO, "get_template_blm(it={it}) started")
     @log_on_end(logging.INFO, "get_template_blm(it={it}) finished")
-    def get_template_blm(self, it, it_e, lmaxb=1024, lmin_plm=1, elm_wf:None or np.ndarray=None, dlm_mod=None, perturbative=False, k='p_p'):
+    def get_template_blm(self, it, it_e, lmaxb=1024, lmin_plm=1, elm_wf:None or np.ndarray=None, dlm_mod=None, perturbative=False, k='p_p', pwithn1=False):
         """Builds a template B-mode map with the iterated phi and input elm_wf
 
             Args:
@@ -214,8 +214,12 @@ class qlm_iterator(object):
         cache_cond = (lmin_plm >= 1) and (elm_wf is None)
 
         fn_blt = 'blt_p%03d_e%03d_lmax%s'%(it, it_e, lmaxb)
-        fn_blt += '_dlmmod' * dlm_mod.any()
+        if dlm_mod is None:
+            pass
+        else:
+            fn_blt += '_dlmmod' * dlm_mod.any()
         fn_blt += 'perturbative' * perturbative
+        fn_blt += '_wN1' * pwithn1
         
         if self.blt_cacher.is_cached(fn_blt):
             return self.blt_cacher.load(fn_blt)
@@ -232,7 +236,7 @@ class qlm_iterator(object):
             elm_wf = elm_wf[1]
         assert Alm.getlmax(elm_wf.size, self.mmax_filt) == self.lmax_filt, "{}, {}, {}, {}".format(elm_wf.size, self.mmax_filt, Alm.getlmax(elm_wf.size, self.mmax_filt), self.lmax_filt)
         mmaxb = lmaxb
-        dlm = self.get_hlm(it, 'p')
+        dlm = self.get_hlm(it, 'p', pwithn1)
 
         # subtract field from phi
         if dlm_mod is not None:
@@ -299,12 +303,15 @@ class qlm_iterator(object):
         ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm, cachers.cacher_mem(safe=False))
         return ffi
 
-    def get_hlm(self, itr, key):
+    def get_hlm(self, itr, key, pwithn1=False):
         """Loads current estimate """
         if itr < 0:
             return np.zeros(Alm.getsize(self.lmax_qlm, self.mmax_qlm), dtype=complex)
         assert key.lower() in ['p', 'o'], key  # potential or curl potential.
-        fn = '%s_%slm_it%03d' % ({'p': 'phi', 'o': 'om'}[key.lower()], self.h, itr)
+        if pwithn1:
+            fn = '%s_%slm_it%03d' % ({'p': 'phi', 'o': 'om'}[key.lower()], self.h, itr)
+        else:
+            fn = '%s_%slm_it%03d_wN1' % ({'p': 'phi', 'o': 'om'}[key.lower()], self.h, itr)
         if self.cacher.is_cached(fn):
             return self.cacher.load(fn)
         return self._sk2plm(itr)

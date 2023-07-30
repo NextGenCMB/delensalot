@@ -5,8 +5,8 @@
 
     COMMENT: For some reason, asserting fails if both classes are tested at the same time, i.e. `python -m unittest test_integration_filter` but this failing has nothing to do with delensalot itself.
     Recommend to use,
-        `python -m unittest test_integration_filter.FS`,
-        `python -m unittest test_integration_filter.MS`
+        `python3 -m unittest test_integration_filter.FS`,
+        `python3 -m unittest test_integration_filter.MS`
     individually.
 """
 
@@ -67,7 +67,7 @@ class FS(unittest.TestCase):
     def test_fullsky_T(self):
         for job_id, key_dict in self.whitelist_FS_T.items():
             for key in key_dict:
-                dlensalot_model = DLENSALOT_Model(defaults_to='T_FS_TEST', analysis = DLENSALOT_Analysis(key=key))
+                dlensalot_model = DLENSALOT_Model(defaults_to='default_test_fullsky_temperature', analysis = DLENSALOT_Analysis(key=key))
                 delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
                 model = transform3d(dlensalot_model, job_id, l2delensalotjob_Transformer())
                 assert type(model.filter) in self.whitelist_FS_T[job_id][key], "{} != {} for key {}".format(model.filter, self.whitelist_FS_T[job_id][key], key)
@@ -76,7 +76,7 @@ class FS(unittest.TestCase):
     def test_fullsky_P(self):
         for job_id, key_dict in self.whitelist_FS_P.items():
             for key in key_dict:
-                dlensalot_model = DLENSALOT_Model(defaults_to='P_FS_TEST', analysis = DLENSALOT_Analysis(key=key))
+                dlensalot_model = DLENSALOT_Model(defaults_to='default_test_fullsky_polarization', analysis = DLENSALOT_Analysis(key=key))
                 delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
                 model = transform3d(dlensalot_model, job_id, l2delensalotjob_Transformer())
                 assert type(model.filter) in self.whitelist_FS_P[job_id][key], "{} != {} for key {}".format(model.filter, self.whitelist_FS_P[job_id][key], key)
@@ -85,7 +85,7 @@ class FS(unittest.TestCase):
     def test_fullsky_TP(self):
         for job_id, key_dict in self.whitelist_FS_TP.items():
             for key in key_dict:
-                dlensalot_model = DLENSALOT_Model(defaults_to='TP_FS_TEST', analysis = DLENSALOT_Analysis(key=key))
+                dlensalot_model = DLENSALOT_Model(defaults_to='default_test_fullsky_combination', analysis = DLENSALOT_Analysis(key=key))
                 delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
                 model = transform3d(dlensalot_model, job_id, l2delensalotjob_Transformer())
                 assert type(model.filter) in self.whitelist_FS_TP[job_id][key], "{} != {} for key {}".format(model.filter, self.whitelist_FS_TP[job_id][key], key)
@@ -137,7 +137,7 @@ class MS(unittest.TestCase):
     def test_maskedsky_T(self):
         for job_id, key_dict in self.whitelist_MS_T.items():
             for key in key_dict:
-                dlensalot_model = DLENSALOT_Model(defaults_to='T_FS_TEST', analysis = DLENSALOT_Analysis(key=key))
+                dlensalot_model = DLENSALOT_Model(defaults_to='default_test_maskedsky_temperature', analysis = DLENSALOT_Analysis(key=key))
                 delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
                 model = transform3d(dlensalot_model, job_id, l2delensalotjob_Transformer())
                 assert type(model.filter) in self.whitelist_MS_T[job_id][key], "{} != {} for key {}".format(model.filter, self.whitelist_MS_T[job_id][key], key)
@@ -146,7 +146,7 @@ class MS(unittest.TestCase):
     def test_maskedsky_P(self):
         for job_id, key_dict in self.whitelist_MS_P.items():
             for key in key_dict:
-                dlensalot_model = DLENSALOT_Model(defaults_to='P_MS_TEST', analysis = DLENSALOT_Analysis(key=key))
+                dlensalot_model = DLENSALOT_Model(defaults_to='default_test_maskedsky_polarization', analysis = DLENSALOT_Analysis(key=key))
                 delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
                 model = transform3d(dlensalot_model, job_id, l2delensalotjob_Transformer())
                 assert type(model.filter) in self.whitelist_MS_P[job_id][key], "{} != {} for key {}".format(model.filter, self.whitelist_MS_P[job_id][key], key)
@@ -155,7 +155,7 @@ class MS(unittest.TestCase):
     def test_maskedsky_TP(self):
         for job_id, key_dict in self.whitelist_MS_TP.items():
             for key in key_dict:
-                dlensalot_model = DLENSALOT_Model(defaults_to='TP_MS_TEST', analysis = DLENSALOT_Analysis(key=key))
+                dlensalot_model = DLENSALOT_Model(defaults_to='default_test_maskedsky_combination', analysis = DLENSALOT_Analysis(key=key))
                 delensalot.del_TEMP(transform(dlensalot_model, l2T_Transformer()))
                 model = transform3d(dlensalot_model, job_id, l2delensalotjob_Transformer())
                 assert type(model.filter) in self.whitelist_MS_TP[job_id][key], "{} != {} for key {}".format(model.filter, self.whitelist_MS_TP[job_id][key], key)

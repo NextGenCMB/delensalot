@@ -111,74 +111,7 @@
              
   <section id="data-and-simulations-access">
 <h1>data and simulations access<a class="headerlink" href="#data-and-simulations-access" title="Permalink to this heading"></a></h1>
-<p>This section describes how to use simulation modules used for lensing reconstruction.
-At the end, you will understand the structure of the data file, adapt it to your liking, and create your very own to read in your data.</p>
-<p>A complete list of <code class="code docutils literal notranslate"><span class="pre">DLENSALOT_Data</span></code> parameters are shown in the <a class="reference internal" href="params.html#configuration-files"><span class="std std-ref">configuration files</span></a> section.</p>
-<p>delensalot uses a single T,E, and B map to perform lensing reconstruction.
-They can come both, in spherical harmonics, or pixel space.
-We assume the data to be in <a class="reference external" href="https://healpy.readthedocs.io/en/latest/">HealPix</a>-format.</p>
-<p>Each class of a simulation module defines a simulation set.
-For each simulation set, class parameters configure the simulation set and delensalot provides ways to handle this.</p>
-<p>Each class must contain the following two <code class="code docutils literal notranslate"><span class="pre">functions</span></code> to work for lensing reconstruction:</p>
-<blockquote>
-<div><ul class="simple">
-<li><p><code class="code docutils literal notranslate"><span class="pre">hashdict()</span></code>, return a dictionary that describes the (intermediate) data stored on disk,</p></li>
-<li><p><code class="code docutils literal notranslate"><span class="pre">&lt;get_sim_map&gt;()</span></code>, returns the simulation map</p></li>
-</ul>
-</div></blockquote>
-<p>All other functions are optional; vanilla delensalot will not use them.</p>
-<section id="minmal-working-example">
-<h2>minmal working example<a class="headerlink" href="#minmal-working-example" title="Permalink to this heading"></a></h2>
-<p>The <a class="reference external" href="https://github.com/NextGenCMB/delensalot/blob/main/first_steps/notebooks/conf_mwe_simgen.py">minimal working example generate simulation</a> generates T,E, and B spherical harmonics from a FFP10 power spectrum using the delensalot-internal <a class="reference external" href="https://github.com/NextGenCMB/delensalot/blob/main/delensalot/sims/generic.py">simulation library</a>, is lensed using <cite>lenspyx</cite>, and Gaussian noise is added. The full simulated polarization maps inclusive of the transfer function comes from <a class="reference external" href="https://github.com/carronj/plancklens/blob/master/plancklens/sims/maps.py">plancklens</a>.</p>
-<p>The noise level can be set via the parameter <code class="code docutils literal notranslate"><span class="pre">nlev</span></code>.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="linenos"> 2</span><span class="sd">Simulates CMB polarization maps generated on the fly, inclusive of isotropic white noise.</span>
-<span class="linenos"> 3</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="linenos"> 4</span>
-<span class="linenos"> 5</span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="linenos"> 6</span><span class="kn">import</span> <span class="nn">os</span>
-<span class="linenos"> 7</span><span class="kn">import</span> <span class="nn">delensalot</span>
-<span class="linenos"> 8</span><span class="kn">from</span> <span class="nn">delensalot</span> <span class="kn">import</span> <span class="n">utils</span>
-<span class="linenos"> 9</span><span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">join</span> <span class="k">as</span> <span class="n">opj</span>
-<span class="linenos">10</span>
-<span class="linenos">11</span><span class="kn">from</span> <span class="nn">delensalot.config.metamodel.dlensalot_mm</span> <span class="kn">import</span> <span class="o">*</span>
-<span class="linenos">12</span>
-<span class="linenos">13</span>
-<span class="linenos">14</span><span class="n">dlensalot_model</span> <span class="o">=</span> <span class="n">DLENSALOT_Model</span><span class="p">(</span>
-<span class="linenos">15</span>    <span class="n">defaults_to</span> <span class="o">=</span> <span class="s1">&#39;P_FS_CMBS4&#39;</span><span class="p">,</span>
-<span class="linenos">16</span>
-<span class="linenos">17</span>    <span class="n">job</span> <span class="o">=</span> <span class="n">DLENSALOT_Job</span><span class="p">(</span>
-<span class="linenos">18</span>        <span class="n">jobs</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;generate_sim&quot;</span><span class="p">]</span>
-<span class="linenos">19</span>    <span class="p">),</span>                             
-<span class="linenos">20</span>    <span class="n">analysis</span> <span class="o">=</span> <span class="n">DLENSALOT_Analysis</span><span class="p">(</span>
-<span class="linenos">21</span>        <span class="n">key</span> <span class="o">=</span> <span class="s1">&#39;p_p&#39;</span><span class="p">,</span>
-<span class="linenos">22</span>        <span class="n">simidxs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">),</span>
-<span class="linenos">23</span>        <span class="n">TEMP_suffix</span> <span class="o">=</span> <span class="s1">&#39;my_fist_delensalot_analysis_simgen&#39;</span><span class="p">,</span>
-<span class="linenos">24</span>    <span class="p">),</span>
-<span class="linenos">25</span>    <span class="n">data</span> <span class="o">=</span> <span class="n">DLENSALOT_Data</span><span class="p">(</span>
-<span class="linenos">26</span>        <span class="n">package_</span> <span class="o">=</span> <span class="s1">&#39;delensalot&#39;</span><span class="p">,</span>
-<span class="linenos">27</span>        <span class="n">module_</span> <span class="o">=</span> <span class="s1">&#39;sims.generic&#39;</span><span class="p">,</span>
-<span class="linenos">28</span>        <span class="n">class_</span> <span class="o">=</span> <span class="s1">&#39;sims_cmb_len&#39;</span><span class="p">,</span>
-<span class="linenos">29</span>        <span class="n">class_parameters</span> <span class="o">=</span> <span class="p">{</span>
-<span class="linenos">30</span>            <span class="s1">&#39;lmax&#39;</span><span class="p">:</span> <span class="mi">5976</span><span class="p">,</span>
-<span class="linenos">31</span>            <span class="s1">&#39;cls_unl&#39;</span><span class="p">:</span> <span class="n">utils</span><span class="o">.</span><span class="n">camb_clfile</span><span class="p">(</span><span class="n">opj</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">delensalot</span><span class="o">.</span><span class="vm">__file__</span><span class="p">,</span> <span class="s1">&#39;data&#39;</span><span class="p">,</span> <span class="s1">&#39;cls&#39;</span><span class="p">),</span> <span class="s1">&#39;FFP10_wdipole_lenspotentialCls.dat&#39;</span><span class="p">)),</span>
-<span class="linenos">32</span>            <span class="s1">&#39;lib_dir&#39;</span><span class="p">:</span> <span class="n">opj</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;SCRATCH&#39;</span><span class="p">],</span> <span class="s1">&#39;sims&#39;</span><span class="p">,</span> <span class="s1">&#39;generic&#39;</span><span class="p">,</span> <span class="s1">&#39;nside2048&#39;</span><span class="p">,</span> <span class="s1">&#39;lmax5976&#39;</span><span class="p">,</span> <span class="s1">&#39;nlevp_sqrt(2)&#39;</span><span class="p">)</span>
-<span class="linenos">33</span>        <span class="p">},</span>
-<span class="hll"><span class="linenos">34</span>        <span class="n">nlev_t</span> <span class="o">=</span> <span class="mf">1.00</span><span class="p">,</span>
-</span><span class="hll"><span class="linenos">35</span>        <span class="n">nlev_p</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span>
-</span><span class="linenos">36</span>        <span class="n">beam</span> <span class="o">=</span> <span class="mf">1.00</span><span class="p">,</span>
-<span class="linenos">37</span>        <span class="n">lmax_transf</span> <span class="o">=</span> <span class="mi">3000</span><span class="p">,</span>
-<span class="linenos">38</span>        <span class="n">nside</span> <span class="o">=</span> <span class="mi">2048</span><span class="p">,</span>
-<span class="linenos">39</span>    <span class="p">)</span>
-<span class="linenos">40</span><span class="p">)</span>
-</pre></div>
-</div>
-</section>
-<section id="build-your-own">
-<h2>build your own<a class="headerlink" href="#build-your-own" title="Permalink to this heading"></a></h2>
-<p>To use your own data or simulations, you will have to write a class that provides the function <code class="code docutils literal notranslate"><span class="pre">get_sim_pmap()</span></code> and point delensalot to it.
-Your own simulation module can, in principle, be put anywhere.</p>
-</section>
+<p>TBD</p>
 </section>
 
 

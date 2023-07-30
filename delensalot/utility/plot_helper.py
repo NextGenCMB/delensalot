@@ -84,7 +84,6 @@ def plot_noiseandcmb(ana):
     plt.plot(scale_factor_ps*qnoise*beam*1e-6, label=r'$C_\ell^{Q, {\rm Noise, emp}}$')
     plt.plot(scale_factor_ps*unoise*beam*1e-6, label=r'$C_\ell^{U, {\rm Noise, emp}}$')
     plt.xlim(1e3,6e3)
-    print(ana.nlev_t, ana.nlev_p)
     plt.yscale('log')
     plt.ylim(1e-3,1e6)
     plt.xlim(100,5000)
