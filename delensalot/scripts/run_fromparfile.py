@@ -20,7 +20,9 @@ from plancklens.qcinv import cd_solve
 
 from plancklens.sims import maps, phas
 from plancklens.filt import filt_simple
-from delensalot.core.iterator import cs_iterator as scarf_iterator, steps
+from delensalot.core.iterator import cs_iterator as scarf_iterator_baseline, steps
+from delensalot.core.iterator import cs_iterator_dev as scarf_iterator_dev
+
 from delensalot.core.iterator import cs_iterator_fast as scarf_iterator_fastwf
 
 from plancklens.utils import cli
@@ -185,6 +187,7 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float, epsilon=1e-5, nbump=
         drop = Drop(a=lmax_ivf - nbump, b=lmax_ivf + 1).eval(np.arange(lmax_ivf + 1))
     else:
         drop = np.ones(lmax_ivf + 1, dtype=float)
+    _filtr_ee, _filtr_tt = None, None
     if k in ['p_p']:
 
         # Here multipole cuts are set by the transfer function (those with 0 are not considered)
@@ -198,6 +201,18 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float, epsilon=1e-5, nbump=
         if ffi.single_prec:
             datmaps = datmaps.astype(np.complex64)
 
+    elif k in ['p_eb']:
+        filtr = ee_filter(nlev_p / drop, ffi, transf_elm, (lmax_unl, mmax_unl), (lmax_ivf, mmax_ivf),
+                                    transf_b=transf_blm, nlev_b=nlev_p)
+        # data maps must now be given in harmonic space in this idealized configuration
+        eblm = np.array(sims_MAP.get_sim_pmap(int(simidx)))
+        datmaps = np.array([alm_copy(eblm[0], None, lmax_ivf, mmax_ivf), alm_copy(eblm[1], None, lmax_ivf, mmax_ivf) ])
+        del eblm
+        wflm0 = lambda: alm_copy(ivfs.get_sim_emliklm(simidx), None, lmax_unl, mmax_unl)
+        if ffi.single_prec:
+            datmaps = datmaps.astype(np.complex64)
+        _filtr_ee = ee_nob_filter(nlev_p, ffi, transf_elm, (lmax_unl, mmax_unl), (lmax_ivf, mmax_ivf))
+        # data maps must now be given in harmonic space in this idealized configuration
     elif k in ['p']:
         filtr = gmv_filter(nlev_t / drop, nlev_p / drop, ffi, transf_tlm, (lmax_unl, mmax_unl), (lmax_ivf, mmax_ivf),
                                     transf_e=transf_elm, transf_b=transf_blm, nlev_b=nlev_p)
@@ -210,7 +225,19 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float, epsilon=1e-5, nbump=
         del eblm, tlm
         wflm0 = lambda: np.array([alm_copy(ivfs.get_sim_tmliklm(simidx), None, lmax_unl, mmax_unl),
                                   alm_copy(ivfs.get_sim_emliklm(simidx), None, lmax_unl, mmax_unl)])
-
+    elif k in ['pmtt']:
+        filtr = gmv_filter(nlev_t / drop, nlev_p / drop, ffi, transf_tlm, (lmax_unl, mmax_unl), (lmax_ivf, mmax_ivf),
+                                    transf_e=transf_elm, transf_b=transf_blm, nlev_b=nlev_p)
+        # data maps must now be given in harmonic space in this idealized configuration
+        eblm = np.array(sims_MAP.get_sim_pmap(int(simidx)))
+        tlm = sims_MAP.get_sim_tmap(int(simidx))
+        datmaps = np.array([alm_copy(tlm, None, lmax_ivf, mmax_ivf),
+                            alm_copy(eblm[0], None, lmax_ivf, mmax_ivf),
+                            alm_copy(eblm[1], None, lmax_ivf, mmax_ivf) ])
+        del eblm, tlm
+        wflm0 = lambda: np.array([alm_copy(ivfs.get_sim_tmliklm(simidx), None, lmax_unl, mmax_unl),
+                                  alm_copy(ivfs.get_sim_emliklm(simidx), None, lmax_unl, mmax_unl)])
+        _filtr_tt = tt_filter(nlev_t /drop, ffi, transf_tlm, (lmax_unl, mmax_unl), (lmax_ivf, mmax_ivf))
     elif k in ['ptt']:
         if rscal != 0:
             print("WF will be that of (L(L + 1))^(%s/2) T"%rscal)
@@ -251,10 +278,14 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float, epsilon=1e-5, nbump=
     else:
         wflm0_ = wflm0
         datmaps = datmaps.astype(complex if np.iscomplexobj(datmaps) else float, copy=False)
-    k_geom = filtr.ffi.geom # Customizable Geometry for position-space operations in calculations of the iterated QEs etc
+
+    filtr0 = filtr[0] if isinstance(filtr, list) else filtr
+    k_geom = filtr0.ffi.geom # Customizable Geometry for position-space operations in calculations of the iterated QEs etc
     # standard gradient only
     if 'hbump' in version:
         stepper = steps.harmonicbump(lmax_qlm, mmax_qlm, xa=400, xb=1500)  # reduce the gradient by 0.5 for large scale and by 0.1 for small scales to improve convergence in regimes where the deflection field is not invertible
+    elif 'stepval01' in version:
+        stepper = steps.harmonicbump(lmax_qlm, mmax_qlm, a=0.1, b=0.0999999, xa=400, xb=1500)  # no harmonic bump
     else:
         stepper = steps.harmonicbump(lmax_qlm, mmax_qlm, a=0.5, b=0.4999, xa=400, xb=1500)  # no harmonic bump
 
@@ -265,7 +296,7 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float, epsilon=1e-5, nbump=
     else:
         iterator = scarf_iterator.iterator_cstmf(libdir_iterator, 'p', (lmax_qlm, mmax_qlm), datmaps,
         plm0, plm0 * 0, Rpp_unl, cpp, cls_unl, filtr, k_geom, chain_descrs(lmax_unl, cg_tol), stepper
-        ,wflm0=wflm0_)
+        ,wflm0=wflm0_, _eefilter=_filtr_ee, _ttfilter=_filtr_tt)
     return iterator
 
 if __name__ == '__main__':
@@ -283,9 +314,15 @@ if __name__ == '__main__':
     parser.add_argument('-nbump', dest='nbump', type=int, default=0, help='inflate the noise by a lot ''nbump'' multipoles before lmax transf')
     parser.add_argument('-r', dest='rescal', type=float, default=0., help='rescal temperature maps WF')
     parser.add_argument('-nt', dest='nthreads', type=int, default=0, help='number of threads to use (defaults to OMP_NUM_THREADS)')
-
+    parser.add_argument('-dev', dest='dev', action='store_true', help='uses dev-version iterator')
 
     args = parser.parse_args()
+    if args.dev:
+        scarf_iterator = scarf_iterator_dev
+        args.v += '_dev'
+    else:
+        scarf_iterator = scarf_iterator_baseline
+
     tol_iter   = lambda it : 10 ** (- args.tol) # tolerance a fct of iterations ?
     soltn_cond = lambda it: True # Uses (or not) previous E-mode solution as input to search for current iteration one
 
@@ -327,7 +364,7 @@ if __name__ == '__main__':
         import pylab as pl
         pl.ion()
         sims, ivfs, qlms_dd, qcls_dd = get_sims_ivfs_qlms(facnoise=0. if 'noisefree' in version else 1.)
-
+        fig, axes = pl.subplots(1, 3, figsize=(15, 5))
         for idx in jobs[0:1]: # only first
             print("plots")
             lib_dir_iterator = libdir_iterators(args.k, idx, version)
@@ -337,23 +374,19 @@ if __name__ == '__main__':
             plms = Rec.load_plms(lib_dir_iterator, itrs)
             plm_in = alm_copy(sims.sims_cmb_len.get_sim_plm(int(idx)), 5120, lmax_qlm, mmax_qlm)
             cpp_in = alm2cl(plm_in, plm_in, lmax_qlm, mmax_qlm, lmax_qlm)
-            pl.figure('auto-spectra')
             ls = np.arange(1, lmax_qlm + 1)
             wls = ls ** 2 * (ls + 1) ** 2 / (2 * np.pi)
-            pl.loglog(ls, wls * cpp_in[ls], c='k')
-            pl.figure('cross-spectra')
-            pl.loglog(ls, wls * cpp_in[ls], c='k')
+            axes[0].set_title('auto-spectra')
+            axes[1].set_title('cross-spectra')
+            axes[2].set_title('cross-corr. coeff.')
+            axes[0].loglog(ls, wls * cpp_in[ls], c='k')
             for itr, plm in zip(itrs, plms):
                 cxx = alm2cl(plm, plm_in, lmax_qlm, mmax_qlm, lmax_qlm)
                 cpp = alm2cl(plm, plm, lmax_qlm, mmax_qlm, lmax_qlm)
-                pl.figure('cross-corr. coeff.')
-                pl.semilogx(ls, cxx[ls] / np.sqrt(cpp * cpp_in)[ls], label='itr ' + str(itr))
-                pl.figure('auto-spectra')
-                pl.plot(ls, wls * cpp[ls], label='itr ' + str(itr))
-                pl.figure('cross-spectra')
-                pl.plot(ls, wls * cxx[ls], label='itr ' + str(itr))
-            for fig in ['cross-corr. coeff.', 'auto-spectra', 'cross-spectra']:
-                pl.figure(fig)
-                pl.legend()
-                pl.show()
+                axes[0].loglog(ls, wls * cpp[ls], label='itr ' + str(itr))
+                axes[1].loglog(ls, wls * cxx[ls], label='itr ' + str(itr))
+                axes[2].semilogy(ls, cxx[ls] / np.sqrt(cpp * cpp_in)[ls], label='itr ' + str(itr))
+
+            for ax in axes:
+                ax.legend()
             k = input("press close to exit")
