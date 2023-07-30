@@ -148,14 +148,14 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         tim.add('transf')
 
         qumap = self.ninv_geom.synthesis(eblm, 2, self.lmax_len, self.mmax_len, self.sht_threads)
-        tim.add('alm2map_spin lmax %s mmax %s nrings %s'%(self.lmax_len, self.mmax_len, len(self.geom_.ofs)))
+        tim.add('alm2map_spin lmax %s mmax %s nrings %s'%(self.lmax_len, self.mmax_len, len(self.ninv_geom.ofs)))
 
         self.apply_map(qumap)  # applies N^{-1}
         tim.add('apply ninv')
 
         eblm = self.ninv_geom.adjoint_synthesis(qumap, 2, self.lmax_len, self.mmax_len, self.sht_threads,
                                                 apply_weights=False)
-        tim.add('map2alm_spin lmax %s mmax %s nrings %s'%(self.lmax_len, self.mmax_len, len(self.geom_.ofs)))
+        tim.add('map2alm_spin lmax %s mmax %s nrings %s'%(self.lmax_len, self.mmax_len, len(self.ninv_geom.ofs)))
 
         # The map2alm is here a sum rather than integral, so geom.weights are assumed to be unity
         almxfl(eblm[0], self.b_transf_elm, self.mmax_len, inplace=True)
