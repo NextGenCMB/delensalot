@@ -33,12 +33,15 @@ class sims_cmb_bir(generic.sims_cmb_len):
 
         alpha_lm = self.get_sim_alpha(idx, True)
         alpha = shts.alm2map(alpha_lm, nside=self.nside_lens, lmax=self.lmax)
-        Q, U = shts.alm2map_spin(np.array([elm, blm]), nside = self.nside_lens, 2, self.lmax)
-        cos, sin = np.cos(2*alpha), np.sin(2*alpha)
+
+        spin = 2
+
+        Q, U = shts.alm2map_spin(np.array([elm, blm]), self.nside_lens, spin, self.lmax)
+        cos, sin = np.cos(spin*alpha), np.sin(spin*alpha)
         #this assumes no primordial B-modes at the surface of last scattering
         Qprime = Q*cos - U*sin
         Uprime = Q*sin + U*cos
-        elm, blm = shts.map2alm_spin([Qprime, Uprime], 2, lmax=self.lmax)
+        elm, blm = shts.map2alm_spin([Qprime, Uprime], spin, lmax=self.lmax)
 
         hp.write_alm(os.path.join(self.lib_dir, 'sim_%04d_elm.fits' % idx), elm)
         del elm
