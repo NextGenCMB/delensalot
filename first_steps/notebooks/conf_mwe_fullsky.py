@@ -44,7 +44,7 @@ dlensalot_model = DLENSALOT_Model(
     qerec = DLENSALOT_Qerec(
         tasks = ["calc_phi", "calc_blt"],
         lm_max_qlm = (3000, 3000),
-        cg_tol = 1e-5
+        cg_tol = 1e-7
     ),
     itrec = DLENSALOT_Itrec(
         tasks = ["calc_phi", "calc_blt"],
@@ -52,7 +52,7 @@ dlensalot_model = DLENSALOT_Model(
         lm_max_unl = (4200, 4200),
         lm_max_qlm = (3000, 3000),
         lenjob_geominfo = ('thingauss', {'lmax': 4200 + 300, 'smax': 3}),
-        cg_tol = 1e-5
+        cg_tol = 1e-7
     ),
     madel = DLENSALOT_Mapdelensing(
         data_from_CFS = False,

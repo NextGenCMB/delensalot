@@ -705,7 +705,7 @@ class QE_lr(Basejob):
     #@log_on_end(logging.INFO, "QE.get_meanfield(simidx={simidx}) finished")
     def get_meanfield(self, simidx):
         ret = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, 0))
-        if self.Nmf > 0:
+        if self.Nmf > 1:
             if self.mfvar == None:
                 # FIXME plancklens needs to be less restrictive with type for simidx.
                 ret = self.qlms_dd.get_sim_qlm_mf(self.k, [int(simidx_mf) for simidx_mf in self.simidxs_mf])
