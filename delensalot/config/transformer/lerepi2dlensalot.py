@@ -172,8 +172,8 @@ class l2OBD_Transformer:
             if dl.nivjob_geominfo[0] == 'healpix':
                 ninv_desc = [np.array([hp.nside2pixarea(dl.nivjob_geominfo[1]['nside'], degrees=True) * 60 ** 2 / nlev['T'] ** 2])/noisemodel_norm] + masks
             else:
-                assert 0, 'needs testing, please choose Healpix geom for nivjob for now'
-                vamin =  4*np.pi * (180/np.pi)**2 / dl.geom_lib.npix()
+                # assert 0, 'needs testing, please choose Healpix geom for nivjob for now'
+                vamin =  4*np.pi * (180/np.pi)**2 / get_geom(cf.itrec.lenjob_geominfo).npix()
                 ninv_desc = [np.array([vamin * 60 ** 2 / nlev['T'] ** 2])/noisemodel_norm] + masks
         else:
             niv = np.load(cf.noisemodel.nivt_map)
@@ -191,8 +191,8 @@ class l2OBD_Transformer:
             if dl.nivjob_geominfo[0] == 'healpix':
                 ninv_desc = [[np.array([hp.nside2pixarea(dl.nivjob_geominfo[1]['nside'], degrees=True) * 60 ** 2 / nlev['P'] ** 2])/noisemodel_norm] + masks]
             else:
-                assert 0, 'needs testing, pleasechoose Healpix geom for nivjob for now'
-                vamin =  4*np.pi * (180/np.pi)**2 / dl.lenjob_geomlib.npix()
+                # assert 0, 'needs testing, pleasechoose Healpix geom for nivjob for now'
+                vamin =  4*np.pi * (180/np.pi)**2 / get_geom(cf.itrec.lenjob_geominfo).npix()
                 ninv_desc = [[np.array([vamin * 60 ** 2 / nlev['P'] ** 2])/noisemodel_norm] + masks]
         else:
             niv = np.load(cf.noisemodel.nivp_map)
@@ -621,8 +621,15 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
                 if 'smoothed_phi_empiric_halofit' in cf.analysis.cpp:
                     dl.cpp = np.load(cf.analysis.cpp)[:dl.lm_max_qlm[0] + 1,1]
-                else:
-                    dl.cpp = camb_clfile(cf.analysis.cpp)['pp'][:dl.lm_max_qlm[0] + 1]
+                elif cf.analysis.cpp.endswith('dat'):
+                    # assume its a camb-like file
+                    dl.cpp = camb_clfile(cf.analysis.cpp)['pp'][:dl.lm_max_qlm[0] + 1] 
+                elif os.path.exists(os.path.dirname(cf.analysis.cpp)):
+                    # FIXME this implicitly assumes that all cpp.npy comes as convergence
+                    dl.cpp = np.load(cf.analysis.cpp)[:dl.lm_max_qlm[0] + 1,1]
+                    LL = np.arange(0,dl.lm_max_qlm[0] + 1,1)
+                    k2p = lambda x: np.nan_to_num(x/(LL*(LL+1))**2/(2*np.pi))
+                    dl.cpp = k2p(dl.cpp)
                 dl.cpp[:dl.Lmin] *= 0.
 
             dl = DLENSALOT_Concept()

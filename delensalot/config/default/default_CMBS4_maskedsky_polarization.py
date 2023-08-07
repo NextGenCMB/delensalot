@@ -113,7 +113,7 @@ DL_DEFAULT = {
         'OBD': False,
         'nlev': {'P': 1.0, 'T': 1./np.sqrt(2)},
         'rhits_normalised': None,
-        'geominfo': ('healpix',{'nside': 2048}),
+        'geominfo': ('thingauss',{'lmax': 4500, 'smax': 3}),
         'nivt_map': None,
         'nivp_map': None,
     },
