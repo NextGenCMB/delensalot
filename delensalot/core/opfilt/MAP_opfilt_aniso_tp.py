@@ -6,7 +6,6 @@
 import logging
 log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
-from scipy.interpolate import UnivariateSpline as spl
 import numpy as np
 
 from lenspyx import remapping
@@ -55,7 +54,7 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         self.lmax_len = min(lmax_transf, lmax_len)
         self.mmax_len = min(mmax_len, lmax_transf)
         self.n_inv = ninv
-        #FIXME: transfer fcts
+
         self.b_transf_tlm = transf
         self.b_transf_elm = transf if transf_elm is None else transf_elm
         self.b_transf_blm = transf_elm if transf_blm is None else transf_blm
