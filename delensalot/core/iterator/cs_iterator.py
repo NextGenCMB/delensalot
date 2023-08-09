@@ -472,6 +472,7 @@ class qlm_iterator(object):
                 soltn, it_soltn = self.load_soltn(itr, key)
                 if it_soltn < itr - 1:
                     soltn *= self.soltn_cond
+                    
                     mchain.solve(soltn, self.dat_maps, dot_op=self.filter.dot_op())
                     fn_wf = 'wflm_%s_it%s' % (key.lower(), itr - 1)
                     log.info("caching "  + fn_wf)

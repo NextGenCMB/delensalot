@@ -148,9 +148,7 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         tim.add('transf')
 
         qumap = self.ninv_geom.synthesis(eblm, 2, self.lmax_len, self.mmax_len, self.sht_threads)
-        print(eblm.shape)
-        print(qumap.shape, self.lmax_len, self.mmax_len)
-        print(self.ninv_geom)
+
         tim.add('alm2map_spin lmax %s mmax %s nrings %s'%(self.lmax_len, self.mmax_len, len(self.ninv_geom.ofs)))
 
         self.apply_map(qumap)  # applies N^{-1}
@@ -393,8 +391,11 @@ def calc_prep(qumaps:np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv_wl):
     assert isinstance(qumaps, np.ndarray)
     qumap = np.copy(qumaps)
     ninv_filt.apply_map(qumap)
+
+
     eblm = ninv_filt.ninv_geom.adjoint_synthesis(qumap, 2, ninv_filt.lmax_len, ninv_filt.mmax_len, ninv_filt.sht_threads,
                                                  apply_weights=False)
+    
     almxfl(eblm[0], ninv_filt.b_transf_elm, ninv_filt.mmax_len, True)
     almxfl(eblm[1], ninv_filt.b_transf_blm, ninv_filt.mmax_len, True)
     elm = ninv_filt.ffi.lensgclm(eblm, ninv_filt.mmax_len, 2, ninv_filt.lmax_sol, ninv_filt.mmax_sol,
