@@ -188,11 +188,13 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float, epsilon=1e-5, nbump=
     else:
         drop = np.ones(lmax_ivf + 1, dtype=float)
     _filtr_ee, _filtr_tt = None, None
+    stepper_filter = np.ones(lmax_qlm + 1, dtype=float)
     if k in ['p_p']:
-
+        wee = True
+        # Adding a filter to lensing dipole otherwise will be crazy
         # Here multipole cuts are set by the transfer function (those with 0 are not considered)
         filtr = ee_filter(nlev_p / drop, ffi, transf_elm, (lmax_unl, mmax_unl), (lmax_ivf, mmax_ivf),
-                                    transf_b=transf_blm, nlev_b=nlev_p)
+                                    transf_b=transf_blm, nlev_b=nlev_p, wee=wee)
         # data maps must now be given in harmonic space in this idealized configuration
         eblm = np.array(sims_MAP.get_sim_pmap(int(simidx)))
         datmaps = np.array([alm_copy(eblm[0], None, lmax_ivf, mmax_ivf), alm_copy(eblm[1], None, lmax_ivf, mmax_ivf) ])
@@ -202,16 +204,32 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float, epsilon=1e-5, nbump=
             datmaps = datmaps.astype(np.complex64)
 
     elif k in ['p_eb']:
-        filtr = ee_filter(nlev_p / drop, ffi, transf_elm, (lmax_unl, mmax_unl), (lmax_ivf, mmax_ivf),
+        if 'p_pnoee' in version: # pol-version discarding the EE quadratic term
+            wee = False
+            print('Discarding EE terms')
+            # Adding a filter to lensing dipole otherwise will be crazy
+            # Here multipole cuts are set by the transfer function (those with 0 are not considered)
+            filtr = ee_filter(nlev_p / drop, ffi, transf_elm, (lmax_unl, mmax_unl), (lmax_ivf, mmax_ivf),
+                              transf_b=transf_blm, nlev_b=nlev_p, wee=wee)
+            # data maps must now be given in harmonic space in this idealized configuration
+            eblm = np.array(sims_MAP.get_sim_pmap(int(simidx)))
+            datmaps = np.array(
+                [alm_copy(eblm[0], None, lmax_ivf, mmax_ivf), alm_copy(eblm[1], None, lmax_ivf, mmax_ivf)])
+            del eblm
+            wflm0 = lambda: alm_copy(ivfs.get_sim_emliklm(simidx), None, lmax_unl, mmax_unl)
+            if ffi.single_prec:
+                datmaps = datmaps.astype(np.complex64)
+        else: # full-sjy pol version p(B|E phi)
+            filtr = ee_filter(nlev_p / drop, ffi, transf_elm, (lmax_unl, mmax_unl), (lmax_ivf, mmax_ivf),
                                     transf_b=transf_blm, nlev_b=nlev_p)
-        # data maps must now be given in harmonic space in this idealized configuration
-        eblm = np.array(sims_MAP.get_sim_pmap(int(simidx)))
-        datmaps = np.array([alm_copy(eblm[0], None, lmax_ivf, mmax_ivf), alm_copy(eblm[1], None, lmax_ivf, mmax_ivf) ])
-        del eblm
-        wflm0 = lambda: alm_copy(ivfs.get_sim_emliklm(simidx), None, lmax_unl, mmax_unl)
-        if ffi.single_prec:
-            datmaps = datmaps.astype(np.complex64)
-        _filtr_ee = ee_nob_filter(nlev_p, ffi, transf_elm, (lmax_unl, mmax_unl), (lmax_ivf, mmax_ivf))
+            # data maps must now be given in harmonic space in this idealized configuration
+            eblm = np.array(sims_MAP.get_sim_pmap(int(simidx)))
+            datmaps = np.array([alm_copy(eblm[0], None, lmax_ivf, mmax_ivf), alm_copy(eblm[1], None, lmax_ivf, mmax_ivf) ])
+            del eblm
+            wflm0 = lambda: alm_copy(ivfs.get_sim_emliklm(simidx), None, lmax_unl, mmax_unl)
+            if ffi.single_prec:
+                datmaps = datmaps.astype(np.complex64)
+            _filtr_ee = ee_nob_filter(nlev_p, ffi, transf_elm, (lmax_unl, mmax_unl), (lmax_ivf, mmax_ivf))
         # data maps must now be given in harmonic space in this idealized configuration
     elif k in ['p']:
         filtr = gmv_filter(nlev_t / drop, nlev_p / drop, ffi, transf_tlm, (lmax_unl, mmax_unl), (lmax_ivf, mmax_ivf),
@@ -283,7 +301,7 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float, epsilon=1e-5, nbump=
     k_geom = filtr0.ffi.geom # Customizable Geometry for position-space operations in calculations of the iterated QEs etc
     # standard gradient only
     if 'hbump' in version:
-        stepper = steps.harmonicbump(lmax_qlm, mmax_qlm, xa=400, xb=1500)  # reduce the gradient by 0.5 for large scale and by 0.1 for small scales to improve convergence in regimes where the deflection field is not invertible
+        stepper = steps.harmonicbump(lmax_qlm, mmax_qlm, xa=400, xb=1500, flt=stepper_filter)  # reduce the gradient by 0.5 for large scale and by 0.1 for small scales to improve convergence in regimes where the deflection field is not invertible
     elif 'stepval01' in version:
         stepper = steps.harmonicbump(lmax_qlm, mmax_qlm, a=0.1, b=0.0999999, xa=400, xb=1500)  # no harmonic bump
     else:
@@ -385,7 +403,7 @@ if __name__ == '__main__':
                 cpp = alm2cl(plm, plm, lmax_qlm, mmax_qlm, lmax_qlm)
                 axes[0].loglog(ls, wls * cpp[ls], label='itr ' + str(itr))
                 axes[1].loglog(ls, wls * cxx[ls], label='itr ' + str(itr))
-                axes[2].semilogy(ls, cxx[ls] / np.sqrt(cpp * cpp_in)[ls], label='itr ' + str(itr))
+                axes[2].loglog(ls, cxx[ls] / np.sqrt(cpp * cpp_in)[ls], label='itr ' + str(itr))
 
             for ax in axes:
                 ax.legend()
