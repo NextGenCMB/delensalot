@@ -131,7 +131,8 @@ class cmb_len_ffp10:
             unl_tlm = cmb_unl_ffp10.get_sim_tlm(idx)
             lmax_tlm = utils_hp.Alm.getlmax(unl_tlm.size, -1)
             mmax_tlm = lmax_tlm
-            ffi = deflection(self.len_geom, dlm, mmax_dlm, numthreads=self.sht_tr, verbose=self.verbose, dclm=dclm)
+            ffi = deflection(self.len_geom, dlm, mmax_dlm, epsilon=self.epsilon,
+                             numthreads=self.sht_tr, verbosity=self.verbose, dclm=dclm)
             len_tlm = ffi.lensgclm(unl_tlm, mmax_tlm, 0, self.lmax_len, self.mmax_len)
             self.cacher.cache(fn, len_tlm)
             return len_tlm
