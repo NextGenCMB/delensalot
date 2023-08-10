@@ -23,7 +23,34 @@ git checkout plancklensdev
 This is needed to give delensalot control over plancklens's mpi implementation, which we conveniently set up at this branch.
 
 You will need to install `jupyter` for the tutorials found in `first_steps/notebooks/`, and possibly an `ipykernel` to create a jupyter-kernel out of the environment in which you install `delensalot`.
-<!-- TODO: Add explicit instructions -->
+
+### Set up a jupyter-kernel with delensalot
+
+To run the tutorials with a jupyter kernel, you will have to install delensalot in it. Assuming you are using conda for your package management,
+
+```
+conda create --name delensalot
+conda activate delensalot
+```
+
+Then, install your favourite packages,
+
+```
+conda install pip, numpy
+```
+
+Now, go to the delensalot directory, and install, including its requirements,
+
+```
+cd </path/to/delensalot>
+python3 -m pip install -r requirements .
+python3 setup.py develop
+```
+
+Eventually, create your kernel using the environment at which you just installed all packages,
+```
+python3 -m ipykernel install --user --name=delensalot
+```
 
 ## Installation troubles
 

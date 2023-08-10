@@ -27,12 +27,10 @@ class ztrunc_sims:
             hp_trunc = utils_geom.Geom.get_healpix_geometry(nside).restrict(tht_min, tht_max, False)
             hp_start = hp_geom.ofs[np.where(hp_geom.theta == np.min(hp_trunc.theta))[0]][0]
             this_npix = hp_trunc.npix()
-            print('npix in sims_MAP: {}'.format(this_npix))
             hp_end = hp_start + this_npix
             slics.append(slice(hp_start, int(hp_end)))
             slics_m.append(slice(npix, npix + this_npix))
             npix += this_npix
-            print(npix)
         self.slics = slics
         self.slics_m  = slics_m
         self.nside = nside
