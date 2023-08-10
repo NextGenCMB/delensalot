@@ -137,7 +137,8 @@ class config_handler():
                             if callable(v):
                                 # skipping functions
                                 pass
-                            elif v.__str__() != configfile.dlensalot_model.__dict__[key].__dict__[k].__str__():
+                            # FIXME if float, only check first digits for now.. this is presumably unsafe..
+                            elif v.__str__()[:4] != configfile.dlensalot_model.__dict__[key].__dict__[k].__str__()[:4]:
                                 logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
                                 if k.__str__() in safelist:
                                     dostore = True

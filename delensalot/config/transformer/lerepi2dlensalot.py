@@ -67,7 +67,7 @@ class l2base_Transformer:
         dl.version = an.version
         dl.simidxs = an.simidxs
         dl.simidxs_mf = np.array(an.simidxs_mf) if dl.version != 'noMF' else np.array([])
-        dl.simidxs_mf = dl.simidxs_mf if dl.simidxs_mf.size == 0 else np.array(dl.simidxs)
+        # dl.simidxs_mf = dl.simidxs if dl.simidxs_mf.size == 0 else dl.simidxs_mf
         dl.Nmf = 0 if dl.version == 'noMF' else len(dl.simidxs_mf)
         dl.TEMP_suffix = an.TEMP_suffix
         dl.TEMP = transform(cf, l2T_Transformer())
@@ -236,7 +236,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 dl.version = an.version
                 dl.simidxs = an.simidxs
                 dl.simidxs_mf = np.array(an.simidxs_mf) if dl.version != 'noMF' else np.array([])
-                dl.simidxs_mf = dl.simidxs_mf if dl.simidxs_mf.size == 0 else np.array(dl.simidxs)
+                # dl.simidxs_mf = dl.simidxs_mf if dl.simidxs_mf.size == 0 else np.array(dl.simidxs)
 
                 dl.TEMP_suffix = an.TEMP_suffix
                 dl.TEMP = transform(cf, l2T_Transformer())
@@ -376,7 +376,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.lenjob_geominfo = it.lenjob_geominfo
                     dl.lenjob_geomlib = get_geom(it.lenjob_geominfo)
                     thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
-                    dl.lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
+                    dl.lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
                     if it.lenjob_pbdgeominfo[0] == 'pbd':
                         dl.lenjob_pbdgeominfo = it.lenjob_pbdgeominfo
                         dl.lenjob_pbdgeomlib = lug.pbdGeometry(dl.lenjob_geomlib, lug.pbounds(*it.lenjob_pbdgeominfo[1]))
@@ -484,7 +484,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.nivjob_geomlib = get_geom(nm.geominfo)
                     dl.nivjob_geominfo = nm.geominfo
                     thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
-                    dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
+                    dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
                     if dl.sky_coverage == 'masked':
                         dl.rhits_normalised = nm.rhits_normalised
                         dl.fsky = np.mean(l2OBD_Transformer.get_nivp_desc(cf, dl)[0][1]) ## calculating fsky, but quite expensive. and if ninvp changes, this could have negative effect on fsky calc
@@ -682,7 +682,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.nivjob_geomlib = get_geom(nm.geominfo)
                     dl.nivjob_geominfo = nm.geominfo
                     thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
-                    dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
+                    dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
                     dl.masks, dl.rhits_map = l2OBD_Transformer.get_masks(cf, dl)
                     dl.nlev = l2OBD_Transformer.get_nlev(cf)
                     dl.nivp_desc = l2OBD_Transformer.get_nivp_desc(cf, dl)
@@ -739,7 +739,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.nivjob_geomlib = get_geom(nm.geominfo)
                     dl.nivjob_geominfo = nm.geominfo
                     thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
-                    dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
+                    dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
                     dl.nlev = l2OBD_Transformer.get_nlev(cf)
 
 

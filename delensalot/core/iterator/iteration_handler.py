@@ -65,6 +65,7 @@ class base_iterator():
                 return ret
         else:
             if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
+                print('returning get_sim_pmap from sims_MAP')
                 return np.array(self.sims_MAP.get_sim_pmap(self.simidx))
             else:
                 assert 0, 'implement if needed'
