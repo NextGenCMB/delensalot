@@ -125,8 +125,8 @@ class l2T_Transformer:
     """global access for custom TEMP directory name, so that any job stores the data at the same place.
     """
 
-    # #@log_on_start(logging.INFO, "build() started")
-    # #@log_on_end(logging.INFO, "build() finished")
+    # #@log_on_start(logging.DEBUG, "build() started")
+    # #@log_on_end(logging.DEBUG, "build() finished")
     def build(self, cf):
         if cf.job.jobs == ['build_OBD']:
             return cf.obd.libdir
@@ -253,8 +253,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
     def build_QE_lensrec(self, cf):
         """Transformer for generating a delensalot model for the lensing reconstruction jobs (QE and MAP)
         """
-        #@log_on_start(logging.INFO, "extract() started")
-        #@log_on_end(logging.INFO, "extract() finished")
+        #@log_on_start(logging.DEBUG, "extract() started")
+        #@log_on_end(logging.DEBUG, "extract() finished")
         def extract():
             def _process_components(dl):
                 #@log_on_start(logging.DEBUG, "_process_Meta() started")
@@ -454,8 +454,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
     def build_MAP_lensrec(self, cf):
         """Transformer for generating a delensalot model for the lensing reconstruction jobs (QE and MAP)
         """
-        #@log_on_start(logging.INFO, "extract() started")
-        #@log_on_end(logging.INFO, "extract() finished")
+        #@log_on_start(logging.DEBUG, "extract() started")
+        #@log_on_end(logging.DEBUG, "extract() finished")
         def extract():
             def _process_components(dl):
                 #@log_on_start(logging.DEBUG, "_process_Meta() started")
@@ -643,12 +643,12 @@ class l2delensalotjob_Transformer(l2base_Transformer):
     def build_OBD_builder(self, cf):
         """Transformer for generating a delensalot model for the lensing reconstruction jobs (QE and MAP)
         """
-        #@log_on_start(logging.INFO, "extract() started")
-        #@log_on_end(logging.INFO, "extract() finished")
+        #@log_on_start(logging.DEBUG, "extract() started")
+        #@log_on_end(logging.DEBUG, "extract() finished")
         def extract():
             def _process_components(dl):
-                #@log_on_start(logging.INFO, "_process_Computing() started")
-                #@log_on_end(logging.INFO, "_process_Computing() finished")
+                #@log_on_start(logging.DEBUG, "_process_Computing() started")
+                #@log_on_end(logging.DEBUG, "_process_Computing() finished")
                 def _process_Computing(dl, co):
                     dl.tr = int(os.environ.get('OMP_NUM_THREADS', co.OMP_NUM_THREADS))
 
@@ -708,8 +708,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
     def build_delenser(self, cf):
         """Transformer for generating a delensalot model for the lensing reconstruction jobs (QE and MAP)
         """
-        #@log_on_start(logging.INFO, "extract() started")
-        #@log_on_end(logging.INFO, "extract() finished")
+        #@log_on_start(logging.DEBUG, "extract() started")
+        #@log_on_end(logging.DEBUG, "extract() finished")
         def extract():
             def _process_components(dl):
                 #@log_on_start(logging.DEBUG, "_process_Meta() started")
