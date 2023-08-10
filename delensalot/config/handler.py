@@ -18,7 +18,6 @@ import shutil
 import logging
 from logdecorator import log_on_start, log_on_end
 log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
 
 import numpy as np
 
@@ -99,8 +98,8 @@ class config_handler():
         
 
     @check_MPI
-    @log_on_start(logging.INFO, "run() Started")
-    @log_on_end(logging.INFO, "run() Finished")
+    @log_on_start(logging.DEBUG, "run() Started")
+    @log_on_end(logging.DEBUG, "run() Finished")
     def run(self):
         """pass-through for running the delensalot job This esentially calls the run function of the `core.handler.<job_class>`. Used from interactive mode.
 
@@ -113,8 +112,8 @@ class config_handler():
             job.run()
 
 
-    @log_on_start(logging.INFO, "store() Started")
-    @log_on_end(logging.INFO, "store() Finished")
+    @log_on_start(logging.DEBUG, "store() Started")
+    @log_on_end(logging.DEBUG, "store() Finished")
     def store(self, parser, configfile, TEMP):
         """ Store the dlensalot_model as config file in TEMP, to use if run resumed
 
@@ -137,7 +136,8 @@ class config_handler():
                             if callable(v):
                                 # skipping functions
                                 pass
-                            elif v.__str__() != configfile.dlensalot_model.__dict__[key].__dict__[k].__str__():
+                            # FIXME if float, only check first digits for now.. this is presumably unsafe..
+                            elif v.__str__()[:4] != configfile.dlensalot_model.__dict__[key].__dict__[k].__str__()[:4]:
                                 logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
                                 if k.__str__() in safelist:
                                     dostore = True
@@ -165,8 +165,8 @@ class config_handler():
                 logging.info(TEMP+'/'+parser.config_file.split('/')[-1])
 
 
-    @log_on_start(logging.INFO, "load_configfile() Started: {directory}")
-    @log_on_end(logging.INFO, "load_configfile() Finished")
+    @log_on_start(logging.DEBUG, "load_configfile() Started: {directory}")
+    @log_on_end(logging.DEBUG, "load_configfile() Finished")
     def load_configfile(directory, descriptor):
         """Helper method for loading the configuration file.
 

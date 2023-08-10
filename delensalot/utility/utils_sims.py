@@ -39,6 +39,7 @@ class ztrunc_sims:
 
     def get_sim_pmap(self, idx):
         Q, U = self.sims.get_sim_pmap(idx)
+        print(Q.shape, U.shape)
         return self.ztruncify(Q), self.ztruncify(U)
 
     def get_sim_tmap(self, idx):

@@ -37,8 +37,8 @@ class base_iterator():
         self.it_chain_descr = self.iterator_config.it_chain_descr(self.iterator_config.lm_max_unl[0], self.iterator_config.it_cg_tol)
         
 
-    @log_on_start(logging.INFO, "get_datmaps() started")
-    @log_on_end(logging.INFO, "get_datmaps() finished")
+    @log_on_start(logging.DEBUG, "get_datmaps() started")
+    @log_on_end(logging.DEBUG, "get_datmaps() finished")
     def get_datmaps(self):
         if self.it_filter_directional == 'isotropic':
             # dat maps must now be given in harmonic space in this idealized configuration. sims_MAP is not used here, as no truncation happens in idealized setting.
@@ -65,6 +65,7 @@ class base_iterator():
                 return ret
         else:
             if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
+                print('returning get_sim_pmap from sims_MAP')
                 return np.array(self.sims_MAP.get_sim_pmap(self.simidx))
             else:
                 assert 0, 'implement if needed'

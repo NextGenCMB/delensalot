@@ -17,6 +17,7 @@ from delensalot.config.config_helper import LEREPI_Constants as lc
 from delensalot.config.metamodel.dlensalot_mm import *
 
 dlensalot_model = DLENSALOT_Model(
+    defaults_to = 'default_CMBS4_maskedsky_polarization',
     job = DLENSALOT_Job(
         jobs = ["QE_lensrec", "MAP_lensrec"]
     ),
@@ -58,13 +59,13 @@ dlensalot_model = DLENSALOT_Model(
         tasks = ["calc_phi", "calc_meanfield", "calc_blt"],
         filter_directional = 'anisotropic',
         lm_max_qlm = (4000, 4000),
-        cg_tol = 1e-5
+        cg_tol = 1e-3
     ),
     itrec = DLENSALOT_Itrec(
         tasks = ["calc_phi"],
         filter_directional = 'anisotropic',
         itmax = 1,
-        cg_tol = 1e-5,
+        cg_tol = 1e-3,
         lm_max_unl = (3200, 3200),
         lm_max_qlm = (4000, 4000),
         stepper = DLENSALOT_Stepper(

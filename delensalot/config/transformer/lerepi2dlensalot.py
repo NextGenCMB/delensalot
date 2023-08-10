@@ -67,7 +67,7 @@ class l2base_Transformer:
         dl.version = an.version
         dl.simidxs = an.simidxs
         dl.simidxs_mf = np.array(an.simidxs_mf) if dl.version != 'noMF' else np.array([])
-        dl.simidxs_mf = dl.simidxs_mf if dl.simidxs_mf.size == 0 else np.array(dl.simidxs)
+        # dl.simidxs_mf = dl.simidxs if dl.simidxs_mf.size == 0 else dl.simidxs_mf
         dl.Nmf = 0 if dl.version == 'noMF' else len(dl.simidxs_mf)
         dl.TEMP_suffix = an.TEMP_suffix
         dl.TEMP = transform(cf, l2T_Transformer())
@@ -125,8 +125,8 @@ class l2T_Transformer:
     """global access for custom TEMP directory name, so that any job stores the data at the same place.
     """
 
-    # #@log_on_start(logging.INFO, "build() started")
-    # #@log_on_end(logging.INFO, "build() finished")
+    # #@log_on_start(logging.DEBUG, "build() started")
+    # #@log_on_end(logging.DEBUG, "build() finished")
     def build(self, cf):
         if cf.job.jobs == ['build_OBD']:
             return cf.obd.libdir
@@ -236,7 +236,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 dl.version = an.version
                 dl.simidxs = an.simidxs
                 dl.simidxs_mf = np.array(an.simidxs_mf) if dl.version != 'noMF' else np.array([])
-                dl.simidxs_mf = dl.simidxs_mf if dl.simidxs_mf.size == 0 else np.array(dl.simidxs)
+                # dl.simidxs_mf = dl.simidxs_mf if dl.simidxs_mf.size == 0 else np.array(dl.simidxs)
 
                 dl.TEMP_suffix = an.TEMP_suffix
                 dl.TEMP = transform(cf, l2T_Transformer())
@@ -253,8 +253,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
     def build_QE_lensrec(self, cf):
         """Transformer for generating a delensalot model for the lensing reconstruction jobs (QE and MAP)
         """
-        #@log_on_start(logging.INFO, "extract() started")
-        #@log_on_end(logging.INFO, "extract() finished")
+        #@log_on_start(logging.DEBUG, "extract() started")
+        #@log_on_end(logging.DEBUG, "extract() finished")
         def extract():
             def _process_components(dl):
                 #@log_on_start(logging.DEBUG, "_process_Meta() started")
@@ -376,7 +376,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.lenjob_geominfo = it.lenjob_geominfo
                     dl.lenjob_geomlib = get_geom(it.lenjob_geominfo)
                     thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
-                    dl.lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
+                    dl.lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
                     if it.lenjob_pbdgeominfo[0] == 'pbd':
                         dl.lenjob_pbdgeominfo = it.lenjob_pbdgeominfo
                         dl.lenjob_pbdgeomlib = lug.pbdGeometry(dl.lenjob_geomlib, lug.pbounds(*it.lenjob_pbdgeominfo[1]))
@@ -425,12 +425,13 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_Itrec(dl, cf.itrec)
 
                 # TODO this needs cleaner implementation. 
-                if 'smoothed_phi_empiric_halofit' in cf.analysis.cpp:
+                if 'smoothed_phi_empiric_halofit' in cf.analysis.cpp[0]:
                     dl.cpp = np.load(cf.analysis.cpp)[:dl.lm_max_qlm[0] + 1,1]
                 elif cf.analysis.cpp.endswith('dat'):
                     # assume its a camb-like file
                     dl.cpp = camb_clfile(cf.analysis.cpp)['pp'][:dl.lm_max_qlm[0] + 1] 
                 elif os.path.exists(os.path.dirname(cf.analysis.cpp)):
+                    # FIXME this implicitly assumes that all cpp.npy comes as convergence
                     dl.cpp = np.load(cf.analysis.cpp)[:dl.lm_max_qlm[0] + 1,1]
                     LL = np.arange(0,dl.lm_max_qlm[0] + 1,1)
                     k2p = lambda x: np.nan_to_num(x/(LL*(LL+1))**2/(2*np.pi))
@@ -453,8 +454,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
     def build_MAP_lensrec(self, cf):
         """Transformer for generating a delensalot model for the lensing reconstruction jobs (QE and MAP)
         """
-        #@log_on_start(logging.INFO, "extract() started")
-        #@log_on_end(logging.INFO, "extract() finished")
+        #@log_on_start(logging.DEBUG, "extract() started")
+        #@log_on_end(logging.DEBUG, "extract() finished")
         def extract():
             def _process_components(dl):
                 #@log_on_start(logging.DEBUG, "_process_Meta() started")
@@ -484,7 +485,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.nivjob_geomlib = get_geom(nm.geominfo)
                     dl.nivjob_geominfo = nm.geominfo
                     thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
-                    dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
+                    dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
                     if dl.sky_coverage == 'masked':
                         dl.rhits_normalised = nm.rhits_normalised
                         dl.fsky = np.mean(l2OBD_Transformer.get_nivp_desc(cf, dl)[0][1]) ## calculating fsky, but quite expensive. and if ninvp changes, this could have negative effect on fsky calc
@@ -621,8 +622,15 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
                 if 'smoothed_phi_empiric_halofit' in cf.analysis.cpp:
                     dl.cpp = np.load(cf.analysis.cpp)[:dl.lm_max_qlm[0] + 1,1]
-                else:
-                    dl.cpp = camb_clfile(cf.analysis.cpp)['pp'][:dl.lm_max_qlm[0] + 1]
+                elif cf.analysis.cpp.endswith('dat'):
+                    # assume its a camb-like file
+                    dl.cpp = camb_clfile(cf.analysis.cpp)['pp'][:dl.lm_max_qlm[0] + 1] 
+                elif os.path.exists(os.path.dirname(cf.analysis.cpp)):
+                    # FIXME this implicitly assumes that all cpp.npy comes as convergence
+                    dl.cpp = np.load(cf.analysis.cpp)[:dl.lm_max_qlm[0] + 1,1]
+                    LL = np.arange(0,dl.lm_max_qlm[0] + 1,1)
+                    k2p = lambda x: np.nan_to_num(x/(LL*(LL+1))**2/(2*np.pi))
+                    dl.cpp = k2p(dl.cpp)
                 dl.cpp[:dl.Lmin] *= 0.
 
             dl = DLENSALOT_Concept()
@@ -635,12 +643,12 @@ class l2delensalotjob_Transformer(l2base_Transformer):
     def build_OBD_builder(self, cf):
         """Transformer for generating a delensalot model for the lensing reconstruction jobs (QE and MAP)
         """
-        #@log_on_start(logging.INFO, "extract() started")
-        #@log_on_end(logging.INFO, "extract() finished")
+        #@log_on_start(logging.DEBUG, "extract() started")
+        #@log_on_end(logging.DEBUG, "extract() finished")
         def extract():
             def _process_components(dl):
-                #@log_on_start(logging.INFO, "_process_Computing() started")
-                #@log_on_end(logging.INFO, "_process_Computing() finished")
+                #@log_on_start(logging.DEBUG, "_process_Computing() started")
+                #@log_on_end(logging.DEBUG, "_process_Computing() finished")
                 def _process_Computing(dl, co):
                     dl.tr = int(os.environ.get('OMP_NUM_THREADS', co.OMP_NUM_THREADS))
 
@@ -675,7 +683,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.nivjob_geomlib = get_geom(nm.geominfo)
                     dl.nivjob_geominfo = nm.geominfo
                     thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
-                    dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
+                    dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
                     dl.masks, dl.rhits_map = l2OBD_Transformer.get_masks(cf, dl)
                     dl.nlev = l2OBD_Transformer.get_nlev(cf)
                     dl.nivp_desc = l2OBD_Transformer.get_nivp_desc(cf, dl)
@@ -700,8 +708,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
     def build_delenser(self, cf):
         """Transformer for generating a delensalot model for the lensing reconstruction jobs (QE and MAP)
         """
-        #@log_on_start(logging.INFO, "extract() started")
-        #@log_on_end(logging.INFO, "extract() finished")
+        #@log_on_start(logging.DEBUG, "extract() started")
+        #@log_on_end(logging.DEBUG, "extract() finished")
         def extract():
             def _process_components(dl):
                 #@log_on_start(logging.DEBUG, "_process_Meta() started")
@@ -732,7 +740,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.nivjob_geomlib = get_geom(nm.geominfo)
                     dl.nivjob_geominfo = nm.geominfo
                     thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
-                    dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
+                    dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
                     dl.nlev = l2OBD_Transformer.get_nlev(cf)
 
 
@@ -877,7 +885,17 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_Qerec(dl, cf.qerec)
                 _process_Itrec(dl, cf.itrec)
 
-                dl.cpp = camb_clfile(cf.analysis.cpp)['pp'][:dl.lm_max_qlm[0] + 1]
+                if 'smoothed_phi_empiric_halofit' in cf.analysis.cpp[0]:
+                    dl.cpp = np.load(cf.analysis.cpp)[:dl.lm_max_qlm[0] + 1,1]
+                elif cf.analysis.cpp.endswith('dat'):
+                    # assume its a camb-like file
+                    dl.cpp = camb_clfile(cf.analysis.cpp)['pp'][:dl.lm_max_qlm[0] + 1] 
+                elif os.path.exists(os.path.dirname(cf.analysis.cpp)):
+                    # FIXME this implicitly assumes that all cpp.npy comes as convergence
+                    dl.cpp = np.load(cf.analysis.cpp)[:dl.lm_max_qlm[0] + 1,1]
+                    LL = np.arange(0,dl.lm_max_qlm[0] + 1,1)
+                    k2p = lambda x: np.nan_to_num(x/(LL*(LL+1))**2/(2*np.pi))
+                    dl.cpp = k2p(dl.cpp)
                 dl.cpp[:dl.Lmin] *= 0.
 
                 return dl
