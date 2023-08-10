@@ -343,7 +343,6 @@ class Sim_generator(Basejob):
             for taski, task in enumerate(['generate_sky', 'generate_obs']):
                 _jobs = []
                 simidxs_ = np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))), dtype=int)
-                # print(self.simidxs, self.simidxs.dtype, self.simidxs_mf, simidxs_)
                 if task == 'generate_sky':
                     for simidx in simidxs_:
                         if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
@@ -705,7 +704,7 @@ class QE_lr(Basejob):
     #@log_on_end(logging.INFO, "QE.get_meanfield(simidx={simidx}) finished")
     def get_meanfield(self, simidx):
         ret = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, 0))
-        if self.Nmf > 0:
+        if self.Nmf > 1:
             if self.mfvar == None:
                 # FIXME plancklens needs to be less restrictive with type for simidx.
                 ret = self.qlms_dd.get_sim_qlm_mf(self.k, [int(simidx_mf) for simidx_mf in self.simidxs_mf])
@@ -878,7 +877,12 @@ class MAP_lr(Basejob):
             if self.k in ['ptt']:
                 self.niv = self.sims_MAP.ztruncify(read_map(self.nivt_desc)) # inverse pixel noise map on consistent geometry
             else:
-                self.niv = [self.sims_MAP.ztruncify(read_map(ni)) for ni in self.nivp_desc] # inverse pixel noise map on consistent geometry
+                assert self.k not in ['p'], 'implement if needed, niv needs t map'
+                self.niv = np.array([self.sims_MAP.ztruncify(read_map(ni)) for ni in self.nivp_desc]) # inverse pixel noise map on consistent geometry
+            # if self.k in ['ptt']:
+            #     self.niv = read_map(self.nivt_desc) # inverse pixel noise map on consistent geometry
+            # else:
+            #     self.niv = [read_map(ni) for ni in self.nivp_desc] # inverse pixel noise map on consistent geometry
         elif self.it_filter_directional == 'isotropic':
             self.sims_MAP = self.simulationdata
         self.filter = self.get_filter()

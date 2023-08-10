@@ -8,7 +8,7 @@ import os, sys
 import logging
 import traceback
 
-from delensalot.core import mpi
+import delensalot.core.mpi as mpi
 
 from delensalot.config.handler import config_handler
 import delensalot.config.etc.dev_helper as dh

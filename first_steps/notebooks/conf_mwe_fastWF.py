@@ -53,6 +53,6 @@ dlensalot_model = DLENSALOT_Model(
         lenjob_geominfo = ('thingauss', {'lmax': 4200 + 300, 'smax': 3}),
         lm_max_unl = (4200, 4200),
         lm_max_qlm = (4000, 4000),
-        cg_tol = 1e-5
+        cg_tol = 1e-7
     ),
 )
