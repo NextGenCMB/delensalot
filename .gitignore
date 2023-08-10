@@ -6,7 +6,7 @@ reconstruction/
 TESTSCRATCH/
 
 # protect notebooks
-first_steps/notebooks/*
+first_steps/notebooks/
 
 outputs/*
 
