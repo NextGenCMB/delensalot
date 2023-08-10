@@ -425,12 +425,13 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_Itrec(dl, cf.itrec)
 
                 # TODO this needs cleaner implementation. 
-                if 'smoothed_phi_empiric_halofit' in cf.analysis.cpp:
+                if 'smoothed_phi_empiric_halofit' in cf.analysis.cpp[0]:
                     dl.cpp = np.load(cf.analysis.cpp)[:dl.lm_max_qlm[0] + 1,1]
                 elif cf.analysis.cpp.endswith('dat'):
                     # assume its a camb-like file
                     dl.cpp = camb_clfile(cf.analysis.cpp)['pp'][:dl.lm_max_qlm[0] + 1] 
                 elif os.path.exists(os.path.dirname(cf.analysis.cpp)):
+                    # FIXME this implicitly assumes that all cpp.npy comes as convergence
                     dl.cpp = np.load(cf.analysis.cpp)[:dl.lm_max_qlm[0] + 1,1]
                     LL = np.arange(0,dl.lm_max_qlm[0] + 1,1)
                     k2p = lambda x: np.nan_to_num(x/(LL*(LL+1))**2/(2*np.pi))
@@ -884,7 +885,17 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_Qerec(dl, cf.qerec)
                 _process_Itrec(dl, cf.itrec)
 
-                dl.cpp = camb_clfile(cf.analysis.cpp)['pp'][:dl.lm_max_qlm[0] + 1]
+                if 'smoothed_phi_empiric_halofit' in cf.analysis.cpp[0]:
+                    dl.cpp = np.load(cf.analysis.cpp)[:dl.lm_max_qlm[0] + 1,1]
+                elif cf.analysis.cpp.endswith('dat'):
+                    # assume its a camb-like file
+                    dl.cpp = camb_clfile(cf.analysis.cpp)['pp'][:dl.lm_max_qlm[0] + 1] 
+                elif os.path.exists(os.path.dirname(cf.analysis.cpp)):
+                    # FIXME this implicitly assumes that all cpp.npy comes as convergence
+                    dl.cpp = np.load(cf.analysis.cpp)[:dl.lm_max_qlm[0] + 1,1]
+                    LL = np.arange(0,dl.lm_max_qlm[0] + 1,1)
+                    k2p = lambda x: np.nan_to_num(x/(LL*(LL+1))**2/(2*np.pi))
+                    dl.cpp = k2p(dl.cpp)
                 dl.cpp[:dl.Lmin] *= 0.
 
                 return dl
