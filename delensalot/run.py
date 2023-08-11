@@ -46,13 +46,13 @@ class run():
         """        
         os.environ['USE_PLANCKLENS_MPI'] = "False"
         if not verbose:
-            ConsoleOutputHandler.setLevel(logging.WARNING)
-            sys_logger.setLevel(logging.WARNING)
-            logging.basicConfig(level=logging.WARNING, handlers=[ConsoleOutputHandler])
-        else:
             ConsoleOutputHandler.setLevel(logging.INFO)
             sys_logger.setLevel(logging.INFO)
             logging.basicConfig(level=logging.INFO, handlers=[ConsoleOutputHandler])
+        else:
+            ConsoleOutputHandler.setLevel(logging.DEBUG)
+            sys_logger.setLevel(logging.DEBUG)
+            logging.basicConfig(level=logging.DEBUG, handlers=[ConsoleOutputHandler])
         self.parser = parserclass()
         self.parser.resume =  ""
         self.parser.config_file = config_fn

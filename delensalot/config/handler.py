@@ -103,8 +103,8 @@ class config_handler():
         
 
     @check_MPI
-    @log_on_start(logging.INFO, "run() Started")
-    @log_on_end(logging.INFO, "run() Finished")
+    @log_on_start(logging.DEBUG, "run() Started")
+    @log_on_end(logging.DEBUG, "run() Finished")
     def run(self):
         """pass-through for running the delensalot job This esentially calls the run function of the `core.handler.<job_class>`. Used from interactive mode.
 
@@ -117,8 +117,8 @@ class config_handler():
             job.run()
 
 
-    @log_on_start(logging.INFO, "store() Started")
-    @log_on_end(logging.INFO, "store() Finished")
+    @log_on_start(logging.DEBUG, "store() Started")
+    @log_on_end(logging.DEBUG, "store() Finished")
     def store(self, parser, configfile, TEMP):
         """ Store the dlensalot_model as config file in TEMP, to use if run resumed
 
@@ -170,8 +170,8 @@ class config_handler():
                 logging.info(TEMP+'/'+parser.config_file.split('/')[-1])
 
 
-    @log_on_start(logging.INFO, "load_configfile() Started: {directory}")
-    @log_on_end(logging.INFO, "load_configfile() Finished")
+    @log_on_start(logging.DEBUG, "load_configfile() Started: {directory}")
+    @log_on_end(logging.DEBUG, "load_configfile() Finished")
     def load_configfile(directory, descriptor):
         """Helper method for loading the configuration file.
 

@@ -52,18 +52,18 @@ class iterator_cstmf(delensalot.core.iterator.cs_iterator.qlm_iterator):
         self.cacher.cache('mf', almxfl(mf0, self._h2p(self.lmax_qlm), self.mmax_qlm, False))
 
 
-    @log_on_start(logging.INFO, "fastWF.load_graddet() started: it={k}, key={key}")
-    @log_on_end(logging.INFO, "fastWF.load_graddet() finished: it={k}, key={key}")
+    @log_on_start(logging.DEBUG, "fastWF.load_graddet() started: it={k}, key={key}")
+    @log_on_end(logging.DEBUG, "fastWF.load_graddet() finished: it={k}, key={key}")
     def load_graddet(self, k, key):
         return self.cacher.load('mf')
 
-    @log_on_start(logging.INFO, "fastWF.calc_graddet() started: it={k}, key={key}")
-    @log_on_end(logging.INFO, "fastWF.calc_graddet() finished: it={k}, key={key}")
+    @log_on_start(logging.DEBUG, "fastWF.calc_graddet() started: it={k}, key={key}")
+    @log_on_end(logging.DEBUG, "fastWF.calc_graddet() finished: it={k}, key={key}")
     def calc_graddet(self, k, key):
         return self.cacher.load('mf')
 
-    @log_on_start(logging.INFO, "fastWF.calc_gradlik() started: it={itr}, key={key}")
-    @log_on_end(logging.INFO, "fastWF.calc_gradlik() finished: it={itr}, key={key}")
+    @log_on_start(logging.DEBUG, "fastWF.calc_gradlik() started: it={itr}, key={key}")
+    @log_on_end(logging.DEBUG, "fastWF.calc_gradlik() finished: it={itr}, key={key}")
     def calc_gradlik(self, itr, key, iwantit=False):
         """Computes the quadratic part of the gradient for plm iteration 'itr'
 
