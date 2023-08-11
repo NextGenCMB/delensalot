@@ -13,7 +13,7 @@ import hashlib
 
 import logging
 log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
+log.setLevel(logging.DEBUG)
 
 from logdecorator import log_on_start, log_on_end
 import datetime, getpass, copy, importlib
@@ -84,32 +84,32 @@ class Basejob():
 
 
     # @base_exception_handler
-    #@log_on_start(logging.INFO, "collect_jobs() started")
-    #@log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
+    @log_on_start(logging.DEBUG, "collect_jobs() started")
+    @log_on_end(logging.DEBUG, "collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self):
 
         assert 0, "Overwrite"
 
 
     # @base_exception_handler
-    #@log_on_start(logging.INFO, "collect_jobs() started")
-    #@log_on_end(logging.INFO, "collect_jobs() finished")
+    @log_on_start(logging.DEBUG, "collect_jobs() started")
+    @log_on_end(logging.DEBUG, "collect_jobs() finished")
     def run(self):
 
         assert 0, "Implement if needed"
 
 
     # @base_exception_handler
-    #@log_on_start(logging.INFO, "collect_jobs() started")
-    #@log_on_end(logging.INFO, "collect_jobs() finished")
+    @log_on_start(logging.DEBUG, "collect_jobs() started")
+    @log_on_end(logging.DEBUG, "collect_jobs() finished")
     def get_qlm_it(self, simidx, it):
 
         assert 0, "Implement if needed"
 
 
     # @base_exception_handler
-    #@log_on_start(logging.INFO, "collect_jobs() started")
-    #@log_on_end(logging.INFO, "collect_jobs() finished")
+    @log_on_start(logging.DEBUG, "collect_jobs() started")
+    @log_on_end(logging.DEBUG, "collect_jobs() finished")
     def get_plm_it(self, simidx, its):
 
         plms = rec.load_plms(self.libdir_MAP(self.k, simidx, self.version), its)
@@ -118,16 +118,16 @@ class Basejob():
 
 
     # @base_exception_handler
-    #@log_on_start(logging.INFO, "collect_jobs() started")
-    #@log_on_end(logging.INFO, "collect_jobs() finished")
+    @log_on_start(logging.DEBUG, "collect_jobs() started")
+    @log_on_end(logging.DEBUG, "collect_jobs() finished")
     def get_mf_it(self, simidx, it, normalized=True):
 
         assert 0, "Implement if needed"
 
 
     # @base_exception_handler
-    #@log_on_start(logging.INFO, "collect_jobs() started")
-    #@log_on_end(logging.INFO, "collect_jobs() finished")
+    @log_on_start(logging.DEBUG, "collect_jobs() started")
+    @log_on_end(logging.DEBUG, "collect_jobs() finished")
     def get_blt_it(self, simidx, it):
         if self.data_from_CFS:
             # TODO probably enough to just check if libdir_blt_MAP_CFS is empty
@@ -142,32 +142,32 @@ class Basejob():
     
 
     # @base_exception_handler
-    #@log_on_start(logging.INFO, "collect_jobs() started")
-    #@log_on_end(logging.INFO, "collect_jobs() finished")
+    @log_on_start(logging.DEBUG, "collect_jobs() started")
+    @log_on_end(logging.DEBUG, "collect_jobs() finished")
     def get_ivf(self, simidx, it, field):
 
         assert 0, "Implement if needed"
 
 
     # @base_exception_handler
-    #@log_on_start(logging.INFO, "collect_jobs() started")
-    #@log_on_end(logging.INFO, "collect_jobs() finished")
+    @log_on_start(logging.DEBUG, "collect_jobs() started")
+    @log_on_end(logging.DEBUG, "collect_jobs() finished")
     def get_wf(self, simidx, it, field):
 
         assert 0, "Implement if needed"
     
 
     # @base_exception_handler
-    #@log_on_start(logging.INFO, "collect_jobs() started")
-    #@log_on_end(logging.INFO, "collect_jobs() finished")
+    @log_on_start(logging.DEBUG, "collect_jobs() started")
+    @log_on_end(logging.DEBUG, "collect_jobs() finished")
     def get_fiducial_sim(self, simidx, field):
         """_summary_
         """   
         assert 0, "Implement if needed"
 
 
-    #@log_on_start(logging.INFO, "get_filter() started")
-    #@log_on_end(logging.INFO, "get_filter() finished")
+    @log_on_start(logging.DEBUG, "get_filter() started")
+    @log_on_end(logging.DEBUG, "get_filter() finished")
     def get_filter(self): 
         assert 0, 'overwrite'
 
@@ -176,26 +176,28 @@ class OBD_builder(Basejob):
     """OBD matrix builder Job. Calculates the OBD matrix, used to correctly deproject the B-modes at a masked sky.
     """
     @check_MPI
-    def __init__(self, OBD_model, diasable_mpi=False):
+    def __init__(self, OBD_model):
         self.__dict__.update(OBD_model.__dict__)
         b_transf = gauss_beam(df.a2r(self.beam), lmax=self.lmax)
-        self.nivp = np.array(opfilt_pp.alm_filter_ninv(self.nivp_desc, b_transf, marge_qmaps=(), marge_umaps=()).get_ninv())
+        nivp = np.array(opfilt_pp.alm_filter_ninv(self.nivp_desc, b_transf, marge_qmaps=(), marge_umaps=()).get_ninv())
+        self.sims_MAP = utils_sims.ztrunc_sims(np.zeros(shape=1), self.nivjob_geominfo[1]['nside'], [self.zbounds])
+        self.nivp = np.array([self.sims_MAP.ztruncify(np) for np in nivp])
 
 
     # @base_exception_handler
-    #@log_on_start(logging.INFO, "collect_jobs() started")
-    #@log_on_end(logging.INFO, "collect_jobs() finished")
+    @log_on_start(logging.DEBUG, "collect_jobs() started")
+    @log_on_end(logging.DEBUG, "collect_jobs() finished")
     def collect_jobs(self):
         # This fakes the collect/run structure, as bpl takes care of MPI 
-        jobs = [1]
+        jobs = [0]
         self.jobs = jobs
 
         return jobs
 
 
     # @base_exception_handler
-    #@log_on_start(logging.INFO, "run() started")
-    #@log_on_end(logging.INFO, "run() finished")
+    @log_on_start(logging.DEBUG, "run() started")
+    @log_on_end(logging.DEBUG, "run() finished")
     def run(self):
         # This fakes the collect/run structure, as bpl takes care of MPI 
         for job in self.jobs:
@@ -335,8 +337,8 @@ class Sim_generator(Basejob):
         return fns
 
     # @base_exception_handler
-    @log_on_start(logging.INFO, "Sim.collect_jobs() started")
-    @log_on_end(logging.INFO, "Sim.collect_jobs() finished: jobs={self.jobs}")
+    @log_on_start(logging.DEBUG, "Sim.collect_jobs() started")
+    @log_on_end(logging.DEBUG, "Sim.collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self):
         jobs = list(range(len(['generate_sky', 'generate_obs'])))
         if np.all(self.simulationdata.maps == DEFAULT_NotAValue) and self.simulationdata.flavour != 'obs':
@@ -386,8 +388,8 @@ class Sim_generator(Basejob):
 
 
     # @base_exception_handler
-    @log_on_start(logging.INFO, "Sim.run() started")
-    @log_on_end(logging.INFO, "Sim.run() finished")
+    @log_on_start(logging.DEBUG, "Sim.run() started")
+    @log_on_end(logging.DEBUG, "Sim.run() finished")
     def run(self):
         for taski, task in enumerate(['generate_sky', 'generate_obs']):
             for simidx in self.jobs[taski][mpi.rank::mpi.size]:
@@ -404,8 +406,8 @@ class Sim_generator(Basejob):
             self.postrun_obs()
 
 
-    #@log_on_start(logging.INFO, "Sim.generate_sim(simidx={simidx}) started")
-    #@log_on_end(logging.INFO, "Sim.generate_sim(simidx={simidx}) finished")
+    @log_on_start(logging.DEBUG, "Sim.generate_sim(simidx={simidx}) started")
+    @log_on_end(logging.DEBUG, "Sim.generate_sim(simidx={simidx}) finished")
     def generate_sky(self, simidx):
         if not os.path.exists(opj(self.libdir_sky, self.fnsP.format(simidx))):
             phi = self.simulationdata.get_sim_phi(simidx, space='alm')
@@ -431,8 +433,8 @@ class Sim_generator(Basejob):
                 np.save(opj(self.libdir_sky, self.fns_sky['T'].format(simidx)), Tsky)
 
 
-    #@log_on_start(logging.INFO, "Sim.generate_sim(simidx={simidx}) started")
-    #@log_on_end(logging.INFO, "Sim.generate_sim(simidx={simidx}) finished")
+    @log_on_start(logging.DEBUG, "Sim.generate_sim(simidx={simidx}) started")
+    @log_on_end(logging.DEBUG, "Sim.generate_sim(simidx={simidx}) finished")
     def generate_obs(self, simidx):
         if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
             if not (os.path.exists(opj(self.libdir, self.fns['E'].format(simidx))) and os.path.exists(opj(self.libdir, self.fns['B'].format(simidx)))):
@@ -569,8 +571,8 @@ class QE_lr(Basejob):
 
 
     # @base_exception_handler
-    #@log_on_start(logging.INFO, "QE.collect_jobs(recalc={recalc}) started")
-    #@log_on_end(logging.INFO, "QE.collect_jobs(recalc={recalc}) finished: jobs={self.jobs}")
+    @log_on_start(logging.DEBUG, "QE.collect_jobs(recalc={recalc}) started")
+    @log_on_end(logging.DEBUG, "QE.collect_jobs(recalc={recalc}) finished: jobs={self.jobs}")
     def collect_jobs(self, recalc=False):
 
         # qe_tasks overwrites task-list and is needed if MAP lensrec calls QE lensrec
@@ -624,8 +626,8 @@ class QE_lr(Basejob):
 
 
     # @base_exception_handler
-    #@log_on_start(logging.INFO, "QE.run(task={task}) started")
-    #@log_on_end(logging.INFO, "QE.run(task={task}) finished")
+    @log_on_start(logging.DEBUG, "QE.run(task={task}) started")
+    @log_on_end(logging.DEBUG, "QE.run(task={task}) finished")
     def run(self, task=None):
         ## task may be set from MAP lensrec, as MAP lensrec has prereqs to QE lensrec
         ## if None, then this is a normal QE lensrec call
@@ -672,16 +674,16 @@ class QE_lr(Basejob):
 
 
     # @base_exception_handler
-    #@log_on_start(logging.INFO, "QE.get_sim_qlm(simidx={simidx}) started")
-    #@log_on_end(logging.INFO, "QE.get_sim_qlm(simidx={simidx}) finished")
+    @log_on_start(logging.DEBUG, "QE.get_sim_qlm(simidx={simidx}) started")
+    @log_on_end(logging.DEBUG, "QE.get_sim_qlm(simidx={simidx}) finished")
     def get_sim_qlm(self, simidx):
 
         return self.qlms_dd.get_sim_qlm(self.k, int(simidx))
 
 
     # @base_exception_handler
-    #@log_on_start(logging.INFO, "QE.get_wflm(simidx={simidx}) started")
-    #@log_on_end(logging.INFO, "QE.get_wflm(simidx={simidx}) finished")    
+    @log_on_start(logging.DEBUG, "QE.get_wflm(simidx={simidx}) started")
+    @log_on_end(logging.DEBUG, "QE.get_wflm(simidx={simidx}) finished")    
     def get_wflm(self, simidx):
         if self.k in ['ptt']:
             return lambda: alm_copy(self.ivfs.get_sim_tmliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
@@ -692,16 +694,16 @@ class QE_lr(Basejob):
 
 
     # @base_exception_handler
-    #@log_on_start(logging.INFO, "QE.get_R_unl() started")
-    #@log_on_end(logging.INFO, "QE.get_R_unl() finished")    
+    @log_on_start(logging.DEBUG, "QE.get_R_unl() started")
+    @log_on_end(logging.DEBUG, "QE.get_R_unl() finished")    
     def get_R_unl(self):
 
         return qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_unl, self.cls_unl, self.fteb_unl, lmax_qlm=self.lm_max_qlm[0])[0]
 
 
     # @base_exception_handler
-    #@log_on_start(logging.INFO, "QE.get_meanfield(simidx={simidx}) started")
-    #@log_on_end(logging.INFO, "QE.get_meanfield(simidx={simidx}) finished")
+    @log_on_start(logging.DEBUG, "QE.get_meanfield(simidx={simidx}) started")
+    @log_on_end(logging.DEBUG, "QE.get_meanfield(simidx={simidx}) finished")
     def get_meanfield(self, simidx):
         ret = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, 0))
         if self.Nmf > 1:
@@ -720,8 +722,8 @@ class QE_lr(Basejob):
         
 
     # @base_exception_handler
-    #@log_on_start(logging.INFO, "QE.get_plm(simidx={simidx}, sub_mf={sub_mf}) started")
-    #@log_on_end(logging.INFO, "QE.get_plm(simidx={simidx}, sub_mf={sub_mf}) finished")
+    @log_on_start(logging.DEBUG, "QE.get_plm(simidx={simidx}, sub_mf={sub_mf}) started")
+    @log_on_end(logging.DEBUG, "QE.get_plm(simidx={simidx}, sub_mf={sub_mf}) finished")
     def get_plm_n1(self, simidx, sub_mf=True, N1=np.array([])):
         libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
         if N1.size == 0:
@@ -764,8 +766,8 @@ class QE_lr(Basejob):
         return np.load(fn_plm)
 
 
-    #@log_on_start(logging.INFO, "QE.get_response_meanfield() started")
-    #@log_on_end(logging.INFO, "QE.get_response_meanfield() finished")
+    @log_on_start(logging.DEBUG, "QE.get_response_meanfield() started")
+    @log_on_end(logging.DEBUG, "QE.get_response_meanfield() finished")
     def get_response_meanfield(self):
         if self.k in ['p_p'] and not 'noRespMF' in self.version:
             mf_resp = qresp.get_mf_resp(self.k, self.cls_unl, {'ee': self.ftebl_len['e'], 'bb': self.ftebl_len['b']}, self.lm_max_ivf[0], self.lm_max_qlm[0])[0]
@@ -776,8 +778,8 @@ class QE_lr(Basejob):
         return mf_resp
 
     # @base_exception_handler
-    #@log_on_start(logging.INFO, "QE.get_meanfield_normalized(simidx={simidx}) started")
-    #@log_on_end(logging.INFO, "QE.get_meanfield_normalized(simidx={simidx}) finished")
+    @log_on_start(logging.DEBUG, "QE.get_meanfield_normalized(simidx={simidx}) started")
+    @log_on_end(logging.DEBUG, "QE.get_meanfield_normalized(simidx={simidx}) finished")
     def get_meanfield_normalized(self, simidx):
         mf_QE = copy.deepcopy(self.get_meanfield(simidx))
         R = qresp.get_response(self.k, self.lm_max_ivf[0], 'p', self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=self.lm_max_qlm[0])[0]
@@ -790,8 +792,8 @@ class QE_lr(Basejob):
 
 
     # @base_exception_handler
-    #@log_on_start(logging.INFO, "QE.get_blt({simidx}) started")
-    #@log_on_end(logging.INFO, "QE.get_blt({simidx}) finished")
+    @log_on_start(logging.DEBUG, "QE.get_blt({simidx}) started")
+    @log_on_end(logging.DEBUG, "QE.get_blt({simidx}) finished")
     def get_blt(self, simidx):
         fn_blt = opj(self.libdir_blt, 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
         if not os.path.exists(fn_blt):
@@ -803,8 +805,8 @@ class QE_lr(Basejob):
     
 
     # @base_exception_handler
-    #@log_on_start(logging.INFO, "QE.get_blt({simidx}) started")
-    #@log_on_end(logging.INFO, "QE.get_blt({simidx}) finished")
+    @log_on_start(logging.DEBUG, "QE.get_blt({simidx}) started")
+    @log_on_end(logging.DEBUG, "QE.get_blt({simidx}) finished")
     def get_blt_new(self, simidx):
 
         def get_template_blm(it, it_e, lmaxb=1024, lmin_plm=1, perturbative=False):
@@ -842,8 +844,8 @@ class QE_lr(Basejob):
         return np.load(fn_blt)
 
 
-    #@log_on_start(logging.INFO, "get_filter() started")
-    #@log_on_end(logging.INFO, "get_filter() finished")
+    @log_on_start(logging.DEBUG, "get_filter() started")
+    @log_on_end(logging.DEBUG, "get_filter() finished")
     def get_filter(self): 
         QE_filters = transform(self, QE_transformer())
         filter = transform(self, QE_filters())
@@ -888,8 +890,8 @@ class MAP_lr(Basejob):
         self.filter = self.get_filter()
 
     # # @base_exception_handler
-    #@log_on_start(logging.INFO, "MAP.map.collect_jobs() started")
-    #@log_on_end(logging.INFO, "MAP.collect_jobs() finished: jobs={self.jobs}")
+    @log_on_start(logging.DEBUG, "MAP.map.collect_jobs() started")
+    @log_on_end(logging.DEBUG, "MAP.collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self):
         jobs = list(range(len(self.it_tasks)))
         # TODO order of task list matters, but shouldn't
@@ -927,8 +929,8 @@ class MAP_lr(Basejob):
 
 
     # @base_exception_handler
-    #@log_on_start(logging.INFO, "MAP.run() started")
-    #@log_on_end(logging.INFO, "MAP.run() finished")
+    @log_on_start(logging.DEBUG, "MAP.run() started")
+    @log_on_end(logging.DEBUG, "MAP.run() finished")
     def run(self):
         for taski, task in enumerate(self.it_tasks):
             log.info('{}, task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
@@ -962,8 +964,8 @@ class MAP_lr(Basejob):
 
 
     # # @base_exception_handler
-    #@log_on_start(logging.INFO, "MAP.get_plm_it(simidx={simidx}, its={its}) started")
-    #@log_on_end(logging.INFO, "MAP.get_plm_it(simidx={simidx}, its={its}) finished")
+    @log_on_start(logging.DEBUG, "MAP.get_plm_it(simidx={simidx}, its={its}) started")
+    @log_on_end(logging.DEBUG, "MAP.get_plm_it(simidx={simidx}, its={its}) finished")
     def get_plm_it(self, simidx, its):
 
         plms = rec.load_plms(self.libdir_MAP(self.k, simidx, self.version), its)
@@ -972,8 +974,8 @@ class MAP_lr(Basejob):
     
 
     # # @base_exception_handler
-    #@log_on_start(logging.INFO, "MAP.get_meanfield_it(it={it}, calc={calc}) started")
-    #@log_on_end(logging.INFO, "MAP.get_meanfield_it(it={it}, calc={calc}) finished")
+    @log_on_start(logging.DEBUG, "MAP.get_meanfield_it(it={it}, calc={calc}) started")
+    @log_on_end(logging.DEBUG, "MAP.get_meanfield_it(it={it}, calc={calc}) finished")
     def get_meanfield_it(self, it, calc=False):
         fn = opj(self.mf_dirname, 'mf%03d_it%03d.npy'%(self.Nmf, it))
         if not calc:
@@ -993,8 +995,8 @@ class MAP_lr(Basejob):
 
 
     # @base_exception_handler
-    #@log_on_start(logging.INFO, "MAP.get_meanfields_it(its={its}, calc={calc}) started")
-    #@log_on_end(logging.INFO, "MAP.get_meanfields_it(its={its}, calc={calc}) finished")
+    @log_on_start(logging.DEBUG, "MAP.get_meanfields_it(its={its}, calc={calc}) started")
+    @log_on_end(logging.DEBUG, "MAP.get_meanfields_it(its={its}, calc={calc}) finished")
     def get_meanfields_it(self, its, calc=False):
         plm = rec.load_plms(self.libdir_MAP(self.k, self.simidxs[0], self.version), [0])[-1]
         mfs = np.zeros(shape=(len(its),*plm.shape), dtype=np.complex128)
@@ -1009,8 +1011,8 @@ class MAP_lr(Basejob):
 
 
     # @base_exception_handler
-    #@log_on_start(logging.INFO, "MAP.get_blt_it(simidx={simidx}, it={it}) started")
-    #@log_on_end(logging.INFO, "MAP.get_blt_it(simidx={simidx}, it={it}) finished")
+    @log_on_start(logging.DEBUG, "MAP.get_blt_it(simidx={simidx}, it={it}) started")
+    @log_on_end(logging.DEBUG, "MAP.get_blt_it(simidx={simidx}, it={it}) finished")
     def get_blt_it(self, simidx, it):
         if it == 0:
             self.qe.itlib_iterator = transform(self, iterator_transformer(self, simidx, self.dlensalot_model))
@@ -1029,8 +1031,8 @@ class MAP_lr(Basejob):
         return np.load(fn_blt)
 
 
-    #@log_on_start(logging.INFO, "get_filter() started")
-    #@log_on_end(logging.INFO, "get_filter() finished")
+    @log_on_start(logging.DEBUG, "get_filter() started")
+    @log_on_end(logging.DEBUG, "get_filter() finished")
     def get_filter(self): 
         MAP_filters = transform(self, MAP_transformer())
         filter = transform(self, MAP_filters())
@@ -1061,8 +1063,8 @@ class Map_delenser(Basejob):
 
 
     # @base_exception_handler
-    #@log_on_start(logging.INFO, "collect_jobs() started")
-    #@log_on_end(logging.INFO, "collect_jobs() finished: jobs={self.jobs}")
+    @log_on_start(logging.DEBUG, "collect_jobs() started")
+    @log_on_end(logging.DEBUG, "collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self):
         # TODO a valid job is any requested job?, as BLTs may also be on CFS
         jobs = []
@@ -1074,8 +1076,8 @@ class Map_delenser(Basejob):
 
 
     # @base_exception_handler
-    #@log_on_start(logging.INFO, "run() started")
-    #@log_on_end(logging.INFO, "run() finished")
+    @log_on_start(logging.DEBUG, "run() started")
+    @log_on_end(logging.DEBUG, "run() finished")
     def run(self):
         outputdata = self._prepare_job()
         if self.jobs != []:
@@ -1101,8 +1103,8 @@ class Map_delenser(Basejob):
         return outputdata
     
 
-    # #@log_on_start(logging.INFO, "get_basemap() started")
-    # #@log_on_end(logging.INFO, "get_basemap() finished")  
+    # @log_on_start(logging.DEBUG, "get_basemap() started")
+    # @log_on_end(logging.DEBUG, "get_basemap() finished")  
     def get_basemap(self, simidx):
         if self.basemap == 'lens':
             return almxfl(alm_copy(self.simulationdata.get_sim_sky(simidx, space='alm', spin=0, field='polarization')[1], self.simulationdata.lmax, *self.lm_max_blt), self.ttebl['e'], self.lm_max_blt[0], inplace=False) 
@@ -1115,8 +1117,8 @@ class Map_delenser(Basejob):
 
     
 
-    #@log_on_start(logging.INFO, "_delens() started")
-    #@log_on_end(logging.INFO, "_delens() finished")
+    @log_on_start(logging.DEBUG, "_delens() started")
+    @log_on_end(logging.DEBUG, "_delens() finished")
     def delens(self, simidx, outputdata):
         blm_L = self.get_basemap(simidx)
         blt_QE = self.get_blt_it(simidx, 0)
@@ -1145,8 +1147,8 @@ class Map_delenser(Basejob):
         np.save(self.fns.format(simidx), outputdata)
             
 
-    #@log_on_start(logging.INFO, "get_residualblens() started")
-    #@log_on_end(logging.INFO, "get_residualblens() finished")
+    @log_on_start(logging.DEBUG, "get_residualblens() started")
+    @log_on_end(logging.DEBUG, "get_residualblens() finished")
     def get_residualblens(self, simidx, it):
         basemap = self.get_basemap(simidx)
         
@@ -1154,8 +1156,8 @@ class Map_delenser(Basejob):
     
 
     # @base_exception_handler
-    #@log_on_start(logging.INFO, "read_data() started")
-    #@log_on_end(logging.INFO, "read_data() finished")
+    @log_on_start(logging.DEBUG, "read_data() started")
+    @log_on_end(logging.DEBUG, "read_data() finished")
     def read_data(self):
         bcl_L = np.zeros(shape=(len(self.its)+2, len(self.nlevels)+len(self.masks_fromfn), len(self.simidxs), len(self.edges)-1))
         for simidxi, simidx in enumerate(self.simidxs):

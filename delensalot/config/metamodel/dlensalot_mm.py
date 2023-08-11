@@ -13,7 +13,6 @@ import numpy as np
 
 import logging
 log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
 
 from delensalot.config.metamodel import DEFAULT_NotAValue, DEFAULT_NotASTR
 from delensalot.config.validator import analysis, chaindescriptor, computing, data, filter as v_filter, itrec, job, mapdelensing, meta, model, noisemodel, obd, qerec, stepper
@@ -175,6 +174,8 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
         phi_space    (str, optional): can be in ['map', 'alm', 'cl'] and defines the space of the lensing potential provided.. Defaults to DNaV.
         phi_lmax     (_type_, optional): the maximum multipole of the lensing potential. if simulation library perfroms lensing, it is advisable that `phi_lmax` is somewhat larger than `lmax` (+ ~512-1024). Defaults to DNaV.
         epsilon      (float, optional): Lenspyx lensing accuracy. Defaults to 1e-7.
+        libdir_suffix(str, optional): defines the directory the simulation data will be stored to, defaults to 'generic'. Helpful if one wants to keep track of different projects.
+        modifier (callable, optional): operation defined in the callable will be applied to each of the input maps/alms/cls
                                                
     """
 
@@ -201,6 +202,8 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
     phi_lmax =      attr.field(default=DEFAULT_NotAValue, validator=data.phi_lmax)
     epsilon =       attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
     libdir_suffix = attr.field(default='generic', validator=data.libdir_suffix)
+    modifier =  attr.field(default=DEFAULT_NotAValue, validator=data.modifier)
+    
     
 @attr.s
 class DLENSALOT_Noisemodel(DLENSALOT_Concept):

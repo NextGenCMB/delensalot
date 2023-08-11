@@ -18,7 +18,6 @@ import shutil
 import logging
 from logdecorator import log_on_start, log_on_end
 log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
 
 import numpy as np
 
@@ -38,7 +37,7 @@ class config_handler():
     """
 
     def __init__(self, parser, config_model=None):
-        sorted_joblist = ['generate_sim', 'QE_lensrec', 'MAP_lensrec', 'OBD_builder']
+        sorted_joblist = ['build_OBD', 'generate_sim', 'QE_lensrec', 'MAP_lensrec']
         if config_model is None:
             self.configfile = config_handler.load_configfile(parser.config_file, 'configfile')
         else:
@@ -55,7 +54,12 @@ class config_handler():
                             self.configfile.dlensalot_model.job.jobs.append(sortedjob)
                             break
                         else:
-                            self.configfile.dlensalot_model.job.jobs.append(sortedjob)
+                            if sortedjob == 'build_OBD':
+                                if self.configfile.dlensalot_model.noisemodel.OBD == 'OBD':
+                                    # Catch build_OBD, iff noisemodel.obd is True. Else don't calculate (mpi tasks should still be fixed.. but 'run-anyway' applies)
+                                    self.configfile.dlensalot_model.job.jobs.append(sortedjob)
+                            else:
+                                self.configfile.dlensalot_model.job.jobs.append(sortedjob)
         TEMP = transform(self.configfile.dlensalot_model, l2T_Transformer())
         self.parser = parser
         self.TEMP = TEMP

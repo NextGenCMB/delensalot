@@ -43,7 +43,6 @@ DL_DEFAULT = {
         'simidxs_mf': [],
         'zbounds': (-1,1),
         'zbounds_len': (-1,1),
-        'pbounds': (0., 2*np.pi),
         'lm_max_len': (4000, 4000),
         'mask': None,
         'cls_unl': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),

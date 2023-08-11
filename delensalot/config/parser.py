@@ -84,10 +84,10 @@ class lerepi_parser():
                     assert 0, "I see the following options: {}".format(f)
                     
         def _validate_job(job_id):
-            if job_id in ['QE_lensrec', 'MAP_lensrec', 'OBD_builder', 'generate_sim', None]:
+            if job_id in ['QE_lensrec', 'MAP_lensrec', 'build_OBD', 'generate_sim', None]:
                 return True
             else:
-                assert 0, log.error("Job_id must be in {} but is {}".format(['QE_lensrec', 'MAP_lensrec', 'OBD_builder', 'generate_sim'], job_id))
+                assert 0, log.error("Job_id must be in {} but is {}".format(['QE_lensrec', 'MAP_lensrec', 'build_OBD', 'generate_sim'], job_id))
 
         if self.parser.resume == '' and self.parser.status == '' and self.parser.purgehashs == '':
             assert 0, 'Choose one of the available options to get going.'

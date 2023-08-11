@@ -591,9 +591,13 @@ class Xsky:
 
 
 class Xobs:
-    """class for generating observed CMB realizations from sky maps together with a noise realization and transfer function to mimick an experiment
+    """class for generating/handling observed CMB realizations from sky maps together with a noise realization and transfer function to mimick an experiment
     """
-    def __init__(self, lmax, maps=DNaV, transfunction=DNaV, len_lib=DNaV, unl_lib=DNaV, epsilon=DNaV, noise_lib=DNaV, libdir=DNaV, fns=DNaV, nlev=DNaV, libdir_noise=DNaV, fnsnoise=DNaV, spin=DNaV, space=DNaV, geominfo=DNaV, field=DNaV, cacher=DNaV, libdir_suffix=DNaV):
+    def __init__(self, lmax, maps=DNaV, transfunction=DNaV, len_lib=DNaV, unl_lib=DNaV, epsilon=DNaV, noise_lib=DNaV, libdir=DNaV, fns=DNaV, nlev=DNaV, libdir_noise=DNaV, fnsnoise=DNaV, spin=DNaV, space=DNaV, geominfo=DNaV, field=DNaV, cacher=DNaV, libdir_suffix=DNaV, modifier=DNaV):
+        if modifier == DNaV:
+            self.modifier = lambda x: x
+        else:
+            self.modifier = modifier
         self.geominfo = geominfo
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
@@ -682,11 +686,23 @@ class Xobs:
                 log.info('.., but stored on disk.')
                 if field == 'polarization':
                     if self.spin == 2:
-                        obs1 = load_file(opj(self.libdir, self.fns['Q'].format(simidx)))
-                        obs2 = load_file(opj(self.libdir, self.fns['U'].format(simidx)))
+                        if self.fns['Q'] == self.fns['U'] and self.fns['Q'].endswith('.fits'):
+                            # Assume implicitly that Q is field=1, U is field=2
+                            obs1 = load_file(opj(self.libdir, self.fns['Q'].format(simidx)), ifield=1)
+                            obs2 = load_file(opj(self.libdir, self.fns['U'].format(simidx)), ifield=2)
+                        else:
+                            obs1 = load_file(opj(self.libdir, self.fns['Q'].format(simidx)))
+                            obs2 = load_file(opj(self.libdir, self.fns['U'].format(simidx)))
                     elif self.spin == 0:
-                        obs1 = load_file(opj(self.libdir, self.fns['E'].format(simidx)))
-                        obs2 = load_file(opj(self.libdir, self.fns['B'].format(simidx)))
+                        if self.fns['E'] == self.fns['B'] and self.fns['B'].endswith('.fits'):
+                            # Assume implicitly that E is field=1, B is field=2
+                            obs1 = load_file(opj(self.libdir, self.fns['E'].format(simidx)), ifield=1)
+                            obs2 = load_file(opj(self.libdir, self.fns['B'].format(simidx)), ifield=2)
+                        else:
+                            obs1 = load_file(opj(self.libdir, self.fns['E'].format(simidx)))
+                            obs2 = load_file(opj(self.libdir, self.fns['B'].format(simidx)))
+                        obs1 = self.modifier(obs1)
+                        obs2 = self.modifier(obs2)                
                     obs = np.array([obs1, obs2])
                     if self.space == 'map':
                         if space == 'map':
@@ -717,6 +733,7 @@ class Xobs:
                                 obs = self.geom_lib.alm2map_spin(obs, lmax=self.lmax, spin=spin, mmax=self.lmax, nthreads=4)
                 elif field == 'temperature':
                     obs = np.array(load_file(opj(self.libdir, self.fns['T'].format(simidx))))
+                    obs = self.modifier(obs)
                     if self.space == 'map':
                         if space == 'alm':
                             obs = self.geom_lib.map2alm(obs, lmax=self.lmax, mmax=self.lmax, nthreads=4)
@@ -817,7 +834,7 @@ class Simhandler:
     """Entry point for data handling and generating simulations. Data can be cl, unl, len, or obs, .. and alms or maps. Simhandler connects the individual libraries and decides what can be generated. E.g.: If obs data provided, len data cannot be generated. This structure makes sure we don't "hallucinate" data
 
     """
-    def __init__(self, flavour, space, geominfo=DNaV, maps=DNaV, field=DNaV, cls_lib=DNaV, unl_lib=DNaV, len_lib=DNaV, obs_lib=DNaV, noise_lib=DNaV, libdir=DNaV, libdir_noise=DNaV, libdir_phi=DNaV, fns=DNaV, fnsnoise=DNaV, fnsP=DNaV, lmax=DNaV, transfunction=DNaV, nlev=DNaV, spin=0, CMB_fn=DNaV, phi_fn=DNaV, phi_field=DNaV, phi_space=DNaV, epsilon=1e-7, phi_lmax=DNaV, libdir_suffix=DNaV, lenjob_geominfo=DNaV, cacher=cachers.cacher_mem(safe=True)):
+    def __init__(self, flavour, space, geominfo=DNaV, maps=DNaV, field=DNaV, cls_lib=DNaV, unl_lib=DNaV, len_lib=DNaV, obs_lib=DNaV, noise_lib=DNaV, libdir=DNaV, libdir_noise=DNaV, libdir_phi=DNaV, fns=DNaV, fnsnoise=DNaV, fnsP=DNaV, lmax=DNaV, transfunction=DNaV, nlev=DNaV, spin=0, CMB_fn=DNaV, phi_fn=DNaV, phi_field=DNaV, phi_space=DNaV, epsilon=1e-7, phi_lmax=DNaV, libdir_suffix=DNaV, lenjob_geominfo=DNaV, cacher=cachers.cacher_mem(safe=True), modifier=DNaV):
         """Entry point for simulation data handling.
         Simhandler() connects the individual librariers together accordingly, depending on the provided data.
         It never stores data on disk itself, only in memory.
@@ -865,7 +882,7 @@ class Simhandler:
                     assert spin != DNaV, "need to provide spin"
                     assert lmax != DNaV, "need to provide lmax"
                     assert field != DNaV, "need to provide field"
-                self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, libdir=libdir, fns=fns, spin=spin, geominfo=geominfo, field=field, libdir_suffix=libdir_suffix) if obs_lib == DNaV else obs_lib
+                self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, libdir=libdir, fns=fns, spin=spin, geominfo=geominfo, field=field, libdir_suffix=libdir_suffix, modifier=modifier) if obs_lib == DNaV else obs_lib
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = self.obs_lib.libdir
                 self.fns = self.obs_lib.fns

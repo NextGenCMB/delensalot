@@ -201,10 +201,10 @@ def dls2cls(dls):
         cls[k] = dls[:, i] * refac
     return cls
 
-def load_file(fn, lmax=None):
+def load_file(fn, lmax=None, ifield=0):
     if fn.endswith('.npy'):
        return np.load(fn)[:None]
     elif fn.endswith('.fits'):
-        return hp.read_map(fn)
+        return hp.read_map(fn, field=ifield)
     elif fn.endswith('.dat'):
         return camb_clfile(fn)
