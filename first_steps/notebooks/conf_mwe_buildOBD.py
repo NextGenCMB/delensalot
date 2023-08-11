@@ -18,7 +18,7 @@ dlensalot_model = DLENSALOT_Model(
         lmin_teb = (10, 10, 100)
     ),
     noisemodel = DLENSALOT_Noisemodel(
-        OBD = 'OBD'
+        OBD = 'OBD',
         sky_coverage = 'masked',
         spectrum_type = 'white',
         nlev = {'P': np.sqrt(2), 'T': np.sqrt(1)},
