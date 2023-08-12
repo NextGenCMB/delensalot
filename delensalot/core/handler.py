@@ -1059,7 +1059,7 @@ class Map_delenser(Basejob):
         self.libdir_delenser = opj(self.TEMP, 'delensing/{}'.format(self.dirid))
         if not(os.path.isdir(self.libdir_delenser)):
             os.makedirs(self.libdir_delenser)
-        self.fns = opj(self.libdir_delenser, 'ClBB_sim%04d.npy')
+        self.fns = opj(self.libdir_delenser, 'ClBB_sim{:04d}.npy')
 
 
     # @base_exception_handler
