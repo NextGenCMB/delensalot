@@ -213,7 +213,7 @@ class Cls:
             else:
                 self.phi_file = load_file(self.phi_fn)['pp']
             self.phi_field = phi_field
-        log.info("phi_fn is {}".format(self.phi_fn))
+        log.debug("phi_fn is {}".format(self.phi_fn))
         self.cacher = cachers.cacher_mem(safe=True)
 
 
@@ -385,7 +385,7 @@ class Xunl:
         fn = 'phi_space{}_{}'.format(space, simidx)
         if not self.cacher.is_cached(fn):
             if self.libdir_phi == DNaV:
-                log.info('generating phi from cl')
+                log.debug('generating phi from cl')
                 Clpf = self.cls_lib.get_sim_clphi(simidx)
                 self.phi_field = self.cls_lib.phi_field
                 Clp = self.clpf2clppot(Clpf)
@@ -501,13 +501,13 @@ class Xsky:
         if field == 'temperature' and spin == 2:
             assert 0, "I don't think you want spin-2 temperature."
         fn = 'sky_space{}_spin{}_field{}_{}'.format(space, spin, field, simidx)
-        log.info('requesting "{}"'.format(fn))
+        log.debug('requesting "{}"'.format(fn))
         if not self.cacher.is_cached(fn):
             fn_other = 'sky_space{}_spin{}_field{}_{}'.format(space, self.spin, field, simidx)
             if not self.cacher.is_cached(fn_other):
-                log.info('..nothing cached..')
+                log.debug('..nothing cached..')
                 if self.libdir == DNaV:
-                    log.info('.., generating.')
+                    log.debug('.., generating.')
                     unl = self.unl_lib.get_sim_unl(simidx, space='alm', field=field, spin=0)
                     philm = self.unl_lib.get_sim_phi(simidx, space='alm')
                     
@@ -532,7 +532,7 @@ class Xsky:
                         elif space == 'alm':
                             sky = self.lenjob_geomlib.map2alm(sky, lmax=self.lmax, mmax=self.lmax, nthreads=4)
                 else:
-                    log.info('.., but stored on disk.')
+                    log.debug('.., but stored on disk.')
                     if field == 'polarization':
                         if self.spin == 2:
                             sky1 = load_file(opj(self.libdir, self.fns['Q'].format(simidx)))
@@ -577,7 +577,7 @@ class Xsky:
                             if space == 'map':
                                 sky = self.geom_lib.alm2map(sky, lmax=self.lmax, mmax=self.lmax, nthreads=4)
             else:
-                log.info('found "{}"'.format(fn_other))
+                log.debug('found "{}"'.format(fn_other))
                 sky = self.cacher.load(fn_other)
                 if space == 'map':
                     sky = self.geom_lib.alm2map_spin(self.lenjob_geomlib.map2alm_spin(sky, spin=self.spin, lmax=self.lmax, mmax=self.lmax, nthreads=4), lmax=self.lmax, spin=spin, mmax=self.lmax, nthreads=4)
@@ -659,7 +659,7 @@ class Xobs:
             assert self.spin == spin, "can only provide existing data"
             assert self.space == space, "can only provide existing data"
         fn = 'obs_space{}_spin{}_field{}_{}'.format(space, spin, field, simidx)
-        log.info('requesting "{}"'.format(fn))
+        log.debug('requesting "{}"'.format(fn))
         fn_otherspin = 'obs_space{}_spin{}_field{}_{}'.format(space, self.spin, field, simidx)
         fn_otherspace = ''
         fn_otherspacespin = ''
@@ -673,9 +673,9 @@ class Xobs:
             fn_otherspacespin = 'obs_space{}_spin{}_field{}_{}'.format('map', self.spin, field, simidx)
 
         if not self.cacher.is_cached(fn) and not self.cacher.is_cached(fn_otherspin) and not self.cacher.is_cached(fn_otherspacespin) and not self.cacher.is_cached(fn_otherspace):
-            log.info('..nothing cached..')
+            log.debug('..nothing cached..')
             if self.libdir == DNaV: # sky data comes from len_lib, and we add noise
-                log.info('.., generating.')
+                log.debug('.., generating.')
                 obs = self.sky2obs(
                     np.copy(self.len_lib.get_sim_sky(simidx, spin=spin, space=space, field=field)),
                     np.copy(self.noise_lib.get_sim_noise(simidx, spin=spin, field=field, space=space)),
@@ -683,7 +683,7 @@ class Xobs:
                     space=space,
                     field=field)
             elif self.libdir != DNaV:  # observed data is somewhere
-                log.info('.., but stored on disk.')
+                log.debug('.., but stored on disk.')
                 if field == 'polarization':
                     if self.spin == 2:
                         if self.fns['Q'] == self.fns['U'] and self.fns['Q'].endswith('.fits'):
@@ -743,10 +743,10 @@ class Xobs:
                 self.cacher.cache(fn, obs)
             self.cacher.cache(fn, obs)
         elif self.cacher.is_cached(fn):
-            log.info('found "{}"'.format(fn))
+            log.debug('found "{}"'.format(fn))
             pass
         elif self.cacher.is_cached(fn_otherspin):
-            log.info('found "{}"'.format(fn_otherspin))
+            log.debug('found "{}"'.format(fn_otherspin))
             obs = np.array(self.cacher.load(fn_otherspin))
             if space == 'map':
                 if self.spin == 2:
@@ -761,7 +761,7 @@ class Xobs:
                     obs = np.array([obs1, obs2])
             self.cacher.cache(fn, obs)
         elif self.cacher.is_cached(fn_otherspace):
-            log.info('found "{}"'.format(fn_otherspace))
+            log.debug('found "{}"'.format(fn_otherspace))
             obs = np.array(self.cacher.load(fn_otherspace))
             if field == 'polarization':
                 if self.space == 'alm':
@@ -785,7 +785,7 @@ class Xobs:
                     obs = self.geom_lib.map2alm(obs, lmax=self.lmax, mmax=self.lmax, nthreads=4)
             self.cacher.cache(fn, obs)
         elif self.cacher.is_cached(fn_otherspacespin):
-            log.info('found "{}"'.format(fn_otherspacespin))
+            log.debug('found "{}"'.format(fn_otherspacespin))
             obs = np.array(self.cacher.load(fn_otherspacespin))
             if self.space == 'alm':
                 obs = self.geom_lib.alm2map_spin(obs, lmax=self.lmax, spin=spin, mmax=self.lmax, nthreads=4)
