@@ -94,7 +94,7 @@ class sims_cmb_len(object):
         try:
             import lenspyx
         except ImportError:
-            log.info("Could not import lenspyx module")
+            log.error("Could not import lenspyx module")
             lenspyx = None
         self.lens_module = lenspyx
         self.verbose=verbose

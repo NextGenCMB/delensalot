@@ -88,7 +88,7 @@ class template_bfilt(object):
         self.lmax = lmax_marg
         self.nmodes = int((lmax_marg + 1) * lmax_marg + lmax_marg + 1 - 4)
         if not np.all(geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
-            log.info('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
+            log.debug('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
             geom_ = utils_geom.Geom(geom.theta.copy(), geom.phi0.copy(), geom.nph.copy(), geom.ofs.copy(), np.ones(len(geom.ofs), dtype=float))
         else:
             geom_ = geom
@@ -245,6 +245,7 @@ class template_bfilt(object):
         else: #Here, we assume that NiQQ = NiUU, and NiQU is negligible
             NiQQ, NiUU, NiQU = NiQQ_NiUU_NiQU[0], NiQQ_NiUU_NiQU[0], None
         assert self.nmodes <= 99999, 'ops, naming in the lines below'
+        log.info("number of rows for tnit: {}".format(self.nmodes))
         if not os.path.exists(os.path.join(self.lib_dir, 'rows')):
             os.makedirs(os.path.join(self.lib_dir, 'rows'))
         for ai, a in enumerate_progress(range(self.nmodes)[mpi.rank::mpi.size], label='Calculating Pmat row'):
@@ -273,8 +274,8 @@ class template_dense(template_bfilt):
     def tniti(self):
         if self._tniti is None:
             self._tniti = read_map(os.path.join(self.lib_dir, 'tniti.npy')) * self.rescal
-            log.info("reading " +os.path.join(self.lib_dir, 'tniti.npy') )
-            log.info("Rescaling it with %.5f"%self.rescal)
+            log.debug("reading " +os.path.join(self.lib_dir, 'tniti.npy') )
+            log.debug("Rescaling it with %.5f"%self.rescal)
         return self._tniti
 
 
@@ -311,11 +312,11 @@ class eblm_filter_ninv(opfilt_pp.alm_filter_ninv):
                     log.info("**** RESCALING tiniti with %.4f"%_bmarg_rescal)
                     self.tniti *= _bmarg_rescal
             else:
-                log.info("Inverting template matrix:")
+                log.debug("Inverting template matrix:")
                 tnit = self.templates[0].build_tnit((self.n_inv[0], self.n_inv[0], None))
                 eigv, eigw = np.linalg.eigh(tnit)
                 if not np.all(eigv > 0):
-                    log.info('Negative or zero eigenvalues in template projection')
+                    log.debug('Negative or zero eigenvalues in template projection')
                 eigv_inv = utils.cli(eigv)
                 self.tniti = np.dot(np.dot(eigw, np.diag(eigv_inv)), np.transpose(eigw))
                 if _bmarg_lib_dir is not None and not os.path.exists(os.path.join(_bmarg_lib_dir, 'tniti.npy')):
@@ -345,7 +346,7 @@ class eblm_filter_ninv(opfilt_pp.alm_filter_ninv):
                     qmap -= pmodes[0]
                     umap -= pmodes[1]
             else:
-                log.info("apply_map: cuts %s %s"%(self.blm_range[0], self.blm_range[1]))
+                log.debug("apply_map: cuts %s %s"%(self.blm_range[0], self.blm_range[1]))
                 elm, blm = lug.map2alm_spin(np.array([qmap, umap]), 2, lmax=min(3 * self.nside - 1, self.blm_range[1]), mmax=min(3 * self.nside - 1, self.blm_range[1]), nthreads=4)
                 if self.blm_range[0] > 2: # approx taking out the low-ell B-modes
                     b_ftl = np.ones(hp.Alm.getlmax(blm.size) + 1, dtype=float)

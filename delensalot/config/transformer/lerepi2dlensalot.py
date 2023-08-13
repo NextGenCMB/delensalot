@@ -62,7 +62,6 @@ class l2base_Transformer:
         dl.beam = an.beam
         dl.mask_fn = an.mask
         dl.k = an.key
-        dl.reconstruction_method = an.reconstruction_method
         dl.lmin_teb = an.lmin_teb
         dl.version = an.version
         dl.simidxs = an.simidxs
@@ -679,8 +678,9 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
                     if os.path.isfile(opj(dl.libdir,'tniti.npy')):
                         # TODO need to test if it is the right tniti.npy
+                        # TODO dont exit, rather skip job
                         log.warning("tniti.npy in destination dir {} already exists.".format(dl.libdir))
-                        log.warning("Exiting. Please check your settings.")
+                        log.warning("Please check your settings.")
 
 
                 @log_on_start(logging.DEBUG, "_process_Noisemodel() started")
@@ -730,7 +730,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 def _process_Computing(dl, co):
                     dl.tr = co.OMP_NUM_THREADS
                     os.environ["OMP_NUM_THREADS"] = str(dl.tr)
-                    log.info("OMP_NUM_THREADS: {} and {}".format(dl.tr, os.environ.get('OMP_NUM_THREADS')))
+                    log.debug("OMP_NUM_THREADS: {} and {}".format(dl.tr, os.environ.get('OMP_NUM_THREADS')))
 
 
                 @log_on_start(logging.DEBUG, "_process_Analysis() started")
@@ -746,8 +746,9 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 def _process_Noisemodel(dl, nm):
                     dl.nivjob_geomlib = get_geom(nm.geominfo)
                     dl.nivjob_geominfo = nm.geominfo
-                    thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
-                    dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
+                    # thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
+                    ## this is for delensing, and pospace doesn't support truncated maps, therefore no restrict here
+                    # dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
                     dl.nlev = l2OBD_Transformer.get_nlev(cf)
 
 

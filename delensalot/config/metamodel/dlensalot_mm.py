@@ -129,7 +129,6 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     """
     key =                   attr.field(default=DEFAULT_NotAValue, validator=analysis.key)
     version =               attr.field(default=DEFAULT_NotAValue, validator=analysis.version) # TODO either make it more useful, or remove
-    reconstruction_method = attr.field(default=DEFAULT_NotAValue, validator=analysis.reconstruction_method) # TODO implement if needed
     simidxs =               attr.field(default=DEFAULT_NotAValue, validator=analysis.simidxs)
     simidxs_mf =            attr.field(default=DEFAULT_NotAValue, validator=analysis.simidxs_mf)
     TEMP_suffix =           attr.field(default=DEFAULT_NotAValue, validator=analysis.TEMP_suffix)
@@ -224,7 +223,6 @@ class DLENSALOT_Noisemodel(DLENSALOT_Concept):
     OBD =                   attr.field(default=DEFAULT_NotAValue, validator=noisemodel.OBD)
     nlev =                  attr.field(default=DEFAULT_NotAValue, validator=noisemodel.nlev_t)
     geominfo =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geominfo) # FIXME this must match the data geominfo.. validate accordingly
-    zbounds =               attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geominfo) # FIXME is this used? How is it different to Analysis.zbounds?
     rhits_normalised =      attr.field(default=DEFAULT_NotAValue, validator=noisemodel.rhits_normalised)
     nivt_map =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geominfo) # TODO test if it works
     nivp_map =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geominfo) # TODO test if it works
@@ -448,9 +446,9 @@ class DLENSALOT_Model(DLENSALOT_Concept):
                         else:
                             if key not in ['simulationdata']:
                                 # It is ok to not have defaults for simulationdata, as the simlib will handle it
-                                log.info('{}: couldnt find matching default value for {}'.format(key, k))
+                                log.debug('{}: couldnt find matching default value for {}'.format(key, k))
                     else:
-                        log.info('couldnt find matching default value for key {}'.format(key))
+                        log.debug('couldnt find matching default value for key {}'.format(key))
                 elif callable(v):
                     # Cannot evaluate functions, so hopefully they didn't change..
                     pass

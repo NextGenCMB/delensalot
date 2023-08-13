@@ -412,7 +412,7 @@ class qlm_iterator(object):
         # get descent direction sk = - H_k gk : (rlm array). Will be cached directly
         sk_fname = 'rlm_sn_%s_%s' % (k, key)
         if not self.hess_cacher.is_cached(sk_fname):
-            log.info("calculating descent direction" )
+            log.debug("calculating descent direction" )
             t0 = time.time()
             incr = BFGS.get_mHkgk(alm2rlm(gradn), k)
             incr = alm2rlm(self.stepper.build_incr(incr, it))
@@ -654,7 +654,7 @@ class iterator_cstmf_bfgs0(iterator_cstmf):
         # get descent direction sk = - H_k gk : (rlm array). Will be cached directly
         sk_fname = 'rlm_sn_%s_%s' % (k + 1, key)
         if not self.hess_cacher.is_cached(sk_fname):
-            log.info("calculating descent direction")
+            log.debug("calculating descent direction")
             t0 = time.time()
             incr = BFGS.get_mHkgk(alm2rlm(gradn), k + 1)
             incr = alm2rlm(self.ensure_invertibility(self.get_hlm(it - 1, key), self.stepper.build_incr(incr, it), self.mmax_qlm))

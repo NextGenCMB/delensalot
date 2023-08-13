@@ -22,6 +22,8 @@ from plancklens import qresp, qest, qecl, utils
 from plancklens.qcinv import opfilt_pp
 from plancklens.filt import filt_util, filt_cinv, filt_simple
 
+from lenspyx.lensing import get_geom 
+
 from delensalot.utils import read_map
 from delensalot.utility import utils_qe, utils_sims
 from delensalot.utility.utils_hp import Alm, almxfl, alm_copy, gauss_beam
@@ -178,7 +180,7 @@ class OBD_builder(Basejob):
     @check_MPI
     def __init__(self, OBD_model):
         self.__dict__.update(OBD_model.__dict__)
-        b_transf = gauss_beam(df.a2r(self.beam), lmax=self.lmax)
+        b_transf = np.array([1])
         nivp = np.array(opfilt_pp.alm_filter_ninv(self.nivp_desc, b_transf, marge_qmaps=(), marge_umaps=()).get_ninv())
         self.sims_MAP = utils_sims.ztrunc_sims(np.zeros(shape=1), self.nivjob_geominfo[1]['nside'], [self.zbounds])
         self.nivp = np.array([self.sims_MAP.ztruncify(np) for np in nivp])
@@ -188,10 +190,11 @@ class OBD_builder(Basejob):
     @log_on_start(logging.DEBUG, "collect_jobs() started")
     @log_on_end(logging.DEBUG, "collect_jobs() finished")
     def collect_jobs(self):
-        # This fakes the collect/run structure, as bpl takes care of MPI 
-        jobs = [0]
+        jobs = []
+        if not os.path.isfile(opj(self.libdir,'tniti.npy')):
+            # This fakes the collect/run structure, as bpl takes care of MPI 
+            jobs = [0]  
         self.jobs = jobs
-
         return jobs
 
 
@@ -212,14 +215,15 @@ class OBD_builder(Basejob):
                 else:
                     tnit = np.load(self.libdir+ '/tnit.npy')
                 if not os.path.exists(self.libdir+ '/tniti.npy'):
-                    log.info('inverting')
+                    log.info(tnit.shape)
+                    log.debug('inverting')
                     tniti = np.linalg.inv(tnit + np.diag((1. / (self.nlev_dep / 180. / 60. * np.pi) ** 2) * np.ones(tnit.shape[0])))
                     np.save(self.libdir+ '/tniti.npy', tniti)
                     readme = '{}: tniti.npy. created from user {} using lerepi/delensalot with the following settings: {}'.format(getpass.getuser(), datetime.date.today(), self.__dict__)
                     with open(self.libdir+ '/README.txt', 'w') as f:
                         f.write(readme)
                 else:
-                    log.info('Matrix already created')
+                    log.debug('Matrix already created')
         mpi.barrier()
 
 
@@ -400,7 +404,6 @@ class Sim_generator(Basejob):
                     self.generate_obs(simidx)
                 if self.simulationdata.obs_lib.maps == DEFAULT_NotAValue:
                     self.simulationdata.purgecache()
-                log.info("rank {} (size {}) generated sim {}".format(mpi.rank, mpi.size, simidx))
         if np.all(self.simulationdata.maps == DEFAULT_NotAValue):
             self.postrun_sky()
             self.postrun_obs()
@@ -557,11 +560,12 @@ class QE_lr(Basejob):
         # FIXME is this right? what if analysis includes pixelwindow function?
         transf_elm_loc = gauss_beam(self.beam / 180 / 60 * np.pi, lmax=self.lm_max_ivf[0])
         if self.OBD:
+            nivjob_geomlib_ = get_geom(self.nivjob_geominfo)
             self.cinv_p = cinv_p_OBD.cinv_p(opj(self.libdir_QE, 'cinv_p'),
                 self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
-                transf_elm_loc[:self.lm_max_ivf[0]+1], self.nivp_desc, geom=self.nivjob_geomlib,
+                transf_elm_loc[:self.lm_max_ivf[0]+1], self.nivp_desc, geom=nivjob_geomlib_, #self.nivjob_geomlib,
                 chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol), bmarg_lmax=self.lmin_teb[2],
-                zbounds=self.zbounds, _bmarg_lib_dir=self.obd_libdir, _bmarg_rescal=self.obd_rescale,
+                zbounds=(-1,1), _bmarg_lib_dir=self.obd_libdir, _bmarg_rescal=self.obd_rescale,
                 sht_threads=self.tr)
         else:
             self.cinv_p = filt_cinv.cinv_p(opj(self.TEMP, 'cinv_p'),
@@ -647,15 +651,15 @@ class QE_lr(Basejob):
                     self.get_sim_qlm(int(idx))
                     log.info('{}/{}, finished job {}'.format(mpi.rank,mpi.size,idx))
                 if len(self.jobs[taski])>0:
-                    log.info('{} finished qe ivfs tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
+                    log.debug('{} finished qe ivfs tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
                     mpi.barrier()
                     # Tunneling the meanfield-calculation, so only rank 0 calculates it. Otherwise,
                     # some processes will try accessing it too fast, or calculate themselves, which results in
                     # an io error
-                    log.info("Done waiting. Rank 0 going to calculate meanfield-file.. everyone else waiting.")
+                    log.debug("Done waiting. Rank 0 going to calculate meanfield-file.. everyone else waiting.")
                     if mpi.rank == 0:
                         self.get_meanfield(int(idx))
-                        log.info("rank finished calculating meanfield-file.. everyone else waiting.")
+                        log.debug("rank finished calculating meanfield-file.. everyone else waiting.")
                     mpi.barrier()
 
             if task == 'calc_phi':

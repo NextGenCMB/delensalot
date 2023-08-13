@@ -107,7 +107,7 @@ class iterator_cstmf(delensalot.core.iterator.cs_iterator.qlm_iterator):
                 log.info("caching "  + fn_wf)
                 self.wf_cacher.cache(fn_wf, soltn)
             else:
-                log.info("Using cached WF solution at iter %s "%itr)
+                log.debug("Using cached WF solution at iter %s "%itr)
 
             t0 = time.time()
             if ffi.pbgeom.geom is self.k_geom and ffi.pbgeom.pbound == utils_geom.pbounds(0., 2 * np.pi):
