@@ -944,8 +944,12 @@ class MAP_lr(Basejob):
                             itlib_iterator.soltn_cond = self.soltn_cond(it)
                             itlib_iterator.iterate(it, 'p')
                             log.info('{}, simidx {} done with it {}'.format(mpi.rank, simidx, it))
-                    if self.simulationdata.obs_lib.maps == DEFAULT_NotAValue:
-                        self.simulationdata.purgecache()
+                    # If data is in memory only, don't purge simslib
+                    if type(self.simulationdata.obs_lib.maps) == np.array:
+                        pass
+                    else:
+                        if self.simulationdata.obs_lib.maps == DEFAULT_NotAValue:
+                            self.simulationdata.purgecache()
 
             if task == 'calc_meanfield':
                 # TODO I don't like barriers and not sure if they are still needed
@@ -959,8 +963,12 @@ class MAP_lr(Basejob):
                     self.itlib_iterator = transform(self, iterator_transformer(self, simidx, self.dlensalot_model))
                     for it in range(self.itmax + 1):
                         self.get_blt_it(simidx, it)
-                    if self.simulationdata.obs_lib.maps == DEFAULT_NotAValue:
-                        self.simulationdata.purgecache()
+                    # If data is in memory only, don't purge simslib
+                    if type(self.simulationdata.obs_lib.maps) == np.array:
+                        pass
+                    else:
+                        if self.simulationdata.obs_lib.maps == DEFAULT_NotAValue:
+                            self.simulationdata.purgecache()
 
 
     # # @base_exception_handler
