@@ -636,16 +636,19 @@ class QE_lr(Basejob):
         ## task may be set from MAP lensrec, as MAP lensrec has prereqs to QE lensrec
         ## if None, then this is a normal QE lensrec call
 
+        # blueprint for new task: calc_cinv
         # Only now instantiate aniso filter as it triggers an expensive computation
-        if self.qe_filter_directional == 'anisotropic':
-            if mpi.size > 1:
-                if mpi.rank == 0:
-                    mpi.disable()
-                    self.init_aniso_filter()
-                    mpi.enable()
-                    [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
-                else:
-                    mpi.receive(None, source=mpi.ANY_SOURCE)
+        if True:
+            # task == 'calc_phi':
+            if self.qe_filter_directional == 'anisotropic':
+                if mpi.size > 1:
+                    if mpi.rank == 0:
+                        mpi.disable()
+                        self.init_aniso_filter()
+                        mpi.enable()
+                        [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
+                    else:
+                        mpi.receive(None, source=mpi.ANY_SOURCE)
             
         _tasks = self.qe_tasks if task is None else [task]
         
