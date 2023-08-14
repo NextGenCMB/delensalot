@@ -109,7 +109,7 @@ DL_DEFAULT = {
     'noisemodel': {
         'sky_coverage': 'masked',
         'spectrum_type': 'white',
-        'OBD': False,
+        'OBD': 'trunc',
         'nlev': {'P': 1.0, 'T': 1./np.sqrt(2)},
         'rhits_normalised': None,
         'geominfo': ('healpix',{'nside': 2048}),

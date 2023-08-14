@@ -650,7 +650,6 @@ class QE_lr(Basejob):
                     self.get_plm(idx, self.QE_subtract_meanfield)
                     if self.simulationdata.obs_lib.maps == DEFAULT_NotAValue:
                         self.simulationdata.purgecache()
-                self.init_aniso_filter()
 
             if task == 'calc_meanfield':
                 if len(self.jobs[taski])>0:

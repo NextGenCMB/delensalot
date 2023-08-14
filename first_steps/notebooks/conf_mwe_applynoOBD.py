@@ -36,7 +36,7 @@ dlensalot_model = DLENSALOT_Model(
         CMB_fn = opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
     ),
     noisemodel = DLENSALOT_Noisemodel(
-        OBD = False,
+        OBD = 'trunc',
         sky_coverage = 'isotropic',
         spectrum_type = 'white',
         nlev = {'P': np.sqrt(2), 'T': np.sqrt(1)},
