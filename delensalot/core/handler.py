@@ -632,14 +632,21 @@ class QE_lr(Basejob):
     @log_on_start(logging.DEBUG, "QE.run(task={task}) started")
     @log_on_end(logging.DEBUG, "QE.run(task={task}) finished")
     def run(self, task=None):
-        ## TODO I think this can be removed now?
+        ## TODO following comment can be removed now?
         ## task may be set from MAP lensrec, as MAP lensrec has prereqs to QE lensrec
         ## if None, then this is a normal QE lensrec call
 
         # Only now instantiate aniso filter as it triggers an expensive computation
         if self.qe_filter_directional == 'anisotropic':
-            self.init_aniso_filter()
-
+            if mpi.size > 1:
+                if mpi.rank == 0:
+                    mpi.disable()
+                    self.init_aniso_filter()
+                    mpi.enable()
+                    [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
+                else:
+                    mpi.receive(None, source=mpi.ANY_SOURCE)
+            
         _tasks = self.qe_tasks if task is None else [task]
         
         for taski, task in enumerate(_tasks):

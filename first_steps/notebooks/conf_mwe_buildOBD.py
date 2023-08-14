@@ -28,7 +28,5 @@ dlensalot_model = DLENSALOT_Model(
     obd = DLENSALOT_OBD(
         libdir = opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100'),
         nlev_dep = 1e4,
-        beam = 1,
-        lmax = 1024
     )
 )
