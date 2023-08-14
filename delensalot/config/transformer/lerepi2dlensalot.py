@@ -661,8 +661,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 def _process_OBD(dl, od):
                     dl.libdir = od.libdir if type(od.libdir) == str else 'nopath'
                     dl.nlev_dep = od.nlev_dep
-                    dl.beam = od.beam
-                    dl.lmax = od.lmax
                     dl.rescale = od.rescale
 
                     if os.path.isfile(opj(dl.libdir,'tniti.npy')):

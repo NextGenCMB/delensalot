@@ -331,16 +331,12 @@ class DLENSALOT_OBD(DLENSALOT_Concept):
         libdir (str):       path to the OBD matrix
         rescale (float):    rescaling of OBD matrix amplitude. Useful if matrix already calculated, but noiselevel changed
         tpl (type):         function name for calculating OBD matrix
-        nlev_dep (float):   deprojection factor, or, strength of B-mode deprojection
-        lmax (int):         maximum multipole to deproject B-modes
-        beam (type):        TBD                         
+        nlev_dep (float):   deprojection factor, or, strength of B-mode deprojection                   
     """
     libdir =                attr.field(default=DEFAULT_NotAValue, validator=obd.libdir)
     rescale =               attr.field(default=DEFAULT_NotAValue, validator=obd.rescale) # TODO this is a very specific parameter.. keep?
     tpl =                   attr.field(default=DEFAULT_NotAValue, validator=obd.tpl)
     nlev_dep =              attr.field(default=DEFAULT_NotAValue, validator=obd.nlev_dep)
-    lmax =                  attr.field(default=DEFAULT_NotAValue, validator=obd.lmax)
-    beam =                  attr.field(default=DEFAULT_NotAValue, validator=obd.beam) # TODO why not use beam from analysis? or transfunction..
 
 @attr.s
 class DLENSALOT_Config(DLENSALOT_Concept):
