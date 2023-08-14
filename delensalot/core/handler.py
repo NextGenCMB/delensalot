@@ -600,7 +600,7 @@ class QE_lr(Basejob):
                 fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, utils.mchash(self.simidxs_mf)))
                 ## Skip if meanfield already calculated
                 if not os.path.isfile(fn_mf) or recalc:
-                    for simidx in self.simidxs:
+                    for simidx in np.array(list(set(np.concatenate([self.simidxs+self.simidxs_mf])))):
                         fn_qlm = opj(opj(self.libdir_QE, 'qlms_dd'), 'sim_%s_%04d.fits'%(self.k, simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
                         if not os.path.isfile(fn_qlm) or recalc:
                             _jobs.append(simidx)
