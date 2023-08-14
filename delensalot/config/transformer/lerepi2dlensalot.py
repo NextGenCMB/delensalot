@@ -132,7 +132,7 @@ class l2T_Transformer:
         else:       
             if cf.analysis.TEMP_suffix != '':
                 _suffix = cf.analysis.TEMP_suffix
-            _suffix += '_OBD' if cf.noisemodel.OBD else '_lminB'+str(cf.analysis.lmin_teb[2])
+            _suffix += '_OBD' if cf.noisemodel.OBD == 'OBD' else '_lminB'+str(cf.analysis.lmin_teb[2])
             TEMP =  opj(os.environ['SCRATCH'], 'analysis', _suffix)
 
             return TEMP
@@ -303,7 +303,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 def _process_OBD(dl, od):
                     dl.obd_libdir = od.libdir
                     dl.obd_rescale = od.rescale
-                    dl.tpl = template_dense(dl.lmin_teb[2], dl.nivjob_geomlib, dl.tr, _lib_dir=dl.obd_libdir, rescal=dl.obd_rescale)
+                    nivjob_geomlib_ = get_geom(cf.noisemodel.geominfo)
+                    dl.tpl = template_dense(dl.lmin_teb[2], nivjob_geomlib_, dl.tr, _lib_dir=dl.obd_libdir, rescal=dl.obd_rescale)
 
 
                 @log_on_start(logging.DEBUG, "_process_Simulation() started")
@@ -408,7 +409,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_Analysis(dl, cf.analysis)
                 _process_Noisemodel(dl, cf.noisemodel)
                 _process_Simulation(dl, cf.simulationdata)
-                if dl.OBD:
+                if dl.OBD == 'OBD':
                     _process_OBD(dl, cf.obd)
                 else:
                     dl.tpl = None
@@ -493,7 +494,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 def _process_OBD(dl, od):
                     dl.obd_libdir = od.libdir
                     dl.obd_rescale = od.rescale
-                    dl.tpl = template_dense(dl.lmin_teb[2], dl.nivjob_geomlib, dl.tr, _lib_dir=dl.obd_libdir, rescal=dl.obd_rescale)
+                    nivjob_geomlib_ = get_geom(cf.noisemodel.geominfo)
+                    dl.tpl = template_dense(dl.lmin_teb[2], nivjob_geomlib_, dl.tr, _lib_dir=dl.obd_libdir, rescal=dl.obd_rescale)
 
 
                 @log_on_start(logging.DEBUG, "_process_Simulation() started")
@@ -595,7 +597,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_Analysis(dl, cf.analysis)
                 _process_Noisemodel(dl, cf.noisemodel)
                 _process_Simulation(dl, cf.simulationdata)
-                if dl.OBD:
+                if dl.OBD  == 'OBD':
                     _process_OBD(dl, cf.obd)
                 else:
                     dl.tpl = None

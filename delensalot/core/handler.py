@@ -509,7 +509,6 @@ class QE_lr(Basejob):
                 self.qlms_dd = qest.library_sepTP(opj(self.libdir_QE, 'qlms_dd'), self.ivfs, self.ivfs, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
         elif self.qe_filter_directional == 'anisotropic':
             ## Wait for finished run(), as plancklens triggers cinv_calc...
-            # FIXME index must be the calc_phi-task index
             if len(self.collect_jobs()[0]) == 0:
                 self.init_aniso_filter()
 
@@ -559,7 +558,7 @@ class QE_lr(Basejob):
 
         # FIXME is this right? what if analysis includes pixelwindow function?
         transf_elm_loc = gauss_beam(self.beam / 180 / 60 * np.pi, lmax=self.lm_max_ivf[0])
-        if self.OBD:
+        if self.OBD == 'OBD':
             nivjob_geomlib_ = get_geom(self.nivjob_geominfo)
             self.cinv_p = cinv_p_OBD.cinv_p(opj(self.libdir_QE, 'cinv_p'),
                 self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
@@ -637,7 +636,7 @@ class QE_lr(Basejob):
         ## task may be set from MAP lensrec, as MAP lensrec has prereqs to QE lensrec
         ## if None, then this is a normal QE lensrec call
 
-        # Only now instantiate aniso filter
+        # Only now instantiate aniso filter as it triggers an expensive computation
         if self.qe_filter_directional == 'anisotropic':
             self.init_aniso_filter()
 
@@ -651,6 +650,7 @@ class QE_lr(Basejob):
                     self.get_plm(idx, self.QE_subtract_meanfield)
                     if self.simulationdata.obs_lib.maps == DEFAULT_NotAValue:
                         self.simulationdata.purgecache()
+                self.init_aniso_filter()
 
             if task == 'calc_meanfield':
                 if len(self.jobs[taski])>0:
@@ -659,7 +659,7 @@ class QE_lr(Basejob):
                     log.debug("Done waiting. Rank 0 going to calculate meanfield-file.. everyone else waiting.")
                     if mpi.rank == 0:
                         self.get_meanfield(int(idx))
-                        log.debug("rank finished calculating meanfield-file.. everyone else waiting.")
+                        log.debug("rank 0 finished calculating meanfield-file.. everyone else waiting.")
                     mpi.barrier()
 
             if task == 'calc_blt':
@@ -879,10 +879,6 @@ class MAP_lr(Basejob):
             else:
                 assert self.k not in ['p'], 'implement if needed, niv needs t map'
                 self.niv = np.array([self.sims_MAP.ztruncify(read_map(ni)) for ni in self.nivp_desc]) # inverse pixel noise map on consistent geometry
-            # if self.k in ['ptt']:
-            #     self.niv = read_map(self.nivt_desc) # inverse pixel noise map on consistent geometry
-            # else:
-            #     self.niv = [read_map(ni) for ni in self.nivp_desc] # inverse pixel noise map on consistent geometry
         elif self.it_filter_directional == 'isotropic':
             self.sims_MAP = self.simulationdata
         self.filter = self.get_filter()

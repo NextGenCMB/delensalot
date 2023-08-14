@@ -201,7 +201,7 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
     phi_lmax =      attr.field(default=DEFAULT_NotAValue, validator=data.phi_lmax)
     epsilon =       attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
     libdir_suffix = attr.field(default='generic', validator=data.libdir_suffix)
-    modifier =  attr.field(default=DEFAULT_NotAValue, validator=data.modifier)
+    modifier =      attr.field(default=DEFAULT_NotAValue, validator=data.modifier)
     
     
 @attr.s
@@ -212,7 +212,7 @@ class DLENSALOT_Noisemodel(DLENSALOT_Concept):
     Attributes:
         sky_coverage (str):     Can be either 'masked' or 'unmasked'
         spectrum_type (str):    TBD
-        OBD (str):              OBD identifier. Can be 'OBD', 'trunc', or None. Defines how lowest B-modes will be handled.
+        OBD (str):              OBD identifier. Can be 'OBD', 'trunc'. Defines how lowest B-modes will be handled.
         nlev_t (float):         (central) noise level of temperature data in muK arcmin.
         nlev_p (float):         (central) noise level of polarization data in muK arcmin.
         rhits_normalised (str): path to the hits-count map, used to calculate the noise levels, and the mask tracing the noise level. Second entry in tuple is the <inverse hits-count multiplier>.
