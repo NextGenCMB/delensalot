@@ -586,14 +586,6 @@ class QE_lr(Basejob):
             ## calc_mf -> calc_phi, calc_blt -> calc_phi, (calc_mf)
             _jobs = []
 
-            if task == 'calc_meanfield':
-                fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, utils.mchash(self.simidxs_mf)))
-                if not os.path.isfile(fn_mf) or recalc:
-                    for simidx in self.simidxs_mf:
-                        fn_qlm = opj(opj(self.libdir_QE, 'qlms_dd'), 'sim_%s_%04d.fits'%(self.k, simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
-                        if not os.path.isfile(fn_qlm) or recalc:
-                            _jobs.append(int(simidx))
-
             ## Calculate realization dependent phi, i.e. plm_it000.
             if task == 'calc_phi':
                 ## this filename must match plancklens filename
@@ -604,6 +596,14 @@ class QE_lr(Basejob):
                         fn_qlm = opj(opj(self.libdir_QE, 'qlms_dd'), 'sim_%s_%04d.fits'%(self.k, simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
                         if not os.path.isfile(fn_qlm) or recalc:
                             _jobs.append(simidx)
+
+            if task == 'calc_meanfield':
+                fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, utils.mchash(self.simidxs_mf)))
+                if not os.path.isfile(fn_mf) or recalc:
+                    for simidx in self.simidxs_mf:
+                        fn_qlm = opj(opj(self.libdir_QE, 'qlms_dd'), 'sim_%s_%04d.fits'%(self.k, simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
+                        if not os.path.isfile(fn_qlm) or recalc:
+                            _jobs.append(int(simidx))
 
             ## Calculate B-lensing template
             if task == 'calc_blt':
@@ -633,6 +633,7 @@ class QE_lr(Basejob):
     @log_on_start(logging.DEBUG, "QE.run(task={task}) started")
     @log_on_end(logging.DEBUG, "QE.run(task={task}) finished")
     def run(self, task=None):
+        ## TODO I think this can be removed now?
         ## task may be set from MAP lensrec, as MAP lensrec has prereqs to QE lensrec
         ## if None, then this is a normal QE lensrec call
 
@@ -645,28 +646,21 @@ class QE_lr(Basejob):
         for taski, task in enumerate(_tasks):
             log.info('{}, task {} started'.format(mpi.rank, task))
 
-            if task == 'calc_meanfield':
-                for idx in self.jobs[taski][mpi.rank::mpi.size]:
-                    # In principle it is enough to calculate qlms. 
-                    self.get_sim_qlm(int(idx))
-                    log.info('{}/{}, finished job {}'.format(mpi.rank,mpi.size,idx))
-                if len(self.jobs[taski])>0:
-                    log.debug('{} finished qe ivfs tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
-                    mpi.barrier()
-                    # Tunneling the meanfield-calculation, so only rank 0 calculates it. Otherwise,
-                    # some processes will try accessing it too fast, or calculate themselves, which results in
-                    # an io error
-                    log.debug("Done waiting. Rank 0 going to calculate meanfield-file.. everyone else waiting.")
-                    if mpi.rank == 0:
-                        self.get_meanfield(int(idx))
-                        log.debug("rank finished calculating meanfield-file.. everyone else waiting.")
-                    mpi.barrier()
-
             if task == 'calc_phi':
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
                     self.get_plm(idx, self.QE_subtract_meanfield)
                     if self.simulationdata.obs_lib.maps == DEFAULT_NotAValue:
                         self.simulationdata.purgecache()
+
+            if task == 'calc_meanfield':
+                if len(self.jobs[taski])>0:
+                    log.debug('{} finished qe ivfs tasks. Waiting for all ranks to start mf calculation'.format(mpi.rank))
+                    mpi.barrier()
+                    log.debug("Done waiting. Rank 0 going to calculate meanfield-file.. everyone else waiting.")
+                    if mpi.rank == 0:
+                        self.get_meanfield(int(idx))
+                        log.debug("rank finished calculating meanfield-file.. everyone else waiting.")
+                    mpi.barrier()
 
             if task == 'calc_blt':
                 for simidx in self.jobs[taski][mpi.rank::mpi.size]:
