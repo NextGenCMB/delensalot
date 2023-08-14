@@ -317,24 +317,19 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 @log_on_end(logging.DEBUG, "_process_Qerec() finished")
                 def _process_Qerec(dl, qe):
                     dl.blt_pert = qe.blt_pert
-                    dl.qe_tasks = qe.tasks
                     dl.QE_subtract_meanfield = False if dl.version == 'noMF' else True
-                    ## if QE_subtract_meanfield is True, mean-field needs to be calculated either way.
-                    ## also move calc_meanfield to the front, so it is calculated first. The following lines assume that all other tasks are in the right order...
-                    ## TODO allow user to provide task-list unsorted
-                    if 'calc_phi' in dl.qe_tasks:
-                        if dl.QE_subtract_meanfield:
-                            if 'calc_meanfield' not in dl.qe_tasks:
-                                dl.qe_tasks = ['calc_meanfield'].append(dl.qe_tasks)
-                            elif dl.qe_tasks[0] != 'calc_meanfield':
-                                if dl.qe_tasks[1] == 'calc_meanfield':
-                                    buffer = copy.deepcopy(dl.qe_tasks[0])
-                                    dl.qe_tasks[0] = 'calc_meanfield'
-                                    dl.qe_tasks[1] = buffer
-                                else:
-                                    buffer = copy.deepcopy(dl.qe_tasks[0])
-                                    dl.qe_tasks[0] = 'calc_meanfield'
-                                    dl.qe_tasks[2] = buffer
+                    if dl.QE_subtract_meanfield:
+                        qe_tasks_sorted = ['calc_phi', 'calc_meanfield', 'calc_blt']
+                    else:
+                        qe_tasks_sorted = ['calc_phi', 'calc_blt']
+                    qe_tasks_extracted = []
+                    for taski, task in enumerate(qe_tasks_sorted):
+                        if task in qe.tasks:
+                            qe_tasks_extracted.append(task)
+                        else:
+                            break
+                    dl.qe_tasks = qe_tasks_extracted
+                        
                     dl.lm_max_qlm = qe.lm_max_qlm
                     dl.qlm_type = qe.qlm_type
 
@@ -515,24 +510,18 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.nivt_desc = l2OBD_Transformer.get_nivt_desc(cf, dl)
                     dl.nivp_desc = l2OBD_Transformer.get_nivp_desc(cf, dl)
                     dl.blt_pert = qe.blt_pert
-                    dl.qe_tasks = qe.tasks
                     dl.QE_subtract_meanfield = False if dl.version == 'noMF' else True
-                    ## if QE_subtract_meanfield is True, mean-field needs to be calculated either way.
-                    ## also move calc_meanfield to the front, so it is calculated first. The following lines assume that all other tasks are in the right order...
-                    ## TODO allow user to provide task-list unsorted
-                    if 'calc_phi' in dl.qe_tasks:
-                        if dl.QE_subtract_meanfield:
-                            if 'calc_meanfield' not in dl.qe_tasks:
-                                dl.qe_tasks = ['calc_meanfield'].append(dl.qe_tasks)
-                            elif dl.qe_tasks[0] != 'calc_meanfield':
-                                if dl.qe_tasks[1] == 'calc_meanfield':
-                                    buffer = copy.deepcopy(dl.qe_tasks[0])
-                                    dl.qe_tasks[0] = 'calc_meanfield'
-                                    dl.qe_tasks[1] = buffer
-                                else:
-                                    buffer = copy.deepcopy(dl.qe_tasks[0])
-                                    dl.qe_tasks[0] = 'calc_meanfield'
-                                    dl.qe_tasks[2] = buffer
+                    if dl.QE_subtract_meanfield:
+                        qe_tasks_sorted = ['calc_phi', 'calc_meanfield', 'calc_blt']
+                    else:
+                        qe_tasks_sorted = ['calc_phi', 'calc_blt']
+                    qe_tasks_extracted = []
+                    for taski, task in enumerate(qe_tasks_sorted):
+                        if task in qe.tasks:
+                            qe_tasks_extracted.append(task)
+                        else:
+                            break
+                    dl.qe_tasks = qe_tasks_extracted
                     dl.lm_max_qlm = qe.lm_max_qlm
                     dl.qlm_type = qe.qlm_type
                     dl.cg_tol = qe.cg_tol

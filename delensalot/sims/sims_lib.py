@@ -701,8 +701,8 @@ class Xobs:
                         else:
                             obs1 = load_file(opj(self.libdir, self.fns['E'].format(simidx)))
                             obs2 = load_file(opj(self.libdir, self.fns['B'].format(simidx)))
-                        obs1 = self.modifier(obs1)
-                        obs2 = self.modifier(obs2)                
+                    obs1 = self.modifier(obs1)
+                    obs2 = self.modifier(obs2)                
                     obs = np.array([obs1, obs2])
                     if self.space == 'map':
                         if space == 'map':
