@@ -73,6 +73,7 @@ class Basejob():
             os.makedirs(self.libdir_QE)
         self.libdir_MAP = lambda qe_key, simidx, version: opj(self.TEMP, 'MAP/%s'%(qe_key), 'sim%04d'%(simidx) + version)
         for simidx in np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))), dtype=int):
+            ## calculates all plms even for mf indices. This is not necessarily requested due to potentially simidxs =/= simidxs_mf, but otherwise collect and run must be adapted and its ok like this.
             libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
             if not os.path.exists(libdir_MAPidx):
                 os.makedirs(libdir_MAPidx)
