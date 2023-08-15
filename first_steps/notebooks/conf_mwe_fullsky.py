@@ -6,9 +6,9 @@ Parameters not listed here default to 'P_FS_CMBS4'
 
 import numpy as np
 import os
-import delensalot
 from os.path import join as opj
 
+import delensalot
 import delensalot.core.power.pospace as pospace
 from delensalot.utility.utils_hp import gauss_beam
 from delensalot.config.config_helper import LEREPI_Constants as lc

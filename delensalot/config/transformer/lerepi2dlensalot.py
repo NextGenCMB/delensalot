@@ -125,8 +125,8 @@ class l2T_Transformer:
     """global access for custom TEMP directory name, so that any job stores the data at the same place.
     """
 
-    # #@log_on_start(logging.INFO, "build() started")
-    # #@log_on_end(logging.INFO, "build() finished")
+    # #@log_on_start(logging.DEBUG, "build() started")
+    # #@log_on_end(logging.DEBUG, "build() finished")
     def build(self, cf):
         if cf.job.jobs == ['build_OBD']:
             return cf.obd.libdir
@@ -253,8 +253,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
     def build_QE_lensrec(self, cf):
         """Transformer for generating a delensalot model for the lensing reconstruction jobs (QE and MAP)
         """
-        #@log_on_start(logging.INFO, "extract() started")
-        #@log_on_end(logging.INFO, "extract() finished")
+        #@log_on_start(logging.DEBUG, "extract() started")
+        #@log_on_end(logging.DEBUG, "extract() finished")
         def extract():
             def _process_components(dl):
                 #@log_on_start(logging.DEBUG, "_process_Meta() started")
@@ -425,12 +425,13 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_Itrec(dl, cf.itrec)
 
                 # TODO this needs cleaner implementation. 
-                if 'smoothed_phi_empiric_halofit' in cf.analysis.cpp:
+                if 'smoothed_phi_empiric_halofit' in cf.analysis.cpp[0]:
                     dl.cpp = np.load(cf.analysis.cpp)[:dl.lm_max_qlm[0] + 1,1]
                 elif cf.analysis.cpp.endswith('dat'):
                     # assume its a camb-like file
                     dl.cpp = camb_clfile(cf.analysis.cpp)['pp'][:dl.lm_max_qlm[0] + 1] 
                 elif os.path.exists(os.path.dirname(cf.analysis.cpp)):
+                    # FIXME this implicitly assumes that all cpp.npy comes as convergence
                     dl.cpp = np.load(cf.analysis.cpp)[:dl.lm_max_qlm[0] + 1,1]
                     LL = np.arange(0,dl.lm_max_qlm[0] + 1,1)
                     k2p = lambda x: np.nan_to_num(x/(LL*(LL+1))**2/(2*np.pi))
@@ -453,8 +454,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
     def build_MAP_lensrec(self, cf):
         """Transformer for generating a delensalot model for the lensing reconstruction jobs (QE and MAP)
         """
-        #@log_on_start(logging.INFO, "extract() started")
-        #@log_on_end(logging.INFO, "extract() finished")
+        #@log_on_start(logging.DEBUG, "extract() started")
+        #@log_on_end(logging.DEBUG, "extract() finished")
         def extract():
             def _process_components(dl):
                 #@log_on_start(logging.DEBUG, "_process_Meta() started")
@@ -642,12 +643,12 @@ class l2delensalotjob_Transformer(l2base_Transformer):
     def build_OBD_builder(self, cf):
         """Transformer for generating a delensalot model for the lensing reconstruction jobs (QE and MAP)
         """
-        #@log_on_start(logging.INFO, "extract() started")
-        #@log_on_end(logging.INFO, "extract() finished")
+        #@log_on_start(logging.DEBUG, "extract() started")
+        #@log_on_end(logging.DEBUG, "extract() finished")
         def extract():
             def _process_components(dl):
-                #@log_on_start(logging.INFO, "_process_Computing() started")
-                #@log_on_end(logging.INFO, "_process_Computing() finished")
+                #@log_on_start(logging.DEBUG, "_process_Computing() started")
+                #@log_on_end(logging.DEBUG, "_process_Computing() finished")
                 def _process_Computing(dl, co):
                     dl.tr = int(os.environ.get('OMP_NUM_THREADS', co.OMP_NUM_THREADS))
 
@@ -707,8 +708,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
     def build_delenser(self, cf):
         """Transformer for generating a delensalot model for the lensing reconstruction jobs (QE and MAP)
         """
-        #@log_on_start(logging.INFO, "extract() started")
-        #@log_on_end(logging.INFO, "extract() finished")
+        #@log_on_start(logging.DEBUG, "extract() started")
+        #@log_on_end(logging.DEBUG, "extract() finished")
         def extract():
             def _process_components(dl):
                 #@log_on_start(logging.DEBUG, "_process_Meta() started")
@@ -884,7 +885,17 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_Qerec(dl, cf.qerec)
                 _process_Itrec(dl, cf.itrec)
 
-                dl.cpp = camb_clfile(cf.analysis.cpp)['pp'][:dl.lm_max_qlm[0] + 1]
+                if 'smoothed_phi_empiric_halofit' in cf.analysis.cpp[0]:
+                    dl.cpp = np.load(cf.analysis.cpp)[:dl.lm_max_qlm[0] + 1,1]
+                elif cf.analysis.cpp.endswith('dat'):
+                    # assume its a camb-like file
+                    dl.cpp = camb_clfile(cf.analysis.cpp)['pp'][:dl.lm_max_qlm[0] + 1] 
+                elif os.path.exists(os.path.dirname(cf.analysis.cpp)):
+                    # FIXME this implicitly assumes that all cpp.npy comes as convergence
+                    dl.cpp = np.load(cf.analysis.cpp)[:dl.lm_max_qlm[0] + 1,1]
+                    LL = np.arange(0,dl.lm_max_qlm[0] + 1,1)
+                    k2p = lambda x: np.nan_to_num(x/(LL*(LL+1))**2/(2*np.pi))
+                    dl.cpp = k2p(dl.cpp)
                 dl.cpp[:dl.Lmin] *= 0.
 
                 return dl
