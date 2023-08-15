@@ -2,20 +2,19 @@ from __future__ import annotations
 
 import numpy as np
 from lenspyx.remapping import utils_geom
-from plancklens.sims import maps
 
 
 class ztrunc_sims:
-    """From a plancklens-style simlib instance on a healpix pixelization makes one returning only a subset of rings
+    """simlib instance on a healpix pixelization makes one returning only a subset of rings
 
         Args:
-            sims: plancklens-style simulation library (wants a get_sim_pmap and get_sim_tmap method)
+            sims: simulation library (wants a get_sim_pmap and get_sim_tmap method)
             nside: healpix resolution of the maps
             zbounds_list: list of non-overlapping inclusive colat bounds. ( [(-1, 1)] for full map )
 
 
     """
-    def __init__(self, sims:maps.cmb_maps, nside:int, zbounds_list:list[tuple[float, float]]):
+    def __init__(self, sims, nside:int, zbounds_list:list[tuple[float, float]]):
         self.sims = sims
 
         hp_geom  = utils_geom.Geom.get_healpix_geometry(nside)
@@ -39,7 +38,6 @@ class ztrunc_sims:
 
     def get_sim_pmap(self, idx):
         Q, U = self.sims.get_sim_pmap(idx)
-        print(Q.shape, U.shape)
         return self.ztruncify(Q), self.ztruncify(U)
 
     def get_sim_tmap(self, idx):

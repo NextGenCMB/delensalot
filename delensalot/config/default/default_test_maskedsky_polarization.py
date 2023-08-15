@@ -29,7 +29,6 @@ DL_DEFAULT = {
         'simidxs_mf': [],
         'zbounds': (-1,1),
         'zbounds_len': (-1,1),
-        'pbounds': (0., 2*np.pi),
         'lm_max_len': (1536, 1536),
         'mask': None,
         'cls_unl': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
@@ -109,7 +108,7 @@ DL_DEFAULT = {
     'noisemodel': {
         'sky_coverage': 'masked',
         'spectrum_type': 'white',
-        'OBD': False,
+        'OBD': 'trunc',
         'nlev': {'P': 1.0, 'T': 1./np.sqrt(2)},
         'rhits_normalised': None,
         'geominfo': ('healpix',{'nside': 1024}),

@@ -29,7 +29,9 @@ class base_iterator():
         if not os.path.exists(self.libdir_iterator):
             os.makedirs(self.libdir_iterator)
 
-        self.tr = self.iterator_config.tr 
+        self.tr = self.iterator_config.tr
+        if self.qe.qe_filter_directional == 'anisotropic':
+            self.qe.init_aniso_filter()
         self.wflm0 = self.qe.get_wflm(self.simidx)
         self.R_unl0 = self.qe.R_unl()
         self.mf0 = self.qe.get_meanfield(self.simidx) if self.QE_subtract_meanfield else np.zeros(shape=hp.Alm.getsize(self.lm_max_qlm[0]))
@@ -65,8 +67,8 @@ class base_iterator():
                 return ret
         else:
             if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
-                print('returning get_sim_pmap from sims_MAP')
-                return np.array(self.sims_MAP.get_sim_pmap(self.simidx))
+                print(self.sims_MAP.get_sim_pmap(self.simidx))
+                return np.array(self.sims_MAP.get_sim_pmap(self.simidx), dtype=float)
             else:
                 assert 0, 'implement if needed'
         

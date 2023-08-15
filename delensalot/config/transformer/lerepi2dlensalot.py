@@ -18,9 +18,8 @@ import healpy as hp
 import hashlib
 
 ## TODO don't like this import here. Not sure how to remove
-from plancklens.qcinv import cd_solve
+from delensalot.core.cg import cd_solve
 
-from lenspyx.remapping import utils_geom as lug
 from lenspyx.remapping import deflection
 from lenspyx.lensing import get_geom 
 
@@ -31,7 +30,6 @@ from delensalot.utility.utils_hp import gauss_beam
 
 from delensalot.core.iterator import steps
 from delensalot.core.handler import OBD_builder, Sim_generator, QE_lr, MAP_lr, Map_delenser
-from delensalot.core.opfilt.bmodes_ninv import template_dense
 
 from delensalot.config.visitor import transform, transform3d
 from delensalot.config.config_helper import data_functions as df, LEREPI_Constants as lc
@@ -45,14 +43,14 @@ class l2base_Transformer:
         pass
 
 
-    #@log_on_start(logging.DEBUG, "process_Simulation() started")
-    #@log_on_end(logging.DEBUG, "process_Simulation() finished")
+    @log_on_start(logging.DEBUG, "process_Simulation() started")
+    @log_on_end(logging.DEBUG, "process_Simulation() finished")
     def process_Simulation(dl, si, cf):
         dl.simulationdata = Simhandler(**si.__dict__)
 
 
-    #@log_on_start(logging.DEBUG, "_process_Analysis() started")
-    #@log_on_end(logging.DEBUG, "_process_Analysis() finished")
+    @log_on_start(logging.DEBUG, "_process_Analysis() started")
+    @log_on_end(logging.DEBUG, "_process_Analysis() finished")
     def process_Analysis(dl, an, cf):
         if loglevel <= 20:
             dl.verbose = True
@@ -62,7 +60,6 @@ class l2base_Transformer:
         dl.beam = an.beam
         dl.mask_fn = an.mask
         dl.k = an.key
-        dl.reconstruction_method = an.reconstruction_method
         dl.lmin_teb = an.lmin_teb
         dl.version = an.version
         dl.simidxs = an.simidxs
@@ -89,16 +86,18 @@ class l2base_Transformer:
             dl.zbounds_len = an.zbounds_len
         dl.lm_max_ivf = an.lm_max_ivf
         dl.lm_max_blt = an.lm_max_blt
+
+
         dl.transfunction_desc = an.transfunction_desc
         if dl.transfunction_desc == 'gauss_no_pixwin':
             transf_tlm = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[0])
             transf_elm = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[1])
             transf_blm = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[2])
         elif dl.transfunction_desc == 'gauss_with_pixwin':
-            assert dl.nivjob_geominfo[0] == 'healpix', 'implement non-healpix pixelwindow function'
-            transf_tlm = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(dl.nivjob_geominfo[1]['nside'], lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[0])
-            transf_elm = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(dl.nivjob_geominfo[1]['nside'], lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[1])
-            transf_blm = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(dl.nivjob_geominfo[1]['nside'], lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[2])
+            assert cf.noisemodel.geominfo[0] == 'healpix', 'implement non-healpix pixelwindow function'
+            transf_tlm = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(cf.noisemodel.geominfo[1]['nside'], lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[0])
+            transf_elm = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(cf.noisemodel.geominfo[1]['nside'], lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[1])
+            transf_blm = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(cf.noisemodel.geominfo[1]['nside'], lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[2])
         dl.ttebl = {'t': transf_tlm, 'e': transf_elm, 'b':transf_blm}
 
         # Isotropic approximation to the filtering (used eg for response calculations)
@@ -114,8 +113,8 @@ class l2base_Transformer:
         dl.ftebl_unl = {'t': ftl_unl, 'e': fel_unl, 'b':fbl_unl}
 
 
-    #@log_on_start(logging.DEBUG, "_process_Meta() started")
-    #@log_on_end(logging.DEBUG, "_process_Meta() finished")
+    @log_on_start(logging.DEBUG, "_process_Meta() started")
+    @log_on_end(logging.DEBUG, "_process_Meta() finished")
     def process_Meta(dl, me, cf):
         dl.dversion = me.version
 
@@ -125,15 +124,15 @@ class l2T_Transformer:
     """global access for custom TEMP directory name, so that any job stores the data at the same place.
     """
 
-    # #@log_on_start(logging.DEBUG, "build() started")
-    # #@log_on_end(logging.DEBUG, "build() finished")
+    # @log_on_start(logging.DEBUG, "build() started")
+    # @log_on_end(logging.DEBUG, "build() finished")
     def build(self, cf):
         if cf.job.jobs == ['build_OBD']:
             return cf.obd.libdir
         else:       
             if cf.analysis.TEMP_suffix != '':
                 _suffix = cf.analysis.TEMP_suffix
-            _suffix += '_OBD' if cf.noisemodel.OBD else '_lminB'+str(cf.analysis.lmin_teb[2])
+            _suffix += '_OBD' if cf.noisemodel.OBD == 'OBD' else '_lminB'+str(cf.analysis.lmin_teb[2])
             TEMP =  opj(os.environ['SCRATCH'], 'analysis', _suffix)
 
             return TEMP
@@ -156,52 +155,52 @@ class l2OBD_Transformer:
     """Transformer for generating a delensalot model for the calculation of the OBD matrix
     """
 
-    #@log_on_start(logging.DEBUG, "get_nlev() started")
-    #@log_on_end(logging.DEBUG, "get_nlev() finished")
+    @log_on_start(logging.DEBUG, "get_nlev() started")
+    @log_on_end(logging.DEBUG, "get_nlev() finished")
     def get_nlev(cf):
         return cf.noisemodel.nlev
 
 
-    #@log_on_start(logging.DEBUG, "get_nivt_desc() started")
-    #@log_on_end(logging.DEBUG, "get_nivt_desc() finished")
+    @log_on_start(logging.DEBUG, "get_nivt_desc() started")
+    @log_on_end(logging.DEBUG, "get_nivt_desc() finished")
     def get_nivt_desc(cf, dl):
         nlev = l2OBD_Transformer.get_nlev(cf)
         masks, noisemodel_rhits_map =  l2OBD_Transformer.get_masks(cf, dl)
         noisemodel_norm = np.max(noisemodel_rhits_map)
         if cf.noisemodel.nivt_map is None:
             if dl.nivjob_geominfo[0] == 'healpix':
-                ninv_desc = [np.array([hp.nside2pixarea(dl.nivjob_geominfo[1]['nside'], degrees=True) * 60 ** 2 / nlev['T'] ** 2])/noisemodel_norm] + masks
+                niv_desc = [np.array([hp.nside2pixarea(dl.nivjob_geominfo[1]['nside'], degrees=True) * 60 ** 2 / nlev['T'] ** 2])/noisemodel_norm] + masks
             else:
                 assert 0, 'needs testing, please choose Healpix geom for nivjob for now'
-                vamin =  4*np.pi * (180/np.pi)**2 / dl.geom_lib.npix()
-                ninv_desc = [np.array([vamin * 60 ** 2 / nlev['T'] ** 2])/noisemodel_norm] + masks
+                vamin =  4*np.pi * (180/np.pi)**2 / get_geom(cf.itrec.lenjob_geominfo).npix()
+                niv_desc = [np.array([vamin * 60 ** 2 / nlev['T'] ** 2])/noisemodel_norm] + masks
         else:
             niv = np.load(cf.noisemodel.nivt_map)
-            ninv_desc = [niv] + masks
-        return ninv_desc
+            niv_desc = [niv] + masks
+        return niv_desc
 
 
-    #@log_on_start(logging.DEBUG, "get_nivp_desc() started")
-    #@log_on_end(logging.DEBUG, "get_nivp_desc() finished")
+    @log_on_start(logging.DEBUG, "get_nivp_desc() started")
+    @log_on_end(logging.DEBUG, "get_nivp_desc() finished")
     def get_nivp_desc(cf, dl):
         nlev = l2OBD_Transformer.get_nlev(cf)
         masks, noisemodel_rhits_map =  l2OBD_Transformer.get_masks(cf, dl)
         noisemodel_norm = np.max(noisemodel_rhits_map)
         if cf.noisemodel.nivp_map is None:
             if dl.nivjob_geominfo[0] == 'healpix':
-                ninv_desc = [[np.array([hp.nside2pixarea(dl.nivjob_geominfo[1]['nside'], degrees=True) * 60 ** 2 / nlev['P'] ** 2])/noisemodel_norm] + masks]
+                niv_desc = [[np.array([hp.nside2pixarea(dl.nivjob_geominfo[1]['nside'], degrees=True) * 60 ** 2 / nlev['P'] ** 2])/noisemodel_norm] + masks]
             else:
                 assert 0, 'needs testing, pleasechoose Healpix geom for nivjob for now'
-                vamin =  4*np.pi * (180/np.pi)**2 / dl.lenjob_geomlib.npix()
-                ninv_desc = [[np.array([vamin * 60 ** 2 / nlev['P'] ** 2])/noisemodel_norm] + masks]
+                vamin =  4*np.pi * (180/np.pi)**2 / get_geom(cf.itrec.lenjob_geominfo).npix()
+                niv_desc = [[np.array([vamin * 60 ** 2 / nlev['P'] ** 2])/noisemodel_norm] + masks]
         else:
             niv = np.load(cf.noisemodel.nivp_map)
-            ninv_desc = [[niv] + masks]
-        return ninv_desc
+            niv_desc = [[niv] + masks]
+        return niv_desc
 
 
-    #@log_on_start(logging.DEBUG, "get_masks() started")
-    #@log_on_end(logging.DEBUG, "get_masks() finished")
+    @log_on_start(logging.DEBUG, "get_masks() started")
+    @log_on_end(logging.DEBUG, "get_masks() finished")
     def get_masks(cf, dl):
         # TODO refactor. This here generates a mask from the rhits map..
         # but this should really be detached from one another
@@ -253,32 +252,32 @@ class l2delensalotjob_Transformer(l2base_Transformer):
     def build_QE_lensrec(self, cf):
         """Transformer for generating a delensalot model for the lensing reconstruction jobs (QE and MAP)
         """
-        #@log_on_start(logging.DEBUG, "extract() started")
-        #@log_on_end(logging.DEBUG, "extract() finished")
+        @log_on_start(logging.DEBUG, "extract() started")
+        @log_on_end(logging.DEBUG, "extract() finished")
         def extract():
             def _process_components(dl):
-                #@log_on_start(logging.DEBUG, "_process_Meta() started")
-                #@log_on_end(logging.DEBUG, "_process_Meta() finished")
+                @log_on_start(logging.DEBUG, "_process_Meta() started")
+                @log_on_end(logging.DEBUG, "_process_Meta() finished")
                 def _process_Meta(dl, me):
                     dl.dversion = me.version
 
 
-                #@log_on_start(logging.DEBUG, "_process_Computing() started")
-                #@log_on_end(logging.DEBUG, "_process_Computing() finished")
+                @log_on_start(logging.DEBUG, "_process_Computing() started")
+                @log_on_end(logging.DEBUG, "_process_Computing() finished")
                 def _process_Computing(dl, co):
                     dl.tr = co.OMP_NUM_THREADS
                     os.environ["OMP_NUM_THREADS"] = str(dl.tr)
 
 
-                #@log_on_start(logging.DEBUG, "_process_Analysis() started")
-                #@log_on_end(logging.DEBUG, "_process_Analysis() finished")
+                @log_on_start(logging.DEBUG, "_process_Analysis() started")
+                @log_on_end(logging.DEBUG, "_process_Analysis() finished")
                 def _process_Analysis(dl, an):
                     dl.nlev = l2OBD_Transformer.get_nlev(cf)
                     l2base_Transformer.process_Analysis(dl, an, cf)
 
 
-                #@log_on_start(logging.DEBUG, "_process_Noisemodel() started")
-                #@log_on_end(logging.DEBUG, "_process_Noisemodel() finished")
+                @log_on_start(logging.DEBUG, "_process_Noisemodel() started")
+                @log_on_end(logging.DEBUG, "_process_Noisemodel() finished")
                 def _process_Noisemodel(dl, nm):
                     dl.sky_coverage = nm.sky_coverage
                     dl.nivjob_geomlib = get_geom(nm.geominfo)
@@ -299,43 +298,37 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.nivp_desc = l2OBD_Transformer.get_nivp_desc(cf, dl)
 
 
-                #@log_on_start(logging.DEBUG, "_process_OBD() started")
-                #@log_on_end(logging.DEBUG, "_process_OBD() finished")
+                @log_on_start(logging.DEBUG, "_process_OBD() started")
+                @log_on_end(logging.DEBUG, "_process_OBD() finished")
                 def _process_OBD(dl, od):
                     dl.obd_libdir = od.libdir
                     dl.obd_rescale = od.rescale
-                    dl.tpl = template_dense(dl.lmin_teb[2], dl.nivjob_geomlib, dl.tr, _lib_dir=dl.obd_libdir, rescal=dl.obd_rescale)
 
 
-                #@log_on_start(logging.DEBUG, "_process_Simulation() started")
-                #@log_on_end(logging.DEBUG, "_process_Simulation() finished")       
+                @log_on_start(logging.DEBUG, "_process_Simulation() started")
+                @log_on_end(logging.DEBUG, "_process_Simulation() finished")       
                 def _process_Simulation(dl, si):
                     dl.libdir_suffix = cf.simulationdata.libdir_suffix
                     l2base_Transformer.process_Simulation(dl, si, cf)
 
 
-                #@log_on_start(logging.DEBUG, "_process_Qerec() started")
-                #@log_on_end(logging.DEBUG, "_process_Qerec() finished")
+                @log_on_start(logging.DEBUG, "_process_Qerec() started")
+                @log_on_end(logging.DEBUG, "_process_Qerec() finished")
                 def _process_Qerec(dl, qe):
                     dl.blt_pert = qe.blt_pert
-                    dl.qe_tasks = qe.tasks
                     dl.QE_subtract_meanfield = False if dl.version == 'noMF' else True
-                    ## if QE_subtract_meanfield is True, mean-field needs to be calculated either way.
-                    ## also move calc_meanfield to the front, so it is calculated first. The following lines assume that all other tasks are in the right order...
-                    ## TODO allow user to provide task-list unsorted
-                    if 'calc_phi' in dl.qe_tasks:
-                        if dl.QE_subtract_meanfield:
-                            if 'calc_meanfield' not in dl.qe_tasks:
-                                dl.qe_tasks = ['calc_meanfield'].append(dl.qe_tasks)
-                            elif dl.qe_tasks[0] != 'calc_meanfield':
-                                if dl.qe_tasks[1] == 'calc_meanfield':
-                                    buffer = copy.deepcopy(dl.qe_tasks[0])
-                                    dl.qe_tasks[0] = 'calc_meanfield'
-                                    dl.qe_tasks[1] = buffer
-                                else:
-                                    buffer = copy.deepcopy(dl.qe_tasks[0])
-                                    dl.qe_tasks[0] = 'calc_meanfield'
-                                    dl.qe_tasks[2] = buffer
+                    if dl.QE_subtract_meanfield:
+                        qe_tasks_sorted = ['calc_phi', 'calc_meanfield', 'calc_blt']
+                    else:
+                        qe_tasks_sorted = ['calc_phi', 'calc_blt']
+                    qe_tasks_extracted = []
+                    for taski, task in enumerate(qe_tasks_sorted):
+                        if task in qe.tasks:
+                            qe_tasks_extracted.append(task)
+                        else:
+                            break
+                    dl.qe_tasks = qe_tasks_extracted
+                        
                     dl.lm_max_qlm = qe.lm_max_qlm
                     dl.qlm_type = qe.qlm_type
 
@@ -357,8 +350,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.cl_analysis = qe.cl_analysis
 
 
-                #@log_on_start(logging.DEBUG, "_process_Itrec() started")
-                #@log_on_end(logging.DEBUG, "_process_Itrec() finished")
+                @log_on_start(logging.DEBUG, "_process_Itrec() started")
+                @log_on_end(logging.DEBUG, "_process_Itrec() finished")
                 def _process_Itrec(dl, it):
                     dl.it_tasks = it.tasks
                     dl.lm_max_unl = it.lm_max_unl
@@ -377,9 +370,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.lenjob_geomlib = get_geom(it.lenjob_geominfo)
                     thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
                     dl.lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
-                    if it.lenjob_pbdgeominfo[0] == 'pbd':
-                        dl.lenjob_pbdgeominfo = it.lenjob_pbdgeominfo
-                        dl.lenjob_pbdgeomlib = lug.pbdGeometry(dl.lenjob_geomlib, lug.pbounds(*it.lenjob_pbdgeominfo[1]))
 
                     # TODO this needs cleaner implementation
                     if dl.version == '' or dl.version == None:
@@ -417,10 +407,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_Analysis(dl, cf.analysis)
                 _process_Noisemodel(dl, cf.noisemodel)
                 _process_Simulation(dl, cf.simulationdata)
-                if dl.OBD:
-                    _process_OBD(dl, cf.obd)
-                else:
-                    dl.tpl = None
+                _process_OBD(dl, cf.obd)
                 _process_Qerec(dl, cf.qerec)
                 _process_Itrec(dl, cf.itrec)
 
@@ -454,32 +441,32 @@ class l2delensalotjob_Transformer(l2base_Transformer):
     def build_MAP_lensrec(self, cf):
         """Transformer for generating a delensalot model for the lensing reconstruction jobs (QE and MAP)
         """
-        #@log_on_start(logging.DEBUG, "extract() started")
-        #@log_on_end(logging.DEBUG, "extract() finished")
+        @log_on_start(logging.DEBUG, "extract() started")
+        @log_on_end(logging.DEBUG, "extract() finished")
         def extract():
             def _process_components(dl):
-                #@log_on_start(logging.DEBUG, "_process_Meta() started")
-                #@log_on_end(logging.DEBUG, "_process_Meta() finished")
+                @log_on_start(logging.DEBUG, "_process_Meta() started")
+                @log_on_end(logging.DEBUG, "_process_Meta() finished")
                 def _process_Meta(dl, me):
                     dl.dversion = me.version
 
 
-                #@log_on_start(logging.DEBUG, "_process_Computing() started")
-                #@log_on_end(logging.DEBUG, "_process_Computing() finished")
+                @log_on_start(logging.DEBUG, "_process_Computing() started")
+                @log_on_end(logging.DEBUG, "_process_Computing() finished")
                 def _process_Computing(dl, co):
                     dl.tr = co.OMP_NUM_THREADS
                     os.environ["OMP_NUM_THREADS"] = str(dl.tr)
 
 
-                #@log_on_start(logging.DEBUG, "_process_Analysis() started")
-                #@log_on_end(logging.DEBUG, "_process_Analysis() finished")
+                @log_on_start(logging.DEBUG, "_process_Analysis() started")
+                @log_on_end(logging.DEBUG, "_process_Analysis() finished")
                 def _process_Analysis(dl, an):
                     dl.nlev = l2OBD_Transformer.get_nlev(cf)
                     l2base_Transformer.process_Analysis(dl, an, cf)
 
 
-                #@log_on_start(logging.DEBUG, "_process_Noisemodel() started")
-                #@log_on_end(logging.DEBUG, "_process_Noisemodel() finished")
+                @log_on_start(logging.DEBUG, "_process_Noisemodel() started")
+                @log_on_end(logging.DEBUG, "_process_Noisemodel() finished")
                 def _process_Noisemodel(dl, nm):
                     dl.sky_coverage = nm.sky_coverage
                     dl.nivjob_geomlib = get_geom(nm.geominfo)
@@ -488,7 +475,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
                     if dl.sky_coverage == 'masked':
                         dl.rhits_normalised = nm.rhits_normalised
-                        dl.fsky = np.mean(l2OBD_Transformer.get_nivp_desc(cf, dl)[0][1]) ## calculating fsky, but quite expensive. and if ninvp changes, this could have negative effect on fsky calc
+                        dl.fsky = np.mean(l2OBD_Transformer.get_nivp_desc(cf, dl)[0][1]) ## calculating fsky, but quite expensive. and if nivp changes, this could have negative effect on fsky calc
                     else:
                         dl.fsky = 1.0
                     dl.spectrum_type = nm.spectrum_type
@@ -497,46 +484,39 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.nlev = l2OBD_Transformer.get_nlev(cf)
                     
 
-                #@log_on_start(logging.DEBUG, "_process_OBD() started")
-                #@log_on_end(logging.DEBUG, "_process_OBD() finished")
+                @log_on_start(logging.DEBUG, "_process_OBD() started")
+                @log_on_end(logging.DEBUG, "_process_OBD() finished")
                 def _process_OBD(dl, od):
                     dl.obd_libdir = od.libdir
                     dl.obd_rescale = od.rescale
-                    dl.tpl = template_dense(dl.lmin_teb[2], dl.nivjob_geomlib, dl.tr, _lib_dir=dl.obd_libdir, rescal=dl.obd_rescale)
 
 
-                #@log_on_start(logging.DEBUG, "_process_Simulation() started")
-                #@log_on_end(logging.DEBUG, "_process_Simulation() finished")       
+                @log_on_start(logging.DEBUG, "_process_Simulation() started")
+                @log_on_end(logging.DEBUG, "_process_Simulation() finished")       
                 def _process_Simulation(dl, si):
                     dl.libdir_suffix = cf.simulationdata.libdir_suffix
                     l2base_Transformer.process_Simulation(dl, si, cf)
 
 
-                #@log_on_start(logging.DEBUG, "_process_Qerec() started")
-                #@log_on_end(logging.DEBUG, "_process_Qerec() finished")
+                @log_on_start(logging.DEBUG, "_process_Qerec() started")
+                @log_on_end(logging.DEBUG, "_process_Qerec() finished")
                 def _process_Qerec(dl, qe):
 
                     dl.nivt_desc = l2OBD_Transformer.get_nivt_desc(cf, dl)
                     dl.nivp_desc = l2OBD_Transformer.get_nivp_desc(cf, dl)
                     dl.blt_pert = qe.blt_pert
-                    dl.qe_tasks = qe.tasks
                     dl.QE_subtract_meanfield = False if dl.version == 'noMF' else True
-                    ## if QE_subtract_meanfield is True, mean-field needs to be calculated either way.
-                    ## also move calc_meanfield to the front, so it is calculated first. The following lines assume that all other tasks are in the right order...
-                    ## TODO allow user to provide task-list unsorted
-                    if 'calc_phi' in dl.qe_tasks:
-                        if dl.QE_subtract_meanfield:
-                            if 'calc_meanfield' not in dl.qe_tasks:
-                                dl.qe_tasks = ['calc_meanfield'].append(dl.qe_tasks)
-                            elif dl.qe_tasks[0] != 'calc_meanfield':
-                                if dl.qe_tasks[1] == 'calc_meanfield':
-                                    buffer = copy.deepcopy(dl.qe_tasks[0])
-                                    dl.qe_tasks[0] = 'calc_meanfield'
-                                    dl.qe_tasks[1] = buffer
-                                else:
-                                    buffer = copy.deepcopy(dl.qe_tasks[0])
-                                    dl.qe_tasks[0] = 'calc_meanfield'
-                                    dl.qe_tasks[2] = buffer
+                    if dl.QE_subtract_meanfield:
+                        qe_tasks_sorted = ['calc_phi', 'calc_meanfield', 'calc_blt']
+                    else:
+                        qe_tasks_sorted = ['calc_phi', 'calc_blt']
+                    qe_tasks_extracted = []
+                    for taski, task in enumerate(qe_tasks_sorted):
+                        if task in qe.tasks:
+                            qe_tasks_extracted.append(task)
+                        else:
+                            break
+                    dl.qe_tasks = qe_tasks_extracted
                     dl.lm_max_qlm = qe.lm_max_qlm
                     dl.qlm_type = qe.qlm_type
                     dl.cg_tol = qe.cg_tol
@@ -559,8 +539,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.cl_analysis = qe.cl_analysis
 
 
-                #@log_on_start(logging.DEBUG, "_process_Itrec() started")
-                #@log_on_end(logging.DEBUG, "_process_Itrec() finished")
+                @log_on_start(logging.DEBUG, "_process_Itrec() started")
+                @log_on_end(logging.DEBUG, "_process_Itrec() finished")
                 def _process_Itrec(dl, it):
                     dl.it_tasks = it.tasks
                     dl.lm_max_unl = it.lm_max_unl
@@ -578,10 +558,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     
                     dl.lenjob_geominfo = it.lenjob_geominfo
                     dl.lenjob_geomlib = get_geom(it.lenjob_geominfo)
-                    if it.lenjob_pbdgeominfo[0] == 'pbd':
-                        dl.lenjob_pbdgeominfo = it.lenjob_pbdgeominfo
-                        dl.lenjob_pbdgeomlib = lug.pbdGeometry(dl.lenjob_geomlib, lug.pbounds(*it.lenjob_pbdgeominfo[1]))
-                    
+            
                     if dl.version == '' or dl.version == None:
                         dl.mf_dirname = opj(dl.TEMP, l2T_Transformer.ofj('mf', {'Nmf': dl.Nmf}))
                     else:
@@ -613,10 +590,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_Analysis(dl, cf.analysis)
                 _process_Noisemodel(dl, cf.noisemodel)
                 _process_Simulation(dl, cf.simulationdata)
-                if dl.OBD:
-                    _process_OBD(dl, cf.obd)
-                else:
-                    dl.tpl = None
+
+                _process_OBD(dl, cf.obd)
                 _process_Qerec(dl, cf.qerec)
                 _process_Itrec(dl, cf.itrec)
 
@@ -643,41 +618,53 @@ class l2delensalotjob_Transformer(l2base_Transformer):
     def build_OBD_builder(self, cf):
         """Transformer for generating a delensalot model for the lensing reconstruction jobs (QE and MAP)
         """
-        #@log_on_start(logging.DEBUG, "extract() started")
-        #@log_on_end(logging.DEBUG, "extract() finished")
+        @log_on_start(logging.DEBUG, "extract() started")
+        @log_on_end(logging.DEBUG, "extract() finished")
         def extract():
             def _process_components(dl):
-                #@log_on_start(logging.DEBUG, "_process_Computing() started")
-                #@log_on_end(logging.DEBUG, "_process_Computing() finished")
+                @log_on_start(logging.DEBUG, "_process_Computing() started")
+                @log_on_end(logging.DEBUG, "_process_Computing() finished")
                 def _process_Computing(dl, co):
                     dl.tr = int(os.environ.get('OMP_NUM_THREADS', co.OMP_NUM_THREADS))
 
 
-                #@log_on_start(logging.DEBUG, "_process_Analysis() started")
-                #@log_on_end(logging.DEBUG, "_process_Analysis() finished")
+                @log_on_start(logging.DEBUG, "_process_Analysis() started")
+                @log_on_end(logging.DEBUG, "_process_Analysis() finished")
                 def _process_Analysis(dl, an):
                     dl.TEMP_suffix = an.TEMP_suffix,
                     dl.mask_fn = an.mask
                     dl.lmin_teb = an.lmin_teb
+                    if an.zbounds[0] == 'nmr_relative':
+                        dl.zbounds = df.get_zbounds(hp.read_map(cf.noisemodel.rhits_normalised[0]), an.zbounds[1])
+                    elif an.zbounds[0] == 'mr_relative':
+                        _zbounds = df.get_zbounds(hp.read_map(an.mask), np.inf)
+                        dl.zbounds = df.extend_zbounds(_zbounds, degrees=an.zbounds[1])
+                    elif type(an.zbounds[0]) in [float, int, np.float64]:
+                        dl.zbounds = an.zbounds
+                    if an.zbounds_len[0] == 'extend':
+                        dl.zbounds_len = df.extend_zbounds(dl.zbounds, degrees=an.zbounds_len[1])
+                    elif an.zbounds_len[0] == 'max':
+                        dl.zbounds_len = [-1, 1]
+                    elif type(an.zbounds_len[0]) in [float, int, np.float64]:
+                        dl.zbounds_len = an.zbounds_len
 
 
-                #@log_on_start(logging.DEBUG, "_process_OBD() started")
-                #@log_on_end(logging.DEBUG, "_process_OBD() finished")
+                @log_on_start(logging.DEBUG, "_process_OBD() started")
+                @log_on_end(logging.DEBUG, "_process_OBD() finished")
                 def _process_OBD(dl, od):
-                    dl.libdir = od.libdir
+                    dl.libdir = od.libdir if type(od.libdir) == str else 'nopath'
                     dl.nlev_dep = od.nlev_dep
-                    dl.beam = od.beam
-                    dl.lmax = od.lmax
                     dl.rescale = od.rescale
 
                     if os.path.isfile(opj(dl.libdir,'tniti.npy')):
                         # TODO need to test if it is the right tniti.npy
+                        # TODO dont exit, rather skip job
                         log.warning("tniti.npy in destination dir {} already exists.".format(dl.libdir))
-                        log.warning("Exiting. Please check your settings.")
+                        log.warning("Please check your settings.")
 
 
-                #@log_on_start(logging.DEBUG, "_process_Noisemodel() started")
-                #@log_on_end(logging.DEBUG, "_process_Noisemodel() finished")
+                @log_on_start(logging.DEBUG, "_process_Noisemodel() started")
+                @log_on_end(logging.DEBUG, "_process_Noisemodel() finished")
                 def _process_Noisemodel(dl, nm):
                     dl.lmin_b = dl.lmin_teb[2]
                     dl.nivjob_geomlib = get_geom(nm.geominfo)
@@ -708,44 +695,45 @@ class l2delensalotjob_Transformer(l2base_Transformer):
     def build_delenser(self, cf):
         """Transformer for generating a delensalot model for the lensing reconstruction jobs (QE and MAP)
         """
-        #@log_on_start(logging.DEBUG, "extract() started")
-        #@log_on_end(logging.DEBUG, "extract() finished")
+        @log_on_start(logging.DEBUG, "extract() started")
+        @log_on_end(logging.DEBUG, "extract() finished")
         def extract():
             def _process_components(dl):
-                #@log_on_start(logging.DEBUG, "_process_Meta() started")
-                #@log_on_end(logging.DEBUG, "_process_Meta() finished")
+                @log_on_start(logging.DEBUG, "_process_Meta() started")
+                @log_on_end(logging.DEBUG, "_process_Meta() finished")
                 def _process_Meta(dl, me):
                     dl.dversion = me.version
 
 
-                #@log_on_start(logging.DEBUG, "_process_Computing() started")
-                #@log_on_end(logging.DEBUG, "_process_Computing() finished")
+                @log_on_start(logging.DEBUG, "_process_Computing() started")
+                @log_on_end(logging.DEBUG, "_process_Computing() finished")
                 def _process_Computing(dl, co):
                     dl.tr = co.OMP_NUM_THREADS
                     os.environ["OMP_NUM_THREADS"] = str(dl.tr)
-                    log.info("OMP_NUM_THREADS: {} and {}".format(dl.tr, os.environ.get('OMP_NUM_THREADS')))
+                    log.debug("OMP_NUM_THREADS: {} and {}".format(dl.tr, os.environ.get('OMP_NUM_THREADS')))
 
 
-                #@log_on_start(logging.DEBUG, "_process_Analysis() started")
-                #@log_on_end(logging.DEBUG, "_process_Analysis() finished")
+                @log_on_start(logging.DEBUG, "_process_Analysis() started")
+                @log_on_end(logging.DEBUG, "_process_Analysis() finished")
                 def _process_Analysis(dl, an):
                     # super(l2base_Transformer, self)
                     dl.nlev = l2OBD_Transformer.get_nlev(cf)
                     l2base_Transformer.process_Analysis(dl, an, cf)
 
 
-                #@log_on_start(logging.DEBUG, "_process_Noisemodel() started")
-                #@log_on_end(logging.DEBUG, "_process_Noisemodel() finished")
+                @log_on_start(logging.DEBUG, "_process_Noisemodel() started")
+                @log_on_end(logging.DEBUG, "_process_Noisemodel() finished")
                 def _process_Noisemodel(dl, nm):
                     dl.nivjob_geomlib = get_geom(nm.geominfo)
                     dl.nivjob_geominfo = nm.geominfo
-                    thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
-                    dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
+                    # thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
+                    ## this is for delensing, and pospace doesn't support truncated maps, therefore no restrict here
+                    # dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
                     dl.nlev = l2OBD_Transformer.get_nlev(cf)
 
 
-                #@log_on_start(logging.DEBUG, "_process_Qerec() started")
-                #@log_on_end(logging.DEBUG, "_process_Qerec() finished")
+                @log_on_start(logging.DEBUG, "_process_Qerec() started")
+                @log_on_end(logging.DEBUG, "_process_Qerec() finished")
                 def _process_Qerec(dl, qe):
                     dl.nivt_desc = l2OBD_Transformer.get_nivt_desc(cf, dl)
                     dl.nivp_desc = l2OBD_Transformer.get_nivp_desc(cf, dl)
@@ -756,8 +744,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.qe_filter_directional = qe.filter_directional
 
 
-                #@log_on_start(logging.DEBUG, "_process_Itrec() started")
-                #@log_on_end(logging.DEBUG, "_process_Itrec() finished")
+                @log_on_start(logging.DEBUG, "_process_Itrec() started")
+                @log_on_end(logging.DEBUG, "_process_Itrec() finished")
                 def _process_Itrec(dl, it):
                     dl.lm_max_unl = it.lm_max_unl
                     dl.lm_max_qlm = it.lm_max_qlm

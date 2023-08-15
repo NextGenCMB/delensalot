@@ -11,9 +11,7 @@
 """
 
 
-import unittest
-import shutil
-import os
+import unittest, shutil, os
 import delensalot
 from delensalot.config.visitor import transform, transform3d
 from delensalot.config.transformer.lerepi2dlensalot import l2delensalotjob_Transformer, l2T_Transformer

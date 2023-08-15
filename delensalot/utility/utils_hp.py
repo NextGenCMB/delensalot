@@ -174,6 +174,25 @@ def alm_copy(alm:np.ndarray, mmaxin:int or None, lmaxout:int, mmaxout:int):
         return ret[0]
     else:
         return ret
+    
+
+def alm_splice(alm_lo, alm_hi, lsplit):
+    """Returns an alm with lmax = lmax(alm_hi) which is alm_lo for (l <= lsplit) alm_hi for (l  > lsplit.)
+
+    """
+    if hasattr(alm_lo, 'alm_splice'):
+        return alm_lo.alm_splice(alm_hi, lsplit)
+
+    alm_lo_lmax = Alm.getlmax(len(alm_lo))
+    alm_hi_lmax = Alm.getlmax(len(alm_hi))
+
+    assert alm_lo_lmax >= lsplit and alm_hi_lmax >= lsplit
+
+    alm_re = np.copy(alm_hi)
+    for m in range(0, lsplit + 1):
+        alm_re[(m * (2 * alm_hi_lmax + 1 - m) // 2 + m):(m * (2 * alm_hi_lmax + 1 - m) // 2 + lsplit + 1)] = \
+        alm_lo[(m * (2 * alm_lo_lmax + 1 - m) // 2 + m):(m * (2 * alm_lo_lmax + 1 - m) // 2 + lsplit + 1)]
+    return alm_re
 
 class Alm:
     """alm arrays useful statics. Directly from healpy but excluding keywords

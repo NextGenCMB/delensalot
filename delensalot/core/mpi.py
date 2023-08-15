@@ -26,11 +26,11 @@ def check_MPI_inline():
 def isinstalled():
     # For illustrative purposes.
     name = 'mpi4py'
-
     if name in sys.modules:
         print(f"{name!r} already in sys.modules")
         return True
-    elif (spec := importlib.util.find_spec(name)) is not None:
+    spec = importlib.util.find_spec(name)
+    if spec is not None:
         # If you choose to perform the actual import ...
         module = importlib.util.module_from_spec(spec)
         sys.modules[name] = module

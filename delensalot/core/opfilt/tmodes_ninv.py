@@ -225,7 +225,7 @@ class template_dense(template_tfilt):
 
     def tniti(self):
         if self._tniti is None:
+            log.info("loading " + os.path.join(self.lib_dir, 'tniti.npy') )
+            log.info("rescaling tniti.npy with %.5f"%self.rescal)
             self._tniti = read_map(os.path.join(self.lib_dir, 'tniti.npy')) * self.rescal
-            log.info("reading " +os.path.join(self.lib_dir, 'tniti.npy') )
-            log.info("Rescaling it with %.5f"%self.rescal)
         return self._tniti

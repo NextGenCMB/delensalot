@@ -13,7 +13,6 @@ import numpy as np
 
 import logging
 log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
 
 from delensalot.config.metamodel import DEFAULT_NotAValue, DEFAULT_NotASTR
 from delensalot.config.validator import analysis, chaindescriptor, computing, data, filter as v_filter, itrec, job, mapdelensing, meta, model, noisemodel, obd, qerec, stepper
@@ -130,7 +129,6 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     """
     key =                   attr.field(default=DEFAULT_NotAValue, validator=analysis.key)
     version =               attr.field(default=DEFAULT_NotAValue, validator=analysis.version) # TODO either make it more useful, or remove
-    reconstruction_method = attr.field(default=DEFAULT_NotAValue, validator=analysis.reconstruction_method) # TODO implement if needed
     simidxs =               attr.field(default=DEFAULT_NotAValue, validator=analysis.simidxs)
     simidxs_mf =            attr.field(default=DEFAULT_NotAValue, validator=analysis.simidxs_mf)
     TEMP_suffix =           attr.field(default=DEFAULT_NotAValue, validator=analysis.TEMP_suffix)
@@ -175,6 +173,8 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
         phi_space    (str, optional): can be in ['map', 'alm', 'cl'] and defines the space of the lensing potential provided.. Defaults to DNaV.
         phi_lmax     (_type_, optional): the maximum multipole of the lensing potential. if simulation library perfroms lensing, it is advisable that `phi_lmax` is somewhat larger than `lmax` (+ ~512-1024). Defaults to DNaV.
         epsilon      (float, optional): Lenspyx lensing accuracy. Defaults to 1e-7.
+        libdir_suffix(str, optional): defines the directory the simulation data will be stored to, defaults to 'generic'. Helpful if one wants to keep track of different projects.
+        modifier (callable, optional): operation defined in the callable will be applied to each of the input maps/alms/cls
                                                
     """
 
@@ -201,6 +201,8 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
     phi_lmax =      attr.field(default=DEFAULT_NotAValue, validator=data.phi_lmax)
     epsilon =       attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
     libdir_suffix = attr.field(default='generic', validator=data.libdir_suffix)
+    modifier =      attr.field(default=DEFAULT_NotAValue, validator=data.modifier)
+    
     
 @attr.s
 class DLENSALOT_Noisemodel(DLENSALOT_Concept):
@@ -210,7 +212,7 @@ class DLENSALOT_Noisemodel(DLENSALOT_Concept):
     Attributes:
         sky_coverage (str):     Can be either 'masked' or 'unmasked'
         spectrum_type (str):    TBD
-        OBD (str):              OBD identifier. Can be 'OBD', 'trunc', or None. Defines how lowest B-modes will be handled.
+        OBD (str):              OBD identifier. Can be 'OBD', 'trunc'. Defines how lowest B-modes will be handled.
         nlev_t (float):         (central) noise level of temperature data in muK arcmin.
         nlev_p (float):         (central) noise level of polarization data in muK arcmin.
         rhits_normalised (str): path to the hits-count map, used to calculate the noise levels, and the mask tracing the noise level. Second entry in tuple is the <inverse hits-count multiplier>.
@@ -221,7 +223,6 @@ class DLENSALOT_Noisemodel(DLENSALOT_Concept):
     OBD =                   attr.field(default=DEFAULT_NotAValue, validator=noisemodel.OBD)
     nlev =                  attr.field(default=DEFAULT_NotAValue, validator=noisemodel.nlev_t)
     geominfo =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geominfo) # FIXME this must match the data geominfo.. validate accordingly
-    zbounds =               attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geominfo) # FIXME is this used? How is it different to Analysis.zbounds?
     rhits_normalised =      attr.field(default=DEFAULT_NotAValue, validator=noisemodel.rhits_normalised)
     nivt_map =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geominfo) # TODO test if it works
     nivp_map =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geominfo) # TODO test if it works
@@ -330,16 +331,12 @@ class DLENSALOT_OBD(DLENSALOT_Concept):
         libdir (str):       path to the OBD matrix
         rescale (float):    rescaling of OBD matrix amplitude. Useful if matrix already calculated, but noiselevel changed
         tpl (type):         function name for calculating OBD matrix
-        nlev_dep (float):   deprojection factor, or, strength of B-mode deprojection
-        lmax (int):         maximum multipole to deproject B-modes
-        beam (type):        TBD                         
+        nlev_dep (float):   deprojection factor, or, strength of B-mode deprojection                   
     """
     libdir =                attr.field(default=DEFAULT_NotAValue, validator=obd.libdir)
     rescale =               attr.field(default=DEFAULT_NotAValue, validator=obd.rescale) # TODO this is a very specific parameter.. keep?
     tpl =                   attr.field(default=DEFAULT_NotAValue, validator=obd.tpl)
     nlev_dep =              attr.field(default=DEFAULT_NotAValue, validator=obd.nlev_dep)
-    lmax =                  attr.field(default=DEFAULT_NotAValue, validator=obd.lmax)
-    beam =                  attr.field(default=DEFAULT_NotAValue, validator=obd.beam) # TODO why not use beam from analysis? or transfunction..
 
 @attr.s
 class DLENSALOT_Config(DLENSALOT_Concept):
@@ -445,9 +442,9 @@ class DLENSALOT_Model(DLENSALOT_Concept):
                         else:
                             if key not in ['simulationdata']:
                                 # It is ok to not have defaults for simulationdata, as the simlib will handle it
-                                log.info('{}: couldnt find matching default value for {}'.format(key, k))
+                                log.debug('{}: couldnt find matching default value for {}'.format(key, k))
                     else:
-                        log.info('couldnt find matching default value for key {}'.format(key))
+                        log.debug('couldnt find matching default value for key {}'.format(key))
                 elif callable(v):
                     # Cannot evaluate functions, so hopefully they didn't change..
                     pass

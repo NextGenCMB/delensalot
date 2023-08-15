@@ -52,6 +52,7 @@ dlensalot_model = DLENSALOT_Model(
     noisemodel = DLENSALOT_Noisemodel(
         sky_coverage = 'masked',
         spectrum_type = 'white',
+        OBD = 'trunc',
         nlev = {'P': np.sqrt(2), 'T': np.sqrt(1)},
         rhits_normalised = (opj(os.environ['SCRATCH'], 'analysis/mfda_maskedsky_lminB200/mask.fits'), np.inf)
     ),
@@ -62,7 +63,7 @@ dlensalot_model = DLENSALOT_Model(
         cg_tol = 1e-3
     ),
     itrec = DLENSALOT_Itrec(
-        tasks = ["calc_phi"],
+        tasks = ["calc_phi", "calc_blt"],
         filter_directional = 'anisotropic',
         itmax = 1,
         cg_tol = 1e-3,

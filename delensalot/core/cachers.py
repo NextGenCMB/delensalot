@@ -30,8 +30,10 @@ class cacher_npy(cacher):
 
     def _path(self, fn):
         assert '.npy' not in fn
-        assert '/' not in fn # dont want this here
-        return os.path.join(self.lib_dir, fn + '.npy')
+        if fn.startswith('/'):
+            return fn + '.npy'
+        else:
+            return os.path.join(self.lib_dir, fn + '.npy')
 
     def cache(self, fn, obj):
         np.save(self._path(fn), obj)
