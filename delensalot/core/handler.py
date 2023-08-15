@@ -50,6 +50,7 @@ def dict2roundeddict(d):
     for k,v in d.items():
         d[k] = np.around(v,3)
     return d
+
 class Basejob():
     """
     Base class for all jobs, i.e. convenience functions go in here as they should be accessible from anywhere
@@ -484,6 +485,56 @@ class Sim_generator(Basejob):
             self.simulationdata.unl_lib.phi_space = 'alm' # we always safe phi as lm's
 
 
+class Noisemodeller(Basejob):
+
+    def __init__(self, dlensalot_model, caller=None):
+
+    def init_cinv(self):
+        self.cinv_t = filt_cinv.cinv_t(opj(self.libdir_QE, 'cinv_t'),
+            self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
+            self.ttebl['t'], self.nivt_desc,
+            marge_monopole=True, marge_dipole=True, marge_maps=[])
+
+        # FIXME is this right? what if analysis includes pixelwindow function?
+        transf_elm_loc = gauss_beam(self.beam / 180 / 60 * np.pi, lmax=self.lm_max_ivf[0])
+        if self.OBD == 'OBD':
+            nivjob_geomlib_ = get_geom(self.nivjob_geominfo)
+            self.cinv_p = cinv_p_OBD.cinv_p(opj(self.libdir_QE, 'cinv_p'),
+                self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
+                transf_elm_loc[:self.lm_max_ivf[0]+1], self.nivp_desc, geom=nivjob_geomlib_, #self.nivjob_geomlib,
+                chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol), bmarg_lmax=self.lmin_teb[2],
+                zbounds=(-1,1), _bmarg_lib_dir=self.obd_libdir, _bmarg_rescal=self.obd_rescale,
+                sht_threads=self.tr)
+        else:
+            self.cinv_p = filt_cinv.cinv_p(opj(self.TEMP, 'cinv_p'),
+                self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
+                self.ttebl['e'], self.nivp_desc, chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol),
+                transf_blm=self.ttebl['b'], marge_qmaps=(), marge_umaps=())
+            
+    def init_aniso_filter(self):
+        self.init_cinv()
+        # self.sims_MAP = utils_sims.ztrunc_sims(self.simulationdata, self.nivjob_geominfo[1]['nside'], [self.zbounds])
+        _filter_raw = filt_cinv.library_cinv_sepTP(opj(self.libdir_QE, 'ivfs'), self.simulationdata, self.cinv_t, self.cinv_p, self.cls_len)
+        _ftl_rs = np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[0])
+        _fel_rs = np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[1])
+        _fbl_rs = np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[2])
+        self.ivfs = filt_util.library_ftl(_filter_raw, self.lm_max_qlm[0], _ftl_rs, _fel_rs, _fbl_rs)
+        self.qlms_dd = qest.library_sepTP(opj(self.libdir_QE, 'qlms_dd'), self.ivfs, self.ivfs, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
+
+    
+    def MAP_filter():
+        if self.it_filter_directional == 'anisotropic':
+            self.sims_MAP = utils_sims.ztrunc_sims(self.simulationdata, self.nivjob_geominfo[1]['nside'], [self.zbounds])
+            if self.k in ['ptt']:
+                self.niv = self.sims_MAP.ztruncify(read_map(self.nivt_desc)) # inverse pixel noise map on consistent geometry
+            else:
+                assert self.k not in ['p'], 'implement if needed, niv needs t map'
+                self.niv = np.array([self.sims_MAP.ztruncify(read_map(ni)) for ni in self.nivp_desc]) # inverse pixel noise map on consistent geometry
+        elif self.it_filter_directional == 'isotropic':
+            self.sims_MAP = self.simulationdata
+        self.filter = self.get_filter()
+    
+
 class QE_lr(Basejob):
     """Quadratic estimate lensing reconstruction Job. Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.
     """
@@ -511,7 +562,6 @@ class QE_lr(Basejob):
             ## Wait for finished run(), as plancklens triggers cinv_calc...
             if len(self.collect_jobs()[0]) == 0:
                 self.init_aniso_filter()
-
 
         self.mf = lambda simidx: self.get_meanfield(int(simidx))
         self.plm = lambda simidx: self.get_plm(simidx, self.QE_subtract_meanfield)
@@ -620,6 +670,7 @@ class QE_lr(Basejob):
 
     def init_aniso_filter(self):
         self.init_cinv()
+        # self.sims_MAP = utils_sims.ztrunc_sims(self.simulationdata, self.nivjob_geominfo[1]['nside'], [self.zbounds])
         _filter_raw = filt_cinv.library_cinv_sepTP(opj(self.libdir_QE, 'ivfs'), self.simulationdata, self.cinv_t, self.cinv_p, self.cls_len)
         _ftl_rs = np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[0])
         _fel_rs = np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[1])
@@ -638,8 +689,7 @@ class QE_lr(Basejob):
 
         # blueprint for new task: calc_cinv
         # Only now instantiate aniso filter as it triggers an expensive computation
-        if True:
-            # task == 'calc_phi':
+        if True: # 'calc_cinv'
             if self.qe_filter_directional == 'anisotropic':
                 if mpi.size > 1:
                     if mpi.rank == 0:
@@ -649,9 +699,9 @@ class QE_lr(Basejob):
                         [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
                     else:
                         mpi.receive(None, source=mpi.ANY_SOURCE)
-            
+                self.init_aniso_filter()
+                        
         _tasks = self.qe_tasks if task is None else [task]
-        
         for taski, task in enumerate(_tasks):
             log.info('{}, task {} started'.format(mpi.rank, task))
 
@@ -869,7 +919,7 @@ class MAP_lr(Basejob):
         # TODO Only needed to hand over to ith()
         self.dlensalot_model = dlensalot_model
         
-        # FIXME remnant of previous solution how jobs were dependent on each other. This can perhaps be simplified now.
+        # FIXME remnant of previous version when jobs were dependent on each other. This can perhaps be simplified now.
         self.simgen = Sim_generator(dlensalot_model)
         self.simulationdata = self.simgen.simulationdata
         self.qe = QE_lr(dlensalot_model, caller=self)
