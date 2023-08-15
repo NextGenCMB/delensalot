@@ -1221,10 +1221,11 @@ class Map_delenser(Basejob):
     # @log_on_start(logging.DEBUG, "get_basemap() started")
     # @log_on_end(logging.DEBUG, "get_basemap() finished")  
     def get_basemap(self, simidx):
-        if self.basemap == 'lens':
-            # TODO depends if data comes from delensalot simulations or from external
-            return hp.almxfl(alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(simidx), None, lmaxout=self.simulationdata.lmax, mmaxout=self.simulationdata.lmax), gauss_beam(2.3 / 180 / 60 * np.pi, lmax=self.simulationdata.lmax))
-            # return almxfl(alm_copy(self.simulationdata.get_sim_sky(simidx, space='alm', spin=0, field='polarization')[1], self.simulationdata.lmax, *self.lm_max_blt), self.ttebl['e'], self.lm_max_blt[0], inplace=False) 
+        # TODO depends if data comes from delensalot simulations or from external.. needs cleaner implementation
+        if self.basemap == 'lens':  
+            return almxfl(alm_copy(self.simulationdata.get_sim_sky(simidx, space='alm', spin=0, field='polarization')[1], self.simulationdata.lmax, *self.lm_max_blt), self.ttebl['e'], self.lm_max_blt[0], inplace=False) 
+        elif self.basemap == 'lens_ffp10':
+            return hp.almxfl(alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(simidx), None, lmaxout=self.lm_max_blt[0], mmaxout=self.lm_max_blt[1]), gauss_beam(2.3 / 180 / 60 * np.pi, lmax=self.lm_max_blt[1]))  
         else:
             # only checking for map to save some memory..
             if np.all(self.simulationdata.maps == DEFAULT_NotAValue):
