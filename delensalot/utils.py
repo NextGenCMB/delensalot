@@ -1,9 +1,14 @@
+from __future__ import annotations
+
 import sys
 import healpy as hp
 from time import time
 import numpy as np
 import hashlib
 import json
+
+from lenspyx.lensing import get_geom 
+
 
 class timer:
     def __init__(self, verbose, prefix='', suffix=''):
@@ -114,6 +119,44 @@ def clhash(cl, dtype=np.float32):
     """
     return hashlib.sha1(np.copy(cl.astype(dtype), order='C')).hexdigest()
 
+def hash_check(hash1, hash2, ignore=['lib_dir', 'prefix'], keychain=[], fn=None):
+    keys1 = hash1.keys()
+    keys2 = hash2.keys()
+    for key in ignore:
+        if key in keys1: keys1.remove(key)
+        if key in keys2: keys2.remove(key)
+    for key in set(keys1).union(set(keys2)):
+        # v1 = hash1[key]
+        # v2 = hash2[key]
+        try:
+            v1 = hash1[key]
+            v2 = hash2[key]
+        except KeyError:
+            raise KeyError(f"Cannot find key {key} in hashdict {fn}")
+        
+        def hashfail(msg=None):
+            print(f"CHECKING HASHFILE {fn}")
+            print(f"ERROR: HASHCHECK FAIL AT KEY {key}")
+            if msg is not None:
+                print("   " + msg)
+            print("   ", "V1 = ", v1)
+            print("   ", "V2 = ", v2)
+            print(keys1)
+            print(keys2)
+
+            assert 0
+
+        if type(v1) != type(v2):
+            hashfail(f'UNEQUAL TYPES: type(v1) = {type(v1)}, type(v2)={type(v2)}')
+        elif type(v2) == dict:
+            hash_check( v1, v2, ignore=ignore, keychain=keychain + [key], fn=fn )
+        elif type(v1) == np.ndarray:
+            if not np.allclose(v1, v2):
+                hashfail('UNEQUAL ARRAY')
+        else:
+            if not( v1 == v2 ):
+                hashfail('UNEQUAL VALUES')
+
 def cli(cl):
     """Pseudo-inverse for positive cl-arrays.
 
@@ -208,3 +251,43 @@ def load_file(fn, lmax=None, ifield=0):
         return hp.read_map(fn, field=ifield)
     elif fn.endswith('.dat'):
         return camb_clfile(fn)
+    
+
+def ztruncify(m:np.ndarray, zbounds:np.array[tuple[float, float]]):
+    """truncify list of maps (or single map) and return only pixels along the zbounds
+
+    Args:
+        m (np.ndarray): healpix map(s)
+        zbounds (np.array[tuple[float, float]]): list of zbound for which the truncation is applied
+
+    Returns:
+        np.ndarray: truncated healpix map(s)
+    """    
+    ret = []
+    print(m.shape, len(m.shape))
+    if len(m.shape)>1:
+        for mp in m:
+            ret.append(ztruncify(mp,zbounds))
+        return np.array(ret)
+    zbounds = np.atleast_2d(np.array(zbounds))
+    nside = hp.npix2nside(m.shape[0])
+    hp_geom = get_geom(('healpix',{'nside': nside}))
+    slics = []
+    slics_m = []
+    npix = 0
+    for zbound in zbounds:
+        tht_min, tht_max = np.arccos(zbound[1]), np.arccos(zbound[0])
+        hp_trunc = get_geom(('healpix',{'nside': nside})).restrict(tht_min, tht_max, False)
+        hp_start = hp_geom.ofs[np.where(hp_geom.theta == np.min(hp_trunc.theta))[0]][0]
+        this_npix = hp_trunc.npix()
+        hp_end = hp_start + this_npix
+        slics.append(slice(hp_start, int(hp_end)))
+        slics_m.append(slice(npix, npix + this_npix))
+        npix += this_npix
+
+    if len(slics) == 1:
+        return m[slics[0]]
+    ret = np.zeros(npix, dtype=float)
+    for sli_m, sli in zip(slics_m, slics):
+        ret[sli_m] = m[sli]
+    return ret

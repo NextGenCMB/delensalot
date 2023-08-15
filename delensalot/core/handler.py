@@ -6,25 +6,21 @@
 import os
 from os.path import join as opj
 import hashlib
+import datetime, getpass, copy
 
 import numpy as np
 import healpy as hp
-import hashlib
 
 import logging
 log = logging.getLogger(__name__)
-log.setLevel(logging.DEBUG)
-
 from logdecorator import log_on_start, log_on_end
-import datetime, getpass, copy, importlib
 
-from plancklens import qresp, qest, qecl, utils
-from plancklens.qcinv import opfilt_pp
-from plancklens.filt import filt_util, filt_cinv, filt_simple
+
+from plancklens import qresp, qest, utils as pl_utils
 
 from lenspyx.lensing import get_geom 
 
-from delensalot.utils import read_map
+from delensalot.utils import read_map, ztruncify
 from delensalot.utility import utils_qe, utils_sims
 from delensalot.utility.utils_hp import Alm, almxfl, alm_copy, gauss_beam
 
@@ -35,7 +31,9 @@ from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Concept
 
 from delensalot.core import mpi
 from delensalot.core.mpi import check_MPI
+from delensalot.core.ivf import filt_util, filt_cinv, filt_simple
 from delensalot.core.opfilt.opfilt_handler import QE_transformer, MAP_transformer
+from delensalot.core.opfilt.bmodes_ninv import template_dense
 from delensalot.core.iterator.iteration_handler import iterator_transformer
 from delensalot.core.iterator.statics import rec as rec
 from delensalot.core.decorator.exception_handler import base as base_exception_handler
@@ -74,7 +72,7 @@ class Basejob():
         if not os.path.exists(self.libdir_QE):
             os.makedirs(self.libdir_QE)
         self.libdir_MAP = lambda qe_key, simidx, version: opj(self.TEMP, 'MAP/%s'%(qe_key), 'sim%04d'%(simidx) + version)
-        for simidx in self.simidxs:
+        for simidx in np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))), dtype=int):
             libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
             if not os.path.exists(libdir_MAPidx):
                 os.makedirs(libdir_MAPidx)
@@ -181,11 +179,23 @@ class OBD_builder(Basejob):
     @check_MPI
     def __init__(self, OBD_model):
         self.__dict__.update(OBD_model.__dict__)
-        b_transf = np.array([1])
-        nivp = np.array(opfilt_pp.alm_filter_ninv(self.nivp_desc, b_transf, marge_qmaps=(), marge_umaps=()).get_ninv())
-        self.sims_MAP = utils_sims.ztrunc_sims(np.zeros(shape=1), self.nivjob_geominfo[1]['nside'], [self.zbounds])
-        self.nivp = np.array([self.sims_MAP.ztruncify(np) for np in nivp])
+        nivp = self._load_ninv(self.nivp_desc)
+        self.nivp = ztruncify(nivp)
 
+
+    def _load_niv(self, niv_desc):
+        n_inv = []
+        for i, tn in enumerate(niv_desc):
+            if isinstance(tn, list):
+                n_inv_prod = read_map(tn[0])
+                if len(tn) > 1:
+                    for n in tn[1:]:
+                        n_inv_prod = n_inv_prod * read_map(n)
+                n_inv.append(n_inv_prod)
+            else:
+                n_inv.append(read_map(self._n_inv[i]))
+        assert len(n_inv) in [1, 3], len(n_inv)
+        return n_inv
 
     # @base_exception_handler
     @log_on_start(logging.DEBUG, "collect_jobs() started")
@@ -485,18 +495,54 @@ class Sim_generator(Basejob):
             self.simulationdata.unl_lib.phi_space = 'alm' # we always safe phi as lm's
 
 
-class Noisemodeller(Basejob):
+class Noise_modeller(Basejob):
 
-    def __init__(self, dlensalot_model, caller=None):
-        pass
+    def __init__(self, dlensalot_model):
+        super().__init__(dlensalot_model)
 
-    def init_cinv(self):
+        """
+        niv
+        delensalot either 
+         * nivt/p_desc (QE, iso and aniso) - TODO how does it truncify inside filter?
+         * uses nlev (MAP, iso),
+         * uses niv (MAP, aniso), - truncified
+        """
+
+        ## QE ##
+        if self.qe_filter_directional == 'isotropic':
+            nlev = self.nlev
+            # no masking or bmarg needed here
+        else:
+            nivt_desc = self.nivt_desc
+            nivp_desc = self.nivp_desc
+            ## mask info is in here,  TODO but no bmarg, truncification missing
+        ## MAP ##
+        if self.it_filter_directional == 'isotropic':
+            nlev = self.nlev
+        else:
+            if self.k in ['ptt']:
+                self.niv = ztruncify(read_map(self.nivt_desc), self.zbounds)
+            else:
+                assert self.k not in ['p'], 'implement if needed, niv needs t map'
+                self.niv = ztruncify(read_map(self.nivp_desc), self.zbounds)
+
+        # for QE, what we pass to plancklens is only the descriptor, no truncification, no bmarg. This is passed separately
+        # for MAP, what we pass is truncified noise map, but bmarg still missing
+
+        """
+        cinv
+        filters
+         * cinv_t and cinv_p (QE, iso and aniso). These are the opfilt filters, and eventually access alm_filter_n*
+         * alm_nlev_*
+        """
+        ## QE ##
+        QE_filters = transform(self, QE_transformer())
+        QE_filter = transform(self, QE_filters())
+
         self.cinv_t = filt_cinv.cinv_t(opj(self.libdir_QE, 'cinv_t'),
             self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
             self.ttebl['t'], self.nivt_desc,
             marge_monopole=True, marge_dipole=True, marge_maps=[])
-
-        # FIXME is this right? what if analysis includes pixelwindow function?
         transf_elm_loc = gauss_beam(self.beam / 180 / 60 * np.pi, lmax=self.lm_max_ivf[0])
         if self.OBD == 'OBD':
             nivjob_geomlib_ = get_geom(self.nivjob_geominfo)
@@ -511,31 +557,47 @@ class Noisemodeller(Basejob):
                 self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
                 self.ttebl['e'], self.nivp_desc, chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol),
                 transf_blm=self.ttebl['b'], marge_qmaps=(), marge_umaps=())
-            
-    def init_aniso_filter(self):
-        self.init_cinv()
-        # self.sims_MAP = utils_sims.ztrunc_sims(self.simulationdata, self.nivjob_geominfo[1]['nside'], [self.zbounds])
-        _filter_raw = filt_cinv.library_cinv_sepTP(opj(self.libdir_QE, 'ivfs'), self.simulationdata, self.cinv_t, self.cinv_p, self.cls_len)
-        _ftl_rs = np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[0])
-        _fel_rs = np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[1])
-        _fbl_rs = np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[2])
-        self.ivfs = filt_util.library_ftl(_filter_raw, self.lm_max_qlm[0], _ftl_rs, _fel_rs, _fbl_rs)
-        self.qlms_dd = qest.library_sepTP(opj(self.libdir_QE, 'qlms_dd'), self.ivfs, self.ivfs, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
 
-    
-    def MAP_filter():
-        if self.it_filter_directional == 'anisotropic':
-            self.sims_MAP = utils_sims.ztrunc_sims(self.simulationdata, self.nivjob_geominfo[1]['nside'], [self.zbounds])
-            if self.k in ['ptt']:
-                self.niv = self.sims_MAP.ztruncify(read_map(self.nivt_desc)) # inverse pixel noise map on consistent geometry
-            else:
-                assert self.k not in ['p'], 'implement if needed, niv needs t map'
-                self.niv = np.array([self.sims_MAP.ztruncify(read_map(ni)) for ni in self.nivp_desc]) # inverse pixel noise map on consistent geometry
-        elif self.it_filter_directional == 'isotropic':
-            self.sims_MAP = self.simulationdata
-        self.filter = self.get_filter()
-    
 
+        ## MAP ##
+        MAP_filters = transform(self, MAP_transformer())
+        MAP_filter = transform(self, MAP_filters())
+
+        # for QE 
+
+        """
+        inverse variance filtering
+        names are,
+         * self.ivfs (QE, aniso, iso) - takes transfer function,
+         * ??? (MAP)
+        """
+        ## QE ##
+        # 
+        if self.qe_filter_directional == 'isotropic':
+            self.ivfs = filt_simple.library_fullsky_sepTP(opj(self.libdir_QE, 'ivfs'), self.simulationdata, self.nivjob_geominfo[1]['nside'], self.ttebl, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
+        elif self.qe_filter_directional == 'anisotropic':
+            _filter_raw = filt_cinv.library_cinv_sepTP(opj(self.libdir_QE, 'ivfs'), self.simulationdata, self.cinv_t, self.cinv_p, self.cls_len)
+            _ftebl_rs = lambda x: np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[x])
+            self.ivfs = filt_util.library_ftl(_filter_raw, self.lm_max_qlm[0], _ftebl_rs(0), _ftebl_rs(1), _ftebl_rs(2))
+        
+        ### MAP ###
+        # For MAP, this happens inside cs_iterator
+        
+
+        """
+        lenspot estimator lib
+        names are,
+         * qlms_dd(QE, aniso, iso) - takes filter, as input
+         * cs_iterator (MAP, aniso and iso) - takes filter and qe starting point as input
+        """       
+        ## QE ##
+        if self.qlm_type == 'sepTP':
+            self.qlms_dd = qest.library_sepTP(opj(self.libdir_QE, 'qlms_dd'), self.ivfs, self.ivfs, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
+
+        ## MAP ##
+            # cs_iterator
+        
+    
 class QE_lr(Basejob):
     """Quadratic estimate lensing reconstruction Job. Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.
     """
@@ -554,7 +616,6 @@ class QE_lr(Basejob):
         self.simgen = Sim_generator(dlensalot_model)
         self.simulationdata = self.simgen.simulationdata
 
-        # self.filter_ = transform(self.configfile.dlensalot_model, opfilt_handler_QE())
         if self.qe_filter_directional == 'isotropic':
             self.ivfs = filt_simple.library_fullsky_sepTP(opj(self.libdir_QE, 'ivfs'), self.simulationdata, self.nivjob_geominfo[1]['nside'], self.ttebl, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
             if self.qlm_type == 'sepTP':
@@ -568,33 +629,13 @@ class QE_lr(Basejob):
         self.plm = lambda simidx: self.get_plm(simidx, self.QE_subtract_meanfield)
         self.R_unl = lambda: qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_unl, self.cls_unl,  self.ftebl_unl, lmax_qlm=self.lm_max_qlm[0])[0]
 
-        ## Faking here sims_MAP for calc_blt as it needs iteration_handler
+        ## Faking here sims_MAP for calc_blt as iteration_handler needs it
         if 'calc_blt' in self.qe_tasks:
             if self.it_filter_directional == 'anisotropic':
                 # TODO reimplement ztrunc
                 self.sims_MAP = utils_sims.ztrunc_sims(self.simulationdata, self.nivjob_geominfo[1]['nside'], [self.zbounds])
             elif self.it_filter_directional == 'isotropic':
                 self.sims_MAP = self.simulationdata
-
-
-        if self.cl_analysis == True:
-            # TODO fix numbers for mc correction and total nsims
-            self.ss_dict = { k : v for k, v in zip( np.concatenate( [ range(i*60, (i+1)*60) for i in range(0,5) ] ),
-                                    np.concatenate( [ np.roll( range(i*60, (i+1)*60), -1 ) for i in range(0,5) ] ) ) }
-            self.ds_dict = { k : -1 for k in range(300)}
-
-            self.ivfs_d = filt_util.library_shuffle(self.ivfs, self.ds_dict)
-            self.ivfs_s = filt_util.library_shuffle(self.ivfs, self.ss_dict)
-
-            self.qlms_ds = qest.library_sepTP(opj(self.libdir_QE, 'qlms_ds'), self.ivfs, self.ivfs_d, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
-            self.qlms_ss = qest.library_sepTP(opj(self.libdir_QE, 'qlms_ss'), self.ivfs, self.ivfs_s, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
-
-            self.mc_sims_bias = np.arange(60, dtype=int)
-            self.mc_sims_var  = np.arange(60, 300, dtype=int)
-
-            self.qcls_ds = qecl.library(opj(self.libdir_QE, 'qcls_ds'), self.qlms_ds, self.qlms_ds, np.array([]))  # for QE RDN0 calculations
-            self.qcls_ss = qecl.library(opj(self.libdir_QE, 'qcls_ss'), self.qlms_ss, self.qlms_ss, np.array([]))  # for QE RDN0 / MCN0 calculations
-            self.qcls_dd = qecl.library(opj(self.libdir_QE, 'qcls_dd'), self.qlms_dd, self.qlms_dd, self.mc_sims_bias)
 
         # FIXME currently only used for testing filter integration. These QE filter are not used for QE reoconstruction, but will be in the near future when Plancklens dependency is dropped. 
         if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee', 'ptt']:
@@ -639,16 +680,16 @@ class QE_lr(Basejob):
             ## Calculate realization dependent phi, i.e. plm_it000.
             if task == 'calc_phi':
                 ## this filename must match plancklens filename
-                fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, utils.mchash(self.simidxs_mf)))
+                fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, pl_utils.mchash(self.simidxs_mf)))
                 ## Skip if meanfield already calculated
                 if not os.path.isfile(fn_mf) or recalc:
-                    for simidx in np.array(list(set(np.concatenate([self.simidxs+self.simidxs_mf])))):
+                    for simidx in np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))), dtype=int):
                         fn_qlm = opj(opj(self.libdir_QE, 'qlms_dd'), 'sim_%s_%04d.fits'%(self.k, simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
                         if not os.path.isfile(fn_qlm) or recalc:
                             _jobs.append(simidx)
 
             if task == 'calc_meanfield':
-                fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, utils.mchash(self.simidxs_mf)))
+                fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, pl_utils.mchash(self.simidxs_mf)))
                 if not os.path.isfile(fn_mf) or recalc:
                     for simidx in self.simidxs_mf:
                         fn_qlm = opj(opj(self.libdir_QE, 'qlms_dd'), 'sim_%s_%04d.fits'%(self.k, simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
@@ -673,10 +714,8 @@ class QE_lr(Basejob):
         self.init_cinv()
         # self.sims_MAP = utils_sims.ztrunc_sims(self.simulationdata, self.nivjob_geominfo[1]['nside'], [self.zbounds])
         _filter_raw = filt_cinv.library_cinv_sepTP(opj(self.libdir_QE, 'ivfs'), self.simulationdata, self.cinv_t, self.cinv_p, self.cls_len)
-        _ftl_rs = np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[0])
-        _fel_rs = np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[1])
-        _fbl_rs = np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[2])
-        self.ivfs = filt_util.library_ftl(_filter_raw, self.lm_max_qlm[0], _ftl_rs, _fel_rs, _fbl_rs)
+        _ftebl_rs = lambda x: np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[x])
+        self.ivfs = filt_util.library_ftl(_filter_raw, self.lm_max_qlm[0], _ftebl_rs(0), _ftebl_rs(1), _ftebl_rs(2))
         self.qlms_dd = qest.library_sepTP(opj(self.libdir_QE, 'qlms_dd'), self.ivfs, self.ivfs, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
 
 
@@ -708,9 +747,15 @@ class QE_lr(Basejob):
 
             if task == 'calc_phi':
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
+                    self.qlms_dd.get_sim_qlm(self.k, int(idx))
+                    if self.simulationdata.obs_lib.maps == DEFAULT_NotAValue:
+                        self.simulationdata.purgecache()
+                mpi.barrier()
+                for idx in self.jobs[taski][mpi.rank::mpi.size]:
                     self.get_plm(idx, self.QE_subtract_meanfield)
                     if self.simulationdata.obs_lib.maps == DEFAULT_NotAValue:
                         self.simulationdata.purgecache()
+                
 
             if task == 'calc_meanfield':
                 if len(self.jobs[taski])>0:
@@ -766,7 +811,6 @@ class QE_lr(Basejob):
         ret = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, 0))
         if self.Nmf > 1:
             if self.mfvar == None:
-                # FIXME plancklens needs to be less restrictive with type for simidx.
                 ret = self.qlms_dd.get_sim_qlm_mf(self.k, [int(simidx_mf) for simidx_mf in self.simidxs_mf])
                 if simidx in self.simidxs_mf:    
                     ret = (ret - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
@@ -780,8 +824,8 @@ class QE_lr(Basejob):
         
 
     # @base_exception_handler
-    @log_on_start(logging.DEBUG, "QE.get_plm(simidx={simidx}, sub_mf={sub_mf}) started")
-    @log_on_end(logging.DEBUG, "QE.get_plm(simidx={simidx}, sub_mf={sub_mf}) finished")
+    @log_on_start(logging.DEBUG, "QE.get_plm_n1(simidx={simidx}, sub_mf={sub_mf}) started")
+    @log_on_end(logging.DEBUG, "QE.get_plm_n1(simidx={simidx}, sub_mf={sub_mf}) finished")
     def get_plm_n1(self, simidx, sub_mf=True, N1=np.array([])):
         libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
         if N1.size == 0:
@@ -795,9 +839,9 @@ class QE_lr(Basejob):
                 plm -= self.mf(int(simidx))  # MF-subtracted unnormalized QE
             R = qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=self.lm_max_qlm[0])[0]
             # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
-            WF = self.cpp * utils.cli(self.cpp + utils.cli(R) + N1)
+            WF = self.cpp * pl_utils.cli(self.cpp + pl_utils.cli(R) + N1)
             plm = alm_copy(plm, None, self.lm_max_qlm[0], self.lm_max_qlm[1])
-            almxfl(plm, utils.cli(R), self.lm_max_qlm[1], True) # Normalized QE
+            almxfl(plm, pl_utils.cli(R), self.lm_max_qlm[1], True) # Normalized QE
             almxfl(plm, WF, self.lm_max_qlm[1], True) # Wiener-filter QE
             almxfl(plm, self.cpp > 0, self.lm_max_qlm[1], True)
             np.save(fn_plm, plm)
@@ -805,6 +849,8 @@ class QE_lr(Basejob):
         return np.load(fn_plm)
 
 
+    @log_on_start(logging.DEBUG, "QE.get_plm(simidx={simidx}, sub_mf={sub_mf}) started")
+    @log_on_end(logging.DEBUG, "QE.get_plm(simidx={simidx}, sub_mf={sub_mf}) finished")
     def get_plm(self, simidx, sub_mf=True):
         libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
         fn_plm = opj(libdir_MAPidx, 'phi_plm_it000.npy') # Note: careful, this one doesn't have a simidx, so make sure it ends up in a simidx_directory (like MAP)
@@ -814,9 +860,9 @@ class QE_lr(Basejob):
                 plm -= self.mf(int(simidx))  # MF-subtracted unnormalized QE
             R = qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=self.lm_max_qlm[0])[0]
             # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
-            WF = self.cpp * utils.cli(self.cpp + utils.cli(R))
+            WF = self.cpp * pl_utils.cli(self.cpp + pl_utils.cli(R))
             plm = alm_copy(plm, None, self.lm_max_qlm[0], self.lm_max_qlm[1])
-            almxfl(plm, utils.cli(R), self.lm_max_qlm[1], True) # Normalized QE
+            almxfl(plm, pl_utils.cli(R), self.lm_max_qlm[1], True) # Normalized QE
             almxfl(plm, WF, self.lm_max_qlm[1], True) # Wiener-filter QE
             almxfl(plm, self.cpp > 0, self.lm_max_qlm[1], True)
             np.save(fn_plm, plm)
@@ -841,8 +887,8 @@ class QE_lr(Basejob):
     def get_meanfield_normalized(self, simidx):
         mf_QE = copy.deepcopy(self.get_meanfield(simidx))
         R = qresp.get_response(self.k, self.lm_max_ivf[0], 'p', self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=self.lm_max_qlm[0])[0]
-        WF = self.cpp * utils.cli(self.cpp + utils.cli(R))
-        almxfl(mf_QE, utils.cli(R), self.lm_max_qlm[1], True) # Normalized QE
+        WF = self.cpp * pl_utils.cli(self.cpp + pl_utils.cli(R))
+        almxfl(mf_QE, pl_utils.cli(R), self.lm_max_qlm[1], True) # Normalized QE
         almxfl(mf_QE, WF, self.lm_max_qlm[1], True) # Wiener-filter QE
         almxfl(mf_QE, self.cpp > 0, self.lm_max_qlm[1], True)
 
@@ -926,6 +972,13 @@ class MAP_lr(Basejob):
         self.qe = QE_lr(dlensalot_model, caller=self)
         self.qe.simulationdata = self.simgen.simulationdata # just to be sure, so we have a single truth in MAP_lr. 
 
+
+        if self.OBD == 'OBD':
+            nivjob_geomlib_ = get_geom(self.nivjob_geominfo)
+            self.tpl = template_dense(self.lmin_teb[2], nivjob_geomlib_, self.tr, _lib_dir=self.obd_libdir, rescal=self.obd_rescale)
+        else:
+            self.tpl = None
+        
         ## tasks -> mf_dirname
         if "calc_meanfield" in self.it_tasks or 'calc_blt' in self.it_tasks:
             if not os.path.isdir(self.mf_dirname) and mpi.rank == 0:

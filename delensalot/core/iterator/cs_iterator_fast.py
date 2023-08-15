@@ -7,31 +7,24 @@
 
 """
 
-import os
+import os, sys, time
 from os.path import join as opj
-import shutil
-import time
-import sys
 import numpy as np
 
 import lenspyx.remapping.utils_geom as utils_geom
-
-from plancklens.qcinv import multigrid
-
-from delensalot.utils import cli, read_map
-from delensalot.utility.utils_hp import Alm, almxfl, alm2cl
-from delensalot.core import cachers
-from delensalot.core.iterator import steps
-import delensalot.core.iterator.cs_iterator
-from delensalot.core.opfilt import opfilt_base
-
 
 import logging
 log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
 
-alm2rlm = lambda alm : alm # get rid of this
-rlm2alm = lambda rlm : rlm
+from delensalot.utils import cli
+from delensalot.utility.utils_hp import Alm, almxfl
+from delensalot.core import cachers
+from delensalot.core.cg import multigrid
+from delensalot.core.iterator import steps
+from delensalot.core.opfilt import opfilt_base
+import delensalot.core.iterator.cs_iterator
+
 
 
 class iterator_cstmf(delensalot.core.iterator.cs_iterator.qlm_iterator):

@@ -51,8 +51,8 @@ class Tutorial(unittest.TestCase):
         nside = 512
         rhits = np.abs(hp.smoothing(hp.ud_grade(m, nside_out=nside),0.1))
         mask = hp.ud_grade(m, nside_out=nside)
-        mask_fn = opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100', 'mask.fits')
-        rhits_fn = opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100', 'rhits.fits')
+        mask_fn = opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lcut100', 'mask.fits')
+        rhits_fn = opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lcut100', 'rhits.fits')
 
         if not os.path.isdir(os.path.dirname(mask_fn)):
             os.makedirs(os.path.dirname(mask_fn))
@@ -72,8 +72,8 @@ class Tutorial(unittest.TestCase):
         nside = 512
         rhits = np.abs(hp.smoothing(hp.ud_grade(m, nside_out=nside),0.1))
         mask = hp.ud_grade(m, nside_out=nside)
-        mask_fn = opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100', 'mask.fits')
-        rhits_fn = opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100', 'rhits.fits')
+        mask_fn = opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lcut100', 'mask.fits')
+        rhits_fn = opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lcut100', 'rhits.fits')
 
         if not os.path.isdir(os.path.dirname(mask_fn)):
             os.makedirs(os.path.dirname(mask_fn))
@@ -81,7 +81,7 @@ class Tutorial(unittest.TestCase):
         if not os.path.isfile(mask_fn):
             hp.write_map(mask_fn, mask)
             hp.write_map(rhits_fn, rhits)
-        tniti_fn = opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100', 'tniti.npy')
+        tniti_fn = opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lcut100', 'tniti.npy')
         np.save(tniti_fn, np.random.random(100))
         for job_id in self.job_ids:
             fn = opj(Path(delensalot.__file__).parent.parent, 'first_steps/notebooks/', 'conf_mwe_applyOBD.py')
@@ -95,15 +95,16 @@ class Tutorial(unittest.TestCase):
         nside = 512
         rhits = np.abs(hp.smoothing(hp.ud_grade(m, nside_out=nside),0.1))
         mask = hp.ud_grade(m, nside_out=nside)
-        mask_fn = opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100', 'mask.fits')
-        rhits_fn = opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100', 'rhits.fits')
+        mask_fn = opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lcut100', 'mask.fits')
+        rhits_fn = opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lcut100', 'rhits.fits')
+        tniti_fn = opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lcut100', 'tniti.npy')
 
         if not os.path.isdir(os.path.dirname(mask_fn)):
             os.makedirs(os.path.dirname(mask_fn))
-            
         if not os.path.isfile(mask_fn):
             hp.write_map(mask_fn, mask)
             hp.write_map(rhits_fn, rhits)
+            np.save(tniti_fn, np.ones(shape=(100**2,100**2)))
         for job_id in self.job_ids:
             fn = opj(Path(delensalot.__file__).parent.parent, 'first_steps/notebooks/', 'conf_mwe_buildOBD.py')
             delensalot_runner = run(config_fn=fn, job_id=job_id, verbose=True)

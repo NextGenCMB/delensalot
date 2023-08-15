@@ -14,12 +14,12 @@ import logging
 log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
 
-import plancklens.utils as utils
-from plancklens.qcinv import cd_solve, opfilt_pp, multigrid
+from plancklens.qcinv import opfilt_pp
 from plancklens.qcinv import util, util_alm
 from plancklens.filt import filt_cinv
 
-from delensalot.core import mpi
+from delensalot import utils
+from delensalot.core.cg import cd_solve, multigrid
 from delensalot.core.opfilt import bmodes_ninv
 
 class cinv_p(filt_cinv.cinv):

@@ -18,9 +18,8 @@ import healpy as hp
 import hashlib
 
 ## TODO don't like this import here. Not sure how to remove
-from plancklens.qcinv import cd_solve
+from delensalot.core.cg import cd_solve
 
-from lenspyx.remapping import utils_geom as lug
 from lenspyx.remapping import deflection
 from lenspyx.lensing import get_geom 
 
@@ -31,7 +30,6 @@ from delensalot.utility.utils_hp import gauss_beam
 
 from delensalot.core.iterator import steps
 from delensalot.core.handler import OBD_builder, Sim_generator, QE_lr, MAP_lr, Map_delenser
-from delensalot.core.opfilt.bmodes_ninv import template_dense
 
 from delensalot.config.visitor import transform, transform3d
 from delensalot.config.config_helper import data_functions as df, LEREPI_Constants as lc
@@ -171,15 +169,15 @@ class l2OBD_Transformer:
         noisemodel_norm = np.max(noisemodel_rhits_map)
         if cf.noisemodel.nivt_map is None:
             if dl.nivjob_geominfo[0] == 'healpix':
-                ninv_desc = [np.array([hp.nside2pixarea(dl.nivjob_geominfo[1]['nside'], degrees=True) * 60 ** 2 / nlev['T'] ** 2])/noisemodel_norm] + masks
+                niv_desc = [np.array([hp.nside2pixarea(dl.nivjob_geominfo[1]['nside'], degrees=True) * 60 ** 2 / nlev['T'] ** 2])/noisemodel_norm] + masks
             else:
                 assert 0, 'needs testing, please choose Healpix geom for nivjob for now'
                 vamin =  4*np.pi * (180/np.pi)**2 / get_geom(cf.itrec.lenjob_geominfo).npix()
-                ninv_desc = [np.array([vamin * 60 ** 2 / nlev['T'] ** 2])/noisemodel_norm] + masks
+                niv_desc = [np.array([vamin * 60 ** 2 / nlev['T'] ** 2])/noisemodel_norm] + masks
         else:
             niv = np.load(cf.noisemodel.nivt_map)
-            ninv_desc = [niv] + masks
-        return ninv_desc
+            niv_desc = [niv] + masks
+        return niv_desc
 
 
     @log_on_start(logging.DEBUG, "get_nivp_desc() started")
@@ -190,15 +188,15 @@ class l2OBD_Transformer:
         noisemodel_norm = np.max(noisemodel_rhits_map)
         if cf.noisemodel.nivp_map is None:
             if dl.nivjob_geominfo[0] == 'healpix':
-                ninv_desc = [[np.array([hp.nside2pixarea(dl.nivjob_geominfo[1]['nside'], degrees=True) * 60 ** 2 / nlev['P'] ** 2])/noisemodel_norm] + masks]
+                niv_desc = [[np.array([hp.nside2pixarea(dl.nivjob_geominfo[1]['nside'], degrees=True) * 60 ** 2 / nlev['P'] ** 2])/noisemodel_norm] + masks]
             else:
                 assert 0, 'needs testing, pleasechoose Healpix geom for nivjob for now'
                 vamin =  4*np.pi * (180/np.pi)**2 / get_geom(cf.itrec.lenjob_geominfo).npix()
-                ninv_desc = [[np.array([vamin * 60 ** 2 / nlev['P'] ** 2])/noisemodel_norm] + masks]
+                niv_desc = [[np.array([vamin * 60 ** 2 / nlev['P'] ** 2])/noisemodel_norm] + masks]
         else:
             niv = np.load(cf.noisemodel.nivp_map)
-            ninv_desc = [[niv] + masks]
-        return ninv_desc
+            niv_desc = [[niv] + masks]
+        return niv_desc
 
 
     @log_on_start(logging.DEBUG, "get_masks() started")
@@ -305,8 +303,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 def _process_OBD(dl, od):
                     dl.obd_libdir = od.libdir
                     dl.obd_rescale = od.rescale
-                    nivjob_geomlib_ = get_geom(cf.noisemodel.geominfo)
-                    dl.tpl = template_dense(dl.lmin_teb[2], nivjob_geomlib_, dl.tr, _lib_dir=dl.obd_libdir, rescal=dl.obd_rescale)
 
 
                 @log_on_start(logging.DEBUG, "_process_Simulation() started")
@@ -411,10 +407,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_Analysis(dl, cf.analysis)
                 _process_Noisemodel(dl, cf.noisemodel)
                 _process_Simulation(dl, cf.simulationdata)
-                if dl.OBD == 'OBD':
-                    _process_OBD(dl, cf.obd)
-                else:
-                    dl.tpl = None
+                _process_OBD(dl, cf.obd)
                 _process_Qerec(dl, cf.qerec)
                 _process_Itrec(dl, cf.itrec)
 
@@ -482,7 +475,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
                     if dl.sky_coverage == 'masked':
                         dl.rhits_normalised = nm.rhits_normalised
-                        dl.fsky = np.mean(l2OBD_Transformer.get_nivp_desc(cf, dl)[0][1]) ## calculating fsky, but quite expensive. and if ninvp changes, this could have negative effect on fsky calc
+                        dl.fsky = np.mean(l2OBD_Transformer.get_nivp_desc(cf, dl)[0][1]) ## calculating fsky, but quite expensive. and if nivp changes, this could have negative effect on fsky calc
                     else:
                         dl.fsky = 1.0
                     dl.spectrum_type = nm.spectrum_type
@@ -496,8 +489,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 def _process_OBD(dl, od):
                     dl.obd_libdir = od.libdir
                     dl.obd_rescale = od.rescale
-                    nivjob_geomlib_ = get_geom(cf.noisemodel.geominfo)
-                    dl.tpl = template_dense(dl.lmin_teb[2], nivjob_geomlib_, dl.tr, _lib_dir=dl.obd_libdir, rescal=dl.obd_rescale)
 
 
                 @log_on_start(logging.DEBUG, "_process_Simulation() started")
@@ -599,10 +590,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_Analysis(dl, cf.analysis)
                 _process_Noisemodel(dl, cf.noisemodel)
                 _process_Simulation(dl, cf.simulationdata)
-                if dl.OBD  == 'OBD':
-                    _process_OBD(dl, cf.obd)
-                else:
-                    dl.tpl = None
+
+                _process_OBD(dl, cf.obd)
                 _process_Qerec(dl, cf.qerec)
                 _process_Itrec(dl, cf.itrec)
 

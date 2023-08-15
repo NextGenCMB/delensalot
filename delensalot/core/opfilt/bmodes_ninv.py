@@ -10,11 +10,11 @@ import logging
 log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
 
-from plancklens import utils
 from plancklens.qcinv import opfilt_pp
 
 from lenspyx.remapping import utils_geom
 
+from delensalot import utils
 from delensalot.core import mpi
 from delensalot.utils import enumerate_progress, read_map
 from delensalot.utility.utils_hp import Alm
