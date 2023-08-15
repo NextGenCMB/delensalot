@@ -9,7 +9,6 @@ import json
 
 from lenspyx.lensing import get_geom 
 
-
 class timer:
     def __init__(self, verbose, prefix='', suffix=''):
         self.t0 = time()
@@ -90,6 +89,7 @@ class timer:
                              + " (total [" + (
                                  '%02d:%02d:%02d:%02d' % (dhi, dmi, dsi, dmsi)) + "]) " + msg + ' %s \n' % self.suffix)
 
+
 def enumerate_progress(lst:list or np.ndarray, label=''):
     """Simple progress bar.
 
@@ -111,6 +111,7 @@ def enumerate_progress(lst:list or np.ndarray, label=''):
     sys.stdout.write("\n")
     sys.stdout.flush()
 
+
 def clhash(cl, dtype=np.float32):
     """Hash for generic numpy array.
 
@@ -118,6 +119,7 @@ def clhash(cl, dtype=np.float32):
 
     """
     return hashlib.sha1(np.copy(cl.astype(dtype), order='C')).hexdigest()
+
 
 def hash_check(hash1, hash2, ignore=['lib_dir', 'prefix'], keychain=[], fn=None):
     keys1 = hash1.keys()
@@ -157,6 +159,7 @@ def hash_check(hash1, hash2, ignore=['lib_dir', 'prefix'], keychain=[], fn=None)
             if not( v1 == v2 ):
                 hashfail('UNEQUAL VALUES')
 
+
 def cli(cl):
     """Pseudo-inverse for positive cl-arrays.
 
@@ -164,6 +167,7 @@ def cli(cl):
     ret = np.zeros_like(cl)
     ret[np.where(cl > 0)] = 1. / cl[np.where(cl > 0)]
     return ret
+
 
 def read_map(m):
     """Reads a map whether given as (list of) string (with ',f' denoting field f), array or callable
@@ -234,6 +238,7 @@ def cls2dls(cls):
         cldd *= np.arange(len(cldd)) ** 2 * np.arange(1, len(cldd) + 1, dtype=float) ** 2 /  (2. * np.pi)
     return dls, cldd
 
+
 def dls2cls(dls):
     """Inverse operation to cls2dls"""
     assert dls.shape[1] == 4
@@ -243,6 +248,7 @@ def dls2cls(dls):
     for i, k in enumerate(['tt', 'ee', 'bb', 'te']):
         cls[k] = dls[:, i] * refac
     return cls
+
 
 def load_file(fn, lmax=None, ifield=0):
     if fn.endswith('.npy'):
