@@ -488,6 +488,7 @@ class Sim_generator(Basejob):
 class Noisemodeller(Basejob):
 
     def __init__(self, dlensalot_model, caller=None):
+        pass
 
     def init_cinv(self):
         self.cinv_t = filt_cinv.cinv_t(opj(self.libdir_QE, 'cinv_t'),
