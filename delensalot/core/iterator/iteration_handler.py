@@ -31,7 +31,9 @@ class base_iterator():
 
         self.tr = self.iterator_config.tr
         if self.qe.qe_filter_directional == 'anisotropic':
+            mpi.disable()
             self.qe.init_aniso_filter()
+            mpi.enable()
         self.wflm0 = self.qe.get_wflm(self.simidx)
         self.R_unl0 = self.qe.R_unl()
         self.mf0 = self.qe.get_meanfield(self.simidx) if self.QE_subtract_meanfield else np.zeros(shape=hp.Alm.getsize(self.lm_max_qlm[0]))
