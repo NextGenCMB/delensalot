@@ -71,7 +71,7 @@ class Basejob():
         if not os.path.exists(self.libdir_QE):
             os.makedirs(self.libdir_QE)
         self.libdir_MAP = lambda qe_key, simidx, version: opj(self.TEMP, 'MAP/%s'%(qe_key), 'sim%04d'%(simidx) + version)
-        self.libdir_blt = opj(lambda simidx: opj(self.TEMP, 'MAP/%s'%(self.k), 'sim%04d'%(simidx) + self.version), 'BLT/')
+        self.libdir_blt = lambda simidx: opj(self.TEMP, 'MAP/%s'%(self.k), 'sim%04d'%(simidx) + self.version, 'BLT/')
         for simidx in np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))), dtype=int):
             ## calculates all plms even for mf indices. This is not necessarily requested due to potentially simidxs =/= simidxs_mf, but otherwise collect and run must be adapted and its ok like this.
             libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
@@ -180,7 +180,7 @@ class OBD_builder(Basejob):
     def __init__(self, OBD_model):
         self.__dict__.update(OBD_model.__dict__)
         nivp = self._load_niv(self.nivp_desc)
-        self.nivp = ztruncify(nivp)
+        self.nivp = ztruncify(nivp, self.zbounds)
 
 
     def _load_niv(self, niv_desc):
@@ -195,7 +195,7 @@ class OBD_builder(Basejob):
             else:
                 n_inv.append(read_map(self._n_inv[i]))
         assert len(n_inv) in [1, 3], len(n_inv)
-        return n_inv
+        return np.array(n_inv)
 
     # @base_exception_handler
     @log_on_start(logging.DEBUG, "collect_jobs() started")
@@ -914,7 +914,7 @@ class QE_lr(Basejob):
     def get_blt_new(self, simidx):
 
         def get_template_blm(it, it_e, lmaxb=1024, lmin_plm=1, perturbative=False):
-            fn_blt = 'blt_p%03d_e%03d_lmax%s'%(it, it_e, lmaxb)
+            fn_blt = 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0])
             fn_blt += 'perturbative' * perturbative      
 
             elm_wf = self.filter.transf
@@ -1025,7 +1025,7 @@ class MAP_lr(Basejob):
 
             elif task == 'calc_blt':
                 for simidx in self.simidxs:
-                    fns_blt = np.array([opj(self.libdir_blt(simidx), 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, it, it, self.lm_max_blt[0]) + '.npy') for it in np.arange(1,self.itmax+1)])
+                    fns_blt = np.array([opj(self.libdir_blt(simidx), 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, it, it-1, self.lm_max_blt[0]) + '.npy') for it in np.arange(1,self.itmax+1)])
                     if not np.all([os.path.exists(fn_blt) for fn_blt in fns_blt]):
                         _jobs.append(simidx)
 
