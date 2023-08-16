@@ -9,6 +9,36 @@ from logdecorator import log_on_start, log_on_end
 alm2rlm = lambda x : x.copy()
 rlm2alm = lambda x : x.copy()
 
+
+from plancklens import shts
+from delensalot.utility.utils_hp import Alm, almxfl
+from plancklens.utils import cli
+
+def kappa_to_phi(k_lm):
+    lmax = Alm.getlmax(k_lm.size, None)
+    ells = np.arange(0, lmax+1, 1)
+    factor = ells*(ells+1)/2
+    return almxfl(k_lm, cli(factor), lmax, False)
+
+def kappa_shifted(kappa, kappa0):
+    return kappa+kappa0
+
+def get_kappa(ylm, kappa0, lmax):
+    y = shts.alm2map(ylm, lmax)
+    return kappa_shifted(np.exp(y), -kappa0)
+
+def get_plm(ylm, kappa0, lmax):
+    kappa = get_kappa(ylm, kappa0, lmax)
+    return kappa_to_phi(shts.map2alm(kappa, lmax))
+
+
+def transform(rlm, kappa0):
+    if kappa0 is not None:
+        print('kappa0 is not None, transforming to phi')
+        lmax = Alm.getlmax(rlm.size, None)
+        rlm = get_plm(rlm, kappa0, lmax)
+    return rlm
+
 #TODO this looks like a 'query' class to me. May be refactored.
 class rec:
     """Static methods to reach for iterated lensing maps etc
@@ -27,22 +57,32 @@ class rec:
         return itr
 
     @staticmethod
-    def load_plms(lib_dir, itrs):
+    def load_plms(lib_dir, itrs, kappa0 = None):
         """Loads plms for the requested itrs"""
         lib_dir = os.path.abspath(lib_dir)
         cacher = cachers.cacher_npy(lib_dir)
         itmax = np.max(itrs)
         sk_fname = lambda k: os.path.join(lib_dir, 'hessian', 'rlm_sn_%s_%s' % (k, 'p'))
         rlm = alm2rlm(cacher.load(os.path.join(lib_dir, 'phi_plm_it000')))
-        ret = [] if 0 not in itrs else [rlm2alm(rlm)]
+
+        """if kappa0 is not None:
+            print('kappa0 is not None, transforming to phi')
+            lmax = Alm.getlmax(rlm.size, None)
+            rlm = get_plm(rlm, kappa0, lmax)
+        """
+
+        ret = [] if 0 not in itrs else [rlm2alm(transform(rlm, kappa0))]
         for i in range(itmax):
             if cacher.is_cached(sk_fname(i)):
                 rlm += cacher.load(sk_fname(i))
+
                 if (i + 1) in itrs:
-                    ret.append(rlm2alm(rlm))
+                    print("Doing for kappa0", kappa0)
+                    ret.append(rlm2alm(transform(rlm, kappa0)))
             else:
                 log.info("*** Could only build up to itr number %s"%i)
                 return ret
+
         return ret
 
     @staticmethod
