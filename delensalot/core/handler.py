@@ -71,14 +71,14 @@ class Basejob():
         if not os.path.exists(self.libdir_QE):
             os.makedirs(self.libdir_QE)
         self.libdir_MAP = lambda qe_key, simidx, version: opj(self.TEMP, 'MAP/%s'%(qe_key), 'sim%04d'%(simidx) + version)
+        self.libdir_blt = lambda simidx: opj(self.TEMP, 'MAP/%s'%(self.k), 'sim%04d'%(simidx) + self.version, 'BLT/')
         for simidx in np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))), dtype=int):
             ## calculates all plms even for mf indices. This is not necessarily requested due to potentially simidxs =/= simidxs_mf, but otherwise collect and run must be adapted and its ok like this.
             libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
             if not os.path.exists(libdir_MAPidx):
                 os.makedirs(libdir_MAPidx)
-            self.libdir_blt = opj(libdir_MAPidx, 'BLT/')
-            if not os.path.exists(self.libdir_blt):
-                os.makedirs(self.libdir_blt)
+            if not os.path.exists(self.libdir_blt(simidx)):
+                os.makedirs(self.libdir_blt(simidx))
          
         self.config_model = model
         self.jobs = []
@@ -136,9 +136,9 @@ class Basejob():
             fn_blt = self.libdir_blt_MAP_CFS(self.k, simidx, self.version)
         else:
             if it == 0:
-                fn_blt = opj(self.libdir_blt, 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
+                fn_blt = opj(self.libdir_blt(simidx), 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
             elif it >0:
-                fn_blt = opj(self.libdir_blt, 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, it, it, self.lm_max_blt[0]) + '.npy')
+                fn_blt = opj(self.libdir_blt(simidx), 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, it, it, self.lm_max_blt[0]) + '.npy')
         return np.load(fn_blt)
     
 
@@ -179,8 +179,8 @@ class OBD_builder(Basejob):
     @check_MPI
     def __init__(self, OBD_model):
         self.__dict__.update(OBD_model.__dict__)
-        nivp = self._load_ninv(self.nivp_desc)
-        self.nivp = ztruncify(nivp)
+        nivp = self._load_niv(self.nivp_desc)
+        self.nivp = ztruncify(nivp, self.zbounds)
 
 
     def _load_niv(self, niv_desc):
@@ -195,7 +195,7 @@ class OBD_builder(Basejob):
             else:
                 n_inv.append(read_map(self._n_inv[i]))
         assert len(n_inv) in [1, 3], len(n_inv)
-        return n_inv
+        return np.array(n_inv)
 
     # @base_exception_handler
     @log_on_start(logging.DEBUG, "collect_jobs() started")
@@ -700,7 +700,7 @@ class QE_lr(Basejob):
             if task == 'calc_blt':
                 for simidx in self.simidxs:
                     ## this filename must match the one created in get_template_blm()
-                    fn_blt = opj(self.libdir_blt, 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
+                    fn_blt = opj(self.libdir_blt(simidx), 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
                     if not os.path.isfile(fn_blt) or recalc:
                         _jobs.append(simidx)
 
@@ -899,7 +899,7 @@ class QE_lr(Basejob):
     @log_on_start(logging.DEBUG, "QE.get_blt({simidx}) started")
     @log_on_end(logging.DEBUG, "QE.get_blt({simidx}) finished")
     def get_blt(self, simidx):
-        fn_blt = opj(self.libdir_blt, 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
+        fn_blt = opj(self.libdir_blt(simidx), 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
         if not os.path.exists(fn_blt):
             ## For QE, dlm_mod by construction doesn't do anything, because mean-field had already been subtracted from plm and we don't want to repeat that.
             dlm_mod = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, int(simidx)))
@@ -914,7 +914,7 @@ class QE_lr(Basejob):
     def get_blt_new(self, simidx):
 
         def get_template_blm(it, it_e, lmaxb=1024, lmin_plm=1, perturbative=False):
-            fn_blt = 'blt_p%03d_e%03d_lmax%s'%(it, it_e, lmaxb)
+            fn_blt = 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0])
             fn_blt += 'perturbative' * perturbative      
 
             elm_wf = self.filter.transf
@@ -1025,7 +1025,7 @@ class MAP_lr(Basejob):
 
             elif task == 'calc_blt':
                 for simidx in self.simidxs:
-                    fns_blt = np.array([opj(self.libdir_blt, 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, it, it, self.lm_max_blt[0]) + '.npy') for it in np.arange(1,self.itmax+1)])
+                    fns_blt = np.array([opj(self.libdir_blt(simidx), 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, it, it-1, self.lm_max_blt[0]) + '.npy') for it in np.arange(1,self.itmax+1)])
                     if not np.all([os.path.exists(fn_blt) for fn_blt in fns_blt]):
                         _jobs.append(simidx)
 
@@ -1132,7 +1132,7 @@ class MAP_lr(Basejob):
         if it == 0:
             self.qe.itlib_iterator = transform(self, iterator_transformer(self, simidx, self.dlensalot_model))
             return self.qe.get_blt(simidx)
-        fn_blt = opj(self.libdir_blt, 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, it, it, self.lm_max_blt[0]) + '.npy')
+        fn_blt = opj(self.libdir_blt(simidx), 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, it, it, self.lm_max_blt[0]) + '.npy')
         if not os.path.exists(fn_blt):     
             self.libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
             dlm_mod = np.zeros_like(rec.load_plms(self.libdir_MAPidx, [0])[0])
