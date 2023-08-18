@@ -989,7 +989,7 @@ class Simhandler:
         return self.unl_lib.get_sim_phi(simidx=simidx, space=space)
     
     def purgecache(self):
-        print('sims_lib: purging cachers to release memory')
+        log.info('sims_lib: purging cachers to release memory')
         libs = ['obs_lib', 'noise_lib', 'unl_lib', 'len_lib']
         for lib in libs:
             if lib in self.__dict__:
