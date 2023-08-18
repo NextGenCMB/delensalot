@@ -60,6 +60,10 @@ class config_handler():
                                     self.configfile.dlensalot_model.job.jobs.append(sortedjob)
                             else:
                                 self.configfile.dlensalot_model.job.jobs.append(sortedjob)
+                ## TODO hardcoding 'CL_analysis' into every run as long as it is MAP_lensrec, as I am too lazy addig it to the config file
+                if 'MAP_lensrec' in self.configfile.dlensalot_model.job.jobs:
+                    self.configfile.dlensalot_model.job.jobs.append('analyse_phi')
+                    
         TEMP = transform(self.configfile.dlensalot_model, l2T_Transformer())
         self.parser = parser
         self.TEMP = TEMP

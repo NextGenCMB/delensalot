@@ -23,7 +23,7 @@ from lenspyx.lensing import get_geom
 
 from delensalot.utils import read_map, ztruncify
 from delensalot.utility import utils_qe, utils_sims
-from delensalot.utility.utils_hp import Alm, almxfl, alm_copy, gauss_beam
+from delensalot.utility.utils_hp import Alm, almxfl, alm_copy, gauss_beam, alm2cl
 
 from delensalot.config.visitor import transform, transform3d
 from delensalot.config.metamodel import DEFAULT_NotAValue
@@ -1225,7 +1225,7 @@ class Map_delenser(Basejob):
         if self.basemap == 'lens':  
             return almxfl(alm_copy(self.simulationdata.get_sim_sky(simidx, space='alm', spin=0, field='polarization')[1], self.simulationdata.lmax, *self.lm_max_blt), self.ttebl['e'], self.lm_max_blt[0], inplace=False) 
         elif self.basemap == 'lens_ffp10':
-            return hp.almxfl(alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(simidx), None, lmaxout=self.lm_max_blt[0], mmaxout=self.lm_max_blt[1]), gauss_beam(2.3 / 180 / 60 * np.pi, lmax=self.lm_max_blt[1]))  
+            return almxfl(alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(simidx), None, lmaxout=self.lm_max_blt[0], mmaxout=self.lm_max_blt[1]), gauss_beam(2.3 / 180 / 60 * np.pi, lmax=self.lm_max_blt[1]))  
         else:
             # only checking for map to save some memory..
             if np.all(self.simulationdata.maps == DEFAULT_NotAValue):
@@ -1301,6 +1301,158 @@ class Map_delenser(Basejob):
             almxfl(hlm, h2d, self.mmax_qlm, True)
         else:
             return  almxfl(hlm, h2d, self.mmax_qlm, False)
+
+
+class Phi_analyser(Basejob):
+    """ This only works on Full sky.
+    Phi analyser Job for calculating,
+        * cross correlation,
+        * cross correlation coefficient,
+        * reconstruction bias,
+        * empiric Wiener-filter.
+    Data is stored in CLpp/
+    """
+
+    def __init__(self, dlensalot_model):
+        super().__init__(dlensalot_model)
+        self.tasks = ['calc_crosscorr', 'calc_reconbias', 'calc_crosscorrcoeff', 'calc_WFemp']
+        self.other_analysis_dir = 'path'
+        self.libdir_phianalayser = opj(self.TEMP, 'CL/{}'.format(self.k))
+        if not(os.path.isdir(self.libdir_delenser)):
+            os.makedirs(self.libdir_delenser)
+
+
+    def collect_jobs(self):
+        _jobs, jobs = [], []
+        for taski, task in enumerate(self.tasks):
+        
+            if task == 'calc_crosscorr':
+                TEMP_Cx = opj(self.libdir_phianalayser, '/Cx')
+                if not os.path.isdir(TEMP_Cx):
+                    os.makedirs(TEMP_Cx)
+                fns = opj(TEMP_Cx,'CLx_%s_sim%s.npy')
+                for simidx in self.simidxs:
+                    if not os.path.isfile(fns%(self.k, simidx)):
+                        _jobs.append(simidx)
+            
+            if task == 'calc_reconbias':
+                TEMP_Cxbias = opj(self.libdir_phianalayser, '/Cxb')
+                if not os.path.isdir(TEMP_Cxbias):
+                    os.makedirs(TEMP_Cxbias)
+                fns = opj(TEMP_Cxbias,'CLxb_%s_sim%s.npy')
+                for simidx in self.simidxs:
+                    if not os.path.isfile(fns%(self.k, simidx)):
+                        _jobs.append(simidx)
+
+            if task == 'calc_crosscorrcoeff':
+                TEMP_Cccc = opj(self.libdir_phianalayser, '/Cccc')
+                if not os.path.isdir(TEMP_Cccc):
+                    os.makedirs(TEMP_Cccc)
+                fns = opj(TEMP_Cccc,'CLccc_%s_sim%s.npy')
+                for simidx in self.simidxs:
+                    if not os.path.isfile(fns%(self.k, simidx)):
+                        _jobs.append(simidx)
+            
+            if task == 'calc_WFemp':
+                TEMP_WF = opj(self.libdir_phianalayser, '/WF')
+                if not os.path.isdir(TEMP_WF):
+                    os.makedirs(TEMP_WF)
+                fns = opj(TEMP_WF,'WFemp_%s_sim%s.npy')
+                for simidx in self.simidxs:
+                    if not os.path.isfile(fns%(self.k, simidx)):
+                        _jobs.append(simidx)
+
+            jobs.append(_jobs)
+        self.jobs = jobs
+
+
+    def run(self):
+        for taski, task in enumerate(self.tasks):
+            if task == 'calc_WFemp':
+                TEMP_WF = opj(self.libdir_phianalayser, '/WFemp')
+                fns = opj(TEMP_WF,'WFemp_%s_sim%s_it%s.npy')
+                # First, calc for each simindex individually
+                for simidx in self.jobs[taski][mpi.rank::mpi.size]:
+                    val = self.get_wienerfilter_empiric(simidx, self.its)
+                    for it in np.arange(self.its[-1]):
+                        np.save(fns%(self.key, simidx, it), val)
+                # Second, calc average WF, only let only one rank do this
+                if mpi.rank == 0:
+                    for simidx in self.jobs[taski][mpi.rank::mpi.size]:
+                        WFemps = np.array([[np.load(fns%(self.key, simidx, it)) for it in self.its] for simidx in self.simidxs])
+                    np.save(opj(TEMP_WF,'WFemp_%s_simall%s_itall%s.npy')%(self.key, len(self.simidxs), len(self.its)), np.mean(WFemps, axis=0))
+                    [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
+                else:
+                    mpi.receive(None, source=mpi.ANY_SOURCE)
+
+            if task == 'calc_crosscorr':
+                TEMP_Cx = opj(self.libdir_phianalayser, '/Cx')
+                fns = opj(TEMP_Cx,'CLx_%s_sim%s_customWF.npy') if self.other_analysis_dir else opj(TEMP_Cx,'CLx_%s_sim%s.npy')
+                WFemps = np.load(opj(self.other_analysis_dir,'WFemp_%s_simall%s_itall%s.npy')%(self.key, len(self.simidxs), len(self.its))) if self.other_analysis_dir else None
+                for simidx in self.jobs[taski][mpi.rank::mpi.size]:
+                    for it in np.arange(self.its[-1]):
+                        val = self.get_crosscorrelation(simidx, WFemp=WFemps[it])
+                        np.save(fns%(self.key, simidx), val)
+           
+            if task == 'calc_reconbias':
+                TEMP_Cxbias = opj(self.libdir_phianalayser, '/Cxb')
+                fns = opj(TEMP_Cxbias,'CLxb_%s_sim%s.npy') if self.other_analysis_dir else opj(TEMP_Cxbias,'CLxb_%s_sim%s.npy')
+                WFemps = np.load(opj(self.other_analysis_dir,'WFemp_%s_simall%s_itall%s.npy')%(self.key, len(self.simidxs), len(self.its))) if self.other_analysis_dir else None
+                for simidx in self.jobs[taski][mpi.rank::mpi.size]:
+                    val = self.get_reconstructionbias(simidx, WFemp=WFemps[it])
+                    np.save(fns%(self.key, simidx), val)
+
+            if task == 'calc_crosscorrcoeff':
+                TEMP_Cccc = opj(self.libdir_phianalayser, '/Cccc')
+                fns = opj(TEMP_Cccc,'CLccc_%s_sim%s.npy') if self.other_analysis_dir else opj(TEMP_Cccc,'CLccc_%s_sim%s.npy')
+                WFemps = np.load(opj(self.other_analysis_dir,'WFemp_%s_simall%s_itall%s.npy')%(self.key, len(self.simidxs), len(self.its))) if self.other_analysis_dir else None
+                for simidx in self.jobs[taski][mpi.rank::mpi.size]:
+                    val = self.get_crosscorrelationcoefficient(simidx, WFemp=WFemps[it])
+                    np.save(fns%(self.key, simidx), val)
+
+
+    def get_crosscorrelation(self, simidx, it, WFemp=None):
+        plm_est = self.get_plm_it(simidx, [it])[0]
+        plm_in = alm_copy(self.simulationdata.get_sim_phi(simidx, space='alm'), None, self.lm_max_qlm[0], self.lm_max_qlm[1])
+        if not WFemp:
+            TEMP_WF = opj(self.libdir_phianalayser, '/WFemp')
+            WFemp = np.load(opj(TEMP_WF,'WFemp_%s_sim%s_it%s_avg.npy')%(self.key, simidx, it)) 
+        return alm2cl(plm_est, plm_in, lmax_out=self.lm_max_qlm[0],)/WFemp
+
+
+    def get_reconstructionbias(self, simidx, it, WFemp=None):
+        # plm_QE = almxfl(self.qe.get_sim_qlm(simidx), utils.cli(R))
+        plm_est = self.get_plm_it(simidx, [it])[0]
+        plm_in = alm_copy(self.simulationdata.get_sim_phi(simidx, space='alm'), None, self.lm_max_qlm[0], self.lm_max_qlm[1])
+        if not WFemp:
+            TEMP_WF = opj(self.libdir_phianalayser, '/WFemp')
+            WFemp = np.load(opj(TEMP_WF,'WFemp_%s_sim%s_it%s_avg.npy')%(self.key, simidx, it))
+        return alm2cl(plm_est, plm_in, lmax_out=self.lm_max_qlm[0],) / alm2cl(plm_in, lmax_out=self.lm_max_qlm[0])/WFemp
+
+
+    def get_crosscorrelationcoefficient(self, simidx, it, WFemp=None):
+        # plm_QE = almxfl(self.qe.get_sim_qlm(simidx), utils.cli(R))
+        plm_est = self.get_plm_it(simidx, [it])[0]
+        plm_in = alm_copy(self.simulationdata.get_sim_phi(simidx, space='alm'), None, self.lm_max_qlm[0], self.lm_max_qlm[1])
+        if not WFemp:
+            TEMP_WF = opj(self.libdir_phianalayser, '/WFemp')
+            WFemp = np.load(opj(TEMP_WF,'WFemp_%s_sim%s_it%s_avg.npy')%(self.key, simidx, it)) 
+        return alm2cl(plm_est, plm_in, lmax_out=self.lm_max_qlm[0],)**2/(alm2cl(plm_est, lmax_out=self.lm_max_qlm[0])*alm2cl(plm_in, lmax_out=self.lm_max_qlm[0]))/WFemp
+
+
+    def get_wienerfilter_analytic(self, simidx, it):
+        assert 0, 'implement if needed'
+        return None   
+    
+
+    def get_wienerfilter_empiric(self, simidx, its):
+        WFemp = np.zeros(shape=(its[-1], self.lm_max_qlm[0]))
+        plm_in = alm_copy(self.simulationdata.get_sim_phi(simidx, space='alm'), None, self.lm_max_qlm[0], self.lm_max_qlm[1])
+        for it in its:
+            plm_est = self.get_plm_it(simidx, [it])
+            WFemp[it] = alm2cl(plm_in, plm_est)/alm2cl(plm_in)
+        return WFemp
+
 
 
 class overwrite_anafast():

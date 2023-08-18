@@ -29,7 +29,7 @@ from delensalot.utils import cli, camb_clfile, load_file
 from delensalot.utility.utils_hp import gauss_beam
 
 from delensalot.core.iterator import steps
-from delensalot.core.handler import OBD_builder, Sim_generator, QE_lr, MAP_lr, Map_delenser
+from delensalot.core.handler import OBD_builder, Sim_generator, QE_lr, MAP_lr, Map_delenser, Phi_analyser
 
 from delensalot.config.visitor import transform, transform3d
 from delensalot.config.config_helper import data_functions as df, LEREPI_Constants as lc
@@ -893,7 +893,13 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             return dl
 
         return Map_delenser(extract())
-    
+
+
+    def build_phianalyser(self, cf):
+        ## FIXME build a correct model. For now quick and dirty, MAP_lensrec contains all information (and more)
+        return Phi_analyser(self.build_MAP_lensrec(cf).extract())
+        
+
 
 @transform.case(DLENSALOT_Model_mm, l2T_Transformer)
 def f2a2(expr, transformer): # pylint: disable=missing-function-docstring
