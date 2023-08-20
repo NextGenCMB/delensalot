@@ -1047,6 +1047,14 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 @log_on_end(logging.DEBUG, "_process_Phianalysis() finished")       
                 def _process_Phianalysis(dl, pa):
                     dl.custom_WF_TEMP = pa.custom_WF_TEMP
+                    dl.its = np.arange(dl.itmax)
+
+                    # At modelbuild-stage I want to test if WF exists.
+                    fn = opj(dl.custom_WF_TEMP,'WFemp_%s_simall%s_itall%s_avg.npy')%(dl.k, len(dl.simidxs), len(dl.its))
+                    if os.path.isfile(fn):
+                        log.error("WF @ {} does not exsit. Please check your settings. Exiting".format(fn))
+                        sys.exit()
+
 
       
                 _process_Meta(dl, cf.meta)
