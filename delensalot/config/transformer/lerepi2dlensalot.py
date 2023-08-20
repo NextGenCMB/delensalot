@@ -1050,12 +1050,13 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.its = np.arange(dl.itmax)
 
                     # At modelbuild-stage I want to test if WF exists.
-                    fn = opj(dl.custom_WF_TEMP,'WFemp_%s_simall%s_itall%s_avg.npy')%(dl.k, len(dl.simidxs), len(dl.its))
-                    if os.path.isfile(fn):
-                        log.error("WF @ {} does not exsit. Please check your settings. Exiting".format(fn))
-                        sys.exit()
-
-
+                    if type(dl.custom_WF_TEMP) == str:
+                        fn = opj(dl.custom_WF_TEMP,'WFemp_%s_simall%s_itall%s_avg.npy')%(dl.k, len(dl.simidxs), len(dl.its))
+                        if not os.path.isfile(fn):
+                            log.error("WF @ {} does not exsit. Please check your settings. Exiting".format(fn))
+                            sys.exit()
+                    elif dl.custom_WF_TEMP is None or type(dl.custom_WF_TEMP) == int:
+                        dl.custom_WF_TEMP = None
       
                 _process_Meta(dl, cf.meta)
                 _process_Computing(dl, cf.computing)
@@ -1066,7 +1067,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_OBD(dl, cf.obd)
                 _process_Qerec(dl, cf.qerec)
                 _process_Itrec(dl, cf.itrec)
-                _process_Phianalysis(dl, cf.itrec)
+                _process_Phianalysis(dl, cf.phana)
 
                 if 'smoothed_phi_empiric_halofit' in cf.analysis.cpp:
                     dl.cpp = np.load(cf.analysis.cpp)[:dl.lm_max_qlm[0] + 1,1]

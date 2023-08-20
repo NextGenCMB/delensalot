@@ -400,6 +400,7 @@ class DLENSALOT_Model(DLENSALOT_Concept):
         config (DLENSALOT_Config):      configurations related to general behaviour to the operating system
         computing (DLENSALOT_Computing):    configurations related to the usage of computing resources
         obd (DLENSALOT_OBD):            configurations related to the overlapping B-mode deprojection
+        phana (DLENSALOT_Phyanalysis):  configurations related to the simple power spectrum analaysis of phi
 
     """
     
@@ -416,6 +417,7 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     config =                attr.field(default=DLENSALOT_Config(), validator=model.config)
     computing =             attr.field(default=DLENSALOT_Computing(), validator=model.computing)
     obd =                   attr.field(default=DLENSALOT_OBD(), validator=model.obd)
+    phana =                 attr.field(default=DLENSALOT_Phianalysis())
     
 
     def __attrs_post_init__(self):
@@ -435,7 +437,7 @@ class DLENSALOT_Model(DLENSALOT_Concept):
         sys.modules["default"] = default_module
         spec.loader.exec_module(default_module)
         default_dict = default_module.DL_DEFAULT
-        for key, val in list(filter(lambda x: '__' not in x[0] and x[0] != 'defaults_to', self.__dict__.items())):
+        for key, val in list(filter(lambda x: '__' not in x[0] and x[0] not in ['defaults_to', 'validate_model'], self.__dict__.items())):
             for k, v in val.__dict__.items():
                 if k in ['chain', 'stepper']:
                     for ke, va in v.__dict__.items():
