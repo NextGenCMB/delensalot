@@ -939,7 +939,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
                     dl.OBD = nm.OBD
                     dl.nlev = l2OBD_Transformer.get_nlev(cf)
-                    
+        
 
                 @log_on_start(logging.DEBUG, "_process_OBD() started")
                 @log_on_end(logging.DEBUG, "_process_OBD() finished")
@@ -1041,7 +1041,22 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                         dl.stepper = steps.harmonicbump(dl.stepper_model.lmax_qlm, dl.stepper_model.mmax_qlm, a=dl.stepper_model.a, b=dl.stepper_model.b, xa=dl.stepper_model.xa, xb=dl.stepper_model.xb)
                         # dl.stepper = steps.nrstep(dl.lm_max_qlm[0], dl.lm_max_qlm[1], val=0.5) # handler of the size steps in the MAP BFGS iterative search
                     dl.ffi = deflection(dl.lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(*dl.lm_max_qlm)), dl.lm_max_qlm[1], numthreads=dl.tr, verbosity=dl.verbose, epsilon=dl.epsilon)
-                
+
+
+                @log_on_start(logging.DEBUG, "_process_Phianalysis() started")
+                @log_on_end(logging.DEBUG, "_process_Phianalysis() finished")       
+                def _process_Phianalysis(dl, pa):
+                    dl.custom_WF_TEMP = pa.custom_WF_TEMP
+                    dl.its = np.arange(dl.itmax)
+
+                    # At modelbuild-stage I want to test if WF exists.
+                    fn = opj(dl.custom_WF_TEMP,'WFemp_%s_simall%s_itall%s_avg.npy')%(dl.k, len(dl.simidxs), len(dl.its))
+                    if os.path.isfile(fn):
+                        log.error("WF @ {} does not exsit. Please check your settings. Exiting".format(fn))
+                        sys.exit()
+
+
+      
                 _process_Meta(dl, cf.meta)
                 _process_Computing(dl, cf.computing)
                 _process_Analysis(dl, cf.analysis)
@@ -1051,6 +1066,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_OBD(dl, cf.obd)
                 _process_Qerec(dl, cf.qerec)
                 _process_Itrec(dl, cf.itrec)
+                _process_Phianalysis(dl, cf.itrec)
 
                 if 'smoothed_phi_empiric_halofit' in cf.analysis.cpp:
                     dl.cpp = np.load(cf.analysis.cpp)[:dl.lm_max_qlm[0] + 1,1]
@@ -1058,7 +1074,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     # assume its a camb-like file
                     dl.cpp = camb_clfile(cf.analysis.cpp)['pp'][:dl.lm_max_qlm[0] + 1] 
                 elif os.path.exists(os.path.dirname(cf.analysis.cpp)):
-                    # FIXME this implicitly assumes that all cpp.npy comes as convergence
+                    # FIXME this implicitly assumes that all cpp.npy come as convergence
                     dl.cpp = np.load(cf.analysis.cpp)[:dl.lm_max_qlm[0] + 1,1]
                     LL = np.arange(0,dl.lm_max_qlm[0] + 1,1)
                     k2p = lambda x: np.nan_to_num(x/(LL*(LL+1))**2/(2*np.pi))
@@ -1071,8 +1087,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
         ## FIXME build a correct model. For now quick and dirty, MAP_lensrec contains all information (and more)
         return Phi_analyser(extract())
-        
-
+    
 
 @transform.case(DLENSALOT_Model_mm, l2T_Transformer)
 def f2a2(expr, transformer): # pylint: disable=missing-function-docstring

@@ -323,6 +323,17 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
     basemap =               attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.basemap)
 
 @attr.s
+class DLENSALOT_Phianalysis(DLENSALOT_Concept):
+    """A root model element type of the Dlensalot formalism.
+    This class collects all configurations related to the internal map delensing job.
+
+    Attributes:
+        custom_WF_TEMP (str):   Path to the dir of an exisiting WF. fn must be 'WFemp_%s_simall%s_itall%s_avg.npy'\n
+    """
+
+    custom_WF_TEMP =        attr.field(default=DEFAULT_NotAValue)
+
+@attr.s
 class DLENSALOT_OBD(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the overlapping B-mode deprojection.
@@ -351,7 +362,6 @@ class DLENSALOT_Config(DLENSALOT_Concept):
     outdir_plot_rel =       attr.field(default='')
 
 @attr.s
-# @add_defaults
 class DLENSALOT_Meta(DLENSALOT_Concept): # TODO do we really need a Meta?
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to internal behaviour of delensalot.
@@ -380,7 +390,7 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     Attributes:
         defaults_to (str):              Identifier for default-dictionary if user hasn't specified value in configuration file
         meta (DLENSALOT_Meta):          configurations related to internal behaviour of delensalot
-        job (DLENSALOT_Job):            delensalot can executte different jobs (QE reconstruction, simulation generation, MAP reconstruction, delensing, ..) which is controlled here
+        job (DLENSALOT_Job):            delensalot can executte different jobs (QE reconstruction, simulation generation, MAP reconstruction, delensing, analyse_phi) which is controlled here
         analysis (DLENSALOT_Analysis):  configurations related to the specific analysis performed on the data
         data (DLENSALOT_Data):          configurations related to the input CMB maps
         noisemodel (DLENSALOT_Noisemodel):  configurations related to the noise model used for Wiener-filtering the data
@@ -394,6 +404,7 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     """
     
     defaults_to =           attr.field(default='default_CMBS4_fullsky_polarization')
+    validate_model =        attr.field(default=True)
     meta =                  attr.field(default=DLENSALOT_Meta(), validator=model.meta)
     job =                   attr.field(default=DLENSALOT_Job(), validator=model.job)
     analysis =              attr.field(default=DLENSALOT_Analysis(), validator=model.analysis)
@@ -418,7 +429,6 @@ class DLENSALOT_Model(DLENSALOT_Concept):
          comment: __attrs_post_init must be in DLENSALOT_Model, as this is the only one who knows of the default dictionary (defaults_to), and cannot simply be passed along to sub-classes.
 
         """
-        # log.info("Setting default, using {}:\n\t{}".format(self.defaults_to, default_dict))
 
         spec = importlib.util.spec_from_file_location("default", opj(Path(__file__).parent.parent, "default/{}.py".format(self.defaults_to.replace('.py', ''))))
         default_module = importlib.util.module_from_spec(spec)
