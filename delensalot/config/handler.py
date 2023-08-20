@@ -60,7 +60,7 @@ class config_handler():
                                     self.configfile.dlensalot_model.job.jobs.append(sortedjob)
                             else:
                                 self.configfile.dlensalot_model.job.jobs.append(sortedjob)
-                ## TODO hardcoding 'CL_analysis' into every run as long as it is MAP_lensrec, as I am too lazy addig it to the config file
+                ## TODO hardcoding 'analyse_phi' into every run as long as MAP_lensrec is part of the run
                 if 'MAP_lensrec' in self.configfile.dlensalot_model.job.jobs:
                     self.configfile.dlensalot_model.job.jobs.append('analyse_phi')
                     
@@ -135,38 +135,47 @@ class config_handler():
         # This is only done if not resuming. Otherwise file would already exist
         log.info(parser.config_file)
         if os.path.isfile(parser.config_file) and parser.config_file.endswith('.py'):
-            # if the file already exists, check if something changed
-            if os.path.isfile(TEMP+'/'+parser.config_file.split('/')[-1]):
-                logging.warning('config file {} already exist. Checking differences.'.format(TEMP+'/'+parser.config_file.split('/')[-1]))
-                configfile_old = config_handler.load_configfile(TEMP+'/'+parser.config_file.split('/')[-1], 'configfile_old')   
-                for key, val in configfile_old.dlensalot_model.__dict__.items():
-                    if hasattr(val, '__dict__'):
-                        for k, v in val.__dict__.items():
-                            if callable(v):
-                                # skipping functions
-                                pass
-                            # FIXME if float, only check first digits for now.. this is presumably unsafe..
-                            elif v.__str__()[:4] != configfile.dlensalot_model.__dict__[key].__dict__[k].__str__()[:4]:
-                                logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
-                                if k.__str__() in safelist:
-                                    dostore = True
-                                else:
-                                    dostore = False
+            if configfile.dlensalot_model.__dict__['validate_model'] == True:
+                # If validation skipped, simply overwrite existing config file
+                if os.path.isfile(TEMP+'/'+parser.config_file.split('/')[-1]):
+                    # if the file already exists, check if something changed
+                    logging.warning('config file {} already exist. Checking differences.'.format(TEMP+'/'+parser.config_file.split('/')[-1]))
+                    configfile_old = config_handler.load_configfile(TEMP+'/'+parser.config_file.split('/')[-1], 'configfile_old')   
+                    for key, val in configfile_old.dlensalot_model.__dict__.items():
+                        if hasattr(val, '__dict__'):
+                            for k, v in val.__dict__.items():
+                                if callable(v):
+                                    # skipping functions
+                                    pass
+                                # FIXME if float, only check first digits for now.. this is presumably unsafe..
+                                elif v.__str__()[:4] != configfile.dlensalot_model.__dict__[key].__dict__[k].__str__()[:4]:
                                     logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
-                                    logging.warning('Not part of safelist. Changing this value will likely result in a wrong analysis. Exit. Check config file.')
-                                    sys.exit()
-                    else:
-                        ## Catching the infamous defaultstodictkey. Pass for now
-                        pass
-                logging.info('config file comparison done. No conflicts found.')
+                                    if k.__str__() in safelist:
+                                        dostore = True
+                                    else:
+                                        dostore = False
+                                        logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, configfile.dlensalot_model.__dict__[key].__dict__[k]))
+                                        logging.warning('Not part of safelist. Changing this value will likely result in a wrong analysis. Exit. Check config file.')
+                                        sys.exit()
+                        else:
+                            ## Catching the infamous defaultstodictkey. Pass for now
+                            pass
+                    logging.info('config file comparison done. No conflicts found.')
+                else:
+                    dostore = True
             else:
                 dostore = True
         if dostore:
-            if mpi.rank == 0:
+            first_rank = mpi.bcast(mpi.rank)
+            if first_rank == mpi.rank:
                 if not os.path.exists(TEMP):
                     os.makedirs(TEMP)
                 shutil.copyfile(parser.config_file, TEMP +'/'+parser.config_file.split('/')[-1])
-            logging.info('config file stored at '+ TEMP +'/'+parser.config_file.split('/')[-1])
+                logging.info('config file stored at '+ TEMP +'/'+parser.config_file.split('/')[-1])
+                [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
+            else:
+                mpi.receive(None, source=mpi.ANY_SOURCE)
+  
         else:
             if parser.resume == '':
                 # Only give this info when not resuming

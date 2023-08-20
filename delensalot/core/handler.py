@@ -283,9 +283,7 @@ class Sim_generator(Basejob):
             if first_rank == mpi.rank:
                 if not os.path.exists(self.libdir):
                     os.makedirs(self.libdir)
-                for n in range(mpi.size):
-                    if n != mpi.rank:
-                        mpi.send(1, dest=n)
+                [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
             else:
                 mpi.receive(None, source=mpi.ANY_SOURCE)
             
@@ -731,14 +729,14 @@ class QE_lr(Basejob):
         # Only now instantiate aniso filter as it triggers an expensive computation
         if True: # 'calc_cinv'
             if self.qe_filter_directional == 'anisotropic':
-                if mpi.size > 1:
-                    if mpi.rank == 0:
-                        mpi.disable()
-                        self.init_aniso_filter()
-                        mpi.enable()
-                        [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
-                    else:
-                        mpi.receive(None, source=mpi.ANY_SOURCE)
+                first_rank = mpi.bcast(mpi.rank)
+                if first_rank == mpi.rank:
+                    mpi.disable()
+                    self.init_aniso_filter()
+                    mpi.enable()
+                    [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
+                else:
+                    mpi.receive(None, source=mpi.ANY_SOURCE)
                 self.init_aniso_filter()
                         
         _tasks = self.qe_tasks if task is None else [task]
@@ -1317,7 +1315,10 @@ class Phi_analyser(Basejob):
         super().__init__(dlensalot_model)
         self.its = np.arange(self.itmax)
         self.libdir_phianalayser = opj(self.TEMP, 'CL/{}'.format(self.k))
-        self.custom_WF_TEMP = opj('/scratch/snx3000/sbelkner/analysis/n32_gauss_signflip_lminB200', 'CL/{}'.format(self.k), 'WF') 
+        if self.custom_WF_TEMP == opj(self.TEMP, 'CL/{}'.format(self.k)):
+            # custom WF in fact is the standard WF
+            self.custom_WF_TEMP = [None for n in np.arange(len(self.its))]
+        # self.custom_WF_TEMP = opj('/scratch/snx3000/sbelkner/analysis/n32_gauss_signflip_lminB200', 'CL/{}'.format(self.k), 'WF') 
 
         if self.custom_WF_TEMP:
             self.tasks = ['calc_WFemp', 'calc_crosscorr', 'calc_reconbias', 'calc_crosscorrcoeff']
@@ -1433,7 +1434,8 @@ class Phi_analyser(Basejob):
                 for simidx in self.jobs[taski][mpi.rank::mpi.size]:
                     val = self._get_wienerfilter_empiric(simidx, self.its)
                 # Second, calc average WF, only let only one rank do this
-                if mpi.rank == 0:
+                first_rank = mpi.bcast(mpi.rank)
+                if first_rank == mpi.rank:
                     self.get_wienerfilter_empiric()
                     [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
                 else:
@@ -1502,7 +1504,7 @@ class Phi_analyser(Basejob):
 
     def get_autocorrelation(self, simidx, it, WFemps=None):
         # Note: this calculates auto of the estimate
-        TEMP_Cx = opj(self.libdir_phianalayser, 'Ca')
+        TEMP_Cx = opj(self.libdir_phianalayser, 'Cx')
         fns = opj(TEMP_Cx,'CLa_%s_sim%s_it%s_customWF.npy') if self.custom_WF_TEMP else opj(TEMP_Cx,'CLa_%s_sim%s_it%s.npy')
         if not os.path.isfile(fns%(self.k, simidx, it)):
             plm_est = self.get_plm_it(simidx, [it])[0]
@@ -1521,7 +1523,7 @@ class Phi_analyser(Basejob):
             plm_est = self.get_plm_it(simidx, [it])[0]
             plm_in = alm_copy(self.simulationdata.get_sim_phi(simidx, space='alm'), None, self.lm_max_qlm[0], self.lm_max_qlm[1])
             if type(WFemps) != np.ndarray:
-                TEMP_WF = opj(self.libdir_phianalayser, '/WF')
+                TEMP_WF = opj(self.libdir_phianalayser, 'WF')
                 WFemps = np.load(opj(TEMP_WF,'WFemp_%s_sim%s_itall%s_avg.npy')%(self.k, simidx, len(self.its)))
             val = alm2cl(plm_est, plm_in, None, None, None) / alm2cl(plm_in, plm_in, None, None, None)/WFemps[it]
             np.save(fns%(self.k, simidx, it), val)
@@ -1536,7 +1538,7 @@ class Phi_analyser(Basejob):
             plm_est = self.get_plm_it(simidx, [it])[0]
             plm_in = alm_copy(self.simulationdata.get_sim_phi(simidx, space='alm'), None, self.lm_max_qlm[0], self.lm_max_qlm[1])
             if type(WFemps) != np.ndarray:
-                TEMP_WF = opj(self.libdir_phianalayser, '/WF')
+                TEMP_WF = opj(self.libdir_phianalayser, 'WF')
                 WFemps = np.load(opj(TEMP_WF,'WFemp_%s_itall%s_avg.npy')%(self.k, len(self.its))) 
             val = alm2cl(plm_est, plm_in, None, None, None)**2/(alm2cl(plm_est, plm_est, None, None, None)*alm2cl(plm_in, plm_in, None, None, None))
             np.save(fns%(self.k, simidx, it), val)
