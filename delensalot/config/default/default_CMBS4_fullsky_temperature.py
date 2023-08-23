@@ -128,6 +128,9 @@ DL_DEFAULT = {
         'spectrum_calculator': pospace,
         'basemap': 'lens'
     },
+    'phana': {
+        'custom_WF_TEMP': None,
+    },
     'computing': {
         'OMP_NUM_THREADS': int(psutil.cpu_count()) #2*int(psutil.cpu_count()/psutil.cpu_count(logical=False))
     },
