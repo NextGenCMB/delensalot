@@ -1321,11 +1321,8 @@ class Phi_analyser(Basejob):
             self.custom_WF_TEMP = [None for n in np.arange(len(self.its))]
         else:
             self.WFemps = np.load(opj(self.custom_WF_TEMP,'WFemp_%s_simall%s_itall%s_avg.npy')%(self.k, len(self.simidxs), len(self.its))) if self.custom_WF_TEMP else [None for n in np.arange(len(self.its))]
-        # self.custom_WF_TEMP = opj('/scratch/snx3000/sbelkner/analysis/n32_gauss_signflip_lminB200', 'CL/{}'.format(self.k), 'WF') 
-        if self.custom_WF_TEMP:
-            self.tasks = ['calc_WFemp', 'calc_crosscorr', 'calc_reconbias', 'calc_crosscorrcoeff']
-        else:
-            self.tasks = ['calc_WFemp', 'calc_crosscorr', 'calc_reconbias', 'calc_crosscorrcoeff']
+        self.tasks = ['calc_WFemp', 'calc_crosscorr', 'calc_reconbias', 'calc_crosscorrcoeff']
+        
 
         
         if not(os.path.isdir(self.libdir_phianalayser)):

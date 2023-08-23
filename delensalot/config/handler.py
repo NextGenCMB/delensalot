@@ -37,7 +37,7 @@ class config_handler():
     """
 
     def __init__(self, parser, config_model=None):
-        sorted_joblist = ['build_OBD', 'generate_sim', 'QE_lensrec', 'MAP_lensrec', 'delens']
+        sorted_joblist = ['build_OBD', 'generate_sim', 'QE_lensrec', 'MAP_lensrec', 'analyse_phi', 'delens']
         if config_model is None:
             self.configfile = config_handler.load_configfile(parser.config_file, 'configfile')
         else:
@@ -51,8 +51,17 @@ class config_handler():
                 if parser.job_id != "":
                     for sortedjob in sorted_joblist:
                         if sortedjob == parser.job_id:
-                            self.configfile.dlensalot_model.job.jobs.append(sortedjob)
-                            break
+                            if sortedjob == 'analyse_phi':
+                                ## only add this job if input phi exists.
+                                if self.configfile.dlensalot_model.simulationdata.flavour == 'unl':
+                                    self.configfile.dlensalot_model.job.jobs.append(sortedjob)
+                                    break
+                                else:
+                                    log.error("I dont think your requested Job {} can be run, because input phi doesnt exist. Exiting.".format(parser.job_id))
+                                    sys.exit()
+                            else:
+                                self.configfile.dlensalot_model.job.jobs.append(sortedjob)
+                                break
                         else:
                             if sortedjob == 'build_OBD':
                                 if self.configfile.dlensalot_model.noisemodel.OBD == 'OBD':
@@ -60,9 +69,10 @@ class config_handler():
                                     self.configfile.dlensalot_model.job.jobs.append(sortedjob)
                             else:
                                 self.configfile.dlensalot_model.job.jobs.append(sortedjob)
-                ## TODO hardcoding 'analyse_phi' into every run as long as MAP_lensrec is part of the run
+                ## adding 'analyse_phi' into every run as long as MAP_lensrec is part of the run and input phi exists
                 if 'MAP_lensrec' in self.configfile.dlensalot_model.job.jobs:
-                    self.configfile.dlensalot_model.job.jobs.append('analyse_phi')
+                    if self.configfile.dlensalot_model.simulationdata.flavour == 'unl' and parser.job_id != 'analyse_phi':
+                        self.configfile.dlensalot_model.job.jobs.append('analyse_phi')
                     
         TEMP = transform(self.configfile.dlensalot_model, l2T_Transformer())
         self.parser = parser
