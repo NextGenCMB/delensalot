@@ -32,6 +32,9 @@ DL_DEFAULT = {
         'phi_fn': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
         'epsilon': 1e-7,
         'spin': 0,
+        'CMB_modifier': lambda x: x,
+        'phi_modifier': lambda x: x,
+    },
         'modifier': lambda x: x,
     },
     'analysis': { 
@@ -73,7 +76,6 @@ DL_DEFAULT = {
             'p6': 'tr_cg',
             'p7': 'cache_mem'
         },
-    },
     'itrec': {
         'stepper':{
             'typ': 'harmonicbump',
