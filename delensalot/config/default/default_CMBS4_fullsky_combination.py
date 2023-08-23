@@ -74,6 +74,7 @@ DL_DEFAULT = {
             'p6': 'tr_cg',
             'p7': 'cache_mem'
         },
+    },
     'itrec': {
         'stepper':{
             'typ': 'harmonicbump',

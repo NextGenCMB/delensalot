@@ -73,6 +73,7 @@ DL_DEFAULT = {
             'p6': 'tr_cg',
             'p7': 'cache_mem'
         },
+    },
     'itrec': {
         'tasks': ['calc_phi', 'calc_blt'],
         'itmax': 3,
@@ -105,7 +106,7 @@ DL_DEFAULT = {
             'p6': 'tr_cg',
             'p7': 'cache_mem'
         },      
-        },
+    },
     'noisemodel': {
         'sky_coverage': 'masked',
         'spectrum_type': 'white',
