@@ -866,6 +866,8 @@ class Simhandler:
             phi_space    (str, optional): can be in ['map', 'alm', 'cl'] and defines the space of the lensing potential provided.. Defaults to DNaV.
             phi_lmax     (_type_, optional): the maximum multipole of the lensing potential. if simulation library perfroms lensing, it is advisable that `phi_lmax` is somewhat larger than `lmax` (+ ~512-1024). Defaults to DNaV.
             epsilon      (float, optional): Lenspyx lensing accuracy. Defaults to 1e-7.
+            CMB_modifier (callable, optional): operation defined in the callable will be applied to each of the input maps/alms/cls
+            phi_modifier (callable, optional): operation defined in the callable will be applied to the input phi lms
         """
         self.spin = spin
         self.lmax = lmax
@@ -886,7 +888,7 @@ class Simhandler:
                     assert spin != DNaV, "need to provide spin"
                     assert lmax != DNaV, "need to provide lmax"
                     assert field != DNaV, "need to provide field"
-                self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, libdir=libdir, fns=fns, spin=spin, geominfo=geominfo, field=field, libdir_suffix=libdir_suffix, CMB_modifier=CMB_modifiermodifier , phi_modifier=phi_modifier) if obs_lib == DNaV else obs_lib
+                self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, libdir=libdir, fns=fns, spin=spin, geominfo=geominfo, field=field, libdir_suffix=libdir_suffix, CMB_modifier=CMB_modifier , phi_modifier=phi_modifier) if obs_lib == DNaV else obs_lib
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = self.obs_lib.libdir
                 self.fns = self.obs_lib.fns
@@ -898,7 +900,7 @@ class Simhandler:
                 assert nlev != DNaV, "need to provide nlev"
                 assert np.all(transfunction != DNaV), "need to provide transfunction"
                 self.len_lib = Xsky(unl_lib=unl_lib, lmax=lmax, libdir=libdir, fns=fns, space=space, spin=spin, epsilon=epsilon, geominfo=geominfo, lenjob_geominfo=lenjob_geominfo, phi_modifier=phi_modifier) if len_lib == DNaV else len_lib
-                self.obs_lib = Xobs(len_lib=self.len_lib, space=space, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, geominfo=geominfo, libdir_suffix=libdir_suffix, CMB_modifier=CMB_modifiermodifier , phi_modifier=phi_modifier)
+                self.obs_lib = Xobs(len_lib=self.len_lib, space=space, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, geominfo=geominfo, libdir_suffix=libdir_suffix, CMB_modifier=CMB_modifier , phi_modifier=phi_modifier)
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = self.len_lib.libdir
                 self.fns = self.len_lib.fns
@@ -923,7 +925,7 @@ class Simhandler:
                     self.cls_lib = Cls(phi_lmax=phi_lmax, phi_fn=phi_fn, phi_field=phi_field)
                     self.unl_lib = Xunl(cls_lib=self.cls_lib, lmax=lmax, libdir=libdir, fns=fns, phi_field=phi_field, space=space, phi_space=phi_space, phi_lmax=phi_lmax, geominfo=geominfo, spin=spin, phi_modifier=phi_modifier) if unl_lib == DNaV else unl_lib
                 self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, space=space, epsilon=epsilon, geominfo=geominfo, lenjob_geominfo=lenjob_geominfo, phi_modifier=phi_modifier)
-                self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, space=space, geominfo=geominfo, libdir_suffix=libdir_suffix, CMB_modifier=CMB_modifiermodifier , phi_modifier=phi_modifier)
+                self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, space=space, geominfo=geominfo, libdir_suffix=libdir_suffix, CMB_modifier=CMB_modifier , phi_modifier=phi_modifier)
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = self.unl_lib.libdir
                 self.fns = self.unl_lib.fns
@@ -936,7 +938,7 @@ class Simhandler:
                     if fns == DNaV:
                         assert 0, 'you need to provide fns' 
                     self.fns = fns
-                    self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, libdir=libdir, fns=fns, spin=self.spin, geominfo=geominfo, libdir_suffix=libdir_suffix, CMB_modifier=CMB_modifiermodifier , phi_modifier=phi_modifier) if obs_lib == DNaV else obs_lib
+                    self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, libdir=libdir, fns=fns, spin=self.spin, geominfo=geominfo, libdir_suffix=libdir_suffix, CMB_modifier=CMB_modifier , phi_modifier=phi_modifier) if obs_lib == DNaV else obs_lib
                     self.noise_lib = self.obs_lib.noise_lib
                     self.libdir = self.obs_lib.libdir
                     self.fns = self.obs_lib.fns
@@ -948,7 +950,7 @@ class Simhandler:
                 self.cls_lib = cls_lib # just to be safe..
                 self.unl_lib = Xunl(lmax=lmax, libdir=libdir, fns=fns, fnsP=fnsP, phi_field=phi_field, libdir_phi=libdir_phi, space=space, phi_space=phi_space, cls_lib=cls_lib, geominfo=geominfo, spin=self.spin, phi_modifier=phi_modifier) if unl_lib == DNaV else unl_lib
                 self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, space=space, epsilon=epsilon, geominfo=geominfo, lenjob_geominfo=lenjob_geominfo, phi_modifier=phi_modifier)
-                self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, space=space, spin=self.spin, geominfo=geominfo, libdir_suffix=libdir_suffix, CMB_modifier=CMB_modifiermodifier , phi_modifier=phi_modifier)
+                self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, space=space, spin=self.spin, geominfo=geominfo, libdir_suffix=libdir_suffix, CMB_modifier=CMB_modifier , phi_modifier=phi_modifier)
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = self.unl_lib.libdir
                 self.fns = self.unl_lib.fns
@@ -970,7 +972,7 @@ class Simhandler:
                 self.cls_lib = Cls(lmax=lmax, phi_lmax=phi_lmax, CMB_fn=CMB_fn, phi_fn=phi_fn, phi_field=phi_field)
                 self.unl_lib = Xunl(cls_lib=self.cls_lib, lmax=lmax, fnsP=fnsP, phi_field=phi_field, libdir_phi=libdir_phi, phi_space=phi_space, geominfo=geominfo, phi_modifier=phi_modifier)
                 self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, epsilon=epsilon, geominfo=geominfo, lenjob_geominfo=lenjob_geominfo, phi_modifier=phi_modifier)
-                self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, geominfo=geominfo, cacher=cacher, libdir_suffix=libdir_suffix, CMB_modifier=CMB_modifiermodifier , phi_modifier=phi_modifier)
+                self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, geominfo=geominfo, cacher=cacher, libdir_suffix=libdir_suffix, CMB_modifier=CMB_modifier , phi_modifier=phi_modifier)
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = DNaV # settings this here explicit for a future me, so I see it easier
                 self.fns = DNaV # settings this here explicit for a future me, so I see it easier
