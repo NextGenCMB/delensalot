@@ -35,8 +35,6 @@ DL_DEFAULT = {
         'CMB_modifier': lambda x: x,
         'phi_modifier': lambda x: x,
     },
-        'modifier': lambda x: x,
-    },
     'analysis': { 
         'key': 'p_p',
         'version': 'noMF',
