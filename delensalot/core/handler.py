@@ -1315,17 +1315,12 @@ class Phi_analyser(Basejob):
         super().__init__(dlensalot_model)
         self.its = np.arange(self.itmax)
         self.libdir_phianalayser = opj(self.TEMP, 'CL/{}'.format(self.k))
-<<<<<<< HEAD
-        # self.custom_WF_TEMP = opj('/scratch/snx3000/sbelkner/analysis/n32_gauss_lminB200', 'CL/{}'.format(self.k), 'WF') 
-        self.custom_WF_TEMP = ''
-=======
         if self.custom_WF_TEMP == opj(self.TEMP, 'CL/{}'.format(self.k)):
             # custom WF in fact is the standard WF
             self.custom_WF_TEMP = [None for n in np.arange(len(self.its))]
         else:
             self.WFemps = np.load(opj(self.custom_WF_TEMP,'WFemp_%s_simall%s_itall%s_avg.npy')%(self.k, len(self.simidxs), len(self.its))) if self.custom_WF_TEMP else [None for n in np.arange(len(self.its))]
         # self.custom_WF_TEMP = opj('/scratch/snx3000/sbelkner/analysis/n32_gauss_signflip_lminB200', 'CL/{}'.format(self.k), 'WF') 
->>>>>>> 594b4f8028a40e9b73a4cce2c9b9c81facd28d15
         if self.custom_WF_TEMP:
             self.tasks = ['calc_WFemp', 'calc_crosscorr', 'calc_reconbias', 'calc_crosscorrcoeff']
         else:
