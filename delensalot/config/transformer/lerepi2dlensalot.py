@@ -1053,8 +1053,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     if type(dl.custom_WF_TEMP) == str:
                         fn = opj(dl.custom_WF_TEMP,'WFemp_%s_simall%s_itall%s_avg.npy')%(dl.k, len(dl.simidxs), len(dl.its))
                         if not os.path.isfile(fn):
-                            log.error("WF @ {} does not exsit. Please check your settings. Exiting".format(fn))
-                            sys.exit()
+                            log.error("WF @ {} does not exsit. Please check your settings.".format(fn))
+                            # sys.exit()
                     elif dl.custom_WF_TEMP is None or type(dl.custom_WF_TEMP) == int:
                         dl.custom_WF_TEMP = None
       
