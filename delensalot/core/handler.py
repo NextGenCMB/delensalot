@@ -279,11 +279,12 @@ class Sim_generator(Basejob):
             self.libdir = opj(os.environ['SCRATCH'], 'simulation/', self.libdir_suffix, get_dirname(str(self.simulationdata.geominfo)), get_dirname(lenjob_geomstr), get_dirname(str(sorted(nlev_round.items()))), '{}'.format(transfunctioncode)) # 
             self.fns = self.set_basename_obs()
             
-            first_rank = mpi.bcast(mpi.rank)
-            if first_rank == mpi.rank:
-                if not os.path.exists(self.libdir):
-                    os.makedirs(self.libdir)
-                [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
+            # in init, only rank 0 enters in first round to set dirs etc.. so cannot use bcast
+            if mpi.rank == 0:
+                if mpi.size>1:
+                    if not os.path.exists(self.libdir):
+                        os.makedirs(self.libdir)
+                    [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
             else:
                 mpi.receive(None, source=mpi.ANY_SOURCE)
             
@@ -1315,7 +1316,7 @@ class Phi_analyser(Basejob):
         super().__init__(dlensalot_model)
         self.its = np.arange(self.itmax)
         self.libdir_phianalayser = opj(self.TEMP, 'CL/{}'.format(self.k))
-        if self.custom_WF_TEMP == opj(self.TEMP, 'CL/{}'.format(self.k)):
+        if self.custom_WF_TEMP == self.libdir_phianalayser:
             # custom WF in fact is the standard WF
             self.custom_WF_TEMP = [None for n in np.arange(len(self.its))]
         else:
@@ -1429,6 +1430,8 @@ class Phi_analyser(Basejob):
 
 
     def run(self):
+        # Wait for everyone to finish previous job
+        mpi.barrier()
         for taski, task in enumerate(self.tasks):
             if task == 'calc_WFemp':
                 # First, calc for each simindex individually
@@ -1520,7 +1523,7 @@ class Phi_analyser(Basejob):
             plm_est = self.get_plm_it(simidx, [it])[0]
             plm_in = alm_copy(self.simulationdata.get_sim_phi(simidx, space='alm'), None, self.lm_max_qlm[0], self.lm_max_qlm[1])
             if type(WFemps) != np.ndarray:
-                WFemps = np.load(opj(self.TEMP_WF,'WFemp_%s_sim%s_itall%s_avg.npy')%(self.k, simidx, len(self.its)))
+                WFemps = np.load(opj(self.TEMP_WF,'WFemp_%s_simall%s_itall%s_avg.npy')%(self.k, len(self.simidxs), len(self.its))) 
             val = alm2cl(plm_est, plm_in, None, None, None) / alm2cl(plm_in, plm_in, None, None, None)/WFemps[it]
             np.save(fns%(self.k, simidx, it), val)
         return np.load(fns%(self.k, simidx, it))
@@ -1534,7 +1537,7 @@ class Phi_analyser(Basejob):
             plm_est = self.get_plm_it(simidx, [it])[0]
             plm_in = alm_copy(self.simulationdata.get_sim_phi(simidx, space='alm'), None, self.lm_max_qlm[0], self.lm_max_qlm[1])
             if type(WFemps) != np.ndarray:
-                WFemps = np.load(opj(self.TEMP_WF,'WFemp_%s_itall%s_avg.npy')%(self.k, len(self.its))) 
+                WFemps = np.load(opj(self.TEMP_WF,'WFemp_%s_simall%s_itall%s_avg.npy')%(self.k, len(self.simidxs), len(self.its))) 
             val = alm2cl(plm_est, plm_in, None, None, None)**2/(alm2cl(plm_est, plm_est, None, None, None)*alm2cl(plm_in, plm_in, None, None, None))
             np.save(fns%(self.k, simidx, it), val)
         return np.load(fns%(self.k, simidx, it))

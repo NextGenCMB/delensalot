@@ -166,16 +166,10 @@ class config_handler():
             else:
                 dostore = True
         if dostore:
-            first_rank = mpi.bcast(mpi.rank)
-            if first_rank == mpi.rank:
-                if not os.path.exists(TEMP):
-                    os.makedirs(TEMP)
-                shutil.copyfile(parser.config_file, TEMP +'/'+parser.config_file.split('/')[-1])
-                logging.info('config file stored at '+ TEMP +'/'+parser.config_file.split('/')[-1])
-                [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
-            else:
-                mpi.receive(None, source=mpi.ANY_SOURCE)
-  
+            if not os.path.exists(TEMP):
+                os.makedirs(TEMP)
+            shutil.copyfile(parser.config_file, TEMP +'/'+parser.config_file.split('/')[-1])
+            logging.info('config file stored at '+ TEMP +'/'+parser.config_file.split('/')[-1])
         else:
             if parser.resume == '':
                 # Only give this info when not resuming
