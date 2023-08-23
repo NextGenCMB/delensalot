@@ -202,6 +202,7 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
     epsilon =       attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
     libdir_suffix = attr.field(default='generic', validator=data.libdir_suffix)
     modifier =      attr.field(default=DEFAULT_NotAValue, validator=data.modifier)
+    phi_signflip =  attr.field(default=False)
     
     
 @attr.s
