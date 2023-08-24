@@ -29,7 +29,7 @@ from delensalot.utils import cli, camb_clfile, load_file
 from delensalot.utility.utils_hp import gauss_beam
 
 from delensalot.core.iterator import steps
-from delensalot.core.handler import OBD_builder, Sim_generator, QE_lr, MAP_lr, Map_delenser
+from delensalot.core.handler import OBD_builder, Sim_generator, QE_lr, MAP_lr, Map_delenser, Phi_analyser
 
 from delensalot.config.visitor import transform, transform3d
 from delensalot.config.config_helper import data_functions as df, LEREPI_Constants as lc
@@ -893,6 +893,201 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             return dl
 
         return Map_delenser(extract())
+
+
+    def build_phianalyser(self, cf):
+        """Transformer for generating a delensalot model for the lensing reconstruction jobs (QE and MAP)
+        """
+        @log_on_start(logging.DEBUG, "extract() started")
+        @log_on_end(logging.DEBUG, "extract() finished")
+        def extract():
+            def _process_components(dl):
+                @log_on_start(logging.DEBUG, "_process_Meta() started")
+                @log_on_end(logging.DEBUG, "_process_Meta() finished")
+                def _process_Meta(dl, me):
+                    dl.dversion = me.version
+
+
+                @log_on_start(logging.DEBUG, "_process_Computing() started")
+                @log_on_end(logging.DEBUG, "_process_Computing() finished")
+                def _process_Computing(dl, co):
+                    dl.tr = co.OMP_NUM_THREADS
+                    os.environ["OMP_NUM_THREADS"] = str(dl.tr)
+
+
+                @log_on_start(logging.DEBUG, "_process_Analysis() started")
+                @log_on_end(logging.DEBUG, "_process_Analysis() finished")
+                def _process_Analysis(dl, an):
+                    dl.nlev = l2OBD_Transformer.get_nlev(cf)
+                    l2base_Transformer.process_Analysis(dl, an, cf)
+
+
+                @log_on_start(logging.DEBUG, "_process_Noisemodel() started")
+                @log_on_end(logging.DEBUG, "_process_Noisemodel() finished")
+                def _process_Noisemodel(dl, nm):
+                    dl.sky_coverage = nm.sky_coverage
+                    dl.nivjob_geomlib = get_geom(nm.geominfo)
+                    dl.nivjob_geominfo = nm.geominfo
+                    thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
+                    dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
+                    if dl.sky_coverage == 'masked':
+                        dl.rhits_normalised = nm.rhits_normalised
+                        dl.fsky = np.mean(l2OBD_Transformer.get_nivp_desc(cf, dl)[0][1]) ## calculating fsky, but quite expensive. and if nivp changes, this could have negative effect on fsky calc
+                    else:
+                        dl.fsky = 1.0
+                    dl.spectrum_type = nm.spectrum_type
+
+                    dl.OBD = nm.OBD
+                    dl.nlev = l2OBD_Transformer.get_nlev(cf)
+        
+
+                @log_on_start(logging.DEBUG, "_process_OBD() started")
+                @log_on_end(logging.DEBUG, "_process_OBD() finished")
+                def _process_OBD(dl, od):
+                    dl.obd_libdir = od.libdir
+                    dl.obd_rescale = od.rescale
+
+
+                @log_on_start(logging.DEBUG, "_process_Simulation() started")
+                @log_on_end(logging.DEBUG, "_process_Simulation() finished")       
+                def _process_Simulation(dl, si):
+                    dl.libdir_suffix = cf.simulationdata.libdir_suffix
+                    l2base_Transformer.process_Simulation(dl, si, cf)
+
+
+                @log_on_start(logging.DEBUG, "_process_Qerec() started")
+                @log_on_end(logging.DEBUG, "_process_Qerec() finished")
+                def _process_Qerec(dl, qe):
+
+                    dl.nivt_desc = l2OBD_Transformer.get_nivt_desc(cf, dl)
+                    dl.nivp_desc = l2OBD_Transformer.get_nivp_desc(cf, dl)
+                    dl.blt_pert = qe.blt_pert
+                    dl.QE_subtract_meanfield = False if dl.version == 'noMF' else True
+                    if dl.QE_subtract_meanfield:
+                        qe_tasks_sorted = ['calc_phi', 'calc_meanfield', 'calc_blt']
+                    else:
+                        qe_tasks_sorted = ['calc_phi', 'calc_blt']
+                    qe_tasks_extracted = []
+                    for taski, task in enumerate(qe_tasks_sorted):
+                        if task in qe.tasks:
+                            qe_tasks_extracted.append(task)
+                        else:
+                            break
+                    dl.qe_tasks = qe_tasks_extracted
+                    dl.lm_max_qlm = qe.lm_max_qlm
+                    dl.qlm_type = qe.qlm_type
+                    dl.cg_tol = qe.cg_tol
+
+                    if qe.chain == None:
+                        dl.chain_descr = lambda a,b: None
+                        dl.chain_model = dl.chain_descr
+                    else:
+                        dl.chain_model = qe.chain
+                        dl.chain_model.p3 = dl.nivjob_geominfo[1]['nside']
+                        
+                        if dl.chain_model.p6 == 'tr_cg':
+                            _p6 = cd_solve.tr_cg
+                        if dl.chain_model.p7 == 'cache_mem':
+                            _p7 = cd_solve.cache_mem()
+                        dl.chain_descr = lambda p2, p5 : [
+                            [dl.chain_model.p0, dl.chain_model.p1, p2, dl.chain_model.p3, dl.chain_model.p4, p5, _p6, _p7]]
+
+                    dl.qe_filter_directional = qe.filter_directional
+                    dl.cl_analysis = qe.cl_analysis
+
+
+                @log_on_start(logging.DEBUG, "_process_Itrec() started")
+                @log_on_end(logging.DEBUG, "_process_Itrec() finished")
+                def _process_Itrec(dl, it):
+                    dl.it_tasks = it.tasks
+                    dl.lm_max_unl = it.lm_max_unl
+                    dl.lm_max_qlm = it.lm_max_qlm
+                    dl.epsilon = it.epsilon
+                    # chain
+                    dl.it_chain_model = it.chain
+                    dl.it_chain_model.p3 = dl.nivjob_geominfo[1]['nside']
+                    if dl.it_chain_model.p6 == 'tr_cg':
+                        _p6 = cd_solve.tr_cg
+                    if dl.it_chain_model.p7 == 'cache_mem':
+                        _p7 = cd_solve.cache_mem()
+                    dl.it_chain_descr = lambda p2, p5 : [
+                        [dl.it_chain_model.p0, dl.it_chain_model.p1, p2, dl.it_chain_model.p3, dl.it_chain_model.p4, p5, _p6, _p7]]
+                    
+                    dl.lenjob_geominfo = it.lenjob_geominfo
+                    dl.lenjob_geomlib = get_geom(it.lenjob_geominfo)
+            
+                    if dl.version == '' or dl.version == None:
+                        dl.mf_dirname = opj(dl.TEMP, l2T_Transformer.ofj('mf', {'Nmf': dl.Nmf}))
+                    else:
+                        dl.mf_dirname = opj(dl.TEMP, l2T_Transformer.ofj('mf', {'version': dl.version, 'Nmf': dl.Nmf}))
+                    dl.it_cg_tol = lambda itr : it.cg_tol if itr <= 1 else it.cg_tol
+                    dl.it_filter_directional = it.filter_directional
+                    dl.itmax = it.itmax
+                    dl.iterator_typ = it.iterator_typ
+
+                    if it.mfvar == 'same' or it.mfvar == '':
+                        dl.mfvar = None
+                    elif it.mfvar.startswith('/'):
+                        if os.path.isfile(it.mfvar):
+                            dl.mfvar = it.mfvar
+                        else:
+                            log.error('Not sure what to do with this meanfield: {}'.format(it.mfvar))
+                            sys.exit()
+                    dl.soltn_cond = it.soltn_cond
+                    dl.stepper_model = it.stepper
+                    if dl.stepper_model.typ == 'harmonicbump':
+                        dl.stepper_model.lmax_qlm = dl.lm_max_qlm[0]
+                        dl.stepper_model.mmax_qlm = dl.lm_max_qlm[1]
+                        dl.stepper = steps.harmonicbump(dl.stepper_model.lmax_qlm, dl.stepper_model.mmax_qlm, a=dl.stepper_model.a, b=dl.stepper_model.b, xa=dl.stepper_model.xa, xb=dl.stepper_model.xb)
+                        # dl.stepper = steps.nrstep(dl.lm_max_qlm[0], dl.lm_max_qlm[1], val=0.5) # handler of the size steps in the MAP BFGS iterative search
+                    dl.ffi = deflection(dl.lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(*dl.lm_max_qlm)), dl.lm_max_qlm[1], numthreads=dl.tr, verbosity=dl.verbose, epsilon=dl.epsilon)
+
+
+                @log_on_start(logging.DEBUG, "_process_Phianalysis() started")
+                @log_on_end(logging.DEBUG, "_process_Phianalysis() finished")       
+                def _process_Phianalysis(dl, pa):
+                    dl.custom_WF_TEMP = pa.custom_WF_TEMP
+                    dl.its = np.arange(dl.itmax)
+
+                    # At modelbuild-stage I want to test if WF exists.
+                    if type(dl.custom_WF_TEMP) == str:
+                        fn = opj(dl.custom_WF_TEMP,'WFemp_%s_simall%s_itall%s_avg.npy')%(dl.k, len(dl.simidxs), len(dl.its))
+                        if not os.path.isfile(fn):
+                            log.error("WF @ {} does not exsit. Please check your settings.".format(fn))
+                            # sys.exit()
+                    elif dl.custom_WF_TEMP is None or type(dl.custom_WF_TEMP) == int:
+                        dl.custom_WF_TEMP = None
+      
+                _process_Meta(dl, cf.meta)
+                _process_Computing(dl, cf.computing)
+                _process_Analysis(dl, cf.analysis)
+                _process_Noisemodel(dl, cf.noisemodel)
+                _process_Simulation(dl, cf.simulationdata)
+
+                _process_OBD(dl, cf.obd)
+                _process_Qerec(dl, cf.qerec)
+                _process_Itrec(dl, cf.itrec)
+                _process_Phianalysis(dl, cf.phana)
+
+                if 'smoothed_phi_empiric_halofit' in cf.analysis.cpp:
+                    dl.cpp = np.load(cf.analysis.cpp)[:dl.lm_max_qlm[0] + 1,1]
+                elif cf.analysis.cpp.endswith('dat'):
+                    # assume its a camb-like file
+                    dl.cpp = camb_clfile(cf.analysis.cpp)['pp'][:dl.lm_max_qlm[0] + 1] 
+                elif os.path.exists(os.path.dirname(cf.analysis.cpp)):
+                    # FIXME this implicitly assumes that all cpp.npy come as convergence
+                    dl.cpp = np.load(cf.analysis.cpp)[:dl.lm_max_qlm[0] + 1,1]
+                    LL = np.arange(0,dl.lm_max_qlm[0] + 1,1)
+                    k2p = lambda x: np.nan_to_num(x/(LL*(LL+1))**2/(2*np.pi))
+                    dl.cpp = k2p(dl.cpp)
+                dl.cpp[:dl.Lmin] *= 0.
+
+            dl = DLENSALOT_Concept()
+            _process_components(dl)
+            return dl
+
+        ## FIXME build a correct model. For now quick and dirty, MAP_lensrec contains all information (and more)
+        return Phi_analyser(extract())
     
 
 @transform.case(DLENSALOT_Model_mm, l2T_Transformer)

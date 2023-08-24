@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-"""iteration_handler.py: This module is a passthrough to Dlensalot.cs_iterator. In the future, it will serve as a template module, which helps
-setting up an iterator, (e.g. permf or constmf), and decide which object on iteration level will be used, (e.g. cg, bfgs, filter).
+"""iteration_handler.py: This module is a passthrough to delensalot.cs_iterator. In the future, it will serve as a template module, which helps
+setting up an iterator, (e.g. permf or constmf, lognormal, ..), and decide which object on iteration level will be used, (e.g. cg, bfgs, filter).
     
 """
 
@@ -16,6 +16,7 @@ import healpy as hp
 
 from lenspyx.remapping import utils_geom
 from delensalot.utility.utils_hp import alm_copy
+from delensalot.core import mpi
 from delensalot.core.iterator import cs_iterator, cs_iterator_fast
 
 class base_iterator():

@@ -23,7 +23,7 @@ from lenspyx.lensing import get_geom
 
 from delensalot.utils import read_map, ztruncify
 from delensalot.utility import utils_qe, utils_sims
-from delensalot.utility.utils_hp import Alm, almxfl, alm_copy, gauss_beam
+from delensalot.utility.utils_hp import Alm, almxfl, alm_copy, gauss_beam, alm2cl
 
 from delensalot.config.visitor import transform, transform3d
 from delensalot.config.metamodel import DEFAULT_NotAValue
@@ -279,13 +279,12 @@ class Sim_generator(Basejob):
             self.libdir = opj(os.environ['SCRATCH'], 'simulation/', self.libdir_suffix, get_dirname(str(self.simulationdata.geominfo)), get_dirname(lenjob_geomstr), get_dirname(str(sorted(nlev_round.items()))), '{}'.format(transfunctioncode)) # 
             self.fns = self.set_basename_obs()
             
-            first_rank = mpi.bcast(mpi.rank)
-            if first_rank == mpi.rank:
-                if not os.path.exists(self.libdir):
-                    os.makedirs(self.libdir)
-                for n in range(mpi.size):
-                    if n != mpi.rank:
-                        mpi.send(1, dest=n)
+            # in init, only rank 0 enters in first round to set dirs etc.. so cannot use bcast
+            if mpi.rank == 0:
+                if mpi.size>1:
+                    if not os.path.exists(self.libdir):
+                        os.makedirs(self.libdir)
+                    [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
             else:
                 mpi.receive(None, source=mpi.ANY_SOURCE)
             
@@ -731,14 +730,14 @@ class QE_lr(Basejob):
         # Only now instantiate aniso filter as it triggers an expensive computation
         if True: # 'calc_cinv'
             if self.qe_filter_directional == 'anisotropic':
-                if mpi.size > 1:
-                    if mpi.rank == 0:
-                        mpi.disable()
-                        self.init_aniso_filter()
-                        mpi.enable()
-                        [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
-                    else:
-                        mpi.receive(None, source=mpi.ANY_SOURCE)
+                first_rank = mpi.bcast(mpi.rank)
+                if first_rank == mpi.rank:
+                    mpi.disable()
+                    self.init_aniso_filter()
+                    mpi.enable()
+                    [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
+                else:
+                    mpi.receive(None, source=mpi.ANY_SOURCE)
                 self.init_aniso_filter()
                         
         _tasks = self.qe_tasks if task is None else [task]
@@ -957,7 +956,7 @@ class QE_lr(Basejob):
     
 
 class MAP_lr(Basejob):
-    """Iterative lensing reconstruction Job. Depends on class QE_lr, and class Sim_generator.  Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.
+    """Iterative lensing reconstruction Job. Depends on class QE_lr, and class Sim_generator. Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.
     """
 
     @check_MPI
@@ -1225,7 +1224,7 @@ class Map_delenser(Basejob):
         if self.basemap == 'lens':  
             return almxfl(alm_copy(self.simulationdata.get_sim_sky(simidx, space='alm', spin=0, field='polarization')[1], self.simulationdata.lmax, *self.lm_max_blt), self.ttebl['e'], self.lm_max_blt[0], inplace=False) 
         elif self.basemap == 'lens_ffp10':
-            return hp.almxfl(alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(simidx), None, lmaxout=self.lm_max_blt[0], mmaxout=self.lm_max_blt[1]), gauss_beam(2.3 / 180 / 60 * np.pi, lmax=self.lm_max_blt[1]))  
+            return almxfl(alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(simidx), None, lmaxout=self.lm_max_blt[0], mmaxout=self.lm_max_blt[1]), gauss_beam(2.3 / 180 / 60 * np.pi, lmax=self.lm_max_blt[1]))  
         else:
             # only checking for map to save some memory..
             if np.all(self.simulationdata.maps == DEFAULT_NotAValue):
@@ -1301,6 +1300,275 @@ class Map_delenser(Basejob):
             almxfl(hlm, h2d, self.mmax_qlm, True)
         else:
             return  almxfl(hlm, h2d, self.mmax_qlm, False)
+
+
+class Phi_analyser(Basejob):
+    """ This only works on Full sky.
+    Phi analyser Job for calculating,
+        * cross correlation,
+        * cross correlation coefficient,
+        * reconstruction bias,
+        * empiric Wiener-filter.
+    Data is stored in CLpp/
+    """
+
+    def __init__(self, dlensalot_model):
+        super().__init__(dlensalot_model)
+        self.its = np.arange(self.itmax)
+        self.libdir_phianalayser = opj(self.TEMP, 'CL/{}'.format(self.k))
+        if self.custom_WF_TEMP == self.libdir_phianalayser:
+            # custom WF in fact is the standard WF
+            self.custom_WF_TEMP = [None for n in np.arange(len(self.its))]
+        else:
+            self.WFemps = np.load(opj(self.custom_WF_TEMP,'WFemp_%s_simall%s_itall%s_avg.npy')%(self.k, len(self.simidxs), len(self.its))) if self.custom_WF_TEMP else [None for n in np.arange(len(self.its))]
+        self.tasks = ['calc_WFemp', 'calc_crosscorr', 'calc_reconbias', 'calc_crosscorrcoeff']
+        
+
+        
+        if not(os.path.isdir(self.libdir_phianalayser)):
+            os.makedirs(self.libdir_phianalayser)
+        
+        self.TEMP_WF = opj(self.libdir_phianalayser, 'WF')
+        if not os.path.isdir(self.TEMP_WF):
+            os.makedirs(self.TEMP_WF)
+        self.TEMP_Cx = opj(self.libdir_phianalayser, 'Cx')
+        if not os.path.isdir(self.TEMP_Cx):
+            os.makedirs(self.TEMP_Cx)
+        self.TEMP_Cxbias = opj(self.libdir_phianalayser, 'Cxb')
+        if not os.path.isdir(self.TEMP_Cxbias):
+            os.makedirs(self.TEMP_Cxbias)
+        self.TEMP_Cccc = opj(self.libdir_phianalayser, 'Cccc')
+        if not os.path.isdir(self.TEMP_Cccc):
+            os.makedirs(self.TEMP_Cccc)
+
+    def collect_jobs(self):
+        _jobs, jobs = [], []
+        for taski, task in enumerate(self.tasks):
+
+            if task == 'calc_WFemp':
+                fns = opj(self.TEMP_WF,'WFemp_%s_sim%s_it%s.npy')
+                for simidx in self.simidxs:
+                    for it in self.its:
+                        if not os.path.isfile(fns%(self.k, simidx, it)):
+                            _jobs.append(simidx)
+                            break
+       
+            if task == 'calc_crosscorr':
+                fns = opj(self.TEMP_Cx,'CLx_%s_sim%s_it%s.npy')
+                for simidx in self.simidxs:
+                    for it in self.its:
+                        if not os.path.isfile(fns%(self.k, simidx, it)):
+                            _jobs.append(simidx)
+                            break
+            
+            if task == 'calc_reconbias':
+                fns = opj(self.TEMP_Cxbias,'CLxb_%s_sim%s_it%s.npy')
+                for simidx in self.simidxs:
+                    for it in self.its:
+                        if not os.path.isfile(fns%(self.k, simidx, it)):
+                            _jobs.append(simidx)
+                            break
+
+            if task == 'calc_crosscorrcoeff':
+                fns = opj(self.TEMP_Cccc,'CLccc_%s_sim%s_it%s.npy')
+                for simidx in self.simidxs:
+                    for it in self.its:
+                        if not os.path.isfile(fns%(self.k, simidx, it)):
+                            _jobs.append(simidx)
+                            break
+
+            # if task == 'calc_PB':
+            #     """If self.other_analysis_TEMP, then calculate specific differences between the two analyses. This is,
+            #     ## PB and LSS
+            #         * $PB = \left(C_L^{\hat{\phi}\phi}(nG)-C_L^{\hat{\phi}\phi}(nGf)\right)$
+            #     """
+            #     TEMP_PB = opj(self.libdir_phianalayser, 'PB')
+            #     if not os.path.isdir(TEMP_PB):
+            #         os.makedirs(TEMP_PB)
+            #     fns = opj(TEMP_PB,'PB_%s_sim%s_it%s.npy')
+            #     for simidx in self.simidxs:
+            #         for it in self.its:
+            #             if not os.path.isfile(fns%(self.k, simidx, it)):
+            #                 _jobs.append(simidx)
+            #                 break
+
+            # if task == 'calc_LSS':
+            #     """If self.other_analysis_TEMP, then calculate specific differences between the two analyses. This is,
+            #         * $LSS = \left(C_L^{\hat{\phi}\phi}(nGf)-C_L^{\phi\phi}(G)\right)$
+            #         * $LSS_n = \left(C_L^{\hat{\phi}\phi}(nGf)-C_L^{\phi\phi}(nG)\right)$
+            #     """
+            #     TEMP_LSS = opj(self.libdir_phianalayser, 'LSS')
+            #     if not os.path.isdir(TEMP_LSS):
+            #         os.makedirs(TEMP_LSS)
+            #     fns = opj(TEMP_LSS,'LSS_%s_sim%s_it%s.npy')
+            #     for simidx in self.simidxs:
+            #         for it in self.its:
+            #             if not os.path.isfile(fns%(self.k, simidx, it)):
+            #                 _jobs.append(simidx)
+            #                 break
+
+            # if task == 'calc_TOT':
+            #     """If self.other_analysis_TEMP, then calculate specific differences between the two analyses. This is,
+            #         * $TOT = \left(C_L^{\hat{\phi}\phi}(nG)-C_L^{\phi\phi}(G)\right)$
+            #         * $TOT_n = \left(C_L^{\hat{\phi}\phi}(nG)-C_L^{\phi\phi}(nG)\right)$
+            #     """
+            #     TEMP_TOT = opj(self.libdir_phianalayser, 'TOT')
+            #     if not os.path.isdir(TEMP_TOT):
+            #         os.makedirs(TEMP_TOT)
+            #     fns = opj(TEMP_TOT,'TOT_%s_sim%s_it%s.npy')
+            #     for simidx in self.simidxs:
+            #         for it in self.its:
+            #             if not os.path.isfile(fns%(self.k, simidx, it)):
+            #                 _jobs.append(simidx)
+            #                 break
+
+            jobs.append(_jobs)
+        self.jobs = jobs
+
+
+    def run(self):
+        # Wait for everyone to finish previous job
+        mpi.barrier()
+        for taski, task in enumerate(self.tasks):
+            if task == 'calc_WFemp':
+                # First, calc for each simindex individually
+                for simidx in self.jobs[taski][mpi.rank::mpi.size]:
+                    val = self._get_wienerfilter_empiric(simidx, self.its)
+                # Second, calc average WF, only let only one rank do this
+                first_rank = mpi.bcast(mpi.rank)
+                if first_rank == mpi.rank:
+                    self.get_wienerfilter_empiric()
+                    [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
+                else:
+                    mpi.receive(None, source=mpi.ANY_SOURCE)
+
+            if task == 'calc_crosscorr':
+                for simidx in self.jobs[taski][mpi.rank::mpi.size]:
+                    for it in self.its:
+                        self.get_crosscorrelation(simidx, it, WFemps=self.WFemps)
+                        self.get_autocorrelation(simidx, it, WFemps=self.WFemps)
+           
+            if task == 'calc_reconbias':
+                for simidx in self.jobs[taski][mpi.rank::mpi.size]:
+                    for it in self.its:
+                        self.get_reconstructionbias(simidx, it, WFemps=self.WFemps)
+
+            if task == 'calc_crosscorrcoeff':  
+                for simidx in self.jobs[taski][mpi.rank::mpi.size]:
+                    for it in self.its:
+                        self.get_crosscorrelationcoefficient(simidx, it, WFemps=self.WFemps)
+            
+            # if task == 'calc_PB':
+            #     TEMP_PB = opj(self.libdir_phianalayser, 'PB')
+            #     WFemps = np.load(opj(self.custom_WF_TEMP,'WFemp_%s_simall%s_itall%s_avg.npy')%(self.k, len(self.simidxs), len(self.its))) if self.custom_WF_TEMP else [None for n in np.arange(len(self.its))]
+            #     ## cross, est_1 = kappa, est_2 = kappa_first
+                
+            #     (cross(est_1, in_1) - cross(est_2, in_2))/WFx_emp_norm[it]
+
+            #     ## auto, est_1 = kappa, est_2 = kappa_first
+            #     (auto(est_1) - auto(est_2))/WFx_emp_norm[it]**2
+
+            # if task == 'calc_LSS':
+            #     TEMP_LSS = opj(self.libdir_phianalayser, 'LSS')
+            #     WFemps = np.load(opj(self.custom_WF_TEMP,'WFemp_%s_simall%s_itall%s_avg.npy')%(self.k, len(self.simidxs), len(self.its))) if self.custom_WF_TEMP else [None for n in np.arange(len(self.its))]
+            #     ## cross, est_1 = kappa_first, est_2 = kappa
+            #     (cross(est_1, in_1)/WFx_emp_norm[it] - auto(in_2))
+
+            #     ## auto, est_1 = kappa_first, est_2 = kappa
+            #     (auto(est_1) - auto(est_2))/WFx_emp_norm[it]**2
+
+            # if task == 'calc_TOT':
+            #     TEMP_TOT = opj(self.libdir_phianalayser, 'TOT')
+            #     WFemps = np.load(opj(self.custom_WF_TEMP,'WFemp_%s_simall%s_itall%s_avg.npy')%(self.k, len(self.simidxs), len(self.its))) if self.custom_WF_TEMP else [None for n in np.arange(len(self.its))]
+            #     ## cross, est_1 = kappa, est_2 = kappa
+            #     (cross(est_1, in_1)/WFx_emp_norm[it] - auto(in_2))
+
+            #     ## auto, est_1 = kappa_first, est_2 = gauss
+            #     (auto(est_1) - auto(est_2))/WFx_emp_norm[it]**2
+
+
+    def get_crosscorrelation(self, simidx, it, WFemps=None):
+        TEMP_Cx = opj(self.libdir_phianalayser, 'Cx')
+        fns = opj(TEMP_Cx,'CLx_%s_sim%s_it%s_customWF.npy') if self.custom_WF_TEMP else opj(TEMP_Cx,'CLx_%s_sim%s_it%s.npy')
+        if not os.path.isfile(fns%(self.k, simidx, it)):
+            plm_est = self.get_plm_it(simidx, [it])[0]
+            plm_in = alm_copy(self.simulationdata.get_sim_phi(simidx, space='alm'), None, self.lm_max_qlm[0], self.lm_max_qlm[1])
+            if type(WFemps) != np.ndarray:
+                WFemps = np.load(opj(self.TEMP_WF,'WFemp_%s_simall%s_itall%s_avg.npy')%(self.k, len(self.simidxs), len(self.its))) 
+            val = alm2cl(plm_est, plm_in, None, None, None)/WFemps[it]
+            np.save(fns%(self.k, simidx, it), val)
+        return np.load(fns%(self.k, simidx, it))
+
+
+    def get_autocorrelation(self, simidx, it, WFemps=None):
+        # Note: this calculates auto of the estimate
+        TEMP_Cx = opj(self.libdir_phianalayser, 'Cx')
+        fns = opj(TEMP_Cx,'CLa_%s_sim%s_it%s_customWF.npy') if self.custom_WF_TEMP else opj(TEMP_Cx,'CLa_%s_sim%s_it%s.npy')
+        if not os.path.isfile(fns%(self.k, simidx, it)):
+            plm_est = self.get_plm_it(simidx, [it])[0]
+            if type(WFemps) != np.ndarray:
+                WFemps = np.load(opj(self.TEMP_WF,'WFemp_%s_simall%s_itall%s_avg.npy')%(self.k, len(self.simidxs), len(self.its))) 
+            val = alm2cl(plm_est, plm_est, None, None, None)/WFemps[it]**2
+            np.save(fns%(self.k, simidx, it), val)
+        return np.load(fns%(self.k, simidx, it))
+
+
+    def get_reconstructionbias(self, simidx, it, WFemps=None):
+        TEMP_Cxbias = opj(self.libdir_phianalayser, 'Cxb')
+        fns = opj(TEMP_Cxbias,'CLxb_%s_sim%s_it%s_customWF.npy') if self.custom_WF_TEMP else opj(TEMP_Cxbias,'CLxb_%s_sim%s_it%s.npy') 
+        if not os.path.isfile(fns%(self.k, simidx, it)):
+            plm_est = self.get_plm_it(simidx, [it])[0]
+            plm_in = alm_copy(self.simulationdata.get_sim_phi(simidx, space='alm'), None, self.lm_max_qlm[0], self.lm_max_qlm[1])
+            if type(WFemps) != np.ndarray:
+                WFemps = np.load(opj(self.TEMP_WF,'WFemp_%s_simall%s_itall%s_avg.npy')%(self.k, len(self.simidxs), len(self.its))) 
+            val = alm2cl(plm_est, plm_in, None, None, None) / alm2cl(plm_in, plm_in, None, None, None)/WFemps[it]
+            np.save(fns%(self.k, simidx, it), val)
+        return np.load(fns%(self.k, simidx, it))
+
+
+    def get_crosscorrelationcoefficient(self, simidx, it, WFemps=None):
+        TEMP_Cccc = opj(self.libdir_phianalayser, 'Cccc')
+        fns = opj(TEMP_Cccc,'CLccc_%s_sim%s_it%s_customWF.npy') if self.custom_WF_TEMP else opj(TEMP_Cccc,'CLccc_%s_sim%s_it%s.npy')
+        if not os.path.isfile(fns%(self.k, simidx, it)):
+            # plm_QE = almxfl(self.qe.get_sim_qlm(simidx), utils.cli(R))
+            plm_est = self.get_plm_it(simidx, [it])[0]
+            plm_in = alm_copy(self.simulationdata.get_sim_phi(simidx, space='alm'), None, self.lm_max_qlm[0], self.lm_max_qlm[1])
+            if type(WFemps) != np.ndarray:
+                WFemps = np.load(opj(self.TEMP_WF,'WFemp_%s_simall%s_itall%s_avg.npy')%(self.k, len(self.simidxs), len(self.its))) 
+            val = alm2cl(plm_est, plm_in, None, None, None)**2/(alm2cl(plm_est, plm_est, None, None, None)*alm2cl(plm_in, plm_in, None, None, None))
+            np.save(fns%(self.k, simidx, it), val)
+        return np.load(fns%(self.k, simidx, it))
+
+
+
+    def get_wienerfilter_analytic(self, simidx, it):
+        assert 0, 'implement if needed'
+        return None   
+    
+
+    def _get_wienerfilter_empiric(self, simidx, its):
+        ## per sim calculation, no need to expose this. Only return averaged result across all sims, which is the function without the pre underline: get_wienerfilter_empiric()
+        fns = opj(self.TEMP_WF, 'WFemp_%s_sim%s_it%s.npy')
+        WFemps = np.zeros(shape=(len(its), self.lm_max_qlm[0]+1))
+        if not np.array([os.path.isfile(fns%(self.k, simidx, it)) for it in its]).all():   
+            plm_in = alm_copy(self.simulationdata.get_sim_phi(simidx, space='alm'), None, self.lm_max_qlm[0], self.lm_max_qlm[1])
+            plm_est = self.get_plm_it(simidx, its)
+            for it in its:       
+                WFemps[it] = alm2cl(plm_in, plm_est[it], None, None, None)/alm2cl(plm_in, plm_in, None, None, None)
+                np.save(fns%(self.k, simidx, it), WFemps[it])
+        for it in its:
+            WFemps[it] = np.load(fns%(self.k, simidx, it))
+        return WFemps
+    
+    def get_wienerfilter_empiric(self):
+        fn = opj(self.TEMP_WF,'WFemp_%s_simall%s_itall%s_avg.npy')
+        if not os.path.isfile(fn%(self.k, len(self.simidxs), len(self.its))):   
+            WFemps = np.array([self._get_wienerfilter_empiric(simidx, self.its) for simidx in self.simidxs])
+            np.save(fn%(self.k, len(self.simidxs), len(self.its)), np.mean(WFemps, axis=0))
+        return np.load(fn%(self.k, len(self.simidxs), len(self.its)))
+        
+
+
 
 
 class overwrite_anafast():

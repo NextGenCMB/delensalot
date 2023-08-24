@@ -52,6 +52,8 @@ DL_DEFAULT = {
         'phi_fn': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
         'epsilon': 1e-7,
         'spin': 0,
+        'CMB_modifier': lambda x: x,
+        'phi_modifier': lambda x: x,
     },
     'qerec':{
         'tasks': ['calc_phi', 'calc_blt'],
@@ -104,7 +106,7 @@ DL_DEFAULT = {
             'p6': 'tr_cg',
             'p7': 'cache_mem'
         },      
-        },
+    },
     'noisemodel': {
         'sky_coverage': 'masked',
         'spectrum_type': 'white',
@@ -129,6 +131,9 @@ DL_DEFAULT = {
         'binning': 'binned',
         'spectrum_calculator': pospace,
         'basemap': 'lens'
+    },
+    'phana': {
+        'custom_WF_TEMP': None,
     },
     'computing': {
         'OMP_NUM_THREADS': int(psutil.cpu_count()) #2*int(psutil.cpu_count()/psutil.cpu_count(logical=False))

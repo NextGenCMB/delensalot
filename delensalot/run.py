@@ -121,15 +121,15 @@ if __name__ == '__main__':
     if dh.dev_subr in parser.__dict__:
         dh.dev(parser, config_handler.TEMP)
         sys.exit()
+    if mpi.rank == 0:
+        mpi.disable()
+        config_handler.collect_models()
+        mpi.enable()
+        [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
+    else:
+        mpi.receive(None, source=mpi.ANY_SOURCE)
     if mpi.size > 1:
-        if mpi.rank == 0:
-            mpi.disable()
-            config_handler.collect_models()
-            mpi.enable()
-            [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
-        else:
-            mpi.receive(None, source=mpi.ANY_SOURCE)
-    config_handler.collect_models()
+        config_handler.collect_models()
 
     try:
         config_handler.run()
