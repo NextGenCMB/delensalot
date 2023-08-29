@@ -6,7 +6,8 @@ import hashlib
 import pickle as pk
 from healpy import gauss_beam
 from scipy.interpolate import UnivariateSpline as spl
-from plancklens.helpers import cachers, mpi
+from delensalot.core import cachers, mpi
+from delensalot.utils import cls2dls, dls2cls
 from plancklens import qresp, nhl, utils
 
 #Uses lensitbiases to compute fast N1 
@@ -15,42 +16,18 @@ from lensitbiases import n1_fft
 # Requires the full camb python package for the lensed spectra calc.
 from camb.correlations import lensed_cls
 
-def cls2dls(cls):
-    """Turns cls dict. into camb cl array format"""
-    keys = ['tt', 'ee', 'bb', 'te']
-    lmax = np.max([len(cl) for cl in cls.values()]) - 1
-    dls = np.zeros((lmax + 1, 4), dtype=float)
-    refac = np.arange(lmax + 1) * np.arange(1, lmax + 2, dtype=float) / (2. * np.pi)
-    for i, k in enumerate(keys):
-        cl = cls.get(k, np.zeros(lmax + 1, dtype=float))
-        sli = slice(0, min(len(cl), lmax + 1))
-        dls[sli, i] = cl[sli] * refac[sli]
-    cldd = np.copy(cls.get('pp', None))
-    if cldd is not None:
-        cldd *= np.arange(len(cldd)) ** 2 * np.arange(1, len(cldd) + 1, dtype=float) ** 2 /  (2. * np.pi)
-    return dls, cldd
-
-
-def dls2cls(dls):
-    """Inverse operation to cls2dls"""
-    assert dls.shape[1] == 4
-    lmax = dls.shape[0] - 1
-    cls = {}
-    refac = 2. * np.pi * utils.cli( np.arange(lmax + 1) * np.arange(1, lmax + 2, dtype=float))
-    for i, k in enumerate(['tt', 'ee', 'bb', 'te']):
-        cls[k] = dls[:, i] * refac
-    return cls
-
-def _dicthash(dict_in, lmax, keys=None):
+def _dicthash(cl_dict:dict, lmax:int, keys:list or None=None):
+    """Returns the hash key for the selected keys and maximum multipoles of the Cls in cl_dict"""
     h = hashlib.new('sha1')
     if keys is None:
-        keys = list(dict_in.keys())
+        keys = list(cl_dict.keys())
     for k in keys:
-        cl = dict_in[k]
+        cl = cl_dict[k]
         h.update(np.copy(cl[:lmax+1].astype(float), order='C'))
     return h.hexdigest()
 
-def _lmin_ivf(lmin_ivf):
+def _lmin_ivf(lmin_ivf:int or tuple):
+    """From an int or a tuple, returns the lmin_ivf for the T, E and B fields"""
     if type(lmin_ivf) is tuple:
         lmin_tlm, lmin_elm, lmin_blm = lmin_ivf
     elif type(lmin_ivf) is int:
@@ -62,8 +39,8 @@ def _lmin_ivf(lmin_ivf):
     lmin_blm = max(lmin_blm, 1)
     return lmin_tlm,lmin_elm,lmin_blm
 
-def cls_lmin_filt(lmin_tlm, lmin_elm, lmin_blm, cl_dict):
-    """Remove the multipoles below from lmin"""
+def cls_lmin_filt(lmin_tlm:int, lmin_elm:int, lmin_blm:int, cl_dict:dict):
+    """Remove the multipoles below lmin for all the Cls in cl_dict"""
     for key, cl in cl_dict.items():
         if key == 'tt':
             cl[:lmin_tlm] *= 0.
@@ -75,12 +52,11 @@ def cls_lmin_filt(lmin_tlm, lmin_elm, lmin_blm, cl_dict):
             cl[:max(lmin_tlm, lmin_elm)] *= 0.
 
 
-
 class iterbiases:
     """"""
-    def __init__(self, nlev_t, nlev_p, beam_fwhm, lmin_ivf, lmax_ivf, lmax_qlm, cls_unl_fid, cls_noise_fid=None, lib_dir=None, verbose=True):
+    def __init__(self, nlev_t:float, nlev_p:float, beam_fwhm:float, lmin_ivf:int or tuple, lmax_ivf:int, lmax_qlm:int, cls_unl_fid:dict, cls_noise_fid:dict or None=None, lib_dir:str or None=None, verbose:bool =True):
         """
-        Computes the N0 and N1 biases for fiducial Cls unlensed.
+        Computes the iterative N0 and N1 biases, given a set of fiducial unlensed Cls unlensed.
 
             Args:
                 nlev_t: noise level in T (muK amin)
@@ -132,7 +108,7 @@ class iterbiases:
         return {'cls_unl_fid':self.fidcls_unl, 'cls_noise_fid': self.fidcls_noise,
                 'lmax_qlm':self.lmax_qlm}
 
-    def get_n0n1(self, qe_key:str,  itrmax:int, cls_unl_true: dict or None, cls_noise_true:dict or None, fn=None, version='', recache=False):
+    def get_n0n1(self, qe_key:str,  itrmax:int, cls_unl_true: dict or None, cls_noise_true:dict or None, fn:str or None=None, version:str = '', recache:bool = False):
         """Returns n0s, n1s and true and fid responses
 
             Args:
@@ -154,6 +130,7 @@ class iterbiases:
 
             Note: N0 and N1 output are normalized with fiducial response
         """
+        assert qe_key in ['ptt', 'p_p', 'p'], "The qe_key should be in 'ptt', 'p_p' or 'p'"
 
         (nlev_t, nlev_p, beam, lmin_ivf, lmax_ivf, lmax_qlm) = self.config
         cls_unl_fid = self.fidcls_unl
@@ -178,22 +155,22 @@ class iterbiases:
             return np.array([N0_biased, N1_biased_spl, r_gg_fid, r_gg_true])
         return self._cacher.load(fn)
 
-    def delcls(self, qe_key:str, itrmax:int, cls_unl_true: dict or None, cls_noise_true:dict or None, version=''):
+    def delcls(self, qe_key:str, itrmax:int, cls_unl_true: dict or None, cls_noise_true:dict or None, version:str = ''):
         """Returns fiducial and true partially delensed cls
 
         """
-        (nlev_t, nlev_p, beam, lmin, lmax, lmax_qlm) = self.config
+        (nlev_t, nlev_p, beam, lmin_ivf, lmax_ivf, lmax_qlm) = self.config
         cls_unl_fid = self.fidcls_unl
         cls_noise_fid = self.fidcls_noise
 
         if cls_noise_true is None: cls_noise_true = cls_noise_fid
         if cls_unl_true is None: cls_unl_true = cls_unl_fid
         fid_delcls, true_delcls = get_delcls(qe_key, itrmax, cls_unl_fid, cls_unl_true, cls_noise_fid,
-                                                 cls_noise_true, lmin, lmax, lmax_qlm, version=version)
+                                                 cls_noise_true, lmin_ivf, lmax_ivf, lmax_qlm, version=version)
         return fid_delcls, true_delcls
 
 
-def get_fals(qe_key, cls_cmb_filt, cls_cmb_dat, cls_noise_filt, cls_noise_dat, lmin_ivf, lmax_ivf):
+def get_fals(qe_key:str, cls_cmb_filt:dict, cls_cmb_dat:dict, cls_noise_filt:dict, cls_noise_dat:dict, lmin_ivf:int or tuple, lmax_ivf:int):
     """
     Get the filtering Cls and from the fiducial CMB Cls and noise, as well as the IVF data Cls
     Returns as well the QE weights and CMB response functions 
@@ -214,6 +191,7 @@ def get_fals(qe_key, cls_cmb_filt, cls_cmb_dat, cls_noise_filt, cls_noise_dat, l
         cls_f: CMB response function (used to get the responses, depends on the data Cls)
 
     """
+    assert qe_key in ['ptt', 'p_p', 'p'], "The qe_key should be in 'ptt', 'p_p' or 'p'"
     lmin_tlm, lmin_elm, lmin_blm = _lmin_ivf(lmin_ivf)  
 
     fals = {}
@@ -244,7 +222,7 @@ def get_fals(qe_key, cls_cmb_filt, cls_cmb_dat, cls_noise_filt, cls_noise_dat, l
     return fals, dat_cls, cls_w, cls_f
 
 
-def get_delcls(qe_key: str, itermax, cls_unl_fid: dict, cls_unl_true:dict, cls_noise_fid:dict, cls_noise_true:dict, lmin_ivf, lmax_ivf, lmax_qlm:int, version=''):
+def get_delcls(qe_key: str, itermax:int, cls_unl_fid: dict, cls_unl_true:dict, cls_noise_fid:dict, cls_noise_true:dict, lmin_ivf:int or tuple, lmax_ivf:int, lmax_qlm:int, version:str = ''):
     """Iterative lensing-N0 estimate
 
         Calculates iteratively partially lensed spectra and lensing noise levels.
@@ -328,7 +306,6 @@ def get_delcls(qe_key: str, itermax, cls_unl_fid: dict, cls_unl_true:dict, cls_n
             cls_plen_fid = dls2cls(lensed_cls(dls_unl_fid, cldd_fid))
             cls_plen_true = dls2cls(lensed_cls(dls_unl_true, cldd_true))
 
-        #TODO: could replace this here with cls2N0N1
         fal, dat_delcls, cls_w, cls_f = get_fals(qe_key, cls_plen_fid, cls_plen_true, cls_noise_fid, cls_noise_true, lmin_ivf, lmax_ivf)
 
         cls_ivfs_arr = utils.cls_dot([fal, dat_delcls, fal])
@@ -373,32 +350,49 @@ def get_delcls(qe_key: str, itermax, cls_unl_fid: dict, cls_unl_true:dict, cls_n
 
 
 
-def cls2N0N1(k, cls_cmb_filt, cls_cmb_dat, cls_noise_filt, cls_noise_dat, lmin_ivf, lmax_ivf, lmax_qlm, doN1mat=False):
-    """"
+def cls2N0N1(qe_key:str, cls_cmb_filt:dict, cls_cmb_dat:dict, cls_noise_filt:dict, cls_noise_dat:dict, lmin_ivf:int, lmax_ivf:int, lmax_qlm:int, doN1mat:bool = False):
+    """
         Returns QE N0 and N1 from input filtering and data cls
+            Args:
+                qe_key: 'ptt', 'p_p', 'p' for Temparture, Polarization only (E+B) and joint estimators (T+E+B) respectively
+                cls_cmb_filt: Fiducial CMB Cls used for the filters
+                cls_cmb_dat: Data CMB Cls to filter
+                cls_noise_filt: Fiducial noise used in the filters   
+                cls_noise_dat: Noise Cls 
+                lmin_ivf: minimum scale(s) of the CMB maps
+                lmax_ivf: maximum scale of the CMB maps
+                lmax_qlm: maximum multipole for the output N0 and N1
+                doN1mat: Returns the unnormalised N1 matrix, n^{1}_{L, L'}
+
+            Returns:
+                N0_biased: N0 with fiducial CMB Cls 
+                N1_biased_spl: N1 with fiducial CMB Cls
+                r_gg_fid: Fiducial response 
+                r_gg_true: True response, with true CMB spectra
+                n1_Ls: multipoles where the N1 matrix is evaluated
+                n1_mat: N1 matrix, defined such that n^1_L = \sum_{L'} C^{\phi\phi}_{L'} n^{1}_{L, L'}
 
             Note: Can use this for iterative N0 and N1s using partially delensed Cls
 
             Note: These the N0 and N1 biases for the 'fiducial' normalized QE (biased wr.t. Rfid/Rtrue factor)
 
     """
-    # assert k == 'p_p'
 
-    fals, dat_cls, cls_w, cls_f = get_fals(k, cls_cmb_filt, cls_cmb_dat, cls_noise_filt, cls_noise_dat, lmin_ivf, lmax_ivf)
+    fals, dat_cls, cls_w, cls_f = get_fals(qe_key, cls_cmb_filt, cls_cmb_dat, cls_noise_filt, cls_noise_dat, lmin_ivf, lmax_ivf)
 
     lib = n1_fft.n1_fft(fals, cls_w, cls_f, np.copy(cls_cmb_dat['pp']), lminbox=50, lmaxbox=5000, k2l=None)
     n1_Ls = np.arange(50, (lmax_qlm // 50) * 50  + 50, 50)
     if not doN1mat:
-        n1 = np.array([lib.get_n1(k, L, do_n1mat=False)  for L in n1_Ls])
+        n1 = np.array([lib.get_n1(qe_key, L, do_n1mat=False)  for L in n1_Ls])
         n1mat = None
     else:
-        n1_, n1m_ = lib.get_n1(k, n1_Ls[0], do_n1mat=True)
+        n1_, n1m_ = lib.get_n1(qe_key, n1_Ls[0], do_n1mat=True)
         n1 = np.zeros(len(n1_Ls))
         n1mat = np.zeros( (len(n1_Ls), n1m_.size))
         n1[0] = n1_
         n1mat[0] = n1m_
         for iL, n1_L in enumerate(n1_Ls[1:]):
-            n1_, n1m_ = lib.get_n1(k, n1_L, do_n1mat=True)
+            n1_, n1m_ = lib.get_n1(qe_key, n1_L, do_n1mat=True)
             n1[iL + 1] = n1_
             n1mat[iL + 1] = n1m_
 
@@ -408,11 +402,11 @@ def cls2N0N1(k, cls_cmb_filt, cls_cmb_dat, cls_noise_filt, cls_noise_dat, lmin_i
         for j, b in enumerate(['t', 'e', 'b'][i:]):
             if np.any(cls_ivfs_arr[i, j + i]):
                 cls_ivfs[a + b] = cls_ivfs_arr[i, j + i]
-    n_gg = nhl.get_nhl(k, k, cls_w, cls_ivfs, lmax_ivf, lmax_ivf, lmax_out=lmax_qlm)[0]
+    n_gg = nhl.get_nhl(qe_key, qe_key, cls_w, cls_ivfs, lmax_ivf, lmax_ivf, lmax_out=lmax_qlm)[0]
     # The QE is normalized by the fiducial response:
-    r_gg_fid = qresp.get_response(k, lmax_ivf, 'p', cls_w, cls_cmb_filt, fals, lmax_qlm=lmax_qlm)[0]
+    r_gg_fid = qresp.get_response(qe_key, lmax_ivf, 'p', cls_w, cls_cmb_filt, fals, lmax_qlm=lmax_qlm)[0]
     if cls_cmb_dat is not cls_cmb_filt:
-        r_gg_true = qresp.get_response(k, lmax_ivf, 'p', cls_w, cls_cmb_dat, fals, lmax_qlm=lmax_qlm)[0]
+        r_gg_true = qresp.get_response(qe_key, lmax_ivf, 'p', cls_w, cls_cmb_dat, fals, lmax_qlm=lmax_qlm)[0]
     else:
         r_gg_true = r_gg_fid
     N0_biased = n_gg * utils.cli(r_gg_fid ** 2)
