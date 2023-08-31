@@ -65,7 +65,7 @@ class qlm_iterator(object):
                  k_geom:utils_geom.Geom,
                  chain_descr, stepper:steps.nrstep,
                  logger=None,
-                 NR_method=100, tidy=0, verbose=True, soltn_cond=True, wflm0=None, _usethisE=None):
+                 NR_method=100, tidy=0, verbose=True, soltn_cond=True, wflm0=None, _usethisE=None, **kwargs):
         """Lensing map iterator
 
             The bfgs hessian updates are called 'hlm's and are either in plm, dlm or klm space

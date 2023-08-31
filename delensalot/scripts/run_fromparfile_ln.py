@@ -1,7 +1,8 @@
 r"""Iterative reconstruction parameter-file script
 
     e.g.
-        python ./scripts/run_fromparfile.py -itmax 1 -k ptt -tol 7 -p
+        python $ONED/lenscarf/delensalot/scripts/run_fromparfile_ln.py -itmax 1 -k ptt -tol 8 -p
+        python $ONED/lenscarf/delensalot/scripts/run_fromparfile_ln.py -itmax 1 -k ptt -tol 8 -p -v Grec
 
 """
 from __future__ import annotations
@@ -20,8 +21,9 @@ from plancklens.qcinv import cd_solve
 
 from plancklens.sims import maps, phas
 from plancklens.filt import filt_simple
-from delensalot.core.iterator import cs_iterator as scarf_iterator_baseline, steps
+from delensalot.core.iterator import cs_iterator as cs_iterator_gauss, steps
 from delensalot.core.iterator import cs_iterator_dev as scarf_iterator_dev
+from delensalot.core.iterator import cs_iterator_ln
 
 from delensalot.core.iterator import cs_iterator_fast as scarf_iterator_fastwf
 
@@ -40,9 +42,11 @@ from lenspyx.remapping import utils_geom
 from lenspyx.sims import sims_cmb_len
 from lenspyx.utils import Drop
 
-suffix = 'cmbs4pub_delensing_lenspyxed' # descriptor to distinguish this parfile from others...
-TEMP = opj(os.environ['SCRATCH'], 'lenscarfrecs', suffix)
-DATDIR = opj(os.environ['SCRATCH'],'lenspyxedFFP10cls_noaberration')
+k0 = 0.6
+
+suffix = 'lnnormal_lenspyxed%.2f'%k0 # descriptor to distinguish this parfile from others...
+TEMP = opj(os.environ['SCRATCH'], 'lensclscarfrecs', suffix)
+DATDIR = opj(os.environ['SCRATCH'],'lnnormal_lenspyx%.2f'%k0)
 libdir_n1_dd = os.path.join(TEMP, 'n1_ffp10_l4096_L5120')
 
 if not os.path.exists(DATDIR):
@@ -109,10 +113,21 @@ if mpi.rank ==0:
     cacher = cachers.cacher_npy(DATDIR)
 mpi.barrier()
 cacher = cachers.cacher_npy(DATDIR)
+cacher_ln = cachers.cacher_npy(DATDIR + '/ln_lensing')
 
+from delensalot.sims import sims_lnnormal as sln
+
+
+# Lnnormal sims parameters:
+p2k = np.arange(lmax_qlm + 1) * np.arange(1, lmax_qlm + 2) * 0.5
+cldelta = cls_unl['pp'][:lmax_qlm+1] / k0 ** 2 * p2k ** 2
 
 cmb_unl = sims_cmb_unl(cls_unl, cmb_phas)
+cmb_ln = sln.lneasy_sims(cldelta, 5120, cacher_sims=cacher_ln, kappa0=k0, geom=lenjob_geometry)
+#FIXME: hack
+cmb_unl.get_sim_plm = cmb_ln.get_sim_plm
 cmb_len = sims_cmb_len(4096, cmb_unl, cache=cacher, epsilon=1e-7)
+clA = cmb_ln.cl_lnd
 
 # ---- QE libraries from plancklens to calculate unnormalized QE (qlms) and their spectra (qcls)
 mc_sims_bias = np.arange(60, dtype=int)
@@ -293,10 +308,21 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float, epsilon=1e-5, nbump=
         iterator = scarf_iterator_fastwf.iterator_cstmf(libdir_iterator, 'p', (lmax_qlm, mmax_qlm), datmaps,
         plm0, plm0 * 0, Rpp_unl, cpp, cls_unl, filtr, k_geom, chain_descrs(lmax_unl, cg_tol), stepper
         ,wflm0=wflm0_)
-    else:
-        iterator = scarf_iterator.iterator_cstmf(libdir_iterator, 'p', (lmax_qlm, mmax_qlm), datmaps,
+    elif 'grec' in version.lower(): # makes standard Gaussian-rec, not lognormal
+        iterator = cs_iterator_gauss.iterator_cstmf(libdir_iterator, 'p', (lmax_qlm, mmax_qlm), datmaps,
         plm0, plm0 * 0, Rpp_unl, cpp, cls_unl, filtr, k_geom, chain_descrs(lmax_unl, cg_tol), stepper
-        ,wflm0=wflm0_, _eefilter=_filtr_ee, _ttfilter=_filtr_tt)
+        ,wflm0=wflm0_)
+    else:
+        cl_prior = clA
+        Alm0 = cs_iterator_ln.iterator_cstmf.plm2Alm(plm0, k0, lmax_qlm, mmax_qlm, lenjob_geometry, numthreads)
+        # need to give starting log-field point. If linear, A ~ k/k0
+        H0 = Rpp_unl
+        H0[1:] /= p2k[1:] ** 2
+        H0[0] = H0[1]
+        H0 *= k0 ** 2
+        iterator = cs_iterator_ln.iterator_cstmf(libdir_iterator, 'p', (lmax_qlm, mmax_qlm), datmaps,
+        Alm0, Alm0 * 0, H0, cl_prior, cls_unl, filtr, k_geom, chain_descrs(lmax_unl, cg_tol), stepper, k0
+        ,wflm0=wflm0_)
     return iterator
 
 if __name__ == '__main__':
@@ -321,7 +347,7 @@ if __name__ == '__main__':
         scarf_iterator = scarf_iterator_dev
         args.v += '_dev'
     else:
-        scarf_iterator = scarf_iterator_baseline
+        scarf_iterator = cs_iterator_gauss
 
     tol_iter   = lambda it : 10 ** (- args.tol) # tolerance a fct of iterations ?
     soltn_cond = lambda it: True # Uses (or not) previous E-mode solution as input to search for current iteration one
@@ -340,7 +366,6 @@ if __name__ == '__main__':
 
     if mpi.rank == 0:
         print("Caching things in " + TEMP)
-
     for idx in jobs[mpi.rank::mpi.size]:
         lib_dir_iterator = libdir_iterators(args.k, idx, version)
         print("iterator folder: " + lib_dir_iterator)
@@ -371,21 +396,24 @@ if __name__ == '__main__':
             itrs = np.unique(np.linspace(0, args.itmax + 1, 5, dtype=int)) # plotting max 5 curves
             if args.itmax not in itrs:
                 itrs = np.concatenate([itrs, [args.itmax]])
-            plms = Rec.load_plms(lib_dir_iterator, itrs)
+            Alms = Rec.load_plms(lib_dir_iterator, itrs)# This is now the log-field ~ k/k0
+            # FIXME: this is not the log-field:!
             plm_in = alm_copy(sims.sims_cmb_len.get_sim_plm(int(idx)), 5120, lmax_qlm, mmax_qlm)
-            cpp_in = alm2cl(plm_in, plm_in, lmax_qlm, mmax_qlm, lmax_qlm)
-            ls = np.arange(1, lmax_qlm + 1)
+            Alm_in= cs_iterator_ln.iterator_cstmf.plm2Alm(plm_in, k0, lmax_qlm, mmax_qlm, lenjob_geometry, args.nthreads)
+            # and this is also the log-field  k/k0
+            cAA_in = alm2cl(Alm_in, Alm_in, lmax_qlm, mmax_qlm, lmax_qlm)
+            ls = np.arange(0, lmax_qlm + 1)
             wls = ls ** 2 * (ls + 1) ** 2 / (2 * np.pi)
             axes[0].set_title('auto-spectra')
             axes[1].set_title('cross-spectra')
             axes[2].set_title('cross-corr. coeff.')
-            axes[0].loglog(ls, wls * cpp_in[ls], c='k')
-            for itr, plm in zip(itrs, plms):
-                cxx = alm2cl(plm, plm_in, lmax_qlm, mmax_qlm, lmax_qlm)
-                cpp = alm2cl(plm, plm, lmax_qlm, mmax_qlm, lmax_qlm)
-                axes[0].loglog(ls, wls * cpp[ls], label='itr ' + str(itr))
-                axes[1].loglog(ls, wls * cxx[ls], label='itr ' + str(itr))
-                axes[2].semilogx(ls, cxx[ls] / np.sqrt(cpp * cpp_in)[ls], label='itr ' + str(itr))
+            axes[0].loglog(ls, clA[ls], c='k', label=r'$C_\ell^{A, \rm fid}$')
+            for itr, Alm in zip(itrs, Alms):
+                cAx = alm2cl(Alm, Alm_in, lmax_qlm, mmax_qlm, lmax_qlm)
+                cAA = alm2cl(Alm, Alm, lmax_qlm, mmax_qlm, lmax_qlm)
+                axes[0].loglog(ls, cAA[ls], label='itr ' + str(itr))
+                axes[1].loglog(ls, cAx[ls], label='itr ' + str(itr))
+                axes[2].semilogx(ls, cAx[ls] / np.sqrt(cAA * cAA_in)[ls], label='itr ' + str(itr))
 
             for ax in axes:
                 ax.legend()
