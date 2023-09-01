@@ -380,7 +380,7 @@ class cpp_sims_lib:
         """
         itbias = iterbiasesN0N1.iterbiases(self.param.nlev_t, self.param.nlev_p, self.param.beam, self.param.lmin_ivf, self.param.lmax_ivf,
                                     self.param.lmax_qlm, self.param.cls_unl, None, opj(self.TEMP, 'n0n1_iter'), version=version, recache=recache)
-        N0_biased, N1_biased, r_gg_fid, r_gg_trye = itbias.get_n0n1(self.k, itermax, None, None)
+        N0_biased, N1_biased, r_gg_fid, r_gg_true = itbias.get_n0n1(self.k, itermax, None, None)
         return N0_biased, N1_biased, r_gg_fid, r_gg_true
 
 
