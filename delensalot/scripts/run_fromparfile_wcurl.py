@@ -2,7 +2,7 @@
 
     tests joint lensing gradient and curl potential reconstruction
 
-    e.g. python ./run_fromparfile_wcurl.py -itmax 0 -v ''
+    e.g. python ./run_fromparfile_wcurl.py -itmax 0 -v 'wcurlin'
 
     '' version is standard gradient reconstruction
     'wcurl' version reconstructs both gradient and curl on gradient-only input map
@@ -31,6 +31,7 @@ from lenspyx.utils_hp import gauss_beam, almxfl, alm2cl, alm_copy
 from lenspyx import cachers
 from lenspyx.sims import sims_cmb_len
 
+from delensalot.utility import utils_steps
 from delensalot.core.iterator import steps
 from delensalot.core import mpi
 from delensalot.core.opfilt.MAP_opfilt_iso_p import alm_filter_nlev_wl
@@ -250,7 +251,7 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
     if 'wcurl' in version:
         # Sets to zero all L-modes below Lmin in the iterations:
         assert 'wmf1' not in version
-        stepper = steps.harmonicbump(lmax_qlm, mmax_qlm, xa=400, xb=1500)
+        stepper = utils_steps.harmonicbump(xa=400, xb=1500)
         iterator = iterator_cstmf_wcurl(libdir_iterator, 'p', [(lmax_qlm, mmax_qlm), (lmax_qlm, mmax_qlm)], datmaps,
                                   [plm0, olm0], [mf0_p, mf0_o], [Rpp_unl, Roo_unl], [cpp, coo], ('p', 'x'), cls_unl, filtr, k_geom,
                                   chain_descrs(lmax_unl, cg_tol), stepper,
@@ -301,7 +302,6 @@ if __name__ == '__main__':
             for i in range(args.itmax + 1):
                 print("****Iterator: setting cg-tol to %.4e ****"%tol_iter(i))
                 print("****Iterator: setting solcond to %s ****"%soltn_cond(i))
-
                 itlib.chain_descr  = chain_descrs(lmax_unl, tol_iter(i))
                 itlib.soltn_cond   = soltn_cond(i)
                 print("doing iter " + str(i))
@@ -328,7 +328,8 @@ if __name__ == '__main__':
             axes[1].set_title('cross-spectra')
             axes[2].set_title('cross-corr. coeff.')
             axes[0].loglog(ls, wls * cpp_in[ls], c='k')
-            for itr, plm in zip(itrs, plms):
+            for itr, plms in zip(itrs, plms):
+                plm = np.atleast_2d(plms)[0] # In the curly case there are two components
                 cxx = alm2cl(plm, plm_in, lmax_qlm, mmax_qlm, lmax_qlm)
                 cpp = alm2cl(plm, plm, lmax_qlm, mmax_qlm, lmax_qlm)
                 axes[0].loglog(ls, wls * cpp[ls], label='itr ' + str(itr))
