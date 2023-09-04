@@ -255,7 +255,7 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
         iterator = iterator_cstmf_wcurl(libdir_iterator, 'p', [(lmax_qlm, mmax_qlm), (lmax_qlm, mmax_qlm)], datmaps,
                                   [plm0, olm0], [mf0_p, mf0_o], [Rpp_unl, Roo_unl], [cpp, coo], ('p', 'x'), cls_unl, filtr, k_geom,
                                   chain_descrs(lmax_unl, cg_tol), stepper,
-                                 wflm0=lambda : alm_copy(ivfs.get_sim_emliklm(simidx), None, lmax_unl, mmax_unl))
+                                 wflm0=lambda : alm_copy(ivfs_wcurl.get_sim_emliklm(simidx), None, lmax_unl, mmax_unl))
 
     else: # standard gradient only
         stepper = steps.harmonicbump(lmax_qlm, mmax_qlm, xa=400, xb=1500)  # reduce the gradient by 0.5 for large scale and by 0.1 for small scales to improve convergence in regimes where the deflection field is not invertible
