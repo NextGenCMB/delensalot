@@ -7,7 +7,6 @@
     '' version is standard gradient reconstruction
     'wcurl' version reconstructs both gradient and curl on gradient-only input map
     'wcurlin' version reconstructs both gradient and curl on gradient and curl input map
-              (starting point still the curl-free QE though)
 
 """
 import os
