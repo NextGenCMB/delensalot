@@ -4,9 +4,9 @@
 
     e.g. python ./run_fromparfile_wcurl.py -itmax 0 -v 'wcurlin'
 
-    '' version is standard gradient reconstruction
-    'wcurl' version reconstructs both gradient and curl on gradient-only input map
-    'wcurlin' version reconstructs both gradient and curl on gradient and curl input map
+    -v '' version is standard gradient reconstruction
+    -v 'wcurl' version reconstructs both gradient and curl on gradient-only input map
+    -v 'wcurlin' version reconstructs both gradient and curl on gradient and curl input map
 
 """
 import os
