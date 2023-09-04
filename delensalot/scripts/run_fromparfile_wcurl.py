@@ -271,7 +271,7 @@ if __name__ == '__main__':
     parser.add_argument('-itmax', dest='itmax', type=int, default=-1, help='maximal iter index')
     parser.add_argument('-tol', dest='tol', type=float, default=7., help='-log10 of cg tolerance default')
     parser.add_argument('-imin', dest='imin', type=int, default=0, help='minimal sim index')
-    parser.add_argument('-imax', dest='imax', type=int, default=1, help='maximal sim index')
+    parser.add_argument('-imax', dest='imax', type=int, default=0, help='maximal sim index')
     parser.add_argument('-v', dest='v', type=str, default='', help='iterator version')
     parser.add_argument('-p', dest='plot', action='store_true', help='make some plots on the fly')
 
@@ -311,7 +311,7 @@ if __name__ == '__main__':
         import pylab as pl
         pl.ion()
         version = args.v
-        input_sims = sims
+        input_sims = sims if not 'wcurlin' in version else sims_wcurl
         fig, axes = pl.subplots(1, 3, figsize=(15, 5))
         for idx in jobs[0:1]: # only first
             print("plots")
@@ -320,7 +320,7 @@ if __name__ == '__main__':
             if args.itmax not in itrs:
                 itrs = np.concatenate([itrs, [args.itmax]])
             plms = Rec.load_plms(lib_dir_iterator, itrs)
-            plm_in = alm_copy(sims.sims_cmb_len.get_sim_plm(int(idx)), 5120, lmax_qlm, mmax_qlm)
+            plm_in = alm_copy(input_sims.sims_cmb_len.get_sim_plm(int(idx)), None, lmax_qlm, mmax_qlm)
             cpp_in = alm2cl(plm_in, plm_in, lmax_qlm, mmax_qlm, lmax_qlm)
             ls = np.arange(1, lmax_qlm + 1)
             wls = ls ** 2 * (ls + 1) ** 2 / (2 * np.pi)
@@ -329,13 +329,46 @@ if __name__ == '__main__':
             axes[2].set_title('cross-corr. coeff.')
             axes[0].loglog(ls, wls * cpp_in[ls], c='k')
             for itr, plms in zip(itrs, plms):
-                plm = np.atleast_2d(plms)[0] # In the curly case there are two components
-                cxx = alm2cl(plm, plm_in, lmax_qlm, mmax_qlm, lmax_qlm)
-                cpp = alm2cl(plm, plm, lmax_qlm, mmax_qlm, lmax_qlm)
-                axes[0].loglog(ls, wls * cpp[ls], label='itr ' + str(itr))
-                axes[1].loglog(ls, wls * cxx[ls], label='itr ' + str(itr))
-                axes[2].semilogx(ls, cxx[ls] / np.sqrt(cpp * cpp_in)[ls], label='itr ' + str(itr))
+                ncomp = 1 + ('wcurl' in args.v)
+                plm_size = len(plms) // ncomp
+                for icomp in [0]:
+                    plm = plms[icomp * plm_size : (icomp + 1) * plm_size] # In the curly case there are two components
+                    cxx = alm2cl(plm, plm_in, lmax_qlm, mmax_qlm, lmax_qlm)
+                    cpp = alm2cl(plm, plm, lmax_qlm, mmax_qlm, lmax_qlm)
+                    axes[0].loglog(ls, wls * cpp[ls], label='itr ' + str(itr))
+                    axes[1].loglog(ls, wls * cxx[ls], label='itr ' + str(itr))
+                    axes[2].semilogx(ls, cxx[ls] / np.sqrt(cpp * cpp_in)[ls], label='itr ' + str(itr))
 
             for ax in axes:
                 ax.legend()
-        k = input("press close to exit")
+        if 'wcurlin' in args.v:
+            fig, axes = pl.subplots(1, 3, figsize=(15, 5))
+            for idx in jobs[0:1]: # only first
+                print("plots")
+                lib_dir_iterator = libdir_iterators(args.k, idx, version)
+                itrs = np.unique(np.linspace(0, args.itmax + 1, 5, dtype=int)) # plotting max 5 curves
+                if args.itmax not in itrs:
+                    itrs = np.concatenate([itrs, [args.itmax]])
+                plms = Rec.load_plms(lib_dir_iterator, itrs)
+                plm_in = alm_copy(input_sims.sims_cmb_len.get_sim_olm(int(idx)), None, lmax_qlm, mmax_qlm)
+                cpp_in = alm2cl(plm_in, plm_in, lmax_qlm, mmax_qlm, lmax_qlm)
+                ls = np.arange(1, lmax_qlm + 1)
+                wls = ls ** 2 * (ls + 1) ** 2 / (2 * np.pi)
+                axes[0].set_title('auto-spectra')
+                axes[1].set_title('cross-spectra')
+                axes[2].set_title('cross-corr. coeff.')
+                axes[0].loglog(ls, wls * cpp_in[ls], c='k')
+                for itr, plms in zip(itrs, plms):
+                    ncomp = 1 + ('wcurl' in args.v)
+                    plm_size = len(plms) // ncomp
+                    for icomp in [1]:
+                        plm = plms[icomp * plm_size : (icomp + 1) * plm_size] # In the curly case there are two components
+                        cxx = alm2cl(plm, plm_in, lmax_qlm, mmax_qlm, lmax_qlm)
+                        cpp = alm2cl(plm, plm, lmax_qlm, mmax_qlm, lmax_qlm)
+                        axes[0].loglog(ls, wls * cpp[ls], label='itr ' + str(itr))
+                        axes[1].loglog(ls, wls * cxx[ls], label='itr ' + str(itr))
+                        axes[2].semilogx(ls, cxx[ls] / np.sqrt(cpp * cpp_in)[ls], label='itr ' + str(itr))
+
+                for ax in axes:
+                    ax.legend()
+        k = input("press a key to exit")
