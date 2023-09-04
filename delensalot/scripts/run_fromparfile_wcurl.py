@@ -13,8 +13,7 @@
 import os
 from os.path import join as opj
 import numpy as np
-from multiprocessing import cpu_count
-
+from psutil import cpu_count
 import plancklens
 from plancklens import utils
 from plancklens import qresp
@@ -186,7 +185,7 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
     libdir_iterator = libdir_iterators(k, simidx, version)
     if not os.path.exists(libdir_iterator):
         os.makedirs(libdir_iterator)
-    tr = int(os.environ.get('OMP_NUM_THREADS', cpu_count() // 2))
+    tr = int(os.environ.get('OMP_NUM_THREADS', cpu_count(logical=False)))
     print("Using %s threads"%tr)
     cpp = np.copy(cls_unl_wcurl['pp'][:lmax_qlm + 1])
     cpp[:Lmin] *= 0.
