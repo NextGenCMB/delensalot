@@ -352,7 +352,7 @@ if __name__ == '__main__':
                 plms = Rec.load_plms(lib_dir_iterator, itrs)
                 plm_in = alm_copy(input_sims.sims_cmb_len.get_sim_olm(int(idx)), None, lmax_qlm, mmax_qlm)
                 cpp_in = alm2cl(plm_in, plm_in, lmax_qlm, mmax_qlm, lmax_qlm)
-                ls = np.arange(1, lmax_qlm + 1)
+                ls = np.arange(2, lmax_qlm + 1)
                 wls = ls ** 2 * (ls + 1) ** 2 / (2 * np.pi)
                 axes[0].set_title('auto-spectra')
                 axes[1].set_title('cross-spectra')
