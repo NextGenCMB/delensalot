@@ -300,7 +300,7 @@ class gclm_iterator(object):
         else: # Applies full remapping
             assert dlm.labels in [('p', 'x'), ('p',)], 'not implemented'
             ffi = self.filter.ffi.change_dlm([dlm.get_comp('p'), dlm.get_comp('x')], self.mmaxs_qlm[0])
-            elm, blm = ffi.lensgclm([elm_wf, np.zeros_like(elm_wf)], self.mmax_filt, 2, lmaxb, mmaxb)
+            elm, blm = ffi.lensgclm(elm_wf, self.mmax_filt, 2, lmaxb, mmaxb)
         if cache_cond:
             self.wf_cacher.cache(fn, blm)
         return blm
