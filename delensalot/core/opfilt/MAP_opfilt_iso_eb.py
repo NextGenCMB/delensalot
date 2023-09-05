@@ -95,31 +95,31 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         self.wee = wee
         self.tim = timer(True, prefix='opfilt')
 
-    def lensforward(self, elm): # this can only take a e and no b
+    def lensforward(self, elm, polrot=True): # this can only take a e and no b
         assert elm.size == Alm.getsize(self.lmax_sol, self.mmax_sol)
-        eblm = self.ffi_ee.lensgclm(elm, self.mmax_sol, 2, self.lmax_len, self.mmax_len)
+        eblm = self.ffi_ee.lensgclm(elm, self.mmax_sol, 2, self.lmax_len, self.mmax_len, polrot=polrot)
         if self.ffi_eb is not self.ffi_ee: # filling B-mode with second deflection
-            eblm_2 = self.ffi_eb.lensgclm(elm, self.mmax_sol, 2, self.lmax_len, self.mmax_len)
+            eblm_2 = self.ffi_eb.lensgclm(elm, self.mmax_sol, 2, self.lmax_len, self.mmax_len, polrot=polrot)
             eblm[1][:] = eblm_2[1]
         return eblm
 
-    def lensbackward(self, eblm):
-        eblm_ee = self.ffi_ee.lensgclm(eblm, self.mmax_len, 2, self.lmax_sol, self.mmax_sol, backwards=True)
+    def lensbackward(self, eblm, polrot=True):
+        eblm_ee = self.ffi_ee.lensgclm(eblm, self.mmax_len, 2, self.lmax_sol, self.mmax_sol, backwards=True, polrot=polrot)
         if self.ffi_eb is not self.ffi_ee: # filling B-mode with second deflection
-            eblm_eb = self.ffi_eb.lensgclm(eblm, self.mmax_len, 2, self.lmax_sol, self.mmax_sol, backwards=True)
+            eblm_eb = self.ffi_eb.lensgclm(eblm, self.mmax_len, 2, self.lmax_sol, self.mmax_sol, backwards=True, polrot=polrot)
         else:
             eblm_eb = eblm_ee
         return 0.5 * (eblm_ee[0] + eblm_eb[0])
 
-    def _test_adjoint(self, cl):
+    def _test_adjoint(self, cl, polrot=True):
         elm = synalm(cl, self.lmax_sol, self.mmax_sol)
         elm_len = synalm(cl, self.lmax_len, self.mmax_len)
         blm_len = synalm(cl, self.lmax_len, self.mmax_len)
-        De = self.lensforward(elm)
+        De = self.lensforward(elm, polrot=polrot)
         ret1  = np.sum(alm2cl(De[0], elm_len, self.lmax_len, self.mmax_len, None) * (2 * np.arange(self.lmax_len + 1) + 1))
         ret1 += np.sum(alm2cl(De[1], blm_len, self.lmax_len, self.mmax_len, None) * (2 * np.arange(self.lmax_len + 1) + 1))
         del De
-        Dt = self.lensbackward(np.array([elm_len, blm_len]))
+        Dt = self.lensbackward(np.array([elm_len, blm_len]), polrot=polrot)
         ret2 =  np.sum(alm2cl(elm, Dt, self.lmax_sol, self.mmax_sol, None) * (2 * np.arange(self.lmax_sol + 1) + 1))
         print(ret1, ret2-ret1, ret2)
 
