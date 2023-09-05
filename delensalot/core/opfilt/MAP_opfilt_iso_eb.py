@@ -1,4 +1,4 @@
-"""Scarf-geometry based inverse-variance filters, inclusive of CMB lensing remapping
+"""Inverse-variance CMB filter, inclusive of CMB lensing remapping
 
     This module distinguishes between deflection fields mapping E to E and E to B
 
