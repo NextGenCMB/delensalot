@@ -110,7 +110,7 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         bonly[1] = eblm[1]
         elm_out += self.ffi_ee.lensgclm(bonly, self.mmax_len, 2, self.lmax_sol, self.mmax_sol,
                                        backwards=True,polrot=polrot, out_sht_mode='GRAD_ONLY')
-        return elm_out
+        return elm_out.squeeze()
 
     def _test_adjoint(self, cl, polrot=True):
         elm = synalm(cl, self.lmax_sol, self.mmax_sol)
