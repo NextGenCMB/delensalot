@@ -106,7 +106,7 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
     def lensbackward(self, eblm, polrot=True):
         elm_out = self.ffi_ee.lensgclm(eblm[0:1], self.mmax_len, 2, self.lmax_sol, self.mmax_sol,
                                        backwards=True,polrot=polrot, out_sht_mode='GRAD_ONLY')
-        bonly = np.zeros_like(eblm.shape)
+        bonly = np.zeros_like(eblm)
         bonly[1] = eblm[1]
         elm_out += self.ffi_ee.lensgclm(bonly, self.mmax_len, 2, self.lmax_sol, self.mmax_sol,
                                        backwards=True,polrot=polrot, out_sht_mode='GRAD_ONLY')
