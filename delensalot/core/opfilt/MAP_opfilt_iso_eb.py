@@ -104,12 +104,13 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         return eblm
 
     def lensbackward(self, eblm, polrot=True):
-        eblm_ee = self.ffi_ee.lensgclm(eblm, self.mmax_len, 2, self.lmax_sol, self.mmax_sol, backwards=True, polrot=polrot)
-        if self.ffi_eb is not self.ffi_ee: # filling B-mode with second deflection
-            eblm_eb = self.ffi_eb.lensgclm(eblm, self.mmax_len, 2, self.lmax_sol, self.mmax_sol, backwards=True, polrot=polrot)
-        else:
-            eblm_eb = eblm_ee
-        return 0.5 * (eblm_ee[0] + eblm_eb[0])
+        elm_out = self.ffi_ee.lensgclm(eblm[0], self.mmax_len, 2, self.lmax_sol, self.mmax_sol,
+                                       backwards=True,polrot=polrot, out_sht_mode='GRAD_ONLY')
+        bonly = np.zeros_like(eblm.shape)
+        bonly[1] = eblm[1]
+        elm_out += self.ffi_ee.lensgclm(bonly, self.mmax_len, 2, self.lmax_sol, self.mmax_sol,
+                                       backwards=True,polrot=polrot, out_sht_mode='GRAD_ONLY')
+        return elm_out
 
     def _test_adjoint(self, cl, polrot=True):
         elm = synalm(cl, self.lmax_sol, self.mmax_sol)
