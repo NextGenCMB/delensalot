@@ -80,7 +80,7 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         self.ffi_ee = ffi[0]
         self.ffi_eb = ffi[1]
 
-    def lensforward(self, elm): # this can only take a e and no b
+    def lensforward(self, elm, polrot=True): # this can only take a e and no b
         assert elm.size == Alm.getsize(self.lmax_unl, self.mmax_unl)
         eblm = self.ffi_ee.lensgclm(elm, self.mmax_sol, 2, self.lmax_len, self.mmax_len)
         if self.ffi_eb is not self.ffi_ee: # filling B-mode with second deflection
@@ -88,13 +88,27 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
             eblm[1][:] = eblm_2[1]
         return eblm
 
-    def lensbackward(self, eblm):
-        eblm_ee = self.ffi_ee.lensgclm(eblm, self.mmax_len, 2, self.lmax_sol, self.mmax_sol, backwards=True)
-        if self.ffi_eb is not self.ffi_ee: # filling B-mode with second deflection
-            eblm_eb = self.ffi_eb.lensgclm(eblm, self.mmax_len, 2, self.lmax_sol, self.mmax_sol, backwards=True)
-        else:
-            eblm_eb = eblm_ee
-        return 0.5 * (eblm_ee[0] + eblm_eb[0])
+    def lensbackward(self, eblm, polrot=True):
+        elm_out = self.ffi_ee.lensgclm(eblm[0:1], self.mmax_len, 2, self.lmax_sol, self.mmax_sol,
+                                       backwards=True,polrot=polrot, out_sht_mode='GRAD_ONLY')
+        bonly = np.zeros_like(eblm)
+        bonly[1] = eblm[1]
+        elm_out += self.ffi_eb.lensgclm(bonly, self.mmax_len, 2, self.lmax_sol, self.mmax_sol,
+                                       backwards=True,polrot=polrot, out_sht_mode='GRAD_ONLY')
+        return elm_out.squeeze()
+
+    def _test_adjoint(self, cl, polrot=True):
+        elm = synalm(cl, self.lmax_sol, self.mmax_sol)
+        elm_len = synalm(cl, self.lmax_len, self.mmax_len)
+        blm_len = synalm(cl, self.lmax_len, self.mmax_len)
+        De = self.lensforward(elm, polrot=polrot)
+        ret1  = np.sum(alm2cl(De[0], elm_len, self.lmax_len, self.mmax_len, None) * (2 * np.arange(self.lmax_len + 1) + 1))
+        ret1 += np.sum(alm2cl(De[1], blm_len, self.lmax_len, self.mmax_len, None) * (2 * np.arange(self.lmax_len + 1) + 1))
+        del De
+        Dt = self.lensbackward(np.array([elm_len, blm_len]), polrot=polrot)
+        ret2 =  np.sum(alm2cl(elm, Dt, self.lmax_sol, self.mmax_sol, None) * (2 * np.arange(self.lmax_sol + 1) + 1))
+        print(ret1, ret2-ret1, ret2)
+
 
     def hashdict(self):
         return {'ninv': self._ninv_hash(), 'transfe':clhash(self.b_transf_elm), 'transfb':clhash(self.b_transf_blm),
