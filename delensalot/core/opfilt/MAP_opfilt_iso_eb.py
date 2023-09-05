@@ -111,6 +111,19 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
             eblm_eb = eblm_ee
         return 0.5 * (eblm_ee[0] + eblm_eb[0])
 
+    def _test_adjoint(self, cl):
+        from lenspyx.utils_hp import alm2cl
+        elm = synalm(cl, self.lmax_sol, self.mmax_sol)
+        elm_len = synalm(cl, self.lmax_sol, self.mmax_sol)
+        blm_len = synalm(cl, self.lmax_sol, self.mmax_sol)
+        De = self.lensforward(elm)
+        ret1  = np.sum(alm2cl(De[0], elm_len, self.lmax_sol, self.mmax_sol, None) * (2 * np.arange(self.lmax_sol + 1) + 1))
+        ret1 += np.sum(alm2cl(De[1], blm_len, self.lmax_sol, self.mmax_sol, None) * (2 * np.arange(self.lmax_sol + 1) + 1))
+        del De
+        Dt = self.lensbackward([elm_len, blm_len])
+        ret2 =  np.sum(alm2cl(elm, Dt, self.lmax_sol, self.mmax_sol, None) * (2 * np.arange(self.lmax_sol + 1) + 1))
+        print(ret1, ret2-ret1)
+
     def get_febl(self):
         return np.copy(self.inoise_2_elm), np.copy(self.inoise_2_blm)
 
