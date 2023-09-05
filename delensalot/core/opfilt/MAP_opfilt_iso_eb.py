@@ -120,9 +120,9 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         ret1  = np.sum(alm2cl(De[0], elm_len, self.lmax_len, self.mmax_len, None) * (2 * np.arange(self.lmax_len + 1) + 1))
         ret1 += np.sum(alm2cl(De[1], blm_len, self.lmax_len, self.mmax_len, None) * (2 * np.arange(self.lmax_len + 1) + 1))
         del De
-        Dt = self.lensbackward([elm_len, blm_len])
+        Dt = self.lensbackward(np.array([elm_len, blm_len]))
         ret2 =  np.sum(alm2cl(elm, Dt, self.lmax_sol, self.mmax_sol, None) * (2 * np.arange(self.lmax_sol + 1) + 1))
-        print(ret1, ret2-ret1)
+        print(ret1, ret2-ret1, ret2)
 
     def get_febl(self):
         return np.copy(self.inoise_2_elm), np.copy(self.inoise_2_blm)
