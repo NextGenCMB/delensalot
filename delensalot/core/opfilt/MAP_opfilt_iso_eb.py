@@ -7,7 +7,6 @@
 """
 import logging
 log = logging.getLogger(__name__)
-from logdecorator import log_on_start, log_on_end
 import numpy as np
 from scipy.interpolate import UnivariateSpline as spl
 
@@ -15,7 +14,6 @@ from lenspyx import remapping
 from lenspyx.utils_hp import almxfl,   Alm, synalm
 from lenspyx.utils import timer, cli
 from lenspyx.remapping.utils_geom import pbdGeometry
-from lenspyx.remapping.deflection_028 import rtype, ctype
 
 from delensalot.core.opfilt import opfilt_base, MAP_opfilt_aniso_p
 
@@ -133,8 +131,6 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         self.tim.reset()
         lmax_unl = Alm.getlmax(elm.size, self.mmax_sol)
         assert lmax_unl == self.lmax_sol, (lmax_unl, self.lmax_sol)
-        # View to the same array for GRAD_ONLY mode:
-        elm_2d = elm.reshape((1, elm.size))
         eblm = self.lensforward(elm)
         self.tim.add('lensgclm fwd')
         almxfl(eblm[0], self.inoise_2_elm, self.mmax_len, inplace=True)
