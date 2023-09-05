@@ -314,8 +314,8 @@ class gclm_iterator(object):
             ffi = self.filter.ffi.change_dlm([glm, clm], self.mmaxs_qlm[0], cachers.cacher_mem())
             return ffi
         elif 'pee' in dlm.labels and 'p_eb' in dlm.labels: # EE and EB lensing components
-            ffi_ee = self.filter.ffi.change_dlm([dlm.get_comp('pee'),  dlm.get_comp('xee')], self.mmaxs_qlm[0], cachers.cacher_mem())
-            ffi_eb = self.filter.ffi.change_dlm([dlm.get_comp('p_eb'),  dlm.get_comp('x_eb')], self.mmaxs_qlm[1], cachers.cacher_mem())
+            ffi_ee = self.filter.ffi_ee.change_dlm([dlm.get_comp('pee'),  dlm.get_comp('xee')], self.mmaxs_qlm[0], cachers.cacher_mem())
+            ffi_eb = self.filter.ffi_eb.change_dlm([dlm.get_comp('p_eb'),  dlm.get_comp('x_eb')], self.mmaxs_qlm[1], cachers.cacher_mem())
             return [ffi_ee, ffi_eb]
         else:
             assert 0, ('dont know what to do with labels ', dlm.labels)
@@ -529,14 +529,14 @@ class gclm_iterator(object):
                 grad_lm.almxfl([self._h2p(self.lmaxs_qlm[0]), self._h2p(self.lmaxs_qlm[1])], True)
             elif self.labels == ('pee', 'p_eb'):
                 if self.lm_maxee is not None and self.lm_maxee[0] < self.lmaxs_qlm[0]:
-                    print("seeing smaller lmax for ee, patching")
+                    print("seeing smaller lmax for ee (%s), cutting"%(self.lm_maxee[0]))
                     # ee only up to some lmax, then total gradient
-                    felp = np.ones(self.lmaxs_qlm[0] + 1) * (np.arange(self.lmaxs_qlm[0] + 1) > self.lm_maxee[0])
+                    #felp = np.ones(self.lmaxs_qlm[0] + 1) * (np.arange(self.lmaxs_qlm[0] + 1) > self.lm_maxee[0])
                     felm = np.ones(self.lmaxs_qlm[0] + 1) * (np.arange(self.lmaxs_qlm[0] + 1) <= self.lm_maxee[0])
-                    Gee = almxfl(Gs[0], felm, self.mmaxs_qlm[0], False)
-                    G_p = Gs[1] + alm_copy(almxfl(Gs[0], felp, self.mmaxs_qlm[0], False), self.mmaxs_qlm[0], self.lmaxs_qlm[1], self.mmaxs_qlm[1])
-                    G_ee =Gee +  almxfl(alm_copy(G_p, self.mmaxs_qlm[1], self.lmaxs_qlm[0], self.mmaxs_qlm[0]), felp, self.mmaxs_qlm[0], False)
-                    grad_lm = gradient([-G_ee, -G_p],  self.mmaxs_qlm, labels=self.labels)
+                    mGee = almxfl(Gs[0], -felm, self.mmaxs_qlm[0], False)
+                    #G_p = Gs[1] + alm_copy(almxfl(Gs[0], felp, self.mmaxs_qlm[0], False), self.mmaxs_qlm[0], self.lmaxs_qlm[1], self.mmaxs_qlm[1])
+                    #G_ee =Gee +  almxfl(alm_copy(G_p, self.mmaxs_qlm[1], self.lmaxs_qlm[0], self.mmaxs_qlm[0]), felp, self.mmaxs_qlm[0], False)
+                    grad_lm = gradient([mGee, -Gs[1]],  self.mmaxs_qlm, labels=self.labels)
 
                 else:
                     grad_lm = gradient([-Gs[0], -Gs[1]],  self.mmaxs_qlm, labels=self.labels)
