@@ -11,7 +11,7 @@ import numpy as np
 from scipy.interpolate import UnivariateSpline as spl
 
 from lenspyx import remapping
-from lenspyx.utils_hp import almxfl,   Alm, synalm
+from lenspyx.utils_hp import almxfl, Alm, synalm, alm2cl
 from lenspyx.utils import timer, cli
 from lenspyx.remapping.utils_geom import pbdGeometry
 
@@ -112,7 +112,6 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         return 0.5 * (eblm_ee[0] + eblm_eb[0])
 
     def _test_adjoint(self, cl):
-        from lenspyx.utils_hp import alm2cl
         elm = synalm(cl, self.lmax_sol, self.mmax_sol)
         elm_len = synalm(cl, self.lmax_len, self.mmax_len)
         blm_len = synalm(cl, self.lmax_len, self.mmax_len)
