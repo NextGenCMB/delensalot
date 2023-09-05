@@ -91,8 +91,7 @@ fbl_unl =  cli(cls_unl['bb'][:lmax_ivf + 1] + (nlev_p / 180 / 60 * np.pi) ** 2 *
 
 # -------------------------
 # ---- Input simulation libraries. Here we use the NERSC FFP10 CMBs with homogeneous noise and consistent transfer function
-#       We define explictly the phase library such that we can use the same phases for for other purposes in the future as well if needed
-#       I am putting here the phases in the home directory such that they dont get NERSC auto-purged
+#       We define explictly the phase library such that we can use the same phases for other purposes in the future as well if needed
 #       actual data transfer function for the sim generation:
 transf_dat =  gauss_beam(beam / 180 / 60 * np.pi, lmax=4096) # (taking here full FFP10 cmb's which are given to 4096)
 cls_noise = {'t': np.full(4097, (nlev_t /180 / 60 *  np.pi) ** 2)  * (cls_len['tt'][:4097] > 0),
@@ -263,6 +262,8 @@ if __name__ == '__main__':
     tol_iter   = lambda it : 10 ** (- args.tol) # tolerance a fct of iterations ?
     soltn_cond = lambda it: True # Uses (or not) previous E-mode solution as input to search for current iteration one
 
+    if args.lmaxee > 0:
+        args.v += 'lmaxee%s'%args.lmaxee
 
     mpi.barrier = lambda : 1 # redefining the barrier (Why ? )
     from delensalot.core.iterator.statics import rec as Rec
