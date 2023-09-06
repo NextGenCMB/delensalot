@@ -32,23 +32,31 @@ from delensalot.core.opfilt.MAP_opfilt_iso_eb import alm_filter_nlev_wl
 from delensalot.core.iterator.cs_iterator_multi import iterator_cstmf as iterator_multi
 
 suffix = 'delensalot_idealized_eb' # descriptor to distinguish this parfile from others...
-TEMP =  opj(os.environ['SCRATCH'], suffix)
-DATDIR = opj(os.environ['SCRATCH'], suffix, 'sims')
-DATDIRwcurl = opj(os.environ['SCRATCH'],suffix, 'simswcurl')
 
-if not os.path.exists(DATDIR):
-    os.makedirs(DATDIR)
-# harmonic space noise phas down to 4096
-noise_phas = phas.lib_phas(opj(os.environ['HOME'], 'noisephas_lmax%s'%4096), 3, 4096) # T, E, and B noise phases
-cmb_phas = phas.lib_phas(opj(os.environ['HOME'], 'cmbphas_lmax%s'%5120), 5, 5120) # unlensed T E B P O CMB phases
 
-lmax_ivf, mmax_ivf, beam, nlev_t, nlev_p = (4096, 4096, 1., 0.5 / np.sqrt(2), 0.5)
+
+# Input sims parameters:
+lmax_lencmb_sims = 3000
+lmax_unlcmb_sims = 3000 + 1024
+beam_sims = 2.3
+nlev_t_sims = 0.5 / np.sqrt(2.)
+nlev_p_sims = 0.5
+
+# Reconstruction parameters (here likelihood model matches data)
+lmax_ivf, mmax_ivf, beam, nlev_t, nlev_p = (lmax_lencmb_sims, lmax_lencmb_sims, beam_sims, nlev_t_sims, nlev_p_sims)
 lmin_tlm, lmin_elm, lmin_blm = (1, 2, 2) # The fiducial transfer functions are set to zero below these lmins
-# for delensing useful to cut much more B. It can also help since the cg inversion does not have to reconstruct those.
+lmax_qlm, mmax_qlm = (lmax_unlcmb_sims, lmax_unlcmb_sims) # Lensing map is reconstructed down to this lmax and mmax
+lmax_unl, mmax_unl = (lmax_unlcmb_sims, lmax_unlcmb_sims) # Delensed CMB is reconstructed down to this lmax and mmax
 
-lmax_qlm, mmax_qlm = (5120, 5120) # Lensing map is reconstructed down to this lmax and mmax
-# NB: the QEs from plancklens does not support mmax != lmax, but the MAP pipeline does
-lmax_unl, mmax_unl = (5120, 5120) # Delensed CMB is reconstructed down to this lmax and mmax
+basedir = opj(os.environ['SCRATCH'], suffix,'lmaxlen%slmaxunl%sbeam%s'%(lmax_lencmb_sims, lmax_unlcmb_sims, beam_sims))
+DATDIR = opj(basedir, 'sims')
+DATDIRwcurl = opj(basedir, 'simswcurl')
+TEMP =  opj(basedir, 'recs','lmaxlen%slmaxunl%sbeam%s'%(lmax_ivf, lmax_unl, beam) )
+if not os.path.exists(basedir):
+    os.makedirs(basedir)
+# harmonic space noise phases needed for sims generation
+noise_phas = phas.lib_phas(opj(os.environ['HOME'], 'noisephas_lmax%s'%lmax_lencmb_sims), 3, lmax_lencmb_sims) # T, E, and B noise phases
+cmb_phas = phas.lib_phas(opj(os.environ['HOME'], 'cmbphas_lmax%s'%lmax_unlcmb_sims), 5, lmax_unlcmb_sims) # unlensed T E B P O CMB phases
 
 
 #----------------- pixelization and geometry info for the input maps and the MAP pipeline and for lensing operations
@@ -79,6 +87,7 @@ transf_tlm   =  gauss_beam(beam/180 / 60 * np.pi, lmax=lmax_ivf) * (np.arange(lm
 transf_elm   =  gauss_beam(beam/180 / 60 * np.pi, lmax=lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_elm)
 transf_blm   =  gauss_beam(beam/180 / 60 * np.pi, lmax=lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_blm)
 transf_d = {'t':transf_tlm, 'e':transf_elm, 'b':transf_blm}
+
 # Isotropic approximation to the filtering (used eg for response calculations)
 ftl =  cli(cls_len['tt'][:lmax_ivf + 1] + (nlev_t / 180 / 60 * np.pi) ** 2 * cli(transf_tlm ** 2)) * (transf_tlm > 0)
 fel =  cli(cls_len['ee'][:lmax_ivf + 1] + (nlev_p / 180 / 60 * np.pi) ** 2 * cli(transf_elm ** 2)) * (transf_elm > 0)
@@ -93,11 +102,11 @@ fbl_unl =  cli(cls_unl['bb'][:lmax_ivf + 1] + (nlev_p / 180 / 60 * np.pi) ** 2 *
 # ---- Input simulation libraries. Here we use the NERSC FFP10 CMBs with homogeneous noise and consistent transfer function
 #       We define explictly the phase library such that we can use the same phases for other purposes in the future as well if needed
 #       actual data transfer function for the sim generation:
-transf_dat =  gauss_beam(beam / 180 / 60 * np.pi, lmax=4096) # (taking here full FFP10 cmb's which are given to 4096)
-cls_noise = {'t': np.full(4097, (nlev_t /180 / 60 *  np.pi) ** 2)  * (cls_len['tt'][:4097] > 0),
-             'e': np.full(4097, (nlev_p / 180 / 60 * np.pi) ** 2)  * (cls_len['ee'][:4097] > 0),
-             'b': np.full(4097, (nlev_p / 180 / 60 * np.pi) ** 2)  * (cls_len['bb'][:4097] > 0),}
-cls_transf = {f: transf_dat for f in ['t', 'e', 'b']}
+transf_dat =  gauss_beam(beam_sims / 180 / 60 * np.pi, lmax=lmax_lencmb_sims) # (taking here full FFP10 cmb's which are given to 4096)
+cls_noise = {'t': np.full(lmax_lencmb_sims + 1, (nlev_t_sims /180 / 60 *  np.pi) ** 2)  * (cls_len['tt'][:lmax_lencmb_sims + 1] > 0),
+             'e': np.full(lmax_lencmb_sims + 1, (nlev_p_sims / 180 / 60 * np.pi) ** 2)  * (cls_len['ee'][:lmax_lencmb_sims + 1] > 0),
+             'b': np.full(lmax_lencmb_sims + 1, (nlev_p_sims / 180 / 60 * np.pi) ** 2)  * (cls_len['bb'][:lmax_lencmb_sims + 1] > 0),}
+cls_transf_dat = {f: transf_dat for f in ['t', 'e', 'b']}
 if mpi.rank ==0:
     # Problem of creating dir in parallel if does not exist
     cacher = cachers.cacher_npy(DATDIR)
@@ -110,11 +119,11 @@ cacher_wcurl = cachers.cacher_npy(DATDIRwcurl)
 cmb_unl = sims_cmb_unl(cls_unl, cmb_phas)
 cmb_unl_wcurl = sims_cmb_unl(cls_unl_wcurl, cmb_phas)
 
-cmb_len = sims_cmb_len(4096, cmb_unl, cache=cacher, epsilon=1e-7)
-cmb_len_wcurl = sims_cmb_len(4096, cmb_unl_wcurl, cache=cacher_wcurl, epsilon=1e-7)
+cmb_len = sims_cmb_len(lmax_lencmb_sims, cmb_unl, cache=cacher, epsilon=1e-7)
+cmb_len_wcurl = sims_cmb_len(lmax_lencmb_sims, cmb_unl_wcurl, cache=cacher_wcurl, epsilon=1e-7)
 
-sims      = maps.cmb_maps_harmonicspace(cmb_len, cls_transf, cls_noise, noise_phas)
-sims_wcurl = maps.cmb_maps_harmonicspace(cmb_len_wcurl, cls_transf, cls_noise, noise_phas)
+sims       = maps.cmb_maps_harmonicspace(cmb_len, cls_transf_dat, cls_noise, noise_phas)
+sims_wcurl = maps.cmb_maps_harmonicspace(cmb_len_wcurl, cls_transf_dat, cls_noise, noise_phas)
 # -------------------------
 
 ivfs         = filt_simple.library_fullsky_alms_sepTP(opj(TEMP, 'ivfs'), sims, transf_d, cls_len, ftl, fel, fbl, cache=True)
