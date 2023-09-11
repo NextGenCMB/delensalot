@@ -28,6 +28,7 @@ from plancklens import utils, qest, qecl
 from plancklens.sims import maps
 from delensalot.sims import sims_ffp10
 from delensalot.utility import utils_sims, utils_hp
+import healpy as hp
 
 
 output_dir = opj(os.path.dirname(os.path.dirname(delensalot.__file__)), 'outputs')
@@ -63,12 +64,12 @@ def export_dsss(itr:int, qe_key:str, libdir:str, suffix:str, datidx:int, ss_dict
     # fn_cldsss = 'cls_dsss_itr{}.dat'
     np.savetxt(opj(fn_dir, fn_cls_dsss(itr, mcs, Nroll)), arr.transpose(), fmt=fmt, header=header)
 
-def export_nhl(libdir:str, qe_key, parfile, datidx:int):
+def export_nhl(libdir:str, qe_key, parfile, datidx:int, recache=False):
     fn_dir = output_sim(qe_key, parfile.suffix, datidx)
     if not os.path.exists(fn_dir):
         os.makedirs(fn_dir)
     fn = os.path.join(fn_dir, 'QE_knhl.dat')
-    if not os.path.exists(fn):
+    if not os.path.exists(fn) or recache:
         print(fn)
         GG = ss_ds_QE(libdir, parfile, datidx)
         lmax = len(GG) - 1
@@ -77,7 +78,7 @@ def export_nhl(libdir:str, qe_key, parfile, datidx:int):
         header += '\n' + 'Raw phi-based spec obtained by 1/4 L^2 (L + 1)^7 * 1e7 times this   (ds ss is response-like)'
         np.savetxt(fn, GG * pp2kki, header=header)
 
-def ss_ds_QE(libdir, parfile, datidx):
+def ss_ds_QE(libdir, parfile, datidx, qe_key='p_p'):
     # For the QE we use the semi-analytical N0:
     from delensalot.utility.utils_hp import almxfl, alm2cl
     from plancklens.nhl import get_nhl
@@ -87,21 +88,28 @@ def ss_ds_QE(libdir, parfile, datidx):
     # else:
     #     fn = lambda this_idx : 'eb_filtersim_%04d'%this_idx # full sims
     # alm_bar = np.copy(np.load(opj(libdir, 'ds_ss', 'ebwf_dat.npy')))
-    sht_job = scarfjob()
-    sht_job.set_geometry(parfile.ninvjob_geometry)
-    sht_job.set_triangular_alm_info(parfile.lmax_ivf,parfile.mmax_ivf)
-    tr = int(os.environ.get('OMP_NUM_THREADS', 8))
-    sht_job.set_nthreads(tr)
-    alm_bar = np.copy(np.array(sht_job.map2alm_spin(parfile.sims_MAP.get_sim_pmap(datidx), 2)))
+    # sht_job = scarfjob()
+    # sht_job.set_geometry(parfile.ninvjob_geometry)
+    # sht_job.set_triangular_alm_info(parfile.lmax_ivf,parfile.mmax_ivf)
+    # tr = int(os.environ.get('OMP_NUM_THREADS', 8))
+    # sht_job.set_nthreads(tr)
+
     lmax, mmax = parfile.lmax_ivf, parfile.mmax_ivf
-    # print(alm_bar.shape)
-    # print(parfile.transf_elm.shape)
-    # print(parfile.fel.shape)
-    almxfl(alm_bar[0], cli(parfile.transf_elm) * parfile.fel, mmax, inplace=True)
-    almxfl(alm_bar[1], cli(parfile.transf_blm) * parfile.fbl, mmax, inplace=True)
-    cls_ivfs = {'ee': alm2cl(alm_bar[0], alm_bar[0], lmax, mmax, lmax),
-                'bb': alm2cl(alm_bar[1], alm_bar[1], lmax, mmax, lmax)}
-    GG, CC, GC, CG = get_nhl('p_p', 'p_p', parfile.cls_len, cls_ivfs, lmax, lmax, lmax_out=parfile.lmax_qlm)
+
+    if qe_key == 'ptt':
+        tlm_bar = utils_hp.alm_copy((hp.map2alm(parfile.sims_MAP.get_sim_tmap(datidx))), -1, lmax, mmax)
+        almxfl(tlm_bar, cli(parfile.transf_tlm) * parfile.ftl, mmax, inplace=True)
+        cls_ivfs = {'tt': alm2cl(tlm_bar, tlm_bar, lmax, mmax, lmax)}
+    elif qe_key == 'p_p':
+        eblm_bar = hp.map2alm_spin(parfile.sims_MAP.get_sim_pmap(datidx), 2)
+        eblm_bar = np.array([utils_hp.alm_copy(x, -1, lmax, mmax) for x in eblm_bar])
+        
+        almxfl(eblm_bar[0], cli(parfile.transf_elm) * parfile.fel, mmax, inplace=True)
+        almxfl(eblm_bar[1], cli(parfile.transf_blm) * parfile.fbl, mmax, inplace=True)
+        cls_ivfs = {'ee': alm2cl(eblm_bar[0], eblm_bar[0], lmax, mmax, lmax),
+                    'bb': alm2cl(eblm_bar[1], eblm_bar[1], lmax, mmax, lmax)}
+        
+    GG, CC, GC, CG = get_nhl(qe_key, qe_key, parfile.cls_weights, cls_ivfs, lmax, lmax, lmax_out=parfile.lmax_qlm)
     return GG
 
 
