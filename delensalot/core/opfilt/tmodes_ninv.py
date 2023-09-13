@@ -74,15 +74,9 @@ class template_tfilt(object):
         assert lmax_marg >= 0, lmax_marg
         self.lmax = lmax_marg
         self.nmodes = (lmax_marg + 1) * lmax_marg + lmax_marg + 1 - 0
-        if not np.all(geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
-            log.info('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
-            geom_ = utils_geom.Geom(geom.theta.copy(), geom.phi0.copy(), geom.nph.copy(), geom.ofs.copy(), np.ones(len(geom.ofs), dtype=float))
-        else:
-            geom_ = geom
-            # Does not seem to work without the 'copy'
-        self.geom_ = geom_
+        self.geom = geom
         self.sht_threads = sht_threads
-        self.npix = self.geom_.npix()
+        self.npix = self.geom.npix()
 
         self.lib_dir = None
         if _lib_dir is not None and lmax_marg > 10: #just to avoid problems if user does not understand what is doing...
@@ -127,8 +121,8 @@ class template_tfilt(object):
         assert tmap.size == self.npix, (self.npix, tmap.size)
         tlm = self._rlm2blm(coeffs)
         this_lmax = Alm.getlmax(tlm.size, -1)
-        self.geom_.set_triangular_alm_info(this_lmax, this_lmax)
-        tmap *= self.geom_.alm2map(tlm)
+        this_mmax = this_lmax
+        tmap *= self.geom.synthesis(tlm, 0, this_lmax, this_mmax, self.sht_threads).squeeze()
 
     def accum(self, tmap, coeffs):
         """Forward template operation
@@ -140,8 +134,8 @@ class template_tfilt(object):
         assert (len(coeffs) <= self.nmodes)
         tlm = self._rlm2blm(coeffs)
         this_lmax = Alm.getlmax(tlm.size, -1)
-        self.geom_.set_triangular_alm_info(this_lmax, this_lmax)
-        tmap += self.geom_.alm2map(tlm)
+        this_mmax = this_lmax
+        tmap += self.geom.synthesis(tlm, 0, this_lmax, this_mmax, self.sht_threads).squeeze()
 
     def dot(self, tmap):
         """Backward template operation.
@@ -151,8 +145,7 @@ class template_tfilt(object):
 
         """
         assert tmap.size == self.npix
-        self.geom_.set_triangular_alm_info(self.lmax, self.lmax)
-        tlm = self.geom_.map2alm(tmap)
+        tlm = self.geom.adjoint_synthesis(tmap, 0, self.lmax, self.lmax, self.sht_threads, apply_weights=False).squeeze()
         return self._blm2rlm(tlm) # Units weight transform
 
     def build_tnit(self, NiT):
