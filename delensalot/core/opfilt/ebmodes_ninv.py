@@ -232,7 +232,7 @@ class template_ebfilt(object):
             NiQQ, NiUU, NiQU = NiQQ_NiUU_NiQU
             assert NiQU is None
         else: #Here, we assume that NiQQ = NiUU, and NiQU is negligible
-            NiQQ, NiUU, NiQU = NiQQ_NiUU_NiQU[0], NiQQ_NiUU_NiQU[0], None
+            NiQQ, NiUU, NiQU = NiQQ_NiUU_NiQU, NiQQ_NiUU_NiQU, None
         assert self.nmodes <= 99999, 'ops, naming in the lines below'
         log.info("number of rows for tnit: {}".format(self.nmodes))
         if not os.path.exists(os.path.join(self.lib_dir, 'rows')):
