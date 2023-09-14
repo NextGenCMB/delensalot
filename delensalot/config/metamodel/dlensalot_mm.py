@@ -13,7 +13,6 @@ import numpy as np
 
 import logging
 log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
 
 from delensalot.config.metamodel import DEFAULT_NotAValue, DEFAULT_NotASTR
 from delensalot.config.validator import analysis, chaindescriptor, computing, data, filter as v_filter, itrec, job, mapdelensing, meta, model, noisemodel, obd, qerec, stepper
@@ -130,7 +129,6 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     """
     key =                   attr.field(default=DEFAULT_NotAValue, validator=analysis.key)
     version =               attr.field(default=DEFAULT_NotAValue, validator=analysis.version) # TODO either make it more useful, or remove
-    reconstruction_method = attr.field(default=DEFAULT_NotAValue, validator=analysis.reconstruction_method) # TODO implement if needed
     simidxs =               attr.field(default=DEFAULT_NotAValue, validator=analysis.simidxs)
     simidxs_mf =            attr.field(default=DEFAULT_NotAValue, validator=analysis.simidxs_mf)
     TEMP_suffix =           attr.field(default=DEFAULT_NotAValue, validator=analysis.TEMP_suffix)
@@ -175,6 +173,9 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
         phi_space    (str, optional): can be in ['map', 'alm', 'cl'] and defines the space of the lensing potential provided.. Defaults to DNaV.
         phi_lmax     (_type_, optional): the maximum multipole of the lensing potential. if simulation library perfroms lensing, it is advisable that `phi_lmax` is somewhat larger than `lmax` (+ ~512-1024). Defaults to DNaV.
         epsilon      (float, optional): Lenspyx lensing accuracy. Defaults to 1e-7.
+        libdir_suffix(str, optional): defines the directory the simulation data will be stored to, defaults to 'generic'. Helpful if one wants to keep track of different projects.
+        CMB_modifier (callable, optional): operation defined in the callable will be applied to each of the input maps/alms/cls
+        phi_modifier (callable, optional): operation defined in the callable will be applied to the input phi lms
                                                
     """
 
@@ -201,6 +202,9 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
     phi_lmax =      attr.field(default=DEFAULT_NotAValue, validator=data.phi_lmax)
     epsilon =       attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
     libdir_suffix = attr.field(default='generic', validator=data.libdir_suffix)
+    CMB_modifier =  attr.field(default=DEFAULT_NotAValue, validator=data.modifier)
+    phi_modifier =  attr.field(default=lambda x: x)
+    
     
 @attr.s
 class DLENSALOT_Noisemodel(DLENSALOT_Concept):
@@ -210,7 +214,7 @@ class DLENSALOT_Noisemodel(DLENSALOT_Concept):
     Attributes:
         sky_coverage (str):     Can be either 'masked' or 'unmasked'
         spectrum_type (str):    TBD
-        OBD (str):              OBD identifier. Can be 'OBD', 'trunc', or None. Defines how lowest B-modes will be handled.
+        OBD (str):              OBD identifier. Can be 'OBD', 'trunc'. Defines how lowest B-modes will be handled.
         nlev_t (float):         (central) noise level of temperature data in muK arcmin.
         nlev_p (float):         (central) noise level of polarization data in muK arcmin.
         rhits_normalised (str): path to the hits-count map, used to calculate the noise levels, and the mask tracing the noise level. Second entry in tuple is the <inverse hits-count multiplier>.
@@ -221,7 +225,6 @@ class DLENSALOT_Noisemodel(DLENSALOT_Concept):
     OBD =                   attr.field(default=DEFAULT_NotAValue, validator=noisemodel.OBD)
     nlev =                  attr.field(default=DEFAULT_NotAValue, validator=noisemodel.nlev_t)
     geominfo =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geominfo) # FIXME this must match the data geominfo.. validate accordingly
-    zbounds =               attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geominfo) # FIXME is this used? How is it different to Analysis.zbounds?
     rhits_normalised =      attr.field(default=DEFAULT_NotAValue, validator=noisemodel.rhits_normalised)
     nivt_map =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geominfo) # TODO test if it works
     nivp_map =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geominfo) # TODO test if it works
@@ -322,6 +325,17 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
     basemap =               attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.basemap)
 
 @attr.s
+class DLENSALOT_Phianalysis(DLENSALOT_Concept):
+    """A root model element type of the Dlensalot formalism.
+    This class collects all configurations related to the internal map delensing job.
+
+    Attributes:
+        custom_WF_TEMP (str):   Path to the dir of an exisiting WF. fn must be 'WFemp_%s_simall%s_itall%s_avg.npy'\n
+    """
+
+    custom_WF_TEMP =        attr.field(default=DEFAULT_NotAValue)
+
+@attr.s
 class DLENSALOT_OBD(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the overlapping B-mode deprojection.
@@ -330,16 +344,12 @@ class DLENSALOT_OBD(DLENSALOT_Concept):
         libdir (str):       path to the OBD matrix
         rescale (float):    rescaling of OBD matrix amplitude. Useful if matrix already calculated, but noiselevel changed
         tpl (type):         function name for calculating OBD matrix
-        nlev_dep (float):   deprojection factor, or, strength of B-mode deprojection
-        lmax (int):         maximum multipole to deproject B-modes
-        beam (type):        TBD                         
+        nlev_dep (float):   deprojection factor, or, strength of B-mode deprojection                   
     """
     libdir =                attr.field(default=DEFAULT_NotAValue, validator=obd.libdir)
     rescale =               attr.field(default=DEFAULT_NotAValue, validator=obd.rescale) # TODO this is a very specific parameter.. keep?
     tpl =                   attr.field(default=DEFAULT_NotAValue, validator=obd.tpl)
     nlev_dep =              attr.field(default=DEFAULT_NotAValue, validator=obd.nlev_dep)
-    lmax =                  attr.field(default=DEFAULT_NotAValue, validator=obd.lmax)
-    beam =                  attr.field(default=DEFAULT_NotAValue, validator=obd.beam) # TODO why not use beam from analysis? or transfunction..
 
 @attr.s
 class DLENSALOT_Config(DLENSALOT_Concept):
@@ -354,7 +364,6 @@ class DLENSALOT_Config(DLENSALOT_Concept):
     outdir_plot_rel =       attr.field(default='')
 
 @attr.s
-# @add_defaults
 class DLENSALOT_Meta(DLENSALOT_Concept): # TODO do we really need a Meta?
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to internal behaviour of delensalot.
@@ -383,7 +392,7 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     Attributes:
         defaults_to (str):              Identifier for default-dictionary if user hasn't specified value in configuration file
         meta (DLENSALOT_Meta):          configurations related to internal behaviour of delensalot
-        job (DLENSALOT_Job):            delensalot can executte different jobs (QE reconstruction, simulation generation, MAP reconstruction, delensing, ..) which is controlled here
+        job (DLENSALOT_Job):            delensalot can executte different jobs (QE reconstruction, simulation generation, MAP reconstruction, delensing, analyse_phi) which is controlled here
         analysis (DLENSALOT_Analysis):  configurations related to the specific analysis performed on the data
         data (DLENSALOT_Data):          configurations related to the input CMB maps
         noisemodel (DLENSALOT_Noisemodel):  configurations related to the noise model used for Wiener-filtering the data
@@ -393,10 +402,12 @@ class DLENSALOT_Model(DLENSALOT_Concept):
         config (DLENSALOT_Config):      configurations related to general behaviour to the operating system
         computing (DLENSALOT_Computing):    configurations related to the usage of computing resources
         obd (DLENSALOT_OBD):            configurations related to the overlapping B-mode deprojection
+        phana (DLENSALOT_Phyanalysis):  configurations related to the simple power spectrum analaysis of phi
 
     """
     
     defaults_to =           attr.field(default='default_CMBS4_fullsky_polarization')
+    validate_model =        attr.field(default=True)
     meta =                  attr.field(default=DLENSALOT_Meta(), validator=model.meta)
     job =                   attr.field(default=DLENSALOT_Job(), validator=model.job)
     analysis =              attr.field(default=DLENSALOT_Analysis(), validator=model.analysis)
@@ -408,6 +419,7 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     config =                attr.field(default=DLENSALOT_Config(), validator=model.config)
     computing =             attr.field(default=DLENSALOT_Computing(), validator=model.computing)
     obd =                   attr.field(default=DLENSALOT_OBD(), validator=model.obd)
+    phana =                 attr.field(default=DLENSALOT_Phianalysis())
     
 
     def __attrs_post_init__(self):
@@ -421,14 +433,13 @@ class DLENSALOT_Model(DLENSALOT_Concept):
          comment: __attrs_post_init must be in DLENSALOT_Model, as this is the only one who knows of the default dictionary (defaults_to), and cannot simply be passed along to sub-classes.
 
         """
-        # log.info("Setting default, using {}:\n\t{}".format(self.defaults_to, default_dict))
 
         spec = importlib.util.spec_from_file_location("default", opj(Path(__file__).parent.parent, "default/{}.py".format(self.defaults_to.replace('.py', ''))))
         default_module = importlib.util.module_from_spec(spec)
         sys.modules["default"] = default_module
         spec.loader.exec_module(default_module)
         default_dict = default_module.DL_DEFAULT
-        for key, val in list(filter(lambda x: '__' not in x[0] and x[0] != 'defaults_to', self.__dict__.items())):
+        for key, val in list(filter(lambda x: '__' not in x[0] and x[0] not in ['defaults_to', 'validate_model'], self.__dict__.items())):
             for k, v in val.__dict__.items():
                 if k in ['chain', 'stepper']:
                     for ke, va in v.__dict__.items():
@@ -445,9 +456,9 @@ class DLENSALOT_Model(DLENSALOT_Concept):
                         else:
                             if key not in ['simulationdata']:
                                 # It is ok to not have defaults for simulationdata, as the simlib will handle it
-                                log.info('{}: couldnt find matching default value for {}'.format(key, k))
+                                log.debug('{}: couldnt find matching default value for {}'.format(key, k))
                     else:
-                        log.info('couldnt find matching default value for key {}'.format(key))
+                        log.debug('couldnt find matching default value for key {}'.format(key))
                 elif callable(v):
                     # Cannot evaluate functions, so hopefully they didn't change..
                     pass

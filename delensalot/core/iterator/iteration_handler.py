@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-"""iteration_handler.py: This module is a passthrough to Dlensalot.cs_iterator. In the future, it will serve as a template module, which helps
-setting up an iterator, (e.g. permf or constmf), and decide which object on iteration level will be used, (e.g. cg, bfgs, filter).
+"""iteration_handler.py: This module is a passthrough to delensalot.cs_iterator. In the future, it will serve as a template module, which helps
+setting up an iterator, (e.g. permf or constmf, lognormal, ..), and decide which object on iteration level will be used, (e.g. cg, bfgs, filter).
     
 """
 
@@ -16,6 +16,7 @@ import healpy as hp
 
 from lenspyx.remapping import utils_geom
 from delensalot.utility.utils_hp import alm_copy
+from delensalot.core import mpi
 from delensalot.core.iterator import cs_iterator, cs_iterator_fast
 
 class base_iterator():
@@ -29,7 +30,11 @@ class base_iterator():
         if not os.path.exists(self.libdir_iterator):
             os.makedirs(self.libdir_iterator)
 
-        self.tr = self.iterator_config.tr 
+        self.tr = self.iterator_config.tr
+        if self.qe.qe_filter_directional == 'anisotropic':
+            mpi.disable()
+            self.qe.init_aniso_filter()
+            mpi.enable()
         self.wflm0 = self.qe.get_wflm(self.simidx)
         self.R_unl0 = self.qe.R_unl()
         self.mf0 = self.qe.get_meanfield(self.simidx) if self.QE_subtract_meanfield else np.zeros(shape=hp.Alm.getsize(self.lm_max_qlm[0]))
@@ -65,8 +70,8 @@ class base_iterator():
                 return ret
         else:
             if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
-                print('returning get_sim_pmap from sims_MAP')
-                return np.array(self.sims_MAP.get_sim_pmap(self.simidx))
+                print(self.sims_MAP.get_sim_pmap(self.simidx))
+                return np.array(self.sims_MAP.get_sim_pmap(self.simidx), dtype=float)
             else:
                 assert 0, 'implement if needed'
         

@@ -17,6 +17,8 @@ def f1(expr, job_id, transformer): # pylint: disable=missing-function-docstring
         return transformer.build_MAP_lensrec(expr)
     if "delens" == job_id:
         return transformer.build_delenser(expr)
+    if "analyse_phi" == job_id:
+        return transformer.build_phianalyser(expr)
     else:
         assert 0, 'Dont understand your key: {}'.format(job_id)
     
@@ -33,6 +35,8 @@ def f1(expr, job_id, transformer): # pylint: disable=missing-function-docstring
         return transformer.build_MAP_lensrec(expr)
     if "delens" == job_id:
         return transformer.build_delenser(expr)
+    if "analyse_phi" == job_id:
+        return transformer.build_phianalyser(expr)
     else:
         assert 0, 'Dont understand your key: {}'.format(job_id)
 

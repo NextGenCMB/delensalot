@@ -18,16 +18,12 @@
 
 import os
 from os.path import join as opj
-import shutil
-import time
-import sys
+import shutil, time, sys
 import numpy as np
 
 import logging
 log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
-
-from plancklens.qcinv import multigrid
 
 import lenspyx.remapping.utils_geom as utils_geom
 from lenspyx.remapping.utils_geom import pbdGeometry, pbounds
@@ -38,11 +34,9 @@ from delensalot.utility.utils_hp import Alm, almxfl, alm2cl
 from delensalot.utility import utils_qe
 
 from delensalot.core import cachers
+from delensalot.core.cg import multigrid
 from delensalot.core.opfilt import opfilt_base
 from delensalot.core.iterator import bfgs, steps
-
-alm2rlm = lambda alm : alm # get rid of this
-rlm2alm = lambda rlm : rlm
 
 
 @log_on_start(logging.DEBUG, " Start of prt_time()")
@@ -54,7 +48,6 @@ def prt_time(dt, label=''):
     log.info("\r [" + ('%02d:%02d:%02d' % (dh, dm, ds)) + "] " + label)
     return
 
-typs = ['T', 'QU', 'TQU']
 
 
 class qlm_iterator(object):
@@ -160,17 +153,17 @@ class qlm_iterator(object):
 
     def _sk2plm(self, itr):
         sk_fname = lambda k: 'rlm_sn_%s_%s' % (k, 'p')
-        rlm = alm2rlm(self.cacher.load('phi_%slm_it000'%self.h))
+        rlm = self.cacher.load('phi_%slm_it000'%self.h)
         for i in range(itr):
             rlm += self.hess_cacher.load(sk_fname(i))
-        return rlm2alm(rlm)
+        return rlm
 
     def _yk2grad(self, itr):
         yk_fname = lambda k: 'rlm_yn_%s_%s' % (k, 'p')
-        rlm = alm2rlm(self.load_gradient(0, 'p'))
+        rlm = self.load_gradient(0, 'p')
         for i in range(itr):
             rlm += self.hess_cacher.load(yk_fname(i))
-        return rlm2alm(rlm)
+        return rlm
 
     def is_iter_done(self, itr, key):
         """Returns True if the iteration 'itr' has been performed already and False if not
@@ -372,8 +365,8 @@ class qlm_iterator(object):
 
         """
         # Zeroth order inverse hessian :
-        apply_H0k = lambda rlm, kr: alm2rlm(almxfl(rlm2alm(rlm), self.hh_h0, self.lmax_qlm, False))
-        apply_B0k = lambda rlm, kr: alm2rlm(almxfl(rlm2alm(rlm), cli(self.hh_h0), self.lmax_qlm, False))
+        apply_H0k = lambda rlm, kr: almxfl(rlm, self.hh_h0, self.lmax_qlm, False)
+        apply_B0k = lambda rlm, kr: almxfl(rlm, cli(self.hh_h0), self.lmax_qlm, False)
         lp1 = 2 * np.arange(self.lmax_qlm + 1) + 1
         dot_op = lambda rlm1, rlm2: np.sum(lp1 * alm2cl(rlm1, rlm2, self.lmax_qlm, self.mmax_qlm, self.lmax_qlm))
         BFGS_H = bfgs.BFGS_Hessian(self.hess_cacher, apply_H0k, {}, {}, dot_op,
@@ -405,17 +398,17 @@ class qlm_iterator(object):
         k = it - 2
         yk_fname = 'rlm_yn_%s_%s' % (k, key)
         if k >= 0 and not self.hess_cacher.is_cached(yk_fname):  # Caching hessian BFGS yk update :
-            yk = alm2rlm(gradn - self.load_gradient(k, key))
+            yk = gradn - self.load_gradient(k, key)
             self.hess_cacher.cache(yk_fname, yk)
         k = it - 1
         BFGS = self.get_hessian(k, key)  # Constructing L-BFGS hessian
         # get descent direction sk = - H_k gk : (rlm array). Will be cached directly
         sk_fname = 'rlm_sn_%s_%s' % (k, key)
         if not self.hess_cacher.is_cached(sk_fname):
-            log.info("calculating descent direction" )
+            log.debug("calculating descent direction" )
             t0 = time.time()
-            incr = BFGS.get_mHkgk(alm2rlm(gradn), k)
-            incr = alm2rlm(self.stepper.build_incr(incr, it))
+            incr = BFGS.get_mHkgk(gradn, k)
+            incr = self.stepper.build_incr(incr, it)
             self.hess_cacher.cache(sk_fname, incr)
             prt_time(time.time() - t0, label=' Exec. time for descent direction calculation')
         assert self.hess_cacher.is_cached(sk_fname), sk_fname
@@ -616,7 +609,7 @@ class iterator_cstmf_bfgs0(iterator_cstmf):
         self.df0 = df0
         s0_fname = 'rlm_sn_%s_%s' % (0, 'p')
         if not self.hess_cacher.is_cached(s0_fname):  # Caching Hessian BFGS yk update :
-            self.hess_cacher.cache(s0_fname, alm2rlm(plm0))
+            self.hess_cacher.cache(s0_fname, plm0)
             log.info("Cached " + s0_fname)
 
     def get_hessian(self, k, key):
@@ -624,8 +617,8 @@ class iterator_cstmf_bfgs0(iterator_cstmf):
         We need the inverse hessian that will produce phi_iter.
         """
         # Zeroth order inverse hessian :
-        apply_H0k = lambda rlm, q: alm2rlm(almxfl(rlm2alm(rlm), self.hh_h0, self.mmax_qlm, False))
-        apply_B0k = lambda rlm, q: alm2rlm(almxfl(rlm2alm(rlm), cli(self.hh_h0), self.mmax_qlm, False))
+        apply_H0k = lambda rlm, q: almxfl(rlm, self.hh_h0, self.mmax_qlm, False)
+        apply_B0k = lambda rlm, q: almxfl(rlm, cli(self.hh_h0), self.mmax_qlm, False)
         lp1 = 2 * np.arange(self.lmax_qlm + 1) + 1
         dot_op = lambda rlm1, rlm2: np.sum(lp1 * alm2cl(rlm1, rlm2, self.lmax_qlm, self.mmax_qlm, self.lmax_qlm))
         BFGS_H = bfgs.BFGS_Hessian(self.hess_cacher, apply_H0k, {}, {}, dot_op,
@@ -644,20 +637,20 @@ class iterator_cstmf_bfgs0(iterator_cstmf):
         yk_fname = 'rlm_yn_%s_%s' % (k, key)
         if k >= 0 and not self.hess_cacher.is_cached(yk_fname):  # Caching hessian BFGS yk update :
             if k > 0:
-                yk = alm2rlm(gradn - self.load_gradient(k - 1, key))
+                yk = gradn - self.load_gradient(k - 1, key)
                 self.hess_cacher.cache(yk_fname, yk)
             else:
-                self.hess_cacher.cache(yk_fname, alm2rlm(gradn - self.df0))
+                self.hess_cacher.cache(yk_fname, gradn - self.df0)
                 self.df0 = None
         k = it - 1
         BFGS = self.get_hessian(k, key)  # Constructing L-BFGS hessian
         # get descent direction sk = - H_k gk : (rlm array). Will be cached directly
         sk_fname = 'rlm_sn_%s_%s' % (k + 1, key)
         if not self.hess_cacher.is_cached(sk_fname):
-            log.info("calculating descent direction")
+            log.debug("calculating descent direction")
             t0 = time.time()
-            incr = BFGS.get_mHkgk(alm2rlm(gradn), k + 1)
-            incr = alm2rlm(self.ensure_invertibility(self.get_hlm(it - 1, key), self.stepper.build_incr(incr, it), self.mmax_qlm))
+            incr = BFGS.get_mHkgk(gradn, k + 1)
+            incr = self.ensure_invertibility(self.get_hlm(it - 1, key), self.stepper.build_incr(incr, it), self.mmax_qlm)
             self.hess_cacher.cache(sk_fname, incr)
             prt_time(time.time() - t0, label=' Exec. time for descent direction calculation')
         assert self.hess_cacher.is_cached(sk_fname), sk_fname

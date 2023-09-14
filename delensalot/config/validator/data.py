@@ -26,6 +26,7 @@ valid_value = {
     'phi_lmax': [],
     'epsilon': [],
     'libdir_suffix': [],
+    'modifier': [],
 }
 # if [], doesn't check for bounds
 valid_bound = {
@@ -52,6 +53,7 @@ valid_bound = {
     'phi_lmax': [],
     'epsilon': [],
     'libdir_suffix': [],
+    'modifier': [],
 }
 
 # if [], doesn't check for type
@@ -79,6 +81,7 @@ valid_type = {
     'phi_lmax': [],
     'epsilon': [],
     'libdir_suffix': [],
+    'modifier': [],
 }
 
 def libdir_suffix(instance, attribute, value):
@@ -272,5 +275,10 @@ def phi_lmax(instance, attribute, value):
                 assert np.all(value <= valid_bound[attribute.name][1]), ValueError('Must be seq {}, but is {}'.format(valid_bound[attribute.name][1], value))
 
 def epsilon(instance, attribute, value):
+    if np.all(value != DEFAULT_NotAValue):
+        assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
+
+
+def modifier(instance, attribute, value):
     if np.all(value != DEFAULT_NotAValue):
         assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
