@@ -37,7 +37,9 @@ output_sim = lambda qe_key, suffix, datidx: opj(output_dir, suffix, '{}_sim_{:04
 fdir_dsss = lambda itr : f'ds_ss_it{itr}'
 fn_cls_dsss = lambda itr, mcs, Nroll : f'cls_dsss_it{itr}_Nroll{Nroll}_{mchash(mcs)}.dat'
 
+fdir_mcn0 = lambda qe_key, suffix: opj(output_dir, suffix, f'{qe_key}_mcn0')
 fdir_mcn1 = lambda qe_key, suffix: opj(output_dir, suffix, f'{qe_key}_mcn1')
+
 fncl_ss = lambda mcs, Nroll : f'cls_ss_Nroll{Nroll}_{mchash(mcs)}.dat'
 
 _ss_dict = lambda mcs, Nroll : {idx: int(Nroll * (idx // Nroll) + (idx + 1) % Nroll) for idx in mcs}
@@ -57,7 +59,7 @@ def export_dsss(itr:int, qe_key:str, libdir:str, suffix:str, datidx:int, ss_dict
     fmt = ['%.7e'] * 4 + ['%3i'] * 2
     header = '1e7 kk2pp times  : ds    ss   ds_erroronmean, ss_erroronmean , number of ds sims, number of ss sims'
     header += '\n' + 'Raw phi-based spec obtained by 1/4 L^2 (L + 1)^2 * 1e7 times this   (ds ss is response-like)'
-    fn_dir = output_sim(qe_key, suffix,datidx)
+    fn_dir = output_sim(qe_key, suffix, datidx)
     if not os.path.exists(fn_dir):
         os.makedirs(fn_dir)
     print(opj(fn_dir, fn_cls_dsss(itr, mcs, Nroll)))   
@@ -71,28 +73,17 @@ def export_nhl(libdir:str, qe_key, parfile, datidx:int, recache=False):
     fn = os.path.join(fn_dir, 'QE_knhl.dat')
     if not os.path.exists(fn) or recache:
         print(fn)
-        GG = ss_ds_QE(libdir, parfile, datidx)
+        GG = semi_rdn0_qe(libdir, parfile, datidx)
         lmax = len(GG) - 1
         pp2kki = cli(0.25 * np.arange(lmax + 1)** 2 * (np.arange(1, lmax + 2) ** 2) * 1e7)
         header = 'semi-analytical kappa unnormalized rdn0'
         header += '\n' + 'Raw phi-based spec obtained by 1/4 L^2 (L + 1)^7 * 1e7 times this   (ds ss is response-like)'
         np.savetxt(fn, GG * pp2kki, header=header)
 
-def ss_ds_QE(libdir, parfile, datidx, qe_key='p_p'):
-    # For the QE we use the semi-analytical N0:
+def semi_rdn0_qe(libdir, parfile, datidx, qe_key='p_p'):
+    # Semi-analytical RD-N0:
     from delensalot.utility.utils_hp import almxfl, alm2cl
     from plancklens.nhl import get_nhl
-
-    # if hasattr(itlib.filter, 'n_inv'):
-    #     fn = lambda this_idx : 'qu_filtersim_%04d'%this_idx # full sims
-    # else:
-    #     fn = lambda this_idx : 'eb_filtersim_%04d'%this_idx # full sims
-    # alm_bar = np.copy(np.load(opj(libdir, 'ds_ss', 'ebwf_dat.npy')))
-    # sht_job = scarfjob()
-    # sht_job.set_geometry(parfile.ninvjob_geometry)
-    # sht_job.set_triangular_alm_info(parfile.lmax_ivf,parfile.mmax_ivf)
-    # tr = int(os.environ.get('OMP_NUM_THREADS', 8))
-    # sht_job.set_nthreads(tr)
 
     lmax, mmax = parfile.lmax_ivf, parfile.mmax_ivf
 
@@ -112,8 +103,56 @@ def ss_ds_QE(libdir, parfile, datidx, qe_key='p_p'):
     GG, CC, GC, CG = get_nhl(qe_key, qe_key, parfile.cls_weights, cls_ivfs, lmax, lmax, lmax_out=parfile.lmax_qlm)
     return GG
 
+def get_mcn0_qe(param, qe_key, Ndatasims=40, Nmcsims=100, Nroll=10, version='', recache=False, ivfs=None, use_parfile=False):
+    """
+    Returns unormalised QE MC-N0 
+        Args:
+            param: parameter file instance
+            qe_key: QE key
+            Ndatasims: Total number of sims used as data (avoid overlap with sims used for MC)
+            Nmcsims: Total number of sims used for MC corrections and RD estimate
+            Nroll: MC sims are shuffled i -> i+1 by batch of Nroll
+            version: Vesion of the estimator/ pipeline used
+            use_parfile: Use the qlms_ss defined in the param file
+    """ 
+    mcs = np.arange(Ndatasims, Nmcsims+Ndatasims)
+    # mcs_sims_less = np.delete(mcs, np.where(mcs==datidx))
+    ss_dict = _ss_dict(mcs, Nroll)
 
-def get_rdn0_qe(param, datidx, qe_key, Ndatasims=40, Nmcsims=100, Nroll=10, version='', recache=False):
+    fn_dir = fdir_mcn0(qe_key, param.suffix)
+    if not os.path.exists(fn_dir) and mpi.rank == 0:
+        os.makedirs(fn_dir)
+    mpi.barrier()
+    fn = os.path.join(fn_dir, fncl_ss(mcs, Nroll))
+    if use_parfile:
+        fn = os.path.join(fn_dir, 'parfile qlms ss')
+    
+    if ivfs is None:
+        ivfs = param.ivfs
+
+    if not os.path.exists(fn) or recache:
+        print(fn)
+        ivfs_s = filt_util.library_shuffle(ivfs, ss_dict)
+        if use_parfile:
+            qcls_ss = param.qcls_ss
+        else:
+            libdir = opj(param.TEMP, 'RD_sims_{}_{}_{}'.format(Ndatasims, Nmcsims, Nroll)) + version
+            qlms_ss = qest.library_sepTP(opj(libdir, 'qlms_ss'), ivfs, ivfs_s, param.cls_len['te'], param.nside, lmax_qlm=param.lmax_qlm)
+            qcls_ss = qecl.library(opj(libdir, 'qcls_ss'), qlms_ss, qlms_ss, np.array([]))  # for QE RDN0 / MCN0 calculations
+        print('Computing Cl_ss')
+        ss = qcls_ss.get_sim_stats_qcl(qe_key, mcs, k2=qe_key).mean()
+        mcn0 = 2*ss
+        lmax = len(mcn0) - 1
+        pp2kki = cli(0.25 * np.arange(lmax + 1)** 2 * (np.arange(1, lmax + 2) ** 2) * 1e7)
+
+        arr = np.array(mcn0*pp2kki)
+        header = 'QE kappa unnormalized mcn0 (2*ss)'
+        header += '\n' + 'Raw phi-based spec obtained by 1/4 L^2 (L + 1)^7 * 1e7 times this   (ds ss is response-like)'
+        np.savetxt(fn, arr.T, header=header)
+    mcn0 = np.loadtxt(fn).T
+    return mcn0
+
+def get_rdn0_qe(param, datidx, qe_key, Ndatasims=40, Nmcsims=100, Nroll=10, version='', recache=False, ivfs=None):
     """Returns unormalised realization-dependent N0 lensing bias RDN0.
 
         Args:
@@ -124,52 +163,51 @@ def get_rdn0_qe(param, datidx, qe_key, Ndatasims=40, Nmcsims=100, Nroll=10, vers
             Nmcsims: Total number of sims used for MC corrections and RD estimate
             Nroll: MC sims are shuffled i -> i+1 by batch of Nroll
             version: Vesion of the estimator/ pipeline used
+
+        Returns:
+            rdn0: Unormalised RDN0
+            ds: mean of QE with one leg the data and another leg the simulations
+            ss: mean od QE with each leg a different simulation
     """
     mcs = np.arange(Ndatasims, Nmcsims+Ndatasims)
     # mcs_sims_less = np.delete(mcs, np.where(mcs==datidx))
     assert datidx not in mcs, "Conflict with the index used as data and indices of sims used for RD corrections"
     ss_dict = _ss_dict(mcs, Nroll)
-    # print(mpi.rank)
-    # # We remove the datidx from the ss_dict
-    # delidx = ss_dict.pop(datidx, None)
-    # # if datidx in mcs:
-    # print(len(ss_dict))
-    # print(len(mcs_sims_less))
-    # assert len(ss_dict) == len(mcs_sims_less)
-    # for i, j in ss_dict.items():
-    #     if j == datidx:
-    #         assert i != delidx, print('This should not happen if Nroll >2')
-    #         ss_dict[i] = delidx
-    # print(ss_dict)
+
     ds_dict = { k : datidx for k in np.arange(Ndatasims, Nmcsims + Ndatasims)} # This remap all sim. indices to the data maps to build QEs with always the data in one leg
-    assert ss_dict.keys() ==ds_dict.keys(), "Make sure that all MC sim indices are affected to the data index"
+    assert ss_dict.keys() == ds_dict.keys(), "Make sure that all MC sim indices are affected to the data index"
     fn_dir = output_sim(qe_key, param.suffix, datidx)
     if not os.path.exists(fn_dir):
         os.makedirs(fn_dir)
 
+    if ivfs is None:
+        ivfs = param.ivfs
+
+    ss = get_mcn0_qe(param, qe_key, Ndatasims=Ndatasims, Nmcsims=Nmcsims, Nroll=Nroll, version=version, recache=recache, ivfs=ivfs)
+    lmax = len(ss)-1
+    pp2kk = 0.25 * np.arange(lmax + 1)** 2 * (np.arange(1, lmax + 2) ** 2) * 1e7
+    ss *= 1./2. * pp2kk
+
     fn = os.path.join(fn_dir, fn_cls_dsss(0, mcs, Nroll))
-    # print(fn)
     if not os.path.exists(fn) or recache:
         print(fn)
-        ivfs_d = filt_util.library_shuffle(param.ivfs, ds_dict)
-        ivfs_s = filt_util.library_shuffle(param.ivfs, ss_dict)
-        # libdir = param.libdir_iterators(qe_key, datidx, version)
-        libdir = opj(param.TEMP, 'RD_sims_{}_{}_{}'.format(Ndatasims, Nmcsims, Nroll)) + version
-        # print(libdir)
-        qlms_ds = qest.library_sepTP(opj(libdir, 'qlms_ds_{:04d}'.format(datidx)), param.ivfs, ivfs_d, param.cls_len['te'], param.nside, lmax_qlm=param.lmax_qlm)
-        qlms_ss = qest.library_sepTP(opj(libdir, 'qlms_ss'), param.ivfs, ivfs_s, param.cls_len['te'], param.nside, lmax_qlm=param.lmax_qlm)
+        if datidx == -1:
+            print("Using parameter file qlms_ds")
+            qcls_ds = param.qcls_ds
+        else:
+            ivfs_d = filt_util.library_shuffle(ivfs, ds_dict)
+            # ivfs_s = filt_util.library_shuffle(param.ivfs, ss_dict)
+            libdir = opj(param.TEMP, 'RD_sims_{}_{}_{}'.format(Ndatasims, Nmcsims, Nroll)) + version
+            qlms_ds = qest.library_sepTP(opj(libdir, 'qlms_ds' + '_{:04d}'.format(datidx)  * (datidx != -1) ), ivfs, ivfs_d, param.cls_len['te'], param.nside, lmax_qlm=param.lmax_qlm)
+            # qlms_ss = qest.library_sepTP(opj(libdir, 'qlms_ss'), param.ivfs, ivfs_s, param.cls_len['te'], param.nside, lmax_qlm=param.lmax_qlm)
 
-        qcls_ds = qecl.library(opj(libdir, 'qcls_ds_{:04d}'.format(datidx)), qlms_ds, qlms_ds, np.array([]))  # for QE RDN0 calculations
-        qcls_ss = qecl.library(opj(libdir, 'qcls_ss'), qlms_ss, qlms_ss, np.array([]))  # for QE RDN0 / MCN0 calculations
+            qcls_ds = qecl.library(opj(libdir, 'qcls_ds' + '_{:04d}'.format(datidx) * (datidx != -1)), qlms_ds, qlms_ds, np.array([]))  # for QE RDN0 calculations
+            # qcls_ss = qecl.library(opj(libdir, 'qcls_ss'), qlms_ss, qlms_ss, np.array([]))  # for QE RDN0 / MCN0 calculations
 
         print('Computing Cl_ds')
         ds = qcls_ds.get_sim_stats_qcl(qe_key, mcs, k2=qe_key).mean()
-        print('Computing Cl_ss')
-        ss = qcls_ss.get_sim_stats_qcl(qe_key, mcs, k2=qe_key).mean()
-        # qe_resp = self.get_qe_resp()
-        # _, qc_resp = self.param.qresp_dd.get_response(self.k1, self.ksource) * self.par.qresp_dd.get_response(self.k2, self.ksource)
-        # return self.get_cl(utils.cli(qe_resp) * (4 * ds - 2. * ss))
-        # rdn0 = utils_hp.alm2cl(4 * ds - 2. * ss, 4 * ds - 2. * ss, param.lmax_qlm, param.mmax_qlm, param.lmax_qlm)
+        # print('Computing Cl_ss')
+        # ss = qcls_ss.get_sim_stats_qcl(qe_key, mcs, k2=qe_key).mean()
         rdn0 = 4*ds - 2*ss
         lmax = len(rdn0) - 1
         pp2kki = cli(0.25 * np.arange(lmax + 1)** 2 * (np.arange(1, lmax + 2) ** 2) * 1e7)
@@ -179,7 +217,6 @@ def get_rdn0_qe(param, datidx, qe_key, Ndatasims=40, Nmcsims=100, Nroll=10, vers
         header += '\n' + 'Raw phi-based spec obtained by 1/4 L^2 (L + 1)^7 * 1e7 times this   (ds ss is response-like)'
         np.savetxt(fn, arr.T, header=header)
     
-    print(np.shape(np.loadtxt(fn)))
     rdn0, ds, ss = np.loadtxt(fn).T
     return rdn0, ds, ss
 
@@ -442,7 +479,8 @@ if __name__ == '__main__':
     
 
     parser = argparse.ArgumentParser(description='Compute RDN0 ')
-    parser.add_argument('-par', dest='par', type=str, required=True, help='parameter file which was used to estimate the lensing maps')
+    parser.add_argument('parfile', type=str, nargs=1)
+    # parser.add_argument('-par', dest='par', type=str, required=True, help='parameter file which was used to estimate the lensing maps')
     parser.add_argument('-k', dest='k', type=str, default='p_p', help='rec. type')
     parser.add_argument('-datidx', dest='datidx', type=int, default=0, help='index of data map for which we compute RDN0')
     parser.add_argument('-Nsims', dest='Nsims', type=int, default=100, help='number of RDN0 simulations')
@@ -453,16 +491,21 @@ if __name__ == '__main__':
     parser.add_argument('-v', dest='v', type=str, default='', help='iterator version')
 
     args = parser.parse_args()
-    assert '.py' not in args.par[-3:], "Remove the .py from the param file"
+    # args = parser.parse_args()
+    # assert '.py' not in args.par[-3:], "Remove the .py from the param file"
     try:
-        par = importlib.import_module('delensalot.params.'+args.par)
+        par = importlib.machinery.SourceFileLoader('parfile', args.parfile[0]).load_module()
+        # par = importlib.import_module('delensalot.params.'+args.par)
     except ModuleNotFoundError:
         assert 0, "Could not find the parameter file {}".format(args.par)
 
     if args.par_pha is None: 
-        args.par_pha = args.par
+        args.par_pha = args.parfile
+
     try:
-        par_pha = importlib.import_module('delensalot.params.'+args.par_pha)
+        par_pha = importlib.machinery.SourceFileLoader('parfile_pha', args.par_pha[0]).load_module()
+
+        # par_pha = importlib.import_module('delensalot.params.'+args.par_pha)
     except ModuleNotFoundError:
         assert 0, "Could not find the parameter file {}".format(args.par_pha)
 
@@ -479,8 +522,11 @@ if __name__ == '__main__':
     Nsims = args.Nsims
 
     mcs = np.arange(0, Nsims) # Simulations used to get the RDN0
-    # Note: These sims are not the ones generated by the get_itlib of the param files. They are new gaussian realisations generated on line 243 in ss_ds() function. 
-    # They will be lensed by the deflection field estimate of iter-1, and then Wiener filtered with the same iter-1 deflection etsimate, in order to estimate the phi MAP on it.
+    # Note: These sims are not the ones generated by the get_itlib of the param files. 
+    # They are new gaussian realisations generated with utils_hp.synalm in ss_ds() function. 
+    # They will be lensed by the deflection field estimate of iter-1,
+    #  and then Wiener filtered with the same iter-1 deflection etsimate, 
+    # in order to estimate the phi MAP on it.
 
     # Shift the order of simulations by batches of Nroll
     ss_dict =  _ss_dict(mcs, Nroll)
