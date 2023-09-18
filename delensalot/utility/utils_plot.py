@@ -27,11 +27,11 @@ def pp2kk(ls):
     return ls**2*(ls+1)**2/4
 
 
-def plot_bnd(bndcl, ax=None, marker=None, *argv, **kwargs):
+def plot_bnd(bndcl, ax=None, marker=None, dx=0, *argv, **kwargs):
     if ax is None:
         ax = pl.gca()
     if marker is None: marker = '.'
-    p = ax.errorbar(bndcl[0], bndcl[1], yerr=bndcl[2], ls='', marker=marker,  *argv, **kwargs)
+    p = ax.errorbar(bndcl[0]+dx, bndcl[1], yerr=bndcl[2], ls='', marker=marker,  *argv, **kwargs)
     return p
 
 
@@ -69,6 +69,42 @@ def cov2corr(covariance):
     correlation[covariance == 0] = 0
     return correlation
 
+
+def binning_opti(ckk, ckk_fid, ls, edges, resp, fsky=1., ckk_mc=None):
+    """
+    Optimal weitghing of the Cl kk in the bin with the response
+    ckk array always start at ell=0, but we bin using only the ells defined in ls
+    """
+    nbins = len(edges) - 1
+    ellb = np.zeros(nbins)
+    ckk_bin = np.zeros(nbins)
+    err = np.zeros(nbins)
+
+    ellmax = np.max(edges)
+    ell = np.arange(ellmax+1, dtype=int)        
+    bin_weight = np.zeros(ellmax+1)
+
+    arr = ckk[0:min(len(ckk), ellmax + 1)]
+    inv_weight = np.zeros(ellmax+1)
+    inv_weight[1:] = (2*ell[1:] + 1) * fsky * resp[1:ellmax+1]**2 / (2 * (ell*1.)**4 * ((ell*1.)+1)**4)[1:]
+    for ibin in range(nbins):
+        edge_low = edges[ibin]
+        edge_up = edges[ibin+1]
+        if (edge_up <= arr.size) and (len(arr[edge_low:edge_up + 1]) >= 1):
+            ii = np.where((ls >= edge_low) & (ls < edge_up))[0]
+            
+            bin_weight[ls[ii]] = ckk_fid[ls[ii]] * inv_weight[ls[ii]] / np.sum(ckk_fid[ls[ii]]**2 * inv_weight[ls[ii]])
+            ellb[ibin] = (np.sum(ls[ii] * bin_weight[ls[ii]]) / np.sum(bin_weight[ls[ii]]))
+            bin_weight[ls[ii]] *= ckk_fid[int(ellb[ibin])]
+                
+            if ckk_mc is not None:
+                mc_corr = np.sum(bin_weight[ls[ii]] * ckk_fid[ls[ii]]) / np.sum(bin_weight[ls[ii]] * ckk_mc[ls[ii]])
+                bin_weight[ls[ii]] *= mc_corr
+            
+            ckk_bin[ibin] = np.sum(bin_weight[ls[ii]] * arr[ls[ii]])
+            # If divide by Nl, it is not variance in the bin but error on the mean 
+            err[ibin] = np.sqrt(np.sum(bin_weight[ls[ii]] * (arr[ls[ii]] - ckk_bin[ibin])**2))  /  np.sqrt(max(1, len(ii)))
+    return ellb, ckk_bin, err, bin_weight
 
 # def binned(Cl, nzell, bins_l, bins_u, w=lambda ell: np.ones(len(ell), dtype=float), return_err=False, meanorsum='mean', error='ste'):
 #     """Bins a cl array according to bin edges and multipole to consider

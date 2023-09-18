@@ -28,7 +28,7 @@ from lensitbiases import n1_fft
 _write_alm = lambda fn, alm : hp.write_alm(fn, alm, overwrite=True)
  
 class cpp_sims_lib:
-    def __init__(self, k:str,  param_file:str, v:str='', label:str='', n0n1_libdir:str or None=None, cache_in_home=False):
+    def __init__(self, k:str,  param_file:str, version:str='', iterator_version='', label:str='', n0n1_libdir:str or None=None, cache_in_home=False):
         """Helper library to plot results from MAP estimation of simulations.
         
         This class loads the results of the runs done with the param_file and the options asked
@@ -40,7 +40,9 @@ class cpp_sims_lib:
         """
         
         self.k = k
-        self.version = v
+        self.version = version
+        self.iterator_version = iterator_version
+
         self.label = label
         # Load the parameters defined in the param_file
         self.param_file = param_file
@@ -83,11 +85,11 @@ class cpp_sims_lib:
 
     def libdir_sim(self, simidx, tol=7):
         # return opj(self.TEMP,'%s_sim%04d'%(self.k, simidx) + self.version)
-        return self.param.libdir_iterators(self.k, simidx, self.version, tol)
+        return self.param.libdir_iterators(self.k, simidx, self.iterator_version, tol)
 
     def get_itlib_sim(self, simidx, tol):
         tol_iter  = 10 ** (- tol) 
-        return self.param.get_itlib(self.k, simidx, self.version, tol_iter)
+        return self.param.get_itlib(self.k, simidx, self.iterator_version, tol_iter)
 
     def cacher_sim(self, simidx, verbose=False):
         if self.cache_in_home is False:
@@ -232,9 +234,9 @@ class cpp_sims_lib:
             if sub_mf:
                 assert mf_sims is not None, "Please provide mf_sims"
                 if splitMF:
-                    Nmf = len(mf_sims)
-                    mf_sims_1 = mf_sims[:int(Nmf/2)]
-                    mf_sims_2 =  mf_sims[int(Nmf/2):]
+                    # Nmf = len(mf_sims)
+                    mf_sims_1 = mf_sims[::2]
+                    mf_sims_2 =  mf_sims[1::2]
                     mf1 = self.get_mf(itr, mf_sims_1, simidx=simidx, use_cache=True, verbose=False)
                     mf2 = self.get_mf(itr, mf_sims_2, simidx=simidx, use_cache=True, verbose=False)
                     cpp = self.get_cl(plm-mf1, plm-mf2)
@@ -249,7 +251,7 @@ class cpp_sims_lib:
         return cpp
 
 
-    def get_cpp_qe(self, simidx, qeresp=None, splitMF=True, recache=False):
+    def get_cpp_qe(self, simidx, mc_sims_mf=None, qeresp=None, splitMF=True, recache=False):
         """Get nomalized Cpp QE
 
             Args: 
@@ -258,22 +260,29 @@ class cpp_sims_lib:
         """
         if qeresp is None:
             qeresp = self.get_qe_resp(recache=recache)
-        cppqe = self.get_cpp_qe_raw(simidx, splitMF, recache) * utils.cli(qeresp)**2
+        cppqe = self.get_cpp_qe_raw(simidx, splitMF, recache, mc_sims_mf) * utils.cli(qeresp)**2
         return cppqe
 
-    def get_cpp_qe_raw(self, simidx, splitMF=True, recache=False):
+    def get_cpp_qe_raw(self, simidx, splitMF=True, recache=False, mc_sims_mf=None, fn_cpp_qe=None, qlms_dd=None):
         """Returns unromalized Cpp QE"""
+        if qlms_dd is None:
+            qlms_dd = self.param.qlms_dd
 
-        fn_cpp_qe = 'cpp_qe_raw' + splitMF*'_splitMF'
+        if fn_cpp_qe is None:
+            fn_cpp_qe = 'cpp_qe_raw' + splitMF*'_splitMF' 
+            if mc_sims_mf is not None:
+                fn_cpp_qe += ('_'+ mchash(mc_sims_mf))
+        
         cacher = self.cacher_sim(simidx)
         if not cacher.is_cached(fn_cpp_qe) or recache:
-            plmqe  = self.param.qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate
-
+            plmqe  = qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate
+            if mc_sims_mf is None:
+                mc_sims_mf = self.param.mc_sims_mf_it0
             # QE mean-field
             if splitMF:
-                Nmf = len(self.param.mc_sims_mf_it0)
-                mf_sims_1 =  np.unique(self.param.mc_sims_mf_it0[:int(Nmf/2)])
-                mf_sims_2 =  np.unique(self.param.mc_sims_mf_it0[int(Nmf/2):])
+                # Nmf = len(self.param.mc_sims_mf_it0)
+                mf_sims_1 =  np.unique(mc_sims_mf[::2])
+                mf_sims_2 =  np.unique(mc_sims_mf[1::2])
                 mf0_1 = self.get_mf0(simidx, mf_sims=mf_sims_1)
                 mf0_2 = self.get_mf0(simidx, mf_sims=mf_sims_2)
                 cppqe = self.get_cl(plmqe - mf0_1, plmqe - mf0_2)
@@ -298,18 +307,20 @@ class cpp_sims_lib:
             cpp.append(cacher.load(fn_cpp_it(itr)))
         return cpp   
 
-    def get_mf0(self, simidx, mf_sims=None):
+    def get_mf0(self, simidx, mf_sims=None, qlms_dd=None):
         """Get the QE mean-field"""
+        if qlms_dd is None:
+            qlms_dd = self.param.qlms_dd
         if mf_sims is None:
             mf_sims = np.unique(self.param.mc_sims_mf_it0 if not 'noMF' in self.version else np.array([]))
         else:
             mf_sims = np.unique(mf_sims)
-        mf0 = self.param.qlms_dd.get_sim_qlm_mf(self.k, mf_sims)  # Mean-field of the QE
+        mf0 = qlms_dd.get_sim_qlm_mf(self.k, mf_sims)  # Mean-field of the QE
 
         Nmf = len(mf_sims)
         for simid in np.atleast_1d(simidx):
             if simid in mf_sims:
-                mf0 = (mf0 - self.param.qlms_dd.get_sim_qlm(self.k, int(simid)) / Nmf) * (Nmf / (Nmf - 1))
+                mf0 = (mf0 - qlms_dd.get_sim_qlm(self.k, int(simid)) / Nmf) * (Nmf / (Nmf - 1))
                 Nmf -= 1
         return mf0 
 
@@ -327,7 +338,7 @@ class cpp_sims_lib:
         this_mcs = np.unique(mc_sims)
 
         cacher = cachers.cacher_npy(self.cacher_param.lib_dir, verbose=verbose)
-        fn =  f'simMF_itr{itmax}_k_{mchash(mc_sims)}.fits'
+        fn =  f'simMF_itr{itmax}_k{self.k}_{mchash(mc_sims)}.fits'
         if not cacher.is_cached(fn) or recache:
             MF = np.zeros(hp.Alm.getsize(self.lmax_qlm), dtype=complex)
             if len(this_mcs) == 0: return MF
@@ -370,14 +381,18 @@ class cpp_sims_lib:
         N0_biased, N1_biased_spl, r_gg_fid, r_gg_true = self.get_N0_N1_iter(itermax=it, version=version)
         return r_gg_fid
 
-    def get_N0_N1_QE(self, normalize=True, resp_gradcls=True, n1fft=True, recache=False):
+    def get_N0_N1_QE(self, normalize=True, resp_gradcls=True, n1fft=True, recache=False, ivfs=None, version=''):
 
-        # Isotropic approximation of the filtering, 1/ (C+ N)
+        if ivfs is None:
+            ivfs =  self.param.ivfs
+        
         fal_sepTP = {
-            'tt': self.param.ivfs.get_ftl(),
-            'ee': self.param.ivfs.get_fel(),
-            'bb': self.param.ivfs.get_fbl()}
-            # 'te': np.copy(self.cls_len['te'][:self.lmax_ivf + 1])}
+            'tt': ivfs.get_ftl(),
+            'ee': ivfs.get_fel(),
+            'bb': ivfs.get_fbl()}
+            # 'te': utils.cli(self.param.cls_len['te'])}
+            # 'te': np.zeros_like(ivfs.get_fbl())}
+            
 
         resp_qe = self.get_qe_resp(resp_gradcls)
         if self.n0n1_libdir is None:
@@ -385,13 +400,16 @@ class cpp_sims_lib:
         else:
             cacher = cachers.cacher_npy(self.n0n1_libdir)
             
-        fn_n0 = 'n0_qe_{}'.format(self.k)
+        fn_n0 = 'n0_qe_{}'.format(self.k) + version
         if not cacher.is_cached(fn_n0) or recache:
             # print('Computing N0')
             cls_dat = {spec: utils.cli(fal_sepTP[spec]) for spec in ['tt', 'ee', 'bb']}
             # Spectra of the inverse-variance filtered maps
             # In general cls_ivfs = fal * dat_cls * fal^t, with a matrix product in T, E, B space
             cls_ivfs_sepTP = cls_dot([fal_sepTP, cls_dat, fal_sepTP], ret_dict=True)
+            #FIXME: For Sep TP, check if it is ok to put the TE to zero
+            # for joint TP, will have to get the ivfs.get_fal here 
+            cls_ivfs_sepTP['te'] = np.zeros_like(cls_ivfs_sepTP['tt'])
             NG, NC, NGC, NCG = nhl.get_nhl(self.k, self.k, self.cls_weights, cls_ivfs_sepTP, self.param.lmax_ivf, self.param.lmax_ivf,
                                     lmax_out=self.lmax_qlm)
             cacher.cache(fn_n0, NG)
@@ -401,7 +419,7 @@ class cpp_sims_lib:
             dl = 50
             # n1_Ls = np.arange(50, (self.param.lmax_qlm // 50) * 50  + 50, 50)
             n1_Ls = np.arange(50, self.param.lmax_qlm , dl)
-            fn_n1 = 'n1_fft_qe_dl_{}_{}'.format(dl, self.k)
+            fn_n1 = 'n1_fft_qe_dl_{}_{}'.format(dl, self.k) + version
 
             if not cacher.is_cached(fn_n1) or recache:
                 # cls_noise_fid = {'tt': ( (self.param.nlev_t / 180 / 60 * np.pi) * utils.cli(self.param.transf_tlm) ) ** 2,
@@ -418,7 +436,7 @@ class cpp_sims_lib:
             _n1 = cacher.load(fn_n1)
 
         else:
-            n1lib = n1_lib.library_n1(cacher.lib_dir, self.cls_weights['tt'], self.cls_weights['te'], self.cls_weights['ee'], self.lmax_qlm)
+            n1lib = n1_lib.library_n1(cacher.lib_dir + version, self.cls_weights['tt'], self.cls_weights['te'], self.cls_weights['ee'], self.lmax_qlm)
 
             _n1 = n1lib.get_n1(self.k, 'p',  self.param.cls_unl['pp'], fal_sepTP['tt'], fal_sepTP['ee'], fal_sepTP['bb'], Lmax=self.lmax_qlm)
 
@@ -501,8 +519,8 @@ class cpp_sims_lib:
             wfcorr_spl: Splined interpolation of the ratio between the effective and the fiducial Wiener filter
         
         """
-        fn_weff = f"wf_eff_{itmax_sims}_{itmax_fid}_{mf}_{version}_{do_spline}_{lmin_interp}_{lmax_interp}_{k}_{s}"
-        fn_wfspline = f"wf_spline_{itmax_sims}_{itmax_fid}_{mf}_{version}_{do_spline}_{lmin_interp}_{lmax_interp}_{k}_{s}"
+        fn_weff = f"wf_eff_{self.k}_{itmax_sims}_{itmax_fid}_{mf}_{version}_{do_spline}_{lmin_interp}_{lmax_interp}_{k}_{s}"
+        fn_wfspline = f"wf_spline_{self.k}_{itmax_sims}_{itmax_fid}_{mf}_{version}_{do_spline}_{lmin_interp}_{lmax_interp}_{k}_{s}"
         if np.any([not self.cacher_param.is_cached(fn) for fn in [fn_weff, fn_wfspline]]) or recache:
             wf_fid = self.get_wf_fid(itmax_fid, version=version)
             nsims = self.get_nsims_itmax(itmax_sims)
@@ -554,7 +572,7 @@ class cpp_sims_lib:
             nrdn0 = self.get_num_rdn0(itr, mcs, Nroll)
             rdsims = np.arange(0, nrdn0)
         print(f'I average {len(rdsims)} sims with rdn0 to get effective response')
-        fn =  'rdn0_mean_{}_Nroll{}_{}_{}'.format(itr, Nroll, mchash(rdsims), mchash(mcs))
+        fn =  'rdn0_mean_{}_{}_Nroll{}_{}_{}'.format(self.k, itr, Nroll, mchash(rdsims), mchash(mcs))
 
         if not cacher.is_cached(fn):
             rdn0 = np.zeros(self.lmax_qlm+1)
@@ -585,7 +603,7 @@ class cpp_sims_lib:
         """Return teh QE effective response from using RDN0 estimates from a number of sims"""
         cacher = cachers.cacher_npy(self.cacher_param.lib_dir)
 
-        fn =  'rdn0_mean_qe_Nroll{}_Ndatasims{}_Nmcsims{}'.format(Nroll, Ndatasims, Nmcsims)
+        fn =  'rdn0_mean_qe_{}_Nroll{}_Ndatasims{}_Nmcsims{}'.format(self.k, Nroll, Ndatasims, Nmcsims)
         print(f'I average {Ndatasims} sims with rdn0 to get effective QE response')
 
         if not cacher.is_cached(fn):
@@ -609,7 +627,7 @@ class cpp_sims_lib:
             Reff_Spline = rdn0 /self.fsky
         return Reff_Spline
 
-    def load_rdn0_map(self, idx, itr, mcs, Nroll):
+    def load_rdn0_map(self, idx, itr, mcs, Nroll, tol=5):
         """Load previously computed RDN0 estimate.
     
         See the file rdn0_cs.py to compute the RDN0 for a given paramfile and simidx.
@@ -625,7 +643,7 @@ class cpp_sims_lib:
         outputdir = rdn0_cs.output_sim(self.k, self.param.suffix, idx)
         fn = opj(outputdir, rdn0_cs.fn_cls_dsss(itr, mcs, Nroll))
         if not os.path.exists(fn):
-            itlibdir = self.param.libdir_iterators(self.k, idx, self.version)
+            itlibdir = self.param.libdir_iterators(self.k, idx, self.iterator_version, tol)
             ss_dict =  rdn0_cs._ss_dict(mcs, Nroll)
             rdn0_cs.export_dsss(itr, self.k, itlibdir, self.param.suffix, idx, ss_dict, mcs, Nroll)
         pds, pss, _, _, _, _ = np.loadtxt(fn).transpose()
@@ -670,6 +688,26 @@ class cpp_sims_lib:
         
         return self.nhllib.get_sim_nhl(simidx, self.k,  self.k)    
 
+    def get_mcn0_qe(self, Ndatasims=40, Nmcsims=100, Nroll=10, use_parfile=False):
+        """Returns unnormalised MC-N0 for the QE.
+        Be careful to use sims with no overlap with the sims that are used as "data"
+        i.e, we need to define the sims that are used for data, comprised bewteen idx=0 and idx=Ndatasims-1
+        and the sims between idx=Ndatasims and idx=Ndatasims + Nmcsims -1 will be used to get the MC-N0 estimate.
+
+        Args:
+            Ndatasims: sims with index between 0 and Ndatasims-1 are not considered to get the rdn0
+            Nmcsims: sims with index between Ndatasims and Ndatasims + Nmcsims -1 are used to get the rdno
+            Nroll: the allocation of i, j sims is done with j = i+1, by batches of Nroll 
+            use_parfile: Ignore custom settings and use the definition of the MC sims in the parameter file (see qlms_ss library)
+        """
+        # mcn0 = 2* self.parfile.qcls_ss.get_sim_stats_qcl(self.k1, mcs, k2=self.k2).mean()
+
+        mcn0 = rdn0_cs.get_mcn0_qe(self.param, self.k, Ndatasims=Ndatasims, Nmcsims=Nmcsims, Nroll=Nroll, use_parfile=use_parfile)
+        lmax = len(mcn0)-1
+        pp2kk = 0.25 * np.arange(lmax + 1)** 2 * (np.arange(1, lmax + 2) ** 2) * 1e7
+        return mcn0 * pp2kk
+
+
     def get_rdn0_qe(self, datidx, Ndatasims=40, Nmcsims=100, Nroll=10):
         """Returns unnormalised realization-dependent N0 lensing bias RDN0.
         To get the RDN0, we use sims with no overlap with the sims that are used as "data"
@@ -683,16 +721,8 @@ class cpp_sims_lib:
             Nroll: the allocation of i, j sims is done with j = i+1, by batches of Nroll 
 
         """
-        assert datidx < Ndatasims or datidx > Ndatasims+Nmcsims-1, "Do not estimate the RDN0 for a simulation inside the set of sims used for the RDN0"
-        fn_dir = rdn0_cs.output_sim(self.k, self.param.suffix, datidx)
-        mcs = np.arange(Ndatasims, Nmcsims+Ndatasims)
-        fn = os.path.join(fn_dir, rdn0_cs.fn_cls_dsss(0, mcs, Nroll))
-        if not os.path.exists(fn):
-            print("Running RDN0 estimate for datidx {} with {} {} {}".format(datidx, Ndatasims, Nmcsims, Nroll))
-            rdn0_cs.get_rdn0_qe(self.param, datidx, self.k,  Ndatasims, Nmcsims, Nroll, version=self.version)
-            
-        rdn0, ds, ss = np.loadtxt(fn).transpose()
-        # rdn0 = np.loadtxt(fn).transpose()
+
+        rdn0, ds, ss = rdn0_cs.get_rdn0_qe(self.param, datidx, self.k,  Ndatasims, Nmcsims, Nroll, version=self.version)
         lmax = len(rdn0)-1
         pp2kk = 0.25 * np.arange(lmax + 1)** 2 * (np.arange(1, lmax + 2) ** 2) * 1e7
         return rdn0 * pp2kk, ds*pp2kk, ss*pp2kk
