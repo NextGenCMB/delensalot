@@ -32,7 +32,10 @@ from lenspyx.sims import sims_cmb_len
 from delensalot.utility import utils_steps
 from delensalot.core.iterator import steps
 from delensalot.core import mpi
+from delensalot.core.opfilt.MAP_opfilt_iso_t import alm_filter_nlev_wl as alm_filter_nlev_wl_t
 from delensalot.core.opfilt.MAP_opfilt_iso_p import alm_filter_nlev_wl
+from delensalot.core.opfilt.MAP_opfilt_iso_tp import alm_filter_nlev_wl as alm_filter_nlev_wl_tp
+
 from delensalot.core.iterator.cs_iterator import iterator_cstmf as iterator_cstmf
 from delensalot.core.iterator.cs_iterator_multi import iterator_cstmf as iterator_cstmf_wcurl
 
@@ -180,7 +183,6 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
                      (here if 'noMF' is in version, will not use any mean-fied at the very first step)
             cg_tol: tolerance of conjugate-gradient filter
     """
-    assert k in ['p_eb', 'p_p'], k
     libdir_iterator = libdir_iterators(k, simidx, version)
     if not os.path.exists(libdir_iterator):
         os.makedirs(libdir_iterator)
@@ -231,9 +233,8 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
                                           {'e': fel_unl, 'b': fbl_unl, 't': ftl_unl}, lmax_qlm=lmax_qlm)[0:2]
     # Lensing deflection field instance (initiated here with zero deflection)
 
-
+    ffi = deflection(lenjob_geometry, np.zeros_like(plm0), mmax_qlm, numthreads=tr, epsilon=1e-7)
     if k in ['p_p']:
-        ffi = deflection(lenjob_geometry, np.zeros_like(plm0), mmax_qlm, numthreads=tr, epsilon=1e-7)
         # Here multipole cuts are set by the transfer function (those with 0 are not considered)
         filtr = alm_filter_nlev_wl(nlev_p, ffi, transf_elm, (lmax_unl, mmax_unl), (lmax_ivf, mmax_ivf),
                                     transf_b=transf_blm, nlev_b=nlev_p)
@@ -241,6 +242,29 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
         eblm = np.array(sims_MAP.get_sim_pmap(int(simidx)))
         datmaps = np.array([alm_copy(eblm[0], None, lmax_ivf, mmax_ivf), alm_copy(eblm[1], None, lmax_ivf, mmax_ivf) ])
         del eblm
+        wflm0 = lambda: alm_copy(ivfs_wcurl.get_sim_emliklm(simidx), None, lmax_unl, mmax_unl)
+    elif k in ['p']:
+        filtr = alm_filter_nlev_wl_tp(nlev_t, nlev_p, ffi, transf_tlm, (lmax_unl, mmax_unl), (lmax_ivf, mmax_ivf),
+                                    transf_b=transf_blm, transf_e=transf_elm)
+        # dat maps must now be given in harmonic space in this idealized configuration
+        eblm = np.array(sims_MAP.get_sim_pmap(int(simidx)))
+        tlm = sims_MAP.get_sim_tmap(int(simidx))
+        datmaps = np.array([alm_copy(tlm, None, lmax_ivf, mmax_ivf),
+                            alm_copy(eblm[0], None, lmax_ivf, mmax_ivf),
+                            alm_copy(eblm[1], None, lmax_ivf, mmax_ivf)])
+        del tlm, eblm
+        wflm0 = lambda: np.array([alm_copy(ivfs_wcurl.get_sim_tmliklm(simidx), None, lmax_unl, mmax_unl),
+                                  alm_copy(ivfs_wcurl.get_sim_emliklm(simidx), None, lmax_unl, mmax_unl)])
+
+    elif k in ['ptt']:
+        # Here multipole cuts are set by the transfer function (those with 0 are not considered)
+        filtr = alm_filter_nlev_wl_t(nlev_t, ffi, transf_tlm, (lmax_unl, mmax_unl), (lmax_ivf, mmax_ivf))
+        # dat maps must now be given in harmonic space in this idealized configuration
+        tlm = sims_MAP.get_sim_tmap(int(simidx))
+        datmaps = alm_copy(tlm, None, lmax_ivf, mmax_ivf)
+        del tlm
+        wflm0 = lambda: alm_copy(ivfs_wcurl.get_sim_tmliklm(simidx), None, lmax_unl, mmax_unl)
+
     else:
         assert 0
 
@@ -253,7 +277,7 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
         iterator = iterator_cstmf_wcurl(libdir_iterator, 'p', [(lmax_qlm, mmax_qlm), (lmax_qlm, mmax_qlm)], datmaps,
                                   [plm0, olm0], [mf0_p, mf0_o], [Rpp_unl, Roo_unl], [cpp, coo], ('p', 'x'), cls_unl, filtr, k_geom,
                                   chain_descrs(lmax_unl, cg_tol), stepper,
-                                 wflm0=lambda : alm_copy(ivfs_wcurl.get_sim_emliklm(simidx), None, lmax_unl, mmax_unl))
+                                 wflm0=wflm0)
 
     else: # standard gradient only
         stepper = steps.harmonicbump(lmax_qlm, mmax_qlm, xa=400, xb=1500)  # reduce the gradient by 0.5 for large scale and by 0.1 for small scales to improve convergence in regimes where the deflection field is not invertible

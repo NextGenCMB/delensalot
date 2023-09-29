@@ -510,7 +510,6 @@ class gclm_iterator(object):
                 soltn, it_soltn = self.load_soltn(itr, key)
                 if it_soltn < itr - 1:
                     soltn *= self.soltn_cond
-                    assert soltn.ndim == 1, 'Fix following lines'
                     mchain.solve(soltn, self.dat_maps, dot_op=self.filter.dot_op())
                     fn_wf = 'wflm_%s_it%s' % (key.lower(), itr - 1)
                     log.info("caching "  + fn_wf)
