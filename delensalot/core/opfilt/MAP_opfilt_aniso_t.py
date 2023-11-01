@@ -197,6 +197,41 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         return G, C
 
 
+    def get_qlms_mf(self, mfkey, q_pbgeom:utils_geom.pbdGeometry, mchain, phas=None, cls_filt:dict or None=None):
+        """Mean-field estimate using tricks of Carron Lewis appendix
+        """
+        if mfkey in [1]: # This should be B^t x, D dC D^t B^t Covi x, x random phases in pixel space here
+            if phas is None:
+                # unit variance phases in T
+                phas = np.array(default_rng().standard_normal(utils_geom.Geom.npix(self.ninv_geom)))
+            assert phas.size == utils_geom.Geom.npix(self.ninv_geom)
+            
+            soltn = np.zeros(Alm.getsize(self.lmax_sol, self.mmax_sol), dtype=complex)
+            mchain.solve(soltn, phas, dot_op=self.dot_op())
+
+            phas = self.ninv_geom.map2alm(phas, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
+            almxfl(phas, self.b_transf_tlm, self.mmax_len, True)
+            
+            tmap = q_pbgeom.geom.alm2map(phas, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))  # B^t X
+            
+            gtmap = self._get_gtmap(soltn, q_pbgeom)   # D dC D^t B^t Covi x
+
+            GC = tmap * gtmap
+
+        elif mfkey in [0]: # standard gQE, quite inefficient but simple
+            assert 0, "not implemented"
+        else:
+            assert 0, mfkey + ' not implemented'
+        lmax_qlm = self.ffi.lmax_dlm
+        mmax_qlm = self.ffi.mmax_dlm
+        G, C = q_pbgeom.geom.map2alm_spin(GC, 1, lmax_qlm, mmax_qlm, self.ffi.sht_tr, (-1., 1.))
+        del GC
+        fl = - np.sqrt(np.arange(lmax_qlm + 1, dtype=float) * np.arange(1, lmax_qlm + 2))
+        almxfl(G, fl, mmax_qlm, True)
+        almxfl(C, fl, mmax_qlm, True)
+        return G, C
+
+
     def _get_gtmap(self, tlm_wf:np.ndarray, q_pbgeom:utils_geom.pbdGeometry):
         """Wiener-filtered gradient leg to feed into the QE
 
