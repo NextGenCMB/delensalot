@@ -69,6 +69,33 @@ def export_dsss(itr:int, qe_key:str, libdir:str, suffix:str, datidx:int, version
     # fn_cldsss = 'cls_dsss_itr{}.dat'
     np.savetxt(opj(fn_dir, fn_cls_dsss(itr, mcs, Nroll, rdn0tol)), arr.transpose(), fmt=fmt, header=header)
 
+
+def load_ss_ds(mcs, ss_dict, folder:str, docov=False):
+    """Loads precomputed ds and ss stats.
+
+    """
+    print(ss_dict)
+    fn_ds = lambda this_idx : folder + '/qcl_ds_%04d'%this_idx + '.dat'
+    fn_ss = lambda i, j: folder + '/qcl_ss_%04d_%04d' % (min(i, j), max(i, j)) + '.dat'
+    ds0 = np.loadtxt(fn_ds(mcs[0]))
+    ds = stats(ds0.size, docov=docov)
+    ds.add(ds0)
+    for idx in mcs[1:]:
+        if os.path.exists(fn_ds(idx)):
+            ds.add(np.loadtxt(fn_ds(idx)))
+    ss0 = np.loadtxt(fn_ss(mcs[0], ss_dict[mcs[0]]))
+    ss = stats(ss0.size, docov=docov)
+    ss.add(ss0)
+    for idx in mcs[1:]:
+        if os.path.exists(fn_ss(idx, ss_dict[idx])):
+            ss.add(np.loadtxt(fn_ss(idx, ss_dict[idx])))
+            print(fn_ss(idx, ss_dict[idx]))
+    assert len(mcs) == ds.N and len(mcs) == ss.N + 1 , 'asked for %s sims but ds ss found %s and %s sims'%(len(mcs), ds.N, ss.N)
+    print('ds ss found %s and %s sims'%(ds.N, ss.N))
+
+    return ds, ss
+
+
 def export_nhl(libdir:str, qe_key, parfile, datidx:int, recache=False):
     fn_dir = output_sim(qe_key, parfile.suffix, parfile.version, datidx)
     if not os.path.exists(fn_dir):
@@ -494,27 +521,6 @@ def ss_ds(qe_key:str, itr:int, mcs:np.ndarray, itlib:cs_iterator.qlm_iterator, i
 
 
 
-def load_ss_ds(mcs, ss_dict, folder:str, docov=False):
-    """Loads precomputed ds and ss stats.
-
-    """
-    print(ss_dict)
-    fn_ds = lambda this_idx : folder + '/qcl_ds_%04d'%this_idx + '.dat'
-    fn_ss = lambda i, j: folder + '/qcl_ss_%04d_%04d' % (min(i, j), max(i, j)) + '.dat'
-    ds0 = np.loadtxt(fn_ds(mcs[0]))
-    ds = stats(ds0.size, docov=docov)
-    ds.add(ds0)
-    for idx in mcs[1:]:
-        if os.path.exists(fn_ds(idx)):
-            ds.add(np.loadtxt(fn_ds(idx)))
-    ss0 = np.loadtxt(fn_ss(mcs[0], ss_dict[mcs[0]]))
-    ss = stats(ss0.size, docov=docov)
-    ss.add(ss0)
-    for idx in mcs[1:]:
-        if os.path.exists(fn_ss(idx, ss_dict[idx])):
-            ss.add(np.loadtxt(fn_ss(idx, ss_dict[idx])))
-    print('ds ss found %s and %s sims'%(ds.N, ss.N))
-    return ds, ss
 
 if __name__ == '__main__':
     import argparse
