@@ -572,15 +572,15 @@ class iterator_simf(qlm_iterator):
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
                  dat_maps:list or np.ndarray, plm0:np.ndarray, mf_key:int, pp_h0:np.ndarray,
                  cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.alm_filter_wl, k_geom:utils_geom.Geom,
-                 chain_descr, stepper:steps.nrstep, **kwargs):
+                 chain_descr, stepper:steps.nrstep, sub_nolensing:bool=False, **kwargs):
         super(iterator_simf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
                                              ninv_filt, k_geom, chain_descr, stepper, **kwargs)
         self.mf_key = mf_key
-
-
+        self.sub_nolensing = sub_nolensing
+    
     @log_on_start(logging.DEBUG, "calc_graddet(it={itr}, key={key}) started")
     @log_on_end(logging.DEBUG, "calc_graddet(it={itr}, key={key}) finished")
-    def calc_graddet(self, itr, key):
+    def calc_graddet(self, itr, key, nolensing=False):
         assert self.is_iter_done(itr - 1, key)
         assert itr > 0, itr
         assert key in ['p'], key + '  not implemented'
@@ -590,14 +590,39 @@ class iterator_simf(qlm_iterator):
         self.filter.set_ffi(ffi)
         mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.filter)
         t0 = time.time()
-        q_geom = pbdGeometry(self.k_geom, pbounds(0., 2 * np.pi))
-        G, C = self.filter.get_qlms_mf(self.mf_key, q_geom, mchain, cls_filt=self.cls_filt)
+        # q_geom = pbdGeometry(self.k_geom, pbounds(0., 2 * np.pi))
+        q_geom = self.filter.ffi.pbgeom
+        if self.sub_nolensing:
+            phas = self.filter.get_unit_variance()
+        else:
+            phas = None
+        G, C = self.filter.get_qlms_mf(self.mf_key, q_geom, mchain, phas=phas, cls_filt=self.cls_filt)
         almxfl(G if key.lower() == 'p' else C, self._h2p(self.lmax_qlm), self.mmax_qlm, True)
         log.info('get_qlm_mf calculation done; (%.0f secs)' % (time.time() - t0))
+
+        #NOTE + or - here ?
+        ret = G if key.lower() == 'p' else C
+
+        if self.sub_nolensing:
+            log.info('Subtracting MF with same phase but no lensing in likelihood')
+            dlm *= 0
+            self.hlm2dlm(dlm, True)
+            ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm, cachers.cacher_mem(safe=False))
+            self.filter.set_ffi(ffi)
+            mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.filter)
+
+            q_geom = self.filter.ffi.pbgeom
+            G0, C0 = self.filter.get_qlms_mf(self.mf_key, q_geom, mchain, phas=phas, cls_filt=self.cls_filt)
+            almxfl(G0 if key.lower() == 'p' else C0, self._h2p(self.lmax_qlm), self.mmax_qlm, True)
+            
+            ret -= G0 if key.lower() == 'p' else C0 
+
+
         if itr == 1:  # We need the gradient at 0 and the yk's to be able to rebuild all gradients
             fn_lik = '%slm_grad%sdet_it%03d' % (self.h, key.lower(), 0)
-            self.cacher.cache(fn_lik, -G if key.lower() == 'p' else -C)
-        return -G if key.lower() == 'p' else -C
+            self.cacher.cache(fn_lik,ret)
+      
+        return ret 
 
 
 class iterator_cstmf_bfgs0(iterator_cstmf):

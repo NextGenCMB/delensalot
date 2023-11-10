@@ -9,6 +9,7 @@ from plancklens.utils import cli
 
 from lenspyx import remapping
 from lenspyx.remapping import utils_geom
+from lenspyx.utils_hp import alm_copy
 
 from delensalot.utility.utils_hp import almxfl, Alm, synalm
 from delensalot.utils import timer, clhash
@@ -60,10 +61,10 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         self.lmax_len = min(lmax_len, lmax_transf)
         self.mmax_len = min(mmax_len, self.lmax_len)
 
-        nlev_tlm = _extend_cl(nlev_t, lmax_len)
+        self.nlev_tlm = _extend_cl(nlev_t, lmax_len)
 
-        self.inoise_2 = _extend_cl(transf ** 2, lmax_len) * cli(nlev_tlm ** 2) * (180 * 60 / np.pi) ** 2
-        self.inoise_1 = _extend_cl(transf ** 1, lmax_len) * cli(nlev_tlm ** 2) * (180 * 60 / np.pi) ** 2
+        self.inoise_2 = _extend_cl(transf ** 2, lmax_len) * cli(self.nlev_tlm ** 2) * (180 * 60 / np.pi) ** 2
+        self.inoise_1 = _extend_cl(transf ** 1, lmax_len) * cli(self.nlev_tlm ** 2) * (180 * 60 / np.pi) ** 2
         self.transf   = _extend_cl(transf, lmax_len)
 
         if rescal is None:
@@ -141,6 +142,30 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         almxfl(G, fl, self.ffi.mmax_dlm, True)
         almxfl(C, fl, self.ffi.mmax_dlm, True)
         return G, C
+    
+    def get_unit_variance(self):
+        """Returns a unit vairance phase, useful for phase cancellation to reduce MF sims variance"""
+        return synalm(np.ones(self.lmax_len + 1, dtype=float), self.lmax_len, self.mmax_len)
+
+    def synalm(self, unlcmb_cls:dict, cmb_phas=None, noise_phase=None, get_unltlm=False):
+        """Generate some dat maps consistent with noise filter fiducial ingredients
+
+            Note:
+                Feeding in directly the unlensed CMB phase can be useful for paired simulations.
+                In this case the shape must match that of the filter unlensed alm array
+
+        """
+        tlm_unl = synalm(unlcmb_cls['tt'], self.lmax_sol, self.mmax_sol) if cmb_phas is None else cmb_phas
+        assert Alm.getlmax(tlm_unl.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(tlm_unl.size, self.mmax_sol), self.lmax_sol)
+        tlm = self.ffi.lensgclm(tlm_unl, self.mmax_sol, 0, self.lmax_len, self.mmax_len)
+        almxfl(tlm, self.transf, self.mmax_len, True)
+        if noise_phase is None:
+            noise_phase = synalm((np.ones(self.lmax_len + 1) * (self.nlev_tlm / 180 / 60 * np.pi) ** 2) * (self.transf > 0), self.lmax_len, self.mmax_len)
+        noise_phase = alm_copy(noise_phase, None, self.lmax_len, self.mmax_len)
+        assert Alm.getlmax(noise_phase.size, self.mmax_len) == self.lmax_len, (Alm.getlmax(noise_phase.size, self.mmax_len), self.lmax_len)
+
+        tlm += noise_phase
+        return tlm
 
     def get_qlms_mf(self, mfkey, q_pbgeom:utils_geom.pbdGeometry, mchain, phas=None, cls_filt:dict or None=None):
         """Mean-field estimate using tricks of Carron Lewis appendix
@@ -156,15 +181,9 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
             mchain.solve(soltn, phas, dot_op=self.dot_op())
 
             almxfl(phas,  self.transf, self.mmax_len, True)
-            #
-            assert 0, ' finish this'
-            repmap, impmap = q_pbgeom.geom.alm2map_spin(phas, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
-
-            Gs, Cs = self._get_gpmap([soltn, np.zeros_like(soltn)], 3, q_pbgeom)  # 2 pos.space maps
-            GC = (repmap - 1j * impmap) * (Gs + 1j * Cs)  # (-2 , +3)
-            Gs, Cs = self._get_gpmap([soltn, np.zeros_like(soltn)], 1, q_pbgeom)
-            GC -= (repmap + 1j * impmap) * (Gs - 1j * Cs)  # (+2 , -1)
-            del repmap, impmap, Gs, Cs
+            tmap = q_pbgeom.geom.alm2map(phas, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))  # B^t X
+            gtmap = self._get_gtmap(soltn, q_pbgeom)   # D dC D^t B^t Covi x
+            GC = tmap * gtmap
         elif mfkey in [0]: # standard gQE, quite inefficient but simple
             assert 0, 'not implemented'
 
@@ -172,8 +191,11 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
             assert 0, mfkey + ' not implemented'
         lmax_qlm = self.ffi.lmax_dlm
         mmax_qlm = self.ffi.mmax_dlm
-        G, C = q_pbgeom.geom.map2alm_spin([GC.real, GC.imag], 1, lmax_qlm, mmax_qlm, self.ffi.sht_tr, (-1., 1.))
+        G, C = q_pbgeom.geom.map2alm_spin(GC, 1, lmax_qlm, mmax_qlm, self.ffi.sht_tr, (-1., 1.))
         del GC
+        G = alm_copy(G, None, lmax_qlm, mmax_qlm) 
+        C = alm_copy(C, None, lmax_qlm, mmax_qlm)
+
         fl = - np.sqrt(np.arange(lmax_qlm + 1, dtype=float) * np.arange(1, lmax_qlm + 2))
         almxfl(G, fl, mmax_qlm, True)
         almxfl(C, fl, mmax_qlm, True)
