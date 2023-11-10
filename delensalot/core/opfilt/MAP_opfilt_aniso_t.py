@@ -10,6 +10,7 @@ import numpy as np
 
 from lenspyx import remapping
 from lenspyx.remapping import utils_geom
+from lenspyx.utils_hp import alm_copy
 
 from delensalot.utils import clhash, cli, read_map, timer
 from delensalot.utility.utils_hp import almxfl, Alm, alm2cl, synalm, default_rng
@@ -196,6 +197,10 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         almxfl(C, fl, self.ffi.mmax_dlm, True)
         return G, C
 
+    def get_unit_variance(self):
+        """Returns a unit vairance phase, useful for phase cancellation to reduce MF sims variance"""
+        return np.array(default_rng().standard_normal(utils_geom.Geom.npix(self.ninv_geom)))
+
 
     def get_qlms_mf(self, mfkey, q_pbgeom:utils_geom.pbdGeometry, mchain, phas=None, cls_filt:dict or None=None):
         """Mean-field estimate using tricks of Carron Lewis appendix
@@ -225,7 +230,10 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         lmax_qlm = self.ffi.lmax_dlm
         mmax_qlm = self.ffi.mmax_dlm
         G, C = q_pbgeom.geom.map2alm_spin(GC, 1, lmax_qlm, mmax_qlm, self.ffi.sht_tr, (-1., 1.))
+        # G, C = q_pbgeom.geom.map2alm_spin([GC.real, GC.imag], 1, lmax_qlm, mmax_qlm, self.ffi.sht_tr, (-1., 1.))
         del GC
+        G = alm_copy(G, None, lmax_qlm, mmax_qlm) 
+        C = alm_copy(C, None, lmax_qlm, mmax_qlm) 
         fl = - np.sqrt(np.arange(lmax_qlm + 1, dtype=float) * np.arange(1, lmax_qlm + 2))
         almxfl(G, fl, mmax_qlm, True)
         almxfl(C, fl, mmax_qlm, True)
