@@ -32,6 +32,8 @@ DL_DEFAULT = {
         'phi_fn': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
         'epsilon': 1e-7,
         'spin': 0,
+        'CMB_modifier': lambda x: x,
+        'phi_modifier': lambda x: x,
     },
     'analysis': { 
         'key': 'p_p',
@@ -45,7 +47,6 @@ DL_DEFAULT = {
         'simidxs_mf': [],
         'zbounds': (-1, 1),
         'zbounds_len': (-1, 1),
-        'pbounds': (0., 2*np.pi),
         'lm_max_len': (4000, 4000),
         'mask': None,
         'cls_unl': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
@@ -110,7 +111,7 @@ DL_DEFAULT = {
     'noisemodel': {
         'sky_coverage': 'masked',
         'spectrum_type': 'white',
-        'OBD': False,
+        'OBD': 'trunc',
         'nlev': {'P': 1.0, 'T': 1./np.sqrt(2)},
         'rhits_normalised': None,
         'geominfo': ('healpix',{'nside': 2048}),
@@ -131,6 +132,9 @@ DL_DEFAULT = {
         'spectrum_calculator': pospace,
         'basemap': 'lens'
     },
+    'phana': {
+        'custom_WF_TEMP': None,
+    },
     'computing': {
         'OMP_NUM_THREADS': int(psutil.cpu_count()) #2*int(psutil.cpu_count()/psutil.cpu_count(logical=False))
     },
@@ -139,7 +143,6 @@ DL_DEFAULT = {
         'rescale': 1,
         'tpl': 'template_dense',
         'nlev_dep': 1e4,
-        'nside': 2048,
         'lmax': 200,
         'beam': 1.0,
     },

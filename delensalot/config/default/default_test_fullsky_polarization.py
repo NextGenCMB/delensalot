@@ -30,7 +30,6 @@ DL_DEFAULT = {
         'simidxs_mf': [],
         'zbounds': (-1,1),
         'zbounds_len': (-1,1),
-        'pbounds': (0., 2*np.pi),
         'lm_max_len': (2000, 2000),
         'mask': None,
         'cls_unl': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
@@ -54,6 +53,8 @@ DL_DEFAULT = {
         'phi_fn': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
         'epsilon': 1e-7,
         'spin': 0,
+        'CMB_modifier': lambda x: x,
+        'phi_modifier': lambda x: x,
     },
     'qerec':{
         'tasks': ['calc_phi', 'calc_blt'],
@@ -110,7 +111,7 @@ DL_DEFAULT = {
     'noisemodel': {
         'sky_coverage': 'unmasked',
         'spectrum_type': 'white',
-        'OBD': False,
+        'OBD': 'trunc',
         'nlev': {'P': 1.0, 'T': 1./np.sqrt(2)},
         'rhits_normalised': None,
         'geominfo': ('healpix',{'nside': 1024}),
@@ -131,6 +132,9 @@ DL_DEFAULT = {
         'binning': 'binned',
         'spectrum_calculator': pospace,
         'basemap': 'lens'
+    },
+    'phana': {
+        'custom_WF_TEMP': None,
     },
     'computing': {
         'OMP_NUM_THREADS': int(psutil.cpu_count()) #2*int(psutil.cpu_count()/psutil.cpu_count(logical=False))
