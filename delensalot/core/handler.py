@@ -415,7 +415,7 @@ class Sim_generator(Basejob):
                     self.generate_sky(simidx)
                 if task == 'generate_obs':
                     self.generate_obs(simidx)
-                if self.simulationdata.obs_lib.maps == DEFAULT_NotAValue:
+                if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
                     self.simulationdata.purgecache()
         if np.all(self.simulationdata.maps == DEFAULT_NotAValue):
             self.postrun_sky()
@@ -750,12 +750,12 @@ class QE_lr(Basejob):
             if task == 'calc_phi':
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
                     self.qlms_dd.get_sim_qlm(self.k, int(idx))
-                    if self.simulationdata.obs_lib.maps == DEFAULT_NotAValue:
+                    if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
                         self.simulationdata.purgecache()
                 mpi.barrier()
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
                     self.get_plm(idx, self.QE_subtract_meanfield)
-                    if self.simulationdata.obs_lib.maps == DEFAULT_NotAValue:
+                    if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
                         self.simulationdata.purgecache()
                 
 
@@ -774,7 +774,7 @@ class QE_lr(Basejob):
                     # ## Faking here MAP filters
                     self.itlib_iterator = transform(self.MAP_job, iterator_transformer(self.MAP_job, simidx, self.dlensalot_model))
                     self.get_blt(simidx)
-                    if self.simulationdata.obs_lib.maps == DEFAULT_NotAValue:
+                    if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
                         self.simulationdata.purgecache()
 
 
@@ -1057,7 +1057,7 @@ class MAP_lr(Basejob):
                     if type(self.simulationdata.obs_lib.maps) == np.array:
                         pass
                     else:
-                        if self.simulationdata.obs_lib.maps == DEFAULT_NotAValue:
+                        if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
                             self.simulationdata.purgecache()
 
             if task == 'calc_meanfield':
@@ -1076,7 +1076,7 @@ class MAP_lr(Basejob):
                     if type(self.simulationdata.obs_lib.maps) == np.array:
                         pass
                     else:
-                        if self.simulationdata.obs_lib.maps == DEFAULT_NotAValue:
+                        if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
                             self.simulationdata.purgecache()
 
 
