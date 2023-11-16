@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from plancklens.helpers import cachers
+from delensalot.core import cachers
 
 import logging
 log = logging.getLogger(__name__)
@@ -65,7 +65,7 @@ class rec:
         if not os.path.exists(lib_dir): return False
         cacher = cachers.cacher_npy(lib_dir)
         if itr <= 0:
-            return cacher.is_cached(os.path.join(lib_dir, '%s_plm_it000' % ({'p': 'phi', 'o': 'om'}['p'])))
+            return cacher.is_cached('%s_plm_it000' % ({'p': 'phi', 'o': 'om'}['p']))
         sk_fname = lambda k: os.path.join(lib_dir, 'hessian', 'rlm_sn_%s_%s' % (k, 'p'))
         return cacher.is_cached(sk_fname(itr - 1))
 

@@ -22,7 +22,7 @@ dlensalot_model = DLENSALOT_Model(
         beam = 1.0,
         lm_max_ivf = (1024, 1024),
         lmin_teb = (10, 10, 100),
-        mask = opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100', 'mask.fits'),
+        mask = opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lcut100', 'mask.fits'),
     ),
     simulationdata = DLENSALOT_Simulation(
         space = 'cl', 
@@ -36,12 +36,12 @@ dlensalot_model = DLENSALOT_Model(
         CMB_fn = opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
     ),
     noisemodel = DLENSALOT_Noisemodel(
-        OBD = False,
+        OBD = 'trunc',
         sky_coverage = 'isotropic',
         spectrum_type = 'white',
         nlev = {'P': np.sqrt(2), 'T': np.sqrt(1)},
         geominfo = ('healpix', {'nside': 512}),
-        rhits_normalised = (opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lmax1024', 'lcut100', 'rhits.fits'), np.inf)
+        rhits_normalised = (opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lcut100', 'rhits.fits'), np.inf)
     ),
     qerec = DLENSALOT_Qerec(
         tasks = ["calc_phi"],
