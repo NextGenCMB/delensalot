@@ -285,6 +285,9 @@ class Sim_generator(Basejob):
                     if not os.path.exists(self.libdir):
                         os.makedirs(self.libdir)
                     [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
+                else:
+                    if not os.path.exists(self.libdir):
+                        os.makedirs(self.libdir)
             else:
                 mpi.receive(None, source=mpi.ANY_SOURCE)
             
