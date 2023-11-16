@@ -6,7 +6,9 @@
 [![Integration tutorial](https://github.com/NextGenCMB/delensalot/actions/workflows/integration_tutorial.yaml/badge.svg?branch=sims&event=pull_request)](https://github.com/NextGenCMB/delensalot/actions/workflows/integration_tutorial.yaml)
 
 # delensalot
-Curved-sky iterative CMB lensing reconstruction and bias calculation
+Curved-sky iterative CMB lensing reconstruction and bias calculation.
+
+If you use delensalot for your work, please consider citing [CMB-S4: Iterative internal delensing and r constraints](https://arxiv.org/abs/2310.06729).
 
 # Installation
 Download the project, navigate to the root folder and execute the command,
