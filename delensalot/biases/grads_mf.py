@@ -6,7 +6,7 @@ Using or not the trick from Carron and Lewis 2017.
 """
 import numpy as np
 from delensalot.utility import utils_hp as uhp
-from delensalot.utils import clhash
+from delensalot.utils import clhash, cli
 from delensalot.core import cachers
 from plancklens.qcinv import multigrid
 from plancklens.sims import phas
@@ -21,7 +21,8 @@ from delensalot.utility.utils_hp import almxfl as hp_almxfl
 from lenspyx.utils_hp import alm_copy
 
 
-def get_graddet_sim_mf_trick(itlib, itr, mcs, key='p', mf_phas:phas.lib_phas=None, zerolensing=False):   
+def get_graddet_sim_mf_trick(itlib:cs_iterator.qlm_iterator, itr:int, mcs:np.ndarray, 
+                             key:str='p', mf_phas:phas.lib_phas=None, zerolensing:bool=False, recache=False):   
     """Buid the gradient MF using the trick of Carron and Lewis 2017 Appendix B
     
         Args:
@@ -52,14 +53,13 @@ def get_graddet_sim_mf_trick(itlib, itr, mcs, key='p', mf_phas:phas.lib_phas=Non
 
     _Gmfs = []
     for idx in np.unique(mcs):
-        if not cacher.is_cached(fn_lik(idx)):
+        if not cacher.is_cached(fn_lik(idx)) or recache:
             print(f'Doing MF sim {idx}' + ' no lensing'*zerolensing)
             if mf_phas is not None:
                 phas = mf_phas.get_sim(idx, idf=0)
-                phas = alm_copy(phas, None, itlib.filter.lmax_len, itlib.filter.mmax_len) 
+                # phas = alm_copy(phas, None, itlib.filter.lmax_len, itlib.filter.mmax_len) 
             else:
                 phas = None
-
             t0 = time.time()
             G, C = itlib.filter.get_qlms_mf(mf_key, q_geom, mchain, cls_filt=itlib.cls_filt, phas=phas)
             hp_almxfl(G if key.lower() == 'p' else C, itlib._h2p(itlib.lmax_qlm), itlib.mmax_qlm, True)
@@ -69,8 +69,6 @@ def get_graddet_sim_mf_trick(itlib, itr, mcs, key='p', mf_phas:phas.lib_phas=Non
         
         _Gmfs.append(itlib.cacher.load(fn_lik(idx)))
     return _Gmfs
-
-
 
 def get_graddet_sim_mf_true(qe_key:str, itr:int, mcs:np.ndarray, itlib:cs_iterator.qlm_iterator, 
                             itlib_phases:cs_iterator.qlm_iterator, noise_phase:phas.lib_phas, 
@@ -140,11 +138,18 @@ def get_graddet_sim_mf_true(qe_key:str, itr:int, mcs:np.ndarray, itlib:cs_iterat
             xlm_unl = ivf_phas_cacher.load(fn_unl(idx))
             
             # FIXME: get two fields for the EB case
-            nltt = (itlib.filter.nlev_tlm / 180 / 60 * np.pi) ** 2 * (itlib.filter.transf > 0)
-            noise_tlm = hp.almxfl(noise_phase.get_sim(idx, idf=0), nltt)
-                                  
+            try:
+                nlev_t = itlib.filter.nlev_tlm
+                transf = itlib.filter.transf
+                nltt = (nlev_t / 180 / 60 * np.pi) ** 2 * (transf > 0)
+                noise_tlm = hp.almxfl(noise_phase.get_sim(idx, idf=0), nltt)
+            except AttributeError:
+                # transf = itlib.filter.b_transf_tlm
+                pixnoise = np.sqrt(cli(itlib.filter.n_inv))
+                noise_tlm = noise_phase.get_sim(idx, idf=0) * pixnoise
+
             # Generate CMB lensed by phi MAP, with fiducial beam and noise level 
-            xlm_dat = itlib.filter.synalm(itlib.cls_filt, cmb_phas=xlm_unl, noise_phase=noise_tlm)
+            xlm_dat = itlib.filter.synalm(itlib.cls_filt, cmb_phas=xlm_unl, noise_phas=noise_tlm)
             ivf_cacher.cache(fn(idx), xlm_dat)
             # Get the WF CMB map
             soltn = np.zeros(uhp.Alm.getsize(itlib.lmax_filt, itlib.mmax_filt), dtype=complex)

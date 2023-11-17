@@ -29,7 +29,7 @@ import lenspyx.remapping.utils_geom as utils_geom
 from lenspyx.remapping.utils_geom import pbdGeometry, pbounds
 from lenspyx.remapping.deflection_028 import rtype
 
-from delensalot.utils import cli, read_map
+from delensalot.utils import cli, read_map, enumerate_progress
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl
 from delensalot.utility import utils_qe
 
@@ -554,6 +554,141 @@ class iterator_pertmf(qlm_iterator):
         if self.cacher.is_cached('mf'):
             mf += self.cacher.load('mf')
         return mf
+
+
+class iterator_predmf(qlm_iterator):
+    """Mean field predicted from kappa MAP
+
+    """
+
+    def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
+                 dat_maps:list or np.ndarray, plm0:np.ndarray, cls_unl:dict, pp_h0:np.ndarray,
+                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.alm_filter_wl, k_geom:utils_geom.Geom,
+                 chain_descr, stepper:steps.nrstep,**kwargs):
+        super(iterator_predmf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
+                                             ninv_filt, k_geom, chain_descr, stepper, **kwargs)
+
+        self.cls_unl = cls_unl
+    
+    @log_on_start(logging.DEBUG, "load_graddet(it={itr}, key={key}) started")
+    @log_on_end(logging.DEBUG, "load_graddet(it={itr}, key={key}) finished")
+    def load_graddet(self, itr, key):
+        assert self.h == 'p', 'check this line is ok for other h'
+        plm = self.get_hlm(itr - 1, key)
+        return self.filter.get_qlms_mf_pred(plm, self.cls_unl)
+
+
+    @log_on_start(logging.DEBUG, "calc_graddet(it={itr}, key={key}) started")
+    @log_on_end(logging.DEBUG, "calc_graddet(it={itr}, key={key}) finished")
+    def calc_graddet(self, itr, key):
+        assert self.h == 'p', 'check this line is ok for other h'
+        plm = self.get_hlm(itr - 1, key)
+        return self.filter.get_qlms_mf_pred(plm, self.cls_unl)
+
+
+class iterator_simf_mcs(qlm_iterator):
+    """Monte-Carlo evaluation of mean-field
+
+    Gives the number of sims to use at each iteration in mc_sims
+
+    """
+
+    def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
+                 dat_maps:list or np.ndarray, plm0:np.ndarray, mf_key:int, pp_h0:np.ndarray,
+                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.alm_filter_wl, k_geom:utils_geom.Geom,
+                 chain_descr, stepper:steps.nrstep, mc_sims:np.ndarray=None, sub_nolensing:bool=False, 
+                 mf_cmb_phas=None, mf_noise_phas=None, **kwargs):
+        super(iterator_simf_mcs, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
+                                             ninv_filt, k_geom, chain_descr, stepper, **kwargs)
+        self.mf_key = mf_key
+        self.sub_nolensing = sub_nolensing
+        self.mc_sims = mc_sims
+        self.mf_cmb_phas = mf_cmb_phas
+        self.mf_noise_phas = mf_noise_phas 
+        print(f'MF key: {self.mf_key}')
+
+    @log_on_start(logging.DEBUG, "load_graddet(it={itr}, key={key}) started")
+    @log_on_end(logging.DEBUG, "load_graddet(it={itr}, key={key}) finished")
+    def load_graddet(self, itr, key):
+        assert self.is_iter_done(itr - 1, key)
+        # assert itr > 0, itr
+        if itr == 0:
+            return 0
+
+        assert key in ['p'], key + '  not implemented'
+
+        try:
+            mcs = self.mc_sims[itr]
+        except IndexError:
+            print(f'****Iterator:  No MC sims defined for MF estimate at iter {itr} ****')  
+            mcs = 0       
+        if mcs  == 0: 
+            print(f"****Iterator: No MF subtraction is performed for iter {itr} ****")
+            return 0
+              
+        Gmfs = self.get_grad_mf(itr, key, mcs, nolensing=False)
+
+        if self.sub_nolensing:
+            Gmfs_nl = self.get_grad_mf(itr, key, mcs, nolensing=True)
+            Gmfs -= Gmfs_nl
+        
+        return +np.mean(Gmfs, axis=0)
+
+
+    @log_on_start(logging.DEBUG, "calc_graddet(it={itr}, key={key}) started")
+    @log_on_end(logging.DEBUG, "calc_graddet(it={itr}, key={key}) finished")
+    def calc_graddet(self, itr, key):
+        assert self.is_iter_done(itr - 1, key)
+        assert itr > 0, itr
+        assert key in ['p'], key + '  not implemented'
+
+        try:
+            mcs = self.mc_sims[itr]
+        except IndexError:
+            print(f'No MC sims defined for MF estimate at iter {itr}')  
+            mcs = 0       
+        if mcs  == 0: 
+            print(f"No MF subtraction is performed for iter {itr}")
+            return 0
+              
+        Gmfs = self.get_grad_mf(itr, key, mcs, nolensing=False)
+
+        if self.sub_nolensing:
+            Gmfs_nl = self.get_grad_mf(itr, key, mcs, nolensing=True)
+            Gmfs -= Gmfs_nl
+        
+        return +np.mean(Gmfs, axis=0)
+
+
+    def get_grad_mf(self, itr:int, key:str, mcs:int, nolensing:bool=False):
+        
+        dlm = self.get_hlm(itr - 1, key)
+        
+        if nolensing:
+            dlm *= 0. 
+        
+        self.hlm2dlm(dlm, True)
+        ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm, cachers.cacher_mem(safe=False))
+        self.filter.set_ffi(ffi)
+        mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.filter)
+        t0 = time.time()
+        q_geom = self.filter.ffi.pbgeom
+
+        mf_cacher = cachers.cacher_npy(opj(self.lib_dir, f'mf_sims_itr{itr:03d}'))
+        fn_qlm = lambda this_idx : f'qlm_mf{self.mf_key}_sim_{this_idx:04d}' + '_nolensing' * nolensing# qlms sim 
+
+        _Gmfs = []
+        for i, idx in enumerate_progress(range(mcs), label='Getting MF sims' + ' no lensing' * nolensing):
+            if not mf_cacher.is_cached(fn_qlm(idx)):
+                #FIXME: the cmb_phas and noise_phas should have more than one field for Pol or MV estimators
+                G, C = self.filter.get_qlms_mf(
+                    self.mf_key, q_geom, mchain, 
+                    phas=self.mf_cmb_phas.get_sim(idx, idf=0), 
+                    noise_phas=self.mf_noise_phas.get_sim(idx, idf=0), cls_unl=self.cls_filt)
+                
+                mf_cacher.cache(fn_qlm(idx), G)
+            _Gmfs.append(mf_cacher.load(fn_qlm(idx)))
+        return np.array(_Gmfs)
 
 
 class iterator_simf(qlm_iterator):
