@@ -597,7 +597,7 @@ class iterator_simf_mcs(qlm_iterator):
                  dat_maps:list or np.ndarray, plm0:np.ndarray, mf_key:int, pp_h0:np.ndarray,
                  cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.alm_filter_wl, k_geom:utils_geom.Geom,
                  chain_descr, stepper:steps.nrstep, mc_sims:np.ndarray=None, sub_nolensing:bool=False, 
-                 mf_cmb_phas=None, mf_noise_phas=None, **kwargs):
+                 mf_cmb_phas=None, mf_noise_phas=None, shift_phas=False, **kwargs):
         super(iterator_simf_mcs, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
                                              ninv_filt, k_geom, chain_descr, stepper, **kwargs)
         self.mf_key = mf_key
@@ -605,51 +605,67 @@ class iterator_simf_mcs(qlm_iterator):
         self.mc_sims = mc_sims
         self.mf_cmb_phas = mf_cmb_phas
         self.mf_noise_phas = mf_noise_phas 
-        print(f'MF key: {self.mf_key}')
+        self.shift_phas = shift_phas
+        print(f'Iterator MF key: {self.mf_key}')
 
     @log_on_start(logging.DEBUG, "load_graddet(it={itr}, key={key}) started")
     @log_on_end(logging.DEBUG, "load_graddet(it={itr}, key={key}) finished")
-    def load_graddet(self, itr, key):
+    def load_graddet(self, itr, key, get_all_mcs=False):
         assert self.is_iter_done(itr - 1, key)
         # assert itr > 0, itr
         if itr == 0:
             return 0
 
         assert key in ['p'], key + '  not implemented'
-
-        try:
-            mcs = self.mc_sims[itr]
+        try: 
+            self.mc_sims[itr]
         except IndexError:
-            print(f'****Iterator:  No MC sims defined for MF estimate at iter {itr} ****')  
-            mcs = 0       
-        if mcs  == 0: 
-            print(f"****Iterator: No MF subtraction is performed for iter {itr} ****")
+            print(f'No MC sims defined for MF estimate at iter {itr}')  
+            return 0 
+        
+        if self.mc_sims[itr] == 0:
+            print(f"No MF subtraction is performed for iter {itr}")
             return 0
-              
+
+        if self.shift_phas:
+            sim0 = np.sum(self.mc_sims[:itr])
+        else:
+            sim0 = 0 
+        mcs = np.arange(sim0, sim0 + self.mc_sims[itr])
+
+        print(f"****Iterator: MF estimated for iter {itr} with sims {mcs} ****")
+        
         Gmfs = self.get_grad_mf(itr, key, mcs, nolensing=False)
 
         if self.sub_nolensing:
             Gmfs_nl = self.get_grad_mf(itr, key, mcs, nolensing=True)
             Gmfs -= Gmfs_nl
         
-        return +np.mean(Gmfs, axis=0)
+        return Gmfs if get_all_mcs else np.mean(Gmfs, axis=0)
 
 
     @log_on_start(logging.DEBUG, "calc_graddet(it={itr}, key={key}) started")
     @log_on_end(logging.DEBUG, "calc_graddet(it={itr}, key={key}) finished")
-    def calc_graddet(self, itr, key):
+    def calc_graddet(self, itr, key, get_all_mcs=False):
         assert self.is_iter_done(itr - 1, key)
         assert itr > 0, itr
         assert key in ['p'], key + '  not implemented'
-
-        try:
-            mcs = self.mc_sims[itr]
-        except IndexError:
-            print(f'No MC sims defined for MF estimate at iter {itr}')  
-            mcs = 0       
-        if mcs  == 0: 
+        
+        if self.mc_sims[itr] == 0:
             print(f"No MF subtraction is performed for iter {itr}")
             return 0
+
+        if self.shift_phas:
+            sim0 = np.sum(self.mc_sims[:itr])
+        else:
+            sim0 = 0 
+        try:
+            mcs = np.arange(sim0, sim0 + self.mc_sims[itr])
+        except IndexError:
+            print(f'No MC sims defined for MF estimate at iter {itr}')  
+            return 0 
+        
+        print(f"****Iterator: MF estimated for iter {itr} with sims {mcs} ****")
               
         Gmfs = self.get_grad_mf(itr, key, mcs, nolensing=False)
 
@@ -657,10 +673,10 @@ class iterator_simf_mcs(qlm_iterator):
             Gmfs_nl = self.get_grad_mf(itr, key, mcs, nolensing=True)
             Gmfs -= Gmfs_nl
         
-        return +np.mean(Gmfs, axis=0)
+        return  Gmfs if get_all_mcs else np.mean(Gmfs, axis=0)
 
 
-    def get_grad_mf(self, itr:int, key:str, mcs:int, nolensing:bool=False):
+    def get_grad_mf(self, itr:int, key:str, mcs:np.ndarray, nolensing:bool=False):
         
         dlm = self.get_hlm(itr - 1, key)
         
@@ -678,13 +694,13 @@ class iterator_simf_mcs(qlm_iterator):
         fn_qlm = lambda this_idx : f'qlm_mf{self.mf_key}_sim_{this_idx:04d}' + '_nolensing' * nolensing# qlms sim 
 
         _Gmfs = []
-        for i, idx in enumerate_progress(range(mcs), label='Getting MF sims' + ' no lensing' * nolensing):
+        for i, idx in enumerate_progress(mcs, label='Getting MF sims' + ' no lensing' * nolensing):
             if not mf_cacher.is_cached(fn_qlm(idx)):
                 #FIXME: the cmb_phas and noise_phas should have more than one field for Pol or MV estimators
                 G, C = self.filter.get_qlms_mf(
                     self.mf_key, q_geom, mchain, 
                     phas=self.mf_cmb_phas.get_sim(idx, idf=0), 
-                    noise_phas=self.mf_noise_phas.get_sim(idx, idf=0), cls_unl=self.cls_filt)
+                    noise_phas=self.mf_noise_phas.get_sim(idx, idf=0), cls_filt=self.cls_filt)
                 
                 mf_cacher.cache(fn_qlm(idx), G)
             _Gmfs.append(mf_cacher.load(fn_qlm(idx)))

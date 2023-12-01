@@ -71,8 +71,9 @@ def get_graddet_sim_mf_trick(itlib:cs_iterator.qlm_iterator, itr:int, mcs:np.nda
     return _Gmfs
 
 def get_graddet_sim_mf_true(qe_key:str, itr:int, mcs:np.ndarray, itlib:cs_iterator.qlm_iterator, 
-                            itlib_phases:cs_iterator.qlm_iterator, noise_phase:phas.lib_phas, 
-                            assert_phases_exist=False, zerolensing=False):
+                            cmb_phase:phas.lib_phas, 
+                            noise_phase:phas.lib_phas, 
+                            assert_phases_exist=False, zerolensing=False, recache=False):
     """Builds grad MF from averaging sims with lensing field equal to MAP field
 
         Args:
@@ -80,7 +81,7 @@ def get_graddet_sim_mf_true(qe_key:str, itr:int, mcs:np.ndarray, itlib:cs_iterat
             itr: iteration index of MAP phi
             mcs: sim indices
             itlib: iterator instance to compute the gradient for
-            itlib_phases: iterator instance that generates the unlensed CMB phases for the sims
+            cmb_phas: igenerates the unlensed CMB phases for the sims
             noise_phase: phase for the noise of the CMB
             assert_phases_exist: set this if you expect the phases to be already calculatex
             zerolensing: Set the lensing field to zero in the sims and in the gradient 
@@ -103,53 +104,57 @@ def get_graddet_sim_mf_true(qe_key:str, itr:int, mcs:np.ndarray, itlib:cs_iterat
     mchain = multigrid.multigrid_chain(itlib.opfilt, chain_descr, itlib.cls_filt, itlib.filter)
  
     ivf_cacher = cachers.cacher_npy(opj(itlib.lib_dir, f'mf_sims_itr{itr:03d}'))
-    ivf_phas_cacher = cachers.cacher_npy(opj(itlib_phases.lib_dir, f'mf_sims_itr{itr:03d}'))
+    # ivf_phas_cacher = cachers.cacher_npy(opj(itlib_phases.lib_dir, f'mf_sims_itr{itr:03d}'))
     print(ivf_cacher.lib_dir)
-    print(ivf_phas_cacher.lib_dir)
+    # print(ivf_phas_cacher.lib_dir)
     
     fn_wf = lambda this_idx : 'dat_wf_filtersim_%04d'%this_idx + '_nolensing'*zerolensing # Wiener-filtered sim
     fn = lambda this_idx : 'dat_filtersim_%04d'%this_idx + '_nolensing'*zerolensing # full sims
     fn_unl = lambda this_idx : 'unllm_filtersim_%04d'%this_idx # Unlensed CMB to potentially share between parfile
     fn_qlm = lambda this_idx : 'qlm_mf_sim_%04d'%this_idx + '_nolensing'*zerolensing # qlms sim 
     
-    def _sim_unl(itlib, lmax_sol, mmax_sol):
-        if qe_key == 'p_p':
-            assert np.all(itlib_phases.cls_filt['ee'][:lmax_sol+1] == itlib.cls_filt['ee'][:lmax_sol+1]), 'inconsistent inputs'
-            return uhp.synalm(itlib_phases.cls_filt['ee'][:lmax_sol+1], lmax_sol, mmax_sol)
-        elif qe_key == 'ptt':
-            assert np.all(itlib_phases.cls_filt['tt'][:lmax_sol+1] == itlib.cls_filt['tt'][:lmax_sol+1]), 'inconsistent inputs'
-            return uhp.synalm(itlib_phases.cls_filt['tt'][:lmax_sol+1], lmax_sol, mmax_sol)
-        elif qe_key == 'p':
-            #FIXME should generate correlated TE
-            return [uhp.synalm(itlib_phases.cls_filt[cl][:lmax_sol+1], lmax_sol, mmax_sol) for cl in ['tt', 'ee']]
+    # def _sim_unl(itlib, lmax_sol, mmax_sol):
+    #     if qe_key == 'p_p':
+    #         assert np.all(itlib_phases.cls_filt['ee'][:lmax_sol+1] == itlib.cls_filt['ee'][:lmax_sol+1]), 'inconsistent inputs'
+    #         return uhp.synalm(itlib_phases.cls_filt['ee'][:lmax_sol+1], lmax_sol, mmax_sol)
+    #     elif qe_key == 'ptt':
+    #         assert np.all(itlib_phases.cls_filt['tt'][:lmax_sol+1] == itlib.cls_filt['tt'][:lmax_sol+1]), 'inconsistent inputs'
+    #         return uhp.synalm(itlib_phases.cls_filt['tt'][:lmax_sol+1], lmax_sol, mmax_sol)
+    #     elif qe_key == 'p':
+    #         #FIXME should generate correlated TE
+    #         return [uhp.synalm(itlib_phases.cls_filt[cl][:lmax_sol+1], lmax_sol, mmax_sol) for cl in ['tt', 'ee']]
         
     for i in np.unique(mcs):
         idx = int(i)
-        if not ivf_cacher.is_cached(fn_wf(idx)) or not ivf_cacher.is_cached(fn(idx)):
+        if not ivf_cacher.is_cached(fn_wf(idx)) or not ivf_cacher.is_cached(fn(idx)) or recache:
             print(f'MF grad getting WF sim {idx}')
             
             # Generate unlensed CMB
-            if not ivf_phas_cacher.is_cached(fn_unl(idx)):
-                assert (not assert_phases_exist)
-                lmax_sol, mmax_sol = itlib_phases.filter.lmax_sol, itlib_phases.filter.mmax_sol
-                assert (lmax_sol, mmax_sol) == (itlib.filter.lmax_sol, itlib.filter.mmax_sol), 'inconsistent inputs'
-                xlm_unl = _sim_unl(itlib, lmax_sol, mmax_sol)
-                ivf_phas_cacher.cache(fn_unl(idx), xlm_unl)
-            xlm_unl = ivf_phas_cacher.load(fn_unl(idx))
+            # if not ivf_phas_cacher.is_cached(fn_unl(idx)):
+            #     assert (not assert_phases_exist)
+            #     lmax_sol, mmax_sol = itlib_phases.filter.lmax_sol, itlib_phases.filter.mmax_sol
+            #     assert (lmax_sol, mmax_sol) == (itlib.filter.lmax_sol, itlib.filter.mmax_sol), 'inconsistent inputs'
+            #     xlm_unl = _sim_unl(itlib, lmax_sol, mmax_sol)
+            #     ivf_phas_cacher.cache(fn_unl(idx), xlm_unl)
+            # xlm_unl = ivf_phas_cacher.load(fn_unl(idx))
             
-            # FIXME: get two fields for the EB case
-            try:
-                nlev_t = itlib.filter.nlev_tlm
-                transf = itlib.filter.transf
-                nltt = (nlev_t / 180 / 60 * np.pi) ** 2 * (transf > 0)
-                noise_tlm = hp.almxfl(noise_phase.get_sim(idx, idf=0), nltt)
-            except AttributeError:
-                # transf = itlib.filter.b_transf_tlm
-                pixnoise = np.sqrt(cli(itlib.filter.n_inv))
-                noise_tlm = noise_phase.get_sim(idx, idf=0) * pixnoise
+            # # FIXME: get two fields for the EB case
+            # try:
+            #     nlev_t = itlib.filter.nlev_tlm
+            #     transf = itlib.filter.transf
+            #     # nltt = (nlev_t / 180 / 60 * np.pi) ** 2 * (transf > 0)
+            #     noise_tlm = hp.almxfl(noise_phase.get_sim(idx, idf=0), (nlev_t / 180. / 60. * np.pi) * (transf > 0))
+            # except AttributeError:
+            #     # transf = itlib.filter.b_transf_tlm
+            #     pixnoise = np.sqrt(cli(itlib.filter.n_inv))
+            #     noise_tlm = noise_phase.get_sim(idx, idf=0) * pixnoise
 
             # Generate CMB lensed by phi MAP, with fiducial beam and noise level 
-            xlm_dat = itlib.filter.synalm(itlib.cls_filt, cmb_phas=xlm_unl, noise_phas=noise_tlm)
+            # FIXME: get two fields for the EB case
+            # cmb_unl_phas = alm_copy(cmb_phase.get_sim(idx, idf=0), None, itlib.filter.lmax_len, itlib.filter.mmax_len)
+            xlm_dat = itlib.filter.synalm(itlib.cls_filt, cmb_phas=cmb_phase.get_sim(idx, idf=0), noise_phase=noise_phase.get_sim(idx, idf=0))
+            assert hp.Alm.getlmax(xlm_dat.size, itlib.filter.mmax_len) == itlib.filter.lmax_len, (hp.Alm.getlmax(xlm_dat.size, itlib.filter.mmax_len),  itlib.filter.lmax_len)
+            
             ivf_cacher.cache(fn(idx), xlm_dat)
             # Get the WF CMB map
             soltn = np.zeros(uhp.Alm.getsize(itlib.lmax_filt, itlib.mmax_filt), dtype=complex)

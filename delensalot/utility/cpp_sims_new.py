@@ -28,7 +28,7 @@ from lensitbiases import n1_fft
 _write_alm = lambda fn, alm : hp.write_alm(fn, alm, overwrite=True)
  
 class cpp_sims_lib:
-    def __init__(self, k:str,  param_file:str, version:str='', iterator_version='', label:str='', n0n1_libdir:str or None=None, cache_in_home=False):
+    def __init__(self, k:str,  param_file:str, tol:int, eps:int,  version:str='', label:str='', n0n1_libdir:str or None=None, cache_in_home=False):
         """Helper library to plot results from MAP estimation of simulations.
         
         This class loads the results of the runs done with the param_file and the options asked
@@ -41,7 +41,9 @@ class cpp_sims_lib:
         
         self.k = k
         self.version = version
-        self.iterator_version = iterator_version
+        # self.iterator_version = iterator_version
+        self.tol = tol 
+        self.eps = eps
 
         self.label = label
         # Load the parameters defined in the param_file
@@ -52,13 +54,13 @@ class cpp_sims_lib:
         self.mmax_qlm = self.param.mmax_qlm
         self.cache_in_home = cache_in_home
 
-        if self.cache_in_home:
+        if self.cache_in_home is False:
             self.cachedir = self.TEMP
         else:
             splt = self.TEMP.split('/')[-2:]
             self.cachedir = opj(os.environ['HOME'], *splt)
 
-        self.cacher_param = cachers.cacher_npy(opj(self.cachedir, 'cpplib'))
+        self.cacher_param = cachers.cacher_npy(opj(self.cachedir, f'cpplib_tol{self.tol}_eps{self.eps}' + self.version))
         self.fsky = self.get_fsky() 
 
         # Cl weights used in the QE (either lensed Cls or grad Cls)
@@ -83,34 +85,40 @@ class cpp_sims_lib:
 
         self.n0n1_libdir = n0n1_libdir
 
-    def libdir_sim(self, simidx, tol=7):
-        # return opj(self.TEMP,'%s_sim%04d'%(self.k, simidx) + self.version)
-        return self.param.libdir_iterators(self.k, simidx, self.iterator_version, tol)
 
-    def get_itlib_sim(self, simidx, tol):
+    def libdir_sim(self, simidx, tol=None, eps=None):
+        if tol is None: tol = self.tol 
+        if eps is None: eps = self.eps
+        # return opj(self.TEMP,'%s_sim%04d'%(self.k, simidx) + self.version)
+        return self.param.libdir_iterators(self.k, simidx, self.version, tol, eps)
+
+    def get_itlib_sim(self, simidx, tol=None, eps=None):
+        if tol is None: tol = self.tol 
+        if eps is None: eps = self.eps
         tol_iter  = 10 ** (- tol) 
-        return self.param.get_itlib(self.k, simidx, self.iterator_version, tol_iter)
+        epsilon = 10**(-eps)
+        return self.param.get_itlib(self.k, simidx, self.version, cg_tol=tol_iter, epsilon=epsilon)
 
     def cacher_sim(self, simidx, verbose=False):
         if self.cache_in_home is False:
-            cacher = cachers.cacher_npy(opj(self.libdir_sim(simidx), 'cpplib'), verbose=verbose)
+            cacher = cachers.cacher_npy(opj(self.libdir_sim(simidx, self.tol, self.eps), 'cpplib'), verbose=verbose)
         else:
-            splt = self.libdir_sim(simidx).split('/')[-3:]
+            splt = self.libdir_sim(simidx, self.tol, self.eps).split('/')[-3:]
             cacher = cachers.cacher_npy(opj(os.environ['HOME'], *splt, 'cpplib'), verbose=verbose)
         return cacher
 
     def get_plm(self, simidx, itr, use_cache=True):
         if use_cache:
-            cacher = cachers.cacher_npy(self.libdir_sim(simidx))
+            cacher = cachers.cacher_npy(self.libdir_sim(simidx, self.tol, self.eps))
             # print(self.libdir_sim(simidx))
             fn = f"phi_plm_it{itr:03.0f}"
             if not cacher.is_cached(fn):
-                plm = statics.rec.load_plms(self.libdir_sim(simidx), [itr])[0]
+                plm = statics.rec.load_plms(self.libdir_sim(simidx, self.tol, self.eps), [itr])[0]
                 cacher.cache(fn, plm)
             plm = cacher.load(fn)
             return plm
         else:
-            return statics.rec.load_plms(self.libdir_sim(simidx), [itr])[0]
+            return statics.rec.load_plms(self.libdir_sim(simidx, self.tol, self.eps), [itr])[0]
 
     def get_plm_qe(self, simidx, use_cache=True, version='', recache=False, verbose=False):
         # _qlms_dd = self.param.qlms_dd
@@ -160,12 +168,12 @@ class cpp_sims_lib:
             cacher = cachers.cacher_npy(self.libdir_sim(simidx))
             fn = f"phi_plm_input"
             if not cacher.is_cached(fn) or recache:
-                plm_in = alm_copy(self.get_sim_plm(shuffled_idx), mmaxin=None, lmaxout=self.lmax_qlm, mmaxout=self.mmax_qlm)
+                plm_in = alm_copy(self.get_sim_plm(shuffled_idx), mmaxin=None, lmaxout=self.lmax_qlm, mmaxout=self.mmax_qlm) # type: ignore
                 cacher.cache(fn, plm_in)
             plm_in = cacher.load(fn)
             return plm_in
         else:
-            return alm_copy(self.get_sim_plm(shuffled_idx), mmaxin=None, lmaxout=self.lmax_qlm, mmaxout=self.mmax_qlm)
+            return alm_copy(self.get_sim_plm(shuffled_idx), mmaxin=None, lmaxout=self.lmax_qlm, mmaxout=self.mmax_qlm) # type: ignore
 
     def get_eblm_dat(self, simidx, lmaxout=1024):
         QU_maps = self.param.sims_MAP.get_sim_pmap(simidx)
@@ -286,7 +294,7 @@ class cpp_sims_lib:
         # if qlms_dd is None:
         #     qlms_dd = self.param.qlms_dd
         if version == '':
-            version = self.iterator_version
+            version = self.version
         # if qlms_dd is None:
             # _qlms_dd = self.param.qlms_dd
         # if 'qeinh' in version:
@@ -339,7 +347,7 @@ class cpp_sims_lib:
     def get_mf0(self, simidx, mf_sims=None, qlms_dd=None, version='', verbose=False):
         """Get the QE mean-field"""
         if version == '':
-            version = self.iterator_version
+            version = self.version
         if qlms_dd is None:
             # _qlms_dd = self.param.qlms_dd
             if 'qeinh' in version:
@@ -692,14 +700,14 @@ class cpp_sims_lib:
             pds: data x sim QE estimates 
             pss: sim x sim QE estimates 
         """
-        outputdir = rdn0_cs.output_sim(self.k, self.param.suffix,  self.iterator_version, idx)
+        outputdir = rdn0_cs.output_sim(self.k, self.param.suffix,  self.version, idx)
         fn = opj(outputdir, rdn0_cs.fn_cls_dsss(itr, mcs, Nroll, rdn0tol))
         print(fn)
         if not os.path.exists(fn) or recache:
             # assert 0, f'Run the rdn0_cs script to get RDN0 for map idx {idx}' 
-            itlibdir = self.param.libdir_iterators(self.k, idx, self.iterator_version, tol)
+            itlibdir = self.param.libdir_iterators(self.k, idx, self.version, tol)
             ss_dict =  rdn0_cs._ss_dict(mcs, Nroll)
-            rdn0_cs.export_dsss(itr, self.k, itlibdir, self.param.suffix, idx, self.iterator_version, ss_dict, mcs, Nroll)
+            rdn0_cs.export_dsss(itr, self.k, itlibdir, self.param.suffix, idx, self.version, ss_dict, mcs, Nroll)
         pds, pss, _, _, _, _ = np.loadtxt(fn).transpose()
         pds *= pp2kk(np.arange(len(pds))) * 1e7 
         pss *= pp2kk(np.arange(len(pss))) * 1e7 
@@ -894,8 +902,8 @@ class cpp_sims_lib:
                 qe_mf_sims_1 = np.unique(self.param.mc_sims_mf_it0[:int(Nmf_qe/2)])
                 qe_mf_sims_2 = np.unique(self.param.mc_sims_mf_it0[int(Nmf_qe/2):])
                 
-                plm_mf1_qe = self.get_mf0([idx, plm_shuffle(idx)], mf_sims=qe_mf_sims_1, version=self.iterator_version)
-                plm_mf2_qe = self.get_mf0([idx, plm_shuffle(idx)], mf_sims=qe_mf_sims_2, version=self.iterator_version)
+                plm_mf1_qe = self.get_mf0([idx, plm_shuffle(idx)], mf_sims=qe_mf_sims_1, version=self.version)
+                plm_mf2_qe = self.get_mf0([idx, plm_shuffle(idx)], mf_sims=qe_mf_sims_2, version=self.version)
 
                 _cpp10 = hp.alm2cl(plm1-plm_mf1, plm0-plm_mf2)/self.fsky
                 _cpp10_qe = hp.alm2cl(plmqe1-plm_mf1_qe, plmqe0-plm_mf2_qe)/self.fsky
