@@ -16,6 +16,7 @@ log = logging.getLogger(__name__)
 
 import lenspyx
 from lenspyx.lensing import get_geom as lp_get_geom
+from pysht import get_geom as pysht_get_geom
 from plancklens.sims import phas
 from delensalot.core import cachers
 from delensalot.config.metamodel import DEFAULT_NotAValue as DNaV
@@ -62,7 +63,7 @@ class iso_white_noise:
         self.geominfo = geominfo
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
-        self.geom_lib = get_geom(geominfo)
+        self.geom_lib = pysht_get_geom(geominfo)
         self.libdir = libdir
         self.spin = spin
         self.lmax = lmax
@@ -240,14 +241,15 @@ class Xunl:
         self.geominfo = geominfo
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
-        self.geom_lib = get_geom(self.geominfo)
+        self.geom_lib = pysht_get_geom(self.geominfo)
         self.libdir = libdir
         self.space = space
         self.spin = spin
         self.lmax = lmax
         self.libdir_phi = libdir_phi
         self.phi_lmax = phi_lmax
-        self.phi_modifier = phi_modifier
+        if phi_modifier == DNaV:
+            self.phi_modifier = lambda x: x
         if phi_field == DNaV:
             self.phi_field = 'potential'
         else:
@@ -402,7 +404,7 @@ class Xunl:
                     phi = np.array(load_file(opj(self.libdir_phi, self.fnsP.format(simidx))), dtype=complex)
                 if self.phi_space == 'map':
                     self.geominfo_phi = ('healpix', {'nside':hp.npix2nside(phi.shape[0])})
-                    self.geomlib_phi = get_geom(self.geominfo_phi)
+                    self.geomlib_phi = pysht_get_geom(self.geominfo_phi)
                     phi = self.geomlib_phi.map2alm(phi, lmax=self.phi_lmax, mmax=self.phi_lmax, nthreads=4)
                 ## phi modifcation
                 phi = self.phi_modifier(phi)
@@ -454,7 +456,7 @@ class Xsky:
         self.geominfo = geominfo
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
-        self.geom_lib = get_geom(self.geominfo)
+        self.geom_lib = pysht_get_geom(self.geominfo)
         self.libdir = libdir
         self.fns = fns
         self.spin = spin
@@ -529,9 +531,13 @@ class Xsky:
                         elif space == 'alm':
                             sky = self.lenjob_geomlib.map2alm_spin(sky, lmax=self.lmax, spin=2, mmax=self.lmax, nthreads=4)
                     elif field == 'temperature':
+                        print('A')
                         sky = self.unl2len(unl, philm, spin=0, epsilon=self.epsilon)
+                        print('B')
                         if space == 'map':
+                            print('C')
                             sky = self.lenjob_geomlib.map2alm(np.copy(sky), lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                            print('D')
                             sky = self.geom_lib.alm2map(np.copy(sky), lmax=self.lmax, mmax=self.lmax, nthreads=4)
                         elif space == 'alm':
                             sky = self.lenjob_geomlib.map2alm(sky, lmax=self.lmax, mmax=self.lmax, nthreads=4)
@@ -605,7 +611,7 @@ class Xobs:
         self.geominfo = geominfo
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
-        self.geom_lib = get_geom(self.geominfo)
+        self.geom_lib = pysht_get_geom(self.geominfo)
         
         self.libdir = libdir
         self.fns = fns
