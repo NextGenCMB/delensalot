@@ -441,7 +441,7 @@ class qlm_iterator(object):
 
     @log_on_start(logging.DEBUG, "calc_gradlik(it={itr}, key={key}) started")
     @log_on_end(logging.DEBUG, "calc_gradlik(it={itr}, key={key}) finished")
-    def calc_gradlik(self, itr, key, iwantit=False):
+    def calc_gradlik(self, itr, key, iwantit=False, cs_correction=False):
         """Computes the quadratic part of the gradient for plm iteration 'itr'
 
         """
@@ -485,7 +485,40 @@ class qlm_iterator(object):
             if itr == 1: #We need the gradient at 0 and the yk's to be able to rebuild all gradients
                 fn_lik = '%slm_grad%slik_it%03d' % (self.h, key.lower(), 0)
                 self.cacher.cache(fn_lik, -G if key.lower() == 'p' else -C)
+
+            if cs_correction:
+                pass
             return -G if key.lower() == 'p' else -C
+        
+
+    @log_on_start(logging.DEBUG, "calc_gradlik(it={itr}, key={key}) started")
+    @log_on_end(logging.DEBUG, "calc_gradlik(it={itr}, key={key}) finished")
+    def calc_gradlik(self, itr, key, iwantit=False, cs_correction=False):
+        """Computes the quadratic part of the gradient for plm iteration 'itr'
+
+        """
+        dlm = self.get_hlm(itr - 1, key)
+        self.hlm2dlm(dlm, True)
+        ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm, cachers.cacher_mem(safe=False))
+        self.filter.set_ffi(ffi)
+        mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.filter)
+
+        soltn, it_soltn = self.load_soltn(itr, key)
+        if it_soltn < itr - 1:
+            soltn *= self.soltn_cond 
+            mchain.solve(soltn, self.dat_maps, dot_op=self.filter.dot_op())
+            fn_wf = 'wflm_%s_it%s' % (key.lower(), itr - 1)
+            self.wf_cacher.cache(fn_wf, soltn)
+
+        q_geom = pbdGeometry(self.k_geom, pbounds(0., 2 * np.pi))
+        G, C = self.filter.get_qlms(self.dat_maps, soltn, q_geom) # (eq. 22 of the delensing paper)
+        almxfl(G if key.lower() == 'p' else C, self._h2p(self.lmax_qlm), self.mmax_qlm, True) # decides if reconstruction is run on kappa or phi
+
+        if cs_correction:
+            pass
+
+        return -G if key.lower() == 'p' else -C
+
 
     @log_on_start(logging.DEBUG, "calc_graddet(it={itr}, key={key}) started, subclassed")
     @log_on_end(logging.DEBUG, "calc_graddet(it={itr}, key={key}) finished, subclassed")

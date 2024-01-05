@@ -118,7 +118,7 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
             almxfl(tlm, self.rescali, self.mmax_sol, True)
         # TODO: should add here the projection into cls > 0
 
-    def get_qlms(self, tlm_dat: np.ndarray, tlm_wf: np.ndarray, q_pbgeom: utils_geom.pbdGeometry, alm_wf_leg2=None):
+    def get_qlms(self, tlm_dat: np.ndarray, tlm_wf: np.ndarray, q_pbgeom: utils_geom.pbdGeometry, alm_wf_leg2=None, cs_correction=False):
         """Get lensing generaliazed QE consistent with filter assumptions
 
             Args:
@@ -130,9 +130,14 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
             All implementation signs are super-weird but end result should be correct...
 
         """
+        f = lambda x: 5e-8 
+        phase = lambda beta: np.exp(2*beta*j)
+        phase = lambda alpha: (alpha/np.abs(alpha))**2
         assert Alm.getlmax(tlm_wf.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(tlm_wf.size, self.mmax_sol), self.lmax_sol)
         if alm_wf_leg2 is None:
-            d1 = self._get_irestmap(tlm_dat, tlm_wf, q_pbgeom) * self._get_gtmap(tlm_wf, q_pbgeom)
+            d1 = self._get_irestmap(tlm_dat, tlm_wf, q_pbgeom) * self._get_gtmap(tlm_wf, q_pbgeom) # ires == inverse resdiual, gt = gradient leg
+            if cs_correction:
+                d1 = self._get_irestmap(tlm_dat, tlm_wf, q_pbgeom) * (1-f(0))*self._get_gtmap(tlm_wf, q_pbgeom) + f(0)*phase(self.ffi.dlm)*np.conjugate(self._get_gtmap(tlm_wf, q_pbgeom))
         else:
             assert Alm.getlmax(alm_wf_leg2.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(alm_wf_leg2.size, self.mmax_sol), self.lmax_sol)
             d1 = self._get_irestmap(tlm_dat, tlm_wf, q_pbgeom) * self._get_gtmap(alm_wf_leg2, q_pbgeom)
