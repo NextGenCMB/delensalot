@@ -1511,7 +1511,7 @@ class Phi_analyser(Basejob):
             plm_est = self.get_plm_it(simidx, [it])[0]
             if type(WFemps) != np.ndarray:
                 WFemps = np.load(opj(self.TEMP_WF,'WFemp_%s_simall%s_itall%s_avg.npy')%(self.k, len(self.simidxs), len(self.its))) 
-            val = np.alm2cl(plm_est, plm_est, None, None, None)/WFemps[it]**2
+            val = alm2cl(plm_est, plm_est, None, None, None)/WFemps[it]**2
             np.save(fns%(self.k, simidx, it), val)
         return np.load(fns%(self.k, simidx, it))
 

@@ -131,13 +131,14 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
 
         """
         f = lambda x: 5e-8 
-        phase = lambda beta: np.exp(2*beta*j)
-        phase = lambda alpha: (alpha/np.abs(alpha))**2
+        # phase = lambda beta: np.exp(2*beta*j)
+        phase = lambda alpha: q_pbgeom.geom.alm2map(np.nan_to_num((alpha/np.abs(alpha))**2), self.lmax_sol, self.lmax_sol, 4)
         assert Alm.getlmax(tlm_wf.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(tlm_wf.size, self.mmax_sol), self.lmax_sol)
         if alm_wf_leg2 is None:
-            d1 = self._get_irestmap(tlm_dat, tlm_wf, q_pbgeom) * self._get_gtmap(tlm_wf, q_pbgeom) # ires == inverse resdiual, gt = gradient leg
             if cs_correction:
                 d1 = self._get_irestmap(tlm_dat, tlm_wf, q_pbgeom) * (1-f(0))*self._get_gtmap(tlm_wf, q_pbgeom) + f(0)*phase(self.ffi.dlm)*np.conjugate(self._get_gtmap(tlm_wf, q_pbgeom))
+            else:
+                d1 = self._get_irestmap(tlm_dat, tlm_wf, q_pbgeom) * self._get_gtmap(tlm_wf, q_pbgeom) # ires == inverse resdiual, gt = gradient leg
         else:
             assert Alm.getlmax(alm_wf_leg2.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(alm_wf_leg2.size, self.mmax_sol), self.lmax_sol)
             d1 = self._get_irestmap(tlm_dat, tlm_wf, q_pbgeom) * self._get_gtmap(alm_wf_leg2, q_pbgeom)
@@ -207,7 +208,7 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         """
         assert Alm.getlmax(tlm_wf.size, self.mmax_sol) == self.lmax_sol, ( Alm.getlmax(tlm_wf.size, self.mmax_sol), self.lmax_sol)
         fl = -np.sqrt(np.arange(self.lmax_sol + 1) * np.arange(1, self.lmax_sol + 2))
-        ffi = self.ffi.change_geom(q_pbgeom) if q_pbgeom is not self.ffi.pbgeom else self.ffi
+        ffi = self.ffi.change_geom(q_pbgeom.geom) if q_pbgeom is not self.ffi.pbgeom else self.ffi
         return ffi.gclm2lenmap([almxfl(tlm_wf, fl, self.mmax_sol, False), np.zeros_like(tlm_wf)], self.mmax_sol, 1, False)
 
 

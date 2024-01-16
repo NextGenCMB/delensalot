@@ -493,7 +493,7 @@ class qlm_iterator(object):
 
     @log_on_start(logging.DEBUG, "calc_gradlik(it={itr}, key={key}) started")
     @log_on_end(logging.DEBUG, "calc_gradlik(it={itr}, key={key}) finished")
-    def calc_gradlik(self, itr, key, iwantit=False, cs_correction=False):
+    def calc_gradlik_simplified(self, itr, key, iwantit=False, cs_correction=False):
         """Computes the quadratic part of the gradient for plm iteration 'itr'
 
         """

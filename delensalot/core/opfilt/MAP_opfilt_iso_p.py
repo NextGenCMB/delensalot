@@ -181,7 +181,7 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         almxfl(C, fl, mmax_qlm, True)
         return G, C
 
-    def get_qlms(self, eblm_dat: np.ndarray or list, elm_wf: np.ndarray, q_pbgeom: pbdGeometry, alm_wf_leg2:None or np.ndarray =None):
+    def get_qlms(self, eblm_dat: np.ndarray or list, elm_wf: np.ndarray, q_pbgeom: pbdGeometry, alm_wf_leg2:None or np.ndarray = None, cs_correction=False):
         """Get lensing generaliazed QE consistent with filter assumptions
 
             Args:
@@ -197,22 +197,50 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         assert Alm.getlmax(eblm_dat[0].size, self.mmax_len) == self.lmax_len, (Alm.getlmax(eblm_dat[0].size, self.mmax_len), self.lmax_len)
         assert Alm.getlmax(eblm_dat[1].size, self.mmax_len) == self.lmax_len, (Alm.getlmax(eblm_dat[1].size, self.mmax_len), self.lmax_len)
         assert Alm.getlmax(elm_wf.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(elm_wf.size, self.mmax_sol), self.lmax_sol)
-        resmap_c = np.empty((q_pbgeom.geom.npix(),), dtype=elm_wf.dtype)
-        resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
-        self._get_irespmap(eblm_dat, elm_wf, q_pbgeom, map_out=resmap_r) # inplace onto resmap_c and resmap_r
+        if cs_correction:
+            f = lambda x: 5e-8 
+            # phase = lambda beta: np.exp(2*beta*j)
+            phase = lambda alpha: q_pbgeom.geom.alm2map(np.nan_to_num((alpha/np.abs(alpha))**2), self.lmax_sol, self.lmax_sol, 4)
+            resmap_c = np.empty((q_pbgeom.geom.npix(),), dtype=elm_wf.dtype)
+            resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
+            self._get_irespmap(eblm_dat, elm_wf, q_pbgeom, map_out=resmap_r) # inplace onto resmap_c and resmap_r
+            # del resmap_c, resmap_r, gcs_r
+            lmax_qlm, mmax_qlm = self.ffi.lmax_dlm, self.ffi.mmax_dlm
 
-        gcs_r = self._get_gpmap(elm_wf, 3, q_pbgeom)  # 2 pos.space maps, uses then complex view onto real array
-        gc_c = resmap_c.conj() * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3)
-        gcs_r = self._get_gpmap(elm_wf, 1, q_pbgeom)
-        gc_c -= resmap_c * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze().conj()  # (+2 , -1)
-        del resmap_c, resmap_r, gcs_r
-        lmax_qlm, mmax_qlm = self.ffi.lmax_dlm, self.ffi.mmax_dlm
-        gc_r = gc_c.view(rtype[gc_c.dtype]).reshape((gc_c.size, 2)).T  # real view onto complex array
-        gc = q_pbgeom.geom.adjoint_synthesis(gc_r, 1, lmax_qlm, mmax_qlm, self.ffi.sht_tr)
-        del gc_r, gc_c
-        fl = - np.sqrt(np.arange(lmax_qlm + 1, dtype=float) * np.arange(1, lmax_qlm + 2))
-        almxfl(gc[0], fl, mmax_qlm, True)
-        almxfl(gc[1], fl, mmax_qlm, True)
+            gcs_r = (1-f(0))*self._get_gpmap(elm_wf, 3, q_pbgeom)  # 2 pos.space maps, uses then complex view onto real array
+            gc_c = resmap_c.conj() * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3) (these numbers refer to the spins of the ires and gradient-leg of the gqd)
+            gcs_r = (1-f(0))*self._get_gpmap(elm_wf, 1, q_pbgeom)
+            gc_c -= resmap_c * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze().conj()  # (+2 , -1)
+
+            gcs_r = f(0)*self._get_gpmap(elm_wf, 1, q_pbgeom)  # 2 pos.space maps, uses then complex view onto real array
+            gc_c = resmap_c.conj() * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +1)
+
+            gcs_r = f(0)*self._get_gpmap(elm_wf, 3, q_pbgeom)  # 2 pos.space maps, uses then complex view onto real array
+            gc_c = resmap_c * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze().conj()  # (2 , -3)
+
+            gc_r = gc_c.view(rtype[gc_c.dtype]).reshape((gc_c.size, 2)).T  # real view onto complex array
+            gc = q_pbgeom.geom.adjoint_synthesis(gc_r, 1, lmax_qlm, mmax_qlm, self.ffi.sht_tr)
+            del gc_r, gc_c
+            fl = - np.sqrt(np.arange(lmax_qlm + 1, dtype=float) * np.arange(1, lmax_qlm + 2))
+            almxfl(gc[0], fl, mmax_qlm, True)
+            almxfl(gc[1], fl, mmax_qlm, True)
+        else:
+            resmap_c = np.empty((q_pbgeom.geom.npix(),), dtype=elm_wf.dtype)
+            resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
+            self._get_irespmap(eblm_dat, elm_wf, q_pbgeom, map_out=resmap_r) # inplace onto resmap_c and resmap_r
+
+            gcs_r = self._get_gpmap(elm_wf, 3, q_pbgeom)  # 2 pos.space maps, uses then complex view onto real array
+            gc_c = resmap_c.conj() * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3)
+            gcs_r = self._get_gpmap(elm_wf, 1, q_pbgeom)
+            gc_c -= resmap_c * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze().conj()  # (+2 , -1)
+            del resmap_c, resmap_r, gcs_r
+            lmax_qlm, mmax_qlm = self.ffi.lmax_dlm, self.ffi.mmax_dlm
+            gc_r = gc_c.view(rtype[gc_c.dtype]).reshape((gc_c.size, 2)).T  # real view onto complex array
+            gc = q_pbgeom.geom.adjoint_synthesis(gc_r, 1, lmax_qlm, mmax_qlm, self.ffi.sht_tr)
+            del gc_r, gc_c
+            fl = - np.sqrt(np.arange(lmax_qlm + 1, dtype=float) * np.arange(1, lmax_qlm + 2))
+            almxfl(gc[0], fl, mmax_qlm, True)
+            almxfl(gc[1], fl, mmax_qlm, True)
         return gc
 
     def get_qlms_mf(self, mfkey, q_pbgeom:pbdGeometry, mchain, phas=None, cls_filt:dict or None=None):
