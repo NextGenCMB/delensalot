@@ -10,12 +10,14 @@ import numpy as np
 
 from lenspyx import remapping
 from lenspyx.remapping import utils_geom
+from lenspyx.utils_hp import alm_copy
 
 from delensalot.utils import clhash, cli, read_map, timer
 from delensalot.utility.utils_hp import almxfl, Alm, alm2cl, synalm, default_rng
 from delensalot.core.opfilt import opfilt_base, tmodes_ninv as tni
 
 from delensalot.core.opfilt import MAP_opfilt_iso_t
+from plancklens.sims import phas
 
 pre_op_dense = None # not implemented
 fwd_op = MAP_opfilt_iso_t.fwd_op
@@ -152,25 +154,6 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         if self.verbose:
             print(tim)
 
-    def synalm(self, unlcmb_cls:dict, cmb_phas=None):
-        """Generate some dat maps consistent with noise filter fiducial ingredients
-
-            Note:
-                Feeding in directly the unlensed CMB phase can be useful for paired simulations.
-                In this case the shape must match that of the filter unlensed alm array
-
-
-        """
-        tlm = synalm(unlcmb_cls['tt'], self.lmax_sol, self.mmax_sol) if cmb_phas is None else cmb_phas
-        assert Alm.getlmax(tlm.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(tlm.size, self.mmax_sol), self.lmax_sol)
-        tlm_len = self.ffi.lensgclm(tlm, self.mmax_sol, 0, self.lmax_len, self.mmax_len, backwards=False)
-        almxfl(tlm_len, self.b_transf_tlm, self.mmax_len, True)
-        # cant use here geom_ since it is using the unit weight transforms
-        T = self.ninv_geom.alm2map(tlm_len, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
-        pixnoise = np.sqrt(cli(self.n_inv))
-        T += default_rng().standard_normal(utils_geom.Geom.npix(self.ninv_geom)) * pixnoise
-        return T
-
     def get_qlms(self, tlm_dat: np.ndarray, tlm_wf: np.ndarray, q_pbgeom: utils_geom.pbdGeometry, alm_wf_leg2=None):
         """Get lensing generaliazed QE consistent with filter assumptions
 
@@ -194,6 +177,87 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         fl = - np.sqrt(np.arange(self.ffi.lmax_dlm + 1, dtype=float) * np.arange(1, self.ffi.lmax_dlm + 2))
         almxfl(G, fl, self.ffi.mmax_dlm, True)
         almxfl(C, fl, self.ffi.mmax_dlm, True)
+        return G, C
+
+    def get_unit_variance(self):
+        """Returns a unit vairance phase, useful for phase cancellation to reduce MF sims variance"""
+        return np.array(default_rng().standard_normal(utils_geom.Geom.npix(self.ninv_geom)))
+
+    def synalm(self, unlcmb_cls:dict, cmb_phas:phas.lib_phas, noise_phase:phas.lib_phas):
+        """Generate some dat maps consistent with noise filter fiducial ingredients
+
+            Note:
+                Feeding in directly the unlensed CMB phase can be useful for paired simulations.
+                In this case the shape must match that of the filter unlensed alm array
+
+
+        """
+        # tlm = synalm(unlcmb_cls['tt'], self.lmax_sol, self.mmax_sol) if cmb_phas is None else cmb_phas
+        # cmb_phas = alm_copy(cmb_phas, None, self.lmax_sol, self.mmax_sol)
+        tlm_unl = almxfl(cmb_phas, np.sqrt(unlcmb_cls['tt']), self.mmax_sol, False)
+
+        assert Alm.getlmax(tlm_unl.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(tlm_unl.size, self.mmax_sol), self.lmax_sol)
+        tlm_len = self.ffi.lensgclm(tlm_unl, self.mmax_sol, 0, self.lmax_len, self.mmax_len, backwards=False)
+        almxfl(tlm_len, self.b_transf_tlm, self.mmax_len, True)
+        # cant use here geom_ since it is using the unit weight transforms
+        T = self.ninv_geom.alm2map(tlm_len, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
+        # if noise_phas is None:
+            # noise_phas = default_rng().standard_normal(utils_geom.Geom.npix(self.ninv_geom)) * pixnoise
+        pixnoise = np.sqrt(cli(self.n_inv))
+        T += noise_phase * pixnoise
+        return T
+    
+    def get_qlms_mf(self, mfkey, q_pbgeom:utils_geom.pbdGeometry, mchain, phas=None, noise_phase=None, cls_filt:dict or None=None):
+        """Mean-field estimate using tricks of Carron Lewis appendix
+        """
+        print("Warning: Map_opfilt_aniso_t.alm_filter_ninv_wl.get_qlms_mf() has not be tested, might no be working well")
+        if mfkey in [1]: # This should be B^t x, D dC D^t B^t Covi x, x random phases in pixel space here
+            if phas is None:
+                # unit variance phases in T
+                phas = np.array(default_rng().standard_normal(utils_geom.Geom.npix(self.ninv_geom)))
+            assert phas.size == utils_geom.Geom.npix(self.ninv_geom)
+            
+            soltn = np.zeros(Alm.getsize(self.lmax_sol, self.mmax_sol), dtype=complex)
+            mchain.solve(soltn, phas, dot_op=self.dot_op())
+
+            phas = self.ninv_geom.map2alm(phas, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
+            almxfl(phas, self.b_transf_tlm, self.mmax_len, True)
+            
+            tmap = q_pbgeom.geom.alm2map(phas, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))  # B^t X
+            
+            gtmap = self._get_gtmap(soltn, q_pbgeom)   # D dC D^t B^t Covi x
+
+            GC = tmap * gtmap
+            lmax_qlm = self.ffi.lmax_dlm
+            mmax_qlm = self.ffi.mmax_dlm
+            G, C = q_pbgeom.geom.map2alm_spin(GC, 1, lmax_qlm, mmax_qlm, self.ffi.sht_tr, (-1., 1.))
+            # G, C = q_pbgeom.geom.map2alm_spin([GC.real, GC.imag], 1, lmax_qlm, mmax_qlm, self.ffi.sht_tr, (-1., 1.))
+            del GC
+            G = alm_copy(G, None, lmax_qlm, mmax_qlm) 
+            C = alm_copy(C, None, lmax_qlm, mmax_qlm) 
+            fl = - np.sqrt(np.arange(lmax_qlm + 1, dtype=float) * np.arange(1, lmax_qlm + 2))
+            almxfl(G, fl, mmax_qlm, True)
+            almxfl(C, fl, mmax_qlm, True)
+        
+        elif mfkey in [0]: # standard gQE, quite inefficient but simple
+            if phas is None:
+                phas = np.array(default_rng().standard_normal(utils_geom.Geom.npix(self.ninv_geom)))
+            if noise_phase is None:
+                noise_phase = np.array(default_rng().standard_normal(utils_geom.Geom.npix(self.ninv_geom)))
+
+            # assert Alm.getlmax(phas.size, self.mmax_sol) == self.lmax_sol
+            # assert Alm.getlmax(noise_phas.size, self.mmax_len) == self.lmax_len
+            
+            cmb_phas = self.ninv_geom.map2alm(phas, self.lmax_sol, self.mmax_sol, self.ffi.sht_tr, (-1., 1.))
+            # cmb_phas = alm_copy(phas, None, self.lmax_sol, self.mmax_sol)
+            tmap = self.synalm(cls_filt, cmb_phas=cmb_phas, noise_phase=noise_phas)
+            # Get the WF CMB map
+            soltn = np.zeros(Alm.getsize(self.lmax_sol, self.mmax_sol), dtype=complex)
+            mchain.solve(soltn, tmap, dot_op=self.dot_op())
+            G, C = self.get_qlms(tmap, soltn, q_pbgeom)
+        else:
+            assert 0, mfkey + ' not implemented'
+
         return G, C
 
 
