@@ -285,6 +285,9 @@ class Sim_generator(Basejob):
                     if not os.path.exists(self.libdir):
                         os.makedirs(self.libdir)
                     [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
+                else:
+                    if not os.path.exists(self.libdir):
+                        os.makedirs(self.libdir)
             else:
                 mpi.receive(None, source=mpi.ANY_SOURCE)
             
@@ -412,7 +415,7 @@ class Sim_generator(Basejob):
                     self.generate_sky(simidx)
                 if task == 'generate_obs':
                     self.generate_obs(simidx)
-                if self.simulationdata.obs_lib.maps == DEFAULT_NotAValue:
+                if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
                     self.simulationdata.purgecache()
         if np.all(self.simulationdata.maps == DEFAULT_NotAValue):
             self.postrun_sky()
@@ -747,12 +750,12 @@ class QE_lr(Basejob):
             if task == 'calc_phi':
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
                     self.qlms_dd.get_sim_qlm(self.k, int(idx))
-                    if self.simulationdata.obs_lib.maps == DEFAULT_NotAValue:
+                    if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
                         self.simulationdata.purgecache()
                 mpi.barrier()
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
                     self.get_plm(idx, self.QE_subtract_meanfield)
-                    if self.simulationdata.obs_lib.maps == DEFAULT_NotAValue:
+                    if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
                         self.simulationdata.purgecache()
                 
 
@@ -771,7 +774,7 @@ class QE_lr(Basejob):
                     # ## Faking here MAP filters
                     self.itlib_iterator = transform(self.MAP_job, iterator_transformer(self.MAP_job, simidx, self.dlensalot_model))
                     self.get_blt(simidx)
-                    if self.simulationdata.obs_lib.maps == DEFAULT_NotAValue:
+                    if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
                         self.simulationdata.purgecache()
 
 
@@ -1054,7 +1057,7 @@ class MAP_lr(Basejob):
                     if type(self.simulationdata.obs_lib.maps) == np.array:
                         pass
                     else:
-                        if self.simulationdata.obs_lib.maps == DEFAULT_NotAValue:
+                        if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
                             self.simulationdata.purgecache()
 
             if task == 'calc_meanfield':
@@ -1073,7 +1076,7 @@ class MAP_lr(Basejob):
                     if type(self.simulationdata.obs_lib.maps) == np.array:
                         pass
                     else:
-                        if self.simulationdata.obs_lib.maps == DEFAULT_NotAValue:
+                        if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
                             self.simulationdata.purgecache()
 
 
@@ -1221,7 +1224,7 @@ class Map_delenser(Basejob):
     # @log_on_end(logging.DEBUG, "get_basemap() finished")  
     def get_basemap(self, simidx):
         # TODO depends if data comes from delensalot simulations or from external.. needs cleaner implementation
-        if self.basemap == 'lens':  
+        if self.basemap == 'lens': 
             return almxfl(alm_copy(self.simulationdata.get_sim_sky(simidx, space='alm', spin=0, field='polarization')[1], self.simulationdata.lmax, *self.lm_max_blt), self.ttebl['e'], self.lm_max_blt[0], inplace=False) 
         elif self.basemap == 'lens_ffp10':
             return almxfl(alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(simidx), None, lmaxout=self.lm_max_blt[0], mmaxout=self.lm_max_blt[1]), gauss_beam(2.3 / 180 / 60 * np.pi, lmax=self.lm_max_blt[1]))  
@@ -1508,7 +1511,7 @@ class Phi_analyser(Basejob):
             plm_est = self.get_plm_it(simidx, [it])[0]
             if type(WFemps) != np.ndarray:
                 WFemps = np.load(opj(self.TEMP_WF,'WFemp_%s_simall%s_itall%s_avg.npy')%(self.k, len(self.simidxs), len(self.its))) 
-            val = alm2cl(plm_est, plm_est, None, None, None)/WFemps[it]**2
+            val = np.alm2cl(plm_est, plm_est, None, None, None)/WFemps[it]**2
             np.save(fns%(self.k, simidx, it), val)
         return np.load(fns%(self.k, simidx, it))
 

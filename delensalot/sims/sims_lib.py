@@ -62,7 +62,7 @@ class iso_white_noise:
         self.geominfo = geominfo
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
-        self.geom_lib = get_geom(geominfo)
+        self.geom_lib = get_geom(self.geominfo)
         self.libdir = libdir
         self.spin = spin
         self.lmax = lmax
@@ -71,7 +71,7 @@ class iso_white_noise:
             self.nlev = nlev
             assert libdir_suffix != DNaV, 'must give libdir_suffix'
             nlev_round = dict2roundeddict(self.nlev)
-            self.libdir_phas = os.environ['SCRATCH']+'/simulation/{}/{}/phas/{}/'.format(libdir_suffix, get_dirname(str(geominfo)), get_dirname(str(sorted(nlev_round.items()))))
+            self.libdir_phas = os.environ['SCRATCH']+'/simulation/{}/{}/phas/{}/'.format(libdir_suffix, get_dirname(str(self.geominfo)), get_dirname(str(sorted(nlev_round.items()))))
             self.pix_lib_phas = phas.pix_lib_phas(self.libdir_phas, 3, (self.geom_lib.npix(),))
         else:
             if fns == DNaV:
@@ -236,7 +236,7 @@ class Cls:
 class Xunl:
     """class for generating unlensed CMB and phi realizations from power spectra
     """    
-    def __init__(self, lmax, cls_lib=DNaV, libdir=DNaV, fns=DNaV, fnsP=DNaV, libdir_phi=DNaV, phi_field='potential', phi_space=DNaV, phi_lmax=DNaV, space=DNaV, geominfo=DNaV, isfrozen=False, spin=DNaV, phi_modifier=DNaV):
+    def __init__(self, lmax, cls_lib=DNaV, libdir=DNaV, fns=DNaV, fnsP=DNaV, libdir_phi=DNaV, phi_field='potential', phi_space=DNaV, phi_lmax=DNaV, space=DNaV, geominfo=DNaV, isfrozen=False, spin=DNaV, phi_modifier=lambda x: x):
         self.geominfo = geominfo
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
