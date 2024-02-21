@@ -204,12 +204,13 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         # if noise_phas is None:
             # noise_phas = default_rng().standard_normal(utils_geom.Geom.npix(self.ninv_geom)) * pixnoise
         pixnoise = np.sqrt(cli(self.n_inv))
-        T += noise_phas * pixnoise
+        T += noise_phase * pixnoise
         return T
     
     def get_qlms_mf(self, mfkey, q_pbgeom:utils_geom.pbdGeometry, mchain, phas=None, noise_phase=None, cls_filt:dict or None=None):
         """Mean-field estimate using tricks of Carron Lewis appendix
         """
+        print("Warning: Map_opfilt_aniso_t.alm_filter_ninv_wl.get_qlms_mf() has not be tested, might no be working well")
         if mfkey in [1]: # This should be B^t x, D dC D^t B^t Covi x, x random phases in pixel space here
             if phas is None:
                 # unit variance phases in T
