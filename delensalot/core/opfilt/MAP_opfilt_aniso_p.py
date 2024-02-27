@@ -195,7 +195,11 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
             assert 0, 'this is not implemented at the moment, but this is easy'
         else:
             assert 0, 'you should never land here'
-        return elm, QU if get_unlelm else QU
+        if get_unlelm:
+            return elm, QU  
+        else:
+            return QU
+        # return elm, QU if get_unlelm else QU
 
     def get_qlms_old(self, qudat: np.ndarray or list, elm_wf: np.ndarray, q_pbgeom: utils_geom.pbdGeometry, alm_wf_leg2 :None or np.ndarray=None):
         """
@@ -214,9 +218,9 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         repmap, impmap = self._get_irespmap(qudat, ebwf, q_pbgeom)
         if alm_wf_leg2 is not None:
             ebwf[0, :] = alm_wf_leg2
-        Gs, Cs = self._get_gpmap(ebwf, 3, q_pbgeom)  # 2 pos.space maps
+        Gs, Cs = self._get_gpmap(ebwf[0], 3, q_pbgeom)  # 2 pos.space maps
         GC = (repmap - 1j * impmap) * (Gs + 1j * Cs)  # (-2 , +3)
-        Gs, Cs = self._get_gpmap(ebwf, 1,  q_pbgeom)
+        Gs, Cs = self._get_gpmap(ebwf[0], 1,  q_pbgeom)
         GC -= (repmap + 1j * impmap) * (Gs - 1j * Cs)  # (+2 , -1)
         del repmap, impmap, Gs, Cs
         lmax_qlm = self.ffi.lmax_dlm
@@ -283,9 +287,9 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
             almxfl(phas[1], 0.5 * self.b_transf_blm, self.mmax_len, True)
             repmap, impmap = q_pbgeom.geom.alm2map_spin(phas, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
 
-            Gs, Cs = self._get_gpmap([soltn, np.zeros_like(soltn)], 3, q_pbgeom)  # 2 pos.space maps
+            Gs, Cs = self._get_gpmap(soltn, 3, q_pbgeom)  # 2 pos.space maps
             GC = (repmap - 1j * impmap) * (Gs + 1j * Cs)  # (-2 , +3)
-            Gs, Cs = self._get_gpmap([soltn, np.zeros_like(soltn)], 1, q_pbgeom)
+            Gs, Cs = self._get_gpmap(soltn, 1, q_pbgeom)
             GC -= (repmap + 1j * impmap) * (Gs - 1j * Cs)  # (+2 , -1)
             del repmap, impmap, Gs, Cs
 

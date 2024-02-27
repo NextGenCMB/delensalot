@@ -14,6 +14,7 @@ from delensalot.utility.utils_hp import gauss_beam
 from delensalot.config.config_helper import LEREPI_Constants as lc
 from delensalot.config.metamodel.dlensalot_mm import *
 
+
 dlensalot_model = DLENSALOT_Model(
     defaults_to = 'default_CMBS4_fullsky_polarization',
     job = DLENSALOT_Job(
@@ -31,6 +32,7 @@ dlensalot_model = DLENSALOT_Model(
         flavour = 'unl',
         lmax = 4096,
         phi_lmax = 5120,
+        phi_modifier = DnAV,
         transfunction = gauss_beam(1.0/180/60 * np.pi, lmax=4096),
         nlev = {'P': np.sqrt(2), 'T': np.sqrt(1)},
         geominfo = ('healpix', {'nside': 2048}),

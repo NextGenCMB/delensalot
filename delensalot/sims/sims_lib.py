@@ -17,6 +17,7 @@ log = logging.getLogger(__name__)
 import lenspyx
 from lenspyx.lensing import get_geom as lp_get_geom
 from pysht import get_geom as pysht_get_geom
+import pysht
 from plancklens.sims import phas
 from delensalot.core import cachers
 from delensalot.config.metamodel import DEFAULT_NotAValue as DNaV
@@ -63,7 +64,11 @@ class iso_white_noise:
         self.geominfo = geominfo
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
-        self.geom_lib = pysht_get_geom(geominfo)
+        solver = 'ducc'
+        mode = 'SHT'
+        backend = 'CPU'
+        self.geom_lib = pysht.get_transformer(solver, mode, backend)
+        self.geom_lib.set_geometry(self.geominfo)
         self.libdir = libdir
         self.spin = spin
         self.lmax = lmax
@@ -72,8 +77,8 @@ class iso_white_noise:
             self.nlev = nlev
             assert libdir_suffix != DNaV, 'must give libdir_suffix'
             nlev_round = dict2roundeddict(self.nlev)
-            self.libdir_phas = os.environ['SCRATCH']+'/simulation/{}/{}/phas/{}/'.format(libdir_suffix, get_dirname(str(geominfo)), get_dirname(str(sorted(nlev_round.items()))))
-            self.pix_lib_phas = phas.pix_lib_phas(self.libdir_phas, 3, (self.geom_lib.npix(),))
+            self.libdir_phas = os.environ['SCRATCH']+'/simulation/{}/{}/phas/{}/'.format(libdir_suffix, get_dirname(str(self.geominfo)), get_dirname(str(sorted(nlev_round.items()))))
+            self.pix_lib_phas = phas.pix_lib_phas(self.libdir_phas, 3, (self.geom_lib.geom.npix(),))
         else:
             if fns == DNaV:
                 assert 0, "must provide fns"
@@ -125,6 +130,7 @@ class iso_white_noise:
                 elif field == 'temperature':
                     noise = self.nlev['T'] / vamin * self.pix_lib_phas.get_sim(int(simidx), idf=0)
                     if space == 'alm':
+                        print(self.geom_lib)
                         noise = self.geom_lib.map2alm(noise, lmax=self.lmax, mmax=self.lmax, nthreads=4)
             else:
                 if field == 'polarization':
@@ -237,11 +243,15 @@ class Cls:
 class Xunl:
     """class for generating unlensed CMB and phi realizations from power spectra
     """    
-    def __init__(self, lmax, cls_lib=DNaV, libdir=DNaV, fns=DNaV, fnsP=DNaV, libdir_phi=DNaV, phi_field='potential', phi_space=DNaV, phi_lmax=DNaV, space=DNaV, geominfo=DNaV, isfrozen=False, spin=DNaV, phi_modifier=DNaV):
+    def __init__(self, lmax, cls_lib=DNaV, libdir=DNaV, fns=DNaV, fnsP=DNaV, libdir_phi=DNaV, phi_field='potential', phi_space=DNaV, phi_lmax=DNaV, space=DNaV, geominfo=DNaV, isfrozen=False, spin=DNaV, phi_modifier=lambda x: x):
         self.geominfo = geominfo
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
-        self.geom_lib = pysht_get_geom(self.geominfo)
+        solver = 'ducc'
+        mode = 'SHT'
+        backend = 'CPU'
+        self.geom_lib = pysht.get_transformer(solver, mode, backend)
+        self.geom_lib.set_geometry(self.geominfo)
         self.libdir = libdir
         self.space = space
         self.spin = spin
@@ -250,6 +260,8 @@ class Xunl:
         self.phi_lmax = phi_lmax
         if phi_modifier == DNaV:
             self.phi_modifier = lambda x: x
+        else:
+            self.phi_modifier = phi_modifier
         if phi_field == DNaV:
             self.phi_field = 'potential'
         else:
@@ -397,14 +409,18 @@ class Xunl:
                 if space == 'map':
                     phi = self.geom_lib.alm2map(phi, lmax=self.phi_lmax, mmax=self.phi_lmax, nthreads=4)
             else:
-                ## Existing phi is loaded, this e.g. is a kappa map on disk
+                ## Existing phi is loaded, this e.g. is a kappa map on disk. Healpix assumed.
                 if self.phi_space == 'map':
                     phi = np.array(load_file(opj(self.libdir_phi, self.fnsP.format(simidx))), dtype=float)
                 else:
                     phi = np.array(load_file(opj(self.libdir_phi, self.fnsP.format(simidx))), dtype=complex)
                 if self.phi_space == 'map':
                     self.geominfo_phi = ('healpix', {'nside':hp.npix2nside(phi.shape[0])})
-                    self.geomlib_phi = pysht_get_geom(self.geominfo_phi)
+                    solver = 'ducc'
+                    mode = 'SHT'
+                    backend = 'CPU'
+                    self.geom_lib = pysht.get_transformer(solver, mode, backend)
+                    self.geom_lib.set_geometry(self.geominfo_phi)
                     phi = self.geomlib_phi.map2alm(phi, lmax=self.phi_lmax, mmax=self.phi_lmax, nthreads=4)
                 ## phi modifcation
                 phi = self.phi_modifier(phi)
@@ -456,7 +472,11 @@ class Xsky:
         self.geominfo = geominfo
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
-        self.geom_lib = pysht_get_geom(self.geominfo)
+        solver = 'ducc'
+        mode = 'SHT'
+        backend = 'CPU'
+        self.geom_lib = pysht.get_transformer(solver, mode, backend)
+        self.geom_lib.set_geometry(self.geominfo)
         self.libdir = libdir
         self.fns = fns
         self.spin = spin
@@ -611,7 +631,11 @@ class Xobs:
         self.geominfo = geominfo
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
-        self.geom_lib = pysht_get_geom(self.geominfo)
+        solver = 'ducc'
+        mode = 'SHT'
+        backend = 'CPU'
+        self.geom_lib = pysht.get_transformer(solver, mode, backend)
+        self.geom_lib.set_geometry(self.geominfo)
         
         self.libdir = libdir
         self.fns = fns
