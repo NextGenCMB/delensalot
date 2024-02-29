@@ -204,6 +204,11 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
     libdir_suffix = attr.field(default='generic', validator=data.libdir_suffix)
     CMB_modifier =  attr.field(default=DEFAULT_NotAValue, validator=data.modifier)
     phi_modifier =  attr.field(default=lambda x: x)
+    sht_solver =    attr.field(default=DEFAULT_NotAValue)
+    sht_backend =   attr.field(default=DEFAULT_NotAValue)
+    deflection_solver = attr.field(default=DEFAULT_NotAValue)
+    deflection_backend = attr.field(default=DEFAULT_NotAValue)
+    
     
     
 @attr.s
@@ -382,7 +387,9 @@ class DLENSALOT_Computing(DLENSALOT_Concept):
     Attributes:
         OMP_NUM_THREADS (int):  number of threads used per Job
     """
-    OMP_NUM_THREADS =       attr.field(default=DEFAULT_NotAValue, validator=computing.OMP_NUM_THREADS)
+    OMP_NUM_THREADS =       attr.field(default=DEFAULT_NotAValue)
+    solver          =       attr.field(default=DEFAULT_NotAValue)
+    backend         =       attr.field(default=DEFAULT_NotAValue)
 
 
 @attr.s

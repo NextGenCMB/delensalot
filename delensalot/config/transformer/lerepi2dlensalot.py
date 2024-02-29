@@ -242,9 +242,18 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
                 dl.TEMP_suffix = an.TEMP_suffix
                 dl.TEMP = transform(cf, l2T_Transformer())
+                
+            @log_on_start(logging.DEBUG, "_process_Computing() started")
+            @log_on_end(logging.DEBUG, "_process_Computing() finished")
+            def _process_Computing(dl, co):
+                dl.tr = co.OMP_NUM_THREADS
+                os.environ["OMP_NUM_THREADS"] = str(dl.tr)
+                dl.solver = co.solver
+                dl.backend = co.backend
 
             dl = DLENSALOT_Concept()
             _process_Analysis(dl, cf.analysis, cf)
+            _process_Computing(dl, cf.computing)
             l2base_Transformer.process_Meta(dl, cf.meta, cf)
             dl.libdir_suffix = cf.simulationdata.libdir_suffix
             dl.simulationdata = Simhandler(**cf.simulationdata.__dict__)
@@ -270,6 +279,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 def _process_Computing(dl, co):
                     dl.tr = co.OMP_NUM_THREADS
                     os.environ["OMP_NUM_THREADS"] = str(dl.tr)
+                    dl.solver = co.solver
+                    dl.backend = co.backend
 
 
                 @log_on_start(logging.DEBUG, "_process_Analysis() started")
@@ -466,6 +477,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 def _process_Computing(dl, co):
                     dl.tr = co.OMP_NUM_THREADS
                     os.environ["OMP_NUM_THREADS"] = str(dl.tr)
+                    dl.solver = co.solver
+                    dl.backend = co.backend
 
 
                 @log_on_start(logging.DEBUG, "_process_Analysis() started")

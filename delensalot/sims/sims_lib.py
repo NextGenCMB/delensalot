@@ -60,15 +60,22 @@ def dict2roundeddict(d):
 class iso_white_noise:
     """class for generating very simple isotropic white noise
     """
-    def __init__(self, nlev, lmax=DNaV, libdir=DNaV, fns=DNaV, spin=DNaV, space=DNaV, geominfo=DNaV, libdir_suffix=DNaV):
+    def __init__(self, nlev, lmax=DNaV, libdir=DNaV, fns=DNaV, spin=DNaV, space=DNaV, geominfo=DNaV, libdir_suffix=DNaV, sht_solver=DNaV, sht_backend=DNaV, deflection_solver=DNaV, deflection_backend=DNaV, ):
         self.geominfo = geominfo
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
-        solver = 'ducc'
-        mode = 'SHT'
-        backend = 'CPU'
-        self.geom_lib = pysht.get_transformer(solver, mode, backend)
+        self.sht_solver = sht_solver
+        if sht_solver == DNaV:
+            log.info("sht_solver not given, defaulting to ducc")
+            self.sht_solver = 'ducc'
+        self.sht_backend = sht_backend
+        if self.sht_backend == DNaV:
+            log.info("sht_backend not given, defaulting to CPU")
+            self.sht_backend = 'CPU'
+        self.mode = 'SHT'
+        self.geom_lib = pysht.get_transformer(self.sht_solver, self.mode, self.sht_backend)(self.geominfo)
         self.geom_lib.set_geometry(self.geominfo)
+        
         self.libdir = libdir
         self.spin = spin
         self.lmax = lmax
@@ -243,15 +250,20 @@ class Cls:
 class Xunl:
     """class for generating unlensed CMB and phi realizations from power spectra
     """    
-    def __init__(self, lmax, cls_lib=DNaV, libdir=DNaV, fns=DNaV, fnsP=DNaV, libdir_phi=DNaV, phi_field='potential', phi_space=DNaV, phi_lmax=DNaV, space=DNaV, geominfo=DNaV, isfrozen=False, spin=DNaV, phi_modifier=lambda x: x):
+    def __init__(self, lmax, cls_lib=DNaV, libdir=DNaV, fns=DNaV, fnsP=DNaV, libdir_phi=DNaV, phi_field='potential', phi_space=DNaV, phi_lmax=DNaV, space=DNaV, geominfo=DNaV, isfrozen=False, spin=DNaV, phi_modifier=lambda x: x, sht_solver=DNaV, sht_backend=DNaV, deflection_solver=DNaV, deflection_backend=DNaV, ):
         self.geominfo = geominfo
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
-        solver = 'ducc'
-        mode = 'SHT'
-        backend = 'CPU'
-        self.geom_lib = pysht.get_transformer(solver, mode, backend)
-        self.geom_lib.set_geometry(self.geominfo)
+        self.sht_solver = sht_solver
+        if sht_solver == DNaV:
+            log.info("sht_solver not given, defaulting to ducc")
+            self.sht_solver = 'ducc'
+        self.sht_backend = sht_backend
+        if self.sht_backend == DNaV:
+            log.info("sht_backend not given, defaulting to CPU")
+            self.sht_backend = 'CPU'
+        self.mode = 'SHT'
+        self.geom_lib = pysht.get_transformer(self.sht_solver, self.mode, self.sht_backend)(self.geominfo)
         self.libdir = libdir
         self.space = space
         self.spin = spin
@@ -466,16 +478,22 @@ class Xunl:
 
 
 class Xsky:
-    """class for generating lensed CMB and phi realizations from unlensed realizations, using lenspyx for the lensing operation
+    """class for generating lensed CMB and phi realizations from unlensed realizations, using pySHT for the lensing operation
     """    
-    def __init__(self, lmax, unl_lib=DNaV, libdir=DNaV, fns=DNaV, spin=DNaV, epsilon=1e-7, space=DNaV, geominfo=DNaV, isfrozen=False, lenjob_geominfo=DNaV, phi_modifier=DNaV):
+    def __init__(self, lmax, unl_lib=DNaV, libdir=DNaV, fns=DNaV, spin=DNaV, epsilon=1e-7, space=DNaV, geominfo=DNaV, isfrozen=False, lenjob_geominfo=DNaV, phi_modifier=DNaV, sht_solver=DNaV, sht_backend=DNaV, deflection_solver=DNaV, deflection_backend=DNaV):
         self.geominfo = geominfo
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
-        solver = 'ducc'
-        mode = 'SHT'
-        backend = 'CPU'
-        self.geom_lib = pysht.get_transformer(solver, mode, backend)
+        self.sht_solver = sht_solver
+        if sht_solver == DNaV:
+            log.info("sht_solver not given, defaulting to ducc")
+            self.sht_solver = 'ducc'
+        self.sht_backend = sht_backend
+        if self.sht_backend == DNaV:
+            log.info("sht_backend not given, defaulting to CPU")
+            self.sht_backend = 'CPU'
+        self.mode = 'SHT'
+        self.geom_lib = pysht.get_transformer(self.sht_solver, self.mode, self.sht_backend)(self.geominfo)
         self.geom_lib.set_geometry(self.geominfo)
         self.libdir = libdir
         self.fns = fns
@@ -484,7 +502,7 @@ class Xsky:
         self.space = space
         if libdir == DNaV: # need being generated
             if unl_lib == DNaV:
-                self.unl_lib = Xunl(lmax=lmax, geominfo=self.geominfo, phi_modifier=phi_modifier)
+                self.unl_lib = Xunl(lmax=lmax, geominfo=self.geominfo, phi_modifier=phi_modifier, sht_solver=sht_solver, sht_backend=sht_backend, deflection_solver=deflection_solver, deflection_backend=deflection_backend)
             else:
                 self.unl_lib = unl_lib
             
@@ -551,13 +569,9 @@ class Xsky:
                         elif space == 'alm':
                             sky = self.lenjob_geomlib.map2alm_spin(sky, lmax=self.lmax, spin=2, mmax=self.lmax, nthreads=4)
                     elif field == 'temperature':
-                        print('A')
                         sky = self.unl2len(unl, philm, spin=0, epsilon=self.epsilon)
-                        print('B')
                         if space == 'map':
-                            print('C')
                             sky = self.lenjob_geomlib.map2alm(np.copy(sky), lmax=self.lmax, mmax=self.lmax, nthreads=4)
-                            print('D')
                             sky = self.geom_lib.alm2map(np.copy(sky), lmax=self.lmax, mmax=self.lmax, nthreads=4)
                         elif space == 'alm':
                             sky = self.lenjob_geomlib.map2alm(sky, lmax=self.lmax, mmax=self.lmax, nthreads=4)
@@ -623,19 +637,26 @@ class Xsky:
 class Xobs:
     """class for generating/handling observed CMB realizations from sky maps together with a noise realization and transfer function to mimick an experiment
     """
-    def __init__(self, lmax, maps=DNaV, transfunction=DNaV, len_lib=DNaV, unl_lib=DNaV, epsilon=DNaV, noise_lib=DNaV, libdir=DNaV, fns=DNaV, nlev=DNaV, libdir_noise=DNaV, fnsnoise=DNaV, spin=DNaV, space=DNaV, geominfo=DNaV, field=DNaV, cacher=DNaV, libdir_suffix=DNaV, CMB_modifier=DNaV, phi_modifier=DNaV):
+    def __init__(self, lmax, maps=DNaV, transfunction=DNaV, len_lib=DNaV, unl_lib=DNaV, epsilon=DNaV, noise_lib=DNaV, libdir=DNaV, fns=DNaV, nlev=DNaV, libdir_noise=DNaV, fnsnoise=DNaV, spin=DNaV, space=DNaV, geominfo=DNaV, field=DNaV, cacher=DNaV, libdir_suffix=DNaV, CMB_modifier=DNaV, phi_modifier=DNaV, sht_solver=DNaV, sht_backend=DNaV, deflection_solver=DNaV, deflection_backend=DNaV):
+        self.geominfo = geominfo
+        if geominfo == DNaV:
+            self.geominfo = ('healpix', {'nside':2048})
+        self.sht_solver = sht_solver
+        if sht_solver == DNaV:
+            log.info("sht_solver not given, defaulting to ducc")
+            self.sht_solver = 'ducc'
+        self.sht_backend = sht_backend
+        if self.sht_backend == DNaV:
+            log.info("sht_backend not given, defaulting to CPU")
+            self.sht_backend = 'CPU'
+        self.mode = 'SHT'
+        self.geom_lib = pysht.get_transformer(self.sht_solver, self.mode, self.sht_backend)(self.geominfo)
+        self.geom_lib.set_geometry(self.geominfo)
+        
         if CMB_modifier == DNaV:
             self.CMB_modifier = lambda x: x
         else:
             self.CMB_modifier = CMB_modifier
-        self.geominfo = geominfo
-        if geominfo == DNaV:
-            self.geominfo = ('healpix', {'nside':2048})
-        solver = 'ducc'
-        mode = 'SHT'
-        backend = 'CPU'
-        self.geom_lib = pysht.get_transformer(solver, mode, backend)
-        self.geom_lib.set_geometry(self.geominfo)
         
         self.libdir = libdir
         self.fns = fns
@@ -652,14 +673,14 @@ class Xobs:
         else:
             if libdir == DNaV:
                 if len_lib == DNaV:
-                    self.len_lib = Xsky(unl_lib=unl_lib, lmax=lmax, libdir=libdir, fns=fns, space=space, epsilon=epsilon, geominfo=geominfo, phi_modifier=phi_modifier)
+                    self.len_lib = Xsky(unl_lib=unl_lib, lmax=lmax, libdir=libdir, fns=fns, space=space, epsilon=epsilon, geominfo=geominfo, phi_modifier=phi_modifier, sht_solver=sht_solver, sht_backend=sht_backend, deflection_solver=deflection_solver, deflection_backend=deflection_backend)
                 else:
                     self.len_lib = len_lib
                 if noise_lib == DNaV:
                     if libdir_noise == DNaV:
                         if nlev == DNaV:
                             assert 0, "need nlev for generating noise"
-                        self.noise_lib = iso_white_noise(nlev=nlev, lmax=lmax, fns=fnsnoise,libdir=libdir_noise, space=space, geominfo=self.geominfo, libdir_suffix=libdir_suffix)
+                        self.noise_lib = iso_white_noise(nlev=nlev, lmax=lmax, fns=fnsnoise,libdir=libdir_noise, space=space, geominfo=self.geominfo, libdir_suffix=libdir_suffix, sht_solver=sht_solver, sht_backend=sht_backend, deflection_solver=deflection_solver, deflection_backend=deflection_backend)
                 if np.all(transfunction == DNaV):
                     assert 0, 'need to give transfunction'
                 self.transfunction = transfunction       
@@ -868,7 +889,7 @@ class Simhandler:
     """Entry point for data handling and generating simulations. Data can be cl, unl, len, or obs, .. and alms or maps. Simhandler connects the individual libraries and decides what can be generated. E.g.: If obs data provided, len data cannot be generated. This structure makes sure we don't "hallucinate" data
 
     """
-    def __init__(self, flavour, space, geominfo=DNaV, maps=DNaV, field=DNaV, cls_lib=DNaV, unl_lib=DNaV, len_lib=DNaV, obs_lib=DNaV, noise_lib=DNaV, libdir=DNaV, libdir_noise=DNaV, libdir_phi=DNaV, fns=DNaV, fnsnoise=DNaV, fnsP=DNaV, lmax=DNaV, transfunction=DNaV, nlev=DNaV, spin=0, CMB_fn=DNaV, phi_fn=DNaV, phi_field=DNaV, phi_space=DNaV, epsilon=1e-7, phi_lmax=DNaV, libdir_suffix=DNaV, lenjob_geominfo=DNaV, cacher=cachers.cacher_mem(safe=True), CMB_modifier=DNaV, phi_modifier=DNaV):
+    def __init__(self, flavour, space, geominfo=DNaV, maps=DNaV, field=DNaV, cls_lib=DNaV, unl_lib=DNaV, len_lib=DNaV, obs_lib=DNaV, noise_lib=DNaV, libdir=DNaV, libdir_noise=DNaV, libdir_phi=DNaV, fns=DNaV, fnsnoise=DNaV, fnsP=DNaV, lmax=DNaV, transfunction=DNaV, nlev=DNaV, spin=0, CMB_fn=DNaV, phi_fn=DNaV, phi_field=DNaV, phi_space=DNaV, epsilon=1e-7, phi_lmax=DNaV, libdir_suffix=DNaV, lenjob_geominfo=DNaV, cacher=cachers.cacher_mem(safe=True), CMB_modifier=DNaV, phi_modifier=DNaV, sht_solver=DNaV, sht_backend=DNaV, deflection_solver=DNaV, deflection_backend=DNaV):
         """Entry point for simulation data handling.
         Simhandler() connects the individual librariers together accordingly, depending on the provided data.
         It never stores data on disk itself, only in memory.
@@ -907,6 +928,10 @@ class Simhandler:
         self.nlev = nlev
         self.maps = maps
         self.transfunction = transfunction
+        self.sht_solver = sht_solver
+        self.sht_backend = sht_backend
+        self.deflection_solver = deflection_solver
+        self.deflection_backend = deflection_backend
         if space == 'map':
             if flavour == 'obs':
                 if np.all(maps == DNaV):
@@ -918,7 +943,7 @@ class Simhandler:
                     assert spin != DNaV, "need to provide spin"
                     assert lmax != DNaV, "need to provide lmax"
                     assert field != DNaV, "need to provide field"
-                self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, libdir=libdir, fns=fns, spin=spin, geominfo=geominfo, field=field, libdir_suffix=libdir_suffix, CMB_modifier=CMB_modifier , phi_modifier=phi_modifier) if obs_lib == DNaV else obs_lib
+                self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, libdir=libdir, fns=fns, spin=spin, geominfo=geominfo, field=field, libdir_suffix=libdir_suffix, CMB_modifier=CMB_modifier , phi_modifier=phi_modifier, sht_solver=sht_solver, sht_backend=sht_backend, deflection_solver=deflection_solver, deflection_backend=deflection_backend) if obs_lib == DNaV else obs_lib
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = self.obs_lib.libdir
                 self.fns = self.obs_lib.fns
@@ -929,8 +954,8 @@ class Simhandler:
                 assert spin != DNaV, "need to provide spin"
                 assert nlev != DNaV, "need to provide nlev"
                 assert np.all(transfunction != DNaV), "need to provide transfunction"
-                self.len_lib = Xsky(unl_lib=unl_lib, lmax=lmax, libdir=libdir, fns=fns, space=space, spin=spin, epsilon=epsilon, geominfo=geominfo, lenjob_geominfo=lenjob_geominfo, phi_modifier=phi_modifier) if len_lib == DNaV else len_lib
-                self.obs_lib = Xobs(len_lib=self.len_lib, space=space, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, geominfo=geominfo, libdir_suffix=libdir_suffix, CMB_modifier=CMB_modifier , phi_modifier=phi_modifier)
+                self.len_lib = Xsky(unl_lib=unl_lib, lmax=lmax, libdir=libdir, fns=fns, space=space, spin=spin, epsilon=epsilon, geominfo=geominfo, lenjob_geominfo=lenjob_geominfo, phi_modifier=phi_modifier, sht_solver=sht_solver, sht_backend=sht_backend, deflection_solver=deflection_solver, deflection_backend=deflection_backend) if len_lib == DNaV else len_lib
+                self.obs_lib = Xobs(len_lib=self.len_lib, space=space, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, geominfo=geominfo, libdir_suffix=libdir_suffix, CMB_modifier=CMB_modifier , phi_modifier=phi_modifier, sht_solver=sht_solver, sht_backend=sht_backend, deflection_solver=deflection_solver, deflection_backend=deflection_backend)
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = self.len_lib.libdir
                 self.fns = self.len_lib.fns
@@ -946,16 +971,16 @@ class Simhandler:
                     assert fnsP != DNaV, "need to provide fnsP"
                     assert phi_lmax != DNaV, "need to provide phi_lmax"
                     assert phi_space != DNaV, "need to provide phi_space"
-                    self.unl_lib = Xunl(lmax=lmax, libdir=libdir, fns=fns, fnsP=fnsP, phi_field=phi_field, libdir_phi=libdir_phi, space=space, phi_space=phi_space, phi_lmax=phi_lmax, geominfo=geominfo, spin=spin, phi_modifier=phi_modifier) if unl_lib == DNaV else unl_lib
+                    self.unl_lib = Xunl(lmax=lmax, libdir=libdir, fns=fns, fnsP=fnsP, phi_field=phi_field, libdir_phi=libdir_phi, space=space, phi_space=phi_space, phi_lmax=phi_lmax, geominfo=geominfo, spin=spin, phi_modifier=phi_modifier, sht_solver=sht_solver, sht_backend=sht_backend, deflection_solver=deflection_solver, deflection_backend=deflection_backend) if unl_lib == DNaV else unl_lib
                 elif libdir_phi == DNaV:
                     assert phi_fn != DNaV, "need to provide phi_fn"
                     assert phi_lmax != DNaV, "need to provide phi_lmax"
                     assert phi_field != DNaV, "need to provide phi_field"
                     assert phi_space == 'cl', "please set phi_space='cl', just to be sure."
                     self.cls_lib = Cls(phi_lmax=phi_lmax, phi_fn=phi_fn, phi_field=phi_field)
-                    self.unl_lib = Xunl(cls_lib=self.cls_lib, lmax=lmax, libdir=libdir, fns=fns, phi_field=phi_field, space=space, phi_space=phi_space, phi_lmax=phi_lmax, geominfo=geominfo, spin=spin, phi_modifier=phi_modifier) if unl_lib == DNaV else unl_lib
-                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, space=space, epsilon=epsilon, geominfo=geominfo, lenjob_geominfo=lenjob_geominfo, phi_modifier=phi_modifier)
-                self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, space=space, geominfo=geominfo, libdir_suffix=libdir_suffix, CMB_modifier=CMB_modifier , phi_modifier=phi_modifier)
+                    self.unl_lib = Xunl(cls_lib=self.cls_lib, lmax=lmax, libdir=libdir, fns=fns, phi_field=phi_field, space=space, phi_space=phi_space, phi_lmax=phi_lmax, geominfo=geominfo, spin=spin, phi_modifier=phi_modifier, sht_solver=sht_solver, sht_backend=sht_backend, deflection_solver=deflection_solver, deflection_backend=deflection_backend) if unl_lib == DNaV else unl_lib
+                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, space=space, epsilon=epsilon, geominfo=geominfo, lenjob_geominfo=lenjob_geominfo, phi_modifier=phi_modifier, sht_solver=sht_solver, sht_backend=sht_backend, deflection_solver=deflection_solver, deflection_backend=deflection_backend)
+                self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, space=space, geominfo=geominfo, libdir_suffix=libdir_suffix, CMB_modifier=CMB_modifier , phi_modifier=phi_modifier, sht_solver=sht_solver, sht_backend=sht_backend, deflection_solver=deflection_solver, deflection_backend=deflection_backend)
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = self.unl_lib.libdir
                 self.fns = self.unl_lib.fns
@@ -968,7 +993,7 @@ class Simhandler:
                     if fns == DNaV:
                         assert 0, 'you need to provide fns' 
                     self.fns = fns
-                    self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, libdir=libdir, fns=fns, spin=self.spin, geominfo=geominfo, libdir_suffix=libdir_suffix, CMB_modifier=CMB_modifier , phi_modifier=phi_modifier) if obs_lib == DNaV else obs_lib
+                    self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, libdir=libdir, fns=fns, spin=self.spin, geominfo=geominfo, libdir_suffix=libdir_suffix, CMB_modifier=CMB_modifier, phi_modifier=phi_modifier, sht_solver=sht_solver, sht_backend=sht_backend, deflection_solver=deflection_solver, deflection_backend=deflection_backend) if obs_lib == DNaV else obs_lib
                     self.noise_lib = self.obs_lib.noise_lib
                     self.libdir = self.obs_lib.libdir
                     self.fns = self.obs_lib.fns
@@ -978,9 +1003,9 @@ class Simhandler:
                 if (libdir_phi == DNaV or libdir == DNaV) and cls_lib == DNaV:
                     cls_lib = Cls(lmax=lmax, CMB_fn=CMB_fn, phi_fn=phi_fn, phi_field=phi_field)
                 self.cls_lib = cls_lib # just to be safe..
-                self.unl_lib = Xunl(lmax=lmax, libdir=libdir, fns=fns, fnsP=fnsP, phi_field=phi_field, libdir_phi=libdir_phi, space=space, phi_space=phi_space, cls_lib=cls_lib, geominfo=geominfo, spin=self.spin, phi_modifier=phi_modifier) if unl_lib == DNaV else unl_lib
-                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, space=space, epsilon=epsilon, geominfo=geominfo, lenjob_geominfo=lenjob_geominfo, phi_modifier=phi_modifier)
-                self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, space=space, spin=self.spin, geominfo=geominfo, libdir_suffix=libdir_suffix, CMB_modifier=CMB_modifier , phi_modifier=phi_modifier)
+                self.unl_lib = Xunl(lmax=lmax, libdir=libdir, fns=fns, fnsP=fnsP, phi_field=phi_field, libdir_phi=libdir_phi, space=space, phi_space=phi_space, cls_lib=cls_lib, geominfo=geominfo, spin=self.spin, phi_modifier=phi_modifier, sht_solver=sht_solver, sht_backend=sht_backend, deflection_solver=deflection_solver, deflection_backend=deflection_backend) if unl_lib == DNaV else unl_lib
+                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, space=space, epsilon=epsilon, geominfo=geominfo, lenjob_geominfo=lenjob_geominfo, phi_modifier=phi_modifier, sht_solver=sht_solver, sht_backend=sht_backend, deflection_solver=deflection_solver, deflection_backend=deflection_backend)
+                self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, space=space, spin=self.spin, geominfo=geominfo, libdir_suffix=libdir_suffix, CMB_modifier=CMB_modifier, phi_modifier=phi_modifier, sht_solver=sht_solver, sht_backend=sht_backend, deflection_solver=deflection_solver, deflection_backend=deflection_backend)
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = self.unl_lib.libdir
                 self.fns = self.unl_lib.fns
@@ -1000,9 +1025,9 @@ class Simhandler:
                     assert phi_field != DNaV, "need to provide phi_field"
                 
                 self.cls_lib = Cls(lmax=lmax, phi_lmax=phi_lmax, CMB_fn=CMB_fn, phi_fn=phi_fn, phi_field=phi_field)
-                self.unl_lib = Xunl(cls_lib=self.cls_lib, lmax=lmax, fnsP=fnsP, phi_field=phi_field, libdir_phi=libdir_phi, phi_space=phi_space, geominfo=geominfo, phi_modifier=phi_modifier)
-                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, epsilon=epsilon, geominfo=geominfo, lenjob_geominfo=lenjob_geominfo, phi_modifier=phi_modifier)
-                self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, geominfo=geominfo, cacher=cacher, libdir_suffix=libdir_suffix, CMB_modifier=CMB_modifier , phi_modifier=phi_modifier)
+                self.unl_lib = Xunl(cls_lib=self.cls_lib, lmax=lmax, fnsP=fnsP, phi_field=phi_field, libdir_phi=libdir_phi, phi_space=phi_space, geominfo=geominfo, phi_modifier=phi_modifier, sht_solver=sht_solver, sht_backend=sht_backend, deflection_solver=deflection_solver, deflection_backend=deflection_backend)
+                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, epsilon=epsilon, geominfo=geominfo, lenjob_geominfo=lenjob_geominfo, phi_modifier=phi_modifier, sht_solver=sht_solver, sht_backend=sht_backend, deflection_solver=deflection_solver, deflection_backend=deflection_backend)
+                self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, geominfo=geominfo, cacher=cacher, libdir_suffix=libdir_suffix, CMB_modifier=CMB_modifier, phi_modifier=phi_modifier, sht_solver=sht_solver, sht_backend=sht_backend, deflection_solver=deflection_solver, deflection_backend=deflection_backend)
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = DNaV # settings this here explicit for a future me, so I see it easier
                 self.fns = DNaV # settings this here explicit for a future me, so I see it easier
