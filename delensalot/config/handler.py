@@ -147,6 +147,7 @@ class config_handler():
         if os.path.isfile(parser.config_file) and parser.config_file.endswith('.py'):
             if configfile.dlensalot_model.__dict__['validate_model'] == True:
                 # If validation skipped, simply overwrite existing config file
+                print(TEMP, parser.config_file.split('/')[-1])
                 if os.path.isfile(TEMP+'/'+parser.config_file.split('/')[-1]):
                     # if the file already exists, check if something changed
                     logging.warning('config file {} already exist. Checking differences.'.format(TEMP+'/'+parser.config_file.split('/')[-1]))

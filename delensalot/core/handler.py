@@ -754,6 +754,10 @@ class QE_lr(Basejob):
                         self.simulationdata.purgecache()
                 mpi.barrier()
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
+                    ## If meanfield subtraction is done, only one task must calculate the meanfield first before get_plm() is called, otherwise read-errors because all tasks try calculating/accessing it at once.
+                    ## The way I fix this (the next two lines) is a bit unclean.
+                    if self.QE_subtract_meanfield:
+                        self.qlms_dd.get_sim_qlm_mf(self.k, [int(simidx_mf) for simidx_mf in self.simidxs_mf])
                     self.get_plm(idx, self.QE_subtract_meanfield)
                     if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
                         self.simulationdata.purgecache()

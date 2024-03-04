@@ -26,7 +26,8 @@ valid_value = {
     'phi_lmax': [],
     'epsilon': [],
     'libdir_suffix': [],
-    'modifier': [],
+    'CMB_modifier': [],
+    'phi_modifier': [],
 }
 # if [], doesn't check for bounds
 valid_bound = {
@@ -53,7 +54,8 @@ valid_bound = {
     'phi_lmax': [],
     'epsilon': [],
     'libdir_suffix': [],
-    'modifier': [],
+    'CMB_modifier': [],
+    'phi_modifier': [],
 }
 
 # if [], doesn't check for type
@@ -81,7 +83,8 @@ valid_type = {
     'phi_lmax': [],
     'epsilon': [],
     'libdir_suffix': [],
-    'modifier': [],
+    'CMB_modifier': [],
+    'phi_modifier': [],
 }
 
 def libdir_suffix(instance, attribute, value):
