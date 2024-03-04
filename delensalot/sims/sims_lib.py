@@ -67,8 +67,8 @@ class iso_white_noise:
         self.spin = spin
         self.lmax = lmax
         self.space = space
+        self.nlev = nlev
         if libdir == DNaV:
-            self.nlev = nlev
             assert libdir_suffix != DNaV, 'must give libdir_suffix'
             nlev_round = dict2roundeddict(self.nlev)
             self.libdir_phas = os.environ['SCRATCH']+'/simulation/{}/{}/phas/{}/'.format(libdir_suffix, get_dirname(str(self.geominfo)), get_dirname(str(sorted(nlev_round.items()))))
@@ -97,13 +97,13 @@ class iso_white_noise:
             assert 0, "I don't think you want qlms ulms."
         if field == 'temperature' and spin == 2:
             assert 0, "I don't think you want spin-2 temperature."
-        if field == 'temperature' and 'T' not in self.nlev:
-            assert 0, "need to provide T key in nlev"
-        if field == 'polarization' and 'P' not in self.nlev:
-            assert 0, "need to provide P key in nlev"
         fn = 'noise_space{}_spin{}_field{}_{}'.format(space, spin, field, simidx)
         if not self.cacher.is_cached(fn):
             if self.libdir == DNaV:
+                if field == 'temperature' and 'T' not in self.nlev:
+                    assert 0, "need to provide T key in nlev"
+                if field == 'polarization' and 'P' not in self.nlev:
+                    assert 0, "need to provide P key in nlev"
                 if self.geominfo[0] == 'healpix':
                     vamin = np.sqrt(hp.nside2pixarea(self.geominfo[1]['nside'], degrees=True)) * 60
                 else:
@@ -133,6 +133,8 @@ class iso_white_noise:
                     elif self.spin == 0:
                         noise1 = load_file(opj(self.libdir, self.fns['E'].format(simidx)))
                         noise2 = load_file(opj(self.libdir, self.fns['B'].format(simidx)))
+                    else:
+                        assert 0, "unsure how to process spin {}".format(self.spin)
                     noise = np.array([noise1, noise2])
                     if self.space == 'map':
                         if space == 'alm':
@@ -629,7 +631,7 @@ class Xobs:
                     if libdir_noise == DNaV:
                         if nlev == DNaV:
                             assert 0, "need nlev for generating noise"
-                        self.noise_lib = iso_white_noise(nlev=nlev, lmax=lmax, fns=fnsnoise,libdir=libdir_noise, space=space, geominfo=self.geominfo, libdir_suffix=libdir_suffix)
+                        self.noise_lib = iso_white_noise(nlev=nlev, lmax=lmax, fns=fnsnoise, libdir=libdir_noise, space=space, geominfo=self.geominfo, libdir_suffix=libdir_suffix)
                 if np.all(transfunction == DNaV):
                     assert 0, 'need to give transfunction'
                 self.transfunction = transfunction       
@@ -641,6 +643,11 @@ class Xobs:
                     assert 0, 'you need to provide fns' 
                 if self.spin == DNaV:
                     assert 0, 'need to give spin'
+                if noise_lib == DNaV:
+                    # observed maps provided and noise maps provided (used for validation in application level only. #TODO utilize get_sim_noise() to generate OBD etc.)
+                    # FIXME at this point, nlev is unclear, supposedly? This is thus only passing whatever is in the config file.
+                    self.noise_lib = iso_white_noise(nlev=nlev, lmax=lmax, spin=spin, fns=fnsnoise, libdir=libdir_noise, space=space, geominfo=self.geominfo, libdir_suffix=libdir_suffix)
+
 
 
     def get_sim_obs(self, simidx, space, field, spin=2):
@@ -692,16 +699,16 @@ class Xobs:
                     if self.spin == 2:
                         if self.fns['Q'] == self.fns['U'] and self.fns['Q'].endswith('.fits'):
                             # Assume implicitly that Q is field=1, U is field=2
-                            obs1 = load_file(opj(self.libdir, self.fns['Q'].format(simidx)), ifield=1)
-                            obs2 = load_file(opj(self.libdir, self.fns['U'].format(simidx)), ifield=2)
+                            obs1 = load_file(opj(self.libdir, self.fns['Q'].format(simidx)), ifield=0)
+                            obs2 = load_file(opj(self.libdir, self.fns['U'].format(simidx)), ifield=1)
                         else:
                             obs1 = load_file(opj(self.libdir, self.fns['Q'].format(simidx)))
                             obs2 = load_file(opj(self.libdir, self.fns['U'].format(simidx)))
                     elif self.spin == 0:
                         if self.fns['E'] == self.fns['B'] and self.fns['B'].endswith('.fits'):
                             # Assume implicitly that E is field=1, B is field=2
-                            obs1 = load_file(opj(self.libdir, self.fns['E'].format(simidx)), ifield=1)
-                            obs2 = load_file(opj(self.libdir, self.fns['B'].format(simidx)), ifield=2)
+                            obs1 = load_file(opj(self.libdir, self.fns['E'].format(simidx)), ifield=0)
+                            obs2 = load_file(opj(self.libdir, self.fns['B'].format(simidx)), ifield=1)
                         else:
                             obs1 = load_file(opj(self.libdir, self.fns['E'].format(simidx)))
                             obs2 = load_file(opj(self.libdir, self.fns['B'].format(simidx)))
@@ -888,7 +895,7 @@ class Simhandler:
                     assert spin != DNaV, "need to provide spin"
                     assert lmax != DNaV, "need to provide lmax"
                     assert field != DNaV, "need to provide field"
-                self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, libdir=libdir, fns=fns, spin=spin, geominfo=geominfo, field=field, libdir_suffix=libdir_suffix, CMB_modifier=CMB_modifier , phi_modifier=phi_modifier) if obs_lib == DNaV else obs_lib
+                self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, libdir=libdir, fns=fns, spin=spin, geominfo=geominfo, field=field, libdir_suffix=libdir_suffix, libdir_noise=libdir_noise, fnsnoise=fnsnoise, CMB_modifier=CMB_modifier, phi_modifier=phi_modifier) if obs_lib == DNaV else obs_lib
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = self.obs_lib.libdir
                 self.fns = self.obs_lib.fns

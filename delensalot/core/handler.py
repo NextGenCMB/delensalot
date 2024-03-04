@@ -623,8 +623,8 @@ class QE_lr(Basejob):
             if self.qlm_type == 'sepTP':
                 self.qlms_dd = qest.library_sepTP(opj(self.libdir_QE, 'qlms_dd'), self.ivfs, self.ivfs, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
         elif self.qe_filter_directional == 'anisotropic':
-            ## Wait for finished run(), as plancklens triggers cinv_calc...
-            if len(self.collect_jobs()[0]) == 0:
+            ## Wait for at least one finished run(), as plancklens triggers cinv_calc...
+            if len(self.collect_jobs()[0]) - len(self.simidxs) > 0:
                 self.init_aniso_filter()
 
         self.mf = lambda simidx: self.get_meanfield(int(simidx))
