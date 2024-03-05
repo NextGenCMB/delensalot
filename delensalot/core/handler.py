@@ -624,7 +624,7 @@ class QE_lr(Basejob):
                 self.qlms_dd = qest.library_sepTP(opj(self.libdir_QE, 'qlms_dd'), self.ivfs, self.ivfs, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
         elif self.qe_filter_directional == 'anisotropic':
             ## Wait for at least one finished run(), as plancklens triggers cinv_calc...
-            if len(self.collect_jobs()[0]) - len(self.simidxs) > 0:
+            if len(self.collect_jobs()[0]) - len(self.simidxs) > 0 or len(self.collect_jobs()[0])==0:
                 self.init_aniso_filter()
 
         self.mf = lambda simidx: self.get_meanfield(int(simidx))
@@ -810,22 +810,38 @@ class QE_lr(Basejob):
         return qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_unl, self.cls_unl, self.fteb_unl, lmax_qlm=self.lm_max_qlm[0])[0]
 
 
+    @log_on_start(logging.DEBUG, "QE.get_mchain() started")
+    @log_on_end(logging.DEBUG, "QE.get_mchain() finished")
+    def get_mchain(self, simidx, key, it=0):
+        itlib_iterator = transform(self, iterator_transformer(self, simidx, self.dlensalot_model))
+        itlib_iterator.chain_descr = self.it_chain_descr(self.lm_max_unl[0], self.it_cg_tol(it))
+        return itlib_iterator.get_mchain(it=it, key=key)
+
+
     # @base_exception_handler
     @log_on_start(logging.DEBUG, "QE.get_meanfield(simidx={simidx}) started")
     @log_on_end(logging.DEBUG, "QE.get_meanfield(simidx={simidx}) finished")
     def get_meanfield(self, simidx):
+        # Either return MC MF, filter.qlms_mf, or mfvar
         ret = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, 0))
+        if np.dtype(self.mfvar) == str:
+            if self.mfvar == 'qlms_mf':
+                # calculate MF estimate using Lewis&Carron trick
+                mchain = self.get_mchain(0, 'p')
+                return self.filter.get_qlms_mf(1, self.ffi.pbgeom, mchain)
         if self.Nmf > 1:
             if self.mfvar == None:
+                # MC MF, and exclude the current simidx
                 ret = self.qlms_dd.get_sim_qlm_mf(self.k, [int(simidx_mf) for simidx_mf in self.simidxs_mf])
                 if simidx in self.simidxs_mf:    
                     ret = (ret - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
             else:
+                # mfvar, and exclude the current simidx from the mfvar simset (qlms_dd_mfvar)
                 ret = hp.read_alm(self.mfvar)
                 if simidx in self.simidxs_mf:    
                     ret = (ret - self.qlms_dd_mfvar.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
             return ret
-        
+            
         return ret
         
 
@@ -1084,15 +1100,22 @@ class MAP_lr(Basejob):
                             self.simulationdata.purgecache()
 
 
+    @log_on_start(logging.DEBUG, "MAP.get_mchain() started")
+    @log_on_end(logging.DEBUG, "MAP.get_mchain() finished")
+    def get_mchain(self, simidx, key, it=0):
+        libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
+        itlib_iterator = transform(self, iterator_transformer(self, simidx, self.dlensalot_model))
+        itlib_iterator.chain_descr = self.it_chain_descr(self.lm_max_unl[0], self.it_cg_tol(it))
+        return itlib_iterator.get_mchain(it=it, key=key)
+
+
     # # @base_exception_handler
     @log_on_start(logging.DEBUG, "MAP.get_plm_it(simidx={simidx}, its={its}) started")
     @log_on_end(logging.DEBUG, "MAP.get_plm_it(simidx={simidx}, its={its}) finished")
     def get_plm_it(self, simidx, its):
-
         plms = rec.load_plms(self.libdir_MAP(self.k, simidx, self.version), its)
-
         return plms
-    
+
 
     # # @base_exception_handler
     @log_on_start(logging.DEBUG, "MAP.get_meanfield_it(it={it}, calc={calc}) started")

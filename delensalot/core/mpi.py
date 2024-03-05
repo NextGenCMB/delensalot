@@ -83,8 +83,8 @@ def disable():
     print('disabling mpi')
     barrier = lambda: -1
     send = lambda _, dest: 0
-    receive = lambda _, source: 0
-    bcast = lambda _: 0
+    receive = lambda _, source: _
+    bcast = lambda _, root=0: _
     ANY_SOURCE = 0
     disabled = True
     rank = 0

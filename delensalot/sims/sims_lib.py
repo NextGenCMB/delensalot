@@ -56,6 +56,7 @@ def dict2roundeddict(d):
     return d
 
 class iso_white_noise:
+    # FIXME misleading naming. if noisemaps are passed, these are not necessarily iso. One way to refactor is to create a more generic class 'noise_map'.
     """class for generating very simple isotropic white noise
     """
     def __init__(self, nlev, lmax=DNaV, libdir=DNaV, fns=DNaV, spin=DNaV, space=DNaV, geominfo=DNaV, libdir_suffix=DNaV):
@@ -126,6 +127,7 @@ class iso_white_noise:
                     if space == 'alm':
                         noise = self.geom_lib.map2alm(noise, lmax=self.lmax, mmax=self.lmax, nthreads=4)
             else:
+                # FIXME similar to get_sim_obs, catch multiple maps in same .fits
                 if field == 'polarization':
                     if self.spin == 2:
                         noise1 = load_file(opj(self.libdir, self.fns['Q'].format(simidx)))
@@ -328,6 +330,7 @@ class Xunl:
                     elif field == 'temperature':
                         unl = self.geom_lib.alm2map(unl, lmax=self.lmax, mmax=self.lmax, nthreads=4)
             else:
+                # FIXME similar to get_sim_obs, catch multiple maps in same .fits
                 if field  == 'polarization':
                     if self.spin == 2:
                         unl1 = load_file(opj(self.libdir, self.fns['Q'].format(simidx)))
@@ -539,6 +542,7 @@ class Xsky:
                             sky = self.lenjob_geomlib.map2alm(sky, lmax=self.lmax, mmax=self.lmax, nthreads=4)
                 else:
                     log.debug('.., but stored on disk.')
+                    # FIXME similar to get_sim_obs, catch multiple maps in same .fits
                     if field == 'polarization':
                         if self.spin == 2:
                             sky1 = load_file(opj(self.libdir, self.fns['Q'].format(simidx)))
