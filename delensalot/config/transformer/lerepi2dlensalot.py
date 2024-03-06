@@ -368,8 +368,9 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     
                     dl.lenjob_geominfo = it.lenjob_geominfo
                     dl.lenjob_geomlib = get_geom(it.lenjob_geominfo)
-                    thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
-                    dl.lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
+                    # FIXME not sure if we should restrict here
+                    # thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
+                    # dl.lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
 
                     # TODO this needs cleaner implementation
                     if dl.version == '' or dl.version == None:
@@ -558,6 +559,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     
                     dl.lenjob_geominfo = it.lenjob_geominfo
                     dl.lenjob_geomlib = get_geom(it.lenjob_geominfo)
+                    thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
+                    dl.lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
             
                     if dl.version == '' or dl.version == None:
                         dl.mf_dirname = opj(dl.TEMP, l2T_Transformer.ofj('mf', {'Nmf': dl.Nmf}))
@@ -796,14 +799,13 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                                 dl.masks[maskflavour][maskid] = dl.masks_fromfn[maskid]
                             dl.binmasks[maskflavour][maskid] = np.where(dl.masks[maskflavour][maskid]>0,1,0)
 
-                    ## Binning and power spectrum calculator specific preparation
-                    if ma.Cl_fid == 'ffp10':
-                        dl.cls_unl = camb_clfile(cf.analysis.cls_unl)
-                        dl.cls_len = camb_clfile(cf.analysis.cls_len)
-                        dl.clg_templ = dl.cls_len['ee']
-                        dl.clc_templ = dl.cls_len['bb']
-                        dl.clg_templ[0] = 1e-32
-                        dl.clg_templ[1] = 1e-32
+                    ## Binning and power spectrum calculator specific preparation.
+                    dl.cls_unl = camb_clfile(cf.analysis.cls_unl)
+                    dl.cls_len = camb_clfile(cf.analysis.cls_len)
+                    dl.clg_templ = dl.cls_len['ee']
+                    dl.clc_templ = dl.cls_len['bb']
+                    dl.clg_templ[0] = 1e-32
+                    dl.clg_templ[1] = 1e-32
 
                     dl.binning = ma.binning
                     if dl.binning == 'binned':
