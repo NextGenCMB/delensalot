@@ -67,6 +67,10 @@ class config_handler():
                                 if self.configfile.dlensalot_model.noisemodel.OBD == 'OBD':
                                     # Catch build_OBD, iff noisemodel.obd is True. Else don't calculate (mpi tasks should still be fixed.. but 'run-anyway' applies)
                                     self.configfile.dlensalot_model.job.jobs.append(sortedjob)
+                            elif sortedjob == 'analyse_phi':
+                                ## only add this job if input phi exists.
+                                if self.configfile.dlensalot_model.simulationdata.flavour == 'unl':
+                                    self.configfile.dlensalot_model.job.jobs.append(sortedjob)
                             else:
                                 self.configfile.dlensalot_model.job.jobs.append(sortedjob)
                 ## adding 'analyse_phi' into every run as long as MAP_lensrec is part of the run and input phi exists

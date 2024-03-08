@@ -831,7 +831,7 @@ class QE_lr(Basejob):
         # Either return MC MF, filter.qlms_mf, or mfvar
         ret = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, 0))
         fn_mf = opj(self.libdir_QE, 'mf_allsims.npy')
-        if np.dtype(self.mfvar) == str:
+        if type(self.mfvar) == str:
             if self.mfvar == 'qlms_mf':
                 # calculate MF estimate using Lewis&Carron trick
                 mchain = self.get_mchain(0, 'p')
@@ -844,11 +844,12 @@ class QE_lr(Basejob):
                 if simidx in self.simidxs_mf:    
                     ret = (ret - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
             else:
-                # mfvar, and exclude the current simidx from the mfvar simset (qlms_dd_mfvar)
-                ret = hp.read_alm(self.mfvar)
-                if simidx in self.simidxs_mf:    
-                    ret = (ret - self.qlms_dd_mfvar.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
-
+                # mfvar, ..
+                # FIXME mfvar comes from different simulations, so can probably ignore excluding current simidx..
+                ret = np.load(self.mfvar)
+                # if simidx in self.simidxs_mf:    
+                #     ret = (ret - self.qlms_dd_mfvar.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
+                log.info('returning mfvar meanfield')
             return ret
             
         return ret

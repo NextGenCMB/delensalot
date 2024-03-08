@@ -65,7 +65,9 @@ class l2base_Transformer:
         dl.simidxs = an.simidxs
         dl.simidxs_mf = np.array(an.simidxs_mf) if dl.version != 'noMF' else np.array([])
         # dl.simidxs_mf = dl.simidxs if dl.simidxs_mf.size == 0 else dl.simidxs_mf
-        dl.Nmf = 0 if dl.version == 'noMF' else len(dl.simidxs_mf)
+        dl.Nmf = 0 if dl.version == 'noMF' else len(dl.simidxs_mf) # FIXME dont make intermediate parameters depend on each other...
+        if cf.itrec.mfvar.startswith('/'):
+            dl.Nmf = 10000 #give this a big number.. the actual number doesnt matter, as long as it is bigger than 1
         dl.TEMP_suffix = an.TEMP_suffix
         dl.TEMP = transform(cf, l2T_Transformer())
         dl.cls_unl = camb_clfile(an.cls_unl)
