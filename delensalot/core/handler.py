@@ -1261,15 +1261,28 @@ class Map_delenser(Basejob):
     # @log_on_end(logging.DEBUG, "get_basemap() finished")  
     def get_basemap(self, simidx):
         '''
-        Return a B-map to be delensed. Can be the map handled in the sims_lib library (basemap='lens'), 'lens_ffp10' (this potentially is the same as sims_lib currently uses ffp10 as baseline),
+        Return a B-map to be delensed. Can be the map handled in the sims_lib library (basemap='lens'), 'lens_ffp10' (these are the ffp10 relizations on NERSC),
         or the observed map itself, in which case the residual foregrounds and noise will still be in there.
-            
+            gauss_beam(self.beam / 180 / 60 * np.pi, lmax=self.lm_max_blt[1])
         '''
         # TODO depends if data comes from delensalot simulations or from external.. needs cleaner implementation
         if self.basemap == 'lens': 
-            return almxfl(alm_copy(self.simulationdata.get_sim_sky(simidx, space='alm', spin=0, field='polarization')[1], self.simulationdata.lmax, *self.lm_max_blt), self.ttebl['e'], self.lm_max_blt[0], inplace=False) 
+            return almxfl(
+                alm_copy(
+                    self.simulationdata.get_sim_sky(simidx, space='alm', spin=0, field='polarization')[1],
+                    self.simulationdata.lmax, *self.lm_max_blt
+                ),
+                self.ttebl['e'], self.lm_max_blt[0], inplace=False) 
         elif self.basemap == 'lens_ffp10':
-            return almxfl(alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(simidx), None, lmaxout=self.lm_max_blt[0], mmaxout=self.lm_max_blt[1]), gauss_beam(self.beam / 180 / 60 * np.pi, lmax=self.lm_max_blt[1]))  
+                return almxfl(
+                    alm_copy(
+                    planck2018_sims.cmb_len_ffp10.get_sim_blm(simidx),
+                    None,
+                    lmaxout=self.lm_max_blt[0],
+                    mmaxout=self.lm_max_blt[1]
+                ),
+                self.ttebl['e'], self.lm_max_blt[0], inplace=False
+                )  
         else:
             # only checking for map to save some memory..
             if np.all(self.simulationdata.maps == DEFAULT_NotAValue):
@@ -1299,7 +1312,7 @@ class Map_delenser(Basejob):
                 for iti, it in enumerate(self.its):
                     blt_MAP = self.get_blt_it(simidx, it)
                     bdel_MAP = self.nivjob_geomlib.alm2map(blm_L-blt_MAP, *self.lm_max_blt, nthreads=4)
-                    log.info("starting MAP delensing for iteration {}".format(it))
+                    log.debug("starting MAP delensing for iteration {}".format(it))
                     blt_L_MAP = self.lib[maskflavour][maskid].map2cl(bdel_MAP)    
                     outputdata[0][2+iti][maskcounter] = blt_L_MAP
 

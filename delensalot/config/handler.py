@@ -183,8 +183,11 @@ class config_handler():
         if dostore:
             if not os.path.exists(TEMP):
                 os.makedirs(TEMP)
-            shutil.copyfile(parser.config_file, TEMP +'/'+parser.config_file.split('/')[-1])
-            logging.info('config file stored at '+ TEMP +'/'+parser.config_file.split('/')[-1])
+            try:
+                shutil.copyfile(parser.config_file, TEMP +'/'+parser.config_file.split('/')[-1])
+                logging.info('config file stored at '+ TEMP +'/'+parser.config_file.split('/')[-1])
+            except shutil.SameFileError:
+                log.debug("Did not copy config file as it appears to be the same.")
         else:
             if parser.resume == '':
                 # Only give this info when not resuming
