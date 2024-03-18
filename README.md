@@ -11,6 +11,8 @@ Curved-sky iterative CMB lensing reconstruction and bias calculation.
 
 If you use delensalot for your work, please consider citing [CMB-S4: Iterative internal delensing and r constraints](https://arxiv.org/abs/2310.06729).
 
+![noise comparison](res//deflectionnoisecomp.png)
+
 # Installation
 Download the project, navigate to the root folder and execute the command,
 
