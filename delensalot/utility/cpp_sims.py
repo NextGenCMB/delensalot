@@ -219,10 +219,10 @@ class cpp_sims_lib:
         cpp_in = cacher.load(fn_cpp_in)
         return cpp_in
 
-    def get_cpp_itXinput(self, simidx, itr):
+    def get_cpp_itXinput(self, simidx, itr,  recache=False):
         fn = 'cpp_in_x_it{}'.format(itr)
         cacher = self.cacher_sim(simidx)
-        if not cacher.is_cached(fn):
+        if not cacher.is_cached(fn) or recache:
             plmin = self.get_plm_input(simidx)
             # plmit = self.plms[simidx][itr]
             plmit = self.get_plm(simidx, itr)
@@ -432,7 +432,21 @@ class cpp_sims_lib:
         return r_gg_fid
 
     def get_N0_N1_QE(self, normalize=True, resp_gradcls=True, n1fft=True, recache=False, ivfs=None, version=''):
-
+        """
+        Get the QE N0 and N1 biases
+        
+        args:
+            normalise: normalise by QE response 
+            resp_gradcls: Use the grad lensed Cls in the response
+            n1fft: estimate the N1 bias with the fast FFT algorithm
+            recache: recompute the cached terms and overwrite them
+            ivfs: provide the filtering of the CMB maps
+            version: customisation parmaeters for filetrings
+            
+        returns:
+            N0: (un) normalised N0 bias
+            N1 (un) normalised N1 bias
+        """
         if ivfs is None:
             if 'nocut' in version:
                 ivfs = self.param.ivfs_nocut
