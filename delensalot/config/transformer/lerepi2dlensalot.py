@@ -17,8 +17,8 @@ import numpy as np
 import healpy as hp
 import hashlib
 
-import pysht
-from pysht import get_geom
+import cunusht
+from cunusht import get_geom
 
 ## TODO don't like this import here. Not sure how to remove
 from delensalot.core.cg import cd_solve

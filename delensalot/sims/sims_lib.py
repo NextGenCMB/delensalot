@@ -16,8 +16,8 @@ log = logging.getLogger(__name__)
 
 import lenspyx
 from lenspyx.lensing import get_geom as lp_get_geom
-from pysht import get_geom as pysht_get_geom
-import pysht
+from cunusht import get_geom as cunusht_get_geom
+import cunusht
 from plancklens.sims import phas
 from delensalot.core import cachers
 from delensalot.config.metamodel import DEFAULT_NotAValue as DNaV
@@ -73,7 +73,7 @@ class iso_white_noise:
             log.info("sht_backend not given, defaulting to CPU")
             self.sht_backend = 'CPU'
         self.mode = 'SHT'
-        self.geom_lib = pysht.get_transformer(self.sht_solver, self.mode, self.sht_backend)(self.geominfo)
+        self.geom_lib = cunusht.get_transformer(self.sht_backend, self.sht_solver, self.mode)(self.geominfo)
         self.geom_lib.set_geometry(self.geominfo)
         
         self.libdir = libdir
@@ -137,7 +137,6 @@ class iso_white_noise:
                 elif field == 'temperature':
                     noise = self.nlev['T'] / vamin * self.pix_lib_phas.get_sim(int(simidx), idf=0)
                     if space == 'alm':
-                        print(self.geom_lib)
                         noise = self.geom_lib.map2alm(noise, lmax=self.lmax, mmax=self.lmax, nthreads=4)
             else:
                 if field == 'polarization':
@@ -263,7 +262,10 @@ class Xunl:
             log.info("sht_backend not given, defaulting to CPU")
             self.sht_backend = 'CPU'
         self.mode = 'SHT'
-        self.geom_lib = pysht.get_transformer(self.sht_solver, self.mode, self.sht_backend)(self.geominfo)
+        geomkwargs = {
+            'geominfo': self.geominfo
+        }
+        self.geom_lib = cunusht.get_transformer(self.sht_backend, self.sht_solver, 'SHT')(**geomkwargs)
         self.libdir = libdir
         self.space = space
         self.spin = spin
@@ -285,7 +287,6 @@ class Xunl:
                 self.cls_lib = Cls(lmax=lmax, phi_field=self.phi_field, phi_lmax=self.phi_lmax)
             else:
                 self.cls_lib = cls_lib
-            self.phi_lmax = self.cls_lib.phi_lmax
         if libdir != DNaV:
             if self.space == DNaV:
                 assert 0, 'need to give space (map or alm)'
@@ -298,8 +299,7 @@ class Xunl:
             if cls_lib == DNaV:
                 self.cls_lib = Cls(lmax=lmax, phi_field=self.phi_field, phi_lmax=self.phi_lmax)
             else:
-                self.cls_lib = cls_lib        
-            self.phi_lmax = self.cls_lib.phi_lmax     
+                self.cls_lib = cls_lib
         if libdir_phi != DNaV:
             self.fnsP = fnsP
             if self.fnsP == DNaV:
@@ -314,7 +314,6 @@ class Xunl:
                 geom_lmax = self.geominfo[1]['lmax']
             else:
                 geom_lmax = lmax + 1024
-            self.phi_lmax = np.min([lmax + 1024, geom_lmax])
         self.isfrozen = isfrozen
             
         self.cacher = cachers.cacher_mem(safe=True)
@@ -407,7 +406,7 @@ class Xunl:
 
         Returns:
             _type_: _description_
-        """        
+        """
         fn = 'phi_space{}_{}'.format(space, simidx)
         if not self.cacher.is_cached(fn):
             if self.libdir_phi == DNaV:
@@ -427,11 +426,9 @@ class Xunl:
                 else:
                     phi = np.array(load_file(opj(self.libdir_phi, self.fnsP.format(simidx))), dtype=complex)
                 if self.phi_space == 'map':
+                    solver, mode, backend = 'ducc', 'SHT', 'CPU'
+                    self.geom_lib = cunusht.get_transformer(backend, solver, mode)
                     self.geominfo_phi = ('healpix', {'nside':hp.npix2nside(phi.shape[0])})
-                    solver = 'ducc'
-                    mode = 'SHT'
-                    backend = 'CPU'
-                    self.geom_lib = pysht.get_transformer(solver, mode, backend)
                     self.geom_lib.set_geometry(self.geominfo_phi)
                     phi = self.geomlib_phi.map2alm(phi, lmax=self.phi_lmax, mmax=self.phi_lmax, nthreads=4)
                 ## phi modifcation
@@ -478,7 +475,7 @@ class Xunl:
 
 
 class Xsky:
-    """class for generating lensed CMB and phi realizations from unlensed realizations, using pySHT for the lensing operation
+    """class for generating lensed CMB and phi realizations from unlensed realizations, using cunusht for the lensing operation
     """    
     def __init__(self, lmax, unl_lib=DNaV, libdir=DNaV, fns=DNaV, spin=DNaV, epsilon=1e-7, space=DNaV, geominfo=DNaV, isfrozen=False, lenjob_geominfo=DNaV, phi_modifier=DNaV, sht_solver=DNaV, sht_backend=DNaV, deflection_solver=DNaV, deflection_backend=DNaV):
         self.geominfo = geominfo
@@ -493,7 +490,7 @@ class Xsky:
             log.info("sht_backend not given, defaulting to CPU")
             self.sht_backend = 'CPU'
         self.mode = 'SHT'
-        self.geom_lib = pysht.get_transformer(self.sht_solver, self.mode, self.sht_backend)(self.geominfo)
+        self.geom_lib = cunusht.get_transformer( self.sht_backend, self.sht_solver, self.mode)(self.geominfo)
         self.geom_lib.set_geometry(self.geominfo)
         self.libdir = libdir
         self.fns = fns
@@ -509,6 +506,7 @@ class Xsky:
             if epsilon == DNaV:
                 self.epsilon = 1e-7
             else:
+                
                 self.epsilon = epsilon
         else:
             if self.spin == DNaV:
@@ -631,6 +629,8 @@ class Xsky:
 
     def unl2len(self, Xlm, philm, **kwargs):
         ll = np.arange(0,self.unl_lib.phi_lmax+1,1)
+        if not 'epsilon' in kwargs.keys():
+            kwargs['epsilon'] = self.epsilon
         return lenspyx.alm2lenmap_spin(Xlm, hp.almxfl(philm,  np.sqrt(ll*(ll+1))), geometry=self.lenjob_geominfo, **kwargs)
 
 
@@ -650,7 +650,7 @@ class Xobs:
             log.info("sht_backend not given, defaulting to CPU")
             self.sht_backend = 'CPU'
         self.mode = 'SHT'
-        self.geom_lib = pysht.get_transformer(self.sht_solver, self.mode, self.sht_backend)(self.geominfo)
+        self.geom_lib = cunusht.get_transformer(self.sht_backend, self.sht_solver, self.mode)(self.geominfo)
         self.geom_lib.set_geometry(self.geominfo)
         
         if CMB_modifier == DNaV:
