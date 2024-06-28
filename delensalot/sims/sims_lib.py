@@ -411,6 +411,7 @@ class Xunl:
         if not self.cacher.is_cached(fn):
             if self.libdir_phi == DNaV:
                 log.debug('generating phi from cl')
+                print('generating phi from cl')
                 Clpf = self.cls_lib.get_sim_clphi(simidx)
                 self.phi_field = self.cls_lib.phi_field
                 Clp = self.clpf2clppot(Clpf)
@@ -437,6 +438,7 @@ class Xunl:
                 if space == 'map':
                     phi = self.geom_lib.alm2map(phi, lmax=self.phi_lmax, mmax=self.phi_lmax, nthreads=4)
             self.cacher.cache(fn, phi)
+        print('found phi in cacher')
         return self.cacher.load(fn)
     
 
@@ -459,9 +461,11 @@ class Xunl:
 
 
     def cl2alm(self, cls, field, seed):
-        np.random.seed(int(seed)) # check if this starting point is random
+        # np.random.seed(int(seed)+100000)
+        np.random.seed(int(seed))
         if field == 'polarization':
             alms = hp.synalm(cls, self.lmax, new=True)
+            # np.random.seed(int(seed)+1000000)
             return alms[1:]
         elif field == 'temperature':
             alm = hp.synalm(cls, self.lmax)
@@ -469,8 +473,12 @@ class Xunl:
     
 
     def clp2plm(self, clp, seed):
+        # np.random.seed(int(seed)+1000)
         np.random.seed(int(seed))
+        # Cls = self.cls_lib.get_TEBunl(seed)[:,self.phi_lmax+1]
+        # plm = hp.synalm(np.concatenate([Cls,clp]), self.phi_lmax)
         plm = hp.synalm(clp, self.phi_lmax)
+        # np.random.seed(int(seed)+10000)
         return plm
 
 
