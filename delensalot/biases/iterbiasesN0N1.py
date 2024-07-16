@@ -274,6 +274,9 @@ def get_delcls(qe_key: str, itermax:int, cls_unl_fid: dict, cls_unl_true:dict, c
         cls_len_true = dls2cls(lensed_cls(dls_unl_true, cldd_true))
 
     cls_plen_true = cls_len_true
+    nls_plen_true = cls_noise_true
+    nls_plen_fid = cls_noise_fid
+
     for irr, it in utils.enumerate_progress(range(itermax + 1)):
         dls_unl_true, cldd_true = cls2dls(cls_unl_true)
         dls_unl_fid, cldd_fid = cls2dls(cls_unl_fid)
@@ -305,8 +308,12 @@ def get_delcls(qe_key: str, itermax:int, cls_unl_fid: dict, cls_unl_true:dict, c
             cldd_fid *= (1. - rho_sqd_phi)  # What I think the residual lensing spec is
             cls_plen_fid = dls2cls(lensed_cls(dls_unl_fid, cldd_fid))
             cls_plen_true = dls2cls(lensed_cls(dls_unl_true, cldd_true))
+            
+        if 'wNl' in version:
+            nls_plen_fid =  dls2cls(lensed_cls(cls2dls(cls_noise_fid), cldd_fid))
+            nls_plen_true =  dls2cls(lensed_cls(cls2dls(cls_noise_true), cldd_fid))
 
-        fal, dat_delcls, cls_w, cls_f = get_fals(qe_key, cls_plen_fid, cls_plen_true, cls_noise_fid, cls_noise_true, lmin_ivf, lmax_ivf)
+        fal, dat_delcls, cls_w, cls_f = get_fals(qe_key, cls_plen_fid, cls_plen_true, nls_plen_fid, nls_plen_true, lmin_ivf, lmax_ivf)
 
         cls_ivfs_arr = utils.cls_dot([fal, dat_delcls, fal])
         cls_ivfs = dict()
