@@ -310,8 +310,8 @@ def get_delcls(qe_key: str, itermax:int, cls_unl_fid: dict, cls_unl_true:dict, c
             cls_plen_true = dls2cls(lensed_cls(dls_unl_true, cldd_true))
             
         if 'wNl' in version:
-            nls_plen_fid =  dls2cls(lensed_cls(cls2dls(cls_noise_fid), cldd_fid))
-            nls_plen_true =  dls2cls(lensed_cls(cls2dls(cls_noise_true), cldd_fid))
+            nls_plen_fid =  dls2cls(lensed_cls(cls2dls(cls_noise_fid)[0], cldd_fid))
+            nls_plen_true =  dls2cls(lensed_cls(cls2dls(cls_noise_true)[0], cldd_fid))
 
         fal, dat_delcls, cls_w, cls_f = get_fals(qe_key, cls_plen_fid, cls_plen_true, nls_plen_fid, nls_plen_true, lmin_ivf, lmax_ivf)
 

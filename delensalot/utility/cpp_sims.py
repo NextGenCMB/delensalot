@@ -74,9 +74,9 @@ class cpp_sims_lib:
 
         self.cpp_fid = self.param.cls_unl['pp']
 
-        self.config = (self.param.nlev_t, self.param.nlev_p, self.param.beam, 
-                       (self.param.lmin_tlm,  self.param.lmin_elm, self.param.lmin_blm), 
-                       self.param.lmax_ivf, self.param.lmax_qlm)
+        # self.config = (self.param.nlev_t, self.param.nlev_p, self.param.beam, 
+        #                (self.param.lmin_tlm,  self.param.lmin_elm, self.param.lmin_blm), 
+        #                self.param.lmax_ivf, self.param.lmax_qlm)
 
         try:
             self.nhllib = nhl.nhl_lib_simple(opj(self.cachedir, 'nhllib'), self.param.ivfs, self.param.ivfs.ivfs.cl, self.param.lmax_qlm)
