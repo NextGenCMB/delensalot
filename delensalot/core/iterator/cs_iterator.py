@@ -200,7 +200,7 @@ class qlm_iterator(object):
 
     @log_on_start(logging.DEBUG, "get_template_blm(it={it}) started")
     @log_on_end(logging.DEBUG, "get_template_blm(it={it}) finished")
-    def get_template_blm(self, it, it_e, lmaxb=1024, lmin_plm=1, elm_wf:None or np.ndarray=None, dlm_mod=None, perturbative=False, k='p_p', pwithn1=False):
+    def get_template_blm(self, it, it_e, lmaxb=1024, lmin_plm=1, elm_wf:None or np.ndarray=None, dlm_mod=None, perturbative=False, k='p_p', pwithn1=False, plm=None):
         """Builds a template B-mode map with the iterated phi and input elm_wf
 
             Args:
@@ -219,18 +219,19 @@ class qlm_iterator(object):
 
         """
         cache_cond = (lmin_plm >= 1) and (elm_wf is None)
-
-        fn_blt = 'blt_p%03d_e%03d_lmax%s'%(it, it_e, lmaxb)
-        if dlm_mod is None:
-            pass
-        else:
-            fn_blt += '_dlmmod' * dlm_mod.any()
-        fn_blt += 'perturbative' * perturbative
-        fn_blt += '_wN1' * pwithn1
+        if cache_cond:
+            fn_blt = 'blt_p%03d_e%03d_lmax%s'%(it, it_e, lmaxb)
+            if dlm_mod is None:
+                pass
+            else:
+                fn_blt += '_dlmmod' * dlm_mod.any()
+            fn_blt += 'perturbative' * perturbative
+            fn_blt += '_wN1' * pwithn1
         
-        if self.blt_cacher.is_cached(fn_blt):
+        if cache_cond and self.blt_cacher.is_cached(fn_blt) :
             return self.blt_cacher.load(fn_blt)
         if elm_wf is None:
+            assert k in ['p', 'p_p'], "Need to have computed the WF for polarization E in terations"
             if it_e > 0:
                 e_fname = 'wflm_%s_it%s' % ('p', it_e - 1)
                 assert self.wf_cacher.is_cached(e_fname)
@@ -243,8 +244,11 @@ class qlm_iterator(object):
             elm_wf = elm_wf[1]
         assert Alm.getlmax(elm_wf.size, self.mmax_filt) == self.lmax_filt, "{}, {}, {}, {}".format(elm_wf.size, self.mmax_filt, Alm.getlmax(elm_wf.size, self.mmax_filt), self.lmax_filt)
         mmaxb = lmaxb
-        dlm = self.get_hlm(it, 'p', pwithn1)
 
+        if plm is None:
+            dlm = self.get_hlm(it, 'p', pwithn1)
+        else:
+            dlm = plm
         # subtract field from phi
         if dlm_mod is not None:
             dlm = dlm - dlm_mod
@@ -621,7 +625,8 @@ class iterator_simf_mcs(qlm_iterator):
                  dat_maps:list or np.ndarray, plm0:np.ndarray, mf_key:int, pp_h0:np.ndarray,
                  cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.alm_filter_wl, k_geom:utils_geom.Geom,
                  chain_descr, stepper:steps.nrstep, mc_sims:np.ndarray=None, sub_nolensing:bool=False, 
-                 mf_cmb_phas=None, mf_noise_phas=None, shift_phas=False, **kwargs):
+                 mf_cmb_phas=None, mf_noise_phas=None, shift_phas=False, 
+                 mf_lowpass_filter= lambda ell: np.ones(len(ell), dtype=float), **kwargs):
         super(iterator_simf_mcs, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
                                              ninv_filt, k_geom, chain_descr, stepper, **kwargs)
         self.mf_key = mf_key
@@ -630,6 +635,8 @@ class iterator_simf_mcs(qlm_iterator):
         self.mf_cmb_phas = mf_cmb_phas
         self.mf_noise_phas = mf_noise_phas 
         self.shift_phas = shift_phas
+        self.mf_lowpass_filter = mf_lowpass_filter
+        
         print(f'Iterator MF key: {self.mf_key}')
 
     @log_on_start(logging.DEBUG, "load_graddet(it={itr}, key={key}) started")
@@ -688,7 +695,7 @@ class iterator_simf_mcs(qlm_iterator):
     def calc_graddet(self, itr, key, get_all_mcs=False, A_dlm=1., mc_sims=None, return_half_mean=False):
         if mc_sims is None:
             mc_sims = self.mc_sims
-        
+
         assert self.is_iter_done(itr - 1, key)
         # assert itr > 0, itr
         if itr == 0:
@@ -774,6 +781,8 @@ class iterator_simf_mcs(qlm_iterator):
                 
                 mf_cacher.cache(fn_qlm(idx), G)
             _Gmfs += mf_cacher.load(fn_qlm(idx))
+        
+        almxfl(_Gmfs, self.mf_lowpass_filter(np.arange(ffi.lmax_dlm+1)), ffi.mmax_dlm, inplace=True)   
         return _Gmfs / len(mcs)
 
 
