@@ -27,16 +27,29 @@ def pp2kk(ls):
     return ls**2*(ls+1)**2/4
 
 
-def plot_bnd(bndcl, ax=None, marker=None, dx=0, *argv, **kwargs):
+def plot_bnd(bndcl, ax=None, marker=None, dx=0, ls='', *argv, **kwargs):
     if ax is None:
         ax = pl.gca()
     if marker is None: marker = '.'
-    p = ax.errorbar(bndcl[0]+dx, bndcl[1], yerr=bndcl[2], ls='', marker=marker,  *argv, **kwargs)
+    p = ax.errorbar(bndcl[0]+dx, bndcl[1], yerr=bndcl[2], ls=ls, marker=marker,  *argv, **kwargs)
     return p
 
 
 def bnd(cl, lmin, lmax, edges, weight=lambda ell: np.ones(len(ell), dtype=float)):
-    """Binning for weight(ell)*Cl"""
+    """Binning for weight(ell)*Cl
+    
+        Args: 
+            cl: array to bin, index 0 should be ell=0
+            lmin, lmax: range of multipoles to consider in the binning
+            edges: boundaries of the bins 
+            weight: function of ell, weighting of the binning 
+
+        Returns: 
+            ellb: center of the bins
+            cl_bnd: binned value
+            err: standard deviation of the Cl in the bin 
+    
+    """
     bl = edges[:-1];bu = edges[1:]
     ellb = 0.5 * bl + 0.5 * bu
     # lmax = len(cl)-1
