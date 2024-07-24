@@ -347,13 +347,13 @@ class eblm_filter_ninv(opfilt_pp.alm_filter_ninv):
                     umap -= pmodes[1]
             else:
                 log.debug("apply_map: cuts %s %s"%(self.blm_range[0], self.blm_range[1]))
-                elm, blm = lug.map2alm_spin(np.array([qmap, umap]), 2, lmax=min(3 * self.nside - 1, self.blm_range[1]), mmax=min(3 * self.nside - 1, self.blm_range[1]), nthreads=4)
+                elm, blm = log.map2alm_spin(np.array([qmap, umap]), 2, lmax=min(3 * self.nside - 1, self.blm_range[1]), mmax=min(3 * self.nside - 1, self.blm_range[1]), nthreads=4)
                 if self.blm_range[0] > 2: # approx taking out the low-ell B-modes
                     b_ftl = np.ones(hp.Alm.getlmax(blm.size) + 1, dtype=float)
                     b_ftl[:self.blm_range[0]] *= 0.
                     hp.almxfl(blm, b_ftl, inplace=True)
 
-                q, u = lug.alm2map_spin(np.array([elm, blm]), 2, lmax=hp.Alm.getlmax(elm.size), mmax=hp.Alm.getlmax(elm.size), nthreads=4, zbounds=self.zbounds)
+                q, u = log.alm2map_spin(np.array([elm, blm]), 2, lmax=hp.Alm.getlmax(elm.size), mmax=hp.Alm.getlmax(elm.size), nthreads=4, zbounds=self.zbounds)
                 qmap[:] = q * self.n_inv[0]
                 umap[:] = u * self.n_inv[0]
 
