@@ -60,6 +60,7 @@ class alm_filter_ninv(QE_opfilt_aniso_p.alm_filter_ninv):
         self.sht_threads = sht_threads
         self.ninv_geom = ninv_geom
 
+
         self.verbose=verbose
 
         self._nlevp = None
@@ -188,7 +189,7 @@ def calc_prep(ebmaps:np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv, sht_thre
     assert ninv_filt.lmax_sol == ninv_filt.lmax_len, (ninv_filt.lmax_sol, ninv_filt.lmax_len)  # not implemented wo lensing
     assert ninv_filt.mmax_sol == ninv_filt.mmax_len, (ninv_filt.mmax_sol, ninv_filt.mmax_len)
     assert len(ninv_filt.n_inv) == 1, 'Assuming E and B noise the same here'
-    eblm = np.empty((2, ninv_filt.ninv_geom.npix()), dtype=complex)
+    eblm = np.empty((2, Alm.getsize(ninv_filt.lmax_len, ninv_filt.mmax_len)), dtype=complex)
     for sli in [slice(0, 1), slice(1, 2)]:
         ninv_filt.ninv_geom.adjoint_synthesis(ebmaps[sli] * ninv_filt.n_inv[0], 0,
                         ninv_filt.lmax_len,  ninv_filt.mmax_len, sht_threads, apply_weights=False, alm=eblm[sli])
