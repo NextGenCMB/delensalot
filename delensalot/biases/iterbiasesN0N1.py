@@ -90,6 +90,11 @@ class iterbiases:
             cls_noise_fid = {'tt': ( (nlev_t / 180 / 60 * np.pi) * utils.cli(transf_tlm) ) ** 2,
                                 'ee': ( (nlev_p / 180 / 60 * np.pi) * utils.cli(transf_elm) ) ** 2,
                                 'bb': ( (nlev_p / 180 / 60 * np.pi) * utils.cli(transf_blm) ) ** 2  }
+        else:
+            cls_noise_fid['tt'] =  cls_noise_fid['tt'][:lmax_ivf+1] * (np.arange(lmax_ivf + 1) >= lmin_tlm)
+            cls_noise_fid['ee'] =  cls_noise_fid['ee'][:lmax_ivf+1] * (np.arange(lmax_ivf + 1) >= lmin_elm)
+            cls_noise_fid['bb'] =  cls_noise_fid['bb'][:lmax_ivf+1] * (np.arange(lmax_ivf + 1) >= lmin_blm)
+
         self.fidcls_noise = cls_noise_fid
 
         self.lmax_qlm = lmax_qlm
@@ -138,6 +143,9 @@ class iterbiases:
 
         if cls_noise_true is None and cls_unl_true is None and fn is None:
             fn = f'n0n1_ref_{qe_key}' + '_it' + str(itrmax)
+            if version != '':
+                fn = 'v' + version + fn
+            print(fn)
 
         if cls_noise_true is None: cls_noise_true = cls_noise_fid
         if cls_unl_true is None: cls_unl_true = cls_unl_fid
@@ -147,6 +155,8 @@ class iterbiases:
             fn = 'n0n1_' + str(qe_key) + '_it' + str(itrmax) + '_' + _dicthash(cls_noise_true, lmax_ivf, keys=['tt', 'ee', 'bb']) + _dicthash(cls_unl_true, 6000, keys = ['tt', 'te', 'ee', 'pp'])
             if version != '':
                 fn = 'v' + version + fn
+            print(fn)
+        
         if not self._cacher.is_cached(fn) or recache:
             fid_delcls, true_delcls = self.delcls(qe_key, itrmax, cls_unl_true, cls_noise_true, version=version)
             N0_biased, N1_biased_spl, r_gg_fid, r_gg_true = cls2N0N1(qe_key, fid_delcls[-1], true_delcls[-1],
@@ -199,12 +209,12 @@ def get_fals(qe_key:str, cls_cmb_filt:dict, cls_cmb_dat:dict, cls_noise_filt:dic
 
     if qe_key in ['ptt', 'p']:
         fals['tt'] = cls_cmb_filt['tt'][:lmax_ivf + 1] + cls_noise_filt['tt'][:lmax_ivf+1]
-        dat_cls['tt'] = cls_cmb_dat['tt'][:lmax_ivf + 1] + cls_noise_dat['tt']
+        dat_cls['tt'] = cls_cmb_dat['tt'][:lmax_ivf + 1] + cls_noise_dat['tt'][:lmax_ivf+1]
     if qe_key in ['p_p', 'p']:
         fals['ee'] = cls_cmb_filt['ee'][:lmax_ivf + 1] + cls_noise_filt['ee'][:lmax_ivf+1]
         fals['bb'] = cls_cmb_filt['bb'][:lmax_ivf + 1] + cls_noise_filt['bb'][:lmax_ivf+1]
-        dat_cls['ee'] = cls_cmb_dat['ee'][:lmax_ivf + 1] + cls_noise_dat['ee']
-        dat_cls['bb'] = cls_cmb_dat['bb'][:lmax_ivf + 1] + cls_noise_dat['bb']
+        dat_cls['ee'] = cls_cmb_dat['ee'][:lmax_ivf + 1] + cls_noise_dat['ee'][:lmax_ivf+1]
+        dat_cls['bb'] = cls_cmb_dat['bb'][:lmax_ivf + 1] + cls_noise_dat['bb'][:lmax_ivf+1]
     if qe_key in ['p']:
         fals['te'] = np.copy(cls_cmb_filt['te'][:lmax_ivf + 1])
         dat_cls['te'] = np.copy(cls_cmb_dat['te'][:lmax_ivf + 1])

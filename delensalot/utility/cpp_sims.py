@@ -28,7 +28,7 @@ from lensitbiases import n1_fft
 _write_alm = lambda fn, alm : hp.write_alm(fn, alm, overwrite=True)
  
 class cpp_sims_lib:
-    def __init__(self, k:str,  param_file:str, tol:int, eps:int,  version:str='', label:str='', n0n1_libdir:str or None=None, cache_in_home=False):
+    def __init__(self, k:str,  param_file:str, tol:int, eps:int,  version:str='', qe_version='', label:str='', n0n1_libdir:str or None=None, cache_in_home=False):
         """Helper library to plot results from MAP estimation of simulations.
         
         This class loads the results of the runs done with the param_file and the options asked
@@ -41,10 +41,11 @@ class cpp_sims_lib:
         
         self.k = k
         self.version = version
+        self.qe_version = qe_version
+
         # self.iterator_version = iterator_version
         self.tol = tol 
         self.eps = eps
-
         self.label = label
         # Load the parameters defined in the param_file
         self.param_file = param_file
@@ -77,11 +78,29 @@ class cpp_sims_lib:
         # self.config = (self.param.nlev_t, self.param.nlev_p, self.param.beam, 
         #                (self.param.lmin_tlm,  self.param.lmin_elm, self.param.lmin_blm), 
         #                self.param.lmax_ivf, self.param.lmax_qlm)
-
+        
+        if 'nocut' in qe_version:
+            self.ivfs = self.param.ivfs_nocut
+            self.qcls_ss = self.param.qcls_ss_nocut
+            self.qcls_ds = self.param.qcls_ds_nocut
+            self.qcls_dd = self.param.qcls_dd_nocut
+            self.qlms_dd = self.param.qlms_dd_nocut
+        elif 'qeinh' in qe_version:
+            self.ivfs = self.param.ivfs_nocut_inh
+            self.qcls_ss = self.param.qcls_ss_nocut_inh
+            self.qcls_ds = self.param.qcls_ds_nocut_inh
+            self.qcls_dd = self.param.qcls_dd_nocut_inh
+            self.qlms_dd = self.param.qlms_dd_nocut_inh
+        else:
+            self.ivfs = self.param.ivfs
+            self.qcls_ss = self.param.qcls_ss
+            self.qcls_ds = self.param.qcls_ds
+            self.qcls_dd = self.param.qcls_dd
+            self.qlms_dd = self.param.qlms_dd
         try:
-            self.nhllib = nhl.nhl_lib_simple(opj(self.cachedir, 'nhllib'), self.param.ivfs, self.param.ivfs.ivfs.cl, self.param.lmax_qlm)
+            self.nhllib = nhl.nhl_lib_simple(opj(self.cachedir, 'nhllib' + qe_version), self.ivfs, self.ivfs.ivfs.cl, self.param.lmax_qlm)
         except AttributeError:
-            self.nhllib = nhl.nhl_lib_simple(opj(self.cachedir, 'nhllib'), self.param.ivfs, self.param.ivfs.cl, self.param.lmax_qlm)
+            self.nhllib = nhl.nhl_lib_simple(opj(self.cachedir, 'nhllib' + qe_version), self.ivfs, self.ivfs.cl, self.param.lmax_qlm)
 
         self.n0n1_libdir = n0n1_libdir
 
@@ -90,7 +109,7 @@ class cpp_sims_lib:
         if tol is None: tol = self.tol 
         if eps is None: eps = self.eps
         # return opj(self.TEMP,'%s_sim%04d'%(self.k, simidx) + self.version)
-        return self.param.libdir_iterators(self.k, simidx, self.version, tol, eps)
+        return self.param.libdir_iterators(self.k, simidx, self.version, self.qe_version, tol, eps)
 
     def get_itlib_sim(self, simidx, tol=None, eps=None):
         if tol is None: tol = self.tol 
@@ -120,33 +139,23 @@ class cpp_sims_lib:
         else:
             return statics.rec.load_plms(self.libdir_sim(simidx, self.tol, self.eps), [itr])[0]
 
-    def get_plm_qe(self, simidx, use_cache=True, version='', recache=False, verbose=False):
-        # _qlms_dd = self.param.qlms_dd
-        if 'cmbunloff' in version:
-            assert 'qeinh' in version, "Default should have qeinh in version"
-            _qlms_dd = self.param.qlms_dd_nocut_inh_cmbunloffset
-        else:
-            if 'qeinh' in version:
-                _qlms_dd = self.param.qlms_dd_nocut_inh
-            elif 'ivfhybrid' in version:
-                _qlms_dd = self.param.qlms_dd_ivfhybrid
-            else:
-                _qlms_dd = self.param.qlms_dd
+    def get_plm_qe(self, simidx, use_cache=True, recache=False, verbose=False):
+
         if verbose:
-            print('We get the QE qlms from ' + _qlms_dd.lib_dir)
+            print('We get the QE qlms from ' + self.qlms_dd.lib_dir)
         
         if use_cache:
             cacher = cachers.cacher_npy(self.libdir_sim(simidx))
             # print(self.libdir_sim(simidx))
-            fn = f"phi_plm_qe" + version
+            fn = f"phi_plm_qe" + self.qe_version
             # print(fn)
             if not cacher.is_cached(fn) or recache:                
-                plm = _qlms_dd.get_sim_qlm(self.k, int(simidx)) 
+                plm = self.qlms_dd.get_sim_qlm(self.k, int(simidx)) 
                 cacher.cache(fn, plm)
             plm = cacher.load(fn)
             return plm
         else:
-            return _qlms_dd.get_sim_qlm(self.k, int(simidx)) 
+            return self.qlms_dd.get_sim_qlm(self.k, int(simidx)) 
 
     def get_sim_plm(self, idx):
         """Returns the input plm, depening if it is a sims_ffp10, a npipe sim or other sim"""
@@ -231,12 +240,14 @@ class cpp_sims_lib:
         cpp_itXin = cacher.load(fn)
         return cpp_itXin
     
-    def get_cpp_qeXinput(self, simidx, version='', recache=False, verbose=False):
-        fn = 'cpp_in_x_qe' + version
+    def get_cpp_qeXinput(self, simidx, qe_version=None, recache=False, verbose=False):
+        if qe_version == None:
+            qe_version = self.qe_version
+        fn = 'cpp_in_x_qe' + qe_version
         cacher = self.cacher_sim(simidx)
         if not cacher.is_cached(fn) or recache:
             plmin = self.get_plm_input(simidx)
-            plmqe = self.get_plm_qe(simidx, version=version, verbose=verbose)
+            plmqe = self.get_plm_qe(simidx, qe_version=qe_version, verbose=verbose)
             cpp_itXin = self.get_cl(plmqe, plmin)
             cacher.cache(fn, cpp_itXin)
         cpp_itXin = cacher.load(fn)
@@ -276,43 +287,37 @@ class cpp_sims_lib:
         return cpp
 
 
-    def get_cpp_qe(self, simidx, mc_sims_mf=None, qeresp=None, splitMF=True, recache=False, version=''):
+    def get_cpp_qe(self, simidx, mc_sims_mf=None, qeresp=None, splitMF=True, recache=False):
         """Get nomalized Cpp QE
 
             Args: 
                 simidx: index of sim to consider
                 qeresp: Response of the QE, if None use the default one given by get_qe_resp
         """
+        # if qe_version is None:
+        #     qe_version = self.qe_version
         if qeresp is None:
             #!FIXME: Check the version here to have the ivfs nocut in response
             qeresp = self.get_qe_resp(recache=recache)
-        cppqe = self.get_cpp_qe_raw(simidx, splitMF, recache, mc_sims_mf, version) * utils.cli(qeresp)**2
+        cppqe = self.get_cpp_qe_raw(simidx, splitMF, recache, mc_sims_mf) * utils.cli(qeresp)**2
         return cppqe
 
-    def get_cpp_qe_raw(self, simidx, splitMF=True, recache=False, mc_sims_mf=None, fn_cpp_qe=None, version='', verbose=False):
+    def get_cpp_qe_qcl(self, simidx):
+        """Get the cached Cpp QE from run_qlms.py"""
+        return self.qcls_dd.get_sim_qcl(self.k, simidx)
+
+    def get_cpp_qe_raw(self, simidx, splitMF=True, recache=False, mc_sims_mf=None, fn_cpp_qe=None, verbose=False):
         """Returns unromalized Cpp QE"""
-        # if qlms_dd is None:
-        #     qlms_dd = self.param.qlms_dd
-        if version == '':
-            version = self.version
-        # if qlms_dd is None:
-            # _qlms_dd = self.param.qlms_dd
-        # if 'qeinh' in version:
-        #     _qlms_dd = self.param.qlms_dd_nocut_inh
-        # elif 'ivfhybrid' in version:
-        #     _qlms_dd = self.param.qlms_dd_ivfhybrid
-        # else:
-        #     _qlms_dd = self.param.qlms_dd
         
         if fn_cpp_qe is None:
-            fn_cpp_qe = 'cpp_qe_raw' + splitMF*'_splitMF' + version
+            fn_cpp_qe = 'cpp_qe_raw' + splitMF*'_splitMF' + self.qe_version
             if mc_sims_mf is not None:
                 fn_cpp_qe += ('_'+ mchash(mc_sims_mf))
         
         cacher = self.cacher_sim(simidx)
         if not cacher.is_cached(fn_cpp_qe) or recache:
             # plmqe  = _qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate
-            plmqe = self.get_plm_qe(simidx, version=version, verbose=verbose)
+            plmqe = self.get_plm_qe(simidx, verbose=verbose, recache=recache)
             if mc_sims_mf is None:
                 mc_sims_mf = self.param.mc_sims_mf_it0
             # QE mean-field
@@ -320,11 +325,11 @@ class cpp_sims_lib:
                 # Nmf = len(self.param.mc_sims_mf_it0)
                 mf_sims_1 =  np.unique(mc_sims_mf[::2])
                 mf_sims_2 =  np.unique(mc_sims_mf[1::2])
-                mf0_1 = self.get_mf0(simidx, mf_sims=mf_sims_1, version=version, verbose=verbose)
-                mf0_2 = self.get_mf0(simidx, mf_sims=mf_sims_2, version=version, verbose=verbose)
+                mf0_1 = self.get_mf0(simidx, mf_sims=mf_sims_1, verbose=verbose)
+                mf0_2 = self.get_mf0(simidx, mf_sims=mf_sims_2, verbose=verbose)
                 cppqe = self.get_cl(plmqe - mf0_1, plmqe - mf0_2)
             else:
-                mf0 = self.get_mf0(simidx, version=version)
+                mf0 = self.get_mf0(simidx)
                 plmqe -= mf0  # MF-subtracted unnormalized QE
             cacher.cache(fn_cpp_qe, cppqe)
         return cacher.load(fn_cpp_qe)
@@ -344,20 +349,10 @@ class cpp_sims_lib:
             cpp.append(cacher.load(fn_cpp_it(itr)))
         return cpp   
 
-    def get_mf0(self, simidx, mf_sims=None, qlms_dd=None, version='', verbose=False):
+    def get_mf0(self, simidx, mf_sims=None, verbose=False):
         """Get the QE mean-field"""
-        if version == '':
-            version = self.version
-        if qlms_dd is None:
-            # _qlms_dd = self.param.qlms_dd
-            if 'qeinh' in version:
-                _qlms_dd = self.param.qlms_dd_nocut_inh
-            elif 'ivfhybrid' in version:
-                _qlms_dd = self.param.qlms_dd_ivfhybrid
-            else:
-                _qlms_dd = self.param.qlms_dd
-        else:
-            _qlms_dd = qlms_dd
+
+        _qlms_dd = self.qlms_dd
         if verbose:
             print(f'MF QE is computed from qlms in {_qlms_dd.lib_dir}')
         if mf_sims is None:
@@ -417,12 +412,15 @@ class cpp_sims_lib:
     
     def get_qe_resp(self, recache=False, resp_gradcls=True):
         #TODO: Implement the version to get the lmin_ivf=0 case
-        fn_resp_qe = 'resp_qe_{}'.format(self.k) + self.version
+
+        fn_resp_qe = 'resp_qe_{}'.format(self.k) + self.qe_version
         if resp_gradcls: 
             fn_resp_qe += '_gradcls'
         cacher = self.cacher_param
-        if not cacher.is_cached(fn_resp_qe):
-            R = qresp.get_response(self.k, self.param.lmax_ivf, 'p', self.cls_weights, self.cls_grad, {'e': self.param.fel, 'b': self.param.fbl, 't':self.param.ftl}, lmax_qlm=self.param.lmax_qlm)[0]
+        
+        fals =  {'tt': self.ivfs.get_ftl(), 'ee':self.ivfs.get_fel(), 'bb':self.ivfs.get_fbl()}
+        if not cacher.is_cached(fn_resp_qe) or recache:
+            R = qresp.get_response(self.k, self.ivfs.lmax, 'p', self.cls_weights, self.cls_grad, fals, lmax_qlm=self.param.lmax_qlm)[0]
             cacher.cache(fn_resp_qe, R)
         R = cacher.load(fn_resp_qe)
         return R
@@ -431,7 +429,7 @@ class cpp_sims_lib:
         N0_biased, N1_biased_spl, r_gg_fid, r_gg_true = self.get_N0_N1_iter(itermax=it, version=version)
         return r_gg_fid
 
-    def get_N0_N1_QE(self, normalize=True, resp_gradcls=True, n1fft=True, recache=False, ivfs=None, version=''):
+    def get_N0_N1_QE(self, normalize=True, resp_gradcls=True, n1fft=True, recache=False):
         """
         Get the QE N0 and N1 biases
         
@@ -447,14 +445,13 @@ class cpp_sims_lib:
             N0: (un) normalised N0 bias
             N1 (un) normalised N1 bias
         """
-        if ivfs is None:
-            if 'nocut' in version:
-                ivfs = self.param.ivfs_nocut
-            elif 'qeinh' in version:
-                ivfs = self.param.ivfs_nocut
-            else:
-                ivfs = self.param.ivfs
+        # if ivfs is None:
+        #     ivfs = self.ivfs
+        # if qe_version is None and ivfs is None:
         
+        version = self.qe_version 
+        ivfs = self.ivfs
+
         fal_sepTP = {
             'tt': ivfs.get_ftl(),
             'ee': ivfs.get_fel(),
@@ -470,8 +467,9 @@ class cpp_sims_lib:
             cacher = cachers.cacher_npy(self.n0n1_libdir)
             
         fn_n0 = 'n0_qe_{}'.format(self.k) + version
+        # print(fn_n0)
         if not cacher.is_cached(fn_n0) or recache:
-            # print('Computing N0')
+            print(f'Computing N0 {fn_n0}')
             cls_dat = {spec: utils.cli(fal_sepTP[spec]) for spec in ['tt', 'ee', 'bb']}
             # Spectra of the inverse-variance filtered maps
             # In general cls_ivfs = fal * dat_cls * fal^t, with a matrix product in T, E, B space
@@ -602,7 +600,7 @@ class cpp_sims_lib:
             print(fn_weff)
             wfsims_bias = np.zeros([nsims, len(wf_fid)])
             for isim in range(nsims):
-                if verbose: print(f'wf eff {isim}/{nsims}')
+                if verbose: print(f'wf eff {isim}/{nsims-1}')
                 wfsims_bias[isim] = self.get_wf_sim(isim, itmax_sims, mf=mf, mc_sims=mc_sims, recache=recache) * utils.cli(wf_fid)
             wfcorr_mean = np.mean(wfsims_bias, axis=0)
             if do_spline:
@@ -766,7 +764,7 @@ class cpp_sims_lib:
         
         return self.nhllib.get_sim_nhl(simidx, self.k,  self.k)    
 
-    def get_mcn0_qe(self, Ndatasims=40, Nmcsims=100, Nroll=10, use_parfile=False):
+    def get_mcn0_qe(self, Ndatasims=40, Nmcsims=100, Nroll=10, use_parfile=False, qcls_ss = None, use_old_files=False):
         """Returns unnormalised MC-N0 for the QE.
         Be careful to use sims with no overlap with the sims that are used as "data"
         i.e, we need to define the sims that are used for data, comprised bewteen idx=0 and idx=Ndatasims-1
@@ -780,11 +778,18 @@ class cpp_sims_lib:
         """
         # mcn0 = 2* self.parfile.qcls_ss.get_sim_stats_qcl(self.k1, mcs, k2=self.k2).mean()
 
-        mcn0 = rdn0_cs.get_mcn0_qe(self.param, self.k, Ndatasims=Ndatasims, Nmcsims=Nmcsims, Nroll=Nroll, use_parfile=use_parfile)
-        lmax = len(mcn0)-1
-        pp2kk = 0.25 * np.arange(lmax + 1)** 2 * (np.arange(1, lmax + 2) ** 2) * 1e7
-        return mcn0 * pp2kk
+        if use_old_files:
+            mcn0 = rdn0_cs.get_mcn0_qe(self.param, self.k, Ndatasims=Ndatasims, Nmcsims=Nmcsims, Nroll=Nroll, use_parfile=use_parfile)
+            lmax = len(mcn0)-1
+            pp2kk = 0.25 * np.arange(lmax + 1)** 2 * (np.arange(1, lmax + 2) ** 2) * 1e7
+            return mcn0 * pp2kk
+        if qcls_ss is None:
+            qcls_ss = self.qcls_ss
 
+        print(f'Using qcl library in {qcls_ss.lib_dir}')
+        mcs = self.param.mc_sims_var
+        ss = qcls_ss.get_sim_stats_qcl(self.k, mcs).mean()
+        return 2*ss
 
     def get_rdn0_qe(self, datidx, Ndatasims=40, Nmcsims=100, Nroll=10):
         """Returns unnormalised realization-dependent N0 lensing bias RDN0.

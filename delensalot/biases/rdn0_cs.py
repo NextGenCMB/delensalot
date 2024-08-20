@@ -155,7 +155,7 @@ def get_mcn0_qe(param, qe_key, Ndatasims=40, Nmcsims=100, Nroll=10, version='', 
     mpi.barrier()
     fn = os.path.join(fn_dir, fncl_ss(mcs, Nroll))
     if use_parfile:
-        fn = os.path.join(fn_dir, 'parfile qlms ss')
+        fn = os.path.join(fn_dir, 'parfile_qlms_ss')
     
     if ivfs is None:
         ivfs = param.ivfs
