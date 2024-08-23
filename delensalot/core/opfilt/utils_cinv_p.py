@@ -39,7 +39,8 @@ class cinv_p(filt_cinv.cinv):
 
     """
     def __init__(self, lib_dir, lmax, nside, cl, transf, ninv, geom,
-                 pcf='default', chain_descr=None, _bmarg_lib_dir=None, _bmarg_rescal=1., zbounds=(-1., 1.), bmarg_lmax=0, sht_threads=8):
+                 pcf='default', chain_descr=None, _bmarg_lib_dir=None,
+                 _bmarg_rescal=1., zbounds=(-1., 1.), bmarg_lmax=0, sht_threads=8):
         assert lib_dir is not None and lmax >= 1024 and nside >= 512, (lib_dir, lmax, nside)
         super(cinv_p, self).__init__(lib_dir, lmax)
         
