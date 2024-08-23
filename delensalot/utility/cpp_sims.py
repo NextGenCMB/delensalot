@@ -114,9 +114,11 @@ class cpp_sims_lib:
     def get_itlib_sim(self, simidx, tol=None, eps=None):
         if tol is None: tol = self.tol 
         if eps is None: eps = self.eps
-        tol_iter  = 10 ** (- tol) 
-        epsilon = 10**(-eps)
-        return self.param.get_itlib(self.k, simidx, self.version, cg_tol=tol_iter, epsilon=epsilon)
+        # tol_iter  = 10 ** (- tol) 
+        # epsilon = 10**(-eps)
+        # return self.param.get_itlib(self.k, simidx, self.version, cg_tol=tol_iter, epsilon=epsilon)
+        # qe_key:str, simidx:int, version:str, qe_version:str, tol:float, epsilon=5, nbump=0, rscal=0, verbose=False, numthreads=0
+        return self.param.get_itlib(self.k, simidx, self.version, self.qe_version, tol=tol, epsilon=eps)
 
     def cacher_sim(self, simidx, verbose=False):
         if self.cache_in_home is False:

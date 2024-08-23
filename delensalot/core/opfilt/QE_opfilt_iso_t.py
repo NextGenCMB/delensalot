@@ -203,6 +203,7 @@ class fwd_op:
     def __init__(self, s_cls:dict, ninv_filt:alm_filter_nlev):
         self.icls = {'tt': cli(s_cls['tt'][:ninv_filt.lmax_sol + 1]) * ninv_filt.rescali ** 2}
         self.ninv_filt = ninv_filt
+        self.n_inv_filt = self.ninv_filt
         self.lmax_sol = ninv_filt.lmax_sol
         self.mmax_sol = ninv_filt.mmax_sol
 

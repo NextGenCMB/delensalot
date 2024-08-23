@@ -144,7 +144,7 @@ class template_tfilt(object):
             This includes a factor npix / 4pi, as the transpose differs from the inverse by that factor
 
         """
-        assert tmap.size == self.npix
+        assert tmap.size == self.npix, (tmap.size, self.npix)
         tlm = self.geom.adjoint_synthesis(tmap, 0, self.lmax, self.lmax, self.sht_threads, apply_weights=False).squeeze()
         return self._blm2rlm(tlm) # Units weight transform
 

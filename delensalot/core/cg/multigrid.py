@@ -22,7 +22,7 @@ class multigrid_stage(object):
 
 
 class multigrid_chain:
-    def __init__(self, opfilt, chain_descr, s_cls, n_inv_filt, debug_log_prefix=None, plogdepth=0):
+    def __init__(self, opfilt, chain_descr, s_cls, n_inv_filt, debug_log_prefix=None, plogdepth=0, no_lensing_precond=False):
         self.debug_log_prefix = debug_log_prefix
         self.plogdepth = plogdepth
 
@@ -31,14 +31,17 @@ class multigrid_chain:
 
         self.s_cls = s_cls
         self.n_inv_filt = n_inv_filt
+        self.no_lensing_precond = no_lensing_precond # Switch off lensing for the preconditioner estimates
 
         stages = {}
         for [id, pre_ops_descr, lmax, nside, iter_max, eps_min, tr, cache] in self.chain_descr:
+            print(f'creating multigrid stage: id = {id}, pre_ops_descr = {pre_ops_descr}, lmax = {lmax}, nside = {nside}, iter_max = {iter_max}, eps_min = {eps_min:.2e}')
             stages[id] = multigrid_stage(id, pre_ops_descr, lmax, nside, iter_max, eps_min, tr, cache)
             for pre_op_descr in pre_ops_descr:  # recursively add all stages to stages[0]
+                print('adding pre_op: ', pre_op_descr)
                 stages[id].pre_ops.append(parse_pre_op_descr(pre_op_descr, opfilt=self.opfilt,
                                                              s_cls=self.s_cls, n_inv_filt=self.n_inv_filt,
-                                                             stages=stages, lmax=lmax, nside=nside, chain=self))
+                                                             stages=stages, lmax=lmax, nside=nside, chain=self, no_lensing=self.no_lensing_precond))
         self.bstage = stages[0]  # these are the pre_ops called in cd_solve
 
     def solve(self, soltn, tpn_map, apply_fini='', dot_op=None):
@@ -119,28 +122,31 @@ def parse_pre_op_descr(pre_op_descr, **kwargs):
         kwargs_low = copy.copy(kwargs);
         kwargs_low['lmax'] = lsplit
         kwargs_hgh = copy.copy(kwargs);
-        kwargs_hgh['lmin'] = lsplit + 1
+        kwargs_hgh['lmin'] = lsplit + 1 # FIXME: this is never used ?
         pre_op_low = parse_pre_op_descr(low_descr, **kwargs_low)
         pre_op_hgh = parse_pre_op_descr(hgh_descr, **kwargs_hgh)
 
         return pre_op_split(lsplit, kwargs['lmax'], pre_op_low, pre_op_hgh)
+    
     elif re.match("diag_cl\Z", pre_op_descr):
-        return kwargs['opfilt'].pre_op_diag(kwargs['s_cls'], kwargs['n_inv_filt'])
-    elif re.match("dense\Z", pre_op_descr):
-        # FIXME: remove this option in favor of dense() below.
-        print('creating dense preconditioner. (nside = %d, lmax = %d)' % (kwargs['nside'], kwargs['lmax']))
-
-        fwd_op = kwargs['opfilt'].fwd_op(kwargs['s_cls'], kwargs['n_inv_filt'].degrade(kwargs['nside']))
-
-        return kwargs['opfilt'].pre_op_dense(kwargs['lmax'], fwd_op)
+        # TODO: the lmin, which defines the min ell below which it is the dense block, is never used ?
+        return kwargs['opfilt'].pre_op_diag(kwargs['s_cls'], kwargs['n_inv_filt'].degrade(kwargs['nside'], kwargs['lmax'], kwargs['lmax'], set_deflection_to_zero=kwargs['no_lensing']))
+    
+    # elif re.match("dense\Z", pre_op_descr):
+    #     # FIXME: remove this option in favor of dense() below.
+    #     print('creating dense preconditioner. (nside = %d, lmax = %d)' % (kwargs['nside'], kwargs['lmax']))
+    #     fwd_op = kwargs['opfilt'].fwd_op(kwargs['s_cls'], kwargs['n_inv_filt'].degrade(kwargs['nside'], kwargs['lmax'], kwargs['lmax']))
+    #     return kwargs['opfilt'].pre_op_dense(kwargs['lmax'], fwd_op)
+    
     elif re.match("dense\((.*)\)\Z", pre_op_descr):
         (dense_cache_fname,) = re.match("dense\((.*)\)\Z", pre_op_descr).groups()
         if dense_cache_fname == '': dense_cache_fname = None
 
         print('creating dense preconditioner. (nside = %d, lmax = %d, cache = %s)' % (
         kwargs['nside'], kwargs['lmax'], dense_cache_fname))
-        fwd_op = kwargs['opfilt'].fwd_op(kwargs['s_cls'], kwargs['n_inv_filt'].degrade(kwargs['nside']))
+        fwd_op = kwargs['opfilt'].fwd_op(kwargs['s_cls'], kwargs['n_inv_filt'].degrade(kwargs['nside'], kwargs['lmax'], kwargs['lmax'], set_deflection_to_zero=kwargs['no_lensing']))
         return kwargs['opfilt'].pre_op_dense(kwargs['lmax'], fwd_op, cache_fname=dense_cache_fname)
+    
     elif re.match("stage\(.*\)\Z", pre_op_descr):
         (stage_id,) = re.match("stage\((.*)\)\Z", pre_op_descr).groups()
         print('creating multigrid preconditioner: stage_id = ', stage_id)
@@ -150,9 +156,9 @@ def parse_pre_op_descr(pre_op_descr, **kwargs):
                   chain.log(stage, iter, eps, **kwargs))
 
         assert (stage.lmax == kwargs['lmax'])
-
+        #TODO: Check if should be with no_lensing here ?
         return pre_op_multigrid(kwargs['opfilt'], stage.lmax, stage.nside,
-                                kwargs['s_cls'], kwargs['n_inv_filt'].degrade(stage.nside),
+                                kwargs['s_cls'], kwargs['n_inv_filt'].degrade(stage.nside, stage.lmax, stage.lmax, set_deflection_to_zero=kwargs['no_lensing']),
                                 stage.pre_ops, logger, stage.tr, stage.cache,
                                 stage.iter_max, stage.eps_min)
     else:
@@ -163,7 +169,6 @@ class pre_op_split:
     def __init__(self, lsplit, lmax, pre_op_low, pre_op_hgh):
         self.lsplit = lsplit
         self.lmax = lmax
-
         self.pre_op_low = pre_op_low
         self.pre_op_hgh = pre_op_hgh
 
@@ -175,8 +180,8 @@ class pre_op_split:
     def calc(self, talm):
         self.iter += 1
 
-        talm_low = self.pre_op_low(alm_copy(talm, lmax=self.lsplit))
-        talm_hgh = self.pre_op_hgh(alm_copy(talm, lmax=self.lmax))
+        talm_low = self.pre_op_low(alm_copy(talm, None, lmaxout=self.lsplit, mmaxout=self.lsplit))
+        talm_hgh = self.pre_op_hgh(alm_copy(talm, None, lmaxout=self.lmax, mmaxout=self.lmax))
 
         return alm_splice(talm_low, talm_hgh, self.lsplit)
 
@@ -205,10 +210,11 @@ class pre_op_multigrid:
         return self.calc(talm)
 
     def calc(self, talm):
-        monitor = cd_monitors.monitor_basic(self.opfilt.dot_op(),
+        monitor = cd_monitors.monitor_basic(self.opfilt.dot_op(self.lmax, None),
                             iter_max=self.iter_max, eps_min=self.eps_min, logger=self.logger)
-        soltn = talm * 0.0
-        cd_solve.cd_solve(soltn, alm_copy(talm, lmax=self.lmax),
-                          self.fwd_op, self.pre_ops, self.opfilt.dot_op(), monitor, tr=self.tr, cache=self.cache)
+        soltn = talm * 0.0 
+        #TODO: Is zero the best guess we have here ? Cannot we use previous estimates, or talm itself ?
+        cd_solve.cd_solve(soltn, alm_copy(talm, None, lmaxout=self.lmax, mmaxout=self.lmax),
+                          self.fwd_op, self.pre_ops, self.opfilt.dot_op(self.lmax, None), monitor, tr=self.tr, cache=self.cache)
 
         return alm_splice(soltn, talm, self.lmax)

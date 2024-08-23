@@ -58,7 +58,8 @@ class qlm_iterator(object):
                  k_geom:utils_geom.Geom,
                  chain_descr, stepper:steps.nrstep,
                  logger=None,
-                 NR_method=100, tidy=0, verbose=True, soltn_cond=True, wflm0=None, _usethisE=None):
+                 NR_method=100, tidy=0, verbose=True, soltn_cond=True, wflm0=None, _usethisE=None, 
+                 no_lensing_precond=False):
         """Lensing map iterator
 
             The bfgs hessian updates are called 'hlm's and are either in plm, dlm or klm space
@@ -71,7 +72,7 @@ class qlm_iterator(object):
                 k_geom: lenspyx geometry for once-per-iterations operations (like checking for invertibility etc, QE evals...)
                 stepper: custom calculation of NR-step
                 wflm0(optional): callable with Wiener-filtered CMB map search starting point
-
+                no_lensing_precond: if True, the preconditioner will not include lensing
         """
         assert h in ['k', 'p', 'd']
         lmax_qlm, mmax_qlm = lm_max_dlm
@@ -123,6 +124,7 @@ class qlm_iterator(object):
         self.logger.startup(self)
 
         self._usethisE = _usethisE
+        self.no_lensing_precond = no_lensing_precond
 
     def _p2h(self, lmax):
         if self.h == 'p':
@@ -465,6 +467,10 @@ class qlm_iterator(object):
     def calc_gradlik(self, itr, key, iwantit=False):
         """Computes the quadratic part of the gradient for plm iteration 'itr'
         Compared to formalism of the papers, this returns -g_LM^{QD}
+        Args:
+            itr: iteration index
+            key: 'p' or 'o'
+            iwantit: if True, forces the calculation of the gradient and return it
         """
         assert self.is_iter_done(itr - 1, key)
         assert itr > 0, itr
@@ -475,7 +481,7 @@ class qlm_iterator(object):
             self.hlm2dlm(dlm, True)
             ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm, cachers.cacher_mem(safe=False))
             self.filter.set_ffi(ffi)
-            mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.filter)
+            mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.filter, no_lensing_precond=self.no_lensing_precond)
             if self._usethisE is not None:
                 if callable(self._usethisE):
                     log.info("iterator: using custom WF E")

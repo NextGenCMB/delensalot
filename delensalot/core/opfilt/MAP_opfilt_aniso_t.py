@@ -18,9 +18,16 @@ from delensalot.core.opfilt import opfilt_base, tmodes_ninv as tni
 
 from delensalot.core.opfilt import MAP_opfilt_iso_t
 from plancklens.sims import phas
+import healpy as hp 
+from lenspyx.remapping import deflection 
+from plancklens.qcinv import template_removal
 
-pre_op_dense = None # not implemented
+# pre_op_dense = None # not implemented
+from plancklens.qcinv.opfilt_tt import pre_op_dense
+
+#FIXME: This is the same fw_op as the QE, is it correct ?
 fwd_op = MAP_opfilt_iso_t.fwd_op
+
 
 def apply_fini(*args, **kwargs):
     """cg-inversion post-operation
@@ -34,7 +41,8 @@ def apply_fini(*args, **kwargs):
 class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
     def __init__(self, ninv_geom:utils_geom.Geom, ninv: np.ndarray, ffi:remapping.deflection, transf:np.ndarray,
                  unlalm_info:tuple, lenalm_info:tuple, sht_threads:int,verbose=False,
-                 lmin_dotop=0, tpl:tni.template_tfilt or None =None, rescal=None):
+                 lmin_dotop=0, tpl:tni.template_tfilt or None =None, 
+                 marge_monopole = False, marge_dipole = False, rescal=None):
         r"""CMB inverse-variance and Wiener filtering instance, using unlensed E and lensing deflection
 
             Args:
@@ -79,9 +87,17 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
 
         self.template = tpl
 
+        self.marge_monopole = marge_monopole
+        self.marge_dipole = marge_dipole 
+
+        self.templates = [self.template]
+        
+        if marge_monopole: self.templates.append(template_removal.template_monopole())
+        if marge_dipole: self.templates.append(template_removal.template_dipole())
+
     def hashdict(self):
         return {'ninv':self._ninv_hash(), 'transf':clhash(self.b_transf_tlm),
-                'deflection':self.ffi.hashdict(),
+                # 'deflection':self.ffi.hashdict(), #TODO: Deflection hashdict is not implemented
                 'unalm':(self.lmax_sol, self.mmax_sol), 'lenalm':(self.lmax_len, self.mmax_len) }
 
     def _ninv_hash(self):
@@ -96,8 +112,48 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         n_inv_cl_t = self.b_transf_tlm ** 2  / (self._nlevt / 180. / 60. * np.pi) ** 2
         return n_inv_cl_t
 
+    def degrade(self, nside, lmax, mmax, set_deflection_to_zero=True):
+        """Reproducing plancklens function, useful for multigrid preconditioner
+        # TODO: Check if this matches the Lensit implementation
+        """
+        if nside == hp.npix2nside(len(self.n_inv)) and set_deflection_to_zero is False:
+            return self
+        else:
+            print(f"MAP OPFILT ANISO T: Degrading filtered maps to nside:{nside}, lmax:{lmax}")
+            
+            if set_deflection_to_zero is True:
+                print("Setting deflection to zero")
+                _ffi = deflection(utils_geom.Geom.get_healpix_geometry(nside), np.zeros(hp.Alm.getsize(lmax)), mmax, 
+                    numthreads=self.sht_threads, verbosity=0, single_prec=False, epsilon=self.ffi.epsilon)
+            else:
+                print(f"Using the same deflection, rescaled to the new nside {nside}")
+                dlm = alm_copy(self.ffi.dlm, None, lmax, mmax)
+                if self.ffi.dclm is not None:
+                    dclm = alm_copy(self.ffi.dclm, None, lmax, mmax)
+                else:
+                    dclm = None
+                _ffi = deflection(utils_geom.Geom.get_healpix_geometry(nside), dlm, mmax, 
+                    dclm=dclm, numthreads=self.ffi.sht_tr, 
+                    verbosity=self.ffi.verbosity, single_prec=self.ffi.single_prec, epsilon=self.ffi.epsilon)
+            
+            # tpl = tni.template_tfilt(
+            #     self.template.lmax, 
+            #     geom=utils_geom.Geom.get_healpix_geometry(nside), 
+            #     sht_threads=self.template.sht_threads)
+            
+            return alm_filter_ninv_wl(
+                        utils_geom.Geom.get_healpix_geometry(nside), 
+                        hp.ud_grade(self.n_inv, nside, power=-2), 
+                        _ffi, self.b_transf_tlm, 
+                        (lmax, mmax), (lmax, mmax), self.sht_threads, self.verbose, 
+                        lmin_dotop=self.lmin_dotop, tpl=self.template, 
+                        marge_monopole = self.marge_monopole,  
+                        marge_dipole = self.marge_dipole, 
+                        rescal = cli(self.rescali)[:lmax+1])
+
+
     def dot_op(self):
-        return dot_op(self.lmax_sol, self.mmax_sol, lmin=self.lmin_dotop)
+        return dot_op(lmax=self.lmax_sol, mmax=self.mmax_sol, lmin=self.lmin_dotop)
 
     def apply_map(self, tmap):
         """Applies pixel inverse-noise variance maps
