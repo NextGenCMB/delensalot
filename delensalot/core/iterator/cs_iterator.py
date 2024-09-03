@@ -59,7 +59,7 @@ class qlm_iterator(object):
                  chain_descr, stepper:steps.nrstep,
                  logger=None,
                  NR_method=100, tidy=0, verbose=True, soltn_cond=True, wflm0=None, _usethisE=None, 
-                 no_lensing_precond=False):
+                 no_lensing_precond=False, no_lensing_dense=None):
         """Lensing map iterator
 
             The bfgs hessian updates are called 'hlm's and are either in plm, dlm or klm space
@@ -73,6 +73,7 @@ class qlm_iterator(object):
                 stepper: custom calculation of NR-step
                 wflm0(optional): callable with Wiener-filtered CMB map search starting point
                 no_lensing_precond: if True, the preconditioner will not include lensing
+                no_lensing_dense: if True, the dense part of the preconditioner will not include lensing, defaults to None to match no_lensing_precond
         """
         assert h in ['k', 'p', 'd']
         lmax_qlm, mmax_qlm = lm_max_dlm
@@ -125,6 +126,8 @@ class qlm_iterator(object):
 
         self._usethisE = _usethisE
         self.no_lensing_precond = no_lensing_precond
+        self.no_lensing_dense = no_lensing_dense 
+
 
     def _p2h(self, lmax):
         if self.h == 'p':
@@ -481,7 +484,7 @@ class qlm_iterator(object):
             self.hlm2dlm(dlm, True)
             ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm, cachers.cacher_mem(safe=False))
             self.filter.set_ffi(ffi)
-            mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.filter, no_lensing_precond=self.no_lensing_precond)
+            mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.filter, no_lensing_precond=self.no_lensing_precond, no_lensing_dense=self.no_lensing_dense)
             if self._usethisE is not None:
                 if callable(self._usethisE):
                     log.info("iterator: using custom WF E")

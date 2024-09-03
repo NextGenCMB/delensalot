@@ -22,7 +22,7 @@ class multigrid_stage(object):
 
 
 class multigrid_chain:
-    def __init__(self, opfilt, chain_descr, s_cls, n_inv_filt, debug_log_prefix=None, plogdepth=0, no_lensing_precond=False):
+    def __init__(self, opfilt, chain_descr, s_cls, n_inv_filt, debug_log_prefix=None, plogdepth=0, no_lensing_precond=False, no_lensing_dense=None):
         self.debug_log_prefix = debug_log_prefix
         self.plogdepth = plogdepth
 
@@ -32,6 +32,11 @@ class multigrid_chain:
         self.s_cls = s_cls
         self.n_inv_filt = n_inv_filt
         self.no_lensing_precond = no_lensing_precond # Switch off lensing for the preconditioner estimates
+        if no_lensing_dense is None:
+            # Switch off lensing for the dense preconditioner estimation, default to no_lensing_precond
+            self.no_lensing_dense = no_lensing_precond 
+        else:
+            self.no_lensing_dense = no_lensing_dense
 
         stages = {}
         for [id, pre_ops_descr, lmax, nside, iter_max, eps_min, tr, cache] in self.chain_descr:
@@ -41,7 +46,7 @@ class multigrid_chain:
                 print('adding pre_op: ', pre_op_descr)
                 stages[id].pre_ops.append(parse_pre_op_descr(pre_op_descr, opfilt=self.opfilt,
                                                              s_cls=self.s_cls, n_inv_filt=self.n_inv_filt,
-                                                             stages=stages, lmax=lmax, nside=nside, chain=self, no_lensing=self.no_lensing_precond))
+                                                             stages=stages, lmax=lmax, nside=nside, chain=self, no_lensing=self.no_lensing_precond, no_lensing_dense=self.no_lensing_dense))
         self.bstage = stages[0]  # these are the pre_ops called in cd_solve
 
     def solve(self, soltn, tpn_map, apply_fini='', dot_op=None):
@@ -131,6 +136,7 @@ def parse_pre_op_descr(pre_op_descr, **kwargs):
     elif re.match("diag_cl\Z", pre_op_descr):
         # TODO: the lmin, which defines the min ell below which it is the dense block, is never used ?
         return kwargs['opfilt'].pre_op_diag(kwargs['s_cls'], kwargs['n_inv_filt'].degrade(kwargs['nside'], kwargs['lmax'], kwargs['lmax'], set_deflection_to_zero=kwargs['no_lensing']))
+        # return kwargs['opfilt'].pre_op_diag(kwargs['s_cls'], kwargs['n_inv_filt'])
     
     # elif re.match("dense\Z", pre_op_descr):
     #     # FIXME: remove this option in favor of dense() below.
@@ -144,7 +150,7 @@ def parse_pre_op_descr(pre_op_descr, **kwargs):
 
         print('creating dense preconditioner. (nside = %d, lmax = %d, cache = %s)' % (
         kwargs['nside'], kwargs['lmax'], dense_cache_fname))
-        fwd_op = kwargs['opfilt'].fwd_op(kwargs['s_cls'], kwargs['n_inv_filt'].degrade(kwargs['nside'], kwargs['lmax'], kwargs['lmax'], set_deflection_to_zero=kwargs['no_lensing']))
+        fwd_op = kwargs['opfilt'].fwd_op(kwargs['s_cls'], kwargs['n_inv_filt'].degrade(kwargs['nside'], kwargs['lmax'], kwargs['lmax'], set_deflection_to_zero=kwargs['no_lensing_dense']))
         return kwargs['opfilt'].pre_op_dense(kwargs['lmax'], fwd_op, cache_fname=dense_cache_fname)
     
     elif re.match("stage\(.*\)\Z", pre_op_descr):

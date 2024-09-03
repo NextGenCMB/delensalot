@@ -119,7 +119,34 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         if self.dorescal:
             almxfl(tlm, self.rescali, self.mmax_sol, True)
         # TODO: should add here the projection into cls > 0
-
+    
+    def degrade(self, nside, lmax, mmax, set_deflection_to_zero=True):
+        """Degradation of the filter to lower resolution
+        """
+        return self
+        # print(len(self.nlev_tlm), lmax+1)
+        # assert len(self.nlev_tlm) == lmax+1, 'not tested yet'
+        # if len(self.nlev_tlm) == lmax+1 and set_deflection_to_zero is False:
+        #     return self
+        
+        # if set_deflection_to_zero is True:
+        #     print("Setting deflection to zero")
+        #     _ffi = remapping.deflection(utils_geom.Geom.get_healpix_geometry(nside), np.zeros(hp.Alm.getsize(lmax)), mmax, 
+        #         numthreads=self.sht_threads, verbosity=0, single_prec=False, epsilon=self.ffi.epsilon)
+        # else:
+        #     print(f"Using the same deflection, rescaled to the new nside {nside}")
+        #     dlm = alm_copy(self.ffi.dlm, None, lmax, mmax)
+        #     if self.ffi.dclm is not None:
+        #         dclm = alm_copy(self.ffi.dclm, None, lmax, mmax)
+        #     else:
+        #         dclm = None
+        #     _ffi = remapping.deflection(utils_geom.Geom.get_healpix_geometry(nside), dlm, mmax, 
+        #         dclm=dclm, numthreads=self.ffi.sht_tr, 
+        #         verbosity=self.ffi.verbosity, single_prec=self.ffi.single_prec, epsilon=self.ffi.epsilon)
+        
+        # nlev_t = alm_copy(self.nlev_tlm, None, lmax, mmax)
+        # return alm_filter_nlev_wl(nlev_t, _ffi, self.transf, (self.lmax_sol, self.mmax_sol), (self.lmax_len, self.mmax_len), verbose=self.verbose, rescal=cli(self.rescali))
+    
     def get_qlms(self, tlm_dat: np.ndarray, tlm_wf: np.ndarray, q_pbgeom: utils_geom.pbdGeometry, alm_wf_leg2=None):
         """Get lensing generaliazed QE consistent with filter assumptions
 
