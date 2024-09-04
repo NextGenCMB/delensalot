@@ -523,7 +523,83 @@ class qlm_iterator(object):
         """Compared to formalism of the papers, this should return +g_LM^{MF}"""
         assert 0, 'subclass this'
 
-       
+class iterator_splitlik_cstmf(qlm_iterator):
+    """Split lensing iterator
+    dat_maps is a tuple containing two sets of maps, one for each data split
+    """
+
+    def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
+                 dat_maps:tuple, plm0:np.ndarray, mf0:np.ndarray, pp_h0:np.ndarray,
+                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.alm_filter_wl, k_geom:utils_geom.Geom,
+                 chain_descr, stepper:steps.nrstep, **kwargs):
+        super(iterator_splitlik_cstmf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
+                                             ninv_filt, k_geom, chain_descr, stepper, **kwargs)
+        
+        assert len(self.dat_maps) == 2, "Data maps must be a tuple of two sets of maps"
+        assert self.dat_maps[0].shape == self.dat_maps[1].shape, "Data maps must have the same shape"
+        assert self.lmax_qlm == Alm.getlmax(plm0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(plm0.size, self.lmax_qlm))
+        self.cacher.cache('mf', almxfl(plm0, self._h2p(self.lmax_qlm), self.mmax_qlm, False))
+
+    def calc_gradlik(self, itr, key, iwantit=False):
+        # TODO: Implement here the double CG search, one for each data set, and then get the qlms, each with a different data and sum the two
+        assert self.is_iter_done(itr - 1, key)
+        assert itr > 0, itr
+        assert key.lower() in ['p', 'o'], key
+        if not self._is_qd_grad_done(itr, key) or iwantit:
+            assert key in ['p'], key + '  not implemented'
+            dlm = self.get_hlm(itr - 1, key)
+            self.hlm2dlm(dlm, True)
+            ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm, cachers.cacher_mem(safe=False))
+            self.filter.set_ffi(ffi)
+            mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.filter, no_lensing_precond=self.no_lensing_precond, no_lensing_dense=self.no_lensing_dense)
+            # if self._usethisE is not None:
+            #     if callable(self._usethisE):
+            #         log.info("iterator: using custom WF E")
+            #         soltn = self._usethisE(self.filter, itr)
+            #     else:
+            #         assert 0, 'dont know what to do this with this E input'
+            _soltn = []
+            for datset in [0, 1]:
+                log.info("Grad like: Computing WF solution for datasplit %s at iter %s " % (datset, itr))
+                soltn, it_soltn = self.load_soltn(itr, key +'_'+str(datset))
+                if it_soltn < itr - 1:
+                    soltn *= self.soltn_cond
+                    
+                    mchain.solve(soltn, self.dat_maps[0], dot_op=self.filter.dot_op())
+                    fn_wf = 'wflm_%s_%s_it%s' % (key.lower(), datset, itr - 1)
+                    log.info("caching "  + fn_wf)
+                    self.wf_cacher.cache(fn_wf, soltn)
+                else:
+                    log.info("Using cached WF solution at iter %s "%itr)
+                _soltn.append(soltn)
+
+            t0 = time.time()
+            if ffi.pbgeom.geom is self.k_geom and ffi.pbgeom.pbound == pbounds(0., 2 * np.pi):
+                # This just avoids having to recalculate angles on a new geom etc
+                q_geom = ffi.pbgeom
+            else:
+                q_geom = pbdGeometry(self.k_geom, pbounds(0., 2 * np.pi))
+            G1, C1 = self.filter.get_qlms(self.dat_maps[0], _soltn[0], q_geom, alm_wf_leg2=_soltn[1])
+            G2, C2 = self.filter.get_qlms(self.dat_maps[1], _soltn[1], q_geom, alm_wf_leg2=_soltn[0])
+            G = (G1 + G2) / 2.
+            C = (C1 + C2) / 2. 
+            almxfl(G if key.lower() == 'p' else C, self._h2p(self.lmax_qlm), self.mmax_qlm, True)
+            log.info('get_qlms calculation done; (%.0f secs)'%(time.time() - t0))
+            if itr == 1: #We need the gradient at 0 and the yk's to be able to rebuild all gradients
+                fn_lik = '%slm_grad%slik_it%03d' % (self.h, key.lower(), 0)
+                self.cacher.cache(fn_lik, -G if key.lower() == 'p' else -C)
+            return -G if key.lower() == 'p' else -C
+ 
+    @log_on_start(logging.DEBUG, "load_graddet(it={k}, key={key}) started")
+    @log_on_end(logging.DEBUG, "load_graddet(it={k}, key={key}) finished")
+    def load_graddet(self, k, key):
+        return self.cacher.load('mf')
+
+    @log_on_start(logging.DEBUG, "calc_graddet(it={k}, key={key}) started")
+    @log_on_end(logging.DEBUG, "calc_graddet(it={k}, key={key}) finished")
+    def calc_graddet(self, k, key):
+        return self.cacher.load('mf')
+            
 class iterator_cstmf(qlm_iterator):
     """Constant mean-field
     """
