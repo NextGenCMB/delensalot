@@ -69,6 +69,7 @@ class l2base_Transformer:
         # dl.Nmf = 0 if dl.version == 'noMF' else len(dl.simidxs_mf)
 
 
+        # FIXME makes this a clean implementation
         dl.simidxs_mf = np.array(an.simidxs_mf) if dl.version != 'noMF' else np.array([])
         dl.Nmf = 0 if dl.version == 'noMF' else len(dl.simidxs_mf) # FIXME dont make intermediate parameters depend on each other...
         if cf.itrec.mfvar.startswith('/'):

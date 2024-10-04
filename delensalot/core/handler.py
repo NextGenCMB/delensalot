@@ -844,11 +844,9 @@ class QE_lr(Basejob):
                 if simidx in self.simidxs_mf:    
                     ret = (ret - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
             else:
-                # mfvar, ..
-                # FIXME mfvar comes from different simulations, so can probably ignore excluding current simidx..
+                # Take raw meanfield provided by user
+                # TODO could do a normalization check here
                 ret = np.load(self.mfvar)
-                # if simidx in self.simidxs_mf:    
-                #     ret = (ret - self.qlms_dd_mfvar.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
                 log.info('returning mfvar meanfield')
             return ret
             

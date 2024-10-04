@@ -11,7 +11,7 @@ def configuration(parent_package='', top_path=''):
     config = Configuration('', parent_package, top_path)
     return config
 
-setup(
+setuptools.setup(
     name='delensalot',
     version='0.1',
     packages=[
