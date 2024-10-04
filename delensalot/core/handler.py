@@ -806,22 +806,52 @@ class QE_lr(Basejob):
         return qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_unl, self.cls_unl, self.fteb_unl, lmax_qlm=self.lm_max_qlm[0])[0]
 
 
+    # # @base_exception_handler
+    # @log_on_start(logging.DEBUG, "QE.get_meanfield(simidx={simidx}) started")
+    # @log_on_end(logging.DEBUG, "QE.get_meanfield(simidx={simidx}) finished")
+    # def get_meanfield(self, simidx):
+    #     ret = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, 0))
+    #     if self.Nmf > 1:
+    #         if self.mfvar == None:
+    #             ret = self.qlms_dd.get_sim_qlm_mf(self.k, [int(simidx_mf) for simidx_mf in self.simidxs_mf])
+    #             if simidx in self.simidxs_mf:    
+    #                 ret = (ret - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
+    #         else:
+    #             ret = hp.read_alm(self.mfvar)
+    #             if simidx in self.simidxs_mf:    
+    #                 ret = (ret - self.qlms_dd_mfvar.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
+    #         return ret
+        
+    #     return ret
+    
     # @base_exception_handler
     @log_on_start(logging.DEBUG, "QE.get_meanfield(simidx={simidx}) started")
     @log_on_end(logging.DEBUG, "QE.get_meanfield(simidx={simidx}) finished")
     def get_meanfield(self, simidx):
-        ret = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, 0))
+        # Either return MC MF, filter.qlms_mf, or mfvar
+        ret = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, simidx))
+        fn_mf = opj(self.libdir_QE, 'mf_allsims.npy')
+        if type(self.mfvar) == str:
+            if self.mfvar == 'qlms_mf':
+                # calculate MF estimate using Lewis&Carron trick
+                mchain = self.get_mchain(0, 'p')
+                return self.filter.get_qlms_mf(1, self.ffi.pbgeom, mchain)
         if self.Nmf > 1:
             if self.mfvar == None:
+                # MC MF, and exclude the current simidx
                 ret = self.qlms_dd.get_sim_qlm_mf(self.k, [int(simidx_mf) for simidx_mf in self.simidxs_mf])
+                np.save(fn_mf, ret) # plancklens already stores that in qlms_dd/ but I want to have this more conveniently without the naming gibberish
                 if simidx in self.simidxs_mf:    
                     ret = (ret - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
             else:
-                ret = hp.read_alm(self.mfvar)
-                if simidx in self.simidxs_mf:    
-                    ret = (ret - self.qlms_dd_mfvar.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
+                # mfvar, ..
+                # FIXME mfvar comes from different simulations, so can probably ignore excluding current simidx..
+                ret = np.load(self.mfvar)
+                # if simidx in self.simidxs_mf:    
+                #     ret = (ret - self.qlms_dd_mfvar.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
+                log.info('returning mfvar meanfield')
             return ret
-        
+            
         return ret
         
 
