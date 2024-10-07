@@ -707,7 +707,7 @@ class QE_lr(Basejob):
                 for simidx in self.simidxs:
                     ## this filename must match the one created in get_template_blm()
                     fn_blt = opj(self.libdir_blt(simidx), 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
-                    if not os.path.isfile(fn_blt) or recalc:
+                    if not os.path.isfile(fn_blt) or True:
                         _jobs.append(simidx)
 
             jobs[taski] = _jobs
@@ -829,7 +829,7 @@ class QE_lr(Basejob):
     @log_on_end(logging.DEBUG, "QE.get_meanfield(simidx={simidx}) finished")
     def get_meanfield(self, simidx):
         # Either return MC MF, filter.qlms_mf, or mfvar
-        ret = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, 0))
+        ret = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, simidx))
         fn_mf = opj(self.libdir_QE, 'mf_allsims.npy')
         if type(self.mfvar) == str:
             if self.mfvar == 'qlms_mf':
@@ -945,7 +945,7 @@ class QE_lr(Basejob):
     @log_on_end(logging.DEBUG, "QE.get_blt({simidx}) finished")
     def get_blt_new(self, simidx):
 
-        def get_template_blm(it, it_e, lmaxb=1024, lmin_plm=1, perturbative=False):
+        def get_template_blm(it, it_e, lmaxb=1024, lmin_plm=self.Lmin, perturbative=False):
             fn_blt = 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0])
             fn_blt += 'perturbative' * perturbative      
 
@@ -1180,7 +1180,7 @@ class MAP_lr(Basejob):
                 if simidx in self.simidxs_mf:
                     dlm_mod = (dlm_mod - np.array(rec.load_plms(self.libdir_MAPidx, [it]))/self.Nmf) * self.Nmf/(self.Nmf - 1)
             if it<=rec.maxiterdone(self.libdir_MAPidx):
-                blt = self.itlib_iterator.get_template_blm(it, it-1, lmaxb=self.lm_max_blt[0], lmin_plm=np.max([self.Lmin,5]), dlm_mod=dlm_mod, perturbative=False, k=self.k)
+                blt = self.itlib_iterator.get_template_blm(it, it-1, lmaxb=self.lm_max_blt[0], lmin_plm=self.Lmin, dlm_mod=dlm_mod, perturbative=False, k=self.k)
                 np.save(fn_blt, blt)
         return np.load(fn_blt)
 
@@ -1266,22 +1266,27 @@ class Map_delenser(Basejob):
             gauss_beam(self.beam / 180 / 60 * np.pi, lmax=self.lm_max_blt[1])
         '''
         # TODO depends if data comes from delensalot simulations or from external.. needs cleaner implementation
+        if self.basemap == 'pico_dc2_lens':
+            from delensalot.utils import cli
+            FWHMs = [38.4, 32.0, 28.3, 23.6, 22.2, 18.4, 12.8, 10.7, 9.5, 7.9, 7.4, 6.2, 4.3, 3.6, 3.2, 2.6, 2.5, 2.1, 1.5, 1.3, 1.1]
+            freqs = [21, 25, 30, 36, 43, 52, 62, 75, 90, 108, 129, 155, 186, 223, 268, 321, 385, 462, 555, 666, 799]
+            beams = np.array([hp.gauss_beam(FWHM / 180. / 60. * np.pi, lmax=2000) for FWHM in FWHMs])
+            map = dict()
+            map.update({freqs[-1]: hp.read_map('/pscratch/sd/e/erussie/PICO/data/maps/pysm_3.4.0_maps/c4_{freq:03d}_4096.fits'.format(freq=freqs[-1]), field=(1,2))})
+            log.info('loaded input B map')
+            temp_ = hp.map2alm_spin(map[freqs[-1]], spin=2, lmax=self.lm_max_blt[0])
+            return hp.almxfl(temp_[1],cli(beams[-1]))*1e6
         if self.basemap == 'lens': 
-            return almxfl(
-                alm_copy(
+            return alm_copy(
                     self.simulationdata.get_sim_sky(simidx, space='alm', spin=0, field='polarization')[1],
                     self.simulationdata.lmax, *self.lm_max_blt
-                ),
-                self.ttebl['e'], self.lm_max_blt[0], inplace=False) 
+                )
         elif self.basemap == 'lens_ffp10':
-                return almxfl(
-                    alm_copy(
+                return alm_copy(
                     planck2018_sims.cmb_len_ffp10.get_sim_blm(simidx),
                     None,
                     lmaxout=self.lm_max_blt[0],
                     mmaxout=self.lm_max_blt[1]
-                ),
-                self.ttebl['e'], self.lm_max_blt[0], inplace=False
                 )  
         else:
             # only checking for map to save some memory..
@@ -1295,13 +1300,15 @@ class Map_delenser(Basejob):
     @log_on_end(logging.DEBUG, "_delens() finished")
     def delens(self, simidx, outputdata):
         blm_L = self.get_basemap(simidx)
+        log.info('got inbut Blms')
         blt_QE = self.get_blt_it(simidx, 0)
         
         bdel_QE = self.nivjob_geomlib.alm2map(blm_L-blt_QE, *self.lm_max_blt, nthreads=4)
+        del blt_QE
         maskcounter = 0
         for maskflavour, masks in self.binmasks.items():
             for maskid, mask in masks.items():
-                log.debug("starting mask {} {}".format(maskflavour, maskid))
+                log.info("starting mask {} {}".format(maskflavour, maskid))
                 
                 bcl_L = self.lib[maskflavour][maskid].map2cl(self.nivjob_geomlib.alm2map(blm_L, *self.lm_max_blt, nthreads=4))
                 outputdata[0][0][maskcounter] = bcl_L
@@ -1312,9 +1319,9 @@ class Map_delenser(Basejob):
                 for iti, it in enumerate(self.its):
                     blt_MAP = self.get_blt_it(simidx, it)
                     bdel_MAP = self.nivjob_geomlib.alm2map(blm_L-blt_MAP, *self.lm_max_blt, nthreads=4)
-                    log.debug("starting MAP delensing for iteration {}".format(it))
                     blt_L_MAP = self.lib[maskflavour][maskid].map2cl(bdel_MAP)    
                     outputdata[0][2+iti][maskcounter] = blt_L_MAP
+                    log.info("Finished MAP delensing for simidx {}, iteration {}".format(simidx, it))
 
                 maskcounter+=1
 

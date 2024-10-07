@@ -703,14 +703,14 @@ class Xobs:
                     if self.spin == 2:
                         if self.fns['Q'] == self.fns['U'] and self.fns['Q'].endswith('.fits'):
                             # Assume implicitly that Q is field=1, U is field=2
-                            obs1 = load_file(opj(self.libdir, self.fns['Q'].format(simidx)), ifield=0)
-                            obs2 = load_file(opj(self.libdir, self.fns['U'].format(simidx)), ifield=1)
+                            obs1 = load_file(opj(self.libdir, self.fns['Q'].format(simidx)), ifield=1)
+                            obs2 = load_file(opj(self.libdir, self.fns['U'].format(simidx)), ifield=2)
                         else:
                             obs1 = load_file(opj(self.libdir, self.fns['Q'].format(simidx)))
                             obs2 = load_file(opj(self.libdir, self.fns['U'].format(simidx)))
                     elif self.spin == 0:
                         if self.fns['E'] == self.fns['B'] and self.fns['B'].endswith('.fits'):
-                            # Assume implicitly that E is field=1, B is field=2
+                            # Assume implicitly that E is field=0, B is field=1
                             obs1 = load_file(opj(self.libdir, self.fns['E'].format(simidx)), ifield=0)
                             obs2 = load_file(opj(self.libdir, self.fns['B'].format(simidx)), ifield=1)
                         else:
@@ -899,7 +899,7 @@ class Simhandler:
                     assert spin != DNaV, "need to provide spin"
                     assert lmax != DNaV, "need to provide lmax"
                     assert field != DNaV, "need to provide field"
-                self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, libdir=libdir, fns=fns, spin=spin, geominfo=geominfo, field=field, libdir_suffix=libdir_suffix, libdir_noise=libdir_noise, fnsnoise=fnsnoise, CMB_modifier=CMB_modifier, phi_modifier=phi_modifier) if obs_lib == DNaV else obs_lib
+                self.obs_lib = Xobs(maps=maps, space=space, transfunction=transfunction, lmax=lmax, nlev=nlev, libdir=libdir, fns=fns, spin=spin, geominfo=geominfo, field=field, libdir_suffix=libdir_suffix, libdir_noise=libdir_noise, fnsnoise=fnsnoise, CMB_modifier=CMB_modifier, phi_modifier=phi_modifier) if obs_lib == DNaV else obs_lib
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = self.obs_lib.libdir
                 self.fns = self.obs_lib.fns

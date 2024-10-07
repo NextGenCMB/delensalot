@@ -199,7 +199,7 @@ def get_rotlonlat_mollview(area = 'SPDP'):
 
 
 def get_planck_cmap():
-    cmap = ListedColormap(np.loadtxt("/global/homes/s/sebibel/plots/Planck_Parchment_RGB.txt")/255.)
+    cmap = ListedColormap(np.loadtxt("/global/homes/s/sebibel/git/delensalot/delensalot/data/Planck_Parchment_RGB.txt")/255.)
     cmap.set_bad("gray") # color of missing pixels
     cmap.set_under("white") # color of background, necessary if you want to use
     # this colormap directly with hp.mollview(m, cmap=colombi1_cmap)
