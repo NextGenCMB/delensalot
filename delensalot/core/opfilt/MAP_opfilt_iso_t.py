@@ -177,7 +177,8 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
 
     def get_qlms_mf(self, mfkey, q_pbgeom:utils_geom.pbdGeometry, mchain, phas=None, noise_phas=None, cls_filt:dict or None=None):
         """Mean-field estimate using tricks of Carron Lewis appendix
-
+        Returns  g^MF = <g^QD> 
+        It should be correlated to -phi^{input}
 
         """
         if mfkey in [1]: # This should be B^t x, D dC D^t B^t Covi x, x random phases in alm space

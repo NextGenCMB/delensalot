@@ -14,7 +14,14 @@ def configuration(parent_package='', top_path=''):
 setup(
     name='delensalot',
     version='0.1',
-    packages=['delensalot'],
+    packages=[
+        'delensalot',
+        'delensalot.data', 'delensalot.data.cls',
+        'delensalot.biases',
+        'delensalot.utility',
+        'delensalot.config', 'delensalot.config.default', 'delensalot.config.etc', 'delensalot.config.metamodel', 'delensalot.config.transformer', 'delensalot.config.validator',
+        'delensalot.core', 'delensalot.core.cg', 'delensalot.core.decorator', 'delensalot.core.helper', 'delensalot.core.iterator', 'delensalot.core.ivf', 'delensalot.core.opfilt', 'delensalot.core.power',
+        'delensalot.sims',],
     data_files=[('delensalot/data/cls', ['delensalot/data/cls/FFP10_wdipole_lensedCls.dat',
                                 'delensalot/data/cls/FFP10_wdipole_lenspotentialCls.dat',
                                 'delensalot/data/cls/FFP10_wdipole_params.ini'])],

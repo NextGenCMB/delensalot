@@ -169,6 +169,12 @@ def cli(cl):
     return ret
 
 
+def butterfilt(Lcut=300, n=5):
+    """Butterworth low pass filter.
+    """
+    return lambda ell: 1. / (1. + (ell/Lcut)**(2*n))
+
+
 def read_map(m):
     """Reads a map whether given as (list of) string (with ',f' denoting field f), array or callable
 
@@ -233,7 +239,9 @@ def cls2dls(cls):
         cl = cls.get(k, np.zeros(lmax + 1, dtype=float))
         sli = slice(0, min(len(cl), lmax + 1))
         dls[sli, i] = cl[sli] * refac[sli]
-    cldd = np.copy(cls.get('pp', None))
+    cldd = None
+    if 'pp' in cls.keys():
+        cldd = np.copy(cls.get('pp'))
     if cldd is not None:
         cldd *= np.arange(len(cldd)) ** 2 * np.arange(1, len(cldd) + 1, dtype=float) ** 2 /  (2. * np.pi)
     return dls, cldd
