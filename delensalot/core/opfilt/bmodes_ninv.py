@@ -305,31 +305,9 @@ class eblm_filter_ninv(opfilt_pp.alm_filter_ninv):
             self.templates.append(template_bfilt(lmax_marg=lmax_marg, geom=geom, sht_threads=sht_threads, _lib_dir=_bmarg_lib_dir))
         if len(self.templates) > 0:
             if _bmarg_lib_dir is not None and os.path.exists( os.path.join(_bmarg_lib_dir, 'tniti.npy')):
-                nmodes_ = int((lmax_marg + 1) * lmax_marg + lmax_marg + 1 - 4) 
                 log.info("Loading " + os.path.join(_bmarg_lib_dir, 'tniti.npy'))
                 self.tniti = np.load(os.path.join(_bmarg_lib_dir, 'tniti.npy'))
                 log.info("done")
-                # from mpi4py import MPI
-                # # np.frombuffer(buf, dtype=np.double, count=data_size)
-                # if mpi.rank == 0:
-                #     win = MPI.Win.Allocate_shared(nmodes_*nmodes_, MPI.DOUBLE, comm=MPI.COMM_WORLD)
-                #     self.tniti, _ = win.Shared_query(0)
-                #     log.info("Loading " + os.path.join(_bmarg_lib_dir, 'tniti.npy'))
-                #     self.tniti[:] = np.load(os.path.join(_bmarg_lib_dir, 'tniti.npy'))
-                #     print("tniti shape: {}".format(self.tniti.shape))
-                #     log.info('sharing tniti across slurm workers..')
-                #     win.Fence()
-                # else:
-                #     self.tniti = np.zeros(shape=(nmodes_,nmodes_))
-                #     win = MPI.Win.Allocate_shared(0, MPI.DOUBLE, comm=MPI.COMM_WORLD)
-                #     size = win.Shared_query(0)[0]
-                #     buf, _ = win.Shared_query(0)
-                #     win.Fence()
-                #     self.tniti[:] = buf[:]
-                    
-                # for rowi, row in enumerate(self.tniti):
-                    # self.tniti[rowi] = mpi.bcast(self.tniti[rowi], root=0)
-                # log.info('sharing tniti across slurm workers.. DONE.')
                 if _bmarg_rescal != 1.:
                     log.info("**** RESCALING tiniti with %.4f"%_bmarg_rescal)
                     self.tniti *= _bmarg_rescal
