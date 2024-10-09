@@ -90,14 +90,8 @@ class l2base_Transformer:
         dl.lm_max_blt = an.lm_max_blt
 
 
-        dl.transfunction_desc = an.transfunction_desc
-        if dl.transfunction_desc == 'file':
-            from astropy.io import fits
-            beam = fits.open('/global/cfs/cdirs/cmbs4/awg/lowellbb/reanalysis/foreground_cleaned_maps/10a1lat/f092_b02.50_ellmin00_2048.fits')[1].data.field(0)[:dl.lm_max_ivf[0] + 1]
-            transf_tlm = beam * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[0]) * hp.pixwin(cf.noisemodel.geominfo[1]['nside'], lmax=dl.lm_max_ivf[0])
-            transf_elm = beam * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[1]) * hp.pixwin(cf.noisemodel.geominfo[1]['nside'], lmax=dl.lm_max_ivf[0])
-            transf_blm = beam * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[2]) * hp.pixwin(cf.noisemodel.geominfo[1]['nside'], lmax=dl.lm_max_ivf[0])       
-        elif dl.transfunction_desc == 'gauss_no_pixwin':
+        dl.transfunction_desc = an.transfunction_desc     
+        if dl.transfunction_desc == 'gauss_no_pixwin':
             transf_tlm = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[0])
             transf_elm = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[1])
             transf_blm = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[2])
