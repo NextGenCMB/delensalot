@@ -24,11 +24,11 @@ from delensalot.utility.utils_hp import alm_copy
 from delensalot.utility.utils_plot import pp2kk, bnd
 
 from lensitbiases import n1_fft
-
+import time
 _write_alm = lambda fn, alm : hp.write_alm(fn, alm, overwrite=True)
  
 class cpp_sims_lib:
-    def __init__(self, k:str,  param_file:str, tol:int, eps:int,  version:str='', qe_version='', label:str='', n0n1_libdir:str or None=None, cache_in_home=False):
+    def __init__(self, k:str,  param_file:str, tol:int, eps:int,  version:str='', qe_version='', label:str='', n0n1_libdir:str or None=None, cache_in_home=False, **kwargs):
         """Helper library to plot results from MAP estimation of simulations.
         
         This class loads the results of the runs done with the param_file and the options asked
@@ -38,7 +38,6 @@ class cpp_sims_lib:
             n0n1_libdir:N0 and N1, for QE and MAP will be loaded or stored there
             cache_in_home: The default cacher is on the scratch but can cache things in the home if True
         """
-        
         self.k = k
         self.version = version
         self.qe_version = qe_version
@@ -49,7 +48,9 @@ class cpp_sims_lib:
         self.label = label
         # Load the parameters defined in the param_file
         self.param_file = param_file
+
         self.param = SourceFileLoader(param_file, param_file +'.py').load_module()
+
         self.TEMP =  self.param.TEMP
         self.lmax_qlm = self.param.lmax_qlm
         self.mmax_qlm = self.param.mmax_qlm
@@ -60,7 +61,11 @@ class cpp_sims_lib:
         else:
             splt = self.TEMP.split('/')[-2:]
             self.cachedir = opj(os.environ['HOME'], *splt)
-
+        
+        if 'split' in kwargs.keys():
+            self.split = kwargs['split']
+        else:
+            self.split = False
         self.cacher_param = cachers.cacher_npy(opj(self.cachedir, f'cpplib_tol{self.tol}_eps{self.eps}' + self.version))
         self.fsky = self.get_fsky() 
 
@@ -78,30 +83,26 @@ class cpp_sims_lib:
         # self.config = (self.param.nlev_t, self.param.nlev_p, self.param.beam, 
         #                (self.param.lmin_tlm,  self.param.lmin_elm, self.param.lmin_blm), 
         #                self.param.lmax_ivf, self.param.lmax_qlm)
-        
         if 'nocut' in qe_version:
             self.ivfs = self.param.ivfs_nocut
-            self.qcls_ss = self.param.qcls_ss_nocut
-            self.qcls_ds = self.param.qcls_ds_nocut
-            self.qcls_dd = self.param.qcls_dd_nocut
+            # self.qcls_ss = self.param.qcls_ss_nocut
+            # self.qcls_ds = self.param.qcls_ds_nocut
+            # self.qcls_dd = self.param.qcls_dd_nocut
             self.qlms_dd = self.param.qlms_dd_nocut
         elif 'qeinh' in qe_version:
             self.ivfs = self.param.ivfs_nocut_inh
-            self.qcls_ss = self.param.qcls_ss_nocut_inh
-            self.qcls_ds = self.param.qcls_ds_nocut_inh
-            self.qcls_dd = self.param.qcls_dd_nocut_inh
+            # self.qcls_ss = self.param.qcls_ss_nocut_inh
+            # self.qcls_ds = self.param.qcls_ds_nocut_inh
+            # self.qcls_dd = self.param.qcls_dd_nocut_inh
             self.qlms_dd = self.param.qlms_dd_nocut_inh
         else:
             self.ivfs = self.param.ivfs
-            self.qcls_ss = self.param.qcls_ss
-            self.qcls_ds = self.param.qcls_ds
-            self.qcls_dd = self.param.qcls_dd
+            # self.qcls_ss = self.param.qcls_ss
+            # self.qcls_ds = self.param.qcls_ds
+            # self.qcls_dd = self.param.qcls_dd
             self.qlms_dd = self.param.qlms_dd
-        try:
-            self.nhllib = nhl.nhl_lib_simple(opj(self.cachedir, 'nhllib' + qe_version), self.ivfs, self.ivfs.ivfs.cl, self.param.lmax_qlm)
-        except AttributeError:
-            self.nhllib = nhl.nhl_lib_simple(opj(self.cachedir, 'nhllib' + qe_version), self.ivfs, self.ivfs.cl, self.param.lmax_qlm)
-
+        
+        self.nhllib = None
         self.n0n1_libdir = n0n1_libdir
 
 
@@ -109,7 +110,9 @@ class cpp_sims_lib:
         if tol is None: tol = self.tol 
         if eps is None: eps = self.eps
         # return opj(self.TEMP,'%s_sim%04d'%(self.k, simidx) + self.version)
-        return self.param.libdir_iterators(self.k, simidx, self.version, self.qe_version, tol, eps)
+        lmax_unl = 5024
+        # return self.param.libdir_iterators(self.k, simidx, self.version, tol, eps)
+        return self.param.libdir_iterators(self.k, simidx, self.version, self.qe_version, tol, eps, lmax_unl=lmax_unl,  split=self.split)
 
     def get_itlib_sim(self, simidx, tol=None, eps=None):
         if tol is None: tol = self.tol 
@@ -118,7 +121,7 @@ class cpp_sims_lib:
         # epsilon = 10**(-eps)
         # return self.param.get_itlib(self.k, simidx, self.version, cg_tol=tol_iter, epsilon=epsilon)
         # qe_key:str, simidx:int, version:str, qe_version:str, tol:float, epsilon=5, nbump=0, rscal=0, verbose=False, numthreads=0
-        return self.param.get_itlib(self.k, simidx, self.version, self.qe_version, tol=tol, epsilon=eps)
+        return self.param.get_itlib(self.k, simidx, self.version, self.qe_version, tol=tol, epsilon=eps, split=self.split)
 
     def cacher_sim(self, simidx, verbose=False):
         if self.cache_in_home is False:
@@ -594,6 +597,8 @@ class cpp_sims_lib:
         
         """
         nsims = self.get_nsims_itmax(itmax_sims)
+        if verbose:
+            print(f'I use {nsims} sims to estimate the effective WF')
         fn_weff = f"wf_eff_{self.k}_itsim{itmax_sims}_itfid{itmax_fid}_nsims{nsims}_mf{mf}_v{version}" +f"_spl{do_spline}_{lmin_interp}_{lmax_interp}_{k}_{s}" * do_spline
         fn_wfspline = f"wf_spline_{self.k}_itsim{itmax_sims}_itfid{itmax_fid}_nsims{nsims}_mf{mf}_v{version}" f"_spl{do_spline}_{lmin_interp}_{lmax_interp}_{k}_{s}" * do_spline
         if np.any([not self.cacher_param.is_cached(fn) for fn in [fn_weff, fn_wfspline]]) or recache:
@@ -763,7 +768,12 @@ class cpp_sims_lib:
             Returns:
                 Semi-analytical un-normalized RDN0 
         """
-        
+        if self.nhllib is None:
+            try:
+                self.nhllib = nhl.nhl_lib_simple(opj(self.cachedir, 'nhllib' + self.qe_version), self.ivfs, self.ivfs.ivfs.cl, self.param.lmax_qlm)
+            except AttributeError:
+                self.nhllib = nhl.nhl_lib_simple(opj(self.cachedir, 'nhllib' + self.qe_version), self.ivfs, self.ivfs.cl, self.param.lmax_qlm)
+
         return self.nhllib.get_sim_nhl(simidx, self.k,  self.k)    
 
     def get_mcn0_qe(self, Ndatasims=40, Nmcsims=100, Nroll=10, use_parfile=False, qcls_ss = None, use_old_files=False):
@@ -843,8 +853,12 @@ class cpp_sims_lib:
     def maxiterdone(self, simidx):
         return statics.rec.maxiterdone(self.libdir_sim(simidx))
 
-    def get_gauss_cov(self, version='', w=lambda ls : 1.,  edges=None, withN1=False, cosmicvar=True, QE_iter0=True):
-        N0_map, N1_map, map_resp, _ = self.get_N0_N1_iter(15, version=version)
+    def get_gauss_cov(self, version='', w=lambda ls : 1.,  edges=None, withN1=False, cosmicvar=True, QE_iter0=True, N0_map=None, N1_map=None):
+        if N0_map is None:
+            N0_map, _, _, _ = self.get_N0_N1_iter(15, version=version)
+        if N1_map is None:
+            _, N1_map, _, _ = self.get_N0_N1_iter(15, version=version)
+        
         if QE_iter0:
             # Takes the QE as the iteration 0 of iterative N0 and N1 (faster as N1 is from fft calc)
             # N0 is identical at 0.1 %, N1 at 10% compared to the Planck get_nhl and get_n1

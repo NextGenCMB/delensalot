@@ -333,13 +333,13 @@ class qlm_iterator(object):
         return self._sk2plm(itr)
 
 
-    def load_soltn(self, itr, key):
+    def load_soltn(self, itr, key, split=''):
         """Load starting point for the conjugate gradient inversion.
 
         """
         assert key.lower() in ['p', 'o']
         for i in np.arange(itr - 1, -1, -1):
-            fname = 'wflm_%s_it%s' % (key.lower(), i)
+            fname = 'wflm_%s_it%s' % (key.lower(), i) + '_'*(split != '') + split
             if self.wf_cacher.is_cached(fname):
                 return self.wf_cacher.load(fname), i
         if callable(self.wflm0):
@@ -560,13 +560,13 @@ class iterator_splitlik_cstmf(qlm_iterator):
             #         assert 0, 'dont know what to do this with this E input'
             _soltn = []
             for datset in [0, 1]:
-                log.info("Grad like: Computing WF solution for datasplit %s at iter %s " % (datset, itr))
-                soltn, it_soltn = self.load_soltn(itr, key +'_'+str(datset))
+                log.info("Computing WF solution for datasplit %s at iter %s " % (datset, itr))
+                soltn, it_soltn = self.load_soltn(itr, key, str(datset))
                 if it_soltn < itr - 1:
                     soltn *= self.soltn_cond
                     
-                    mchain.solve(soltn, self.dat_maps[0], dot_op=self.filter.dot_op())
-                    fn_wf = 'wflm_%s_%s_it%s' % (key.lower(), datset, itr - 1)
+                    mchain.solve(soltn, self.dat_maps[datset], dot_op=self.filter.dot_op())
+                    fn_wf = 'wflm_%s_it%s_%s' % (key.lower(),  itr - 1, datset)
                     log.info("caching "  + fn_wf)
                     self.wf_cacher.cache(fn_wf, soltn)
                 else:

@@ -145,7 +145,7 @@ class iterbiases:
             fn = f'n0n1_ref_{qe_key}' + '_it' + str(itrmax)
             if version != '':
                 fn = 'v' + version + fn
-            print(fn)
+            # print(fn)
 
         if cls_noise_true is None: cls_noise_true = cls_noise_fid
         if cls_unl_true is None: cls_unl_true = cls_unl_fid
@@ -155,7 +155,7 @@ class iterbiases:
             fn = 'n0n1_' + str(qe_key) + '_it' + str(itrmax) + '_' + _dicthash(cls_noise_true, lmax_ivf, keys=['tt', 'ee', 'bb']) + _dicthash(cls_unl_true, 6000, keys = ['tt', 'te', 'ee', 'pp'])
             if version != '':
                 fn = 'v' + version + fn
-            print(fn)
+            # print(fn)
         
         if not self._cacher.is_cached(fn) or recache:
             fid_delcls, true_delcls = self.delcls(qe_key, itrmax, cls_unl_true, cls_noise_true, version=version)
@@ -241,7 +241,7 @@ def get_delcls(qe_key: str, itermax:int, cls_unl_fid: dict, cls_unl_true:dict, c
         This makes no assumption on response =  1 / noise hence is about twice as slow as it could be in standard cases.
 
         Args:
-            qe_key: 'ptt', 'p_p', 'p' for Temparture, Polarization only (E+B) and joint estimators (T+E+B) respectively
+            qe_key: 'ptt', 'p_p', 'p' for Temperature, Polarization only (E+B) and joint estimators (T+E+B) respectively
             itermax: number of iterations to perform
 
             cls_unl_fid: fiducial unlensed spectra used in the iterator
@@ -339,7 +339,7 @@ def get_delcls(qe_key: str, itermax:int, cls_unl_fid: dict, cls_unl_true:dict, c
         cls_plen_true['pp'] = cldd_true * utils.cli(np.arange(len(cldd_true)) ** 2 * np.arange(1, len(cldd_true) + 1, dtype=float) ** 2 / (2. * np.pi))
         cls_plen_fid['pp'] = cldd_fid * utils.cli(np.arange(len(cldd_fid)) ** 2 * np.arange(1, len(cldd_fid) + 1, dtype=float) ** 2 / (2. * np.pi))
         if 'wE' in version and it>0:
-            # Need to convert the template of the lensing power spectrum: Cldd*rho, into the reidual lensing of the map: Cldd*(1-rho)
+            # Need to convert the template of the lensing power spectrum: Cldd*rho, into the residual lensing of the map: Cldd*(1-rho)
             cls_plen_true['pp'] =  cls_plen_true['pp'] *utils.cli( rho_sqd_phi) * (1. - rho_sqd_phi) 
             cls_plen_fid['pp'] =  cls_plen_fid['pp'] *utils.cli( rho_sqd_phi) * (1. - rho_sqd_phi) 
         elif 'wE' in version and it ==0:
