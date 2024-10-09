@@ -1,5 +1,6 @@
 import numpy as np
 import os, sys
+from os.path import join as opj
 
 import importlib.util as iu
 import matplotlib
@@ -12,6 +13,7 @@ import healpy as hp
 import matplotlib.colors as mcolors
 from matplotlib.colors import ListedColormap
 
+import delensalot
 from delensalot.config.config_helper import data_functions as df
 
 
@@ -64,36 +66,6 @@ def load_paramfile(directory, descriptor):
     spec.loader.exec_module(p)
 
     return p
-
-def plot_noiseandcmb(ana):
-    LL = np.arange(0, 6001, 1)
-
-    tnoise = hp.anafast(ana.sims.get_sim_tnoise(0), lmax=6000)
-    qnoise = hp.anafast(ana.sims.get_sim_qnoise(0), lmax=6000)
-    unoise = hp.anafast(ana.sims.get_sim_unoise(0), lmax=6000)
-
-
-    scale_factor_ps = (LL * (LL + 1)) / (2 * np.pi)
-    beam = np.exp(LL*(LL+1)*df.a2r(1/60)/(8*np.log(2)))
-    plt.plot(scale_factor_ps*ana.cls_len['tt'][:6001], label=r'$C_\ell^{TT}$')
-    plt.plot(scale_factor_ps*ana.cls_len['ee'][:6001], label=r'$C_\ell^{EE}$')
-    plt.plot(scale_factor_ps*ana.cls_len['bb'][:6001], label=r'$C_\ell^{BB}$')
-    plt.plot(scale_factor_ps*(1/(2.728*1e6))**2*np.exp(LL*(LL+1)*ldf.a2r(1/60)/(8*np.log(2))), label=r'$C_\ell^{TT, {\rm Noise}}$')
-    plt.plot(scale_factor_ps*(np.sqrt(2)/(2.728*1e6))**2*beam, label=r'$C_\ell^{P, {\rm Noise}}$')
-    plt.plot(scale_factor_ps*tnoise*beam*1e-6, label=r'$C_\ell^{TT, {\rm Noise, emp}}$')
-    plt.plot(scale_factor_ps*qnoise*beam*1e-6, label=r'$C_\ell^{Q, {\rm Noise, emp}}$')
-    plt.plot(scale_factor_ps*unoise*beam*1e-6, label=r'$C_\ell^{U, {\rm Noise, emp}}$')
-    plt.xlim(1e3,6e3)
-    plt.yscale('log')
-    plt.ylim(1e-3,1e6)
-    plt.xlim(100,5000)
-    plt.vlines(4000,1e-3,1e5, label='lmax len', color='grey')
-    plt.vlines(4250,1e-3,1e5, label='4250', color='black')
-    plt.legend(loc='lower left', bbox_to_anchor=[1,0.0])
-    plt.title('CMB-S4 like settings')
-    plt.xlabel('Multipole, $\ell$')
-    plt.ylabel(r"$\ell(\ell+1)C_\ell/2\pi$")
-    # plt.loglog()
 
 
 def clamp(val, minimum=0, maximum=255):
@@ -199,52 +171,10 @@ def get_rotlonlat_mollview(area = 'SPDP'):
 
 
 def get_planck_cmap():
-    cmap = ListedColormap(np.loadtxt("/global/homes/s/sebibel/git/delensalot/delensalot/data/Planck_Parchment_RGB.txt")/255.)
+    cmap = ListedColormap(np.loadtxt(opj(os.path.dirname(delensalot.__file__), "delensalot/data/Planck_Parchment_RGB.txt")/255.))
     cmap.set_bad("gray") # color of missing pixels
     cmap.set_under("white") # color of background, necessary if you want to use
     # this colormap directly with hp.mollview(m, cmap=colombi1_cmap)
-    return cmap
-
-def get_custom_cmap():
-
-    size_g = 4
-    grey_map = cm.get_cmap('Greys', 32)
-
-    size_bl = 4
-    blue_map = cm.get_cmap('Blues', 32)
-    blues_dld = np.vstack(
-        (blue_map(np.linspace(0.1, 0.8, size_bl)),
-        blue_map(np.linspace(0.8, 0.1, size_bl))))
-
-    greys_light_dld = np.vstack(
-        (grey_map(np.linspace(.8, 0.1, size_g)),
-        grey_map(np.linspace(0.1, .8, size_g))))
-
-    size_o = 8
-    orange_map = cm.get_cmap('Oranges', 32)
-    oranges_dark_dld = np.vstack(
-        (orange_map(np.linspace(0.2, 0.5, size_o)),
-        orange_map(np.linspace(0.5, 0.2, size_o))))
-
-
-    size_gr = 8
-    green_map = cm.get_cmap('Greens', 32)
-    greens_dld = np.vstack(
-        (green_map(np.linspace(0.2, 0.5, size_gr)),
-        green_map(np.linspace(0.5, 0.2, size_gr))))
-
-    size_w = 1
-    white_map = cm.get_cmap('Greys', 32)
-    white = white_map(np.linspace(0.0, 0.1, size_w))
-
-    gb = np.vstack((
-        greens_dld[int(size_o):],
-        blues_dld[int(size_bl):],
-        white[:size_w],
-        greys_light_dld[int(size_g):],
-        oranges_dark_dld[:int(size_o)]
-    ))
-    cmap = ListedColormap(gb)
     return cmap
 
 
