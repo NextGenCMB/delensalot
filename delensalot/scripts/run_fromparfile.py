@@ -21,7 +21,7 @@ from plancklens.qcinv import cd_solve
 from plancklens.sims import maps, phas
 from plancklens.filt import filt_simple
 from delensalot.core.iterator import cs_iterator as scarf_iterator_baseline, steps
-from delensalot.core.iterator import cs_iterator_dev as scarf_iterator_dev
+from delensalot.core.iterator import cs_iterator_dev as scarf_iterator_baseline
 
 from delensalot.core.iterator import cs_iterator_fast as scarf_iterator_fastwf
 
