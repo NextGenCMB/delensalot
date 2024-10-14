@@ -67,6 +67,10 @@ class config_handler():
                                 if self.configfile.dlensalot_model.noisemodel.OBD == 'OBD':
                                     # Catch build_OBD, iff noisemodel.obd is True. Else don't calculate (mpi tasks should still be fixed.. but 'run-anyway' applies)
                                     self.configfile.dlensalot_model.job.jobs.append(sortedjob)
+                            elif sortedjob == 'analyse_phi':
+                                ## only add this job if input phi exists.
+                                if self.configfile.dlensalot_model.simulationdata.flavour == 'unl':
+                                    self.configfile.dlensalot_model.job.jobs.append(sortedjob)
                             else:
                                 self.configfile.dlensalot_model.job.jobs.append(sortedjob)
                 ## adding 'analyse_phi' into every run as long as MAP_lensrec is part of the run and input phi exists
@@ -179,8 +183,11 @@ class config_handler():
         if dostore:
             if not os.path.exists(TEMP):
                 os.makedirs(TEMP)
-            shutil.copyfile(parser.config_file, TEMP +'/'+parser.config_file.split('/')[-1])
-            logging.info('config file stored at '+ TEMP +'/'+parser.config_file.split('/')[-1])
+            try:
+                shutil.copyfile(parser.config_file, TEMP +'/'+parser.config_file.split('/')[-1])
+                logging.info('config file stored at '+ TEMP +'/'+parser.config_file.split('/')[-1])
+            except shutil.SameFileError:
+                log.debug("Did not copy config file as it appears to be the same.")
         else:
             if parser.resume == '':
                 # Only give this info when not resuming

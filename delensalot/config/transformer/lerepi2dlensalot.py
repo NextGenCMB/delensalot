@@ -74,8 +74,7 @@ class l2base_Transformer:
         dl.Nmf = 0 if dl.version == 'noMF' else len(dl.simidxs_mf) # FIXME dont make intermediate parameters depend on each other...
         if cf.itrec.mfvar.startswith('/'):
             dl.Nmf = 10000 #give this a big number.. the actual number doesnt matter, as long as it is bigger than 1
-        
-        
+
         dl.TEMP_suffix = an.TEMP_suffix
         dl.TEMP = transform(cf, l2T_Transformer())
         dl.cls_unl = camb_clfile(an.cls_unl)
@@ -98,7 +97,7 @@ class l2base_Transformer:
         dl.lm_max_blt = an.lm_max_blt
 
 
-        dl.transfunction_desc = an.transfunction_desc
+        dl.transfunction_desc = an.transfunction_desc     
         if dl.transfunction_desc == 'gauss_no_pixwin':
             transf_tlm = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[0])
             transf_elm = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[1])
@@ -378,8 +377,9 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     
                     dl.lenjob_geominfo = it.lenjob_geominfo
                     dl.lenjob_geomlib = get_geom(it.lenjob_geominfo)
-                    thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
-                    dl.lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
+                    # FIXME not sure if we should restrict here
+                    # thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
+                    # dl.lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
 
                     # TODO this needs cleaner implementation
                     if dl.version == '' or dl.version == None:
@@ -568,6 +568,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     
                     dl.lenjob_geominfo = it.lenjob_geominfo
                     dl.lenjob_geomlib = get_geom(it.lenjob_geominfo)
+                    thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
+                    dl.lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
             
                     if dl.version == '' or dl.version == None:
                         dl.mf_dirname = opj(dl.TEMP, l2T_Transformer.ofj('mf', {'Nmf': dl.Nmf}))
@@ -806,14 +808,13 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                                 dl.masks[maskflavour][maskid] = dl.masks_fromfn[maskid]
                             dl.binmasks[maskflavour][maskid] = np.where(dl.masks[maskflavour][maskid]>0,1,0)
 
-                    ## Binning and power spectrum calculator specific preparation
-                    if ma.Cl_fid == 'ffp10':
-                        dl.cls_unl = camb_clfile(cf.analysis.cls_unl)
-                        dl.cls_len = camb_clfile(cf.analysis.cls_len)
-                        dl.clg_templ = dl.cls_len['ee']
-                        dl.clc_templ = dl.cls_len['bb']
-                        dl.clg_templ[0] = 1e-32
-                        dl.clg_templ[1] = 1e-32
+                    ## Binning and power spectrum calculator specific preparation.
+                    dl.cls_unl = camb_clfile(cf.analysis.cls_unl)
+                    dl.cls_len = camb_clfile(cf.analysis.cls_len)
+                    dl.clg_templ = dl.cls_len['ee']
+                    dl.clc_templ = dl.cls_len['bb']
+                    dl.clg_templ[0] = 1e-32
+                    dl.clg_templ[1] = 1e-32
 
                     dl.binning = ma.binning
                     if dl.binning == 'binned':

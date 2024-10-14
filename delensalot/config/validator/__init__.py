@@ -23,6 +23,7 @@ safelist = [
     'OMP_NUM_THREADS',
     'rhits_normalised',
     'masks_fn',
+    'mfvar' #not really safe, but ok for now as long as you know what you do
 ]
 
 DEFAULT_NotAValue = -123456789
