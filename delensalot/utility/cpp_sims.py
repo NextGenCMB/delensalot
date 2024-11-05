@@ -28,7 +28,7 @@ import time
 _write_alm = lambda fn, alm : hp.write_alm(fn, alm, overwrite=True)
  
 class cpp_sims_lib:
-    def __init__(self, k:str,  param_file:str, tol:int, eps:int,  version:str='', qe_version='', label:str='', n0n1_libdir:str or None=None, cache_in_home=False, **kwargs):
+    def __init__(self, k:str,  param_file:str, tol:int, eps:int,  version:str='', qe_version='', label:str='', n0n1_libdir:str or None=None, cache_in_home=False, verbose=False, **kwargs):
         """Helper library to plot results from MAP estimation of simulations.
         
         This class loads the results of the runs done with the param_file and the options asked
@@ -41,7 +41,7 @@ class cpp_sims_lib:
         self.k = k
         self.version = version
         self.qe_version = qe_version
-
+        self.verbose = verbose
         # self.iterator_version = iterator_version
         self.tol = tol 
         self.eps = eps
@@ -66,7 +66,7 @@ class cpp_sims_lib:
             self.split = kwargs['split']
         else:
             self.split = False
-        self.cacher_param = cachers.cacher_npy(opj(self.cachedir, f'cpplib_tol{self.tol}_eps{self.eps}' + self.version))
+        self.cacher_param = cachers.cacher_npy(opj(self.cachedir, f'cpplib_tol{self.tol}_eps{self.eps}' + self.version + self.qe_version))
         self.fsky = self.get_fsky() 
 
         # Cl weights used in the QE (either lensed Cls or grad Cls)
@@ -77,12 +77,8 @@ class cpp_sims_lib:
 
         # Grad cls used for CMB response
         self.cls_grad = self.param.cls_grad
-
         self.cpp_fid = self.param.cls_unl['pp']
 
-        # self.config = (self.param.nlev_t, self.param.nlev_p, self.param.beam, 
-        #                (self.param.lmin_tlm,  self.param.lmin_elm, self.param.lmin_blm), 
-        #                self.param.lmax_ivf, self.param.lmax_qlm)
         if 'nocut' in qe_version:
             self.ivfs = self.param.ivfs_nocut
             # self.qcls_ss = self.param.qcls_ss_nocut
@@ -107,12 +103,13 @@ class cpp_sims_lib:
 
 
     def libdir_sim(self, simidx, tol=None, eps=None):
-        if tol is None: tol = self.tol 
-        if eps is None: eps = self.eps
+        # if tol is None: tol = self.tol 
+        # if eps is None: eps = self.eps
         # return opj(self.TEMP,'%s_sim%04d'%(self.k, simidx) + self.version)
-        lmax_unl = 5024
+        # lmax_unl = 5024
+        lmax_unl = self.param.lmax_cmb_unl
         # return self.param.libdir_iterators(self.k, simidx, self.version, tol, eps)
-        return self.param.libdir_iterators(self.k, simidx, self.version, self.qe_version, tol, eps, lmax_unl=lmax_unl,  split=self.split)
+        return self.param.libdir_iterators(self.k, simidx, self.version, self.qe_version, self.tol, self.eps, lmax_unl=lmax_unl,  split=self.split)
 
     def get_itlib_sim(self, simidx, tol=None, eps=None):
         if tol is None: tol = self.tol 
@@ -123,16 +120,18 @@ class cpp_sims_lib:
         # qe_key:str, simidx:int, version:str, qe_version:str, tol:float, epsilon=5, nbump=0, rscal=0, verbose=False, numthreads=0
         return self.param.get_itlib(self.k, simidx, self.version, self.qe_version, tol=tol, epsilon=eps, split=self.split)
 
-    def cacher_sim(self, simidx, verbose=False):
+    def cacher_sim(self, simidx):
         if self.cache_in_home is False:
-            cacher = cachers.cacher_npy(opj(self.libdir_sim(simidx, self.tol, self.eps), 'cpplib'), verbose=verbose)
+            cacher = cachers.cacher_npy(opj(self.libdir_sim(simidx, self.tol, self.eps), 'cpplib'), verbose=self.verbose)
         else:
-            splt = self.libdir_sim(simidx, self.tol, self.eps).split('/')[-3:]
-            cacher = cachers.cacher_npy(opj(os.environ['HOME'], *splt, 'cpplib'), verbose=verbose)
+            simlib = self.libdir_sim(simidx).split('/')[-1]
+            cacher_param_libdir = self.cacher_param.lib_dir
+            cacher = cachers.cacher_npy(opj(cacher_param_libdir, simlib), verbose=self.verbose)
         return cacher
 
     def get_plm(self, simidx, itr, use_cache=True):
         if use_cache:
+            # cacher = self.cacher_sim(simidx)
             cacher = cachers.cacher_npy(self.libdir_sim(simidx, self.tol, self.eps))
             # print(self.libdir_sim(simidx))
             fn = f"phi_plm_it{itr:03.0f}"
@@ -151,6 +150,7 @@ class cpp_sims_lib:
         
         if use_cache:
             cacher = cachers.cacher_npy(self.libdir_sim(simidx))
+            # cacher = self.cacher_sim(simidx)
             # print(self.libdir_sim(simidx))
             fn = f"phi_plm_qe" + self.qe_version
             # print(fn)
@@ -387,8 +387,13 @@ class cpp_sims_lib:
         this_mcs = np.unique(mc_sims)
 
         cacher = cachers.cacher_npy(self.cacher_param.lib_dir, verbose=verbose)
-        fn =  f'simMF_itr{itmax}_k{self.k}_{mchash(mc_sims)}.fits'
+        fn =  f'simMF_itr{itmax}_k{self.k}_{mchash(mc_sims)}'
+        if self.split is not False:
+            fn += f'_split{self.split}'
+        fn += '.fits'
         if not cacher.is_cached(fn) or recache:
+            print(cacher.lib_dir)
+            print(fn)
             MF = np.zeros(hp.Alm.getsize(self.lmax_qlm), dtype=complex)
             if len(this_mcs) == 0: return MF
             for i, idx in utils.enumerate_progress(this_mcs, label='calculating MAP MF'):
@@ -597,10 +602,14 @@ class cpp_sims_lib:
         
         """
         nsims = self.get_nsims_itmax(itmax_sims)
+        fn_weff = f"wf_eff_{self.k}_itsim{itmax_sims}_itfid{itmax_fid}_nsims{nsims}_mf{mf}_v{version}" +f"_spl{do_spline}_{lmin_interp}_{lmax_interp}_{k}_{s}" * do_spline 
+        fn_wfspline = f"wf_spline_{self.k}_itsim{itmax_sims}_itfid{itmax_fid}_nsims{nsims}_mf{mf}_v{version}" f"_spl{do_spline}_{lmin_interp}_{lmax_interp}_{k}_{s}" * do_spline
+        if self.split is not False:
+            fn_weff += f'_split{self.split}'
+            fn_wfspline += f'_split{self.split}'
         if verbose:
             print(f'I use {nsims} sims to estimate the effective WF')
-        fn_weff = f"wf_eff_{self.k}_itsim{itmax_sims}_itfid{itmax_fid}_nsims{nsims}_mf{mf}_v{version}" +f"_spl{do_spline}_{lmin_interp}_{lmax_interp}_{k}_{s}" * do_spline
-        fn_wfspline = f"wf_spline_{self.k}_itsim{itmax_sims}_itfid{itmax_fid}_nsims{nsims}_mf{mf}_v{version}" f"_spl{do_spline}_{lmin_interp}_{lmax_interp}_{k}_{s}" * do_spline
+            print(fn_weff)
         if np.any([not self.cacher_param.is_cached(fn) for fn in [fn_weff, fn_wfspline]]) or recache:
             wf_fid = self.get_wf_fid(itmax_fid, version=version)
             print(f'I use {nsims} sims to estimate the effective WF')

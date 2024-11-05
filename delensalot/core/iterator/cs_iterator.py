@@ -525,7 +525,10 @@ class qlm_iterator(object):
 
 class iterator_splitlik_cstmf(qlm_iterator):
     """Split lensing iterator
-    dat_maps is a tuple containing two sets of maps, one for each data split
+    The iterator will compute the WF for the n maps, and return the quadratic split gradient given by 
+    g^QD = \frac{1}{n (n-1)} \sum \bar X^i D_a \nabla (( \sum_j X^WF_j ) - X^WF_i)
+    Args:
+        dat_maps is a list containing n CMB maps, one for each data split
     """
 
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
@@ -535,13 +538,13 @@ class iterator_splitlik_cstmf(qlm_iterator):
         super(iterator_splitlik_cstmf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
                                              ninv_filt, k_geom, chain_descr, stepper, **kwargs)
         
-        assert len(self.dat_maps) == 2, "Data maps must be a tuple of two sets of maps"
-        assert self.dat_maps[0].shape == self.dat_maps[1].shape, "Data maps must have the same shape"
+        self.nsplits = len(self.dat_maps)
+        assert self.nsplits>= 2, "Data maps must contain two or more sets of maps"
+        print(f'Iterator will run with {self.nsplits} splits')
         assert self.lmax_qlm == Alm.getlmax(plm0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(plm0.size, self.lmax_qlm))
         self.cacher.cache('mf', almxfl(plm0, self._h2p(self.lmax_qlm), self.mmax_qlm, False))
 
     def calc_gradlik(self, itr, key, iwantit=False):
-        # TODO: Implement here the double CG search, one for each data set, and then get the qlms, each with a different data and sum the two
         assert self.is_iter_done(itr - 1, key)
         assert itr > 0, itr
         assert key.lower() in ['p', 'o'], key
@@ -559,7 +562,7 @@ class iterator_splitlik_cstmf(qlm_iterator):
             #     else:
             #         assert 0, 'dont know what to do this with this E input'
             _soltn = []
-            for datset in [0, 1]:
+            for datset in range(self.nsplits):
                 log.info("Computing WF solution for datasplit %s at iter %s " % (datset, itr))
                 soltn, it_soltn = self.load_soltn(itr, key, str(datset))
                 if it_soltn < itr - 1:
@@ -579,10 +582,16 @@ class iterator_splitlik_cstmf(qlm_iterator):
                 q_geom = ffi.pbgeom
             else:
                 q_geom = pbdGeometry(self.k_geom, pbounds(0., 2 * np.pi))
-            G1, C1 = self.filter.get_qlms(self.dat_maps[0], _soltn[0], q_geom, alm_wf_leg2=_soltn[1])
-            G2, C2 = self.filter.get_qlms(self.dat_maps[1], _soltn[1], q_geom, alm_wf_leg2=_soltn[0])
-            G = (G1 + G2) / 2.
-            C = (C1 + C2) / 2. 
+            _soltn_tot = np.sum(_soltn, axis=0) # \sum_i X^WF_i
+            G = np.zeros(Alm.getsize(self.lmax_qlm, self.mmax_qlm), dtype='complex128')
+            C = np.zeros(Alm.getsize(self.lmax_qlm, self.mmax_qlm), dtype='complex128')
+            for datset in range(self.nsplits):
+                # \bar X^i D_a \nabla (( \sum_j X^WF_j ) - X^WF_i)
+                _temp = self.filter.get_qlms(self.dat_maps[datset], _soltn[datset], q_geom, alm_wf_leg2 = _soltn_tot - _soltn[datset])
+                G += _temp[0]
+                C += _temp[1]
+            G *= 1./(self.nsplits * (self.nsplits-1))
+            C *= 1./(self.nsplits * (self.nsplits-1))
             almxfl(G if key.lower() == 'p' else C, self._h2p(self.lmax_qlm), self.mmax_qlm, True)
             log.info('get_qlms calculation done; (%.0f secs)'%(time.time() - t0))
             if itr == 1: #We need the gradient at 0 and the yk's to be able to rebuild all gradients
