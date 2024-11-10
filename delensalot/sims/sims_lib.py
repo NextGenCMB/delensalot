@@ -174,9 +174,9 @@ class iso_white_noise:
 
 
 class Cls:
-    """class for accessing CAMB-like file for CMB power spectra, optionally a distinct file for the lensing potential
+    """class for accessing CAMB-like file for CMB power spectra, optionally a distinct file for the lensing potential, and birefringence
     """    
-    def __init__(self, lmax=DNaV, phi_lmax=DNaV, CMB_fn=DNaV, phi_fn=DNaV, phi_field='potential'):
+    def __init__(self, lmax=DNaV, phi_lmax=DNaV, CMB_fn=DNaV, phi_fn=DNaV, phi_field='potential', bf_lmax=DNaV, bf_fn=DNaV, bf_field='potential'):
         assert lmax != DNaV, "need to provide lmax"
         self.lmax = lmax
         self.phi_lmax = phi_lmax
@@ -233,10 +233,24 @@ class Cls:
         return self.cacher.load(fn)
 
 
+    def get_sim_clbf(self, simidx):
+        # FIXME faking bf file here for now. Just taking phi file and rescaling
+        # fn = 'clbf_{}'.format(simidx)
+        # if not self.cacher.is_cached(fn):
+        #     ClB = self.bf_file[:self.bf_lmax+1]
+        #     self.cacher.cache(fn, np.array(ClB))
+        # return self.cacher.load(fn)
+        fn = 'clbf_{}'.format(simidx)
+        if not self.cacher.is_cached(fn):
+            ClB = self.phi_file[:self.phi_lmax+1]*1e-2
+            self.cacher.cache(fn, np.array(ClB))
+        return self.cacher.load(fn)
+    
+
 class Xunl:
-    """class for generating unlensed CMB and phi realizations from power spectra
+    """class for generating unlensed CMB, phi realizations from power spectra, an birefringence field
     """    
-    def __init__(self, lmax, cls_lib=DNaV, libdir=DNaV, fns=DNaV, fnsP=DNaV, libdir_phi=DNaV, phi_field='potential', phi_space=DNaV, phi_lmax=DNaV, space=DNaV, geominfo=DNaV, isfrozen=False, spin=DNaV, phi_modifier=lambda x: x):
+    def __init__(self, lmax, cls_lib=DNaV, libdir=DNaV, fns=DNaV, fnsP=DNaV, fnsBF=DNaV, libdir_phi=DNaV, libdir_bf=DNaV, phi_field='potential', phi_space=DNaV, phi_lmax=DNaV, space=DNaV, geominfo=DNaV, isfrozen=False, spin=DNaV, phi_modifier=lambda x: x, bf_field=DNaV, bf_lmax=DNaV, bf_space=DNaV, bf_modifier=lambda x: x):
         self.geominfo = geominfo
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
@@ -260,6 +274,21 @@ class Xunl:
             else:
                 self.cls_lib = cls_lib
             self.phi_lmax = self.cls_lib.phi_lmax
+
+        self.bf_modifier = bf_modifier
+        self.bf_space = bf_space
+        self.bf_lmax = bf_lmax
+        if bf_field == DNaV:
+            self.bf_field = 'potential'
+        else:
+            self.bf_field = bf_field
+        self.fnsBF = fnsBF
+        # FIXME need to add checks as below next lines for phi
+        
+        #FIXME bf_lib currently not supported
+        # if libdir_bf == DNaV:
+            # self.bf_lib = Cls(lmax=lmax, bf_field=self.bf_field, bf_lmax=self.bf_lmax)
+
         if libdir != DNaV:
             if self.space == DNaV:
                 assert 0, 'need to give space (map or alm)'
@@ -377,7 +406,6 @@ class Xunl:
         Args:
             simidx (_type_): _description_
             space (_type_): _description_
-            spin (int, optional): _description_. Defaults to 2.
 
         Returns:
             _type_: _description_
@@ -429,10 +457,51 @@ class Xunl:
             return cld2clp(cl, self.phi_lmax)
         elif self.phi_field == 'potential':
             return cl
+        
+
+    def get_sim_bf(self, simidx, space):
+        """
+
+        Args:
+            simidx (_type_): _description_
+            space (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """        
+        fn = 'bf_space{}_{}'.format(space, simidx)
+        if not self.cacher.is_cached(fn):
+            if self.libdir_phi == DNaV:
+                log.debug('generating bf from cl')
+                Clpf = self.cls_lib.get_sim_clbf(simidx)
+                self.bf_field = self.cls_lib.bf_field
+                Clp = self.clpf2clppot(Clpf)
+                bf = self.clp2plm(Clp, simidx)
+                ## If it comes from CL, like Gauss phis, then phi modification must happen here
+                bf = self.bf_modifier(bf)
+                if space == 'map':
+                    bf = self.geom_lib.alm2map(bf, lmax=self.bf_lmax, mmax=self.bf_lmax, nthreads=4)
+            else:
+                ## Existing phi is loaded, this e.g. is a kappa map on disk
+                if self.bf_space == 'map':
+                    bf = np.array(load_file(opj(self.libdir_bf, self.fnsBF.format(simidx))), dtype=float)
+                else:
+                    bf = np.array(load_file(opj(self.libdir_bf, self.fnsBF.format(simidx))), dtype=complex)
+                if self.bf_space == 'map':
+                    self.geominfo_phi = ('healpix', {'nside':hp.npix2nside(bf.shape[0])})
+                    self.geomlib_phi = get_geom(self.geominfo_phi)
+                    bf = self.geomlib_phi.map2alm(bf, lmax=self.bf_lmax, mmax=self.bf_lmax, nthreads=4)
+                ## phi modifcation
+                bf = self.phi_modifier(bf)
+                bf = self.pflm2plm(bf)
+                if space == 'map':
+                    bf = self.geom_lib.alm2map(bf, lmax=self.bf_lmax, mmax=self.bf_lmax, nthreads=4)
+            self.cacher.cache(fn, bf)
+        return self.cacher.load(fn)
 
 
     def cl2alm(self, cls, field, seed):
-        np.random.seed(int(seed)) # check if this starting point is random
+        np.random.seed(int(seed))
         if field == 'polarization':
             alms = hp.synalm(cls, self.lmax, new=True)
             return alms[1:]
@@ -442,7 +511,7 @@ class Xunl:
     
 
     def clp2plm(self, clp, seed):
-        np.random.seed(int(seed))
+        np.random.seed(int(seed)+112233) # different seed for birefringence and lensing
         plm = hp.synalm(clp, self.phi_lmax)
         return plm
 
@@ -450,7 +519,7 @@ class Xunl:
 class Xsky:
     """class for generating lensed CMB and phi realizations from unlensed realizations, using lenspyx for the lensing operation
     """    
-    def __init__(self, lmax, unl_lib=DNaV, libdir=DNaV, fns=DNaV, spin=DNaV, epsilon=1e-7, space=DNaV, geominfo=DNaV, isfrozen=False, lenjob_geominfo=DNaV, phi_modifier=DNaV):
+    def __init__(self, lmax, unl_lib=DNaV, libdir=DNaV, fns=DNaV, spin=DNaV, epsilon=1e-7, space=DNaV, geominfo=DNaV, isfrozen=False, lenjob_geominfo=DNaV, phi_modifier=DNaV, bf_modifier=DNaV, add_bf=False):
         self.geominfo = geominfo
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
@@ -462,7 +531,7 @@ class Xsky:
         self.space = space
         if libdir == DNaV: # need being generated
             if unl_lib == DNaV:
-                self.unl_lib = Xunl(lmax=lmax, geominfo=self.geominfo, phi_modifier=phi_modifier)
+                self.unl_lib = Xunl(lmax=lmax, geominfo=self.geominfo, phi_modifier=phi_modifier, bf_modifier=bf_modifier)
             else:
                 self.unl_lib = unl_lib
             
@@ -484,6 +553,7 @@ class Xsky:
         else:
             self.lenjob_geominfo = lenjob_geominfo
         self.lenjob_geomlib = lp_get_geom(self.lenjob_geominfo)
+        self.add_bf = add_bf
 
         self.cacher = cachers.cacher_mem(safe=True)
 
@@ -514,9 +584,12 @@ class Xsky:
                     log.debug('.., generating.')
                     unl = self.unl_lib.get_sim_unl(simidx, space='alm', field=field, spin=0)
                     philm = self.unl_lib.get_sim_phi(simidx, space='alm')
-                    
+                    if self.add_bf:
+                        bflm = self.unl_lib.get_sim_bf(simidx, space='map')
                     if field == 'polarization':
-                        sky = self.unl2len(unl, philm, spin=2, epsilon=self.epsilon)
+                        sky = self.unl2len(unl, philm, spin=2)
+                        if self.add_bf:
+                            sky = self.unl2bf(unl, bflm, spin=2, epsilon=self.epsilon)
                         if space == 'map':
                             if spin == 0:
                                 alm_buffer = self.lenjob_geomlib.map2alm_spin(sky, spin=2, lmax=self.lmax, mmax=self.lmax, nthreads=4)
@@ -592,6 +665,10 @@ class Xsky:
     def unl2len(self, Xlm, philm, **kwargs):
         ll = np.arange(0,self.unl_lib.phi_lmax+1,1)
         return lenspyx.alm2lenmap_spin(Xlm, hp.almxfl(philm,  np.sqrt(ll*(ll+1))), geometry=self.lenjob_geominfo, **kwargs)
+    
+    def unl2bf(self, Xmap, bfmap, **kwargs):
+        ll = np.arange(0,self.unl_lib.phi_lmax+1,1)
+        return np.exp(-np.imag*bfmap)*Xmap
 
 
 class Xobs:
@@ -838,7 +915,7 @@ class Simhandler:
     """Entry point for data handling and generating simulations. Data can be cl, unl, len, or obs, .. and alms or maps. Simhandler connects the individual libraries and decides what can be generated. E.g.: If obs data provided, len data cannot be generated. This structure makes sure we don't "hallucinate" data
 
     """
-    def __init__(self, flavour, space, geominfo=DNaV, maps=DNaV, field=DNaV, cls_lib=DNaV, unl_lib=DNaV, len_lib=DNaV, obs_lib=DNaV, noise_lib=DNaV, libdir=DNaV, libdir_noise=DNaV, libdir_phi=DNaV, fns=DNaV, fnsnoise=DNaV, fnsP=DNaV, lmax=DNaV, transfunction=DNaV, nlev=DNaV, spin=0, CMB_fn=DNaV, phi_fn=DNaV, phi_field=DNaV, phi_space=DNaV, epsilon=1e-7, phi_lmax=DNaV, libdir_suffix=DNaV, lenjob_geominfo=DNaV, cacher=cachers.cacher_mem(safe=True), CMB_modifier=DNaV, phi_modifier=DNaV):
+    def __init__(self, flavour, space, geominfo=DNaV, maps=DNaV, field=DNaV, cls_lib=DNaV, unl_lib=DNaV, len_lib=DNaV, obs_lib=DNaV, noise_lib=DNaV, libdir=DNaV, libdir_noise=DNaV, libdir_phi=DNaV, fns=DNaV, fnsnoise=DNaV, fnsP=DNaV, fnsBF=DNaV,  lmax=DNaV, transfunction=DNaV, nlev=DNaV, spin=0, CMB_fn=DNaV, phi_fn=DNaV, bf_fn=DNaV, phi_field=DNaV, bf_field=DNaV, phi_space=DNaV, bf_space=DNaV, bf_lmax=DNaV, epsilon=1e-7, phi_lmax=DNaV, libdir_suffix=DNaV, lenjob_geominfo=DNaV, cacher=cachers.cacher_mem(safe=True), CMB_modifier=DNaV, phi_modifier=DNaV, bf_modifier=DNaV, add_bf=False):
         """Entry point for simulation data handling.
         Simhandler() connects the individual librariers together accordingly, depending on the provided data.
         It never stores data on disk itself, only in memory.
@@ -856,6 +933,7 @@ class Simhandler:
             fns          (dict with str with formatter, optional): file names of the data provided. It expects `{'T': <filename{simidx}.something>, 'Q': <filename{simidx}.something>, 'U': <filename{simidx}.something>}`, where `{simidx}` is used by the libraries to format the simulation index into the name. Defaults to DNaV.
             fnsnoise     (dict with str with formatter, optional): file names of the noise provided. It expects `{'T': <filename{simidx}.something>, 'Q': <filename{simidx}.something>, 'U': <filename{simidx}.something>}`, where `{simidx}` is used by the libraries to format the simulation index into the name. Defaults to DNaV.
             fnsP         (str with formatter, optional): file names of the lensing potential provided. It expects `<filename{simidx}.something>, where `{simidx}` is used by the libraries to format the simulation index into the name. Defaults to DNaV.
+            fnsBF         (str with formatter, optional): file names of the lensing potential provided. It expects `<filename{simidx}.something>, where `{simidx}` is used by the libraries to format the simulation index into the name. Defaults to DNaV.
             lmax         (int, optional): Maximum l of the data provided. Defaults to DNaV.
             transfunction(np.array, optional): transfer function. Defaults to DNaV.
             nlev         (dict, optional): noise level of the individual fields. It expects `{'T': <value>, 'P': <value>}. Defaults to DNaV.
@@ -865,9 +943,15 @@ class Simhandler:
             phi_field    (str, optional): the type of potential provided, can be in ['potential', 'deflection', 'convergence']. This simulation library will automatically rescale the field, if needded. Defaults to DNaV.
             phi_space    (str, optional): can be in ['map', 'alm', 'cl'] and defines the space of the lensing potential provided.. Defaults to DNaV.
             phi_lmax     (_type_, optional): the maximum multipole of the lensing potential. if simulation library perfroms lensing, it is advisable that `phi_lmax` is somewhat larger than `lmax` (+ ~512-1024). Defaults to DNaV.
+            bf_lmax      (np.array, optional): beam function. Defaults to DNaV.
+            bf_space      (np.array, optional): beam function. Defaults to DNaV.
+            bf_field      (np.array, optional): beam function. Defaults to DNaV.
+            bf_fn      (np.array, optional): beam function. Defaults to DNaV.
             epsilon      (float, optional): Lenspyx lensing accuracy. Defaults to 1e-7.
             CMB_modifier (callable, optional): operation defined in the callable will be applied to each of the input maps/alms/cls
             phi_modifier (callable, optional): operation defined in the callable will be applied to the input phi lms
+            bf_modifier  (callable, optional): operation defined in the callable will be applied to the input beam function lms
+
         """
         self.spin = spin
         self.lmax = lmax
@@ -955,6 +1039,7 @@ class Simhandler:
                 self.libdir = self.unl_lib.libdir
                 self.fns = self.unl_lib.fns
         elif space == 'cl':
+            # NOTE birefringence only implemented here
             self.spin = 0 # there are genrally no qcls, ucls, therefore here we can safely assume that data is spin0
             spin = 0
             if flavour == 'obs':
@@ -969,9 +1054,9 @@ class Simhandler:
                 if phi_fn != DNaV:
                     assert phi_field != DNaV, "need to provide phi_field"
                 
-                self.cls_lib = Cls(lmax=lmax, phi_lmax=phi_lmax, CMB_fn=CMB_fn, phi_fn=phi_fn, phi_field=phi_field)
-                self.unl_lib = Xunl(cls_lib=self.cls_lib, lmax=lmax, fnsP=fnsP, phi_field=phi_field, libdir_phi=libdir_phi, phi_space=phi_space, geominfo=geominfo, phi_modifier=phi_modifier)
-                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, epsilon=epsilon, geominfo=geominfo, lenjob_geominfo=lenjob_geominfo, phi_modifier=phi_modifier)
+                self.cls_lib = Cls(lmax=lmax, phi_lmax=phi_lmax, CMB_fn=CMB_fn, phi_fn=phi_fn, phi_field=phi_field, bf_field=bf_field, bf_fn=bf_fn, bf_lmax=bf_lmax)
+                self.unl_lib = Xunl(cls_lib=self.cls_lib, lmax=lmax, fnsP=fnsP, phi_field=phi_field, bf_field=bf_field, libdir_phi=libdir_phi, phi_space=phi_space, bf_space=bf_space, geominfo=geominfo, phi_modifier=phi_modifier, bf_modifier=bf_modifier) if unl_lib == DNaV else unl_lib
+                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, epsilon=epsilon, geominfo=geominfo, lenjob_geominfo=lenjob_geominfo, phi_modifier=phi_modifier, bf_modifier=bf_modifier, add_bf=add_bf)
                 self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, geominfo=geominfo, cacher=cacher, libdir_suffix=libdir_suffix, CMB_modifier=CMB_modifier , phi_modifier=phi_modifier)
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = DNaV # settings this here explicit for a future me, so I see it easier
@@ -994,6 +1079,9 @@ class Simhandler:
     def get_sim_phi(self, simidx, space):
         return self.unl_lib.get_sim_phi(simidx=simidx, space=space)
     
+    def get_sim_bf(self, simidx, space):
+        return self.unl_lib.get_sim_bf(simidx=simidx, space=space)
+    
     def purgecache(self):
         log.info('sims_lib: purging cachers to release memory')
         libs = ['obs_lib', 'noise_lib', 'unl_lib', 'len_lib']
@@ -1008,13 +1096,10 @@ class Simhandler:
         if self.obs_lib.cacher.is_cached(fn):
             return True
         if field == 'polarization':
-            # print(opj(self.libdir, self.fns['Q'].format(simidx)))
-            # print(opj(self.libdir, self.fns['U'].format(simidx)))
             if self.libdir != DNaV and self.fns != DNaV:
                 if os.path.exists(opj(self.libdir, self.fns['Q'].format(simidx))) and os.path.exists(opj(self.libdir, self.fns['U'].format(simidx))):
                     return True
         if field == 'temperature':
-            # print(opj(self.libdir, self.fns['T'].format(simidx)))
             if self.libdir != DNaV and self.fns != DNaV:
                 if os.path.exists(opj(self.libdir, self.fns['T'].format(simidx))):
                     return True

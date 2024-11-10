@@ -56,6 +56,7 @@ valid_bound = {
     'libdir_suffix': [],
     'CMB_modifier': [],
     'phi_modifier': [],
+    'add_bf': [],
 }
 
 # if [], doesn't check for type
@@ -85,6 +86,7 @@ valid_type = {
     'libdir_suffix': [],
     'CMB_modifier': [],
     'phi_modifier': [],
+    'add_bf': [],
 }
 
 def libdir_suffix(instance, attribute, value):
