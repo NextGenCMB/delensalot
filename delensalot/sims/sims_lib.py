@@ -176,12 +176,15 @@ class iso_white_noise:
 class Cls:
     """class for accessing CAMB-like file for CMB power spectra, optionally a distinct file for the lensing potential, and birefringence
     """    
-    def __init__(self, lmax=DNaV, phi_lmax=DNaV, CMB_fn=DNaV, phi_fn=DNaV, phi_field='potential', bf_lmax=DNaV, bf_fn=DNaV, bf_field='potential'):
+    def __init__(self, lmax=DNaV, phi_lmax=DNaV, curl_lmax = DNaV, CMB_fn=DNaV, phi_fn=DNaV, curl_fn=DNaV, phi_field='potential', curl_field='potential', bf_lmax=DNaV, bf_fn=DNaV, bf_field='potential'):
         assert lmax != DNaV, "need to provide lmax"
         self.lmax = lmax
         self.phi_lmax = phi_lmax
+        self.curl_lmax = curl_lmax
         if phi_lmax == DNaV:
             self.phi_lmax = lmax + 1024
+        if curl_lmax == DNaV:
+            self.curl_lmax = lmax + 1024
         
         if CMB_fn == DNaV:
             self.CMB_fn = opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat')
@@ -189,31 +192,66 @@ class Cls:
         else:
             self.CMB_fn = CMB_fn
             self.CAMB_file = load_file(CMB_fn)
+
         if phi_fn == 'None':
             self.phi_fn = None
+            assert 0, 'test -- not sure what happens in this case'
         elif phi_fn == DNaV:
+            # NOTE this likely only ok if CMB_fn is a CAMB file
             self.phi_fn = self.CMB_fn
-            buff = load_file(self.phi_fn)
-            if self.phi_fn.endswith('npy'):
-                if len(buff) > 1:
-                    self.phi_file = load_file(self.phi_fn)[:,1]
-                else:
-                    self.phi_file = load_file(self.phi_fn)
-            else:
-                self.phi_file = load_file(self.phi_fn)['pp']
-            self.phi_field = phi_field # assuming that CAMB file is 'potential'
         else:
             self.phi_fn = phi_fn
-            buff = load_file(self.phi_fn)
-            if self.phi_fn.endswith('npy'):
-                if len(buff) > 1:
-                    self.phi_file = load_file(self.phi_fn)[:,1]
-                else:
-                    self.phi_file = load_file(self.phi_fn)
-            else:
-                self.phi_file = load_file(self.phi_fn)['pp']
-            self.phi_field = phi_field
         log.debug("phi_fn is {}".format(self.phi_fn))
+        if self.phi_fn.endswith('npy'):
+            buff = load_file(self.phi_fn)
+            if len(buff) > 1:
+                # NOTE this assumes curl is in the second column of a numpy array
+                self.phi_file = load_file(self.phi_fn)[:,1]
+            else:
+                # NOTE this assumes curl is the only column of a numpy array
+                self.phi_file = load_file(self.phi_fn)
+        else:
+            self.phi_file = load_file(self.phi_fn)['pp']
+        self.phi_field = phi_field
+
+        if curl_fn == DNaV:
+            self.curl_fn = self.CMB_fn
+        else:
+            self.curl_fn = curl_fn
+        log.debug("curl_fn is {}".format(self.curl_fn))
+        if self.curl_fn.endswith('npy'):
+            buff = load_file(self.curl_fn)
+            if len(buff) > 1:
+                # NOTE this assumes curl is in the second column of a numpy array
+                self.curl_file = load_file(self.curl_fn)[:,1]
+            else:
+                # NOTE this assumes curl is the only column of a numpy array
+                self.curl_file = load_file(self.curl_fn)
+        else:
+            # NOTE this assumes curl_fn is a CAMB file
+            self.curl_file = load_file(self.curl_fn)['cc']
+        self.curl_field = curl_field
+
+        if bf_fn == DNaV:
+            # NOTE this likely only ok if CMB_fn is a CAMB file
+            self.bf_fn = self.CMB_fn
+        else:
+            self.bf_fn = bf_fn
+        log.debug("bf_fn is {}".format(self.bf_fn))
+        if self.bf_fn.endswith('npy'):
+            buff = load_file(self.bf_fn)
+            if len(buff) > 1:
+                # NOTE this assumes bf is in the second column of a numpy array
+                assert 0, 'adapt this to correct column for birefringence'
+                self.bf_file = load_file(self.bf_fn)[:,1]
+            else:
+                # NOTE this assumes bf is the only column of a numpy array
+                self.bf_file = load_file(self.bf_fn)
+        else:
+            # NOTE this assumes bf_fn is a CAMB file
+            self.bf_file = load_file(self.bf_fn)['bf']
+        self.bf_field = bf_field
+
         self.cacher = cachers.cacher_mem(safe=True)
 
 
@@ -231,26 +269,28 @@ class Cls:
             ClP = self.phi_file[:self.phi_lmax+1]
             self.cacher.cache(fn, np.array(ClP))
         return self.cacher.load(fn)
+    
+
+    def get_sim_clcurl(self, simidx):
+        fn = 'clcurl_{}'.format(simidx)
+        if not self.cacher.is_cached(fn):
+            ClC = self.curl_file[:self.curl_lmax+1]
+            self.cacher.cache(fn, np.array(ClC))
+        return self.cacher.load(fn)
 
 
     def get_sim_clbf(self, simidx):
-        # FIXME faking bf file here for now. Just taking phi file and rescaling
-        # fn = 'clbf_{}'.format(simidx)
-        # if not self.cacher.is_cached(fn):
-        #     ClB = self.bf_file[:self.bf_lmax+1]
-        #     self.cacher.cache(fn, np.array(ClB))
-        # return self.cacher.load(fn)
         fn = 'clbf_{}'.format(simidx)
         if not self.cacher.is_cached(fn):
-            ClB = self.phi_file[:self.phi_lmax+1]*1e-2
+            ClB = self.curl_file[:self.curl_lmax+1]
             self.cacher.cache(fn, np.array(ClB))
         return self.cacher.load(fn)
     
 
 class Xunl:
-    """class for generating unlensed CMB, phi realizations from power spectra, an birefringence field
+    """class for generating unlensed CMB, phi realizations from power spectra, and birefringence field
     """    
-    def __init__(self, lmax, cls_lib=DNaV, libdir=DNaV, fns=DNaV, fnsP=DNaV, fnsBF=DNaV, libdir_phi=DNaV, libdir_bf=DNaV, phi_field='potential', phi_space=DNaV, phi_lmax=DNaV, space=DNaV, geominfo=DNaV, isfrozen=False, spin=DNaV, phi_modifier=lambda x: x, bf_field=DNaV, bf_lmax=DNaV, bf_space=DNaV, bf_modifier=lambda x: x):
+    def __init__(self, lmax, curl_lmax=DNaV, curl_field=DNaV, cls_lib=DNaV, libdir=DNaV, fns=DNaV, fnsP=DNaV, fnsBF=DNaV, libdir_phi=DNaV, libdir_bf=DNaV, phi_field='potential', phi_space=DNaV, phi_lmax=DNaV, space=DNaV, geominfo=DNaV, isfrozen=False, spin=DNaV, phi_modifier=lambda x: x, bf_field=DNaV, bf_lmax=DNaV, bf_space=DNaV, bf_modifier=lambda x: x, libdir_curl=DNaV, fnsC=DNaV, curl_space=DNaV, curl_modifier=lambda x: x):
         self.geominfo = geominfo
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
@@ -284,7 +324,6 @@ class Xunl:
             self.bf_field = bf_field
         self.fnsBF = fnsBF
         # FIXME need to add checks as below next lines for phi
-        
         #FIXME bf_lib currently not supported
         # if libdir_bf == DNaV:
             # self.bf_lib = Cls(lmax=lmax, bf_field=self.bf_field, bf_lmax=self.bf_lmax)
@@ -318,8 +357,24 @@ class Xunl:
             else:
                 geom_lmax = lmax + 1024
             self.phi_lmax = np.min([lmax + 1024, geom_lmax])
+
+        self.libdir_curl = libdir_curl
+        self.curl_lmax = curl_lmax
+        self.curl_modifier = curl_modifier
+        if curl_field == DNaV:
+            self.curl_field = 'potential'
+        else:
+            self.curl_field = phi_field
+        self.curl_space = curl_space
+        if libdir_curl != DNaV:
+            self.fnsC = fnsC
+            if self.fnsC == DNaV:
+                assert 0, 'need to give fnsP'
+            if self.curl_space == DNaV:
+                assert 0, 'need to give curl_space (map or alm)'
+
+
         self.isfrozen = isfrozen
-            
         self.cacher = cachers.cacher_mem(safe=True)
 
 
@@ -452,38 +507,39 @@ class Xunl:
             _type_: _description_
         """
         #TODO adapt this to curl    
-        fn = 'phi_space{}_{}'.format(space, simidx)
+        fn = 'curl_space{}_{}'.format(space, simidx)
         if not self.cacher.is_cached(fn):
-            if self.libdir_phi == DNaV:
+            if self.libdir_curl == DNaV:
                 log.debug('generating curl from cl')
-                Clpf = self.cls_lib.get_sim_clphi(simidx)
-                self.phi_field = self.cls_lib.phi_field
-                Clp = self.clpf2clppot(Clpf)
-                phi = self.clp2plm(Clp, simidx)
+                Clcf = self.cls_lib.get_sim_clcurl(simidx)
+                self.curl_field = self.cls_lib.curl_field
+                Clc = self.clpf2clppot(Clcf)
+                curl = self.clp2plm(Clc, simidx)
                 ## If it comes from CL, like Gauss phis, then phi modification must happen here
-                phi = self.phi_modifier(phi)
+                curl = self.curl_modifier(curl)
                 if space == 'map':
-                    phi = self.geom_lib.alm2map(phi, lmax=self.phi_lmax, mmax=self.phi_lmax, nthreads=4)
+                    curl = self.geom_lib.alm2map(curl, lmax=self.curl_lmax, mmax=self.curl_lmax, nthreads=4)
             else:
-                ## Existing phi is loaded, this e.g. is a kappa map on disk
-                if self.phi_space == 'map':
-                    phi = np.array(load_file(opj(self.libdir_phi, self.fnsP.format(simidx))), dtype=float)
+                ## Existing curl is loaded, this e.g. is a kappa_curl map on disk
+                if self.curl_space == 'map':
+                    curl = np.array(load_file(opj(self.libdir_curl, self.fnsC.format(simidx))), dtype=float)
                 else:
-                    phi = np.array(load_file(opj(self.libdir_phi, self.fnsP.format(simidx))), dtype=complex)
-                if self.phi_space == 'map':
-                    self.geominfo_phi = ('healpix', {'nside':hp.npix2nside(phi.shape[0])})
+                    curl = np.array(load_file(opj(self.libdir_curl, self.fnsC.format(simidx))), dtype=complex)
+                if self.curl_space == 'map':
+                    self.geominfo_phi = ('healpix', {'nside':hp.npix2nside(curl.shape[0])})
                     self.geomlib_phi = get_geom(self.geominfo_phi)
-                    phi = self.geomlib_phi.map2alm(phi, lmax=self.phi_lmax, mmax=self.phi_lmax, nthreads=4)
+                    curl = self.geomlib_phi.map2alm(curl, lmax=self.curl_lmax, mmax=self.curl_lmax, nthreads=4)
                 ## phi modifcation
-                phi = self.phi_modifier(phi)
-                phi = self.pflm2plm(phi)
+                curl = self.curl_modifier(curl)
+                curl = self.pflm2plm(curl)
                 if space == 'map':
-                    phi = self.geom_lib.alm2map(phi, lmax=self.phi_lmax, mmax=self.phi_lmax, nthreads=4)
-            self.cacher.cache(fn, phi)
+                    phi = self.geom_lib.alm2map(curl, lmax=self.curl_lmax, mmax=self.curl_lmax, nthreads=4)
+            self.cacher.cache(fn, curl)
         return self.cacher.load(fn)
     
 
     def pflm2plm(self, philm):
+        # NOTE naming convention is phi, but it can be phi or curl
         if self.phi_field == 'convergence':
             return klm2plm(philm, self.phi_lmax)
         elif self.phi_field == 'deflection':
@@ -493,6 +549,7 @@ class Xunl:
 
 
     def clpf2clppot(self, cl):
+        # NOTE naming convention is phi, but it can be phi or curl
         if self.phi_field == 'convergence':
             return clk2clp(cl, self.phi_lmax)
         elif self.phi_field == 'deflection':

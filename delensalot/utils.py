@@ -260,10 +260,12 @@ def dls2cls(dls):
 
 def load_file(fn, lmax=None, ifield=0):
     if fn.endswith('.npy'):
+       assert ifield==0, 'ifield not implemented for npy files'
        return np.load(fn)[:None]
     elif fn.endswith('.fits'):
         return hp.read_map(fn, field=ifield)
     elif fn.endswith('.dat'):
+        assert ifield==0, 'ifield not implemented for dat files'
         return camb_clfile(fn)
     
 
