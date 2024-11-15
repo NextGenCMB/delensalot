@@ -439,6 +439,48 @@ class Xunl:
                     phi = self.geom_lib.alm2map(phi, lmax=self.phi_lmax, mmax=self.phi_lmax, nthreads=4)
             self.cacher.cache(fn, phi)
         return self.cacher.load(fn)
+
+
+    def get_sim_curl(self, simidx, space):
+        """
+
+        Args:
+            simidx (_type_): _description_
+            space (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
+        #TODO adapt this to curl    
+        fn = 'phi_space{}_{}'.format(space, simidx)
+        if not self.cacher.is_cached(fn):
+            if self.libdir_phi == DNaV:
+                log.debug('generating curl from cl')
+                Clpf = self.cls_lib.get_sim_clphi(simidx)
+                self.phi_field = self.cls_lib.phi_field
+                Clp = self.clpf2clppot(Clpf)
+                phi = self.clp2plm(Clp, simidx)
+                ## If it comes from CL, like Gauss phis, then phi modification must happen here
+                phi = self.phi_modifier(phi)
+                if space == 'map':
+                    phi = self.geom_lib.alm2map(phi, lmax=self.phi_lmax, mmax=self.phi_lmax, nthreads=4)
+            else:
+                ## Existing phi is loaded, this e.g. is a kappa map on disk
+                if self.phi_space == 'map':
+                    phi = np.array(load_file(opj(self.libdir_phi, self.fnsP.format(simidx))), dtype=float)
+                else:
+                    phi = np.array(load_file(opj(self.libdir_phi, self.fnsP.format(simidx))), dtype=complex)
+                if self.phi_space == 'map':
+                    self.geominfo_phi = ('healpix', {'nside':hp.npix2nside(phi.shape[0])})
+                    self.geomlib_phi = get_geom(self.geominfo_phi)
+                    phi = self.geomlib_phi.map2alm(phi, lmax=self.phi_lmax, mmax=self.phi_lmax, nthreads=4)
+                ## phi modifcation
+                phi = self.phi_modifier(phi)
+                phi = self.pflm2plm(phi)
+                if space == 'map':
+                    phi = self.geom_lib.alm2map(phi, lmax=self.phi_lmax, mmax=self.phi_lmax, nthreads=4)
+            self.cacher.cache(fn, phi)
+        return self.cacher.load(fn)
     
 
     def pflm2plm(self, philm):
@@ -519,7 +561,7 @@ class Xunl:
 class Xsky:
     """class for generating lensed CMB and phi realizations from unlensed realizations, using lenspyx for the lensing operation
     """    
-    def __init__(self, lmax, unl_lib=DNaV, libdir=DNaV, fns=DNaV, spin=DNaV, epsilon=1e-7, space=DNaV, geominfo=DNaV, isfrozen=False, lenjob_geominfo=DNaV, phi_modifier=DNaV, bf_modifier=DNaV, add_bf=False):
+    def __init__(self, lmax, unl_lib=DNaV, libdir=DNaV, fns=DNaV, spin=DNaV, epsilon=1e-7, space=DNaV, geominfo=DNaV, isfrozen=False, lenjob_geominfo=DNaV, phi_modifier=DNaV, bf_modifier=DNaV, fields=DNaV):
         self.geominfo = geominfo
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
@@ -553,7 +595,7 @@ class Xsky:
         else:
             self.lenjob_geominfo = lenjob_geominfo
         self.lenjob_geomlib = lp_get_geom(self.lenjob_geominfo)
-        self.add_bf = add_bf
+        self.fields = fields
 
         self.cacher = cachers.cacher_mem(safe=True)
 
@@ -584,11 +626,16 @@ class Xsky:
                     log.debug('.., generating.')
                     unl = self.unl_lib.get_sim_unl(simidx, space='alm', field=field, spin=0)
                     philm = self.unl_lib.get_sim_phi(simidx, space='alm')
-                    if self.add_bf:
+                    if 'curl' in self.fields:
+                        curllm = self.unl_lib.get_sim_curl(simidx, space='alm')
+                        plms = [philm, curllm]
+                    else:
+                        plms = [philm]
+                    if 'birefringence' in self.fields:
                         bflm = self.unl_lib.get_sim_bf(simidx, space='map')
                     if field == 'polarization':
-                        sky = self.unl2len(unl, philm, spin=2)
-                        if self.add_bf:
+                        sky = self.unl2len(unl, plms, spin=2)
+                        if 'birefringence' in self.fields:
                             sky = self.unl2bf(unl, bflm, spin=2, epsilon=self.epsilon)
                         if space == 'map':
                             if spin == 0:
@@ -602,7 +649,7 @@ class Xsky:
                         elif space == 'alm':
                             sky = self.lenjob_geomlib.map2alm_spin(sky, lmax=self.lmax, spin=2, mmax=self.lmax, nthreads=4)
                     elif field == 'temperature':
-                        sky = self.unl2len(unl, philm, spin=0, epsilon=self.epsilon)
+                        sky = self.unl2len(unl, plms, spin=0, epsilon=self.epsilon)
                         if space == 'map':
                             sky = self.lenjob_geomlib.map2alm(np.copy(sky), lmax=self.lmax, mmax=self.lmax, nthreads=4)
                             sky = self.geom_lib.alm2map(np.copy(sky), lmax=self.lmax, mmax=self.lmax, nthreads=4)
@@ -662,9 +709,20 @@ class Xsky:
         return self.cacher.load(fn)
     
 
-    def unl2len(self, Xlm, philm, **kwargs):
+    def unl2len(self, Xlm, plms, **kwargs):
         ll = np.arange(0,self.unl_lib.phi_lmax+1,1)
-        return lenspyx.alm2lenmap_spin(Xlm, hp.almxfl(philm,  np.sqrt(ll*(ll+1))), geometry=self.lenjob_geominfo, **kwargs)
+        if len(plms) == 2:
+            plm, olm = plms
+            dplm = hp.almxfl(plm,  np.sqrt(ll*(ll+1)))
+            dolm = hp.almxfl(olm,  np.sqrt(ll*(ll+1)))
+            dlms = [dplm, dolm]
+        elif len(plms) == 1:
+            plm = plms[0]
+            dplm = hp.almxfl(plm,  np.sqrt(ll*(ll+1)))
+            dlms = [dplm]
+        else:
+            assert 0, 'wrong dimension of plms, should be a list of either gradient or gradient and curl'
+        return lenspyx.alm2lenmap_spin(Xlm, dlms, geometry=self.lenjob_geominfo, **kwargs)
     
     def unl2bf(self, Xmap, bfmap, **kwargs):
         ll = np.arange(0,self.unl_lib.phi_lmax+1,1)
@@ -915,7 +973,7 @@ class Simhandler:
     """Entry point for data handling and generating simulations. Data can be cl, unl, len, or obs, .. and alms or maps. Simhandler connects the individual libraries and decides what can be generated. E.g.: If obs data provided, len data cannot be generated. This structure makes sure we don't "hallucinate" data
 
     """
-    def __init__(self, flavour, space, geominfo=DNaV, maps=DNaV, field=DNaV, cls_lib=DNaV, unl_lib=DNaV, len_lib=DNaV, obs_lib=DNaV, noise_lib=DNaV, libdir=DNaV, libdir_noise=DNaV, libdir_phi=DNaV, fns=DNaV, fnsnoise=DNaV, fnsP=DNaV, fnsBF=DNaV,  lmax=DNaV, transfunction=DNaV, nlev=DNaV, spin=0, CMB_fn=DNaV, phi_fn=DNaV, bf_fn=DNaV, phi_field=DNaV, bf_field=DNaV, phi_space=DNaV, bf_space=DNaV, bf_lmax=DNaV, epsilon=1e-7, phi_lmax=DNaV, libdir_suffix=DNaV, lenjob_geominfo=DNaV, cacher=cachers.cacher_mem(safe=True), CMB_modifier=DNaV, phi_modifier=DNaV, bf_modifier=DNaV, add_bf=False):
+    def __init__(self, flavour, space, geominfo=DNaV, maps=DNaV, field=DNaV, cls_lib=DNaV, unl_lib=DNaV, len_lib=DNaV, obs_lib=DNaV, noise_lib=DNaV, libdir=DNaV, libdir_noise=DNaV, libdir_phi=DNaV, fns=DNaV, fnsnoise=DNaV, fnsP=DNaV, fnsBF=DNaV,  lmax=DNaV, transfunction=DNaV, nlev=DNaV, spin=0, CMB_fn=DNaV, phi_fn=DNaV, bf_fn=DNaV, phi_field=DNaV, bf_field=DNaV, phi_space=DNaV, bf_space=DNaV, bf_lmax=DNaV, epsilon=1e-7, phi_lmax=DNaV, libdir_suffix=DNaV, lenjob_geominfo=DNaV, cacher=cachers.cacher_mem(safe=True), CMB_modifier=DNaV, phi_modifier=DNaV, bf_modifier=DNaV, fields=DNaV):
         """Entry point for simulation data handling.
         Simhandler() connects the individual librariers together accordingly, depending on the provided data.
         It never stores data on disk itself, only in memory.
@@ -1056,7 +1114,7 @@ class Simhandler:
                 
                 self.cls_lib = Cls(lmax=lmax, phi_lmax=phi_lmax, CMB_fn=CMB_fn, phi_fn=phi_fn, phi_field=phi_field, bf_field=bf_field, bf_fn=bf_fn, bf_lmax=bf_lmax)
                 self.unl_lib = Xunl(cls_lib=self.cls_lib, lmax=lmax, fnsP=fnsP, phi_field=phi_field, bf_field=bf_field, libdir_phi=libdir_phi, phi_space=phi_space, bf_space=bf_space, geominfo=geominfo, phi_modifier=phi_modifier, bf_modifier=bf_modifier) if unl_lib == DNaV else unl_lib
-                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, epsilon=epsilon, geominfo=geominfo, lenjob_geominfo=lenjob_geominfo, phi_modifier=phi_modifier, bf_modifier=bf_modifier, add_bf=add_bf)
+                self.len_lib = Xsky(unl_lib=self.unl_lib, lmax=lmax, epsilon=epsilon, geominfo=geominfo, lenjob_geominfo=lenjob_geominfo, phi_modifier=phi_modifier, bf_modifier=bf_modifier, fields=fields)
                 self.obs_lib = Xobs(len_lib=self.len_lib, transfunction=transfunction, lmax=lmax, nlev=nlev, noise_lib=noise_lib, libdir_noise=libdir_noise, fnsnoise=fnsnoise, geominfo=geominfo, cacher=cacher, libdir_suffix=libdir_suffix, CMB_modifier=CMB_modifier , phi_modifier=phi_modifier)
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = DNaV # settings this here explicit for a future me, so I see it easier
