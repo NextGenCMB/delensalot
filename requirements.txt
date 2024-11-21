@@ -1,4 +1,5 @@
-numpy
+numpy<1.23 # temporart fix for deprecated setuptools
+setuptools<65.0
 healpy
 logdecorator
 psutil
