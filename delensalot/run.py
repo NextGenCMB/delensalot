@@ -3,7 +3,6 @@
 """run.py: Entry point for running delensalot
 """
 
-
 import os, sys
 import logging
 import traceback
@@ -14,7 +13,6 @@ from delensalot.config.handler import config_handler
 import delensalot.config.etc.dev_helper as dh
 from delensalot.config.etc.abstract import parserclass
 from delensalot.config.parser import lerepi_parser
-
 
 datefmt = "%m-%d %H:%M:%S"
 FORMAT = '%(levelname)s:: %(asctime)s:: %(name)s.%(funcName)s - %(message)s'
@@ -30,7 +28,6 @@ logging.basicConfig(level=logging.INFO, handlers=[ConsoleOutputHandler])
 logging.getLogger("healpy").disabled = True
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
-
 
 class run():
     """Entry point for the interactive mode

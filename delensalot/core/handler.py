@@ -498,7 +498,9 @@ class Sim_generator(Basejob):
 
 
 class Noise_modeller(Basejob):
-
+    '''
+    CURRENTLY NOT USED
+    '''
     def __init__(self, dlensalot_model):
         super().__init__(dlensalot_model)
 
@@ -547,13 +549,15 @@ class Noise_modeller(Basejob):
             marge_monopole=True, marge_dipole=True, marge_maps=[])
         transf_elm_loc = gauss_beam(self.beam / 180 / 60 * np.pi, lmax=self.lm_max_ivf[0])
         if self.OBD == 'OBD':
-            nivjob_geomlib_ = get_geom(self.nivjob_geominfo)
+            # FIXME not sure which nivjob_geomlib to pass here, restricted or not?
+            # nivjob_geomlib_ = get_geom(self.nivjob_geominfo)
             self.cinv_p = cinv_p_OBD.cinv_p(opj(self.libdir_QE, 'cinv_p'),
                 self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
-                transf_elm_loc[:self.lm_max_ivf[0]+1], self.nivp_desc, geom=nivjob_geomlib_, #self.nivjob_geomlib,
+                transf_elm_loc[:self.lm_max_ivf[0]+1], self.nivp_desc, geom=self.nivjob_geomlib, #self.nivjob_geomlib,
                 chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol), bmarg_lmax=self.lmin_teb[2],
-                zbounds=(-1,1), _bmarg_lib_dir=self.obd_libdir, _bmarg_rescal=self.obd_rescale,
+                zbounds=self.zbounds, _bmarg_lib_dir=self.obd_libdir, _bmarg_rescal=self.obd_rescale,
                 sht_threads=self.tr)
+            # (-1,1)
         else:
             self.cinv_p = filt_cinv.cinv_p(opj(self.TEMP, 'cinv_p'),
                 self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
@@ -623,8 +627,8 @@ class QE_lr(Basejob):
             if self.qlm_type == 'sepTP':
                 self.qlms_dd = qest.library_sepTP(opj(self.libdir_QE, 'qlms_dd'), self.ivfs, self.ivfs, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
         elif self.qe_filter_directional == 'anisotropic':
-            ## Wait for finished run(), as plancklens triggers cinv_calc...
-            if len(self.collect_jobs()[0]) == 0:
+            ## Wait for at least one finished run(), as plancklens triggers cinv_calc...
+            if len(self.collect_jobs()[0]) - len(self.simidxs) > 0 or len(self.collect_jobs()[0])==0:
                 self.init_aniso_filter()
 
         self.mf = lambda simidx: self.get_meanfield(int(simidx))
@@ -703,7 +707,7 @@ class QE_lr(Basejob):
                 for simidx in self.simidxs:
                     ## this filename must match the one created in get_template_blm()
                     fn_blt = opj(self.libdir_blt(simidx), 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
-                    if not os.path.isfile(fn_blt) or recalc:
+                    if not os.path.isfile(fn_blt) or True:
                         _jobs.append(simidx)
 
             jobs[taski] = _jobs
@@ -749,15 +753,21 @@ class QE_lr(Basejob):
 
             if task == 'calc_phi':
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
+                    log.info("get_sim_qlm..")
                     self.qlms_dd.get_sim_qlm(self.k, int(idx))
+                    log.info("get_sim_qlm done.")
                     if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
                         self.simulationdata.purgecache()
                 mpi.barrier()
+                
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
+                    ## If meanfield subtraction is requested, only one task must calculate the meanfield first before get_plm() is called, otherwise read-errors because all tasks try calculating/accessing it at once.
+                    ## The way I fix this (the next two lines) is a bit unclean.
+                    if self.QE_subtract_meanfield:
+                        self.qlms_dd.get_sim_qlm_mf(self.k, [int(simidx_mf) for simidx_mf in self.simidxs_mf])
                     self.get_plm(idx, self.QE_subtract_meanfield)
                     if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
-                        self.simulationdata.purgecache()
-                
+                        self.simulationdata.purgecache()   
 
             if task == 'calc_meanfield':
                 if len(self.jobs[taski])>0:
@@ -806,22 +816,41 @@ class QE_lr(Basejob):
         return qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_unl, self.cls_unl, self.fteb_unl, lmax_qlm=self.lm_max_qlm[0])[0]
 
 
+    @log_on_start(logging.DEBUG, "QE.get_mchain() started")
+    @log_on_end(logging.DEBUG, "QE.get_mchain() finished")
+    def get_mchain(self, simidx, key, it=0):
+        itlib_iterator = transform(self, iterator_transformer(self, simidx, self.dlensalot_model))
+        itlib_iterator.chain_descr = self.it_chain_descr(self.lm_max_unl[0], self.it_cg_tol(it))
+        return itlib_iterator.get_mchain(it=it, key=key)
+
+
     # @base_exception_handler
     @log_on_start(logging.DEBUG, "QE.get_meanfield(simidx={simidx}) started")
     @log_on_end(logging.DEBUG, "QE.get_meanfield(simidx={simidx}) finished")
     def get_meanfield(self, simidx):
-        ret = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, 0))
+        # Either return MC MF, filter.qlms_mf, or mfvar
+        ret = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, simidx))
+        fn_mf = opj(self.libdir_QE, 'mf_allsims.npy')
+        if type(self.mfvar) == str:
+            if self.mfvar == 'qlms_mf':
+                # calculate MF estimate using Lewis&Carron trick
+                mchain = self.get_mchain(0, 'p')
+                return self.filter.get_qlms_mf(1, self.ffi.pbgeom, mchain)
         if self.Nmf > 1:
             if self.mfvar == None:
+                # MC MF, and exclude the current simidx
                 ret = self.qlms_dd.get_sim_qlm_mf(self.k, [int(simidx_mf) for simidx_mf in self.simidxs_mf])
+                np.save(fn_mf, ret) # plancklens already stores that in qlms_dd/ but I want to have this more conveniently without the naming gibberish
                 if simidx in self.simidxs_mf:    
                     ret = (ret - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
             else:
-                ret = hp.read_alm(self.mfvar)
-                if simidx in self.simidxs_mf:    
-                    ret = (ret - self.qlms_dd_mfvar.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
+
+                # Take raw meanfield provided by user
+                # TODO could do a normalization check here
+                ret = np.load(self.mfvar)
+                log.info('returning mfvar meanfield')
             return ret
-        
+            
         return ret
         
 
@@ -915,7 +944,7 @@ class QE_lr(Basejob):
     @log_on_end(logging.DEBUG, "QE.get_blt({simidx}) finished")
     def get_blt_new(self, simidx):
 
-        def get_template_blm(it, it_e, lmaxb=1024, lmin_plm=1, perturbative=False):
+        def get_template_blm(it, it_e, lmaxb=1024, lmin_plm=self.Lmin, perturbative=False):
             fn_blt = 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0])
             fn_blt += 'perturbative' * perturbative      
 
@@ -973,11 +1002,10 @@ class MAP_lr(Basejob):
         self.simulationdata = self.simgen.simulationdata
         self.qe = QE_lr(dlensalot_model, caller=self)
         self.qe.simulationdata = self.simgen.simulationdata # just to be sure, so we have a single truth in MAP_lr. 
-
-
         if self.OBD == 'OBD':
-            nivjob_geomlib_ = get_geom(self.nivjob_geominfo)
-            self.tpl = template_dense(self.lmin_teb[2], nivjob_geomlib_, self.tr, _lib_dir=self.obd_libdir, rescal=self.obd_rescale)
+            # FIXME not sure why this was here.. that caused mismatch for calc_gradlik niv_job geom and qumaps when truncated
+            # nivjob_geomlib_ = get_geom(self.nivjob_geominfo)
+            self.tpl = template_dense(self.lmin_teb[2], self.nivjob_geomlib, self.tr, _lib_dir=self.obd_libdir, rescal=self.obd_rescale)
         else:
             self.tpl = None
         
@@ -997,6 +1025,7 @@ class MAP_lr(Basejob):
         elif self.it_filter_directional == 'isotropic':
             self.sims_MAP = self.simulationdata
         self.filter = self.get_filter()
+        log.info('------ init done ----')
 
     # # @base_exception_handler
     @log_on_start(logging.DEBUG, "MAP.map.collect_jobs() started")
@@ -1080,15 +1109,22 @@ class MAP_lr(Basejob):
                             self.simulationdata.purgecache()
 
 
+    @log_on_start(logging.DEBUG, "MAP.get_mchain() started")
+    @log_on_end(logging.DEBUG, "MAP.get_mchain() finished")
+    def get_mchain(self, simidx, key, it=0):
+        libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
+        itlib_iterator = transform(self, iterator_transformer(self, simidx, self.dlensalot_model))
+        itlib_iterator.chain_descr = self.it_chain_descr(self.lm_max_unl[0], self.it_cg_tol(it))
+        return itlib_iterator.get_mchain(it=it, key=key)
+
+
     # # @base_exception_handler
     @log_on_start(logging.DEBUG, "MAP.get_plm_it(simidx={simidx}, its={its}) started")
     @log_on_end(logging.DEBUG, "MAP.get_plm_it(simidx={simidx}, its={its}) finished")
     def get_plm_it(self, simidx, its):
-
         plms = rec.load_plms(self.libdir_MAP(self.k, simidx, self.version), its)
-
         return plms
-    
+
 
     # # @base_exception_handler
     @log_on_start(logging.DEBUG, "MAP.get_meanfield_it(it={it}, calc={calc}) started")
@@ -1143,7 +1179,7 @@ class MAP_lr(Basejob):
                 if simidx in self.simidxs_mf:
                     dlm_mod = (dlm_mod - np.array(rec.load_plms(self.libdir_MAPidx, [it]))/self.Nmf) * self.Nmf/(self.Nmf - 1)
             if it<=rec.maxiterdone(self.libdir_MAPidx):
-                blt = self.itlib_iterator.get_template_blm(it, it-1, lmaxb=self.lm_max_blt[0], lmin_plm=np.max([self.Lmin,5]), dlm_mod=dlm_mod, perturbative=False, k=self.k)
+                blt = self.itlib_iterator.get_template_blm(it, it-1, lmaxb=self.lm_max_blt[0], lmin_plm=self.Lmin, dlm_mod=dlm_mod, perturbative=False, k=self.k)
                 np.save(fn_blt, blt)
         return np.load(fn_blt)
 
@@ -1223,11 +1259,34 @@ class Map_delenser(Basejob):
     # @log_on_start(logging.DEBUG, "get_basemap() started")
     # @log_on_end(logging.DEBUG, "get_basemap() finished")  
     def get_basemap(self, simidx):
+        '''
+        Return a B-map to be delensed. Can be the map handled in the sims_lib library (basemap='lens'), 'lens_ffp10' (these are the ffp10 relizations on NERSC),
+        or the observed map itself, in which case the residual foregrounds and noise will still be in there.
+            gauss_beam(self.beam / 180 / 60 * np.pi, lmax=self.lm_max_blt[1])
+        '''
         # TODO depends if data comes from delensalot simulations or from external.. needs cleaner implementation
+        if self.basemap == 'pico_dc2_lens':
+            from delensalot.utils import cli
+            FWHMs = [38.4, 32.0, 28.3, 23.6, 22.2, 18.4, 12.8, 10.7, 9.5, 7.9, 7.4, 6.2, 4.3, 3.6, 3.2, 2.6, 2.5, 2.1, 1.5, 1.3, 1.1]
+            freqs = [21, 25, 30, 36, 43, 52, 62, 75, 90, 108, 129, 155, 186, 223, 268, 321, 385, 462, 555, 666, 799]
+            beams = np.array([hp.gauss_beam(FWHM / 180. / 60. * np.pi, lmax=2000) for FWHM in FWHMs])
+            map = dict()
+            map.update({freqs[-1]: hp.read_map('/pscratch/sd/e/erussie/PICO/data/maps/pysm_3.4.0_maps/c4_{freq:03d}_4096.fits'.format(freq=freqs[-1]), field=(1,2))})
+            log.info('loaded input B map')
+            temp_ = hp.map2alm_spin(map[freqs[-1]], spin=2, lmax=self.lm_max_blt[0])
+            return hp.almxfl(temp_[1],cli(beams[-1]))*1e6
         if self.basemap == 'lens': 
-            return almxfl(alm_copy(self.simulationdata.get_sim_sky(simidx, space='alm', spin=0, field='polarization')[1], self.simulationdata.lmax, *self.lm_max_blt), self.ttebl['e'], self.lm_max_blt[0], inplace=False) 
+            return alm_copy(
+                    self.simulationdata.get_sim_sky(simidx, space='alm', spin=0, field='polarization')[1],
+                    self.simulationdata.lmax, *self.lm_max_blt
+                )
         elif self.basemap == 'lens_ffp10':
-            return almxfl(alm_copy(planck2018_sims.cmb_len_ffp10.get_sim_blm(simidx), None, lmaxout=self.lm_max_blt[0], mmaxout=self.lm_max_blt[1]), gauss_beam(2.3 / 180 / 60 * np.pi, lmax=self.lm_max_blt[1]))  
+                return alm_copy(
+                    planck2018_sims.cmb_len_ffp10.get_sim_blm(simidx),
+                    None,
+                    lmaxout=self.lm_max_blt[0],
+                    mmaxout=self.lm_max_blt[1]
+                )  
         else:
             # only checking for map to save some memory..
             if np.all(self.simulationdata.maps == DEFAULT_NotAValue):
@@ -1236,18 +1295,19 @@ class Map_delenser(Basejob):
                 return hp.map2alm_spin(self.simulationdata.get_sim_obs(simidx, space='map', spin=2, field='polarization'), spin=2, lmax=self.lm_max_blt[0], mmax=self.lm_max_blt[1])[1]
 
     
-
     @log_on_start(logging.DEBUG, "_delens() started")
     @log_on_end(logging.DEBUG, "_delens() finished")
     def delens(self, simidx, outputdata):
         blm_L = self.get_basemap(simidx)
+        log.info('got inbut Blms')
         blt_QE = self.get_blt_it(simidx, 0)
         
         bdel_QE = self.nivjob_geomlib.alm2map(blm_L-blt_QE, *self.lm_max_blt, nthreads=4)
+        del blt_QE
         maskcounter = 0
         for maskflavour, masks in self.binmasks.items():
             for maskid, mask in masks.items():
-                log.debug("starting mask {} {}".format(maskflavour, maskid))
+                log.info("starting mask {} {}".format(maskflavour, maskid))
                 
                 bcl_L = self.lib[maskflavour][maskid].map2cl(self.nivjob_geomlib.alm2map(blm_L, *self.lm_max_blt, nthreads=4))
                 outputdata[0][0][maskcounter] = bcl_L
@@ -1258,9 +1318,9 @@ class Map_delenser(Basejob):
                 for iti, it in enumerate(self.its):
                     blt_MAP = self.get_blt_it(simidx, it)
                     bdel_MAP = self.nivjob_geomlib.alm2map(blm_L-blt_MAP, *self.lm_max_blt, nthreads=4)
-                    log.info("starting MAP delensing for iteration {}".format(it))
                     blt_L_MAP = self.lib[maskflavour][maskid].map2cl(bdel_MAP)    
                     outputdata[0][2+iti][maskcounter] = blt_L_MAP
+                    log.info("Finished MAP delensing for simidx {}, iteration {}".format(simidx, it))
 
                 maskcounter+=1
 
