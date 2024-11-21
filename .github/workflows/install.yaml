@@ -19,8 +19,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          python -m pip install numpy==1.23 --user
-          python -m pip install --upgrade pip setuptools==65.0 wheel --user
+          python -m pip install numpy==1.22 --user
+          python -m pip install --upgrade pip setuptools==64.0 wheel --user
           if [ -f requirements.txt ]; then pip install -r requirements.txt --user; fi
       - name: install
         run: |
