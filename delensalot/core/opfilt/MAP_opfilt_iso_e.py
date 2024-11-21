@@ -110,7 +110,13 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
     def apply_map(self, elm:np.ndarray):
         """Applies noise operator in place"""
         almxfl(elm.squeeze(), self.inoise_1_elm * cli(self.transf_elm), self.mmax_len, True)
-
+    
+    def degrade(self, nside, lmax, mmax, set_deflection_to_zero=True):
+        """Degradation of the filter to lower resolution
+        """
+        print('Not degrading filter {} {}'.format(len(self.nlev_elm), lmax))
+        return self
+    
     def synalm(self, unlcmb_cls:dict, cmb_phas=None, get_unlelm=True):
         """Generate some dat maps consistent with noise filter fiducial ingredients
 

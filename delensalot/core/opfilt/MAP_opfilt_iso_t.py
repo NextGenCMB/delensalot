@@ -123,6 +123,7 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
     def degrade(self, nside, lmax, mmax, set_deflection_to_zero=True):
         """Degradation of the filter to lower resolution
         """
+        print('Not degrading filter {} {}'.format(len(self.nlev_tlm), lmax))
         return self
         # print(len(self.nlev_tlm), lmax+1)
         # assert len(self.nlev_tlm) == lmax+1, 'not tested yet'
