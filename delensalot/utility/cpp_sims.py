@@ -38,6 +38,7 @@ class cpp_sims_lib:
             n0n1_libdir:N0 and N1, for QE and MAP will be loaded or stored there
             cache_in_home: The default cacher is on the scratch but can cache things in the home if True
         """
+        # print('Loading cpp_sims_lib')
         self.k = k
         self.version = version
         self.qe_version = qe_version
@@ -50,6 +51,8 @@ class cpp_sims_lib:
         self.param_file = param_file
 
         self.param = SourceFileLoader(param_file, param_file +'.py').load_module()
+        if verbose:
+            print('Loaded param file ' + param_file)
 
         self.TEMP =  self.param.TEMP
         self.lmax_qlm = self.param.lmax_qlm
@@ -213,7 +216,7 @@ class cpp_sims_lib:
                 self.cacher_param.cache(fn, fsky)
             return self.cacher_param.load(fn)
         except AttributeError:
-            print('No masks defined in param file ' + self.param_file)
+            # print('No masks defined in param file ' + self.param_file)
             return 1.
 
     def get_cl(self, alm, blm=None, lmax_out=None):
@@ -430,7 +433,11 @@ class cpp_sims_lib:
         
         fals =  {'tt': self.ivfs.get_ftl(), 'ee':self.ivfs.get_fel(), 'bb':self.ivfs.get_fbl()}
         if not cacher.is_cached(fn_resp_qe) or recache:
-            R = qresp.get_response(self.k, self.ivfs.lmax, 'p', self.cls_weights, self.cls_grad, fals, lmax_qlm=self.param.lmax_qlm)[0]
+            try: 
+                lmax = self.ivfs.lmax
+            except AttributeError:
+                lmax = self.ivfs.lmax_fl
+            R = qresp.get_response(self.k, lmax, 'p', self.cls_weights, self.cls_grad, fals, lmax_qlm=self.param.lmax_qlm)[0]
             cacher.cache(fn_resp_qe, R)
         R = cacher.load(fn_resp_qe)
         return R
@@ -585,7 +592,7 @@ class cpp_sims_lib:
             cacher.cache(fn, wf)
         return cacher.load(fn)
 
-    def get_wf_eff(self, itmax_sims=15, itmax_fid=15, mf=False, mc_sims=None, version='', do_spline=True, lmin_interp=0, lmax_interp=None,  k=3, s=None, verbose=False, recache=False):
+    def get_wf_eff(self, itmax_sims=15, itmax_fid=15, mf=False, mc_sims=None, version='', do_spline=True, lmin_interp=0, lmax_interp=None,  k=3, s=None, verbose=False, recache=False, nsims_max=None):
         """Effective Wiener filter averaged over several simulations
         We spline interpolate the ratio between the effective WF from simulations and the fiducial WF
         We take into account the sky fraction to get the simulated WFs
@@ -602,6 +609,8 @@ class cpp_sims_lib:
         
         """
         nsims = self.get_nsims_itmax(itmax_sims)
+        if nsims_max is not None:
+            nsims = min(nsims, nsims_max)
         fn_weff = f"wf_eff_{self.k}_itsim{itmax_sims}_itfid{itmax_fid}_nsims{nsims}_mf{mf}_v{version}" +f"_spl{do_spline}_{lmin_interp}_{lmax_interp}_{k}_{s}" * do_spline 
         fn_wfspline = f"wf_spline_{self.k}_itsim{itmax_sims}_itfid{itmax_fid}_nsims{nsims}_mf{mf}_v{version}" f"_spl{do_spline}_{lmin_interp}_{lmax_interp}_{k}_{s}" * do_spline
         if self.split is not False:
@@ -612,8 +621,8 @@ class cpp_sims_lib:
             print(fn_weff)
         if np.any([not self.cacher_param.is_cached(fn) for fn in [fn_weff, fn_wfspline]]) or recache:
             wf_fid = self.get_wf_fid(itmax_fid, version=version)
-            print(f'I use {nsims} sims to estimate the effective WF')
-            print(fn_weff)
+            # print(f'I use {nsims} sims to estimate the effective WF')
+            # print(fn_weff)
             wfsims_bias = np.zeros([nsims, len(wf_fid)])
             for isim in range(nsims):
                 if verbose: print(f'wf eff {isim}/{nsims-1}')
