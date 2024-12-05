@@ -529,11 +529,11 @@ class Xunl:
                     self.geominfo_phi = ('healpix', {'nside':hp.npix2nside(curl.shape[0])})
                     self.geomlib_phi = get_geom(self.geominfo_phi)
                     curl = self.geomlib_phi.map2alm(curl, lmax=self.curl_lmax, mmax=self.curl_lmax, nthreads=4)
-                ## phi modifcation
+                ## curl modifcation
                 curl = self.curl_modifier(curl)
                 curl = self.pflm2plm(curl)
                 if space == 'map':
-                    phi = self.geom_lib.alm2map(curl, lmax=self.curl_lmax, mmax=self.curl_lmax, nthreads=4)
+                    curl = self.geom_lib.alm2map(curl, lmax=self.curl_lmax, mmax=self.curl_lmax, nthreads=4)
             self.cacher.cache(fn, curl)
         return self.cacher.load(fn)
     
@@ -590,7 +590,7 @@ class Xunl:
                     self.geominfo_phi = ('healpix', {'nside':hp.npix2nside(bf.shape[0])})
                     self.geomlib_phi = get_geom(self.geominfo_phi)
                     bf = self.geomlib_phi.map2alm(bf, lmax=self.bf_lmax, mmax=self.bf_lmax, nthreads=4)
-                ## phi modifcation
+                ## bf modifcation
                 bf = self.phi_modifier(bf)
                 bf = self.pflm2plm(bf)
                 if space == 'map':
@@ -688,11 +688,10 @@ class Xsky:
                         plms = [philm, curllm]
                     else:
                         plms = [philm]
-                    if 'birefringence' in self.fields:
-                        bflm = self.unl_lib.get_sim_bf(simidx, space='map')
                     if field == 'polarization':
                         sky = self.unl2len(unl, plms, spin=2)
                         if 'birefringence' in self.fields:
+                            bflm = self.unl_lib.get_sim_bf(simidx, space='map')
                             sky = self.unl2bf(unl, bflm, spin=2, epsilon=self.epsilon)
                         if space == 'map':
                             if spin == 0:
