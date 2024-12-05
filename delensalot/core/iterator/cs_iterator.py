@@ -59,7 +59,7 @@ class qlm_iterator(object):
                  chain_descr, stepper:steps.nrstep,
                  logger=None,
                  NR_method=100, tidy=0, verbose=True, soltn_cond=True, wflm0=None, _usethisE=None, 
-                 no_lensing_precond=False, no_lensing_dense=None):
+                 no_lensing_precond=False, no_lensing_dense=None, cache_wf=True):
         """Lensing map iterator
 
             The bfgs hessian updates are called 'hlm's and are either in plm, dlm or klm space
@@ -74,6 +74,7 @@ class qlm_iterator(object):
                 wflm0(optional): callable with Wiener-filtered CMB map search starting point
                 no_lensing_precond: if True, the preconditioner will not include lensing
                 no_lensing_dense: if True, the dense part of the preconditioner will not include lensing, defaults to None to match no_lensing_precond
+                cache_wf: if True, the Wiener-filtered maps will be cached on disk, if false they will be cached in memory
         """
         assert h in ['k', 'p', 'd']
         lmax_qlm, mmax_qlm = lm_max_dlm
@@ -86,7 +87,11 @@ class qlm_iterator(object):
         self.lib_dir = lib_dir
         self.cacher = cachers.cacher_npy(lib_dir)
         self.hess_cacher = cachers.cacher_npy(opj(self.lib_dir, 'hessian'))
-        self.wf_cacher = cachers.cacher_npy(opj(self.lib_dir, 'wflms'))
+        if cache_wf:
+            self.wf_cacher = cachers.cacher_npy(opj(self.lib_dir, 'wflms'))
+        else:
+            self.wf_cacher = cachers.cacher_mem()
+            print('Warning: not saving Wiener-filtered maps')
         self.blt_cacher = cachers.cacher_npy(opj(self.lib_dir, 'BLT/'))
         if logger is None:
             from delensalot.core.iterator import loggers
@@ -554,7 +559,8 @@ class iterator_splitlik_cstmf(qlm_iterator):
         assert self.nsplits>= 2, "Data maps must contain two or more sets of maps"
         print(f'Iterator will run with {self.nsplits} splits')
         assert self.lmax_qlm == Alm.getlmax(plm0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(plm0.size, self.lmax_qlm))
-        self.cacher.cache('mf', almxfl(plm0, self._h2p(self.lmax_qlm), self.mmax_qlm, False))
+        if mf0 is not None:
+            self.cacher.cache('mf', almxfl(mf0, self._h2p(self.lmax_qlm), self.mmax_qlm, False))
 
     def calc_gradlik(self, itr, key, iwantit=False):
         assert self.is_iter_done(itr - 1, key)
@@ -614,13 +620,17 @@ class iterator_splitlik_cstmf(qlm_iterator):
     @log_on_start(logging.DEBUG, "load_graddet(it={k}, key={key}) started")
     @log_on_end(logging.DEBUG, "load_graddet(it={k}, key={key}) finished")
     def load_graddet(self, k, key):
-        return self.cacher.load('mf')
+        if self.cacher.is_cached('mf'):
+            return self.cacher.load('mf')
+        return 0.
 
     @log_on_start(logging.DEBUG, "calc_graddet(it={k}, key={key}) started")
     @log_on_end(logging.DEBUG, "calc_graddet(it={k}, key={key}) finished")
     def calc_graddet(self, k, key):
-        return self.cacher.load('mf')
-            
+        if self.cacher.is_cached('mf'):
+            return self.cacher.load('mf')
+        return 0.
+   
 class iterator_cstmf(qlm_iterator):
     """Constant mean-field
     """
@@ -632,18 +642,23 @@ class iterator_cstmf(qlm_iterator):
         super(iterator_cstmf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
                                              ninv_filt, k_geom, chain_descr, stepper, **kwargs)
         assert self.lmax_qlm == Alm.getlmax(mf0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(mf0.size, self.lmax_qlm))
-        self.cacher.cache('mf', almxfl(mf0, self._h2p(self.lmax_qlm), self.mmax_qlm, False))
+        if mf0 is not None:
+            self.cacher.cache('mf', almxfl(mf0, self._h2p(self.lmax_qlm), self.mmax_qlm, False))
 
 
     @log_on_start(logging.DEBUG, "load_graddet(it={k}, key={key}) started")
     @log_on_end(logging.DEBUG, "load_graddet(it={k}, key={key}) finished")
     def load_graddet(self, k, key):
-        return self.cacher.load('mf')
+        if self.cacher.is_cached('mf'):
+            return self.cacher.load('mf')
+        return 0.
 
     @log_on_start(logging.DEBUG, "calc_graddet(it={k}, key={key}) started")
     @log_on_end(logging.DEBUG, "calc_graddet(it={k}, key={key}) finished")
     def calc_graddet(self, k, key):
-        return self.cacher.load('mf')
+        if self.cacher.is_cached('mf'):
+            return self.cacher.load('mf')
+        return 0.
 
 
 class iterator_pertmf(qlm_iterator):
