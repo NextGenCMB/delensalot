@@ -838,6 +838,7 @@ class Xobs:
                             obs1 = load_file(opj(self.libdir, self.fns['E'].format(simidx)), ifield=1)
                             obs2 = load_file(opj(self.libdir, self.fns['B'].format(simidx)), ifield=2)
                         else:
+                            print(self.fns)
                             obs1 = load_file(opj(self.libdir, self.fns['E'].format(simidx)))
                             obs2 = load_file(opj(self.libdir, self.fns['B'].format(simidx)))
                     obs1 = self.CMB_modifier(obs1)

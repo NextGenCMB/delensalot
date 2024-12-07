@@ -21,6 +21,7 @@ valid_value = {
     'cpp': [],
     'beam': [],
     'transfunction': [],
+    'transfunction_desc': [],
 }
 # if [], doesn't check for bounds
 valid_bound = {
@@ -42,6 +43,7 @@ valid_bound = {
     'cpp': [],
     'beam': [0],
     'transfunction': [0,1],
+    'transfunction_desc': [],
 }
 
 # if [], doesn't check for type
@@ -64,6 +66,7 @@ valid_type = {
     'cpp': [str],
     'beam': [float],
     'transfunction': [np.array, np.ndarray],
+    'transfunction_desc': [],
 }
 
 
