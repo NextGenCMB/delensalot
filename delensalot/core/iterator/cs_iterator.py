@@ -48,6 +48,17 @@ def prt_time(dt, label=''):
     log.info("\r [" + ('%02d:%02d:%02d' % (dh, dm, ds)) + "] " + label)
     return
 
+def _p2h(h, lmax):
+    if h == 'p':
+        return np.ones(lmax + 1, dtype=float)
+    elif h == 'k':
+        return 0.5 * np.arange(lmax + 1, dtype=float) * np.arange(1, lmax + 2, dtype=float)
+    elif h == 'd':
+        return np.sqrt(np.arange(lmax + 1, dtype=float) * np.arange(1, lmax + 2), dtype=float)
+    else:
+        assert 0, h + ' not implemented'
+
+def _h2p(h, lmax): return cli(_p2h(h, lmax))
 
 
 class qlm_iterator(object):
@@ -517,7 +528,7 @@ class qlm_iterator(object):
 class glm_iterator(object):
     def __init__(self, data, filter, mchain, wflm0, plm0, mf0, cpp_prior, stepper, lib_dir, lm_max_qlm, BFGS_lib):
         self.h = 'p' # FIXME hardcoding this for now, can probably be removed
-        
+
         self.data = data
         self.lib_dir = lib_dir
         self.mchain = mchain
@@ -534,12 +545,12 @@ class glm_iterator(object):
 
         plm_fn = '%s_%slm_it%03d' % ({'p': 'phi', 'o': 'om'}['p'], self.h, 0)
         if not self.cacher.is_cached(plm_fn):
-            self.cacher.cache(plm_fn, almxfl(read_map(plm0), self._p2h(self.lm_max_qlm[0]), self.lm_max_qlm[1], False))
+            self.cacher.cache(plm_fn, almxfl(read_map(plm0), _p2h(self.h, self.lm_max_qlm[0]), self.lm_max_qlm[1], False))
         
         self.BFGS_H = BFGS_lib 
 
         self.cpp_prior = cpp_prior
-        self.chh = self.cpp_prior[:self.lm_max_qlm[0]+1] * self._p2h(self.lm_max_qlm[0]) ** 2
+        self.chh = self.cpp_prior[:self.lm_max_qlm[0]+1] * _p2h(self.h, self.lm_max_qlm[0]) ** 2
 
         self.stepper = stepper
 
