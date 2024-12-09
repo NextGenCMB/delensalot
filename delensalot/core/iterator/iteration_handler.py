@@ -63,7 +63,7 @@ class base_iterator():
         h0 *= (chh > 0)
         apply_H0k = lambda rlm, kr: almxfl(rlm, h0, self.lm_max_qlm[0], False)
         apply_B0k = lambda rlm, kr: almxfl(rlm, cli(h0), self.lm_max_qlm[0], False)
-        self.hess_cacher = cachers.cacher_npy(opj(self.lib_dir, 'hessian'))
+        self.hess_cacher = cachers.cacher_npy(opj(self.libdir_iterator, 'hessian'))
         self.BFGS_lib = bfgs.BFGS_Hessian(h0=h0, apply_H0k=apply_H0k, apply_B0k=apply_B0k, cacher=self.hess_cacher)
 
         self.mf0 = self.qe.get_meanfield(self.simidx) if self.QE_subtract_meanfield else np.zeros(shape=hp.Alm.getsize(self.lm_max_qlm[0]))
