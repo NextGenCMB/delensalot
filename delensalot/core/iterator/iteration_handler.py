@@ -124,7 +124,6 @@ class iterator_transformer(base_iterator):
                 'data': self.get_datmaps(),
                 'filter': cf.filter,
                 'lib_dir': self.libdir_iterator,
-                'h': cf.k[0],
                 'lm_max_qlm': cf.lm_max_qlm,
                 'plm0': self.plm0,
                 'mf0': self.mf0,
@@ -141,7 +140,6 @@ class iterator_transformer(base_iterator):
         def extract():
             return {
                 'lib_dir': self.libdir_iterator,
-                'h': cf.k[0],
                 'lm_max_dlm': cf.lm_max_qlm,
                 'dat_maps': self.get_datmaps(),
                 'plm0': self.plm0,

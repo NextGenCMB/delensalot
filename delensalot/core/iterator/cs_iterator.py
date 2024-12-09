@@ -515,11 +515,12 @@ class qlm_iterator(object):
 
 
 class glm_iterator(object):
-    def __init__(self, data, filter, mchain, plm0, mf0, cpp_prior, stepper, lib_dir, lm_max_qlm, BFGS_lib):
+    def __init__(self, data, filter, mchain, wflm0, plm0, mf0, cpp_prior, stepper, lib_dir, lm_max_qlm, BFGS_lib):
         self.data = data
         self.lib_dir = lib_dir
         self.mchain = mchain
         self.filter = filter
+        self.wflm0 = wflm0
 
         self.cacher = cachers.cacher_npy(lib_dir)
         self.cacher.cache('mf', almxfl(mf0, self._h2p(self.lm_max_qlm[0]), self.lm_max_qlm[1], False))
@@ -631,11 +632,12 @@ class glm_iterator(object):
         return self.hess_cacher.is_cached(sk_fn(itr - 1)) #FIXME
 
 class gclm_iterator(object):
-    def __init__(self, data, filter, mchain, flm0s, h0s, mf0s, priors, lib_dir, lm_max_qlm, fkeys):
+    def __init__(self, data, filter, mchain, wflm0s, flm0s, h0s, mf0s, priors, lib_dir, lm_max_qlm, fkeys):
         self.data = data
         self.lib_dir = lib_dir
         self.mchain = mchain
         self.filter = filter
+        self.wflm0s = wflm0s
 
         for mf0i, mf0 in enumerate(mf0s):
             self.cacher.cache('mf_{}'.format(fkeys[mf0i]), almxfl(mf0, self._h2p(self.lmax_qlm), self.mmax_qlm, False))
