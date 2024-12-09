@@ -541,6 +541,8 @@ class glm_iterator(object):
 
         self.stepper = stepper
 
+        self.h = 'p' # FIXME hardcoding this for now, can probably be removed
+
 
     @log_on_start(logging.DEBUG, "iterate(it={it}, key={key}) started")
     @log_on_end(logging.DEBUG, "iterate(it={it}, key={key}) finished")
