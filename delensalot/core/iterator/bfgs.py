@@ -62,6 +62,8 @@ class BFGS_Hessian(object):
 
     def update_vectors(self, it, key):
         # Adding the required y and s vectors :
+        self.paths2ys = {}
+        self.paths2ss = {}
         for k_ in range(np.max([0, it - self.L]), it):
             self.add_ys('rlm_yn_%s_%s' % (k_, key), 'rlm_sn_%s_%s' % (k_, key), k_)
 

@@ -211,7 +211,6 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
     curl_lmax =     attr.field(default=DEFAULT_NotAValue, validator=data.phi_lmax)
     bf_modifier =   attr.field(default=lambda x: x)
     fnsB =          attr.field(default=DEFAULT_NotAValue, validator=data.fnsP)
-    bf_fn =         attr.field(default=DEFAULT_NotAValue, validator=data.phi_fn)
     bf_field =      attr.field(default=DEFAULT_NotAValue, validator=data.phi_field)
     bf_space =      attr.field(default=DEFAULT_NotAValue, validator=data.phi_space)
     bf_lmax =       attr.field(default=DEFAULT_NotAValue, validator=data.phi_lmax)

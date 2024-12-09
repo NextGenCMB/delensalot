@@ -515,7 +515,7 @@ class qlm_iterator(object):
 
 
 class glm_iterator(object):
-    def __init__(self, data, filter, mchain, plm0, h0, mf0, cpp_prior, stepper, lib_dir, lm_max_qlm):
+    def __init__(self, data, filter, mchain, plm0, h0, mf0, cpp_prior, stepper, lib_dir, lm_max_qlm, BFGS_lib):
         self.data = data
         self.lib_dir = lib_dir
         self.mchain = mchain
@@ -533,9 +533,7 @@ class glm_iterator(object):
         if not self.cacher.is_cached(plm_fname):
             self.cacher.cache(plm_fname, almxfl(read_map(plm0), self._p2h(self.lmax_qlm), self.mmax_qlm, False))
         
-        apply_H0k = lambda rlm, kr: almxfl(rlm, h0, self.lm_max_qlm[0], False)
-        apply_B0k = lambda rlm, kr: almxfl(rlm, cli(h0), self.lm_max_qlm[0], False)
-        self.BFGS_H = bfgs.BFGS_Hessian(h0=h0, apply_H0k=apply_H0k, apply_B0k=apply_B0k, cacher=self.hess_cacher)
+        self.BFGS_H = BFGS_lib 
 
         self.cpp_prior = cpp_prior
         self.chh = self.cpp_prior[:self.lm_max_qlm[0]+1] * self._p2h(self.lm_max_qlm[0]) ** 2

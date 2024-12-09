@@ -20,6 +20,10 @@ from delensalot.utils import cli
 from delensalot.core import mpi
 from delensalot.core.cg_simple import multigrid
 from delensalot.core.iterator import cs_iterator, cs_iterator_fast
+from delensalot.core.iterator import bfgs
+
+from delensalot.utils import cli
+from delensalot.utility.utils_hp import Alm, almxfl
 
 
 def _p2h(h, lmax):
@@ -53,8 +57,11 @@ class base_iterator():
         self.wflm0 = self.qe.get_wflm(self.simidx)
         self.R_unl0 = self.qe.R_unl()
         chh = self.cpp[:self.lm_max_qlm[0]+1] * _p2h(self.lm_max_qlm[0]) ** 2
-        self.h0 = cli(self.R_unl0[:self.lm_max_qlm[0] + 1] * _h2p(self.lm_max_qlm[0]) ** 2 + cli(chh))  #~ (1/Cpp + 1/N0)^-1
-        self.h0 *= (chh > 0)
+        h0 = cli(self.R_unl0[:self.lm_max_qlm[0] + 1] * _h2p(self.lm_max_qlm[0]) ** 2 + cli(chh))  #~ (1/Cpp + 1/N0)^-1
+        h0 *= (chh > 0)
+        apply_H0k = lambda rlm, kr: almxfl(rlm, h0, self.lm_max_qlm[0], False)
+        apply_B0k = lambda rlm, kr: almxfl(rlm, cli(h0), self.lm_max_qlm[0], False)
+        self.BFGS_lib = bfgs.BFGS_Hessian(h0=h0, apply_H0k=apply_H0k, apply_B0k=apply_B0k, cacher=self.hess_cacher)
 
         self.mf0 = self.qe.get_meanfield(self.simidx) if self.QE_subtract_meanfield else np.zeros(shape=hp.Alm.getsize(self.lm_max_qlm[0]))
         self.plm0 = self.qe.get_plm(self.simidx, self.QE_subtract_meanfield)
@@ -92,7 +99,6 @@ class base_iterator():
                 return ret
         else:
             if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
-                print(self.sims_MAP.get_sim_pmap(self.simidx))
                 return np.array(self.sims_MAP.get_sim_pmap(self.simidx), dtype=float)
             else:
                 assert 0, 'implement if needed'
@@ -118,7 +124,8 @@ class iterator_transformer(base_iterator):
                 'h0': self.h0,
                 'mchain': self.mchain,
                 'cpp_prior': cf.cpp,
-                'wflm0': self.wflm0
+                'wflm0': self.wflm0,
+                'BGFS_lib': self.BFGS_lib,
             }
 
         return cs_iterator.glm_iterator(**extract())
@@ -139,6 +146,7 @@ class iterator_transformer(base_iterator):
                 'ninv_filt': cf.filter,
                 'stepper': cf.stepper,
                 'wflm0': self.wflm0,
+                'BGFS_lib': self.BFGS_lib,
             }
 
         return cs_iterator.gclm_iterator(**extract())
