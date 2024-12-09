@@ -515,25 +515,23 @@ class qlm_iterator(object):
 
 
 class glm_iterator(object):
-    def __init__(self, data, filter, mchain, plm0, h0, mf0, cpp_prior, stepper, lib_dir, lm_max_qlm, BFGS_lib):
+    def __init__(self, data, filter, mchain, plm0, mf0, cpp_prior, stepper, lib_dir, lm_max_qlm, BFGS_lib):
         self.data = data
         self.lib_dir = lib_dir
         self.mchain = mchain
         self.filter = filter
 
         self.cacher = cachers.cacher_npy(lib_dir)
-        self.cacher.cache('mf', almxfl(mf0, self._h2p(self.lm_max_qlm[0]), self.lm_max_qlm[1], False))
-
-        
+        self.cacher.cache('mf', almxfl(mf0, self._h2p(self.lm_max_qlm[0]), self.lm_max_qlm[1], False))   
         self.hess_cacher = cachers.cacher_npy(opj(self.lib_dir, 'hessian'))
         self.wf_cacher = cachers.cacher_npy(opj(self.lib_dir, 'Ewflm'))
         self.blt_cacher = cachers.cacher_npy(opj(self.lib_dir, 'BLT/'))
 
         self.lm_max_qlm = lm_max_qlm
 
-        plm_fname = '%s_%slm_it%03d' % ({'p': 'phi', 'o': 'om'}['p'], self.h, 0)
-        if not self.cacher.is_cached(plm_fname):
-            self.cacher.cache(plm_fname, almxfl(read_map(plm0), self.lm_max_qlm[0], self.lm_max_qlm[1], False))
+        plm_fn = '%s_%slm_it%03d' % ({'p': 'phi', 'o': 'om'}['p'], self.h, 0)
+        if not self.cacher.is_cached(plm_fn):
+            self.cacher.cache(plm_fn, almxfl(read_map(plm0), self._p2h(self.lm_max_qlm[0]), self.lm_max_qlm[1], False))
         
         self.BFGS_H = BFGS_lib 
 
