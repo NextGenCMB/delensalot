@@ -122,7 +122,7 @@ class iterator_transformer(base_iterator):
         def extract():
             return {
                 'data': self.get_datmaps(),
-                'ninv_filt': cf.filter,
+                'filter': cf.filter,
                 'lib_dir': self.libdir_iterator,
                 'h': cf.k[0],
                 'lm_max_qlm': cf.lm_max_qlm,
@@ -148,7 +148,7 @@ class iterator_transformer(base_iterator):
                 'mf0': self.mf0,
                 'mchain': self.mchain,
                 'cpp_prior': cf.cpp,
-                'ninv_filt': cf.filter,
+                'filter': cf.filter,
                 'stepper': cf.stepper,
                 'wflm0': self.wflm0,
                 'BGFS_lib': self.BFGS_lib,
