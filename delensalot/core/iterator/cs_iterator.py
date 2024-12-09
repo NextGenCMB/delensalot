@@ -533,10 +533,13 @@ class glm_iterator(object):
         if not self.cacher.is_cached(plm_fname):
             self.cacher.cache(plm_fname, almxfl(read_map(plm0), self._p2h(self.lmax_qlm), self.mmax_qlm, False))
         
-        self.h0 = h0
-        self.BFGS_H = bfgs.BFGS_Hessian(self.hess_cacher)
+        apply_H0k = lambda rlm, kr: almxfl(rlm, h0, self.lm_max_qlm[0], False)
+        apply_B0k = lambda rlm, kr: almxfl(rlm, cli(h0), self.lm_max_qlm[0], False)
+        self.BFGS_H = bfgs.BFGS_Hessian(h0=h0, apply_H0k=apply_H0k, apply_B0k=apply_B0k, cacher=self.hess_cacher)
+
         self.cpp_prior = cpp_prior
         self.chh = self.cpp_prior[:self.lm_max_qlm[0]+1] * self._p2h(self.lm_max_qlm[0]) ** 2
+
         self.stepper = stepper
 
 
@@ -621,6 +624,14 @@ class glm_iterator(object):
             self.hess_cacher.cache(plminc_fn, incr)
         assert self.hess_cacher.is_cached(plminc_fn), plminc_fn
 
+
+    def is_iter_done(self, itr, key):
+        """Returns True if the iteration 'itr' has been performed already and False if not
+        """
+        if itr <= 0:
+            return self.cacher.is_cached('%s_%slm_it000' % ({'p': 'phi', 'o': 'om'}[key], self.h))
+        sk_fn = lambda k: 'rlm_sn_%s_%s' % (k, 'p')
+        return self.hess_cacher.is_cached(sk_fn(itr - 1)) #FIXME
 
 class gclm_iterator(object):
     def __init__(self, data, filter, mchain, flm0s, h0s, mf0s, priors, lib_dir, lm_max_qlm, fkeys):

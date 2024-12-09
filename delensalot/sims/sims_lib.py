@@ -1030,7 +1030,7 @@ class Simhandler:
     """Entry point for data handling and generating simulations. Data can be cl, unl, len, or obs, .. and alms or maps. Simhandler connects the individual libraries and decides what can be generated. E.g.: If obs data provided, len data cannot be generated. This structure makes sure we don't "hallucinate" data
 
     """
-    def __init__(self, flavour, space, geominfo=DNaV, maps=DNaV, field=DNaV, cls_lib=DNaV, unl_lib=DNaV, len_lib=DNaV, obs_lib=DNaV, noise_lib=DNaV, libdir=DNaV, libdir_noise=DNaV, libdir_phi=DNaV, fns=DNaV, fnsnoise=DNaV, fnsP=DNaV, fnsBF=DNaV,  lmax=DNaV, transfunction=DNaV, nlev=DNaV, spin=0, CMB_fn=DNaV, phi_fn=DNaV, bf_fn=DNaV, phi_field=DNaV, bf_field=DNaV, phi_space=DNaV, bf_space=DNaV, bf_lmax=DNaV, epsilon=1e-7, phi_lmax=DNaV, libdir_suffix=DNaV, lenjob_geominfo=DNaV, cacher=cachers.cacher_mem(safe=True), CMB_modifier=DNaV, phi_modifier=DNaV, bf_modifier=DNaV, fields=DNaV):
+    def __init__(self, flavour, space, geominfo=DNaV, maps=DNaV, field=DNaV, cls_lib=DNaV, unl_lib=DNaV, len_lib=DNaV, obs_lib=DNaV, noise_lib=DNaV, libdir=DNaV, libdir_noise=DNaV, libdir_phi=DNaV, fns=DNaV, fnsnoise=DNaV, fnsP=DNaV, fnsC=DNaV, fnsBF=DNaV,  lmax=DNaV, transfunction=DNaV, nlev=DNaV, spin=0, CMB_fn=DNaV, phi_fn=DNaV, bf_fn=DNaV, phi_field=DNaV, bf_field=DNaV, phi_space=DNaV, bf_space=DNaV, bf_lmax=DNaV, epsilon=1e-7, phi_lmax=DNaV, libdir_suffix=DNaV, lenjob_geominfo=DNaV, cacher=cachers.cacher_mem(safe=True), CMB_modifier=DNaV, phi_modifier=DNaV, bf_modifier=DNaV, fields=DNaV):
         """Entry point for simulation data handling.
         Simhandler() connects the individual librariers together accordingly, depending on the provided data.
         It never stores data on disk itself, only in memory.
@@ -1115,7 +1115,7 @@ class Simhandler:
                     assert fnsP != DNaV, "need to provide fnsP"
                     assert phi_lmax != DNaV, "need to provide phi_lmax"
                     assert phi_space != DNaV, "need to provide phi_space"
-                    self.unl_lib = Xunl(lmax=lmax, libdir=libdir, fns=fns, fnsP=fnsP, phi_field=phi_field, libdir_phi=libdir_phi, space=space, phi_space=phi_space, phi_lmax=phi_lmax, geominfo=geominfo, spin=spin, phi_modifier=phi_modifier) if unl_lib == DNaV else unl_lib
+                    self.unl_lib = Xunl(lmax=lmax, libdir=libdir, fns=fns, fnsP=fnsP, phi_field=phi_field, libdir_phi=libdir_phi, space=space, phi_space=phi_space, phi_lmax=phi_lmax, geominfo=geominfo, spin=spin, phi_modifier=phi_modifier, fnsC=fnsC) if unl_lib == DNaV else unl_lib
                 elif libdir_phi == DNaV:
                     assert phi_fn != DNaV, "need to provide phi_fn"
                     assert phi_lmax != DNaV, "need to provide phi_lmax"

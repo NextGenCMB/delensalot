@@ -9,6 +9,9 @@ from delensalot.core import cachers
 
 from delensalot.utils import cli
 from delensalot.utility.utils_hp import almxfl, alm2cl
+import os, sys
+from os.path import join as opj
+
 
 class BFGS_Hessian(object):
     """
@@ -29,8 +32,8 @@ class BFGS_Hessian(object):
 
     """
 
-    def __init__(self, cacher:cachers.cacher, apply_H0k:callable=None, apply_B0k:callable = None, paths2ys:dict={}, paths2ss:dict={}, dot_op:callable = None,
-                        L=100, verbose=True):
+    def __init__(self, h0:np.array=np.array([0]), apply_H0k:callable=None, apply_B0k:callable = None, paths2ys:dict={}, paths2ss:dict={}, dot_op:callable = None,
+                        L=100, verbose=True, cacher:cachers.cacher=cachers.cacher_npy(opj(os.environ['SCRATCH'], 'hessian'))):
         """
             Args:
                 apply_H0k: user supplied function(x,k), applying a zeroth order estimate of the inverse Hessian to x atiter k.
@@ -41,8 +44,8 @@ class BFGS_Hessian(object):
         """
         lp1 = 2 * np.arange(self.lmax_qlm + 1) + 1
 
-        if apply_H0k is None: apply_H0k = lambda rlm, kr: almxfl(rlm, self.h0, self.lmax_qlm, False)
-        if apply_B0k is None: apply_B0k = lambda rlm, kr: almxfl(rlm, cli(self.h0), self.lmax_qlm, False)
+        if apply_H0k is None: apply_H0k = lambda rlm, kr: almxfl(rlm, h0, self.lmax_qlm, False)
+        if apply_B0k is None: apply_B0k = lambda rlm, kr: almxfl(rlm, cli(h0), self.lmax_qlm, False)
         if dot_op is None: dot_op = lambda rlm1, rlm2: np.sum(lp1 * alm2cl(rlm1, rlm2, self.lmax_qlm, self.mmax_qlm, self.lmax_qlm))
         self.applyH0k = apply_H0k
         self.applyB0k = apply_B0k
