@@ -204,7 +204,7 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
     libdir_suffix = attr.field(default='generic', validator=data.libdir_suffix)
     CMB_modifier =  attr.field(default=DEFAULT_NotAValue, validator=data.modifier)
     phi_modifier =  attr.field(default=lambda x: x)
-    fields =        attr.field(default=DEFAULT_NotAValue, validator=data.fields) # can be ['gradient', 'curl', 'birefringence']. cannot be only curl
+    fields =        attr.field(default=DEFAULT_NotAValue) # can be ['gradient', 'curl', 'birefringence']. cannot be only curl
     fnsC =          attr.field(default=DEFAULT_NotAValue, validator=data.fnsP)
     curl_field =    attr.field(default=DEFAULT_NotAValue, validator=data.phi_field)
     curl_space =    attr.field(default=DEFAULT_NotAValue, validator=data.phi_space)
