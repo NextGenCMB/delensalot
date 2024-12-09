@@ -58,7 +58,6 @@ class base_iterator():
             mpi.enable()
         self.wflm0 = self.qe.get_wflm(self.simidx)
 
-
         self.R_unl0 = self.qe.R_unl()
         chh = self.cpp[:self.lm_max_qlm[0]+1] * _p2h(self.k[0], self.lm_max_qlm[0]) ** 2
         h0 = cli(self.R_unl0[:self.lm_max_qlm[0] + 1] * _h2p(self.k[0], self.lm_max_qlm[0]) ** 2 + cli(chh))  #~ (1/Cpp + 1/N0)^-1
@@ -71,6 +70,8 @@ class base_iterator():
         self.BFGS_lib = bfgs.BFGS_Hessian(h0=h0, apply_H0k=apply_H0k, apply_B0k=apply_B0k, cacher=self.hess_cacher, dot_op=dot_op)
 
         self.mf0 = self.qe.get_meanfield(self.simidx) if self.QE_subtract_meanfield else np.zeros(shape=hp.Alm.getsize(self.lm_max_qlm[0]))
+        self.mf0_rescaled = almxfl(self.mf0, _h2p(self.k[0], self.lm_max_qlm[0]), self.lm_max_qlm[1], False)
+        
         self.plm0 = self.qe.get_plm(self.simidx, self.QE_subtract_meanfield)
         self.it_chain_descr = self.iterator_config.it_chain_descr(self.iterator_config.lm_max_unl[0], self.iterator_config.it_cg_tol)
 
@@ -126,11 +127,13 @@ class iterator_transformer(base_iterator):
                 'lib_dir': self.libdir_iterator,
                 'lm_max_qlm': cf.lm_max_qlm,
                 'plm0': self.plm0,
-                'mf0': self.mf0,
+                'mf0': self.mf0_rescaled,
                 'mchain': self.mchain,
                 'cpp_prior': cf.cpp,
                 'wflm0': self.wflm0,
-                'BGFS_lib': self.BFGS_lib,
+                'BFGS_lib': self.BFGS_lib,
+                'stepper': cf.stepper,
+                
             }
 
         return cs_iterator.glm_iterator(**extract())
@@ -143,13 +146,14 @@ class iterator_transformer(base_iterator):
                 'lm_max_dlm': cf.lm_max_qlm,
                 'dat_maps': self.get_datmaps(),
                 'plm0': self.plm0,
-                'mf0': self.mf0,
+                'mf0': self.mf0_rescaled,
                 'mchain': self.mchain,
                 'cpp_prior': cf.cpp,
                 'filter': cf.filter,
                 'stepper': cf.stepper,
                 'wflm0': self.wflm0,
-                'BGFS_lib': self.BFGS_lib,
+                'BFGS_lib': self.BFGS_lib,
+                'stepper': cf.stepper,
             }
 
         return cs_iterator.gclm_iterator(**extract())
