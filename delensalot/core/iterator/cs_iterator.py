@@ -522,7 +522,7 @@ class glm_iterator(object):
         self.filter = filter
 
         self.cacher = cachers.cacher_npy(lib_dir)
-        self.cacher.cache('mf', almxfl(mf0, self._h2p(self.lm_max_qlm[0]), self.lm_max_qlm[1], False))   
+        self.cacher.cache('mf', almxfl(mf0, self._h2p(self.lm_max_qlm[0]), self.lm_max_qlm[1], False))
         self.hess_cacher = cachers.cacher_npy(opj(self.lib_dir, 'hessian'))
         self.wf_cacher = cachers.cacher_npy(opj(self.lib_dir, 'Ewflm'))
         self.blt_cacher = cachers.cacher_npy(opj(self.lib_dir, 'BLT/'))
