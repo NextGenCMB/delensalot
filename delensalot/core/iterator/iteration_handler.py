@@ -119,7 +119,7 @@ class iterator_transformer(base_iterator):
                 'mchain': self.mchain,
                 'cpp_prior': cf.cpp,
                 'stepper': cf.stepper,
-                'wflm0': self.wflm0,
+                'wflm0': self.wflm0
             }
 
         return cs_iterator.glm_iterator(**extract())

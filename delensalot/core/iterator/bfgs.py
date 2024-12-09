@@ -7,6 +7,9 @@ from logdecorator import log_on_start, log_on_end
 import numpy as np
 from delensalot.core import cachers
 
+from delensalot.utils import cli
+from delensalot.utility.utils_hp import almxfl, alm2cl
+
 class BFGS_Hessian(object):
     """
     Class to evaluate the update to inverse Hessian matrix in the L-BFGS scheme.
@@ -26,8 +29,8 @@ class BFGS_Hessian(object):
 
     """
 
-    def __init__(self, cacher:cachers.cacher, apply_H0k:callable, paths2ys, paths2ss, dot_op:callable,
-                        L=100000, apply_B0k=None, verbose=True):
+    def __init__(self, cacher:cachers.cacher, apply_H0k:callable=None, apply_B0k:callable = None, paths2ys:dict={}, paths2ss:dict={}, dot_op:callable = None,
+                        L=100, verbose=True):
         """
             Args:
                 apply_H0k: user supplied function(x,k), applying a zeroth order estimate of the inverse Hessian to x atiter k.
@@ -36,16 +39,28 @@ class BFGS_Hessian(object):
                 dot_op: callable with 2 arguments giving scalar product between two vector (e.g. np.sum)
         H is inverse Hessian, not Hessian.
         """
+        lp1 = 2 * np.arange(self.lmax_qlm + 1) + 1
+
+        if apply_H0k is None: apply_H0k = lambda rlm, kr: almxfl(rlm, self.h0, self.lmax_qlm, False)
+        if apply_B0k is None: apply_B0k = lambda rlm, kr: almxfl(rlm, cli(self.h0), self.lmax_qlm, False)
+        if dot_op is None: dot_op = lambda rlm1, rlm2: np.sum(lp1 * alm2cl(rlm1, rlm2, self.lmax_qlm, self.mmax_qlm, self.lmax_qlm))
+        self.applyH0k = apply_H0k
+        self.applyB0k = apply_B0k
+
         self.cacher = cacher
         self.paths2ys = paths2ys
         self.paths2ss = paths2ss
         self.L = L
-        self.applyH0k = apply_H0k
-        self.applyB0k = apply_B0k
+
         self.verbose = verbose
         if dot_op is None:
             dot_op = np.sum
         self.dot_op = dot_op
+
+    def update_vectors(self, it, key):
+        # Adding the required y and s vectors :
+        for k_ in range(np.max([0, it - self.L]), it):
+            self.add_ys('rlm_yn_%s_%s' % (k_, key), 'rlm_sn_%s_%s' % (k_, key), k_)
 
     def y(self, n):
         return self.cacher.load(self.paths2ys[n])
