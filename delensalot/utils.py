@@ -6,7 +6,7 @@ from time import time
 import numpy as np
 import hashlib
 import json
-
+from astropy.io import fits
 from lenspyx.lensing import get_geom 
 
 class timer:
@@ -260,10 +260,15 @@ def dls2cls(dls):
 
 def load_file(fn, lmax=None, ifield=0):
     if fn.endswith('.npy'):
+<<<<<<< HEAD
+        return np.load(fn)[:None]
+=======
        assert ifield==0, 'ifield not implemented for npy files'
        return np.load(fn)[:None]
+>>>>>>> 6bceb0a75454ebc7d564510f52fb11b8cee55998
     elif fn.endswith('.fits'):
-        return hp.read_map(fn, field=ifield)
+        return fits.open(fn)[0].data
+        # return hp.read_map(fn, field=ifield)
     elif fn.endswith('.dat'):
         assert ifield==0, 'ifield not implemented for dat files'
         return camb_clfile(fn)

@@ -216,7 +216,6 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
     bf_field =      attr.field(default=DEFAULT_NotAValue, validator=data.phi_field)
     bf_space =      attr.field(default=DEFAULT_NotAValue, validator=data.phi_space)
     bf_lmax =       attr.field(default=DEFAULT_NotAValue, validator=data.phi_lmax)
-
     
     
 @attr.s
