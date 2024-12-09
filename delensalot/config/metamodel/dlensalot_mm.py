@@ -206,7 +206,6 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
     phi_modifier =  attr.field(default=lambda x: x)
     fields =        attr.field(default=DEFAULT_NotAValue, validator=data.fields) # can be ['gradient', 'curl', 'birefringence']. cannot be only curl
     fnsC =          attr.field(default=DEFAULT_NotAValue, validator=data.fnsP)
-    curl_fn =       attr.field(default=DEFAULT_NotAValue, validator=data.phi_fn)
     curl_field =    attr.field(default=DEFAULT_NotAValue, validator=data.phi_field)
     curl_space =    attr.field(default=DEFAULT_NotAValue, validator=data.phi_space)
     curl_lmax =     attr.field(default=DEFAULT_NotAValue, validator=data.phi_lmax)
