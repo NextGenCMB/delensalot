@@ -536,6 +536,7 @@ class glm_iterator(object):
         self.h0 = h0
         self.BFGS_H = bfgs.BFGS_Hessian(self.hess_cacher)
         self.cpp_prior = cpp_prior
+        self.chh = self.cpp_prior[:self.lm_max_qlm[0]+1] * self._p2h(self.lm_max_qlm[0]) ** 2
         self.stepper = stepper
 
 
@@ -544,7 +545,15 @@ class glm_iterator(object):
     def iterate(self, it, key):
         if not self.is_iter_done(it, key):
             assert self.is_iter_done(it - 1, key), 'previous iteration not done'
-            glm = self.calc_grad_tot()
+
+            # Some preprocessing, grab previous iteration dlm, and upate filter
+            self.dlm_curr = self.get_hlm(it - 1, key)
+            self.hlm2dlm(self.dlm_curr, True)
+            geom_lib = self.filter.ffi.change_dlm([self.dlm_curr, None], self.mmax_qlm, cachers.cacher_mem(safe=False))
+            self.filter.set_ffi(geom_lib)
+            self.mchain.update_filter(self.filter)
+
+            glm = self.calc_grad_tot(it, key)
             self.BFGS_H.update_vectors(it-1, key)
             self.calc_increments(it, key, glm)
 
@@ -553,26 +562,25 @@ class glm_iterator(object):
         glm  = self.calc_grad_quad(it, key)
         glm += self.calc_grad_det(it, key)
         glm += self.load_grad_prior(it - 1, key)
-        almxfl(glm, self.chh > 0, self.mmax_qlm, True)
+        almxfl(glm, self.chh > 0, self.lm_max_qlm[1], True)
         return glm
 
 
     def calc_grad_quad(self, it, key):
-        dlm = self.get_hlm(it - 1, key)
-        self.hlm2dlm(dlm, True)
-        geom_lib = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm, cachers.cacher_mem(safe=False))
-        self.filter.set_ffi(geom_lib)
-        self.mchain.update_filter(self.filter)
-
         soltn, it_soltn = self.load_soltn(it, key)
         if it_soltn < it - 1:
+
+            # CG inversion
             self.mchain.solve(soltn, self.dat_maps)
             fn_wf = 'wflm_%s_it%s' % (key.lower(), it - 1)
             self.wf_cacher.cache(fn_wf, soltn)
 
+            # Qlm calculation
             q_geom = pbdGeometry(self.k_geom, pbounds(0., 2 * np.pi))
             G, C = self.filter.get_qlms(self.dat_maps, soltn, q_geom)
             almxfl(G if key.lower() == 'p' else C, self._h2p(self.lmax_qlm), self.mmax_qlm, True)
+
+
             if it == 1:
                 fn_lik = '%slm_grad%slik_it%03d' % (self.h, key.lower(), 0)
                 self.cacher.cache(fn_lik, -G if key.lower() == 'p' else -C)
@@ -584,11 +592,10 @@ class glm_iterator(object):
 
 
     def load_grad_prior(self, it, key):
-        chh = self.cpp_prior[:self.lm_max_qlm[0]+1] * self._p2h(self.lm_max_qlm[0]) ** 2
         assert key in ['p'], key + ' not implemented'
         assert self.is_iter_done(it -1 , key)
-        dlm = self.get_hlm(it, key)
-        almxfl(dlm, cli(chh), self.mmax_qlm, True)
+        
+        dlm = almxfl(self.dlm_curr, cli(self.chh), self.mmax_qlm, False)
         return dlm
 
 
@@ -598,7 +605,6 @@ class glm_iterator(object):
             2. the hessian
             3. the phi/curl potential
         """
-
         # Gradient increment - we want it as a new starting point for the next iteration
         _it = it - 2
         glminc_fn = 'glminc_%s_%s' % (_it, key)
@@ -614,10 +620,6 @@ class glm_iterator(object):
             incr = self.stepper.build_incr(incr, it)
             self.hess_cacher.cache(plminc_fn, incr)
         assert self.hess_cacher.is_cached(plminc_fn), plminc_fn
-    
-
-    def get_ffi(self):
-        pass
 
 
 class gclm_iterator(object):

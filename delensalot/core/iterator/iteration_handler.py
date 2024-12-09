@@ -118,7 +118,6 @@ class iterator_transformer(base_iterator):
                 'h0': self.h0,
                 'mchain': self.mchain,
                 'cpp_prior': cf.cpp,
-                'stepper': cf.stepper,
                 'wflm0': self.wflm0
             }
 
