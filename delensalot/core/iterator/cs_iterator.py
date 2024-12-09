@@ -516,6 +516,8 @@ class qlm_iterator(object):
 
 class glm_iterator(object):
     def __init__(self, data, filter, mchain, wflm0, plm0, mf0, cpp_prior, stepper, lib_dir, lm_max_qlm, BFGS_lib):
+        self.h = 'p' # FIXME hardcoding this for now, can probably be removed
+        
         self.data = data
         self.lib_dir = lib_dir
         self.mchain = mchain
