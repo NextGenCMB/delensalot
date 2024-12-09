@@ -42,11 +42,9 @@ class BFGS_Hessian(object):
                 dot_op: callable with 2 arguments giving scalar product between two vector (e.g. np.sum)
         H is inverse Hessian, not Hessian.
         """
-        lp1 = 2 * np.arange(self.lmax_qlm + 1) + 1
 
         if apply_H0k is None: apply_H0k = lambda rlm, kr: almxfl(rlm, h0, self.lmax_qlm, False)
         if apply_B0k is None: apply_B0k = lambda rlm, kr: almxfl(rlm, cli(h0), self.lmax_qlm, False)
-        if dot_op is None: dot_op = lambda rlm1, rlm2: np.sum(lp1 * alm2cl(rlm1, rlm2, self.lmax_qlm, self.mmax_qlm, self.lmax_qlm))
         self.applyH0k = apply_H0k
         self.applyB0k = apply_B0k
 

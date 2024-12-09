@@ -15,7 +15,7 @@ from logdecorator import log_on_start, log_on_end
 import numpy as np
 import healpy as hp
 
-from delensalot.utility.utils_hp import alm_copy
+from delensalot.utility.utils_hp import alm_copy, alm2cl
 from delensalot.utils import cli
 from delensalot.core import mpi
 from delensalot.core import cachers
@@ -57,14 +57,18 @@ class base_iterator():
             self.qe.init_aniso_filter()
             mpi.enable()
         self.wflm0 = self.qe.get_wflm(self.simidx)
+
+
         self.R_unl0 = self.qe.R_unl()
         chh = self.cpp[:self.lm_max_qlm[0]+1] * _p2h(self.k[0], self.lm_max_qlm[0]) ** 2
         h0 = cli(self.R_unl0[:self.lm_max_qlm[0] + 1] * _h2p(self.k[0], self.lm_max_qlm[0]) ** 2 + cli(chh))  #~ (1/Cpp + 1/N0)^-1
         h0 *= (chh > 0)
         apply_H0k = lambda rlm, kr: almxfl(rlm, h0, self.lm_max_qlm[0], False)
         apply_B0k = lambda rlm, kr: almxfl(rlm, cli(h0), self.lm_max_qlm[0], False)
+        lp1 = 2 * np.arange(self.lm_max_qlm[0] + 1) + 1
+        dot_op = lambda rlm1, rlm2: np.sum(lp1 * alm2cl(rlm1, rlm2, self.m_max_qlm[0], self.m_max_qlm[1], self.m_max_qlm[0]))
         self.hess_cacher = cachers.cacher_npy(opj(self.libdir_iterator, 'hessian'))
-        self.BFGS_lib = bfgs.BFGS_Hessian(h0=h0, apply_H0k=apply_H0k, apply_B0k=apply_B0k, cacher=self.hess_cacher)
+        self.BFGS_lib = bfgs.BFGS_Hessian(h0=h0, apply_H0k=apply_H0k, apply_B0k=apply_B0k, cacher=self.hess_cacher, dot_op=dot_op)
 
         self.mf0 = self.qe.get_meanfield(self.simidx) if self.QE_subtract_meanfield else np.zeros(shape=hp.Alm.getsize(self.lm_max_qlm[0]))
         self.plm0 = self.qe.get_plm(self.simidx, self.QE_subtract_meanfield)
