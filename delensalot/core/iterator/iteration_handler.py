@@ -75,7 +75,7 @@ class base_iterator():
         self.it_chain_descr = self.iterator_config.it_chain_descr(self.iterator_config.lm_max_unl[0], self.iterator_config.it_cg_tol)
 
         opfilt = sys.modules[self.filter.__module__]
-        self.mchain = multigrid.multigrid_chain(opfilt, self.it_chain_descr, self.cls_filt)
+        self.mchain = multigrid.multigrid_chain(opfilt, self.it_chain_descr, self.cls_unl, self.filter)
         
 
     @log_on_start(logging.DEBUG, "get_datmaps() started")
@@ -128,7 +128,6 @@ class iterator_transformer(base_iterator):
                 'lm_max_qlm': cf.lm_max_qlm,
                 'plm0': self.plm0,
                 'mf0': self.mf0,
-                'h0': self.h0,
                 'mchain': self.mchain,
                 'cpp_prior': cf.cpp,
                 'wflm0': self.wflm0,
@@ -147,7 +146,6 @@ class iterator_transformer(base_iterator):
                 'dat_maps': self.get_datmaps(),
                 'plm0': self.plm0,
                 'mf0': self.mf0,
-                'h0': self.h0,
                 'mchain': self.mchain,
                 'cpp_prior': cf.cpp,
                 'ninv_filt': cf.filter,
