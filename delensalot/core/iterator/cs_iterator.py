@@ -643,6 +643,18 @@ class glm_iterator(object):
             return self.cacher.is_cached('%s_%slm_it000' % ({'p': 'phi', 'o': 'om'}[key], self.h))
         sk_fn = lambda k: 'rlm_sn_%s_%s' % (k, 'p')
         return self.hess_cacher.is_cached(sk_fn(itr - 1)) #FIXME
+    
+
+    def get_hlm(self, itr, key):
+        """Loads current estimate """
+        if itr < 0:
+            return np.zeros(Alm.getsize(*self.lm_max_qlm), dtype=complex)
+        assert key.lower() in ['p', 'o'], key  # potential or curl potential.
+        fn = '%s_%slm_it%03d' % ({'p': 'phi', 'o': 'om'}[key.lower()], self.h, itr)
+        if self.cacher.is_cached(fn):
+            return self.cacher.load(fn)
+        return self._sk2plm(itr)
+
 
 class gclm_iterator(object):
     def __init__(self, data, filter, mchain, wflm0s, flm0s, h0s, mf0s, priors, lib_dir, lm_max_qlm, fkeys):
