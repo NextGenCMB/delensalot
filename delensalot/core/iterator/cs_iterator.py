@@ -522,8 +522,7 @@ class glm_iterator(object):
         self.filter = filter
 
         self.cacher = cachers.cacher_npy(lib_dir)
-        self.cacher.cache('mf', almxfl(mf0, self._h2p(self.lm_max_qlm[0]), self.lm_max_qlm[1], False))
-        
+        self.cacher.cache('mf', almxfl(mf0, self._h2p(self.lm_max_qlm[0]), self.lm_max_qlm[1], False))   
         self.hess_cacher = cachers.cacher_npy(opj(self.lib_dir, 'hessian'))
         self.wf_cacher = cachers.cacher_npy(opj(self.lib_dir, 'Ewflm'))
         self.blt_cacher = cachers.cacher_npy(opj(self.lib_dir, 'BLT/'))
@@ -596,7 +595,6 @@ class glm_iterator(object):
     def load_grad_prior(self, it, key):
         assert key in ['p'], key + ' not implemented'
         assert self.is_iter_done(it -1 , key)
-        
         dlm = almxfl(self.dlm_curr, cli(self.chh), self.mmax_qlm, False)
         return dlm
 
