@@ -36,7 +36,7 @@ def _p2h(h, lmax):
     else:
         assert 0, h + ' not implemented'
 
-def _h2p(lmax): return cli(_p2h(lmax))
+def _h2p(h, lmax): return cli(_p2h(h, lmax))
 
 class base_iterator():
 
@@ -56,8 +56,8 @@ class base_iterator():
             mpi.enable()
         self.wflm0 = self.qe.get_wflm(self.simidx)
         self.R_unl0 = self.qe.R_unl()
-        chh = self.cpp[:self.lm_max_qlm[0]+1] * _p2h(self.lm_max_qlm[0]) ** 2
-        h0 = cli(self.R_unl0[:self.lm_max_qlm[0] + 1] * _h2p(self.lm_max_qlm[0]) ** 2 + cli(chh))  #~ (1/Cpp + 1/N0)^-1
+        chh = self.cpp[:self.lm_max_qlm[0]+1] * _p2h(self.k[0], self.lm_max_qlm[0]) ** 2
+        h0 = cli(self.R_unl0[:self.lm_max_qlm[0] + 1] * _h2p(self.k[0], self.lm_max_qlm[0]) ** 2 + cli(chh))  #~ (1/Cpp + 1/N0)^-1
         h0 *= (chh > 0)
         apply_H0k = lambda rlm, kr: almxfl(rlm, h0, self.lm_max_qlm[0], False)
         apply_B0k = lambda rlm, kr: almxfl(rlm, cli(h0), self.lm_max_qlm[0], False)
