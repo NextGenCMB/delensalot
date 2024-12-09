@@ -7,7 +7,7 @@ valid_value = {
     'tasks': ['calc_phi', 'calc_meanfield', 'calc_blt'],
     'itmax': [],
     'cg_tol': [],
-    'iterator_typ': ['pertmf', 'constmf', 'fastWF'],
+    'iterator_typ': ['pertmf', 'constmf', 'fastWF', 'constmf_p', 'constmf_gc'],
     'chain': [],
     'filter_directional': [],
     'lenjob_geominfo': [],
