@@ -72,7 +72,7 @@ class base_iterator():
         self.it_chain_descr = self.iterator_config.it_chain_descr(self.iterator_config.lm_max_unl[0], self.iterator_config.it_cg_tol)
 
         opfilt = sys.modules[self.filter.__module__]
-        self.mchain = multigrid.multigrid_chain(opfilt, self.it_chain_descr, self.cls_unl, self.filter)
+        self.mchain = multigrid.multigrid_chain(opfilt, self.it_chain_descr, self.cls_unl, self.filter, self.filter.dot_op())
         
 
     @log_on_start(logging.DEBUG, "get_datmaps() started")
