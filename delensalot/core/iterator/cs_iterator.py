@@ -540,10 +540,10 @@ class goclm_iterator(object):
 
         self.fn_gradquad0 = 'gradquad_klm_%s_it%03d' % (goc, 0)
         self.klm_fns = 'klm_{goc}_it{it}'.format(goc=goc, it="{it}")
-        self.glminc_fns = 'glminc_{goc}_{it}'.format(goc=goc, it="{it}")
-        self.klminc_fns = 'klminc_{goc}_{it}'.format(goc=goc, it="{it}")
+        self.glminc_fns = 'glminc_{goc}_it{it}'.format(goc=goc, it="{it}")
+        self.klminc_fns = 'klminc_{goc}_it{it}'.format(goc=goc, it="{it}")
         self.wf_fns = 'wflm_{goc}_it{it}'.format(goc=goc, it="{it}")
-        self.sk_fns = lambda it: 'rlm_sn_k_{it}'
+        self.sk_fns = lambda it: 'rlm_sn_k_it{it}'
 
         self.cacher = cachers.cacher_npy(lib_dir)
         self.hess_cacher = cachers.cacher_npy(opj(self.lib_dir, 'hessian'))
