@@ -162,7 +162,7 @@ def f1(expr, transformer): # pylint: disable=missing-function-docstring
         return transformer.build_pertmf_iterator(expr)
     elif expr.iterator_typ in ['fastWF']:
         return transformer.build_fastwf_iterator(expr)
-    elif expr.iterator_typ in ['constmf_p']:
+    elif expr.iterator_typ in ['constmf_goc']:
         return transformer.build_glm_constmf_iterator(expr)
     elif expr.iterator_typ in ['constmf_gc']:
         return transformer.build_gclm_constmf_iterator(expr)
