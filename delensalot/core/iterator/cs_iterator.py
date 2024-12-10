@@ -565,7 +565,6 @@ class goclm_iterator(object):
 
             # Some preprocessing, grab previous iteration dlm, and update filter
             self.klm_curr = self.get_klm(it - 1)
-            print(self.klm_curr)
             geom_lib = self.filter.ffi.change_dlm([self.klm2dlm(self.klm_curr, False), None], self.lm_max_qlm[1], cachers.cacher_mem(safe=False))
             self.filter.set_ffi(geom_lib)
             self.mchain.update_filter(self.filter)
@@ -613,6 +612,7 @@ class goclm_iterator(object):
             return np.zeros((1, Alm.getsize(self.lmax_filt, self.mmax_filt)), dtype=complex).squeeze(), -1
         
         cg_sol_curr, cg_it_curr = get_cg_startingpoint(it)
+        print(cg_sol_curr)
         if cg_it_curr < it - 1:
             # CG inversion
             self.mchain.solve(cg_sol_curr, self.data)
