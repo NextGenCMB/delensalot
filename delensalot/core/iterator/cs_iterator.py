@@ -611,15 +611,15 @@ class goclm_iterator(object):
                 return self.wflm0(), -1
             return np.zeros((1, Alm.getsize(self.lmax_filt, self.mmax_filt)), dtype=complex).squeeze(), -1
         
-        soltn, it_soltn = get_cg_startingpoint(it)
-        if it_soltn < it - 1:
+        cg_sol_curr, cg_it_curr = get_cg_startingpoint(it)
+        if cg_it_curr < it - 1:
             # CG inversion
-            self.mchain.solve(soltn, self.data)
-            self.wf_cacher.cache(self.wf_fns.format(it=it - 1), soltn)
+            self.mchain.solve(cg_sol_curr, self.data)
+            self.wf_cacher.cache(self.wf_fns.format(it=it - 1), cg_sol_curr)
 
             # qlm calculation
             q_geom = pbdGeometry(self.filter.ffi.geom, pbounds(0., 2 * np.pi))
-            G, C = self.filter.get_qlms(self.data, soltn, q_geom)
+            G, C = self.filter.get_qlms(self.data, cg_sol_curr, q_geom)
             almxfl(G if goc.lower() == 'g' else C, _p2k(self.lm_max_qlm[0]), self.lm_max_qlm[1], True)
 
             if it == 1:

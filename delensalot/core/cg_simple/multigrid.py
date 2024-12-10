@@ -22,12 +22,14 @@ class multigrid_stage(object):
 
 
 class multigrid_chain:
-    def __init__(self, opfilt, chain_descr, s_cls, n_inv_filt, debug_log_prefix=None, plogdepth=0):
+    def __init__(self, opfilt, chain_descr, s_cls, n_inv_filt, dot_op, debug_log_prefix=None, plogdepth=0):
         self.debug_log_prefix = debug_log_prefix
         self.plogdepth = plogdepth
 
         self.opfilt = opfilt
         self.chain_descr = chain_descr
+        
+        self.dot_op = dot_op
 
         self.s_cls = s_cls
         self.n_inv_filt = n_inv_filt
@@ -57,7 +59,7 @@ class multigrid_chain:
         self.iter_tot = 0
         self.prev_eps = None
         if dot_op is None:
-            dot_op = self.opfilt.dot_op()
+            dot_op = self.dot_op()
         logger = (lambda iter, eps, stage=self.bstage, **kwargs:
                   self.log(stage, iter, eps, **kwargs))
 
