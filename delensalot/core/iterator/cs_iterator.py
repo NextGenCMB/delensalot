@@ -538,12 +538,12 @@ class goclm_iterator(object):
         self.ckk_prior = ckk_prior
         self.stepper = stepper
 
-        self.fn_gradquad0 = 'gradquad_klm_%s_it%03d' % (goc, 0)
+        self.gradquad_fns = 'gradquad_klm_{goc}_it{it}'.format(goc=goc, it="{it}")
         self.klm_fns = 'klm_{goc}_it{it}'.format(goc=goc, it="{it}")
-        self.glminc_fns = 'glminc_{goc}_{it}'.format(goc=goc, it="{it}")
-        self.klminc_fns = 'klminc_{goc}_{it}'.format(goc=goc, it="{it}")
+        self.glminc_fns = 'glminc_{goc}_it{it}'.format(goc=goc, it="{it}")
+        self.klminc_fns = 'klminc_{goc}_it{it}'.format(goc=goc, it="{it}")
         self.wf_fns = 'wflm_{goc}_it{it}'.format(goc=goc, it="{it}")
-        self.sk_fns = lambda it: 'rlm_sn_k_{it}'
+        self.sk_fns = lambda it: 'rlm_sn_k_it{it}'
 
         self.cacher = cachers.cacher_npy(lib_dir)
         self.hess_cacher = cachers.cacher_npy(opj(self.lib_dir, 'hessian'))
@@ -621,13 +621,6 @@ class goclm_iterator(object):
 
     def calc_grad_det(self):
         return self.cacher.load('mf')
-
-
-    def load_grad_prior(self, it, key):
-        assert self.is_iter_done(it -1 , key)
-        # TODO dlm is klm
-        klm = almxfl(self.klm_curr, cli(self.ckk), self.mmax_qlm, False)
-        return klm
     
 
     def load_gradtot(self, it, goc):
@@ -636,11 +629,27 @@ class goclm_iterator(object):
                 Compared to formalism of the papers, this returns -g_LM^{tot}
         """
         if it == 0:
-            g  = self.load_gradpri(0, goc)
-            g += self.load_graddet(0, goc)
-            g += self.load_gradquad(0, goc)
+            g  = self.load_grad_prior(0, goc)
+            g += self.load_grad_det(0, goc)
+            g += self.load_grad_quad(0, goc)
             return g
         return self._yk2grad(it)
+    
+
+    def load_grad_prior(self, it):
+        assert self.is_iter_done(it -1)
+        # TODO dlm is klm
+        klm = almxfl(self.klm_curr, cli(self.ckk), self.mmax_qlm, False)
+        return klm
+    
+
+    def load_gradpri(self, it):
+        """Compared to formalism of the papers, this returns -g_LM^{PR}"""
+        return almxfl(self.get_klm(it), cli(self.ckk_prior), self.lm_max_qlm[1], False)
+
+
+    def load_gradquad(self, it):
+        return self.cacher.load(self.gradquad_fns.format(it=it))
 
 
     def is_iter_done(self, it):
