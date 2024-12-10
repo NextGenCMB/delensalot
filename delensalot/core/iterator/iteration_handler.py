@@ -54,8 +54,8 @@ class base_iterator():
         # Power spectra and plancklens starting point generally come as p, so we need to convert them to k
         # TODO check this for correctness (h -> k)
         self.R_unl0 = self.qe.R_unl()
-        self.ckk_prior = self.cpp_prior[:self.lm_max_qlm[0]+1] * _p2k(self.h, self.lm_max_qlm[0]) ** 2
-        h0 = cli(self.R_unl0[:self.lm_max_qlm[0] + 1] * _k2p(self.k[0], self.lm_max_qlm[0]) ** 2 + cli(self.ckk_prior))  #~ (1/Cpp + 1/N0)^-1
+        self.ckk_prior = self.cpp[:self.lm_max_qlm[0]+1] * _p2k(self.lm_max_qlm[0]) ** 2
+        h0 = cli(self.R_unl0[:self.lm_max_qlm[0] + 1] + cli(self.ckk_prior))  #~ (1/Cpp + 1/N0)^-1
         h0 *= (self.ckk_prior > 0)
         apply_H0k = lambda rlm, kr: almxfl(rlm, h0, self.lm_max_qlm[0], False)
         apply_B0k = lambda rlm, kr: almxfl(rlm, cli(h0), self.lm_max_qlm[0], False)
@@ -125,14 +125,14 @@ class iterator_transformer(base_iterator):
                 'plm0': self.klm0,
                 'mf0': self.mf0,
                 'mchain': self.mchain,
-                'ckk_prior': cf.ckk,
+                'ckk_prior': cf.ckk_prior,
                 'wflm0': self.wflm0,
                 'BFGS_lib': self.BFGS_lib,
                 'stepper': cf.stepper,
                 
             }
 
-        return cs_iterator.glm_iterator(**extract())
+        return cs_iterator.goclm_iterator(**extract())
     
     def build_joint_constmf_iterator(self, cf):
 
