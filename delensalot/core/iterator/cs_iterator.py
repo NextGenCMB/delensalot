@@ -604,7 +604,7 @@ class goclm_iterator(object):
 
 
     def calc_grad_quad(self, it, goc):
-        def get_cg_startingpoint(self, it):
+        def get_cg_startingpoint(it):
             for _it in np.arange(it - 1, -1, -1):
                 if self.wf_cacher.is_cached(self.wf_fns.format(it=_it)):
                     return self.wf_cacher.load(self.wf_fns.format(it=_it)), _it
