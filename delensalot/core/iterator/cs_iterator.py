@@ -559,7 +559,7 @@ class goclm_iterator(object):
 
     @log_on_start(logging.DEBUG, "iterate(it={it}) started")
     @log_on_end(logging.DEBUG, "iterate(it={it})  finished")
-    def iterate(self, it):
+    def iterate(self, it, goc):
         if not self.is_iter_done(it):
             assert self.is_iter_done(it - 1), 'previous iteration not done'
 
@@ -569,7 +569,7 @@ class goclm_iterator(object):
             self.filter.set_ffi(geom_lib)
             self.mchain.update_filter(self.filter)
 
-            glm = self.calc_grad_tot(it)
+            glm = self.calc_grad_tot(it, goc)
             self.BFGS_H.update_vectors(it-1)
             self.calc_increments(it, glm)
 
