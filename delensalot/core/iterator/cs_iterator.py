@@ -557,32 +557,32 @@ class goclm_iterator(object):
         self.lm_max_qlm = lm_max_qlm
 
 
-    @log_on_start(logging.DEBUG, "iterate(it={it}, key={key}) started")
-    @log_on_end(logging.DEBUG, "iterate(it={it}, key={key}) finished")
-    def iterate(self, it, key):
-        if not self.is_iter_done(it, key):
-            assert self.is_iter_done(it - 1, key), 'previous iteration not done'
+    @log_on_start(logging.DEBUG, "iterate(it={it}) started")
+    @log_on_end(logging.DEBUG, "iterate(it={it})  finished")
+    def iterate(self, it):
+        if not self.is_iter_done(it):
+            assert self.is_iter_done(it - 1), 'previous iteration not done'
 
             # Some preprocessing, grab previous iteration dlm, and update filter
-            self.klm_curr = self.get_klm(it - 1, key)
+            self.klm_curr = self.get_klm(it - 1)
             geom_lib = self.filter.ffi.change_dlm([self.klm2dlm(self.klm_curr, True), None], self.lm_max_qlm[1], cachers.cacher_mem(safe=False))
             self.filter.set_ffi(geom_lib)
             self.mchain.update_filter(self.filter)
 
-            glm = self.calc_grad_tot(it, key)
-            self.BFGS_H.update_vectors(it-1, key)
-            self.calc_increments(it, key, glm)
+            glm = self.calc_grad_tot(it)
+            self.BFGS_H.update_vectors(it-1)
+            self.calc_increments(it, glm)
 
 
-    def calc_grad_tot(self, it, key):
-        glm  = self.calc_grad_quad(it, key)
-        glm += self.calc_grad_det(it, key)
-        glm += self.load_grad_prior(it - 1, key)
+    def calc_grad_tot(self, it, goc):
+        glm  = self.calc_grad_quad(it, goc)
+        glm += self.calc_grad_det(it)
+        glm += self.load_grad_prior(it - 1)
         almxfl(glm, self.ckk_prior > 0, self.lm_max_qlm[1], True)
         return glm
     
 
-    def calc_increments(self, it, key, glm):
+    def calc_increments(self, it, glm):
         """We build increments for,
             1. the posterior-gradient
             2. the hessian
@@ -591,7 +591,7 @@ class goclm_iterator(object):
         # Gradient increment - we want it as a new starting point for the next iteration
         _it = it - 2
         if _it >= 0 and not self.hess_cacher.is_cached(self.glminc_fns.format(it=_it)):
-            yk = glm - self.load_gradient(_it, key)
+            yk = glm - self.load_gradtot(_it)
             self.hess_cacher.cache(self.glminc_fns.format(it=_it), yk)
 
         _it = it - 1
@@ -637,20 +637,17 @@ class goclm_iterator(object):
     
 
     def load_grad_prior(self, it):
-        assert self.is_iter_done(it -1)
-        # TODO dlm is klm
-        klm = almxfl(self.klm_curr, cli(self.ckk), self.mmax_qlm, False)
-        return klm
-    
-
-    def load_gradpri(self, it):
         """Compared to formalism of the papers, this returns -g_LM^{PR}"""
         return almxfl(self.get_klm(it), cli(self.ckk_prior), self.lm_max_qlm[1], False)
 
 
-    def load_gradquad(self, it):
+    def load_grad_quad(self, it):
         return self.cacher.load(self.gradquad_fns.format(it=it))
 
+    
+    def load_grad_det(self):
+        return self.cacher.load('mf')
+    
 
     def is_iter_done(self, it):
         """Returns True if the iteration 'it' has been performed already and False if not
