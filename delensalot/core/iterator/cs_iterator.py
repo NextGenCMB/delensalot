@@ -48,17 +48,13 @@ def prt_time(dt, label=''):
     log.info("\r [" + ('%02d:%02d:%02d' % (dh, dm, ds)) + "] " + label)
     return
 
-def _p2h(h, lmax):
-    if h == 'p':
-        return np.ones(lmax + 1, dtype=float)
-    elif h == 'k':
+def _p2k(h, lmax):
+    if h == 'k':
         return 0.5 * np.arange(lmax + 1, dtype=float) * np.arange(1, lmax + 2, dtype=float)
-    elif h == 'd':
-        return np.sqrt(np.arange(lmax + 1, dtype=float) * np.arange(1, lmax + 2), dtype=float)
     else:
         assert 0, h + ' not implemented'
 
-def _h2p(h, lmax): return cli(_p2h(h, lmax))
+def _k2p(h, lmax): return cli(_p2k(h, lmax))
 
 
 class qlm_iterator(object):
@@ -365,8 +361,8 @@ class qlm_iterator(object):
         almxfl(ret, cli(self.chh), self.mmax_qlm, True)
         return ret
 
-    def load_gradquad(self, k, key):
-        fn = '%slm_grad%slik_it%03d' % (self.h, key.lower(), k)
+    def load_gradquad(self, itr, key):
+        fn = '%slm_grad%slik_it%03d' % (self.h, key.lower(), itr)
         return self.cacher.load(fn)
 
     def load_gradient(self, itr, key):
@@ -525,34 +521,40 @@ class qlm_iterator(object):
         assert 0, 'subclass this'
 
 
-class glm_iterator(object):
-    def __init__(self, data, filter, mchain, wflm0, plm0, mf0, cpp_prior, stepper, lib_dir, lm_max_qlm, BFGS_lib):
-        self.h = 'p' # FIXME hardcoding this for now, can probably be removed
+class goclm_iterator(object):
+    """
+    This uses h=k, as k might behaving better numerically than p or d.
+    This is a general iterator for the lensing potential. It is a subclass of qlm_iterator, and is used to iterate over the lensing potential in the form of alm's.
+    """
+    def __init__(self, data, filter, mchain, wflm0, klm0, mf0, ckk_prior, stepper, lib_dir, lm_max_qlm, BFGS_lib, goc):
+        # goc can be g or c, for gradient or curl potential
 
         self.data = data
         self.lib_dir = lib_dir
         self.mchain = mchain
         self.filter = filter
         self.wflm0 = wflm0
+        self.BFGS_H = BFGS_lib 
+        self.ckk_prior = ckk_prior
+        self.stepper = stepper
+
+        self.fn_gradquad0 = 'gradquad_klm_%s_it%03d' % (goc, 0)
+        self.klm_fns = 'klm_{goc}_it{it}'.format(goc=goc)
+        self.glminc_fns = 'glminc_{goc}_{it}'.format(goc=goc)
+        self.klminc_fns = 'klminc_{goc}_{it}'.format(goc=goc)
+        self.wf_fns = 'wflm_{goc}_it{it}'.format(goc=goc)
+        self.sk_fns = lambda it: 'rlm_sn_k_{it}'
 
         self.cacher = cachers.cacher_npy(lib_dir)
-        self.cacher.cache('mf', mf0)
         self.hess_cacher = cachers.cacher_npy(opj(self.lib_dir, 'hessian'))
         self.wf_cacher = cachers.cacher_npy(opj(self.lib_dir, 'Ewflm'))
         self.blt_cacher = cachers.cacher_npy(opj(self.lib_dir, 'BLT/'))
 
+        self.cacher.cache('mf', mf0)
+        if not self.cacher.is_cached(self.klm_fns.format(it=0)):
+            self.cacher.cache(self.klm_fns.format(it=0), read_map(klm0))
+
         self.lm_max_qlm = lm_max_qlm
-
-        plm_fn = '%s_%slm_it%03d' % ({'p': 'phi', 'o': 'om'}['p'], self.h, 0)
-        if not self.cacher.is_cached(plm_fn):
-            self.cacher.cache(plm_fn, almxfl(read_map(plm0), _p2h(self.h, self.lm_max_qlm[0]), self.lm_max_qlm[1], False))
-        
-        self.BFGS_H = BFGS_lib 
-
-        self.cpp_prior = cpp_prior
-        self.chh = self.cpp_prior[:self.lm_max_qlm[0]+1] * _p2h(self.h, self.lm_max_qlm[0]) ** 2
-
-        self.stepper = stepper
 
 
     @log_on_start(logging.DEBUG, "iterate(it={it}, key={key}) started")
@@ -561,10 +563,9 @@ class glm_iterator(object):
         if not self.is_iter_done(it, key):
             assert self.is_iter_done(it - 1, key), 'previous iteration not done'
 
-            # Some preprocessing, grab previous iteration dlm, and upate filter
-            self.dlm_curr = self.get_hlm(it - 1, key)
-            self.hlm2dlm(self.dlm_curr, True)
-            geom_lib = self.filter.ffi.change_dlm([self.dlm_curr, None], self.mmax_qlm, cachers.cacher_mem(safe=False))
+            # Some preprocessing, grab previous iteration dlm, and update filter
+            self.klm_curr = self.get_klm(it - 1, key)
+            geom_lib = self.filter.ffi.change_dlm([self.klm2dlm(self.klm_curr, True), None], self.lm_max_qlm[1], cachers.cacher_mem(safe=False))
             self.filter.set_ffi(geom_lib)
             self.mchain.update_filter(self.filter)
 
@@ -577,41 +578,9 @@ class glm_iterator(object):
         glm  = self.calc_grad_quad(it, key)
         glm += self.calc_grad_det(it, key)
         glm += self.load_grad_prior(it - 1, key)
-        almxfl(glm, self.chh > 0, self.lm_max_qlm[1], True)
+        almxfl(glm, self.ckk_prior > 0, self.lm_max_qlm[1], True)
         return glm
-
-
-    def calc_grad_quad(self, it, key):
-        soltn, it_soltn = self.load_soltn(it, key)
-        if it_soltn < it - 1:
-
-            # CG inversion
-            self.mchain.solve(soltn, self.dat_maps)
-            fn_wf = 'wflm_%s_it%s' % (key.lower(), it - 1)
-            self.wf_cacher.cache(fn_wf, soltn)
-
-            # Qlm calculation
-            q_geom = pbdGeometry(self.k_geom, pbounds(0., 2 * np.pi))
-            G, C = self.filter.get_qlms(self.dat_maps, soltn, q_geom)
-            almxfl(G if key.lower() == 'p' else C, self._h2p(self.lmax_qlm), self.mmax_qlm, True)
-
-
-            if it == 1:
-                fn_lik = '%slm_grad%slik_it%03d' % (self.h, key.lower(), 0)
-                self.cacher.cache(fn_lik, -G if key.lower() == 'p' else -C)
-            return -G if key.lower() == 'p' else -C
-
-
-    def calc_grad_det(self):
-        return self.cacher.load('mf')
-
-
-    def load_grad_prior(self, it, key):
-        assert key in ['p'], key + ' not implemented'
-        assert self.is_iter_done(it -1 , key)
-        dlm = almxfl(self.dlm_curr, cli(self.chh), self.mmax_qlm, False)
-        return dlm
-
+    
 
     def calc_increments(self, it, key, glm):
         """We build increments for,
@@ -621,40 +590,85 @@ class glm_iterator(object):
         """
         # Gradient increment - we want it as a new starting point for the next iteration
         _it = it - 2
-        glminc_fn = 'glminc_%s_%s' % (_it, key)
-        if _it >= 0 and not self.hess_cacher.is_cached(glminc_fn):
+        if _it >= 0 and not self.hess_cacher.is_cached(self.glminc_fns.format(_it=_it)):
             yk = glm - self.load_gradient(_it, key)
-            self.hess_cacher.cache(glminc_fn, yk)
+            self.hess_cacher.cache(self.glminc_fns.format(_it=_it), yk)
 
         _it = it - 1
         # Phi increment
-        plminc_fn = 'plminc_%s_%s' % (_it, key)
-        if not self.hess_cacher.is_cached(plminc_fn):
+        if not self.hess_cacher.is_cached(self.klminc_fns.format(_it=_it)):
             incr = self.BFGS_H.get_mHkgk(glm, _it)
             incr = self.stepper.build_incr(incr, it)
-            self.hess_cacher.cache(plminc_fn, incr)
-        assert self.hess_cacher.is_cached(plminc_fn), plminc_fn
+            self.hess_cacher.cache(self.klminc_fns.format(_it=_it), incr)
 
 
-    def is_iter_done(self, itr, key):
-        """Returns True if the iteration 'itr' has been performed already and False if not
-        """
-        if itr <= 0:
-            return self.cacher.is_cached('%s_%slm_it000' % ({'p': 'phi', 'o': 'om'}[key], self.h))
-        sk_fn = lambda k: 'rlm_sn_%s_%s' % (k, 'p')
-        return self.hess_cacher.is_cached(sk_fn(itr - 1)) #FIXME
+    def calc_grad_quad(self, it, goc):
+        soltn, it_soltn = self.load_soltn(it, goc)
+        if it_soltn < it - 1:
+            # CG inversion
+            self.mchain.solve(soltn, self.data)
+            self.wf_cacher.cache(self.wf_fns.format(it=it - 1), soltn)
+
+            # qlm calculation
+            q_geom = pbdGeometry(self.filter.ffi.geom, pbounds(0., 2 * np.pi))
+            G, C = self.filter.get_qlms(self.data, soltn, q_geom)
+            almxfl(G if goc.lower() == 'g' else C, _p2k(self.lm_max_qlm[0]), self.lm_max_qlm[1], True)
+
+            if it == 1:
+                self.cacher.cache(self.fn_gradquad0, -G if goc.lower() == 'g' else -C)
+            return -G if goc.lower() == 'g' else -C
+
+
+    def calc_grad_det(self):
+        return self.cacher.load('mf')
+
+
+    def load_grad_prior(self, it, key):
+        assert self.is_iter_done(it -1 , key)
+        # TODO dlm is klm
+        klm = almxfl(self.klm_curr, cli(self.ckk), self.mmax_qlm, False)
+        return klm
     
 
-    def get_hlm(self, itr, key):
-        """Loads current estimate """
-        if itr < 0:
-            return np.zeros(Alm.getsize(*self.lm_max_qlm), dtype=complex)
-        assert key.lower() in ['p', 'o'], key  # potential or curl potential.
-        fn = '%s_%slm_it%03d' % ({'p': 'phi', 'o': 'om'}[key.lower()], self.h, itr)
-        if self.cacher.is_cached(fn):
-            return self.cacher.load(fn)
-        return self._sk2plm(itr)
+    def load_gradtot(self, it, goc):
+        """Loads the total gradient at iteration iter.
+                All necessary alm's must have been calculated previously
+                Compared to formalism of the papers, this returns -g_LM^{tot}
+        """
+        if it == 0:
+            g  = self.load_gradpri(0, goc)
+            g += self.load_graddet(0, goc)
+            g += self.load_gradquad(0, goc)
+            return g
+        return self._yk2grad(it)
 
+
+    def is_iter_done(self, it):
+        """Returns True if the iteration 'it' has been performed already and False if not
+        """
+        if it <= 0:
+            return self.cacher.is_cached(self.klm_fns.format(it=0))
+        return self.hess_cacher.is_cached(self.sk_fn(it - 1))
+    
+
+    def get_klm(self, it):
+        """Loads current estimate """
+        if it < 0:
+            return np.zeros(Alm.getsize(*self.lm_max_qlm), dtype=complex) 
+        return self.cacher.load(self.klm_fns.format(it=it)) if self.cacher.is_cached(self.klm_fns.format(it=it)) else self.sk2klm(it)
+
+
+    def klm2dlm(self, klm, inplace):
+        k2d = cli(0.5 * np.sqrt(np.arange(self.lm_max_qlm[0] + 1, dtype=float) * np.arange(1, self.lm_max_qlm[0] + 2, dtype=float)))
+        return almxfl(klm, k2d, self.lm_max_qlm[1], inplace)
+        
+
+    def sk2klm(self, it):
+        rlm = self.cacher.load(self.klm_fns.format(it=0))
+        for i in range(it):
+            rlm += self.hess_cacher.load(self.sk_fn(i))
+        return rlm
+        
 
 class gclm_iterator(object):
     def __init__(self, data, filter, mchain, wflm0s, flm0s, h0s, mf0s, priors, lib_dir, lm_max_qlm, fkeys):

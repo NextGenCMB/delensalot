@@ -28,17 +28,10 @@ from delensalot.utils import cli
 from delensalot.utility.utils_hp import Alm, almxfl
 
 
-def _p2h(h, lmax):
-    if h == 'p':
-        return np.ones(lmax + 1, dtype=float)
-    elif h == 'k':
-        return 0.5 * np.arange(lmax + 1, dtype=float) * np.arange(1, lmax + 2, dtype=float)
-    elif h == 'd':
-        return np.sqrt(np.arange(lmax + 1, dtype=float) * np.arange(1, lmax + 2), dtype=float)
-    else:
-        assert 0, h + ' not implemented'
+def _p2k(lmax):
+    return 0.5 * np.arange(lmax + 1, dtype=float) * np.arange(1, lmax + 2, dtype=float)
 
-def _h2p(h, lmax): return cli(_p2h(h, lmax))
+def _k2p(lmax): return cli(_p2k(lmax))
 
 class base_iterator():
 
@@ -58,10 +51,12 @@ class base_iterator():
             mpi.enable()
         self.wflm0 = self.qe.get_wflm(self.simidx)
 
+        # Power spectra and plancklens starting point generally come as p, so we need to convert them to k
+        # TODO check this for correctness (h -> k)
         self.R_unl0 = self.qe.R_unl()
-        chh = self.cpp[:self.lm_max_qlm[0]+1] * _p2h(self.k[0], self.lm_max_qlm[0]) ** 2
-        h0 = cli(self.R_unl0[:self.lm_max_qlm[0] + 1] * _h2p(self.k[0], self.lm_max_qlm[0]) ** 2 + cli(chh))  #~ (1/Cpp + 1/N0)^-1
-        h0 *= (chh > 0)
+        self.ckk_prior = self.cpp_prior[:self.lm_max_qlm[0]+1] * _p2k(self.h, self.lm_max_qlm[0]) ** 2
+        h0 = cli(self.R_unl0[:self.lm_max_qlm[0] + 1] * _k2p(self.k[0], self.lm_max_qlm[0]) ** 2 + cli(self.ckk_prior))  #~ (1/Cpp + 1/N0)^-1
+        h0 *= (self.ckk_prior > 0)
         apply_H0k = lambda rlm, kr: almxfl(rlm, h0, self.lm_max_qlm[0], False)
         apply_B0k = lambda rlm, kr: almxfl(rlm, cli(h0), self.lm_max_qlm[0], False)
         lp1 = 2 * np.arange(self.lm_max_qlm[0] + 1) + 1
@@ -70,9 +65,10 @@ class base_iterator():
         self.BFGS_lib = bfgs.BFGS_Hessian(h0=h0, apply_H0k=apply_H0k, apply_B0k=apply_B0k, cacher=self.hess_cacher, dot_op=dot_op)
 
         self.mf0 = self.qe.get_meanfield(self.simidx) if self.QE_subtract_meanfield else np.zeros(shape=hp.Alm.getsize(self.lm_max_qlm[0]))
-        self.mf0_rescaled = almxfl(self.mf0, _h2p(self.k[0], self.lm_max_qlm[0]), self.lm_max_qlm[1], False)
+        self.mf0_rescaled = almxfl(self.mf0, _p2k(self.lm_max_qlm[0]), self.lm_max_qlm[1], False)
         
-        self.plm0 = self.qe.get_plm(self.simidx, self.QE_subtract_meanfield)
+        plm0 = self.qe.get_plm(self.simidx, self.QE_subtract_meanfield)
+        self.klm0 = almxfl(plm0, _p2k(self.lm_max_qlm[0]), self.lm_max_qlm[1], False)
         self.it_chain_descr = self.iterator_config.it_chain_descr(self.iterator_config.lm_max_unl[0], self.iterator_config.it_cg_tol)
 
         opfilt = sys.modules[self.filter.__module__]
@@ -126,10 +122,10 @@ class iterator_transformer(base_iterator):
                 'filter': cf.filter,
                 'lib_dir': self.libdir_iterator,
                 'lm_max_qlm': cf.lm_max_qlm,
-                'plm0': self.plm0,
-                'mf0': self.mf0_rescaled,
+                'plm0': self.klm0,
+                'mf0': self.mf0,
                 'mchain': self.mchain,
-                'cpp_prior': cf.cpp,
+                'ckk_prior': cf.ckk,
                 'wflm0': self.wflm0,
                 'BFGS_lib': self.BFGS_lib,
                 'stepper': cf.stepper,
@@ -145,10 +141,10 @@ class iterator_transformer(base_iterator):
                 'lib_dir': self.libdir_iterator,
                 'lm_max_dlm': cf.lm_max_qlm,
                 'dat_maps': self.get_datmaps(),
-                'plm0': self.plm0,
+                'plm0': self.klm0,
                 'mf0': self.mf0_rescaled,
                 'mchain': self.mchain,
-                'cpp_prior': cf.cpp,
+                'ckk_prior': cf.ckk,
                 'filter': cf.filter,
                 'stepper': cf.stepper,
                 'wflm0': self.wflm0,
