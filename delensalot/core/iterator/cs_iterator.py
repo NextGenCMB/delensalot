@@ -603,7 +603,15 @@ class goclm_iterator(object):
 
 
     def calc_grad_quad(self, it, goc):
-        soltn, it_soltn = self.load_soltn(it, goc)
+        def get_cg_startingpoint(self, it):
+            for _it in np.arange(it - 1, -1, -1):
+                if self.wf_cacher.is_cached(self.wf_fns.format(it=_it)):
+                    return self.wf_cacher.load(self.wf_fns.format(it=_it)), _it
+            if callable(self.wflm0):
+                return self.wflm0(), -1
+            return np.zeros((1, Alm.getsize(self.lmax_filt, self.mmax_filt)), dtype=complex).squeeze(), -1
+        
+        soltn, it_soltn = get_cg_startingpoint(it)
         if it_soltn < it - 1:
             # CG inversion
             self.mchain.solve(soltn, self.data)
@@ -674,20 +682,6 @@ class goclm_iterator(object):
         for i in range(it):
             rlm += self.hess_cacher.load(self.sk_fns(i))
         return rlm
-    
-
-    def load_soltn(self, itr, key):
-        """Load starting point for the conjugate gradient inversion.
-
-        """
-        assert key.lower() in ['g', 'c']
-        for _it in np.arange(itr - 1, -1, -1):
-            if self.wf_cacher.is_cached(self.wf_fns.format(it=_it)):
-                return self.wf_cacher.load(self.wf_fns.format(it=_it)), _it
-        if callable(self.wflm0):
-            return self.wflm0(), -1
-        # TODO: for MV this need a change
-        return np.zeros((1, Alm.getsize(self.lmax_filt, self.mmax_filt)), dtype=complex).squeeze(), -1
         
 
 class gclm_iterator(object):
