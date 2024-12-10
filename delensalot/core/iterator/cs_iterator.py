@@ -539,10 +539,10 @@ class goclm_iterator(object):
         self.stepper = stepper
 
         self.fn_gradquad0 = 'gradquad_klm_%s_it%03d' % (goc, 0)
-        self.klm_fns = 'klm_{goc}_it{it}'.format(goc=goc)
-        self.glminc_fns = 'glminc_{goc}_{it}'.format(goc=goc)
-        self.klminc_fns = 'klminc_{goc}_{it}'.format(goc=goc)
-        self.wf_fns = 'wflm_{goc}_it{it}'.format(goc=goc)
+        self.klm_fns = 'klm_{goc}_it{it}'.format(goc=goc, it="{it}")
+        self.glminc_fns = 'glminc_{goc}_{it}'.format(goc=goc, it="{it}")
+        self.klminc_fns = 'klminc_{goc}_{it}'.format(goc=goc, it="{it}")
+        self.wf_fns = 'wflm_{goc}_it{it}'.format(goc=goc, it="{it}")
         self.sk_fns = lambda it: 'rlm_sn_k_{it}'
 
         self.cacher = cachers.cacher_npy(lib_dir)
@@ -590,16 +590,16 @@ class goclm_iterator(object):
         """
         # Gradient increment - we want it as a new starting point for the next iteration
         _it = it - 2
-        if _it >= 0 and not self.hess_cacher.is_cached(self.glminc_fns.format(_it=_it)):
+        if _it >= 0 and not self.hess_cacher.is_cached(self.glminc_fns.format(it=_it)):
             yk = glm - self.load_gradient(_it, key)
-            self.hess_cacher.cache(self.glminc_fns.format(_it=_it), yk)
+            self.hess_cacher.cache(self.glminc_fns.format(it=_it), yk)
 
         _it = it - 1
         # Phi increment
-        if not self.hess_cacher.is_cached(self.klminc_fns.format(_it=_it)):
+        if not self.hess_cacher.is_cached(self.klminc_fns.format(it=_it)):
             incr = self.BFGS_H.get_mHkgk(glm, _it)
             incr = self.stepper.build_incr(incr, it)
-            self.hess_cacher.cache(self.klminc_fns.format(_it=_it), incr)
+            self.hess_cacher.cache(self.klminc_fns.format(it=_it), incr)
 
 
     def calc_grad_quad(self, it, goc):

@@ -145,7 +145,7 @@ class iterator_transformer(base_iterator):
                 'plm0': self.klm0,
                 'mf0': self.mf0_rescaled,
                 'mchain': self.mchain,
-                'ckk_prior': cf.ckk_prior,
+                'ckk_prior': self.ckk_prior,
                 'filter': cf.filter,
                 'stepper': cf.stepper,
                 'wflm0': self.wflm0,
