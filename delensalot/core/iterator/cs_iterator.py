@@ -654,7 +654,7 @@ class goclm_iterator(object):
         """
         if it <= 0:
             return self.cacher.is_cached(self.klm_fns.format(it=0))
-        return self.hess_cacher.is_cached(self.sk_fn(it - 1))
+        return self.hess_cacher.is_cached(self.sk_fns(it - 1))
     
 
     def get_klm(self, it):
@@ -672,8 +672,22 @@ class goclm_iterator(object):
     def sk2klm(self, it):
         rlm = self.cacher.load(self.klm_fns.format(it=0))
         for i in range(it):
-            rlm += self.hess_cacher.load(self.sk_fn(i))
+            rlm += self.hess_cacher.load(self.sk_fns(i))
         return rlm
+    
+
+    def load_soltn(self, itr, key):
+        """Load starting point for the conjugate gradient inversion.
+
+        """
+        assert key.lower() in ['g', 'c']
+        for _it in np.arange(itr - 1, -1, -1):
+            if self.wf_cacher.is_cached(self.wf_fns.format(it=_it)):
+                return self.wf_cacher.load(self.wf_fns.format(it=_it)), _it
+        if callable(self.wflm0):
+            return self.wflm0(), -1
+        # TODO: for MV this need a change
+        return np.zeros((1, Alm.getsize(self.lmax_filt, self.mmax_filt)), dtype=complex).squeeze(), -1
         
 
 class gclm_iterator(object):
