@@ -614,7 +614,7 @@ class goclm_iterator(object):
         cg_sol_curr, cg_it_curr = get_cg_startingpoint(it)
         if cg_it_curr < it - 1:
             # CG inversion
-            self.mchain.solve(cg_sol_curr, self.data)
+            self.mchain.solve(cg_sol_curr, self.data, dot_op=self.filter.dot_op())
             self.wf_cacher.cache(self.wf_fns.format(it=it - 1), cg_sol_curr)
 
             # qlm calculation
