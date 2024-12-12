@@ -69,7 +69,7 @@ class base_iterator():
         
         plm0 = self.qe.get_plm(self.simidx, self.QE_subtract_meanfield)
         self.klm0 = almxfl(plm0, _p2k(self.lm_max_qlm[0]), self.lm_max_qlm[1], False)
-        self.it_chain_descr = self.iterator_config.it_chain_descr(self.iterator_config.lm_max_unl[0], self.iterator_config.it_cg_tol)
+        self.it_chain_descr = self.iterator_config.it_chain_descr(self.iterator_config.lm_max_unl[0], self.iterator_config.it_cg_tol(1))
 
         opfilt = sys.modules[self.filter.__module__]
         self.mchain = multigrid.multigrid_chain(opfilt, self.it_chain_descr, self.cls_unl, self.filter)

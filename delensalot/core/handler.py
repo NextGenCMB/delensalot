@@ -1188,6 +1188,39 @@ class MAP_lr(Basejob):
         return filter
 
 
+class MAP_lr_operator:
+    def __init__(self):
+        pass
+
+
+    def collect_jobs(self):
+        pass
+
+
+    def run(self):
+        pass
+
+
+    def get_meanfield(self):
+        pass
+
+
+    def get_blt(self):
+        pass
+
+
+    def get_plm(self):
+        pass
+
+
+    def get_wf(self):
+        pass
+
+
+    def get_ivf(self):
+        pass
+
+
 class Map_delenser(Basejob):
     """Map delenser Job for calculating delensed ILC and Blens spectra using precaulculated Btemplates as input.
     This is a combination of,
