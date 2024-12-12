@@ -39,6 +39,8 @@ from delensalot.core.opfilt import utils_cinv_p as cinv_p_OBD
 from delensalot.core.opfilt.opfilt_handler import QE_transformer, MAP_transformer
 from delensalot.core.opfilt.bmodes_ninv import template_dense, template_bfilt
 
+from delensalot.core.MAP import handler as MAP_handler
+
 def get_dirname(s):
     return s.replace('(', '').replace(')', '').replace('{', '').replace('}', '').replace(' ', '').replace('\'', '').replace('\"', '').replace(':', '_').replace(',', '_').replace('[', '').replace(']', '')
 
@@ -1190,17 +1192,33 @@ class MAP_lr(Basejob):
 
 class MAP_lr_operator:
     def __init__(self):
-        pass
-
+        self.MAP_job = MAP_handler(self.dlensalot_model)
+        self.jobs = []
 
     def collect_jobs(self):
-        pass
+        jobs = list(range(len(self.it_tasks)))
+        # TODO order of task list matters, but shouldn't
+        for taski, task in enumerate(self.it_tasks):
+            _jobs = []
+            for simidx in self.simidxs:
+                libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
+                if rec.maxiterdone(libdir_MAPidx) < self.itmax: #FIXME check correct statement
+                    _jobs.append(simidx)
+            jobs[taski] = _jobs
+        self.jobs = jobs
+
+        return jobs
 
 
     def run(self):
-        pass
+        for taski, task in enumerate(self.it_tasks):
+            log.info('{}, task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
+            if task == 'calc_phi':
+                for simidx in self.jobs[taski][mpi.rank::mpi.size]:
+                    self.MAP_job.run(simidx)
 
 
+    ## The following functions are to access the results of the MAP job
     def get_meanfield(self):
         pass
 
