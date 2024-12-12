@@ -16,6 +16,7 @@ class base:
         if cg_it_curr < it - 1:
             # CG inversion
             # TODO operators must be passed to the CG solver
+            # TODO operator must be updated with current field estimates
             self.cg.solve(cg_sol_curr, self.data, self.operators) # build new cg that knows how to apply the operators to obtain the forward operation
             self.mchain.solve(cg_sol_curr, self.data, dot_op=self.filter.dot_op())
             self.wf_cacher.cache(self.wf_fns.format(it=it - 1), cg_sol_curr)
