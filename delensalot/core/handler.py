@@ -39,6 +39,10 @@ from delensalot.core.opfilt import utils_cinv_p as cinv_p_OBD
 from delensalot.core.opfilt.opfilt_handler import QE_transformer, MAP_transformer
 from delensalot.core.opfilt.bmodes_ninv import template_dense, template_bfilt
 
+from delensalot.delensalot.core.MAP import covariance_operators
+
+
+from delensalot.core.MAP import operator
 from delensalot.core.MAP import handler as MAP_handler
 
 def get_dirname(s):
@@ -1191,20 +1195,62 @@ class MAP_lr(Basejob):
 
 
 class MAP_lr_operator:
-    def __init__(self):
-        self.MAP_job = MAP_handler(self.dlensalot_model)
+    def __init__(self, kwargs):
         self.jobs = []
+        lensing_operator = None
+        birefringence_operator = None
+        
+        # This depends on what is in the data
+        if kwargs['build'] == 'lensingplusbirefringence':
+            lensing_operator = operator.lensing(kwargs['lensing_operator'])
+            birefringence_operator = operator.birefringence(kwargs['birefringence_operator'])
+            from delensalot.delensalot.core.MAP.covariance_operators import lensingplusbirefringence as recipe
+            r = recipe(lensing_operator, birefringence_operator)
+        if kwargs['build'] == 'lensing':
+            lensing_operator = operator.lensing(kwargs['lensing_operator'])
+            from delensalot.delensalot.core.MAP.covariance_operators import lensing as recipe
+            r = recipe(lensing_operator)
+        if kwargs['build'] == 'birefringence':
+            birefringence_operator = operator.birefringence(kwargs['birefringence_operator'])
+            from delensalot.delensalot.core.MAP.covariance_operators import birefringence as recipe
+            r = recipe(birefringence_operator)
+
+        gradient_descs = []
+        gradient_desc = {"ID": "lensing",
+                         "inner": lambda obj: r.inner_derivative_lensing(obj),
+                         }
+        gradient_descs.append(gradient_desc)
+
+        gradient_desc = {"ID": "birefringence",
+                         "inner": lambda obj: r.inner_derivative_birefringence(obj),
+                         }
+        gradient_descs.append(gradient_desc)
+
+        beam = kwargs['beam']
+        Ninv = kwargs['Ninv']
+        filter_desc = {"ID": "polarization",
+                       'operator': lambda obj: r.filter_operator(obj),
+                       'beam': beam,
+                       'Ninv': Ninv,
+                       }
+
+        curvature_desc = {}
+        desc = {}
+        
+        # I want to have a MAP handler for each simidx as they have nothing to do with each other
+        self.MAP_search = [MAP_handler(filter_desc, gradient_descs, curvature_desc, desc, simidx) for simidx in self.simidxs]
+
 
     def collect_jobs(self):
         jobs = list(range(len(self.it_tasks)))
-        # TODO order of task list matters, but shouldn't
         for taski, task in enumerate(self.it_tasks):
             _jobs = []
-            for simidx in self.simidxs:
-                libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
-                if rec.maxiterdone(libdir_MAPidx) < self.itmax: #FIXME check correct statement
-                    _jobs.append(simidx)
-            jobs[taski] = _jobs
+            if task == 'calc_phi':
+                for simidx in self.simidxs:
+                    # TODO check for each simidx, if it is already done, and if not, add it to the job list
+                    if self.MAP_search[simidx].maxiterdone() < self.MAP_search[simidx].itmax:
+                        _jobs.append(simidx)
+                jobs[taski] = _jobs
         self.jobs = jobs
 
         return jobs
@@ -1215,7 +1261,8 @@ class MAP_lr_operator:
             log.info('{}, task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
             if task == 'calc_phi':
                 for simidx in self.jobs[taski][mpi.rank::mpi.size]:
-                    self.MAP_job.run(simidx)
+                    self.MAP_search[simidx].run()
+
 
 
     ## The following functions are to access the results of the MAP job

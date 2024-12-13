@@ -23,8 +23,6 @@ from delensalot.core.cg_simple import multigrid
 from delensalot.core.iterator import cs_iterator, cs_iterator_fast
 from delensalot.core.iterator import bfgs
 
-from delensalot.utils import cli
-
 from delensalot.utility.utils_hp import Alm, almxfl
 
 

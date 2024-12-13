@@ -7,29 +7,69 @@ from delensalot.utils import cli
 
 from . import filter
 
+
 class base:
     def __init__(self, field, gradient_desc, filter_desc, **kwargs):
         self.field = field
         self.filter = filter(filter_desc)
-        self.det_fn = gradient_desc['det_fn']
-        self.pri_fn = gradient_desc['pri_fn']
-        self.quad_fn = gradient_desc['quad_fn']
+        self.det_fns = gradient_desc['det_fn']
+        self.pri_fns = gradient_desc['pri_fn']
+        self.quad_fns = gradient_desc['quad_fn']
         self.increment_fns = gradient_desc['increment_fns']
+        self.chh = gradient_desc['chh']
+
+        self.inner = gradient_desc['inner']
+        self.ID = gradient_desc['id']
+
+        self.inner = gradient_desc['inner']
+
         self.cacher = cachers.cacher_npy(gradient_desc['id'])
 
 
-    def load_gradient(self, it):
+    def calc_gradient(self, ncomponents, curr_iter):
+        self.calc_gradient_prior(ncomponents, curr_iter)
+        self.calc_gradient_quad(ncomponents, curr_iter)
+        self.calc_gradient_meanfield(ncomponents, curr_iter)
+
+
+    def calc_gradient_quad(self, curr_iter):
+        XWF = self.filter.get_XWF(curr_iter)
+        ivf = self.filter.get_ivf(curr_iter, XWF)
+        
+        qlms = 0
+        for n in [0,1,2]:
+            qlms += ivf*self.inner(XWF)
+
+
+    def calc_gradient_meanfield(self, curr_iter):
+        return self.cacher.load(self.det_fns.format(it=curr_iter))
+
+
+    def calc_gradient_prior(self, curr_iter):
+        for field in self.fields:
+            for component in field.components:
+                ret = self.field.get_klm(curr_iter, component)
+        almxfl(ret, cli(self.chh), self.mmax_qlm, True)
+        return ret
+
+
+    def update_field(self, field):
+        self.filter.update_field(field)
+        self.inner.update_field(field)
+
+
+    def load_gradient(self, curr_iter):
         """Loads the total gradient at iteration iter.
         All necessary alm's must have been calculated previously
         Compared to formalism of the papers, this returns -g_LM^{tot}
         """
-        if it == 0:
+        if curr_iter == 0:
             for component in self.field.components:
-                g  = self.load_grad_prior(it)
-                g += self.load_grad_det(it)
-                g += self.load_grad_quad(it)
+                g  = self.load_grad_prior(curr_iter)
+                g += self.load_grad_det(curr_iter)
+                g += self.load_grad_quad(curr_iter)
             return g
-        return self._build(it)
+        return self._build(curr_iter)
 
 
     def load_det(self, it):
@@ -43,9 +83,8 @@ class base:
         return ret
 
 
-    def load_quad(self, itr, key):
-        fn = '%slm_grad%slik_it%03d' % (self.h, key.lower(), itr)
-        return self.cacher.load(fn)
+    def load_quad(self, it, key):
+        return self.cacher.load(self.quad_fns[key].format(it=it))
 
 
     def _build(self, it):
@@ -53,46 +92,7 @@ class base:
         for i in range(it):
             rlm += self.hess_cacher.load(self.increment_fns(i))
         return rlm
-    
-
-    def calc_gradient_quad(self, field):
-        ivf = self.filter.get_ivf(field)
-        inner = self.gradient.get_inner(field)
-        XWF = self.filter.get_XWF(field)
-        qlms = 0
-        for n in [0,1,2]: # need to sum over spins here
-            qlms += ivf * inner * XWF
-
-
-    def _get_gpmap(self, elm_wf:np.ndarray, spin:int, q_pbgeom:pbdGeometry):
-        """Wiener-filtered gradient leg to feed into the QE
-            :math:`\sum_{lm} (Elm +- iBlm) sqrt(l+2 (l-1)) _1 Ylm(n)
-                                           sqrt(l-2 (l+3)) _3 Ylm(n)`
-
-            Output is list with real and imaginary part of the spin 1 or 3 transforms.
-        """
-        assert elm_wf.ndim == 1
-        assert Alm.getlmax(elm_wf.size, self.mmax_sol) == self.lmax_sol
-        assert spin in [1, 3], spin
-        lmax = Alm.getlmax(elm_wf.size, self.mmax_sol)
-        i1, i2 = (2, -1) if spin == 1 else (-2, 3)
-        fl = np.arange(i1, lmax + i1 + 1, dtype=float) * np.arange(i2, lmax + i2 + 1)
-        fl[:spin] *= 0.
-        fl = np.sqrt(fl)
-        elm = np.atleast_2d(almxfl(elm_wf, fl, self.mmax_sol, False))
-        ffi = self.ffi.change_geom(q_pbgeom.geom) if q_pbgeom is not self.ffi.pbgeom else self.ffi
-        return ffi.gclm2lenmap(elm, self.mmax_sol, spin, False)
-    
-
-    def calc_gradient_meanfield(self):
-        pass
-
-
-    def calc_gradient_prior(self):
-        pass
 
 
     def update_gradient(self):
         pass
-
-
