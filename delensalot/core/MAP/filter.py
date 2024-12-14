@@ -9,6 +9,8 @@ class base:
     def __init__(self, **filter_desc):
         self.ID = filter_desc['ID']
         self.operator = filter_desc['operator']
+        self.ivf_operator = filter_desc['ivf_operator']
+        self.WF_operator = filter_desc['WF_operator']
         self.Ninv = filter_desc['Ninv']
         self.B = filter_desc['B']
 
@@ -24,7 +26,7 @@ class base:
             # CG inversion
             # TODO operators must be passed to the CG solver
             # TODO operator must be updated with current field estimates
-            self.cg.solve(cg_sol_curr, self.data, self.operator.adjoint.act(self.operator.act(self.Ninv))) # build new cg that knows how to apply the operators to obtain the forward operation
+            self.cg.solve(cg_sol_curr, self.data, self.WF_operator) # build new cg that knows how to apply the operators to obtain the forward operation
             self.mchain.solve(cg_sol_curr, self.data, dot_op=self.filter.dot_op())
             self.wf_cacher.cache(self.wf_fns.format(it=it - 1), cg_sol_curr)
 
@@ -33,7 +35,7 @@ class base:
         # resmap_c = np.empty((q_pbgeom.geom.npix(),), dtype=elm_wf.dtype)
         # resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
         # self._get_irespmap(eblm_dat, elm_wf, q_pbgeom, map_out=resmap_r) # inplace onto resmap_c and resmap_r
-        result = self.B.adjoint()*self.Ninv*eblm_dat - self.B * self.operator.act(eblm_wf)
+        return self.B.adjoint()*self.Ninv*eblm_dat - self.B * self.ivf_operator.act(eblm_wf)
 
 
     def _get_cg_startingpoint(self, it):
@@ -44,7 +46,6 @@ class base:
             return self.wflm0(), -1
         return np.zeros((1, Alm.getsize(self.lmax_filt, self.mmax_filt)), dtype=complex).squeeze(), -1
     
-
 
 
     # # This is the actual ivf. Need to replace operations by operator.

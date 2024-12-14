@@ -11,6 +11,7 @@ class lensing:
         self.op2 = operator.lensing(operator_kwargs)
         self.operators = [self.op1, self.op2]
 
+
     def inner_derivative_lensing(self, obj):
         buff = None
         for operator in self.operators:
@@ -60,7 +61,7 @@ class lensingplusbirefringence:
         return -np.imag * obj
     
     
-    def filter_operator(self, obj):
+    def ivf_operator(self, obj):
         buff = None
         for operator in self.operators[1:]:
             buff = operator.act(obj)
@@ -68,12 +69,21 @@ class lensingplusbirefringence:
         return obj
     
 
-    def filter_operator_adjoint(self):
+    def ivf_operator_adjoint(self):
         buff = None
         for operator in self.operators[1:][::-1]:
             buff = operator.act(obj, adjoint=True)
             obj = buff
         return obj
+    
+
+    def WF_operator(self, obj):
+        # self.operator.adjoint.act(self.operator.act(self.Ninv))
+        buff = self.op2.act(obj)
+        buff = self.op3.act(buff)
+        buff = self.op2.adjoint.act(buff)
+        buff = self.op3.adjoint.act(buff)
+        return buff
     
 
     def update_field(self, fields):

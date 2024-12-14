@@ -9,21 +9,18 @@ from . import filter
 
 
 class base:
-    def __init__(self, field, gradient_desc, filter_desc, **kwargs):
+    def __init__(self, gradient_desc, filter_desc, field):
         self.field = field
         self.filter = filter(filter_desc)
-        self.det_fns = gradient_desc['det_fn']
-        self.pri_fns = gradient_desc['pri_fn']
-        self.quad_fns = gradient_desc['quad_fn']
+        self.meanfield_fns = gradient_desc['meanfield_fns']
+        self.pri_fns = gradient_desc['prior_fns']
+        self.quad_fns = gradient_desc['quad_fns']
         self.increment_fns = gradient_desc['increment_fns']
         self.chh = gradient_desc['chh']
-
         self.inner = gradient_desc['inner']
-        self.ID = gradient_desc['id']
+        self.ID = gradient_desc['ID']
 
-        self.inner = gradient_desc['inner']
-
-        self.cacher = cachers.cacher_npy(gradient_desc['id'])
+        self.cacher = cachers.cacher_npy(gradient_desc['ID'])
 
 
     def calc_gradient(self, ncomponents, curr_iter):
@@ -37,12 +34,13 @@ class base:
         ivf = self.filter.get_ivf(curr_iter, XWF)
         
         qlms = 0
+        #FIXME this is not the correct way to get the quad
         for n in [0,1,2]:
             qlms += ivf*self.inner(XWF)
 
 
     def calc_gradient_meanfield(self, curr_iter):
-        return self.cacher.load(self.det_fns.format(it=curr_iter))
+        return self.cacher.load(self.meanfield_fns.format(it=curr_iter))
 
 
     def calc_gradient_prior(self, curr_iter):

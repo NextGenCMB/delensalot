@@ -16,16 +16,89 @@ class base:
         self.field = field
 
 
-class joint(base):
-    def __init__(self, **operators):
-        super().__init__(**operators)
-        self.operators = operators
+class multiply(base):
+    def __init__(self, factor):
+        super().__init__(factor)
+        self.factor = factor
+    
+
+    def act(self, obj, adjoint=False):
+        if adjoint:
+            return np.adj(self.factor)*obj
+        else:
+            return self.factor*obj
+    
+
+    def adjoint(self, obj):
+        return self.act(obj, adjoint=True)
+
+
+class joint_operator(base):
+    def __init__(self, **operator_desc):
+        super().__init__(**operator_desc)
+        self.operators = operator_desc['operators']
+    
+
+    def act(self, obj, adjoint=False):
+        for operator in self.operators:
+            buff = operator.act(obj)
+            obj = buff
+        return obj
+    
+
+    def adjoint(self, obj):
+        for operator in self.operators[::-1]:
+            buff = operator.adjoint.act(obj)
+            obj = buff
+        return obj
+
+
+class ivf_operator(base):
+    def __init__(self, **operator_desc):
+        super().__init__(**operator_desc)
+        self.operators = operator_desc['operators']
     
 
     def act(self, obj):
         for operator in self.operators:
             buff = operator.act(obj)
             obj = buff
+        return obj
+    
+
+    def adjoint(self, obj):
+        for operator in self.operators[::-1]:
+            buff = operator.adjoint.act(obj)
+            obj = buff
+        return obj
+    
+
+class WF_operator(base):
+    def __init__(self, **operator_desc):
+        super().__init__(**operator_desc)
+        self.operators = operator_desc['operators']
+    
+
+    def act(self, obj):
+        buff = None
+        for operator in self.operators[::-1]:
+            buff = operator.act(obj)
+            obj = buff
+        for operator in self.operators:
+            buff = operator.adjoint(obj)
+            obj = buff
+        return obj
+    
+
+    def adjoint(self, obj):
+        buff = None
+        for operator in self.operators:
+            buff = operator.adjoint.act(obj)
+            obj = buff
+        for operator in self.operators[::-1]:
+            buff = operator.act(obj)
+            obj = buff
+        return obj
 
 
 class lensing(base):
@@ -40,6 +113,10 @@ class lensing(base):
         almxfl(gc[1], fl, mmax_qlm, True)
 
 
+    def adjoint(self, obj):
+        return self.act(obj, adjoint=True)
+
+
 class birefringence(base):
     def __init__(self, **operator_desc):
         super().__init__(**operator_desc)
@@ -50,6 +127,10 @@ class birefringence(base):
         if adjoint:
             return np.exp(np.imag*self.field)*obj
         return np.exp(-np.imag*self.field)*obj
+    
+    
+    def adjoint(self, obj):
+        return self.act(obj, adjoint=True)
 
 
 class spin_raise(base):
@@ -81,7 +162,8 @@ class spin_raise(base):
         lmax_qlm, mmax_qlm = self.ffi.lmax_dlm, self.ffi.mmax_dlm
         gc_r = gc_c.view(rtype[gc_c.dtype]).reshape((gc_c.size, 2)).T  # real view onto complex array
         return gc_r
-    
+
+
     def adjoint(self, obj):
         assert 0, "implement if needed"
         return self.act(obj, adjoint=True)

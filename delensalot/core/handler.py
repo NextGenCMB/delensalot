@@ -39,9 +39,7 @@ from delensalot.core.opfilt import utils_cinv_p as cinv_p_OBD
 from delensalot.core.opfilt.opfilt_handler import QE_transformer, MAP_transformer
 from delensalot.core.opfilt.bmodes_ninv import template_dense, template_bfilt
 
-from delensalot.delensalot.core.MAP import covariance_operators
-
-
+from . import field
 from delensalot.core.MAP import operator
 from delensalot.core.MAP import handler as MAP_handler
 
@@ -1196,49 +1194,84 @@ class MAP_lr(Basejob):
 
 class MAP_lr_operator:
     def __init__(self, kwargs):
-        self.jobs = []
-        lensing_operator = None
-        birefringence_operator = None
-        
-        # This depends on what is in the data
-        if kwargs['build'] == 'lensingplusbirefringence':
-            lensing_operator = operator.lensing(kwargs['lensing_operator'])
-            birefringence_operator = operator.birefringence(kwargs['birefringence_operator'])
-            from delensalot.delensalot.core.MAP.covariance_operators import lensingplusbirefringence as recipe
-            r = recipe(lensing_operator, birefringence_operator)
-        if kwargs['build'] == 'lensing':
-            lensing_operator = operator.lensing(kwargs['lensing_operator'])
-            from delensalot.delensalot.core.MAP.covariance_operators import lensing as recipe
-            r = recipe(lensing_operator)
-        if kwargs['build'] == 'birefringence':
-            birefringence_operator = operator.birefringence(kwargs['birefringence_operator'])
-            from delensalot.delensalot.core.MAP.covariance_operators import birefringence as recipe
-            r = recipe(birefringence_operator)
 
-        gradient_descs = []
-        gradient_desc = {"ID": "lensing",
-                         "inner": lambda obj: r.inner_derivative_lensing(obj),
-                         }
-        gradient_descs.append(gradient_desc)
+        # input: all kwargs needed to build the MAP handler
 
-        gradient_desc = {"ID": "birefringence",
-                         "inner": lambda obj: r.inner_derivative_birefringence(obj),
-                         }
-        gradient_descs.append(gradient_desc)
+        fields_descs = {
+            'deflection': {
+                'value': np.array([1.0,1.0,1.0]),
+                'lm_max': 1000,
+                'components': 2,
+                'f0s': {"alpha": np.array([1.0,1.0,1.0]), "omega": np.array([1.0,1.0,1.0])},
+                'klm_fns': {"alpha": None, "omega": None},
+            },
+            'beta': {
+                'value': np.array([1.0,1.0,1.0]),
+                'lm_max': 1000,
+                'components': 2,
+                'f0s': {"alpha": np.array([1.0,1.0,1.0]), "omega": np.array([1.0,1.0,1.0])},
+                'klm_fns': {"alpha": None, "omega": None},
+            },
+        }
+        fields = [field(field_desc) for field_desc in fields_descs]
 
-        beam = kwargs['beam']
-        Ninv = kwargs['Ninv']
-        filter_desc = {"ID": "polarization",
-                       'operator': lambda obj: r.filter_operator(obj),
-                       'beam': beam,
-                       'Ninv': Ninv,
-                       }
+        kwargs['lensing_operator'] = {
+            'lmax': None,
+            'f0': fields_descs['deflection']['f0s'],
+        }
+        kwargs['birefringence_operator'] = {
+            'lmax': None,
+            'f0': fields_descs['beta']['f0s'],
+        }
+        kwargs['spin_raise'] = {
+            'lmax': None,
+        }
+        kwargs['multiply'] = -np.img
+        kwargs['beam'] = gauss_beam()
+        kwargs['Ninv'] = None
 
         curvature_desc = {}
-        desc = {}
-        
+        desc = {"itmax": 10,}
+
+        self.jobs = []
+        filter_operators = []
+        gradients_operators = {}
+        # This depends on what is in the data
+        if kwargs['build'] == 'lensingplusbirefringence':
+            filter_operators.append(operator.lensing(kwargs['lensing_operator']))
+            filter_operators.append(operator.birefringence(kwargs['birefringence_operator']))
+            gradients_operators['lensing'] = operator.joint([*filter_operators, operator.spin_raise(kwargs['spin_raise'])])
+            gradients_operators['birefringence'] = operator.joint([filter_operators, operator.multiply(kwargs['multiply'])])
+        if kwargs['build'] == 'lensing':
+            filter_operators.append(operator.lensing(kwargs['lensing_operator']))
+            gradients_operators['lensing'] = operator.joint([*filter_operators, operator.spin_raise(kwargs['spin_raise'])])    
+        if kwargs['build'] == 'birefringence':
+            filter_operators.append(operator.birefringence(kwargs['birefringence_operator']))
+            gradients_operators['birefringence'] = operator.joint([*filter_operators, operator.multiply(kwargs['multiply'])])
+
+        ivf_operator = operator.ivf_operator(filter_operators)
+        WF_operator = operator.WF_operator(filter_operators)
+
+        gradient_descs = []
+        for gradient_name, gradient_operator in gradients_operators.items():
+            gradient_desc = {"ID": gradient_name,
+                             "inner": gradient_operator,
+                             "quad_fns": None,
+                             "prior_fns": None,
+                             "increment_fns": None,
+                             "chh": None,
+                             }
+            gradient_descs.append(gradient_desc)
+
+        filter_desc = {"ID": "polarization",
+                       'ivf_operator': ivf_operator,
+                       'WF_operator': WF_operator,
+                       'beam': kwargs['beam'],
+                       'Ninv': kwargs['Ninv'],
+                       }
+
         # I want to have a MAP handler for each simidx as they have nothing to do with each other
-        self.MAP_search = [MAP_handler(filter_desc, gradient_descs, curvature_desc, desc, simidx) for simidx in self.simidxs]
+        self.MAP_search = [MAP_handler(fields, gradient_descs, filter_desc, curvature_desc, desc, simidx) for simidx in self.simidxs]
 
 
     def collect_jobs(self):
@@ -1262,7 +1295,6 @@ class MAP_lr_operator:
             if task == 'calc_phi':
                 for simidx in self.jobs[taski][mpi.rank::mpi.size]:
                     self.MAP_search[simidx].run()
-
 
 
     ## The following functions are to access the results of the MAP job
@@ -1455,8 +1487,6 @@ class Phi_analyser(Basejob):
         else:
             self.WFemps = np.load(opj(self.custom_WF_TEMP,'WFemp_%s_simall%s_itall%s_avg.npy')%(self.k, len(self.simidxs), len(self.its))) if self.custom_WF_TEMP else [None for n in np.arange(len(self.its))]
         self.tasks = ['calc_WFemp', 'calc_crosscorr', 'calc_reconbias', 'calc_crosscorrcoeff']
-        
-
         
         if not(os.path.isdir(self.libdir_phianalayser)):
             os.makedirs(self.libdir_phianalayser)
@@ -1700,9 +1730,6 @@ class Phi_analyser(Basejob):
             np.save(fn%(self.k, len(self.simidxs), len(self.its)), np.mean(WFemps, axis=0))
         return np.load(fn%(self.k, len(self.simidxs), len(self.its)))
         
-
-
-
 
 class overwrite_anafast():
     """Convenience class for overwriting method name

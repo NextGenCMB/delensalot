@@ -1,14 +1,13 @@
 import numpy as np
 
-from . import field
 from . import gradient
 from . import curvature
 
 class base:
-    def __init__(self, model, fields_desc, gradient_descs, curvature_desc, desc, simidx):
-        self.fields = field(fields_desc)
+    def __init__(self, fields, filter_desc, gradient_descs, curvature_desc, desc, simidx):
+        self.fields = fields
         # NOTE gradient and curvature share the field increments, so naming must be consistent. Can use the gradient_descs['inc_fn'] for this
-        self.gradients = [gradient(gradient_desc, field) for gradient_desc, field in zip(gradient_descs, self.fields)]
+        self.gradients = [gradient(gradient_desc, filter_desc, fields) for gradient_desc in gradient_descs]
         self.curvature = curvature(curvature_desc, self.gradients)
         self.itmax = desc.get('itmax')
         self.simidx = simidx
@@ -37,6 +36,7 @@ class base:
     
 
     def update_operators(self, fields):
+        # For each operator that is dependent on a field, we need to update the field
         for gradient in self.gradients:
             gradient.update_field(fields)
         for curvature in self.curvature:
