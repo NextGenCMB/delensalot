@@ -12,7 +12,8 @@ class base:
         self.ivf_operator = filter_desc['ivf_operator']
         self.WF_operator = filter_desc['WF_operator']
         self.Ninv = filter_desc['Ninv']
-        self.B = filter_desc['B']
+        self.beam = filter_desc['beam']
+        self.wflm_fns = filter_desc['wflm_fns']
 
 
     def update_field(self, field):

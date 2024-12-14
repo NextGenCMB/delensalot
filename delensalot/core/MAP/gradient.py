@@ -10,15 +10,17 @@ from . import filter
 
 class base:
     def __init__(self, gradient_desc, filter_desc, field):
+        self.ID = gradient_desc['ID']
         self.field = field
         self.filter = filter(filter_desc)
-        self.meanfield_fns = gradient_desc['meanfield_fns']
+        self.meanfield_fns = gradient_desc['mf_fns']
         self.pri_fns = gradient_desc['prior_fns']
         self.quad_fns = gradient_desc['quad_fns']
-        self.increment_fns = gradient_desc['increment_fns']
+        self.gradient_increment_fns = gradient_desc['gradient_increment_fns']
+        self.field_increment_fns = gradient_desc['field_increment_fns']
         self.chh = gradient_desc['chh']
         self.inner = gradient_desc['inner']
-        self.ID = gradient_desc['ID']
+        
 
         self.cacher = cachers.cacher_npy(gradient_desc['ID'])
 
@@ -57,10 +59,6 @@ class base:
 
 
     def load_gradient(self, curr_iter):
-        """Loads the total gradient at iteration iter.
-        All necessary alm's must have been calculated previously
-        Compared to formalism of the papers, this returns -g_LM^{tot}
-        """
         if curr_iter == 0:
             for component in self.field.components:
                 g  = self.load_grad_prior(curr_iter)
@@ -75,7 +73,6 @@ class base:
 
 
     def load_prior(self, it):
-        """Compared to formalism of the papers, this returns -g_LM^{PR}"""
         ret = self.field.get_klm(it)
         almxfl(ret, cli(self.chh), self.mmax_qlm, True)
         return ret

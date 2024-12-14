@@ -1,5 +1,7 @@
 import numpy as np
 
+from lenspyx.remapping.deflection_028 import rtype, ctype
+
 from delensalot.utils import cli
 from delensalot.utility.utils_hp import Alm, almxfl
 
@@ -104,13 +106,17 @@ class WF_operator(base):
 class lensing(base):
     def __init__(self, **operator_desc):
         super().__init__(**operator_desc)
+        self.q_pbgeom = operator_desc['q_pbgeom']
+        self.ffi = operator_desc['ffi']
     
 
-    def act(self, obj, adjoint=False):
-        gc = q_pbgeom.geom.adjoint_synthesis(obj, 1, lmax_qlm, mmax_qlm, self.ffi.sht_tr)
-        fl = - np.sqrt(np.arange(lmax_qlm + 1, dtype=float) * np.arange(1, lmax_qlm + 2))
-        almxfl(gc[0], fl, mmax_qlm, True)
-        almxfl(gc[1], fl, mmax_qlm, True)
+    def act(self, obj, lm_max_qlm, adjoint=False):
+        assert adjoint == False, "adjoint not implemented"
+        gc = self.q_pbgeom.geom.adjoint_synthesis(obj, 1, lm_max_qlm[0], lm_max_qlm[1], self.ffi.sht_tr)
+        fl = -np.sqrt(np.arange(lm_max_qlm[0] + 1, dtype=float) * np.arange(1, lm_max_qlm[0] + 2))
+        almxfl(gc[0], fl, lm_max_qlm[1], True)
+        almxfl(gc[1], fl, lm_max_qlm[1], True)
+        return gc
 
 
     def adjoint(self, obj):
@@ -136,12 +142,13 @@ class birefringence(base):
 class spin_raise(base):
     def __init__(self, **operator_desc):
         super().__init__(**operator_desc)
-    
+        self.q_pbgeom = operator_desc['q_pbgeom']
+
 
     def act(self, elm_wf, adjoint=False):
         assert adjoint == False, "adjoint not implemented"
 
-        def _get_gpmap(self, elm_wf:np.ndarray, spin:int, q_pbgeom:pbdGeometry):
+        def _get_gpmap(self, elm_wf:np.ndarray, spin:int, q_pbgeom):
             """Wiener-filtered gradient leg to feed into the QE
             """
             assert spin in [1, 3], spin
@@ -154,13 +161,13 @@ class spin_raise(base):
             ffi = self.ffi.change_geom(q_pbgeom.geom) if q_pbgeom is not self.ffi.pbgeom else self.ffi
             return ffi.gclm2lenmap(elm, self.mmax_sol, spin, False)
 
-        gcs_r = _get_gpmap(elm_wf, 3, q_pbgeom)  # 2 pos.space maps, uses then complex view onto real array
+        gcs_r = _get_gpmap(elm_wf, 3, self.q_pbgeom)  # 2 pos.space maps, uses then complex view onto real array
         gc_c = resmap_c.conj() * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3)
-        gcs_r = _get_gpmap(elm_wf, 1, q_pbgeom)
+        gcs_r = _get_gpmap(elm_wf, 1, self.q_pbgeom)
         gc_c -= resmap_c * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze().conj()  # (+2 , -1)
         del resmap_c, resmap_r, gcs_r
         lmax_qlm, mmax_qlm = self.ffi.lmax_dlm, self.ffi.mmax_dlm
-        gc_r = gc_c.view(rtype[gc_c.dtype]).reshape((gc_c.size, 2)).T  # real view onto complex array
+        gc_r = gc_c.view(self.rtype[gc_c.dtype]).reshape((gc_c.size, 2)).T  # real view onto complex array
         return gc_r
 
 
@@ -174,6 +181,7 @@ class beam(base):
         super().__init__(**operator_desc)
         self.beamwidth = operator_desc['beamwidth']
         self.mmax = operator_desc['mmax']
+        self.beam = operator_desc['beam']
 
 
     def act(self, obj, adjoint=False):

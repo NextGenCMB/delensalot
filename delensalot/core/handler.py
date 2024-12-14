@@ -1193,85 +1193,11 @@ class MAP_lr(Basejob):
 
 
 class MAP_lr_operator:
-    def __init__(self, kwargs):
+    def __init__(self, delensalot_model):
 
-        # input: all kwargs needed to build the MAP handler
-
-        fields_descs = {
-            'deflection': {
-                'value': np.array([1.0,1.0,1.0]),
-                'lm_max': 1000,
-                'components': 2,
-                'f0s': {"alpha": np.array([1.0,1.0,1.0]), "omega": np.array([1.0,1.0,1.0])},
-                'klm_fns': {"alpha": None, "omega": None},
-            },
-            'beta': {
-                'value': np.array([1.0,1.0,1.0]),
-                'lm_max': 1000,
-                'components': 2,
-                'f0s': {"alpha": np.array([1.0,1.0,1.0]), "omega": np.array([1.0,1.0,1.0])},
-                'klm_fns': {"alpha": None, "omega": None},
-            },
-        }
-        fields = [field(field_desc) for field_desc in fields_descs]
-
-        kwargs['lensing_operator'] = {
-            'lmax': None,
-            'f0': fields_descs['deflection']['f0s'],
-        }
-        kwargs['birefringence_operator'] = {
-            'lmax': None,
-            'f0': fields_descs['beta']['f0s'],
-        }
-        kwargs['spin_raise'] = {
-            'lmax': None,
-        }
-        kwargs['multiply'] = -np.img
-        kwargs['beam'] = gauss_beam()
-        kwargs['Ninv'] = None
-
-        curvature_desc = {}
-        desc = {"itmax": 10,}
-
-        self.jobs = []
-        filter_operators = []
-        gradients_operators = {}
-        # This depends on what is in the data
-        if kwargs['build'] == 'lensingplusbirefringence':
-            filter_operators.append(operator.lensing(kwargs['lensing_operator']))
-            filter_operators.append(operator.birefringence(kwargs['birefringence_operator']))
-            gradients_operators['lensing'] = operator.joint([*filter_operators, operator.spin_raise(kwargs['spin_raise'])])
-            gradients_operators['birefringence'] = operator.joint([filter_operators, operator.multiply(kwargs['multiply'])])
-        if kwargs['build'] == 'lensing':
-            filter_operators.append(operator.lensing(kwargs['lensing_operator']))
-            gradients_operators['lensing'] = operator.joint([*filter_operators, operator.spin_raise(kwargs['spin_raise'])])    
-        if kwargs['build'] == 'birefringence':
-            filter_operators.append(operator.birefringence(kwargs['birefringence_operator']))
-            gradients_operators['birefringence'] = operator.joint([*filter_operators, operator.multiply(kwargs['multiply'])])
-
-        ivf_operator = operator.ivf_operator(filter_operators)
-        WF_operator = operator.WF_operator(filter_operators)
-
-        gradient_descs = []
-        for gradient_name, gradient_operator in gradients_operators.items():
-            gradient_desc = {"ID": gradient_name,
-                             "inner": gradient_operator,
-                             "quad_fns": None,
-                             "prior_fns": None,
-                             "increment_fns": None,
-                             "chh": None,
-                             }
-            gradient_descs.append(gradient_desc)
-
-        filter_desc = {"ID": "polarization",
-                       'ivf_operator': ivf_operator,
-                       'WF_operator': WF_operator,
-                       'beam': kwargs['beam'],
-                       'Ninv': kwargs['Ninv'],
-                       }
-
+        delensalot_model
         # I want to have a MAP handler for each simidx as they have nothing to do with each other
-        self.MAP_search = [MAP_handler(fields, gradient_descs, filter_desc, curvature_desc, desc, simidx) for simidx in self.simidxs]
+        self.MAP_search = [MAP_handler(delensalot_model.fields, delensalot_model.gradient_descs, delensalot_model.filter_desc, delensalot_model.curvature_desc, delensalot_model.desc, simidx) for simidx in self.simidxs]
 
 
     def collect_jobs(self):
