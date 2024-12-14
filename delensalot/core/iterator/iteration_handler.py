@@ -66,10 +66,12 @@ class base_iterator():
 
         self.mf0 = self.qe.get_meanfield(self.simidx) if self.QE_subtract_meanfield else np.zeros(shape=hp.Alm.getsize(self.lm_max_qlm[0]))
         self.mf0_rescaled = almxfl(self.mf0, _p2k(self.lm_max_qlm[0]), self.lm_max_qlm[1], False)
+        print(self.mf0)
+        print(self.mf0_rescaled)
         
         plm0 = self.qe.get_plm(self.simidx, self.QE_subtract_meanfield)
         self.klm0 = almxfl(plm0, _p2k(self.lm_max_qlm[0]), self.lm_max_qlm[1], False)
-        self.it_chain_descr = self.iterator_config.it_chain_descr(self.iterator_config.lm_max_unl[0], self.iterator_config.it_cg_tol)
+        self.it_chain_descr = self.iterator_config.it_chain_descr(self.iterator_config.lm_max_unl[0], self.iterator_config.it_cg_tol(1))
 
         opfilt = sys.modules[self.filter.__module__]
         self.mchain = multigrid.multigrid_chain(opfilt, self.it_chain_descr, self.cls_unl, self.filter)
@@ -123,7 +125,7 @@ class iterator_transformer(base_iterator):
                 'lib_dir': self.libdir_iterator,
                 'lm_max_qlm': cf.lm_max_qlm,
                 'klm0': self.klm0,
-                'mf0': self.mf0,
+                'mf0': self.mf0_rescaled,
                 'mchain': self.mchain,
                 'ckk_prior': self.ckk_prior,
                 'wflm0': self.wflm0,

@@ -48,13 +48,10 @@ def prt_time(dt, label=''):
     log.info("\r [" + ('%02d:%02d:%02d' % (dh, dm, ds)) + "] " + label)
     return
 
-def _p2k(h, lmax):
-    if h == 'k':
+def _p2k(lmax):
         return 0.5 * np.arange(lmax + 1, dtype=float) * np.arange(1, lmax + 2, dtype=float)
-    else:
-        assert 0, h + ' not implemented'
 
-def _k2p(h, lmax): return cli(_p2k(h, lmax))
+def _k2p(lmax): return cli(_p2k(lmax))
 
 
 class qlm_iterator(object):
@@ -576,7 +573,8 @@ class goclm_iterator(object):
 
     def calc_grad_tot(self, it, goc):
         glm  = self.calc_grad_quad(it, goc)
-        glm += self.calc_grad_det(it)
+        print(glm)
+        glm += self.calc_grad_det()
         glm += self.load_grad_prior(it - 1)
         almxfl(glm, self.ckk_prior > 0, self.lm_max_qlm[1], True)
         return glm
@@ -612,7 +610,6 @@ class goclm_iterator(object):
             return np.zeros((1, Alm.getsize(self.lmax_filt, self.mmax_filt)), dtype=complex).squeeze(), -1
         
         cg_sol_curr, cg_it_curr = get_cg_startingpoint(it)
-        print(cg_sol_curr)
         if cg_it_curr < it - 1:
             # CG inversion
             self.mchain.solve(cg_sol_curr, self.data, dot_op=self.filter.dot_op())

@@ -29,7 +29,7 @@ class multigrid_chain:
         self.opfilt = opfilt
         self.chain_descr = chain_descr
         
-        self.dot_op = n_inv_filt.dot_op
+        # self.dot_op = n_inv_filt.dot_op
 
         self.s_cls = s_cls
         self.n_inv_filt = n_inv_filt
@@ -60,7 +60,6 @@ class multigrid_chain:
         self.prev_eps = None
         if dot_op is None:
             dot_op = self.dot_op()
-        print(self.dot_op())
         logger = (lambda iter, eps, stage=self.bstage, **kwargs:
                   self.log(stage, iter, eps, **kwargs))
 
