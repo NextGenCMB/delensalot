@@ -537,7 +537,7 @@ class goclm_iterator(object):
 
         self.gradquad_fns = 'gradquad_klm_{goc}_it{it}'.format(goc=goc, it="{it}")
         self.klm_fns = 'klm_{goc}_it{it}'.format(goc=goc, it="{it}")
-        self.glminc_fns = 'glminc_{goc}_it{it}'.format(goc=goc, it="{it}")
+        self.gradlminc_fns = 'glminc_{goc}_it{it}'.format(goc=goc, it="{it}")
         self.klminc_fns = 'klminc_{goc}_it{it}'.format(goc=goc, it="{it}")
         self.wf_fns = 'wflm_{goc}_it{it}'.format(goc=goc, it="{it}")
         self.sk_fns = lambda it: 'rlm_sn_k_it{it}'
@@ -588,9 +588,9 @@ class goclm_iterator(object):
         """
         # Gradient increment - we want it as a new starting point for the next iteration
         _it = it - 2
-        if _it >= 0 and not self.hess_cacher.is_cached(self.glminc_fns.format(it=_it)):
+        if _it >= 0 and not self.hess_cacher.is_cached(self.gradlminc_fns.format(it=_it)):
             yk = glm - self.load_gradtot(_it)
-            self.hess_cacher.cache(self.glminc_fns.format(it=_it), yk)
+            self.hess_cacher.cache(self.gradlminc_fns.format(it=_it), yk)
 
         _it = it - 1
         # Phi increment
@@ -680,7 +680,7 @@ class goclm_iterator(object):
         for i in range(it):
             rlm += self.hess_cacher.load(self.sk_fns(i))
         return rlm
-        
+
 
 class gclm_iterator(object):
     def __init__(self, data, filter, mchain, wflm0s, flm0s, h0s, mf0s, priors, lib_dir, lm_max_qlm, fkeys):
@@ -801,6 +801,171 @@ class gclm_iterator(object):
     def get_ffi(self):
         pass
 
+
+class gocblm_iterator(object):
+    """
+    This uses h=k, as k might behaving better numerically than p or d.
+    This is a general iterator for the lensing potential. It is a subclass of qlm_iterator, and is used to iterate over the lensing potential in the form of alm's.
+    """
+    def __init__(self, data, filter, mchain, wflm0, klm0, mf0, ckk_prior, stepper, lib_dir, lm_max_qlm, BFGS_lib, goc):
+        # goc can be g or c, for gradient or curl potential
+
+        self.data = data
+        self.lib_dir = lib_dir
+        self.mchain = mchain
+        self.filter = filter
+        self.wflm0 = wflm0
+        self.BFGS_H = BFGS_lib 
+        self.ckk_prior = ckk_prior
+        self.stepper = stepper
+
+        self.gradquad_fns = 'gradquad_klm_{goc}_it{it}'.format(goc=goc, it="{it}")
+        self.klm_fns = 'klm_{goc}_it{it}'.format(goc=goc, it="{it}")
+        self.gradlminc_fns = 'glminc_{goc}_it{it}'.format(goc=goc, it="{it}")
+        self.klminc_fns = 'klminc_{goc}_it{it}'.format(goc=goc, it="{it}")
+        self.wf_fns = 'wflm_{goc}_it{it}'.format(goc=goc, it="{it}")
+        self.sk_fns = lambda it: 'rlm_sn_k_it{it}'
+
+        self.cacher = cachers.cacher_npy(lib_dir)
+        self.hess_cacher = cachers.cacher_npy(opj(self.lib_dir, 'hessian'))
+        self.wf_cacher = cachers.cacher_npy(opj(self.lib_dir, 'Ewflm'))
+        self.blt_cacher = cachers.cacher_npy(opj(self.lib_dir, 'BLT/'))
+
+        self.cacher.cache('mf', mf0)
+        if not self.cacher.is_cached(self.klm_fns.format(it=0)):
+            self.cacher.cache(self.klm_fns.format(it=0), read_map(klm0))
+
+        self.lm_max_qlm = lm_max_qlm
+
+
+    @log_on_start(logging.DEBUG, "iterate(it={it}) started")
+    @log_on_end(logging.DEBUG, "iterate(it={it})  finished")
+    def iterate(self, it, goc):
+        if not self.is_iter_done(it):
+            assert self.is_iter_done(it - 1), 'previous iteration not done'
+
+            # Some preprocessing, grab previous iteration dlm, and update filter
+            self.klm_curr = self.get_klm(it - 1)
+            geom_lib = self.filter.ffi.change_dlm([self.klm2dlm(self.klm_curr, True), None], self.lm_max_qlm[1], cachers.cacher_mem(safe=False))
+            self.filter.set_ffi(geom_lib)
+            self.mchain.update_filter(self.filter)
+
+            gradlm = []
+            for fieldi, field in enumerate(self.fields):
+                gradlm.append(self.calc_grad_tot(it, goc, field))
+                self.BFGS_H.update_vectors(it-1, goc, field) 
+            self.calc_increments(it, np.array(gradlm), field)
+
+
+    def calc_grad_tot(self, it, goc, field):
+        gradlm  = self.calc_grad_quad(it, goc, field)
+        gradlm += self.calc_grad_det(it, field)
+        gradlm += self.load_grad_prior(it - 1, field)
+        almxfl(gradlm, self.ckk_prior[field] > 0, self.lm_max_qlm[1], True)
+        return gradlm
+    
+
+    def calc_increments(self, it, gradlm, field):
+        """We build increments for,
+            1. the posterior-gradient
+            2. the hessian
+            3. the phi/curl potential
+        """
+        # Gradient increment - we want it as a new starting point for the next iteration
+        _it = it - 2
+        if _it >= 0 and not self.hess_cacher.is_cached(self.gradlminc_fns.format(it=_it)):
+            yk = gradlm - np.array([self.load_gradtot(_it, field) for field in self.fields])
+            self.hess_cacher.cache(self.gradlminc_fns.format(it=_it), yk)
+
+        _it = it - 1
+        # Phi increment
+        if not self.hess_cacher.is_cached(self.klminc_fns.format(it=_it)):
+            incr = self.BFGS_H.get_mHkgk(gradlm, _it)
+            incr = self.stepper.build_incr(incr, it)
+            self.hess_cacher.cache(self.klminc_fns.format(it=_it), incr)
+
+
+    def calc_grad_quad(self, it, goc):
+        def get_cg_startingpoint(self, it):
+            for _it in np.arange(it - 1, -1, -1):
+                if self.wf_cacher.is_cached(self.wf_fns.format(it=_it)):
+                    return self.wf_cacher.load(self.wf_fns.format(it=_it)), _it
+            if callable(self.wflm0):
+                return self.wflm0(), -1
+            return np.zeros((1, Alm.getsize(self.lmax_filt, self.mmax_filt)), dtype=complex).squeeze(), -1
+        
+        cg_sol_curr, cg_it_curr = get_cg_startingpoint(it)
+        if cg_it_curr < it - 1:
+            # CG inversion
+            self.mchain.solve(cg_sol_curr, self.data, dot_op=self.filter.dot_op())
+            self.wf_cacher.cache(self.wf_fns.format(it=it - 1), cg_sol_curr)
+
+            # qlm calculation
+            q_geom = pbdGeometry(self.filter.ffi.geom, pbounds(0., 2 * np.pi))
+            G, C = self.filter.get_qlms(self.data, cg_sol_curr, q_geom)
+            almxfl(G if goc.lower() == 'g' else C, _p2k(self.lm_max_qlm[0]), self.lm_max_qlm[1], True)
+
+            if it == 1:
+                self.cacher.cache(self.fn_gradquad0, -G if goc.lower() == 'g' else -C)
+            return -G if goc.lower() == 'g' else -C
+
+
+    def calc_grad_det(self):
+        return self.cacher.load('mf')
+    
+
+    def load_gradtot(self, it, goc, field):
+        """Loads the total gradient at iteration iter.
+                All necessary alm's must have been calculated previously
+                Compared to formalism of the papers, this returns -g_LM^{tot}
+        """
+        if it == 0:
+            g  = self.load_grad_prior(0)
+            g += self.load_grad_det(0)
+            g += self.load_grad_quad(0)
+            return g
+        return self._yk2grad(it)
+    
+
+    def load_grad_prior(self, it):
+        """Compared to formalism of the papers, this returns -g_LM^{PR}"""
+        return almxfl([self.get_klm(it, field) for field in self.fields], np.array([cli(self.ckk_prior[field]) for field in self.fields]).flatten(), len(self.fields)*self.lm_max_qlm[1], False)
+
+
+    def load_grad_quad(self, it):
+        return self.cacher.load(self.gradquad_fns.format(it=it))
+
+    
+    def load_grad_det(self):
+        return self.cacher.load('mf')
+    
+
+    def is_iter_done(self, it):
+        """Returns True if the iteration 'it' has been performed already and False if not
+        """
+        if it <= 0:
+            return self.cacher.is_cached(self.klm_fns.format(it=0))
+        return self.hess_cacher.is_cached(self.sk_fns(it - 1))
+    
+
+    def get_klm(self, it, field):
+        """Loads current estimates """
+        if it < 0:
+            return np.zeros(Alm.getsize(*self.lm_max_qlm), dtype=complex) 
+        return self.cacher.load(self.klm_fns[field].format(it=it)) if self.cacher.is_cached(self.klm_fns[field].format(it=it)) else self.sk2klm(it, field)
+
+
+    def klm2dlm(self, klm, inplace):
+        k2d = cli(0.5 * np.sqrt(np.arange(self.lm_max_qlm[0] + 1, dtype=float) * np.arange(1, self.lm_max_qlm[0] + 2, dtype=float)))
+        return almxfl(klm, k2d, self.lm_max_qlm[1], inplace)
+        
+
+    def sk2klm(self, it, field):
+        rlm = self.cacher.load(self.klm_fns[field].format(it=0))
+        for i in range(it):
+            rlm += self.hess_cacher.load(self.sk_fns[field](i))
+        return rlm
+        
 
 class iterator_cstmf(qlm_iterator):
     """Constant mean-field

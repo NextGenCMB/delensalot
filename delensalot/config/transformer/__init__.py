@@ -2,7 +2,7 @@ from delensalot.config.visitor import transform, transform3d
 from delensalot.core.iterator.iteration_handler import iterator_transformer
 from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALOT_Model_mm, DLENSALOT_Concept
 from delensalot.config.transformer.lerepi2dlensalot import l2delensalotjob_Transformer 
-from delensalot.core.handler import OBD_builder, Sim_generator, QE_lr, MAP_lr, Map_delenser
+from delensalot.core.handler import OBD_builder, Sim_generator, QE_lr, MAP_lr, MAP_lr_operator, Map_delenser
 from delensalot.core.opfilt.opfilt_handler import QE_transformer, MAP_transformer, QE_iso_transformer, QE_aniso_transformer, MAP_iso_transformer, MAP_aniso_transformer
 
 @transform3d.case(DLENSALOT_Model_mm, str, l2delensalotjob_Transformer)
@@ -15,6 +15,8 @@ def f1(expr, job_id, transformer): # pylint: disable=missing-function-docstring
         return transformer.build_QE_lensrec(expr)
     if "MAP_lensrec" == job_id:
         return transformer.build_MAP_lensrec(expr)
+    if "MAP_lensrec_operator" == job_id:
+        return transformer.build_MAP_lensrec_operator(expr)
     if "delens" == job_id:
         return transformer.build_delenser(expr)
     if "analyse_phi" == job_id:
@@ -33,6 +35,8 @@ def f1(expr, job_id, transformer): # pylint: disable=missing-function-docstring
         return transformer.build_QE_lensrec(expr)
     if "MAP_lensrec" == job_id:
         return transformer.build_MAP_lensrec(expr)
+    if "MAP_lensrec_operator" == job_id:
+        return transformer.build_MAP_lensrec_operator(expr)
     if "delens" == job_id:
         return transformer.build_delenser(expr)
     if "analyse_phi" == job_id:
@@ -166,3 +170,8 @@ def f1(expr, transformer): # pylint: disable=missing-function-docstring
         return transformer.build_glm_constmf_iterator(expr)
     elif expr.iterator_typ in ['constmf_gc']:
         return transformer.build_gclm_constmf_iterator(expr)
+    
+
+@transform.case(MAP_lr_operator, iterator_transformer)
+def f1(expr, transformer):
+    return transformer.build_operator_iterator(expr)

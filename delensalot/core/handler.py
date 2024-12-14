@@ -39,6 +39,10 @@ from delensalot.core.opfilt import utils_cinv_p as cinv_p_OBD
 from delensalot.core.opfilt.opfilt_handler import QE_transformer, MAP_transformer
 from delensalot.core.opfilt.bmodes_ninv import template_dense, template_bfilt
 
+from . import field
+from delensalot.core.MAP import operator
+from delensalot.core.MAP import handler as MAP_handler
+
 def get_dirname(s):
     return s.replace('(', '').replace(')', '').replace('{', '').replace('}', '').replace(' ', '').replace('\'', '').replace('\"', '').replace(':', '_').replace(',', '_').replace('[', '').replace(']', '')
 
@@ -1188,6 +1192,58 @@ class MAP_lr(Basejob):
         return filter
 
 
+class MAP_lr_operator:
+    def __init__(self, delensalot_model):
+
+        delensalot_model
+        # I want to have a MAP handler for each simidx as they have nothing to do with each other
+        self.MAP_search = [MAP_handler(delensalot_model.fields, delensalot_model.gradient_descs, delensalot_model.filter_desc, delensalot_model.curvature_desc, delensalot_model.desc, simidx) for simidx in self.simidxs]
+
+
+    def collect_jobs(self):
+        jobs = list(range(len(self.it_tasks)))
+        for taski, task in enumerate(self.it_tasks):
+            _jobs = []
+            if task == 'calc_phi':
+                for simidx in self.simidxs:
+                    # TODO check for each simidx, if it is already done, and if not, add it to the job list
+                    if self.MAP_search[simidx].maxiterdone() < self.MAP_search[simidx].itmax:
+                        _jobs.append(simidx)
+                jobs[taski] = _jobs
+        self.jobs = jobs
+
+        return jobs
+
+
+    def run(self):
+        for taski, task in enumerate(self.it_tasks):
+            log.info('{}, task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
+            if task == 'calc_phi':
+                for simidx in self.jobs[taski][mpi.rank::mpi.size]:
+                    self.MAP_search[simidx].run()
+
+
+    ## The following functions are to access the results of the MAP job
+    def get_meanfield(self):
+        pass
+
+
+    def get_blt(self):
+        pass
+
+
+    def get_plm(self):
+        pass
+
+
+    def get_wf(self):
+        pass
+
+
+    def get_ivf(self):
+        pass
+
+
 class Map_delenser(Basejob):
     """Map delenser Job for calculating delensed ILC and Blens spectra using precaulculated Btemplates as input.
     This is a combination of,
@@ -1357,8 +1413,6 @@ class Phi_analyser(Basejob):
         else:
             self.WFemps = np.load(opj(self.custom_WF_TEMP,'WFemp_%s_simall%s_itall%s_avg.npy')%(self.k, len(self.simidxs), len(self.its))) if self.custom_WF_TEMP else [None for n in np.arange(len(self.its))]
         self.tasks = ['calc_WFemp', 'calc_crosscorr', 'calc_reconbias', 'calc_crosscorrcoeff']
-        
-
         
         if not(os.path.isdir(self.libdir_phianalayser)):
             os.makedirs(self.libdir_phianalayser)
@@ -1602,9 +1656,6 @@ class Phi_analyser(Basejob):
             np.save(fn%(self.k, len(self.simidxs), len(self.its)), np.mean(WFemps, axis=0))
         return np.load(fn%(self.k, len(self.simidxs), len(self.its)))
         
-
-
-
 
 class overwrite_anafast():
     """Convenience class for overwriting method name

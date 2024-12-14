@@ -300,6 +300,13 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     soltn_cond =            attr.field(default=DEFAULT_NotAValue, validator=itrec.soltn_cond)
     stepper =               attr.field(default=DLENSALOT_Stepper(), validator=itrec.stepper)
     epsilon =               attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
+    fields =                attr.field(default=DEFAULT_NotAValue, validator=data.epsilon) # This and the next ones are the new variables for the MAP_lensrec_operator
+    gradient_descs =        attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
+    filter_desc =           attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
+    curvature_desc =        attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
+    desc =                  attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
+    build =                 attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
+
     
 @attr.s
 class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
