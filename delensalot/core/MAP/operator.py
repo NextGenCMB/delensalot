@@ -193,3 +193,7 @@ class beam(base):
     def adjoint(self, obj):
         return self.act(obj, adjoint=True)
     
+
+    def __mul__(self, obj, other):
+        return self.act(obj)
+    
