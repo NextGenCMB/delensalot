@@ -17,9 +17,10 @@ from delensalot.utility.utils_hp import Alm, almxfl, alm_copy, gauss_beam
 
 class base:
     def __init__(self, kwargs):
-        self.field = kwargs['field']
+        self.qfields = kwargs['qfields']
+        self.kfields = kwargs['kfields']
         self.simidx = kwargs['simidx']
-        self.estimator_key = kwargs['estimator_key']
+        self.estimator_keys = kwargs['estimator_keys']
         self.qe_filter_directional = kwargs['qe_filter_directional']
         self.libdir_QE = kwargs['libdir_QE']
         self.simulationdata = kwargs['simulationdata']
@@ -64,53 +65,56 @@ class base:
             self.filter = self.get_filter()
 
 
-    def get_sim_qlm(self, simidx):
+    def set_filter_lib(self, filter):
+        self.ivf = filter
 
+    def set_qlms_lib(self, qlms_dd):
+        self.qlms_dd = qlms_dd
+
+
+    def get_sim_qlm(self, simidx):
         return self.qlms_dd.get_sim_qlm(self.estimator_key, int(simidx))
 
 
     def get_wflm(self, simidx):
         if self.estimator_key in ['ptt']:
-            return lambda: alm_copy(self.ivfs.get_sim_tmliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
+            return lambda: alm_copy(self.ivf.get_sim_tmliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
         elif self.estimator_key in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
-            return lambda: alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
+            return lambda: alm_copy(self.ivf.get_sim_emliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
         elif self.estimator_key in ['p']:
-            return lambda: np.array([alm_copy(self.ivfs.get_sim_tmliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1]), alm_copy(self.ivfs.get_sim_emliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])])
+            return lambda: np.array([alm_copy(self.ivf.get_sim_tmliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1]), alm_copy(self.ivf.get_sim_emliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])])
 
   
-    def get_R_unl(self):
-        return qresp.get_response(self.estimator_key, self.lm_max_ivf[0], self.estimator_key[0], self.cls_unl, self.cls_unl, self.fteb_unl, lmax_qlm=self.lm_max_qlm[0])[0]
+    def get_R_unl(self, estimator_key):
+        return qresp.get_response(estimator_key, self.lm_max_ivf[0], estimator_key[0], self.cls_unl, self.cls_unl, self.fteb_unl, lmax_qlm=self.lm_max_qlm[0])[0]
 
 
-    def get_meanfield(self, simidx):
-        ret = np.zeros_like(self.qlms_dd.get_sim_qlm(self.estimator_key, simidx))
-        fn_mf = opj(self.libdir_QE, 'mf_allsims.npy')
-        if self.Nmf > 1:
-            # MC MF, and exclude the current simidx
-            ret = self.qlms_dd.get_sim_qlm_mf(self.estimator_key, [int(simidx_mf) for simidx_mf in self.simidxs_mf])
-            np.save(fn_mf, ret) # plancklens already stores that in qlms_dd/ but I want to have this more conveniently without the naming gibberish
-            if simidx in self.simidxs_mf:    
-                ret = (ret - self.qlms_dd.get_sim_qlm(self.estimator_key, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
-        return ret
+    def get_klm(self, simidx):
+        for field in self.fields:
+            field.get_klm(simidx)
 
 
-    def get_plm(self, simidx, component='alpha', sub_mf=True):
-        libdir_MAPidx = self.libdir_MAP(self.estimator_key, simidx, self.version)
-        fn_plm = opj(libdir_MAPidx, 'phi_plm_it000.npy') # Note: careful, this one doesn't have a simidx, so make sure it ends up in a simidx_directory (like MAP)
-        if not os.path.exists(fn_plm):
-            plm  = self.qlms_dd.get_sim_qlm(self.estimator_key, int(simidx))  #Unormalized quadratic estimate:
+    def estimate_fields(self):
+        for qfield in self.qfields:
+            if qfield.value is None:
+                qlm = self.qlms_dd.get_sim_qlm(self.estimator_keys[qfield.ID], self.simidx)  #Unormalized quadratic estimate
+                qfield.update_klm(qlm)
+        return self.qfields
+
+
+    def calc_fields_normalized(self, sub_mf =True):
+        self.estimate_fields(self)
+        for qfield, kfield in zip(self.qfields, self.kfields):
             if sub_mf and self.version != 'noMF':
-                plm -= self.mf(int(simidx))  # MF-subtracted unnormalized QE
-            R = qresp.get_response(self.estimator_key, self.lm_max_ivf[0], self.estimator_key[0], self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=self.lm_max_qlm[0])[0]
-            # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
-            WF = self.cpp * pl_utils.cli(self.cpp + pl_utils.cli(R))
-            plm = alm_copy(plm, None, self.lm_max_qlm[0], self.lm_max_qlm[1])
-            almxfl(plm, pl_utils.cli(R), self.lm_max_qlm[1], True) # Normalized QE
-            almxfl(plm, WF, self.lm_max_qlm[1], True) # Wiener-filter QE
-            almxfl(plm, self.cpp > 0, self.lm_max_qlm[1], True)
-            np.save(fn_plm, plm)
-
-        return np.load(fn_plm)
+                kfield.value = self.mf(qfield.id, self.simidx)  # MF-subtracted unnormalized QE
+            R = qresp.get_response(self.estimator_keys[qfield.ID], self.lm_max_ivf[0], self.estimator_keys[qfield.ID], self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=self.lm_max_qlm[0])[0]
+            WF = kfield.CLfid * pl_utils.cli(kfield.CLfid + pl_utils.cli(R))  # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
+            kfield.value = alm_copy(kfield.value, None, self.lm_max_qlm[0], self.lm_max_qlm[1])
+            almxfl(kfield.value, pl_utils.cli(R), self.lm_max_qlm[1], True) # Normalized QE
+            almxfl(kfield.value, WF, self.lm_max_qlm[1], True) # Wiener-filter QE
+            almxfl(kfield.value, kfield.CLfid > 0, self.lm_max_qlm[1], True)
+            self.kfield.update_klm(kfield.value)
+        return self.kfields
 
 
     def get_response_meanfield(self):
@@ -160,19 +164,12 @@ class base:
                 self.blt_cacher.cache(fn_blt, blm)
 
             return blm
-        
         fn_blt = opj(self.libdir_QE, 'BLT/blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.estimator_key, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
         if not os.path.exists(fn_blt):
             blt = get_template_blm(0, 0, lmaxb=self.lm_max_blt[0], lmin_plm=self.Lmin, perturbative=self.blt_pert)
             np.save(fn_blt, blt)
 
         return np.load(fn_blt)
-
-
-    def get_filter(self): 
-        QE_filters = transform(self, QE_transformer())
-        filter = transform(self, QE_filters())
-        return filter
     
 
     def get_field(self, fieldname, simidx):
@@ -183,16 +180,25 @@ class base:
             self.get_olm(simidx)
 
 
-    def get_meanfield_field(self, fieldname, estimator_key):
+    def get_qmeanfield(self, fieldname, estimator_key, component=None):
+        if component is None:
+            return [self.get_meanfield(fieldname, estimator_key, component) for component in self.components]
         if fieldname == 'deflection':
             mf_sims = np.unique(np.array([]) if not 'noMF' in self.version else np.array([]))
-            mf0_p = self.qlms_dd.get_sim_qlm_mf('p' + estimator_key[1:], mf_sims)  # Mean-field to subtract on the first iteration:
-            mf0_o = self.qlms_dd.get_sim_qlm_mf('x' + estimator_key[1:], mf_sims)  # Mean-field to subtract on the first iteration:
-            return mf0_p, mf0_o
+            qmf = self.qlms_dd.get_sim_qlm_mf(component + estimator_key[1:], mf_sims)  # Mean-field to subtract on the first iteration:
+            return qmf
         elif fieldname == 'birefringence':
-            return  self.qlms_dd.get_sim_qlm_mf('a' + estimator_key[1:], mf_sims)  # Mean-field to subtract on the first iteration:
+            return self.qlms_dd.get_sim_qlm_mf(component + estimator_key[1:], mf_sims)  # Mean-field to subtract on the first iteration:
 
-        # for field in self.fields:
-            # return field
-        # return self.field.get_component(simidx)
+
+    def get_kmeanfield(self):
+        ret = np.zeros_like(self.qlms_dd.get_sim_qlm(self.estimator_key, self.simidx))
+        fn_mf = opj(self.libdir_QE, 'mf_allsims.npy')
+        if self.Nmf > 1:
+            # MC MF, and exclude the current simidx
+            ret = self.qlms_dd.get_sim_qlm_mf(self.estimator_key, [int(simidx_mf) for simidx_mf in self.simidxs_mf])
+            np.save(fn_mf, ret) # plancklens already stores that in qlms_dd/ but I want to have this more conveniently without the naming gibberish
+            if self.simidx in self.simidxs_mf:    
+                ret = (ret - self.qlms_dd.get_sim_qlm(self.estimator_key, int(self.simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
+        return ret
     

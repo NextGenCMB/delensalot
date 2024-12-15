@@ -616,29 +616,22 @@ class QE_lr_operator(Basejob):
         self.simgen = Sim_generator(delensalot_model)
         self.QE_model = self.delensalot_model
         self.QE_model.simulationdata = self.simgen.simulationdata
-        self.QE_search = [QE_handler(delensalot_model.fields, delensalot_model.filter_desc, simidx) for simidx in self.simidxs]
+        self.QE_searchs = [[QE_handler(field, delensalot_model.filter_desc, simidx) for simidx in self.simidxs] for field in delensalot_model.fields]
 
 
-    # @base_exception_handler
-    @log_on_start(logging.DEBUG, "QE.collect_jobs(recalc={recalc}) started")
-    @log_on_end(logging.DEBUG, "QE.collect_jobs(recalc={recalc}) finished: jobs={self.jobs}")
     def collect_jobs(self, recalc=False):
-
         # qe_tasks overwrites task-list and is needed if MAP lensrec calls QE lensrec
         jobs = list(range(len(self.qe_tasks)))
         for taski, task in enumerate(self.qe_tasks):
-            ## task_dependence
-            ## calc_mf -> calc_phi, calc_blt -> calc_phi, (calc_mf)
             _jobs = []
-
-            ## Calculate realization dependent phi, i.e. plm_it000.
-            if task == 'calc_phi':
-                ## this filename must match plancklens filename
-                fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, pl_utils.mchash(self.simidxs_mf)))
-                ## Skip if meanfield already calculated
-                if not os.path.isfile(fn_mf) or recalc:
+            if task == 'estimate_fields':
+                fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, pl_utils.mchash(self.simidxs_mf))) ## this filename must match plancklens filename
+                if not os.path.isfile(fn_mf) or recalc: ## Skip if meanfield already calculated
                     for simidx in np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))), dtype=int):
                         fn_qlm = opj(opj(self.libdir_QE, 'qlms_dd'), 'sim_%s_%04d.fits'%(self.k, simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
+                        for QE_search in self.QE_searchs:
+                            if not os.path.isfile(QE_search[simidx].field.fns[0]) or recalc:
+                                _jobs.append(simidx)
                         if not os.path.isfile(fn_qlm) or recalc:
                             _jobs.append(simidx)
 
@@ -650,7 +643,6 @@ class QE_lr_operator(Basejob):
                         if not os.path.isfile(fn_qlm) or recalc:
                             _jobs.append(int(simidx))
 
-            ## Calculate B-lensing template
             if task == 'calc_blt':
                 for simidx in self.simidxs:
                     ## this filename must match the one created in get_template_blm()
@@ -664,9 +656,6 @@ class QE_lr_operator(Basejob):
         return jobs
 
 
-    # @base_exception_handler
-    @log_on_start(logging.DEBUG, "QE.run(task={task}) started")
-    @log_on_end(logging.DEBUG, "QE.run(task={task}) finished")
     def run(self, task=None):
         if True: # 'triggers calc_cinv'
             if self.qe_filter_directional == 'anisotropic':
@@ -683,9 +672,9 @@ class QE_lr_operator(Basejob):
         _tasks = self.qe_tasks if task is None else [task]
         for taski, task in enumerate(_tasks):
             log.info('{}, task {} started'.format(mpi.rank, task))
-            if task == 'calc_phi':
+            if task == 'estimate_fields':
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
-                    self.qlms_dd.get_sim_qlm(self.k, int(idx))
+                    self.QE_search.estimate_fields(self.k, int(idx))
                     if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
                         self.simulationdata.purgecache()
                 mpi.barrier()
@@ -707,8 +696,6 @@ class QE_lr_operator(Basejob):
 
             if task == 'calc_blt':
                 for simidx in self.jobs[taski][mpi.rank::mpi.size]:
-                    # ## Faking here MAP filters
-                    self.itlib_iterator = transform(self.MAP_job, iterator_transformer(self.MAP_job, simidx, self.dlensalot_model))
                     self.get_blt(simidx)
                     if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
                         self.simulationdata.purgecache()
@@ -716,36 +703,38 @@ class QE_lr_operator(Basejob):
 
     def _init_filter(self):
         if self.qe_filter_directional == 'isotropic':
-            self.ivfs = filt_simple.library_fullsky_sepTP(opj(self.libdir_QE, 'ivfs'), self.simulationdata, self.nivjob_geominfo[1]['nside'], self.ttebl, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
+            self.ivf = filt_simple.library_fullsky_sepTP(opj(self.libdir_QE, 'ivf'), self.simulationdata, self.nivjob_geominfo[1]['nside'], self.ttebl, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
             if self.estimator_type == 'sepTP':
-                self.qlms_dd = qest.library_sepTP(opj(self.libdir_QE, 'qlms_dd'), self.ivfs, self.ivfs, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
+                self.qlms_dd = qest.library_sepTP(opj(self.libdir_QE, 'qlms_dd'), self.ivf, self.ivf, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
         elif self.qe_filter_directional == 'anisotropic':
             ## Wait for finished run(), as plancklens triggers cinv_calc...
-            if len(self.collect_jobs()[0]) == 0:
-                self.cinv_t = filt_cinv.cinv_t(opj(self.libdir_QE, 'cinv_t'),
-                        self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
-                        self.ttebl['t'], self.nivt_desc,
-                        marge_monopole=True, marge_dipole=True, marge_maps=[])
+            self.cinv_t = filt_cinv.cinv_t(opj(self.libdir_QE, 'cinv_t'),
+                    self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
+                    self.ttebl['t'], self.nivt_desc,
+                    marge_monopole=True, marge_dipole=True, marge_maps=[])
 
-                # FIXME is this right? what if analysis includes pixelwindow function?
-                transf_elm_loc = gauss_beam(self.beam / 180 / 60 * np.pi, lmax=self.lm_max_ivf[0])
-                if self.OBD == 'OBD':
-                    nivjob_geomlib_ = get_geom(self.nivjob_geominfo)
-                    self.cinv_p = cinv_p_OBD.cinv_p(opj(self.libdir_QE, 'cinv_p'),
-                        self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
-                        transf_elm_loc[:self.lm_max_ivf[0]+1], self.nivp_desc, geom=nivjob_geomlib_, #self.nivjob_geomlib,
-                        chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol), bmarg_lmax=self.lmin_teb[2],
-                        zbounds=(-1,1), _bmarg_lib_dir=self.obd_libdir, _bmarg_rescal=self.obd_rescale,
-                        sht_threads=self.sht_threads)
-                else:
-                    self.cinv_p = filt_cinv.cinv_p(opj(self.TEMP, 'cinv_p'),
-                        self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
-                        self.ttebl['e'], self.nivp_desc, chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol),
-                        transf_blm=self.ttebl['b'], marge_qmaps=(), marge_umaps=())
-                _filter_raw = filt_cinv.library_cinv_sepTP(opj(self.libdir_QE, 'ivfs'), self.simulationdata, self.cinv_t, self.cinv_p, self.cls_len)
-                _ftebl_rs = lambda x: np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[x])
-                self.ivfs = filt_util.library_ftl(_filter_raw, self.lm_max_qlm[0], _ftebl_rs(0), _ftebl_rs(1), _ftebl_rs(2))
-                self.qlms_dd = qest.library_sepTP(opj(self.libdir_QE, 'qlms_dd'), self.ivfs, self.ivfs, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
+            # FIXME is this right? what if analysis includes pixelwindow function?
+            transf_elm_loc = gauss_beam(self.beam / 180 / 60 * np.pi, lmax=self.lm_max_ivf[0])
+            if self.OBD == 'OBD':
+                nivjob_geomlib_ = get_geom(self.nivjob_geominfo)
+                self.cinv_p = cinv_p_OBD.cinv_p(opj(self.libdir_QE, 'cinv_p'),
+                    self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
+                    transf_elm_loc[:self.lm_max_ivf[0]+1], self.nivp_desc, geom=nivjob_geomlib_, #self.nivjob_geomlib,
+                    chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol), bmarg_lmax=self.lmin_teb[2],
+                    zbounds=(-1,1), _bmarg_lib_dir=self.obd_libdir, _bmarg_rescal=self.obd_rescale,
+                    sht_threads=self.sht_threads)
+            else:
+                self.cinv_p = filt_cinv.cinv_p(opj(self.TEMP, 'cinv_p'),
+                    self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
+                    self.ttebl['e'], self.nivp_desc, chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol),
+                    transf_blm=self.ttebl['b'], marge_qmaps=(), marge_umaps=())
+            _filter_raw = filt_cinv.library_cinv_sepTP(opj(self.libdir_QE, 'ivf'), self.simulationdata, self.cinv_t, self.cinv_p, self.cls_len)
+            _ftebl_rs = lambda x: np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[x])
+            self.ivf = filt_util.library_ftl(_filter_raw, self.lm_max_qlm[0], _ftebl_rs(0), _ftebl_rs(1), _ftebl_rs(2))
+            self.qlms_dd = qest.library_sepTP(opj(self.libdir_QE, 'qlms_dd'), self.ivf, self.ivf, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
+        
+        [self.QE_search.set_qlms_lib(self.qlms_dd) for self.QE_search in self.QE_search]
+        [self.QE_search.set_filter_lib(self.ivf) for self.QE_search in self.QE_search]
 
 
     ## The following functions are to access the results of the QE jobs
