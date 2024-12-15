@@ -76,7 +76,7 @@ class l2base_Transformer:
         dl.simidxs_mf = np.array(an.simidxs_mf) if dl.version != 'noMF' else np.array([])
         dl.Nmf = 0 if dl.version == 'noMF' else len(dl.simidxs_mf) # FIXME dont make intermediate parameters depend on each other...
         if cf.itrec.mfvar.startswith('/'):
-            dl.Nmf = 10000 #give this a big number.. the actual number doesnt matter, as long as it is bigger than 1
+            dl.Nmf = 10000 # The actual number doesnt matter, as long as it is bigger than 1
         
         
         dl.TEMP_suffix = an.TEMP_suffix
@@ -801,15 +801,15 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             _process_components(dl)
 
             # input: all kwargs needed to build the MAP handler
-            fields_descs = {
-                'deflection': {
+            fields_descs = {{
+                    "ID": 'deflection',
                     'lm_max': dl.lm_max_qlm,
                     'components': 2,
                     'f0s': {"alpha": np.array([1.0,1.0,1.0]), "omega": np.array([1.0,1.0,1.0])}, # This is the QE starting point, can only be initialized either when QE is done, or I point to a file
                     'klm_fns': {"alpha": 'klm_alpha_it{it}', "omega": 'klm_omega_it{it}'}, # This could be hardcoded, but I want to keep it flexible
                 },
-                'birefringence': {
-                    'lm_max': dl.lm_max_betalm,
+                {   "ID": 'birefringence',
+                    'lm_max': dl.lm_max_qlm,
                     'components': 1,
                     'f0s': {"beta": np.array([1.0,1.0,1.0])},  # This is the QE starting point, can only be initialized either when QE is done, or I point to a file
                     'klm_fns': {"beta": 'klm_beta_it{it}'}, # This could be hardcoded, but I want to keep it flexible

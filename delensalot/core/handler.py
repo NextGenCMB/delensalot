@@ -39,8 +39,7 @@ from delensalot.core.opfilt import utils_cinv_p as cinv_p_OBD
 from delensalot.core.opfilt.opfilt_handler import QE_transformer, MAP_transformer
 from delensalot.core.opfilt.bmodes_ninv import template_dense, template_bfilt
 
-from . import field
-from delensalot.core.MAP import operator
+from delensalot.core.QE import handler as QE_handler
 from delensalot.core.MAP import handler as MAP_handler
 
 def get_dirname(s):
@@ -603,7 +602,173 @@ class Noise_modeller(Basejob):
         ## MAP ##
             # cs_iterator
         
-    
+
+class QE_lr_operator(Basejob):
+    """Quadratic estimate lensing reconstruction Job. Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.
+    """
+    @check_MPI
+    def __init__(self, delensalot_model, caller=None):
+        super().__init__(delensalot_model)
+        # TODO add self. from Basejob to model
+
+        # I want to have a QE handler for each simidx as they have nothing to do with each other
+        self.delensalot_model = delensalot_model
+        self.simgen = Sim_generator(delensalot_model)
+        self.QE_model = self.delensalot_model
+        self.QE_model.simulationdata = self.simgen.simulationdata
+        self.QE_search = [QE_handler(delensalot_model.fields, delensalot_model.filter_desc, simidx) for simidx in self.simidxs]
+
+
+    # @base_exception_handler
+    @log_on_start(logging.DEBUG, "QE.collect_jobs(recalc={recalc}) started")
+    @log_on_end(logging.DEBUG, "QE.collect_jobs(recalc={recalc}) finished: jobs={self.jobs}")
+    def collect_jobs(self, recalc=False):
+
+        # qe_tasks overwrites task-list and is needed if MAP lensrec calls QE lensrec
+        jobs = list(range(len(self.qe_tasks)))
+        for taski, task in enumerate(self.qe_tasks):
+            ## task_dependence
+            ## calc_mf -> calc_phi, calc_blt -> calc_phi, (calc_mf)
+            _jobs = []
+
+            ## Calculate realization dependent phi, i.e. plm_it000.
+            if task == 'calc_phi':
+                ## this filename must match plancklens filename
+                fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, pl_utils.mchash(self.simidxs_mf)))
+                ## Skip if meanfield already calculated
+                if not os.path.isfile(fn_mf) or recalc:
+                    for simidx in np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))), dtype=int):
+                        fn_qlm = opj(opj(self.libdir_QE, 'qlms_dd'), 'sim_%s_%04d.fits'%(self.k, simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
+                        if not os.path.isfile(fn_qlm) or recalc:
+                            _jobs.append(simidx)
+
+            if task == 'calc_meanfield':
+                fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, pl_utils.mchash(self.simidxs_mf)))
+                if not os.path.isfile(fn_mf) or recalc:
+                    for simidx in self.simidxs_mf:
+                        fn_qlm = opj(opj(self.libdir_QE, 'qlms_dd'), 'sim_%s_%04d.fits'%(self.k, simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
+                        if not os.path.isfile(fn_qlm) or recalc:
+                            _jobs.append(int(simidx))
+
+            ## Calculate B-lensing template
+            if task == 'calc_blt':
+                for simidx in self.simidxs:
+                    ## this filename must match the one created in get_template_blm()
+                    fn_blt = opj(self.libdir_blt(simidx), 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
+                    if not os.path.isfile(fn_blt) or recalc:
+                        _jobs.append(simidx)
+
+            jobs[taski] = _jobs
+        self.jobs = jobs
+
+        return jobs
+
+
+    # @base_exception_handler
+    @log_on_start(logging.DEBUG, "QE.run(task={task}) started")
+    @log_on_end(logging.DEBUG, "QE.run(task={task}) finished")
+    def run(self, task=None):
+        if True: # 'triggers calc_cinv'
+            if self.qe_filter_directional == 'anisotropic':
+                first_rank = mpi.bcast(mpi.rank)
+                if first_rank == mpi.rank:
+                    mpi.disable()
+                    self._init_filter()
+                    mpi.enable()
+                    [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
+                else:
+                    mpi.receive(None, source=mpi.ANY_SOURCE)
+                self._init_filter()
+                        
+        _tasks = self.qe_tasks if task is None else [task]
+        for taski, task in enumerate(_tasks):
+            log.info('{}, task {} started'.format(mpi.rank, task))
+            if task == 'calc_phi':
+                for idx in self.jobs[taski][mpi.rank::mpi.size]:
+                    self.qlms_dd.get_sim_qlm(self.k, int(idx))
+                    if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
+                        self.simulationdata.purgecache()
+                mpi.barrier()
+                for idx in self.jobs[taski][mpi.rank::mpi.size]:
+                    ## If meanfield subtraction is done, only one task must calculate the meanfield first before get_plm() is called, otherwise read-errors because all tasks try calculating/accessing it at once.
+                    ## The way I fix this (the next two lines) is a bit unclean.
+                    if self.QE_subtract_meanfield:
+                        self.qlms_dd.get_sim_qlm_mf(self.k, [int(simidx_mf) for simidx_mf in self.simidxs_mf])
+                    self.get_plm(idx, self.QE_subtract_meanfield)
+                    if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
+                        self.simulationdata.purgecache()
+
+            if task == 'calc_meanfield':
+                if len(self.jobs[taski])>0:
+                    mpi.barrier()
+                    if mpi.rank == 0:
+                        self.get_meanfield(int(idx))
+                    mpi.barrier()
+
+            if task == 'calc_blt':
+                for simidx in self.jobs[taski][mpi.rank::mpi.size]:
+                    # ## Faking here MAP filters
+                    self.itlib_iterator = transform(self.MAP_job, iterator_transformer(self.MAP_job, simidx, self.dlensalot_model))
+                    self.get_blt(simidx)
+                    if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
+                        self.simulationdata.purgecache()
+
+
+    def _init_filter(self):
+        if self.qe_filter_directional == 'isotropic':
+            self.ivfs = filt_simple.library_fullsky_sepTP(opj(self.libdir_QE, 'ivfs'), self.simulationdata, self.nivjob_geominfo[1]['nside'], self.ttebl, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
+            if self.estimator_type == 'sepTP':
+                self.qlms_dd = qest.library_sepTP(opj(self.libdir_QE, 'qlms_dd'), self.ivfs, self.ivfs, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
+        elif self.qe_filter_directional == 'anisotropic':
+            ## Wait for finished run(), as plancklens triggers cinv_calc...
+            if len(self.collect_jobs()[0]) == 0:
+                self.cinv_t = filt_cinv.cinv_t(opj(self.libdir_QE, 'cinv_t'),
+                        self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
+                        self.ttebl['t'], self.nivt_desc,
+                        marge_monopole=True, marge_dipole=True, marge_maps=[])
+
+                # FIXME is this right? what if analysis includes pixelwindow function?
+                transf_elm_loc = gauss_beam(self.beam / 180 / 60 * np.pi, lmax=self.lm_max_ivf[0])
+                if self.OBD == 'OBD':
+                    nivjob_geomlib_ = get_geom(self.nivjob_geominfo)
+                    self.cinv_p = cinv_p_OBD.cinv_p(opj(self.libdir_QE, 'cinv_p'),
+                        self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
+                        transf_elm_loc[:self.lm_max_ivf[0]+1], self.nivp_desc, geom=nivjob_geomlib_, #self.nivjob_geomlib,
+                        chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol), bmarg_lmax=self.lmin_teb[2],
+                        zbounds=(-1,1), _bmarg_lib_dir=self.obd_libdir, _bmarg_rescal=self.obd_rescale,
+                        sht_threads=self.sht_threads)
+                else:
+                    self.cinv_p = filt_cinv.cinv_p(opj(self.TEMP, 'cinv_p'),
+                        self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
+                        self.ttebl['e'], self.nivp_desc, chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol),
+                        transf_blm=self.ttebl['b'], marge_qmaps=(), marge_umaps=())
+                _filter_raw = filt_cinv.library_cinv_sepTP(opj(self.libdir_QE, 'ivfs'), self.simulationdata, self.cinv_t, self.cinv_p, self.cls_len)
+                _ftebl_rs = lambda x: np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[x])
+                self.ivfs = filt_util.library_ftl(_filter_raw, self.lm_max_qlm[0], _ftebl_rs(0), _ftebl_rs(1), _ftebl_rs(2))
+                self.qlms_dd = qest.library_sepTP(opj(self.libdir_QE, 'qlms_dd'), self.ivfs, self.ivfs, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
+
+
+    ## The following functions are to access the results of the QE jobs
+    def get_meanfield(self, simidx, component):
+        for simidx in self.simidxs_mf:
+            self.QE_search[simidx].get_meanfield(simidx, component)
+
+
+    def get_blt(self, simidx):
+        pass
+
+
+    def get_field(self, simidx, component):
+        pass
+
+
+    def get_wf(self, simidx, component):
+        pass
+
+
+    def get_ivf(self, simidx, component):
+        pass
+
 class QE_lr(Basejob):
     """Quadratic estimate lensing reconstruction Job. Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.
     """
@@ -622,6 +787,7 @@ class QE_lr(Basejob):
         self.simgen = Sim_generator(dlensalot_model)
         self.simulationdata = self.simgen.simulationdata
 
+        
         if self.qe_filter_directional == 'isotropic':
             self.ivfs = filt_simple.library_fullsky_sepTP(opj(self.libdir_QE, 'ivfs'), self.simulationdata, self.nivjob_geominfo[1]['nside'], self.ttebl, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
             if self.qlm_type == 'sepTP':
@@ -889,7 +1055,7 @@ class QE_lr(Basejob):
 
     @log_on_start(logging.DEBUG, "QE.get_plm(simidx={simidx}, sub_mf={sub_mf}) started")
     @log_on_end(logging.DEBUG, "QE.get_plm(simidx={simidx}, sub_mf={sub_mf}) finished")
-    def get_plm(self, simidx, sub_mf=True):
+    def get_plm(self, simidx, component='alpha', sub_mf=True):
         libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
         fn_plm = opj(libdir_MAPidx, 'phi_plm_it000.npy') # Note: careful, this one doesn't have a simidx, so make sure it ends up in a simidx_directory (like MAP)
         if not os.path.exists(fn_plm):
@@ -992,6 +1158,28 @@ class QE_lr(Basejob):
         QE_filters = transform(self, QE_transformer())
         filter = transform(self, QE_filters())
         return filter
+    
+
+    def get_field(self, fieldname, simidx):
+        if fieldname == 'deflection':
+            self.get_plm(simidx)
+            self.get_wlm(simidx)
+        elif fieldname == 'birefringence':
+            self.get_olm(simidx)
+
+
+    def get_meanfield_field(self, fieldname, estimator_key):
+        if fieldname == 'deflection':
+            mf_sims = np.unique(np.array([]) if not 'noMF' in self.version else np.array([]))
+            mf0_p = self.qlms_dd.get_sim_qlm_mf('p' + estimator_key[1:], mf_sims)  # Mean-field to subtract on the first iteration:
+            mf0_o = self.qlms_dd.get_sim_qlm_mf('x' + estimator_key[1:], mf_sims)  # Mean-field to subtract on the first iteration:
+            return mf0_p, mf0_o
+        elif fieldname == 'birefringence':
+            return  self.qlms_dd.get_sim_qlm_mf('a' + estimator_key[1:], mf_sims)  # Mean-field to subtract on the first iteration:
+
+        # for field in self.fields:
+            # return field
+        # return self.field.get_component(simidx)
     
 
 class MAP_lr(Basejob):
