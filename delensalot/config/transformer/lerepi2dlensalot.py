@@ -75,7 +75,7 @@ class l2base_Transformer:
         dl.simidxs_mf = np.array(an.simidxs_mf) if dl.version != 'noMF' else np.array([])
         dl.Nmf = 0 if dl.version == 'noMF' else len(dl.simidxs_mf) # FIXME dont make intermediate parameters depend on each other...
         if cf.itrec.mfvar.startswith('/'):
-            dl.Nmf = 10000 #give this a big number.. the actual number doesnt matter, as long as it is bigger than 1
+            dl.Nmf = 10000 # The actual number doesnt matter, as long as it is bigger than 1
         
         
         dl.TEMP_suffix = an.TEMP_suffix
@@ -800,6 +800,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             _process_components(dl)
 
             # input: all kwargs needed to build the MAP handler
+
             fields_descs = [{
                     "ID": 'deflection',
                     'lm_max': dl.lm_max_qlm,
