@@ -28,6 +28,8 @@ from delensalot.utility.utils_hp import Alm, almxfl, alm_copy, gauss_beam, alm2c
 from delensalot.config.visitor import transform, transform3d
 from delensalot.config.metamodel import DEFAULT_NotAValue
 
+from delensalot.core.MAP import field, operator
+
 from delensalot.core import mpi
 from delensalot.core.mpi import check_MPI
 from delensalot.core.ivf import filt_util, filt_cinv, filt_simple
@@ -39,9 +41,7 @@ from delensalot.core.opfilt import utils_cinv_p as cinv_p_OBD
 from delensalot.core.opfilt.opfilt_handler import QE_transformer, MAP_transformer
 from delensalot.core.opfilt.bmodes_ninv import template_dense, template_bfilt
 
-from . import field
-from delensalot.core.MAP import operator
-from delensalot.core.MAP import handler as MAP_handler
+from delensalot.core.MAP import operator, field, handler as MAP_handler
 
 def get_dirname(s):
     return s.replace('(', '').replace(')', '').replace('{', '').replace('}', '').replace(' ', '').replace('\'', '').replace('\"', '').replace(':', '_').replace(',', '_').replace('[', '').replace(']', '')
@@ -1010,7 +1010,6 @@ class MAP_lr(Basejob):
         self.qe = QE_lr(dlensalot_model, caller=self)
         self.qe.simulationdata = self.simgen.simulationdata # just to be sure, so we have a single truth in MAP_lr. 
 
-
         if self.OBD == 'OBD':
             nivjob_geomlib_ = get_geom(self.nivjob_geominfo)
             self.tpl = template_dense(self.lmin_teb[2], nivjob_geomlib_, self.tr, _lib_dir=self.obd_libdir, rescal=self.obd_rescale)
@@ -1195,9 +1194,21 @@ class MAP_lr(Basejob):
 class MAP_lr_operator:
     def __init__(self, delensalot_model):
 
-        delensalot_model
+        self.dm = delensalot_model
+        # FIXME remnant of previous version when jobs were dependent on each other. This can perhaps be simplified now.
+        self.simgen = Sim_generator(self.dm)
+        self.simulationdata = self.simgen.simulationdata
+        self.qe = QE_lr(self.dm, caller=self)
+        self.qe.simulationdata = self.simgen.simulationdata # just to be sure, so we have a single truth in MAP_lr. 
+        
+        # I want QE here to access the starting points for final initialization of the MAP_search object
+        for fieldname, field_desc, in self.dm.fields_descs.items():
+            for ci, component in enumerate(self.field_desc.components):
+                for field in self.qe.get_field(fieldname, component).value # I want all QE resuls to be stored in a qe.fields dictionary
+            fields_descs[fieldname][]['f0s']
+        self.dm.fields =[field.basefield(self.dm) for field_desc in fields_descs]
         # I want to have a MAP handler for each simidx as they have nothing to do with each other
-        self.MAP_search = [MAP_handler(delensalot_model.fields, delensalot_model.gradient_descs, delensalot_model.filter_desc, delensalot_model.curvature_desc, delensalot_model.desc, simidx) for simidx in self.simidxs]
+        self.MAP_search = [MAP_handler(self.dm.fields, self.dm.gradient_descs, self.dm.filter_desc, self.dm.curvature_desc, self.dm.desc, simidx) for simidx in self.simidxs]
 
 
     def collect_jobs(self):

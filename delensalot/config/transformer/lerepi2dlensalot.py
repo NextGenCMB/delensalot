@@ -25,8 +25,7 @@ from lenspyx.lensing import get_geom
 
 from delensalot.sims.sims_lib import Simhandler
 
-from . import field
-from delensalot.core.MAP import operator
+from delensalot.core.MAP import field, operator
 
 from delensalot.utils import cli, camb_clfile, load_file
 from delensalot.utility.utils_hp import gauss_beam
@@ -801,30 +800,29 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             _process_components(dl)
 
             # input: all kwargs needed to build the MAP handler
-            fields_descs = {
-                'deflection': {
+            fields_descs = [{
+                    "ID": 'deflection',
                     'lm_max': dl.lm_max_qlm,
                     'components': 2,
-                    'f0s': {"alpha": np.array([1.0,1.0,1.0]), "omega": np.array([1.0,1.0,1.0])}, # This is the QE starting point, can only be initialized either when QE is done, or I point to a file
+                    'value': {"alpha": np.array([1.0,1.0,1.0]), "omega": np.array([1.0,1.0,1.0])}, # This is the QE starting point, can only be initialized either when QE is done, or I point to a file
                     'klm_fns': {"alpha": 'klm_alpha_it{it}', "omega": 'klm_omega_it{it}'}, # This could be hardcoded, but I want to keep it flexible
-                },
-                'birefringence': {
-                    'lm_max': dl.lm_max_betalm,
+                },{
+                    "ID": 'birefringence',
+                    'lm_max': dl.lm_max_qlm,
                     'components': 1,
-                    'f0s': {"beta": np.array([1.0,1.0,1.0])},  # This is the QE starting point, can only be initialized either when QE is done, or I point to a file
-                    'klm_fns': {"beta": 'klm_beta_it{it}'}, # This could be hardcoded, but I want to keep it flexible
+                    'value': {"beta": np.array([1.0,1.0,1.0])},  # This is the QE starting point, can only be initialized either when QE is done, or I point to a file
+                    "klm_fns": {"beta": 'klm_beta_it{it}'}, # This could be hardcoded, but I want to keep it flexible
                 },
-            }
-            fields = [field(field_desc) for field_desc in fields_descs]
+            ]
 
             kwargs = {}
             kwargs['lensing_operator'] = {
                 'lmax': None,
-                'f0': fields_descs['deflection']['f0s'],
+                'f0': None, #These are the QE results
             }
             kwargs['birefringence_operator'] = {
                 'lmax': None,
-                'f0': fields_descs['beta']['f0s'],
+                'f0': None, #These are the QE results
             }
             kwargs['spin_raise'] = {
                 'lmax': None,
@@ -861,7 +859,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                                 "inner": gradient_operator,
                                 "meanfield_fns": 'mf_glm_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
                                 "quad_fns": 'quad_glm_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
-                                "prior_fns": 'prior_glm_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
+                                "prior_fns": 'klm_{gradient_name}_it0'.format(gradient_name=gradient_name), # prior is just field, and then we do a simple divide by spectrum (almxfl)
                                 "gradient_increment_fns": 'glminc_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
                                 "field_increment_fns": 'klminc_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"), # TODO this might have to move to field
                                 "klm_fns": 'klm_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
@@ -878,7 +876,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                         'WF_fns': 'wflm_it{it}',
 
                         }
-            dl.fields, dl.gradient_descs, dl.filter_desc, dl.curvature_desc, dl.desc = fields, gradient_descs, filter_desc, curvature_desc, desc
+            dl.fields_descs, dl.gradient_descs, dl.filter_desc, dl.curvature_desc, dl.desc = fields_descs, gradient_descs, filter_desc, curvature_desc, desc
             return dl
 
         return MAP_lr_operator(extract())
