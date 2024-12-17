@@ -17,12 +17,11 @@ from delensalot.utility.utils_hp import Alm, almxfl, alm_copy, gauss_beam
 
 class base:
     def __init__(self, kwargs):
-        self.qfields = kwargs['qfields']
-        self.kfields = kwargs['kfields']
-        self.simidx = kwargs['simidx']
-        self.estimator_keys = kwargs['estimator_keys']
+        self.fields = kwargs['QE_fields']
+        self.simidxs = kwargs['simidxs']
+        self.estimator_key = kwargs['estimator_key']
         self.qe_filter_directional = kwargs['qe_filter_directional']
-        self.libdir_QE = kwargs['libdir_QE']
+        self.libdir = kwargs['libdir']
         self.simulationdata = kwargs['simulationdata']
         self.nivjob_geominfo = kwargs['nivjob_geominfo']
         self.ttebl = kwargs['ttebl']
@@ -54,6 +53,7 @@ class base:
         self.chain_descr = kwargs['chain_descr']
         self.nivt_desc = kwargs['nivt_desc']
         self.nivp_desc = kwargs['nivp_desc']
+        self.mf_fn = kwargs['mf_fn']
 
         self.mf = lambda simidx: self.get_meanfield(int(simidx))
         self.plm = lambda simidx: self.get_plm(simidx, self.QE_subtract_meanfield)
@@ -67,6 +67,7 @@ class base:
 
     def set_filter_lib(self, filter):
         self.ivf = filter
+
 
     def set_qlms_lib(self, qlms_dd):
         self.qlms_dd = qlms_dd

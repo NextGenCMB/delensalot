@@ -25,11 +25,11 @@ from lenspyx.lensing import get_geom
 
 from delensalot.sims.sims_lib import Simhandler
 
-from . import field
-from delensalot.core.MAP import operator
-
 from delensalot.utils import cli, camb_clfile, load_file
 from delensalot.utility.utils_hp import gauss_beam
+
+from delensalot.core.QE import field as QE_field
+from delensalot.core.MAP import field as MAP_field, operator
 
 from delensalot.core.iterator import steps
 from delensalot.core.handler import OBD_builder, Sim_generator, QE_lr, MAP_lr, MAP_lr_operator, Map_delenser, Phi_analyser
@@ -634,28 +634,17 @@ class l2delensalotjob_Transformer(l2base_Transformer):
         @log_on_end(logging.DEBUG, "extract() finished")
         def extract():
             def _process_components(dl):
-                @log_on_start(logging.DEBUG, "_process_Meta() started")
-                @log_on_end(logging.DEBUG, "_process_Meta() finished")
                 def _process_Meta(dl, me):
                     dl.dversion = me.version
 
-
-                @log_on_start(logging.DEBUG, "_process_Computing() started")
-                @log_on_end(logging.DEBUG, "_process_Computing() finished")
                 def _process_Computing(dl, co):
                     dl.tr = co.OMP_NUM_THREADS
                     os.environ["OMP_NUM_THREADS"] = str(dl.tr)
 
-
-                @log_on_start(logging.DEBUG, "_process_Analysis() started")
-                @log_on_end(logging.DEBUG, "_process_Analysis() finished")
                 def _process_Analysis(dl, an):
                     dl.nlev = l2OBD_Transformer.get_nlev(cf)
                     l2base_Transformer.process_Analysis(dl, an, cf)
 
-
-                @log_on_start(logging.DEBUG, "_process_Noisemodel() started")
-                @log_on_end(logging.DEBUG, "_process_Noisemodel() finished")
                 def _process_Noisemodel(dl, nm):
                     dl.sky_coverage = nm.sky_coverage
                     dl.nivjob_geomlib = get_geom(nm.geominfo)
@@ -672,25 +661,15 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.OBD = nm.OBD
                     dl.nlev = l2OBD_Transformer.get_nlev(cf)
                     
-
-                @log_on_start(logging.DEBUG, "_process_OBD() started")
-                @log_on_end(logging.DEBUG, "_process_OBD() finished")
                 def _process_OBD(dl, od):
                     dl.obd_libdir = od.libdir
                     dl.obd_rescale = od.rescale
-
-
-                @log_on_start(logging.DEBUG, "_process_Simulation() started")
-                @log_on_end(logging.DEBUG, "_process_Simulation() finished")       
+    
                 def _process_Simulation(dl, si):
                     dl.libdir_suffix = cf.simulationdata.libdir_suffix
                     l2base_Transformer.process_Simulation(dl, si, cf)
 
-
-                @log_on_start(logging.DEBUG, "_process_Qerec() started")
-                @log_on_end(logging.DEBUG, "_process_Qerec() finished")
                 def _process_Qerec(dl, qe):
-
                     dl.nivt_desc = l2OBD_Transformer.get_nivt_desc(cf, dl)
                     dl.nivp_desc = l2OBD_Transformer.get_nivp_desc(cf, dl)
                     dl.blt_pert = qe.blt_pert
@@ -727,9 +706,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.qe_filter_directional = qe.filter_directional
                     dl.cl_analysis = qe.cl_analysis
 
-
-                @log_on_start(logging.DEBUG, "_process_Itrec() started")
-                @log_on_end(logging.DEBUG, "_process_Itrec() finished")
                 def _process_Itrec(dl, it):
                     dl.it_tasks = it.tasks
                     dl.lm_max_unl = it.lm_max_unl
@@ -800,31 +776,46 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             dl = DLENSALOT_Concept()
             _process_components(dl)
 
-            # input: all kwargs needed to build the MAP handler
-            fields_descs = {{
+            # I want this to be consistent with new MAP implementation, but QE and MAP fields are slightly different currently. A QE field is just the estimator, the MAP field in addition stores the iterative solutions and prior, etc.
+            QE_fields_descs = [{
                     "ID": 'deflection',
                     'lm_max': dl.lm_max_qlm,
                     'components': 2,
-                    'f0s': {"alpha": np.array([1.0,1.0,1.0]), "omega": np.array([1.0,1.0,1.0])}, # This is the QE starting point, can only be initialized either when QE is done, or I point to a file
+                    'klm_fns': {"alpha": 'klm_alpha_it0', "omega": 'klm_omega_it0'}, # This could be hardcoded, but I want to keep it flexible
+                },
+                {   "ID": 'birefringence',
+                    'lm_max': dl.lm_max_qlm,
+                    'components': 1,
+                    'klm_fns': {"beta": 'klm_beta_it0'}, # This could be hardcoded, but I want to keep it flexible
+                },
+            ]
+            QE_fields = [QE_field(field_desc) for field_desc in QE_fields_descs]
+            QE_filter_desc = {
+            }
+
+            # input: all kwargs needed to build the MAP handler
+            MAP_fields_descs = {{
+                    "ID": 'deflection',
+                    'lm_max': dl.lm_max_qlm,
+                    'components': 2,
                     'klm_fns': {"alpha": 'klm_alpha_it{it}', "omega": 'klm_omega_it{it}'}, # This could be hardcoded, but I want to keep it flexible
                 },
                 {   "ID": 'birefringence',
                     'lm_max': dl.lm_max_qlm,
                     'components': 1,
-                    'f0s': {"beta": np.array([1.0,1.0,1.0])},  # This is the QE starting point, can only be initialized either when QE is done, or I point to a file
                     'klm_fns': {"beta": 'klm_beta_it{it}'}, # This could be hardcoded, but I want to keep it flexible
                 },
             }
-            fields = [field(field_desc) for field_desc in fields_descs]
+            MAP_fields = [MAP_field(field_desc) for field_desc in MAP_fields_descs]
 
             kwargs = {}
             kwargs['lensing_operator'] = {
                 'lmax': None,
-                'f0': fields_descs['deflection']['f0s'],
+                'f0': MAP_fields_descs['deflection']['f0s'],
             }
             kwargs['birefringence_operator'] = {
                 'lmax': None,
-                'f0': fields_descs['beta']['f0s'],
+                'f0': MAP_fields_descs['beta']['f0s'],
             }
             kwargs['spin_raise'] = {
                 'lmax': None,
@@ -857,28 +848,28 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
             gradient_descs = []
             for gradient_name, gradient_operator in gradients_operators.items():
-                gradient_desc = {"ID": gradient_name,
-                                "inner": gradient_operator,
-                                "meanfield_fns": 'mf_glm_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
-                                "quad_fns": 'quad_glm_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
-                                "prior_fns": 'prior_glm_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
-                                "gradient_increment_fns": 'glminc_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
-                                "field_increment_fns": 'klminc_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"), # TODO this might have to move to field
-                                "klm_fns": 'klm_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
-                                "chh": None,
-
-                                }
+                gradient_desc = {
+                    "ID": gradient_name,
+                    "inner": gradient_operator,
+                    "meanfield_fns": 'mf_glm_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
+                    "quad_fns": 'quad_glm_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
+                    "prior_fns": 'prior_glm_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
+                    "gradient_increment_fns": 'glminc_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
+                    "field_increment_fns": 'klminc_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"), # TODO this might have to move to field
+                    "klm_fns": 'klm_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
+                    "chh": None,
+                     }
                 gradient_descs.append(gradient_desc)
 
-            filter_desc = {"ID": "polarization",
-                        'ivf_operator': ivf_operator,
-                        'WF_operator': WF_operator,
-                        'beam': kwargs['beam'],
-                        'Ninv': kwargs['Ninv'],
-                        'WF_fns': 'wflm_it{it}',
-
-                        }
-            dl.fields, dl.gradient_descs, dl.filter_desc, dl.curvature_desc, dl.desc = fields, gradient_descs, filter_desc, curvature_desc, desc
+            filter_desc = {
+                "ID": "polarization",
+                'ivf_operator': ivf_operator,
+                'WF_operator': WF_operator,
+                'beam': kwargs['beam'],
+                'Ninv': kwargs['Ninv'],
+                'WF_fns': 'wflm_it{it}',
+                 }
+            dl.QE_fields, dl.MAP_fields, dl.gradient_descs, dl.filter_desc, dl.curvature_desc, dl.desc = QE_fields, MAP_fields, gradient_descs, filter_desc, curvature_desc, desc
             return dl
 
         return MAP_lr_operator(extract())

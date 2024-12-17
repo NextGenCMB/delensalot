@@ -12,7 +12,7 @@ class basefield:
         self.lm_max = field_desc['lm_max']
         self.value = field_desc['value']
         self.components = field_desc['components']
-        self.fns =  field_desc['fns'] # fns must be dict() with keys as components, and it as format specifiers
+        self.fns =  field_desc['fns'] # fns must be dict() with keys as components, and formatter for simidx
         self.cacher = cachers.cacher_npy(field_desc['components'])
         self.hess_cacher = cachers.cacher_npy(opj(field_desc["lib_dir"], 'hessian'))
 

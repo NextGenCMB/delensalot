@@ -616,39 +616,42 @@ class QE_lr_operator(Basejob):
         self.simgen = Sim_generator(delensalot_model)
         self.QE_model = self.delensalot_model
         self.QE_model.simulationdata = self.simgen.simulationdata
-        self.QE_searchs = [[QE_handler(field, delensalot_model.filter_desc, simidx) for simidx in self.simidxs] for field in delensalot_model.fields]
+        self.QE_searchs = [QE_handler(field, delensalot_model.QE_filter_desc, delensalot_model.simidxs) for field in delensalot_model.QE_fields]
 
 
     def collect_jobs(self, recalc=False):
-        # qe_tasks overwrites task-list and is needed if MAP lensrec calls QE lensrec
         jobs = list(range(len(self.qe_tasks)))
         for taski, task in enumerate(self.qe_tasks):
             _jobs = []
             if task == 'estimate_fields':
-                fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, pl_utils.mchash(self.simidxs_mf))) ## this filename must match plancklens filename
-                if not os.path.isfile(fn_mf) or recalc: ## Skip if meanfield already calculated
-                    for simidx in np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))), dtype=int):
-                        fn_qlm = opj(opj(self.libdir_QE, 'qlms_dd'), 'sim_%s_%04d.fits'%(self.k, simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
-                        for QE_search in self.QE_searchs:
-                            if not os.path.isfile(QE_search[simidx].field.fns[0]) or recalc:
-                                _jobs.append(simidx)
-                        if not os.path.isfile(fn_qlm) or recalc:
-                            _jobs.append(simidx)
+                for Qi, QE_search in enumerate(self.QE_searchs): # each field has its own QE_search
+                    __jobs = []
+                    for ci, component in enumerate(QE_search.components): # each field has n components # fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, pl_utils.mchash(self.simidxs_mf)))
+                        mf_fn = opj(QE_search.libdir, QE_search.mf_fns[component])
+                        if not os.path.isfile(mf_fn) or recalc: ## Skip if meanfield already calculated
+                            for simidx in QE_search.simidxs:
+                                field_fn = opj(QE_search.libdir, QE_search.fns[component].format(simidx)) # opj(opj(self.libdir_QE, 'qlms_dd'), 'sim_%s_%04d.fits'%(self.k, simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
+                                if not os.path.isfile(field_fn) or recalc:
+                                    __jobs.append(simidx)
+                    _jobs.append(__jobs)
+                jobs.append(_jobs)
+             
 
-            if task == 'calc_meanfield':
-                fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, pl_utils.mchash(self.simidxs_mf)))
-                if not os.path.isfile(fn_mf) or recalc:
-                    for simidx in self.simidxs_mf:
-                        fn_qlm = opj(opj(self.libdir_QE, 'qlms_dd'), 'sim_%s_%04d.fits'%(self.k, simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
-                        if not os.path.isfile(fn_qlm) or recalc:
-                            _jobs.append(int(simidx))
+            # TODO do this later
+            # if task == 'calc_meanfield':
+            #     fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, pl_utils.mchash(self.simidxs_mf)))
+            #     if not os.path.isfile(fn_mf) or recalc:
+            #         for simidx in self.simidxs_mf:
+            #             fn_qlm = opj(opj(self.libdir_QE, 'qlms_dd'), 'sim_%s_%04d.fits'%(self.k, simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
+            #             if not os.path.isfile(fn_qlm) or recalc:
+            #                 _jobs.append(int(simidx))
 
-            if task == 'calc_blt':
-                for simidx in self.simidxs:
-                    ## this filename must match the one created in get_template_blm()
-                    fn_blt = opj(self.libdir_blt(simidx), 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
-                    if not os.path.isfile(fn_blt) or recalc:
-                        _jobs.append(simidx)
+            # if task == 'calc_blt':
+            #     for simidx in self.simidxs:
+            #         ## this filename must match the one created in get_template_blm()
+            #         fn_blt = opj(self.libdir_blt(simidx), 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
+            #         if not os.path.isfile(fn_blt) or recalc:
+            #             _jobs.append(simidx)
 
             jobs[taski] = _jobs
         self.jobs = jobs
@@ -668,32 +671,24 @@ class QE_lr_operator(Basejob):
                 else:
                     mpi.receive(None, source=mpi.ANY_SOURCE)
                 self._init_filter()
-                        
+                   
         _tasks = self.qe_tasks if task is None else [task]
         for taski, task in enumerate(_tasks):
             log.info('{}, task {} started'.format(mpi.rank, task))
             if task == 'estimate_fields':
-                for idx in self.jobs[taski][mpi.rank::mpi.size]:
-                    self.QE_search.estimate_fields(self.k, int(idx))
+                for sidxs in self.jobs[taski][mpi.rank::mpi.size]:
+                    for fidx in sidxs:
+                        self.QE_search[fidx].estimate_field(int(fidx))
                     if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
                         self.simulationdata.purgecache()
                 mpi.barrier()
-                for idx in self.jobs[taski][mpi.rank::mpi.size]:
-                    ## If meanfield subtraction is done, only one task must calculate the meanfield first before get_plm() is called, otherwise read-errors because all tasks try calculating/accessing it at once.
-                    ## The way I fix this (the next two lines) is a bit unclean.
-                    if self.QE_subtract_meanfield:
-                        self.qlms_dd.get_sim_qlm_mf(self.k, [int(simidx_mf) for simidx_mf in self.simidxs_mf])
-                    self.get_plm(idx, self.QE_subtract_meanfield)
-                    if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
-                        self.simulationdata.purgecache()
-
             if task == 'calc_meanfield':
                 if len(self.jobs[taski])>0:
-                    mpi.barrier()
-                    if mpi.rank == 0:
-                        self.get_meanfield(int(idx))
-                    mpi.barrier()
-
+                    for QE_search in self.QE_search:
+                        for component in QE_search.components:
+                            if mpi.rank == 0:
+                                QE_search.calc_meanfield(component)
+                mpi.barrier()
             if task == 'calc_blt':
                 for simidx in self.jobs[taski][mpi.rank::mpi.size]:
                     self.get_blt(simidx)
@@ -749,6 +744,22 @@ class QE_lr_operator(Basejob):
 
     def get_field(self, simidx, component):
         pass
+
+
+    def get_klms(self, simidx, field, component, subtract_meanfield):
+        # calc normalized klm and store it in the respective directory if not already cached
+        _fn = self.QE_searchs[field].klm_fns[component].format(idx=simidx)
+        if not self.QE_searchs[field].cacher.is_cached(_fn):
+            self.QE_searchs[field].calc_meanfield(component)
+            if subtract_meanfield:
+                # TODO remove the current simidx from the meanfield calculation
+                # qlm[simidx] - meanfield(simidx) # this is a placeholder, the actual implementation will be more complex
+                pass
+            # TODO normalize the qlms to klms
+            # klms = cli(response) etc.
+            klms = None
+            self.QE_searchs[simidx].cacher.cache(_fn, klms)
+        return self.QE_searchs[simidx].cacher.load(_fn)
 
 
     def get_wf(self, simidx, component):
@@ -1373,17 +1384,17 @@ class MAP_lr_operator:
     def __init__(self, delensalot_model):
 
         delensalot_model
-        # I want to have a MAP handler for each simidx as they have nothing to do with each other
-        self.MAP_search = [MAP_handler(delensalot_model.fields, delensalot_model.gradient_descs, delensalot_model.filter_desc, delensalot_model.curvature_desc, delensalot_model.desc, simidx) for simidx in self.simidxs]
+        self.QE_searches = QE_lr_operator(delensalot_model, caller=self)
+        # I want to have a MAP handler for each simidx as indices have nothing to do with each other
+        self.MAP_search = [MAP_handler(delensalot_model.MAP_fields, delensalot_model.gradient_descs, delensalot_model.filter_desc, delensalot_model.curvature_desc, delensalot_model.desc, simidx) for simidx in self.simidxs]
 
 
     def collect_jobs(self):
         jobs = list(range(len(self.it_tasks)))
         for taski, task in enumerate(self.it_tasks):
             _jobs = []
-            if task == 'calc_phi':
+            if task == 'estimate_fields':
                 for simidx in self.simidxs:
-                    # TODO check for each simidx, if it is already done, and if not, add it to the job list
                     if self.MAP_search[simidx].maxiterdone() < self.MAP_search[simidx].itmax:
                         _jobs.append(simidx)
                 jobs[taski] = _jobs
@@ -1393,9 +1404,17 @@ class MAP_lr_operator:
 
 
     def run(self):
+        for QE_search in self.QE_searches: # need to make sure the klm starting points exist for each simidx before running the MAP job
+            for field in QE_search.fields:
+                for component in QE_search.field.components:
+                    for simidx in self.jobs[taski][mpi.rank::mpi.size]:
+                        self.get_klms(simidx, 0, field, component, self.subtract_QE_meanfield)
+                if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
+                    self.simulationdata.purgecache()
+
         for taski, task in enumerate(self.it_tasks):
             log.info('{}, task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
-            if task == 'calc_phi':
+            if task == 'estimate_fields':
                 for simidx in self.jobs[taski][mpi.rank::mpi.size]:
                     self.MAP_search[simidx].run()
 
@@ -1409,8 +1428,23 @@ class MAP_lr_operator:
         pass
 
 
-    def get_plm(self):
-        pass
+    def get_klms(self, simidx, it, field, component, subtract_QE_meanfield):
+        # calc normalized klm and store it in the respective simidx directory if not already cached
+        _fn = self.MAP_search[simidx].klm_fns[field].format(component=component, idx=simidx, it=it)
+        if it == 0: # QE (starting point)
+            return self.QE_searches[field].get_klms(simidx, subtract_QE_meanfield)
+        
+        if not self.MAP_search[simidx].cacher.is_cached(_fn):
+            self.QE_searches[field-1].calc_meanfield(component)
+            if subtract_QE_meanfield:
+                # TODO remove the current simidx from the meanfield calculation
+                # qlm[simidx] - meanfield(simidx) # this is a placeholder, the actual implementation will be more complex
+                pass
+            # TODO normalize the qlms to klms
+            # klms = cli(response) etc.
+            klms = None
+            self.MAP_search[simidx].cacher.cache(_fn, klms)
+        return self.MAP_search[simidx].cacher.load(_fn)
 
 
     def get_wf(self):
