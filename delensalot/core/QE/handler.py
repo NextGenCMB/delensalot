@@ -8,6 +8,7 @@ from lenspyx.lensing import get_geom
 
 from delensalot.config.visitor import transform, transform3d
 
+from delensalot.core import cachers
 from delensalot.core.ivf import filt_util, filt_cinv, filt_simple
 from delensalot.core.opfilt import utils_cinv_p as cinv_p_OBD
 from delensalot.core.opfilt.opfilt_handler import QE_transformer
@@ -29,17 +30,14 @@ class base:
         self.ftebl_len = kwargs['ftebl_len']
         self.ftebl_unl = kwargs['ftebl_unl']
         self.lm_max_ivf = kwargs['lm_max_ivf']
-        self.lm_max_qlm = self.field.lm_max_qlm
         self.lm_max_unl = kwargs['lm_max_unl']
         self.estimator_type = kwargs['estimator_type']
         self.Nmf = kwargs['Nmf']
         self.version = kwargs['version']
         self.zbounds = kwargs['zbounds']
-        self.cpp = kwargs['cpp']
         self.Lmin = kwargs['Lmin']
         self.blt_pert = kwargs['blt_pert']
         self.lm_max_blt = kwargs['lm_max_blt']
-        self.blt_cacher = kwargs['blt_cacher']
         self.obd_libdir = kwargs['obd_libdir']
         self.obd_rescale = kwargs['obd_rescale']
         self.sht_threads = kwargs['sht_threads']
@@ -47,14 +45,17 @@ class base:
         self.beam = kwargs['beam']
         self.OBD = kwargs['OBD']
         self.lmin_teb = kwargs['lmin_teb']
-        self.TEMP = kwargs['TEMP']
         self.simidxs_mf = kwargs['simidxs_mf']
         self.QE_subtract_meanfield = kwargs['QE_subtract_meanfield']
         self.chain_descr = kwargs['chain_descr']
         self.nivt_desc = kwargs['nivt_desc']
         self.nivp_desc = kwargs['nivp_desc']
-        self.mf_fn = kwargs['mf_fn']
+        self.mf = kwargs['mf_fn']
 
+        self.blt_cacher  = cachers.cacher_npy(opj(self.libdir, 'BLT'))
+
+
+        # TODO make them per field
         self.mf = lambda simidx: self.get_meanfield(int(simidx))
         self.plm = lambda simidx: self.get_plm(simidx, self.QE_subtract_meanfield)
         self.R_unl = lambda: qresp.get_response(self.estimator_key, self.lm_max_ivf[0], self.estimator_key[0], self.cls_unl, self.cls_unl,  self.ftebl_unl, lmax_qlm=self.lm_max_qlm[0])[0]
@@ -75,7 +76,7 @@ class base:
 
     def get_sim_qlm(self, simidx):
         return self.qlms_dd.get_sim_qlm(self.estimator_key, int(simidx))
-
+    
 
     def get_wflm(self, simidx):
         if self.estimator_key in ['ptt']:
@@ -103,7 +104,7 @@ class base:
         return self.qfields
 
 
-    def calc_fields_normalized(self, sub_mf =True):
+    def calc_fields_normalized(self, sub_mf=True):
         self.estimate_fields(self)
         for qfield, kfield in zip(self.qfields, self.kfields):
             if sub_mf and self.version != 'noMF':
@@ -118,7 +119,7 @@ class base:
         return self.kfields
 
 
-    def get_response_meanfield(self):
+    def get_response_meanfield(self, field, component):
         if self.estimator_key in ['p_p'] and not 'noRespMF' in self.version:
             mf_resp = qresp.get_mf_resp(self.estimator_key, self.cls_unl, {'ee': self.ftebl_len['e'], 'bb': self.ftebl_len['b']}, self.lm_max_ivf[0], self.lm_max_qlm[0])[0]
         else:
@@ -127,13 +128,14 @@ class base:
         return mf_resp
 
 
-    def get_meanfield_normalized(self, simidx):
+    def get_meanfield_normalized(self, simidx, field, component):
+        # TODO make this per field
         mf_QE = copy.deepcopy(self.get_meanfield(simidx))
         R = qresp.get_response(self.estimator_key, self.lm_max_ivf[0], 'p', self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=self.lm_max_qlm[0])[0]
-        WF = self.cpp * pl_utils.cli(self.cpp + pl_utils.cli(R))
+        WF = self.fiducial * pl_utils.cli(self.fiducial + pl_utils.cli(R))
         almxfl(mf_QE, pl_utils.cli(R), self.lm_max_qlm[1], True) # Normalized QE
         almxfl(mf_QE, WF, self.lm_max_qlm[1], True) # Wiener-filter QE
-        almxfl(mf_QE, self.cpp > 0, self.lm_max_qlm[1], True)
+        almxfl(mf_QE, self.fiducial > 0, self.lm_max_qlm[1], True)
 
         return mf_QE
 

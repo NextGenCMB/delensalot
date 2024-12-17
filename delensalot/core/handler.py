@@ -28,6 +28,8 @@ from delensalot.utility.utils_hp import Alm, almxfl, alm_copy, gauss_beam, alm2c
 from delensalot.config.visitor import transform, transform3d
 from delensalot.config.metamodel import DEFAULT_NotAValue
 
+from delensalot.core.MAP import field, operator
+
 from delensalot.core import mpi
 from delensalot.core.mpi import check_MPI
 from delensalot.core.ivf import filt_util, filt_cinv, filt_simple
@@ -39,8 +41,8 @@ from delensalot.core.opfilt import utils_cinv_p as cinv_p_OBD
 from delensalot.core.opfilt.opfilt_handler import QE_transformer, MAP_transformer
 from delensalot.core.opfilt.bmodes_ninv import template_dense, template_bfilt
 
+from delensalot.core.MAP import operator, field, handler as MAP_handler
 from delensalot.core.QE import handler as QE_handler
-from delensalot.core.MAP import handler as MAP_handler
 
 def get_dirname(s):
     return s.replace('(', '').replace(')', '').replace('{', '').replace('}', '').replace(' ', '').replace('\'', '').replace('\"', '').replace(':', '_').replace(',', '_').replace('[', '').replace(']', '')
@@ -735,7 +737,7 @@ class QE_lr_operator(Basejob):
     ## The following functions are to access the results of the QE jobs
     def get_meanfield(self, simidx, component):
         for simidx in self.simidxs_mf:
-            self.QE_search[simidx].get_meanfield(simidx, component)
+            self.QE_searchs[simidx].get_meanfield(simidx, component)
 
 
     def get_blt(self, simidx):
@@ -750,7 +752,7 @@ class QE_lr_operator(Basejob):
         # calc normalized klm and store it in the respective directory if not already cached
         _fn = self.QE_searchs[field].klm_fns[component].format(idx=simidx)
         if not self.QE_searchs[field].cacher.is_cached(_fn):
-            self.QE_searchs[field].calc_meanfield(component)
+            self.QE_searchs[field].get_meanfield(component)
             if subtract_meanfield:
                 # TODO remove the current simidx from the meanfield calculation
                 # qlm[simidx] - meanfield(simidx) # this is a placeholder, the actual implementation will be more complex
@@ -1198,7 +1200,6 @@ class MAP_lr(Basejob):
         self.qe = QE_lr(dlensalot_model, caller=self)
         self.qe.simulationdata = self.simgen.simulationdata # just to be sure, so we have a single truth in MAP_lr. 
 
-
         if self.OBD == 'OBD':
             nivjob_geomlib_ = get_geom(self.nivjob_geominfo)
             self.tpl = template_dense(self.lmin_teb[2], nivjob_geomlib_, self.tr, _lib_dir=self.obd_libdir, rescal=self.obd_rescale)
@@ -1384,7 +1385,7 @@ class MAP_lr_operator:
     def __init__(self, delensalot_model):
 
         delensalot_model
-        self.QE_searches = QE_lr_operator(delensalot_model, caller=self)
+        self.QE_searchs = QE_lr_operator(delensalot_model, caller=self) # This is needed to access QE results
         # I want to have a MAP handler for each simidx as indices have nothing to do with each other
         self.MAP_search = [MAP_handler(delensalot_model.MAP_fields, delensalot_model.gradient_descs, delensalot_model.filter_desc, delensalot_model.curvature_desc, delensalot_model.desc, simidx) for simidx in self.simidxs]
 

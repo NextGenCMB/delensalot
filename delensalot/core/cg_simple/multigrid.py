@@ -29,7 +29,7 @@ class multigrid_chain:
         self.opfilt = opfilt
         self.chain_descr = chain_descr
         
-        self.dot_op = opfilt.dot_op
+        # self.dot_op = n_inv_filt.dot_op
 
         self.s_cls = s_cls
         self.n_inv_filt = n_inv_filt

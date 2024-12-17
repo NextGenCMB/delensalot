@@ -64,6 +64,8 @@ class base_iterator():
 
         self.mf0 = self.qe.get_meanfield(self.simidx) if self.QE_subtract_meanfield else np.zeros(shape=hp.Alm.getsize(self.lm_max_qlm[0]))
         self.mf0_rescaled = almxfl(self.mf0, _p2k(self.lm_max_qlm[0]), self.lm_max_qlm[1], False)
+        print(self.mf0)
+        print(self.mf0_rescaled)
         
         plm0 = self.qe.get_plm(self.simidx, self.QE_subtract_meanfield)
         self.klm0 = almxfl(plm0, _p2k(self.lm_max_qlm[0]), self.lm_max_qlm[1], False)
@@ -120,13 +122,14 @@ class iterator_transformer(base_iterator):
                 'filter': cf.filter,
                 'lib_dir': self.libdir_iterator,
                 'lm_max_qlm': cf.lm_max_qlm,
-                'plm0': self.klm0,
-                'mf0': self.mf0,
+                'klm0': self.klm0,
+                'mf0': self.mf0_rescaled,
                 'mchain': self.mchain,
-                'ckk_prior': cf.ckk_prior,
+                'ckk_prior': self.ckk_prior,
                 'wflm0': self.wflm0,
                 'BFGS_lib': self.BFGS_lib,
                 'stepper': cf.stepper,
+                'goc': self.k[0],
                 
             }
 
@@ -142,12 +145,13 @@ class iterator_transformer(base_iterator):
                 'plm0': self.klm0,
                 'mf0': self.mf0_rescaled,
                 'mchain': self.mchain,
-                'ckk_prior': cf.ckk,
+                'ckk_prior': self.ckk_prior,
                 'filter': cf.filter,
                 'stepper': cf.stepper,
                 'wflm0': self.wflm0,
                 'BFGS_lib': self.BFGS_lib,
                 'stepper': cf.stepper,
+                'goc': self.k[0],
             }
 
         return cs_iterator.gclm_iterator(**extract())

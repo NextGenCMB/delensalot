@@ -6,11 +6,10 @@ from delensalot.utility.utils_hp import Alm, almxfl, alm2cl
 
 
 class basefield:
-    def __init__(self, **field_desc):
-        self.prior = field_desc['prior']
+    def __init__(self, field_desc):
         self.id = field_desc['ID']
         self.lm_max = field_desc['lm_max']
-        self.value = field_desc['value']
+        self.fiducials = field_desc['fiducials']
         self.components = field_desc['components']
         self.fns =  field_desc['fns'] # fns must be dict() with keys as components, and it as format specifiers
         self.cacher = cachers.cacher_npy(field_desc['components'])

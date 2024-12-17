@@ -25,6 +25,8 @@ from lenspyx.lensing import get_geom
 
 from delensalot.sims.sims_lib import Simhandler
 
+from delensalot.core.MAP import field, operator
+
 from delensalot.utils import cli, camb_clfile, load_file
 from delensalot.utility.utils_hp import gauss_beam
 
@@ -50,7 +52,6 @@ class l2base_Transformer:
     @log_on_end(logging.DEBUG, "process_Simulation() finished")
     def process_Simulation(dl, si, cf):
         dl.simulationdata = Simhandler(**si.__dict__)
-
 
     @log_on_start(logging.DEBUG, "_process_Analysis() started")
     @log_on_end(logging.DEBUG, "_process_Analysis() finished")
@@ -630,8 +631,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
     def build_MAP_lensrec_operator(self, cf):
         """Transformer for generating a delensalot model for the lensing reconstruction jobs (QE and MAP)
         """
-        @log_on_start(logging.DEBUG, "extract() started")
-        @log_on_end(logging.DEBUG, "extract() finished")
         def extract():
             def _process_components(dl):
                 def _process_Meta(dl, me):
@@ -673,8 +672,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.nivt_desc = l2OBD_Transformer.get_nivt_desc(cf, dl)
                     dl.nivp_desc = l2OBD_Transformer.get_nivp_desc(cf, dl)
                     dl.blt_pert = qe.blt_pert
-                    dl.QE_subtract_meanfield = False if dl.version == 'noMF' else True
-                    if dl.QE_subtract_meanfield:
+                    dl.subtract_QE_meanfield = False if dl.version == 'noMF' else True
+                    if dl.subtract_QE_meanfield:
                         qe_tasks_sorted = ['calc_phi', 'calc_meanfield', 'calc_blt']
                     else:
                         qe_tasks_sorted = ['calc_phi', 'calc_blt']
@@ -687,7 +686,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.qe_tasks = qe_tasks_extracted
                     dl.lm_max_qlm = qe.lm_max_qlm
                     dl.qlm_type = qe.qlm_type
-                    dl.cg_tol = qe.cg_tol
+                    dl.qe_cg_tol = qe.cg_tol
 
                     if qe.chain == None:
                         dl.chain_descr = lambda a,b: None
@@ -775,74 +774,109 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
             dl = DLENSALOT_Concept()
             _process_components(dl)
+            dl.coo = np.ones(hp.Alm.getsize(*dl.lm_max_qlm))
+            dl.cbb = np.ones(hp.Alm.getsize(*dl.lm_max_qlm))
 
-            # I want this to be consistent with new MAP implementation, but QE and MAP fields are slightly different currently. A QE field is just the estimator, the MAP field in addition stores the iterative solutions and prior, etc.
             QE_fields_descs = [{
                     "ID": 'deflection',
                     'lm_max': dl.lm_max_qlm,
                     'components': 2,
-                    'klm_fns': {"alpha": 'klm_alpha_it0', "omega": 'klm_omega_it0'}, # This could be hardcoded, but I want to keep it flexible
-                },
-                {   "ID": 'birefringence',
+                    'fiducials': {'alpha': dl.cpp, 'omega': dl.coo},
+                    'qlm_fns': {"alpha": 'qlm_alpha_simidx{idx}', "omega": 'qlm_omega_simidx{idx}'}, # This could be hardcoded, but I want to keep it flexible
+                    'qmf_fns': {"alpha": 'qmflm_alpha_simidx{idx}', "omega": 'qmflm_omega_simidx{idx}'},
+                },{
+                    "ID": 'birefringence',
                     'lm_max': dl.lm_max_qlm,
                     'components': 1,
-                    'klm_fns': {"beta": 'klm_beta_it0'}, # This could be hardcoded, but I want to keep it flexible
+                    'fiducials': {'beta': dl.cbb},
+                    "qlm_fns": {"beta": 'qlm_beta_it'}, # This could be hardcoded, but I want to keep it flexible
+                    'qmf_fns': {"beta": 'qmflm_beta_simidx{idx}'},
                 },
             ]
             QE_fields = [QE_field(field_desc) for field_desc in QE_fields_descs]
-            QE_filter_desc = {
+
+
+            QE_handler_desc = {
+                "fields": QE_fields,
+                "simidxs": cf.analysis.simidxs,
+                "estimator_key": cf.analysis.estimator_key,
+                "qe_filter_directional": cf.qerec.qe_filter_directional,
+                "libdir": opj(transform(cf, l2T_Transformer()), 'QE'),
+                "simulationdata": Simhandler(**cf.simulationdata.__dict__),
+                "nivjob_geominfo": cf.noisemodel.geominfo,
+                "ttebl": dl.ttebl,
+                "cls_len": dl.cls_len,
+                "ftebl_len": dl.ftebl_len,
+                "ftebl_unl": dl.ftebl_unl,
+                "lm_max_ivf": dl.lm_max_ivf,
+                "lm_max_qlm": dl.lm_max_qlm,
+                "lm_max_unl": dl.lm_max_unl,
+                "estimator_type": dl.qlm_type,
+                "Nmf": dl.Nmf,
+                "version": dl.version,
+                "zbounds": dl.zbounds,
+                "Lmin": dl.Lmin,
+                "blt_pert": dl.blt_pert,
+                "lm_max_blt": dl.lm_max_blt,
+                "obd_libdir": dl.obd_libdir,
+                "obd_rescale": dl.obd_rescale,
+                "sht_threads": dl.sht_threads,
+                "cg_tol": dl.cg_tol,
+                "beam": dl.beam,
+                "OBD": dl.OBD,
+                "lmin_teb": dl.lmin_teb,
+                "simidxs_mf": dl.simidxs_mf,
+                "subtract_QE_meanfield": dl.subtract_QE_meanfield,
+                "chain_descr": dl.chain_descr,
+                "nivt_desc": dl.nivt_desc,
+                "nivp_desc": dl.nivp_desc,
             }
 
-            # input: all kwargs needed to build the MAP handler
-            MAP_fields_descs = {{
+            # input: all kwargs needed to build the MAP fields
+            MAP_fields_descs = [{
                     "ID": 'deflection',
                     'lm_max': dl.lm_max_qlm,
                     'components': 2,
+                    'fiducials': {'alpha': dl.cpp, 'omega': dl.coo},
                     'klm_fns': {"alpha": 'klm_alpha_it{it}', "omega": 'klm_omega_it{it}'}, # This could be hardcoded, but I want to keep it flexible
-                },
-                {   "ID": 'birefringence',
+                },{
+                    "ID": 'birefringence',
                     'lm_max': dl.lm_max_qlm,
                     'components': 1,
-                    'klm_fns': {"beta": 'klm_beta_it{it}'}, # This could be hardcoded, but I want to keep it flexible
+                    'fiducials': {'beta': dl.cbb},
+                    "klm_fns": {"beta": 'klm_beta_it{it}'}, # This could be hardcoded, but I want to keep it flexible
                 },
-            }
+            ]
             MAP_fields = [MAP_field(field_desc) for field_desc in MAP_fields_descs]
 
-            kwargs = {}
-            kwargs['lensing_operator'] = {
+            # input: all kwargs needed to build the MAP search
+            _MAP_operators_desc = {}
+            _MAP_operators_desc['lensing_operator'] = {
                 'lmax': None,
-                'f0': MAP_fields_descs['deflection']['f0s'],
+                'field_fns': MAP_fields_descs['deflection']['klm_fns'],
             }
-            kwargs['birefringence_operator'] = {
+            _MAP_operators_desc['birefringence_operator'] = {
                 'lmax': None,
-                'f0': MAP_fields_descs['beta']['f0s'],
+                'field_fns': MAP_fields_descs['birefringence']['klm_fns'],
             }
-            kwargs['spin_raise'] = {
+            _MAP_operators_desc['spin_raise'] = {
                 'lmax': None,
             }
-            kwargs['multiply'] = -np.img
-            kwargs['beam'] = gauss_beam()
-            kwargs['Ninv'] = None
-
-            curvature_desc = {}
-            desc = {"itmax": 10,}
-
-            self.jobs = []
+            _MAP_operators_desc['multiply'] = -np.img
             filter_operators = []
             gradients_operators = {}
             # This depends on what is in the data
             if cf.build == 'lensingplusbirefringence':
-                filter_operators.append(operator.lensing(kwargs['lensing_operator']))
-                filter_operators.append(operator.birefringence(kwargs['birefringence_operator']))
-                gradients_operators['lensing'] = operator.joint([*filter_operators, operator.spin_raise(kwargs['spin_raise'])])
-                gradients_operators['birefringence'] = operator.joint([filter_operators, operator.multiply(kwargs['multiply'])])
+                filter_operators.append(operator.lensing(_MAP_operators_desc['lensing_operator']))
+                filter_operators.append(operator.birefringence(_MAP_operators_desc['birefringence_operator']))
+                gradients_operators['lensing'] = operator.joint([*filter_operators, operator.spin_raise(_MAP_operators_desc['spin_raise'])])
+                gradients_operators['birefringence'] = operator.joint([filter_operators, operator.multiply(_MAP_operators_desc['multiply'])])
             if cf.build == 'lensing':
-                filter_operators.append(operator.lensing(kwargs['lensing_operator']))
-                gradients_operators['lensing'] = operator.joint([*filter_operators, operator.spin_raise(kwargs['spin_raise'])])    
+                filter_operators.append(operator.lensing(_MAP_operators_desc['lensing_operator']))
+                gradients_operators['lensing'] = operator.joint([*filter_operators, operator.spin_raise(_MAP_operators_desc['spin_raise'])])    
             if cf.build == 'birefringence':
-                filter_operators.append(operator.birefringence(kwargs['birefringence_operator']))
-                gradients_operators['birefringence'] = operator.joint([*filter_operators, operator.multiply(kwargs['multiply'])])
-
+                filter_operators.append(operator.birefringence(_MAP_operators_desc['birefringence_operator']))
+                gradients_operators['birefringence'] = operator.joint([*filter_operators, operator.multiply(_MAP_operators_desc['multiply'])])
             ivf_operator = operator.ivf_operator(filter_operators)
             WF_operator = operator.WF_operator(filter_operators)
 
@@ -853,23 +887,32 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "inner": gradient_operator,
                     "meanfield_fns": 'mf_glm_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
                     "quad_fns": 'quad_glm_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
-                    "prior_fns": 'prior_glm_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
+                    "prior_fns": 'klm_{gradient_name}_it0'.format(gradient_name=gradient_name), # prior is just field, and then we do a simple divide by spectrum (almxfl)
                     "gradient_increment_fns": 'glminc_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
                     "field_increment_fns": 'klminc_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"), # TODO this might have to move to field
                     "klm_fns": 'klm_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
                     "chh": None,
-                     }
+                }
                 gradient_descs.append(gradient_desc)
 
-            filter_desc = {
+
+            MAP_filter_desc = {
                 "ID": "polarization",
                 'ivf_operator': ivf_operator,
                 'WF_operator': WF_operator,
-                'beam': kwargs['beam'],
-                'Ninv': kwargs['Ninv'],
+                'beam': gauss_beam(),
+                'Ninv_desc': [dl.nivt_desc, dl.nivp_desc],
                 'WF_fns': 'wflm_it{it}',
                  }
-            dl.QE_fields, dl.MAP_fields, dl.gradient_descs, dl.filter_desc, dl.curvature_desc, dl.desc = QE_fields, MAP_fields, gradient_descs, filter_desc, curvature_desc, desc
+            
+            MAP_handler_desc = {
+                'MAP_filter_desc': MAP_filter_desc,
+                'gradient_descs': gradient_descs,
+                'MAP_fields': MAP_fields,
+                'curvature_desc': {},
+                'itmax': dl.itmax,
+            }
+            dl.QE_handler_desc, dl.MAP_handler_desc = QE_handler_desc, MAP_handler_desc
             return dl
 
         return MAP_lr_operator(extract())

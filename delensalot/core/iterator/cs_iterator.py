@@ -48,13 +48,10 @@ def prt_time(dt, label=''):
     log.info("\r [" + ('%02d:%02d:%02d' % (dh, dm, ds)) + "] " + label)
     return
 
-def _p2k(h, lmax):
-    if h == 'k':
+def _p2k(lmax):
         return 0.5 * np.arange(lmax + 1, dtype=float) * np.arange(1, lmax + 2, dtype=float)
-    else:
-        assert 0, h + ' not implemented'
 
-def _k2p(h, lmax): return cli(_p2k(h, lmax))
+def _k2p(lmax): return cli(_p2k(lmax))
 
 
 class qlm_iterator(object):
@@ -565,7 +562,7 @@ class goclm_iterator(object):
 
             # Some preprocessing, grab previous iteration dlm, and update filter
             self.klm_curr = self.get_klm(it - 1)
-            geom_lib = self.filter.ffi.change_dlm([self.klm2dlm(self.klm_curr, True), None], self.lm_max_qlm[1], cachers.cacher_mem(safe=False))
+            geom_lib = self.filter.ffi.change_dlm([self.klm2dlm(self.klm_curr, False), None], self.lm_max_qlm[1], cachers.cacher_mem(safe=False))
             self.filter.set_ffi(geom_lib)
             self.mchain.update_filter(self.filter)
 
@@ -576,7 +573,8 @@ class goclm_iterator(object):
 
     def calc_grad_tot(self, it, goc):
         glm  = self.calc_grad_quad(it, goc)
-        glm += self.calc_grad_det(it)
+        print(glm)
+        glm += self.calc_grad_det()
         glm += self.load_grad_prior(it - 1)
         almxfl(glm, self.ckk_prior > 0, self.lm_max_qlm[1], True)
         return glm
@@ -603,7 +601,7 @@ class goclm_iterator(object):
 
 
     def calc_grad_quad(self, it, goc):
-        def get_cg_startingpoint(self, it):
+        def get_cg_startingpoint(it):
             for _it in np.arange(it - 1, -1, -1):
                 if self.wf_cacher.is_cached(self.wf_fns.format(it=_it)):
                     return self.wf_cacher.load(self.wf_fns.format(it=_it)), _it
