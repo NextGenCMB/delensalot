@@ -9,9 +9,9 @@ from . import filter
 
 
 class base:
-    def __init__(self, gradient_desc, filter_desc, field):
+    def __init__(self, gradient_desc, filter_desc):
         self.ID = gradient_desc['ID']
-        self.field = field
+        self.field = gradient_desc['field']
         self.filter = filter(filter_desc)
         self.meanfield_fns = gradient_desc['mf_fns']
         self.pri_fns = gradient_desc['prior_fns']
@@ -20,19 +20,21 @@ class base:
         self.field_increment_fns = gradient_desc['field_increment_fns']
         self.chh = gradient_desc['chh']
         self.inner = gradient_desc['inner']
+        self.current_iter = 0
         
 
         self.cacher = cachers.cacher_npy(gradient_desc['ID'])
 
 
     def calc_gradient(self, ncomponents, curr_iter):
+        self.current_iter = curr_iter
         self.calc_gradient_prior(ncomponents, curr_iter)
         self.calc_gradient_quad(ncomponents, curr_iter)
         self.calc_gradient_meanfield(ncomponents, curr_iter)
 
 
     def calc_gradient_quad(self, curr_iter):
-        XWF = self.filter.get_XWF(curr_iter)
+        XWF = self.filter.get_WF(curr_iter)
         ivf = self.filter.get_ivf(curr_iter, XWF)
         
         qlms = 0
@@ -51,6 +53,17 @@ class base:
                 ret = self.field.get_klm(curr_iter, component)
         almxfl(ret, cli(self.chh), self.mmax_qlm, True)
         return ret
+
+
+    def get_WF(self):
+        curr_iter = self.maxiterdone()
+        return self.filter.get_WF(curr_iter)
+    
+
+    def get_ivf(self):
+        curr_iter = self.maxiterdone()
+        XWF = self.filter.get_WF(curr_iter)
+        return self.filter.get_ivf(curr_iter, XWF)
 
 
     def update_field(self, field):
@@ -91,3 +104,16 @@ class base:
 
     def update_gradient(self):
         pass
+
+    
+    def isiterdone(self, it):
+        return self.cacher.is_cached(self.klm_fns.format(it=it))
+    
+
+    def maxiterdone(self):
+        itr = -2
+        isdone = True
+        while isdone:
+            itr += 1
+            isdone = self.isiterdone(itr + 1)
+        return itr

@@ -407,36 +407,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "fields_fns": QE_fields_descs['birefringence']['klm_fns'],
                 })
             }
-            QE_handler_desc = {
-                "fields": QE_fields,
-                "template_operators": template_operators,
-                "simidxs": cf.analysis.simidxs,
-            }
 
             QE_filterqest_desc = {
-                self.lm_max_ivf = filter_desc['lm_max_ivf']
-                self.ftebl_len = filter_desc['ftebl_len']
-                self.qe_filter_directional = filter_desc['qe_filter_directional']
-                self.estimator_type = filter_desc['estimator_type']
-                self.libdir_QE = filter_desc['libdir_QE']
-                self.simulationdata = filter_desc['simulationdata']
-                self.nivjob_geominfo = filter_desc['nivjob_geominfo']
-                self.ttebl = filter_desc['ttebl']
-                self.cls_len = filter_desc['cls_len']
-                self.lm_max_qlm = filter_desc['lm_max_qlm']
-                self.lmin_teb = filter_desc['lmin_teb']
-                self.QE_cg_tol = filter_desc['QE_cg_tol']
-                self.sht_threads = filter_desc['sht_threads']
-                self.beam = filter_desc['beam'] #FIXME i dont want this here, can possibly be removed
-                self.OBD = filter_desc['OBD']
-                self.obd_libdir = filter_desc['obd_libdir']
-                self.obd_rescale = filter_desc['obd_rescale']
-                self.chain_descr = filter_desc['chain_descr']
-                self.nivt_desc = filter_desc['nivt_desc']
-                self.nivp_desc = filter_desc['nivp_desc']
-            }
-
-            QE_searchs_desc = {
                 "estimator_key": cf.analysis.estimator_key,
                 "estimator_type": dl.qlm_type,
                 "libdir_QE": opj(transform(cf, l2T_Transformer()), 'QE'),
@@ -445,15 +417,14 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "nivt_desc": dl.nivt_desc,
                 "nivp_desc": dl.nivp_desc,
                 "qe_filter_directional": cf.qerec.qe_filter_directional,
-                "ttebl": dl.ttebl,
-                "cls_len": dl.cls_len,
                 "cls_unl": dl.cls_unl,
-                "ftebl_len": dl.ftebl_len,
+                "cls_len": dl.cls_len,
+                "ttebl": dl.ttebl,
                 "ftebl_unl": dl.ftebl_unl,
+                "ftebl_len": dl.ftebl_len,
                 "lm_max_ivf": dl.lm_max_ivf,
                 "lm_max_qlm": dl.lm_max_qlm,
                 "lm_max_unl": dl.lm_max_unl,
-                "Nmf": dl.Nmf,
                 "version": dl.version,
                 "zbounds": dl.zbounds,
                 "obd_libdir": dl.obd_libdir,
@@ -463,10 +434,24 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "beam": dl.beam,
                 "OBD": dl.OBD,
                 "lmin_teb": dl.lmin_teb,
-                "simidxs_mf": dl.simidxs_mf,
-                "subtract_QE_meanfield": dl.subtract_QE_meanfield,
                 "chain_descr": dl.chain_descr,
             }
+
+            QE_searchs_desc = {
+                "QE_filterqest_desc": QE_filterqest_desc,
+                "template_operators": template_operators,
+                "fields": QE_fields,
+            }
+
+            QE_handler_desc = {
+                "fields": QE_fields,
+                "template_operators": template_operators,
+                "simidxs": cf.analysis.simidxs,
+                "simidxs_mf": dl.simidxs_mf,
+                "QE_tasks": dl.qe_tasks,
+                "simulationdata": QE_filterqest_desc['simulationdata'],
+            }
+
             dl.QE_searchs_desc = QE_searchs_desc
             dl.QE_handler_desc = QE_handler_desc
             return dl
@@ -583,6 +568,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             for gradient_name, gradient_operator in gradients_operators.items():
                 gradient_desc = {
                     "ID": gradient_name,
+                    "field": MAP_fields_descs[gradient_name],
                     'itmax': dl.itmax,
                     "inner": gradient_operator,
                     "meanfield_fns": 'mf_glm_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),

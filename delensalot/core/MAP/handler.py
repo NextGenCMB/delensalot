@@ -11,7 +11,7 @@ class base:
         # this class handles the filter, gradient, and curvature libs, nothing else
         self.fields = fields
         # NOTE gradient and curvature share the field increments, so naming must be consistent. Can use the gradient_descs['inc_fn'] for this
-        self.gradients = [gradient(gradient_desc, filter_desc, fields) for gradient_desc in gradient_descs]
+        self.gradients = [gradient(gradient_desc, filter_desc) for gradient_desc in gradient_descs]
         self.curvature = curvature(curvature_desc, self.gradients)
         self.itmax = desc.get('itmax')
         self.simidx = simidx
@@ -19,15 +19,48 @@ class base:
         self.template_operators = desc['template_operators']
 
 
-    def calc_klm_MAP(self):
+    def get_klm(self):
         current_iter = 0
         for it in range(current_iter, self.itmax):
             curr_MAPp = self.get_current_MAPpoint()
-            fields = self.get_current_fields()
-            self.update_operators(fields)
+            curr_fields = self.get_current_klms()
+            self.update_operators(curr_fields)
             gradient = self.get_gradient(curr_MAPp)
             H = self.update_curvature(gradient)
             self.update_MAP(H)
+        return self.get_current_MAPpoint()
+
+
+    def get_template(self, field):  
+        # TODO fix this. Could also think of a joint field template
+        if field is None:
+            # in this case, i want a joint field template
+            pass
+        else:
+            fn_blt = self.template_cacher.get_fn(self.template_operators[field])
+            if not self.template_cacher.is_cached(self.simidx):
+                self.template_operator.update_field(self.template_operators[field])
+                # almxfl(dlm, np.arange(self.lmax_qlm + 1, dtype=int) >= lmin_plm, self.mmax_qlm, True)
+                blm = self.template_operator.act(field)
+                self.blt_cacher.cache(fn_blt, blm)
+        return self.template_cacher.load(fn_blt)
+    
+
+    def get_meanfield_it(self, it, calc=False):
+        # fn = opj(self.mf_dirname, 'mf%03d_it%03d.npy'%(self.Nmf, it))
+        # if not calc:
+        #     if os.path.isfile(fn):
+        #         mf = np.load(fn)
+        #     else:
+        #         mf = self.get_meanfield_it(self, it, calc=True)
+        # else:
+        #     plm = rec.load_plms(self.libdir_MAP(self.k, self.simidxs[0], self.version), [0])[-1]
+        #     mf = np.zeros_like(plm)
+        #     for simidx in self.simidxs_mf:
+        #         log.info("it {:02d}: adding sim {:03d}/{}".format(it, simidx, self.Nmf-1))
+        #         mf += rec.load_plms(self.libdir_MAP(self.k, simidx, self.version), [it])[-1]
+        #     np.save(fn, mf/self.Nmf)
+        return None
 
 
     def get_current_MAPpoint(self):
@@ -39,18 +72,12 @@ class base:
         return self.klm_currs
 
 
-    def get_current_fields(self):
-        return self.fields
-    
-
-    def get_template(self, operator_field, field):  
-        fn_blt = self.template_cacher.get_fn(operator_field)
-        if not self.template_cacher.is_cached(self.simidx):
-            self.template_operator.update_field(operator_field)
-            # almxfl(dlm, np.arange(self.lmax_qlm + 1, dtype=int) >= lmin_plm, self.mmax_qlm, True)
-            blm = self.template_operator.act(field)
-            self.blt_cacher.cache(fn_blt, blm)
-        return self.template_cacher.load(fn_blt)
+    def get_current_klms(self, it):
+        buff = []
+        for field in self.fields:
+            for component in field.components:
+                buff.append(field.get_klm(it, component))
+        return np.array(buff)
 
 
     def update_operators(self, fields):
@@ -80,15 +107,16 @@ class base:
                 field.update_klm(increment, component) 
 
 
-    def get_curr_klm(self, it):
-        # returns the current iteration klm
-        if it <= 0:
-            return self.cacher.is_cached(self.klm_fns.format(it=0))
-        return self.hess_cacher.is_cached(self.sk_fns(it - 1))
-    
+    def get_WF(self, field):
+        self.gradients[field].get_WF(field)
 
-    def isiterdone(self, simidx, it):
-        return self.cacher.is_cached(self.klm_fns.format(simidx=simidx, it=it))
+    
+    def get_ivf(self, field):
+        self.gradients[field].get_ivf(field)
+
+
+    def isiterdone(self, it):
+        return self.cacher.is_cached(self.klm_fns.format(it=it))
     
 
     def maxiterdone(self):

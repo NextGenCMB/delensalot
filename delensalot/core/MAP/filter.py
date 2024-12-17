@@ -19,7 +19,8 @@ class base:
         self.operator.update_field(field)
 
 
-    def get_XWF(self, it):
+    def get_WF(self, it):
+        #flow: check if cached, if not, build it
         cg_sol_curr, cg_it_curr = self._get_cg_startingpoint(it)
 
         if cg_it_curr < it - 1:
@@ -32,6 +33,8 @@ class base:
 
 
     def get_ivf(self, eblm_dat, eblm_wf):
+        #flow: check if cached, if not, build it
+        
         # resmap_c = np.empty((q_pbgeom.geom.npix(),), dtype=elm_wf.dtype)
         # resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
         # self._get_irespmap(eblm_dat, elm_wf, q_pbgeom, map_out=resmap_r) # inplace onto resmap_c and resmap_r

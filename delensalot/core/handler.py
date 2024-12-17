@@ -605,18 +605,20 @@ class QE_lr_new(Basejob):
     """Quadratic estimate lensing reconstruction Job. Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.
     """
     @check_MPI
-    def __init__(self, delensalot_model, QE_handler_desc, caller=None):
-        super().__init__(delensalot_model)
+    def __init__(self, dm):
+        super().__init__(dm)
         # this class handles the collect/run across simidxs, nothing else.
         # It has functions to call the QE handler, and the QE handler has functions to call the QE filter and qest libs
         # this class also has functions to call the results
-        
-        # I want to have a QE handler for each field
-        self.delensalot_model = delensalot_model
+        QE_handler_desc = dm.QE_handler_desc
         self.QE_tasks = QE_handler_desc['QE_tasks']
+        self.simidxs = QE_handler_desc['simidxs']
+        self.simidxs_mf = QE_handler_desc['simidxs_mf']
+        self.simulationdata = QE_handler_desc['simulationdata']
 
-        self.simulationdata = self.delensalot_model.simulationdata
-        self.QE_searchs = [QE_handler(field, delensalot_model.QE_filter_desc, delensalot_model.simidxs, template_operator) for field, template_operator in zip(delensalot_model.QE_fields, delensalot_model.template_operators)]
+        # I want to have a QE search for each field
+        QE_search_desc = dm.QE_search_desc
+        self.QE_searchs = [QE_handler.base(field, QE_search_desc.QE_filterqest_desc, template_operator) for field, template_operator in zip(QE_search_desc.QE_fields, QE_search_desc.template_operators)]
 
 
     def collect_jobs(self, recalc=False):
@@ -666,13 +668,13 @@ class QE_lr_new(Basejob):
                 if first_rank == mpi.rank:
                     mpi.disable()
                     for QE_search in self.QE_searchs:
-                        QE_search._init_filter()
+                        QE_search.init_filterqest()
                     mpi.enable()
                     [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
                 else:
                     mpi.receive(None, source=mpi.ANY_SOURCE)
                 for QE_search in self.QE_searchs:
-                    QE_search._init_filter()
+                    QE_search.init_filterqest()
                    
         _tasks = self.qe_tasks if task is None else [task]
         for taski, task in enumerate(_tasks):
@@ -680,7 +682,7 @@ class QE_lr_new(Basejob):
             if task == 'estimate_fields':
                 for sidxs in self.jobs[taski][mpi.rank::mpi.size]:
                     for fidx in sidxs:
-                        self.QE_search[fidx].estimate_field(int(fidx))
+                        self.QE_search[fidx].get_qlm(int(fidx))
                     if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
                         self.simulationdata.purgecache()
                 mpi.barrier()
@@ -702,47 +704,24 @@ class QE_lr_new(Basejob):
 
 
     ## The following functions are to access the results of the QE jobs
-    def get_meanfield(self, simidx, component):
-        for simidx in self.simidxs_mf:
-            self.QE_searchs[simidx].get_meanfield(simidx, component)
+    def get_qlm(self, simidx, field, component):
+        return self.QE_searchs[field].get_qlm(simidx, component)
+    
+
+    def get_klm(self, simidx, field, component, subtract_meanfield):
+        return self.QE_searchs[simidx].get_klm(self, simidx, field, component, subtract_meanfield)
 
 
-    def get_blt(self, simidx, kwargs):
-        self.QE_searchs[simidx].get_blt(kwargs)
+    def get_template(self, simidx, field):
+        return self.QE_searchs[field].get_template(simidx)
+    
+
+    def get_wf(self, simidx, field):
+        return self.QE_searchs[field].get_wf(simidx)
 
 
-    def get_fields(self, simidx, field, component, subtract_meanfield):
-        self.get_klms(self, simidx, field, component, subtract_meanfield)
-
-
-    def get_klms(self, simidx, field, component, subtract_meanfield):
-        # calc normalized klm and store it in the respective directory if not already cached
-        _fn = self.QE_searchs[field].klm_fns[component].format(idx=simidx)
-        if not self.QE_searchs[field].cacher.is_cached(_fn):
-            self.QE_searchs[field].get_meanfield(component)
-            if subtract_meanfield:
-                # TODO remove the current simidx from the meanfield calculation
-                # qlm[simidx] - meanfield(simidx) # this is a placeholder, the actual implementation will be more complex
-                pass
-            # TODO normalize the qlms to klms
-            # klms = cli(response) etc.
-            klms = None
-            self.QE_searchs[simidx].cacher.cache(_fn, klms)
-        return self.QE_searchs[simidx].cacher.load(_fn)
-
-
-    def get_wf(self, simidx, component):
-        pass
-
-
-    def get_ivf(self, simidx, component):
-        pass
-
-    def get_templates(self, simidx):
-        buff = []
-        for QE_search in self.QE_searchs:
-            buff.append(QE_search.get_template(simidx))
-        return buff
+    def get_ivf(self, simidx, field):
+        return self.QE_searchs[field].get_ivf(simidx)
 
 
 class MAP_lr_operator:
@@ -781,19 +760,11 @@ class MAP_lr_operator:
             log.info('{}, task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
             if task == 'estimate_fields':
                 for simidx in self.jobs[taski][mpi.rank::mpi.size]:
-                    self.MAP_search[simidx].calc_klm_MAP()
+                    self.MAP_search[simidx].get_klm()
 
 
     ## The following functions are to access the results of the MAP job
-    def get_meanfield(self):
-        pass
-
-
-    def get_blt(self):
-        pass
-
-
-    def get_klms(self, simidx, it, field, component, subtract_QE_meanfield):
+    def get_klm(self, simidx, it, field, component, subtract_QE_meanfield):
         # calc normalized klm and store it in the respective simidx directory if not already cached
         _fn = self.MAP_search[simidx].klm_fns[field].format(component=component, idx=simidx, it=it)
         if it == 0: # QE (starting point)
@@ -812,12 +783,20 @@ class MAP_lr_operator:
         return self.MAP_search[simidx].cacher.load(_fn)
 
 
-    def get_wf(self):
-        pass
+    def get_template(self, simidx, field):
+        return self.MAP_searchs[simidx].get_template(field)
+    
+
+    def get_meanfield(self, simidx, field):
+        return self.MAP_searchs[simidx].get_meanfield(field)
 
 
-    def get_ivf(self):
-        pass
+    def get_wf(self, simidx, field):
+        return self.MAP_searchs[simidx].get_wf(field)
+
+
+    def get_ivf(self, simidx, field):
+        return self.MAP_searchs[simidx].get_ivf(field)
 
 
 class QE_lr(Basejob):

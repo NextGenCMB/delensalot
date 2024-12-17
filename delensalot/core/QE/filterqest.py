@@ -1,7 +1,7 @@
 from os.path import join as opj
 import numpy as np
 
-from plancklens import qresp, qest
+from plancklens import qest
 
 from lenspyx.lensing import get_geom 
 
@@ -16,6 +16,7 @@ class base:
         self.lm_max_ivf = filter_desc['lm_max_ivf']
         self.lm_max_qlm = filter_desc['lm_max_qlm']
         self.lm_max_len = filter_desc['lm_max_len']
+        self.lm_max_len = filter_desc['lm_max_unl']
         self.lmin_teb = filter_desc['lmin_teb']
 
         self.ftebl_len = filter_desc['ftebl_len']
@@ -79,18 +80,19 @@ class base:
             self.qlms_dd = qest.library_sepTP(opj(self.libdir_QE, 'qlms_dd'), self.ivf, self.ivf, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
 
 
-    def get_response_unl(self, estimator_key):
-        return qresp.get_response(estimator_key, self.lm_max_ivf[0], estimator_key[0], self.cls_unl, self.cls_unl, self.fteb_unl, lmax_qlm=self.lm_max_qlm[0])[0]
-    
-
-    def get_response_len(self, estimator_key):
-        return qresp.get_response(estimator_key, self.lm_max_ivf[0], estimator_key[0], self.cls_len, self.cls_len, self.fteb_len, lmax_qlm=self.lm_max_qlm[0])[0]
-    
-
     def get_wflm(self, simidx):
         if self.estimator_key in ['ptt']:
-            return lambda: alm_copy(self.fq.ivf.get_sim_tmliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
+            return lambda: alm_copy(self.ivf.get_sim_tmliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
         elif self.estimator_key in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
-            return lambda: alm_copy(self.fq.ivf.get_sim_emliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
+            return lambda: alm_copy(self.ivf.get_sim_emliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
         elif self.estimator_key in ['p']:
-            return lambda: np.array([alm_copy(self.fq.ivf.get_sim_tmliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1]), alm_copy(self.ivf.get_sim_emliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])])
+            return lambda: np.array([alm_copy(self.ivf.get_sim_tmliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1]), alm_copy(self.ivf.get_sim_emliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])])
+        
+    def get_ivf(self, simidx):
+        if self.estimator_key in ['ptt']:
+            return lambda: alm_copy(self.ivf.get_sim_tlm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
+        elif self.estimator_key in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
+            return lambda: alm_copy(self.ivf.get_sim_elm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
+        elif self.estimator_key in ['p']:
+            return lambda: np.array([alm_copy(self.ivf.get_sim_tlm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1]), alm_copy(self.ivf.get_sim_emlm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])])
+        
