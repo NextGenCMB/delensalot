@@ -108,16 +108,29 @@ class lensing(base):
         super().__init__(**operator_desc)
         self.q_pbgeom = operator_desc['q_pbgeom']
         self.ffi = operator_desc['ffi']
+        self.perturbative = operator_desc['perturbative']
     
 
     def act(self, obj, lm_max_qlm, adjoint=False):
         assert adjoint == False, "adjoint not implemented"
-        gc = self.q_pbgeom.geom.adjoint_synthesis(obj, 1, lm_max_qlm[0], lm_max_qlm[1], self.ffi.sht_tr)
-        fl = -np.sqrt(np.arange(lm_max_qlm[0] + 1, dtype=float) * np.arange(1, lm_max_qlm[0] + 2))
-        almxfl(gc[0], fl, lm_max_qlm[1], True)
-        almxfl(gc[1], fl, lm_max_qlm[1], True)
+        if self.perturbative: # Applies perturbative remapping
+            get_alm = lambda a: elm_wf if a == 'e' else np.zeros_like(elm_wf)
+            geom, sht_tr = self.fq.ffi.geom, self.fq.ffi.sht_tr
+            d1 = geom.alm2map_spin([dlm, np.zeros_like(dlm)], 1, self.lmax_qlm, self.mmax_qlm, sht_tr, [-1., 1.])
+            dp = utils_qe.qeleg_multi([2], +3, [utils_qe.get_spin_raise(2, self.lmax_filt)])(get_alm, geom, sht_tr)
+            dm = utils_qe.qeleg_multi([2], +1, [utils_qe.get_spin_lower(2, self.lmax_filt)])(get_alm, geom, sht_tr)
+            dlens = -0.5 * ((d1[0] - 1j * d1[1]) * dp + (d1[0] + 1j * d1[1]) * dm)
+            del dp, dm, d1
+            elm, blm = geom.map2alm_spin([dlens.real, dlens.imag], 2, lmaxb, mmaxb, sht_tr, [-1., 1.])
+        else:  
+            # ffi = self.fq.ffi.change_dlm([dlm, None], self.mmax_qlm)
+            # elm, blm = ffi.lensgclm(np.array([elm_wf, np.zeros_like(elm_wf)]), self.mmax_filt, 2, lmaxb, mmaxb)
+            gc = self.q_pbgeom.geom.adjoint_synthesis(obj, 1, lm_max_qlm[0], lm_max_qlm[1], self.ffi.sht_tr)
+            fl = -np.sqrt(np.arange(lm_max_qlm[0] + 1, dtype=float) * np.arange(1, lm_max_qlm[0] + 2))
+            almxfl(gc[0], fl, lm_max_qlm[1], True)
+            almxfl(gc[1], fl, lm_max_qlm[1], True)
         return gc
-
+    
 
     def adjoint(self, obj):
         return self.act(obj, adjoint=True)

@@ -1,5 +1,8 @@
 import numpy as np
 
+from delensalot.core import cachers
+from delensalot.utility.utils_hp import almxfl
+
 from . import gradient
 from . import curvature
 
@@ -12,15 +15,19 @@ class base:
         self.curvature = curvature(curvature_desc, self.gradients)
         self.itmax = desc.get('itmax')
         self.simidx = simidx
+        self.template_cacher = cachers.cache_npy(desc['template_cacher'])
+        self.template_operators = desc['template_operators']
 
 
-    def estimate_fields(self):
-        curr_MAPp = self.get_current_MAPpoint()
-        fields = self.get_current_fields()
-        self.update_operators(fields)
-        gradient = self.get_gradient(curr_MAPp)
-        H = self.update_curvature(gradient)
-        self.update_MAP(H)
+    def calc_klm_MAP(self):
+        current_iter = 0
+        for it in range(current_iter, self.itmax):
+            curr_MAPp = self.get_current_MAPpoint()
+            fields = self.get_current_fields()
+            self.update_operators(fields)
+            gradient = self.get_gradient(curr_MAPp)
+            H = self.update_curvature(gradient)
+            self.update_MAP(H)
 
 
     def get_current_MAPpoint(self):
@@ -36,10 +43,15 @@ class base:
         return self.fields
     
 
-    def get_template(self, dlm, field):
-        self.template_operator.update_field(dlm)
-        return self.template_operator.act(field)
-    
+    def get_template(self, operator_field, field):  
+        fn_blt = self.template_cacher.get_fn(operator_field)
+        if not self.template_cacher.is_cached(self.simidx):
+            self.template_operator.update_field(operator_field)
+            # almxfl(dlm, np.arange(self.lmax_qlm + 1, dtype=int) >= lmin_plm, self.mmax_qlm, True)
+            blm = self.template_operator.act(field)
+            self.blt_cacher.cache(fn_blt, blm)
+        return self.template_cacher.load(fn_blt)
+
 
     def update_operators(self, fields):
         # For each operator that is dependent on a field, we need to update the field
@@ -60,7 +72,7 @@ class base:
         self.curvature.update_curvature(gradient) # This updates the vectors to be used for the curvature calculation
 
 
-    def update_MAP(self, curvature):
+    def update_MAP(self, H):
         deltag = self.curvature.get_gradient_inc(self.klm_currs) # This calls the 2-loop curvature update
         for field in self.fields:
             for component in field.components:
@@ -86,4 +98,3 @@ class base:
             itr += 1
             isdone = self.isiterdone(itr + 1)
         return itr
-

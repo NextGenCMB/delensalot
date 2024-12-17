@@ -69,8 +69,6 @@ class Basejob():
 
     def __init__(self, model):
         self.__dict__.update(model.__dict__)
-
-        self.libdir_QE = opj(self.TEMP, 'QE')
         if not os.path.exists(self.libdir_QE):
             os.makedirs(self.libdir_QE)
         self.libdir_MAP = lambda qe_key, simidx, version: opj(self.TEMP, 'MAP/%s'%(qe_key), 'sim%04d'%(simidx) + version)
@@ -603,11 +601,11 @@ class Noise_modeller(Basejob):
             # cs_iterator
         
 
-class QE_lr_operator(Basejob):
+class QE_lr_new(Basejob):
     """Quadratic estimate lensing reconstruction Job. Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.
     """
     @check_MPI
-    def __init__(self, delensalot_model, caller=None):
+    def __init__(self, delensalot_model, QE_handler_desc, caller=None):
         super().__init__(delensalot_model)
         # this class handles the collect/run across simidxs, nothing else.
         # It has functions to call the QE handler, and the QE handler has functions to call the QE filter and qest libs
@@ -615,9 +613,9 @@ class QE_lr_operator(Basejob):
         
         # I want to have a QE handler for each field
         self.delensalot_model = delensalot_model
-        self.simgen = Sim_generator(delensalot_model)
-        self.QE_model = self.delensalot_model.QE_handler_desc
-        self.QE_model.simulationdata = self.simgen.simulationdata
+        self.QE_tasks = QE_handler_desc['QE_tasks']
+
+        self.simulationdata = self.delensalot_model.simulationdata
         self.QE_searchs = [QE_handler(field, delensalot_model.QE_filter_desc, delensalot_model.simidxs, template_operator) for field, template_operator in zip(delensalot_model.QE_fields, delensalot_model.template_operators)]
 
 
@@ -696,7 +694,7 @@ class QE_lr_operator(Basejob):
             if task == 'calc_blt':
                 for simidx in self.jobs[taski][mpi.rank::mpi.size]:
                     # For each field, I want to build templates
-                    for QE_search in QE_searchs:
+                    for QE_search in self.QE_searchs:
                         self.get_template(simidx, QE_search.operator)
                     self.get_template(simidx)
                     if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
@@ -745,6 +743,81 @@ class QE_lr_operator(Basejob):
         for QE_search in self.QE_searchs:
             buff.append(QE_search.get_template(simidx))
         return buff
+
+
+class MAP_lr_operator:
+    def __init__(self, delensalot_model):
+        self.delensalot_model = delensalot_model
+        self.simulationdata = delensalot_model.simulationdata
+        self.QE_searchs = delensalot_model.QE_searchs
+        # I want to have a MAP handler for each simidx as indices have nothing to do with each other
+        self.MAP_searchs = [MAP_handler(delensalot_model.MAP_fields, delensalot_model.gradient_descs, delensalot_model.filter_desc, delensalot_model.curvature_desc, delensalot_model.desc, simidx) for simidx in self.simidxs]
+
+
+    def collect_jobs(self):
+        jobs = list(range(len(self.it_tasks)))
+        for taski, task in enumerate(self.it_tasks):
+            _jobs = []
+            if task == 'estimate_fields':
+                for simidx in self.simidxs:
+                    if self.MAP_search[simidx].maxiterdone() < self.MAP_search[simidx].itmax:
+                        _jobs.append(simidx)
+                jobs[taski] = _jobs
+        self.jobs = jobs
+
+        return jobs
+
+
+    def run(self):
+        for QE_search in self.QE_searchs: # need to make sure the klm starting points exist for each simidx before running the MAP job
+            for field in QE_search.fields:
+                for component in QE_search.field.components:
+                    for simidx in self.jobs[taski][mpi.rank::mpi.size]:
+                        self.get_klms(simidx, 0, field, component, self.subtract_QE_meanfield)
+                if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
+                    self.simulationdata.purgecache()
+
+        for taski, task in enumerate(self.it_tasks):
+            log.info('{}, task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
+            if task == 'estimate_fields':
+                for simidx in self.jobs[taski][mpi.rank::mpi.size]:
+                    self.MAP_search[simidx].calc_klm_MAP()
+
+
+    ## The following functions are to access the results of the MAP job
+    def get_meanfield(self):
+        pass
+
+
+    def get_blt(self):
+        pass
+
+
+    def get_klms(self, simidx, it, field, component, subtract_QE_meanfield):
+        # calc normalized klm and store it in the respective simidx directory if not already cached
+        _fn = self.MAP_search[simidx].klm_fns[field].format(component=component, idx=simidx, it=it)
+        if it == 0: # QE (starting point)
+            return self.QE_searchs[field].get_klms(simidx, subtract_QE_meanfield)
+        
+        if not self.MAP_search[simidx].cacher.is_cached(_fn):
+            self.QE_searchs[field-1].calc_meanfield(component)
+            if subtract_QE_meanfield:
+                # TODO remove the current simidx from the meanfield calculation
+                # qlm[simidx] - meanfield(simidx) # this is a placeholder, the actual implementation will be more complex
+                pass
+            # TODO normalize the qlms to klms
+            # klms = cli(response) etc.
+            klms = None
+            self.MAP_search[simidx].cacher.cache(_fn, klms)
+        return self.MAP_search[simidx].cacher.load(_fn)
+
+
+    def get_wf(self):
+        pass
+
+
+    def get_ivf(self):
+        pass
 
 
 class QE_lr(Basejob):
@@ -958,25 +1031,7 @@ class QE_lr(Basejob):
         return qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_unl, self.cls_unl, self.fteb_unl, lmax_qlm=self.lm_max_qlm[0])[0]
 
 
-    # # @base_exception_handler
-    # @log_on_start(logging.DEBUG, "QE.get_meanfield(simidx={simidx}) started")
-    # @log_on_end(logging.DEBUG, "QE.get_meanfield(simidx={simidx}) finished")
-    # def get_meanfield(self, simidx):
-    #     ret = np.zeros_like(self.qlms_dd.get_sim_qlm(self.k, 0))
-    #     if self.Nmf > 1:
-    #         if self.mfvar == None:
-    #             ret = self.qlms_dd.get_sim_qlm_mf(self.k, [int(simidx_mf) for simidx_mf in self.simidxs_mf])
-    #             if simidx in self.simidxs_mf:    
-    #                 ret = (ret - self.qlms_dd.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
-    #         else:
-    #             ret = hp.read_alm(self.mfvar)
-    #             if simidx in self.simidxs_mf:    
-    #                 ret = (ret - self.qlms_dd_mfvar.get_sim_qlm(self.k, int(simidx)) / self.Nmf) * (self.Nmf / (self.Nmf - 1))
-    #         return ret
-        
-    #     return ret
-    
-    # @base_exception_handler
+
     @log_on_start(logging.DEBUG, "QE.get_meanfield(simidx={simidx}) started")
     @log_on_end(logging.DEBUG, "QE.get_meanfield(simidx={simidx}) finished")
     def get_meanfield(self, simidx):
@@ -1355,81 +1410,6 @@ class MAP_lr(Basejob):
         MAP_filters = transform(self, MAP_transformer())
         filter = transform(self, MAP_filters())
         return filter
-
-
-class MAP_lr_operator:
-    def __init__(self, delensalot_model):
-        self.delensalot_model = delensalot_model
-        self.simulationdata = delensalot_model.MAP_handler_desc.simulationdata
-        self.QE_searchs = QE_lr_operator(delensalot_model, caller=self) # This is needed to access QE results
-        # I want to have a MAP handler for each simidx as indices have nothing to do with each other
-        self.MAP_search = [MAP_handler(delensalot_model.MAP_fields, delensalot_model.gradient_descs, delensalot_model.filter_desc, delensalot_model.curvature_desc, delensalot_model.desc, simidx) for simidx in self.simidxs]
-
-
-    def collect_jobs(self):
-        jobs = list(range(len(self.it_tasks)))
-        for taski, task in enumerate(self.it_tasks):
-            _jobs = []
-            if task == 'estimate_fields':
-                for simidx in self.simidxs:
-                    if self.MAP_search[simidx].maxiterdone() < self.MAP_search[simidx].itmax:
-                        _jobs.append(simidx)
-                jobs[taski] = _jobs
-        self.jobs = jobs
-
-        return jobs
-
-
-    def run(self):
-        for QE_search in self.QE_searches: # need to make sure the klm starting points exist for each simidx before running the MAP job
-            for field in QE_search.fields:
-                for component in QE_search.field.components:
-                    for simidx in self.jobs[taski][mpi.rank::mpi.size]:
-                        self.get_klms(simidx, 0, field, component, self.subtract_QE_meanfield)
-                if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
-                    self.simulationdata.purgecache()
-
-        for taski, task in enumerate(self.it_tasks):
-            log.info('{}, task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
-            if task == 'estimate_fields':
-                for simidx in self.jobs[taski][mpi.rank::mpi.size]:
-                    self.MAP_search[simidx].run()
-
-
-    ## The following functions are to access the results of the MAP job
-    def get_meanfield(self):
-        pass
-
-
-    def get_blt(self):
-        pass
-
-
-    def get_klms(self, simidx, it, field, component, subtract_QE_meanfield):
-        # calc normalized klm and store it in the respective simidx directory if not already cached
-        _fn = self.MAP_search[simidx].klm_fns[field].format(component=component, idx=simidx, it=it)
-        if it == 0: # QE (starting point)
-            return self.QE_searches[field].get_klms(simidx, subtract_QE_meanfield)
-        
-        if not self.MAP_search[simidx].cacher.is_cached(_fn):
-            self.QE_searches[field-1].calc_meanfield(component)
-            if subtract_QE_meanfield:
-                # TODO remove the current simidx from the meanfield calculation
-                # qlm[simidx] - meanfield(simidx) # this is a placeholder, the actual implementation will be more complex
-                pass
-            # TODO normalize the qlms to klms
-            # klms = cli(response) etc.
-            klms = None
-            self.MAP_search[simidx].cacher.cache(_fn, klms)
-        return self.MAP_search[simidx].cacher.load(_fn)
-
-
-    def get_wf(self):
-        pass
-
-
-    def get_ivf(self):
-        pass
 
 
 class Map_delenser(Basejob):

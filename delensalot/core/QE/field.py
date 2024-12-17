@@ -12,33 +12,39 @@ class basefield:
         self.lm_max = field_desc['lm_max']
         self.components = field_desc['components']
         self.qlm_fns =  field_desc['qlm_fns'] # fns must be dict() with keys as components, and formatter for simidx
+        self.klm_fns =  field_desc['qlm_fns'] # fns must be dict() with keys as components, and formatter for simidx
         self.cacher = cachers.cacher_npy(field_desc['components'])
 
+
+    def get_qlm(self, it, component=None):
+        if component is None:
+            return [self.get_qlm(it, component) for component in self.components]
+        if it < 0:
+            return np.zeros(Alm.getsize(*self.lm_max), dtype=complex) 
+        return self.cacher.load(self.qlm_fns[component]) if self.cacher.is_cached(self.qlm_fns[component]) else None
+    
 
     def get_klm(self, it, component=None):
         if component is None:
             return [self.get_klm(it, component) for component in self.components]
         if it < 0:
-            return np.zeros(Alm.getsize(*self.lm_max_qlm), dtype=complex) 
-        return self.cacher.load(self.klm_fns[component].format(it=it)) if self.cacher.is_cached(self.fn[component].format(it=it)) else self.sk2klm(it)
+            return np.zeros(Alm.getsize(*self.lm_max), dtype=complex) 
+        return self.cacher.load(self.klm_fns[component]) if self.cacher.is_cached(self.klm_fns[component]) else None
 
 
-    def sk2klm(self, it, component):
-        rlm = self.cacher.load(self.klm_fns[component].format(it=0))
-        for i in range(it):
-            rlm += self.hess_cacher.load(self.sk_fns(i))
-        return rlm
-    
+    def update_qlm(self, klm, component=None):
+        if component is None:
+            for ci, component in enumerate(self.components):
+                self.update_qlm(klm[ci], component)
+        self.cacher.save(self.qlm_fns[component], klm)
 
-    def update_klm(self, klm, id=None, component=None):
+
+    def update_klm(self, klm, component=None):
         if component is None:
             for ci, component in enumerate(self.components):
                 self.update_klm(klm[ci], component)
-        if id is None:
-            self.cacher.save(self.klm_fns[component], klm)
-        else:
-            self.cacher.save(self.klm_fns[component].format(it=id), klm)
+        self.cacher.save(self.klm_fns[component], klm)
 
 
     def is_cached(self, component):
-        return self.cacher.is_cached(self.klm_fns[component])
+        return self.cacher.is_cached(self.qlm_fns[component])
