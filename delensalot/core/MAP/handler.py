@@ -5,6 +5,7 @@ from . import curvature
 
 class base:
     def __init__(self, fields, filter_desc, gradient_descs, curvature_desc, desc, simidx):
+        # this class handles the filter, gradient, and curvature libs, nothing else
         self.fields = fields
         # NOTE gradient and curvature share the field increments, so naming must be consistent. Can use the gradient_descs['inc_fn'] for this
         self.gradients = [gradient(gradient_desc, filter_desc, fields) for gradient_desc in gradient_descs]
@@ -13,7 +14,7 @@ class base:
         self.simidx = simidx
 
 
-    def run(self):
+    def estimate_fields(self):
         curr_MAPp = self.get_current_MAPpoint()
         fields = self.get_current_fields()
         self.update_operators(fields)
@@ -33,6 +34,11 @@ class base:
 
     def get_current_fields(self):
         return self.fields
+    
+
+    def get_template(self, dlm, field):
+        self.template_operator.update_field(dlm)
+        return self.template_operator.act(field)
     
 
     def update_operators(self, fields):

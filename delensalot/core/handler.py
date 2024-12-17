@@ -28,8 +28,6 @@ from delensalot.utility.utils_hp import Alm, almxfl, alm_copy, gauss_beam, alm2c
 from delensalot.config.visitor import transform, transform3d
 from delensalot.config.metamodel import DEFAULT_NotAValue
 
-from delensalot.core.MAP import field, operator
-
 from delensalot.core import mpi
 from delensalot.core.mpi import check_MPI
 from delensalot.core.ivf import filt_util, filt_cinv, filt_simple
@@ -41,7 +39,7 @@ from delensalot.core.opfilt import utils_cinv_p as cinv_p_OBD
 from delensalot.core.opfilt.opfilt_handler import QE_transformer, MAP_transformer
 from delensalot.core.opfilt.bmodes_ninv import template_dense, template_bfilt
 
-from delensalot.core.MAP import operator, field, handler as MAP_handler
+from delensalot.core.MAP import handler as MAP_handler
 from delensalot.core.QE import handler as QE_handler
 
 def get_dirname(s):
@@ -611,14 +609,16 @@ class QE_lr_operator(Basejob):
     @check_MPI
     def __init__(self, delensalot_model, caller=None):
         super().__init__(delensalot_model)
-        # TODO add self. from Basejob to model
-
-        # I want to have a QE handler for each simidx as they have nothing to do with each other
+        # this class handles the collect/run across simidxs, nothing else.
+        # It has functions to call the QE handler, and the QE handler has functions to call the QE filter and qest libs
+        # this class also has functions to call the results
+        
+        # I want to have a QE handler for each field
         self.delensalot_model = delensalot_model
         self.simgen = Sim_generator(delensalot_model)
-        self.QE_model = self.delensalot_model
+        self.QE_model = self.delensalot_model.QE_handler_desc
         self.QE_model.simulationdata = self.simgen.simulationdata
-        self.QE_searchs = [QE_handler(field, delensalot_model.QE_filter_desc, delensalot_model.simidxs) for field in delensalot_model.QE_fields]
+        self.QE_searchs = [QE_handler(field, delensalot_model.QE_filter_desc, delensalot_model.simidxs, template_operator) for field, template_operator in zip(delensalot_model.QE_fields, delensalot_model.template_operators)]
 
 
     def collect_jobs(self, recalc=False):
@@ -667,12 +667,14 @@ class QE_lr_operator(Basejob):
                 first_rank = mpi.bcast(mpi.rank)
                 if first_rank == mpi.rank:
                     mpi.disable()
-                    self._init_filter()
+                    for QE_search in self.QE_searchs:
+                        QE_search._init_filter()
                     mpi.enable()
                     [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
                 else:
                     mpi.receive(None, source=mpi.ANY_SOURCE)
-                self._init_filter()
+                for QE_search in self.QE_searchs:
+                    QE_search._init_filter()
                    
         _tasks = self.qe_tasks if task is None else [task]
         for taski, task in enumerate(_tasks):
@@ -693,45 +695,12 @@ class QE_lr_operator(Basejob):
                 mpi.barrier()
             if task == 'calc_blt':
                 for simidx in self.jobs[taski][mpi.rank::mpi.size]:
-                    self.get_blt(simidx)
+                    # For each field, I want to build templates
+                    for QE_search in QE_searchs:
+                        self.get_template(simidx, QE_search.operator)
+                    self.get_template(simidx)
                     if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
                         self.simulationdata.purgecache()
-
-
-    def _init_filter(self):
-        if self.qe_filter_directional == 'isotropic':
-            self.ivf = filt_simple.library_fullsky_sepTP(opj(self.libdir_QE, 'ivf'), self.simulationdata, self.nivjob_geominfo[1]['nside'], self.ttebl, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
-            if self.estimator_type == 'sepTP':
-                self.qlms_dd = qest.library_sepTP(opj(self.libdir_QE, 'qlms_dd'), self.ivf, self.ivf, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
-        elif self.qe_filter_directional == 'anisotropic':
-            ## Wait for finished run(), as plancklens triggers cinv_calc...
-            self.cinv_t = filt_cinv.cinv_t(opj(self.libdir_QE, 'cinv_t'),
-                    self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
-                    self.ttebl['t'], self.nivt_desc,
-                    marge_monopole=True, marge_dipole=True, marge_maps=[])
-
-            # FIXME is this right? what if analysis includes pixelwindow function?
-            transf_elm_loc = gauss_beam(self.beam / 180 / 60 * np.pi, lmax=self.lm_max_ivf[0])
-            if self.OBD == 'OBD':
-                nivjob_geomlib_ = get_geom(self.nivjob_geominfo)
-                self.cinv_p = cinv_p_OBD.cinv_p(opj(self.libdir_QE, 'cinv_p'),
-                    self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
-                    transf_elm_loc[:self.lm_max_ivf[0]+1], self.nivp_desc, geom=nivjob_geomlib_, #self.nivjob_geomlib,
-                    chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol), bmarg_lmax=self.lmin_teb[2],
-                    zbounds=(-1,1), _bmarg_lib_dir=self.obd_libdir, _bmarg_rescal=self.obd_rescale,
-                    sht_threads=self.sht_threads)
-            else:
-                self.cinv_p = filt_cinv.cinv_p(opj(self.TEMP, 'cinv_p'),
-                    self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
-                    self.ttebl['e'], self.nivp_desc, chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol),
-                    transf_blm=self.ttebl['b'], marge_qmaps=(), marge_umaps=())
-            _filter_raw = filt_cinv.library_cinv_sepTP(opj(self.libdir_QE, 'ivf'), self.simulationdata, self.cinv_t, self.cinv_p, self.cls_len)
-            _ftebl_rs = lambda x: np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[x])
-            self.ivf = filt_util.library_ftl(_filter_raw, self.lm_max_qlm[0], _ftebl_rs(0), _ftebl_rs(1), _ftebl_rs(2))
-            self.qlms_dd = qest.library_sepTP(opj(self.libdir_QE, 'qlms_dd'), self.ivf, self.ivf, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
-        
-        [self.QE_search.set_qlms_lib(self.qlms_dd) for self.QE_search in self.QE_search]
-        [self.QE_search.set_filter_lib(self.ivf) for self.QE_search in self.QE_search]
 
 
     ## The following functions are to access the results of the QE jobs
@@ -740,12 +709,12 @@ class QE_lr_operator(Basejob):
             self.QE_searchs[simidx].get_meanfield(simidx, component)
 
 
-    def get_blt(self, simidx):
-        pass
+    def get_blt(self, simidx, kwargs):
+        self.QE_searchs[simidx].get_blt(kwargs)
 
 
-    def get_field(self, simidx, component):
-        pass
+    def get_fields(self, simidx, field, component, subtract_meanfield):
+        self.get_klms(self, simidx, field, component, subtract_meanfield)
 
 
     def get_klms(self, simidx, field, component, subtract_meanfield):
@@ -770,6 +739,13 @@ class QE_lr_operator(Basejob):
 
     def get_ivf(self, simidx, component):
         pass
+
+    def get_templates(self, simidx):
+        buff = []
+        for QE_search in self.QE_searchs:
+            buff.append(QE_search.get_template(simidx))
+        return buff
+
 
 class QE_lr(Basejob):
     """Quadratic estimate lensing reconstruction Job. Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.
@@ -1383,8 +1359,8 @@ class MAP_lr(Basejob):
 
 class MAP_lr_operator:
     def __init__(self, delensalot_model):
-
-        delensalot_model
+        self.delensalot_model = delensalot_model
+        self.simulationdata = delensalot_model.MAP_handler_desc.simulationdata
         self.QE_searchs = QE_lr_operator(delensalot_model, caller=self) # This is needed to access QE results
         # I want to have a MAP handler for each simidx as indices have nothing to do with each other
         self.MAP_search = [MAP_handler(delensalot_model.MAP_fields, delensalot_model.gradient_descs, delensalot_model.filter_desc, delensalot_model.curvature_desc, delensalot_model.desc, simidx) for simidx in self.simidxs]

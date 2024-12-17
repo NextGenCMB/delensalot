@@ -795,7 +795,20 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             ]
             QE_fields = [QE_field(field_desc) for field_desc in QE_fields_descs]
 
-
+            template_operators = {
+                "deflection": operator.lensing({
+                    "Lmin": dl.Lmin,
+                    "perturbative": dl.blt_pert,
+                    "lm_max": dl.lm_max_blt,
+                    "field_fns": MAP_fields_descs['deflection']['klm_fns'],
+                }),
+                "birefringence": operator.birefringence({
+                    "Lmin": dl.Lmin,
+                    "perturbative": dl.blt_pert,
+                    "lm_max": dl.lm_max_betalm,
+                    "field_fns": MAP_fields_descs['birefringence']['klm_fns'],
+                })
+            }
             QE_handler_desc = {
                 "fields": QE_fields,
                 "simidxs": cf.analysis.simidxs,
@@ -815,9 +828,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "Nmf": dl.Nmf,
                 "version": dl.version,
                 "zbounds": dl.zbounds,
-                "Lmin": dl.Lmin,
-                "blt_pert": dl.blt_pert,
-                "lm_max_blt": dl.lm_max_blt,
+                "template_operator": template_operators,
                 "obd_libdir": dl.obd_libdir,
                 "obd_rescale": dl.obd_rescale,
                 "sht_threads": dl.sht_threads,
@@ -903,14 +914,30 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 'beam': gauss_beam(),
                 'Ninv_desc': [dl.nivt_desc, dl.nivp_desc],
                 'WF_fns': 'wflm_it{it}',
-                 }
+            }
             
+            template_operators = {
+                "deflection": operator.lensing({
+                    "Lmin": dl.Lmin,
+                    "perturbative": False,
+                    "lm_max": dl.lm_max_blt,
+                    "field_fns": MAP_fields_descs['deflection']['klm_fns'],
+                }),
+                "birefringence": operator.birefringence({
+                    "Lmin": dl.Lmin,
+                    "lm_max": dl.lm_max_betalm,
+                    "field_fns": MAP_fields_descs['birefringence']['klm_fns'],
+                })
+            }
+
             MAP_handler_desc = {
                 'MAP_filter_desc': MAP_filter_desc,
                 'gradient_descs': gradient_descs,
                 'MAP_fields': MAP_fields,
                 'curvature_desc': {},
                 'itmax': dl.itmax,
+                'simulationdata': QE_handler_desc['simulationdata'],
+                "template_operators": template_operators,
             }
             dl.QE_handler_desc, dl.MAP_handler_desc = QE_handler_desc, MAP_handler_desc
             return dl
