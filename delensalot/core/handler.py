@@ -615,49 +615,65 @@ class QE_lr_new(Basejob):
         self.simidxs = QE_handler_desc['simidxs']
         self.simidxs_mf = QE_handler_desc['simidxs_mf']
         self.simulationdata = QE_handler_desc['simulationdata']
+        self.templates = QE_handler_desc['templates']
+        self.template_operators  = QE_handler_desc['template_operators']
 
         # I want to have a QE search for each field
         QE_search_desc = dm.QE_search_desc
-        self.QE_searchs = [QE_handler.base(field, QE_search_desc.QE_filterqest_desc, template_operator) for field, template_operator in zip(QE_search_desc.QE_fields, QE_search_desc.template_operators)]
+        self.QE_searchs = [QE_handler.base(ID, field, QE_search_desc.QE_filterqest_desc, template_operator[ID]) for ID, field, template_operator in zip(QE_search_desc.ID, QE_search_desc.QE_fields, QE_search_desc.template_operators)]
 
 
     def collect_jobs(self, recalc=False):
         jobs = list(range(len(self.qe_tasks)))
         for taski, task in enumerate(self.qe_tasks):
             _jobs = []
-            if task == 'estimate_fields':
-                for Qi, QE_search in enumerate(self.QE_searchs): # each field has its own QE_search
-                    __jobs = []
-                    for ci, component in enumerate(QE_search.components): # each field has n components # fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, pl_utils.mchash(self.simidxs_mf)))
-                        mf_fn = opj(QE_search.libdir, QE_search.mf_fns[component])
-                        if not os.path.isfile(mf_fn) or recalc: ## Skip if meanfield already calculated
-                            for simidx in QE_search.simidxs:
-                                field_fn = opj(QE_search.libdir, QE_search.fns[component].format(simidx)) # opj(opj(self.libdir_QE, 'qlms_dd'), 'sim_%s_%04d.fits'%(self.k, simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
+            if task == 'calc_fields':
+                for simidx in self.simidxs:
+                    for Qi, QE_search in enumerate(self.QE_searchs): # each field has its own QE_search
+                        __jobs = []
+                        _add = False
+                        for ci, component in enumerate(QE_search.field.components):
+                            mf_fn = opj(QE_search.libdir, 'qlms_dd', QE_search.field.qmflm_fns[component])
+                            if not os.path.isfile(mf_fn) or recalc: ## Skip if meanfield already calculated
+                                field_fn = opj(QE_search.libdir, 'qlms_dd', QE_search.qlm_fns[component].format(simidx)) # opj(opj(self.libdir_QE, 'qlms_dd'), 'sim_%s_%04d.fits'%(self.k, simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
                                 if not os.path.isfile(field_fn) or recalc:
-                                    __jobs.append(simidx)
+                                   _add = True
+                        __jobs.append(simidx) if _add else __jobs.append(None)
                     _jobs.append(__jobs)
                 jobs.append(_jobs)
              
 
-            # TODO do this later
-            # if task == 'calc_meanfield':
-            #     fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, pl_utils.mchash(self.simidxs_mf)))
-            #     if not os.path.isfile(fn_mf) or recalc:
-            #         for simidx in self.simidxs_mf:
-            #             fn_qlm = opj(opj(self.libdir_QE, 'qlms_dd'), 'sim_%s_%04d.fits'%(self.k, simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
-            #             if not os.path.isfile(fn_qlm) or recalc:
-            #                 _jobs.append(int(simidx))
+            if task == 'calc_meanfields':
+                for simidx in self.simidxs_mf:
+                    for Qi, QE_search in enumerate(self.QE_searchs): # each field has its own QE_search
+                        __jobs = []
+                        _add = False
+                        for ci, component in enumerate(QE_search.field.components): # each field has n components # fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, pl_utils.mchash(self.simidxs_mf)))
+                            mf_fn = opj(QE_search.libdir, 'qlms_dd', QE_search.field.qmflm_fns[component])
+                            if not os.path.isfile(mf_fn) or recalc:
+                                field_fn = opj(self.libdir, 'qlms_dd', QE_search.qlm_fns[component].format(simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
+                                if not os.path.isfile(field_fn) or recalc:
+                                    _add = True
+                         # checking for each component, but only adding the complete field as task index
+                        __jobs.append(simidx) if _add else __jobs.append(None)
+                    _jobs.append(__jobs)
+                jobs.append(_jobs)
 
-            # if task == 'calc_blt':
-            #     for simidx in self.simidxs:
-            #         ## this filename must match the one created in get_template_blm()
-            #         fn_blt = opj(self.libdir_blt(simidx), 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, simidx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
-            #         if not os.path.isfile(fn_blt) or recalc:
-            #             _jobs.append(simidx)
+            # TODO later. If i add combinatorics here across all operators, could add this to the collect list.
+            # TODO jobs list could come as [simidx-beta,simidx-2,simidx-12] for each simidx
+            if task == 'calc_templates':
+                for simidx in self.simidxs:
+                    for Qi, QE_search in enumerate(self.QE_searchs): # each field has its own QE_search
+                        __jobs = []
+                        for ci, component in enumerate(QE_search.te.components): # each field has n components # fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, pl_utils.mchash(self.simidxs_mf)))
+                            tepmplate_fn = opj(QE_search.libdir, 'templates', QE_search.template.qlmmf_fns[component])
+                            if not os.path.isfile(tepmplate_fn) or recalc:
+                                field_fn = opj(self.libdir, 'qlms_dd', QE_search.qlm_fns[component].format(simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
+                                if not os.path.isfile(field_fn) or recalc:
+                                    _jobs.append(int(simidx))
 
             jobs[taski] = _jobs
         self.jobs = jobs
-
         return jobs
 
 
@@ -679,31 +695,36 @@ class QE_lr_new(Basejob):
         _tasks = self.qe_tasks if task is None else [task]
         for taski, task in enumerate(_tasks):
             log.info('{}, task {} started'.format(mpi.rank, task))
-            if task == 'estimate_fields':
-                for sidxs in self.jobs[taski][mpi.rank::mpi.size]:
-                    for fidx in sidxs:
-                        self.QE_search[fidx].get_qlm(int(fidx))
+            if task == 'calc_fields':
+                for simidxs in self.jobs[taski][mpi.rank::mpi.size]:
+                    for fi, fidx in simidxs:
+                        if fidx is not None: #these Nones come from the field already being done.
+                            self.QE_searchs[fi].get_qlm(int(fidx))
                     if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
                         self.simulationdata.purgecache()
                 mpi.barrier()
-            if task == 'calc_meanfield':
-                if len(self.jobs[taski])>0:
-                    for QE_search in self.QE_search:
-                        for component in QE_search.components:
-                            if mpi.rank == 0:
-                                QE_search.calc_meanfield(component)
-                mpi.barrier()
-            if task == 'calc_blt':
-                for simidx in self.jobs[taski][mpi.rank::mpi.size]:
-                    # For each field, I want to build templates
+            if task == 'calc_meanfields':
+                for simidxs in self.jobs[taski][mpi.rank::mpi.size]:
                     for QE_search in self.QE_searchs:
-                        self.get_template(simidx, QE_search.operator)
-                    self.get_template(simidx)
+                        for fi, fidx in simidxs:
+                            self.QE_searchs[fi].get_qlm(int(fidx))
+                            self.QE_searchs[fi].get_klm(int(fidx)) # this is here for convenience
+                for QE_search in self.QE_searchs:
+                    QE_search.get_meanfield_qlm(QE_search.estimator_key, self.simidxs_mf)
+                mpi.barrier()
+
+            # TODO later
+            if task == 'calc_templates':
+                for simidxs in self.jobs[taski][mpi.rank::mpi.size]:
+                    # For each combination of operators, I want to build templates
+                    # jobs list could come as [simidx-delta,simidx-beta,simidx-deltabeta] for each simidx
+                    # delta is alpha and omega
+                    simidx, operator_indexs = simidxs.split('-')
+                    self.get_template(simidx, operator_indexs)
                     if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
                         self.simulationdata.purgecache()
 
 
-    ## The following functions are to access the results of the QE jobs
     def get_qlm(self, simidx, field, component):
         return self.QE_searchs[field].get_qlm(simidx, component)
     
@@ -712,9 +733,14 @@ class QE_lr_new(Basejob):
         return self.QE_searchs[simidx].get_klm(self, simidx, field, component, subtract_meanfield)
 
 
-    def get_template(self, simidx, field):
-        return self.QE_searchs[field].get_template(simidx)
-    
+    def get_template(self, simidx, operator_indexs):
+        # TODO add cacher and connect to field class
+        # FIXME what does a joint operator act on? Currently, I have a WF for each field. Is there a joint_WF for QE?
+        wf = self.get_wf(simidx)
+        for operator_index in operator_indexs:
+            obj = self.template_operators[operator_index].act(wf)
+            wf = obj
+
 
     def get_wf(self, simidx, field):
         return self.QE_searchs[field].get_wf(simidx)
@@ -763,9 +789,8 @@ class MAP_lr_operator:
                     self.MAP_search[simidx].get_klm()
 
 
-    ## The following functions are to access the results of the MAP job
     def get_klm(self, simidx, it, field, component, subtract_QE_meanfield):
-        # calc normalized klm and store it in the respective simidx directory if not already cached
+        # TODO add cacher and connect to field class
         _fn = self.MAP_search[simidx].klm_fns[field].format(component=component, idx=simidx, it=it)
         if it == 0: # QE (starting point)
             return self.QE_searchs[field].get_klms(simidx, subtract_QE_meanfield)
@@ -1170,29 +1195,7 @@ class QE_lr(Basejob):
         QE_filters = transform(self, QE_transformer())
         filter = transform(self, QE_filters())
         return filter
-    
 
-    def get_field(self, fieldname, simidx):
-        if fieldname == 'deflection':
-            self.get_plm(simidx)
-            self.get_wlm(simidx)
-        elif fieldname == 'birefringence':
-            self.get_olm(simidx)
-
-
-    def get_meanfield_field(self, fieldname, estimator_key):
-        if fieldname == 'deflection':
-            mf_sims = np.unique(np.array([]) if not 'noMF' in self.version else np.array([]))
-            mf0_p = self.qlms_dd.get_sim_qlm_mf('p' + estimator_key[1:], mf_sims)  # Mean-field to subtract on the first iteration:
-            mf0_o = self.qlms_dd.get_sim_qlm_mf('x' + estimator_key[1:], mf_sims)  # Mean-field to subtract on the first iteration:
-            return mf0_p, mf0_o
-        elif fieldname == 'birefringence':
-            return  self.qlms_dd.get_sim_qlm_mf('a' + estimator_key[1:], mf_sims)  # Mean-field to subtract on the first iteration:
-
-        # for field in self.fields:
-            # return field
-        # return self.field.get_component(simidx)
-    
 
 class MAP_lr(Basejob):
     """Iterative lensing reconstruction Job. Depends on class QE_lr, and class Sim_generator. Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.

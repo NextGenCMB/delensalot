@@ -201,7 +201,7 @@ def read_map(m):
         assert 0, 'cant tell what to do with ' + m
 
 
-def camb_clfile(fname, lmax=None):
+def camb_clfile(fname, lmax=None, load_secondaries=False):
     """CAMB spectra (lenspotentialCls, lensedCls or tensCls types) returned as a dict of numpy arrays.
 
     Args:
@@ -226,6 +226,33 @@ def camb_clfile(fname, lmax=None):
         cls['pp'][ell[idc]] = cols[5][idc] / wpp(ell[idc])
         cls['pt'][ell[idc]] = cols[6][idc] / wptpe(ell[idc])
         cls['pe'][ell[idc]] = cols[7][idc] / wptpe(ell[idc])
+    return cls
+
+
+# TODO implement if needed
+def camb_clfile_secondaries(fname, lmax=None):
+    assert 0, 'not implemented'
+    """CAMB spectra (only secondaries) returned as a dict of numpy arrays.
+
+    Args:
+        fname (str): path to CAMB output file
+        lmax (int, optional): outputs cls truncated at this multipole.
+
+    """
+    cols = np.loadtxt(fname).transpose()
+    ell = np.int_(cols[0])
+    if lmax is None: lmax = ell[-1]
+    assert ell[-1] >= lmax, (ell[-1], lmax)
+    cls = {k : np.zeros(lmax + 1, dtype=float) for k in ['tt', 'ee', 'bb', 'te']}
+    w = ell * (ell + 1) / (2. * np.pi)  # weights in output file
+    idc = np.where(ell <= lmax) if lmax is not None else np.arange(len(ell), dtype=int)
+    for i, k in enumerate(['tt', 'ee', 'bb', 'te']):
+        cls[k][ell[idc]] = cols[i + 1][idc] / w[idc]
+    if len(cols) > 5:
+        wpp = lambda ell : ell ** 2 * (ell + 1) ** 2 / (2. * np.pi)
+        for i, k in enumerate(['pp', 'pt', 'pe']):
+            cls[k] = np.zeros(lmax + 1, dtype=float)
+        cls['pp'][ell[idc]] = cols[5][idc] / wpp(ell[idc])
     return cls
 
 

@@ -312,11 +312,11 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
                 def _process_Qerec(dl, qe):
                     dl.blt_pert = qe.blt_pert
-                    dl.QE_subtract_meanfield = False if dl.version == 'noMF' else True
-                    if dl.QE_subtract_meanfield:
-                        qe_tasks_sorted = ['calc_phi', 'calc_meanfield', 'calc_blt']
+                    dl.subtract_QE_meanfield = qe.subtract_QE_meanfield
+                    if dl.subtract_QE_meanfield:
+                        qe_tasks_sorted = ['calc_fields', 'calc_meanfields', 'calc_templates']
                     else:
-                        qe_tasks_sorted = ['calc_phi', 'calc_blt']
+                        qe_tasks_sorted = ['calc_fields', 'calc_templates']
                     qe_tasks_extracted = []
                     for taski, task in enumerate(qe_tasks_sorted):
                         if task in qe.tasks:
@@ -326,10 +326,10 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.qe_tasks = qe_tasks_extracted
                         
                     dl.lm_max_qlm = qe.lm_max_qlm
-                    dl.qlm_type = qe.qlm_type
+                    dl.estimator_type = qe.qlm_type
 
                     ## FIXME cg chain currently only works with healpix geometry
-                    dl.QE_cg_tol = qe.QE_cg_tol
+                    dl.QE_cg_tol = qe.cg_tol
                     if qe.chain == None:
                         dl.chain_descr = lambda a,b: None
                         dl.chain_model = dl.chain_descr
@@ -354,58 +354,67 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_OBD(dl, cf.obd)
                 _process_Qerec(dl, cf.qerec)
 
-                # TODO this needs cleaner implementation. 
-                if 'smoothed_phi_empiric_halofit' in cf.analysis.cpp[0]:
-                    dl.cpp = np.load(cf.analysis.cpp)[:dl.lm_max_qlm[0] + 1,1]
-                elif cf.analysis.cpp.endswith('dat'):
-                    # assume its a camb-like file
-                    dl.cpp = camb_clfile(cf.analysis.cpp)['pp'][:dl.lm_max_qlm[0] + 1] 
-                elif os.path.exists(os.path.dirname(cf.analysis.cpp)):
-                    # FIXME this implicitly assumes that all cpp.npy comes as convergence
-                    dl.cpp = np.load(cf.analysis.cpp)[:dl.lm_max_qlm[0] + 1,1]
-                    LL = np.arange(0,dl.lm_max_qlm[0] + 1,1)
-                    k2p = lambda x: np.nan_to_num(x/(LL*(LL+1))**2/(2*np.pi))
-                    dl.cpp = k2p(dl.cpp)
-                    
-                dl.cpp[:dl.Lmin] *= 0.
+                # cf.analysis.CLfids is assumed to be a camb-like file with the field name as dictionary key and their power spectra
+                
+                #FIXME for now I assume this is a simple np.array with pp,ww,bb,pw,pb,wb. This needs to be generalized
+                _keys = ['pp', 'ww', 'bb']
+                dl.Clfids = np.load(cf.analysis.CLfids)
+                dl.CLfids = {key: val[:dl.lm_max_qlm[0] + 1] for key, val in zip(_keys, dl.CLfids)}
+                # if cf.analysis.CLfields.endswith('dat'):
+                    # dl.CLfields = (cf.analysis.CLfields, load_secondaries=True)
+                #NOTE assuming these are convergence power spectra, and they come as 
 
             dl = DLENSALOT_Concept()
             _process_components(dl)
-            dl.coo = np.ones(hp.Alm.getsize(*dl.lm_max_qlm))
-            dl.cbb = np.ones(hp.Alm.getsize(*dl.lm_max_qlm))
 
             QE_fields_descs = [{
-                    "ID": 'deflection',
+                    "ID": "lensing",
                     'lm_max': dl.lm_max_qlm,
                     'components': 2,
-                    'fiducials': {'alpha': dl.cpp, 'omega': dl.coo},
-                    'qlm_fns': {"alpha": 'qlm_alpha_simidx{idx}', "omega": 'qlm_omega_simidx{idx}'}, # This could be hardcoded, but I want to keep it flexible
-                    'klm_fns': {"alpha": 'klm_alpha_simidx{idx}', "omega": 'klm_omega_simidx{idx}'}, # need the normalized version because of the template generation
-                    'qmf_fns': {"alpha": 'qmflm_alpha_simidx{idx}', "omega": 'qmflm_omega_simidx{idx}'},
+                    'fiducials': {'alpha': dl.CLfids['pp'], 'omega': dl.CLfids['ww']},
+                    'qlm_fns': {"alpha": 'qlm_alpha_simidx{idx}', "omega": 'qlm_omega_simidx{idx}'},
+                    'klm_fns': {"alpha": 'klm_alpha_simidx{idx}', "omega": 'klm_omega_simidx{idx}'},
+                    'qmflm_fns': {"alpha": 'qmflm_alpha_simidx{idx}', "omega": 'qmflm_omega_simidx{idx}'},
                 },{
                     "ID": 'birefringence',
-                    'lm_max': dl.lm_max_qlm,
+                    'lm_max': dl.lm_max_qlm, #FIXME betalm?
                     'components': 1,
-                    'fiducials': {'beta': dl.cbb},
-                    "qlm_fns": {"beta": 'qlm_beta_it'}, # This could be hardcoded, but I want to keep it flexible
-                    "klm_fns": {"beta": 'klm_beta_it'},
-                    'qmf_fns': {"beta": 'qmflm_beta_simidx{idx}'},
+                    'fiducials': {'beta': dl.CLfids['bb']},
+                    "qlm_fns": {"beta": 'qlm_beta_simidx{idx}'},
+                    "klm_fns": {"beta": 'klm_beta_simidx{idx}'},
+                    'qmflm_fns': {"beta": 'qmflm_beta_simidx{idx}'},
                 },
             ]
             QE_fields = [QE_field(field_desc) for field_desc in QE_fields_descs]
-
-            template_operators = {
-                "deflection": operator.lensing({
+            
+            QE_template_descs = [{  # templates need a fn, that's all
+                "ID": "lensing",
+                "klm_fns": {"alpha": 'klm_alpha_template_simidx{idx}', "omega": 'klm_omega_template_simidx{idx}'},
+                },{
+                "ID": "birefringence",
+                "klm_fns": {"beta": 'klm_beta_template_simidx{idx}'},
+                },{
+                "ID": "joint",
+                "klm_fns": {"joint": 'klm_joint_template_simidx{idx}'},
+                }
+            ]
+            templates = [QE_field(field_desc) for field_desc in QE_template_descs]
+            template_operator_descs = {
+                "lensing": {
                     "Lmin": dl.Lmin,
                     "perturbative": dl.blt_pert,
                     "lm_max": dl.lm_max_blt,
-                    "fields_fns": QE_fields_descs['deflection']['klm_fns'],
-                }),
-                "birefringence": operator.birefringence({
+                    "fields_fns": QE_fields_descs["lensing"]['klm_fns'],
+                },
+                "birefringence": {
                     "Lmin": dl.Lmin,
-                    "lm_max": dl.lm_max_betalm,
+                    "lm_max": dl.lm_max_blt, # FIXME betatemp_lm?
                     "fields_fns": QE_fields_descs['birefringence']['klm_fns'],
-                })
+                },
+            }
+            template_operators = { # NOTE joint can be build by combinatorics
+                "lensing": operator.lensing(template_operator_descs["lensing"]),
+                "birefringence": operator.birefringence(template_operator_descs["birefringence"]),
             }
 
             QE_filterqest_desc = {
@@ -438,6 +447,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             }
 
             QE_searchs_desc = {
+                "IDs": ["lensing", "birefringence"],
                 "QE_filterqest_desc": QE_filterqest_desc,
                 "template_operators": template_operators,
                 "fields": QE_fields,
@@ -446,6 +456,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             QE_handler_desc = {
                 "fields": QE_fields,
                 "template_operators": template_operators,
+                "templates": templates,
                 "simidxs": cf.analysis.simidxs,
                 "simidxs_mf": dl.simidxs_mf,
                 "QE_tasks": dl.qe_tasks,
@@ -518,17 +529,19 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
             # input: all kwargs needed to build the MAP fields
             MAP_fields_descs = [{
-                    "ID": 'deflection',
+                    "ID": "lensing",
                     'lm_max': dl.lm_max_qlm,
                     'components': 2,
-                    'fiducials': {'alpha': dl.cpp, 'omega': dl.coo},
-                    'klm_fns': {"alpha": 'klm_alpha_it{it}', "omega": 'klm_omega_it{it}'}, # This could be hardcoded, but I want to keep it flexible
+                    'fiducials': {'alpha': dl.CLfids['pp'], 'omega': dl.CLfids['ww']},
+                    'klm_fns': {"alpha": 'klm_alpha_simidx{idx}_it{it}', "omega": 'klm_omega_simidx{idx}_it{it}'}, # This could be hardcoded, but I want to keep it flexible
+                    'kmflm_fns': {"alpha": 'kmflm_alpha_simidx{idx}_it{it}', "omega": 'kmflm_omega_simidx{idx}_it{it}'},
                 },{
                     "ID": 'birefringence',
-                    'lm_max': dl.lm_max_qlm,
+                    'lm_max': dl.lm_max_qlm, # FIXME betalm?
                     'components': 1,
-                    'fiducials': {'beta': dl.cbb},
-                    "klm_fns": {"beta": 'klm_beta_it{it}'}, # This could be hardcoded, but I want to keep it flexible
+                    'fiducials': {'beta': dl.CLfids['bb']},
+                    "klm_fns": {"beta": 'klm_beta_simidx{idx}_it{it}'}, # This could be hardcoded, but I want to keep it flexible
+                    'kmflm_fns': {"alpha": 'qmflm_alpha_simidx{idx}_it{it}', "omega": 'qmflm_omega_simidx{idx}_it{it}'},
                 },
             ]
             MAP_fields = [MAP_field(field_desc) for field_desc in MAP_fields_descs]
@@ -537,7 +550,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             _MAP_operators_desc = {}
             _MAP_operators_desc['lensing_operator'] = {
                 'lmax': None,
-                'field_fns': MAP_fields_descs['deflection']['klm_fns'],
+                'field_fns': MAP_fields_descs["lensing"]['klm_fns'],
             }
             _MAP_operators_desc['birefringence_operator'] = {
                 'lmax': None,
@@ -577,7 +590,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "gradient_increment_fns": 'glminc_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
                     "field_increment_fns": 'klminc_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"), # TODO this might have to move to field
                     "klm_fns": 'klm_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
-                    "chh": None,
+                    "chh": None, # there is a chh for each component
                 }
                 gradient_descs.append(gradient_desc)
 
@@ -592,11 +605,11 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             }
             
             template_operators = {
-                "deflection": operator.lensing({
+                "lensing": operator.lensing({
                     "Lmin": dl.Lmin,
                     "perturbative": False,
                     "lm_max": dl.lm_max_blt,
-                    "field_fns": MAP_fields_descs['deflection']['klm_fns'],
+                    "field_fns": MAP_fields_descs["lensing"]['klm_fns'],
                 }),
                 "birefringence": operator.birefringence({
                     "Lmin": dl.Lmin,

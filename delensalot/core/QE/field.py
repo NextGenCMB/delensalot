@@ -13,6 +13,7 @@ class basefield:
         self.components = field_desc['components']
         self.qlm_fns =  field_desc['qlm_fns'] # fns must be dict() with keys as components, and formatter for simidx
         self.klm_fns =  field_desc['qlm_fns'] # fns must be dict() with keys as components, and formatter for simidx
+        self.qlmmf_fns = field_desc['qlmmf_fns']
         self.cacher = cachers.cacher_npy(field_desc['components'])
 
 

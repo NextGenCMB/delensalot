@@ -8,34 +8,49 @@ from delensalot.utils import cli
 from . import filter
 
 
+"""
+fields:
+    gradient (which is klm)
+    gradient increment from curvature
+    total gradient increment from previous
+    2-term gradient increment from previous (no prior change)
+    we can build all gradients from the increments: dont store gradient, but can cache.
+
+    either build total or individual gradients from increments, or get new from iteration
+        for building, i need the initial gradient (klm_it0), which is stored, and all increments
+        for new, i need the field increments
+"""
+
 class base:
     def __init__(self, gradient_desc, filter_desc):
         self.ID = gradient_desc['ID']
         self.field = gradient_desc['field']
         self.filter = filter(filter_desc)
-        self.meanfield_fns = gradient_desc['mf_fns']
-        self.pri_fns = gradient_desc['prior_fns']
         self.quad_fns = gradient_desc['quad_fns']
         self.gradient_increment_fns = gradient_desc['gradient_increment_fns']
-        self.field_increment_fns = gradient_desc['field_increment_fns']
+        self.gradient_increment_total_fns = gradient_desc['gradient_increment_total_fns']
         self.chh = gradient_desc['chh']
         self.inner = gradient_desc['inner']
-        self.current_iter = 0
         
-
         self.cacher = cachers.cacher_npy(gradient_desc['ID'])
 
 
-    def calc_gradient(self, ncomponents, curr_iter):
-        self.current_iter = curr_iter
-        self.calc_gradient_prior(ncomponents, curr_iter)
-        self.calc_gradient_quad(ncomponents, curr_iter)
-        self.calc_gradient_meanfield(ncomponents, curr_iter)
+    def get_gradient_total(self, it):
+        if self.cacher.is_cached(self.gradient_increment_fns.format(idx=self.simidx, it=it)):
+            return self.build_gradient_total()
+        else:
+            grad = self.get_gradient_prior(it)
+            grad += self.get_gradient_quad(it)
+            grad += self.get_gradient_meanfield(it)
+            return grad
 
 
-    def calc_gradient_quad(self, curr_iter):
-        XWF = self.filter.get_WF(curr_iter)
-        ivf = self.filter.get_ivf(curr_iter, XWF)
+    def get_gradient_quad(self, it, component=None):
+        # check if result is cached and return
+        # build new quad gradient from qlm expression
+        # NOTE no caching here as we build
+        XWF = self.filter.get_WF(it)
+        ivf = self.filter.get_ivf(it, XWF)
         
         qlms = 0
         #FIXME this is not the correct way to get the quad
@@ -43,16 +58,31 @@ class base:
             qlms += ivf*self.inner(XWF)
 
 
-    def calc_gradient_meanfield(self, curr_iter):
-        return self.cacher.load(self.meanfield_fns.format(it=curr_iter))
+    def get_gradient_meanfield(self, it, component=None):
+        # NOTE this currently only uses the QE gradient meanfield
+        if component is None:
+            for component in self.field.components:
+                return self.get_gradient_meanfield(it, component)
+        else:
+            # this is for existing iteration
+            if self.cacher.is_cached(self.kmflm_fns[component].format(idx=self.simidx, it=0)):
+                return self.cacher.load(self.kmflm_fns[component].format(idx=self.simidx, it=0))
+            else:
+                #this is next iteration. For now, just return previous iteration
+                return self.cacher.load(self.kmflm_fns[component].format(idx=self.simidx, it=0))
 
 
-    def calc_gradient_prior(self, curr_iter):
-        for field in self.fields:
-            for component in field.components:
-                ret = self.field.get_klm(curr_iter, component)
-        almxfl(ret, cli(self.chh), self.mmax_qlm, True)
-        return ret
+    def get_gradient_prior(self, it, component=None):
+        # recursive call to get all components
+        if component is None:
+            for component in self.field.components:
+                return self.get_gradient_prior(it, component)
+        else:
+            # this is for existing iteration
+            if self.cacher.is_cached(self.klm_fns[component].format(idx=self.simidx, it=it)):
+                priorlm = self.cacher.load(self.kmflm_fns[component].format(idx=self.simidx, it=it))
+                almxfl(priorlm, cli(self.chh[component]), self.field.lm_max_qlm[1], True)
+                return np.array(priorlm)
 
 
     def get_WF(self):
@@ -71,34 +101,35 @@ class base:
         self.inner.update_field(field)
 
 
-    def load_gradient(self, curr_iter):
-        if curr_iter == 0:
-            for component in self.field.components:
-                g  = self.load_grad_prior(curr_iter)
-                g += self.load_grad_det(curr_iter)
-                g += self.load_grad_quad(curr_iter)
+    def build_gradient_total(self, it):
+        g = 0
+        if it == 0:
+            return self.field.klm_fns(idx=self.simidx, it=0)
+            g += self.load_grad_prior(curr_iter)
+            g += self.load_grad_det(curr_iter)
+            g += self.load_grad_quad(curr_iter)
             return g
         return self._build(curr_iter)
 
 
-    def load_det(self, it):
+    def load_grad_det(self, it):
         return self.cacher.load(self.det_fn.format(it=it))
 
 
-    def load_prior(self, it):
+    def load_grad_prior(self, it):
         ret = self.field.get_klm(it)
         almxfl(ret, cli(self.chh), self.mmax_qlm, True)
         return ret
 
 
-    def load_quad(self, it, key):
+    def load_grad_quad(self, it, key):
         return self.cacher.load(self.quad_fns[key].format(it=it))
 
 
     def _build(self, it):
-        rlm = self.load_gradient(0)
+        rlm = self.field.get_klm(idx=self.simidx, it=0)
         for i in range(it):
-            rlm += self.hess_cacher.load(self.increment_fns(i))
+            rlm += self.cacher.load(self.field_increment_fns(i))
         return rlm
 
 

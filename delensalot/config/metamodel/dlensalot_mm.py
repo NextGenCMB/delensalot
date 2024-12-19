@@ -144,6 +144,8 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     cpp =                   attr.field(default=DEFAULT_NotAValue, validator=analysis.cpp)
     beam =                  attr.field(default=DEFAULT_NotAValue, validator=analysis.beam)
     transfunction_desc =    attr.field(default=DEFAULT_NotAValue, validator=analysis.transfunction)
+    subtract_QE_meanfield = attr.field(default=DEFAULT_NotAValue)
+    CLfids =                attr.field(default=DEFAULT_NotAValue)
 
 
 @attr.s
@@ -257,7 +259,7 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     """
 
     tasks =                 attr.field(default=DEFAULT_NotAValue, validator=qerec.tasks)
-    qlm_type =              attr.field(default=DEFAULT_NotAValue, validator=qerec.qlms)
+    estimator_type =        attr.field(default=DEFAULT_NotAValue, validator=qerec.qlms)
     cg_tol =                attr.field(default=DEFAULT_NotAValue, validator=qerec.cg_tol)
     filter_directional =    attr.field(default=DEFAULT_NotAValue, validator=qerec.filter_directional)
     lm_max_qlm =            attr.field(default=DEFAULT_NotAValue, validator=qerec.lm_max_qlm) # TODO move this to analysis, lmax must be same in qe and it

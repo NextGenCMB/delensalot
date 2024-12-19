@@ -11,6 +11,7 @@ class basefield:
         self.lm_max = field_desc['lm_max']
         self.fiducials = field_desc['fiducials']
         self.components = field_desc['components']
+        self.kmflm_fns = field_desc['components']
         self.fns =  field_desc['fns'] # fns must be dict() with keys as components, and it as format specifiers
         self.cacher = cachers.cacher_npy(field_desc['components'])
         self.hess_cacher = cachers.cacher_npy(opj(field_desc["lib_dir"], 'hessian'))

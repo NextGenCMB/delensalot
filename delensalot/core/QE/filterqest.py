@@ -25,7 +25,8 @@ class base:
 
         self.qe_filter_directional = filter_desc['qe_filter_directional']
         self.estimator_type = filter_desc['estimator_type']
-        self.libdir_QE = filter_desc['libdir_QE']
+        self.estimator_key = filter_desc['estimator_key']
+        self.libdir = filter_desc['libdir']
 
         self.simulationdata = filter_desc['simulationdata']
 
@@ -49,12 +50,12 @@ class base:
 
     def _init_filterqest(self):
         if self.qe_filter_directional == 'isotropic':
-            self.ivf = filt_simple.library_fullsky_sepTP(opj(self.libdir_QE, 'ivf'), self.simulationdata, self.nivjob_geominfo[1]['nside'], self.ttebl, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
+            self.ivf = filt_simple.library_fullsky_sepTP(opj(self.libdir, 'ivf'), self.simulationdata, self.nivjob_geominfo[1]['nside'], self.ttebl, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
             if self.estimator_type == 'sepTP':
-                self.qlms_dd = qest.library_sepTP(opj(self.libdir_QE, 'qlms_dd'), self.ivf, self.ivf, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
+                self.qlms_dd = qest.library_sepTP(opj(self.libdir, 'qlms_dd'), self.ivf, self.ivf, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
         elif self.qe_filter_directional == 'anisotropic':
             ## Wait for finished run(), as plancklens triggers cinv_calc...
-            self.cinv_t = filt_cinv.cinv_t(opj(self.libdir_QE, 'cinv_t'),
+            self.cinv_t = filt_cinv.cinv_t(opj(self.libdir, 'cinv_t'),
                     self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
                     self.ttebl['t'], self.nivt_desc,
                     marge_monopole=True, marge_dipole=True, marge_maps=[])
@@ -63,21 +64,21 @@ class base:
             transf_elm_loc = gauss_beam(self.beam / 180 / 60 * np.pi, lmax=self.lm_max_ivf[0])
             if self.OBD == 'OBD':
                 nivjob_geomlib_ = get_geom(self.nivjob_geominfo)
-                self.cinv_p = cinv_p_OBD.cinv_p(opj(self.libdir_QE, 'cinv_p'),
+                self.cinv_p = cinv_p_OBD.cinv_p(opj(self.libdir, 'cinv_p'),
                     self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
                     transf_elm_loc[:self.lm_max_ivf[0]+1], self.nivp_desc, geom=nivjob_geomlib_, #self.nivjob_geomlib,
                     chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol), bmarg_lmax=self.lmin_teb[2],
                     zbounds=(-1,1), _bmarg_lib_dir=self.obd_libdir, _bmarg_rescal=self.obd_rescale,
                     sht_threads=self.sht_threads)
             else:
-                self.cinv_p = filt_cinv.cinv_p(opj(self.libdir_QE, 'cinv_p'),
+                self.cinv_p = filt_cinv.cinv_p(opj(self.libdir, 'cinv_p'),
                     self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
                     self.ttebl['e'], self.nivp_desc, chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol),
                     transf_blm=self.ttebl['b'], marge_qmaps=(), marge_umaps=())
-            _filter_raw = filt_cinv.library_cinv_sepTP(opj(self.libdir_QE, 'ivf'), self.simulationdata, self.cinv_t, self.cinv_p, self.cls_len)
+            _filter_raw = filt_cinv.library_cinv_sepTP(opj(self.libdir, 'ivf'), self.simulationdata, self.cinv_t, self.cinv_p, self.cls_len)
             _ftebl_rs = lambda x: np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[x])
             self.ivf = filt_util.library_ftl(_filter_raw, self.lm_max_qlm[0], _ftebl_rs(0), _ftebl_rs(1), _ftebl_rs(2))
-            self.qlms_dd = qest.library_sepTP(opj(self.libdir_QE, 'qlms_dd'), self.ivf, self.ivf, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
+            self.qlms_dd = qest.library_sepTP(opj(self.libdir, 'qlms_dd'), self.ivf, self.ivf, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
 
 
     def get_wflm(self, simidx):

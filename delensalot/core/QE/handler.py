@@ -19,32 +19,33 @@ from delensalot.utility.utils_hp import Alm, almxfl, alm_copy, gauss_beam
 class base:
     def __init__(self, QE_search_desc):
         # This class is for a single field, but all simidxs. It manages the filter and qest libs, nothing else.
-        self.estimator_key = QE_search_desc['estimator_key']
+        # It does not quite aline well with the MAP classes, as the MAP equivalent is per simidx.
+        self.ID = QE_search_desc["ID"]
+        self.field = QE_search_desc['field']
         self.fq = filterqest(QE_search_desc['QE_filterqest_desc'])
 
+        self.estimator_key = QE_search_desc['estimator_key']
         self.cls_len = QE_search_desc['cls_len']
         self.cls_unl = QE_search_desc['cls_unl']
 
-        self.field = QE_search_desc['field']
-        self.template_operator = QE_search_desc['template_operator']
-        # TODO make them per field
-        self.mf = lambda simidx: self.get_meanfield(int(simidx))
-        self.plm = lambda simidx: self.get_plm(simidx, self.QE_subtract_meanfield)
-        self.qlms = None
+        self.simidxs = QE_search_desc['simidxs']
+        self.simidxs_mf = QE_search_desc['simidxs_mf']
 
     
     def init_filterqest(self):
         self.qlms = self.fq._init_filterqest()
         
 
-    def get_qlm(self, simidx, field):
+    def get_qlm(self, simidx):
+        #TODO add cacher and connect to field class
         #flow: if not cached, load file. if file does not exist, get qlm, update qlm, save qlm, cache qlm
-        qlm = self.qlms.get_sim_qlm(self.estimator_key[field], int(simidx))  #Unormalized quadratic estimate
-        field.update_qlm(qlm)
+        qlm = self.qlms.get_sim_qlm(self.estimator_key, int(simidx))  #Unormalized quadratic estimate
+        self.field.update_qlm(qlm)
         return self.field
     
 
     def get_klm(self, simidx, subtract_meanfield):
+        #TODO add cacher and connect to field class
         #flow: if not cached, load file. if file does not exist, get qlm, update qlm, save qlm, update klm, save klm, cache klm
         # self.estimate_fields(self)
         # for qfield, kfield in zip(self.qfields, self.kfields):
@@ -58,50 +59,22 @@ class base:
         #     almxfl(kfield.value, kfield.CLfid > 0, self.lm_max_qlm[1], True)
         #     self.kfield.update_klm(kfield.value)
         # return self.kfields
-
-        # # calc normalized klm and store it in the respective directory if not already cached
-        # _fn = self.QE_searchs[field].klm_fns[component].format(idx=simidx)
-        # if not self.QE_searchs[field].cacher.is_cached(_fn):
-        #     self.QE_searchs[field].get_meanfield(component)
-        #     if subtract_meanfield:
-        #         # TODO remove the current simidx from the meanfield calculation
-        #         # qlm[simidx] - meanfield(simidx) # this is a placeholder, the actual implementation will be more complex
-        #         pass
-        #     # TODO normalize the qlms to klms
-        #     # klms = cli(response) etc.
-        #     klms = None
-        #     self.QE_searchs[simidx].cacher.cache(_fn, klms)
-        # return self.QE_searchs[simidx].cacher.load(_fn)
         pass
-    
-
-    def get_template(self, simidx, dlm, field):
-        #flow if not cached, get dlm. dlm = klm
-        dlm = self.field.get_klm(simidx, field)
-        self.template_operator.update_field(dlm)
-        return self.template_operator.act(field)
 
 
-    def get_meanfield_qlm(self, fieldname, estimator_key, simidxs_mf, component=None):
-        #flow: check cached and file, calc meanfield: get qlm for each simidx
-        if component is None:
-            return [self.get_meanfield(fieldname, estimator_key, component) for component in self.components]
-        if fieldname == 'deflection':
-            qmf = self.qlms.get_sim_qlm_mf(component + estimator_key[1:], simidxs_mf)  # Mean-field to subtract on the first iteration:
-            return qmf
-        elif fieldname == 'birefringence':
-            return self.qlms.get_sim_qlm_mf(component + estimator_key[1:], simidxs_mf)  # Mean-field to subtract on the first iteration:
+    def get_meanfield_qlm(self, estimator_key, simidxs):
+        # TODO add caching, and connect it to the field class
+        return self.qlms.get_sim_qlm_mf(estimator_key, simidxs)  # Mean-field to subtract on the first iteration:
         
 
-    def get_meanfield_klm(self, simidx, field, component):
-        #flow: check cached and file, calc meanfield: get qlm for each simidx
-        # TODO make this per field
-        mf_QE = copy.deepcopy(self.get_meanfield(simidx))
-        R = self.get_response_len(self.estimator_key, self.lm_max_ivf[0], self.estimator_key[0])[0]
-        WF = self.field.fiducial * cli(self.field.fiducial + cli(R))
+    def get_meanfield_klm(self, estimator_key, simidx):
+        # TODO add caching, and connect it to the field class
+        mf_QE = copy.deepcopy(self.get_meanfield_qlm(estimator_key, self.simidxs_mf))
+        R = self.fq.get_response_len(estimator_key, self.lm_max_ivf[0])[0]
+        WF = self.field.CLfid * cli(self.field.CLfid + cli(R))
         almxfl(mf_QE, cli(R), self.lm_max_qlm[1], True) # Normalized QE
         almxfl(mf_QE, WF, self.lm_max_qlm[1], True) # Wiener-filter QE
-        almxfl(mf_QE, self.field.fiducial > 0, self.lm_max_qlm[1], True)
+        almxfl(mf_QE, self.field.CLfid > 0, self.lm_max_qlm[1], True)
 
         return mf_QE
     

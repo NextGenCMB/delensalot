@@ -1,0 +1,7 @@
+check all flows for
+ 1. collect/run
+    a. with MPI
+    b. without MPI
+ 2. direct calls 
+    a. all calculation should be triggered
+    b. correct caching

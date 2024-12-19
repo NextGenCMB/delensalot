@@ -1,5 +1,8 @@
-
+import os
+from os.path import join as opj
 import numpy as np
+
+from delensalot.core import cachers
 
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl
 from delensalot.core.cg import cd_solve, cd_monitors, multigrid
@@ -13,6 +16,8 @@ class base:
         self.Ninv = filter_desc['Ninv']
         self.beam = filter_desc['beam']
         self.wflm_fns = filter_desc['wflm_fns']
+        self.ivflm_fns = filter_desc['ivflm_fns']
+        self.cacher = cachers.cacher_npy(opj(self.libdir, 'filter'))
 
 
     def update_field(self, field):
@@ -22,19 +27,21 @@ class base:
     def get_WF(self, it):
         #flow: check if cached, if not, build it
         cg_sol_curr, cg_it_curr = self._get_cg_startingpoint(it)
-
         if cg_it_curr < it - 1:
             # CG inversion
             # TODO operators must be passed to the CG solver
             # TODO operator must be updated with current field estimates
             self.cg.solve(cg_sol_curr, self.data, self.WF_operator) # build new cg that knows how to apply the operators to obtain the forward operation
             self.mchain.solve(cg_sol_curr, self.data, dot_op=self.filter.dot_op())
-            self.wf_cacher.cache(self.wf_fns.format(it=it - 1), cg_sol_curr)
+            self.cacher.cache(self.wflm_fns.format(it=it - 1), cg_sol_curr)
+        return self.cacher.load(self.wflm_fns.format(it=it - 1))
 
 
-    def get_ivf(self, eblm_dat, eblm_wf):
-        #flow: check if cached, if not, build it
-        
+    def get_ivf(self, eblm_dat, eblm_wf, it):
+        if not self.cacher.is_cached(self.wflm_fns.format(it=it - 1)):
+            ivflm = self.B.adjoint.act(self.Ninv*eblm_dat) - self.B.act(self.ivf_operator.act(eblm_wf))
+            self.cacher.cache(self.wflm_fns.format(it=it - 1), ivflm)
+        return self.cacher.load(self.wflm_fns.format(it=it - 1))
         # resmap_c = np.empty((q_pbgeom.geom.npix(),), dtype=elm_wf.dtype)
         # resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
         # self._get_irespmap(eblm_dat, elm_wf, q_pbgeom, map_out=resmap_r) # inplace onto resmap_c and resmap_r
@@ -51,7 +58,6 @@ class base:
         #     almxfl(ebwf[0], self.inoise_1_elm * 0.5 * self.wee, self.mmax_len, True)  # Factor of 1/2 because of \dagger rather than ^{-1}
         #     almxfl(ebwf[1], self.inoise_1_blm * 0.5,            self.mmax_len, True)
         #     return q_pbgeom.geom.synthesis(ebwf, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, map=map_out)
-        return self.B.adjoint.act(self.Ninv*eblm_dat) - self.B.act(self.ivf_operator.act(eblm_wf))
 
 
     def _get_cg_startingpoint(self, it):
