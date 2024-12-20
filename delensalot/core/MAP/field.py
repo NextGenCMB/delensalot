@@ -15,6 +15,7 @@ class basefield:
         self.fns =  field_desc['fns'] # fns must be dict() with keys as components, and it as format specifiers
         self.cacher = cachers.cacher_npy(field_desc['components'])
         self.hess_cacher = cachers.cacher_npy(opj(field_desc["lib_dir"], 'hessian'))
+        self.field_increment_fns = field_desc['field_increment_fns']
 
 
     def get_klm(self, it, component=None):
