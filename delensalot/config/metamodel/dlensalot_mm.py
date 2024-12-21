@@ -144,7 +144,6 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     cpp =                   attr.field(default=DEFAULT_NotAValue, validator=analysis.cpp)
     beam =                  attr.field(default=DEFAULT_NotAValue, validator=analysis.beam)
     transfunction_desc =    attr.field(default=DEFAULT_NotAValue, validator=analysis.transfunction)
-    subtract_QE_meanfield = attr.field(default=DEFAULT_NotAValue)
     CLfids =                attr.field(default=DEFAULT_NotAValue)
 
 
@@ -266,6 +265,7 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     chain =                 attr.field(default=DLENSALOT_Chaindescriptor(), validator=qerec.chain)
     cl_analysis =           attr.field(default=DEFAULT_NotAValue, validator=qerec.cl_analysis) # TODO make this useful or remove
     blt_pert =              attr.field(default=DEFAULT_NotAValue, validator=qerec.btemplate_perturbative_lensremap)
+    subtract_QE_meanfield = attr.field(default=DEFAULT_NotAValue)
 
 @attr.s
 class DLENSALOT_Itrec(DLENSALOT_Concept):

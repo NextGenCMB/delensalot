@@ -74,6 +74,7 @@ DL_DEFAULT = {
             'p6': 'tr_cg',
             'p7': 'cache_mem'
         },
+        "subtract_QE_meanfield": True,
     },
     'itrec': {
         'stepper':{

@@ -37,7 +37,7 @@ class config_handler():
     """
 
     def __init__(self, parser, config_model=None):
-        sorted_joblist = ['build_OBD', 'generate_sim', 'QE_lensrec', 'MAP_lensrec_operator', 'analyse_phi', 'delens']
+        sorted_joblist = ['build_OBD', 'generate_sim', 'QE_lensrec_new', 'MAP_lensrec_operator', 'analyse_phi', 'delens']
         if config_model is None:
             self.configfile = config_handler.load_configfile(parser.config_file, 'configfile')
         else:
