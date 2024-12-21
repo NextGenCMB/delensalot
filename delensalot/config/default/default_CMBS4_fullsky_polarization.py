@@ -57,7 +57,7 @@ DL_DEFAULT = {
     },
     'qerec':{
         'tasks': ['calc_phi', 'calc_blt'],
-        'qlm_type': 'sepTP',
+        'estimator_type': 'sepTP',
         'cg_tol': 1e-7,
         'filter_directional': 'isotropic',
         'geominfo': ('healpix',{'nside': 2048}),

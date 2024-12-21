@@ -326,7 +326,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.qe_tasks = qe_tasks_extracted
                         
                     dl.lm_max_qlm = qe.lm_max_qlm
-                    dl.estimator_type = qe.qlm_type
+                    dl.estimator_type = qe.estimator_type
 
                     ## FIXME cg chain currently only works with healpix geometry
                     dl.QE_cg_tol = qe.cg_tol
