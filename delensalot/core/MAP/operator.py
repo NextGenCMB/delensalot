@@ -7,7 +7,7 @@ from delensalot.utility.utils_hp import Alm, almxfl
 
 class base:
     def __init__(self, **operator_desc):
-        pass
+        self.lm_max = operator_desc['lm_max']
 
 
     def act(self, obj, adjoint=False):

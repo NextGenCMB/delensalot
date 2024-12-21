@@ -5,9 +5,9 @@ from delensalot.core import cachers
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl
 
 
-class basefield:
+class base:
     def __init__(self, **field_desc):
-        self.fiducial  = field_desc['fiducial']
+        self.CLfids  = field_desc['CLfids']
         self.id = field_desc['ID']
         self.lm_max = field_desc['lm_max']
         self.components = field_desc['components']

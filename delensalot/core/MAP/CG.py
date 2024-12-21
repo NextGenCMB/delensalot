@@ -1,3 +1,6 @@
+import numpy as np
+
+from delensalot.utility.utils_hp import Alm, almxfl
 
 class base:
     def __init__(self, **cg_desc):

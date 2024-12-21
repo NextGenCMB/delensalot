@@ -11,17 +11,18 @@ from . import operator
 class base:
     def __init__(self, **filter_desc):
         self.ID = filter_desc['ID']
+        self.libdir = filter_desc['libdir']
+        self.ivf_field = filter_desc['ivf_field']
+        self.WF_field = filter_desc['WF_field']
         self.ivf_operator = filter_desc['ivf_operator']
         self.WF_operator = filter_desc['WF_operator']
         self.Ninv = filter_desc['Ninv']
         self.beam = filter_desc['beam']
-        self.wflm_fns = filter_desc['wflm_fns']
-        self.ivflm_fns = filter_desc['ivflm_fns']
-        self.cacher = cachers.cacher_npy(opj(self.libdir, 'filter'))
 
 
     def update_field(self, field):
-        self.operator.update_field(field)
+        self.ivf_operator.update_field(field)
+        self.WF_operator.update_field(field)
 
 
     def get_WF(self, it):
@@ -38,7 +39,7 @@ class base:
 
 
     def get_ivf(self, eblm_dat, eblm_wf, it):
-        if not self.cacher.is_cached(self.wflm_fns.format(it=it - 1)):
+        if not self.field.is_cached(self.wflm_fns.format(it=it - 1)):
             ivflm = self.B.adjoint.act(self.Ninv*eblm_dat) - self.B.act(self.ivf_operator.act(eblm_wf))
             self.cacher.cache(self.wflm_fns.format(it=it - 1), ivflm)
         return self.cacher.load(self.wflm_fns.format(it=it - 1))

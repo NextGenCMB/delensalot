@@ -370,22 +370,22 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             QE_fields_descs = [{
                     "ID": "lensing",
                     'lm_max': dl.lm_max_qlm,
-                    'components': 2,
-                    'fiducials': {'alpha': dl.CLfids['pp'], 'omega': dl.CLfids['ww']},
+                    'components': "alpha_omega",
+                    'CLfids': {'alpha': dl.CLfids['pp'], 'omega': dl.CLfids['ww']},
                     'qlm_fns': {"alpha": 'qlm_alpha_simidx{idx}', "omega": 'qlm_omega_simidx{idx}'},
                     'klm_fns': {"alpha": 'klm_alpha_simidx{idx}', "omega": 'klm_omega_simidx{idx}'},
                     'qmflm_fns': {"alpha": 'qmflm_alpha_simidx{idx}', "omega": 'qmflm_omega_simidx{idx}'},
                 },{
                     "ID": 'birefringence',
                     'lm_max': dl.lm_max_qlm, #FIXME betalm?
-                    'components': 1,
-                    'fiducials': {'beta': dl.CLfids['bb']},
+                    'components': "beta",
+                    'CLfids': {"beta": dl.CLfids['bb']},
                     "qlm_fns": {"beta": 'qlm_beta_simidx{idx}'},
                     "klm_fns": {"beta": 'klm_beta_simidx{idx}'},
                     'qmflm_fns': {"beta": 'qmflm_beta_simidx{idx}'},
                 },
             ]
-            QE_fields = [QE_field(field_desc) for field_desc in QE_fields_descs]
+            QE_fields = [QE_field.base(field_desc) for field_desc in QE_fields_descs]
             
             QE_template_descs = [{  # templates need a fn, that's all
                 "ID": "lensing",
@@ -393,12 +393,13 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 },{
                 "ID": "birefringence",
                 "klm_fns": {"beta": 'klm_beta_template_simidx{idx}'},
-                },{
-                "ID": "joint",
-                "klm_fns": {"joint": 'klm_joint_template_simidx{idx}'},
-                }
+                },
+                # {
+                # "ID": "joint",
+                # "klm_fns": {"joint": 'klm_joint_template_simidx{idx}'},
+                # }
             ]
-            templates = [QE_field(field_desc) for field_desc in QE_template_descs]
+            templates = [QE_field.base(field_desc) for field_desc in QE_template_descs]
             template_operator_descs = {
                 "lensing": {
                     "Lmin": dl.Lmin,
@@ -420,7 +421,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             QE_filterqest_desc = {
                 "estimator_key": cf.analysis.estimator_key,
                 "estimator_type": dl.qlm_type,
-                "libdir_QE": opj(transform(cf, l2T_Transformer()), 'QE'),
+                "libdir": opj(transform(cf, l2T_Transformer()), 'QE'),
                 "simulationdata": Simhandler(**cf.simulationdata.__dict__),
                 "nivjob_geominfo": cf.noisemodel.geominfo,
                 "nivt_desc": dl.nivt_desc,
@@ -531,33 +532,33 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             MAP_fields_descs = [{
                     "ID": "lensing",
                     'lm_max': dl.lm_max_qlm,
-                    'components': 2,
-                    'fiducials': {'alpha': dl.CLfids['pp'], 'omega': dl.CLfids['ww']},
-                    'klm_fns': {"alpha": 'klm_alpha_simidx{idx}_it{it}', "omega": 'klm_omega_simidx{idx}_it{it}'}, # This could be hardcoded, but I want to keep it flexible
-                    'kmflm_fns': {"alpha": 'kmflm_alpha_simidx{idx}_it{it}', "omega": 'kmflm_omega_simidx{idx}_it{it}'},
+                    "components": 'alpha_omega',
+                    'CLfids': {'alpha': dl.CLfids['pp'], 'omega': dl.CLfids['ww']},
+                    'fns': {"alpha": 'klm_alpha_simidx{idx}_it{it}', "omega": 'klm_omega_simidx{idx}_it{it}'}, # This could be hardcoded, but I want to keep it flexible
+                    'meanfield_fns': {"alpha": 'kmflm_alpha_simidx{idx}_it{it}', "omega": 'kmflm_omega_simidx{idx}_it{it}'},
                 },{
                     "ID": 'birefringence',
                     'lm_max': dl.lm_max_qlm, # FIXME betalm?
-                    'components': 1,
-                    'fiducials': {'beta': dl.CLfids['bb']},
-                    "klm_fns": {"beta": 'klm_beta_simidx{idx}_it{it}'}, # This could be hardcoded, but I want to keep it flexible
-                    'kmflm_fns': {"alpha": 'qmflm_alpha_simidx{idx}_it{it}', "omega": 'qmflm_omega_simidx{idx}_it{it}'},
+                    "components": 'beta',
+                    'CLfids': {'b': dl.CLfids['bb']},
+                    "fns": {"b": 'klm_beta_simidx{idx}_it{it}'}, # This could be hardcoded, but I want to keep it flexible
+                    'meanfield_fns': {"beta": 'kmflm_beta_simidx{idx}_it{it}'},
                 },
             ]
-            MAP_fields = [MAP_field(field_desc) for field_desc in MAP_fields_descs]
+            MAP_fields = {field_desc.ID: MAP_field.base(field_desc) for field_desc in MAP_fields_descs}
 
             # input: all kwargs needed to build the MAP search
             _MAP_operators_desc = {}
             _MAP_operators_desc['lensing_operator'] = {
-                'lmax': None,
+                'lm_max': None,
                 'field_fns': MAP_fields_descs["lensing"]['klm_fns'],
             }
             _MAP_operators_desc['birefringence_operator'] = {
-                'lmax': None,
+                'lm_max': None,
                 'field_fns': MAP_fields_descs['birefringence']['klm_fns'],
             }
             _MAP_operators_desc['spin_raise'] = {
-                'lmax': None,
+                'lm_max': None,
             }
             _MAP_operators_desc['multiply'] = -np.img
             filter_operators = []
@@ -577,31 +578,54 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             ivf_operator = operator.ivf_operator(filter_operators)
             WF_operator = operator.WF_operator(filter_operators)
 
+            for gradient_name, gradient_operator in gradients_operators.items():
+                gfield_descs = [{
+                    "ID": gradient_name,
+                    "libdir": 'gradients',
+                    "lm_max": dl.lm_max_qlm,
+                    "meanfield_fns": 'mf_glm_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
+                    "quad_fns": 'quad_glm_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
+                    "prior_fns": 'klm_{gradient_name}_it{it}'.format(gradient_name=gradient_name), # prior is just field, and then we do a simple divide by spectrum (almxfl)
+                    "total_increment_fns": 'ginclm_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),    
+                    "total_fns": 'gtotlm_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),    
+                    "chh": None, #FIXME this is prior times scaling factor
+                    "components": 'alpha_omega' if gradient_name == 'lensing' else 'beta',
+                }]
+            MAP_gfields = {gfield_desc.ID: MAP_field.gradient(gfield_desc) for gfield_desc in gfield_descs}
+            
             gradient_descs = []
             for gradient_name, gradient_operator in gradients_operators.items():
                 gradient_desc = {
                     "ID": gradient_name,
-                    "field": MAP_fields_descs[gradient_name],
+                    "field": MAP_fields[gradient_name],
+                    "gfield": MAP_gfields[gradient_name],
                     'itmax': dl.itmax,
                     "inner": gradient_operator,
-                    "meanfield_fns": 'mf_glm_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
-                    "quad_fns": 'quad_glm_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
-                    "prior_fns": 'klm_{gradient_name}_it0'.format(gradient_name=gradient_name), # prior is just field, and then we do a simple divide by spectrum (almxfl)
-                    "gradient_increment_fns": 'glminc_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
-                    "field_increment_fns": 'klminc_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"), # TODO this might have to move to field
-                    "klm_fns": 'klm_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
-                    "chh": None, # there is a chh for each component
                 }
                 gradient_descs.append(gradient_desc)
 
-
+            MAP_ivffilter_field_desc = {
+                "ID":  "ivf",
+                "libdir":  "filter",
+                "lm_max":  dl.lm_max_ivf,
+                "components":  1,
+                "fns":   "ivf_simidx{idx}_it{it}",
+            }
+            MAP_WFfilter_field_desc = {
+                "ID":  "WF",
+                "libdir":  "filter",
+                "lm_max":  dl.lm_max_ivf,
+                "components":  1,
+                "fns":   "WF_simidx{idx}_it{it}",
+            }
             MAP_filter_desc = {
                 "ID": "polarization",
                 'ivf_operator': ivf_operator,
                 'WF_operator': WF_operator,
+                "ivf_field": MAP_field.filter(MAP_ivffilter_field_desc),
+                "WF_field": MAP_field.filter(MAP_WFfilter_field_desc),
                 'beam': gauss_beam(),
                 'Ninv_desc': [dl.nivt_desc, dl.nivp_desc],
-                'WF_fns': 'wflm_it{it}',
             }
             
             template_operators = {

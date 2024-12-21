@@ -15,7 +15,7 @@ class base:
         self.curvature = curvature(curvature_desc, self.gradients)
         self.itmax = desc.get('itmax')
         self.simidx = simidx
-        self.template_cacher = cachers.cache_npy(desc['template_cacher'])
+        self.template_cacher = cachers.cache_npy(desc['template'])
         self.template_operators = desc['filter_operators']
 
 
