@@ -358,8 +358,9 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 
                 #FIXME for now I assume this is a simple np.array with pp,ww,bb,pw,pb,wb. This needs to be generalized
                 _keys = ['pp', 'ww', 'bb']
-                dl.Clfids = np.load(cf.analysis.CLfids)
-                dl.CLfids = {key: val[:dl.lm_max_qlm[0] + 1] for key, val in zip(_keys, dl.CLfids)}
+                # dl.Clfids = np.load(cf.analysis.CLfids)
+                dl.CLfids = {_keys[i]: np.load(cf.analysis.cpp)[:dl.lm_max_qlm[0] + 1,1] for i in range(len(_keys))}
+                # dl.CLfids = {key: val[:dl.lm_max_qlm[0] + 1] for key, val in zip(_keys, dl.CLfids)}
                 # if cf.analysis.CLfields.endswith('dat'):
                     # dl.CLfields = (cf.analysis.CLfields, load_secondaries=True)
                 #NOTE assuming these are convergence power spectra, and they come as 
@@ -420,7 +421,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
             QE_filterqest_desc = {
                 "estimator_key": cf.analysis.estimator_key,
-                "estimator_type": dl.qlm_type,
+                "estimator_type": dl.estimator_type,
                 "libdir": opj(transform(cf, l2T_Transformer()), 'QE'),
                 "simulationdata": Simhandler(**cf.simulationdata.__dict__),
                 "nivjob_geominfo": cf.noisemodel.geominfo,
