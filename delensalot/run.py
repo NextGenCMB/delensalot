@@ -44,7 +44,7 @@ class run():
             config_model (DLENSALOT_Model): A delensalot model instance. If not None, this overwrites `config_fn`
             verbose (bool, optional): If true, sets logging information to DEBUG, otherwise INFO. Defaults to True.
         """        
-        assert job_id in ['generate_sim', 'build_OBD', 'QE_lensrec', 'MAP_lensrec', 'MAP_lensrec_operator', 'delens'], "Invalid job_id: {}".format(job_id)
+        assert job_id in ['generate_sim', 'build_OBD', 'QE_lensrec_new', 'MAP_lensrec', 'MAP_lensrec_operator', 'delens'], "Invalid job_id: {}".format(job_id)
         os.environ['USE_PLANCKLENS_MPI'] = "False"
         if not verbose:
             ConsoleOutputHandler.setLevel(logging.INFO)

@@ -69,6 +69,7 @@ class Basejob():
 
     def __init__(self, model):
         self.__dict__.update(model.__dict__)
+        self.libdir_QE = opj(self.TEMP, 'QE')
         if not os.path.exists(self.libdir_QE):
             os.makedirs(self.libdir_QE)
         self.libdir_MAP = lambda qe_key, simidx, version: opj(self.TEMP, 'MAP/%s'%(qe_key), 'sim%04d'%(simidx) + version)
@@ -619,39 +620,46 @@ class QE_lr_new(Basejob):
         self.template_operators  = QE_handler_desc['template_operators']
 
         # I want to have a QE search for each field
-        QE_search_desc = dm.QE_search_desc
-        self.QE_searchs = [QE_handler.base(ID, field, QE_search_desc.QE_filterqest_desc, template_operator[ID]) for ID, field, template_operator in zip(QE_search_desc.ID, QE_search_desc.QE_fields, QE_search_desc.template_operators)]
-
+        self.QE_searchs = [QE_handler.base(QE_search_desc) for name, QE_search_desc in dm.QE_searchs_desc.items()]
+        self.field2idx = {QE_search.field.ID: i for i, QE_search in enumerate(self.QE_searchs)}
+        self.idx2field = {i: QE_search.field.ID for i, QE_search in enumerate(self.QE_searchs)}
+        # if there is no job, we can already init the filterqest
+        def filter_none(array):
+            return np.array([x for x in array.ravel() if x is not None])
+        _jobs = self.collect_jobs()
+        if len(filter_none(_jobs))==0:
+            for QE_search in self.QE_searchs:
+                QE_search.init_filterqest()
+                print('initialized QE filteqest')
 
     def collect_jobs(self, recalc=False):
         jobs = list(range(len(self.qe_tasks)))
         for taski, task in enumerate(self.qe_tasks):
             _jobs = []
             if task == 'calc_fields':
+                _nomfcheck = True if self.simidxs_mf == [] else False
                 for simidx in self.simidxs:
+                    __jobs = []
                     for Qi, QE_search in enumerate(self.QE_searchs): # each field has its own QE_search
-                        __jobs = []
                         _add = False
-                        for ci, component in enumerate(QE_search.field.components):
-                            mf_fn = opj(QE_search.libdir, 'qlms_dd', QE_search.field.qmflm_fns[component])
-                            if not os.path.isfile(mf_fn) or recalc: ## Skip if meanfield already calculated
-                                field_fn = opj(QE_search.libdir, 'qlms_dd', QE_search.qlm_fns[component].format(simidx)) # opj(opj(self.libdir_QE, 'qlms_dd'), 'sim_%s_%04d.fits'%(self.k, simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
-                                if not os.path.isfile(field_fn) or recalc:
+                        for ci, component in enumerate(QE_search.field.components.split('_')):
+                            if _nomfcheck or not QE_search.field.cacher.is_cached(QE_search.field.qmflm_fns[component].format(idx=simidx)) or recalc:
+                                if not QE_search.field.cacher.is_cached(QE_search.field.qlm_fns[component].format(idx=simidx)) or recalc:
                                    _add = True
                         __jobs.append(simidx) if _add else __jobs.append(None)
                     _jobs.append(__jobs)
-                jobs.append(_jobs)
+            jobs.append(_jobs)
              
 
             if task == 'calc_meanfields':
                 for simidx in self.simidxs_mf:
+                    __jobs = []
                     for Qi, QE_search in enumerate(self.QE_searchs): # each field has its own QE_search
-                        __jobs = []
                         _add = False
-                        for ci, component in enumerate(QE_search.field.components): # each field has n components # fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, pl_utils.mchash(self.simidxs_mf)))
+                        for ci, component in enumerate(QE_search.field.components.split('_')): # each field has n components # fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, pl_utils.mchash(self.simidxs_mf)))
                             mf_fn = opj(QE_search.libdir, 'qlms_dd', QE_search.field.qmflm_fns[component])
                             if not os.path.isfile(mf_fn) or recalc:
-                                field_fn = opj(self.libdir, 'qlms_dd', QE_search.qlm_fns[component].format(simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
+                                field_fn = opj(QE_search.libdir, 'qlms_dd', QE_search.field.qlm_fns[component].format(idx=simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
                                 if not os.path.isfile(field_fn) or recalc:
                                     _add = True
                          # checking for each component, but only adding the complete field as task index
@@ -666,38 +674,37 @@ class QE_lr_new(Basejob):
                     for Qi, QE_search in enumerate(self.QE_searchs): # each field has its own QE_search
                         __jobs = []
                         for ci, component in enumerate(QE_search.te.components): # each field has n components # fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, pl_utils.mchash(self.simidxs_mf)))
-                            tepmplate_fn = opj(QE_search.libdir, 'templates', QE_search.template.qlmmf_fns[component])
+                            tepmplate_fn = opj(QE_search.libdir, 'templates', QE_search.template.qmflm_fns[component])
                             if not os.path.isfile(tepmplate_fn) or recalc:
-                                field_fn = opj(self.libdir, 'qlms_dd', QE_search.qlm_fns[component].format(simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
+                                field_fn = opj(QE_search.libdir, 'qlms_dd', QE_search.field.qlm_fns[component].format(idx=simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
                                 if not os.path.isfile(field_fn) or recalc:
                                     _jobs.append(int(simidx))
 
             jobs[taski] = _jobs
         self.jobs = jobs
-        return jobs
+        return np.array(jobs)
 
 
     def run(self, task=None):
         if True: # 'triggers calc_cinv'
-            if self.qe_filter_directional == 'anisotropic':
-                first_rank = mpi.bcast(mpi.rank)
-                if first_rank == mpi.rank:
-                    mpi.disable()
-                    for QE_search in self.QE_searchs:
-                        QE_search.init_filterqest()
-                    mpi.enable()
-                    [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
-                else:
-                    mpi.receive(None, source=mpi.ANY_SOURCE)
+            first_rank = mpi.bcast(mpi.rank)
+            if first_rank == mpi.rank:
+                mpi.disable()
                 for QE_search in self.QE_searchs:
                     QE_search.init_filterqest()
+                mpi.enable()
+                [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
+            else:
+                mpi.receive(None, source=mpi.ANY_SOURCE)
+            for QE_search in self.QE_searchs:
+                QE_search.init_filterqest()
                    
         _tasks = self.qe_tasks if task is None else [task]
         for taski, task in enumerate(_tasks):
             log.info('{}, task {} started'.format(mpi.rank, task))
             if task == 'calc_fields':
                 for simidxs in self.jobs[taski][mpi.rank::mpi.size]:
-                    for fi, fidx in simidxs:
+                    for fi, fidx in enumerate(simidxs):
                         if fidx is not None: #these Nones come from the field already being done.
                             self.QE_searchs[fi].get_qlm(int(fidx))
                     if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
@@ -706,7 +713,7 @@ class QE_lr_new(Basejob):
             if task == 'calc_meanfields':
                 for simidxs in self.jobs[taski][mpi.rank::mpi.size]:
                     for QE_search in self.QE_searchs:
-                        for fi, fidx in simidxs:
+                        for fi, fidx in enumerate(simidxs):
                             self.QE_searchs[fi].get_qlm(int(fidx))
                             self.QE_searchs[fi].get_klm(int(fidx)) # this is here for convenience
                 for QE_search in self.QE_searchs:
@@ -725,12 +732,12 @@ class QE_lr_new(Basejob):
                         self.simulationdata.purgecache()
 
 
-    def get_qlm(self, simidx, field, component):
-        return self.QE_searchs[field].get_qlm(simidx, component)
+    def get_qlm(self, simidx, field, component=None):
+        return self.QE_searchs[self.field2idx[field]].get_qlm(simidx, component)
     
 
-    def get_klm(self, simidx, field, component, subtract_meanfield):
-        return self.QE_searchs[simidx].get_klm(self, simidx, field, component, subtract_meanfield)
+    def get_klm(self, simidx, field, subtract_meanfield=None, component=None):
+        return self.QE_searchs[self.field2idx[field]].get_klm(simidx, subtract_meanfield, component)
 
 
     def get_template(self, simidx, operator_indexs):
@@ -776,7 +783,7 @@ class MAP_lr_operator:
     def run(self):
         for QE_search in self.QE_searchs: # need to make sure the klm starting points exist for each simidx before running the MAP job
             for field in QE_search.fields:
-                for component in QE_search.field.components:
+                for component in QE_search.field.components.split('_'):
                     for simidx in self.jobs[taski][mpi.rank::mpi.size]:
                         self.get_klms(simidx, 0, field, component, self.subtract_QE_meanfield)
                 if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):

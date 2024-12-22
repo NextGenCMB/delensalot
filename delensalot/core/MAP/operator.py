@@ -6,7 +6,7 @@ from delensalot.utils import cli
 from delensalot.utility.utils_hp import Alm, almxfl
 
 class base:
-    def __init__(self, **operator_desc):
+    def __init__(self, operator_desc):
         self.lm_max = operator_desc['lm_max']
 
 
@@ -76,7 +76,7 @@ class ivf_operator(base):
     
 
 class WF_operator(base):
-    def __init__(self, **operator_desc):
+    def __init__(self, operator_desc):
         super().__init__(**operator_desc)
         self.operators = operator_desc['operators']
     
@@ -104,24 +104,27 @@ class WF_operator(base):
 
 
 class lensing(base):
-    def __init__(self, **operator_desc):
-        super().__init__(**operator_desc)
-        self.q_pbgeom = operator_desc['q_pbgeom']
-        self.ffi = operator_desc['ffi']
-        self.perturbative = operator_desc['perturbative']
+    def __init__(self, operator_desc):
+        super().__init__(operator_desc)
+        self.Lmin = operator_desc["Lmin"],
+        self.lm_max = operator_desc["lm_max"],
+        self.perturbative = operator_desc["perturbative"],
+        self.fields_fns = operator_desc["fields_fns"],
+        # self.ffi = operator_desc['ffi']
     
 
     def act(self, obj, lm_max_qlm, adjoint=False):
         assert adjoint == False, "adjoint not implemented"
         if self.perturbative: # Applies perturbative remapping
-            get_alm = lambda a: elm_wf if a == 'e' else np.zeros_like(elm_wf)
-            geom, sht_tr = self.fq.ffi.geom, self.fq.ffi.sht_tr
-            d1 = geom.alm2map_spin([dlm, np.zeros_like(dlm)], 1, self.lmax_qlm, self.mmax_qlm, sht_tr, [-1., 1.])
-            dp = utils_qe.qeleg_multi([2], +3, [utils_qe.get_spin_raise(2, self.lmax_filt)])(get_alm, geom, sht_tr)
-            dm = utils_qe.qeleg_multi([2], +1, [utils_qe.get_spin_lower(2, self.lmax_filt)])(get_alm, geom, sht_tr)
-            dlens = -0.5 * ((d1[0] - 1j * d1[1]) * dp + (d1[0] + 1j * d1[1]) * dm)
-            del dp, dm, d1
-            elm, blm = geom.map2alm_spin([dlens.real, dlens.imag], 2, lmaxb, mmaxb, sht_tr, [-1., 1.])
+            pass
+            # get_alm = lambda a: elm_wf if a == 'e' else np.zeros_like(elm_wf)
+            # geom, sht_tr = self.fq.ffi.geom, self.fq.ffi.sht_tr
+            # d1 = geom.alm2map_spin([dlm, np.zeros_like(dlm)], 1, self.lmax_qlm, self.mmax_qlm, sht_tr, [-1., 1.])
+            # dp = utils_qe.qeleg_multi([2], +3, [utils_qe.get_spin_raise(2, self.lmax_filt)])(get_alm, geom, sht_tr)
+            # dm = utils_qe.qeleg_multi([2], +1, [utils_qe.get_spin_lower(2, self.lmax_filt)])(get_alm, geom, sht_tr)
+            # dlens = -0.5 * ((d1[0] - 1j * d1[1]) * dp + (d1[0] + 1j * d1[1]) * dm)
+            # del dp, dm, d1
+            # elm, blm = geom.map2alm_spin([dlens.real, dlens.imag], 2, lmaxb, mmaxb, sht_tr, [-1., 1.])
         else:  
             # ffi = self.fq.ffi.change_dlm([dlm, None], self.mmax_qlm)
             # elm, blm = ffi.lensgclm(np.array([elm_wf, np.zeros_like(elm_wf)]), self.mmax_filt, 2, lmaxb, mmaxb)
@@ -137,9 +140,11 @@ class lensing(base):
 
 
 class birefringence(base):
-    def __init__(self, **operator_desc):
-        super().__init__(**operator_desc)
-        self.field = operator_desc['field']
+    def __init__(self, operator_desc):
+        super().__init__(operator_desc)
+        self.fields_fns = operator_desc['fields_fns']
+        self.Lmin = operator_desc["Lmin"],
+        self.lm_max = operator_desc["lm_max"],
 
 
     def act(self, obj, adjoint=False):
@@ -153,9 +158,8 @@ class birefringence(base):
 
 
 class spin_raise(base):
-    def __init__(self, **operator_desc):
-        super().__init__(**operator_desc)
-        self.q_pbgeom = operator_desc['q_pbgeom']
+    def __init__(self, operator_desc):
+        super().__init__(operator_desc)
 
 
     def act(self, elm_wf, adjoint=False):

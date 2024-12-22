@@ -229,7 +229,8 @@ class Cls:
                 self.curl_file = load_file(self.curl_fn)
         else:
             # NOTE this assumes curl_fn is a CAMB file
-            self.curl_file = load_file(self.curl_fn)['cc']
+            self.curl_file = load_file(self.phi_fn) # load_file(self.curl_fn)['cc']
+            
         self.curl_field = curl_field
 
         if bf_fn == DNaV:
@@ -249,7 +250,7 @@ class Cls:
                 self.bf_file = load_file(self.bf_fn)
         else:
             # NOTE this assumes bf_fn is a CAMB file
-            self.bf_file = load_file(self.bf_fn)['bf']
+            self.bf_file = load_file(self.phi_fn) # load_file(self.bf_fn)['bf']
         self.bf_field = bf_field
 
         self.cacher = cachers.cacher_mem(safe=True)
@@ -652,7 +653,7 @@ class Xsky:
         else:
             self.lenjob_geominfo = lenjob_geominfo
         self.lenjob_geomlib = lp_get_geom(self.lenjob_geominfo)
-        self.fields = fields
+        self.fields = ["lensing"] #fields
 
         self.cacher = cachers.cacher_mem(safe=True)
 

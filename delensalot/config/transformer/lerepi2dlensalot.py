@@ -359,7 +359,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 #FIXME for now I assume this is a simple np.array with pp,ww,bb,pw,pb,wb. This needs to be generalized
                 _keys = ['pp', 'ww', 'bb']
                 # dl.Clfids = np.load(cf.analysis.CLfids)
-                dl.CLfids = {_keys[i]: np.load(cf.analysis.cpp)[:dl.lm_max_qlm[0] + 1,1] for i in range(len(_keys))}
+                dl.CLfids = {_keys[i]: camb_clfile(cf.analysis.cpp)['pp'][:dl.lm_max_qlm[0] + 1] for i in range(len(_keys))}
                 # dl.CLfids = {key: val[:dl.lm_max_qlm[0] + 1] for key, val in zip(_keys, dl.CLfids)}
                 # if cf.analysis.CLfields.endswith('dat'):
                     # dl.CLfields = (cf.analysis.CLfields, load_secondaries=True)
@@ -368,39 +368,52 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             dl = DLENSALOT_Concept()
             _process_components(dl)
 
-            QE_fields_descs = [{
+            QE_fields_descs = {
+                "lensing":{
                     "ID": "lensing",
+                    "libdir": opj(transform(cf, l2T_Transformer()), 'QE', 'qlms_dd/lensing'),
                     'lm_max': dl.lm_max_qlm,
                     'components': "alpha_omega",
                     'CLfids': {'alpha': dl.CLfids['pp'], 'omega': dl.CLfids['ww']},
                     'qlm_fns': {"alpha": 'qlm_alpha_simidx{idx}', "omega": 'qlm_omega_simidx{idx}'},
                     'klm_fns': {"alpha": 'klm_alpha_simidx{idx}', "omega": 'klm_omega_simidx{idx}'},
                     'qmflm_fns': {"alpha": 'qmflm_alpha_simidx{idx}', "omega": 'qmflm_omega_simidx{idx}'},
-                },{
+                },
+                "birefringence":{
                     "ID": 'birefringence',
+                    "libdir": opj(transform(cf, l2T_Transformer()), 'QE', 'qlms_dd/birefringence'),
                     'lm_max': dl.lm_max_qlm, #FIXME betalm?
                     'components': "beta",
                     'CLfids': {"beta": dl.CLfids['bb']},
                     "qlm_fns": {"beta": 'qlm_beta_simidx{idx}'},
                     "klm_fns": {"beta": 'klm_beta_simidx{idx}'},
                     'qmflm_fns': {"beta": 'qmflm_beta_simidx{idx}'},
-                },
-            ]
-            QE_fields = [QE_field.base(field_desc) for field_desc in QE_fields_descs]
+                }
+            }
             
-            QE_template_descs = [{  # templates need a fn, that's all
-                "ID": "lensing",
-                "klm_fns": {"alpha": 'klm_alpha_template_simidx{idx}', "omega": 'klm_omega_template_simidx{idx}'},
-                },{
-                "ID": "birefringence",
-                "klm_fns": {"beta": 'klm_beta_template_simidx{idx}'},
-                },
+            QE_fields = {name: QE_field.base(field_desc) for name, field_desc in QE_fields_descs.items()}
+            
+            QE_template_descs = {  # templates need a fn, that's all
+                "lensing:": {
+                    "ID": "lensing",
+                    "libdir": opj(transform(cf, l2T_Transformer()), 'QE', 'templates'),
+                    'components': "alpha_omega",
+                    'CLfids': None,
+                    "klm_fns": {"alpha": 'klm_alpha_template_simidx{idx}', "omega": 'klm_omega_template_simidx{idx}'},
+                    },
+                "birefringence": {
+                    "ID": "birefringence",
+                    "libdir": opj(transform(cf, l2T_Transformer()), 'QE', 'templates'),
+                    'components': "beta",
+                    'CLfids': None,
+                    "klm_fns": {"beta": 'klm_beta_template_simidx{idx}'},
+                    },
+            }
                 # {
                 # "ID": "joint",
                 # "klm_fns": {"joint": 'klm_joint_template_simidx{idx}'},
                 # }
-            ]
-            templates = [QE_field.base(field_desc) for field_desc in QE_template_descs]
+            templates = [QE_field.base(field_desc) for name, field_desc in QE_template_descs.items()]
             template_operator_descs = {
                 "lensing": {
                     "Lmin": dl.Lmin,
@@ -420,27 +433,27 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             }
 
             QE_filterqest_desc = {
-                "estimator_key": cf.analysis.estimator_key,
+                "estimator_key": cf.analysis.key,
                 "estimator_type": dl.estimator_type,
                 "libdir": opj(transform(cf, l2T_Transformer()), 'QE'),
                 "simulationdata": Simhandler(**cf.simulationdata.__dict__),
                 "nivjob_geominfo": cf.noisemodel.geominfo,
                 "nivt_desc": dl.nivt_desc,
                 "nivp_desc": dl.nivp_desc,
-                "qe_filter_directional": cf.qerec.qe_filter_directional,
+                "qe_filter_directional": cf.qerec.filter_directional,
                 "cls_unl": dl.cls_unl,
                 "cls_len": dl.cls_len,
                 "ttebl": dl.ttebl,
-                "ftebl_unl": dl.ftebl_unl,
                 "ftebl_len": dl.ftebl_len,
                 "lm_max_ivf": dl.lm_max_ivf,
                 "lm_max_qlm": dl.lm_max_qlm,
-                "lm_max_unl": dl.lm_max_unl,
+                "lm_max_unl": cf.itrec.lm_max_unl,
+                "lm_max_len": dl.lm_max_ivf,
                 "version": dl.version,
                 "zbounds": dl.zbounds,
                 "obd_libdir": dl.obd_libdir,
                 "obd_rescale": dl.obd_rescale,
-                "sht_threads": dl.sht_threads,
+                "sht_threads": dl.tr,
                 "QE_cg_tol": dl.QE_cg_tol,
                 "beam": dl.beam,
                 "OBD": dl.OBD,
@@ -449,14 +462,34 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             }
 
             QE_searchs_desc = {
-                "IDs": ["lensing", "birefringence"],
-                "QE_filterqest_desc": QE_filterqest_desc,
-                "template_operators": template_operators,
-                "fields": QE_fields,
+                "lensing": {
+                    "ID": "lensing",
+                    "libdir": opj(transform(cf, l2T_Transformer()), 'QE', 'lensing'),
+                    "QE_filterqest_desc": QE_filterqest_desc,
+                    "field": QE_fields["lensing"],
+                    "estimator_key": cf.analysis.key,
+                    "cls_len": dl.cls_len,
+                    "cls_unl": dl.cls_unl,
+                    "simidxs": cf.analysis.simidxs,
+                    "simidxs_mf": dl.simidxs_mf,
+                    "subtract_meanfield": dl.subtract_QE_meanfield,
+
+                },
+                "birefringence": {
+                    "ID": "birefringence",
+                    "libdir": opj(transform(cf, l2T_Transformer()), 'QE', 'birefringence'),
+                    "QE_filterqest_desc": QE_filterqest_desc,
+                    "field": QE_fields["birefringence"],
+                    "estimator_key": cf.analysis.key,
+                    "cls_len": dl.cls_len,
+                    "cls_unl": dl.cls_unl,
+                    "simidxs": cf.analysis.simidxs,
+                    "simidxs_mf": dl.simidxs_mf,
+                    "subtract_meanfield": dl.subtract_QE_meanfield,
+                },
             }
 
             QE_handler_desc = {
-                "fields": QE_fields,
                 "template_operators": template_operators,
                 "templates": templates,
                 "simidxs": cf.analysis.simidxs,
@@ -524,8 +557,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_Itrec(dl, cf.itrec)
 
             dl = DLENSALOT_Concept()
-            QE = self.build_QE_lensrec_new(cf)
-            dl = QE.delensalot_model
+            dl = self.build_QE_lensrec_new(cf)
             QE_searchs = dl.QE_searchs
             _process_components(dl)
 

@@ -16,11 +16,10 @@ class base:
         self.lm_max_ivf = filter_desc['lm_max_ivf']
         self.lm_max_qlm = filter_desc['lm_max_qlm']
         self.lm_max_len = filter_desc['lm_max_len']
-        self.lm_max_len = filter_desc['lm_max_unl']
+        self.lm_max_unl = filter_desc['lm_max_unl']
         self.lmin_teb = filter_desc['lmin_teb']
 
         self.ftebl_len = filter_desc['ftebl_len']
-        self.fteb_unl = filter_desc['fteb_unl']
         self.ttebl = filter_desc['ttebl']
 
         self.qe_filter_directional = filter_desc['qe_filter_directional']
@@ -79,6 +78,7 @@ class base:
             _ftebl_rs = lambda x: np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[x])
             self.ivf = filt_util.library_ftl(_filter_raw, self.lm_max_qlm[0], _ftebl_rs(0), _ftebl_rs(1), _ftebl_rs(2))
             self.qlms_dd = qest.library_sepTP(opj(self.libdir, 'qlms_dd'), self.ivf, self.ivf, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
+        return self.qlms_dd
 
 
     def get_wflm(self, simidx):
