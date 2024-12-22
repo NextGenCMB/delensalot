@@ -7,31 +7,38 @@ from . import gradient
 from . import curvature
 
 class base:
-    def __init__(self, fields, filter_desc, gradient_descs, curvature_desc, desc, simidx):
+    def __init__(self, fields, filter_desc, gradient_descs, curvature_desc, desc, template_desc, simidx):
         # this class handles the filter, gradient, and curvature libs, nothing else
         self.fields = fields
         # NOTE gradient and curvature share the field increments, so naming must be consistent. Can use the gradient_descs['inc_fn'] for this
-        self.gradients = [gradient(gradient_desc, filter_desc) for gradient_desc in gradient_descs]
-        self.curvature = curvature(curvature_desc, self.gradients)
-        self.itmax = desc.get('itmax')
+        self.gradients = [gradient.base(gradient_desc, filter_desc, simidx) for gradient_name, gradient_desc in gradient_descs.items()]
+        self.curvature = curvature.base(curvature_desc, self.gradients)
+        self.itmax = desc['itmax']
         self.simidx = simidx
-        self.template_cacher = cachers.cache_npy(desc['template'])
-        self.template_operators = desc['filter_operators']
+        self.template_cacher = cachers.cacher_npy(template_desc['libdir'])
+        self.template_operators = template_desc['template_operators']
 
 
     # i need get_klm for certain iteration, current iteration, and final iteration, 
-    def get_klm_it(self, it, field):
+    def get_klm(self, request_it, field_ID=None, component=None):
         # if field a parameter, do i want to iterate over param only, or the full iterator?
-        current_iter = self.maxiterdone()
-        for it in range(current_iter, self.itmax):
-            for gradient, field in zip(self.gradients, self.fields):
-                curr_klm = self.get_klm_it(it, field)
-                self.update_operators(curr_klm)
-                gradient = self.get_gradient_total(it) #calculates the filtering, the sum, and the quadratic combination
-                self.cac
-            H = self.update_curvature(gradient)
-            self.update_MAP(H)
-        return self.fields[field].get_klm(idx=self.simidx, it=it)
+        current_it = self.maxiterdone()
+        if current_it < self.itmax and request_it > current_it:
+            for it in range(current_it, self.itmax):
+                for gradient in self.gradients:
+                    curr_klm = self.get_klm(it, self.fields[gradient.ID].ID)
+                    gradient.update_operator(curr_klm)
+                    grad_tot = gradient.get_gradient_total(it) #calculates the filtering, the sum, and the quadratic combination
+                H = self.update_curvature(grad_tot)
+                self.update_MAP(H)
+        elif request_it <= current_it: # data already calculated
+            if field_ID is None:
+                return [self.get_klm(request_it, field.ID, component) for field in self.fields]
+            if component is None:
+                return [self.get_klm(request_it, field_ID, component) for component in self.fields[field_ID].components]
+            return self.fields[field_ID].get_klm(self.simidx, request_it, component)
+        else:
+            assert False, "Requested iteration is beyond the maximum iteration"
 
 
     def get_template(self, field):
@@ -71,7 +78,7 @@ class base:
 
 
     def isiterdone(self, it):
-        return self.cacher.is_cached(self.klm_fns.format(it=it))
+        return self.fields['lensing'].cacher.is_cached(self.fields['lensing'].fns['alpha'].format(idx=self.simidx, it=it))
     
 
     def maxiterdone(self):

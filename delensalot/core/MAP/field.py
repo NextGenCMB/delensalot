@@ -16,32 +16,29 @@ class base:
         self.fns =  field_desc['fns'] # fns must be dict() with keys as components, and it as format specifiers
         self.meanfield_fns = field_desc['meanfield_fns']
         self.increment_fns = field_desc['increment_fns']
-        self.cacher = cachers.cacher_npy(opj(self.libdir, self.ID))
+        self.cacher = cachers.cacher_npy(opj(self.libdir))
 
 
-    def get_klm(self, it, component=None):
+    def get_klm(self, idx, it, component=None):
         if component is None:
-            return [self.get_klm(it, component) for component in self.components]
+            return [self.get_klm(idx, it, component) for component in self.components]
         if it < 0:
-            return np.zeros(Alm.getsize(*self.lm_max_qlm), dtype=complex) 
-        return self.cacher.load(self.fns[component].format(it=it)) if self.cacher.is_cached(self.fns[component].format(it=it)) else self.sk2klm(it)
+            return np.zeros(Alm.getsize(*self.lm_max), dtype=complex) 
+        return self.cacher.load(self.fns[component].format(idx=idx, it=it)) if self.cacher.is_cached(self.fns[component].format(idx=idx, it=it)) else self.sk2klm(it)
 
 
-    def sk2klm(self, it, component):
-        rlm = self.cacher.load(self.fns[component].format(it=0))
+    def sk2klm(self, idx, it, component):
+        rlm = self.cacher.load(self.fns[component].format(idx=idx, it=0))
         for i in range(it):
             rlm += self.hess_cacher.load(self.sk_fns(i))
         return rlm
-    
 
-    def update_klm(self, klm, id=None, component=None):
+
+    def cache_klm(self, klm, idx, it=None, component=None):
         if component is None:
             for ci, component in enumerate(self.components):
-                self.update_klm(klm[ci], component)
-        if id is None:
-            self.cacher.save(self.fns[component], klm)
-        else:
-            self.cacher.save(self.fns[component].format(it=id), klm)
+                self.cache_klm(klm[ci], component)
+            self.cacher.save(self.fns[component].format(idx=idx, it=it), klm)
 
 
     def is_cached(self, component):
@@ -68,14 +65,14 @@ class gradient:
         # recursive call to get all components
         if component is None:
             for component in self.components:
-                return self.get_prior(it, component)
+                return self.get_prior(simidx, it, component)
         else:
             # this is for existing iteration
-            if self.cacher.is_cached(self.fns[component].format(idx=simidx, it=it)):
+            if self.cacher.is_cached(self.prior_fns.format(idx=simidx, it=it)):
                 priorlm = self.cacher.load(self.prior_fns[component].format(idx=simidx, it=it))
                 almxfl(priorlm, cli(self.chh[component]), self.lm_max[1], True)
                 return np.array(priorlm)
-        return self.cacher.load(self.prior_fns.format(it=it))
+        return self.cacher.load(self.prior_fns.format(it=it, idx=simidx))
     
 
     def get_meanfield(self, simidx, it, component):

@@ -9,20 +9,19 @@ from delensalot.core.cg import cd_solve, cd_monitors, multigrid
 from . import operator
 
 class base:
-    def __init__(self, **filter_desc):
+    def __init__(self, filter_desc):
         self.ID = filter_desc['ID']
-        self.libdir = filter_desc['libdir']
         self.ivf_field = filter_desc['ivf_field']
         self.WF_field = filter_desc['WF_field']
         self.ivf_operator = filter_desc['ivf_operator']
         self.WF_operator = filter_desc['WF_operator']
-        self.Ninv = filter_desc['Ninv']
+        self.Ninv = filter_desc['Ninv_desc']
         self.beam = filter_desc['beam']
 
 
-    def update_field(self, field):
-        self.ivf_operator.update_field(field)
-        self.WF_operator.update_field(field)
+    def update_fields(self, field):
+        self.ivf_operator.update_fields(field)
+        self.WF_operator.update_fields(field)
 
 
     def get_WF(self, it):

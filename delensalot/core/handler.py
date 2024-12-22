@@ -758,21 +758,26 @@ class QE_lr_new(Basejob):
 
 
 class MAP_lr_operator:
-    def __init__(self, delensalot_model):
-        self.delensalot_model = delensalot_model
-        self.simulationdata = delensalot_model.simulationdata
-        self.QE_searchs = delensalot_model.QE_searchs
+    def __init__(self, dl):
+        self.MAP_handler_desc = dl.MAP_handler_desc
+        
+        self.simulationdata = self.MAP_handler_desc["simulationdata"]
+        self.QE_searchs = self.MAP_handler_desc["QE_searchs"]
+        self.simidxs = self.MAP_handler_desc["simidxs"]
+        self.simidxs_mf = self.MAP_handler_desc["simidxs_mf"]
         # I want to have a MAP handler for each simidx as indices have nothing to do with each other
-        self.MAP_searchs = [MAP_handler(delensalot_model.MAP_fields, delensalot_model.gradient_descs, delensalot_model.filter_desc, delensalot_model.curvature_desc, delensalot_model.desc, simidx) for simidx in self.simidxs]
+        self.MAP_searchs_desc = dl.MAP_searchs_desc
+        self.MAP_searchs = [MAP_handler.base(self.MAP_searchs_desc["MAP_fields"], self.MAP_searchs_desc["filter_desc"], self.MAP_searchs_desc["gradient_descs"], self.MAP_searchs_desc["curvature_desc"], self.MAP_searchs_desc["desc"], self.MAP_searchs_desc["template_descs"], simidx) for simidx in self.simidxs]
+        self.it_tasks = self.MAP_handler_desc["it_tasks"]
 
 
     def collect_jobs(self):
         jobs = list(range(len(self.it_tasks)))
         for taski, task in enumerate(self.it_tasks):
             _jobs = []
-            if task == 'estimate_fields':
-                for simidx in self.simidxs:
-                    if self.MAP_search[simidx].maxiterdone() < self.MAP_search[simidx].itmax:
+            if task == 'calc_fields':
+                for simidxi, simidx in enumerate(self.simidxs):
+                    if self.MAP_searchs[simidxi].maxiterdone() < self.MAP_searchs[simidxi].itmax:
                         _jobs.append(simidx)
                 jobs[taski] = _jobs
         self.jobs = jobs
@@ -781,38 +786,33 @@ class MAP_lr_operator:
 
 
     def run(self):
-        for QE_search in self.QE_searchs: # need to make sure the klm starting points exist for each simidx before running the MAP job
-            for field in QE_search.fields:
-                for component in QE_search.field.components.split('_'):
-                    for simidx in self.jobs[taski][mpi.rank::mpi.size]:
-                        self.get_klms(simidx, 0, field, component, self.subtract_QE_meanfield)
-                if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
-                    self.simulationdata.purgecache()
+        # NOTE maybe not: for QE_search in self.QE_searchs: # need to make sure the klm starting points exist for each simidx before running the MAP job
+        #     for component in QE_search.field.components.split('_'):
+        #         for simidx in self.jobs[taski][mpi.rank::mpi.size]:
+        #             self.get_klms(simidx, 0, QE_search.field, component, self.subtract_QE_meanfield)
+        #     if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
+        #         self.simulationdata.purgecache()
 
         for taski, task in enumerate(self.it_tasks):
             log.info('{}, task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
-            if task == 'estimate_fields':
+            if task == 'calc_fields':
                 for simidx in self.jobs[taski][mpi.rank::mpi.size]:
-                    self.MAP_search[simidx].get_klm()
+                    self.MAP_searchs[simidx].get_klm(simidx, self.MAP_searchs[simidx].itmax)
 
 
-    def get_klm(self, simidx, it, field, component, subtract_QE_meanfield):
-        # TODO add cacher and connect to field class
-        _fn = self.MAP_search[simidx].klm_fns[field].format(component=component, idx=simidx, it=it)
+    def get_klm(self, simidx, it, field=None, component=None, subtract_QE_meanfield=True):
+        # TODO connect to field class
+        # NOTE: if this is called, get all fields and all components for that iteration, unless field and component are specified
+        # if it is smaller than current iteration, calculate the MAP search, otherwise access the cached result
+        if field is None:
+            for field in self.MAP_searchs[simidx].fields:
+                for component in field.components.split('_'):
+                    return self.get_klm(simidx, it, field, component, subtract_QE_meanfield)
+
         if it == 0: # QE (starting point)
             return self.QE_searchs[field].get_klms(simidx, subtract_QE_meanfield)
-        
-        if not self.MAP_search[simidx].cacher.is_cached(_fn):
-            self.QE_searchs[field-1].calc_meanfield(component)
-            if subtract_QE_meanfield:
-                # TODO remove the current simidx from the meanfield calculation
-                # qlm[simidx] - meanfield(simidx) # this is a placeholder, the actual implementation will be more complex
-                pass
-            # TODO normalize the qlms to klms
-            # klms = cli(response) etc.
-            klms = None
-            self.MAP_search[simidx].cacher.cache(_fn, klms)
-        return self.MAP_search[simidx].cacher.load(_fn)
+        else:
+            return self.MAP_searchs[simidx].get_klms(field, component)
 
 
     def get_template(self, simidx, field):

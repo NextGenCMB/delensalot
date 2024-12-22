@@ -419,12 +419,12 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "Lmin": dl.Lmin,
                     "perturbative": dl.blt_pert,
                     "lm_max": dl.lm_max_blt,
-                    "fields_fns": QE_fields_descs["lensing"]['klm_fns'],
+                    "field_fns": QE_fields_descs["lensing"]['klm_fns'],
                 },
                 "birefringence": {
                     "Lmin": dl.Lmin,
                     "lm_max": dl.lm_max_blt, # FIXME betatemp_lm?
-                    "fields_fns": QE_fields_descs['birefringence']['klm_fns'],
+                    "field_fns": QE_fields_descs['birefringence']['klm_fns'],
                 },
             }
             template_operators = { # NOTE joint can be build by combinatorics
@@ -564,44 +564,54 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             # input: all kwargs needed to build the MAP fields
             MAP_fields_descs = [{
                     "ID": "lensing",
+                    "libdir": opj(transform(cf, l2T_Transformer()), 'MAP', '{estimator_key}/lensing'),
                     'lm_max': dl.lm_max_qlm,
                     "components": 'alpha_omega',
                     'CLfids': {'alpha': dl.CLfids['pp'], 'omega': dl.CLfids['ww']},
                     'fns': {"alpha": 'klm_alpha_simidx{idx}_it{it}', "omega": 'klm_omega_simidx{idx}_it{it}'}, # This could be hardcoded, but I want to keep it flexible
+                    'increment_fns': {"alpha": 'kinclm_alpha_simidx{idx}_it{it}', "omega": 'kinclm_omega_simidx{idx}_it{it}'},
                     'meanfield_fns': {"alpha": 'kmflm_alpha_simidx{idx}_it{it}', "omega": 'kmflm_omega_simidx{idx}_it{it}'},
                 },{
                     "ID": 'birefringence',
+                    "libdir": opj(transform(cf, l2T_Transformer()), 'MAP', '{estimator_key}/birefringence'),
                     'lm_max': dl.lm_max_qlm, # FIXME betalm?
                     "components": 'beta',
                     'CLfids': {'b': dl.CLfids['bb']},
                     "fns": {"b": 'klm_beta_simidx{idx}_it{it}'}, # This could be hardcoded, but I want to keep it flexible
+                    'increment_fns': {"beta": 'kinclm_beta_simidx{idx}_it{it}'},
                     'meanfield_fns': {"beta": 'kmflm_beta_simidx{idx}_it{it}'},
                 },
             ]
-            MAP_fields = {field_desc.ID: MAP_field.base(field_desc) for field_desc in MAP_fields_descs}
+            MAP_fields = {field_desc["ID"]: MAP_field.base(field_desc) for field_desc in MAP_fields_descs}
 
             # input: all kwargs needed to build the MAP search
             _MAP_operators_desc = {}
             _MAP_operators_desc['lensing_operator'] = {
-                'lm_max': None,
-                'field_fns': MAP_fields_descs["lensing"]['klm_fns'],
+                'lm_max': dl.lm_max_blt,
+                "Lmin": dl.Lmin,
+                "perturbative": False,
+                'field_fns': MAP_fields["lensing"].fns,
             }
             _MAP_operators_desc['birefringence_operator'] = {
-                'lm_max': None,
-                'field_fns': MAP_fields_descs['birefringence']['klm_fns'],
+                'lm_max': dl.lm_max_blt,
+                "Lmin": dl.Lmin,
+                'field_fns': MAP_fields['birefringence'].fns,
             }
             _MAP_operators_desc['spin_raise'] = {
                 'lm_max': None,
             }
-            _MAP_operators_desc['multiply'] = -np.img
+            _MAP_operators_desc['multiply'] = {
+                'factor': -1j,
+            }
             filter_operators = []
             gradients_operators = {}
             # This depends on what is in the data
+            cf.build = 'lensingplusbirefringence'
             if cf.build == 'lensingplusbirefringence':
                 filter_operators.append(operator.lensing(_MAP_operators_desc['lensing_operator']))
                 filter_operators.append(operator.birefringence(_MAP_operators_desc['birefringence_operator']))
                 gradients_operators['lensing'] = operator.joint([*filter_operators, operator.spin_raise(_MAP_operators_desc['spin_raise'])])
-                gradients_operators['birefringence'] = operator.joint([filter_operators, operator.multiply(_MAP_operators_desc['multiply'])])
+                gradients_operators['birefringence'] = operator.joint([*filter_operators, operator.multiply(_MAP_operators_desc['multiply'])])
             if cf.build == 'lensing':
                 filter_operators.append(operator.lensing(_MAP_operators_desc['lensing_operator']))
                 gradients_operators['lensing'] = operator.joint([*filter_operators, operator.spin_raise(_MAP_operators_desc['spin_raise'])])    
@@ -611,45 +621,42 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             ivf_operator = operator.ivf_operator(filter_operators)
             WF_operator = operator.WF_operator(filter_operators)
 
+            gfield_descs = [{
+                "ID": gradient_name,
+                "libdir": 'gradients',
+                "lm_max": dl.lm_max_qlm,
+                "meanfield_fns": 'mf_glm_{gradient_name}_simidx{idx}_it{it}'.format(gradient_name=gradient_name, it="{it}", idx="{idx}"),
+                "quad_fns": 'quad_glm_{gradient_name}_simidx{idx}_it{it}'.format(gradient_name=gradient_name, it="{it}", idx="{idx}"),
+                "prior_fns": 'klm_{gradient_name}_simidx{idx}_it{it}'.format(gradient_name=gradient_name, it="{it}", idx="{idx}"), # prior is just field, and then we do a simple divide by spectrum (almxfl)
+                "total_increment_fns": 'ginclm_{gradient_name}_simidx{idx}_it{it}'.format(gradient_name=gradient_name, it="{it}", idx="{idx}"),    
+                "total_fns": 'gtotlm_{gradient_name}_simidx{idx}_it{it}'.format(gradient_name=gradient_name, it="{it}", idx="{idx}"),    
+                "chh": None, #FIXME this is prior times scaling factor
+                "components": 'alpha_omega' if gradient_name == 'lensing' else 'beta',
+            } for gradient_name, gradient_operator in gradients_operators.items()]
+            MAP_gfields = {gfield_desc["ID"]: MAP_field.gradient(gfield_desc) for gfield_desc in gfield_descs}
+            gradient_descs = {}
             for gradient_name, gradient_operator in gradients_operators.items():
-                gfield_descs = [{
-                    "ID": gradient_name,
-                    "libdir": 'gradients',
-                    "lm_max": dl.lm_max_qlm,
-                    "meanfield_fns": 'mf_glm_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
-                    "quad_fns": 'quad_glm_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),
-                    "prior_fns": 'klm_{gradient_name}_it{it}'.format(gradient_name=gradient_name), # prior is just field, and then we do a simple divide by spectrum (almxfl)
-                    "total_increment_fns": 'ginclm_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),    
-                    "total_fns": 'gtotlm_{gradient_name}_it{it}'.format(gradient_name=gradient_name, it="{it}"),    
-                    "chh": None, #FIXME this is prior times scaling factor
-                    "components": 'alpha_omega' if gradient_name == 'lensing' else 'beta',
-                }]
-            MAP_gfields = {gfield_desc.ID: MAP_field.gradient(gfield_desc) for gfield_desc in gfield_descs}
-            
-            gradient_descs = []
-            for gradient_name, gradient_operator in gradients_operators.items():
-                gradient_desc = {
+                gradient_descs.update({ gradient_name: {
                     "ID": gradient_name,
                     "field": MAP_fields[gradient_name],
                     "gfield": MAP_gfields[gradient_name],
                     'itmax': dl.itmax,
                     "inner": gradient_operator,
-                }
-                gradient_descs.append(gradient_desc)
+                }})
 
             MAP_ivffilter_field_desc = {
-                "ID":  "ivf",
-                "libdir":  "filter",
-                "lm_max":  dl.lm_max_ivf,
-                "components":  1,
-                "fns":   "ivf_simidx{idx}_it{it}",
+                "ID": "ivf",
+                "libdir": opj(transform(cf, l2T_Transformer()), 'MAP', '{estimator_key}/filter'),
+                "lm_max": dl.lm_max_ivf,
+                "components": 1,
+                "fns": "ivf_simidx{idx}_it{it}",
             }
             MAP_WFfilter_field_desc = {
-                "ID":  "WF",
-                "libdir":  "filter",
-                "lm_max":  dl.lm_max_ivf,
-                "components":  1,
-                "fns":   "WF_simidx{idx}_it{it}",
+                "ID": "WF",
+                "libdir": opj(transform(cf, l2T_Transformer()), 'MAP', '{estimator_key}/filter'),
+                "lm_max": dl.lm_max_ivf,
+                "components": 1,
+                "fns": "WF_simidx{idx}_it{it}",
             }
             MAP_filter_desc = {
                 "ID": "polarization",
@@ -657,7 +664,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 'WF_operator': WF_operator,
                 "ivf_field": MAP_field.filter(MAP_ivffilter_field_desc),
                 "WF_field": MAP_field.filter(MAP_WFfilter_field_desc),
-                'beam': gauss_beam(),
+                'beam': gauss_beam(df.a2r(dl.beam), lmax=dl.lm_max_ivf[0]),
                 'Ninv_desc': [dl.nivt_desc, dl.nivp_desc],
             }
             
@@ -666,24 +673,36 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "Lmin": dl.Lmin,
                     "perturbative": False,
                     "lm_max": dl.lm_max_blt,
-                    "field_fns": MAP_fields_descs["lensing"]['klm_fns'],
+                    "field_fns": MAP_fields["lensing"].fns,
                 }),
                 "birefringence": operator.birefringence({
                     "Lmin": dl.Lmin,
-                    "lm_max": dl.lm_max_betalm,
-                    "field_fns": MAP_fields_descs['birefringence']['klm_fns'],
+                    "lm_max": dl.lm_max_blt,
+                    "field_fns": MAP_fields['birefringence'].fns,
                 })
+            }
+
+            desc = {
+                "itmax": dl.itmax,
+            }
+            template_descs = {
+                "libdir": opj(transform(cf, l2T_Transformer()), 'MAP', 'templates'),
+                "template_operators": template_operators,
             }
             MAP_searchs_desc = {
                 'gradient_descs': gradient_descs,
                 'MAP_fields': MAP_fields,
-                'MAP_filter_desc': MAP_filter_desc,
-                'simulationdata': dl.simulationdata,
+                'filter_desc': MAP_filter_desc,
                 'curvature_desc': {},
-                'QE_searchs': QE_searchs,
+                "desc" : desc,
+                "template_descs": template_descs,
             }
             MAP_handler_desc = {
-                "template_operators": template_operators,
+                'simulationdata': dl.simulationdata,
+                "simidxs": cf.analysis.simidxs,
+                "simidxs_mf": dl.simidxs_mf,
+                "QE_searchs": QE_searchs,
+                "it_tasks": dl.it_tasks,
             }
             dl.MAP_handler_desc, dl.MAP_searchs_desc = MAP_handler_desc, MAP_searchs_desc
             return dl

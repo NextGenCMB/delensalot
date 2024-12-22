@@ -22,20 +22,20 @@ fields:
 """
 
 class base:
-    def __init__(self, gradient_desc, filter_desc):
+    def __init__(self, gradient_desc, filter_desc, simidx):
         self.ID = gradient_desc['ID']
         self.field = gradient_desc['field']
         self.gfield = gradient_desc['gfield']
 
-        self.filter = filter(filter_desc)
+        self.filter = filter.base(filter_desc)
         self.inner = gradient_desc['inner']
 
-        self.simidx = gradient_desc['simidx']
+        self.simidx = simidx
 
 
     def get_gradient_total(self, it, component=None):
         # if already cached, load it, otherwise calculate the new one
-        if self.gfield.is_cached(self.gfield.total_fns.format(idx=self.simidx, it=it)):
+        if self.gfield.cacher.is_cached(self.gfield.total_fns.format(idx=self.simidx, it=it)):
             return self.gfield.get_total(self.simidx, it, component)
         else:
             g = 0
@@ -80,9 +80,9 @@ class base:
         return self.filter.get_ivf(curr_iter, XWF)
 
 
-    def update_field(self, field):
-        self.filter.update_field(field)
-        self.inner.update_field(field)
+    def update_operator(self, field):
+        self.filter.update_fields(field)
+        self.inner.update_fields(field)
 
 
     def update_gradient(self):

@@ -2,25 +2,25 @@ import numpy as np
 
 from lenspyx.remapping.deflection_028 import rtype, ctype
 
+from delensalot.core import cachers
 from delensalot.utils import cli
 from delensalot.utility.utils_hp import Alm, almxfl
 
 class base:
-    def __init__(self, operator_desc):
-        self.lm_max = operator_desc['lm_max']
+    def __init__(self):
+        self.field_cacher = cachers.cacher_mem()
 
 
     def act(self, obj, adjoint=False):
         assert 0, "subclass this"
 
 
-    def update_field(self, field):
-        self.field = field
+    def update_field(self, field, fn):
+        self.field_cacher.cache(fn, field)
 
 
-class multiply(base):
+class multiply:
     def __init__(self, factor):
-        super().__init__(factor)
         self.factor = factor
     
 
@@ -35,10 +35,9 @@ class multiply(base):
         return self.act(obj, adjoint=True)
 
 
-class joint_operator(base):
-    def __init__(self, **operator_desc):
-        super().__init__(**operator_desc)
-        self.operators = operator_desc['operators']
+class joint:
+    def __init__(self, operators):
+        self.operators = operators
     
 
     def act(self, obj, adjoint=False):
@@ -53,12 +52,18 @@ class joint_operator(base):
             buff = operator.adjoint.act(obj)
             obj = buff
         return obj
+    
+
+    def update_fields(self, fields, fns=''):
+        # FIXME each operator has its own fields to update
+        for operator in self.operators:
+            operator.update_field(fields, fns)
 
 
-class ivf_operator(base):
-    def __init__(self, **operator_desc):
-        super().__init__(**operator_desc)
-        self.operators = operator_desc['operators']
+class ivf_operator:
+    def __init__(self, operators):
+        self.operators = operators
+        self.lm_max = operators[0].lm_max if hasattr(operators[0], 'lm_max') else operators[1].lm_max # FIXME hoping these operators have what im looking for
     
 
     def act(self, obj):
@@ -75,10 +80,16 @@ class ivf_operator(base):
         return obj
     
 
-class WF_operator(base):
-    def __init__(self, operator_desc):
-        super().__init__(**operator_desc)
-        self.operators = operator_desc['operators']
+    def update_fields(self, fields, fns=''):
+        # FIXME each operator has its own fields to update
+        for operator in self.operators:
+            operator.update_field(fields, fns)
+    
+
+class WF_operator:
+    def __init__(self, operators):
+        self.operators = operators
+        self.lm_max = operators[0].lm_max if hasattr(operators[0], 'lm_max') else operators[1].lm_max # FIXME hoping these operators have what im looking for
     
 
     def act(self, obj):
@@ -101,17 +112,22 @@ class WF_operator(base):
             buff = operator.act(obj)
             obj = buff
         return obj
+    
+
+    def update_fields(self, fields, fns=''):
+        # FIXME each operator has its own fields to update
+        for operator in self.operators:
+            operator.update_field(fields, fns)
 
 
 class lensing(base):
     def __init__(self, operator_desc):
-        super().__init__(operator_desc)
+        super().__init__()
         self.Lmin = operator_desc["Lmin"],
         self.lm_max = operator_desc["lm_max"],
         self.perturbative = operator_desc["perturbative"],
-        self.fields_fns = operator_desc["fields_fns"],
-        # self.ffi = operator_desc['ffi']
-    
+        self.field_fns = operator_desc["field_fns"],
+
 
     def act(self, obj, lm_max_qlm, adjoint=False):
         assert adjoint == False, "adjoint not implemented"
@@ -141,8 +157,8 @@ class lensing(base):
 
 class birefringence(base):
     def __init__(self, operator_desc):
-        super().__init__(operator_desc)
-        self.fields_fns = operator_desc['fields_fns']
+        super().__init__()
+        self.field_fns = operator_desc['field_fns']
         self.Lmin = operator_desc["Lmin"],
         self.lm_max = operator_desc["lm_max"],
 
@@ -157,9 +173,9 @@ class birefringence(base):
         return self.act(obj, adjoint=True)
 
 
-class spin_raise(base):
+class spin_raise:
     def __init__(self, operator_desc):
-        super().__init__(operator_desc)
+        pass
 
 
     def act(self, elm_wf, adjoint=False):
@@ -192,10 +208,13 @@ class spin_raise(base):
         assert 0, "implement if needed"
         return self.act(obj, adjoint=True)
     
+    
+    def update_field(self, field, fn=''):
+        pass
+    
 
-class beam(base):
-    def __init__(self, **operator_desc):
-        super().__init__(**operator_desc)
+class beam:
+    def __init__(self, operator_desc):
         self.beamwidth = operator_desc['beamwidth']
         self.mmax = operator_desc['mmax']
         self.beam = operator_desc['beam']

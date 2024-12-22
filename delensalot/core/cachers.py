@@ -63,11 +63,14 @@ class cacher_mem(cacher):
         self._cache = dict()
         self.safe = safe
 
+
     def cache(self, fn, obj):
         if self.safe:
             self._cache[fn] = np.copy(obj)
         else:
             self._cache[fn] = obj
+
+
     def load(self, fn):
         assert fn in self._cache.keys()
         if self.safe:
@@ -75,8 +78,10 @@ class cacher_mem(cacher):
         else:
             return self._cache[fn]
 
+
     def is_cached(self, fn):
         return fn in self._cache.keys()
+
 
     def remove(self, fn):
         assert fn in self._cache.keys()

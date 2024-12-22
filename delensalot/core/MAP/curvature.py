@@ -1,9 +1,9 @@
 from delensalot.core.iterator import bfgs
 
 class base:
-    def __init__(self, bfgs_desc, **curvature_desc):
-        self.BFGS_H = bfgs(bfgs_desc)
-        self.value = curvature_desc['value']
+    def __init__(self, bfgs_desc, curvature_desc):
+        pass
+        # self.BFGS_H = bfgs.BFGS_Hessian(bfgs_desc)
 
     
     def get_current_curvature(self):
