@@ -21,10 +21,10 @@ class base:
 
     def get_klm(self, idx, it, component=None):
         if component is None:
-            return [self.get_klm(idx, it, component) for component in self.components]
+            return np.atleast_2d(np.array([self.get_klm(idx, it, component) for component in self.components.split("_")]))
         if it < 0:
-            return np.zeros(Alm.getsize(*self.lm_max), dtype=complex) 
-        return self.cacher.load(self.fns[component].format(idx=idx, it=it)) if self.cacher.is_cached(self.fns[component].format(idx=idx, it=it)) else self.sk2klm(it)
+            return np.atleast_2d([np.zeros(Alm.getsize(*self.lm_max), dtype=complex) for component in self.components.split("_")])
+        return np.atleast_2d(self.cacher.load(self.fns[component].format(idx=idx, it=it))) if self.cacher.is_cached(self.fns[component].format(idx=idx, it=it)) else np.atleast_2d(self.sk2klm(it))
 
 
     def sk2klm(self, idx, it, component):
@@ -34,15 +34,15 @@ class base:
         return rlm
 
 
-    def cache_klm(self, klm, idx, it=None, component=None):
+    def cache_klm(self, klm, idx, it, component=None):
         if component is None:
-            for ci, component in enumerate(self.components):
-                self.cache_klm(klm[ci], component)
-            self.cacher.save(self.fns[component].format(idx=idx, it=it), klm)
+            for ci, component in enumerate(self.components.split("_")):
+                self.cache_klm(klm[ci], idx, it, component)
+        self.cacher.cache(self.fns[component].format(idx=idx, it=it), np.atleast_2d(klm))
 
 
-    def is_cached(self, component):
-        return self.cacher.is_cached(self.fns[component])
+    def is_cached(self, simidx, it, component):
+        return self.cacher.is_cached(opj(self.fns[component].format(idx=simidx, it=it)))
     
 
 class gradient:
@@ -57,36 +57,30 @@ class gradient:
         self.total_increment_fns = field_desc['total_increment_fns']
         self.chh = field_desc['chh']
         self.components = field_desc['components']
+        self.component2idx = {component: i for i, component in enumerate(self.components.split("_"))}
 
-        self.cacher = cachers.cacher_npy(opj(self.libdir, 'gradient'))
+        self.cacher = cachers.cacher_npy(opj(self.libdir))
 
 
-    def get_prior(self, simidx, it, component):
-        # recursive call to get all components
-        if component is None:
-            for component in self.components:
-                return self.get_prior(simidx, it, component)
+    def get_prior(self, simidx, it, component=None):
+        if self.cacher.is_cached(self.prior_fns.format(idx=simidx, it=it)):
+            priorlm = self.cacher.load(self.prior_fns.format(idx=simidx, it=it))
+            for component_i, component_ in enumerate(self.components.split("_")):
+                almxfl(priorlm[component_i], cli(self.chh[component_]), self.lm_max[1], True)
+            return priorlm if component is None else priorlm[self.component2idx[component]]
+
         else:
-            # this is for existing iteration
-            if self.cacher.is_cached(self.prior_fns.format(idx=simidx, it=it)):
-                priorlm = self.cacher.load(self.prior_fns[component].format(idx=simidx, it=it))
-                almxfl(priorlm, cli(self.chh[component]), self.lm_max[1], True)
-                return np.array(priorlm)
-        return self.cacher.load(self.prior_fns.format(it=it, idx=simidx))
+            assert 0, "cannot find prior"
+        
     
-
-    def get_meanfield(self, simidx, it, component):
+    def get_meanfield(self, simidx, it, component=None):
         # NOTE this currently only uses the QE gradient meanfield
-        if component is None:
-            for component in self.components:
-                return self.get_meanfield(it, component)
+        # this is for existing iteration
+        it=0
+        if self.cacher.is_cached(self.meanfield_fns.format(idx=simidx, it=it)):
+            return (result := self.cacher.load(self.meanfield_fns.format(idx=simidx, it=it))) if component is None else result[self.component2idx[component]]
         else:
-            # this is for existing iteration
-            if self.cacher.is_cached(self.meanfield_fns[component].format(idx=simidx, it=0)):
-                return self.cacher.load(self.meanfield_fns[component].format(idx=simidx, it=0))
-            else:
-                #this is next iteration. For now, just return previous iteration
-                return self.cacher.load(self.meanfield_fns[component].format(idx=simidx, it=0))
+            assert 0, "cannot find meanfield"
             
 
     def get_total(self, simidx, it, component):
@@ -94,19 +88,19 @@ class gradient:
         if self.cacher.is_cached(self.total_fns.format(idx=simidx, it=it)):
             return self.cacher.load(self.total_fns.format(idx=simidx, it=it))
         elif it == 0:
-            g += self.get_prior(it)
-            g += self.get_meanfield(it)
-            g += self.get_quad(it)
+            g += self.get_prior(simidx, it, component)
+            g += self.get_meanfield(simidx, it, component)
+            g += self.get_quad(simidx, it, component)
             return g
-        return self._build(simidx, it)
+        return self._build(simidx, it, component)
     
 
-    def get_quad(self, it, component):
-        return self.quad_fns[component].format(it=it)
-    
+    def get_quad(self, simidx, it, component):
+        return (result := self.cacher.load(self.quad_fns.format(idx=simidx, it=it))) if component is None else result[self.component2idx[component]]
 
-    def _build(self, simidx, it):
-        rlm = self.get_total(idx=simidx, it=0)
+
+    def _build(self, simidx, it, component):
+        rlm = self.get_total(idx=simidx, it=0, component=component)
         for i in range(it):
             rlm += self.cacher.load(self.total_increment_fns(i))
         return rlm
@@ -124,6 +118,18 @@ class gradient:
             isdone = self.isiterdone(it + 1)
         return it
     
+
+    def cache_prior(self, priorlm, simidx, it):
+        self.cacher.cache(self.prior_fns.format(idx=simidx, it=it), priorlm)
+
+
+    def cache_meanfield(self, kmflm, simidx, it):
+        self.cacher.cache(self.meanfield_fns.format(idx=simidx, it=it), kmflm)
+
+
+    def cache_quad(self, quadlm, simidx, it):
+        self.cacher.cache(self.quad_fns.format(idx=simidx, it=it), quadlm)
+    
 class filter:
     def __init__(self, field_desc):
         self.ID = field_desc['ID']
@@ -132,4 +138,4 @@ class filter:
         self.components = field_desc['components']
         self.fns =  field_desc['fns']
 
-        self.cacher = cachers.cacher_npy(opj(self.libdir, 'filter'))
+        self.cacher = cachers.cacher_npy(opj(self.libdir))

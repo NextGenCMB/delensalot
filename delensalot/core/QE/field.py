@@ -19,12 +19,10 @@ class base:
         self.cacher = cachers.cacher_npy(self.libdir)
 
 
-    # def get_qlm(self, simdix, component=None):
-    #     if component is None:
-    #         return [self.get_qlm(it, component) for component in self.components.split("_")]
-    #     if it < 0:
-    #         return np.zeros(Alm.getsize(*self.lm_max), dtype=complex) 
-    #     return self.cacher.load(self.qlm_fns[component]) if self.cacher.is_cached(self.qlm_fns[component]) else None
+    def get_qlm(self, simidx, component=None):
+        if component is None:
+            return [self.get_qlm(simidx, component) for component in self.components.split("_")]
+        return self.cacher.load(self.qlm_fns[component]) if self.cacher.is_cached(self.qlm_fns[component]) else None
     
 
     # def get_klm(self, simdix, component=None):

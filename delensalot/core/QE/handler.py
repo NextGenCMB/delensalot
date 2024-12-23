@@ -43,19 +43,22 @@ class base:
     def get_qlm(self, simidx, component=None):
         if component is None:
             return [self.get_qlm(simidx, component) for component in self.field.components.split("_")]
-        qlm = self.qlms.get_sim_qlm(component2plancklensk[component]+self.estimator_key[1:], int(simidx))  #Unormalized quadratic estimate
-        self.field.cache_qlm(qlm, simidx, component=component)
+        if self.field.is_cached(simidx, component):
+            qlm = self.field.get_qlm(simidx, component)
+        else:
+            qlm = self.qlms.get_sim_qlm(component2plancklensk[component]+self.estimator_key[1:], int(simidx))  #Unormalized quadratic estimate
+            self.field.cache_qlm(qlm, simidx, component=component)
         return qlm
     
 
     def get_klm(self, simidx, subtract_meanfield=None, component=None):
         if component is None:
-            return [self.get_klm(simidx, subtract_meanfield, component) for component in self.field.components.split("_")]
+            return np.array([self.get_klm(simidx, subtract_meanfield, component) for component in self.field.components.split("_")])
         
         qlm = self.get_qlm(simidx, component)
         _submf = self.subtract_meanfield if subtract_meanfield is None else subtract_meanfield
         if _submf:
-            mf_qlm = self.get_meanfield_qlm(self.simidxs_mf, component=component)
+            mf_qlm = self.get_qmflm(self.simidxs_mf, component=component)
             qlm -= mf_qlm
 
         R = self.get_response_len(component)
@@ -65,26 +68,32 @@ class base:
         almxfl(klm, WF, self.field.lm_max[1], True) # Wiener-filter QE
         almxfl(klm, self.field.CLfids[component] > 0, self.field.lm_max[1], True)
         self.field.cache_klm(klm, simidx, component)
-        return klm
+        return np.array(klm)
 
 
-    def get_meanfield_qlm(self, simidxs, component=None):
-        # TODO add caching, and connect it to the field class
+    def get_qmflm(self, simidxs, component=None):
+        # TODO connect it to the field class
         if component is None:
-            return [self.get_meanfield_qlm(simidxs, component) for component in self.field.components.split("_")]
+            return np.array([self.get_qmflm(simidxs, component) for component in self.field.components.split("_")])
         return self.qlms.get_sim_qlm_mf(self.estimator_key, simidxs)
         
 
-    def get_meanfield_klm(self, simidx):
-        # TODO add caching, and connect it to the field class
-        mf_QE = copy.deepcopy(self.get_meanfield_qlm(self.estimator_key, self.simidxs_mf))
-        R = self.fq.get_response_len(estimator_key, self.lm_max_ivf[0])[0]
-        WF = self.field.CLfid * cli(self.field.CLfid + cli(R))
-        almxfl(mf_QE, cli(R), self.lm_max_qlm[1], True) # Normalized QE
-        almxfl(mf_QE, WF, self.lm_max_qlm[1], True) # Wiener-filter QE
-        almxfl(mf_QE, self.field.CLfid > 0, self.lm_max_qlm[1], True)
-
-        return mf_QE
+    def get_kmflm(self, simidx, component=None):
+        # TODO connect it to the field class
+        if component is None:
+            return np.array([self.get_kmflm(simidx, component) for component in self.field.components.split("_")])
+        if len(self.simidxs_mf) == 0:
+            return np.zeros(Alm.getsize(*self.field.lm_max), dtype=complex)
+        kmflm = self.get_qmflm(self.simidxs_mf, component=component)
+        R = self.get_response_len(component)
+        WF = self.field.CLfids[component] * cli(self.field.CLfids[component] + cli(R))  # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
+        kmflm = alm_copy(kmflm, None, self.field.lm_max[0], self.field.lm_max[1])
+        almxfl(kmflm, cli(R), self.field.lm_max[1], True) # Normalized QE
+        almxfl(kmflm, WF, self.field.lm_max[1], True) # Wiener-filter QE
+        almxfl(kmflm, self.field.CLfids[component] > 0, self.field.lm_max[1], True)
+        # FIXME correct removal
+        kmflm -= self.get_klm(simidx, component=component)*1/(1-len(self.simidxs_mf))
+        return np.array(kmflm)
     
 
     def get_wflm(self, simidx):
@@ -95,8 +104,8 @@ class base:
         self.fq.get_ivf(simidx)
   
 
-    def get_response_unl(self, estimator_key):
-        return qresp.get_response(component2plancklensk[estimator_key], self.fq.lm_max_ivf[0], estimator_key[0], self.cls_unl, self.cls_unl, self.fq.fteb_unl, lmax_qlm=self.field.lm_max[0])[0]
+    def get_response_unl(self, component):
+        return qresp.get_response(component2plancklensk[component]+self.estimator_key[1:], self.fq.lm_max_ivf[0], component2plancklensk[component], self.cls_unl, self.cls_unl, self.fq.ftebl_unl, lmax_qlm=self.field.lm_max[0])[0]
     
 
     def get_response_len(self, component):

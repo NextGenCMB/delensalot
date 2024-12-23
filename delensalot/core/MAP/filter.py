@@ -19,9 +19,9 @@ class base:
         self.beam = filter_desc['beam']
 
 
-    def update_fields(self, field):
-        self.ivf_operator.update_fields(field)
-        self.WF_operator.update_fields(field)
+    def update_operator(self, simidx, it):
+        self.ivf_operator.set_field(simidx, it)
+        self.WF_operator.set_field(simidx, it)
 
 
     def get_WF(self, it):

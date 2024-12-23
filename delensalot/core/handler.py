@@ -70,17 +70,17 @@ class Basejob():
     def __init__(self, model):
         self.__dict__.update(model.__dict__)
         self.libdir_QE = opj(self.TEMP, 'QE')
-        if not os.path.exists(self.libdir_QE):
-            os.makedirs(self.libdir_QE)
-        self.libdir_MAP = lambda qe_key, simidx, version: opj(self.TEMP, 'MAP/%s'%(qe_key), 'sim%04d'%(simidx) + version)
-        self.libdir_blt = lambda simidx: opj(self.TEMP, 'MAP/%s'%(self.k), 'sim%04d'%(simidx) + self.version, 'BLT/')
-        for simidx in np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))), dtype=int):
+        # if not os.path.exists(self.libdir_QE):
+        #     os.makedirs(self.libdir_QE)
+        # self.libdir_MAP = lambda qe_key, simidx, version: opj(self.TEMP, 'MAP/%s'%(qe_key), 'sim%04d'%(simidx) + version)
+        # self.libdir_blt = lambda simidx: opj(self.TEMP, 'MAP/%s'%(self.k), 'sim%04d'%(simidx) + self.version, 'BLT/')
+        # for simidx in np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))), dtype=int):
             ## calculates all plms even for mf indices. This is not necessarily requested due to potentially simidxs =/= simidxs_mf, but otherwise collect and run must be adapted and its ok like this.
-            libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
-            if not os.path.exists(libdir_MAPidx):
-                os.makedirs(libdir_MAPidx)
-            if not os.path.exists(self.libdir_blt(simidx)):
-                os.makedirs(self.libdir_blt(simidx))
+            # libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
+            # if not os.path.exists(libdir_MAPidx):
+                # os.makedirs(libdir_MAPidx)
+            # if not os.path.exists(self.libdir_blt(simidx)):
+                # os.makedirs(self.libdir_blt(simidx))
          
         self.config_model = model
         self.jobs = []
@@ -644,7 +644,7 @@ class QE_lr_new(Basejob):
                         _add = False
                         for ci, component in enumerate(QE_search.field.components.split('_')):
                             if _nomfcheck or not QE_search.field.cacher.is_cached(QE_search.field.qmflm_fns[component].format(idx=simidx)) or recalc:
-                                if not QE_search.field.cacher.is_cached(QE_search.field.qlm_fns[component].format(idx=simidx)) or recalc:
+                                if not QE_search.field.cacher.is_cached(QE_search.field.klm_fns[component].format(idx=simidx)) or recalc:
                                    _add = True
                         __jobs.append(simidx) if _add else __jobs.append(None)
                     _jobs.append(__jobs)
@@ -682,10 +682,12 @@ class QE_lr_new(Basejob):
 
             jobs[taski] = _jobs
         self.jobs = jobs
+        print("QE jobs: ", jobs)
         return np.array(jobs)
 
 
     def run(self, task=None):
+        print("Running QE jobs: ", self.jobs)
         if True: # 'triggers calc_cinv'
             first_rank = mpi.bcast(mpi.rank)
             if first_rank == mpi.rank:
@@ -707,6 +709,7 @@ class QE_lr_new(Basejob):
                     for fi, fidx in enumerate(simidxs):
                         if fidx is not None: #these Nones come from the field already being done.
                             self.QE_searchs[fi].get_qlm(int(fidx))
+                            self.QE_searchs[fi].get_klm(int(fidx)) # this is here for convenience
                     if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
                         self.simulationdata.purgecache()
                 mpi.barrier()
@@ -717,7 +720,7 @@ class QE_lr_new(Basejob):
                             self.QE_searchs[fi].get_qlm(int(fidx))
                             self.QE_searchs[fi].get_klm(int(fidx)) # this is here for convenience
                 for QE_search in self.QE_searchs:
-                    QE_search.get_meanfield_qlm(QE_search.estimator_key, self.simidxs_mf)
+                    QE_search.get_qmflm(QE_search.estimator_key, self.simidxs_mf)
                 mpi.barrier()
 
             # TODO later
@@ -793,15 +796,18 @@ class MAP_lr_operator:
         #     if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
         #         self.simulationdata.purgecache()
 
+
         for taski, task in enumerate(self.it_tasks):
             log.info('{}, task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
             if task == 'calc_fields':
                 for simidx in self.jobs[taski][mpi.rank::mpi.size]:
+                    # if self.MAP_searchs[simidx].maxiterdone() == -1:
+                        # if maxiterdone is -1, then need to copy QE results to MAP directory
+                    self.copyQEtoDirectory(simidx)
                     self.MAP_searchs[simidx].get_klm(simidx, self.MAP_searchs[simidx].itmax)
 
 
     def get_klm(self, simidx, it, field=None, component=None, subtract_QE_meanfield=True):
-        # TODO connect to field class
         # NOTE: if this is called, get all fields and all components for that iteration, unless field and component are specified
         # if it is smaller than current iteration, calculate the MAP search, otherwise access the cached result
         if field is None:
@@ -829,7 +835,21 @@ class MAP_lr_operator:
 
     def get_ivf(self, simidx, field):
         return self.MAP_searchs[simidx].get_ivf(field)
+    
 
+    def copyQEtoDirectory(self, simidx):
+        # copies fields to MAP directory, and gradient starting points to MAP directory
+        field2idx = {QE_search.field.ID: i for i, QE_search in enumerate(self.QE_searchs)}
+        idx2field = {i: QE_search.field.ID for i, QE_search in enumerate(self.QE_searchs)}
+        gradient2idx = {gradient.ID: i for i, gradient in enumerate(self.MAP_searchs[0].gradients)}
+        for fieldname, field in self.MAP_searchs[simidx].fields.items():
+            klm_QE = self.QE_searchs[field2idx[fieldname]].get_klm(simidx, None)
+            self.MAP_searchs[simidx].fields[fieldname].cache_klm(klm_QE, simidx, it=0)
+            self.MAP_searchs[simidx].gradients[gradient2idx[fieldname]].gfield.cache_prior(np.array(klm_QE), simidx, it=0)
+            self.MAP_searchs[simidx].gradients[gradient2idx[fieldname]].gfield.cache_quad(np.array(klm_QE), simidx, it=0)
+            
+            kmflm_QE = self.QE_searchs[field2idx[fieldname]].get_kmflm(simidx)
+            self.MAP_searchs[simidx].gradients[gradient2idx[fieldname]].gfield.cache_meanfield(np.array(kmflm_QE), simidx, it=0)
 
 class QE_lr(Basejob):
     """Quadratic estimate lensing reconstruction Job. Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.

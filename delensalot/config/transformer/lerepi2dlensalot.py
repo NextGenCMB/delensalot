@@ -371,7 +371,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             QE_fields_descs = {
                 "lensing":{
                     "ID": "lensing",
-                    "libdir": opj(transform(cf, l2T_Transformer()), 'QE', 'qlms_dd/lensing'),
+                    "libdir": opj(transform(cf, l2T_Transformer()), 'QE', 'estimates/lensing'),
                     'lm_max': dl.lm_max_qlm,
                     'components': "alpha_omega",
                     'CLfids': {'alpha': dl.CLfids['pp'], 'omega': dl.CLfids['ww']},
@@ -381,7 +381,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 },
                 "birefringence":{
                     "ID": 'birefringence',
-                    "libdir": opj(transform(cf, l2T_Transformer()), 'QE', 'qlms_dd/birefringence'),
+                    "libdir": opj(transform(cf, l2T_Transformer()), 'QE', 'estimates/birefringence'),
                     'lm_max': dl.lm_max_qlm, #FIXME betalm?
                     'components': "beta",
                     'CLfids': {"beta": dl.CLfids['bb']},
@@ -419,11 +419,15 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "Lmin": dl.Lmin,
                     "perturbative": dl.blt_pert,
                     "lm_max": dl.lm_max_blt,
+                    "components": 'alpha_omega',
+                    "libdir": opj(transform(cf, l2T_Transformer()), 'QE', 'estimates/lensing'),
                     "field_fns": QE_fields_descs["lensing"]['klm_fns'],
                 },
                 "birefringence": {
                     "Lmin": dl.Lmin,
                     "lm_max": dl.lm_max_blt, # FIXME betatemp_lm?
+                    "components": 'beta',
+                    "libdir": opj(transform(cf, l2T_Transformer()), 'QE', 'estimates/birefringence'),
                     "field_fns": QE_fields_descs['birefringence']['klm_fns'],
                 },
             }
@@ -561,10 +565,12 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             QE_searchs = dl.QE_searchs
             _process_components(dl)
 
+            MAP_libdir_prefix = opj(transform(cf, l2T_Transformer()), 'MAP', '{estimator_key}'.format(estimator_key=cf.analysis.key.split('_')[-1]))
+
             # input: all kwargs needed to build the MAP fields
             MAP_fields_descs = [{
                     "ID": "lensing",
-                    "libdir": opj(transform(cf, l2T_Transformer()), 'MAP', '{estimator_key}/lensing'),
+                    "libdir": opj(MAP_libdir_prefix, 'estimates/lensing'),
                     'lm_max': dl.lm_max_qlm,
                     "components": 'alpha_omega',
                     'CLfids': {'alpha': dl.CLfids['pp'], 'omega': dl.CLfids['ww']},
@@ -573,11 +579,11 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     'meanfield_fns': {"alpha": 'kmflm_alpha_simidx{idx}_it{it}', "omega": 'kmflm_omega_simidx{idx}_it{it}'},
                 },{
                     "ID": 'birefringence',
-                    "libdir": opj(transform(cf, l2T_Transformer()), 'MAP', '{estimator_key}/birefringence'),
+                    "libdir": opj(MAP_libdir_prefix, 'estimates/birefringence'),
                     'lm_max': dl.lm_max_qlm, # FIXME betalm?
                     "components": 'beta',
-                    'CLfids': {'b': dl.CLfids['bb']},
-                    "fns": {"b": 'klm_beta_simidx{idx}_it{it}'}, # This could be hardcoded, but I want to keep it flexible
+                    'CLfids': {'beta': dl.CLfids['bb']},
+                    "fns": {"beta": 'klm_beta_simidx{idx}_it{it}'}, # This could be hardcoded, but I want to keep it flexible
                     'increment_fns': {"beta": 'kinclm_beta_simidx{idx}_it{it}'},
                     'meanfield_fns': {"beta": 'kmflm_beta_simidx{idx}_it{it}'},
                 },
@@ -590,11 +596,15 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 'lm_max': dl.lm_max_blt,
                 "Lmin": dl.Lmin,
                 "perturbative": False,
+                "components": 'alpha_omega',
+                "libdir": opj(MAP_libdir_prefix, 'estimates/lensing'),
                 'field_fns': MAP_fields["lensing"].fns,
             }
             _MAP_operators_desc['birefringence_operator'] = {
                 'lm_max': dl.lm_max_blt,
                 "Lmin": dl.Lmin,
+                "components": 'beta',
+                "libdir": opj(MAP_libdir_prefix, 'estimates/birefringence'),
                 'field_fns': MAP_fields['birefringence'].fns,
             }
             _MAP_operators_desc['spin_raise'] = {
@@ -623,14 +633,14 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
             gfield_descs = [{
                 "ID": gradient_name,
-                "libdir": 'gradients',
+                "libdir": opj(MAP_libdir_prefix, 'gradients'),
                 "lm_max": dl.lm_max_qlm,
                 "meanfield_fns": 'mf_glm_{gradient_name}_simidx{idx}_it{it}'.format(gradient_name=gradient_name, it="{it}", idx="{idx}"),
                 "quad_fns": 'quad_glm_{gradient_name}_simidx{idx}_it{it}'.format(gradient_name=gradient_name, it="{it}", idx="{idx}"),
                 "prior_fns": 'klm_{gradient_name}_simidx{idx}_it{it}'.format(gradient_name=gradient_name, it="{it}", idx="{idx}"), # prior is just field, and then we do a simple divide by spectrum (almxfl)
                 "total_increment_fns": 'ginclm_{gradient_name}_simidx{idx}_it{it}'.format(gradient_name=gradient_name, it="{it}", idx="{idx}"),    
                 "total_fns": 'gtotlm_{gradient_name}_simidx{idx}_it{it}'.format(gradient_name=gradient_name, it="{it}", idx="{idx}"),    
-                "chh": None, #FIXME this is prior times scaling factor
+                "chh": {"alpha": np.ones(shape=dl.lm_max_qlm[0]+1), "omega": np.ones(shape=dl.lm_max_qlm[0]+1)} if gradient_name == "lensing" else {"beta": np.ones(shape=dl.lm_max_qlm[0]+1)}, #FIXME this is prior times scaling factor
                 "components": 'alpha_omega' if gradient_name == 'lensing' else 'beta',
             } for gradient_name, gradient_operator in gradients_operators.items()]
             MAP_gfields = {gfield_desc["ID"]: MAP_field.gradient(gfield_desc) for gfield_desc in gfield_descs}
@@ -646,14 +656,14 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
             MAP_ivffilter_field_desc = {
                 "ID": "ivf",
-                "libdir": opj(transform(cf, l2T_Transformer()), 'MAP', '{estimator_key}/filter'),
+                "libdir": opj(MAP_libdir_prefix, 'filter'),
                 "lm_max": dl.lm_max_ivf,
                 "components": 1,
                 "fns": "ivf_simidx{idx}_it{it}",
             }
             MAP_WFfilter_field_desc = {
                 "ID": "WF",
-                "libdir": opj(transform(cf, l2T_Transformer()), 'MAP', '{estimator_key}/filter'),
+                "libdir": opj(MAP_libdir_prefix, 'filter'),
                 "lm_max": dl.lm_max_ivf,
                 "components": 1,
                 "fns": "WF_simidx{idx}_it{it}",
@@ -673,11 +683,15 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "Lmin": dl.Lmin,
                     "perturbative": False,
                     "lm_max": dl.lm_max_blt,
+                    "components": 'alpha_omega',
+                    "libdir": opj(MAP_libdir_prefix, 'estimates/lensing'),
                     "field_fns": MAP_fields["lensing"].fns,
                 }),
                 "birefringence": operator.birefringence({
                     "Lmin": dl.Lmin,
                     "lm_max": dl.lm_max_blt,
+                    "components": 'beta',
+                    "libdir": opj(MAP_libdir_prefix, 'estimates/birefringence'),
                     "field_fns": MAP_fields['birefringence'].fns,
                 })
             }
@@ -686,7 +700,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "itmax": dl.itmax,
             }
             template_descs = {
-                "libdir": opj(transform(cf, l2T_Transformer()), 'MAP', 'templates'),
+                "libdir": opj(MAP_libdir_prefix, 'templates'),
                 "template_operators": template_operators,
             }
             MAP_searchs_desc = {

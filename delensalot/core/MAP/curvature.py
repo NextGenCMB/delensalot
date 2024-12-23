@@ -10,5 +10,15 @@ class base:
         pass
 
 
-    def update_curvature(self):
+    def update_curvature(self, gtot):
         pass
+        # deltag = self.curvature.get_gradient_inc(self.klm_currs) # This calls the 2-loop curvature update
+        # for field in self.fields:
+        #     for component in field.components:
+        #         increment = field.calc_increment(deltag, component)
+        #         field.update_klm(increment, component) 
+
+    
+    def get_new_MAP(self):
+        pass
+        # self._new_MAP(H, gtot)

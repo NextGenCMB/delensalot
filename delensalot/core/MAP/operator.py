@@ -1,3 +1,5 @@
+from os.path import join as opj
+
 import numpy as np
 
 from lenspyx.remapping.deflection_028 import rtype, ctype
@@ -7,16 +9,16 @@ from delensalot.utils import cli
 from delensalot.utility.utils_hp import Alm, almxfl
 
 class base:
-    def __init__(self):
-        self.field_cacher = cachers.cacher_mem()
+    def __init__(self, libdir):
+        self.field_cacher = cachers.cacher_npy(libdir)
 
 
     def act(self, obj, adjoint=False):
         assert 0, "subclass this"
 
 
-    def update_field(self, field, fn):
-        self.field_cacher.cache(fn, field)
+    def set_field(self, simidx, it, component=None):
+        assert 0, "subclass this"
 
 
 class multiply:
@@ -33,6 +35,10 @@ class multiply:
 
     def adjoint(self, obj):
         return self.act(obj, adjoint=True)
+    
+
+    def set_field(self, simidx, it, component=None):
+        pass
 
 
 class joint:
@@ -54,10 +60,9 @@ class joint:
         return obj
     
 
-    def update_fields(self, fields, fns=''):
-        # FIXME each operator has its own fields to update
+    def set_field(self, simidx, it, component=None):
         for operator in self.operators:
-            operator.update_field(fields, fns)
+            operator.set_field(simidx, it)
 
 
 class ivf_operator:
@@ -80,10 +85,10 @@ class ivf_operator:
         return obj
     
 
-    def update_fields(self, fields, fns=''):
+    def set_field(self, simidx, it, component=None):
         # FIXME each operator has its own fields to update
         for operator in self.operators:
-            operator.update_field(fields, fns)
+            operator.set_field(simidx, it)
     
 
 class WF_operator:
@@ -114,23 +119,26 @@ class WF_operator:
         return obj
     
 
-    def update_fields(self, fields, fns=''):
+    def set_field(self, simidx, it, component=None):
         # FIXME each operator has its own fields to update
         for operator in self.operators:
-            operator.update_field(fields, fns)
+            operator.set_field(simidx, it)
 
 
 class lensing(base):
     def __init__(self, operator_desc):
-        super().__init__()
-        self.Lmin = operator_desc["Lmin"],
-        self.lm_max = operator_desc["lm_max"],
-        self.perturbative = operator_desc["perturbative"],
-        self.field_fns = operator_desc["field_fns"],
+        super().__init__(operator_desc["libdir"])
+        self.field_fns = operator_desc["field_fns"]
+        self.Lmin = operator_desc["Lmin"]
+        self.lm_max = operator_desc["lm_max"]
+        self.perturbative = operator_desc["perturbative"]
+        self.components = operator_desc["components"]
+        self.field = {component: None for component in self.components.split("_")}
 
 
     def act(self, obj, lm_max_qlm, adjoint=False):
         assert adjoint == False, "adjoint not implemented"
+        dlm = self.field
         if self.perturbative: # Applies perturbative remapping
             pass
             # get_alm = lambda a: elm_wf if a == 'e' else np.zeros_like(elm_wf)
@@ -153,14 +161,25 @@ class lensing(base):
 
     def adjoint(self, obj):
         return self.act(obj, adjoint=True)
+    
 
+    def set_field(self, simidx, it, component=None):
+        if component is None:
+            for component in self.components.split("_"):
+                self.set_field(simidx, it, component)
+        if self.field_cacher.is_cached(opj(self.field_fns[component].format(idx=simidx,it=it))):
+            self.field[component] = self.field_cacher.load(opj(self.field_fns[component].format(idx=simidx,it=it)))
+        else:
+            assert 0, "cannot set field"
 
 class birefringence(base):
     def __init__(self, operator_desc):
-        super().__init__()
+        super().__init__(operator_desc["libdir"])
         self.field_fns = operator_desc['field_fns']
         self.Lmin = operator_desc["Lmin"],
-        self.lm_max = operator_desc["lm_max"],
+        self.lm_max = operator_desc["lm_max"]
+        self.components = operator_desc["components"]
+        self.field = {component: None for component in self.components.split("_")}
 
 
     def act(self, obj, adjoint=False):
@@ -171,6 +190,13 @@ class birefringence(base):
     
     def adjoint(self, obj):
         return self.act(obj, adjoint=True)
+
+
+    def set_field(self, simidx, it, component=None):
+        if component is None:
+            for component in self.components.split("_"):
+                self.set_field(simidx, it, component)
+        self.field[component] = self.field_cacher.load(opj(self.field_fns[component].format(idx=simidx,it=it)))
 
 
 class spin_raise:
@@ -208,8 +234,8 @@ class spin_raise:
         assert 0, "implement if needed"
         return self.act(obj, adjoint=True)
     
-    
-    def update_field(self, field, fn=''):
+
+    def set_field(self, simidx, it, component=None):
         pass
     
 

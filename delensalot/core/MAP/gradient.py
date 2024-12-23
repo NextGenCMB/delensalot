@@ -80,9 +80,9 @@ class base:
         return self.filter.get_ivf(curr_iter, XWF)
 
 
-    def update_operator(self, field):
-        self.filter.update_fields(field)
-        self.inner.update_fields(field)
+    def update_operator(self, simidx, it):
+        self.filter.update_operator(simidx, it)
+        self.inner.set_field(simidx, it)
 
 
     def update_gradient(self):

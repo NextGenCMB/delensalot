@@ -19,24 +19,31 @@ class base:
         self.template_operators = template_desc['template_operators']
 
 
-    # i need get_klm for certain iteration, current iteration, and final iteration, 
-    def get_klm(self, request_it, field_ID=None, component=None):
-        # if field a parameter, do i want to iterate over param only, or the full iterator?
+    # get_klm is used for certain iteration, current iteration, and final iteration 
+    # can also ask for certain field and component. gradient search is always done with
+    # the joint operators
+    def get_klm(self, simidx, request_it, field_ID=None, component=None):
         current_it = self.maxiterdone()
+        if self.maxiterdone() < 0:
+            assert 0, "Could not find the QE starting points, I expected them e.g. at {}".format(self.fields['lensing'].libdir)
         if current_it < self.itmax and request_it > current_it:
             for it in range(current_it, self.itmax):
+                print('starting iteration ', it)
                 for gradient in self.gradients:
-                    curr_klm = self.get_klm(it, self.fields[gradient.ID].ID)
-                    gradient.update_operator(curr_klm)
+                    gradient.update_operator(simidx, it)
                     grad_tot = gradient.get_gradient_total(it) #calculates the filtering, the sum, and the quadratic combination
-                H = self.update_curvature(grad_tot)
-                self.update_MAP(H)
+                H = self.curvature.update_curvature(grad_tot)
+                # MAP = self.get_new_MAP(H, grad_tot)
+                # new_klms = self.step(MAP)
+                print(self.fields['lensing'].get_klm(simidx, it).shape)
+                new_klms = [self.fields['lensing'].get_klm(simidx, it), self.fields['birefringence'].get_klm(simidx, it)]
+                self.cache_klm(new_klms, simidx, it+1)
         elif request_it <= current_it: # data already calculated
             if field_ID is None:
-                return [self.get_klm(request_it, field.ID, component) for field in self.fields]
+                return np.array([self.get_klm(simidx, request_it, field.ID, component) for field in self.fields])
             if component is None:
-                return [self.get_klm(request_it, field_ID, component) for component in self.fields[field_ID].components]
-            return self.fields[field_ID].get_klm(self.simidx, request_it, component)
+                return np.array([self.get_klm(simidx, request_it, field_ID, component) for component in self.fields[field_ID].components.split("_")])
+            return np.array(self.fields[field_ID].get_klm(simidx, request_it, component))
         else:
             assert False, "Requested iteration is beyond the maximum iteration"
 
@@ -66,20 +73,13 @@ class base:
         #         mf += rec.load_plms(self.libdir_MAP(self.k, simidx, self.version), [it])[-1]
         #     np.save(fn, mf/self.Nmf)
         return None
-    
-
-
-    def get_WF(self, field):
-        self.gradients[field].get_WF(field)
-
-    
-    def get_ivf(self, field):
-        self.gradients[field].get_ivf(field)
 
 
     def isiterdone(self, it):
-        return self.fields['lensing'].cacher.is_cached(self.fields['lensing'].fns['alpha'].format(idx=self.simidx, it=it))
-    
+        if it <= 0:
+            return self.fields['lensing'].is_cached(self.simidx, it, 'alpha')
+        return False    
+
 
     def maxiterdone(self):
         itr = -2
@@ -88,47 +88,34 @@ class base:
             itr += 1
             isdone = self.isiterdone(itr + 1)
         return itr
+
+
+    def get_new_MAP(self, H, gtot):
+        pass
+        # self.curvature.get_new_MAP(H, gtot)
+        # deltag = self.curvature.get_gradient_inc(self.klm_currs) # This calls the 2-loop curvature update
+        # for field in self.fields:
+        #     for component in field.components:
+        #         increment = field.calc_increment(deltag, component)
+        #         field.update_klm(increment, component) 
+
+
+    def step(self, MAP):
+        pass
+        # steplen=1
+        # return almxfl(MAP, steplen)
+
+
+    def cache_klm(self, new_klms, simidx, it):
+        for (fieldname, field), new_klm in zip(self.fields.items(), new_klms):
+            print(new_klm)
+            field.cache_klm(new_klm, simidx, it)
+
+
+    # exposed functions
+    def get_WF(self, field):
+        self.gradients[field].get_WF(field)
+
     
-
-    def _get_current_MAPpoint(self):
-        for field in self.fields:
-            comps = []
-            for component in field.components:
-                comps.append(field.get_klm(self.maxiterdone() - 1, component))
-        self.klm_currs = np.array(comps)
-        return self.klm_currs
-
-
-    def _get_current_klms(self, it):
-        buff = []
-        for field in self.fields:
-            for component in field.components:
-                buff.append(field.get_klm(it, component))
-        return np.array(buff)
-
-
-    def _update_operators(self, fields):
-        # For each operator that is dependent on a field, we need to update the field
-        for gradient in self.gradients:
-            gradient.update_field(fields)
-        for curvature in self.curvature:
-            curvature.update_field(fields)
-            
-
-    def _get_gradient(self, curr_MAPp):
-        gradients = []
-        for gi, gradient in enumerate(self.gradients):
-            gradients.append(gradient.calc_gradient(len(curr_MAPp[gi]), self.maxiterdone() - 1), self.maxiterdone() - 1) # self.klm_currs[gi]
-        return np.array(gradients)
-
-
-    def _update_curvature(self, gradient):
-        self.curvature.update_curvature(gradient) # This updates the vectors to be used for the curvature calculation
-
-
-    def _update_MAP(self, H):
-        deltag = self.curvature.get_gradient_inc(self.klm_currs) # This calls the 2-loop curvature update
-        for field in self.fields:
-            for component in field.components:
-                increment = field.calc_increment(deltag, component)
-                field.update_klm(increment, component) 
+    def get_ivf(self, field):
+        self.gradients[field].get_ivf(field)
