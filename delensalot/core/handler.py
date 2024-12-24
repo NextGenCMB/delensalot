@@ -770,7 +770,7 @@ class MAP_lr_operator:
         self.simidxs_mf = self.MAP_handler_desc["simidxs_mf"]
         # I want to have a MAP handler for each simidx as indices have nothing to do with each other
         self.MAP_searchs_desc = dl.MAP_searchs_desc
-        self.MAP_searchs = [MAP_handler.base(self.MAP_searchs_desc["MAP_fields"], self.MAP_searchs_desc["filter_desc"], self.MAP_searchs_desc["gradient_descs"], self.MAP_searchs_desc["curvature_desc"], self.MAP_searchs_desc["desc"], self.MAP_searchs_desc["template_descs"], simidx) for simidx in self.simidxs]
+        self.MAP_searchs = [MAP_handler.base(self.simulationdata, self.MAP_searchs_desc["MAP_fields"], self.MAP_searchs_desc["filter_desc"], self.MAP_searchs_desc["gradient_descs"], self.MAP_searchs_desc["curvature_desc"], self.MAP_searchs_desc["desc"], self.MAP_searchs_desc["template_descs"], simidx) for simidx in self.simidxs]
         self.it_tasks = self.MAP_handler_desc["it_tasks"]
 
 
@@ -845,11 +845,16 @@ class MAP_lr_operator:
         for fieldname, field in self.MAP_searchs[simidx].fields.items():
             klm_QE = self.QE_searchs[field2idx[fieldname]].get_klm(simidx, None)
             self.MAP_searchs[simidx].fields[fieldname].cache_klm(klm_QE, simidx, it=0)
-            self.MAP_searchs[simidx].gradients[gradient2idx[fieldname]].gfield.cache_prior(np.array(klm_QE), simidx, it=0)
+            # self.MAP_searchs[simidx].gradients[gradient2idx[fieldname]].gfield.cache_prior(np.array(klm_QE), simidx, it=0)
             self.MAP_searchs[simidx].gradients[gradient2idx[fieldname]].gfield.cache_quad(np.array(klm_QE), simidx, it=0)
             
             kmflm_QE = self.QE_searchs[field2idx[fieldname]].get_kmflm(simidx)
             self.MAP_searchs[simidx].gradients[gradient2idx[fieldname]].gfield.cache_meanfield(np.array(kmflm_QE), simidx, it=0)
+
+            #TODO cache QE wflm into the filter directory
+            wflm_QE = self.QE_searchs[field2idx[fieldname]].get_wflm(simidx)
+            self.MAP_searchs[simidx].filter.WF_field.cache_field(np.array(wflm_QE), simidx, it=0)
+
 
 class QE_lr(Basejob):
     """Quadratic estimate lensing reconstruction Job. Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.

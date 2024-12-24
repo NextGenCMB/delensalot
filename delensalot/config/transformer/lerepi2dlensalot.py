@@ -570,7 +570,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             # input: all kwargs needed to build the MAP fields
             MAP_fields_descs = [{
                     "ID": "lensing",
-                    "libdir": opj(MAP_libdir_prefix, 'estimates/lensing'),
+                    "libdir": opj(MAP_libdir_prefix, 'estimates/'),
                     'lm_max': dl.lm_max_qlm,
                     "components": 'alpha_omega',
                     'CLfids': {'alpha': dl.CLfids['pp'], 'omega': dl.CLfids['ww']},
@@ -579,7 +579,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     'meanfield_fns': {"alpha": 'kmflm_alpha_simidx{idx}_it{it}', "omega": 'kmflm_omega_simidx{idx}_it{it}'},
                 },{
                     "ID": 'birefringence',
-                    "libdir": opj(MAP_libdir_prefix, 'estimates/birefringence'),
+                    "libdir": opj(MAP_libdir_prefix, 'estimates/'),
                     'lm_max': dl.lm_max_qlm, # FIXME betalm?
                     "components": 'beta',
                     'CLfids': {'beta': dl.CLfids['bb']},
@@ -597,14 +597,14 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "Lmin": dl.Lmin,
                 "perturbative": False,
                 "components": 'alpha_omega',
-                "libdir": opj(MAP_libdir_prefix, 'estimates/lensing'),
+                "libdir": opj(MAP_libdir_prefix, 'estimates/'),
                 'field_fns': MAP_fields["lensing"].fns,
             }
             _MAP_operators_desc['birefringence_operator'] = {
                 'lm_max': dl.lm_max_blt,
                 "Lmin": dl.Lmin,
                 "components": 'beta',
-                "libdir": opj(MAP_libdir_prefix, 'estimates/birefringence'),
+                "libdir": opj(MAP_libdir_prefix, 'estimates/'),
                 'field_fns': MAP_fields['birefringence'].fns,
             }
             _MAP_operators_desc['spin_raise'] = {
@@ -634,10 +634,11 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             gfield_descs = [{
                 "ID": gradient_name,
                 "libdir": opj(MAP_libdir_prefix, 'gradients'),
+                "libdir_prior": opj(MAP_libdir_prefix, 'estimates'),
                 "lm_max": dl.lm_max_qlm,
                 "meanfield_fns": 'mf_glm_{gradient_name}_simidx{idx}_it{it}'.format(gradient_name=gradient_name, it="{it}", idx="{idx}"),
                 "quad_fns": 'quad_glm_{gradient_name}_simidx{idx}_it{it}'.format(gradient_name=gradient_name, it="{it}", idx="{idx}"),
-                "prior_fns": 'klm_{gradient_name}_simidx{idx}_it{it}'.format(gradient_name=gradient_name, it="{it}", idx="{idx}"), # prior is just field, and then we do a simple divide by spectrum (almxfl)
+                "prior_fns": 'klm_{component}_simidx{idx}_it{it}'.format(component="{component}", it="{it}", idx="{idx}"), # prior is just field, and then we do a simple divide by spectrum (almxfl)
                 "total_increment_fns": 'ginclm_{gradient_name}_simidx{idx}_it{it}'.format(gradient_name=gradient_name, it="{it}", idx="{idx}"),    
                 "total_fns": 'gtotlm_{gradient_name}_simidx{idx}_it{it}'.format(gradient_name=gradient_name, it="{it}", idx="{idx}"),    
                 "chh": {"alpha": np.ones(shape=dl.lm_max_qlm[0]+1), "omega": np.ones(shape=dl.lm_max_qlm[0]+1)} if gradient_name == "lensing" else {"beta": np.ones(shape=dl.lm_max_qlm[0]+1)}, #FIXME this is prior times scaling factor
@@ -650,6 +651,10 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "ID": gradient_name,
                     "field": MAP_fields[gradient_name],
                     "gfield": MAP_gfields[gradient_name],
+                    "noisemodel_coverage": dl.it_filter_directional,
+                    "estimator_key":  cf.analysis.key,
+                    "simulationdata": dl.simulationdata,
+                    "lm_max_ivf": dl.lm_max_ivf,
                     'itmax': dl.itmax,
                     "inner": gradient_operator,
                 }})
@@ -674,8 +679,13 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 'WF_operator': WF_operator,
                 "ivf_field": MAP_field.filter(MAP_ivffilter_field_desc),
                 "WF_field": MAP_field.filter(MAP_WFfilter_field_desc),
-                'beam': gauss_beam(df.a2r(dl.beam), lmax=dl.lm_max_ivf[0]),
+                'beam': operator.beam({"beamwidth": cf.analysis.beam, "lm_max":dl.lm_max_ivf}),
                 'Ninv_desc': [dl.nivt_desc, dl.nivp_desc],
+                "simulationdata": dl.simulationdata,
+                "chain_descr": dl.chain_descr(dl.lm_max_unl[0], dl.it_cg_tol(0)),
+                "ttebl": dl.ttebl,
+                "cls_filt": dl.cls_unl
+
             }
             
             template_operators = {
@@ -684,14 +694,14 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "perturbative": False,
                     "lm_max": dl.lm_max_blt,
                     "components": 'alpha_omega',
-                    "libdir": opj(MAP_libdir_prefix, 'estimates/lensing'),
+                    "libdir": opj(MAP_libdir_prefix, 'estimates/'),
                     "field_fns": MAP_fields["lensing"].fns,
                 }),
                 "birefringence": operator.birefringence({
                     "Lmin": dl.Lmin,
                     "lm_max": dl.lm_max_blt,
                     "components": 'beta',
-                    "libdir": opj(MAP_libdir_prefix, 'estimates/birefringence'),
+                    "libdir": opj(MAP_libdir_prefix, 'estimates/'),
                     "field_fns": MAP_fields['birefringence'].fns,
                 })
             }

@@ -1,22 +1,26 @@
 import numpy as np
 
 from delensalot.core import cachers
-from delensalot.utility.utils_hp import almxfl
+from delensalot.utility.utils_hp import almxfl, alm_copy
 
 from . import gradient
 from . import curvature
+from . import filter
 
 class base:
-    def __init__(self, fields, filter_desc, gradient_descs, curvature_desc, desc, template_desc, simidx):
+    def __init__(self, simulationdata, fields, filter_desc, gradient_descs, curvature_desc, desc, template_desc, simidx):
         # this class handles the filter, gradient, and curvature libs, nothing else
         self.fields = fields
+        self.simulationdata = simulationdata
         # NOTE gradient and curvature share the field increments, so naming must be consistent. Can use the gradient_descs['inc_fn'] for this
-        self.gradients = [gradient.base(gradient_desc, filter_desc, simidx) for gradient_name, gradient_desc in gradient_descs.items()]
+        self.filter = filter.base(filter_desc)
+        self.gradients = [gradient.base(gradient_desc, self.filter, simidx) for gradient_name, gradient_desc in gradient_descs.items()]
         self.curvature = curvature.base(curvature_desc, self.gradients)
         self.itmax = desc['itmax']
         self.simidx = simidx
         self.template_cacher = cachers.cacher_npy(template_desc['libdir'])
         self.template_operators = template_desc['template_operators']
+        
 
 
     # get_klm is used for certain iteration, current iteration, and final iteration 
@@ -35,7 +39,6 @@ class base:
                 H = self.curvature.update_curvature(grad_tot)
                 # MAP = self.get_new_MAP(H, grad_tot)
                 # new_klms = self.step(MAP)
-                print(self.fields['lensing'].get_klm(simidx, it).shape)
                 new_klms = [self.fields['lensing'].get_klm(simidx, it), self.fields['birefringence'].get_klm(simidx, it)]
                 self.cache_klm(new_klms, simidx, it+1)
         elif request_it <= current_it: # data already calculated
@@ -108,13 +111,12 @@ class base:
 
     def cache_klm(self, new_klms, simidx, it):
         for (fieldname, field), new_klm in zip(self.fields.items(), new_klms):
-            print(new_klm)
             field.cache_klm(new_klm, simidx, it)
 
 
     # exposed functions
     def get_WF(self, field):
-        self.gradients[field].get_WF(field)
+        self.gradients[field].get_WF(self.get_datmaps(), field)
 
     
     def get_ivf(self, field):

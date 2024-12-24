@@ -44,7 +44,7 @@ class cacher_npy(cacher):
         p = self._path(fn)
         assert os.path.exists(p), p
         if self.verbose:
-            print("Loading " + fn + '.npy')
+            print("Loading " + self.lib_dir + "/"+ fn + '.npy')
         return np.load(p, allow_pickle=True)
 
     def is_cached(self, fn):

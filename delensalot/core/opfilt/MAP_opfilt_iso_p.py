@@ -107,6 +107,7 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         """
         # Forward lensing here
         self.tim.reset()
+        print(elm.size)
         lmax_unl = Alm.getlmax(elm.size, self.mmax_sol)
         assert lmax_unl == self.lmax_sol, (lmax_unl, self.lmax_sol)
         # View to the same array for GRAD_ONLY mode:

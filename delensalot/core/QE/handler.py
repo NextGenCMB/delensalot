@@ -97,7 +97,7 @@ class base:
     
 
     def get_wflm(self, simidx):
-        self.fq.get_wflm(simidx)
+        return self.fq.get_wflm(simidx)
 
 
     def get_ivf(self, simidx):

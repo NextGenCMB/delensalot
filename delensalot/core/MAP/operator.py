@@ -5,6 +5,10 @@ import numpy as np
 from lenspyx.remapping.deflection_028 import rtype, ctype
 
 from delensalot.core import cachers
+
+from delensalot.config.config_helper import data_functions as df
+
+from delensalot.utility.utils_hp import gauss_beam
 from delensalot.utils import cli
 from delensalot.utility.utils_hp import Alm, almxfl
 
@@ -172,6 +176,7 @@ class lensing(base):
         else:
             assert 0, "cannot set field"
 
+
 class birefringence(base):
     def __init__(self, operator_desc):
         super().__init__(operator_desc["libdir"])
@@ -242,18 +247,20 @@ class spin_raise:
 class beam:
     def __init__(self, operator_desc):
         self.beamwidth = operator_desc['beamwidth']
-        self.mmax = operator_desc['mmax']
-        self.beam = operator_desc['beam']
+        self.lm_max = operator_desc['lm_max']
+        self.beam = gauss_beam(df.a2r(self.beamwidth), lmax=self.lm_max[0])
+        self.is_adjoint = False
 
 
-    def act(self, obj, adjoint=False):
-        if adjoint:
-            return cli(almxfl(obj, self.beam, self.mmax))
-        return almxfl(obj, self.beam, self.mmax, adjoint=adjoint)   
+    def act(self, obj, is_adjoint=False):
+        if is_adjoint:
+            return cli(almxfl(obj, self.beam, self.lm_max[1]))
+        return almxfl(obj, self.beam, self.lm_max[1])   
 
 
-    def adjoint(self, obj):
-        return self.act(obj, adjoint=True)
+    def adjoint(self):
+        self.is_adjoint = True
+        return self
     
 
     def __mul__(self, obj, other):

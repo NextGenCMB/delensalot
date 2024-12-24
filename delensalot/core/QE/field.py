@@ -16,13 +16,13 @@ class base:
         self.klm_fns =  field_desc['klm_fns'] if 'klm_fns' in field_desc else None# fns must be dict() with keys as components, and formatter for simidx
         self.qmflm_fns = field_desc['qmflm_fns'] if 'qmflm_fns' in field_desc else None
         
-        self.cacher = cachers.cacher_npy(self.libdir)
+        self.cacher = cachers.cacher_npy(self.libdir, verbose=True)
 
 
     def get_qlm(self, simidx, component=None):
         if component is None:
             return [self.get_qlm(simidx, component) for component in self.components.split("_")]
-        return self.cacher.load(self.qlm_fns[component]) if self.cacher.is_cached(self.qlm_fns[component]) else None
+        return self.cacher.load(self.qlm_fns[component].format(idx=simidx))
     
 
     # def get_klm(self, simdix, component=None):
