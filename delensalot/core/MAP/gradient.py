@@ -26,13 +26,14 @@ class base:
         self.ID = gradient_desc['ID']
         self.field = gradient_desc['field']
         self.gfield = gradient_desc['gfield']
-        self.inner = gradient_desc['inner']
+        self.gradient_operator = gradient_desc['gradient_operator']
         self.filter = filter
         self.simidx = simidx
         self.noisemodel_coverage = gradient_desc['noisemodel_coverage']
         self.estimator_key = gradient_desc['estimator_key']
         self.simulationdata = gradient_desc['simulationdata']
         self.lm_max_ivf = gradient_desc['lm_max_ivf']
+        self.lm_max_qlm = gradient_desc['lm_max_qlm']
 
 
     def get_gradient_total(self, it, component=None):
@@ -50,19 +51,26 @@ class base:
 
 
     def get_gradient_quad(self, it, component=None):
+        # NOTE this function is equation 22 of the paper.
+        # Using property _2Y = _-2Y.conj
+        # res = ivf.conj * gpmap(3) - ivf * gpmap(1).conj
+        # y(res,1)
+        # almxfl(res)
         qlms = self.gfield.get_quad(self.simidx, it, component)
         data = self.get_data(self.lm_max_ivf)
         if qlms is None:
-            # build new quad gradient from qlm expression
             XWF = self.filter.get_WF(data, self.simidx, it)
             ivf = self.filter.get_ivf(data, XWF, self.simidx, it)
+            # NOTE This is an actual calculation inside this class
+            qlms = ivf.conj() * self.gradient_operator.act(XWF, spin=2)
+            qlms -= ivf * self.gradient_operator.act(XWF, spin=-2).conj()
             
-            #FIXME this is not the correct way to get the quad
-            # for n in [0,1,2]:
-                # qlms += ivf*self.inner(XWF)
-            qlms = self.gfield.get_quad(self.simidx, 0, component)
+            gc = self.q_pbgeom.geom.adjoint_synthesis(qlms, 1, self.lm_max_qlm[0], self.lm_max_qlm[1], self.ffi.sht_tr)
+            fl = -np.sqrt(np.arange(self.lm_max_qlm[0] + 1, dtype=float) * np.arange(1, self.lm_max_qlm[0] + 2))
+            almxfl(gc[0], fl, self.lm_max_qlm[1], True)
+            almxfl(gc[1], fl, self.lm_max_qlm[1], True)
+            
             self.gfield.cache_quad(qlms, self.simidx, it=it)
-            return qlms
         return self.gfield.get_quad(self.simidx, it, component)
 
 
@@ -87,7 +95,7 @@ class base:
 
     def update_operator(self, simidx, it):
         self.filter.update_operator(simidx, it)
-        self.inner.set_field(simidx, it)
+        self.gradient_operator.set_field(simidx, it)
 
 
     def update_gradient(self):

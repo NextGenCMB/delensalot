@@ -367,6 +367,12 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
             dl = DLENSALOT_Concept()
             _process_components(dl)
+            dl.lenjob_geominfo = cf.itrec.lenjob_geominfo
+            dl.lenjob_geomlib = get_geom(cf.itrec.lenjob_geominfo)
+            thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
+            dl.lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
+
+            dl.ffi = deflection(dl.lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(*dl.lm_max_qlm)), dl.lm_max_qlm[1], numthreads=dl.tr, verbosity=dl.verbose, epsilon=cf.itrec.epsilon)
 
             QE_fields_descs = {
                 "lensing":{
@@ -419,9 +425,11 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "Lmin": dl.Lmin,
                     "perturbative": dl.blt_pert,
                     "lm_max": dl.lm_max_blt,
+                    "lm_max_qlm": dl.lm_max_qlm,
                     "components": 'alpha_omega',
                     "libdir": opj(transform(cf, l2T_Transformer()), 'QE', 'estimates/lensing'),
                     "field_fns": QE_fields_descs["lensing"]['klm_fns'],
+                    "ffi": dl.ffi,
                 },
                 "birefringence": {
                     "Lmin": dl.Lmin,
@@ -593,22 +601,24 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             # input: all kwargs needed to build the MAP search
             _MAP_operators_desc = {}
             _MAP_operators_desc['lensing_operator'] = {
-                'lm_max': dl.lm_max_blt,
+                'lm_max': dl.lm_max_ivf,
+                "lm_max_qlm": dl.lm_max_qlm,
                 "Lmin": dl.Lmin,
                 "perturbative": False,
                 "components": 'alpha_omega',
                 "libdir": opj(MAP_libdir_prefix, 'estimates/'),
                 'field_fns': MAP_fields["lensing"].fns,
+                "ffi": dl.ffi,
             }
             _MAP_operators_desc['birefringence_operator'] = {
-                'lm_max': dl.lm_max_blt,
+                'lm_max': dl.lm_max_ivf,
                 "Lmin": dl.Lmin,
                 "components": 'beta',
                 "libdir": opj(MAP_libdir_prefix, 'estimates/'),
                 'field_fns': MAP_fields['birefringence'].fns,
             }
             _MAP_operators_desc['spin_raise'] = {
-                'lm_max': None,
+                'lm_max': dl.lm_max_ivf,
             }
             _MAP_operators_desc['multiply'] = {
                 'factor': -1j,
@@ -629,7 +639,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 filter_operators.append(operator.birefringence(_MAP_operators_desc['birefringence_operator']))
                 gradients_operators['birefringence'] = operator.joint([*filter_operators, operator.multiply(_MAP_operators_desc['multiply'])])
             ivf_operator = operator.ivf_operator(filter_operators)
-            WF_operator = operator.WF_operator(filter_operators)
+            WF_operator = operator.WF_operator(filter_operators) #TODO this is ivf_operator*ivf_operator^dagger, could be implemented via ivf.
 
             gfield_descs = [{
                 "ID": gradient_name,
@@ -655,8 +665,9 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "estimator_key":  cf.analysis.key,
                     "simulationdata": dl.simulationdata,
                     "lm_max_ivf": dl.lm_max_ivf,
+                    "lm_max_qlm": dl.lm_max_qlm,
                     'itmax': dl.itmax,
-                    "inner": gradient_operator,
+                    "gradient_operator": gradient_operator,
                 }})
 
             MAP_ivffilter_field_desc = {
@@ -684,7 +695,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "simulationdata": dl.simulationdata,
                 "chain_descr": dl.chain_descr(dl.lm_max_unl[0], dl.it_cg_tol(0)),
                 "ttebl": dl.ttebl,
-                "cls_filt": dl.cls_unl
+                "cls_filt": dl.cls_unl,
+                "lm_max_ivf": dl.lm_max_ivf,
 
             }
             
@@ -693,9 +705,11 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "Lmin": dl.Lmin,
                     "perturbative": False,
                     "lm_max": dl.lm_max_blt,
+                    "lm_max_qlm": dl.lm_max_qlm,
                     "components": 'alpha_omega',
                     "libdir": opj(MAP_libdir_prefix, 'estimates/'),
                     "field_fns": MAP_fields["lensing"].fns,
+                    "ffi": dl.ffi,
                 }),
                 "birefringence": operator.birefringence({
                     "Lmin": dl.Lmin,

@@ -22,7 +22,6 @@ class base:
         self.template_operators = template_desc['template_operators']
         
 
-
     # get_klm is used for certain iteration, current iteration, and final iteration 
     # can also ask for certain field and component. gradient search is always done with
     # the joint operators

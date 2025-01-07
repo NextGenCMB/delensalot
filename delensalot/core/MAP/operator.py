@@ -2,6 +2,8 @@ from os.path import join as opj
 
 import numpy as np
 
+import healpy as hp
+
 from lenspyx.remapping.deflection_028 import rtype, ctype
 
 from delensalot.core import cachers
@@ -10,7 +12,7 @@ from delensalot.config.config_helper import data_functions as df
 
 from delensalot.utility.utils_hp import gauss_beam
 from delensalot.utils import cli
-from delensalot.utility.utils_hp import Alm, almxfl
+from delensalot.utility.utils_hp import Alm, almxfl, alm_copy
 
 class base:
     def __init__(self, libdir):
@@ -50,47 +52,48 @@ class joint:
         self.operators = operators
     
 
-    def act(self, obj, adjoint=False):
+    def act(self, obj, adjoint=False, spin=None):
         for operator in self.operators:
-            buff = operator.act(obj)
+            buff = operator.act(obj, spin=spin)
             obj = buff
         return obj
     
 
-    def adjoint(self, obj):
+    def adjoint(self, obj, spin=None):
         for operator in self.operators[::-1]:
-            buff = operator.adjoint.act(obj)
+            buff = operator.adjoint.act(obj, spin=spin)
             obj = buff
         return obj
     
 
     def set_field(self, simidx, it, component=None):
         for operator in self.operators:
+            # print("setting field for operator in joint", operator)
             operator.set_field(simidx, it)
 
 
 class ivf_operator:
+    # This is a composite operator, consisting of the secondaries-operators.
     def __init__(self, operators):
         self.operators = operators
         self.lm_max = operators[0].lm_max if hasattr(operators[0], 'lm_max') else operators[1].lm_max # FIXME hoping these operators have what im looking for
     
 
-    def act(self, obj):
+    def act(self, obj, spin=None):
         for operator in self.operators:
-            buff = operator.act(obj)
+            buff = operator.act(obj, spin=spin)
             obj = buff
         return obj
     
 
-    def adjoint(self, obj):
+    def adjoint(self, obj, spin=None):
         for operator in self.operators[::-1]:
-            buff = operator.adjoint.act(obj)
+            buff = operator.adjoint.act(obj, spin=spin)
             obj = buff
         return obj
     
 
     def set_field(self, simidx, it, component=None):
-        # FIXME each operator has its own fields to update
         for operator in self.operators:
             operator.set_field(simidx, it)
     
@@ -135,16 +138,19 @@ class lensing(base):
         self.field_fns = operator_desc["field_fns"]
         self.Lmin = operator_desc["Lmin"]
         self.lm_max = operator_desc["lm_max"]
+        self.lm_max_qlm = operator_desc["lm_max_qlm"]
         self.perturbative = operator_desc["perturbative"]
         self.components = operator_desc["components"]
         self.field = {component: None for component in self.components.split("_")}
+        self.ffi = operator_desc["ffi"]
 
 
-    def act(self, obj, lm_max_qlm, adjoint=False):
+    def act(self, obj, adjoint=False, spin=None):
         assert adjoint == False, "adjoint not implemented"
-        dlm = self.field
+        assert spin is not None, "spin not provided"
+       
         if self.perturbative: # Applies perturbative remapping
-            pass
+            return 
             # get_alm = lambda a: elm_wf if a == 'e' else np.zeros_like(elm_wf)
             # geom, sht_tr = self.fq.ffi.geom, self.fq.ffi.sht_tr
             # d1 = geom.alm2map_spin([dlm, np.zeros_like(dlm)], 1, self.lmax_qlm, self.mmax_qlm, sht_tr, [-1., 1.])
@@ -154,27 +160,37 @@ class lensing(base):
             # del dp, dm, d1
             # elm, blm = geom.map2alm_spin([dlens.real, dlens.imag], 2, lmaxb, mmaxb, sht_tr, [-1., 1.])
         else:  
+            # NOTE this is used for B-lensing template, and in eq. 21 of the paper
             # ffi = self.fq.ffi.change_dlm([dlm, None], self.mmax_qlm)
             # elm, blm = ffi.lensgclm(np.array([elm_wf, np.zeros_like(elm_wf)]), self.mmax_filt, 2, lmaxb, mmaxb)
-            gc = self.q_pbgeom.geom.adjoint_synthesis(obj, 1, lm_max_qlm[0], lm_max_qlm[1], self.ffi.sht_tr)
-            fl = -np.sqrt(np.arange(lm_max_qlm[0] + 1, dtype=float) * np.arange(1, lm_max_qlm[0] + 2))
-            almxfl(gc[0], fl, lm_max_qlm[1], True)
-            almxfl(gc[1], fl, lm_max_qlm[1], True)
+            
+            # NOTE this is used e.g. in eq 22 of the paper.
+
+            #TODO I don't want this alm_copy here
+            obj = np.atleast_2d(obj)
+            obj = alm_copy(obj[0], None, *self.lm_max)
+            # return self.ffi.gclm2lenmap(np.atleast_2d(obj), self.lm_max[1], spin, False)
+            return self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max[1], 2, *self.lm_max)
+        
         return gc
     
 
-    def adjoint(self, obj):
-        return self.act(obj, adjoint=True)
+    def adjoint(self, obj, spin=None):
+        assert spin is not None, "spin not provided"
+        return self.act(obj, adjoint=True, spin=spin)
     
 
     def set_field(self, simidx, it, component=None):
         if component is None:
             for component in self.components.split("_"):
                 self.set_field(simidx, it, component)
-        if self.field_cacher.is_cached(opj(self.field_fns[component].format(idx=simidx,it=it))):
-            self.field[component] = self.field_cacher.load(opj(self.field_fns[component].format(idx=simidx,it=it)))
+            d = np.array([self.field[comp].flatten() for comp in self.components.split("_")], dtype=complex)
+            self.ffi = self.ffi.change_dlm(d, self.lm_max_qlm[1])
         else:
-            assert 0, "cannot set field"
+            if self.field_cacher.is_cached(opj(self.field_fns[component].format(idx=simidx,it=it))):
+                self.field[component] = self.field_cacher.load(opj(self.field_fns[component].format(idx=simidx,it=it)))
+            else:
+                assert 0, "cannot set field"
 
 
 class birefringence(base):
@@ -187,14 +203,21 @@ class birefringence(base):
         self.field = {component: None for component in self.components.split("_")}
 
 
-    def act(self, obj, adjoint=False):
+    # spin doesn't do anything here, but parameter is needed as joint operator passes it to all operators
+    def act(self, obj, adjoint=False, spin=None):
+        f = np.array([self.field[comp].flatten() for comp in self.components.split("_")], dtype=complex)
+
+        buff = alm_copy(f[0], None, *self.lm_max)
         if adjoint:
-            return np.exp(np.imag*self.field)*obj
-        return np.exp(-np.imag*self.field)*obj
+            return np.array([np.exp(1j*buff)*obj[0], np.exp(-1j*buff)*obj[1]])
+        return np.array([np.exp(-1j*buff)*obj[0], np.exp(1j*buff)*obj[1]])
+        # if adjoint:
+        #     return np.array([np.exp(1j*f[0])*obj[0], np.exp(-1j*f[0])*obj[1]])
+        # return np.array([np.exp(-1j*f[0])*obj[0], np.exp(1j*f[0])*obj[1]])
     
     
-    def adjoint(self, obj):
-        return self.act(obj, adjoint=True)
+    def adjoint(self, obj, spin=None):
+        return self.act(obj, adjoint=True, spin=spin)
 
 
     def set_field(self, simidx, it, component=None):
@@ -206,38 +229,26 @@ class birefringence(base):
 
 class spin_raise:
     def __init__(self, operator_desc):
-        pass
+        self.lm_max = operator_desc["lm_max"]
 
 
-    def act(self, elm_wf, adjoint=False):
+    def act(self, elm_wf, spin=None, adjoint=False):
+        # This is the property d _sY = -np.sqrt((l+s+1)(l-s+1)) _(s+1)Y
         assert adjoint == False, "adjoint not implemented"
+        assert spin in [-2, 2], spin
 
-        def _get_gpmap(self, elm_wf:np.ndarray, spin:int, q_pbgeom):
-            """Wiener-filtered gradient leg to feed into the QE
-            """
-            assert spin in [1, 3], spin
-            lmax = Alm.getlmax(elm_wf.size, self.mmax_sol)
-            i1, i2 = (2, -1) if spin == 1 else (-2, 3)
-            fl = np.arange(i1, lmax + i1 + 1, dtype=float) * np.arange(i2, lmax + i2 + 1)
-            fl[:spin] *= 0.
-            fl = np.sqrt(fl)
-            elm = np.atleast_2d(almxfl(elm_wf, fl, self.mmax_sol, False))
-            ffi = self.ffi.change_geom(q_pbgeom.geom) if q_pbgeom is not self.ffi.pbgeom else self.ffi
-            return ffi.gclm2lenmap(elm, self.mmax_sol, spin, False)
-
-        gcs_r = _get_gpmap(elm_wf, 3, self.q_pbgeom)  # 2 pos.space maps, uses then complex view onto real array
-        gc_c = resmap_c.conj() * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3)
-        gcs_r = _get_gpmap(elm_wf, 1, self.q_pbgeom)
-        gc_c -= resmap_c * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze().conj()  # (+2 , -1)
-        del resmap_c, resmap_r, gcs_r
-        lmax_qlm, mmax_qlm = self.ffi.lmax_dlm, self.ffi.mmax_dlm
-        gc_r = gc_c.view(self.rtype[gc_c.dtype]).reshape((gc_c.size, 2)).T  # real view onto complex array
-        return gc_r
+        lmax = Alm.getlmax(elm_wf.size, self.lm_max[1])
+        i1, i2 = (2, -1) if spin == -2 else (-2, 3)
+        fl = np.arange(i1, lmax + i1 + 1, dtype=float) * np.arange(i2, lmax + i2 + 1)
+        fl[:spin] *= 0.
+        fl = np.sqrt(fl)
+        elm = np.atleast_2d(almxfl(elm_wf, fl, self.lm_max[1], False))
+        return elm
 
 
-    def adjoint(self, obj):
+    def adjoint(self, obj, spin=None):
         assert 0, "implement if needed"
-        return self.act(obj, adjoint=True)
+        return self.act(obj, adjoint=True, spin=spin)
     
 
     def set_field(self, simidx, it, component=None):
@@ -252,10 +263,10 @@ class beam:
         self.is_adjoint = False
 
 
-    def act(self, obj, is_adjoint=False):
-        if is_adjoint:
-            return cli(almxfl(obj, self.beam, self.lm_max[1]))
-        return almxfl(obj, self.beam, self.lm_max[1])   
+    def act(self, obj, adjoint=False):
+        if adjoint:
+            return np.array([cli(almxfl(o, self.beam, self.lm_max[1], False)) for o in obj])
+        return np.array([almxfl(o, self.beam, self.lm_max[1], False) for o in obj])
 
 
     def adjoint(self):
