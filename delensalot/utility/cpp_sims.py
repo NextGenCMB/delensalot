@@ -22,13 +22,17 @@ from delensalot.core.iterator import statics
 from delensalot.utility import utils_hp as uhp
 from delensalot.utility.utils_hp import alm_copy
 from delensalot.utility.utils_plot import pp2kk, bnd
+import delensalot.core.mpi as mpi
+
 
 from lensitbiases import n1_fft
 import time
 _write_alm = lambda fn, alm : hp.write_alm(fn, alm, overwrite=True)
  
 class cpp_sims_lib:
-    def __init__(self, k:str,  param_file:str, tol:int, eps:int,  version:str='', qe_version='', label:str='', n0n1_libdir:str or None=None, cache_in_home=False, verbose=False, **kwargs):
+    def __init__(
+            self, k:str,  param_file:str, tol:int, eps:int,  version:str='', 
+            qe_version='', label:str='', n0n1_libdir:str or None=None, cache_in_home=False, verbose=False, **kwargs):
         """Helper library to plot results from MAP estimation of simulations.
         
         This class loads the results of the runs done with the param_file and the options asked
@@ -69,7 +73,15 @@ class cpp_sims_lib:
             self.split = kwargs['split']
         else:
             self.split = False
-        self.cacher_param = cachers.cacher_npy(opj(self.cachedir, f'cpplib_tol{self.tol}_eps{self.eps}' + self.version + self.qe_version))
+
+        cpp_lib_dir = opj(self.cachedir, f'cpplib_tol{self.tol:.1f}_eps{self.eps:.1f}' + self.version + self.qe_version)
+        if mpi.rank == 0:
+            if not os.path.exists(cpp_lib_dir):
+                os.makedirs(cpp_lib_dir)
+        mpi.barrier()
+        
+        
+        self.cacher_param = cachers.cacher_npy(cpp_lib_dir)
         self.fsky = self.get_fsky() 
 
         # Cl weights used in the QE (either lensed Cls or grad Cls)
@@ -103,12 +115,9 @@ class cpp_sims_lib:
         
         self.nhllib = None
         self.n0n1_libdir = n0n1_libdir
+        self.cache_plm = kwargs['cache_plm'] if 'cache_plm' in kwargs.keys() else True
 
-
-    def libdir_sim(self, simidx, tol=None, eps=None):
-        # if tol is None: tol = self.tol 
-        # if eps is None: eps = self.eps
-        # return opj(self.TEMP,'%s_sim%04d'%(self.k, simidx) + self.version)
+    def libdir_sim(self, simidx):
         # lmax_unl = 5024
         lmax_unl = self.param.lmax_cmb_unl
         # return self.param.libdir_iterators(self.k, simidx, self.version, tol, eps)
@@ -125,7 +134,7 @@ class cpp_sims_lib:
 
     def cacher_sim(self, simidx):
         if self.cache_in_home is False:
-            cacher = cachers.cacher_npy(opj(self.libdir_sim(simidx, self.tol, self.eps), 'cpplib'), verbose=self.verbose)
+            cacher = cachers.cacher_npy(opj(self.libdir_sim(simidx), 'cpplib'), verbose=self.verbose)
         else:
             simlib = self.libdir_sim(simidx).split('/')[-1]
             cacher_param_libdir = self.cacher_param.lib_dir
@@ -133,25 +142,25 @@ class cpp_sims_lib:
         return cacher
 
     def get_plm(self, simidx, itr, use_cache=True):
-        if use_cache:
+        if use_cache and self.cache_plm:
             # cacher = self.cacher_sim(simidx)
-            cacher = cachers.cacher_npy(self.libdir_sim(simidx, self.tol, self.eps))
+            cacher = cachers.cacher_npy(self.libdir_sim(simidx))
             # print(self.libdir_sim(simidx))
             fn = f"phi_plm_it{itr:03.0f}"
             if not cacher.is_cached(fn):
-                plm = statics.rec.load_plms(self.libdir_sim(simidx, self.tol, self.eps), [itr])[0]
+                plm = statics.rec.load_plms(self.libdir_sim(simidx), [itr])[0]
                 cacher.cache(fn, plm)
             plm = cacher.load(fn)
             return plm
         else:
-            return statics.rec.load_plms(self.libdir_sim(simidx, self.tol, self.eps), [itr])[0]
+            return statics.rec.load_plms(self.libdir_sim(simidx), [itr])[0]
 
     def get_plm_qe(self, simidx, use_cache=True, recache=False, verbose=False):
 
         if verbose:
             print('We get the QE qlms from ' + self.qlms_dd.lib_dir)
         
-        if use_cache:
+        if use_cache and self.cache_plm:
             cacher = cachers.cacher_npy(self.libdir_sim(simidx))
             # cacher = self.cacher_sim(simidx)
             # print(self.libdir_sim(simidx))
@@ -166,7 +175,7 @@ class cpp_sims_lib:
             return self.qlms_dd.get_sim_qlm(self.k, int(simidx)) 
 
     def get_sim_plm(self, idx):
-        """Returns the input plm, depening if it is a sims_ffp10, a npipe sim or other sim"""
+        """Returns the input plm, depending if it is a sims_ffp10, a npipe sim or other sim"""
         if type(self.param.sims).__name__ == 'smicaNPIPE_wTpmask30amin':
             return self.param.sims.get_sim_plm(idx)
         elif type(self.param.sims.sims_cmb_len).__name__ == 'cmb_len_ffp10':
@@ -174,14 +183,14 @@ class cpp_sims_lib:
         else:
             return self.param.sims.sims_cmb_len.get_sim_plm(idx)
 
-    def get_plm_input(self, simidx, use_cache=True, recache=False):
+    def get_plm_input(self, simidx, use_cache=False, recache=False):
         
         if not hasattr(self.param.sims, 'sims_cmb_len') or not hasattr(self.param.sims.sims_cmb_len, 'plm_shuffle') or self.param.sims.sims_cmb_len.plm_shuffle is None:
             shuffled_idx = simidx
         else:
             shuffled_idx = self.param.sims.sims_cmb_len.plm_shuffle(simidx)
 
-        if use_cache:
+        if use_cache and self.cache_plm:
             cacher = cachers.cacher_npy(self.libdir_sim(simidx))
             fn = f"phi_plm_input"
             if not cacher.is_cached(fn) or recache:
@@ -226,21 +235,21 @@ class cpp_sims_lib:
     def almxfl(self, alm, cl):
         return uhp.almxfl(alm, cl, mmax = self.param.mmax_qlm, inplace=False)
 
-    def get_cpp_input(self, simidx):
+    def get_cpp_input(self, simidx, recache=False, cache_plm=True):
         fn_cpp_in = 'cpp_input'
         cacher = self.cacher_sim(simidx)
-        if not cacher.is_cached(fn_cpp_in):
-            plmin = self.get_plm_input(simidx)
+        if not cacher.is_cached(fn_cpp_in) or recache:
+            plmin = self.get_plm_input(simidx, recache=recache, use_cache=cache_plm)
             cpp_in = self.get_cl(plmin)
             cacher.cache(fn_cpp_in, cpp_in)
         cpp_in = cacher.load(fn_cpp_in)
         return cpp_in
 
-    def get_cpp_itXinput(self, simidx, itr,  recache=False):
+    def get_cpp_itXinput(self, simidx, itr,  recache=False, cache_plm=True):
         fn = 'cpp_in_x_it{}'.format(itr)
         cacher = self.cacher_sim(simidx)
         if not cacher.is_cached(fn) or recache:
-            plmin = self.get_plm_input(simidx)
+            plmin = self.get_plm_input(simidx, use_cache=cache_plm)
             # plmit = self.plms[simidx][itr]
             plmit = self.get_plm(simidx, itr)
             cpp_itXin = self.get_cl(plmit, plmin)
@@ -248,14 +257,14 @@ class cpp_sims_lib:
         cpp_itXin = cacher.load(fn)
         return cpp_itXin
     
-    def get_cpp_qeXinput(self, simidx, qe_version=None, recache=False, verbose=False):
+    def get_cpp_qeXinput(self, simidx, qe_version=None, recache=False, verbose=False, cache_plm=True):
         if qe_version == None:
             qe_version = self.qe_version
         fn = 'cpp_in_x_qe' + qe_version
         cacher = self.cacher_sim(simidx)
         if not cacher.is_cached(fn) or recache:
-            plmin = self.get_plm_input(simidx)
-            plmqe = self.get_plm_qe(simidx, qe_version=qe_version, verbose=verbose)
+            plmin = self.get_plm_input(simidx, use_cache=cache_plm)
+            plmqe = self.get_plm_qe(simidx, verbose=verbose)
             cpp_itXin = self.get_cl(plmqe, plmin)
             cacher.cache(fn, cpp_itXin)
         cpp_itXin = cacher.load(fn)
@@ -570,7 +579,7 @@ class cpp_sims_lib:
             _, N1, resp_fid, _ = self.get_N0_N1_iter(itermax=itermax, version=version)
             return self.cpp_fid[:self.lmax_qlm+1] * utils.cli(self.cpp_fid[:self.lmax_qlm+1] + utils.cli(resp_fid[:self.lmax_qlm+1]))
 
-    def get_wf_sim(self, simidx, itr, mf=False, mc_sims=None, recache=False):
+    def get_wf_sim(self, simidx, itr, mf=False, mc_sims=None, recache=False, cache_plm=True):
         """Get the Wiener filter from the simulations.
 
         :math:`\hat \mathcal{W} = \frac{C_L{\phi^{\rm MAP} \phi{\rm in}}}{C_L{\phi^{\rm in} \phi{\rm in}}}`
@@ -580,9 +589,9 @@ class cpp_sims_lib:
         cacher = self.cacher_sim(simidx)
         if not cacher.is_cached(fn) or recache:
             if mf is False:
-                wf = self.get_cpp_itXinput(simidx, itr) * utils.cli(self.get_cpp_input(simidx)) / self.fsky
+                wf = self.get_cpp_itXinput(simidx, itr, cached_input=cache_plm) * utils.cli(self.get_cpp_input(simidx, cached_input=cache_plm)) / self.fsky
             else:
-                plmin = self.get_plm_input(simidx)
+                plmin = self.get_plm_input(simidx, use_cache=cache_plm)
                 # plmit = self.plms[simidx][itr]
                 mf = self.get_mf(itr, mc_sims, simidx, use_cache=True)
                 plmit = self.get_plm(simidx, itr, use_cache=True) - mf

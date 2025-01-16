@@ -91,7 +91,7 @@ class qlm_iterator(object):
             self.wf_cacher = cachers.cacher_npy(opj(self.lib_dir, 'wflms'))
         else:
             self.wf_cacher = cachers.cacher_mem()
-            print('Warning: not saving Wiener-filtered maps')
+            print('Warning: Wiener-filtered maps are kept in memory but not written to disk')
         self.blt_cacher = cachers.cacher_npy(opj(self.lib_dir, 'BLT/'))
         if logger is None:
             from delensalot.core.iterator import loggers
@@ -641,8 +641,9 @@ class iterator_cstmf(qlm_iterator):
                  chain_descr, stepper:steps.nrstep, **kwargs):
         super(iterator_cstmf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
                                              ninv_filt, k_geom, chain_descr, stepper, **kwargs)
-        assert self.lmax_qlm == Alm.getlmax(mf0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(mf0.size, self.lmax_qlm))
+        assert self.lmax_qlm == Alm.getlmax(plm0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(plm0.size, self.lmax_qlm))
         if mf0 is not None:
+            assert self.lmax_qlm == Alm.getlmax(mf0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(mf0.size, self.lmax_qlm))
             self.cacher.cache('mf', almxfl(mf0, self._h2p(self.lmax_qlm), self.mmax_qlm, False))
 
 
