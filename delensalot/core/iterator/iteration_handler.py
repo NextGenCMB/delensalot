@@ -64,8 +64,6 @@ class base_iterator():
 
         self.mf0 = self.qe.get_meanfield(self.simidx) if self.QE_subtract_meanfield else np.zeros(shape=hp.Alm.getsize(self.lm_max_qlm[0]))
         self.mf0_rescaled = almxfl(self.mf0, _p2k(self.lm_max_qlm[0]), self.lm_max_qlm[1], False)
-        print(self.mf0)
-        print(self.mf0_rescaled)
         
         plm0 = self.qe.get_plm(self.simidx, self.QE_subtract_meanfield)
         self.klm0 = almxfl(plm0, _p2k(self.lm_max_qlm[0]), self.lm_max_qlm[1], False)

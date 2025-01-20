@@ -20,6 +20,7 @@ class base:
         self.lmin_teb = filter_desc['lmin_teb']
 
         self.ftebl_len = filter_desc['ftebl_len']
+        self.ftebl_unl = filter_desc['ftebl_unl']
         self.ttebl = filter_desc['ttebl']
 
         self.qe_filter_directional = filter_desc['qe_filter_directional']

@@ -141,7 +141,7 @@ class iso_white_noise:
                                 noise2 = self.geom_lib.map2alm(noise[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
                                 noise = np.array([noise1, noise2])
                             elif self.spin == 2:
-                                noise = self.geom_lib.map2alm_spin(noise, spin=self.spin, lmax=self.lmax, mmax=self.lmax, nthreads=4)
+                                noise = self.geom_lib.map2alm_spin(noise, spin=self.spin, lmax=self.lmax, mmax=self.lmax, nthreads=4)  
                         elif space == 'map':
                             if self.spin != spin:
                                 if self.spin == 0:
@@ -895,7 +895,6 @@ class Xobs:
                             obs1 = load_file(opj(self.libdir, self.fns['E'].format(simidx)), ifield=1)
                             obs2 = load_file(opj(self.libdir, self.fns['B'].format(simidx)), ifield=2)
                         else:
-                            print(self.fns)
                             obs1 = load_file(opj(self.libdir, self.fns['E'].format(simidx)))
                             obs2 = load_file(opj(self.libdir, self.fns['B'].format(simidx)))
                     obs1 = self.CMB_modifier(obs1)

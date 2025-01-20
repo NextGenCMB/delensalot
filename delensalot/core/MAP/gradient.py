@@ -34,6 +34,7 @@ class base:
         self.simulationdata = gradient_desc['simulationdata']
         self.lm_max_ivf = gradient_desc['lm_max_ivf']
         self.lm_max_qlm = gradient_desc['lm_max_qlm']
+        self.ffi = gradient_desc['ffi']
 
 
     def get_gradient_total(self, it, component=None):
@@ -42,7 +43,7 @@ class base:
             print('total is cached at iter, ', it)
             return self.gfield.get_total(self.simidx, it, component)
         else:
-            print("building total gradient for iter, ", it)
+            print("building total {} gradient for iter {} ".format(self.ID, it+1))
             g = 0
             g += self.get_gradient_prior(it)
             g += self.get_gradient_meanfield(it)
@@ -51,27 +52,7 @@ class base:
 
 
     def get_gradient_quad(self, it, component=None):
-        # NOTE this function is equation 22 of the paper.
-        # Using property _2Y = _-2Y.conj
-        # res = ivf.conj * gpmap(3) - ivf * gpmap(1).conj
-        # y(res,1)
-        # almxfl(res)
-        qlms = self.gfield.get_quad(self.simidx, it, component)
-        data = self.get_data(self.lm_max_ivf)
-        if qlms is None:
-            XWF = self.filter.get_WF(data, self.simidx, it)
-            ivf = self.filter.get_ivf(data, XWF, self.simidx, it)
-            # NOTE This is an actual calculation inside this class
-            qlms = ivf.conj() * self.gradient_operator.act(XWF, spin=2)
-            qlms -= ivf * self.gradient_operator.act(XWF, spin=-2).conj()
-            
-            gc = self.q_pbgeom.geom.adjoint_synthesis(qlms, 1, self.lm_max_qlm[0], self.lm_max_qlm[1], self.ffi.sht_tr)
-            fl = -np.sqrt(np.arange(self.lm_max_qlm[0] + 1, dtype=float) * np.arange(1, self.lm_max_qlm[0] + 2))
-            almxfl(gc[0], fl, self.lm_max_qlm[1], True)
-            almxfl(gc[1], fl, self.lm_max_qlm[1], True)
-            
-            self.gfield.cache_quad(qlms, self.simidx, it=it)
-        return self.gfield.get_quad(self.simidx, it, component)
+        assert 0, "subclass this"
 
 
     def get_gradient_meanfield(self, it, component=None):
@@ -131,3 +112,70 @@ class base:
                 return np.array(self.sims_MAP.get_sim_pmap(self.simidx), dtype=float)
             else:
                 assert 0, 'implement if needed'
+
+
+
+class lensing(base):
+
+    def __init__(self, gradient_desc, filter, simidx):
+        super().__init__(gradient_desc, filter, simidx)
+    
+
+    def get_gradient_quad(self, it, component=None):
+        # NOTE this function is equation 22 of the paper (for lensing).
+        # Using property _2Y = _-2Y.conj
+        # res = ivf.conj * gpmap(3) - ivf * gpmap(1).conj
+        # y(res,1)
+        # almxfl(res)
+        qlms = self.gfield.get_quad(self.simidx, it, component)
+        data = self.get_data(self.lm_max_ivf)
+        if qlms is None:
+            XWF = self.filter.get_WF(data, self.simidx, it)
+            ivf = self.filter.get_ivf(data, XWF, self.simidx, it)
+            
+            # TODO cast ivf to map space with lm_max_len, but how does conj() work then?
+            ivfmap = self.ffi.geom.synthesis(ivf, 2, self.lm_max_ivf[0], self.lm_max_ivf[1], self.ffi.sht_tr)
+            ivfmapconj = self.ffi.geom.synthesis(ivf.conj(), 2, self.lm_max_ivf[0], self.lm_max_ivf[1], self.ffi.sht_tr)
+            
+            # TODO cast gradientoperator * XWF with lm_max_unl, but how does conj() work then?
+            xwfglm = self.gradient_operator.act(XWF, spin=2)
+            xwfmap = self.ffi.geom.synthesis(xwfglm, 3, self.lm_max_ivf[0], self.lm_max_ivf[1], self.ffi.sht_tr)
+            xwfmapconj = self.ffi.geom.synthesis(xwfglm.conj(), 1, self.lm_max_ivf[0], self.lm_max_ivf[1], self.ffi.sht_tr)
+            
+            # NOTE This is an actual calculation inside this class
+            qlms = ivfmapconj * xwfmap
+            qlms -= ivfmap * xwfmapconj
+            
+            # TODO at last, cast qlms to alm space with lm_max_qlm
+            qlms = self.ffi.geom.adjoint_synthesis(qlms, 1, self.lm_max_qlm[0], self.lm_max_qlm[1], self.ffi.sht_tr)
+            fl = -np.sqrt(np.arange(self.lm_max_qlm[0] + 1, dtype=float) * np.arange(1, self.lm_max_qlm[0] + 2))
+            
+            almxfl(qlms[0], fl, self.lm_max_qlm[1], True)
+            almxfl(qlms[1], fl, self.lm_max_qlm[1], True)
+            self.gfield.cache_quad(qlms, self.simidx, it=it)
+        return self.gfield.get_quad(self.simidx, it, component)
+    
+
+class birefringence(base):
+
+    def __init__(self, gradient_desc, filter, simidx):
+        super().__init__(gradient_desc, filter, simidx)
+    
+
+    def get_gradient_quad(self, it, component=None):
+        qlms = self.gfield.get_quad(self.simidx, it, component)
+        data = self.get_data(self.lm_max_ivf)
+        if qlms is None:
+            XWF = self.filter.get_WF(data, self.simidx, it)
+            ivf = self.filter.get_ivf(data, XWF, self.simidx, it)
+            
+            ivfmap = self.ffi.geom.synthesis(ivf, 2, self.lm_max_ivf[0], self.lm_max_ivf[1], self.ffi.sht_tr)
+
+            xwfglm = self.gradient_operator.act(XWF, spin=2)
+            xwfmap = self.ffi.geom.synthesis(xwfglm, 2, self.lm_max_ivf[0], self.lm_max_ivf[1], self.ffi.sht_tr)
+ 
+            qlms = -4 * ( ivfmap[0] * xwfmap[1] - ivfmap[1] * xwfmap[0] )
+            qlms = self.ffi.geom.adjoint_synthesis(qlms, 0, self.lm_max_qlm[0], self.lm_max_qlm[1], self.ffi.sht_tr)
+            
+            self.gfield.cache_quad(qlms, self.simidx, it=it)
+        return self.gfield.get_quad(self.simidx, it, component)

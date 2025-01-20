@@ -109,7 +109,6 @@ class base:
             ivflm = self.beam.act(ivflm, adjoint=True)
 
             self.ivf_field.cache_field(ivflm, simidx, it)
-        print(self.ivf_field.get_field(simidx, it))
         return self.ivf_field.get_field(simidx, it)
 
         # resmap_c = np.empty((q_pbgeom.geom.npix(),), dtype=elm_wf.dtype)

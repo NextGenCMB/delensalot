@@ -57,7 +57,7 @@ class base:
         
         qlm = self.get_qlm(simidx, component)
         _submf = self.subtract_meanfield if subtract_meanfield is None else subtract_meanfield
-        if _submf:
+        if _submf and len(self.simidxs_mf)>1: #NOTE >1 is really just a lower bound.
             mf_qlm = self.get_qmflm(self.simidxs_mf, component=component)
             qlm -= mf_qlm
 

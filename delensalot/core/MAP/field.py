@@ -21,8 +21,9 @@ class base:
 
 
     def get_klm(self, idx, it, component=None):
+        "components are stored with leading dimension"
         if component is None:
-            return [self.get_klm(idx, it, component) for component in self.components.split("_")]
+            return [self.get_klm(idx, it, component).squeeze() for component in self.components.split("_")]
         if it < 0:
             return np.atleast_2d([np.zeros(Alm.getsize(*self.lm_max), dtype=complex) for component in self.components.split("_")])
         return np.atleast_2d(self.cacher.load(self.fns[component].format(idx=idx, it=it))) if self.cacher.is_cached(self.fns[component].format(idx=idx, it=it)) else np.atleast_2d(self.sk2klm(it))
@@ -40,7 +41,6 @@ class base:
             for ci, component in enumerate(self.components.split("_")):
                 self.cache_klm(np.atleast_2d(klm[ci]), idx, it, component)
             return
-        print("klmcache: ", np.atleast_2d(klm).shape)
         self.cacher.cache(self.fns[component].format(idx=idx, it=it), np.atleast_2d(klm))
 
 
@@ -160,3 +160,25 @@ class filter:
     
     def is_cached(self, simidx, it):
         return self.cacher.is_cached(self.fns.format(idx=simidx, it=it))
+    
+
+class curvature:
+    # NOTE these are the dphi fields
+    def __init__(self, field_desc):
+        self.libdir = field_desc['libdir']
+        # self.lm_max = field_desc['lm_max']
+        self.fns =  field_desc['fns']
+
+        self.cacher = cachers.cacher_npy(opj(self.libdir))
+
+
+    def get_field(self, simidx, it):
+        return self.cacher.load(self.fns.format(idx=simidx, it=it, itm1=it-1))
+    
+
+    def cache_field(self, fieldlm, simidx, it):
+        self.cacher.cache(self.fns.format(idx=simidx, it=it, itm1=it-1), fieldlm)
+
+    
+    def is_cached(self, simidx, it):
+        return self.cacher.is_cached(self.fns.format(idx=simidx, it=it, itm1=it-1))

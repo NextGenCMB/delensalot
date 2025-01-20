@@ -308,7 +308,6 @@ def ztruncify(m:np.ndarray, zbounds:np.array[tuple[float, float]]):
         np.ndarray: truncated healpix map(s)
     """    
     ret = []
-    print(m.shape, len(m.shape))
     if len(m.shape)>1:
         for mp in m:
             ret.append(ztruncify(mp,zbounds))

@@ -28,19 +28,19 @@ class base:
 
 
 class multiply:
-    def __init__(self, factor):
-        self.factor = factor
+    def __init__(self, descr):
+        self.factor = descr["factor"]
     
 
-    def act(self, obj, adjoint=False):
+    def act(self, obj, spin=None, adjoint=False):
         if adjoint:
             return np.adj(self.factor)*obj
         else:
             return self.factor*obj
     
 
-    def adjoint(self, obj):
-        return self.act(obj, adjoint=True)
+    def adjoint(self, obj, spin=None):
+        return self.act(obj, spin=spin, adjoint=True)
     
 
     def set_field(self, simidx, it, component=None):
@@ -52,7 +52,7 @@ class joint:
         self.operators = operators
     
 
-    def act(self, obj, adjoint=False, spin=None):
+    def act(self, obj, spin=None, adjoint=False):
         for operator in self.operators:
             buff = operator.act(obj, spin=spin)
             obj = buff
@@ -68,7 +68,6 @@ class joint:
 
     def set_field(self, simidx, it, component=None):
         for operator in self.operators:
-            # print("setting field for operator in joint", operator)
             operator.set_field(simidx, it)
 
 
@@ -144,8 +143,8 @@ class lensing(base):
         self.field = {component: None for component in self.components.split("_")}
         self.ffi = operator_desc["ffi"]
 
-
-    def act(self, obj, adjoint=False, spin=None):
+    # NOTE this is alm2alm
+    def act(self, obj, spin=None, adjoint=False):
         assert adjoint == False, "adjoint not implemented"
         assert spin is not None, "spin not provided"
        
@@ -171,13 +170,11 @@ class lensing(base):
             obj = alm_copy(obj[0], None, *self.lm_max)
             # return self.ffi.gclm2lenmap(np.atleast_2d(obj), self.lm_max[1], spin, False)
             return self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max[1], 2, *self.lm_max)
-        
-        return gc
     
 
     def adjoint(self, obj, spin=None):
         assert spin is not None, "spin not provided"
-        return self.act(obj, adjoint=True, spin=spin)
+        return self.act(obj, spin=spin, adjoint=True)
     
 
     def set_field(self, simidx, it, component=None):
@@ -204,7 +201,8 @@ class birefringence(base):
 
 
     # spin doesn't do anything here, but parameter is needed as joint operator passes it to all operators
-    def act(self, obj, adjoint=False, spin=None):
+    # NOTE this is alm2alm
+    def act(self, obj, spin=None, adjoint=False):
         f = np.array([self.field[comp].flatten() for comp in self.components.split("_")], dtype=complex)
 
         buff = alm_copy(f[0], None, *self.lm_max)
@@ -217,7 +215,7 @@ class birefringence(base):
     
     
     def adjoint(self, obj, spin=None):
-        return self.act(obj, adjoint=True, spin=spin)
+        return self.act(obj, spin=spin, adjoint=True)
 
 
     def set_field(self, simidx, it, component=None):
@@ -232,17 +230,17 @@ class spin_raise:
         self.lm_max = operator_desc["lm_max"]
 
 
-    def act(self, elm_wf, spin=None, adjoint=False):
+    def act(self, obj, spin=None, adjoint=False):
         # This is the property d _sY = -np.sqrt((l+s+1)(l-s+1)) _(s+1)Y
         assert adjoint == False, "adjoint not implemented"
         assert spin in [-2, 2], spin
 
-        lmax = Alm.getlmax(elm_wf.size, self.lm_max[1])
+        lmax = Alm.getlmax(obj.size, self.lm_max[1])
         i1, i2 = (2, -1) if spin == -2 else (-2, 3)
         fl = np.arange(i1, lmax + i1 + 1, dtype=float) * np.arange(i2, lmax + i2 + 1)
         fl[:spin] *= 0.
         fl = np.sqrt(fl)
-        elm = np.atleast_2d(almxfl(elm_wf, fl, self.lm_max[1], False))
+        elm = np.atleast_2d([almxfl(e_wf, fl, self.lm_max[1], False) for e_wf in obj])
         return elm
 
 

@@ -37,5 +37,3 @@ class base:
         #                 backwards=True, out_sht_mode='GRAD_ONLY').squeeze()
         # elm[:] = self.ffi.lensgclm(eblm, self.mmax_len, 2, self.lmax_sol, self.mmax_sol, backwards=True, out_sht_mode='GRAD_ONLY')
         self.tim.add('lensgclm bwd')
-        if self.verbose:
-            print(self.tim)

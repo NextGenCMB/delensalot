@@ -372,7 +372,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
             dl.lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
 
-            dl.ffi = deflection(dl.lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(*dl.lm_max_qlm)), dl.lm_max_qlm[1], numthreads=dl.tr, verbosity=dl.verbose, epsilon=cf.itrec.epsilon)
+            dl.ffi = deflection(dl.lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(*dl.lm_max_qlm)), dl.lm_max_qlm[1], numthreads=dl.tr, verbosity=False, epsilon=cf.itrec.epsilon)
 
             QE_fields_descs = {
                 "lensing":{
@@ -457,6 +457,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "cls_len": dl.cls_len,
                 "ttebl": dl.ttebl,
                 "ftebl_len": dl.ftebl_len,
+                "ftebl_unl":  dl.ftebl_unl,
                 "lm_max_ivf": dl.lm_max_ivf,
                 "lm_max_qlm": dl.lm_max_qlm,
                 "lm_max_unl": cf.itrec.lm_max_unl,
@@ -564,7 +565,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                         dl.stepper_model.mmax_qlm = dl.lm_max_qlm[1]
                         dl.stepper = steps.harmonicbump(dl.stepper_model.lmax_qlm, dl.stepper_model.mmax_qlm, a=dl.stepper_model.a, b=dl.stepper_model.b, xa=dl.stepper_model.xa, xb=dl.stepper_model.xb)
                         # dl.stepper = steps.nrstep(dl.lm_max_qlm[0], dl.lm_max_qlm[1], val=0.5) # handler of the size steps in the MAP BFGS iterative search
-                    dl.ffi = deflection(dl.lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(*dl.lm_max_qlm)), dl.lm_max_qlm[1], numthreads=dl.tr, verbosity=dl.verbose, epsilon=dl.epsilon)
+                    dl.ffi = deflection(dl.lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(*dl.lm_max_qlm)), dl.lm_max_qlm[1], numthreads=dl.tr, verbosity=False, epsilon=dl.epsilon)
                 
                 _process_Itrec(dl, cf.itrec)
 
@@ -668,6 +669,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "lm_max_qlm": dl.lm_max_qlm,
                     'itmax': dl.itmax,
                     "gradient_operator": gradient_operator,
+                    "ffi": dl.ffi,
                 }})
 
             MAP_ivffilter_field_desc = {
@@ -720,6 +722,16 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 })
             }
 
+            curvature_desc = {
+                "ID": "curvature",
+                "field": MAP_field.curvature(
+                    {"ID": "curvature",
+                    "libdir": opj(MAP_libdir_prefix, 'curvature'),
+                    "fns": 'diff_klm_{gradient_name}_simidx{idx}_it{it}m{itm1}'.format(gradient_name=gradient_name, it="{it}", itm1="{itm1}", idx="{idx}"),
+                }),
+                "bfgs_desc": {},
+            }
+
             desc = {
                 "itmax": dl.itmax,
             }
@@ -731,7 +743,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 'gradient_descs': gradient_descs,
                 'MAP_fields': MAP_fields,
                 'filter_desc': MAP_filter_desc,
-                'curvature_desc': {},
+                'curvature_desc': curvature_desc,
                 "desc" : desc,
                 "template_descs": template_descs,
             }

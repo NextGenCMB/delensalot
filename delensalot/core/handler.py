@@ -770,6 +770,11 @@ class MAP_lr_operator:
         self.simidxs_mf = self.MAP_handler_desc["simidxs_mf"]
         # I want to have a MAP handler for each simidx as indices have nothing to do with each other
         self.MAP_searchs_desc = dl.MAP_searchs_desc
+        field2idx = {QE_search.field.ID: i for i, QE_search in enumerate(self.QE_searchs)}
+        self.MAP_searchs_desc["desc"].update({"Runl0": {}})
+        for i, QE_search in enumerate(self.QE_searchs):
+            self.MAP_searchs_desc["desc"]["Runl0"].update({QE_search.field.ID: np.array([QE_search.get_response_unl(component) for component in QE_search.field.components.split("_")])})
+        
         self.MAP_searchs = [MAP_handler.base(self.simulationdata, self.MAP_searchs_desc["MAP_fields"], self.MAP_searchs_desc["filter_desc"], self.MAP_searchs_desc["gradient_descs"], self.MAP_searchs_desc["curvature_desc"], self.MAP_searchs_desc["desc"], self.MAP_searchs_desc["template_descs"], simidx) for simidx in self.simidxs]
         self.it_tasks = self.MAP_handler_desc["it_tasks"]
 
@@ -784,7 +789,7 @@ class MAP_lr_operator:
                         _jobs.append(simidx)
                 jobs[taski] = _jobs
         self.jobs = jobs
-
+        print("MAP jobs: ", jobs)
         return jobs
 
 
@@ -808,17 +813,16 @@ class MAP_lr_operator:
 
 
     def get_klm(self, simidx, it, field=None, component=None, subtract_QE_meanfield=True):
+        field2idx = {QE_search.field.ID: i for i, QE_search in enumerate(self.QE_searchs)}
+        idx2field = {i: QE_search.field.ID for i, QE_search in enumerate(self.QE_searchs)}
         # NOTE: if this is called, get all fields and all components for that iteration, unless field and component are specified
         # if it is smaller than current iteration, calculate the MAP search, otherwise access the cached result
-        if field is None:
-            for field in self.MAP_searchs[simidx].fields:
-                for component in field.components.split('_'):
-                    return self.get_klm(simidx, it, field, component, subtract_QE_meanfield)
-
         if it == 0: # QE (starting point)
-            return self.QE_searchs[field].get_klms(simidx, subtract_QE_meanfield)
+            if field is None:
+                return [self.get_klm(simidx, it, fieldID, component, subtract_QE_meanfield) for fieldID, field in self.MAP_searchs[simidx].fields.items()]
+            return self.QE_searchs[field2idx[field]].get_klm(simidx, subtract_QE_meanfield, component)
         else:
-            return self.MAP_searchs[simidx].get_klms(field, component)
+            return self.MAP_searchs[simidx].get_klm(simidx, it, field, component)
 
 
     def get_template(self, simidx, field):

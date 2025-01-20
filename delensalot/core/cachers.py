@@ -72,7 +72,6 @@ class cacher_mem(cacher):
 
 
     def load(self, fn):
-        print(fn, self._cache.keys())
         assert fn in self._cache.keys()
         if self.safe:
             return np.copy(self._cache[fn])
