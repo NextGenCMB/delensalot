@@ -23,7 +23,7 @@ class base:
     def get_klm(self, idx, it, component=None):
         "components are stored with leading dimension"
         if component is None:
-            return [self.get_klm(idx, it, component).squeeze() for component in self.components.split("_")]
+            return np.array([self.get_klm(idx, it, component).squeeze() for component in self.components.split("_")])
         if it < 0:
             return np.atleast_2d([np.zeros(Alm.getsize(*self.lm_max), dtype=complex) for component in self.components.split("_")])
         return np.atleast_2d(self.cacher.load(self.fns[component].format(idx=idx, it=it))) if self.cacher.is_cached(self.fns[component].format(idx=idx, it=it)) else np.atleast_2d(self.sk2klm(it))
@@ -69,13 +69,13 @@ class gradient:
 
     def get_prior(self, simidx, it, component=None):
         if component is None:
-            return np.atleast_2d([self.get_prior(simidx, it, component_) for component_i, component_ in enumerate(self.components.split("_"))])
+            return np.atleast_2d([self.get_prior(simidx, it, component_).squeeze() for component_i, component_ in enumerate(self.components.split("_"))])
         if not self.cacher_field.is_cached(self.prior_fns.format(component=component, idx=simidx, it=it)):
             assert 0, "cannot find prior at {}".format(self.cacher_field.lib_dir+"/"+self.prior_fns.format(component=component, idx=simidx, it=it))
         else:
             priorlm = self.cacher_field.load(self.prior_fns.format(component=component, idx=simidx, it=it))
-            almxfl(priorlm[0], cli(self.chh[component]), self.lm_max[1], True)
-        return priorlm[0]
+            almxfl(priorlm.squeeze(), cli(self.chh[component]), self.lm_max[1], True)
+        return priorlm
 
     
     def get_meanfield(self, simidx, it, component=None):
@@ -101,10 +101,7 @@ class gradient:
     
 
     def get_quad(self, simidx, it, component):
-        if not self.cacher.is_cached(self.quad_fns.format(idx=simidx, it=it)):
-            return None
-        else:
-            return (result := self.cacher.load(self.quad_fns.format(idx=simidx, it=it))) if component is None else result[self.component2idx[component]]
+        return (result := self.cacher.load(self.quad_fns.format(idx=simidx, it=it))) if component is None else result[self.component2idx[component]]
 
 
     def _build(self, simidx, it, component):
@@ -137,6 +134,10 @@ class gradient:
 
     def cache_quad(self, quadlm, simidx, it):
         self.cacher.cache(self.quad_fns.format(idx=simidx, it=it), quadlm)
+
+
+    def quad_is_cached(self, simidx, it):
+        return self.cacher.is_cached(self.quad_fns.format(idx=simidx, it=it))
     
 
 class filter:

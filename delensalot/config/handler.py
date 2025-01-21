@@ -37,13 +37,18 @@ class config_handler():
     """
 
     def __init__(self, parser, config_model=None):
-        sorted_joblist = ['build_OBD', 'generate_sim', 'QE_lensrec_new', 'MAP_lensrec_operator', 'analyse_phi', 'delens']
+        sorted_joblist = ['build_OBD', 'generate_sim', 'QE_lensrec', 'MAP_lensrec', 'analyse_phi', 'delens']
+        sorted_joblist_new = ['build_OBD', 'generate_sim', 'QE_lensrec_new', 'MAP_lensrec_operator', 'analyse_phi', 'delens']
         if config_model is None:
             self.configfile = config_handler.load_configfile(parser.config_file, 'configfile')
         else:
             self.configfile = abc()
             self.configfile.dlensalot_model = config_model
         if 'job_id' in parser.__dict__:
+            if parser.job_id.endswith('new') or parser.job_id == 'MAP_lensrec_operator':
+                sorted_joblist = sorted_joblist_new
+            else:
+                sorted_joblist = sorted_joblist
             if parser.job_id is None:
                 pass
             else:

@@ -36,6 +36,7 @@ class base:
         self.WF_operator = filter_desc['WF_operator']
         self.Ninv = read_map(filter_desc['Ninv_desc'])
         self.beam = filter_desc['beam']
+        self.nlevp, self.nlevt = filter_desc['nlev']['P'], filter_desc['nlev']['T']
 
         self.lm_max_ivf = filter_desc['lm_max_ivf']
         self.transfer = filter_desc["ttebl"]

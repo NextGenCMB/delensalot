@@ -59,7 +59,7 @@ class base:
                     grad_prev = np.vstack(grad_prev)
                     self.curvature.add_yvector(grad_tot, grad_prev, simidx, it)
                 
-                N = 0 # NOTE it=0 uses h0 for the curvature
+                # NOTE it=0 uses h0 for the curvature
                 new_klms = self.curvature.grad2dict(self.curvature.get_new_gradient(grad_tot, simidx, it))
                 # new_klms = self.step(new_klms)
                 self.cache_klm(new_klms, simidx, it+1)

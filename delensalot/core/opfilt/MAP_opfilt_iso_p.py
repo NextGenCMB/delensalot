@@ -203,6 +203,7 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         self._get_irespmap(eblm_dat, elm_wf, q_pbgeom, map_out=resmap_r) # inplace onto resmap_c and resmap_r
 
         gcs_r = self._get_gpmap(elm_wf, 3, q_pbgeom)  # 2 pos.space maps, uses then complex view onto real array
+        print(resmap_c.conj().shape, gcs_r.T.view(ctype[gcs_r.dtype]).squeeze().shape)
         gc_c = resmap_c.conj() * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3)
         gcs_r = self._get_gpmap(elm_wf, 1, q_pbgeom)
         gc_c -= resmap_c * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze().conj()  # (+2 , -1)

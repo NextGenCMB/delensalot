@@ -4,7 +4,7 @@ from delensalot.config.validator import DEFAULT_NotAValue
 
 # if [], doesn't check for value
 valid_value = {
-    'tasks': ['calc_fields', 'calc_meanfields', 'calc_templates'],
+    'tasks': ['calc_fields', 'calc_meanfields', 'calc_templates', 'calc_phi', 'calc_blt'],
     'itmax': [],
     'cg_tol': [],
     'iterator_typ': ['pertmf', 'constmf', 'fastWF', 'constmf_goc', 'constmf_gc'],

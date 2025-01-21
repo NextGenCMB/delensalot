@@ -1,6 +1,3 @@
-
-        # [self.filter.set_qlms_lib(self.qlms_dd) for self.QE_search in self.QE_search]
-        # [self.filter.set_filter_lib(self.ivf) for self.QE_search in self.QE_search]import os
 import os, copy
 from os.path import join as opj
 import numpy as np
@@ -43,32 +40,31 @@ class base:
     def get_qlm(self, simidx, component=None):
         if component is None:
             return [self.get_qlm(simidx, component) for component in self.field.components.split("_")]
-        if self.field.is_cached(simidx, component):
-            qlm = self.field.get_qlm(simidx, component)
-        else:
+        if not self.field.is_cached(simidx, component):
             qlm = self.qlms.get_sim_qlm(component2plancklensk[component]+self.estimator_key[1:], int(simidx))  #Unormalized quadratic estimate
             self.field.cache_qlm(qlm, simidx, component=component)
-        return qlm
+        return self.field.get_qlm(simidx, component)
     
 
     def get_klm(self, simidx, subtract_meanfield=None, component=None):
         if component is None:
-            return np.array([self.get_klm(simidx, subtract_meanfield, component) for component in self.field.components.split("_")])
+            return np.array([self.get_klm(simidx, subtract_meanfield, component).squeeze() for component in self.field.components.split("_")])
         
-        qlm = self.get_qlm(simidx, component)
-        _submf = self.subtract_meanfield if subtract_meanfield is None else subtract_meanfield
-        if _submf and len(self.simidxs_mf)>1: #NOTE >1 is really just a lower bound.
-            mf_qlm = self.get_qmflm(self.simidxs_mf, component=component)
-            qlm -= mf_qlm
+        if not self.field.is_cached(simidx, component, 'klm'):
+            qlm = self.get_qlm(simidx, component)
+            _submf = self.subtract_meanfield if subtract_meanfield is None else subtract_meanfield
+            if _submf and len(self.simidxs_mf)>1: #NOTE >1 is really just a lower bound.
+                mf_qlm = self.get_qmflm(self.simidxs_mf, component=component)
+                qlm -= mf_qlm
 
-        R = self.get_response_len(component)
-        WF = self.field.CLfids[component] * cli(self.field.CLfids[component] + cli(R))  # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
-        klm = alm_copy(qlm, None, self.field.lm_max[0], self.field.lm_max[1])
-        almxfl(klm, cli(R), self.field.lm_max[1], True) # Normalized QE
-        almxfl(klm, WF, self.field.lm_max[1], True) # Wiener-filter QE
-        almxfl(klm, self.field.CLfids[component] > 0, self.field.lm_max[1], True)
-        self.field.cache_klm(klm, simidx, component)
-        return np.array(klm)
+            R = self.get_response_len(component)
+            WF = self.field.CLfids[component] * cli(self.field.CLfids[component] + cli(R))  # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
+            klm = alm_copy(qlm, None, self.field.lm_max[0], self.field.lm_max[1])
+            almxfl(klm, cli(R), self.field.lm_max[1], True) # Normalized QE
+            almxfl(klm, WF, self.field.lm_max[1], True) # Wiener-filter QE
+            almxfl(klm, self.field.CLfids[component] > 0, self.field.lm_max[1], True)
+            self.field.cache_klm(np.atleast_2d(klm), simidx, component)
+        return self.field.get_klm(simidx, component)
 
 
     def get_qmflm(self, simidxs, component=None):

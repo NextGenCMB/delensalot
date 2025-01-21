@@ -699,6 +699,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "ttebl": dl.ttebl,
                 "cls_filt": dl.cls_unl,
                 "lm_max_ivf": dl.lm_max_ivf,
+                "nlev": dl.nlev,
 
             }
             

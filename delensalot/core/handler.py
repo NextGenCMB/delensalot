@@ -842,15 +842,16 @@ class MAP_lr_operator:
     
 
     def copyQEtoDirectory(self, simidx):
-        # copies fields to MAP directory, and gradient starting points to MAP directory
+        # copies fields and gradient starting points to MAP directory
         field2idx = {QE_search.field.ID: i for i, QE_search in enumerate(self.QE_searchs)}
         idx2field = {i: QE_search.field.ID for i, QE_search in enumerate(self.QE_searchs)}
         gradient2idx = {gradient.ID: i for i, gradient in enumerate(self.MAP_searchs[0].gradients)}
         for fieldname, field in self.MAP_searchs[simidx].fields.items():
+            self.QE_searchs[field2idx[fieldname]].init_filterqest()
             klm_QE = self.QE_searchs[field2idx[fieldname]].get_klm(simidx, None)
             self.MAP_searchs[simidx].fields[fieldname].cache_klm(klm_QE, simidx, it=0)
             # self.MAP_searchs[simidx].gradients[gradient2idx[fieldname]].gfield.cache_prior(np.array(klm_QE), simidx, it=0)
-            self.MAP_searchs[simidx].gradients[gradient2idx[fieldname]].gfield.cache_quad(np.array(klm_QE), simidx, it=0)
+            self.MAP_searchs[simidx].gradients[gradient2idx[fieldname]].gfield.cache_quad(klm_QE, simidx, it=0)
             
             kmflm_QE = self.QE_searchs[field2idx[fieldname]].get_kmflm(simidx)
             self.MAP_searchs[simidx].gradients[gradient2idx[fieldname]].gfield.cache_meanfield(np.array(kmflm_QE), simidx, it=0)
@@ -873,6 +874,18 @@ class QE_lr(Basejob):
                 self.MAP_job = caller
 
         super().__init__(dlensalot_model)
+        if not os.path.exists(self.libdir_QE):
+            os.makedirs(self.libdir_QE)
+        self.libdir_MAP = lambda qe_key, simidx, version: opj(self.TEMP, 'MAP/%s'%(qe_key), 'sim%04d'%(simidx) + version)
+        self.libdir_blt = lambda simidx: opj(self.TEMP, 'MAP/%s'%(self.k), 'sim%04d'%(simidx) + self.version, 'BLT/')
+        for simidx in np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))), dtype=int):
+            # calculates all plms even for mf indices. This is not necessarily requested due to potentially simidxs =/= simidxs_mf, but otherwise collect and run must be adapted and its ok like this.
+            libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
+            if not os.path.exists(libdir_MAPidx):
+                os.makedirs(libdir_MAPidx)
+            if not os.path.exists(self.libdir_blt(simidx)):
+                os.makedirs(self.libdir_blt(simidx))
+
         self.dlensalot_model = dlensalot_model
         
         self.simgen = Sim_generator(dlensalot_model)
@@ -1240,6 +1253,17 @@ class MAP_lr(Basejob):
     @check_MPI
     def __init__(self, dlensalot_model):
         super().__init__(dlensalot_model)
+        if not os.path.exists(self.libdir_QE):
+            os.makedirs(self.libdir_QE)
+        self.libdir_MAP = lambda qe_key, simidx, version: opj(self.TEMP, 'MAP/%s'%(qe_key), 'sim%04d'%(simidx) + version)
+        self.libdir_blt = lambda simidx: opj(self.TEMP, 'MAP/%s'%(self.k), 'sim%04d'%(simidx) + self.version, 'BLT/')
+        for simidx in np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))), dtype=int):
+            # calculates all plms even for mf indices. This is not necessarily requested due to potentially simidxs =/= simidxs_mf, but otherwise collect and run must be adapted and its ok like this.
+            libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
+            if not os.path.exists(libdir_MAPidx):
+                os.makedirs(libdir_MAPidx)
+            if not os.path.exists(self.libdir_blt(simidx)):
+                os.makedirs(self.libdir_blt(simidx))
         # TODO Only needed to hand over to ith()
         self.dlensalot_model = dlensalot_model
         

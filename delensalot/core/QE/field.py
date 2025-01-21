@@ -25,12 +25,10 @@ class base:
         return self.cacher.load(self.qlm_fns[component].format(idx=simidx))
     
 
-    # def get_klm(self, simdix, component=None):
-    #     if component is None:
-    #         return [self.get_klm(it, component) for component in self.components.split("_")]
-    #     if it < 0:
-    #         return np.zeros(Alm.getsize(*self.lm_max), dtype=complex) 
-    #     return self.cacher.load(self.klm_fns[component]) if self.cacher.is_cached(self.klm_fns[component]) else None
+    def get_klm(self, simidx, component=None):
+        if component is None:
+            return [self.get_klm(simidx, component).squeeze() for component in self.components.split("_")]
+        return self.cacher.load(self.klm_fns[component].format(idx=simidx))
 
 
     def cache_qlm(self, klm, simidx, component=None):
@@ -48,5 +46,8 @@ class base:
         self.cacher.cache(self.klm_fns[component].format(idx=simidx), klm)
 
 
-    def is_cached(self, simidx, component):
-        return self.cacher.is_cached(self.qlm_fns[component].format(idx=simidx))
+    def is_cached(self, simidx, component, type='qlm'):
+        if type == 'klm':
+            return self.cacher.is_cached(self.klm_fns[component].format(idx=simidx))
+        else:
+            return self.cacher.is_cached(self.qlm_fns[component].format(idx=simidx))

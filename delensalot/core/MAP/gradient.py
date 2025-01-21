@@ -5,7 +5,11 @@ from delensalot.core import cachers
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy
 from delensalot.utils import cli
 
+from lenspyx.remapping.deflection_028 import rtype, ctype
+
 from . import filter
+
+import healpy as hp
 
 
 """
@@ -75,6 +79,7 @@ class base:
 
 
     def update_operator(self, simidx, it):
+        print('updating fields for operator in gradient ', self.ID)
         self.filter.update_operator(simidx, it)
         self.gradient_operator.set_field(simidx, it)
 
@@ -121,15 +126,14 @@ class lensing(base):
         super().__init__(gradient_desc, filter, simidx)
     
 
-    def get_gradient_quad(self, it, component=None):
+    def get_gradient_quad_new(self, it, component=None):
         # NOTE this function is equation 22 of the paper (for lensing).
         # Using property _2Y = _-2Y.conj
         # res = ivf.conj * gpmap(3) - ivf * gpmap(1).conj
         # y(res,1)
         # almxfl(res)
-        qlms = self.gfield.get_quad(self.simidx, it, component)
-        data = self.get_data(self.lm_max_ivf)
-        if qlms is None:
+        if not self.gfield.quad_is_cached(self.simidx, it):
+            data = self.get_data(self.lm_max_ivf)
             XWF = self.filter.get_WF(data, self.simidx, it)
             ivf = self.filter.get_ivf(data, XWF, self.simidx, it)
             
@@ -156,6 +160,75 @@ class lensing(base):
         return self.gfield.get_quad(self.simidx, it, component)
     
 
+    def get_gradient_quad(self, it, component=None):
+        def _extend_cl(cl, lmax):
+            if np.isscalar(cl):
+                return np.ones(lmax + 1, dtype=float) * cl
+            ret = np.zeros(lmax + 1, dtype=float)
+            ret[:min(len(cl), lmax+1)]= np.copy(cl[:min(len(cl), lmax+1)])
+            return ret
+        self.mmax_sol = 3500
+        self.lmax_len = self.lm_max_ivf[0]
+        self.mmax_len = self.lm_max_ivf[1]
+        nlev_elm = _extend_cl(self.filter.nlevp, self.lmax_len)
+        nlev_blm = _extend_cl(self.filter.nlevp, self.lmax_len)
+        self.inoise_2_elm  = _extend_cl(self.filter.transfer['e'] ** 2, self.lmax_len) * cli(nlev_elm ** 2) * (180 * 60 / np.pi) ** 2
+        self.inoise_1_elm  = _extend_cl(self.filter.transfer['b'] ** 1, self.lmax_len) * cli(nlev_elm ** 2) * (180 * 60 / np.pi) ** 2
+
+        self.inoise_2_blm = _extend_cl(self.filter.transfer['e'] ** 2, self.lmax_len) * cli(nlev_blm ** 2) * (180 * 60 / np.pi) ** 2
+        self.inoise_1_blm = _extend_cl(self.filter.transfer['b'] ** 1, self.lmax_len) * cli(nlev_blm ** 2) * (180 * 60 / np.pi) ** 2
+
+        self.transf_elm  = self.filter.n1elm # _extend_cl(transf_elm, self.lmax_len)
+        self.transf_blm  = self.filter.n1blm # self.transf_blm  = _extend_cl(transf_blm, self.lmax_len)
+
+        dfield = self.field.get_klm(self.simidx, it)
+        self.ffi = self.ffi.change_dlm(dfield, self.lm_max_qlm[1])
+
+        def _get_irespmap(eblm_dat:np.ndarray, eblm_wf:np.ndarray, map_out=None):
+            ebwf = self.ffi.lensgclm(np.atleast_2d(eblm_wf), self.mmax_sol, 2, self.lmax_len, self.mmax_len)
+            almxfl(ebwf[0], (-1) * self.transf_elm, self.mmax_len, True)
+            almxfl(ebwf[1], (-1) * self.transf_blm, self.mmax_len, True)
+            ebwf += eblm_dat
+            almxfl(ebwf[0], self.inoise_1_elm * 0.5, self.mmax_len, True)  # Factor of 1/2 because of \dagger rather than ^{-1}
+            almxfl(ebwf[1], self.inoise_1_blm * 0.5, self.mmax_len, True)
+            return self.ffi.geom.synthesis(ebwf, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, map=map_out)
+
+        def _get_gpmap(elm_wf:np.ndarray, spin:int):
+            lmax = Alm.getlmax(elm_wf.size, self.mmax_sol)
+            i1, i2 = (2, -1) if spin == 1 else (-2, 3)
+            fl = np.arange(i1, lmax + i1 + 1, dtype=float) * np.arange(i2, lmax + i2 + 1)
+            fl[:spin] *= 0.
+            fl = np.sqrt(fl)
+            elm = np.atleast_2d(almxfl(elm_wf, fl, self.mmax_sol, False))
+            return self.ffi.gclm2lenmap(elm, self.mmax_sol, spin, False)
+        
+        if not self.gfield.quad_is_cached(self.simidx, it):
+            data = self.get_data(self.lm_max_ivf)
+            XWF = self.filter.get_WF(data, self.simidx, it)
+            print(XWF.shape, 'XWF shape')
+            # ivf = self.filter.get_ivf(data, XWF, self.simidx, it)
+
+            elm_wf = XWF 
+            resmap_c = np.empty((16544332,), dtype=XWF.dtype)
+            resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
+            _get_irespmap(data, elm_wf, map_out=resmap_r) # inplace onto resmap_c and resmap_r
+
+            gcs_r = _get_gpmap(elm_wf, 3)  # 2 pos.space maps, uses then complex view onto real array
+            gc_c = resmap_c.conj() * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3)
+            gcs_r = _get_gpmap(elm_wf, 1)
+            gc_c -= resmap_c * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze().conj()  # (+2 , -1)
+            del resmap_c, resmap_r, gcs_r
+            lmax_qlm, mmax_qlm = self.ffi.lmax_dlm, self.ffi.mmax_dlm
+            gc_r = gc_c.view(rtype[gc_c.dtype]).reshape((gc_c.size, 2)).T  # real view onto complex array
+            gc = self.ffi.geom.adjoint_synthesis(gc_r, 1, lmax_qlm, mmax_qlm, self.ffi.sht_tr)
+            del gc_r, gc_c
+            fl = - np.sqrt(np.arange(lmax_qlm + 1, dtype=float) * np.arange(1, lmax_qlm + 2))
+            almxfl(gc[0], fl, mmax_qlm, True)
+            almxfl(gc[1], fl, mmax_qlm, True)
+            self.gfield.cache_quad(gc, self.simidx, it=it)
+        return self.gfield.get_quad(self.simidx, it, component)
+    
+
 class birefringence(base):
 
     def __init__(self, gradient_desc, filter, simidx):
@@ -163,9 +236,8 @@ class birefringence(base):
     
 
     def get_gradient_quad(self, it, component=None):
-        qlms = self.gfield.get_quad(self.simidx, it, component)
-        data = self.get_data(self.lm_max_ivf)
-        if qlms is None:
+        if not self.gfield.quad_is_cached(self.simidx, it):
+            data = self.get_data(self.lm_max_ivf)
             XWF = self.filter.get_WF(data, self.simidx, it)
             ivf = self.filter.get_ivf(data, XWF, self.simidx, it)
             
