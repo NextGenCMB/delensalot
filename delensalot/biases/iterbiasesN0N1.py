@@ -102,9 +102,11 @@ class iterbiases:
         if lib_dir is not None:
             self._cacher = cachers.cacher_pk(lib_dir)
             fn_hash = self._cacher._path('iterbias_hash')
-            if mpi.rank == 0 and not os.path.exists(fn_hash) :
+            # if mpi.rank == 0 and not os.path.exists(fn_hash) :
+                # pk.dump(self.hashdict(), open(fn_hash, 'wb'), protocol=2)
+            # mpi.barrier()
+            if not os.path.exists(fn_hash) :
                 pk.dump(self.hashdict(), open(fn_hash, 'wb'), protocol=2)
-            mpi.barrier()
             utils.hash_check(self.hashdict(), pk.load(open(fn_hash, 'rb')), fn=fn_hash)
         else:
             self._cacher = cachers.cacher_mem()

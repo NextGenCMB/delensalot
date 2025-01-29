@@ -116,6 +116,10 @@ class cpp_sims_lib:
         self.nhllib = None
         self.n0n1_libdir = n0n1_libdir
         self.cache_plm = kwargs['cache_plm'] if 'cache_plm' in kwargs.keys() else True
+        
+        if 'split' in kwargs.keys():
+            i, j = kwargs['split']
+            self.qlms_dd = self.param.qlms_dd_dict[f'{i}{j}']
 
     def libdir_sim(self, simidx):
         # lmax_unl = 5024
@@ -155,7 +159,7 @@ class cpp_sims_lib:
         else:
             return statics.rec.load_plms(self.libdir_sim(simidx), [itr])[0]
 
-    def get_plm_qe(self, simidx, use_cache=True, recache=False, verbose=False):
+    def get_plm_qe(self, simidx, use_cache=True, recache=False, verbose=True):
 
         if verbose:
             print('We get the QE qlms from ' + self.qlms_dd.lib_dir)
@@ -330,8 +334,11 @@ class cpp_sims_lib:
             fn_cpp_qe = 'cpp_qe_raw' + splitMF*'_splitMF' + self.qe_version
             if mc_sims_mf is not None:
                 fn_cpp_qe += ('_'+ mchash(mc_sims_mf))
+        # print(fn_cpp_qe)
         
         cacher = self.cacher_sim(simidx)
+        # print(cacher.lib_dir)
+        
         if not cacher.is_cached(fn_cpp_qe) or recache:
             # plmqe  = _qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate
             plmqe = self.get_plm_qe(simidx, verbose=verbose, recache=recache)
@@ -348,6 +355,7 @@ class cpp_sims_lib:
             else:
                 mf0 = self.get_mf0(simidx)
                 plmqe -= mf0  # MF-subtracted unnormalized QE
+                cppqe = self.get_cl(plmqe)
             cacher.cache(fn_cpp_qe, cppqe)
         return cacher.load(fn_cpp_qe)
 
@@ -880,35 +888,37 @@ class cpp_sims_lib:
     def maxiterdone(self, simidx):
         return statics.rec.maxiterdone(self.libdir_sim(simidx))
 
-    def get_gauss_cov(self, version='', w=lambda ls : 1.,  edges=None, withN1=False, cosmicvar=True, QE_iter0=True, N0_map=None, N1_map=None):
+    def get_gauss_cov(self, version='', w=lambda ls : 1.,  edges=None, withN1=False, cosmicvar=True, QE_iter0=True, N0_map=None, N1_map=None, N0_qe = None, N1_qe = None):
         if N0_map is None:
             N0_map, _, _, _ = self.get_N0_N1_iter(15, version=version)
         if N1_map is None:
             _, N1_map, _, _ = self.get_N0_N1_iter(15, version=version)
         
-        if QE_iter0:
-            # Takes the QE as the iteration 0 of iterative N0 and N1 (faster as N1 is from fft calc)
-            # N0 is identical at 0.1 %, N1 at 10% compared to the Planck get_nhl and get_n1
-            N0_qe, N1_qe, _, _= self.get_N0_N1_iter(0, version=version)
-        else:
-            N0_qe, N1_qe = self.get_N0_N1_QE(normalize=True)
-        
-        cov_qe =  1./(2.*np.arange(self.lmax_qlm+1) +1.)  / self.fsky * 2 * ((self.cpp_fid[:self.lmax_qlm+1]*cosmicvar + N0_qe[:self.lmax_qlm+1] + N1_qe[:self.lmax_qlm+1]*withN1) * w(np.arange(self.lmax_qlm+1) +1))**2 
-        cov_map =1./(2.*np.arange(self.lmax_qlm+1) +1.) / self.fsky * 2 * ((self.cpp_fid[:self.lmax_qlm+1]*cosmicvar + N0_map[:self.lmax_qlm+1] + N1_map[:self.lmax_qlm+1]*withN1) * w(np.arange(self.lmax_qlm+1) +1))**2 
-        
+        if N0_qe is None or N1_qe is None:
+            if QE_iter0:
+                # Takes the QE as the iteration 0 of iterative N0 and N1 (faster as N1 is from fft calc)
+                # N0 is identical at 0.1 %, N1 at 10% compared to the Planck get_nhl and get_n1
+                _N0_qe, _N1_qe, _, _= self.get_N0_N1_iter(0, version=version)
+            else:
+                _N0_qe, _N1_qe = self.get_N0_N1_QE(normalize=True)
+        N0_qe = _N0_qe if N0_qe is None else N0_qe
+        N1_qe = _N1_qe if N1_qe is None else N1_qe
+
+        ells = np.arange(self.lmax_qlm+1)
+        cov_qe =  cli((2.*ells + 1.) * self.fsky) * 2 * ((self.cpp_fid[:self.lmax_qlm+1]*cosmicvar + N0_qe[:self.lmax_qlm+1] + N1_qe[:self.lmax_qlm+1]*withN1) * w(ells))**2 
+        cov_map = cli((2.*ells + 1.) * self.fsky) * 2 * ((self.cpp_fid[:self.lmax_qlm+1]*cosmicvar + N0_map[:self.lmax_qlm+1] + N1_map[:self.lmax_qlm+1]*withN1) * w(ells))**2 
         if edges is not None:
             nbins = len(edges) - 1
-            cov_qe_b = np.zeros([nbins, nbins])
-            cov_map_b = np.zeros([nbins, nbins])
-            
+            cov_qe_b = np.zeros(nbins)
+            cov_map_b = np.zeros(nbins)
+
             for i in range(nbins):
                 bins_l = edges[i]
                 bins_u = edges[i+1]
-                ells = np.arange(self.lmax_qlm+1)
                 ii = np.where((ells >= bins_l) & (ells < bins_u))[0]
-                cov_qe_b[i, i] = np.sum(cov_qe[ells[ii]]) / len(ii)**2
-                cov_map_b[i, i] = np.sum(cov_map[ells[ii]])  / len(ii)**2
-            return np.diag(cov_qe_b), np.diag(cov_map_b)
+                cov_qe_b[i] = np.sum(cov_qe[ells[ii]]) / len(ii)**2
+                cov_map_b[i] = np.sum(cov_map[ells[ii]])  / len(ii)**2
+            return cov_qe_b, cov_map_b
 
         else:
             return cov_qe, cov_map
