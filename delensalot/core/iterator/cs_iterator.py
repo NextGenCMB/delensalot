@@ -391,8 +391,8 @@ class qlm_iterator(object):
         apply_B0k = lambda rlm, kr: almxfl(rlm, cli(self.hh_h0), self.lmax_qlm, False)
         lp1 = 2 * np.arange(self.lmax_qlm + 1) + 1
         dot_op = lambda rlm1, rlm2: np.sum(lp1 * alm2cl(rlm1, rlm2, self.lmax_qlm, self.mmax_qlm, self.lmax_qlm))
-        BFGS_H = bfgs.BFGS_Hessian(self.hess_cacher, apply_H0k, {}, {}, dot_op,
-                                   L=self.NR_method, verbose=self.verbose, apply_B0k=apply_B0k)
+        BFGS_H = bfgs.BFGS_Hessian(apply_H0k, apply_B0k, {}, dot_op,
+                                   L=self.NR_method, verbose=self.verbose, cacher=self.hess_cacher)
         # Adding the required y and s vectors :
         for k_ in range(np.max([0, k - BFGS_H.L]), k):
             BFGS_H.add_ys('rlm_yn_%s_%s' % (k_, key), 'rlm_sn_%s_%s' % (k_, key), k_)

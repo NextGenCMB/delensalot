@@ -165,7 +165,7 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
         fnsnoise     (dict with str with formatter, optional): file names of the noise provided. It expects `{'T': <filename{simidx}.something>, 'Q': <filename{simidx}.something>, 'U': <filename{simidx}.something>}`, where `{simidx}` is used by the libraries to format the simulation index into the name. Defaults to DNaV.
         fnsP         (str with formatter, optional): file names of the lensing potential provided. It expects `<filename{simidx}.something>, where `{simidx}` is used by the libraries to format the simulation index into the name. Defaults to DNaV.
         lmax         (int, optional): Maximum l of the data provided. Defaults to DNaV.
-        transfunction(np.array, optional): transfer function. Defaults to DNaV.
+        transfunction(np.array, optional): transfer function to be applied to the generated simulations. Ignored when flavour='obs'. Defaults to DNaV.
         nlev         (dict, optional): noise level of the individual fields. It expects `{'T': <value>, 'P': <value>}. Defaults to DNaV.
         spin         (int, optional): the spin of the data provided. Defaults to 0. Always defaults to 0 for temperature.
         CMB_fn       (str, optional): path+name of the file of the power spectra of the CMB. Defaults to DNaV.
@@ -176,7 +176,7 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
         epsilon      (float, optional): Lenspyx lensing accuracy. Defaults to 1e-7.
         libdir_suffix(str, optional): defines the directory the simulation data will be stored to, defaults to 'generic'. Helpful if one wants to keep track of different projects.
         CMB_modifier (callable, optional): operation defined in the callable will be applied to each of the input maps/alms/cls
-        phi_modifier (callable, optional): operation defined in the callable will be applied to the input phi lms
+        phi_modifier (callable, optional): operation defined in the callable will be applied to the input phi lms (modifier is applied to both grad and curl, if aplicable)
                                                
     """
 
@@ -191,25 +191,30 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
     libdir_phi =    attr.field(default=DEFAULT_NotAValue, validator=data.libdir_phi)
     fns =           attr.field(default=DEFAULT_NotAValue, validator=data.fns)
     fnsnoise =      attr.field(default=DEFAULT_NotAValue, validator=data.fnsnoise)
-    fnsP =          attr.field(default=DEFAULT_NotAValue, validator=data.fnsP)
+    
     lmax =          attr.field(default=DEFAULT_NotAValue, validator=data.lmax)
     transfunction = attr.field(default=DEFAULT_NotAValue, validator=data.transfunction)
     nlev =          attr.field(default=DEFAULT_NotAValue, validator=data.nlev)
     spin =          attr.field(default=DEFAULT_NotAValue, validator=data.spin)
     CMB_fn =        attr.field(default=DEFAULT_NotAValue, validator=data.CMB_fn)
+    epsilon =       attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
+    libdir_suffix = attr.field(default='generic', validator=data.libdir_suffix)
+    CMB_modifier =  attr.field(default=DEFAULT_NotAValue, validator=data.modifier)
+    
+    fields =        attr.field(default=DEFAULT_NotAValue) # can be ['gradient', 'curl', 'birefringence']. cannot be only curl
+    
+    phi_modifier =  attr.field(default=lambda x: x)
+    fnsP =          attr.field(default=DEFAULT_NotAValue, validator=data.fnsP)
     phi_fn =        attr.field(default=DEFAULT_NotAValue, validator=data.phi_fn)
     phi_field =     attr.field(default=DEFAULT_NotAValue, validator=data.phi_field)
     phi_space =     attr.field(default=DEFAULT_NotAValue, validator=data.phi_space)
     phi_lmax =      attr.field(default=DEFAULT_NotAValue, validator=data.phi_lmax)
-    epsilon =       attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
-    libdir_suffix = attr.field(default='generic', validator=data.libdir_suffix)
-    CMB_modifier =  attr.field(default=DEFAULT_NotAValue, validator=data.modifier)
-    phi_modifier =  attr.field(default=lambda x: x)
-    fields =        attr.field(default=DEFAULT_NotAValue) # can be ['gradient', 'curl', 'birefringence']. cannot be only curl
+
     fnsC =          attr.field(default=DEFAULT_NotAValue, validator=data.fnsP)
     curl_field =    attr.field(default=DEFAULT_NotAValue, validator=data.phi_field)
     curl_space =    attr.field(default=DEFAULT_NotAValue, validator=data.phi_space)
     curl_lmax =     attr.field(default=DEFAULT_NotAValue, validator=data.phi_lmax)
+
     bf_modifier =   attr.field(default=lambda x: x)
     fnsB =          attr.field(default=DEFAULT_NotAValue, validator=data.fnsP)
     bf_field =      attr.field(default=DEFAULT_NotAValue, validator=data.phi_field)
