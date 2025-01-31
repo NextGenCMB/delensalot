@@ -20,6 +20,7 @@ from plancklens.sims import phas
 from delensalot.core import cachers
 from delensalot.config.metamodel import DEFAULT_NotAValue as DNaV
 
+from delensalot.utility.utils_hp import Alm, almxfl, alm_copy
 import delensalot
 from delensalot.utils import load_file_wsec, cli
 from delensalot.sims import operator_secondary
@@ -219,7 +220,6 @@ class Cls:
         # If there are secondaries listed in the secondaries parameter, I will replace the Cl_dct values with it.
         # If not, I will delete the Cl_dict entries as I assume this run is performed without them.
         # If fn point to the same CMB_fn, I keep them
-       
         if sec_info is not None:
             secondaries_keep_list = [comp for v in sec_info.values() for comp in v['components']]
             secondaries_pop_list = [key for key in ['pp', 'pt', 'pe', 'ww', 'wt', 'we', 'wp', 'ff', 'ft', 'fe', 'fp', 'fw'] if key not in secondaries_keep_list]
@@ -511,18 +511,19 @@ class Xsky:
                 if self.CMB_info['libdir'] == DNaV:
                     log.debug('.., generating.')
                     pri = self.pri_lib.get_sim_pri(simidx, space='alm', field=field, spin=0)
-                    plms = self.pri_lib.get_sim_sec(simidx, space='alm', secondary='phi')
-                    if field == 'polarization':
-                        # TODO act operators
-                        # for operator in self.operators:
-                        #     pri = operator(pri)
-                        # sky = self.pri2len(pri, plms, spin=2)
-                        sky = self.lenjob_geomlib.alm2map_spin(np.copy(pri), spin=2, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
-                        # sky2 = self.lenjob_geomlib.alm2map(np.copy(pri[1]), lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
-                        # sky = np.array([sky1, sky2])
-                        # bflm = self.pri_lib.get_sim_bf(simidx, space='map')
-                        # sky = self.pri2bf(pri, bflm, spin=2, epsilon=self.epsilon)
+                    for operator in self.operators:
+                        sec = self.pri_lib.get_sim_sec(0, space='alm', secondary=operator.ID)
+                        if operator.ID == 'phi': 
+                            sec = np.array([alm_copy(s, None, operator.LM_max[0], operator.LM_max[1]) for s in sec])
+                            h2d = np.sqrt(np.arange(operator.LM_max[0] + 1, dtype=float) * np.arange(1, operator.LM_max[0] + 2, dtype=float))
+                            [almxfl(s, h2d, operator.LM_max[1], True) for s in sec]
 
+                            # sec = self.operators[0].geomlib.alm2map(sec, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                        operator.set_field(sec)
+                        pri = operator.act(pri, spin=2 if field == 'polarization' else 0)
+                    sky = pri
+                    if field == 'polarization':
+                        sky = self.operators[0].geomlib.alm2map_spin(sky, lmax=self.CMB_info['lm_max'][0], spin=2, mmax=self.CMB_info['lm_max'][1], nthreads=4)
                         if space == 'map':
                             if spin == 0:
                                 alm_buffer = self.lenjob_geomlib.map2alm_spin(sky, spin=2, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
@@ -535,9 +536,7 @@ class Xsky:
                         elif space == 'alm':
                             sky = self.lenjob_geomlib.map2alm_spin(sky, lmax=self.CMB_info['lm_max'][0], spin=2, mmax=self.CMB_info['lm_max'][1], nthreads=4)
                     elif field == 'temperature':
-                        # TODO act operators
-                        # sky = self.pri2len(pri, plms, spin=0, epsilon=self.epsilon)
-                        sky = self.lenjob_geomlib.alm2map(np.copy(pri), lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                        sky = self.operators[0].geomlib.alm2map(sky, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                         if space == 'map':
                             sky = self.lenjob_geomlib.map2alm(np.copy(sky), lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                             sky = self.geom_lib.alm2map(np.copy(sky), lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)

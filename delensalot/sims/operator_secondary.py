@@ -6,6 +6,7 @@ from lenspyx.remapping.deflection_028 import rtype, ctype
 from lenspyx.remapping import deflection
 from lenspyx.lensing import get_geom 
 
+from delensalot.config.metamodel import DEFAULT_NotAValue as DNaV
 from delensalot.core import cachers
 from delensalot.config.config_helper import data_functions as df
 from delensalot.utility.utils_hp import gauss_beam
@@ -24,7 +25,7 @@ class base:
         assert 0, "subclass this"
 
 
-    def set_field(self, simidx, it, component=None):
+    def set_field(self, simidx, component=None):
         assert 0, "subclass this"
 
 
@@ -47,15 +48,21 @@ class joint:
         return obj
     
 
-    def set_field(self, simidx, it, component=None):
+    def set_field(self, simidx, component=None):
         for operator in self.operators:
-            operator.set_field(simidx, it)
+            operator.set_field(simidx)
 
 
 class lensing(base):
     def __init__(self, operator_desc):
         super().__init__(operator_desc["libdir"])
-        self.field_fns = operator_desc["field_fns"]
+        self.ID = 'phi'
+        
+        if operator_desc["field_fns"] is DNaV:
+            self.field_fns = {comp: "{idx}" for comp in operator_desc["components"]}
+        else:
+            self.field_fns = operator_desc["field_fns"]
+
         self.Lmin = operator_desc["Lmin"]
         self.lm_max = operator_desc["lm_max"]
         self.LM_max = operator_desc["LM_max"]
@@ -84,18 +91,11 @@ class lensing(base):
             # dlens = -0.5 * ((d1[0] - 1j * d1[1]) * dp + (d1[0] + 1j * d1[1]) * dm)
             # del dp, dm, d1
             # elm, blm = geom.map2alm_spin([dlens.real, dlens.imag], 2, lmaxb, mmaxb, sht_tr, [-1., 1.])
-        else:  
-            # NOTE this is used for B-lensing template, and in eq. 21 of the paper
-            # ffi = self.fq.ffi.change_dlm([dlm, None], self.mmax_qlm)
-            # elm, blm = ffi.lensgclm(np.array([elm_wf, np.zeros_like(elm_wf)]), self.mmax_filt, 2, lmaxb, mmaxb)
-            
-            # NOTE this is used e.g. in eq 22 of the paper.
-
-            #TODO I don't want this alm_copy here
+        else:
             obj = np.atleast_2d(obj)
-            obj = alm_copy(obj[0], None, *self.lm_max)
+            # obj = alm_copy(obj[0], None, *self.lm_max)
             # return self.ffi.gclm2lenmap(np.atleast_2d(obj), self.lm_max[1], spin, False)
-            return self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max[1], 2, *self.lm_max)
+            return self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max[1], spin, *self.lm_max)
     
 
     def adjoint(self, obj, spin=None):
@@ -103,22 +103,16 @@ class lensing(base):
         return self.act(obj, spin=spin, adjoint=True)
     
 
-    def set_field(self, simidx, it, component=None):
-        if component is None:
-            for component in self.components:
-                self.set_field(simidx, it, component)
-            d = np.array([self.field[comp].flatten() for comp in self.components], dtype=complex)
-            self.ffi = self.ffi.change_dlm(d, self.LM_max[1])
-        else:
-            if self.field_cacher.is_cached(opj(self.field_fns[component].format(idx=simidx,it=it))):
-                self.field[component] = self.field_cacher.load(opj(self.field_fns[component].format(idx=simidx,it=it)))
-            else:
-                assert 0, "cannot set field"
+    def set_field(self, field):
+        field = np.atleast_2d(field)
+        self.field = field
+        self.ffi = self.ffi.change_dlm(field, self.LM_max[1])
 
 
 class birefringence(base):
     def __init__(self, operator_desc):
         super().__init__(operator_desc["libdir"])
+        self.ID = 'bf'
         self.field_fns = operator_desc['field_fns']
         self.Lmin = operator_desc["Lmin"],
         self.lm_max = operator_desc["lm_max"]
@@ -129,9 +123,13 @@ class birefringence(base):
     # spin doesn't do anything here, but parameter is needed as joint operator passes it to all operators
     # NOTE this is alm2alm
     def act(self, obj, spin=None, adjoint=False):
+        if spin == 0:
+            return obj
+        
         f = np.array([self.field[comp].flatten() for comp in self.components], dtype=complex)
 
         buff = alm_copy(f[0], None, *self.lm_max)
+        # buff = f[0]
         if adjoint:
             return np.array([np.exp(1j*buff)*obj[0], np.exp(-1j*buff)*obj[1]])
         return np.array([np.exp(-1j*buff)*obj[0], np.exp(1j*buff)*obj[1]])
@@ -143,12 +141,14 @@ class birefringence(base):
     def adjoint(self, obj, spin=None):
         return self.act(obj, spin=spin, adjoint=True)
 
+    def set_field(self, field):
+        self.field['f'] = field
 
-    def set_field(self, simidx, component=None):
-        if component is None:
-            for component in self.components.split("_"):
-                self.set_field(simidx, component)
-        self.field[component] = self.field_cacher.load(opj(self.field_fns[component].format(idx=simidx)))
+    # def set_field(self, simidx, component=None):
+    #     if component is None:
+    #         for component in self.components.split("_"):
+    #             self.set_field(simidx, component)
+    #     self.field[component] = self.field_cacher.load(opj(self.field_fns[component].format(idx=simidx)))
     
 
 class beam:
