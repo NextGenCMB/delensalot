@@ -48,39 +48,7 @@ class l2base_Transformer:
     # @log_on_start(logging.DEBUG, "process_Simulation() started")
     # @log_on_end(logging.DEBUG, "process_Simulation() finished")
     def process_Simulation(dl, si, cf):
-        lm_max = [lmax, lmax]
-        phi_lm_max = [phi_lmax, phi_lmax]
-        bf_lm_max = [bf_lmax, bf_lmax]
-
-        CMB_info = {
-            'libdir': libdir,
-            'space': space,
-            'spin': spin,
-            'lm_max': lm_max,
-            'fns': fns,
-        }
-
-        sec_info = {
-            'phi':{
-                'libdir': libdir_phi,
-                'fn': fnsP,
-                'components': ['pp', 'ww'],
-                'space':'alm',
-                'scale':'p',
-                'modifier': phi_modifier,
-                'lm_max': phi_lm_max,
-            },
-            'bf':{
-                'libdir': libdir_bf,
-                'fn': fnsBF,
-                'components': ['ff'],
-                'space':'alm',
-                'scale':'p',
-                'modifier': bf_modifier,
-                'lm_max': bf_lm_max,
-            },
-        }
-        # TODO operator initialization
+        # TODO operator info needs to match what operator_secondary class expects
         dl.simulationdata = Simhandler(**si.__dict__)
 
     # @log_on_start(logging.DEBUG, "_process_Analysis() started")
@@ -286,7 +254,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             dl = DLENSALOT_Concept()
             _process_Analysis(dl, cf.analysis, cf)
             l2base_Transformer.process_Meta(dl, cf.meta, cf)
-            dl.libdir_suffix = cf.simulationdata.libdir_suffix
+            dl.libdir_suffix = cf.simulationdata.obs_info['noise_info']['libdir_suffix']
             dl.simulationdata = Simhandler(**cf.simulationdata.__dict__)
             return dl
         return Sim_generator(extract())

@@ -26,22 +26,22 @@ class DLENSALOT_Concept:
     __metaclass__ = abc.ABCMeta
 
 
-    def __str__(self):
-        """ overwrites __str__ to summarize dlensalot model in a prettier way
+    # def __str__(self):
+    #     """ overwrites __str__ to summarize dlensalot model in a prettier way
 
-        Returns:
-            str: A table with all attributes of the model
-        """        
-        ##
-        _str = ''
-        for key, val in self.__dict__.items():
-            keylen = len(str(key))
-            if type(val) in [list, np.ndarray, np.array, dict]:
-                _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(type(val))
-            else:
-                _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(val)
-            _str += '\n'
-        return _str
+    #     Returns:
+    #         str: A table with all attributes of the model
+    #     """        
+    #     ##
+    #     _str = ''
+    #     for key, val in self.__dict__.items():
+    #         keylen = len(str(key))
+    #         if type(val) in [list, np.ndarray, np.array, dict]:
+    #             _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(type(val))
+    #         else:
+    #             _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(val)
+    #         _str += '\n'
+    #     return _str
 
 
 @attr.s
@@ -153,75 +153,17 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
     This class collects all configurations related to the input maps, and values can differ from the noise model and analysis.
 
     Attributes:
-        flavour      (str): Can be in ['obs', 'sky', 'unl'] and defines the type of data provided.
-        space        (str): Can be in ['map', 'alm', 'cl'] and defines the space of the data provided.
-        maps         (np.array, optional): These maps will be put into the cacher directly. They are used for settings in which no data is generated or accesed on disk, but directly provided (like in `delensalot.anafast()`) Defaults to DNaV.
-        geominfo     (tuple, optional): Lenspyx geominfo descriptor, describes the geominfo of the data provided (e.g. `('healpix', 'nside': 2048)). Defaults to DNaV.
-        field        (str, optional): the type of data provided, can be in ['temperature', 'polarization']. Defaults to DNaV.
-        libdir       (str, optional): directory of the data provided. Defaults to DNaV.
-        libdir_noise (str, optional): directory of the noise provided. Defaults to DNaV.
-        libdir_phi   (str, optional): directory of the lensing potential provided. Defaults to DNaV.
-        fns          (dict with str with formatter, optional): file names of the data provided. It expects `{'T': <filename{simidx}.something>, 'Q': <filename{simidx}.something>, 'U': <filename{simidx}.something>}`, where `{simidx}` is used by the libraries to format the simulation index into the name. Defaults to DNaV.
-        fnsnoise     (dict with str with formatter, optional): file names of the noise provided. It expects `{'T': <filename{simidx}.something>, 'Q': <filename{simidx}.something>, 'U': <filename{simidx}.something>}`, where `{simidx}` is used by the libraries to format the simulation index into the name. Defaults to DNaV.
-        fnsP         (str with formatter, optional): file names of the lensing potential provided. It expects `<filename{simidx}.something>, where `{simidx}` is used by the libraries to format the simulation index into the name. Defaults to DNaV.
-        lmax         (int, optional): Maximum l of the data provided. Defaults to DNaV.
-        transfunction(np.array, optional): transfer function to be applied to the generated simulations. Ignored when flavour='obs'. Defaults to DNaV.
-        nlev         (dict, optional): noise level of the individual fields. It expects `{'T': <value>, 'P': <value>}. Defaults to DNaV.
-        spin         (int, optional): the spin of the data provided. Defaults to 0. Always defaults to 0 for temperature.
-        CMB_fn       (str, optional): path+name of the file of the power spectra of the CMB. Defaults to DNaV.
-        phi_fn       (str, optional): path+name of the file of the power spectrum of the lensing potential. Defaults to DNaV.
-        phi_field    (str, optional): the type of potential provided, can be in ['potential', 'deflection', 'convergence']. This simulation library will automatically rescale the field, if needded. Defaults to DNaV.
-        phi_space    (str, optional): can be in ['map', 'alm', 'cl'] and defines the space of the lensing potential provided.. Defaults to DNaV.
-        phi_lmax     (_type_, optional): the maximum multipole of the lensing potential. if simulation library perfroms lensing, it is advisable that `phi_lmax` is somewhat larger than `lmax` (+ ~512-1024). Defaults to DNaV.
-        epsilon      (float, optional): Lenspyx lensing accuracy. Defaults to 1e-7.
-        libdir_suffix(str, optional): defines the directory the simulation data will be stored to, defaults to 'generic'. Helpful if one wants to keep track of different projects.
-        CMB_modifier (callable, optional): operation defined in the callable will be applied to each of the input maps/alms/cls
-        phi_modifier (callable, optional): operation defined in the callable will be applied to the input phi lms (modifier is applied to both grad and curl, if aplicable)
-                                               
+                                     
     """
 
     flavour =       attr.field(default=DEFAULT_NotAValue, validator=data.flavour)
-    space =         attr.field(default=DEFAULT_NotAValue, validator=data.space)
     maps =          attr.field(default=DEFAULT_NotAValue, validator=data.maps)
     geominfo =      attr.field(default=DEFAULT_NotAValue, validator=data.geominfo)
-    lenjob_geominfo=attr.field(default=DEFAULT_NotAValue, validator=data.geominfo)
-    field =         attr.field(default=DEFAULT_NotAValue, validator=data.field)
-    libdir =        attr.field(default=DEFAULT_NotAValue, validator=data.libdir)
-    libdir_noise =  attr.field(default=DEFAULT_NotAValue, validator=data.libdir_noise)
-    libdir_phi =    attr.field(default=DEFAULT_NotAValue, validator=data.libdir_phi)
-    fns =           attr.field(default=DEFAULT_NotAValue, validator=data.fns)
-    fnsnoise =      attr.field(default=DEFAULT_NotAValue, validator=data.fnsnoise)
-    
-    lmax =          attr.field(default=DEFAULT_NotAValue, validator=data.lmax)
-    transfunction = attr.field(default=DEFAULT_NotAValue, validator=data.transfunction)
-    nlev =          attr.field(default=DEFAULT_NotAValue, validator=data.nlev)
-    spin =          attr.field(default=DEFAULT_NotAValue, validator=data.spin)
-    CMB_fn =        attr.field(default=DEFAULT_NotAValue, validator=data.CMB_fn)
-    epsilon =       attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
-    libdir_suffix = attr.field(default='generic', validator=data.libdir_suffix)
-    CMB_modifier =  attr.field(default=DEFAULT_NotAValue, validator=data.modifier)
-    
-    fields =        attr.field(default=DEFAULT_NotAValue) # can be ['gradient', 'curl', 'birefringence']. cannot be only curl
-    
-    phi_modifier =  attr.field(default=lambda x: x)
-    fnsP =          attr.field(default=DEFAULT_NotAValue, validator=data.fnsP)
-    phi_fn =        attr.field(default=DEFAULT_NotAValue, validator=data.phi_fn)
-    phi_field =     attr.field(default=DEFAULT_NotAValue, validator=data.phi_field)
-    phi_space =     attr.field(default=DEFAULT_NotAValue, validator=data.phi_space)
-    phi_lmax =      attr.field(default=DEFAULT_NotAValue, validator=data.phi_lmax)
+    CMB_info =      attr.field(default=DEFAULT_NotAValue)
+    sec_info =      attr.field(default=DEFAULT_NotAValue)
+    obs_info =      attr.field(default=DEFAULT_NotAValue)
+    operator_info = attr.field(default=DEFAULT_NotAValue)
 
-    fnsC =          attr.field(default=DEFAULT_NotAValue, validator=data.fnsP)
-    curl_field =    attr.field(default=DEFAULT_NotAValue, validator=data.phi_field)
-    curl_space =    attr.field(default=DEFAULT_NotAValue, validator=data.phi_space)
-    curl_lmax =     attr.field(default=DEFAULT_NotAValue, validator=data.phi_lmax)
-
-    bf_modifier =   attr.field(default=lambda x: x)
-    fnsB =          attr.field(default=DEFAULT_NotAValue, validator=data.fnsP)
-    bf_field =      attr.field(default=DEFAULT_NotAValue, validator=data.phi_field)
-    bf_space =      attr.field(default=DEFAULT_NotAValue, validator=data.phi_space)
-    bf_lmax =       attr.field(default=DEFAULT_NotAValue, validator=data.phi_lmax)
-    
-    
 @attr.s
 class DLENSALOT_Noisemodel(DLENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
@@ -447,43 +389,37 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     phana =                 attr.field(default=DLENSALOT_Phianalysis())
     
 
+
+
     def __attrs_post_init__(self):
-        """
-        The logic is as follow:
-         * All variables default to 'DEFAULT_NotAValue' upon start - validator checks and passes due to 'DEFAULT_NotAValue' being allowed
-         * Upon loading config file:
-            * 1st init: all user-variables are set, validator checks
-            * 2nd init (this function here): remaining variables with value 'DEFAULT_NotAValue' are set to user-specified 'default_to'-dictionary
-         * 'validator' takes care of validating post-init, thus all default-dict keys are validated
-         comment: __attrs_post_init must be in DLENSALOT_Model, as this is the only one who knows of the default dictionary (defaults_to), and cannot simply be passed along to sub-classes.
-
-        """
-
-        spec = importlib.util.spec_from_file_location("default", opj(Path(__file__).parent.parent, "default/{}.py".format(self.defaults_to.replace('.py', ''))))
+        default_path = Path(__file__).parent.parent / f"default/{self.defaults_to.replace('.py', '')}.py"
+        spec = importlib.util.spec_from_file_location("default", default_path)
         default_module = importlib.util.module_from_spec(spec)
         sys.modules["default"] = default_module
         spec.loader.exec_module(default_module)
+
         default_dict = default_module.DL_DEFAULT
-        for key, val in list(filter(lambda x: '__' not in x[0] and x[0] not in ['defaults_to', 'validate_model'], self.__dict__.items())):
-            for k, v in val.__dict__.items():
-                if k in ['chain', 'stepper']:
-                    for ke, va in v.__dict__.items():
-                        if np.all(va == DEFAULT_NotAValue):
-                            if key in default_dict:
-                                if k in default_dict[key]:
-                                    if ke in default_dict[key][k]:
-                                        self.__dict__[key].__dict__[k].__dict__.update({ke: default_dict[key][k][ke]})
-                elif np.all(v == DEFAULT_NotAValue):
-                    if key in default_dict:
-                        if k in default_dict[key]:
-                            # log.info('\t\t{}: Found default for k {}: {}'. format(key, k, default_dict[key][k]))
-                            self.__dict__[key].__dict__.update({k: default_dict[key][k]})
-                        else:
-                            if key not in ['simulationdata']:
-                                # It is ok to not have defaults for simulationdata, as the simlib will handle it
-                                log.debug('{}: couldnt find matching default value for {}'.format(key, k))
-                    else:
-                        log.debug('couldnt find matching default value for key {}'.format(key))
-                elif callable(v):
-                    # Cannot evaluate functions, so hopefully they didn't change..
-                    pass
+
+        def update_defaults(target, defaults):
+            """Recursively update target with default values, ensuring all keys from defaults exist."""
+            for key, default_value in defaults.items():
+                if isinstance(target, dict):
+                    if key not in target or np.all(target[key] == DEFAULT_NotAValue):
+                        target[key] = default_value
+                    elif isinstance(default_value, dict) and isinstance(target[key], dict):
+                        update_defaults(target[key], default_value)
+                else:  # Handle object attributes
+                    # print(f'udpdating {target}')
+                    if not hasattr(target, key) or np.all(getattr(target, key) == DEFAULT_NotAValue):
+                        setattr(target, key, default_value)
+                    elif isinstance(default_value, dict) and isinstance(getattr(target, key), dict):
+                        update_defaults(getattr(target, key), default_value)
+
+        # Apply updates to all top-level attributes
+        for key, default_value in default_dict.items():
+            if key in ['defaults_to', 'validate_model']:
+                continue  # Skip special attributes
+
+            if not hasattr(self, key) or np.all(getattr(self, key) == DEFAULT_NotAValue):
+                setattr(self, key, default_value)
+            update_defaults(getattr(self, key), default_value)

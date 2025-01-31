@@ -21,19 +21,32 @@ from delensalot.core import cachers
 from delensalot.config.metamodel import DEFAULT_NotAValue as DNaV
 
 import delensalot
-from delensalot.utils import load_file, cli
+from delensalot.utils import load_file_wsec, cli
+from delensalot.sims import operator_secondary
 
 
-def contains_DNaV(d, DNaV, ignore_keys=None):
+def check_dict(d):
+    for key, val in d.items():
+        if isinstance(val, dict) or isinstance(val, list) or isinstance(val, np.ndarray):
+            if np.any(val == DNaV):
+                assert 0, 'need to provide {}'.format(key)
+        else:
+            if val == DNaV:
+                assert 0, 'need to provide {}'.format(key)
+
+def contains_DNaV(d, ignore_keys=None):
     if ignore_keys is None:
         ignore_keys = set()
     
     if isinstance(d, dict):
         return any(
-            key not in ignore_keys and contains_DNaV(v, DNaV, ignore_keys)
+            key not in ignore_keys and contains_DNaV(v, ignore_keys)
             for key, v in d.items()
         )
-    return d == DNaV
+    elif isinstance(d, list) or isinstance(d, np.ndarray):
+        return any(v == DNaV for v in d)
+    else:
+        return d == DNaV
 
 
 def klm2plm(klm, lmax):
@@ -70,25 +83,21 @@ def dict2roundeddict(d):
 class iso_white_noise:
     """class for generating very simple isotropic white noise
     """
-    def __init__(self, nlev, lmax=DNaV, libdir=DNaV, fns=DNaV, spin=DNaV, space=DNaV, geominfo=DNaV, libdir_suffix=DNaV):
+    def __init__(self, geominfo=DNaV, noise_info=DNaV):
         self.geominfo = geominfo
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
         self.geom_lib = get_geom(self.geominfo)
-        self.libdir = libdir
-        self.spin = spin
-        self.lmax = lmax
-        self.space = space
-        if libdir == DNaV:
-            self.nlev = nlev
-            assert libdir_suffix != DNaV, 'must give libdir_suffix'
-            nlev_round = dict2roundeddict(self.nlev)
-            self.libdir_phas = os.environ['SCRATCH']+'/simulation/{}/{}/phas/{}/'.format(libdir_suffix, get_dirname(str(self.geominfo)), get_dirname(str(sorted(nlev_round.items()))))
+
+        if noise_info['libdir'] == DNaV:
+            assert noise_info['libdir_suffix'] != DNaV, 'must give libdir_suffix'
+            nlev_round = dict2roundeddict(noise_info['nlev'])
+            self.libdir_phas = os.environ['SCRATCH']+'/simulation/{}/{}/phas/{}/'.format(noise_info['libdir_suffix'], get_dirname(str(self.geominfo)), get_dirname(str(sorted(nlev_round.items()))))
             self.pix_lib_phas = phas.pix_lib_phas(self.libdir_phas, 3, (self.geom_lib.npix(),))
         else:
-            if fns == DNaV:
+            if noise_info['fns'] == DNaV:
                 assert 0, "must provide fns"
-            self.fns = fns
+        self.noise_info = noise_info
 
         self.cacher = cachers.cacher_mem(safe=True)
 
@@ -109,78 +118,78 @@ class iso_white_noise:
             assert 0, "I don't think you want qlms ulms."
         if field == 'temperature' and spin == 2:
             assert 0, "I don't think you want spin-2 temperature."
-        if field == 'temperature' and 'T' not in self.nlev:
+        if field == 'temperature' and 'T' not in self.noise_info['nlev']:
             assert 0, "need to provide T key in nlev"
-        if field == 'polarization' and 'P' not in self.nlev:
+        if field == 'polarization' and 'P' not in self.noise_info['nlev']:
             assert 0, "need to provide P key in nlev"
         fn = 'noise_space{}_spin{}_field{}_{}'.format(space, spin, field, simidx)
         if not self.cacher.is_cached(fn):
-            if self.libdir == DNaV:
+            if self.noise_info['libdir'] == DNaV:
                 if self.geominfo[0] == 'healpix':
                     vamin = np.sqrt(hp.nside2pixarea(self.geominfo[1]['nside'], degrees=True)) * 60
                 else:
                     ## FIXME this is a rough estimate, based on total sky coverage / npix()
                     vamin =  np.sqrt(4*np.pi) * (180/np.pi) / self.geom_lib.npix() * 60
                 if field == 'polarization':
-                    noise1 = self.nlev['P'] / vamin * self.pix_lib_phas.get_sim(int(simidx), idf=1)
-                    noise2 = self.nlev['P'] / vamin * self.pix_lib_phas.get_sim(int(simidx), idf=2) # TODO this always produces qu-noise in healpix geominfo?
+                    noise1 = self.noise_info['nlev']['P'] / vamin * self.pix_lib_phas.get_sim(int(simidx), idf=1)
+                    noise2 = self.noise_info['nlev']['P'] / vamin * self.pix_lib_phas.get_sim(int(simidx), idf=2) # TODO this always produces qu-noise in healpix geominfo?
                     noise = np.array([noise1, noise2])
                     if space == 'map':
                         if spin == 0:
-                            alm_buffer = self.geom_lib.map2alm_spin(noise, spin=2, lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
-                            noise1 = self.geom_lib.alm2map(alm_buffer[0], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
-                            noise2 = self.geom_lib.alm2map(alm_buffer[1], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
+                            alm_buffer = self.geom_lib.map2alm_spin(noise, spin=2, lmax=self.noise_info['lm_max'][0], mmax=self.noise_info['lm_max'][1], nthreads=4)
+                            noise1 = self.geom_lib.alm2map(alm_buffer[0], lmax=self.noise_info['lm_max'][0], mmax=self.noise_info['lm_max'][1], nthreads=4)
+                            noise2 = self.geom_lib.alm2map(alm_buffer[1], lmax=self.noise_info['lm_max'][0], mmax=self.noise_info['lm_max'][1], nthreads=4)
                             noise = np.array([noise1, noise2])
                     elif space == 'alm':
-                        noise = self.geom_lib.map2alm_spin(noise, spin=2, lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
+                        noise = self.geom_lib.map2alm_spin(noise, spin=2, lmax=self.noise_info['lm_max'][0], mmax=self.noise_info['lm_max'][1], nthreads=4)
                 elif field == 'temperature':
-                    noise = self.nlev['T'] / vamin * self.pix_lib_phas.get_sim(int(simidx), idf=0)
+                    noise = self.noise_info['nlev']['T'] / vamin * self.pix_lib_phas.get_sim(int(simidx), idf=0)
                     if space == 'alm':
-                        noise = self.geom_lib.map2alm(noise, lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
+                        noise = self.geom_lib.map2alm(noise, lmax=self.noise_info['lm_max'][0], mmax=self.noise_info['lm_max'][1], nthreads=4)
             else:
                 if field == 'polarization':
-                    if self.spin == 2:
-                        noise1 = load_file(opj(self.libdir, self.fns['Q'].format(simidx)))
-                        noise2 = load_file(opj(self.libdir, self.fns['U'].format(simidx)))
-                    elif self.spin == 0:
-                        noise1 = load_file(opj(self.libdir, self.fns['E'].format(simidx)))
-                        noise2 = load_file(opj(self.libdir, self.fns['B'].format(simidx)))
+                    if self.noise_info['spin'] == 2:
+                        noise1 = load_file_wsec(opj(self.noise_info['libdir'], self.noise_info['fns']['Q'].format(simidx)))
+                        noise2 = load_file_wsec(opj(self.noise_info['libdir'], self.noise_info['fns']['U'].format(simidx)))
+                    elif self.noise_info['spin'] == 0:
+                        noise1 = load_file_wsec(opj(self.noise_info['libdir'], self.noise_info['fns']['E'].format(simidx)))
+                        noise2 = load_file_wsec(opj(self.noise_info['libdir'], self.noise_info['fns']['B'].format(simidx)))
                     noise = np.array([noise1, noise2])
-                    if self.space == 'map':
+                    if self.noise_info['space'] == 'map':
                         if space == 'alm':
-                            if self.spin == 0:
-                                noise1 = self.geom_lib.map2alm(noise[0], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
-                                noise2 = self.geom_lib.map2alm(noise[1], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
+                            if self.noise_info['spin'] == 0:
+                                noise1 = self.geom_lib.map2alm(noise[0], lmax=self.noise_info['lm_max'][0], mmax=self.noise_info['lm_max'][1], nthreads=4)
+                                noise2 = self.geom_lib.map2alm(noise[1], lmax=self.noise_info['lm_max'][0], mmax=self.noise_info['lm_max'][1], nthreads=4)
                                 noise = np.array([noise1, noise2])
-                            elif self.spin == 2:
-                                noise = self.geom_lib.map2alm_spin(noise, spin=self.spin, lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)  
+                            elif self.noise_info['spin'] == 2:
+                                noise = self.geom_lib.map2alm_spin(noise, spin=self.noise_info['spin'], lmax=self.noise_info['lm_max'][0], mmax=self.noise_info['lm_max'][1], nthreads=4)  
                         elif space == 'map':
-                            if self.spin != spin:
-                                if self.spin == 0:
-                                    alm_buffer1 = self.geom_lib.map2alm(noise[0], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
-                                    alm_buffer2 = self.geom_lib.map2alm(noise[1], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
-                                    noise = self.geom_lib.alm2map_spin([alm_buffer1,alm_buffer2], lmax=self.lm_max[0], spin=spin, mmax=self.lm_max[1], nthreads=4)
-                                elif self.spin == 2:
-                                    alm_buffer = self.geom_lib.map2alm_spin(noise, spin=self.spin, lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
-                                    noise1 = self.geom_lib.alm2map(alm_buffer[0], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
-                                    noise2 = self.geom_lib.alm2map(alm_buffer[1], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
+                            if self.noise_info['spin'] != spin:
+                                if self.noise_info['spin'] == 0:
+                                    alm_buffer1 = self.geom_lib.map2alm(noise[0], lmax=self.noise_info['lm_max'][0], mmax=self.noise_info['lm_max'][1], nthreads=4)
+                                    alm_buffer2 = self.geom_lib.map2alm(noise[1], lmax=self.noise_info['lm_max'][0], mmax=self.noise_info['lm_max'][1], nthreads=4)
+                                    noise = self.geom_lib.alm2map_spin([alm_buffer1,alm_buffer2], lmax=self.noise_info['lm_max'][0], spin=spin, mmax=self.noise_info['lm_max'][1], nthreads=4)
+                                elif self.noise_info['spin'] == 2:
+                                    alm_buffer = self.geom_lib.map2alm_spin(noise, spin=self.noise_info['spin'], lmax=self.noise_info['lm_max'][0], mmax=self.noise_info['lm_max'][1], nthreads=4)
+                                    noise1 = self.geom_lib.alm2map(alm_buffer[0], lmax=self.noise_info['lm_max'][0], mmax=self.noise_info['lm_max'][1], nthreads=4)
+                                    noise2 = self.geom_lib.alm2map(alm_buffer[1], lmax=self.noise_info['lm_max'][0], mmax=self.noise_info['lm_max'][1], nthreads=4)
                                     noise = np.array([noise1, noise2])
-                    elif self.space == 'alm':
+                    elif self.noise_info['space'] == 'alm':
                         if space == 'map':
                             if spin == 0:
-                                noise1 = self.geom_lib.map2alm(noise[0], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
-                                noise2 = self.geom_lib.map2alm(noise[1], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
+                                noise1 = self.geom_lib.map2alm(noise[0], lmax=self.noise_info['lm_max'][0], mmax=self.noise_info['lm_max'][1], nthreads=4)
+                                noise2 = self.geom_lib.map2alm(noise[1], lmax=self.noise_info['lm_max'][0], mmax=self.noise_info['lm_max'][1], nthreads=4)
                                 noise = np.array([noise1, noise2])
                             elif spin == 2:
-                                noise = self.geom_lib.alm2map_spin(noise, spin=spin, lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)       
+                                noise = self.geom_lib.alm2map_spin(noise, spin=spin, lmax=self.noise_info['lm_max'][0], mmax=self.noise_info['lm_max'][1], nthreads=4)       
                 elif field == 'temperature':
-                    noise = np.array(load_file(opj(self.libdir, self.fns['T'].format(simidx))))
-                    if self.space == 'map':
+                    noise = np.array(load_file_wsec(opj(self.noise_info['libdir'], self.noise_info['fns']['T'].format(simidx))))
+                    if self.noise_info['space'] == 'map':
                         if space == 'alm':
-                            noise = self.geom_lib.map2alm(noise, lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
-                    elif self.space == 'alm':
+                            noise = self.geom_lib.map2alm(noise, lmax=self.noise_info['lm_max'][0], mmax=self.noise_info['lm_max'][1], nthreads=4)
+                    elif self.noise_info['space'] == 'alm':
                         if space == 'map':
-                            noise = self.geom_lib.alm2map(noise, lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
+                            noise = self.geom_lib.alm2map(noise, lmax=self.noise_info['lm_max'][0], mmax=self.noise_info['lm_max'][1], nthreads=4)
             self.cacher.cache(fn, noise)  
         return self.cacher.load(fn)
 
@@ -189,80 +198,57 @@ class Cls:
     """class for accessing CAMB-like file for CMB power spectra, optionally a distinct file for the lensing field (grad and curl component), and birefringence
     """    
     def __init__(self, CMB_info=DNaV, sec_info={}):
-        """
-        only secondaries in dict will be generated even if Cls exist.
-        secondaries = { 
-            'phi':{
-                'fn': CMB_fn,
-                'components':['pp', 'ww'],
-                'scale':'p',
-            },
-            'bf':{
-                'fn': CMB_fn,
-                'components':['ff'],
-                'scale':'p',
-            },
-        }
-        """
-
         # NOTE if CMB_fn is None, I assume the run does not have CMB spectra (this is the case when prialm CMB are provided, but secondaries alms are generated from Cls)
         # TODO add support for field-field (phi-bf) correlations
-        if CMB_info['fns'] == DNaV:
-            self.CMB_fn = opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat')
-            self.Cl_dict = load_file(self.CMB_fn)
+        if CMB_info == DNaV or CMB_info['fns'] == DNaV:
+            if CMB_info == DNaV:
+                CMB_info = {'fns': None, 'libdir': None}
+            CMB_info['fns'] = 'FFP10_wdipole_secondaries_lens_birefringence.dat'
+            CMB_info['libdir'] = opj(os.path.dirname(delensalot.__file__), 'data', 'cls')
+            self.Cl_dict = load_file_wsec(opj(CMB_info['libdir'], CMB_info['fns']))
             # FIXME need to initialize the secondaries with the same CMB_fn
         elif CMB_info['fns'] is None: # only need cl_dict for secondaries
             self.CMB_fn = None
             self.Cl_dict = {}
         else:
             self.CMB_fn = CMB_info['fns']
-            self.Cl_dict = load_file(CMB_info['fns'])
-        
-        self.sec_info = sec_info
+            self.Cl_dict = load_file_wsec(opj(CMB_info['libdir'], CMB_info['fns']))
+        self.CMB_info = CMB_info
 
         # NOTE now I either replace or delete secondaries from the dict.
         # If there are secondaries listed in the secondaries parameter, I will replace the Cl_dct values with it.
         # If not, I will delete the Cl_dict entries as I assume this run is performed without them.
         # If fn point to the same CMB_fn, I keep them
+       
         if sec_info is not None:
-            secondaries_keep_list = [key for key, value in sec_info.items()]
-            secondaries_pop_list = [key for key in ['pp', 'ww', 'ff'] if key not in secondaries_keep_list]
-            for key, value in secondaries_pop_list:
+            secondaries_keep_list = [comp for v in sec_info.values() for comp in v['components']]
+            secondaries_pop_list = [key for key in ['pp', 'pt', 'pe', 'ww', 'wt', 'we', 'wp', 'ff', 'ft', 'fe', 'fp', 'fw'] if key not in secondaries_keep_list]
+            for key in secondaries_pop_list:
                 del self.Cl_dict[key]
             for key, value in sec_info.items():
-                if value['fn'] is not CMB_info['fns']:
+                if value['fn'] != DNaV and value['fn'] != CMB_info['fns']:
                     for component in value['components']:
-                        self.Cl_dict[component] = load_file(value['fn'])[component]
+                        self.Cl_dict[component] = load_file_wsec(opj(value['libdir'], value['fn']))[component]
+        self.sec_info = sec_info
+        self.secondaries = secondaries_keep_list
 
         self.cacher = cachers.cacher_mem(safe=True)
 
 
     def get_clCMBpri(self, simidx, components=['tt', 'ee', 'bb', 'te'], lmax=None):
-        fn = f'clcmb_{components}_{simidx}'
+        components = [components] if isinstance(components, str) else components
+        fn = f"clcmb_{components}_{simidx}"
         if not self.cacher.is_cached(fn):
             Cls = np.array([self.Cl_dict[key][:lmax+1] for key in components]) if lmax is not None else np.array([self.Cl_dict[key] for key in components])
             self.cacher.cache(fn, Cls)
         return self.cacher.load(fn)   
-        
-    
-    def get_clphi(self, simidx, components=['pp'], lmax=None):
-        fn = f'clphi_{components}_{simidx}'
-        if not self.cacher.is_cached(fn):
-            Cls = np.array([self.Cl_dict[key][:lmax+1] for key in components]) if lmax is not None else np.array([self.Cl_dict[key] for key in components])
-            self.cacher.cache(fn, np.array(Cls))
-        return self.cacher.load(fn)
-
-
-    def get_clbf(self, simidx, components=['ff'], lmax=None):
-        fn = f'clbf_{components}_{simidx}'
-        if not self.cacher.is_cached(fn):
-            Cls = np.array([self.Cl_dict[key][:lmax+1] for key in components]) if lmax is not None else np.array([self.Cl_dict[key] for key in components])
-            self.cacher.cache(fn, np.array(Cls))
-        return self.cacher.load(fn)
     
 
-    def get_clsec(self, simidx, secondary, components=['pp'], lmax=None):
-        fn = f'cl{secondary}_{components}_{simidx}'
+    def get_clsec(self, simidx, secondary=None, components=['pp'], lmax=None):
+        if secondary is None:
+            return [self.get_clsec(simidx, sec, components, lmax) for sec in self.sec_info.keys()]
+        components = [components] if isinstance(components, str) else components
+        fn = f"clssec{secondary}_{components}_{simidx}"
         if not self.cacher.is_cached(fn):
             Cls = np.array([self.Cl_dict[key][:lmax+1] for key in components]) if lmax is not None else np.array([self.Cl_dict[key] for key in components])
             self.cacher.cache(fn, np.array(Cls))
@@ -281,13 +267,10 @@ class Xpri:
             self.geominfo = ('healpix', {'nside':2048})
         self.geom_lib = get_geom(self.geominfo)
 
-        if CMB_info['libdir'] == DNaV and any(value['fn'] == DNaV for value in sec_info.values()):
-            assert 0, 'need to provide either CMB alms or secondary alms, or use a different flavour to run this'
-
         if CMB_info['libdir'] == DNaV or any(value['fn'] == DNaV for value in sec_info.values()):
             if cls_lib == DNaV:
-                secondaries = {key: {'fn':DNaV, 'components':value['components']} for key, value in sec_info.items()}
-                self.cls_lib = Cls(CMB_fn=DNaV, secondaries=secondaries) # NOTE I pick all CMB components anyway
+                sec_info = {key: {'fn':DNaV, 'components':value['components'], 'libdir': DNaV, 'scale': 'p'} for key, value in sec_info.items()}
+                self.cls_lib = Cls(CMB_info=DNaV, sec_info=sec_info) # NOTE I pick all CMB components anyway
             else:
                 self.cls_lib = cls_lib
         else:
@@ -303,7 +286,7 @@ class Xpri:
         self.cacher = cachers.cacher_mem(safe=True)
 
 
-    def get_sim_primordial(self, simidx, space, field, spin=2):
+    def get_sim_pri(self, simidx, space, field, spin=2):
         """returns an priensed simulation field (temp,pol) in space (map, alm) and as spin (0,2). Note, spin is only applicable for pol, and returns QU for spin=2, and EB for spin=0.
 
         Args:
@@ -320,7 +303,7 @@ class Xpri:
             assert 0, "I don't think you want qlms ulms."
         if field == 'temperature' and spin == 2:
             assert 0, "I don't think you want spin-2 temperature."
-        fn = f'primordial_space{space}_spin{spin}_field{field}_{simidx}'
+        fn = f"primordial_space{space}_spin{spin}_field{field}_{simidx}"
         if not self.cacher.is_cached(fn):
             if self.CMB_info['libdir'] == DNaV:
                 Cls = self.cls_lib.get_clCMBpri(simidx)
@@ -338,11 +321,11 @@ class Xpri:
             else:
                 if field  == 'polarization':
                     if self.CMB_info['spin'] == 2:
-                        pri1 = load_file(opj(self.CMB_info['libdir'], self.CMB_info['fns']['Q'].format(simidx)))
-                        pri2 = load_file(opj(self.CMB_info['libdir'], self.CMB_info['fns']['U'].format(simidx)))
+                        pri1 = load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['Q'].format(simidx)))
+                        pri2 = load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['U'].format(simidx)))
                     elif self.CMB_info['spin'] == 0:
-                        pri1 = load_file(opj(self.CMB_info['libdir'], self.CMB_info['fns']['E'].format(simidx)))
-                        pri2 = load_file(opj(self.CMB_info['libdir'], self.CMB_info['fns']['B'].format(simidx)))
+                        pri1 = load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['E'].format(simidx)))
+                        pri2 = load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['B'].format(simidx)))
                     pri =  np.array([pri1, pri2])
                     if self.CMB_info['space'] == 'map':
                         if space == 'alm':
@@ -370,7 +353,7 @@ class Xpri:
                             elif spin == 2:
                                 pri = self.geom_lib.alm2map_spin(pri, spin=spin, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                 elif field == 'temperature':
-                    pri = np.array(load_file(opj(self.CMB_info['libdir'], self.CMB_info['fns']['T'].format(simidx))))
+                    pri = np.array(load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['T'].format(simidx))))
                     if self.CMB_info['space'] == 'map':
                         if space == 'alm':
                             pri = self.geom_lib.map2alm(pri, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
@@ -381,7 +364,7 @@ class Xpri:
         return self.cacher.load(fn)
     
 
-    def get_sim_secondary(self, simidx, space, secondary, component=None):
+    def get_sim_sec(self, simidx, space, secondary=None, component=None):
         """ returns a secondary (phi, bf) in space (map, alm) and as component (grad, curl, if applicable). If secondary or component is None, it returns all, respectively.
         Args:
             simidx (_type_): _description_
@@ -392,15 +375,15 @@ class Xpri:
         """    
 
         if secondary is None:
-                return [self.get_sim_secondary(simidx, space, key, component=None) for key in self.sec_info.keys()]
+                return [self.get_sim_sec(simidx, space, key, component=None) for key in self.sec_info.keys()]
         if component is None:
-                return [self.get_sim_secondary(simidx, space, secondary, component=comp) for comp in self.sec_info[secondary]['components']]
+                return np.array([self.get_sim_sec(simidx, space, secondary, component=comp) for comp in self.sec_info[secondary]['components']])
         
-        fn = f'{secondary}{component}_space{space}_{simidx}'
+        fn = f"{secondary}{component}_space{space}_{simidx}"
         if not self.cacher.is_cached(fn):
             if self.sec_info[secondary]['libdir'] == DNaV:
                 log.debug(f'generating {secondary}{component} from cl')
-                Clpf = self.cls_lib.get_clsec(simidx, secondary, component)
+                Clpf = self.cls_lib.get_clsec(simidx, secondary, component).squeeze()
                 self.sec_info[secondary]['scale'] = self.cls_lib.sec_info[secondary]['scale']
                 Clp = self.clsecsf2clsecp(secondary, Clpf)
                 sec = self.clp2seclm(secondary, Clp, simidx)
@@ -411,9 +394,9 @@ class Xpri:
             else:
                 ## Existing sec is loaded, this e.g. is a kappa map on disk
                 if self.sec_info[secondary]['space'] == 'map':
-                    sec = np.array(load_file(opj(self.sec_info[secondary]['libdir'], self.sec_info[secondary]['fns'][component].format(simidx))), dtype=float)
+                    sec = np.array(load_file_wsec(opj(self.sec_info[secondary]['libdir'], self.sec_info[secondary]['fns'][component].format(simidx))), dtype=float)
                 else:
-                    sec = np.array(load_file(opj(self.sec_info[secondary]['libdir'], self.sec_info[secondary]['fns'][component].format(simidx))), dtype=complex)
+                    sec = np.array(load_file_wsec(opj(self.sec_info[secondary]['libdir'], self.sec_info[secondary]['fns'][component].format(simidx))), dtype=complex)
                 if self.sec_info[secondary]['space'] == 'map':
                     self.geominfo_sec = ('healpix', {'nside':hp.npix2nside(sec.shape[0])})
                     self.geomlib_sec = get_geom(self.geominfo_sec)
@@ -429,22 +412,24 @@ class Xpri:
 
     def pflm2plm(self, secondary, seclm):
         # NOTE naming convention is sec, but it can be grad or curl
-        if self.sec_info[secondary]['scale'] == 'convergence':
+        if self.sec_info[secondary]['scale'] == 'c':
             return klm2plm(seclm, self.sec_info[secondary]['lm_max'][0])
-        elif self.sec_info[secondary]['scale'] == 'deflection':
+        elif self.sec_info[secondary]['scale'] == 'd':
             return dlm2plm(seclm, self.sec_info[secondary]['lm_max'][0])
-        elif self.sec_info[secondary]['scale'] == 'potential':
+        elif self.sec_info[secondary]['scale'] == 'p':
             return seclm
 
 
     def clsecsf2clsecp(self, secondary, cl):
         # NOTE naming convention is sec, but it can be grad or curl
-        if self.sec_info[secondary]['scale'] == 'convergence':
+        if self.sec_info[secondary]['scale'] == 'c':
             return clk2clp(cl, self.sec_info[secondary]['lm_max'][0])
-        elif self.sec_info[secondary]['scale'] == 'deflection':
+        elif self.sec_info[secondary]['scale'] == 'd':
             return cld2clp(cl, self.sec_info[secondary]['lm_max'][0])
-        elif self.sec_info[secondary]['scale'] == 'potential':
+        elif self.sec_info[secondary]['scale'] == 'p':
             return cl
+        else:
+            assert 0, f"scale not recognized: {self.sec_info[secondary]['scale']}"
 
 
     def cl2alm(self, cls, field, seed):
@@ -466,7 +451,7 @@ class Xpri:
 class Xsky:
     """class for generating lensed CMB and phi realizations from priensed realizations, using lenspyx for the lensing operation
     """    
-    def __init__(self, pri_lib=DNaV, geominfo=DNaV, CMB_info=DNaV, sec_info=DNaV, operators=DNaV):
+    def __init__(self, pri_lib=DNaV, geominfo=DNaV, CMB_info=DNaV, sec_info=DNaV, operator_info=DNaV):
         self.geominfo = geominfo
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
@@ -478,21 +463,22 @@ class Xsky:
             else:
                 assert 0, 'need to provide pri_lib'
         else:
-            for key, val in CMB_info.items():
-                if val == DNaV:
-                    assert 0, 'need to provide {}'.format(key)
+            check_dict(CMB_info)
         self.CMB_info = CMB_info
 
         self.sec_info = sec_info
-
-        # if lenjob_geominfo == DNaV:
-        #     self.lenjob_geominfo = ('thingauss', {'lmax':lmax+1024, 'smax':3})
-        # else:
-        #     self.lenjob_geominfo = lenjob_geominfo
-        # self.lenjob_geomlib = lp_get_geom(self.lenjob_geominfo)
-        self.operators = operators
-
+        self.operator_info = operator_info
+        print('opinfo', operator_info)
+        self.operators = [self.get_operator(key, op) for key, op in operator_info.items()]
+        print(self.operators)
         self.cacher = cachers.cacher_mem(safe=True)
+
+
+    def get_operator(self, opk, opv):
+        if opk == 'birefringence':
+            return operator_secondary.birefringence(opv)
+        elif opk == 'lensing':
+            return operator_secondary.lensing(opv)
 
 
     def get_sim_sky(self, simidx, space, field, spin=2):
@@ -513,25 +499,25 @@ class Xsky:
             assert 0, "I don't think you want spin-2 temperature."
         
         # NOTE Logic as follows: there is a cacher and a disk. If something is already in cache, no need to load it from disk. If spin X is requested but spin Y is stored, reuse, just convert. If none of it, generate
-        fn = f'sky_space{space}_spin{spin}_field{field}_{simidx}'
-        log.debug('requesting "{}"'.format(fn))
+        fn = f"sky_space{space}_spin{spin}_field{field}_{simidx}"
+        log.debug(f"requesting{fn}")
+        self.lenjob_geomlib = self.operators[0].geomlib
         if not self.cacher.is_cached(fn):
-            fn_other = f'sky_space{space}_spin{self.CMB_info['spin']}_field{field}_{simidx}'
+            fn_other = f"sky_space{space}_spin{self.CMB_info['spin']}_field{field}_{simidx}"
             if not self.cacher.is_cached(fn_other):
                 log.debug('..nothing cached..')
                 if self.CMB_info['libdir'] == DNaV:
                     log.debug('.., generating.')
                     pri = self.pri_lib.get_sim_pri(simidx, space='alm', field=field, spin=0)
-                    philm = self.pri_lib.get_sim_phi(simidx, space='alm')
-                    curllm = self.pri_lib.get_sim_curl(simidx, space='alm')
-                    plms = [philm, curllm]
+                    plms = self.pri_lib.get_sim_sec(simidx, space='alm', secondary='phi')
                     if field == 'polarization':
                         # TODO act operators
                         # for operator in self.operators:
                         #     pri = operator(pri)
-                        sky = self.pri2len(pri, plms, spin=2)
-                        bflm = self.pri_lib.get_sim_bf(simidx, space='map')
-                        sky = self.pri2bf(pri, bflm, spin=2, epsilon=self.epsilon)
+                        # sky = self.pri2len(pri, plms, spin=2)
+                        sky = self.lenjob_geomlib.alm2map_spin(np.copy(pri), spin=2, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                        # bflm = self.pri_lib.get_sim_bf(simidx, space='map')
+                        # sky = self.pri2bf(pri, bflm, spin=2, epsilon=self.epsilon)
 
                         if space == 'map':
                             if spin == 0:
@@ -545,7 +531,9 @@ class Xsky:
                         elif space == 'alm':
                             sky = self.lenjob_geomlib.map2alm_spin(sky, lmax=self.CMB_info['lm_max'][0], spin=2, mmax=self.CMB_info['lm_max'][1], nthreads=4)
                     elif field == 'temperature':
-                        sky = self.pri2len(pri, plms, spin=0, epsilon=self.epsilon)
+                        # TODO act operators
+                        # sky = self.pri2len(pri, plms, spin=0, epsilon=self.epsilon)
+                        sky = self.geom_lib.alm2map(np.copy(pri), lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                         if space == 'map':
                             sky = self.lenjob_geomlib.map2alm(np.copy(sky), lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                             sky = self.geom_lib.alm2map(np.copy(sky), lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
@@ -555,13 +543,13 @@ class Xsky:
                     log.debug('.., but stored on disk.')
                     if field == 'polarization':
                         if self.CMB_info['spin'] == 2:
-                            sky1 = load_file(opj(self.CMB_info['libdir'], self.fns['Q'].format(simidx)))
-                            sky2 = load_file(opj(self.CMB_info['libdir'], self.fns['U'].format(simidx)))
+                            sky1 = load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['Q'].format(simidx)))
+                            sky2 = load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['U'].format(simidx)))
                         elif self.CMB_info['spin'] == 0:
-                            sky1 = load_file(opj(self.CMB_info['libdir'], self.fns['E'].format(simidx)))
-                            sky2 = load_file(opj(self.CMB_info['libdir'], self.fns['B'].format(simidx)))
+                            sky1 = load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['E'].format(simidx)))
+                            sky2 = load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['B'].format(simidx)))
                         sky = np.array([sky1, sky2])
-                        if self.space == 'map':
+                        if self.CMB_info['space'] == 'map':
                             if space == 'alm':
                                 if self.CMB_info['spin'] == 0:
                                     sky1 = self.geom_lib.map2alm(sky[0], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
@@ -580,7 +568,7 @@ class Xsky:
                                         sky1 = self.geom_lib.alm2map(alm_buffer[0], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                                         sky2 = self.geom_lib.alm2map(alm_buffer[1], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                                         sky = np.array([sky1, sky2])
-                        elif self.space == 'alm':
+                        elif self.CMB_info['space'] == 'alm':
                             if space == 'map':
                                 if spin == 0:
                                     sky1 = self.geom_lib.alm2map(sky[0], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
@@ -589,11 +577,11 @@ class Xsky:
                                 else:
                                     sky = self.geom_lib.alm2map_spin(sky, spin=spin, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                     elif field == 'temperature':
-                        sky = np.array(load_file(opj(self.CMB_info['libdir'], self.fns['T'].format(simidx))))
-                        if self.space == 'map':
+                        sky = np.array(load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['T'].format(simidx))))
+                        if self.CMB_info['space'] == 'map':
                             if space == 'alm':
                                 sky = self.geom_lib.map2alm(sky, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
-                        elif self.space == 'alm':
+                        elif self.CMB_info['space'] == 'alm':
                             if space == 'map':
                                 sky = self.geom_lib.alm2map(sky, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
             else:
@@ -606,10 +594,6 @@ class Xsky:
     
 
     def pri2len(self, Xlm, plms, **kwargs):
-        # if phi_lmax == DNaV:
-        #     self.phi_lmax = lmax + 1024
-        # if curl_lmax == DNaV:
-        #     self.curl_lmax = lmax + 1024  
         ll = np.arange(0,self.pri_lib.phi_lmax+1,1)
         if len(plms) == 2:
             plm, olm = plms
@@ -645,7 +629,7 @@ class Xobs:
         
         self.maps = maps
         if np.all(self.maps != DNaV):
-            fn = f'obs_space{CMB_info['space']}_spin{CMB_info['spin']}_field{CMB_info['field']}_0'
+            fn = f"obs_space{CMB_info['space']}_spin{CMB_info['spin']}_field{CMB_info['field']}_0"
             self.cacher.cache(fn, np.array(self.maps))
         else:
             if CMB_info['libdir'] == DNaV:
@@ -656,9 +640,7 @@ class Xobs:
                 if np.all(obs_info['transfunction'] == DNaV):
                     assert 0, 'need to give transfunction'     
             else:
-                for key, val in CMB_info.items():
-                    if val == DNaV:
-                        assert 0, 'need to provide {}'.format(key)
+                check_dict(CMB_info)
 
         self.fullsky = True #FIXME make it dependent on userdata: if Xobs is set via simhandler, then check if user data is full sky or not.
         self.cacher = cachers.cacher_mem(safe=True)
@@ -681,25 +663,25 @@ class Xobs:
         if field == 'temperature' and spin == 2:
             assert 0, "I don't think you want spin-2 temperature."
         if not self.fullsky:
-            assert self.spin == spin, "can only provide existing data"
-            assert self.space == space, "can only provide existing data"
+            assert self.CMB_info['spin'] == spin, "can only provide existing data"
+            assert self.CMB_info['space'] == space, "can only provide existing data"
         fn = 'obs_space{space}_spin{spin}_field{field}_{simidx}'
         log.debug(f'requesting "{fn}"')
-        fn_otherspin = f'obs_space{space}_spin{self.spin}_field{field}_{simidx}'
+        fn_otherspin = f"obs_space{space}_spin{self.CMB_info['spin']}_field{field}_{simidx}"
         fn_otherspace = ''
         fn_otherspacespin = ''
-        if self.space == 'alm':
-            fn_otherspace = f'obs_spacealm_spin0_field{field}_{simidx}'
-        elif self.space == 'map':
-            fn_otherspace = f'obs_spacemap_spin{spin}_field{field}_{simidx}'
-        if self.space == f'alm':
-            fn_otherspacespin = f'obs_spacealm_spin0_field{field}_{simidx}'
-        elif self.space == 'map':
-            fn_otherspacespin = f'obs_spacemap_spin{self.spin}_field{field}_{simidx}'
+        if self.CMB_info['space'] == 'alm':
+            fn_otherspace = f"obs_spacealm_spin0_field{field}_{simidx}"
+        elif self.CMB_info['space'] == 'map':
+            fn_otherspace = f"obs_spacemap_spin{spin}_field{field}_{simidx}"
+        if self.CMB_info['space'] == "alm":
+            fn_otherspacespin = f"obs_spacealm_spin0_field{field}_{simidx}"
+        elif self.CMB_info['space'] == 'map':
+            fn_otherspacespin = f"obs_spacemap_spin{self.CMB_info['spin']}_field{field}_{simidx}"
 
         if not self.cacher.is_cached(fn) and not self.cacher.is_cached(fn_otherspin) and not self.cacher.is_cached(fn_otherspacespin) and not self.cacher.is_cached(fn_otherspace):
             log.debug('..nothing cached..')
-            if self.libdir == DNaV: # sky data comes from sky_lib, and we add noise
+            if self.CMB_info['libdir'] == DNaV: # sky data comes from sky_lib, and we add noise
                 log.debug('.., generating.')
                 obs = self.sky2obs(
                     np.copy(self.sky_lib.get_sim_sky(simidx, spin=spin, space=space, field=field)),
@@ -707,64 +689,64 @@ class Xobs:
                     spin=spin,
                     space=space,
                     field=field)
-            elif self.libdir != DNaV:  # observed data is somewhere
+            elif self.CMB_info['libdir'] != DNaV:  # observed data is somewhere
                 log.debug('.., but stored on disk.')
                 if field == 'polarization':
-                    if self.spin == 2:
-                        if self.fns['Q'] == self.fns['U'] and self.fns['Q'].endswith('.fits'):
+                    if self.CMB_info['spin'] == 2:
+                        if self.CMB_info['fns']['Q'] == self.CMB_info['fns']['U'] and self.CMB_info['fns']['Q'].endswith('.fits'):
                             # Assume implicitly that Q is field=1, U is field=2
-                            obs1 = load_file(opj(self.libdir, self.fns['Q'].format(simidx)), ifield=1)
-                            obs2 = load_file(opj(self.libdir, self.fns['U'].format(simidx)), ifield=2)
+                            obs1 = load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['Q'].format(simidx)), ifield=1)
+                            obs2 = load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['U'].format(simidx)), ifield=2)
                         else:
-                            obs1 = load_file(opj(self.libdir, self.fns['Q'].format(simidx)))
-                            obs2 = load_file(opj(self.libdir, self.fns['U'].format(simidx)))
-                    elif self.spin == 0:
-                        if self.fns['E'] == self.fns['B'] and self.fns['B'].endswith('.fits'):
+                            obs1 = load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['Q'].format(simidx)))
+                            obs2 = load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['U'].format(simidx)))
+                    elif self.CMB_info['spin'] == 0:
+                        if self.CMB_info['fns']['E'] == self.CMB_info['fns']['B'] and self.CMB_info['fns']['B'].endswith('.fits'):
                             # Assume implicitly that E is field=1, B is field=2
-                            obs1 = load_file(opj(self.libdir, self.fns['E'].format(simidx)), ifield=1)
-                            obs2 = load_file(opj(self.libdir, self.fns['B'].format(simidx)), ifield=2)
+                            obs1 = load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['E'].format(simidx)), ifield=1)
+                            obs2 = load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['B'].format(simidx)), ifield=2)
                         else:
-                            obs1 = load_file(opj(self.libdir, self.fns['E'].format(simidx)))
-                            obs2 = load_file(opj(self.libdir, self.fns['B'].format(simidx)))
-                    obs1 = self.CMB_modifier(obs1)
-                    obs2 = self.CMB_modifier(obs2)                
+                            obs1 = load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['E'].format(simidx)))
+                            obs2 = load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['B'].format(simidx)))
+                    obs1 = self.CMB_info['CMB_modifier'](obs1)
+                    obs2 = self.CMB_info['CMB_modifier'](obs2)                
                     obs = np.array([obs1, obs2])
-                    if self.space == 'map':
+                    if self.CMB_info['space'] == 'map':
                         if space == 'map':
-                            if self.spin != spin:
-                                if self.spin == 0:
-                                    alm_buffer1 = self.geom_lib.map2alm(obs[0], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
-                                    alm_buffer2 = self.geom_lib.map2alm(obs[1], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
-                                    obs = self.geom_lib.alm2map_spin([alm_buffer1,alm_buffer2], lmax=self.lm_max[0], spin=spin, mmax=self.lm_max[1], nthreads=4)
-                                elif self.spin == 2:
-                                    alm_buffer = self.geom_lib.map2alm_spin(obs, spin=self.spin, lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
-                                    obs1 = self.geom_lib.alm2map(alm_buffer[0], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
-                                    obs2 = self.geom_lib.alm2map(alm_buffer[1], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
+                            if self.CMB_info['spin'] != spin:
+                                if self.CMB_info['spin'] == 0:
+                                    alm_buffer1 = self.geom_lib.map2alm(obs[0], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                                    alm_buffer2 = self.geom_lib.map2alm(obs[1], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                                    obs = self.geom_lib.alm2map_spin([alm_buffer1,alm_buffer2], lmax=self.CMB_info['lm_max'][0], spin=spin, mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                                elif self.CMB_info['spin'] == 2:
+                                    alm_buffer = self.geom_lib.map2alm_spin(obs, spin=self.CMB_info['spin'], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                                    obs1 = self.geom_lib.alm2map(alm_buffer[0], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                                    obs2 = self.geom_lib.alm2map(alm_buffer[1], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                                     obs = np.array([obs1, obs2])
                         elif space == 'alm':
-                            if self.spin == 0:
-                                obs1 = self.geom_lib.map2alm(obs[0], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
-                                obs2 = self.geom_lib.map2alm(obs[1], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
+                            if self.CMB_info['spin'] == 0:
+                                obs1 = self.geom_lib.map2alm(obs[0], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                                obs2 = self.geom_lib.map2alm(obs[1], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                                 obs = np.array([obs1, obs2])
                             else:
-                                obs = self.geom_lib.map2alm_spin(obs, spin=self.spin, lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
-                    elif self.space == 'alm':
+                                obs = self.geom_lib.map2alm_spin(obs, spin=self.CMB_info['spin'], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                    elif self.CMB_info['space'] == 'alm':
                         if space == 'map':
                             if spin == 0:
-                                obs1 = self.geom_lib.alm2map(obs[0], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
-                                obs2 = self.geom_lib.alm2map(obs[1], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
+                                obs1 = self.geom_lib.alm2map(obs[0], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                                obs2 = self.geom_lib.alm2map(obs[1], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                                 obs = np.array([obs1, obs2])
                             else:
-                                obs = self.geom_lib.alm2map_spin(obs, lmax=self.lm_max[0], spin=spin, mmax=self.lm_max[1], nthreads=4)
+                                obs = self.geom_lib.alm2map_spin(obs, lmax=self.CMB_info['lm_max'][0], spin=spin, mmax=self.CMB_info['lm_max'][1], nthreads=4)
                 elif field == 'temperature':
-                    obs = np.array(load_file(opj(self.libdir, self.fns['T'].format(simidx))))
-                    obs = self.CMB_modifier(obs)
-                    if self.space == 'map':
+                    obs = np.array(load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['T'].format(simidx))))
+                    obs = self.CMB_info['CMB_modifier'](obs)
+                    if self.CMB_info['space'] == 'map':
                         if space == 'alm':
-                            obs = self.geom_lib.map2alm(obs, lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
-                    elif self.space == 'alm':
+                            obs = self.geom_lib.map2alm(obs, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                    elif self.CMB_info['space'] == 'alm':
                         if space == 'map':
-                            obs = self.geom_lib.alm2map(obs, lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
+                            obs = self.geom_lib.alm2map(obs, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                 self.cacher.cache(fn, obs)
             self.cacher.cache(fn, obs)
         elif self.cacher.is_cached(fn):
@@ -774,48 +756,48 @@ class Xobs:
             log.debug('found "{}"'.format(fn_otherspin))
             obs = np.array(self.cacher.load(fn_otherspin))
             if space == 'map':
-                if self.spin == 2:
-                    obs1 = self.geom_lib.map2alm(obs[0], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
-                    obs2 = self.geom_lib.map2alm(obs[1], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
+                if self.CMB_info['spin'] == 2:
+                    obs1 = self.geom_lib.map2alm(obs[0], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                    obs2 = self.geom_lib.map2alm(obs[1], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                     obs = np.array([obs1, obs2])
-                    obs = self.geom_lib.alm2map_spin(obs, lmax=self.lm_max[0], spin=self.spin, mmax=self.lm_max[1], nthreads=4)
+                    obs = self.geom_lib.alm2map_spin(obs, lmax=self.CMB_info['lm_max'][0], spin=self.CMB_info['spin'], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                 else:
-                    obs = self.geom_lib.map2alm_spin(obs, spin=self.spin, lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
-                    obs1 = self.geom_lib.alm2map(obs[0], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
-                    obs2 = self.geom_lib.alm2map(obs[1], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
+                    obs = self.geom_lib.map2alm_spin(obs, spin=self.CMB_info['spin'], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                    obs1 = self.geom_lib.alm2map(obs[0], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                    obs2 = self.geom_lib.alm2map(obs[1], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                     obs = np.array([obs1, obs2])
             self.cacher.cache(fn, obs)
         elif self.cacher.is_cached(fn_otherspace):
             log.debug('found "{}"'.format(fn_otherspace))
             obs = np.array(self.cacher.load(fn_otherspace))
             if field == 'polarization':
-                if self.space == 'alm':
+                if self.CMB_info['space'] == 'alm':
                     if spin == 0:
-                        obs1 = self.geom_lib.alm2map(obs[0], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
-                        obs2 = self.geom_lib.alm2map(obs[1], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
+                        obs1 = self.geom_lib.alm2map(obs[0], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                        obs2 = self.geom_lib.alm2map(obs[1], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                         obs = np.array([obs1, obs2])
                     elif spin == 2:
-                        obs = self.geom_lib.alm2map_spin(obs, lmax=self.lm_max[0], spin=spin, mmax=self.lm_max[1], nthreads=4)
-                elif self.space == 'map':
-                    if self.spin == 0:
-                        alm_buffer1 = self.geom_lib.map2alm(obs[0], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
-                        alm_buffer2 = self.geom_lib.map2alm(obs[1], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
+                        obs = self.geom_lib.alm2map_spin(obs, lmax=self.CMB_info['lm_max'][0], spin=spin, mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                elif self.CMB_info['space'] == 'map':
+                    if self.CMB_info['spin'] == 0:
+                        alm_buffer1 = self.geom_lib.map2alm(obs[0], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                        alm_buffer2 = self.geom_lib.map2alm(obs[1], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                         obs = np.array([alm_buffer1, alm_buffer2])
-                    elif self.spin == 2:
-                        obs = self.geom_lib.map2alm_spin(obs, spin=self.spin, lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
+                    elif self.CMB_info['spin'] == 2:
+                        obs = self.geom_lib.map2alm_spin(obs, spin=self.CMB_info['spin'], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
             elif field == 'temperature':
-                if self.space == 'alm': 
-                    obs = self.geom_lib.alm2map(obs, lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
-                elif self.space == 'map':
-                    obs = self.geom_lib.map2alm(obs, lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
+                if self.CMB_info['space'] == 'alm': 
+                    obs = self.geom_lib.alm2map(obs, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                elif self.CMB_info['space'] == 'map':
+                    obs = self.geom_lib.map2alm(obs, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
             self.cacher.cache(fn, obs)
         elif self.cacher.is_cached(fn_otherspacespin):
             log.debug('found "{}"'.format(fn_otherspacespin))
             obs = np.array(self.cacher.load(fn_otherspacespin))
-            if self.space == 'alm':
-                obs = self.geom_lib.alm2map_spin(obs, lmax=self.lm_max[0], spin=spin, mmax=self.lm_max[1], nthreads=4)
-            elif self.space == 'map':
-                obs = self.geom_lib.map2alm_spin(obs, spin=self.spin, lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
+            if self.CMB_info['space'] == 'alm':
+                obs = self.geom_lib.alm2map_spin(obs, lmax=self.CMB_info['lm_max'][0], spin=spin, mmax=self.CMB_info['lm_max'][1], nthreads=4)
+            elif self.CMB_info['space'] == 'map':
+                obs = self.geom_lib.map2alm_spin(obs, spin=self.CMB_info['spin'], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
             self.cacher.cache(fn, obs)
         return self.cacher.load(fn)
     
@@ -824,29 +806,29 @@ class Xobs:
         if field == 'polarization':
             if space == 'map':
                 if spin == 0:
-                    sky1 = self.geom_lib.map2alm(sky[0], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
-                    sky2 = self.geom_lib.map2alm(sky[1], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
+                    sky1 = self.geom_lib.map2alm(sky[0], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                    sky2 = self.geom_lib.map2alm(sky[1], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                     sky = np.array([sky1, sky2])
                 elif spin == 2:
-                    sky = self.geom_lib.map2alm_spin(sky, spin=spin, lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
-            hp.almxfl(sky[0], self.transfunction, inplace=True)
-            hp.almxfl(sky[1], self.transfunction, inplace=True)
+                    sky = self.geom_lib.map2alm_spin(sky, spin=spin, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+            hp.almxfl(sky[0], self.obs_info['transfunction'], inplace=True)
+            hp.almxfl(sky[1], self.obs_info['transfunction'], inplace=True)
             if space == 'map':
                 if spin == 0:
-                    sky1 = self.geom_lib.alm2map(sky[0], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
-                    sky2 = self.geom_lib.alm2map(sky[1], lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
+                    sky1 = self.geom_lib.alm2map(sky[0], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                    sky2 = self.geom_lib.alm2map(sky[1], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                     sky = np.array([sky1, sky2])
                 elif spin == 2:
-                    sky = np.array(self.geom_lib.alm2map_spin(sky, spin=spin, lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4))
+                    sky = np.array(self.geom_lib.alm2map_spin(sky, spin=spin, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4))
                 return sky + noise
             else:
                 return sky + noise
         elif field == 'temperature':
             if space == 'map':
-                sky = self.geom_lib.map2alm(sky, lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
-            hp.almxfl(sky, self.transfunction, inplace=True)
+                sky = self.geom_lib.map2alm(sky, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+            hp.almxfl(sky, self.obs_info['transfunction'], inplace=True)
             if space == 'map':
-                return np.array(self.geom_lib.alm2map(sky, lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)) + noise
+                return np.array(self.geom_lib.alm2map(sky, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)) + noise
             else:
                 return sky + noise
 
@@ -855,95 +837,23 @@ class Xobs:
         return self.noise_lib.get_sim_noise(simidx, spin=spin, space=space, field=field)
   
 
-    simulationdata = DLENSALOT_Simulation(
-        flavour = 'unl',
-        maps = DNaV,
-        CMB_info = {
-            'libdir': DNaV,
-            'space': 'cl',
-            'spin': 0,
-            'lm_max': [4096,4096],
-            'fns': DNaV,
-        },
-        sec_info = {
-            'phi':{
-                'libdir': libdir_phi,
-                'fn': fnsP,
-                'components': ['pp', 'ww'],
-                'space':'alm',
-                'scale':'p',
-                'modifier': phi_modifier,
-                'lm_max': phi_lm_max,
-            },
-            'bf':{
-                'libdir': libdir_bf,
-                'fn': fnsBF,
-                'components': ['ff'],
-                'space':'alm',
-                'scale':'p',
-                'modifier': bf_modifier,
-                'lm_max': bf_lm_max,
-            },
-        },
-        obs_info = {
-            'noise_info': {
-                'libdir': libdir_noise,
-                'fns': fnsnoise,
-                'nlev': nlev,
-                'space': space,
-                'geominfo': self.geominfo,
-                'libdir_suffix': libdir_suffix
-            },
-            'transfunction': transfunction,
-        },
-    ),
-
 class Simhandler:
     """Entry point for data handling and generating simulations. Data can be cl, pri, len, or obs, .. and alms or maps. Simhandler connects the individual libraries and decides what can be generated. E.g.: If obs data provided, len data cannot be generated. This structure makes sure we don't "hallucinate" data
-
-    """
-    # def __init__(self, flavour, space, geominfo=DNaV, maps=DNaV, field=DNaV, cls_lib=DNaV, pri_lib=DNaV, sky_lib=DNaV, obs_lib=DNaV, noise_lib=DNaV, libdir=DNaV, libdir_noise=DNaV, libdir_phi=DNaV, fns=DNaV,
-    #              fnsnoise=DNaV, fnsP=DNaV, fnsC=DNaV, fnsBF=DNaV,  lmax=DNaV, transfunction=DNaV, nlev=DNaV, spin=0, CMB_fn=DNaV, phi_fn=DNaV, bf_fn=DNaV, phi_field=DNaV, bf_field=DNaV, phi_space=DNaV, bf_space=DNaV,
-    #              bf_lmax=DNaV, epsilon=1e-7, phi_lmax=DNaV, libdir_suffix=DNaV, lenjob_geominfo=DNaV, cacher=cachers.cacher_mem(safe=True), CMB_modifier=DNaV, phi_modifier=DNaV, bf_modifier=DNaV, fields=DNaV,
-    #              curl_field=DNaV, curl_space=DNaV, curl_lmax=DNaV, fnsB=DNaV, libdir_bf=DNaV):
-        
-    def __init__(self, flavour, maps=DNaV, geominfo=DNaV, CMB_info=DNaV, sec_info=DNaV, obs_info=DNaV, operators=DNaV):
+    """ 
+    def __init__(self, flavour, maps=DNaV, geominfo=DNaV, CMB_info=DNaV, sec_info=DNaV, obs_info=DNaV, operator_info=DNaV):
         """Entry point for simulation data handling.
         Simhandler() connects the individual librariers together accordingly, depending on the provided data.
         It never stores data on disk itself, only in memory.
         It never 'hallucinates' data, i.e. if obs data provided, it will not generate len data. 
 
         Args:
-            flavour      (str): Can be in ['obs', 'sky', 'pri'] and defines the type of data provided.
-            space        (str): Can be in ['map', 'alm', 'cl'] and defines the space of the data provided.
-            maps         (np.array, optional): These maps will be put into the cacher directly. They are used for settings in which no data is generated or accesed on disk, but directly provided (like in `delensalot.anafast()`) Defaults to DNaV.
-            geominfo     (tuple, optional): Lenspyx geominfo descriptor, describes the geominfo of the data provided (e.g. `('healpix', 'nside': 2048)). Defaults to DNaV.
-            field        (str, optional): the type of data provided, can be in ['temperature', 'polarization']. Defaults to DNaV.
-            libdir       (str, optional): directory of the data provided. Defaults to DNaV.
-            libdir_noise (str, optional): directory of the noise provided. Defaults to DNaV.
-            libdir_phi   (str, optional): directory of the lensing potential provided. Defaults to DNaV.
-            fns          (dict with str with formatter, optional): file names of the data provided. It expects `{'T': <filename{simidx}.something>, 'Q': <filename{simidx}.something>, 'U': <filename{simidx}.something>}`, where `{simidx}` is used by the libraries to format the simulation index into the name. Defaults to DNaV.
-            fnsnoise     (dict with str with formatter, optional): file names of the noise provided. It expects `{'T': <filename{simidx}.something>, 'Q': <filename{simidx}.something>, 'U': <filename{simidx}.something>}`, where `{simidx}` is used by the libraries to format the simulation index into the name. Defaults to DNaV.
-            fnsP         (str with formatter, optional): file names of the lensing potential provided. It expects `<filename{simidx}.something>, where `{simidx}` is used by the libraries to format the simulation index into the name. Defaults to DNaV.
-            fnsBF         (str with formatter, optional): file names of the lensing potential provided. It expects `<filename{simidx}.something>, where `{simidx}` is used by the libraries to format the simulation index into the name. Defaults to DNaV.
-            lmax         (int, optional): Maximum l of the data provided. Defaults to DNaV.
-            transfunction(np.array, optional): transfer function. Defaults to DNaV.
-            nlev         (dict, optional): noise level of the individual fields. It expects `{'T': <value>, 'P': <value>}. Defaults to DNaV.
-            spin         (int, optional): the spin of the data provided. Defaults to 0. Always defaults to 0 for temperature.
-            CMB_fn       (str, optional): path+name of the file of the power spectra of the CMB. Defaults to DNaV.
-            phi_fn       (str, optional): path+name of the file of the power spectrum of the lensing potential. Defaults to DNaV.
-            phi_field    (str, optional): the type of potential provided, can be in ['potential', 'deflection', 'convergence']. This simulation library will automatically rescale the field, if needded. Defaults to DNaV.
-            phi_space    (str, optional): can be in ['map', 'alm', 'cl'] and defines the space of the lensing potential provided.. Defaults to DNaV.
-            phi_lmax     (_type_, optional): the maximum multipole of the lensing potential. if simulation library perfroms lensing, it is advisable that `phi_lmax` is somewhat larger than `lmax` (+ ~512-1024). Defaults to DNaV.
-            bf_lmax      (np.array, optional): beam function. Defaults to DNaV.
-            bf_space      (np.array, optional): beam function. Defaults to DNaV.
-            bf_field      (np.array, optional): beam function. Defaults to DNaV.
-            bf_fn      (np.array, optional): beam function. Defaults to DNaV.
-            epsilon      (float, optional): Lenspyx lensing accuracy. Defaults to 1e-7.
-            CMB_modifier (callable, optional): operation defined in the callable will be applied to each of the input maps/alms/cls
-            phi_modifier (callable, optional): operation defined in the callable will be applied to the input phi lms
-            bf_modifier  (callable, optional): operation defined in the callable will be applied to the input beam function lms
-
+            flavour (str): 'obs', 'sky', 'pri'
+            maps (np.ndarray): CMB data in map space
+            geominfo (tuple): geometry information
+            CMB_info (dict): CMB information
+            sec_info (dict): secondary CMB information
+            obs_info (dict): observation information
+            operator_info (dict): operator_info for secondaries
         """
         if CMB_info['space'] == 'alm':
             assert CMB_info['spin'] == 0, "spin has to be 0 for alm space"
@@ -951,9 +861,7 @@ class Simhandler:
         if flavour == 'obs':
             assert CMB_info['space'] in ['map','alm'], "obs CMB data can only be in map or alm space"
             if np.all(maps == DNaV):
-                for key, val in CMB_info.items():
-                    if val == DNaV:
-                        assert 0, 'need to provide {}'.format(key)
+                check_dict(CMB_info)
             else:
                 for key in ['spin', 'lm_max', 'field']:
                     if CMB_info[key] == DNaV:
@@ -967,31 +875,33 @@ class Simhandler:
         else:
             if flavour == 'sky':
                 assert CMB_info['space'] in ['map','alm'], "sky CMB data can only be in map or alm space"
-                assert all(contains_DNaV(obs_info, DNaV)), "need to provide complete obs_info"
+                assert not (contains_DNaV(obs_info)), "need to provide complete obs_info"
 
-                self.sky_lib = Xsky(pri_lib=DNaV, geominfo=geominfo, CMB_info=CMB_info, sec_info=sec_info, operators=operators)
+                self.sky_lib = Xsky(pri_lib=DNaV, geominfo=geominfo, CMB_info=CMB_info, sec_info=sec_info, operator_info=operator_info)
                 
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = self.sky_lib.CMB_info['libdir']
                 self.fns = self.sky_lib.CMB_info['fns']
             elif flavour == 'pri':
-                assert all(contains_DNaV(sec_info, DNaV, ignore_keys={'libdir'})), "need to provide complete sec_info"
-                assert all(contains_DNaV(obs_info, DNaV)), "need to provide complete obs_info"
+                assert not (contains_DNaV(sec_info, ignore_keys={'libdir', 'fn'})), f"need to provide complete sec_info, {sec_info}"
+                assert not (contains_DNaV(obs_info, ignore_keys={'libdir', 'fns'})), f"need to provide complete obs_info, {obs_info}"
                 # TODO if space is cl need to initalize cls_lib, otherwise not needed
-                sec_info = {key: {k:v for k,v in sec_info[key].items() if k in ['fn', 'components','scale']} for key in sec_info.keys()}
+                sec_info = {key: {k:v for k,v in sec_info[key].items() if k in ['fn', 'components', 'scale', 'libdir']} for key in sec_info.keys()}
                 self.cls_lib = Cls(CMB_info=CMB_info, sec_info=sec_info)
                 self.pri_lib = Xpri(cls_lib=self.cls_lib, geominfo=geominfo, CMB_info=CMB_info, sec_info=sec_info)
-                self.sky_lib = Xsky(pri_lib=self.pri_lib, geominfo=geominfo, CMB_info=CMB_info, sec_info=sec_info, operators=operators)
-                
-                self.libdir = self.pri_lib.libdir
-                self.fns = self.pri_lib.fns
+                self.sky_lib = Xsky(pri_lib=self.pri_lib, geominfo=geominfo, CMB_info=CMB_info, sec_info=sec_info, operator_info=operator_info)
             
-            if noise_info['libdir'] == DNaV:
+            if obs_info['noise_info'].get('libdir') == DNaV:
                 # FIXME this looks wrong
                 noise_info = obs_info['noise_info']
-                noise_lib = iso_white_noise(space='alm' if CMB_info['space']=='cl' else CMB_info['space'], geominfo=self.geominfo, noise_info=noise_info)
+                noise_lib = iso_white_noise(geominfo=geominfo, noise_info=noise_info)
                 obs_info.update({'noise_lib':noise_lib})
             self.obs_lib = Xobs(maps=DNaV, sky_lib=self.sky_lib, geominfo=geominfo, CMB_info=CMB_info, obs_info=obs_info)
+
+        self.obs_info = obs_info
+        self.CMB_info = CMB_info
+        self.sec_info = sec_info
+        self.operator_info = operator_info
 
         self.flavour = flavour
         self.maps = maps
@@ -999,8 +909,11 @@ class Simhandler:
         self.spin = CMB_info['spin']
         self.lm_max = CMB_info['lm_max']
         self.space = CMB_info['space']
-        self.nlev = noise_lib.nlev
-        self.transfunction = obs_info['transfunction']
+        self.transfunction = self.obs_info['transfunction']
+        self.nlev = noise_lib.noise_info['nlev']
+        self.libdir_suffix = noise_lib.noise_info['libdir_suffix']
+        self.libdir = self.obs_lib.CMB_info['libdir']
+        self.fns = self.obs_lib.CMB_info['fns']
 
 
     def get_sim_sky(self, simidx, space, field, spin):
@@ -1015,11 +928,15 @@ class Simhandler:
     def get_sim_noise(self, simidx, space, field, spin=2):
         return self.noise_lib.get_sim_noise(simidx, spin=spin, space=space, field=field)
     
-    def get_sim_phi(self, simidx, space):
-        return self.pri_lib.get_sim_phi(simidx=simidx, space=space)
+    def get_sim_sec(self, simidx, space, field, component):
+        return self.pri_lib.get_sim_sec(simidx=simidx, space=space, field=field, component=component)
     
-    def get_sim_bf(self, simidx, space):
-        return self.pri_lib.get_sim_bf(simidx=simidx, space=space)
+    def get_sim_fidCMB(self, simidx, space, field, component):
+        return self.cls_lib.get_clCMBpri(simidx=simidx, space=space, field=field, component=component)
+
+    def get_sim_fidsec(self, simidx, space, field, component):
+        return self.cls_lib.get_clsec(simidx=simidx, space=space, field=field, component=component)
+    
     
     def purgecache(self):
         log.info('sims_lib: purging cachers to release memory')
@@ -1036,11 +953,11 @@ class Simhandler:
             return True
         if field == 'polarization':
             if self.libdir != DNaV and self.fns != DNaV:
-                if os.path.exists(opj(self.libdir, self.fns['Q'].format(simidx))) and os.path.exists(opj(self.libdir, self.fns['U'].format(simidx))):
+                if os.path.exists(opj(self.libdir, self.CMB_info['fns']['Q'].format(simidx))) and os.path.exists(opj(self.libdir, self.CMB_info['fns']['U'].format(simidx))):
                     return True
         if field == 'temperature':
             if self.libdir != DNaV and self.fns != DNaV:
-                if os.path.exists(opj(self.libdir, self.fns['T'].format(simidx))):
+                if os.path.exists(opj(self.libdir, self.CMB_info['fns']['T'].format(simidx))):
                     return True
         return False
         

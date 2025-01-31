@@ -271,12 +271,12 @@ class Sim_generator(Basejob):
                 hlib.update(str(self.simulationdata.transfunction).encode())
                 transfunctioncode = hlib.hexdigest()[:4]
                 # some flavour provided, and we need to generate the sky and obs maps from this.
-                lenjob_geomstr = get_dirname(str(self.simulationdata.len_lib.lenjob_geominfo))
-                self.libdir_suffix = 'generic' if self.libdir_suffix == '' else self.libdir_suffix
+                lenjob_geomstr = get_dirname(str(self.simulationdata.sky_lib.operator_info['lensing']['geominfo']))
+                self.libdir_suffix = 'generic' if self.libdir_suffix in ['', DEFAULT_NotAValue] else self.libdir_suffix
                 self.libdir_sky = opj(os.environ['SCRATCH'], 'simulation/', self.libdir_suffix, get_dirname(str(self.simulationdata.geominfo)), lenjob_geomstr)
                 self.fns_sky = self.set_basename_sky()
                 self.fnsP = 'philm_{}.npy'
-            self.libdir_suffix = 'generic' if self.libdir_suffix == '' else self.libdir_suffix
+            self.libdir_suffix = 'generic' if self.libdir_suffix in ['', DEFAULT_NotAValue] else self.libdir_suffix
             nlev_round = dict2roundeddict(self.simulationdata.nlev)
             self.libdir = opj(os.environ['SCRATCH'], 'simulation/', self.libdir_suffix, get_dirname(str(self.simulationdata.geominfo)), get_dirname(lenjob_geomstr), get_dirname(str(sorted(nlev_round.items()))), '{}'.format(transfunctioncode)) # 
             self.fns = self.set_basename_obs()
@@ -356,9 +356,10 @@ class Sim_generator(Basejob):
         return fns
 
     # @base_exception_handler
-    # @log_on_start(logging.DEBUG, "Sim.collect_jobs() started")
-    # @log_on_end(logging.DEBUG, "Sim.collect_jobs() finished: jobs={self.jobs}")
+    @log_on_start(logging.INFO, "Sim.collect_jobs() started")
+    @log_on_end(logging.INFO, "Sim.collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self):
+        print('collecting jobs')
         jobs = list(range(len(['generate_sky', 'generate_obs'])))
         if np.all(self.simulationdata.maps == DEFAULT_NotAValue) and self.simulationdata.flavour != 'obs':
             for taski, task in enumerate(['generate_sky', 'generate_obs']):
@@ -488,15 +489,15 @@ class Sim_generator(Basejob):
     def postrun_sky(self):
         # we always enter postrun, even from other jobs (like QE_lensrec). So making sure we are not accidently overwriting libdirs and fns
         if self.simulationdata.flavour != 'sky' and self.simulationdata.flavour != 'obs' and np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
-            self.simulationdata.len_lib.fns = self.fns_sky
-            self.simulationdata.len_lib.libdir = self.libdir_sky
-            self.simulationdata.len_lib.space = 'alm'
-            self.simulationdata.len_lib.spin = 0
+            self.simulationdata.sky_lib.fns = self.fns_sky
+            self.simulationdata.sky_lib.libdir = self.libdir_sky
+            self.simulationdata.sky_lib.space = 'alm'
+            self.simulationdata.sky_lib.spin = 0
 
-            self.simulationdata.unl_lib.libdir_phi = self.libdir_sky
-            self.simulationdata.unl_lib.fnsP = self.fnsP
-            self.simulationdata.unl_lib.phi_field = 'potential'
-            self.simulationdata.unl_lib.phi_space = 'alm' # we always safe phi as lm's
+            self.simulationdata.pri_lib.libdir_phi = self.libdir_sky
+            self.simulationdata.pri_lib.fnsP = self.fnsP
+            self.simulationdata.pri_lib.phi_field = 'potential'
+            self.simulationdata.pri_lib.phi_space = 'alm' # we always safe phi as lm's
 
 
 class Noise_modeller(Basejob):

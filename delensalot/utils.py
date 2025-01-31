@@ -201,7 +201,7 @@ def read_map(m):
         assert 0, 'cant tell what to do with ' + m
 
 
-def camb_clfile(fname, lmax=None, load_secondaries=False):
+def camb_clfile(fname, lmax=None, CMB_components=['tt', 'ee', 'bb', 'te'], sec_components=['pp', 'pt', 'pe']):
     """CAMB spectra (lenspotentialCls, lensedCls or tensCls types) returned as a dict of numpy arrays.
 
     Args:
@@ -213,26 +213,27 @@ def camb_clfile(fname, lmax=None, load_secondaries=False):
     ell = np.int_(cols[0])
     if lmax is None: lmax = ell[-1]
     assert ell[-1] >= lmax, (ell[-1], lmax)
-    cls = {k : np.zeros(lmax + 1, dtype=float) for k in ['tt', 'ee', 'bb', 'te']}
+    cls = {k : np.zeros(lmax + 1, dtype=float) for k in CMB_components}
     w = ell * (ell + 1) / (2. * np.pi)  # weights in output file
     idc = np.where(ell <= lmax) if lmax is not None else np.arange(len(ell), dtype=int)
-    for i, k in enumerate(['tt', 'ee', 'bb', 'te']):
+    for i, k in enumerate(CMB_components):
         cls[k][ell[idc]] = cols[i + 1][idc] / w[idc]
     if len(cols) > 5:
         wpp = lambda ell : ell ** 2 * (ell + 1) ** 2 / (2. * np.pi)
         wptpe = lambda ell : np.sqrt(ell.astype(float) ** 3 * (ell + 1.) ** 3) / (2. * np.pi)
-        for i, k in enumerate(['pp', 'pt', 'pe']):
+        for i, k in enumerate(sec_components):
             cls[k] = np.zeros(lmax + 1, dtype=float)
-        cls['pp'][ell[idc]] = cols[5][idc] / wpp(ell[idc])
-        cls['pt'][ell[idc]] = cols[6][idc] / wptpe(ell[idc])
-        cls['pe'][ell[idc]] = cols[7][idc] / wptpe(ell[idc])
+        if 'pp' in sec_components:
+            cls['pp'][ell[idc]] = cols[5][idc] / wpp(ell[idc])
+        if 'pt' in sec_components:
+            cls['pt'][ell[idc]] = cols[6][idc] / wptpe(ell[idc])
+        if 'pe' in sec_components:
+            cls['pe'][ell[idc]] = cols[7][idc] / wptpe(ell[idc])
     return cls
 
 
-# TODO implement if needed
-def camb_clfile_secondaries(fname, lmax=None):
-    assert 0, 'not implemented'
-    """CAMB spectra (only secondaries) returned as a dict of numpy arrays.
+def camb_clfile_wsec(fname, lmax=None, CMB_components=['tt', 'ee', 'bb', 'te'], sec_components=['pp', 'pt', 'pe', 'ww', 'wt', 'we', 'wp', 'ff', 'ft', 'fe', 'fp', 'fw']):
+    """CAMB spectra (lenspotentialCls, lensedCls or tensCls types) returned as a dict of numpy arrays.
 
     Args:
         fname (str): path to CAMB output file
@@ -243,16 +244,22 @@ def camb_clfile_secondaries(fname, lmax=None):
     ell = np.int_(cols[0])
     if lmax is None: lmax = ell[-1]
     assert ell[-1] >= lmax, (ell[-1], lmax)
-    cls = {k : np.zeros(lmax + 1, dtype=float) for k in ['tt', 'ee', 'bb', 'te']}
+    cls = {k : np.zeros(lmax + 1, dtype=float) for k in CMB_components}
     w = ell * (ell + 1) / (2. * np.pi)  # weights in output file
     idc = np.where(ell <= lmax) if lmax is not None else np.arange(len(ell), dtype=int)
-    for i, k in enumerate(['tt', 'ee', 'bb', 'te']):
+    for i, k in enumerate(CMB_components):
         cls[k][ell[idc]] = cols[i + 1][idc] / w[idc]
     if len(cols) > 5:
-        wpp = lambda ell : ell ** 2 * (ell + 1) ** 2 / (2. * np.pi)
-        for i, k in enumerate(['pp', 'pt', 'pe']):
+        for i, k in enumerate(sec_components):
             cls[k] = np.zeros(lmax + 1, dtype=float)
-        cls['pp'][ell[idc]] = cols[5][idc] / wpp(ell[idc])
+        wpp = lambda ell : ell ** 2 * (ell + 1) ** 2 / (2. * np.pi)
+        wptpe = lambda ell : np.sqrt(ell.astype(float) ** 3 * (ell + 1.) ** 3) / (2. * np.pi)
+        for i, k in enumerate(sec_components):
+            if i in [1,2,4,5,8,9]:
+                cls[k] = cols[i+len(CMB_components)+1][idc] / wptpe(ell[idc])
+            else:
+                cls[k] = cols[i+len(CMB_components)+1][idc] / wpp(ell[idc])
+
     return cls
 
 
@@ -296,6 +303,16 @@ def load_file(fn, lmax=None, ifield=0):
         assert ifield==0, 'ifield not implemented for dat files'
         return camb_clfile(fn)
     
+def load_file_wsec(fn, lmax=None, ifield=0, cmb_components=['tt', 'ee', 'bb', 'te'], sec_components=['pp', 'pt', 'pe', 'ww', 'wt', 'we', 'wp', 'ff', 'ft', 'fe', 'fp', 'fw']):
+    if fn.endswith('.npy'):
+        assert ifield==0, 'ifield not implemented for npy files'
+        return np.load(fn)[:None]
+    elif fn.endswith('.fits'):
+        return fits.open(fn)[0].data
+        # return hp.read_map(fn, field=ifield)
+    elif fn.endswith('.dat'):
+        assert ifield==0, 'ifield not implemented for dat files'
+        return camb_clfile_wsec(fn)
 
 def ztruncify(m:np.ndarray, zbounds:np.array[tuple[float, float]]):
     """truncify list of maps (or single map) and return only pixels along the zbounds
