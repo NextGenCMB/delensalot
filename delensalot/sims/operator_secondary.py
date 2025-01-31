@@ -58,14 +58,14 @@ class lensing(base):
         self.field_fns = operator_desc["field_fns"]
         self.Lmin = operator_desc["Lmin"]
         self.lm_max = operator_desc["lm_max"]
-        self.lm_max_field = operator_desc["lm_max_field"]
+        self.LM_max = operator_desc["LM_max"]
         self.perturbative = operator_desc["perturbative"]
         self.components = operator_desc["components"]
         self.geominfo = operator_desc["geominfo"]
         self.geomlib = get_geom(operator_desc['geominfo'])
         
         self.field = {component: None for component in self.components}
-        self.ffi = deflection(self.geomlib, np.zeros(shape=hp.Alm.getsize(*self.lm_max_field)), self.lm_max_field[1], numthreads=operator_desc['tr'], verbosity=False, epsilon=operator_desc['epsilon'])
+        self.ffi = deflection(self.geomlib, np.zeros(shape=hp.Alm.getsize(*self.LM_max)), self.LM_max[1], numthreads=operator_desc['tr'], verbosity=False, epsilon=operator_desc['epsilon'])
 
 
 
@@ -108,7 +108,7 @@ class lensing(base):
             for component in self.components:
                 self.set_field(simidx, it, component)
             d = np.array([self.field[comp].flatten() for comp in self.components], dtype=complex)
-            self.ffi = self.ffi.change_dlm(d, self.lm_max_field[1])
+            self.ffi = self.ffi.change_dlm(d, self.LM_max[1])
         else:
             if self.field_cacher.is_cached(opj(self.field_fns[component].format(idx=simidx,it=it))):
                 self.field[component] = self.field_cacher.load(opj(self.field_fns[component].format(idx=simidx,it=it)))

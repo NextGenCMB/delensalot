@@ -306,7 +306,7 @@ class Xpri:
         fn = f"primordial_space{space}_spin{spin}_field{field}_{simidx}"
         if not self.cacher.is_cached(fn):
             if self.CMB_info['libdir'] == DNaV:
-                Cls = self.cls_lib.get_clCMBpri(simidx)
+                Cls = self.cls_lib.get_clCMBpri(simidx, lmax=self.CMB_info['lm_max'][0])
                 pri = np.array(self.cl2alm(Cls, field=field, seed=simidx))
                 if space == 'map':
                     if field == 'polarization':
@@ -372,13 +372,17 @@ class Xpri:
 
         Returns:
             _type_: _description_
-        """    
-
+        """
+        if isinstance(component, str):
+            component = [component]
         if secondary is None:
-                return [self.get_sim_sec(simidx, space, key, component=None) for key in self.sec_info.keys()]
+            return [self.get_sim_sec(simidx, space, key, component=component) for key in self.sec_info.keys()]
         if component is None:
-                return np.array([self.get_sim_sec(simidx, space, secondary, component=comp) for comp in self.sec_info[secondary]['components']])
+            return np.array([self.get_sim_sec(simidx, space, secondary, component=comp) for comp in self.sec_info[secondary]['components']])
+        if len(component)>1:
+            return np.array([self.get_sim_sec(simidx, space, secondary, component=comp) for comp in component])
         
+
         fn = f"{secondary}{component}_space{space}_{simidx}"
         if not self.cacher.is_cached(fn):
             if self.sec_info[secondary]['libdir'] == DNaV:
@@ -434,15 +438,15 @@ class Xpri:
 
     def cl2alm(self, cls, field, seed):
         np.random.seed(int(seed))
+        alms = hp.synalm(cls, self.CMB_info['lm_max'][0], new=True)
         if field == 'polarization':
-            alms = hp.synalm(cls, self.CMB_info['lm_max'][0], new=True)
             return alms[1:]
         elif field == 'temperature':
-            alm = hp.synalm(cls, self.CMB_info['lm_max'][0])
-            return alm[0]
+            return alms[0]
     
 
     def clp2seclm(self, secondary, clp, seed):
+        # FIXME if there is cross-correlation between the components, this should be modified
         np.random.seed(int(seed)+112233) # different seed for secondaries
         sec = hp.synalm(clp, self.sec_info[secondary]['lm_max'][0])
         return sec
@@ -468,9 +472,7 @@ class Xsky:
 
         self.sec_info = sec_info
         self.operator_info = operator_info
-        print('opinfo', operator_info)
         self.operators = [self.get_operator(key, op) for key, op in operator_info.items()]
-        print(self.operators)
         self.cacher = cachers.cacher_mem(safe=True)
 
 
@@ -516,6 +518,8 @@ class Xsky:
                         #     pri = operator(pri)
                         # sky = self.pri2len(pri, plms, spin=2)
                         sky = self.lenjob_geomlib.alm2map_spin(np.copy(pri), spin=2, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                        # sky2 = self.lenjob_geomlib.alm2map(np.copy(pri[1]), lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                        # sky = np.array([sky1, sky2])
                         # bflm = self.pri_lib.get_sim_bf(simidx, space='map')
                         # sky = self.pri2bf(pri, bflm, spin=2, epsilon=self.epsilon)
 
@@ -533,7 +537,7 @@ class Xsky:
                     elif field == 'temperature':
                         # TODO act operators
                         # sky = self.pri2len(pri, plms, spin=0, epsilon=self.epsilon)
-                        sky = self.geom_lib.alm2map(np.copy(pri), lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                        sky = self.lenjob_geomlib.alm2map(np.copy(pri), lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                         if space == 'map':
                             sky = self.lenjob_geomlib.map2alm(np.copy(sky), lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                             sky = self.geom_lib.alm2map(np.copy(sky), lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
@@ -665,7 +669,7 @@ class Xobs:
         if not self.fullsky:
             assert self.CMB_info['spin'] == spin, "can only provide existing data"
             assert self.CMB_info['space'] == space, "can only provide existing data"
-        fn = 'obs_space{space}_spin{spin}_field{field}_{simidx}'
+        fn = f'obs_space{space}_spin{spin}_field{field}_{simidx}'
         log.debug(f'requesting "{fn}"')
         fn_otherspin = f"obs_space{space}_spin{self.CMB_info['spin']}_field{field}_{simidx}"
         fn_otherspace = ''
@@ -689,6 +693,7 @@ class Xobs:
                     spin=spin,
                     space=space,
                     field=field)
+
             elif self.CMB_info['libdir'] != DNaV:  # observed data is somewhere
                 log.debug('.., but stored on disk.')
                 if field == 'polarization':
@@ -838,13 +843,14 @@ class Xobs:
   
 
 class Simhandler:
-    """Entry point for data handling and generating simulations. Data can be cl, pri, len, or obs, .. and alms or maps. Simhandler connects the individual libraries and decides what can be generated. E.g.: If obs data provided, len data cannot be generated. This structure makes sure we don't "hallucinate" data
+    """Entry point for data handling and generating simulations.
+    Data can be cl, pri, len, or obs, .. and alms or maps. Simhandler connects the individual libraries and decides what can be generated.
+    E.g.: If obs data provided, len data cannot be generated.
     """ 
     def __init__(self, flavour, maps=DNaV, geominfo=DNaV, CMB_info=DNaV, sec_info=DNaV, obs_info=DNaV, operator_info=DNaV):
         """Entry point for simulation data handling.
         Simhandler() connects the individual librariers together accordingly, depending on the provided data.
         It never stores data on disk itself, only in memory.
-        It never 'hallucinates' data, i.e. if obs data provided, it will not generate len data. 
 
         Args:
             flavour (str): 'obs', 'sky', 'pri'
@@ -886,8 +892,9 @@ class Simhandler:
                 assert not (contains_DNaV(sec_info, ignore_keys={'libdir', 'fn'})), f"need to provide complete sec_info, {sec_info}"
                 assert not (contains_DNaV(obs_info, ignore_keys={'libdir', 'fns'})), f"need to provide complete obs_info, {obs_info}"
                 # TODO if space is cl need to initalize cls_lib, otherwise not needed
-                sec_info = {key: {k:v for k,v in sec_info[key].items() if k in ['fn', 'components', 'scale', 'libdir']} for key in sec_info.keys()}
-                self.cls_lib = Cls(CMB_info=CMB_info, sec_info=sec_info)
+                sec_info_cls = {key: {k:v for k,v in sec_info[key].items() if k in ['fn', 'components', 'scale', 'libdir']} for key in sec_info.keys()}
+                self.cls_lib = Cls(CMB_info=CMB_info, sec_info=sec_info_cls)
+                CMB_info.update({'libdir':DNaV, 'fns':DNaV})
                 self.pri_lib = Xpri(cls_lib=self.cls_lib, geominfo=geominfo, CMB_info=CMB_info, sec_info=sec_info)
                 self.sky_lib = Xsky(pri_lib=self.pri_lib, geominfo=geominfo, CMB_info=CMB_info, sec_info=sec_info, operator_info=operator_info)
             
@@ -896,6 +903,7 @@ class Simhandler:
                 noise_info = obs_info['noise_info']
                 noise_lib = iso_white_noise(geominfo=geominfo, noise_info=noise_info)
                 obs_info.update({'noise_lib':noise_lib})
+                self.noise_lib = noise_lib
             self.obs_lib = Xobs(maps=DNaV, sky_lib=self.sky_lib, geominfo=geominfo, CMB_info=CMB_info, obs_info=obs_info)
 
         self.obs_info = obs_info
@@ -928,14 +936,14 @@ class Simhandler:
     def get_sim_noise(self, simidx, space, field, spin=2):
         return self.noise_lib.get_sim_noise(simidx, spin=spin, space=space, field=field)
     
-    def get_sim_sec(self, simidx, space, field, component):
-        return self.pri_lib.get_sim_sec(simidx=simidx, space=space, field=field, component=component)
+    def get_sim_sec(self, simidx, space, secondary=None, component=None):
+        return self.pri_lib.get_sim_sec(simidx=simidx, space=space, secondary=secondary, component=component)
     
-    def get_sim_fidCMB(self, simidx, space, field, component):
-        return self.cls_lib.get_clCMBpri(simidx=simidx, space=space, field=field, component=component)
+    def get_sim_fidCMB(self, simidx, components):
+        return self.cls_lib.get_clCMBpri(simidx=simidx, components=components)
 
-    def get_sim_fidsec(self, simidx, space, field, component):
-        return self.cls_lib.get_clsec(simidx=simidx, space=space, field=field, component=component)
+    def get_sim_fidsec(self, simidx, secondary=None, component=None):
+        return self.cls_lib.get_clsec(simidx=simidx, secondary=secondary, component=component)
     
     
     def purgecache(self):
