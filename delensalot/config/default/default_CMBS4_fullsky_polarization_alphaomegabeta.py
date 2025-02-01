@@ -21,9 +21,17 @@ DL_DEFAULT = {
         'flavour': 'unl',
         'geominfo': ('healpix',{'nside': 2048}),
         'maps': DNaV,
+        "fid_info": {
+            'libdir': opj(os.path.dirname(delensalot.__file__), 'data', 'cls'),
+            "fn": 'FFP10_wdipole_secondaries_lens_birefringence.dat',
+            'libdir_sec': opj(os.path.dirname(delensalot.__file__), 'data', 'cls'),
+            'fn_sec': 'FFP10_wdipole_secondaries_lens_birefringence.dat',
+            'sec_components': {'lensing':['pp', 'ww'],
+                           'birefringence': ['ff'],}
+        },
         "CMB_info": {
-            'libdir': "",
-            'fn': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_secondaries_lens_birefringence.dat'),
+            'libdir': DNaV,
+            'fns': DNaV,
             'space': 'cl',
             'spin': 0,
             'lm_max': [4096,4096],
@@ -31,18 +39,18 @@ DL_DEFAULT = {
             'modifier': lambda x: x,
         },
         "sec_info": {
-            'phi':{
+            'lensing':{
                 'libdir': DNaV,
-                'fn': DNaV,
+                'fns': DNaV,
                 'components': ['pp', 'ww'],
                 'space':'alm',
                 'scale':'p',
                 'modifier': lambda x: x,
                 'lm_max': [4096+1024,4096+1024],
             },
-            'bf':{
+            'birefringence':{
                 'libdir': DNaV,
-                'fn': DNaV,
+                'fns': DNaV,
                 'components': ['ff'],
                 'space':'alm',
                 'scale':'p',
@@ -81,6 +89,7 @@ DL_DEFAULT = {
                 'Lmin': 1,
                 'field_fns': DNaV,
                 'libdir': DNaV,
+                'components': ['f'],
             },
         }
     },

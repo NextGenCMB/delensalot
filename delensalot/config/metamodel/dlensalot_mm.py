@@ -159,6 +159,7 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
     flavour =       attr.field(default=DEFAULT_NotAValue, validator=data.flavour)
     maps =          attr.field(default=DEFAULT_NotAValue, validator=data.maps)
     geominfo =      attr.field(default=DEFAULT_NotAValue, validator=data.geominfo)
+    fid_info =      attr.field(default=DEFAULT_NotAValue)
     CMB_info =      attr.field(default=DEFAULT_NotAValue)
     sec_info =      attr.field(default=DEFAULT_NotAValue)
     obs_info =      attr.field(default=DEFAULT_NotAValue)

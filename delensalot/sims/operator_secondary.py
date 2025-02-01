@@ -56,7 +56,7 @@ class joint:
 class lensing(base):
     def __init__(self, operator_desc):
         super().__init__(operator_desc["libdir"])
-        self.ID = 'phi'
+        self.ID = 'lensing'
         
         if operator_desc["field_fns"] is DNaV:
             self.field_fns = {comp: "{idx}" for comp in operator_desc["components"]}
@@ -83,14 +83,14 @@ class lensing(base):
        
         if self.perturbative: # Applies perturbative remapping
             return 
-            # get_alm = lambda a: elm_wf if a == 'e' else np.zeros_like(elm_wf)
-            # geom, sht_tr = self.fq.ffi.geom, self.fq.ffi.sht_tr
-            # d1 = geom.alm2map_spin([dlm, np.zeros_like(dlm)], 1, self.lmax_qlm, self.mmax_qlm, sht_tr, [-1., 1.])
-            # dp = utils_qe.qeleg_multi([2], +3, [utils_qe.get_spin_raise(2, self.lmax_filt)])(get_alm, geom, sht_tr)
-            # dm = utils_qe.qeleg_multi([2], +1, [utils_qe.get_spin_lower(2, self.lmax_filt)])(get_alm, geom, sht_tr)
-            # dlens = -0.5 * ((d1[0] - 1j * d1[1]) * dp + (d1[0] + 1j * d1[1]) * dm)
-            # del dp, dm, d1
-            # elm, blm = geom.map2alm_spin([dlens.real, dlens.imag], 2, lmaxb, mmaxb, sht_tr, [-1., 1.])
+            get_alm = lambda a: elm_wf if a == 'e' else np.zeros_like(elm_wf)
+            geom, sht_tr = self.fq.ffi.geom, self.fq.ffi.sht_tr
+            d1 = geom.alm2map_spin([dlm, np.zeros_like(dlm)], 1, self.lmax_qlm, self.mmax_qlm, sht_tr, [-1., 1.])
+            dp = utils_qe.qeleg_multi([2], +3, [utils_qe.get_spin_raise(2, self.lmax_filt)])(get_alm, geom, sht_tr)
+            dm = utils_qe.qeleg_multi([2], +1, [utils_qe.get_spin_lower(2, self.lmax_filt)])(get_alm, geom, sht_tr)
+            dlens = -0.5 * ((d1[0] - 1j * d1[1]) * dp + (d1[0] + 1j * d1[1]) * dm)
+            del dp, dm, d1
+            elm, blm = geom.map2alm_spin([dlens.real, dlens.imag], 2, lmaxb, mmaxb, sht_tr, [-1., 1.])
         else:
             obj = np.atleast_2d(obj)
             # obj = alm_copy(obj[0], None, *self.lm_max)
@@ -112,7 +112,7 @@ class lensing(base):
 class birefringence(base):
     def __init__(self, operator_desc):
         super().__init__(operator_desc["libdir"])
-        self.ID = 'bf'
+        self.ID = 'birefringence'
         self.field_fns = operator_desc['field_fns']
         self.Lmin = operator_desc["Lmin"],
         self.lm_max = operator_desc["lm_max"]
