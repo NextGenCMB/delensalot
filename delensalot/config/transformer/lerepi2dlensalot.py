@@ -37,19 +37,29 @@ from delensalot.core.handler import OBD_builder, Sim_generator, QE_lr, QE_lr_new
 from delensalot.config.visitor import transform, transform3d
 from delensalot.config.config_helper import data_functions as df, LEREPI_Constants as lc
 from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALOT_Model_mm, DLENSALOT_Concept
+from collections import OrderedDict
 
+from itertools import chain, combinations
+def all_combinations(lst):
+    return [''.join(comb) for comb in chain.from_iterable(combinations(lst, r) for r in range(1, len(lst) + 1))]
+
+def get_hashcode(s):
+    hlib = hashlib.sha256()
+    hlib.update(str(s).encode())
+    return hlib.hexdigest()[:4]
 
 class l2base_Transformer:
     """Initializes attributes needed across all Jobs, or which are at least handy to have
-    """    
-    def __init__(self):
-        pass
-
+    """
     # @log_on_start(logging.DEBUG, "process_Simulation() started")
     # @log_on_end(logging.DEBUG, "process_Simulation() finished")
     def process_Simulation(dl, si, cf):
-        # TODO operator info needs to match what operator_secondary class expects
         dl.simulationdata = Simhandler(**si.__dict__)
+        dl.CLfids = {
+            secclk: {comp: va for comp, va in zip(secclv, val)}
+            for (secclk, secclv), val in zip(dl.simulationdata.fid_info['sec_components'].items(), dl.simulationdata.get_sim_fidsec(0, secondary=None, components=None))
+        }
+
 
     # @log_on_start(logging.DEBUG, "_process_Analysis() started")
     # @log_on_end(logging.DEBUG, "_process_Analysis() finished")
@@ -66,17 +76,9 @@ class l2base_Transformer:
         dl.version = an.version
         dl.simidxs = an.simidxs
 
-        # dl.simidxs_mf = np.array(an.simidxs_mf) if dl.version != 'noMF' else np.array([])
-        # # dl.simidxs_mf = dl.simidxs if dl.simidxs_mf.size == 0 else dl.simidxs_mf
-        # dl.Nmf = 0 if dl.version == 'noMF' else len(dl.simidxs_mf)
-
-
         # FIXME makes this a clean implementation
         dl.simidxs_mf = np.array(an.simidxs_mf) if dl.version != 'noMF' else np.array([])
-        dl.Nmf = 0 if dl.version == 'noMF' else len(dl.simidxs_mf) # FIXME dont make intermediate parameters depend on each other...
-        if cf.itrec.mfvar.startswith('/'):
-            dl.Nmf = 10000 # The actual number doesnt matter, as long as it is bigger than 1
-        
+        dl.Nmf = 10000 if cf.itrec.mfvar.startswith('/') else (0 if dl.version == 'noMF' else len(dl.simidxs_mf))
         
         dl.TEMP_suffix = an.TEMP_suffix
         dl.TEMP = transform(cf, l2T_Transformer())
@@ -99,35 +101,26 @@ class l2base_Transformer:
         dl.lm_max_ivf = an.lm_max_ivf
         dl.lm_max_blt = an.lm_max_blt
 
-
-        dl.transfunction_desc = an.transfunction_desc
-        if dl.transfunction_desc == 'gauss_no_pixwin':
-            transf_tlm = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[0])
-            transf_elm = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[1])
-            transf_blm = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[2])
-        elif dl.transfunction_desc == 'gauss_with_pixwin':
+        beam_factor = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_ivf[0])
+        lmin_mask = np.arange(dl.lm_max_ivf[0] + 1)[:, None] >= dl.lmin_teb
+        if an.transfunction_desc == 'gauss_no_pixwin':
+            transf =(beam_factor[:, None] * lmin_mask)
+        elif an.transfunction_desc == 'gauss_with_pixwin':
             assert cf.noisemodel.geominfo[0] == 'healpix', 'implement non-healpix pixelwindow function'
-            transf_tlm = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(cf.noisemodel.geominfo[1]['nside'], lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[0])
-            transf_elm = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(cf.noisemodel.geominfo[1]['nside'], lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[1])
-            transf_blm = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_ivf[0]) * hp.pixwin(cf.noisemodel.geominfo[1]['nside'], lmax=dl.lm_max_ivf[0]) * (np.arange(dl.lm_max_ivf[0] + 1) >= dl.lmin_teb[2])
-        dl.ttebl = {'t': transf_tlm, 'e': transf_elm, 'b':transf_blm}
+            pixwin_factor = hp.pixwin(cf.noisemodel.geominfo[1]['nside'], lmax=dl.lm_max_ivf[0])
+            transf = (beam_factor[:, None] * pixwin_factor[:, None] * lmin_mask)
+        dl.ttebl = dict(zip('teb', transf.T))
 
-        # Isotropic approximation to the filtering (used eg for response calculations)
-        ftl_len = cli(dl.cls_len['tt'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev['T'])**2 * cli(dl.ttebl['t'] ** 2)) * (dl.ttebl['t'] > 0)
-        fel_len = cli(dl.cls_len['ee'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev['P'])**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
-        fbl_len = cli(dl.cls_len['bb'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev['P'])**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
-        dl.ftebl_len = {'t': ftl_len, 'e': fel_len, 'b':fbl_len}
-
-        # Same using unlensed spectra (used for unlensed response used to initiate the MAP curvature matrix)
-        ftl_unl = cli(dl.cls_unl['tt'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev['T'])**2 * cli(dl.ttebl['t'] ** 2)) * (dl.ttebl['t'] > 0)
-        fel_unl = cli(dl.cls_unl['ee'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev['P'])**2 * cli(dl.ttebl['e'] ** 2)) * (dl.ttebl['e'] > 0)
-        fbl_unl = cli(dl.cls_unl['bb'][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev['P'])**2 * cli(dl.ttebl['b'] ** 2)) * (dl.ttebl['b'] > 0)
-        dl.ftebl_unl = {'t': ftl_unl, 'e': fel_unl, 'b':fbl_unl}
 
     # @log_on_start(logging.DEBUG, "_process_Meta() started")
     # @log_on_end(logging.DEBUG, "_process_Meta() finished")
     def process_Meta(dl, me, cf):
         dl.dversion = me.version
+
+
+    def process_Computing(dl, co, cf):
+        dl.tr = co.OMP_NUM_THREADS
+        os.environ["OMP_NUM_THREADS"] = str(dl.tr)
 
 
 class l2T_Transformer:
@@ -245,8 +238,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 dl.lmin_teb = an.lmin_teb
                 dl.version = an.version
                 dl.simidxs = an.simidxs
-                dl.simidxs_mf = np.array(an.simidxs_mf) if dl.version != 'noMF' else np.array([])
-                # dl.simidxs_mf = dl.simidxs_mf if dl.simidxs_mf.size == 0 else np.array(dl.simidxs)
+                dl.simidxs_mf = np.array(an.simidxs_mf) # if dl.version != 'noMF' else np.array([])
 
                 dl.TEMP_suffix = an.TEMP_suffix
                 dl.TEMP = transform(cf, l2T_Transformer())
@@ -265,87 +257,64 @@ class l2delensalotjob_Transformer(l2base_Transformer):
         """
         def extract():
             def _process_components(dl):
-
-
                 def _process_Meta(dl, me):
-                    dl.dversion = me.version
-
-
+                    l2base_Transformer.process_Meta(dl, me, cf)
                 def _process_Computing(dl, co):
-                    dl.tr = co.OMP_NUM_THREADS
-                    os.environ["OMP_NUM_THREADS"] = str(dl.tr)
-
-
+                    l2base_Transformer.process_Computing(dl, co, cf)
                 def _process_Analysis(dl, an):
-                    dl.nlev = l2OBD_Transformer.get_nlev(cf)
                     l2base_Transformer.process_Analysis(dl, an, cf)
-
-
                 def _process_Noisemodel(dl, nm):
                     dl.sky_coverage = nm.sky_coverage
-                    dl.nivjob_geomlib = get_geom(nm.geominfo)
+                    dl.nivjob_geomlib = get_geom(nm.geominfo).restrict(*np.arccos(dl.zbounds[::-1]), northsouth_sym=False)
                     dl.nivjob_geominfo = nm.geominfo
-                    thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
-                    dl.nivjob_geomlib = dl.nivjob_geomlib.restrict(*thtbounds, northsouth_sym=False)
                     if dl.sky_coverage == 'masked':
                         dl.rhits_normalised = nm.rhits_normalised
-                        dl.fsky = np.mean(l2OBD_Transformer.get_nivp_desc(cf, dl)[0][1]) ## calculating fsky, but quite expensive. and if nivp changes, this could have negative effect on fsky calc
+                        dl.fsky = np.mean(l2OBD_Transformer.get_nivp_desc(cf, dl)[0][1])  # Expensive, could affect future fsky calc
                     else:
                         dl.fsky = 1.0
                     dl.spectrum_type = nm.spectrum_type
-
                     dl.OBD = nm.OBD
                     dl.nlev = l2OBD_Transformer.get_nlev(cf)
-
                     dl.nivt_desc = l2OBD_Transformer.get_nivt_desc(cf, dl)
                     dl.nivp_desc = l2OBD_Transformer.get_nivp_desc(cf, dl)
-
-
+                    
+                    def compute_spectrum(cls_key, nlev_key, transf_key, spectrum_type):
+                        cls = dl.cls_len if spectrum_type == 'len' else dl.cls_unl
+                        return cli(cls[cls_key][:dl.lm_max_ivf[0] + 1] + df.a2r(dl.nlev[nlev_key])**2 * cli(dl.ttebl[transf_key] ** 2)) * (dl.ttebl[transf_key] > 0)
+                    # Isotropic approximation to the filtering (using 'len' for lensed spectra)
+                    dl.ftebl_len = {key: compute_spectrum(cls_key, nlev_key, transf_key, 'len') 
+                                    for key, (cls_key, nlev_key, transf_key) in zip('teb', [('tt', 'T', 't'), ('ee', 'P', 'e'), ('bb', 'P', 'b')])}
+                    # Same using unlensed spectra (using 'unl' for unlensed spectra)
+                    dl.ftebl_unl = {key: compute_spectrum(cls_key, nlev_key, transf_key, 'unl') 
+                                    for key, (cls_key, nlev_key, transf_key) in zip('teb', [('tt', 'T', 't'), ('ee', 'P', 'e'), ('bb', 'P', 'b')])}
                 def _process_OBD(dl, od):
                     dl.obd_libdir = od.libdir
                     dl.obd_rescale = od.rescale
-
-     
                 def _process_Simulation(dl, si):
-                    dl.libdir_suffix = cf.simulationdata.libdir_suffix
                     l2base_Transformer.process_Simulation(dl, si, cf)
-
-
                 def _process_Qerec(dl, qe):
-                    dl.blt_pert = qe.blt_pert
-                    dl.subtract_QE_meanfield = qe.subtract_QE_meanfield
-                    if dl.subtract_QE_meanfield:
-                        qe_tasks_sorted = ['calc_fields', 'calc_meanfields', 'calc_templates']
-                    else:
-                        qe_tasks_sorted = ['calc_fields', 'calc_templates']
-                    qe_tasks_extracted = []
-                    for taski, task in enumerate(qe_tasks_sorted):
-                        if task in qe.tasks:
-                            qe_tasks_extracted.append(task)
-                        else:
-                            break
-                    dl.qe_tasks = qe_tasks_extracted
-                        
-                    dl.lm_max_qlm = qe.lm_max_qlm
-                    dl.estimator_type = qe.estimator_type
+                    qe_tasks_sorted = ['calc_fields', 'calc_meanfields', 'calc_templates'] if qe.subtract_QE_meanfield else ['calc_fields', 'calc_templates']
+                    dl.qe_tasks = [task for task in qe_tasks_sorted if task in qe.tasks]       
+                    dl.qe_filter_directional = qe.filter_directional
 
+                    # need to go through each secondary
+
+                    dl.subtract_QE_meanfield = qe.subtract_QE_meanfield
+                    dl.blt_pert = qe.blt_pert
+                    dl.estimator_type = qe.estimator_type
+                    dl.lm_max_qlm = qe.lm_max_qlm
                     ## FIXME cg chain currently only works with healpix geometry
                     dl.QE_cg_tol = qe.cg_tol
-                    if qe.chain == None:
-                        dl.chain_descr = lambda a,b: None
-                        dl.chain_model = dl.chain_descr
-                    else:
-                        dl.chain_model = qe.chain
-                        dl.chain_model.p3 = dl.nivjob_geominfo[1]['nside']
-                        if dl.chain_model.p6 == 'tr_cg':
-                            _p6 = cd_solve.tr_cg
-                        if dl.chain_model.p7 == 'cache_mem':
-                            _p7 = cd_solve.cache_mem()
-                        dl.chain_descr = lambda p2, p5 : [
-                            [dl.chain_model.p0, dl.chain_model.p1, p2, dl.chain_model.p3, dl.chain_model.p4, p5, _p6, _p7]]
-                    dl.qe_filter_directional = qe.filter_directional
+                    dl.chain_model = qe.chain
+                    dl.chain_model.p3 = dl.nivjob_geominfo[1]['nside']
+                    dl.chain_descr = lambda p2, p5 : [[0, ["diag_cl"], p2, dl.nivjob_geominfo[1]['nside'], np.inf, p5, cd_solve.tr_cg, cd_solve.cache_mem()]]
                     dl.cl_analysis = qe.cl_analysis
-
+                    # NOTE I need this for the template generation, but I don't want to pull this from itrec
+                    dl.lenjob_geominfo = cf.itrec.lenjob_geominfo
+                    dl.lenjob_geomlib = get_geom(cf.itrec.lenjob_geominfo)
+                    thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
+                    dl.lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
+                    dl.ffi = deflection(dl.lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(*dl.lm_max_qlm)), dl.lm_max_qlm[1], numthreads=dl.tr, verbosity=False, epsilon=cf.itrec.epsilon)
 
                 _process_Meta(dl, cf.meta)
                 _process_Computing(dl, cf.computing)
@@ -355,100 +324,20 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_OBD(dl, cf.obd)
                 _process_Qerec(dl, cf.qerec)
 
-                # cf.analysis.CLfids is assumed to be a camb-like file with the field name as dictionary key and their power spectra
-                
-                #FIXME for now I assume this is a simple np.array with pp,ww,bb,pw,pb,wb. This needs to be generalized
-                _keys = ['pp', 'ww', 'bb']
-                # dl.Clfids = np.load(cf.analysis.CLfids)
-                dl.CLfids = {_keys[i]: camb_clfile(cf.analysis.cpp)['pp'][:dl.lm_max_qlm[0] + 1] for i in range(len(_keys))}
-                # dl.CLfids = {key: val[:dl.lm_max_qlm[0] + 1] for key, val in zip(_keys, dl.CLfids)}
-                # if cf.analysis.CLfields.endswith('dat'):
-                    # dl.CLfields = (cf.analysis.CLfields, load_secondaries=True)
-                #NOTE assuming these are convergence power spectra, and they come as 
-
             dl = DLENSALOT_Concept()
             _process_components(dl)
-            dl.lenjob_geominfo = cf.itrec.lenjob_geominfo
-            dl.lenjob_geomlib = get_geom(cf.itrec.lenjob_geominfo)
-            thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
-            dl.lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
 
-            dl.ffi = deflection(dl.lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(*dl.lm_max_qlm)), dl.lm_max_qlm[1], numthreads=dl.tr, verbosity=False, epsilon=cf.itrec.epsilon)
-
-            QE_fields_descs = {
-                "lensing":{
-                    "ID": "lensing",
-                    "libdir": opj(transform(cf, l2T_Transformer()), 'QE', 'estimates/lensing'),
-                    'lm_max': dl.lm_max_qlm,
-                    'components': "alpha_omega",
-                    'CLfids': {'alpha': dl.CLfids['pp'], 'omega': dl.CLfids['ww']},
-                    'qlm_fns': {"alpha": 'qlm_alpha_simidx{idx}', "omega": 'qlm_omega_simidx{idx}'},
-                    'klm_fns': {"alpha": 'klm_alpha_simidx{idx}', "omega": 'klm_omega_simidx{idx}'},
-                    'qmflm_fns': {"alpha": 'qmflm_alpha_simidx{idx}', "omega": 'qmflm_omega_simidx{idx}'},
-                },
-                "birefringence":{
-                    "ID": 'birefringence',
-                    "libdir": opj(transform(cf, l2T_Transformer()), 'QE', 'estimates/birefringence'),
-                    'lm_max': dl.lm_max_qlm, #FIXME betalm?
-                    'components': "beta",
-                    'CLfids': {"beta": dl.CLfids['bb']},
-                    "qlm_fns": {"beta": 'qlm_beta_simidx{idx}'},
-                    "klm_fns": {"beta": 'klm_beta_simidx{idx}'},
-                    'qmflm_fns': {"beta": 'qmflm_beta_simidx{idx}'},
-                }
-            }
-            
-            QE_fields = {name: QE_field.base(field_desc) for name, field_desc in QE_fields_descs.items()}
-            
-            QE_template_descs = {  # templates need a fn, that's all
-                "lensing:": {
-                    "ID": "lensing",
-                    "libdir": opj(transform(cf, l2T_Transformer()), 'QE', 'templates'),
-                    'components': "alpha_omega",
-                    'CLfids': None,
-                    "klm_fns": {"alpha": 'klm_alpha_template_simidx{idx}', "omega": 'klm_omega_template_simidx{idx}'},
-                    },
-                "birefringence": {
-                    "ID": "birefringence",
-                    "libdir": opj(transform(cf, l2T_Transformer()), 'QE', 'templates'),
-                    'components': "beta",
-                    'CLfids': None,
-                    "klm_fns": {"beta": 'klm_beta_template_simidx{idx}'},
-                    },
-            }
-                # {
-                # "ID": "joint",
-                # "klm_fns": {"joint": 'klm_joint_template_simidx{idx}'},
-                # }
-            templates = [QE_field.base(field_desc) for name, field_desc in QE_template_descs.items()]
-            template_operator_descs = {
-                "lensing": {
-                    "Lmin": dl.Lmin,
-                    "perturbative": dl.blt_pert,
-                    "lm_max": dl.lm_max_blt,
-                    "lm_max_qlm": dl.lm_max_qlm,
-                    "components": 'alpha_omega',
-                    "libdir": opj(transform(cf, l2T_Transformer()), 'QE', 'estimates/lensing'),
-                    "field_fns": QE_fields_descs["lensing"]['klm_fns'],
-                    "ffi": dl.ffi,
-                },
-                "birefringence": {
-                    "Lmin": dl.Lmin,
-                    "lm_max": dl.lm_max_blt, # FIXME betatemp_lm?
-                    "components": 'beta',
-                    "libdir": opj(transform(cf, l2T_Transformer()), 'QE', 'estimates/birefringence'),
-                    "field_fns": QE_fields_descs['birefringence']['klm_fns'],
-                },
-            }
-            template_operators = { # NOTE joint can be build by combinatorics
-                "lensing": operator.lensing(template_operator_descs["lensing"]),
-                "birefringence": operator.birefringence(template_operator_descs["birefringence"]),
-            }
+            if len(cf.analysis.key)==1:
+                keystring = cf.analysis.key
+            elif "_" in cf.analysis.key:
+                keystring = cf.analysis.key.split('_')[-1]
+            else:
+                keystring = cf.analysis.key[1:]
 
             QE_filterqest_desc = {
                 "estimator_key": cf.analysis.key,
                 "estimator_type": dl.estimator_type,
-                "libdir": opj(transform(cf, l2T_Transformer()), 'QE'),
+                "libdir": opj(transform(cf, l2T_Transformer()), 'QE', keystring),
                 "simulationdata": Simhandler(**cf.simulationdata.__dict__),
                 "nivjob_geominfo": cf.noisemodel.geominfo,
                 "nivt_desc": dl.nivt_desc,
@@ -460,7 +349,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "ftebl_len": dl.ftebl_len,
                 "ftebl_unl":  dl.ftebl_unl,
                 "lm_max_ivf": dl.lm_max_ivf,
-                "lm_max_qlm": dl.lm_max_qlm,
+                "lm_max_qlm": dl.lm_max_qlm, #FIXME this should be read in from the secondary key from QElensrec
                 "lm_max_unl": cf.itrec.lm_max_unl,
                 "lm_max_len": dl.lm_max_ivf,
                 "version": dl.version,
@@ -474,38 +363,63 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "lmin_teb": dl.lmin_teb,
                 "chain_descr": dl.chain_descr,
             }
+            # this is only secondary fields
 
-            QE_searchs_desc = {
-                "lensing": {
-                    "ID": "lensing",
-                    "libdir": opj(transform(cf, l2T_Transformer()), 'QE', 'lensing'),
+            QE_secs_descs = {sec: {
+                    "ID": sec,
+                    "libdir": opj(transform(cf, l2T_Transformer()), 'QE', keystring, 'estimates', sec),
+                    'lm_max': val['lm_max'],
+                    'components': val['components'],
+                    'CLfids': dl.CLfids[sec],
+                } for sec, val in cf.analysis.secondaries.items()}
+            QE_secs = {name: QE_field.base(field_desc) for name, field_desc in QE_secs_descs.items()}
+            
+            # this is template fields
+            # FIXME template fields 'components' are potentially not needed, as template will be generated using all components simulatenously
+            QE_template_descs = {sec: {
+                    "ID": sec,
+                    "libdir": opj(transform(cf, l2T_Transformer()), 'QE', keystring, 'templates', sec),
+                    'lm_max': val['lm_max'],
+                    'components': all_combinations(val['components']),
+                } for sec, val in cf.analysis.secondaries.items()}
+
+            if len(cf.analysis.secondaries) > 1:
+                QE_templates = [QE_field.base(field_desc) for name, field_desc in QE_template_descs.items()]
+                template_operator_descs = cf.qerec.template_operator_info
+                for sec, val in cf.qerec.template_operator_info.items():
+                    template_operator_descs[sec].update({
+                        "libdir": opj(transform(cf, l2T_Transformer()), 'QE', keystring, 'templates', sec),
+                        "field_fns": QE_secs["lensing"].klm_fns,
+                        "ffi": dl.ffi,
+                        })
+                template_operators = { # NOTE joint can be build by combinatorics
+                    "lensing": operator.lensing(template_operator_descs["lensing"]),
+                    "birefringence": operator.birefringence(template_operator_descs["birefringence"]),
+                }
+                # FIXME do this later
+                template_desc = {
+                    'fields': QE_templates,
+                    'operators': template_operators,
+                }
+            else:
+                template_desc = None
+
+            # TODO can I simplify this?
+            QE_searchs_desc = {sec: {
+                    "ID": sec,
+                    "libdir": opj(transform(cf, l2T_Transformer()), 'QE', keystring, sec),
                     "QE_filterqest_desc": QE_filterqest_desc,
-                    "field": QE_fields["lensing"],
-                    "estimator_key": cf.analysis.key,
+                    "secondary": QE_secs[sec],
+                    "estimator_key": cf.analysis.key, # FIXME
                     "cls_len": dl.cls_len,
                     "cls_unl": dl.cls_unl,
                     "simidxs": cf.analysis.simidxs,
                     "simidxs_mf": dl.simidxs_mf,
                     "subtract_meanfield": dl.subtract_QE_meanfield,
-
-                },
-                "birefringence": {
-                    "ID": "birefringence",
-                    "libdir": opj(transform(cf, l2T_Transformer()), 'QE', 'birefringence'),
-                    "QE_filterqest_desc": QE_filterqest_desc,
-                    "field": QE_fields["birefringence"],
-                    "estimator_key": cf.analysis.key,
-                    "cls_len": dl.cls_len,
-                    "cls_unl": dl.cls_unl,
-                    "simidxs": cf.analysis.simidxs,
-                    "simidxs_mf": dl.simidxs_mf,
-                    "subtract_meanfield": dl.subtract_QE_meanfield,
-                },
-            }
-
+                } for sec in cf.analysis.secondaries.keys()}
+            
             QE_handler_desc = {
-                "template_operators": template_operators,
-                "templates": templates,
+                "template_info": template_desc,
                 "simidxs": cf.analysis.simidxs,
                 "simidxs_mf": dl.simidxs_mf,
                 "QE_tasks": dl.qe_tasks,
@@ -538,6 +452,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                         _p7 = cd_solve.cache_mem()
                     dl.it_chain_descr = lambda p2, p5 : [
                         [dl.it_chain_model.p0, dl.it_chain_model.p1, p2, dl.it_chain_model.p3, dl.it_chain_model.p4, p5, _p6, _p7]]
+                    dl.it_chain_descr = lambda p2, p5 : [[0, ["diag_cl"], p2, 2048, np.inf, p5, cd_solve.tr_cg, cd_solve.cache_mem()]]
                     
                     dl.lenjob_geominfo = it.lenjob_geominfo
                     dl.lenjob_geomlib = get_geom(it.lenjob_geominfo)
@@ -575,14 +490,14 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             QE_searchs = dl.QE_searchs
             _process_components(dl)
 
-            MAP_libdir_prefix = opj(transform(cf, l2T_Transformer()), 'MAP', '{estimator_key}'.format(estimator_key=cf.analysis.key.split('_')[-1]))
+            MAP_libdir_prefix = opj(transform(cf, l2T_Transformer()), 'MAP'+"_"+get_hashcode(OrderedDict(cf.analysis.secondaries)), '{estimator_key}'.format(estimator_key=cf.analysis.key.split('_')[-1]))
 
             # input: all kwargs needed to build the MAP fields
             MAP_fields_descs = [{
                     "ID": "lensing",
                     "libdir": opj(MAP_libdir_prefix, 'estimates/'),
                     'lm_max': dl.lm_max_qlm,
-                    "components": 'alpha_omega',
+                    "components": ['p','w'],
                     'CLfids': {'alpha': dl.CLfids['pp'], 'omega': dl.CLfids['ww']},
                     'fns': {"alpha": 'klm_alpha_simidx{idx}_it{it}', "omega": 'klm_omega_simidx{idx}_it{it}'}, # This could be hardcoded, but I want to keep it flexible
                     'increment_fns': {"alpha": 'kinclm_alpha_simidx{idx}_it{it}', "omega": 'kinclm_omega_simidx{idx}_it{it}'},
@@ -607,7 +522,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "lm_max_qlm": dl.lm_max_qlm,
                 "Lmin": dl.Lmin,
                 "perturbative": False,
-                "components": 'alpha_omega',
+                "components": ['p','w'],
                 "libdir": opj(MAP_libdir_prefix, 'estimates/'),
                 'field_fns': MAP_fields["lensing"].fns,
                 "ffi": dl.ffi,
@@ -654,14 +569,14 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "total_increment_fns": 'ginclm_{gradient_name}_simidx{idx}_it{it}'.format(gradient_name=gradient_name, it="{it}", idx="{idx}"),    
                 "total_fns": 'gtotlm_{gradient_name}_simidx{idx}_it{it}'.format(gradient_name=gradient_name, it="{it}", idx="{idx}"),    
                 "chh": {"alpha": np.ones(shape=dl.lm_max_qlm[0]+1), "omega": np.ones(shape=dl.lm_max_qlm[0]+1)} if gradient_name == "lensing" else {"beta": np.ones(shape=dl.lm_max_qlm[0]+1)}, #FIXME this is prior times scaling factor
-                "components": 'alpha_omega' if gradient_name == 'lensing' else 'beta',
+                "components": ['p','w'] if gradient_name == 'lensing' else 'beta',
             } for gradient_name, gradient_operator in gradients_operators.items()]
             MAP_gfields = {gfield_desc["ID"]: MAP_field.gradient(gfield_desc) for gfield_desc in gfield_descs}
             gradient_descs = {}
             for gradient_name, gradient_operator in gradients_operators.items():
                 gradient_descs.update({ gradient_name: {
                     "ID": gradient_name,
-                    "field": MAP_fields[gradient_name],
+                    "secondary": MAP_fields[gradient_name],
                     "gfield": MAP_gfields[gradient_name],
                     "noisemodel_coverage": dl.it_filter_directional,
                     "estimator_key":  cf.analysis.key,
@@ -696,7 +611,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 'beam': operator.beam({"beamwidth": cf.analysis.beam, "lm_max":dl.lm_max_ivf}),
                 'Ninv_desc': [dl.nivt_desc, dl.nivp_desc],
                 "simulationdata": dl.simulationdata,
-                "chain_descr": dl.chain_descr(dl.lm_max_unl[0], dl.it_cg_tol(0)),
+                "chain_descr": dl.it_chain_descr(dl.lm_max_unl[0], dl.it_cg_tol(0)),
                 "ttebl": dl.ttebl,
                 "cls_filt": dl.cls_unl,
                 "lm_max_ivf": dl.lm_max_ivf,
@@ -710,7 +625,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "perturbative": False,
                     "lm_max": dl.lm_max_blt,
                     "lm_max_qlm": dl.lm_max_qlm,
-                    "components": 'alpha_omega',
+                    "components": ['p','w'],
                     "libdir": opj(MAP_libdir_prefix, 'estimates/'),
                     "field_fns": MAP_fields["lensing"].fns,
                     "ffi": dl.ffi,
@@ -726,7 +641,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
             curvature_desc = {
                 "ID": "curvature",
-                "field": MAP_field.curvature(
+                "secondary": MAP_field.curvature(
                     {"ID": "curvature",
                     "libdir": opj(MAP_libdir_prefix, 'curvature'),
                     "fns": 'diff_klm_{gradient_name}_simidx{idx}_it{it}m{itm1}'.format(gradient_name=gradient_name, it="{it}", itm1="{itm1}", idx="{idx}"),
@@ -821,7 +736,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 # @log_on_start(logging.DEBUG, "_process_Simulation() started")
                 # @log_on_end(logging.DEBUG, "_process_Simulation() finished")       
                 def _process_Simulation(dl, si):
-                    dl.libdir_suffix = cf.simulationdata.libdir_suffix
+                    dl.libdir_suffix = cf.simulationdata.obs_info['noise_info']['libdir_suffix']
                     l2base_Transformer.process_Simulation(dl, si, cf)
 
 
@@ -1007,7 +922,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 # @log_on_start(logging.DEBUG, "_process_Simulation() started")
                 # @log_on_end(logging.DEBUG, "_process_Simulation() finished")       
                 def _process_Simulation(dl, si):
-                    dl.libdir_suffix = cf.simulationdata.libdir_suffix
+                    dl.libdir_suffix = cf.simulationdata.obs_info['noise_info']['libdir_suffix']
                     l2base_Transformer.process_Simulation(dl, si, cf)
 
 
@@ -1374,7 +1289,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 dl.blt_pert = cf.qerec.blt_pert
                 _process_Meta(dl, cf.meta)
                 _process_Computing(dl, cf.computing)
-                dl.libdir_suffix = cf.simulationdata.libdir_suffix
+                dl.libdir_suffix = cf.simulationdata.obs_info['noise_info']['libdir_suffix']
                 dl.simulationdata = Simhandler(**cf.simulationdata.__dict__)
                 _process_Analysis(dl, cf.analysis)
                 _process_Noisemodel(dl, cf.noisemodel)
@@ -1464,7 +1379,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 # @log_on_start(logging.DEBUG, "_process_Simulation() started")
                 # @log_on_end(logging.DEBUG, "_process_Simulation() finished")       
                 def _process_Simulation(dl, si):
-                    dl.libdir_suffix = cf.simulationdata.libdir_suffix
+                    dl.libdir_suffix = cf.simulationdata.obs_info['noise_info']['libdir_suffix']
                     l2base_Transformer.process_Simulation(dl, si, cf)
 
 

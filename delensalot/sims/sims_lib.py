@@ -243,9 +243,11 @@ class Cls:
         return self.cacher.load(fn)   
     
 
-    def get_clsec(self, simidx, secondary=None, components=['pp'], lmax=None):
+    def get_clsec(self, simidx, secondary=None, components=None, lmax=None):
         if secondary is None:
-            return np.array([self.get_clsec(simidx, sec, components, lmax) for sec in self.fid_info['sec_components'].keys()])
+            return [self.get_clsec(simidx, sec, components, lmax) for sec in self.fid_info['sec_components'].keys()]
+        if components is None:
+            return np.array([self.get_clsec(simidx, secondary, comp, lmax).squeeze() for comp in self.fid_info['sec_components'][secondary]])
         components = [components] if isinstance(components, str) else components
         fn = f"clssec{secondary}_{components}_{simidx}"
         if not self.cacher.is_cached(fn):
@@ -528,15 +530,15 @@ class Xsky:
                                 sky2 = self.geom_lib.alm2map(alm_buffer[1], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                                 sky = np.array([sky1, sky2])
                             elif spin == 2:
-                                sky = self.lenjob_geomlib.map2alm_spin(copy(sky), spin=2, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
-                                sky = self.geom_lib.alm2map_spin(copy(sky), lmax=self.CMB_info['lm_max'][0], spin=2, mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                                sky = self.lenjob_geomlib.map2alm_spin(copy.copy(sky), spin=2, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                                sky = self.geom_lib.alm2map_spin(copy.copy(sky), lmax=self.CMB_info['lm_max'][0], spin=2, mmax=self.CMB_info['lm_max'][1], nthreads=4)
                         elif space == 'alm':
                             sky = self.lenjob_geomlib.map2alm_spin(sky, lmax=self.CMB_info['lm_max'][0], spin=2, mmax=self.CMB_info['lm_max'][1], nthreads=4)
                     elif field == 'temperature':
                         sky = self.operators[0].geomlib.alm2map(sky, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                         if space == 'map':
-                            sky = self.lenjob_geomlib.map2alm(copy(sky), lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
-                            sky = self.geom_lib.alm2map(copy(sky), lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                            sky = self.lenjob_geomlib.map2alm(copy.copy(sky), lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                            sky = self.geom_lib.alm2map(copy.copy(sky), lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                         elif space == 'alm':
                             sky = self.lenjob_geomlib.map2alm(sky, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                 else:
@@ -905,6 +907,7 @@ class Simhandler:
         self.CMB_info = self.obs_lib.CMB_info
         self.sec_info = sec_info
         self.operator_info = operator_info
+        self.fid_info = self.cls_lib.fid_info
 
         self.flavour = flavour
         self.maps = maps
@@ -938,8 +941,8 @@ class Simhandler:
     def get_sim_fidCMB(self, simidx, components):
         return self.cls_lib.get_clCMBpri(simidx=simidx, components=components)
 
-    def get_sim_fidsec(self, simidx, secondary=None, component=None):
-        return self.cls_lib.get_clsec(simidx=simidx, secondary=secondary, component=component)
+    def get_sim_fidsec(self, simidx, secondary=None, components=None):
+        return self.cls_lib.get_clsec(simidx=simidx, secondary=secondary, components=components)
     
     
     def purgecache(self):

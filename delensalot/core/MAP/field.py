@@ -17,15 +17,15 @@ class base:
         self.meanfield_fns = field_desc['meanfield_fns']
         self.increment_fns = field_desc['increment_fns']
         self.cacher = cachers.cacher_npy(opj(self.libdir))
-        self.component2idx = {component: i for i, component in enumerate(self.components.split("_"))}
+        self.component2idx = {component: i for i, component in enumerate(self.components)}
 
 
     def get_klm(self, idx, it, component=None):
         "components are stored with leading dimension"
         if component is None:
-            return np.array([self.get_klm(idx, it, component).squeeze() for component in self.components.split("_")])
+            return np.array([self.get_klm(idx, it, component).squeeze() for component in self.components])
         if it < 0:
-            return np.atleast_2d([np.zeros(Alm.getsize(*self.lm_max), dtype=complex) for component in self.components.split("_")])
+            return np.atleast_2d([np.zeros(Alm.getsize(*self.lm_max), dtype=complex) for component in self.components])
         return np.atleast_2d(self.cacher.load(self.fns[component].format(idx=idx, it=it))) if self.cacher.is_cached(self.fns[component].format(idx=idx, it=it)) else np.atleast_2d(self.sk2klm(it))
 
 
@@ -38,7 +38,7 @@ class base:
 
     def cache_klm(self, klm, idx, it, component=None):
         if component is None:
-            for ci, component in enumerate(self.components.split("_")):
+            for ci, component in enumerate(self.components):
                 self.cache_klm(np.atleast_2d(klm[ci]), idx, it, component)
             return
         self.cacher.cache(self.fns[component].format(idx=idx, it=it), np.atleast_2d(klm))
@@ -61,7 +61,7 @@ class gradient:
         self.total_increment_fns = field_desc['total_increment_fns']
         self.chh = field_desc['chh']
         self.components = field_desc['components']
-        self.component2idx = {component: i for i, component in enumerate(self.components.split("_"))}
+        self.component2idx = {component: i for i, component in enumerate(self.components)}
 
         self.cacher = cachers.cacher_npy(opj(self.libdir))
         self.cacher_field = cachers.cacher_npy(opj(self.libdir_prior))
@@ -69,7 +69,7 @@ class gradient:
 
     def get_prior(self, simidx, it, component=None):
         if component is None:
-            return np.atleast_2d([self.get_prior(simidx, it, component_).squeeze() for component_i, component_ in enumerate(self.components.split("_"))])
+            return np.atleast_2d([self.get_prior(simidx, it, component_).squeeze() for component_i, component_ in enumerate(self.components)])
         if not self.cacher_field.is_cached(self.prior_fns.format(component=component, idx=simidx, it=it)):
             assert 0, "cannot find prior at {}".format(self.cacher_field.lib_dir+"/"+self.prior_fns.format(component=component, idx=simidx, it=it))
         else:

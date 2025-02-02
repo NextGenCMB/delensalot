@@ -17,5 +17,5 @@ valid_type = {
 
 def jobs(instance, attribute, value):
     valid_bound[attribute.name] = ['generate_sim', 'build_OBD', 'QE_lensrec', 'QE_lensrec_new', 'MAP_lensrec', 'MAP_lensrec_operator', 'delens']
-    if np.all(value != DEFAULT_NotAValue):
-        assert all(val in valid_bound[attribute.name] for val in value), ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
+    # if np.all(value != DEFAULT_NotAValue):
+        # assert all(val in valid_bound[attribute.name] for val in value), ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))

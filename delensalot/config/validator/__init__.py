@@ -23,6 +23,7 @@ safelist = [
     'OMP_NUM_THREADS',
     'rhits_normalised',
     'masks_fn',
+    'secondaries'
 ]
 
 DEFAULT_NotAValue = -123456789

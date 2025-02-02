@@ -42,11 +42,27 @@ from delensalot.core.opfilt.bmodes_ninv import template_dense, template_bfilt
 from delensalot.core.MAP import handler as MAP_handler
 from delensalot.core.QE import handler as QE_handler
 
+from collections import UserDict
+
+class ConstantDict(UserDict):
+    def __init__(self, value):
+        super().__init__()
+        self._value = value
+
+    def __getitem__(self, key):
+        return self._value
+
+    def get(self, key, default=None):
+        return self._value
+
 
 required_files_map = {
     'p_p': ['E', 'B'], 'p_eb': ['E', 'B'], 'peb': ['E', 'B'], 'p_be': ['E', 'B'], 'pee': ['E', 'B'],
     'ptt': ['T'],
     'p': ['T', 'E', 'B']}
+# NOTE This is to generate all maps no matter the CMB estimator request
+required_files_map = ConstantDict(['T', 'E', 'B'])
+
 
 def get_dirname(s):
     s = str(s)
@@ -281,9 +297,9 @@ class Sim_generator(Basejob):
             else:
 
                 # some flavour provided, and we need to generate the sky and obs maps from this.
-                hashc = get_hashcode(self.simulationdata.transfunction)
-                lenjob_geomstr = get_dirname(self.simulationdata.sky_lib.operator_info['lensing']['geominfo'])
-                self.libdir_suffix = 'generic' if self.libdir_suffix in ['', DEFAULT_NotAValue] else self.libdir_suffix
+                hashc = get_hashcode(self.simulationdata.fid_info['sec_components'])
+                lenjob_geomstr = get_dirname(self.simulationdata.sky_lib.operator_info['lensing']['geominfo'])+"_"+hashc
+                self.libdir_suffix = 'generic' if self.simulationdata.obs_info['noise_info']['libdir_suffix'] in ['', DEFAULT_NotAValue] else self.simulationdata.obs_info['noise_info']['libdir_suffix']
                 self.libdir_sky = opj(os.environ['SCRATCH'], 'simulation/', self.libdir_suffix, get_dirname(self.simulationdata.geominfo), lenjob_geomstr)
                 self.fns_sky = self.set_basename_sky()
                 # NOTE for each operator, I need sec fns
@@ -293,6 +309,7 @@ class Sim_generator(Basejob):
                     for comp in secinfo['components']:
                         self.fns_sec[sec][comp] = f'{sec}_{comp}lm_{{}}.npy'
 
+            hashc = get_hashcode(self.simulationdata.transfunction)
             self.libdir_suffix = 'generic' if self.libdir_suffix in ['', DEFAULT_NotAValue] else self.libdir_suffix
             nlev_round = dict2roundeddict(self.simulationdata.nlev)
             self.libdir = opj(os.environ['SCRATCH'], 'simulation/', self.libdir_suffix, get_dirname(self.simulationdata.geominfo), get_dirname(lenjob_geomstr), get_dirname(sorted(nlev_round.items())), f'{hashc}') # 
@@ -313,7 +330,7 @@ class Sim_generator(Basejob):
             simidxs_ = np.unique(np.concatenate([self.simidxs, self.simidxs_mf])).astype(int)
             def check_and_log(libdir, fns, postrun_method, data_type):
                 """function to check file existence """
-                if all(all(os.path.exists(opj(libdir, fns[f].format(simidx))) for f in required_files) for simidx in simidxs_):
+                if all(os.path.exists(opj(libdir, fns[f].format(simidx))) for f in required_files for simidx in simidxs_):
                     postrun_method()
                     log.info(f'will use {data_type} data at {libdir} with filenames {fns}')
                 else:
@@ -325,22 +342,32 @@ class Sim_generator(Basejob):
                     check_and_log(self.libdir_sky, self.fns_sky, self.postrun_sky, "sky")
 
     def set_basename_sky(self):
-        if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']: 
-            fns_sky = {'E': 'Ealmsky_{}.npy', 'B': 'Balmsky_{}.npy'}
-        elif self.k in ['ptt']:
-            fns_sky = {'T': 'Talmsky_{}.npy'}
-        elif self.k in ['p']:
-            fns_sky = {'T': 'Talmsky_{}.npy', 'E': 'Ealmsky_{}.npy', 'B': 'Balmsky_{}.npy'}
-        return fns_sky
+        # NOTE uncomment if you only want to generat the maps that are requested by the estimator
+        # fns_sky_map = {
+        #     'p_p': {'E': 'Ealmsky_{}.npy', 'B': 'Balmsky_{}.npy'},
+        #     'p_eb': {'E': 'Ealmsky_{}.npy', 'B': 'Balmsky_{}.npy'},
+        #     'peb': {'E': 'Ealmsky_{}.npy', 'B': 'Balmsky_{}.npy'},
+        #     'p_be': {'E': 'Ealmsky_{}.npy', 'B': 'Balmsky_{}.npy'},
+        #     'pee': {'E': 'Ealmsky_{}.npy', 'B': 'Balmsky_{}.npy'},
+        #     'ptt': {'T': 'Talmsky_{}.npy'},
+        #     'p': {'T': 'Talmsky_{}.npy', 'E': 'Ealmsky_{}.npy', 'B': 'Balmsky_{}.npy'}
+        # }
+        # return fns_sky_map.get(self.k, {})
+        return {'T': 'Talmsky_{}.npy', 'E': 'Ealmsky_{}.npy', 'B': 'Balmsky_{}.npy'}
 
     def set_basename_obs(self):
-        if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']: 
-            fns = {'E': 'Ealmobs_{}.npy', 'B': 'Balmobs_{}.npy'}
-        elif self.k in ['ptt']:
-            fns = {'T': 'Talmobs_{}.npy'}
-        elif self.k in ['p']:
-            fns = {'T': 'Talmobs_{}.npy', 'E': 'Ealmobs_{}.npy', 'B': 'Balmobs_{}.npy'}
-        return fns
+        # NOTE uncomment if you only want to generat the maps that are requested by the estimator
+        # fns_obs_map = {
+        #     'p_p': {'E': 'Ealmobs_{}.npy', 'B': 'Balmobs_{}.npy'},
+        #     'p_eb': {'E': 'Ealmobs_{}.npy', 'B': 'Balmobs_{}.npy'},
+        #     'peb': {'E': 'Ealmobs_{}.npy', 'B': 'Balmobs_{}.npy'},
+        #     'p_be': {'E': 'Ealmobs_{}.npy', 'B': 'Balmobs_{}.npy'},
+        #     'pee': {'E': 'Ealmobs_{}.npy', 'B': 'Balmobs_{}.npy'},
+        #     'ptt': {'T': 'Talmobs_{}.npy'},
+        #     'p': {'T': 'Talmobs_{}.npy', 'E': 'Ealmobs_{}.npy', 'B': 'Balmobs_{}.npy'}
+        # }
+        # return fns_obs_map.get(self.k, {})
+        return {'T': 'Talmobs_{}.npy', 'E': 'Ealmobs_{}.npy', 'B': 'Balmobs_{}.npy'}
 
     # @base_exception_handler
     @log_on_start(logging.INFO, "Sim.collect_jobs() started")
@@ -349,7 +376,7 @@ class Sim_generator(Basejob):
         jobs = list(range(len(['generate_sky', 'generate_obs'])))
         required_files = required_files_map.get(self.k, [])
         if np.all(self.simulationdata.maps == DEFAULT_NotAValue) and self.simulationdata.flavour != 'obs':
-            simidxs_ = np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))), dtype=int)
+            simidxs_ = np.unique(np.concatenate([self.simidxs, self.simidxs_mf])).astype(int)
             for taski, task in enumerate(['generate_sky', 'generate_obs']):
                 _jobs = []
 
@@ -430,7 +457,8 @@ class Sim_generator(Basejob):
                     np.save(filepath, Tobs)
 
     def postrun_obs(self):
-        # we always enter postrun, even from other jobs (like QE_lensrec). So making sure we are not accidently overwriting libdirs and fns
+        # NOTE if this class here decides to generate data, we need to update some parameters in the simulationdata object
+        # NOTE if later reconstruction is run with the same config file, these updates also make sure they find the data without having to update the config file
         if self.simulationdata.flavour != 'sky' and self.simulationdata.flavour != 'obs' and np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
             self.simulationdata.libdir = self.libdir
             self.simulationdata.fns = self.fns
@@ -441,14 +469,17 @@ class Sim_generator(Basejob):
                 self.simulationdata.obs_lib.CMB_info['spin'] = 0
 
     def postrun_sky(self):
-        # we always enter postrun, even from other jobs (like QE_lensrec). So making sure we are not accidently overwriting libdirs and fns
+        # NOTE if this class here decides to generate data, we need to update some parameters in the simulationdata object
+        # NOTE if later reconstruction is run with the same config file, these updates also make sure they find the data without having to update the config file
+        
+        # NOTE for pri_lib we don't need to set anything, as we don't store them
+
         if not self.simulationdata.flavour in ['sky', 'obs'] and np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
             self.simulationdata.sky_lib.CMB_info['fns'] = self.fns_sky
             self.simulationdata.sky_lib.CMB_info['libdir'] = self.libdir_sky
             self.simulationdata.sky_lib.CMB_info['space'] = 'alm'
             self.simulationdata.sky_lib.CMB_info['spin'] = 0
 
-            # TODO check if this is right
             for sec, secinfo in self.simulationdata.operator_info.items():
                 self.simulationdata.sky_lib.sec_info[sec]['fns'] = self.fns_sec[sec]
                 self.simulationdata.sky_lib.sec_info[sec]['libdir'] = self.libdir_sky
@@ -456,11 +487,6 @@ class Sim_generator(Basejob):
                 self.simulationdata.sky_lib.sec_info[sec]['spin'] = 0
                 self.simulationdata.sky_lib.sec_info[sec]['lm_max'] = secinfo['lm_max']
                 self.simulationdata.sky_lib.sec_info[sec]['components'] = secinfo['components']
-
-                # self.simulationdata.pri_lib.sec_info[sec]['libdir'] = self.libdir_sky
-                # self.simulationdata.pri_lib.sec_info[sec]['fns'] = self.fns_sec[sec]
-                # self.simulationdata.pri_lib.sec_info[sec]['space'] = 'alm'
-                # self.simulationdata.pri_lib.sec_info[sec]['scale'] = 'p'
 
 
 class Noise_modeller(Basejob):
@@ -571,22 +597,30 @@ class QE_lr_new(Basejob):
     """
     @check_MPI
     def __init__(self, dm):
-        super().__init__(dm)
-        # this class handles the collect/run across simidxs, nothing else.
-        # It has functions to call the QE handler, and the QE handler has functions to call the QE filter and qest libs
-        # this class also has functions to call the results
-        QE_handler_desc = dm.QE_handler_desc
-        self.QE_tasks = QE_handler_desc['QE_tasks']
-        self.simidxs = QE_handler_desc['simidxs']
-        self.simidxs_mf = QE_handler_desc['simidxs_mf']
-        self.simulationdata = QE_handler_desc['simulationdata']
-        self.templates = QE_handler_desc['templates']
-        self.template_operators  = QE_handler_desc['template_operators']
+        self.__dict__.update(dm.__dict__)
+        # NOTE plancklens uses get_sim_pmap() from simulationdata.
+        # Sim_generator updates the simulationdata object with the libdirs and fns if it generated simulations, so need to update this
+        self.simgen = Sim_generator(dm)
+        self.simulationdata = self.simgen.simulationdata
+        for name, QE_searchs_desc in dm.QE_searchs_desc.items():
+            QE_searchs_desc['QE_filterqest_desc']['simulationdata'] = self.simulationdata
+
+        self.QE_tasks = dm.QE_handler_desc['QE_tasks']
+        self.simidxs = dm.QE_handler_desc['simidxs']
+        self.simidxs_mf = dm.QE_handler_desc['simidxs_mf']
 
         # I want to have a QE search for each field
         self.QE_searchs = [QE_handler.base(QE_search_desc) for name, QE_search_desc in dm.QE_searchs_desc.items()]
-        self.field2idx = {QE_search.field.ID: i for i, QE_search in enumerate(self.QE_searchs)}
-        self.idx2field = {i: QE_search.field.ID for i, QE_search in enumerate(self.QE_searchs)}
+        print(self.QE_searchs)
+        if len(self.QE_searchs) == 0:
+            print(' -- -- -- -- -- ')
+            print('!!! nothing to reconstruct -- you did not specifiy any secondaries in the config file !!!')
+            print(' -- -- -- -- -- ')
+        self.secondary2idx = {QE_search.secondary.ID: i for i, QE_search in enumerate(self.QE_searchs)}
+        self.idx2secondary = {i: QE_search.secondary.ID for i, QE_search in enumerate(self.QE_searchs)}
+
+        self.template_info = dm.QE_handler_desc['template_info'] # TODO later. inside here are the template fields and operators
+        
         # if there is no job, we can already init the filterqest
         def filter_none(array):
             return np.array([x for x in array.ravel() if x is not None])
@@ -596,34 +630,35 @@ class QE_lr_new(Basejob):
                 QE_search.init_filterqest()
                 print('initialized QE filteqest')
 
+
     def collect_jobs(self, recalc=False):
-        jobs = list(range(len(self.qe_tasks)))
-        for taski, task in enumerate(self.qe_tasks):
+        jobs = list(range(len(self.QE_tasks)))
+        for taski, task in enumerate(self.QE_tasks):
             _jobs = []
+
             if task == 'calc_fields':
                 _nomfcheck = True if self.simidxs_mf == [] else False
                 for simidx in self.simidxs:
                     __jobs = []
                     for Qi, QE_search in enumerate(self.QE_searchs): # each field has its own QE_search
                         _add = False
-                        for ci, component in enumerate(QE_search.field.components.split('_')):
-                            if _nomfcheck or not QE_search.field.cacher.is_cached(QE_search.field.qmflm_fns[component].format(idx=simidx)) or recalc:
-                                if not QE_search.field.cacher.is_cached(QE_search.field.klm_fns[component].format(idx=simidx)) or recalc:
+                        for ci, component in enumerate(QE_search.secondary.components):
+                            if _nomfcheck or not QE_search.secondary.cacher.is_cached(QE_search.secondary.qmflm_fns[component].format(idx=simidx)) or recalc:
+                                if not QE_search.secondary.cacher.is_cached(QE_search.secondary.klm_fns[component].format(idx=simidx)) or recalc:
                                    _add = True
                         __jobs.append(simidx) if _add else __jobs.append(None)
                     _jobs.append(__jobs)
             jobs.append(_jobs)
              
-
             if task == 'calc_meanfields':
                 for simidx in self.simidxs_mf:
                     __jobs = []
                     for Qi, QE_search in enumerate(self.QE_searchs): # each field has its own QE_search
                         _add = False
-                        for ci, component in enumerate(QE_search.field.components.split('_')): # each field has n components # fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, pl_utils.mchash(self.simidxs_mf)))
-                            mf_fn = opj(QE_search.libdir, 'qlms_dd', QE_search.field.qmflm_fns[component])
+                        for ci, component in enumerate(QE_search.secondary.components): # each field has n components # fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, pl_utils.mchash(self.simidxs_mf)))
+                            mf_fn = opj(QE_search.libdir, 'qlms_dd', QE_search.secondary.qmflm_fns[component])
                             if not os.path.isfile(mf_fn) or recalc:
-                                field_fn = opj(QE_search.libdir, 'qlms_dd', QE_search.field.qlm_fns[component].format(idx=simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
+                                field_fn = opj(QE_search.libdir, 'qlms_dd', QE_search.secondary.qlm_fns[component].format(idx=simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
                                 if not os.path.isfile(field_fn) or recalc:
                                     _add = True
                          # checking for each component, but only adding the complete field as task index
@@ -640,7 +675,7 @@ class QE_lr_new(Basejob):
                         for ci, component in enumerate(QE_search.te.components): # each field has n components # fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, pl_utils.mchash(self.simidxs_mf)))
                             tepmplate_fn = opj(QE_search.libdir, 'templates', QE_search.template.qmflm_fns[component])
                             if not os.path.isfile(tepmplate_fn) or recalc:
-                                field_fn = opj(QE_search.libdir, 'qlms_dd', QE_search.field.qlm_fns[component].format(idx=simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
+                                field_fn = opj(QE_search.libdir, 'qlms_dd', QE_search.secondary.qlm_fns[component].format(idx=simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
                                 if not os.path.isfile(field_fn) or recalc:
                                     _jobs.append(int(simidx))
 
@@ -665,9 +700,10 @@ class QE_lr_new(Basejob):
             for QE_search in self.QE_searchs:
                 QE_search.init_filterqest()
                    
-        _tasks = self.qe_tasks if task is None else [task]
+        _tasks = self.QE_tasks if task is None else [task]
         for taski, task in enumerate(_tasks):
             log.info('{}, task {} started'.format(mpi.rank, task))
+
             if task == 'calc_fields':
                 for simidxs in self.jobs[taski][mpi.rank::mpi.size]:
                     for fi, fidx in enumerate(simidxs):
@@ -677,6 +713,7 @@ class QE_lr_new(Basejob):
                     if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
                         self.simulationdata.purgecache()
                 mpi.barrier()
+
             if task == 'calc_meanfields':
                 for simidxs in self.jobs[taski][mpi.rank::mpi.size]:
                     for QE_search in self.QE_searchs:
@@ -700,20 +737,29 @@ class QE_lr_new(Basejob):
 
 
     def get_qlm(self, simidx, field, component=None):
-        return self.QE_searchs[self.field2idx[field]].get_qlm(simidx, component)
+        if field not in self.secondary2idx:
+            print(f'Field {field} not found. Available fields are: ', self.secondary2idx.keys())
+            return np.array([[]])
+        return self.QE_searchs[self.secondary2idx[field]].get_qlm(simidx, component)
     
 
     def get_klm(self, simidx, field, subtract_meanfield=None, component=None):
-        return self.QE_searchs[self.field2idx[field]].get_klm(simidx, subtract_meanfield, component)
+        if field not in self.secondary2idx:
+            print('Field not found. Available fields are: ', self.secondary2idx.keys())
+            return np.array([[]])
+        return self.QE_searchs[self.secondary2idx[field]].get_klm(simidx, subtract_meanfield, component)
 
 
     def get_template(self, simidx, operator_indexs):
+        # self.templates = dm.QE_handler_desc['templates']
+        # self.template_operators  = dm.QE_handler_desc['template_operators']
         # TODO add cacher and connect to field class
         # FIXME what does a joint operator act on? Currently, I have a WF for each field. Is there a joint_WF for QE?
         wf = self.get_wf(simidx)
         for operator_index in operator_indexs:
             obj = self.template_operators[operator_index].act(wf)
             wf = obj
+        return wf
 
 
     def get_wf(self, simidx, field):
@@ -728,16 +774,18 @@ class MAP_lr_operator:
     def __init__(self, dl):
         self.MAP_handler_desc = dl.MAP_handler_desc
         
-        self.simulationdata = self.MAP_handler_desc["simulationdata"]
+        # self.simulationdata = self.MAP_handler_desc["simulationdata"]
+        self.simgen = Sim_generator(dl)
+        self.simulationdata = self.simgen.simulationdata
         self.QE_searchs = self.MAP_handler_desc["QE_searchs"]
         self.simidxs = self.MAP_handler_desc["simidxs"]
         self.simidxs_mf = self.MAP_handler_desc["simidxs_mf"]
         # I want to have a MAP handler for each simidx as indices have nothing to do with each other
         self.MAP_searchs_desc = dl.MAP_searchs_desc
-        field2idx = {QE_search.field.ID: i for i, QE_search in enumerate(self.QE_searchs)}
+        field2idx = {QE_search.secondary.ID: i for i, QE_search in enumerate(self.QE_searchs)}
         self.MAP_searchs_desc["desc"].update({"Runl0": {}})
         for i, QE_search in enumerate(self.QE_searchs):
-            self.MAP_searchs_desc["desc"]["Runl0"].update({QE_search.field.ID: np.array([QE_search.get_response_unl(component) for component in QE_search.field.components.split("_")])})
+            self.MAP_searchs_desc["desc"]["Runl0"].update({QE_search.secondary.ID: np.array([QE_search.get_response_unl(component) for component in QE_search.secondary.components.split("_")])})
         
         self.MAP_searchs = [MAP_handler.base(self.simulationdata, self.MAP_searchs_desc["MAP_fields"], self.MAP_searchs_desc["filter_desc"], self.MAP_searchs_desc["gradient_descs"], self.MAP_searchs_desc["curvature_desc"], self.MAP_searchs_desc["desc"], self.MAP_searchs_desc["template_descs"], simidx) for simidx in self.simidxs]
         self.it_tasks = self.MAP_handler_desc["it_tasks"]
@@ -759,9 +807,9 @@ class MAP_lr_operator:
 
     def run(self):
         # NOTE maybe not: for QE_search in self.QE_searchs: # need to make sure the klm starting points exist for each simidx before running the MAP job
-        #     for component in QE_search.field.components.split('_'):
+        #     for component in QE_search.secondary.components:
         #         for simidx in self.jobs[taski][mpi.rank::mpi.size]:
-        #             self.get_klms(simidx, 0, QE_search.field, component, self.subtract_QE_meanfield)
+        #             self.get_klms(simidx, 0, QE_search.secondary, component, self.subtract_QE_meanfield)
         #     if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
         #         self.simulationdata.purgecache()
 
@@ -777,13 +825,13 @@ class MAP_lr_operator:
 
 
     def get_klm(self, simidx, it, field=None, component=None, subtract_QE_meanfield=True):
-        field2idx = {QE_search.field.ID: i for i, QE_search in enumerate(self.QE_searchs)}
-        idx2field = {i: QE_search.field.ID for i, QE_search in enumerate(self.QE_searchs)}
+        field2idx = {QE_search.secondary.ID: i for i, QE_search in enumerate(self.QE_searchs)}
+        idx2secondary = {i: QE_search.secondary.ID for i, QE_search in enumerate(self.QE_searchs)}
         # NOTE: if this is called, get all fields and all components for that iteration, unless field and component are specified
         # if it is smaller than current iteration, calculate the MAP search, otherwise access the cached result
         if it == 0: # QE (starting point)
             if field is None:
-                return [self.get_klm(simidx, it, fieldID, component, subtract_QE_meanfield) for fieldID, field in self.MAP_searchs[simidx].fields.items()]
+                return [self.get_klm(simidx, it, fieldID, component, subtract_QE_meanfield) for fieldID, field in self.MAP_searchs[simidx].secondarys.items()]
             return self.QE_searchs[field2idx[field]].get_klm(simidx, subtract_QE_meanfield, component)
         else:
             return self.MAP_searchs[simidx].get_klm(simidx, it, field, component)
@@ -807,13 +855,13 @@ class MAP_lr_operator:
 
     def copyQEtoDirectory(self, simidx):
         # copies fields and gradient starting points to MAP directory
-        field2idx = {QE_search.field.ID: i for i, QE_search in enumerate(self.QE_searchs)}
-        idx2field = {i: QE_search.field.ID for i, QE_search in enumerate(self.QE_searchs)}
+        field2idx = {QE_search.secondary.ID: i for i, QE_search in enumerate(self.QE_searchs)}
+        idx2secondary = {i: QE_search.secondary.ID for i, QE_search in enumerate(self.QE_searchs)}
         gradient2idx = {gradient.ID: i for i, gradient in enumerate(self.MAP_searchs[0].gradients)}
-        for fieldname, field in self.MAP_searchs[simidx].fields.items():
+        for fieldname, field in self.MAP_searchs[simidx].secondarys.items():
             self.QE_searchs[field2idx[fieldname]].init_filterqest()
             klm_QE = self.QE_searchs[field2idx[fieldname]].get_klm(simidx, None)
-            self.MAP_searchs[simidx].fields[fieldname].cache_klm(klm_QE, simidx, it=0)
+            self.MAP_searchs[simidx].secondarys[fieldname].cache_klm(klm_QE, simidx, it=0)
             # self.MAP_searchs[simidx].gradients[gradient2idx[fieldname]].gfield.cache_prior(np.array(klm_QE), simidx, it=0)
             self.MAP_searchs[simidx].gradients[gradient2idx[fieldname]].gfield.cache_quad(klm_QE, simidx, it=0)
             
@@ -831,10 +879,10 @@ class QE_lr(Basejob):
     @check_MPI
     def __init__(self, dlensalot_model, caller=None):
         if caller is not None:
-            dlensalot_model.qe_tasks = dlensalot_model.it_tasks
+            dlensalot_model.QE_tasks = dlensalot_model.it_tasks
             ## TODO. Current solution to fake an iteration handler for QE to calc blt is to initialize one MAP_job here.
             ## In the future, I want to remove get_template_blm from the iteration_handler for QE.
-            if 'calc_blt' in dlensalot_model.qe_tasks:
+            if 'calc_blt' in dlensalot_model.QE_tasks:
                 self.MAP_job = caller
 
         super().__init__(dlensalot_model)
@@ -870,7 +918,7 @@ class QE_lr(Basejob):
         self.R_unl = lambda: qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_unl, self.cls_unl,  self.ftebl_unl, lmax_qlm=self.lm_max_qlm[0])[0]
 
         ## Faking here sims_MAP for calc_blt as iteration_handler needs it
-        if 'calc_blt' in self.qe_tasks:
+        if 'calc_blt' in self.QE_tasks:
             if self.it_filter_directional == 'anisotropic':
                 # TODO reimplement ztrunc
                 self.sims_MAP = utils_sims.ztrunc_sims(self.simulationdata, self.nivjob_geominfo[1]['nside'], [self.zbounds])
@@ -910,11 +958,9 @@ class QE_lr(Basejob):
     # @log_on_end(logging.DEBUG, "QE.collect_jobs(recalc={recalc}) finished: jobs={self.jobs}")
     def collect_jobs(self, recalc=False):
 
-        # qe_tasks overwrites task-list and is needed if MAP lensrec calls QE lensrec
-        jobs = list(range(len(self.qe_tasks)))
-        for taski, task in enumerate(self.qe_tasks):
-            ## task_dependence
-            ## calc_mf -> calc_phi, calc_blt -> calc_phi, (calc_mf)
+        # QE_tasks overwrites task-list and is needed if MAP lensrec calls QE lensrec
+        jobs = list(range(len(self.QE_tasks)))
+        for taski, task in enumerate(self.QE_tasks):
             _jobs = []
 
             ## Calculate realization dependent phi, i.e. plm_it000.
@@ -981,7 +1027,7 @@ class QE_lr(Basejob):
                     mpi.receive(None, source=mpi.ANY_SOURCE)
                 self.init_aniso_filter()
                         
-        _tasks = self.qe_tasks if task is None else [task]
+        _tasks = self.QE_tasks if task is None else [task]
         for taski, task in enumerate(_tasks):
             log.info('{}, task {} started'.format(mpi.rank, task))
 

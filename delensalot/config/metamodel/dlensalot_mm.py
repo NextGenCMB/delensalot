@@ -145,6 +145,7 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     beam =                  attr.field(default=DEFAULT_NotAValue, validator=analysis.beam)
     transfunction_desc =    attr.field(default=DEFAULT_NotAValue, validator=analysis.transfunction)
     CLfids =                attr.field(default=DEFAULT_NotAValue)
+    secondaries =           attr.field(default=DEFAULT_NotAValue)
 
 
 @attr.s
@@ -215,6 +216,7 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     cl_analysis =           attr.field(default=DEFAULT_NotAValue, validator=qerec.cl_analysis) # TODO make this useful or remove
     blt_pert =              attr.field(default=DEFAULT_NotAValue, validator=qerec.btemplate_perturbative_lensremap)
     subtract_QE_meanfield = attr.field(default=DEFAULT_NotAValue)
+    template_operator_info = attr.field(default=DEFAULT_NotAValue)
 
 @attr.s
 class DLENSALOT_Itrec(DLENSALOT_Concept):
@@ -390,8 +392,6 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     phana =                 attr.field(default=DLENSALOT_Phianalysis())
     
 
-
-
     def __attrs_post_init__(self):
         default_path = Path(__file__).parent.parent / f"default/{self.defaults_to.replace('.py', '')}.py"
         spec = importlib.util.spec_from_file_location("default", default_path)
@@ -410,7 +410,6 @@ class DLENSALOT_Model(DLENSALOT_Concept):
                     elif isinstance(default_value, dict) and isinstance(target[key], dict):
                         update_defaults(target[key], default_value)
                 else:  # Handle object attributes
-                    # print(f'udpdating {target}')
                     if not hasattr(target, key) or np.all(getattr(target, key) == DEFAULT_NotAValue):
                         setattr(target, key, default_value)
                     elif isinstance(default_value, dict) and isinstance(getattr(target, key), dict):

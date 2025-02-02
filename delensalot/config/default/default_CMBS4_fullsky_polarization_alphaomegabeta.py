@@ -15,9 +15,11 @@ DL_DEFAULT = {
         'version': "0.2"
     },
     'job':{
-        'jobs': ["generate_sim", "QE_lensrec", "MAP_lensrec"]
+        'jobs': ["generate_sim", "QE_lensrec_new", "MAP_lensrec_operator"]
     },
-    'simulationdata': {
+    # FIXME all lm_max need to be consistent no matter which flavour we start with.
+    # better only have one lm_max in default and config file, and let l2p adapt accordingly.
+    'simulationdata': { 
         'flavour': 'unl',
         'geominfo': ('healpix',{'nside': 2048}),
         'maps': DNaV,
@@ -108,13 +110,23 @@ DL_DEFAULT = {
         'lm_max_len': (4000, 4000),
         'mask': None,
         'cls_unl': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_secondaries_lens_birefringence.dat'),
-        'cls_len': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lensedCls.dat'),
+        'cls_len': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lensedCls_secondaries_lens_birefringence.dat'),
         'cpp': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_secondaries_lens_birefringence.dat'),
         'beam': 1.0,
         'transfunction_desc': 'gauss_no_pixwin',
+        'secondaries': {
+            # 'lensing': {
+            #     'geominfo': ('thingauss', {'lmax': 4000, 'smax': 3}),
+            #     'lm_max': (4000, 4000),
+            #     'components': ['p', 'w'],},
+            # 'birefringence': {
+            #     'lm_max': (4000, 4000),
+            #     'components': ['f'],
+            # },
+        },
     },
     'qerec':{
-        'tasks': ['calc_phi', 'calc_blt'],
+        'tasks': ['calc_fields', 'calc_templates'],
         'estimator_type': 'sepTP',
         'cg_tol': 1e-7,
         'filter_directional': 'isotropic',
@@ -133,6 +145,23 @@ DL_DEFAULT = {
             'p7': 'cache_mem'
         },
         "subtract_QE_meanfield": True,
+        "template_operator_info" : {
+            'lensing': {
+                "ID": "lensing",
+                "Lmin": 1,
+                "perturbative": True,
+                "lm_max": 1024,
+                "lm_max_qlm": 4000,
+                "components": ['p','w'],
+            },
+            'birefringence': {
+                "ID": "birefringence",
+                "Lmin": 1,
+                "lm_max": 1024,
+                "lm_max_qlm": 4000,
+                "components": ['f'],
+            },
+        },
     },
     'itrec': {
         'stepper':{
@@ -154,12 +183,12 @@ DL_DEFAULT = {
             'p6': 'tr_cg',
             'p7': 'cache_mem'
         },
-        'tasks': ['calc_phi', 'calc_blt'],
+        'tasks': ['calc_fields', 'calc_templates'],
         'itmax': 1,
         'cg_tol': 1e-5,
         'iterator_typ': 'constmf',
         'filter_directional': 'isotropic',
-        'lenjob_geominfo': ('thingauss',{'lmax': 4500, 'smax': 3}),
+        'lenjob_geominfo': ('thingauss',{'lmax': 4000, 'smax': 3}),
         'lenjob_pbdgeominfo': ('pbd', (0., 2*np.pi)),
         'lm_max_unl': (4500,4500),
         'lm_max_qlm': (4000,4000),
