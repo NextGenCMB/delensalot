@@ -194,6 +194,7 @@ class lensing(base):
 
         self.transf_elm  = self.filter.n1elm # _extend_cl(transf_elm, self.lmax_len)
         self.transf_blm  = self.filter.n1blm # self.transf_blm  = _extend_cl(transf_blm, self.lmax_len)
+        np.save('new_transf_elm.npy', self.transf_elm)
 
         dfield = self.secondary.get_klm(self.simidx, it)
         self.ffi = self.ffi.change_dlm(dfield, self.LM_max[1])
@@ -237,12 +238,14 @@ class lensing(base):
             resmap_c = np.empty((self.ffi.geom.npix(),), dtype=XWF.dtype)
             resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
             _get_irespmap(data, elm_wf, map_out=resmap_r) # inplace onto resmap_c and resmap_r
-            
+            np.save('new_resmap_r', resmap_r)
             lmax_qlm, mmax_qlm = self.ffi.lmax_dlm, self.ffi.mmax_dlm
             
             gcs_r = _get_gpmap(elm_wf, 3)  # 2 pos.space maps, uses then complex view onto real array
+            np.save('new_gcs_r1', gcs_r)
             gc_c = resmap_c.conj() * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3)
             gcs_r = _get_gpmap(elm_wf, 1)
+            np.save('new_gcs_r2', gcs_r)
             gc_c -= resmap_c * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze().conj()  # (+2 , -1)
             del resmap_c, resmap_r, gcs_r
             lmax_qlm, mmax_qlm = self.ffi.lmax_dlm, self.ffi.mmax_dlm
@@ -255,7 +258,7 @@ class lensing(base):
             np.save('new_gc.npy', gc)
             self.gfield.cache_quad(gc, self.simidx, it=it)
         return self.gfield.get_quad(self.simidx, it, component)
-    
+
 
 class birefringence(base):
 
