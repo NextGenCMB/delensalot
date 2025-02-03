@@ -611,7 +611,6 @@ class QE_lr_new(Basejob):
 
         # I want to have a QE search for each field
         self.QE_searchs = [QE_handler.base(QE_search_desc) for name, QE_search_desc in dm.QE_searchs_desc.items()]
-        print(self.QE_searchs)
         if len(self.QE_searchs) == 0:
             print(' -- -- -- -- -- ')
             print('!!! nothing to reconstruct -- you did not specifiy any secondaries in the config file !!!')
@@ -628,7 +627,6 @@ class QE_lr_new(Basejob):
         if len(filter_none(_jobs))==0:
             for QE_search in self.QE_searchs:
                 QE_search.init_filterqest()
-                print('initialized QE filteqest')
 
 
     def collect_jobs(self, recalc=False):
@@ -681,12 +679,14 @@ class QE_lr_new(Basejob):
 
             jobs[taski] = _jobs
         self.jobs = jobs
-        print("QE jobs: ", jobs)
+        if not np.all(np.array(jobs)==None):
+            print("QE jobs: ", jobs)
         return np.array(jobs)
 
 
     def run(self, task=None):
-        print("Running QE jobs: ", self.jobs)
+        if not np.all(np.array(self.jobs)==None):
+            print("Running QE jobs: ", self.jobs)
         if True: # 'triggers calc_cinv'
             first_rank = mpi.bcast(mpi.rank)
             if first_rank == mpi.rank:
@@ -729,7 +729,6 @@ class QE_lr_new(Basejob):
                 for simidxs in self.jobs[taski][mpi.rank::mpi.size]:
                     # For each combination of operators, I want to build templates
                     # jobs list could come as [simidx-delta,simidx-beta,simidx-deltabeta] for each simidx
-                    # delta is alpha and omega
                     simidx, operator_indexs = simidxs.split('-')
                     self.get_template(simidx, operator_indexs)
                     if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
@@ -762,12 +761,12 @@ class QE_lr_new(Basejob):
         return wf
 
 
-    def get_wf(self, simidx, field):
-        return self.QE_searchs[field].get_wf(simidx)
+    def get_wflm(self, simidx, field):
+        return self.QE_searchs[field].get_wflm(simidx)
 
 
-    def get_ivf(self, simidx, field):
-        return self.QE_searchs[field].get_ivf(simidx)
+    def get_ivflm(self, simidx, field):
+        return self.QE_searchs[field].get_ivflm(simidx)
 
 
 class MAP_lr_operator:
@@ -785,13 +784,19 @@ class MAP_lr_operator:
         field2idx = {QE_search.secondary.ID: i for i, QE_search in enumerate(self.QE_searchs)}
         self.MAP_searchs_desc["desc"].update({"Runl0": {}})
         for i, QE_search in enumerate(self.QE_searchs):
-            self.MAP_searchs_desc["desc"]["Runl0"].update({QE_search.secondary.ID: np.array([QE_search.get_response_unl(component) for component in QE_search.secondary.components.split("_")])})
+            self.MAP_searchs_desc["desc"]["Runl0"].update({QE_search.secondary.ID: np.array([QE_search.get_response_unl(component) for component in QE_search.secondary.components])})
         
-        self.MAP_searchs = [MAP_handler.base(self.simulationdata, self.MAP_searchs_desc["MAP_fields"], self.MAP_searchs_desc["filter_desc"], self.MAP_searchs_desc["gradient_descs"], self.MAP_searchs_desc["curvature_desc"], self.MAP_searchs_desc["desc"], self.MAP_searchs_desc["template_descs"], simidx) for simidx in self.simidxs]
+        self.MAP_searchs = [MAP_handler.base(self.simulationdata, self.MAP_searchs_desc["MAP_secondaries"], self.MAP_searchs_desc["filter_desc"], self.MAP_searchs_desc["gradient_descs"], self.MAP_searchs_desc["curvature_desc"], self.MAP_searchs_desc["desc"], self.MAP_searchs_desc["template_descs"], simidx) for simidx in self.simidxs]
         self.it_tasks = self.MAP_handler_desc["it_tasks"]
+
+        # TODO better to check with maxiterdone()
+        for simidx in self.simidxs:
+            # if self.MAP_searchs[simidx].filter.ivf_field.is_cached(simidx, 0):
+                self.copyQEtoDirectory(simidx)
 
 
     def collect_jobs(self):
+        print("Collecting MAP jobs")
         jobs = list(range(len(self.it_tasks)))
         for taski, task in enumerate(self.it_tasks):
             _jobs = []
@@ -806,32 +811,24 @@ class MAP_lr_operator:
 
 
     def run(self):
-        # NOTE maybe not: for QE_search in self.QE_searchs: # need to make sure the klm starting points exist for each simidx before running the MAP job
-        #     for component in QE_search.secondary.components:
-        #         for simidx in self.jobs[taski][mpi.rank::mpi.size]:
-        #             self.get_klms(simidx, 0, QE_search.secondary, component, self.subtract_QE_meanfield)
-        #     if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
-        #         self.simulationdata.purgecache()
-
-
         for taski, task in enumerate(self.it_tasks):
-            log.info('{}, task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
+            log.info('{}, MAP task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
             if task == 'calc_fields':
                 for simidx in self.jobs[taski][mpi.rank::mpi.size]:
-                    # if self.MAP_searchs[simidx].maxiterdone() == -1:
-                        # if maxiterdone is -1, then need to copy QE results to MAP directory
-                    self.copyQEtoDirectory(simidx)
                     self.MAP_searchs[simidx].get_klm(simidx, self.MAP_searchs[simidx].itmax)
 
 
     def get_klm(self, simidx, it, field=None, component=None, subtract_QE_meanfield=True):
-        field2idx = {QE_search.secondary.ID: i for i, QE_search in enumerate(self.QE_searchs)}
-        idx2secondary = {i: QE_search.secondary.ID for i, QE_search in enumerate(self.QE_searchs)}
+        if field not in [QE_search.ID for QE_search in self.QE_searchs]:
+            print('Field not found. Available fields are: ', [QE_search.ID for QE_search in self.QE_searchs])
+            return np.array([[]])
+        field2idx = {QE_search.ID: i for i, QE_search in enumerate(self.QE_searchs)}
+        idx2secondary = {i: QE_search.ID for i, QE_search in enumerate(self.QE_searchs)}
         # NOTE: if this is called, get all fields and all components for that iteration, unless field and component are specified
         # if it is smaller than current iteration, calculate the MAP search, otherwise access the cached result
         if it == 0: # QE (starting point)
             if field is None:
-                return [self.get_klm(simidx, it, fieldID, component, subtract_QE_meanfield) for fieldID, field in self.MAP_searchs[simidx].secondarys.items()]
+                return [self.get_klm(simidx, it, fieldID, component, subtract_QE_meanfield) for fieldID, field in self.MAP_searchs[simidx].secondaries.items()]
             return self.QE_searchs[field2idx[field]].get_klm(simidx, subtract_QE_meanfield, component)
         else:
             return self.MAP_searchs[simidx].get_klm(simidx, it, field, component)
@@ -845,12 +842,12 @@ class MAP_lr_operator:
         return self.MAP_searchs[simidx].get_meanfield(field)
 
 
-    def get_wf(self, simidx, field):
-        return self.MAP_searchs[simidx].get_wf(field)
+    def get_wflm(self, simidx, field, it):
+        return self.MAP_searchs[simidx].get_wflm(field, it)
 
 
-    def get_ivf(self, simidx, field):
-        return self.MAP_searchs[simidx].get_ivf(field)
+    def get_ivflm(self, simidx, field, it):
+        return self.MAP_searchs[simidx].get_ivflm(field, it)
     
 
     def copyQEtoDirectory(self, simidx):
@@ -858,10 +855,10 @@ class MAP_lr_operator:
         field2idx = {QE_search.secondary.ID: i for i, QE_search in enumerate(self.QE_searchs)}
         idx2secondary = {i: QE_search.secondary.ID for i, QE_search in enumerate(self.QE_searchs)}
         gradient2idx = {gradient.ID: i for i, gradient in enumerate(self.MAP_searchs[0].gradients)}
-        for fieldname, field in self.MAP_searchs[simidx].secondarys.items():
+        for fieldname, field in self.MAP_searchs[simidx].secondaries.items():
             self.QE_searchs[field2idx[fieldname]].init_filterqest()
             klm_QE = self.QE_searchs[field2idx[fieldname]].get_klm(simidx, None)
-            self.MAP_searchs[simidx].secondarys[fieldname].cache_klm(klm_QE, simidx, it=0)
+            self.MAP_searchs[simidx].secondaries[fieldname].cache_klm(klm_QE, simidx, it=0)
             # self.MAP_searchs[simidx].gradients[gradient2idx[fieldname]].gfield.cache_prior(np.array(klm_QE), simidx, it=0)
             self.MAP_searchs[simidx].gradients[gradient2idx[fieldname]].gfield.cache_quad(klm_QE, simidx, it=0)
             
@@ -871,6 +868,9 @@ class MAP_lr_operator:
             #TODO cache QE wflm into the filter directory
             wflm_QE = self.QE_searchs[field2idx[fieldname]].get_wflm(simidx)
             self.MAP_searchs[simidx].filter.WF_field.cache_field(np.array(wflm_QE), simidx, it=0)
+
+            ivflm_QE = self.QE_searchs[field2idx[fieldname]].get_ivflm(simidx)
+            self.MAP_searchs[simidx].filter.ivf_field.cache_field(np.array(ivflm_QE), simidx, it=0)
 
 
 class QE_lr(Basejob):
@@ -1151,7 +1151,7 @@ class QE_lr(Basejob):
 
     # @log_on_start(logging.DEBUG, "QE.get_plm(simidx={simidx}, sub_mf={sub_mf}) started")
     # @log_on_end(logging.DEBUG, "QE.get_plm(simidx={simidx}, sub_mf={sub_mf}) finished")
-    def get_plm(self, simidx, component='alpha', sub_mf=True):
+    def get_plm(self, simidx, component=None, sub_mf=True):
         libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
         fn_plm = opj(libdir_MAPidx, 'phi_plm_it000.npy') # Note: careful, this one doesn't have a simidx, so make sure it ends up in a simidx_directory (like MAP)
         if not os.path.exists(fn_plm):
@@ -1350,7 +1350,7 @@ class MAP_lr(Basejob):
     # @log_on_end(logging.DEBUG, "MAP.run() finished")
     def run(self):
         for taski, task in enumerate(self.it_tasks):
-            log.info('{}, task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
+            log.info('{}, MAP task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
             if task == 'calc_phi':
                 for simidx in self.jobs[taski][mpi.rank::mpi.size]:
                     libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)

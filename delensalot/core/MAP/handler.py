@@ -9,28 +9,35 @@ from . import curvature
 from . import filter
 
 class base:
-    def __init__(self, simulationdata, fields, filter_desc, gradient_descs, curvature_desc, desc, template_desc, simidx):
+    def __init__(self, simulationdata, secondaries, filter_desc, gradient_descs, curvature_desc, desc, template_desc, simidx):
         # this class handles the filter, gradient, and curvature libs, nothing else
-        self.fields = fields
+        self.secondaries = secondaries
         self.simulationdata = simulationdata
         # NOTE gradient and curvature share the field increments, so naming must be consistent. Can use the gradient_descs['inc_fn'] for this
         self.filter = filter.base(filter_desc)
         
         # TODO does not work if ONLY lensing or birefringence is used
         self.gradients = []
-        self.gradients.append(gradient.lensing(gradient_descs['lensing'], self.filter, simidx))
-        self.gradients.append(gradient.birefringence(gradient_descs['birefringence'], self.filter, simidx))
+        for secondary_ID, secondary in secondaries.items():
+            if secondary.ID == 'lensing':
+                self.gradients.append(gradient.lensing(gradient_descs[secondary_ID], self.filter, simidx))
+            elif secondary.ID == 'birefringence':
+                self.gradients.append(gradient.birefringence(gradient_descs[secondary_ID], self.filter, simidx))
         
         # TODO i order them here as h0arr needs a specific ordering, but this is not a good solution
         h0dict = self.get_h0(desc["Runl0"])
-        h0arr = np.vstack([h0dict[field] for field in ['lensing', 'birefringence']])
+        self.h0dict = h0dict
+        h0arr = [h0dict[field.ID] for field in self.gradients]
+        h0arr = [arr[i] for arr in h0arr for i in range(arr.shape[0])]
         curvature_desc.update({"h0": h0arr})
         self.curvature = curvature.base(curvature_desc, self.gradients)
 
         self.itmax = desc['itmax']
         self.simidx = simidx
-        self.template_cacher = cachers.cacher_npy(template_desc['libdir'])
-        self.template_operators = template_desc['template_operators']
+        # TODO do later
+        if False:
+            self.template_cacher = cachers.cacher_npy(template_desc['libdir'])
+            self.template_operators = template_desc['template_operators']
         
 
     # get_klm is used for certain iteration, current iteration, and final iteration 
@@ -39,27 +46,27 @@ class base:
     def get_klm(self, simidx, request_it, field_ID=None, component=None):
         current_it = self.maxiterdone()
         if self.maxiterdone() < 0:
-            assert 0, "Could not find the QE starting points, I expected them e.g. at {}".format(self.fields['lensing'].libdir)
+            assert 0, "Could not find the QE starting points, I expected them e.g. at {}".format(self.secondaries['lensing'].libdir)
         if request_it <= current_it: # data already calculated
             if field_ID is None:
-                return [self.get_klm(simidx, request_it, fieldID, component) for fieldID, field in self.fields.items()]
-            return np.array(self.fields[field_ID].get_klm(simidx, request_it, component))
+                return [self.get_klm(simidx, request_it, fieldID, component) for fieldID, field in self.secondaries.items()]
+            return np.array(self.secondaries[field_ID].get_klm(simidx, request_it, component))
         elif current_it < self.itmax and request_it > current_it:
             for it in range(current_it, request_it):
+                # it = 0 is QE and is implicitly skipped. current_it is the it we have a solution for already
                 grad_tot, grad_prev = [], []
-                print('starting iteration ', it+1, 'taking result from iteration', it, '. maxiterdone:', self.maxiterdone())
+                print('---------- starting iteration ', it+1, 'taking result from iteration', it, '. maxiterdone:', self.maxiterdone())
                 for gradient in self.gradients:
                     gradient.update_operator(simidx, it)
                     grad_tot.append(gradient.get_gradient_total(it)) #calculates the filtering, the sum, and the quadratic combination
-                grad_tot = np.vstack(grad_tot)
-                
-                if it-1>=0: #NOTE it=0 cannot build the previous diff, as current diff is QE
+                grad_tot = np.concatenate([np.ravel(arr) for arr in grad_tot])
+                if it>0: #NOTE it=0 cannot build the previous diff, as current diff is QE
                     for gradient in self.gradients:
                         grad_prev.append(gradient.get_gradient_total(it-1))
-                    grad_prev = np.vstack(grad_prev)
+                    grad_prev = np.concatenate([np.ravel(arr) for arr in grad_prev])
                     self.curvature.add_yvector(grad_tot, grad_prev, simidx, it)
                 
-                # NOTE it=0 uses h0 for the curvature
+                # NOTE it=0 uses h0 for the curvature 
                 new_klms = self.curvature.grad2dict(self.curvature.get_new_gradient(grad_tot, simidx, it))
                 # new_klms = self.step(new_klms)
                 self.cache_klm(new_klms, simidx, it+1)
@@ -96,7 +103,7 @@ class base:
 
     def isiterdone(self, it):
         if it >= 0:
-            return self.fields['lensing'].is_cached(self.simidx, it, 'alpha')
+            return np.all([val for sec in self.secondaries.values() for val in sec.is_cached(self.simidx, it)])
         return False    
 
 
@@ -113,7 +120,7 @@ class base:
         pass
         # self.curvature.get_new_MAP(H, gtot)
         # deltag = self.curvature.get_gradient_inc(self.klm_currs) # This calls the 2-loop curvature update
-        # for field in self.fields:
+        # for field in self.secondaries:
         #     for component in field.components:
         #         increment = field.calc_increment(deltag, component)
         #         field.update_klm(increment, component) 
@@ -122,8 +129,8 @@ class base:
     def step(self, klms):
         ret = []
         fl = np.ones_like(klms[0])
-        for fieldID, field in self.fields.items():
-            for component in field.components.split("_"):
+        for fieldID, field in self.secondaries.items():
+            for component in field.components:
                 ret.append(almxfl(klms[fieldID][component], fl, None, False))
         return ret
         # steplen=1
@@ -131,28 +138,30 @@ class base:
 
 
     def cache_klm(self, new_klms, simidx, it):
-        for fieldID, field in self.fields.items():
-            for component in field.components.split("_"):
+        for fieldID, field in self.secondaries.items():
+            for component in field.components:
                 field.cache_klm(new_klms[fieldID][component], simidx, it, component=component)
 
 
     # exposed functions
-    def get_WF(self, field):
-        self.gradients[field].get_WF(self.get_datmaps(), field)
+    def get_wflm(self, field, it):
+        field2idx = {grad.ID: idx for idx, grad in enumerate(self.gradients)}
+        return self.gradients[field2idx[field]].get_wflm(it)
 
     
-    def get_ivf(self, field):
-        self.gradients[field].get_ivf(field)
-
+    def get_ivflm(self, field, it):
+        field2idx = {grad.ID: idx for idx, grad in enumerate(self.gradients)}
+        return self.gradients[field2idx[field]].get_ivflm(it)
+        
 
     def get_h0(self, R_unl0):
         ret = {}
         idx2gradient = {grad.ID: idx for idx, grad in enumerate(self.gradients)}
-        for field_id, field in self.fields.items():
+        for field_id, field in self.secondaries.items():
             h0 = []
-            for componenti, component in enumerate(field.components.split("_")):
-                self.ckk_prior = field.CLfids[component][:self.gradients[idx2gradient[field_id]].lm_max_qlm[0]+1]
-                buff = cli(R_unl0[field.ID][componenti][:self.gradients[idx2gradient[field_id]].lm_max_qlm[0]+1] + cli(self.ckk_prior))   #~ (1/Cpp + 1/N0)^-1
+            for componenti, component in enumerate(field.components):
+                self.ckk_prior = field.CLfids[component*2][:self.gradients[idx2gradient[field_id]].LM_max[0]+1]
+                buff = cli(R_unl0[field.ID][componenti][:self.gradients[idx2gradient[field_id]].LM_max[0]+1] + cli(self.ckk_prior))   #~ (1/Cpp + 1/N0)^-1
                 buff *= (self.ckk_prior > 0)
                 h0.append(buff)
             ret.update({'{}'.format(field.ID): np.array(h0)}) 

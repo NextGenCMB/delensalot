@@ -137,7 +137,7 @@ class lensing(base):
         self.field_fns = operator_desc["field_fns"]
         self.Lmin = operator_desc["Lmin"]
         self.lm_max = operator_desc["lm_max"]
-        self.lm_max_qlm = operator_desc["lm_max_qlm"]
+        self.LM_max = operator_desc["LM_max"]
         self.perturbative = operator_desc["perturbative"]
         self.components = operator_desc["components"]
         self.field = {component: None for component in self.components}
@@ -182,9 +182,9 @@ class lensing(base):
             for component in self.components:
                 self.set_field(simidx, it, component)
             d = np.array([self.field[comp].flatten() for comp in self.components], dtype=complex)
-            h2d = np.sqrt(np.arange(self.lm_max_qlm[0] + 1, dtype=float) * np.arange(1, self.lm_max_qlm[0] + 2, dtype=float))
-            [almxfl(s, cli(h2d)**2, self.lm_max_qlm[1], True) for s in d]
-            self.ffi = self.ffi.change_dlm(d, self.lm_max_qlm[1])
+            h2d = np.sqrt(np.arange(self.LM_max[0] + 1, dtype=float) * np.arange(1, self.LM_max[0] + 2, dtype=float))
+            [almxfl(s, h2d, self.LM_max[1], True) for s in d]
+            self.ffi = self.ffi.change_dlm(d, self.LM_max[1])
         else:
             if self.field_cacher.is_cached(opj(self.field_fns[component].format(idx=simidx,it=it))):
                 self.field[component] = self.field_cacher.load(opj(self.field_fns[component].format(idx=simidx,it=it)))

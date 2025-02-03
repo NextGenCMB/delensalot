@@ -16,11 +16,11 @@ class base:
 
 
     def add_yvector(self, gtot, gprev, simidx, it):
-        self.field.cache_field(gtot.flatten()-gprev.flatten(), simidx, it)
+        self.field.cache_field(gtot-gprev, simidx, it)
 
 
     def add_svector(self, gtot, gprev, simidx, it):
-        self.field.cache_field(gtot.flatten()-gprev.flatten(), simidx, it)
+        self.field.cache_field(gtot-gprev, simidx, it)
 
 
     def get_new_gradient(self, gtot, simidx, it):
@@ -37,8 +37,8 @@ class base:
         ret = {}
         for gradient in self.gradients:
             ret.update({gradient.ID:{}})
-            for component in gradient.field.components.split("_"):
-                siz = Alm.getsize(*gradient.field.lm_max)
+            for component in gradient.secondary.components:
+                siz = Alm.getsize(*gradient.secondary.lm_max)
                 ret[gradient.ID][component] = grad[N:N+siz]
                 N += siz
         return ret

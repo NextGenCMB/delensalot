@@ -99,7 +99,6 @@ class l2base_Transformer:
         elif type(an.zbounds_len[0]) in [float, int, np.float64]:
             dl.zbounds_len = an.zbounds_len
         dl.lm_max_ivf = an.lm_max_ivf
-        dl.lm_max_blt = an.lm_max_blt
 
         beam_factor = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_ivf[0])
         lmin_mask = np.arange(dl.lm_max_ivf[0] + 1)[:, None] >= dl.lmin_teb
@@ -300,9 +299,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     # need to go through each secondary
 
                     dl.subtract_QE_meanfield = qe.subtract_QE_meanfield
-                    dl.blt_pert = qe.blt_pert
                     dl.estimator_type = qe.estimator_type
-                    dl.lm_max_qlm = qe.lm_max_qlm
                     ## FIXME cg chain currently only works with healpix geometry
                     dl.QE_cg_tol = qe.cg_tol
                     dl.chain_model = qe.chain
@@ -314,7 +311,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.lenjob_geomlib = get_geom(cf.itrec.lenjob_geominfo)
                     thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
                     dl.lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
-                    dl.ffi = deflection(dl.lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(*dl.lm_max_qlm)), dl.lm_max_qlm[1], numthreads=dl.tr, verbosity=False, epsilon=cf.itrec.epsilon)
+                    dl.ffi = deflection(dl.lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(*cf.analysis.secondaries['lensing']['lm_max'])), cf.analysis.secondaries['lensing']['lm_max'][1], numthreads=dl.tr, verbosity=False, epsilon=cf.itrec.epsilon)
 
                 _process_Meta(dl, cf.meta)
                 _process_Computing(dl, cf.computing)
@@ -335,8 +332,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 keystring = cf.analysis.key[1:]
 
             QE_filterqest_desc = {
-                "estimator_key": cf.analysis.key,
-                "estimator_type": dl.estimator_type,
+                "estimator_key": cf.analysis.key, #FIXME this should be a different value for each secondary
+                "estimator_type": dl.estimator_type, #FIXME this should be a different value for each secondary
                 "libdir": opj(transform(cf, l2T_Transformer()), 'QE', keystring),
                 "simulationdata": Simhandler(**cf.simulationdata.__dict__),
                 "nivjob_geominfo": cf.noisemodel.geominfo,
@@ -349,7 +346,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "ftebl_len": dl.ftebl_len,
                 "ftebl_unl":  dl.ftebl_unl,
                 "lm_max_ivf": dl.lm_max_ivf,
-                "lm_max_qlm": dl.lm_max_qlm, #FIXME this should be read in from the secondary key from QElensrec
+                "lm_max_qlm": cf.analysis.secondaries['lensing']['lm_max'], #FIXME this should be a different value for each secondary
                 "lm_max_unl": cf.itrec.lm_max_unl,
                 "lm_max_len": dl.lm_max_ivf,
                 "version": dl.version,
@@ -372,7 +369,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     'components': val['components'],
                     'CLfids': dl.CLfids[sec],
                 } for sec, val in cf.analysis.secondaries.items()}
-            QE_secs = {name: QE_field.base(field_desc) for name, field_desc in QE_secs_descs.items()}
+            QE_secs = {name: QE_field.secondary(field_desc) for name, field_desc in QE_secs_descs.items()}
             
             # this is template fields
             # FIXME template fields 'components' are potentially not needed, as template will be generated using all components simulatenously
@@ -384,7 +381,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 } for sec, val in cf.analysis.secondaries.items()}
 
             if len(cf.analysis.secondaries) > 1:
-                QE_templates = [QE_field.base(field_desc) for name, field_desc in QE_template_descs.items()]
+                QE_templates = [QE_field.template(field_desc) for name, field_desc in QE_template_descs.items()]
                 template_operator_descs = cf.qerec.template_operator_info
                 for sec, val in cf.qerec.template_operator_info.items():
                     template_operator_descs[sec].update({
@@ -405,6 +402,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 template_desc = None
 
             # TODO can I simplify this?
+            dl.cls_unl.update({comp: val for comp_dict in dl.CLfids.values() for comp, val in comp_dict.items()})
+
             QE_searchs_desc = {sec: {
                     "ID": sec,
                     "libdir": opj(transform(cf, l2T_Transformer()), 'QE', keystring, sec),
@@ -441,7 +440,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 def _process_Itrec(dl, it):
                     dl.it_tasks = it.tasks
                     dl.lm_max_unl = it.lm_max_unl
-                    dl.lm_max_qlm = it.lm_max_qlm
                     dl.epsilon = it.epsilon
                     # chain
                     dl.it_chain_model = it.chain
@@ -477,11 +475,11 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.soltn_cond = it.soltn_cond
                     dl.stepper_model = it.stepper
                     if dl.stepper_model.typ == 'harmonicbump':
-                        dl.stepper_model.lmax_qlm = dl.lm_max_qlm[0]
-                        dl.stepper_model.mmax_qlm = dl.lm_max_qlm[1]
+                        dl.stepper_model.lmax_qlm = cf.analysis.secondaries['lensing']['lm_max'][0]
+                        dl.stepper_model.mmax_qlm = cf.analysis.secondaries['lensing']['lm_max'][1]
                         dl.stepper = steps.harmonicbump(dl.stepper_model.lmax_qlm, dl.stepper_model.mmax_qlm, a=dl.stepper_model.a, b=dl.stepper_model.b, xa=dl.stepper_model.xa, xb=dl.stepper_model.xb)
-                        # dl.stepper = steps.nrstep(dl.lm_max_qlm[0], dl.lm_max_qlm[1], val=0.5) # handler of the size steps in the MAP BFGS iterative search
-                    dl.ffi = deflection(dl.lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(*dl.lm_max_qlm)), dl.lm_max_qlm[1], numthreads=dl.tr, verbosity=False, epsilon=dl.epsilon)
+                        # dl.stepper = steps.nrstep(dl.LM_max[0], dl.LM_max[1], val=0.5) # handler of the size steps in the MAP BFGS iterative search
+                    dl.ffi = deflection(dl.lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(*cf.analysis.secondaries['lensing']['lm_max'])), cf.analysis.secondaries['lensing']['lm_max'][1], numthreads=dl.tr, verbosity=False, epsilon=dl.epsilon)
                 
                 _process_Itrec(dl, cf.itrec)
 
@@ -493,47 +491,38 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             MAP_libdir_prefix = opj(transform(cf, l2T_Transformer()), 'MAP'+"_"+get_hashcode(OrderedDict(cf.analysis.secondaries)), '{estimator_key}'.format(estimator_key=cf.analysis.key.split('_')[-1]))
 
             # input: all kwargs needed to build the MAP fields
-            MAP_fields_descs = [{
-                    "ID": "lensing",
+            MAP_secondaries = {sec: MAP_field.secondary({
+                    "ID": sec,
                     "libdir": opj(MAP_libdir_prefix, 'estimates/'),
-                    'lm_max': dl.lm_max_qlm,
-                    "components": ['p','w'],
-                    'CLfids': {'alpha': dl.CLfids['pp'], 'omega': dl.CLfids['ww']},
-                    'fns': {"alpha": 'klm_alpha_simidx{idx}_it{it}', "omega": 'klm_omega_simidx{idx}_it{it}'}, # This could be hardcoded, but I want to keep it flexible
-                    'increment_fns': {"alpha": 'kinclm_alpha_simidx{idx}_it{it}', "omega": 'kinclm_omega_simidx{idx}_it{it}'},
-                    'meanfield_fns': {"alpha": 'kmflm_alpha_simidx{idx}_it{it}', "omega": 'kmflm_omega_simidx{idx}_it{it}'},
-                },{
-                    "ID": 'birefringence',
-                    "libdir": opj(MAP_libdir_prefix, 'estimates/'),
-                    'lm_max': dl.lm_max_qlm, # FIXME betalm?
-                    "components": 'beta',
-                    'CLfids': {'beta': dl.CLfids['bb']},
-                    "fns": {"beta": 'klm_beta_simidx{idx}_it{it}'}, # This could be hardcoded, but I want to keep it flexible
-                    'increment_fns': {"beta": 'kinclm_beta_simidx{idx}_it{it}'},
-                    'meanfield_fns': {"beta": 'kmflm_beta_simidx{idx}_it{it}'},
-                },
-            ]
-            MAP_fields = {field_desc["ID"]: MAP_field.base(field_desc) for field_desc in MAP_fields_descs}
+                    'lm_max': cf.analysis.secondaries[sec]['lm_max'],
+                    "components": val['components'],
+                    'CLfids': dl.CLfids[sec],
+                    'fns': {comp: 'klm_{comp}_simidx{{idx}}_it{{it}}'.format(comp=comp) for comp in val['components']}, # This could be hardcoded, but I want to keep it flexible
+                    'increment_fns': {comp: f'kinclm_{comp}_simidx{{idx}}_it{{it}}' for comp in val['components']},
+                    'meanfield_fns': {comp: f'kmflm_{comp}_simidx{{idx}}_it{{it}}' for comp in val['components']},
+                }) for sec, val in cf.analysis.secondaries.items()}
 
             # input: all kwargs needed to build the MAP search
             _MAP_operators_desc = {}
-            _MAP_operators_desc['lensing_operator'] = {
-                'lm_max': dl.lm_max_ivf,
-                "lm_max_qlm": dl.lm_max_qlm,
-                "Lmin": dl.Lmin,
-                "perturbative": False,
-                "components": ['p','w'],
-                "libdir": opj(MAP_libdir_prefix, 'estimates/'),
-                'field_fns': MAP_fields["lensing"].fns,
-                "ffi": dl.ffi,
-            }
-            _MAP_operators_desc['birefringence_operator'] = {
-                'lm_max': dl.lm_max_ivf,
-                "Lmin": dl.Lmin,
-                "components": 'beta',
-                "libdir": opj(MAP_libdir_prefix, 'estimates/'),
-                'field_fns': MAP_fields['birefringence'].fns,
-            }
+            if 'lensing' in cf.analysis.secondaries:
+                _MAP_operators_desc['lensing'] = {
+                    'lm_max': dl.lm_max_ivf,
+                    "LM_max": cf.analysis.secondaries['lensing']['lm_max'],
+                    "Lmin": dl.Lmin,
+                    "perturbative": False,
+                    "components": ['p','w'],
+                    "libdir": opj(MAP_libdir_prefix, 'estimates/'),
+                    'field_fns': MAP_secondaries["lensing"].fns,
+                    "ffi": dl.ffi,
+                }
+            if 'birefringence' in cf.analysis.secondaries:
+                _MAP_operators_desc['birefringence'] = {
+                    'lm_max': dl.lm_max_ivf,
+                    "Lmin": dl.Lmin,
+                    "components": ['f'],
+                    "libdir": opj(MAP_libdir_prefix, 'estimates/'),
+                    'field_fns': MAP_secondaries['birefringence'].fns,
+                }
             _MAP_operators_desc['spin_raise'] = {
                 'lm_max': dl.lm_max_ivf,
             }
@@ -543,17 +532,17 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             filter_operators = []
             gradients_operators = {}
             # This depends on what is in the data
-            cf.build = 'lensingplusbirefringence'
+            cf.build = 'lensing'
             if cf.build == 'lensingplusbirefringence':
-                filter_operators.append(operator.lensing(_MAP_operators_desc['lensing_operator']))
-                filter_operators.append(operator.birefringence(_MAP_operators_desc['birefringence_operator']))
+                filter_operators.append(operator.lensing(_MAP_operators_desc['lensing']))
+                filter_operators.append(operator.birefringence(_MAP_operators_desc['birefringence']))
                 gradients_operators['lensing'] = operator.joint([*filter_operators, operator.spin_raise(_MAP_operators_desc['spin_raise'])])
                 gradients_operators['birefringence'] = operator.joint([*filter_operators, operator.multiply(_MAP_operators_desc['multiply'])])
             if cf.build == 'lensing':
-                filter_operators.append(operator.lensing(_MAP_operators_desc['lensing_operator']))
+                filter_operators.append(operator.lensing(_MAP_operators_desc['lensing']))
                 gradients_operators['lensing'] = operator.joint([*filter_operators, operator.spin_raise(_MAP_operators_desc['spin_raise'])])    
             if cf.build == 'birefringence':
-                filter_operators.append(operator.birefringence(_MAP_operators_desc['birefringence_operator']))
+                filter_operators.append(operator.birefringence(_MAP_operators_desc['birefringence']))
                 gradients_operators['birefringence'] = operator.joint([*filter_operators, operator.multiply(_MAP_operators_desc['multiply'])])
             ivf_operator = operator.ivf_operator(filter_operators)
             WF_operator = operator.WF_operator(filter_operators) #TODO this is ivf_operator*ivf_operator^dagger, could be implemented via ivf.
@@ -562,27 +551,27 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "ID": gradient_name,
                 "libdir": opj(MAP_libdir_prefix, 'gradients'),
                 "libdir_prior": opj(MAP_libdir_prefix, 'estimates'),
-                "lm_max": dl.lm_max_qlm,
+                "lm_max": cf.analysis.secondaries[gradient_name]['lm_max'],
                 "meanfield_fns": 'mf_glm_{gradient_name}_simidx{idx}_it{it}'.format(gradient_name=gradient_name, it="{it}", idx="{idx}"),
                 "quad_fns": 'quad_glm_{gradient_name}_simidx{idx}_it{it}'.format(gradient_name=gradient_name, it="{it}", idx="{idx}"),
                 "prior_fns": 'klm_{component}_simidx{idx}_it{it}'.format(component="{component}", it="{it}", idx="{idx}"), # prior is just field, and then we do a simple divide by spectrum (almxfl)
                 "total_increment_fns": 'ginclm_{gradient_name}_simidx{idx}_it{it}'.format(gradient_name=gradient_name, it="{it}", idx="{idx}"),    
                 "total_fns": 'gtotlm_{gradient_name}_simidx{idx}_it{it}'.format(gradient_name=gradient_name, it="{it}", idx="{idx}"),    
-                "chh": {"alpha": np.ones(shape=dl.lm_max_qlm[0]+1), "omega": np.ones(shape=dl.lm_max_qlm[0]+1)} if gradient_name == "lensing" else {"beta": np.ones(shape=dl.lm_max_qlm[0]+1)}, #FIXME this is prior times scaling factor
-                "components": ['p','w'] if gradient_name == 'lensing' else 'beta',
+                "chh": {"p": np.ones(shape=cf.analysis.secondaries[gradient_name]["lm_max"][0]+1), "w": np.ones(shape=cf.analysis.secondaries[gradient_name]["lm_max"][0]+1)} if gradient_name == "lensing" else {"f": np.ones(shape=cf.analysis.secondaries[gradient_name]["lm_max"][0]+1)}, #FIXME this is prior times scaling factor
+                "components": ['p','w'] if gradient_name == 'lensing' else ['f'],
             } for gradient_name, gradient_operator in gradients_operators.items()]
             MAP_gfields = {gfield_desc["ID"]: MAP_field.gradient(gfield_desc) for gfield_desc in gfield_descs}
             gradient_descs = {}
             for gradient_name, gradient_operator in gradients_operators.items():
                 gradient_descs.update({ gradient_name: {
                     "ID": gradient_name,
-                    "secondary": MAP_fields[gradient_name],
+                    "secondary": MAP_secondaries[gradient_name],
                     "gfield": MAP_gfields[gradient_name],
                     "noisemodel_coverage": dl.it_filter_directional,
                     "estimator_key":  cf.analysis.key,
                     "simulationdata": dl.simulationdata,
                     "lm_max_ivf": dl.lm_max_ivf,
-                    "lm_max_qlm": dl.lm_max_qlm,
+                    "LM_max": cf.analysis.secondaries[gradient_name]['lm_max'],
                     'itmax': dl.itmax,
                     "gradient_operator": gradient_operator,
                     "ffi": dl.ffi,
@@ -616,32 +605,17 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "cls_filt": dl.cls_unl,
                 "lm_max_ivf": dl.lm_max_ivf,
                 "nlev": dl.nlev,
-
             }
             
-            template_operators = {
-                "lensing": operator.lensing({
-                    "Lmin": dl.Lmin,
-                    "perturbative": False,
-                    "lm_max": dl.lm_max_blt,
-                    "lm_max_qlm": dl.lm_max_qlm,
-                    "components": ['p','w'],
-                    "libdir": opj(MAP_libdir_prefix, 'estimates/'),
-                    "field_fns": MAP_fields["lensing"].fns,
-                    "ffi": dl.ffi,
-                }),
-                "birefringence": operator.birefringence({
-                    "Lmin": dl.Lmin,
-                    "lm_max": dl.lm_max_blt,
-                    "components": 'beta',
-                    "libdir": opj(MAP_libdir_prefix, 'estimates/'),
-                    "field_fns": MAP_fields['birefringence'].fns,
-                })
-            }
+            template_desc = copy.deepcopy(dl.QE_handler_desc["template_info"])
+            # template_descs = {
+            #     "libdir": opj(MAP_libdir_prefix, 'templates'),
+            #     "template_operators": template_operators,
+            # }
 
             curvature_desc = {
                 "ID": "curvature",
-                "secondary": MAP_field.curvature(
+                "field": MAP_field.curvature(
                     {"ID": "curvature",
                     "libdir": opj(MAP_libdir_prefix, 'curvature'),
                     "fns": 'diff_klm_{gradient_name}_simidx{idx}_it{it}m{itm1}'.format(gradient_name=gradient_name, it="{it}", itm1="{itm1}", idx="{idx}"),
@@ -652,17 +626,13 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             desc = {
                 "itmax": dl.itmax,
             }
-            template_descs = {
-                "libdir": opj(MAP_libdir_prefix, 'templates'),
-                "template_operators": template_operators,
-            }
             MAP_searchs_desc = {
                 'gradient_descs': gradient_descs,
-                'MAP_fields': MAP_fields,
+                'MAP_secondaries': MAP_secondaries,
                 'filter_desc': MAP_filter_desc,
                 'curvature_desc': curvature_desc,
                 "desc" : desc,
-                "template_descs": template_descs,
+                "template_descs": template_desc,
             }
             MAP_handler_desc = {
                 'simulationdata': dl.simulationdata,

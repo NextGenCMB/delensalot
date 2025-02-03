@@ -136,7 +136,6 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     zbounds =               attr.field(default=DEFAULT_NotAValue, validator=analysis.zbounds)
     zbounds_len =           attr.field(default=DEFAULT_NotAValue, validator=analysis.zbounds_len) # TODO rename
     lm_max_ivf =            attr.field(default=DEFAULT_NotAValue, validator=v_filter.lm_max_ivf)
-    lm_max_blt =            attr.field(default=DEFAULT_NotAValue, validator=analysis.lm_max_blt)
     mask =                  attr.field(default=DEFAULT_NotAValue, validator=analysis.mask) # TODO is this used? 
     lmin_teb =              attr.field(default=DEFAULT_NotAValue, validator=analysis.lmin_teb)
     cls_unl =               attr.field(default=DEFAULT_NotAValue, validator=analysis.cls_unl)
@@ -211,12 +210,10 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     qlm_type =              attr.field(default=DEFAULT_NotAValue, validator=qerec.qlms)
     cg_tol =                attr.field(default=DEFAULT_NotAValue, validator=qerec.cg_tol)
     filter_directional =    attr.field(default=DEFAULT_NotAValue, validator=qerec.filter_directional)
-    lm_max_qlm =            attr.field(default=DEFAULT_NotAValue, validator=qerec.lm_max_qlm) # TODO move this to analysis, lmax must be same in qe and it
     chain =                 attr.field(default=DLENSALOT_Chaindescriptor(), validator=qerec.chain)
     cl_analysis =           attr.field(default=DEFAULT_NotAValue, validator=qerec.cl_analysis) # TODO make this useful or remove
-    blt_pert =              attr.field(default=DEFAULT_NotAValue, validator=qerec.btemplate_perturbative_lensremap)
     subtract_QE_meanfield = attr.field(default=DEFAULT_NotAValue)
-    template_operator_info = attr.field(default=DEFAULT_NotAValue)
+    template_operator_info= attr.field(default=DEFAULT_NotAValue)
 
 @attr.s
 class DLENSALOT_Itrec(DLENSALOT_Concept):
@@ -248,7 +245,6 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     lenjob_geominfo =       attr.field(default=DEFAULT_NotAValue, validator=itrec.lenjob_geominfo)
     lenjob_pbdgeominfo =    attr.field(default=DEFAULT_NotAValue, validator=itrec.lenjob_pbgeominfo)
     lm_max_unl =            attr.field(default=DEFAULT_NotAValue, validator=itrec.lm_max_unl)
-    lm_max_qlm =            attr.field(default=DEFAULT_NotAValue, validator=itrec.lm_max_qlm)
     mfvar =                 attr.field(default=DEFAULT_NotAValue, validator=itrec.mfvar) # TODO rename and check if it still works 
     soltn_cond =            attr.field(default=DEFAULT_NotAValue, validator=itrec.soltn_cond)
     stepper =               attr.field(default=DLENSALOT_Stepper(), validator=itrec.stepper)
@@ -259,6 +255,8 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
     curvature_desc =        attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
     desc =                  attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
     build =                 attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
+    template_operator_info= attr.field(default=DEFAULT_NotAValue)
+
 
     
 @attr.s

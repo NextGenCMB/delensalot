@@ -90,11 +90,28 @@ class base:
         elif self.estimator_key in ['p']:
             return np.array([alm_copy(self.ivf.get_sim_tmliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1]), alm_copy(self.ivf.get_sim_emliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])])
         
-    def get_ivf(self, simidx):
+    def get_ivflm(self, simidx):
         if self.estimator_key in ['ptt']:
             return alm_copy(self.ivf.get_sim_tlm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
         elif self.estimator_key in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
             return alm_copy(self.ivf.get_sim_elm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
         elif self.estimator_key in ['p']:
             return np.array([alm_copy(self.ivf.get_sim_tlm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1]), alm_copy(self.ivf.get_sim_emlm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])])
+        
+
+    # def get_wflm(self, simidx):
+    #     if self.estimator_key in ['ptt']:
+    #         return alm_copy(self.ivf.get_sim_tmliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
+    #     elif self.estimator_key in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
+    #         return [alm_copy(self.ivf.get_sim_emliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1]), alm_copy(self.ivf.get_sim_bmliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])]
+    #     elif self.estimator_key in ['p']:
+    #         return np.array([alm_copy(self.ivf.get_sim_tmliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1]), alm_copy(self.ivf.get_sim_emliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])])
+        
+    # def get_ivflm(self, simidx):
+    #     if self.estimator_key in ['ptt']:
+    #         return alm_copy(self.ivf.get_sim_tlm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
+    #     elif self.estimator_key in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
+    #         return [alm_copy(self.ivf.get_sim_elm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1]), alm_copy(self.ivf.get_sim_blm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])]
+    #     elif self.estimator_key in ['p']:
+    #         return np.array([alm_copy(self.ivf.get_sim_tlm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1]), alm_copy(self.ivf.get_sim_emlm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])])
         

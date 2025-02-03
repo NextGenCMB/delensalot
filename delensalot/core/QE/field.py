@@ -5,7 +5,7 @@ from delensalot.core import cachers
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl
 
 
-class base:
+class secondary:
     def __init__(self, secondary_desc):
         self.ID = secondary_desc['ID'] if 'ID' in secondary_desc else None
         self.libdir = secondary_desc['libdir']
@@ -17,7 +17,7 @@ class base:
         self.klm_fns = {sec: f"klm_{sec}_simidx{{idx}}" for sec in self.components}
         self.qmflm_fns = {sec: f"qmflm_{sec}_simidx{{idx}}" for sec in self.components}
         
-        self.cacher = cachers.cacher_npy(self.libdir, verbose=True)
+        self.cacher = cachers.cacher_npy(self.libdir, verbose=False)
 
 
     def get_qlm(self, simidx, components=None):

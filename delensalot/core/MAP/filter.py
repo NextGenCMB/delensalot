@@ -37,12 +37,13 @@ class base:
         self.Ninv = read_map(filter_desc['Ninv_desc'])
         self.beam = filter_desc['beam']
         self.nlevp, self.nlevt = filter_desc['nlev']['P'], filter_desc['nlev']['T']
+        self.filter_desc = filter_desc
 
         self.lm_max_ivf = filter_desc['lm_max_ivf']
         self.transfer = filter_desc["ttebl"]
         # TODO make sure ninv_desc[0][x] are actually the right inverse noise levels
-        self.n1elm = _extend_cl(np.array(self.transfer['e'])**1, self.lm_max_ivf[0]) * _extend_cl(np.array(filter_desc['Ninv_desc'][1][0][0])**2, self.lm_max_ivf[0]) * (180 * 60 / np.pi) ** 2
-        self.n1blm = _extend_cl(np.array(self.transfer['b'])**1, self.lm_max_ivf[0]) * _extend_cl(np.array(filter_desc['Ninv_desc'][1][0][0])**2, self.lm_max_ivf[0]) * (180 * 60 / np.pi) ** 2
+        self.n1elm = _extend_cl(np.array(self.transfer['e'])**1, self.lm_max_ivf[0]) * _extend_cl(np.array(1/filter_desc['Ninv_desc'][1][0][0][0])**2, self.lm_max_ivf[0]) * (180 * 60 / np.pi) ** 2
+        self.n1blm = _extend_cl(np.array(self.transfer['b'])**1, self.lm_max_ivf[0]) * _extend_cl(np.array(1/filter_desc['Ninv_desc'][1][0][0][0])**2, self.lm_max_ivf[0]) * (180 * 60 / np.pi) ** 2
 
         self.datmaps = None
         self.data = None
@@ -54,17 +55,17 @@ class base:
         # FIXME the following is to be replaced with new routines, and is only needed for the current cg multigrid_chain implementation
         def build_opfilt_iso_p():
             lenjob_geomlib =  get_geom(('thingauss', {'lmax': 3500, 'smax': 3}))
-            ffi = deflection(lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(3000, 3000)), 3000, numthreads=8, verbosity=0, epsilon=1e-8)  
+            ffi = deflection(lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(3500, 3500)), 3500, numthreads=8, verbosity=0, epsilon=1e-8)  
             def extract():
                 return {
-                    'nlev_p': 0.6,
+                    'nlev_p': 1.0,
                     'ffi': ffi,
                     'transf': filter_desc["ttebl"]['e'],
-                    'unlalm_info': (3500, 3500),
+                    'unlalm_info': (4000, 4000),
                     'lenalm_info': (3500, 3500),
                     'wee': True,
                     'transf_b': filter_desc["ttebl"]['b'],
-                    'nlev_b': 0.6,
+                    'nlev_b': 1.0,
                 }
             return MAP_opfilt_iso_p.alm_filter_nlev_wl(**extract())
         self.ninv = build_opfilt_iso_p()
@@ -77,7 +78,7 @@ class base:
         self.WF_operator.set_field(simidx, it)
 
 
-    def get_WF(self, data, simidx, it):
+    def get_wflm(self, simidx, it, data=None):
         if not self.WF_field.is_cached(simidx, it):
             cg_sol_curr = self.WF_field.get_field(simidx, it-1)
             mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.ninv)
@@ -86,7 +87,7 @@ class base:
         return self.WF_field.get_field(simidx, it)
 
 
-    def get_ivf(self, data, eblm_wf, simidx, it):
+    def get_ivflm(self, simidx, it, data, eblm_wf):
         # NOTE this is eq. 21 of the paper, in essence it should do the following:
         #     this is ivf_operator
         # ---------------------------

@@ -108,8 +108,8 @@ class base:
         return self.fq.get_wflm(simidx)
 
 
-    def get_ivf(self, simidx):
-        self.fq.get_ivf(simidx)
+    def get_ivflm(self, simidx):
+        return self.fq.get_ivflm(simidx)
   
 
     def get_response_unl(self, components):

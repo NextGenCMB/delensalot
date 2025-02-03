@@ -109,6 +109,8 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         # Forward lensing here
         self.tim.reset()
         lmax_unl = Alm.getlmax(elm.size, self.mmax_sol)
+        import healpy as hp
+        print(elm.size, hp.Alm.getlmax(elm.size))
         assert lmax_unl == self.lmax_sol, (lmax_unl, self.lmax_sol)
         # View to the same array for GRAD_ONLY mode:
         elm_2d = elm.reshape((1, elm.size))

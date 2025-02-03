@@ -6,7 +6,7 @@ from delensalot.utility.utils_hp import Alm, almxfl, alm2cl
 
 from delensalot.core import cachers
 
-class base:
+class secondary:
     def __init__(self, field_desc):
         self.ID = field_desc['ID']
         self.libdir = field_desc['libdir']
@@ -44,7 +44,9 @@ class base:
         self.cacher.cache(self.fns[component].format(idx=idx, it=it), np.atleast_2d(klm))
 
 
-    def is_cached(self, simidx, it, component):
+    def is_cached(self, simidx, it, component=None):
+        if component is None:
+            return np.array([self.is_cached(simidx, it, component_) for component_ in self.components])
         return self.cacher.is_cached(opj(self.fns[component].format(idx=simidx, it=it)))
     
 

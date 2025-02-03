@@ -102,7 +102,6 @@ DL_DEFAULT = {
         'TEMP_suffix': 'P_FS_CMBS4_aob',
         'Lmin': 1, 
         'lm_max_ivf': (4000, 4000),
-        'lm_max_blt': (1024,1024),
         'lmin_teb': (2, 2, 200),
         'simidxs_mf': [],
         'zbounds': (-1,1),
@@ -131,9 +130,7 @@ DL_DEFAULT = {
         'cg_tol': 1e-7,
         'filter_directional': 'isotropic',
         'geominfo': ('healpix',{'nside': 2048}),
-        'lm_max_qlm': (4000,4000),
         'cl_analysis': False,
-        'blt_pert': True,
         'chain': {
             'p0': 0,
             'p1': ["diag_cl"],
@@ -191,11 +188,23 @@ DL_DEFAULT = {
         'lenjob_geominfo': ('thingauss',{'lmax': 4000, 'smax': 3}),
         'lenjob_pbdgeominfo': ('pbd', (0., 2*np.pi)),
         'lm_max_unl': (4500,4500),
-        'lm_max_qlm': (4000,4000),
         'mfvar': '',
         'soltn_cond': lambda it: True,
         'epsilon': 1e-7,
+        'template_operator_info': {
+            'lensing': {
+                "Lmin": 1,
+                "perturbative": False,
+                "lm_max": [1024,1024],
+                "LM_max": [3000,3000],
+            },
+            'birefringence': {
+                "Lmin": 1,
+                "lm_max": [1024,1024],
+                "LM_max": [3000,3000],
+            },
         },
+    },
     'noisemodel': {
         'sky_coverage': 'unmasked',
         'spectrum_type': 'white',
