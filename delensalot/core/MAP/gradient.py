@@ -228,12 +228,16 @@ class lensing(base):
         print(f'---------- this is iteration {it} in get_gradient_quad')
         if not self.gfield.quad_is_cached(self.simidx, it):
             data = self.get_data(self.lm_max_ivf)
+            np.save('new_data.npy', data)
             XWF = self.filter.get_wflm(self.simidx, it, data)
             # ivf = self.filter.get_ivf(data, XWF, self.simidx, it)
-            elm_wf = XWF 
-            resmap_c = np.empty((16544332,), dtype=XWF.dtype)
+            elm_wf = XWF
+            np.save('new_wf.npy', elm_wf)
+
+            resmap_c = np.empty((self.ffi.geom.npix(),), dtype=XWF.dtype)
             resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
             _get_irespmap(data, elm_wf, map_out=resmap_r) # inplace onto resmap_c and resmap_r
+            
             lmax_qlm, mmax_qlm = self.ffi.lmax_dlm, self.ffi.mmax_dlm
             
             gcs_r = _get_gpmap(elm_wf, 3)  # 2 pos.space maps, uses then complex view onto real array
@@ -248,6 +252,7 @@ class lensing(base):
             fl = - np.sqrt(np.arange(lmax_qlm + 1, dtype=float) * np.arange(1, lmax_qlm + 2))
             almxfl(gc[0], fl, mmax_qlm, True)
             almxfl(gc[1], fl, mmax_qlm, True)
+            np.save('new_gc.npy', gc)
             self.gfield.cache_quad(gc, self.simidx, it=it)
         return self.gfield.get_quad(self.simidx, it, component)
     

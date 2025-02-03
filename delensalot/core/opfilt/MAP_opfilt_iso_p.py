@@ -109,8 +109,6 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         # Forward lensing here
         self.tim.reset()
         lmax_unl = Alm.getlmax(elm.size, self.mmax_sol)
-        import healpy as hp
-        print(elm.size, hp.Alm.getlmax(elm.size))
         assert lmax_unl == self.lmax_sol, (lmax_unl, self.lmax_sol)
         # View to the same array for GRAD_ONLY mode:
         elm_2d = elm.reshape((1, elm.size))
@@ -205,7 +203,6 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         self._get_irespmap(eblm_dat, elm_wf, q_pbgeom, map_out=resmap_r) # inplace onto resmap_c and resmap_r
 
         gcs_r = self._get_gpmap(elm_wf, 3, q_pbgeom)  # 2 pos.space maps, uses then complex view onto real array
-        print(resmap_c.conj().shape, gcs_r.T.view(ctype[gcs_r.dtype]).squeeze().shape)
         gc_c = resmap_c.conj() * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3)
         gcs_r = self._get_gpmap(elm_wf, 1, q_pbgeom)
         gc_c -= resmap_c * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze().conj()  # (+2 , -1)
