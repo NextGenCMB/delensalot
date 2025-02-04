@@ -196,7 +196,10 @@ class lensing(base):
         self.transf_blm  = self.filter.transferb # self.transf_blm  = _extend_cl(transf_blm, self.lmax_len)
         np.save(f'temp/new_transf_elm_it{it}.npy', self.transf_elm)
 
-        dfield = self.secondary.get_klm(self.simidx, it)
+        dfield = self.secondary.get_klm(self.simidx, it-1)
+        h2d = np.sqrt(np.arange(3000 + 1, dtype=float) * np.arange(1, 3000 + 2, dtype=float))
+        [almxfl(s, h2d, 3000, True) for s in dfield]
+        print(dfield)
         self.ffi = self.ffi.change_dlm(dfield, self.LM_max[1])
 
         def _get_irespmap(eblm_dat:np.ndarray, eblm_wf:np.ndarray, map_out=None):
@@ -226,7 +229,6 @@ class lensing(base):
             elm = np.atleast_2d(almxfl(elm_wf, fl, self.mmax_sol, False))
             return self.ffi.gclm2lenmap(elm, self.mmax_sol, spin, False)
         
-        print(f'---------- this is iteration {it} in get_gradient_quad')
         if not self.gfield.quad_is_cached(self.simidx, it):
             data = self.get_data(self.lm_max_ivf)
             np.save(f'temp/new_data_it{it}', data)

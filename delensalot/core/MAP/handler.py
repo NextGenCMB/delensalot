@@ -24,6 +24,7 @@ class base:
                 self.gradients.append(gradient.birefringence(gradient_descs[secondary_ID], self.filter, simidx))
         
         # TODO i order them here as h0arr needs a specific ordering, but this is not a good solution
+        
         h0dict = self.get_h0(desc["Runl0"])
         self.h0dict = h0dict
         h0arr = [h0dict[field.ID] for field in self.gradients]
