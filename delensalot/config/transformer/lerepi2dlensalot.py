@@ -557,7 +557,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "prior_fns": 'klm_{component}_simidx{idx}_it{it}'.format(component="{component}", it="{it}", idx="{idx}"), # prior is just field, and then we do a simple divide by spectrum (almxfl)
                 "total_increment_fns": 'ginclm_{gradient_name}_simidx{idx}_it{it}'.format(gradient_name=gradient_name, it="{it}", idx="{idx}"),    
                 "total_fns": 'gtotlm_{gradient_name}_simidx{idx}_it{it}'.format(gradient_name=gradient_name, it="{it}", idx="{idx}"),    
-                "chh": {"p": np.ones(shape=cf.analysis.secondaries[gradient_name]["lm_max"][0]+1), "w": np.ones(shape=cf.analysis.secondaries[gradient_name]["lm_max"][0]+1)} if gradient_name == "lensing" else {"f": np.ones(shape=cf.analysis.secondaries[gradient_name]["lm_max"][0]+1)}, #FIXME this is prior times scaling factor
+                "chh": {comp: dl.CLfids[gradient_name][comp*2][:cf.analysis.secondaries[gradient_name]['lm_max'][0]+1] for comp in cf.analysis.secondaries[gradient_name]['components']},
                 "components": ['p','w'] if gradient_name == 'lensing' else ['f'],
             } for gradient_name, gradient_operator in gradients_operators.items()]
             MAP_gfields = {gfield_desc["ID"]: MAP_field.gradient(gfield_desc) for gfield_desc in gfield_descs}

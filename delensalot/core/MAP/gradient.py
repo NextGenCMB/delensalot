@@ -51,7 +51,7 @@ class base:
             g = 0
             g += self.get_gradient_prior(it)
             g += self.get_gradient_meanfield(it)
-            g += self.get_gradient_quad(it)
+            g -= self.get_gradient_quad(it)
             return g
 
 
@@ -80,7 +80,9 @@ class base:
 
     def update_operator(self, simidx, it):
         self.filter.update_operator(simidx, it)
+        print('updated filter')
         self.gradient_operator.set_field(simidx, it)
+        print('updated gradient operator')
 
 
     def update_gradient(self):
@@ -196,10 +198,9 @@ class lensing(base):
         self.transf_blm  = self.filter.transferb # self.transf_blm  = _extend_cl(transf_blm, self.lmax_len)
         np.save(f'temp/new_transf_elm_it{it}.npy', self.transf_elm)
 
-        dfield = self.secondary.get_klm(self.simidx, it-1)
+        dfield = self.secondary.get_klm(self.simidx, np.max([0,it-1]))
         h2d = np.sqrt(np.arange(3000 + 1, dtype=float) * np.arange(1, 3000 + 2, dtype=float))
         [almxfl(s, h2d, 3000, True) for s in dfield]
-        print(dfield)
         self.ffi = self.ffi.change_dlm(dfield, self.LM_max[1])
 
         def _get_irespmap(eblm_dat:np.ndarray, eblm_wf:np.ndarray, map_out=None):
@@ -258,6 +259,7 @@ class lensing(base):
             almxfl(gc[0], fl, mmax_qlm, True)
             almxfl(gc[1], fl, mmax_qlm, True)
             np.save(f'temp/new_gc_it{it}', gc)
+            # np.array([almxfl(buf, cli(_h2p(self.lmax_qlm)), 3000, True) for buf in gc])
             self.gfield.cache_quad(gc, self.simidx, it=it)
         return self.gfield.get_quad(self.simidx, it, component)
 

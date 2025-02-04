@@ -24,7 +24,7 @@ class base:
                 self.gradients.append(gradient.birefringence(gradient_descs[secondary_ID], self.filter, simidx))
         
         # TODO i order them here as h0arr needs a specific ordering, but this is not a good solution
-        
+
         h0dict = self.get_h0(desc["Runl0"])
         self.h0dict = h0dict
         h0arr = [h0dict[field.ID] for field in self.gradients]
@@ -58,6 +58,7 @@ class base:
                 print('---------- starting iteration ', it+1, 'taking result from iteration', it, '. maxiterdone:', self.maxiterdone())
                 for gradient in self.gradients:
                     gradient.update_operator(simidx, it)
+                    print('updated operators')
                     grad_tot.append(gradient.get_gradient_total(it)) #calculates the filtering, the sum, and the quadratic combination
                 grad_tot = np.concatenate([np.ravel(arr) for arr in grad_tot])
                 if it>0: #NOTE it=0 cannot build the previous diff, as current diff is QE
