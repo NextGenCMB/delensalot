@@ -70,8 +70,14 @@ class gradient:
 
 
     def get_prior(self, simidx, it, component=None):
+        if isinstance(component, list):
+            if len(component) == 1:
+                component = component[0]
+            elif len(component) >1:
+                return np.atleast_2d([self.get_prior(simidx, it, component_).squeeze() for component_i, component_ in enumerate(component)])
         if component is None:
             return np.atleast_2d([self.get_prior(simidx, it, component_).squeeze() for component_i, component_ in enumerate(self.components)])
+        
         if not self.cacher_field.is_cached(self.prior_fns.format(component=component, idx=simidx, it=it)):
             assert 0, "cannot find prior at {}".format(self.cacher_field.lib_dir+"/"+self.prior_fns.format(component=component, idx=simidx, it=it))
         else:
@@ -85,12 +91,15 @@ class gradient:
         # this is for existing iteration
         it=0
         if self.cacher.is_cached(self.meanfield_fns.format(idx=simidx, it=it)):
-            return (result := self.cacher.load(self.meanfield_fns.format(idx=simidx, it=it))) if component is None else result[self.component2idx[component]]
+            if component is None:
+                return self.cacher.load(self.meanfield_fns.format(idx=simidx, it=it))
+            else: 
+                return self.cacher.load(self.meanfield_fns.format(idx=simidx, it=it))
         else:
             assert 0, "cannot find meanfield"
             
 
-    def get_total(self, simidx, it, component):
+    def get_total(self, simidx, it, component=None):
         # if it is the 'next' it, then build the new gradient, otherwise load it
         if self.cacher.is_cached(self.total_fns.format(idx=simidx, it=it)):
             return self.cacher.load(self.total_fns.format(idx=simidx, it=it))
@@ -102,8 +111,17 @@ class gradient:
         return self._build(simidx, it, component)
     
 
-    def get_quad(self, simidx, it, component):
-        return (result := self.cacher.load(self.quad_fns.format(idx=simidx, it=it))) if component is None else result[self.component2idx[component]]
+    def get_quad(self, simidx, it, component=None):
+        if isinstance(component, list):
+            if len(component) == 1:
+                component = component[0]
+            elif len(component) >1:
+                return np.atleast_2d([self.get_quad(simidx, it, component_).squeeze() for component_i, component_ in enumerate(component)])
+        if component is None:
+            idxs = [self.component2idx[c] for c in self.components]
+            return self.cacher.load(self.quad_fns.format(idx=simidx, it=it))[idxs]
+        else:
+            return self.cacher.load(self.quad_fns.format(idx=simidx, it=it))[self.component2idx[component]]
 
 
     def _build(self, simidx, it, component):

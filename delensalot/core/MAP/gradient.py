@@ -47,11 +47,11 @@ class base:
             print('total is cached at iter, ', it)
             return self.gfield.get_total(self.simidx, it, component)
         else:
-            print("building total {} gradient for iter {} ".format(self.ID, it+1))
+            print("building total {} gradient for iter {} ".format(self.ID, it))
             g = 0
-            g += self.get_gradient_prior(it)
-            g += self.get_gradient_meanfield(it)
-            g -= self.get_gradient_quad(it)
+            g += self.get_gradient_prior(it-1, component)
+            g += self.get_gradient_meanfield(it, component)
+            g -= self.get_gradient_quad(it, component)
             return g
 
 
@@ -72,10 +72,11 @@ class base:
         return self.filter.get_wflm(self.simidx, it, data=data)
     
 
-    def get_ivflm(self, it=None, data=None):
+    def get_ivflm(self, it=None, data=None, wflm=None):
         it = self.maxiterdone() if it is None else it
-        XWF = self.filter.get_wflm(self.simidx, it, data=data) if data is not None else None
-        return self.filter.get_ivflm(self.simidx, it, eblm_wf=XWF, data=data)
+        wflm = self.filter.get_wflm(self.simidx, it, data=data) if wflm is None else wflm
+        data = self.get_data(self.lm_max_ivf) if data is None else data
+        return self.filter.get_ivflm(self.simidx, it, eblm_wf=wflm, data=data)
 
 
     def update_operator(self, simidx, it):
@@ -177,6 +178,9 @@ class lensing(base):
     
 
     def get_gradient_quad(self, it, component=None):
+        # if it==2:
+        #     import sys
+        #     sys.exit()
         def _extend_cl(cl, lmax):
             if np.isscalar(cl):
                 return np.ones(lmax + 1, dtype=float) * cl
@@ -201,6 +205,8 @@ class lensing(base):
         dfield = self.secondary.get_klm(self.simidx, np.max([0,it-1]))
         h2d = np.sqrt(np.arange(3000 + 1, dtype=float) * np.arange(1, 3000 + 2, dtype=float))
         [almxfl(s, h2d, 3000, True) for s in dfield]
+        if dfield.shape[0] == 1:
+            dfield = [dfield[0],None]
         self.ffi = self.ffi.change_dlm(dfield, self.LM_max[1])
 
         def _get_irespmap(eblm_dat:np.ndarray, eblm_wf:np.ndarray, map_out=None):
@@ -210,15 +216,7 @@ class lensing(base):
             ebwf += eblm_dat
             almxfl(ebwf[0], self.inoise_1_elm * 0.5, self.mmax_len, True)  # Factor of 1/2 because of \dagger rather than ^{-1}
             almxfl(ebwf[1], self.inoise_1_blm * 0.5, self.mmax_len, True)
-
-            # NOTE generating ivf here
-            import copy
-            buffer = copy.copy(eblm_dat)
-            almxfl(buffer[0], self.inoise_1_elm * 0.5, self.mmax_len, True)  # Factor of 1/2 because of \dagger rather than ^{-1}
-            almxfl(buffer[1], self.inoise_1_blm * 0.5, self.mmax_len, True)         
-            self.filter.ivf_field.cache_field(buffer, self.simidx, it)
-            ## end of ivf generation
-
+            np.save(f'temp/new_ireslm{it}.npy', ebwf)
             return self.ffi.geom.synthesis(ebwf, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, map=map_out)
 
         def _get_gpmap(elm_wf:np.ndarray, spin:int):

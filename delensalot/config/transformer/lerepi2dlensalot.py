@@ -510,7 +510,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "LM_max": cf.analysis.secondaries['lensing']['lm_max'],
                     "Lmin": dl.Lmin,
                     "perturbative": False,
-                    "components": ['p','w'],
+                    "components": [item for  item in cf.analysis.secondaries['lensing']['components']],
                     "libdir": opj(MAP_libdir_prefix, 'estimates/'),
                     'field_fns': MAP_secondaries["lensing"].fns,
                     "ffi": dl.ffi,
@@ -558,7 +558,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "total_increment_fns": 'ginclm_{gradient_name}_simidx{idx}_it{it}'.format(gradient_name=gradient_name, it="{it}", idx="{idx}"),    
                 "total_fns": 'gtotlm_{gradient_name}_simidx{idx}_it{it}'.format(gradient_name=gradient_name, it="{it}", idx="{idx}"),    
                 "chh": {comp: dl.CLfids[gradient_name][comp*2][:cf.analysis.secondaries[gradient_name]['lm_max'][0]+1] for comp in cf.analysis.secondaries[gradient_name]['components']},
-                "components": ['p','w'] if gradient_name == 'lensing' else ['f'],
+                "components": [item for  item in cf.analysis.secondaries['lensing']['components']] if gradient_name == 'lensing' else ['f'],
             } for gradient_name, gradient_operator in gradients_operators.items()]
             MAP_gfields = {gfield_desc["ID"]: MAP_field.gradient(gfield_desc) for gfield_desc in gfield_descs}
             gradient_descs = {}

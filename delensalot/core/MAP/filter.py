@@ -57,12 +57,14 @@ class base:
 
 
     # FIXME the following is to be replaced with new routines, and is only needed for the current cg multigrid_chain implementation
-    def build_opfilt_iso_p(self):
+    def build_opfilt_iso_p(self, it):
         lenjob_geomlib =  get_geom(('thingauss', {'lmax': 4500, 'smax': 3}))
         ffi = deflection(lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(4500, 4500)), 4500, numthreads=8, verbosity=0, epsilon=1e-8)
-        dfield = self.secondary.get_klm(0, 0)
+        dfield = self.secondary.get_klm(0, it-1)
         h2d = np.sqrt(np.arange(3000 + 1, dtype=float) * np.arange(1, 3000 + 2, dtype=float))
         [almxfl(s, h2d, 3000, True) for s in dfield]
+        if dfield.shape[0] == 1:
+            dfield = [dfield[0],None]
         ffi = ffi.change_dlm(dfield, 3000)
         def extract():
             return {
@@ -84,11 +86,12 @@ class base:
 
 
     def get_wflm(self, simidx, it, data=None):
-        self.ninv = self.build_opfilt_iso_p()
+        self.ninv = self.build_opfilt_iso_p(it)
         self.opfilt = MAP_opfilt_iso_p
         self.dotop = self.ninv.dot_op()
         if not self.wf_field.is_cached(simidx, it):
             cg_sol_curr = self.wf_field.get_field(simidx, it-1)
+            # print(self.opfilt, self.chain_descr, self.cls_filt, self.ninv)
             mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.ninv)
             mchain.solve(cg_sol_curr, data, dot_op=self.dotop)
             self.wf_field.cache_field(cg_sol_curr, simidx, it)

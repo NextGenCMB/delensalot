@@ -793,8 +793,6 @@ class MAP_lr_operator:
         self.it_tasks = self.MAP_handler_desc["it_tasks"]
 
 
-
-
     def collect_jobs(self):
         print("Collecting MAP jobs")
         jobs = list(range(len(self.it_tasks)))
@@ -859,8 +857,7 @@ class MAP_lr_operator:
             self.QE_searchs[field2idx[fieldname]].init_filterqest()
             klm_QE = self.QE_searchs[field2idx[fieldname]].get_klm(simidx, None)
             self.MAP_searchs[simidx].secondaries[fieldname].cache_klm(klm_QE, simidx, it=0)
-            # self.MAP_searchs[simidx].gradients[gradient2idx[fieldname]].gfield.cache_prior(np.array(klm_QE), simidx, it=0)
-            self.MAP_searchs[simidx].gradients[gradient2idx[fieldname]].gfield.cache_quad(klm_QE, simidx, it=0)
+            # self.MAP_searchs[simidx].gradients[gradient2idx[fieldname]].gfield.cache_quad(klm_QE, simidx, it=0)
             
             kmflm_QE = self.QE_searchs[field2idx[fieldname]].get_kmflm(simidx)
             self.MAP_searchs[simidx].gradients[gradient2idx[fieldname]].gfield.cache_meanfield(np.array(kmflm_QE), simidx, it=0)
@@ -868,9 +865,6 @@ class MAP_lr_operator:
             #TODO cache QE wflm into the filter directory
             wflm_QE = self.QE_searchs[field2idx[fieldname]].get_wflm(simidx)
             self.MAP_searchs[simidx].filter.wf_field.cache_field(np.array(wflm_QE), simidx, it=0)
-
-            ivflm_QE = self.QE_searchs[field2idx[fieldname]].get_ivflm(simidx)
-            self.MAP_searchs[simidx].filter.ivf_field.cache_field(np.array(ivflm_QE), simidx, it=0)
 
 
 class QE_lr(Basejob):

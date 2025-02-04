@@ -45,6 +45,7 @@ class base:
 
 
     def apply_H0k(self, grad_lm:np.ndarray, kr):
+        print('applying h0k')
         ret = np.empty_like(grad_lm)
         N = 0
         for h0 in self.h0:
@@ -55,6 +56,7 @@ class base:
 
 
     def apply_B0k(self, grad_lm:np.ndarray, kr):
+        print('applying B0k')
         ret = np.empty_like(grad_lm)
         N = 0
         for h0 in self.h0:

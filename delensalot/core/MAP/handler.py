@@ -4,6 +4,8 @@ from delensalot.core import cachers
 from delensalot.utility.utils_hp import almxfl, alm_copy, Alm
 from delensalot.utils import cli
 
+import healpy as hp
+
 from . import gradient
 from . import curvature
 from . import filter
@@ -12,6 +14,7 @@ class base:
     def __init__(self, simulationdata, secondaries, filter_desc, gradient_descs, curvature_desc, desc, template_desc, simidx):
         # this class handles the filter, gradient, and curvature libs, nothing else
         self.secondaries = secondaries
+        print('secondaries:', secondaries)
         self.simulationdata = simulationdata
         # NOTE gradient and curvature share the field increments, so naming must be consistent. Can use the gradient_descs['inc_fn'] for this
         self.filter = filter.base(filter_desc, secondaries['lensing'])
@@ -52,25 +55,27 @@ class base:
                 return [self.get_klm(simidx, request_it, fieldID, component) for fieldID, field in self.secondaries.items()]
             return np.array(self.secondaries[field_ID].get_klm(simidx, request_it, component))
         elif current_it < self.itmax and request_it > current_it:
-            for it in range(current_it, request_it):
+            for it in range(np.max([1,current_it]), request_it):
                 # it = 0 is QE and is implicitly skipped. current_it is the it we have a solution for already
                 grad_tot, grad_prev = [], []
-                print('---------- starting iteration ', it+1, 'taking result from iteration', it, '. maxiterdone:', self.maxiterdone())
+                print('---------- starting iteration ', it, 'taking result from iteration', it, '. maxiterdone:', self.maxiterdone())
                 for gradient in self.gradients:
-                    gradient.update_operator(simidx, it)
-                    print('updated operators')
-                    grad_tot.append(gradient.get_gradient_total(it)) #calculates the filtering, the sum, and the quadratic combination
+                    gradient.update_operator(simidx, it-1)
+                    _component = gradient.secondary.components if component is None else np.atleast_2d(component)
+                    grad_tot.append(gradient.get_gradient_total(it, component=_component)) #calculates the filtering, the sum, and the quadratic combination
                 grad_tot = np.concatenate([np.ravel(arr) for arr in grad_tot])
-                if it>0: #NOTE it=0 cannot build the previous diff, as current diff is QE
+                if it>2: #NOTE it=1 cannot build the previous diff, as current diff is QE
                     for gradient in self.gradients:
-                        grad_prev.append(gradient.get_gradient_total(it-1))
+                        _component = gradient.secondary.components if component is None else np.atleast_2d(component)
+                        grad_prev.append(gradient.get_gradient_total(it-1, component=_component))
                     grad_prev = np.concatenate([np.ravel(arr) for arr in grad_prev])
                     self.curvature.add_yvector(grad_tot, grad_prev, simidx, it)
                 
-                # NOTE it=0 uses h0 for the curvature 
-                new_klms = self.curvature.grad2dict(self.curvature.get_new_gradient(grad_tot, simidx, it))
-                # new_klms = self.step(new_klms)
-                self.cache_klm(new_klms, simidx, it+1)
+                # NOTE it=0 uses h0 for the curvature
+                new_klms = self.curvature.get_new_gradient(grad_tot, simidx, it-2) 
+                new_klms = self.curvature.grad2dict(self.step(new_klms))
+                
+                self.cache_klm(new_klms, simidx, it)
         else:
             assert False, "Requested iteration is beyond the maximum iteration"
 
@@ -117,25 +122,15 @@ class base:
         return itr
 
 
-    def get_new_MAP(self, H, gtot):
-        pass
-        # self.curvature.get_new_MAP(H, gtot)
-        # deltag = self.curvature.get_gradient_inc(self.klm_currs) # This calls the 2-loop curvature update
-        # for field in self.secondaries:
-        #     for component in field.components:
-        #         increment = field.calc_increment(deltag, component)
-        #         field.update_klm(increment, component) 
-
-
     def step(self, klms):
-        ret = []
-        fl = np.ones_like(klms[0])
-        for fieldID, field in self.secondaries.items():
-            for component in field.components:
-                ret.append(almxfl(klms[fieldID][component], fl, None, False))
-        return ret
-        # steplen=1
-        # return almxfl(MAP, steplen)
+        lower = 0
+        for seci, (secondaryn, secondary) in enumerate(self.secondaries.items()):
+            for compi, comp in enumerate(secondary.components):
+                fl = np.ones(secondary.lm_max[0]+1)*0.1
+                upper = lower + hp.Alm.getsize(secondary.lm_max[0])
+                almxfl(klms[lower:lower:upper+1], fl, None, True)
+                lower = upper
+        return klms
 
 
     def cache_klm(self, new_klms, simidx, it):
