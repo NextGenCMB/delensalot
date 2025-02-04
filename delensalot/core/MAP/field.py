@@ -26,7 +26,7 @@ class secondary:
             return np.array([self.get_klm(idx, it, component).squeeze() for component in self.components])
         if it < 0:
             return np.atleast_2d([np.zeros(Alm.getsize(*self.lm_max), dtype=complex) for component in self.components])
-        return np.atleast_2d(self.cacher.load(self.fns[component].format(idx=idx, it=it))) if self.cacher.is_cached(self.fns[component].format(idx=idx, it=it)) else np.atleast_2d(self.sk2klm(it))
+        return np.atleast_2d(self.cacher.load(self.fns[component].format(idx=idx, it=it))) if self.cacher.is_cached(self.fns[component].format(idx=idx, it=it)) else np.atleast_2d(self.sk2klm(idx, it, component))
 
 
     def sk2klm(self, idx, it, component):

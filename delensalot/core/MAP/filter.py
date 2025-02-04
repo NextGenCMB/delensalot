@@ -4,7 +4,8 @@ import numpy as np
 
 from delensalot.core import cachers
 from delensalot.utils import read_map
-from delensalot.core.cg_simple import cd_solve, cd_monitors, multigrid
+from delensalot.core.cg import cd_solve, cd_monitors, multigrid
+# from delensalot.core.cg_simple import cd_solve, cd_monitors, multigrid
 from delensalot.core.opfilt import MAP_opfilt_iso_p
 
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy
@@ -18,7 +19,6 @@ from lenspyx.lensing import get_geom
 
 def _extend_cl(cl, lmax):
     """Forces input to an array of size lmax + 1
-
     """
     if np.isscalar(cl):
         return np.ones(lmax + 1, dtype=float) * cl
@@ -28,12 +28,12 @@ def _extend_cl(cl, lmax):
 
 
 class base:
-    def __init__(self, filter_desc):
+    def __init__(self, filter_desc, secondary):
         self.ID = filter_desc['ID']
         self.ivf_field = filter_desc['ivf_field']
-        self.WF_field = filter_desc['WF_field']
+        self.wf_field = filter_desc['wf_field']
         self.ivf_operator = filter_desc['ivf_operator']
-        self.WF_operator = filter_desc['WF_operator']
+        self.wf_operator = filter_desc['wf_operator']
         self.Ninv = read_map(filter_desc['Ninv_desc'])
         self.beam = filter_desc['beam']
         self.nlevp, self.nlevt = filter_desc['nlev']['P'], filter_desc['nlev']['T']
@@ -41,50 +41,58 @@ class base:
 
         self.lm_max_ivf = filter_desc['lm_max_ivf']
         self.transfer = filter_desc["ttebl"]
+        self.transfere = _extend_cl(filter_desc["ttebl"]['e'], self.lm_max_ivf[0])
+        self.transferb = _extend_cl(filter_desc["ttebl"]['b'], self.lm_max_ivf[0])
         # TODO make sure ninv_desc[0][x] are actually the right inverse noise levels
         self.n1elm = _extend_cl(np.array(self.transfer['e'])**1, self.lm_max_ivf[0]) * _extend_cl(np.array(1/filter_desc['Ninv_desc'][1][0][0][0])**2, self.lm_max_ivf[0]) * (180 * 60 / np.pi) ** 2
         self.n1blm = _extend_cl(np.array(self.transfer['b'])**1, self.lm_max_ivf[0]) * _extend_cl(np.array(1/filter_desc['Ninv_desc'][1][0][0][0])**2, self.lm_max_ivf[0]) * (180 * 60 / np.pi) ** 2
-
+        print('n1elm', self.n1elm)
         self.datmaps = None
         self.data = None
 
         self.chain_descr = filter_desc['chain_descr']
         self.cls_filt = filter_desc['cls_filt']
 
+        self.secondary = secondary
 
-        # FIXME the following is to be replaced with new routines, and is only needed for the current cg multigrid_chain implementation
-        def build_opfilt_iso_p():
-            lenjob_geomlib =  get_geom(('thingauss', {'lmax': 3500, 'smax': 3}))
-            ffi = deflection(lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(3500, 3500)), 3500, numthreads=8, verbosity=0, epsilon=1e-8)  
-            def extract():
-                return {
-                    'nlev_p': 1.0,
-                    'ffi': ffi,
-                    'transf': filter_desc["ttebl"]['e'],
-                    'unlalm_info': (4000, 4000),
-                    'lenalm_info': (3500, 3500),
-                    'wee': True,
-                    'transf_b': filter_desc["ttebl"]['b'],
-                    'nlev_b': 1.0,
-                }
-            return MAP_opfilt_iso_p.alm_filter_nlev_wl(**extract())
-        self.ninv = build_opfilt_iso_p()
-        self.opfilt = MAP_opfilt_iso_p
-        self.dotop = self.ninv.dot_op()
+
+    # FIXME the following is to be replaced with new routines, and is only needed for the current cg multigrid_chain implementation
+    def build_opfilt_iso_p(self):
+        lenjob_geomlib =  get_geom(('thingauss', {'lmax': 4500, 'smax': 3}))
+        ffi = deflection(lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(4500, 4500)), 4500, numthreads=8, verbosity=0, epsilon=1e-8)
+        dfield = self.secondary.get_klm(0, 0)
+        h2d = np.sqrt(np.arange(3000 + 1, dtype=float) * np.arange(1, 3000 + 2, dtype=float))
+        [almxfl(s, h2d, 3000, True) for s in dfield]
+        ffi = ffi.change_dlm(dfield, 3000)
+        def extract():
+            return {
+                'nlev_p': 1.0,
+                'ffi': ffi,
+                'transf': self.transfer['e'],
+                'unlalm_info': (4000, 4000), # unl
+                'lenalm_info': self.lm_max_ivf, # ivf
+                'wee': True,
+                'transf_b': self.transfer['b'],
+                'nlev_b': 1.0,
+            }
+        return MAP_opfilt_iso_p.alm_filter_nlev_wl(**extract())
 
 
     def update_operator(self, simidx, it):
         self.ivf_operator.set_field(simidx, it)
-        self.WF_operator.set_field(simidx, it)
+        self.wf_operator.set_field(simidx, it)
 
 
     def get_wflm(self, simidx, it, data=None):
-        if not self.WF_field.is_cached(simidx, it):
-            cg_sol_curr = self.WF_field.get_field(simidx, it-1)
+        self.ninv = self.build_opfilt_iso_p()
+        self.opfilt = MAP_opfilt_iso_p
+        self.dotop = self.ninv.dot_op()
+        if not self.wf_field.is_cached(simidx, it):
+            cg_sol_curr = self.wf_field.get_field(simidx, it-1)
             mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.ninv)
             mchain.solve(cg_sol_curr, data, dot_op=self.dotop)
-            self.WF_field.cache_field(cg_sol_curr, simidx, it)
-        return self.WF_field.get_field(simidx, it)
+            self.wf_field.cache_field(cg_sol_curr, simidx, it)
+        return self.wf_field.get_field(simidx, it)
 
 
     def get_ivflm(self, simidx, it, data, eblm_wf):

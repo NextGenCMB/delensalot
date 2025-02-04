@@ -545,7 +545,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 filter_operators.append(operator.birefringence(_MAP_operators_desc['birefringence']))
                 gradients_operators['birefringence'] = operator.joint([*filter_operators, operator.multiply(_MAP_operators_desc['multiply'])])
             ivf_operator = operator.ivf_operator(filter_operators)
-            WF_operator = operator.WF_operator(filter_operators) #TODO this is ivf_operator*ivf_operator^dagger, could be implemented via ivf.
+            wf_operator = operator.wf_operator(filter_operators) #TODO this is ivf_operator*ivf_operator^dagger, could be implemented via ivf.
 
             gfield_descs = [{
                 "ID": gradient_name,
@@ -594,9 +594,9 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             MAP_filter_desc = {
                 "ID": "polarization",
                 'ivf_operator': ivf_operator,
-                'WF_operator': WF_operator,
+                'wf_operator': wf_operator,
                 "ivf_field": MAP_field.filter(MAP_ivffilter_field_desc),
-                "WF_field": MAP_field.filter(MAP_WFfilter_field_desc),
+                "wf_field": MAP_field.filter(MAP_WFfilter_field_desc),
                 'beam': operator.beam({"beamwidth": cf.analysis.beam, "lm_max":dl.lm_max_ivf}),
                 'Ninv_desc': [dl.nivt_desc, dl.nivp_desc],
                 "simulationdata": dl.simulationdata,

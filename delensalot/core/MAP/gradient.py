@@ -148,15 +148,15 @@ class lensing(base):
         # almxfl(res)
         if not self.gfield.quad_is_cached(self.simidx, it):
             data = self.get_data(self.lm_max_ivf)
-            XWF = self.filter.get_WF(data, self.simidx, it)
-            ivf = self.filter.get_ivf(data, XWF, self.simidx, it)
+            wflm = self.filter.get_wflm(data, self.simidx, it)
+            ivflm = self.filter.get_ivflm(data, wflm, self.simidx, it)
             
             # TODO cast ivf to map space with lm_max_len, but how does conj() work then?
-            ivfmap = self.ffi.geom.synthesis(ivf, 2, self.lm_max_ivf[0], self.lm_max_ivf[1], self.ffi.sht_tr)
-            ivfmapconj = self.ffi.geom.synthesis(ivf.conj(), 2, self.lm_max_ivf[0], self.lm_max_ivf[1], self.ffi.sht_tr)
+            ivfmap = self.ffi.geom.synthesis(ivflm, 2, self.lm_max_ivf[0], self.lm_max_ivf[1], self.ffi.sht_tr)
+            ivfmapconj = self.ffi.geom.synthesis(ivflm.conj(), 2, self.lm_max_ivf[0], self.lm_max_ivf[1], self.ffi.sht_tr)
             
             # TODO cast gradientoperator * XWF with lm_max_unl, but how does conj() work then?
-            xwfglm = self.gradient_operator.act(XWF, spin=2)
+            xwfglm = self.gradient_operator.act(wflm, spin=2)
             xwfmap = self.ffi.geom.synthesis(xwfglm, 3, self.lm_max_ivf[0], self.lm_max_ivf[1], self.ffi.sht_tr)
             xwfmapconj = self.ffi.geom.synthesis(xwfglm.conj(), 1, self.lm_max_ivf[0], self.lm_max_ivf[1], self.ffi.sht_tr)
             
@@ -192,9 +192,9 @@ class lensing(base):
         self.inoise_2_blm = _extend_cl(self.filter.transfer['e'] ** 2, self.lmax_len) * cli(nlev_blm ** 2) * (180 * 60 / np.pi) ** 2
         self.inoise_1_blm = _extend_cl(self.filter.transfer['b'] ** 1, self.lmax_len) * cli(nlev_blm ** 2) * (180 * 60 / np.pi) ** 2
 
-        self.transf_elm  = self.filter.n1elm # _extend_cl(transf_elm, self.lmax_len)
-        self.transf_blm  = self.filter.n1blm # self.transf_blm  = _extend_cl(transf_blm, self.lmax_len)
-        np.save('new_transf_elm.npy', self.transf_elm)
+        self.transf_elm  = self.filter.transfere # _extend_cl(transf_elm, self.lmax_len)
+        self.transf_blm  = self.filter.transferb # self.transf_blm  = _extend_cl(transf_blm, self.lmax_len)
+        np.save(f'temp/new_transf_elm_it{it}.npy', self.transf_elm)
 
         dfield = self.secondary.get_klm(self.simidx, it)
         self.ffi = self.ffi.change_dlm(dfield, self.LM_max[1])
@@ -229,23 +229,23 @@ class lensing(base):
         print(f'---------- this is iteration {it} in get_gradient_quad')
         if not self.gfield.quad_is_cached(self.simidx, it):
             data = self.get_data(self.lm_max_ivf)
-            np.save('new_data.npy', data)
-            XWF = self.filter.get_wflm(self.simidx, it, data)
-            # ivf = self.filter.get_ivf(data, XWF, self.simidx, it)
-            elm_wf = XWF
-            np.save('new_wf.npy', elm_wf)
+            np.save(f'temp/new_data_it{it}', data)
+            wflm = self.filter.get_wflm(self.simidx, it, data)
+            # ivf = self.filter.get_ivf(data, wflm, self.simidx, it)
+            elm_wf = wflm
+            np.save(f'temp/new_wf_it{it}', elm_wf)
 
-            resmap_c = np.empty((self.ffi.geom.npix(),), dtype=XWF.dtype)
+            resmap_c = np.empty((self.ffi.geom.npix(),), dtype=wflm.dtype)
             resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
             _get_irespmap(data, elm_wf, map_out=resmap_r) # inplace onto resmap_c and resmap_r
-            np.save('new_resmap_r', resmap_r)
+            np.save(f'temp/new_resmap_r_it{it}', resmap_r)
             lmax_qlm, mmax_qlm = self.ffi.lmax_dlm, self.ffi.mmax_dlm
             
             gcs_r = _get_gpmap(elm_wf, 3)  # 2 pos.space maps, uses then complex view onto real array
-            np.save('new_gcs_r1', gcs_r)
+            np.save(f'temp/new_gcs_r1_it{it}', gcs_r)
             gc_c = resmap_c.conj() * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3)
             gcs_r = _get_gpmap(elm_wf, 1)
-            np.save('new_gcs_r2', gcs_r)
+            np.save(f'temp/new_gcs_r2_it{it}', gcs_r)
             gc_c -= resmap_c * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze().conj()  # (+2 , -1)
             del resmap_c, resmap_r, gcs_r
             lmax_qlm, mmax_qlm = self.ffi.lmax_dlm, self.ffi.mmax_dlm
@@ -255,7 +255,7 @@ class lensing(base):
             fl = - np.sqrt(np.arange(lmax_qlm + 1, dtype=float) * np.arange(1, lmax_qlm + 2))
             almxfl(gc[0], fl, mmax_qlm, True)
             almxfl(gc[1], fl, mmax_qlm, True)
-            np.save('new_gc.npy', gc)
+            np.save(f'temp/new_gc_it{it}', gc)
             self.gfield.cache_quad(gc, self.simidx, it=it)
         return self.gfield.get_quad(self.simidx, it, component)
 

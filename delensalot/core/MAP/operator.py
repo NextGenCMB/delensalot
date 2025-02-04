@@ -97,7 +97,7 @@ class ivf_operator:
             operator.set_field(simidx, it)
     
 
-class WF_operator:
+class wf_operator:
     def __init__(self, operators):
         self.operators = operators
         self.lm_max = operators[0].lm_max if hasattr(operators[0], 'lm_max') else operators[1].lm_max # FIXME hoping these operators have what im looking for

@@ -771,28 +771,28 @@ class QE_lr_new(Basejob):
 
 class MAP_lr_operator:
     def __init__(self, dl):
-        self.MAP_handler_desc = dl.MAP_handler_desc
-        
-        # self.simulationdata = self.MAP_handler_desc["simulationdata"]
         self.simgen = Sim_generator(dl)
+        self.MAP_handler_desc = dl.MAP_handler_desc
         self.simulationdata = self.simgen.simulationdata
-        self.QE_searchs = self.MAP_handler_desc["QE_searchs"]
         self.simidxs = self.MAP_handler_desc["simidxs"]
         self.simidxs_mf = self.MAP_handler_desc["simidxs_mf"]
-        # I want to have a MAP handler for each simidx as indices have nothing to do with each other
+        self.QE_searchs = self.MAP_handler_desc["QE_searchs"]
         self.MAP_searchs_desc = dl.MAP_searchs_desc
+        # I want to have a MAP handler for each simidx as indices have nothing to do with each other
         field2idx = {QE_search.secondary.ID: i for i, QE_search in enumerate(self.QE_searchs)}
         self.MAP_searchs_desc["desc"].update({"Runl0": {}})
         for i, QE_search in enumerate(self.QE_searchs):
             self.MAP_searchs_desc["desc"]["Runl0"].update({QE_search.secondary.ID: np.array([QE_search.get_response_unl(component) for component in QE_search.secondary.components])})
-        
         self.MAP_searchs = [MAP_handler.base(self.simulationdata, self.MAP_searchs_desc["MAP_secondaries"], self.MAP_searchs_desc["filter_desc"], self.MAP_searchs_desc["gradient_descs"], self.MAP_searchs_desc["curvature_desc"], self.MAP_searchs_desc["desc"], self.MAP_searchs_desc["template_descs"], simidx) for simidx in self.simidxs]
-        self.it_tasks = self.MAP_handler_desc["it_tasks"]
-
         # TODO better to check with maxiterdone()
         for simidx in self.simidxs:
             # if self.MAP_searchs[simidx].filter.ivf_field.is_cached(simidx, 0):
                 self.copyQEtoDirectory(simidx)
+        
+        # self.simulationdata = self.MAP_handler_desc["simulationdata"]
+        self.it_tasks = self.MAP_handler_desc["it_tasks"]
+
+
 
 
     def collect_jobs(self):
@@ -867,7 +867,7 @@ class MAP_lr_operator:
 
             #TODO cache QE wflm into the filter directory
             wflm_QE = self.QE_searchs[field2idx[fieldname]].get_wflm(simidx)
-            self.MAP_searchs[simidx].filter.WF_field.cache_field(np.array(wflm_QE), simidx, it=0)
+            self.MAP_searchs[simidx].filter.wf_field.cache_field(np.array(wflm_QE), simidx, it=0)
 
             ivflm_QE = self.QE_searchs[field2idx[fieldname]].get_ivflm(simidx)
             self.MAP_searchs[simidx].filter.ivf_field.cache_field(np.array(ivflm_QE), simidx, it=0)

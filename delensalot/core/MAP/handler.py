@@ -14,9 +14,8 @@ class base:
         self.secondaries = secondaries
         self.simulationdata = simulationdata
         # NOTE gradient and curvature share the field increments, so naming must be consistent. Can use the gradient_descs['inc_fn'] for this
-        self.filter = filter.base(filter_desc)
+        self.filter = filter.base(filter_desc, secondaries['lensing'])
         
-        # TODO does not work if ONLY lensing or birefringence is used
         self.gradients = []
         for secondary_ID, secondary in secondaries.items():
             if secondary.ID == 'lensing':
