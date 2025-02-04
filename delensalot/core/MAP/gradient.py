@@ -213,9 +213,11 @@ class lensing(base):
             ebwf = self.ffi.lensgclm(np.atleast_2d(eblm_wf), self.mmax_sol, 2, self.lmax_len, self.mmax_len)
             almxfl(ebwf[0], (-1) * self.transf_elm, self.mmax_len, True)
             almxfl(ebwf[1], (-1) * self.transf_blm, self.mmax_len, True)
+            np.save(f'temp/new_ebwfgrad_it{it}', ebwf)
             ebwf += eblm_dat
             almxfl(ebwf[0], self.inoise_1_elm * 0.5, self.mmax_len, True)  # Factor of 1/2 because of \dagger rather than ^{-1}
             almxfl(ebwf[1], self.inoise_1_blm * 0.5, self.mmax_len, True)
+            np.save(f'temp/new_inoise_1_elm', self.inoise_1_elm)
             np.save(f'temp/new_ireslm{it}.npy', ebwf)
             return self.ffi.geom.synthesis(ebwf, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, map=map_out)
 
