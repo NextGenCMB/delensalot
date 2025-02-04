@@ -44,9 +44,11 @@ class base:
         self.transfere = _extend_cl(filter_desc["ttebl"]['e'], self.lm_max_ivf[0])
         self.transferb = _extend_cl(filter_desc["ttebl"]['b'], self.lm_max_ivf[0])
         # TODO make sure ninv_desc[0][x] are actually the right inverse noise levels
-        self.n1elm = _extend_cl(np.array(self.transfer['e'])**1, self.lm_max_ivf[0]) * _extend_cl(np.array(1/filter_desc['Ninv_desc'][1][0][0][0])**2, self.lm_max_ivf[0]) * (180 * 60 / np.pi) ** 2
-        self.n1blm = _extend_cl(np.array(self.transfer['b'])**1, self.lm_max_ivf[0]) * _extend_cl(np.array(1/filter_desc['Ninv_desc'][1][0][0][0])**2, self.lm_max_ivf[0]) * (180 * 60 / np.pi) ** 2
+        print(filter_desc['Ninv_desc'][1][0][0])
+        self.n1elm = _extend_cl(np.array(self.transfer['e'])**1, self.lm_max_ivf[0]) * _extend_cl(1/filter_desc['Ninv_desc'][1][0][0][0], self.lm_max_ivf[0]) * (180 * 60 / np.pi) ** 2
+        self.n1blm = _extend_cl(np.array(self.transfer['b'])**1, self.lm_max_ivf[0]) * _extend_cl(1/filter_desc['Ninv_desc'][1][0][0][0], self.lm_max_ivf[0]) * (180 * 60 / np.pi) ** 2
         print('n1elm', self.n1elm)
+        np.save('temp/new_n1elm.npy', self.n1elm)
         self.datmaps = None
         self.data = None
 
