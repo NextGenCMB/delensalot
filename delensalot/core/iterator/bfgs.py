@@ -45,6 +45,7 @@ class BFGS_Hessian(object):
 
          # this is the 1D-solution. For 2D, I will pass apply_h0k and apply_b0k
         if len(h0) == 1: self.lmax_qlm = h0[0]
+        np.save('temp/truth_h0.npy', h0)
         if apply_H0k is None: apply_H0k = lambda rlm, kr: almxfl(rlm, h0, self.lmax_qlm, False)
         if apply_B0k is None: apply_B0k = lambda rlm, kr: almxfl(rlm, cli(h0), self.lmax_qlm, False)
         self.applyH0k = apply_H0k

@@ -649,7 +649,9 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "field": MAP_field.curvature(
                     {"ID": "curvature",
                     "libdir": opj(MAP_libdir_prefix, 'curvature'),
-                    "fns": 'diff_klm_{gradient_name}_simidx{idx}_it{it}m{itm1}'.format(gradient_name=gradient_name, it="{it}", itm1="{itm1}", idx="{idx}"),
+                    "fns": {'yk': "diff_grad1d_simidx{idx}_it{it}m{itm1}".format(it="{it}", itm1="{itm1}", idx="{idx}"),
+                            'sk': "incr_grad1d_simidx{idx}_it{it}m{itm1}".format(it="{it}", itm1="{itm1}", idx="{idx}"),
+                    }
                 }),
                 "bfgs_desc": {},
             }

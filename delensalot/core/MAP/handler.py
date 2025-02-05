@@ -57,7 +57,7 @@ class base:
             for it in range(np.max([1,current_it]), request_it):
                 # it = 0 is QE and is implicitly skipped. current_it is the it we have a solution for already
                 grad_tot, grad_prev = [], []
-                print('---------- starting iteration ', it, 'taking result from iteration', it, '. maxiterdone:', self.maxiterdone())
+                print('---------- starting iteration ', it, 'taking result from iteration', it-1, '. maxiterdone:', self.maxiterdone())
                 for gradient in self.gradients:
                     gradient.update_operator(simidx, it-1)
                     _component = gradient.secondary.components if component is None else np.atleast_2d(component)
@@ -69,10 +69,13 @@ class base:
                         grad_prev.append(gradient.get_gradient_total(it-1, component=_component))
                     grad_prev = np.concatenate([np.ravel(arr) for arr in grad_prev])
                     self.curvature.add_yvector(grad_tot, grad_prev, simidx, it)
-                
                 # NOTE it=0 uses h0 for the curvature
-                new_klms = self.curvature.get_new_gradient(grad_tot, simidx, it-2) 
-                new_klms = self.curvature.grad2dict(self.step(new_klms))
+
+                # files = []
+                # for k in range(np.max([0, it - self.BFGS_H.L]), it):
+                #     files.append([[grad_tot, grad_prev], self.curvature.field.fns.format(idx=simidx, it=k, itm1=k-1)])
+                new_klms = self.curvature.get_new_gradient(grad_tot, simidx, it-1) 
+                new_klms = self.curvature.grad2dict(new_klms)
                 
                 self.cache_klm(new_klms, simidx, it)
         else:
@@ -119,17 +122,6 @@ class base:
             itr += 1
             isdone = self.isiterdone(itr + 1)
         return itr
-
-
-    def step(self, klms):
-        lower = 0
-        for seci, (secondaryn, secondary) in enumerate(self.secondaries.items()):
-            for compi, comp in enumerate(secondary.components):
-                fl = np.ones(secondary.lm_max[0]+1)*0.1
-                upper = lower + hp.Alm.getsize(secondary.lm_max[0])
-                almxfl(klms[lower:lower:upper+1], fl, None, True)
-                lower = upper
-        return klms
 
 
     def cache_klm(self, new_klms, simidx, it):

@@ -185,22 +185,21 @@ class filter:
     
 
 class curvature:
-    # NOTE these are the dphi fields
     def __init__(self, field_desc):
         self.libdir = field_desc['libdir']
         # self.lm_max = field_desc['lm_max']
         self.fns =  field_desc['fns']
-
         self.cacher = cachers.cacher_npy(opj(self.libdir))
+        self.types = list(self.fns.keys())
 
 
-    def get_field(self, simidx, it):
-        return self.cacher.load(self.fns.format(idx=simidx, it=it, itm1=it-1))
+    def get_field(self, type, simidx, it):
+        return self.cacher.load(self.fns[type].format(idx=simidx, it=it, itm1=it-1))
     
 
-    def cache_field(self, fieldlm, simidx, it):
-        self.cacher.cache(self.fns.format(idx=simidx, it=it, itm1=it-1), fieldlm)
+    def cache_field(self, fieldlm, type, simidx, it):
+        self.cacher.cache(self.fns[type].format(idx=simidx, it=it, itm1=it-1), fieldlm)
 
     
-    def is_cached(self, simidx, it):
-        return self.cacher.is_cached(self.fns.format(idx=simidx, it=it, itm1=it-1))
+    def is_cached(self, type, simidx, it):
+        return self.cacher.is_cached(self.fns[type].format(idx=simidx, it=it, itm1=it-1))
