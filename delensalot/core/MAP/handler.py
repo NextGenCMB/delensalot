@@ -14,7 +14,6 @@ class base:
     def __init__(self, simulationdata, secondaries, filter_desc, gradient_descs, curvature_desc, desc, template_desc, simidx):
         # this class handles the filter, gradient, and curvature libs, nothing else
         self.secondaries = secondaries
-        print('secondaries:', secondaries)
         self.simulationdata = simulationdata
         # NOTE gradient and curvature share the field increments, so naming must be consistent. Can use the gradient_descs['inc_fn'] for this
         self.filter = filter.base(filter_desc, secondaries['lensing'])

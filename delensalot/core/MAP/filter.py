@@ -91,7 +91,6 @@ class base:
         self.dotop = self.ninv.dot_op()
         if not self.wf_field.is_cached(simidx, it):
             cg_sol_curr = self.wf_field.get_field(simidx, it-1)
-            # print(self.opfilt, self.chain_descr, self.cls_filt, self.ninv)
             mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.ninv)
             mchain.solve(cg_sol_curr, data, dot_op=self.dotop)
             self.wf_field.cache_field(cg_sol_curr, simidx, it)

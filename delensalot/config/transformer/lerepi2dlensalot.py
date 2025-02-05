@@ -48,12 +48,40 @@ def get_hashcode(s):
     hlib.update(str(s).encode())
     return hlib.hexdigest()[:4]
 
+def atleast_2d(lst):
+    if not isinstance(lst, list):
+        raise TypeError("Input must be a list.")
+    return lst if isinstance(lst[0], list) else [lst]
+
+def atleast_1d(lst):
+    return lst if isinstance(lst, list) else [lst]
+
 class l2base_Transformer:
     """Initializes attributes needed across all Jobs, or which are at least handy to have
     """
     # @log_on_start(logging.DEBUG, "process_Simulation() started")
     # @log_on_end(logging.DEBUG, "process_Simulation() finished")
     def process_Simulation(dl, si, cf):
+        # NOTE I want everything to be 'controlled' by fid_info['sec_components'],
+        # so if something is not in there, sec_info, operator_info, etc. need to be updated
+        buffer_secinfo = copy.deepcopy(si.sec_info)
+        buffer_operatorinfo = copy.deepcopy(si.operator_info)
+        allowed_secs = si.fid_info['sec_components'].keys()
+        for key, val in si.sec_info.items():
+            if key not in allowed_secs:
+                buffer_secinfo.pop(key)
+            elif val['components'] != si.fid_info['sec_components'][key]:
+                    comps_ = [c[0] for c in atleast_1d(si.fid_info['sec_components'][key])]
+                    buffer_secinfo[key]['components'] = comps_
+        for key, val in si.operator_info.items():
+            if key not in allowed_secs:
+                buffer_operatorinfo.pop(key)
+            elif val['components'] != si.fid_info['sec_components'][key]:
+                    comps_ = [c[0] for c in atleast_1d(si.fid_info['sec_components'][key])]
+                    buffer_operatorinfo[key]['components'] = comps_
+
+        si.sec_info = buffer_secinfo
+        si.operator_info = buffer_operatorinfo
         dl.simulationdata = Simhandler(**si.__dict__)
         dl.CLfids = {
             secclk: {comp: va for comp, va in zip(secclv, val)}
@@ -80,7 +108,6 @@ class l2base_Transformer:
         dl.simidxs_mf = np.array(an.simidxs_mf) if dl.version != 'noMF' else np.array([])
         dl.Nmf = 10000 if cf.itrec.mfvar.startswith('/') else (0 if dl.version == 'noMF' else len(dl.simidxs_mf))
         
-        dl.TEMP_suffix = an.TEMP_suffix
         dl.TEMP = transform(cf, l2T_Transformer())
         dl.cls_unl = camb_clfile(an.cls_unl)
         dl.cls_len = camb_clfile(an.cls_len)
@@ -135,7 +162,7 @@ class l2T_Transformer:
         else:       
             if cf.analysis.TEMP_suffix != '':
                 _suffix = cf.analysis.TEMP_suffix
-            _suffix += '_OBD' if cf.noisemodel.OBD == 'OBD' else '_lminB'+str(cf.analysis.lmin_teb[2])
+            _suffix += '_OBD' if cf.noisemodel.OBD == 'OBD' else '_lminB'+str(cf.analysis.lmin_teb[2])+"_"+get_hashcode(str(cf.analysis.secondaries))
             TEMP =  opj(os.environ['SCRATCH'], 'analysis', _suffix)
 
             return TEMP
@@ -239,14 +266,14 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 dl.simidxs = an.simidxs
                 dl.simidxs_mf = np.array(an.simidxs_mf) # if dl.version != 'noMF' else np.array([])
 
-                dl.TEMP_suffix = an.TEMP_suffix
                 dl.TEMP = transform(cf, l2T_Transformer())
 
             dl = DLENSALOT_Concept()
             _process_Analysis(dl, cf.analysis, cf)
             l2base_Transformer.process_Meta(dl, cf.meta, cf)
             dl.libdir_suffix = cf.simulationdata.obs_info['noise_info']['libdir_suffix']
-            dl.simulationdata = Simhandler(**cf.simulationdata.__dict__)
+            l2base_Transformer.process_Simulation(dl, cf.simulationdata, cf)
+            # dl.simulationdata = Simhandler(**cf.simulationdata.__dict__)
             return dl
         return Sim_generator(extract())
 
@@ -1029,7 +1056,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 # @log_on_start(logging.DEBUG, "_process_Analysis() started")
                 # @log_on_end(logging.DEBUG, "_process_Analysis() finished")
                 def _process_Analysis(dl, an):
-                    dl.TEMP_suffix = an.TEMP_suffix,
                     dl.mask_fn = an.mask
                     dl.lmin_teb = an.lmin_teb
                     if an.zbounds[0] == 'nmr_relative':

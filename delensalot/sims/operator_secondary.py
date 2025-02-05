@@ -104,7 +104,17 @@ class lensing(base):
     
 
     def set_field(self, field):
-        field = np.atleast_2d(field)
+        
+        if isinstance(field, list) or isinstance(field, tuple) or isinstance(field, np.ndarray):
+            if len(field) != 1:
+                field = np.atleast_2d(field)
+            if len(field) == 1:
+                field = [field[0], None]
+            else:
+                field = np.atleast_2d(field)
+            
+            assert len(field) == 2, "field must be a list of length 2"
+        
         self.field = field
         self.ffi = self.ffi.change_dlm(field, self.LM_max[1])
 

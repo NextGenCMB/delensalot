@@ -295,7 +295,6 @@ class Sim_generator(Basejob):
                 self.fns_sky = self.simulationdata.fns
                 lenjob_geomstr = 'unknown_skygeometry'
             else:
-
                 # some flavour provided, and we need to generate the sky and obs maps from this.
                 hashc = get_hashcode(self.simulationdata.fid_info['sec_components'])
                 lenjob_geomstr = get_dirname(self.simulationdata.sky_lib.operator_info['lensing']['geominfo'])+"_"+hashc
@@ -304,12 +303,12 @@ class Sim_generator(Basejob):
                 self.fns_sky = self.set_basename_sky()
                 # NOTE for each operator, I need sec fns
                 self.fns_sec = {}
-                for sec, secinfo in self.simulationdata.operator_info.items():
+                for sec, operator_info in self.simulationdata.operator_info.items():
                     self.fns_sec.update({sec:{}})
-                    for comp in secinfo['components']:
+                    for comp in operator_info['components']:
                         self.fns_sec[sec][comp] = f'{sec}_{comp}lm_{{}}.npy'
 
-            hashc = get_hashcode(self.simulationdata.transfunction)
+            hashc = get_hashcode(str(self.simulationdata.fid_info['sec_components'])+str(self.simulationdata.transfunction))
             self.libdir_suffix = 'generic' if self.libdir_suffix in ['', DEFAULT_NotAValue] else self.libdir_suffix
             nlev_round = dict2roundeddict(self.simulationdata.nlev)
             self.libdir = opj(os.environ['SCRATCH'], 'simulation/', self.libdir_suffix, get_dirname(self.simulationdata.geominfo), get_dirname(lenjob_geomstr), get_dirname(sorted(nlev_round.items())), f'{hashc}') # 
@@ -340,6 +339,8 @@ class Sim_generator(Basejob):
             if self.simulationdata.flavour != 'sky':
                 if all(os.path.exists(opj(self.libdir_sky, self.fns_sec[sec][component].format(simidx))) for sec in self.fns_sec.keys() for component in self.fns_sec[sec] for simidx in simidxs_):
                     check_and_log(self.libdir_sky, self.fns_sky, self.postrun_sky, "sky")
+                else:
+                    log.info(f'sky data will be stored at {self.libdir_sky} with filenames {self.fns_sky}. All secondaries will be generated along the way')
 
     def set_basename_sky(self):
         # NOTE uncomment if you only want to generat the maps that are requested by the estimator
@@ -735,18 +736,18 @@ class QE_lr_new(Basejob):
                         self.simulationdata.purgecache()
 
 
-    def get_qlm(self, simidx, field, component=None):
-        if field not in self.secondary2idx:
-            print(f'Field {field} not found. Available fields are: ', self.secondary2idx.keys())
+    def get_qlm(self, simidx, secondary, component=None):
+        if secondary not in self.secondary2idx:
+            print(f'secondary {secondary} not found. Available fields are: ', self.secondary2idx.keys())
             return np.array([[]])
-        return self.QE_searchs[self.secondary2idx[field]].get_qlm(simidx, component)
+        return self.QE_searchs[self.secondary2idx[secondary]].get_qlm(simidx, component)
     
 
-    def get_klm(self, simidx, field, subtract_meanfield=None, component=None):
-        if field not in self.secondary2idx:
+    def get_klm(self, simidx, secondary, subtract_meanfield=None, component=None):
+        if secondary not in self.secondary2idx:
             print('Field not found. Available fields are: ', self.secondary2idx.keys())
             return np.array([[]])
-        return self.QE_searchs[self.secondary2idx[field]].get_klm(simidx, subtract_meanfield, component)
+        return self.QE_searchs[self.secondary2idx[secondary]].get_klm(simidx, subtract_meanfield, component)
 
 
     def get_template(self, simidx, operator_indexs):

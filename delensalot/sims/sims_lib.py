@@ -244,6 +244,7 @@ class Cls:
     
 
     def get_clsec(self, simidx, secondary=None, components=None, lmax=None):
+        # if isinstance(secondary, str):
         if secondary is None:
             return [self.get_clsec(simidx, sec, components, lmax) for sec in self.fid_info['sec_components'].keys()]
         if components is None:
@@ -374,17 +375,28 @@ class Xpri:
         Returns:
             _type_: _description_
         """
+        if secondary not in self.sec_info.keys():
+            print(f"secondary {secondary} not available")
+            return np.array([[None]])
+        if isinstance(component, str) and component not in self.sec_info[secondary]['components']:
+            print(f"component {component} of {secondary} not available")
+            return np.array([[None]])
         if secondary is None:
             return [self.get_sim_sec(simidx, space, key, component=component) for key in self.sec_info.keys()]
         if component is None:
             return np.array([self.get_sim_sec(simidx, space, secondary, component=comp) for comp in self.sec_info[secondary]['components']])
         if (isinstance(component, list) or isinstance(component, np.ndarray)) and len(component)>1:
+            for comp in component:
+                if comp not in self.sec_info[secondary]['components']:
+                    print(f"component {comp} not available, removing from list")
+                    component.remove(comp)
             return np.array([self.get_sim_sec(simidx, space, secondary, component=comp) for comp in component])
         
 
         fn = f"{secondary}{component}_space{space}_{simidx}"
         if not self.cacher.is_cached(fn):
             if self.sec_info[secondary]['libdir'] == DNaV:
+                print(f'generating {secondary} {component} from cl')
                 log.debug(f'generating {secondary}{component} from cl')
                 Clpf = self.cls_lib.get_clsec(simidx, secondary, component*2).squeeze()
                 self.sec_info[secondary]['scale'] = self.cls_lib.fid_info['scale']
@@ -516,8 +528,6 @@ class Xsky:
                             sec = np.array([alm_copy(s, None, operator.LM_max[0], operator.LM_max[1]) for s in sec])
                             h2d = np.sqrt(np.arange(operator.LM_max[0] + 1, dtype=float) * np.arange(1, operator.LM_max[0] + 2, dtype=float))
                             [almxfl(s, h2d, operator.LM_max[1], True) for s in sec]
-
-                            # sec = self.operators[0].geomlib.alm2map(sec, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                         operator.set_field(sec)
                         pri = operator.act(pri, spin=2 if field == 'polarization' else 0)
                     sky = pri

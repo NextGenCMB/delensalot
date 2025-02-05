@@ -211,7 +211,6 @@ class lensing(base):
 
         def _get_irespmap(eblm_dat:np.ndarray, eblm_wf:np.ndarray, map_out=None):
             ebwf = self.ffi.lensgclm(np.atleast_2d(eblm_wf), self.mmax_sol, 2, self.lmax_len, self.mmax_len)
-            print('mmax_len', self.mmax_len)
             almxfl(ebwf[0], (-1) * self.transf_elm, self.mmax_len, True)
             almxfl(ebwf[1], (-1) * self.transf_blm, self.mmax_len, True)
             np.save(f'temp/new_ebwfgrad_it{it}', ebwf)

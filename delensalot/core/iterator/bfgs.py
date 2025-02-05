@@ -154,7 +154,6 @@ class BFGS_Hessian(object):
             self._save_alpha(alpha_i, i)
 
         r = self.applyH0k(q, k)
-        print('inside get_mHkgk', list(range(np.max([0, k - self.L]), k)))
         for i in range(np.max([0, k - self.L]), k):
             beta = rho(i) * self.dot_op(self.y(i), r)
             r += self.s(i) * (self._load_alpha(i) - beta)

@@ -28,8 +28,10 @@ DL_DEFAULT = {
             "fn": 'FFP10_wdipole_secondaries_lens_birefringence.dat',
             'libdir_sec': opj(os.path.dirname(delensalot.__file__), 'data', 'cls'),
             'fn_sec': 'FFP10_wdipole_secondaries_lens_birefringence.dat',
-            'sec_components': {'lensing':['pp', 'ww'],
-                           'birefringence': ['ff'],}
+            'sec_components': {
+                'lensing': ['pp'],#, 'ww'],
+                # 'birefringence': ['ff'],
+                           }
         },
         "CMB_info": {
             'libdir': DNaV,
