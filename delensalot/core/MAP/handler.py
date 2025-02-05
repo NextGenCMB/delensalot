@@ -74,8 +74,8 @@ class base:
                 # files = []
                 # for k in range(np.max([0, it - self.BFGS_H.L]), it):
                 #     files.append([[grad_tot, grad_prev], self.curvature.field.fns.format(idx=simidx, it=k, itm1=k-1)])
-                new_klms = self.curvature.get_new_gradient(grad_tot, simidx, it-1) 
-                new_klms = self.curvature.grad2dict(new_klms)
+                increment = self.curvature.get_increment(grad_tot, simidx, it-1)
+                new_klms = self.curvature.grad2dict(increment+self.get_klm(simidx, it-1))
                 
                 self.cache_klm(new_klms, simidx, it)
         else:

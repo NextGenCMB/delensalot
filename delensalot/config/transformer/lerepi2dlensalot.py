@@ -85,6 +85,8 @@ class l2base_Transformer:
         dl.simulationdata = Simhandler(**si.__dict__)
         if 'cls_lib' in dl.simulationdata.__dict__:
             # FIXME this doesnt look safe, order of a dict is not guaranteed
+            # FIXME if obs maps are given, sumulationdata.fid_info is not correct and needs to be updated with the info from analysis.secondaries
+            # print(dl.cls_len.keys())    
             dl.CLfids = {
                 secclk: {comp: va for comp, va in zip(secclv, val)}
                 for (secclk, secclv), val in zip(dl.simulationdata.fid_info['sec_components'].items(), dl.simulationdata.get_sim_fidsec(0, secondary=None, components=None))
@@ -644,6 +646,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             #     "template_operators": template_operators,
             # }
 
+            lp1 = 2 * np.arange(3000 + 1) + 1
             curvature_desc = {
                 "ID": "curvature",
                 "field": MAP_field.curvature(
@@ -653,7 +656,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                             'sk': "incr_grad1d_simidx{idx}_it{it}m{itm1}".format(it="{it}", itm1="{itm1}", idx="{idx}"),
                     }
                 }),
-                "bfgs_desc": {},
+                "bfgs_desc": {'dot_op': lambda rlm1, rlm2: np.sum(lp1 * hp.alm2cl(rlm1, rlm2))},
             }
 
             desc = {

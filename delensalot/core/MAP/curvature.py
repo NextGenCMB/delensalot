@@ -28,14 +28,13 @@ class base:
         lower = 0
         for gradient in self.gradients:
             for compi, comp in enumerate(gradient.secondary.components):
-                fl = np.ones(gradient.secondary.lm_max[0]+1)*0.5
+                fl = np.ones(gradient.secondary.lm_max[0]+1)*0.9
                 upper = lower + hp.Alm.getsize(gradient.secondary.lm_max[0])
                 almxfl(klms[lower:lower:upper+1], fl, None, True)
                 lower = upper
         return klms
 
-    def get_new_gradient(self, gtot, simidx, it):
-        # TODO check if cached, otherwise calculate
+    def get_increment(self, gtot, simidx, it):
         if not self.field.is_cached('sk', simidx, it):
             for it_ in range(0,it):
                 self.BFGSH.add_ys(self.field.fns['yk'].format(idx=simidx, it=it_), self.field.fns['sk'].format(idx=simidx, it=it_-1), it_)

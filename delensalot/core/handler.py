@@ -818,8 +818,8 @@ class MAP_lr_operator:
                     self.MAP_searchs[simidx].get_klm(simidx, self.MAP_searchs[simidx].itmax)
 
 
-    def get_klm(self, simidx, it, field=None, component=None, subtract_QE_meanfield=True):
-        if field not in [QE_search.ID for QE_search in self.QE_searchs]:
+    def get_klm(self, simidx, it, secondary=None, component=None, subtract_QE_meanfield=True):
+        if secondary not in [QE_search.ID for QE_search in self.QE_searchs]:
             print('Field not found. Available fields are: ', [QE_search.ID for QE_search in self.QE_searchs])
             return np.array([[]])
         field2idx = {QE_search.ID: i for i, QE_search in enumerate(self.QE_searchs)}
@@ -827,11 +827,11 @@ class MAP_lr_operator:
         # NOTE: if this is called, get all fields and all components for that iteration, unless field and component are specified
         # if it is smaller than current iteration, calculate the MAP search, otherwise access the cached result
         if it == 0: # QE (starting point)
-            if field is None:
+            if secondary is None:
                 return [self.get_klm(simidx, it, fieldID, component, subtract_QE_meanfield) for fieldID, field in self.MAP_searchs[simidx].secondaries.items()]
-            return self.QE_searchs[field2idx[field]].get_klm(simidx, subtract_QE_meanfield, component)
+            return self.QE_searchs[field2idx[secondary]].get_klm(simidx, subtract_QE_meanfield, component)
         else:
-            return self.MAP_searchs[simidx].get_klm(simidx, it, field, component)
+            return self.MAP_searchs[simidx].get_klm(simidx, it, secondary, component)
 
 
     def get_template(self, simidx, field):
