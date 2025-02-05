@@ -168,7 +168,7 @@ class l2T_Transformer:
         else:       
             if cf.analysis.TEMP_suffix != '':
                 _suffix = cf.analysis.TEMP_suffix
-            _suffix += '_OBD' if cf.noisemodel.OBD == 'OBD' else '_lminB'+str(cf.analysis.lmin_teb[2])+"_"+get_hashcode(str(cf.analysis.secondaries))
+            _suffix += '_OBD' if cf.noisemodel.OBD == 'OBD' else '_lminB'+str(cf.analysis.lmin_teb[2])+"_"+get_hashcode(str(cf.simulationdata.fid_info['sec_components']))
             TEMP =  opj(os.environ['SCRATCH'], 'analysis', _suffix)
 
             return TEMP
@@ -565,7 +565,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             filter_operators = []
             gradients_operators = {}
             # This depends on what is in the data
-            cf.build = 'lensing'
+            cf.build = 'lensingplusbirefringence'
             if cf.build == 'lensingplusbirefringence':
                 filter_operators.append(operator.lensing(_MAP_operators_desc['lensing']))
                 filter_operators.append(operator.birefringence(_MAP_operators_desc['birefringence']))
@@ -647,6 +647,15 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             # }
 
             lp1 = 2 * np.arange(3000 + 1) + 1
+            def dotop(glms1, glms2):
+                ret = 0.
+                N = 0
+                for lmax, mmax in zip(3000, 3000):
+                    siz = hp.Alm.getsize(lmax, mmax)
+                    cl = hp.alm2cl(glms1[N:N+siz], glms2[N:N+siz], None, mmax, None)
+                    ret += np.sum(cl * (2 * np.arange(len(cl)) + 1))
+                    N += siz
+                return ret
             curvature_desc = {
                 "ID": "curvature",
                 "field": MAP_field.curvature(
@@ -656,7 +665,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                             'sk': "incr_grad1d_simidx{idx}_it{it}m{itm1}".format(it="{it}", itm1="{itm1}", idx="{idx}"),
                     }
                 }),
-                "bfgs_desc": {'dot_op': lambda rlm1, rlm2: np.sum(lp1 * hp.alm2cl(rlm1, rlm2))},
+                "bfgs_desc": {'dot_op': dotop, # lambda rlm1, rlm2: np.sum(lp1 * hp.alm2cl(rlm1, rlm2)),
+                },
             }
 
             desc = {

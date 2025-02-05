@@ -15,7 +15,6 @@ class base:
         # this class handles the filter, gradient, and curvature libs, nothing else
         self.secondaries = secondaries
         self.simulationdata = simulationdata
-        # NOTE gradient and curvature share the field increments, so naming must be consistent. Can use the gradient_descs['inc_fn'] for this
         self.filter = filter.base(filter_desc, secondaries['lensing'])
         
         self.gradients = []
@@ -41,10 +40,6 @@ class base:
             self.template_cacher = cachers.cacher_npy(template_desc['libdir'])
             self.template_operators = template_desc['template_operators']
         
-
-    # get_klm is used for certain iteration, current iteration, and final iteration 
-    # can also ask for certain field and component. gradient search is always done with
-    # the joint operators
     def get_klm(self, simidx, request_it, field_ID=None, component=None):
         current_it = self.maxiterdone()
         if self.maxiterdone() < 0:
@@ -53,9 +48,9 @@ class base:
             if field_ID is None:
                 return [self.get_klm(simidx, request_it, fieldID, component) for fieldID, field in self.secondaries.items()]
             return np.array(self.secondaries[field_ID].get_klm(simidx, request_it, component))
-        elif current_it < self.itmax and request_it > current_it:
-            for it in range(np.max([1,current_it]), request_it):
-                # it = 0 is QE and is implicitly skipped. current_it is the it we have a solution for already
+        elif current_it < self.itmax and request_it >= current_it:
+            for it in range(np.max([1,current_it]), request_it+1):
+                # NOTE it = 0 is QE and is implicitly skipped. current_it is the it we have a solution for already
                 grad_tot, grad_prev = [], []
                 print('---------- starting iteration ', it, 'taking result from iteration', it-1, '. maxiterdone:', self.maxiterdone())
                 for gradient in self.gradients:
@@ -69,13 +64,9 @@ class base:
                         grad_prev.append(gradient.get_gradient_total(it-1, component=_component))
                     grad_prev = np.concatenate([np.ravel(arr) for arr in grad_prev])
                     self.curvature.add_yvector(grad_tot, grad_prev, simidx, it)
-                # NOTE it=0 uses h0 for the curvature
-
-                # files = []
-                # for k in range(np.max([0, it - self.BFGS_H.L]), it):
-                #     files.append([[grad_tot, grad_prev], self.curvature.field.fns.format(idx=simidx, it=k, itm1=k-1)])
                 increment = self.curvature.get_increment(grad_tot, simidx, it-1)
-                new_klms = self.curvature.grad2dict(increment+self.get_klm(simidx, it-1))
+                prev_klm = np.concatenate([np.ravel(arr) for arr in self.get_klm(simidx, it-1)])
+                new_klms = self.curvature.grad2dict(increment+prev_klm)
                 
                 self.cache_klm(new_klms, simidx, it)
         else:

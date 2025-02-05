@@ -46,7 +46,7 @@ DL_DEFAULT = {
             'lensing':{
                 'libdir': DNaV,
                 'fns': DNaV,
-                'components': ['pp', 'ww'],
+                'components': ['p', 'w'],
                 'space':'alm',
                 'scale':'p',
                 'modifier': lambda x: x,
@@ -55,7 +55,7 @@ DL_DEFAULT = {
             'birefringence':{
                 'libdir': DNaV,
                 'fns': DNaV,
-                'components': ['ff'],
+                'components': ['f'],
                 'space':'alm',
                 'scale':'p',
                 'modifier': lambda x: x,
@@ -118,10 +118,10 @@ DL_DEFAULT = {
         'secondaries': {
             # 'lensing': {
             #     'geominfo': ('thingauss', {'lmax': 4000, 'smax': 3}),
-            #     'lm_max': (4000, 4000),
+            #     'lm_max': (3000, 3000),
             #     'components': ['p', 'w'],},
             # 'birefringence': {
-            #     'lm_max': (4000, 4000),
+            #     'lm_max': (3000, 3000),
             #     'components': ['f'],
             # },
         },
@@ -165,8 +165,8 @@ DL_DEFAULT = {
     'itrec': {
         'stepper':{
             'typ': 'harmonicbump',
-            'lmax_qlm': 4000,
-            'mmax_qlm': 4000,
+            'lmax_qlm': 3000,
+            'mmax_qlm': 3000,
             'a': 0.5,
             'b': 0.499,
             'xa': 400,

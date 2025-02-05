@@ -200,7 +200,7 @@ class lensing(base):
 
         self.transf_elm  = self.filter.transfere # _extend_cl(transf_elm, self.lmax_len)
         self.transf_blm  = self.filter.transferb # self.transf_blm  = _extend_cl(transf_blm, self.lmax_len)
-        np.save(f'temp/new_transf_elm_it{it}.npy', self.transf_elm)
+        #np.save(f'temp/new_transf_elm_it{it}.npy', self.transf_elm)
 
         dfield = self.secondary.get_klm(self.simidx, np.max([0,it-1]))
         h2d = np.sqrt(np.arange(3000 + 1, dtype=float) * np.arange(1, 3000 + 2, dtype=float))
@@ -213,13 +213,13 @@ class lensing(base):
             ebwf = self.ffi.lensgclm(np.atleast_2d(eblm_wf), self.mmax_sol, 2, self.lmax_len, self.mmax_len)
             almxfl(ebwf[0], (-1) * self.transf_elm, self.mmax_len, True)
             almxfl(ebwf[1], (-1) * self.transf_blm, self.mmax_len, True)
-            np.save(f'temp/new_ebwfgrad_it{it}', ebwf)
+            #np.save(f'temp/new_ebwfgrad_it{it}', ebwf)
             ebwf += eblm_dat
-            np.save("temp/new_ebwfplusdat", ebwf)
+            #np.save("temp/new_ebwfplusdat", ebwf)
             almxfl(ebwf[0], self.inoise_1_elm * 0.5, self.mmax_len, True)  # Factor of 1/2 because of \dagger rather than ^{-1}
             almxfl(ebwf[1], self.inoise_1_blm * 0.5, self.mmax_len, True)
-            np.save(f'temp/new_inoise_1_elm', self.inoise_1_elm)
-            np.save(f'temp/new_ireslm{it}.npy', ebwf)
+            #np.save(f'temp/new_inoise_1_elm', self.inoise_1_elm)
+            #np.save(f'temp/new_ireslm{it}.npy', ebwf)
             return self.ffi.geom.synthesis(ebwf, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, map=map_out)
 
         def _get_gpmap(elm_wf:np.ndarray, spin:int):
@@ -233,23 +233,23 @@ class lensing(base):
         
         if not self.gfield.quad_is_cached(self.simidx, it):
             data = self.get_data(self.lm_max_ivf)
-            np.save(f'temp/new_data_it{it}', data)
+            #np.save(f'temp/new_data_it{it}', data)
             wflm = self.filter.get_wflm(self.simidx, it, data)
             # ivf = self.filter.get_ivf(data, wflm, self.simidx, it)
             elm_wf = wflm
-            np.save(f'temp/new_wf_it{it}', elm_wf)
+            #np.save(f'temp/new_wf_it{it}', elm_wf)
 
             resmap_c = np.empty((self.ffi.geom.npix(),), dtype=wflm.dtype)
             resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
             _get_irespmap(data, elm_wf, map_out=resmap_r) # inplace onto resmap_c and resmap_r
-            np.save(f'temp/new_resmap_r_it{it}', resmap_r)
+            #np.save(f'temp/new_resmap_r_it{it}', resmap_r)
             lmax_qlm, mmax_qlm = self.ffi.lmax_dlm, self.ffi.mmax_dlm
             
             gcs_r = _get_gpmap(elm_wf, 3)  # 2 pos.space maps, uses then complex view onto real array
-            np.save(f'temp/new_gcs_r1_it{it}', gcs_r)
+            #np.save(f'temp/new_gcs_r1_it{it}', gcs_r)
             gc_c = resmap_c.conj() * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3)
             gcs_r = _get_gpmap(elm_wf, 1)
-            np.save(f'temp/new_gcs_r2_it{it}', gcs_r)
+            #np.save(f'temp/new_gcs_r2_it{it}', gcs_r)
             gc_c -= resmap_c * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze().conj()  # (+2 , -1)
             del resmap_c, resmap_r, gcs_r
             lmax_qlm, mmax_qlm = self.ffi.lmax_dlm, self.ffi.mmax_dlm
@@ -259,7 +259,7 @@ class lensing(base):
             fl = - np.sqrt(np.arange(lmax_qlm + 1, dtype=float) * np.arange(1, lmax_qlm + 2))
             almxfl(gc[0], fl, mmax_qlm, True)
             almxfl(gc[1], fl, mmax_qlm, True)
-            np.save(f'temp/new_gc_it{it}', gc)
+            #np.save(f'temp/new_gc_it{it}', gc)
             # np.array([almxfl(buf, cli(_h2p(self.lmax_qlm)), 3000, True) for buf in gc])
             self.gfield.cache_quad(gc, self.simidx, it=it)
         return self.gfield.get_quad(self.simidx, it, component)
@@ -274,8 +274,8 @@ class birefringence(base):
     def get_gradient_quad(self, it, component=None):
         if not self.gfield.quad_is_cached(self.simidx, it):
             data = self.get_data(self.lm_max_ivf)
-            XWF = self.filter.get_WF(data, self.simidx, it)
-            ivf = self.filter.get_ivf(data, XWF, self.simidx, it)
+            XWF = self.filter.get_wflm(data, self.simidx, it)
+            ivf = self.filter.get_ivflm(data, XWF, self.simidx, it)
             
             ivfmap = self.ffi.geom.synthesis(ivf, 2, self.lm_max_ivf[0], self.lm_max_ivf[1], self.ffi.sht_tr)
 

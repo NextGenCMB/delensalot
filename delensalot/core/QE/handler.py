@@ -44,7 +44,7 @@ class base:
             return [self.get_qlm(simidx, components) for components in self.secondary.components]
         if isinstance(components, list):
             components = components[0]
-        
+        print('collecting,', components2plancklensk[components]+self.estimator_key[1:])
         if not self.secondary.is_cached(simidx, components):
             qlm = self.qlms.get_sim_qlm(components2plancklensk[components]+self.estimator_key[1:], int(simidx))  #Unormalized quadratic estimate
             self.secondary.cache_qlm(qlm, simidx, components=components)

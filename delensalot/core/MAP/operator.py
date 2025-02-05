@@ -212,8 +212,8 @@ class birefringence(base):
 
         buff = alm_copy(f[0], None, *self.lm_max)
         if adjoint:
-            return np.array([np.exp(1j*buff)*obj[0], np.exp(-1j*buff)*obj[1]])
-        return np.array([np.exp(-1j*buff)*obj[0], np.exp(1j*buff)*obj[1]])
+            return np.array([np.exp(2j*buff)*obj[0], np.exp(-2j*buff)*obj[1]])
+        return np.array([np.exp(-2j*buff)*obj[0], np.exp(2j*buff)*obj[1]])
         # if adjoint:
         #     return np.array([np.exp(1j*f[0])*obj[0], np.exp(-1j*f[0])*obj[1]])
         # return np.array([np.exp(-1j*f[0])*obj[0], np.exp(1j*f[0])*obj[1]])

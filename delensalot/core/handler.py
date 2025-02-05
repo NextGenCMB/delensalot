@@ -707,10 +707,10 @@ class QE_lr_new(Basejob):
 
             if task == 'calc_fields':
                 for simidxs in self.jobs[taski][mpi.rank::mpi.size]:
-                    for fi, fidx in enumerate(simidxs):
-                        if fidx is not None: #these Nones come from the field already being done.
-                            self.QE_searchs[fi].get_qlm(int(fidx))
-                            self.QE_searchs[fi].get_klm(int(fidx)) # this is here for convenience
+                    for seci, secidx in enumerate(simidxs):
+                        if secidx is not None: #these Nones come from the field already being done.
+                            self.QE_searchs[seci].get_qlm(int(secidx))
+                            self.QE_searchs[seci].get_klm(int(secidx)) # this is here for convenience
                     if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
                         self.simulationdata.purgecache()
                 mpi.barrier()
@@ -718,9 +718,9 @@ class QE_lr_new(Basejob):
             if task == 'calc_meanfields':
                 for simidxs in self.jobs[taski][mpi.rank::mpi.size]:
                     for QE_search in self.QE_searchs:
-                        for fi, fidx in enumerate(simidxs):
-                            self.QE_searchs[fi].get_qlm(int(fidx))
-                            self.QE_searchs[fi].get_klm(int(fidx)) # this is here for convenience
+                        for seci, secidx in enumerate(simidxs):
+                            self.QE_searchs[seci].get_qlm(int(secidx))
+                            self.QE_searchs[seci].get_klm(int(secidx)) # this is here for convenience
                 for QE_search in self.QE_searchs:
                     QE_search.get_qmflm(QE_search.estimator_key, self.simidxs_mf)
                 mpi.barrier()
@@ -736,14 +736,16 @@ class QE_lr_new(Basejob):
                         self.simulationdata.purgecache()
 
 
-    def get_qlm(self, simidx, secondary, component=None):
+    def get_qlm(self, simidx, it=0, secondary=None, component=None):
+        assert it == 0, 'QE does not have iterations, leave blank or set it=0'
         if secondary not in self.secondary2idx:
             print(f'secondary {secondary} not found. Available fields are: ', self.secondary2idx.keys())
             return np.array([[]])
         return self.QE_searchs[self.secondary2idx[secondary]].get_qlm(simidx, component)
     
 
-    def get_klm(self, simidx, secondary, subtract_meanfield=None, component=None):
+    def get_klm(self, simidx, it=0, secondary=None, subtract_meanfield=None, component=None):
+        assert it == 0, 'QE does not have iterations, leave blank or set it=0'
         if secondary not in self.secondary2idx:
             print('Field not found. Available fields are: ', self.secondary2idx.keys())
             return np.array([[]])

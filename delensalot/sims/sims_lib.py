@@ -375,14 +375,14 @@ class Xpri:
         Returns:
             _type_: _description_
         """
+        if secondary is None:
+            return [self.get_sim_sec(simidx, space, key, component=component) for key in self.sec_info.keys()]
         if secondary not in self.sec_info.keys():
             print(f"secondary {secondary} not available")
             return np.array([[None]])
         if isinstance(component, str) and component not in self.sec_info[secondary]['components']:
             print(f"component {component} of {secondary} not available")
             return np.array([[None]])
-        if secondary is None:
-            return [self.get_sim_sec(simidx, space, key, component=component) for key in self.sec_info.keys()]
         if component is None:
             return np.array([self.get_sim_sec(simidx, space, secondary, component=comp) for comp in self.sec_info[secondary]['components']])
         if (isinstance(component, list) or isinstance(component, np.ndarray)) and len(component)>1:
