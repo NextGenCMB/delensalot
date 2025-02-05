@@ -637,7 +637,10 @@ class Xobs:
             self.geominfo = ('healpix', {'nside':2048})
         self.geom_lib = get_geom(self.geominfo)
         
-        self.noise_lib = obs_info['noise_lib']
+        if CMB_info['libdir'] == DNaV:
+            self.noise_lib = obs_info['noise_lib']
+        else:
+            self.noise_lib = None
         
         self.maps = maps
         if np.all(self.maps != DNaV):
@@ -880,17 +883,13 @@ class Simhandler:
                 for key in ['spin', 'lm_max', 'field']:
                     if CMB_info[key] == DNaV:
                         assert 0, 'need to provide {}'.format(key)
-            
+            self.cls_lib = Cls(fid_info=fid_info) # NOTE I need cls_lib always, because I need to know the fiducial cls for chh, i.e. N0 for the curvature update
             self.obs_lib = Xobs(maps=maps, geominfo=geominfo, CMB_info=CMB_info)
-
-            self.noise_lib = self.obs_lib.noise_lib
-            self.libdir = self.obs_lib.libdir
-            self.fns = self.obs_lib.fns
         else:
             if flavour == 'sky':
                 assert CMB_info['space'] in ['map','alm'], "sky CMB data can only be in map or alm space"
                 assert not (contains_DNaV(obs_info)), "need to provide complete obs_info"
-
+                self.cls_lib = Cls(fid_info=fid_info) # NOTE I need cls_lib always, because I need to know the fiducial cls for chh, i.e. N0 for the curvature update
                 self.sky_lib = Xsky(pri_lib=DNaV, geominfo=geominfo, CMB_info=copy.copy(CMB_info), sec_info=sec_info, operator_info=operator_info)
                 
                 self.noise_lib = self.obs_lib.noise_lib
@@ -904,7 +903,7 @@ class Simhandler:
                 CMB_info.update({'libdir':DNaV, 'fns':DNaV})
                 self.pri_lib = Xpri(cls_lib=self.cls_lib, geominfo=geominfo, CMB_info=copy.copy(CMB_info), sec_info=sec_info)
                 self.sky_lib = Xsky(pri_lib=self.pri_lib, geominfo=geominfo, CMB_info=copy.copy(CMB_info), sec_info=sec_info, operator_info=operator_info)
-            
+
             if obs_info['noise_info'].get('libdir') == DNaV:
                 # FIXME this looks wrong
                 noise_info = obs_info['noise_info']
@@ -912,12 +911,12 @@ class Simhandler:
                 obs_info.update({'noise_lib':noise_lib})
                 self.noise_lib = noise_lib
             self.obs_lib = Xobs(maps=DNaV, sky_lib=self.sky_lib, geominfo=geominfo, CMB_info=copy.copy(CMB_info), obs_info=obs_info)
-
+        
+        self.fid_info = self.cls_lib.fid_info
         self.obs_info = obs_info
         self.CMB_info = self.obs_lib.CMB_info
         self.sec_info = sec_info
         self.operator_info = operator_info
-        self.fid_info = self.cls_lib.fid_info
 
         self.flavour = flavour
         self.maps = maps
@@ -929,8 +928,10 @@ class Simhandler:
         self.fns = self.CMB_info['fns']
 
         self.transfunction = self.obs_info['transfunction']
-        self.nlev = noise_lib.noise_info['nlev']
-        self.libdir_suffix = noise_lib.noise_info['libdir_suffix']
+        self.noise_lib = self.obs_lib.noise_lib
+        if self.noise_lib is not None:
+            self.nlev = noise_lib.noise_info['nlev']
+            self.libdir_suffix = noise_lib.noise_info['libdir_suffix']
 
 
     def get_sim_sky(self, simidx, space, field, spin):

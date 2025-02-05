@@ -83,10 +83,14 @@ class l2base_Transformer:
         si.sec_info = buffer_secinfo
         si.operator_info = buffer_operatorinfo
         dl.simulationdata = Simhandler(**si.__dict__)
-        dl.CLfids = {
-            secclk: {comp: va for comp, va in zip(secclv, val)}
-            for (secclk, secclv), val in zip(dl.simulationdata.fid_info['sec_components'].items(), dl.simulationdata.get_sim_fidsec(0, secondary=None, components=None))
-        }
+        if 'cls_lib' in dl.simulationdata.__dict__:
+            # FIXME this doesnt look safe, order of a dict is not guaranteed
+            dl.CLfids = {
+                secclk: {comp: va for comp, va in zip(secclv, val)}
+                for (secclk, secclv), val in zip(dl.simulationdata.fid_info['sec_components'].items(), dl.simulationdata.get_sim_fidsec(0, secondary=None, components=None))
+            }
+        else:
+            dl.CLfids = {sec: {} for sec in allowed_secs}
 
 
     # @log_on_start(logging.DEBUG, "_process_Analysis() started")
