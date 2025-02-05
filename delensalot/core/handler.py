@@ -772,6 +772,7 @@ class QE_lr_new(Basejob):
 
 class MAP_lr_operator:
     def __init__(self, dl):
+        self.__dict__.update(dl.__dict__)
         self.simgen = Sim_generator(dl)
         self.MAP_handler_desc = dl.MAP_handler_desc
         self.simulationdata = self.simgen.simulationdata

@@ -188,7 +188,6 @@ class lensing(base):
             if d.shape[0] == 1:
                 d = [d[0],None]
             self.ffi = self.ffi.change_dlm(d, self.LM_max[1])
-            print('setting field for lensing operator done')
         else:
             if self.field_cacher.is_cached(opj(self.field_fns[component].format(idx=simidx,it=it))):
                 self.field[component] = self.field_cacher.load(opj(self.field_fns[component].format(idx=simidx,it=it)))

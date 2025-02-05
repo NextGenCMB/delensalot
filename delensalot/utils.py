@@ -256,9 +256,9 @@ def camb_clfile_wsec(fname, lmax=None, CMB_components=['tt', 'ee', 'bb', 'te'], 
         wptpe = lambda ell : np.sqrt(ell.astype(float) ** 3 * (ell + 1.) ** 3) / (2. * np.pi)
         for i, k in enumerate(sec_components):
             if i in [1,2,4,5,8,9]:
-                cls[k] = cols[i+len(CMB_components)+1][idc] / wptpe(ell[idc])
+                cls[k][ell[idc]] = cols[i+len(CMB_components)+1] / wptpe(ell[idc])
             else:
-                cls[k] = cols[i+len(CMB_components)+1][idc] / wpp(ell[idc])
+                cls[k][ell[idc]] = cols[i+len(CMB_components)+1] / wpp(ell[idc])
 
     return cls
 
