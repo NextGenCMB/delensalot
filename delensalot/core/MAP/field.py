@@ -82,6 +82,7 @@ class gradient:
             assert 0, "cannot find prior at {}".format(self.cacher_field.lib_dir+"/"+self.prior_fns.format(component=component, idx=simidx, it=it))
         else:
             priorlm = self.cacher_field.load(self.prior_fns.format(component=component, idx=simidx, it=it))
+            np.save(f'temp/new_clichh_it{it}', cli(self.chh[component]))
             almxfl(priorlm.squeeze(), cli(self.chh[component]), self.lm_max[1], True)
         return priorlm
 
