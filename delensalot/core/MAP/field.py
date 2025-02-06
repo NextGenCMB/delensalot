@@ -20,12 +20,12 @@ class secondary:
         self.component2idx = {component: i for i, component in enumerate(self.components)}
 
 
-    def get_klm(self, idx, it, component=None):
+    def get_est(self, idx, it, component=None):
         "components are stored with leading dimension"
         if component is None:
-            return np.array([self.get_klm(idx, it, component).squeeze() for component in self.components])
+            return np.array([self.get_est(idx, it, component).squeeze() for component in self.components])
         if it < 0:
-            return np.atleast_2d([np.zeros(Alm.getsize(*self.lm_max), dtype=complex) for component in self.components])
+            return np.atleast_2d(np.zeros(Alm.getsize(*self.lm_max), dtype=complex))
         return np.atleast_2d(self.cacher.load(self.fns[component].format(idx=idx, it=it))) if self.cacher.is_cached(self.fns[component].format(idx=idx, it=it)) else np.atleast_2d(self.sk2klm(idx, it, component))
 
 
@@ -82,10 +82,6 @@ class gradient:
             assert 0, "cannot find prior at {}".format(self.cacher_field.lib_dir+"/"+self.prior_fns.format(component=component, idx=simidx, it=it))
         else:
             priorlm = self.cacher_field.load(self.prior_fns.format(component=component, idx=simidx, it=it))
-            #np.save(f'temp/new_clichh_it{it}', cli(self.chh[component]))
-            import healpy as hp
-            print(priorlm.shape, self.lm_max[1])
-            print(hp.Alm.getlmax(len(priorlm.squeeze())))
             almxfl(priorlm.squeeze(), cli(self.chh[component]), self.lm_max[1], True)
         return priorlm
 

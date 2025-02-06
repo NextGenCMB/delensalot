@@ -44,10 +44,10 @@ class base:
     def get_gradient_total(self, it, component=None):
         # if already cached, load it, otherwise calculate the new one
         if self.gfield.cacher.is_cached(self.gfield.total_fns.format(idx=self.simidx, it=it)):
-            print('total is cached at iter, ', it)
+            # print('total is cached at iter, ', it)
             return self.gfield.get_total(self.simidx, it, component)
         else:
-            print("building total {} gradient for iter {} ".format(self.ID, it))
+            # print("building total {} gradient for iter {} ".format(self.ID, it))
             g = 0
             g += self.get_gradient_prior(it-1, component)
             g += self.get_gradient_meanfield(it, component)
@@ -81,9 +81,7 @@ class base:
 
     def update_operator(self, simidx, it):
         self.filter.update_operator(simidx, it)
-        print('updated filter')
         self.gradient_operator.set_field(simidx, it)
-        print('updated gradient operator')
 
 
     def update_gradient(self):
@@ -202,7 +200,7 @@ class lensing(base):
         self.transf_blm  = self.filter.transferb # self.transf_blm  = _extend_cl(transf_blm, self.lmax_len)
         #np.save(f'temp/new_transf_elm_it{it}.npy', self.transf_elm)
 
-        dfield = self.secondary.get_klm(self.simidx, np.max([0,it-1]))
+        dfield = self.secondary.get_est(self.simidx, np.max([0,it-1]))
         h2d = np.sqrt(np.arange(3000 + 1, dtype=float) * np.arange(1, 3000 + 2, dtype=float))
         [almxfl(s, h2d, 3000, True) for s in dfield]
         if dfield.shape[0] == 1:
@@ -274,8 +272,8 @@ class birefringence(base):
     def get_gradient_quad(self, it, component=None):
         if not self.gfield.quad_is_cached(self.simidx, it):
             data = self.get_data(self.lm_max_ivf)
-            XWF = self.filter.get_wflm(data, self.simidx, it)
-            ivf = self.filter.get_ivflm(data, XWF, self.simidx, it)
+            XWF = self.filter.get_wflm(self.simidx, it)
+            ivf = self.filter.get_ivflm(self.simidx, it, data, XWF)
             
             ivfmap = self.ffi.geom.synthesis(ivf, 2, self.lm_max_ivf[0], self.lm_max_ivf[1], self.ffi.sht_tr)
 

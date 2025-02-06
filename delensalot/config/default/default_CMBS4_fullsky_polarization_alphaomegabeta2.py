@@ -25,9 +25,9 @@ DL_DEFAULT = {
         'maps': DNaV,
         "fid_info": {
             'libdir': opj(os.path.dirname(delensalot.__file__), 'data', 'cls'),
-            "fn": 'FFP10_wdipole_secondaries_lens_birefringence.dat',
+            "fn": 'FFP10_wdipole_secondaries_lens_birefringence2.dat',
             'libdir_sec': opj(os.path.dirname(delensalot.__file__), 'data', 'cls'),
-            'fn_sec': 'FFP10_wdipole_secondaries_lens_birefringence.dat',
+            'fn_sec': 'FFP10_wdipole_secondaries_lens_birefringence2.dat',
             'sec_components': {
                 'lensing': ['pp'],#, 'ww'],
                 # 'birefringence': ['ff'],
@@ -110,9 +110,9 @@ DL_DEFAULT = {
         'zbounds_len': (-1,1),
         'lm_max_len': (4000, 4000),
         'mask': None,
-        'cls_unl': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_secondaries_lens_birefringence.dat'),
-        'cls_len': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lensedCls_secondaries_lens_birefringence.dat'),
-        'cpp': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_secondaries_lens_birefringence.dat'),
+        'cls_unl': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_secondaries_lens_birefringence2.dat'),
+        'cls_len': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lensedCls_secondaries_lens_birefringence2.dat'),
+        'cpp': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_secondaries_lens_birefringence2.dat'),
         'beam': 1.0,
         'transfunction_desc': 'gauss_no_pixwin',
         'secondaries': {

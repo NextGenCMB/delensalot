@@ -139,6 +139,7 @@ class BFGS_Hessian(object):
         If output_fname is set then output is saved in file and nothing is returned.
         Should be fine with k == 0
         """
+        print('getting mHkgk, k:', k)
         q = gk.copy()
         rho = lambda i: 1. / self.dot_op(self.s(i), self.y(i))
         for i in range(k - 1, np.max([-1, k - self.L - 1]), -1):

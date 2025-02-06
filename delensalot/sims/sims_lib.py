@@ -12,6 +12,7 @@ from os.path import join as opj
 import numpy as np, healpy as hp
 import copy
 
+import hashlib
 import logging
 log = logging.getLogger(__name__)
 
@@ -457,8 +458,9 @@ class Xpri:
     
 
     def clp2seclm(self, secondary, clp, seed):
-        # FIXME if there is cross-correlation between the components, this should be modified
-        np.random.seed(int(seed)+112233) # different seed for secondaries
+        combined_str = f"{secondary}_{seed}".encode()
+        hashed_seed = int(hashlib.sha256(combined_str).hexdigest(), 16) % (2**32)  # Convert to 32-bit int
+        np.random.seed(hashed_seed)
         sec = hp.synalm(clp, self.sec_info[secondary]['lm_max'][0])
         return sec
 

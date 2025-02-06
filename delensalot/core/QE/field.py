@@ -26,9 +26,9 @@ class secondary:
         return self.cacher.load(self.qlm_fns[components].format(idx=simidx))
     
 
-    def get_klm(self, simidx, components=None):
+    def get_est(self, simidx, components=None):
         if components is None:
-            return [self.get_klm(simidx, components).squeeze() for components in self.components]
+            return [self.get_est(simidx, components).squeeze() for components in self.components]
         return self.cacher.load(self.klm_fns[components].format(idx=simidx))
 
 

@@ -14,23 +14,29 @@ from delensalot.utility import utils_qe
 from delensalot.utility.utils_hp import Alm, almxfl, alm_copy, gauss_beam
 
 components2plancklensk = {'p': "p", 'f': "a", 'w': "x"}
+id2plancklenssec = {'lensing': 'p', 'birefringence': 'a'}
 
 class base:
     def __init__(self, QE_search_desc):
         # This class is for a single field, but all simidxs. It manages the filter and qest libs, nothing else.
         # It does not quite aline well with the MAP classes, as the MAP equivalent is per simidx.
+        self.ID = QE_search_desc["ID"]
+        self.estimator_key = QE_search_desc['estimator_key']
+        self.estimator_key = id2plancklenssec[self.ID] + self.estimator_key[1:]
+        QE_search_desc['QE_filterqest_desc'].update({'estimator_key': self.estimator_key})
         self.fq = filterqest.base(QE_search_desc['QE_filterqest_desc'])
         self.libdir = QE_search_desc['libdir']
 
-        self.ID = QE_search_desc["ID"]
         self.secondary = QE_search_desc["secondary"]
-        self.estimator_key = QE_search_desc['estimator_key']
+
+
         self.cls_len = QE_search_desc['cls_len']
         self.cls_unl = QE_search_desc['cls_unl']
 
         self.simidxs = QE_search_desc['simidxs']
         self.simidxs_mf = QE_search_desc['simidxs_mf']
         self.subtract_meanfield = QE_search_desc['subtract_meanfield']
+        self.comp2idx = {comp: idx for idx, comp in enumerate(self.secondary.components)}
 
         # NOTE this does not work for minimum variance estimator, as get_sim_qlm() 'key' argument is wrong.
 
@@ -41,19 +47,18 @@ class base:
 
     def get_qlm(self, simidx, components=None):
         if components is None:
-            return [self.get_qlm(simidx, components) for components in self.secondary.components]
+            return np.array([self.get_qlm(simidx, components) for components in self.secondary.components])
         if isinstance(components, list):
             components = components[0]
-        print('collecting,', components2plancklensk[components]+self.estimator_key[1:])
         if not self.secondary.is_cached(simidx, components):
             qlm = self.qlms.get_sim_qlm(components2plancklensk[components]+self.estimator_key[1:], int(simidx))  #Unormalized quadratic estimate
             self.secondary.cache_qlm(qlm, simidx, components=components)
         return self.secondary.get_qlm(simidx, components)
     
 
-    def get_klm(self, simidx, subtract_meanfield=None, components=None):
+    def get_est(self, simidx, subtract_meanfield=None, components=None):
         if components is None:
-            return np.array([self.get_klm(simidx, subtract_meanfield, components).squeeze() for components in self.secondary.components])
+            return np.array([self.get_est(simidx, subtract_meanfield, components).squeeze() for components in self.secondary.components])
         if isinstance(components, list):
             components = components[0]
         
@@ -71,7 +76,7 @@ class base:
             almxfl(klm, WF, self.secondary.lm_max[1], True) # Wiener-filter QE
             almxfl(klm, self.secondary.CLfids[components*2][:self.secondary.lm_max[0]+1] > 0, self.secondary.lm_max[1], True)
             self.secondary.cache_klm(np.atleast_2d(klm), simidx, components)
-        return self.secondary.get_klm(simidx, components)
+        return self.secondary.get_est(simidx, components)
 
 
     def get_qmflm(self, simidxs, components=None):
@@ -100,7 +105,7 @@ class base:
         almxfl(kmflm, WF, self.secondary.lm_max[1], True) # Wiener-filter QE
         almxfl(kmflm, self.secondary.CLfids[components*2] > 0, self.secondary.lm_max[1], True)
         # FIXME correct removal
-        kmflm -= self.get_klm(simidx, components=components)*1/(1-len(self.simidxs_mf))
+        kmflm -= self.get_est(simidx, components=components)*1/(1-len(self.simidxs_mf))
         return np.array(kmflm)
     
 
@@ -112,9 +117,9 @@ class base:
         return self.fq.get_ivflm(simidx)
   
 
-    def get_response_unl(self, components):
-        return qresp.get_response(components2plancklensk[components]+self.estimator_key[1:], self.fq.lm_max_ivf[0], components2plancklensk[components], self.cls_unl, self.cls_unl, self.fq.ftebl_unl, lmax_qlm=self.secondary.lm_max[0])[0]
+    def get_response_unl(self, component):
+        return qresp.get_response(self.estimator_key, self.fq.lm_max_ivf[0], self.estimator_key[0], self.cls_unl, self.cls_unl, self.fq.ftebl_unl, lmax_qlm=self.secondary.lm_max[0])[self.comp2idx[component]] 
     
 
-    def get_response_len(self, components):
-        return qresp.get_response(components2plancklensk[components]+self.estimator_key[1:], self.fq.lm_max_ivf[0], components2plancklensk[components], self.cls_len, self.cls_len, self.fq.ftebl_len, lmax_qlm=self.secondary.lm_max[0])[0]
+    def get_response_len(self, component):
+        return qresp.get_response(self.estimator_key, self.fq.lm_max_ivf[0], self.estimator_key[0], self.cls_len, self.cls_len, self.fq.ftebl_len, lmax_qlm=self.secondary.lm_max[0])[self.comp2idx[component]]

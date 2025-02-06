@@ -184,7 +184,6 @@ class lensing(base):
             d = np.array([self.field[comp].flatten() for comp in self.components], dtype=complex)
             h2d = np.sqrt(np.arange(self.LM_max[0] + 1, dtype=float) * np.arange(1, self.LM_max[0] + 2, dtype=float))
             [almxfl(s, h2d, self.LM_max[1], True) for s in d]
-            print(f'setting field for lensing operator with it {it}')
             if d.shape[0] == 1:
                 d = [d[0],None]
             self.ffi = self.ffi.change_dlm(d, self.LM_max[1])

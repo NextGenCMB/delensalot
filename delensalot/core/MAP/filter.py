@@ -60,7 +60,7 @@ class base:
     def build_opfilt_iso_p(self, it):
         lenjob_geomlib =  get_geom(('thingauss', {'lmax': 4500, 'smax': 3}))
         ffi = deflection(lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(4500, 4500)), 4500, numthreads=8, verbosity=0, epsilon=1e-8)
-        dfield = self.secondary.get_klm(0, it-1)
+        dfield = self.secondary.get_est(0, it-1)
         h2d = np.sqrt(np.arange(3000 + 1, dtype=float) * np.arange(1, 3000 + 2, dtype=float))
         [almxfl(s, h2d, 3000, True) for s in dfield]
         if dfield.shape[0] == 1:
