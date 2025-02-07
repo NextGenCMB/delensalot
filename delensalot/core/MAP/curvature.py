@@ -30,7 +30,7 @@ class base:
     def step(self, klms):
         lower = 0
         for gradient in self.gradients:
-            for compi, comp in enumerate(gradient.secondary.components):
+            for compi, comp in enumerate(gradient.secondary.component):
                 fl = np.ones(gradient.secondary.lm_max[0]+1)*0.9
                 upper = lower + hp.Alm.getsize(gradient.secondary.lm_max[0])
                 almxfl(klms[lower:lower:upper+1], fl, None, True)
@@ -53,7 +53,7 @@ class base:
         ret = {}
         for gradient in self.gradients:
             ret.update({gradient.ID:{}})
-            for component in gradient.secondary.components:
+            for component in gradient.secondary.component:
                 siz = Alm.getsize(*gradient.secondary.lm_max)
                 ret[gradient.ID][component] = grad[N:N+siz]
                 N += siz
@@ -63,10 +63,8 @@ class base:
     def apply_H0k(self, grad_lm:np.ndarray, kr):
         print('applying h0k')
         ret = np.empty_like(grad_lm)
-        # np.save('temp/new_q.npy', grad_lm)
         N = 0
         for h0 in self.h0:
-            # np.save('temp/new_h0.npy', h0)
             siz = Alm.getsize(len(h0)-1, len(h0)-1)
             ret[N:N+siz] = almxfl(grad_lm[N:N+siz], h0, len(h0), False)
             N += siz

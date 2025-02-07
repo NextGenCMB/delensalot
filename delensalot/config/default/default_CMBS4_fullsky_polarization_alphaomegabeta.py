@@ -46,7 +46,7 @@ DL_DEFAULT = {
             'lensing':{
                 'libdir': DNaV,
                 'fns': DNaV,
-                'components': ['p', 'w'],
+                'component': ['p', 'w'],
                 'space':'alm',
                 'scale':'p',
                 'modifier': lambda x: x,
@@ -55,7 +55,7 @@ DL_DEFAULT = {
             'birefringence':{
                 'libdir': DNaV,
                 'fns': DNaV,
-                'components': ['f'],
+                'component': ['f'],
                 'space':'alm',
                 'scale':'p',
                 'modifier': lambda x: x,
@@ -77,7 +77,7 @@ DL_DEFAULT = {
         "operator_info": {
             'lensing': {
                 'epsilon': 1e-7,
-                'components': ['p', 'w'],
+                'component': ['p', 'w'],
                 'Lmin': 1,
                 'lm_max': [4096,4096],
                 'LM_max': [4096+1024,4096+1024],
@@ -93,7 +93,7 @@ DL_DEFAULT = {
                 'Lmin': 1,
                 'field_fns': DNaV,
                 'libdir': DNaV,
-                'components': ['f'],
+                'component': ['f'],
             },
         }
     },
@@ -119,10 +119,10 @@ DL_DEFAULT = {
             # 'lensing': {
             #     'geominfo': ('thingauss', {'lmax': 4000, 'smax': 3}),
             #     'lm_max': (3000, 3000),
-            #     'components': ['p', 'w'],},
+            #     'component': ['p', 'w'],},
             # 'birefringence': {
             #     'lm_max': (3000, 3000),
-            #     'components': ['f'],
+            #     'component': ['f'],
             # },
         },
     },
@@ -151,14 +151,14 @@ DL_DEFAULT = {
                 "perturbative": True,
                 "lm_max": 1024,
                 "lm_max_qlm": 3000,
-                "components": ['p','w'],
+                'component': ['p','w'],
             },
             'birefringence': {
                 "ID": "birefringence",
                 "Lmin": 1,
                 "lm_max": 1024,
                 "lm_max_qlm": 3000,
-                "components": ['f'],
+                'component': ['f'],
             },
         },
     },

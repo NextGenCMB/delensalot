@@ -42,16 +42,20 @@ class base:
 
 
     def get_gradient_total(self, it, component=None):
-        # if already cached, load it, otherwise calculate the new one
+        if component is None:
+            component = self.secondary.component
+        if isinstance(it, list):
+            return np.array([self.get_gradient_total(it_, component) for it_ in it])
         if self.gfield.cacher.is_cached(self.gfield.total_fns.format(idx=self.simidx, it=it)):
             # print('total is cached at iter, ', it)
             return self.gfield.get_total(self.simidx, it, component)
         else:
-            # print("building total {} gradient for iter {} ".format(self.ID, it))
             g = 0
             g += self.get_gradient_prior(it-1, component)
             g += self.get_gradient_meanfield(it, component)
             g -= self.get_gradient_quad(it, component)
+            # NOTE this is implemented, but not used to save disk space
+            # self.gfield.cache_total(g, self.simidx, it)
             return g
 
 
@@ -60,11 +64,15 @@ class base:
 
 
     def get_gradient_meanfield(self, it, component=None):
+        if isinstance(it, list):
+            return np.array([self.get_gradient_meanfield(it_, component) for it_ in it])
         return self.gfield.get_meanfield(self.simidx, it, component)
 
 
     def get_gradient_prior(self, it, component=None):
-        return self.gfield.get_prior(self.simidx, it, component)
+        if isinstance(it, list):
+            return np.array([self.get_gradient_prior(it_, component) for it_ in it])
+        return self.gfield.get_gradient_prior(self.simidx, it, component)
 
 
     def get_wflm(self, it=None, data=None):
@@ -200,9 +208,7 @@ class lensing(base):
         self.transf_blm  = self.filter.transferb # self.transf_blm  = _extend_cl(transf_blm, self.lmax_len)
         #np.save(f'temp/new_transf_elm_it{it}.npy', self.transf_elm)
 
-        dfield = self.secondary.get_est(self.simidx, np.max([0,it-1]))
-        h2d = np.sqrt(np.arange(3000 + 1, dtype=float) * np.arange(1, 3000 + 2, dtype=float))
-        [almxfl(s, h2d, 3000, True) for s in dfield]
+        dfield = self.secondary.get_est(self.simidx, np.max([0,it-1]), scale='d')
         if dfield.shape[0] == 1:
             dfield = [dfield[0],None]
         self.ffi = self.ffi.change_dlm(dfield, self.LM_max[1])
@@ -231,23 +237,17 @@ class lensing(base):
         
         if not self.gfield.quad_is_cached(self.simidx, it):
             data = self.get_data(self.lm_max_ivf)
-            #np.save(f'temp/new_data_it{it}', data)
             wflm = self.filter.get_wflm(self.simidx, it, data)
-            # ivf = self.filter.get_ivf(data, wflm, self.simidx, it)
             elm_wf = wflm
-            #np.save(f'temp/new_wf_it{it}', elm_wf)
 
             resmap_c = np.empty((self.ffi.geom.npix(),), dtype=wflm.dtype)
             resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
             _get_irespmap(data, elm_wf, map_out=resmap_r) # inplace onto resmap_c and resmap_r
-            #np.save(f'temp/new_resmap_r_it{it}', resmap_r)
             lmax_qlm, mmax_qlm = self.ffi.lmax_dlm, self.ffi.mmax_dlm
             
             gcs_r = _get_gpmap(elm_wf, 3)  # 2 pos.space maps, uses then complex view onto real array
-            #np.save(f'temp/new_gcs_r1_it{it}', gcs_r)
             gc_c = resmap_c.conj() * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3)
             gcs_r = _get_gpmap(elm_wf, 1)
-            #np.save(f'temp/new_gcs_r2_it{it}', gcs_r)
             gc_c -= resmap_c * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze().conj()  # (+2 , -1)
             del resmap_c, resmap_r, gcs_r
             lmax_qlm, mmax_qlm = self.ffi.lmax_dlm, self.ffi.mmax_dlm
@@ -257,8 +257,6 @@ class lensing(base):
             fl = - np.sqrt(np.arange(lmax_qlm + 1, dtype=float) * np.arange(1, lmax_qlm + 2))
             almxfl(gc[0], fl, mmax_qlm, True)
             almxfl(gc[1], fl, mmax_qlm, True)
-            #np.save(f'temp/new_gc_it{it}', gc)
-            # np.array([almxfl(buf, cli(_h2p(self.lmax_qlm)), 3000, True) for buf in gc])
             self.gfield.cache_quad(gc, self.simidx, it=it)
         return self.gfield.get_quad(self.simidx, it, component)
 

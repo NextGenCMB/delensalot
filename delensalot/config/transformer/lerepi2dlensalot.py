@@ -398,7 +398,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "ID": sec,
                     "libdir": opj(transform(cf, l2T_Transformer()), 'QE', keystring, 'estimates', sec),
                     'lm_max': val['lm_max'],
-                    'components': val['components'],
+                    'component': val['component'],
                     'CLfids': dl.CLfids[sec],
                 } for sec, val in cf.analysis.secondaries.items()}
             QE_secs = {name: QE_field.secondary(field_desc) for name, field_desc in QE_secs_descs.items()}
@@ -409,7 +409,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "ID": sec,
                     "libdir": opj(transform(cf, l2T_Transformer()), 'QE', keystring, 'templates', sec),
                     'lm_max': val['lm_max'],
-                    'components': all_combinations(val['components']),
+                    'component': all_combinations(val['component']),
                 } for sec, val in cf.analysis.secondaries.items()}
 
             if len(cf.analysis.secondaries) > 1:
@@ -527,11 +527,11 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "ID": sec,
                     "libdir": opj(MAP_libdir_prefix, 'estimates/'),
                     'lm_max': cf.analysis.secondaries[sec]['lm_max'],
-                    "components": val['components'],
+                    "component": val['component'],
                     'CLfids': dl.CLfids[sec],
-                    'fns': {comp: f'klm_{comp}_simidx{{idx}}_it{{it}}' for comp in val['components']}, # This could be hardcoded, but I want to keep it flexible
-                    'increment_fns': {comp: f'kinclm_{comp}_simidx{{idx}}_it{{it}}' for comp in val['components']},
-                    'meanfield_fns': {comp: f'kmflm_{comp}_simidx{{idx}}_it{{it}}' for comp in val['components']},
+                    'fns': {comp: f'klm_{comp}_simidx{{idx}}_it{{it}}' for comp in val['component']}, # This could be hardcoded, but I want to keep it flexible
+                    'increment_fns': {comp: f'kinclm_{comp}_simidx{{idx}}_it{{it}}' for comp in val['component']},
+                    'meanfield_fns': {comp: f'kmflm_{comp}_simidx{{idx}}_it{{it}}' for comp in val['component']},
                 }) for sec, val in cf.analysis.secondaries.items()}
 
             # input: all kwargs needed to build the MAP search
@@ -544,7 +544,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "LM_max": cf.analysis.secondaries['lensing']['lm_max'],
                     "Lmin": dl.Lmin,
                     "perturbative": False,
-                    "components": [item for  item in cf.analysis.secondaries['lensing']['components']],
+                    "component": [item for  item in cf.analysis.secondaries['lensing']['component']],
                     "libdir": opj(MAP_libdir_prefix, 'estimates/'),
                     'field_fns': MAP_secondaries["lensing"].fns,
                     "ffi": dl.ffi,}
@@ -557,7 +557,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _MAP_operators_desc['birefringence'] = {
                     'lm_max': dl.lm_max_ivf,
                     "Lmin": dl.Lmin,
-                    "components": ['f'],
+                    "component": ['f'],
                     "libdir": opj(MAP_libdir_prefix, 'estimates/'),
                     'field_fns': MAP_secondaries['birefringence'].fns,}
                 _MAP_operators_desc['multiply'] = {
@@ -568,6 +568,9 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             ivf_operator = operator.ivf_operator(filter_operators)
             wf_operator = operator.wf_operator(filter_operators) #TODO this is ivf_operator*ivf_operator^dagger, could be implemented via ivf.
 
+            def chh(CL, lmax, scale='k'):
+                return CL[:lmax+1] * (0.5 * np.arange(lmax + 1, dtype=float) * np.arange(1, lmax + 2, dtype=float))**2
+                
             gfield_descs = [{
                 "ID": gradient_name,
                 "libdir": opj(MAP_libdir_prefix, 'gradients'),
@@ -578,8 +581,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "prior_fns": 'klm_{component}_simidx{idx}_it{it}', # prior is just field, and then we do a simple divide by spectrum (almxfl)
                 "total_increment_fns": f'ginclm_{gradient_name}_simidx{{idx}}_it{{it}}',    
                 "total_fns": f'gtotlm_{gradient_name}_simidx{{idx}}_it{{it}}',    
-                "chh": {comp: dl.CLfids[gradient_name][comp*2][:cf.analysis.secondaries[gradient_name]['lm_max'][0]+1] for comp in cf.analysis.secondaries[gradient_name]['components']},
-                "components": [item for  item in cf.analysis.secondaries['lensing']['components']] if gradient_name == 'lensing' else ['f'],
+                "chh": {comp: chh(dl.CLfids[gradient_name][comp*2], lmax=cf.analysis.secondaries[gradient_name]['lm_max'][0]) for comp in cf.analysis.secondaries[gradient_name]['component']},
+                "component": [item for  item in cf.analysis.secondaries['lensing']['component']] if gradient_name == 'lensing' else ['f'],
             } for gradient_name, gradient_operator in gradients_operators.items()]
             MAP_gfields = {gfield_desc["ID"]: MAP_field.gradient(gfield_desc) for gfield_desc in gfield_descs}
             gradient_descs = {}
@@ -602,14 +605,14 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "ID": "ivf",
                 "libdir": opj(MAP_libdir_prefix, 'filter'),
                 "lm_max": dl.lm_max_ivf,
-                "components": 1,
+                "component": 1,
                 "fns": "ivf_simidx{idx}_it{it}",
             }
             MAP_WFfilter_field_desc = {
                 "ID": "WF",
                 "libdir": opj(MAP_libdir_prefix, 'filter'),
                 "lm_max": dl.lm_max_ivf,
-                "components": 1,
+                "component": 1,
                 "fns": "WF_simidx{idx}_it{it}",
             }
             MAP_filter_desc = {
@@ -635,7 +638,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             # }
 
             lp1 = 2 * np.arange(3000 + 1) + 1
-            n = len([v for val in cf.analysis.secondaries.values() for v in val['components']])
+            n = len([v for val in cf.analysis.secondaries.values() for v in val['component']])
             def dotop(glms1, glms2):
                 ret = 0.
                 N = 0

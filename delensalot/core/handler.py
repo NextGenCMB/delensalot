@@ -79,6 +79,11 @@ def get_hashcode(s):
     hlib.update(str(s).encode())
     return hlib.hexdigest()[:4]
 
+
+template_secondaries = ['lensing', 'birefringence']  # Define your desired order
+template_index_secondaries = {val: i for i, val in enumerate(template_secondaries)}
+
+
 class Basejob():
     """
     Base class for all jobs, i.e. convenience functions go in here as they should be accessible from anywhere
@@ -317,32 +322,12 @@ class Sim_generator(Basejob):
                 else:
                     log.info(f'sky data will be stored at {self.libdir_sky} with filenames {self.fns_sky}. All secondaries will be generated along the way')
 
+
     def set_basename_sky(self):
-        # NOTE uncomment if you only want to generat the maps that are requested by the estimator
-        # fns_sky_map = {
-        #     'p_p': {'E': 'Ealmsky_{}.npy', 'B': 'Balmsky_{}.npy'},
-        #     'p_eb': {'E': 'Ealmsky_{}.npy', 'B': 'Balmsky_{}.npy'},
-        #     'peb': {'E': 'Ealmsky_{}.npy', 'B': 'Balmsky_{}.npy'},
-        #     'p_be': {'E': 'Ealmsky_{}.npy', 'B': 'Balmsky_{}.npy'},
-        #     'pee': {'E': 'Ealmsky_{}.npy', 'B': 'Balmsky_{}.npy'},
-        #     'ptt': {'T': 'Talmsky_{}.npy'},
-        #     'p': {'T': 'Talmsky_{}.npy', 'E': 'Ealmsky_{}.npy', 'B': 'Balmsky_{}.npy'}
-        # }
-        # return fns_sky_map.get(self.k, {})
         return {'T': 'Talmsky_{}.npy', 'E': 'Ealmsky_{}.npy', 'B': 'Balmsky_{}.npy'}
 
+
     def set_basename_obs(self):
-        # NOTE uncomment if you only want to generat the maps that are requested by the estimator
-        # fns_obs_map = {
-        #     'p_p': {'E': 'Ealmobs_{}.npy', 'B': 'Balmobs_{}.npy'},
-        #     'p_eb': {'E': 'Ealmobs_{}.npy', 'B': 'Balmobs_{}.npy'},
-        #     'peb': {'E': 'Ealmobs_{}.npy', 'B': 'Balmobs_{}.npy'},
-        #     'p_be': {'E': 'Ealmobs_{}.npy', 'B': 'Balmobs_{}.npy'},
-        #     'pee': {'E': 'Ealmobs_{}.npy', 'B': 'Balmobs_{}.npy'},
-        #     'ptt': {'T': 'Talmobs_{}.npy'},
-        #     'p': {'T': 'Talmobs_{}.npy', 'E': 'Ealmobs_{}.npy', 'B': 'Balmobs_{}.npy'}
-        # }
-        # return fns_obs_map.get(self.k, {})
         return {'T': 'Talmobs_{}.npy', 'E': 'Ealmobs_{}.npy', 'B': 'Balmobs_{}.npy'}
 
     # @base_exception_handler
@@ -432,6 +417,7 @@ class Sim_generator(Basejob):
                     Tobs = self.simulationdata.get_sim_obs(simidx, spin=0, space='alm', field='temperature')
                     np.save(filepath, Tobs)
 
+
     def postrun_obs(self):
         # NOTE if this class here decides to generate data, we need to update some parameters in the simulationdata object
         # NOTE if later reconstruction is run with the same config file, these updates also make sure they find the data without having to update the config file
@@ -443,6 +429,7 @@ class Sim_generator(Basejob):
                 self.simulationdata.obs_lib.CMB_info['libdir'] = self.libdir
                 self.simulationdata.obs_lib.CMB_info['space'] = 'alm'
                 self.simulationdata.obs_lib.CMB_info['spin'] = 0
+
 
     def postrun_sky(self):
         # NOTE if this class here decides to generate data, we need to update some parameters in the simulationdata object
@@ -616,7 +603,7 @@ class QE_lr_new(Basejob):
                     __jobs = []
                     for Qi, QE_search in enumerate(self.QE_searchs): # each field has its own QE_search
                         _add = False
-                        for ci, component in enumerate(QE_search.secondary.components):
+                        for ci, component in enumerate(QE_search.secondary.component):
                             if _nomfcheck or not QE_search.secondary.cacher.is_cached(QE_search.secondary.qmflm_fns[component].format(idx=simidx)) or recalc:
                                 if not QE_search.secondary.cacher.is_cached(QE_search.secondary.klm_fns[component].format(idx=simidx)) or recalc:
                                    _add = True
@@ -629,7 +616,7 @@ class QE_lr_new(Basejob):
                     __jobs = []
                     for Qi, QE_search in enumerate(self.QE_searchs): # each field has its own QE_search
                         _add = False
-                        for ci, component in enumerate(QE_search.secondary.components): # each field has n components # fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, pl_utils.mchash(self.simidxs_mf)))
+                        for ci, component in enumerate(QE_search.secondary.component): # each field has n components # fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, pl_utils.mchash(self.simidxs_mf)))
                             mf_fn = opj(QE_search.libdir, 'qlms_dd', QE_search.secondary.qmflm_fns[component])
                             if not os.path.isfile(mf_fn) or recalc:
                                 field_fn = opj(QE_search.libdir, 'qlms_dd', QE_search.secondary.qlm_fns[component].format(idx=simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
@@ -720,7 +707,10 @@ class QE_lr_new(Basejob):
     
 
     def get_est(self, simidx, it=0, secondary=None, component=None, subtract_meanfield=None):
-        assert it == 0, 'QE does not have iterations, leave blank or set it=0'
+        if isinstance(it, (int,np.int64)):
+            assert it == 0, 'QE does not have iterations, leave blank or set it=0'
+        else:
+            assert 0 in it, 'QE does not have iterations, leave blank or set it=0, not {}'
         if secondary not in self.secondary2idx:
             print('Field not found. Available fields are: ', self.secondary2idx.keys())
             return np.array([[]])
@@ -764,10 +754,10 @@ class MAP_lr_operator:
         self.QE_searchs = self.MAP_handler_desc["QE_searchs"]
         self.MAP_searchs_desc = dl.MAP_searchs_desc
         self.sec2idx = {QE_search.secondary.ID: i for i, QE_search in enumerate(self.QE_searchs)}
-        # I want to have a MAP handler for each simidx as indices have nothing to do with each other
+        self.seclist_sorted = sorted(list(self.sec2idx.keys()), key=lambda x: template_index_secondaries.get(x, ''))
         self.MAP_searchs_desc["desc"].update({"Runl0": {}})
         for i, QE_search in enumerate(self.QE_searchs):
-            self.MAP_searchs_desc["desc"]["Runl0"].update({QE_search.secondary.ID: np.array([QE_search.get_response_unl(component) for component in QE_search.secondary.components])})
+            self.MAP_searchs_desc["desc"]["Runl0"].update({QE_search.secondary.ID: {component: np.array(QE_search.get_response_unl(component)) for component in QE_search.secondary.component}})
         self.MAP_searchs = [MAP_handler.base(self.simulationdata, self.MAP_searchs_desc["MAP_secondaries"], self.MAP_searchs_desc["filter_desc"], self.MAP_searchs_desc["gradient_descs"], self.MAP_searchs_desc["curvature_desc"], self.MAP_searchs_desc["desc"], self.MAP_searchs_desc["template_descs"], simidx) for simidx in self.simidxs]
         
         # self.simulationdata = self.MAP_handler_desc["simulationdata"]
@@ -801,19 +791,29 @@ class MAP_lr_operator:
                     self.MAP_searchs[simidx].get_est(simidx, self.MAP_searchs[simidx].itmax)
 
 
-    def get_est(self, simidx, it=None, secondary=None, component=None, subtract_QE_meanfield=True, calc_flag=False):
+    def get_est(self, simidx, it=None, secondary=None, component=None, scale='k', subtract_QE_meanfield=True, calc_flag=False):
         if it is None:
             it = self.MAP_searchs[simidx].maxiterdone()
-        if secondary is None:
-            return [self.get_est(simidx, it, fieldID, component, subtract_QE_meanfield, calc_flag) for fieldID, field in self.MAP_searchs[simidx].secondaries.items()]
-        if secondary not in [QE_search.ID for QE_search in self.QE_searchs]:
-            print('Field not found. Available fields are: ', [QE_search.ID for QE_search in self.QE_searchs])
+
+        if isinstance(secondary, str) and secondary not in self.seclist_sorted:
+            print('Secondary not found. Available secondaries are:', self.seclist_sorted)
             return np.array([[]])
-        self.sec2idx = {QE_search.ID: i for i, QE_search in enumerate(self.QE_searchs)}
-        if it == 0: # QE (starting point)
-            return self.QE_searchs[self.sec2idx[secondary]].get_est(simidx, subtract_QE_meanfield, component)
-        else:
-            return self.MAP_searchs[simidx].get_est(simidx, it, secondary, component, calc_flag)
+        secondary_ = self.seclist_sorted if secondary is None else secondary
+
+        def get_qe_est():
+            if isinstance(secondary_, list):
+                return [self.QE_searchs[self.sec2idx[sec]].get_est(simidx, scale, subtract_QE_meanfield, component) for sec in secondary_]
+            return self.QE_searchs[self.sec2idx[secondary_]].get_est(simidx, scale, subtract_QE_meanfield, component)
+
+        def get_map_est(it_):
+            return self.MAP_searchs[simidx].get_est(simidx, it_, secondary, component, scale, calc_flag)
+
+        if isinstance(it, list):
+            # if 0 in it:
+            #     return [get_qe_est()] + (get_map_est(sorted(it)[1:]) if len(it) > 1 else [])
+            return get_map_est(it)
+        return get_map_est(it)
+        # return get_qe_est() if it == 0 else get_map_est(it)
 
 
     def get_qlm(self, simidx, it, secondary=None, component=None):
@@ -828,42 +828,52 @@ class MAP_lr_operator:
         return self.MAP_searchs[simidx].get_template(field)
 
 
-    def get_gradient_quad(self, simidx, it, secondary=None, component=None):
-        if it>=0:
+    def get_gradient_quad(self, simidx, it=None, secondary=None, component=None):
+        if it==None: it = self.maxiterdone()
+        if (isinstance(it, (list, np.ndarray)) and 0 not in it) or (isinstance(it, (int,np.int64)) and it > 0):
             return self.MAP_searchs[simidx].get_gradient_quad(it, secondary, component)
         print('only available for MAP, set it>0')
 
 
-    def get_gradient_meanfield(self, simidx, it, secondary=None, component=None):
+    def get_gradient_meanfield(self, simidx, it=None, secondary=None, component=None):
+        if it==None: it = self.maxiterdone()
         if it==0:
             return self.QE_searchs[self.sec2idx[secondary]].get_kmflm(simidx, it, component)
         return self.MAP_searchs[simidx].get_gradient_meanfield(it, secondary, component)
 
 
-    def get_gradient_prior(self, simidx, it, secondary=None, component=None):
-        if it>=0:
+    def get_gradient_prior(self, simidx, it=None, secondary=None, component=None):
+        if it==None: it = self.maxiterdone()
+        if it>0:
             return self.MAP_searchs[simidx].get_gradient_prior(it, secondary, component)
         print('only available for MAP, set it>0')
 
 
-    def get_gradient_total(self, simidx, it, secondary=None, component=None):
-        if it>=0:
+    def get_gradient_total(self, simidx, it=None, secondary=None, component=None):
+        if it==None: it = self.maxiterdone()
+        if it>0:
             return self.MAP_searchs[simidx].get_gradient_total(it, secondary, component)
         print('only available for MAP, set it>0')
 
 
-    def get_wflm(self, simidx, secondary, it):
+    def get_wflm(self, simidx, secondary, it=None):
+        # NOTE currently no support for list of secondary or it
+        if it==None: it = self.maxiterdone()
         if it==0:
             return self.QE_searchs[self.sec2idx[secondary]].get_wflm(simidx)
         return self.MAP_searchs[simidx].get_wflm(secondary, it)
 
 
-    def get_ivflm(self, simidx, secondary, it):
+    def get_ivflm(self, simidx, secondary, it=0): 
+        # NOTE currently no support for list of secondary or it
         if it==0:
             return self.QE_searchs[self.sec2idx[secondary]].get_ivflm(simidx)
         print('only available for QE, set it=0')
 
-    def get_ivfreslm(self, simidx, secondary, it):
+
+    def get_ivfreslm(self, simidx, secondary, it=None):
+        # NOTE currently no support for list of secondary or it
+        if it==None: it = self.maxiterdone()
         if it==0:
             print('only available for MAP, set it>0')
         return self.MAP_searchs[simidx].get_ivfreslm(secondary, it)
@@ -871,18 +881,26 @@ class MAP_lr_operator:
 
     def __copyQEtoDirectory(self, simidx):
         # copies fields and gradient starting points to MAP directory
-        for fieldname, field in self.MAP_searchs[simidx].secondaries.items():
-            self.QE_searchs[self.sec2idx[fieldname]].init_filterqest()
-            klm_QE = self.QE_searchs[self.sec2idx[fieldname]].get_est(simidx, None)
-            self.MAP_searchs[simidx].secondaries[fieldname].cache_klm(klm_QE, simidx, it=0)
+        # NOTE this turns them into convergence fields
+        for secname, secondary in self.MAP_searchs[simidx].secondaries.items():
+            self.QE_searchs[self.sec2idx[secname]].init_filterqest()
+            klm_QE = self.QE_searchs[self.sec2idx[secname]].get_est(simidx)
+            p2k = lambda lmax: 0.5 * np.arange(lmax + 1, dtype=float) * np.arange(1, lmax + 2, dtype=float)
+            klm_QE = np.array([hp.almxfl(klm, p2k(Alm.getlmax(klm_QE.size, mmax=secondary.lm_max[1]))) for klm in klm_QE])
+            self.MAP_searchs[simidx].secondaries[secname].cache_klm(klm_QE, simidx, it=0)
             # self.MAP_searchs[simidx].gradients[self.grad2idx[fieldname]].gfield.cache_quad(klm_QE, simidx, it=0)
             
-            kmflm_QE = self.QE_searchs[self.sec2idx[fieldname]].get_kmflm(simidx)
-            self.MAP_searchs[simidx].gradients[self.sec2idx[fieldname]].gfield.cache_meanfield(np.array(kmflm_QE), simidx, it=0)
+            kmflm_QE = self.QE_searchs[self.sec2idx[secname]].get_kmflm(simidx)
+            kmflm_QE = np.array([hp.almxfl(kmf, p2k(Alm.getlmax(kmflm_QE.size, mmax=secondary.lm_max[1]))) for kmf in kmflm_QE])
+            self.MAP_searchs[simidx].gradients[self.sec2idx[secname]].gfield.cache_meanfield(kmflm_QE, simidx, it=0)
 
             #TODO cache QE wflm into the filter directory
-            wflm_QE = self.QE_searchs[self.sec2idx[fieldname]].get_wflm(simidx)
+            wflm_QE = self.QE_searchs[self.sec2idx[secname]].get_wflm(simidx)
             self.MAP_searchs[simidx].filter.wf_field.cache_field(np.array(wflm_QE), simidx, it=0)
+
+
+    def maxiterdone(self):
+        return min([MAP_search.maxiterdone() for MAP_search in self.MAP_searchs])
 
 
 class QE_lr(Basejob):

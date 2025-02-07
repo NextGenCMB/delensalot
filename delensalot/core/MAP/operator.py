@@ -139,8 +139,8 @@ class lensing(base):
         self.lm_max = operator_desc["lm_max"]
         self.LM_max = operator_desc["LM_max"]
         self.perturbative = operator_desc["perturbative"]
-        self.components = operator_desc["components"]
-        self.field = {component: None for component in self.components}
+        self.component = operator_desc["component"]
+        self.field = {component: None for component in self.component}
         self.ffi = operator_desc["ffi"]
 
     # NOTE this is alm2alm
@@ -179,19 +179,22 @@ class lensing(base):
 
     def set_field(self, simidx, it, component=None):
         if component is None:
-            for component in self.components:
+            for component in self.component:
                 self.set_field(simidx, it, component)
-            d = np.array([self.field[comp].flatten() for comp in self.components], dtype=complex)
-            h2d = np.sqrt(np.arange(self.LM_max[0] + 1, dtype=float) * np.arange(1, self.LM_max[0] + 2, dtype=float))
-            [almxfl(s, h2d, self.LM_max[1], True) for s in d]
+            d = np.array([self.field[comp].flatten() for comp in self.component], dtype=complex)
             if d.shape[0] == 1:
                 d = [d[0],None]
             self.ffi = self.ffi.change_dlm(d, self.LM_max[1])
         else:
             if self.field_cacher.is_cached(opj(self.field_fns[component].format(idx=simidx,it=it))):
-                self.field[component] = self.field_cacher.load(opj(self.field_fns[component].format(idx=simidx,it=it)))
+                # print(self.field_cacher.load(opj(self.field_fns[component].forat(idx=simidx,it=it)))[0].shape)
+                self.field[component] = self.klm2dlm(self.field_cacher.load(opj(self.field_fns[component].format(idx=simidx,it=it)))[0])
             else:
                 assert 0, "cannot set field"
+
+    def klm2dlm(self, klm):
+        h2d = cli(0.5 * np.sqrt(np.arange(self.LM_max[0] + 1, dtype=float) * np.arange(1, self.LM_max[0] + 2, dtype=float)))
+        return almxfl(klm, h2d, self.LM_max[1], False)
 
 
 class birefringence(base):
@@ -200,14 +203,14 @@ class birefringence(base):
         self.field_fns = operator_desc['field_fns']
         self.Lmin = operator_desc["Lmin"],
         self.lm_max = operator_desc["lm_max"]
-        self.components = operator_desc["components"]
-        self.field = {component: None for component in self.components}
+        self.component = operator_desc["component"]
+        self.field = {component: None for component in self.component}
 
 
     # spin doesn't do anything here, but parameter is needed as joint operator passes it to all operators
     # NOTE this is alm2alm
     def act(self, obj, spin=None, adjoint=False):
-        f = np.array([self.field[comp].flatten() for comp in self.components], dtype=complex)
+        f = np.array([self.field[comp].flatten() for comp in self.component], dtype=complex)
 
         buff = alm_copy(f[0], None, *self.lm_max)
         if adjoint:
@@ -224,7 +227,7 @@ class birefringence(base):
 
     def set_field(self, simidx, it, component=None):
         if component is None:
-            for component in self.components:
+            for component in self.component:
                 self.set_field(simidx, it, component)
         self.field[component] = self.field_cacher.load(opj(self.field_fns[component].format(idx=simidx,it=it)))
 

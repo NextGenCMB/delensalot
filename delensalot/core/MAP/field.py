@@ -12,21 +12,31 @@ class secondary:
         self.libdir = field_desc['libdir']
         self.lm_max = field_desc['lm_max']
         self.CLfids = field_desc['CLfids']
-        self.components = field_desc['components']
-        self.fns =  field_desc['fns'] # fns must be dict() with keys as components, and it as format specifiers
+        self.component = field_desc['component']
+        self.fns =  field_desc['fns'] # fns must be dict() with keys as component, and it as format specifiers
         self.meanfield_fns = field_desc['meanfield_fns']
         self.increment_fns = field_desc['increment_fns']
         self.cacher = cachers.cacher_npy(opj(self.libdir))
-        self.component2idx = {component: i for i, component in enumerate(self.components)}
+        self.component2idx = {component: i for i, component in enumerate(self.component)}
 
 
-    def get_est(self, idx, it, component=None):
-        "components are stored with leading dimension"
+    def get_est(self, idx, it, component=None, scale='k'):
+        if self.ID != 'lensing':
+            assert scale == 'k'
+        "component are stored with leading dimension"
+        if isinstance(component, list):
+            assert all([comp in self.component for comp in component]), "component must be in {}".format(self.component)
         if component is None:
-            return np.array([self.get_est(idx, it, component).squeeze() for component in self.components])
+            return np.array([self.get_est(idx, it, component, scale).squeeze() for component in self.component])
+        if isinstance(component, str): assert component in self.component, f"component must be in {self.component}, but is {component}"
         if it < 0:
             return np.atleast_2d(np.zeros(Alm.getsize(*self.lm_max), dtype=complex))
-        return np.atleast_2d(self.cacher.load(self.fns[component].format(idx=idx, it=it))) if self.cacher.is_cached(self.fns[component].format(idx=idx, it=it)) else np.atleast_2d(self.sk2klm(idx, it, component))
+        if isinstance(component, list):
+            return np.atleast_2d([self.get_est(idx, it, component_, scale).squeeze() for component_i, component_ in enumerate(component)])
+        if scale == 'd':
+            return np.atleast_2d(self.klm2dlm(self.cacher.load(self.fns[component].format(idx=idx, it=it))[0]))
+        elif scale == 'k':
+            return np.atleast_2d(self.cacher.load(self.fns[component].format(idx=idx, it=it)))
 
 
     def sk2klm(self, idx, it, component):
@@ -38,7 +48,7 @@ class secondary:
 
     def cache_klm(self, klm, idx, it, component=None):
         if component is None:
-            for ci, component in enumerate(self.components):
+            for ci, component in enumerate(self.component):
                 self.cache_klm(np.atleast_2d(klm[ci]), idx, it, component)
             return
         self.cacher.cache(self.fns[component].format(idx=idx, it=it), np.atleast_2d(klm))
@@ -46,8 +56,13 @@ class secondary:
 
     def is_cached(self, simidx, it, component=None):
         if component is None:
-            return np.array([self.is_cached(simidx, it, component_) for component_ in self.components])
+            return np.array([self.is_cached(simidx, it, component_) for component_ in self.component])
         return self.cacher.is_cached(opj(self.fns[component].format(idx=simidx, it=it)))
+    
+
+    def klm2dlm(self, klm):
+        h2d = cli(0.5 * np.sqrt(np.arange(self.lm_max[0] + 1, dtype=float) * np.arange(1, self.lm_max[0] + 2, dtype=float)))
+        return almxfl(klm, h2d, self.lm_max[1], False)
     
 
 class gradient:
@@ -62,22 +77,23 @@ class gradient:
         self.total_fns = field_desc['total_fns']
         self.total_increment_fns = field_desc['total_increment_fns']
         self.chh = field_desc['chh']
-        self.components = field_desc['components']
-        self.component2idx = {component: i for i, component in enumerate(self.components)}
+        self.component = field_desc['component']
+        self.component2idx = {component: i for i, component in enumerate(self.component)}
 
         self.cacher = cachers.cacher_npy(opj(self.libdir))
         self.cacher_field = cachers.cacher_npy(opj(self.libdir_prior))
 
 
-    def get_prior(self, simidx, it, component=None):
+    def get_gradient_prior(self, simidx, it, component=None):
         if isinstance(component, list):
             if len(component) == 1:
                 component = component[0]
             elif len(component) >1:
-                return np.atleast_2d([self.get_prior(simidx, it, component_).squeeze() for component_i, component_ in enumerate(component)])
+                return np.atleast_2d([self.get_gradient_prior(simidx, it, component_).squeeze() for component_i, component_ in enumerate(component)])
         if component is None:
-            return np.atleast_2d([self.get_prior(simidx, it, component_).squeeze() for component_i, component_ in enumerate(self.components)])
-        
+            return np.atleast_2d([self.get_gradient_prior(simidx, it, component_).squeeze() for component_i, component_ in enumerate(self.component)])
+        if isinstance(it, list):
+            return np.atleast_2d([self.get_gradient_prior(simidx, it_, component).squeeze() for it_ in it])
         if not self.cacher_field.is_cached(self.prior_fns.format(component=component, idx=simidx, it=it)):
             assert 0, "cannot find prior at {}".format(self.cacher_field.lib_dir+"/"+self.prior_fns.format(component=component, idx=simidx, it=it))
         else:
@@ -87,28 +103,29 @@ class gradient:
 
     
     def get_meanfield(self, simidx, it, component=None):
-        # NOTE this currently only uses the QE gradient meanfield
-        # this is for existing iteration
-        it=0
+        if isinstance(it, list):
+            return np.array([self.get_meanfield(simidx, 0, component) for _ in it])
+        it=0 # NOTE this currently only uses the QE gradient meanfield
         if self.cacher.is_cached(self.meanfield_fns.format(idx=simidx, it=it)):
             if component is None:
                 return self.cacher.load(self.meanfield_fns.format(idx=simidx, it=it))
             else: 
-                return self.cacher.load(self.meanfield_fns.format(idx=simidx, it=it))
+                if isinstance(component, list):
+                    return np.atleast_2d([self.cacher.load(self.meanfield_fns.format(idx=simidx, it=it))[self.component2idx[component_]] for component_ in component])
+                return self.cacher.load(self.meanfield_fns.format(idx=simidx, it=it))[self.component2idx[component]]
         else:
             assert 0, "cannot find meanfield"
             
 
     def get_total(self, simidx, it, component=None):
-        # if it is the 'next' it, then build the new gradient, otherwise load it
+        if isinstance(it, list):
+            np.array([self.get_total(simidx, it_, component) for it_ in it]) 
         if self.cacher.is_cached(self.total_fns.format(idx=simidx, it=it)):
             return self.cacher.load(self.total_fns.format(idx=simidx, it=it))
-        elif it == 0:
-            g += self.get_prior(simidx, it, component)
-            g += self.get_meanfield(simidx, it, component)
-            g += self.get_quad(simidx, it, component)
-            return g
-        return self._build(simidx, it, component)
+        g += self.get_prior(simidx, it-1, component)
+        g += self.get_meanfield(simidx, it, component)
+        g -= self.get_quad(simidx, it, component)
+        return g
     
 
     def get_quad(self, simidx, it, component=None):
@@ -117,18 +134,12 @@ class gradient:
                 component = component[0]
             elif len(component) >1:
                 return np.atleast_2d([self.get_quad(simidx, it, component_).squeeze() for component_i, component_ in enumerate(component)])
+        if isinstance(it, list):
+            np.array([self.get_total(simidx, it_, component) for it_ in it])
         if component is None:
-            idxs = [self.component2idx[c] for c in self.components]
-            return self.cacher.load(self.quad_fns.format(idx=simidx, it=it))[idxs]
+            return self.cacher.load(self.quad_fns.format(idx=simidx, it=it))
         else:
             return self.cacher.load(self.quad_fns.format(idx=simidx, it=it))[self.component2idx[component]]
-
-
-    def _build(self, simidx, it, component):
-        rlm = self.get_total(idx=simidx, it=0, component=component)
-        for i in range(it):
-            rlm += self.cacher.load(self.total_increment_fns(i))
-        return rlm
     
 
     def isiterdone(self, it):
@@ -148,6 +159,10 @@ class gradient:
         self.cacher_field.cache(self.prior_fns.format(idx=simidx, it=it), priorlm)
 
 
+    def cache_total(self, totlm, simidx, it):
+        self.cacher_field.cache(self.toal_fns.format(idx=simidx, it=it), totlm)
+
+
     def cache_meanfield(self, kmflm, simidx, it):
         self.cacher.cache(self.meanfield_fns.format(idx=simidx, it=it), kmflm)
 
@@ -165,7 +180,7 @@ class filter:
         self.ID = field_desc['ID']
         self.libdir = field_desc['libdir']
         self.lm_max = field_desc['lm_max']
-        self.components = field_desc['components']
+        self.component = field_desc['component']
         self.fns =  field_desc['fns']
 
         self.cacher = cachers.cacher_npy(opj(self.libdir))

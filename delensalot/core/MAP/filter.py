@@ -60,9 +60,7 @@ class base:
     def build_opfilt_iso_p(self, it):
         lenjob_geomlib =  get_geom(('thingauss', {'lmax': 4500, 'smax': 3}))
         ffi = deflection(lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(4500, 4500)), 4500, numthreads=8, verbosity=0, epsilon=1e-8)
-        dfield = self.secondary.get_est(0, it-1)
-        h2d = np.sqrt(np.arange(3000 + 1, dtype=float) * np.arange(1, 3000 + 2, dtype=float))
-        [almxfl(s, h2d, 3000, True) for s in dfield]
+        dfield = self.secondary.get_est(0, it-1, scale='d')
         if dfield.shape[0] == 1:
             dfield = [dfield[0],None]
         ffi = ffi.change_dlm(dfield, 3000)
@@ -115,10 +113,12 @@ class base:
         #     return q_pbgeom.geom.synthesis(ebwf, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, map=map_out)
         if not self.ivf_field.is_cached(simidx, it):
             ivflm = self.beam.act(self.ivf_operator.act(eblm_wf, spin=2))
+            # data[0] *= 0.+0.j
             ivflm -= data
             almxfl(ivflm[0], self.n1elm * 0.5, self.lm_max_ivf[1], True)  # Factor of 1/2 because of \dagger rather than ^{-1}
             almxfl(ivflm[1], self.n1blm * 0.5, self.lm_max_ivf[1], True)
             ivflm = self.beam.act(ivflm, adjoint=True)
+            
 
             self.ivf_field.cache_field(ivflm, simidx, it)
         return self.ivf_field.get_field(simidx, it)
