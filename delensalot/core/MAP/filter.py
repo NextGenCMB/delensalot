@@ -2,7 +2,6 @@ import os
 from os.path import join as opj
 import numpy as np
 
-from delensalot.core import cachers
 from delensalot.utils import read_map
 from delensalot.core.cg import cd_solve, cd_monitors, multigrid
 # from delensalot.core.cg_simple import cd_solve, cd_monitors, multigrid
@@ -44,9 +43,8 @@ class base:
         self.transfere = _extend_cl(filter_desc["ttebl"]['e'], self.lm_max_ivf[0])
         self.transferb = _extend_cl(filter_desc["ttebl"]['b'], self.lm_max_ivf[0])
         # TODO make sure ninv_desc[0][x] are actually the right inverse noise levels
-        self.n1elm = _extend_cl(np.array(self.transfer['e'])**1, self.lm_max_ivf[0]) * _extend_cl(self.nlevp, self.lm_max_ivf[0]) * (180 * 60 / np.pi) ** 2
-        self.n1blm = _extend_cl(np.array(self.transfer['b'])**1, self.lm_max_ivf[0]) * _extend_cl(self.nlevp, self.lm_max_ivf[0]) * (180 * 60 / np.pi) ** 2
-        #np.save('temp/new_n1elm.npy', self.n1elm)
+        self.n1elm = _extend_cl(np.array(self.transfer['e'])**1, self.lm_max_ivf[0]) * cli(_extend_cl(self.nlevp**2, self.lm_max_ivf[0])) * (180 * 60 / np.pi) ** 2
+        self.n1blm = _extend_cl(np.array(self.transfer['b'])**1, self.lm_max_ivf[0]) * cli(_extend_cl(self.nlevp**2, self.lm_max_ivf[0])) * (180 * 60 / np.pi) ** 2
         self.datmaps = None
         self.data = None
 
@@ -93,36 +91,43 @@ class base:
             mchain.solve(cg_sol_curr, data, dot_op=self.dotop)
             self.wf_field.cache_field(cg_sol_curr, simidx, it)
         return self.wf_field.get_field(simidx, it)
+    
 
-
-    def get_ivflm(self, simidx, it, data, eblm_wf):
-        # NOTE this is eq. 21 of the paper, in essence it should do the following:
-        #     this is ivf_operator
-        # ---------------------------
-        #     ebwf = self.ffi.lensgclm(np.atleast_2d(eblm_wf), self.mmax_sol, 2, self.lmax_len, self.mmax_len)
-        #     almxfl(ebwf[0], (-1) * self.transf_elm, self.mmax_len, True)
-        #     almxfl(ebwf[1], (-1) * self.transf_blm, self.mmax_len, True)
-        # ---------------------------
-        #     ebwf += eblm_dat
+    def get_wflm_new(self, simidx, it, data=None):
+        def calc_prep(eblm, s_cls, ninv_filt):
+            """cg-inversion pre-operation
+                This performs :math:`D_\phi^t B^t N^{-1} X^{\rm dat}`
+                Args:
+                    eblm: input data polarisation elm and blm
+                    s_cls: CMB spectra dictionary (here only 'ee' key required)
+                    ninv_filt: inverse-variance filtering instance
+            """
+            assert isinstance(eblm, np.ndarray) and eblm.ndim == 2
+            assert Alm.getlmax(eblm[0].size, ninv_filt.mmax_len) == ninv_filt.lmax_len, (Alm.getlmax(eblm[0].size, ninv_filt.mmax_len), ninv_filt.lmax_len)
+            eblmc = np.empty_like(eblm)
+            eblmc[0] = almxfl(eblm[0], ninv_filt.inoise_1_elm, ninv_filt.mmax_len, False)
+            eblmc[1] = almxfl(eblm[1], ninv_filt.inoise_1_blm, ninv_filt.mmax_len, False)
+            elm = ninv_filt.ffi.lensgclm(eblmc, ninv_filt.mmax_len, 2, ninv_filt.lmax_sol,ninv_filt.mmax_sol,
+                                            backwards=True, out_sht_mode='GRAD_ONLY').squeeze()
+            almxfl(elm, s_cls['ee'] > 0., ninv_filt.mmax_sol, True)
+            return elm
         
-        #     this is self.Ninv*ivflm
-        # ---------------------------
-        #     almxfl(ebwf[0], self.inoise_1_elm * 0.5 * self.wee, self.mmax_len, True)  # Factor of 1/2 because of \dagger rather than ^{-1}
-        #     almxfl(ebwf[1], self.inoise_1_blm * 0.5,            self.mmax_len, True)
-        # ---------------------------
-        #     return q_pbgeom.geom.synthesis(ebwf, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, map=map_out)
+        if not self.wf_field.is_cached(simidx, it):
+            cg_sol_curr = self.wf_field.get_field(simidx, it-1)
+            mchain = multigrid.multigrid_chain(self.chain_descr, self.cls_filt, self.ninv)
+            mchain.solve(cg_sol_curr, data, dot_op=self.dotop)
+            self.wf_field.cache_field(cg_sol_curr, simidx, it)
+        return self.wf_field.get_field(simidx, it)
+
+
+    def get_ivfreslm(self, simidx, it, data, eblm_wf):
+        # NOTE this is eq. 21 of the paper, in essence it should do the following:
         if not self.ivf_field.is_cached(simidx, it):
-            ivflm = self.beam.act(self.ivf_operator.act(eblm_wf, spin=2))
+            ivflm = -1*self.beam.act(self.ivf_operator.act(eblm_wf, spin=2))
             # data[0] *= 0.+0.j
-            ivflm -= data
+            ivflm += data
             almxfl(ivflm[0], self.n1elm * 0.5, self.lm_max_ivf[1], True)  # Factor of 1/2 because of \dagger rather than ^{-1}
             almxfl(ivflm[1], self.n1blm * 0.5, self.lm_max_ivf[1], True)
-            ivflm = self.beam.act(ivflm, adjoint=True)
-            
-
+            # ivflm = self.beam.act(ivflm, adjoint=True)
             self.ivf_field.cache_field(ivflm, simidx, it)
         return self.ivf_field.get_field(simidx, it)
-
-        # resmap_c = np.empty((q_pbgeom.geom.npix(),), dtype=elm_wf.dtype)
-        # resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
-        # self._get_irespmap(eblm_dat, elm_wf, q_pbgeom, map_out=resmap_r) # inplace onto resmap_c and resmap_r

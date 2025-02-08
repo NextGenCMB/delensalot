@@ -7,7 +7,6 @@ from plancklens import qresp, qest
 from delensalot.config.visitor import transform, transform3d
 from delensalot.utils import cli
 
-from delensalot.core import cachers
 from delensalot.core.QE import filterqest
 
 from delensalot.utility import utils_qe

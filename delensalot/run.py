@@ -35,7 +35,7 @@ log.setLevel(logging.INFO)
 class run():
     """Entry point for the interactive mode
     """
-    def __init__(self, config_fn, job_id='generate_sim', config_model=None, verbose=True):
+    def __init__(self, config_fn=None, job_id='generate_sim', config=None, verbose=True):
         """Entry point for the interactive mode. This initializes a 'runner'-objects which provides all functionalities to run delensalot analyses
 
         Args:
@@ -43,7 +43,8 @@ class run():
             job_id (str, optional): Identifier to choose the delensalot job. Valid values are: ['generate_sim', 'build_OBD', 'QE_lensrec', 'MAP_lensrec', 'delens']. Defaults to 'generate_sim'.
             config_model (DLENSALOT_Model): A delensalot model instance. If not None, this overwrites `config_fn`
             verbose (bool, optional): If true, sets logging information to DEBUG, otherwise INFO. Defaults to True.
-        """        
+        """    
+        assert config_fn is not None or config is not None, "Either config_fn or config must be provided"    
         assert job_id in ['generate_sim', 'build_OBD', 'QE_lensrec', 'QE_lensrec_new', 'MAP_lensrec', 'MAP_lensrec_operator', 'delens'], "Invalid job_id: {}".format(job_id)
         os.environ['USE_PLANCKLENS_MPI'] = "False"
         if not verbose:
@@ -56,12 +57,12 @@ class run():
             logging.basicConfig(level=logging.DEBUG, handlers=[ConsoleOutputHandler])
         self.parser = parserclass()
         self.parser.resume =  ""
-        self.parser.config_file = config_fn
+        self.parser.config_file = config_fn if config_fn is not None else 'config.py'
         self.parser.status = ''
         self.parser.job_id = job_id
 
         self.delensalotjob = job_id
-        self.config_handler = config_handler(self.parser, config_model)
+        self.config_handler = config_handler(self.parser, config)
 
 
     def collect_model(self):

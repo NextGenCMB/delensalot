@@ -20,7 +20,7 @@ DL_DEFAULT = {
     # FIXME all lm_max need to be consistent no matter which flavour we start with.
     # better only have one lm_max in default and config file, and let l2p adapt accordingly.
     'simulationdata': { 
-        'flavour': 'unl',
+        'flavour': 'pri',
         'geominfo': ('healpix',{'nside': 2048}),
         'maps': DNaV,
         "fid_info": {
@@ -28,6 +28,7 @@ DL_DEFAULT = {
             "fn": 'FFP10_wdipole_secondaries_lens_birefringence2.dat',
             'libdir_sec': opj(os.path.dirname(delensalot.__file__), 'data', 'cls'),
             'fn_sec': 'FFP10_wdipole_secondaries_lens_birefringence2.dat',
+            'scale': 'p',
             'sec_components': {
                 'lensing': ['pp'],#, 'ww'],
                 # 'birefringence': ['ff'],
@@ -116,10 +117,10 @@ DL_DEFAULT = {
         'beam': 1.0,
         'transfunction_desc': 'gauss_no_pixwin',
         'secondaries': {
-            # 'lensing': {
-            #     'geominfo': ('thingauss', {'lmax': 4000, 'smax': 3}),
-            #     'lm_max': (3000, 3000),
-            #     'component': ['p', 'w'],},
+            'lensing': {
+                'geominfo': ('thingauss', {'lmax': 4000, 'smax': 3}),
+                'lm_max': (3000, 3000),
+                'component': ['p', 'w'],},
             # 'birefringence': {
             #     'lm_max': (3000, 3000),
             #     'component': ['f'],
@@ -127,7 +128,7 @@ DL_DEFAULT = {
         },
     },
     'qerec':{
-        'tasks': ['calc_fields', 'calc_templates'],
+        'tasks': ['calc_fields'],
         'estimator_type': 'sepTP',
         'cg_tol': 1e-7,
         'filter_directional': 'isotropic',
@@ -182,7 +183,7 @@ DL_DEFAULT = {
             'p6': 'tr_cg',
             'p7': 'cache_mem'
         },
-        'tasks': ['calc_fields', 'calc_templates'],
+        'tasks': ['calc_fields'],
         'itmax': 1,
         'cg_tol': 1e-5,
         'iterator_typ': 'constmf',

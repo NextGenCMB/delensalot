@@ -651,17 +651,7 @@ class QE_lr_new(Basejob):
         if not np.all(np.array(self.jobs)==None):
             print("Running QE jobs: ", self.jobs)
         if True: # 'triggers calc_cinv'
-            first_rank = mpi.bcast(mpi.rank)
-            if first_rank == mpi.rank:
-                mpi.disable()
-                for QE_search in self.QE_searchs:
-                    QE_search.init_filterqest()
-                mpi.enable()
-                [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
-            else:
-                mpi.receive(None, source=mpi.ANY_SOURCE)
-            for QE_search in self.QE_searchs:
-                QE_search.init_filterqest()
+            self.init_QEsearchs()
                    
         _tasks = self.QE_tasks if task is None else [task]
         for taski, task in enumerate(_tasks):
@@ -707,10 +697,15 @@ class QE_lr_new(Basejob):
     
 
     def get_est(self, simidx, it=0, secondary=None, component=None, subtract_meanfield=None):
+        self.init_QEsearchs()
         if isinstance(it, (int,np.int64)):
             assert it == 0, 'QE does not have iterations, leave blank or set it=0'
         else:
             assert 0 in it, 'QE does not have iterations, leave blank or set it=0, not {}'
+        if secondary is None:
+            return [self.QE_searchs[secidx].get_est(simidx, subtract_meanfield, component) for secidx in self.secondary2idx.values()]
+        if isinstance(secondary, list):
+            return [self.QE_searchs[self.secondary2idx[sec]].get_est(simidx, subtract_meanfield, component) for sec in secondary]
         if secondary not in self.secondary2idx:
             print('Field not found. Available fields are: ', self.secondary2idx.keys())
             return np.array([[]])
@@ -741,6 +736,26 @@ class QE_lr_new(Basejob):
             print('QE does not have iterations, leave blank or set it=0')
             return np.array([[]])
         return self.QE_searchs[self.secondary2idx[secondary]].get_ivflm(simidx)
+    
+
+    def init_QEsearchs(self):
+        __init = False
+        first_rank = mpi.bcast(mpi.rank)
+        for QE_search in self.QE_searchs:
+            if 'qlms' not in QE_search.__dict__:
+                __init = True
+                break
+        if __init:
+            if first_rank == mpi.rank:
+                mpi.disable()
+                for QE_search in self.QE_searchs:
+                    QE_search.init_filterqest()
+                mpi.enable()
+                [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
+            else:
+                mpi.receive(None, source=mpi.ANY_SOURCE)
+            for QE_search in self.QE_searchs:
+                QE_search.init_filterqest()
 
 
 class MAP_lr_operator:
@@ -794,21 +809,20 @@ class MAP_lr_operator:
     def get_est(self, simidx, it=None, secondary=None, component=None, scale='k', subtract_QE_meanfield=True, calc_flag=False):
         if it is None:
             it = self.MAP_searchs[simidx].maxiterdone()
-
         if isinstance(secondary, str) and secondary not in self.seclist_sorted:
             print('Secondary not found. Available secondaries are:', self.seclist_sorted)
             return np.array([[]])
         secondary_ = self.seclist_sorted if secondary is None else secondary
 
         def get_qe_est():
-            if isinstance(secondary_, list):
+            if isinstance(secondary_, (list, np.ndarray)):
                 return [self.QE_searchs[self.sec2idx[sec]].get_est(simidx, scale, subtract_QE_meanfield, component) for sec in secondary_]
             return self.QE_searchs[self.sec2idx[secondary_]].get_est(simidx, scale, subtract_QE_meanfield, component)
 
         def get_map_est(it_):
             return self.MAP_searchs[simidx].get_est(simidx, it_, secondary, component, scale, calc_flag)
 
-        if isinstance(it, list):
+        if isinstance(it, (list, np.ndarray)):
             # if 0 in it:
             #     return [get_qe_est()] + (get_map_est(sorted(it)[1:]) if len(it) > 1 else [])
             return get_map_est(it)
@@ -837,21 +851,21 @@ class MAP_lr_operator:
 
     def get_gradient_meanfield(self, simidx, it=None, secondary=None, component=None):
         if it==None: it = self.maxiterdone()
-        if it==0:
+        if (isinstance(it, (list, np.ndarray)) and 0 not in it) or (isinstance(it, (int,np.int64)) and it > 0):
             return self.QE_searchs[self.sec2idx[secondary]].get_kmflm(simidx, it, component)
         return self.MAP_searchs[simidx].get_gradient_meanfield(it, secondary, component)
 
 
     def get_gradient_prior(self, simidx, it=None, secondary=None, component=None):
         if it==None: it = self.maxiterdone()
-        if it>0:
-            return self.MAP_searchs[simidx].get_gradient_prior(it, secondary, component)
+        if (isinstance(it, (list, np.ndarray)) and 0 not in it) or (isinstance(it, (int,np.int64)) and it > 0):
+            return self.MAP_searchs[simidx].get_gradient_prior(it-1, secondary, component)
         print('only available for MAP, set it>0')
 
 
     def get_gradient_total(self, simidx, it=None, secondary=None, component=None):
         if it==None: it = self.maxiterdone()
-        if it>0:
+        if (isinstance(it, (list, np.ndarray)) and 0 not in it) or (isinstance(it, (int,np.int64)) and it > 0):
             return self.MAP_searchs[simidx].get_gradient_total(it, secondary, component)
         print('only available for MAP, set it>0')
 

@@ -60,6 +60,19 @@ class secondary:
         return self.cacher.is_cached(opj(self.fns[component].format(idx=simidx, it=it)))
     
 
+    def remove(self, simidx, it, component=None):
+        if component is None:
+            if all(np.array([self.is_cached(simidx, it, component_) for component_ in self.component])):
+                [self.remove(simidx, it, component_) for component_ in self.component]
+            else:
+                print("cannot find field to remove")
+        else:
+            if self.is_cached(simidx, it, component):
+                self.cacher.remove(opj(self.fns[component].format(idx=simidx, it=it)))
+            else:
+                print('cannot find field to remove')
+    
+
     def klm2dlm(self, klm):
         h2d = cli(0.5 * np.sqrt(np.arange(self.lm_max[0] + 1, dtype=float) * np.arange(1, self.lm_max[0] + 2, dtype=float)))
         return almxfl(klm, h2d, self.lm_max[1], False)
@@ -153,10 +166,6 @@ class gradient:
             it += 1
             isdone = self.isiterdone(it + 1)
         return it
-    
-
-    def cache_prior(self, priorlm, simidx, it):
-        self.cacher_field.cache(self.prior_fns.format(idx=simidx, it=it), priorlm)
 
 
     def cache_total(self, totlm, simidx, it):
@@ -173,6 +182,33 @@ class gradient:
 
     def quad_is_cached(self, simidx, it):
         return self.cacher.is_cached(self.quad_fns.format(idx=simidx, it=it))
+    
+
+    def is_cached(self, simidx, it, type=None):
+        file_map = {
+            'total': self.total_fns.format(idx=simidx, it=it),
+            'quad': self.quad_fns.format(idx=simidx, it=it),
+            'meanfield': self.meanfield_fns.format(idx=simidx, it=it),
+        }
+        if type is None:
+            return all(self.cacher.is_cached(filename) for filename in file_map.values())
+        elif type in file_map:
+            return self.cacher.is_cached(file_map[type])
+
+
+    def remove(self, simidx, it, type=None):
+        file_map = {
+            'total': self.total_fns.format(idx=simidx, it=it),
+            'quad': self.quad_fns.format(idx=simidx, it=it),
+            'meanfield': self.meanfield_fns.format(idx=simidx, it=it),
+        }
+        if type is None:
+            for typ, filename in file_map.items():
+                if self.is_cached(simidx, it, typ):
+                    self.cacher.remove(filename)
+        elif type in file_map:
+            if self.is_cached(simidx, it, type):
+                self.cacher.remove(file_map[type])
     
 
 class filter:
@@ -198,6 +234,11 @@ class filter:
         return self.cacher.is_cached(self.fns.format(idx=simidx, it=it))
     
 
+    def remove(self, simidx, it):
+        if self.is_cached(simidx, it):
+            self.cacher.remove(self.fns.format(idx=simidx, it=it))
+    
+
 class curvature:
     def __init__(self, field_desc):
         self.libdir = field_desc['libdir']
@@ -217,3 +258,17 @@ class curvature:
     
     def is_cached(self, type, simidx, it):
         return self.cacher.is_cached(self.fns[type].format(idx=simidx, it=it, itm1=it-1))
+    
+
+    def remove(self, simidx, it, type=None):
+        if type is None:
+            for type in self.types:
+                if self.is_cached(type, simidx, it):
+                    self.cacher.remove(self.fns[type].format(idx=simidx, it=it, itm1=it-1))
+                else:
+                    print("cannot find field to remove")
+        else:
+            if self.is_cached(type, simidx, it):
+                self.cacher.remove(self.fns[type].format(idx=simidx, it=it, itm1=it-1))
+            else:
+                print("cannot find field to remove")

@@ -143,14 +143,12 @@ class BFGS_Hessian(object):
         q = gk.copy()
         rho = lambda i: 1. / self.dot_op(self.s(i), self.y(i))
         for i in range(k - 1, np.max([-1, k - self.L - 1]), -1):
-            print('i applied some vectors')
             alpha_i = rho(i) * self.dot_op(self.s(i), q)
             q -= alpha_i * self.y(i)
             self._save_alpha(alpha_i, i)
 
         r = self.applyH0k(q, k)
         for i in range(np.max([0, k - self.L]), k):
-            print('i applied some other vectors')
             beta = rho(i) * self.dot_op(self.y(i), r)
             r += self.s(i) * (self._load_alpha(i) - beta)
         if output_fname is None: return -r

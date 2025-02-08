@@ -31,11 +31,12 @@ class base:
         lower = 0
         for gradient in self.gradients:
             for compi, comp in enumerate(gradient.secondary.component):
-                fl = np.ones(gradient.secondary.lm_max[0]+1)*0.9
+                fl = np.ones(gradient.secondary.lm_max[0]+1)*0.5
                 upper = lower + hp.Alm.getsize(gradient.secondary.lm_max[0])
                 almxfl(klms[lower:lower:upper+1], fl, None, True)
                 lower = upper
         return klms
+
 
     def get_increment(self, gtot, simidx, it):
         if not self.field.is_cached('sk', simidx, it):
@@ -61,7 +62,6 @@ class base:
 
 
     def apply_H0k(self, grad_lm:np.ndarray, kr):
-        print('applying h0k')
         ret = np.empty_like(grad_lm)
         N = 0
         for h0 in self.h0:
@@ -72,7 +72,6 @@ class base:
 
 
     def apply_B0k(self, grad_lm:np.ndarray, kr):
-        print('applying B0k')
         ret = np.empty_like(grad_lm)
         N = 0
         for h0 in self.h0:

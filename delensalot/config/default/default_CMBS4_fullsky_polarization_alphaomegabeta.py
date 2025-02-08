@@ -20,7 +20,7 @@ DL_DEFAULT = {
     # FIXME all lm_max need to be consistent no matter which flavour we start with.
     # better only have one lm_max in default and config file, and let l2p adapt accordingly.
     'simulationdata': { 
-        'flavour': 'unl',
+        'flavour': 'pri',
         'geominfo': ('healpix',{'nside': 2048}),
         'maps': DNaV,
         "fid_info": {

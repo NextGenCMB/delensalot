@@ -46,7 +46,7 @@ class base:
     
     def get_est(self, simidx, request_it, secondary=None, component=None, scale='k', calc_flag=False):
         current_it = self.maxiterdone()
-        if isinstance(request_it, list):
+        if isinstance(request_it, (list,np.ndarray)):
             assert all([current_it>=reqit for reqit in request_it]), f"Cannot calculate new iterations if param 'it' is a list, maximum available iteration is {current_it}"
             # assert not calc_flag and any([current_it<reqit for reqit in request_it]), "Cannot calculate new iterations if it is a list, please set calc_flag=False"
             return [self.get_est(simidx, it, secondary, component, scale=scale, calc_flag=False) for it in request_it]
@@ -117,33 +117,32 @@ class base:
         ret = {}
         for grad in self.gradients:
             ret.update({grad.ID: {}})
-            h0 = []
             lmax = grad.secondary.lm_max[0]
             for compi, comp in enumerate(grad.secondary.component):
                 ckp = self.chh[grad.ID][comp]
-                R_unl = R_unl0[grad.ID][comp][:lmax+1] # *(self.__p2k(lmax=lmax))**2
+                R_unl = R_unl0[grad.ID][comp][:lmax+1]*cli(self.__p2k(lmax=lmax))**2
 
-                buff = cli(R_unl*self.__p2k(lmax)**2 + cli(ckp)) * (ckp > 0)
+                buff = cli(R_unl + cli(ckp)) * (ckp > 0)
                 ret[grad.ID].update({comp: np.array(buff)})
         return ret
 
 
-    def __p2k(self, lmax, scale='k'):
+    def __p2k(self, lmax):
         return 0.5 * np.arange(lmax + 1, dtype=float) * np.arange(1, lmax + 2, dtype=float)
 
 
     # exposed functions for convenience
-    def get_wflm(self, field, it):
-        field2idx = {grad.ID: idx for idx, grad in enumerate(self.gradients)}
-        return self.gradients[field2idx[field]].get_wflm(it)
+    def get_wflm(self, secondary, it):
+        return self.gradients[self.sec2idx[secondary]].get_wflm(it)
 
     
-    def get_ivfreslm(self, field, it):
-        field2idx = {grad.ID: idx for idx, grad in enumerate(self.gradients)}
-        return self.gradients[field2idx[field]].get_ivflm(it)
+    def get_ivfreslm(self, secondary, it):
+        return self.gradients[self.sec2idx[secondary]].get_ivfreslm(it)
     
 
     def get_gradient_quad(self, it=None, secondary=None, component=None):
+        if it > self.maxiterdone():
+            print(f"Requested iteration {it} is beyond the maximum iteration")
         if it is None:
             it = self.maxiterdone()
         if secondary is None:
@@ -153,7 +152,10 @@ class base:
         sec_idx = [self.sec2idx[sec] for sec in secondary]
         return np.array([self.gradients[idx].get_gradient_quad(it, component) for idx in sec_idx])
 
+
     def get_gradient_meanfield(self, it=None, secondary=None, component=None):
+        if it > self.maxiterdone():
+            print(f"Requested iteration {it} is beyond the maximum iteration")
         if it is None:
             it = self.maxiterdone()
         if secondary is None:
@@ -165,6 +167,8 @@ class base:
     
 
     def get_gradient_prior(self, it=None, secondary=None, component=None):
+        if it > self.maxiterdone():
+            print(f"Requested iteration {it} is beyond the maximum iteration")
         if it is None:
             it = self.maxiterdone()
         if secondary is None:
@@ -176,6 +180,8 @@ class base:
     
 
     def get_gradient_total(self, it=None, secondary=None, component=None):
+        if it > self.maxiterdone():
+            print(f"Requested iteration {it} is beyond the maximum iteration")
         if it is None:
             it = self.maxiterdone()
         if secondary is None:

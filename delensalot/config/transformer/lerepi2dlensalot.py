@@ -551,7 +551,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _MAP_operators_desc['spin_raise'] = {
                     'lm_max': dl.lm_max_ivf,}
                 filter_operators.append(operator.lensing(_MAP_operators_desc['lensing']))
-                gradients_operators['lensing'] = operator.joint([*filter_operators, operator.spin_raise(_MAP_operators_desc['spin_raise'])])
+                gradients_operators['lensing'] = operator.joint([operator.spin_raise(_MAP_operators_desc['spin_raise']), *filter_operators])
 
             if 'birefringence' in cf.analysis.secondaries:
                 _MAP_operators_desc['birefringence'] = {
@@ -563,13 +563,13 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _MAP_operators_desc['multiply'] = {
                     'factor': -1j,}
                 filter_operators.append(operator.birefringence(_MAP_operators_desc['birefringence']))
-                gradients_operators['birefringence'] = operator.joint([*filter_operators, operator.multiply(_MAP_operators_desc['multiply'])])
+                gradients_operators['birefringence'] = operator.joint([operator.multiply(_MAP_operators_desc['multiply']), *filter_operators])
 
             ivf_operator = operator.ivf_operator(filter_operators)
             wf_operator = operator.wf_operator(filter_operators) #TODO this is ivf_operator*ivf_operator^dagger, could be implemented via ivf.
 
             def chh(CL, lmax, scale='k'):
-                return CL[:lmax+1] * (0.5 * np.arange(lmax + 1, dtype=float) * np.arange(1, lmax + 2, dtype=float))**2
+                return CL[:lmax+1] * (0.5 * np.arange(lmax+1) * np.arange(1, lmax+2))**2
                 
             gfield_descs = [{
                 "ID": gradient_name,

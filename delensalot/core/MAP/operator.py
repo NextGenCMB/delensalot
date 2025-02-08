@@ -168,8 +168,9 @@ class lensing(base):
             # TODO I don't want this alm_copy here
             obj = np.atleast_2d(obj)
             obj = alm_copy(obj[0], None, *self.lm_max)
+            spin = 2 if spin == None else spin
             # return self.ffi.gclm2lenmap(np.atleast_2d(obj), self.lm_max[1], spin, False)
-            return self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max[1], 2, *self.lm_max)
+            return self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max[1], spin, *self.lm_max)
     
 
     def adjoint(self, obj, spin=None):
@@ -187,7 +188,6 @@ class lensing(base):
             self.ffi = self.ffi.change_dlm(d, self.LM_max[1])
         else:
             if self.field_cacher.is_cached(opj(self.field_fns[component].format(idx=simidx,it=it))):
-                # print(self.field_cacher.load(opj(self.field_fns[component].forat(idx=simidx,it=it)))[0].shape)
                 self.field[component] = self.klm2dlm(self.field_cacher.load(opj(self.field_fns[component].format(idx=simidx,it=it)))[0])
             else:
                 assert 0, "cannot set field"
@@ -240,14 +240,13 @@ class spin_raise:
     def act(self, obj, spin=None, adjoint=False):
         # This is the property d _sY = -np.sqrt((l+s+1)(l-s+1)) _(s+1)Y
         assert adjoint == False, "adjoint not implemented"
-        assert spin in [-2, 2], spin
-
+        # assert spin in [-2, 2], spin
         lmax = Alm.getlmax(obj.size, self.lm_max[1])
-        i1, i2 = (2, -1) if spin == -2 else (-2, 3)
+        i1, i2 = (2, -1) if spin == 1 else (-2, 3)
         fl = np.arange(i1, lmax + i1 + 1, dtype=float) * np.arange(i2, lmax + i2 + 1)
         fl[:spin] *= 0.
         fl = np.sqrt(fl)
-        elm = np.atleast_2d([almxfl(e_wf, fl, self.lm_max[1], False) for e_wf in obj])
+        elm = np.atleast_2d(almxfl(obj, fl, self.lm_max[1], False))
         return elm
 
 
