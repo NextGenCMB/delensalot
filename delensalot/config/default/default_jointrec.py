@@ -60,7 +60,7 @@ DL_DEFAULT = {
                 'space':'alm',
                 'scale':'p',
                 'modifier': lambda x: x,
-                'lm_max': [4096+1024,4096+1024],
+                'lm_max': [4096,4096],
             },
         },
         "obs_info": {
@@ -90,7 +90,7 @@ DL_DEFAULT = {
             },
             'birefringence': {
                 'lm_max': [4096,4096],
-                'LM_max': [4096+1024,4096+1024],
+                'LM_max': [4096,4096],
                 'Lmin': 1,
                 'field_fns': DNaV,
                 'libdir': DNaV,

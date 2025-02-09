@@ -177,11 +177,11 @@ class birefringence(base):
         if not self.gfield.quad_is_cached(self.simidx, it):
             data = self.get_data(self.lm_max_ivf)
             XWF = self.wf_filter.get_wflm(self.simidx, it)
-            ivf = self.ivf_filter.get_ivflm(self.simidx, it, data, XWF)
+            ivf = self.ivf_filter.get_ivfreslm(self.simidx, it, data, XWF)
             
             ivfmap = self.ffi.geom.synthesis(ivf, 2, self.lm_max_ivf[0], self.lm_max_ivf[1], self.ffi.sht_tr)
 
-            xwfglm = self.gradient_operator.act(XWF, spin=2)
+            xwfglm = self.gradient_operator.act(XWF, spin=2, lmax_in=None, lm_max=None)
             xwfmap = self.ffi.geom.synthesis(xwfglm, 2, self.lm_max_ivf[0], self.lm_max_ivf[1], self.ffi.sht_tr)
  
             qlms = -4 * ( ivfmap[0] * xwfmap[1] - ivfmap[1] * xwfmap[0] )

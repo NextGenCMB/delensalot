@@ -272,7 +272,7 @@ class Xpri:
 
         if CMB_info['libdir'] == DNaV or any(value['fns'] == DNaV for value in sec_info.values()):
             if cls_lib == DNaV:
-                sec_info = {key: {'fns':DNaV, 'components':value['components'], 'libdir': DNaV, 'scale': 'p'} for key, value in sec_info.items()}
+                sec_info = {key: {'fns':DNaV, 'component':value['component'], 'libdir': DNaV, 'scale': 'p'} for key, value in sec_info.items()}
                 self.cls_lib = Cls(CMB_info=DNaV, sec_info=sec_info) # NOTE I pick all CMB components anyway
             else:
                 self.cls_lib = cls_lib
@@ -282,7 +282,7 @@ class Xpri:
                     if value == DNaV:
                         assert 0, f'need to provide {key}'
             else:
-                for key in ['space', 'scale', 'modifier', 'lm_max', 'fns', 'components']:
+                for key in ['space', 'scale', 'modifier', 'lm_max', 'fns', 'component']:
                     if any(value['space'] == DNaV for value in sec_info.values()):
                         assert 0, 'need to provide {key} for all secondaries'
 
@@ -381,14 +381,14 @@ class Xpri:
         if secondary not in self.sec_info.keys():
             print(f"secondary {secondary} not available")
             return np.array([[None]])
-        if isinstance(component, str) and component not in self.sec_info[secondary]['components']:
+        if isinstance(component, str) and component not in self.sec_info[secondary]['component']:
             print(f"component {component} of {secondary} not available")
             return np.array([[None]])
         if component is None:
-            return np.array([self.get_sim_sec(simidx, space, secondary, component=comp) for comp in self.sec_info[secondary]['components']])
+            return np.array([self.get_sim_sec(simidx, space, secondary, component=comp) for comp in self.sec_info[secondary]['component']])
         if (isinstance(component, list) or isinstance(component, np.ndarray)) and len(component)>1:
             for comp in component:
-                if comp not in self.sec_info[secondary]['components']:
+                if comp not in self.sec_info[secondary]['component']:
                     print(f"component {comp} not available, removing from list")
                     component.remove(comp)
             return np.array([self.get_sim_sec(simidx, space, secondary, component=comp) for comp in component])

@@ -126,8 +126,8 @@ class birefringence(base):
         self.field_fns = operator_desc['field_fns']
         self.Lmin = operator_desc["Lmin"],
         self.lm_max = operator_desc["lm_max"]
-        self.components = operator_desc["components"]
-        self.field = {component: None for component in self.components}
+        self.component = operator_desc["component"]
+        self.field = {component: None for component in self.component}
 
 
     # spin doesn't do anything here, but parameter is needed as joint operator passes it to all operators
@@ -136,7 +136,7 @@ class birefringence(base):
         if spin == 0:
             return obj
         
-        f = np.array([self.field[comp].flatten() for comp in self.components], dtype=complex)
+        f = np.array([self.field[comp].flatten() for comp in self.component], dtype=complex)
 
         buff = alm_copy(f[0], None, *self.lm_max)
         # buff = f[0]

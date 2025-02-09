@@ -285,7 +285,7 @@ class Sim_generator(Basejob):
                 self.fns_sec = {}
                 for sec, operator_info in self.simulationdata.operator_info.items():
                     self.fns_sec.update({sec:{}})
-                    for comp in operator_info['components']:
+                    for comp in operator_info['component']:
                         self.fns_sec[sec][comp] = f'{sec}_{comp}lm_{{}}.npy'
 
             hashc = get_hashcode(str(self.simulationdata.fid_info['sec_components'])+str(self.simulationdata.transfunction))
@@ -383,7 +383,7 @@ class Sim_generator(Basejob):
     def generate_sky(self, simidx):
         for sec, secinfo in self.simulationdata.sec_info.items():
             # FIXME if there is cross-correlation between the components, we need to generate them together
-            for comp in secinfo['components']:
+            for comp in secinfo['component']:
                 if not os.path.exists(opj(self.libdir_sky, self.fns_sec[sec][comp[0]].format(simidx))):
                     s = self.simulationdata.get_sim_sec(simidx, space='alm', secondary=sec, component=comp)
                     np.save(opj(self.libdir_sky, self.fns_sec[sec][comp[0]].format(simidx)), s)
@@ -449,7 +449,7 @@ class Sim_generator(Basejob):
                 self.simulationdata.sky_lib.sec_info[sec]['space'] = 'alm'
                 self.simulationdata.sky_lib.sec_info[sec]['spin'] = 0
                 self.simulationdata.sky_lib.sec_info[sec]['lm_max'] = secinfo['lm_max']
-                self.simulationdata.sky_lib.sec_info[sec]['components'] = secinfo['components']
+                self.simulationdata.sky_lib.sec_info[sec]['component'] = secinfo['component']
 
 
 class Noise_modeller(Basejob):

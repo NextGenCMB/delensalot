@@ -14,8 +14,6 @@ from delensalot.core.opfilt import MAP_opfilt_iso_p as MAP_opfilt_iso_p # MAP_op
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy
 from delensalot.utils import cli
 
-from . import operator
-
 
 def _extend_cl(cl, lmax):
     """Forces input to an array of size lmax + 1
@@ -44,13 +42,13 @@ class ivf:
     def get_ivfreslm(self, simidx, it, data, eblm_wf):
         # NOTE this is eq. 21 of the paper, in essence it should do the following:
         if not self.ivf_field.is_cached(simidx, it):
-            ivflm = -1*self.beam.act(self.ivf_operator.act(eblm_wf, spin=2, lmax_in=self.lm_max_ivf[1], lm_max=self.lm_max_ivf))
+            ivfreslm = -1*self.beam.act(self.ivf_operator.act(eblm_wf, spin=2, lmax_in=self.lm_max_ivf[1], lm_max=self.lm_max_ivf))
             # data[0] *= 0.+0.j
-            ivflm += data
-            almxfl(ivflm[0], self.n1elm * 0.5, self.lm_max_ivf[1], True)  # Factor of 1/2 because of \dagger rather than ^{-1}
-            almxfl(ivflm[1], self.n1blm * 0.5, self.lm_max_ivf[1], True)
-            # ivflm = self.beam.act(ivflm, adjoint=True)
-            self.ivf_field.cache_field(ivflm, simidx, it)
+            ivfreslm += data
+            almxfl(ivfreslm[0], self.n1elm * 0.5, self.lm_max_ivf[1], True)  # Factor of 1/2 because of \dagger rather than ^{-1}
+            almxfl(ivfreslm[1], self.n1blm * 0.5, self.lm_max_ivf[1], True)
+            # ivfreslm = self.beam.act(ivfreslm, adjoint=True)
+            self.ivf_field.cache_field(ivfreslm, simidx, it)
         return self.ivf_field.get_field(simidx, it)
     
 
@@ -106,8 +104,7 @@ class wf:
         eblmc[0] = almxfl(eblm[0], self.in1el, mmax_len, False)
         eblmc[1] = almxfl(eblm[1], self.in1bl, mmax_len, False)
 
-        # elm = self.wf_operator.act(eblmc, spin=2, lmax_in=mmax_len, lm_max=self.lm_max_unl, adjoint=True, backwards=True, out_sht_mode='GRAD_ONLY').squeeze()
-        elm = self.ffi.lensgclm(eblmc, mmax_len, 2, lmax_sol, mmax_sol, backwards=True, out_sht_mode='GRAD_ONLY').squeeze()
+        elm = self.wf_operator.act(eblmc, spin=2, lmax_in=mmax_len, lm_max=self.lm_max_unl, adjoint=True, backwards=True, out_sht_mode='GRAD_ONLY').squeeze()
 
         almxfl(elm, self.cls_filt['ee'] > 0., mmax_sol, True)
         return elm
@@ -120,19 +117,16 @@ class wf:
         iclee = cli(self.cls_filt['ee'])
         nlm = np.copy(elm)
 
-        # Apply inverse noise filtering
         lmax_unl = Alm.getlmax(nlm.size, mmax_sol)
         assert lmax_unl == lmax_sol, (lmax_unl, lmax_sol)
         # View to the same array for GRAD_ONLY mode:
         elm_2d = nlm.reshape((1, nlm.size))
-
-        # eblm = self.wf_operator.act(elm_2d, spin=2, lmax_in=mmax_sol, lm_max=self.lm_max_ivf, adjoint=False, backwards=False)
-        eblm = self.ffi.lensgclm(elm_2d, mmax_sol, 2, lmax_len, mmax_len)
+        eblm = self.wf_operator.act(elm_2d, spin=2, lmax_in=mmax_sol, lm_max=self.lm_max_ivf, adjoint=False, backwards=False)
         almxfl(eblm[0], self.in2el, mmax_len, inplace=True)
         almxfl(eblm[1], self.in2bl, mmax_len, inplace=True)
-        # elm_2d = self.wf_operator.act(eblm, spin=2, lmax_in=mmax_len, lm_max=self.lm_max_unl, adjoint=True, backwards=True, out_sht_mode='GRAD_ONLY')
-        self.ffi.lensgclm(eblm, mmax_len, 2, lmax_sol, mmax_sol, backwards=True, gclm_out=elm_2d, out_sht_mode='GRAD_ONLY')
-        # nlm = elm_2d.squeeze()
+        elm_2d = self.wf_operator.act(eblm, spin=2, lmax_in=mmax_len, lm_max=self.lm_max_unl, adjoint=True, backwards=True, out_sht_mode='GRAD_ONLY')
+
+        nlm = elm_2d.squeeze()
         nlm += almxfl(elm, iclee, mmax_sol, False)
         almxfl(nlm, iclee > 0.0, mmax_sol, True)
 
@@ -170,29 +164,27 @@ class wf:
 
 
     # NOTE this access the old opfilt operator
-    def build_opfilt_iso_p(self, it):
-        lenjob_geomlib =  get_geom(('thingauss', {'lmax': 4500, 'smax': 3}))
-        ffi = deflection(lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(4500, 4500)), 4500, numthreads=8, verbosity=0, epsilon=1e-8)
-        dfield = self.secondary.get_est(0, it-1, scale='d')
-        if dfield.shape[0] == 1:
-            dfield = [dfield[0],None]
-        ffi = ffi.change_dlm(dfield,3000)
-        def extract():
-            return {
-                'nlev_p': 1.0,
-                'ffi': ffi,
-                'transf': self.transfer['e'],
-                'unlalm_info': self.lm_max_unl, # unl
-                'lenalm_info': (4000, 4000), # ivf
-                'wee': True,
-                'transf_b': self.transfer['b'],
-                'nlev_b': 1.0,
-            }
-        return MAP_opfilt_iso_p.alm_filter_nlev_wl(**extract())
-    
-
     def _get_wflm(self, simidx, it, data=None):
-        self.ninv = self.build_opfilt_iso_p(it)
+        def build_opfilt_iso_p(it):
+            lenjob_geomlib =  get_geom(('thingauss', {'lmax': 4500, 'smax': 3}))
+            ffi = deflection(lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(4500, 4500)), 4500, numthreads=8, verbosity=0, epsilon=1e-8)
+            dfield = self.secondary.get_est(0, it-1, scale='d')
+            if dfield.shape[0] == 1:
+                dfield = [dfield[0],None]
+            ffi = ffi.change_dlm(dfield,3000)
+            def extract():
+                return {
+                    'nlev_p': 1.0,
+                    'ffi': ffi,
+                    'transf': self.transfer['e'],
+                    'unlalm_info': self.lm_max_unl, # unl
+                    'lenalm_info': (4000, 4000), # ivf
+                    'wee': True,
+                    'transf_b': self.transfer['b'],
+                    'nlev_b': 1.0,
+                }
+            return MAP_opfilt_iso_p.alm_filter_nlev_wl(**extract())
+        self.ninv = build_opfilt_iso_p(it)
         self.opfilt = MAP_opfilt_iso_p
         self.dotop = self.ninv.dot_op()
         # if not self.wf_field.is_cached(simidx, it):

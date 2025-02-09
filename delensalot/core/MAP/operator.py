@@ -137,20 +137,20 @@ class lensing(base):
 
     # NOTE this is alm2alm
     def act(self, obj, spin=None, lmax_in=None, lm_max=None, adjoint=False, backwards=False, out_sht_mode=None):
-        # print('spin, lmax_in, lm_max, adjoint, backwards, out_sht_mode', spin, lmax_in, lm_max, adjoint, backwards, out_sht_mode)
         assert spin is not None, "spin not provided"
         lm_max = self.lm_max if lm_max is None else lm_max
 
         if self.perturbative: # Applies perturbative remapping
             return 
         else:
-            obj = np.atleast_2d(obj)
-            obj = alm_copy(obj[0], None, *lm_max)
             spin = 2 if spin == None else spin
             # return self.ffi.gclm2lenmap(np.atleast_2d(obj), self.lm_max[1], spin, False)
 
             if adjoint and backwards and out_sht_mode == 'GRAD_ONLY':
                 return self.ffi.lensgclm(np.atleast_2d(obj), lmax_in, spin, *lm_max, backwards=backwards, out_sht_mode=out_sht_mode)
+            
+            obj = np.atleast_2d(obj)
+            obj = alm_copy(obj[0], None, *lm_max)
             return self.ffi.lensgclm(np.atleast_2d(obj), lmax_in, spin, *lm_max)
     
 

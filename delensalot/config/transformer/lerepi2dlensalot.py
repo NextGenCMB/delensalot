@@ -70,15 +70,15 @@ class l2base_Transformer:
         for key, val in si.sec_info.items():
             if key not in allowed_secs:
                 buffer_secinfo.pop(key)
-            elif val['components'] != si.fid_info['sec_components'][key]:
+            elif val['component'] != si.fid_info['sec_components'][key]:
                     comps_ = [c[0] for c in atleast_1d(si.fid_info['sec_components'][key])]
-                    buffer_secinfo[key]['components'] = comps_
+                    buffer_secinfo[key]['component'] = comps_
         for key, val in si.operator_info.items():
             if key not in allowed_secs:
                 buffer_operatorinfo.pop(key)
-            elif val['components'] != si.fid_info['sec_components'][key]:
+            elif val['component'] != si.fid_info['sec_components'][key]:
                     comps_ = [c[0] for c in atleast_1d(si.fid_info['sec_components'][key])]
-                    buffer_operatorinfo[key]['components'] = comps_
+                    buffer_operatorinfo[key]['component'] = comps_
 
         si.sec_info = buffer_secinfo
         si.operator_info = buffer_operatorinfo
