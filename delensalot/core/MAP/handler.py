@@ -19,18 +19,23 @@ class base:
         # this class handles the filter, gradient, and curvature libs, nothing else
         self.secondaries = secondaries
         self.simulationdata = simulationdata
-        self.filter = filter.base(filter_desc, secondaries['lensing'])
         self.sec2idx = {secondary_ID: idx for idx, (secondary_ID, secondary) in enumerate(secondaries.items())}
         self.idx2sec = {idx: secondary_ID for idx, secondary_ID in enumerate(secondaries.keys())}
         self.seclist_sorted = sorted(list(self.sec2idx.keys()), key=lambda x: template_index_secondaries.get(x, ''))
         self.gradients = []
+        
+        # TODO check if they point to same memory in all gradient classes
+        self.ivf_filter = filter.ivf(filter_desc['ivf'])
+        self.wf_filter = filter.wf(filter_desc['wf'], self.secondaries['lensing'])
+        filters = {'ivf': self.ivf_filter, 'wf': self.wf_filter}
+
         self.chh = {}
         for sec in self.seclist_sorted:
             self.chh.update({sec: gradient_descs[sec]['gfield'].chh})
             if sec == 'lensing':
-                self.gradients.append(gradient.lensing(gradient_descs[sec], self.filter, simidx))
+                self.gradients.append(gradient.lensing(gradient_descs[sec], filters, simidx))
             elif sec == 'birefringence':
-                self.gradients.append(gradient.birefringence(gradient_descs[sec], self.filter, simidx))
+                self.gradients.append(gradient.birefringence(gradient_descs[sec], filters, simidx))
 
         h0arr = np.array([v for val in self.get_h0(desc["Runl0"]).values() for v in val.values()])
         curvature_desc.update({"h0": h0arr})
@@ -47,9 +52,9 @@ class base:
     def get_est(self, simidx, request_it, secondary=None, component=None, scale='k', calc_flag=False):
         current_it = self.maxiterdone()
         if isinstance(request_it, (list,np.ndarray)):
-            assert all([current_it>=reqit for reqit in request_it]), f"Cannot calculate new iterations if param 'it' is a list, maximum available iteration is {current_it}"
+            if all([current_it>=reqit for reqit in request_it]): print(f"Cannot calculate new iterations if param 'it' is a list, maximum available iteration is {current_it}")
             # assert not calc_flag and any([current_it<reqit for reqit in request_it]), "Cannot calculate new iterations if it is a list, please set calc_flag=False"
-            return [self.get_est(simidx, it, secondary, component, scale=scale, calc_flag=False) for it in request_it]
+            return [self.get_est(simidx, it, secondary, component, scale=scale, calc_flag=False) for it in request_it[request_it<=current_it]]
         if self.maxiterdone() < 0:
             assert 0, "Could not find the QE starting points, I expected them e.g. at {}".format(self.secondaries['lensing'].libdir)
         if request_it <= current_it: # data already calculated

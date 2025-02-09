@@ -691,23 +691,24 @@ class QE_lr_new(Basejob):
     def get_qlm(self, simidx, it=0, secondary=None, component=None):
         assert it == 0, 'QE does not have iterations, leave blank or set it=0'
         if secondary not in self.secondary2idx:
-            print(f'secondary {secondary} not found. Available fields are: ', self.secondary2idx.keys())
+            print(f'secondary {secondary} not found. Available secondaries are: ', self.secondary2idx.keys())
             return np.array([[]])
         return self.QE_searchs[self.secondary2idx[secondary]].get_qlm(simidx, component)
     
 
-    def get_est(self, simidx, it=0, secondary=None, component=None, subtract_meanfield=None):
+    def get_est(self, simidx, it=0, secondary=None, component=None, subtract_meanfield=None, scale='k'):
         self.init_QEsearchs()
         if isinstance(it, (int,np.int64)):
             assert it == 0, 'QE does not have iterations, leave blank or set it=0'
         else:
             assert 0 in it, 'QE does not have iterations, leave blank or set it=0, not {}'
+            return [self.get_est(simidx, 0, secondary, component, subtract_meanfield, scale)]
         if secondary is None:
             return [self.QE_searchs[secidx].get_est(simidx, subtract_meanfield, component) for secidx in self.secondary2idx.values()]
         if isinstance(secondary, list):
             return [self.QE_searchs[self.secondary2idx[sec]].get_est(simidx, subtract_meanfield, component) for sec in secondary]
         if secondary not in self.secondary2idx:
-            print('Field not found. Available fields are: ', self.secondary2idx.keys())
+            print('secondary not found. Available secondaries are: ', self.secondary2idx.keys())
             return np.array([[]])
         return self.QE_searchs[self.secondary2idx[secondary]].get_est(simidx, subtract_meanfield, component)
 
@@ -910,7 +911,7 @@ class MAP_lr_operator:
 
             #TODO cache QE wflm into the filter directory
             wflm_QE = self.QE_searchs[self.sec2idx[secname]].get_wflm(simidx)
-            self.MAP_searchs[simidx].filter.wf_field.cache_field(np.array(wflm_QE), simidx, it=0)
+            self.MAP_searchs[simidx].wf_filter.wf_field.cache_field(np.array(wflm_QE), simidx, it=0)
 
 
     def maxiterdone(self):

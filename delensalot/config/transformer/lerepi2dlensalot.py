@@ -549,7 +549,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     'field_fns': MAP_secondaries["lensing"].fns,
                     "ffi": dl.ffi,}
                 _MAP_operators_desc['spin_raise'] = {
-                    'lm_max': dl.lm_max_ivf,}
+                    'lm_max': dl.lm_max_unl,}
                 filter_operators.append(operator.lensing(_MAP_operators_desc['lensing']))
                 gradients_operators['lensing'] = operator.joint([operator.spin_raise(_MAP_operators_desc['spin_raise']), *filter_operators])
 
@@ -595,6 +595,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "estimator_key":  cf.analysis.key,
                     "simulationdata": dl.simulationdata,
                     "lm_max_ivf": dl.lm_max_ivf,
+                    "lm_max_unl": dl.lm_max_unl,
                     "LM_max": cf.analysis.secondaries[gradient_name]['lm_max'],
                     'itmax': dl.itmax,
                     "gradient_operator": gradient_operator,
@@ -615,20 +616,29 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "component": 1,
                 "fns": "WF_simidx{idx}_it{it}",
             }
-            MAP_filter_desc = {
-                "ID": "polarization",
+
+            MAP_ivf_desc = {
+                "ID": "ivf",
                 'ivf_operator': ivf_operator,
-                'wf_operator': wf_operator,
                 "ivf_field": MAP_field.filter(MAP_ivffilter_field_desc),
+                'beam': operator.beam({"beamwidth": cf.analysis.beam, "lm_max":dl.lm_max_ivf}),
+                "ttebl": dl.ttebl,
+                "lm_max_ivf": dl.lm_max_ivf,
+                "nlev": dl.nlev,
+            }
+            MAP_wf_desc = {
+                "ID": "polarization",
+                'wf_operator': wf_operator,
                 "wf_field": MAP_field.filter(MAP_WFfilter_field_desc),
                 'beam': operator.beam({"beamwidth": cf.analysis.beam, "lm_max":dl.lm_max_ivf}),
-                'Ninv_desc': [dl.nivt_desc, dl.nivp_desc],
-                "simulationdata": dl.simulationdata,
+                'nlev': dl.nlev,
                 "chain_descr": dl.it_chain_descr(dl.lm_max_unl[0], dl.it_cg_tol(0)),
                 "ttebl": dl.ttebl,
                 "cls_filt": dl.cls_unl,
                 "lm_max_ivf": dl.lm_max_ivf,
+                "lm_max_unl": dl.lm_max_unl,
                 "nlev": dl.nlev,
+                "ffi": dl.ffi,
             }
             
             template_desc = copy.deepcopy(dl.QE_handler_desc["template_info"])
@@ -666,7 +676,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             MAP_searchs_desc = {
                 'gradient_descs': gradient_descs,
                 'MAP_secondaries': MAP_secondaries,
-                'filter_desc': MAP_filter_desc,
+                'filter_desc': {'ivf': MAP_ivf_desc, 'wf': MAP_wf_desc},
                 'curvature_desc': curvature_desc,
                 "desc" : desc,
                 "template_descs": template_desc,

@@ -124,6 +124,7 @@ class config_handler():
         """ 
         for jobi, job in enumerate(self.djobmodels):
             log.info('running job {}'.format(self.config.job.jobs[jobi]))
+            log.info('The TEMP directory is {}:'.format("".join(job.TEMP.split('/')[-3:])))
             job.collect_jobs()    
             job.run()
 

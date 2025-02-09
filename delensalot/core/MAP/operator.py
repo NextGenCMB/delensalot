@@ -19,7 +19,7 @@ class base:
         self.field_cacher = cachers.cacher_npy(libdir)
 
 
-    def act(self, obj, adjoint=False):
+    def act(self, obj, lm_max=None, adjoint=False):
         assert 0, "subclass this"
 
 
@@ -32,14 +32,14 @@ class multiply:
         self.factor = descr["factor"]
     
 
-    def act(self, obj, spin=None, adjoint=False):
+    def act(self, obj, spin=None, lm_max=None, adjoint=False):
         if adjoint:
             return np.adj(self.factor)*obj
         else:
             return self.factor*obj
     
 
-    def adjoint(self, obj, spin=None):
+    def adjoint(self, obj, spin=None, lm_max=None):
         return self.act(obj, spin=spin, adjoint=True)
     
 
@@ -52,16 +52,16 @@ class joint:
         self.operators = operators
     
 
-    def act(self, obj, spin=None, adjoint=False):
+    def act(self, obj, spin, lmax_in, lm_max):
         for operator in self.operators:
-            buff = operator.act(obj, spin=spin)
+            buff = operator.act(obj, spin, lmax_in, lm_max)
             obj = buff
         return obj
     
 
-    def adjoint(self, obj, spin=None):
+    def adjoint(self, obj, spin, lmax_in, lm_max):
         for operator in self.operators[::-1]:
-            buff = operator.adjoint.act(obj, spin=spin)
+            buff = operator.adjoint.act(obj, spin, lmax_in, lm_max)
             obj = buff
         return obj
     
@@ -78,16 +78,16 @@ class ivf_operator:
         self.lm_max = operators[0].lm_max if hasattr(operators[0], 'lm_max') else operators[1].lm_max # FIXME hoping these operators have what im looking for
     
 
-    def act(self, obj, spin=None):
+    def act(self, obj, spin, lmax_in, lm_max):
         for operator in self.operators:
-            buff = operator.act(obj, spin=spin)
+            buff = operator.act(obj, spin, lmax_in, lm_max)
             obj = buff
         return obj
     
 
-    def adjoint(self, obj, spin=None):
+    def adjoint(self, obj, spin, lmax_in, lm_max):
         for operator in self.operators[::-1]:
-            buff = operator.adjoint.act(obj, spin=spin)
+            buff = operator.adjoint.act(obj, spin, lmax_in, lm_max)
             obj = buff
         return obj
     
@@ -100,28 +100,20 @@ class ivf_operator:
 class wf_operator:
     def __init__(self, operators):
         self.operators = operators
-        self.lm_max = operators[0].lm_max if hasattr(operators[0], 'lm_max') else operators[1].lm_max # FIXME hoping these operators have what im looking for
+        # self.lm_max = operators[0].lm_max if hasattr(operators[0], 'lm_max') else operators[1].lm_max # FIXME hoping these operators have what im looking for
     
 
-    def act(self, obj):
+    def act(self, obj, spin=2, lmax_in=None, lm_max=None, adjoint=False, backwards=False, out_sht_mode=None):
         buff = None
-        for operator in self.operators[::-1]:
-            buff = operator.act(obj)
-            obj = buff
-        for operator in self.operators:
-            buff = operator.adjoint(obj)
-            obj = buff
-        return obj
-    
-
-    def adjoint(self, obj):
-        buff = None
-        for operator in self.operators:
-            buff = operator.adjoint.act(obj)
-            obj = buff
-        for operator in self.operators[::-1]:
-            buff = operator.act(obj)
-            obj = buff
+        if not adjoint:
+            for operator in self.operators:
+                buff = operator.act(obj, spin, lmax_in=lmax_in, lm_max=lm_max, adjoint=False, backwards=False, out_sht_mode=out_sht_mode)
+                obj = buff
+            return obj
+        if adjoint:
+            for operator in self.operators[::-1]:
+                buff = operator.act(obj, spin, lmax_in=lmax_in, lm_max=lm_max, adjoint=True, backwards=True, out_sht_mode=out_sht_mode)
+                obj = buff
         return obj
     
 
@@ -144,38 +136,22 @@ class lensing(base):
         self.ffi = operator_desc["ffi"]
 
     # NOTE this is alm2alm
-    def act(self, obj, spin=None, adjoint=False):
-        assert adjoint == False, "adjoint not implemented"
+    def act(self, obj, spin=None, lmax_in=None, lm_max=None, adjoint=False, backwards=False, out_sht_mode=None):
+        # print('spin, lmax_in, lm_max, adjoint, backwards, out_sht_mode', spin, lmax_in, lm_max, adjoint, backwards, out_sht_mode)
         assert spin is not None, "spin not provided"
-       
+        lm_max = self.lm_max if lm_max is None else lm_max
+
         if self.perturbative: # Applies perturbative remapping
             return 
-            # get_alm = lambda a: elm_wf if a == 'e' else np.zeros_like(elm_wf)
-            # geom, sht_tr = self.fq.ffi.geom, self.fq.ffi.sht_tr
-            # d1 = geom.alm2map_spin([dlm, np.zeros_like(dlm)], 1, self.lmax_qlm, self.mmax_qlm, sht_tr, [-1., 1.])
-            # dp = utils_qe.qeleg_multi([2], +3, [utils_qe.get_spin_raise(2, self.lmax_filt)])(get_alm, geom, sht_tr)
-            # dm = utils_qe.qeleg_multi([2], +1, [utils_qe.get_spin_lower(2, self.lmax_filt)])(get_alm, geom, sht_tr)
-            # dlens = -0.5 * ((d1[0] - 1j * d1[1]) * dp + (d1[0] + 1j * d1[1]) * dm)
-            # del dp, dm, d1
-            # elm, blm = geom.map2alm_spin([dlens.real, dlens.imag], 2, lmaxb, mmaxb, sht_tr, [-1., 1.])
-        else:  
-            # NOTE this is used for B-lensing template, and in eq. 21 of the paper
-            # ffi = self.fq.ffi.change_dlm([dlm, None], self.mmax_qlm)
-            # elm, blm = ffi.lensgclm(np.array([elm_wf, np.zeros_like(elm_wf)]), self.mmax_filt, 2, lmaxb, mmaxb)
-            
-            # NOTE this is used e.g. in eq 22 of the paper.
-
-            # TODO I don't want this alm_copy here
+        else:
             obj = np.atleast_2d(obj)
-            obj = alm_copy(obj[0], None, *self.lm_max)
+            obj = alm_copy(obj[0], None, *lm_max)
             spin = 2 if spin == None else spin
             # return self.ffi.gclm2lenmap(np.atleast_2d(obj), self.lm_max[1], spin, False)
-            return self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max[1], spin, *self.lm_max)
-    
 
-    def adjoint(self, obj, spin=None):
-        assert spin is not None, "spin not provided"
-        return self.act(obj, spin=spin, adjoint=True)
+            if adjoint and backwards and out_sht_mode == 'GRAD_ONLY':
+                return self.ffi.lensgclm(np.atleast_2d(obj), lmax_in, spin, *lm_max, backwards=backwards, out_sht_mode=out_sht_mode)
+            return self.ffi.lensgclm(np.atleast_2d(obj), lmax_in, spin, *lm_max)
     
 
     def set_field(self, simidx, it, component=None):
@@ -190,7 +166,7 @@ class lensing(base):
             if self.field_cacher.is_cached(opj(self.field_fns[component].format(idx=simidx,it=it))):
                 self.field[component] = self.klm2dlm(self.field_cacher.load(opj(self.field_fns[component].format(idx=simidx,it=it)))[0])
             else:
-                assert 0, "cannot set field"
+                assert 0, f"cannot set field with it {it} and simidx {simidx}"
 
     def klm2dlm(self, klm):
         h2d = cli(0.5 * np.sqrt(np.arange(self.LM_max[0] + 1, dtype=float) * np.arange(1, self.LM_max[0] + 2, dtype=float)))
@@ -209,20 +185,17 @@ class birefringence(base):
 
     # spin doesn't do anything here, but parameter is needed as joint operator passes it to all operators
     # NOTE this is alm2alm
-    def act(self, obj, spin=None, adjoint=False):
+    def act(self, obj, spin=None, lmax_in=None, lm_max=None, adjoint=False, backwards=False, out_sht_mode=None):
+        lm_max = self.lm_max if lm_max is None else lm_max
         f = np.array([self.field[comp].flatten() for comp in self.component], dtype=complex)
 
-        buff = alm_copy(f[0], None, *self.lm_max)
+        buff = alm_copy(f[0], None, *lm_max)
         if adjoint:
             return np.array([np.exp(2j*buff)*obj[0], np.exp(-2j*buff)*obj[1]])
         return np.array([np.exp(-2j*buff)*obj[0], np.exp(2j*buff)*obj[1]])
         # if adjoint:
         #     return np.array([np.exp(1j*f[0])*obj[0], np.exp(-1j*f[0])*obj[1]])
         # return np.array([np.exp(-1j*f[0])*obj[0], np.exp(1j*f[0])*obj[1]])
-    
-    
-    def adjoint(self, obj, spin=None):
-        return self.act(obj, spin=spin, adjoint=True)
 
 
     def set_field(self, simidx, it, component=None):
@@ -236,21 +209,21 @@ class spin_raise:
     def __init__(self, operator_desc):
         self.lm_max = operator_desc["lm_max"]
 
-
-    def act(self, obj, spin=None, adjoint=False):
+    def act(self, obj, spin=None, lmax_in=None, lm_max=None, adjoint=False):
         # This is the property d _sY = -np.sqrt((l+s+1)(l-s+1)) _(s+1)Y
         assert adjoint == False, "adjoint not implemented"
+        lm_max = self.lm_max if lm_max is None else lm_max
+        # lmax = Alm.getlmax(obj.size, self.lm_max[1])
         # assert spin in [-2, 2], spin
-        lmax = Alm.getlmax(obj.size, self.lm_max[1])
         i1, i2 = (2, -1) if spin == 1 else (-2, 3)
-        fl = np.arange(i1, lmax + i1 + 1, dtype=float) * np.arange(i2, lmax + i2 + 1)
+        fl = np.arange(i1, lm_max[0] + i1 + 1, dtype=float) * np.arange(i2, lm_max[0] + i2 + 1)
         fl[:spin] *= 0.
         fl = np.sqrt(fl)
         elm = np.atleast_2d(almxfl(obj, fl, self.lm_max[1], False))
         return elm
 
 
-    def adjoint(self, obj, spin=None):
+    def adjoint(self, obj, spin=None, lm_max=None):
         assert 0, "implement if needed"
         return self.act(obj, adjoint=True, spin=spin)
     
@@ -267,13 +240,14 @@ class beam:
         self.is_adjoint = False
 
 
-    def act(self, obj, adjoint=False):
+    def act(self, obj, lm_max=None, adjoint=False):
+        lm_max = self.lm_max if lm_max is None else lm_max
         if adjoint:
-            return np.array([cli(almxfl(o, self.beam, self.lm_max[1], False)) for o in obj])
-        return np.array([almxfl(o, self.beam, self.lm_max[1], False) for o in obj])
+            return np.array([cli(almxfl(o, self.beam, lm_max[1], False)) for o in obj])
+        return np.array([almxfl(o, self.beam, lm_max[1], False) for o in obj])
 
 
-    def adjoint(self):
+    def adjoint(self, lm_max=None):
         self.is_adjoint = True
         return self
     

@@ -451,5 +451,6 @@ class fwd_op:
         nlm = np.copy(elm)
         self.ninv_filt.apply_alm(nlm)
         nlm += almxfl(elm, self.iclee, self.mmax_sol, False)
+        
         almxfl(nlm, self.iclee > 0., self.mmax_sol, True)
         return nlm
