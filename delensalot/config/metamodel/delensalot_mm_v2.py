@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """dlensalot_mm.py: Contains classes defining the metamodel of the Dlensalot formalism.
-    The metamodel is a structured representation, with the `DLENSALOT_Model` as the main building block.
+    The metamodel is a structured representation, with the `DELENSALOT_Model` as the main building block.
     We use the attr package. It provides handy ways of validation and defaulting.
 """
 
@@ -16,34 +16,35 @@ log = logging.getLogger(__name__)
 
 from delensalot.config.metamodel import DEFAULT_NotAValue, DEFAULT_NotASTR
 from delensalot.config.validator import analysis, chaindescriptor, computing, data, filter as v_filter, itrec, job, mapdelensing, meta, model, noisemodel, obd, qerec, stepper
+
 import importlib.util
 
 
-class DLENSALOT_Concept:
+class DELENSALOT_Concept_v2:
     """An abstract element base type for the Dlensalot formalism."""
     __metaclass__ = abc.ABCMeta
 
 
-    def __str__(self):
-        """ overwrites __str__ to summarize dlensalot model in a prettier way
+    # def __str__(self):
+    #     """ overwrites __str__ to summarize dlensalot model in a prettier way
 
-        Returns:
-            str: A table with all attributes of the model
-        """        
-        ##
-        _str = ''
-        for key, val in self.__dict__.items():
-            keylen = len(str(key))
-            if type(val) in [list, np.ndarray, np.array, dict]:
-                _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(type(val))
-            else:
-                _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(val)
-            _str += '\n'
-        return _str
+    #     Returns:
+    #         str: A table with all attributes of the model
+    #     """        
+    #     ##
+    #     _str = ''
+    #     for key, val in self.__dict__.items():
+    #         keylen = len(str(key))
+    #         if type(val) in [list, np.ndarray, np.array, dict]:
+    #             _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(type(val))
+    #         else:
+    #             _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(val)
+    #         _str += '\n'
+    #     return _str
 
 
 @attr.s
-class DLENSALOT_Chaindescriptor(DLENSALOT_Concept):
+class DELENSALOT_Chaindescriptor(DELENSALOT_Concept_v2):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to conjugate gradient solver. There are currently not many options for this. Better don't touch it.
     
@@ -68,7 +69,7 @@ class DLENSALOT_Chaindescriptor(DLENSALOT_Concept):
     p7 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p7)
 
 @attr.s
-class DLENSALOT_Stepper(DLENSALOT_Concept):
+class DELENSALOT_Stepper(DELENSALOT_Concept_v2):
     """A root model element type of the Dlensalot formalism.
     Defines the stepper function. The stepper function controls how the increment in the likelihood search is added to the current solution.
     Currently, this is pretty much just the harmonicbump class.
@@ -93,7 +94,7 @@ class DLENSALOT_Stepper(DLENSALOT_Concept):
 
 
 @attr.s
-class DLENSALOT_Job(DLENSALOT_Concept):
+class DELENSALOT_Job(DELENSALOT_Concept_v2):
     """A root model element type of the Dlensalot formalism.
     delensalot can executte different jobs (QE reconstruction, simulation generation, MAP reconstruction, delensing, ..) which is controlled here.
 
@@ -103,7 +104,7 @@ class DLENSALOT_Job(DLENSALOT_Concept):
     jobs =                  attr.field(default=DEFAULT_NotAValue, validator=job.jobs)
 
 @attr.s
-class DLENSALOT_Analysis(DLENSALOT_Concept):
+class DELENSALOT_Analysis(DELENSALOT_Concept_v2):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the specific analysis performed on the data.
 
@@ -134,7 +135,6 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     zbounds =               attr.field(default=DEFAULT_NotAValue, validator=analysis.zbounds)
     zbounds_len =           attr.field(default=DEFAULT_NotAValue, validator=analysis.zbounds_len) # TODO rename
     lm_max_ivf =            attr.field(default=DEFAULT_NotAValue, validator=v_filter.lm_max_ivf)
-    lm_max_blt =            attr.field(default=DEFAULT_NotAValue, validator=analysis.lm_max_blt)
     mask =                  attr.field(default=DEFAULT_NotAValue, validator=analysis.mask) # TODO is this used? 
     lmin_teb =              attr.field(default=DEFAULT_NotAValue, validator=analysis.lmin_teb)
     cls_unl =               attr.field(default=DEFAULT_NotAValue, validator=analysis.cls_unl)
@@ -142,70 +142,30 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
     cpp =                   attr.field(default=DEFAULT_NotAValue, validator=analysis.cpp)
     beam =                  attr.field(default=DEFAULT_NotAValue, validator=analysis.beam)
     transfunction_desc =    attr.field(default=DEFAULT_NotAValue, validator=analysis.transfunction)
+    CLfids =                attr.field(default=DEFAULT_NotAValue)
+    secondaries =           attr.field(default=DEFAULT_NotAValue)
 
 
 @attr.s
-class DLENSALOT_Simulation(DLENSALOT_Concept):
+class DELENSALOT_Simulation(DELENSALOT_Concept_v2):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the input maps, and values can differ from the noise model and analysis.
 
     Attributes:
-        flavour      (str): Can be in ['obs', 'sky', 'unl'] and defines the type of data provided.
-        space        (str): Can be in ['map', 'alm', 'cl'] and defines the space of the data provided.
-        maps         (np.array, optional): These maps will be put into the cacher directly. They are used for settings in which no data is generated or accesed on disk, but directly provided (like in `delensalot.anafast()`) Defaults to DNaV.
-        geominfo     (tuple, optional): Lenspyx geominfo descriptor, describes the geominfo of the data provided (e.g. `('healpix', 'nside': 2048)). Defaults to DNaV.
-        field        (str, optional): the type of data provided, can be in ['temperature', 'polarization']. Defaults to DNaV.
-        libdir       (str, optional): directory of the data provided. Defaults to DNaV.
-        libdir_noise (str, optional): directory of the noise provided. Defaults to DNaV.
-        libdir_phi   (str, optional): directory of the lensing potential provided. Defaults to DNaV.
-        fns          (dict with str with formatter, optional): file names of the data provided. It expects `{'T': <filename{simidx}.something>, 'Q': <filename{simidx}.something>, 'U': <filename{simidx}.something>}`, where `{simidx}` is used by the libraries to format the simulation index into the name. Defaults to DNaV.
-        fnsnoise     (dict with str with formatter, optional): file names of the noise provided. It expects `{'T': <filename{simidx}.something>, 'Q': <filename{simidx}.something>, 'U': <filename{simidx}.something>}`, where `{simidx}` is used by the libraries to format the simulation index into the name. Defaults to DNaV.
-        fnsP         (str with formatter, optional): file names of the lensing potential provided. It expects `<filename{simidx}.something>, where `{simidx}` is used by the libraries to format the simulation index into the name. Defaults to DNaV.
-        lmax         (int, optional): Maximum l of the data provided. Defaults to DNaV.
-        transfunction(np.array, optional): transfer function. Defaults to DNaV.
-        nlev         (dict, optional): noise level of the individual fields. It expects `{'T': <value>, 'P': <value>}. Defaults to DNaV.
-        spin         (int, optional): the spin of the data provided. Defaults to 0. Always defaults to 0 for temperature.
-        CMB_fn       (str, optional): path+name of the file of the power spectra of the CMB. Defaults to DNaV.
-        phi_fn       (str, optional): path+name of the file of the power spectrum of the lensing potential. Defaults to DNaV.
-        phi_field    (str, optional): the type of potential provided, can be in ['potential', 'deflection', 'convergence']. This simulation library will automatically rescale the field, if needded. Defaults to DNaV.
-        phi_space    (str, optional): can be in ['map', 'alm', 'cl'] and defines the space of the lensing potential provided.. Defaults to DNaV.
-        phi_lmax     (_type_, optional): the maximum multipole of the lensing potential. if simulation library perfroms lensing, it is advisable that `phi_lmax` is somewhat larger than `lmax` (+ ~512-1024). Defaults to DNaV.
-        epsilon      (float, optional): Lenspyx lensing accuracy. Defaults to 1e-7.
-        libdir_suffix(str, optional): defines the directory the simulation data will be stored to, defaults to 'generic'. Helpful if one wants to keep track of different projects.
-        CMB_modifier (callable, optional): operation defined in the callable will be applied to each of the input maps/alms/cls
-        phi_modifier (callable, optional): operation defined in the callable will be applied to the input phi lms
-                                               
+                                     
     """
 
     flavour =       attr.field(default=DEFAULT_NotAValue, validator=data.flavour)
-    space =         attr.field(default=DEFAULT_NotAValue, validator=data.space)
     maps =          attr.field(default=DEFAULT_NotAValue, validator=data.maps)
     geominfo =      attr.field(default=DEFAULT_NotAValue, validator=data.geominfo)
-    lenjob_geominfo=attr.field(default=DEFAULT_NotAValue, validator=data.geominfo)
-    field =         attr.field(default=DEFAULT_NotAValue, validator=data.field)
-    libdir =        attr.field(default=DEFAULT_NotAValue, validator=data.libdir)
-    libdir_noise =  attr.field(default=DEFAULT_NotAValue, validator=data.libdir_noise)
-    libdir_phi =    attr.field(default=DEFAULT_NotAValue, validator=data.libdir_phi)
-    fns =           attr.field(default=DEFAULT_NotAValue, validator=data.fns)
-    fnsnoise =      attr.field(default=DEFAULT_NotAValue, validator=data.fnsnoise)
-    fnsP =          attr.field(default=DEFAULT_NotAValue, validator=data.fnsP)
-    lmax =          attr.field(default=DEFAULT_NotAValue, validator=data.lmax)
-    transfunction = attr.field(default=DEFAULT_NotAValue, validator=data.transfunction)
-    nlev =          attr.field(default=DEFAULT_NotAValue, validator=data.nlev)
-    spin =          attr.field(default=DEFAULT_NotAValue, validator=data.spin)
-    CMB_fn =        attr.field(default=DEFAULT_NotAValue, validator=data.CMB_fn)
-    phi_fn =        attr.field(default=DEFAULT_NotAValue, validator=data.phi_fn)
-    phi_field =     attr.field(default=DEFAULT_NotAValue, validator=data.phi_field)
-    phi_space =     attr.field(default=DEFAULT_NotAValue, validator=data.phi_space)
-    phi_lmax =      attr.field(default=DEFAULT_NotAValue, validator=data.phi_lmax)
-    epsilon =       attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
-    libdir_suffix = attr.field(default='generic', validator=data.libdir_suffix)
-    CMB_modifier =  attr.field(default=DEFAULT_NotAValue, validator=data.modifier)
-    phi_modifier =  attr.field(default=lambda x: x)
-    
-    
+    fid_info =      attr.field(default=DEFAULT_NotAValue)
+    CMB_info =      attr.field(default=DEFAULT_NotAValue)
+    sec_info =      attr.field(default=DEFAULT_NotAValue)
+    obs_info =      attr.field(default=DEFAULT_NotAValue)
+    operator_info = attr.field(default=DEFAULT_NotAValue)
+
 @attr.s
-class DLENSALOT_Noisemodel(DLENSALOT_Concept):
+class DELENSALOT_Noisemodel(DELENSALOT_Concept_v2):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the noise model used for Wiener-filtering the data.
 
@@ -228,7 +188,7 @@ class DLENSALOT_Noisemodel(DLENSALOT_Concept):
     nivp_map =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geominfo) # TODO test if it works
 
 @attr.s
-class DLENSALOT_Qerec(DLENSALOT_Concept):
+class DELENSALOT_Qerec(DELENSALOT_Concept_v2):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the quadratic estimator reconstruction job.
 
@@ -238,23 +198,24 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
         cg_tol (float):             tolerance of the conjugate gradient method
         filter_directional (str):   can be either 'isotropic' (unmasked sky) or 'isotropic' (masked sky)
         lm_max_qlm (type):          maximum multipole `\ell` and m to reconstruct the lensing potential
-        chain (DLENSALOT_Chaindescriptor): configuration of the conjugate gradient method. Configures the chain and preconditioner
+        chain (DELENSALOT_Chaindescriptor): configuration of the conjugate gradient method. Configures the chain and preconditioner
         cl_analysis (bool):         If tru, performs lensing power spectrum analysis
         blt_pert (bool):            If True, delensing is performed perurbitivly (recommended)
     
     """
 
     tasks =                 attr.field(default=DEFAULT_NotAValue, validator=qerec.tasks)
+    estimator_type =        attr.field(default=DEFAULT_NotAValue, validator=qerec.qlms)
     qlm_type =              attr.field(default=DEFAULT_NotAValue, validator=qerec.qlms)
     cg_tol =                attr.field(default=DEFAULT_NotAValue, validator=qerec.cg_tol)
     filter_directional =    attr.field(default=DEFAULT_NotAValue, validator=qerec.filter_directional)
-    lm_max_qlm =            attr.field(default=DEFAULT_NotAValue, validator=qerec.lm_max_qlm) # TODO move this to analysis, lmax must be same in qe and it
-    chain =                 attr.field(default=DLENSALOT_Chaindescriptor(), validator=qerec.chain)
+    chain =                 attr.field(default=DELENSALOT_Chaindescriptor(), validator=qerec.chain)
     cl_analysis =           attr.field(default=DEFAULT_NotAValue, validator=qerec.cl_analysis) # TODO make this useful or remove
-    blt_pert =              attr.field(default=DEFAULT_NotAValue, validator=qerec.btemplate_perturbative_lensremap)
+    subtract_QE_meanfield = attr.field(default=DEFAULT_NotAValue)
+    template_operator_info= attr.field(default=DEFAULT_NotAValue)
 
 @attr.s
-class DLENSALOT_Itrec(DLENSALOT_Concept):
+class DELENSALOT_Itrec(DELENSALOT_Concept_v2):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the iterative reconstruction job.
 
@@ -263,7 +224,7 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
         itmax (int):                maximum number of iterations
         cg_tol (float):             tolerance of the conjugate gradient method
         iterator_typ (str):         mean-field handling identifier. Can be either 'const_mf' or 'pert_mf'
-        chain (DLENSALOT_Chaindescriptor): configuration for the conjugate gradient solver
+        chain (DELENSALOT_Chaindescriptor): configuration for the conjugate gradient solver
         filter_directional (str):   can be either 'isotropic' (unmasked sky) or 'isotropic' (masked sky)
         lenjob_geominfo (str):      can be 'healpix_geominfo', 'thin_gauss' or 'pbdGeometry'
         lenjob_pbgeominfo (str):    can be 'healpix_geominfo', 'thin_gauss' or 'pbdGeometry'
@@ -271,26 +232,34 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
         lm_max_qlm (tuple[int]):    maximum multipoles L and m for reconstruction the lensing potential
         mfvar (str):                path to precalculated mean-field, to be used instead
         soltn_cond (type):          TBD
-        stepper (DLENSALOT_STEPPER):configuration for updating the current likelihood iteration point with the likelihood gradient
+        stepper (DELENSALOT_STEPPER):configuration for updating the current likelihood iteration point with the likelihood gradient
               
     """
     tasks =                 attr.field(default=DEFAULT_NotAValue, validator=itrec.tasks)
     itmax =                 attr.field(default=DEFAULT_NotAValue, validator=itrec.itmax)
     cg_tol =                attr.field(default=DEFAULT_NotAValue, validator=itrec.cg_tol)
     iterator_typ =          attr.field(default=DEFAULT_NotAValue, validator=itrec.iterator_type) # TODO rename
-    chain =                 attr.field(default=DLENSALOT_Chaindescriptor(), validator=itrec.chain)
+    chain =                 attr.field(default=DELENSALOT_Chaindescriptor(), validator=itrec.chain)
     filter_directional =    attr.field(default=DEFAULT_NotAValue, validator=itrec.filter_directional)
     lenjob_geominfo =       attr.field(default=DEFAULT_NotAValue, validator=itrec.lenjob_geominfo)
     lenjob_pbdgeominfo =    attr.field(default=DEFAULT_NotAValue, validator=itrec.lenjob_pbgeominfo)
     lm_max_unl =            attr.field(default=DEFAULT_NotAValue, validator=itrec.lm_max_unl)
-    lm_max_qlm =            attr.field(default=DEFAULT_NotAValue, validator=itrec.lm_max_qlm)
     mfvar =                 attr.field(default=DEFAULT_NotAValue, validator=itrec.mfvar) # TODO rename and check if it still works 
     soltn_cond =            attr.field(default=DEFAULT_NotAValue, validator=itrec.soltn_cond)
-    stepper =               attr.field(default=DLENSALOT_Stepper(), validator=itrec.stepper)
+    stepper =               attr.field(default=DELENSALOT_Stepper(), validator=itrec.stepper)
     epsilon =               attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
+    fields =                attr.field(default=DEFAULT_NotAValue, validator=data.epsilon) # This and the next ones are the new variables for the MAP_lensrec_operator
+    gradient_descs =        attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
+    filter_desc =           attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
+    curvature_desc =        attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
+    desc =                  attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
+    build =                 attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
+    template_operator_info= attr.field(default=DEFAULT_NotAValue)
+
+
     
 @attr.s
-class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
+class DELENSALOT_Mapdelensing(DELENSALOT_Concept_v2):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the internal map delensing job.
 
@@ -323,7 +292,7 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
     basemap =               attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.basemap)
 
 @attr.s
-class DLENSALOT_Phianalysis(DLENSALOT_Concept):
+class DELENSALOT_Phianalysis(DELENSALOT_Concept_v2):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the internal map delensing job.
 
@@ -334,7 +303,7 @@ class DLENSALOT_Phianalysis(DLENSALOT_Concept):
     custom_WF_TEMP =        attr.field(default=DEFAULT_NotAValue)
 
 @attr.s
-class DLENSALOT_OBD(DLENSALOT_Concept):
+class DELENSALOT_OBD(DELENSALOT_Concept_v2):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the overlapping B-mode deprojection.
 
@@ -350,7 +319,7 @@ class DLENSALOT_OBD(DLENSALOT_Concept):
     nlev_dep =              attr.field(default=DEFAULT_NotAValue, validator=obd.nlev_dep)
 
 @attr.s
-class DLENSALOT_Config(DLENSALOT_Concept):
+class DELENSALOT_Config(DELENSALOT_Concept_v2):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to general behaviour to the operating system. 
 
@@ -362,7 +331,7 @@ class DLENSALOT_Config(DLENSALOT_Concept):
     outdir_plot_rel =       attr.field(default='')
 
 @attr.s
-class DLENSALOT_Meta(DLENSALOT_Concept): # TODO do we really need a Meta?
+class DELENSALOT_Meta(DELENSALOT_Concept_v2): # TODO do we really need a Meta?
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to internal behaviour of delensalot.
 
@@ -373,7 +342,7 @@ class DLENSALOT_Meta(DLENSALOT_Concept): # TODO do we really need a Meta?
 
 
 @attr.s
-class DLENSALOT_Computing(DLENSALOT_Concept):
+class DELENSALOT_Computing(DELENSALOT_Concept_v2):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the usage of computing resources.
 
@@ -384,79 +353,70 @@ class DLENSALOT_Computing(DLENSALOT_Concept):
 
 
 @attr.s
-class DLENSALOT_Model(DLENSALOT_Concept):
+class DELENSALOT_Model(DELENSALOT_Concept_v2):
     """A root model element type of the Dlensalot formalism.
 
     Attributes:
         defaults_to (str):              Identifier for default-dictionary if user hasn't specified value in configuration file
-        meta (DLENSALOT_Meta):          configurations related to internal behaviour of delensalot
-        job (DLENSALOT_Job):            delensalot can executte different jobs (QE reconstruction, simulation generation, MAP reconstruction, delensing, analyse_phi) which is controlled here
-        analysis (DLENSALOT_Analysis):  configurations related to the specific analysis performed on the data
-        data (DLENSALOT_Data):          configurations related to the input CMB maps
-        noisemodel (DLENSALOT_Noisemodel):  configurations related to the noise model used for Wiener-filtering the data
-        qerec (DLENSALOT_Qerec):        configurations related to the quadratic estimator reconstruction job
-        itrec (DLENSALOT_Itrec):        configurations related to the iterative reconstruction job
-        madel (DLENSALOT_Mapdelensing): configurations related to the internal map delensing job
-        config (DLENSALOT_Config):      configurations related to general behaviour to the operating system
-        computing (DLENSALOT_Computing):    configurations related to the usage of computing resources
-        obd (DLENSALOT_OBD):            configurations related to the overlapping B-mode deprojection
-        phana (DLENSALOT_Phyanalysis):  configurations related to the simple power spectrum analaysis of phi
+        meta (DELENSALOT_Meta):          configurations related to internal behaviour of delensalot
+        job (DELENSALOT_Job):            delensalot can executte different jobs (QE reconstruction, simulation generation, MAP reconstruction, delensing, analyse_phi) which is controlled here
+        analysis (DELENSALOT_Analysis):  configurations related to the specific analysis performed on the data
+        data (DELENSALOT_Data):          configurations related to the input CMB maps
+        noisemodel (DELENSALOT_Noisemodel):  configurations related to the noise model used for Wiener-filtering the data
+        qerec (DELENSALOT_Qerec):        configurations related to the quadratic estimator reconstruction job
+        itrec (DELENSALOT_Itrec):        configurations related to the iterative reconstruction job
+        madel (DELENSALOT_Mapdelensing): configurations related to the internal map delensing job
+        config (DELENSALOT_Config):      configurations related to general behaviour to the operating system
+        computing (DELENSALOT_Computing):    configurations related to the usage of computing resources
+        obd (DELENSALOT_OBD):            configurations related to the overlapping B-mode deprojection
+        phana (DELENSALOT_Phyanalysis):  configurations related to the simple power spectrum analaysis of phi
 
     """
     
     defaults_to =           attr.field(default='default_CMBS4_fullsky_polarization')
     validate_model =        attr.field(default=True)
-    meta =                  attr.field(default=DLENSALOT_Meta(), validator=model.meta)
-    job =                   attr.field(default=DLENSALOT_Job(), validator=model.job)
-    analysis =              attr.field(default=DLENSALOT_Analysis(), validator=model.analysis)
-    simulationdata =        attr.field(default=DLENSALOT_Simulation(), validator=model.data)
-    noisemodel =            attr.field(default=DLENSALOT_Noisemodel(), validator=model.noisemodel)
-    qerec =                 attr.field(default=DLENSALOT_Qerec(), validator=model.qerec)
-    itrec =                 attr.field(default=DLENSALOT_Itrec(), validator=model.itrec)
-    madel =                 attr.field(default=DLENSALOT_Mapdelensing(), validator=model.madel)
-    config =                attr.field(default=DLENSALOT_Config(), validator=model.config)
-    computing =             attr.field(default=DLENSALOT_Computing(), validator=model.computing)
-    obd =                   attr.field(default=DLENSALOT_OBD(), validator=model.obd)
-    phana =                 attr.field(default=DLENSALOT_Phianalysis())
+    meta =                  attr.field(default=DELENSALOT_Meta(), validator=model.meta)
+    job =                   attr.field(default=DELENSALOT_Job(), validator=model.job)
+    analysis =              attr.field(default=DELENSALOT_Analysis(), validator=model.analysis)
+    simulationdata =        attr.field(default=DELENSALOT_Simulation(), validator=model.data)
+    noisemodel =            attr.field(default=DELENSALOT_Noisemodel(), validator=model.noisemodel)
+    qerec =                 attr.field(default=DELENSALOT_Qerec(), validator=model.qerec)
+    itrec =                 attr.field(default=DELENSALOT_Itrec(), validator=model.itrec)
+    madel =                 attr.field(default=DELENSALOT_Mapdelensing(), validator=model.madel)
+    config =                attr.field(default=DELENSALOT_Config(), validator=model.config)
+    computing =             attr.field(default=DELENSALOT_Computing(), validator=model.computing)
+    obd =                   attr.field(default=DELENSALOT_OBD(), validator=model.obd)
+    phana =                 attr.field(default=DELENSALOT_Phianalysis())
     
 
     def __attrs_post_init__(self):
-        """
-        The logic is as follow:
-         * All variables default to 'DEFAULT_NotAValue' upon start - validator checks and passes due to 'DEFAULT_NotAValue' being allowed
-         * Upon loading config file:
-            * 1st init: all user-variables are set, validator checks
-            * 2nd init (this function here): remaining variables with value 'DEFAULT_NotAValue' are set to user-specified 'default_to'-dictionary
-         * 'validator' takes care of validating post-init, thus all default-dict keys are validated
-         comment: __attrs_post_init must be in DLENSALOT_Model, as this is the only one who knows of the default dictionary (defaults_to), and cannot simply be passed along to sub-classes.
-
-        """
-
-        spec = importlib.util.spec_from_file_location("default", opj(Path(__file__).parent.parent, "default/{}.py".format(self.defaults_to.replace('.py', ''))))
+        default_path = Path(__file__).parent.parent / f"default/{self.defaults_to.replace('.py', '')}.py"
+        spec = importlib.util.spec_from_file_location("default", default_path)
         default_module = importlib.util.module_from_spec(spec)
         sys.modules["default"] = default_module
         spec.loader.exec_module(default_module)
+
         default_dict = default_module.DL_DEFAULT
-        for key, val in list(filter(lambda x: '__' not in x[0] and x[0] not in ['defaults_to', 'validate_model'], self.__dict__.items())):
-            for k, v in val.__dict__.items():
-                if k in ['chain', 'stepper']:
-                    for ke, va in v.__dict__.items():
-                        if np.all(va == DEFAULT_NotAValue):
-                            if key in default_dict:
-                                if k in default_dict[key]:
-                                    if ke in default_dict[key][k]:
-                                        self.__dict__[key].__dict__[k].__dict__.update({ke: default_dict[key][k][ke]})
-                elif np.all(v == DEFAULT_NotAValue):
-                    if key in default_dict:
-                        if k in default_dict[key]:
-                            # log.info('\t\t{}: Found default for k {}: {}'. format(key, k, default_dict[key][k]))
-                            self.__dict__[key].__dict__.update({k: default_dict[key][k]})
-                        else:
-                            if key not in ['simulationdata']:
-                                # It is ok to not have defaults for simulationdata, as the simlib will handle it
-                                log.debug('{}: couldnt find matching default value for {}'.format(key, k))
-                    else:
-                        log.debug('couldnt find matching default value for key {}'.format(key))
-                elif callable(v):
-                    # Cannot evaluate functions, so hopefully they didn't change..
-                    pass
+
+        def update_defaults(target, defaults):
+            """Recursively update target with default values, ensuring all keys from defaults exist."""
+            for key, default_value in defaults.items():
+                if isinstance(target, dict):
+                    if key not in target or np.all(target[key] == DEFAULT_NotAValue):
+                        target[key] = default_value
+                    elif isinstance(default_value, dict) and isinstance(target[key], dict):
+                        update_defaults(target[key], default_value)
+                else:  # Handle object attributes
+                    if not hasattr(target, key) or np.all(getattr(target, key) == DEFAULT_NotAValue):
+                        setattr(target, key, default_value)
+                    elif isinstance(default_value, dict) and isinstance(getattr(target, key), dict):
+                        update_defaults(getattr(target, key), default_value)
+
+        # Apply updates to all top-level attributes
+        for key, default_value in default_dict.items():
+            if key in ['defaults_to', 'validate_model']:
+                continue  # Skip special attributes
+
+            if not hasattr(self, key) or np.all(getattr(self, key) == DEFAULT_NotAValue):
+                setattr(self, key, default_value)
+            update_defaults(getattr(self, key), default_value)

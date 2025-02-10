@@ -27,8 +27,19 @@ from delensalot.core.mpi import check_MPI
 from delensalot.config.validator import safelist
 from delensalot.config.visitor import transform, transform3d
 from delensalot.config.transformer.lerepi2dlensalot import l2T_Transformer, l2delensalotjob_Transformer
+from delensalot.config.transformer.lerepi2dlensalot_v2 import l2T_Transformer as l2T_Transformer_v2, l2delensalotjob_Transformer as l2delensalotjob_Transformer_v2
+from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALOT_Model_mm
+from delensalot.config.metamodel.delensalot_mm_v2 import DELENSALOT_Model as DELENSALOT_Model_mm_v2
 
 
+transformers_T = {
+    DELENSALOT_Model_mm_v2: l2T_Transformer_v2(),
+    DLENSALOT_Model_mm: l2T_Transformer()
+}
+transformers_J = {
+    DELENSALOT_Model_mm_v2: l2delensalotjob_Transformer_v2(),
+    DLENSALOT_Model_mm: l2delensalotjob_Transformer()
+}
 class config_handler():
     """Load config file and handle command line arguments 
     """
@@ -71,8 +82,7 @@ class config_handler():
                 if 'MAP_lensrec' in self.config.job.jobs:
                     if self.config.simulationdata.flavour == 'unl' and parser.job_id != 'analyse_phi':
                         self.config.job.jobs.append('analyse_phi')
-                    
-        TEMP = transform(self.config, l2T_Transformer())
+        TEMP = transform(self.config, transformers_T.get(type(self.config)))
         self.parser = parser
         self.TEMP = TEMP
 
@@ -90,7 +100,7 @@ class config_handler():
         ## Making sure that specific job request from run() is processed
         self.config.job.jobs = [djob_id]
         self.djob_id = djob_id
-        self.djobmodels = [transform3d(self.config, djob_id, l2delensalotjob_Transformer())]
+        self.djobmodels = [transform3d(self.config, djob_id, transformers_J.get(type(self.config)))]
 
         return self.djobmodels[0]
 
@@ -109,7 +119,7 @@ class config_handler():
                 self.store(self.parser, self.config, self.TEMP)
         self.djobmodels = []
         for job_id in self.config.job.jobs:
-            self.djobmodels.append(transform3d(self.config, job_id, l2delensalotjob_Transformer()))
+            self.djobmodels.append(transform3d(self.config, job_id,  transformers_J.get(type(self.config))))
         return self.djobmodels
         
 
@@ -228,13 +238,13 @@ class config_handler():
 
 
     def purge_TEMPdir(self):
-        TEMP = transform(self.config, l2T_Transformer())
+        TEMP = transform(self.config, transformers_T.get(type(self.config)))
         shutil.rmtree(TEMP, ignore_errors=True)
         log.info('Purged {}'.format(TEMP))
 
 
     def purge_TEMPconf(self):
-        TEMP = transform(self.config, l2T_Transformer())
+        TEMP = transform(self.config, transformers_T.get(type(self.config)))
         TEMPconf = TEMP +'/'+self.parser.config_file.split('/')[-1]
         os.remove(TEMPconf)
         log.info('Purged {}'.format(TEMPconf))

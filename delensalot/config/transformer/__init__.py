@@ -2,8 +2,47 @@ from delensalot.config.visitor import transform, transform3d
 from delensalot.core.iterator.iteration_handler import iterator_transformer
 from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALOT_Model_mm, DLENSALOT_Concept
 from delensalot.config.transformer.lerepi2dlensalot import l2delensalotjob_Transformer 
-from delensalot.core.handler import OBD_builder, Sim_generator, QE_lr, MAP_lr, MAP_lr_operator, Map_delenser
+from delensalot.core.handler import OBD_builder, Sim_generator, QE_lr, QE_lr_v2, MAP_lr, MAP_lr_v2, Map_delenser
 from delensalot.core.opfilt.opfilt_handler import QE_transformer, MAP_transformer, QE_iso_transformer, QE_aniso_transformer, MAP_iso_transformer, MAP_aniso_transformer
+from delensalot.config.metamodel.delensalot_mm_v2 import DELENSALOT_Model as DELENSALOT_Model_mm_v2, DELENSALOT_Concept_v2
+from delensalot.config.transformer.lerepi2dlensalot_v2 import l2delensalotjob_Transformer as l2delensalotjob_Transformer_v2
+
+
+@transform3d.case(DELENSALOT_Concept_v2, str, l2delensalotjob_Transformer_v2)
+def f1(expr, job_id, transformer): # pylint: disable=missing-function-docstring
+    if "generate_sim" == job_id:
+        return transformer.build_generate_sim(expr)
+    if "build_OBD" == job_id:
+        return transformer.build_OBD_builder(expr)
+    if "QE_lensrec" == job_id:
+        return transformer.build_QE_lensrec(expr)
+    if "MAP_lensrec" == job_id:
+        return transformer.build_MAP_lensrec(expr)
+    if "delens" == job_id:
+        return transformer.build_delenser(expr)
+    if "analyse_phi" == job_id:
+        return transformer.build_phianalyser(expr)
+    else:
+        assert 0, 'Dont understand your key: {}'.format(job_id)
+
+
+@transform3d.case(DELENSALOT_Model_mm_v2, str, l2delensalotjob_Transformer_v2)
+def f1(expr, job_id, transformer): # pylint: disable=missing-function-docstring
+    if "generate_sim" == job_id:
+        return transformer.build_generate_sim(expr)
+    if "build_OBD" == job_id:
+        return transformer.build_OBD_builder(expr)
+    if "QE_lensrec" == job_id:
+        return transformer.build_QE_lensrec(expr)
+    if "MAP_lensrec_operator" == job_id:
+        return transformer.build_MAP_lensrec(expr)
+    if "delens" == job_id:
+        return transformer.build_delenser(expr)
+    if "analyse_phi" == job_id:
+        return transformer.build_phianalyser(expr)
+    else:
+        assert 0, 'Dont understand your key: {}'.format(job_id)
+
 
 @transform3d.case(DLENSALOT_Model_mm, str, l2delensalotjob_Transformer)
 def f1(expr, job_id, transformer): # pylint: disable=missing-function-docstring
@@ -13,12 +52,8 @@ def f1(expr, job_id, transformer): # pylint: disable=missing-function-docstring
         return transformer.build_OBD_builder(expr)
     if "QE_lensrec" == job_id:
         return transformer.build_QE_lensrec(expr)
-    if "QE_lensrec_new" == job_id:
-        return transformer.build_QE_lensrec_new(expr)
     if "MAP_lensrec" == job_id:
         return transformer.build_MAP_lensrec(expr)
-    if "MAP_lensrec_operator" == job_id:
-        return transformer.build_MAP_lensrec_operator(expr)
     if "delens" == job_id:
         return transformer.build_delenser(expr)
     if "analyse_phi" == job_id:
@@ -35,12 +70,8 @@ def f1(expr, job_id, transformer): # pylint: disable=missing-function-docstring
         return transformer.build_OBD_builder(expr)
     if "QE_lensrec" == job_id:
         return transformer.build_QE_lensrec(expr)
-    if "QE_lensrec_new" == job_id:
-        return transformer.build_QE_lensrec_new(expr)
     if "MAP_lensrec" == job_id:
         return transformer.build_MAP_lensrec(expr)
-    if "MAP_lensrec_operator" == job_id:
-        return transformer.build_MAP_lensrec_operator(expr)
     if "delens" == job_id:
         return transformer.build_delenser(expr)
     if "analyse_phi" == job_id:
@@ -48,12 +79,14 @@ def f1(expr, job_id, transformer): # pylint: disable=missing-function-docstring
     else:
         assert 0, 'Dont understand your key: {}'.format(job_id)
 
+
 @transform.case(DLENSALOT_Concept, QE_transformer)
 def f1(expr, transformer): # pylint: disable=missing-function-docstring
     if expr.qe_filter_directional in ['isotropic']:
         return transformer.build_iso(expr)
     elif expr.qe_filter_directional in ['anisotropic']:
-        return transformer.build_aniso(expr) 
+        return transformer.build_aniso(expr)
+
 
 @transform.case(QE_lr, QE_iso_transformer)
 def f1(expr, transformer): # pylint: disable=missing-function-docstring
@@ -77,6 +110,7 @@ def f1(expr, transformer): # pylint: disable=missing-function-docstring
     elif expr.k == 'pp':
         assert 0, "implement if needed"
 
+
 @transform.case(QE_lr, QE_aniso_transformer)
 def f1(expr, transformer): # pylint: disable=missing-function-docstring
     if expr.k in ['p_p', 'p_eb', 'p_be', 'peb', 'pee', 'pbb']:
@@ -98,6 +132,7 @@ def f1(expr, transformer): # pylint: disable=missing-function-docstring
     elif expr.k == 'pp':
         assert 0, "implement if needed"
 
+
 @transform.case(QE_lr, QE_transformer)
 def f1(expr, transformer): # pylint: disable=missing-function-docstring
     if expr.qe_filter_directional in ['isotropic']:
@@ -105,12 +140,14 @@ def f1(expr, transformer): # pylint: disable=missing-function-docstring
     elif expr.qe_filter_directional in ['anisotropic']:
         return transformer.build_aniso(expr)
 
+
 @transform.case(MAP_lr, MAP_transformer)
 def f1(expr, transformer): # pylint: disable=missing-function-docstring
     if expr.it_filter_directional in ['isotropic']:
         return transformer.build_iso(expr)
     elif expr.it_filter_directional in ['anisotropic']:
         return transformer.build_aniso(expr)
+
 
 @transform.case(MAP_lr, MAP_iso_transformer)
 def f1(expr, transformer): # pylint: disable=missing-function-docstring
@@ -174,8 +211,3 @@ def f1(expr, transformer): # pylint: disable=missing-function-docstring
         return transformer.build_glm_constmf_iterator(expr)
     elif expr.iterator_typ in ['constmf_gc']:
         return transformer.build_gclm_constmf_iterator(expr)
-    
-
-@transform.case(MAP_lr_operator, iterator_transformer)
-def f1(expr, transformer):
-    return transformer.build_operator_iterator(expr)

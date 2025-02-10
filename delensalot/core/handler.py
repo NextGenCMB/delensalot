@@ -555,7 +555,7 @@ class Noise_modeller(Basejob):
             # cs_iterator
         
 
-class QE_lr_new(Basejob):
+class QE_lr_v2(Basejob):
     """Quadratic estimate lensing reconstruction Job. Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.
     """
     @check_MPI
@@ -759,7 +759,7 @@ class QE_lr_new(Basejob):
                 QE_search.init_filterqest()
 
 
-class MAP_lr_operator:
+class MAP_lr_v2:
     def __init__(self, dl):
         self.__dict__.update(dl.__dict__)
         self.simgen = Sim_generator(dl)
