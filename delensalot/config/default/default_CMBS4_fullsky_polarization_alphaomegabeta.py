@@ -184,7 +184,7 @@ DL_DEFAULT = {
         },
         'tasks': ['calc_fields', 'calc_templates'],
         'itmax': 1,
-        'cg_tol': 1e-5,
+        'cg_tol': 1e-8,
         'iterator_typ': 'constmf',
         'filter_directional': 'isotropic',
         'lenjob_geominfo': ('thingauss',{'lmax': 4000, 'smax': 3}),

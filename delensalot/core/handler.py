@@ -581,7 +581,7 @@ class QE_lr_new(Basejob):
         self.secondary2idx = {QE_search.secondary.ID: i for i, QE_search in enumerate(self.QE_searchs)}
         self.idx2secondary = {i: QE_search.secondary.ID for i, QE_search in enumerate(self.QE_searchs)}
 
-        self.template_info = dm.QE_handler_desc['template_info'] # TODO later. inside here are the template fields and operators
+        self.template_operator = dm.QE_handler_desc['template_operator'] # TODO later. inside here are the template fields and operators
         
         # if there is no job, we can already init the filterqest
         def filter_none(array):
@@ -713,30 +713,30 @@ class QE_lr_new(Basejob):
         return self.QE_searchs[self.secondary2idx[secondary]].get_est(simidx, subtract_meanfield, component)
 
 
-    def get_template(self, simidx, operator_indexs):
-        # self.templates = dm.QE_handler_desc['templates']
-        # self.template_operators  = dm.QE_handler_desc['template_operators']
-        # TODO add cacher and connect to field class
-        # FIXME what does a joint operator act on? Currently, I have a WF for each field. Is there a joint_WF for QE?
-        wf = self.get_wf(simidx)
-        for operator_index in operator_indexs:
-            obj = self.template_operators[operator_index].act(wf)
-            wf = obj
-        return wf
+    def get_template(self, simidx, it):
+        assert it>0, 'No analysis has been done, plese get some estimates first'
+        path = opj(self.TEMP, 'QE', self.QE_searchs[0].estimator_key, f"template_sim{simidx}_it{it}")
+        if not os.path.isfile(path):
+            self.template_operator.set_field(simidx, it)
+            estCMB = self.get_wflm(simidx, it)
+            np.save(path, self.template_operator.act(estCMB))
+        return self.template_operator.act(estCMB)
 
 
-    def get_wflm(self, simidx, secondary, it):
+    def get_wflm(self, simidx, it):
+    # NOTE they don't depend on the QE_searchs, as filterqest is the same for both
         if it!=0:
             print('QE does not have iterations, leave blank or set it=0')
             return np.array([[]])
-        return self.QE_searchs[self.secondary2idx[secondary]].get_wflm(simidx)
+        return self.QE_searchs[0].get_wflm(simidx)
 
 
     def get_ivflm(self, simidx, secondary, it):
+    # NOTE they don't depend on the QE_searchs, as filterqest is the same for both
         if it!=0:
             print('QE does not have iterations, leave blank or set it=0')
             return np.array([[]])
-        return self.QE_searchs[self.secondary2idx[secondary]].get_ivflm(simidx)
+        return self.QE_searchs[0].get_ivflm(simidx)
     
 
     def init_QEsearchs(self):
@@ -839,59 +839,89 @@ class MAP_lr_operator:
         print('only available for QE, set it=0')
 
 
-    def get_template(self, simidx, field):
-        return self.MAP_searchs[simidx].get_template(field)
+    def get_template(self, simidx, it, secondary=None, component=None):
+        assert it>0, 'No analysis has been done, please get some estimates first'
+        assert it >= self.maxiterdone(), 'Requested iteration is not available'
+        return self.MAP_searchs[simidx].get_template(it, secondary, component)
 
 
     def get_gradient_quad(self, simidx, it=None, secondary=None, component=None):
-        if it==None: it = self.maxiterdone()
-        if (isinstance(it, (list, np.ndarray)) and 0 not in it) or (isinstance(it, (int,np.int64)) and it > 0):
-            return self.MAP_searchs[simidx].get_gradient_quad(it, secondary, component)
+        if isinstance(it, (list, np.ndarray)) and any(np.array(it)>self.maxiterdone()):
+            it = it[it<=self.maxiterdone()]
+            print('items in param "it" too big. maxiterdone() = ', self.maxiterdone())
+        elif isinstance(it, (int,np.int64)) and it>self.maxiterdone():
+            it = self.maxiterdone()
+            print(' param "it" too big. maxiterdone() = ', self.maxiterdone())
+        if (isinstance(it, (list, np.ndarray)) and 0 not in it):
+            return [self.MAP_searchs[simidx].get_gradient_quad(it_, secondary, component) for it_ in it]
+        elif isinstance(it, (int,np.int64)) and it > 0:
+            self.MAP_searchs[simidx].get_gradient_quad(it, secondary, component)
         print('only available for MAP, set it>0')
 
 
     def get_gradient_meanfield(self, simidx, it=None, secondary=None, component=None):
-        if it==None: it = self.maxiterdone()
-        if (isinstance(it, (list, np.ndarray)) and 0 not in it) or (isinstance(it, (int,np.int64)) and it > 0):
-            return self.QE_searchs[self.sec2idx[secondary]].get_kmflm(simidx, it, component)
-        return self.MAP_searchs[simidx].get_gradient_meanfield(it, secondary, component)
+        if isinstance(it, (list, np.ndarray)) and any(np.array(it)>self.maxiterdone()):
+            it = it[it<=self.maxiterdone()]
+            print('items in param "it" too big. maxiterdone() = ', self.maxiterdone())
+        elif isinstance(it, (int,np.int64)) and it>self.maxiterdone():
+            it = self.maxiterdone()
+        if (isinstance(it, (list, np.ndarray)) and 0 not in it):
+            return [self.MAP_searchs[simidx].get_gradient_quad(it_, secondary, component) for it_ in it]
+        elif (isinstance(it, (list, np.ndarray)) and 0 in it):
+            return [self.QE_searchs[self.sec2idx[secondary]].get_kmflm(simidx, component)] + [self.MAP_searchs[simidx].get_gradient_meanfield(it_, secondary, component) for it_ in it[1:]]
+        elif isinstance(it, (int,np.int64)) and it > 0:
+            self.MAP_searchs[simidx].get_gradient_quad(it, secondary, component)
 
 
     def get_gradient_prior(self, simidx, it=None, secondary=None, component=None):
-        if it==None: it = self.maxiterdone()
-        if (isinstance(it, (list, np.ndarray)) and 0 not in it) or (isinstance(it, (int,np.int64)) and it > 0):
-            return self.MAP_searchs[simidx].get_gradient_prior(it-1, secondary, component)
+        if isinstance(it, (list, np.ndarray)) and any(np.array(it)>self.maxiterdone()):
+            it = it[it<=self.maxiterdone()]
+            print('items in param "it" too big. maxiterdone() = ', self.maxiterdone())
+        elif isinstance(it, (int,np.int64)) and it>self.maxiterdone():
+            it = self.maxiterdone()
+            print(' param "it" too big. maxiterdone() = ', self.maxiterdone())
+        if (isinstance(it, (list, np.ndarray)) and 0 not in it):
+            return [self.MAP_searchs[simidx].get_gradient_prior(it_, secondary, component) for it_ in it]
+        elif isinstance(it, (int,np.int64)) and it > 0:
+            self.MAP_searchs[simidx].get_gradient_prior(it, secondary, component)
         print('only available for MAP, set it>0')
 
 
     def get_gradient_total(self, simidx, it=None, secondary=None, component=None):
-        if it==None: it = self.maxiterdone()
-        if (isinstance(it, (list, np.ndarray)) and 0 not in it) or (isinstance(it, (int,np.int64)) and it > 0):
-            return self.MAP_searchs[simidx].get_gradient_total(it, secondary, component)
+        if isinstance(it, (list, np.ndarray)) and any(np.array(it)>self.maxiterdone()):
+            it = it[it<=self.maxiterdone()]
+            print('items in param "it" too big. maxiterdone() = ', self.maxiterdone())
+        elif isinstance(it, (int,np.int64)) and it>self.maxiterdone():
+            it = self.maxiterdone()
+            print(' param "it" too big. maxiterdone() = ', self.maxiterdone())
+        if (isinstance(it, (list, np.ndarray)) and 0 not in it):
+            return [self.MAP_searchs[simidx].get_gradient_total(it_, secondary, component) for it_ in it]
+        elif isinstance(it, (int,np.int64)) and it > 0:
+            self.MAP_searchs[simidx].get_gradient_total(it, secondary, component)
         print('only available for MAP, set it>0')
 
 
-    def get_wflm(self, simidx, secondary, it=None):
+    def get_wflm(self, simidx, it=None):
         # NOTE currently no support for list of secondary or it
         if it==None: it = self.maxiterdone()
         if it==0:
-            return self.QE_searchs[self.sec2idx[secondary]].get_wflm(simidx)
-        return self.MAP_searchs[simidx].get_wflm(secondary, it)
+            return self.QE_searchs[0].get_wflm(simidx)
+        return self.MAP_searchs[simidx].get_wflm(simidx, it)
 
 
-    def get_ivflm(self, simidx, secondary, it=0): 
+    def get_ivflm(self, simidx, it=0): 
         # NOTE currently no support for list of secondary or it
         if it==0:
-            return self.QE_searchs[self.sec2idx[secondary]].get_ivflm(simidx)
+            return self.QE_searchs[0].get_ivflm(simidx)
         print('only available for QE, set it=0')
 
 
-    def get_ivfreslm(self, simidx, secondary, it=None):
+    def get_ivfreslm(self, simidx, it=None):
         # NOTE currently no support for list of secondary or it
         if it==None: it = self.maxiterdone()
         if it==0:
             print('only available for MAP, set it>0')
-        return self.MAP_searchs[simidx].get_ivfreslm(secondary, it)
+        return self.MAP_searchs[simidx].get_ivfreslm(simidx, it)
     
 
     def __copyQEtoDirectory(self, simidx):
@@ -900,13 +930,13 @@ class MAP_lr_operator:
         for secname, secondary in self.MAP_searchs[simidx].secondaries.items():
             self.QE_searchs[self.sec2idx[secname]].init_filterqest()
             klm_QE = self.QE_searchs[self.sec2idx[secname]].get_est(simidx)
-            p2k = lambda lmax: 0.5 * np.arange(lmax + 1, dtype=float) * np.arange(1, lmax + 2, dtype=float)
-            klm_QE = np.array([hp.almxfl(klm, p2k(Alm.getlmax(klm_QE.size, mmax=secondary.lm_max[1]))) for klm in klm_QE])
+            p2k = lambda lmax: 0.5 * np.arange(lmax+1) * np.arange(1, lmax+2)
+            if secname=='lensing': klm_QE = np.array([hp.almxfl(klm, p2k(Alm.getlmax(klm_QE.size, mmax=secondary.lm_max[1]))) for klm in klm_QE])
             self.MAP_searchs[simidx].secondaries[secname].cache_klm(klm_QE, simidx, it=0)
             # self.MAP_searchs[simidx].gradients[self.grad2idx[fieldname]].gfield.cache_quad(klm_QE, simidx, it=0)
             
             kmflm_QE = self.QE_searchs[self.sec2idx[secname]].get_kmflm(simidx)
-            kmflm_QE = np.array([hp.almxfl(kmf, p2k(Alm.getlmax(kmflm_QE.size, mmax=secondary.lm_max[1]))) for kmf in kmflm_QE])
+            if secname=='lensing': kmflm_QE = np.array([hp.almxfl(kmf, p2k(Alm.getlmax(kmflm_QE.size, mmax=secondary.lm_max[1]))) for kmf in kmflm_QE])
             self.MAP_searchs[simidx].gradients[self.sec2idx[secname]].gfield.cache_meanfield(kmflm_QE, simidx, it=0)
 
             #TODO cache QE wflm into the filter directory

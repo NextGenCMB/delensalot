@@ -45,6 +45,7 @@ DL_DEFAULT = {
         },
         "sec_info": {
             'lensing':{
+                'geominfo': ('thingauss', {'lmax': 4500, 'smax': 3}),
                 'libdir': DNaV,
                 'fns': DNaV,
                 'components': ['p', 'w'],
@@ -54,6 +55,7 @@ DL_DEFAULT = {
                 'lm_max': [4096+1024,4096+1024],
             },
             'birefringence':{
+                'geominfo': ('thingauss', {'lmax': 4500, 'smax': 3}),
                 'libdir': DNaV,
                 'fns': DNaV,
                 'components': ['f'],
@@ -64,16 +66,16 @@ DL_DEFAULT = {
             },
         },
         "obs_info": {
-                'noise_info': {
-                    'libdir': DNaV,
-                    'fns': DNaV,
-                    'nlev': {'P': 1.0, 'T': 1./np.sqrt(2)},
-                    'space': 'alm',
-                    'geominfo': ('healpix',{'nside': 2048}),
-                    'libdir_suffix': 'generic',
-                    'lm_max': [4096,4096],
-                },
-                'transfunction': gauss_beam(1.0/180/60 * np.pi, lmax=4096),
+            'noise_info': {
+                'libdir': DNaV,
+                'fns': DNaV,
+                'nlev': {'P': 1.0, 'T': 1./np.sqrt(2)},
+                'space': 'alm',
+                'geominfo': ('healpix',{'nside': 2048}),
+                'libdir_suffix': 'generic',
+                'lm_max': [4096,4096],
+            },
+            'transfunction': gauss_beam(1.0/180/60 * np.pi, lmax=4096),
             },
         "operator_info": {
             'lensing': {
@@ -89,12 +91,15 @@ DL_DEFAULT = {
                 'libdir': DNaV,
             },
             'birefringence': {
+                'epsilon': 1e-7,
+                'components': ['f'],
+                'Lmin': 1,
                 'lm_max': [4096,4096],
                 'LM_max': [4096,4096],
-                'Lmin': 1,
+                'geominfo': ('thingauss',{'lmax': 4500, 'smax': 3}),
+                'tr': 8,
                 'field_fns': DNaV,
                 'libdir': DNaV,
-                'components': ['f'],
             },
         }
     },

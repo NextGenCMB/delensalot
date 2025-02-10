@@ -75,7 +75,7 @@ class base:
             almxfl(klm, WF, self.secondary.lm_max[1], True) # Wiener-filter QE
             almxfl(klm, self.secondary.CLfids[component*2][:self.secondary.lm_max[0]+1] > 0, self.secondary.lm_max[1], True)
             self.secondary.cache_klm(np.atleast_2d(klm), simidx, component)
-        return self.secondary.get_est(simidx, component)
+        return self.secondary.get_est(simidx, component) 
 
 
     def get_qmflm(self, simidxs, component=None):

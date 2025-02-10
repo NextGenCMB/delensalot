@@ -39,15 +39,15 @@ class ivf:
         self.n1blm = _extend_cl(np.array(self.transfer['b'])**1, self.lm_max_ivf[0]) * cli(_extend_cl(self.nlevp**2, self.lm_max_ivf[0])) * (180 * 60 / np.pi) ** 2
         
 
-    def get_ivfreslm(self, simidx, it, data, eblm_wf):
+    def get_ivfreslm(self, simidx, it, data=None, eblm_wf=None):
         # NOTE this is eq. 21 of the paper, in essence it should do the following:
         if not self.ivf_field.is_cached(simidx, it):
+            assert eblm_wf is not None and data is not None
             ivfreslm = -1*self.beam.act(self.ivf_operator.act(eblm_wf, spin=2, lmax_in=self.lm_max_ivf[1], lm_max=self.lm_max_ivf))
             # data[0] *= 0.+0.j
             ivfreslm += data
             almxfl(ivfreslm[0], self.n1elm * 0.5, self.lm_max_ivf[1], True)  # Factor of 1/2 because of \dagger rather than ^{-1}
             almxfl(ivfreslm[1], self.n1blm * 0.5, self.lm_max_ivf[1], True)
-            # ivfreslm = self.beam.act(ivfreslm, adjoint=True)
             self.ivf_field.cache_field(ivfreslm, simidx, it)
         return self.ivf_field.get_field(simidx, it)
     
@@ -57,7 +57,7 @@ class ivf:
 
 
 class wf:
-    def __init__(self, filter_desc, secondary):
+    def __init__(self, filter_desc, secondaries):
         self.ID = filter_desc['ID']
         self.wf_field = filter_desc['wf_field']
         self.wf_operator = filter_desc['wf_operator']
@@ -79,7 +79,7 @@ class wf:
         self.cls_filt = filter_desc['cls_filt']
 
         self.ffi = filter_desc['ffi']
-        self.secondary = secondary
+        self.secondaries = secondaries
 
 
     def get_wflm(self, simidx, it, data=None):
@@ -155,13 +155,19 @@ class wf:
         return almxfl(eblm, flmat, self.lm_max_unl[1], False)
 
 
-    def update_operator(self, simidx, it):
-        dfield = self.secondary.get_est(0, it, scale='d')
+    def update_operator(self, simidx, it, secondary=None, component=None):
+        dfield = self.secondaries['lensing'].get_est(simidx, it, scale='d', component=component)
         if dfield.shape[0] == 1:
             dfield = [dfield[0],None]
-        self.ffi = self.ffi.change_dlm(dfield, 3000)
-        self.wf_operator.set_field(simidx, it)
+        self.ffi = self.ffi.change_dlm(dfield, self.wf_operator.operators[0].LM_max[1])
+        self.wf_operator.set_field(simidx, it, component)
 
+
+    def get_template(self, simidx, it, secondary, component):
+        self.wf_operator.set_field(simidx, it, secondary, component)
+        estCMB = self.get_wflm(simidx, it)
+        return self.wf_operator.act(estCMB, secondary=secondary)
+    
 
     # NOTE this access the old opfilt operator
     def _get_wflm(self, simidx, it, data=None):
@@ -171,7 +177,7 @@ class wf:
             dfield = self.secondary.get_est(0, it-1, scale='d')
             if dfield.shape[0] == 1:
                 dfield = [dfield[0],None]
-            ffi = ffi.change_dlm(dfield,3000)
+            ffi = ffi.change_dlm(dfield,self.wf_operator.LM_max[1])
             def extract():
                 return {
                     'nlev_p': 1.0,

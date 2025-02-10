@@ -65,6 +65,7 @@ class l2base_Transformer:
         # NOTE I want everything to be 'controlled' by fid_info['sec_components'],
         # so if something is not in there, sec_info, operator_info, etc. need to be updated
         buffer_secinfo = copy.deepcopy(si.sec_info)
+
         buffer_operatorinfo = copy.deepcopy(si.operator_info)
         allowed_secs = si.fid_info['sec_components'].keys()
         for key, val in si.sec_info.items():
@@ -412,26 +413,30 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     'component': all_combinations(val['component']),
                 } for sec, val in cf.analysis.secondaries.items()}
 
-            if len(cf.analysis.secondaries) > 1:
-                QE_templates = [QE_field.template(field_desc) for name, field_desc in QE_template_descs.items()]
-                template_operator_descs = cf.qerec.template_operator_info
-                for sec, val in cf.qerec.template_operator_info.items():
-                    template_operator_descs[sec].update({
-                        "libdir": opj(transform(cf, l2T_Transformer()), 'QE', keystring, 'templates', sec),
-                        "field_fns": QE_secs["lensing"].klm_fns,
-                        "ffi": dl.ffi,
-                        })
-                template_operators = { # NOTE joint can be build by combinatorics
-                    "lensing": operator.lensing(template_operator_descs["lensing"]),
-                    "birefringence": operator.birefringence(template_operator_descs["birefringence"]),
-                }
-                # FIXME do this later
-                template_desc = {
-                    'fields': QE_templates,
-                    'operators': template_operators,
-                }
-            else:
-                template_desc = None
+            _MAP_operators_desc = {}
+            filter_operators = []
+            if 'lensing' in cf.analysis.secondaries:
+                _MAP_operators_desc['lensing'] = {
+                    'lm_max': dl.lm_max_ivf,
+                    "LM_max": cf.analysis.secondaries['lensing']['lm_max'],
+                    "Lmin": dl.Lmin,
+                    "perturbative": True,
+                    "component": [item for  item in cf.analysis.secondaries['lensing']['component']],
+                    "libdir": opj(transform(cf, l2T_Transformer()), 'QE', keystring, 'estimates', 'lensing'),
+                    'field_fns': QE_secs["lensing"].klm_fns,
+                    "ffi": dl.ffi,}
+                filter_operators.append(operator.lensing(_MAP_operators_desc['lensing']))
+            if 'birefringence' in cf.analysis.secondaries:
+                _MAP_operators_desc['birefringence'] = {
+                    'lm_max': dl.lm_max_ivf,
+                    "LM_max": cf.analysis.secondaries['birefringence']['lm_max'],
+                    "Lmin": dl.Lmin,
+                    "ffi": dl.ffi,
+                    "component": ['f'],
+                    "libdir": opj(transform(cf, l2T_Transformer()), 'QE', keystring, 'estimates', 'birefringence'),
+                    'field_fns': QE_secs['birefringence'].klm_fns,}
+                filter_operators.append(operator.birefringence(_MAP_operators_desc['birefringence']))
+            template_operator = operator.wf_operator(filter_operators) #TODO this is ivf_operator*ivf_operator^dagger, could be implemented via ivf.
 
             # TODO can I simplify this?
             dl.cls_unl.update({comp: val for comp_dict in dl.CLfids.values() for comp, val in comp_dict.items()})
@@ -450,7 +455,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 } for sec in cf.analysis.secondaries.keys()}
             
             QE_handler_desc = {
-                "template_info": template_desc,
+                "template_operator": template_operator,
                 "simidxs": cf.analysis.simidxs,
                 "simidxs_mf": dl.simidxs_mf,
                 "QE_tasks": dl.qe_tasks,
@@ -524,15 +529,15 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
             # input: all kwargs needed to build the MAP fields
             MAP_secondaries = {sec: MAP_field.secondary({
-                    "ID": sec,
-                    "libdir": opj(MAP_libdir_prefix, 'estimates/'),
-                    'lm_max': cf.analysis.secondaries[sec]['lm_max'],
-                    "component": val['component'],
-                    'CLfids': dl.CLfids[sec],
-                    'fns': {comp: f'klm_{comp}_simidx{{idx}}_it{{it}}' for comp in val['component']}, # This could be hardcoded, but I want to keep it flexible
-                    'increment_fns': {comp: f'kinclm_{comp}_simidx{{idx}}_it{{it}}' for comp in val['component']},
-                    'meanfield_fns': {comp: f'kmflm_{comp}_simidx{{idx}}_it{{it}}' for comp in val['component']},
-                }) for sec, val in cf.analysis.secondaries.items()}
+                "ID": sec,
+                "libdir": opj(MAP_libdir_prefix, 'estimates/'),
+                'lm_max': cf.analysis.secondaries[sec]['lm_max'],
+                "component": val['component'],
+                'CLfids': dl.CLfids[sec],
+                'fns': {comp: f'klm_{comp}_simidx{{idx}}_it{{it}}' for comp in val['component']}, # This could be hardcoded, but I want to keep it flexible
+                'increment_fns': {comp: f'kinclm_{comp}_simidx{{idx}}_it{{it}}' for comp in val['component']},
+                'meanfield_fns': {comp: f'kmflm_{comp}_simidx{{idx}}_it{{it}}' for comp in val['component']},
+            }) for sec, val in cf.analysis.secondaries.items()}
 
             # input: all kwargs needed to build the MAP search
             _MAP_operators_desc = {}
@@ -559,7 +564,9 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "Lmin": dl.Lmin,
                     "component": ['f'],
                     "libdir": opj(MAP_libdir_prefix, 'estimates/'),
-                    'field_fns': MAP_secondaries['birefringence'].fns,}
+                    'field_fns': MAP_secondaries['birefringence'].fns,
+                    "LM_max": cf.analysis.secondaries['birefringence']['lm_max'],
+                    "ffi": dl.ffi,}
                 _MAP_operators_desc['multiply'] = {
                     'factor': -1j,}
                 filter_operators.append(operator.birefringence(_MAP_operators_desc['birefringence']))
@@ -568,8 +575,11 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             ivf_operator = operator.ivf_operator(filter_operators)
             wf_operator = operator.wf_operator(filter_operators) #TODO this is ivf_operator*ivf_operator^dagger, could be implemented via ivf.
 
-            def chh(CL, lmax, scale='k'):
-                return CL[:lmax+1] * (0.5 * np.arange(lmax+1) * np.arange(1, lmax+2))**2
+            def chh(CL, lmax, gradient_name='lensing'):
+                if gradient_name == 'lensing':
+                    return CL[:lmax+1] * ((0.5 * np.arange(lmax+1) * np.arange(1, lmax+2))**2)
+                elif gradient_name == 'birefringence':
+                    return CL[:lmax+1]
                 
             gfield_descs = [{
                 "ID": gradient_name,
@@ -581,7 +591,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "prior_fns": 'klm_{component}_simidx{idx}_it{it}', # prior is just field, and then we do a simple divide by spectrum (almxfl)
                 "total_increment_fns": f'ginclm_{gradient_name}_simidx{{idx}}_it{{it}}',    
                 "total_fns": f'gtotlm_{gradient_name}_simidx{{idx}}_it{{it}}',    
-                "chh": {comp: chh(dl.CLfids[gradient_name][comp*2], lmax=cf.analysis.secondaries[gradient_name]['lm_max'][0]) for comp in cf.analysis.secondaries[gradient_name]['component']},
+                "chh": {comp: chh(dl.CLfids[gradient_name][comp*2], lmax=cf.analysis.secondaries[gradient_name]['lm_max'][0], gradient_name=gradient_name) for comp in cf.analysis.secondaries[gradient_name]['component']},
                 "component": [item for  item in cf.analysis.secondaries['lensing']['component']] if gradient_name == 'lensing' else ['f'],
             } for gradient_name, gradient_operator in gradients_operators.items()]
             MAP_gfields = {gfield_desc["ID"]: MAP_field.gradient(gfield_desc) for gfield_desc in gfield_descs}
@@ -641,11 +651,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "ffi": dl.ffi,
             }
             
-            template_desc = copy.deepcopy(dl.QE_handler_desc["template_info"])
-            # template_descs = {
-            #     "libdir": opj(MAP_libdir_prefix, 'templates'),
-            #     "template_operators": template_operators,
-            # }
+            template_desc = copy.deepcopy(dl.QE_handler_desc["template_operator"])
 
             lp1 = 2 * np.arange(3000 + 1) + 1
             n = len([v for val in cf.analysis.secondaries.values() for v in val['component']])

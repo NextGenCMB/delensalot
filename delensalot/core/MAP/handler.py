@@ -26,7 +26,7 @@ class base:
         
         # TODO check if they point to same memory in all gradient classes
         self.ivf_filter = filter.ivf(filter_desc['ivf'])
-        self.wf_filter = filter.wf(filter_desc['wf'], self.secondaries['lensing'])
+        self.wf_filter = filter.wf(filter_desc['wf'], self.secondaries)
         filters = {'ivf': self.ivf_filter, 'wf': self.wf_filter}
 
         self.chh = {}
@@ -92,15 +92,6 @@ class base:
         elif request_it > self.itmax and not calc_flag:
             print(f"Requested iteration {request_it} is beyond the maximum iteration")
             print('If you want to calculate it, set calc_flag=True')
-        
-
-    def get_template(self, field):
-        fn_blt = self.template_cacher.get_fn(self.template_operators[field])
-        if not self.template_cacher.is_cached(self.simidx):
-            self.template_operator.update_field(self.template_operators[field])
-            blm = self.template_operator.act(field)
-            self.blt_cacher.cache(fn_blt, blm)
-        return self.template_cacher.load(fn_blt)
     
 
     def isiterdone(self, it):
@@ -125,7 +116,7 @@ class base:
             lmax = grad.secondary.lm_max[0]
             for compi, comp in enumerate(grad.secondary.component):
                 ckp = self.chh[grad.ID][comp]
-                R_unl = R_unl0[grad.ID][comp][:lmax+1]*cli(self.__p2k(lmax=lmax))**2
+                R_unl = R_unl0[grad.ID][comp][:lmax+1]*cli(self.__p2k(lmax=lmax))**2 if grad.ID == 'lensing' else R_unl0[grad.ID][comp][:lmax+1]
 
                 buff = cli(R_unl + cli(ckp)) * (ckp > 0)
                 ret[grad.ID].update({comp: np.array(buff)})
@@ -137,17 +128,15 @@ class base:
 
 
     # exposed functions for convenience
-    def get_wflm(self, secondary, it):
-        return self.gradients[self.sec2idx[secondary]].get_wflm(it)
+    def get_wflm(self, simidx, it):
+        return self.wf_filter.get_wflm(simidx, it)
 
     
-    def get_ivfreslm(self, secondary, it):
-        return self.gradients[self.sec2idx[secondary]].get_ivfreslm(it)
+    def get_ivfreslm(self, simidx, it):
+        return self.ivf_filter.get_ivfreslm(simidx, it)
     
 
     def get_gradient_quad(self, it=None, secondary=None, component=None):
-        if it > self.maxiterdone():
-            print(f"Requested iteration {it} is beyond the maximum iteration")
         if it is None:
             it = self.maxiterdone()
         if secondary is None:
@@ -155,12 +144,10 @@ class base:
         if isinstance(secondary, str):
             return self.gradients[self.sec2idx[secondary]].get_gradient_quad(it, component)
         sec_idx = [self.sec2idx[sec] for sec in secondary]
-        return np.array([self.gradients[idx].get_gradient_quad(it, component) for idx in sec_idx])
+        return [self.gradients[idx].get_gradient_quad(it, component) for idx in sec_idx]
 
 
     def get_gradient_meanfield(self, it=None, secondary=None, component=None):
-        if it > self.maxiterdone():
-            print(f"Requested iteration {it} is beyond the maximum iteration")
         if it is None:
             it = self.maxiterdone()
         if secondary is None:
@@ -172,8 +159,6 @@ class base:
     
 
     def get_gradient_prior(self, it=None, secondary=None, component=None):
-        if it > self.maxiterdone():
-            print(f"Requested iteration {it} is beyond the maximum iteration")
         if it is None:
             it = self.maxiterdone()
         if secondary is None:
@@ -185,8 +170,6 @@ class base:
     
 
     def get_gradient_total(self, it=None, secondary=None, component=None):
-        if it > self.maxiterdone():
-            print(f"Requested iteration {it} is beyond the maximum iteration")
         if it is None:
             it = self.maxiterdone()
         if secondary is None:
@@ -195,6 +178,10 @@ class base:
             return self.gradients[self.sec2idx[secondary]].get_gradient_total(it, component)
         sec_idx = [self.sec2idx[sec] for sec in secondary]
         return np.array([self.gradients[idx].get_gradient_total(it, component) for idx in sec_idx])
+
+
+    def get_template(self, it, secondary=None, component=None):
+        return self.wf_filter.get_template(self.simidx, it, secondary, component)
 
 
     # exposed functions for job handler

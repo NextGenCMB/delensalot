@@ -258,6 +258,7 @@ def camb_clfile_wsec(fname, lmax=None, CMB_components=['tt', 'ee', 'bb', 'te'], 
             if i in [1,2,4,5,8,9]:
                 cls[k][ell[idc]] = cols[i+len(CMB_components)+1] / wptpe(ell[idc])
             else:
+                
                 cls[k][ell[idc]] = cols[i+len(CMB_components)+1] / wpp(ell[idc])
 
     return cls

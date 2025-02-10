@@ -126,27 +126,40 @@ class birefringence(base):
         self.field_fns = operator_desc['field_fns']
         self.Lmin = operator_desc["Lmin"],
         self.lm_max = operator_desc["lm_max"]
+        self.LM_max = operator_desc["LM_max"]
         self.component = operator_desc["component"]
+        self.geominfo = operator_desc["geominfo"]
+        self.geomlib = get_geom(operator_desc['geominfo'])
+        self.ffi = deflection(self.geomlib, np.zeros(shape=hp.Alm.getsize(*self.LM_max)), self.LM_max[1], numthreads=operator_desc['tr'], verbosity=False, epsilon=operator_desc['epsilon'])
         self.field = {component: None for component in self.component}
 
 
     # spin doesn't do anything here, but parameter is needed as joint operator passes it to all operators
     # NOTE this is alm2alm
     def act(self, obj, spin=None, adjoint=False):
-        if spin == 0:
-            return obj
-        
         f = np.array([self.field[comp].flatten() for comp in self.component], dtype=complex)
-
         buff = alm_copy(f[0], None, *self.lm_max)
-        # buff = f[0]
+        buff_real = self.ffi.geom.alm2map(buff, *self.LM_max, 8, [-1., 1.])
+
+        # Convert (Elm, Blm) to Q/U maps
+        Q, U = self.ffi.geom.alm2map_spin(obj, 2, *self.lm_max, 8, [-1., 1.])
+                
+        # Apply birefringence rotation
+        angle = 2 * buff_real
+        cos_a, sin_a = np.cos(angle), np.sin(angle)
+
+        Q_rot = cos_a * Q - sin_a * U
+        U_rot = sin_a * Q + cos_a * U
+
+        # If adjoint, reverse the rotation
         if adjoint:
-            return np.array([np.exp(2j*buff)*obj[0], np.exp(-2j*buff)*obj[1]])
-        return np.array([np.exp(-2j*buff)*obj[0], np.exp(2j*buff)*obj[1]])
-        # if adjoint:
-        #     return np.array([np.exp(1j*f[0])*obj[0], np.exp(-1j*f[0])*obj[1]])
-        # return np.array([np.exp(-1j*f[0])*obj[0], np.exp(1j*f[0])*obj[1]])
-    
+            Q_rot, U_rot = cos_a * Q + sin_a * U, -sin_a * Q + cos_a * U
+
+        # Convert back to (Elm, Blm)
+        Elm_rot, Blm_rot = self.ffi.geom.map2alm_spin(np.array([Q_rot, U_rot]), 2, *self.lm_max, 8)
+
+        return np.array([Elm_rot, Blm_rot])
+        
     
     def adjoint(self, obj, spin=None):
         return self.act(obj, spin=spin, adjoint=True)
