@@ -68,30 +68,6 @@ class DELENSALOT_Chaindescriptor(DELENSALOT_Concept_v2):
     p6 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p6)
     p7 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p7)
 
-@attr.s
-class DELENSALOT_Stepper(DELENSALOT_Concept_v2):
-    """A root model element type of the Dlensalot formalism.
-    Defines the stepper function. The stepper function controls how the increment in the likelihood search is added to the current solution.
-    Currently, this is pretty much just the harmonicbump class.
-    
-    Attributes:
-        typ (str): The name of the stepper function
-        lmax_qlm (int): maximum `\ell` of the lensing potential reconstruction
-        mmax_qlm (int): maximum `m` of the lensing potential reconstruction
-        a: TBD
-        b: TBD
-        xa: TBD
-        xb: TBD
-    """
-    # FIXME this is very 'harmonicbump'-specific.
-    typ =                   attr.field(default=DEFAULT_NotAValue, validator=stepper.typ)
-    lmax_qlm =              attr.field(default=DEFAULT_NotAValue, validator=stepper.lmax_qlm) # must match lm_max_qlm -> validator
-    mmax_qlm =              attr.field(default=DEFAULT_NotAValue, validator=stepper.mmax_qlm) # must match lm_max_qlm -> validator
-    a =                     attr.field(default=DEFAULT_NotAValue, validator=stepper.a)
-    b =                     attr.field(default=DEFAULT_NotAValue, validator=stepper.b)
-    xa =                    attr.field(default=DEFAULT_NotAValue, validator=stepper.xa)
-    xb =                    attr.field(default=DEFAULT_NotAValue, validator=stepper.xb)
-
 
 @attr.s
 class DELENSALOT_Job(DELENSALOT_Concept_v2):
@@ -127,7 +103,6 @@ class DELENSALOT_Analysis(DELENSALOT_Concept_v2):
         beam (float):                       The beam used in the filters
     """
     key =                   attr.field(default=DEFAULT_NotAValue, validator=analysis.key)
-    version =               attr.field(default=DEFAULT_NotAValue, validator=analysis.version) # TODO either make it more useful, or remove
     simidxs =               attr.field(default=DEFAULT_NotAValue, validator=analysis.simidxs)
     simidxs_mf =            attr.field(default=DEFAULT_NotAValue, validator=analysis.simidxs_mf)
     TEMP_suffix =           attr.field(default=DEFAULT_NotAValue, validator=analysis.TEMP_suffix)
@@ -139,7 +114,6 @@ class DELENSALOT_Analysis(DELENSALOT_Concept_v2):
     lmin_teb =              attr.field(default=DEFAULT_NotAValue, validator=analysis.lmin_teb)
     cls_unl =               attr.field(default=DEFAULT_NotAValue, validator=analysis.cls_unl)
     cls_len =               attr.field(default=DEFAULT_NotAValue, validator=analysis.cls_len)
-    cpp =                   attr.field(default=DEFAULT_NotAValue, validator=analysis.cpp)
     beam =                  attr.field(default=DEFAULT_NotAValue, validator=analysis.beam)
     transfunction_desc =    attr.field(default=DEFAULT_NotAValue, validator=analysis.transfunction)
     CLfids =                attr.field(default=DEFAULT_NotAValue)
@@ -154,7 +128,6 @@ class DELENSALOT_Simulation(DELENSALOT_Concept_v2):
     Attributes:
                                      
     """
-
     flavour =       attr.field(default=DEFAULT_NotAValue, validator=data.flavour)
     maps =          attr.field(default=DEFAULT_NotAValue, validator=data.maps)
     geominfo =      attr.field(default=DEFAULT_NotAValue, validator=data.geominfo)
@@ -203,16 +176,13 @@ class DELENSALOT_Qerec(DELENSALOT_Concept_v2):
         blt_pert (bool):            If True, delensing is performed perurbitivly (recommended)
     
     """
-
     tasks =                 attr.field(default=DEFAULT_NotAValue, validator=qerec.tasks)
     estimator_type =        attr.field(default=DEFAULT_NotAValue, validator=qerec.qlms)
     qlm_type =              attr.field(default=DEFAULT_NotAValue, validator=qerec.qlms)
     cg_tol =                attr.field(default=DEFAULT_NotAValue, validator=qerec.cg_tol)
     filter_directional =    attr.field(default=DEFAULT_NotAValue, validator=qerec.filter_directional)
     chain =                 attr.field(default=DELENSALOT_Chaindescriptor(), validator=qerec.chain)
-    cl_analysis =           attr.field(default=DEFAULT_NotAValue, validator=qerec.cl_analysis) # TODO make this useful or remove
     subtract_QE_meanfield = attr.field(default=DEFAULT_NotAValue)
-    template_operator_info= attr.field(default=DEFAULT_NotAValue)
 
 @attr.s
 class DELENSALOT_Itrec(DELENSALOT_Concept_v2):
@@ -242,20 +212,14 @@ class DELENSALOT_Itrec(DELENSALOT_Concept_v2):
     chain =                 attr.field(default=DELENSALOT_Chaindescriptor(), validator=itrec.chain)
     filter_directional =    attr.field(default=DEFAULT_NotAValue, validator=itrec.filter_directional)
     lenjob_geominfo =       attr.field(default=DEFAULT_NotAValue, validator=itrec.lenjob_geominfo)
-    lenjob_pbdgeominfo =    attr.field(default=DEFAULT_NotAValue, validator=itrec.lenjob_pbgeominfo)
     lm_max_unl =            attr.field(default=DEFAULT_NotAValue, validator=itrec.lm_max_unl)
     mfvar =                 attr.field(default=DEFAULT_NotAValue, validator=itrec.mfvar) # TODO rename and check if it still works 
     soltn_cond =            attr.field(default=DEFAULT_NotAValue, validator=itrec.soltn_cond)
-    stepper =               attr.field(default=DELENSALOT_Stepper(), validator=itrec.stepper)
     epsilon =               attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
-    fields =                attr.field(default=DEFAULT_NotAValue, validator=data.epsilon) # This and the next ones are the new variables for the MAP_lensrec_operator
-    gradient_descs =        attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
-    filter_desc =           attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
-    curvature_desc =        attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
-    desc =                  attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
-    build =                 attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
-    template_operator_info= attr.field(default=DEFAULT_NotAValue)
-
+    gradient_descs =        attr.field(default=DEFAULT_NotAValue)
+    filter_desc =           attr.field(default=DEFAULT_NotAValue)
+    curvature_desc =        attr.field(default=DEFAULT_NotAValue)
+    desc =                  attr.field(default=DEFAULT_NotAValue)
 
     
 @attr.s
@@ -266,7 +230,6 @@ class DELENSALOT_Mapdelensing(DELENSALOT_Concept_v2):
     Attributes:
         data_from_CFS (bool):   if set, use B-lensing templates located at the $CFS directory instead of the $TEMP directory\n
         edges (np.array):       binning to calculate the (delensed) power spectrum on\n
-        dlm_mod (bool):         if set, modfies the lensing potential before calculating the B-lensing template\n
         iterations (list[int]): which iterations to calculate delensed power spectrum for\n
         nlevels (list[float]):  noiselevel ratio treshold up to which the maps are delensed, uses the rhits_normalized map to generate masks.
         lmax (int):             maximum multipole to calculate the (delensed) power spectrum\n
@@ -280,7 +243,6 @@ class DELENSALOT_Mapdelensing(DELENSALOT_Concept_v2):
 
     data_from_CFS =         attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.data_from_CFS)
     edges =                 attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.edges)
-    dlm_mod =               attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.dlm_mod)
     iterations =            attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.iterations)
     nlevels =               attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.nlevels)
     lmax =                  attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.lmax)
@@ -299,8 +261,8 @@ class DELENSALOT_Phianalysis(DELENSALOT_Concept_v2):
     Attributes:
         custom_WF_TEMP (str):   Path to the dir of an exisiting WF. fn must be 'WFemp_%s_simall%s_itall%s_avg.npy'\n
     """
-
     custom_WF_TEMP =        attr.field(default=DEFAULT_NotAValue)
+
 
 @attr.s
 class DELENSALOT_OBD(DELENSALOT_Concept_v2):
@@ -318,17 +280,6 @@ class DELENSALOT_OBD(DELENSALOT_Concept_v2):
     tpl =                   attr.field(default=DEFAULT_NotAValue, validator=obd.tpl)
     nlev_dep =              attr.field(default=DEFAULT_NotAValue, validator=obd.nlev_dep)
 
-@attr.s
-class DELENSALOT_Config(DELENSALOT_Concept_v2):
-    """A root model element type of the Dlensalot formalism.
-    This class collects all configurations related to general behaviour to the operating system. 
-
-    Attributes:
-        outdir_plot_root (str): root path for the plots to be stored at
-        outdir_plot_rel (str):  relative path folder for the plots to be stored at
-    """
-    outdir_plot_root =      attr.field(default=opj(os.environ['HOME'], 'plots'))
-    outdir_plot_rel =       attr.field(default='')
 
 @attr.s
 class DELENSALOT_Meta(DELENSALOT_Concept_v2): # TODO do we really need a Meta?
@@ -383,7 +334,6 @@ class DELENSALOT_Model(DELENSALOT_Concept_v2):
     qerec =                 attr.field(default=DELENSALOT_Qerec(), validator=model.qerec)
     itrec =                 attr.field(default=DELENSALOT_Itrec(), validator=model.itrec)
     madel =                 attr.field(default=DELENSALOT_Mapdelensing(), validator=model.madel)
-    config =                attr.field(default=DELENSALOT_Config(), validator=model.config)
     computing =             attr.field(default=DELENSALOT_Computing(), validator=model.computing)
     obd =                   attr.field(default=DELENSALOT_OBD(), validator=model.obd)
     phana =                 attr.field(default=DELENSALOT_Phianalysis())

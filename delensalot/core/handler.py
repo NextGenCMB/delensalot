@@ -581,7 +581,7 @@ class QE_lr_v2(Basejob):
         self.secondary2idx = {QE_search.secondary.ID: i for i, QE_search in enumerate(self.QE_searchs)}
         self.idx2secondary = {i: QE_search.secondary.ID for i, QE_search in enumerate(self.QE_searchs)}
 
-        self.template_operator = dm.QE_handler_desc['template_operator'] # TODO later. inside here are the template fields and operators
+        self.template_operator = dm.QE_handler_desc['template_operator']
         
         # if there is no job, we can already init the filterqest
         def filter_none(array):
@@ -704,39 +704,42 @@ class QE_lr_v2(Basejob):
             assert 0 in it, 'QE does not have iterations, leave blank or set it=0, not {}'
             return [self.get_est(simidx, 0, secondary, component, subtract_meanfield, scale)]
         if secondary is None:
-            return [self.QE_searchs[secidx].get_est(simidx, subtract_meanfield, component) for secidx in self.secondary2idx.values()]
+            return [self.QE_searchs[secidx].get_est(simidx, component, subtract_meanfield, scale=scale) for secidx in self.secondary2idx.values()]
         if isinstance(secondary, list):
-            return [self.QE_searchs[self.secondary2idx[sec]].get_est(simidx, subtract_meanfield, component) for sec in secondary]
+            return [self.QE_searchs[self.secondary2idx[sec]].get_est(simidx, component, subtract_meanfield, scale=scale) for sec in secondary]
         if secondary not in self.secondary2idx:
             print('secondary not found. Available secondaries are: ', self.secondary2idx.keys())
             return np.array([[]])
-        return self.QE_searchs[self.secondary2idx[secondary]].get_est(simidx, subtract_meanfield, component)
+        return self.QE_searchs[self.secondary2idx[secondary]].get_est(simidx, component, subtract_meanfield, scale=scale)
 
 
-    def get_template(self, simidx, it):
-        assert it>0, 'No analysis has been done, plese get some estimates first'
+    def get_template(self, simidx, it=0, secondary=None, component=None, calc=False):
+        assert it==0, 'QE does not have iterations, leave blank or set it=0'
         path = opj(self.TEMP, 'QE', self.QE_searchs[0].estimator_key, f"template_sim{simidx}_it{it}")
         if not os.path.isfile(path):
+            if not self.QE_searchs[self.secondary2idx[secondary]].is_cached(self, simidx, component, type='qlm'):
+                if not calc:
+                    print(f'cannot generate template as estimate of secondary {secondary} with simidx {simidx} not found, set calc=True to calculate')
+                    return np.array([[]])
+                self.get_est(simidx, it, secondary, component, scale='p')
             self.template_operator.set_field(simidx, it)
             estCMB = self.get_wflm(simidx, it)
             np.save(path, self.template_operator.act(estCMB))
         return self.template_operator.act(estCMB)
 
 
-    def get_wflm(self, simidx, it):
-    # NOTE they don't depend on the QE_searchs, as filterqest is the same for both
+    def get_wflm(self, simidx, it, lm_max):
         if it!=0:
             print('QE does not have iterations, leave blank or set it=0')
             return np.array([[]])
-        return self.QE_searchs[0].get_wflm(simidx)
+        return self.QE_searchs[0].get_wflm(simidx, lm_max)
 
 
-    def get_ivflm(self, simidx, secondary, it):
-    # NOTE they don't depend on the QE_searchs, as filterqest is the same for both
+    def get_ivflm(self, simidx, it, lm_max):
         if it!=0:
             print('QE does not have iterations, leave blank or set it=0')
             return np.array([[]])
-        return self.QE_searchs[0].get_ivflm(simidx)
+        return self.QE_searchs[0].get_ivflm(simidx, lm_max)
     
 
     def init_QEsearchs(self):
@@ -808,6 +811,8 @@ class MAP_lr_v2:
 
 
     def get_est(self, simidx, it=None, secondary=None, component=None, scale='k', subtract_QE_meanfield=True, calc_flag=False):
+        for simidx in self.simidxs:
+            self.__copyQEtoDirectory(simidx)
         if it is None:
             it = self.MAP_searchs[simidx].maxiterdone()
         if isinstance(secondary, str) and secondary not in self.seclist_sorted:
@@ -901,18 +906,18 @@ class MAP_lr_v2:
         print('only available for MAP, set it>0')
 
 
-    def get_wflm(self, simidx, it=None):
+    def get_wflm(self, simidx, it=None, lm_max=None):
         # NOTE currently no support for list of secondary or it
         if it==None: it = self.maxiterdone()
         if it==0:
-            return self.QE_searchs[0].get_wflm(simidx)
+            return self.QE_searchs[0].get_wflm(simidx, lm_max)
         return self.MAP_searchs[simidx].get_wflm(simidx, it)
 
 
-    def get_ivflm(self, simidx, it=0): 
+    def get_ivflm(self, simidx, it=0, lm_max=None): 
         # NOTE currently no support for list of secondary or it
         if it==0:
-            return self.QE_searchs[0].get_ivflm(simidx)
+            return self.QE_searchs[0].get_ivflm(simidx, lm_max)
         print('only available for QE, set it=0')
 
 
@@ -930,17 +935,14 @@ class MAP_lr_v2:
         for secname, secondary in self.MAP_searchs[simidx].secondaries.items():
             self.QE_searchs[self.sec2idx[secname]].init_filterqest()
             klm_QE = self.QE_searchs[self.sec2idx[secname]].get_est(simidx)
-            p2k = lambda lmax: 0.5 * np.arange(lmax+1) * np.arange(1, lmax+2)
-            if secname=='lensing': klm_QE = np.array([hp.almxfl(klm, p2k(Alm.getlmax(klm_QE.size, mmax=secondary.lm_max[1]))) for klm in klm_QE])
             self.MAP_searchs[simidx].secondaries[secname].cache_klm(klm_QE, simidx, it=0)
             # self.MAP_searchs[simidx].gradients[self.grad2idx[fieldname]].gfield.cache_quad(klm_QE, simidx, it=0)
             
             kmflm_QE = self.QE_searchs[self.sec2idx[secname]].get_kmflm(simidx)
-            if secname=='lensing': kmflm_QE = np.array([hp.almxfl(kmf, p2k(Alm.getlmax(kmflm_QE.size, mmax=secondary.lm_max[1]))) for kmf in kmflm_QE])
             self.MAP_searchs[simidx].gradients[self.sec2idx[secname]].gfield.cache_meanfield(kmflm_QE, simidx, it=0)
 
             #TODO cache QE wflm into the filter directory
-            wflm_QE = self.QE_searchs[self.sec2idx[secname]].get_wflm(simidx)
+            wflm_QE = self.QE_searchs[self.sec2idx[secname]].get_wflm(simidx, self.MAP_searchs[simidx].ivf_filter.lm_max_ivf)
             self.MAP_searchs[simidx].wf_filter.wf_field.cache_field(np.array(wflm_QE), simidx, it=0)
 
 

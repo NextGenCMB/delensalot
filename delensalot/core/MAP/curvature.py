@@ -3,6 +3,7 @@ import numpy as np
 from delensalot.core.MAP import BFGS
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl
 from delensalot.utils import cli
+from delensalot.core.iterator.steps import harmonicbump
 
 from delensalot.core import cachers
 
@@ -17,6 +18,14 @@ class base:
         curvature_desc["bfgs_desc"].update({"apply_H0k": self.apply_H0k, "apply_B0k": self.apply_B0k})
         curvature_desc["bfgs_desc"].update({'cacher': cachers.cacher_npy(self.field.libdir)})
         self.BFGS_H = BFGS.BFGS_Hessian(self.h0, **curvature_desc["bfgs_desc"])
+        self.stepper = harmonicbump(**{
+            'lmax_qlm': 4000,
+            'mmax_qlm': 4000,
+            'a': 0.5,
+            'b': 0.499,
+            'xa': 400,
+            'xb': 1500
+        },)
 
 
     def add_svector(self, incr, simidx, it):
@@ -31,10 +40,9 @@ class base:
         lower = 0
         for gradient in self.gradients:
             for compi, comp in enumerate(gradient.secondary.component):
-                fl = np.ones(gradient.secondary.lm_max[0]+1)*0.5
-                upper = lower + hp.Alm.getsize(gradient.secondary.lm_max[0])
-                almxfl(klms[lower:lower:upper+1], fl, None, True)
-                lower = upper
+                upper = hp.Alm.getsize(gradient.secondary.lm_max[0])
+                klms[lower:lower+upper] = self.stepper.build_incr(klms[lower:lower+upper], 0)
+                lower = upper+1
         return klms
 
 

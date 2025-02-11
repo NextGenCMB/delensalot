@@ -1,7 +1,7 @@
 from os.path import join as opj
 import numpy as np
 
-from plancklens import qest
+from plancklens import qest, qresp
 
 from lenspyx.lensing import get_geom 
 
@@ -10,18 +10,29 @@ from delensalot.utility.utils_hp import alm_copy
 from delensalot.core.ivf import filt_util, filt_cinv, filt_simple
 from delensalot.core.opfilt import utils_cinv_p as cinv_p_OBD
 
+from delensalot.config.config_helper import data_functions as df
+from delensalot.utils import cli
+
 class base:
     def __init__(self, filter_desc):
         # This class tries to hide the uglyness to interfacing with plancklens (no offense)
         self.lm_max_ivf = filter_desc['lm_max_ivf']
         self.lm_max_qlm = filter_desc['lm_max_qlm']
-        self.lm_max_len = filter_desc['lm_max_len']
-        self.lm_max_unl = filter_desc['lm_max_unl']
         self.lmin_teb = filter_desc['lmin_teb']
 
-        self.ftebl_len = filter_desc['ftebl_len']
-        self.ftebl_unl = filter_desc['ftebl_unl']
+        self.cls_len = filter_desc['cls_len']
+        self.cls_unl = filter_desc['cls_unl']
+
+        self.nivjob_geominfo = filter_desc['nivjob_geominfo']
+        self.niv_desc = filter_desc['niv_desc']
+        self.nlev = filter_desc['nlev']
         self.ttebl = filter_desc['ttebl']
+        # Isotropic approximation to the filtering (using 'len' for lensed spectra)
+        self.ftebl_len = {key: self.__compute_transfer(cls_key, nlev_key, transf_key, 'len') 
+            for key, (cls_key, nlev_key, transf_key) in zip('teb', [('tt', 'T', 't'), ('ee', 'P', 'e'), ('bb', 'P', 'b')])}
+        # Same using unlensed spectra (using 'unl' for unlensed spectra)
+        self.ftebl_unl = {key: self.__compute_transfer(cls_key, nlev_key, transf_key, 'unl') 
+            for key, (cls_key, nlev_key, transf_key) in zip('teb', [('tt', 'T', 't'), ('ee', 'P', 'e'), ('bb', 'P', 'b')])}
 
         self.qe_filter_directional = filter_desc['qe_filter_directional']
         self.estimator_type = filter_desc['estimator_type']
@@ -29,13 +40,6 @@ class base:
         self.libdir = filter_desc['libdir']
 
         self.simulationdata = filter_desc['simulationdata']
-
-        self.nivjob_geominfo = filter_desc['nivjob_geominfo']
-        self.nivt_desc = filter_desc['nivt_desc']
-        self.nivp_desc = filter_desc['nivp_desc']
-        
-        self.cls_len = filter_desc['cls_len']
-        self.cls_unl = filter_desc['cls_unl']
 
         self.chain_descr = filter_desc['chain_descr']
         self.cg_tol = filter_desc['QE_cg_tol']
@@ -57,7 +61,7 @@ class base:
             ## Wait for finished run(), as plancklens triggers cinv_calc...
             self.cinv_t = filt_cinv.cinv_t(opj(self.libdir, 'cinv_t'),
                     self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
-                    self.ttebl['t'], self.nivt_desc,
+                    self.ttebl['t'], self.niv_desc['T'],
                     marge_monopole=True, marge_dipole=True, marge_maps=[])
 
             # FIXME is this right? what if analysis includes pixelwindow function?
@@ -66,14 +70,14 @@ class base:
                 nivjob_geomlib_ = get_geom(self.nivjob_geominfo)
                 self.cinv_p = cinv_p_OBD.cinv_p(opj(self.libdir, 'cinv_p'),
                     self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
-                    transf_elm_loc[:self.lm_max_ivf[0]+1], self.nivp_desc, geom=nivjob_geomlib_, #self.nivjob_geomlib,
+                    transf_elm_loc[:self.lm_max_ivf[0]+1], self.niv_desc['P'], geom=nivjob_geomlib_, #self.nivjob_geomlib,
                     chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol), bmarg_lmax=self.lmin_teb[2],
                     zbounds=(-1,1), _bmarg_lib_dir=self.obd_libdir, _bmarg_rescal=self.obd_rescale,
                     sht_threads=self.sht_threads)
             else:
                 self.cinv_p = filt_cinv.cinv_p(opj(self.libdir, 'cinv_p'),
                     self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
-                    self.ttebl['e'], self.nivp_desc, chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol),
+                    self.ttebl['e'], self.niv_desc['P'], chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol),
                     transf_blm=self.ttebl['b'], marge_qmaps=(), marge_umaps=())
             _filter_raw = filt_cinv.library_cinv_sepTP(opj(self.libdir, 'ivf'), self.simulationdata, self.cinv_t, self.cinv_p, self.cls_len)
             _ftebl_rs = lambda x: np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[x])
@@ -82,23 +86,36 @@ class base:
         return self.qlms_dd
 
 
-    def get_wflm(self, simidx):
+    def get_wflm(self, simidx, lm_max):
         if self.estimator_key in ['ptt']:
-            return alm_copy(self.ivf.get_sim_tmliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
+            return alm_copy(self.ivf.get_sim_tmliklm(simidx), None, *lm_max)
         elif self.estimator_key in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
-            return alm_copy(self.ivf.get_sim_emliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
+            return alm_copy(self.ivf.get_sim_emliklm(simidx), None, *lm_max)
         elif self.estimator_key in ['p']:
-            return np.array([alm_copy(self.ivf.get_sim_tmliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1]), alm_copy(self.ivf.get_sim_emliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])])
+            return np.array([alm_copy(self.ivf.get_sim_tmliklm(simidx), None, *lm_max), alm_copy(self.ivf.get_sim_emliklm(simidx), None, *lm_max)])
         elif self.estimator_key in ['a_p']:
-            return alm_copy(self.ivf.get_sim_emliklm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
+            return alm_copy(self.ivf.get_sim_emliklm(simidx), None, *lm_max)
 
 
-    def get_ivflm(self, simidx):
+    def get_ivflm(self, simidx, lm_max):
         if self.estimator_key in ['ptt']:
-            return alm_copy(self.ivf.get_sim_tlm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
+            return alm_copy(self.ivf.get_sim_tlm(simidx), None, *lm_max)
         elif self.estimator_key in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
-            return alm_copy(self.ivf.get_sim_elm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1]), alm_copy(self.ivf.get_sim_blm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
+            return alm_copy(self.ivf.get_sim_elm(simidx), None, *lm_max), alm_copy(self.ivf.get_sim_blm(simidx), None, *lm_max)
         elif self.estimator_key in ['p']:
-            return np.array([alm_copy(self.ivf.get_sim_tlm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1]), alm_copy(self.ivf.get_sim_elm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])])
+            return np.array([alm_copy(self.ivf.get_sim_tlm(simidx), None, *lm_max), alm_copy(self.ivf.get_sim_elm(simidx), None, *lm_max)])
         elif self.estimator_key in ['a_p']:
-            return alm_copy(self.ivf.get_sim_elm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1]), alm_copy(self.ivf.get_sim_blm(simidx), None, self.lm_max_unl[0], self.lm_max_unl[1])
+            return alm_copy(self.ivf.get_sim_elm(simidx), None, *lm_max), alm_copy(self.ivf.get_sim_blm(simidx), None, *lm_max)
+        
+
+    def get_response_unl(self, lmax_qlm):
+        return qresp.get_response(self.estimator_key, self.lm_max_ivf[0], self.estimator_key[0], self.cls_unl, self.cls_unl, self.ftebl_unl, lmax_qlm=lmax_qlm)
+    
+
+    def get_response_len(self, lmax_qlm):
+        return qresp.get_response(self.estimator_key, self.lm_max_ivf[0], self.estimator_key[0], self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=lmax_qlm)
+    
+
+    def __compute_transfer(self, cls_key, nlev_key, transf_key, spectrum_type):
+        cls = self.cls_len if spectrum_type == 'len' else self.cls_unl
+        return cli(cls[cls_key][:self.lm_max_ivf[0] + 1] + df.a2r(self.nlev[nlev_key])**2 * cli(self.ttebl[transf_key] ** 2)) * (self.ttebl[transf_key] > 0)

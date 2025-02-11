@@ -59,18 +59,6 @@ class base:
         return self.gfield.get_gradient_prior(self.simidx, it, component)
 
 
-    # def get_wflm(self, it=None, data=None):
-    #     it = self.maxiterdone() if it is None else it
-    #     return self.wf_filter.get_wflm(self.simidx, it, data=data)
-    
-
-    # def get_ivfreslm(self, it=None, data=None, wflm=None):
-    #     it = self.maxiterdone() if it is None else it
-    #     wflm = self.wf_filter.get_wflm(self.simidx, it, data=data) if wflm is None else wflm
-    #     data = self.get_data(self.lm_max_ivf) if data is None else data
-    #     return self.ivf_filter.get_ivfreslm(self.simidx, it, eblm_wf=wflm, data=data)
-
-
     def update_operator(self, simidx, it):
         self.ivf_filter.update_operator(simidx, it)
         self.wf_filter.update_operator(simidx, it)

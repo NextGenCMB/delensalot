@@ -86,7 +86,6 @@ DL_DEFAULT = {
                 'LM_max': [4096+1024,4096+1024],
                 'geominfo': ('thingauss',{'lmax': 4500, 'smax': 3}),
                 'perturbative': False,
-                'tr': 8,
                 'field_fns': DNaV,
                 'libdir': DNaV,
             },
@@ -97,7 +96,6 @@ DL_DEFAULT = {
                 'lm_max': [4096,4096],
                 'LM_max': [4096,4096],
                 'geominfo': ('thingauss',{'lmax': 4500, 'smax': 3}),
-                'tr': 8,
                 'field_fns': DNaV,
                 'libdir': DNaV,
             },
@@ -105,7 +103,6 @@ DL_DEFAULT = {
     },
     'analysis': { 
         'key': 'p_p',
-        'version': 'noMF',
         'simidxs': np.arange(0,1),
         'TEMP_suffix': 'P_FS_CMBS4_aob',
         'Lmin': 1, 
@@ -137,8 +134,6 @@ DL_DEFAULT = {
         'estimator_type': 'sepTP',
         'cg_tol': 1e-7,
         'filter_directional': 'isotropic',
-        'geominfo': ('healpix',{'nside': 2048}),
-        'cl_analysis': False,
         'chain': {
             'p0': 0,
             'p1': ["diag_cl"],
@@ -150,34 +145,8 @@ DL_DEFAULT = {
             'p7': 'cache_mem'
         },
         "subtract_QE_meanfield": True,
-        "template_operator_info" : {
-            'lensing': {
-                "ID": "lensing",
-                "Lmin": 1,
-                "perturbative": True,
-                "lm_max": 1024,
-                "lm_max_qlm": 3000,
-                "components": ['p','w'],
-            },
-            'birefringence': {
-                "ID": "birefringence",
-                "Lmin": 1,
-                "lm_max": 1024,
-                "lm_max_qlm": 3000,
-                "components": ['f'],
-            },
-        },
     },
     'itrec': {
-        'stepper':{
-            'typ': 'harmonicbump',
-            'lmax_qlm': 3000,
-            'mmax_qlm': 3000,
-            'a': 0.5,
-            'b': 0.499,
-            'xa': 400,
-            'xb': 1500
-        },
         'chain': {
             'p0': 0,
             'p1': ["diag_cl"],
@@ -194,24 +163,10 @@ DL_DEFAULT = {
         'iterator_typ': 'constmf',
         'filter_directional': 'isotropic',
         'lenjob_geominfo': ('thingauss',{'lmax': 4000, 'smax': 3}),
-        'lenjob_pbdgeominfo': ('pbd', (0., 2*np.pi)),
         'lm_max_unl': (4500,4500),
         'mfvar': '',
         'soltn_cond': lambda it: True,
         'epsilon': 1e-7,
-        'template_operator_info': {
-            'lensing': {
-                "Lmin": 1,
-                "perturbative": False,
-                "lm_max": [1024,1024],
-                "LM_max": [3000,3000],
-            },
-            'birefringence': {
-                "Lmin": 1,
-                "lm_max": [1024,1024],
-                "LM_max": [3000,3000],
-            },
-        },
     },
     'noisemodel': {
         'sky_coverage': 'unmasked',
@@ -252,9 +207,5 @@ DL_DEFAULT = {
         'nside': 2048,
         'lmax': 200,
         'beam': 1.0,
-    },
-    'config': {
-        'outdir_plot_root': opj(os.environ['HOME'], 'plots'),
-        'outdir_plot_rel': ''
     }
 }

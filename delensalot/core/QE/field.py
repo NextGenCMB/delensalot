@@ -26,10 +26,10 @@ class secondary:
         return self.cacher.load(self.qlm_fns[component].format(idx=simidx))
     
 
-    def get_est(self, simidx, component=None):
+    def get_est(self, simidx,component=None, scale='p'):
         if component is None:
             return [self.get_est(simidx, component).squeeze() for component in self.component]
-        return self.cacher.load(self.klm_fns[component].format(idx=simidx))
+        return self._rescale(self.cacher.load(self.klm_fns[component].format(idx=simidx)), scale)
 
 
     def cache_qlm(self, klm, simidx, component=None):
@@ -52,6 +52,18 @@ class secondary:
             return self.cacher.is_cached(self.klm_fns[component].format(idx=simidx))
         else:
             return self.cacher.is_cached(self.qlm_fns[component].format(idx=simidx))
+        
+
+    def _rescale(self, klm, scale):
+        if scale == 'p':
+            assert self.ID == 'lensing', "Only lensing is supported for p"
+            return klm
+        elif scale == 'k':
+            if self.ID == 'birefringence':
+                return klm
+            else:
+                h2d =  0.5 * np.arange(self.lm_max[0] + 1) * np.arange(1, self.lm_max[0] + 2)
+                return np.atleast_2d(almxfl(klm[0], h2d, self.lm_max[1], False))
 
 
 class template:

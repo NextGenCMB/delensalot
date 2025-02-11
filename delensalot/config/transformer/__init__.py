@@ -34,7 +34,7 @@ def f1(expr, job_id, transformer): # pylint: disable=missing-function-docstring
         return transformer.build_OBD_builder(expr)
     if "QE_lensrec" == job_id:
         return transformer.build_QE_lensrec(expr)
-    if "MAP_lensrec_operator" == job_id:
+    if "MAP_lensrec" == job_id:
         return transformer.build_MAP_lensrec(expr)
     if "delens" == job_id:
         return transformer.build_delenser(expr)

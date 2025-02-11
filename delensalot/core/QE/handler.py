@@ -2,8 +2,7 @@ import os, copy
 from os.path import join as opj
 import numpy as np
 
-from plancklens import qresp, qest
-
+from delensalot.config.config_helper import data_functions as df
 from delensalot.config.visitor import transform, transform3d
 from delensalot.utils import cli
 
@@ -28,10 +27,6 @@ class base:
 
         self.secondary = QE_search_desc["secondary"]
 
-
-        self.cls_len = QE_search_desc['cls_len']
-        self.cls_unl = QE_search_desc['cls_unl']
-
         self.simidxs = QE_search_desc['simidxs']
         self.simidxs_mf = QE_search_desc['simidxs_mf']
         self.subtract_meanfield = QE_search_desc['subtract_meanfield']
@@ -55,11 +50,11 @@ class base:
         return self.secondary.get_qlm(simidx, component)
     
 
-    def get_est(self, simidx, scale='k', subtract_meanfield=None, component=None):
+    def get_est(self, simidx, component=None, subtract_meanfield=None, scale='k'):
         if component is None:
-            return np.array([self.get_est(simidx, scale, subtract_meanfield, component).squeeze() for component in self.secondary.component])
+            return np.array([self.get_est(simidx, component, subtract_meanfield, scale).squeeze() for component in self.secondary.component])
         if isinstance(component, list):
-            return np.array([self.get_est(simidx, scale, subtract_meanfield, comp).squeeze() for comp in component])
+            return np.array([self.get_est(simidx, comp, subtract_meanfield, scale).squeeze() for comp in component])
         
         if not self.secondary.is_cached(simidx, component, 'klm'):
             qlm = self.get_qlm(simidx, component)
@@ -75,7 +70,7 @@ class base:
             almxfl(klm, WF, self.secondary.lm_max[1], True) # Wiener-filter QE
             almxfl(klm, self.secondary.CLfids[component*2][:self.secondary.lm_max[0]+1] > 0, self.secondary.lm_max[1], True)
             self.secondary.cache_klm(np.atleast_2d(klm), simidx, component)
-        return self.secondary.get_est(simidx, component) 
+        return self.secondary.get_est(simidx, component, scale) 
 
 
     def get_qmflm(self, simidxs, component=None):
@@ -94,7 +89,7 @@ class base:
         if isinstance(component, list):
             component = component[0]
 
-        if len(self.simidxs_mf) == 0:
+        if len(self.simidxs_mf) <= 2: # NOTE this is really just a lower bound
             return np.zeros(Alm.getsize(*self.secondary.lm_max), dtype=complex)
         kmflm = self.get_qmflm(self.simidxs_mf, component=component)
         R = self.get_response_len(component)
@@ -108,17 +103,18 @@ class base:
         return np.array(kmflm)
     
 
-    def get_wflm(self, simidx):
-        return self.fq.get_wflm(simidx)
+    def get_wflm(self, simidx, lm_max):
+        return self.fq.get_wflm(simidx, lm_max)
 
 
-    def get_ivflm(self, simidx):
-        return self.fq.get_ivflm(simidx)
-  
+    def get_ivflm(self, simidx, lm_max):
+        return self.fq.get_ivflm(simidx, lm_max)
+    
 
     def get_response_unl(self, component):
-        return qresp.get_response(self.estimator_key, self.fq.lm_max_ivf[0], self.estimator_key[0], self.cls_unl, self.cls_unl, self.fq.ftebl_unl, lmax_qlm=self.secondary.lm_max[0])[self.comp2idx[component]] 
+        return self.fq.get_response_unl(self.secondary.lm_max[0])[self.comp2idx[component]] 
     
 
     def get_response_len(self, component):
-        return qresp.get_response(self.estimator_key, self.fq.lm_max_ivf[0], self.estimator_key[0], self.cls_len, self.cls_len, self.fq.ftebl_len, lmax_qlm=self.secondary.lm_max[0])[self.comp2idx[component]]
+        return self.fq.get_response_len(self.secondary.lm_max[0])[self.comp2idx[component]] 
+    

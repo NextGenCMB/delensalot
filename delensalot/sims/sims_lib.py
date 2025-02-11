@@ -528,7 +528,7 @@ class Xsky:
                         sec = self.pri_lib.get_sim_sec(0, space='alm', secondary=operator.ID)
                         if operator.ID == 'lensing': 
                             sec = np.array([alm_copy(s, None, operator.LM_max[0], operator.LM_max[1]) for s in sec], dtype=complex)
-                            h2d = np.sqrt(np.arange(operator.LM_max[0] + 1, dtype=float) * np.arange(1, operator.LM_max[0] + 2, dtype=float))
+                            h2d = np.sqrt(np.arange(operator.LM_max[0] + 1) * np.arange(1, operator.LM_max[0] + 2))
                             [almxfl(s, h2d, operator.LM_max[1], True) for s in sec]
                             operator.set_field(sec)
                             buff = operator.act(pri, spin=2 if field == 'polarization' else 0)
