@@ -524,21 +524,20 @@ class Xsky:
                 if self.CMB_info['libdir'] == DNaV:
                     log.debug('.., generating.')
                     pri = self.pri_lib.get_sim_pri(simidx, space='alm', field=field, spin=0)
-                    for operator in self.operators:
-                        sec = self.pri_lib.get_sim_sec(0, space='alm', secondary=operator.ID)
+                    for operator in self.operators[::-1]:
+                        print(operator.ID)
+                        sec = self.pri_lib.get_sim_sec(simidx, space='alm', secondary=operator.ID)
                         if operator.ID == 'lensing': 
                             sec = np.array([alm_copy(s, None, operator.LM_max[0], operator.LM_max[1]) for s in sec], dtype=complex)
                             h2d = np.sqrt(np.arange(operator.LM_max[0] + 1) * np.arange(1, operator.LM_max[0] + 2))
                             [almxfl(s, h2d, operator.LM_max[1], True) for s in sec]
                             operator.set_field(sec)
-                            buff = operator.act(pri, spin=2 if field == 'polarization' else 0)
+                            pri = operator.act(pri, spin=2 if field == 'polarization' else 0)
                         elif operator.ID == 'birefringence':
-                            pass
                             if field != 'temperature':
                                 sec = np.array([alm_copy(s, None, 4096, 4096) for s in sec], dtype=complex)
                                 operator.set_field(sec)
-                                buff = operator.act(pri, spin=2 if field == 'polarization' else 0)
-                        pri = buff
+                                pri = operator.act(pri, spin=2 if field == 'polarization' else 0)
                     sky = pri
                     if field == 'polarization':
                         sky = self.operators[0].geomlib.alm2map_spin(sky, lmax=self.CMB_info['lm_max'][0], spin=2, mmax=self.CMB_info['lm_max'][1], nthreads=4)

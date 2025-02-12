@@ -25,9 +25,9 @@ DL_DEFAULT = {
         'maps': DNaV,
         "fid_info": {
             'libdir': opj(os.path.dirname(delensalot.__file__), 'data', 'cls'),
-            "fn": 'FFP10_wdipole_secondaries_lens_birefringence2.dat',
+            "fn": 'FFP10_wdipole_secondaries_lens_birefringence.dat',
             'libdir_sec': opj(os.path.dirname(delensalot.__file__), 'data', 'cls'),
-            'fn_sec': 'FFP10_wdipole_secondaries_lens_birefringence2.dat',
+            'fn_sec': 'FFP10_wdipole_secondaries_lens_birefringence.dat',
             'scale': 'p',
             'sec_components': {
                 'lensing': ['pp'],#, 'ww'],
@@ -80,7 +80,7 @@ DL_DEFAULT = {
         "operator_info": {
             'lensing': {
                 'epsilon': 1e-7,
-                'components': ['p', 'w'],
+                'component': ['p', 'w'],
                 'Lmin': 1,
                 'lm_max': [4096,4096],
                 'LM_max': [4096+1024,4096+1024],
@@ -91,7 +91,7 @@ DL_DEFAULT = {
             },
             'birefringence': {
                 'epsilon': 1e-7,
-                'components': ['f'],
+                'component': ['f'],
                 'Lmin': 1,
                 'lm_max': [4096,4096],
                 'LM_max': [4096,4096],
@@ -113,9 +113,8 @@ DL_DEFAULT = {
         'zbounds_len': (-1,1),
         'lm_max_len': (4000, 4000),
         'mask': None,
-        'cls_unl': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_secondaries_lens_birefringence2.dat'),
-        'cls_len': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lensedCls_secondaries_lens_birefringence2.dat'),
-        'cpp': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_secondaries_lens_birefringence2.dat'),
+        'cls_unl': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_secondaries_lens_birefringence.dat'),
+        'cls_len': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lensedCls_secondaries_lens_birefringence.dat'),
         'beam': 1.0,
         'transfunction_desc': 'gauss_no_pixwin',
         'secondaries': {

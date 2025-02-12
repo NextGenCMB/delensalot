@@ -52,7 +52,7 @@ def _dicthash(dict_in:dict, lmax:int, keys=None):
     # NB: got into trouble with default float16 ?!
 
 class polMAPbiases:
-    def __init__(self, config, fidcls_unl, itrmax=6, cacher:cachers.cacher or None = None, verbose=None):
+    def __init__(self, config, fidcls_unl, itrmax=6, cacher:cachers.cacher or None = None, verbose=None, qe_key='p_p'):
 
         (nlev_t, nlev_p, beam, lmin, lmax_ivf, lmax_qlm) = config
 
@@ -74,7 +74,7 @@ class polMAPbiases:
                              'ee': ( (nlev_p / 180 / 60 * np.pi) * utils.cli(transf_elm) ) ** 2,
                              'bb': ( (nlev_p / 180 / 60 * np.pi) * utils.cli(transf_blm) ) ** 2  }
 
-        self.qe_key = 'p_p'
+        self.qe_key = qe_key
         self.itrmax= itrmax
         if cacher is None:
             cacher = cachers.cacher_mem()

@@ -65,19 +65,14 @@ required_files_map = ConstantDict(['T', 'E', 'B'])
 
 
 def get_dirname(s):
-    s = str(s)
-    return s.replace('(', '').replace(')', '').replace('{', '').replace('}', '').replace(' ', '').replace('\'', '').replace('\"', '').replace(':', '_').replace(',', '_').replace('[', '').replace(']', '')
+    return str(s).translate(str.maketrans({"(": "", ")": "", "{": "", "}": "", "[": "", "]": "", 
+                                            " ": "", "'": "", '"': "", ":": "_", ",": "_"}))
 
 def dict2roundeddict(d):
-    s = ''
-    for k,v in d.items():
-        d[k] = np.around(v,3)
-    return d
+    return {k: np.around(v, 3) for k, v in d.items()}
 
 def get_hashcode(s):
-    hlib = hashlib.sha256()
-    hlib.update(str(s).encode())
-    return hlib.hexdigest()[:4]
+    return hashlib.sha256(str(s).encode()).hexdigest()[:4]
 
 
 template_secondaries = ['lensing', 'birefringence']  # Define your desired order
@@ -762,6 +757,10 @@ class QE_lr_v2(Basejob):
                 QE_search.init_filterqest()
 
 
+    def maxiterdone(self):
+        return -1
+
+
 class MAP_lr_v2:
     def __init__(self, dl):
         self.__dict__.update(dl.__dict__)
@@ -781,10 +780,12 @@ class MAP_lr_v2:
         
         # self.simulationdata = self.MAP_handler_desc["simulationdata"]
         self.it_tasks = self.MAP_handler_desc["it_tasks"]
+        for simidx in self.simidxs:
+            if mpi.rank == 0:
+                self.__copyQEtoDirectory(simidx)
 
 
     def collect_jobs(self):
-        print("Collecting MAP jobs")
         jobs = list(range(len(self.it_tasks)))
         for taski, task in enumerate(self.it_tasks):
             _jobs = []
@@ -794,15 +795,10 @@ class MAP_lr_v2:
                         _jobs.append(simidx)
                 jobs[taski] = _jobs
         self.jobs = jobs
-        print("MAP jobs: ", jobs)
         return jobs
 
 
     def run(self):
-        # TODO better to check with maxiterdone()
-        for simidx in self.simidxs:
-            # if self.MAP_searchs[simidx].filter.ivf_field.is_cached(simidx, 0):
-                self.__copyQEtoDirectory(simidx)
         for taski, task in enumerate(self.it_tasks):
             log.info('{}, MAP task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
             if task == 'calc_fields':
@@ -845,7 +841,7 @@ class MAP_lr_v2:
 
 
     def get_template(self, simidx, it, secondary=None, component=None):
-        assert it>0, 'No analysis has been done, please get some estimates first'
+        assert it>0, 'Need to correctly implement QE template generation first'
         assert it >= self.maxiterdone(), 'Requested iteration is not available'
         return self.MAP_searchs[simidx].get_template(it, secondary, component)
 
@@ -934,16 +930,18 @@ class MAP_lr_v2:
         # NOTE this turns them into convergence fields
         for secname, secondary in self.MAP_searchs[simidx].secondaries.items():
             self.QE_searchs[self.sec2idx[secname]].init_filterqest()
-            klm_QE = self.QE_searchs[self.sec2idx[secname]].get_est(simidx)
-            self.MAP_searchs[simidx].secondaries[secname].cache_klm(klm_QE, simidx, it=0)
-            # self.MAP_searchs[simidx].gradients[self.grad2idx[fieldname]].gfield.cache_quad(klm_QE, simidx, it=0)
+            if not self.MAP_searchs[simidx].secondaries[secname].is_cached(simidx, it=0):
+                klm_QE = self.QE_searchs[self.sec2idx[secname]].get_est(simidx)
+                self.MAP_searchs[simidx].secondaries[secname].cache_klm(klm_QE, simidx, it=0)
             
-            kmflm_QE = self.QE_searchs[self.sec2idx[secname]].get_kmflm(simidx)
-            self.MAP_searchs[simidx].gradients[self.sec2idx[secname]].gfield.cache_meanfield(kmflm_QE, simidx, it=0)
+            if not self.MAP_searchs[simidx].gradients[self.sec2idx[secname]].gfield.is_cached(simidx, it=0):
+                kmflm_QE = self.QE_searchs[self.sec2idx[secname]].get_kmflm(simidx)
+                self.MAP_searchs[simidx].gradients[self.sec2idx[secname]].gfield.cache_meanfield(kmflm_QE, simidx, it=0)
 
             #TODO cache QE wflm into the filter directory
-            wflm_QE = self.QE_searchs[self.sec2idx[secname]].get_wflm(simidx, self.MAP_searchs[simidx].ivf_filter.lm_max_ivf)
-            self.MAP_searchs[simidx].wf_filter.wf_field.cache_field(np.array(wflm_QE), simidx, it=0)
+            if not self.MAP_searchs[simidx].wf_filter.wf_field.is_cached(simidx, it=0):
+                wflm_QE = self.QE_searchs[self.sec2idx[secname]].get_wflm(simidx, self.MAP_searchs[simidx].ivf_filter.lm_max_ivf)
+                self.MAP_searchs[simidx].wf_filter.wf_field.cache_field(np.array(wflm_QE), simidx, it=0)
 
 
     def maxiterdone(self):

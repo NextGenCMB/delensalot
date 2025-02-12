@@ -111,10 +111,18 @@ class base:
         return self.fq.get_ivflm(simidx, lm_max)
     
 
-    def get_response_unl(self, component):
-        return self.fq.get_response_unl(self.secondary.lm_max[0])[self.comp2idx[component]] 
+    def get_response_unl(self, component, scale='p'):
+        return _rescale(self.fq.get_response_unl(self.secondary.lm_max[0], scale=scale)[self.comp2idx[component]])
     
 
-    def get_response_len(self, component):
-        return self.fq.get_response_len(self.secondary.lm_max[0])[self.comp2idx[component]] 
+    def get_response_len(self, component, scale='p'):
+        return _rescale(self.fq.get_response_len(self.secondary.lm_max[0]), scale=scale)[self.comp2idx[component]] 
     
+    def _rescale(obj, scale):
+        lmax = len(obj)
+        if scale == 'p':
+            return obj
+        elif scale == 'k':
+            return obj * (0.5 * np.arange(lmax + 1, dtype=float) * np.arange(1, lmax + 2, dtype=float))**2
+        else:
+            print(f"Unknown scale {scale}")

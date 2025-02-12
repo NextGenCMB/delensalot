@@ -23,7 +23,7 @@ class secondary:
     def get_est(self, idx, it, component=None, scale='k'):
         if self.ID != 'lensing':
             assert scale == 'k'
-        "component are stored with leading dimension"
+        # NOTE component are stored with leading dimension
         if isinstance(component, list):
             assert all([comp in self.component for comp in component]), "component must be in {}".format(self.component)
         if component is None:
@@ -135,7 +135,7 @@ class gradient:
             np.array([self.get_total(simidx, it_, component) for it_ in it]) 
         if self.cacher.is_cached(self.total_fns.format(idx=simidx, it=it)):
             return self.cacher.load(self.total_fns.format(idx=simidx, it=it))
-        g += self.get_prior(simidx, it-1, component)
+        g += self.get_gradient_prior(simidx, it-1, component)
         g += self.get_meanfield(simidx, it, component)
         g -= self.get_quad(simidx, it, component)
         return g

@@ -84,11 +84,14 @@ class l2base_Transformer:
         si.operator_info = buffer_operatorinfo
         dl.simulationdata = Simhandler(**si.__dict__)
         if 'cls_lib' in dl.simulationdata.__dict__:
+            def _set_Lmin_zero(obj):
+                obj[:cf.analysis.Lmin] = 0
+                return obj
             # FIXME this doesnt look safe, order of a dict is not guaranteed
             # FIXME if obs maps are given, sumulationdata.fid_info is not the correct thing to use here. to make it work it needs to be updated with the info from analysis.secondaries
             # print(dl.cls_len.keys())    
             dl.CLfids = {
-                secclk: {comp: va for comp, va in zip(secclv, val)}
+                secclk: {comp: _set_Lmin_zero(va) for comp, va in zip(secclv, val)}
                 for (secclk, secclv), val in zip(dl.simulationdata.fid_info['sec_components'].items(), dl.simulationdata.get_sim_fidsec(0, secondary=None, components=None))
             }
         else:
@@ -246,7 +249,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             def _process_Analysis(dl, an, cf):
                 dl.k = an.key
                 dl.lmin_teb = an.lmin_teb
-                dl.version = an.version
                 dl.simidxs = an.simidxs
                 dl.simidxs_mf = np.array(an.simidxs_mf) # if dl.version != 'noMF' else np.array([])
 

@@ -112,7 +112,7 @@ class base:
         return qresp.get_response(self.estimator_key, self.lm_max_ivf[0], self.estimator_key[0], self.cls_unl, self.cls_unl, self.ftebl_unl, lmax_qlm=lmax_qlm)
     
 
-    def get_response_len(self, lmax_qlm):
+    def get_response_len(self, lmax_qlm, scale='p'):
         return qresp.get_response(self.estimator_key, self.lm_max_ivf[0], self.estimator_key[0], self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=lmax_qlm)
     
 

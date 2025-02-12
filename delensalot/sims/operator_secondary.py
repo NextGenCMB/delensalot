@@ -59,7 +59,7 @@ class lensing(base):
         self.ID = 'lensing'
         
         if operator_desc["field_fns"] is DNaV:
-            self.field_fns = {comp: "{idx}" for comp in operator_desc["components"]}
+            self.field_fns = {comp: "{idx}" for comp in operator_desc["component"]}
         else:
             self.field_fns = operator_desc["field_fns"]
 
@@ -67,11 +67,11 @@ class lensing(base):
         self.lm_max = operator_desc["lm_max"]
         self.LM_max = operator_desc["LM_max"]
         self.perturbative = operator_desc["perturbative"]
-        self.components = operator_desc["components"]
+        self.component = operator_desc["component"]
         self.geominfo = operator_desc["geominfo"]
         self.geomlib = get_geom(operator_desc['geominfo'])
         
-        self.field = {component: None for component in self.components}
+        self.field = {component: None for component in self.component}
         self.ffi = deflection(self.geomlib, np.zeros(shape=hp.Alm.getsize(*self.LM_max)), self.LM_max[1], numthreads=operator_desc['tr'], verbosity=False, epsilon=operator_desc['epsilon'])
 
 
@@ -139,25 +139,19 @@ class birefringence(base):
     def act(self, obj, spin=None, adjoint=False):
         f = np.array([self.field[comp].flatten() for comp in self.component], dtype=complex)
         buff = alm_copy(f[0], None, *self.lm_max)
-        buff_real = self.ffi.geom.alm2map(buff, *self.LM_max, 8, [-1., 1.])
-
-        # Convert (Elm, Blm) to Q/U maps
-        Q, U = self.ffi.geom.alm2map_spin(obj, 2, *self.lm_max, 8, [-1., 1.])
+        buff_real = self.ffi.geom.alm2map(buff, lmax=self.LM_max[0], mmax=self.LM_max[1], nthreads=8)
+        Q, U = self.ffi.geom.alm2map_spin(obj, spin=2, lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=8)
                 
-        # Apply birefringence rotation
         angle = 2 * buff_real
         cos_a, sin_a = np.cos(angle), np.sin(angle)
 
         Q_rot = cos_a * Q - sin_a * U
         U_rot = sin_a * Q + cos_a * U
 
-        # If adjoint, reverse the rotation
         if adjoint:
             Q_rot, U_rot = cos_a * Q + sin_a * U, -sin_a * Q + cos_a * U
 
-        # Convert back to (Elm, Blm)
-        Elm_rot, Blm_rot = self.ffi.geom.map2alm_spin(np.array([Q_rot, U_rot]), 2, *self.lm_max, 8)
-
+        Elm_rot, Blm_rot = self.ffi.geom.map2alm_spin(np.array([Q_rot, U_rot]), spin=2, lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=4)
         return np.array([Elm_rot, Blm_rot])
         
     
@@ -167,12 +161,6 @@ class birefringence(base):
     def set_field(self, field):
         self.field['f'] = field
 
-    # def set_field(self, simidx, component=None):
-    #     if component is None:
-    #         for component in self.components.split("_"):
-    #             self.set_field(simidx, component)
-    #     self.field[component] = self.field_cacher.load(opj(self.field_fns[component].format(idx=simidx)))
-    
 
 class beam:
     def __init__(self, operator_desc):

@@ -43,10 +43,6 @@ class base:
 
         self.itmax = desc['itmax']
         self.simidx = simidx
-        # TODO do later
-        if False:
-            self.template_cacher = cachers.cacher_npy(template_desc['libdir'])
-            self.template_operators = template_desc['template_operators']
 
     
     def get_est(self, simidx, request_it, secondary=None, component=None, scale='k', calc_flag=False):
@@ -117,7 +113,6 @@ class base:
             for compi, comp in enumerate(grad.secondary.component):
                 ckp = self.chh[grad.ID][comp]
                 R_unl = R_unl0[grad.ID][comp][:lmax+1]*cli(self.__p2k(lmax=lmax))**2 if grad.ID == 'lensing' else R_unl0[grad.ID][comp][:lmax+1]
-
                 buff = cli(R_unl + cli(ckp)) * (ckp > 0)
                 ret[grad.ID].update({comp: np.array(buff)})
         return ret
@@ -189,10 +184,3 @@ class base:
         for fieldID, field in self.secondaries.items():
             for component in field.component:
                 field.cache_klm(new_klms[fieldID][component], simidx, it, component=component)
-
-
-    def load_klm(self, simidx, it, secondary, component):
-        # FIXME update
-        for fieldID, field in self.secondaries.items():
-            for component in field.component:
-                field.get_est(simidx, it, component=component)
