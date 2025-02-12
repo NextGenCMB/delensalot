@@ -775,6 +775,7 @@ class MAP_lr_v2:
         self.seclist_sorted = sorted(list(self.sec2idx.keys()), key=lambda x: template_index_secondaries.get(x, ''))
         self.MAP_searchs_desc["desc"].update({"Runl0": {}})
         for i, QE_search in enumerate(self.QE_searchs):
+            #FIXME this needs to be corrected - QE returns correctly scaled response now
             self.MAP_searchs_desc["desc"]["Runl0"].update({QE_search.secondary.ID: {component: np.array(QE_search.get_response_unl(component)) for component in QE_search.secondary.component}})
         self.MAP_searchs = [MAP_handler.base(self.simulationdata, self.MAP_searchs_desc["MAP_secondaries"], self.MAP_searchs_desc["filter_desc"], self.MAP_searchs_desc["gradient_descs"], self.MAP_searchs_desc["curvature_desc"], self.MAP_searchs_desc["desc"], self.MAP_searchs_desc["template_descs"], simidx) for simidx in self.simidxs]
         
@@ -930,7 +931,7 @@ class MAP_lr_v2:
         # NOTE this turns them into convergence fields
         for secname, secondary in self.MAP_searchs[simidx].secondaries.items():
             self.QE_searchs[self.sec2idx[secname]].init_filterqest()
-            if not self.MAP_searchs[simidx].secondaries[secname].is_cached(simidx, it=0):
+            if not all(self.MAP_searchs[simidx].secondaries[secname].is_cached(simidx, it=0)):
                 klm_QE = self.QE_searchs[self.sec2idx[secname]].get_est(simidx)
                 self.MAP_searchs[simidx].secondaries[secname].cache_klm(klm_QE, simidx, it=0)
             

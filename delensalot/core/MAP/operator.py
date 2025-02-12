@@ -178,7 +178,6 @@ class lensing(base):
         d = np.array([self.field[comp].flatten() for comp in comps_], dtype=complex)
         if d.shape[0] == 1:
             d = [d[0], None] if comps_[0] == 'p' else [np.zeros_like(d[0], dtype=complex), d[0]]
-
         self.ffi = self.ffi.change_dlm(d, self.LM_max[1])
 
 

@@ -112,13 +112,14 @@ class base:
     
 
     def get_response_unl(self, component, scale='p'):
-        return _rescale(self.fq.get_response_unl(self.secondary.lm_max[0], scale=scale)[self.comp2idx[component]])
+        return self._rescale(self.fq.get_response_unl(self.secondary.lm_max[0])[self.comp2idx[component]], scale=scale)
     
 
     def get_response_len(self, component, scale='p'):
-        return _rescale(self.fq.get_response_len(self.secondary.lm_max[0]), scale=scale)[self.comp2idx[component]] 
+        return self._rescale(self.fq.get_response_len(self.secondary.lm_max[0])[self.comp2idx[component]], scale=scale)
     
-    def _rescale(obj, scale):
+
+    def _rescale(self, obj, scale):
         lmax = len(obj)
         if scale == 'p':
             return obj

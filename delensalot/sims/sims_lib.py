@@ -402,7 +402,7 @@ class Xpri:
                 Clpf = self.cls_lib.get_clsec(simidx, secondary, component*2).squeeze()
                 self.sec_info[secondary]['scale'] = self.cls_lib.fid_info['scale']
                 Clp = self.clsecsf2clsecp(secondary, Clpf)
-                sec = self.clp2seclm(secondary, Clp, simidx)
+                sec = self.clp2seclm(secondary, component, Clp, simidx)
                 ## If it comes from CL, like Gauss secs, then sec modification must happen here
                 sec = self.sec_info[secondary]['modifier'](sec)
                 if space == 'map':
@@ -457,8 +457,8 @@ class Xpri:
             return alms[0]
     
 
-    def clp2seclm(self, secondary, clp, seed):
-        combined_str = f"{secondary}_{seed}".encode()
+    def clp2seclm(self, secondary, component, clp, seed):
+        combined_str = f"{secondary}_{component}_{seed}".encode()
         hashed_seed = int(hashlib.sha256(combined_str).hexdigest(), 16) % (2**32)  # Convert to 32-bit int
         np.random.seed(hashed_seed)
         sec = hp.synalm(clp, self.sec_info[secondary]['lm_max'][0])
@@ -525,7 +525,6 @@ class Xsky:
                     log.debug('.., generating.')
                     pri = self.pri_lib.get_sim_pri(simidx, space='alm', field=field, spin=0)
                     for operator in self.operators[::-1]:
-                        print(operator.ID)
                         sec = self.pri_lib.get_sim_sec(simidx, space='alm', secondary=operator.ID)
                         if operator.ID == 'lensing': 
                             sec = np.array([alm_copy(s, None, operator.LM_max[0], operator.LM_max[1]) for s in sec], dtype=complex)
