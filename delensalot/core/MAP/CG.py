@@ -1,8 +1,4 @@
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-
-import sys, re, copy
+import sys
 import numpy as np
 
 from delensalot.core.cg import cd_solve, cd_monitors

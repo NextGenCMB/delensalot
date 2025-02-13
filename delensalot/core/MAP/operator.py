@@ -2,14 +2,8 @@ from os.path import join as opj
 
 import numpy as np
 
-import healpy as hp
-
-from lenspyx.remapping.deflection_028 import rtype, ctype
-
 from delensalot.core import cachers
-
 from delensalot.config.config_helper import data_functions as df
-
 from delensalot.utility.utils_hp import gauss_beam
 from delensalot.utils import cli
 from delensalot.utility.utils_hp import Alm, almxfl, alm_copy
@@ -206,7 +200,8 @@ class birefringence(base):
     def act(self, obj, spin=None, lmax_in=None, lm_max=None, adjoint=False, backwards=False, out_sht_mode=None):
         lm_max = self.lm_max if lm_max is None else lm_max
         buff = alm_copy(self.field[self.component[0]][0], None, *self.lm_max)
-        buff_real = self.ffi.geom.alm2map(buff, *self.LM_max, 8)
+        # buff_real = self.ffi.geom.alm2map(buff, *self.LM_max, 8)
+        buff_real = self.ffi.geom.alm2map(buff, *(1000, 1000), 8)
 
         # NOTE if no B component (e.g. for generating template), I set B to zero
         obj = np.atleast_2d(obj)

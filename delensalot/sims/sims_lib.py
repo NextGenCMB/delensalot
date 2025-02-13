@@ -23,7 +23,6 @@ from delensalot.core import cachers
 from delensalot.config.metamodel import DEFAULT_NotAValue as DNaV
 
 from delensalot.utility.utils_hp import Alm, almxfl, alm_copy
-import delensalot
 from delensalot.utils import load_file_wsec, cli
 from delensalot.sims import operator_secondary
 

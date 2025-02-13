@@ -1,14 +1,7 @@
-import os, copy
-from os.path import join as opj
 import numpy as np
 
-from delensalot.config.config_helper import data_functions as df
-from delensalot.config.visitor import transform, transform3d
 from delensalot.utils import cli
-
 from delensalot.core.QE import filterqest
-
-from delensalot.utility import utils_qe
 from delensalot.utility.utils_hp import Alm, almxfl, alm_copy, gauss_beam
 
 component2plancklensk = {'p': "p", 'f': "a", 'w': "x"}

@@ -6,8 +6,6 @@ from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy
 from delensalot.utils import cli
 
 
-from . import filter
-
 class base:
     def __init__(self, gradient_desc, filter, simidx):
         self.ID = gradient_desc['ID']

@@ -32,7 +32,6 @@ from delensalot.utility.utils_hp import gauss_beam
 
 from delensalot.core.QE import field as QE_field
 from delensalot.core.MAP import field as MAP_field, operator
-from delensalot.core.iterator import steps
 from delensalot.core.handler import OBD_builder, Sim_generator, QE_lr_v2, MAP_lr_v2, Map_delenser, Phi_analyser
 
 from delensalot.config.visitor import transform, transform3d
