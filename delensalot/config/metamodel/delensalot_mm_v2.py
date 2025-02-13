@@ -129,13 +129,15 @@ class DELENSALOT_Simulation(DELENSALOT_Concept_v2):
                                      
     """
     flavour =       attr.field(default=DEFAULT_NotAValue, validator=data.flavour)
+    libdir_suffix = attr.field(default='generic', validator=data.libdir_suffix)
     maps =          attr.field(default=DEFAULT_NotAValue, validator=data.maps)
     geominfo =      attr.field(default=DEFAULT_NotAValue, validator=data.geominfo)
-    fid_info =      attr.field(default=DEFAULT_NotAValue)
+    fid_info =   attr.field(default=DEFAULT_NotAValue)
     CMB_info =      attr.field(default=DEFAULT_NotAValue)
     sec_info =      attr.field(default=DEFAULT_NotAValue)
     obs_info =      attr.field(default=DEFAULT_NotAValue)
     operator_info = attr.field(default=DEFAULT_NotAValue)
+
 
 @attr.s
 class DELENSALOT_Noisemodel(DELENSALOT_Concept_v2):
@@ -345,7 +347,6 @@ class DELENSALOT_Model(DELENSALOT_Concept_v2):
         default_module = importlib.util.module_from_spec(spec)
         sys.modules["default"] = default_module
         spec.loader.exec_module(default_module)
-
         default_dict = default_module.DL_DEFAULT
 
         def update_defaults(target, defaults):
@@ -362,11 +363,26 @@ class DELENSALOT_Model(DELENSALOT_Concept_v2):
                     elif isinstance(default_value, dict) and isinstance(getattr(target, key), dict):
                         update_defaults(getattr(target, key), default_value)
 
-        # Apply updates to all top-level attributes
+        # apply updates to all top-level attributes
         for key, default_value in default_dict.items():
             if key in ['defaults_to', 'validate_model']:
                 continue  # Skip special attributes
-
-            if not hasattr(self, key) or np.all(getattr(self, key) == DEFAULT_NotAValue):
-                setattr(self, key, default_value)
-            update_defaults(getattr(self, key), default_value)
+            elif key in ['simulationdata']:
+                for value in default_dict['simulationdata'].keys():
+                    if value == 'sec_info': 
+                        # NOTE this only updates sec_info keys if a secondary is actually listed in the config file. 
+                        # By this I make sure that the simulation library only receives the secondaries that the user wants,
+                        # while at the same time setting the defaults for that secondary if the user did not specify
+                        for secondary in default_value[value].keys():
+                            if secondary in self.simulationdata.sec_info:
+                                update_defaults(self.simulationdata.sec_info[secondary], default_value['sec_info'][secondary])
+                    else:
+                        # NOTE this is for all other simulationdata keys. They can be udpated as usual. Only removing non-dict items from the recusrive search
+                        if not isinstance(getattr(self.simulationdata, value), dict):
+                            setattr(self.simulationdata, value, default_value[value])
+                        else:
+                            update_defaults(getattr(self.simulationdata, value), default_value[value])
+            else:
+                if not hasattr(self, key) or getattr(self, key) == DEFAULT_NotAValue:
+                    setattr(self, key, default_value)
+                update_defaults(getattr(self, key), default_value)

@@ -12,57 +12,52 @@ from delensalot.config.metamodel import DEFAULT_NotAValue as DNaV, DEFAULT_NotAS
 
 DL_DEFAULT = {
     'meta': {
-        'version': "0.2"
+        'version': "0.3"
     },
     'job':{
-        'jobs': ["generate_sim", "QE_lensrec_new", "MAP_lensrec_operator"]
+        'jobs': ["generate_sim", "QE_lensrec", "MAP_lensrec"]
     },
     # FIXME all lm_max need to be consistent no matter which flavour we start with.
     # better only have one lm_max in default and config file, and let l2p adapt accordingly.
     'simulationdata': { 
         'flavour': 'pri',
-        'geominfo': ('healpix',{'nside': 2048}),
+        'libdir_suffix': 'generic',
+        'geominfo': ('healpix',{'nside': 2048}), # NOTE this is the geometry for any map generated as the final result
         'maps': DNaV,
-        "fid_info": {
+        'fid_info': {
             'libdir': opj(os.path.dirname(delensalot.__file__), 'data', 'cls'),
-            "fn": 'FFP10_wdipole_secondaries_lens_birefringence.dat',
-            'libdir_sec': opj(os.path.dirname(delensalot.__file__), 'data', 'cls'),
-            'fn_sec': 'FFP10_wdipole_secondaries_lens_birefringence.dat',
-            'scale': 'p',
-            'sec_components': {
-                'lensing': ['pp'],#, 'ww'],
-                # 'birefringence': ['ff'],
-                           }
+            'fn': 'FFP10_wdipole_secondaries_lens_birefringence.dat',
+            'libdir_sec': DNaV,
+            'fn_sec': DNaV,
         },
         "CMB_info": {
+            'space': 'cl',
             'libdir': DNaV,
             'fns': DNaV,
-            'space': 'cl',
             'spin': 0,
             'lm_max': [4096,4096],
-            'fns': DNaV,
             'modifier': lambda x: x,
         },
-        "sec_info": {
+        "sec_info": { # NOTE if secondary already generated (space not 'cl'), this is needed. Otherwise, only the 'space' key is needed.
             'lensing':{
-                'geominfo': ('thingauss', {'lmax': 4500, 'smax': 3}),
+                'component': ['p','w'],
+                'space': 'cl',
+                'geominfo': ('thingauss', {'lmax': 4500, 'smax': 3}), # NOTE this is the geometry of the provided ssecondary maps
                 'libdir': DNaV,
-                'fns': DNaV,
-                'components': ['p', 'w'],
-                'space':'alm',
-                'scale':'p',
+                'fn': DNaV,
+                'component': DNaV,
+                'scale': DNaV,
                 'modifier': lambda x: x,
-                'lm_max': [4096+1024,4096+1024],
             },
             'birefringence':{
+                'space': 'cl',
+                'component': ['f'],
                 'geominfo': ('thingauss', {'lmax': 4500, 'smax': 3}),
                 'libdir': DNaV,
-                'fns': DNaV,
-                'components': ['f'],
-                'space':'alm',
-                'scale':'p',
+                'fn': DNaV,
+                'component': DNaV,
+                'scale': DNaV,
                 'modifier': lambda x: x,
-                'lm_max': [4096,4096],
             },
         },
         "obs_info": {
@@ -72,7 +67,6 @@ DL_DEFAULT = {
                 'nlev': {'P': 1.0, 'T': 1./np.sqrt(2)},
                 'space': 'alm',
                 'geominfo': ('healpix',{'nside': 2048}),
-                'libdir_suffix': 'generic',
                 'lm_max': [4096,4096],
             },
             'transfunction': gauss_beam(1.0/180/60 * np.pi, lmax=4096),
@@ -80,31 +74,26 @@ DL_DEFAULT = {
         "operator_info": {
             'lensing': {
                 'epsilon': 1e-7,
-                'component': ['p', 'w'],
                 'Lmin': 1,
                 'lm_max': [4096,4096],
                 'LM_max': [4096+1024,4096+1024],
+                'lm_max_obs': [4096,4096],
                 'geominfo': ('thingauss',{'lmax': 4500, 'smax': 3}),
                 'perturbative': False,
-                'field_fns': DNaV,
-                'libdir': DNaV,
             },
             'birefringence': {
-                'epsilon': 1e-7,
-                'component': ['f'],
                 'Lmin': 1,
                 'lm_max': [4096,4096],
                 'LM_max': [4096,4096],
+                'lm_max_obs': [4096,4096],
                 'geominfo': ('thingauss',{'lmax': 4500, 'smax': 3}),
-                'field_fns': DNaV,
-                'libdir': DNaV,
             },
         }
     },
     'analysis': { 
         'key': 'p_p',
         'simidxs': np.arange(0,1),
-        'TEMP_suffix': 'P_FS_CMBS4_aob',
+        'TEMP_suffix': 'P_FS_CMBS4_jointsecrec',
         'Lmin': 1, 
         'lm_max_ivf': (4000, 4000),
         'lmin_teb': (2, 2, 200),

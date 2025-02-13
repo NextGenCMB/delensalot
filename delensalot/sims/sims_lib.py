@@ -28,6 +28,7 @@ from delensalot.utils import load_file_wsec, cli
 from delensalot.sims import operator_secondary
 
 
+
 def check_dict(d):
     for key, val in d.items():
         if isinstance(val, dict) or isinstance(val, list) or isinstance(val, np.ndarray):
@@ -74,29 +75,42 @@ def cld2clp(cld, lmax):
     factor = LL*(LL+1)
     return hp.almxfl(cld, cli(factor))
 
-
 def get_dirname(s):
-    return s.replace('(', '').replace(')', '').replace('{', '').replace('}', '').replace(' ', '').replace('\'', '').replace('\"', '').replace(':', '_').replace(',', '_').replace('[', '').replace(']', '')
-
+    return str(s).translate(str.maketrans({"(": "", ")": "", "{": "", "}": "", "[": "", "]": "", 
+                                            " ": "", "'": "", '"': "", ":": "_", ",": "_"}))
 def dict2roundeddict(d):
     for k,v in d.items():
         d[k] = np.around(v,3)
     return d
 
+def dirname_generator(libdir_suffix, geominfo):
+    return os.environ['SCRATCH']+f'/simulation/{libdir_suffix}/{get_dirname(geominfo)}'
+
+
+template_lensingcomponents = ['p', 'w'] 
+template_index_lensingcomponents = {val: i for i, val in enumerate(template_lensingcomponents)}
+
+template_secondaries = ['lensing', 'birefringence']  # Define your desired order
+template_index_secondaries = {val: i for i, val in enumerate(template_secondaries)}
+
 class iso_white_noise:
     """class for generating very simple isotropic white noise
     """
-    def __init__(self, geominfo=DNaV, noise_info=DNaV):
+    def __init__(self, geominfo=DNaV, noise_info=DNaV, libdir_suffix=DNaV):
         self.geominfo = geominfo
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
         self.geom_lib = get_geom(self.geominfo)
 
         if noise_info['libdir'] == DNaV:
-            assert noise_info['libdir_suffix'] != DNaV, 'must give libdir_suffix'
+            # NOTE libdir_suffix is terribly implemented.
+            # libdir_phas needs to be aligned with whatever the job_handler Sim_generator() sets the libdir of the simulations to.
+            # It would therefore be better to let Sim_generator() set libdir_phas.
+            # However, this is not possible because simhandler is called from l2p, and l2p does not know the libdir of the simulations yet.
+            # So, I need to set libdir here because pix_lib_phas needs it. In the end, it works.. but it's not pretty because this string format must match in two different classes..
             nlev_round = dict2roundeddict(noise_info['nlev'])
-            self.libdir_phas = os.environ['SCRATCH']+'/simulation/{}/{}/phas/{}/'.format(noise_info['libdir_suffix'], get_dirname(str(self.geominfo)), get_dirname(str(sorted(nlev_round.items()))))
-            self.pix_lib_phas = phas.pix_lib_phas(self.libdir_phas, 3, (self.geom_lib.npix(),))
+            self.libdir = dirname_generator(libdir_suffix, geominfo) + f'/phas/{get_dirname(str(sorted(nlev_round.items())))}/'
+            self.pix_lib_phas = phas.pix_lib_phas(self.libdir, 3, (self.geom_lib.npix(),))
         else:
             if noise_info['fns'] == DNaV:
                 assert 0, "must provide fns"
@@ -200,37 +214,21 @@ class iso_white_noise:
 class Cls:
     """class for accessing CAMB-like file for CMB power spectra, optionally a distinct file for the lensing field (grad and curl component), and birefringence
     """    
-    def __init__(self, fid_info=DNaV):
-        # NOTE if CMB_fn is None, I assume the run does not have CMB spectra (this is the case when prialm CMB are provided, but secondaries alms are generated from Cls)
+    def __init__(self, fid_info=DNaV, seccomp=DNaV):
         # TODO add support for field-field (phi-bf) correlations
-        if fid_info == DNaV or fid_info['fn'] == DNaV:
-            if fid_info == DNaV:
-                fid_info = {'fns': None, 'libdir': None}
-            fid_info['fn'] = 'FFP10_wdipole_secondaries_lens_birefringence.dat'
-            fid_info['libdir'] = opj(os.path.dirname(delensalot.__file__), 'data', 'cls')
-            self.Cl_dict = load_file_wsec(opj(fid_info['libdir'], fid_info['fn']))
-            # FIXME need to initialize the secondaries with the same CMB_fn
-        elif fid_info['fn'] is None: # only need cl_dict for secondaries
-            self.CMB_fn = None
-            self.Cl_dict = {}
-        else:
-            self.CMB_fn = fid_info['fn']
-            self.Cl_dict = load_file_wsec(opj(fid_info['libdir'], fid_info['fn']))
-        self.fid_info = fid_info
+        assert seccomp != DNaV, "need to provide seccomp"
+        assert fid_info != DNaV, "need to provide CMB_info"
 
-        # NOTE now I either replace or delete secondaries from the dict.
-        # If there are secondaries listed in the secondaries parameter, I will replace the Cl_dct values with it.
-        # If not, I will delete the Cl_dict entries as I assume this run is performed without them.
-        # If fn point to the same CMB_fn, I keep them
-        secondaries_keep_list = [val for sublist in fid_info['sec_components'].values() for val in (sublist if isinstance(sublist, list) else [sublist])]
-        secondaries_pop_list = [key for key in ['pp', 'pt', 'pe', 'ww', 'wt', 'we', 'wp', 'ff', 'ft', 'fe', 'fp', 'fw'] if key not in secondaries_keep_list]
-        for key in secondaries_pop_list:
-            del self.Cl_dict[key]
-        if fid_info['fn'] != DNaV and fid_info['fn'] != fid_info['fn_sec']:
-            sec_file = load_file_wsec(opj(fid_info['libdir'], fid_info['fn_sec']))
-            for component in secondaries_keep_list:
-                self.Cl_dict[component] = sec_file[component]
-        self.secondaries = secondaries_keep_list
+        if fid_info['libdir'] == DNaV:
+            if fid_info['fn'] == DNaV:
+                assert 0, "need to provide libdir or at least fn in CMB_info"
+        self.Cl_dict = load_file_wsec(opj(fid_info['libdir'], fid_info['fn']))
+        if all([val != DNaV for val in [fid_info['libdir_sec'], fid_info['fn_sec']]]):
+            if opj(fid_info['libdir'], fid_info['fn']) != opj(fid_info['libdir_sec'], fid_info['fn_sec']):
+                self.Cl_dict.update(load_file_wsec(opj(fid_info['libdir_sec'], fid_info['fnfn_sec'])))
+
+        self.fid_info = fid_info
+        self.seccomp = seccomp
 
         self.cacher = cachers.cacher_mem(safe=True)
 
@@ -245,15 +243,15 @@ class Cls:
     
 
     def get_clsec(self, simidx, secondary=None, components=None, lmax=None):
-        # if isinstance(secondary, str):
         if secondary is None:
-            return [self.get_clsec(simidx, sec, components, lmax) for sec in self.fid_info['sec_components'].keys()]
+            return [self.get_clsec(simidx, sec, components, lmax) for sec in self.seccomp]
         if components is None:
-            return np.array([self.get_clsec(simidx, secondary, comp, lmax).squeeze() for comp in self.fid_info['sec_components'][secondary]])
-        components = [components] if isinstance(components, str) else components
+            return np.array([self.get_clsec(simidx, secondary, comp*2, lmax).squeeze() for comp in self.seccomp[secondary]])
+        if isinstance(components, list):
+            return np.array([self.get_clsec(simidx, secondary, comp, lmax).squeeze() for comp in components])
         fn = f"clssec{secondary}_{components}_{simidx}"
         if not self.cacher.is_cached(fn):
-            Cls = np.array([self.Cl_dict[key][:lmax+1] for key in components]) if lmax is not None else np.array([self.Cl_dict[key] for key in components])
+            Cls = self.Cl_dict[components][:lmax+1] if lmax is not None else self.Cl_dict[components]
             self.cacher.cache(fn, np.array(Cls))
         return self.cacher.load(fn)
     
@@ -270,7 +268,7 @@ class Xpri:
             self.geominfo = ('healpix', {'nside':2048})
         self.geom_lib = get_geom(self.geominfo)
 
-        if CMB_info['libdir'] == DNaV or any(value['fns'] == DNaV for value in sec_info.values()):
+        if CMB_info['libdir'] == DNaV or any(value['fn'] == DNaV for value in sec_info.values()):
             if cls_lib == DNaV:
                 sec_info = {key: {'fns':DNaV, 'component':value['component'], 'libdir': DNaV, 'scale': 'p'} for key, value in sec_info.items()}
                 self.cls_lib = Cls(CMB_info=DNaV, sec_info=sec_info) # NOTE I pick all CMB components anyway
@@ -377,13 +375,14 @@ class Xpri:
             _type_: _description_
         """
         if secondary is None:
-            return [self.get_sim_sec(simidx, space, key, component=component) for key in self.sec_info.keys()]
+            seclist_sorted = sorted(self.sec_info.keys(), key=lambda x: template_index_secondaries.get(x, ''))
+            return [self.get_sim_sec(simidx, space, key, component=component) for key in seclist_sorted]
         if secondary not in self.sec_info.keys():
             print(f"secondary {secondary} not available")
-            return np.array([[None]])
+            return np.array([[]])
         if isinstance(component, str) and component not in self.sec_info[secondary]['component']:
             print(f"component {component} of {secondary} not available")
-            return np.array([[None]])
+            return np.array([[]])
         if component is None:
             return np.array([self.get_sim_sec(simidx, space, secondary, component=comp) for comp in self.sec_info[secondary]['component']])
         if (isinstance(component, list) or isinstance(component, np.ndarray)) and len(component)>1:
@@ -393,14 +392,12 @@ class Xpri:
                     component.remove(comp)
             return np.array([self.get_sim_sec(simidx, space, secondary, component=comp) for comp in component])
         
-
         fn = f"{secondary}{component}_space{space}_{simidx}"
         if not self.cacher.is_cached(fn):
             if self.sec_info[secondary]['libdir'] == DNaV:
                 print(f'generating {secondary} {component} from cl')
                 log.debug(f'generating {secondary}{component} from cl')
                 Clpf = self.cls_lib.get_clsec(simidx, secondary, component*2).squeeze()
-                self.sec_info[secondary]['scale'] = self.cls_lib.fid_info['scale']
                 Clp = self.clsecsf2clsecp(secondary, Clpf)
                 sec = self.clp2seclm(secondary, component, Clp, simidx)
                 ## If it comes from CL, like Gauss secs, then sec modification must happen here
@@ -410,9 +407,9 @@ class Xpri:
             else:
                 ## Existing sec is loaded, this e.g. is a kappa map on disk
                 if self.sec_info[secondary]['space'] == 'map':
-                    sec = np.array(load_file_wsec(opj(self.sec_info[secondary]['libdir'], self.sec_info[secondary]['fns'][component].format(simidx))), dtype=float)
+                    sec = np.array(load_file_wsec(opj(self.sec_info[secondary]['libdir'], self.sec_info[secondary]['fn'][component].format(simidx))), dtype=float)
                 else:
-                    sec = np.array(load_file_wsec(opj(self.sec_info[secondary]['libdir'], self.sec_info[secondary]['fns'][component].format(simidx))), dtype=complex)
+                    sec = np.array(load_file_wsec(opj(self.sec_info[secondary]['libdir'], self.sec_info[secondary]['fn'][component].format(simidx))), dtype=complex)
                 if self.sec_info[secondary]['space'] == 'map':
                     self.geominfo_sec = ('healpix', {'nside':hp.npix2nside(sec.shape[0])})
                     self.geomlib_sec = get_geom(self.geominfo_sec)
@@ -427,6 +424,8 @@ class Xpri:
     
 
     def pflm2plm(self, secondary, seclm):
+        return seclm
+    # FIXME scale is not implemented yet, proceeding code would not know how to handle it
         # NOTE naming convention is sec, but it can be grad or curl
         if self.sec_info[secondary]['scale'] == 'c':
             return klm2plm(seclm, self.sec_info[secondary]['lm_max'][0])
@@ -437,7 +436,8 @@ class Xpri:
 
 
     def clsecsf2clsecp(self, secondary, cl):
-        # NOTE naming convention is sec, but it can be grad or curl
+        return cl
+        # FIXME scale is not implemented yet, proceeding code would not know how to handle it
         if self.sec_info[secondary]['scale'] == 'c':
             return clk2clp(cl, self.sec_info[secondary]['lm_max'][0])
         elif self.sec_info[secondary]['scale'] == 'd':
@@ -468,7 +468,7 @@ class Xpri:
 class Xsky:
     """class for generating lensed CMB and phi realizations from priensed realizations, using lenspyx for the lensing operation
     """    
-    def __init__(self, pri_lib=DNaV, geominfo=DNaV, CMB_info=DNaV, sec_info=DNaV, operator_info=DNaV):
+    def __init__(self, pri_lib=DNaV, geominfo=DNaV, CMB_info=DNaV, operator_info=DNaV):
         self.geominfo = geominfo
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
@@ -483,7 +483,6 @@ class Xsky:
             check_dict(CMB_info)
         self.CMB_info = CMB_info
 
-        self.sec_info = sec_info
         self.operator_info = operator_info
         self.operators = [self.get_operator(key, op) for key, op in operator_info.items()]
         self.cacher = cachers.cacher_mem(safe=True)
@@ -643,11 +642,8 @@ class Xobs:
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
         self.geom_lib = get_geom(self.geominfo)
-        
-        if CMB_info['libdir'] == DNaV:
-            self.noise_lib = obs_info['noise_lib']
-        else:
-            self.noise_lib = None
+         
+        self.noise_lib = obs_info['noise_info']['noise_lib']
         
         self.maps = maps
         if np.all(self.maps != DNaV):
@@ -865,7 +861,7 @@ class Simhandler:
     Data can be cl, pri, len, or obs, .. and alms or maps. Simhandler connects the individual libraries and decides what can be generated.
     E.g.: If obs data provided, len data cannot be generated.
     """ 
-    def __init__(self, flavour, maps=DNaV, geominfo=DNaV, fid_info=DNaV, CMB_info=DNaV, sec_info=DNaV, obs_info=DNaV, operator_info=DNaV):
+    def __init__(self, flavour, libdir_suffix, maps=DNaV, geominfo=DNaV, fid_info=DNaV, CMB_info=DNaV, sec_info=DNaV, obs_info=DNaV, operator_info=DNaV):
         """Entry point for simulation data handling.
         Simhandler() connects the individual librariers together accordingly, depending on the provided data.
         It never stores data on disk itself, only in memory.
@@ -879,6 +875,18 @@ class Simhandler:
             obs_info (dict): observation information
             operator_info (dict): operator_info for secondaries
         """
+        # NOTE remove all operators that are not in sec_info, and add component information to operator_info
+        to_delete = [ope for ope in operator_info if ope not in sec_info]
+        for ope in to_delete:
+            del operator_info[ope]
+        for sec in sec_info:
+            operator_info[sec]['component'] = [c[0] for c in sec_info[sec]['component']]
+
+        for sec in sec_info:
+            sec_info[sec]['lm_max'] = operator_info[sec]['LM_max']
+        seccomp = {sec : {comp : {} for comp in sec_info[sec]['component']} for sec in sec_info}
+
+        self.libdir_suffix = libdir_suffix
         if CMB_info['space'] == 'alm':
             assert CMB_info['spin'] == 0, "spin has to be 0 for alm space"
 
@@ -890,39 +898,36 @@ class Simhandler:
                 for key in ['spin', 'lm_max', 'field']:
                     if CMB_info[key] == DNaV:
                         assert 0, 'need to provide {}'.format(key)
-            self.cls_lib = Cls(fid_info=fid_info) # NOTE I need cls_lib always, because I need to know the fiducial cls for chh, i.e. N0 for the curvature update
-            self.obs_lib = Xobs(maps=maps, geominfo=geominfo, CMB_info=CMB_info)
+            self.cls_lib = Cls(fid_info=fid_info, seccomp=seccomp)
+            self.obs_lib = Xobs(maps=maps, geominfo=geominfo, CMB_info=copy.copy(CMB_info))
         else:
             if flavour == 'sky':
                 assert CMB_info['space'] in ['map','alm'], "sky CMB data can only be in map or alm space"
                 assert not (contains_DNaV(obs_info)), "need to provide complete obs_info"
-                self.cls_lib = Cls(fid_info=fid_info) # NOTE I need cls_lib always, because I need to know the fiducial cls for chh, i.e. N0 for the curvature update
-                self.sky_lib = Xsky(pri_lib=DNaV, geominfo=geominfo, CMB_info=copy.copy(CMB_info), sec_info=sec_info, operator_info=operator_info)
+                self.cls_lib = Cls(fid_info=fid_info, seccomp=seccomp)
+                self.sky_lib = Xsky(pri_lib=DNaV, geominfo=geominfo, CMB_info=copy.copy(CMB_info), operator_info=operator_info)
                 
                 self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = self.sky_lib.CMB_info['libdir']
                 self.fns = self.sky_lib.CMB_info['fns']
             elif flavour == 'pri':
-                assert not (contains_DNaV(sec_info, ignore_keys={'libdir', 'fns'})), f"need to provide complete sec_info, {sec_info}"
+                if any([sec['space'] != 'cl' for sec in sec_info.values()]):
+                    assert not (contains_DNaV(sec_info, ignore_keys={'libdir', 'fn','scale'})), f"need to provide complete sec_info, {sec_info}"
                 assert not (contains_DNaV(obs_info, ignore_keys={'libdir', 'fns'})), f"need to provide complete obs_info, {obs_info}"
-                # TODO if space is cl need to initalize cls_lib, otherwise not needed
-                self.cls_lib = Cls(fid_info=fid_info)
-                CMB_info.update({'libdir':DNaV, 'fns':DNaV})
+                self.cls_lib = Cls(fid_info=fid_info, seccomp=seccomp)
+
                 self.pri_lib = Xpri(cls_lib=self.cls_lib, geominfo=geominfo, CMB_info=copy.copy(CMB_info), sec_info=sec_info)
-                self.sky_lib = Xsky(pri_lib=self.pri_lib, geominfo=geominfo, CMB_info=copy.copy(CMB_info), sec_info=sec_info, operator_info=operator_info)
+                self.sky_lib = Xsky(pri_lib=self.pri_lib, geominfo=geominfo, CMB_info=copy.copy(CMB_info), operator_info=operator_info)
 
             if obs_info['noise_info'].get('libdir') == DNaV:
-                # FIXME this looks wrong
-                noise_info = obs_info['noise_info']
-                noise_lib = iso_white_noise(geominfo=geominfo, noise_info=noise_info)
-                obs_info.update({'noise_lib':noise_lib})
+                noise_lib = iso_white_noise(geominfo=geominfo, noise_info=obs_info['noise_info'], libdir_suffix=libdir_suffix)
+                obs_info['noise_info'].update({'noise_lib':noise_lib})
                 self.noise_lib = noise_lib
             self.obs_lib = Xobs(maps=DNaV, sky_lib=self.sky_lib, geominfo=geominfo, CMB_info=copy.copy(CMB_info), obs_info=obs_info)
         
-        self.fid_info = self.cls_lib.fid_info
         self.obs_info = obs_info
         self.CMB_info = self.obs_lib.CMB_info
-        self.sec_info = sec_info
+        self.sec_info = self.pri_lib.sec_info
         self.operator_info = operator_info
 
         self.flavour = flavour
@@ -936,9 +941,7 @@ class Simhandler:
 
         self.transfunction = self.obs_info['transfunction']
         self.noise_lib = self.obs_lib.noise_lib
-        if self.noise_lib is not None:
-            self.nlev = noise_lib.noise_info['nlev']
-            self.libdir_suffix = noise_lib.noise_info['libdir_suffix']
+        self.nlev = obs_info['noise_info']['nlev']
 
 
     def get_sim_sky(self, simidx, space, field, spin):

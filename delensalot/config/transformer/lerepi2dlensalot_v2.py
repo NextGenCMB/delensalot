@@ -60,44 +60,18 @@ class l2base_Transformer:
     """Initializes attributes needed across all Jobs, or which are at least handy to have
     """
     def process_Simulation(dl, si, cf):
-        # NOTE I want everything to be 'controlled' by fid_info['sec_components'],
-        # so if something is not in there, sec_info, operator_info, etc. need to be updated
-        buffer_secinfo = copy.deepcopy(si.sec_info)
-
-        buffer_operatorinfo = copy.deepcopy(si.operator_info)
-        allowed_secs = si.fid_info['sec_components'].keys()
-        for key, val in si.sec_info.items():
-            buffer_operatorinfo[key]['tr'] = dl.tr
-            if key not in allowed_secs:
-                buffer_secinfo.pop(key)
-            elif val['component'] != si.fid_info['sec_components'][key]:
-                    comps_ = [c[0] for c in atleast_1d(si.fid_info['sec_components'][key])]
-                    buffer_secinfo[key]['component'] = comps_
-        for key, val in si.operator_info.items():
-            if key not in allowed_secs:
-                buffer_operatorinfo.pop(key)
-            elif val['component'] != si.fid_info['sec_components'][key]:
-                    comps_ = [c[0] for c in atleast_1d(si.fid_info['sec_components'][key])]
-                    buffer_operatorinfo[key]['component'] = comps_
-
-        si.sec_info = buffer_secinfo
-        si.operator_info = buffer_operatorinfo
+        # FIXME if spectra change across simidx, this needs to be changed
+        simidx = cf.analysis.simidxs[0]
+        for ope in si.operator_info:
+            si.operator_info[ope]['tr'] = dl.tr
         dl.simulationdata = Simhandler(**si.__dict__)
-        if 'cls_lib' in dl.simulationdata.__dict__:
-            def _set_Lmin_zero(obj):
-                obj[:cf.analysis.Lmin] = 0
-                return obj
-            # FIXME this doesnt look safe, order of a dict is not guaranteed
-            # FIXME if obs maps are given, sumulationdata.fid_info is not the correct thing to use here. to make it work it needs to be updated with the info from analysis.secondaries
-            # print(dl.cls_len.keys())    
-            dl.CLfids = {
-                secclk: {comp: _set_Lmin_zero(va) for comp, va in zip(secclv, val)}
-                for (secclk, secclv), val in zip(dl.simulationdata.fid_info['sec_components'].items(), dl.simulationdata.get_sim_fidsec(0, secondary=None, components=None))
-            }
-        else:
-            dl.CLfids = {sec: {} for sec in allowed_secs}
-        # FIXME this is a hack, just to add a secondary to reconstruction although its not in the simulationdata. (i'll need this in the future anyway, in case obsdata is provided)
-        # for sec in cf.analysis.secondaries:
+        def _set_Lmin_zero(obj):
+            obj[:cf.analysis.Lmin] = 0
+            return obj
+        dl.CLfids = {}
+        for secondary, secinfo in cf.analysis.secondaries.items():
+            dl.CLfids[secondary] = {comp*2: _set_Lmin_zero(dl.simulationdata.get_sim_fidsec(simidx, secondary=secondary, components=comp*2)) for comp in secinfo['component']}
+
 
     def process_Analysis(dl, an, cf):
         if loglevel <= 20:
@@ -176,10 +150,9 @@ class l2T_Transformer:
         else:       
             if cf.analysis.TEMP_suffix != '':
                 _suffix = cf.analysis.TEMP_suffix
-                _secsuffix = "simdata__"+"_".join(f"{key}_{'_'.join(values)}" for key, values in cf.simulationdata.fid_info['sec_components'].items())
+                _secsuffix = "simdata__"+"_".join(f"{key}_{'_'.join(values['component'])}" for key, values in cf.simulationdata.sec_info.items())
             _suffix += '_OBD' if cf.noisemodel.OBD == 'OBD' else '_lminB'+str(cf.analysis.lmin_teb[2])+_secsuffix
             TEMP =  opj(os.environ['SCRATCH'], 'analysis', _suffix)
-
             return TEMP
 
 
@@ -258,7 +231,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             l2base_Transformer.process_Computing(dl, cf.computing, cf)
             _process_Analysis(dl, cf.analysis, cf)
             l2base_Transformer.process_Meta(dl, cf.meta, cf)
-            dl.libdir_suffix = cf.simulationdata.obs_info['noise_info']['libdir_suffix']
+            dl.libdir_suffix = cf.simulationdata.libdir_suffix
             l2base_Transformer.process_Simulation(dl, cf.simulationdata, cf)
             # dl.simulationdata = Simhandler(**cf.simulationdata.__dict__)
             return dl

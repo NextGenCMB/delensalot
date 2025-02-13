@@ -13,22 +13,6 @@ from delensalot.utility.utils_hp import gauss_beam
 from delensalot.utils import cli
 from delensalot.utility.utils_hp import Alm, almxfl, alm_copy
 
-class base:
-    def __init__(self, libdir):
-        if isinstance(libdir, str):
-            self.field_cacher = cachers.cacher_npy(libdir)
-        else:
-            self.field_cacher = cachers.cacher_mem(libdir)
-
-
-    def act(self, obj, adjoint=False):
-        assert 0, "subclass this"
-
-
-    def set_field(self, simidx, component=None):
-        assert 0, "subclass this"
-
-
 class joint:
     def __init__(self, operators):
         self.operators = operators
@@ -53,16 +37,9 @@ class joint:
             operator.set_field(simidx)
 
 
-class lensing(base):
+class lensing:
     def __init__(self, operator_desc):
-        super().__init__(operator_desc["libdir"])
         self.ID = 'lensing'
-        
-        if operator_desc["field_fns"] is DNaV:
-            self.field_fns = {comp: "{idx}" for comp in operator_desc["component"]}
-        else:
-            self.field_fns = operator_desc["field_fns"]
-
         self.Lmin = operator_desc["Lmin"]
         self.lm_max = operator_desc["lm_max"]
         self.LM_max = operator_desc["LM_max"]
@@ -119,18 +96,16 @@ class lensing(base):
         self.ffi = self.ffi.change_dlm(field, self.LM_max[1])
 
 
-class birefringence(base):
+class birefringence:
     def __init__(self, operator_desc):
-        super().__init__(operator_desc["libdir"])
         self.ID = 'birefringence'
-        self.field_fns = operator_desc['field_fns']
         self.Lmin = operator_desc["Lmin"],
         self.lm_max = operator_desc["lm_max"]
         self.LM_max = operator_desc["LM_max"]
         self.component = operator_desc["component"]
         self.geominfo = operator_desc["geominfo"]
         self.geomlib = get_geom(operator_desc['geominfo'])
-        self.ffi = deflection(self.geomlib, np.zeros(shape=hp.Alm.getsize(*self.LM_max)), self.LM_max[1], numthreads=operator_desc['tr'], verbosity=False, epsilon=operator_desc['epsilon'])
+        self.ffi = deflection(self.geomlib, np.zeros(shape=hp.Alm.getsize(*self.LM_max)), self.LM_max[1], numthreads=operator_desc['tr'], verbosity=False, epsilon=1)
         self.field = {component: None for component in self.component}
 
 

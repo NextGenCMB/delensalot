@@ -42,6 +42,8 @@ from delensalot.core.opfilt.bmodes_ninv import template_dense, template_bfilt
 from delensalot.core.MAP import handler as MAP_handler
 from delensalot.core.QE import handler as QE_handler
 
+from delensalot.sims.sims_lib import dirname_generator
+
 from collections import UserDict
 
 class ConstantDict(UserDict):
@@ -63,17 +65,15 @@ required_files_map = {
 # NOTE This is to generate all maps no matter the CMB estimator request
 required_files_map = ConstantDict(['T', 'E', 'B'])
 
-
-def get_dirname(s):
-    return str(s).translate(str.maketrans({"(": "", ")": "", "{": "", "}": "", "[": "", "]": "", 
-                                            " ": "", "'": "", '"': "", ":": "_", ",": "_"}))
-
 def dict2roundeddict(d):
     return {k: np.around(v, 3) for k, v in d.items()}
 
 def get_hashcode(s):
     return hashlib.sha256(str(s).encode()).hexdigest()[:4]
 
+def get_dirname(s):
+    return str(s).translate(str.maketrans({"(": "", ")": "", "{": "", "}": "", "[": "", "]": "", 
+                                            " ": "", "'": "", '"': "", ":": "_", ",": "_"}))
 
 template_secondaries = ['lensing', 'birefringence']  # Define your desired order
 template_index_secondaries = {val: i for i, val in enumerate(template_secondaries)}
@@ -271,10 +271,10 @@ class Sim_generator(Basejob):
                 lenjob_geomstr = 'unknown_skygeometry'
             else:
                 # some flavour provided, and we need to generate the sky and obs maps from this.
-                hashc = get_hashcode(self.simulationdata.fid_info['sec_components'])
+                hashc = get_hashcode([val['component'] for val in self.simulationdata.sec_info.values()])
                 lenjob_geomstr = get_dirname(self.simulationdata.sky_lib.operator_info['lensing']['geominfo'])+"_"+hashc
-                self.libdir_suffix = 'generic' if self.simulationdata.obs_info['noise_info']['libdir_suffix'] in ['', DEFAULT_NotAValue] else self.simulationdata.obs_info['noise_info']['libdir_suffix']
-                self.libdir_sky = opj(os.environ['SCRATCH'], 'simulation/', self.libdir_suffix, get_dirname(self.simulationdata.geominfo), lenjob_geomstr)
+                
+                self.libdir_sky = opj(dirname_generator(self.simulationdata.libdir_suffix, self.simulationdata.geominfo), lenjob_geomstr)
                 self.fns_sky = self.set_basename_sky()
                 # NOTE for each operator, I need sec fns
                 self.fns_sec = {}
@@ -283,10 +283,9 @@ class Sim_generator(Basejob):
                     for comp in operator_info['component']:
                         self.fns_sec[sec][comp] = f'{sec}_{comp}lm_{{}}.npy'
 
-            hashc = get_hashcode(str(self.simulationdata.fid_info['sec_components'])+str(self.simulationdata.transfunction))
-            self.libdir_suffix = 'generic' if self.libdir_suffix in ['', DEFAULT_NotAValue] else self.libdir_suffix
+            hashc = get_hashcode(str([val['component'] for val in self.simulationdata.sec_info.values()])+str([val['component'] for val in self.simulationdata.sec_info.values()]))
             nlev_round = dict2roundeddict(self.simulationdata.nlev)
-            self.libdir = opj(os.environ['SCRATCH'], 'simulation/', self.libdir_suffix, get_dirname(self.simulationdata.geominfo), get_dirname(lenjob_geomstr), get_dirname(sorted(nlev_round.items())), f'{hashc}') # 
+            self.libdir = opj(dirname_generator(self.simulationdata.libdir_suffix, self.simulationdata.geominfo), lenjob_geomstr, get_dirname(sorted(nlev_round.items())), f'{hashc}')
             self.fns = self.set_basename_obs()
             
             # in init, only rank 0 enters in first round to set dirs etc.. so cannot use bcast
@@ -354,8 +353,6 @@ class Sim_generator(Basejob):
             self.jobs = [[],[]]
         return self.jobs
 
-
-    # @base_exception_handler
     # @log_on_start(logging.DEBUG, "Sim.run() started")
     # @log_on_end(logging.DEBUG, "Sim.run() finished")
     def run(self):
@@ -379,9 +376,9 @@ class Sim_generator(Basejob):
         for sec, secinfo in self.simulationdata.sec_info.items():
             # FIXME if there is cross-correlation between the components, we need to generate them together
             for comp in secinfo['component']:
-                if not os.path.exists(opj(self.libdir_sky, self.fns_sec[sec][comp[0]].format(simidx))):
+                if not os.path.exists(opj(self.libdir_sky, self.fns_sec[sec][comp].format(simidx))):
                     s = self.simulationdata.get_sim_sec(simidx, space='alm', secondary=sec, component=comp)
-                    np.save(opj(self.libdir_sky, self.fns_sec[sec][comp[0]].format(simidx)), s)
+                    np.save(opj(self.libdir_sky, self.fns_sec[sec][comp].format(simidx)), s)
 
         for field in required_files_map.get(self.k, []):
             filepath = opj(self.libdir_sky, self.fns_sky[field].format(simidx))
@@ -430,7 +427,6 @@ class Sim_generator(Basejob):
         # NOTE if this class here decides to generate data, we need to update some parameters in the simulationdata object
         # NOTE if later reconstruction is run with the same config file, these updates also make sure they find the data without having to update the config file
         
-        # NOTE for pri_lib we don't need to set anything, as we don't store them
 
         if not self.simulationdata.flavour in ['sky', 'obs'] and np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
             self.simulationdata.sky_lib.CMB_info['fns'] = self.fns_sky
@@ -438,13 +434,15 @@ class Sim_generator(Basejob):
             self.simulationdata.sky_lib.CMB_info['space'] = 'alm'
             self.simulationdata.sky_lib.CMB_info['spin'] = 0
 
-            for sec, secinfo in self.simulationdata.operator_info.items():
-                self.simulationdata.sky_lib.sec_info[sec]['fns'] = self.fns_sec[sec]
-                self.simulationdata.sky_lib.sec_info[sec]['libdir'] = self.libdir_sky
-                self.simulationdata.sky_lib.sec_info[sec]['space'] = 'alm'
-                self.simulationdata.sky_lib.sec_info[sec]['spin'] = 0
-                self.simulationdata.sky_lib.sec_info[sec]['lm_max'] = secinfo['lm_max']
-                self.simulationdata.sky_lib.sec_info[sec]['component'] = secinfo['component']
+
+        # NOTE for pri_lib we set the paths to the generated secondaries
+        for sec, secinfo in self.simulationdata.operator_info.items():
+            self.simulationdata.pri_lib.sec_info[sec]['fn'] = self.fns_sec[sec]
+            self.simulationdata.pri_lib.sec_info[sec]['libdir'] = self.libdir_sky
+            self.simulationdata.pri_lib.sec_info[sec]['space'] = 'alm'
+            self.simulationdata.pri_lib.sec_info[sec]['spin'] = 0
+            self.simulationdata.pri_lib.sec_info[sec]['lm_max'] = secinfo['lm_max']
+            self.simulationdata.pri_lib.sec_info[sec]['component'] = secinfo['component']
 
 
 class Noise_modeller(Basejob):
