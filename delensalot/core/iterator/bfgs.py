@@ -7,12 +7,6 @@ from logdecorator import log_on_start, log_on_end
 import numpy as np
 from delensalot.core import cachers
 
-from delensalot.utils import cli
-from delensalot.utility.utils_hp import almxfl, alm2cl
-import os, sys
-from os.path import join as opj
-
-
 class BFGS_Hessian(object):
     """
     Class to evaluate the update to inverse Hessian matrix in the L-BFGS scheme.
@@ -32,8 +26,8 @@ class BFGS_Hessian(object):
 
     """
 
-    def __init__(self, h0:np.array=np.array([0]), apply_H0k:callable=None, apply_B0k:callable = None, paths2ys:dict={}, paths2ss:dict={}, dot_op:callable = None,
-                        L=100, verbose=True, cacher:cachers.cacher=cachers.cacher_npy(opj(os.environ['SCRATCH'], 'hessian'))):
+    def __init__(self, cacher:cachers.cacher, apply_H0k:callable, paths2ys, paths2ss, dot_op:callable,
+                        L=100000, apply_B0k=None, verbose=True):
         """
             Args:
                 apply_H0k: user supplied function(x,k), applying a zeroth order estimate of the inverse Hessian to x atiter k.
@@ -42,36 +36,21 @@ class BFGS_Hessian(object):
                 dot_op: callable with 2 arguments giving scalar product between two vector (e.g. np.sum)
         H is inverse Hessian, not Hessian.
         """
-
-         # this is the 1D-solution. For 2D, I will pass apply_h0k and apply_b0k
-        if len(h0) == 1: self.lmax_qlm = h0[0]
-        if apply_H0k is None: apply_H0k = lambda rlm, kr: almxfl(rlm, h0, self.lmax_qlm, False)
-        if apply_B0k is None: apply_B0k = lambda rlm, kr: almxfl(rlm, cli(h0), self.lmax_qlm, False)
-        self.applyH0k = apply_H0k
-        self.applyB0k = apply_B0k
-
         self.cacher = cacher
         self.paths2ys = paths2ys
         self.paths2ss = paths2ss
         self.L = L
-
+        self.applyH0k = apply_H0k
+        self.applyB0k = apply_B0k
         self.verbose = verbose
         if dot_op is None:
             dot_op = np.sum
         self.dot_op = dot_op
 
-    def update_vectors(self, it, key):
-        # Adding the required y and s vectors :
-        self.paths2ys = {}
-        self.paths2ss = {}
-        for k_ in range(np.max([0, it - self.L]), it):
-            self.add_ys('rlm_yn_%s_%s' % (k_, key), 'rlm_sn_%s_%s' % (k_, key), k_)
-
     def y(self, n):
         return self.cacher.load(self.paths2ys[n])
 
     def s(self, n):
-        print(self.paths2ss)
         return self.cacher.load(self.paths2ss[n])
 
     def add_ys(self, path2y, path2s, k):

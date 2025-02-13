@@ -98,50 +98,69 @@ class Basejob():
 
     def __init__(self, model):
         self.__dict__.update(model.__dict__)
+
         self.libdir_QE = opj(self.TEMP, 'QE')
-        # if not os.path.exists(self.libdir_QE):
-        #     os.makedirs(self.libdir_QE)
-        # self.libdir_MAP = lambda qe_key, simidx, version: opj(self.TEMP, 'MAP/%s'%(qe_key), 'sim%04d'%(simidx) + version)
-        # self.libdir_blt = lambda simidx: opj(self.TEMP, 'MAP/%s'%(self.k), 'sim%04d'%(simidx) + self.version, 'BLT/')
-        # for simidx in np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))), dtype=int):
+        if not os.path.exists(self.libdir_QE):
+            os.makedirs(self.libdir_QE)
+        self.libdir_MAP = lambda qe_key, simidx, version: opj(self.TEMP, 'MAP/%s'%(qe_key), 'sim%04d'%(simidx) + version)
+        self.libdir_blt = lambda simidx: opj(self.TEMP, 'MAP/%s'%(self.k), 'sim%04d'%(simidx) + self.version, 'BLT/')
+        for simidx in np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))), dtype=int):
             ## calculates all plms even for mf indices. This is not necessarily requested due to potentially simidxs =/= simidxs_mf, but otherwise collect and run must be adapted and its ok like this.
-            # libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
-            # if not os.path.exists(libdir_MAPidx):
-                # os.makedirs(libdir_MAPidx)
-            # if not os.path.exists(self.libdir_blt(simidx)):
-                # os.makedirs(self.libdir_blt(simidx))
+            libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
+            if not os.path.exists(libdir_MAPidx):
+                os.makedirs(libdir_MAPidx)
+            if not os.path.exists(self.libdir_blt(simidx)):
+                os.makedirs(self.libdir_blt(simidx))
          
         self.config_model = model
         self.jobs = []
 
 
     # @base_exception_handler
-    # @log_on_start(logging.DEBUG, "collect_jobs() started")
-    # @log_on_end(logging.DEBUG, "collect_jobs() finished: jobs={self.jobs}")
+    @log_on_start(logging.DEBUG, "collect_jobs() started")
+    @log_on_end(logging.DEBUG, "collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self):
 
         assert 0, "Overwrite"
 
 
     # @base_exception_handler
-    # @log_on_start(logging.DEBUG, "collect_jobs() started")
-    # @log_on_end(logging.DEBUG, "collect_jobs() finished")
+    @log_on_start(logging.DEBUG, "collect_jobs() started")
+    @log_on_end(logging.DEBUG, "collect_jobs() finished")
     def run(self):
 
         assert 0, "Implement if needed"
 
 
     # @base_exception_handler
-    # @log_on_start(logging.DEBUG, "collect_jobs() started")
-    # @log_on_end(logging.DEBUG, "collect_jobs() finished")
+    @log_on_start(logging.DEBUG, "collect_jobs() started")
+    @log_on_end(logging.DEBUG, "collect_jobs() finished")
+    def get_qlm_it(self, simidx, it):
+
+        assert 0, "Implement if needed"
+
+
+    # @base_exception_handler
+    @log_on_start(logging.DEBUG, "collect_jobs() started")
+    @log_on_end(logging.DEBUG, "collect_jobs() finished")
+    def get_plm_it(self, simidx, its):
+
+        plms = rec.load_plms(self.libdir_MAP(self.k, simidx, self.version), its)
+
+        return plms
+
+
+    # @base_exception_handler
+    @log_on_start(logging.DEBUG, "collect_jobs() started")
+    @log_on_end(logging.DEBUG, "collect_jobs() finished")
     def get_mf_it(self, simidx, it, normalized=True):
 
         assert 0, "Implement if needed"
 
 
     # @base_exception_handler
-    # @log_on_start(logging.DEBUG, "collect_jobs() started")
-    # @log_on_end(logging.DEBUG, "collect_jobs() finished")
+    @log_on_start(logging.DEBUG, "collect_jobs() started")
+    @log_on_end(logging.DEBUG, "collect_jobs() finished")
     def get_blt_it(self, simidx, it):
         if self.data_from_CFS:
             # TODO probably enough to just check if libdir_blt_MAP_CFS is empty
@@ -156,27 +175,34 @@ class Basejob():
     
 
     # @base_exception_handler
-    # @log_on_start(logging.DEBUG, "collect_jobs() started")
-    # @log_on_end(logging.DEBUG, "collect_jobs() finished")
-    def get_ivflm(self, simidx, secondary, it):
+    @log_on_start(logging.DEBUG, "collect_jobs() started")
+    @log_on_end(logging.DEBUG, "collect_jobs() finished")
+    def get_ivf(self, simidx, it, field):
 
         assert 0, "Implement if needed"
 
 
     # @base_exception_handler
-    # @log_on_start(logging.DEBUG, "collect_jobs() started")
-    # @log_on_end(logging.DEBUG, "collect_jobs() finished")
-    def get_wflm(self, simidx, secondary, it):
+    @log_on_start(logging.DEBUG, "collect_jobs() started")
+    @log_on_end(logging.DEBUG, "collect_jobs() finished")
+    def get_wf(self, simidx, it, field):
 
         assert 0, "Implement if needed"
-
-
-    def get_template(self, simidx, secondary, it):
-        
-        assert 0, "Implement if needed"
-
     
-    # def get
+
+    # @base_exception_handler
+    @log_on_start(logging.DEBUG, "collect_jobs() started")
+    @log_on_end(logging.DEBUG, "collect_jobs() finished")
+    def get_fiducial_sim(self, simidx, field):
+        """_summary_
+        """   
+        assert 0, "Implement if needed"
+
+
+    @log_on_start(logging.DEBUG, "get_filter() started")
+    @log_on_end(logging.DEBUG, "get_filter() finished")
+    def get_filter(self): 
+        assert 0, 'overwrite'
 
 
 class OBD_builder(Basejob):
@@ -549,7 +575,7 @@ class Noise_modeller(Basejob):
             # cs_iterator
         
 
-class QE_lr_v2(Basejob):
+class QE_lr_v2:
     """Quadratic estimate lensing reconstruction Job. Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.
     """
     @check_MPI
