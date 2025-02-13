@@ -87,8 +87,8 @@ def dirname_generator(libdir_suffix, geominfo):
     return os.environ['SCRATCH']+f'/simulation/{libdir_suffix}/{get_dirname(geominfo)}'
 
 
-template_lensingcomponents = ['p', 'w'] 
-template_index_lensingcomponents = {val: i for i, val in enumerate(template_lensingcomponents)}
+template_lensingcomponent = ['p', 'w'] 
+template_index_lensingcomponent = {val: i for i, val in enumerate(template_lensingcomponent)}
 
 template_secondaries = ['lensing', 'birefringence']  # Define your desired order
 template_index_secondaries = {val: i for i, val in enumerate(template_secondaries)}
@@ -219,6 +219,12 @@ class Cls:
         assert seccomp != DNaV, "need to provide seccomp"
         assert fid_info != DNaV, "need to provide CMB_info"
 
+        self.all_secondaries_components = {
+            'lensing': ['pp', 'ww'],
+            'birefringence': ['ff'],
+        }
+
+
         if fid_info['libdir'] == DNaV:
             if fid_info['fn'] == DNaV:
                 assert 0, "need to provide libdir or at least fn in CMB_info"
@@ -233,25 +239,39 @@ class Cls:
         self.cacher = cachers.cacher_mem(safe=True)
 
 
-    def get_clCMBpri(self, simidx, components=['tt', 'ee', 'bb', 'te'], lmax=None):
-        components = [components] if isinstance(components, str) else components
-        fn = f"clcmb_{components}_{simidx}"
+    def get_fidCMB(self, simidx, component=['tt', 'ee', 'bb', 'te'], lmax=None):
+        component = [component] if isinstance(component, str) else component
+        fn = f"clcmb_{component}_{simidx}"
         if not self.cacher.is_cached(fn):
-            Cls = np.array([self.Cl_dict[key][:lmax+1] for key in components]) if lmax is not None else np.array([self.Cl_dict[key] for key in components])
+            Cls = np.array([self.Cl_dict[key][:lmax+1] for key in component]) if lmax is not None else np.array([self.Cl_dict[key] for key in component])
             self.cacher.cache(fn, Cls)
         return self.cacher.load(fn)   
     
 
-    def get_clsec(self, simidx, secondary=None, components=None, lmax=None):
+    def get_fidsec(self, simidx, secondary=None, component=None, lmax=None, return_nonrec=False):
+        # NOTE if return_nonrec is False, this function returns the fiducial spectra that are used for reconstruction
+        # (i.e. whatever is in self.seccomp - or self.sec_info via the config file),
+        # otherwise it returns all the spectra defined in self.all_secondaries_components
         if secondary is None:
-            return [self.get_clsec(simidx, sec, components, lmax) for sec in self.seccomp]
-        if components is None:
-            return np.array([self.get_clsec(simidx, secondary, comp*2, lmax).squeeze() for comp in self.seccomp[secondary]])
-        if isinstance(components, list):
-            return np.array([self.get_clsec(simidx, secondary, comp, lmax).squeeze() for comp in components])
-        fn = f"clssec{secondary}_{components}_{simidx}"
+            _ = self.seccomp.keys() if not return_nonrec else self.all_secondaries_components.keys()
+            c_ = lambda x: self.seccomp[x] if not return_nonrec else self.all_secondaries_components[x]
+            assert component is None, "don't provide component without secondary"
+            return [self.get_fidsec(simidx, sec, c_(sec), lmax, return_nonrec) for sec in _]
+        if component is None:
+            _ = self.seccomp[secondary] if not return_nonrec else self.all_secondaries_components[secondary]
+            return np.array([self.get_fidsec(simidx, secondary, comp, lmax, return_nonrec).squeeze() for comp in _])
+        if isinstance(component, list):
+            _ = self.seccomp[secondary] if not return_nonrec else self.all_secondaries_components[secondary]
+            assert all(len(comp)==2 for comp in component), 'each component in the list must have length 2 (pp, ww, etc..), not {}'.format(component)
+            if not return_nonrec: assert all([comp in _ for comp in component]), 'component not in secondary'
+            return np.array([self.get_fidsec(simidx, secondary, comp, lmax, return_nonrec).squeeze() for comp in component])
+        if isinstance(secondary, list):
+            c_ = lambda x: self.seccomp[x] if not return_nonrec else self.all_secondaries_components[x]
+            return np.array([self.get_fidsec(simidx, sec, [comp for comp in c_(sec) if comp in component], lmax, return_nonrec).squeeze() for sec in secondary])
+        if not return_nonrec: assert component in self.all_secondaries_components[secondary], f'component {component} not in secondary {secondary}: {self.all_secondaries_components[secondary]}'
+        fn = f"clssec{secondary}_{component}_{simidx}"
         if not self.cacher.is_cached(fn):
-            Cls = self.Cl_dict[components][:lmax+1] if lmax is not None else self.Cl_dict[components]
+            Cls = self.Cl_dict[component][:lmax+1] if lmax is not None else self.Cl_dict[component]
             self.cacher.cache(fn, np.array(Cls))
         return self.cacher.load(fn)
     
@@ -271,7 +291,7 @@ class Xpri:
         if CMB_info['libdir'] == DNaV or any(value['fn'] == DNaV for value in sec_info.values()):
             if cls_lib == DNaV:
                 sec_info = {key: {'fns':DNaV, 'component':value['component'], 'libdir': DNaV, 'scale': 'p'} for key, value in sec_info.items()}
-                self.cls_lib = Cls(CMB_info=DNaV, sec_info=sec_info) # NOTE I pick all CMB components anyway
+                self.cls_lib = Cls(CMB_info=DNaV, sec_info=sec_info) # NOTE I pick all CMB component anyway
             else:
                 self.cls_lib = cls_lib
         else:
@@ -307,7 +327,7 @@ class Xpri:
         fn = f"primordial_space{space}_spin{spin}_field{field}_{simidx}"
         if not self.cacher.is_cached(fn):
             if self.CMB_info['libdir'] == DNaV:
-                Cls = self.cls_lib.get_clCMBpri(simidx, lmax=self.CMB_info['lm_max'][0])
+                Cls = self.cls_lib.get_fidCMB(simidx, lmax=self.CMB_info['lm_max'][0])
                 pri = np.array(self.cl2alm(Cls, field=field, seed=simidx))
                 if space == 'map':
                     if field == 'polarization':
@@ -397,7 +417,7 @@ class Xpri:
             if self.sec_info[secondary]['libdir'] == DNaV:
                 print(f'generating {secondary} {component} from cl')
                 log.debug(f'generating {secondary}{component} from cl')
-                Clpf = self.cls_lib.get_clsec(simidx, secondary, component*2).squeeze()
+                Clpf = self.cls_lib.get_fidsec(simidx, secondary, component*2).squeeze()
                 Clp = self.clsecsf2clsecp(secondary, Clpf)
                 sec = self.clp2seclm(secondary, component, Clp, simidx)
                 ## If it comes from CL, like Gauss secs, then sec modification must happen here
@@ -884,7 +904,7 @@ class Simhandler:
 
         for sec in sec_info:
             sec_info[sec]['lm_max'] = operator_info[sec]['LM_max']
-        seccomp = {sec : {comp : {} for comp in sec_info[sec]['component']} for sec in sec_info}
+        seccomp = {sec : [comp*2 for comp in sec_info[sec]['component']] for sec in sec_info}
 
         self.libdir_suffix = libdir_suffix
         if CMB_info['space'] == 'alm':
@@ -959,11 +979,11 @@ class Simhandler:
     def get_sim_sec(self, simidx, space, secondary=None, component=None):
         return self.pri_lib.get_sim_sec(simidx=simidx, space=space, secondary=secondary, component=component)
     
-    def get_sim_fidCMB(self, simidx, components):
-        return self.cls_lib.get_clCMBpri(simidx=simidx, components=components)
+    def get_fidCMB(self, simidx, component):
+        return self.cls_lib.get_fidCMB(simidx=simidx, component=component)
 
-    def get_sim_fidsec(self, simidx, secondary=None, components=None):
-        return self.cls_lib.get_clsec(simidx=simidx, secondary=secondary, components=components)
+    def get_fidsec(self, simidx, secondary=None, component=None, return_nonrec=False):
+        return self.cls_lib.get_fidsec(simidx=simidx, secondary=secondary, component=component, return_nonrec=return_nonrec)
     
     
     def purgecache(self):

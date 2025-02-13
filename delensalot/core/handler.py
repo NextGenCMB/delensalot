@@ -21,6 +21,7 @@ from plancklens.sims import planck2018_sims
 
 from lenspyx.lensing import get_geom 
 
+from delensalot.utils import cli
 from delensalot.utils import read_map, ztruncify
 from delensalot.utility import utils_qe, utils_sims
 from delensalot.utility.utils_hp import Alm, almxfl, alm_copy, gauss_beam, alm2cl
@@ -773,8 +774,8 @@ class MAP_lr_v2:
         self.seclist_sorted = sorted(list(self.sec2idx.keys()), key=lambda x: template_index_secondaries.get(x, ''))
         self.MAP_searchs_desc["desc"].update({"Runl0": {}})
         for i, QE_search in enumerate(self.QE_searchs):
-            #FIXME this needs to be corrected - QE returns correctly scaled response now
-            self.MAP_searchs_desc["desc"]["Runl0"].update({QE_search.secondary.ID: {component: np.array(QE_search.get_response_unl(component)) for component in QE_search.secondary.component}})
+            scale = 'k' if QE_search.secondary.ID in ['lensing'] else 'p' #NOTE Plancklens by default returns p scale (for lensing). Delensalot works with convergence
+            self.MAP_searchs_desc["desc"]["Runl0"].update({QE_search.secondary.ID: {component: self.__rescale(QE_search.get_response_unl(component), scale=scale) for component in QE_search.secondary.component}})
         self.MAP_searchs = [MAP_handler.base(self.simulationdata, self.MAP_searchs_desc["MAP_secondaries"], self.MAP_searchs_desc["filter_desc"], self.MAP_searchs_desc["gradient_descs"], self.MAP_searchs_desc["curvature_desc"], self.MAP_searchs_desc["desc"], self.MAP_searchs_desc["template_descs"], simidx) for simidx in self.simidxs]
         
         # self.simulationdata = self.MAP_handler_desc["simulationdata"]
@@ -945,6 +946,16 @@ class MAP_lr_v2:
 
     def maxiterdone(self):
         return min([MAP_search.maxiterdone() for MAP_search in self.MAP_searchs])
+    
+
+    def __rescale(self, obj, scale):
+        lmax = len(obj)-1
+        if scale == 'p':
+            return obj
+        elif scale == 'k':
+            return obj * cli(0.5 * np.arange(lmax + 1, dtype=float) * np.arange(1, lmax + 2, dtype=float))**2
+        else:
+            print(f"Unknown scale {scale}")
 
 
 class QE_lr(Basejob):

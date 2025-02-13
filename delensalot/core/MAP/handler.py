@@ -106,20 +106,15 @@ class base:
 
 
     def get_h0(self, R_unl0):
-        ret = {}
+        # NOTE this could in principle be done anywhere else as well.. not sure where to do it best
+        ret = {grad.ID: {} for grad in self.gradients}
         for grad in self.gradients:
-            ret.update({grad.ID: {}})
             lmax = grad.secondary.lm_max[0]
-            for compi, comp in enumerate(grad.secondary.component):
-                ckp = self.chh[grad.ID][comp]
-                R_unl = R_unl0[grad.ID][comp][:lmax+1]*cli(self.__p2k(lmax=lmax))**2 if grad.ID == 'lensing' else R_unl0[grad.ID][comp][:lmax+1]
-                buff = cli(R_unl + cli(ckp)) * (ckp > 0)
-                ret[grad.ID].update({comp: np.array(buff)})
+            for comp in grad.secondary.component:
+                chh_comp = self.chh[grad.ID][comp]
+                buff = cli(R_unl0[grad.ID][comp][:lmax+1] + cli(chh_comp)) * (chh_comp > 0)
+                ret[grad.ID][comp] = np.array(buff)
         return ret
-
-
-    def __p2k(self, lmax):
-        return 0.5 * np.arange(lmax + 1, dtype=float) * np.arange(1, lmax + 2, dtype=float)
 
 
     # exposed functions for convenience

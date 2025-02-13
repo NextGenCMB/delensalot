@@ -70,7 +70,7 @@ class l2base_Transformer:
             return obj
         dl.CLfids = {}
         for secondary, secinfo in cf.analysis.secondaries.items():
-            dl.CLfids[secondary] = {comp*2: _set_Lmin_zero(dl.simulationdata.get_sim_fidsec(simidx, secondary=secondary, components=comp*2)) for comp in secinfo['component']}
+            dl.CLfids[secondary] = {comp*2: _set_Lmin_zero(dl.simulationdata.get_fidsec(simidx, secondary=secondary, component=comp*2, return_nonrec=True)) for comp in secinfo['component']}
 
 
     def process_Analysis(dl, an, cf):
@@ -233,7 +233,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             l2base_Transformer.process_Meta(dl, cf.meta, cf)
             dl.libdir_suffix = cf.simulationdata.libdir_suffix
             l2base_Transformer.process_Simulation(dl, cf.simulationdata, cf)
-            # dl.simulationdata = Simhandler(**cf.simulationdata.__dict__)
             return dl
         return Sim_generator(extract())
 
