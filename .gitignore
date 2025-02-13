@@ -4,6 +4,7 @@ install/*
 SCRATCH/
 reconstruction/
 TESTSCRATCH/
+dev/*
 
 # protect notebooks
 first_steps/

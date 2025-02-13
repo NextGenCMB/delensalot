@@ -60,7 +60,6 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
 
 
         """
-        verbose = False
         lmax_sol, mmax_sol = unlalm_info
         lmax_len, mmax_len = lenalm_info
         lmax_transf = max(len(transf), len(transf if transf_b is None else transf_b)) - 1
