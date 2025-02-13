@@ -1,3 +1,0 @@
- * For MPI run, when one rank is done it will try to build BLTs that are not yet available (eg, if other ranks are still reconstructing)
- * for noise model, naming convention is off in case of no mask but anisotropic noise model. better to use sky_coverage="anisotropic/isotropic"
- 
