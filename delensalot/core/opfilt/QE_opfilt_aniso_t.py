@@ -81,7 +81,9 @@ class alm_filter_ninv(object):
         almxfl(tlm, self.b_transf, self.mmax_len, inplace=True)
         tim.add('transf')
 
-        tmap = self.geom.synthesis(tlm, 0, self.lmax_len, self.mmax_len, self.sht_threads)
+        tmap = np.empty(self.n_inv.size, dtype=float)
+        tmap_2d = np.atleast_2d(tmap)
+        self.geom.synthesis(tlm, 0, self.lmax_len, self.mmax_len, self.sht_threads, map=tmap_2d)
         tim.add('alm2map_spin lmax %s mmax %s nrings %s'%(self.lmax_len, self.mmax_len, len(self.geom.ofs)))
 
         self.apply_map(tmap)  # applies N^{-1}

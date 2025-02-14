@@ -459,8 +459,6 @@ class qlm_iterator(object):
                 if os.path.exists(opj(self.lib_dir, 'ffi_%s_it%s'%(key, itr))):
                     shutil.rmtree(opj(self.lib_dir, 'ffi_%s_it%s'%(key, itr)))
 
-
-
     @log_on_start(logging.DEBUG, "calc_gradlik(it={itr}, key={key}) started")
     @log_on_end(logging.DEBUG, "calc_gradlik(it={itr}, key={key}) finished")
     def calc_gradlik(self, itr, key, iwantit=False):

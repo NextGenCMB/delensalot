@@ -236,7 +236,6 @@ class template_bfilt(object):
 
     def _get_rows_mpi(self, NiQQ_NiUU_NiQU, prefix):
         """Produces and save all rows of the matrix for large matriz sizes
-
         """
         assert self.lib_dir is not None, 'cant do this without a lib_dir'
         if NiQQ_NiUU_NiQU.shape[0] == 3: #Here, QQ and UU may be different, but NiQU negligible
@@ -245,7 +244,7 @@ class template_bfilt(object):
         else: #Here, we assume that NiQQ = NiUU, and NiQU is negligible
             NiQQ, NiUU, NiQU = NiQQ_NiUU_NiQU[0], NiQQ_NiUU_NiQU[0], None
         assert self.nmodes <= 99999, 'ops, naming in the lines below'
-        log.info("number of rows for tnit: {}".format(self.nmodes))
+        log.info("number of rows for tnit: {}. Using mpi rank {} with size {}".format(self.nmodes, mpi.rank, mpi.size))
         if not os.path.exists(os.path.join(self.lib_dir, 'rows')):
             os.makedirs(os.path.join(self.lib_dir, 'rows'))
         for ai, a in enumerate_progress(range(self.nmodes)[mpi.rank::mpi.size], label='Calculating Pmat row'):
@@ -308,15 +307,16 @@ class eblm_filter_ninv(opfilt_pp.alm_filter_ninv):
             if _bmarg_lib_dir is not None and os.path.exists( os.path.join(_bmarg_lib_dir, 'tniti.npy')):
                 log.info("Loading " + os.path.join(_bmarg_lib_dir, 'tniti.npy'))
                 self.tniti = np.load(os.path.join(_bmarg_lib_dir, 'tniti.npy'))
+                log.info("done")
                 if _bmarg_rescal != 1.:
                     log.info("**** RESCALING tiniti with %.4f"%_bmarg_rescal)
                     self.tniti *= _bmarg_rescal
             else:
-                log.debug("Inverting template matrix:")
+                log.info("Inverting template matrix:")
                 tnit = self.templates[0].build_tnit((self.n_inv[0], self.n_inv[0], None))
                 eigv, eigw = np.linalg.eigh(tnit)
                 if not np.all(eigv > 0):
-                    log.debug('Negative or zero eigenvalues in template projection')
+                    log.info('Negative or zero eigenvalues in template projection')
                 eigv_inv = utils.cli(eigv)
                 self.tniti = np.dot(np.dot(eigw, np.diag(eigv_inv)), np.transpose(eigw))
                 if _bmarg_lib_dir is not None and not os.path.exists(os.path.join(_bmarg_lib_dir, 'tniti.npy')):

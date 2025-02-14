@@ -93,6 +93,7 @@ template_secondaries = ['lensing', 'birefringence']  # Define your desired order
 template_index_secondaries = {val: i for i, val in enumerate(template_secondaries)}
 
 class iso_white_noise:
+    # FIXME misleading naming. if noisemaps are passed, these are not necessarily iso. One way to refactor is to create a more generic class 'noise_map'.
     """class for generating very simple isotropic white noise
     """
     def __init__(self, geominfo=DNaV, noise_info=DNaV, libdir_suffix=DNaV):
@@ -100,7 +101,6 @@ class iso_white_noise:
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
         self.geom_lib = get_geom(self.geominfo)
-
         if noise_info['libdir'] == DNaV:
             # NOTE libdir_suffix is terribly implemented.
             # libdir_phas needs to be aligned with whatever the job_handler Sim_generator() sets the libdir of the simulations to.
@@ -163,6 +163,7 @@ class iso_white_noise:
                     if space == 'alm':
                         noise = self.geom_lib.map2alm(noise, lmax=self.noise_info['lm_max'][0], mmax=self.noise_info['lm_max'][1], nthreads=4)
             else:
+                # FIXME similar to get_sim_obs, catch multiple maps in same .fits
                 if field == 'polarization':
                     if self.noise_info['spin'] == 2:
                         noise1 = load_file_wsec(opj(self.noise_info['libdir'], self.noise_info['fns']['Q'].format(simidx)))
@@ -339,6 +340,7 @@ class Xpri:
                     elif field == 'temperature':
                         pri = self.geom_lib.alm2map(pri, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
             else:
+                # FIXME similar to get_sim_obs, catch multiple maps in same .fits
                 if field  == 'polarization':
                     if self.CMB_info['spin'] == 2:
                         pri1 = load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['Q'].format(simidx)))
@@ -578,6 +580,7 @@ class Xsky:
                             sky = self.lenjob_geomlib.map2alm(sky, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                 else:
                     log.debug('.., but stored on disk.')
+                    # FIXME similar to get_sim_obs, catch multiple maps in same .fits
                     if field == 'polarization':
                         if self.CMB_info['spin'] == 2:
                             sky1 = load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['Q'].format(simidx)))

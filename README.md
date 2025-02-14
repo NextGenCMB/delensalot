@@ -65,31 +65,10 @@ Frequent problems are
 
 # Usage
 
-## The quickest way: `anafast()`, `map2delblm()` or `map2tempblm()`
-
-`delensalot` comes with two handy functions to get you started very easily.
-To get a delensed power spectrum, simply import `delensalot` and run `anafast()`:
-```
-import delensalot
-delensedmap = delensalot.anafast(obsmaps, lmax_cmb=lmax_cmb, beam=beam, itmax=itmax, noise=noise, verbose=True)
-```
-
-To get a delensed B map, simply import `delensalot` and run `map2delblm()`:
-```
-import delensalot
-delensedmap = delensalot.map2delblm(obsmaps, lmax_cmb=lmax_cmb, beam=beam, itmax=itmax, noise=noise, verbose=True)
-```
-
-here `obsmaps` is the observed Q and U map you may have... gotten from somewhere. Then all what is left to do is to tell `delensalot` about,
- * the maximum \ell (`lmax_cmb`) of your CMB map you'd like to use,
- * the beam (`sims_beam`) of the transfer function of the observed maps,
- * how many iterations (`itmax`) you'd like to perform,
- * and the noise level (`noise`) of the observation.
-
-If you are interested in the B-lensing template, instead use `map2tempblm()`,
-```
-import delensalot
-Blenstemplate = delensalot.map2tempblm(obsmaps, lmax_cmb=lmax_cmb, beam=beam, itmax=itmax, noise=noise, verbose=True)
+## parameter file
+Check the first_steps/parameter_files/ and run any of them using,
+``` 
+python3 <parfile>.py
 ```
 
 ## Run a configuration file
@@ -103,11 +82,6 @@ delensalot supports MPI,
 
 ```
 srun --nodes <nnodes> -n <taskspernode> python3 run.py -r <path-to-config/conf.py>
-```
-
-If you'd like to know the status of the analysis done with `<path-to-config/conf.py>`, run,
-```
-python3 run.py -s <path-to-config/conf.py>
 ```
 
 ## interactive mode
