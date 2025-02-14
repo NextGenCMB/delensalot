@@ -1,5 +1,6 @@
 import numpy as np
 
+from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy
 from delensalot.utils import cli
 
 from . import gradient
@@ -39,12 +40,13 @@ class base:
 
         self.itmax = desc['itmax']
         self.simidx = simidx
+        self.data = None
 
     
     def get_est(self, simidx, request_it, secondary=None, component=None, scale='k', calc_flag=False):
         current_it = self.maxiterdone()
         if isinstance(request_it, (list,np.ndarray)):
-            if all([current_it>=reqit for reqit in request_it]): print(f"Cannot calculate new iterations if param 'it' is a list, maximum available iteration is {current_it}")
+            if all([current_it<reqit for reqit in request_it]): print(f"Cannot calculate new iterations if param 'it' is a list, maximum available iteration is {current_it}")
             # assert not calc_flag and any([current_it<reqit for reqit in request_it]), "Cannot calculate new iterations if it is a list, please set calc_flag=False"
             return [self.get_est(simidx, it, secondary, component, scale=scale, calc_flag=False) for it in request_it[request_it<=current_it]]
         if self.maxiterdone() < 0:
@@ -57,6 +59,7 @@ class base:
             else:
                 return self.secondaries[secondary].get_est(simidx, request_it, component, scale=scale)
         elif (current_it < self.itmax and request_it >= current_it) or calc_flag:
+            if self.data is None: self.data = self.get_data(self.ivf_filter.lm_max_sky)
             for it in range(current_it+1, request_it+1):
                 # NOTE it = 0 is QE and is implicitly skipped. current_it is the it we have a solution for already
                 grad_tot, grad_prev = [], []
@@ -104,12 +107,12 @@ class base:
     def get_h0(self, R_unl0):
         # NOTE this could in principle be done anywhere else as well.. not sure where to do it best
         ret = {grad.ID: {} for grad in self.gradients}
-        for grad in self.gradients:
-            lmax = grad.secondary.LM_max[0]
-            for comp in grad.secondary.component:
-                chh_comp = self.chh[grad.ID][comp]
-                buff = cli(R_unl0[grad.ID][comp][:lmax+1] + cli(chh_comp)) * (chh_comp > 0)
-                ret[grad.ID][comp] = np.array(buff)
+        for seci, sec in enumerate(self.seclist_sorted):
+            lmax = self.gradients[seci].LM_max[0]
+            for comp in self.secondaries[sec].component:
+                chh_comp = self.chh[sec][comp]
+                buff = cli(R_unl0[sec][comp][:lmax+1] + cli(chh_comp)) * (chh_comp > 0)
+                ret[sec][comp] = np.array(buff)
         return ret
 
 
@@ -122,15 +125,15 @@ class base:
         return self.ivf_filter.get_ivfreslm(simidx, it)
     
 
-    def get_gradient_quad(self, it=None, secondary=None, component=None):
+    def get_gradient_quad(self, it=None, secondary=None, component=None, data=None):
         if it is None:
             it = self.maxiterdone()
         if secondary is None:
-            return [grad.get_gradient_quad(it, component) for grad in self.gradients]
+            return [grad.get_gradient_quad(it, component, data) for grad in self.gradients]
         if isinstance(secondary, str):
-            return self.gradients[self.sec2idx[secondary]].get_gradient_quad(it, component)
+            return self.gradients[self.sec2idx[secondary]].get_gradient_quad(it, component, data)
         sec_idx = [self.sec2idx[sec] for sec in secondary]
-        return [self.gradients[idx].get_gradient_quad(it, component) for idx in sec_idx]
+        return [self.gradients[idx].get_gradient_quad(it, component, data) for idx in sec_idx]
 
 
     def get_gradient_meanfield(self, it=None, secondary=None, component=None):
@@ -155,15 +158,15 @@ class base:
         return np.array([self.gradients[idx].get_gradient_prior(it, component) for idx in sec_idx])
     
 
-    def get_gradient_total(self, it=None, secondary=None, component=None):
+    def get_gradient_total(self, data, it=None, secondary=None, component=None):
         if it is None:
             it = self.maxiterdone()
         if secondary is None:
-            return [grad.get_gradient_total(it, component) for grad in self.gradients]
+            return [grad.get_gradient_total(data, it, component) for grad in self.gradients]
         if isinstance(secondary, str):
-            return self.gradients[self.sec2idx[secondary]].get_gradient_total(it, component)
+            return self.gradients[self.sec2idx[secondary]].get_gradient_total(data, it, component)
         sec_idx = [self.sec2idx[sec] for sec in secondary]
-        return np.array([self.gradients[idx].get_gradient_total(it, component) for idx in sec_idx])
+        return np.array([self.gradients[idx].get_gradient_total(data, it, component) for idx in sec_idx])
 
 
     def get_template(self, it, secondary=None, component=None):
@@ -175,3 +178,35 @@ class base:
         for fieldID, field in self.secondaries.items():
             for component in field.component:
                 field.cache_klm(new_klms[fieldID][component], simidx, it, component=component)
+
+
+    def get_data(self, lm_max):
+        if True: # NOTE anisotropic data currently not supported
+        # if self.noisemodel_coverage == 'isotropic':
+            # NOTE dat maps must now be given in harmonic space in this idealized configuration. sims_MAP is not used here, as no truncation happens in idealized setting.
+            if self.estimator_key in ['p_p', 'p_eb', 'peb', 'p_be']:
+                return alm_copy(
+                    self.simulationdata.get_sim_obs(self.simidx, space='alm', spin=0, field='polarization'),
+                    None, *lm_max)
+            if self.k in ['pee']:
+                return alm_copy(
+                    self.simulationdata.get_sim_obs(self.simidx, space='alm', spin=0, field='polarization'),
+                    None, *lm_max)[0]
+            elif self.k in ['ptt']:
+                return alm_copy(
+                    self.simulationdata.get_sim_obs(self.simidx, space='alm', spin=0, field='temperature'),
+                    None, *lm_max)
+            elif self.k in ['p']:
+                EBobs = alm_copy(
+                    self.simulationdata.get_sim_obs(self.simidx, space='alm', spin=0, field='polarization'),
+                    None, *lm_max)
+                Tobs = alm_copy(
+                    self.simulationdata.get_sim_obs(self.simidx, space='alm', spin=0, field='temperature'),
+                    None, *lm_max)         
+                ret = np.array([Tobs, *EBobs])
+                return ret
+        else:
+            if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
+                return np.array(self.sims_MAP.get_sim_pmap(self.simidx), dtype=float)
+            else:
+                assert 0, 'implement if needed'

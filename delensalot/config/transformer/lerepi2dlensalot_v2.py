@@ -41,6 +41,38 @@ from delensalot.config.config_helper import data_functions as df, LEREPI_Constan
 from delensalot.config.metamodel.delensalot_mm_v2 import DELENSALOT_Model as DELENSALOT_Model_mm, DELENSALOT_Concept_v2
 
 
+def filter_secondary(secondary, allowed_chars):
+    allowed_set = set(allowed_chars)
+    
+    keys_to_remove = []
+    
+    for key, value in secondary.items():
+        if 'component' in value:
+            # Filter out characters not in the allowed list
+            value['component'] = [char for char in value['component'] if char in allowed_set]
+            
+            # If component list is now empty, mark the key for removal
+            if not value['component']:
+                keys_to_remove.append(key)
+    
+    # Remove empty components
+    for key in keys_to_remove:
+        del secondary[key]
+    
+    return secondary
+
+# Example usage
+secondary = {
+    'lensing': {
+        'geominfo': ('thingauss', {'lmax': 4500, 'smax': 3}),
+        'component': ['p', 'w'],
+    },
+    'birefringence': {
+        'geominfo': ('thingauss', {'lmax': 4500, 'smax': 3}),
+        'component': ['f'],
+    },
+}
+
 def all_combinations(lst):
     return [''.join(comb) for comb in chain.from_iterable(combinations(lst, r) for r in range(1, len(lst) + 1))]
 
@@ -70,9 +102,10 @@ class l2base_Transformer:
             obj[:cf.analysis.Lmin] = 0
             return obj
         dl.CLfids = {}
+        print(cf.analysis.key.split('_')[0])
+        cf.analysis.secondary = filter_secondary(cf.analysis.secondary, cf.analysis.key.split('_')[0])
         for secondary, secinfo in cf.analysis.secondary.items():
             dl.CLfids[secondary] = {comp*2: _set_Lmin_zero(dl.simulationdata.get_fidsec(simidx, secondary=secondary, component=comp*2, return_nonrec=True)) for comp in secinfo['component']}
-
 
     def process_Analysis(dl, an, cf):
         if loglevel <= 20:
@@ -254,8 +287,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     l2base_Transformer.process_Simulation(dl, si, cf)
                 def _process_Qerec(dl, qe):
                     qe_tasks_sorted = ['calc_fields', 'calc_meanfields', 'calc_templates'] if qe.subtract_QE_meanfield else ['calc_fields', 'calc_templates']
-                    dl.qe_tasks = [task for task in qe_tasks_sorted if task in qe.tasks]       
-                    dl.qe_filter_directional = qe.filter_directional
+                    dl.qe_tasks = [task for task in qe_tasks_sorted if task in qe.tasks]
 
                     dl.subtract_QE_meanfield = qe.subtract_QE_meanfield
                     dl.estimator_type = qe.estimator_type
@@ -266,7 +298,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.chain_model.p3 = dl.nivjob_geominfo[1]['nside']
                     dl.chain_descr = lambda p2, p5 : [[0, ["diag_cl"], p2, dl.nivjob_geominfo[1]['nside'], np.inf, p5, cd_solve.tr_cg, cd_solve.cache_mem()]]
                     
-                    # NOTE I need this for the template generation, but I don't want to pull this from itrec
+                    # NOTE I need this for the template generation
                     lenjob_geomlib = get_geom(cf.analysis.secondary['lensing']['geominfo'])
                     thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
                     lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
@@ -285,14 +317,13 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             # dl.cls_unl.update({comp: val for comp_dict in dl.CLfids.values() for comp, val in comp_dict.items()})
             keystring = cf.analysis.key if len(cf.analysis.key) == 1 else cf.analysis.key.split('_')[-1] if "_" in cf.analysis.key else cf.analysis.key[1:]
             QE_filterqest_desc = {
-                "estimator_key": cf.analysis.key, #FIXME this should be a different value for each secondary
                 "estimator_type": dl.estimator_type, #FIXME this should be a different value for each secondary
                 "libdir": opj(transform(cf, l2T_Transformer()), 'QE', keystring),
                 "simulationdata": Simhandler(**cf.simulationdata.__dict__),
                 "nivjob_geominfo": cf.noisemodel.geominfo,
                 "niv_desc": dl.niv_desc,
                 "nlev": dl.nlev,
-                "qe_filter_directional": cf.qerec.filter_directional,
+                "spatial_type": cf.noisemodel.spatial_type,
                 "cls_len": dl.cls_len,
                 "cls_unl": dl.cls_unl,
                 "ttebl": dl.ttebl,
@@ -344,7 +375,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "libdir": opj(transform(cf, l2T_Transformer()), 'QE', keystring, sec),
                     "QE_filterqest_desc": QE_filterqest_desc,
                     "secondary": QE_secs[sec],
-                    "estimator_key": cf.analysis.key, # FIXME
+                    "estimator_key": "".join(cf.analysis.secondary[sec]['component'])+'_'+cf.analysis.key.split('_')[-1], # FIXME
                     "cls_len": dl.cls_len,
                     "cls_unl": dl.cls_unl,
                     "simidxs": cf.analysis.simidxs,
@@ -377,7 +408,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.it_chain_descr = lambda p2, p5 : [[0, ["diag_cl"], p2, dl.nivjob_geominfo[1]['nside'], np.inf, p5, cd_solve.tr_cg, cd_solve.cache_mem()]]
             
                     dl.it_cg_tol = lambda itr : it.cg_tol if itr <= 1 else it.cg_tol
-                    dl.it_filter_directional = it.filter_directional
                     dl.itmax = it.itmax
 
                     dl.soltn_cond = it.soltn_cond
@@ -393,7 +423,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             QE_searchs = dl.QE_searchs
             _process_components(dl)
 
-            MAP_libdir_prefix = opj(transform(cf, l2T_Transformer()), 'MAP'+"_"+"".join(cf.analysis.secondary.keys())+"_"+get_hashcode(OrderedDict(cf.analysis.secondary)), '{estimator_key}'.format(estimator_key=cf.analysis.key.split('_')[-1]))
+            MAP_libdir_prefix = opj(transform(cf, l2T_Transformer()), 'MAP'+"_"+"".join(cf.analysis.secondary.keys())+"_"+get_hashcode(OrderedDict(cf.analysis.secondary)), '{estimator_key}'.format(estimator_key=cf.analysis.key))
 
             # input: all kwargs needed to build the MAP fields
             MAP_secondaries = {sec: MAP_field.secondary({
@@ -462,11 +492,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             for gradient_name, gradient_operator in gradients_operators.items():
                 gradient_descs.update({ gradient_name: {
                     "ID": gradient_name,
-                    "secondary": MAP_secondaries[gradient_name],
                     "gfield": MAP_gfields[gradient_name],
-                    "noisemodel_coverage": dl.it_filter_directional,
-                    "estimator_key":  cf.analysis.key,
-                    "simulationdata": dl.simulationdata,
                     "lm_max_sky": dl.lm_max_sky,
                     "lm_max_pri": dl.lm_max_pri,
                     "LM_max": cf.analysis.secondary[gradient_name]['LM_max'],

@@ -4,7 +4,8 @@ from delensalot.utils import cli
 from delensalot.core.QE import filterqest
 from delensalot.utility.utils_hp import Alm, almxfl, alm_copy, gauss_beam
 
-component2plancklensk = {'p': "p", 'f': "a", 'w': "x"}
+# NOTE plancklens solves two components simultaneously, so can just drop the second component
+component2plancklensk = {'p':"p", 'w':'p', 'pw':'p', 'wp':'p', 'f':"a", 'w':"x"}
 id2plancklenssec = {'lensing': 'p', 'birefringence': 'a'}
 
 class base:
@@ -13,7 +14,7 @@ class base:
         # It does not quite aline well with the MAP classes, as the MAP equivalent is per simidx.
         self.ID = QE_search_desc["ID"]
         self.estimator_key = QE_search_desc['estimator_key']
-        self.estimator_key = id2plancklenssec[self.ID] + self.estimator_key[1:]
+        self.estimator_key = component2plancklensk[self.estimator_key.split('_')[0]] + '_' + self.estimator_key.split('_')[1]
         QE_search_desc['QE_filterqest_desc'].update({'estimator_key': self.estimator_key})
         self.fq = filterqest.base(QE_search_desc['QE_filterqest_desc'])
         self.libdir = QE_search_desc['libdir']
@@ -52,7 +53,7 @@ class base:
         if not self.secondary.is_cached(simidx, component, 'klm'):
             qlm = self.get_qlm(simidx, component)
             _submf = self.subtract_meanfield if subtract_meanfield is None else subtract_meanfield
-            if _submf and len(self.simidxs_mf)>1: #NOTE >1 is really just a lower bound.
+            if _submf and len(self.simidxs_mf)>2: #NOTE >2 is really just a lower bound.
                 mf_qlm = self.get_qmflm(self.simidxs_mf, component=component)
                 qlm -= mf_qlm
 

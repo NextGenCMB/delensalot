@@ -854,7 +854,7 @@ class MAP_lr_v2:
         if isinstance(it, (list, np.ndarray)):
             # if 0 in it:
             #     return [get_qe_est()] + (get_map_est(sorted(it)[1:]) if len(it) > 1 else [])
-            return get_map_est(it)
+            return get_map_est(np.array(it))
         return get_map_est(it)
         # return get_qe_est() if it == 0 else get_map_est(it)
 
@@ -894,11 +894,11 @@ class MAP_lr_v2:
         elif isinstance(it, (int,np.int64)) and it>self.maxiterdone():
             it = self.maxiterdone()
         if (isinstance(it, (list, np.ndarray)) and 0 not in it):
-            return [self.MAP_searchs[simidx].get_gradient_quad(it_, secondary, component) for it_ in it]
+            return [self.MAP_searchs[simidx].get_gradient_meanfield(it_, secondary, component) for it_ in it]
         elif (isinstance(it, (list, np.ndarray)) and 0 in it):
             return [self.QE_searchs[self.sec2idx[secondary]].get_kmflm(simidx, component)] + [self.MAP_searchs[simidx].get_gradient_meanfield(it_, secondary, component) for it_ in it[1:]]
         elif isinstance(it, (int,np.int64)) and it > 0:
-            self.MAP_searchs[simidx].get_gradient_quad(it, secondary, component)
+            self.MAP_searchs[simidx].get_gradient_meanfield(it, secondary, component)
 
 
     def get_gradient_prior(self, simidx, it=None, secondary=None, component=None):
@@ -967,7 +967,7 @@ class MAP_lr_v2:
 
             #TODO cache QE wflm into the filter directory
             if not self.MAP_searchs[simidx].wf_filter.wf_field.is_cached(simidx, it=0):
-                wflm_QE = self.QE_searchs[self.sec2idx[secname]].get_wflm(simidx, self.MAP_searchs[simidx].ivf_filter.lm_max)
+                wflm_QE = self.QE_searchs[self.sec2idx[secname]].get_wflm(simidx, self.MAP_searchs[simidx].ivf_filter.lm_max_sky)
                 self.MAP_searchs[simidx].wf_filter.wf_field.cache_field(np.array(wflm_QE), simidx, it=0)
 
 

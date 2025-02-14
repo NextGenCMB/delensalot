@@ -105,7 +105,7 @@ class DELENSALOT_Analysis(DELENSALOT_Concept_v2):
     LM_max =                attr.field(default=DEFAULT_NotAValue)
     lm_max_pri =            attr.field(default=DEFAULT_NotAValue)
     lm_max_sky =            attr.field(default=DEFAULT_NotAValue)
-    key =                   attr.field(default=DEFAULT_NotAValue, validator=analysis.key)
+    key =                   attr.field(default=DEFAULT_NotAValue)
     simidxs =               attr.field(default=DEFAULT_NotAValue, validator=analysis.simidxs)
     simidxs_mf =            attr.field(default=DEFAULT_NotAValue, validator=analysis.simidxs_mf)
     TEMP_suffix =           attr.field(default=DEFAULT_NotAValue, validator=analysis.TEMP_suffix)
@@ -134,7 +134,7 @@ class DELENSALOT_Simulation(DELENSALOT_Concept_v2):
     libdir_suffix = attr.field(default='generic', validator=data.libdir_suffix)
     maps =          attr.field(default=DEFAULT_NotAValue, validator=data.maps)
     geominfo =      attr.field(default=DEFAULT_NotAValue, validator=data.geominfo)
-    fid_info =   attr.field(default=DEFAULT_NotAValue)
+    fid_info =      attr.field(default=DEFAULT_NotAValue)
     CMB_info =      attr.field(default=DEFAULT_NotAValue)
     sec_info =      attr.field(default=DEFAULT_NotAValue)
     obs_info =      attr.field(default=DEFAULT_NotAValue)
@@ -156,6 +156,7 @@ class DELENSALOT_Noisemodel(DELENSALOT_Concept_v2):
         geominfo (tuple): geominfo of the noise map
     """
     sky_coverage =          attr.field(default=DEFAULT_NotAValue, validator=noisemodel.sky_coverage)
+    spatial_type =          attr.field(default=DEFAULT_NotAValue)
     spectrum_type =         attr.field(default=DEFAULT_NotAValue, validator=noisemodel.spectrum_type)
     OBD =                   attr.field(default=DEFAULT_NotAValue, validator=noisemodel.OBD)
     nlev =                  attr.field(default=DEFAULT_NotAValue, validator=noisemodel.nlev_t)
@@ -184,7 +185,6 @@ class DELENSALOT_Qerec(DELENSALOT_Concept_v2):
     estimator_type =        attr.field(default=DEFAULT_NotAValue, validator=qerec.qlms)
     qlm_type =              attr.field(default=DEFAULT_NotAValue, validator=qerec.qlms)
     cg_tol =                attr.field(default=DEFAULT_NotAValue, validator=qerec.cg_tol)
-    filter_directional =    attr.field(default=DEFAULT_NotAValue, validator=qerec.filter_directional)
     chain =                 attr.field(default=DELENSALOT_Chaindescriptor(), validator=qerec.chain)
     subtract_QE_meanfield = attr.field(default=DEFAULT_NotAValue)
 
@@ -213,7 +213,6 @@ class DELENSALOT_Itrec(DELENSALOT_Concept_v2):
     itmax =                 attr.field(default=DEFAULT_NotAValue, validator=itrec.itmax)
     cg_tol =                attr.field(default=DEFAULT_NotAValue, validator=itrec.cg_tol)
     chain =                 attr.field(default=DELENSALOT_Chaindescriptor(), validator=itrec.chain)
-    filter_directional =    attr.field(default=DEFAULT_NotAValue, validator=itrec.filter_directional)
     mfvar =                 attr.field(default=DEFAULT_NotAValue, validator=itrec.mfvar) # TODO rename and check if it still works 
     soltn_cond =            attr.field(default=DEFAULT_NotAValue, validator=itrec.soltn_cond)
     gradient_descs =        attr.field(default=DEFAULT_NotAValue)
@@ -372,7 +371,7 @@ class DELENSALOT_Model(DELENSALOT_Concept_v2):
                 for value in default_dict[key]:
                     target_attr = getattr(self, key)
 
-                    if value in ['sec_info', 'secondary']:
+                    if value in ['sec_info']:
                         for sub_key in default_value[value]:
                             if sub_key in getattr(target_attr, value, {}):
                                 update_defaults(getattr(target_attr, value)[sub_key], default_value[value][sub_key])

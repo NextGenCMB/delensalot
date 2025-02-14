@@ -34,7 +34,7 @@ class base:
         self.ftebl_unl = {key: self.__compute_transfer(cls_key, nlev_key, transf_key, 'unl') 
             for key, (cls_key, nlev_key, transf_key) in zip('teb', [('tt', 'T', 't'), ('ee', 'P', 'e'), ('bb', 'P', 'b')])}
 
-        self.qe_filter_directional = filter_desc['qe_filter_directional']
+        self.spatial_type = filter_desc['spatial_type']
         self.estimator_type = filter_desc['estimator_type']
         self.estimator_key = filter_desc['estimator_key']
         self.libdir = filter_desc['libdir']
@@ -53,11 +53,11 @@ class base:
 
 
     def _init_filterqest(self):
-        if self.qe_filter_directional == 'isotropic':
+        if self.spatial_type == 'isotropic':
             self.ivf = filt_simple.library_fullsky_sepTP(opj(self.libdir, 'ivf'), self.simulationdata, self.nivjob_geominfo[1]['nside'], self.ttebl, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
             if self.estimator_type == 'sepTP':
                 self.qlms_dd = qest.library_sepTP(opj(self.libdir, 'qlms_dd'), self.ivf, self.ivf, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
-        elif self.qe_filter_directional == 'anisotropic':
+        elif self.spatial_type == 'anisotropic':
             ## Wait for finished run(), as plancklens triggers cinv_calc...
             self.cinv_t = filt_cinv.cinv_t(opj(self.libdir, 'cinv_t'),
                     self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,

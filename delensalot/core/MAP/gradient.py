@@ -9,24 +9,27 @@ from delensalot.utils import cli
 class base:
     def __init__(self, gradient_desc, filter, simidx):
         self.ID = gradient_desc['ID']
-        self.secondary = gradient_desc['secondary']
+
+        # NOTE field
         self.gfield = gradient_desc['gfield']
-        self.gradient_operator = gradient_desc['gradient_operator']
-        self.ivf_filter = filter['ivf']
-        self.wf_filter = filter['wf']
+
+        # NOTE operators
+        self.gradient_operator = gradient_desc['gradient_operator'] # NOTE this is whatever comes out of the inner for calculating the gradient wrt. the secondary
+        self.ivf_filter = filter['ivf'] # NOTE this is a joint of secondary operators
+        self.wf_filter = filter['wf'] # NOTE WF is ivf ivf^dagger, so could in principle be simplified
+
         self.simidx = simidx
-        self.noisemodel_coverage = gradient_desc['noisemodel_coverage']
-        self.estimator_key = gradient_desc['estimator_key']
-        self.simulationdata = gradient_desc['simulationdata']
+
         self.lm_max_sky = gradient_desc['lm_max_sky']
         self.lm_max_pri = gradient_desc['lm_max_pri']
         self.LM_max = gradient_desc['LM_max']
+
         self.ffi = gradient_desc['ffi']
 
 
-    def get_gradient_total(self, it, component=None):
+    def get_gradient_total(self, it, component=None, data=None):
         if component is None:
-            component = self.secondary.component
+            component = self.gfield.component
         if isinstance(it, (list,np.ndarray)):
             return np.array([self.get_gradient_total(it_, component) for it_ in it])
         if self.gfield.cacher.is_cached(self.gfield.total_fns.format(idx=self.simidx, it=it)):
@@ -35,12 +38,12 @@ class base:
             g = 0
             g += self.get_gradient_prior(it-1, component)
             g += self.get_gradient_meanfield(it, component)
-            g -= self.get_gradient_quad(it, component)
+            g -= self.get_gradient_quad(it, component, data)
             # self.gfield.cache_total(g, self.simidx, it) # NOTE this is implemented, but not used to save disk space
             return g
 
 
-    def get_gradient_quad(self, it, component=None):
+    def get_gradient_quad(self, it, component=None, data=None):
         assert 0, "subclass this"
 
 
@@ -66,52 +69,6 @@ class base:
         pass
 
 
-    def isiterdone(self, it):
-        if it >= 0:
-            return np.all(self.secondary.is_cached(self.simidx, it))
-        return False    
-
-
-    def maxiterdone(self):
-        itr = -2
-        isdone = True
-        while isdone:
-            itr += 1
-            isdone = self.isiterdone(itr + 1)
-        return itr
-    
-
-    def get_data(self, lm_max):
-        if self.noisemodel_coverage == 'isotropic':
-            # dat maps must now be given in harmonic space in this idealized configuration. sims_MAP is not used here, as no truncation happens in idealized setting.
-            if self.estimator_key in ['p_p', 'p_eb', 'peb', 'p_be']:
-                return alm_copy(
-                    self.simulationdata.get_sim_obs(self.simidx, space='alm', spin=0, field='polarization'),
-                    None, *lm_max)
-            if self.k in ['pee']:
-                return alm_copy(
-                    self.simulationdata.get_sim_obs(self.simidx, space='alm', spin=0, field='polarization'),
-                    None, *lm_max)[0]
-            elif self.k in ['ptt']:
-                return alm_copy(
-                    self.simulationdata.get_sim_obs(self.simidx, space='alm', spin=0, field='temperature'),
-                    None, *lm_max)
-            elif self.k in ['p']:
-                EBobs = alm_copy(
-                    self.simulationdata.get_sim_obs(self.simidx, space='alm', spin=0, field='polarization'),
-                    None, *lm_max)
-                Tobs = alm_copy(
-                    self.simulationdata.get_sim_obs(self.simidx, space='alm', spin=0, field='temperature'),
-                    None, *lm_max)         
-                ret = np.array([Tobs, *EBobs])
-                return ret
-        else:
-            if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
-                return np.array(self.sims_MAP.get_sim_pmap(self.simidx), dtype=float)
-            else:
-                assert 0, 'implement if needed'
-
-
 
 class lensing(base):
 
@@ -119,12 +76,12 @@ class lensing(base):
         super().__init__(gradient_desc, filter, simidx)
     
 
-    def get_gradient_quad(self, it, component=None):
+    def get_gradient_quad(self, it, component=None, data=None):
         # NOTE this function is equation 22 of the paper (for lensing).
         # Using property _2Y = _-2Y.conj
         # res = ivf.conj * gpmap(3) - ivf * gpmap(1).conj
         if not self.gfield.quad_is_cached(self.simidx, it):
-            data = self.get_data(self.lm_max_sky)
+            assert data is not None, "data must be provided for lensing gradient calculation"
             wflm = self.wf_filter.get_wflm(self.simidx, it, data)
             ivfreslm = self.ivf_filter.get_ivfreslm(self.simidx, it, data, wflm)
             
@@ -158,9 +115,9 @@ class birefringence(base):
         super().__init__(gradient_desc, filter, simidx)
     
 
-    def get_gradient_quad(self, it, component=None):
+    def get_gradient_quad(self, it, component=None, data=None):
         if not self.gfield.quad_is_cached(self.simidx, it):
-            data = self.get_data(self.lm_max_sky)
+            assert data is not None, "data must be provided for lensing gradient calculation"
             XWF = self.wf_filter.get_wflm(self.simidx, it)
             ivf = self.ivf_filter.get_ivfreslm(self.simidx, it, data, XWF)
             

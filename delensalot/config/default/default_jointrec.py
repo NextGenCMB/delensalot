@@ -129,7 +129,6 @@ DL_DEFAULT = {
         'tasks': ['calc_fields'],
         'estimator_type': 'sepTP',
         'cg_tol': 1e-7,
-        'filter_directional': 'isotropic',
         'chain': {
             'p0': 0,
             'p1': ["diag_cl"],
@@ -157,11 +156,11 @@ DL_DEFAULT = {
         'itmax': 1,
         'cg_tol': 1e-5,
         'mfvar': '',
-        'filter_directional': 'isotropic',
         'soltn_cond': lambda it: True,
     },
     'noisemodel': {
         'sky_coverage': 'unmasked',
+        'spatial_type': 'isotropic',
         'spectrum_type': 'white',
         'OBD': 'trunc',
         'nlev': {'P': 1.0, 'T': 1./np.sqrt(2)},
