@@ -5,6 +5,7 @@ SCRATCH/
 reconstruction/
 TESTSCRATCH/
 dev/*
+res/.DS_Store
 
 # protect notebooks
 first_steps/
