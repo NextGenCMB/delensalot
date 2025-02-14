@@ -57,11 +57,11 @@ class base:
                 qlm -= mf_qlm
 
             R = self.get_response_len(component)
-            WF = self.secondary.CLfids[component*2][:self.secondary.lm_max[0]+1] * cli(self.secondary.CLfids[component*2][:self.secondary.lm_max[0]+1] + cli(R))  # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
-            klm = alm_copy(qlm, None, self.secondary.lm_max[0], self.secondary.lm_max[1])
-            almxfl(klm, cli(R), self.secondary.lm_max[1], True) # Normalized QE
-            almxfl(klm, WF, self.secondary.lm_max[1], True) # Wiener-filter QE
-            almxfl(klm, self.secondary.CLfids[component*2][:self.secondary.lm_max[0]+1] > 0, self.secondary.lm_max[1], True)
+            WF = self.secondary.CLfids[component*2][:self.secondary.LM_max[0]+1] * cli(self.secondary.CLfids[component*2][:self.secondary.LM_max[0]+1] + cli(R))  # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
+            klm = alm_copy(qlm, None, self.secondary.LM_max[0], self.secondary.LM_max[1])
+            almxfl(klm, cli(R), self.secondary.LM_max[1], True) # Normalized QE
+            almxfl(klm, WF, self.secondary.LM_max[1], True) # Wiener-filter QE
+            almxfl(klm, self.secondary.CLfids[component*2][:self.secondary.LM_max[0]+1] > 0, self.secondary.LM_max[1], True)
             self.secondary.cache_klm(np.atleast_2d(klm), simidx, component)
         return self.secondary.get_est(simidx, component, scale) 
 
@@ -83,14 +83,14 @@ class base:
             component = component[0]
 
         if len(self.simidxs_mf) <= 2: # NOTE this is really just a lower bound
-            return np.zeros(Alm.getsize(*self.secondary.lm_max), dtype=complex)
+            return np.zeros(Alm.getsize(*self.secondary.LM_max), dtype=complex)
         kmflm = self.get_qmflm(self.simidxs_mf, component=component)
         R = self.get_response_len(component)
         WF = self.secondary.CLfids[component*2] * cli(self.secondary.CLfids[component*2] + cli(R))  # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
-        kmflm = alm_copy(kmflm, None, self.secondary.lm_max[0], self.secondary.lm_max[1])
-        almxfl(kmflm, cli(R), self.secondary.lm_max[1], True) # Normalized QE
-        almxfl(kmflm, WF, self.secondary.lm_max[1], True) # Wiener-filter QE
-        almxfl(kmflm, self.secondary.CLfids[component*2] > 0, self.secondary.lm_max[1], True)
+        kmflm = alm_copy(kmflm, None, self.secondary.LM_max[0], self.secondary.LM_max[1])
+        almxfl(kmflm, cli(R), self.secondary.LM_max[1], True) # Normalized QE
+        almxfl(kmflm, WF, self.secondary.LM_max[1], True) # Wiener-filter QE
+        almxfl(kmflm, self.secondary.CLfids[component*2] > 0, self.secondary.LM_max[1], True)
         # FIXME correct removal
         kmflm -= self.get_est(simidx, component=component)*1/(1-len(self.simidxs_mf))
         return np.array(kmflm)
@@ -105,8 +105,8 @@ class base:
     
 
     def get_response_unl(self, component, scale='p'):
-        return self.fq.get_response_unl(self.secondary.lm_max[0])[self.comp2idx[component]]
+        return self.fq.get_response_unl(self.secondary.LM_max[0])[self.comp2idx[component]]
     
 
     def get_response_len(self, component, scale='p'):
-        return self.fq.get_response_len(self.secondary.lm_max[0])[self.comp2idx[component]]
+        return self.fq.get_response_len(self.secondary.LM_max[0])[self.comp2idx[component]]

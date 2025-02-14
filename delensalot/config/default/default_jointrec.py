@@ -18,7 +18,7 @@ DL_DEFAULT = {
         'jobs': ["generate_sim", "QE_lensrec", "MAP_lensrec"]
     },
     # FIXME all lm_max need to be consistent no matter which flavour we start with.
-    # better only have one lm_max in default and config file, and let l2p adapt accordingly.
+    # better only have one lm_max in default and config file, and let l2p adapt accordingly?
     'simulationdata': { 
         'flavour': 'pri',
         'libdir_suffix': 'generic',
@@ -95,26 +95,34 @@ DL_DEFAULT = {
         'simidxs': np.arange(0,1),
         'TEMP_suffix': 'P_FS_CMBS4_jointsecrec',
         'Lmin': 1, 
-        'lm_max_ivf': (4000, 4000),
+        'LM_max': (4200, 4200), # NOTE this is max reconstructed secondary
+        'lm_max_pri': (4000, 4000), # NOTE this is for CMB
+        'lm_max_sky': (4000, 4000), # NOTE this is for CMB
         'lmin_teb': (2, 2, 200),
         'simidxs_mf': [],
         'zbounds': (-1,1),
         'zbounds_len': (-1,1),
-        'lm_max_len': (4000, 4000),
         'mask': None,
         'cls_unl': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_secondaries_lens_birefringence.dat'),
         'cls_len': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lensedCls_secondaries_lens_birefringence.dat'),
         'beam': 1.0,
         'transfunction_desc': 'gauss_no_pixwin',
-        'secondaries': {
+        'secondary': {
             'lensing': {
-                'geominfo': ('thingauss', {'lmax': 4000, 'smax': 3}),
-                'lm_max': (3000, 3000),
-                'component': ['p', 'w'],},
-            # 'birefringence': {
-            #     'lm_max': (3000, 3000),
-            #     'component': ['f'],
-            # },
+                'geominfo': ('thingauss', {'lmax': 4500, 'smax': 3}),
+                'LM_max': (4200, 4200), # NOTE this overwrites the global lm_max_sec
+                'lm_max_pri': (4000, 4000), # NOTE this overwrites the global lm_max_pri
+                'lm_max_sky': (4000, 4000), # NOTE this overwrites the global lm_max_sky
+                'component': ['p', 'w'],
+                'epsilon': 1e-7,
+            },
+            'birefringence': {
+                'geominfo': ('thingauss', {'lmax': 4500, 'smax': 3}),
+                'LM_max': (4200, 4200), # NOTE this overwrites the global lm_max_sec
+                'lm_max_pri': (4000, 4000), # NOTE this overwrites the global lm_max_pri
+                'lm_max_sky': (4000, 4000), # NOTE this overwrites the global lm_max_sky
+                'component': ['f'],
+            },
         },
     },
     'qerec':{
@@ -148,13 +156,9 @@ DL_DEFAULT = {
         'tasks': ['calc_fields'],
         'itmax': 1,
         'cg_tol': 1e-5,
-        'iterator_typ': 'constmf',
-        'filter_directional': 'isotropic',
-        'lenjob_geominfo': ('thingauss',{'lmax': 4000, 'smax': 3}),
-        'lm_max_unl': (4500,4500),
         'mfvar': '',
+        'filter_directional': 'isotropic',
         'soltn_cond': lambda it: True,
-        'epsilon': 1e-7,
     },
     'noisemodel': {
         'sky_coverage': 'unmasked',

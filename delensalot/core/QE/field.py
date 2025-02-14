@@ -10,7 +10,7 @@ class secondary:
         self.ID = secondary_desc['ID'] if 'ID' in secondary_desc else None
         self.libdir = secondary_desc['libdir']
         self.CLfids  = secondary_desc['CLfids'] if 'CLfids' in secondary_desc else None
-        self.lm_max = secondary_desc['lm_max'] if 'lm_max' in secondary_desc else None
+        self.LM_max = secondary_desc['LM_max']
         self.component = secondary_desc['component'] if 'component' in secondary_desc else None
 
         self.qlm_fns = {sec: f"qlm_{sec}_simidx{{idx}}" for sec in self.component}
@@ -62,8 +62,8 @@ class secondary:
             if self.ID == 'birefringence':
                 return klm
             else:
-                h2d =  0.5 * np.arange(self.lm_max[0] + 1) * np.arange(1, self.lm_max[0] + 2)
-                return np.atleast_2d(almxfl(klm[0], h2d, self.lm_max[1], False))
+                h2d =  0.5 * np.arange(self.LM_max[0] + 1) * np.arange(1, self.LM_max[0] + 2)
+                return np.atleast_2d(almxfl(klm[0], h2d, self.LM_max[1], False))
 
 
 class template:

@@ -270,11 +270,11 @@ class OBD_builder(Basejob):
         mpi.barrier()
 
 
-class Sim_generator(Basejob):
+class Sim_generator:
     """Simulation generation Job. Generates simulations for the requested configuration.
         * If any libdir exists, then a flavour of data is provided. Therefore, can only check by making sure flavour == obs, and fns exist.
     """
-    def __init__(self, dlensalot_model):
+    def __init__(self, delensalot_model):
         """ In this init we make the following checks:
          * (1) Does user provide obs data? Then Sim_generator can be fully skipped
          * (2) Otherwise, check if files already generated (delensalot model may not know this, so need to search),
@@ -283,7 +283,7 @@ class Sim_generator(Basejob):
              * generate the simulations
              * update the simhandler
         """        
-        super().__init__(dlensalot_model)
+        self.__dict__.update(delensalot_model.__dict__)
         if self.simulationdata.flavour == 'obs' or np.all(self.simulationdata.obs_lib.maps != DEFAULT_NotAValue): # (1)
             # Here, obs data is provided and nothing needs to be generated
             if np.all(self.simulationdata.obs_lib.maps != DEFAULT_NotAValue):
@@ -807,8 +807,9 @@ class MAP_lr_v2:
         # self.simulationdata = self.MAP_handler_desc["simulationdata"]
         self.it_tasks = self.MAP_handler_desc["it_tasks"]
         for simidx in self.simidxs:
-            if mpi.rank == 0:
-                self.__copyQEtoDirectory(simidx)
+            if len(self.collect_jobs()[-1]) > 0:
+                if mpi.rank == 0:
+                    self.__copyQEtoDirectory(simidx)
 
 
     def collect_jobs(self):
@@ -966,7 +967,7 @@ class MAP_lr_v2:
 
             #TODO cache QE wflm into the filter directory
             if not self.MAP_searchs[simidx].wf_filter.wf_field.is_cached(simidx, it=0):
-                wflm_QE = self.QE_searchs[self.sec2idx[secname]].get_wflm(simidx, self.MAP_searchs[simidx].ivf_filter.lm_max_ivf)
+                wflm_QE = self.QE_searchs[self.sec2idx[secname]].get_wflm(simidx, self.MAP_searchs[simidx].ivf_filter.lm_max)
                 self.MAP_searchs[simidx].wf_filter.wf_field.cache_field(np.array(wflm_QE), simidx, it=0)
 
 

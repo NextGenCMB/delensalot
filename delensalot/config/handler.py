@@ -31,7 +31,6 @@ from delensalot.config.transformer.lerepi2dlensalot_v2 import l2T_Transformer as
 from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALOT_Model_mm
 from delensalot.config.metamodel.delensalot_mm_v2 import DELENSALOT_Model as DELENSALOT_Model_mm_v2
 
-
 transformers_T = {
     DELENSALOT_Model_mm_v2: l2T_Transformer_v2(),
     DLENSALOT_Model_mm: l2T_Transformer()
@@ -40,52 +39,31 @@ transformers_J = {
     DELENSALOT_Model_mm_v2: l2delensalotjob_Transformer_v2(),
     DLENSALOT_Model_mm: l2delensalotjob_Transformer()
 }
+
 class config_handler():
     """Load config file and handle command line arguments 
     """
 
     def __init__(self, parser, config=None):
         sorted_joblist = ['build_OBD', 'generate_sim', 'QE_lensrec', 'MAP_lensrec', 'analyse_phi', 'delens']
-        sorted_joblist_new = ['build_OBD', 'generate_sim', 'QE_lensrec_new', 'MAP_lensrec_operator', 'analyse_phi', 'delens']
         self.config = config if config is not None else config_handler.load_config(parser.config_file, 'configfile')
-        if 'job_id' in parser.__dict__:
-            if parser.job_id.endswith('new') or parser.job_id == 'MAP_lensrec_operator':
-                sorted_joblist = sorted_joblist_new
-            else:
-                sorted_joblist = sorted_joblist
-            if parser.job_id is None:
-                pass
-            else:
-                self.config.job.jobs = []
-                if parser.job_id != "":
-                    for sortedjob in sorted_joblist:
-                        if sortedjob == parser.job_id:
-                            if sortedjob == 'analyse_phi':
-                                ## only add this job if input phi exists.
-                                if self.config.simulationdata.flavour == 'unl':
-                                    self.config.job.jobs.append(sortedjob)
-                                    break
-                                else:
-                                    log.error("I dont think your requested Job {} can be run, because input phi doesnt exist. Exiting.".format(parser.job_id))
-                                    sys.exit()
-                            else:
-                                self.config.job.jobs.append(sortedjob)
-                                break
-                        else:
-                            if sortedjob == 'build_OBD':
-                                if self.config.noisemodel.OBD == 'OBD':
-                                    # Catch build_OBD, iff noisemodel.obd is True. Else don't calculate (mpi tasks should still be fixed.. but 'run-anyway' applies)
-                                    self.config.job.jobs.append(sortedjob)
-                            else:
-                                self.config.job.jobs.append(sortedjob)
-                ## adding 'analyse_phi' into every run as long as MAP_lensrec is part of the run and input phi exists
-                if 'MAP_lensrec' in self.config.job.jobs:
-                    if self.config.simulationdata.flavour == 'unl' and parser.job_id != 'analyse_phi':
-                        self.config.job.jobs.append('analyse_phi')
+        if 'job_id' in parser.__dict__ and parser.job_id is not None:
+            self.config.job.jobs = []
+            
+            for job in sorted_joblist:
+                if job == parser.job_id:
+                    if job == 'analyse_phi' and self.config.simulationdata.flavour != 'unl':
+                        log.error(f"Job {parser.job_id} cannot be run because input phi doesn't exist. Exiting.")
+                        sys.exit()
+                    self.config.job.jobs.append(job)
+                    break
+                elif job == 'build_OBD' and self.config.noisemodel.OBD == 'OBD':
+                    self.config.job.jobs.append(job)
+                else:
+                    self.config.job.jobs.append(job)
         TEMP = transform(self.config, transformers_T.get(type(self.config)))
         self.parser = parser
         self.TEMP = TEMP
-
 
     # @log_on_start(logging.DEBUG, "collect_model() Started")
     # @log_on_end(logging.DEBUG, "collect_model() Finished")
@@ -134,7 +112,7 @@ class config_handler():
         """ 
         for jobi, job in enumerate(self.djobmodels):
             log.info('running job {}'.format(self.config.job.jobs[jobi]))
-            log.info('The TEMP directory is {}:'.format("".join(job.TEMP.split('/')[-3:])))
+            log.info('The TEMP directory is {}:'.format("/".join(job.TEMP.split('/')[-3:])))
             job.collect_jobs()    
             job.run()
 

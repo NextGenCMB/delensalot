@@ -102,6 +102,9 @@ class DELENSALOT_Analysis(DELENSALOT_Concept_v2):
         cpp (str):                          path to the power spectrum of the prior for the iterative reconstruction
         beam (float):                       The beam used in the filters
     """
+    LM_max =                attr.field(default=DEFAULT_NotAValue)
+    lm_max_pri =            attr.field(default=DEFAULT_NotAValue)
+    lm_max_sky =            attr.field(default=DEFAULT_NotAValue)
     key =                   attr.field(default=DEFAULT_NotAValue, validator=analysis.key)
     simidxs =               attr.field(default=DEFAULT_NotAValue, validator=analysis.simidxs)
     simidxs_mf =            attr.field(default=DEFAULT_NotAValue, validator=analysis.simidxs_mf)
@@ -109,7 +112,6 @@ class DELENSALOT_Analysis(DELENSALOT_Concept_v2):
     Lmin =                  attr.field(default=DEFAULT_NotAValue, validator=analysis.Lmin)
     zbounds =               attr.field(default=DEFAULT_NotAValue, validator=analysis.zbounds)
     zbounds_len =           attr.field(default=DEFAULT_NotAValue, validator=analysis.zbounds_len) # TODO rename
-    lm_max_ivf =            attr.field(default=DEFAULT_NotAValue, validator=v_filter.lm_max_ivf)
     mask =                  attr.field(default=DEFAULT_NotAValue, validator=analysis.mask) # TODO is this used? 
     lmin_teb =              attr.field(default=DEFAULT_NotAValue, validator=analysis.lmin_teb)
     cls_unl =               attr.field(default=DEFAULT_NotAValue, validator=analysis.cls_unl)
@@ -117,7 +119,7 @@ class DELENSALOT_Analysis(DELENSALOT_Concept_v2):
     beam =                  attr.field(default=DEFAULT_NotAValue, validator=analysis.beam)
     transfunction_desc =    attr.field(default=DEFAULT_NotAValue, validator=analysis.transfunction)
     CLfids =                attr.field(default=DEFAULT_NotAValue)
-    secondaries =           attr.field(default=DEFAULT_NotAValue)
+    secondary =             attr.field(default=DEFAULT_NotAValue)
 
 
 @attr.s
@@ -210,14 +212,10 @@ class DELENSALOT_Itrec(DELENSALOT_Concept_v2):
     tasks =                 attr.field(default=DEFAULT_NotAValue, validator=itrec.tasks)
     itmax =                 attr.field(default=DEFAULT_NotAValue, validator=itrec.itmax)
     cg_tol =                attr.field(default=DEFAULT_NotAValue, validator=itrec.cg_tol)
-    iterator_typ =          attr.field(default=DEFAULT_NotAValue, validator=itrec.iterator_type) # TODO rename
     chain =                 attr.field(default=DELENSALOT_Chaindescriptor(), validator=itrec.chain)
     filter_directional =    attr.field(default=DEFAULT_NotAValue, validator=itrec.filter_directional)
-    lenjob_geominfo =       attr.field(default=DEFAULT_NotAValue, validator=itrec.lenjob_geominfo)
-    lm_max_unl =            attr.field(default=DEFAULT_NotAValue, validator=itrec.lm_max_unl)
     mfvar =                 attr.field(default=DEFAULT_NotAValue, validator=itrec.mfvar) # TODO rename and check if it still works 
     soltn_cond =            attr.field(default=DEFAULT_NotAValue, validator=itrec.soltn_cond)
-    epsilon =               attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
     gradient_descs =        attr.field(default=DEFAULT_NotAValue)
     filter_desc =           attr.field(default=DEFAULT_NotAValue)
     curvature_desc =        attr.field(default=DEFAULT_NotAValue)
@@ -367,21 +365,26 @@ class DELENSALOT_Model(DELENSALOT_Concept_v2):
         for key, default_value in default_dict.items():
             if key in ['defaults_to', 'validate_model']:
                 continue  # Skip special attributes
-            elif key in ['simulationdata']:
-                for value in default_dict['simulationdata'].keys():
-                    if value == 'sec_info': 
-                        # NOTE this only updates sec_info keys if a secondary is actually listed in the config file. 
-                        # By this I make sure that the simulation library only receives the secondaries that the user wants,
-                        # while at the same time setting the defaults for that secondary if the user did not specify
-                        for secondary in default_value[value].keys():
-                            if secondary in self.simulationdata.sec_info:
-                                update_defaults(self.simulationdata.sec_info[secondary], default_value['sec_info'][secondary])
+            if key in ['simulationdata', 'analysis']:
+                # NOTE this only updates secondary keys if a secondary is actually listed in the analysis of the config file. 
+                # By this I make sure that the library only receives the secondaries that the user wants,
+                # while at the same time setting the defaults for that secondary if the user did not specify
+                for value in default_dict[key]:
+                    target_attr = getattr(self, key)
+
+                    if value in ['sec_info', 'secondary']:
+                        for sub_key in default_value[value]:
+                            if sub_key in getattr(target_attr, value, {}):
+                                update_defaults(getattr(target_attr, value)[sub_key], default_value[value][sub_key])
                     else:
-                        # NOTE this is for all other simulationdata keys. They can be udpated as usual. Only removing non-dict items from the recusrive search
-                        if not isinstance(getattr(self.simulationdata, value), dict):
-                            setattr(self.simulationdata, value, default_value[value])
+                        attr_value = getattr(target_attr, value)
+                        if isinstance(attr_value, dict):
+                            update_defaults(attr_value, default_value[value])
                         else:
-                            update_defaults(getattr(self.simulationdata, value), default_value[value])
+                            if attr_value == DEFAULT_NotAValue:
+                                setattr(target_attr, value, default_value[value])
+                            else:
+                                setattr(target_attr, value, attr_value)
             else:
                 if not hasattr(self, key) or getattr(self, key) == DEFAULT_NotAValue:
                     setattr(self, key, default_value)

@@ -105,7 +105,7 @@ class base:
         # NOTE this could in principle be done anywhere else as well.. not sure where to do it best
         ret = {grad.ID: {} for grad in self.gradients}
         for grad in self.gradients:
-            lmax = grad.secondary.lm_max[0]
+            lmax = grad.secondary.LM_max[0]
             for comp in grad.secondary.component:
                 chh_comp = self.chh[grad.ID][comp]
                 buff = cli(R_unl0[grad.ID][comp][:lmax+1] + cli(chh_comp)) * (chh_comp > 0)

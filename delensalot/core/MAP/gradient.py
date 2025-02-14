@@ -18,8 +18,8 @@ class base:
         self.noisemodel_coverage = gradient_desc['noisemodel_coverage']
         self.estimator_key = gradient_desc['estimator_key']
         self.simulationdata = gradient_desc['simulationdata']
-        self.lm_max_ivf = gradient_desc['lm_max_ivf']
-        self.lm_max_unl = gradient_desc['lm_max_unl']
+        self.lm_max_sky = gradient_desc['lm_max_sky']
+        self.lm_max_pri = gradient_desc['lm_max_pri']
         self.LM_max = gradient_desc['LM_max']
         self.ffi = gradient_desc['ffi']
 
@@ -36,8 +36,7 @@ class base:
             g += self.get_gradient_prior(it-1, component)
             g += self.get_gradient_meanfield(it, component)
             g -= self.get_gradient_quad(it, component)
-            # NOTE this is implemented, but not used to save disk space
-            # self.gfield.cache_total(g, self.simidx, it)
+            # self.gfield.cache_total(g, self.simidx, it) # NOTE this is implemented, but not used to save disk space
             return g
 
 
@@ -125,19 +124,19 @@ class lensing(base):
         # Using property _2Y = _-2Y.conj
         # res = ivf.conj * gpmap(3) - ivf * gpmap(1).conj
         if not self.gfield.quad_is_cached(self.simidx, it):
-            data = self.get_data(self.lm_max_ivf)
+            data = self.get_data(self.lm_max_sky)
             wflm = self.wf_filter.get_wflm(self.simidx, it, data)
             ivfreslm = self.ivf_filter.get_ivfreslm(self.simidx, it, data, wflm)
             
             resmap_c = np.empty((self.ffi.geom.npix(),), dtype=wflm.dtype)
             resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
             
-            self.ffi.geom.synthesis(ivfreslm, 2, self.lm_max_ivf[0], self.lm_max_ivf[1], self.ffi.sht_tr, map=resmap_r) # ivfmap
+            self.ffi.geom.synthesis(ivfreslm, 2, self.lm_max_sky[0], self.lm_max_sky[1], self.ffi.sht_tr, map=resmap_r) # ivfmap
 
-            gcs_r = self.ffi.geom.synthesis(self.gradient_operator.act(wflm, spin=3, lmax_in=self.lm_max_unl[0], lm_max=self.lm_max_unl), 3, *self.lm_max_unl, self.ffi.sht_tr) # xwfglm
+            gcs_r = self.ffi.geom.synthesis(self.gradient_operator.act(wflm, spin=3, lm_max_pri=self.lm_max_pri, lm_max_sky=self.lm_max_sky), 3, *self.lm_max_pri, self.ffi.sht_tr) # xwfglm
             gc_c = resmap_c.conj() * gcs_r.T.copy().view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3)
 
-            gcs_r = self.ffi.geom.synthesis(self.gradient_operator.act(wflm, spin=1, lmax_in=self.lm_max_unl[0], lm_max=self.lm_max_unl), 1, *self.lm_max_unl, self.ffi.sht_tr) # xwfglm
+            gcs_r = self.ffi.geom.synthesis(self.gradient_operator.act(wflm, spin=1, lm_max_pri=self.lm_max_pri, lm_max_sky=self.lm_max_sky), 1, *self.lm_max_pri, self.ffi.sht_tr) # xwfglm
             gc_c -= resmap_c * gcs_r.T.copy().view(ctype[gcs_r.dtype]).squeeze().conj()  # (+2 , -1)
              
             gc_r = gc_c.view(rtype[gc_c.dtype]).reshape((gc_c.size, 2)).T  # real view onto complex array
@@ -161,14 +160,14 @@ class birefringence(base):
 
     def get_gradient_quad(self, it, component=None):
         if not self.gfield.quad_is_cached(self.simidx, it):
-            data = self.get_data(self.lm_max_ivf)
+            data = self.get_data(self.lm_max_sky)
             XWF = self.wf_filter.get_wflm(self.simidx, it)
             ivf = self.ivf_filter.get_ivfreslm(self.simidx, it, data, XWF)
             
-            ivfmap = self.ffi.geom.synthesis(ivf, 2, self.lm_max_ivf[0], self.lm_max_ivf[1], self.ffi.sht_tr)
+            ivfmap = self.ffi.geom.synthesis(ivf, 2, self.lm_max_sky[0], self.lm_max_sky[1], self.ffi.sht_tr)
 
             xwfglm = self.gradient_operator.act(XWF, spin=2, lmax_in=None, lm_max=None)
-            xwfmap = self.ffi.geom.synthesis(xwfglm, 2, self.lm_max_ivf[0], self.lm_max_ivf[1], self.ffi.sht_tr)
+            xwfmap = self.ffi.geom.synthesis(xwfglm, 2, self.lm_max_sky[0], self.lm_max_sky[1], self.ffi.sht_tr)
  
             qlms = -4 * ( ivfmap[0] * xwfmap[1] - ivfmap[1] * xwfmap[0] )
             qlms = self.ffi.geom.adjoint_synthesis(qlms, 0, self.LM_max[0], self.LM_max[1], self.ffi.sht_tr)

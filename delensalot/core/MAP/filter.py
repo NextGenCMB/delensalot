@@ -31,22 +31,23 @@ class ivf:
         self.ivf_operator = filter_desc['ivf_operator']
         self.beam = filter_desc['beam']
         self.transfer = filter_desc["ttebl"]
-        self.lm_max_ivf = filter_desc['lm_max_ivf']
+        self.lm_max_pri = filter_desc['lm_max_pri'] # this is lm_max_sky
+        self.lm_max_sky = filter_desc['lm_max_sky'] # this is lm_max_sky
         self.nlevp, self.nlevt = filter_desc['nlev']['P'], filter_desc['nlev']['T']
 
-        self.n1elm = _extend_cl(np.array(self.transfer['e'])**1, self.lm_max_ivf[0]) * cli(_extend_cl(self.nlevp**2, self.lm_max_ivf[0])) * (180 * 60 / np.pi) ** 2
-        self.n1blm = _extend_cl(np.array(self.transfer['b'])**1, self.lm_max_ivf[0]) * cli(_extend_cl(self.nlevp**2, self.lm_max_ivf[0])) * (180 * 60 / np.pi) ** 2
+        self.n1elm = _extend_cl(np.array(self.transfer['e'])**1, self.lm_max_sky[0]) * cli(_extend_cl(self.nlevp**2, self.lm_max_sky[0])) * (180 * 60 / np.pi) ** 2
+        self.n1blm = _extend_cl(np.array(self.transfer['b'])**1, self.lm_max_sky[0]) * cli(_extend_cl(self.nlevp**2, self.lm_max_sky[0])) * (180 * 60 / np.pi) ** 2
         
 
     def get_ivfreslm(self, simidx, it, data=None, eblm_wf=None):
         # NOTE this is eq. 21 of the paper, in essence it should do the following:
         if not self.ivf_field.is_cached(simidx, it):
             assert eblm_wf is not None and data is not None
-            ivfreslm = -1*self.beam.act(self.ivf_operator.act(eblm_wf, spin=2, lmax_in=self.lm_max_ivf[1], lm_max=self.lm_max_ivf))
+            ivfreslm = -1*self.beam.act(self.ivf_operator.act(eblm_wf, spin=2, lm_max_pri=self.lm_max_pri, lm_max_sky=self.lm_max_sky))
             # data[0] *= 0.+0.j
             ivfreslm += data
-            almxfl(ivfreslm[0], self.n1elm * 0.5, self.lm_max_ivf[1], True)  # Factor of 1/2 because of \dagger rather than ^{-1}
-            almxfl(ivfreslm[1], self.n1blm * 0.5, self.lm_max_ivf[1], True)
+            almxfl(ivfreslm[0], self.n1elm * 0.5, self.lm_max_sky[1], True)  # Factor of 1/2 because of \dagger rather than ^{-1}
+            almxfl(ivfreslm[1], self.n1blm * 0.5, self.lm_max_sky[1], True)
             self.ivf_field.cache_field(ivfreslm, simidx, it)
         return self.ivf_field.get_field(simidx, it)
     
@@ -64,15 +65,15 @@ class wf:
         self.beam = filter_desc['beam']
         self.nlevp, self.nlevt = filter_desc['nlev']['P'], filter_desc['nlev']['T']
 
-        self.lm_max_ivf = filter_desc['lm_max_ivf']
-        self.lm_max_unl = filter_desc['lm_max_unl']
+        self.lm_max_sky = filter_desc['lm_max_sky']
+        self.lm_max_pri = filter_desc['lm_max_pri']
         self.transfer = filter_desc["ttebl"]
 
-        self.in1el = _extend_cl(np.array(self.transfer['e'])**1, self.lm_max_ivf[0]) * cli(_extend_cl(self.nlevp**2, self.lm_max_ivf[0])) * (180 * 60 / np.pi) ** 2
-        self.in1bl = _extend_cl(np.array(self.transfer['b'])**1, self.lm_max_ivf[0]) * cli(_extend_cl(self.nlevp**2, self.lm_max_ivf[0])) * (180 * 60 / np.pi) ** 2
+        self.in1el = _extend_cl(np.array(self.transfer['e'])**1, self.lm_max_sky[0]) * cli(_extend_cl(self.nlevp**2, self.lm_max_sky[0])) * (180 * 60 / np.pi) ** 2
+        self.in1bl = _extend_cl(np.array(self.transfer['b'])**1, self.lm_max_sky[0]) * cli(_extend_cl(self.nlevp**2, self.lm_max_sky[0])) * (180 * 60 / np.pi) ** 2
 
-        self.in2el = _extend_cl(np.array(self.transfer['e'])**2, self.lm_max_ivf[0]) * cli(_extend_cl(self.nlevp**2, self.lm_max_ivf[0])) * (180 * 60 / np.pi) ** 2
-        self.in2bl = _extend_cl(np.array(self.transfer['b'])**2, self.lm_max_ivf[0]) * cli(_extend_cl(self.nlevp**2, self.lm_max_ivf[0])) * (180 * 60 / np.pi) ** 2
+        self.in2el = _extend_cl(np.array(self.transfer['e'])**2, self.lm_max_sky[0]) * cli(_extend_cl(self.nlevp**2, self.lm_max_sky[0])) * (180 * 60 / np.pi) ** 2
+        self.in2bl = _extend_cl(np.array(self.transfer['b'])**2, self.lm_max_sky[0]) * cli(_extend_cl(self.nlevp**2, self.lm_max_sky[0])) * (180 * 60 / np.pi) ** 2
 
         self.chain_descr = filter_desc['chain_descr']
         self.cls_filt = filter_desc['cls_filt']
@@ -95,23 +96,23 @@ class wf:
         """cg-inversion pre-operation
             This performs :math:`D_\phi^t B^t N^{-1} X^{\rm dat}`
         """
-        lmax_len, mmax_len = self.lm_max_ivf
-        lmax_sol, mmax_sol = self.lm_max_unl
+        lmax_len, mmax_len = self.lm_max_sky
+        lmax_sol, mmax_sol = self.lm_max_pri
         assert isinstance(eblm, np.ndarray) and eblm.ndim == 2
         assert Alm.getlmax(eblm[0].size, mmax_len) == lmax_len, (Alm.getlmax(eblm[0].size, mmax_len), lmax_len)
         eblmc = np.empty_like(eblm)
         eblmc[0] = almxfl(eblm[0], self.in1el, mmax_len, False)
         eblmc[1] = almxfl(eblm[1], self.in1bl, mmax_len, False)
 
-        elm = self.wf_operator.act(eblmc, spin=2, lmax_in=mmax_len, lm_max=self.lm_max_unl, adjoint=True, backwards=True, out_sht_mode='GRAD_ONLY').squeeze()
+        elm = self.wf_operator.act(eblmc, spin=2, lm_max_pri=self.lm_max_pri, lm_max_sky=self.lm_max_sky, adjoint=True, backwards=True, out_sht_mode='GRAD_ONLY').squeeze()
 
         almxfl(elm, self.cls_filt['ee'] > 0., mmax_sol, True)
         return elm
     
 
     def fwd_op(self, elm):
-        lmax_len, mmax_len = self.lm_max_ivf
-        lmax_sol, mmax_sol = self.lm_max_unl
+        lmax_len, mmax_len = self.lm_max_sky
+        lmax_sol, mmax_sol = self.lm_max_pri
 
         iclee = cli(self.cls_filt['ee'])
         nlm = np.copy(elm)
@@ -120,10 +121,10 @@ class wf:
         assert lmax_unl == lmax_sol, (lmax_unl, lmax_sol)
         # View to the same array for GRAD_ONLY mode:
         elm_2d = nlm.reshape((1, nlm.size))
-        eblm = self.wf_operator.act(elm_2d, spin=2, lmax_in=mmax_sol, lm_max=self.lm_max_ivf, adjoint=False, backwards=False)
+        eblm = self.wf_operator.act(elm_2d, spin=2, lm_max_pri=self.lm_max_pri, lm_max_sky=self.lm_max_sky, adjoint=False, backwards=False)
         almxfl(eblm[0], self.in2el, mmax_len, inplace=True)
         almxfl(eblm[1], self.in2bl, mmax_len, inplace=True)
-        elm_2d = self.wf_operator.act(eblm, spin=2, lmax_in=mmax_len, lm_max=self.lm_max_unl, adjoint=True, backwards=True, out_sht_mode='GRAD_ONLY')
+        elm_2d = self.wf_operator.act(eblm, spin=2, lm_max_pri=self.lm_max_pri, lm_max_sky=self.lm_max_sky, adjoint=True, backwards=True, out_sht_mode='GRAD_ONLY')
 
         nlm = elm_2d.squeeze()
         nlm += almxfl(elm, iclee, mmax_sol, False)
@@ -137,21 +138,21 @@ class wf:
         Returns:
             np.ndarray: Preconditioned alm.
         """
-        assert len(self.cls_filt['ee']) > self.lm_max_unl[0], (self.lm_max_unl[0], len(self.cls_filt['ee']))
+        assert len(self.cls_filt['ee']) > self.lm_max_pri[0], (self.lm_max_pri[0], len(self.cls_filt['ee']))
         
         ninv_fel = np.copy(self.in2el)
         # Extend transfer function to avoid preconditioning with zero (~ Gaussian beam)
-        if len(ninv_fel) - 1 < self.lm_max_unl[0]:
+        if len(ninv_fel) - 1 < self.lm_max_pri[0]:
             assert np.all(ninv_fel >= 0)
             nz = np.where(ninv_fel > 0)
             spl_sq = spl(np.arange(len(ninv_fel), dtype=float)[nz], np.log(ninv_fel[nz]), k=2, ext='extrapolate')
-            ninv_fel = np.exp(spl_sq(np.arange(self.lm_max_unl[0] + 1, dtype=float)))
+            ninv_fel = np.exp(spl_sq(np.arange(self.lm_max_pri[0] + 1, dtype=float)))
 
-        flmat = cli(self.cls_filt['ee'][:self.lm_max_unl[0] + 1]) + ninv_fel[:self.lm_max_unl[0] + 1]
-        flmat = cli(flmat) * (self.cls_filt['ee'][:self.lm_max_unl[0] + 1] > 0.)
+        flmat = cli(self.cls_filt['ee'][:self.lm_max_pri[0] + 1]) + ninv_fel[:self.lm_max_pri[0] + 1]
+        flmat = cli(flmat) * (self.cls_filt['ee'][:self.lm_max_pri[0] + 1] > 0.)
 
-        assert Alm.getsize(self.lm_max_unl[0], self.lm_max_unl[1]) == eblm.size, (self.lm_max_unl[0], self.lm_max_unl[1], Alm.getlmax(eblm.size, self.lm_max_unl[1]))
-        return almxfl(eblm, flmat, self.lm_max_unl[1], False)
+        assert Alm.getsize(self.lm_max_pri[0], self.lm_max_pri[1]) == eblm.size, (self.lm_max_pri[0], self.lm_max_pri[1], Alm.getlmax(eblm.size, self.lm_max_pri[1]))
+        return almxfl(eblm, flmat, self.lm_max_pri[1], False)
 
 
     def update_operator(self, simidx, it, secondary=None, component=None):
@@ -182,7 +183,7 @@ class wf:
                     'nlev_p': 1.0,
                     'ffi': ffi,
                     'transf': self.transfer['e'],
-                    'unlalm_info': self.lm_max_unl, # unl
+                    'unlalm_info': self.lm_max_pri, # unl
                     'lenalm_info': (4000, 4000), # ivf
                     'wee': True,
                     'transf_b': self.transfer['b'],

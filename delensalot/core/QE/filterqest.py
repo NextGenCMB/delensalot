@@ -16,8 +16,8 @@ from delensalot.utils import cli
 class base:
     def __init__(self, filter_desc):
         # This class tries to hide the uglyness to interfacing with plancklens (no offense)
-        self.lm_max_ivf = filter_desc['lm_max_ivf']
-        self.lm_max_qlm = filter_desc['lm_max_qlm']
+        self.lm_max_ivf = filter_desc['lm_max_sky']
+        self.lm_max_qlm = filter_desc['LM_max']
         self.lmin_teb = filter_desc['lmin_teb']
 
         self.cls_len = filter_desc['cls_len']
