@@ -124,6 +124,7 @@ class wf_operator:
 class lensing(base):
     def __init__(self, operator_desc):
         super().__init__(operator_desc["libdir"])
+        
         self.ID = 'lensing'
         self.LM_max = operator_desc["LM_max"]
         self.lm_max_pri = operator_desc["lm_max_pri"]
@@ -182,11 +183,12 @@ class lensing(base):
 class birefringence(base):
     def __init__(self, operator_desc):
         super().__init__(operator_desc["libdir"])
+        
         self.ID = 'birefringence'
         self.LM_max = operator_desc["LM_max"]
         self.lm_max_pri = operator_desc["lm_max_pri"]
         self.lm_max_sky = operator_desc["lm_max_sky"]
-        self.Lmin = operator_desc["Lmin"],
+        self.Lmin = operator_desc["Lmin"]
         self.component = operator_desc["component"]
         self.field = {component: None for component in self.component}
         self.field_fns = operator_desc['field_fns']
@@ -196,9 +198,9 @@ class birefringence(base):
     # spin doesn't do anything here, but parameter is needed as joint operator passes it to all operators
     # NOTE this is alm2alm
     def act(self, obj, spin=None, lm_max_pri=None, lm_max_sky=None, adjoint=False, backwards=False, out_sht_mode=None):
-        buff_real = self.ffi.geom.alm2map(self.field[self.component[0]][0], *self.LM_max, 8)
+        buff_real = self.ffi.geom.alm2map(self.field[self.component[0]], *self.LM_max, 2)
+        # # NOTE if no B component (e.g. for generating template), I set B to zero
 
-        # NOTE if no B component (e.g. for generating template), I set B to zero
         obj = np.atleast_2d(obj)
         if obj.shape[0] == 1:
             obj = [obj[0], np.zeros_like(obj[0])+np.zeros_like(obj[0])*1j]
@@ -213,7 +215,7 @@ class birefringence(base):
         if adjoint:
             Q_rot, U_rot = cos_a * Q + sin_a * U, -sin_a * Q + cos_a * U
 
-        Elm_rot, Blm_rot = self.ffi.geom.map2alm_spin(np.array([Q_rot, U_rot]), 2, *self.lm_max_sky, 8)
+        Elm_rot, Blm_rot = self.ffi.geom.map2alm_spin(np.array([Q_rot, U_rot]), 2, *self.lm_max_sky, 2)
 
         return np.array([Elm_rot, Blm_rot])
 

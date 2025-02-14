@@ -44,12 +44,13 @@ class config_handler():
     """Load config file and handle command line arguments 
     """
 
-    def __init__(self, parser, config=None):
-        sorted_joblist = ['build_OBD', 'generate_sim', 'QE_lensrec', 'MAP_lensrec', 'analyse_phi', 'delens']
+    def __init__(self, parser, config=None, key=None):
+        sorted_joblist = ['generate_sim', 'QE_lensrec', 'MAP_lensrec', 'analyse_phi', 'delens']
         self.config = config if config is not None else config_handler.load_config(parser.config_file, 'configfile')
+        if key is not None:
+            self.config.analysis.key = key
         if 'job_id' in parser.__dict__ and parser.job_id is not None:
             self.config.job.jobs = []
-            
             for job in sorted_joblist:
                 if job == parser.job_id:
                     if job == 'analyse_phi' and self.config.simulationdata.flavour != 'unl':
@@ -75,8 +76,8 @@ class config_handler():
         if self.parser.status == '':
             if mpi.rank == 0:
                 self.store(self.parser, self.config, self.TEMP)
-        ## Making sure that specific job request from run() is processed
-        self.config.job.jobs = [djob_id]
+        
+        self.config.job.jobs = [djob_id] ## NOTE killing all other jobs on purpose here.
         self.djob_id = djob_id
         self.djobmodels = [transform3d(self.config, djob_id, transformers_J.get(type(self.config)))]
 
@@ -102,8 +103,6 @@ class config_handler():
         
 
     @check_MPI
-    # @log_on_start(logging.DEBUG, "run() Started")
-    # @log_on_end(logging.DEBUG, "run() Finished")
     def run(self):
         """pass-through for running the delensalot job This esentially calls the run function of the `core.handler.<job_class>`. Used from interactive mode.
 
@@ -117,8 +116,6 @@ class config_handler():
             job.run()
 
 
-    # @log_on_start(logging.DEBUG, "store() Started")
-    # @log_on_end(logging.DEBUG, "store() Finished")
     def store(self, parser, config, TEMP):
         """ Store the dlensalot_model as config file in TEMP, to use if run resumed
 

@@ -45,17 +45,15 @@ DL_DEFAULT = {
                 'geominfo': ('thingauss', {'lmax': 4500, 'smax': 3}), # NOTE this is the geometry of the provided ssecondary maps
                 'libdir': DNaV,
                 'fn': DNaV,
-                'component': DNaV,
                 'scale': DNaV,
                 'modifier': lambda x: x,
             },
             'birefringence':{
-                'space': 'cl',
                 'component': ['f'],
+                'space': 'cl',
                 'geominfo': ('thingauss', {'lmax': 4500, 'smax': 3}),
                 'libdir': DNaV,
                 'fn': DNaV,
-                'component': DNaV,
                 'scale': DNaV,
                 'modifier': lambda x: x,
             },
@@ -64,7 +62,7 @@ DL_DEFAULT = {
             'noise_info': {
                 'libdir': DNaV,
                 'fns': DNaV,
-                'nlev': {'P': 1.0, 'T': 1./np.sqrt(2)},
+                'nlev': {'P': 0.5, 'T': 0.5/np.sqrt(2)},
                 'space': 'alm',
                 'geominfo': ('healpix',{'nside': 2048}),
                 'lm_max': [4096,4096],
@@ -74,7 +72,7 @@ DL_DEFAULT = {
         "operator_info": {
             'lensing': {
                 'epsilon': 1e-7,
-                'Lmin': 1,
+                'Lmin': 2,
                 'lm_max': [4096,4096],
                 'LM_max': [4096+1024,4096+1024],
                 'lm_max_obs': [4096,4096],
@@ -82,7 +80,7 @@ DL_DEFAULT = {
                 'perturbative': False,
             },
             'birefringence': {
-                'Lmin': 1,
+                'Lmin': 2,
                 'lm_max': [4096,4096],
                 'LM_max': [4096,4096],
                 'lm_max_obs': [4096,4096],
@@ -94,7 +92,7 @@ DL_DEFAULT = {
         'key': 'p_p',
         'simidxs': np.arange(0,1),
         'TEMP_suffix': 'P_FS_CMBS4_jointsecrec',
-        'Lmin': 1, 
+        'Lmin': 2, 
         'LM_max': (4200, 4200), # NOTE this is max reconstructed secondary
         'lm_max_pri': (4000, 4000), # NOTE this is for CMB
         'lm_max_sky': (4000, 4000), # NOTE this is for CMB
@@ -163,7 +161,7 @@ DL_DEFAULT = {
         'spatial_type': 'isotropic',
         'spectrum_type': 'white',
         'OBD': 'trunc',
-        'nlev': {'P': 1.0, 'T': 1./np.sqrt(2)},
+        'nlev': {'P': .5, 'T': 0.5/np.sqrt(2)},
         'rhits_normalised': None,
         'geominfo': ('healpix',{'nside': 2048}),
         'nivt_map': None,

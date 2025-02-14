@@ -4,18 +4,12 @@ from delensalot.utils import cli
 from delensalot.core.QE import filterqest
 from delensalot.utility.utils_hp import Alm, almxfl, alm_copy, gauss_beam
 
-# NOTE plancklens solves two components simultaneously, so can just drop the second component
-component2plancklensk = {'p':"p", 'w':'p', 'pw':'p', 'wp':'p', 'f':"a", 'w':"x"}
-id2plancklenssec = {'lensing': 'p', 'birefringence': 'a'}
-
 class base:
     def __init__(self, QE_search_desc):
-        # This class is for a single field, but all simidxs. It manages the filter and qest libs, nothing else.
-        # It does not quite aline well with the MAP classes, as the MAP equivalent is per simidx.
+        # NOTE This class is for a single secondary, but all simidxs. It manages the filter and qest libs, nothing else.
+        # It does not quite align well with the MAP classes, as the MAP equivalent is per simidx.
         self.ID = QE_search_desc["ID"]
-        self.estimator_key = QE_search_desc['estimator_key']
-        self.estimator_key = component2plancklensk[self.estimator_key.split('_')[0]] + '_' + self.estimator_key.split('_')[1]
-        QE_search_desc['QE_filterqest_desc'].update({'estimator_key': self.estimator_key})
+        self.estimator_key =  QE_search_desc['estimator_key']
         self.fq = filterqest.base(QE_search_desc['QE_filterqest_desc'])
         self.libdir = QE_search_desc['libdir']
 
@@ -39,7 +33,7 @@ class base:
         if isinstance(component, list):
             component = component[0]
         if not self.secondary.is_cached(simidx, component):
-            qlm = self.qlms.get_sim_qlm(component2plancklensk[component]+self.estimator_key[1:], int(simidx))  #Unormalized quadratic estimate
+            qlm = self.qlms.get_sim_qlm(self.estimator_key[component], int(simidx))  #Unormalized quadratic estimate
             self.secondary.cache_qlm(qlm, simidx, component=component)
         return self.secondary.get_qlm(simidx, component)
     
@@ -73,7 +67,7 @@ class base:
             return np.array([self.get_qmflm(simidxs, component) for component in self.secondary.component])
         if isinstance(component, list):
             component = component[0]
-        return self.qlms.get_sim_qlm_mf(self.estimator_key, simidxs)
+        return self.qlms.get_sim_qlm_mf(self.estimator_key[component], simidxs)
         
 
     def get_kmflm(self, simidx, component=None, scale='k'):
@@ -98,16 +92,25 @@ class base:
     
 
     def get_wflm(self, simidx, lm_max):
-        return self.fq.get_wflm(simidx, lm_max)
+        # NOTE returns the same for each component so can just take the first key here
+        return self.fq.get_wflm(simidx, list(self.estimator_key.values())[0], lm_max)
 
 
     def get_ivflm(self, simidx, lm_max):
-        return self.fq.get_ivflm(simidx, lm_max)
+        # NOTE returns the same for each component so can just take the first key here
+        return self.fq.get_ivflm(simidx, list(self.estimator_key.values())[0], lm_max)
     
 
     def get_response_unl(self, component, scale='p'):
-        return self.fq.get_response_unl(self.secondary.LM_max[0])[self.comp2idx[component]]
+        return self.fq.get_response_unl(self.estimator_key[component], self.estimator_key[component][0], self.secondary.LM_max[0])[self.comp2idx[component]]
     
 
     def get_response_len(self, component, scale='p'):
-        return self.fq.get_response_len(self.secondary.LM_max[0])[self.comp2idx[component]]
+        return self.fq.get_response_len(self.estimator_key[component], self.estimator_key[component][0], self.secondary.LM_max[0])[self.comp2idx[component]]
+    
+
+    def isdone(self, simidx, component):
+        if self.secondary.is_cached(simidx, component, 'klm'):
+            return 0
+        else:
+            return -1

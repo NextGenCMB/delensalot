@@ -11,7 +11,7 @@ template_secondaries = ['lensing', 'birefringence']  # Define your desired order
 template_index_secondaries = {val: i for i, val in enumerate(template_secondaries)}
 
 class base:
-    def __init__(self, simulationdata, secondaries, filter_desc, gradient_descs, curvature_desc, desc, template_desc, simidx):
+    def __init__(self, simulationdata, estimator_key, secondaries, filter_desc, gradient_descs, curvature_desc, desc, template_desc, simidx):
         
         # this class handles the filter, gradient, and curvature libs, nothing else
         self.secondaries = secondaries
@@ -20,6 +20,7 @@ class base:
         self.idx2sec = {idx: secondary_ID for idx, secondary_ID in enumerate(secondaries.keys())}
         self.seclist_sorted = sorted(list(self.sec2idx.keys()), key=lambda x: template_index_secondaries.get(x, ''))
         self.gradients = []
+        self.estimator_key = estimator_key
         
         # TODO check if they point to same memory in all gradient classes
         self.ivf_filter = filter.ivf(filter_desc['ivf'])
@@ -66,7 +67,7 @@ class base:
                 print(f'---------- starting iteration {it} ----------')
                 for gradient in self.gradients:
                     gradient.update_operator(simidx, it-1)
-                    grad_tot.append(gradient.get_gradient_total(it)) #calculates the filtering, the sum, and the quadratic combination
+                    grad_tot.append(gradient.get_gradient_total(it, data=self.data)) #calculates the filtering, the sum, and the quadratic combination
                 grad_tot = np.concatenate([np.ravel(arr) for arr in grad_tot])
                 if it>=2: #NOTE it=1 cannot build the previous diff, as current diff is QE
                     for gradient in self.gradients:
@@ -184,19 +185,27 @@ class base:
         if True: # NOTE anisotropic data currently not supported
         # if self.noisemodel_coverage == 'isotropic':
             # NOTE dat maps must now be given in harmonic space in this idealized configuration. sims_MAP is not used here, as no truncation happens in idealized setting.
-            if self.estimator_key in ['p_p', 'p_eb', 'peb', 'p_be']:
+            if len(self.estimator_key.split('_'))==1:
+                if len(self.estimator_key) == 3:
+                    data_key = self.estimator_key[1:]
+                elif len(self.estimator_key) == 1:
+                    data_key = self.estimator_key
+            else:
+                data_key = self.estimator_key.split('_')[-1]
+            print('the data key is:', data_key)
+            if data_key in ['p', 'eb', 'be']:
                 return alm_copy(
                     self.simulationdata.get_sim_obs(self.simidx, space='alm', spin=0, field='polarization'),
                     None, *lm_max)
-            if self.k in ['pee']:
+            if data_key in ['ee']:
                 return alm_copy(
                     self.simulationdata.get_sim_obs(self.simidx, space='alm', spin=0, field='polarization'),
                     None, *lm_max)[0]
-            elif self.k in ['ptt']:
+            elif data_key in ['tt']:
                 return alm_copy(
                     self.simulationdata.get_sim_obs(self.simidx, space='alm', spin=0, field='temperature'),
                     None, *lm_max)
-            elif self.k in ['p']:
+            elif data_key in ['p']:
                 EBobs = alm_copy(
                     self.simulationdata.get_sim_obs(self.simidx, space='alm', spin=0, field='polarization'),
                     None, *lm_max)
@@ -205,6 +214,8 @@ class base:
                     None, *lm_max)         
                 ret = np.array([Tobs, *EBobs])
                 return ret
+            else:
+                assert 0, 'implement if needed'
         else:
             if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
                 return np.array(self.sims_MAP.get_sim_pmap(self.simidx), dtype=float)

@@ -323,7 +323,7 @@ class DELENSALOT_Model(DELENSALOT_Concept_v2):
 
     """
     
-    defaults_to =           attr.field(default='default_CMBS4_fullsky_polarization')
+    defaults_to =           attr.field(default='default_jointrec')
     validate_model =        attr.field(default=True)
     meta =                  attr.field(default=DELENSALOT_Meta(), validator=model.meta)
     job =                   attr.field(default=DELENSALOT_Job(), validator=model.job)
@@ -365,16 +365,20 @@ class DELENSALOT_Model(DELENSALOT_Concept_v2):
             if key in ['defaults_to', 'validate_model']:
                 continue  # Skip special attributes
             if key in ['simulationdata', 'analysis']:
-                # NOTE this only updates secondary keys if a secondary is actually listed in the analysis of the config file. 
+                # NOTE this only updates secondary keys if any secondary is actually listed in the analysis of the config file. 
                 # By this I make sure that the library only receives the secondaries that the user wants,
                 # while at the same time setting the defaults for that secondary if the user did not specify
                 for value in default_dict[key]:
                     target_attr = getattr(self, key)
-
-                    if value in ['sec_info']:
-                        for sub_key in default_value[value]:
-                            if sub_key in getattr(target_attr, value, {}):
-                                update_defaults(getattr(target_attr, value)[sub_key], default_value[value][sub_key])
+                    if value in ['sec_info', 'secondary']:
+                        attr_value = getattr(target_attr, value)
+                        if attr_value == DEFAULT_NotAValue:
+                            # NOTE if no sec_info is given, we need to set the default sec_info
+                            setattr(target_attr, value, default_value[value])
+                        else:
+                            for sub_key in default_value[value]:
+                                if sub_key in getattr(target_attr, value, {}):
+                                    update_defaults(getattr(target_attr, value)[sub_key], default_value[value][sub_key])
                     else:
                         attr_value = getattr(target_attr, value)
                         if isinstance(attr_value, dict):

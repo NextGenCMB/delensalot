@@ -32,7 +32,7 @@ log.setLevel(logging.INFO)
 class run():
     """Entry point for the interactive mode
     """
-    def __init__(self, config_fn=None, job_id='generate_sim', config=None, verbose=True):
+    def __init__(self, config_fn=None, job_id='MAP_lensrec', config=None, verbose=True, key=None):
         """Entry point for the interactive mode. This initializes a 'runner'-objects which provides all functionalities to run delensalot analyses
 
         Args:
@@ -43,6 +43,8 @@ class run():
         """    
         assert config_fn is not None or config is not None, "Either config_fn or config must be provided"    
         assert job_id in ['generate_sim', 'build_OBD', 'QE_lensrec', 'MAP_lensrec', 'delens'], "Invalid job_id: {}".format(job_id)
+        if key is not None and config_fn is None:
+            config.analysis.key = key
         os.environ['USE_PLANCKLENS_MPI'] = "False"
         if not verbose:
             ConsoleOutputHandler.setLevel(logging.INFO)
@@ -59,7 +61,7 @@ class run():
         self.parser.job_id = job_id
 
         self.delensalotjob = job_id
-        self.config_handler = config_handler(self.parser, config)
+        self.config_handler = config_handler(self.parser, config, key)
 
 
     def collect_model(self):

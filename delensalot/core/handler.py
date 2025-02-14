@@ -652,7 +652,6 @@ class QE_lr_v2:
                 jobs.append(_jobs)
 
             # TODO later. If i add combinatorics here across all operators, could add this to the collect list.
-            # TODO jobs list could come as [simidx-beta,simidx-2,simidx-12] for each simidx
             if task == 'calc_templates':
                 for simidx in self.simidxs:
                     for Qi, QE_search in enumerate(self.QE_searchs): # each field has its own QE_search
@@ -787,7 +786,7 @@ class QE_lr_v2:
 
 
     def maxiterdone(self):
-        return -1
+        return self.QE_searchs[0].isdone()
 
 
 class MAP_lr_v2:
@@ -806,12 +805,12 @@ class MAP_lr_v2:
         for i, QE_search in enumerate(self.QE_searchs):
             scale = 'k' if QE_search.secondary.ID in ['lensing'] else 'p' #NOTE Plancklens by default returns p scale (for lensing). Delensalot works with convergence
             self.MAP_searchs_desc["desc"]["Runl0"].update({QE_search.secondary.ID: {component: self.__rescale(QE_search.get_response_unl(component), scale=scale) for component in QE_search.secondary.component}})
-        self.MAP_searchs = [MAP_handler.base(self.simulationdata, self.MAP_searchs_desc["MAP_secondaries"], self.MAP_searchs_desc["filter_desc"], self.MAP_searchs_desc["gradient_descs"], self.MAP_searchs_desc["curvature_desc"], self.MAP_searchs_desc["desc"], self.MAP_searchs_desc["template_descs"], simidx) for simidx in self.simidxs]
+        self.MAP_searchs = [MAP_handler.base(self.simulationdata, self.MAP_searchs_desc['estimator_key'], self.MAP_searchs_desc["MAP_secondaries"], self.MAP_searchs_desc["filter_desc"], self.MAP_searchs_desc["gradient_descs"], self.MAP_searchs_desc["curvature_desc"], self.MAP_searchs_desc["desc"], self.MAP_searchs_desc["template_descs"], simidx) for simidx in self.simidxs]
         
         # self.simulationdata = self.MAP_handler_desc["simulationdata"]
         self.it_tasks = self.MAP_handler_desc["it_tasks"]
         for simidx in self.simidxs:
-            if len(self.collect_jobs()[-1]) > 0:
+            if self.QE_searchs[0].isdone(simidx, 'p') == 0:
                 if mpi.rank == 0:
                     self.__copyQEtoDirectory(simidx)
 
@@ -830,6 +829,11 @@ class MAP_lr_v2:
 
 
     def run(self):
+        for simidx in self.simidxs:
+            if self.QE_searchs[0].isdone(simidx, 'p') == 0:
+                if mpi.rank == 0:
+                    self.__copyQEtoDirectory(simidx)
+
         for taski, task in enumerate(self.it_tasks):
             log.info('{}, MAP task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
             if task == 'calc_fields':

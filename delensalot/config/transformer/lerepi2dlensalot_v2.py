@@ -40,6 +40,30 @@ from delensalot.config.visitor import transform, transform3d
 from delensalot.config.config_helper import data_functions as df, LEREPI_Constants as lc
 from delensalot.config.metamodel.delensalot_mm_v2 import DELENSALOT_Model as DELENSALOT_Model_mm, DELENSALOT_Concept_v2
 
+def generate_plancklenskeys(input_str):
+    lensing_components = {'p', 'w'}
+    birefringence_components = {'f'}
+    valid_suffixes = {'p', 'ee', 'eb'}
+
+    transtable = str.maketrans({'p':"p", 'f':"a", 'w':"x"})
+
+    # check if there's an underscore
+    if "_" in input_str:
+        components_part, suffix = input_str.split('_')
+    else:
+        components_part, suffix = input_str[:-1], input_str[-1]  # last character as suffix
+
+    lensing = sorted(components_part[i] for i in range(len(components_part)) if components_part[i] in lensing_components)
+    birefringence = sorted(components_part[i] for i in range(len(components_part)) if components_part[i] in birefringence_components)
+
+    secondary_key = {}
+    if lensing:
+        secondary_key['lensing'] = {comp: comp.translate(transtable) + "_" + suffix if "_" in input_str else comp + suffix for comp in lensing}
+    if birefringence:
+        secondary_key['birefringence'] = {comp: comp.translate(transtable) + "_" + suffix if "_" in input_str else comp + suffix for comp in birefringence}
+
+    return secondary_key
+
 
 def filter_secondary(secondary, allowed_chars):
     allowed_set = set(allowed_chars)
@@ -102,7 +126,6 @@ class l2base_Transformer:
             obj[:cf.analysis.Lmin] = 0
             return obj
         dl.CLfids = {}
-        print(cf.analysis.key.split('_')[0])
         cf.analysis.secondary = filter_secondary(cf.analysis.secondary, cf.analysis.key.split('_')[0])
         for secondary, secinfo in cf.analysis.secondary.items():
             dl.CLfids[secondary] = {comp*2: _set_Lmin_zero(dl.simulationdata.get_fidsec(simidx, secondary=secondary, component=comp*2, return_nonrec=True)) for comp in secinfo['component']}
@@ -188,6 +211,7 @@ class l2T_Transformer:
         else:       
             if cf.analysis.TEMP_suffix != '':
                 _suffix = cf.analysis.TEMP_suffix
+                # NOTE this does not work because I don't know anything about the simulations...
                 _secsuffix = "simdata__"+"_".join(f"{key}_{'_'.join(values['component'])}" for key, values in cf.simulationdata.sec_info.items())
             _suffix += '_OBD' if cf.noisemodel.OBD == 'OBD' else '_lminB'+str(cf.analysis.lmin_teb[2])+_secsuffix
             TEMP =  opj(os.environ['SCRATCH'], 'analysis', _suffix)
@@ -375,7 +399,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "libdir": opj(transform(cf, l2T_Transformer()), 'QE', keystring, sec),
                     "QE_filterqest_desc": QE_filterqest_desc,
                     "secondary": QE_secs[sec],
-                    "estimator_key": "".join(cf.analysis.secondary[sec]['component'])+'_'+cf.analysis.key.split('_')[-1], # FIXME
+                    "estimator_key": generate_plancklenskeys(cf.analysis.key)[sec],
                     "cls_len": dl.cls_len,
                     "cls_unl": dl.cls_unl,
                     "simidxs": cf.analysis.simidxs,
@@ -574,6 +598,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 'curvature_desc': curvature_desc,
                 "desc" : desc,
                 "template_descs": template_desc,
+                "estimator_key": cf.analysis.key,
             }
             MAP_handler_desc = {
                 'simulationdata': dl.simulationdata,
@@ -581,6 +606,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "simidxs_mf": dl.simidxs_mf,
                 "QE_searchs": QE_searchs,
                 "it_tasks": dl.it_tasks,
+                
             }
             dl.MAP_handler_desc, dl.MAP_searchs_desc = MAP_handler_desc, MAP_searchs_desc
             return dl

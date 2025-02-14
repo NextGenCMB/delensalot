@@ -32,8 +32,8 @@ class base:
     def step(self, klms):
         N = 0
         for gradient in self.gradients:
-            for compi, comp in enumerate(gradient.secondary.component):
-                size = hp.Alm.getsize(gradient.secondary.LM_max[0])
+            for compi, comp in enumerate(gradient.gfield.component):
+                size = hp.Alm.getsize(gradient.gfield.LM_max[0])
                 klms[N:N+size] = self.stepper.build_incr(klms[N:N+size], 0)
                 N += size
         return klms
@@ -55,8 +55,8 @@ class base:
         ret = {}
         for gradient in self.gradients:
             ret.update({gradient.ID:{}})
-            for component in gradient.secondary.component:
-                siz = Alm.getsize(*gradient.secondary.LM_max)
+            for component in gradient.gfield.component:
+                siz = Alm.getsize(*gradient.gfield.LM_max)
                 ret[gradient.ID][component] = grad[N:N+siz]
                 N += siz
         return ret

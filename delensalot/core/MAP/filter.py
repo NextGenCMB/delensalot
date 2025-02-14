@@ -13,6 +13,9 @@ from delensalot.core.opfilt import MAP_opfilt_iso_p as MAP_opfilt_iso_p # MAP_op
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy
 from delensalot.utils import cli
 
+import time
+
+
 
 def _extend_cl(cl, lmax):
     """Forces input to an array of size lmax + 1
@@ -84,6 +87,8 @@ class wf:
 
     def get_wflm(self, simidx, it, data=None):
         if not self.wf_field.is_cached(simidx, it):
+            assert data is not None, 'data is required for the calculation'
+            time.sleep(1)
             cg_sol_curr = self.wf_field.get_field(simidx, it-1)
             tpn_alm = self.calc_prep(data) # this changes lmmax to lmmax_unl via lensgclm
             mchain = CG.conjugate_gradient(self.precon_op, self.chain_descr, self.cls_filt)
@@ -105,7 +110,6 @@ class wf:
         eblmc[1] = almxfl(eblm[1], self.in1bl, mmax_len, False)
 
         elm = self.wf_operator.act(eblmc, spin=2, lm_max_pri=self.lm_max_pri, lm_max_sky=self.lm_max_sky, adjoint=True, backwards=True, out_sht_mode='GRAD_ONLY').squeeze()
-
         almxfl(elm, self.cls_filt['ee'] > 0., mmax_sol, True)
         return elm
     
@@ -167,37 +171,3 @@ class wf:
         self.wf_operator.set_field(simidx, it, secondary, component)
         estCMB = self.get_wflm(simidx, it)
         return self.wf_operator.act(estCMB, secondary=secondary)
-    
-
-    # NOTE this access the old opfilt operator
-    def _get_wflm(self, simidx, it, data=None):
-        def build_opfilt_iso_p(it):
-            lenjob_geomlib =  get_geom(('thingauss', {'lmax': 4500, 'smax': 3}))
-            ffi = deflection(lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(4500, 4500)), 4500, numthreads=8, verbosity=0, epsilon=1e-8)
-            dfield = self.secondary.get_est(0, it-1, scale='d')
-            if dfield.shape[0] == 1:
-                dfield = [dfield[0],None]
-            ffi = ffi.change_dlm(dfield,self.wf_operator.LM_max[1])
-            def extract():
-                return {
-                    'nlev_p': 1.0,
-                    'ffi': ffi,
-                    'transf': self.transfer['e'],
-                    'unlalm_info': self.lm_max_pri, # unl
-                    'lenalm_info': (4000, 4000), # ivf
-                    'wee': True,
-                    'transf_b': self.transfer['b'],
-                    'nlev_b': 1.0,
-                }
-            return MAP_opfilt_iso_p.alm_filter_nlev_wl(**extract())
-        self.ninv = build_opfilt_iso_p(it)
-        self.opfilt = MAP_opfilt_iso_p
-        self.dotop = self.ninv.dot_op()
-        # if not self.wf_field.is_cached(simidx, it):
-        cg_sol_curr = self.wf_field.get_field(simidx, it-1)
-        mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.ninv)
-        mchain.solve(cg_sol_curr, data, dot_op=self.dotop)
-            # self.wf_field.cache_field(cg_sol_curr, simidx, it)
-        print('the wiener-filter is: ',cg_sol_curr)
-        return cg_sol_curr
-        # return self.wf_field.get_field(simidx, it)

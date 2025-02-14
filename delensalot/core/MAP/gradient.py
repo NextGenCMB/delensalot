@@ -5,7 +5,6 @@ from lenspyx.remapping.deflection_028 import rtype, ctype
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy
 from delensalot.utils import cli
 
-
 class base:
     def __init__(self, gradient_desc, filter, simidx):
         self.ID = gradient_desc['ID']
@@ -39,6 +38,7 @@ class base:
             g += self.get_gradient_prior(it-1, component)
             g += self.get_gradient_meanfield(it, component)
             g -= self.get_gradient_quad(it, component, data)
+            
             # self.gfield.cache_total(g, self.simidx, it) # NOTE this is implemented, but not used to save disk space
             return g
 

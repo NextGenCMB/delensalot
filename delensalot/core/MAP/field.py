@@ -124,7 +124,9 @@ class gradient:
                 return self.cacher.load(self.meanfield_fns.format(idx=simidx, it=it))
             else: 
                 if isinstance(component, list):
-                    return np.atleast_2d([self.cacher.load(self.meanfield_fns.format(idx=simidx, it=it))[self.component2idx[component_]] for component_ in component])
+                    buff = self.cacher.load(self.meanfield_fns.format(idx=simidx, it=it))
+                    ret = np.atleast_2d([buff[self.component2idx[component_]] for component_ in component])
+                    return ret
                 return self.cacher.load(self.meanfield_fns.format(idx=simidx, it=it))[self.component2idx[component]]
         else:
             assert 0, "cannot find meanfield"

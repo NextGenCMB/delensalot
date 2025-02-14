@@ -36,7 +36,6 @@ class base:
 
         self.spatial_type = filter_desc['spatial_type']
         self.estimator_type = filter_desc['estimator_type']
-        self.estimator_key = filter_desc['estimator_key']
         self.libdir = filter_desc['libdir']
 
         self.simulationdata = filter_desc['simulationdata']
@@ -86,34 +85,38 @@ class base:
         return self.qlms_dd
 
 
-    def get_wflm(self, simidx, lm_max):
-        if self.estimator_key in ['ptt']:
+    def get_wflm(self, simidx, key, lm_max):
+        if key in ['ptt']:
             return alm_copy(self.ivf.get_sim_tmliklm(simidx), None, *lm_max)
-        elif self.estimator_key in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
+        elif key in ['p_p', 'p_eb', 'peb', 'p_be', 'pee', 'x_p', 'x_eb', 'xeb', 'x_be', 'xee']:
             return alm_copy(self.ivf.get_sim_emliklm(simidx), None, *lm_max)
-        elif self.estimator_key in ['p']:
+        elif key in ['p']:
             return np.array([alm_copy(self.ivf.get_sim_tmliklm(simidx), None, *lm_max), alm_copy(self.ivf.get_sim_emliklm(simidx), None, *lm_max)])
-        elif self.estimator_key in ['a_p']:
+        elif key in ['a_p']:
             return alm_copy(self.ivf.get_sim_emliklm(simidx), None, *lm_max)
+        else:
+            raise ValueError('Unknown estimator_key:', key)
 
 
-    def get_ivflm(self, simidx, lm_max):
-        if self.estimator_key in ['ptt']:
+    def get_ivflm(self, simidx, key, lm_max):
+        if key in ['ptt']:
             return alm_copy(self.ivf.get_sim_tlm(simidx), None, *lm_max)
-        elif self.estimator_key in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
+        elif key in ['p_p', 'p_eb', 'peb', 'p_be', 'pee', 'x_p', 'x_eb', 'xeb', 'x_be', 'xee']:
             return alm_copy(self.ivf.get_sim_elm(simidx), None, *lm_max), alm_copy(self.ivf.get_sim_blm(simidx), None, *lm_max)
-        elif self.estimator_key in ['p']:
+        elif key in ['p']:
             return np.array([alm_copy(self.ivf.get_sim_tlm(simidx), None, *lm_max), alm_copy(self.ivf.get_sim_elm(simidx), None, *lm_max)])
-        elif self.estimator_key in ['a_p']:
+        elif key in ['a_p']:
             return alm_copy(self.ivf.get_sim_elm(simidx), None, *lm_max), alm_copy(self.ivf.get_sim_blm(simidx), None, *lm_max)
+        else:
+            raise ValueError('Unknown estimator_key:', key)
         
 
-    def get_response_unl(self, lmax_qlm):
-        return qresp.get_response(self.estimator_key, self.lm_max_ivf[0], self.estimator_key[0], self.cls_unl, self.cls_unl, self.ftebl_unl, lmax_qlm=lmax_qlm)
+    def get_response_unl(self, key, key0, lmax_qlm):
+        return qresp.get_response(key, self.lm_max_ivf[0], key0, self.cls_unl, self.cls_unl, self.ftebl_unl, lmax_qlm=lmax_qlm)
     
 
-    def get_response_len(self, lmax_qlm):
-        return qresp.get_response(self.estimator_key, self.lm_max_ivf[0], self.estimator_key[0], self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=lmax_qlm)
+    def get_response_len(self, key, key0, lmax_qlm):
+        return qresp.get_response(key, self.lm_max_ivf[0], key0, self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=lmax_qlm)
     
 
     def __compute_transfer(self, cls_key, nlev_key, transf_key, spectrum_type):
