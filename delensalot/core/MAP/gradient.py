@@ -9,10 +9,8 @@ class base:
     def __init__(self, gradient_desc, filter, simidx):
         self.ID = gradient_desc['ID']
 
-        # NOTE field
         self.gfield = gradient_desc['gfield']
 
-        # NOTE operators
         self.gradient_operator = gradient_desc['gradient_operator'] # NOTE this is whatever comes out of the inner for calculating the gradient wrt. the secondary
         self.ivf_filter = filter['ivf'] # NOTE this is a joint of secondary operators
         self.wf_filter = filter['wf'] # NOTE WF is ivf ivf^dagger, so could in principle be simplified
@@ -38,7 +36,6 @@ class base:
             g += self.get_gradient_prior(it-1, component)
             g += self.get_gradient_meanfield(it, component)
             g -= self.get_gradient_quad(it, component, data)
-            
             # self.gfield.cache_total(g, self.simidx, it) # NOTE this is implemented, but not used to save disk space
             return g
 
@@ -57,17 +54,6 @@ class base:
         if isinstance(it, (list, np.ndarray)):
             return np.array([self.get_gradient_prior(it_, component) for it_ in it])
         return self.gfield.get_gradient_prior(self.simidx, it, component)
-
-
-    def update_operator(self, simidx, it):
-        self.ivf_filter.update_operator(simidx, it)
-        self.wf_filter.update_operator(simidx, it)
-        self.gradient_operator.set_field(simidx, it)
-
-
-    def update_gradient(self):
-        pass
-
 
 
 class lensing(base):
@@ -123,7 +109,7 @@ class birefringence(base):
             
             ivfmap = self.ffi.geom.synthesis(ivf, 2, self.lm_max_sky[0], self.lm_max_sky[1], self.ffi.sht_tr)
 
-            xwfglm = self.gradient_operator.act(XWF, spin=2, lmax_in=None, lm_max=None)
+            xwfglm = self.gradient_operator.act(XWF, spin=2, lm_max_pri=None, lm_max_sky=None)
             xwfmap = self.ffi.geom.synthesis(xwfglm, 2, self.lm_max_sky[0], self.lm_max_sky[1], self.ffi.sht_tr)
  
             qlms = -4 * ( ivfmap[0] * xwfmap[1] - ivfmap[1] * xwfmap[0] )

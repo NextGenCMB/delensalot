@@ -11,14 +11,18 @@ import healpy as hp
 
 class base:
     def __init__(self, curvature_desc, gradients):
-        self.gradients = gradients
         self.ID = curvature_desc['ID']
+        
+        self.gradients = gradients
         self.field = curvature_desc['field']
+
         self.h0 = curvature_desc['h0']
         curvature_desc["bfgs_desc"].update({"apply_H0k": self.apply_H0k, "apply_B0k": self.apply_B0k})
         curvature_desc["bfgs_desc"].update({'cacher': cachers.cacher_npy(self.field.libdir)})
         self.BFGS_H = BFGS.BFGS_Hessian(self.h0, **curvature_desc["bfgs_desc"])
-        self.stepper = harmonicbump(**{'lmax_qlm': 4200,'mmax_qlm': 4200,'a': 0.5,'b': 0.499,'xa': 400,'xb': 1500},)
+        
+        self.stepper = {grad.ID: harmonicbump(**{'lmax_qlm': grad.gfield.LM_max[0],'mmax_qlm': grad.gfield.LM_max[0],'a': 0.5,'b': 0.499,'xa': 400,'xb': 1500},)
+            for grad in self.gradients}
 
 
     def add_svector(self, incr, simidx, it):
@@ -34,7 +38,7 @@ class base:
         for gradient in self.gradients:
             for compi, comp in enumerate(gradient.gfield.component):
                 size = hp.Alm.getsize(gradient.gfield.LM_max[0])
-                klms[N:N+size] = self.stepper.build_incr(klms[N:N+size], 0)
+                klms[N:N+size] = self.stepper[gradient.ID].build_incr(klms[N:N+size], 0)
                 N += size
         return klms
 

@@ -11,32 +11,31 @@ template_secondaries = ['lensing', 'birefringence']  # Define your desired order
 template_index_secondaries = {val: i for i, val in enumerate(template_secondaries)}
 
 class base:
-    def __init__(self, simulationdata, estimator_key, secondaries, filter_desc, gradient_descs, curvature_desc, desc, template_desc, simidx):
-        
+    def __init__(self, simulationdata, estimator_key, secondaries, filter_desc, gradient_descs, curvature_desc, desc, simidx):
         # this class handles the filter, gradient, and curvature libs, nothing else
-        self.secondaries = secondaries
         self.simulationdata = simulationdata
-        self.sec2idx = {secondary_ID: idx for idx, (secondary_ID, secondary) in enumerate(secondaries.items())}
+        self.estimator_key = estimator_key
+        self.secondaries = secondaries
+
+        # NOTE these are called by all operators, so changing here, will change them all.
+        # ivf and wf are actually the same instance of the secondary_operator,
+        # just keeping the names for clarity
+        self.ivf_filter = filter.ivf(filter_desc['ivf'])
+        self.wf_filter = filter.wf(filter_desc['wf'])
+        filters = {'ivf': self.ivf_filter, 'wf': self.wf_filter}
+        
+        self.sec2idx = {secondary_ID: idx for idx, secondary_ID in enumerate(secondaries.keys())}
         self.idx2sec = {idx: secondary_ID for idx, secondary_ID in enumerate(secondaries.keys())}
         self.seclist_sorted = sorted(list(self.sec2idx.keys()), key=lambda x: template_index_secondaries.get(x, ''))
-        self.gradients = []
-        self.estimator_key = estimator_key
         
-        # TODO check if they point to same memory in all gradient classes
-        self.ivf_filter = filter.ivf(filter_desc['ivf'])
-        self.wf_filter = filter.wf(filter_desc['wf'], self.secondaries)
-        filters = {'ivf': self.ivf_filter, 'wf': self.wf_filter}
+        self.chh = {sec: gradient_descs[sec]['gfield'].chh for sec in self.seclist_sorted}
+        self.gradients = []
+        self.gradients.extend(
+            getattr(gradient, sec)(gradient_descs[sec], filters, simidx)
+            for sec in self.seclist_sorted if hasattr(gradient, sec))
 
-        self.chh = {}
-        for sec in self.seclist_sorted:
-            self.chh.update({sec: gradient_descs[sec]['gfield'].chh})
-            if sec == 'lensing':
-                self.gradients.append(gradient.lensing(gradient_descs[sec], filters, simidx))
-            elif sec == 'birefringence':
-                self.gradients.append(gradient.birefringence(gradient_descs[sec], filters, simidx))
-
-        h0arr = np.array([v for val in self.get_h0(desc["Runl0"]).values() for v in val.values()])
-        curvature_desc.update({"h0": h0arr})
+        # FIXME this is not guaranteed to be correctly sorted (dicts are not ordered)
+        curvature_desc["h0"] = np.array([v for val in self.get_h0(desc["Runl0"]).values() for v in val.values()])
         self.curvature = curvature.base(curvature_desc, self.gradients)
 
         self.itmax = desc['itmax']
@@ -62,11 +61,11 @@ class base:
         elif (current_it < self.itmax and request_it >= current_it) or calc_flag:
             if self.data is None: self.data = self.get_data(self.ivf_filter.lm_max_sky)
             for it in range(current_it+1, request_it+1):
-                # NOTE it = 0 is QE and is implicitly skipped. current_it is the it we have a solution for already
+                # NOTE it=0 is QE and is implicitly skipped. current_it is the it we have a solution for already
                 grad_tot, grad_prev = [], []
                 print(f'---------- starting iteration {it} ----------')
                 for gradient in self.gradients:
-                    gradient.update_operator(simidx, it-1)
+                    self.update_operator(simidx, it-1)
                     grad_tot.append(gradient.get_gradient_total(it, data=self.data)) #calculates the filtering, the sum, and the quadratic combination
                 grad_tot = np.concatenate([np.ravel(arr) for arr in grad_tot])
                 if it>=2: #NOTE it=1 cannot build the previous diff, as current diff is QE
@@ -79,8 +78,8 @@ class base:
                 new_klms = self.curvature.grad2dict(increment+prev_klm)
                 
                 self.cache_klm(new_klms, simidx, it)
-                # return self.load_klm(simidx, it, secondary, component)
-                # FIXME return a list of requested secondaries and components, not dict
+            # TODO return a list of requested secondaries and components, not dict
+            # return self.load_klm(simidx, it, secondary, component)
             return new_klms if secondary is None else new_klms[secondary] if component is None else new_klms[secondary][component]
         elif current_it < self.itmax and request_it >= current_it and not calc_flag:
             print(f"Requested iteration {request_it} is beyond the maximum iteration")
@@ -115,9 +114,16 @@ class base:
                 buff = cli(R_unl0[sec][comp][:lmax+1] + cli(chh_comp)) * (chh_comp > 0)
                 ret[sec][comp] = np.array(buff)
         return ret
+    
+
+    def update_operator(self, simidx, it):
+        # NOTE updaing a single operator here is enough to update all operators,
+        # as they all point to the same operator.lensing and birefringence
+        self.ivf_filter.update_operator(simidx, it)
+        # self.wf_filter.update_operator(simidx, it)
+        # self.gradients[0].update_operator(simidx, it)
 
 
-    # exposed functions for convenience
     def get_wflm(self, simidx, it):
         return self.wf_filter.get_wflm(simidx, it)
 
@@ -176,9 +182,9 @@ class base:
 
     # exposed functions for job handler
     def cache_klm(self, new_klms, simidx, it):
-        for fieldID, field in self.secondaries.items():
-            for component in field.component:
-                field.cache_klm(new_klms[fieldID][component], simidx, it, component=component)
+        for secID, secondary in self.secondaries.items():
+            for component in secondary.component:
+                secondary.cache_klm(new_klms[secID][component], simidx, it, component=component)
 
 
     def get_data(self, lm_max):
@@ -192,7 +198,6 @@ class base:
                     data_key = self.estimator_key
             else:
                 data_key = self.estimator_key.split('_')[-1]
-            print('the data key is:', data_key)
             if data_key in ['p', 'eb', 'be']:
                 return alm_copy(
                     self.simulationdata.get_sim_obs(self.simidx, space='alm', spin=0, field='polarization'),

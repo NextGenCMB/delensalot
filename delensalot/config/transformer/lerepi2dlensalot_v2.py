@@ -67,35 +67,22 @@ def generate_plancklenskeys(input_str):
 
 def filter_secondary(secondary, allowed_chars):
     allowed_set = set(allowed_chars)
-    
     keys_to_remove = []
-    
     for key, value in secondary.items():
         if 'component' in value:
-            # Filter out characters not in the allowed list
+            # filter out characters not in the allowed list
             value['component'] = [char for char in value['component'] if char in allowed_set]
             
-            # If component list is now empty, mark the key for removal
+            # if component list is now empty, mark the key for removal
             if not value['component']:
                 keys_to_remove.append(key)
     
-    # Remove empty components
+    # remove empty components
     for key in keys_to_remove:
         del secondary[key]
     
     return secondary
 
-# Example usage
-secondary = {
-    'lensing': {
-        'geominfo': ('thingauss', {'lmax': 4500, 'smax': 3}),
-        'component': ['p', 'w'],
-    },
-    'birefringence': {
-        'geominfo': ('thingauss', {'lmax': 4500, 'smax': 3}),
-        'component': ['f'],
-    },
-}
 
 def all_combinations(lst):
     return [''.join(comb) for comb in chain.from_iterable(combinations(lst, r) for r in range(1, len(lst) + 1))]
@@ -392,7 +379,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                         _QE_operators_desc[sec]["perturbative"] = True
                     filter_operators.append(getattr(operator, sec)(_QE_operators_desc[sec]))
 
-            template_operator = operator.wf_operator(filter_operators) #TODO this is ivf_operator*ivf_operator^dagger, could be implemented via ivf.
+            # NOTE I need to have a new instance of this as for QE we use a slightly different setting (i.e. perturbative)
+            template_operator = operator.secondary_operator(filter_operators) #TODO this is ivf_operator*ivf_operator^dagger, could be implemented via ivf.
 
             QE_searchs_desc = {sec: {
                     "ID": sec,
@@ -400,8 +388,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "QE_filterqest_desc": QE_filterqest_desc,
                     "secondary": QE_secs[sec],
                     "estimator_key": generate_plancklenskeys(cf.analysis.key)[sec],
-                    "cls_len": dl.cls_len,
-                    "cls_unl": dl.cls_unl,
                     "simidxs": cf.analysis.simidxs,
                     "simidxs_mf": dl.simidxs_mf,
                     "subtract_meanfield": dl.subtract_QE_meanfield,
@@ -489,8 +475,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                         filter_operators.append(operator.birefringence(_MAP_operators_desc[sec]))
                         gradients_operators[sec] = operator.joint([operator.multiply(_MAP_operators_desc["multiply"]), *filter_operators])
 
-            ivf_operator = operator.ivf_operator(filter_operators)
-            wf_operator = operator.wf_operator(filter_operators) #TODO this is ivf_operator*ivf_operator^dagger, could be implemented via ivf.
+            # ivf_operator = operator.ivf_operator(filter_operators)
+            sec_operator = operator.secondary_operator(filter_operators) #TODO this is ivf_operator*ivf_operator^dagger, could be implemented via ivf.
 
             def chh(CL, lmax, gradient_name='lensing'):
                 if gradient_name == 'lensing':
@@ -542,7 +528,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
             MAP_ivf_desc = {
                 "ID": "ivf",
-                'ivf_operator': ivf_operator,
+                'ivf_operator': sec_operator,
                 "ivf_field": MAP_field.filter(MAP_ivffilter_field_desc),
                 'beam': operator.beam({"beamwidth": cf.analysis.beam, "lm_max":dl.lm_max_sky}),
                 "ttebl": dl.ttebl,
@@ -552,7 +538,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             }
             MAP_wf_desc = {
                 "ID": "polarization",
-                'wf_operator': wf_operator,
+                'wf_operator': sec_operator,
                 "wf_field": MAP_field.filter(MAP_WFfilter_field_desc),
                 'beam': operator.beam({"beamwidth": cf.analysis.beam, "lm_max":dl.lm_max_pri}),
                 'nlev': dl.nlev,
@@ -562,10 +548,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "lm_max_pri": dl.lm_max_pri,
                 "lm_max_sky": dl.lm_max_sky,
                 "nlev": dl.nlev,
-                "ffi": dl.ffi,
             }
-            
-            template_desc = copy.deepcopy(dl.QE_handler_desc["template_operator"])
 
             def dotop(glms1, glms2):
                 ret = 0.
@@ -597,7 +580,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 'filter_desc': {'ivf': MAP_ivf_desc, 'wf': MAP_wf_desc},
                 'curvature_desc': curvature_desc,
                 "desc" : desc,
-                "template_descs": template_desc,
                 "estimator_key": cf.analysis.key,
             }
             MAP_handler_desc = {

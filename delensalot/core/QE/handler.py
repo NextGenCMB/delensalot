@@ -2,7 +2,7 @@ import numpy as np
 
 from delensalot.utils import cli
 from delensalot.core.QE import filterqest
-from delensalot.utility.utils_hp import Alm, almxfl, alm_copy, gauss_beam
+from delensalot.utility.utils_hp import Alm, almxfl, alm_copy
 
 class base:
     def __init__(self, QE_search_desc):

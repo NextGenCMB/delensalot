@@ -67,39 +67,12 @@ class joint:
     def set_field(self, simidx, it, component=None):
         for operator in self.operators:
             operator.set_field(simidx, it)
+    
 
-
-class ivf_operator:
-    # This is a composite operator, consisting of the secondaries-operators.
+class secondary_operator:
     def __init__(self, operators):
         self.operators = operators
-        # self.lm_max = operators[0].lm_max if hasattr(operators[0], 'lm_max') else operators[1].lm_max # FIXME hoping these operators have what im looking for
-    
 
-    def act(self, obj, spin, lm_max_pri, lm_max_sky):
-        for operator in self.operators:
-            buff = operator.act(obj, spin, lm_max_pri, lm_max_sky)
-            obj = buff
-        return obj
-    
-
-    def adjoint(self, obj, spin, lm_max_pri, lm_max_sky):
-        for operator in self.operators[::-1]:
-            buff = operator.adjoint.act(obj, spin, lm_max_pri, lm_max_sky)
-            obj = buff
-        return obj
-    
-
-    def set_field(self, simidx, it, component=None):
-        for operator in self.operators:
-            operator.set_field(simidx, it)
-    
-
-class wf_operator:
-    def __init__(self, operators):
-        self.operators = operators
-        # self.lm_max = operators[0].lm_max if hasattr(operators[0], 'lm_max') else operators[1].lm_max # FIXME hoping these operators have what im looking for
-    
 
     def act(self, obj, spin=2, lm_max_pri=None, lm_max_sky=None, adjoint=False, backwards=False, out_sht_mode=None, secondary=None):
         secondary = secondary or [op.ID for op in self.operators]

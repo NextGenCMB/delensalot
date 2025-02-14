@@ -30,14 +30,16 @@ def _extend_cl(cl, lmax):
 class ivf:
     def __init__(self, filter_desc):
         self.ID = filter_desc['ID']
+        
         self.ivf_field = filter_desc['ivf_field']
         self.ivf_operator = filter_desc['ivf_operator']
         self.beam = filter_desc['beam']
-        self.transfer = filter_desc["ttebl"]
+        
         self.lm_max_pri = filter_desc['lm_max_pri'] # this is lm_max_sky
         self.lm_max_sky = filter_desc['lm_max_sky'] # this is lm_max_sky
-        self.nlevp, self.nlevt = filter_desc['nlev']['P'], filter_desc['nlev']['T']
 
+        self.transfer = filter_desc["ttebl"]
+        self.nlevp, self.nlevt = filter_desc['nlev']['P'], filter_desc['nlev']['T']
         self.n1elm = _extend_cl(np.array(self.transfer['e'])**1, self.lm_max_sky[0]) * cli(_extend_cl(self.nlevp**2, self.lm_max_sky[0])) * (180 * 60 / np.pi) ** 2
         self.n1blm = _extend_cl(np.array(self.transfer['b'])**1, self.lm_max_sky[0]) * cli(_extend_cl(self.nlevp**2, self.lm_max_sky[0])) * (180 * 60 / np.pi) ** 2
         
@@ -47,7 +49,6 @@ class ivf:
         if not self.ivf_field.is_cached(simidx, it):
             assert eblm_wf is not None and data is not None
             ivfreslm = -1*self.beam.act(self.ivf_operator.act(eblm_wf, spin=2, lm_max_pri=self.lm_max_pri, lm_max_sky=self.lm_max_sky))
-            # data[0] *= 0.+0.j
             ivfreslm += data
             almxfl(ivfreslm[0], self.n1elm * 0.5, self.lm_max_sky[1], True)  # Factor of 1/2 because of \dagger rather than ^{-1}
             almxfl(ivfreslm[1], self.n1blm * 0.5, self.lm_max_sky[1], True)
@@ -60,18 +61,18 @@ class ivf:
 
 
 class wf:
-    def __init__(self, filter_desc, secondaries):
+    def __init__(self, filter_desc):
         self.ID = filter_desc['ID']
+
         self.wf_field = filter_desc['wf_field']
         self.wf_operator = filter_desc['wf_operator']
-
         self.beam = filter_desc['beam']
-        self.nlevp, self.nlevt = filter_desc['nlev']['P'], filter_desc['nlev']['T']
 
         self.lm_max_sky = filter_desc['lm_max_sky']
         self.lm_max_pri = filter_desc['lm_max_pri']
-        self.transfer = filter_desc["ttebl"]
 
+        self.transfer = filter_desc["ttebl"]
+        self.nlevp, self.nlevt = filter_desc['nlev']['P'], filter_desc['nlev']['T']
         self.in1el = _extend_cl(np.array(self.transfer['e'])**1, self.lm_max_sky[0]) * cli(_extend_cl(self.nlevp**2, self.lm_max_sky[0])) * (180 * 60 / np.pi) ** 2
         self.in1bl = _extend_cl(np.array(self.transfer['b'])**1, self.lm_max_sky[0]) * cli(_extend_cl(self.nlevp**2, self.lm_max_sky[0])) * (180 * 60 / np.pi) ** 2
 
@@ -80,9 +81,6 @@ class wf:
 
         self.chain_descr = filter_desc['chain_descr']
         self.cls_filt = filter_desc['cls_filt']
-
-        self.ffi = filter_desc['ffi']
-        self.secondaries = secondaries
 
 
     def get_wflm(self, simidx, it, data=None):
@@ -160,10 +158,6 @@ class wf:
 
 
     def update_operator(self, simidx, it, secondary=None, component=None):
-        dfield = self.secondaries['lensing'].get_est(simidx, it, scale='d', component=component)
-        if dfield.shape[0] == 1:
-            dfield = [dfield[0],None]
-        self.ffi = self.ffi.change_dlm(dfield, self.wf_operator.operators[0].LM_max[1])
         self.wf_operator.set_field(simidx, it, component)
 
 
