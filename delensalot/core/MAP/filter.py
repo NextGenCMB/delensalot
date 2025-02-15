@@ -48,7 +48,7 @@ class ivf:
         # NOTE this is eq. 21 of the paper, in essence it should do the following:
         if not self.ivf_field.is_cached(simidx, it):
             assert eblm_wf is not None and data is not None
-            ivfreslm = -1*self.beam.act(self.ivf_operator.act(eblm_wf, spin=2, lm_max_pri=self.lm_max_pri, lm_max_sky=self.lm_max_sky))
+            ivfreslm = -1*self.beam.act(self.ivf_operator.act(eblm_wf, spin=2, lm_max_in=self.lm_max_pri, lm_max_out=self.lm_max_sky))
             ivfreslm += data
             almxfl(ivfreslm[0], self.n1elm * 0.5, self.lm_max_sky[1], True)  # Factor of 1/2 because of \dagger rather than ^{-1}
             almxfl(ivfreslm[1], self.n1blm * 0.5, self.lm_max_sky[1], True)
@@ -86,7 +86,6 @@ class wf:
     def get_wflm(self, simidx, it, data=None):
         if not self.wf_field.is_cached(simidx, it):
             assert data is not None, 'data is required for the calculation'
-            time.sleep(1)
             cg_sol_curr = self.wf_field.get_field(simidx, it-1)
             tpn_alm = self.calc_prep(data) # this changes lmmax to lmmax_unl via lensgclm
             mchain = CG.conjugate_gradient(self.precon_op, self.chain_descr, self.cls_filt)
@@ -101,13 +100,13 @@ class wf:
         """
         lmax_len, mmax_len = self.lm_max_sky
         lmax_sol, mmax_sol = self.lm_max_pri
-        assert isinstance(eblm, np.ndarray) and eblm.ndim == 2
+        assert isinstance(eblm, np.ndarray) and eblm.ndim == 2, eblm.shape
         assert Alm.getlmax(eblm[0].size, mmax_len) == lmax_len, (Alm.getlmax(eblm[0].size, mmax_len), lmax_len)
         eblmc = np.empty_like(eblm)
         eblmc[0] = almxfl(eblm[0], self.in1el, mmax_len, False)
         eblmc[1] = almxfl(eblm[1], self.in1bl, mmax_len, False)
 
-        elm = self.wf_operator.act(eblmc, spin=2, lm_max_pri=self.lm_max_pri, lm_max_sky=self.lm_max_sky, adjoint=True, backwards=True, out_sht_mode='GRAD_ONLY').squeeze()
+        elm = self.wf_operator.act(eblmc, spin=2, lm_max_in=self.lm_max_sky, lm_max_out=self.lm_max_pri, adjoint=True, backwards=True, out_sht_mode='GRAD_ONLY').squeeze()
         almxfl(elm, self.cls_filt['ee'] > 0., mmax_sol, True)
         return elm
     
@@ -123,10 +122,10 @@ class wf:
         assert lmax_unl == lmax_sol, (lmax_unl, lmax_sol)
         # View to the same array for GRAD_ONLY mode:
         elm_2d = nlm.reshape((1, nlm.size))
-        eblm = self.wf_operator.act(elm_2d, spin=2, lm_max_pri=self.lm_max_pri, lm_max_sky=self.lm_max_sky, adjoint=False, backwards=False)
+        eblm = self.wf_operator.act(elm_2d, spin=2, lm_max_in=self.lm_max_pri, lm_max_out=self.lm_max_sky, adjoint=False, backwards=False)
         almxfl(eblm[0], self.in2el, mmax_len, inplace=True)
         almxfl(eblm[1], self.in2bl, mmax_len, inplace=True)
-        elm_2d = self.wf_operator.act(eblm, spin=2, lm_max_pri=self.lm_max_pri, lm_max_sky=self.lm_max_sky, adjoint=True, backwards=True, out_sht_mode='GRAD_ONLY')
+        elm_2d = self.wf_operator.act(eblm, spin=2, lm_max_in=self.lm_max_sky, lm_max_out=self.lm_max_pri, adjoint=True, backwards=True, out_sht_mode='GRAD_ONLY')
 
         nlm = elm_2d.squeeze()
         nlm += almxfl(elm, iclee, mmax_sol, False)
@@ -164,4 +163,11 @@ class wf:
     def get_template(self, simidx, it, secondary, component):
         self.wf_operator.set_field(simidx, it, secondary, component)
         estCMB = self.get_wflm(simidx, it)
+
+        # NOTE making sure that QE is perturbative, and resetting MAP to non-perturbative.
+        # Must be done for each call, as the operators used are the same instance.
+        for operator in self.wf_operator.operators:
+            if operator.ID == 'lensing' and 'lensing' in secondary:
+                operator.perturbative = (it == 0)
+                
         return self.wf_operator.act(estCMB, secondary=secondary)

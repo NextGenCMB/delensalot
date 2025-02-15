@@ -35,7 +35,6 @@ from delensalot.core.ivf import filt_util, filt_cinv, filt_simple
 
 from delensalot.core.iterator.iteration_handler import iterator_transformer
 from delensalot.core.iterator.statics import rec as rec
-from delensalot.core.decorator.exception_handler import base as base_exception_handler
 from delensalot.core.opfilt import utils_cinv_p as cinv_p_OBD
 from delensalot.core.opfilt.opfilt_handler import QE_transformer, MAP_transformer
 from delensalot.core.opfilt.bmodes_ninv import template_dense, template_bfilt
@@ -738,13 +737,13 @@ class QE_lr_v2:
 
     def get_template(self, simidx, it=0, secondary=None, component=None, calc=False):
         assert it==0, 'QE does not have iterations, leave blank or set it=0'
-        path = opj(self.TEMP, 'QE', self.QE_searchs[0].estimator_key, f"template_sim{simidx}_it{it}")
+        path = opj(self.QE_searchs[0].fq.libdir, 'template', f"template_sim{simidx}_it{it}")
         if not os.path.isfile(path):
             if not self.QE_searchs[self.secondary2idx[secondary]].is_cached(self, simidx, component, type='qlm'):
                 if not calc:
                     print(f'cannot generate template as estimate of secondary {secondary} with simidx {simidx} not found, set calc=True to calculate')
                     return np.array([[]])
-                self.get_est(simidx, it, secondary, component, scale='p')
+                self.get_est(simidx, it, secondary, component)
             self.template_operator.set_field(simidx, it)
             estCMB = self.get_wflm(simidx, it)
             np.save(path, self.template_operator.act(estCMB))
@@ -805,7 +804,7 @@ class MAP_lr_v2:
         for i, QE_search in enumerate(self.QE_searchs):
             scale = 'k' if QE_search.secondary.ID in ['lensing'] else 'p' #NOTE Plancklens by default returns p scale (for lensing). Delensalot works with convergence
             self.MAP_searchs_desc["desc"]["Runl0"].update({QE_search.secondary.ID: {component: self.__rescale(QE_search.get_response_unl(component), scale=scale) for component in QE_search.secondary.component}})
-        self.MAP_searchs = [MAP_handler.base(self.simulationdata, self.MAP_searchs_desc['estimator_key'], self.MAP_searchs_desc["MAP_secondaries"], self.MAP_searchs_desc["filter_desc"], self.MAP_searchs_desc["gradient_descs"], self.MAP_searchs_desc["curvature_desc"], self.MAP_searchs_desc["desc"], self.MAP_searchs_desc["template_descs"], simidx) for simidx in self.simidxs]
+        self.MAP_searchs = [MAP_handler.base(self.simulationdata, self.MAP_searchs_desc['estimator_key'], self.MAP_searchs_desc["MAP_secondaries"], self.MAP_searchs_desc["filter_desc"], self.MAP_searchs_desc["gradient_descs"], self.MAP_searchs_desc["curvature_desc"], self.MAP_searchs_desc["desc"], simidx) for simidx in self.simidxs]
         
         # self.simulationdata = self.MAP_handler_desc["simulationdata"]
         self.it_tasks = self.MAP_handler_desc["it_tasks"]
@@ -916,11 +915,10 @@ class MAP_lr_v2:
         elif isinstance(it, (int,np.int64)) and it>self.maxiterdone():
             it = self.maxiterdone()
             print(' param "it" too big. maxiterdone() = ', self.maxiterdone())
-        if (isinstance(it, (list, np.ndarray)) and 0 not in it):
+        if isinstance(it, (list, np.ndarray)):
             return [self.MAP_searchs[simidx].get_gradient_prior(it_, secondary, component) for it_ in it]
-        elif isinstance(it, (int,np.int64)) and it > 0:
+        elif isinstance(it, (int,np.int64)):
             self.MAP_searchs[simidx].get_gradient_prior(it, secondary, component)
-        print('only available for MAP, set it>0')
 
 
     def get_gradient_total(self, simidx, it=None, secondary=None, component=None):
@@ -975,7 +973,7 @@ class MAP_lr_v2:
 
             #TODO cache QE wflm into the filter directory
             if not self.MAP_searchs[simidx].wf_filter.wf_field.is_cached(simidx, it=0):
-                wflm_QE = self.QE_searchs[self.sec2idx[secname]].get_wflm(simidx, self.MAP_searchs[simidx].ivf_filter.lm_max_sky)
+                wflm_QE = self.QE_searchs[self.sec2idx[secname]].get_wflm(simidx, self.MAP_searchs[simidx].ivf_filter.lm_max_pri)
                 self.MAP_searchs[simidx].wf_filter.wf_field.cache_field(np.array(wflm_QE), simidx, it=0)
 
 

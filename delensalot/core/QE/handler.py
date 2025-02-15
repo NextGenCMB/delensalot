@@ -54,6 +54,7 @@ class base:
             R = self.get_response_len(component)
             WF = self.secondary.CLfids[component*2][:self.secondary.LM_max[0]+1] * cli(self.secondary.CLfids[component*2][:self.secondary.LM_max[0]+1] + cli(R))  # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
             klm = alm_copy(qlm, None, self.secondary.LM_max[0], self.secondary.LM_max[1])
+            print(Alm.getlmax(klm.size, None), self.secondary.LM_max[1])
             almxfl(klm, cli(R), self.secondary.LM_max[1], True) # Normalized QE
             almxfl(klm, WF, self.secondary.LM_max[1], True) # Wiener-filter QE
             almxfl(klm, self.secondary.CLfids[component*2][:self.secondary.LM_max[0]+1] > 0, self.secondary.LM_max[1], True)

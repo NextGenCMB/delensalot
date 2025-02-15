@@ -18,6 +18,7 @@ import healpy as hp
 import hashlib
 from collections import OrderedDict
 from itertools import chain, combinations
+import re
 
 from lenspyx.remapping import deflection
 from lenspyx.lensing import get_geom 
@@ -26,7 +27,7 @@ from lenspyx.lensing import get_geom
 from delensalot.core.cg import cd_solve
 
 from delensalot.sims.sims_lib import Simhandler
-
+from delensalot.config.etc.errorhandler import DelensalotError
 from delensalot.config.metamodel import DEFAULT_NotAValue as DNaV
 
 from delensalot.utils import cli, camb_clfile, load_file
@@ -40,49 +41,74 @@ from delensalot.config.visitor import transform, transform3d
 from delensalot.config.config_helper import data_functions as df, LEREPI_Constants as lc
 from delensalot.config.metamodel.delensalot_mm_v2 import DELENSALOT_Model as DELENSALOT_Model_mm, DELENSALOT_Concept_v2
 
+import itertools
+
+PLANCKLENS_keys_fund = ['ptt', 'xtt', 'p_p', 'x_p', 'p', 'x', 'stt', 's', 'ftt','f_p', 'f','dtt', 'ntt','n', 'a_p',
+                    'pte', 'pet', 'ptb', 'pbt', 'pee', 'peb', 'pbe', 'pbb',
+                    'xte', 'xet', 'xtb', 'xbt', 'xee', 'xeb', 'xbe', 'xbb']
+PLANCKLENS_keys = PLANCKLENS_keys_fund + ['p_tp', 'x_tp', 'p_te', 'p_tb', 'p_eb', 'x_te', 'x_tb', 'x_eb', 'ptt_bh_n',
+                                'ptt_bh_s', 'ptt_bh_f', 'ptt_bh_d', 'dtt_bh_p', 'stt_bh_p', 'ftt_bh_d',
+                                'p_bh_s', 'p_bh_n']
+
+def check_key(key):
+    def generate_delensalotcombinations(allowed_strings):
+        characters = ['p', 'w', 'f']
+        combinations = []
+        for r in range(1, 4):
+            for comb in itertools.combinations(characters, r):
+                combinations.append(''.join(comb))
+        combinations = sorted(set(combinations), key=lambda x: [characters.index(c) for c in x])
+        result = []
+        for s in allowed_strings:
+            for prefix in combinations:
+                new_string = prefix + s[1:]
+                result.append(new_string)
+        return result
+    keys = generate_delensalotcombinations(PLANCKLENS_keys)
+    if key not in keys:
+        raise DelensalotError(f"Your input '{key}' is not a valid key. Please choose one of the following: {keys}")
+
 def generate_plancklenskeys(input_str):
+    def split_at_first(s, blacklist={'t', 'e', 'b'}):
+        match = re.search(f"[{''.join(blacklist)}]", s)
+        if match:
+            return s[:match.start()], s[match.start():]
+        return s, ''
     lensing_components = {'p', 'w'}
     birefringence_components = {'f'}
     valid_suffixes = {'p', 'ee', 'eb'}
-
     transtable = str.maketrans({'p':"p", 'f':"a", 'w':"x"})
-
-    # check if there's an underscore
     if "_" in input_str:
         components_part, suffix = input_str.split('_')
     else:
-        components_part, suffix = input_str[:-1], input_str[-1]  # last character as suffix
-
+        components_part, suffix = split_at_first(input_str)  # last character as suffix
     lensing = sorted(components_part[i] for i in range(len(components_part)) if components_part[i] in lensing_components)
     birefringence = sorted(components_part[i] for i in range(len(components_part)) if components_part[i] in birefringence_components)
-
     secondary_key = {}
     if lensing:
-        secondary_key['lensing'] = {comp: comp.translate(transtable) + "_" + suffix if "_" in input_str else comp + suffix for comp in lensing}
+        secondary_key['lensing'] = {comp: comp.translate(transtable) + "_" + suffix if "_" in input_str else comp.translate(transtable)+ suffix for comp in lensing}
     if birefringence:
-        secondary_key['birefringence'] = {comp: comp.translate(transtable) + "_" + suffix if "_" in input_str else comp + suffix for comp in birefringence}
+        secondary_key['birefringence'] = {comp: comp.translate(transtable) + "_" + suffix if "_" in input_str else comp.translate(transtable) + suffix for comp in birefringence}
 
+    for sec, val in secondary_key.items():
+        for comp in val.values():
+            if comp not in PLANCKLENS_keys:
+                raise DelensalotError(f"Your input '{input_str}' is not a valid key, it generated '{comp}' which is not a valid Plancklens key.")
+    print('the generated secondary keys are:', secondary_key)
     return secondary_key
 
-
-def filter_secondary(secondary, allowed_chars):
-    allowed_set = set(allowed_chars)
+def filter_secondary_and_component(secondary, allowed_chars):
+    forbidden_chars_in_sec = 'eb'  # NOTE this filters the last part in case of non-symmetrized keys (e.g. 'pee')
+    allowed_set = set("".join(c for c in allowed_chars if c not in forbidden_chars_in_sec))
     keys_to_remove = []
     for key, value in secondary.items():
         if 'component' in value:
-            # filter out characters not in the allowed list
             value['component'] = [char for char in value['component'] if char in allowed_set]
-            
-            # if component list is now empty, mark the key for removal
             if not value['component']:
                 keys_to_remove.append(key)
-    
-    # remove empty components
     for key in keys_to_remove:
         del secondary[key]
-    
     return secondary
-
 
 def all_combinations(lst):
     return [''.join(comb) for comb in chain.from_iterable(combinations(lst, r) for r in range(1, len(lst) + 1))]
@@ -100,23 +126,35 @@ def atleast_2d(lst):
 def atleast_1d(lst):
     return lst if isinstance(lst, list) else [lst]
 
+template_secondaries = ['lensing', 'birefringence']  # NOTE define your desired order here - this must match with all other globally defined lists you might have in the handler.py modules
+
 class l2base_Transformer:
     """Initializes attributes needed across all Jobs, or which are at least handy to have
     """
     def process_Simulation(dl, si, cf):
-        # FIXME if spectra change across simidx, this needs to be changed
-        simidx = cf.analysis.simidxs[0]
         for ope in si.operator_info:
             si.operator_info[ope]['tr'] = dl.tr
         dl.simulationdata = Simhandler(**si.__dict__)
-        def _set_Lmin_zero(obj):
-            obj[:cf.analysis.Lmin] = 0
-            return obj
-        dl.CLfids = {}
-        cf.analysis.secondary = filter_secondary(cf.analysis.secondary, cf.analysis.key.split('_')[0])
-        for secondary, secinfo in cf.analysis.secondary.items():
-            dl.CLfids[secondary] = {comp*2: _set_Lmin_zero(dl.simulationdata.get_fidsec(simidx, secondary=secondary, component=comp*2, return_nonrec=True)) for comp in secinfo['component']}
 
+        # NOTE this check key does not catch all possible wrong keys, but at least it catches the most common ones.
+        # Plancklens keys should all be correct with this, for delensalot, not so sure, will see over time.
+        check_key(cf.analysis.key)
+        # NOTE this is to catch varying Lmin. It also supports that Lmin may come as list, or only a single value.
+        # I make sure that the secondaries are sorted accordingly before I assign the Lmin values
+        cf.analysis.secondary = filter_secondary_and_component(cf.analysis.secondary, cf.analysis.key.split('_')[0])
+        seclist_sorted = sorted(cf.analysis.secondary, key=lambda x: template_secondaries.index(x) if x in template_secondaries else float('inf'))
+        complist_sorted = [comp for sec in seclist_sorted for comp in cf.analysis.secondary[sec]['component']]
+        if isinstance(cf.analysis.Lmin, dict):
+            dl.Lmin = cf.analysis.Lmin
+        elif isinstance(cf.analysis.Lmin, (int, list, np.ndarray)):
+            dl.Lmin = {comp: cf.analysis.Lmin if isinstance(cf.analysis.Lmin, int) or len(cf.analysis.Lmin) == 1 
+                    else cf.analysis.Lmin[i] for i, comp in enumerate(complist_sorted)}
+        dl.CLfids = {
+            sec: {comp * 2: np.where(np.arange(len(obj := dl.simulationdata.get_fidsec(
+                cf.analysis.simidxs[0], secondary=sec, component=comp * 2, return_nonrec=True))) < dl.Lmin[comp], 0, obj)
+                for comp in secinfo['component']}
+            for sec, secinfo in cf.analysis.secondary.items()}
+        
     def process_Analysis(dl, an, cf):
         if loglevel <= 20:
             dl.verbose = True
@@ -132,14 +170,12 @@ class l2base_Transformer:
         dl.LM_max = an.LM_max
         dl.lm_max_sky = an.lm_max_sky
 
-        # FIXME makes this a clean implementation
         dl.simidxs_mf = np.array(an.simidxs_mf)
         dl.Nmf = 10000 if cf.itrec != DNaV and cf.itrec.mfvar.startswith('/') else len(dl.simidxs_mf)
         
         dl.TEMP = transform(cf, l2T_Transformer())
-        dl.cls_unl = camb_clfile(an.cls_unl)
+        
         dl.cls_len = camb_clfile(an.cls_len)
-        dl.Lmin = an.Lmin
         if an.zbounds[0] == 'nmr_relative':
             dl.zbounds = df.get_zbounds(hp.read_map(cf.noisemodel.rhits_normalised[0]), an.zbounds[1])
         elif an.zbounds[0] == 'mr_relative':
@@ -155,13 +191,13 @@ class l2base_Transformer:
             dl.zbounds_len = an.zbounds_len
         dl.lm_max_pri = an.lm_max_pri
 
-        beam_factor = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_pri[0])
-        lmin_mask = np.arange(dl.lm_max_pri[0] + 1)[:, None] >= dl.lmin_teb
+        beam_factor = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_sky[0])
+        lmin_mask = np.arange(dl.lm_max_sky[0] + 1)[:, None] >= dl.lmin_teb
         if an.transfunction_desc == 'gauss_no_pixwin':
-            transf =(beam_factor[:, None] * lmin_mask)
+            transf = (beam_factor[:, None] * lmin_mask)
         elif an.transfunction_desc == 'gauss_with_pixwin':
             assert cf.noisemodel.geominfo[0] == 'healpix', 'implement non-healpix pixelwindow function'
-            pixwin_factor = hp.pixwin(cf.noisemodel.geominfo[1]['nside'], lmax=dl.lm_max_pri[0])
+            pixwin_factor = hp.pixwin(cf.noisemodel.geominfo[1]['nside'], lmax=dl.lm_max_sky[0])
             transf = (beam_factor[:, None] * pixwin_factor[:, None] * lmin_mask)
         dl.ttebl = dict(zip('teb', transf.T))
 
@@ -198,7 +234,7 @@ class l2T_Transformer:
         else:       
             if cf.analysis.TEMP_suffix != '':
                 _suffix = cf.analysis.TEMP_suffix
-                # NOTE this does not work because I don't know anything about the simulations...
+                # NOTE this might not work if I don't know anything about the simulations...
                 _secsuffix = "simdata__"+"_".join(f"{key}_{'_'.join(values['component'])}" for key, values in cf.simulationdata.sec_info.items())
             _suffix += '_OBD' if cf.noisemodel.OBD == 'OBD' else '_lminB'+str(cf.analysis.lmin_teb[2])+_secsuffix
             TEMP =  opj(os.environ['SCRATCH'], 'analysis', _suffix)
@@ -325,10 +361,9 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
             dl = DELENSALOT_Concept_v2()
             _process_components(dl)
-            # dl.cls_unl.update({comp: val for comp_dict in dl.CLfids.values() for comp, val in comp_dict.items()})
-            keystring = cf.analysis.key if len(cf.analysis.key) == 1 else cf.analysis.key.split('_')[-1] if "_" in cf.analysis.key else cf.analysis.key[1:]
+            keystring = cf.analysis.key if len(cf.analysis.key) == 1 else '_'+cf.analysis.key.split('_')[-1] if "_" in cf.analysis.key else cf.analysis.key[-2:]
             QE_filterqest_desc = {
-                "estimator_type": dl.estimator_type, #FIXME this should be a different value for each secondary
+                "estimator_type": dl.estimator_type, # TODO this could be a different value for each secondary
                 "libdir": opj(transform(cf, l2T_Transformer()), 'QE', keystring),
                 "simulationdata": Simhandler(**cf.simulationdata.__dict__),
                 "nivjob_geominfo": cf.noisemodel.geominfo,
@@ -336,10 +371,10 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "nlev": dl.nlev,
                 "spatial_type": cf.noisemodel.spatial_type,
                 "cls_len": dl.cls_len,
-                "cls_unl": dl.cls_unl,
+                "cls_unl": dl.simulationdata.cls_lib.Cl_dict,
                 "ttebl": dl.ttebl,
                 "lm_max_sky": dl.lm_max_sky,
-                "LM_max": dl.LM_max, #FIXME this should be a different value for each secondary
+                "LM_max": dl.LM_max, # TODO this could be a different value for each secondary
                 "zbounds": dl.zbounds,
                 "obd_libdir": dl.obd_libdir,
                 "obd_rescale": dl.obd_rescale,
@@ -353,7 +388,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             QE_secs_descs = {sec: {
                     "ID": sec,
                     "libdir": opj(transform(cf, l2T_Transformer()), 'QE', keystring, 'estimates', sec),
-                    'LM_max': val['LM_max'] if val['LM_max'] != dl.LM_max else dl.LM_max,
+                    'LM_max': dl.LM_max,
                     'component': val['component'],
                     'CLfids': dl.CLfids[sec],
                 } for sec, val in cf.analysis.secondary.items()}
@@ -365,10 +400,10 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 if sec in cf.analysis.secondary:
                     sec_data = cf.analysis.secondary[sec]
                     _QE_operators_desc[sec] = {
-                        "LM_max": sec_data["LM_max"] if sec_data["LM_max"] != dl.LM_max else dl.LM_max,
-                        "lm_max_pri": sec_data["lm_max_pri"] if sec_data["lm_max_pri"] != dl.lm_max_pri else dl.lm_max_pri,
-                        "lm_max_sky": sec_data["lm_max_sky"] if sec_data["lm_max_sky"] != dl.lm_max_sky else dl.lm_max_sky,
-                        "Lmin": dl.Lmin,
+                        "LM_max": dl.LM_max,
+                        "lm_max_pri": dl.lm_max_pri,
+                        "lm_max_sky": dl.lm_max_sky,
+                        # "Lmin": dl.Lmin,
                         "tr": dl.tr,
                         "ffi": dl.ffi,
                         "component": sec_data["component"],
@@ -433,13 +468,15 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             QE_searchs = dl.QE_searchs
             _process_components(dl)
 
-            MAP_libdir_prefix = opj(transform(cf, l2T_Transformer()), 'MAP'+"_"+"".join(cf.analysis.secondary.keys())+"_"+get_hashcode(OrderedDict(cf.analysis.secondary)), '{estimator_key}'.format(estimator_key=cf.analysis.key))
+            MAP_libdir_prefix = opj(transform(cf, l2T_Transformer()), 'MAP',f"{cf.analysis.key}")
+                # "_"+get_hashcode(OrderedDict(cf.analysis.secondary)), 
+                # '{estimator_key}'.format(estimator_key=cf.analysis.key))
 
             # input: all kwargs needed to build the MAP fields
             MAP_secondaries = {sec: MAP_field.secondary({
                 "ID": sec,
                 "libdir": opj(MAP_libdir_prefix, 'estimates/'),
-                'LM_max': cf.analysis.secondary[sec]['LM_max'],
+                'LM_max': dl.LM_max,
                 "component": val['component'],
                 'CLfids': dl.CLfids[sec],
                 'fns': {comp: f'klm_{comp}_simidx{{idx}}_it{{it}}' for comp in val['component']}, # This could be hardcoded, but I want to keep it flexible
@@ -456,10 +493,10 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 if sec in cf.analysis.secondary:
                     sec_data = cf.analysis.secondary[sec]
                     _MAP_operators_desc[sec] = {
-                        "LM_max": sec_data["LM_max"] if sec_data["LM_max"] != dl.LM_max else dl.LM_max,
-                        "lm_max_pri": sec_data["lm_max_pri"] if sec_data["lm_max_pri"] != dl.lm_max_pri else dl.lm_max_pri,
-                        "lm_max_sky": sec_data["lm_max_sky"] if sec_data["lm_max_sky"] != dl.lm_max_sky else dl.lm_max_sky,
-                        "Lmin": dl.Lmin,
+                        "LM_max": dl.LM_max,
+                        "lm_max_pri": dl.lm_max_pri,
+                        "lm_max_sky": dl.lm_max_sky,
+                        # "Lmin": dl.Lmin,
                         "component": sec_data.get("component", ['f']) if sec == "lensing" else ['f'],
                         "libdir": opj(MAP_libdir_prefix, 'estimates/'),
                         "field_fns": MAP_secondaries[sec].fns,
@@ -467,11 +504,11 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     }
                     if sec == "lensing":
                         _MAP_operators_desc[sec]["perturbative"] = False
-                        _MAP_operators_desc["spin_raise"] = {"lm_max": dl.lm_max_sky}
+                        _MAP_operators_desc["spin_raise"] = {"lm_max": dl.lm_max_pri}
                         filter_operators.append(operator.lensing(_MAP_operators_desc[sec]))
                         gradients_operators[sec] = operator.joint([operator.spin_raise(_MAP_operators_desc["spin_raise"]), *filter_operators])
                     else:  # birefringence
-                        _MAP_operators_desc["multiply"] = {"factor": -1j} # FIXME I think this should be -2j
+                        _MAP_operators_desc["multiply"] = {"factor": -1j} # FIXME not sure, -1j or -2j
                         filter_operators.append(operator.birefringence(_MAP_operators_desc[sec]))
                         gradients_operators[sec] = operator.joint([operator.multiply(_MAP_operators_desc["multiply"]), *filter_operators])
 
@@ -488,13 +525,13 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "ID": gradient_name,
                 "libdir": opj(MAP_libdir_prefix, 'gradients'),
                 "libdir_prior": opj(MAP_libdir_prefix, 'estimates'),
-                "LM_max": cf.analysis.secondary[gradient_name]['LM_max'],
+                "LM_max": dl.LM_max,
                 "meanfield_fns": f'mf_glm_{gradient_name}_simidx{{idx}}_it{{it}}',
                 "quad_fns": f'quad_glm_{gradient_name}_simidx{{idx}}_it{{it}}',
                 "prior_fns": 'klm_{component}_simidx{idx}_it{it}', # prior is just field, and then we do a simple divide by spectrum (almxfl)
                 "total_increment_fns": f'ginclm_{gradient_name}_simidx{{idx}}_it{{it}}',    
                 "total_fns": f'gtotlm_{gradient_name}_simidx{{idx}}_it{{it}}',    
-                "chh": {comp: chh(dl.CLfids[gradient_name][comp*2], lmax=cf.analysis.secondary[gradient_name]['LM_max'][0], gradient_name=gradient_name) for comp in cf.analysis.secondary[gradient_name]['component']},
+                "chh": {comp: chh(dl.CLfids[gradient_name][comp*2], lmax=dl.LM_max[0], gradient_name=gradient_name) for comp in cf.analysis.secondary[gradient_name]['component']},
                 "component": [item for  item in cf.analysis.secondary['lensing']['component']] if gradient_name == 'lensing' else ['f'],
             } for gradient_name, gradient_operator in gradients_operators.items()]
             MAP_gfields = {gfield_desc["ID"]: MAP_field.gradient(gfield_desc) for gfield_desc in gfield_descs}
@@ -505,7 +542,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "gfield": MAP_gfields[gradient_name],
                     "lm_max_sky": dl.lm_max_sky,
                     "lm_max_pri": dl.lm_max_pri,
-                    "LM_max": cf.analysis.secondary[gradient_name]['LM_max'],
+                    "LM_max": dl.LM_max,
                     'itmax': dl.itmax,
                     "gradient_operator": gradient_operator,
                     "ffi": dl.ffi,
@@ -544,7 +581,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 'nlev': dl.nlev,
                 "chain_descr": dl.it_chain_descr(dl.lm_max_pri[0], dl.it_cg_tol(0)),
                 "ttebl": dl.ttebl,
-                "cls_filt": dl.cls_unl,
+                "cls_filt": dl.simulationdata.cls_lib.Cl_dict,
                 "lm_max_pri": dl.lm_max_pri,
                 "lm_max_sky": dl.lm_max_sky,
                 "nlev": dl.nlev,

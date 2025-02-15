@@ -14,13 +14,13 @@ import multiprocessing
 def check_MPI(func):
     global name, rank, size
     def inner_function(*args, **kwargs):
-        log.info("rank: {}, size: {}, name: {}".format(rank, size, name))
+        if size>1: log.info("rank: {}, size: {}, name: {}".format(rank, size, name))
         return func(*args, **kwargs)
     return inner_function
 
 def check_MPI_inline():
     global name, rank, size
-    log.info("rank: {}, size: {}, name: {}".format(rank, size, name))
+    if size>1: log.info("rank: {}, size: {}, name: {}".format(rank, size, name))
 
 
 def isinstalled():

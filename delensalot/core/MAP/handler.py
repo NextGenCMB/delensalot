@@ -158,22 +158,22 @@ class base:
         if it is None:
             it = self.maxiterdone()
         if secondary is None:
-            return [grad.get_gradient_prior(it, component) for grad in self.gradients]
+            return [grad.get_gradient_prior(it-1, component) for grad in self.gradients]
         if isinstance(secondary, str):
-            return self.gradients[self.sec2idx[secondary]].get_gradient_prior(it, component)
+            return self.gradients[self.sec2idx[secondary]].get_gradient_prior(it-1, component)
         sec_idx = [self.sec2idx[sec] for sec in secondary]
-        return np.array([self.gradients[idx].get_gradient_prior(it, component) for idx in sec_idx])
+        return np.array([self.gradients[idx].get_gradient_prior(it-1, component) for idx in sec_idx])
     
 
     def get_gradient_total(self, data, it=None, secondary=None, component=None):
         if it is None:
             it = self.maxiterdone()
         if secondary is None:
-            return [grad.get_gradient_total(data, it, component) for grad in self.gradients]
+            return [grad.get_gradient_total(it, component, data) for grad in self.gradients]
         if isinstance(secondary, str):
-            return self.gradients[self.sec2idx[secondary]].get_gradient_total(data, it, component)
+            return self.gradients[self.sec2idx[secondary]].get_gradient_total(it, component, data)
         sec_idx = [self.sec2idx[sec] for sec in secondary]
-        return np.array([self.gradients[idx].get_gradient_total(data, it, component) for idx in sec_idx])
+        return np.array([self.gradients[idx].get_gradient_total(it, component, data) for idx in sec_idx])
 
 
     def get_template(self, it, secondary=None, component=None):

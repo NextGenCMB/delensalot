@@ -89,10 +89,10 @@ DL_DEFAULT = {
         }
     },
     'analysis': { 
-        'key': 'p_p',
+        'key': 'pwf_p',
         'simidxs': np.arange(0,1),
         'TEMP_suffix': 'P_FS_CMBS4_jointsecrec',
-        'Lmin': 2, 
+        'Lmin': {'p':2, 'w': 2, 'f': 2}, 
         'LM_max': (4200, 4200), # NOTE this is max reconstructed secondary
         'lm_max_pri': (4000, 4000), # NOTE this is for CMB
         'lm_max_sky': (4000, 4000), # NOTE this is for CMB
@@ -101,7 +101,6 @@ DL_DEFAULT = {
         'zbounds': (-1,1),
         'zbounds_len': (-1,1),
         'mask': None,
-        'cls_unl': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_secondaries_lens_birefringence.dat'),
         'cls_len': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lensedCls_secondaries_lens_birefringence.dat'),
         'beam': 1.0,
         'transfunction_desc': 'gauss_no_pixwin',

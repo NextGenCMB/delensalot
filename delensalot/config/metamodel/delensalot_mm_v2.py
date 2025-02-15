@@ -97,7 +97,6 @@ class DELENSALOT_Analysis(DELENSALOT_Concept_v2):
         lm_max_blt (tuple[int]):            maximum `\ell` and m for which B-lensing template is calculated
         mask (list[str]):                   TBD
         lmin_teb (int):                     minimum `\ell` and m of the data which the reconstruction uses, and is set to zero below via the transfer function
-        cls_unl (str):                      path to the fiducial unlensed CAMB-like CMB data
         cls_len (str):                      path to the fiducial lensed CAMB-like CMB data
         cpp (str):                          path to the power spectrum of the prior for the iterative reconstruction
         beam (float):                       The beam used in the filters
@@ -109,12 +108,11 @@ class DELENSALOT_Analysis(DELENSALOT_Concept_v2):
     simidxs =               attr.field(default=DEFAULT_NotAValue, validator=analysis.simidxs)
     simidxs_mf =            attr.field(default=DEFAULT_NotAValue, validator=analysis.simidxs_mf)
     TEMP_suffix =           attr.field(default=DEFAULT_NotAValue, validator=analysis.TEMP_suffix)
-    Lmin =                  attr.field(default=DEFAULT_NotAValue, validator=analysis.Lmin)
+    Lmin =                  attr.field(default=DEFAULT_NotAValue)
     zbounds =               attr.field(default=DEFAULT_NotAValue, validator=analysis.zbounds)
     zbounds_len =           attr.field(default=DEFAULT_NotAValue, validator=analysis.zbounds_len) # TODO rename
     mask =                  attr.field(default=DEFAULT_NotAValue, validator=analysis.mask) # TODO is this used? 
     lmin_teb =              attr.field(default=DEFAULT_NotAValue, validator=analysis.lmin_teb)
-    cls_unl =               attr.field(default=DEFAULT_NotAValue, validator=analysis.cls_unl)
     cls_len =               attr.field(default=DEFAULT_NotAValue, validator=analysis.cls_len)
     beam =                  attr.field(default=DEFAULT_NotAValue, validator=analysis.beam)
     transfunction_desc =    attr.field(default=DEFAULT_NotAValue, validator=analysis.transfunction)
