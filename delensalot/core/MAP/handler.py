@@ -65,6 +65,7 @@ class base:
                 grad_tot, grad_prev = [], []
                 print(f'---------- starting iteration {it} ----------')
                 for gradient in self.gradients:
+                    print(f'Calculating gradient for {gradient.ID}')
                     self.update_operator(simidx, it-1)
                     grad_tot.append(gradient.get_gradient_total(it, data=self.data)) #calculates the filtering, the sum, and the quadratic combination
                 grad_tot = np.concatenate([np.ravel(arr) for arr in grad_tot])

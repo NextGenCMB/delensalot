@@ -31,7 +31,7 @@ class multiply:
 
     def act(self, obj, spin=None, lm_max=None, adjoint=False):
         if adjoint:
-            return np.adj(self.factor)*obj
+            return np.conj(self.factor)*obj
         else:
             return self.factor*obj
     
@@ -77,11 +77,10 @@ class secondary_operator:
         secondary = secondary or [op.ID for op in self.operators]
         operators = self.operators if not adjoint else self.operators[::-1]
 
-        for operator in operators:
-            if operator.ID in secondary:
-                obj = operator.act(obj, spin, lm_max_in, lm_max_out, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode)
+        for idx, operator in enumerate(operators):
+            obj = operator.act(obj, spin, lm_max_in, lm_max_out, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode)
         return obj
-    
+
 
     def set_field(self, simidx, it, secondary=None, component=None):
         if secondary is None:
@@ -169,14 +168,14 @@ class birefringence(base):
 
     # NOTE this is alm2alm
     def act(self, obj, spin=None, lm_max_in=None, lm_max_out=None, adjoint=False, backwards=False, out_sht_mode=None):
-        buff_real = self.ffi.geom.alm2map(self.field[self.component[0]], *self.LM_max, 2)
+        lmax = Alm.getlmax(obj[0].size, None)
+
         # NOTE if no B component (e.g. for generating template), I set B to zero
         obj = np.atleast_2d(obj)
         if obj.shape[0] == 1:
-            obj = [obj[0], np.zeros_like(obj[0])+np.zeros_like(obj[0])*1j]
-        Q, U = self.ffi.geom.alm2map_spin(obj, 2, *self.lm_max_out, 8)
-                
-        angle = 2 * buff_real
+            obj = [obj[0], np.zeros_like(obj[0])+np.zeros_like(obj[0])*1j] 
+        Q, U = self.ffi.geom.alm2map_spin(obj, 2, lmax, lmax, 8)  
+        angle = 2 * self.ffi.geom.alm2map(self.field[self.component[0]], *self.LM_max, 8)
         cos_a, sin_a = np.cos(angle), np.sin(angle)
 
         Q_rot = cos_a * Q - sin_a * U
@@ -185,7 +184,7 @@ class birefringence(base):
         if adjoint:
             Q_rot, U_rot = cos_a * Q + sin_a * U, -sin_a * Q + cos_a * U
 
-        Elm_rot, Blm_rot = self.ffi.geom.map2alm_spin(np.array([Q_rot, U_rot]), 2, *self.lm_max_in, 2)
+        Elm_rot, Blm_rot = self.ffi.geom.map2alm_spin(np.array([Q_rot, U_rot]), 2, lmax, lmax, 8)
 
         return np.array([Elm_rot, Blm_rot])
 

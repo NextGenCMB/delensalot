@@ -102,14 +102,14 @@ class birefringence(base):
 
     def get_gradient_quad(self, it, component=None, data=None):
         if not self.gfield.quad_is_cached(self.simidx, it):
-            assert data is not None, "data must be provided for lensing gradient calculation"
+            assert data is not None, "data must be provided for birefringence gradient calculation"
             XWF = self.wf_filter.get_wflm(self.simidx, it)
             ivf = self.ivf_filter.get_ivfreslm(self.simidx, it, data, XWF)
             
             ivfmap = self.ffi.geom.synthesis(ivf, 2, self.lm_max_sky[0], self.lm_max_sky[1], self.ffi.sht_tr)
 
-            xwfglm = self.gradient_operator.act(XWF, spin=2, lm_max_pri=None, lm_max_sky=None)
-            xwfmap = self.ffi.geom.synthesis(xwfglm, 2, self.lm_max_sky[0], self.lm_max_sky[1], self.ffi.sht_tr)
+            xwfglm = self.gradient_operator.act(XWF, spin=2, lm_max_in=self.lm_max_pri, lm_max_out=self.lm_max_pri) # FIXME are the lmaxes correct?
+            xwfmap = self.ffi.geom.synthesis(xwfglm, 2, self.lm_max_pri[0], self.lm_max_pri[1], self.ffi.sht_tr)
  
             qlms = -4 * ( ivfmap[0] * xwfmap[1] - ivfmap[1] * xwfmap[0] )
             qlms = self.ffi.geom.adjoint_synthesis(qlms, 0, self.LM_max[0], self.LM_max[1], self.ffi.sht_tr)
