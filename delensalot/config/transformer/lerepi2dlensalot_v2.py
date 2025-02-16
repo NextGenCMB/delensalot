@@ -132,6 +132,9 @@ class l2base_Transformer:
     """Initializes attributes needed across all Jobs, or which are at least handy to have
     """
     def process_Simulation(dl, si, cf):
+
+        # NOTE Simhandler get the full simulation class. The validator will have removed the unneccessary secondaries if they were not explicitly set
+        # in the config. Simhandler controls everything with sec_info. Later in Simhandler, operator_info etc. are filtered accordingly.
         for ope in si.operator_info:
             si.operator_info[ope]['tr'] = dl.tr
         dl.simulationdata = Simhandler(**si.__dict__)
@@ -139,21 +142,19 @@ class l2base_Transformer:
         # NOTE this check key does not catch all possible wrong keys, but at least it catches the most common ones.
         # Plancklens keys should all be correct with this, for delensalot, not so sure, will see over time.
         check_key(cf.analysis.key)
+        
+        dl.analysis_secondary = filter_secondary_and_component(copy.deepcopy(cf.analysis.secondary), cf.analysis.key.split('_')[0])
+        seclist_sorted = sorted(dl.analysis_secondary, key=lambda x: template_secondaries.index(x) if x in template_secondaries else float('inf'))
+        complist_sorted = [comp for sec in seclist_sorted for comp in dl.analysis_secondary[sec]['component']]
+        
         # NOTE this is to catch varying Lmin. It also supports that Lmin may come as list, or only a single value.
         # I make sure that the secondaries are sorted accordingly before I assign the Lmin values
-        cf.analysis.secondary = filter_secondary_and_component(cf.analysis.secondary, cf.analysis.key.split('_')[0])
-        seclist_sorted = sorted(cf.analysis.secondary, key=lambda x: template_secondaries.index(x) if x in template_secondaries else float('inf'))
-        complist_sorted = [comp for sec in seclist_sorted for comp in cf.analysis.secondary[sec]['component']]
         if isinstance(cf.analysis.Lmin, dict):
             dl.Lmin = cf.analysis.Lmin
         elif isinstance(cf.analysis.Lmin, (int, list, np.ndarray)):
             dl.Lmin = {comp: cf.analysis.Lmin if isinstance(cf.analysis.Lmin, int) or len(cf.analysis.Lmin) == 1 
                     else cf.analysis.Lmin[i] for i, comp in enumerate(complist_sorted)}
-        dl.CLfids = {
-            sec: {comp * 2: np.where(np.arange(len(obj := dl.simulationdata.get_fidsec(
-                cf.analysis.simidxs[0], secondary=sec, component=comp * 2, return_nonrec=True))) < dl.Lmin[comp], 0, obj)
-                for comp in secinfo['component']}
-            for sec, secinfo in cf.analysis.secondary.items()}
+        dl.CLfids = dl.simulationdata.get_CLfids(0, dl.analysis_secondary, dl.Lmin)
         
     def process_Analysis(dl, an, cf):
         if loglevel <= 20:
@@ -200,9 +201,6 @@ class l2base_Transformer:
             pixwin_factor = hp.pixwin(cf.noisemodel.geominfo[1]['nside'], lmax=dl.lm_max_sky[0])
             transf = (beam_factor[:, None] * pixwin_factor[:, None] * lmin_mask)
         dl.ttebl = dict(zip('teb', transf.T))
-
-    def process_Meta(dl, me, cf):
-        dl.dversion = me.version
 
     def process_Computing(dl, co, cf):
         dl.tr = co.OMP_NUM_THREADS
@@ -257,9 +255,6 @@ class l2OBD_Transformer:
         if niv_map is None:
             if dl.nivjob_geominfo[0] != 'healpix':
                 assert 0, 'needs testing, please choose Healpix geom for nivjob for now'
-                # geom = get_geom(**)
-                # vamin =  4*np.pi * (180/np.pi)**2 / geom.npix()
-                # niv_desc = [np.array([vamin * 60 ** 2 / nlev['T'] ** 2])/noisemodel_norm] + masks
             pixel_area = hp.nside2pixarea(dl.nivjob_geominfo[1]['nside'], degrees=True) * 3600  # Convert to arcmin²
             niv_desc = [np.array([pixel_area / nlev[mode] ** 2]) / noisemodel_norm] + masks
         else:
@@ -300,13 +295,10 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 dl.lmin_teb = an.lmin_teb
                 dl.simidxs = an.simidxs
                 dl.simidxs_mf = np.array(an.simidxs_mf) # if dl.version != 'noMF' else np.array([])
-
                 dl.TEMP = transform(cf, l2T_Transformer())
-
             dl = DELENSALOT_Concept_v2()
             l2base_Transformer.process_Computing(dl, cf.computing, cf)
             _process_Analysis(dl, cf.analysis, cf)
-            l2base_Transformer.process_Meta(dl, cf.meta, cf)
             dl.libdir_suffix = cf.simulationdata.libdir_suffix
             l2base_Transformer.process_Simulation(dl, cf.simulationdata, cf)
             return dl
@@ -318,15 +310,12 @@ class l2delensalotjob_Transformer(l2base_Transformer):
         """
         def extract():
             def _process_components(dl):
-                def _process_Meta(dl, me):
-                    l2base_Transformer.process_Meta(dl, me, cf)
                 def _process_Computing(dl, co):
                     l2base_Transformer.process_Computing(dl, co, cf)
                 def _process_Analysis(dl, an):
                     l2base_Transformer.process_Analysis(dl, an, cf)
                 def _process_Noisemodel(dl, nm):
                     l2base_Transformer.process_Noisemodel(dl, nm, cf)
-                    
                 def _process_OBD(dl, od):
                     dl.obd_libdir = od.libdir
                     dl.obd_rescale = od.rescale
@@ -335,7 +324,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 def _process_Qerec(dl, qe):
                     qe_tasks_sorted = ['calc_fields', 'calc_meanfields', 'calc_templates'] if qe.subtract_QE_meanfield else ['calc_fields', 'calc_templates']
                     dl.qe_tasks = [task for task in qe_tasks_sorted if task in qe.tasks]
-
                     dl.subtract_QE_meanfield = qe.subtract_QE_meanfield
                     dl.estimator_type = qe.estimator_type
                     
@@ -345,13 +333,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.chain_model.p3 = dl.nivjob_geominfo[1]['nside']
                     dl.chain_descr = lambda p2, p5 : [[0, ["diag_cl"], p2, dl.nivjob_geominfo[1]['nside'], np.inf, p5, cd_solve.tr_cg, cd_solve.cache_mem()]]
                     
-                    # NOTE I need this for the template generation
-                    lenjob_geomlib = get_geom(cf.analysis.secondary['lensing']['geominfo'])
-                    thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
-                    lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
-                    dl.ffi = deflection(lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(*cf.analysis.secondary['lensing']['LM_max'])), cf.analysis.secondary['lensing']['LM_max'][1], numthreads=dl.tr, verbosity=False, epsilon=cf.analysis.secondary['lensing']['epsilon'])
-
-                _process_Meta(dl, cf.meta)
                 _process_Computing(dl, cf.computing)
                 _process_Analysis(dl, cf.analysis)
                 _process_Noisemodel(dl, cf.noisemodel)
@@ -361,6 +342,36 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
             dl = DELENSALOT_Concept_v2()
             _process_components(dl)
+            # FIXME decidle later what to do with this template operator. This can probably be moved to the QE job.
+            # But I also want to have it if I directly instantiate the QE search...
+            # # NOTE I need to have a new instance of this as for QE we use a slightly different setting (i.e. perturbative)
+            # # NOTE I need this for the template generation
+            # lenjob_geomlib = get_geom(dl.analysis_secondary['lensing']['geominfo'])
+            # thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
+            # lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
+            # dl.ffi = deflection(lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(*dl.analysis_secondary['lensing']['LM_max'])), dl.analysis_secondary['lensing']['LM_max'][1], numthreads=dl.tr, verbosity=False, epsilon=dl.analysis_secondary['lensing']['epsilon'])
+            # _QE_operators_desc = {}
+            # filter_operators = []
+            # for sec in ['lensing', 'birefringence']:
+            #     if sec in dl.analysis_secondary:
+            #         sec_data = dl.analysis_secondary[sec]
+            #         _QE_operators_desc[sec] = {
+            #             "LM_max": dl.LM_max,
+            #             "lm_max_pri": dl.lm_max_pri,
+            #             "lm_max_sky": dl.lm_max_sky,
+            #             # "Lmin": dl.Lmin,
+            #             "tr": dl.tr,
+            #             "ffi": dl.ffi,
+            #             "component": sec_data["component"],
+            #             "libdir": opj(transform(cf, l2T_Transformer()), 'QE', keystring, 'estimates', sec),
+            #             "field_fns": QE_secs[sec].klm_fns,
+            #         }
+            #         if sec == "lensing":
+            #             _QE_operators_desc[sec]["perturbative"] = True
+            #         filter_operators.append(getattr(operator, sec)(_QE_operators_desc[sec]))
+            # template_operator = operator.secondary_operator(filter_operators)
+
+
             keystring = cf.analysis.key if len(cf.analysis.key) == 1 else '_'+cf.analysis.key.split('_')[-1] if "_" in cf.analysis.key else cf.analysis.key[-2:]
             QE_filterqest_desc = {
                 "estimator_type": dl.estimator_type, # TODO this could be a different value for each secondary
@@ -369,67 +380,33 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "nivjob_geominfo": cf.noisemodel.geominfo,
                 "niv_desc": dl.niv_desc,
                 "nlev": dl.nlev,
-                "spatial_type": cf.noisemodel.spatial_type,
+                "filtering_spatial_type": cf.noisemodel.spatial_type,
                 "cls_len": dl.cls_len,
                 "cls_unl": dl.simulationdata.cls_lib.Cl_dict,
                 "ttebl": dl.ttebl,
-                "lm_max_sky": dl.lm_max_sky,
-                "LM_max": dl.LM_max, # TODO this could be a different value for each secondary
+                "lm_max_ivf": dl.lm_max_sky,
+                "lm_max_qlm": dl.LM_max, # TODO this could be a different value for each secondary
                 "zbounds": dl.zbounds,
                 "obd_libdir": dl.obd_libdir,
                 "obd_rescale": dl.obd_rescale,
                 "sht_threads": dl.tr,
                 "QE_cg_tol": dl.QE_cg_tol,
-                "beam": dl.beam,
                 "OBD": dl.OBD,
                 "lmin_teb": dl.lmin_teb,
                 "chain_descr": dl.chain_descr,
             }
-            QE_secs_descs = {sec: {
-                    "ID": sec,
-                    "libdir": opj(transform(cf, l2T_Transformer()), 'QE', keystring, 'estimates', sec),
-                    'LM_max': dl.LM_max,
-                    'component': val['component'],
-                    'CLfids': dl.CLfids[sec],
-                } for sec, val in cf.analysis.secondary.items()}
-            QE_secs = {name: QE_field.secondary(field_desc) for name, field_desc in QE_secs_descs.items()}
-
-            _QE_operators_desc = {}
-            filter_operators = []
-            for sec in ['lensing', 'birefringence']:
-                if sec in cf.analysis.secondary:
-                    sec_data = cf.analysis.secondary[sec]
-                    _QE_operators_desc[sec] = {
-                        "LM_max": dl.LM_max,
-                        "lm_max_pri": dl.lm_max_pri,
-                        "lm_max_sky": dl.lm_max_sky,
-                        # "Lmin": dl.Lmin,
-                        "tr": dl.tr,
-                        "ffi": dl.ffi,
-                        "component": sec_data["component"],
-                        "libdir": opj(transform(cf, l2T_Transformer()), 'QE', keystring, 'estimates', sec),
-                        "field_fns": QE_secs[sec].klm_fns,
-                    }
-                    if sec == "lensing":
-                        _QE_operators_desc[sec]["perturbative"] = True
-                    filter_operators.append(getattr(operator, sec)(_QE_operators_desc[sec]))
-
-            # NOTE I need to have a new instance of this as for QE we use a slightly different setting (i.e. perturbative)
-            template_operator = operator.secondary_operator(filter_operators) #TODO this is ivf_operator*ivf_operator^dagger, could be implemented via ivf.
 
             QE_searchs_desc = {sec: {
-                    "ID": sec,
-                    "libdir": opj(transform(cf, l2T_Transformer()), 'QE', keystring, sec),
-                    "QE_filterqest_desc": QE_filterqest_desc,
-                    "secondary": QE_secs[sec],
                     "estimator_key": generate_plancklenskeys(cf.analysis.key)[sec],
-                    "simidxs": cf.analysis.simidxs,
-                    "simidxs_mf": dl.simidxs_mf,
+                    'CLfids': dl.CLfids[sec],
                     "subtract_meanfield": dl.subtract_QE_meanfield,
-                } for sec in cf.analysis.secondary.keys()}
+                    "QE_filterqest_desc": QE_filterqest_desc,
+                    "ID": sec,
+                    "libdir": opj(transform(cf, l2T_Transformer()), 'QE', keystring),
+                } for sec in dl.analysis_secondary.keys()}
             
-            QE_handler_desc = {
-                "template_operator": template_operator,
+            QE_job_desc = {
+                "template_operator": None, # template_operator
                 "simidxs": cf.analysis.simidxs,
                 "simidxs_mf": dl.simidxs_mf,
                 "QE_tasks": dl.qe_tasks,
@@ -437,7 +414,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             }
 
             dl.QE_searchs_desc = QE_searchs_desc
-            dl.QE_handler_desc = QE_handler_desc
+            dl.QE_job_desc = QE_job_desc
             return dl
         return QE_lr_v2(extract())
 
@@ -456,10 +433,10 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.itmax = it.itmax
 
                     dl.soltn_cond = it.soltn_cond
-                    lenjob_geomlib = get_geom(cf.analysis.secondary['lensing']['geominfo'])
+                    lenjob_geomlib = get_geom(dl.analysis_secondary['lensing']['geominfo'])
                     thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
                     lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
-                    dl.ffi = deflection(lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(*cf.analysis.secondary['lensing']['LM_max'])), cf.analysis.secondary['lensing']['LM_max'][1], numthreads=dl.tr, verbosity=False, epsilon=cf.analysis.secondary['lensing']['epsilon'])
+                    dl.ffi = deflection(lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(*dl.analysis_secondary['lensing']['LM_max'])), dl.analysis_secondary['lensing']['LM_max'][1], numthreads=dl.tr, verbosity=False, epsilon=dl.analysis_secondary['lensing']['epsilon'])
                 
                 _process_Itrec(dl, cf.itrec)
 
@@ -469,10 +446,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             _process_components(dl)
 
             MAP_libdir_prefix = opj(transform(cf, l2T_Transformer()), 'MAP',f"{cf.analysis.key}")
-                # "_"+get_hashcode(OrderedDict(cf.analysis.secondary)), 
-                # '{estimator_key}'.format(estimator_key=cf.analysis.key))
-
-            # input: all kwargs needed to build the MAP fields
             MAP_secondaries = {sec: MAP_field.secondary({
                 "ID": sec,
                 "libdir": opj(MAP_libdir_prefix, 'estimates/'),
@@ -482,22 +455,21 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 'fns': {comp: f'klm_{comp}_simidx{{idx}}_it{{it}}' for comp in val['component']}, # This could be hardcoded, but I want to keep it flexible
                 'increment_fns': {comp: f'kinclm_{comp}_simidx{{idx}}_it{{it}}' for comp in val['component']},
                 'meanfield_fns': {comp: f'kmflm_{comp}_simidx{{idx}}_it{{it}}' for comp in val['component']},
-            }) for sec, val in cf.analysis.secondary.items()}
+            }) for sec, val in dl.analysis_secondary.items()}
 
-            # input: all kwargs needed to build the MAP search
             _MAP_operators_desc = {}
             filter_operators = []
             gradients_operators = {}
 
             for sec in ['lensing', 'birefringence']:
-                if sec in cf.analysis.secondary:
-                    sec_data = cf.analysis.secondary[sec]
+                if sec in dl.analysis_secondary:
+                    sec_data = dl.analysis_secondary[sec]
                     _MAP_operators_desc[sec] = {
                         "LM_max": dl.LM_max,
                         "lm_max_pri": dl.lm_max_pri,
                         "lm_max_sky": dl.lm_max_sky,
                         # "Lmin": dl.Lmin,
-                        "component": sec_data.get("component", ['f']) if sec == "lensing" else ['f'],
+                        "component": sec_data["component"],
                         "libdir": opj(MAP_libdir_prefix, 'estimates/'),
                         "field_fns": MAP_secondaries[sec].fns,
                         "ffi": dl.ffi,
@@ -531,8 +503,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "prior_fns": 'klm_{component}_simidx{idx}_it{it}', # prior is just field, and then we do a simple divide by spectrum (almxfl)
                 "total_increment_fns": f'ginclm_{gradient_name}_simidx{{idx}}_it{{it}}',    
                 "total_fns": f'gtotlm_{gradient_name}_simidx{{idx}}_it{{it}}',    
-                "chh": {comp: chh(dl.CLfids[gradient_name][comp*2], lmax=dl.LM_max[0], gradient_name=gradient_name) for comp in cf.analysis.secondary[gradient_name]['component']},
-                "component": [item for  item in cf.analysis.secondary['lensing']['component']] if gradient_name == 'lensing' else ['f'],
+                "chh": {comp: chh(dl.CLfids[gradient_name][comp*2], lmax=dl.LM_max[0], gradient_name=gradient_name) for comp in dl.analysis_secondary[gradient_name]['component']},
+                "component": [item for  item in dl.analysis_secondary['lensing']['component']] if gradient_name == 'lensing' else ['f'],
             } for gradient_name, gradient_operator in gradients_operators.items()]
             MAP_gfields = {gfield_desc["ID"]: MAP_field.gradient(gfield_desc) for gfield_desc in gfield_descs}
             gradient_descs = {}
@@ -590,7 +562,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             def dotop(glms1, glms2):
                 ret = 0.
                 N = 0
-                for lmax, mmax in [sec['LM_max'] for sec in cf.analysis.secondary.values()]:
+                for lmax, mmax in [sec['LM_max'] for sec in dl.analysis_secondary.values()]:
                     siz = hp.Alm.getsize(lmax, mmax)
                     cl = hp.alm2cl(glms1[N:N+siz], glms2[N:N+siz], None, mmax, None)
                     ret += np.sum(cl * (2 * np.arange(len(cl)) + 1))
@@ -624,8 +596,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "simidxs": cf.analysis.simidxs,
                 "simidxs_mf": dl.simidxs_mf,
                 "QE_searchs": QE_searchs,
-                "it_tasks": dl.it_tasks,
-                
+                "it_tasks": dl.it_tasks,  
             }
             dl.MAP_handler_desc, dl.MAP_searchs_desc = MAP_handler_desc, MAP_searchs_desc
             return dl
@@ -689,8 +660,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
         """
         def extract():
             def _process_components(dl):
-                def _process_Meta(dl, me):
-                    dl.dversion = me.version
                 def _process_Computing(dl, co):
                     l2base_Transformer.process_Computing(dl, co, cf)
                 def _process_Analysis(dl, an):
@@ -706,7 +675,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     pass
 
                 dl.blt_pert = cf.qerec.blt_pert
-                _process_Meta(dl, cf.meta)
                 _process_Computing(dl, cf.computing)
                 dl.libdir_suffix = cf.simulationdata.obs_info['noise_info']['libdir_suffix']
                 dl.simulationdata = Simhandler(**cf.simulationdata.__dict__)
@@ -730,9 +698,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
         """
         def extract():
             def _process_components(dl):
-                def _process_Meta(dl, me):
-                    dl.dversion = me.version
-
                 def _process_Computing(dl, co):
                     l2base_Transformer.process_Computing(dl, co, cf)
 
@@ -768,7 +733,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     elif dl.custom_WF_TEMP is None or type(dl.custom_WF_TEMP) == int:
                         dl.custom_WF_TEMP = None
       
-                _process_Meta(dl, cf.meta)
                 _process_Computing(dl, cf.computing)
                 _process_Analysis(dl, cf.analysis)
                 _process_Noisemodel(dl, cf.noisemodel)

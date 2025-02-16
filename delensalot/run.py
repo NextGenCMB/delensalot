@@ -54,6 +54,7 @@ class run():
             ConsoleOutputHandler.setLevel(logging.DEBUG)
             sys_logger.setLevel(logging.DEBUG)
             logging.basicConfig(level=logging.DEBUG, handlers=[ConsoleOutputHandler])
+        
         self.parser = parserclass()
         self.parser.resume =  ""
         self.parser.config_file = config_fn if config_fn is not None else 'config.py'

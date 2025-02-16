@@ -588,29 +588,24 @@ class QE_lr_v2:
         # Sim_generator updates the simulationdata object with the libdirs and fns if it generated simulations, so need to update this
         self.simgen = Sim_generator(dm)
         self.simulationdata = self.simgen.simulationdata
-        for name, QE_searchs_desc in dm.QE_searchs_desc.items():
-            QE_searchs_desc['QE_filterqest_desc']['simulationdata'] = self.simulationdata
 
-        self.QE_tasks = dm.QE_handler_desc['QE_tasks']
-        self.simidxs = dm.QE_handler_desc['simidxs']
-        self.simidxs_mf = dm.QE_handler_desc['simidxs_mf']
+        self.QE_tasks = dm.QE_job_desc['QE_tasks']
+        self.simidxs = dm.QE_job_desc['simidxs']
+        self.simidxs_mf = dm.QE_job_desc['simidxs_mf']
 
         # I want to have a QE search for each field
-        self.QE_searchs = [QE_handler.base(QE_search_desc) for name, QE_search_desc in dm.QE_searchs_desc.items()]
-        if len(self.QE_searchs) == 0:
-            print(' -- -- -- -- --  -- -- -- -- --  -- -- -- -- -- ')
-            print(' -- -- -- -- --  nothing to reconstruct -- you did not specifiy any secondaries in the config file  -- -- -- -- -- ')
-            print(' -- -- -- -- --  -- -- -- -- --  -- -- -- -- -- ')
+        for QE_search_desc in dm.QE_searchs_desc.values():
+            QE_search_desc['simidxs_mf'] = self.simidxs_mf
+            QE_search_desc['QE_filterqest_desc']['simulationdata'] = self.simulationdata
+        self.QE_searchs = [QE_handler.base(**QE_search_desc) for name, QE_search_desc in dm.QE_searchs_desc.items()]
+
         self.secondary2idx = {QE_search.secondary.ID: i for i, QE_search in enumerate(self.QE_searchs)}
         self.idx2secondary = {i: QE_search.secondary.ID for i, QE_search in enumerate(self.QE_searchs)}
 
-        self.template_operator = dm.QE_handler_desc['template_operator']
+        self.template_operator = dm.QE_job_desc['template_operator'] # FIXME deal with this later
         
         # if there is no job, we can already init the filterqest
-        def filter_none(array):
-            return np.array([x for x in array.ravel() if x is not None])
-        _jobs = self.collect_jobs()
-        if len(filter_none(_jobs))==0:
+        if len(np.array([x for x in self.collect_jobs().ravel() if x is not None]))==0:
             for QE_search in self.QE_searchs:
                 QE_search.init_filterqest()
 
@@ -619,7 +614,6 @@ class QE_lr_v2:
         jobs = list(range(len(self.QE_tasks)))
         for taski, task in enumerate(self.QE_tasks):
             _jobs = []
-
             if task == 'calc_fields':
                 _nomfcheck = True if self.simidxs_mf == [] else False
                 for simidx in self.simidxs:
@@ -661,7 +655,6 @@ class QE_lr_v2:
                                 field_fn = opj(QE_search.libdir, 'qlms_dd', QE_search.secondary.qlm_fns[component].format(idx=simidx) if simidx != -1 else 'dat_%s.fits'%self.k)
                                 if not os.path.isfile(field_fn) or recalc:
                                     _jobs.append(int(simidx))
-
             jobs[taski] = _jobs
         self.jobs = jobs
         if not np.all(np.array(jobs)==None):

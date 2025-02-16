@@ -10,6 +10,8 @@ from os.path import join as opj
 from pathlib import Path
 from attrs import validators
 import numpy as np
+import attr
+import traceback
 
 import logging
 log = logging.getLogger(__name__)
@@ -19,28 +21,48 @@ from delensalot.config.validator import analysis, chaindescriptor, computing, da
 
 import importlib.util
 
+attr.validators.set_disabled(True)
 
 class DELENSALOT_Concept_v2:
     """An abstract element base type for the Dlensalot formalism."""
     __metaclass__ = abc.ABCMeta
 
+    def __str__(self):
+        """ overwrites __str__ to summarize dlensalot model in a prettier way
 
-    # def __str__(self):
-    #     """ overwrites __str__ to summarize dlensalot model in a prettier way
+        Returns:
+            str: A table with all attributes of the model
+        """        
+        ##
+        _str = ''
+        for key, val in self.__dict__.items():
+            keylen = len(str(key))
+            if type(val) in [list, np.ndarray, np.array, dict]:
+                _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(type(val))
+            else:
+                _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(val)
+            _str += '\n'
+        return _str
+    
+    
 
-    #     Returns:
-    #         str: A table with all attributes of the model
-    #     """        
-    #     ##
-    #     _str = ''
-    #     for key, val in self.__dict__.items():
-    #         keylen = len(str(key))
-    #         if type(val) in [list, np.ndarray, np.array, dict]:
-    #             _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(type(val))
-    #         else:
-    #             _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(val)
-    #         _str += '\n'
-    #     return _str
+    def validate(self):
+        """Runs all validators manually for the instance."""
+        for field in attr.fields(self.__class__):
+            value = getattr(self, field.name, None)
+            if field.validator:
+                if isinstance(field.validator, attr.validators._AndValidator):  # Handles multiple validators
+                    for v in field.validator.validators:
+                        v(self, field, value)
+                else:
+                    field.validator(self, field, value)  # Call the validator with proper arguments
+
+
+    # def __attrs_post_init__(self):
+        # self.validate()
+
+    # def __setattr__(self, name, value):
+        # pass
 
 
 @attr.s
@@ -59,14 +81,14 @@ class DELENSALOT_Chaindescriptor(DELENSALOT_Concept_v2):
         p7: cacher setting
     """
     # TODO change names after testing various chains - can we find better heuristics?
-    p0 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p0)
-    p1 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p1)
-    p2 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p2)
-    p3 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p3)
-    p4 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p4)
-    p5 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p5)
-    p6 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p6)
-    p7 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p7)
+    p0 =                    attr.field(default=DEFAULT_NotAValue)
+    p1 =                    attr.field(default=DEFAULT_NotAValue)
+    p2 =                    attr.field(default=DEFAULT_NotAValue)
+    p3 =                    attr.field(default=DEFAULT_NotAValue)
+    p4 =                    attr.field(default=DEFAULT_NotAValue)
+    p5 =                    attr.field(default=DEFAULT_NotAValue)
+    p6 =                    attr.field(default=DEFAULT_NotAValue)
+    p7 =                    attr.field(default=DEFAULT_NotAValue)
 
 
 @attr.s
@@ -78,6 +100,7 @@ class DELENSALOT_Job(DELENSALOT_Concept_v2):
         jobs (list[str]): Job identifier(s)
     """
     jobs =                  attr.field(default=DEFAULT_NotAValue, validator=job.jobs)
+
 
 @attr.s
 class DELENSALOT_Analysis(DELENSALOT_Concept_v2):
@@ -134,7 +157,7 @@ class DELENSALOT_Simulation(DELENSALOT_Concept_v2):
     geominfo =      attr.field(default=DEFAULT_NotAValue, validator=data.geominfo)
     fid_info =      attr.field(default=DEFAULT_NotAValue)
     CMB_info =      attr.field(default=DEFAULT_NotAValue)
-    sec_info =      attr.field(default=DEFAULT_NotAValue)
+    sec_info =      attr.field(default=DEFAULT_NotAValue, validator=data.secinfo)
     obs_info =      attr.field(default=DEFAULT_NotAValue)
     operator_info = attr.field(default=DEFAULT_NotAValue)
 
@@ -163,6 +186,7 @@ class DELENSALOT_Noisemodel(DELENSALOT_Concept_v2):
     nivt_map =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geominfo) # TODO test if it works
     nivp_map =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geominfo) # TODO test if it works
 
+
 @attr.s
 class DELENSALOT_Qerec(DELENSALOT_Concept_v2):
     """A root model element type of the Dlensalot formalism.
@@ -180,11 +204,12 @@ class DELENSALOT_Qerec(DELENSALOT_Concept_v2):
     
     """
     tasks =                 attr.field(default=DEFAULT_NotAValue, validator=qerec.tasks)
-    estimator_type =        attr.field(default=DEFAULT_NotAValue, validator=qerec.qlms)
+    estimator_type =        attr.field(default=DEFAULT_NotAValue)
     qlm_type =              attr.field(default=DEFAULT_NotAValue, validator=qerec.qlms)
     cg_tol =                attr.field(default=DEFAULT_NotAValue, validator=qerec.cg_tol)
     chain =                 attr.field(default=DELENSALOT_Chaindescriptor(), validator=qerec.chain)
     subtract_QE_meanfield = attr.field(default=DEFAULT_NotAValue)
+
 
 @attr.s
 class DELENSALOT_Itrec(DELENSALOT_Concept_v2):
@@ -279,17 +304,6 @@ class DELENSALOT_OBD(DELENSALOT_Concept_v2):
 
 
 @attr.s
-class DELENSALOT_Meta(DELENSALOT_Concept_v2): # TODO do we really need a Meta?
-    """A root model element type of the Dlensalot formalism.
-    This class collects all configurations related to internal behaviour of delensalot.
-
-    Attributes:
-        version (str):  version control of the delensalot model
-    """
-    version =               attr.field(default=DEFAULT_NotAValue, validator=attr.validators.instance_of(int))
-
-
-@attr.s
 class DELENSALOT_Computing(DELENSALOT_Concept_v2):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the usage of computing resources.
@@ -306,7 +320,6 @@ class DELENSALOT_Model(DELENSALOT_Concept_v2):
 
     Attributes:
         defaults_to (str):              Identifier for default-dictionary if user hasn't specified value in configuration file
-        meta (DELENSALOT_Meta):          configurations related to internal behaviour of delensalot
         job (DELENSALOT_Job):            delensalot can executte different jobs (QE reconstruction, simulation generation, MAP reconstruction, delensing, analyse_phi) which is controlled here
         analysis (DELENSALOT_Analysis):  configurations related to the specific analysis performed on the data
         data (DELENSALOT_Data):          configurations related to the input CMB maps
@@ -323,7 +336,6 @@ class DELENSALOT_Model(DELENSALOT_Concept_v2):
     
     defaults_to =           attr.field(default='default_jointrec')
     validate_model =        attr.field(default=True)
-    meta =                  attr.field(default=DELENSALOT_Meta(), validator=model.meta)
     job =                   attr.field(default=DELENSALOT_Job(), validator=model.job)
     analysis =              attr.field(default=DELENSALOT_Analysis(), validator=model.analysis)
     simulationdata =        attr.field(default=DELENSALOT_Simulation(), validator=model.data)
@@ -337,6 +349,12 @@ class DELENSALOT_Model(DELENSALOT_Concept_v2):
     
 
     def __attrs_post_init__(self):
+        """Ensure missing attributes are set to their class-level default values."""
+        for field in attr.fields(self.__class__):
+            if not hasattr(self, field.name) or getattr(self, field.name) is None:
+                setattr(self, field.name, field.default)
+
+        print('setting defaults')
         default_path = Path(__file__).parent.parent / f"default/{self.defaults_to.replace('.py', '')}.py"
         spec = importlib.util.spec_from_file_location("default", default_path)
         default_module = importlib.util.module_from_spec(spec)
@@ -362,13 +380,13 @@ class DELENSALOT_Model(DELENSALOT_Concept_v2):
         for key, default_value in default_dict.items():
             if key in ['defaults_to', 'validate_model']:
                 continue  # Skip special attributes
-            if key in ['simulationdata', 'analysis']:
+            if key in ['simulationdata']:#, 'analysis']:
                 # NOTE this only updates secondary keys if any secondary is actually listed in the analysis of the config file. 
                 # By this I make sure that the library only receives the secondaries that the user wants,
                 # while at the same time setting the defaults for that secondary if the user did not specify
                 for value in default_dict[key]:
                     target_attr = getattr(self, key)
-                    if value in ['sec_info', 'secondary']:
+                    if value in ['sec_info']:#, 'secondary']:
                         attr_value = getattr(target_attr, value)
                         if attr_value == DEFAULT_NotAValue:
                             # NOTE if no sec_info is given, we need to set the default sec_info
@@ -390,3 +408,36 @@ class DELENSALOT_Model(DELENSALOT_Concept_v2):
                 if not hasattr(self, key) or getattr(self, key) == DEFAULT_NotAValue:
                     setattr(self, key, default_value)
                 update_defaults(getattr(self, key), default_value)
+
+
+    def fill_with_defaults(self):
+        self.__attrs_post_init__()
+
+
+    def validate(self):
+        """Recursively validate this instance and all its nested attrs classes."""
+        # Validate the current instance's fields
+        for field in attr.fields(self.__class__):
+            value = getattr(self, field.name)
+
+            # Check if the attribute has a validator, and call it
+            if field.validator:
+                if isinstance(field.validator, attr.validators._AndValidator):  # Handles multiple validators
+                    for validator in field.validator.validators:
+                        validator(self, field, value)
+                else:
+                    field.validator(self, field, value)
+
+            # If the value is another attrs class, validate it recursively
+            if value is not None and attr.has(value):  
+                value.validate()  # Recursively validate nested attrs classes
+
+    @classmethod
+    def disable_validation(cls):
+        """Call this to disable validation."""
+        attr.validators.set_disabled(True)
+
+    @classmethod
+    def enable_validation(cls):
+        """Call this to enable validation."""
+        attr.validators.set_disabled(False)

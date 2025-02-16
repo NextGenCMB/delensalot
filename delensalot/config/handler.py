@@ -47,6 +47,7 @@ class config_handler():
     def __init__(self, parser, config=None, key=None):
         sorted_joblist = ['generate_sim', 'QE_lensrec', 'MAP_lensrec', 'analyse_phi', 'delens']
         self.config = config if config is not None else config_handler.load_config(parser.config_file, 'configfile')
+        config.validate()
         if key is not None:
             self.config.analysis.key = key
         if 'job_id' in parser.__dict__ and parser.job_id is not None:
@@ -63,6 +64,7 @@ class config_handler():
                 else:
                     self.config.job.jobs.append(job)
         TEMP = transform(self.config, transformers_T.get(type(self.config)))
+        print(TEMP)
         self.parser = parser
         self.TEMP = TEMP
 
@@ -112,7 +114,7 @@ class config_handler():
         for jobi, job in enumerate(self.djobmodels):
             log.info('running job {}'.format(self.config.job.jobs[jobi]))
             log.info('The TEMP directory is {}:'.format("/".join(job.TEMP.split('/')[-3:])))
-            job.collect_jobs()    
+            job.collect_jobs()
             job.run()
 
 
@@ -206,7 +208,7 @@ class config_handler():
         Returns:
             object: the configuration file
         """        
-        
+        DELENSALOT_Model_mm_v2.disable_validation()
         spec = iu.spec_from_file_location('configfile', directory)
         p = iu.module_from_spec(spec)
         sys.modules[descriptor] = p

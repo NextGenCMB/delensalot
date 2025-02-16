@@ -1,12 +1,13 @@
 from os.path import join as opj
 import numpy as np
+import os
 
 from plancklens import qest, qresp
 
 from lenspyx.lensing import get_geom 
 
-from delensalot.utility.utils_hp import gauss_beam
 from delensalot.utility.utils_hp import alm_copy
+from delensalot.core.cg import cd_solve
 from delensalot.core.ivf import filt_util, filt_cinv, filt_simple
 from delensalot.core.opfilt import utils_cinv_p as cinv_p_OBD
 
@@ -14,19 +15,37 @@ from delensalot.config.config_helper import data_functions as df
 from delensalot.utils import cli
 
 class base:
-    def __init__(self, filter_desc):
-        # This class tries to hide the uglyness to interfacing with plancklens (no offense)
-        self.lm_max_ivf = filter_desc['lm_max_sky']
-        self.lm_max_qlm = filter_desc['LM_max']
-        self.lmin_teb = filter_desc['lmin_teb']
+    # def __init__(self, filter_desc):
+    def __init__(self, simulationdata, lm_max_ivf, lm_max_qlm, lmin_teb, nivjob_geominfo, niv_desc, nlev, ttebl, filtering_spatial_type, QE_cg_tol, sht_threads, cls_len, cls_unl, estimator_type, libdir, chain_descr=None, OBD='trunc', obd_libdir='obd', obd_rescale=1., zbounds=(-1,1)):
+        # This class is to interface with Plancklens
+        
+        self.simulationdata = simulationdata
+        self.estimator_type = estimator_type
+        self.libdir = libdir or opj(os.environ['SCRATCH'], 'QE')
 
-        self.cls_len = filter_desc['cls_len']
-        self.cls_unl = filter_desc['cls_unl']
+        self.nivjob_geominfo = nivjob_geominfo
+        self.niv_desc = niv_desc
+        self.nlev = nlev
 
-        self.nivjob_geominfo = filter_desc['nivjob_geominfo']
-        self.niv_desc = filter_desc['niv_desc']
-        self.nlev = filter_desc['nlev']
-        self.ttebl = filter_desc['ttebl']
+        self.ttebl = ttebl
+        self.cls_len = cls_len
+        self.cls_unl = cls_unl
+
+        self.lm_max_ivf = lm_max_ivf
+        self.lm_max_qlm = lm_max_qlm
+        self.lmin_teb = lmin_teb
+
+        self.filtering_spatial_type = filtering_spatial_type
+        self.zbounds = zbounds
+        self.cg_tol = QE_cg_tol
+
+        self.sht_threads = sht_threads
+        self.chain_descr = chain_descr or (lambda p2, p5 : [[0, ["diag_cl"], p2, self.nivjob_geominfo[1]['nside'], np.inf, p5, cd_solve.tr_cg, cd_solve.cache_mem()]])
+
+        self.OBD = OBD
+        self.obd_libdir = obd_libdir
+        self.obd_rescale = obd_rescale
+
         # Isotropic approximation to the filtering (using 'len' for lensed spectra)
         self.ftebl_len = {key: self.__compute_transfer(cls_key, nlev_key, transf_key, 'len') 
             for key, (cls_key, nlev_key, transf_key) in zip('teb', [('tt', 'T', 't'), ('ee', 'P', 'e'), ('bb', 'P', 'b')])}
@@ -34,37 +53,20 @@ class base:
         self.ftebl_unl = {key: self.__compute_transfer(cls_key, nlev_key, transf_key, 'unl') 
             for key, (cls_key, nlev_key, transf_key) in zip('teb', [('tt', 'T', 't'), ('ee', 'P', 'e'), ('bb', 'P', 'b')])}
 
-        self.spatial_type = filter_desc['spatial_type']
-        self.estimator_type = filter_desc['estimator_type']
-        self.libdir = filter_desc['libdir']
-
-        self.simulationdata = filter_desc['simulationdata']
-
-        self.chain_descr = filter_desc['chain_descr']
-        self.cg_tol = filter_desc['QE_cg_tol']
-        self.sht_threads = filter_desc['sht_threads']
-
-        self.beam = filter_desc['beam'] #FIXME i dont want this here, can possibly be removed
-
-        self.OBD = filter_desc['OBD']
-        self.obd_libdir = filter_desc['obd_libdir']
-        self.obd_rescale = filter_desc['obd_rescale']
-
 
     def _init_filterqest(self):
-        if self.spatial_type == 'isotropic':
+        if self.filtering_spatial_type == 'isotropic':
             self.ivf = filt_simple.library_fullsky_sepTP(opj(self.libdir, 'ivf'), self.simulationdata, self.nivjob_geominfo[1]['nside'], self.ttebl, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
             if self.estimator_type == 'sepTP':
                 self.qlms_dd = qest.library_sepTP(opj(self.libdir, 'qlms_dd'), self.ivf, self.ivf, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
-        elif self.spatial_type == 'anisotropic':
+        elif self.filtering_spatial_type == 'anisotropic':
             ## Wait for finished run(), as plancklens triggers cinv_calc...
             self.cinv_t = filt_cinv.cinv_t(opj(self.libdir, 'cinv_t'),
                     self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
                     self.ttebl['t'], self.niv_desc['T'],
                     marge_monopole=True, marge_dipole=True, marge_maps=[])
 
-            # FIXME is this right? what if analysis includes pixelwindow function?
-            transf_elm_loc = gauss_beam(self.beam / 180 / 60 * np.pi, lmax=self.lm_max_ivf[0])
+            transf_elm_loc = self.ttebl['e']
             if self.OBD == 'OBD':
                 nivjob_geomlib_ = get_geom(self.nivjob_geominfo)
                 self.cinv_p = cinv_p_OBD.cinv_p(opj(self.libdir, 'cinv_p'),

@@ -27,7 +27,7 @@ valid_value = {
 valid_bound = {
     'key': [],
     'version': [],
-    'simidxs': [],
+    'simidxs': [0],
     'simidxs_mf': [],
     'TEMP_suffix': [],
     'Lmin': [0],
@@ -50,7 +50,7 @@ valid_bound = {
 valid_type = {
     'key': [str],
     'version': [str],
-    'simidxs': [np.array, np.ndarray],
+    'simidxs': [list, np.ndarray],
     'simidxs_mf': [np.array, np.ndarray],
     'TEMP_suffix': [str],
     'Lmin': [int],
@@ -109,12 +109,13 @@ def lm_max_blt(instance, attribute, value):
 
 def simidxs(instance, attribute, value):
     if np.all(value != DEFAULT_NotAValue):
-        assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('Must be in {}, but is {}'.format(valid_bound[attribute.name], value))
+        assert type(value) in valid_type[attribute.name] if valid_type[attribute.name] != [] else 1, ValueError('simidxs must be in {}, but is {}'.format(valid_type[attribute.name], value))
+        assert value in valid_value[attribute.name] if valid_value[attribute.name] != [] else 1, ValueError('simidxs must be in {}, but is {}'.format(valid_bound[attribute.name], value))
         if valid_bound[attribute.name] != []:
             if len(valid_bound[attribute.name]) == 1:
-                assert np.all(value >= valid_bound[attribute.name][0]), ValueError('Must be leq {}, but is {}'.format(valid_bound[attribute.name][0], value))
+                assert np.all(np.array(value) >= valid_bound[attribute.name][0]), ValueError('simidxs must be >= {}, but is {}'.format(valid_bound[attribute.name][0], value))
             if len(valid_bound[attribute.name]) == 2:
-                assert np.all(value <= valid_bound[attribute.name][1]), ValueError('Must be seq {}, but is {}'.format(valid_bound[attribute.name][1], value))
+                assert np.all(np.array(value) <= valid_bound[attribute.name][1]), ValueError('simidxs must be seq {}, but is {}'.format(valid_bound[attribute.name][1], value))
 
 def simidxs_mf(instance, attribute, value):
     if np.all(value != DEFAULT_NotAValue):

@@ -11,9 +11,6 @@ from delensalot.config.config_helper import LEREPI_Constants as lc
 from delensalot.config.metamodel import DEFAULT_NotAValue as DNaV, DEFAULT_NotASTR
 
 DL_DEFAULT = {
-    'meta': {
-        'version': "0.3"
-    },
     'job':{
         'jobs': ["generate_sim", "QE_lensrec", "MAP_lensrec"]
     },
