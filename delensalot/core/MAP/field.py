@@ -10,8 +10,6 @@ class secondary:
     def __init__(self, field_desc):
         self.ID = field_desc['ID']
         self.libdir = field_desc['libdir']
-        self.LM_max = field_desc['LM_max']
-        self.CLfids = field_desc['CLfids']
         self.component = field_desc['component']
         self.fns =  field_desc['fns'] # fns must be dict() with keys as component, and it as format specifiers
         self.meanfield_fns = field_desc['meanfield_fns']
@@ -30,7 +28,7 @@ class secondary:
             return np.array([self.get_est(idx, it, component, scale).squeeze() for component in self.component])
         if isinstance(component, str): assert component in self.component, f"component must be in {self.component}, but is {component}"
         if it < 0:
-            return np.atleast_2d(np.zeros(Alm.getsize(*self.LM_max), dtype=complex))
+            return np.atleast_2d(np.zeros(1, dtype=complex))
         if isinstance(component, list):
             return np.atleast_2d([self.get_est(idx, it, component_, scale).squeeze() for component_i, component_ in enumerate(component)])
         if scale == 'd':
@@ -74,8 +72,9 @@ class secondary:
     
 
     def klm2dlm(self, klm):
-        h2d = cli(0.5 * np.sqrt(np.arange(self.LM_max[0] + 1, dtype=float) * np.arange(1, self.LM_max[0] + 2, dtype=float)))
-        return almxfl(klm, h2d, self.LM_max[1], False)
+        Lmax = Alm.getlmax(klm.shape[0])
+        h2d = cli(0.5 * np.sqrt(np.arange(Lmax + 1) * np.arange(1, Lmax + 2)))
+        return almxfl(klm, h2d, Lmax, False)
     
 
 class gradient:
@@ -83,7 +82,6 @@ class gradient:
         self.ID = field_desc['ID']
         self.libdir = field_desc['libdir']
         self.libdir_prior = field_desc['libdir_prior']
-        self.LM_max = field_desc['LM_max']
         self.meanfield_fns = field_desc['meanfield_fns']
         self.prior_fns = field_desc['prior_fns']
         self.quad_fns = field_desc['quad_fns']
@@ -110,8 +108,9 @@ class gradient:
         if not self.cacher_field.is_cached(self.prior_fns.format(component=component, idx=simidx, it=it)):
             assert 0, "cannot find prior at {}".format(self.cacher_field.lib_dir+"/"+self.prior_fns.format(component=component, idx=simidx, it=it))
         else:
+            Lmax = Alm.getlmax(priorlm.size)
             priorlm = self.cacher_field.load(self.prior_fns.format(component=component, idx=simidx, it=it))
-            almxfl(priorlm.squeeze(), cli(self.chh[component]), self.LM_max[1], True)
+            almxfl(priorlm.squeeze(), cli(self.chh[component]), Lmax, True)
         return priorlm
 
     
@@ -217,8 +216,6 @@ class filter:
     def __init__(self, field_desc):
         self.ID = field_desc['ID']
         self.libdir = field_desc['libdir']
-        self.lm_max = field_desc['lm_max']
-        self.component = field_desc['component']
         self.fns =  field_desc['fns']
 
         self.cacher = cachers.cacher_npy(opj(self.libdir))

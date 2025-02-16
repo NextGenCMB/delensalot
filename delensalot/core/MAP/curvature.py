@@ -21,7 +21,7 @@ class base:
         curvature_desc["bfgs_desc"].update({'cacher': cachers.cacher_npy(self.field.libdir)})
         self.BFGS_H = BFGS.BFGS_Hessian(self.h0, **curvature_desc["bfgs_desc"])
         
-        self.stepper = {grad.ID: harmonicbump(**{'lmax_qlm': grad.gfield.LM_max[0],'mmax_qlm': grad.gfield.LM_max[0],'a': 0.5,'b': 0.499,'xa': 400,'xb': 1500},)
+        self.stepper = {grad.ID: harmonicbump(**{'lmax_qlm': grad.LM_max[0],'mmax_qlm': grad.LM_max[0],'a': 0.5,'b': 0.499,'xa': 400,'xb': 1500},)
             for grad in self.gradients}
 
 
@@ -37,7 +37,7 @@ class base:
         N = 0
         for gradient in self.gradients:
             for compi, comp in enumerate(gradient.gfield.component):
-                size = hp.Alm.getsize(gradient.gfield.LM_max[0])
+                size = hp.Alm.getsize(gradient.LM_max[0])
                 klms[N:N+size] = self.stepper[gradient.ID].build_incr(klms[N:N+size], 0)
                 N += size
         return klms
@@ -60,7 +60,7 @@ class base:
         for gradient in self.gradients:
             ret.update({gradient.ID:{}})
             for component in gradient.gfield.component:
-                siz = Alm.getsize(*gradient.gfield.LM_max)
+                siz = Alm.getsize(*gradient.LM_max)
                 ret[gradient.ID][component] = grad[N:N+siz]
                 N += siz
         return ret

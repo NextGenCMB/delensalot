@@ -98,8 +98,6 @@ class lensing(base):
         
         self.ID = 'lensing'
         self.LM_max = operator_desc["LM_max"]
-        self.lm_max_pri = operator_desc["lm_max_pri"]
-        self.lm_max_sky = operator_desc["lm_max_sky"]
         # self.Lmin = operator_desc["Lmin"]
         self.perturbative = operator_desc["perturbative"]
         self.component = operator_desc["component"]
@@ -157,8 +155,6 @@ class birefringence(base):
         
         self.ID = 'birefringence'
         self.LM_max = operator_desc["LM_max"]
-        self.lm_max_pri = operator_desc["lm_max_pri"]
-        self.lm_max_sky = operator_desc["lm_max_sky"]
         # self.Lmin = operator_desc["Lmin"]
         self.component = operator_desc["component"]
         self.field = {component: None for component in self.component}

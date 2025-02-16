@@ -1,3 +1,4 @@
+from os.path import join as opj
 import numpy as np
 
 from scipy.interpolate import UnivariateSpline as spl
@@ -12,6 +13,8 @@ from delensalot.core.opfilt import MAP_opfilt_iso_p as MAP_opfilt_iso_p # MAP_op
 
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy
 from delensalot.utils import cli
+
+from delensalot.core.MAP import field
 
 import time
 
@@ -28,11 +31,9 @@ def _extend_cl(cl, lmax):
 
 
 class ivf:
-    def __init__(self, filter_desc):
-        self.ID = filter_desc['ID']
-        
-        self.ivf_field = filter_desc['ivf_field']
+    def __init__(self, filter_desc): 
         self.ivf_operator = filter_desc['ivf_operator']
+        self.libdir = filter_desc['libdir']
         self.beam = filter_desc['beam']
         
         self.lm_max_pri = filter_desc['lm_max_pri'] # this is lm_max_sky
@@ -42,7 +43,14 @@ class ivf:
         self.nlevp, self.nlevt = filter_desc['nlev']['P'], filter_desc['nlev']['T']
         self.n1elm = _extend_cl(np.array(self.transfer['e'])**1, self.lm_max_sky[0]) * cli(_extend_cl(self.nlevp**2, self.lm_max_sky[0])) * (180 * 60 / np.pi) ** 2
         self.n1blm = _extend_cl(np.array(self.transfer['b'])**1, self.lm_max_sky[0]) * cli(_extend_cl(self.nlevp**2, self.lm_max_sky[0])) * (180 * 60 / np.pi) ** 2
-        
+
+
+        filterfield_desc = lambda ID: {
+            "ID": ID,
+            "libdir": opj(self.libdir, 'filter'),
+            "fns": f"{ID}_simidx{{idx}}_it{{it}}",
+        }
+        self.ivf_field = field.filter(filterfield_desc('ivf'))
 
     def get_ivfreslm(self, simidx, it, data=None, eblm_wf=None):
         # NOTE this is eq. 21 of the paper, in essence it should do the following:
@@ -62,10 +70,8 @@ class ivf:
 
 class wf:
     def __init__(self, filter_desc):
-        self.ID = filter_desc['ID']
-
-        self.wf_field = filter_desc['wf_field']
         self.wf_operator = filter_desc['wf_operator']
+        self.libdir = filter_desc['libdir']
         self.beam = filter_desc['beam']
 
         self.lm_max_sky = filter_desc['lm_max_sky']
@@ -81,6 +87,13 @@ class wf:
 
         self.chain_descr = filter_desc['chain_descr']
         self.cls_filt = filter_desc['cls_filt']
+
+        filterfield_desc = lambda ID: {
+            "ID": ID,
+            "libdir": opj(self.libdir, 'filter'),
+            "fns": f"{ID}_simidx{{idx}}_it{{it}}",
+        }
+        self.wf_field = field.filter(filterfield_desc('wf'))
 
 
     def get_wflm(self, simidx, it, data=None):

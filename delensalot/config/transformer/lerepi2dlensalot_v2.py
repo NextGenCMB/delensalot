@@ -25,7 +25,7 @@ from lenspyx.lensing import get_geom
 
 ## TODO don't like this import here. Not sure how to remove
 from delensalot.core.cg import cd_solve
-
+from delensalot.core.helper import utils_plancklens
 from delensalot.sims.sims_lib import Simhandler
 from delensalot.config.etc.errorhandler import DelensalotError
 from delensalot.config.metamodel import DEFAULT_NotAValue as DNaV
@@ -33,7 +33,6 @@ from delensalot.config.metamodel import DEFAULT_NotAValue as DNaV
 from delensalot.utils import cli, camb_clfile, load_file
 from delensalot.utility.utils_hp import gauss_beam
 
-from delensalot.core.QE import field as QE_field
 from delensalot.core.MAP import field as MAP_field, operator
 from delensalot.core.handler import OBD_builder, Sim_generator, QE_lr_v2, MAP_lr_v2, Map_delenser, Phi_analyser
 
@@ -191,16 +190,7 @@ class l2base_Transformer:
         elif type(an.zbounds_len[0]) in [float, int, np.float64]:
             dl.zbounds_len = an.zbounds_len
         dl.lm_max_pri = an.lm_max_pri
-
-        beam_factor = gauss_beam(df.a2r(an.beam), lmax=dl.lm_max_sky[0])
-        lmin_mask = np.arange(dl.lm_max_sky[0] + 1)[:, None] >= dl.lmin_teb
-        if an.transfunction_desc == 'gauss_no_pixwin':
-            transf = (beam_factor[:, None] * lmin_mask)
-        elif an.transfunction_desc == 'gauss_with_pixwin':
-            assert cf.noisemodel.geominfo[0] == 'healpix', 'implement non-healpix pixelwindow function'
-            pixwin_factor = hp.pixwin(cf.noisemodel.geominfo[1]['nside'], lmax=dl.lm_max_sky[0])
-            transf = (beam_factor[:, None] * pixwin_factor[:, None] * lmin_mask)
-        dl.ttebl = dict(zip('teb', transf.T))
+        dl.ttebl = utils_plancklens.ttebl(an.beam, dl.lm_max_sky, an.lmin_teb, an.transfunction_desc=='gauss_with_pixwin', cf.noisemodel.geominfo)
 
     def process_Computing(dl, co, cf):
         dl.tr = co.OMP_NUM_THREADS
@@ -218,6 +208,7 @@ class l2base_Transformer:
         dl.spectrum_type = nm.spectrum_type
         dl.OBD = nm.OBD
         dl.nlev = l2OBD_Transformer.get_nlev(cf)
+        # FIXME this can be replaced with the function in helper.obs
         dl.niv_desc = {'T': l2OBD_Transformer.get_niv_desc(cf, dl, mode="T"), 'P': l2OBD_Transformer.get_niv_desc(cf, dl, mode="P")}
 
 
@@ -239,6 +230,7 @@ class l2T_Transformer:
             return TEMP
 
 
+# FIXME remove this class
 class l2OBD_Transformer:
     """Transformer for generating a delensalot model for the calculation of the OBD matrix
     """
@@ -376,7 +368,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             QE_filterqest_desc = {
                 "estimator_type": dl.estimator_type, # TODO this could be a different value for each secondary
                 "libdir": opj(transform(cf, l2T_Transformer()), 'QE', keystring),
-                "simulationdata": Simhandler(**cf.simulationdata.__dict__),
                 "nivjob_geominfo": cf.noisemodel.geominfo,
                 "niv_desc": dl.niv_desc,
                 "nlev": dl.nlev,
@@ -410,7 +401,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "simidxs": cf.analysis.simidxs,
                 "simidxs_mf": dl.simidxs_mf,
                 "QE_tasks": dl.qe_tasks,
-                "simulationdata": QE_filterqest_desc['simulationdata'],
             }
 
             dl.QE_searchs_desc = QE_searchs_desc
@@ -446,119 +436,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             _process_components(dl)
 
             MAP_libdir_prefix = opj(transform(cf, l2T_Transformer()), 'MAP',f"{cf.analysis.key}")
-            MAP_secondaries = {sec: MAP_field.secondary({
-                "ID": sec,
-                "libdir": opj(MAP_libdir_prefix, 'estimates/'),
-                'LM_max': dl.LM_max,
-                "component": val['component'],
-                'CLfids': dl.CLfids[sec],
-                'fns': {comp: f'klm_{comp}_simidx{{idx}}_it{{it}}' for comp in val['component']}, # This could be hardcoded, but I want to keep it flexible
-                'increment_fns': {comp: f'kinclm_{comp}_simidx{{idx}}_it{{it}}' for comp in val['component']},
-                'meanfield_fns': {comp: f'kmflm_{comp}_simidx{{idx}}_it{{it}}' for comp in val['component']},
-            }) for sec, val in dl.analysis_secondary.items()}
-
-            _MAP_operators_desc = {}
-            filter_operators = []
-            gradients_operators = {}
-
-            for sec in ['lensing', 'birefringence']:
-                if sec in dl.analysis_secondary:
-                    sec_data = dl.analysis_secondary[sec]
-                    _MAP_operators_desc[sec] = {
-                        "LM_max": dl.LM_max,
-                        "lm_max_pri": dl.lm_max_pri,
-                        "lm_max_sky": dl.lm_max_sky,
-                        # "Lmin": dl.Lmin,
-                        "component": sec_data["component"],
-                        "libdir": opj(MAP_libdir_prefix, 'estimates/'),
-                        "field_fns": MAP_secondaries[sec].fns,
-                        "ffi": dl.ffi,
-                    }
-                    if sec == "lensing":
-                        _MAP_operators_desc[sec]["perturbative"] = False
-                        _MAP_operators_desc["spin_raise"] = {"lm_max": dl.lm_max_pri}
-                        filter_operators.append(operator.lensing(_MAP_operators_desc[sec]))
-                        gradients_operators[sec] = operator.joint([operator.spin_raise(_MAP_operators_desc["spin_raise"]), *filter_operators])
-                    else:  # birefringence
-                        _MAP_operators_desc["multiply"] = {"factor": -1j} # FIXME not sure, -1j or -2j
-                        filter_operators.append(operator.birefringence(_MAP_operators_desc[sec]))
-                        gradients_operators[sec] = operator.joint([operator.multiply(_MAP_operators_desc["multiply"]), *filter_operators])
-
-            # ivf_operator = operator.ivf_operator(filter_operators)
-            sec_operator = operator.secondary_operator(filter_operators) #TODO this is ivf_operator*ivf_operator^dagger, could be implemented via ivf.
-
-            def chh(CL, lmax, gradient_name='lensing'):
-                if gradient_name == 'lensing':
-                    return CL[:lmax+1] * (0.5 * np.arange(lmax+1) * np.arange(1, lmax+2))**2
-                elif gradient_name == 'birefringence':
-                    return CL[:lmax+1]
-                
-            gfield_descs = [{
-                "ID": gradient_name,
-                "libdir": opj(MAP_libdir_prefix, 'gradients'),
-                "libdir_prior": opj(MAP_libdir_prefix, 'estimates'),
-                "LM_max": dl.LM_max,
-                "meanfield_fns": f'mf_glm_{gradient_name}_simidx{{idx}}_it{{it}}',
-                "quad_fns": f'quad_glm_{gradient_name}_simidx{{idx}}_it{{it}}',
-                "prior_fns": 'klm_{component}_simidx{idx}_it{it}', # prior is just field, and then we do a simple divide by spectrum (almxfl)
-                "total_increment_fns": f'ginclm_{gradient_name}_simidx{{idx}}_it{{it}}',    
-                "total_fns": f'gtotlm_{gradient_name}_simidx{{idx}}_it{{it}}',    
-                "chh": {comp: chh(dl.CLfids[gradient_name][comp*2], lmax=dl.LM_max[0], gradient_name=gradient_name) for comp in dl.analysis_secondary[gradient_name]['component']},
-                "component": [item for  item in dl.analysis_secondary['lensing']['component']] if gradient_name == 'lensing' else ['f'],
-            } for gradient_name, gradient_operator in gradients_operators.items()]
-            MAP_gfields = {gfield_desc["ID"]: MAP_field.gradient(gfield_desc) for gfield_desc in gfield_descs}
-            gradient_descs = {}
-            for gradient_name, gradient_operator in gradients_operators.items():
-                gradient_descs.update({ gradient_name: {
-                    "ID": gradient_name,
-                    "gfield": MAP_gfields[gradient_name],
-                    "lm_max_sky": dl.lm_max_sky,
-                    "lm_max_pri": dl.lm_max_pri,
-                    "LM_max": dl.LM_max,
-                    'itmax': dl.itmax,
-                    "gradient_operator": gradient_operator,
-                    "ffi": dl.ffi,
-                }})
-
-            MAP_ivffilter_field_desc = {
-                "ID": "ivf",
-                "libdir": opj(MAP_libdir_prefix, 'filter'),
-                "lm_max": dl.lm_max_sky,
-                "component": 1,
-                "fns": "ivf_simidx{idx}_it{it}",
-            }
-            MAP_WFfilter_field_desc = {
-                "ID": "WF",
-                "libdir": opj(MAP_libdir_prefix, 'filter'),
-                "lm_max": dl.lm_max_pri,
-                "component": 1,
-                "fns": "WF_simidx{idx}_it{it}",
-            }
-
-            MAP_ivf_desc = {
-                "ID": "ivf",
-                'ivf_operator': sec_operator,
-                "ivf_field": MAP_field.filter(MAP_ivffilter_field_desc),
-                'beam': operator.beam({"beamwidth": cf.analysis.beam, "lm_max":dl.lm_max_sky}),
-                "ttebl": dl.ttebl,
-                "lm_max_pri": dl.lm_max_pri,
-                "lm_max_sky": dl.lm_max_sky,
-                "nlev": dl.nlev,
-            }
-            MAP_wf_desc = {
-                "ID": "polarization",
-                'wf_operator': sec_operator,
-                "wf_field": MAP_field.filter(MAP_WFfilter_field_desc),
-                'beam': operator.beam({"beamwidth": cf.analysis.beam, "lm_max":dl.lm_max_pri}),
-                'nlev': dl.nlev,
-                "chain_descr": dl.it_chain_descr(dl.lm_max_pri[0], dl.it_cg_tol(0)),
-                "ttebl": dl.ttebl,
-                "cls_filt": dl.simulationdata.cls_lib.Cl_dict,
-                "lm_max_pri": dl.lm_max_pri,
-                "lm_max_sky": dl.lm_max_sky,
-                "nlev": dl.nlev,
-            }
-
             def dotop(glms1, glms2):
                 ret = 0.
                 N = 0
@@ -580,25 +457,43 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "bfgs_desc": {'dot_op': dotop, # lambda rlm1, rlm2: np.sum(lp1 * hp.alm2cl(rlm1, rlm2)),
                 },
             }
-            desc = {
-                "itmax": dl.itmax,
-            }
+
             MAP_searchs_desc = {
-                'gradient_descs': gradient_descs,
-                'MAP_secondaries': MAP_secondaries,
-                'filter_desc': {'ivf': MAP_ivf_desc, 'wf': MAP_wf_desc},
-                'curvature_desc': curvature_desc,
-                "desc" : desc,
                 "estimator_key": cf.analysis.key,
+                'libdir': MAP_libdir_prefix,
+                "CLfids": dl.CLfids,
+                'curvature_desc': curvature_desc,
+                "itmax" : dl.itmax,
+                'startingpoint_desc': {},
+                'lenjob_info': {
+                    'zbounds': dl.zbounds,
+                    'epsilon': dl.analysis_secondary['lensing']['epsilon'],
+                },
+                'lm_maxs': {
+                    'LM_max': dl.LM_max,
+                    'lm_max_pri': dl.lm_max_pri,
+                    'lm_max_sky': dl.lm_max_sky
+                },
+                'wf_info': {
+                    'chain_descr': dl.it_chain_descr,
+                    'cg_tol': dl.it_cg_tol,
+                },
+                'noise_info': {
+                    'nlev': dl.nlev,
+                    'niv_desc': dl.niv_desc
+                },
+                'obs_info': {
+                    'beam': dl.beam,
+                    'ttebl': dl.ttebl,
+                },
             }
-            MAP_handler_desc = {
-                'simulationdata': dl.simulationdata,
+            MAP_job_desc = {
                 "simidxs": cf.analysis.simidxs,
                 "simidxs_mf": dl.simidxs_mf,
                 "QE_searchs": QE_searchs,
                 "it_tasks": dl.it_tasks,  
             }
-            dl.MAP_handler_desc, dl.MAP_searchs_desc = MAP_handler_desc, MAP_searchs_desc
+            dl.MAP_job_desc, dl.MAP_searchs_desc = MAP_job_desc, MAP_searchs_desc
             return dl
 
         return MAP_lr_v2(extract())

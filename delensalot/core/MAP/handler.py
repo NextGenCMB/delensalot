@@ -1,47 +1,129 @@
 import numpy as np
+from os.path import join as opj
+
+from lenspyx.remapping import deflection
+from lenspyx.lensing import get_geom 
 
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy
 from delensalot.utils import cli
+from delensalot.core.cg import cd_solve
 
+from . import field
 from . import gradient
 from . import curvature
 from . import filter
+from . import operator
 
 template_secondaries = ['lensing', 'birefringence']  # Define your desired order
 template_index_secondaries = {val: i for i, val in enumerate(template_secondaries)}
 
 class base:
-    def __init__(self, simulationdata, estimator_key, secondaries, filter_desc, gradient_descs, curvature_desc, desc, simidx):
-        # this class handles the filter, gradient, and curvature libs, nothing else
+    # def __init__(self, simulationdata, estimator_key, secondaries, filter_desc, gradient_descs, curvature_desc, desc, simidx):
+    def __init__(self, simulationdata, estimator_key, simidx, CLfids, itmax, curvature_desc, startingpoint_desc, lenjob_info, lm_maxs, wf_info, noise_info, obs_info, libdir):
+        # # this class handles the filter, gradient, and curvature libs, nothing else
+        self.data = None 
+
+        self.libdir = libdir
         self.simulationdata = simulationdata
         self.estimator_key = estimator_key
-        self.secondaries = secondaries
+        self.simidx = simidx
+        self.CLfids = CLfids
+        self.itmax = itmax
 
-        # NOTE these are called by all operators, so changing here, will change them all.
-        # ivf and wf are actually the same instance of the secondary_operator,
-        # just keeping the names for clarity
-        self.ivf_filter = filter.ivf(filter_desc['ivf'])
-        self.wf_filter = filter.wf(filter_desc['wf'])
-        filters = {'ivf': self.ivf_filter, 'wf': self.wf_filter}
-        
-        self.sec2idx = {secondary_ID: idx for idx, secondary_ID in enumerate(secondaries.keys())}
-        self.idx2sec = {idx: secondary_ID for idx, secondary_ID in enumerate(secondaries.keys())}
+        # FIXME cleaner implementation
+        analysis_secondary = {}
+        if 'p' in estimator_key or 'w' in estimator_key:
+            analysis_secondary['lensing'] = [c for c in ['p', 'w'] if c in estimator_key[:2]]
+        if 'f' in estimator_key:
+            analysis_secondary['birefringence'] = ['f']
+
+        self.secondaries = {
+            sec: field.secondary({
+                "ID": sec,
+                "libdir": opj(self.libdir, 'estimate/'),
+                "component": val,
+                'fns': {comp: f'klm_{comp}_simidx{{idx}}_it{{it}}' for comp in val},
+                'increment_fns': {comp: f'kinclm_{comp}_simidx{{idx}}_it{{it}}' for comp in val},
+                'meanfield_fns': {comp: f'kmflm_{comp}_simidx{{idx}}_it{{it}}' for comp in val},
+        }) for sec, val in analysis_secondary.items()}
+        self.sec2idx = {secondary_ID: idx for idx, secondary_ID in enumerate(self.secondaries.keys())}
+        self.idx2sec = {idx: secondary_ID for idx, secondary_ID in enumerate(self.secondaries.keys())}
         self.seclist_sorted = sorted(list(self.sec2idx.keys()), key=lambda x: template_index_secondaries.get(x, ''))
         
-        self.chh = {sec: gradient_descs[sec]['gfield'].chh for sec in self.seclist_sorted}
+        lenjob_geomlib = get_geom(('thingauss', {'lmax': 4500, 'smax': 3}))
+        zbounds = lenjob_info['zbounds']
+        thtbounds = (np.arccos(zbounds[1]), np.arccos(zbounds[0]))
+        lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
+        ffi = deflection(lenjob_geomlib, np.zeros(shape=Alm.getsize(*lm_maxs['LM_max'])), lm_maxs['LM_max'][1], numthreads=8, verbosity=False, epsilon=lenjob_info['epsilon'])
+               
+        filter_operators = []
+        _MAP_operators_desc = {}
+        for sec in self.seclist_sorted:
+            _MAP_operators_desc[sec] = {
+                "LM_max": lm_maxs['LM_max'],
+                "component": analysis_secondary[sec],
+                "libdir": opj(self.libdir, 'estimates/'),
+                "field_fns": self.secondaries[sec].fns, # This must connect to the estimator fields
+                "ffi": ffi,}
+            if sec == "lensing":
+                _MAP_operators_desc[sec]["perturbative"] = False
+                filter_operators.append(operator.lensing(_MAP_operators_desc[sec]))
+            else:  # birefringence
+                filter_operators.append(operator.birefringence(_MAP_operators_desc[sec]))
+        sec_operator = operator.secondary_operator(filter_operators)
+
+        MAP_ivf_desc = {
+            'ivf_operator': sec_operator,
+            'libdir': opj(self.libdir, 'filter/'),
+            'beam': operator.beam({"beamwidth": obs_info['beam'], "lm_max": lm_maxs['lm_max_sky']}), # FIXME rewrite in1el in2bl etc.
+            "ttebl": obs_info['ttebl'], # FIXME rewrite in1el in2bl etc.
+            "lm_max_pri": lm_maxs['lm_max_pri'],
+            "lm_max_sky": lm_maxs['lm_max_sky'],
+            "nlev": noise_info['nlev'], # FIXME this should belong to a noise model operator
+        }
+        chain_descr = wf_info['chain_descr']
+        # it_chain_descr = lambda p2, p5 : [[0, ["diag_cl"], p2, noisemodel_info['nivjob_geominfo'][1]['nside'], np.inf, p5, cd_solve.tr_cg, cd_solve.cache_mem()]]
+        MAP_wf_desc = {
+            'wf_operator': sec_operator,
+            'libdir': opj(self.libdir, 'filter/'),
+            'beam': operator.beam({"beamwidth": obs_info['beam'], "lm_max": lm_maxs['lm_max_pri']}), # FIXME rewrite in1el in2bl etc.
+            'nlev': noise_info['nlev'], # FIXME rewrite in1el in2bl etc.
+            "chain_descr": chain_descr(lm_maxs['lm_max_pri'][0], wf_info['cg_tol']),
+            "ttebl": obs_info['ttebl'], # FIXME rewrite in1el in2bl etc.
+            "cls_filt": simulationdata.cls_lib.Cl_dict,
+            "lm_max_pri": lm_maxs['lm_max_pri'],
+            "lm_max_sky": lm_maxs['lm_max_sky'],
+            "nlev": noise_info['nlev'], # FIXME this should belong to a noise model operator
+        }
+        self.ivf_filter = filter.ivf(MAP_ivf_desc)
+        self.wf_filter = filter.wf(MAP_wf_desc)
+        filters = {'ivf': self.ivf_filter, 'wf': self.wf_filter}
+
+        gradient_descs = {}
+        for gradient_name in analysis_secondary.keys():
+            gradient_descs.update({ 
+                gradient_name: {
+                    "ID": gradient_name,
+                    'libdir': opj(self.libdir),
+                    "lm_max_sky": lm_maxs['lm_max_sky'],
+                    "lm_max_pri": lm_maxs['lm_max_pri'],
+                    "LM_max": lm_maxs['LM_max'],
+                    'itmax': itmax,
+                    "ffi": ffi,
+                    'sec_operator': sec_operator,
+                    'component': analysis_secondary[gradient_name],
+                    'chh': [self._chh(self.CLfids[gradient_name][comp*2], lmax=lm_maxs['LM_max'][0], gradient_name=gradient_name) for comp in analysis_secondary[gradient_name]],
+            }})
+        self.chh = {sec: {comp: self._chh(self.CLfids[sec][comp*2], lmax=lm_maxs['LM_max'][0], gradient_name=sec) for comp in analysis_secondary[sec]} for sec in analysis_secondary.keys()}
         self.gradients = []
         self.gradients.extend(
-            getattr(gradient, sec)(gradient_descs[sec], filters, simidx)
+            getattr(gradient, sec)(gradient_descs[sec], filters)
             for sec in self.seclist_sorted if hasattr(gradient, sec))
 
         # FIXME this is not guaranteed to be correctly sorted (dicts are not ordered)
-        curvature_desc["h0"] = np.array([v for val in self.get_h0(desc["Runl0"]).values() for v in val.values()])
+        curvature_desc["h0"] = np.array([v for val in self.__get_h0(curvature_desc["Runl0"]).values() for v in val.values()])
         self.curvature = curvature.base(curvature_desc, self.gradients)
-
-        self.itmax = desc['itmax']
-        self.simidx = simidx
-        self.data = None
-
+        
     
     def get_est(self, simidx, request_it, secondary=None, component=None, scale='k', calc_flag=False):
         current_it = self.maxiterdone()
@@ -67,7 +149,9 @@ class base:
                 for gradient in self.gradients:
                     print(f'Calculating gradient for {gradient.ID}')
                     self.update_operator(simidx, it-1)
-                    grad_tot.append(gradient.get_gradient_total(it, data=self.data)) #calculates the filtering, the sum, and the quadratic combination
+                    wflm = self.wf_filter.get_wflm(simidx, it, self.data)
+                    ivfreslm = np.ascontiguousarray(self.ivf_filter.get_ivfreslm(simidx, it, self.data, wflm))
+                    grad_tot.append(gradient.get_gradient_total(it, wflm=wflm, ivfreslm=ivfreslm)) #calculates the filtering, the sum, and the quadratic combination
                 grad_tot = np.concatenate([np.ravel(arr) for arr in grad_tot])
                 if it>=2: #NOTE it=1 cannot build the previous diff, as current diff is QE
                     for gradient in self.gradients:
@@ -105,8 +189,7 @@ class base:
         return itr
 
 
-    def get_h0(self, R_unl0):
-        # NOTE this could in principle be done anywhere else as well.. not sure where to do it best
+    def __get_h0(self, R_unl0):
         ret = {grad.ID: {} for grad in self.gradients}
         for seci, sec in enumerate(self.seclist_sorted):
             lmax = self.gradients[seci].LM_max[0]
@@ -177,8 +260,8 @@ class base:
         return np.array([self.gradients[idx].get_gradient_total(it, component, data) for idx in sec_idx])
 
 
-    def get_template(self, it, secondary=None, component=None):
-        return self.wf_filter.get_template(self.simidx, it, secondary, component)
+    def get_template(self, simidx, it, secondary=None, component=None):
+        return self.wf_filter.get_template(simidx, it, secondary, component)
 
 
     # exposed functions for job handler
@@ -227,3 +310,10 @@ class base:
                 return np.array(self.sims_MAP.get_sim_pmap(self.simidx), dtype=float)
             else:
                 assert 0, 'implement if needed'
+
+
+    def _chh(self, CL, lmax, gradient_name='lensing'):
+        if gradient_name == 'lensing':
+            return CL[:lmax+1] * (0.5 * np.arange(lmax+1) * np.arange(1, lmax+2))**2
+        elif gradient_name == 'birefringence':
+            return CL[:lmax+1]

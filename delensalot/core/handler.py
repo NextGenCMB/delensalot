@@ -782,29 +782,31 @@ class QE_lr_v2:
 
 
 class MAP_lr_v2:
-    def __init__(self, dl):
-        self.__dict__.update(dl.__dict__)
-        self.simgen = Sim_generator(dl)
-        self.MAP_handler_desc = dl.MAP_handler_desc
+    def __init__(self, dm):
+        self.__dict__.update(dm.__dict__)
+        self.simgen = Sim_generator(dm)
         self.simulationdata = self.simgen.simulationdata
-        self.simidxs = self.MAP_handler_desc["simidxs"]
-        self.simidxs_mf = self.MAP_handler_desc["simidxs_mf"]
-        self.QE_searchs = self.MAP_handler_desc["QE_searchs"]
-        self.MAP_searchs_desc = dl.MAP_searchs_desc
+
+        self.simidxs = dm.MAP_job_desc["simidxs"]
+        self.simidxs_mf = dm.MAP_job_desc["simidxs_mf"]
+        self.QE_searchs = dm.MAP_job_desc["QE_searchs"]
+
         self.sec2idx = {QE_search.secondary.ID: i for i, QE_search in enumerate(self.QE_searchs)}
         self.seclist_sorted = sorted(list(self.sec2idx.keys()), key=lambda x: template_index_secondaries.get(x, ''))
-        self.MAP_searchs_desc["desc"].update({"Runl0": {}})
-        for i, QE_search in enumerate(self.QE_searchs):
-            scale = 'k' if QE_search.secondary.ID in ['lensing'] else 'p' #NOTE Plancklens by default returns p scale (for lensing). Delensalot works with convergence
-            self.MAP_searchs_desc["desc"]["Runl0"].update({QE_search.secondary.ID: {component: self.__rescale(QE_search.get_response_unl(component), scale=scale) for component in QE_search.secondary.component}})
-        self.MAP_searchs = [MAP_handler.base(self.simulationdata, self.MAP_searchs_desc['estimator_key'], self.MAP_searchs_desc["MAP_secondaries"], self.MAP_searchs_desc["filter_desc"], self.MAP_searchs_desc["gradient_descs"], self.MAP_searchs_desc["curvature_desc"], self.MAP_searchs_desc["desc"], simidx) for simidx in self.simidxs]
         
-        # self.simulationdata = self.MAP_handler_desc["simulationdata"]
-        self.it_tasks = self.MAP_handler_desc["it_tasks"]
+        # self.simulationdata = self.MAP_job_desc["simulationdata"]
+        self.it_tasks = self.MAP_job_desc["it_tasks"]
         for simidx in self.simidxs:
             if self.QE_searchs[0].isdone(simidx, 'p') == 0:
                 if mpi.rank == 0:
                     self.__copyQEtoDirectory(simidx)
+
+        self.MAP_searchs_desc = dm.MAP_searchs_desc
+        self.MAP_searchs_desc["curvature_desc"].update({"Runl0": {}})
+        for i, QE_search in enumerate(self.QE_searchs):
+            scale = 'k' if QE_search.secondary.ID in ['lensing'] else 'p' #NOTE Plancklens by default returns p scale (for lensing). Delensalot works with convergence
+            self.MAP_searchs_desc["curvature_desc"]["Runl0"].update({QE_search.secondary.ID: {component: self.__rescale(QE_search.get_response_unl(component), scale=scale) for component in QE_search.secondary.component}})
+        self.MAP_searchs = [MAP_handler.base(self.simulationdata, **self.MAP_searchs_desc, simidx=simidx) for simidx in self.simidxs]
 
 
     def collect_jobs(self):
