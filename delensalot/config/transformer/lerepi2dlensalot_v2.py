@@ -145,6 +145,11 @@ class l2base_Transformer:
         dl.analysis_secondary = filter_secondary_and_component(copy.deepcopy(cf.analysis.secondary), cf.analysis.key.split('_')[0])
         seclist_sorted = sorted(dl.analysis_secondary, key=lambda x: template_secondaries.index(x) if x in template_secondaries else float('inf'))
         complist_sorted = [comp for sec in seclist_sorted for comp in dl.analysis_secondary[sec]['component']]
+        # NOTE I update analysis_seocndary with whatever is in the cf.analysis keys.
+        for sec in dl.analysis_secondary:
+            dl.analysis_secondary[sec]['LM_max'] = cf.analysis.LM_max
+            dl.analysis_secondary[sec]['lm_max_pri'] = cf.analysis.lm_max_pri
+            dl.analysis_secondary[sec]['lm_max_sky'] = cf.analysis.lm_max_sky
         
         # NOTE this is to catch varying Lmin. It also supports that Lmin may come as list, or only a single value.
         # I make sure that the secondaries are sorted accordingly before I assign the Lmin values
@@ -476,7 +481,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 },
                 'wf_info': {
                     'chain_descr': dl.it_chain_descr,
-                    'cg_tol': dl.it_cg_tol,
+                    'cg_tol': dl.it_cg_tol(0),
                 },
                 'noise_info': {
                     'nlev': dl.nlev,

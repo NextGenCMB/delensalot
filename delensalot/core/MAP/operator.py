@@ -135,7 +135,8 @@ class lensing(base):
             field_path = opj(self.field_fns[comp].format(idx=simidx, it=it))
             if self.field_cacher.is_cached(field_path):
                 self.field[comp] = self.klm2dlm(self.field_cacher.load(field_path)[0])
-            else:
+            else: 
+                print(self.field_cacher.lib_dir, self.field_fns[comp])
                 assert 0, f"Cannot set field with it={it} and simidx={simidx}"
 
         d = np.array([self.field[comp].flatten() for comp in comps_], dtype=complex)

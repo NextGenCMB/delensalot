@@ -62,7 +62,7 @@ class base:
             _MAP_operators_desc[sec] = {
                 "LM_max": lm_maxs['LM_max'],
                 "component": analysis_secondary[sec],
-                "libdir": opj(self.libdir, 'estimates/'),
+                "libdir": opj(self.libdir, 'estimate/'),
                 "field_fns": self.secondaries[sec].fns, # This must connect to the estimator fields
                 "ffi": ffi,}
             if sec == "lensing":

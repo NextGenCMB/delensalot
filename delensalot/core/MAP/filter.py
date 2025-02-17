@@ -47,7 +47,7 @@ class ivf:
 
         filterfield_desc = lambda ID: {
             "ID": ID,
-            "libdir": opj(self.libdir, 'filter'),
+            "libdir": opj(self.libdir),
             "fns": f"{ID}_simidx{{idx}}_it{{it}}",
         }
         self.ivf_field = field.filter(filterfield_desc('ivf'))
@@ -90,7 +90,7 @@ class wf:
 
         filterfield_desc = lambda ID: {
             "ID": ID,
-            "libdir": opj(self.libdir, 'filter'),
+            "libdir": opj(self.libdir),
             "fns": f"{ID}_simidx{{idx}}_it{{it}}",
         }
         self.wf_field = field.filter(filterfield_desc('wf'))

@@ -795,11 +795,6 @@ class MAP_lr_v2:
         self.seclist_sorted = sorted(list(self.sec2idx.keys()), key=lambda x: template_index_secondaries.get(x, ''))
         
         # self.simulationdata = self.MAP_job_desc["simulationdata"]
-        self.it_tasks = self.MAP_job_desc["it_tasks"]
-        for simidx in self.simidxs:
-            if self.QE_searchs[0].isdone(simidx, 'p') == 0:
-                if mpi.rank == 0:
-                    self.__copyQEtoDirectory(simidx)
 
         self.MAP_searchs_desc = dm.MAP_searchs_desc
         self.MAP_searchs_desc["curvature_desc"].update({"Runl0": {}})
@@ -807,6 +802,12 @@ class MAP_lr_v2:
             scale = 'k' if QE_search.secondary.ID in ['lensing'] else 'p' #NOTE Plancklens by default returns p scale (for lensing). Delensalot works with convergence
             self.MAP_searchs_desc["curvature_desc"]["Runl0"].update({QE_search.secondary.ID: {component: self.__rescale(QE_search.get_response_unl(component), scale=scale) for component in QE_search.secondary.component}})
         self.MAP_searchs = [MAP_handler.base(self.simulationdata, **self.MAP_searchs_desc, simidx=simidx) for simidx in self.simidxs]
+
+        self.it_tasks = self.MAP_job_desc["it_tasks"]
+        for simidx in self.simidxs:
+            if self.QE_searchs[0].isdone(simidx, 'p') == 0:
+                if mpi.rank == 0:
+                    self.__copyQEtoDirectory(simidx)
 
 
     def collect_jobs(self):

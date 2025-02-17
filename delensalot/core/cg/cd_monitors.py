@@ -63,7 +63,6 @@ class monitor_basic:
 
         if self.logger is not None: self.logger(iter, np.sqrt(delta / self.d0), watch=self.watch,
                                                   soltn=soltn, resid=resid)
-
         if (iter >= self.iter_max) or (delta <= self.eps_min ** 2 * self.d0):
             return True
 

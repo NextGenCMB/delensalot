@@ -287,6 +287,10 @@ class Xpri:
     def __init__(self, cls_lib=DNaV, geominfo=DNaV, CMB_info=DNaV, sec_info=DNaV):
         self.CMB_info = CMB_info
         self.sec_info = sec_info
+        self.all_secondaries_components = {
+            'lensing': ['p', 'w'],
+            'birefringence': ['f'],
+        }
 
         self.geominfo = geominfo
         if geominfo == DNaV:
@@ -396,7 +400,7 @@ class Xpri:
         return self.cacher.load(fn)
     
 
-    def get_sim_sec(self, simidx, space, secondary=None, component=None):
+    def get_sim_sec(self, simidx, space, secondary=None, component=None, return_nonrec=False):
         """ returns a secondary (phi, bf) in space (map, alm) and as component (grad, curl, if applicable). If secondary or component is None, it returns all, respectively.
         Args:
             simidx (_type_): _description_
@@ -405,36 +409,50 @@ class Xpri:
         Returns:
             _type_: _description_
         """
+        _ = self.sec_info.keys() if not return_nonrec else self.all_secondaries_components.keys()
+        c_ = lambda x: self.sec_info[x]['component'] if not return_nonrec else self.all_secondaries_components[x]
         if secondary is None:
+            return [self.get_sim_sec(simidx, space, sec, component=c_(sec), return_nonrec=return_nonrec) for sec in _]
             seclist_sorted = sorted(self.sec_info.keys(), key=lambda x: template_index_secondaries.get(x, ''))
-            return [self.get_sim_sec(simidx, space, key, component=component) for key in seclist_sorted]
-        if secondary not in self.sec_info.keys():
+            return [self.get_sim_sec(simidx, space, key, component=component, return_nonrec=return_nonrec) for key in seclist_sorted]
+        if secondary not in _:
             print(f"secondary {secondary} not available")
             return np.array([[]])
-        if isinstance(component, str) and component not in self.sec_info[secondary]['component']:
+        if isinstance(component, str) and component not in c_(secondary):
             print(f"component {component} of {secondary} not available")
             return np.array([[]])
         if component is None:
-            return np.array([self.get_sim_sec(simidx, space, secondary, component=comp) for comp in self.sec_info[secondary]['component']])
-        if (isinstance(component, list) or isinstance(component, np.ndarray)) and len(component)>1:
+            return np.array([self.get_sim_sec(simidx, space, sec, component=c_(sec), return_nonrec=return_nonrec) for sec in _])
+            return np.array([self.get_sim_sec(simidx, space, secondary, component=comp, return_nonrec=return_nonrec) for comp in self.sec_info[secondary]['component']])
+        if isinstance(component, (list, np.ndarray)):
             for comp in component:
-                if comp not in self.sec_info[secondary]['component']:
+                if comp not in c_(secondary):
                     print(f"component {comp} not available, removing from list")
                     component.remove(comp)
-            return np.array([self.get_sim_sec(simidx, space, secondary, component=comp) for comp in component])
+            return [self.get_sim_sec(simidx, space, secondary, component=comp, return_nonrec=return_nonrec) for comp in component]
         
         fn = f"{secondary}{component}_space{space}_{simidx}"
         if not self.cacher.is_cached(fn):
-            if self.sec_info[secondary]['libdir'] == DNaV:
+            if secondary in self.sec_info and (self.sec_info[secondary]['libdir'] == DNaV or not component in self.sec_info[secondary]['component']):
                 print(f'generating {secondary} {component} from cl')
                 log.debug(f'generating {secondary}{component} from cl')
-                Clpf = self.cls_lib.get_fidsec(simidx, secondary, component*2).squeeze()
+                Clpf = self.cls_lib.get_fidsec(simidx, secondary, component*2, return_nonrec=return_nonrec).squeeze()
                 Clp = self.clsecsf2clsecp(secondary, Clpf)
                 sec = self.clp2seclm(secondary, component, Clp, simidx)
                 ## If it comes from CL, like Gauss secs, then sec modification must happen here
                 sec = self.sec_info[secondary]['modifier'](sec)
                 if space == 'map':
-                    sec = self.geom_lib.alm2map(sec, lmax=self.sec_info[secondary]['lm_max'][0], mmax=self.sec_info[secondary]['lm_max'][1], nthreads=4)
+                    sec = self.geom_lib.alm2map(sec, lmax=self.sec_info[secondary]['LM_max'][0], mmax=self.sec_info[secondary]['LM_max'][1], nthreads=4)
+            elif secondary not in self.sec_info:
+                print(f'generating {secondary} {component} from cl')
+                log.debug(f'generating {secondary}{component} from cl')
+                Clpf = self.cls_lib.get_fidsec(simidx, secondary, component*2, return_nonrec=return_nonrec).squeeze()
+                Clp = self.clsecsf2clsecp(secondary, Clpf)
+                sec = self.clp2seclm(secondary, component, Clp, simidx)
+                ## If it comes from CL, like Gauss secs, then sec modification must happen here
+                if secondary in self.sec_info: sec = self.sec_info[secondary]['modifier'](sec)
+                if space == 'map':
+                    sec = self.geom_lib.alm2map(sec, lmax=self.sec_info[secondary]['LM_max'][0], mmax=self.sec_info[secondary]['LM_max'][1], nthreads=4)
             else:
                 ## Existing sec is loaded, this e.g. is a kappa map on disk
                 if self.sec_info[secondary]['space'] == 'map':
@@ -444,12 +462,12 @@ class Xpri:
                 if self.sec_info[secondary]['space'] == 'map':
                     self.geominfo_sec = ('healpix', {'nside':hp.npix2nside(sec.shape[0])})
                     self.geomlib_sec = get_geom(self.geominfo_sec)
-                    sec = self.geomlib_sec.map2alm(sec, lmax=self.sec_info[secondary]['lm_max'][0], mmax=self.sec_info[secondary]['lm_max'][1], nthreads=4)
+                    sec = self.geomlib_sec.map2alm(sec, lmax=self.sec_info[secondary]['LM_max'][0], mmax=self.sec_info[secondary]['LM_max'][1], nthreads=4)
                 ## sec modifcation
                 sec = self.sec_info[secondary]['modifier'](sec)
                 sec = self.pflm2plm(secondary, sec)
                 if space == 'map':
-                    sec = self.geom_lib.alm2map(sec, lmax=self.sec_info[secondary]['lm_max'][0], mmax=self.sec_info[secondary]['lm_max'][1], nthreads=4)
+                    sec = self.geom_lib.alm2map(sec, lmax=self.sec_info[secondary]['LM_max'][0], mmax=self.sec_info[secondary]['LM_max'][1], nthreads=4)
             self.cacher.cache(fn, sec)
         return self.cacher.load(fn)
     
@@ -459,9 +477,9 @@ class Xpri:
     # FIXME scale is not implemented yet, proceeding code would not know how to handle it
         # NOTE naming convention is sec, but it can be grad or curl
         if self.sec_info[secondary]['scale'] == 'c':
-            return klm2plm(seclm, self.sec_info[secondary]['lm_max'][0])
+            return klm2plm(seclm, self.sec_info[secondary]['LM_max'][0])
         elif self.sec_info[secondary]['scale'] == 'd':
-            return dlm2plm(seclm, self.sec_info[secondary]['lm_max'][0])
+            return dlm2plm(seclm, self.sec_info[secondary]['LM_max'][0])
         elif self.sec_info[secondary]['scale'] == 'p':
             return seclm
 
@@ -470,9 +488,9 @@ class Xpri:
         return cl
         # FIXME scale is not implemented yet, proceeding code would not know how to handle it
         if self.sec_info[secondary]['scale'] == 'c':
-            return clk2clp(cl, self.sec_info[secondary]['lm_max'][0])
+            return clk2clp(cl, self.sec_info[secondary]['LM_max'][0])
         elif self.sec_info[secondary]['scale'] == 'd':
-            return cld2clp(cl, self.sec_info[secondary]['lm_max'][0])
+            return cld2clp(cl, self.sec_info[secondary]['LM_max'][0])
         elif self.sec_info[secondary]['scale'] == 'p':
             return cl
         else:
@@ -488,11 +506,16 @@ class Xpri:
             return alms[0]
     
 
-    def clp2seclm(self, secondary, component, clp, seed):
+    def clp2seclm(self, secondary, component, clp, seed, return_nonrec=False):
         combined_str = f"{secondary}_{component}_{seed}".encode()
         hashed_seed = int(hashlib.sha256(combined_str).hexdigest(), 16) % (2**32)  # Convert to 32-bit int
         np.random.seed(hashed_seed)
-        sec = hp.synalm(clp, self.sec_info[secondary]['lm_max'][0])
+        if secondary not in self.sec_info:
+            lm_max = list(self.sec_info.values())[0]['lm_max']
+        else:
+            lm_max = self.sec_info[secondary]['LM_max']
+        print(lm_max)
+        sec = hp.synalm(clp, lm_max[0])
         return sec
 
 
@@ -921,7 +944,7 @@ class Simhandler:
             operator_info[sec]['component'] = [c[0] for c in sec_info[sec]['component']]
 
         for sec in sec_info:
-            sec_info[sec]['lm_max'] = operator_info[sec]['LM_max']
+            sec_info[sec]['LM_max'] = operator_info[sec]['LM_max']
         seccomp = {sec : [comp*2 for comp in sec_info[sec]['component']] for sec in sec_info}
 
         self.libdir_suffix = libdir_suffix
@@ -994,8 +1017,8 @@ class Simhandler:
     def get_sim_noise(self, simidx, space, field, spin=2):
         return self.noise_lib.get_sim_noise(simidx, spin=spin, space=space, field=field)
     
-    def get_sim_sec(self, simidx, space, secondary=None, component=None):
-        return self.pri_lib.get_sim_sec(simidx=simidx, space=space, secondary=secondary, component=component)
+    def get_sim_sec(self, simidx, space, secondary=None, component=None, return_nonrec=False):
+        return self.pri_lib.get_sim_sec(simidx=simidx, space=space, secondary=secondary, component=component, return_nonrec=return_nonrec)
     
     def get_fidCMB(self, simidx, component):
         return self.cls_lib.get_fidCMB(simidx=simidx, component=component)
