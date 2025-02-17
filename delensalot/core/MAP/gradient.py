@@ -10,12 +10,9 @@ from delensalot.core.MAP import field
 from delensalot.core.MAP import operator
 
 class base:
-    def __init__(self, gradient_desc, filter):
+    def __init__(self, gradient_desc):
         self.ID = gradient_desc['ID']
         libdir = gradient_desc['libdir']
-
-        self.ivf_filter = filter['ivf'] # NOTE this is a joint of secondary operators
-        self.wf_filter = filter['wf'] # NOTE WF is ivf ivf^dagger, so could in principle be simplified
 
         self.lm_max_sky = gradient_desc['lm_max_sky']
         self.lm_max_pri = gradient_desc['lm_max_pri']
@@ -27,7 +24,7 @@ class base:
         gfield_desc = {
             "ID": self.ID,
             "libdir": opj(libdir, 'gradients'),
-            "libdir_prior": opj(libdir, 'estimates'),
+            "libdir_prior": opj(libdir, 'estimate'),
             "meanfield_fns": f'mf_glm_{self.ID}_simidx{{idx}}_it{{it}}',
             "quad_fns": f'quad_glm_{self.ID}_simidx{{idx}}_it{{it}}',
             "prior_fns": 'klm_{component}_simidx{idx}_it{it}', # prior is just field, and then we do a simple divide by spectrum (almxfl)
@@ -48,9 +45,9 @@ class base:
             return self.gfield.get_total(simidx, it, component)
         else:
             g = 0
-            g += self.get_gradient_prior(it-1, component)
-            g += self.get_gradient_meanfield(it, component)
-            g -= self.get_gradient_quad(it, component, wflm, ivfreslm)
+            g += self.get_gradient_prior(simidx, it-1, component)
+            g += self.get_gradient_meanfield(simidx, it, component)
+            g -= self.get_gradient_quad(simidx, it, component, wflm, ivfreslm)
             # self.gfield.cache_total(g, simidx, it) # NOTE this is implemented, but not used to save disk space
             return g
 
@@ -74,7 +71,7 @@ class base:
 class lensing(base):
 
     def __init__(self, gradient_desc, filter):
-        super().__init__(gradient_desc, filter)
+        super().__init__(gradient_desc)
         self.gradient_operator = self.get_operator(filter['ivf'].ivf_operator)
 
 
@@ -115,7 +112,7 @@ class lensing(base):
 class birefringence(base):
 
     def __init__(self, gradient_desc, filter):
-        super().__init__(gradient_desc, filter)
+        super().__init__(gradient_desc)
         self.gradient_operator = self.get_operator(filter['ivf'].ivf_operator)
     
 

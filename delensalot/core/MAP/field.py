@@ -108,9 +108,9 @@ class gradient:
         if not self.cacher_field.is_cached(self.prior_fns.format(component=component, idx=simidx, it=it)):
             assert 0, "cannot find prior at {}".format(self.cacher_field.lib_dir+"/"+self.prior_fns.format(component=component, idx=simidx, it=it))
         else:
-            Lmax = Alm.getlmax(priorlm.size)
             priorlm = self.cacher_field.load(self.prior_fns.format(component=component, idx=simidx, it=it))
-            almxfl(priorlm.squeeze(), cli(self.chh[component]), Lmax, True)
+            Lmax = Alm.getlmax(priorlm.size, None)
+            almxfl(priorlm.squeeze(), cli(self.chh[self.component2idx[component]]), Lmax, True)
         return priorlm
 
     

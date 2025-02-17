@@ -55,11 +55,6 @@ class base:
 
 
     def _init_filterqest(self):
-        # print('Initializing filterqest')
-        # print('filtering_spatial_type:', self.filtering_spatial_type)
-        # print(self.nivjob_geominfo)
-        # print(self.ttebl, self.cls_len, self.ftebl_len['t'])
-        # print(self.lm_max_qlm)
         if self.filtering_spatial_type == 'isotropic':
             self.ivf = filt_simple.library_fullsky_sepTP(opj(self.libdir, 'ivf'), self.simulationdata, self.nivjob_geominfo[1]['nside'], self.ttebl, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
             if self.estimator_type == 'sepTP':

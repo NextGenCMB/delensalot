@@ -136,7 +136,6 @@ class lensing(base):
             if self.field_cacher.is_cached(field_path):
                 self.field[comp] = self.klm2dlm(self.field_cacher.load(field_path)[0])
             else: 
-                print(self.field_cacher.lib_dir, self.field_fns[comp])
                 assert 0, f"Cannot set field with it={it} and simidx={simidx}"
 
         d = np.array([self.field[comp].flatten() for comp in comps_], dtype=complex)
@@ -147,7 +146,6 @@ class lensing(base):
 
     def klm2dlm(self, klm):
         h2d = cli(0.5 * np.sqrt(np.arange(self.LM_max[0] + 1, dtype=float) * np.arange(1, self.LM_max[0] + 2, dtype=float)))
-        print(klm.shape, self.LM_max[1])
         Lmax = Alm.getlmax(klm.size, None)
         return almxfl(klm, h2d, Lmax, False)
 
@@ -248,3 +246,26 @@ class beam:
     def __mul__(self, obj, other):
         return self.act(obj)
     
+
+class noise:
+    def __init__(self, operator_desc):
+        self.noise = operator_desc['noise']
+        self.n1e = self.n1elm * 0.5
+        self.n1b = self.n1blm * 0.5
+
+        self.n1elm = cli(_extend_cl(self.nlevp**2, self.lm_max_sky[0])) * (180 * 60 / np.pi) ** 2
+        self.n1blm = cli(_extend_cl(self.nlevp**2, self.lm_max_sky[0])) * (180 * 60 / np.pi) ** 2
+
+    def act(self, obj, lm_max_in=None, lm_max_out=None, adjoint=False):
+        lm_max = self.lm_max if lm_max_out is None else lm_max_out
+        if adjoint:
+            return np.array([cli(almxfl(o, self.noise, lm_max[1], False)) for o in obj])
+        return np.array([almxfl(o, self.noise, lm_max[1], False) for o in obj])
+
+
+    def adjoint(self, lm_max=None):
+        self.is_adjoint = True
+        return self
+
+    def __mul__(self, obj, other):
+        return self.act(obj)

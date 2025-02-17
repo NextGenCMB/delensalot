@@ -4,21 +4,18 @@ import numpy as np
 from scipy.interpolate import UnivariateSpline as spl
 import healpy as hp
 
-from lenspyx.remapping import deflection
-from lenspyx.lensing import get_geom 
-
-from delensalot.core.cg import multigrid
 from delensalot.core.MAP import CG
-from delensalot.core.opfilt import MAP_opfilt_iso_p as MAP_opfilt_iso_p # MAP_opfilt_iso_p_operator
+from delensalot.core.opfilt import MAP_opfilt_iso_p as MAP_opfilt_iso_p
 
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy
 from delensalot.utils import cli
 
 from delensalot.core.MAP import field
 
-import time
-
-
+filterfield_desc = lambda ID, libdir: {
+    "ID": ID,
+    "libdir": opj(libdir),
+    "fns": f"{ID}_simidx{{idx}}_it{{it}}",}
 
 def _extend_cl(cl, lmax):
     """Forces input to an array of size lmax + 1
@@ -44,13 +41,13 @@ class ivf:
         self.n1elm = _extend_cl(np.array(self.transfer['e'])**1, self.lm_max_sky[0]) * cli(_extend_cl(self.nlevp**2, self.lm_max_sky[0])) * (180 * 60 / np.pi) ** 2
         self.n1blm = _extend_cl(np.array(self.transfer['b'])**1, self.lm_max_sky[0]) * cli(_extend_cl(self.nlevp**2, self.lm_max_sky[0])) * (180 * 60 / np.pi) ** 2
 
-
         filterfield_desc = lambda ID: {
             "ID": ID,
             "libdir": opj(self.libdir),
             "fns": f"{ID}_simidx{{idx}}_it{{it}}",
         }
         self.ivf_field = field.filter(filterfield_desc('ivf'))
+
 
     def get_ivfreslm(self, simidx, it, data=None, eblm_wf=None):
         # NOTE this is eq. 21 of the paper, in essence it should do the following:
@@ -66,7 +63,6 @@ class ivf:
 
     def update_operator(self, simidx, it):
         self.ivf_operator.set_field(simidx, it)
-
 
 class wf:
     def __init__(self, filter_desc):
@@ -167,6 +163,124 @@ class wf:
 
         assert Alm.getsize(self.lm_max_pri[0], self.lm_max_pri[1]) == eblm.size, (self.lm_max_pri[0], self.lm_max_pri[1], Alm.getlmax(eblm.size, self.lm_max_pri[1]))
         return almxfl(eblm, flmat, self.lm_max_pri[1], False)
+
+
+    def update_operator(self, simidx, it, secondary=None, component=None):
+        self.wf_operator.set_field(simidx, it, component)
+
+
+    def get_template(self, simidx, it, secondary, component):
+        self.wf_operator.set_field(simidx, it, secondary, component)
+        estCMB = self.get_wflm(simidx, it)
+
+        # NOTE making sure that QE is perturbative, and resetting MAP to non-perturbative.
+        # Must be done for each call, as the operators used are the same instance.
+        for operator in self.wf_operator.operators:
+            if operator.ID == 'lensing' and 'lensing' in secondary:
+                operator.perturbative = (it == 0)
+                
+        return self.wf_operator.act(estCMB, secondary=secondary)
+    
+
+
+class ivf_wip:
+    def __init__(self, filter_desc): 
+        self.ivf_operator = filter_desc['ivf_operator']
+        self.libdir = filter_desc['libdir']
+        self.beam = filter_desc['beam']
+        self.noise = filter_desc['noise']
+        self.ivf_field = field.filter(filterfield_desc('ivf', self.libdir))
+
+
+    def get_ivfreslm(self, simidx, it, lm_max_pri, lm_max_sky, data=None, eblm_wf=None):
+        # NOTE this is eq. 21 of the paper, in essence it should do the following:
+        if not self.ivf_field.is_cached(simidx, it):
+            assert eblm_wf is not None and data is not None
+            ivfreslm = -1*self.beam.act(self.ivf_operator.act(eblm_wf, spin=2, lm_max_in=lm_max_pri, lm_max_out=lm_max_sky))
+            ivfreslm += data
+            ivfreslm = self.noise.act(ivfreslm, adjoint=True)
+            ivfreslm = self.beam.act(ivfreslm, adjoint=True)
+            self.ivf_field.cache_field(ivfreslm, simidx, it)
+        return self.ivf_field.get_field(simidx, it)
+    
+
+    def update_operator(self, simidx, it):
+        self.ivf_operator.set_field(simidx, it)
+
+
+class wf_wip:
+    def __init__(self, filter_desc):
+        self.wf_operator = filter_desc['wf_operator']
+        self.libdir = filter_desc['libdir']
+        self.beam = filter_desc['beam']
+        self.noise = filter_desc['noise']
+
+        self.chain_descr = filter_desc['chain_descr']
+        self.cls_filt = filter_desc['cls_filt']
+
+        filterfield_desc = lambda ID: {
+            "ID": ID,
+            "libdir": opj(self.libdir),
+            "fns": f"{ID}_simidx{{idx}}_it{{it}}",
+        }
+        self.wf_field = field.filter(filterfield_desc('wf'))
+
+
+    def get_wflm(self, simidx, it, lm_max_pri, lm_max_sky, data=None):
+        if not self.wf_field.is_cached(simidx, it):
+            assert data is not None, 'data is required for the calculation'
+            cg_sol_curr = self.wf_field.get_field(simidx, it-1)
+            tpn_alm = self.calc_prep(data, lm_max_pri, lm_max_sky) # this changes lmmax to lmmax_unl via lensgclm
+            mchain = CG.conjugate_gradient(self.precon_op, self.chain_descr, self.cls_filt)
+            mchain.solve(cg_sol_curr, tpn_alm, self.fwd_op, lm_max_pri, lm_max_sky)
+            self.wf_field.cache_field(cg_sol_curr, simidx, it)
+        return self.wf_field.get_field(simidx, it)
+
+
+    def calc_prep(self, eblm, lm_max_pri, lm_max_sky):
+        """cg-inversion pre-operation. This performs :math:`D_\phi^t B^t N^{-1} X^{\rm dat}`
+        """
+        eblmc = np.empty_like(eblm)
+        eblmc = self.noise.act(eblmc, adjoint=True)
+        eblmc = self.beam.act(eblm, adjoint=True)
+        elm = self.wf_operator.act(eblmc, spin=2, lm_max_in=lm_max_sky, lm_max_out=lm_max_pri, adjoint=True, backwards=True, out_sht_mode='GRAD_ONLY').squeeze()
+        almxfl(elm, self.cls_filt['ee'] > 0., lm_max_pri[1], True)
+        return elm
+    
+
+    def fwd_op(self, elm, lm_max_pri, lm_max_sky):
+        iclee = cli(self.cls_filt['ee'])
+        nlm = np.copy(elm)
+        # View to the same array for GRAD_ONLY mode:
+        elm_2d = nlm.reshape((1, nlm.size))
+        eblm = self.wf_operator.act(elm_2d, spin=2, lm_max_in=lm_max_pri, lm_max_out=lm_max_sky, adjoint=False, backwards=False)
+        eblm = self.beam.act(eblm, adjoint=True)
+        eblm = self.noise.act(eblm, adjoint=True)
+        eblm = self.beam.act(eblm, adjoint=True)
+        elm_2d = self.wf_operator.act(eblm, spin=2, lm_max_in=lm_max_sky, lm_max_out=lm_max_pri, adjoint=True, backwards=True, out_sht_mode='GRAD_ONLY')
+
+        nlm = elm_2d.squeeze()
+        nlm += almxfl(elm, iclee, lm_max_pri[1], False)
+        almxfl(nlm, iclee > 0.0, lm_max_pri[1], True)
+
+        return nlm
+
+
+    def precon_op(self, eblm, lm_max_pri):
+        """Applies the preconditioner operation for diagonal preconditioning.
+        """
+        assert len(self.cls_filt['ee']) > lm_max_pri[0], (lm_max_pri[0], len(self.cls_filt['ee']))
+        ninv_fel = np.copy(_extend_cl(np.array(self.transfer['e'])**2, self.lm_max_sky[0]) * cli(_extend_cl(self.nlevp**2, self.lm_max_sky[0])) * (180 * 60 / np.pi) ** 2)
+        # Extend transfer function to avoid preconditioning with zero (~ Gaussian beam)
+        if len(ninv_fel) - 1 < lm_max_pri[0]:
+            assert np.all(ninv_fel >= 0)
+            nz = np.where(ninv_fel > 0)
+            spl_sq = spl(np.arange(len(ninv_fel), dtype=float)[nz], np.log(ninv_fel[nz]), k=2, ext='extrapolate')
+            ninv_fel = np.exp(spl_sq(np.arange(lm_max_pri[0] + 1, dtype=float)))
+
+        flmat = cli(self.cls_filt['ee'][:lm_max_pri[0] + 1]) + ninv_fel[:lm_max_pri[0] + 1]
+        flmat = cli(flmat) * (self.cls_filt['ee'][:lm_max_pri[0] + 1] > 0.)
+        return almxfl(eblm, flmat, lm_max_pri[1], False)
 
 
     def update_operator(self, simidx, it, secondary=None, component=None):

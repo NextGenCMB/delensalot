@@ -17,7 +17,7 @@ from . import operator
 template_secondaries = ['lensing', 'birefringence']  # Define your desired order
 template_index_secondaries = {val: i for i, val in enumerate(template_secondaries)}
 
-class base:
+class handler:
     # def __init__(self, simulationdata, estimator_key, secondaries, filter_desc, gradient_descs, curvature_desc, desc, simidx):
     def __init__(self, simulationdata, estimator_key, simidx, CLfids, itmax, curvature_desc, lenjob_info, lm_maxs, wf_info, noise_info, obs_info, libdir, startingpoint_desc):
         # # this class handles the filter, gradient, and curvature libs, nothing else
@@ -74,31 +74,29 @@ class base:
 
         MAP_ivf_desc = {
             'ivf_operator': sec_operator,
+            'beam': operator.beam({"beamwidth": obs_info['beam'], "lm_max": lm_maxs['lm_max_sky']}), # NOTE this is a obs operator
             'libdir': opj(self.libdir, 'filter/'),
-            'beam': operator.beam({"beamwidth": obs_info['beam'], "lm_max": lm_maxs['lm_max_sky']}), # FIXME rewrite in1el in2bl etc.
-            "ttebl": obs_info['ttebl'], # FIXME rewrite in1el in2bl etc.
-            "lm_max_pri": lm_maxs['lm_max_pri'],
-            "lm_max_sky": lm_maxs['lm_max_sky'],
-            "nlev": noise_info['nlev'], # FIXME this should belong to a noise model operator
+            "ttebl": obs_info['ttebl'], # FIXME this belong to the noise operator
+            "nlev": noise_info['nlev'], # NOTE this is a noise operator
+            "lm_max_pri": lm_maxs['lm_max_pri'], # FIXME I can remove them in favour of passing lm_maxs
+            "lm_max_sky": lm_maxs['lm_max_sky'], # FIXME I can remove them in favour of passing lm_maxs
         }
-        # it_chain_descr = lambda p2, p5 : [[0, ["diag_cl"], p2, noisemodel_info['nivjob_geominfo'][1]['nside'], np.inf, p5, cd_solve.tr_cg, cd_solve.cache_mem()]]
         MAP_wf_desc = {
             'wf_operator': sec_operator,
-            'libdir': opj(self.libdir, 'filter/'),
             'beam': operator.beam({"beamwidth": obs_info['beam'], "lm_max": lm_maxs['lm_max_pri']}), # FIXME rewrite in1el in2bl etc.
-            'nlev': noise_info['nlev'], # FIXME rewrite in1el in2bl etc.
+            'libdir': opj(self.libdir, 'filter/'),
+            "ttebl": obs_info['ttebl'], # FIXME this belongs to the noise operator
+            'nlev': noise_info['nlev'], # NOTE this is a noise operator
+            "lm_max_pri": lm_maxs['lm_max_pri'], # FIXME I can remove them in favour of passing lm_maxs
+            "lm_max_sky": lm_maxs['lm_max_sky'], # FIXME I can remove them in favour of passing lm_maxs
             "chain_descr": wf_info['chain_descr'](lm_maxs['lm_max_pri'][0], wf_info['cg_tol']),
-            "ttebl": obs_info['ttebl'], # FIXME rewrite in1el in2bl etc.
             "cls_filt": simulationdata.cls_lib.Cl_dict,
-            "lm_max_pri": lm_maxs['lm_max_pri'],
-            "lm_max_sky": lm_maxs['lm_max_sky'],
-            "nlev": noise_info['nlev'], # FIXME this should belong to a noise model operator
         }
         self.ivf_filter = filter.ivf(MAP_ivf_desc)
         self.wf_filter = filter.wf(MAP_wf_desc)
-        filters = {'ivf': self.ivf_filter, 'wf': self.wf_filter}
 
         gradient_descs = {}
+        
         for gradient_name in analysis_secondary.keys():
             gradient_descs.update({ 
                 gradient_name: {
@@ -114,10 +112,7 @@ class base:
                     'chh': [self._chh(self.CLfids[gradient_name][comp*2], lmax=lm_maxs['LM_max'][0], gradient_name=gradient_name) for comp in analysis_secondary[gradient_name]],
             }})
         self.chh = {sec: {comp: self._chh(self.CLfids[sec][comp*2], lmax=lm_maxs['LM_max'][0], gradient_name=sec) for comp in analysis_secondary[sec]} for sec in analysis_secondary.keys()}
-        self.gradients = []
-        self.gradients.extend(
-            getattr(gradient, sec)(gradient_descs[sec], filters)
-            for sec in self.seclist_sorted if hasattr(gradient, sec))
+        self.gradients = [getattr(gradient, sec)(gradient_descs[sec], sec_operator) for sec in self.seclist_sorted if hasattr(gradient, sec)]
 
         # FIXME this is not guaranteed to be correctly sorted (dicts are not ordered)
         curvature_desc["h0"] = np.array([v for val in self.__get_h0(curvature_desc["Runl0"]).values() for v in val.values()])
@@ -150,11 +145,11 @@ class base:
                     self.update_operator(simidx, it-1)
                     wflm = self.wf_filter.get_wflm(simidx, it, self.data)
                     ivfreslm = np.ascontiguousarray(self.ivf_filter.get_ivfreslm(simidx, it, self.data, wflm))
-                    grad_tot.append(gradient.get_gradient_total(it, wflm=wflm, ivfreslm=ivfreslm)) #calculates the filtering, the sum, and the quadratic combination
+                    grad_tot.append(gradient.get_gradient_total(simidx, it, wflm=wflm, ivfreslm=ivfreslm)) #calculates the filtering, the sum, and the quadratic combination
                 grad_tot = np.concatenate([np.ravel(arr) for arr in grad_tot])
                 if it>=2: #NOTE it=1 cannot build the previous diff, as current diff is QE
                     for gradient in self.gradients:
-                        grad_prev.append(gradient.get_gradient_total(it-1))
+                        grad_prev.append(gradient.get_gradient_total(simidx, it-1))
                     grad_prev = np.concatenate([np.ravel(arr) for arr in grad_prev])
                     self.curvature.add_yvector(grad_tot, grad_prev, simidx, it)
                 increment = self.curvature.get_increment(grad_tot, simidx, it)
@@ -216,48 +211,48 @@ class base:
         return self.ivf_filter.get_ivfreslm(simidx, it)
     
 
-    def get_gradient_quad(self, it=None, secondary=None, component=None, data=None):
+    def get_gradient_quad(self, simidx, it=None, secondary=None, component=None, data=None):
         if it is None:
             it = self.maxiterdone()
         if secondary is None:
             return [grad.get_gradient_quad(it, component, data) for grad in self.gradients]
         if isinstance(secondary, str):
-            return self.gradients[self.sec2idx[secondary]].get_gradient_quad(it, component, data)
+            return self.gradients[self.sec2idx[secondary]].get_gradient_quad(simidx, it, component, data)
         sec_idx = [self.sec2idx[sec] for sec in secondary]
-        return [self.gradients[idx].get_gradient_quad(it, component, data) for idx in sec_idx]
+        return [self.gradients[idx].get_gradient_quad(simidx, it, component, data) for idx in sec_idx]
 
 
-    def get_gradient_meanfield(self, it=None, secondary=None, component=None):
+    def get_gradient_meanfield(self, simidx, it=None, secondary=None, component=None):
         if it is None:
             it = self.maxiterdone()
         if secondary is None:
             return [grad.get_gradient_meanfield(it, component) for grad in self.gradients]
         if isinstance(secondary, str):
-            return self.gradients[self.sec2idx[secondary]].get_gradient_meanfield(it, component)
+            return self.gradients[self.sec2idx[secondary]].get_gradient_meanfield(simidx, it, component)
         sec_idx = [self.sec2idx[sec] for sec in secondary]
-        return np.array([self.gradients[idx].get_gradient_meanfield(it, component) for idx in sec_idx])
+        return np.array([self.gradients[idx].get_gradient_meanfield(simidx, it, component) for idx in sec_idx])
     
 
-    def get_gradient_prior(self, it=None, secondary=None, component=None):
+    def get_gradient_prior(self, simidx, it=None, secondary=None, component=None):
         if it is None:
             it = self.maxiterdone()
         if secondary is None:
-            return [grad.get_gradient_prior(it-1, component) for grad in self.gradients]
+            return [grad.get_gradient_prior(simidx, it-1, component) for grad in self.gradients]
         if isinstance(secondary, str):
-            return self.gradients[self.sec2idx[secondary]].get_gradient_prior(it-1, component)
+            return self.gradients[self.sec2idx[secondary]].get_gradient_prior(simidx, it-1, component)
         sec_idx = [self.sec2idx[sec] for sec in secondary]
-        return np.array([self.gradients[idx].get_gradient_prior(it-1, component) for idx in sec_idx])
+        return np.array([self.gradients[idx].get_gradient_prior(simidx, it-1, component) for idx in sec_idx])
     
 
-    def get_gradient_total(self, data, it=None, secondary=None, component=None):
+    def get_gradient_total(self, data, simidx, it=None, secondary=None, component=None):
         if it is None:
             it = self.maxiterdone()
         if secondary is None:
-            return [grad.get_gradient_total(it, component, data) for grad in self.gradients]
+            return [grad.get_gradient_total(simidx, it, component, data) for grad in self.gradients]
         if isinstance(secondary, str):
-            return self.gradients[self.sec2idx[secondary]].get_gradient_total(it, component, data)
+            return self.gradients[self.sec2idx[secondary]].get_gradient_total(simidx, it, component, data)
         sec_idx = [self.sec2idx[sec] for sec in secondary]
-        return np.array([self.gradients[idx].get_gradient_total(it, component, data) for idx in sec_idx])
+        return np.array([self.gradients[idx].get_gradient_total(simidx, it, component, data) for idx in sec_idx])
 
 
     def get_template(self, simidx, it, secondary=None, component=None):

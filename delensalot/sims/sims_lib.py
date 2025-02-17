@@ -967,7 +967,6 @@ class Simhandler:
                 self.cls_lib = Cls(fid_info=fid_info, seccomp=seccomp)
                 self.sky_lib = Xsky(pri_lib=DNaV, geominfo=geominfo, CMB_info=copy.copy(CMB_info), operator_info=operator_info)
                 
-                self.noise_lib = self.obs_lib.noise_lib
                 self.libdir = self.sky_lib.CMB_info['libdir']
                 self.fns = self.sky_lib.CMB_info['fns']
             elif flavour == 'pri':
