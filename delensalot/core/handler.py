@@ -777,8 +777,8 @@ class QE_lr_v2:
                 QE_search.init_filterqest()
 
 
-    def maxiterdone(self):
-        return self.QE_searchs[0].isdone()
+    def maxiterdone(self, simidx):
+        return self.QE_searchs[0].isdone(simidx)
 
 
 class MAP_lr_v2:

@@ -8,6 +8,10 @@ from delensalot.utility.utils_hp import Alm, almxfl, alm_copy
 
 from delensalot.core.QE import field as QE_field
 
+complist_lensing_template = ['p', 'w']
+complist_lensing_template_idx = {val: i for i, val in enumerate(complist_lensing_template)}
+complist_birefringence_template = ['f']
+
 class base:
     def __init__(self, CLfids, estimator_key, QE_filterqest_desc, ID='generic', libdir=None, simidxs_mf=[], subtract_meanfield=True, init_filterqest=False):
         self.estimator_key = estimator_key
@@ -17,14 +21,19 @@ class base:
         self.ID = ID or 'generic'
         oek = list(estimator_key.values())[0]
         keystring = oek if len(oek) == 1 else '_'+oek.split('_')[-1] if "_" in oek else oek[-2:]
-        self.libdir = libdir or opj(os.environ['SCRATCH'], 'QE_search_generic', keystring, self.ID)
+        self.libdir = libdir or opj(os.environ['SCRATCH'], 'QE_search_generic', keystring)
+        if 'p' in estimator_key.keys() or 'w' in estimator_key.keys():
+            component_ = [key for key in complist_lensing_template if key in self.estimator_key]
+        elif 'f' in estimator_key.keys():
+            component_ = ['f']
         field_desc = {
             "ID": self.ID,
             "libdir": opj(self.libdir, 'estimate'),
             'CLfids': CLfids,
-            'component': list(self.estimator_key.keys()),
+            'component': component_,
         }
         self.secondary = QE_field.secondary(field_desc)
+        QE_filterqest_desc.update({'libdir': opj(self.libdir)})
         self.fq = filterqest.base(**QE_filterqest_desc)
         if init_filterqest: self.init_filterqest()
 
@@ -122,3 +131,14 @@ class base:
             return 0
         else:
             return -1
+        
+    # FIXME this must go to QE
+    def _get_h0(self, R_unl0):
+        ret = {grad.ID: {} for grad in self.gradients}
+        for seci, sec in enumerate(self.seclist_sorted):
+            lmax = self.gradients[seci].LM_max[0]
+            for comp in self.secondaries[sec].component:
+                chh_comp = self.chh[sec][comp]
+                buff = cli(R_unl0[sec][comp][:lmax+1] + cli(chh_comp)) * (chh_comp > 0)
+                ret[sec][comp] = np.array(buff)
+        return ret

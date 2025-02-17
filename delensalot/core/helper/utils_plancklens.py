@@ -46,9 +46,9 @@ def get_masks(nivjob_geomlib, rhits_normalised, mask):
 def ttebl(beam, lm_max, lmin_teb, with_pixwin=False, geominfo=None):
     beam_factor = gauss_beam(df.a2r(beam), lmax=lm_max[0])
     lmin_mask = np.arange(lm_max[0] + 1)[:, None] >= lmin_teb
-    if with_pixwin:
+    if not with_pixwin:
         transf = (beam_factor[:, None] * lmin_mask)
-    elif not with_pixwin:
+    elif with_pixwin:
         assert geominfo[0] == 'healpix', 'implement non-healpix pixelwindow function'
         pixwin_factor = hp.pixwin(geominfo[1]['nside'], lmax=lm_max[0])
         transf = (beam_factor[:, None] * pixwin_factor[:, None] * lmin_mask)

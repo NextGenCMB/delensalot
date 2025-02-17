@@ -61,7 +61,6 @@ class secondary:
             if self.ID == 'birefringence':
                 return klm
             else:
-                print(klm.shape)
                 lmax = Alm.getlmax(klm[0].size, None)
                 h2d =  0.5 * np.arange(lmax + 1) * np.arange(1, lmax + 2)
                 return np.atleast_2d(almxfl(klm[0], h2d, lmax, False))

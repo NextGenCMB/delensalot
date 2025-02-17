@@ -147,7 +147,9 @@ class lensing(base):
 
     def klm2dlm(self, klm):
         h2d = cli(0.5 * np.sqrt(np.arange(self.LM_max[0] + 1, dtype=float) * np.arange(1, self.LM_max[0] + 2, dtype=float)))
-        return almxfl(klm, h2d, self.LM_max[1], False)
+        print(klm.shape, self.LM_max[1])
+        Lmax = Alm.getlmax(klm.size, None)
+        return almxfl(klm, h2d, Lmax, False)
 
 
 class birefringence(base):

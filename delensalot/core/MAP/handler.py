@@ -19,7 +19,7 @@ template_index_secondaries = {val: i for i, val in enumerate(template_secondarie
 
 class base:
     # def __init__(self, simulationdata, estimator_key, secondaries, filter_desc, gradient_descs, curvature_desc, desc, simidx):
-    def __init__(self, simulationdata, estimator_key, simidx, CLfids, itmax, curvature_desc, startingpoint_desc, lenjob_info, lm_maxs, wf_info, noise_info, obs_info, libdir):
+    def __init__(self, simulationdata, estimator_key, simidx, CLfids, itmax, curvature_desc, lenjob_info, lm_maxs, wf_info, noise_info, obs_info, libdir, startingpoint_desc):
         # # this class handles the filter, gradient, and curvature libs, nothing else
         self.data = None 
 
@@ -81,14 +81,13 @@ class base:
             "lm_max_sky": lm_maxs['lm_max_sky'],
             "nlev": noise_info['nlev'], # FIXME this should belong to a noise model operator
         }
-        chain_descr = wf_info['chain_descr']
         # it_chain_descr = lambda p2, p5 : [[0, ["diag_cl"], p2, noisemodel_info['nivjob_geominfo'][1]['nside'], np.inf, p5, cd_solve.tr_cg, cd_solve.cache_mem()]]
         MAP_wf_desc = {
             'wf_operator': sec_operator,
             'libdir': opj(self.libdir, 'filter/'),
             'beam': operator.beam({"beamwidth": obs_info['beam'], "lm_max": lm_maxs['lm_max_pri']}), # FIXME rewrite in1el in2bl etc.
             'nlev': noise_info['nlev'], # FIXME rewrite in1el in2bl etc.
-            "chain_descr": chain_descr(lm_maxs['lm_max_pri'][0], wf_info['cg_tol']),
+            "chain_descr": wf_info['chain_descr'](lm_maxs['lm_max_pri'][0], wf_info['cg_tol']),
             "ttebl": obs_info['ttebl'], # FIXME rewrite in1el in2bl etc.
             "cls_filt": simulationdata.cls_lib.Cl_dict,
             "lm_max_pri": lm_maxs['lm_max_pri'],
@@ -189,6 +188,7 @@ class base:
         return itr
 
 
+    # FIXME this must go to QE
     def __get_h0(self, R_unl0):
         ret = {grad.ID: {} for grad in self.gradients}
         for seci, sec in enumerate(self.seclist_sorted):
@@ -317,3 +317,22 @@ class base:
             return CL[:lmax+1] * (0.5 * np.arange(lmax+1) * np.arange(1, lmax+2))**2
         elif gradient_name == 'birefringence':
             return CL[:lmax+1]
+        
+
+    def _copyQEtoDirectory(self, QE_searchs):
+        # copies fields and gradient starting points to MAP directory
+        # NOTE this turns them into convergence fields
+        for secname, secondary in self.secondaries.items():
+            QE_searchs[self.sec2idx[secname]].init_filterqest()
+            if not all(self.secondaries[secname].is_cached(self.simidx, it=0)):
+                klm_QE = QE_searchs[self.sec2idx[secname]].get_est(self.simidx)
+                self.secondaries[secname].cache_klm(klm_QE, self.simidx, it=0)
+            
+            if not self.gradients[self.sec2idx[secname]].gfield.is_cached(self.simidx, it=0):
+                kmflm_QE = QE_searchs[self.sec2idx[secname]].get_kmflm(self.simidx)
+                self.gradients[self.sec2idx[secname]].gfield.cache_meanfield(kmflm_QE, self.simidx, it=0)
+
+            #TODO cache QE wflm into the filter directory
+            if not self.wf_filter.wf_field.is_cached(self.simidx, it=0):
+                wflm_QE = QE_searchs[self.sec2idx[secname]].get_wflm(self.simidx, self.ivf_filter.lm_max_pri)
+                self.wf_filter.wf_field.cache_field(np.array(wflm_QE), self.simidx, it=0)

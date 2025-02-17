@@ -24,6 +24,7 @@ safelist = [
     'rhits_normalised',
     'masks_fn',
     'secondaries',
+    'libdir_suffix',
     'mfvar', #not really safe, but ok for now as long as you know what you do
 ]
 

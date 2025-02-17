@@ -409,12 +409,12 @@ class Xpri:
         Returns:
             _type_: _description_
         """
-        _ = self.sec_info.keys() if not return_nonrec else self.all_secondaries_components.keys()
+        _ = self.sec_info.keys() if (not return_nonrec and not secondary==None) else self.all_secondaries_components.keys()
         c_ = lambda x: self.sec_info[x]['component'] if not return_nonrec else self.all_secondaries_components[x]
         if secondary is None:
             return [self.get_sim_sec(simidx, space, sec, component=c_(sec), return_nonrec=return_nonrec) for sec in _]
-            seclist_sorted = sorted(self.sec_info.keys(), key=lambda x: template_index_secondaries.get(x, ''))
-            return [self.get_sim_sec(simidx, space, key, component=component, return_nonrec=return_nonrec) for key in seclist_sorted]
+            # seclist_sorted = sorted(self.sec_info.keys(), key=lambda x: template_index_secondaries.get(x, ''))
+            # return [self.get_sim_sec(simidx, space, key, component=component, return_nonrec=return_nonrec) for key in seclist_sorted]
         if secondary not in _:
             print(f"secondary {secondary} not available")
             return np.array([[]])
@@ -422,8 +422,8 @@ class Xpri:
             print(f"component {component} of {secondary} not available")
             return np.array([[]])
         if component is None:
-            return np.array([self.get_sim_sec(simidx, space, sec, component=c_(sec), return_nonrec=return_nonrec) for sec in _])
-            return np.array([self.get_sim_sec(simidx, space, secondary, component=comp, return_nonrec=return_nonrec) for comp in self.sec_info[secondary]['component']])
+            return np.array(self.get_sim_sec(simidx, space, secondary, component=c_(secondary)))
+            # return np.array([self.get_sim_sec(simidx, space, secondary, component=comp, return_nonrec=return_nonrec) for comp in self.sec_info[secondary]['component']])
         if isinstance(component, (list, np.ndarray)):
             for comp in component:
                 if comp not in c_(secondary):
@@ -514,7 +514,6 @@ class Xpri:
             lm_max = list(self.sec_info.values())[0]['lm_max']
         else:
             lm_max = self.sec_info[secondary]['LM_max']
-        print(lm_max)
         sec = hp.synalm(clp, lm_max[0])
         return sec
 
@@ -1066,6 +1065,20 @@ class Simhandler:
     # compatibility with Plancklens
     def get_sim_pmap(self, simidx):
         return self.get_sim_obs(simidx=simidx, space='map', field='polarization', spin=2)
+    
+    def print_info(self):
+        print('Simhandler:')
+        print('flavour:', self.flavour)
+        print('CMB_info:', self.CMB_info)
+        print('obs_info:', self.obs_info)
+        print('sec_info:', self.sec_info)
+        print('operator_info:', self.operator_info)
+        print('geominfo:', self.geominfo)
+        print('spin:', self.spin)
+        print('lm_max:', self.lm_max)
+        print('space:', self.space)
+        print('libdir:', self.libdir)
+        print('fns:', self.fns)
 
 
 class anafast_clone():
