@@ -14,12 +14,11 @@ class base:
         self.ID = gradient_desc['ID']
         libdir = gradient_desc['libdir']
 
-        self.lm_max_pri = gradient_desc['lm_max_pri']
-        self.lm_max_sky = gradient_desc['lm_max_sky']
-
         self.ffi = gradient_desc['ffi']
         self.chh = gradient_desc['chh']
         self.component = gradient_desc['component']
+
+        self.LM_max = gradient_desc['LM_max']
 
         self.ivf_filter = gradient_desc['ivf_filter']
         self.wf_filter = gradient_desc['wf_filter']
@@ -39,7 +38,7 @@ class base:
         self.gfield = field.gradient(gfield_desc)
 
 
-    def get_gradient_total(self, simidx, it, component=None):
+    def get_gradient_total(self, simidx, it, component=None, data=None):
         if component is None:
             component = self.gfield.component
         if isinstance(it, (list,np.ndarray)):
@@ -50,7 +49,7 @@ class base:
             g = 0
             g += self.get_gradient_prior(simidx, it-1, component)
             g += self.get_gradient_meanfield(simidx, it, component)
-            g -= self.get_gradient_quad(simidx, it, component)
+            g -= self.get_gradient_quad(simidx, it, component, data)
             # self.gfield.cache_total(g, simidx, it) # NOTE this is implemented, but not used to save disk space
             return g
 
@@ -75,21 +74,23 @@ class lensing(base):
 
     def __init__(self, gradient_desc):
         super().__init__(gradient_desc)
+        self.lm_max_out = gradient_desc['lm_max_out']
+        self.lm_max_in = gradient_desc['lm_max_in']
         self.gradient_operator = self.get_operator(gradient_desc['sec_operator'])
 
 
-    def get_gradient_quad(self, simidx, it, component=None):
+    def get_gradient_quad(self, simidx, it, component=None, data=None):
         # NOTE this function is equation 22 of the paper (for lensing).
         # Using property _2Y = _-2Y.conj
         # res = ivf.conj * gpmap(3) - ivf * gpmap(1).conj
         if not self.gfield.quad_is_cached(simidx, it):
-            wflm = self.wf_filter.get_wflm(simidx, it, self.data)
-            ivfreslm = np.ascontiguousarray(self.ivf_filter.get_ivfreslm(simidx, it, self.data, wflm))
+            wflm = self.wf_filter.get_wflm(simidx, it, data)
+            ivfreslm = np.ascontiguousarray(self.ivf_filter.get_ivfreslm(simidx, it, data, wflm))
 
             resmap_c = np.ascontiguousarray(np.empty((self.ffi.geom.npix(),), dtype=wflm.dtype))
             resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
             
-            self.ffi.geom.synthesis(ivfreslm, 2, *self.lm_max_sky, self.ffi.sht_tr, map=resmap_r) # ivfmap
+            self.ffi.geom.synthesis(ivfreslm, 2, *self.lm_max_in, self.ffi.sht_tr, map=resmap_r) # ivfmap
             
             gcs_r = self.gradient_operator.act(wflm, spin=3, out='map') # xwfglm
             gc_c = resmap_c.conj() * gcs_r.T.copy().view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3)
@@ -111,7 +112,7 @@ class lensing(base):
     
 
     def get_operator(self, filter_operator):
-        return operator.joint([operator.spin_raise({'lm_max': self.lm_max_pri}), filter_operator])
+        return operator.joint([operator.spin_raise({'lm_max': self.lm_max_out}), filter_operator])
 
 
 class birefringence(base):
@@ -119,6 +120,7 @@ class birefringence(base):
     def __init__(self, gradient_desc):
         super().__init__(gradient_desc)
         self.gradient_operator = self.get_operator(gradient_desc['sec_operator'])
+        self.lm_max = gradient_desc['lm_max']
     
 
     def get_gradient_quad(self, simidx, it, component=None):
@@ -126,10 +128,10 @@ class birefringence(base):
             wflm = self.wf_filter.get_wflm(simidx, it, self.data)
             ivfreslm = np.ascontiguousarray(self.ivf_filter.get_ivfreslm(simidx, it, self.data, wflm))
             
-            ivfmap = self.ffi.geom.synthesis(ivfreslm, 2, self.lm_max_sky[0], self.lm_max_sky[1], self.ffi.sht_tr)
+            ivfmap = self.ffi.geom.synthesis(ivfreslm, 2, self.lm_max_in[0], self.lm_max_in[1], self.ffi.sht_tr)
 
             xwfglm = self.gradient_operator.act(wflm, spin=2) # FIXME are the lmaxes correct?
-            xwfmap = self.ffi.geom.synthesis(xwfglm, 2, *self.lm_max_pri, self.ffi.sht_tr)
+            xwfmap = self.ffi.geom.synthesis(xwfglm, 2, *self.lm_max_out, self.ffi.sht_tr)
  
             qlms = -4 * (ivfmap[0]*xwfmap[1] - ivfmap[1]*xwfmap[0])
             qlms = self.ffi.geom.adjoint_synthesis(qlms, 0, self.LM_max[0], self.LM_max[1], self.ffi.sht_tr)

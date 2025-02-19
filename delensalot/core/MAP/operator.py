@@ -78,10 +78,8 @@ class joint:
     
 
 class secondary_operator:
-    def __init__(self, desc, operators):
-        self.operators = desc["operators"]
-        self.lm_max_in = desc["lm_max"]
-        self.lm_max_out = desc["lm_max_out"]
+    def __init__(self, desc):
+        self.operators = desc # ["operators"]
 
 
     def act(self, obj, spin=2, adjoint=False, backwards=False, out_sht_mode=None, secondary=None):
@@ -172,7 +170,6 @@ class birefringence(base):
         
         self.ID = 'birefringence'
         self.LM_max = operator_desc["LM_max"]
-        self.lm_max = operator_desc["lm_max"]
         # self.Lmin = operator_desc["Lmin"]
         self.component = operator_desc["component"]
         self.field = {component: None for component in self.component}

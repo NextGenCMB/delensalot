@@ -88,7 +88,7 @@ class wf:
         eblmc = self.inoise_operator.act(eblm, adjoint=False)
         eblmc = self.beam_operator.act(eblmc, adjoint=False)
         elm = self.wf_operator.act(eblmc, spin=2, adjoint=True, backwards=True, out_sht_mode='GRAD_ONLY').squeeze()
-        almxfl(elm, self.cls_filt['ee'] > 0., Alm.getlmax(elm, None), True)
+        almxfl(elm, self.cls_filt['ee'] > 0., Alm.getlmax(elm.size, None), True)
         return elm
     
 
@@ -104,27 +104,27 @@ class wf:
         elm_2d = self.wf_operator.act(eblm, spin=2, adjoint=True, backwards=True, out_sht_mode='GRAD_ONLY')
 
         nlm = elm_2d.squeeze()
-        nlm += almxfl(elm, iclee, Alm.getlmax(elm, None)[1], False)
-        almxfl(nlm, iclee > 0.0, Alm.getlmax(elm, None)[1], True)
+        nlm += almxfl(elm, iclee * (iclee > 0.0), Alm.getlmax(elm.size, None), False)
         return nlm
 
 
-    def precon_op(self, eblm):
+    def precon_op(self, elm):
         """Applies the preconditioner operation for diagonal preconditioning.
         """
-        assert len(self.cls_filt['ee']) > Alm.getlmax(eblm[0], None)[0], (Alm.getlmax(eblm[0], None), len(self.cls_filt['ee']))
+        assert len(self.cls_filt['ee']) > Alm.getlmax(elm.size, None), (Alm.getlmax(elm[0].size, None), len(self.cls_filt['ee']))
         # FIXME indexing must change for MV and T-only
         ninv_fel = _extend_cl(self.beam_operator.transferfunction['e']*2, len(self.inoise_operator.n1eblm[0])-1) * self.inoise_operator.n1eblm[0]
         # Extend transfer function to avoid preconditioning with zero (~ Gaussian beam)
-        if len(ninv_fel) - 1 < Alm.getlmax(eblm[0], None):
+        if len(ninv_fel) - 1 < Alm.getlmax(elm.size, None):
             assert np.all(ninv_fel >= 0)
             nz = np.where(ninv_fel > 0)
             spl_sq = spl(np.arange(len(ninv_fel), dtype=float)[nz], np.log(ninv_fel[nz]), k=2, ext='extrapolate')
-            ninv_fel = np.exp(spl_sq(np.arange(Alm.getlmax(eblm[0], None) + 1, dtype=float)))
+            ninv_fel = np.exp(spl_sq(np.arange(Alm.getlmax(elm, None) + 1, dtype=float)))
 
-        flmat = cli(self.cls_filt['ee'][:Alm.getlmax(eblm[0], None) + 1]) + ninv_fel[:Alm.getlmax(eblm[0], None) + 1]
-        flmat = cli(flmat) * (self.cls_filt['ee'][:Alm.getlmax(eblm[0], None) + 1] > 0.)
-        return almxfl(eblm, flmat, Alm.getlmax(eblm[0], None), False)
+        lmax = Alm.getlmax(elm.size, None)
+        flmat = cli(self.cls_filt['ee'][:lmax+1]) + ninv_fel[:]
+        flmat = cli(flmat) * (self.cls_filt['ee'][:lmax+1] > 0.)
+        return almxfl(elm, flmat, lmax, False)
 
 
     def update_operator(self, simidx, it, secondary=None, component=None):
