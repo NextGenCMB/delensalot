@@ -175,6 +175,12 @@ def alm_copy(alm:np.ndarray, mmaxin:int or None, lmaxout:int, mmaxout:int):
     else:
         return ret
     
+def alm_copy_nd(alm: np.ndarray, mmaxin: int or None, lm_max_out):
+    """Copies the healpy alm array across all dimensions, supporting both 1D and 2D arrays."""
+    if alm.ndim == 1:
+        return alm_copy(alm, mmaxin, *lm_max_out)
+    return np.array([alm_copy(alm[i], mmaxin, *lm_max_out) for i in range(alm.shape[0])])
+    
 
 def alm_splice(alm_lo, alm_hi, lsplit):
     """Returns an alm with lmax = lmax(alm_hi) which is alm_lo for (l <= lsplit) alm_hi for (l  > lsplit.)

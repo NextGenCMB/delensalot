@@ -8,6 +8,15 @@ from delensalot.utility.utils_hp import Alm, almxfl, alm_copy
 
 from delensalot.core.QE import field as QE_field
 
+
+def rescale(arr, scale='p'):
+    if scale == 'p':
+        return arr
+    elif scale == 'k':
+        return arr * cli(0.5 * np.arange(arr.size) * np.arange(1, arr.size+1))**2
+    else:
+        raise ValueError('Unknown scale:', scale)
+    
 complist_lensing_template = ['p', 'w']
 complist_lensing_template_idx = {val: i for i, val in enumerate(complist_lensing_template)}
 complist_birefringence_template = ['f']
@@ -36,6 +45,13 @@ class base:
         QE_filterqest_desc.update({'libdir': opj(self.libdir)})
         self.fq = filterqest.base(**QE_filterqest_desc)
         if init_filterqest: self.init_filterqest()
+
+        self.chh = {comp: (
+            self.CLfids[comp*2][:self.fq.lm_max_qlm[0]+1]
+            * (0.5 * np.arange(self.fq.lm_max_qlm[0]+1) * np.arange(1,self.fq.lm_max_qlm[0]+2))**2
+            if ('p' in estimator_key.keys() or 'w' in estimator_key.keys())
+            else self.CLfids[comp*2][:self.fq.lm_max_qlm[0]+1]
+        )for comp in self.secondary.component}
 
         self.comp2idx = {comp: idx for idx, comp in enumerate(self.secondary.component)}
 
@@ -119,11 +135,11 @@ class base:
     
 
     def get_response_unl(self, component, scale='p'):
-        return self.fq.get_response_unl(self.estimator_key[component], self.estimator_key[component][0], self.fq.lm_max_qlm[0])[self.comp2idx[component]]
+        return rescale(self.fq.get_response_unl(self.estimator_key[component], self.estimator_key[component][0], self.fq.lm_max_qlm[0])[self.comp2idx[component]], scale=scale)
     
 
     def get_response_len(self, component, scale='p'):
-        return self.fq.get_response_len(self.estimator_key[component], self.estimator_key[component][0], self.fq.lm_max_qlm[0])[self.comp2idx[component]]
+        return rescale(self.fq.get_response_len(self.estimator_key[component], self.estimator_key[component][0], self.fq.lm_max_qlm[0])[self.comp2idx[component]], scale=scale)
     
 
     def isdone(self, simidx, component):
@@ -131,14 +147,15 @@ class base:
             return 0
         else:
             return -1
-        
-    # FIXME this must go to QE
-    def _get_h0(self, R_unl0):
-        ret = {grad.ID: {} for grad in self.gradients}
-        for seci, sec in enumerate(self.seclist_sorted):
-            lmax = self.gradients[seci].LM_max[0]
-            for comp in self.secondaries[sec].component:
-                chh_comp = self.chh[sec][comp]
-                buff = cli(R_unl0[sec][comp][:lmax+1] + cli(chh_comp)) * (chh_comp > 0)
-                ret[sec][comp] = np.array(buff)
+
+
+    def _get_h0(self):
+        lmax = self.fq.lm_max_qlm[0]
+        ret = []
+        for comp in self.secondary.component:
+            scale = 'k' if self.ID in ['lensing'] else 'p' #NOTE Plancklens by default returns p scale (for lensing). Delensalot works with convergence
+            R_unl0 = self.get_response_unl(comp, scale=scale)
+            chh_comp = self.chh[comp]
+            buff = cli(R_unl0[:lmax+1] + cli(chh_comp)) * (chh_comp > 0)
+            ret.append(np.array(buff))
         return ret

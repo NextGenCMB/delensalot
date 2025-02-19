@@ -195,7 +195,7 @@ class l2base_Transformer:
         elif type(an.zbounds_len[0]) in [float, int, np.float64]:
             dl.zbounds_len = an.zbounds_len
         dl.lm_max_pri = an.lm_max_pri
-        dl.ttebl = utils_plancklens.ttebl(an.beam, dl.lm_max_sky, an.lmin_teb, an.transfunction_desc=='gauss_with_pixwin', cf.noisemodel.geominfo)
+        dl.ttebl = utils_plancklens.gauss_beamtransferfunction(an.beam, dl.lm_max_sky, an.lmin_teb, an.transfunction_desc=='gauss_with_pixwin', cf.noisemodel.geominfo)
 
     def process_Computing(dl, co, cf):
         dl.tr = co.OMP_NUM_THREADS
@@ -339,10 +339,9 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
             dl = DELENSALOT_Concept_v2()
             _process_components(dl)
-            # FIXME decidle later what to do with this template operator. This can probably be moved to the QE job.
-            # But I also want to have it if I directly instantiate the QE search...
-            # # NOTE I need to have a new instance of this as for QE we use a slightly different setting (i.e. perturbative)
-            # # NOTE I need this for the template generation
+            # FIXME decidle later what to do with this template operator. This can probably be moved to the QE job. It is slightly unnatural as there is no deflection in QE, hence
+            # the freedom to choose where it should go. But I also want to have it if I directly instantiate the QE search...
+
             # lenjob_geomlib = get_geom(dl.analysis_secondary['lensing']['geominfo'])
             # thtbounds = (np.arccos(dl.zbounds[1]), np.arccos(dl.zbounds[0]))
             # lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
@@ -441,38 +440,16 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             _process_components(dl)
 
             MAP_libdir_prefix = opj(transform(cf, l2T_Transformer()), 'MAP',f"{cf.analysis.key}")
-            def dotop(glms1, glms2):
-                ret = 0.
-                N = 0
-                for lmax, mmax in [sec['LM_max'] for sec in dl.analysis_secondary.values()]:
-                    siz = hp.Alm.getsize(lmax, mmax)
-                    cl = hp.alm2cl(glms1[N:N+siz], glms2[N:N+siz], None, mmax, None)
-                    ret += np.sum(cl * (2 * np.arange(len(cl)) + 1))
-                    N += siz
-                return ret
-            curvature_desc = {
-                "ID": "curvature",
-                "field": MAP_field.curvature(
-                    {"ID": "curvature",
-                    "libdir": opj(MAP_libdir_prefix, 'curvature'),
-                    "fns": {'yk': f"diff_grad1d_simidx{{idx}}_it{{it}}m{{itm1}}",
-                            'sk': f"incr_grad1d_simidx{{idx}}_it{{it}}m{{itm1}}",
-                    }
-                }),
-                "bfgs_desc": {'dot_op': dotop, # lambda rlm1, rlm2: np.sum(lp1 * hp.alm2cl(rlm1, rlm2)),
-                },
-            }
 
             MAP_searchs_desc = {
                 "estimator_key": cf.analysis.key,
                 'libdir': MAP_libdir_prefix,
                 "CLfids": dl.CLfids,
-                'curvature_desc': curvature_desc,
                 "itmax" : dl.itmax,
-                'startingpoint_desc': {},
                 'lenjob_info': {
                     'zbounds': dl.zbounds,
                     'epsilon': dl.analysis_secondary['lensing']['epsilon'],
+                    'geominfo': ('thingauss', {'lmax': 4500, 'smax': 3}),
                 },
                 'lm_maxs': {
                     'LM_max': dl.LM_max,
@@ -488,8 +465,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     'niv_desc': dl.niv_desc
                 },
                 'obs_info': {
-                    'beam': dl.beam,
-                    'ttebl': dl.ttebl,
+                    'beam_transferfunction': dl.ttebl,
                 },
             }
             MAP_job_desc = {

@@ -1,6 +1,6 @@
 import numpy as np
 
-from delensalot.utility.utils_hp import almxfl
+from delensalot.utility.utils_hp import almxfl, Alm
 from delensalot.utils import cli
 from delensalot.utils import read_map
 

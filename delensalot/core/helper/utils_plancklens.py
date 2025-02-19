@@ -43,7 +43,7 @@ def get_masks(nivjob_geomlib, rhits_normalised, mask):
     return masks, msk
 
 
-def ttebl(beam, lm_max, lmin_teb, with_pixwin=False, geominfo=None):
+def gauss_beamtransferfunction(beam, lm_max, lmin_teb, with_pixwin=False, geominfo=None):
     beam_factor = gauss_beam(df.a2r(beam), lmax=lm_max[0])
     lmin_mask = np.arange(lm_max[0] + 1)[:, None] >= lmin_teb
     if not with_pixwin:

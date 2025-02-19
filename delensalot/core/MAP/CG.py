@@ -33,13 +33,13 @@ class conjugate_gradient:
         self.logger = (lambda iter, eps, stage=self.bstage, **kwargs: self.log(stage, iter, eps, **kwargs))
 
 
-    def solve(self, soltn, tpn_alm, fwd_op, lm_max_pri, lm_max_sky):
+    def solve(self, soltn, tpn_alm, fwd_op):
         self.watch = cd_monitors.stopwatch()
         self.iter_tot = 0
         self.prev_eps = None
 
         monitor = cd_monitors.monitor_basic(self.dot_op, logger=self.logger, iter_max=self.bstage.iter_max, eps_min=self.bstage.eps_min, d0=self.dot_op(tpn_alm, tpn_alm))
-        cd_solve(soltn, tpn_alm, fwd_op, lm_max_pri, lm_max_sky, self.bstage.pre_ops, self.dot_op, monitor, tr=self.bstage.tr, cache=self.bstage.cache)
+        cd_solve(soltn, tpn_alm, fwd_op, self.bstage.pre_ops, self.dot_op, monitor, tr=self.bstage.tr, cache=self.bstage.cache)
 
 
     def dot_op(self, elm1, elm2):
@@ -120,7 +120,7 @@ class cache_mem(dict):
             del self[key]
 
 
-def cd_solve(x, b, fwd_op, lm_max_pri, lm_max_sky, pre_ops, dot_op, criterion, tr, cache=cache_mem(), roundoff=25):
+def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), roundoff=25):
     """customizable conjugate directions loop for x=[fwd_op]^{-1}b.
 
     Args:
@@ -141,12 +141,12 @@ def cd_solve(x, b, fwd_op, lm_max_pri, lm_max_sky, pre_ops, dot_op, criterion, t
     """
 
     n_pre_ops = len(pre_ops)
-    residual = b - fwd_op(x, lm_max_pri, lm_max_sky)
-    searchdirs = [op(residual, lm_max_pri) for op in pre_ops]
+    residual = b - fwd_op(x)
+    searchdirs = [op(residual) for op in pre_ops]
 
     iter = 0
     while not criterion(iter, x, residual):
-        searchfwds = [fwd_op(searchdir, lm_max_pri, lm_max_sky) for searchdir in searchdirs]
+        searchfwds = [fwd_op(searchdir) for searchdir in searchdirs]
         deltas = [dot_op(searchdir, residual) for searchdir in searchdirs]
 
         # calculate (D^T A D)^{-1}

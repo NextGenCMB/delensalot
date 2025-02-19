@@ -6,23 +6,27 @@ from delensalot.utils import cli
 from delensalot.core.iterator.steps import harmonicbump
 
 from delensalot.core import cachers
+from delensalot.core.MAP import field as MAP_field
 
 import healpy as hp
 
 class base:
-    def __init__(self, curvature_desc, gradients):
-        self.ID = curvature_desc['ID']
-        
+    def __init__(self, gradients, h0, bfgs_desc, libdir):
+        self.ID = "curvature"
         self.gradients = gradients
-        self.field = curvature_desc['field']
-
-        self.h0 = curvature_desc['h0']
-        curvature_desc["bfgs_desc"].update({"apply_H0k": self.apply_H0k, "apply_B0k": self.apply_B0k})
-        curvature_desc["bfgs_desc"].update({'cacher': cachers.cacher_npy(self.field.libdir)})
-        self.BFGS_H = BFGS.BFGS_Hessian(self.h0, **curvature_desc["bfgs_desc"])
+        self.field = MAP_field.curvature(
+            {"ID": "curvature",
+            "libdir": libdir,
+            "fns": {'yk': f"diff_grad1d_simidx{{idx}}_it{{it}}m{{itm1}}",
+                    'sk': f"incr_grad1d_simidx{{idx}}_it{{it}}m{{itm1}}",
+            }})
+  
+        self.h0 = h0
+        bfgs_desc.update({"apply_H0k": self.apply_H0k, "apply_B0k": self.apply_B0k})
+        bfgs_desc.update({'cacher': cachers.cacher_npy(self.field.libdir)})
+        self.BFGS_H = BFGS.BFGS_Hessian(self.h0, **bfgs_desc)
         
-        self.stepper = {grad.ID: harmonicbump(**{'lmax_qlm': grad.LM_max[0],'mmax_qlm': grad.LM_max[0],'a': 0.5,'b': 0.499,'xa': 400,'xb': 1500},)
-            for grad in self.gradients}
+        self.stepper = {grad.ID: harmonicbump(**{'lmax_qlm': grad.LM_max[0],'mmax_qlm': grad.LM_max[0],'a': 0.5,'b': 0.499,'xa': 400,'xb': 1500},) for grad in self.gradients}
 
 
     def add_svector(self, incr, simidx, it):

@@ -17,10 +17,9 @@ from . import operator
 template_secondaries = ['lensing', 'birefringence']  # Define your desired order
 template_index_secondaries = {val: i for i, val in enumerate(template_secondaries)}
 
-class handler:
-    # def __init__(self, simulationdata, estimator_key, secondaries, filter_desc, gradient_descs, curvature_desc, desc, simidx):
-    def __init__(self, simulationdata, estimator_key, simidx, CLfids, itmax, curvature_desc, lenjob_info, lm_maxs, wf_info, noise_info, obs_info, libdir, startingpoint_desc):
-        # # this class handles the filter, gradient, and curvature libs, nothing else
+class base:
+    def __init__(self, simulationdata, estimator_key, simidx, CLfids, itmax, lenjob_info, lm_maxs, wf_info, noise_info, obs_info, libdir, QE_searchs):
+        # NOTE this is the minimizer
         self.data = None 
 
         self.libdir = libdir
@@ -29,6 +28,11 @@ class handler:
         self.simidx = simidx
         self.CLfids = CLfids
         self.itmax = itmax
+        self.QE_searchs = QE_searchs
+
+        self.lm_max_pri = lm_maxs['lm_max_pri']
+        self.lm_max_sky = lm_maxs['lm_max_sky']
+        self.LM_max = lm_maxs['LM_max']
 
         # FIXME cleaner implementation
         analysis_secondary = {}
@@ -50,8 +54,8 @@ class handler:
         self.idx2sec = {idx: secondary_ID for idx, secondary_ID in enumerate(self.secondaries.keys())}
         self.seclist_sorted = sorted(list(self.sec2idx.keys()), key=lambda x: template_index_secondaries.get(x, ''))
         
-        lenjob_geomlib = get_geom(('thingauss', {'lmax': 4500, 'smax': 3}))
         zbounds = lenjob_info['zbounds']
+        lenjob_geomlib = get_geom(lenjob_info['geominfo'])
         thtbounds = (np.arccos(zbounds[1]), np.arccos(zbounds[0]))
         lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
         ffi = deflection(lenjob_geomlib, np.zeros(shape=Alm.getsize(*lm_maxs['LM_max'])), lm_maxs['LM_max'][1], numthreads=8, verbosity=False, epsilon=lenjob_info['epsilon'])
@@ -61,62 +65,74 @@ class handler:
         for sec in self.seclist_sorted:
             _MAP_operators_desc[sec] = {
                 "LM_max": lm_maxs['LM_max'],
+                'lm_max_pri': lm_maxs['lm_max_pri'],
+                'lm_max_sky': lm_maxs['lm_max_sky'],
                 "component": analysis_secondary[sec],
                 "libdir": opj(self.libdir, 'estimate/'),
-                "field_fns": self.secondaries[sec].fns, # This must connect to the estimator fields
+                "field_fns": self.secondaries[sec].fns, # NOTE This MUST connect to the estimator secondaries, otherwise it does not not how to update the secondaries
                 "ffi": ffi,}
             if sec == "lensing":
                 _MAP_operators_desc[sec]["perturbative"] = False
                 filter_operators.append(operator.lensing(_MAP_operators_desc[sec]))
-            else:  # birefringence
+            elif sec == 'birefringence':
                 filter_operators.append(operator.birefringence(_MAP_operators_desc[sec]))
         sec_operator = operator.secondary_operator(filter_operators)
 
         MAP_ivf_desc = {
             'ivf_operator': sec_operator,
-            'beam': operator.beam({"beamwidth": obs_info['beam'], "lm_max": lm_maxs['lm_max_sky']}), # NOTE this is a obs operator
+            'beam_operator': operator.beam({'transferfunction': obs_info['beam_transferfunction'], 'lm_max': lm_maxs['lm_max_sky']}),
+            'inoise_operator': operator.inoise_operator(nlev=noise_info['nlev'], lm_max=lm_maxs['lm_max_sky']),
             'libdir': opj(self.libdir, 'filter/'),
-            "ttebl": obs_info['ttebl'], # FIXME this belong to the noise operator
-            "nlev": noise_info['nlev'], # NOTE this is a noise operator
-            "lm_max_pri": lm_maxs['lm_max_pri'], # FIXME I can remove them in favour of passing lm_maxs
-            "lm_max_sky": lm_maxs['lm_max_sky'], # FIXME I can remove them in favour of passing lm_maxs
         }
+        self.ivf_filter = filter.ivf(MAP_ivf_desc)
+
         MAP_wf_desc = {
             'wf_operator': sec_operator,
-            'beam': operator.beam({"beamwidth": obs_info['beam'], "lm_max": lm_maxs['lm_max_pri']}), # FIXME rewrite in1el in2bl etc.
+            'beam_operator': operator.beam({'transferfunction': obs_info['beam_transferfunction'], 'lm_max': lm_maxs['lm_max_sky']}),
+            'inoise_operator': operator.inoise_operator(nlev=noise_info['nlev'], lm_max=lm_maxs['lm_max_sky']),
             'libdir': opj(self.libdir, 'filter/'),
-            "ttebl": obs_info['ttebl'], # FIXME this belongs to the noise operator
-            'nlev': noise_info['nlev'], # NOTE this is a noise operator
-            "lm_max_pri": lm_maxs['lm_max_pri'], # FIXME I can remove them in favour of passing lm_maxs
-            "lm_max_sky": lm_maxs['lm_max_sky'], # FIXME I can remove them in favour of passing lm_maxs
             "chain_descr": wf_info['chain_descr'](lm_maxs['lm_max_pri'][0], wf_info['cg_tol']),
             "cls_filt": simulationdata.cls_lib.Cl_dict,
         }
-        self.ivf_filter = filter.ivf(MAP_ivf_desc)
         self.wf_filter = filter.wf(MAP_wf_desc)
 
         gradient_descs = {}
-        
-        for gradient_name in analysis_secondary.keys():
-            gradient_descs.update({ 
-                gradient_name: {
-                    "ID": gradient_name,
-                    'libdir': opj(self.libdir),
-                    "lm_max_sky": lm_maxs['lm_max_sky'],
-                    "lm_max_pri": lm_maxs['lm_max_pri'],
-                    "LM_max": lm_maxs['LM_max'],
-                    'itmax': itmax,
-                    "ffi": ffi,
-                    'sec_operator': sec_operator,
-                    'component': analysis_secondary[gradient_name],
-                    'chh': [self._chh(self.CLfids[gradient_name][comp*2], lmax=lm_maxs['LM_max'][0], gradient_name=gradient_name) for comp in analysis_secondary[gradient_name]],
-            }})
-        self.chh = {sec: {comp: self._chh(self.CLfids[sec][comp*2], lmax=lm_maxs['LM_max'][0], gradient_name=sec) for comp in analysis_secondary[sec]} for sec in analysis_secondary.keys()}
-        self.gradients = [getattr(gradient, sec)(gradient_descs[sec], sec_operator) for sec in self.seclist_sorted if hasattr(gradient, sec)]
 
-        # FIXME this is not guaranteed to be correctly sorted (dicts are not ordered)
-        curvature_desc["h0"] = np.array([v for val in self.__get_h0(curvature_desc["Runl0"]).values() for v in val.values()])
-        self.curvature = curvature.base(curvature_desc, self.gradients)
+        for gradient_name, components in analysis_secondary.items():
+            gradient_descs[gradient_name] = {
+                "ID": gradient_name,
+                "libdir": opj(self.libdir),
+                "LM_max": lm_maxs["LM_max"],
+                'lm_max_pri': lm_maxs['lm_max_pri'],
+                'lm_max_sky': lm_maxs['lm_max_sky'],
+                "ffi": ffi,
+                "sec_operator": sec_operator,
+                "ivf_filter": self.ivf_filter,
+                "wf_filter": self.wf_filter,
+                "component": components,
+                "chh": {
+                    comp: (
+                        self.CLfids[gradient_name][comp*2][: lm_maxs["LM_max"][0] + 1]
+                        * (0.5 * np.arange(lm_maxs["LM_max"][0] + 1) * np.arange(1, lm_maxs["LM_max"][0] + 2))**2
+                        if gradient_name == "lensing"
+                        else self.CLfids[gradient_name][comp*2][: lm_maxs["LM_max"][0] + 1]
+                    )for comp in components
+                },}
+        self.gradients = [getattr(gradient, sec)(gradient_descs[sec]) for sec in self.seclist_sorted if hasattr(gradient, sec)]
+        
+        def dotop(glms1, glms2):
+            ret, N = 0., 0
+            for lmax, mmax in [grad.LM_max for sec in self.seclist_sorted for grad in self.gradients if grad.ID == sec for _ in analysis_secondary[sec]]:
+                siz = Alm.getsize(lmax, mmax)
+                cl = alm2cl(glms1[N:N+siz], glms2[N:N+siz], None, mmax, None)
+                ret += np.sum(cl * (2 * np.arange(len(cl)) + 1))
+                N += siz
+            return ret
+        curvature_desc = {"bfgs_desc": {}}
+        curvature_desc["bfgs_desc"].update({'dot_op': dotop})
+        curvature_desc['libdir'] = opj(self.libdir, 'curvature/')
+        curvature_desc['h0'] = [val for sec in self.seclist_sorted for val in self.QE_searchs[self.sec2idx[sec]]._get_h0()]
+        self.curvature = curvature.base(self.gradients, **curvature_desc)
         
     
     def get_est(self, simidx, request_it, secondary=None, component=None, scale='k', calc_flag=False):
@@ -135,7 +151,7 @@ class handler:
             else:
                 return self.secondaries[secondary].get_est(simidx, request_it, component, scale=scale)
         elif (current_it < self.itmax and request_it >= current_it) or calc_flag:
-            if self.data is None: self.data = self.get_data(self.ivf_filter.lm_max_sky)
+            if self.data is None: self.data = self.get_data(self.lm_max_sky)
             for it in range(current_it+1, request_it+1):
                 # NOTE it=0 is QE and is implicitly skipped. current_it is the it we have a solution for already
                 grad_tot, grad_prev = [], []
@@ -143,13 +159,11 @@ class handler:
                 for gradient in self.gradients:
                     print(f'Calculating gradient for {gradient.ID}')
                     self.update_operator(simidx, it-1)
-                    wflm = self.wf_filter.get_wflm(simidx, it, self.data)
-                    ivfreslm = np.ascontiguousarray(self.ivf_filter.get_ivfreslm(simidx, it, self.data, wflm))
-                    grad_tot.append(gradient.get_gradient_total(simidx, it, wflm=wflm, ivfreslm=ivfreslm)) #calculates the filtering, the sum, and the quadratic combination
+                    grad_tot.append(gradient.get_gradient_total(simidx, it, self.lm_max_pri, self.lm_max_sky)) #calculates the filtering, the sum, and the quadratic combination
                 grad_tot = np.concatenate([np.ravel(arr) for arr in grad_tot])
                 if it>=2: #NOTE it=1 cannot build the previous diff, as current diff is QE
                     for gradient in self.gradients:
-                        grad_prev.append(gradient.get_gradient_total(simidx, it-1))
+                        grad_prev.append(gradient.get_gradient_total(simidx, it-1, self.lm_max_pri, self.lm_max_sky))
                     grad_prev = np.concatenate([np.ravel(arr) for arr in grad_prev])
                     self.curvature.add_yvector(grad_tot, grad_prev, simidx, it)
                 increment = self.curvature.get_increment(grad_tot, simidx, it)
@@ -181,18 +195,6 @@ class handler:
             itr += 1
             isdone = self.isiterdone(itr + 1)
         return itr
-
-
-    # FIXME this must go to QE
-    def __get_h0(self, R_unl0):
-        ret = {grad.ID: {} for grad in self.gradients}
-        for seci, sec in enumerate(self.seclist_sorted):
-            lmax = self.gradients[seci].LM_max[0]
-            for comp in self.secondaries[sec].component:
-                chh_comp = self.chh[sec][comp]
-                buff = cli(R_unl0[sec][comp][:lmax+1] + cli(chh_comp)) * (chh_comp > 0)
-                ret[sec][comp] = np.array(buff)
-        return ret
     
 
     def update_operator(self, simidx, it):
@@ -211,48 +213,56 @@ class handler:
         return self.ivf_filter.get_ivfreslm(simidx, it)
     
 
-    def get_gradient_quad(self, simidx, it=None, secondary=None, component=None, data=None):
+    def get_gradient_quad(self, simidx, it=None, lm_max_pri=None, lm_max_sky=None, secondary=None, component=None, data=None):
+        lm_max_pri = lm_max_pri or self.lm_max_pri
+        lm_max_sky = lm_max_sky or self.lm_max_sky
         if it is None:
             it = self.maxiterdone()
         if secondary is None:
             return [grad.get_gradient_quad(it, component, data) for grad in self.gradients]
         if isinstance(secondary, str):
-            return self.gradients[self.sec2idx[secondary]].get_gradient_quad(simidx, it, component, data)
+            return self.gradients[self.sec2idx[secondary]].get_gradient_quad(simidx, it, lm_max_pri, lm_max_sky, component, data)
         sec_idx = [self.sec2idx[sec] for sec in secondary]
-        return [self.gradients[idx].get_gradient_quad(simidx, it, component, data) for idx in sec_idx]
+        return [self.gradients[idx].get_gradient_quad(simidx, it, lm_max_pri, lm_max_sky, component, data) for idx in sec_idx]
 
 
-    def get_gradient_meanfield(self, simidx, it=None, secondary=None, component=None):
+    def get_gradient_meanfield(self, simidx, it=None, lm_max_pri=None, lm_max_sky=None, secondary=None, component=None):
+        lm_max_pri = lm_max_pri or self.lm_max_pri
+        lm_max_sky = lm_max_sky or self.lm_max_sky
         if it is None:
             it = self.maxiterdone()
         if secondary is None:
             return [grad.get_gradient_meanfield(it, component) for grad in self.gradients]
         if isinstance(secondary, str):
-            return self.gradients[self.sec2idx[secondary]].get_gradient_meanfield(simidx, it, component)
+            return self.gradients[self.sec2idx[secondary]].get_gradient_meanfield(simidx, it, lm_max_pri, lm_max_sky, component)
         sec_idx = [self.sec2idx[sec] for sec in secondary]
-        return np.array([self.gradients[idx].get_gradient_meanfield(simidx, it, component) for idx in sec_idx])
+        return np.array([self.gradients[idx].get_gradient_meanfield(simidx, it, lm_max_pri, lm_max_sky, component) for idx in sec_idx])
     
 
-    def get_gradient_prior(self, simidx, it=None, secondary=None, component=None):
+    def get_gradient_prior(self, simidx, it=None, lm_max_pri=None, lm_max_sky=None, secondary=None, component=None):
+        lm_max_pri = lm_max_pri or self.lm_max_pri
+        lm_max_sky = lm_max_sky or self.lm_max_sky
         if it is None:
             it = self.maxiterdone()
         if secondary is None:
             return [grad.get_gradient_prior(simidx, it-1, component) for grad in self.gradients]
         if isinstance(secondary, str):
-            return self.gradients[self.sec2idx[secondary]].get_gradient_prior(simidx, it-1, component)
+            return self.gradients[self.sec2idx[secondary]].get_gradient_prior(simidx, it-1, lm_max_pri, lm_max_sky, component)
         sec_idx = [self.sec2idx[sec] for sec in secondary]
-        return np.array([self.gradients[idx].get_gradient_prior(simidx, it-1, component) for idx in sec_idx])
+        return np.array([self.gradients[idx].get_gradient_prior(simidx, it-1, lm_max_pri, lm_max_sky, component) for idx in sec_idx])
     
 
-    def get_gradient_total(self, data, simidx, it=None, secondary=None, component=None):
+    def get_gradient_total(self, simidx, it=None, lm_max_pri=None, lm_max_sky=None, secondary=None, component=None, data=None):
+        lm_max_pri = lm_max_pri or self.lm_max_pri
+        lm_max_sky = lm_max_sky or self.lm_max_sky
         if it is None:
             it = self.maxiterdone()
         if secondary is None:
-            return [grad.get_gradient_total(simidx, it, component, data) for grad in self.gradients]
+            return [grad.get_gradient_total(simidx, it, lm_max_pri, lm_max_sky, component, data) for grad in self.gradients]
         if isinstance(secondary, str):
-            return self.gradients[self.sec2idx[secondary]].get_gradient_total(simidx, it, component, data)
+            return self.gradients[self.sec2idx[secondary]].get_gradient_total(simidx, it, lm_max_pri, lm_max_sky, component, data)
         sec_idx = [self.sec2idx[sec] for sec in secondary]
-        return np.array([self.gradients[idx].get_gradient_total(simidx, it, component, data) for idx in sec_idx])
+        return np.array([self.gradients[idx].get_gradient_total(simidx, it, lm_max_pri, lm_max_sky, component, data) for idx in sec_idx])
 
 
     def get_template(self, simidx, it, secondary=None, component=None):
@@ -307,13 +317,7 @@ class handler:
                 assert 0, 'implement if needed'
 
 
-    def _chh(self, CL, lmax, gradient_name='lensing'):
-        if gradient_name == 'lensing':
-            return CL[:lmax+1] * (0.5 * np.arange(lmax+1) * np.arange(1, lmax+2))**2
-        elif gradient_name == 'birefringence':
-            return CL[:lmax+1]
-        
-
+    # NOTE This should be called from application level. Once the starting points are calculated, this can be used to prepare the MAP run
     def _copyQEtoDirectory(self, QE_searchs):
         # copies fields and gradient starting points to MAP directory
         # NOTE this turns them into convergence fields
@@ -329,5 +333,5 @@ class handler:
 
             #TODO cache QE wflm into the filter directory
             if not self.wf_filter.wf_field.is_cached(self.simidx, it=0):
-                wflm_QE = QE_searchs[self.sec2idx[secname]].get_wflm(self.simidx, self.ivf_filter.lm_max_pri)
+                wflm_QE = QE_searchs[self.sec2idx[secname]].get_wflm(self.simidx, self.lm_max_pri)
                 self.wf_filter.wf_field.cache_field(np.array(wflm_QE), self.simidx, it=0)

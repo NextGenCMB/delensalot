@@ -2,7 +2,7 @@ from os.path import join as opj
 import numpy as np
 
 from delensalot.utils import cli
-from delensalot.utility.utils_hp import Alm, almxfl, alm2cl
+from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy_nd
 
 from delensalot.core import cachers
 
@@ -110,17 +110,18 @@ class gradient:
         else:
             priorlm = self.cacher_field.load(self.prior_fns.format(component=component, idx=simidx, it=it))
             Lmax = Alm.getlmax(priorlm.size, None)
-            almxfl(priorlm.squeeze(), cli(self.chh[self.component2idx[component]]), Lmax, True)
+            almxfl(priorlm.squeeze(), cli(self.chh[component]), Lmax, True)
         return priorlm
 
     
     def get_meanfield(self, simidx, it, component=None):
+        # NOTE this currently only uses the QE gradient meanfield
         if isinstance(it, list):
             return np.array([self.get_meanfield(simidx, 0, component) for _ in it])
-        it=0 # NOTE this currently only uses the QE gradient meanfield
+        it=0 
         if self.cacher.is_cached(self.meanfield_fns.format(idx=simidx, it=it)):
             if component is None:
-                return self.cacher.load(self.meanfield_fns.format(idx=simidx, it=it))
+                return np.array(self.cacher.load(self.meanfield_fns.format(idx=simidx, it=it)))
             else: 
                 if isinstance(component, list):
                     buff = self.cacher.load(self.meanfield_fns.format(idx=simidx, it=it))
@@ -149,7 +150,7 @@ class gradient:
             elif len(component) >1:
                 return np.atleast_2d([self.get_quad(simidx, it, component_).squeeze() for component_i, component_ in enumerate(component)])
         if isinstance(it, list):
-            np.array([self.get_total(simidx, it_, component) for it_ in it])
+            np.array([self.get_quad(simidx, it_, component) for it_ in it])
         if component is None:
             return self.cacher.load(self.quad_fns.format(idx=simidx, it=it))
         else:
@@ -170,7 +171,7 @@ class gradient:
 
 
     def cache_total(self, totlm, simidx, it):
-        self.cacher_field.cache(self.toal_fns.format(idx=simidx, it=it), totlm)
+        self.cacher_field.cache(self.total_fns.format(idx=simidx, it=it), totlm)
 
 
     def cache_meanfield(self, kmflm, simidx, it):
@@ -241,7 +242,6 @@ class filter:
 class curvature:
     def __init__(self, field_desc):
         self.libdir = field_desc['libdir']
-        # self.lm_max = field_desc['lm_max']
         self.fns =  field_desc['fns']
         self.cacher = cachers.cacher_npy(opj(self.libdir))
         self.types = list(self.fns.keys())

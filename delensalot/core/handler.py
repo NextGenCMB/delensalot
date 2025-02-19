@@ -793,15 +793,9 @@ class MAP_lr_v2:
 
         self.sec2idx = {QE_search.secondary.ID: i for i, QE_search in enumerate(self.QE_searchs)}
         self.seclist_sorted = sorted(list(self.sec2idx.keys()), key=lambda x: template_index_secondaries.get(x, ''))
-        
-        # self.simulationdata = self.MAP_job_desc["simulationdata"]
 
         self.MAP_searchs_desc = dm.MAP_searchs_desc
-        self.MAP_searchs_desc["curvature_desc"].update({"Runl0": {}})
-        for i, QE_search in enumerate(self.QE_searchs):
-            scale = 'k' if QE_search.secondary.ID in ['lensing'] else 'p' #NOTE Plancklens by default returns p scale (for lensing). Delensalot works with convergence
-            self.MAP_searchs_desc["curvature_desc"]["Runl0"].update({QE_search.secondary.ID: {component: self.__rescale(QE_search.get_response_unl(component), scale=scale) for component in QE_search.secondary.component}})
-        self.MAP_searchs = [MAP_handler.base(self.simulationdata, **self.MAP_searchs_desc, simidx=simidx) for simidx in self.simidxs]
+        self.MAP_searchs = [MAP_handler.base(self.simulationdata, **self.MAP_searchs_desc, simidx=simidx, QE_searchs=self.QE_searchs) for simidx in self.simidxs]
 
         self.it_tasks = self.MAP_job_desc["it_tasks"]
         for simidx in self.simidxs:
@@ -969,7 +963,7 @@ class MAP_lr_v2:
 
             #TODO cache QE wflm into the filter directory
             if not self.MAP_searchs[simidx].wf_filter.wf_field.is_cached(simidx, it=0):
-                wflm_QE = self.QE_searchs[self.sec2idx[secname]].get_wflm(simidx, self.MAP_searchs[simidx].ivf_filter.lm_max_pri)
+                wflm_QE = self.QE_searchs[self.sec2idx[secname]].get_wflm(simidx, self.MAP_searchs[simidx].lm_max_pri)
                 self.MAP_searchs[simidx].wf_filter.wf_field.cache_field(np.array(wflm_QE), simidx, it=0)
 
 
