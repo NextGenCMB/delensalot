@@ -827,7 +827,7 @@ class MAP_lr_v2:
             log.info('{}, MAP task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
             if task == 'calc_fields':
                 for simidx in self.jobs[taski][mpi.rank::mpi.size]:
-                    self.MAP_searchs[simidx].get_est(simidx, self.MAP_searchs[simidx].itmax)
+                    self.MAP_searchs[simidx].get_est(self.MAP_searchs[simidx].itmax)
 
 
     def get_est(self, simidx, it=None, secondary=None, component=None, scale='k', subtract_QE_meanfield=True, calc_flag=False):
@@ -846,7 +846,7 @@ class MAP_lr_v2:
             return self.QE_searchs[self.sec2idx[secondary_]].get_est(simidx, scale, subtract_QE_meanfield, component)
 
         def get_map_est(it_):
-            return self.MAP_searchs[simidx].get_est(simidx, it_, secondary, component, scale, calc_flag)
+            return self.MAP_searchs[simidx].get_est(it_, secondary, component, scale, calc_flag)
 
         if isinstance(it, (list, np.ndarray)):
             # if 0 in it:
@@ -925,18 +925,18 @@ class MAP_lr_v2:
         print('only available for MAP, set it>0')
 
 
-    def get_wflm(self, simidx, it=None, lm_max=None):
+    def get_wflm(self, simidx, it=None):
         # NOTE currently no support for list of secondary or it
         if it==None: it = self.maxiterdone()
         if it==0:
-            return self.QE_searchs[0].get_wflm(simidx, lm_max)
-        return self.MAP_searchs[simidx].get_wflm(simidx, it)
+            return self.QE_searchs[0].get_wflm(simidx)
+        return self.MAP_searchs[simidx].get_wflm(it)
 
 
-    def get_ivflm(self, simidx, it=0, lm_max=None): 
+    def get_ivflm(self, simidx, it=0): 
         # NOTE currently no support for list of secondary or it
         if it==0:
-            return self.QE_searchs[0].get_ivflm(simidx, lm_max)
+            return self.QE_searchs[0].get_ivflm(simidx)
         print('only available for QE, set it=0')
 
 
@@ -945,7 +945,7 @@ class MAP_lr_v2:
         if it==None: it = self.maxiterdone()
         if it==0:
             print('only available for MAP, set it>0')
-        return self.MAP_searchs[simidx].get_ivfreslm(simidx, it)
+        return self.MAP_searchs[simidx].get_ivfreslm(it)
     
 
     def __copyQEtoDirectory(self, simidx):
@@ -969,16 +969,6 @@ class MAP_lr_v2:
 
     def maxiterdone(self):
         return min([MAP_search.maxiterdone() for MAP_search in self.MAP_searchs])
-    
-
-    def __rescale(self, obj, scale):
-        lmax = len(obj)-1
-        if scale == 'p':
-            return obj
-        elif scale == 'k':
-            return obj * cli(0.5 * np.arange(lmax + 1, dtype=float) * np.arange(1, lmax + 2, dtype=float))**2
-        else:
-            print(f"Unknown scale {scale}")
 
 
 class QE_lr(Basejob):

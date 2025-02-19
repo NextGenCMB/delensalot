@@ -35,6 +35,7 @@ class base:
 
 class multiply:
     def __init__(self, descr):
+        self.ID = 'multiply'
         self.factor = descr["factor"]
     
 
@@ -54,14 +55,20 @@ class multiply:
 
 
 class joint:
-    def __init__(self, operators):
+    def __init__(self, operators, out):
         self.operators = operators
+        self.space_out = out
     
 
     def act(self, obj, spin):
+        # print('acting joint operator')
         for operator in self.operators:
-            buff = operator.act(obj, spin)
-            obj = buff
+            print(operator.ID)
+            if isinstance(operator, secondary_operator):
+                obj = operator.act(obj, spin, out=self.space_out)
+            else:
+                obj = operator.act(obj, spin)
+        # print('done acting joint operator')
         return obj
     
 
@@ -79,15 +86,22 @@ class joint:
 
 class secondary_operator:
     def __init__(self, desc):
+        self.ID = 'secondaries'
         self.operators = desc # ["operators"]
 
 
-    def act(self, obj, spin=2, adjoint=False, backwards=False, out_sht_mode=None, secondary=None):
+    def act(self, obj, spin=2, adjoint=False, backwards=False, out_sht_mode=None, secondary=None, out='alm'):
         secondary = secondary or [op.ID for op in self.operators]
         operators = self.operators if not adjoint else self.operators[::-1]
-
+        # print('acting secondaries operator, adjoint =', adjoint)
         for idx, operator in enumerate(operators):
-            obj = operator.act(obj, spin, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode)
+            # print(operator.ID, ', in shape type', obj.shape, obj.dtype)
+            if isinstance(operator, lensing):
+                obj = operator.act(obj, spin, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode, out=out)
+            else:
+                obj = operator.act(obj, spin, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode)
+            # print(operator.ID, ': out shape type', obj.shape, obj.dtype)
+        # print('done acting secondaries operator')
         return obj
 
 
@@ -109,7 +123,6 @@ class lensing(base):
         self.LM_max = operator_desc["LM_max"]
         self.lm_max_in = operator_desc["lm_max_in"]
         self.lm_max_out = operator_desc["lm_max_out"]
-
         # self.Lmin = operator_desc["Lmin"]
         self.perturbative = operator_desc["perturbative"]
         self.component = operator_desc["component"]
@@ -126,16 +139,20 @@ class lensing(base):
         if self.perturbative: # Applies perturbative remapping
             assert 0, "implement if needed" 
         else:
-            if out == 'map':
-                lmax = Alm.getlmax(obj.size, self.lm_max_out[1])
-                return self.ffi.gclm2lenmap(np.atleast_2d(obj), lmax, spin, False)
-            
-            elif out == 'alm':
-                if adjoint and backwards and out_sht_mode == 'GRAD_ONLY':
-                    return self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max_in[1], spin, *self.lm_max_out, backwards=backwards, out_sht_mode=out_sht_mode)
-                
-                obj = np.atleast_2d(obj)
-                return self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max_in[1], spin, *self.lm_max_out)
+            if adjoint and backwards and out_sht_mode == 'GRAD_ONLY':
+                return self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max_in[1], spin, *self.lm_max_out, backwards=backwards, out_sht_mode=out_sht_mode)
+            else:
+                if out == 'map':
+                    lmax = Alm.getlmax(obj.shape[-1], self.lm_max_out[1])
+                    return self.ffi.gclm2lenmap(np.atleast_2d(obj), lmax, spin, False)
+                elif out == 'alm':
+                    obj = np.atleast_2d(obj)
+                    lm_obj = Alm.getlmax(obj[0].size, None)
+                    if lm_obj == self.lm_max_in[0]:
+                        return self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max_in[1], spin, *self.lm_max_out)
+                    else:
+                        print(obj.shape, self.lm_max_in, self.lm_max_out)
+                        return self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max_out[1], spin, *self.lm_max_in)
     
 
     def set_field(self, simidx, it, component=None):
@@ -170,7 +187,8 @@ class birefringence(base):
         
         self.ID = 'birefringence'
         self.LM_max = operator_desc["LM_max"]
-        # self.Lmin = operator_desc["Lmin"]
+        self.lm_max_in = operator_desc["lm_max_in"]
+        self.lm_max_out = operator_desc["lm_max_out"]
         self.component = operator_desc["component"]
         self.field = {component: None for component in self.component}
         self.field_fns = operator_desc['field_fns']
@@ -179,10 +197,11 @@ class birefringence(base):
 
     # NOTE this is alm2alm
     def act(self, obj, spin=None, adjoint=False, backwards=False, out_sht_mode=None):
+        obj = np.atleast_2d(obj)
         lmax = Alm.getlmax(obj[0].size, None)
 
-        # NOTE if no B component (e.g. for generating template), I set B to zero
-        obj = np.atleast_2d(obj)
+        
+        # NOTE if no B component (e.g. for generating template, or ivfres with Birefringence acting first), I set B to zero
         if obj.shape[0] == 1:
             obj = [obj[0], np.zeros_like(obj[0])+np.zeros_like(obj[0])*1j] 
         Q, U = self.ffi.geom.alm2map_spin(obj, 2, lmax, lmax, 8)  
@@ -213,6 +232,7 @@ class birefringence(base):
 
 class spin_raise:
     def __init__(self, lm_max):
+        self.ID = 'spin_raise'
         self.lm_max = lm_max
 
     def act(self, obj, spin=None, adjoint=False):
@@ -239,6 +259,7 @@ class spin_raise:
 
 class beam:
     def __init__(self, operator_desc):
+        self.ID = 'beam'
         self.transferfunction = operator_desc['transferfunction']
         # self.tebl2idx = {'t': 0, 'e': 1, 'b': 2}
         self.tebl2idx = {'e': 0, 'b': 1}
@@ -248,11 +269,12 @@ class beam:
 
 
     def act(self, obj, adjoint=False):
-        assert self.lm_max[0] == Alm.getlmax(obj[0].size, None), (self.lm_max[0], Alm.getlmax(obj[0].size, None))
+        # assert self.lm_max[0] == Alm.getlmax(obj[0].size, None), (self.lm_max[0], obj.shape, Alm.getlmax(obj[0].size, None))
         # FIXME change counting for T and MV
         if adjoint: 
-            return np.array([cli(almxfl(o, self.transferfunction[self.idx2tebl[oi]], self.lm_max[1], False)) for oi, o in enumerate(obj)]) 
-        return np.array([almxfl(o, self.transferfunction[self.idx2tebl[oi]], self.lm_max[1], False) for oi, o in enumerate(obj)])
+            return np.array([cli(almxfl(o, self.transferfunction[self.idx2tebl[oi]], self.lm_max[0], False)) for oi, o in enumerate(obj)]) 
+        print(obj.shape, self.transferfunction[self.idx2tebl[0]].shape, self.lm_max[0])
+        return np.array([almxfl(o, self.transferfunction[self.idx2tebl[oi]], self.lm_max[0], False) for oi, o in enumerate(obj)])
 
 
     def adjoint(self):
@@ -266,6 +288,7 @@ class beam:
 
 class inoise_operator:
     def __init__(self, nlev, lm_max):
+        self.ID = 'inoise'
         self.nlev = nlev
         self.lm_max = lm_max
         self.n1eblm = [

@@ -8,7 +8,6 @@
 import abc, attr, os, sys
 from os.path import join as opj
 from pathlib import Path
-from attrs import validators
 import numpy as np
 import attr
 import traceback
@@ -17,11 +16,8 @@ import logging
 log = logging.getLogger(__name__)
 
 from delensalot.config.metamodel import DEFAULT_NotAValue, DEFAULT_NotASTR
-from delensalot.config.validator import analysis, chaindescriptor, computing, data, filter as v_filter, itrec, job, mapdelensing, meta, model, noisemodel, obd, qerec, stepper
-
 import importlib.util
 
-attr.validators.set_disabled(True)
 
 class DELENSALOT_Concept_v2:
     """An abstract element base type for the Dlensalot formalism."""
@@ -99,7 +95,7 @@ class DELENSALOT_Job(DELENSALOT_Concept_v2):
     Attributes:
         jobs (list[str]): Job identifier(s)
     """
-    jobs =                  attr.field(default=DEFAULT_NotAValue, validator=job.jobs)
+    jobs =                  attr.field(default=DEFAULT_NotAValue)
 
 
 @attr.s
@@ -128,17 +124,17 @@ class DELENSALOT_Analysis(DELENSALOT_Concept_v2):
     lm_max_pri =            attr.field(default=DEFAULT_NotAValue)
     lm_max_sky =            attr.field(default=DEFAULT_NotAValue)
     key =                   attr.field(default=DEFAULT_NotAValue)
-    simidxs =               attr.field(default=DEFAULT_NotAValue, validator=analysis.simidxs)
-    simidxs_mf =            attr.field(default=DEFAULT_NotAValue, validator=analysis.simidxs_mf)
-    TEMP_suffix =           attr.field(default=DEFAULT_NotAValue, validator=analysis.TEMP_suffix)
+    simidxs =               attr.field(default=DEFAULT_NotAValue)
+    simidxs_mf =            attr.field(default=DEFAULT_NotAValue)
+    TEMP_suffix =           attr.field(default=DEFAULT_NotAValue)
     Lmin =                  attr.field(default=DEFAULT_NotAValue)
-    zbounds =               attr.field(default=DEFAULT_NotAValue, validator=analysis.zbounds)
-    zbounds_len =           attr.field(default=DEFAULT_NotAValue, validator=analysis.zbounds_len) # TODO rename
-    mask =                  attr.field(default=DEFAULT_NotAValue, validator=analysis.mask) # TODO is this used? 
-    lmin_teb =              attr.field(default=DEFAULT_NotAValue, validator=analysis.lmin_teb)
-    cls_len =               attr.field(default=DEFAULT_NotAValue, validator=analysis.cls_len)
-    beam =                  attr.field(default=DEFAULT_NotAValue, validator=analysis.beam)
-    transfunction_desc =    attr.field(default=DEFAULT_NotAValue, validator=analysis.transfunction)
+    zbounds =               attr.field(default=DEFAULT_NotAValue)
+    zbounds_len =           attr.field(default=DEFAULT_NotAValue)
+    mask =                  attr.field(default=DEFAULT_NotAValue)
+    lmin_teb =              attr.field(default=DEFAULT_NotAValue)
+    cls_len =               attr.field(default=DEFAULT_NotAValue)
+    beam =                  attr.field(default=DEFAULT_NotAValue)
+    transfunction_desc =    attr.field(default=DEFAULT_NotAValue)
     CLfids =                attr.field(default=DEFAULT_NotAValue)
     secondary =             attr.field(default=DEFAULT_NotAValue)
 
@@ -151,13 +147,13 @@ class DELENSALOT_Simulation(DELENSALOT_Concept_v2):
     Attributes:
                                      
     """
-    flavour =       attr.field(default=DEFAULT_NotAValue, validator=data.flavour)
-    libdir_suffix = attr.field(default='generic', validator=data.libdir_suffix)
-    maps =          attr.field(default=DEFAULT_NotAValue, validator=data.maps)
-    geominfo =      attr.field(default=DEFAULT_NotAValue, validator=data.geominfo)
+    flavour =       attr.field(default=DEFAULT_NotAValue)
+    libdir_suffix = attr.field(default='generic')
+    maps =          attr.field(default=DEFAULT_NotAValue)
+    geominfo =      attr.field(default=DEFAULT_NotAValue)
     fid_info =      attr.field(default=DEFAULT_NotAValue)
     CMB_info =      attr.field(default=DEFAULT_NotAValue)
-    sec_info =      attr.field(default=DEFAULT_NotAValue, validator=data.secinfo)
+    sec_info =      attr.field(default=DEFAULT_NotAValue)
     obs_info =      attr.field(default=DEFAULT_NotAValue)
     operator_info = attr.field(default=DEFAULT_NotAValue)
 
@@ -176,15 +172,15 @@ class DELENSALOT_Noisemodel(DELENSALOT_Concept_v2):
         rhits_normalised (str): path to the hits-count map, used to calculate the noise levels, and the mask tracing the noise level. Second entry in tuple is the <inverse hits-count multiplier>.
         geominfo (tuple): geominfo of the noise map
     """
-    sky_coverage =          attr.field(default=DEFAULT_NotAValue, validator=noisemodel.sky_coverage)
+    sky_coverage =          attr.field(default=DEFAULT_NotAValue)
     spatial_type =          attr.field(default=DEFAULT_NotAValue)
-    spectrum_type =         attr.field(default=DEFAULT_NotAValue, validator=noisemodel.spectrum_type)
-    OBD =                   attr.field(default=DEFAULT_NotAValue, validator=noisemodel.OBD)
-    nlev =                  attr.field(default=DEFAULT_NotAValue, validator=noisemodel.nlev_t)
-    geominfo =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geominfo) # FIXME this must match the data geominfo.. validate accordingly
-    rhits_normalised =      attr.field(default=DEFAULT_NotAValue, validator=noisemodel.rhits_normalised)
-    nivt_map =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geominfo) # TODO test if it works
-    nivp_map =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geominfo) # TODO test if it works
+    spectrum_type =         attr.field(default=DEFAULT_NotAValue)
+    OBD =                   attr.field(default=DEFAULT_NotAValue)
+    nlev =                  attr.field(default=DEFAULT_NotAValue)
+    geominfo =              attr.field(default=DEFAULT_NotAValue)
+    rhits_normalised =      attr.field(default=DEFAULT_NotAValue)
+    nivt_map =              attr.field(default=DEFAULT_NotAValue)
+    nivp_map =              attr.field(default=DEFAULT_NotAValue)
 
 
 @attr.s
@@ -203,11 +199,11 @@ class DELENSALOT_Qerec(DELENSALOT_Concept_v2):
         blt_pert (bool):            If True, delensing is performed perurbitivly (recommended)
     
     """
-    tasks =                 attr.field(default=DEFAULT_NotAValue, validator=qerec.tasks)
+    tasks =                 attr.field(default=DEFAULT_NotAValue)
     estimator_type =        attr.field(default=DEFAULT_NotAValue)
-    qlm_type =              attr.field(default=DEFAULT_NotAValue, validator=qerec.qlms)
-    cg_tol =                attr.field(default=DEFAULT_NotAValue, validator=qerec.cg_tol)
-    chain =                 attr.field(default=DELENSALOT_Chaindescriptor(), validator=qerec.chain)
+    qlm_type =              attr.field(default=DEFAULT_NotAValue)
+    cg_tol =                attr.field(default=DEFAULT_NotAValue)
+    chain =                 attr.field(default=DELENSALOT_Chaindescriptor())
     subtract_QE_meanfield = attr.field(default=DEFAULT_NotAValue)
 
 
@@ -232,12 +228,12 @@ class DELENSALOT_Itrec(DELENSALOT_Concept_v2):
         stepper (DELENSALOT_STEPPER):configuration for updating the current likelihood iteration point with the likelihood gradient
               
     """
-    tasks =                 attr.field(default=DEFAULT_NotAValue, validator=itrec.tasks)
-    itmax =                 attr.field(default=DEFAULT_NotAValue, validator=itrec.itmax)
-    cg_tol =                attr.field(default=DEFAULT_NotAValue, validator=itrec.cg_tol)
-    chain =                 attr.field(default=DELENSALOT_Chaindescriptor(), validator=itrec.chain)
-    mfvar =                 attr.field(default=DEFAULT_NotAValue, validator=itrec.mfvar) # TODO rename and check if it still works 
-    soltn_cond =            attr.field(default=DEFAULT_NotAValue, validator=itrec.soltn_cond)
+    tasks =                 attr.field(default=DEFAULT_NotAValue)
+    itmax =                 attr.field(default=DEFAULT_NotAValue)
+    cg_tol =                attr.field(default=DEFAULT_NotAValue)
+    chain =                 attr.field(default=DELENSALOT_Chaindescriptor())
+    mfvar =                 attr.field(default=DEFAULT_NotAValue)
+    soltn_cond =            attr.field(default=DEFAULT_NotAValue)
     gradient_descs =        attr.field(default=DEFAULT_NotAValue)
     filter_desc =           attr.field(default=DEFAULT_NotAValue)
     curvature_desc =        attr.field(default=DEFAULT_NotAValue)
@@ -263,17 +259,17 @@ class DELENSALOT_Mapdelensing(DELENSALOT_Concept_v2):
         basemap (str):          the delensed map Bdel is calculated as Bdel = basemap - blt. Basemap can be two things: 'obs' or 'lens', where 'obs' will use the observed sky map, and lens will use the pure B-lensing map.
     """
 
-    data_from_CFS =         attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.data_from_CFS)
-    edges =                 attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.edges)
-    iterations =            attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.iterations)
-    nlevels =               attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.nlevels)
-    lmax =                  attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.lmax)
-    Cl_fid =                attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.Cl_fid)
-    libdir_it =             attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.libdir_it)
-    binning =               attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.binning)
-    spectrum_calculator =   attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.spectrum_calculator)
-    masks_fn =              attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.masks)
-    basemap =               attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.basemap)
+    data_from_CFS =         attr.field(default=DEFAULT_NotAValue)
+    edges =                 attr.field(default=DEFAULT_NotAValue)
+    iterations =            attr.field(default=DEFAULT_NotAValue)
+    nlevels =               attr.field(default=DEFAULT_NotAValue)
+    lmax =                  attr.field(default=DEFAULT_NotAValue)
+    Cl_fid =                attr.field(default=DEFAULT_NotAValue)
+    libdir_it =             attr.field(default=DEFAULT_NotAValue)
+    binning =               attr.field(default=DEFAULT_NotAValue)
+    spectrum_calculator =   attr.field(default=DEFAULT_NotAValue)
+    masks_fn =              attr.field(default=DEFAULT_NotAValue)
+    basemap =               attr.field(default=DEFAULT_NotAValue)
 
 @attr.s
 class DELENSALOT_Phianalysis(DELENSALOT_Concept_v2):
@@ -297,10 +293,10 @@ class DELENSALOT_OBD(DELENSALOT_Concept_v2):
         tpl (type):         function name for calculating OBD matrix
         nlev_dep (float):   deprojection factor, or, strength of B-mode deprojection                   
     """
-    libdir =                attr.field(default=DEFAULT_NotAValue, validator=obd.libdir)
-    rescale =               attr.field(default=DEFAULT_NotAValue, validator=obd.rescale) # TODO this is a very specific parameter.. keep?
-    tpl =                   attr.field(default=DEFAULT_NotAValue, validator=obd.tpl)
-    nlev_dep =              attr.field(default=DEFAULT_NotAValue, validator=obd.nlev_dep)
+    libdir =                attr.field(default=DEFAULT_NotAValue)
+    rescale =               attr.field(default=DEFAULT_NotAValue)
+    tpl =                   attr.field(default=DEFAULT_NotAValue)
+    nlev_dep =              attr.field(default=DEFAULT_NotAValue)
 
 
 @attr.s
@@ -311,7 +307,7 @@ class DELENSALOT_Computing(DELENSALOT_Concept_v2):
     Attributes:
         OMP_NUM_THREADS (int):  number of threads used per Job
     """
-    OMP_NUM_THREADS =       attr.field(default=DEFAULT_NotAValue, validator=computing.OMP_NUM_THREADS)
+    OMP_NUM_THREADS =       attr.field(default=DEFAULT_NotAValue)
 
 
 @attr.s
@@ -336,15 +332,15 @@ class DELENSALOT_Model(DELENSALOT_Concept_v2):
     
     defaults_to =           attr.field(default='default_jointrec')
     validate_model =        attr.field(default=True)
-    job =                   attr.field(default=DELENSALOT_Job(), validator=model.job)
-    analysis =              attr.field(default=DELENSALOT_Analysis(), validator=model.analysis)
-    simulationdata =        attr.field(default=DELENSALOT_Simulation(), validator=model.data)
-    noisemodel =            attr.field(default=DELENSALOT_Noisemodel(), validator=model.noisemodel)
-    qerec =                 attr.field(default=DELENSALOT_Qerec(), validator=model.qerec)
-    itrec =                 attr.field(default=DELENSALOT_Itrec(), validator=model.itrec)
-    madel =                 attr.field(default=DELENSALOT_Mapdelensing(), validator=model.madel)
-    computing =             attr.field(default=DELENSALOT_Computing(), validator=model.computing)
-    obd =                   attr.field(default=DELENSALOT_OBD(), validator=model.obd)
+    job =                   attr.field(default=DELENSALOT_Job())
+    analysis =              attr.field(default=DELENSALOT_Analysis())
+    simulationdata =        attr.field(default=DELENSALOT_Simulation())
+    noisemodel =            attr.field(default=DELENSALOT_Noisemodel())
+    qerec =                 attr.field(default=DELENSALOT_Qerec())
+    itrec =                 attr.field(default=DELENSALOT_Itrec())
+    madel =                 attr.field(default=DELENSALOT_Mapdelensing())
+    computing =             attr.field(default=DELENSALOT_Computing())
+    obd =                   attr.field(default=DELENSALOT_OBD())
     phana =                 attr.field(default=DELENSALOT_Phianalysis())
     
 
@@ -412,32 +408,3 @@ class DELENSALOT_Model(DELENSALOT_Concept_v2):
 
     def fill_with_defaults(self):
         self.__attrs_post_init__()
-
-
-    def validate(self):
-        """Recursively validate this instance and all its nested attrs classes."""
-        # Validate the current instance's fields
-        for field in attr.fields(self.__class__):
-            value = getattr(self, field.name)
-
-            # Check if the attribute has a validator, and call it
-            if field.validator:
-                if isinstance(field.validator, attr.validators._AndValidator):  # Handles multiple validators
-                    for validator in field.validator.validators:
-                        validator(self, field, value)
-                else:
-                    field.validator(self, field, value)
-
-            # If the value is another attrs class, validate it recursively
-            if value is not None and attr.has(value):  
-                value.validate()  # Recursively validate nested attrs classes
-
-    @classmethod
-    def disable_validation(cls):
-        """Call this to disable validation."""
-        attr.validators.set_disabled(True)
-
-    @classmethod
-    def enable_validation(cls):
-        """Call this to enable validation."""
-        attr.validators.set_disabled(False)

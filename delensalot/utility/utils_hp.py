@@ -39,7 +39,19 @@ def almxfl(alm:np.ndarray, fl:np.ndarray, mmax:int or None, inplace:bool):
             b = m * (2 * lmax + 1 - m) // 2 + m
             ret[b:b + lmax - m + 1] *= fl[m:lmax+1]
         return ret
-
+    
+def almxfl_nd(alm: np.ndarray, fl: np.ndarray, mmax: int or None, inplace: bool):
+    if alm.ndim == 1:
+        return almxfl(alm, fl, mmax, inplace)
+    elif alm.ndim == 2:
+        if inplace:
+            for i in range(alm.shape[0]):
+                almxfl(alm[i], fl, mmax, inplace=True)
+            return alm
+        else:
+            return np.array([almxfl(alm[i], fl, mmax, inplace=False) for i in range(alm.shape[0])])
+    else:
+        raise ValueError("alm must be either 1D or 2D with a leading dimension.")
 
 def gauss_beam(fwhm:float, lmax:int):
     """Gaussian beam

@@ -182,7 +182,7 @@ DL_DEFAULT = {
         'custom_WF_TEMP': None,
     },
     'computing': {
-        'OMP_NUM_THREADS': int(psutil.cpu_count()) #2*int(psutil.cpu_count()/psutil.cpu_count(logical=False))
+        'OMP_NUM_THREADS': np.max([0, int(psutil.cpu_count())-2]) #2*int(psutil.cpu_count()/psutil.cpu_count(logical=False))
     },
     'obd': {
         'libdir': DNaV,

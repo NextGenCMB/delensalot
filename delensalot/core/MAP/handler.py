@@ -76,13 +76,14 @@ class base:
                 filter_operators.append(operator.lensing(_MAP_operators_desc[sec]))
             elif sec == 'birefringence':
                 filter_operators.append(operator.birefringence(_MAP_operators_desc[sec]))
-        sec_operator = operator.secondary_operator(filter_operators)
+        sec_operator = operator.secondary_operator(filter_operators[::-1]) # NOTE gradients are sorted in the order of the secondaries, but the secondary operator, I want to act birefringence first.
 
         MAP_ivf_desc = {
             'ivf_operator': sec_operator,
             'beam_operator': operator.beam({'transferfunction': obs_info['beam_transferfunction'], 'lm_max': lm_maxs['lm_max_sky']}),
             'inoise_operator': operator.inoise_operator(nlev=noise_info['nlev'], lm_max=lm_maxs['lm_max_sky']),
             'libdir': opj(self.libdir, 'filter/'),
+            'simidx': simidx,
         }
         self.ivf_filter = filter.ivf(MAP_ivf_desc)
 
@@ -93,6 +94,7 @@ class base:
             'libdir': opj(self.libdir, 'filter/'),
             "chain_descr": wf_info['chain_descr'](lm_maxs['lm_max_pri'][0], wf_info['cg_tol']),
             "cls_filt": simulationdata.cls_lib.Cl_dict,
+            'simidx': simidx,
         }
         self.wf_filter = filter.wf(MAP_wf_desc)
 
@@ -103,25 +105,24 @@ class base:
                 "ID": gradient_name,
                 "libdir": opj(self.libdir),
                 "LM_max": lm_maxs["LM_max"],
+                'lm_max_in': lm_maxs['lm_max_sky'],
+                'lm_max_out': lm_maxs['lm_max_pri'],
                 "ffi": ffi,
                 "sec_operator": sec_operator,
                 "ivf_filter": self.ivf_filter,
                 "wf_filter": self.wf_filter,
                 "component": components,
+                'simidx': simidx,
                 "chh": {
                     comp: (
                         self.CLfids[gradient_name][comp*2][: lm_maxs["LM_max"][0] + 1]
-                        * (0.5 * np.arange(lm_maxs["LM_max"][0] + 1) * np.arange(1, lm_maxs["LM_max"][0] + 2))**2
+                        * (0.5 * np.arange(lm_maxs["LM_max"][0]+1) * np.arange(1, lm_maxs["LM_max"][0]+2))**2
                         if gradient_name == "lensing"
                         else self.CLfids[gradient_name][comp*2][: lm_maxs["LM_max"][0] + 1]
                     )for comp in components
                 },}
             if gradient_name == "lensing":
                 gradient_descs[gradient_name]["perturbative"] = False
-                gradient_descs[gradient_name]['lm_max_in'] = lm_maxs['lm_max_sky']
-                gradient_descs[gradient_name]['lm_max_out'] = lm_maxs['lm_max_pri']
-            elif gradient_name == 'birefringence':
-                gradient_descs[gradient_name]['lm_max'] = lm_maxs['lm_max_pri']
 
         self.gradients = [getattr(gradient, sec)(gradient_descs[sec]) for sec in self.seclist_sorted if hasattr(gradient, sec)]
         
@@ -140,21 +141,21 @@ class base:
         self.curvature = curvature.base(self.gradients, **curvature_desc)
         
     
-    def get_est(self, simidx, request_it, secondary=None, component=None, scale='k', calc_flag=False):
+    def get_est(self, request_it, secondary=None, component=None, scale='k', calc_flag=False):
         current_it = self.maxiterdone()
         if isinstance(request_it, (list,np.ndarray)):
             if all([current_it<reqit for reqit in request_it]): print(f"Cannot calculate new iterations if param 'it' is a list, maximum available iteration is {current_it}")
             # assert not calc_flag and any([current_it<reqit for reqit in request_it]), "Cannot calculate new iterations if it is a list, please set calc_flag=False"
-            return [self.get_est(simidx, it, secondary, component, scale=scale, calc_flag=False) for it in request_it[request_it<=current_it]]
+            return [self.get_est(it, secondary, component, scale=scale, calc_flag=False) for it in request_it[request_it<=current_it]]
         if self.maxiterdone() < 0:
             assert 0, "Could not find the QE starting points, I expected them e.g. at {}".format(self.secondaries['lensing'].libdir)
         if request_it <= current_it: # data already calculated
             if secondary is None:
-                return [self.secondaries[secondary].get_est(simidx, request_it, component, scale=scale) for secondary in self.secondaries.keys()]
+                return [self.secondaries[secondary].get_est(self.simidx, request_it, component, scale=scale) for secondary in self.secondaries.keys()]
             elif isinstance(secondary, list):
-                return [self.secondaries[sec].get_est(simidx, request_it, component, scale=scale) for sec in secondary]
+                return [self.secondaries[sec].get_est(self.simidx, request_it, component, scale=scale) for sec in secondary]
             else:
-                return self.secondaries[secondary].get_est(simidx, request_it, component, scale=scale)
+                return self.secondaries[secondary].get_est(self.simidx, request_it, component, scale=scale)
         elif (current_it < self.itmax and request_it >= current_it) or calc_flag:
             if self.data is None: self.data = self.get_data(self.lm_max_sky)
             for it in range(current_it+1, request_it+1):
@@ -163,21 +164,21 @@ class base:
                 print(f'---------- starting iteration {it} ----------')
                 for gradient in self.gradients:
                     print(f'Calculating gradient for {gradient.ID}')
-                    self.update_operator(simidx, it-1)
-                    grad_tot.append(gradient.get_gradient_total(simidx, it, component=component, data=self.data)) #calculates the filtering, the sum, and the quadratic combination
+                    self.update_operator(it-1)
+                    grad_tot.append(gradient.get_gradient_total(it, component=component, data=self.data)) #calculates the filtering, the sum, and the quadratic combination
                 grad_tot = np.concatenate([np.ravel(arr) for arr in grad_tot])
                 if it>=2: #NOTE it=1 cannot build the previous diff, as current diff is QE
                     for gradient in self.gradients:
-                        grad_prev.append(gradient.get_gradient_total(simidx, it-1, component=component, data=self.data))
+                        grad_prev.append(gradient.get_gradient_total(it-1, component=component, data=self.data))
                     grad_prev = np.concatenate([np.ravel(arr) for arr in grad_prev])
-                    self.curvature.add_yvector(grad_tot, grad_prev, simidx, it)
-                increment = self.curvature.get_increment(grad_tot, simidx, it)
-                prev_klm = np.concatenate([np.ravel(arr) for arr in self.get_est(simidx, it-1, scale=scale)])
+                    self.curvature.add_yvector(self.simidx, grad_tot, grad_prev, it)
+                increment = self.curvature.get_increment(grad_tot, it)
+                prev_klm = np.concatenate([np.ravel(arr) for arr in self.get_est(it-1, scale=scale)])
                 new_klms = self.curvature.grad2dict(increment+prev_klm)
                 
-                self.cache_klm(new_klms, simidx, it)
+                self.cache_klm(new_klms, self.simidx, it)
             # TODO return a list of requested secondaries and components, not dict
-            # return self.load_klm(simidx, it, secondary, component)
+            # return self.load_klm(it, secondary, component)
             return new_klms if secondary is None else new_klms[secondary] if component is None else new_klms[secondary][component]
         elif current_it < self.itmax and request_it >= current_it and not calc_flag:
             print(f"Requested iteration {request_it} is beyond the maximum iteration")
@@ -202,77 +203,75 @@ class base:
         return itr
     
 
-    def update_operator(self, simidx, it):
+    def update_operator(self, it):
         # NOTE updaing a single operator here is enough to update all operators,
         # as they all point to the same operator.lensing and birefringence
-        self.ivf_filter.update_operator(simidx, it)
-        # self.wf_filter.update_operator(simidx, it)
-        # self.gradients[0].update_operator(simidx, it)
+        self.ivf_filter.update_operator(it)
+        # self.wf_filter.update_operator(it)
+        # self.gradients[0].update_operator(it)
 
 
-    def get_wflm(self, simidx, it):
-        return self.wf_filter.get_wflm(simidx, it)
+    def get_wflm(self, it):
+        return self.wf_filter.get_wflm(it)
 
     
-    def get_ivfreslm(self, simidx, it):
-        return self.ivf_filter.get_ivfreslm(simidx, it)
+    def get_ivfreslm(self, it):
+        return self.ivf_filter.get_ivfreslm(it)
     
 
-    def get_gradient_quad(self, simidx, it=None, secondary=None, component=None, data=None):
-        lm_max_pri = lm_max_pri or self.lm_max_pri
-        lm_max_sky = lm_max_sky or self.lm_max_sky
+    def get_gradient_quad(self, it=None, secondary=None, component=None, data=None):
         if it is None:
             it = self.maxiterdone()
         if secondary is None:
             return [grad.get_gradient_quad(it, component, data) for grad in self.gradients]
         if isinstance(secondary, str):
-            return self.gradients[self.sec2idx[secondary]].get_gradient_quad(simidx, it, component, data)
+            return self.gradients[self.sec2idx[secondary]].get_gradient_quad(it, component, data)
         sec_idx = [self.sec2idx[sec] for sec in secondary]
-        return [self.gradients[idx].get_gradient_quad(simidx, it, component, data) for idx in sec_idx]
+        return [self.gradients[idx].get_gradient_quad(it, component, data) for idx in sec_idx]
 
 
-    def get_gradient_meanfield(self, simidx, it=None, secondary=None, component=None):
+    def get_gradient_meanfield(self, it=None, secondary=None, component=None):
         if it is None:
             it = self.maxiterdone()
         if secondary is None:
             return [grad.get_gradient_meanfield(it, component) for grad in self.gradients]
         if isinstance(secondary, str):
-            return self.gradients[self.sec2idx[secondary]].get_gradient_meanfield(simidx, it, component)
+            return self.gradients[self.sec2idx[secondary]].get_gradient_meanfield(it, component)
         sec_idx = [self.sec2idx[sec] for sec in secondary]
-        return np.array([self.gradients[idx].get_gradient_meanfield(simidx, it, component) for idx in sec_idx])
+        return np.array([self.gradients[idx].get_gradient_meanfield(it, component) for idx in sec_idx])
     
 
-    def get_gradient_prior(self, simidx, it=None, secondary=None, component=None):
+    def get_gradient_prior(self, it=None, secondary=None, component=None):
         if it is None:
             it = self.maxiterdone()
         if secondary is None:
-            return [grad.get_gradient_prior(simidx, it-1, component) for grad in self.gradients]
+            return [grad.get_gradient_prior(it-1, component) for grad in self.gradients]
         if isinstance(secondary, str):
-            return self.gradients[self.sec2idx[secondary]].get_gradient_prior(simidx, it-1, component)
+            return self.gradients[self.sec2idx[secondary]].get_gradient_prior(it-1, component)
         sec_idx = [self.sec2idx[sec] for sec in secondary]
-        return np.array([self.gradients[idx].get_gradient_prior(simidx, it-1, component) for idx in sec_idx])
+        return np.array([self.gradients[idx].get_gradient_prior(it-1, component) for idx in sec_idx])
     
 
-    def get_gradient_total(self, simidx, it=None, secondary=None, component=None, data=None):
+    def get_gradient_total(self, it=None, secondary=None, component=None, data=None):
         if it is None:
             it = self.maxiterdone()
         if secondary is None:
-            return [grad.get_gradient_total(simidx, it, component, data) for grad in self.gradients]
+            return [grad.get_gradient_total(it, component, data) for grad in self.gradients]
         if isinstance(secondary, str):
-            return self.gradients[self.sec2idx[secondary]].get_gradient_total(simidx, it, component, data)
+            return self.gradients[self.sec2idx[secondary]].get_gradient_total(it, component, data)
         sec_idx = [self.sec2idx[sec] for sec in secondary]
-        return np.array([self.gradients[idx].get_gradient_total(simidx, it,component, data) for idx in sec_idx])
+        return np.array([self.gradients[idx].get_gradient_total(it, component, data) for idx in sec_idx])
 
 
-    def get_template(self, simidx, it, secondary=None, component=None):
-        return self.wf_filter.get_template(simidx, it, secondary, component)
+    def get_template(self, it, secondary=None, component=None):
+        return self.wf_filter.get_template(it, secondary, component)
 
 
     # exposed functions for job handler
-    def cache_klm(self, new_klms, simidx, it):
+    def cache_klm(self, new_klms, it):
         for secID, secondary in self.secondaries.items():
             for component in secondary.component:
-                secondary.cache_klm(new_klms[secID][component], simidx, it, component=component)
+                secondary.cache_klm(new_klms[secID][component], self.simidx, it, component=component)
 
 
     def get_data(self, lm_max):

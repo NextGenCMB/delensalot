@@ -129,9 +129,9 @@ class base:
         return self.fq.get_wflm(simidx, list(self.estimator_key.values())[0], lm_max)
 
 
-    def get_ivflm(self, simidx, lm_max):
+    def get_ivflm(self, simidx):
         # NOTE returns the same for each component so can just take the first key here
-        return self.fq.get_ivflm(simidx, list(self.estimator_key.values())[0], lm_max)
+        return self.fq.get_ivflm(simidx, list(self.estimator_key.values())[0])
     
 
     def get_response_unl(self, component, scale='p'):

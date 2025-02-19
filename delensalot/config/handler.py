@@ -208,7 +208,6 @@ class config_handler():
         Returns:
             object: the configuration file
         """        
-        DELENSALOT_Model_mm_v2.disable_validation()
         spec = iu.spec_from_file_location('configfile', directory)
         p = iu.module_from_spec(spec)
         sys.modules[descriptor] = p

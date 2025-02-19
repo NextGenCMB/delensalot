@@ -7,7 +7,7 @@ import healpy as hp
 from delensalot.core.MAP import CG
 from delensalot.core.opfilt import MAP_opfilt_iso_p as MAP_opfilt_iso_p
 
-from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy
+from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy, almxfl_nd
 from delensalot.utils import cli
 
 from delensalot.core.MAP import field
@@ -33,23 +33,26 @@ class ivf:
         self.beam_operator = filter_desc['beam_operator']
         self.inoise_operator = filter_desc['inoise_operator']
         self.ivf_field = field.filter(filterfield_desc('ivf', self.libdir))
+        self.simidx = filter_desc['simidx']
 
 
-    def get_ivfreslm(self, simidx, it, data=None, eblm_wf=None):
+    def get_ivfreslm(self, it, data=None, eblm_wf=None):
+        # print('calculating ivfreslm')
         # NOTE this is eq. 21 of the paper, in essence it should do the following:
-        if not self.ivf_field.is_cached(simidx, it):
+        if not self.ivf_field.is_cached( self.simidx, it):
             assert eblm_wf is not None and data is not None
             ivfreslm = self.ivf_operator.act(eblm_wf, spin=2)
             ivfreslm = -1*self.beam_operator.act(ivfreslm)
             ivfreslm += data
             ivfreslm = self.inoise_operator.act(0.5*ivfreslm, adjoint=False)
             ivfreslm = self.beam_operator.act(ivfreslm, adjoint=False)
-            self.ivf_field.cache_field(ivfreslm, simidx, it)
-        return self.ivf_field.get_field(simidx, it)
+            self.ivf_field.cache_field(ivfreslm,  self.simidx, it)
+        # print('done calculating ivfreslm')
+        return self.ivf_field.get_field( self.simidx, it)
     
 
-    def update_operator(self, simidx, it):
-        self.ivf_operator.set_field(simidx, it)
+    def update_operator(self, it):
+        self.ivf_operator.set_field(self.simidx, it)
 
 
 class wf:
@@ -62,6 +65,8 @@ class wf:
         self.chain_descr = filter_desc['chain_descr']
         self.cls_filt = filter_desc['cls_filt']
 
+        self.simidx = filter_desc['simidx']
+
         filterfield_desc = lambda ID: {
             "ID": ID,
             "libdir": opj(self.libdir),
@@ -70,15 +75,16 @@ class wf:
         self.wf_field = field.filter(filterfield_desc('wf'))
 
 
-    def get_wflm(self, simidx, it, data=None):
-        if not self.wf_field.is_cached(simidx, it):
+    def get_wflm(self, it, data=None):
+        # print('calculating wflm')
+        if not self.wf_field.is_cached(self.simidx, it):
             assert data is not None, 'data is required for the calculation'
-            cg_sol_curr = self.wf_field.get_field(simidx, it-1)
-            tpn_alm = self.calc_prep(data) # this changes lmmax to lmmax_unl via lensgclm
+            cg_sol_curr = self.wf_field.get_field(self.simidx, it-1) # FIXME I could use a check here to make sure cg_sol_curr is of the right shape..
+            tpn_alm = self.calc_prep(data) # NOTE lm_sky -> lm_pri
             mchain = CG.conjugate_gradient(self.precon_op, self.chain_descr, self.cls_filt)
             mchain.solve(cg_sol_curr, tpn_alm, self.fwd_op)
-            self.wf_field.cache_field(cg_sol_curr, simidx, it)
-        return self.wf_field.get_field(simidx, it)
+            self.wf_field.cache_field(cg_sol_curr, self.simidx, it)
+        return self.wf_field.get_field(self.simidx, it)
 
 
     def calc_prep(self, eblm):
@@ -87,24 +93,26 @@ class wf:
         eblmc = np.empty_like(eblm)
         eblmc = self.inoise_operator.act(eblm, adjoint=False)
         eblmc = self.beam_operator.act(eblmc, adjoint=False)
-        elm = self.wf_operator.act(eblmc, spin=2, adjoint=True, backwards=True, out_sht_mode='GRAD_ONLY').squeeze()
-        almxfl(elm, self.cls_filt['ee'] > 0., Alm.getlmax(elm.size, None), True)
+        elm = self.wf_operator.act(eblmc, spin=2, adjoint=True, backwards=True, out_sht_mode='GRAD_ONLY')[0].squeeze() # NOTE lm_sky -> lm_pri
+        elm = almxfl_nd(elm, self.cls_filt['ee'] > 0., None, False)
         return elm
     
 
-    def fwd_op(self, elm):
+    def fwd_op(self, ewflm):
+        """ acts on elm, which is a lm_max_pri map
+        """
         iclee = cli(self.cls_filt['ee'])
-        nlm = np.copy(elm)
+        nlm = np.copy(ewflm)
         # View to the same array for GRAD_ONLY mode:
         elm_2d = nlm.reshape((1, nlm.size))
-        eblm = self.wf_operator.act(elm_2d, spin=2, adjoint=False, backwards=False)
+        eblm = self.wf_operator.act(elm_2d, spin=2, adjoint=False, backwards=False) # # NOTE lm_max_pri -> lm_max_sky
         eblm = self.beam_operator.act(eblm, adjoint=False)
         eblm = self.inoise_operator.act(eblm, adjoint=False)
         eblm = self.beam_operator.act(eblm, adjoint=False)
-        elm_2d = self.wf_operator.act(eblm, spin=2, adjoint=True, backwards=True, out_sht_mode='GRAD_ONLY')
+        elm_2d = np.atleast_2d(self.wf_operator.act(eblm, spin=2, adjoint=True, backwards=True, out_sht_mode='GRAD_ONLY')[0]) # lm_sky -> lm_pri
 
         nlm = elm_2d.squeeze()
-        nlm += almxfl(elm, iclee * (iclee > 0.0), Alm.getlmax(elm.size, None), False)
+        nlm += almxfl(ewflm, iclee * (iclee > 0.0), Alm.getlmax(ewflm.size, None), False)
         return nlm
 
 
@@ -119,7 +127,7 @@ class wf:
             assert np.all(ninv_fel >= 0)
             nz = np.where(ninv_fel > 0)
             spl_sq = spl(np.arange(len(ninv_fel), dtype=float)[nz], np.log(ninv_fel[nz]), k=2, ext='extrapolate')
-            ninv_fel = np.exp(spl_sq(np.arange(Alm.getlmax(elm, None) + 1, dtype=float)))
+            ninv_fel = np.exp(spl_sq(np.arange(Alm.getlmax(elm.size, None) + 1, dtype=float)))
 
         lmax = Alm.getlmax(elm.size, None)
         flmat = cli(self.cls_filt['ee'][:lmax+1]) + ninv_fel[:]
@@ -127,18 +135,18 @@ class wf:
         return almxfl(elm, flmat, lmax, False)
 
 
-    def update_operator(self, simidx, it, secondary=None, component=None):
-        self.wf_operator.set_field(simidx, it, component)
+    def update_operator(self, it, secondary=None, component=None):
+        self.wf_operator.set_field(self.simidx, it, component)
 
 
-    def get_template(self, simidx, it, secondary, component, lm_max_in=None, lm_max_out=None):
-        self.wf_operator.set_field(simidx, it, secondary, component)
-        estCMB = self.get_wflm(simidx, it)
+    def get_template(self, it, secondary, component, lm_max_in=None, lm_max_out=None):
+        self.wf_operator.set_field(self.simidx, it, secondary, component)
+        estCMB = self.get_wflm(self.simidx, it)
 
         # NOTE making sure that QE is perturbative, and resetting MAP to non-perturbative.
         # Must be done for each call, as the operators used are the same instance.
         for operator in self.wf_operator.operators:
-            if operator.ID == 'lensing' and 'lensing' in secondary:
+            if operator.ID == 'lensing':
                 operator.perturbative = (it == 0)
 
         if lm_max_in is not None and lm_max_out is not None:

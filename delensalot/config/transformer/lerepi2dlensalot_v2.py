@@ -93,7 +93,7 @@ def generate_plancklenskeys(input_str):
         for comp in val.values():
             if comp not in PLANCKLENS_keys:
                 raise DelensalotError(f"Your input '{input_str}' is not a valid key, it generated '{comp}' which is not a valid Plancklens key.")
-    print('the generated secondary keys are:', secondary_key)
+    print(f'the generated secondary keys for Plancklens are {input_str} - > {secondary_key}')
     return secondary_key
 
 def filter_secondary_and_component(secondary, allowed_chars):
@@ -150,6 +150,12 @@ class l2base_Transformer:
             dl.analysis_secondary[sec]['LM_max'] = cf.analysis.LM_max
             dl.analysis_secondary[sec]['lm_max_pri'] = cf.analysis.lm_max_pri
             dl.analysis_secondary[sec]['lm_max_sky'] = cf.analysis.lm_max_sky
+
+            # FIXME I do this here for consistency, but not sure it's the most natural thing to do. Which keys should be priorized?
+            # I better only have one key...
+            cf.analysis.secondary[sec]['lm_max_pri'] = cf.analysis.lm_max_pri
+            cf.analysis.secondary[sec]['lm_max_sky'] = cf.analysis.lm_max_sky
+            cf.analysis.secondary[sec]['LM_max'] = cf.analysis.LM_max
         
         # NOTE this is to catch varying Lmin. It also supports that Lmin may come as list, or only a single value.
         # I make sure that the secondaries are sorted accordingly before I assign the Lmin values

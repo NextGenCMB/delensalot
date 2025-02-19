@@ -100,15 +100,15 @@ class base:
             raise ValueError('Unknown estimator_key:', key)
 
 
-    def get_ivflm(self, simidx, key, lm_max):
+    def get_ivflm(self, simidx, key):
         if key in ['ptt']:
-            return alm_copy(self.ivf.get_sim_tlm(simidx), None, *lm_max)
+            return alm_copy(self.ivf.get_sim_tlm(simidx), None, *self.lm_max_ivf)
         elif key in ['p_p', 'p_eb', 'peb', 'p_be', 'pee', 'x_p', 'x_eb', 'xeb', 'x_be', 'xee']:
-            return alm_copy(self.ivf.get_sim_elm(simidx), None, *lm_max), alm_copy(self.ivf.get_sim_blm(simidx), None, *lm_max)
+            return alm_copy(self.ivf.get_sim_elm(simidx), None, *self.lm_max_ivf), alm_copy(self.ivf.get_sim_blm(simidx), None, *self.lm_max_ivf)
         elif key in ['p']:
-            return np.array([alm_copy(self.ivf.get_sim_tlm(simidx), None, *lm_max), alm_copy(self.ivf.get_sim_elm(simidx), None, *lm_max)])
+            return np.array([alm_copy(self.ivf.get_sim_tlm(simidx), None, *self.lm_max_ivf), alm_copy(self.ivf.get_sim_elm(simidx), None, *self.lm_max_ivf)])
         elif key in ['a_p']:
-            return alm_copy(self.ivf.get_sim_elm(simidx), None, *lm_max), alm_copy(self.ivf.get_sim_blm(simidx), None, *lm_max)
+            return alm_copy(self.ivf.get_sim_elm(simidx), None, *self.lm_max_ivf), alm_copy(self.ivf.get_sim_blm(simidx), None, *self.lm_max_ivf)
         else:
             raise ValueError('Unknown estimator_key:', key)
         
