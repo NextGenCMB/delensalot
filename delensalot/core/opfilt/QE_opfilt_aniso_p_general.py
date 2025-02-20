@@ -118,10 +118,6 @@ class alm_filter_ninv(object):
         almxfl(eblm[0], self.transf_elm, self.mmax_len, inplace=True)
         almxfl(eblm[1], self.transf_blm, self.mmax_len, inplace=True)
         tim.add('transf')
-        #values_w = syng_cap(lmax=lmax_unl, mmax=new_mmax, alm=gclm, loc=ptg_sliced,
-        #                    spin=args.spin, epsilon=ffi.epsilon,
-        #                    nthreads=ffi.sht_tr, mode=sht_mode, verbose=ffi.verbosity, thtcap=thtcap, eps_apo=eps_apo,
-        #                    apofct=apofct)
         loc = read_map(self.loc)
         qumap = syng(alm=eblm, loc=loc, **self.syng_params)
         tim.add('synthesis_general_cap')
@@ -180,8 +176,7 @@ class alm_filter_ninv(object):
                 mmax_qlm: maximum m of lm output
 
         """
-        assert len(qudat) == 2 and len(eblm_wf)
-        assert (qudat[0].size == self.geom_.npix()) and (qudat[0].size == qudat[1].size)
+        assert len(qudat) == 2 and len(eblm_wf) == 2
 
         repmap, impmap = self._get_irespmap(qudat, eblm_wf, q_pbgeom)
         Gs, Cs = self._get_gpmap(eblm_wf, 3, q_pbgeom)  # 2 pos.space maps
