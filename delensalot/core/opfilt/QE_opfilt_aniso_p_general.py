@@ -38,19 +38,20 @@ class alm_filter_ninv(object):
         transf_blm = transf_b if transf_b is not None else transf
         assert transf_blm.size == transf_elm.size, 'check if not same size OK'
 
-        self.n_inv = ninv
-        self.transf_elm = transf_elm
-        self.transf_blm = transf_blm
         lmax_unl, mmax_unl = unlalm_info
         lmax_len, mmax_len = lenalm_info
         lmax_transf = max(len(transf), len(transf_blm)) - 1
+
+        self.n_inv = ninv
+        self.transf_elm = transf_elm
+        self.transf_blm = transf_blm
+
         self.lmax_len = min(lmax_transf, lmax_len)
         self.mmax_len = min(mmax_len, lmax_transf)
         self.lmax_sol = lmax_unl
         self.mmax_sol = min(lmax_unl, mmax_unl)
 
         self.sht_threads = sht_threads
-
         self.verbose=verbose
 
         self._nlevp = None
@@ -78,6 +79,7 @@ class alm_filter_ninv(object):
             print('eps apo %.3f'%syng_params.get('eps_apo', 0))
         self.syng_params = syng_params
         self.adj_syng_params = adj_syng_params
+
     def hashdict(self):
         return {'ninv':self._ninv_hash(), 'transf':clhash(self.transf_elm),
                 'unalm':(self.lmax_sol, self.mmax_sol),
@@ -164,6 +166,23 @@ class alm_filter_ninv(object):
             del qmap_copy
         else:
             assert 0
+
+    def synalm(self, cls:dict):
+        """Generate a simulated data maps matching the noise model
+
+
+        """
+        from lenspyx.utils_hp import synalm
+        assert len(self.n_inv) == 1, 'not implemented'
+        rng = np.random.default_rng()
+        eblm = np.empty((2, Alm.getsize(self.lmax_len, self.mmax_len)), dtype=complex)
+        eblm[0] = synalm(cls['ee'], self.lmax_len, self.mmax_len)
+        eblm[1] = synalm(cls['bb'], self.lmax_len, self.mmax_len)
+        almxfl(eblm[0], self.transf_elm, self.mmax_len, inplace=True)
+        almxfl(eblm[1], self.transf_blm, self.mmax_len, inplace=True)
+        qu = syng(alm=eblm, loc=read_map(self.loc), **self.syng_params)
+        qu += rng.standard_normal(qu.shape, dtype=np.float64) * np.sqrt(cli(read_map(self.n_inv[0])))
+        return qu
 
     def get_qlms(self, qudat: np.ndarray or list, eblm_wf: np.ndarray, q_pbgeom: utils_geom.pbdGeometry, lmax_qlm, mmax_qlm):
         """
