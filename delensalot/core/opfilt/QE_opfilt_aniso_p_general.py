@@ -12,7 +12,7 @@ from lenspyx.remapping import utils_geom
 from delensalot.utils import timer, cli, clhash, read_map
 from lenspyx.utils_hp import almxfl, Alm, alm2cl
 from delensalot.core.opfilt import bmodes_ninv as bni
-from duccjc import synthesis_general_cap as syng, adjoint_synthesis_general_cap as syng_adj # FIXME
+from duccjc.sht import synthesis_general_cap as syng, adjoint_synthesis_general_cap as syng_adj # FIXME
 
 
 class alm_filter_ninv(object):
@@ -60,22 +60,22 @@ class alm_filter_ninv(object):
         self.loc = loc
 
         # Build some syng_cap params
-        thtcap = np.max(read_map(loc[:, 0]))
+        thtcap = min(np.max(read_map(loc[:, 0])) *1.0001, np.pi)
         dl_7 = 19 # might want to tweak this
         dl = int(np.round(dl_7 * ((- np.log10(epsilon) + 1) / (7 + 1)) ** 2))
         # all syng params except of loc
         syng_params = {'epsilon':epsilon,
                        'thtcap':thtcap,
-                       'epsapo': np.sqrt(dl / lmax_unl * np.pi / thtcap),
+                       'eps_apo': np.sqrt(dl / lmax_unl * np.pi / thtcap),
                         'spin':2, 'lmax':lmax_len, 'mmax':mmax_len,
-                        'nthreads':sht_threads, 'mode':'STANDARD'}
+                        'nthreads':sht_threads, 'mode':'STANDARD', 'verbose':verbose}
         adj_syng_params = syng_params.copy()
         adj_syng_params['lmax'] = lmax_unl
         adj_syng_params['mmax'] = mmax_unl
 
         if verbose:
-            print("general QE p filter setup with thtcap = %.2f"%thtcap)
-            print('eps apo %.3f'%syng_params.get('epsapo', 0))
+            print("general QE p filter setup with thtcap = %.2f deg"%(thtcap/np.pi*180))
+            print('eps apo %.3f'%syng_params.get('eps_apo', 0))
         self.syng_params = syng_params
         self.adj_syng_params = adj_syng_params
     def hashdict(self):
@@ -124,13 +124,13 @@ class alm_filter_ninv(object):
         #                    apofct=apofct)
         loc = read_map(self.loc)
         qumap = syng(alm=eblm, loc=loc, **self.syng_params)
-        tim.add('synthesis_general_cap lmax %s mmax %s npix %s'%(self.lmax_len, self.mmax_len, qumap[0].size))
+        tim.add('synthesis_general_cap')
 
         self.apply_map(qumap)  # applies N^{-1}
         tim.add('apply ninv')
 
         syng_adj(map=qumap,  loc=loc, alm=eblm, **self.adj_syng_params)
-        tim.add('adj_synthesis_general_cap lmax %s mmax %s npix %s'%(self.lmax_sol, self.mmax_sol, qumap[0].size))
+        tim.add('adj_synthesis_general_cap')
 
         almxfl(eblm[0], self.transf_elm, self.mmax_len, inplace=True)
         almxfl(eblm[1], self.transf_blm, self.mmax_len, inplace=True)
