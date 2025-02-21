@@ -2,12 +2,20 @@
 
 """config_helper.py: functions and constants which come in handy for configuration files.
 """
-
-
-
+import re, sys
 import numpy as np
 import healpy as hp
 
+import importlib.util as iu
+
+from delensalot.config.etc.errorhandler import DelensalotError
+
+PLANCKLENS_keys_fund = ['ptt', 'xtt', 'p_p', 'x_p', 'p', 'x', 'stt', 's', 'ftt','f_p', 'f','dtt', 'ntt','n', 'a_p',
+                    'pte', 'pet', 'ptb', 'pbt', 'pee', 'peb', 'pbe', 'pbb',
+                    'xte', 'xet', 'xtb', 'xbt', 'xee', 'xeb', 'xbe', 'xbb']
+PLANCKLENS_keys = PLANCKLENS_keys_fund + ['p_tp', 'x_tp', 'p_te', 'p_tb', 'p_eb', 'x_te', 'x_tb', 'x_eb', 'ptt_bh_n',
+                                'ptt_bh_s', 'ptt_bh_f', 'ptt_bh_d', 'dtt_bh_p', 'stt_bh_p', 'ftt_bh_d',
+                                'p_bh_s', 'p_bh_n']
 
 class LEREPI_Constants:
     fs_edges = np.arange(2, 3000, 20)
@@ -83,3 +91,50 @@ class data_functions:
         zbounds_len[1] = min(zbounds_len[1],  1.)
 
         return zbounds_len
+    
+def generate_plancklenskeys(input_str):
+    def split_at_first(s, blacklist={'t', 'e', 'b'}):
+        match = re.search(f"[{''.join(blacklist)}]", s)
+        if match:
+            return s[:match.start()], s[match.start():]
+        return s, ''
+    lensing_components = {'p', 'w'}
+    birefringence_components = {'f'}
+    valid_suffixes = {'p', 'ee', 'eb'}
+    transtable = str.maketrans({'p':"p", 'f':"a", 'w':"x"})
+    if "_" in input_str:
+        components_part, suffix = input_str.split('_')
+    else:
+        components_part, suffix = split_at_first(input_str)  # last character as suffix
+    lensing = sorted(components_part[i] for i in range(len(components_part)) if components_part[i] in lensing_components)
+    birefringence = sorted(components_part[i] for i in range(len(components_part)) if components_part[i] in birefringence_components)
+    secondary_key = {}
+    if lensing:
+        secondary_key['lensing'] = {comp: comp.translate(transtable) + "_" + suffix if "_" in input_str else comp.translate(transtable)+ suffix for comp in lensing}
+    if birefringence:
+        secondary_key['birefringence'] = {comp: comp.translate(transtable) + "_" + suffix if "_" in input_str else comp.translate(transtable) + suffix for comp in birefringence}
+
+    for sec, val in secondary_key.items():
+        for comp in val.values():
+            if comp not in PLANCKLENS_keys:
+                raise DelensalotError(f"Your input '{input_str}' is not a valid key, it generated '{comp}' which is not a valid Plancklens key.")
+    print(f'the generated secondary keys for Plancklens are {input_str} - > {secondary_key}')
+    return secondary_key
+
+
+def load_config(directory, descriptor):
+    """Helper method for loading the configuration file.
+
+    Args:
+        directory (_type_): The directory to read from.
+        descriptor (_type_): Identifier with which the configuration file is stored in memory.
+
+    Returns:
+        object: the configuration file
+    """        
+    spec = iu.spec_from_file_location('configfile', directory)
+    p = iu.module_from_spec(spec)
+    sys.modules[descriptor] = p
+    spec.loader.exec_module(p)
+
+    return p.delensalot_model

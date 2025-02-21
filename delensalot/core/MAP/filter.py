@@ -37,7 +37,6 @@ class ivf:
 
 
     def get_ivfreslm(self, it, data=None, eblm_wf=None):
-        # print('calculating ivfreslm')
         # NOTE this is eq. 21 of the paper, in essence it should do the following:
         if not self.ivf_field.is_cached( self.simidx, it):
             assert eblm_wf is not None and data is not None
@@ -47,7 +46,6 @@ class ivf:
             ivfreslm = self.inoise_operator.act(0.5*ivfreslm, adjoint=False)
             ivfreslm = self.beam_operator.act(ivfreslm, adjoint=False)
             self.ivf_field.cache_field(ivfreslm,  self.simidx, it)
-        # print('done calculating ivfreslm')
         return self.ivf_field.get_field( self.simidx, it)
     
 
@@ -76,7 +74,6 @@ class wf:
 
 
     def get_wflm(self, it, data=None):
-        # print('calculating wflm')
         if not self.wf_field.is_cached(self.simidx, it):
             assert data is not None, 'data is required for the calculation'
             cg_sol_curr = self.wf_field.get_field(self.simidx, it-1) # FIXME I could use a check here to make sure cg_sol_curr is of the right shape..

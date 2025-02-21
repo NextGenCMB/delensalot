@@ -19,7 +19,7 @@ from delensalot.config.metamodel import DEFAULT_NotAValue, DEFAULT_NotASTR
 import importlib.util
 
 
-class DELENSALOT_Concept_v2:
+class DELENSALOT_Concept_v3:
     """An abstract element base type for the Dlensalot formalism."""
     __metaclass__ = abc.ABCMeta
 
@@ -40,34 +40,9 @@ class DELENSALOT_Concept_v2:
             _str += '\n'
         return _str
 
-@attr.s
-class DELENSALOT_Chaindescriptor(DELENSALOT_Concept_v2):
-    """A root model element type of the Dlensalot formalism.
-    This class collects all configurations related to conjugate gradient solver. There are currently not many options for this. Better don't touch it.
-    
-    Attributes:
-        p0: 0
-        p1: type of the conditioner. Can be in ["diag_cl"]
-        p2: value of lm_max_ivf[0]
-        p3: value of nside of the data
-        p4: np.inf
-        p5: value of cg_tol
-        p6: `tr_cg`: value of cd_solve.tr_cg
-        p7: cacher setting
-    """
-    # TODO change names after testing various chains - can we find better heuristics?
-    p0 =                    attr.field(default=DEFAULT_NotAValue)
-    p1 =                    attr.field(default=DEFAULT_NotAValue)
-    p2 =                    attr.field(default=DEFAULT_NotAValue)
-    p3 =                    attr.field(default=DEFAULT_NotAValue)
-    p4 =                    attr.field(default=DEFAULT_NotAValue)
-    p5 =                    attr.field(default=DEFAULT_NotAValue)
-    p6 =                    attr.field(default=DEFAULT_NotAValue)
-    p7 =                    attr.field(default=DEFAULT_NotAValue)
-
 
 @attr.s
-class DELENSALOT_Job(DELENSALOT_Concept_v2):
+class DELENSALOT_Job(DELENSALOT_Concept_v3):
     """A root model element type of the Dlensalot formalism.
     delensalot can executte different jobs (QE reconstruction, simulation generation, MAP reconstruction, delensing, ..) which is controlled here.
 
@@ -78,7 +53,7 @@ class DELENSALOT_Job(DELENSALOT_Concept_v2):
 
 
 @attr.s
-class DELENSALOT_Analysis(DELENSALOT_Concept_v2):
+class DELENSALOT_Analysis(DELENSALOT_Concept_v3):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the specific analysis performed on the data.
 
@@ -119,7 +94,7 @@ class DELENSALOT_Analysis(DELENSALOT_Concept_v2):
 
 
 @attr.s
-class DELENSALOT_Simulation(DELENSALOT_Concept_v2):
+class DELENSALOT_Simulation(DELENSALOT_Concept_v3):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the input maps, and values can differ from the noise model and analysis.
 
@@ -138,7 +113,7 @@ class DELENSALOT_Simulation(DELENSALOT_Concept_v2):
 
 
 @attr.s
-class DELENSALOT_Noisemodel(DELENSALOT_Concept_v2):
+class DELENSALOT_Noisemodel(DELENSALOT_Concept_v3):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the noise model used for Wiener-filtering the data.
 
@@ -163,7 +138,7 @@ class DELENSALOT_Noisemodel(DELENSALOT_Concept_v2):
 
 
 @attr.s
-class DELENSALOT_Qerec(DELENSALOT_Concept_v2):
+class DELENSALOT_QErec(DELENSALOT_Concept_v3):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the quadratic estimator reconstruction job.
 
@@ -182,12 +157,12 @@ class DELENSALOT_Qerec(DELENSALOT_Concept_v2):
     estimator_type =        attr.field(default=DEFAULT_NotAValue)
     qlm_type =              attr.field(default=DEFAULT_NotAValue)
     cg_tol =                attr.field(default=DEFAULT_NotAValue)
-    chain =                 attr.field(default=DELENSALOT_Chaindescriptor())
+    chain =                 attr.field(default=DEFAULT_NotAValue)
     subtract_QE_meanfield = attr.field(default=DEFAULT_NotAValue)
 
 
 @attr.s
-class DELENSALOT_Itrec(DELENSALOT_Concept_v2):
+class DELENSALOT_MAPrec(DELENSALOT_Concept_v3):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the iterative reconstruction job.
 
@@ -210,7 +185,7 @@ class DELENSALOT_Itrec(DELENSALOT_Concept_v2):
     tasks =                 attr.field(default=DEFAULT_NotAValue)
     itmax =                 attr.field(default=DEFAULT_NotAValue)
     cg_tol =                attr.field(default=DEFAULT_NotAValue)
-    chain =                 attr.field(default=DELENSALOT_Chaindescriptor())
+    chain =                 attr.field(default=DEFAULT_NotAValue)
     mfvar =                 attr.field(default=DEFAULT_NotAValue)
     soltn_cond =            attr.field(default=DEFAULT_NotAValue)
     gradient_descs =        attr.field(default=DEFAULT_NotAValue)
@@ -220,7 +195,7 @@ class DELENSALOT_Itrec(DELENSALOT_Concept_v2):
 
     
 @attr.s
-class DELENSALOT_Mapdelensing(DELENSALOT_Concept_v2):
+class DELENSALOT_Mapdelensing(DELENSALOT_Concept_v3):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the internal map delensing job.
 
@@ -251,7 +226,7 @@ class DELENSALOT_Mapdelensing(DELENSALOT_Concept_v2):
     basemap =               attr.field(default=DEFAULT_NotAValue)
 
 @attr.s
-class DELENSALOT_Phianalysis(DELENSALOT_Concept_v2):
+class DELENSALOT_Phianalysis(DELENSALOT_Concept_v3):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the internal map delensing job.
 
@@ -262,7 +237,7 @@ class DELENSALOT_Phianalysis(DELENSALOT_Concept_v2):
 
 
 @attr.s
-class DELENSALOT_OBD(DELENSALOT_Concept_v2):
+class DELENSALOT_OBD(DELENSALOT_Concept_v3):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the overlapping B-mode deprojection.
 
@@ -279,7 +254,7 @@ class DELENSALOT_OBD(DELENSALOT_Concept_v2):
 
 
 @attr.s
-class DELENSALOT_Computing(DELENSALOT_Concept_v2):
+class DELENSALOT_Computing(DELENSALOT_Concept_v3):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the usage of computing resources.
 
@@ -290,7 +265,7 @@ class DELENSALOT_Computing(DELENSALOT_Concept_v2):
 
 
 @attr.s
-class DELENSALOT_Model(DELENSALOT_Concept_v2):
+class DELENSALOT_Model(DELENSALOT_Concept_v3):
     """A root model element type of the Dlensalot formalism.
 
     Attributes:
@@ -313,10 +288,10 @@ class DELENSALOT_Model(DELENSALOT_Concept_v2):
     validate_model =        attr.field(default=True)
     job =                   attr.field(default=DELENSALOT_Job())
     analysis =              attr.field(default=DELENSALOT_Analysis())
-    simulationdata =        attr.field(default=DELENSALOT_Simulation())
+    data_provider =        attr.field(default=DELENSALOT_Simulation())
     noisemodel =            attr.field(default=DELENSALOT_Noisemodel())
-    qerec =                 attr.field(default=DELENSALOT_Qerec())
-    itrec =                 attr.field(default=DELENSALOT_Itrec())
+    qerec =                 attr.field(default=DELENSALOT_QErec())
+    maprec =                attr.field(default=DELENSALOT_MAPrec())
     madel =                 attr.field(default=DELENSALOT_Mapdelensing())
     computing =             attr.field(default=DELENSALOT_Computing())
     obd =                   attr.field(default=DELENSALOT_OBD())
@@ -355,7 +330,7 @@ class DELENSALOT_Model(DELENSALOT_Concept_v2):
         for key, default_value in default_dict.items():
             if key in ['defaults_to', 'validate_model']:
                 continue  # Skip special attributes
-            if key in ['simulationdata']:#, 'analysis']:
+            if key in ['data_provider']:#, 'analysis']:
                 # NOTE this only updates secondary keys if any secondary is actually listed in the analysis of the config file. 
                 # By this I make sure that the library only receives the secondaries that the user wants,
                 # while at the same time setting the defaults for that secondary if the user did not specify

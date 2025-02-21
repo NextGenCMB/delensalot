@@ -16,38 +16,28 @@ from logdecorator import log_on_start, log_on_end
 import numpy as np
 import healpy as hp
 import hashlib
-from collections import OrderedDict
 from itertools import chain, combinations
 import re
 
 from lenspyx.remapping import deflection
 from lenspyx.lensing import get_geom 
 
-## TODO don't like this import here. Not sure how to remove
-from delensalot.core.cg import cd_solve
-from delensalot.core.helper import utils_plancklens
 from delensalot.sims.sims_lib import Simhandler
-from delensalot.config.etc.errorhandler import DelensalotError
-from delensalot.config.metamodel import DEFAULT_NotAValue as DNaV
 
-from delensalot.utils import cli, camb_clfile, load_file
-from delensalot.utility.utils_hp import gauss_beam
-
-from delensalot.core.MAP import field as MAP_field, operator
+from delensalot.core.helper import utils_plancklens
 from delensalot.core.handler import OBD_builder, Sim_generator, QE_lr_v2, MAP_lr_v2, Map_delenser, Phi_analyser
 
+from delensalot.config.etc.errorhandler import DelensalotError
+from delensalot.config.metamodel import DEFAULT_NotAValue as DNaV
 from delensalot.config.visitor import transform, transform3d
-from delensalot.config.config_helper import data_functions as df, LEREPI_Constants as lc
+from delensalot.config.config_helper import data_functions as df, LEREPI_Constants as lc, generate_plancklenskeys
 from delensalot.config.metamodel.delensalot_mm_v2 import DELENSALOT_Model as DELENSALOT_Model_mm, DELENSALOT_Concept_v2
+from delensalot.utility.utils_hp import gauss_beam
+from delensalot.utils import cli, camb_clfile, load_file
 
 import itertools
+from delensalot.config.config_helper import PLANCKLENS_keys
 
-PLANCKLENS_keys_fund = ['ptt', 'xtt', 'p_p', 'x_p', 'p', 'x', 'stt', 's', 'ftt','f_p', 'f','dtt', 'ntt','n', 'a_p',
-                    'pte', 'pet', 'ptb', 'pbt', 'pee', 'peb', 'pbe', 'pbb',
-                    'xte', 'xet', 'xtb', 'xbt', 'xee', 'xeb', 'xbe', 'xbb']
-PLANCKLENS_keys = PLANCKLENS_keys_fund + ['p_tp', 'x_tp', 'p_te', 'p_tb', 'p_eb', 'x_te', 'x_tb', 'x_eb', 'ptt_bh_n',
-                                'ptt_bh_s', 'ptt_bh_f', 'ptt_bh_d', 'dtt_bh_p', 'stt_bh_p', 'ftt_bh_d',
-                                'p_bh_s', 'p_bh_n']
 
 def check_key(key):
     def generate_delensalotcombinations(allowed_strings):
@@ -66,35 +56,6 @@ def check_key(key):
     keys = generate_delensalotcombinations(PLANCKLENS_keys)
     if key not in keys:
         raise DelensalotError(f"Your input '{key}' is not a valid key. Please choose one of the following: {keys}")
-
-def generate_plancklenskeys(input_str):
-    def split_at_first(s, blacklist={'t', 'e', 'b'}):
-        match = re.search(f"[{''.join(blacklist)}]", s)
-        if match:
-            return s[:match.start()], s[match.start():]
-        return s, ''
-    lensing_components = {'p', 'w'}
-    birefringence_components = {'f'}
-    valid_suffixes = {'p', 'ee', 'eb'}
-    transtable = str.maketrans({'p':"p", 'f':"a", 'w':"x"})
-    if "_" in input_str:
-        components_part, suffix = input_str.split('_')
-    else:
-        components_part, suffix = split_at_first(input_str)  # last character as suffix
-    lensing = sorted(components_part[i] for i in range(len(components_part)) if components_part[i] in lensing_components)
-    birefringence = sorted(components_part[i] for i in range(len(components_part)) if components_part[i] in birefringence_components)
-    secondary_key = {}
-    if lensing:
-        secondary_key['lensing'] = {comp: comp.translate(transtable) + "_" + suffix if "_" in input_str else comp.translate(transtable)+ suffix for comp in lensing}
-    if birefringence:
-        secondary_key['birefringence'] = {comp: comp.translate(transtable) + "_" + suffix if "_" in input_str else comp.translate(transtable) + suffix for comp in birefringence}
-
-    for sec, val in secondary_key.items():
-        for comp in val.values():
-            if comp not in PLANCKLENS_keys:
-                raise DelensalotError(f"Your input '{input_str}' is not a valid key, it generated '{comp}' which is not a valid Plancklens key.")
-    print(f'the generated secondary keys for Plancklens are {input_str} - > {secondary_key}')
-    return secondary_key
 
 def filter_secondary_and_component(secondary, allowed_chars):
     forbidden_chars_in_sec = 'eb'  # NOTE this filters the last part in case of non-symmetrized keys (e.g. 'pee')
@@ -136,7 +97,7 @@ class l2base_Transformer:
         # in the config. Simhandler controls everything with sec_info. Later in Simhandler, operator_info etc. are filtered accordingly.
         for ope in si.operator_info:
             si.operator_info[ope]['tr'] = dl.tr
-        dl.simulationdata = Simhandler(**si.__dict__)
+        dl.data_provider = Simhandler(**si.__dict__)
 
         # NOTE this check key does not catch all possible wrong keys, but at least it catches the most common ones.
         # Plancklens keys should all be correct with this, for delensalot, not so sure, will see over time.
@@ -164,7 +125,7 @@ class l2base_Transformer:
         elif isinstance(cf.analysis.Lmin, (int, list, np.ndarray)):
             dl.Lmin = {comp: cf.analysis.Lmin if isinstance(cf.analysis.Lmin, int) or len(cf.analysis.Lmin) == 1 
                     else cf.analysis.Lmin[i] for i, comp in enumerate(complist_sorted)}
-        dl.CLfids = dl.simulationdata.get_CLfids(0, dl.analysis_secondary, dl.Lmin)
+        dl.CLfids = dl.data_provider.get_CLfids(0, dl.analysis_secondary, dl.Lmin)
         
     def process_Analysis(dl, an, cf):
         if loglevel <= 20:
@@ -227,7 +188,6 @@ class l2T_Transformer:
     # TODO this could use refactoring. Better name generation
     """global access for custom TEMP directory name, so that any job stores the data at the same place.
     """
-
     def build(self, cf):
         if cf.job.jobs == ['build_OBD']:
             return cf.obd.libdir
@@ -235,7 +195,7 @@ class l2T_Transformer:
             if cf.analysis.TEMP_suffix != '':
                 _suffix = cf.analysis.TEMP_suffix
                 # NOTE this might not work if I don't know anything about the simulations...
-                _secsuffix = "simdata__"+"_".join(f"{key}_{'_'.join(values['component'])}" for key, values in cf.simulationdata.sec_info.items())
+                _secsuffix = "simdata__"+"_".join(f"{key}_{'_'.join(values['component'])}" for key, values in cf.data_provider.sec_info.items())
             _suffix += '_OBD' if cf.noisemodel.OBD == 'OBD' else '_lminB'+str(cf.analysis.lmin_teb[2])+_secsuffix
             TEMP =  opj(os.environ['SCRATCH'], 'analysis', _suffix)
             return TEMP
@@ -302,8 +262,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             dl = DELENSALOT_Concept_v2()
             l2base_Transformer.process_Computing(dl, cf.computing, cf)
             _process_Analysis(dl, cf.analysis, cf)
-            dl.libdir_suffix = cf.simulationdata.libdir_suffix
-            l2base_Transformer.process_Simulation(dl, cf.simulationdata, cf)
+            dl.libdir_suffix = cf.data_provider.libdir_suffix
+            l2base_Transformer.process_Simulation(dl, cf.data_provider, cf)
             return dl
         return Sim_generator(extract())
 
@@ -334,12 +294,12 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.QE_cg_tol = qe.cg_tol
                     dl.chain_model = qe.chain
                     dl.chain_model.p3 = dl.nivjob_geominfo[1]['nside']
-                    dl.chain_descr = lambda p2, p5 : [[0, ["diag_cl"], p2, dl.nivjob_geominfo[1]['nside'], np.inf, p5, cd_solve.tr_cg, cd_solve.cache_mem()]]
+                    dl.chain_descr = qe.chain_desc
                     
                 _process_Computing(dl, cf.computing)
                 _process_Analysis(dl, cf.analysis)
                 _process_Noisemodel(dl, cf.noisemodel)
-                _process_Simulation(dl, cf.simulationdata)
+                _process_Simulation(dl, cf.data_provider)
                 _process_OBD(dl, cf.obd)
                 _process_Qerec(dl, cf.qerec)
 
@@ -383,7 +343,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "nlev": dl.nlev,
                 "filtering_spatial_type": cf.noisemodel.spatial_type,
                 "cls_len": dl.cls_len,
-                "cls_unl": dl.simulationdata.cls_lib.Cl_dict,
+                "cls_unl": dl.data_provider.cls_lib.Cl_dict,
                 "ttebl": dl.ttebl,
                 "lm_max_ivf": dl.lm_max_sky,
                 "lm_max_qlm": dl.LM_max, # TODO this could be a different value for each secondary
@@ -427,8 +387,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 def _process_Itrec(dl, it):
                     dl.it_tasks = it.tasks
                     # chain
-                    dl.it_chain_descr = lambda p2, p5 : [[0, ["diag_cl"], p2, dl.nivjob_geominfo[1]['nside'], np.inf, p5, cd_solve.tr_cg, cd_solve.cache_mem()]]
-            
+                    dl.it_chain_desc = it.chain_desc
                     dl.it_cg_tol = lambda itr : it.cg_tol if itr <= 1 else it.cg_tol
                     dl.itmax = it.itmax
 
@@ -463,7 +422,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     'lm_max_sky': dl.lm_max_sky
                 },
                 'wf_info': {
-                    'chain_descr': dl.it_chain_descr,
+                    'chain_descr': dl.it_chain_desc,
                     'cg_tol': dl.it_cg_tol(0),
                 },
                 'noise_info': {
@@ -558,8 +517,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
                 dl.blt_pert = cf.qerec.blt_pert
                 _process_Computing(dl, cf.computing)
-                dl.libdir_suffix = cf.simulationdata.obs_info['noise_info']['libdir_suffix']
-                dl.simulationdata = Simhandler(**cf.simulationdata.__dict__)
+                dl.libdir_suffix = cf.data_provider.obs_info['noise_info']['libdir_suffix']
+                dl.data_provider = Simhandler(**cf.data_provider.__dict__)
                 _process_Analysis(dl, cf.analysis)
                 _process_Noisemodel(dl, cf.noisemodel)
                 _process_Madel(dl, cf.madel)
@@ -595,7 +554,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.obd_rescale = od.rescale
       
                 def _process_Simulation(dl, si):
-                    dl.libdir_suffix = cf.simulationdata.obs_info['noise_info']['libdir_suffix']
+                    dl.libdir_suffix = cf.data_provider.obs_info['noise_info']['libdir_suffix']
                     l2base_Transformer.process_Simulation(dl, si, cf)
 
                 def _process_Qerec(dl, qe):
@@ -618,7 +577,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_Computing(dl, cf.computing)
                 _process_Analysis(dl, cf.analysis)
                 _process_Noisemodel(dl, cf.noisemodel)
-                _process_Simulation(dl, cf.simulationdata)
+                _process_Simulation(dl, cf.data_provider)
 
                 _process_OBD(dl, cf.obd)
                 _process_Qerec(dl, cf.qerec)

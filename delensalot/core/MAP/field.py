@@ -11,9 +11,7 @@ class secondary:
         self.ID = field_desc['ID']
         self.libdir = field_desc['libdir']
         self.component = field_desc['component']
-        self.fns =  field_desc['fns'] # fns must be dict() with keys as component, and it as format specifiers
-        self.meanfield_fns = field_desc['meanfield_fns']
-        self.increment_fns = field_desc['increment_fns']
+        self.fns = {comp: f'klm_{comp}_simidx{{idx}}_it{{it}}' for comp in self.component}
         self.cacher = cachers.cacher_npy(opj(self.libdir))
         self.component2idx = {component: i for i, component in enumerate(self.component)}
 
@@ -243,6 +241,9 @@ class curvature:
     def __init__(self, field_desc):
         self.libdir = field_desc['libdir']
         self.fns =  field_desc['fns']
+        self.component = ['grad1d']
+        self.increment_fns = {comp: f'kinclm_{comp}_simidx{{idx}}_it{{it}}' for comp in self.component},
+        self.meanfield_fns = {comp: f'kmflm_{comp}_simidx{{idx}}_it{{it}}' for comp in self.component},
         self.cacher = cachers.cacher_npy(opj(self.libdir))
         self.types = list(self.fns.keys())
 

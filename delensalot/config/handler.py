@@ -47,7 +47,6 @@ class config_handler():
     def __init__(self, parser, config=None, key=None):
         sorted_joblist = ['generate_sim', 'QE_lensrec', 'MAP_lensrec', 'analyse_phi', 'delens']
         self.config = config if config is not None else config_handler.load_config(parser.config_file, 'configfile')
-        self.config.validate()
         if key is not None:
             self.config.analysis.key = key
         if 'job_id' in parser.__dict__ and parser.job_id is not None:
@@ -173,31 +172,8 @@ class config_handler():
                 # Only give this info when not resuming
                 logging.info('Matching config file found. Resuming where I left off.')
                 logging.info(TEMP+'/'+parser.config_file.split('/')[-1])
-
-
-    # @log_on_start(logging.DEBUG, "load_configfile() Started: {directory}")
-    # @log_on_end(logging.DEBUG, "load_configfile() Finished")
-    def load_configfile(directory, descriptor):
-        """Helper method for loading the configuration file.
-
-        Args:
-            directory (_type_): The directory to read from.
-            descriptor (_type_): Identifier with which the configuration file is stored in memory.
-
-        Returns:
-            object: the configuration file
-        """        
-        
-        spec = iu.spec_from_file_location('configfile', directory)
-        p = iu.module_from_spec(spec)
-        sys.modules[descriptor] = p
-        spec.loader.exec_module(p)
-
-        return p
     
 
-    # @log_on_start(logging.DEBUG, "load_configfile() Started: {directory}")
-    # @log_on_end(logging.DEBUG, "load_configfile() Finished")
     def load_config(directory, descriptor):
         """Helper method for loading the configuration file.
 

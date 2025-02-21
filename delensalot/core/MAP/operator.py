@@ -2,11 +2,15 @@ from os.path import join as opj
 
 import numpy as np
 
+from lenspyx.remapping import deflection
+from lenspyx.lensing import get_geom 
+
 from delensalot.core import cachers
 from delensalot.config.config_helper import data_functions as df
 from delensalot.utility.utils_hp import gauss_beam
 from delensalot.utils import cli
 from delensalot.utility.utils_hp import Alm, almxfl, alm_copy
+
 
 template_lensingcomponents = ['p', 'w'] 
 template_index_lensingcomponents = {val: i for i, val in enumerate(template_lensingcomponents)}
@@ -20,8 +24,15 @@ def _extend_cl(cl, lmax):
     ret[:min(len(cl), lmax+1)]= np.copy(cl[:min(len(cl), lmax+1)])
     return ret
 
+
 class base:
-    def __init__(self, libdir):
+    def __init__(self, libdir, LM_max):
+        zbounds = (-1,1)
+        lenjob_geomlib = get_geom(('thingauss', {'lmax': 4500, 'smax': 3}))
+        thtbounds = (np.arccos(zbounds[1]), np.arccos(zbounds[0]))
+        lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
+        self.ffi = deflection(lenjob_geomlib, np.zeros(shape=Alm.getsize(*LM_max)), LM_max[1], numthreads=8, verbosity=False, epsilon=1e-7)
+
         self.field_cacher = cachers.cacher_npy(libdir)
 
 
@@ -61,14 +72,11 @@ class joint:
     
 
     def act(self, obj, spin):
-        # print('acting joint operator')
         for operator in self.operators:
-            print(operator.ID)
             if isinstance(operator, secondary_operator):
                 obj = operator.act(obj, spin, out=self.space_out)
             else:
                 obj = operator.act(obj, spin)
-        # print('done acting joint operator')
         return obj
     
 
@@ -93,15 +101,11 @@ class secondary_operator:
     def act(self, obj, spin=2, adjoint=False, backwards=False, out_sht_mode=None, secondary=None, out='alm'):
         secondary = secondary or [op.ID for op in self.operators]
         operators = self.operators if not adjoint else self.operators[::-1]
-        # print('acting secondaries operator, adjoint =', adjoint)
         for idx, operator in enumerate(operators):
-            # print(operator.ID, ', in shape type', obj.shape, obj.dtype)
             if isinstance(operator, lensing):
                 obj = operator.act(obj, spin, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode, out=out)
             else:
                 obj = operator.act(obj, spin, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode)
-            # print(operator.ID, ': out shape type', obj.shape, obj.dtype)
-        # print('done acting secondaries operator')
         return obj
 
 
@@ -117,7 +121,7 @@ class secondary_operator:
 
 class lensing(base):
     def __init__(self, operator_desc):
-        super().__init__(operator_desc["libdir"])
+        super().__init__(operator_desc["libdir"], operator_desc["LM_max"])
         
         self.ID = 'lensing'
         self.LM_max = operator_desc["LM_max"]
@@ -128,9 +132,6 @@ class lensing(base):
         self.component = operator_desc["component"]
         self.field = {component: None for component in self.component}
         self.field_fns = operator_desc["field_fns"]
-        self.ffi = operator_desc["ffi"]
-
-        self.complist_sorted = sorted(self.component, key=lambda x: template_index_lensingcomponents.get(x, ''))
 
     # NOTE this is alm2alm
     def act(self, obj, spin=None, adjoint=False, backwards=False, out_sht_mode=None, out='alm'):
@@ -151,7 +152,6 @@ class lensing(base):
                     if lm_obj == self.lm_max_in[0]:
                         return self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max_in[1], spin, *self.lm_max_out)
                     else:
-                        print(obj.shape, self.lm_max_in, self.lm_max_out)
                         return self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max_out[1], spin, *self.lm_max_in)
     
 
@@ -183,7 +183,7 @@ class lensing(base):
 
 class birefringence(base):
     def __init__(self, operator_desc):
-        super().__init__(operator_desc["libdir"])
+        super().__init__(operator_desc["libdir"], operator_desc["LM_max"])
         
         self.ID = 'birefringence'
         self.LM_max = operator_desc["LM_max"]
@@ -192,7 +192,6 @@ class birefringence(base):
         self.component = operator_desc["component"]
         self.field = {component: None for component in self.component}
         self.field_fns = operator_desc['field_fns']
-        self.ffi = operator_desc["ffi"]
 
 
     # NOTE this is alm2alm
@@ -272,8 +271,7 @@ class beam:
         # assert self.lm_max[0] == Alm.getlmax(obj[0].size, None), (self.lm_max[0], obj.shape, Alm.getlmax(obj[0].size, None))
         # FIXME change counting for T and MV
         if adjoint: 
-            return np.array([cli(almxfl(o, self.transferfunction[self.idx2tebl[oi]], self.lm_max[0], False)) for oi, o in enumerate(obj)]) 
-        print(obj.shape, self.transferfunction[self.idx2tebl[0]].shape, self.lm_max[0])
+            return np.array([cli(almxfl(o, self.transferfunction[self.idx2tebl[oi]], self.lm_max[0], False)) for oi, o in enumerate(obj)])
         return np.array([almxfl(o, self.transferfunction[self.idx2tebl[oi]], self.lm_max[0], False) for oi, o in enumerate(obj)])
 
 

@@ -15,7 +15,7 @@ class base:
         libdir = gradient_desc['libdir']
         self.simidx = gradient_desc['simidx']
 
-        self.ffi = gradient_desc['ffi']
+        self.ffi = gradient_desc['sec_operator'].operators[0].ffi # each sec operator has the same ffi, so can pick any
         self.chh = gradient_desc['chh']
         self.component = gradient_desc['component']
 
@@ -69,6 +69,10 @@ class base:
         if isinstance(it, (list, np.ndarray)):
             return np.array([self.get_gradient_prior(it_, component) for it_ in it])
         return self.gfield.get_gradient_prior(self.simidx, it, component=component)
+    
+
+    def update_operator(self, it):
+        self.ivf_filter.update_operator(it)
 
 
 class lensing(base):
@@ -80,13 +84,15 @@ class lensing(base):
         self.gradient_operator = self.get_operator(gradient_desc['sec_operator'])
 
 
-    def get_gradient_quad(self, it, component=None, data=None):
+    def get_gradient_quad(self, it, component=None, data=None, data_leg2=None):
+        data_leg2 = data_leg2 or data
+
         # NOTE this function is equation 22 of the paper (for lensing).
         # Using property _2Y = _-2Y.conj
         # res = ivf.conj * gpmap(3) - ivf * gpmap(1).conj
         if not self.gfield.quad_is_cached(self.simidx, it):
             wflm = self.wf_filter.get_wflm(it, data)
-            ivfreslm = np.ascontiguousarray(self.ivf_filter.get_ivfreslm(it, data, wflm))
+            ivfreslm = np.ascontiguousarray(self.ivf_filter.get_ivfreslm(it, data_leg2, wflm))
 
             resmap_c = np.ascontiguousarray(np.empty((self.ffi.geom.npix(),), dtype=wflm.dtype))
             resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
@@ -124,10 +130,11 @@ class birefringence(base):
         self.lm_max_out = gradient_desc['lm_max_out']
     
 
-    def get_gradient_quad(self, it, component=None, data=None):
+    def get_gradient_quad(self, it, component=None, data=None, data_leg2=None):
+        data_leg2 = data_leg2 or data
         if not self.gfield.quad_is_cached(self.simidx, it):
             wflm = self.wf_filter.get_wflm(it, data)
-            ivfreslm = np.ascontiguousarray(self.ivf_filter.get_ivfreslm(it, data, wflm))
+            ivfreslm = np.ascontiguousarray(self.ivf_filter.get_ivfreslm(it, data_leg2, wflm))
             
             ivfmap = self.ffi.geom.synthesis(ivfreslm, 2, self.lm_max_in[0], self.lm_max_in[1], self.ffi.sht_tr)
             xwfmap = self.gradient_operator.act(wflm, spin=2)
