@@ -158,7 +158,7 @@ class base:
                     for gradient in self.gradients:
                         grad_prev.append(gradient.get_gradient_total(it-1, component=component, data=self.data))
                     grad_prev = np.concatenate([np.ravel(arr) for arr in grad_prev])
-                    self.curvature.add_yvector(self.simidx, grad_tot, grad_prev, it)
+                    self.curvature.add_yvector(grad_tot, grad_prev, self.simidx, it)
                 increment = self.curvature.get_increment(grad_tot, self.simidx, it)
                 prev_klm = np.concatenate([np.ravel(arr) for arr in self.get_est(it-1, scale=scale)])
                 new_klms = self.curvature.grad2dict(increment+prev_klm)
