@@ -8,14 +8,12 @@
 import abc, attr, os, sys
 from os.path import join as opj
 from pathlib import Path
-from attrs import validators
 import numpy as np
 
 import logging
 log = logging.getLogger(__name__)
 
 from delensalot.config.metamodel import DEFAULT_NotAValue, DEFAULT_NotASTR
-from delensalot.config.validator import analysis, chaindescriptor, computing, data, filter as v_filter, itrec, job, mapdelensing, meta, model, noisemodel, obd, qerec, stepper
 import importlib.util
 
 
@@ -58,14 +56,14 @@ class DLENSALOT_Chaindescriptor(DLENSALOT_Concept):
         p7: cacher setting
     """
     # TODO change names after testing various chains - can we find better heuristics?
-    p0 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p0)
-    p1 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p1)
-    p2 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p2)
-    p3 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p3)
-    p4 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p4)
-    p5 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p5)
-    p6 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p6)
-    p7 =                    attr.field(default=DEFAULT_NotAValue, validator=chaindescriptor.p7)
+    p0 =                    attr.field(default=DEFAULT_NotAValue)
+    p1 =                    attr.field(default=DEFAULT_NotAValue)
+    p2 =                    attr.field(default=DEFAULT_NotAValue)
+    p3 =                    attr.field(default=DEFAULT_NotAValue)
+    p4 =                    attr.field(default=DEFAULT_NotAValue)
+    p5 =                    attr.field(default=DEFAULT_NotAValue)
+    p6 =                    attr.field(default=DEFAULT_NotAValue)
+    p7 =                    attr.field(default=DEFAULT_NotAValue)
 
 @attr.s
 class DLENSALOT_Stepper(DLENSALOT_Concept):
@@ -83,13 +81,13 @@ class DLENSALOT_Stepper(DLENSALOT_Concept):
         xb: TBD
     """
     # FIXME this is very 'harmonicbump'-specific.
-    typ =                   attr.field(default=DEFAULT_NotAValue, validator=stepper.typ)
-    lmax_qlm =              attr.field(default=DEFAULT_NotAValue, validator=stepper.lmax_qlm) # must match lm_max_qlm -> validator
-    mmax_qlm =              attr.field(default=DEFAULT_NotAValue, validator=stepper.mmax_qlm) # must match lm_max_qlm -> validator
-    a =                     attr.field(default=DEFAULT_NotAValue, validator=stepper.a)
-    b =                     attr.field(default=DEFAULT_NotAValue, validator=stepper.b)
-    xa =                    attr.field(default=DEFAULT_NotAValue, validator=stepper.xa)
-    xb =                    attr.field(default=DEFAULT_NotAValue, validator=stepper.xb)
+    typ =                   attr.field(default=DEFAULT_NotAValue)
+    lmax_qlm =              attr.field(default=DEFAULT_NotAValue)
+    mmax_qlm =              attr.field(default=DEFAULT_NotAValue)
+    a =                     attr.field(default=DEFAULT_NotAValue)
+    b =                     attr.field(default=DEFAULT_NotAValue)
+    xa =                    attr.field(default=DEFAULT_NotAValue)
+    xb =                    attr.field(default=DEFAULT_NotAValue)
 
 
 @attr.s
@@ -100,7 +98,7 @@ class DLENSALOT_Job(DLENSALOT_Concept):
     Attributes:
         jobs (list[str]): Job identifier(s)
     """
-    jobs =                  attr.field(default=DEFAULT_NotAValue, validator=job.jobs)
+    jobs =                  attr.field(default=DEFAULT_NotAValue)
 
 @attr.s
 class DLENSALOT_Analysis(DLENSALOT_Concept):
@@ -125,23 +123,23 @@ class DLENSALOT_Analysis(DLENSALOT_Concept):
         cpp (str):                          path to the power spectrum of the prior for the iterative reconstruction
         beam (float):                       The beam used in the filters
     """
-    key =                   attr.field(default=DEFAULT_NotAValue, validator=analysis.key)
-    version =               attr.field(default=DEFAULT_NotAValue, validator=analysis.version) # TODO either make it more useful, or remove
-    simidxs =               attr.field(default=DEFAULT_NotAValue, validator=analysis.simidxs)
-    simidxs_mf =            attr.field(default=DEFAULT_NotAValue, validator=analysis.simidxs_mf)
-    TEMP_suffix =           attr.field(default=DEFAULT_NotAValue, validator=analysis.TEMP_suffix)
-    Lmin =                  attr.field(default=DEFAULT_NotAValue, validator=analysis.Lmin)
-    zbounds =               attr.field(default=DEFAULT_NotAValue, validator=analysis.zbounds)
-    zbounds_len =           attr.field(default=DEFAULT_NotAValue, validator=analysis.zbounds_len) # TODO rename
-    lm_max_ivf =            attr.field(default=DEFAULT_NotAValue, validator=v_filter.lm_max_ivf)
-    lm_max_blt =            attr.field(default=DEFAULT_NotAValue, validator=analysis.lm_max_blt)
-    mask =                  attr.field(default=DEFAULT_NotAValue, validator=analysis.mask) # TODO is this used? 
-    lmin_teb =              attr.field(default=DEFAULT_NotAValue, validator=analysis.lmin_teb)
-    cls_unl =               attr.field(default=DEFAULT_NotAValue, validator=analysis.cls_unl)
-    cls_len =               attr.field(default=DEFAULT_NotAValue, validator=analysis.cls_len)
-    cpp =                   attr.field(default=DEFAULT_NotAValue, validator=analysis.cpp)
-    beam =                  attr.field(default=DEFAULT_NotAValue, validator=analysis.beam)
-    transfunction_desc =    attr.field(default=DEFAULT_NotAValue, validator=analysis.transfunction)
+    key =                   attr.field(default=DEFAULT_NotAValue)
+    version =               attr.field(default=DEFAULT_NotAValue)
+    simidxs =               attr.field(default=DEFAULT_NotAValue)
+    simidxs_mf =            attr.field(default=DEFAULT_NotAValue)
+    TEMP_suffix =           attr.field(default=DEFAULT_NotAValue)
+    Lmin =                  attr.field(default=DEFAULT_NotAValue)
+    zbounds =               attr.field(default=DEFAULT_NotAValue)
+    zbounds_len =           attr.field(default=DEFAULT_NotAValue)
+    lm_max_ivf =            attr.field(default=DEFAULT_NotAValue)
+    lm_max_blt =            attr.field(default=DEFAULT_NotAValue)
+    mask =                  attr.field(default=DEFAULT_NotAValue)
+    lmin_teb =              attr.field(default=DEFAULT_NotAValue)
+    cls_unl =               attr.field(default=DEFAULT_NotAValue)
+    cls_len =               attr.field(default=DEFAULT_NotAValue)
+    cpp =                   attr.field(default=DEFAULT_NotAValue)
+    beam =                  attr.field(default=DEFAULT_NotAValue)
+    transfunction_desc =    attr.field(default=DEFAULT_NotAValue)
 
 
 @attr.s
@@ -177,30 +175,30 @@ class DLENSALOT_Simulation(DLENSALOT_Concept):
                                                
     """
 
-    flavour =       attr.field(default=DEFAULT_NotAValue, validator=data.flavour)
-    space =         attr.field(default=DEFAULT_NotAValue, validator=data.space)
-    maps =          attr.field(default=DEFAULT_NotAValue, validator=data.maps)
-    geominfo =      attr.field(default=DEFAULT_NotAValue, validator=data.geominfo)
-    lenjob_geominfo=attr.field(default=DEFAULT_NotAValue, validator=data.geominfo)
-    field =         attr.field(default=DEFAULT_NotAValue, validator=data.field)
-    libdir =        attr.field(default=DEFAULT_NotAValue, validator=data.libdir)
-    libdir_noise =  attr.field(default=DEFAULT_NotAValue, validator=data.libdir_noise)
-    libdir_phi =    attr.field(default=DEFAULT_NotAValue, validator=data.libdir_phi)
-    fns =           attr.field(default=DEFAULT_NotAValue, validator=data.fns)
-    fnsnoise =      attr.field(default=DEFAULT_NotAValue, validator=data.fnsnoise)
-    fnsP =          attr.field(default=DEFAULT_NotAValue, validator=data.fnsP)
-    lmax =          attr.field(default=DEFAULT_NotAValue, validator=data.lmax)
-    transfunction = attr.field(default=DEFAULT_NotAValue, validator=data.transfunction)
-    nlev =          attr.field(default=DEFAULT_NotAValue, validator=data.nlev)
-    spin =          attr.field(default=DEFAULT_NotAValue, validator=data.spin)
-    CMB_fn =        attr.field(default=DEFAULT_NotAValue, validator=data.CMB_fn)
-    phi_fn =        attr.field(default=DEFAULT_NotAValue, validator=data.phi_fn)
-    phi_field =     attr.field(default=DEFAULT_NotAValue, validator=data.phi_field)
-    phi_space =     attr.field(default=DEFAULT_NotAValue, validator=data.phi_space)
-    phi_lmax =      attr.field(default=DEFAULT_NotAValue, validator=data.phi_lmax)
-    epsilon =       attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
-    libdir_suffix = attr.field(default='generic', validator=data.libdir_suffix)
-    CMB_modifier =  attr.field(default=DEFAULT_NotAValue, validator=data.modifier)
+    flavour =       attr.field(default=DEFAULT_NotAValue)
+    space =         attr.field(default=DEFAULT_NotAValue)
+    maps =          attr.field(default=DEFAULT_NotAValue)
+    geominfo =      attr.field(default=DEFAULT_NotAValue)
+    lenjob_geominfo=attr.field(default=DEFAULT_NotAValue)
+    field =         attr.field(default=DEFAULT_NotAValue)
+    libdir =        attr.field(default=DEFAULT_NotAValue)
+    libdir_noise =  attr.field(default=DEFAULT_NotAValue)
+    libdir_phi =    attr.field(default=DEFAULT_NotAValue)
+    fns =           attr.field(default=DEFAULT_NotAValue)
+    fnsnoise =      attr.field(default=DEFAULT_NotAValue)
+    fnsP =          attr.field(default=DEFAULT_NotAValue)
+    lmax =          attr.field(default=DEFAULT_NotAValue)
+    transfunction = attr.field(default=DEFAULT_NotAValue)
+    nlev =          attr.field(default=DEFAULT_NotAValue)
+    spin =          attr.field(default=DEFAULT_NotAValue)
+    CMB_fn =        attr.field(default=DEFAULT_NotAValue)
+    phi_fn =        attr.field(default=DEFAULT_NotAValue)
+    phi_field =     attr.field(default=DEFAULT_NotAValue)
+    phi_space =     attr.field(default=DEFAULT_NotAValue)
+    phi_lmax =      attr.field(default=DEFAULT_NotAValue)
+    epsilon =       attr.field(default=DEFAULT_NotAValue)
+    libdir_suffix = attr.field(default='generic')
+    CMB_modifier =  attr.field(default=DEFAULT_NotAValue)
     phi_modifier =  attr.field(default=lambda x: x)
     
     
@@ -218,14 +216,14 @@ class DLENSALOT_Noisemodel(DLENSALOT_Concept):
         rhits_normalised (str): path to the hits-count map, used to calculate the noise levels, and the mask tracing the noise level. Second entry in tuple is the <inverse hits-count multiplier>.
         geominfo (tuple): geominfo of the noise map
     """
-    sky_coverage =          attr.field(default=DEFAULT_NotAValue, validator=noisemodel.sky_coverage)
-    spectrum_type =         attr.field(default=DEFAULT_NotAValue, validator=noisemodel.spectrum_type)
-    OBD =                   attr.field(default=DEFAULT_NotAValue, validator=noisemodel.OBD)
-    nlev =                  attr.field(default=DEFAULT_NotAValue, validator=noisemodel.nlev_t)
-    geominfo =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geominfo) # FIXME this must match the data geominfo.. validate accordingly
-    rhits_normalised =      attr.field(default=DEFAULT_NotAValue, validator=noisemodel.rhits_normalised)
-    nivt_map =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geominfo) # TODO test if it works
-    nivp_map =              attr.field(default=DEFAULT_NotAValue, validator=noisemodel.ninvjob_geominfo) # TODO test if it works
+    sky_coverage =          attr.field(default=DEFAULT_NotAValue)
+    spectrum_type =         attr.field(default=DEFAULT_NotAValue)
+    OBD =                   attr.field(default=DEFAULT_NotAValue)
+    nlev =                  attr.field(default=DEFAULT_NotAValue)
+    geominfo =              attr.field(default=DEFAULT_NotAValue)
+    rhits_normalised =      attr.field(default=DEFAULT_NotAValue)
+    nivt_map =              attr.field(default=DEFAULT_NotAValue)
+    nivp_map =              attr.field(default=DEFAULT_NotAValue)
 
 @attr.s
 class DLENSALOT_Qerec(DLENSALOT_Concept):
@@ -244,14 +242,14 @@ class DLENSALOT_Qerec(DLENSALOT_Concept):
     
     """
 
-    tasks =                 attr.field(default=DEFAULT_NotAValue, validator=qerec.tasks)
-    qlm_type =              attr.field(default=DEFAULT_NotAValue, validator=qerec.qlms)
-    cg_tol =                attr.field(default=DEFAULT_NotAValue, validator=qerec.cg_tol)
-    filter_directional =    attr.field(default=DEFAULT_NotAValue, validator=qerec.filter_directional)
-    lm_max_qlm =            attr.field(default=DEFAULT_NotAValue, validator=qerec.lm_max_qlm) # TODO move this to analysis, lmax must be same in qe and it
-    chain =                 attr.field(default=DLENSALOT_Chaindescriptor(), validator=qerec.chain)
-    cl_analysis =           attr.field(default=DEFAULT_NotAValue, validator=qerec.cl_analysis) # TODO make this useful or remove
-    blt_pert =              attr.field(default=DEFAULT_NotAValue, validator=qerec.btemplate_perturbative_lensremap)
+    tasks =                 attr.field(default=DEFAULT_NotAValue)
+    qlm_type =              attr.field(default=DEFAULT_NotAValue)
+    cg_tol =                attr.field(default=DEFAULT_NotAValue)
+    filter_directional =    attr.field(default=DEFAULT_NotAValue)
+    lm_max_qlm =            attr.field(default=DEFAULT_NotAValue)
+    chain =                 attr.field(default=DLENSALOT_Chaindescriptor())
+    cl_analysis =           attr.field(default=DEFAULT_NotAValue)
+    blt_pert =              attr.field(default=DEFAULT_NotAValue)
 
 @attr.s
 class DLENSALOT_Itrec(DLENSALOT_Concept):
@@ -274,20 +272,20 @@ class DLENSALOT_Itrec(DLENSALOT_Concept):
         stepper (DLENSALOT_STEPPER):configuration for updating the current likelihood iteration point with the likelihood gradient
               
     """
-    tasks =                 attr.field(default=DEFAULT_NotAValue, validator=itrec.tasks)
-    itmax =                 attr.field(default=DEFAULT_NotAValue, validator=itrec.itmax)
-    cg_tol =                attr.field(default=DEFAULT_NotAValue, validator=itrec.cg_tol)
-    iterator_typ =          attr.field(default=DEFAULT_NotAValue, validator=itrec.iterator_type) # TODO rename
-    chain =                 attr.field(default=DLENSALOT_Chaindescriptor(), validator=itrec.chain)
-    filter_directional =    attr.field(default=DEFAULT_NotAValue, validator=itrec.filter_directional)
-    lenjob_geominfo =       attr.field(default=DEFAULT_NotAValue, validator=itrec.lenjob_geominfo)
-    lenjob_pbdgeominfo =    attr.field(default=DEFAULT_NotAValue, validator=itrec.lenjob_pbgeominfo)
-    lm_max_unl =            attr.field(default=DEFAULT_NotAValue, validator=itrec.lm_max_unl)
-    lm_max_qlm =            attr.field(default=DEFAULT_NotAValue, validator=itrec.lm_max_qlm)
-    mfvar =                 attr.field(default=DEFAULT_NotAValue, validator=itrec.mfvar) # TODO rename and check if it still works 
-    soltn_cond =            attr.field(default=DEFAULT_NotAValue, validator=itrec.soltn_cond)
-    stepper =               attr.field(default=DLENSALOT_Stepper(), validator=itrec.stepper)
-    epsilon =               attr.field(default=DEFAULT_NotAValue, validator=data.epsilon)
+    tasks =                 attr.field(default=DEFAULT_NotAValue)
+    itmax =                 attr.field(default=DEFAULT_NotAValue)
+    cg_tol =                attr.field(default=DEFAULT_NotAValue)
+    iterator_typ =          attr.field(default=DEFAULT_NotAValue)
+    chain =                 attr.field(default=DLENSALOT_Chaindescriptor())
+    filter_directional =    attr.field(default=DEFAULT_NotAValue)
+    lenjob_geominfo =       attr.field(default=DEFAULT_NotAValue)
+    lenjob_pbdgeominfo =    attr.field(default=DEFAULT_NotAValue)
+    lm_max_unl =            attr.field(default=DEFAULT_NotAValue)
+    lm_max_qlm =            attr.field(default=DEFAULT_NotAValue)
+    mfvar =                 attr.field(default=DEFAULT_NotAValue)
+    soltn_cond =            attr.field(default=DEFAULT_NotAValue)
+    stepper =               attr.field(default=DLENSALOT_Stepper())
+    epsilon =               attr.field(default=DEFAULT_NotAValue)
     
 @attr.s
 class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
@@ -309,18 +307,18 @@ class DLENSALOT_Mapdelensing(DLENSALOT_Concept):
         basemap (str):          the delensed map Bdel is calculated as Bdel = basemap - blt. Basemap can be two things: 'obs' or 'lens', where 'obs' will use the observed sky map, and lens will use the pure B-lensing map.
     """
 
-    data_from_CFS =         attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.data_from_CFS)
-    edges =                 attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.edges)
-    dlm_mod =               attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.dlm_mod)
-    iterations =            attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.iterations)
-    nlevels =               attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.nlevels)
-    lmax =                  attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.lmax)
-    Cl_fid =                attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.Cl_fid)
-    libdir_it =             attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.libdir_it)
-    binning =               attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.binning)
-    spectrum_calculator =   attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.spectrum_calculator)
-    masks_fn =              attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.masks)
-    basemap =               attr.field(default=DEFAULT_NotAValue, validator=mapdelensing.basemap)
+    data_from_CFS =         attr.field(default=DEFAULT_NotAValue)
+    edges =                 attr.field(default=DEFAULT_NotAValue)
+    dlm_mod =               attr.field(default=DEFAULT_NotAValue)
+    iterations =            attr.field(default=DEFAULT_NotAValue)
+    nlevels =               attr.field(default=DEFAULT_NotAValue)
+    lmax =                  attr.field(default=DEFAULT_NotAValue)
+    Cl_fid =                attr.field(default=DEFAULT_NotAValue)
+    libdir_it =             attr.field(default=DEFAULT_NotAValue)
+    binning =               attr.field(default=DEFAULT_NotAValue)
+    spectrum_calculator =   attr.field(default=DEFAULT_NotAValue)
+    masks_fn =              attr.field(default=DEFAULT_NotAValue)
+    basemap =               attr.field(default=DEFAULT_NotAValue)
 
 @attr.s
 class DLENSALOT_Phianalysis(DLENSALOT_Concept):
@@ -344,10 +342,10 @@ class DLENSALOT_OBD(DLENSALOT_Concept):
         tpl (type):         function name for calculating OBD matrix
         nlev_dep (float):   deprojection factor, or, strength of B-mode deprojection                   
     """
-    libdir =                attr.field(default=DEFAULT_NotAValue, validator=obd.libdir)
-    rescale =               attr.field(default=DEFAULT_NotAValue, validator=obd.rescale) # TODO this is a very specific parameter.. keep?
-    tpl =                   attr.field(default=DEFAULT_NotAValue, validator=obd.tpl)
-    nlev_dep =              attr.field(default=DEFAULT_NotAValue, validator=obd.nlev_dep)
+    libdir =                attr.field(default=DEFAULT_NotAValue)
+    rescale =               attr.field(default=DEFAULT_NotAValue)
+    tpl =                   attr.field(default=DEFAULT_NotAValue)
+    nlev_dep =              attr.field(default=DEFAULT_NotAValue)
 
 @attr.s
 class DLENSALOT_Config(DLENSALOT_Concept):
@@ -369,7 +367,7 @@ class DLENSALOT_Meta(DLENSALOT_Concept): # TODO do we really need a Meta?
     Attributes:
         version (str):  version control of the delensalot model
     """
-    version =               attr.field(default=DEFAULT_NotAValue, validator=attr.validators.instance_of(int))
+    version =               attr.field(default=DEFAULT_NotAValue)
 
 
 @attr.s
@@ -380,7 +378,7 @@ class DLENSALOT_Computing(DLENSALOT_Concept):
     Attributes:
         OMP_NUM_THREADS (int):  number of threads used per Job
     """
-    OMP_NUM_THREADS =       attr.field(default=DEFAULT_NotAValue, validator=computing.OMP_NUM_THREADS)
+    OMP_NUM_THREADS =       attr.field(default=DEFAULT_NotAValue)
 
 
 @attr.s
@@ -406,17 +404,17 @@ class DLENSALOT_Model(DLENSALOT_Concept):
     
     defaults_to =           attr.field(default='default_CMBS4_fullsky_polarization')
     validate_model =        attr.field(default=True)
-    meta =                  attr.field(default=DLENSALOT_Meta(), validator=model.meta)
-    job =                   attr.field(default=DLENSALOT_Job(), validator=model.job)
-    analysis =              attr.field(default=DLENSALOT_Analysis(), validator=model.analysis)
-    simulationdata =        attr.field(default=DLENSALOT_Simulation(), validator=model.data)
-    noisemodel =            attr.field(default=DLENSALOT_Noisemodel(), validator=model.noisemodel)
-    qerec =                 attr.field(default=DLENSALOT_Qerec(), validator=model.qerec)
-    itrec =                 attr.field(default=DLENSALOT_Itrec(), validator=model.itrec)
-    madel =                 attr.field(default=DLENSALOT_Mapdelensing(), validator=model.madel)
-    config =                attr.field(default=DLENSALOT_Config(), validator=model.config)
-    computing =             attr.field(default=DLENSALOT_Computing(), validator=model.computing)
-    obd =                   attr.field(default=DLENSALOT_OBD(), validator=model.obd)
+    meta =                  attr.field(default=DLENSALOT_Meta())
+    job =                   attr.field(default=DLENSALOT_Job())
+    analysis =              attr.field(default=DLENSALOT_Analysis())
+    simulationdata =        attr.field(default=DLENSALOT_Simulation())
+    noisemodel =            attr.field(default=DLENSALOT_Noisemodel())
+    qerec =                 attr.field(default=DLENSALOT_Qerec())
+    itrec =                 attr.field(default=DLENSALOT_Itrec())
+    madel =                 attr.field(default=DLENSALOT_Mapdelensing())
+    config =                attr.field(default=DLENSALOT_Config())
+    computing =             attr.field(default=DLENSALOT_Computing())
+    obd =                   attr.field(default=DLENSALOT_OBD())
     phana =                 attr.field(default=DLENSALOT_Phianalysis())
     
 
@@ -425,7 +423,7 @@ class DLENSALOT_Model(DLENSALOT_Concept):
         The logic is as follow:
          * All variables default to 'DEFAULT_NotAValue' upon start - validator checks and passes due to 'DEFAULT_NotAValue' being allowed
          * Upon loading config file:
-            * 1st init: all user-variables are set, validator checks
+            * 1st init: all user-variables are set)
             * 2nd init (this function here): remaining variables with value 'DEFAULT_NotAValue' are set to user-specified 'default_to'-dictionary
          * 'validator' takes care of validating post-init, thus all default-dict keys are validated
          comment: __attrs_post_init must be in DLENSALOT_Model, as this is the only one who knows of the default dictionary (defaults_to), and cannot simply be passed along to sub-classes.
