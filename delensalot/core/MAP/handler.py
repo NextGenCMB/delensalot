@@ -510,6 +510,8 @@ class minimizer:
 
 
     def get_data(self, lm_max):
+        # TODO this could be provided by the data_container directly
+        
         if True: # NOTE anisotropic data currently not supported
         # if self.noisemodel_coverage == 'isotropic':
             # NOTE dat maps must now be given in harmonic space in this idealized configuration. sims_MAP is not used here, as no truncation happens in idealized setting.

@@ -10,6 +10,7 @@ from delensalot.config.config_helper import data_functions as df
 from delensalot.utility.utils_hp import gauss_beam
 from delensalot.utils import cli
 from delensalot.utility.utils_hp import Alm, almxfl, alm_copy
+from delensalot.core.MAP import field
 
 
 template_lensingcomponents = ['p', 'w'] 
@@ -31,7 +32,7 @@ class base:
         lenjob_geomlib = get_geom(('thingauss', {'lmax': 4500, 'smax': 3}))
         thtbounds = (np.arccos(zbounds[1]), np.arccos(zbounds[0]))
         lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
-        self.ffi = deflection(lenjob_geomlib, np.zeros(shape=Alm.getsize(*LM_max)), LM_max[1], numthreads=8, verbosity=False, epsilon=1e-7)
+        self.ffi = deflection(lenjob_geomlib, np.zeros(shape=Alm.getsize(*LM_max), dtype=complex), LM_max[1], numthreads=8, verbosity=False, epsilon=1e-7)
 
         self.field_cacher = cachers.cacher_npy(libdir)
 
@@ -131,7 +132,7 @@ class lensing(base):
         self.perturbative = operator_desc["perturbative"]
         self.component = operator_desc["component"]
         self.field = {component: None for component in self.component}
-        self.field_fns = operator_desc["field_fns"]
+        self.field_fns = field.get_secondary_fns(self.component)
 
     # NOTE this is alm2alm
     def act(self, obj, spin=None, adjoint=False, backwards=False, out_sht_mode=None, out='alm'):
@@ -191,7 +192,7 @@ class birefringence(base):
         self.lm_max_out = operator_desc["lm_max_out"]
         self.component = operator_desc["component"]
         self.field = {component: None for component in self.component}
-        self.field_fns = operator_desc['field_fns']
+        self.field_fns = field.get_secondary_fns(self.component)
 
 
     # NOTE this is alm2alm
@@ -243,6 +244,7 @@ class spin_raise:
         fl = np.arange(i1, self.lm_max[0] + i1 + 1, dtype=float) * np.arange(i2, self.lm_max[0] + i2 + 1)
         fl[:spin] *= 0.
         fl = np.sqrt(fl)
+        print(obj.shape, fl.shape)
         elm = np.atleast_2d(almxfl(obj, fl, self.lm_max[1], False))
         return elm
 

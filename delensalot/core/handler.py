@@ -269,13 +269,13 @@ class OBD_builder(Basejob):
         mpi.barrier()
 
 
-class Sim_generator:
+class Data_container:
     """Simulation generation Job. Generates simulations for the requested configuration.
         * If any libdir exists, then a flavour of data is provided. Therefore, can only check by making sure flavour == obs, and fns exist.
     """
     def __init__(self, delensalot_model):
         """ In this init we make the following checks:
-         * (1) Does user provide obs data? Then Sim_generator can be fully skipped
+         * (1) Does user provide obs data? Then Data_container can be fully skipped
          * (2) Otherwise, check if files already generated (delensalot model may not know this, so need to search),
            * If so, update the simhandler with the respective libdirs and fns
            * If not,
@@ -585,8 +585,8 @@ class QE_lr_v2:
     def __init__(self, dm):
         self.__dict__.update(dm.__dict__)
         # NOTE plancklens uses get_sim_pmap() from simulationdata.
-        # Sim_generator updates the simulationdata object with the libdirs and fns if it generated simulations, so need to update this
-        self.simgen = Sim_generator(dm)
+        # Data_container updates the simulationdata object with the libdirs and fns if it generated simulations, so need to update this
+        self.simgen = Data_container(dm)
         self.simulationdata = self.simgen.simulationdata
 
         self.QE_tasks = dm.QE_job_desc['QE_tasks']
@@ -784,7 +784,7 @@ class QE_lr_v2:
 class MAP_lr_v2:
     def __init__(self, dm):
         self.__dict__.update(dm.__dict__)
-        self.simgen = Sim_generator(dm)
+        self.simgen = Data_container(dm)
         self.simulationdata = self.simgen.simulationdata
 
         self.simidxs = dm.MAP_job_desc["simidxs"]
@@ -1176,7 +1176,7 @@ class QE_lr(Basejob):
 
         self.dlensalot_model = dlensalot_model
         
-        self.simgen = Sim_generator(dlensalot_model)
+        self.simgen = Data_container(dlensalot_model)
         self.simulationdata = self.simgen.simulationdata
 
         
@@ -1535,7 +1535,7 @@ class QE_lr(Basejob):
 
 
 class MAP_lr(Basejob):
-    """Iterative lensing reconstruction Job. Depends on class QE_lr, and class Sim_generator. Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.
+    """Iterative lensing reconstruction Job. Depends on class QE_lr, and class Data_container. Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.
     """
 
     @check_MPI
@@ -1556,7 +1556,7 @@ class MAP_lr(Basejob):
         self.dlensalot_model = dlensalot_model
         
         # FIXME remnant of previous version when jobs were dependent on each other. This can perhaps be simplified now.
-        self.simgen = Sim_generator(dlensalot_model)
+        self.simgen = Data_container(dlensalot_model)
         self.simulationdata = self.simgen.simulationdata
         self.qe = QE_lr(dlensalot_model, caller=self)
         self.qe.simulationdata = self.simgen.simulationdata # just to be sure, so we have a single truth in MAP_lr. 
@@ -1766,7 +1766,7 @@ class Map_delenser(Basejob):
             self.lib.update({'nlevel': {}})
         if 'mask' in self.binmasks:
             self.lib.update({'mask': {}})
-        self.simgen = Sim_generator(dlensalot_model)
+        self.simgen = Data_container(dlensalot_model)
         self.libdir_delenser = opj(self.TEMP, 'delensing/{}'.format(self.dirid))
         if not(os.path.isdir(self.libdir_delenser)):
             os.makedirs(self.libdir_delenser)

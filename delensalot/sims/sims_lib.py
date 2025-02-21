@@ -103,8 +103,8 @@ class iso_white_noise:
         self.geom_lib = get_geom(self.geominfo)
         if noise_info.get('libdir', DNaV) == DNaV:
             # NOTE libdir_suffix is terribly implemented.
-            # libdir_phas needs to be aligned with whatever the job_handler Sim_generator() sets the libdir of the simulations to.
-            # It would therefore be better to let Sim_generator() set libdir_phas.
+            # libdir_phas needs to be aligned with whatever the job_handler Data_container() sets the libdir of the simulations to.
+            # It would therefore be better to let Data_container() set libdir_phas.
             # However, this is not possible because simhandler is called from l2p, and l2p does not know the libdir of the simulations yet.
             # So, I need to set libdir here because pix_lib_phas needs it. In the end, it works.. but it's not pretty because this string format must match in two different classes..
             nlev_round = dict2roundeddict(noise_info['nlev'])
@@ -991,7 +991,7 @@ class Simhandler:
 
         self.flavour = flavour
         self.maps = maps
-        self.geominfo = self.obs_lib.geominfo # Sim_generator() needs this. I let obs_lib decide the final geominfo.
+        self.geominfo = self.obs_lib.geominfo # Data_container() needs this. I let obs_lib decide the final geominfo.
         self.spin = self.CMB_info.get('spin', 0)
         self.lm_max = self.CMB_info.get('lm_max', DNaV)
         self.space = self.CMB_info.get('space', 'alm')

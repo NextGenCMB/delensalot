@@ -7,7 +7,7 @@ import healpy as hp
 from delensalot.core.MAP import CG
 from delensalot.core.opfilt import MAP_opfilt_iso_p as MAP_opfilt_iso_p
 
-from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy, almxfl_nd
+from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy, almxfl_nd, alm_copy_nd
 from delensalot.utils import cli
 
 from delensalot.core.MAP import field
@@ -38,15 +38,16 @@ class ivf:
 
     def get_ivfreslm(self, it, data=None, eblm_wf=None):
         # NOTE this is eq. 21 of the paper, in essence it should do the following:
-        if not self.ivf_field.is_cached( self.simidx, it):
+        if not self.ivf_field.is_cached(self.simidx, it):
             assert eblm_wf is not None and data is not None
+            data = alm_copy(data, None, *self.beam_operator.lm_max_in) 
             ivfreslm = self.ivf_operator.act(eblm_wf, spin=2)
             ivfreslm = -1*self.beam_operator.act(ivfreslm)
             ivfreslm += data
             ivfreslm = self.inoise_operator.act(0.5*ivfreslm, adjoint=False)
             ivfreslm = self.beam_operator.act(ivfreslm, adjoint=False)
             self.ivf_field.cache_field(ivfreslm,  self.simidx, it)
-        return self.ivf_field.get_field( self.simidx, it)
+        return self.ivf_field.get_field(self.simidx, it)
     
 
     def update_operator(self, it):
@@ -65,12 +66,7 @@ class wf:
 
         self.simidx = filter_desc['simidx']
 
-        filterfield_desc = lambda ID: {
-            "ID": ID,
-            "libdir": opj(self.libdir),
-            "fns": f"{ID}_simidx{{idx}}_it{{it}}",
-        }
-        self.wf_field = field.filter(filterfield_desc('wf'))
+        self.wf_field = field.filter(filterfield_desc('wf', self.libdir))
 
 
     def get_wflm(self, it, data=None):
@@ -87,6 +83,7 @@ class wf:
     def calc_prep(self, eblm):
         """cg-inversion pre-operation. This performs :math:`D_\phi^t B^t N^{-1} X^{\rm dat}`
         """
+        eblmc = alm_copy_nd(eblm, None, *self.beam_operator.lm_max_in)
         eblmc = np.empty_like(eblm)
         eblmc = self.inoise_operator.act(eblm, adjoint=False)
         eblmc = self.beam_operator.act(eblmc, adjoint=False)

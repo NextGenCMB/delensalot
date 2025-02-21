@@ -34,7 +34,7 @@ from delensalot.utils import cli, camb_clfile, load_file
 from delensalot.utility.utils_hp import gauss_beam
 
 from delensalot.core.MAP import field as MAP_field, operator
-from delensalot.core.handler import OBD_builder, Sim_generator, QE_lr_v2, MAP_lr_v2, Map_delenser, Phi_analyser
+from delensalot.core.handler import OBD_builder, Data_container, QE_lr_v2, MAP_lr_v2, Map_delenser, Phi_analyser
 
 from delensalot.config.visitor import transform, transform3d
 from delensalot.config.config_helper import data_functions as df, LEREPI_Constants as lc
@@ -305,7 +305,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             dl.libdir_suffix = cf.simulationdata.libdir_suffix
             l2base_Transformer.process_Simulation(dl, cf.simulationdata, cf)
             return dl
-        return Sim_generator(extract())
+        return Data_container(extract())
 
 
     def build_QE_lensrec(self, cf):
