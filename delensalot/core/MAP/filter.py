@@ -11,6 +11,8 @@ from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy, almxfl_nd
 from delensalot.utils import cli
 
 from delensalot.core.MAP import field
+from delensalot.core.MAP import operator
+
 
 filterfield_desc = lambda ID, libdir: {
     "ID": ID,
@@ -56,17 +58,17 @@ class ivf:
 
 class wf:
     def __init__(self, filter_desc):
-        self.wf_operator = filter_desc['wf_operator']
+        self.wf_operator: operator.secondary_operator = filter_desc['wf_operator']
         self.libdir = filter_desc['libdir']
-        self.beam_operator = filter_desc['beam_operator']
-        self.inoise_operator = filter_desc['inoise_operator']
+        self.beam_operator: operator.beam = filter_desc['beam_operator']
+        self.inoise_operator: operator.inoise_operator = filter_desc['inoise_operator']
 
         self.chain_descr = filter_desc['chain_descr']
         self.cls_filt = filter_desc['cls_filt']
 
         self.simidx = filter_desc['simidx']
 
-        self.wf_field = field.filter(filterfield_desc('wf', self.libdir))
+        self.wf_field: field.filter = field.filter(filterfield_desc('wf', self.libdir))
 
 
     def get_wflm(self, it, data=None):

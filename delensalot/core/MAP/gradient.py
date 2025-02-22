@@ -1,6 +1,6 @@
 import numpy as np
 from os.path import join as opj
-
+from typing import List, Type, Union
 from lenspyx.remapping.deflection_028 import rtype, ctype
 
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy, almxfl_nd
@@ -9,21 +9,25 @@ from delensalot.utils import cli
 from delensalot.core.MAP import field
 from delensalot.core.MAP import operator
 
-class sharedfilters:
+from delensalot.core.handler import DataContainer
+from delensalot.core.MAP.filter import ivf, wf
+
+
+class SharedFilters:
     def __init__(self, quad):
         self.ivf_filter = quad.ivf_filter
         self.wf_filter = quad.wf_filter
 
 
-class base:
+class GradQuad:
     def __init__(self, gradient_desc):
         self.ID = gradient_desc['ID']
         libdir = gradient_desc['libdir']
 
         self.data_key = gradient_desc['data_key']
 
-        self.ivf_filter = gradient_desc.get('ivf_filter', None)
-        self.wf_filter = gradient_desc.get('wf_filter', None)
+        self.ivf_filter: ivf = gradient_desc.get('ivf_filter', None)
+        self.wf_filter: wf = gradient_desc.get('wf_filter', None)
 
         self.ffi = gradient_desc['sec_operator'].operators[0].ffi # each sec operator has the same ffi, so can pick any
         self.chh = gradient_desc['chh']
@@ -31,7 +35,7 @@ class base:
 
         self.LM_max = gradient_desc['LM_max']
 
-        self.data_container = gradient_desc['data_container']
+        self.data_container: DataContainer = gradient_desc['data_container']
 
         gfield_desc = {
             "ID": self.ID,
@@ -140,12 +144,105 @@ class base:
                         self.gfield.cache_meanfield(kmflm_QE, idx, idx2=idx2, it=0)
 
 
-class total(sharedfilters):
-    def __init__(self, quads, ipriormatrix):
+class LensingGradientQuad(GradQuad):
+    def __init__(self, gradient_desc):
+        super().__init__(gradient_desc)
+        self.gradient_operator: operator.joint = self.get_operator(gradient_desc['sec_operator'])
+        self.lm_max_in = self.gradient_operator.operators[-1].operators[0].lm_max_in
+
+
+    def get_gradient_quad(self, it, component=None, data=None, data_leg2=None, idx=None, idx2=None, wflm=None, ivfreslm=None):
+        # NOTE this function is equation 22 of the paper (for lensing).
+        # Using property _2Y = _-2Y.conj
+        # res = ivf.conj * gpmap(3) - ivf * gpmap(1).conj
+        if self.data_container is None:
+            assert wflm is not None and ivfreslm is not None, "wflm and ivfreslm must be provided as data container is missing"
+        elif idx is not None:
+            idx2 = idx2 or idx # NOTE these are the identifier to get the data from the container
+        elif data is not None:
+            data_leg2 = data_leg2 or data # NOTE these are the data to calculate ivfreslm and wf
+
+        if not self.gfield.quad_is_cached(idx=idx, idx2=idx2, it=it):
+            if wflm is None:
+                assert self.ivf_filter is not None, "ivf_filter must be provided at instantiation in absence of wflm and ivfreslm"
+                assert self.wf_filter is not None, "wf_filter must be provided at instantiation in absence of wflm and ivfreslm"
+                wflm = self.wf_filter.get_wflm(it, self.get_data(idx))
+                ivfreslm = np.ascontiguousarray(self.ivf_filter.get_ivfreslm(it, self.get_data(idx2), wflm))
+
+            resmap_c = np.ascontiguousarray(np.empty((self.ffi.geom.npix(),), dtype=wflm.dtype))
+            resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
+            
+            self.ffi.geom.synthesis(ivfreslm, 2, *self.lm_max_in, self.ffi.sht_tr, map=resmap_r) # ivfmap
+            
+            gcs_r = self.gradient_operator.act(wflm, spin=3) # xwfglm
+            gc_c = resmap_c.conj() * gcs_r.T.copy().view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3)
+
+            gcs_r = self.gradient_operator.act(wflm, spin=1) # xwfglm
+            gc_c -= resmap_c * gcs_r.T.copy().view(ctype[gcs_r.dtype]).squeeze().conj()  # (+2 , -1)
+            gc_r = gc_c.view(rtype[gc_c.dtype]).reshape((gc_c.size, 2)).T  # real view onto complex array
+            gc = self.ffi.geom.adjoint_synthesis(gc_r, 1, self.LM_max[0], self.LM_max[0], self.ffi.sht_tr)
+            
+            # NOTE at last, cast qlms to alm space with LM_max and also cast it to convergence
+            fl1 = -np.sqrt(np.arange(self.LM_max[0]+1) * np.arange(1, self.LM_max[0]+2))
+            almxfl(gc[0], fl1, self.LM_max[1], True)
+            almxfl(gc[1], fl1, self.LM_max[1], True)
+            fl2 = cli(0.5 * np.arange(self.LM_max[0]+1) * np.arange(1, self.LM_max[0]+2))
+            almxfl(gc[0], fl2, self.LM_max[1], True)
+            almxfl(gc[1], fl2, self.LM_max[1], True)
+            self.gfield.cache_quad(gc, idx=idx, idx2=idx2, it=it)
+        return self.gfield.get_quad(idx=idx, idx2=idx2, it=it, component=component)
+    
+
+    def get_operator(self, filter_operator):
+        lm_max_out = filter_operator.operators[0].lm_max_out
+        return operator.joint([operator.spin_raise(lm_max=lm_max_out), filter_operator], out='map')
+    
+
+    def cache(self, gfieldlm, idx, it, idx2=None):
+        self.gfield.cache(gfieldlm, idx=idx, idx2=idx2, it=it)
+
+
+    def is_cached(self, idx, it, idx2=None):
+        return self.gfield.quad_is_cached(idx=idx, idx2=idx2, it=it)
+
+
+class BirefringenceGradientQuad(GradQuad):
+
+    def __init__(self, gradient_desc):
+        super().__init__(gradient_desc)
+        self.gradient_operator: operator.joint = self.get_operator(gradient_desc['sec_operator'])
+        self.lm_max_in = self.gradient_operator.operators[-1].operators[0].lm_max_in
+    
+
+    def get_gradient_quad(self, it, component=None, data=None, data_leg2=None, idx=None, idx2=None, wflm=None, ivfreslm=None):
+        idx2 = idx2 or idx
+        data_leg2 = data_leg2 or data
+        if not self.gfield.quad_is_cached(idx=idx, it=it, idx2=idx2):
+            wflm = self.wf_filter.get_wflm(it, self.get_data(idx))
+            ivfreslm = np.ascontiguousarray(self.ivf_filter.get_ivfreslm(it, self.get_data(idx2), wflm))
+            
+            ivfmap = self.ffi.geom.synthesis(ivfreslm, 2, self.lm_max_in[0], self.lm_max_in[1], self.ffi.sht_tr)
+            xwfmap = self.gradient_operator.act(wflm, spin=2)
+ 
+            qlms = -4 * (ivfmap[0]*xwfmap[1] - ivfmap[1]*xwfmap[0])
+            qlms = self.ffi.geom.adjoint_synthesis(qlms, 0, self.LM_max[0], self.LM_max[1], self.ffi.sht_tr)
+            
+            self.gfield.cache_quad(qlms, idx=idx, it=it, idx2=idx2)
+        return self.gfield.get_quad(idx=idx, it=it, idx2=idx2, component=component)
+    
+
+    def get_operator(self, filter_operator):
+        return operator.joint([operator.multiply({"factor": -1j}), filter_operator], out='map')
+
+class Joint(SharedFilters):
+    quads: List[LensingGradientQuad, BirefringenceGradientQuad]
+    def __init__(self, quads: List[LensingGradientQuad, BirefringenceGradientQuad], ipriormatrix):
         super().__init__(quads[0]) # NOTE I am assuming the ivf and wf class are the same in all gradients
-        self.quads = quads
+        self.quads:  List[LensingGradientQuad, LensingGradientQuad] = quads
         self.ipriormatrix = ipriormatrix
         self.component = [comp for quad in self.quads for comp in quad.component]
+        self.quad1: LensingGradientQuad = object.__new__(LensingGradientQuad)()
+        self.quad2: BirefringenceGradientQuad = object.__new__(BirefringenceGradientQuad)()
     
     
     def get_gradient_total(self, idx, it, component=None, data=None, idx2=None):
@@ -230,94 +327,3 @@ class total(sharedfilters):
 
     def update_operator(self, it):
         self.ivf_filter.update_operator(it)
-
-
-class lensing_quad(base):
-    def __init__(self, gradient_desc):
-        super().__init__(gradient_desc)
-        self.gradient_operator = self.get_operator(gradient_desc['sec_operator'])
-        self.lm_max_in = self.gradient_operator.operators[-1].operators[0].lm_max_in
-
-
-    def get_gradient_quad(self, it, component=None, data=None, data_leg2=None, idx=None, idx2=None, wflm=None, ivfreslm=None):
-        # NOTE this function is equation 22 of the paper (for lensing).
-        # Using property _2Y = _-2Y.conj
-        # res = ivf.conj * gpmap(3) - ivf * gpmap(1).conj
-        if self.data_container is None:
-            assert wflm is not None and ivfreslm is not None, "wflm and ivfreslm must be provided as data container is missing"
-        elif idx is not None:
-            idx2 = idx2 or idx # NOTE these are the identifier to get the data from the container
-        elif data is not None:
-            data_leg2 = data_leg2 or data # NOTE these are the data to calculate ivfreslm and wf
-
-        if not self.gfield.quad_is_cached(idx=idx, idx2=idx2, it=it):
-            if wflm is None:
-                assert self.ivf_filter is not None, "ivf_filter must be provided at instantiation in absence of wflm and ivfreslm"
-                assert self.wf_filter is not None, "wf_filter must be provided at instantiation in absence of wflm and ivfreslm"
-                wflm = self.wf_filter.get_wflm(it, self.get_data(idx))
-                ivfreslm = np.ascontiguousarray(self.ivf_filter.get_ivfreslm(it, self.get_data(idx2), wflm))
-
-            resmap_c = np.ascontiguousarray(np.empty((self.ffi.geom.npix(),), dtype=wflm.dtype))
-            resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
-            
-            self.ffi.geom.synthesis(ivfreslm, 2, *self.lm_max_in, self.ffi.sht_tr, map=resmap_r) # ivfmap
-            
-            gcs_r = self.gradient_operator.act(wflm, spin=3) # xwfglm
-            gc_c = resmap_c.conj() * gcs_r.T.copy().view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3)
-
-            gcs_r = self.gradient_operator.act(wflm, spin=1) # xwfglm
-            gc_c -= resmap_c * gcs_r.T.copy().view(ctype[gcs_r.dtype]).squeeze().conj()  # (+2 , -1)
-            gc_r = gc_c.view(rtype[gc_c.dtype]).reshape((gc_c.size, 2)).T  # real view onto complex array
-            gc = self.ffi.geom.adjoint_synthesis(gc_r, 1, self.LM_max[0], self.LM_max[0], self.ffi.sht_tr)
-            
-            # NOTE at last, cast qlms to alm space with LM_max and also cast it to convergence
-            fl1 = -np.sqrt(np.arange(self.LM_max[0]+1) * np.arange(1, self.LM_max[0]+2))
-            almxfl(gc[0], fl1, self.LM_max[1], True)
-            almxfl(gc[1], fl1, self.LM_max[1], True)
-            fl2 = cli(0.5 * np.arange(self.LM_max[0]+1) * np.arange(1, self.LM_max[0]+2))
-            almxfl(gc[0], fl2, self.LM_max[1], True)
-            almxfl(gc[1], fl2, self.LM_max[1], True)
-            self.gfield.cache_quad(gc, idx=idx, idx2=idx2, it=it)
-        return self.gfield.get_quad(idx=idx, idx2=idx2, it=it, component=component)
-    
-
-    def get_operator(self, filter_operator):
-        lm_max_out = filter_operator.operators[0].lm_max_out
-        return operator.joint([operator.spin_raise(lm_max=lm_max_out), filter_operator], out='map')
-    
-
-    def cache(self, gfieldlm, idx, it, idx2=None):
-        self.gfield.cache(gfieldlm, idx=idx, idx2=idx2, it=it)
-
-
-    def is_cached(self, idx, it, idx2=None):
-        return self.gfield.quad_is_cached(idx=idx, idx2=idx2, it=it)
-
-
-class birefringence_quad(base):
-
-    def __init__(self, gradient_desc):
-        super().__init__(gradient_desc)
-        self.gradient_operator = self.get_operator(gradient_desc['sec_operator'])
-        self.lm_max_in = self.gradient_operator.operators[-1].operators[0].lm_max_in
-    
-
-    def get_gradient_quad(self, it, component=None, data=None, data_leg2=None, idx=None, idx2=None, wflm=None, ivfreslm=None):
-        idx2 = idx2 or idx
-        data_leg2 = data_leg2 or data
-        if not self.gfield.quad_is_cached(idx=idx, it=it, idx2=idx2):
-            wflm = self.wf_filter.get_wflm(it, self.get_data(idx))
-            ivfreslm = np.ascontiguousarray(self.ivf_filter.get_ivfreslm(it, self.get_data(idx2), wflm))
-            
-            ivfmap = self.ffi.geom.synthesis(ivfreslm, 2, self.lm_max_in[0], self.lm_max_in[1], self.ffi.sht_tr)
-            xwfmap = self.gradient_operator.act(wflm, spin=2)
- 
-            qlms = -4 * (ivfmap[0]*xwfmap[1] - ivfmap[1]*xwfmap[0])
-            qlms = self.ffi.geom.adjoint_synthesis(qlms, 0, self.LM_max[0], self.LM_max[1], self.ffi.sht_tr)
-            
-            self.gfield.cache_quad(qlms, idx=idx, it=it, idx2=idx2)
-        return self.gfield.get_quad(idx=idx, it=it, idx2=idx2, component=component)
-    
-
-    def get_operator(self, filter_operator):
-        return operator.joint([operator.multiply({"factor": -1j}), filter_operator], out='map')
