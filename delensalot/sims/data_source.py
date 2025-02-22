@@ -914,7 +914,7 @@ class Xobs:
         return self.noise_lib.get_sim_noise(simidx, spin=spin, space=space, field=field)
   
 
-class Simhandler:
+class DataSource:
     """Entry point for data handling and generating simulations.
     Data can be cl, pri, len, or obs, .. and alms or maps. Simhandler connects the individual libraries and decides what can be generated.
     E.g.: If obs data provided, len data cannot be generated.

@@ -42,7 +42,7 @@ from delensalot.core.opfilt.bmodes_ninv import template_dense, template_bfilt
 from delensalot.core.MAP import handler as MAP_handler
 from delensalot.core.QE import handler as QE_handler
 
-from delensalot.sims.sims_lib import dirname_generator
+from delensalot.sims.data_source import dirname_generator
 
 from collections import UserDict
 
@@ -269,13 +269,13 @@ class OBD_builder(Basejob):
         mpi.barrier()
 
 
-class Data_container:
+class DataContainer:
     """Simulation generation Job. Generates simulations for the requested configuration.
         * If any libdir exists, then a flavour of data is provided. Therefore, can only check by making sure flavour == obs, and fns exist.
     """
     def __init__(self, delensalot_model):
         """ In this init we make the following checks:
-         * (1) Does user provide obs data? Then Data_container can be fully skipped
+         * (1) Does user provide obs data? Then DataContainer can be fully skipped
          * (2) Otherwise, check if files already generated (delensalot model may not know this, so need to search),
            * If so, update the simhandler with the respective libdirs and fns
            * If not,
@@ -283,35 +283,35 @@ class Data_container:
              * update the simhandler
         """        
         self.__dict__.update(delensalot_model.__dict__)
-        if self.simulationdata.flavour == 'obs' or np.all(self.simulationdata.obs_lib.maps != DEFAULT_NotAValue): # (1)
+        if self.data_source.flavour == 'obs' or np.all(self.data_source.obs_lib.maps != DEFAULT_NotAValue): # (1)
             # Here, obs data is provided and nothing needs to be generated
-            if np.all(self.simulationdata.obs_lib.maps != DEFAULT_NotAValue):
+            if np.all(self.data_source.obs_lib.maps != DEFAULT_NotAValue):
                 log.info('Will use data provided in memory')
             else:
-                log.info('Will use obs data stored at {} with filenames {}'.format(self.simulationdata.libdir, str(self.simulationdata.fns)))
+                log.info('Will use obs data stored at {} with filenames {}'.format(self.data_source.libdir, str(self.data_source.fns)))
         else:
-            if self.simulationdata.flavour == 'sky':
+            if self.data_source.flavour == 'sky':
                 # Here, sky data is provided and obs needs to be generated
-                self.libdir_sky = self.simulationdata.libdir
-                self.fns_sky = self.simulationdata.fns
+                self.libdir_sky = self.data_source.libdir
+                self.fns_sky = self.data_source.fns
                 lenjob_geomstr = 'unknown_skygeometry'
             else:
                 # some flavour provided, and we need to generate the sky and obs maps from this.
-                hashc = get_hashcode([val['component'] for val in self.simulationdata.sec_info.values()])
-                lenjob_geomstr = get_dirname(self.simulationdata.sky_lib.operator_info['lensing']['geominfo'])+"_"+hashc
+                hashc = get_hashcode([val['component'] for val in self.data_source.sec_info.values()])
+                lenjob_geomstr = get_dirname(self.data_source.sky_lib.operator_info['lensing']['geominfo'])+"_"+hashc
                 
-                self.libdir_sky = opj(dirname_generator(self.simulationdata.libdir_suffix, self.simulationdata.geominfo), lenjob_geomstr)
+                self.libdir_sky = opj(dirname_generator(self.data_source.libdir_suffix, self.data_source.geominfo), lenjob_geomstr)
                 self.fns_sky = self.set_basename_sky()
                 # NOTE for each operator, I need sec fns
                 self.fns_sec = {}
-                for sec, operator_info in self.simulationdata.operator_info.items():
+                for sec, operator_info in self.data_source.operator_info.items():
                     self.fns_sec.update({sec:{}})
                     for comp in operator_info['component']:
                         self.fns_sec[sec][comp] = f'{sec}_{comp}lm_{{}}.npy'
 
-            hashc = get_hashcode(str([val['component'] for val in self.simulationdata.sec_info.values()])+str([val['component'] for val in self.simulationdata.sec_info.values()]))
-            nlev_round = dict2roundeddict(self.simulationdata.nlev)
-            self.libdir = opj(dirname_generator(self.simulationdata.libdir_suffix, self.simulationdata.geominfo), lenjob_geomstr, get_dirname(sorted(nlev_round.items())), f'{hashc}')
+            hashc = get_hashcode(str([val['component'] for val in self.data_source.sec_info.values()])+str([val['component'] for val in self.data_source.sec_info.values()]))
+            nlev_round = dict2roundeddict(self.data_source.nlev)
+            self.libdir = opj(dirname_generator(self.data_source.libdir_suffix, self.data_source.geominfo), lenjob_geomstr, get_dirname(sorted(nlev_round.items())), f'{hashc}')
             self.fns = self.set_basename_obs()
             
             # in init, only rank 0 enters in first round to set dirs etc.. so cannot use bcast
@@ -336,12 +336,13 @@ class Data_container:
                     log.info(f'{data_type} data will be stored at {libdir} with filenames {fns}')
 
             check_and_log(self.libdir, self.fns, self.postrun_obs, "obs")
-            if self.simulationdata.flavour != 'sky':
+            if self.data_source.flavour != 'sky':
                 if all(os.path.exists(opj(self.libdir_sky, self.fns_sec[sec][component].format(simidx))) for sec in self.fns_sec.keys() for component in self.fns_sec[sec] for simidx in simidxs_):
                     check_and_log(self.libdir_sky, self.fns_sky, self.postrun_sky, "sky")
                 else:
                     log.info(f'sky data will be stored at {self.libdir_sky} with filenames {self.fns_sky}. All secondaries will be generated along the way')
 
+        self.cls_lib = self.data_source.cls_lib
 
     def set_basename_sky(self):
         return {'T': 'Talmsky_{}.npy', 'E': 'Ealmsky_{}.npy', 'B': 'Balmsky_{}.npy'}
@@ -356,7 +357,7 @@ class Data_container:
     def collect_jobs(self):
         jobs = list(range(len(['generate_sky', 'generate_obs'])))
         required_files = required_files_map.get(self.k, [])
-        if np.all(self.simulationdata.maps == DEFAULT_NotAValue) and self.simulationdata.flavour != 'obs':
+        if np.all(self.data_source.maps == DEFAULT_NotAValue) and self.data_source.flavour != 'obs':
             simidxs_ = np.unique(np.concatenate([self.simidxs, self.simidxs_mf])).astype(int)
             for taski, task in enumerate(['generate_sky', 'generate_obs']):
                 _jobs = []
@@ -389,9 +390,9 @@ class Data_container:
                     self.generate_sky(simidx)
                 if task == 'generate_obs':
                     self.generate_obs(simidx)
-                if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
-                    self.simulationdata.purgecache()
-        if np.all(self.simulationdata.maps == DEFAULT_NotAValue):
+                if np.all(self.data_source.obs_lib.maps == DEFAULT_NotAValue):
+                    self.data_source.purgecache()
+        if np.all(self.data_source.maps == DEFAULT_NotAValue):
             self.postrun_sky()
             self.postrun_obs()
 
@@ -399,23 +400,23 @@ class Data_container:
     # @log_on_start(logging.DEBUG, "Sim.generate_sim(simidx={simidx}) started")
     # @log_on_end(logging.DEBUG, "Sim.generate_sim(simidx={simidx}) finished")
     def generate_sky(self, simidx):
-        for sec, secinfo in self.simulationdata.sec_info.items():
+        for sec, secinfo in self.data_source.sec_info.items():
             # FIXME if there is cross-correlation between the components, we need to generate them together
             for comp in secinfo['component']:
                 if not os.path.exists(opj(self.libdir_sky, self.fns_sec[sec][comp].format(simidx))):
-                    s = self.simulationdata.get_sim_sec(simidx, space='alm', secondary=sec, component=comp)
+                    s = self.data_source.get_sim_sec(simidx, space='alm', secondary=sec, component=comp)
                     np.save(opj(self.libdir_sky, self.fns_sec[sec][comp].format(simidx)), s)
 
         for field in required_files_map.get(self.k, []):
             filepath = opj(self.libdir_sky, self.fns_sky[field].format(simidx))
             if not os.path.exists(filepath):
                 if field in ['E', 'B']:
-                    EBsky = self.simulationdata.get_sim_sky(simidx, spin=0, space='alm', field='polarization')
+                    EBsky = self.data_source.get_sim_sky(simidx, spin=0, space='alm', field='polarization')
                     np.save(opj(self.libdir_sky, self.fns_sky['E'].format(simidx)), EBsky[0])
                     np.save(opj(self.libdir_sky, self.fns_sky['B'].format(simidx)), EBsky[1])
                     break
                 if field == 'T':
-                    Tsky = self.simulationdata.get_sim_sky(simidx, spin=0, space='alm', field='temperature')
+                    Tsky = self.data_source.get_sim_sky(simidx, spin=0, space='alm', field='temperature')
                     np.save(filepath, Tsky)
 
 
@@ -426,50 +427,71 @@ class Data_container:
             filepath = opj(self.libdir, self.fns[field].format(simidx))  
             if not os.path.exists(filepath):
                 if field in ['E', 'B']:
-                    EBobs = self.simulationdata.get_sim_obs(simidx, spin=0, space='alm', field='polarization')
+                    EBobs = self.data_source.get_sim_obs(simidx, spin=0, space='alm', field='polarization')
                     np.save(opj(self.libdir, self.fns['E'].format(simidx)), EBobs[0])
                     np.save(opj(self.libdir, self.fns['B'].format(simidx)), EBobs[1])
                     break
 
                 if field == 'T':
-                    Tobs = self.simulationdata.get_sim_obs(simidx, spin=0, space='alm', field='temperature')
+                    Tobs = self.data_source.get_sim_obs(simidx, spin=0, space='alm', field='temperature')
                     np.save(filepath, Tobs)
 
 
     def postrun_obs(self):
-        # NOTE if this class here decides to generate data, we need to update some parameters in the simulationdata object
+        # NOTE if this class here decides to generate data, we need to update some parameters in the data_source object
         # NOTE if later reconstruction is run with the same config file, these updates also make sure they find the data without having to update the config file
-        if self.simulationdata.flavour != 'sky' and self.simulationdata.flavour != 'obs' and np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
-            self.simulationdata.libdir = self.libdir
-            self.simulationdata.fns = self.fns
-            if self.simulationdata.flavour != 'obs':
-                self.simulationdata.obs_lib.CMB_info['fns'] = self.fns
-                self.simulationdata.obs_lib.CMB_info['libdir'] = self.libdir
-                self.simulationdata.obs_lib.CMB_info['space'] = 'alm'
-                self.simulationdata.obs_lib.CMB_info['spin'] = 0
+        if self.data_source.flavour != 'sky' and self.data_source.flavour != 'obs' and np.all(self.data_source.obs_lib.maps == DEFAULT_NotAValue):
+            self.data_source.libdir = self.libdir
+            self.data_source.fns = self.fns
+            if self.data_source.flavour != 'obs':
+                self.data_source.obs_lib.CMB_info['fns'] = self.fns
+                self.data_source.obs_lib.CMB_info['libdir'] = self.libdir
+                self.data_source.obs_lib.CMB_info['space'] = 'alm'
+                self.data_source.obs_lib.CMB_info['spin'] = 0
 
 
     def postrun_sky(self):
-        # NOTE if this class here decides to generate data, we need to update some parameters in the simulationdata object
+        # NOTE if this class here decides to generate data, we need to update some parameters in the data_source object
         # NOTE if later reconstruction is run with the same config file, these updates also make sure they find the data without having to update the config file
         
 
-        if not self.simulationdata.flavour in ['sky', 'obs'] and np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
-            self.simulationdata.sky_lib.CMB_info['fns'] = self.fns_sky
-            self.simulationdata.sky_lib.CMB_info['libdir'] = self.libdir_sky
-            self.simulationdata.sky_lib.CMB_info['space'] = 'alm'
-            self.simulationdata.sky_lib.CMB_info['spin'] = 0
+        if not self.data_source.flavour in ['sky', 'obs'] and np.all(self.data_source.obs_lib.maps == DEFAULT_NotAValue):
+            self.data_source.sky_lib.CMB_info['fns'] = self.fns_sky
+            self.data_source.sky_lib.CMB_info['libdir'] = self.libdir_sky
+            self.data_source.sky_lib.CMB_info['space'] = 'alm'
+            self.data_source.sky_lib.CMB_info['spin'] = 0
 
 
         # NOTE for pri_lib we set the paths to the generated secondaries
-        for sec, secinfo in self.simulationdata.operator_info.items():
-            self.simulationdata.pri_lib.sec_info[sec]['fn'] = self.fns_sec[sec]
-            self.simulationdata.pri_lib.sec_info[sec]['libdir'] = self.libdir_sky
-            self.simulationdata.pri_lib.sec_info[sec]['space'] = 'alm'
-            self.simulationdata.pri_lib.sec_info[sec]['spin'] = 0
-            self.simulationdata.pri_lib.sec_info[sec]['lm_max'] = secinfo['lm_max']
-            self.simulationdata.pri_lib.sec_info[sec]['component'] = secinfo['component']
+        for sec, secinfo in self.data_source.operator_info.items():
+            self.data_source.pri_lib.sec_info[sec]['fn'] = self.fns_sec[sec]
+            self.data_source.pri_lib.sec_info[sec]['libdir'] = self.libdir_sky
+            self.data_source.pri_lib.sec_info[sec]['space'] = 'alm'
+            self.data_source.pri_lib.sec_info[sec]['spin'] = 0
+            self.data_source.pri_lib.sec_info[sec]['lm_max'] = secinfo['lm_max']
+            self.data_source.pri_lib.sec_info[sec]['component'] = secinfo['component']
 
+
+    def get_sim_sky(self, simidx, space, field, spin):
+        return self.data_source.get_sim_sky(simidx=simidx, space=space, field=field, spin=spin)
+
+    def get_sim_pri(self, simidx, space, field, spin):
+        return self.data_source.get_sim_pri(simidx=simidx, space=space, field=field, spin=spin)
+    
+    def get_sim_obs(self, simidx, space, field, spin):
+        return self.data_source.get_sim_obs(simidx=simidx, space=space, field=field, spin=spin)
+    
+    def get_sim_noise(self, simidx, space, field, spin=2):
+        return self.data_source.get_sim_noise(simidx, spin=spin, space=space, field=field)
+    
+    def get_sim_sec(self, simidx, space, secondary=None, component=None, return_nonrec=False):
+        return self.data_source.get_sim_sec(simidx=simidx, space=space, secondary=secondary, component=component, return_nonrec=return_nonrec)
+    
+    def get_fidCMB(self, simidx, component):
+        return self.data_source.get_fidCMB(simidx=simidx, component=component)
+
+    def get_fidsec(self, simidx, secondary=None, component=None, return_nonrec=False):
+        return self.data_source.get_fidsec(simidx=simidx, secondary=secondary, component=component, return_nonrec=return_nonrec)
 
 class Noise_modeller(Basejob):
     '''
@@ -554,9 +576,9 @@ class Noise_modeller(Basejob):
         ## QE ##
         # 
         if self.qe_filter_directional == 'isotropic':
-            self.ivfs = filt_simple.library_fullsky_sepTP(opj(self.libdir_QE, 'ivfs'), self.simulationdata, self.nivjob_geominfo[1]['nside'], self.ttebl, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
+            self.ivfs = filt_simple.library_fullsky_sepTP(opj(self.libdir_QE, 'ivfs'), self.data_source, self.nivjob_geominfo[1]['nside'], self.ttebl, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
         elif self.qe_filter_directional == 'anisotropic':
-            _filter_raw = filt_cinv.library_cinv_sepTP(opj(self.libdir_QE, 'ivfs'), self.simulationdata, self.cinv_t, self.cinv_p, self.cls_len)
+            _filter_raw = filt_cinv.library_cinv_sepTP(opj(self.libdir_QE, 'ivfs'), self.data_source, self.cinv_t, self.cinv_p, self.cls_len)
             _ftebl_rs = lambda x: np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[x])
             self.ivfs = filt_util.library_ftl(_filter_raw, self.lm_max_qlm[0], _ftebl_rs(0), _ftebl_rs(1), _ftebl_rs(2))
         
@@ -584,10 +606,10 @@ class QE_lr_v2:
     @check_MPI
     def __init__(self, dm):
         self.__dict__.update(dm.__dict__)
-        # NOTE plancklens uses get_sim_pmap() from simulationdata.
-        # Data_container updates the simulationdata object with the libdirs and fns if it generated simulations, so need to update this
-        self.simgen = Data_container(dm)
-        self.simulationdata = self.simgen.simulationdata
+        # NOTE plancklens uses get_sim_pmap() from data_source.
+        # DataContainer updates the data_source object with the libdirs and fns if it generated simulations, so need to update this
+        self.simgen = DataContainer(dm)
+        self.data_source = self.simgen.data_source
 
         self.QE_tasks = dm.QE_job_desc['QE_tasks']
         self.simidxs = dm.QE_job_desc['simidxs']
@@ -596,7 +618,7 @@ class QE_lr_v2:
         # I want to have a QE search for each field
         for QE_search_desc in dm.QE_searchs_desc.values():
             QE_search_desc['simidxs_mf'] = self.simidxs_mf
-            QE_search_desc['QE_filterqest_desc']['simulationdata'] = self.simulationdata
+            QE_search_desc['QE_filterqest_desc']['data_source'] = self.data_source
         self.QE_searchs = [QE_handler.base(**QE_search_desc) for name, QE_search_desc in dm.QE_searchs_desc.items()]
 
         self.secondary2idx = {QE_search.secondary.ID: i for i, QE_search in enumerate(self.QE_searchs)}
@@ -678,8 +700,8 @@ class QE_lr_v2:
                         if secidx is not None: #these Nones come from the field already being done.
                             self.QE_searchs[seci].get_qlm(int(secidx))
                             self.QE_searchs[seci].get_est(int(secidx)) # this is here for convenience
-                    if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
-                        self.simulationdata.purgecache()
+                    if np.all(self.data_source.obs_lib.maps == DEFAULT_NotAValue):
+                        self.data_source.purgecache()
                 mpi.barrier()
 
             if task == 'calc_meanfields':
@@ -699,8 +721,8 @@ class QE_lr_v2:
                     # jobs list could come as [simidx-delta,simidx-beta,simidx-deltabeta] for each simidx
                     simidx, operator_indexs = simidxs.split('-')
                     self.get_template(simidx, operator_indexs)
-                    if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
-                        self.simulationdata.purgecache()
+                    if np.all(self.data_source.obs_lib.maps == DEFAULT_NotAValue):
+                        self.data_source.purgecache()
 
 
     def get_qlm(self, simidx, it=0, secondary=None, component=None):
@@ -784,8 +806,8 @@ class QE_lr_v2:
 class MAP_lr_v2:
     def __init__(self, dm):
         self.__dict__.update(dm.__dict__)
-        self.simgen = Data_container(dm)
-        self.simulationdata = self.simgen.simulationdata
+        self.simgen = DataContainer(dm)
+        self.data_source = self.simgen.data_source
 
         self.simidxs = dm.MAP_job_desc["simidxs"]
         self.simidxs_mf = dm.MAP_job_desc["simidxs_mf"]
@@ -795,7 +817,7 @@ class MAP_lr_v2:
         self.seclist_sorted = sorted(list(self.sec2idx.keys()), key=lambda x: template_index_secondaries.get(x, ''))
 
         self.MAP_searchs_desc = dm.MAP_searchs_desc
-        self.MAP_searchs = [MAP_handler.base(self.simulationdata, **self.MAP_searchs_desc, simidx=simidx, QE_searchs=self.QE_searchs) for simidx in self.simidxs]
+        self.MAP_searchs = [MAP_handler.base(self.data_source, **self.MAP_searchs_desc, simidx=simidx, QE_searchs=self.QE_searchs) for simidx in self.simidxs]
 
         self.it_tasks = self.MAP_job_desc["it_tasks"]
         for simidx in self.simidxs:
@@ -1176,12 +1198,12 @@ class QE_lr(Basejob):
 
         self.dlensalot_model = dlensalot_model
         
-        self.simgen = Data_container(dlensalot_model)
-        self.simulationdata = self.simgen.simulationdata
+        self.simgen = DataContainer(dlensalot_model)
+        self.data_source = self.simgen.data_source
 
         
         if self.qe_filter_directional == 'isotropic':
-            self.ivfs = filt_simple.library_fullsky_sepTP(opj(self.libdir_QE, 'ivfs'), self.simulationdata, self.nivjob_geominfo[1]['nside'], self.ttebl, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
+            self.ivfs = filt_simple.library_fullsky_sepTP(opj(self.libdir_QE, 'ivfs'), self.data_source, self.nivjob_geominfo[1]['nside'], self.ttebl, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
             if self.qlm_type == 'sepTP':
                 self.qlms_dd = qest.library_sepTP(opj(self.libdir_QE, 'qlms_dd'), self.ivfs, self.ivfs, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
         elif self.qe_filter_directional == 'anisotropic':
@@ -1197,9 +1219,9 @@ class QE_lr(Basejob):
         if 'calc_blt' in self.QE_tasks:
             if self.it_filter_directional == 'anisotropic':
                 # TODO reimplement ztrunc
-                self.sims_MAP = utils_sims.ztrunc_sims(self.simulationdata, self.nivjob_geominfo[1]['nside'], [self.zbounds])
+                self.sims_MAP = utils_sims.ztrunc_sims(self.data_source, self.nivjob_geominfo[1]['nside'], [self.zbounds])
             elif self.it_filter_directional == 'isotropic':
-                self.sims_MAP = self.simulationdata
+                self.sims_MAP = self.data_source
 
         # FIXME currently only used for testing filter integration. These QE filter are not used for QE reoconstruction, but will be in the near future when Plancklens dependency is dropped. 
         if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee', 'ptt']:
@@ -1274,8 +1296,8 @@ class QE_lr(Basejob):
 
     def init_aniso_filter(self):
         self.init_cinv()
-        # self.sims_MAP = utils_sims.ztrunc_sims(self.simulationdata, self.nivjob_geominfo[1]['nside'], [self.zbounds])
-        _filter_raw = filt_cinv.library_cinv_sepTP(opj(self.libdir_QE, 'ivfs'), self.simulationdata, self.cinv_t, self.cinv_p, self.cls_len)
+        # self.sims_MAP = utils_sims.ztrunc_sims(self.data_source, self.nivjob_geominfo[1]['nside'], [self.zbounds])
+        _filter_raw = filt_cinv.library_cinv_sepTP(opj(self.libdir_QE, 'ivfs'), self.data_source, self.cinv_t, self.cinv_p, self.cls_len)
         _ftebl_rs = lambda x: np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[x])
         self.ivfs = filt_util.library_ftl(_filter_raw, self.lm_max_qlm[0], _ftebl_rs(0), _ftebl_rs(1), _ftebl_rs(2))
         self.qlms_dd = qest.library_sepTP(opj(self.libdir_QE, 'qlms_dd'), self.ivfs, self.ivfs, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
@@ -1312,8 +1334,8 @@ class QE_lr(Basejob):
                     log.info("get_sim_qlm..")
                     self.qlms_dd.get_sim_qlm(self.k, int(idx))
                     log.info("get_sim_qlm done.")
-                    if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
-                        self.simulationdata.purgecache()
+                    if np.all(self.data_source.obs_lib.maps == DEFAULT_NotAValue):
+                        self.data_source.purgecache()
                 mpi.barrier()
                 
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
@@ -1322,8 +1344,8 @@ class QE_lr(Basejob):
                     if self.QE_subtract_meanfield:
                         self.qlms_dd.get_sim_qlm_mf(self.k, [int(simidx_mf) for simidx_mf in self.simidxs_mf])
                     self.get_plm(idx, self.QE_subtract_meanfield)
-                    if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
-                        self.simulationdata.purgecache()   
+                    if np.all(self.data_source.obs_lib.maps == DEFAULT_NotAValue):
+                        self.data_source.purgecache()   
 
             if task == 'calc_meanfield':
                 if len(self.jobs[taski])>0:
@@ -1340,8 +1362,8 @@ class QE_lr(Basejob):
                     # ## Faking here MAP filters
                     self.itlib_iterator = transform(self.MAP_job, iterator_transformer(self.MAP_job, simidx, self.dlensalot_model))
                     self.get_blt(simidx)
-                    if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
-                        self.simulationdata.purgecache()
+                    if np.all(self.data_source.obs_lib.maps == DEFAULT_NotAValue):
+                        self.data_source.purgecache()
 
 
     # @base_exception_handler
@@ -1535,7 +1557,7 @@ class QE_lr(Basejob):
 
 
 class MAP_lr(Basejob):
-    """Iterative lensing reconstruction Job. Depends on class QE_lr, and class Data_container. Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.
+    """Iterative lensing reconstruction Job. Depends on class QE_lr, and class DataContainer. Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.
     """
 
     @check_MPI
@@ -1556,10 +1578,10 @@ class MAP_lr(Basejob):
         self.dlensalot_model = dlensalot_model
         
         # FIXME remnant of previous version when jobs were dependent on each other. This can perhaps be simplified now.
-        self.simgen = Data_container(dlensalot_model)
-        self.simulationdata = self.simgen.simulationdata
+        self.simgen = DataContainer(dlensalot_model)
+        self.data_source = self.simgen.data_source
         self.qe = QE_lr(dlensalot_model, caller=self)
-        self.qe.simulationdata = self.simgen.simulationdata # just to be sure, so we have a single truth in MAP_lr. 
+        self.qe.data_source = self.simgen.data_source # just to be sure, so we have a single truth in MAP_lr. 
         if self.OBD == 'OBD':
             # FIXME not sure why this was here.. that caused mismatch for calc_gradlik niv_job geom and qumaps when truncated
             # nivjob_geomlib_ = get_geom(self.nivjob_geominfo)
@@ -1574,14 +1596,14 @@ class MAP_lr(Basejob):
 
         # sims -> sims_MAP
         if self.it_filter_directional == 'anisotropic':
-            self.sims_MAP = utils_sims.ztrunc_sims(self.simulationdata, self.nivjob_geominfo[1]['nside'], [self.zbounds])
+            self.sims_MAP = utils_sims.ztrunc_sims(self.data_source, self.nivjob_geominfo[1]['nside'], [self.zbounds])
             if self.k in ['ptt']:
                 self.niv = self.sims_MAP.ztruncify(read_map(self.nivt_desc)) # inverse pixel noise map on consistent geometry
             else:
                 assert self.k not in ['p'], 'implement if needed, niv needs t map'
                 self.niv = np.array([self.sims_MAP.ztruncify(read_map(ni)) for ni in self.nivp_desc]) # inverse pixel noise map on consistent geometry
         elif self.it_filter_directional == 'isotropic':
-            self.sims_MAP = self.simulationdata
+            self.sims_MAP = self.data_source
         self.filter = self.get_filter()
         log.info('------ init done ----')
 
@@ -1641,11 +1663,11 @@ class MAP_lr(Basejob):
                             itlib_iterator.iterate(it, 'p')
                             log.info('{}, simidx {} done with it {}'.format(mpi.rank, simidx, it))
                     # If data is in memory only, don't purge simslib
-                    if type(self.simulationdata.obs_lib.maps) == np.array:
+                    if type(self.data_source.obs_lib.maps) == np.array:
                         pass
                     else:
-                        if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
-                            self.simulationdata.purgecache()
+                        if np.all(self.data_source.obs_lib.maps == DEFAULT_NotAValue):
+                            self.data_source.purgecache()
 
             if task == 'calc_meanfield':
                 # TODO I don't like barriers and not sure if they are still needed
@@ -1660,11 +1682,11 @@ class MAP_lr(Basejob):
                     for it in range(self.itmax + 1):
                         self.get_blt_it(simidx, it)
                     # If data is in memory only, don't purge simslib
-                    if type(self.simulationdata.obs_lib.maps) == np.array:
+                    if type(self.data_source.obs_lib.maps) == np.array:
                         pass
                     else:
-                        if np.all(self.simulationdata.obs_lib.maps == DEFAULT_NotAValue):
-                            self.simulationdata.purgecache()
+                        if np.all(self.data_source.obs_lib.maps == DEFAULT_NotAValue):
+                            self.data_source.purgecache()
 
 
     @log_on_start(logging.DEBUG, "MAP.get_mchain() started")
@@ -1766,7 +1788,7 @@ class Map_delenser(Basejob):
             self.lib.update({'nlevel': {}})
         if 'mask' in self.binmasks:
             self.lib.update({'mask': {}})
-        self.simgen = Data_container(dlensalot_model)
+        self.simgen = DataContainer(dlensalot_model)
         self.libdir_delenser = opj(self.TEMP, 'delensing/{}'.format(self.dirid))
         if not(os.path.isdir(self.libdir_delenser)):
             os.makedirs(self.libdir_delenser)
@@ -1835,8 +1857,8 @@ class Map_delenser(Basejob):
             return hp.almxfl(temp_[1],cli(beams[-1]))*1e6
         if self.basemap == 'lens': 
             return alm_copy(
-                    self.simulationdata.get_sim_sky(simidx, space='alm', spin=0, field='polarization')[1],
-                    self.simulationdata.lmax, *self.lm_max_blt
+                    self.data_source.get_sim_sky(simidx, space='alm', spin=0, field='polarization')[1],
+                    self.data_source.lmax, *self.lm_max_blt
                 )
         elif self.basemap == 'lens_ffp10':
                 return alm_copy(
@@ -1847,10 +1869,10 @@ class Map_delenser(Basejob):
                 )  
         else:
             # only checking for map to save some memory..
-            if np.all(self.simulationdata.maps == DEFAULT_NotAValue):
-                return alm_copy(self.simulationdata.get_sim_obs(simidx, space='alm', spin=0, field='polarization')[1], self.simulationdata.lmax, *self.lm_max_blt)
+            if np.all(self.data_source.maps == DEFAULT_NotAValue):
+                return alm_copy(self.data_source.get_sim_obs(simidx, space='alm', spin=0, field='polarization')[1], self.data_source.lmax, *self.lm_max_blt)
             else:
-                return hp.map2alm_spin(self.simulationdata.get_sim_obs(simidx, space='map', spin=2, field='polarization'), spin=2, lmax=self.lm_max_blt[0], mmax=self.lm_max_blt[1])[1]
+                return hp.map2alm_spin(self.data_source.get_sim_obs(simidx, space='map', spin=2, field='polarization'), spin=2, lmax=self.lm_max_blt[0], mmax=self.lm_max_blt[1])[1]
 
     
     @log_on_start(logging.DEBUG, "_delens() started")
@@ -2111,7 +2133,7 @@ class Phi_analyser(Basejob):
         fns = opj(TEMP_Cx,'CLx_%s_sim%s_it%s_customWF.npy') if self.custom_WF_TEMP else opj(TEMP_Cx,'CLx_%s_sim%s_it%s.npy')
         if not os.path.isfile(fns%(self.k, simidx, it)):
             plm_est = self.get_plm_it(simidx, [it])[0]
-            plm_in = alm_copy(self.simulationdata.get_sim_phi(simidx, space='alm'), None, self.lm_max_qlm[0], self.lm_max_qlm[1])
+            plm_in = alm_copy(self.data_source.get_sim_phi(simidx, space='alm'), None, self.lm_max_qlm[0], self.lm_max_qlm[1])
             if type(WFemps) != np.ndarray:
                 WFemps = np.load(opj(self.TEMP_WF,'WFemp_%s_simall%s_itall%s_avg.npy')%(self.k, len(self.simidxs), len(self.its))) 
             val = alm2cl(plm_est, plm_in, None, None, None)/WFemps[it]
@@ -2137,7 +2159,7 @@ class Phi_analyser(Basejob):
         fns = opj(TEMP_Cxbias,'CLxb_%s_sim%s_it%s_customWF.npy') if self.custom_WF_TEMP else opj(TEMP_Cxbias,'CLxb_%s_sim%s_it%s.npy') 
         if not os.path.isfile(fns%(self.k, simidx, it)):
             plm_est = self.get_plm_it(simidx, [it])[0]
-            plm_in = alm_copy(self.simulationdata.get_sim_phi(simidx, space='alm'), None, self.lm_max_qlm[0], self.lm_max_qlm[1])
+            plm_in = alm_copy(self.data_source.get_sim_phi(simidx, space='alm'), None, self.lm_max_qlm[0], self.lm_max_qlm[1])
             if type(WFemps) != np.ndarray:
                 WFemps = np.load(opj(self.TEMP_WF,'WFemp_%s_simall%s_itall%s_avg.npy')%(self.k, len(self.simidxs), len(self.its))) 
             val = alm2cl(plm_est, plm_in, None, None, None) / alm2cl(plm_in, plm_in, None, None, None)/WFemps[it]
@@ -2151,7 +2173,7 @@ class Phi_analyser(Basejob):
         if not os.path.isfile(fns%(self.k, simidx, it)):
             # plm_QE = almxfl(self.qe.get_sim_qlm(simidx), utils.cli(R))
             plm_est = self.get_plm_it(simidx, [it])[0]
-            plm_in = alm_copy(self.simulationdata.get_sim_phi(simidx, space='alm'), None, self.lm_max_qlm[0], self.lm_max_qlm[1])
+            plm_in = alm_copy(self.data_source.get_sim_phi(simidx, space='alm'), None, self.lm_max_qlm[0], self.lm_max_qlm[1])
             if type(WFemps) != np.ndarray:
                 WFemps = np.load(opj(self.TEMP_WF,'WFemp_%s_simall%s_itall%s_avg.npy')%(self.k, len(self.simidxs), len(self.its))) 
             val = alm2cl(plm_est, plm_in, None, None, None)**2/(alm2cl(plm_est, plm_est, None, None, None)*alm2cl(plm_in, plm_in, None, None, None))
@@ -2170,7 +2192,7 @@ class Phi_analyser(Basejob):
         fns = opj(self.TEMP_WF, 'WFemp_%s_sim%s_it%s.npy')
         WFemps = np.zeros(shape=(len(its), self.lm_max_qlm[0]+1))
         if not np.array([os.path.isfile(fns%(self.k, simidx, it)) for it in its]).all():   
-            plm_in = alm_copy(self.simulationdata.get_sim_phi(simidx, space='alm'), None, self.lm_max_qlm[0], self.lm_max_qlm[1])
+            plm_in = alm_copy(self.data_source.get_sim_phi(simidx, space='alm'), None, self.lm_max_qlm[0], self.lm_max_qlm[1])
             plm_est = self.get_plm_it(simidx, its)
             for it in its:       
                 WFemps[it] = alm2cl(plm_in, plm_est[it], None, None, None)/alm2cl(plm_in, plm_in, None, None, None)

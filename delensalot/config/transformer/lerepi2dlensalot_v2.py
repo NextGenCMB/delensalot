@@ -26,7 +26,7 @@ from lenspyx.lensing import get_geom
 ## TODO don't like this import here. Not sure how to remove
 from delensalot.core.cg import cd_solve
 from delensalot.core.helper import utils_plancklens
-from delensalot.sims.sims_lib import Simhandler
+from delensalot.sims.data_source import DataSource
 from delensalot.config.etc.errorhandler import DelensalotError
 from delensalot.config.metamodel import DEFAULT_NotAValue as DNaV
 
@@ -34,7 +34,7 @@ from delensalot.utils import cli, camb_clfile, load_file
 from delensalot.utility.utils_hp import gauss_beam
 
 from delensalot.core.MAP import field as MAP_field, operator
-from delensalot.core.handler import OBD_builder, Data_container, QE_lr_v2, MAP_lr_v2, Map_delenser, Phi_analyser
+from delensalot.core.handler import OBD_builder, DataContainer, QE_lr_v2, MAP_lr_v2, Map_delenser, Phi_analyser
 
 from delensalot.config.visitor import transform, transform3d
 from delensalot.config.config_helper import data_functions as df, LEREPI_Constants as lc
@@ -130,18 +130,17 @@ template_secondaries = ['lensing', 'birefringence']  # NOTE define your desired 
 class l2base_Transformer:
     """Initializes attributes needed across all Jobs, or which are at least handy to have
     """
-    def process_Simulation(dl, si, cf):
+    def process_DataSource(dl, si, cf):
 
-        # NOTE Simhandler get the full simulation class. The validator will have removed the unneccessary secondaries if they were not explicitly set
-        # in the config. Simhandler controls everything with sec_info. Later in Simhandler, operator_info etc. are filtered accordingly.
+        # NOTE DataSource get the full simulation class. The validator will have removed the unneccessary secondaries if they were not explicitly set
+        # in the config. DataSource controls everything with sec_info. Later in DataSource, operator_info etc. are filtered accordingly.
         for ope in si.operator_info:
             si.operator_info[ope]['tr'] = dl.tr
-        dl.simulationdata = Simhandler(**si.__dict__)
+        dl.data_source = DataSource(**si.__dict__)
 
         # NOTE this check key does not catch all possible wrong keys, but at least it catches the most common ones.
         # Plancklens keys should all be correct with this, for delensalot, not so sure, will see over time.
         check_key(cf.analysis.key)
-        
         dl.analysis_secondary = filter_secondary_and_component(copy.deepcopy(cf.analysis.secondary), cf.analysis.key.split('_')[0])
         seclist_sorted = sorted(dl.analysis_secondary, key=lambda x: template_secondaries.index(x) if x in template_secondaries else float('inf'))
         complist_sorted = [comp for sec in seclist_sorted for comp in dl.analysis_secondary[sec]['component']]
@@ -164,7 +163,7 @@ class l2base_Transformer:
         elif isinstance(cf.analysis.Lmin, (int, list, np.ndarray)):
             dl.Lmin = {comp: cf.analysis.Lmin if isinstance(cf.analysis.Lmin, int) or len(cf.analysis.Lmin) == 1 
                     else cf.analysis.Lmin[i] for i, comp in enumerate(complist_sorted)}
-        dl.CLfids = dl.simulationdata.get_CLfids(0, dl.analysis_secondary, dl.Lmin)
+        dl.CLfids = dl.data_source.get_CLfids(0, dl.analysis_secondary, dl.Lmin)
         
     def process_Analysis(dl, an, cf):
         if loglevel <= 20:
@@ -235,7 +234,7 @@ class l2T_Transformer:
             if cf.analysis.TEMP_suffix != '':
                 _suffix = cf.analysis.TEMP_suffix
                 # NOTE this might not work if I don't know anything about the simulations...
-                _secsuffix = "simdata__"+"_".join(f"{key}_{'_'.join(values['component'])}" for key, values in cf.simulationdata.sec_info.items())
+                _secsuffix = "simdata__"+"_".join(f"{key}_{'_'.join(values['component'])}" for key, values in cf.data_source.sec_info.items())
             _suffix += '_OBD' if cf.noisemodel.OBD == 'OBD' else '_lminB'+str(cf.analysis.lmin_teb[2])+_secsuffix
             TEMP =  opj(os.environ['SCRATCH'], 'analysis', _suffix)
             return TEMP
@@ -291,7 +290,7 @@ class l2OBD_Transformer:
 class l2delensalotjob_Transformer(l2base_Transformer):
     """builds delensalot job from configuration file
     """
-    def build_generate_sim(self, cf):
+    def build_datacontainer(self, cf):
         def extract():
             def _process_Analysis(dl, an, cf):
                 dl.k = an.key
@@ -302,10 +301,10 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             dl = DELENSALOT_Concept_v2()
             l2base_Transformer.process_Computing(dl, cf.computing, cf)
             _process_Analysis(dl, cf.analysis, cf)
-            dl.libdir_suffix = cf.simulationdata.libdir_suffix
-            l2base_Transformer.process_Simulation(dl, cf.simulationdata, cf)
+            dl.libdir_suffix = cf.data_source.libdir_suffix
+            l2base_Transformer.process_DataSource(dl, cf.data_source, cf)
             return dl
-        return Data_container(extract())
+        return DataContainer(extract())
 
 
     def build_QE_lensrec(self, cf):
@@ -322,8 +321,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 def _process_OBD(dl, od):
                     dl.obd_libdir = od.libdir
                     dl.obd_rescale = od.rescale
-                def _process_Simulation(dl, si):
-                    l2base_Transformer.process_Simulation(dl, si, cf)
+                def _process_DataSource(dl, si):
+                    l2base_Transformer.process_DataSource(dl, si, cf)
                 def _process_Qerec(dl, qe):
                     qe_tasks_sorted = ['calc_fields', 'calc_meanfields', 'calc_templates'] if qe.subtract_QE_meanfield else ['calc_fields', 'calc_templates']
                     dl.qe_tasks = [task for task in qe_tasks_sorted if task in qe.tasks]
@@ -339,7 +338,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_Computing(dl, cf.computing)
                 _process_Analysis(dl, cf.analysis)
                 _process_Noisemodel(dl, cf.noisemodel)
-                _process_Simulation(dl, cf.simulationdata)
+                _process_DataSource(dl, cf.data_source)
                 _process_OBD(dl, cf.obd)
                 _process_Qerec(dl, cf.qerec)
 
@@ -383,7 +382,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "nlev": dl.nlev,
                 "filtering_spatial_type": cf.noisemodel.spatial_type,
                 "cls_len": dl.cls_len,
-                "cls_unl": dl.simulationdata.cls_lib.Cl_dict,
+                "cls_unl": dl.data_source.cls_lib.Cl_dict,
                 "ttebl": dl.ttebl,
                 "lm_max_ivf": dl.lm_max_sky,
                 "lm_max_qlm": dl.LM_max, # TODO this could be a different value for each secondary
@@ -558,8 +557,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
                 dl.blt_pert = cf.qerec.blt_pert
                 _process_Computing(dl, cf.computing)
-                dl.libdir_suffix = cf.simulationdata.obs_info['noise_info']['libdir_suffix']
-                dl.simulationdata = Simhandler(**cf.simulationdata.__dict__)
+                dl.libdir_suffix = cf.data_source.obs_info['noise_info']['libdir_suffix']
+                dl.data_source = DataSource(**cf.data_source.__dict__)
                 _process_Analysis(dl, cf.analysis)
                 _process_Noisemodel(dl, cf.noisemodel)
                 _process_Madel(dl, cf.madel)
@@ -594,9 +593,9 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.obd_libdir = od.libdir
                     dl.obd_rescale = od.rescale
       
-                def _process_Simulation(dl, si):
-                    dl.libdir_suffix = cf.simulationdata.obs_info['noise_info']['libdir_suffix']
-                    l2base_Transformer.process_Simulation(dl, si, cf)
+                def _process_DataSource(dl, si):
+                    dl.libdir_suffix = cf.data_source.obs_info['noise_info']['libdir_suffix']
+                    l2base_Transformer.process_DataSource(dl, si, cf)
 
                 def _process_Qerec(dl, qe):
                     pass
@@ -618,7 +617,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_Computing(dl, cf.computing)
                 _process_Analysis(dl, cf.analysis)
                 _process_Noisemodel(dl, cf.noisemodel)
-                _process_Simulation(dl, cf.simulationdata)
+                _process_DataSource(dl, cf.data_source)
 
                 _process_OBD(dl, cf.obd)
                 _process_Qerec(dl, cf.qerec)

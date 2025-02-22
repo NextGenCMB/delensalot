@@ -9,7 +9,6 @@ from delensalot.utils import cli
 from delensalot.core.MAP import field
 from delensalot.core.MAP import operator
 
-
 class sharedfilters:
     def __init__(self, quad):
         self.ivf_filter = quad.ivf_filter
@@ -108,6 +107,39 @@ class base:
                 assert 0, 'implement if needed'
 
 
+    def _copyQEtoDirectory(self, QE_searchs, simidxs):
+        # NOTE this turns them into convergence fields
+        sec2idx = {QE_search.secondary.ID: i for i, QE_search in enumerate(QE_searchs)}
+        QE_search_secondariesIDs = [QE_search.secondary.ID for QE_search in QE_searchs]
+        # secondaries = {QE_search.secondary.ID: QE_search.secondary for QE_search in QE_searchs}
+        secondaries = [self.ivf_filter.ivf_operator.operators[sec2idx[sec]] for sec in QE_search_secondariesIDs]
+        secondaries_field = {
+            quad.ID: field.secondary({
+                "ID":  quad.ID,
+                "component": quad.component,
+                "libdir": self.gfield.libdir_prior,
+        }) for quad in secondaries}
+
+        for idx in simidxs:
+            # idx2 = idx 
+            for idx2 in simidxs: # FIXME must implement idx2 for QE_searchs. For now, I fake and generate cross from idx
+                for operator in self.ivf_filter.ivf_operator.operators:
+                    QE_searchs[sec2idx[operator.ID]].init_filterqest()
+                    if not all(secondaries_field[operator.ID].is_cached(idx, idx2=idx2, it=0)):
+                        klm_QE = QE_searchs[sec2idx[operator.ID]].get_est(idx)
+                        secondaries_field[operator.ID].cache_klm(klm_QE, idx, idx2=idx2, it=0)
+                    
+                    #TODO cache QE wflm into the filter directory
+                    if not self.wf_filter.wf_field.is_cached(idx, it=0):
+                        lm_max_out = self.gradient_operator.operators[-1].operators[0].lm_max_out
+                        wflm_QE = QE_searchs[sec2idx[operator.ID]].get_wflm(idx, lm_max_out)
+                        self.wf_filter.wf_field.cache(np.array(wflm_QE), idx, idx2=idx2, it=0)
+
+                    if not self.gfield.is_cached(idx, idx2=idx2, it=0):
+                        kmflm_QE = QE_searchs[sec2idx[self.gfield.ID]].get_kmflm(idx)
+                        self.gfield.cache_meanfield(kmflm_QE, idx, idx2=idx2, it=0)
+
+
 class total(sharedfilters):
     def __init__(self, quads, ipriormatrix):
         super().__init__(quads[0]) # NOTE I am assuming the ivf and wf class are the same in all gradients
@@ -123,22 +155,39 @@ class total(sharedfilters):
             return np.array([self.get_gradient_total(idx, it_, component, data, idx2) for it_ in it])
         totgrad = []
         for quad in self.quads:
+            print(f'calculating total gradient for {quad.ID}')
             component_ = [comp for comp in component if comp in quad.component]
             if quad.gfield.is_cached(idx=idx, it=it, type='total', idx2=idx2):
-                totgrad.append(self.gfield.get_total(idx, it, component_, idx2=idx2))
+                totgrad.append(quad.gfield.get_total(idx, it, component_, idx2=idx2))
             else:
                 totgrad.append(quad.get_gradient_meanfield(idx, it, component_, idx2=idx2) - quad.get_gradient_quad(it, component_, data, idx=idx, idx2=idx2))
         prior = self.get_gradient_prior(idx, it-1, component, idx2=idx2)
         totgrad = [a + b for a, b in zip(totgrad, prior)]
         return totgrad 
-        
+    
+
+    def get_gradient_quad(self, idx, it, component=None, data=None, idx2=None):
+        idx2 = idx2 or idx
+        component = component or self.component
+        if isinstance(it, (list,np.ndarray)):
+            return [self.get_gradient_total(idx, it_, component, data, idx2) for it_ in it]
+        quadgrad = []
+        for quad in self.quads:
+            component_ = [comp for comp in component if comp in quad.component]
+            if quad.gfield.is_cached(idx=idx, it=it, type='quad', idx2=idx2):
+                quadgrad.append(quad.gfield.get_quad(idx, it, component_, idx2=idx2))
+            else:
+                quadgrad.append(quad.get_gradient_quad(it, component_, data, idx=idx, idx2=idx2))
+        return quadgrad 
+
 
     def get_gradient_prior(self, idx, it, component=None, idx2=None):
         component = component or self.component
         idx2 = idx2 or idx
         if isinstance(it, (list, np.ndarray)):
             return np.array([self.get_gradient_prior(idx, it_, component, idx2) for it_ in it])
-        
+
+
         complambda = lambda quad: [comp for comp in component if comp in quad.component]
         orig = [self.get_est(quad.gfield, idx, it, complambda(quad), idx2) for quad in self.quads]
         original_shapes = [arr.shape for arr in orig]
@@ -162,6 +211,7 @@ class total(sharedfilters):
 
     def get_est(self, gfield, idx, it, component=None, idx2=None):
         idx2 = idx2 or idx
+        it = 0 # NOTE setting it=0 for now
         if isinstance(component, list):
             if len(component) == 1:
                 component = component[0]
@@ -176,6 +226,10 @@ class total(sharedfilters):
         else:
             priorlm = gfield.cacher_field.load(gfield.prior_fns.format(component=component, idx=idx, idx2=idx2, it=it))
         return priorlm
+
+
+    def update_operator(self, it):
+        self.ivf_filter.update_operator(it)
 
 
 class lensing_quad(base):

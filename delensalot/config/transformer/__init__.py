@@ -2,7 +2,7 @@ from delensalot.config.visitor import transform, transform3d
 from delensalot.core.iterator.iteration_handler import iterator_transformer
 from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALOT_Model_mm, DLENSALOT_Concept
 from delensalot.config.transformer.lerepi2dlensalot import l2delensalotjob_Transformer 
-from delensalot.core.handler import OBD_builder, Data_container, QE_lr, QE_lr_v2, MAP_lr, MAP_lr_v2, Map_delenser
+from delensalot.core.handler import OBD_builder, DataContainer, QE_lr, QE_lr_v2, MAP_lr, MAP_lr_v2, Map_delenser
 from delensalot.core.opfilt.opfilt_handler import QE_transformer, MAP_transformer, QE_iso_transformer, QE_aniso_transformer, MAP_iso_transformer, MAP_aniso_transformer
 from delensalot.config.metamodel.delensalot_mm_v2 import DELENSALOT_Model as DELENSALOT_Model_mm_v2, DELENSALOT_Concept_v2
 from delensalot.config.transformer.lerepi2dlensalot_v2 import l2delensalotjob_Transformer as l2delensalotjob_Transformer_v2
@@ -11,7 +11,7 @@ from delensalot.config.transformer.lerepi2dlensalot_v2 import l2delensalotjob_Tr
 @transform3d.case(DELENSALOT_Concept_v2, str, l2delensalotjob_Transformer_v2)
 def f1(expr, job_id, transformer): # pylint: disable=missing-function-docstring
     if "generate_sim" == job_id:
-        return transformer.build_generate_sim(expr)
+        return transformer.build_datacontainer(expr)
     if "build_OBD" == job_id:
         return transformer.build_OBD_builder(expr)
     if "QE_lensrec" == job_id:
@@ -29,7 +29,7 @@ def f1(expr, job_id, transformer): # pylint: disable=missing-function-docstring
 @transform3d.case(DELENSALOT_Model_mm_v2, str, l2delensalotjob_Transformer_v2)
 def f1(expr, job_id, transformer): # pylint: disable=missing-function-docstring
     if "generate_sim" == job_id:
-        return transformer.build_generate_sim(expr)
+        return transformer.build_datacontainer(expr)
     if "build_OBD" == job_id:
         return transformer.build_OBD_builder(expr)
     if "QE_lensrec" == job_id:

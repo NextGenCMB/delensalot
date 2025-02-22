@@ -16,7 +16,7 @@ DL_DEFAULT = {
     },
     # FIXME all lm_max need to be consistent no matter which flavour we start with.
     # better only have one lm_max in default and config file, and let l2p adapt accordingly?
-    'simulationdata': { 
+    'data_source': { 
         'flavour': 'pri',
         'libdir_suffix': 'generic',
         'geominfo': ('healpix',{'nside': 2048}), # NOTE this is the geometry for any map generated as the final result

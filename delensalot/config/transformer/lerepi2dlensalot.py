@@ -23,13 +23,13 @@ from delensalot.core.cg import cd_solve
 from lenspyx.remapping import deflection
 from lenspyx.lensing import get_geom 
 
-from delensalot.sims.sims_lib import Simhandler
+from delensalot.sims.data_source import DataSource
 
 from delensalot.utils import cli, camb_clfile, load_file
 from delensalot.utility.utils_hp import gauss_beam
 
 from delensalot.core.iterator import steps
-from delensalot.core.handler import OBD_builder, Data_container, QE_lr, MAP_lr, Map_delenser, Phi_analyser
+from delensalot.core.handler import OBD_builder, DataContainer, QE_lr, MAP_lr, Map_delenser, Phi_analyser
 
 from delensalot.config.visitor import transform, transform3d
 from delensalot.config.config_helper import data_functions as df, LEREPI_Constants as lc
@@ -46,7 +46,7 @@ class l2base_Transformer:
     @log_on_start(logging.DEBUG, "process_Simulation() started")
     @log_on_end(logging.DEBUG, "process_Simulation() finished")
     def process_Simulation(dl, si, cf):
-        dl.simulationdata = Simhandler(**si.__dict__)
+        dl.simulationdata = DataSource(**si.__dict__)
 
 
     @log_on_start(logging.DEBUG, "_process_Analysis() started")
@@ -253,9 +253,9 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             _process_Analysis(dl, cf.analysis, cf)
             l2base_Transformer.process_Meta(dl, cf.meta, cf)
             dl.libdir_suffix = cf.simulationdata.libdir_suffix
-            dl.simulationdata = Simhandler(**cf.simulationdata.__dict__)
+            dl.simulationdata = DataSource(**cf.simulationdata.__dict__)
             return dl
-        return Data_container(extract())
+        return DataContainer(extract())
 
 
     def build_QE_lensrec(self, cf):
@@ -873,7 +873,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_Meta(dl, cf.meta)
                 _process_Computing(dl, cf.computing)
                 dl.libdir_suffix = cf.simulationdata.libdir_suffix
-                dl.simulationdata = Simhandler(**cf.simulationdata.__dict__)
+                dl.simulationdata = DataSource(**cf.simulationdata.__dict__)
                 _process_Analysis(dl, cf.analysis)
                 _process_Noisemodel(dl, cf.noisemodel)
                 _process_Madel(dl, cf.madel)

@@ -40,13 +40,13 @@ class ivf:
         # NOTE this is eq. 21 of the paper, in essence it should do the following:
         if not self.ivf_field.is_cached(self.simidx, it):
             assert eblm_wf is not None and data is not None
-            data = alm_copy(data, None, *self.beam_operator.lm_max_in) 
+            data = alm_copy_nd(data, None, self.beam_operator.lm_max) 
             ivfreslm = self.ivf_operator.act(eblm_wf, spin=2)
             ivfreslm = -1*self.beam_operator.act(ivfreslm)
             ivfreslm += data
             ivfreslm = self.inoise_operator.act(0.5*ivfreslm, adjoint=False)
             ivfreslm = self.beam_operator.act(ivfreslm, adjoint=False)
-            self.ivf_field.cache_field(ivfreslm,  self.simidx, it)
+            self.ivf_field.cache(ivfreslm,  self.simidx, it)
         return self.ivf_field.get_field(self.simidx, it)
     
 
@@ -76,16 +76,15 @@ class wf:
             tpn_alm = self.calc_prep(data) # NOTE lm_sky -> lm_pri
             mchain = CG.conjugate_gradient(self.precon_op, self.chain_descr, self.cls_filt)
             mchain.solve(cg_sol_curr, tpn_alm, self.fwd_op)
-            self.wf_field.cache_field(cg_sol_curr, self.simidx, it)
+            self.wf_field.cache(cg_sol_curr, self.simidx, it)
         return self.wf_field.get_field(self.simidx, it)
 
 
     def calc_prep(self, eblm):
         """cg-inversion pre-operation. This performs :math:`D_\phi^t B^t N^{-1} X^{\rm dat}`
         """
-        eblmc = alm_copy_nd(eblm, None, *self.beam_operator.lm_max_in)
-        eblmc = np.empty_like(eblm)
-        eblmc = self.inoise_operator.act(eblm, adjoint=False)
+        eblm_ = alm_copy_nd(eblm, None, self.beam_operator.lm_max)
+        eblmc = self.inoise_operator.act(eblm_, adjoint=False)
         eblmc = self.beam_operator.act(eblmc, adjoint=False)
         elm = self.wf_operator.act(eblmc, spin=2, adjoint=True, backwards=True, out_sht_mode='GRAD_ONLY')[0].squeeze() # NOTE lm_sky -> lm_pri
         elm = almxfl_nd(elm, self.cls_filt['ee'] > 0., None, False)

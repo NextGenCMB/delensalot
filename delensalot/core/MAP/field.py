@@ -7,7 +7,7 @@ from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy_nd
 from delensalot.core import cachers
 
 def get_secondary_fns(component):
-    return {comp: f'klm_{comp}_idx{{idx}}_it{{it}}' for comp in component}
+    return {comp: f'klm_{comp}_idx{{idx}}_{{idx2}}_it{{it}}' for comp in component}
 
 class secondary:
     def __init__(self, field_desc):
@@ -19,23 +19,24 @@ class secondary:
         self.component2idx = {component: i for i, component in enumerate(self.component)}
 
 
-    def get_est(self, idx, it, component=None, scale='k'):
+    def get_est(self, idx, it, component=None, scale='k', idx2=None):
+        idx2 = idx2 or idx
         if self.ID != 'lensing':
             assert scale == 'k'
         # NOTE component are stored with leading dimension
         if isinstance(component, list):
             assert all([comp in self.component for comp in component]), "component must be in {}".format(self.component)
         if component is None:
-            return np.array([self.get_est(idx, it, component, scale).squeeze() for component in self.component])
+            return np.array([self.get_est(idx, it, component, scale, idx2=idx2).squeeze() for component in self.component])
         if isinstance(component, str): assert component in self.component, f"component must be in {self.component}, but is {component}"
         if it < 0:
             return np.atleast_2d(np.zeros(1, dtype=complex))
         if isinstance(component, list):
-            return np.atleast_2d([self.get_est(idx, it, component_, scale).squeeze() for component_i, component_ in enumerate(component)])
+            return np.atleast_2d([self.get_est(idx, it, component_, scale, idx2=idx2).squeeze() for component_i, component_ in enumerate(component)])
         if scale == 'd':
-            return np.atleast_2d(self.klm2dlm(self.cacher.load(self.fns[component].format(idx=idx, it=it))[0]))
+            return np.atleast_2d(self.klm2dlm(self.cacher.load(self.fns[component].format(idx=idx, idx2=idx2, it=it))[0]))
         elif scale == 'k':
-            return np.atleast_2d(self.cacher.load(self.fns[component].format(idx=idx, it=it)))
+            return np.atleast_2d(self.cacher.load(self.fns[component].format(idx=idx, idx2=idx2, it=it)))
 
 
     def sk2klm(self, idx, it, component):
@@ -45,24 +46,26 @@ class secondary:
         return rlm
 
 
-    def cache_klm(self, klm, idx, it, component=None):
+    def cache_klm(self, klm, idx, it, component=None, idx2=None):
         if component is None:
             for ci, component in enumerate(self.component):
-                self.cache_klm(np.atleast_2d(klm[ci]), idx, it, component)
+                self.cache_klm(np.atleast_2d(klm[ci]), idx, it, component, idx2=idx2)
             return
-        self.cacher.cache(self.fns[component].format(idx=idx, it=it), np.atleast_2d(klm))
+        self.cacher.cache(self.fns[component].format(idx=idx, idx2=idx2, it=it), np.atleast_2d(klm))
 
 
-    def is_cached(self, idx, it, component=None):
+    def is_cached(self, idx, it, component=None, idx2=None):
+        idx2 = idx2 or idx
         if component is None:
-            return np.array([self.is_cached(idx, it, component_) for component_ in self.component])
-        return self.cacher.is_cached(opj(self.fns[component].format(idx=idx, it=it)))
+            return np.array([self.is_cached(idx, it, component_, idx2=idx2) for component_ in self.component])
+        return self.cacher.is_cached(opj(self.fns[component].format(idx=idx, idx2=idx2, it=it)))
     
 
-    def remove(self, idx, it, component=None):
+    def remove(self, idx, it, component=None, idx2=None):
+        idx2 = idx2 or idx
         if component is None:
-            if all(np.array([self.is_cached(idx, it, component_) for component_ in self.component])):
-                [self.remove(idx, it, component_) for component_ in self.component]
+            if all(np.array([self.is_cached(idx, it, component_, idx2=idx2) for component_ in self.component])):
+                [self.remove(idx, it, component_, idx2=idx2) for component_ in self.component]
             else:
                 print("cannot find field to remove")
         else:
@@ -219,19 +222,19 @@ class filter:
         self.cacher = cachers.cacher_npy(opj(self.libdir))
 
 
-    def get_field(self, idx, it):
+    def get_field(self, idx, it, idx2=None):
         return self.cacher.load(self.fns.format(idx=idx, it=it))
     
 
-    def cache(self, fieldlm, idx, it):
+    def cache(self, fieldlm, idx, it, idx2=None):
         self.cacher.cache(self.fns.format(idx=idx, it=it), fieldlm)
 
     
-    def is_cached(self, idx, it):
+    def is_cached(self, idx, it, idx2=None):
         return self.cacher.is_cached(self.fns.format(idx=idx, it=it))
     
 
-    def remove(self, idx, it):
+    def remove(self, idx, it, idx2=None):
         if self.is_cached(idx=idx, it=it):
             self.cacher.remove(self.fns.format(idx=idx, it=it))
     
@@ -247,27 +250,31 @@ class curvature:
         self.types = list(self.fns.keys())
 
 
-    def get_field(self, type, idx, it):
-        return self.cacher.load(self.fns[type].format(idx=idx, it=it, itm1=it-1))
+    def get_field(self, type, idx, it, idx2=None):
+        idx2 = idx2 or idx
+        return self.cacher.load(self.fns[type].format(idx=idx, idx2=idx2, it=it, itm1=it-1))
     
 
-    def cache_field(self, fieldlm, type, idx, it):
-        self.cacher.cache(self.fns[type].format(idx=idx, it=it, itm1=it-1), fieldlm)
+    def cache_field(self, fieldlm, type, idx, it, idx2=None):
+        idx2 = idx2 or idx
+        self.cacher.cache(self.fns[type].format(idx=idx, idx2=idx2, it=it, itm1=it-1), fieldlm)
 
     
-    def is_cached(self, type, idx, it):
-        return self.cacher.is_cached(self.fns[type].format(idx=idx, it=it, itm1=it-1))
+    def is_cached(self, type, idx, it, idx2=None):
+        idx2 = idx2 or idx
+        return self.cacher.is_cached(self.fns[type].format(idx=idx, idx2=idx2, it=it, itm1=it-1))
     
 
-    def remove(self, idx, it, type=None):
+    def remove(self, idx, it, type=None, idx2=None):
+        idx2 = idx2 or idx
         if type is None:
             for type in self.types:
-                if self.is_cached(type, idx, it):
-                    self.cacher.remove(self.fns[type].format(idx=idx, it=it, itm1=it-1))
+                if self.is_cached(type, idx, it, idx2=None):
+                    self.cacher.remove(self.fns[type].format(idx=idx, idx2=idx2, it=it, itm1=it-1))
                 else:
                     print("cannot find field to remove")
         else:
-            if self.is_cached(type, idx, it):
-                self.cacher.remove(self.fns[type].format(idx=idx, it=it, itm1=it-1))
+            if self.is_cached(type, idx, it, idx2=None):
+                self.cacher.remove(self.fns[type].format(idx=idx, idx2=idx2, it=it, itm1=it-1))
             else:
                 print("cannot find field to remove")

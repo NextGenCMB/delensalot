@@ -11,14 +11,14 @@ from delensalot.core.MAP import field as MAP_field
 import healpy as hp
 
 class base:
-    def __init__(self, gradients, h0, bfgs_desc, libdir):
+    def __init__(self, gradient_lib, h0, bfgs_desc, libdir):
         self.ID = "curvature"
-        self.gradients = gradients
+        self.gradient_lib = gradient_lib
         self.field = MAP_field.curvature(
             {"ID": "curvature",
             "libdir": libdir,
-            "fns": {'yk': f"diff_grad1d_simidx{{idx}}_it{{it}}m{{itm1}}",
-                    'sk': f"incr_grad1d_simidx{{idx}}_it{{it}}m{{itm1}}",
+            "fns": {'yk': f"diff_grad1d_simidx{{idx}}_{{idx2}}_it{{it}}m{{itm1}}",
+                    'sk': f"incr_grad1d_simidx{{idx}}_{{idx2}}_it{{it}}m{{itm1}}",
             }})
   
         self.h0 = h0
@@ -26,46 +26,46 @@ class base:
         bfgs_desc.update({'cacher': cachers.cacher_npy(self.field.libdir)})
         self.BFGS_H = BFGS.BFGS_Hessian(self.h0, **bfgs_desc)
         
-        self.stepper = {grad.ID: harmonicbump(**{'lmax_qlm': grad.LM_max[0],'mmax_qlm': grad.LM_max[0],'a': 0.5,'b': 0.499,'xa': 400,'xb': 1500},) for grad in self.gradients}
+        self.stepper = {quad.ID: harmonicbump(**{'lmax_qlm': quad.LM_max[0],'mmax_qlm': quad.LM_max[1],'a': 0.5,'b': 0.499,'xa': 400,'xb': 1500},) for quad in self.gradient_lib.quads}
 
 
-    def add_svector(self, incr, simidx, it):
-        self.field.cache_field(incr, 'sk', simidx, it)
+    def add_svector(self, incr, idx, it, idx2):
+        self.field.cache_field(incr, 'sk', idx, it, idx2)
 
 
-    def add_yvector(self, gtot, gprev, simidx, it):
-        self.field.cache_field(gtot-gprev, 'yk', simidx, it)
+    def add_yvector(self, gtot, gprev, idx, it, idx2):
+        self.field.cache_field(gtot-gprev, 'yk', idx, it, idx2)
 
 
     def step(self, klms):
         N = 0
-        for gradient in self.gradients:
-            for compi, comp in enumerate(gradient.gfield.component):
-                size = hp.Alm.getsize(gradient.LM_max[0])
-                klms[N:N+size] = self.stepper[gradient.ID].build_incr(klms[N:N+size], 0)
+        for quad in self.gradient_lib.quads:
+            for compi, comp in enumerate(quad.gfield.component):
+                size = hp.Alm.getsize(quad.LM_max[0])
+                klms[N:N+size] = self.stepper[quad.ID].build_incr(klms[N:N+size], 0)
                 N += size
         return klms
 
 
-    def get_increment(self, gtot, simidx, it):
-        if not self.field.is_cached('sk', simidx, it):
+    def get_increment(self, gtot, idx, it, idx2):
+        if not self.field.is_cached('sk', idx, it, idx2):
             for it_ in range(1,it):
-                self.BFGS_H.add_ys(self.field.fns['yk'].format(idx=simidx, it=it_+1, itm1=it_), self.field.fns['sk'].format(idx=simidx, it=it_, itm1=it_-1), it_-1)
+                self.BFGS_H.add_ys(self.field.fns['yk'].format(idx=idx, idx2=idx2, it=it_+1, itm1=it_), self.field.fns['sk'].format(idx=idx, idx2=idx2, it=it_, itm1=it_-1), it_-1)
             gnew = self.BFGS_H.get_mHkgk(gtot, it-1)
             self.step(gnew)
-            self.field.cache_field(gnew, 'sk', simidx, it)
-        return self.field.get_field('sk', simidx, it)
+            self.field.cache_field(gnew, 'sk', idx, it, idx2)
+        return self.field.get_field('sk', idx, it, idx2)
         # gtot = gcurr, yk = gcurr - gprev
 
 
     def grad2dict(self, grad):
         N = 0
         ret = {}
-        for gradient in self.gradients:
-            ret.update({gradient.ID:{}})
-            for component in gradient.gfield.component:
-                siz = Alm.getsize(*gradient.LM_max)
-                ret[gradient.ID][component] = grad[N:N+siz]
+        for quad in self.gradient_lib.quads:
+            ret.update({quad.ID:{}})
+            for component in quad.gfield.component:
+                siz = Alm.getsize(*quad.LM_max)
+                ret[quad.ID][component] = grad[N:N+siz]
                 N += siz
         return ret
 

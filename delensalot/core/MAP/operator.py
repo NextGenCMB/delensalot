@@ -156,7 +156,8 @@ class lensing(base):
                         return self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max_out[1], spin, *self.lm_max_in)
     
 
-    def set_field(self, simidx, it, component=None):
+    def set_field(self, idx, it, component=None, idx2=None):
+        idx2 = idx2 or idx
         if component is None:
             component = self.component
 
@@ -164,11 +165,11 @@ class lensing(base):
             set(component) & set(self.component), key=lambda x: template_index_lensingcomponents.get(x, ''))
 
         for comp in comps_:
-            field_path = opj(self.field_fns[comp].format(idx=simidx, it=it))
+            field_path = opj(self.field_fns[comp].format(idx=idx, idx2=idx2, it=it))
             if self.field_cacher.is_cached(field_path):
                 self.field[comp] = self.klm2dlm(self.field_cacher.load(field_path)[0])
             else: 
-                assert 0, f"Cannot set field with it={it} and simidx={simidx}"
+                assert 0, f"Cannot set field with it={it} and idx={idx}_{idx2}"
 
         d = np.array([self.field[comp].flatten() for comp in comps_], dtype=complex)
         if d.shape[0] == 1:
@@ -219,15 +220,16 @@ class birefringence(base):
         return np.array([Elm_rot, Blm_rot])
 
 
-    def set_field(self, simidx, it, component=None):
+    def set_field(self, idx, it, component=None, idx2=None):
+        idx2 = idx2 or idx
         if component is None:
             for comp in self.component:
-                self.set_field(simidx, it, comp)
+                self.set_field(idx, it, comp, idx2)
         elif isinstance(component, list):
             for comp in list(set(component) & set(self.component)):
-                self.set_field(simidx, it, comp)
+                self.set_field(idx, it, comp, idx2)
         else:
-            self.field[component] = alm_copy(self.field_cacher.load(opj(self.field_fns[component].format(idx=simidx,it=it))), None, *self.LM_max)
+            self.field[component] = alm_copy(self.field_cacher.load(opj(self.field_fns[component].format(idx=idx, idx2=idx2, it=it))), None, *self.LM_max)
 
 
 class spin_raise:

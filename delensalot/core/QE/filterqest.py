@@ -16,10 +16,10 @@ from delensalot.utils import cli
 
 class base:
     # def __init__(self, filter_desc):
-    def __init__(self, simulationdata, lm_max_ivf, lm_max_qlm, lmin_teb, nivjob_geominfo, niv_desc, nlev, ttebl, filtering_spatial_type, QE_cg_tol, sht_threads, cls_len, cls_unl, estimator_type, libdir, chain_descr=None, OBD='trunc', obd_libdir='obd', obd_rescale=1., zbounds=(-1,1)):
+    def __init__(self, data_source, lm_max_ivf, lm_max_qlm, lmin_teb, nivjob_geominfo, niv_desc, nlev, ttebl, filtering_spatial_type, QE_cg_tol, sht_threads, cls_len, cls_unl, estimator_type, libdir, chain_descr=None, OBD='trunc', obd_libdir='obd', obd_rescale=1., zbounds=(-1,1)):
         # This class is to interface with Plancklens
         
-        self.simulationdata = simulationdata
+        self.data_source = data_source
         self.estimator_type = estimator_type
         self.libdir = libdir or opj(os.environ['SCRATCH'], 'QE')
 
@@ -56,7 +56,7 @@ class base:
 
     def _init_filterqest(self):
         if self.filtering_spatial_type == 'isotropic':
-            self.ivf = filt_simple.library_fullsky_sepTP(opj(self.libdir, 'ivf'), self.simulationdata, self.nivjob_geominfo[1]['nside'], self.ttebl, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
+            self.ivf = filt_simple.library_fullsky_sepTP(opj(self.libdir, 'ivf'), self.data_source, self.nivjob_geominfo[1]['nside'], self.ttebl, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
             if self.estimator_type == 'sepTP':
                 self.qlms_dd = qest.library_sepTP(opj(self.libdir, 'qlms_dd'), self.ivf, self.ivf, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
         elif self.filtering_spatial_type == 'anisotropic':
@@ -80,7 +80,7 @@ class base:
                     self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
                     self.ttebl['e'], self.niv_desc['P'], chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol),
                     transf_blm=self.ttebl['b'], marge_qmaps=(), marge_umaps=())
-            _filter_raw = filt_cinv.library_cinv_sepTP(opj(self.libdir, 'ivf'), self.simulationdata, self.cinv_t, self.cinv_p, self.cls_len)
+            _filter_raw = filt_cinv.library_cinv_sepTP(opj(self.libdir, 'ivf'), self.data_source, self.cinv_t, self.cinv_p, self.cls_len)
             _ftebl_rs = lambda x: np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[x])
             self.ivf = filt_util.library_ftl(_filter_raw, self.lm_max_qlm[0], _ftebl_rs(0), _ftebl_rs(1), _ftebl_rs(2))
             self.qlms_dd = qest.library_sepTP(opj(self.libdir, 'qlms_dd'), self.ivf, self.ivf, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])

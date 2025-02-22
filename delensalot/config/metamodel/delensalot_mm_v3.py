@@ -94,7 +94,7 @@ class DELENSALOT_Analysis(DELENSALOT_Concept_v3):
 
 
 @attr.s
-class DELENSALOT_Simulation(DELENSALOT_Concept_v3):
+class DELENSALOT_DataSource(DELENSALOT_Concept_v3):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the input maps, and values can differ from the noise model and analysis.
 
@@ -288,7 +288,7 @@ class DELENSALOT_Model(DELENSALOT_Concept_v3):
     validate_model =        attr.field(default=True)
     job =                   attr.field(default=DELENSALOT_Job())
     analysis =              attr.field(default=DELENSALOT_Analysis())
-    data_provider =        attr.field(default=DELENSALOT_Simulation())
+    data_source =         attr.field(default=DELENSALOT_DataSource())
     noisemodel =            attr.field(default=DELENSALOT_Noisemodel())
     qerec =                 attr.field(default=DELENSALOT_QErec())
     maprec =                attr.field(default=DELENSALOT_MAPrec())
@@ -330,7 +330,7 @@ class DELENSALOT_Model(DELENSALOT_Concept_v3):
         for key, default_value in default_dict.items():
             if key in ['defaults_to', 'validate_model']:
                 continue  # Skip special attributes
-            if key in ['data_provider']:#, 'analysis']:
+            if key in ['data_source']:#, 'analysis']:
                 # NOTE this only updates secondary keys if any secondary is actually listed in the analysis of the config file. 
                 # By this I make sure that the library only receives the secondaries that the user wants,
                 # while at the same time setting the defaults for that secondary if the user did not specify

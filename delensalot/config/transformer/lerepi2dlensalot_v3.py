@@ -22,10 +22,10 @@ import re
 from lenspyx.remapping import deflection
 from lenspyx.lensing import get_geom 
 
-from delensalot.sims.sims_lib import Simhandler
+from delensalot.delensalot.sims.data_source import Simhandler
 
 from delensalot.core.helper import utils_plancklens
-from delensalot.core.handler import OBD_builder, Data_container, QE_lr_v2, MAP_lr_v2, Map_delenser, Phi_analyser
+from delensalot.core.handler import OBD_builder, DataContainer, QE_lr_v2, MAP_lr_v2, Map_delenser, Phi_analyser
 
 from delensalot.config.etc.errorhandler import DelensalotError
 from delensalot.config.metamodel import DEFAULT_NotAValue as DNaV
@@ -265,7 +265,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             dl.libdir_suffix = cf.data_provider.libdir_suffix
             l2base_Transformer.process_Simulation(dl, cf.data_provider, cf)
             return dl
-        return Data_container(extract())
+        return DataContainer(extract())
 
 
     def build_QE_lensrec(self, cf):
