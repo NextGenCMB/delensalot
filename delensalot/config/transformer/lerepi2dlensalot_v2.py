@@ -34,7 +34,7 @@ from delensalot.utils import cli, camb_clfile, load_file
 from delensalot.utility.utils_hp import gauss_beam
 
 from delensalot.core.MAP import field as MAP_field, operator
-from delensalot.core.handler import OBD_builder, DataContainer, QE_lr_v2, MAP_lr_v2, Map_delenser, Phi_analyser
+from delensalot.core.handler import OBD_builder, DataContainer, QE_scheduler, MAP_scheduler, Map_delenser, Phi_analyser
 
 from delensalot.config.visitor import transform, transform3d
 from delensalot.config.config_helper import data_functions as df, LEREPI_Constants as lc
@@ -234,7 +234,7 @@ class l2T_Transformer:
             if cf.analysis.TEMP_suffix != '':
                 _suffix = cf.analysis.TEMP_suffix
                 # NOTE this might not work if I don't know anything about the simulations...
-                _secsuffix = "simdata__"+"_".join(f"{key}_{'_'.join(values['component'])}" for key, values in cf.data_source.sec_info.items())
+                _secsuffix = "dataincludes__"+"_".join(f"{key}_{'_'.join(values['component'])}" for key, values in cf.data_source.sec_info.items())
             _suffix += '_OBD' if cf.noisemodel.OBD == 'OBD' else '_lminB'+str(cf.analysis.lmin_teb[2])+_secsuffix
             TEMP =  opj(os.environ['SCRATCH'], 'analysis', _suffix)
             return TEMP

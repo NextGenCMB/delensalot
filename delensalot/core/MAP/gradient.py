@@ -21,22 +21,20 @@ class SharedFilters:
 
 class GradQuad:
     def __init__(self, gradient_desc):
-        self.ID = gradient_desc['ID']
-        libdir = gradient_desc['libdir']
 
+        self.component = gradient_desc['component']
+        self.ID = gradient_desc['ID']
+        self.chh = gradient_desc['chh']
+        libdir = gradient_desc['libdir']
         self.data_key = gradient_desc['data_key']
 
         self.ivf_filter: ivf = gradient_desc.get('ivf_filter', None)
         self.wf_filter: wf = gradient_desc.get('wf_filter', None)
 
         self.ffi = gradient_desc['sec_operator'].operators[0].ffi # each sec operator has the same ffi, so can pick any
-        self.chh = gradient_desc['chh']
-        self.component = gradient_desc['component']
-
         self.LM_max = gradient_desc['LM_max']
 
         self.data_container: DataContainer = gradient_desc['data_container']
-
         gfield_desc = {
             "ID": self.ID,
             "libdir": opj(libdir, 'gradients'),
@@ -76,8 +74,8 @@ class GradQuad:
         return self.gfield.get_meanfield(idx, it, component=component, idx2=idx2)
     
 
-    def update_operator(self, it):
-        self.ivf_filter.update_operator(it)
+    def update_operator(self, idx, it):
+        self.ivf_filter.update_operator(idx, it)
 
 
     def get_gradients_prior(self, idx, it, component=None, idx2=None):
@@ -145,11 +143,11 @@ class GradQuad:
 
 
 class LensingGradientQuad(GradQuad):
-    def __init__(self, gradient_desc):
-        super().__init__(gradient_desc)
-        self.gradient_operator: operator.joint = self.get_operator(gradient_desc['sec_operator'])
+    def __init__(self, desc):
+        super().__init__(desc)
+        self.gradient_operator: operator.joint = self.get_operator(desc['sec_operator'])
         self.lm_max_in = self.gradient_operator.operators[-1].operators[0].lm_max_in
-
+        
 
     def get_gradient_quad(self, it, component=None, data=None, data_leg2=None, idx=None, idx2=None, wflm=None, ivfreslm=None):
         # NOTE this function is equation 22 of the paper (for lensing).
@@ -166,8 +164,8 @@ class LensingGradientQuad(GradQuad):
             if wflm is None:
                 assert self.ivf_filter is not None, "ivf_filter must be provided at instantiation in absence of wflm and ivfreslm"
                 assert self.wf_filter is not None, "wf_filter must be provided at instantiation in absence of wflm and ivfreslm"
-                wflm = self.wf_filter.get_wflm(it, self.get_data(idx))
-                ivfreslm = np.ascontiguousarray(self.ivf_filter.get_ivfreslm(it, self.get_data(idx2), wflm))
+                wflm = self.wf_filter.get_wflm(idx, it, self.get_data(idx))
+                ivfreslm = np.ascontiguousarray(idx2, self.ivf_filter.get_ivfreslm(it, self.get_data(idx2), wflm))
 
             resmap_c = np.ascontiguousarray(np.empty((self.ffi.geom.npix(),), dtype=wflm.dtype))
             resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
@@ -208,9 +206,9 @@ class LensingGradientQuad(GradQuad):
 
 class BirefringenceGradientQuad(GradQuad):
 
-    def __init__(self, gradient_desc):
-        super().__init__(gradient_desc)
-        self.gradient_operator: operator.joint = self.get_operator(gradient_desc['sec_operator'])
+    def __init__(self, desc):
+        super().__init__(desc)
+        self.gradient_operator: operator.joint = self.get_operator(desc['sec_operator'])
         self.lm_max_in = self.gradient_operator.operators[-1].operators[0].lm_max_in
     
 
@@ -218,8 +216,8 @@ class BirefringenceGradientQuad(GradQuad):
         idx2 = idx2 or idx
         data_leg2 = data_leg2 or data
         if not self.gfield.quad_is_cached(idx=idx, it=it, idx2=idx2):
-            wflm = self.wf_filter.get_wflm(it, self.get_data(idx))
-            ivfreslm = np.ascontiguousarray(self.ivf_filter.get_ivfreslm(it, self.get_data(idx2), wflm))
+            wflm = self.wf_filter.get_wflm(idx, it, self.get_data(idx))
+            ivfreslm = np.ascontiguousarray(self.ivf_filter.get_ivfreslm(idx2, it, self.get_data(idx2), wflm))
             
             ivfmap = self.ffi.geom.synthesis(ivfreslm, 2, self.lm_max_in[0], self.lm_max_in[1], self.ffi.sht_tr)
             xwfmap = self.gradient_operator.act(wflm, spin=2)
@@ -235,14 +233,14 @@ class BirefringenceGradientQuad(GradQuad):
         return operator.joint([operator.multiply({"factor": -1j}), filter_operator], out='map')
 
 class Joint(SharedFilters):
-    quads: List[LensingGradientQuad, BirefringenceGradientQuad]
-    def __init__(self, quads: List[LensingGradientQuad, BirefringenceGradientQuad], ipriormatrix):
+    quads: List[Union[LensingGradientQuad, BirefringenceGradientQuad]]
+    def __init__(self, quads, ipriormatrix):
         super().__init__(quads[0]) # NOTE I am assuming the ivf and wf class are the same in all gradients
-        self.quads:  List[LensingGradientQuad, LensingGradientQuad] = quads
+        self.quads = quads
         self.ipriormatrix = ipriormatrix
         self.component = [comp for quad in self.quads for comp in quad.component]
-        self.quad1: LensingGradientQuad = object.__new__(LensingGradientQuad)()
-        self.quad2: BirefringenceGradientQuad = object.__new__(BirefringenceGradientQuad)()
+        # self.quad1: LensingGradientQuad = object.__new__(LensingGradientQuad)()
+        # self.quad2: BirefringenceGradientQuad = object.__new__(BirefringenceGradientQuad)()
     
     
     def get_gradient_total(self, idx, it, component=None, data=None, idx2=None):
@@ -325,5 +323,5 @@ class Joint(SharedFilters):
         return priorlm
 
 
-    def update_operator(self, it):
-        self.ivf_filter.update_operator(it)
+    def update_operator(self, idx, it):
+        self.ivf_filter.update_operator(idx, it)

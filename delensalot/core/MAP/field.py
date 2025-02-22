@@ -47,6 +47,7 @@ class secondary:
 
 
     def cache_klm(self, klm, idx, it, component=None, idx2=None):
+        idx2 = idx2 or idx
         if component is None:
             for ci, component in enumerate(self.component):
                 self.cache_klm(np.atleast_2d(klm[ci]), idx, it, component, idx2=idx2)

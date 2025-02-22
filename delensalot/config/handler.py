@@ -26,18 +26,14 @@ from delensalot.core.mpi import check_MPI
 
 from delensalot.config.validator import safelist
 from delensalot.config.visitor import transform, transform3d
-from delensalot.config.transformer.lerepi2dlensalot import l2T_Transformer, l2delensalotjob_Transformer
-from delensalot.config.transformer.lerepi2dlensalot_v2 import l2T_Transformer as l2T_Transformer_v2, l2delensalotjob_Transformer as l2delensalotjob_Transformer_v2
-from delensalot.config.metamodel.dlensalot_mm import DLENSALOT_Model as DLENSALOT_Model_mm
-from delensalot.config.metamodel.delensalot_mm_v2 import DELENSALOT_Model as DELENSALOT_Model_mm_v2
+from delensalot.config.transformer.lerepi2dlensalot_v3 import l2T_Transformer, l2delensalotjob_Transformer
+from delensalot.config.metamodel.delensalot_mm_v3 import DELENSALOT_Model as DLENSALOT_Model_mm_v3
 
 transformers_T = {
-    DELENSALOT_Model_mm_v2: l2T_Transformer_v2(),
-    DLENSALOT_Model_mm: l2T_Transformer()
+    DLENSALOT_Model_mm_v3: l2T_Transformer()
 }
 transformers_J = {
-    DELENSALOT_Model_mm_v2: l2delensalotjob_Transformer_v2(),
-    DLENSALOT_Model_mm: l2delensalotjob_Transformer()
+    DLENSALOT_Model_mm_v3: l2delensalotjob_Transformer()
 }
 
 class config_handler():
@@ -63,7 +59,6 @@ class config_handler():
                 else:
                     self.config.job.jobs.append(job)
         TEMP = transform(self.config, transformers_T.get(type(self.config)))
-        print(TEMP)
         self.parser = parser
         self.TEMP = TEMP
 
@@ -112,7 +107,6 @@ class config_handler():
         """ 
         for jobi, job in enumerate(self.djobmodels):
             log.info('running job {}'.format(self.config.job.jobs[jobi]))
-            log.info('The TEMP directory is {}:'.format("/".join(job.TEMP.split('/')[-3:])))
             job.collect_jobs()
             job.run()
 

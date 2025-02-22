@@ -40,31 +40,6 @@ class DELENSALOT_Concept_v2:
             _str += '\n'
         return _str
 
-@attr.s
-class DELENSALOT_Chaindescriptor(DELENSALOT_Concept_v2):
-    """A root model element type of the Dlensalot formalism.
-    This class collects all configurations related to conjugate gradient solver. There are currently not many options for this. Better don't touch it.
-    
-    Attributes:
-        p0: 0
-        p1: type of the conditioner. Can be in ["diag_cl"]
-        p2: value of lm_max_ivf[0]
-        p3: value of nside of the data
-        p4: np.inf
-        p5: value of cg_tol
-        p6: `tr_cg`: value of cd_solve.tr_cg
-        p7: cacher setting
-    """
-    # TODO change names after testing various chains - can we find better heuristics?
-    p0 =                    attr.field(default=DEFAULT_NotAValue)
-    p1 =                    attr.field(default=DEFAULT_NotAValue)
-    p2 =                    attr.field(default=DEFAULT_NotAValue)
-    p3 =                    attr.field(default=DEFAULT_NotAValue)
-    p4 =                    attr.field(default=DEFAULT_NotAValue)
-    p5 =                    attr.field(default=DEFAULT_NotAValue)
-    p6 =                    attr.field(default=DEFAULT_NotAValue)
-    p7 =                    attr.field(default=DEFAULT_NotAValue)
-
 
 @attr.s
 class DELENSALOT_Job(DELENSALOT_Concept_v2):
@@ -182,7 +157,7 @@ class DELENSALOT_Qerec(DELENSALOT_Concept_v2):
     estimator_type =        attr.field(default=DEFAULT_NotAValue)
     qlm_type =              attr.field(default=DEFAULT_NotAValue)
     cg_tol =                attr.field(default=DEFAULT_NotAValue)
-    chain =                 attr.field(default=DELENSALOT_Chaindescriptor())
+    chain =                 attr.field(default=DEFAULT_NotAValue)
     subtract_QE_meanfield = attr.field(default=DEFAULT_NotAValue)
 
 
@@ -210,7 +185,7 @@ class DELENSALOT_Itrec(DELENSALOT_Concept_v2):
     tasks =                 attr.field(default=DEFAULT_NotAValue)
     itmax =                 attr.field(default=DEFAULT_NotAValue)
     cg_tol =                attr.field(default=DEFAULT_NotAValue)
-    chain =                 attr.field(default=DELENSALOT_Chaindescriptor())
+    chain =                 attr.field(default=DEFAULT_NotAValue)
     mfvar =                 attr.field(default=DEFAULT_NotAValue)
     soltn_cond =            attr.field(default=DEFAULT_NotAValue)
     gradient_descs =        attr.field(default=DEFAULT_NotAValue)

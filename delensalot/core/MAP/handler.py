@@ -3,7 +3,7 @@ from os.path import join as opj
 
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy
 from delensalot.utils import cli
-from delensalot.core.cg import cd_solve
+
 
 from . import field
 from . import gradient
@@ -11,14 +11,12 @@ from . import curvature
 from . import filter
 from . import operator
 
-from delensalot.core.handler import QE_lr_v2, DataContainer
-
 template_secondaries = ['lensing', 'birefringence']  # Define your desired order
 template_index_secondaries = {val: i for i, val in enumerate(template_secondaries)}
 
 
-class minimizer:
-    def __init__(self, estimator_key, likelihood_, itmax, libdir, idx, idx2):
+class Minimizer:
+    def __init__(self, estimator_key, likelihood, itmax, libdir, idx, idx2):
         # NOTE this is the minimizer
 
         self.estimator_key = estimator_key
@@ -27,11 +25,11 @@ class minimizer:
         self.idx = idx
         self.idx2 = idx2 or idx
 
-        self.likelihood: likelihood = likelihood_
+        self.likelihood: Likelihood = likelihood
 
     
     def get_est(self, request_it=None, secondary=None, component=None, scale='k', calc_flag=False):
-        self.likelihood._copyQEtoDirectory(self.likelihood.QE_searchs)
+        self.likelihood.copyQEtoDirectory(self.likelihood.QE_searchs)
         current_it = self.maxiterdone()
         request_it = request_it or current_it
         if isinstance(request_it, (list,np.ndarray)):
@@ -150,15 +148,15 @@ class minimizer:
                 secondary.cache_klm(new_klms[secID][component], idx=self.idx, idx2=self.idx2, it=it, component=component)
 
 
-class likelihood:
+class Likelihood:
     def __init__(self, data_container, gradient_lib, libdir, QE_searchs, lm_max_sky, estimator_key, idx, idx2=None):
         # NOTE this is the minimizer
         self.data = None 
 
         self.estimator_key = estimator_key
-        self.data_container: DataContainer = data_container
+        self.data_container = data_container
         self.libdir = libdir
-        self.QE_searchs: QE_lr_v2 = QE_searchs
+        self.QE_searchs = QE_searchs
         self.idx = idx
         self.idx2 = idx2 or idx
         self.lm_max_sky = lm_max_sky
@@ -245,7 +243,7 @@ class likelihood:
     def update_operator(self, it):
         # NOTE updaing a single operator here is enough to update all operators,
         # as they all point to the same operator.lensing and birefringence
-        self.gradient_lib.update_operator(it)
+        self.gradient_lib.update_operator(self.idx, it=it)
         # self.wf_filter.update_operator(it)
         # self.gradients[0].update_operator(it)
 
@@ -355,7 +353,7 @@ class likelihood:
 
 
     # NOTE This can be called from application level. Once the starting points are calculated, this can be used to prepare the MAP run
-    def _copyQEtoDirectory(self, QE_searchs):
+    def copyQEtoDirectory(self, QE_searchs):
         # NOTE this turns them into convergence fields
         for secname, secondary in self.secondaries.items():
             QE_searchs[self.sec2idx[secname]].init_filterqest()
@@ -369,5 +367,6 @@ class likelihood:
 
             #TODO cache QE wflm into the filter directory
             if not self.gradient_lib.wf_filter.wf_field.is_cached(self.idx, it=0):
-                wflm_QE = QE_searchs[self.sec2idx[secname]].get_wflm(self.idx, self.lm_max_pri)
-                self.gradient_lib.wf_filter.wf_field.cache_field(np.array(wflm_QE), self.idx, it=0)
+                lm_max_out = self.gradient_lib.quads[0].gradient_operator.operators[-1].operators[0].lm_max_out
+                wflm_QE = QE_searchs[self.sec2idx[secname]].get_wflm(self.idx, lm_max_out)
+                self.gradient_lib.wf_filter.wf_field.cache(np.array(wflm_QE), self.idx, it=0)

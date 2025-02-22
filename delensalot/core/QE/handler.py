@@ -22,10 +22,10 @@ complist_lensing_template_idx = {val: i for i, val in enumerate(complist_lensing
 complist_birefringence_template = ['f']
 
 class base:
-    def __init__(self, CLfids, estimator_key, QE_filterqest_desc, ID='generic', libdir=None, simidxs_mf=[], subtract_meanfield=True, init_filterqest=False):
+    def __init__(self, CLfids, estimator_key, QE_filterqest_desc, ID='generic', libdir=None, idxs_mf=[], subtract_meanfield=True, init_filterqest=False):
         self.estimator_key = estimator_key
         self.CLfids = CLfids
-        self.simidxs_mf = simidxs_mf
+        self.idxs_mf = idxs_mf
         self.subtract_meanfield = subtract_meanfield
         self.ID = ID or 'generic'
         oek = list(estimator_key.values())[0]
@@ -60,29 +60,29 @@ class base:
         self.qlms = self.fq._init_filterqest()
         
 
-    def get_qlm(self, simidx, component=None):
+    def get_qlm(self, idx, component=None):
         if component is None:
-            return np.array([self.get_qlm(simidx, component) for component in self.secondary.component])
+            return np.array([self.get_qlm(idx, component) for component in self.secondary.component])
         if isinstance(component, list):
             component = component[0]
-        if not self.secondary.is_cached(simidx, component):
-            qlm = self.qlms.get_sim_qlm(self.estimator_key[component], int(simidx))  #Unormalized quadratic estimate
-            self.secondary.cache_qlm(qlm, simidx, component=component)
-        return self.secondary.get_qlm(simidx, component)
+        if not self.secondary.is_cached(idx, component):
+            qlm = self.qlms.get_sim_qlm(self.estimator_key[component], int(idx))  #Unormalized quadratic estimate
+            self.secondary.cache_qlm(qlm, idx, component=component)
+        return self.secondary.get_qlm(idx, component)
     
 
-    def get_est(self, simidx, component=None, subtract_meanfield=None, scale='k'):
+    def get_est(self, idx, component=None, subtract_meanfield=None, scale='k'):
         if component is None:
-            return np.array([self.get_est(simidx, component, subtract_meanfield, scale).squeeze() for component in self.secondary.component])
+            return np.array([self.get_est(idx, component, subtract_meanfield, scale).squeeze() for component in self.secondary.component])
         if isinstance(component, list):
-            return np.array([self.get_est(simidx, comp, subtract_meanfield, scale).squeeze() for comp in component])
+            return np.array([self.get_est(idx, comp, subtract_meanfield, scale).squeeze() for comp in component])
         
-        if not self.secondary.is_cached(simidx, component, 'klm'):
-            qlm = self.get_qlm(simidx, component)
+        if not self.secondary.is_cached(idx, component, 'klm'):
+            qlm = self.get_qlm(idx, component)
             Lmax = Alm.getlmax(qlm.size, None)
             _submf = subtract_meanfield or self.subtract_meanfield
-            if _submf and len(self.simidxs_mf)>2: #NOTE >2 is really just a lower bound.
-                mf_qlm = self.get_qmflm(self.simidxs_mf, component=component)
+            if _submf and len(self.idxs_mf)>2: #NOTE >2 is really just a lower bound.
+                mf_qlm = self.get_qmflm(self.idxs_mf, component=component)
                 qlm -= mf_qlm
             R = self.get_response_len(component)
             WF = self.secondary.CLfids[component*2][:Lmax+1] * cli(self.secondary.CLfids[component*2][:Lmax+1] + cli(R))  # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
@@ -90,29 +90,29 @@ class base:
             almxfl(klm, cli(R), Lmax, True) # Normalized QE
             almxfl(klm, WF, Lmax, True) # Wiener-filter QE
             almxfl(klm, self.secondary.CLfids[component*2][:Lmax+1] > 0, Lmax, True)
-            self.secondary.cache_klm(np.atleast_2d(klm), simidx, component)
-        return self.secondary.get_est(simidx, component, scale) 
+            self.secondary.cache_klm(np.atleast_2d(klm), idx, component)
+        return self.secondary.get_est(idx, component, scale) 
 
 
-    def get_qmflm(self, simidxs, component=None):
+    def get_qmflm(self, idxs, component=None):
         # TODO connect it to the field class
         if component is None:
-            return np.array([self.get_qmflm(simidxs, component) for component in self.secondary.component])
+            return np.array([self.get_qmflm(idxs, component) for component in self.secondary.component])
         if isinstance(component, list):
             component = component[0]
-        return self.qlms.get_sim_qlm_mf(self.estimator_key[component], simidxs)
+        return self.qlms.get_sim_qlm_mf(self.estimator_key[component], idxs)
         
 
-    def get_kmflm(self, simidx, component=None, scale='k'):
+    def get_kmflm(self, idx, component=None, scale='k'):
         # TODO connect it to the field class
         if component is None:
-            return np.array([self.get_kmflm(simidx, component) for component in self.secondary.component])
+            return np.array([self.get_kmflm(idx, component) for component in self.secondary.component])
         if isinstance(component, list):
             component = component[0]
 
-        if len(self.simidxs_mf) <= 2: # NOTE this is really just a lower bound
+        if len(self.idxs_mf) <= 2: # NOTE this is really just a lower bound
             return np.zeros(Alm.getsize(*self.fq.lm_max_qlm), dtype=complex)
-        kmflm = self.get_qmflm(self.simidxs_mf, component=component)
+        kmflm = self.get_qmflm(self.idxs_mf, component=component)
         R = self.get_response_len(component)
         WF = self.secondary.CLfids[component*2] * cli(self.secondary.CLfids[component*2] + cli(R))  # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
         kmflm = alm_copy(kmflm, None, self.fq.lm_max_qlm[0], self.fq.lm_max_qlm[1])
@@ -120,18 +120,18 @@ class base:
         almxfl(kmflm, WF, self.fq.lm_max_qlm[1], True) # Wiener-filter QE
         almxfl(kmflm, self.secondary.CLfids[component*2] > 0, self.fq.lm_max_qlm[1], True)
         # FIXME correct removal
-        kmflm -= self.get_est(simidx, component=component)*1/(1-len(self.simidxs_mf))
+        kmflm -= self.get_est(idx, component=component)*1/(1-len(self.idxs_mf))
         return np.array(kmflm)
     
 
-    def get_wflm(self, simidx, lm_max):
+    def get_wflm(self, idx, lm_max):
         # NOTE returns the same for each component so can just take the first key here
-        return self.fq.get_wflm(simidx, list(self.estimator_key.values())[0], lm_max)
+        return self.fq.get_wflm(idx, list(self.estimator_key.values())[0], lm_max)
 
 
-    def get_ivflm(self, simidx):
+    def get_ivflm(self, idx):
         # NOTE returns the same for each component so can just take the first key here
-        return self.fq.get_ivflm(simidx, list(self.estimator_key.values())[0])
+        return self.fq.get_ivflm(idx, list(self.estimator_key.values())[0])
     
 
     def get_response_unl(self, component, scale='p'):
@@ -142,8 +142,8 @@ class base:
         return rescale(self.fq.get_response_len(self.estimator_key[component], self.estimator_key[component][0], self.fq.lm_max_qlm[0])[self.comp2idx[component]], scale=scale)
     
 
-    def isdone(self, simidx, component):
-        if self.secondary.is_cached(simidx, component, 'klm'):
+    def isdone(self, idx, component):
+        if self.secondary.is_cached(idx, component, 'klm'):
             return 0
         else:
             return -1

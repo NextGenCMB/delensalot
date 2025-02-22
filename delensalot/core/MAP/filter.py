@@ -35,12 +35,11 @@ class ivf:
         self.beam_operator = filter_desc['beam_operator']
         self.inoise_operator = filter_desc['inoise_operator']
         self.ivf_field = field.filter(filterfield_desc('ivf', self.libdir))
-        self.simidx = filter_desc['simidx']
 
 
-    def get_ivfreslm(self, it, data=None, eblm_wf=None):
+    def get_ivfreslm(self, idx, it, data=None, eblm_wf=None):
         # NOTE this is eq. 21 of the paper, in essence it should do the following:
-        if not self.ivf_field.is_cached(self.simidx, it):
+        if not self.ivf_field.is_cached(idx, it):
             assert eblm_wf is not None and data is not None
             data = alm_copy_nd(data, None, self.beam_operator.lm_max) 
             ivfreslm = self.ivf_operator.act(eblm_wf, spin=2)
@@ -48,12 +47,12 @@ class ivf:
             ivfreslm += data
             ivfreslm = self.inoise_operator.act(0.5*ivfreslm, adjoint=False)
             ivfreslm = self.beam_operator.act(ivfreslm, adjoint=False)
-            self.ivf_field.cache(ivfreslm,  self.simidx, it)
-        return self.ivf_field.get_field(self.simidx, it)
+            self.ivf_field.cache(ivfreslm, idx, it)
+        return self.ivf_field.get_field(idx, it)
     
 
-    def update_operator(self, it):
-        self.ivf_operator.set_field(self.simidx, it)
+    def update_operator(self, idx, it):
+        self.ivf_operator.set_field(idx, it)
 
 
 class wf:
@@ -66,20 +65,18 @@ class wf:
         self.chain_descr = filter_desc['chain_descr']
         self.cls_filt = filter_desc['cls_filt']
 
-        self.simidx = filter_desc['simidx']
-
         self.wf_field: field.filter = field.filter(filterfield_desc('wf', self.libdir))
 
 
-    def get_wflm(self, it, data=None):
-        if not self.wf_field.is_cached(self.simidx, it):
+    def get_wflm(self, idx, it, data=None):
+        if not self.wf_field.is_cached(idx, it):
             assert data is not None, 'data is required for the calculation'
-            cg_sol_curr = self.wf_field.get_field(self.simidx, it-1) # FIXME I could use a check here to make sure cg_sol_curr is of the right shape..
+            cg_sol_curr = self.wf_field.get_field(idx, it-1) # FIXME I could use a check here to make sure cg_sol_curr is of the right shape..
             tpn_alm = self.calc_prep(data) # NOTE lm_sky -> lm_pri
             mchain = CG.conjugate_gradient(self.precon_op, self.chain_descr, self.cls_filt)
             mchain.solve(cg_sol_curr, tpn_alm, self.fwd_op)
-            self.wf_field.cache(cg_sol_curr, self.simidx, it)
-        return self.wf_field.get_field(self.simidx, it)
+            self.wf_field.cache(cg_sol_curr, idx, it)
+        return self.wf_field.get_field(idx, it)
 
 
     def calc_prep(self, eblm):
@@ -130,13 +127,13 @@ class wf:
         return almxfl(elm, flmat, lmax, False)
 
 
-    def update_operator(self, it, secondary=None, component=None):
-        self.wf_operator.set_field(self.simidx, it, component)
+    def update_operator(self, idx, it, secondary=None, component=None):
+        self.wf_operator.set_field(idx, it, component)
 
 
-    def get_template(self, it, secondary, component, lm_max_in=None, lm_max_out=None):
-        self.wf_operator.set_field(self.simidx, it, secondary, component)
-        estCMB = self.get_wflm(self.simidx, it)
+    def get_template(self, idx, it, secondary, component, lm_max_in=None, lm_max_out=None):
+        self.wf_operator.set_field(idx, it, secondary, component)
+        estCMB = self.get_wflm(idx, it)
 
         # NOTE making sure that QE is perturbative, and resetting MAP to non-perturbative.
         # Must be done for each call, as the operators used are the same instance.

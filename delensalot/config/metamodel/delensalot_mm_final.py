@@ -42,17 +42,6 @@ class DELENSALOT_Concept_v3:
 
 
 @attr.s
-class DELENSALOT_Job(DELENSALOT_Concept_v3):
-    """A root model element type of the Dlensalot formalism.
-    delensalot can executte different jobs (QE reconstruction, simulation generation, MAP reconstruction, delensing, ..) which is controlled here.
-
-    Attributes:
-        jobs (list[str]): Job identifier(s)
-    """
-    jobs =                  attr.field(default=DEFAULT_NotAValue)
-
-
-@attr.s
 class DELENSALOT_Analysis(DELENSALOT_Concept_v3):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the specific analysis performed on the data.
@@ -60,8 +49,8 @@ class DELENSALOT_Analysis(DELENSALOT_Concept_v3):
     Attributes:
         key (str):                          reconstruction estimator key
         version (str):                      specific configuration for the esimator (e.g. `noMF`, which turns off mean-field subtraction)
-        idxs (np.array[int]):            simulation indices to use for the delensalot job
-        idxs_mf (np.array[int]):         simulation indices to use for the calculation of the mean-field
+        simidxs (np.array[int]):            simulation indices to use for the delensalot job
+        simidxs_mf (np.array[int]):         simulation indices to use for the calculation of the mean-field
         TEMP_suffix (str):                  identifier to customize TEMP directory of the analysis
         Lmin (int):                         minimum L for reconstructing the lensing potential
         zbounds (tuple[int or str,float]):  latitudinal boundary (-1 to 1), or identifier together with noise level ratio treshold at which lensing reconstruction is perfromed.
@@ -78,8 +67,8 @@ class DELENSALOT_Analysis(DELENSALOT_Concept_v3):
     lm_max_pri =            attr.field(default=DEFAULT_NotAValue)
     lm_max_sky =            attr.field(default=DEFAULT_NotAValue)
     key =                   attr.field(default=DEFAULT_NotAValue)
-    idxs =               attr.field(default=DEFAULT_NotAValue)
-    idxs_mf =            attr.field(default=DEFAULT_NotAValue)
+    simidxs =               attr.field(default=DEFAULT_NotAValue)
+    simidxs_mf =            attr.field(default=DEFAULT_NotAValue)
     TEMP_suffix =           attr.field(default=DEFAULT_NotAValue)
     Lmin =                  attr.field(default=DEFAULT_NotAValue)
     zbounds =               attr.field(default=DEFAULT_NotAValue)
@@ -137,8 +126,18 @@ class DELENSALOT_Noisemodel(DELENSALOT_Concept_v3):
     nivp_map =              attr.field(default=DEFAULT_NotAValue)
 
 
+@ attr.s
+class DELENSALOT_Operator(DELENSALOT_Concept_v3):
+
+    beam =                 attr.field(default=DEFAULT_NotAValue)
+    ivf =                  attr.field(default=DEFAULT_NotAValue)
+    wf =                   attr.field(default=DEFAULT_NotAValue)
+    inoise =               attr.field(default=DEFAULT_NotAValue)
+    secondary =            attr.field(default=DEFAULT_NotAValue)
+
+
 @attr.s
-class DELENSALOT_QErec(DELENSALOT_Concept_v3):
+class DELENSALOT_QE_search(DELENSALOT_Concept_v3):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the quadratic estimator reconstruction job.
 
@@ -152,101 +151,12 @@ class DELENSALOT_QErec(DELENSALOT_Concept_v3):
         blt_pert (bool):            If True, delensing is performed perurbitivly (recommended)
     
     """
-    tasks =                 attr.field(default=DEFAULT_NotAValue)
-    estimator_type =        attr.field(default=DEFAULT_NotAValue)
-    qlm_type =              attr.field(default=DEFAULT_NotAValue)
-    cg_tol =                attr.field(default=DEFAULT_NotAValue)
-    subtract_QE_meanfield = attr.field(default=DEFAULT_NotAValue)
-
-
-@attr.s
-class DELENSALOT_MAPrec(DELENSALOT_Concept_v3):
-    """A root model element type of the Dlensalot formalism.
-    This class collects all configurations related to the iterative reconstruction job.
-
-    Attributes:
-        tasks (list[str]):          tasks to perfrom. Can be any combination of :code:`calc_phi`, :code:`calc_meanfield`, :code:`calc_blt`
-        itmax (int):                maximum number of iterations
-        cg_tol (float):             tolerance of the conjugate gradient method
-        iterator_typ (str):         mean-field handling identifier. Can be either 'const_mf' or 'pert_mf'
-        filter_directional (str):   can be either 'isotropic' (unmasked sky) or 'isotropic' (masked sky)
-        lenjob_geominfo (str):      can be 'healpix_geominfo', 'thin_gauss' or 'pbdGeometry'
-        lenjob_pbgeominfo (str):    can be 'healpix_geominfo', 'thin_gauss' or 'pbdGeometry'
-        lm_max_unl (tuple[int]):    maximum multipoles `\ell` and m for reconstruction the unlensed CMB
-        lm_max_qlm (tuple[int]):    maximum multipoles L and m for reconstruction the lensing potential
-        mfvar (str):                path to precalculated mean-field, to be used instead
-        soltn_cond (type):          TBD
-        stepper (DELENSALOT_STEPPER):configuration for updating the current likelihood iteration point with the likelihood gradient
-              
-    """
-    tasks =                 attr.field(default=DEFAULT_NotAValue)
-    itmax =                 attr.field(default=DEFAULT_NotAValue)
-    cg_tol =                attr.field(default=DEFAULT_NotAValue)
-    mfvar =                 attr.field(default=DEFAULT_NotAValue)
-    soltn_cond =            attr.field(default=DEFAULT_NotAValue)
-    gradient_descs =        attr.field(default=DEFAULT_NotAValue)
-    filter_desc =           attr.field(default=DEFAULT_NotAValue)
-    curvature_desc =        attr.field(default=DEFAULT_NotAValue)
-    desc =                  attr.field(default=DEFAULT_NotAValue)
-
-    
-@attr.s
-class DELENSALOT_Mapdelensing(DELENSALOT_Concept_v3):
-    """A root model element type of the Dlensalot formalism.
-    This class collects all configurations related to the internal map delensing job.
-
-    Attributes:
-        data_from_CFS (bool):   if set, use B-lensing templates located at the $CFS directory instead of the $TEMP directory\n
-        edges (np.array):       binning to calculate the (delensed) power spectrum on\n
-        iterations (list[int]): which iterations to calculate delensed power spectrum for\n
-        nlevels (list[float]):  noiselevel ratio treshold up to which the maps are delensed, uses the rhits_normalized map to generate masks.
-        lmax (int):             maximum multipole to calculate the (delensed) power spectrum\n
-        Cl_fid (type):          fiducial power spectrum, and needed for template calculation of the binned power spectrum package\n
-        libdir_it (type):       TBD\n
-        binning (type):         can be either 'binned' or 'unbinned'. If 'unbinned', overwrites :code:`edges` and calculates power spectrum for each multipole\n
-        spectrum_calculator (package): name of the package of the power spectrum calculator. Can be 'healpy' if :code:`binning=unbinned`\n
-        masks_fn (list[str]):   the sky patches to calculate the power spectra on. Note that this is different to using `nlevels`. Here, no tresholds are calculated, but masks are used 'as is' for delensing.\n
-        basemap (str):          the delensed map Bdel is calculated as Bdel = basemap - blt. Basemap can be two things: 'obs' or 'lens', where 'obs' will use the observed sky map, and lens will use the pure B-lensing map.
-    """
-
-    data_from_CFS =         attr.field(default=DEFAULT_NotAValue)
-    edges =                 attr.field(default=DEFAULT_NotAValue)
-    iterations =            attr.field(default=DEFAULT_NotAValue)
-    nlevels =               attr.field(default=DEFAULT_NotAValue)
-    lmax =                  attr.field(default=DEFAULT_NotAValue)
-    Cl_fid =                attr.field(default=DEFAULT_NotAValue)
-    libdir_it =             attr.field(default=DEFAULT_NotAValue)
-    binning =               attr.field(default=DEFAULT_NotAValue)
-    spectrum_calculator =   attr.field(default=DEFAULT_NotAValue)
-    masks_fn =              attr.field(default=DEFAULT_NotAValue)
-    basemap =               attr.field(default=DEFAULT_NotAValue)
-
-@attr.s
-class DELENSALOT_Phianalysis(DELENSALOT_Concept_v3):
-    """A root model element type of the Dlensalot formalism.
-    This class collects all configurations related to the internal map delensing job.
-
-    Attributes:
-        custom_WF_TEMP (str):   Path to the dir of an exisiting WF. fn must be 'WFemp_%s_simall%s_itall%s_avg.npy'\n
-    """
-    custom_WF_TEMP =        attr.field(default=DEFAULT_NotAValue)
-
-
-@attr.s
-class DELENSALOT_OBD(DELENSALOT_Concept_v3):
-    """A root model element type of the Dlensalot formalism.
-    This class collects all configurations related to the overlapping B-mode deprojection.
-
-    Attributes:
-        libdir (str):       path to the OBD matrix
-        rescale (float):    rescaling of OBD matrix amplitude. Useful if matrix already calculated, but noiselevel changed
-        tpl (type):         function name for calculating OBD matrix
-        nlev_dep (float):   deprojection factor, or, strength of B-mode deprojection                   
-    """
+    estimator_key =         attr.field(default=DEFAULT_NotAValue)
+    CLfids =                attr.field(default=DEFAULT_NotAValue)
+    subtract_meanfield =    attr.field(default=DEFAULT_NotAValue)
+    QE_filterqest_desc =    attr.field(default=DEFAULT_NotAValue)
+    ID =                    attr.field(default=DEFAULT_NotAValue)
     libdir =                attr.field(default=DEFAULT_NotAValue)
-    rescale =               attr.field(default=DEFAULT_NotAValue)
-    tpl =                   attr.field(default=DEFAULT_NotAValue)
-    nlev_dep =              attr.field(default=DEFAULT_NotAValue)
 
 
 @attr.s
@@ -282,17 +192,20 @@ class DELENSALOT_Model(DELENSALOT_Concept_v3):
     
     defaults_to =           attr.field(default='default_jointrec_v3')
     validate_model =        attr.field(default=True)
-    job =                   attr.field(default=DELENSALOT_Job())
     analysis =              attr.field(default=DELENSALOT_Analysis())
     data_source =           attr.field(default=DELENSALOT_DataSource())
-    noisemodel =            attr.field(default=DELENSALOT_Noisemodel())
-    qerec =                 attr.field(default=DELENSALOT_QErec())
-    maprec =                attr.field(default=DELENSALOT_MAPrec())
-    madel =                 attr.field(default=DELENSALOT_Mapdelensing())
+    operators =             attr.field(default=DELENSALOT_Noisemodel())
     computing =             attr.field(default=DELENSALOT_Computing())
-    obd =                   attr.field(default=DELENSALOT_OBD())
-    phana =                 attr.field(default=DELENSALOT_Phianalysis())
-    
+
+    QE_filterqest =         attr.field(default=DEFAULT_NotAValue)
+    QE_search =             attr.field(default=DEFAULT_NotAValue)
+
+    wf_filter =             attr.field(default=DEFAULT_NotAValue)
+    ivf_filter =            attr.field(default=DEFAULT_NotAValue)
+    gradient =              attr.field(default=DEFAULT_NotAValue)
+    likelihood =            attr.field(default=DEFAULT_NotAValue)
+    minimizer =             attr.field(default=DEFAULT_NotAValue)
+
 
     def __attrs_post_init__(self):
         """Ensure missing attributes are set to their class-level default values."""
@@ -313,6 +226,7 @@ class DELENSALOT_Model(DELENSALOT_Concept_v3):
             for key, default_value in defaults.items():
                 if isinstance(target, dict):
                     if key not in target or np.all(target[key] == DEFAULT_NotAValue):
+                        print("target key::::", key, default_value)
                         target[key] = default_value
                     elif isinstance(default_value, dict) and isinstance(target[key], dict):
                         update_defaults(target[key], default_value)
@@ -352,6 +266,7 @@ class DELENSALOT_Model(DELENSALOT_Concept_v3):
                                 setattr(target_attr, value, attr_value)
             else:
                 if not hasattr(self, default_key) or getattr(self, default_key) == DEFAULT_NotAValue:
+                    print('setting default for class key:', default_key)
                     setattr(self, default_key, default_value)
                 update_defaults(getattr(self, default_key), default_value)
 
