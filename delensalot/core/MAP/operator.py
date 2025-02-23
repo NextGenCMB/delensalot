@@ -99,9 +99,9 @@ class joint:
         return obj
     
 
-    def set_field(self, idx, it, component=None):
+    def set_field(self, idx, it, component=None, idx2=None):
         for operator in self.operators:
-            operator.set_field(idx, it)
+            operator.set_field(idx, it, component, idx2)
     
 
 class secondary_operator:
@@ -126,14 +126,14 @@ class secondary_operator:
 
 
     @log_on_start(logging.DEBUG, "setting fields for: idx={idx}, it={it}, secondary={secondary}, component={component}", logger=log)  
-    def set_field(self, idx, it, secondary=None, component=None):
+    def set_field(self, idx, it, secondary=None, component=None, idx2=None):
         if secondary is None:
             secondary = [operator.ID for operator in self.operators]
         for operator in self.operators:
             if operator.ID in secondary:
                 if component is None or component not in operator.component:
                     component = operator.component
-                operator.set_field(idx, it, component)
+                operator.set_field(idx, it, component, idx2)
 
 
 class lensing(Base):

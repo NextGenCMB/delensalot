@@ -57,8 +57,8 @@ class ivf:
         return self.ivf_field.get_field(idx, it)
     
 
-    def update_operator(self, idx, it):
-        self.ivf_operator.set_field(idx, it)
+    def update_operator(self, idx, it, idx2):
+        self.ivf_operator.set_field(idx, it, idx2=idx2)
 
 
 class wf:
@@ -76,12 +76,12 @@ class wf:
 
 
     def get_wflm(self, data=None):
-        ctx = ComputationContext()  # Get the singleton instance
+        ctx, _ = ComputationContext()  # Get the singleton instance
         it, idx = ctx.it, ctx.idx
         if not self.wf_field.is_cached():
             assert data is not None, 'data is required for the calculation'
             ctx.set(it=it-1)
-            cg_sol_curr = self.wf_field.get_field(idx, it-1)
+            cg_sol_curr = self.wf_field.get_field()
             ctx.set(it=it)
             tpn_alm = self.calc_prep(data) # NOTE lm_sky -> lm_pri
             mchain = CG.conjugate_gradient(self.precon_op, self.chain_descr, self.cls_filt)
@@ -138,15 +138,15 @@ class wf:
         return almxfl(elm, flmat, lmax, False)
 
 
-    def update_operator(self):
-        self.wf_operator.set_field()
+    def update_operator(self, idx, it, idx2):
+        self.wf_operator.set_field(idx, it, idx2=idx2)
 
 
     # @log_on_start(logging.DEBUG, 'wf.get_template: idx={idx}, it={it}, secondary={secondary}, component={component}, lm_max_in={lm_max_in}, lm_max_out={lm_max_out}')
     def get_template(self, lm_max_in=None, lm_max_out=None):
-        ctx = ComputationContext()  # Get the singleton instance
-        it, secondary = ctx.it, ctx.secondary   
-        self.wf_operator.set_field()
+        ctx, _ = ComputationContext()  # Get the singleton instance
+        idx, it, idx2, secondary, component = ctx.idx, ctx.it, ctx.idx2 or ctx.idx, ctx.secondary, ctx.component
+        self.wf_operator.set_field(idx, it, secondary, component, idx2=idx2)
         estCMB = self.get_wflm()
 
         # NOTE making sure that QE is perturbative, and resetting MAP to non-perturbative.
@@ -157,5 +157,5 @@ class wf:
 
         if lm_max_in is not None and lm_max_out is not None:
             self.wf_operator.update_lm_max(lm_max_in=lm_max_in, lm_max_out=lm_max_out)
-            
+
         return self.wf_operator.act(estCMB, secondary=secondary)

@@ -80,12 +80,13 @@ class Minimizer:
 
     # Helper function to compute individual iteration
     def _compute_iterations(self, current_it, request_it, idx, idx2, secondary, component, scale):
-        self.ctx = get_computation_context()[0]
+        ctx = get_computation_context()[0]
+        idx, it, idx2 = ctx.idx, ctx.it, ctx.idx2 or ctx.idx
         for it in range(current_it + 1, request_it + 1):  # Iterations 1+ are calculated
-            self.ctx.set(idx=idx, idx2=idx2, it=it)
+            ctx.set(idx=idx, idx2=idx2, it=it)
             log.info(f'---------- starting iteration {it} ----------')
 
-            self.update_operator()
+            self.update_operator(idx, it-1, idx2=idx2)
             grad_tot = self.get_gradient_total()
             grad_tot = np.concatenate([np.ravel(arr) for arr in grad_tot])
 

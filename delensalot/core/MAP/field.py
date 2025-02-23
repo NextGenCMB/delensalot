@@ -22,6 +22,7 @@ class secondary:
         self.fns = get_secondary_fns(self.component)
         self.cacher = cachers.cacher_npy(opj(self.libdir))
         self.component2idx = {component: i for i, component in enumerate(self.component)}
+        self
 
 
     def get_est(self, scale='k'):
@@ -34,7 +35,7 @@ class secondary:
             assert all([comp in self.component for comp in component]), "component must be in {}".format(self.component)
         if isinstance(it, (np.ndarray, list)):
                 assert not np.any(np.array(it)<0), 'it must be negative'
-
+  
         if isinstance(it, (np.ndarray, list)):
             ret = []
             for it_ in it:
@@ -63,8 +64,9 @@ class secondary:
     def is_cached(self):
         ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
         it, idx, idx2, component = ctx.it, ctx.idx, ctx.idx2 or ctx.idx, ctx.component or self.component
-        for comp in component:
-            return [self.cacher.is_cached(self.fns[comp].format(idx=idx, idx2=idx2, it=it)) for comp in component]
+        if isinstance(component, str):
+            component = [component]
+        return [self.cacher.is_cached(self.fns[comp].format(idx=idx, idx2=idx2, it=it)) for comp in component if comp in self.component]
     
 
     def remove(self):

@@ -88,8 +88,8 @@ class GradQuad:
         return self.gfield.get_meanfield()
 
     
-    def update_operator(self, idx, it):
-        self.ivf_filter.update_operator(idx, it)
+    def update_operator(self, idx, it, idx2):
+        self.ivf_filter.update_operator(idx, it, idx2=idx2)
 
 
     def get_gradients_prior(self):
@@ -308,8 +308,8 @@ class Joint(SharedFilters):
         it, idx, idx2, component = ctx.it, ctx.idx, ctx.idx2 or ctx.idx, ctx.component or self.component
         ret = []
         if isinstance(it, (list,np.ndarray)):
-            quadgrad = []
             for it_ in it:
+                quadgrad = []
                 ctx.set(it=it_)
                 for quad in self.quads:
                     if quad.gfield.is_cached(type='quad'):
@@ -396,8 +396,8 @@ class Joint(SharedFilters):
         return ret
 
 
-    def update_operator(self, idx, it):
-        self.ivf_filter.update_operator(idx, it)
+    def update_operator(self, idx, it, idx2):
+        self.ivf_filter.update_operator(idx, it, idx2=idx2)
 
 
     def __getattr__(self, name):

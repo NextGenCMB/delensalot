@@ -508,6 +508,9 @@ class DataContainer:
     def hashdict(self):
         return {}
 
+    def get_sim_pmap(self, idx):
+        return self.data_source.get_sim_obs(idx=idx, space='map', field='polarization', spin=2)
+
 
 class QE_scheduler:
     """Quadratic estimate lensing reconstruction Job. Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.
@@ -588,13 +591,13 @@ class QE_scheduler:
             jobs[taski] = _jobs
         self.jobs = jobs
         if not np.all(np.array(jobs)==None):
-            log.info("QE jobs: ", jobs)
+            log.info(f"QE jobs: {jobs}")
         return np.array(jobs)
 
 
     def run(self, task=None):
         if not np.all(np.array(self.jobs)==None):
-            log.info("Running QE jobs: ", self.jobs)
+            log.info(f"Running QE jobs: {self.jobs}")
         if True: # 'triggers calc_cinv'
             self.init_QEsearchs()
                    
@@ -784,19 +787,27 @@ class MAP_scheduler:
 
 
     def get_template(self, idx, it, secondary=None, component=None):
-        self.ctx.set(idx=idx, it=it, secondary=secondary, component=component)
+        ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
+        stash = ctx.it, ctx.idx, ctx.idx2, ctx.component
+        ctx.set(idx=idx, it=it, secondary=secondary, component=component)
         assert it>0, 'Need to correctly implement QE template generation first'
         assert it <= self.maxiterdone(), 'Requested iteration is not available'
-        return self.MAP_minimizers[idx].get_template(idx, it, secondary, component)
+        ret = self.MAP_minimizers[idx].get_template()
+        ctx.set(it=stash[0], idx=stash[1], idx2=stash[2], component=stash[3])
+        return ret
 
 
     def get_wflm(self, idx, it=None, lm_max=None):
-        self.ctx.set(idx=idx, it=it)
+        ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
+        stash = ctx.it, ctx.idx, ctx.idx2, ctx.component
+        ctx.set(idx=idx, it=it)
         # NOTE currently no support for list of secondary or it
         if it==None: it = self.maxiterdone()
         if it==0:
-            return self.QE_searchs[0].get_wflm(idx, lm_max=lm_max)
-        return self.MAP_minimizers[idx].get_wflm()
+            ret = self.QE_searchs[0].get_wflm(idx, lm_max=lm_max)
+        ret = self.MAP_minimizers[idx].get_wflm()
+        ctx.set(*stash)
+        return ret
 
 
     def get_ivflm(self, idx, it=0): 
@@ -807,7 +818,9 @@ class MAP_scheduler:
 
 
     def get_ivfreslm(self, idx, it=None):
-        self.ctx.set(idx=idx, it=it)
+        ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
+        stash = ctx.it, ctx.idx, ctx.idx2, ctx.component
+        ctx.set(idx=idx, it=it)
         # NOTE currently no support for list of secondary or it
         if it==None: it = self.maxiterdone()
         if it==0:
