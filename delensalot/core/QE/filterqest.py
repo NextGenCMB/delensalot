@@ -1,3 +1,7 @@
+import logging
+log = logging.getLogger(__name__)
+from logdecorator import log_on_start, log_on_end
+
 from os.path import join as opj
 import numpy as np
 import os
@@ -87,7 +91,8 @@ class base:
         return self.qlms_dd
 
 
-    def get_wflm(self, idx, key, lm_max):
+    def get_wflm(self, idx, key, lm_max=None):
+        lm_max = lm_max or self.lm_max_ivf
         if key in ['ptt']:
             return alm_copy(self.ivf.get_sim_tmliklm(idx), None, *lm_max)
         elif key in ['p_p', 'p_eb', 'peb', 'p_be', 'pee', 'x_p', 'x_eb', 'xeb', 'x_be', 'xee']:

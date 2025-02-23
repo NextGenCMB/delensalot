@@ -1,3 +1,7 @@
+import logging
+log = logging.getLogger(__name__)
+from logdecorator import log_on_start, log_on_end
+
 from os.path import join as opj
 import numpy as np
 

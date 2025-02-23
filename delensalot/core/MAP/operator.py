@@ -1,3 +1,7 @@
+import logging
+log = logging.getLogger(__name__)
+from logdecorator import log_on_start, log_on_end
+
 from os.path import join as opj
 
 import numpy as np
@@ -26,8 +30,9 @@ def _extend_cl(cl, lmax):
     return ret
 
 
-class base:
+class Base:
     def __init__(self, libdir, LM_max):
+        
         zbounds = (-1,1)
         lenjob_geomlib = get_geom(('thingauss', {'lmax': 4500, 'smax': 3}))
         thtbounds = (np.arccos(zbounds[1]), np.arccos(zbounds[0]))
@@ -41,16 +46,19 @@ class base:
         assert 0, "subclass this"
 
 
-    def set_field(self, simidx, it, component=None):
+    def set_field(self, idx, it, component=None):
         assert 0, "subclass this"
 
 
 class multiply:
     def __init__(self, descr):
+        
         self.ID = 'multiply'
         self.factor = descr["factor"]
     
 
+    @log_on_start(logging.DEBUG, "multiply: {obj.shape}")
+    @log_on_end(logging.DEBUG, "multiply done")
     def act(self, obj, spin=None, adjoint=False):
         if adjoint:
             return np.conj(self.factor)*obj
@@ -62,16 +70,19 @@ class multiply:
         return self.act(obj, spin=spin, adjoint=True)
     
 
-    def set_field(self, simidx, it, component=None):
+    def set_field(self, idx, it, component=None):
         pass
 
 
 class joint:
     def __init__(self, operators, out):
+        
         self.operators = operators
         self.space_out = out
     
 
+    @log_on_start(logging.DEBUG, "joint: {obj.shape}", logger=log)  
+    @log_on_end(logging.DEBUG, "joint done", logger=log)  
     def act(self, obj, spin):
         for operator in self.operators:
             if isinstance(operator, secondary_operator):
@@ -88,39 +99,44 @@ class joint:
         return obj
     
 
-    def set_field(self, simidx, it, component=None):
+    def set_field(self, idx, it, component=None):
         for operator in self.operators:
-            operator.set_field(simidx, it)
+            operator.set_field(idx, it)
     
 
 class secondary_operator:
     def __init__(self, desc):
+        
         self.ID = 'secondaries'
         self.operators = desc # ["operators"]
 
 
+    @log_on_start(logging.DEBUG, "secondary: {obj.shape}", logger=log)  
+    @log_on_end(logging.DEBUG, "secondary done", logger=log)  
     def act(self, obj, spin=2, adjoint=False, backwards=False, out_sht_mode=None, secondary=None, out='alm'):
         secondary = secondary or [op.ID for op in self.operators]
         operators = self.operators if not adjoint else self.operators[::-1]
         for idx, operator in enumerate(operators):
-            if isinstance(operator, lensing):
-                obj = operator.act(obj, spin, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode, out=out)
-            else:
-                obj = operator.act(obj, spin, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode)
+            if operator.ID in secondary:
+                if isinstance(operator, lensing):
+                    obj = operator.act(obj, spin, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode, out=out)
+                else:
+                    obj = operator.act(obj, spin, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode)
         return obj
 
 
-    def set_field(self, simidx, it, secondary=None, component=None):
+    @log_on_start(logging.DEBUG, "setting fields for: idx={idx}, it={it}, secondary={secondary}, component={component}", logger=log)  
+    def set_field(self, idx, it, secondary=None, component=None):
         if secondary is None:
             secondary = [operator.ID for operator in self.operators]
         for operator in self.operators:
             if operator.ID in secondary:
                 if component is None or component not in operator.component:
                     component = operator.component
-                operator.set_field(simidx, it, component)
+                operator.set_field(idx, it, component)
 
 
-class lensing(base):
+class lensing(Base):
     def __init__(self, operator_desc):
         super().__init__(operator_desc["libdir"], operator_desc["LM_max"])
         
@@ -134,7 +150,9 @@ class lensing(base):
         self.field = {component: None for component in self.component}
         self.field_fns = field.get_secondary_fns(self.component)
 
-    # NOTE this is alm2alm
+
+    @log_on_start(logging.DEBUG, "lensing: {obj.shape}", logger=log)
+    @log_on_end(logging.DEBUG, "lensing done", logger=log)
     def act(self, obj, spin=None, adjoint=False, backwards=False, out_sht_mode=None, out='alm'):
         assert spin is not None, "spin not provided"
 
@@ -183,7 +201,7 @@ class lensing(base):
         return almxfl(klm, h2d, Lmax, False)
 
 
-class birefringence(base):
+class birefringence(Base):
     def __init__(self, operator_desc):
         super().__init__(operator_desc["libdir"], operator_desc["LM_max"])
         
@@ -196,7 +214,8 @@ class birefringence(base):
         self.field_fns = field.get_secondary_fns(self.component)
 
 
-    # NOTE this is alm2alm
+    @log_on_start(logging.DEBUG, "birefringence: {obj.shape}", logger=log)
+    @log_on_end(logging.DEBUG, "birefringence done", logger=log)
     def act(self, obj, spin=None, adjoint=False, backwards=False, out_sht_mode=None):
         obj = np.atleast_2d(obj)
         lmax = Alm.getlmax(obj[0].size, None)
@@ -237,6 +256,8 @@ class spin_raise:
         self.ID = 'spin_raise'
         self.lm_max = lm_max
 
+    @log_on_start(logging.DEBUG, "spin_raise: {obj.shape}", logger=log)
+    @log_on_end(logging.DEBUG, "spin_raise done", logger=log)
     def act(self, obj, spin=None, adjoint=False):
         # This is the property d _sY = -np.sqrt((l+s+1)(l-s+1)) _(s+1)Y
         assert adjoint == False, "adjoint not implemented"
@@ -246,7 +267,6 @@ class spin_raise:
         fl = np.arange(i1, self.lm_max[0] + i1 + 1, dtype=float) * np.arange(i2, self.lm_max[0] + i2 + 1)
         fl[:spin] *= 0.
         fl = np.sqrt(fl)
-        print(obj.shape, fl.shape)
         elm = np.atleast_2d(almxfl(obj, fl, self.lm_max[1], False))
         return elm
 
@@ -256,7 +276,7 @@ class spin_raise:
         return self.act(obj, adjoint=True, spin=spin)
     
 
-    def set_field(self, simidx, it, component=None):
+    def set_field(self, idx, it, component=None):
         pass
     
 
@@ -270,13 +290,13 @@ class beam:
         self.is_adjoint = False
         self.lm_max = operator_desc['lm_max']
 
-
+    @log_on_start(logging.DEBUG, "beam: {obj.shape}", logger=log)
+    @log_on_end(logging.DEBUG, "beam done", logger=log)
     def act(self, obj, adjoint=False):
         # assert self.lm_max[0] == Alm.getlmax(obj[0].size, None), (self.lm_max[0], obj.shape, Alm.getlmax(obj[0].size, None))
         # FIXME change counting for T and MV
-        if adjoint: 
-            return np.array([cli(almxfl(o, self.transferfunction[self.idx2tebl[oi]], self.lm_max[0], False)) for oi, o in enumerate(obj)])
-        return np.array([almxfl(o, self.transferfunction[self.idx2tebl[oi]], self.lm_max[0], False) for oi, o in enumerate(obj)])
+        val = np.array([cli(almxfl(o, self.transferfunction[self.idx2tebl[oi]], self.lm_max[0], False)) for oi, o in enumerate(obj)])
+        return cli(val) if adjoint else val
 
 
     def adjoint(self):
@@ -299,6 +319,8 @@ class inoise_operator:
         ]
 
 
+    @log_on_start(logging.DEBUG, "inoise: {obj.shape}", logger=log)
+    @log_on_end(logging.DEBUG, "inoise done", logger=log)
     def act(self, obj, adjoint=False):
         assert self.lm_max[0] == Alm.getlmax(obj[0].size, None), (self.lm_max[0], Alm.getlmax(obj[0].size, None))
         if adjoint:

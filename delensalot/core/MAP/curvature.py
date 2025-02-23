@@ -1,3 +1,7 @@
+import logging
+log = logging.getLogger(__name__)
+from logdecorator import log_on_start, log_on_end
+
 import numpy as np
 
 from delensalot.core.MAP import BFGS
@@ -12,6 +16,7 @@ import healpy as hp
 
 class base:
     def __init__(self, gradient_lib, h0, bfgs_desc, libdir):
+        
         self.ID = "curvature"
         self.gradient_lib = gradient_lib
         self.field = MAP_field.curvature(

@@ -13,20 +13,39 @@ from delensalot.config.handler import config_handler
 from delensalot.config.etc.abstract import parserclass
 from delensalot.config.parser import lerepi_parser
 
+import logging
+import sys
+
+# Define log format
+
+
+import logging
+import sys
+
 datefmt = "%m-%d %H:%M:%S"
 FORMAT = '%(levelname)s:: %(asctime)s:: %(name)s.%(funcName)s - %(message)s'
 formatter = logging.Formatter(FORMAT, datefmt=datefmt)
+
 ConsoleOutputHandler = logging.StreamHandler(sys.stdout)
 ConsoleOutputHandler.setFormatter(formatter)
-ConsoleOutputHandler.setLevel(logging.INFO)
 
-sys_logger = logging.getLogger(__name__)
-sys_logger.addHandler(ConsoleOutputHandler)
-sys_logger.setLevel(logging.INFO)
-logging.basicConfig(level=logging.INFO, handlers=[ConsoleOutputHandler])
-logging.getLogger("healpy").disabled = True
-log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
+# 🔥 Use root logger instead of a fixed "global_logger"
+root_logger = logging.getLogger()
+if not root_logger.hasHandlers():
+    root_logger.addHandler(ConsoleOutputHandler)
+    root_logger.setLevel(logging.INFO)  # Default level
+
+def set_logging_level(verbose: bool):
+    level = logging.DEBUG if verbose else logging.INFO
+    root_logger.setLevel(level)
+    ConsoleOutputHandler.setLevel(level)
+
+np_logger = logging.getLogger("numpy")
+np_logger.setLevel(logging.WARNING)
+np_logger = logging.getLogger("matplotlib")
+np_logger.setLevel(logging.WARNING)
+
+
 
 class run():
     """Entry point for the interactive mode
@@ -45,14 +64,7 @@ class run():
         if key is not None and config_fn is None:
             config.analysis.key = key
         os.environ['USE_PLANCKLENS_MPI'] = "False"
-        if not verbose:
-            ConsoleOutputHandler.setLevel(logging.INFO)
-            sys_logger.setLevel(logging.INFO)
-            logging.basicConfig(level=logging.INFO, handlers=[ConsoleOutputHandler])
-        else:
-            ConsoleOutputHandler.setLevel(logging.DEBUG)
-            sys_logger.setLevel(logging.DEBUG)
-            logging.basicConfig(level=logging.DEBUG, handlers=[ConsoleOutputHandler])
+        set_logging_level(verbose=verbose)  # Set True for debug mode
         
         self.parser = parserclass()
         self.parser.resume =  ""

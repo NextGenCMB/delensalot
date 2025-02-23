@@ -7,10 +7,8 @@ Each transformer is split into initializing the individual delensalot metamodel 
 import os, sys
 import copy
 from os.path import join as opj
-
 import logging
-log = logging.getLogger(__name__)
-loglevel = log.getEffectiveLevel()
+log = logging.getLogger("global_logger")
 from logdecorator import log_on_start, log_on_end
 
 import numpy as np
@@ -112,7 +110,7 @@ class l2base_Transformer:
         dl.analysis_secondary = filter_secondary_and_component(copy.deepcopy(cf.analysis.secondary), cf.analysis.key.split('_')[0])
         seclist_sorted = sorted(dl.analysis_secondary, key=lambda x: template_secondaries.index(x) if x in template_secondaries else float('inf'))
         complist_sorted = [comp for sec in seclist_sorted for comp in dl.analysis_secondary[sec]['component']]
-        # NOTE I update analysis_seocndary with whatever is in the cf.analysis keys.
+        # NOTE I update analysis_secondary with whatever is in the cf.analysis keys.
         for sec in dl.analysis_secondary:
             dl.analysis_secondary[sec]['LM_max'] = cf.analysis.LM_max
             dl.analysis_secondary[sec]['lm_max_pri'] = cf.analysis.lm_max_pri
@@ -134,10 +132,6 @@ class l2base_Transformer:
         dl.CLfids = dl.data_source.get_CLfids(0, dl.analysis_secondary, dl.Lmin)
         
     def process_Analysis(dl, an, cf):
-        if loglevel <= 20:
-            dl.verbose = True
-        elif loglevel >= 30:
-            dl.verbose = False
         dl.beam = an.beam
         dl.mask_fn = an.mask
         dl.k = an.key

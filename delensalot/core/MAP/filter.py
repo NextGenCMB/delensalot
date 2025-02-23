@@ -1,3 +1,7 @@
+import logging
+log = logging.getLogger(__name__)
+from logdecorator import log_on_start, log_on_end
+
 from os.path import join as opj
 import numpy as np
 
@@ -10,6 +14,7 @@ from delensalot.core.opfilt import MAP_opfilt_iso_p as MAP_opfilt_iso_p
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy, almxfl_nd, alm_copy_nd
 from delensalot.utils import cli
 
+from delensalot.core.MAP.context import ComputationContext
 from delensalot.core.MAP import field
 from delensalot.core.MAP import operator
 
@@ -30,6 +35,7 @@ def _extend_cl(cl, lmax):
 
 class ivf:
     def __init__(self, filter_desc): 
+        
         self.ivf_operator = filter_desc['ivf_operator']
         self.libdir = filter_desc['libdir']
         self.beam_operator = filter_desc['beam_operator']
@@ -57,6 +63,7 @@ class ivf:
 
 class wf:
     def __init__(self, filter_desc):
+        
         self.wf_operator: operator.secondary_operator = filter_desc['wf_operator']
         self.libdir = filter_desc['libdir']
         self.beam_operator: operator.beam = filter_desc['beam_operator']
@@ -68,15 +75,19 @@ class wf:
         self.wf_field: field.filter = field.filter(filterfield_desc('wf', self.libdir))
 
 
-    def get_wflm(self, idx, it, data=None):
-        if not self.wf_field.is_cached(idx, it):
+    def get_wflm(self, data=None):
+        ctx = ComputationContext()  # Get the singleton instance
+        it, idx = ctx.it, ctx.idx
+        if not self.wf_field.is_cached():
             assert data is not None, 'data is required for the calculation'
-            cg_sol_curr = self.wf_field.get_field(idx, it-1) # FIXME I could use a check here to make sure cg_sol_curr is of the right shape..
+            ctx.set(it=it-1)
+            cg_sol_curr = self.wf_field.get_field(idx, it-1)
+            ctx.set(it=it)
             tpn_alm = self.calc_prep(data) # NOTE lm_sky -> lm_pri
             mchain = CG.conjugate_gradient(self.precon_op, self.chain_descr, self.cls_filt)
             mchain.solve(cg_sol_curr, tpn_alm, self.fwd_op)
-            self.wf_field.cache(cg_sol_curr, idx, it)
-        return self.wf_field.get_field(idx, it)
+            self.wf_field.cache(cg_sol_curr)
+        return self.wf_field.get_field()
 
 
     def calc_prep(self, eblm):
@@ -127,13 +138,16 @@ class wf:
         return almxfl(elm, flmat, lmax, False)
 
 
-    def update_operator(self, idx, it, secondary=None, component=None):
-        self.wf_operator.set_field(idx, it, component)
+    def update_operator(self):
+        self.wf_operator.set_field()
 
 
-    def get_template(self, idx, it, secondary, component, lm_max_in=None, lm_max_out=None):
-        self.wf_operator.set_field(idx, it, secondary, component)
-        estCMB = self.get_wflm(idx, it)
+    # @log_on_start(logging.DEBUG, 'wf.get_template: idx={idx}, it={it}, secondary={secondary}, component={component}, lm_max_in={lm_max_in}, lm_max_out={lm_max_out}')
+    def get_template(self, lm_max_in=None, lm_max_out=None):
+        ctx = ComputationContext()  # Get the singleton instance
+        it, secondary = ctx.it, ctx.secondary   
+        self.wf_operator.set_field()
+        estCMB = self.get_wflm()
 
         # NOTE making sure that QE is perturbative, and resetting MAP to non-perturbative.
         # Must be done for each call, as the operators used are the same instance.
@@ -143,5 +157,5 @@ class wf:
 
         if lm_max_in is not None and lm_max_out is not None:
             self.wf_operator.update_lm_max(lm_max_in=lm_max_in, lm_max_out=lm_max_out)
-                
+            
         return self.wf_operator.act(estCMB, secondary=secondary)

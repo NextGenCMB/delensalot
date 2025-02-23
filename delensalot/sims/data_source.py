@@ -15,6 +15,7 @@ import copy
 import hashlib
 import logging
 log = logging.getLogger(__name__)
+from logdecorator import log_on_start, log_on_end
 
 import lenspyx
 from lenspyx.lensing import get_geom as lp_get_geom
@@ -416,10 +417,10 @@ class Xpri:
             # seclist_sorted = sorted(self.sec_info.keys(), key=lambda x: template_index_secondaries.get(x, ''))
             # return [self.get_sim_sec(idx, space, key, component=component, return_nonrec=return_nonrec) for key in seclist_sorted]
         if secondary not in _:
-            print(f"secondary {secondary} not available")
+            log.info(f"secondary {secondary} not available")
             return np.array([[]])
         if isinstance(component, str) and component not in c_(secondary):
-            print(f"component {component} of {secondary} not available")
+            log.info(f"component {component} of {secondary} not available")
             return np.array([[]])
         if component is None:
             return np.array(self.get_sim_sec(idx, space, secondary, component=c_(secondary)))
@@ -427,14 +428,14 @@ class Xpri:
         if isinstance(component, (list, np.ndarray)):
             for comp in component:
                 if comp not in c_(secondary):
-                    print(f"component {comp} not available, removing from list")
+                    log.info(f"component {comp} not available, removing from list")
                     component.remove(comp)
             return [self.get_sim_sec(idx, space, secondary, component=comp, return_nonrec=return_nonrec) for comp in component]
         
         fn = f"{secondary}{component}_space{space}_{idx}"
         if not self.cacher.is_cached(fn):
             if secondary in self.sec_info and (self.sec_info[secondary]['libdir'] == DNaV or not component in self.sec_info[secondary]['component']):
-                print(f'generating {secondary} {component} from cl')
+                log.info(f'generating {secondary} {component} from cl')
                 log.debug(f'generating {secondary}{component} from cl')
                 Clpf = self.cls_lib.get_fidsec(idx, secondary, component*2, return_nonrec=return_nonrec).squeeze()
                 Clp = self.clsecsf2clsecp(secondary, Clpf)
@@ -444,7 +445,7 @@ class Xpri:
                 if space == 'map':
                     sec = self.geom_lib.alm2map(sec, lmax=self.sec_info[secondary]['LM_max'][0], mmax=self.sec_info[secondary]['LM_max'][1], nthreads=4)
             elif secondary not in self.sec_info:
-                print(f'generating {secondary} {component} from cl')
+                log.info(f'generating {secondary} {component} from cl')
                 log.debug(f'generating {secondary}{component} from cl')
                 Clpf = self.cls_lib.get_fidsec(idx, secondary, component*2, return_nonrec=return_nonrec).squeeze()
                 Clp = self.clsecsf2clsecp(secondary, Clpf)

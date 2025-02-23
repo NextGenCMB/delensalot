@@ -1,3 +1,12 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from delensalot.core.handler import DataContainer
+
+import logging
+log = logging.getLogger(__name__)
+from logdecorator import log_on_start, log_on_end
+
 import numpy as np
 from os.path import join as opj
 from typing import List, Type, Union
@@ -9,8 +18,8 @@ from delensalot.utils import cli
 from delensalot.core.MAP import field
 from delensalot.core.MAP import operator
 
-from delensalot.core.handler import DataContainer
 from delensalot.core.MAP.filter import ivf, wf
+from delensalot.core.MAP.context import get_computation_context
 
 
 class SharedFilters:
@@ -21,7 +30,7 @@ class SharedFilters:
 
 class GradQuad:
     def __init__(self, gradient_desc):
-
+        
         self.component = gradient_desc['component']
         self.ID = gradient_desc['ID']
         self.chh = gradient_desc['chh']
@@ -45,44 +54,50 @@ class GradQuad:
         self.gfield = field.gradient(gfield_desc)
 
 
-    def get_gradient_total(self, it, component=None, data=None, data_leg2=None, idx=None, idx2=None):
+    def get_gradient_total(self, data=None, data_leg2=None):
         data_leg2 = data_leg2 or data
-        idx2 = idx2 or idx
+        ctx, is_new = get_computation_context()  # NOTE getting the singleton instance for MPI rank
+        it, idx, idx2, component = ctx.it, ctx.idx, ctx.idx2 or ctx.idx, ctx.component or self.component
         if component is None:
             component = self.gfield.component
-        if isinstance(it, (list,np.ndarray)):
-            return np.array([self.get_gradient_total(it_, component, data, data_leg2, idx=None, idx2=None, wflm=None, ivfreslm=None) for it_ in it])
-        if self.gfield.cacher.is_cached(idx=idx, idx2=idx2, it=it):
-            return self.gfield.get_total(it, self.LM_max, component)
-        else:
-            g = 0
-            g += self.get_gradient_prior(it-1, idx, idx2, component)
-            g += self.get_gradient_meanfield(it, idx, idx, component)
-            g -= self.get_gradient_quad(it, idx, idx2, component, data)
-            # self.gfield.cache_total(g, simidx, it) # NOTE this is implemented, but not used to save disk space
-            return g
-
-
-    def get_gradient_quad(self, it, idx, component=None, idx2=None):
-        assert 0, "subclass this"
-
-
-    def get_gradient_meanfield(self, idx, it, component=None, idx2=None):
-        idx2 = idx2 or idx
+        def __compute(it_):
+            total = 0
+            total += self.get_gradient_prior(it_ - 1)
+            total += self.get_gradient_meanfield()
+            total -= self.get_gradient_quad()
+            return total
+        
         if isinstance(it, (list, np.ndarray)):
-            return np.array([self.get_gradient_meanfield(idx, it_, component, idx2=idx2) for it_ in it])
-        return self.gfield.get_meanfield(idx, it, component=component, idx2=idx2)
-    
+            for it_ in it:
+                if self.gfield.cacher.is_cached(idx=idx, idx2=idx2, it=it_):
+                    return self.gfield.get_total(it_, self.LM_max, component)
+                else:
+                    return __compute(it_)
+        else:
+            if self.gfield.cacher.is_cached(idx=idx, idx2=idx2, it=it):
+                return self.gfield.get_total(it, self.LM_max, component)
+            else:
+                total = __compute(it)
+                self.gfield.cache_total(total, idx, idx2, it)
+                return total
 
+
+    def get_gradient_meanfield(self):
+        # NOTE filtering it here as it could be that not all it in list are calculated, so need to calculate them
+        ret = []
+        return self.gfield.get_meanfield()
+
+    
     def update_operator(self, idx, it):
         self.ivf_filter.update_operator(idx, it)
 
 
-    def get_gradients_prior(self, idx, it, component=None, idx2=None):
-        idx2 = idx2 or idx
+    def get_gradients_prior(self):
+        ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
+        it, idx, idx2, component = ctx.it, ctx.idx, ctx.idx2 or ctx.idx, ctx.component or self.component
         if isinstance(it, (list, np.ndarray)):
-            return np.array([self.get_gradient_prior(it_, component) for it_ in it])
-        return self.gfield.get_gradient_prior(idx, it, component=component, idx2=idx2)
+            return np.array([self.get_gradient_prior(it_) for it_ in it])
+        return self.gfield.get_gradient_prior()
     
 
     def get_data(self, idx):
@@ -149,7 +164,9 @@ class LensingGradientQuad(GradQuad):
         self.lm_max_in = self.gradient_operator.operators[-1].operators[0].lm_max_in
         
 
-    def get_gradient_quad(self, it, component=None, data=None, data_leg2=None, idx=None, idx2=None, wflm=None, ivfreslm=None):
+    def get_gradient_quad(self, data=None, data_leg2=None, wflm=None, ivfreslm=None):
+        ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
+        it, idx, idx2, component = ctx.it, ctx.idx, ctx.idx2 or ctx.idx, ctx.component or self.component
         # NOTE this function is equation 22 of the paper (for lensing).
         # Using property _2Y = _-2Y.conj
         # res = ivf.conj * gpmap(3) - ivf * gpmap(1).conj
@@ -159,13 +176,13 @@ class LensingGradientQuad(GradQuad):
             idx2 = idx2 or idx # NOTE these are the identifier to get the data from the container
         elif data is not None:
             data_leg2 = data_leg2 or data # NOTE these are the data to calculate ivfreslm and wf
-
-        if not self.gfield.quad_is_cached(idx=idx, idx2=idx2, it=it):
+        # log.log(logging.DEBUG, 'idx', idx, 'idx2', idx2, 'it', it, ' for gradient_quad lensing')
+        if not self.gfield.is_cached(type='quad'):
             if wflm is None:
                 assert self.ivf_filter is not None, "ivf_filter must be provided at instantiation in absence of wflm and ivfreslm"
                 assert self.wf_filter is not None, "wf_filter must be provided at instantiation in absence of wflm and ivfreslm"
-                wflm = self.wf_filter.get_wflm(idx, it, self.get_data(idx))
-                ivfreslm = np.ascontiguousarray(idx2, self.ivf_filter.get_ivfreslm(it, self.get_data(idx2), wflm))
+                wflm = self.wf_filter.get_wflm(self.get_data(idx))
+                ivfreslm = np.ascontiguousarray(self.ivf_filter.get_ivfreslm(self.get_data(idx2), wflm))
 
             resmap_c = np.ascontiguousarray(np.empty((self.ffi.geom.npix(),), dtype=wflm.dtype))
             resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
@@ -187,8 +204,8 @@ class LensingGradientQuad(GradQuad):
             fl2 = cli(0.5 * np.arange(self.LM_max[0]+1) * np.arange(1, self.LM_max[0]+2))
             almxfl(gc[0], fl2, self.LM_max[1], True)
             almxfl(gc[1], fl2, self.LM_max[1], True)
-            self.gfield.cache_quad(gc, idx=idx, idx2=idx2, it=it)
-        return self.gfield.get_quad(idx=idx, idx2=idx2, it=it, component=component)
+            self.gfield.cache_quad(gc)
+        return self.gfield.get_quad()
     
 
     def get_operator(self, filter_operator):
@@ -212,12 +229,13 @@ class BirefringenceGradientQuad(GradQuad):
         self.lm_max_in = self.gradient_operator.operators[-1].operators[0].lm_max_in
     
 
-    def get_gradient_quad(self, it, component=None, data=None, data_leg2=None, idx=None, idx2=None, wflm=None, ivfreslm=None):
-        idx2 = idx2 or idx
+    def get_gradient_quad(self, data=None, data_leg2=None, wflm=None, ivfreslm=None):
+        ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
+        it, idx, idx2, component = ctx.it, ctx.idx, ctx.idx2 or ctx.idx, ctx.component or self.component
         data_leg2 = data_leg2 or data
-        if not self.gfield.quad_is_cached(idx=idx, it=it, idx2=idx2):
-            wflm = self.wf_filter.get_wflm(idx, it, self.get_data(idx))
-            ivfreslm = np.ascontiguousarray(self.ivf_filter.get_ivfreslm(idx2, it, self.get_data(idx2), wflm))
+        if not self.gfield.is_cached(type='quad'):
+            wflm = self.wf_filter.get_wflm(self.get_data(idx))
+            ivfreslm = np.ascontiguousarray(self.ivf_filter.get_ivfreslm(self.get_data(idx2), wflm))
             
             ivfmap = self.ffi.geom.synthesis(ivfreslm, 2, self.lm_max_in[0], self.lm_max_in[1], self.ffi.sht_tr)
             xwfmap = self.gradient_operator.act(wflm, spin=2)
@@ -225,12 +243,13 @@ class BirefringenceGradientQuad(GradQuad):
             qlms = -4 * (ivfmap[0]*xwfmap[1] - ivfmap[1]*xwfmap[0])
             qlms = self.ffi.geom.adjoint_synthesis(qlms, 0, self.LM_max[0], self.LM_max[1], self.ffi.sht_tr)
             
-            self.gfield.cache_quad(qlms, idx=idx, it=it, idx2=idx2)
-        return self.gfield.get_quad(idx=idx, it=it, idx2=idx2, component=component)
+            self.gfield.cache_quad(qlms)
+        return self.gfield.get_quad()
     
 
     def get_operator(self, filter_operator):
         return operator.joint([operator.multiply({"factor": -1j}), filter_operator], out='map')
+
 
 class Joint(SharedFilters):
     quads: List[Union[LensingGradientQuad, BirefringenceGradientQuad]]
@@ -239,60 +258,115 @@ class Joint(SharedFilters):
         self.quads = quads
         self.ipriormatrix = ipriormatrix
         self.component = [comp for quad in self.quads for comp in quad.component]
+        self.comp2idx = {comp: i for i, comp in enumerate(self.component)}
         # self.quad1: LensingGradientQuad = object.__new__(LensingGradientQuad)()
         # self.quad2: BirefringenceGradientQuad = object.__new__(BirefringenceGradientQuad)()
     
     
-    def get_gradient_total(self, idx, it, component=None, data=None, idx2=None):
-        idx2 = idx2 or idx
-        component = component or self.component
+    # @log_on_start(logging.DEBUG, 'Joint.get_gradient_total')
+    def get_gradient_total(self, data=None):
+        ctx, isnew = get_computation_context()  # NOTE getting the singleton instance for MPI rank
+        it, idx, idx2, component = ctx.it, ctx.idx, ctx.idx2 or ctx.idx, ctx.component or self.component
+        # NOTE filtering it here as it could be that not all it in list are calculated, so need to calculate them
+        ret = []
         if isinstance(it, (list,np.ndarray)):
-            return np.array([self.get_gradient_total(idx, it_, component, data, idx2) for it_ in it])
-        totgrad = []
-        for quad in self.quads:
-            print(f'calculating total gradient for {quad.ID}')
-            component_ = [comp for comp in component if comp in quad.component]
-            if quad.gfield.is_cached(idx=idx, it=it, type='total', idx2=idx2):
-                totgrad.append(quad.gfield.get_total(idx, it, component_, idx2=idx2))
-            else:
-                totgrad.append(quad.get_gradient_meanfield(idx, it, component_, idx2=idx2) - quad.get_gradient_quad(it, component_, data, idx=idx, idx2=idx2))
-        prior = self.get_gradient_prior(idx, it-1, component, idx2=idx2)
-        totgrad = [a + b for a, b in zip(totgrad, prior)]
-        return totgrad 
+            ctx.set(it=it-1)
+            prior = self.get_gradient_prior()
+            ctx.set(it=it)
+            for iti, it_ in enumerate(it):
+                ctx.set(it=it_)
+                totgrad = []
+                for quad in self.quads:
+                    if quad.gfield.is_cached(type='total'):
+                        totgrad.append(quad.gfield.get_total())
+                    else:
+                        log.info(f'calculating total gradient for {quad.ID}')
+                        totgrad.append(quad.get_gradient_meanfield() - quad.get_gradient_quad(data=data))
+                totgrad = [a + b for a, b in zip(totgrad, prior[iti])]
+                ret.append(totgrad)
+            ctx.set(it=it)
+        else:
+            totgrad = []
+            for quad in self.quads:
+                if quad.gfield.is_cached(type='total'):
+                    totgrad.append(quad.gfield.get_total())
+                else:
+                    log.info(f'calculating total gradient for {quad.ID}')
+                    totgrad.append(quad.get_gradient_meanfield() - quad.get_gradient_quad(data=data))
+            ctx.set(it=it-1)
+            prior = self.get_gradient_prior()
+            ctx.set(it=it)
+            totgrad = [a + b for a, b in zip(totgrad, prior)]
+            ret = totgrad
+        return ret
     
 
-    def get_gradient_quad(self, idx, it, component=None, data=None, idx2=None):
-        idx2 = idx2 or idx
-        component = component or self.component
+    # @log_on_start(logging.DEBUG, 'Joint.get_gradient_quad: idx={idx}, it={it}, component={component}, data={data}, idx2={idx2}')
+    def get_gradient_quad(self, data=None):
+        # NOTE here I need to go through all quads and check it
+        ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
+        it, idx, idx2, component = ctx.it, ctx.idx, ctx.idx2 or ctx.idx, ctx.component or self.component
+        ret = []
         if isinstance(it, (list,np.ndarray)):
-            return [self.get_gradient_total(idx, it_, component, data, idx2) for it_ in it]
-        quadgrad = []
-        for quad in self.quads:
-            component_ = [comp for comp in component if comp in quad.component]
-            if quad.gfield.is_cached(idx=idx, it=it, type='quad', idx2=idx2):
-                quadgrad.append(quad.gfield.get_quad(idx, it, component_, idx2=idx2))
-            else:
-                quadgrad.append(quad.get_gradient_quad(it, component_, data, idx=idx, idx2=idx2))
-        return quadgrad 
+            quadgrad = []
+            for it_ in it:
+                ctx.set(it=it_)
+                for quad in self.quads:
+                    if quad.gfield.is_cached(type='quad'):
+                        quadgrad.append(quad.gfield.get_quad())
+                    else:
+                        log.info(f'calculating quad gradient for {quad.ID}')
+                        quadgrad.append(quad.get_gradient_quad(data=data))
+                ret.append(quadgrad)
+            ctx.set(it=it)
+        else:
+            quadgrad = []
+            for quad in self.quads:
+                if quad.gfield.is_cached(type='quad'):
+                    quadgrad.append(quad.gfield.get_quad())
+                else:
+                    log.info(f'calculating quad gradient for {quad.ID}')
+                    quadgrad.append(quad.get_gradient_quad(data=data))
+            ret = quadgrad
+        return ret
 
 
-    def get_gradient_prior(self, idx, it, component=None, idx2=None):
-        component = component or self.component
-        idx2 = idx2 or idx
+    # @log_on_start(logging.DEBUG, 'Joint.get_gradient_prior: idx={idx}, it={it}, component={component}, idx2={idx2}')
+    def get_gradient_prior(self):
+        ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
+        it, idx, idx2, component = ctx.it, ctx.idx, ctx.idx2 or ctx.idx, ctx.component or self.component
         if isinstance(it, (list, np.ndarray)):
-            return np.array([self.get_gradient_prior(idx, it_, component, idx2) for it_ in it])
+            results = []
+            for it_ in it:
+                ctx.set(it=it_)
+                complambda = lambda quad: [comp for comp in component if comp in quad.component]
+                orig = [self.get_est_for_prior(quad.gfield, complambda(quad)) for quad in self.quads]
+                original_shapes = [arr.shape for arr in orig]
+                est = np.vstack(orig)
+        
+                result = []
+                for xi, x in enumerate(self.ipriormatrix):
+                    prod_ = sum(almxfl(est[yi], self.ipriormatrix[xi, yi], None, False) for yi, y in enumerate(x))
+                    result.append(prod_)
 
-
+                sec_result = []
+                start = 0
+                for shape in original_shapes:
+                    num_rows = shape[0]
+                    sec_result.append(np.array(result[start:start + num_rows]))
+                    start += num_rows
+                results.append(sec_result)
+            ctx.set(it=it)
+            return results  # return list of results for each iteration in 'it'
+        
         complambda = lambda quad: [comp for comp in component if comp in quad.component]
-        orig = [self.get_est(quad.gfield, idx, it, complambda(quad), idx2) for quad in self.quads]
+        orig = [self.get_est_for_prior(quad.gfield, complambda(quad)) for quad in self.quads]
         original_shapes = [arr.shape for arr in orig]
         est = np.vstack(orig)
-    
+
         result = []
         for xi, x in enumerate(self.ipriormatrix):
-            prod_ = 0
-            for yi, y in enumerate(x):
-                prod_ += almxfl(est[yi],self.ipriormatrix[xi,yi], None, False)
+            prod_ = sum(almxfl(est[yi], self.ipriormatrix[xi, yi], None, False) for yi, y in enumerate(x))
             result.append(prod_)
 
         final_result = []
@@ -302,26 +376,37 @@ class Joint(SharedFilters):
             final_result.append(result[start:start + num_rows]) 
             start += num_rows
         return final_result
-    
 
-    def get_est(self, gfield, idx, it, component=None, idx2=None):
-        idx2 = idx2 or idx
-        it = 0 # NOTE setting it=0 for now
-        if isinstance(component, list):
-            if len(component) == 1:
-                component = component[0]
-            elif len(component) >1:
-                return np.atleast_2d([self.get_est(gfield, idx, it, component_, idx2=idx2).squeeze() for component_i, component_ in enumerate(component)])
-        if component is None:
-            return np.atleast_2d([self.get_est(gfield, idx, it, component_, idx2=idx2).squeeze() for component_i, component_ in enumerate(self.component)])
+    
+    def get_gradient_meanfield(self):
+        return [quad.get_gradient_meanfield() for quad in self.quads]
+
+    
+    def get_est_for_prior(self, gfield, component):
+        ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
+        it, idx, idx2 = ctx.it, ctx.idx, ctx.idx2 or ctx.idx
+        if isinstance(component, str):
+            component = [component]
         if isinstance(it, list):
-            return np.atleast_2d([self.get_est(gfield, idx, it_, component, idx2=idx2).squeeze() for it_ in it])
-        if not gfield.cacher_field.is_cached(gfield.prior_fns.format(component=component, idx=idx, idx2=idx2, it=it)):
-            assert 0, "cannot find secondary for prior at {}".format(gfield.cacher_field.lib_dir+"/"+gfield.prior_fns.format(component=component, idx=idx, idx2=idx2, it=it))
+            ret = []
+            for it_ in it:
+                ret.append([np.array([gfield.cacher_field.load(gfield.prior_fns.format(component=component, idx=idx, idx2=idx2, it=it)).squeeze()]) for comp in component])
         else:
-            priorlm = gfield.cacher_field.load(gfield.prior_fns.format(component=component, idx=idx, idx2=idx2, it=it))
-        return priorlm
+            ret = np.array([gfield.cacher_field.load(gfield.prior_fns.format(component=comp, idx=idx, idx2=idx2, it=it)).squeeze() for comp in component])
+        return ret
 
 
     def update_operator(self, idx, it):
         self.ivf_filter.update_operator(idx, it)
+
+
+    def __getattr__(self, name):
+        # NOTE this forwards the method call to the gradient_lib
+        def method_forwarder(*args, **kwargs):
+            if hasattr(self.ivf_filter, name):
+                return getattr(self.ivf_filter, name)(*args, **kwargs)
+            elif hasattr(self.wf_filter, name):
+                return getattr(self.wf_filter, name)(*args, **kwargs)
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+        
+        return method_forwarder

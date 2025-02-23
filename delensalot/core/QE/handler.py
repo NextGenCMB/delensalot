@@ -1,3 +1,7 @@
+import logging
+log = logging.getLogger(__name__)
+from logdecorator import log_on_start, log_on_end
+
 import numpy as np
 import os
 from os.path import join as opj
@@ -124,7 +128,7 @@ class base:
         return np.array(kmflm)
     
 
-    def get_wflm(self, idx, lm_max):
+    def get_wflm(self, idx, lm_max=None):
         # NOTE returns the same for each component so can just take the first key here
         return self.fq.get_wflm(idx, list(self.estimator_key.values())[0], lm_max)
 
