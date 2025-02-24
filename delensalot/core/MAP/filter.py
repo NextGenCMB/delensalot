@@ -8,7 +8,7 @@ import numpy as np
 from scipy.interpolate import UnivariateSpline as spl
 import healpy as hp
 
-from delensalot.core.MAP import CG
+from delensalot.core.MAP import cg
 from delensalot.core.opfilt import MAP_opfilt_iso_p as MAP_opfilt_iso_p
 
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy, almxfl_nd, alm_copy_nd
@@ -33,14 +33,14 @@ def _extend_cl(cl, lmax):
     ret[:min(len(cl), lmax+1)]= np.copy(cl[:min(len(cl), lmax+1)])
     return ret
 
-class ivf:
+class IVF:
     def __init__(self, filter_desc): 
         
         self.ivf_operator = filter_desc['ivf_operator']
         self.libdir = filter_desc['libdir']
         self.beam_operator = filter_desc['beam_operator']
         self.inoise_operator = filter_desc['inoise_operator']
-        self.ivf_field = field.filter(filterfield_desc('ivf', self.libdir))
+        self.ivf_field = field.Filter(filterfield_desc('ivf', self.libdir))
 
 
     def get_ivfreslm(self, it, data=None, eblm_wf=None):
@@ -63,18 +63,18 @@ class ivf:
         self.ivf_operator.set_field(idx=idx, it=it, idx2=idx2)
 
 
-class wf:
+class WF:
     def __init__(self, filter_desc):
         
-        self.wf_operator: operator.secondary_operator = filter_desc['wf_operator']
+        self.wf_operator: operator.SecondaryOperator = filter_desc['wf_operator']
         self.libdir = filter_desc['libdir']
-        self.beam_operator: operator.beam = filter_desc['beam_operator']
-        self.inoise_operator: operator.inoise_operator = filter_desc['inoise_operator']
+        self.beam_operator: operator.BeamOperator = filter_desc['beam_operator']
+        self.inoise_operator: operator.InoiseOperator = filter_desc['inoise_operator']
 
         self.chain_descr = filter_desc['chain_descr']
         self.cls_filt = filter_desc['cls_filt']
 
-        self.wf_field: field.filter = field.filter(filterfield_desc('wf', self.libdir))
+        self.wf_field: field.Filter = field.Filter(filterfield_desc('wf', self.libdir))
 
 
     def get_wflm(self, it, data=None):
@@ -82,7 +82,7 @@ class wf:
             assert data is not None, 'data is required for the calculation'
             cg_sol_curr = self.wf_field.get_field(it=it-1) # *(0+0*1j)
             tpn_alm = self.calc_prep(data) # NOTE lm_sky -> lm_pri
-            mchain = CG.conjugate_gradient(self.precon_op, self.chain_descr, self.cls_filt)
+            mchain = cg.ConjugateGradient(self.precon_op, self.chain_descr, self.cls_filt)
             mchain.solve(cg_sol_curr, tpn_alm, self.fwd_op)
             self.wf_field.cache(cg_sol_curr, it=it)
         return self.wf_field.get_field(it=it)

@@ -25,7 +25,7 @@ from lenspyx.lensing import get_geom
 from delensalot.sims.data_source import DataSource
 
 from delensalot.core.helper import utils_plancklens
-from delensalot.core.handler import OBD_builder, DataContainer, QE_scheduler, MAP_scheduler, Map_delenser, Phi_analyser
+from delensalot.core.handler import OBDBuilder, DataContainer, QEScheduler, MAPScheduler, MapDelenser, PhiAnalyser
 
 from delensalot.config.etc.errorhandler import DelensalotError
 from delensalot.config.metamodel import DEFAULT_NotAValue as DNaV
@@ -37,7 +37,7 @@ from delensalot.utils import cli, camb_clfile, load_file
 
 from delensalot.core.MAP.handler import Likelihood, Minimizer
 from delensalot.core.MAP import curvature, filter, operator
-from delensalot.core.MAP.gradient import Joint, BirefringenceGradientQuad, LensingGradientQuad, GradSub
+from delensalot.core.MAP.gradient import Gradient, BirefringenceGradientSub, LensingGradientSub, GradSub
 
 import itertools
 from delensalot.config.config_helper import PLANCKLENS_keys
@@ -337,7 +337,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
             }
             return ret
-        return QE_scheduler(**extract())
+        return QEScheduler(**extract())
 
 
     def build_MAP_lensrec(self, cf):
@@ -413,10 +413,10 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 }
                 if sec == "lensing":
                     _MAP_operators_desc[sec]["perturbative"] = False
-                    filter_operators.append(operator.lensing(_MAP_operators_desc[sec]))
+                    filter_operators.append(operator.LensingOperator(_MAP_operators_desc[sec]))
                 elif sec == 'birefringence':
-                    filter_operators.append(operator.birefringence(_MAP_operators_desc[sec]))
-            sec_operator = operator.secondary_operator(filter_operators[::-1]) # NOTE gradients are sorted in the order of the secondaries, but the secondary operator, I want to act birefringence first.
+                    filter_operators.append(operator.BirefringenceOperator(_MAP_operators_desc[sec]))
+            sec_operator = operator.SecondaryOperator(filter_operators[::-1]) # NOTE gradients are sorted in the order of the secondaries, but the secondary operator, I want to act birefringence first.
 
             wf_info = {
                 'chain_descr': lambda p2, p5 : [[0, ["diag_cl"], p2, dl.nivjob_geominfo[1]['nside'], np.inf, p5, cd_solve.tr_cg, cd_solve.cache_mem()]],
@@ -424,21 +424,21 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             }
             MAP_wf_desc = {
                 'wf_operator': sec_operator,
-                'beam_operator': operator.beam({'transferfunction': obs_info['beam_transferfunction'], 'lm_max': dl.lm_max_sky}),
-                'inoise_operator': operator.inoise_operator(nlev=noise_info['nlev'], lm_max=dl.lm_max_sky),
+                'beam_operator': operator.BeamOperator({'transferfunction': obs_info['beam_transferfunction'], 'lm_max': dl.lm_max_sky}),
+                'inoise_operator': operator.InoiseOperator(nlev=noise_info['nlev'], lm_max=dl.lm_max_sky),
                 'libdir': opj(libdir, 'filter/'),
                 "chain_descr": wf_info['chain_descr'](dl.lm_max_pri[0], wf_info['cg_tol']),
                 "cls_filt": data_container.cls_lib.Cl_dict,
             }
-            wf_filter = filter.wf(MAP_wf_desc)
+            wf_filter = filter.WF(MAP_wf_desc)
 
             MAP_ivf_desc = {
                 'ivf_operator': sec_operator,
-                'beam_operator': operator.beam({'transferfunction': obs_info['beam_transferfunction'], 'lm_max': dl.lm_max_sky}),
-                'inoise_operator': operator.inoise_operator(nlev=noise_info['nlev'], lm_max=dl.lm_max_sky),
+                'beam_operator': operator.BeamOperator({'transferfunction': obs_info['beam_transferfunction'], 'lm_max': dl.lm_max_sky}),
+                'inoise_operator': operator.InoiseOperator(nlev=noise_info['nlev'], lm_max=dl.lm_max_sky),
                 'libdir': opj(libdir, 'filter/'),
             }
-            ivf_filter = filter.ivf(MAP_ivf_desc)
+            ivf_filter = filter.IVF(MAP_ivf_desc)
 
             quad_desc = {
                 "ivf_filter": ivf_filter,
@@ -458,7 +458,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "ID": 'lensing',
                     "chh": {comp: CLfids_lens[comp*2][:4000+1] * (0.5 * np.arange(4000+1) * np.arange(1,4000+2))**2 for comp in dl.analysis_secondary['lensing']['component']},
                 })
-                lens_grad_quad = LensingGradientQuad(quad_desc)
+                lens_grad_quad = LensingGradientSub(quad_desc)
                 chhsall.extend(list({comp: CLfids_lens[comp*2][:4000+1] * (0.5 * np.arange(4000+1) * np.arange(1,4000+2))**2 for comp in dl.analysis_secondary['lensing']['component']}.values()))
                 subs.append(lens_grad_quad)
 
@@ -469,7 +469,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "ID": 'birefringence',
                     "chh": {comp: CLfids_bire[comp*2][:4000+1] for comp in dl.analysis_secondary['birefringence']['component']},
                 })
-                bire_grad_quad = BirefringenceGradientQuad(quad_desc)
+                bire_grad_quad = BirefringenceGradientSub(quad_desc)
                 chhsall.extend(list({comp: CLfids_bire[comp*2][:4000+1] for comp in dl.analysis_secondary['birefringence']['component']}.values()))
                 subs.append(bire_grad_quad)
 
@@ -485,7 +485,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 'subs': subs,
                 'ipriormatrix': ipriormatrix
             }
-            gradient = Joint(**joint_desc)
+            gradient = Gradient(**joint_desc)
 
             MAP_likelihood_descs = {
                 idx: {
@@ -525,7 +525,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             }
             return MAP_job_desc 
 
-        return MAP_scheduler(**extract())
+        return MAPScheduler(**extract())
 
 
 @transform.case(DELENSALOT_Model_mm_v3, l2T_Transformer)

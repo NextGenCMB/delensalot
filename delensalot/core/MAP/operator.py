@@ -50,7 +50,7 @@ class Base:
         assert 0, "subclass this"
 
 
-class multiply:
+class Multiply:
     def __init__(self, descr):
         
         self.ID = 'multiply'
@@ -74,7 +74,7 @@ class multiply:
         pass
 
 
-class joint:
+class JointOperator:
     def __init__(self, operators, out):
         
         self.operators = operators
@@ -104,7 +104,7 @@ class joint:
             operator.set_field(idx, it, component, idx2)
     
 
-class secondary_operator:
+class SecondaryOperator:
     def __init__(self, desc):
         
         self.ID = 'secondaries'
@@ -118,7 +118,7 @@ class secondary_operator:
         operators = self.operators if not adjoint else self.operators[::-1]
         for idx, operator in enumerate(operators):
             if operator.ID in secondary:
-                if isinstance(operator, lensing):
+                if isinstance(operator, LensingOperator):
                     obj = operator.act(obj, spin, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode, out=out)
                 else:
                     obj = operator.act(obj, spin, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode)
@@ -136,7 +136,7 @@ class secondary_operator:
                 operator.set_field(idx, it, component, idx2)
 
 
-class lensing(Base):
+class LensingOperator(Base):
     def __init__(self, operator_desc):
         super().__init__(operator_desc["libdir"], operator_desc["LM_max"])
         
@@ -174,7 +174,7 @@ class lensing(Base):
                         return self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max_out[1], spin, *self.lm_max_in)
     
 
-    log_on_start(logging.DEBUG, "setting field for lensing: idx={idx}, it={it}, component={component}, idx2={idx2}", logger=log)
+    @log_on_start(logging.DEBUG, "setting field for lensing: idx={idx}, it={it}, component={component}, idx2={idx2}", logger=log)
     def set_field(self, idx, it, component=None, idx2=None):
         idx2 = idx2 or idx
         if component is None:
@@ -202,7 +202,7 @@ class lensing(Base):
         return almxfl(klm, h2d, Lmax, False)
 
 
-class birefringence(Base):
+class BirefringenceOperator(Base):
     def __init__(self, operator_desc):
         super().__init__(operator_desc["libdir"], operator_desc["LM_max"])
         
@@ -249,7 +249,8 @@ class birefringence(Base):
             component = component[0]
         self.field[component] = alm_copy(self.field_cacher.load(opj(self.field_fns[component].format(idx=idx, idx2=idx2, it=it))), None, *self.LM_max)
 
-class spin_raise:
+
+class SpinRaiseOperator:
     def __init__(self, lm_max):
         self.ID = 'spin_raise'
         self.lm_max = lm_max
@@ -278,7 +279,7 @@ class spin_raise:
         pass
     
 
-class beam:
+class BeamOperator:
     def __init__(self, operator_desc):
         self.ID = 'beam'
         self.transferfunction = operator_desc['transferfunction']
@@ -306,7 +307,7 @@ class beam:
         return self.act(obj)
     
 
-class inoise_operator:
+class InoiseOperator:
     def __init__(self, nlev, lm_max):
         self.ID = 'inoise'
         self.nlev = nlev

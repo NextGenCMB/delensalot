@@ -16,14 +16,10 @@ import datetime, getpass, copy
 import numpy as np
 import healpy as hp
 
-from plancklens import qresp, qest, utils as pl_utils
 from plancklens.sims import planck2018_sims
-
-from lenspyx.lensing import get_geom 
 
 from delensalot.utils import cli
 from delensalot.utils import read_map, ztruncify
-from delensalot.utility import utils_qe, utils_sims
 from delensalot.utility.utils_hp import Alm, almxfl, alm_copy, gauss_beam, alm2cl
 
 from delensalot.config.visitor import transform, transform3d
@@ -31,14 +27,8 @@ from delensalot.config.metamodel import DEFAULT_NotAValue
 
 from delensalot.core import mpi
 from delensalot.core.mpi import check_MPI
-from delensalot.core.ivf import filt_util, filt_cinv, filt_simple
 
-from delensalot.core.MAP.context import ComputationContext
-
-from delensalot.core.iterator.iteration_handler import iterator_transformer
 from delensalot.core.iterator.statics import rec as rec
-from delensalot.core.opfilt import utils_cinv_p as cinv_p_OBD
-from delensalot.core.opfilt.opfilt_handler import QE_transformer, MAP_transformer
 from delensalot.core.opfilt.bmodes_ninv import template_dense, template_bfilt
 
 from delensalot.core.MAP import handler as MAP_handler
@@ -97,7 +87,6 @@ class Basejob():
             _str += '\n'
         return _str
 
-
     def __init__(self, model):
         self.__dict__.update(model.__dict__)
 
@@ -134,80 +123,7 @@ class Basejob():
         assert 0, "Implement if needed"
 
 
-    # @base_exception_handler
-    @log_on_start(logging.DEBUG, "collect_jobs() started")
-    @log_on_end(logging.DEBUG, "collect_jobs() finished")
-    def get_qlm_it(self, idx, it):
-
-        assert 0, "Implement if needed"
-
-
-    # @base_exception_handler
-    @log_on_start(logging.DEBUG, "collect_jobs() started")
-    @log_on_end(logging.DEBUG, "collect_jobs() finished")
-    def get_plm_it(self, idx, its):
-
-        plms = rec.load_plms(self.libdir_MAP(self.k, idx, self.version), its)
-
-        return plms
-
-
-    # @base_exception_handler
-    @log_on_start(logging.DEBUG, "collect_jobs() started")
-    @log_on_end(logging.DEBUG, "collect_jobs() finished")
-    def get_mf_it(self, idx, it, normalized=True):
-
-        assert 0, "Implement if needed"
-
-
-    # @base_exception_handler
-    @log_on_start(logging.DEBUG, "collect_jobs() started")
-    @log_on_end(logging.DEBUG, "collect_jobs() finished")
-    def get_blt_it(self, idx, it):
-        if self.data_from_CFS:
-            # TODO probably enough to just check if libdir_blt_MAP_CFS is empty
-            assert 0, 'implement if needed'
-            fn_blt = self.libdir_blt_MAP_CFS(self.k, idx, self.version)
-        else:
-            if it == 0:
-                fn_blt = opj(self.libdir_blt(idx), 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, idx, 0, 0, self.lm_max_blt[0]) + 'perturbative' * self.blt_pert + '.npy')
-            elif it >0:
-                fn_blt = opj(self.libdir_blt(idx), 'blt_%s_%04d_p%03d_e%03d_lmax%s'%(self.k, idx, it, it, self.lm_max_blt[0]) + '.npy')
-        return np.load(fn_blt)
-    
-
-    # @base_exception_handler
-    @log_on_start(logging.DEBUG, "collect_jobs() started")
-    @log_on_end(logging.DEBUG, "collect_jobs() finished")
-    def get_ivf(self, idx, it, field):
-
-        assert 0, "Implement if needed"
-
-
-    # @base_exception_handler
-    @log_on_start(logging.DEBUG, "collect_jobs() started")
-    @log_on_end(logging.DEBUG, "collect_jobs() finished")
-    def get_wf(self, idx, it, field):
-
-        assert 0, "Implement if needed"
-    
-
-    # @base_exception_handler
-    @log_on_start(logging.DEBUG, "collect_jobs() started")
-    @log_on_end(logging.DEBUG, "collect_jobs() finished")
-    def get_fiducial_sim(self, idx, field):
-        """_summary_
-        """   
-        assert 0, "Implement if needed"
-
-
-    @log_on_start(logging.DEBUG, "get_filter() started")
-    @log_on_end(logging.DEBUG, "get_filter() finished")
-    def get_filter(self): 
-        assert 0, 'overwrite'
-
-
-class OBD_builder(Basejob):
+class OBDBuilder(Basejob):
     """OBD matrix builder Job. Calculates the OBD matrix, used to correctly deproject the B-modes at a masked sky.
     """
     @check_MPI
@@ -505,7 +421,7 @@ class DataContainer:
         return self.data_source.get_sim_obs(idx=idx, space='map', field='polarization', spin=2)
 
 
-class QE_scheduler:
+class QEScheduler:
     """Quadratic estimate lensing reconstruction Job. Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.
     """
     @check_MPI
@@ -707,7 +623,7 @@ class QE_scheduler:
         return self.QE_searchs[0].isdone(idx)
 
 
-class MAP_scheduler:
+class MAPScheduler:
     MAP_minimizers: List[MAP_handler.Minimizer]
     def __init__(self, idxs, idxs_mf, data_container, QE_searchs, tasks, MAP_minimizers):
         self.data_container = data_container
@@ -855,8 +771,7 @@ class MAP_scheduler:
         return method_forwarder
 
 
-
-class Map_delenser(Basejob):
+class MapDelenser(Basejob):
     """Map delenser Job for calculating delensed ILC and Blens spectra using precaulculated Btemplates as input.
     This is a combination of,
      * delensing with Btemplates (QE, MAP),
@@ -1029,7 +944,7 @@ class Map_delenser(Basejob):
             return  almxfl(hlm, h2d, self.mmax_qlm, False)
 
 
-class Phi_analyser(Basejob):
+class PhiAnalyser(Basejob):
     """ This only works on Full sky.
     Phi analyser Job for calculating,
         * cross correlation,
@@ -1219,7 +1134,7 @@ class Phi_analyser(Basejob):
         return np.load(fn%(self.k, len(self.idxs), len(self.its)))
         
 
-class overwrite_anafast():
+class OverwriteAnafast():
     """Convenience class for overwriting method name
     """    
 
@@ -1227,7 +1142,7 @@ class overwrite_anafast():
         return hp.anafast(*args, **kwargs)
 
 
-class masked_lib:
+class MaskedLib:
     """Convenience class for handling method names
     """   
     def __init__(self, mask, cl_calc, lmax, lmax_mask):

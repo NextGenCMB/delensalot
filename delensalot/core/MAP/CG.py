@@ -4,7 +4,7 @@ import numpy as np
 from delensalot.core.cg import cd_monitors
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy
 
-class multigrid_stage(object):
+class MultigridStage(object):
     def __init__(self, ids, pre_ops_descr, lmax, nside, iter_max, eps_min, tr, cache):
         self.depth = ids
         self.pre_ops_descr = pre_ops_descr
@@ -18,7 +18,7 @@ class multigrid_stage(object):
 
 
 #NOTE this is actually not a multigrid anymore, check line 35. pure diagonal here.
-class conjugate_gradient:
+class ConjugateGradient:
     def __init__(self, pre_op_diag, chain_descr, s_cls, debug_log_prefix=None, plogdepth=0):
         self.debug_log_prefix = debug_log_prefix
         self.plogdepth = plogdepth
@@ -26,7 +26,7 @@ class conjugate_gradient:
         self.s_cls = s_cls
         stages = {}
         for [id, pre_ops_descr, lmax, nside, iter_max, eps_min, tr, cache] in self.chain_descr:
-            stages[id] = multigrid_stage(id, pre_ops_descr, lmax, nside, iter_max, eps_min, tr, cache)
+            stages[id] = MultigridStage(id, pre_ops_descr, lmax, nside, iter_max, eps_min, tr, cache)
             for pre_op_descr in pre_ops_descr:  # recursively add all stages to stages[0]
                 stages[id].pre_ops.append(pre_op_diag)
         self.bstage = stages[0]  # these are the pre_ops called in cd_solve

@@ -18,7 +18,7 @@ from delensalot.utils import cli
 from delensalot.core.MAP import field
 from delensalot.core.MAP import operator
 
-from delensalot.core.MAP.filter import ivf, wf
+from delensalot.core.MAP.filter import IVF, WF
 from delensalot.core.MAP.context import get_computation_context
 
 
@@ -37,8 +37,8 @@ class GradSub:
         libdir = gradient_desc['libdir']
         self.data_key = gradient_desc['data_key']
 
-        self.ivf_filter: ivf = gradient_desc.get('ivf_filter', None)
-        self.wf_filter: wf = gradient_desc.get('wf_filter', None)
+        self.ivf_filter: IVF = gradient_desc.get('ivf_filter', None)
+        self.wf_filter: WF = gradient_desc.get('wf_filter', None)
 
         self.ffi = gradient_desc['sec_operator'].operators[0].ffi # each sec operator has the same ffi, so can pick any
         self.LM_max = gradient_desc['LM_max']
@@ -51,7 +51,7 @@ class GradSub:
             "chh": self.chh,
             "component": self.component,
         }
-        self.gfield = field.gradient(gfield_desc)
+        self.gfield = field.Gradient(gfield_desc)
 
 
     def get_gradient_total(self, it, data=None, data_leg2=None):
@@ -156,7 +156,7 @@ class GradSub:
                         self.gfield.cache_meanfield(kmflm_QE, idx, idx2=idx2, it=0)
 
 
-class LensingGradientQuad(GradSub):
+class LensingGradientSub(GradSub):
     def __init__(self, desc):
         super().__init__(desc)
         self.gradient_operator: operator.joint = self.get_operator(desc['sec_operator'])
@@ -207,7 +207,7 @@ class LensingGradientQuad(GradSub):
 
     def get_operator(self, filter_operator):
         lm_max_out = filter_operator.operators[0].lm_max_out
-        return operator.joint([operator.spin_raise(lm_max=lm_max_out), filter_operator], out='map')
+        return operator.JointOperator([operator.SpinRaiseOperator(lm_max=lm_max_out), filter_operator], out='map')
     
 
     def cache(self, gfieldlm, it, type='quad'):
@@ -218,7 +218,7 @@ class LensingGradientQuad(GradSub):
         return self.gfield.is_cached(type=type, it=it)
 
 
-class BirefringenceGradientQuad(GradSub):
+class BirefringenceGradientSub(GradSub):
 
     def __init__(self, desc):
         super().__init__(desc)
@@ -245,19 +245,19 @@ class BirefringenceGradientQuad(GradSub):
     
 
     def get_operator(self, filter_operator):
-        return operator.joint([operator.multiply({"factor": -1j}), filter_operator], out='map')
+        return operator.JointOperator([operator.Multiply({"factor": -1j}), filter_operator], out='map')
 
 
-class Joint(SharedFilters):
-    subs: List[Union[LensingGradientQuad, BirefringenceGradientQuad]]
+class Gradient(SharedFilters):
+    subs: List[Union[LensingGradientSub, BirefringenceGradientSub]]
     def __init__(self, subs, ipriormatrix):
         super().__init__(subs[0]) # NOTE I am assuming the ivf and wf class are the same in all gradients
-        self.subs: List[Union[LensingGradientQuad, BirefringenceGradientQuad]] = subs
+        self.subs: List[Union[LensingGradientSub, BirefringenceGradientSub]] = subs
         self.ipriormatrix = ipriormatrix
         self.component = [comp for sub in self.subs for comp in sub.component]
         self.comp2idx = {comp: i for i, comp in enumerate(self.component)}
-        # self.sub1: LensingGradientQuad = object.__new__(LensingGradientQuad)()
-        # self.sub2: BirefringenceGradientQuad = object.__new__(BirefringenceGradientQuad)()
+        # self.sub1: LensingGradientSub = object.__new__(LensingGradientSub)()
+        # self.sub2: BirefringenceGradientSub = object.__new__(BirefringenceGradientSub)()
     
     
     # @log_on_start(logging.DEBUG, 'Joint.get_gradient_total')

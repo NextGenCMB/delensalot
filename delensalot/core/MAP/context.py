@@ -21,7 +21,6 @@ class ComputationContext:
         self.rank = rank
         self.idx = None
         self.idx2 = None
-        self.it = None
         self.component = None
         self.secondary = None
 
@@ -31,7 +30,6 @@ class ComputationContext:
     def reset(self):
         self.idx = None
         self.idx2 = None
-        self.it = None
         self.component = None
         self.secondary = None
 

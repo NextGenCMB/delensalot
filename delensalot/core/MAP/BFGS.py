@@ -11,7 +11,7 @@ from delensalot.utils import cli
 from delensalot.utility.utils_hp import almxfl, alm2cl
 
 
-class BFGS_Hessian(object):
+class BFGSHessian(object):
     """
     Class to evaluate the update to inverse Hessian matrix in the L-BFGS scheme.
     (see wikipedia article if nothing else).

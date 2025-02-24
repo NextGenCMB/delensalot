@@ -93,7 +93,7 @@ template_index_lensingcomponent = {val: i for i, val in enumerate(template_lensi
 template_secondaries = ['lensing', 'birefringence']  # Define your desired order
 template_index_secondaries = {val: i for i, val in enumerate(template_secondaries)}
 
-class iso_white_noise:
+class IsoWhiteNoise:
     # FIXME misleading naming. if noisemaps are passed, these are not necessarily iso. One way to refactor is to create a more generic class 'noise_map'.
     """class for generating very simple isotropic white noise
     """
@@ -980,7 +980,7 @@ class DataSource:
                 self.sky_lib = Xsky(pri_lib=self.pri_lib, geominfo=geominfo, CMB_info=copy.copy(CMB_info), operator_info=operator_info)
 
             if obs_info['noise_info'].get('libdir', DNaV) == DNaV:
-                noise_lib = iso_white_noise(geominfo=geominfo, noise_info=obs_info['noise_info'], libdir_suffix=libdir_suffix)
+                noise_lib = IsoWhiteNoise(geominfo=geominfo, noise_info=obs_info['noise_info'], libdir_suffix=libdir_suffix)
                 obs_info['noise_info'].update({'noise_lib':noise_lib})
                 self.noise_lib = noise_lib
             self.obs_lib = Xobs(maps=DNaV, sky_lib=self.sky_lib, geominfo=geominfo, CMB_info=copy.copy(CMB_info), obs_info=obs_info)

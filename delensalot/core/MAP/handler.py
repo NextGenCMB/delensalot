@@ -8,12 +8,9 @@ from os.path import join as opj
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy
 from delensalot.utils import cli
 
-
 from . import field
 from . import gradient
 from . import curvature
-from . import filter
-from . import operator
 
 template_secondaries = ['lensing', 'birefringence']  # Define your desired order
 template_index_secondaries = {val: i for i, val in enumerate(template_secondaries)}
@@ -88,7 +85,7 @@ class Minimizer:
             if it >= 2:
                 grad_prev = self.get_gradient_total(it-1)
                 grad_prev = np.concatenate([np.ravel(arr) for arr in grad_prev])
-                self.likelihood.curvature.add_yvector(grad_tot, grad_prev, it-1)
+                self.likelihood.curvature.add_yvector(grad_tot, grad_prev, it)
 
             increment = self.likelihood.curvature.get_increment(grad_tot, it)
             prev_klm = np.concatenate([np.ravel(arr) for arr in self._get_est(it-1, scale=scale)])
@@ -150,8 +147,8 @@ class Likelihood:
         self.idx2 = idx2 or idx
         self.lm_max_sky = lm_max_sky
 
-        self.secondaries: field.secondary = {
-            quad.ID: field.secondary({
+        self.secondaries: field.Secondary = {
+            quad.ID: field.Secondary({
                 "ID":  quad.ID,
                 "component": quad.component,
                 "libdir": opj(self.libdir, 'estimate/'),
@@ -160,7 +157,7 @@ class Likelihood:
         self.idx2sec = {idx: secondary_ID for idx, secondary_ID in enumerate(self.secondaries.keys())}
         self.seclist_sorted = sorted(list(self.sec2idx.keys()), key=lambda x: template_index_secondaries.get(x, ''))
 
-        self.gradient_lib: gradient.Joint  = gradient_lib
+        self.gradient_lib: gradient.Gradient  = gradient_lib
 
         def dotop(glms1, glms2):
             ret, N = 0., 0
@@ -174,7 +171,7 @@ class Likelihood:
         curvature_desc["bfgs_desc"].update({'dot_op': dotop})
         curvature_desc['libdir'] = opj(self.libdir, 'curvature/')
         curvature_desc['h0'] = [h0 for QE_search in self.QE_searchs for h0 in QE_search._get_h0()]
-        self.curvature: curvature.base = curvature.base(self.gradient_lib, **curvature_desc)
+        self.curvature: curvature.Base = curvature.Base(self.gradient_lib, **curvature_desc)
         
 
     def get_likelihood(self, it):

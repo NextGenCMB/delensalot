@@ -14,7 +14,7 @@ from delensalot.core.MAP.context import get_computation_context
 def get_secondary_fns(component):
     return {comp: f'klm_{comp}_idx{{idx}}_{{idx2}}_it{{it}}' for comp in component}
 
-class secondary:
+class Secondary:
     def __init__(self, field_desc):
         self.ID = field_desc['ID']
         self.libdir = field_desc['libdir']
@@ -85,7 +85,7 @@ class secondary:
         return almxfl(klm, h2d, Lmax, False)
     
 
-class gradient:
+class Gradient:
     def __init__(self, field_desc):
         self.ID = field_desc['ID']
         self.libdir = field_desc['libdir']
@@ -254,7 +254,7 @@ class gradient:
                 self.cacher.remove(file_map[type])
     
 
-class filter:
+class Filter:
     def __init__(self, field_desc):
         self.ID = field_desc['ID']
         self.libdir = field_desc['libdir']
@@ -288,7 +288,7 @@ class filter:
             self.cacher.remove(self.fns.format(idx=idx, it=it, idx2=idx2))
     
 
-class curvature:
+class Curvature:
     def __init__(self, field_desc):
         self.libdir = field_desc['libdir']
         self.fns =  field_desc['fns']
