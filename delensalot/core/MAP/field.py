@@ -53,16 +53,17 @@ class secondary:
 
 
     def cache_klm(self, klm, it):
-        ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
+        ctx, _ = get_computation_context()
         idx, idx2, component = ctx.idx, ctx.idx2 or ctx.idx, ctx.component or self.component
         if isinstance(component, str):
             component = [component]
         for ci, comp in enumerate(self.component):
-            self.cacher.cache(self.fns[comp].format(idx=idx, idx2=idx2, it=it), np.atleast_2d(klm[ci]))
+            klm_ = klm[ci] if isinstance(klm, (list, np.ndarray)) else klm[comp] # TODO this can be removed one the get_est from minimizer is fixed
+            self.cacher.cache(self.fns[comp].format(idx=idx, idx2=idx2, it=it), np.atleast_2d(klm_))
 
 
     def is_cached(self, it):
-        ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
+        ctx, _ = get_computation_context()
         idx, idx2, component = ctx.idx, ctx.idx2 or ctx.idx, ctx.component or self.component
         if isinstance(component, str):
             component = [component]
@@ -70,7 +71,7 @@ class secondary:
     
 
     def remove(self, it):
-        ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
+        ctx, _ = get_computation_context()
         idx, idx2, component = ctx.idx, ctx.idx2 or ctx.idx, ctx.component or self.component
         if isinstance(component, str):
             component = [component]
@@ -113,14 +114,18 @@ class gradient:
         if isinstance(it, (np.ndarray, list)):
             ret = []
             for it_ in it:
+                retcomp = []
                 for compi, comp in enumerate(component):
-                    priorlm = self.cacher_field.load(self.prior_fns.format(component=comp, idx=idx, idx2=idx2, it=it_))[indices]
-                ret.append(priorlm)
+                    priorlm = self.cacher_field.load(self.prior_fns.format(component=comp, idx=idx, idx2=idx2, it=it_)).squeeze()
+                    retcomp.append(priorlm)
+                ret.append(np.array(retcomp)[indices])
+            return np.array(ret)
         else:
+            ret = []
             for compi, comp in enumerate(component):
-                priorlm = self.cacher_field.load(self.prior_fns.format(component=comp, idx=idx, idx2=idx2, it=it))[indices]
-                ret = priorlm
-        return ret
+                priorlm = self.cacher_field.load(self.prior_fns.format(component=comp, idx=idx, idx2=idx2, it=it)).squeeze()
+                ret.append(priorlm)
+            return np.array(ret)[indices]
 
 
     def get_prior(self, it):
@@ -191,36 +196,35 @@ class gradient:
         if isinstance(component, str):
             component = [component]
         indices = [self.comp2idx[comp] for comp in component]
-        if self.is_cached(type='total'):
+        if self.is_cached(it=it, type='quad'):
             if isinstance(it, (np.ndarray, list)):
                 return [self.cacher.load(self.quad_fns.format(idx=idx, idx2=idx2, it=it_))[:,indices] for it_ in it]
             else:
                 ret = self.cacher.load(self.quad_fns.format(idx=idx, idx2=idx2, it=it))
                 return ret[indices]
         else:
-            assert 0, f"cannot find meanfield at {self.libdir}/{self.meanfield_fns.format(idx=idx, idx2=idx2, it=it)}"
+            assert 0, f"cannot find meanfield at {self.libdir}/{self.quad_fns.format(idx=idx, idx2=idx2, it=it)}"
 
 
-    def cache_total(self, totlm, it):
+    def cache(self, data, it, type):
         ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
         idx, idx2 = ctx.idx, ctx.idx2 or ctx.idx
-        self.cacher_field.cache(self.total_fns.format(idx=idx, idx2=idx2, it=it), totlm)
 
+        file_map = {
+            'total': (self.cacher_field, self.total_fns.format(idx=idx, idx2=idx2, it=it)),
+            'quad': (self.cacher, self.quad_fns.format(idx=idx, idx2=idx2, it=it)),
+            'meanfield': (self.cacher, self.meanfield_fns.format(idx=idx, idx2=idx2, it=it)),
+        }
 
-    def cache_meanfield(self, kmflm, it):
-        ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
-        idx, idx2 = ctx.idx, ctx.idx2 or ctx.idx
-        self.cacher.cache(self.meanfield_fns.format(idx=idx, idx2=idx2, it=it), kmflm)
-
-
-    def cache_quad(self, quadlm, it):
-        ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
-        idx, idx2 = ctx.idx, ctx.idx2 or ctx.idx
-        self.cacher.cache(self.quad_fns.format(idx=idx, idx2=idx2, it=it), quadlm)
+        if type in file_map:
+            cacher, filename = file_map[type]
+            cacher.cache(filename, data)
+        else:
+            raise ValueError(f"Unknown cache type: {type}")
     
 
     def is_cached(self, it, type=None):
-        ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
+        ctx, _ = get_computation_context()
         idx, idx2 = ctx.idx, ctx.idx2 or ctx.idx
         file_map = {
             'total': self.total_fns.format(idx=idx, idx2=idx2, it=it),

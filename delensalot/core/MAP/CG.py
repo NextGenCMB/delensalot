@@ -145,7 +145,6 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
     searchdirs = [op(residual) for op in pre_ops]
 
     iter = 0
-    
     while not criterion(iter, x, residual):
         searchfwds = [fwd_op(searchdir) for searchdir in searchdirs]
         deltas = [dot_op(searchdir, residual) for searchdir in searchdirs]

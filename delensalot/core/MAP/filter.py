@@ -45,9 +45,7 @@ class ivf:
 
     def get_ivfreslm(self, it, data=None, eblm_wf=None):
         # NOTE this is eq. 21 of the paper
-        ctx, _ = ComputationContext()
-        idx, idx2 = ctx.idx, ctx.idx2 or ctx.idx
-        if not self.ivf_field.is_cached(idx=idx, idx2=idx2, it=it):
+        if not self.ivf_field.is_cached(it=it):
             assert eblm_wf is not None and data is not None
             data = alm_copy_nd(data, None, self.beam_operator.lm_max) 
             ivfreslm = self.ivf_operator.act(eblm_wf, spin=2)
@@ -55,8 +53,8 @@ class ivf:
             ivfreslm += data
             ivfreslm = self.inoise_operator.act(0.5*ivfreslm, adjoint=False)
             ivfreslm = self.beam_operator.act(ivfreslm, adjoint=False)
-            self.ivf_field.cache(ivfreslm, idx=idx, idx2=idx2, it=it)
-        return self.ivf_field.get_field(idx=idx, idx2=idx2, it=it)
+            self.ivf_field.cache(ivfreslm, it=it)
+        return self.ivf_field.get_field(it=it)
     
 
     def update_operator(self, it):

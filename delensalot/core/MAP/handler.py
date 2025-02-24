@@ -56,7 +56,7 @@ class Minimizer:
             if any(current_it < reqit for reqit in request_it):
                 print(f"Cannot calculate new iterations if param 'it' is a list, maximum available iteration is {current_it}")
                 return
-            return self._get_est(secondary, component, scale)
+            return self._get_est(request_it, secondary, component, scale)
 
         if self.maxiterdone() < 0:
             raise RuntimeError(
@@ -65,7 +65,7 @@ class Minimizer:
 
         # Case 1: Requested iteration already computed
         if request_it <= current_it:
-            return self._get_est(secondary, component, scale)
+            return self._get_est(request_it, secondary, component, scale)
 
         # Case 2: New iterations need to be computed
         elif (current_it < self.itmax and request_it >= current_it) or calc_flag:
@@ -91,19 +91,19 @@ class Minimizer:
                 self.likelihood.curvature.add_yvector(grad_tot, grad_prev, it-1)
 
             increment = self.likelihood.curvature.get_increment(grad_tot, it)
-            prev_klm = np.concatenate([np.ravel(arr) for arr in self.get_est(it-1, scale=scale)])
+            prev_klm = np.concatenate([np.ravel(arr) for arr in self._get_est(it-1, scale=scale)])
             new_klms = self.likelihood.curvature.grad2dict(increment + prev_klm)
             self.cache_klm(new_klms, it)
 
         return new_klms
 
 
-    def _get_est(self, secondary, component, scale):
+    def _get_est(self, it, secondary=None, component=None, scale='k'):
         ctx, isnew = get_computation_context()
         component, secondary = component or ctx.component, secondary or ctx.secondary
         secondary = secondary or [sec for sec in self.likelihood.secondaries.keys()]
         ctx.set(secondary=secondary, component=component)
-        return self.likelihood.get_est(scale=scale)
+        return self.likelihood.get_est(it=it, scale=scale)
 
 
     def isiterdone(self, it):
@@ -125,7 +125,7 @@ class Minimizer:
     # exposed functions for job handler
     def cache_klm(self, new_klms, it):
         for secID, secondary in self.likelihood.secondaries.items():
-            secondary.cache_klm(new_klms[secID])
+            secondary.cache_klm(new_klms[secID], it=it)
 
 
     def __getattr__(self, name):
@@ -210,10 +210,10 @@ class Likelihood:
         return self.cacher.load(fn)
     
 
-    def get_est(self, scale='k'):
+    def get_est(self, it, scale='k'):
         ctx, isnew = get_computation_context()
         secondary = ctx.secondary or list(self.secondaries.keys())
-        ret = [self.secondaries[sec].get_est(scale=scale) for sec in secondary]
+        ret = [self.secondaries[sec].get_est(it=it, scale=scale) for sec in secondary]
         return list(map(list, zip(*ret)))
 
     
@@ -296,7 +296,7 @@ class Likelihood:
             
             if not self.gradient_lib.subs[self.sec2idx[secname]].gfield.is_cached(it=0):
                 kmflm_QE = QE_searchs[self.sec2idx[secname]].get_kmflm(self.idx)
-                self.gradient_lib.subs[self.sec2idx[secname]].gfield.cache_meanfield(kmflm_QE, it=0)
+                self.gradient_lib.subs[self.sec2idx[secname]].gfield.cache(kmflm_QE, it=0, type='meanfield')
 
             #TODO cache QE wflm into the filter directory
             if not self.gradient_lib.wf_filter.wf_field.is_cached(it=0):

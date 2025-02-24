@@ -201,7 +201,7 @@ class LensingGradientQuad(GradSub):
             fl2 = cli(0.5 * np.arange(self.LM_max[0]+1) * np.arange(1, self.LM_max[0]+2))
             almxfl(gc[0], fl2, self.LM_max[1], True)
             almxfl(gc[1], fl2, self.LM_max[1], True)
-            self.cache_quad(gc, it)
+            self.cache(gc, it=it, type='quad')
         return self.gfield.get_quad(it)
     
 
@@ -210,16 +210,12 @@ class LensingGradientQuad(GradSub):
         return operator.joint([operator.spin_raise(lm_max=lm_max_out), filter_operator], out='map')
     
 
-    def cache(self, gfieldlm, it):
-        ctx, _ = get_computation_context()
-        idx, idx2 = ctx.idx, ctx.idx2 or ctx.idx
-        self.gfield.cache(gfieldlm, idx=idx, idx2=idx2, it=it)
+    def cache(self, gfieldlm, it, type='quad'):
+        self.gfield.cache(gfieldlm, it=it, type=type)
 
 
     def is_cached(self, it, type):
-        ctx, _ = get_computation_context()
-        idx, idx2 = ctx.idx, ctx.idx2 or ctx.idx
-        return self.gfield.is_cached(type=type, idx=idx, idx2=idx2, it=it)
+        return self.gfield.is_cached(type=type, it=it)
 
 
 class BirefringenceGradientQuad(GradSub):
@@ -309,8 +305,8 @@ class Joint(SharedFilters):
         return final_result
 
     
-    def get_est_for_prior(self, it, gfield):
-        return [gfield.get_est(it=it)  for sub in self.subs]
+    def get_est_for_prior(self, it):
+        return [sub.gfield._get_est(it=it) for sub in self.subs]
     
     
     def get_gradient_meanfield(self, it):
