@@ -37,7 +37,7 @@ from delensalot.utils import cli, camb_clfile, load_file
 
 from delensalot.core.MAP.handler import Likelihood, Minimizer
 from delensalot.core.MAP import curvature, filter, operator
-from delensalot.core.MAP.gradient import Joint, BirefringenceGradientQuad, LensingGradientQuad, GradQuad
+from delensalot.core.MAP.gradient import Joint, BirefringenceGradientQuad, LensingGradientQuad, GradSub
 
 import itertools
 from delensalot.config.config_helper import PLANCKLENS_keys
@@ -449,7 +449,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "sec_operator": sec_operator,
                 'data_key': 'p',
             }
-            quads = []
+            subs = []
             chhsall = []
             if 'lensing' in secs_run:
                 CLfids_lens = dl.CLfids['lensing']
@@ -460,7 +460,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 })
                 lens_grad_quad = LensingGradientQuad(quad_desc)
                 chhsall.extend(list({comp: CLfids_lens[comp*2][:4000+1] * (0.5 * np.arange(4000+1) * np.arange(1,4000+2))**2 for comp in dl.analysis_secondary['lensing']['component']}.values()))
-                quads.append(lens_grad_quad)
+                subs.append(lens_grad_quad)
 
             if 'birefringence' in secs_run:
                 CLfids_bire = dl.CLfids['birefringence']
@@ -471,7 +471,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 })
                 bire_grad_quad = BirefringenceGradientQuad(quad_desc)
                 chhsall.extend(list({comp: CLfids_bire[comp*2][:4000+1] for comp in dl.analysis_secondary['birefringence']['component']}.values()))
-                quads.append(bire_grad_quad)
+                subs.append(bire_grad_quad)
 
             ncompsallsecs = sum([len(dl.analysis_secondary[sec]['component']) for sec in secs_run])
             ipriormatrix = np.ones(shape=(ncompsallsecs,ncompsallsecs,quad_desc['LM_max'][0]+1))
@@ -482,7 +482,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     ipriormatrix[i_,i_] = cli(chh)
                     i_+=1
             joint_desc = {
-                'quads': [lens_grad_quad, bire_grad_quad],
+                'subs': subs,
                 'ipriormatrix': ipriormatrix
             }
             gradient = Joint(**joint_desc)

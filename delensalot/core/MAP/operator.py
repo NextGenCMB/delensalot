@@ -174,6 +174,7 @@ class lensing(Base):
                         return self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max_out[1], spin, *self.lm_max_in)
     
 
+    log_on_start(logging.DEBUG, "setting field for lensing: idx={idx}, it={it}, component={component}, idx2={idx2}", logger=log)
     def set_field(self, idx, it, component=None, idx2=None):
         idx2 = idx2 or idx
         if component is None:
@@ -240,16 +241,13 @@ class birefringence(Base):
 
 
     def set_field(self, idx, it, component=None, idx2=None):
+        print('setting field for birefringence:', idx, it, component, idx2)
         idx2 = idx2 or idx
         if component is None:
-            for comp in self.component:
-                self.set_field(idx, it, comp, idx2)
-        elif isinstance(component, list):
-            for comp in list(set(component) & set(self.component)):
-                self.set_field(idx, it, comp, idx2)
-        else:
-            self.field[component] = alm_copy(self.field_cacher.load(opj(self.field_fns[component].format(idx=idx, idx2=idx2, it=it))), None, *self.LM_max)
-
+            component = self.component
+        if isinstance(component, list):
+            component = component[0]
+        self.field[component] = alm_copy(self.field_cacher.load(opj(self.field_fns[component].format(idx=idx, idx2=idx2, it=it))), None, *self.LM_max)
 
 class spin_raise:
     def __init__(self, lm_max):
@@ -295,7 +293,7 @@ class beam:
     def act(self, obj, adjoint=False):
         # assert self.lm_max[0] == Alm.getlmax(obj[0].size, None), (self.lm_max[0], obj.shape, Alm.getlmax(obj[0].size, None))
         # FIXME change counting for T and MV
-        val = np.array([cli(almxfl(o, self.transferfunction[self.idx2tebl[oi]], self.lm_max[0], False)) for oi, o in enumerate(obj)])
+        val = np.array([almxfl(o, self.transferfunction[self.idx2tebl[oi]], self.lm_max[0], False) for oi, o in enumerate(obj)])
         return cli(val) if adjoint else val
 
 

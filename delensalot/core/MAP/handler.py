@@ -35,30 +35,29 @@ class Minimizer:
         self.ctx.set(idx=idx, idx2=idx2)
 
 
-
     def get_est(self, request_it=None, secondary=None, component=None, scale='k', calc_flag=False, idx=None, idx2=None):
         ctx, isnew = get_computation_context()  # Get the singleton instance for MPI rank
+
         request_it, idx, idx2, component, secondary = (
-            ctx.it or request_it, ctx.idx or idx, ctx.idx2 or idx2, ctx.component or component, ctx.secondary or secondary
+            request_it or ctx.it, ctx.idx or idx, ctx.idx2 or idx2, ctx.component or component, ctx.secondary or secondary
         )
+        idx = idx or self.idx
+        idx2 = idx2 or self.idx2
+        idx2 = idx2 or idx
+        ctx.set(idx=idx, idx2=idx2)
+
         self.likelihood.copyQEtoDirectory(self.likelihood.QE_searchs)
         current_it = self.maxiterdone()
-        ctx.set(it=request_it)
 
-        # Handle request_it as a list or single value
-        if isinstance(request_it, (list, np.ndarray)):
-            request_it = request_it if np.any(request_it) else current_it
-        else:
+        if not isinstance(request_it, (list, np.ndarray)):
             request_it = request_it or current_it
 
-        # If request_it is a list, return results for all valid iterations
         if isinstance(request_it, (list, np.ndarray)):
-            if all(current_it < reqit for reqit in request_it):
+            if any(current_it < reqit for reqit in request_it):
                 print(f"Cannot calculate new iterations if param 'it' is a list, maximum available iteration is {current_it}")
-                return  # Exit early
-            return [self._get_est_single(it_, secondary, component, scale) for it_ in request_it if it_ <= current_it]
+                return
+            return self._get_est(secondary, component, scale)
 
-        # If no previous iterations exist, error out
         if self.maxiterdone() < 0:
             raise RuntimeError(
                 f"Could not find the QE starting points, expected them at {self.likelihood.secondaries['lensing'].libdir}"
@@ -66,11 +65,11 @@ class Minimizer:
 
         # Case 1: Requested iteration already computed
         if request_it <= current_it:
-            return self._get_est_single(request_it, secondary, component, scale)
+            return self._get_est(secondary, component, scale)
 
         # Case 2: New iterations need to be computed
         elif (current_it < self.itmax and request_it >= current_it) or calc_flag:
-            new_klms = self._compute_iterations(current_it, request_it, idx, idx2, secondary, component, scale)
+            new_klms = self._compute_iterations(current_it, request_it, scale)
             return new_klms if secondary is None else new_klms[secondary] if component is None else new_klms[secondary][component]
 
         # Case 3: Requested iteration beyond allowed max
@@ -78,64 +77,49 @@ class Minimizer:
         print("If you want to calculate it, set calc_flag=True")
 
 
-    # Helper function to compute individual iteration
-    def _compute_iterations(self, current_it, request_it, idx, idx2, secondary, component, scale):
-        ctx = get_computation_context()[0]
-        idx, it, idx2 = ctx.idx, ctx.it, ctx.idx2 or ctx.idx
-        for it in range(current_it + 1, request_it + 1):  # Iterations 1+ are calculated
-            ctx.set(idx=idx, idx2=idx2, it=it)
+    # Helper function to compute iteration
+    def _compute_iterations(self, current_it, request_it, scale):
+        for it in range(current_it + 1, request_it + 1):
             log.info(f'---------- starting iteration {it} ----------')
-
-            self.update_operator(idx, it-1, idx2=idx2)
-            grad_tot = self.get_gradient_total()
+            self.update_operator(it-1)
+            grad_tot = self.get_gradient_total(it)
             grad_tot = np.concatenate([np.ravel(arr) for arr in grad_tot])
 
             if it >= 2:
-                self.ctx.set(it=it-1, secondary=secondary, component=component)
-                grad_prev = self.get_gradient_total()
+                grad_prev = self.get_gradient_total(it-1)
                 grad_prev = np.concatenate([np.ravel(arr) for arr in grad_prev])
-                self.likelihood.curvature.add_yvector(grad_tot, grad_prev, it)
+                self.likelihood.curvature.add_yvector(grad_tot, grad_prev, it-1)
 
             increment = self.likelihood.curvature.get_increment(grad_tot, it)
-            prev_klm = np.concatenate([np.ravel(arr) for arr in self.get_est(it - 1, scale=scale)])
+            prev_klm = np.concatenate([np.ravel(arr) for arr in self.get_est(it-1, scale=scale)])
             new_klms = self.likelihood.curvature.grad2dict(increment + prev_klm)
             self.cache_klm(new_klms, it)
 
         return new_klms
 
 
-    # Helper function to retrieve or compute a single iteration result
-    def _get_est_single(self, it, secondary, component, scale):
-        """Retrieve stored estimates for a single iteration."""
-        if secondary is None:
-            return [self.likelihood.secondaries[sec].get_est(scale=scale) for sec in self.likelihood.secondaries.keys()]
-        elif isinstance(secondary, list):
-            return [self.likelihood.secondaries[sec].get_est(scale=scale) for sec in secondary]
-        else:
-            return self.likelihood.secondaries[secondary].get_est(scale=scale)
-
-
+    def _get_est(self, secondary, component, scale):
+        ctx, isnew = get_computation_context()
+        component, secondary = component or ctx.component, secondary or ctx.secondary
+        secondary = secondary or [sec for sec in self.likelihood.secondaries.keys()]
+        ctx.set(secondary=secondary, component=component)
+        return self.likelihood.get_est(scale=scale)
 
 
     def isiterdone(self, it):
-        ctx, isnew = get_computation_context()
         if it >= 0:
-            ctx.set(it=it)
-            return np.all([val for sec in self.likelihood.secondaries.values() for val in sec.is_cached()])
+            return np.all([val for sec in self.likelihood.secondaries.values() for val in sec.is_cached(it=it)])
         return False    
 
 
     def maxiterdone(self):
         ctx, isnew = get_computation_context()
-        it = ctx.it
-
-        itr = -2
+        it = -2
         isdone = True
         while isdone:
-            itr += 1
-            isdone = self.isiterdone(itr + 1)
-        ctx.set(it=it)
-        return itr
+            it += 1
+            isdone = self.isiterdone(it+1)
+        return it
 
 
     # exposed functions for job handler
@@ -171,7 +155,7 @@ class Likelihood:
                 "ID":  quad.ID,
                 "component": quad.component,
                 "libdir": opj(self.libdir, 'estimate/'),
-        }) for quad in gradient_lib.quads}
+        }) for quad in gradient_lib.subs}
         self.sec2idx = {secondary_ID: idx for idx, secondary_ID in enumerate(self.secondaries.keys())}
         self.idx2sec = {idx: secondary_ID for idx, secondary_ID in enumerate(self.secondaries.keys())}
         self.seclist_sorted = sorted(list(self.sec2idx.keys()), key=lambda x: template_index_secondaries.get(x, ''))
@@ -180,7 +164,7 @@ class Likelihood:
 
         def dotop(glms1, glms2):
             ret, N = 0., 0
-            for lmax, mmax in [quad.LM_max for sec in self.seclist_sorted for quad in self.gradient_lib.quads if quad.ID == sec]:
+            for lmax, mmax in [quad.LM_max for sec in self.seclist_sorted for quad in self.gradient_lib.subs if quad.ID == sec]:
                 siz = Alm.getsize(lmax, mmax)
                 cl = alm2cl(glms1[N:N+siz], glms2[N:N+siz], None, mmax, None)
                 ret += np.sum(cl * (2 * np.arange(len(cl)) + 1))
@@ -226,6 +210,13 @@ class Likelihood:
         return self.cacher.load(fn)
     
 
+    def get_est(self, scale='k'):
+        ctx, isnew = get_computation_context()
+        secondary = ctx.secondary or list(self.secondaries.keys())
+        ret = [self.secondaries[sec].get_est(scale=scale) for sec in secondary]
+        return list(map(list, zip(*ret)))
+
+    
     def isiterdone(self, it):
         if it >= 0:
             return np.all([val for sec in self.secondaries.values() for val in sec.is_cached(idx=self.idx, idx2=self.idx2, it=it)])
@@ -249,6 +240,7 @@ class Likelihood:
 
 
     def get_data(self):
+        print('getting data with lm_max_sky', self.lm_max_sky)
         # TODO this could be provided by the data_container directly
 
         if True: # NOTE anisotropic data currently not supported
@@ -298,19 +290,19 @@ class Likelihood:
         for secname, secondary in self.secondaries.items():
             QE_searchs[self.sec2idx[secname]].init_filterqest()
             ctx.set(it=0)
-            if not all(self.secondaries[secname].is_cached()):
+            if not all(self.secondaries[secname].is_cached(it=0)):
                 klm_QE = QE_searchs[self.sec2idx[secname]].get_est(self.idx)
-                self.secondaries[secname].cache_klm(klm_QE)
+                self.secondaries[secname].cache_klm(klm_QE, it=0)
             
-            if not self.gradient_lib.quads[self.sec2idx[secname]].gfield.is_cached():
+            if not self.gradient_lib.subs[self.sec2idx[secname]].gfield.is_cached(it=0):
                 kmflm_QE = QE_searchs[self.sec2idx[secname]].get_kmflm(self.idx)
-                self.gradient_lib.quads[self.sec2idx[secname]].gfield.cache_meanfield(kmflm_QE)
+                self.gradient_lib.subs[self.sec2idx[secname]].gfield.cache_meanfield(kmflm_QE, it=0)
 
             #TODO cache QE wflm into the filter directory
-            if not self.gradient_lib.wf_filter.wf_field.is_cached():
-                lm_max_out = self.gradient_lib.quads[0].gradient_operator.operators[-1].operators[0].lm_max_out
+            if not self.gradient_lib.wf_filter.wf_field.is_cached(it=0):
+                lm_max_out = self.gradient_lib.subs[0].gradient_operator.operators[-1].operators[0].lm_max_out
                 wflm_QE = QE_searchs[self.sec2idx[secname]].get_wflm(self.idx, lm_max_out)
-                self.gradient_lib.wf_filter.wf_field.cache(np.array(wflm_QE))
+                self.gradient_lib.wf_filter.wf_field.cache(np.array(wflm_QE), it=0)
 
 
     def __getattr__(self, name):

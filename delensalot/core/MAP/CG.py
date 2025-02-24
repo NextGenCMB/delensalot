@@ -49,16 +49,6 @@ class conjugate_gradient:
         return np.sum(alm2cl(elm1, elm2, lmax, lmax, None)[0:] * weights)
     
 
-    # def dot_op(self, gclms1, gclms2):
-    #     ret, N = 0., 0
-    #     for n in range(len(gclms1)):
-    #         siz = Alm.getlmax(gclms1, None)
-    #         cl = alm2cl(gclms1[N:N+siz], gclms2[N:N+siz], None, siz, None)
-    #         ret += np.sum(cl * (2 * np.arange(len(cl)) + 1))
-    #         N += siz
-    #     return ret
-    
-
     def log(self, stage, iter, eps, **kwargs):
         self.iter_tot += 1
         elapsed = self.watch.elapsed()
@@ -155,6 +145,7 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
     searchdirs = [op(residual) for op in pre_ops]
 
     iter = 0
+    
     while not criterion(iter, x, residual):
         searchfwds = [fwd_op(searchdir) for searchdir in searchdirs]
         deltas = [dot_op(searchdir, residual) for searchdir in searchdirs]

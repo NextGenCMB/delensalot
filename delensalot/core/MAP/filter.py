@@ -43,9 +43,11 @@ class ivf:
         self.ivf_field = field.filter(filterfield_desc('ivf', self.libdir))
 
 
-    def get_ivfreslm(self, idx, it, data=None, eblm_wf=None):
-        # NOTE this is eq. 21 of the paper, in essence it should do the following:
-        if not self.ivf_field.is_cached(idx, it):
+    def get_ivfreslm(self, it, data=None, eblm_wf=None):
+        # NOTE this is eq. 21 of the paper
+        ctx, _ = ComputationContext()
+        idx, idx2 = ctx.idx, ctx.idx2 or ctx.idx
+        if not self.ivf_field.is_cached(idx=idx, idx2=idx2, it=it):
             assert eblm_wf is not None and data is not None
             data = alm_copy_nd(data, None, self.beam_operator.lm_max) 
             ivfreslm = self.ivf_operator.act(eblm_wf, spin=2)
@@ -53,12 +55,14 @@ class ivf:
             ivfreslm += data
             ivfreslm = self.inoise_operator.act(0.5*ivfreslm, adjoint=False)
             ivfreslm = self.beam_operator.act(ivfreslm, adjoint=False)
-            self.ivf_field.cache(ivfreslm, idx, it)
-        return self.ivf_field.get_field(idx, it)
+            self.ivf_field.cache(ivfreslm, idx=idx, idx2=idx2, it=it)
+        return self.ivf_field.get_field(idx=idx, idx2=idx2, it=it)
     
 
-    def update_operator(self, idx, it, idx2):
-        self.ivf_operator.set_field(idx, it, idx2=idx2)
+    def update_operator(self, it):
+        ctx, _ = ComputationContext()
+        idx, idx2 = ctx.idx, ctx.idx2
+        self.ivf_operator.set_field(idx=idx, it=it, idx2=idx2)
 
 
 class wf:
@@ -75,19 +79,15 @@ class wf:
         self.wf_field: field.filter = field.filter(filterfield_desc('wf', self.libdir))
 
 
-    def get_wflm(self, data=None):
-        ctx, _ = ComputationContext()  # Get the singleton instance
-        it, idx = ctx.it, ctx.idx
-        if not self.wf_field.is_cached():
+    def get_wflm(self, it, data=None):
+        if not self.wf_field.is_cached(it=it):
             assert data is not None, 'data is required for the calculation'
-            ctx.set(it=it-1)
-            cg_sol_curr = self.wf_field.get_field()
-            ctx.set(it=it)
+            cg_sol_curr = self.wf_field.get_field(it=it-1) # *(0+0*1j)
             tpn_alm = self.calc_prep(data) # NOTE lm_sky -> lm_pri
             mchain = CG.conjugate_gradient(self.precon_op, self.chain_descr, self.cls_filt)
             mchain.solve(cg_sol_curr, tpn_alm, self.fwd_op)
-            self.wf_field.cache(cg_sol_curr)
-        return self.wf_field.get_field()
+            self.wf_field.cache(cg_sol_curr, it=it)
+        return self.wf_field.get_field(it=it)
 
 
     def calc_prep(self, eblm):
@@ -96,7 +96,7 @@ class wf:
         eblm_ = alm_copy_nd(eblm, None, self.beam_operator.lm_max)
         eblmc = self.inoise_operator.act(eblm_, adjoint=False)
         eblmc = self.beam_operator.act(eblmc, adjoint=False)
-        elm = self.wf_operator.act(eblmc, spin=2, adjoint=True, backwards=True, out_sht_mode='GRAD_ONLY')[0].squeeze() # NOTE lm_sky -> lm_pri
+        elm = self.wf_operator.act(eblmc, spin=2, adjoint=True, backwards=True, out_sht_mode='GRAD_ONLY') # NOTE lm_sky -> lm_pri
         elm = almxfl_nd(elm, self.cls_filt['ee'] > 0., None, False)
         return elm
     
@@ -112,7 +112,7 @@ class wf:
         eblm = self.beam_operator.act(eblm, adjoint=False)
         eblm = self.inoise_operator.act(eblm, adjoint=False)
         eblm = self.beam_operator.act(eblm, adjoint=False)
-        elm_2d = np.atleast_2d(self.wf_operator.act(eblm, spin=2, adjoint=True, backwards=True, out_sht_mode='GRAD_ONLY')[0]) # lm_sky -> lm_pri
+        elm_2d = np.atleast_2d(self.wf_operator.act(eblm, spin=2, adjoint=True, backwards=True, out_sht_mode='GRAD_ONLY')) # lm_sky -> lm_pri
 
         nlm = elm_2d.squeeze()
         nlm += almxfl(ewflm, iclee * (iclee > 0.0), Alm.getlmax(ewflm.size, None), False)
@@ -138,16 +138,18 @@ class wf:
         return almxfl(elm, flmat, lmax, False)
 
 
-    def update_operator(self, idx, it, idx2):
-        self.wf_operator.set_field(idx, it, idx2=idx2)
+    def update_operator(self, it):
+        ctx, _ = ComputationContext()
+        idx, idx2 = ctx.idx, ctx.idx2 or ctx.idx
+        self.wf_operator.set_field(idx=idx, it=it, idx2=idx2)
 
 
     # @log_on_start(logging.DEBUG, 'wf.get_template: idx={idx}, it={it}, secondary={secondary}, component={component}, lm_max_in={lm_max_in}, lm_max_out={lm_max_out}')
-    def get_template(self, lm_max_in=None, lm_max_out=None):
+    def get_template(self, it, secondary, component, lm_max_in=None, lm_max_out=None):
         ctx, _ = ComputationContext()  # Get the singleton instance
-        idx, it, idx2, secondary, component = ctx.idx, ctx.it, ctx.idx2 or ctx.idx, ctx.secondary, ctx.component
-        self.wf_operator.set_field(idx, it, secondary, component, idx2=idx2)
-        estCMB = self.get_wflm()
+        idx, idx2 = ctx.idx, ctx.idx2 or ctx.idx
+        self.wf_operator.set_field(idx=idx, it=it, secondary=secondary, component=component, idx2=idx2)
+        estCMB = self.get_wflm(it=it)
 
         # NOTE making sure that QE is perturbative, and resetting MAP to non-perturbative.
         # Must be done for each call, as the operators used are the same instance.

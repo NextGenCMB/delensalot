@@ -16,8 +16,6 @@ import datetime, getpass, copy
 import numpy as np
 import healpy as hp
 
-
-
 from plancklens import qresp, qest, utils as pl_utils
 from plancklens.sims import planck2018_sims
 
@@ -233,9 +231,7 @@ class OBD_builder(Basejob):
         assert len(n_inv) in [1, 3], len(n_inv)
         return np.array(n_inv)
 
-    # @base_exception_handler
-    # @log_on_start(logging.DEBUG, "collect_jobs() started")
-    # @log_on_end(logging.DEBUG, "collect_jobs() finished")
+
     def collect_jobs(self):
         jobs = []
         if not os.path.isfile(opj(self.libdir,'tniti.npy')):
@@ -245,9 +241,6 @@ class OBD_builder(Basejob):
         return jobs
 
 
-    # @base_exception_handler
-    # @log_on_start(logging.DEBUG, "run() started")
-    # @log_on_end(logging.DEBUG, "run() finished")
     def run(self):
         # This fakes the collect/run structure, as bpl takes care of MPI 
         for job in self.jobs:
@@ -717,7 +710,6 @@ class QE_scheduler:
 class MAP_scheduler:
     MAP_minimizers: List[MAP_handler.Minimizer]
     def __init__(self, idxs, idxs_mf, data_container, QE_searchs, tasks, MAP_minimizers):
-        # self.__dict__.update(dm.__dict__)
         self.data_container = data_container
 
         self.idxs = idxs
@@ -727,7 +719,7 @@ class MAP_scheduler:
         self.sec2idx = {QE_search.secondary.ID: i for i, QE_search in enumerate(self.QE_searchs)}
         self.seclist_sorted = sorted(list(self.sec2idx.keys()), key=lambda x: template_index_secondaries.get(x, ''))
 
-        self.MAP_minimizers = MAP_minimizers
+        self.MAP_minimizers: MAP_handler.Minimizer = MAP_minimizers
         self.it_tasks = tasks
         for idx in self.idxs:
             if self.QE_searchs[0].isdone(idx, 'p') == 0:
@@ -788,25 +780,25 @@ class MAP_scheduler:
 
     def get_template(self, idx, it, secondary=None, component=None):
         ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
-        stash = ctx.it, ctx.idx, ctx.idx2, ctx.component
-        ctx.set(idx=idx, it=it, secondary=secondary, component=component)
+        stash = ctx.idx, ctx.idx2, ctx.component
+        ctx.set(idx=idx, secondary=secondary, component=component)
         assert it>0, 'Need to correctly implement QE template generation first'
         assert it <= self.maxiterdone(), 'Requested iteration is not available'
         ret = self.MAP_minimizers[idx].get_template()
-        ctx.set(it=stash[0], idx=stash[1], idx2=stash[2], component=stash[3])
+        ctx.set(idx=stash[0], idx2=stash[1], component=stash[2])
         return ret
 
 
     def get_wflm(self, idx, it=None, lm_max=None):
-        ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
-        stash = ctx.it, ctx.idx, ctx.idx2, ctx.component
-        ctx.set(idx=idx, it=it)
         # NOTE currently no support for list of secondary or it
         if it==None: it = self.maxiterdone()
         if it==0:
-            ret = self.QE_searchs[0].get_wflm(idx, lm_max=lm_max)
-        ret = self.MAP_minimizers[idx].get_wflm()
-        ctx.set(*stash)
+            return self.QE_searchs[0].get_wflm(idx, lm_max=lm_max)
+        ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
+        stash = ctx.idx, ctx.idx2, ctx.component
+        ctx.set(idx=idx)
+        ret = self.MAP_minimizers[idx].get_wflm(it)
+        ctx.set(idx=stash[0], idx2=stash[1], component=stash[2])
         return ret
 
 
@@ -819,13 +811,15 @@ class MAP_scheduler:
 
     def get_ivfreslm(self, idx, it=None):
         ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
-        stash = ctx.it, ctx.idx, ctx.idx2, ctx.component
-        ctx.set(idx=idx, it=it)
+        stash = ctx.idx, ctx.idx2, ctx.component
+        ctx.set(idx=idx)
         # NOTE currently no support for list of secondary or it
         if it==None: it = self.maxiterdone()
         if it==0:
             print('only available for MAP, set it>0')
-        return self.MAP_minimizers[idx].get_ivfreslm()
+        ret = self.MAP_minimizers[idx].get_ivfreslm(it)
+        ctx.set(idx=stash[0], idx2=stash[1], component=stash[2])
+        return ret
 
 
     def maxiterdone(self):
@@ -833,19 +827,19 @@ class MAP_scheduler:
     
 
     def get_gradient_quad(self, idx, it, secondary=None, component=None):
-        self.MAP_minimizers[idx].ctx.set(idx=idx, it=it, secondary=secondary, component=component)
+        self.MAP_minimizers[idx].ctx.set(idx=idx, secondary=secondary, component=component)
         return self.MAP_minimizers[idx].get_gradient_quad()
     
     def get_gradient_total(self, idx, it, secondary=None, component=None):
-        self.MAP_minimizers[idx].ctx.set(idx=idx, it=it, secondary=secondary, component=component)
+        self.MAP_minimizers[idx].ctx.set(idx=idx, secondary=secondary, component=component)
         return self.MAP_minimizers[idx].get_gradient_total()
     
     def get_gradient_prior(self, idx, it, secondary=None, component=None):
-        self.MAP_minimizers[idx].ctx.set(idx=idx, it=it, secondary=secondary, component=component)
+        self.MAP_minimizers[idx].ctx.set(idx=idx, secondary=secondary, component=component)
         return self.MAP_minimizers[idx].get_gradient_prior()
     
     def get_gradient_meanfield(self, idx, it, secondary=None, component=None):
-        self.MAP_minimizers[idx].ctx.set(idx=idx, it=it, secondary=secondary, component=component)
+        self.MAP_minimizers[idx].ctx.set(idx=idx, secondary=secondary, component=component)
         return self.MAP_minimizers[idx].get_gradient_meanfield()
     
 

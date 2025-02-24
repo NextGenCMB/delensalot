@@ -16,7 +16,6 @@ import healpy as hp
 
 class base:
     def __init__(self, gradient_lib, h0, bfgs_desc, libdir):
-        
         self.ID = "curvature"
         self.gradient_lib = gradient_lib
         self.field = MAP_field.curvature(
@@ -31,7 +30,7 @@ class base:
         bfgs_desc.update({'cacher': cachers.cacher_npy(self.field.libdir)})
         self.BFGS_H = BFGS.BFGS_Hessian(self.h0, **bfgs_desc)
         
-        self.stepper = {quad.ID: harmonicbump(**{'lmax_qlm': quad.LM_max[0],'mmax_qlm': quad.LM_max[1],'a': 0.5,'b': 0.499,'xa': 400,'xb': 1500},) for quad in self.gradient_lib.quads}
+        self.stepper = {sub.ID: harmonicbump(**{'lmax_qlm': sub.LM_max[0],'mmax_qlm': sub.LM_max[1],'a': 0.5,'b': 0.499,'xa': 400,'xb': 1500},) for sub in self.gradient_lib.subs}
 
 
     def add_svector(self, incr, idx, it, idx2):
