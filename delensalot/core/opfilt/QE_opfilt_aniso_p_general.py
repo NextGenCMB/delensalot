@@ -25,9 +25,20 @@ class operator(object):
         pass
     def apply_inplace(self, vec_a, vec_b):
         assert 0, 'implement this'
-    def apply_adjoin_inplace(self, vec_a, vec_b):
+    def apply_adjoint_inplace(self, vec_a, vec_b):
         assert 0, 'implement this'
-    def eval_speed(self):
+    def eval_speed(self, veca, vecb):
+        """Evaluate the execution speed of the operator and its adjoint
+
+
+        """
+        assert 0, 'implement this'
+    def deallocate(self):
+        """Clean-up all potentially allocated array to avoid unnecessary mess
+
+            To be used e.g. at the end of a Wiener filter iterative search
+
+        """
         assert 0, 'implement this'
 
 class transfer_harmonic_simple(operator):
@@ -43,26 +54,42 @@ class transfer_harmonic_simple(operator):
         self.mmax = lmmax[1]
         self.alm_size = Alm.getsize(*lmmax)
 
-    def apply_inplace(self, alms:np.ndarray[np.complex128]):
-        assert alms.shape == (self.ncomp, self.alm_size)
-        for bl, alm in zip(self.bl, alms):
+    def apply_inplace(self, alms_in, alms_out):
+        assert alms_in is alms_out
+        assert alms_in.shape == (self.ncomp, self.alm_size)
+        for bl, alm in zip(self.bl, alms_in):
             almxfl(alm, bl, self.mmax, True)
 
-class transfer_BMD(operator):
-    def __init__(self, thtcap, dgclm:np.ndarray, lmmax_len:tuple[int, int], lmmax_unl:tuple[int, int], Lmmax:tuple[int, int],
+class BMD(operator):
+    def __init__(self, thtcap, spin:int, sht_mode:str,
+                 lmmax_len:tuple[int, int], lmmax_unl:tuple[int, int],
+                 dgclm: np.ndarray, Lmmax: tuple[int, int],
                  nthreads=0, epsilon=1e-7, verbose=False):
-        """Polarized transfer operator with lensing
+        """Lensing deflection operator
+
+                This implements the operator M D, where D is lensing, M some masking window,
+                together with projection into harmonic components.
+
+                The input is a (set of) unlensed alms, and output is a (set of) lensed alms
+
+            Args:
+                thtcap:
+                spin, sht_mode: spin of the transform and its DUCC type ('mode' DUCC parameter)
+                    e.g. 2, 'GRAD_ONLY' for E-only reconstruction, or 0, 'STANDARD' for temperature
+                lmmax_unl: lmax and mmax of the input alm layout
+                lmmax_len: lmax and mmax of the output alm layout
+                dgclm: (1 or 2, alm_size) array, delfection field harmonic components
+                Lmmax: lmax and mmax of the delfection field components
+                epsilon: desirec precision of the remapping operations
+                nthreads: number of threads assigned to (adjoint_)synthesis_general
+                verbose: some printouts if set
 
 
-                This implements the operator Y M D, where D is lensing, M some masking window, and B a beam
 
-                The input are skyalms, the output are lensed skyalms multiplied by bl
-
-                #TODO: maybe the bl's should be kicked out, so that multifrequencies can then be used
-
+                #TODO: what to do with dgclm ? we dont need it anymore after computing the pointing
         """
-        super(transfer_BMD).__init__(self)
-
+        super(BMD).__init__(self)
+        assert int(spin) >= 0, spin
 
         self._loc = None
         self._dl_7 = 20
@@ -75,27 +102,32 @@ class transfer_BMD(operator):
 
         self.geom = self._prepare_geom()
         self.dgclm = dgclm
+        # FIXME:We dont need this once locs are calculated, just do it on instantiation ? or give locs as input ?
+
+        self.spin = int(spin)
 
         self.nthreads = nthreads or psutil.cpu_count(logical=False)
 
-        self._loc   = None
-        self._gamma = None
-        self._mapsc = None
-        self._mapsr = None
+        # These are potentially large arrays that might be instantiated later (or not)
+        self._loc   = None  # tht and phis coordinates -- deflected angles
+        self._gamma = None  # phase with which to rotate non-zero spin fields
+        self._mapsc = None  # calculation must go through an intermediate map.
+        self._mapsr = None  # For non-zero spins we use a complex array with a real view, or just a real array for spin-0
 
+        # FIXME
         lmax_unl, mmax_unl = lmmax_unl
         lensing_syng_params = {'epsilon':epsilon,
                        'thtcap':thtcap,
                        'eps_apo': np.sqrt(self._dl_7 / lmax_unl * np.pi / thtcap),
-                        'spin':2, 'lmax':lmax_unl, 'mmax':mmax_unl,
-                        'nthreads':self.nthreads, 'mode':'STANDARD', 'verbose':verbose}
+                        'spin':spin, 'lmax':lmax_unl, 'mmax':mmax_unl,
+                        'nthreads':self.nthreads, 'mode':sht_mode, 'verbose':verbose}
         adj_lensing_syng_params = lensing_syng_params.copy()
-        adj_lensing_syng_params['lmax'] = lmax_unl  # FIXME
+        adj_lensing_syng_params['lmax'] = lmax_unl
         adj_lensing_syng_params['mmax'] = mmax_unl
 
-        adj_syn_params = {'spin':2, 'lmax':self.lmmax_len[0],
+        adj_syn_params = {'spin':spin, 'lmax':self.lmmax_len[0],
                           'mmax':self.lmmax_len[1], 'nthreads':self.nthreads, 'apply_weights':False}
-        syn_params = {'spin':2, 'lmax':self.lmmax_len[0],
+        syn_params = {'spin':spin, 'lmax':self.lmmax_len[0],
                           'mmax':self.lmmax_len[1], 'nthreads':self.nthreads}
 
 
@@ -107,12 +139,15 @@ class transfer_BMD(operator):
         self.rtype = np.float64 if epsilon < 1e-7 else np.float32
 
     def _prepare_geom(self):
-        """Prepares geometry that will handle the masking and lensing operations"""
+        """Prepares geometry that will handle the lensing and windowing operations
+
+
+        """
         lmax = self.lmmax_unl[0]
         eps = np.sqrt(self._dl_7 / lmax)
         dlmax = lmax * eps
         thtmax = min(self.thtcap * (1 + eps), np.pi)
-        bgeom = utils_geom.Geom.get_thingauss_geometry(int(lmax + dlmax) + 2, 3, False).restrict(0, thtmax * 1.0001, False, True)
+        bgeom = utils_geom.Geom.get_thingauss_geometry(int(lmax + dlmax) + 2, self.spin+1, False).restrict(0, thtmax * 1.0001, False, True)
 
         # Build weights for the geometry (apodized window, standard bump)
         x = (bgeom.theta - self.thtcap) / (thtmax - self.thtcap)
@@ -125,7 +160,7 @@ class transfer_BMD(operator):
         return bgeom
 
     def _prepare_ptg(self):
-        """Build pointing coordinates for synthesis general
+        """Build pointing coordinates for synthesis general and its adjoint
 
 
         """
@@ -134,19 +169,33 @@ class transfer_BMD(operator):
             tht, phi0, nph, ofs = self.geom.theta, self.geom.phi0, self.geom.nph, self.geom.ofs
             d1 = self.geom.synthesis(self.dgclm, 1, Lmax, Mmax, self.nthreads)
             tht_phip_gamma = get_deflected_angles(theta=tht, phi0=phi0, nphi=nph, ringstart=ofs, deflect=d1.T,
-                                                  calc_rotation=True, nthreads=self.nthreads)
-            self._gamma = tht_phip_gamma[:, 2]
+                                                  calc_rotation=self.spin > 0, nthreads=self.nthreads)
             self._loc   = tht_phip_gamma[:, 0:2]
+            if self.spin:
+                self._gamma = tht_phip_gamma[:, 2]
 
     def _allocate(self):
-        if self._mapsc is None:
-            mapsc = np.empty((self.geom.npix(),), dtype=ctype[self.rtype])
-            mapsr = mapsc.view(self.rtype).reshape((self.geom.npix(), 2)).T
+        """Allocate necessary intermediate arrays, in order to avoid re-allocation at every time in cg-process etc
+
+
+        """
+        if self._mapsr is None:
+            if self.spin:
+                mapsc = np.empty((self.geom.npix(),), dtype=ctype[self.rtype])
+                mapsr = mapsc.view(self.rtype).reshape((self.geom.npix(), 2)).T
+            else: # Only one component -- no need for mapsc
+                mapsr = np.empty((self.geom.npix(),), dtype=self.rtype)
+                mapsc = None
             self._mapsc = mapsc
             self._mapsr = mapsr
 
 
     def deallocate(self):
+        """Clean-up all potentially allocated array to avoid unnecessary mess
+
+            To be used e.g. at the end of a Wiener filter iterative search
+
+        """
         self._mapsc = None
         self._mapsr = None
 
@@ -156,10 +205,10 @@ class transfer_BMD(operator):
         assert not self.adj_lensing_syng_params.get('apply_weights')
 
         self._prepare_ptg()
-        self._allocate()
-        self.lensing_syng_params['mode'] = 'GRAD_ONLY' if alms_unl.shape[0] == 1 else 'STANDARD'
+        self._allocate() # This to avoid creating new large arrays all the time in cg-searches...
         syng(alm=alms_unl, map=self._mapsr, loc=self._loc, **self.lensing_syng_params)
-        lensing_rotate(self._mapsc, self._gamma, 2, self.nthreads)
+        if self.spin:
+            lensing_rotate(self._mapsc, self._gamma, self.spin, self.nthreads)
         for of, w, npi in zip(self.geom.ofs, self.geom.weight, self.geom.nph):
             self._mapsr[:, of:of + npi] *= w
         self.geom.adjoint_synthesis(m=self._mapsr, alm=alms_len, **self.adj_syn_params)
@@ -174,8 +223,8 @@ class transfer_BMD(operator):
         self.geom.synthesis(m=self._mapsr, alm=alms_len, **self.syn_params)
         for of, w, npi in zip(self.geom.ofs, self.geom.weight, self.geom.nph):
             self._mapsr[:, of:of + npi] *= w
-        lensing_rotate(self._mapsc, -self._gamma, 2, self.nthreads)
-        self.adj_lensing_syng_params['mode'] = 'GRAD_ONLY' if alms_unl.shape[0] == 1 else 'STANDARD'
+        if self.spin:
+            lensing_rotate(self._mapsc, -self._gamma, self.spin, self.nthreads)
         syng_adj(alm=alms_unl, map=self._mapsr, loc=self._loc, **self.adj_lensing_syng_params)
 
 class alm_filter_ninv(object):
