@@ -72,7 +72,12 @@ class BtNiB_light(operator):
                 s2is: one number per frequency. The inverse variance map is s2i * Ni, with the same Ni in each channel
                 Ni: 'relative hit' map
                 geom: isolatitude pixelization of the sphere
+                nthreads: number of threads for SHTs
+                r_dtype: precision of the computation
 
+            Note:
+                This performs (a channel, i pixel, lm harmonics)
+                    :math:`\sum_{a, i, lm} b_l'Y^{\dagger}_{l'm'}(\hn_i) N^{-1}_i /s^2_a Y_{lm}(\hat n_i) b^a_l a_{lm}`
 
         """
         assert len(bls) == len(s2is)
@@ -97,19 +102,23 @@ class BtNiB_light(operator):
         self._maps = None
 
     def apply_inplace(self, alm_in, alm_ou):
-        assert alm_in.ndim == 2 and alm_in.shape[1] == Alm.getsize(*self.lmmax)
-        assert alm_ou.ndim == 2 and alm_ou.shape[1] == Alm.getsize(*self.lmmax)
+        assert alm_in.shape == (self.ncomp, Alm.getsize(*self.lmmax))
+        assert alm_ou.shape == (self.ncomp, Alm.getsize(*self.lmmax))
         self.allocate()
         for i, (bl, si) in enumerate(zip(self.bls, self.sis)):
-            self._alms[:] = almxfl(alm_in, bl * si, self.lmmax[1], False)
+            self._alms[:] = alm_in
+            for alm in self._alms:
+                almxfl(alm, bl * si, self.lmmax[1], True)
             self.geom.synthesis(self._alms, self.spin, self.lmmax[0], self.lmmax[1], self.nthreads, map=self._maps)
             self._maps *= self.Ni
             if i == 0:
                 self.geom.adjoint_synthesis(self._maps, self.spin, self.lmmax[0], self.lmmax[1], self.nthreads,alm=alm_ou, apply_weights=False)
-                almxfl(alm_ou, bl * si, self.lmmax[1], True)
+                for alm in alm_ou:
+                    almxfl(alm, bl * si, self.lmmax[1], True)
             else:
                 self.geom.adjoint_synthesis(self._maps, self.spin, self.lmmax[0], self.lmmax[1], self.nthreads,alm=self._alms, apply_weights=False)
-                alm_ou += almxfl(self._alms, bl * si, self.lmmax[1], False)
+                for i in range(self.ncomp):
+                    alm_ou[i] += almxfl(self._alms[i], bl * si, self.lmmax[1], False)
 
 
     def apply_adjoint_inplace(self, alm_in, alm_ou):
