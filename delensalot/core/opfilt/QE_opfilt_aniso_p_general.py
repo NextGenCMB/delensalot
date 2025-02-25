@@ -6,22 +6,181 @@
 """
 
 import numpy as np
+import psutil
 from scipy.interpolate import UnivariateSpline as spl
 
-from lenspyx.remapping import utils_geom
+from lenspyx.remapping import utils_geom, deflection_029
 from delensalot.utils import timer, cli, clhash, read_map
 from lenspyx.utils_hp import almxfl, Alm, alm2cl, synalms
 from delensalot.core.opfilt import bmodes_ninv as bni
 from duccjc.sht import synthesis_general_cap as syng, adjoint_synthesis_general_cap as syng_adj # FIXME
+from ducc0.misc import get_deflected_angles, lensing_rotate
 from copy import deepcopy
 
 rtype = {np.dtype(np.complex128):np.dtype(np.float64), np.dtype(np.complex64):np.dtype(np.float32)}
 ctype = {rtype[ctyp]:ctyp for ctyp in rtype}
 
+class operator(object):
+    def __init__(self, *args, **kwargs):
+        pass
+    def apply_inplace(self, vec_a, vec_b):
+        assert 0, 'implement this'
+    def apply_adjoin_inplace(self, vec_a, vec_b):
+        assert 0, 'implement this'
+    def eval_speed(self):
+        assert 0, 'implement this'
+
+class transfer_harmonic_simple(operator):
+    def __init__(self, bl:np.ndarray[np.float64], lmmax:tuple[int]):
+        """Simple transfer function operator in harmonic space
+
+
+        """
+        super(transfer_harmonic_simple).__init__(self)
+        assert bl.ndim == 2
+        self.ncomp = bl.shape[0]
+        self.bl = bl
+        self.mmax = lmmax[1]
+        self.alm_size = Alm.getsize(*lmmax)
+
+    def apply_inplace(self, alms:np.ndarray[np.complex128]):
+        assert alms.shape == (self.ncomp, self.alm_size)
+        for bl, alm in zip(self.bl, alms):
+            almxfl(alm, bl, self.mmax, True)
+
+class transfer_BMD(operator):
+    def __init__(self, thtcap, dgclm:np.ndarray, lmmax_len:tuple[int, int], lmmax_unl:tuple[int, int], Lmmax:tuple[int, int],
+                 nthreads=0, epsilon=1e-7, verbose=False):
+        """Polarized transfer operator with lensing
+
+
+                This implements the operator Y M D, where D is lensing, M some masking window, and B a beam
+
+                The input are skyalms, the output are lensed skyalms multiplied by bl
+
+                #TODO: maybe the bl's should be kicked out, so that multifrequencies can then be used
+
+        """
+        super(transfer_BMD).__init__(self)
+
+
+        self._loc = None
+        self._dl_7 = 20
+
+        self.lmmax_len = lmmax_len
+        self.lmmax_unl = lmmax_unl
+        self.Lmmax = Lmmax
+
+        self.thtcap = thtcap
+
+        self.geom = self._prepare_geom()
+        self.dgclm = dgclm
+
+        self.nthreads = nthreads or psutil.cpu_count(logical=False)
+
+        self._loc   = None
+        self._gamma = None
+        self._mapsc = None
+        self._mapsr = None
+
+        lmax_unl, mmax_unl = lmmax_unl
+        lensing_syng_params = {'epsilon':epsilon,
+                       'thtcap':thtcap,
+                       'eps_apo': np.sqrt(self._dl_7 / lmax_unl * np.pi / thtcap),
+                        'spin':2, 'lmax':lmax_unl, 'mmax':mmax_unl,
+                        'nthreads':self.nthreads, 'mode':'STANDARD', 'verbose':verbose}
+        adj_lensing_syng_params = lensing_syng_params.copy()
+        adj_lensing_syng_params['lmax'] = lmax_unl  # FIXME
+        adj_lensing_syng_params['mmax'] = mmax_unl
+
+        adj_syn_params = {'spin':2, 'lmax':self.lmmax_len[0],
+                          'mmax':self.lmmax_len[1], 'nthreads':self.nthreads, 'apply_weights':False}
+        syn_params = {'spin':2, 'lmax':self.lmmax_len[0],
+                          'mmax':self.lmmax_len[1], 'nthreads':self.nthreads}
+
+
+        self.lensing_syng_params = lensing_syng_params
+        self.adj_lensing_syng_params = adj_lensing_syng_params
+        self.adj_syn_params = adj_syn_params
+        self.syn_params = syn_params
+
+        self.rtype = np.float64 if epsilon < 1e-7 else np.float32
+
+    def _prepare_geom(self):
+        """Prepares geometry that will handle the masking and lensing operations"""
+        lmax = self.lmmax_unl[0]
+        eps = np.sqrt(self._dl_7 / lmax)
+        dlmax = lmax * eps
+        thtmax = min(self.thtcap * (1 + eps), np.pi)
+        bgeom = utils_geom.Geom.get_thingauss_geometry(int(lmax + dlmax) + 2, 3, False).restrict(0, thtmax * 1.0001, False, True)
+
+        # Build weights for the geometry (apodized window, standard bump)
+        x = (bgeom.theta - self.thtcap) / (thtmax - self.thtcap)
+        i = np.where((x < 1) & (x > 0))[0]
+        fx = np.exp(-2 / x[i])
+        f1x = np.exp(-2 / (1 - x[i]))
+        wx = f1x / (f1x + fx)
+        bgeom.weight[i] *= wx
+        bgeom.weight[np.where(x >= 1.)] *= 0
+        return bgeom
+
+    def _prepare_ptg(self):
+        """Build pointing coordinates for synthesis general
+
+
+        """
+        if self._loc is None:
+            Lmax, Mmax = self.Lmmax
+            tht, phi0, nph, ofs = self.geom.theta, self.geom.phi0, self.geom.nph, self.geom.ofs
+            d1 = self.geom.synthesis(self.dgclm, 1, Lmax, Mmax, self.nthreads)
+            tht_phip_gamma = get_deflected_angles(theta=tht, phi0=phi0, nphi=nph, ringstart=ofs, deflect=d1.T,
+                                                  calc_rotation=True, nthreads=self.nthreads)
+            self._gamma = tht_phip_gamma[:, 2]
+            self._loc   = tht_phip_gamma[:, 0:2]
+
+    def _allocate(self):
+        if self._mapsc is None:
+            mapsc = np.empty((self.geom.npix(),), dtype=ctype[self.rtype])
+            mapsr = mapsc.view(self.rtype).reshape((self.geom.npix(), 2)).T
+            self._mapsc = mapsc
+            self._mapsr = mapsr
+
+
+    def deallocate(self):
+        self._mapsc = None
+        self._mapsr = None
+
+    def apply_inplace(self, alms_unl, alms_len):
+        assert alms_unl.ndim == 2 and alms_unl.shape[1] == Alm.getsize(*self.lmmax_unl)
+        assert alms_len.ndim == 2 and alms_len.shape[1] == Alm.getsize(*self.lmmax_len)
+        assert not self.adj_lensing_syng_params.get('apply_weights')
+
+        self._prepare_ptg()
+        self._allocate()
+        self.lensing_syng_params['mode'] = 'GRAD_ONLY' if alms_unl.shape[0] == 1 else 'STANDARD'
+        syng(alm=alms_unl, map=self._mapsr, loc=self._loc, **self.lensing_syng_params)
+        lensing_rotate(self._mapsc, self._gamma, 2, self.nthreads)
+        for of, w, npi in zip(self.geom.ofs, self.geom.weight, self.geom.nph):
+            self._mapsr[:, of:of + npi] *= w
+        self.geom.adjoint_synthesis(m=self._mapsr, alm=alms_len, **self.adj_syn_params)
+
+    def apply_adjoint_inplace(self, alms_unl, alms_len):
+        assert alms_unl.ndim == 2 and alms_unl.shape[1] == Alm.getsize(*self.lmmax_unl)
+        assert alms_len.ndim == 2 and alms_len.shape[1] == Alm.getsize(*self.lmmax_len)
+        assert not self.adj_lensing_syng_params.get('apply_weights')
+
+        self._prepare_ptg()
+        self._allocate()
+        self.geom.synthesis(m=self._mapsr, alm=alms_len, **self.syn_params)
+        for of, w, npi in zip(self.geom.ofs, self.geom.weight, self.geom.nph):
+            self._mapsr[:, of:of + npi] *= w
+        lensing_rotate(self._mapsc, -self._gamma, 2, self.nthreads)
+        self.adj_lensing_syng_params['mode'] = 'GRAD_ONLY' if alms_unl.shape[0] == 1 else 'STANDARD'
+        syng_adj(alm=alms_unl, map=self._mapsr, loc=self._loc, **self.adj_lensing_syng_params)
 
 class alm_filter_ninv(object):
     def __init__(self, loc:np.ndarray, ninv:list, transf:np.ndarray,
-                 unlalm_info:tuple, lenalm_info:tuple, sht_threads:int,
+                 unlalm_info:tuple, lenalm_info:tuple, sht_threads:int, dgclm:np.ndarray[complex] or None=None,
                  transf_b:np.ndarray or None=None, epsilon=1e-7, nlevp_iso=None,
                  tpl:bni.template_dense or None=None, verbose=False, maskbeam=False):
         r"""CMB inverse-variance and Wiener filtering instance, to use for cg-inversion
@@ -36,7 +195,9 @@ class alm_filter_ninv(object):
                 sht_threads: number of threads for lenspyx SHTs
                 verbose: some printout if set, defaults to False
                 nlevp_iso: some reference value of the isotropic white noise level in uK-amin (preconditioner etc)
+                maskbeam: the data model includes a area-masking operation prior to the beam convolution
 
+            #FIXME: make an operator class and abstract away the beam at least
 
         """
         assert nlevp_iso is not None, 'need nlevp_iso, or come up with an idea of the pixel size given the loc'
@@ -75,6 +236,8 @@ class alm_filter_ninv(object):
         rloc = read_map(loc)
         npix = rloc.shape[0]
         thtcap = min(np.max(rloc[:, 0]) * 1.0001, np.pi)
+
+        # syng and adj_syng helpers, since not API not stable just now
         dl_7 = 19 # might want to tweak this
         dl = int(np.round(dl_7 * ((- np.log10(epsilon) + 1) / (7 + 1)) ** 2))
         # all syng params except of loc
@@ -92,6 +255,7 @@ class alm_filter_ninv(object):
             print('eps apo %.3f'%syng_params.get('eps_apo', 0))
         self.syng_params = syng_params
         self.adj_syng_params = adj_syng_params
+        self._dl_7 = dl_7
         self.thtcap = thtcap
 
         self.npix = npix
@@ -100,7 +264,7 @@ class alm_filter_ninv(object):
         if maskbeam:
             # The beam operator includes a masking operation
             self.maskbeam = True
-            self._beamgeom = self._get_sky_geom(lmax_unl, dl_7, weighted=True)
+            self._beamgeom = self._get_sky_geom(lmax_unl, weighted=True)
 
         else:
             self._beamgeom = None
@@ -112,13 +276,14 @@ class alm_filter_ninv(object):
                 'unalm':(self.lmax_sol, self.mmax_sol),
                 'lenalm':(self.lmax_len, self.mmax_len) }
 
-    def _get_sky_geom(self, lmax, dl_7=19, weighted=True):
+    def _get_sky_geom(self, lmax, weighted=True):
         """Returns a suitable weighted geometry object for the masked beam operation
+
 
         """
         if self.maskbeam:
             # Here we know that the lensing gradients are exactly zero outside of the beam window, se we cut out the geometry
-            eps = np.sqrt(dl_7 / lmax)
+            eps = np.sqrt(self._dl_7 / lmax)
             dlmax = lmax * eps
             thtmax = min(self.thtcap * (1 + eps), np.pi)
             bgeom = utils_geom.Geom.get_thingauss_geometry(int(lmax + dlmax) + 2, 3, False).restrict(0, thtmax * 1.0001, False, True)
@@ -152,6 +317,10 @@ class alm_filter_ninv(object):
             print('syng mean rel dev %.2e'%(np.sqrt(np.mean( (ref-self._qu) ** 2) )/ norm))
 
     def _allocate_maps(self, dtype):
+        """This allocate the positions-space maps for cg iterations
+
+
+        """
         if self._qu is None:
             self._qu = np.empty((self.ncomp_dat, self.npix), dtype=dtype)
         else:
@@ -197,6 +366,7 @@ class alm_filter_ninv(object):
 
         """
         if self.maskbeam:
+            # FIXME: with lensing just replace here synthesis with synthesis_general_cap
             qu = self._beamgeom.synthesis(gclm=eblm, spin=2, lmax=self.lmax_sol, mmax=self.mmax_sol, nthreads=self.sht_threads)
             self._beamgeom.adjoint_synthesis(m=qu, alm=eblm, spin=2, lmax=self.lmax_len, mmax=self.mmax_len, nthreads=self.sht_threads, apply_weights=True)
         if loc is None:
