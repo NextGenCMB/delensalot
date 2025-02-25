@@ -59,34 +59,78 @@ class operator(object):
         # TODO: this we can actually test here
         pass
 
-class transfer_harmonic_simple(operator):
-    def __init__(self, bl:np.ndarray[np.float64], lmmax:tuple[int]):
-        """Simple transfer function operator in harmonic space
+
+class BtNiB_light(operator):
+    def __init__(self, spin, lmmax:tuple[int, int], bls:list[np.ndarray], s2is:list[float], Ni, geom:utils_geom.Geom,
+                 nthreads=0, r_dtype=np.float64):
+        """Inverse noise matrix operator, combining beam and inverse noise variance maps for a number of frequency channels
+
+            Args:
+                spin: spin-weight of the input components
+                lmmax: alm array layout
+                bls: 1d beam functions
+                s2is: one number per frequency. The inverse variance map is s2i * Ni, with the same Ni in each channel
+                Ni: 'relative hit' map
+                geom: isolatitude pixelization of the sphere
 
 
         """
-        super(transfer_harmonic_simple).__init__(self)
-        assert bl.ndim == 2
-        self.ncomp = bl.shape[0]
-        self.bl = bl
-        self.mmax = lmmax[1]
-        self.alm_size = Alm.getsize(*lmmax)
+        assert len(bls) == len(s2is)
+        super(BtNiB_light).__init__(self)
+        nthreads = nthreads or psutil.cpu_count(logical=False)
 
-    def apply_inplace(self, alms_in, alms_out):
-        assert alms_in is alms_out
-        assert alms_in.shape == (self.ncomp, self.alm_size)
-        for bl, alm in zip(self.bl, alms_in):
-            almxfl(alm, bl, self.mmax, True)
+        self.nchannel = len(bls) # Number of frequency channel
+        self.ncomp = 1 + (spin > 0)
+        self.spin = spin
+        self.bls = bls
+        self.Ni = Ni
+        self.geom = geom
+        self.npix = Ni.size
+        self.sis = np.sqrt(s2is)
+
+        self.nthreads=nthreads
+
+        self.lmmax = lmmax
+
+        self.dtype =r_dtype
+        self._alms = None
+        self._maps = None
+
+    def apply_inplace(self, alm_in, alm_ou):
+        assert alm_in.ndim == 2 and alm_in.shape[1] == Alm.getsize(*self.lmmax)
+        assert alm_ou.ndim == 2 and alm_ou.shape[1] == Alm.getsize(*self.lmmax)
+        self.allocate()
+        for i, (bl, si) in enumerate(zip(self.bls, self.sis)):
+            self._alms[:] = almxfl(alm_in, bl * si, self.lmmax[1], False)
+            self.geom.synthesis(self._alms, self.spin, self.lmmax[0], self.lmmax[1], self.nthreads, map=self._maps)
+            self._maps *= self.Ni
+            if i == 0:
+                self.geom.adjoint_synthesis(self._maps, self.spin, self.lmmax[0], self.lmmax[1], self.nthreads,alm=alm_ou, apply_weights=False)
+                almxfl(alm_ou, bl * si, self.lmmax[1], True)
+            else:
+                self.geom.adjoint_synthesis(self._maps, self.spin, self.lmmax[0], self.lmmax[1], self.nthreads,alm=self._alms, apply_weights=False)
+                alm_ou += almxfl(self._alms, bl * si, self.lmmax[1], False)
+
+
+    def apply_adjoint_inplace(self, alm_in, alm_ou):
+        self.apply_inplace(alm_ou, alm_in) # self-adjoint. Just reverse the inputs
+
+    def allocate(self):
+        self._alms = np.empty((self.ncomp, Alm.getsize(*self.lmmax)), dtype=self.dtype)
+        self._maps = np.empty((self.ncomp, self.npix), dtype=ctype[self.dtype])
+
+    def deallocate(self):
+        self._alms = None
+        self._maps = None
+
 
 class D(operator):
-    def __init__(self, thtcap, spin:int, sht_mode:str,
-                 lmmax_len:tuple[int, int], lmmax_unl:tuple[int, int],
-                 dgclm: np.ndarray, Lmmax: tuple[int, int],
-                 nthreads=0, epsilon=1e-7, verbose=False):
+    def __init__(self, thtcap, spin:int, sht_mode:str, lmmax_len:tuple[int, int], lmmax_unl:tuple[int, int],
+                 dgclm: np.ndarray, Lmmax: tuple[int, int], nthreads=0, epsilon=1e-7, verbose=False):
         """Lensing deflection operator
 
                 This implements the operator D, or M D, where D is lensing, M some masking window,
-                twith eventual projection into harmonic components.
+                with eventual projection onto harmonic components.
 
                 The input is a (set of) unlensed alms, and output is a (set of) lensed alms
 
@@ -96,7 +140,7 @@ class D(operator):
                     e.g. 2, 'GRAD_ONLY' for E-only reconstruction, or 0, 'STANDARD' for temperature
                 lmmax_unl: lmax and mmax of the input alm layout
                 lmmax_len: lmax and mmax of the output alm layout
-                dgclm: (1 or 2, alm_size) array, delfection field harmonic components
+                dgclm: (1 or 2, alm_size) array, deflection field harmonic components
                 Lmmax: lmax and mmax of the delfection field components
                 epsilon: desirec precision of the remapping operations
                 nthreads: number of threads assigned to (adjoint_)synthesis_general
