@@ -10,6 +10,7 @@ import psutil
 from scipy.interpolate import UnivariateSpline as spl
 
 from lenspyx.remapping import utils_geom, deflection_029
+from lenspyx.lensing import dlm2angles
 from delensalot.utils import timer, cli, clhash, read_map
 from lenspyx.utils_hp import almxfl, Alm, alm2cl, synalms
 from delensalot.core.opfilt import bmodes_ninv as bni
@@ -23,16 +24,29 @@ ctype = {rtype[ctyp]:ctyp for ctyp in rtype}
 class operator(object):
     def __init__(self, *args, **kwargs):
         pass
+
     def apply_inplace(self, vec_a, vec_b):
         assert 0, 'implement this'
+
     def apply_adjoint_inplace(self, vec_a, vec_b):
         assert 0, 'implement this'
-    def eval_speed(self, veca, vecb):
+
+    def eval_speed(self, vec_a, vec_b):
         """Evaluate the execution speed of the operator and its adjoint
 
 
         """
+        # TODO: this we can actually test here
+        pass
+
+    def allocate(self):
+        """Intended usage is necessary preparations for e.g., cg-inversion
+
+
+
+        """
         assert 0, 'implement this'
+
     def deallocate(self):
         """Clean-up all potentially allocated array to avoid unnecessary mess
 
@@ -40,6 +54,10 @@ class operator(object):
 
         """
         assert 0, 'implement this'
+
+    def test_adjointness(self):
+        # TODO: this we can actually test here
+        pass
 
 class transfer_harmonic_simple(operator):
     def __init__(self, bl:np.ndarray[np.float64], lmmax:tuple[int]):
@@ -60,15 +78,15 @@ class transfer_harmonic_simple(operator):
         for bl, alm in zip(self.bl, alms_in):
             almxfl(alm, bl, self.mmax, True)
 
-class BMD(operator):
+class D(operator):
     def __init__(self, thtcap, spin:int, sht_mode:str,
                  lmmax_len:tuple[int, int], lmmax_unl:tuple[int, int],
                  dgclm: np.ndarray, Lmmax: tuple[int, int],
                  nthreads=0, epsilon=1e-7, verbose=False):
         """Lensing deflection operator
 
-                This implements the operator M D, where D is lensing, M some masking window,
-                together with projection into harmonic components.
+                This implements the operator D, or M D, where D is lensing, M some masking window,
+                twith eventual projection into harmonic components.
 
                 The input is a (set of) unlensed alms, and output is a (set of) lensed alms
 
@@ -88,25 +106,26 @@ class BMD(operator):
 
                 #TODO: what to do with dgclm ? we dont need it anymore after computing the pointing
         """
-        super(BMD).__init__(self)
+        super(D).__init__(self)
         assert int(spin) >= 0, spin
+        nthreads = nthreads or psutil.cpu_count(logical=False)
 
-        self._loc = None
-        self._dl_7 = 20
+        # FIXME
+        _dl_7 = 20
 
         self.lmmax_len = lmmax_len
         self.lmmax_unl = lmmax_unl
         self.Lmmax = Lmmax
 
         self.thtcap = thtcap
+        self.spin = int(spin)
 
-        self.geom = self._prepare_geom()
+        self.geom = self._prepare_geom(_dl_7=_dl_7)
         self.dgclm = dgclm
         # FIXME:We dont need this once locs are calculated, just do it on instantiation ? or give locs as input ?
 
-        self.spin = int(spin)
 
-        self.nthreads = nthreads or psutil.cpu_count(logical=False)
+        self.nthreads = nthreads
 
         # These are potentially large arrays that might be instantiated later (or not)
         self._loc   = None  # tht and phis coordinates -- deflected angles
@@ -114,37 +133,37 @@ class BMD(operator):
         self._mapsc = None  # calculation must go through an intermediate map.
         self._mapsr = None  # For non-zero spins we use a complex array with a real view, or just a real array for spin-0
 
-        # FIXME
         lmax_unl, mmax_unl = lmmax_unl
         lensing_syng_params = {'epsilon':epsilon,
                        'thtcap':thtcap,
-                       'eps_apo': np.sqrt(self._dl_7 / lmax_unl * np.pi / thtcap),
+                       'eps_apo': np.sqrt(_dl_7 / lmax_unl * np.pi / thtcap),
                         'spin':spin, 'lmax':lmax_unl, 'mmax':mmax_unl,
-                        'nthreads':self.nthreads, 'mode':sht_mode, 'verbose':verbose}
+                        'nthreads':nthreads, 'mode':sht_mode, 'verbose':verbose}
         adj_lensing_syng_params = lensing_syng_params.copy()
         adj_lensing_syng_params['lmax'] = lmax_unl
         adj_lensing_syng_params['mmax'] = mmax_unl
 
-        adj_syn_params = {'spin':spin, 'lmax':self.lmmax_len[0],
-                          'mmax':self.lmmax_len[1], 'nthreads':self.nthreads, 'apply_weights':False}
-        syn_params = {'spin':spin, 'lmax':self.lmmax_len[0],
-                          'mmax':self.lmmax_len[1], 'nthreads':self.nthreads}
+        adj_syn_params = {'spin':spin, 'lmax':lmmax_len[0],
+                          'mmax':lmmax_len[1], 'nthreads':nthreads, 'apply_weights':False}
+        syn_params = {'spin':spin, 'lmax':lmmax_len[0],
+                          'mmax':lmmax_len[1], 'nthreads':nthreads}
 
 
         self.lensing_syng_params = lensing_syng_params
         self.adj_lensing_syng_params = adj_lensing_syng_params
+
         self.adj_syn_params = adj_syn_params
         self.syn_params = syn_params
 
         self.rtype = np.float64 if epsilon < 1e-7 else np.float32
 
-    def _prepare_geom(self):
+    def _prepare_geom(self, _dl_7=20):
         """Prepares geometry that will handle the lensing and windowing operations
 
 
         """
         lmax = self.lmmax_unl[0]
-        eps = np.sqrt(self._dl_7 / lmax)
+        eps = np.sqrt(_dl_7 / lmax)
         dlmax = lmax * eps
         thtmax = min(self.thtcap * (1 + eps), np.pi)
         bgeom = utils_geom.Geom.get_thingauss_geometry(int(lmax + dlmax) + 2, self.spin+1, False).restrict(0, thtmax * 1.0001, False, True)
@@ -165,14 +184,10 @@ class BMD(operator):
 
         """
         if self._loc is None:
-            Lmax, Mmax = self.Lmmax
-            tht, phi0, nph, ofs = self.geom.theta, self.geom.phi0, self.geom.nph, self.geom.ofs
-            d1 = self.geom.synthesis(self.dgclm, 1, Lmax, Mmax, self.nthreads)
-            tht_phip_gamma = get_deflected_angles(theta=tht, phi0=phi0, nphi=nph, ringstart=ofs, deflect=d1.T,
-                                                  calc_rotation=self.spin > 0, nthreads=self.nthreads)
-            self._loc   = tht_phip_gamma[:, 0:2]
+            angles = dlm2angles(self.dgclm, self.geom, self.Lmmax[1], self.nthreads, self.spin>0)
+            self._loc  = angles[:, 0:2]
             if self.spin:
-                self._gamma = tht_phip_gamma[:, 2]
+                self._gamma = angles[:, 2]
 
     def _allocate(self):
         """Allocate necessary intermediate arrays, in order to avoid re-allocation at every time in cg-process etc
@@ -229,7 +244,7 @@ class BMD(operator):
 
 class alm_filter_ninv(object):
     def __init__(self, loc:np.ndarray, ninv:list, transf:np.ndarray,
-                 unlalm_info:tuple, lenalm_info:tuple, sht_threads:int, dgclm:np.ndarray[complex] or None=None,
+                 unlalm_info:tuple, lenalm_info:tuple, sht_threads:int,
                  transf_b:np.ndarray or None=None, epsilon=1e-7, nlevp_iso=None,
                  tpl:bni.template_dense or None=None, verbose=False, maskbeam=False):
         r"""CMB inverse-variance and Wiener filtering instance, to use for cg-inversion
