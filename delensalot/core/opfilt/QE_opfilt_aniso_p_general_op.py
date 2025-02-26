@@ -15,8 +15,10 @@ from delensalot.utils import timer, cli, clhash, read_map
 from lenspyx.utils_hp import almxfl, Alm, alm2cl, synalms
 from delensalot.core.opfilt import bmodes_ninv as bni
 from duccjc.sht import synthesis_general_cap as syng, adjoint_synthesis_general_cap as syng_adj # FIXME
-from ducc0.misc import get_deflected_angles, lensing_rotate
+from ducc0.misc import lensing_rotate
 from copy import deepcopy
+
+from tests.old.test_QEfromfilter_P import eblm_wf
 
 rtype = {np.dtype(np.complex128):np.dtype(np.float64), np.dtype(np.complex64):np.dtype(np.float32)}
 ctype = {rtype[ctyp]:ctyp for ctyp in rtype}
@@ -96,6 +98,8 @@ class BtNiB_light(operator):
             Note:
                 This performs (a channel, i pixel, lm harmonics)
                     :math:`\sum_{a, i, lm} b_l'Y^{\dagger}_{l'm'}(\hn_i) N^{-1}_i /s^2_a Y_{lm}(\hat n_i) b^a_l a_{lm}`
+
+            #FIXME: must extend this to synthesis_general case
 
         """
         assert len(bls) == len(s2is)
@@ -189,7 +193,7 @@ class MD(operator):
 
                 #TODO: what to do with dgclm ? we dont need it anymore after computing the pointing
         """
-        super(D).__init__(self)
+        super(MD).__init__(self)
         assert int(spin) >= 0, spin
         nthreads = nthreads or psutil.cpu_count(logical=False)
 
@@ -330,7 +334,8 @@ class alm_filter_ninv(object):
     def __init__(self, loc:np.ndarray, ninv:list, transf:np.ndarray,
                  unlalm_info:tuple, lenalm_info:tuple, sht_threads:int,
                  transf_b:np.ndarray or None=None, epsilon=1e-7, nlevp_iso=None,
-                 tpl:bni.template_dense or None=None, verbose=False, maskbeam=False):
+                 tpl:bni.template_dense or None=None, verbose=False, maskbeam=False,
+                 dgclm: np.ndarray=np.zeros(1, dtype=complex), Lmmax:tuple[int, int]=(0, 0)):
         r"""CMB inverse-variance and Wiener filtering instance, to use for cg-inversion
 
             Args:
@@ -364,6 +369,9 @@ class alm_filter_ninv(object):
 
         self.lmax_len = min(lmax_transf, lmax_len)
         self.mmax_len = min(mmax_len, lmax_transf)
+
+        self.lmmax_len = (lmax_len, mmax_len)
+        self.lmmax_unl = (lmax_unl, mmax_unl)
 
         self.lmax_sol = lmax_unl
         self.mmax_sol = min(lmax_unl, mmax_unl)
@@ -399,58 +407,58 @@ class alm_filter_ninv(object):
         adj_syng_params['lmax'] = lmax_unl
         adj_syng_params['mmax'] = mmax_unl
 
+        assert Lmmax is not None, Lmmax
+        dgclm2d = np.atleast_2d(dgclm)
+        assert Alm.getsize(*Lmmax) == dgclm2d[0].size
+
+
+        # FIXME: what to for QE case ?
+        sht_mode = 'GRAD_ONLY' if Lmmax[0] > 0 else 'STANDARD'
+
+
+        self.MD_op = MD(thtcap, spin, sht_mode, self.lmmax_len , self.lmmax_unl, dgclm, Lmmax,
+                      nthreads=sht_threads, epsilon=epsilon, verbose=False)
+
         if verbose:
             print("general QE p filter setup with thtcap = %.2f deg"%(thtcap/np.pi*180))
             print('eps apo %.3f'%syng_params.get('eps_apo', 0))
+
         self.syng_params = syng_params
         self.adj_syng_params = adj_syng_params
-        self._dl_7 = dl_7
+
         self.thtcap = thtcap
-
         self.npix = npix
+
+        self._dl_7 = dl_7
         self._qu = None
-
-        if maskbeam:
-            # The beam operator includes a masking operation
-            self.maskbeam = True
-            self._beamgeom = self._get_sky_geom(lmax_unl, weighted=True)
-
-        else:
-            self._beamgeom = None
-            self._beamw = None
-            self.maskbeam = False
+        self._almlen = None
 
     def hashdict(self):
-        return {'ninv':self._ninv_hash(), 'transf':clhash(self.transf_elm),
-                'unalm':(self.lmax_sol, self.mmax_sol),
-                'lenalm':(self.lmax_len, self.mmax_len) }
+        return {}
 
     def _get_sky_geom(self, lmax, weighted=True):
         """Returns a suitable weighted geometry object for the masked beam operation
 
 
         """
-        if self.maskbeam:
-            # Here we know that the lensing gradients are exactly zero outside of the beam window, se we cut out the geometry
-            eps = np.sqrt(self._dl_7 / lmax)
-            dlmax = lmax * eps
-            thtmax = min(self.thtcap * (1 + eps), np.pi)
-            bgeom = utils_geom.Geom.get_thingauss_geometry(int(lmax + dlmax) + 2, 3, False).restrict(0, thtmax * 1.0001, False, True)
-            # now build weights using f(1-x) / (f(1-x) + f(x))
-            if weighted:
-                x = (bgeom.theta - self.thtcap) / (thtmax - self.thtcap)
-                i = np.where((x < 1) & (x > 0))[0]
-                fx = np.exp(-2 / x[i])
-                f1x = np.exp(-2 / (1 - x[i]))
-                wx = f1x / (f1x + fx)
-                bgeom.weight[i] *= wx
-                bgeom.weight[np.where(x >= 1.)] *= 0
-            if self.verbose:
-                print("using beam geometry with dlmax %d" % int(dlmax))
-                print("%s non-zero rings" % (len(bgeom.theta)))
-            return bgeom
-        else:
-            return utils_geom.Geom.get_thingauss_geometry(lmax, 3, False)
+        # Here we know that the lensing gradients are exactly zero outside of the beam window, se we cut out the geometry
+        eps = np.sqrt(self._dl_7 / lmax)
+        dlmax = lmax * eps
+        thtmax = min(self.thtcap * (1 + eps), np.pi)
+        bgeom = utils_geom.Geom.get_thingauss_geometry(int(lmax + dlmax) + 2, 3, False).restrict(0, thtmax * 1.0001, False, True)
+        # now build weights using f(1-x) / (f(1-x) + f(x))
+        if weighted:
+            x = (bgeom.theta - self.thtcap) / (thtmax - self.thtcap)
+            i = np.where((x < 1) & (x > 0))[0]
+            fx = np.exp(-2 / x[i])
+            f1x = np.exp(-2 / (1 - x[i]))
+            wx = f1x / (f1x + fx)
+            bgeom.weight[i] *= wx
+            bgeom.weight[np.where(x >= 1.)] *= 0
+        if self.verbose:
+            print("using beam geometry with dlmax %d" % int(dlmax))
+            print("%s non-zero rings" % (len(bgeom.theta)))
+        return bgeom
 
     def _test_syng_accuracy(self, dtype=np.float64):
         if 'thtcap' in self.syng_params:
@@ -465,15 +473,17 @@ class alm_filter_ninv(object):
             print('syng max  rel dev %.2e'%(np.sqrt(np.max( (ref-self._qu) ** 2) )/ norm))
             print('syng mean rel dev %.2e'%(np.sqrt(np.mean( (ref-self._qu) ** 2) )/ norm))
 
-    def _allocate_maps(self, dtype):
+    def _allocate_maps(self, r_dtype):
         """This allocate the positions-space maps for cg iterations
 
 
         """
         if self._qu is None:
-            self._qu = np.empty((self.ncomp_dat, self.npix), dtype=dtype)
+            self._qu = np.empty((self.ncomp_dat, self.npix), dtype=r_dtype)
         else:
-            assert self._qu.dtype == dtype, 'not sure how thats possible, find some way to treat the types properly'
+            assert self._qu.dtype == r_dtype, 'not sure how thats possible, find some way to treat the types properly'
+        if self._almlen is None:
+            self._almlen = np.empty((self.ncomp_dat, Alm.getsize(*self.lmmax_len)), dtype=ctype[r_dtype])
 
     def deallocate(self):
         """Just cleans some stuff if relevant by deallocating potentially large arrays
@@ -481,15 +491,7 @@ class alm_filter_ninv(object):
 
         """
         self._qu = None
-
-    def _ninv_hash(self):
-        ret = []
-        for ninv_comp in self.n_inv:
-            if isinstance(ninv_comp, np.ndarray) and ninv_comp.size > 1:
-                ret.append(clhash(ninv_comp))
-            else:
-                ret.append(ninv_comp)
-        return ret
+        self._almlen = None
 
     def get_febl(self):
         assert self._nlevp is not None, 'need to implement some idea of pixel size from the locs if not specified'
@@ -508,16 +510,14 @@ class alm_filter_ninv(object):
         return fel, fbl
 
     def apply_beam(self, eblm:np.ndarray, qumap:np.ndarray, loc=None):
-        """Action of beam operator. Here defined from harmonic space to data pixel space
+        """Action of beam operator. Here defined from lensed harmonic space to data pixel space
 
             Note:
                 This can modify eblm
 
         """
-        if self.maskbeam:
-            # FIXME: with lensing just replace here synthesis with synthesis_general_cap
-            qu = self._beamgeom.synthesis(gclm=eblm, spin=2, lmax=self.lmax_sol, mmax=self.mmax_sol, nthreads=self.sht_threads)
-            self._beamgeom.adjoint_synthesis(m=qu, alm=eblm, spin=2, lmax=self.lmax_len, mmax=self.mmax_len, nthreads=self.sht_threads, apply_weights=True)
+        assert eblm.shape == (self.ncomp_dat, Alm.getsize(*self.lmmax_len)), (eblm.shape, (self.ncomp_dat, Alm.getsize(*self.lmmax_len)))
+
         if loc is None:
             loc = read_map(self.loc)
         almxfl(eblm[0], self.transf_elm, self.mmax_len, inplace=True)
@@ -531,32 +531,32 @@ class alm_filter_ninv(object):
                 The adjoint takes as input a map in data pixel space and produces a map in harmonic space
 
         """
+        assert eblm.shape == (self.ncomp_dat, Alm.getsize(*self.lmmax_len)), (eblm.shape, (self.ncomp_dat, Alm.getsize(*self.lmmax_len)))
         if loc is None:
             loc = read_map(self.loc)
         syng_adj(map=qumap,  loc=loc, alm=eblm, **self.adj_syng_params)
         almxfl(eblm[0], self.transf_elm, self.mmax_len, inplace=True)
         almxfl(eblm[1], self.transf_blm, self.mmax_len, inplace=True)
-        if self.maskbeam:
-            qu = self._beamgeom.synthesis(gclm=eblm, spin=2, lmax=self.lmax_len, mmax=self.mmax_len, nthreads=self.sht_threads)
-            self._beamgeom.adjoint_synthesis(m=qu, alm=eblm, spin=2, lmax=self.lmax_sol, mmax=self.mmax_sol, nthreads=self.sht_threads, apply_weights=True)
 
-    def apply_alm(self, eblm:np.ndarray):
+    def apply_alm(self, alm_unl:np.ndarray):
         """Applies operator B^T N^{-1} B
 
         """
-        assert self.lmax_sol == self.lmax_len, (self.lmax_sol, self.lmax_len) # not implemented wo lensing
-        assert self.mmax_sol == self.mmax_len, (self.mmax_sol, self.mmax_len)
-        assert  Alm.getlmax(eblm[0].size, self.mmax_sol) == self.lmax_sol, ( Alm.getlmax(eblm[0].size, self.mmax_sol), self.lmax_sol)
+        assert  Alm.getlmax(alm_unl[0].size, self.mmax_sol) == self.lmax_sol, ( Alm.getlmax(alm_unl[0].size, self.mmax_sol), self.lmax_sol)
         tim = timer(True, prefix='opfilt_pp')
         loc = read_map(self.loc)
-        self._allocate_maps(dtype=rtype[eblm.dtype])
+        self._allocate_maps(r_dtype=rtype[alm_unl.dtype])
         tim.add('applyalm init')
-        self.apply_beam(eblm, qumap=self._qu, loc=loc)
+        self.MD_op.apply_inplace(alm_unl, self._almlen)
+        tim.add('MD')
+        self.apply_beam(self._almlen, qumap=self._qu, loc=loc)
         tim.add('beam')
         self.apply_map(self._qu)
         tim.add('Ni')
-        self.apply_adjoint_beam(eblm, qumap=self._qu, loc=loc)
+        self.apply_adjoint_beam(self._almlen, qumap=self._qu, loc=loc)
         tim.add('beam (adjoint)')
+        self.MD_op.apply_adjoint_inplace(alm_unl, self._almlen)
+        tim.add('MD (adjoint)')
         if self.verbose:
             print(tim)
 
@@ -614,16 +614,18 @@ class alm_filter_ninv(object):
             Args:
                 qudat: input polarization maps (geom must match that of the filter)
                 eblm_wf: Wiener-filtered CMB maps (alm arrays)
-                q_pbgeom: lenspyx pbounded-geometry of for the position-space mutliplication of the legs
                 lmax_qlm: maximum multipole of output
                 mmax_qlm: maximum m of lm output
                 norm: normalization of the output (whether kappa-like ('k'), or potential-like...)
                 eb_only: if True, only the EB estimator is returned
 
+            Returns:
+                gradient and curl alms
+
         """
         assert len(qudat) == self.ncomp_dat and len(eblm_wf) == 2
         assert norm in ['k', 'kappa', 'kappa-like', 'p', 'phi', 'phi-like'], 'implement this (easy)'
-        qgeom = self._get_sky_geom((2 * self.lmax_sol + lmax_qlm // 2) + 1, weighted=False)
+        qgeom = self._get_sky_geom((2 * self.lmax_sol + lmax_qlm) // 2 + 1, weighted=True)
         resmap_c = np.empty((qgeom.npix(),), dtype=eblm_wf.dtype)
         resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
         self._get_irespmap(qudat, eblm_wf, qgeom, map_out=resmap_r, eb_only=eb_only)  # inplace onto resmap_c and resmap_r
@@ -638,7 +640,7 @@ class alm_filter_ninv(object):
         gc_c -= resmap_c * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze().conj()  # (+2 , -1)
         del resmap_c, resmap_r, gcs_r
         gc_r = gc_c.view(rtype[gc_c.dtype]).reshape((gc_c.size, 2)).T  # real view onto complex array
-        gc = qgeom.adjoint_synthesis(gc_r, 1, lmax_qlm, mmax_qlm, self.sht_threads)
+        gc = qgeom.adjoint_synthesis(gc_r, 1, lmax_qlm, mmax_qlm, self.sht_threads, apply_weights=True)
         del gc_r, gc_c
         fl = - np.sqrt(np.arange(lmax_qlm + 1, dtype=float) * np.arange(1, lmax_qlm + 2))
         if norm[0] == 'k':
@@ -658,6 +660,7 @@ class alm_filter_ninv(object):
 
 
         """
+        assert 0, 'have to have lensing somehow here'
         assert len(eblm_wf) == 2
         assert  Alm.getlmax(eblm_wf[0].size, self.mmax_sol)== self.lmax_sol, ( Alm.getlmax(eblm_wf[0].size, self.mmax_sol), self.lmax_sol)
         assert spin in [1, 3], spin
@@ -677,22 +680,22 @@ class alm_filter_ninv(object):
                       map_out=None, eb_only=False):
         """Builds inverse variance weighted map to feed into the QE
 
-                :math:`B^t N^{-1}(X^{\rm dat} - B X^{WF})`
+                :math:`B^t N^{-1}(X^{\rm dat} - B M D X^{WF})`
 
 
         """
         assert len(qu_dat) == self.ncomp_dat and len(eblm_wf) == 2, (len(eblm_wf), len(qu_dat))
-        ebwf = np.copy(eblm_wf)
         loc = read_map(self.loc)
-        self._allocate_maps(dtype=qu_dat.dtype)
-        self.apply_beam(eblm=ebwf, qumap=self._qu, loc=loc)
+        self._allocate_maps(r_dtype=qu_dat.dtype)
+        self.MD_op.apply_inplace(eblm_wf, self._almlen)
+        self.apply_beam(eblm=self._almlen, qumap=self._qu, loc=loc)
         self._qu -= qu_dat
         self.apply_map(self._qu)
-        self.apply_adjoint_beam(eblm=ebwf, qumap=self._qu, loc=loc)
-        ebwf *= -1 # FIXME. I think I am including a pair of adjoint- and forward synthesis too much here in the beam-masked case
+        self.apply_adjoint_beam(eblm=self._almlen, qumap=self._qu, loc=loc)
+        self._almlen *= -1 # FIXME. is M^t B^t implemented correctly  here? best would be to have a BM I guess
         if eb_only:
-            ebwf[0, :] = 0
-        return qgeom.synthesis(ebwf, 2, self.lmax_len, self.mmax_len, self.sht_threads, map=map_out)
+            self._almlen[0, :] = 0
+        return qgeom.synthesis(self._almlen, 2, self.lmax_len, self.mmax_len, self.sht_threads, map=map_out)
 
 pre_op_dense = None # not implemented
 
