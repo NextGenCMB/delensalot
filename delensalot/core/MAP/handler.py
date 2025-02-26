@@ -5,8 +5,9 @@ from logdecorator import log_on_start, log_on_end
 import numpy as np
 from os.path import join as opj
 
-from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy
+from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy, alm_copy_nd
 from delensalot.utils import cli
+from delensalot.core.MAP import functionforwardlist
 
 from . import field
 from . import gradient
@@ -34,10 +35,12 @@ class Minimizer:
 
     def get_est(self, request_it=None, secondary=None, component=None, scale='k', calc_flag=False, idx=None, idx2=None):
         ctx, isnew = get_computation_context()  # Get the singleton instance for MPI rank
-
-        request_it, idx, idx2, component, secondary = (
-            request_it or ctx.it, ctx.idx or idx, ctx.idx2 or idx2, ctx.component or component, ctx.secondary or secondary
-        )
+        if not isinstance(request_it, (list,np.ndarray)):
+            request_it, idx, idx2, component, secondary = (
+                request_it or ctx.it, ctx.idx or idx, ctx.idx2 or idx2, ctx.component or component, ctx.secondary or secondary
+            )
+        else:
+            request_it = request_it
         idx = idx or self.idx
         idx2 = idx2 or self.idx2
         idx2 = idx2 or idx
@@ -100,7 +103,14 @@ class Minimizer:
         component, secondary = component or ctx.component, secondary or ctx.secondary
         secondary = secondary or [sec for sec in self.likelihood.secondaries.keys()]
         ctx.set(secondary=secondary, component=component)
-        return self.likelihood.get_est(it=it, scale=scale)
+        ret = []
+        if isinstance(it, (list, np.ndarray)):
+            for it_ in it:
+                ret.append(self.likelihood.get_est(it_, scale=scale))
+            return ret
+        else:
+            return self.likelihood.get_est(it, scale=scale)
+        # return self.likelihood.get_est(it=it, scale=scale)
 
 
     def isiterdone(self, it):
@@ -128,7 +138,7 @@ class Minimizer:
     def __getattr__(self, name):
         # NOTE this forwards the method call to the likelihood object
         def method_forwarder(*args, **kwargs):
-            if hasattr(self.likelihood, name):
+            if name in functionforwardlist and hasattr(self.likelihood, name):
                 return getattr(self.likelihood, name)(*args, **kwargs)
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
         return method_forwarder
@@ -210,8 +220,11 @@ class Likelihood:
     def get_est(self, it, scale='k'):
         ctx, isnew = get_computation_context()
         secondary = ctx.secondary or list(self.secondaries.keys())
-        ret = [self.secondaries[sec].get_est(it=it, scale=scale) for sec in secondary]
-        return list(map(list, zip(*ret)))
+        ret = []
+        for sec in secondary:
+            ret.append(self.secondaries[sec].get_est(it=it, scale=scale))
+        return ret
+        # return list(map(list, zip(*ret)))
 
     
     def isiterdone(self, it):
@@ -236,10 +249,8 @@ class Likelihood:
                 secondary.cache_klm(new_klms[secID][component], idx=self.idx, idx2=self.idx2, it=it, component=component)
 
 
-    def get_data(self):
-        print('getting data with lm_max_sky', self.lm_max_sky)
+    def get_data(self, space='alm'):
         # TODO this could be provided by the data_container directly
-
         if True: # NOTE anisotropic data currently not supported
         # if self.noisemodel_coverage == 'isotropic':
             # NOTE dat maps must now be given in harmonic space in this idealized configuration. sims_MAP is not used here, as no truncation happens in idealized setting.
@@ -250,27 +261,37 @@ class Likelihood:
                     data_key = self.estimator_key
             else:
                 data_key = self.estimator_key.split('_')[-1]
+                
             if data_key in ['p', 'eb', 'be']:
-                return alm_copy(
+                ret = alm_copy_nd(
                     self.data_container.get_sim_obs(self.idx, space='alm', spin=0, field='polarization'),
-                    None, *self.lm_max_sky)
+                    None, *self.lm_max_sky)                
             if data_key in ['ee']:
-                return alm_copy(
+                ret = alm_copy_nd(
                     self.data_container.get_sim_obs(self.idx, space='alm', spin=0, field='polarization'),
                     None, *self.lm_max_sky)[0]
             elif data_key in ['tt']:
-                return alm_copy(
+                ret = alm_copy_nd(
                     self.data_container.get_sim_obs(self.idx, space='alm', spin=0, field='temperature'),
                     None, *self.lm_max_sky)
             elif data_key in ['p']:
-                EBobs = alm_copy(
+                EBobs = alm_copy_nd(
                     self.data_container.get_sim_obs(self.idx, space='alm', spin=0, field='polarization'),
                     None, *self.lm_max_sky)
-                Tobs = alm_copy(
+                Tobs = alm_copy_nd(
                     self.data_container.get_sim_obs(self.idx, space='alm', spin=0, field='temperature'),
                     None, *self.lm_max_sky)         
                 ret = np.array([Tobs, *EBobs])
+            else:
+                assert 0, 'implement if needed'
+            if space == 'alm':
                 return ret
+            elif space == 'map':
+                assert data_key == 'p', 'implement if needed'
+                # TODO this should move to the data_container
+                ret = np.atleast_2d(ret)
+                import healpy as hp
+                return [hp.alm2map_spin(r, nside=2048, spin=2) for r in ret]
             else:
                 assert 0, 'implement if needed'
         else:
@@ -305,7 +326,7 @@ class Likelihood:
     def __getattr__(self, name):
         # NOTE this forwards the method call to the gradient_lib
         def method_forwarder(*args, **kwargs):
-            if hasattr(self.gradient_lib, name):
+            if name in functionforwardlist and hasattr(self.gradient_lib, name):
                 return getattr(self.gradient_lib, name)(*args, **kwargs)
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
         

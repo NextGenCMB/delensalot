@@ -44,7 +44,8 @@ np_logger = logging.getLogger("numpy")
 np_logger.setLevel(logging.WARNING)
 np_logger = logging.getLogger("matplotlib")
 np_logger.setLevel(logging.WARNING)
-
+logging.getLogger("healpy").setLevel(logging.WARNING)
+np_logger.setLevel(logging.WARNING)
 
 
 class run():

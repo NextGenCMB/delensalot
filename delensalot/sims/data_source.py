@@ -229,7 +229,6 @@ class Cls:
             'birefringence': ['ff'],
         }
 
-
         if fid_info['libdir'] == DNaV:
             if fid_info['fn'] == DNaV:
                 assert 0, "need to provide libdir or at least fn in CMB_info"
@@ -297,8 +296,7 @@ class Xpri:
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
         self.geom_lib = get_geom(self.geominfo)
-
-        
+  
         if CMB_info.get('libdir', DNaV) == DNaV or (CMB_info.get('fn', DNaV) == DNaV and any(value['fn'] == DNaV for value in sec_info.values())):
             if cls_lib == DNaV:
                 sec_info = {key: {'fns':DNaV, 'component':value['component'], 'libdir': DNaV, 'scale': 'p'} for key, value in sec_info.items()}
@@ -430,7 +428,7 @@ class Xpri:
                 if comp not in c_(secondary):
                     log.info(f"component {comp} not available, removing from list")
                     component.remove(comp)
-            return [self.get_sim_sec(idx, space, secondary, component=comp, return_nonrec=return_nonrec) for comp in component]
+            return np.array([self.get_sim_sec(idx, space, secondary, component=comp, return_nonrec=return_nonrec) for comp in component])
         
         fn = f"{secondary}{component}_space{space}_{idx}"
         if not self.cacher.is_cached(fn):
@@ -1064,7 +1062,10 @@ class DataSource:
         return self.get_sim_obs(idx=idx, space='map', field='temperature', spin=0)
     # compatibility with Plancklens
     def get_sim_pmap(self, idx):
-        return self.get_sim_obs(idx=idx, space='map', field='polarization', spin=2)
+        m = np.zeros(hp.nside2npix(1))
+        m[[7]] = 1
+        mask = hp.ud_grade(m, nside_out=2048)
+        return [obs*mask for obs in self.get_sim_obs(idx=idx, space='map', field='polarization', spin=2)]
     
     def print_info(self):
         print('Simhandler:')

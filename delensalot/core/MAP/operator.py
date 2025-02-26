@@ -16,6 +16,8 @@ from delensalot.utils import cli
 from delensalot.utility.utils_hp import Alm, almxfl, alm_copy
 from delensalot.core.MAP import field
 
+from delensalot.utils import read_map
+
 
 template_lensingcomponents = ['p', 'w'] 
 template_index_lensingcomponents = {val: i for i, val in enumerate(template_lensingcomponents)}
@@ -85,7 +87,7 @@ class JointOperator:
     @log_on_end(logging.DEBUG, "joint done", logger=log)  
     def act(self, obj, spin):
         for operator in self.operators:
-            if isinstance(operator, secondary_operator):
+            if isinstance(operator, SecondaryOperator):
                 obj = operator.act(obj, spin, out=self.space_out)
             else:
                 obj = operator.act(obj, spin)
@@ -106,7 +108,6 @@ class JointOperator:
 
 class SecondaryOperator:
     def __init__(self, desc):
-        
         self.ID = 'secondaries'
         self.operators = desc # ["operators"]
 
@@ -134,6 +135,14 @@ class SecondaryOperator:
                 if component is None or component not in operator.component:
                     component = operator.component
                 operator.set_field(idx, it, component, idx2)
+
+    
+    def update_lm_max(self, lm_max_in, lm_max_out):
+        in_prev, out_prev = self.operators[0].lm_max_in, self.operators[0].lm_max_out
+        for operator in self.operators:
+            operator.lm_max_in = lm_max_in
+            operator.lm_max_out = lm_max_out
+        return in_prev, out_prev
 
 
 class LensingOperator(Base):
@@ -186,7 +195,10 @@ class LensingOperator(Base):
         for comp in comps_:
             field_path = opj(self.field_fns[comp].format(idx=idx, idx2=idx2, it=it))
             if self.field_cacher.is_cached(field_path):
-                self.field[comp] = self.klm2dlm(self.field_cacher.load(field_path)[0])
+                # if it == 0:
+                #     self.field[comp] = np.zeros_like(self.klm2dlm(self.field_cacher.load(field_path)[0]), dtype=complex)
+                # else:
+                    self.field[comp] = self.klm2dlm(self.field_cacher.load(field_path)[0])
             else: 
                 assert 0, f"Cannot set field with it={it} and idx={idx}_{idx2}"
 
@@ -219,10 +231,11 @@ class BirefringenceOperator(Base):
     @log_on_end(logging.DEBUG, "birefringence done", logger=log)
     def act(self, obj, spin=None, adjoint=False, backwards=False, out_sht_mode=None):
         obj = np.atleast_2d(obj)
+        obj_shape_in_leading = obj.shape[0]
         lmax = Alm.getlmax(obj[0].size, None)
 
         
-        # NOTE if no B component (e.g. for generating template, or ivfres with Birefringence acting first), I set B to zero
+        # NOTE if no B component, I set B to zero
         if obj.shape[0] == 1:
             obj = [obj[0], np.zeros_like(obj[0])+np.zeros_like(obj[0])*1j] 
         Q, U = self.ffi.geom.alm2map_spin(obj, 2, lmax, lmax, 8)  
@@ -237,11 +250,13 @@ class BirefringenceOperator(Base):
 
         Elm_rot, Blm_rot = self.ffi.geom.map2alm_spin(np.array([Q_rot, U_rot]), 2, lmax, lmax, 8)
 
-        return np.array([Elm_rot, Blm_rot])
+        if obj_shape_in_leading == 1:
+            return Elm_rot
+        else:
+            return np.array([Elm_rot, Blm_rot])
 
 
     def set_field(self, idx, it, component=None, idx2=None):
-        print('setting field for birefringence:', idx, it, component, idx2)
         idx2 = idx2 or idx
         if component is None:
             component = self.component
@@ -307,19 +322,32 @@ class BeamOperator:
         return self.act(obj)
     
 
-class InoiseOperator:
-    def __init__(self, nlev, lm_max):
+class InverseNoiseVariance(Base):
+    def __init__(self, nlev, lm_max, niv_desc, transferfunction, libdir, spectrum_type=None, OBD=None, OBD_rescale=None, OBD_libdir=None, mask=None, sky_coverage=None, rhits_normalised=None):
+        super().__init__(libdir, lm_max)
         self.ID = 'inoise'
+        zbounds = (-1,1)
+        self.geom_lib = get_geom(('healpix',{'nside': 2048}))
+        thtbounds = (np.arccos(zbounds[1]), np.arccos(zbounds[0]))
+        self.geom_lib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
+
         self.nlev = nlev
         self.lm_max = lm_max
+        self.niv_desc = [niv_desc['P']]
+        self.transferfunction = transferfunction
+        spectrum_type = spectrum_type
+        OBD = OBD
+        self.mask = mask
+        self.sky_coverage = sky_coverage
+        rhits_normalised = rhits_normalised
         self.n1eblm = [
             cli(_extend_cl(self.nlev['P']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2,
             cli(_extend_cl(self.nlev['P']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2
         ]
 
 
-    @log_on_start(logging.DEBUG, "inoise: {obj.shape}", logger=log)
-    @log_on_end(logging.DEBUG, "inoise done", logger=log)
+    @log_on_start(logging.DEBUG, "InverseNoiseVariance: {obj.shape}", logger=log)
+    @log_on_end(logging.DEBUG, "InverseNoiseVariance done", logger=log)
     def act(self, obj, adjoint=False):
         assert self.lm_max[0] == Alm.getlmax(obj[0].size, None), (self.lm_max[0], Alm.getlmax(obj[0].size, None))
         if adjoint:
@@ -330,6 +358,44 @@ class InoiseOperator:
     def adjoint(self):
         self.is_adjoint = True
         return self
+    
 
-    def __mul__(self, obj, other):
-        return self.act(obj)
+    def apply_map(self, qumap):
+        """Applies pixel inverse-noise variance maps
+        """
+        if len(self.niv_desc) == 1:  #  QQ = UU
+            qumap *= self.niv_desc[0]
+
+
+        elif len(self.niv_desc) == 3:  # QQ, QU, UU
+            assert self.template is None
+            qmap, umap = qumap
+            qmap_copy = qmap.copy()
+            qmap *= self.niv_desc[0]
+            qmap += self.niv_desc[1] * umap
+            umap *= self.niv_desc[2]
+            umap += self.niv_desc[1] * qmap_copy
+            del qmap_copy
+        else:
+            assert 0
+        eblm = self.geom_lib.adjoint_synthesis(qumap, 2, *self.lm_max, 6, apply_weights=False)
+        return eblm
+
+
+    def get_febl(self, transferfunction):
+        if self.sky_coverage == 'masked':
+            ret = _extend_cl(transferfunction['e']*2, len(self.n1eblm[0])-1) * self.n1eblm[0]
+            return ret, None
+
+        if len(self.niv_desc) == 1:
+            nlev_febl = 10800. / np.sqrt(np.sum(read_map(self.niv_desc[0])) / (4.0 * np.pi)) / np.pi
+        elif len(self.niv_desc) == 3:
+            nlev_febl = 10800. / np.sqrt(
+                (0.5 * np.sum(read_map(self.niv_desc[0])) + np.sum(read_map(self.niv_desc[2]))) / (4.0 * np.pi)) / np.pi
+        else:
+            assert 0
+        self._nlevp = nlev_febl
+        log.info('Using nlevp %.2f amin'%self._nlevp)
+        niv_cl_e = transferfunction['e'] ** 2  / (self._nlevp/ 180. / 60. * np.pi) ** 2
+        niv_cl_b = transferfunction['b'] ** 2  / (self._nlevp/ 180. / 60. * np.pi) ** 2
+        return niv_cl_e, niv_cl_b.copy()

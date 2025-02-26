@@ -97,7 +97,7 @@ DL_DEFAULT = {
         'idxs_mf': [],
         'zbounds': (-1,1),
         'zbounds_len': (-1,1),
-        'mask': None,
+        'mask_fn': None,
         'cls_len': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lensedCls_secondaries_lens_birefringence.dat'),
         'beam': 1.0,
         'transfunction_desc': 'gauss_no_pixwin',

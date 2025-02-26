@@ -18,9 +18,10 @@ import healpy as hp
 
 from plancklens.sims import planck2018_sims
 
+from delensalot.core.MAP import functionforwardlist
 from delensalot.utils import cli
 from delensalot.utils import read_map, ztruncify
-from delensalot.utility.utils_hp import Alm, almxfl, alm_copy, gauss_beam, alm2cl
+from delensalot.utility.utils_hp import Alm, almxfl, alm_copy, gauss_beam, alm2cl, alm_copy_nd
 
 from delensalot.config.visitor import transform, transform3d
 from delensalot.config.metamodel import DEFAULT_NotAValue
@@ -187,7 +188,7 @@ class DataContainer:
     """Simulation generation Job. Generates simulations for the requested configuration.
         * If any libdir exists, then a flavour of data is provided. Therefore, can only check by making sure flavour == obs, and fns exist.
     """
-    def __init__(self, data_source, k, idxs, idxs_mf, TEMP):
+    def __init__(self, data_source, k, idxs, idxs_mf, TEMP, mask):
         """ In this init we make the following checks:
          * (1) Does user provide obs data? Then DataContainer can be fully skipped
          * (2) Otherwise, check if files already generated (delensalot model may not know this, so need to search),
@@ -201,6 +202,7 @@ class DataContainer:
         self.idxs = idxs
         self.idxs_mf = idxs_mf
         self.TEMP = TEMP
+        self.mask = mask
         if self.data_source.flavour == 'obs' or np.all(self.data_source.obs_lib.maps != DEFAULT_NotAValue): # (1)
             # Here, obs data is provided and nothing needs to be generated
             if np.all(self.data_source.obs_lib.maps != DEFAULT_NotAValue):
@@ -245,18 +247,18 @@ class DataContainer:
 
             required_files = required_files_map.get(self.k, [])
             idxs_ = np.unique(np.concatenate([self.idxs, self.idxs_mf])).astype(int)
-            def check_and_log(libdir, fns, postrun_method, data_type):
+            def check_and_log(libdir, fns, _postrun_method, data_type):
                 """function to check file existence """
                 if all(os.path.exists(opj(libdir, fns[f].format(idx))) for f in required_files for idx in idxs_):
-                    postrun_method()
+                    _postrun_method()
                     log.info(f'will use {data_type} data at {libdir} with filenames {fns}')
                 else:
                     log.info(f'{data_type} data will be stored at {libdir} with filenames {fns}')
 
-            check_and_log(self.libdir, self.fns, self.postrun_obs, "obs")
+            check_and_log(self.libdir, self.fns, self._postrun_obs, "obs")
             if self.data_source.flavour != 'sky':
                 if all(os.path.exists(opj(self.libdir_sky, self.fns_sec[sec][component].format(idx))) for sec in self.fns_sec.keys() for component in self.fns_sec[sec] for idx in idxs_):
-                    check_and_log(self.libdir_sky, self.fns_sky, self.postrun_sky, "sky")
+                    check_and_log(self.libdir_sky, self.fns_sky, self._postrun_sky, "sky")
                 else:
                     log.info(f'sky data will be stored at {self.libdir_sky} with filenames {self.fns_sky}. All secondaries will be generated along the way')
 
@@ -298,6 +300,7 @@ class DataContainer:
             self.jobs = [[],[]]
         return self.jobs
 
+
     # @log_on_start(logging.DEBUG, "Sim.run() started")
     # @log_on_end(logging.DEBUG, "Sim.run() finished")
     def run(self):
@@ -311,8 +314,12 @@ class DataContainer:
                 if np.all(self.data_source.obs_lib.maps == DEFAULT_NotAValue):
                     self.data_source.purgecache()
         if np.all(self.data_source.maps == DEFAULT_NotAValue):
-            self.postrun_sky()
-            self.postrun_obs()
+            self._postrun_sky()
+            self._postrun_obs()
+
+
+    def purgecache(self):
+        self.data_source.purgecache()
 
 
     # @log_on_start(logging.DEBUG, "Sim.generate_sim(idx={idx}) started")
@@ -355,7 +362,7 @@ class DataContainer:
                     np.save(filepath, Tobs)
 
 
-    def postrun_obs(self):
+    def _postrun_obs(self):
         # NOTE if this class here decides to generate data, we need to update some parameters in the data_source object
         # NOTE if later reconstruction is run with the same config file, these updates also make sure they find the data without having to update the config file
         if self.data_source.flavour != 'sky' and self.data_source.flavour != 'obs' and np.all(self.data_source.obs_lib.maps == DEFAULT_NotAValue):
@@ -370,7 +377,7 @@ class DataContainer:
                 self.obs_lib = self.data_source.obs_lib
 
 
-    def postrun_sky(self):
+    def _postrun_sky(self):
         # NOTE if this class here decides to generate data, we need to update some parameters in the data_source object
         # NOTE if later reconstruction is run with the same config file, these updates also make sure they find the data without having to update the config file
         
@@ -398,9 +405,18 @@ class DataContainer:
     def get_sim_pri(self, idx, space, field, spin):
         return self.data_source.get_sim_pri(idx=idx, space=space, field=field, spin=spin)
     
-    def get_sim_obs(self, idx, space, field, spin):
-        return self.data_source.get_sim_obs(idx=idx, space=space, field=field, spin=spin)
-    
+    def get_sim_obs(self, idx, space, field, spin, sky_coverage='full', lm_max=None):
+        if sky_coverage == 'full':
+            assert space == 'alm', "'full' sky_coverage only works for space = alm"
+            return  alm_copy_nd(self.data_source.get_sim_obs(idx=idx, space=space, field=field, spin=spin), None, lm_max)
+        elif sky_coverage == 'masked':
+            # FIXME if data is already masked (e.g. provided from disk), this will doubly mask the data.. not sure we want this
+            assert space == 'map', "'masked' sky_coverage only works for space = map"
+            assert field == 'polarization'
+            obs = alm_copy_nd(self.data_source.get_sim_obs(idx=idx, space='alm', field=field, spin=0), None, lm_max)
+            obs = hp.alm2map_spin(obs, nside=2048, spin=2, lmax=lm_max[0], mmax=lm_max[1])
+            return np.array([dat*self.mask for dat in obs])
+
     def get_sim_noise(self, idx, space, field, spin=2):
         return self.data_source.get_sim_noise(idx, spin=spin, space=space, field=field)
     
@@ -417,8 +433,13 @@ class DataContainer:
     def hashdict(self):
         return {}
 
-    def get_sim_pmap(self, idx):
-        return self.data_source.get_sim_obs(idx=idx, space='map', field='polarization', spin=2)
+    def get_sim_pmap(self, idx, sky_coverage='full'):
+        if sky_coverage == 'full':
+            return self.data_source.get_sim_obs(idx=idx, space='map', field='polarization', spin=2)
+        elif sky_coverage == 'masked':
+            # FIXME if data is already masked (e.g. provided from disk), this will doubly mask the data.. not sure we want this
+            obs = self.data_source.get_sim_obs(idx=idx, space='map', field='polarization', spin=2)
+            return np.array([dat*self.mask for dat in obs])
 
 
 class QEScheduler:
@@ -430,7 +451,7 @@ class QEScheduler:
         # DataContainer updates the data_container object with the libdirs and fns if it generated simulations, so need to update this
         self.data_container = data_container
 
-        self.QE_tasks = QE_job_desc['QE_tasks']
+        self.tasks = QE_job_desc['tasks']
         self.idxs = QE_job_desc['idxs']
         self.idxs_mf = QE_job_desc['idxs_mf']
         self.TEMP = TEMP
@@ -453,8 +474,8 @@ class QEScheduler:
 
 
     def collect_jobs(self, recalc=False):
-        jobs = list(range(len(self.QE_tasks)))
-        for taski, task in enumerate(self.QE_tasks):
+        jobs = list(range(len(self.tasks)))
+        for taski, task in enumerate(self.tasks):
             _jobs = []
             if task == 'calc_fields':
                 _nomfcheck = True if self.idxs_mf == [] else False
@@ -510,8 +531,8 @@ class QEScheduler:
         if True: # 'triggers calc_cinv'
             self.init_QEsearchs()
                    
-        _tasks = self.QE_tasks if task is None else [task]
-        for taski, task in enumerate(_tasks):
+        tasks = self.tasks if task is None else [task]
+        for taski, task in enumerate(tasks):
             log.info('{}, task {} started'.format(mpi.rank, task))
 
             if task == 'calc_fields':
@@ -630,13 +651,13 @@ class MAPScheduler:
 
         self.idxs = idxs
         self.idxs_mf = idxs_mf
-        self.QE_searchs: QE_scheduler = QE_searchs
+        self.QE_searchs: QEScheduler = QE_searchs
 
-        self.sec2idx = {QE_search.secondary.ID: i for i, QE_search in enumerate(self.QE_searchs)}
-        self.seclist_sorted = sorted(list(self.sec2idx.keys()), key=lambda x: template_index_secondaries.get(x, ''))
+        self._sec2idx = {QE_search.secondary.ID: i for i, QE_search in enumerate(self.QE_searchs)}
+        self._seclist_sorted = sorted(list(self._sec2idx.keys()), key=lambda x: template_index_secondaries.get(x, ''))
 
         self.MAP_minimizers: MAP_handler.Minimizer = MAP_minimizers
-        self.it_tasks = tasks
+        self.tasks = tasks
         for idx in self.idxs:
             if self.QE_searchs[0].isdone(idx, 'p') == 0:
                 if mpi.rank == 0:
@@ -644,8 +665,8 @@ class MAPScheduler:
 
 
     def collect_jobs(self):
-        jobs = list(range(len(self.it_tasks)))
-        for taski, task in enumerate(self.it_tasks):
+        jobs = list(range(len(self.tasks)))
+        for taski, task in enumerate(self.tasks):
             _jobs = []
             if task == 'calc_fields':
                 for idxi, idx in enumerate(self.idxs):
@@ -662,7 +683,7 @@ class MAPScheduler:
                 if mpi.rank == 0:
                     self.MAP_minimizers[idx].likelihood.copyQEtoDirectory(self.QE_searchs)
 
-        for taski, task in enumerate(self.it_tasks):
+        for taski, task in enumerate(self.tasks):
             log.info('{}, MAP task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
             if task == 'calc_fields':
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
@@ -686,7 +707,7 @@ class MAPScheduler:
         return get_map_est(it)
 
 
-    def get_qlm(self, idx, it, secondary=None, component=None):
+    def get_qlm(self, idx, it, secondary=None, component=None, idx2=None):
         if secondary is None:
             return [self.QE_searchs[self.sec2idx[QE_search.ID]].get_qlm(idx, component) for QE_search in self.QE_searchs]
         if it==0:
@@ -694,18 +715,23 @@ class MAPScheduler:
         print('only available for QE, set it=0')
 
 
-    def get_template(self, idx, it, secondary=None, component=None):
+    def get_template(self, idx, it, secondary=None, component=None, idx2=None, lm_max_in=None, lm_max_out=None):
         ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
         stash = ctx.idx, ctx.idx2, ctx.component
         ctx.set(idx=idx, secondary=secondary, component=component)
         assert it>0, 'Need to correctly implement QE template generation first'
         assert it <= self.maxiterdone(), 'Requested iteration is not available'
-        ret = self.MAP_minimizers[idx].get_template()
+        res = self.MAP_minimizers[idx].likelihood.gradient_lib.wf_filter.get_template(it, secondary, component, lm_max_in, lm_max_out)
         ctx.set(idx=stash[0], idx2=stash[1], component=stash[2])
+        secondary = secondary or self.MAP_minimizers[idx].likelihood.secondaries.keys()
+        if isinstance(it, (list, np.ndarray)):
+            ret = [alm_copy_nd(res[it_], None, lm_max_out) for it_ in it]
+        else:
+            ret = alm_copy_nd(res, None, lm_max_out)
         return ret
 
 
-    def get_wflm(self, idx, it=None, lm_max=None):
+    def get_wflm(self, idx, it=None, lm_max=None, idx2=None):
         # NOTE currently no support for list of secondary or it
         if it==None: it = self.maxiterdone()
         if it==0:
@@ -718,14 +744,14 @@ class MAPScheduler:
         return ret
 
 
-    def get_ivflm(self, idx, it=0): 
+    def get_ivflm(self, idx, it=0, idx2=None):
         # NOTE currently no support for list of secondary or it
         if it==0:
             return self.QE_searchs[0].get_ivflm(idx)
         print('only available for QE, set it=0')
 
 
-    def get_ivfreslm(self, idx, it=None):
+    def get_ivfreslm(self, idx, it=None, idx2=None):
         ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
         stash = ctx.idx, ctx.idx2, ctx.component
         ctx.set(idx=idx)
@@ -742,21 +768,21 @@ class MAPScheduler:
         return min([MAP_search.maxiterdone() for MAP_search in self.MAP_minimizers])
     
 
-    def get_gradient_quad(self, idx, it, secondary=None, component=None):
-        self.MAP_minimizers[idx].ctx.set(idx=idx, secondary=secondary, component=component)
-        return self.MAP_minimizers[idx].get_gradient_quad()
+    def get_gradient_quad(self, idx, it, secondary=None, component=None, idx2=None):
+        self.MAP_minimizers[idx].ctx.set(idx=idx, secondary=secondary, component=component, idx2=idx2)
+        return self.MAP_minimizers[idx].get_gradient_quad(it=it)
     
-    def get_gradient_total(self, idx, it, secondary=None, component=None):
-        self.MAP_minimizers[idx].ctx.set(idx=idx, secondary=secondary, component=component)
-        return self.MAP_minimizers[idx].get_gradient_total()
+    def get_gradient_total(self, idx, it, secondary=None, component=None, idx2=None):
+        self.MAP_minimizers[idx].ctx.set(idx=idx, secondary=secondary, component=component, idx2=idx2)
+        return self.MAP_minimizers[idx].get_gradient_total(it=it)
     
-    def get_gradient_prior(self, idx, it, secondary=None, component=None):
-        self.MAP_minimizers[idx].ctx.set(idx=idx, secondary=secondary, component=component)
-        return self.MAP_minimizers[idx].get_gradient_prior()
+    def get_gradient_prior(self, idx, it, secondary=None, component=None, idx2=None):
+        self.MAP_minimizers[idx].ctx.set(idx=idx, secondary=secondary, component=component, idx2=idx2)
+        return self.MAP_minimizers[idx].get_gradient_prior(it=it)
     
-    def get_gradient_meanfield(self, idx, it, secondary=None, component=None):
-        self.MAP_minimizers[idx].ctx.set(idx=idx, secondary=secondary, component=component)
-        return self.MAP_minimizers[idx].get_gradient_meanfield()
+    def get_gradient_meanfield(self, idx, it, secondary=None, component=None, idx2=None):
+        self.MAP_minimizers[idx].ctx.set(idx=idx, secondary=secondary, component=component, idx2=idx2)
+        return self.MAP_minimizers[idx].get_gradient_meanfield(it=it)
     
 
     def __getattr__(self, name):
@@ -764,8 +790,10 @@ class MAPScheduler:
         def method_forwarder(idx, *args, **kwargs):
             if idx < len(self.MAP_minimizers):
                 minimizer = self.MAP_minimizers[idx]
-                if hasattr(minimizer, name):
+                if name in functionforwardlist and hasattr(minimizer, name):
                     return getattr(minimizer, name)(idx, *args, **kwargs)  # Pass idx to the minimizer
+                else:
+                    raise AttributeError(f"method {name} not found in MAP_minimizer")
             raise IndexError(f"scheduler has no MAP_minimizer at index {idx}")
 
         return method_forwarder
@@ -828,7 +856,7 @@ class MapDelenser(Basejob):
         elif self.binning == 'unbinned':
             for maskflavour, masks in self.binmasks.items():
                 for maskid, mask in masks.items():
-                    a = overwrite_anafast() if self.cl_calc == hp else masked_lib(mask, self.cl_calc, self.lmax, self.lmax_mask)
+                    a = OverwriteAnafast() if self.cl_calc == hp else MaskedLib(mask, self.cl_calc, self.lmax, self.lmax_mask)
                     outputdata = np.zeros(shape=(2, 2+len(self.its), len(self.nlevels)+len(self.masks_fromfn), self.lmax+1))
                     self.lib[maskflavour].update({maskid: a})
 

@@ -84,7 +84,7 @@ class DELENSALOT_Analysis(DELENSALOT_Concept_v3):
     Lmin =                  attr.field(default=DEFAULT_NotAValue)
     zbounds =               attr.field(default=DEFAULT_NotAValue)
     zbounds_len =           attr.field(default=DEFAULT_NotAValue)
-    mask =                  attr.field(default=DEFAULT_NotAValue)
+    mask_fn =               attr.field(default=DEFAULT_NotAValue)
     lmin_teb =              attr.field(default=DEFAULT_NotAValue)
     cls_len =               attr.field(default=DEFAULT_NotAValue)
     beam =                  attr.field(default=DEFAULT_NotAValue)

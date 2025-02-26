@@ -6,7 +6,7 @@
 import healpy as hp
 import numpy as np
 
-from plancklens.wigners import wigners
+# from plancklens.wigners import wigners
 from plancklens import utils
 
 

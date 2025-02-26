@@ -20,18 +20,26 @@ from delensalot.utils import cli
 
 class base:
     # def __init__(self, filter_desc):
-    def __init__(self, data_container, lm_max_ivf, lm_max_qlm, lmin_teb, nivjob_geominfo, niv_desc, nlev, ttebl, filtering_spatial_type, QE_cg_tol, sht_threads, cls_len, cls_unl, estimator_type, libdir, chain_descr=None, OBD='trunc', obd_libdir='obd', obd_rescale=1., zbounds=(-1,1)):
+    def __init__(self, data_container, lm_max_ivf, lm_max_qlm, lmin_teb, cg_tol, sht_threads, cls_len, cls_unl, estimator_type, libdir, chain_descr=None, zbounds=(-1,1), inv_operator_desc=None):
         # This class is to interface with Plancklens
         
         self.data_container = data_container
         self.estimator_type = estimator_type
         self.libdir = libdir or opj(os.environ['SCRATCH'], 'QE')
 
-        self.nivjob_geominfo = nivjob_geominfo
-        self.niv_desc = niv_desc
-        self.nlev = nlev
+        # nivjob_geominfo, niv_desc, nlev, ttebl, filtering_spatial_type, 
+        self.nivjob_geominfo = inv_operator_desc['nivjob_geominfo']
+        self.niv_desc = inv_operator_desc['niv_desc']
+        self.nlev = inv_operator_desc['nlev']
+        self.filtering_spatial_type = inv_operator_desc['filtering_spatial_type']
+        self.transferfunction = inv_operator_desc['transferfunction']
+        self.sky_coverage = inv_operator_desc['sky_coverage']
+        
+        # OBD='trunc', obd_libdir='obd', obd_rescale=1.,
+        self.OBD = inv_operator_desc['OBD']
+        self.obd_libdir = inv_operator_desc['obd_libdir']
+        self.obd_rescale = inv_operator_desc['obd_rescale']
 
-        self.ttebl = ttebl
         self.cls_len = cls_len
         self.cls_unl = cls_unl
 
@@ -39,16 +47,11 @@ class base:
         self.lm_max_qlm = lm_max_qlm
         self.lmin_teb = lmin_teb
 
-        self.filtering_spatial_type = filtering_spatial_type
         self.zbounds = zbounds
-        self.cg_tol = QE_cg_tol
+        self.cg_tol = cg_tol
 
         self.sht_threads = sht_threads
         self.chain_descr = chain_descr or (lambda p2, p5 : [[0, ["diag_cl"], p2, self.nivjob_geominfo[1]['nside'], np.inf, p5, cd_solve.tr_cg, cd_solve.cache_mem()]])
-
-        self.OBD = OBD
-        self.obd_libdir = obd_libdir
-        self.obd_rescale = obd_rescale
 
         # Isotropic approximation to the filtering (using 'len' for lensed spectra)
         self.ftebl_len = {key: self.__compute_transfer(cls_key, nlev_key, transf_key, 'len') 
@@ -58,36 +61,85 @@ class base:
             for key, (cls_key, nlev_key, transf_key) in zip('teb', [('tt', 'T', 't'), ('ee', 'P', 'e'), ('bb', 'P', 'b')])}
 
 
+    @log_on_start(logging.INFO, 'filterqest')
     def _init_filterqest(self):
-        if self.filtering_spatial_type == 'isotropic':
-            self.ivf = filt_simple.library_fullsky_sepTP(opj(self.libdir, 'ivf'), self.data_container, self.nivjob_geominfo[1]['nside'], self.ttebl, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
+        if self.sky_coverage == 'unmasked' and self.filtering_spatial_type == 'isotropic':
+            self.ivf = filt_simple.library_fullsky_sepTP(opj(self.libdir, 'ivf'), self.data_container, self.nivjob_geominfo[1]['nside'], self.transferfunction, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
             if self.estimator_type == 'sepTP':
                 self.qlms_dd = qest.library_sepTP(opj(self.libdir, 'qlms_dd'), self.ivf, self.ivf, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
-        elif self.filtering_spatial_type == 'anisotropic':
+        elif self.sky_coverage == 'masked' or self.filtering_spatial_type == 'anisotropic':
             ## Wait for finished run(), as plancklens triggers cinv_calc...
-            self.cinv_t = filt_cinv.cinv_t(opj(self.libdir, 'cinv_t'),
-                    self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
-                    self.ttebl['t'], self.niv_desc['T'],
-                    marge_monopole=True, marge_dipole=True, marge_maps=[])
+            self.cinv_t = filt_cinv.cinv_t(
+                lib_dir = opj(self.libdir, 'cinv_t'),
+                lmax = self.lm_max_ivf[0],
+                nside = self.nivjob_geominfo[1]['nside'],
+                cl = self.cls_len,
+                transf = self.transferfunction['t'],
+                ninv = self.niv_desc['T'],
+                marge_monopole=True,
+                marge_dipole=True,
+                marge_maps=[],
+            )
 
-            transf_elm_loc = self.ttebl['e']
+            transf_elm_loc = self.transferfunction['e']
             if self.OBD == 'OBD':
-                nivjob_geomlib_ = get_geom(self.nivjob_geominfo)
-                self.cinv_p = cinv_p_OBD.cinv_p(opj(self.libdir, 'cinv_p'),
-                    self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
-                    transf_elm_loc[:self.lm_max_ivf[0]+1], self.niv_desc['P'], geom=nivjob_geomlib_, #self.nivjob_geomlib,
-                    chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol), bmarg_lmax=self.lmin_teb[2],
-                    zbounds=(-1,1), _bmarg_lib_dir=self.obd_libdir, _bmarg_rescal=self.obd_rescale,
-                    sht_threads=self.sht_threads)
+                log.log(logging.DEBUG, 'Using OBD')
+                self.cinv_p = cinv_p_OBD.cinv_p(
+                    lib_dir = opj(self.libdir, 'cinv_p'),
+                    lmax = self.lm_max_ivf[0],
+                    nside = self.nivjob_geominfo[1]['nside'],
+                    cl = self.cls_len,
+                    transf = transf_elm_loc[:self.lm_max_ivf[0]+1],
+                    ninv = self.niv_desc['P'],
+                    geom = self.nivjob_geomlib,
+                    chain_descr = self.chain_descr(self.lm_max_ivf[0], self.cg_tol),
+                    bmarg_lmax = self.lmin_teb[2],
+                    zbounds = (-1,1),
+                    _bmarg_lib_dir = self.obd_libdir,
+                    _bmarg_rescal = self.obd_rescale,
+                    sht_threads = self.sht_threads)
             else:
-                self.cinv_p = filt_cinv.cinv_p(opj(self.libdir, 'cinv_p'),
-                    self.lm_max_ivf[0], self.nivjob_geominfo[1]['nside'], self.cls_len,
-                    self.ttebl['e'], self.niv_desc['P'], chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol),
-                    transf_blm=self.ttebl['b'], marge_qmaps=(), marge_umaps=())
-            _filter_raw = filt_cinv.library_cinv_sepTP(opj(self.libdir, 'ivf'), self.data_container, self.cinv_t, self.cinv_p, self.cls_len)
+                log.log(logging.DEBUG, 'Using trunc')
+                self.cinv_p = filt_cinv.cinv_p(
+                    lib_dir = opj(self.libdir, 'cinv_p'),
+                    lmax = self.lm_max_ivf[0],
+                    nside = self.nivjob_geominfo[1]['nside'],
+                    cl = self.cls_len,
+                    transf = self.transferfunction['e'],
+                    ninv = self.niv_desc['P'],
+                    chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol),
+                    transf_blm=self.transferfunction['b'],
+                    marge_qmaps=(),
+                    marge_umaps=()
+                )
+                log.log(logging.DEBUG, 'filt_cinv.cinv_p initialized')
+
+            _filter_raw = filt_cinv.library_cinv_sepTP(
+                lib_dir = opj(self.libdir, 'ivf'),
+                sim_lib = self.data_container,
+                cinvt = self.cinv_t,
+                cinvp = self.cinv_p,
+                cl_weights = self.cls_len,
+            )
+            log.log(logging.DEBUG, 'filt_cinv.library_cinv_sepTP initialized')
             _ftebl_rs = lambda x: np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[x])
-            self.ivf = filt_util.library_ftl(_filter_raw, self.lm_max_qlm[0], _ftebl_rs(0), _ftebl_rs(1), _ftebl_rs(2))
-            self.qlms_dd = qest.library_sepTP(opj(self.libdir, 'qlms_dd'), self.ivf, self.ivf, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
+            self.ivf = filt_util.library_ftl(
+                ivfs = _filter_raw,
+                lmax = self.lm_max_qlm[0],
+                lfilt_t = _ftebl_rs(0),
+                lfilt_e = _ftebl_rs(1),
+                lfilt_b = _ftebl_rs(2),
+            )
+            log.log(logging.DEBUG, 'filt_util.library_ftl initialized')
+            self.qlms_dd = qest.library_sepTP(
+                lib_dir = opj(self.libdir, 'qlms_dd'),
+                ivfs1 = self.ivf,
+                ivfs2 = self.ivf,
+                clte = self.cls_len['te'],
+                nside = self.nivjob_geominfo[1]['nside'],
+                lmax_qlm=self.lm_max_qlm[0]
+            )
+            log.log(logging.DEBUG, 'qest.library_sepTP initialized')
         return self.qlms_dd
 
 
@@ -126,6 +178,6 @@ class base:
         return qresp.get_response(key, self.lm_max_ivf[0], key0, self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=lmax_qlm)
     
 
-    def __compute_transfer(self, cls_key, nlev_key, transf_key, spectrum_type):
+    def __compute_transfer(self, cls_key, nlev_key, component, spectrum_type):
         cls = self.cls_len if spectrum_type == 'len' else self.cls_unl
-        return cli(cls[cls_key][:self.lm_max_ivf[0] + 1] + df.a2r(self.nlev[nlev_key])**2 * cli(self.ttebl[transf_key] ** 2)) * (self.ttebl[transf_key] > 0)
+        return cli(cls[cls_key][:self.lm_max_ivf[0] + 1] + df.a2r(self.nlev[nlev_key])**2 * cli(self.transferfunction[component] ** 2)) * (self.transferfunction[component] > 0)

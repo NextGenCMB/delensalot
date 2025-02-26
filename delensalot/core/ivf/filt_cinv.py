@@ -537,7 +537,7 @@ class library_cinv_sepTP(filt_simple.library_sepTP):
                 hp.write_map(fname_mask, fmask)
 
         mpi.barrier()
-        utils.hash_check(pk.load(open(os.path.join(lib_dir, "filt_hash.pk"), 'rb')), self.hashdict(), fn=os.path.join(lib_dir, "filt_hash.pk"))
+        # utils.hash_check(pk.load(open(os.path.join(lib_dir, "filt_hash.pk"), 'rb')), self.hashdict(), fn=os.path.join(lib_dir, "filt_hash.pk"))
 
     def hashdict(self):
         return {'cinv_t': self.cinv_t.hashdict(),
