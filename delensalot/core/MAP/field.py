@@ -25,12 +25,13 @@ class Secondary:
 
 
     def get_est(self, it, scale='k'):
+        # print(f'getting est for {self.ID} with scale {scale}')
         ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
         idx, idx2, component = ctx.idx, ctx.idx2 or ctx.idx, ctx.component or self.component
         if isinstance(component, str):
             component = [component]
-        if self.ID != 'lensing':
-            assert scale == 'k' # FIXME this is only true between lensing and birefringence.. for other fields this needs to be changed
+        if self.ID == 'birefringence':
+            scale = 'k' # FIXME this is only true between lensing and birefringence.. for other fields this needs to be changed
         # NOTE component are stored with leading dimension
         if isinstance(component, (np.ndarray, list)):
             assert all([comp in self.component for comp in component]), "component must be in {}".format(self.component)
@@ -76,11 +77,11 @@ class Secondary:
         if isinstance(component, str):
             component = [component]
         for comp in component:
-            self.cacher.remove(opj(self.fns[component].format(idx=idx, idx2=idx2, it=it)))
+            self.cacher.remove(opj(self.fns[comp].format(idx=idx, idx2=idx2, it=it)))
     
 
     def klm2dlm(self, klm):
-        Lmax = Alm.getlmax(klm.shape[0])
+        Lmax = Alm.getlmax(klm.shape[0], None)
         h2d = cli(0.5 * np.sqrt(np.arange(Lmax + 1) * np.arange(1, Lmax + 2)))
         return almxfl(klm, h2d, Lmax, False)
     
@@ -203,7 +204,7 @@ class Gradient:
                 ret = self.cacher.load(self.quad_fns.format(idx=idx, idx2=idx2, it=it))
                 return ret[indices]
         else:
-            assert 0, f"cannot find meanfield at {self.libdir}/{self.quad_fns.format(idx=idx, idx2=idx2, it=it)}"
+            assert 0, f"cannot find quad at {self.libdir}/{self.quad_fns.format(idx=idx, idx2=idx2, it=it)}"
 
 
     def cache(self, data, it, type):
@@ -284,7 +285,7 @@ class Filter:
     def remove(self, it):
         ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
         idx, idx2 = ctx.idx, ctx.idx2 or ctx.idx
-        if self.is_cached():
+        if self.is_cached(it):
             self.cacher.remove(self.fns.format(idx=idx, it=it, idx2=idx2))
     
 
@@ -319,12 +320,12 @@ class Curvature:
         idx, idx2 = ctx.idx, ctx.idx2 or ctx.idx
         if type is None:
             for type in self.types:
-                if self.is_cached(type):
+                if self.is_cached(it, type):
                     self.cacher.remove(self.fns[type].format(idx=idx, idx2=idx2, it=it, itm1=it-1))
                 else:
                     log.info("cannot find field to remove")
         else:
-            if self.is_cached(type):
+            if self.is_cached(it, type):
                 self.cacher.remove(self.fns[type].format(idx=idx, idx2=idx2, it=it, itm1=it-1))
             else:
                 log.info("cannot find field to remove")

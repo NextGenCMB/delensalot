@@ -20,8 +20,6 @@ from delensalot.core.MAP.context import ComputationContext
 from delensalot.core.MAP.context import get_computation_context
 class Minimizer:
     def __init__(self, estimator_key, likelihood, itmax, libdir, idx, idx2):
-        
-        # NOTE this is the minimizer
         self.estimator_key = estimator_key
         self.itmax = itmax
         self.libdir = libdir
@@ -36,9 +34,7 @@ class Minimizer:
     def get_est(self, request_it=None, secondary=None, component=None, scale='k', calc_flag=False, idx=None, idx2=None):
         ctx, isnew = get_computation_context()  # Get the singleton instance for MPI rank
         if not isinstance(request_it, (list,np.ndarray)):
-            request_it, idx, idx2, component, secondary = (
-                request_it or ctx.it, ctx.idx or idx, ctx.idx2 or idx2, ctx.component or component, ctx.secondary or secondary
-            )
+            idx, idx2, component, secondary = (ctx.idx or idx, ctx.idx2 or idx2, ctx.component or component, ctx.secondary or secondary)
         else:
             request_it = request_it
         idx = idx or self.idx
@@ -63,33 +59,30 @@ class Minimizer:
                 f"Could not find the QE starting points, expected them at {self.likelihood.secondaries['lensing'].libdir}"
             )
 
-        # Case 1: Requested iteration already computed
         if request_it <= current_it:
             return self._get_est(request_it, secondary, component, scale)
 
-        # Case 2: New iterations need to be computed
         elif (current_it < self.itmax and request_it >= current_it) or calc_flag:
             new_klms = self._compute_iterations(current_it, request_it, scale)
             return new_klms if secondary is None else new_klms[secondary] if component is None else new_klms[secondary][component]
 
-        # Case 3: Requested iteration beyond allowed max
         print(f"Requested iteration {request_it} is beyond the maximum iteration")
         print("If you want to calculate it, set calc_flag=True")
 
 
-    # Helper function to compute iteration
+    # helper function
     def _compute_iterations(self, current_it, request_it, scale):
         for it in range(current_it + 1, request_it + 1):
             log.info(f'---------- starting iteration {it} ----------')
-            self.update_operator(it-1)
+            est_prev = self.get_est(it-1, scale='d')
+            est_prev = {sec: est_prev[self.likelihood.sec2idx[sec]] for sec in self.likelihood.seclist_sorted}
+            self.update_operator(est_prev)
             grad_tot = self.get_gradient_total(it)
             grad_tot = np.concatenate([np.ravel(arr) for arr in grad_tot])
-
             if it >= 2:
                 grad_prev = self.get_gradient_total(it-1)
                 grad_prev = np.concatenate([np.ravel(arr) for arr in grad_prev])
                 self.likelihood.curvature.add_yvector(grad_tot, grad_prev, it)
-
             increment = self.likelihood.curvature.get_increment(grad_tot, it)
             prev_klm = np.concatenate([np.ravel(arr) for arr in self._get_est(it-1, scale=scale)])
             new_klms = self.likelihood.curvature.grad2dict(increment + prev_klm)
@@ -110,7 +103,6 @@ class Minimizer:
             return ret
         else:
             return self.likelihood.get_est(it, scale=scale)
-        # return self.likelihood.get_est(it=it, scale=scale)
 
 
     def isiterdone(self, it):
@@ -222,6 +214,7 @@ class Likelihood:
         secondary = ctx.secondary or list(self.secondaries.keys())
         ret = []
         for sec in secondary:
+            # scale = 'd' if sec in ['lensing'] else 'k'
             ret.append(self.secondaries[sec].get_est(it=it, scale=scale))
         return ret
         # return list(map(list, zip(*ret)))
@@ -307,7 +300,6 @@ class Likelihood:
         ctx, isnew = get_computation_context()  # NOTE getting the singleton instance for MPI rank
         for secname, secondary in self.secondaries.items():
             QE_searchs[self.sec2idx[secname]].init_filterqest()
-            ctx.set(it=0)
             if not all(self.secondaries[secname].is_cached(it=0)):
                 klm_QE = QE_searchs[self.sec2idx[secname]].get_est(self.idx)
                 self.secondaries[secname].cache_klm(klm_QE, it=0)
@@ -318,7 +310,7 @@ class Likelihood:
 
             #TODO cache QE wflm into the filter directory
             if not self.gradient_lib.wf_filter.wf_field.is_cached(it=0):
-                lm_max_out = self.gradient_lib.subs[0].gradient_operator.operators[-1].operators[0].lm_max_out
+                lm_max_out = self.gradient_lib.subs[0].gradient_operator.operators[-1].operators[-1].lm_max_out
                 wflm_QE = QE_searchs[self.sec2idx[secname]].get_wflm(self.idx, lm_max_out)
                 self.gradient_lib.wf_filter.wf_field.cache(np.array(wflm_QE), it=0)
 

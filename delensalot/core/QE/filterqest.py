@@ -63,7 +63,7 @@ class base:
 
     @log_on_start(logging.INFO, 'filterqest')
     def _init_filterqest(self):
-        if self.sky_coverage == 'unmasked' and self.filtering_spatial_type == 'isotropic':
+        if self.sky_coverage == 'full' and self.filtering_spatial_type == 'isotropic':
             self.ivf = filt_simple.library_fullsky_sepTP(opj(self.libdir, 'ivf'), self.data_container, self.nivjob_geominfo[1]['nside'], self.transferfunction, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
             if self.estimator_type == 'sepTP':
                 self.qlms_dd = qest.library_sepTP(opj(self.libdir, 'qlms_dd'), self.ivf, self.ivf, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])

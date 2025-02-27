@@ -36,10 +36,9 @@ class Base:
     def __init__(self, libdir, LM_max):
         
         zbounds = (-1,1)
-        lenjob_geomlib = get_geom(('thingauss', {'lmax': 4500, 'smax': 3}))
+        self.lenjob_geomlib = get_geom(('thingauss', {'lmax': 4500, 'smax': 3}))
         thtbounds = (np.arccos(zbounds[1]), np.arccos(zbounds[0]))
-        lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
-        self.ffi = deflection(lenjob_geomlib, np.zeros(shape=Alm.getsize(*LM_max), dtype=complex), LM_max[1], numthreads=8, verbosity=False, epsilon=1e-7)
+        self.lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
 
         self.field_cacher = cachers.cacher_npy(libdir)
 
@@ -76,7 +75,7 @@ class Multiply:
         pass
 
 
-class JointOperator:
+class Compound:
     def __init__(self, operators, out):
         
         self.operators = operators
@@ -87,7 +86,7 @@ class JointOperator:
     @log_on_end(logging.DEBUG, "joint done", logger=log)  
     def act(self, obj, spin):
         for operator in self.operators:
-            if isinstance(operator, SecondaryOperator):
+            if isinstance(operator, Secondary):
                 obj = operator.act(obj, spin, out=self.space_out)
             else:
                 obj = operator.act(obj, spin)
@@ -106,7 +105,7 @@ class JointOperator:
             operator.set_field(idx, it, component, idx2)
     
 
-class SecondaryOperator:
+class Secondary:
     def __init__(self, desc):
         self.ID = 'secondaries'
         self.operators = desc # ["operators"]
@@ -119,22 +118,25 @@ class SecondaryOperator:
         operators = self.operators if not adjoint else self.operators[::-1]
         for idx, operator in enumerate(operators):
             if operator.ID in secondary:
-                if isinstance(operator, LensingOperator):
+                if isinstance(operator, Lensing):
                     obj = operator.act(obj, spin, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode, out=out)
                 else:
                     obj = operator.act(obj, spin, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode)
         return obj
 
 
-    @log_on_start(logging.DEBUG, "setting fields for: idx={idx}, it={it}, secondary={secondary}, component={component}", logger=log)  
-    def set_field(self, idx, it, secondary=None, component=None, idx2=None):
-        if secondary is None:
-            secondary = [operator.ID for operator in self.operators]
+    def set_field(self, field):
         for operator in self.operators:
-            if operator.ID in secondary:
-                if component is None or component not in operator.component:
-                    component = operator.component
-                operator.set_field(idx, it, component, idx2)
+            operator.set_field(field[operator.ID])
+    # @log_on_start(logging.DEBUG, "setting fields for: idx={idx}, it={it}, secondary={secondary}, component={component}", logger=log)  
+    # def set_field(self, idx, it, secondary=None, component=None, idx2=None):
+    #     if secondary is None:
+    #         secondary = [operator.ID for operator in self.operators]
+    #     for operator in self.operators:
+    #         if operator.ID in secondary:
+    #             if component is None or component not in operator.component:
+    #                 component = operator.component
+    #             operator.set_field(idx, it, component, idx2)
 
     
     def update_lm_max(self, lm_max_in, lm_max_out):
@@ -145,7 +147,7 @@ class SecondaryOperator:
         return in_prev, out_prev
 
 
-class LensingOperator(Base):
+class Lensing(Base):
     def __init__(self, operator_desc):
         super().__init__(operator_desc["libdir"], operator_desc["LM_max"])
         
@@ -158,6 +160,7 @@ class LensingOperator(Base):
         self.component = operator_desc["component"]
         self.field = {component: None for component in self.component}
         self.field_fns = field.get_secondary_fns(self.component)
+        self.ffi = deflection(self.lenjob_geomlib, np.zeros(shape=Alm.getsize(*self.LM_max), dtype=complex), self.LM_max[1], numthreads=8, verbosity=False, epsilon=1e-7)
 
 
     @log_on_start(logging.DEBUG, "lensing: {obj.shape}", logger=log)
@@ -183,29 +186,37 @@ class LensingOperator(Base):
                         return self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max_out[1], spin, *self.lm_max_in)
     
 
-    @log_on_start(logging.DEBUG, "setting field for lensing: idx={idx}, it={it}, component={component}, idx2={idx2}", logger=log)
-    def set_field(self, idx, it, component=None, idx2=None):
-        idx2 = idx2 or idx
-        if component is None:
-            component = self.component
 
-        comps_ = [component] if isinstance(component, str) else sorted(
-            set(component) & set(self.component), key=lambda x: template_index_lensingcomponents.get(x, ''))
+    def set_field(self, fieldlm):
+        if fieldlm.shape[0] == 1:
+            d = [fieldlm[0], None] if self.component[0] == 'p' else [np.zeros_like(fieldlm[0], dtype=complex), fieldlm[0]]
+        else:
+            d = fieldlm
+        self.ffi = deflection(self.lenjob_geomlib, d[0], self.LM_max[1], dclm=d[1], numthreads=6, verbosity=False, epsilon=1e-7)
 
-        for comp in comps_:
-            field_path = opj(self.field_fns[comp].format(idx=idx, idx2=idx2, it=it))
-            if self.field_cacher.is_cached(field_path):
-                # if it == 0:
-                #     self.field[comp] = np.zeros_like(self.klm2dlm(self.field_cacher.load(field_path)[0]), dtype=complex)
-                # else:
-                    self.field[comp] = self.klm2dlm(self.field_cacher.load(field_path)[0])
-            else: 
-                assert 0, f"Cannot set field with it={it} and idx={idx}_{idx2}"
+    # @log_on_start(logging.DEBUG, "setting field for lensing: idx={idx}, it={it}, component={component}, idx2={idx2}", logger=log)
+    # def set_field(self, idx, it, component=None, idx2=None):
+    #     idx2 = idx2 or idx
+    #     if component is None:
+    #         component = self.component
 
-        d = np.array([self.field[comp].flatten() for comp in comps_], dtype=complex)
-        if d.shape[0] == 1:
-            d = [d[0], None] if comps_[0] == 'p' else [np.zeros_like(d[0], dtype=complex), d[0]]
-        self.ffi = self.ffi.change_dlm(d, self.LM_max[1])
+    #     comps_ = [component] if isinstance(component, str) else sorted(
+    #         set(component) & set(self.component), key=lambda x: template_index_lensingcomponents.get(x, ''))
+
+    #     for comp in comps_:
+    #         field_path = opj(self.field_fns[comp].format(idx=idx, idx2=idx2, it=it))
+    #         if self.field_cacher.is_cached(field_path):
+    #             # if it == 0:
+    #             #     self.field[comp] = np.zeros_like(self.klm2dlm(self.field_cacher.load(field_path)[0]), dtype=complex)
+    #             # else:
+    #                 self.field[comp] = self.klm2dlm(self.field_cacher.load(field_path)[0])
+    #         else: 
+    #             assert 0, f"Cannot set field with it={it} and idx={idx}_{idx2}"
+
+    #     d = np.array([self.field[comp].flatten() for comp in comps_], dtype=complex)
+    #     if d.shape[0] == 1:
+    #         d = [d[0], None] if comps_[0] == 'p' else [np.zeros_like(d[0], dtype=complex), d[0]]
+    #     self.ffi = self.ffi.change_dlm(d, self.LM_max[1])
 
 
     def klm2dlm(self, klm):
@@ -214,14 +225,13 @@ class LensingOperator(Base):
         return almxfl(klm, h2d, Lmax, False)
 
 
-class BirefringenceOperator(Base):
+class Birefringence(Base):
     def __init__(self, operator_desc):
         super().__init__(operator_desc["libdir"], operator_desc["LM_max"])
         
         self.ID = 'birefringence'
         self.LM_max = operator_desc["LM_max"]
-        self.lm_max_in = operator_desc["lm_max_in"]
-        self.lm_max_out = operator_desc["lm_max_out"]
+        self.lm_max = operator_desc["lm_max"]
         self.component = operator_desc["component"]
         self.field = {component: None for component in self.component}
         self.field_fns = field.get_secondary_fns(self.component)
@@ -238,17 +248,17 @@ class BirefringenceOperator(Base):
         # NOTE if no B component, I set B to zero
         if obj.shape[0] == 1:
             obj = [obj[0], np.zeros_like(obj[0])+np.zeros_like(obj[0])*1j] 
-        Q, U = self.ffi.geom.alm2map_spin(obj, 2, lmax, lmax, 8)  
-        angle = 2 * self.ffi.geom.alm2map(self.field[self.component[0]], *self.LM_max, 8)
-        cos_a, sin_a = np.cos(angle), np.sin(angle)
+        Q, U = self.lenjob_geomlib.alm2map_spin(obj, 2, lmax, lmax, 8)  
+        # angle = 2 * self.ffi.geom.alm2map(self.field[self.component[0]], *self.LM_max, 8)
+        # cos_a, sin_a = np.cos(angle), np.sin(angle)
 
-        Q_rot = cos_a * Q - sin_a * U
-        U_rot = sin_a * Q + cos_a * U
+        Q_rot = self.cos_a * Q - self.sin_a * U
+        U_rot = self.sin_a * Q + self.cos_a * U
 
         if adjoint:
-            Q_rot, U_rot = cos_a * Q + sin_a * U, -sin_a * Q + cos_a * U
+            Q_rot, U_rot = self.cos_a * Q + self.sin_a * U, -self.sin_a * Q + self.cos_a * U
 
-        Elm_rot, Blm_rot = self.ffi.geom.map2alm_spin(np.array([Q_rot, U_rot]), 2, lmax, lmax, 8)
+        Elm_rot, Blm_rot = self.lenjob_geomlib.map2alm_spin(np.array([Q_rot, U_rot]), 2, lmax, lmax, 8)
 
         if obj_shape_in_leading == 1:
             return Elm_rot
@@ -256,16 +266,19 @@ class BirefringenceOperator(Base):
             return np.array([Elm_rot, Blm_rot])
 
 
-    def set_field(self, idx, it, component=None, idx2=None):
-        idx2 = idx2 or idx
-        if component is None:
-            component = self.component
-        if isinstance(component, list):
-            component = component[0]
-        self.field[component] = alm_copy(self.field_cacher.load(opj(self.field_fns[component].format(idx=idx, idx2=idx2, it=it))), None, *self.LM_max)
+    def set_field(self, fieldlm):
+        self.angle = 2 * self.lenjob_geomlib.alm2map(fieldlm.squeeze(), *self.LM_max, 6)
+        self.cos_a, self.sin_a = np.cos(self.angle), np.sin(self.angle)
+    # def set_field(self, idx, it, component=None, idx2=None):
+    #     idx2 = idx2 or idx
+    #     if component is None:
+    #         component = self.component
+    #     if isinstance(component, list):
+    #         component = component[0]
+    #     self.field[component] = alm_copy(self.field_cacher.load(opj(self.field_fns[component].format(idx=idx, idx2=idx2, it=it))), None, *self.LM_max)
 
 
-class SpinRaiseOperator:
+class SpinRaise:
     def __init__(self, lm_max):
         self.ID = 'spin_raise'
         self.lm_max = lm_max
@@ -294,7 +307,7 @@ class SpinRaiseOperator:
         pass
     
 
-class BeamOperator:
+class Beam:
     def __init__(self, operator_desc):
         self.ID = 'beam'
         self.transferfunction = operator_desc['transferfunction']
@@ -383,7 +396,7 @@ class InverseNoiseVariance(Base):
 
 
     def get_febl(self, transferfunction):
-        if self.sky_coverage == 'masked':
+        if self.sky_coverage == 'full':
             ret = _extend_cl(transferfunction['e']*2, len(self.n1eblm[0])-1) * self.n1eblm[0]
             return ret, None
 

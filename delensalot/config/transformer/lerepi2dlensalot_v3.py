@@ -19,7 +19,6 @@ import re
 
 from delensalot.core.cg import cd_solve
 
-from lenspyx.remapping import deflection
 from lenspyx.lensing import get_geom 
 
 from delensalot.sims.data_source import DataSource
@@ -38,7 +37,7 @@ from delensalot.utility.utils_hp import gauss_beam
 from delensalot.utils import cli, camb_clfile, load_file
 
 from delensalot.core.MAP.handler import Likelihood, Minimizer
-from delensalot.core.MAP import curvature, filter, operator
+from delensalot.core.MAP import curvature, filter, operator as operator
 from delensalot.core.MAP.gradient import Gradient, BirefringenceGradientSub, LensingGradientSub, GradSub
 
 import itertools
@@ -405,19 +404,24 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             for sec in secs_run:
                 _MAP_operators_desc[sec] = {
                     "LM_max": dl.LM_max,
-                    'lm_max_in': dl.lm_max_sky,
-                    'lm_max_out': dl.lm_max_pri,
                     "component": dl.analysis_secondary[sec]['component'],
                     "libdir": opj(libdir, 'estimate/'),
                 }
                 if sec == "lensing":
+                    _MAP_operators_desc[sec]["spin"] = 2
                     _MAP_operators_desc[sec]["perturbative"] = False
-                    filter_operators.append(operator.LensingOperator(_MAP_operators_desc[sec]))
+                    _MAP_operators_desc[sec]['lm_max_in'] =  dl.lm_max_sky
+                    _MAP_operators_desc[sec]['lm_max_out'] = dl.lm_max_pri
+                    filter_operators.append(operator.Lensing(_MAP_operators_desc[sec]))
                 elif sec == 'birefringence':
-                    filter_operators.append(operator.BirefringenceOperator(_MAP_operators_desc[sec]))
-            sec_operator = operator.SecondaryOperator(filter_operators[::-1]) # NOTE gradients are sorted in the order of the secondaries, but the secondary operator, I want to act birefringence first.
+                    _MAP_operators_desc[sec]['lm_max'] = dl.lm_max_pri
+                    filter_operators.append(operator.Birefringence(_MAP_operators_desc[sec]))
+            sec_operator = operator.Secondary(filter_operators[::-1]) # NOTE gradients are sorted in the order of the secondaries, but the secondary operator, I want to act birefringence first.
 
-            buffer = np.load(dl.niv_desc['P'][0])
+            if isinstance(dl.niv_desc['P'][0], str):
+                buffer = np.load(dl.niv_desc['P'][0])
+            else:
+                buffer = None
             niv = operator.InverseNoiseVariance(**{
                 'niv_desc': {'T': [buffer], 'P': [buffer]},
                 'lm_max': dl.lm_max_sky,
@@ -436,7 +440,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             }
             MAP_wf_desc = {
                 'wf_operator': sec_operator,
-                'beam_operator': operator.BeamOperator({'transferfunction': obs_info['beam_transferfunction'], 'lm_max': dl.lm_max_sky}),
+                'beam_operator': operator.Beam({'transferfunction': obs_info['beam_transferfunction'], 'lm_max': dl.lm_max_sky}),
                 'inv_operator': niv,
                 'libdir': opj(libdir, 'filter/'),
                 "chain_descr": wf_info['chain_descr'](dl.lm_max_pri[0], wf_info['cg_tol']),
@@ -447,7 +451,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             MAP_ivf_desc = {
                 'ivf_operator': sec_operator,
                 'inv_operator': niv,
-                'beam_operator': operator.BeamOperator({'transferfunction': obs_info['beam_transferfunction'], 'lm_max': dl.lm_max_sky}),
+                # 'add_operator': operator.Add({}),
+                'beam_operator': operator.Beam({'transferfunction': obs_info['beam_transferfunction'], 'lm_max': dl.lm_max_sky}),
                 'libdir': opj(libdir, 'filter/'),
             }
             ivf_filter = filter.IVF(MAP_ivf_desc)

@@ -42,11 +42,14 @@ def _extend_cl(cl, lmax):
 class Operator(object):
     def __init__(self, *args, **kwargs):
         zbounds = (-1,1)
-        lenjob_geomlib = get_geom(('thingauss', {'lmax': 4500, 'smax': 3}))
+        self.lenjob_geomlib = get_geom(('thingauss', {'lmax': 4500, 'smax': 3}))
         thtbounds = (np.arccos(zbounds[1]), np.arccos(zbounds[0]))
-        lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
+        self.lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
 
-        pass
+        zbounds = (-1,1)
+        self.data_geomlib = get_geom(('healpix',{'nside': 2048}))
+        thtbounds = (np.arccos(zbounds[1]), np.arccos(zbounds[0]))
+        self.data_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
 
     def apply_inplace(self, vec_a, vec_b):
         assert 0, 'not implemented -- subclass this'
@@ -97,31 +100,41 @@ class Lensing(Operator):
         self.component = operator_desc["component"]
         self.spin = operator_desc["spin"]
 
-        # NOTE expecting convergence here
-        self.field = {comp: operator_desc['fieldlm'][comp] for comp in self.component}
-        d = np.array([self.field[comp].flatten() for comp in self.component], dtype=complex)
-        if d.shape[0] == 1:
-            d = [d[0], None] if self.component[0] == 'p' else [np.zeros_like(d[0], dtype=complex), d[0]]
-        self.ffi = deflection(self.lenjob_geomlib, d, self.LM_max[1], numthreads=8, verbosity=False, epsilon=1e-7)
+        # NOTE expecting convergence
+        # self.field = {comp: operator_desc['fieldlm'][comp] for comp in self.component}
+        # d = np.array([self.field[comp].flatten() for comp in self.component], dtype=complex)
+        # if d.shape[0] == 1:
+        #     d = [d[0], None] if self.component[0] == 'p' else [np.zeros_like(d[0], dtype=complex), d[0]]
+        # self.ffi = deflection(self.lenjob_geomlib, d, self.LM_max[1], numthreads=8, verbosity=False, epsilon=1e-7)
         
 
     @log_on_start(logging.DEBUG, "lensing: {obj.shape}", logger=log)
     @log_on_end(logging.DEBUG, "lensing done", logger=log)
     def apply_inplace(self, obj, map_out):
-        return self.ffi.gclm2lenmap(np.atleast_2d(obj), self.lm_max_out[0], self.spin, False, map_out=map_out)
-        # elif out == 'alm':
-        #     obj = np.atleast_2d(obj)
-        #     lm_obj = Alm.getlmax(obj[0].size, None)
-        #     if lm_obj == self.lm_max_in[0]:
-        #         return self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max_in[1], self.spin, *self.lm_max_out)
-        #     else:
-        #         return self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max_out[1], self.spin, *self.lm_max_in)
+        if map_out:
+            self.ffi.gclm2lenmap(np.atleast_2d(obj), self.lm_max_out[0], self.spin, False, map_out=map_out)
+        else:
+            obj = np.atleast_2d(obj)
+            lm_obj = Alm.getlmax(obj.shape[1], None)
+            # if lm_obj == self.lm_max_in[0]:
+            return self.ffi.lensgclm(np.atleast_2d(obj), lm_obj, self.spin, *self.lm_max_out)
+            # else:
+            #     return self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max_out[1], self.spin, *self.lm_max_in)
                     
 
     @log_on_start(logging.DEBUG, "lensing: {obj.shape}", logger=log)
     @log_on_end(logging.DEBUG, "lensing done", logger=log)
-    def apply_adjoint_inplace(self, obj, alm_out='alm'):
-        return self.ffi.lenmap2gclm(np.atleast_2d(obj), self.lm_max_in[1], self.spin, *self.lm_max_out, backwards=True, out_sht_mode='GRAD_ONLY', alm_out=alm_out)
+    def apply_adjoint_inplace(self, obj, obj_out=None):
+        return self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max_in[1], self.spin, *self.lm_max_out, backwards=True, out_sht_mode='GRAD_ONLY', gclm_out=obj_out)
+        # return self.ffi.lenmap2gclm(np.atleast_2d(obj), self.lm_max_in[1], self.spin, *self.lm_max_out, backwards=True, out_sht_mode='GRAD_ONLY', alm_out=alm_out)
+
+
+    def set_field(self, fieldlm):
+        if fieldlm.shape[0] == 1:
+            d = [fieldlm[0], None] if self.component[0] == 'p' else [np.zeros_like(fieldlm[0], dtype=complex), fieldlm[0]]
+        else:
+            d = fieldlm
+        self.ffi = deflection(self.lenjob_geomlib, d[0], self.LM_max[1], dclm=d[1], numthreads=6, verbosity=False, epsilon=1e-7)
 
 
 class Birefringence(Operator):
@@ -129,14 +142,10 @@ class Birefringence(Operator):
         super().__init__()
         self.ID = 'birefringence'
         self.LM_max = operator_desc["LM_max"]
-        self.lm_max_in = operator_desc["lm_max_in"]
-        self.lm_max_out = operator_desc["lm_max_out"]
+        self.lm_max = operator_desc["lm_max"]
         self.component = operator_desc["component"]
 
         # NOTE expecting convergence here
-        field = {comp: operator_desc['fieldlm'][comp] for comp in self.component}
-        self.angle = 2 * self.geom_lib.alm2map(field[self.component[0]], *self.LM_max, 8)
-        self.cos_a, self.sin_a = np.cos(self.angle), np.sin(self.angle)
 
 
     @log_on_start(logging.DEBUG, "birefringence: {obj.shape}", logger=log)
@@ -148,14 +157,15 @@ class Birefringence(Operator):
         # NOTE if no B component, I set B to zero
         if obj.shape[0] == 1:
             obj = [obj[0], np.zeros_like(obj[0])+np.zeros_like(obj[0])*1j] 
-        Q, U = self.ffi.geom.alm2map_spin(obj, 2, *self.lm_max, 8)  
+        Q, U = self.lenjob_geomlib.alm2map_spin(obj, 2, *self.lm_max, 6)  
         
         Q_rot = self.cos_a * Q - self.sin_a * U
         U_rot = self.sin_a * Q + self.cos_a * U
 
-        EBlm_rot = self.ffi.geom.map2alm_spin(np.array([Q_rot, U_rot]), 2, *self.lm_max, 6)
+        EBlm_rot = self.lenjob_geomlib.map2alm_spin(np.array([Q_rot, U_rot]), 2, *self.lm_max, 6)
 
         obj = EBlm_rot[0] if obj_shape_in_leading == 1 else EBlm_rot
+        return obj
   
 
     def apply_adjoint_inplace(self, obj):
@@ -165,16 +175,22 @@ class Birefringence(Operator):
         # NOTE if no B component, I set B to zero
         if obj.shape[0] == 1:
             obj = [obj[0], np.zeros_like(obj[0])+np.zeros_like(obj[0])*1j] 
-        Q, U = self.ffi.geom.alm2map_spin(obj, 2, *self.lm_max, 6)  
+        Q, U = self.lenjob_geomlib.alm2map_spin(obj, 2, *self.lm_max, 6)  
 
         Q_rot = self.cos_a * Q + self.sin_a * U
         U_rot = -self.sin_a * Q + self.cos_a * U
-        EBlm_rot = self.ffi.geom.map2alm_spin(np.array([Q_rot, U_rot]), 2, *self.lm_max, 8)
+        EBlm_rot = self.lenjob_geomlib.map2alm_spin(np.array([Q_rot, U_rot]), 2, *self.lm_max, 6)
 
         obj = EBlm_rot[0] if obj_shape_in_leading == 1 else EBlm_rot
+        return obj
 
 
-class Multiply:
+    def set_field(self, fieldlm):
+        self.angle = 2 * self.lenjob_geomlib.alm2map(fieldlm.squeeze(), *self.LM_max, 6)
+        self.cos_a, self.sin_a = np.cos(self.angle), np.sin(self.angle)
+
+
+class Multiply(Operator):
     def __init__(self, descr):
         super().__init__()
         self.ID = 'multiply'
@@ -183,13 +199,13 @@ class Multiply:
 
     @log_on_start(logging.DEBUG, "multiply: {obj.shape}")
     @log_on_end(logging.DEBUG, "multiply done")
-    def apply_inplace(self, obj):
+    def apply_inplace(self, obj, spin=None):
         obj *= self.factor
     
 
     @log_on_start(logging.DEBUG, "multiply adjoint: {obj.shape}")
     @log_on_end(logging.DEBUG, "multiply adjoint done")
-    def apply_inplace_adjoint(self, obj):
+    def apply_inplace_adjoint(self, obj, spin=None):
         obj *= np.conj(self.factor)
 
 
@@ -225,12 +241,18 @@ class Beam(Operator):
 
     @log_on_start(logging.DEBUG, "beam: {obj.shape}", logger=log)
     @log_on_end(logging.DEBUG, "beam done", logger=log)
-    def apply_inplace(self, obj):
+    def apply_inplace(self, obj, obj_out=None):
         # assert self.lm_max[0] == Alm.getlmax(obj[0].size, None), (self.lm_max[0], obj.shape, Alm.getlmax(obj[0].size, None))
         # FIXME change counting for T and MV
+        if Alm.getlmax(obj.shape[1], None) != self.lm_max[0]:
+            obj_out = np.zeros((obj.shape[0], Alm.getsize(*self.lm_max)), dtype=complex)
+        else:
+            obj_out = obj
         for ob in obj:
             oi = self.tebl2idx['e']
-            almxfl(ob, self.transferfunction[self.idx2tebl[oi]], self.lm_max[0], True)
+            obj_out[oi] = alm_copy(ob, Alm.getlmax(obj.shape[1], None), *self.lm_max)
+            almxfl(obj_out[oi], self.transferfunction[self.idx2tebl[oi]], self.lm_max[0], True)
+            return obj_out
 
 
     def apply_adjoint_inplace(self, obj):
@@ -240,14 +262,33 @@ class Beam(Operator):
         ob = cli(ob)
     
 
+class Add(Operator):
+    def __init__(self, operator_desc):
+        super().__init__(operator_desc)
+        self.ID = 'add'
+    
+
+    @log_on_start(logging.DEBUG, "add: {obj.shape}", logger=log)
+    @log_on_end(logging.DEBUG, "add done", logger=log)
+    def apply(self, obj1, obj2):
+        if obj2.dtype in (np.complex64, np.complex128):
+            obj1 += obj2
+        elif obj2.dtype in (np.float32, np.float64):
+            obj1 = self.data_geomlib.synthesis(obj1, 2, *self.lm_max, 6, apply_weights=False)
+            obj1 += obj2
+        return obj1
+            
+
+    @log_on_start(logging.DEBUG, "add adjoint: {obj.shape}", logger=log)
+    @log_on_end(logging.DEBUG, "add adjoint done", logger=log)
+    def apply_adjoint(self, obj):
+        assert 0, 'not implemented'
+
+
 class InverseNoiseVariance(Operator):
     def __init__(self, nlev, lm_max, niv_desc, transferfunction, libdir, spectrum_type=None, OBD=None, OBD_rescale=None, OBD_libdir=None, mask=None, sky_coverage=None, rhits_normalised=None):
         super().__init__(libdir, lm_max)
         self.ID = 'inoise'
-        zbounds = (-1,1)
-        self.geom_lib = get_geom(('healpix',{'nside': 2048}))
-        thtbounds = (np.arccos(zbounds[1]), np.arccos(zbounds[0]))
-        self.geom_lib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
 
         self.nlev = nlev
         self.lm_max = lm_max
@@ -266,41 +307,35 @@ class InverseNoiseVariance(Operator):
 
     @log_on_start(logging.DEBUG, "InverseNoiseVariance: {obj.shape}", logger=log)
     @log_on_end(logging.DEBUG, "InverseNoiseVariance done", logger=log)
-    def apply_inplace(self, obj, adjoint=False):
-        assert self.lm_max[0] == Alm.getlmax(obj[0].size, None), (self.lm_max[0], Alm.getlmax(obj[0].size, None))
-        if adjoint:
-            return np.array([cli(almxfl(o, self.n1eblm[oi], self.lm_max[1], False)) for oi, o in enumerate(obj)])
-        return np.array([almxfl(o, self.n1eblm[oi], self.lm_max[1], False) for oi, o in enumerate(obj)])
+    def apply(self, obj):
+        if obj.dtype in (np.complex64, np.complex128):
+            for oi, o in enumerate(obj):
+                almxfl(o, self.n1eblm[oi], self.lm_max[1], True)
+            return obj
+        elif obj.dtype in (np.float32, np.float64):
+            if len(self.niv_desc) == 1:  #  QQ = UU
+                obj *= self.niv_desc[0]
+            elif len(self.niv_desc) == 3:  # QQ, QU, UU
+                assert self.template is None
+                qmap, umap = obj
+                qmap_copy = qmap.copy()
+                qmap *= self.niv_desc[0]
+                qmap += self.niv_desc[1] * umap
+                umap *= self.niv_desc[2]
+                umap += self.niv_desc[1] * qmap_copy
+                del qmap_copy
+            else:
+                assert 0
+            eblm = self.data_geomlib.adjoint_synthesis(obj, 2, *self.lm_max, 6, apply_weights=False)
+            return eblm
 
 
-    def apply_adjoint_inplace(self):
-        assert 0, 'not implemented'
+    def apply_adjoint(self, obj):
+        return np.array([cli(almxfl(o, self.n1eblm[oi], self.lm_max[1], False)) for oi, o in enumerate(obj)])
     
 
-    def apply_map(self, qumap):
-        """Applies pixel inverse-noise variance maps
-        """
-        if len(self.niv_desc) == 1:  #  QQ = UU
-            qumap *= self.niv_desc[0]
-
-
-        elif len(self.niv_desc) == 3:  # QQ, QU, UU
-            assert self.template is None
-            qmap, umap = qumap
-            qmap_copy = qmap.copy()
-            qmap *= self.niv_desc[0]
-            qmap += self.niv_desc[1] * umap
-            umap *= self.niv_desc[2]
-            umap += self.niv_desc[1] * qmap_copy
-            del qmap_copy
-        else:
-            assert 0
-        eblm = self.geom_lib.adjoint_synthesis(qumap, 2, *self.lm_max, 6, apply_weights=False)
-        return eblm
-
-
     def get_febl(self, transferfunction):
-        if self.sky_coverage == 'masked':
+        if self.sky_coverage == 'full':
             ret = _extend_cl(transferfunction['e']*2, len(self.n1eblm[0])-1) * self.n1eblm[0]
             return ret, None
 
@@ -312,43 +347,43 @@ class InverseNoiseVariance(Operator):
         else:
             assert 0
         self._nlevp = nlev_febl
-        log.info('Using nlevp %.2f amin'%self._nlevp)
         niv_cl_e = transferfunction['e'] ** 2  / (self._nlevp/ 180. / 60. * np.pi) ** 2
         niv_cl_b = transferfunction['b'] ** 2  / (self._nlevp/ 180. / 60. * np.pi) ** 2
         return niv_cl_e, niv_cl_b.copy()
 
 
-class Compound:
-    def __init__(self, operators, out):
-        
+class Compound(Operator):
+    def __init__(self, operators, spin):
+        super().__init__()
         self.operators = operators
-        self.space_out = out
+        self.spin = spin
     
 
-    @log_on_start(logging.DEBUG, "joint: {obj.shape}", logger=log)  
-    @log_on_end(logging.DEBUG, "joint done", logger=log)  
-    def act(self, obj, spin):
+    @log_on_start(logging.DEBUG, "Compound apply_inplace: {obj.shape}", logger=log)  
+    @log_on_end(logging.DEBUG, "Compound apply_inplace done", logger=log)  
+    def apply_inplace(self, obj, spin=None):
         for operator in self.operators:
             if isinstance(operator, Secondary):
-                obj = operator.act(obj, spin, out=self.space_out)
+                obj = operator.apply_inplace(obj)
             else:
-                obj = operator.act(obj, spin)
-        return obj
+                operator.apply_inplace(obj, spin)
+        return self.lenjob_geomlib.synthesis(obj, self.spin, *self.operators[-1].operators[-1].lm_max_in, 6)
     
 
-    def adjoint(self, obj, spin):
+    def apply_adjoint_inplace(self, obj):
+        assert 0, 'not implemented'
         for operator in self.operators[::-1]:
-            buff = operator.adjoint.act(obj, spin)
+            buff = operator.apply_adjoint.inplace(obj)
             obj = buff
         return obj
     
 
-    def set_field(self, idx, it, component=None, idx2=None):
+    def set_field(self, field):
         for operator in self.operators:
-            operator.set_field(idx, it, component, idx2)
+            operator.set_field(field[operator.ID])
     
 
-class Secondary:
+class Secondary(Operator):
     def __init__(self, desc):
         self.ID = 'secondaries'
         self.operators = desc # ["operators"]
@@ -356,24 +391,34 @@ class Secondary:
 
     @log_on_start(logging.DEBUG, "secondary: {obj.shape}", logger=log)  
     @log_on_end(logging.DEBUG, "secondary done", logger=log)  
-    def act(self, obj, spin=2, adjoint=False, backwards=False, out_sht_mode=None, secondary=None, out='alm'):
+    def apply_inplace(self, obj, secondary=None, obj_out=None):
         secondary = secondary or [op.ID for op in self.operators]
-        operators = self.operators if not adjoint else self.operators[::-1]
+        operators = self.operators
         for idx, operator in enumerate(operators):
+            # print(operator.ID)
             if operator.ID in secondary:
                 if isinstance(operator, Lensing):
-                    obj = operator.act(obj, spin, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode, out=out)
+                    obj = operator.apply_inplace(obj, obj_out)
                 else:
-                    obj = operator.act(obj, spin, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode)
+                    obj = operator.apply_inplace(obj)
         return obj
+    
 
-
-    @log_on_start(logging.DEBUG, "setting fields for: idx={idx}, it={it}, secondary={secondary}, component={component}", logger=log)  
-    def set_field(self, idx, it, secondary=None, component=None, idx2=None):
-        if secondary is None:
-            secondary = [operator.ID for operator in self.operators]
-        for operator in self.operators:
+    @log_on_start(logging.DEBUG, "secondary adjoint: {obj.shape}", logger=log)  
+    @log_on_end(logging.DEBUG, "secondary adjoint done", logger=log)  
+    def apply_adjoint_inplace(self, obj, secondary=None):
+        secondary = secondary or [op.ID for op in self.operators]
+        operators = self.operators[::-1]
+        for idx, operator in enumerate(operators):
+            # print(operator.ID)
             if operator.ID in secondary:
-                if component is None or component not in operator.component:
-                    component = operator.component
-                operator.set_field(idx, it, component, idx2)
+                if isinstance(operator, Lensing):
+                    obj = operator.apply_adjoint_inplace(obj)
+                else:
+                    obj = operator.apply_adjoint_inplace(obj)
+        return obj
+    
+
+    def set_field(self, field):
+        for operator in self.operators:
+            operator.set_field(field[operator.ID])

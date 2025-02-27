@@ -1,6 +1,10 @@
 import sys
 import numpy as np
 
+import matplotlib.pyplot as plt
+import healpy as hp
+from IPython.display import clear_output    
+
 from delensalot.core.cg import cd_monitors
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy
 
@@ -145,6 +149,7 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
     searchdirs = [op(residual) for op in pre_ops]
 
     iter = 0
+    lines, lines2 = [], []
     while not criterion(iter, x, residual):
         searchfwds = [fwd_op(searchdir) for searchdir in searchdirs]
         deltas = [dot_op(searchdir, residual) for searchdir in searchdirs]
@@ -164,6 +169,10 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
         # append to cache.
         cache.store(iter, [dTAd_inv, searchdirs, searchfwds])
 
+        clear_output(wait=True)
+        plt.figure(figsize=(10, 6))
+        lines.append(hp.alm2cl(b)-hp.alm2cl(fwd_op(x)))
+        lines2.append(hp.alm2cl(residual))
         # update residual
         iter += 1
         if np.mod(iter, roundoff) == 0:
@@ -171,6 +180,16 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
         else:
             for (searchfwd, alpha) in zip(searchfwds, alphas):
                 residual -= searchfwd * alpha
+
+
+        for linei, (line,line2) in enumerate(zip(lines, lines2)):
+            # plt.plot(line, label='iter %d'%linei, color='grey', alpha=0.3)
+            plt.plot(line2, label='iter %d'%(linei+1))
+        plt.legend(title='CG search')
+        plt.ylabel(r'$C_\ell^{\rm residual}$')
+        plt.xlabel(r'$\ell$')
+        plt.yscale('log')
+        plt.show()
 
         # initial choices for new search directions.
         searchdirs = [pre_op(residual) for pre_op in pre_ops]
