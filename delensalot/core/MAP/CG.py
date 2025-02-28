@@ -181,7 +181,6 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
             for (searchfwd, alpha) in zip(searchfwds, alphas):
                 residual -= searchfwd * alpha
 
-
         for linei, (line,line2) in enumerate(zip(lines, lines2)):
             # plt.plot(line, label='iter %d'%linei, color='grey', alpha=0.3)
             plt.plot(line2, label='iter %d'%(linei+1))

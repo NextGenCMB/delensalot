@@ -36,8 +36,8 @@ class lerepi_parser():
             pass
         self.parser = __argparser.parse_args()
 
-    @log_on_start(logging.INFO, "Start of validate()")
-    @log_on_end(logging.INFO, "Finished validate()")
+    @log_on_start(logging.INFO, "Start of validate()", logger=log)
+    @log_on_end(logging.INFO, "Finished validate()", logger=log)
     def validate(self):
 
         def _validate_purge(status_fn):
@@ -104,8 +104,8 @@ class lerepi_parser():
         return True
 
 
-    @log_on_start(logging.INFO, "Start of get_parser()")
-    @log_on_end(logging.INFO, "Finished get_parser()")
+    @log_on_start(logging.INFO, "Start of get_parser()", logger=log)
+    @log_on_end(logging.INFO, "Finished get_parser()", logger=log)
     def get_parser(self):
 
         return self.parser

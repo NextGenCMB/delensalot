@@ -12,15 +12,9 @@ import delensalot.core.mpi as mpi
 from delensalot.config.handler import config_handler
 from delensalot.config.etc.abstract import parserclass
 from delensalot.config.parser import lerepi_parser
-
-import logging
-import sys
-
-# Define log format
+from delensalot.config.etc import logger
 
 
-import logging
-import sys
 
 datefmt = "%m-%d %H:%M:%S"
 FORMAT = '%(levelname)s:: %(asctime)s:: %(name)s.%(funcName)s - %(message)s'
@@ -29,7 +23,7 @@ formatter = logging.Formatter(FORMAT, datefmt=datefmt)
 ConsoleOutputHandler = logging.StreamHandler(sys.stdout)
 ConsoleOutputHandler.setFormatter(formatter)
 
-# 🔥 Use root logger instead of a fixed "global_logger"
+# Use root logger instead of a fixed "global_logger"
 root_logger = logging.getLogger()
 if not root_logger.hasHandlers():
     root_logger.addHandler(ConsoleOutputHandler)
@@ -37,8 +31,11 @@ if not root_logger.hasHandlers():
 
 def set_logging_level(verbose: bool):
     level = logging.DEBUG if verbose else logging.INFO
+
+    # Ensure both the logger and the handler get updated
     root_logger.setLevel(level)
-    ConsoleOutputHandler.setLevel(level)
+    for handler in root_logger.handlers:
+        handler.setLevel(level)  # Ensure all handlers allow the logs
 
 np_logger = logging.getLogger("numpy")
 np_logger.setLevel(logging.WARNING)
@@ -46,31 +43,6 @@ np_logger = logging.getLogger("matplotlib")
 np_logger.setLevel(logging.WARNING)
 logging.getLogger("healpy").setLevel(logging.WARNING)
 np_logger.setLevel(logging.WARNING)
-
-
-
-import logdecorator
-def safe_log_on_start(level, msg, logger):
-    """Wrapper around log_on_start to catch formatting errors globally."""
-    def decorator(func):
-        def wrapper(*args, **kwargs):
-            try:
-                formatted_msg = msg.format(*args, **kwargs)  # Try formatting first
-                logger.log(level, formatted_msg)
-            except Exception as e:
-                logger.warning(f"Logging failed: {e}")  # Suppress long traceback
-
-            return func(*args, **kwargs)  # Run the function normally
-
-        return wrapper
-
-    return decorator
-
-# Apply the patch globally
-logdecorator.log_on_start = safe_log_on_start
-logdecorator.log_on_end = safe_log_on_start
-logdecorator.log_on_error = safe_log_on_start
-
 
 class run():
     """Entry point for the interactive mode

@@ -5,6 +5,7 @@
 import re, sys
 import numpy as np
 import healpy as hp
+import copy
 
 import importlib.util as iu
 
@@ -50,7 +51,6 @@ class data_functions:
         """
         return val * 180 * 60 / np.pi
         
-
 
     def c2a(val):
         """Cl2arcmin converter
@@ -138,3 +138,75 @@ def load_config(directory, descriptor):
     spec.loader.exec_module(p)
 
     return p.delensalot_model
+
+
+from itertools import product
+
+def set_nested_attr(obj, attr_path, value):
+    """Sets a nested attribute based on a dot-separated path."""
+    attrs = attr_path.split('.')
+    for attr in attrs[:-1]:
+        obj = getattr(obj, attr)
+    setattr(obj, attrs[-1], value)
+
+def get_nested_attr(obj, attr_path):
+    """Gets a nested attribute based on a dot-separated path."""
+    attrs = attr_path.split('.')
+    for attr in attrs:
+        obj = getattr(obj, attr)
+    return obj
+
+def scan_config(config, param_dict):
+    """
+    Iterates over all combinations of parameters in param_dict.
+
+    :param config: The configuration object.
+    :param param_dict: Dictionary with attribute paths as keys and lists of values.
+    """
+    param_keys = list(param_dict.keys())  # Get the attribute paths
+    param_values = list(param_dict.values())  # Get lists of values
+
+    # Store original values to restore later
+    original_values = {key: get_nested_attr(config, key) for key in param_keys}
+
+    # Iterate over all combinations of parameter values
+    for combination in product(*param_values):
+        for key, value in zip(param_keys, combination):
+            set_nested_attr(config, key, value)
+        config.fill_with_defaults()
+        yield config  # Yield the modified configuration
+
+    # Restore original values after iteration
+    for key, original_value in original_values.items():
+        set_nested_attr(config, key, original_value)
+
+
+
+def dprint(dictionary, depth=0, max_depth=2):
+    if isinstance(dictionary, dict):
+        max_key_length = max(len(str(key)) for key in dictionary)  # Get longest key length
+        for key, value in dictionary.items():
+            # Add a tab for each depth level
+            indent = '\t' * depth
+            # If the value is a dictionary and the current depth is less than max_depth, recurse
+            if isinstance(value, dict) and depth < max_depth:
+                print(f"{indent}{key.ljust(max_key_length)} : ")
+                dprint(value, depth + 1, max_depth)  # Recursively print the nested dictionary
+            else:
+                print(f"{indent}{key.ljust(max_key_length)} : {value}")
+    else:
+        print(dictionary)
+
+def filter_secondary_and_component(dct, allowed_chars):
+    dct = copy.deepcopy(dct)
+    forbidden_chars_in_sec = 'teb'  # NOTE this filters the last part in case of non-symmetrized keys (e.g. 'pee')
+    allowed_set = set("".join(c for c in allowed_chars if c not in forbidden_chars_in_sec))
+    sec_to_remove = []
+    for key, value in dct.items():
+        if 'component' in value:
+            value['component'] = [char for char in value['component'] if char in allowed_set]
+            if not value['component']:
+                sec_to_remove.append(key)
+    for key in sec_to_remove:
+        del dct[key]
+    return dct

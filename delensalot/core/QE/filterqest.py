@@ -10,6 +10,8 @@ from plancklens import qest, qresp
 
 from lenspyx.lensing import get_geom 
 
+from delensalot.config.etc import logger
+
 from delensalot.utility.utils_hp import alm_copy
 from delensalot.core.cg import cd_solve
 from delensalot.core.ivf import filt_util, filt_cinv, filt_simple
@@ -61,7 +63,7 @@ class base:
             for key, (cls_key, nlev_key, transf_key) in zip('teb', [('tt', 'T', 't'), ('ee', 'P', 'e'), ('bb', 'P', 'b')])}
 
 
-    @log_on_start(logging.INFO, 'filterqest')
+    @log_on_start(logging.INFO, 'filterqest', logger=log)
     def _init_filterqest(self):
         if self.sky_coverage == 'full' and self.filtering_spatial_type == 'isotropic':
             self.ivf = filt_simple.library_fullsky_sepTP(opj(self.libdir, 'ivf'), self.data_container, self.nivjob_geominfo[1]['nside'], self.transferfunction, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)

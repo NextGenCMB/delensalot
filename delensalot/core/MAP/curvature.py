@@ -32,7 +32,7 @@ class Base:
         bfgs_desc.update({'cacher': cachers.cacher_npy(self.field.libdir)})
         self.bfgs_h = bfgs.BFGSHessian(self.h0, **bfgs_desc)
         
-        self.stepper = {sub.ID: harmonicbump(**{'lmax_qlm': sub.LM_max[0],'mmax_qlm': sub.LM_max[1],'a': 0.5,'b': 0.499,'xa': 400,'xb': 1500},) for sub in self.gradient_lib.subs}
+        self.stepper = {sub.ID: harmonicbump(**{'lmax_qlm': sub.LM_max[0],'mmax_qlm': sub.LM_max[1],'a': 0.2,'b': 0.199,'xa': 400,'xb': 1500},) for sub in self.gradient_lib.subs}
 
 
     def add_svector(self, incr, it):

@@ -188,7 +188,7 @@ class DataContainer:
     """Simulation generation Job. Generates simulations for the requested configuration.
         * If any libdir exists, then a flavour of data is provided. Therefore, can only check by making sure flavour == obs, and fns exist.
     """
-    def __init__(self, data_source, k, idxs, idxs_mf, TEMP, mask):
+    def __init__(self, data_source, k, idxs, idxs_mf, TEMP, mask, sky_coverage, data_key, lm_max_sky):
         """ In this init we make the following checks:
          * (1) Does user provide obs data? Then DataContainer can be fully skipped
          * (2) Otherwise, check if files already generated (delensalot model may not know this, so need to search),
@@ -203,6 +203,9 @@ class DataContainer:
         self.idxs_mf = idxs_mf
         self.TEMP = TEMP
         self.mask = mask
+        self.sky_coverage = sky_coverage
+        self.data_key = data_key
+        self.lm_max_sky = lm_max_sky
         if self.data_source.flavour == 'obs' or np.all(self.data_source.obs_lib.maps != DEFAULT_NotAValue): # (1)
             # Here, obs data is provided and nothing needs to be generated
             if np.all(self.data_source.obs_lib.maps != DEFAULT_NotAValue):
@@ -214,13 +217,14 @@ class DataContainer:
                 # Here, sky data is provided and obs needs to be generated
                 self.libdir_sky = self.data_source.libdir
                 self.fns_sky = self.data_source.fns
-                lenjob_geomstr = 'unknown_skygeometry'
+                geomstr = 'unknown_skygeometry'
             else:
                 # some flavour provided, and we need to generate the sky and obs maps from this.
                 hashc = get_hashcode([val['component'] for val in self.data_source.sec_info.values()])
-                lenjob_geomstr = get_dirname(self.data_source.sky_lib.operator_info['lensing']['geominfo'])+"_"+hashc
+                geominfo = self.data_source.sky_lib.operator_info['lensing']['geominfo'] if 'lensing' in self.data_source.sky_lib.operator_info else self.data_source.sky_lib.operator_info['birefringence']['geominfo']
+                geomstr = get_dirname(geominfo)+"_"+hashc
                 
-                self.libdir_sky = opj(dirname_generator(self.data_source.libdir_suffix, self.data_source.geominfo), lenjob_geomstr)
+                self.libdir_sky = opj(dirname_generator(self.data_source.libdir_suffix, self.data_source.geominfo), geomstr)
                 self.fns_sky = self.set_basename_sky()
                 # NOTE for each operator, I need sec fns
                 self.fns_sec = {}
@@ -231,7 +235,7 @@ class DataContainer:
 
             hashc = get_hashcode(str([val['component'] for val in self.data_source.sec_info.values()])+str([val['component'] for val in self.data_source.sec_info.values()]))
             nlev_round = dict2roundeddict(self.data_source.nlev)
-            self.libdir = opj(dirname_generator(self.data_source.libdir_suffix, self.data_source.geominfo), lenjob_geomstr, get_dirname(sorted(nlev_round.items())), f'{hashc}')
+            self.libdir = opj(dirname_generator(self.data_source.libdir_suffix, self.data_source.geominfo), geomstr, get_dirname(sorted(nlev_round.items())), f'{hashc}')
             self.fns = self.set_basename_obs()
             
             # in init, only rank 0 enters in first round to set dirs etc.. so cannot use bcast
@@ -263,6 +267,7 @@ class DataContainer:
                     log.info(f'sky data will be stored at {self.libdir_sky} with filenames {self.fns_sky}. All secondaries will be generated along the way')
 
         self.cls_lib = self.data_source.cls_lib
+        self.obs_lib = self.data_source.obs_lib
 
     def set_basename_sky(self):
         return {'T': 'Talmsky_{}.npy', 'E': 'Ealmsky_{}.npy', 'B': 'Balmsky_{}.npy'}
@@ -405,11 +410,12 @@ class DataContainer:
     def get_sim_pri(self, idx, space, field, spin):
         return self.data_source.get_sim_pri(idx=idx, space=space, field=field, spin=spin)
     
-    def get_sim_obs(self, idx, space, field, spin, sky_coverage='full', lm_max=None):
-        if sky_coverage == 'full':
+    def get_sim_obs(self, idx, space, field, spin, lm_max=None):
+        if self.sky_coverage == 'full':
             assert space == 'alm', "'full' sky_coverage only works for space = alm"
             return  alm_copy_nd(self.data_source.get_sim_obs(idx=idx, space=space, field=field, spin=spin), None, lm_max)
-        elif sky_coverage == 'masked':
+        elif self.sky_coverage == 'masked':
+            assert self.mask, "mask must be provided for sky_coverage = 'masked'"
             # FIXME if data is already masked (e.g. provided from disk), this will doubly mask the data.. not sure we want this
             assert space == 'map', "'masked' sky_coverage only works for space = map"
             assert field == 'polarization'
@@ -433,13 +439,60 @@ class DataContainer:
     def hashdict(self):
         return {}
 
-    def get_sim_pmap(self, idx, sky_coverage='full'):
-        if sky_coverage == 'full':
+    def get_sim_pmap(self, idx):
+        if self.sky_coverage == 'full':
             return self.data_source.get_sim_obs(idx=idx, space='map', field='polarization', spin=2)
-        elif sky_coverage == 'masked':
+        elif self.sky_coverage == 'masked':
+            assert self.mask, "mask must be provided for sky_coverage = 'masked'"
             # FIXME if data is already masked (e.g. provided from disk), this will doubly mask the data.. not sure we want this
             obs = self.data_source.get_sim_obs(idx=idx, space='map', field='polarization', spin=2)
             return np.array([dat*self.mask for dat in obs])
+        
+
+    def get_data(self, idx):
+        # TODO this could be provided by the data_container directly
+        space = 'alm' if self.sky_coverage == 'full' else 'map'
+        if True: # NOTE anisotropic data currently not supported
+        # if self.noisemodel_coverage == 'isotropic':
+            # NOTE dat maps must now be given in harmonic space in this idealized configuration. sims_MAP is not used here, as no truncation happens in idealized setting.
+                
+            if self.data_key in ['p', 'eb', 'be']:
+                ret = alm_copy_nd(
+                    self.data_source.get_sim_obs(idx, space='alm', spin=0, field='polarization'),
+                    None, self.lm_max_sky)                
+            elif self.data_key in ['ee']:
+                ret = alm_copy_nd(
+                    self.data_source.get_sim_obs(idx, space='alm', spin=0, field='polarization'),
+                    None, self.lm_max_sky)[0]
+            elif self.data_key in ['tt']:
+                ret = alm_copy_nd(
+                    self.data_source.get_sim_obs(idx, space='alm', spin=0, field='temperature'),
+                    None, self.lm_max_sky)
+            elif self.data_key in ['p']:
+                EBobs = alm_copy_nd(
+                    self.data_source.get_sim_obs(idx, space='alm', spin=0, field='polarization'),
+                    None, self.lm_max_sky)
+                Tobs = alm_copy_nd(
+                    self.data_source.get_sim_obs(idx, space='alm', spin=0, field='temperature'),
+                    None, self.lm_max_sky)         
+                ret = np.array([Tobs, *EBobs])
+            else:
+                assert 0, 'implement if needed'
+            if space == 'alm':
+                return ret
+            elif space == 'map':
+                assert self.data_key == 'p', 'implement if needed'
+                # TODO this should move to the data_container
+                ret = np.atleast_2d(ret)
+                import healpy as hp
+                return [hp.alm2map_spin(r, nside=2048, spin=2) for r in ret]
+            else:
+                assert 0, 'implement if needed'
+        else:
+            if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
+                return np.array(self.sims_MAP.get_sim_pmap(self.idx), dtype=float)
+            else:
+                assert 0, 'implement if needed'
 
 
 class QEScheduler:
@@ -659,7 +712,7 @@ class MAPScheduler:
         self.MAP_minimizers: MAP_handler.Minimizer = MAP_minimizers
         self.tasks = tasks
         for idx in self.idxs:
-            if self.QE_searchs[0].isdone(idx, 'p') == 0:
+            if np.all([self.QE_searchs[0].isdone(idx, comp) for comp in self.QE_searchs[0].secondary.component]):
                 if mpi.rank == 0:
                     self.MAP_minimizers[idx].likelihood.copyQEtoDirectory(QE_searchs)
 
@@ -679,7 +732,7 @@ class MAPScheduler:
 
     def run(self):
         for idx in self.idxs:
-            if self.QE_searchs[0].isdone(idx, 'p') == 0:
+            if np.all([self.QE_searchs[0].isdone(idx, comp) for comp in self.QE_searchs[0].secondary.component]):
                 if mpi.rank == 0:
                     self.MAP_minimizers[idx].likelihood.copyQEtoDirectory(self.QE_searchs)
 

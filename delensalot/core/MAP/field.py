@@ -25,7 +25,6 @@ class Secondary:
 
 
     def get_est(self, it, scale='k'):
-        # print(f'getting est for {self.ID} with scale {scale}')
         ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
         idx, idx2, component = ctx.idx, ctx.idx2 or ctx.idx, ctx.component or self.component
         if isinstance(component, str):

@@ -37,19 +37,6 @@ class IVF_v2:
         self.add_operator: operator.Add = filter_desc['add_operator']
 
 
-    # def get_ivfreslm(self, it, data=None, eblm_wf=None):
-    #     # NOTE this is eq. 21 of the paper
-    #     if not self.ivf_field.is_cached(it=it):
-    #         assert eblm_wf is not None and data is not None
-    #         map = self.ivf_operator.apply_inplace(eblm_wf)    # pri -> pri                    alm -> map      alm -> map
-    #         self.beam_operator.apply_inplace(-1*ivfreslm)     # pri -> sky                    map -> alm      map -> alm
-
-    #         a = self.add_operator.apply(ivfreslm, data)
-    #         ivfreslm = self.inv_operator.apply(a)
-
-    #         ivfreslm = self.beam_operator.act(ivfreslm)  #                                    alm -> alm      alm -> alm
-    #         self.ivf_field.cache(ivfreslm, it=it)
-    #     return self.ivf_field.get_field(it=it)
     def get_ivfreslm(self, it, data=None, eblm_wf=None):
         # NOTE this is eq. 21 of the paper
         if not self.ivf_field.is_cached(it=it):
@@ -164,7 +151,6 @@ class WF_v2:
         return self.wf_operator.act(estCMB, secondary=secondary)
     
 
-
 class IVF:
     def __init__(self, filter_desc): 
         self.libdir = filter_desc['libdir']
@@ -174,11 +160,13 @@ class IVF:
         self.inv_operator: operator.InverseNoiseVariance = filter_desc['inv_operator']
 
 
-    def get_ivfreslm(self, it, data=None, eblm_wf=None):
+    @log_on_start(logging.DEBUG, " ---- get_ivfreslm: {it}", logger=log)
+    def get_ivfreslm(self, it, data=None, elm_wf=None):
         # NOTE this is eq. 21 of the paper
         if not self.ivf_field.is_cached(it=it):
-            assert eblm_wf is not None and data is not None
-            ivfreslm = self.ivf_operator.act(eblm_wf, spin=2)
+            assert elm_wf is not None and data is not None
+            ivfreslm = self.ivf_operator.act(elm_wf, spin=2)
+            assert ivfreslm.shape[0] == 2, ivfreslm.shape
             ivfreslm = -1*self.beam_operator.act(ivfreslm)
 
             if data.dtype in [np.complex64, np.complex128]:
@@ -197,17 +185,13 @@ class IVF:
 
     def update_operator(self, field):
         self.ivf_operator.set_field(field)
-    # def update_operator(self, it):
-    #     ctx, _ = ComputationContext()
-    #     idx, idx2 = ctx.idx, ctx.idx2
-    #     self.ivf_operator.set_field(idx=idx, it=it, idx2=idx2)
 
 
 class WF:
     def __init__(self, filter_desc):
         self.libdir = filter_desc['libdir']
-        self.wf_operator: operator.SecondaryOperator = filter_desc['wf_operator']
-        self.beam_operator: operator.BeamOperator = filter_desc['beam_operator']
+        self.wf_operator: operator.Secondary = filter_desc['wf_operator']
+        self.beam_operator: operator.Beam = filter_desc['beam_operator']
         self.inv_operator: operator.InverseNoiseVariance = filter_desc['inv_operator']
 
         self.chain_descr = filter_desc['chain_descr']
@@ -219,7 +203,7 @@ class WF:
     def get_wflm(self, it, data=None):
         if not self.wf_field.is_cached(it=it):
             assert data is not None, 'data is required for the calculation'
-            cg_sol_curr = self.wf_field.get_field(it=it-1) * (0+1j*0)
+            cg_sol_curr = self.wf_field.get_field(it=it-1) #* (0+1j*0)
             tpn_alm = self.calc_prep(data) # NOTE lm_sky -> lm_pri
             mchain = cg.ConjugateGradient(self.precon_op, self.chain_descr, self.cls_filt)
             mchain.solve(cg_sol_curr, tpn_alm, self.fwd_op)
@@ -227,19 +211,27 @@ class WF:
         return self.wf_field.get_field(it=it)
 
 
+    @log_on_start(logging.DEBUG, " ---- calc_prep: {qumap.shape}", logger=log)
+    @log_on_end(logging.DEBUG, " done ---- calc_prep", logger=log)  
     def calc_prep(self, qumap):
-        """cg-inversion pre-operation. This performs :math:`D_\phi^t B^t N^{-1} X^{\rm dat}`
+        """cg preoperation. This performs :math:`D_\phi^t B^t N^{-1} X^{\rm dat}`
         """
         if qumap.dtype in [np.complex64, np.complex128]:
             eblmc = self.inv_operator.act(qumap, adjoint=False)
+            assert eblmc.shape[0] == 2, eblmc.shape
         else:
             eblmc = self.inv_operator.apply_map(qumap)
+            assert eblmc.shape[0] == 2, eblmc.shape
         eblmc = self.beam_operator.act(eblmc, adjoint=False)
         elm = self.wf_operator.act(eblmc, spin=2, adjoint=True, backwards=True, out_sht_mode='GRAD_ONLY') # NOTE lm_sky -> lm_pri
+        assert elm.shape[0] == 1, elm.shape
         elm = almxfl_nd(elm, self.cls_filt['ee'] > 0., None, False)
-        return elm
+        return elm[0] if elm.ndim == 2 else elm
     
 
+
+    @log_on_start(logging.DEBUG, " ---- fwd_op: {ewflm.shape}", logger=log)
+    @log_on_end(logging.DEBUG, " done ---- fwd_op", logger=log)  
     def fwd_op(self, ewflm):
         """ acts on elm, which is a lm_max_pri map
         """
@@ -248,8 +240,10 @@ class WF:
         # View to the same array for GRAD_ONLY mode:
         elm_2d = nlm.reshape((1, nlm.size))
         eblm = self.wf_operator.act(elm_2d, spin=2, adjoint=False, backwards=False) # # NOTE lm_max_pri -> lm_max_sky
+        assert eblm.shape[0] == 2, eblm.shape
         eblm = self.beam_operator.act(eblm, adjoint=False)
-        
+        assert eblm.shape[0] == 2, eblm.shape
+
         if eblm.dtype in [np.complex64, np.complex128]:
             eblm = self.inv_operator.act(eblm, adjoint=False)
         else:
@@ -264,6 +258,8 @@ class WF:
         return nlm
 
 
+    @log_on_start(logging.DEBUG, " ---- precon_op: {elm.shape}", logger=log)
+    @log_on_end(logging.DEBUG, " done ---- precon_op", logger=log)  
     def precon_op(self, elm):
         """Applies the preconditioner operation for diagonal preconditioning.
         """

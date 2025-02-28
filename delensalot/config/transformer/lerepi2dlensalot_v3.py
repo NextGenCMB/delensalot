@@ -165,7 +165,7 @@ class l2base_Transformer:
         elif type(an.zbounds_len[0]) in [float, int, np.float64]:
             dl.zbounds_len = an.zbounds_len
         dl.lm_max_pri = an.lm_max_pri
-        dl.ttebl = utils_plancklens.gauss_beamtransferfunction(an.beam, dl.lm_max_sky, an.lmin_teb, an.transfunction_desc=='gauss_with_pixwin', cf.noisemodel.geominfo)
+        dl.transferfunction = utils_plancklens.gauss_beamtransferfunction(an.beam, dl.lm_max_sky, an.lmin_teb, an.transfunction_desc=='gauss_with_pixwin', cf.noisemodel.geominfo)
 
     def process_Computing(dl, co, cf):
         dl.tr = co.OMP_NUM_THREADS
@@ -180,20 +180,13 @@ class l2base_Transformer:
         dl.spectrum_type = nm.spectrum_type
         dl.OBD = nm.OBD
         dl.nlev = cf.noisemodel.nlev
-        # FIXME this can be replaced with the function in helper.obs
-        # dl.mask = hp.read_map(cf.analysis.mask) if cf.analysis.mask is not None else None
-        # dl.niv_desc = {'T': l2OBD_Transformer.get_niv_desc(cf, dl, mode="T"), 'P': l2OBD_Transformer.get_niv_desc(cf, dl, mode="P")}
-        # mask = hp.read_map(cf.analysis.mask) if cf.analysis.mask is not None else None
-        # mask = np.zeros(hp.nside2npix(1))
-        # mask[[7]] = 1
-        # mask = hp.ud_grade(mask, nside_out=2048)
         dl.mask = cf.analysis.mask_fn
         dl.rhits_normalised = np.copy(dl.mask)
         f = lambda x: utils_plancklens.get_niv_desc(dl.nlev, dl.nivjob_geominfo, dl.nivjob_geomlib, dl.rhits_normalised, dl.mask, mode=x)
         buff = f('P')
         dl.niv_desc = {'P': buff, 'T': buff}
-        # dl.niv_desc = {'T': f('T'), 'P': f('P')}
         del dl.rhits_normalised
+
 
 class l2T_Transformer:
     # TODO this could use refactoring. Better name generation
@@ -210,6 +203,7 @@ class l2T_Transformer:
             _suffix += '_OBD' if cf.noisemodel.OBD == 'OBD' else '_lminB'+str(cf.analysis.lmin_teb[2])+_secsuffix
             TEMP =  opj(os.environ['SCRATCH'], 'analysis', _suffix)
             return TEMP
+
 
 class l2delensalotjob_Transformer(l2base_Transformer):
     """builds delensalot job from configuration file
@@ -228,20 +222,21 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             dl.libdir_suffix = cf.data_source.libdir_suffix
             l2base_Transformer.process_Simulation(dl, cf.data_source, cf)
             data_source = DataSource(**cf.data_source.__dict__)
-            mask = np.zeros(hp.nside2npix(1))
-            mask[[7]] = 1
-            mask = hp.ud_grade(mask, nside_out=2048)
-            dl.mask = mask
+            dl.mask = np.load(cf.analysis.mask_fn) if isinstance(cf.analysis.mask_fn, str) else None
             ret = {
                 "data_source": data_source,
+                'data_key': 'p',
                 "k": dl.k,
                 'idxs': dl.idxs,
                 'idxs_mf': dl.idxs_mf,
                 'TEMP': dl.TEMP,
                 'mask': dl.mask,
+                'sky_coverage': cf.noisemodel.sky_coverage,
+                'lm_max_sky': cf.analysis.lm_max_sky,
             }
             return ret
         return DataContainer(**extract())
+
 
     def build_QE_lensrec(self, cf):
         """Transformer for generating a delensalot model for the lensing reconstruction jobs (QE and MAP)
@@ -265,8 +260,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.subtract_QE_meanfield = qe.subtract_QE_meanfield
                     dl.estimator_type = qe.estimator_type
                     
-                    ## FIXME cg chain currently only works with healpix geometry
-                    dl.QE_cg_tol = qe.cg_tol
+                    dl.cg_tol = qe.cg_tol
                     
                 _process_Computing(dl, cf.computing)
                 _process_Analysis(dl, cf.analysis)
@@ -282,7 +276,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 'niv_desc': dl.niv_desc,
                 'lm_max': dl.lm_max_sky,
                 'nlev': dl.nlev,
-                'transferfunction': dl.ttebl,
+                'transferfunction': dl.transferfunction,
                 'spectrum_type': dl.spectrum_type,
                 'OBD': dl.OBD,
                 'mask': dl.mask,
@@ -304,7 +298,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "lm_max_qlm": dl.LM_max, # TODO this could be a different value for each secondary
                 "zbounds": dl.zbounds,
                 "sht_threads": dl.tr,
-                "cg_tol": dl.QE_cg_tol,
+                "cg_tol": dl.cg_tol,
                 "lmin_teb": dl.lmin_teb,
                 'inv_operator_desc': inv_operator_desc,
             }
@@ -333,7 +327,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 'data_container': self.build_datacontainer(cf),
                 'TEMP': dl.TEMP,
             }
-            set_config(dl)
             return ret
         return QEScheduler(**extract())
 
@@ -354,14 +347,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.obd_rescale = od.rescale
                 def _process_Simulation(dl, si):
                     l2base_Transformer.process_Simulation(dl, si, cf)
-                def _process_Qerec(dl, qe):
-                    qe_tasks_sorted = ['calc_fields', 'calc_meanfields', 'calc_templates'] if qe.subtract_QE_meanfield else ['calc_fields', 'calc_templates']
-                    dl.qe_tasks = [task for task in qe_tasks_sorted if task in qe.tasks]
-                    dl.subtract_QE_meanfield = qe.subtract_QE_meanfield
-                    dl.estimator_type = qe.estimator_type
-                    
-                    ## FIXME cg chain currently only works with healpix geometry
-                    dl.QE_cg_tol = qe.cg_tol
                 def _process_Itrec(dl, it):
                     dl.tasks = it.tasks
                     dl.cg_tol = lambda itr : it.cg_tol if itr <= 1 else it.cg_tol
@@ -372,7 +357,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_Noisemodel(dl, cf.noisemodel)
                 _process_Simulation(dl, cf.data_source)
                 _process_OBD(dl, cf.obd)
-                _process_Qerec(dl, cf.qerec)
                 _process_Itrec(dl, cf.maprec)
 
             dl = DELENSALOT_Concept_v3()
@@ -380,25 +364,15 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
             QE_scheduler = self.build_QE_lensrec(cf)
             QE_searchs = QE_scheduler.QE_searchs
-            _process_components(dl)
+            data_container = self.build_datacontainer(cf)
 
+            _process_components(dl)
             seclist_sorted = ['lensing', 'birefringence']
             dl.analysis_secondary = filter_secondary_and_component(copy.deepcopy(cf.analysis.secondary), cf.analysis.key.split('_')[0])
             secs_run = [sec for sec in seclist_sorted if sec in dl.analysis_secondary]
-            noise_info = {"nlev": dl.nlev, 'niv_desc': dl.niv_desc}
-            obs_info = {'beam_transferfunction': dl.ttebl}
             libdir = opj(transform(cf, l2T_Transformer()), 'MAP',f"{cf.analysis.key}")
 
-            # data_source = DataSource(**cf.data_source.__dict__)
-            # data_container_desc = {
-            #     "data_source": data_source,
-            #     "k": dl.k,
-            #     'idxs': dl.idxs,
-            #     'idxs_mf': dl.idxs_mf,
-            #     'TEMP': dl.TEMP,
-            #     'mask': dl.mask,
-            # }
-            data_container = self.build_datacontainer(cf)
+
             filter_operators = []
             _MAP_operators_desc = {}
             for sec in secs_run:
@@ -416,6 +390,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 elif sec == 'birefringence':
                     _MAP_operators_desc[sec]['lm_max'] = dl.lm_max_pri
                     filter_operators.append(operator.Birefringence(_MAP_operators_desc[sec]))
+                    bire_grad_operator = operator.Secondary([filter_operators[-1]])
             sec_operator = operator.Secondary(filter_operators[::-1]) # NOTE gradients are sorted in the order of the secondaries, but the secondary operator, I want to act birefringence first.
 
             if isinstance(dl.niv_desc['P'][0], str):
@@ -427,7 +402,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 'lm_max': dl.lm_max_sky,
                 'libdir': opj(libdir, 'filter/'),
                 'nlev': dl.nlev,
-                'transferfunction': obs_info['beam_transferfunction'],
+                'transferfunction': dl.transferfunction,
                 'spectrum_type': dl.spectrum_type,
                 'OBD': dl.OBD,
                 'mask': dl.mask,
@@ -440,7 +415,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             }
             MAP_wf_desc = {
                 'wf_operator': sec_operator,
-                'beam_operator': operator.Beam({'transferfunction': obs_info['beam_transferfunction'], 'lm_max': dl.lm_max_sky}),
+                'beam_operator': operator.Beam({'transferfunction': dl.transferfunction, 'lm_max': dl.lm_max_sky}),
                 'inv_operator': niv,
                 'libdir': opj(libdir, 'filter/'),
                 "chain_descr": wf_info['chain_descr'](dl.lm_max_pri[0], wf_info['cg_tol']),
@@ -451,8 +426,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             MAP_ivf_desc = {
                 'ivf_operator': sec_operator,
                 'inv_operator': niv,
-                # 'add_operator': operator.Add({}),
-                'beam_operator': operator.Beam({'transferfunction': obs_info['beam_transferfunction'], 'lm_max': dl.lm_max_sky}),
+                'add_operator': operator.Add({}),
+                'beam_operator': operator.Beam({'transferfunction': dl.transferfunction, 'lm_max': dl.lm_max_sky}),
                 'libdir': opj(libdir, 'filter/'),
             }
             ivf_filter = filter.IVF(MAP_ivf_desc)
@@ -463,9 +438,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 'data_container': data_container,
                 "libdir": libdir,
                 "LM_max": dl.LM_max,
-                "sec_operator": sec_operator,
-                'data_key': 'p',
                 'sky_coverage': dl.sky_coverage,
+                'geomlib': get_geom(('thingauss', {'lmax': 4500, 'smax': 3})), # FIXME this must match the geom in the operator
             }
             subs = []
             chhsall = []
@@ -474,6 +448,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 quad_desc.update({
                     "component": dl.analysis_secondary['lensing']['component'],
                     "ID": 'lensing',
+                    "sec_operator": sec_operator,
                     "chh": {comp: CLfids_lens[comp*2][:quad_desc['LM_max'][0]+1] * (0.5 * np.arange(quad_desc['LM_max'][0]+1) * np.arange(1,quad_desc['LM_max'][0]+2))**2 for comp in dl.analysis_secondary['lensing']['component']},
                 })
                 lens_grad_quad = LensingGradientSub(quad_desc)
@@ -485,6 +460,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 quad_desc.update({
                     "component": dl.analysis_secondary['birefringence']['component'],
                     "ID": 'birefringence',
+                    'sec_operator': bire_grad_operator,
                     "chh": {comp: CLfids_bire[comp*2][:quad_desc['LM_max'][0]+1] for comp in dl.analysis_secondary['birefringence']['component']},
                 })
                 bire_grad_quad = BirefringenceGradientSub(quad_desc)

@@ -21,6 +21,7 @@ from delensalot.core.MAP import operator as operator
 from delensalot.core.MAP.filter import IVF, WF
 from delensalot.core.MAP.context import get_computation_context
 
+from delensalot.config.etc import logger
 
 class SharedFilters:
     def __init__(self, sub):
@@ -28,11 +29,11 @@ class SharedFilters:
         self.wf_filter = sub.wf_filter
 
 
-
 class Gradient(SharedFilters):
     subs: List[Union[LensingGradientSub, BirefringenceGradientSub]]
-    def __init__(self, subs, ipriormatrix):
+    def __init__(self, subs, ipriormatrix, verbose=False):
         super().__init__(subs[0]) # NOTE I am assuming the ivf and wf class are the same in all gradients
+        logger.set_logging_level(verbose=verbose)  # Set True for debug mode
         self.subs: List[Union[LensingGradientSub, BirefringenceGradientSub]] = subs
         self.ipriormatrix = ipriormatrix
         self.component = [comp for sub in self.subs for comp in sub.component]
@@ -51,12 +52,12 @@ class Gradient(SharedFilters):
                 totgrad.append(sub.gfield.get_total(it))
             else:
                 log.info(f'calculating total gradient for {sub.ID}')
-                totgrad.append(sub.get_gradient_meanfield(it) - sub.get_gradient_quad(it=it, data=data))
+                totgrad.append(-sub.get_gradient_meanfield(it) + sub.get_gradient_quad(it=it, data=data))
         prior = self.get_gradient_prior(it-1)
         totgrad = [a + b for a, b in zip(totgrad, prior)]
         return totgrad
 
-    # @log_on_start(logging.DEBUG, 'Joint.get_gradient_quad: idx={idx}, it={it}, component={component}, data={data}, idx2={idx2}')
+    # @log_on_start(logging.DEBUG, 'Joint.get_gradient_quad: it={it}, component={component}, data={data}')
     def get_gradient_quad(self, it, data=None):
         if isinstance(it, (list, np.ndarray)):
             return [self.get_gradient_quad(it_, data) for it_ in it]
@@ -70,7 +71,7 @@ class Gradient(SharedFilters):
         return quadgrad
 
 
-    # @log_on_start(logging.DEBUG, 'Joint.get_gradient_prior: idx={idx}, it={it}, component={component}, idx2={idx2}')
+    # @log_on_start(logging.DEBUG, 'Joint.get_gradient_prior: it={it}, component={component}')
     def get_gradient_prior(self, it):
         if isinstance(it, (list, np.ndarray)):
             return [self.get_gradient_prior(it_) for it_ in it]
@@ -93,6 +94,9 @@ class Gradient(SharedFilters):
 
     
     def _get_est_for_prior(self, it):
+        if it>0:
+            print('Setting it=0 as only this is supported for now')
+        it = 0
         if isinstance(it, (list, np.ndarray)):
             return [self._get_est_for_prior(it_) for it_ in it]
         return [sub.gfield._get_est(it=it) for sub in self.subs]
@@ -164,7 +168,6 @@ class GradSub:
         self.ID = gradient_desc['ID']
         self.chh = gradient_desc['chh']
         libdir = gradient_desc['libdir']
-        self.data_key = gradient_desc['data_key']
         self.sky_coverage = gradient_desc['sky_coverage']
 
         self.ivf_filter: IVF = gradient_desc.get('ivf_filter', None)
@@ -181,7 +184,7 @@ class GradSub:
             "component": self.component,
         }
         self.gfield = field.Gradient(gfield_desc)
-        self.ffi = gradient_desc['sec_operator'].operators[-1].ffi # each sec operator has the same ffi, so can pick any
+        self.geomlib = gradient_desc['geomlib']
 
 
     def get_gradient_total(self, it, data=None, data_leg2=None):
@@ -198,8 +201,8 @@ class GradSub:
         else:
             total = 0
             total += self.get_gradient_prior(it - 1)
-            total += self.get_gradient_meanfield(it)
-            total -= self.get_gradient_quad(it)
+            total -= self.get_gradient_meanfield(it)
+            total += self.get_gradient_quad(it)
             return total
             # self.gfield.cache_total(total, idx, idx2, it)
             # return total
@@ -216,28 +219,6 @@ class GradSub:
         ctx, _ = get_computation_context()
         idx, idx2 = ctx.idx, ctx.idx2 or ctx.idx
         self.ivf_filter.update_operator(idx=idx, it=it, idx2=idx2)
-    
-
-    def get_data(self, idx, space, sky_coverage='full'):
-        lm_max_sky = self.ivf_filter.ivf_operator.operators[-1].lm_max_in
-        if True: # NOTE anisotropic data currently not supported
-        # if self.noisemodel_coverage == 'isotropic':
-            spin = 2 if space == 'map' else 0
-            self.data_container.purgecache()
-            if self.data_key in ['p', 'eb', 'be']:
-                print(lm_max_sky)
-                ret = self.data_container.get_sim_obs(idx, space=space, spin=spin, field='polarization', sky_coverage=sky_coverage, lm_max=lm_max_sky)
-            elif self.data_key in ['ee']:
-                ret = self.data_container.get_sim_obs(idx, space=space, spin=spin, field='polarization', sky_coverage=sky_coverage, lm_max=lm_max_sky)[0]
-            elif self.data_key in ['tt']:
-                ret = self.data_container.get_sim_obs(idx, space=space, spin=spin, field='temperature', sky_coverage=sky_coverage, lm_max=lm_max_sky)
-            elif self.data_key in ['p']:
-                EBobs = self.data_container.get_sim_obs(idx, space=space, spin=spin, field='polarization', sky_coverage=sky_coverage, lm_max=lm_max_sky)
-                Tobs = self.data_container.get_sim_obs(idx, space=space, spin=spin, field='temperature', sky_coverage=sky_coverage, lm_max=lm_max_sky)       
-                ret = np.array([Tobs, *EBobs])
-            else:
-                assert 0, 'implement if needed'
-        return ret
 
 
 class LensingGradientSub(GradSub):
@@ -245,6 +226,7 @@ class LensingGradientSub(GradSub):
         super().__init__(desc)
         self.gradient_operator: operator.joint = self._get_operator(desc['sec_operator'])
         self.lm_max_in = self.gradient_operator.operators[-1].operators[-1].lm_max_in
+        self.ffi = desc['sec_operator'].operators[-1].ffi
         
 
     def get_gradient_quad(self, it, data=None, data_leg2=None, wflm=None, ivfreslm=None):
@@ -263,8 +245,8 @@ class LensingGradientSub(GradSub):
             if wflm is None:
                 assert self.ivf_filter is not None, "ivf_filter must be provided at instantiation in absence of wflm and ivfreslm"
                 assert self.wf_filter is not None, "wf_filter must be provided at instantiation in absence of wflm and ivfreslm"
-                wflm = self.wf_filter.get_wflm(it, self.get_data(idx, space='map' if self.sky_coverage=='masked' else 'alm', sky_coverage=self.sky_coverage))
-                ivfreslm = np.ascontiguousarray(self.ivf_filter.get_ivfreslm(it, self.get_data(idx2, space='map' if self.sky_coverage=='masked' else 'alm', sky_coverage=self.sky_coverage), wflm))
+                wflm = self.wf_filter.get_wflm(it, self.data_container.get_data(idx))
+                ivfreslm = np.ascontiguousarray(self.ivf_filter.get_ivfreslm(it, self.data_container.get_data(idx2), wflm))
 
             resmap_c = np.ascontiguousarray(np.empty((self.ffi.geom.npix(),), dtype=wflm.dtype))
             resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
@@ -280,7 +262,7 @@ class LensingGradientSub(GradSub):
             gc = self.ffi.geom.adjoint_synthesis(gc_r, 1, self.LM_max[0], self.LM_max[0], self.ffi.sht_tr)
             
             # NOTE at last, cast qlms to alm space with LM_max and also cast it to convergence
-            fl1 = -np.sqrt(np.arange(self.LM_max[0]+1) * np.arange(1, self.LM_max[0]+2))
+            fl1 = np.sqrt(np.arange(self.LM_max[0]+1) * np.arange(1, self.LM_max[0]+2))
             almxfl(gc[0], fl1, self.LM_max[1], True)
             almxfl(gc[1], fl1, self.LM_max[1], True)
             fl2 = cli(0.5 * np.arange(self.LM_max[0]+1) * np.arange(1, self.LM_max[0]+2))
@@ -308,7 +290,7 @@ class BirefringenceGradientSub(GradSub):
     def __init__(self, desc):
         super().__init__(desc)
         self.gradient_operator: operator.joint = self._get_operator(desc['sec_operator'])
-        self.lm_max = self.gradient_operator.operators[-1].operators[0].lm_max
+        self.lm_max = self.gradient_operator.operators.operators[0].lm_max
     
 
     def get_gradient_quad(self, it, data=None, data_leg2=None, wflm=None, ivfreslm=None):
@@ -318,18 +300,23 @@ class BirefringenceGradientSub(GradSub):
         idx, idx2 = ctx.idx, ctx.idx2 or ctx.idx
         data_leg2 = data_leg2 or data
         if not self.gfield.is_cached(it, type='quad'):
-            wflm = self.wf_filter.get_wflm(it, self.get_data(idx, space='map' if self.sky_coverage=='masked' else 'alm', sky_coverage=self.sky_coverage))
-            ivfreslm = np.ascontiguousarray(self.ivf_filter.get_ivfreslm(it, self.get_data(idx2, space='map' if self.sky_coverage=='masked' else 'alm', sky_coverage=self.sky_coverage), wflm))
+            wflm = self.wf_filter.get_wflm(it, self.data_container.get_data(idx))
+            ivfreslm = np.ascontiguousarray(self.ivf_filter.get_ivfreslm(it, self.data_container.get_data(idx2), wflm))
+
+            # xwfmap = self.gradient_operator.act(wflm, spin=2)
+            lmax = Alm.getlmax(wflm.size, None)
+            # print(wflm.shape)
+            xwfmap = self.geomlib.synthesis([wflm, np.zeros_like(wflm,dtype=complex)], 2, lmax, lmax, 6)
             lmax = Alm.getlmax(ivfreslm[0].size, None)
-            ivfmap = self.ffi.geom.synthesis(ivfreslm, 2, lmax, lmax, 6)
-            xwfmap = self.gradient_operator.act(wflm, spin=2)
+            ivfmap = self.geomlib.synthesis(ivfreslm, 2, lmax, lmax, 6)
  
-            qlms = -4 * (ivfmap[0]*xwfmap[1] - ivfmap[1]*xwfmap[0])
-            qlms = self.ffi.geom.adjoint_synthesis(qlms, 0, self.LM_max[0], self.LM_max[1], 6)
+            # qlms = -4*(ivfmap[0]*xwfmap[1] - ivfmap[1]*xwfmap[0])
+            qlms = +2*(+ivfmap[0]*xwfmap[1] - ivfmap[1]*xwfmap[0])
+            qlms = self.geomlib.adjoint_synthesis(qlms, 0, self.LM_max[0], self.LM_max[1], 6)
             
             self.gfield.cache(qlms, it, type='quad')
         return self.gfield.get_quad(it)
     
 
     def _get_operator(self, filter_operator):
-        return operator.Compound([operator.Multiply({"factor": -1j}), filter_operator], out='map')
+        return operator.Compound(filter_operator, out='map')

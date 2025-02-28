@@ -64,6 +64,8 @@ class Minimizer:
 
         elif (current_it < self.itmax and request_it >= current_it) or calc_flag:
             new_klms = self._compute_iterations(current_it, request_it, scale)
+            if isinstance(secondary, list):
+                return new_klms if len(secondary)>1 else new_klms[secondary[0]] if component is None else new_klms[secondary[0]][component]
             return new_klms if secondary is None else new_klms[secondary] if component is None else new_klms[secondary][component]
 
         print(f"Requested iteration {request_it} is beyond the maximum iteration")
@@ -76,11 +78,14 @@ class Minimizer:
             log.info(f'---------- starting iteration {it} ----------')
             est_prev = self.get_est(it-1, scale='d')
             est_prev = {sec: est_prev[self.likelihood.sec2idx[sec]] for sec in self.likelihood.seclist_sorted}
+            if it == 1:
+                for sec, val in est_prev.items():
+                    est_prev[sec] = np.zeros_like(val,dtype=complex)
             self.update_operator(est_prev)
-            grad_tot = self.get_gradient_total(it)
+            grad_tot = self.likelihood.get_likelihood_gradient(it)
             grad_tot = np.concatenate([np.ravel(arr) for arr in grad_tot])
             if it >= 2:
-                grad_prev = self.get_gradient_total(it-1)
+                grad_prev = self.likelihood.get_likelihood_gradient(it-1)
                 grad_prev = np.concatenate([np.ravel(arr) for arr in grad_prev])
                 self.likelihood.curvature.add_yvector(grad_tot, grad_prev, it)
             increment = self.likelihood.curvature.get_increment(grad_tot, it)
@@ -163,7 +168,7 @@ class Likelihood:
 
         def dotop(glms1, glms2):
             ret, N = 0., 0
-            for lmax, mmax in [quad.LM_max for sec in self.seclist_sorted for quad in self.gradient_lib.subs if quad.ID == sec]:
+            for lmax, mmax in [sub.LM_max for sec in self.seclist_sorted for sub in self.gradient_lib.subs if sub.ID == sec]:
                 siz = Alm.getsize(lmax, mmax)
                 cl = alm2cl(glms1[N:N+siz], glms2[N:N+siz], None, mmax, None)
                 ret += np.sum(cl * (2 * np.arange(len(cl)) + 1))
@@ -209,6 +214,10 @@ class Likelihood:
         return self.cacher.load(fn)
     
 
+    def get_likelihood_gradient(self, it):
+        return self.gradient_lib.get_gradient_total(it)
+    
+
     def get_est(self, it, scale='k'):
         ctx, isnew = get_computation_context()
         secondary = ctx.secondary or list(self.secondaries.keys())
@@ -240,58 +249,6 @@ class Likelihood:
         for secID, secondary in self.secondaries.items():
             for component in secondary.component:
                 secondary.cache_klm(new_klms[secID][component], idx=self.idx, idx2=self.idx2, it=it, component=component)
-
-
-    def get_data(self, space='alm'):
-        # TODO this could be provided by the data_container directly
-        if True: # NOTE anisotropic data currently not supported
-        # if self.noisemodel_coverage == 'isotropic':
-            # NOTE dat maps must now be given in harmonic space in this idealized configuration. sims_MAP is not used here, as no truncation happens in idealized setting.
-            if len(self.estimator_key.split('_'))==1:
-                if len(self.estimator_key) == 3:
-                    data_key = self.estimator_key[1:]
-                elif len(self.estimator_key) == 1:
-                    data_key = self.estimator_key
-            else:
-                data_key = self.estimator_key.split('_')[-1]
-                
-            if data_key in ['p', 'eb', 'be']:
-                ret = alm_copy_nd(
-                    self.data_container.get_sim_obs(self.idx, space='alm', spin=0, field='polarization'),
-                    None, *self.lm_max_sky)                
-            if data_key in ['ee']:
-                ret = alm_copy_nd(
-                    self.data_container.get_sim_obs(self.idx, space='alm', spin=0, field='polarization'),
-                    None, *self.lm_max_sky)[0]
-            elif data_key in ['tt']:
-                ret = alm_copy_nd(
-                    self.data_container.get_sim_obs(self.idx, space='alm', spin=0, field='temperature'),
-                    None, *self.lm_max_sky)
-            elif data_key in ['p']:
-                EBobs = alm_copy_nd(
-                    self.data_container.get_sim_obs(self.idx, space='alm', spin=0, field='polarization'),
-                    None, *self.lm_max_sky)
-                Tobs = alm_copy_nd(
-                    self.data_container.get_sim_obs(self.idx, space='alm', spin=0, field='temperature'),
-                    None, *self.lm_max_sky)         
-                ret = np.array([Tobs, *EBobs])
-            else:
-                assert 0, 'implement if needed'
-            if space == 'alm':
-                return ret
-            elif space == 'map':
-                assert data_key == 'p', 'implement if needed'
-                # TODO this should move to the data_container
-                ret = np.atleast_2d(ret)
-                import healpy as hp
-                return [hp.alm2map_spin(r, nside=2048, spin=2) for r in ret]
-            else:
-                assert 0, 'implement if needed'
-        else:
-            if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
-                return np.array(self.sims_MAP.get_sim_pmap(self.idx), dtype=float)
-            else:
-                assert 0, 'implement if needed'
 
 
     # NOTE This can be called from application level. Once the starting points are calculated, this can be used to prepare the MAP run

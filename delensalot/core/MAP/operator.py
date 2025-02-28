@@ -32,8 +32,8 @@ def _extend_cl(cl, lmax):
     return ret
 
 
-class Base:
-    def __init__(self, libdir, LM_max):
+class Operator:
+    def __init__(self, libdir):
         
         zbounds = (-1,1)
         self.lenjob_geomlib = get_geom(('thingauss', {'lmax': 4500, 'smax': 3}))
@@ -86,10 +86,16 @@ class Compound:
     @log_on_end(logging.DEBUG, "joint done", logger=log)  
     def act(self, obj, spin):
         for operator in self.operators:
+            print(operator.ID)
             if isinstance(operator, Secondary):
                 obj = operator.act(obj, spin, out=self.space_out)
             else:
                 obj = operator.act(obj, spin)
+
+        if self.space_out == 'map' and obj.dtype in [np.complex64, np.complex128]:
+            # NOTE this is a hack to catch a birefringence only case and return map
+            # NOTE I should rather move the out space here completely
+            return self.operators[-1].operators[-1].lenjob_geomlib.synthesis(obj, 2, *self.operators[-1].operators[-1].lm_max, 6)
         return obj
     
 
@@ -128,15 +134,6 @@ class Secondary:
     def set_field(self, field):
         for operator in self.operators:
             operator.set_field(field[operator.ID])
-    # @log_on_start(logging.DEBUG, "setting fields for: idx={idx}, it={it}, secondary={secondary}, component={component}", logger=log)  
-    # def set_field(self, idx, it, secondary=None, component=None, idx2=None):
-    #     if secondary is None:
-    #         secondary = [operator.ID for operator in self.operators]
-    #     for operator in self.operators:
-    #         if operator.ID in secondary:
-    #             if component is None or component not in operator.component:
-    #                 component = operator.component
-    #             operator.set_field(idx, it, component, idx2)
 
     
     def update_lm_max(self, lm_max_in, lm_max_out):
@@ -147,9 +144,9 @@ class Secondary:
         return in_prev, out_prev
 
 
-class Lensing(Base):
+class Lensing(Operator):
     def __init__(self, operator_desc):
-        super().__init__(operator_desc["libdir"], operator_desc["LM_max"])
+        super().__init__(operator_desc["libdir"])
         
         self.ID = 'lensing'
         self.LM_max = operator_desc["LM_max"]
@@ -172,7 +169,7 @@ class Lensing(Base):
             assert 0, "implement if needed" 
         else:
             if adjoint and backwards and out_sht_mode == 'GRAD_ONLY':
-                return self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max_in[1], spin, *self.lm_max_out, backwards=backwards, out_sht_mode=out_sht_mode)
+                return np.atleast_2d(self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max_in[1], spin, *self.lm_max_out, backwards=backwards, out_sht_mode=out_sht_mode))
             else:
                 if out == 'map':
                     lmax = Alm.getlmax(obj.shape[-1], self.lm_max_out[1])
@@ -194,30 +191,6 @@ class Lensing(Base):
             d = fieldlm
         self.ffi = deflection(self.lenjob_geomlib, d[0], self.LM_max[1], dclm=d[1], numthreads=6, verbosity=False, epsilon=1e-7)
 
-    # @log_on_start(logging.DEBUG, "setting field for lensing: idx={idx}, it={it}, component={component}, idx2={idx2}", logger=log)
-    # def set_field(self, idx, it, component=None, idx2=None):
-    #     idx2 = idx2 or idx
-    #     if component is None:
-    #         component = self.component
-
-    #     comps_ = [component] if isinstance(component, str) else sorted(
-    #         set(component) & set(self.component), key=lambda x: template_index_lensingcomponents.get(x, ''))
-
-    #     for comp in comps_:
-    #         field_path = opj(self.field_fns[comp].format(idx=idx, idx2=idx2, it=it))
-    #         if self.field_cacher.is_cached(field_path):
-    #             # if it == 0:
-    #             #     self.field[comp] = np.zeros_like(self.klm2dlm(self.field_cacher.load(field_path)[0]), dtype=complex)
-    #             # else:
-    #                 self.field[comp] = self.klm2dlm(self.field_cacher.load(field_path)[0])
-    #         else: 
-    #             assert 0, f"Cannot set field with it={it} and idx={idx}_{idx2}"
-
-    #     d = np.array([self.field[comp].flatten() for comp in comps_], dtype=complex)
-    #     if d.shape[0] == 1:
-    #         d = [d[0], None] if comps_[0] == 'p' else [np.zeros_like(d[0], dtype=complex), d[0]]
-    #     self.ffi = self.ffi.change_dlm(d, self.LM_max[1])
-
 
     def klm2dlm(self, klm):
         h2d = cli(0.5 * np.sqrt(np.arange(self.LM_max[0] + 1, dtype=float) * np.arange(1, self.LM_max[0] + 2, dtype=float)))
@@ -225,13 +198,14 @@ class Lensing(Base):
         return almxfl(klm, h2d, Lmax, False)
 
 
-class Birefringence(Base):
+class Birefringence(Operator):
     def __init__(self, operator_desc):
-        super().__init__(operator_desc["libdir"], operator_desc["LM_max"])
+        super().__init__(operator_desc["libdir"])
         
         self.ID = 'birefringence'
         self.LM_max = operator_desc["LM_max"]
         self.lm_max = operator_desc["lm_max"]
+        self.lm_max_out = operator_desc["lm_max"]
         self.component = operator_desc["component"]
         self.field = {component: None for component in self.component}
         self.field_fns = field.get_secondary_fns(self.component)
@@ -241,16 +215,12 @@ class Birefringence(Base):
     @log_on_end(logging.DEBUG, "birefringence done", logger=log)
     def act(self, obj, spin=None, adjoint=False, backwards=False, out_sht_mode=None):
         obj = np.atleast_2d(obj)
-        obj_shape_in_leading = obj.shape[0]
         lmax = Alm.getlmax(obj[0].size, None)
 
-        
         # NOTE if no B component, I set B to zero
         if obj.shape[0] == 1:
             obj = [obj[0], np.zeros_like(obj[0])+np.zeros_like(obj[0])*1j] 
-        Q, U = self.lenjob_geomlib.alm2map_spin(obj, 2, lmax, lmax, 8)  
-        # angle = 2 * self.ffi.geom.alm2map(self.field[self.component[0]], *self.LM_max, 8)
-        # cos_a, sin_a = np.cos(angle), np.sin(angle)
+        Q, U = self.lenjob_geomlib.alm2map_spin(obj, 2, lmax, lmax, 6)  
 
         Q_rot = self.cos_a * Q - self.sin_a * U
         U_rot = self.sin_a * Q + self.cos_a * U
@@ -258,24 +228,16 @@ class Birefringence(Base):
         if adjoint:
             Q_rot, U_rot = self.cos_a * Q + self.sin_a * U, -self.sin_a * Q + self.cos_a * U
 
-        Elm_rot, Blm_rot = self.lenjob_geomlib.map2alm_spin(np.array([Q_rot, U_rot]), 2, lmax, lmax, 8)
+        Elm_rot, Blm_rot = self.lenjob_geomlib.map2alm_spin(np.array([Q_rot, U_rot]), 2, lmax, lmax, 6)
 
-        if obj_shape_in_leading == 1:
-            return Elm_rot
-        else:
-            return np.array([Elm_rot, Blm_rot])
+        if out_sht_mode == 'GRAD_ONLY':
+            return np.atleast_2d(Elm_rot)
+        return np.array([Elm_rot, Blm_rot])
 
 
     def set_field(self, fieldlm):
         self.angle = 2 * self.lenjob_geomlib.alm2map(fieldlm.squeeze(), *self.LM_max, 6)
         self.cos_a, self.sin_a = np.cos(self.angle), np.sin(self.angle)
-    # def set_field(self, idx, it, component=None, idx2=None):
-    #     idx2 = idx2 or idx
-    #     if component is None:
-    #         component = self.component
-    #     if isinstance(component, list):
-    #         component = component[0]
-    #     self.field[component] = alm_copy(self.field_cacher.load(opj(self.field_fns[component].format(idx=idx, idx2=idx2, it=it))), None, *self.LM_max)
 
 
 class SpinRaise:
@@ -335,9 +297,9 @@ class Beam:
         return self.act(obj)
     
 
-class InverseNoiseVariance(Base):
+class InverseNoiseVariance(Operator):
     def __init__(self, nlev, lm_max, niv_desc, transferfunction, libdir, spectrum_type=None, OBD=None, OBD_rescale=None, OBD_libdir=None, mask=None, sky_coverage=None, rhits_normalised=None):
-        super().__init__(libdir, lm_max)
+        super().__init__(libdir)
         self.ID = 'inoise'
         zbounds = (-1,1)
         self.geom_lib = get_geom(('healpix',{'nside': 2048}))
@@ -412,3 +374,26 @@ class InverseNoiseVariance(Base):
         niv_cl_e = transferfunction['e'] ** 2  / (self._nlevp/ 180. / 60. * np.pi) ** 2
         niv_cl_b = transferfunction['b'] ** 2  / (self._nlevp/ 180. / 60. * np.pi) ** 2
         return niv_cl_e, niv_cl_b.copy()
+    
+
+class Add:
+    def __init__(self, operator_desc):
+        # super().__init__(operator_desc)
+        self.ID = 'add'
+    
+
+    @log_on_start(logging.DEBUG, "add: {obj.shape}", logger=log)
+    @log_on_end(logging.DEBUG, "add done", logger=log)
+    def apply(self, obj1, obj2):
+        if obj2.dtype in (np.complex64, np.complex128):
+            obj1 += obj2
+        elif obj2.dtype in (np.float32, np.float64):
+            obj1 = self.data_geomlib.synthesis(obj1, 2, *self.lm_max, 6, apply_weights=False)
+            obj1 += obj2
+        return obj1
+            
+
+    @log_on_start(logging.DEBUG, "add adjoint: {obj.shape}", logger=log)
+    @log_on_end(logging.DEBUG, "add adjoint done", logger=log)
+    def apply_adjoint(self, obj):
+        assert 0, 'not implemented'
