@@ -180,7 +180,7 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float, epsilon=1e-5, nbump=
     Rpp_unl, Roo_unl = qresp.get_response(k, lmax_ivf, 'p', cls_unl, cls_unl,
                                           {'e': fel_unl, 'b': fbl_unl, 't': ftl_unl}, lmax_qlm=lmax_qlm)[0:2]
     # Lensing deflection field instance (initiated here with zero deflection)
-    ffi = deflection(lenjob_geometry, np.zeros_like(plm0), mmax_qlm,
+    ffi = deflection(lenjob_geometry, np.zeros_like(plm0, dtype=complex), mmax_qlm,
                      numthreads=numthreads, verbosity=0, epsilon=epsilon)
     if nbump > 0:
         print("Setting up inverse noise drop of Dl = %s"%nbump)
