@@ -78,9 +78,9 @@ class Minimizer:
             log.info(f'---------- starting iteration {it} ----------')
             est_prev = self.get_est(it-1, scale='d')
             est_prev = {sec: est_prev[self.likelihood.sec2idx[sec]] for sec in self.likelihood.seclist_sorted}
-            if it == 1:
-                for sec, val in est_prev.items():
-                    est_prev[sec] = np.zeros_like(val,dtype=complex)
+            # if it == 1:
+            #     for sec, val in est_prev.items():
+            #         est_prev[sec] = np.zeros_like(val,dtype=complex)
             self.update_operator(est_prev)
             grad_tot = self.likelihood.get_likelihood_gradient(it)
             grad_tot = np.concatenate([np.ravel(arr) for arr in grad_tot])
