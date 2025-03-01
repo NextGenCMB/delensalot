@@ -184,11 +184,14 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
         for linei, (line,line2) in enumerate(zip(lines, lines2)):
             # plt.plot(line, label='iter %d'%linei, color='grey', alpha=0.3)
             plt.plot(line2, label='iter %d'%(linei+1))
-        plt.legend(title='CG search')
+        # plt.legend(title='CG search')
         plt.ylabel(r'$C_\ell^{\rm residual}$')
         plt.xlabel(r'$\ell$')
         plt.yscale('log')
         plt.show()
+        # hp.mollview(hp.alm2map(residual, nside=1024))
+        # plt.show()
+
 
         # initial choices for new search directions.
         searchdirs = [pre_op(residual) for pre_op in pre_ops]

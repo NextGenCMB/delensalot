@@ -31,7 +31,7 @@ class BFGSHessian(object):
     """
 
     def __init__(self, h0:np.array=np.array([0]), apply_H0k:callable=None, apply_B0k:callable = None, paths2ys:dict={}, paths2ss:dict={}, dot_op:callable = None,
-                        L=100, verbose=True, cacher:cachers.cacher=cachers.cacher_npy(opj(os.environ['SCRATCH'], 'hessian'))):
+                        L=100, verbose=True, cacher:cachers.cacher=None):
         """
             Args:
                 apply_H0k: user supplied function(x,k), applying a zeroth order estimate of the inverse Hessian to x atiter k.
@@ -47,6 +47,7 @@ class BFGSHessian(object):
         if apply_B0k is None: apply_B0k = lambda rlm, kr: almxfl(rlm, cli(h0), self.lmax_qlm, False)
         self.applyH0k = apply_H0k
         self.applyB0k = apply_B0k
+
 
         self.cacher = cacher
         self.paths2ys = paths2ys

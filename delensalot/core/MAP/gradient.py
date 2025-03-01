@@ -290,7 +290,7 @@ class BirefringenceGradientSub(GradSub):
     def __init__(self, desc):
         super().__init__(desc)
         self.gradient_operator: operator.joint = self._get_operator(desc['sec_operator'])
-        self.lm_max = self.gradient_operator.operators.operators[0].lm_max
+        self.lm_max = self.gradient_operator.operators[-1].operators[0].lm_max
     
 
     def get_gradient_quad(self, it, data=None, data_leg2=None, wflm=None, ivfreslm=None):
@@ -305,7 +305,6 @@ class BirefringenceGradientSub(GradSub):
 
             # xwfmap = self.gradient_operator.act(wflm, spin=2)
             lmax = Alm.getlmax(wflm.size, None)
-            # print(wflm.shape)
             xwfmap = self.geomlib.synthesis([wflm, np.zeros_like(wflm,dtype=complex)], 2, lmax, lmax, 6)
             lmax = Alm.getlmax(ivfreslm[0].size, None)
             ivfmap = self.geomlib.synthesis(ivfreslm, 2, lmax, lmax, 6)
@@ -319,4 +318,4 @@ class BirefringenceGradientSub(GradSub):
     
 
     def _get_operator(self, filter_operator):
-        return operator.Compound(filter_operator, out='map')
+        return operator.Compound([filter_operator], out='map')
