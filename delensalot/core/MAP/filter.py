@@ -284,10 +284,7 @@ class WF:
         self.wf_operator.set_field(idx=idx, it=it, idx2=idx2)
 
 
-    def get_template(self, it, secondary, component, lm_max_in=None, lm_max_out=None):
-        ctx, _ = ComputationContext()  # Get the singleton instance
-        idx, idx2 = ctx.idx, ctx.idx2 or ctx.idx
-        self.wf_operator.set_field(idx=idx, it=it, secondary=secondary, component=component, idx2=idx2)
+    def get_template(self, it, secondary=None, component=None):
         estCMB = self.get_wflm(it=it)
 
         for operator in self.wf_operator.operators:

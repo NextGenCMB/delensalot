@@ -768,20 +768,22 @@ class MAPScheduler:
         print('only available for QE, set it=0')
 
 
-    def get_template(self, idx, it, secondary=None, component=None, idx2=None, lm_max_in=None, lm_max_out=None):
-        ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
-        stash = ctx.idx, ctx.idx2, ctx.component
-        ctx.set(idx=idx, secondary=secondary, component=component)
-        assert it>0, 'Need to correctly implement QE template generation first'
-        assert it <= self.maxiterdone(), 'Requested iteration is not available'
-        res = self.MAP_minimizers[idx].likelihood.gradient_lib.wf_filter.get_template(it, secondary, component, lm_max_in, lm_max_out)
-        ctx.set(idx=stash[0], idx2=stash[1], component=stash[2])
-        secondary = secondary or self.MAP_minimizers[idx].likelihood.secondaries.keys()
-        if isinstance(it, (list, np.ndarray)):
-            ret = [alm_copy_nd(res[it_], None, lm_max_out) for it_ in it]
-        else:
-            ret = alm_copy_nd(res, None, lm_max_out)
-        return ret
+    def get_template(self, it, secondary=None, component=None):
+        return self.MAP_minimizers[0].get_template(it, secondary, component)
+    # def get_template(self, idx, it, secondary=None, component=None, idx2=None, lm_max_in=None, lm_max_out=None):
+    #     ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
+    #     stash = ctx.idx, ctx.idx2, ctx.component
+    #     ctx.set(idx=idx, secondary=secondary, component=component)
+    #     assert it>0, 'Need to correctly implement QE template generation first'
+    #     assert it <= self.maxiterdone(), 'Requested iteration is not available'
+    #     res = self.MAP_minimizers[idx].likelihood.gradient_lib.wf_filter.get_template(it, secondary, component, lm_max_in, lm_max_out)
+    #     ctx.set(idx=stash[0], idx2=stash[1], component=stash[2])
+    #     secondary = secondary or self.MAP_minimizers[idx].likelihood.secondaries.keys()
+    #     if isinstance(it, (list, np.ndarray)):
+    #         ret = [alm_copy_nd(res[it_], None, lm_max_out) for it_ in it]
+    #     else:
+    #         ret = alm_copy_nd(res, None, lm_max_out)
+    #     return ret
 
 
     def get_wflm(self, idx, it=None, lm_max=None, idx2=None):

@@ -213,12 +213,6 @@ class GradSub:
             return [self.get_gradient_meanfield(it_) for it_ in it]
         # NOTE filtering it here as it could be that not all it in list are calculated, so need to calculate them
         return self.gfield.get_meanfield(it)
-    
-
-    def update_operator(self, it):
-        ctx, _ = get_computation_context()
-        idx, idx2 = ctx.idx, ctx.idx2 or ctx.idx
-        self.ivf_filter.update_operator(idx=idx, it=it, idx2=idx2)
 
 
 class LensingGradientSub(GradSub):

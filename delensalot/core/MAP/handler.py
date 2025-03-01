@@ -110,6 +110,18 @@ class Minimizer:
             return self.likelihood.get_est(it, scale=scale)
 
 
+    def get_template(self, it, secondary=None, component=None):
+        est = self.get_est(it, scale='d')
+        secondary = secondary or self.likelihood.seclist_sorted
+        nulled_secondaries = [sec for sec in self.likelihood.secondaries.keys() if sec not in secondary]
+        nulled_component = [sec for sec in self.likelihood.secondaries.keys() if sec not in secondary]
+        for nulled in nulled_secondaries:
+            est[self.likelihood.sec2idx[nulled]] = np.zeros_like(est[self.likelihood.sec2idx[nulled]], dtype=complex)
+        est = {sec: est[self.likelihood.sec2idx[sec]] for sec in self.likelihood.seclist_sorted}
+        self.update_operator(est)
+        return self.likelihood.gradient_lib.wf_filter.get_template(it, secondary=secondary, component=component)
+
+
     def isiterdone(self, it):
         if it >= 0:
             return np.all([val for sec in self.likelihood.secondaries.values() for val in sec.is_cached(it=it)])

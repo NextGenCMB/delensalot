@@ -47,7 +47,7 @@ class Operator:
         assert 0, "subclass this"
 
 
-    def set_field(self, idx, it, component=None):
+    def set_field(self, it, component=None):
         assert 0, "subclass this"
 
 
@@ -71,7 +71,7 @@ class Multiply:
         return self.act(obj, spin=spin, adjoint=True)
     
 
-    def set_field(self, idx, it, component=None):
+    def set_field(self, it, component=None):
         pass
 
 
@@ -104,11 +104,6 @@ class Compound:
             buff = operator.adjoint.act(obj, spin)
             obj = buff
         return obj
-    
-
-    def set_field(self, idx, it, component=None, idx2=None):
-        for operator in self.operators:
-            operator.set_field(idx, it, component, idx2)
     
 
 class Secondary:
