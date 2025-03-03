@@ -144,11 +144,11 @@ class Filter:
     def get_template(self, it, secondary=None, component=None):
         estCMB = self.get_wflm(it=it)
 
-        for operator in self.wf_operator.operators:
+        for operator in self.sec_operator.operators:
             if operator.ID == 'lensing':
                 operator.perturbative = (it == 0)
 
-        return self.wf_operator.act(estCMB, secondary=secondary)
+        return self.sec_operator.act(estCMB, secondary=secondary)
     
 
 

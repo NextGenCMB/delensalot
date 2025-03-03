@@ -27,7 +27,7 @@ class Minimizer:
         self.ctx, isnew = get_computation_context()
         self.ctx.set(idx=idx, idx2=idx2)
 
-        self.use_QE_starting_point = True
+        self.use_QE_starting_point = False
 
 
     def get_est(self, request_it=None, secondary=None, component=None, scale='k', calc_flag=False, idx=None, idx2=None):

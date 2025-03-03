@@ -4,7 +4,6 @@ import numpy as np
 import psutil
 
 import delensalot
-from delensalot import utils
 from delensalot.utility.utils_hp import gauss_beam
 import delensalot.core.power.pospace as pospace
 from delensalot.config.config_helper import LEREPI_Constants as lc

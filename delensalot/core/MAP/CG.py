@@ -150,6 +150,9 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
 
     iter = 0
     lines, lines2 = [], []
+    lmax = Alm.getlmax(residual.size, None)
+    ell = np.arange(0, lmax + 1)
+    weights = 2 * ell + 1
     while not criterion(iter, x, residual):
         searchfwds = [fwd_op(searchdir) for searchdir in searchdirs]
         deltas = [dot_op(searchdir, residual) for searchdir in searchdirs]
@@ -171,8 +174,7 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
 
         clear_output(wait=True)
         plt.figure(figsize=(10, 6))
-        lines.append(hp.alm2cl(b)-hp.alm2cl(fwd_op(x)))
-        lines2.append(hp.alm2cl(residual))
+        lines2.append(hp.alm2cl(residual)*weights)
         # update residual
         iter += 1
         if np.mod(iter, roundoff) == 0:
@@ -181,8 +183,7 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
             for (searchfwd, alpha) in zip(searchfwds, alphas):
                 residual -= searchfwd * alpha
 
-        for linei, (line,line2) in enumerate(zip(lines, lines2)):
-            # plt.plot(line, label='iter %d'%linei, color='grey', alpha=0.3)
+        for linei, line2 in enumerate(lines2):
             plt.plot(line2, label='iter %d'%(linei+1))
         # plt.legend(title='CG search')
         plt.ylabel(r'$C_\ell^{\rm residual}$')

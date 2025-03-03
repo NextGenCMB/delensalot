@@ -78,7 +78,6 @@ class Compound:
     @log_on_end(logging.DEBUG, "joint done", logger=log)  
     def act(self, obj, spin):
         for operator in self.operators:
-            print(operator.ID)
             if isinstance(operator, Secondary):
                 obj = operator.act(obj, spin, out=self.space_out)
             else:

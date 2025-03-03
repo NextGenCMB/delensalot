@@ -746,8 +746,8 @@ class MAPScheduler:
 
 
     def get_est(self, idx, it=None, secondary=None, component=None, scale='k', subtract_QE_meanfield=True, calc_flag=False, idx2=None):
-        if isinstance(secondary, str) and secondary not in self.seclist_sorted:
-            print('Secondary not found. Available secondaries are:', self.seclist_sorted)
+        if isinstance(secondary, str) and secondary not in self._seclist_sorted:
+            print('Secondary not found. Available secondaries are:', self._seclist_sorted)
             return np.array([[]])
         if it is None:
             it = self.MAP_minimizers[idx].maxiterdone()
