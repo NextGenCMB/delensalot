@@ -29,7 +29,7 @@ from delensalot.utils import cli, camb_clfile, load_file
 from delensalot.utility.utils_hp import gauss_beam
 
 from delensalot.core.iterator import steps
-from delensalot.core.handler import OBD_builder, DataContainer, QE_lr, MAP_lr, Map_delenser, Phi_analyser
+from delensalot.delensalot.core.job_handler import OBD_builder, DataContainer, QE_lr, MAP_lr, Map_delenser, Phi_analyser
 
 from delensalot.config.visitor import transform, transform3d
 from delensalot.config.config_helper import data_functions as df, LEREPI_Constants as lc

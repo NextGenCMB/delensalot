@@ -77,18 +77,16 @@ class DELENSALOT_Analysis(DELENSALOT_Concept_v3):
     LM_max =                attr.field(default=DEFAULT_NotAValue)
     lm_max_pri =            attr.field(default=DEFAULT_NotAValue)
     lm_max_sky =            attr.field(default=DEFAULT_NotAValue)
-    key =                   attr.field(default=DEFAULT_NotAValue)
+    estimator_key =         attr.field(default=DEFAULT_NotAValue)
     idxs =                  attr.field(default=DEFAULT_NotAValue)
     idxs_mf =               attr.field(default=DEFAULT_NotAValue)
     TEMP_suffix =           attr.field(default=DEFAULT_NotAValue)
-    Lmin =                  attr.field(default=DEFAULT_NotAValue)
-    zbounds =               attr.field(default=DEFAULT_NotAValue)
-    zbounds_len =           attr.field(default=DEFAULT_NotAValue)
     mask_fn =               attr.field(default=DEFAULT_NotAValue)
+    Lmin =                  attr.field(default=DEFAULT_NotAValue)
     lmin_teb =              attr.field(default=DEFAULT_NotAValue)
     cls_len =               attr.field(default=DEFAULT_NotAValue)
-    beam =                  attr.field(default=DEFAULT_NotAValue)
-    transfunction_desc =    attr.field(default=DEFAULT_NotAValue)
+    beam_FWHM =             attr.field(default=DEFAULT_NotAValue)
+    transfer_has_pixwindow =attr.field(default=DEFAULT_NotAValue)
     CLfids =                attr.field(default=DEFAULT_NotAValue)
     secondary =             attr.field(default=DEFAULT_NotAValue)
 
@@ -110,6 +108,7 @@ class DELENSALOT_DataSource(DELENSALOT_Concept_v3):
     sec_info =      attr.field(default=DEFAULT_NotAValue)
     obs_info =      attr.field(default=DEFAULT_NotAValue)
     operator_info = attr.field(default=DEFAULT_NotAValue)
+    generator_key = attr.field(default=DEFAULT_NotAValue)
 
 
 @attr.s

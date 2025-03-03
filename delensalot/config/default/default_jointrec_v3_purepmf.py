@@ -18,12 +18,12 @@ DL_DEFAULT = {
     # better only have one lm_max in default and config file, and let l2p adapt accordingly?
     'data_source': { 
         'flavour': 'pri',
-        'libdir_suffix': 'generic',
+        'libdir_suffix': 'purepmf',
         'geominfo': ('healpix',{'nside': 2048}), # NOTE this is the geometry for any map generated as the final result
         'maps': DNaV,
         'fid_info': {
             'libdir': opj(os.path.dirname(delensalot.__file__), 'data', 'cls'),
-            'fn': 'FFP10_wdipole_secondaries_lens_birefringence.dat',
+            'fn': 'FFP10_wdipole_secondaries_lens_pmf.dat',
             'libdir_sec': DNaV,
             'fn_sec': DNaV,
         },

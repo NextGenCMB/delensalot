@@ -2,16 +2,12 @@
 
 """parser.py: Read and validate user input from terminal
 """
-
-
-
 import logging
 log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
 
 import argparse
 import os, sys
-from os import walk
 
 import delensalot.config as config
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from delensalot.core.handler import DataContainer
+    from delensalot.delensalot.core.job_handler import DataContainer
 
 import logging
 log = logging.getLogger(__name__)

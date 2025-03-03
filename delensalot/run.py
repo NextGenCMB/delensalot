@@ -9,12 +9,10 @@ import traceback
 
 import delensalot.core.mpi as mpi
 
-from delensalot.config.handler import config_handler
+from delensalot.config.config_handler import ConfigHandler
 from delensalot.config.etc.abstract import parserclass
 from delensalot.config.parser import lerepi_parser
 from delensalot.config.etc import logger
-
-
 
 datefmt = "%m-%d %H:%M:%S"
 FORMAT = '%(levelname)s:: %(asctime)s:: %(name)s.%(funcName)s - %(message)s'
@@ -70,7 +68,7 @@ class run():
         self.parser.job_id = job_id
 
         self.delensalotjob = job_id
-        self.config_handler = config_handler(self.parser, config, key)
+        self.config_handler = ConfigHandler(self.parser, config, key)
 
 
     def collect_model(self):
@@ -87,6 +85,8 @@ class run():
     
 
     def collect_models(self):
+        # FIXME need to fix this
+        assert 0, "Please use the run() function instead. You should not be using collect_models if data not yet generated. QE Model will be already built although DataContainer info still changes, leading to wrong QE"
         if mpi.size > 1:
             if mpi.rank == 0:
                 mpi.disable()
@@ -100,24 +100,14 @@ class run():
 
 
     def run(self):
-        self.collect_models()
         self.config_handler.run()
 
         return self.config_handler.djobmodels
 
 
     def init_job(self):
-        
         return self.collect_model()
     
-
-    def purge_TEMPdir(self):
-        self.config_handler.purge_TEMPdir()
-
-
-    def purge_TEMPconf(self):
-        self.config_handler.purge_TEMPconf()
-
 
 if __name__ == '__main__':
     """Entry point for the command line
@@ -127,7 +117,7 @@ if __name__ == '__main__':
     if lparser.validate():
         parser = lparser.get_parser()
 
-    config_handler = config_handler(parser)
+    config_handler = ConfigHandler(parser)
     if mpi.rank == 0:
         mpi.disable()
         config_handler.collect_models()

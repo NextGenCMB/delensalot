@@ -31,6 +31,10 @@ CB_color_cycle = ["#88CCEE", "#CC6677", "#DDCC77", "#117733", "#332288", "#AA449
 CB_color_cycle_lighter = ["#68ACCE", "#AC4657", "#ADAC57", "#005713", "#130268", "#8A2479", 
 "#248A79", "#797913", "#680235", "#460000", "#4679AC", "#686868"]
 
+planck_cmap = ListedColormap(np.loadtxt(os.path.dirname(delensalot.__file__)+"/data/Planck_Parchment_RGB.txt")/255.)
+planck_cmap.set_bad("gray")
+planck_cmap.set_under("white") 
+
 
 def movavg(data, window=20):
     y = np.asarray(data)
@@ -166,14 +170,6 @@ def get_rotlonlat_mollview(area = 'SPDP'):
     else:
         print("Do not understand your input")
     return rotation, lonra, latra
-
-
-def get_planck_cmap():
-    cmap = ListedColormap(np.loadtxt(opj(os.path.dirname(delensalot.__file__), "delensalot/data/Planck_Parchment_RGB.txt")/255.))
-    cmap.set_bad("gray") # color of missing pixels
-    cmap.set_under("white") # color of background, necessary if you want to use
-    # this colormap directly with hp.mollview(m, cmap=colombi1_cmap)
-    return cmap
 
 
 def plot_cmap(cmap, minmax, ticks=[-0.30,-0.15,0,0.15,0.30], fs=18, label='$\mu $K'):

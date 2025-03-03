@@ -5,19 +5,16 @@ from logdecorator import log_on_start, log_on_end
 import numpy as np
 from os.path import join as opj
 
+from delensalot.core.MAP import functionforwardlist
+from delensalot.core.MAP import field, gradient, curvature
+from delensalot.core.MAP.context import get_computation_context
+
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy, alm_copy_nd
 from delensalot.utils import cli
-from delensalot.core.MAP import functionforwardlist
-
-from . import field
-from . import gradient
-from . import curvature
 
 template_secondaries = ['lensing', 'birefringence']  # Define your desired order
 template_index_secondaries = {val: i for i, val in enumerate(template_secondaries)}
 
-from delensalot.core.MAP.context import ComputationContext
-from delensalot.core.MAP.context import get_computation_context
 class Minimizer:
     def __init__(self, estimator_key, likelihood, itmax, libdir, idx, idx2):
         self.estimator_key = estimator_key
@@ -29,6 +26,8 @@ class Minimizer:
         self.likelihood: Likelihood = likelihood
         self.ctx, isnew = get_computation_context()
         self.ctx.set(idx=idx, idx2=idx2)
+
+        self.use_QE_starting_point = True
 
 
     def get_est(self, request_it=None, secondary=None, component=None, scale='k', calc_flag=False, idx=None, idx2=None):
@@ -55,9 +54,7 @@ class Minimizer:
             return self._get_est(request_it, secondary, component, scale)
 
         if self.maxiterdone() < 0:
-            raise RuntimeError(
-                f"Could not find the QE starting points, expected them at {self.likelihood.secondaries['lensing'].libdir}"
-            )
+            raise RuntimeError(f"Could not find the QE starting points, expected them at {self.likelihood.secondaries['lensing'].libdir}")
 
         if request_it <= current_it:
             return self._get_est(request_it, secondary, component, scale)
@@ -78,9 +75,9 @@ class Minimizer:
             log.info(f'---------- starting iteration {it} ----------')
             est_prev = self.get_est(it-1, scale='d')
             est_prev = {sec: est_prev[self.likelihood.sec2idx[sec]] for sec in self.likelihood.seclist_sorted}
-            # if it == 1:
-            #     for sec, val in est_prev.items():
-            #         est_prev[sec] = np.zeros_like(val,dtype=complex)
+            if not self.use_QE_starting_point and it == 1:
+                for sec, val in est_prev.items():
+                    est_prev[sec] = np.zeros_like(val,dtype=complex)
             self.update_operator(est_prev)
             grad_tot = self.likelihood.get_likelihood_gradient(it)
             grad_tot = np.concatenate([np.ravel(arr) for arr in grad_tot])
@@ -119,7 +116,7 @@ class Minimizer:
             est[self.likelihood.sec2idx[nulled]] = np.zeros_like(est[self.likelihood.sec2idx[nulled]], dtype=complex)
         est = {sec: est[self.likelihood.sec2idx[sec]] for sec in self.likelihood.seclist_sorted}
         self.update_operator(est)
-        return self.likelihood.gradient_lib.wf_filter.get_template(it, secondary=secondary, component=component)
+        return self.likelihood.gradient_lib.wfivf_filter.get_template(it, secondary=secondary, component=component)
 
 
     def isiterdone(self, it):
@@ -264,11 +261,12 @@ class Likelihood:
 
 
     # NOTE This can be called from application level. Once the starting points are calculated, this can be used to prepare the MAP run
+    # TODO this should use the gradient_lib version.
     def copyQEtoDirectory(self, QE_searchs):
         # NOTE this turns them into convergence fields
         ctx, isnew = get_computation_context()  # NOTE getting the singleton instance for MPI rank
         for secname, secondary in self.secondaries.items():
-            QE_searchs[self.sec2idx[secname]].init_filterqest()
+            QE_searchs[self.sec2idx[secname]].init_filterqest() # FIXME if data not yet simulated, this will cause wrong QE results.. I don't know why atm
             if not all(self.secondaries[secname].is_cached(it=0)):
                 klm_QE = QE_searchs[self.sec2idx[secname]].get_est(self.idx)
                 self.secondaries[secname].cache_klm(klm_QE, it=0)
@@ -277,11 +275,10 @@ class Likelihood:
                 kmflm_QE = QE_searchs[self.sec2idx[secname]].get_kmflm(self.idx)
                 self.gradient_lib.subs[self.sec2idx[secname]].gfield.cache(kmflm_QE, it=0, type='meanfield')
 
-            #TODO cache QE wflm into the filter directory
-            if not self.gradient_lib.wf_filter.wf_field.is_cached(it=0):
+            if not self.gradient_lib.wfivf_filter.wf_field.is_cached(it=0):
                 lm_max_out = self.gradient_lib.subs[0].gradient_operator.operators[-1].operators[-1].lm_max_out
                 wflm_QE = QE_searchs[self.sec2idx[secname]].get_wflm(self.idx, lm_max_out)
-                self.gradient_lib.wf_filter.wf_field.cache(np.array(wflm_QE), it=0)
+                self.gradient_lib.wfivf_filter.wf_field.cache(np.array(wflm_QE), it=0)
 
 
     def __getattr__(self, name):

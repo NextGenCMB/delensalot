@@ -8,8 +8,6 @@ import os
 
 from plancklens import qest, qresp
 
-from lenspyx.lensing import get_geom 
-
 from delensalot.config.etc import logger
 
 from delensalot.utility.utils_hp import alm_copy
@@ -30,7 +28,7 @@ class base:
         self.libdir = libdir or opj(os.environ['SCRATCH'], 'QE')
 
         # nivjob_geominfo, niv_desc, nlev, ttebl, filtering_spatial_type, 
-        self.nivjob_geominfo = inv_operator_desc['nivjob_geominfo']
+        self.nivjob_geominfo = inv_operator_desc['geominfo']
         self.niv_desc = inv_operator_desc['niv_desc']
         self.nlev = inv_operator_desc['nlev']
         self.filtering_spatial_type = inv_operator_desc['filtering_spatial_type']

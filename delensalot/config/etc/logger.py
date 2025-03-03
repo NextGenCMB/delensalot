@@ -23,8 +23,9 @@ def safe_log_on_start(level, msg, logger):
             try:
                 formatted_msg = msg.format(*args, **kwargs)  # Try formatting first
                 logger.log(level, formatted_msg)
+                # print(formatted_msg)
             except Exception as e:
-                logger.warning(f"Logging failed: {e}")  # Suppress long traceback
+                logger.warning(f"Logging failed inside safe_log_on_start: {e}")  # Suppress long traceback
 
             return func(*args, **kwargs)  # Run the function normally
 

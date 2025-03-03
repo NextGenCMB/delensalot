@@ -300,7 +300,7 @@ class Xpri:
         if CMB_info.get('libdir', DNaV) == DNaV or (CMB_info.get('fn', DNaV) == DNaV and any(value['fn'] == DNaV for value in sec_info.values())):
             if cls_lib == DNaV:
                 sec_info = {key: {'fns':DNaV, 'component':value['component'], 'libdir': DNaV, 'scale': 'p'} for key, value in sec_info.items()}
-                self.cls_lib = Cls(CMB_info=DNaV, sec_info=sec_info) # NOTE I pick all CMB component anyway
+                self.cls_lib = Cls(CMB_info=DNaV, sec_info=copy.copy(sec_info)) # NOTE I pick all CMB component anyway
             else:
                 self.cls_lib = cls_lib
         else:
@@ -918,7 +918,7 @@ class DataSource:
     Data can be cl, pri, len, or obs, .. and alms or maps. Simhandler connects the individual libraries and decides what can be generated.
     E.g.: If obs data provided, len data cannot be generated.
     """ 
-    def __init__(self, flavour, libdir_suffix, sec_info, maps=DNaV, geominfo=DNaV, fid_info=DNaV, CMB_info=DNaV, obs_info=DNaV, operator_info=DNaV):
+    def __init__(self, flavour, generator_key, libdir_suffix, sec_info, maps=DNaV, geominfo=DNaV, fid_info=DNaV, CMB_info=DNaV, obs_info=DNaV, operator_info=DNaV):
         """Entry point for simulation data handling.
         Simhandler() connects the individual librariers together accordingly, depending on the provided data.
         It never stores data on disk itself, only in memory.
@@ -932,17 +932,6 @@ class DataSource:
             obs_info (dict): observation information
             operator_info (dict): operator_info for secondaries
         """
-
-        # NOTE remove all operators that are not in sec_info, and add component information to operator_info
-        operator_info = copy.deepcopy(operator_info)
-        to_delete = [ope for ope in operator_info if ope not in sec_info]
-        for ope in to_delete:
-            del operator_info[ope]
-        for sec in sec_info:
-            operator_info[sec]['component'] = [c[0] for c in sec_info[sec]['component']]
-
-        for sec in sec_info:
-            sec_info[sec]['LM_max'] = operator_info[sec]['LM_max']
         seccomp = {sec : [comp*2 for comp in sec_info[sec]['component']] for sec in sec_info}
 
         self.libdir_suffix = libdir_suffix
@@ -957,14 +946,14 @@ class DataSource:
                 for key in ['spin', 'lm_max', 'field']:
                     if CMB_info[key] == DNaV:
                         assert 0, 'need to provide {}'.format(key)
-            self.cls_lib = Cls(fid_info=fid_info, seccomp=seccomp)
+            self.cls_lib = Cls(fid_info=copy.copy(fid_info), seccomp=seccomp)
             self.obs_lib = Xobs(maps=maps, geominfo=geominfo, CMB_info=copy.copy(CMB_info))
         else:
             if flavour == 'sky':
                 assert CMB_info['space'] in ['map','alm'], "sky CMB data can only be in map or alm space"
                 assert not (contains_DNaV(obs_info)), "need to provide complete obs_info"
-                self.cls_lib = Cls(fid_info=fid_info, seccomp=seccomp)
-                self.sky_lib = Xsky(pri_lib=DNaV, geominfo=geominfo, CMB_info=copy.copy(CMB_info), operator_info=operator_info)
+                self.cls_lib = Cls(fid_info=copy.copy(fid_info), seccomp=seccomp)
+                self.sky_lib = Xsky(pri_lib=DNaV, geominfo=geominfo, CMB_info=copy.copy(CMB_info), operator_info=copy.copy(operator_info))
                 
                 self.libdir = self.sky_lib.CMB_info['libdir']
                 self.fns = self.sky_lib.CMB_info['fns']
@@ -972,10 +961,10 @@ class DataSource:
                 if any([sec['space'] != 'cl' for sec in sec_info.values()]):
                     assert not (contains_DNaV(sec_info, ignore_keys={'libdir', 'fn','scale'})), f"need to provide complete sec_info, {sec_info}"
                 assert not (contains_DNaV(obs_info, ignore_keys={'libdir', 'fns'})), f"need to provide complete obs_info, {obs_info}"
-                self.cls_lib = Cls(fid_info=fid_info, seccomp=seccomp)
+                self.cls_lib = Cls(fid_info=copy.copy(fid_info), seccomp=seccomp)
 
-                self.pri_lib = Xpri(cls_lib=self.cls_lib, geominfo=geominfo, CMB_info=copy.copy(CMB_info), sec_info=sec_info)
-                self.sky_lib = Xsky(pri_lib=self.pri_lib, geominfo=geominfo, CMB_info=copy.copy(CMB_info), operator_info=operator_info)
+                self.pri_lib = Xpri(cls_lib=self.cls_lib, geominfo=geominfo, CMB_info=copy.copy(CMB_info), sec_info=copy.copy(sec_info))
+                self.sky_lib = Xsky(pri_lib=self.pri_lib, geominfo=geominfo, CMB_info=copy.copy(CMB_info), operator_info=copy.copy(operator_info))
 
             if obs_info['noise_info'].get('libdir', DNaV) == DNaV:
                 noise_lib = IsoWhiteNoise(geominfo=geominfo, noise_info=obs_info['noise_info'], libdir_suffix=libdir_suffix)

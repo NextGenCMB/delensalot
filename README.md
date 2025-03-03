@@ -1,4 +1,4 @@
-![delensalot logo](res/dlensalot2.PNG)
+![delensalot logo](res/delensalot_logo.png)
 [![Install](https://github.com/NextGenCMB/delensalot/actions/workflows/install.yaml/badge.svg?branch=sims&event=pull_request)](https://github.com/NextGenCMB/delensalot/actions/workflows/install.yaml)
 [![Documentation Status](https://readthedocs.org/projects/delensalot/badge/?version=latest)](https://delensalot.readthedocs.io/en/latest/?badge=latest)
 [![Integration filter](https://github.com/NextGenCMB/delensalot/actions/workflows/integration_filter.yaml/badge.svg?branch=sims&event=pull_request)](https://github.com/NextGenCMB/delensalot/actions/workflows/integration_filter.yaml)
@@ -11,7 +11,7 @@ Curved-sky iterative CMB lensing reconstruction and bias calculation.
 
 If you use delensalot for your work, please consider citing the ApJ publication [CMB-S4: Iterative internal delensing and r constraints](https://iopscience.iop.org/article/10.3847/1538-4357/ad2351).
 
-![noise comparison](res//deflectionnoisecomp.jpg)
+![noise comparison](res//deflection_noisescan.jpg)
 
 # Installation
 Download the project, navigate to the root folder and execute the command,

@@ -6,6 +6,7 @@
 import logging
 log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
+# from delensalot.config.etc import logger
 
 from typing import List, Type, Union
 import os
@@ -15,6 +16,7 @@ import datetime, getpass, copy
 
 import numpy as np
 import healpy as hp
+from collections import UserDict
 
 from plancklens.sims import planck2018_sims
 
@@ -38,7 +40,7 @@ from delensalot.core.QE import handler as QE_handler
 from delensalot.core.MAP.context import get_computation_context
 from delensalot.sims.data_source import dirname_generator
 
-from collections import UserDict
+
 
 class ConstantDict(UserDict):
     def __init__(self, value):
@@ -52,11 +54,11 @@ class ConstantDict(UserDict):
         return self._value
 
 
+# NOTE This is to generate all maps no matter the CMB estimator request
 required_files_map = {
     'p_p': ['E', 'B'], 'p_eb': ['E', 'B'], 'peb': ['E', 'B'], 'p_be': ['E', 'B'], 'pee': ['E', 'B'],
     'ptt': ['T'],
     'p': ['T', 'E', 'B']}
-# NOTE This is to generate all maps no matter the CMB estimator request
 required_files_map = ConstantDict(['T', 'E', 'B'])
 
 def dict2roundeddict(d):
@@ -188,7 +190,7 @@ class DataContainer:
     """Simulation generation Job. Generates simulations for the requested configuration.
         * If any libdir exists, then a flavour of data is provided. Therefore, can only check by making sure flavour == obs, and fns exist.
     """
-    def __init__(self, data_source, k, idxs, idxs_mf, TEMP, mask, sky_coverage, data_key, lm_max_sky):
+    def __init__(self, data_source, estimator_key, idxs, idxs_mf, mask_fn, sky_coverage, data_key, lm_max_sky):
         """ In this init we make the following checks:
          * (1) Does user provide obs data? Then DataContainer can be fully skipped
          * (2) Otherwise, check if files already generated (delensalot model may not know this, so need to search),
@@ -198,11 +200,10 @@ class DataContainer:
              * update the simhandler
         """
         self.data_source = data_source
-        self.k = k
+        self.estimator_key = estimator_key
         self.idxs = idxs
         self.idxs_mf = idxs_mf
-        self.TEMP = TEMP
-        self.mask = mask
+        self.mask_fn = mask_fn
         self.sky_coverage = sky_coverage
         self.data_key = data_key
         self.lm_max_sky = lm_max_sky
@@ -249,7 +250,7 @@ class DataContainer:
             else:
                 mpi.receive(None, source=mpi.ANY_SOURCE)
 
-            required_files = required_files_map.get(self.k, [])
+            required_files = required_files_map.get(self.estimator_key, [])
             idxs_ = np.unique(np.concatenate([self.idxs, self.idxs_mf])).astype(int)
             def check_and_log(libdir, fns, _postrun_method, data_type):
                 """function to check file existence """
@@ -277,11 +278,11 @@ class DataContainer:
         return {'T': 'Talmobs_{}.npy', 'E': 'Ealmobs_{}.npy', 'B': 'Balmobs_{}.npy'}
 
     # @base_exception_handler
-    @log_on_start(logging.INFO, "Sim.collect_jobs() started")
-    @log_on_end(logging.INFO, "Sim.collect_jobs() finished: jobs={self.jobs}")
+    @log_on_start(logging.DEBUG, "Sim.collect_jobs() started")
+    @log_on_end(logging.DEBUG, "Sim.collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self):
         jobs = list(range(len(['generate_sky', 'generate_obs'])))
-        required_files = required_files_map.get(self.k, [])
+        required_files = required_files_map.get(self.estimator_key, [])
         if np.all(self.data_source.maps == DEFAULT_NotAValue) and self.data_source.flavour != 'obs':
             idxs_ = np.unique(np.concatenate([self.idxs, self.idxs_mf])).astype(int)
             for taski, task in enumerate(['generate_sky', 'generate_obs']):
@@ -337,7 +338,7 @@ class DataContainer:
                     s = self.data_source.get_sim_sec(idx, space='alm', secondary=sec, component=comp)
                     np.save(opj(self.libdir_sky, self.fns_sec[sec][comp].format(idx)), s)
 
-        for field in required_files_map.get(self.k, []):
+        for field in required_files_map.get(self.estimator_key, []):
             filepath = opj(self.libdir_sky, self.fns_sky[field].format(idx))
             if not os.path.exists(filepath):
                 if field in ['E', 'B']:
@@ -353,7 +354,7 @@ class DataContainer:
     # @log_on_start(logging.DEBUG, "Sim.generate_sim(idx={idx}) started")
     # @log_on_end(logging.DEBUG, "Sim.generate_sim(idx={idx}) finished")
     def generate_obs(self, idx):
-        for field in required_files_map.get(self.k, []):
+        for field in required_files_map.get(self.estimator_key, []):
             filepath = opj(self.libdir, self.fns[field].format(idx))  
             if not os.path.exists(filepath):
                 if field in ['E', 'B']:
@@ -415,13 +416,14 @@ class DataContainer:
             assert space == 'alm', "'full' sky_coverage only works for space = alm"
             return  alm_copy_nd(self.data_source.get_sim_obs(idx=idx, space=space, field=field, spin=spin), None, lm_max)
         elif self.sky_coverage == 'masked':
-            assert self.mask, "mask must be provided for sky_coverage = 'masked'"
+            assert self.mask_fn, "mask must be provided for sky_coverage = 'masked'"
             # FIXME if data is already masked (e.g. provided from disk), this will doubly mask the data.. not sure we want this
             assert space == 'map', "'masked' sky_coverage only works for space = map"
             assert field == 'polarization'
+            mask = np.load(self.mask_fn)
             obs = alm_copy_nd(self.data_source.get_sim_obs(idx=idx, space='alm', field=field, spin=0), None, lm_max)
             obs = hp.alm2map_spin(obs, nside=2048, spin=2, lmax=lm_max[0], mmax=lm_max[1])
-            return np.array([dat*self.mask for dat in obs])
+            return np.array([dat*mask for dat in obs])
 
     def get_sim_noise(self, idx, space, field, spin=2):
         return self.data_source.get_sim_noise(idx, spin=spin, space=space, field=field)
@@ -489,7 +491,7 @@ class DataContainer:
             else:
                 assert 0, 'implement if needed'
         else:
-            if self.k in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
+            if self.estimator_key in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
                 return np.array(self.sims_MAP.get_sim_pmap(self.idx), dtype=float)
             else:
                 assert 0, 'implement if needed'
@@ -499,7 +501,7 @@ class QEScheduler:
     """Quadratic estimate lensing reconstruction Job. Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.
     """
     @check_MPI
-    def __init__(self, QE_job_desc, QE_searchs_desc, data_container, TEMP):
+    def __init__(self, QE_job_desc, QE_searchs_desc, data_container):
         # NOTE plancklens uses get_sim_pmap() from data_container.
         # DataContainer updates the data_container object with the libdirs and fns if it generated simulations, so need to update this
         self.data_container = data_container
@@ -507,9 +509,8 @@ class QEScheduler:
         self.tasks = QE_job_desc['tasks']
         self.idxs = QE_job_desc['idxs']
         self.idxs_mf = QE_job_desc['idxs_mf']
-        self.TEMP = TEMP
 
-        # I want to have a QE search for each field
+        # NOTE I want to have a QE search for each field
         for QE_search_desc in QE_searchs_desc.values():
             QE_search_desc['idxs_mf'] = self.idxs_mf
             QE_search_desc['QE_filterqest_desc']['data_container'] = self.data_container
@@ -520,10 +521,11 @@ class QEScheduler:
 
         self.template_operator = QE_job_desc['template_operator'] # FIXME deal with this later
         
-        # if there is no job, we can already init the filterqest
+        # NOTE if there is no job, we can already init the filterqest
         if len(np.array([x for x in self.collect_jobs().ravel() if x is not None]))==0:
-            for QE_search in self.QE_searchs:
-                QE_search.init_filterqest()
+            if len(self.data_container.collect_jobs()) == 0:
+                for QE_search in self.QE_searchs:
+                    QE_search.init_filterqest()
 
 
     def collect_jobs(self, recalc=False):
@@ -712,7 +714,7 @@ class MAPScheduler:
         self.MAP_minimizers: MAP_handler.Minimizer = MAP_minimizers
         self.tasks = tasks
         for idx in self.idxs:
-            if np.all([self.QE_searchs[0].isdone(idx, comp) for comp in self.QE_searchs[0].secondary.component]):
+            if np.all([self.QE_searchs[0].isdone(idx, comp)==0 for comp in self.QE_searchs[0].secondary.component]):
                 if mpi.rank == 0:
                     self.MAP_minimizers[idx].likelihood.copyQEtoDirectory(QE_searchs)
 
@@ -732,7 +734,7 @@ class MAPScheduler:
 
     def run(self):
         for idx in self.idxs:
-            if np.all([self.QE_searchs[0].isdone(idx, comp) for comp in self.QE_searchs[0].secondary.component]):
+            if np.all([self.QE_searchs[0].isdone(idx, comp)==0 for comp in self.QE_searchs[0].secondary.component]):
                 if mpi.rank == 0:
                     self.MAP_minimizers[idx].likelihood.copyQEtoDirectory(self.QE_searchs)
 
@@ -770,20 +772,6 @@ class MAPScheduler:
 
     def get_template(self, it, secondary=None, component=None):
         return self.MAP_minimizers[0].get_template(it, secondary, component)
-    # def get_template(self, idx, it, secondary=None, component=None, idx2=None, lm_max_in=None, lm_max_out=None):
-    #     ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
-    #     stash = ctx.idx, ctx.idx2, ctx.component
-    #     ctx.set(idx=idx, secondary=secondary, component=component)
-    #     assert it>0, 'Need to correctly implement QE template generation first'
-    #     assert it <= self.maxiterdone(), 'Requested iteration is not available'
-    #     res = self.MAP_minimizers[idx].likelihood.gradient_lib.wf_filter.get_template(it, secondary, component, lm_max_in, lm_max_out)
-    #     ctx.set(idx=stash[0], idx2=stash[1], component=stash[2])
-    #     secondary = secondary or self.MAP_minimizers[idx].likelihood.secondaries.keys()
-    #     if isinstance(it, (list, np.ndarray)):
-    #         ret = [alm_copy_nd(res[it_], None, lm_max_out) for it_ in it]
-    #     else:
-    #         ret = alm_copy_nd(res, None, lm_max_out)
-    #     return ret
 
 
     def get_wflm(self, idx, it=None, lm_max=None, idx2=None):

@@ -2,25 +2,17 @@ import logging
 log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
 
-from os.path import join as opj
-
 import numpy as np
 
 from lenspyx.remapping import deflection
 from lenspyx.lensing import get_geom 
 
 from delensalot.core import cachers
-from delensalot.config.config_helper import data_functions as df
-from delensalot.utility.utils_hp import gauss_beam
-from delensalot.utils import cli
-from delensalot.utility.utils_hp import Alm, almxfl, alm_copy
 from delensalot.core.MAP import field
 
-from delensalot.utils import read_map
+from delensalot.utils import cli, read_map
+from delensalot.utility.utils_hp import Alm, almxfl, alm_copy
 
-
-template_lensingcomponents = ['p', 'w'] 
-template_index_lensingcomponents = {val: i for i, val in enumerate(template_lensingcomponents)}
 
 def _extend_cl(cl, lmax):
     """Forces input to an array of size lmax + 1
@@ -58,8 +50,8 @@ class Multiply:
         self.factor = descr["factor"]
     
 
-    @log_on_start(logging.DEBUG, "multiply: {obj.shape}")
-    @log_on_end(logging.DEBUG, "multiply done")
+    @log_on_start(logging.DEBUG, "multiply: {obj.shape}", logger=log)
+    @log_on_end(logging.DEBUG, "multiply done", logger=log)
     def act(self, obj, spin=None, adjoint=False):
         if adjoint:
             return np.conj(self.factor)*obj
@@ -142,8 +134,8 @@ class Secondary:
 class Lensing(Operator):
     def __init__(self, operator_desc):
         super().__init__(operator_desc["libdir"])
-        
         self.ID = 'lensing'
+
         self.LM_max = operator_desc["LM_max"]
         self.lm_max_in = operator_desc["lm_max_in"]
         self.lm_max_out = operator_desc["lm_max_out"]
@@ -152,7 +144,7 @@ class Lensing(Operator):
         self.component = operator_desc["component"]
         self.field = {component: None for component in self.component}
         self.field_fns = field.get_secondary_fns(self.component)
-        self.ffi = deflection(self.lenjob_geomlib, np.zeros(shape=Alm.getsize(*self.LM_max), dtype=complex), self.LM_max[1], numthreads=8, verbosity=False, epsilon=1e-7)
+        self.ffi = deflection(self.lenjob_geomlib, np.zeros(shape=Alm.getsize(*self.LM_max), dtype=complex), self.LM_max[1], numthreads=8, verbosity=False, epsilon=1e-10)
 
 
     @log_on_start(logging.DEBUG, "lensing: {obj.shape}", logger=log)
@@ -184,7 +176,7 @@ class Lensing(Operator):
             d = [fieldlm[0], None] if self.component[0] == 'p' else [np.zeros_like(fieldlm[0], dtype=complex), fieldlm[0]]
         else:
             d = fieldlm
-        self.ffi = deflection(self.lenjob_geomlib, d[0], self.LM_max[1], dclm=d[1], numthreads=6, verbosity=False, epsilon=1e-7)
+        self.ffi = deflection(self.lenjob_geomlib, d[0], self.LM_max[1], dclm=d[1], numthreads=6, verbosity=False, epsilon=1e-10)
 
 
     def klm2dlm(self, klm):
@@ -274,7 +266,8 @@ class Beam:
         self.is_adjoint = False
         self.lm_max = operator_desc['lm_max']
 
-    @log_on_start(logging.DEBUG, "beam: {obj.shape}", logger=log)
+
+    @log_on_start(logging.DEBUG, "beam", logger=log)
     @log_on_end(logging.DEBUG, "beam done", logger=log)
     def act(self, obj, adjoint=False):
         # assert self.lm_max[0] == Alm.getlmax(obj[0].size, None), (self.lm_max[0], obj.shape, Alm.getlmax(obj[0].size, None))
@@ -293,30 +286,27 @@ class Beam:
     
 
 class InverseNoiseVariance(Operator):
-    def __init__(self, nlev, lm_max, niv_desc, transferfunction, libdir, spectrum_type=None, OBD=None, OBD_rescale=None, OBD_libdir=None, mask=None, sky_coverage=None, rhits_normalised=None):
+    def __init__(self, nlev, lm_max, niv_desc, geom_lib, geominfo, transferfunction, libdir, spectrum_type=None, OBD=None, obd_rescale=None, obd_libdir=None, sky_coverage=None, filtering_spatial_type=None):
         super().__init__(libdir)
         self.ID = 'inoise'
-        zbounds = (-1,1)
-        self.geom_lib = get_geom(('healpix',{'nside': 2048}))
-        thtbounds = (np.arccos(zbounds[1]), np.arccos(zbounds[0]))
-        self.geom_lib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
-
+        self.geom_lib = geom_lib
+        self.geominfo = geominfo
         self.nlev = nlev
         self.lm_max = lm_max
-        self.niv_desc = [niv_desc['P']]
+        self.niv = {}
+        for nivk, nivv in niv_desc.items():
+            self.niv[nivk] = read_map(nivv)
         self.transferfunction = transferfunction
         spectrum_type = spectrum_type
         OBD = OBD
-        self.mask = mask
         self.sky_coverage = sky_coverage
-        rhits_normalised = rhits_normalised
         self.n1eblm = [
             cli(_extend_cl(self.nlev['P']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2,
             cli(_extend_cl(self.nlev['P']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2
         ]
 
 
-    @log_on_start(logging.DEBUG, "InverseNoiseVariance: {obj.shape}", logger=log)
+    @log_on_start(logging.DEBUG, "InverseNoiseVariance", logger=log)
     @log_on_end(logging.DEBUG, "InverseNoiseVariance done", logger=log)
     def act(self, obj, adjoint=False):
         assert self.lm_max[0] == Alm.getlmax(obj[0].size, None), (self.lm_max[0], Alm.getlmax(obj[0].size, None))
@@ -377,7 +367,7 @@ class Add:
         self.ID = 'add'
     
 
-    @log_on_start(logging.DEBUG, "add: {obj.shape}", logger=log)
+    @log_on_start(logging.DEBUG, "add: {obj1.shape}", logger=log)
     @log_on_end(logging.DEBUG, "add done", logger=log)
     def apply(self, obj1, obj2):
         if obj2.dtype in (np.complex64, np.complex128):

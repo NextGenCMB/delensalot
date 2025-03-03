@@ -26,6 +26,7 @@ safelist = [
     'secondaries',
     'libdir_suffix',
     'mfvar', #not really safe, but ok for now as long as you know what you do
+    'operator_info',
 ]
 
 DEFAULT_NotAValue = -123456789

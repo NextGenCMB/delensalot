@@ -26,23 +26,37 @@ from delensalot.core.mpi import check_MPI
 
 from delensalot.config.validator import safelist
 from delensalot.config.visitor import transform, transform3d
-from delensalot.config.transformer.lerepi2dlensalot_v3 import l2T_Transformer, l2delensalotjob_Transformer
+from delensalot.config.transformer.lerepi2dlensalot_v3 import l2delensalotjob_Transformer, get_TEMP_dir
 from delensalot.config.metamodel.delensalot_mm_v3 import DELENSALOT_Model as DLENSALOT_Model_mm_v3
 
-transformers_T = {
-    DLENSALOT_Model_mm_v3: l2T_Transformer()
-}
 transformers_J = {
     DLENSALOT_Model_mm_v3: l2delensalotjob_Transformer()
 }
 
-class config_handler():
+def load_config(directory, descriptor):
+    """Helper method for loading the configuration file.
+
+    Args:
+        directory (_type_): The directory to read from.
+        descriptor (_type_): Identifier with which the configuration file is stored in memory.
+
+    Returns:
+        object: the configuration file
+    """        
+    spec = iu.spec_from_file_location('configfile', directory)
+    p = iu.module_from_spec(spec)
+    sys.modules[descriptor] = p
+    spec.loader.exec_module(p)
+
+    return p.delensalot_model
+
+class ConfigHandler():
     """Load config file and handle command line arguments 
     """
 
     def __init__(self, parser, config=None, key=None):
         sorted_joblist = ['generate_sim', 'QE_lensrec', 'MAP_lensrec', 'analyse_phi', 'delens']
-        self.config = config if config is not None else config_handler.load_config(parser.config_file, 'configfile')
+        self.config = config if config is not None else load_config(parser.config_file, 'configfile')
         if key is not None:
             self.config.analysis.key = key
         if 'job_id' in parser.__dict__ and parser.job_id is not None:
@@ -58,7 +72,7 @@ class config_handler():
                     self.config.job.jobs.append(job)
                 else:
                     self.config.job.jobs.append(job)
-        TEMP = transform(self.config, transformers_T.get(type(self.config)))
+        TEMP = get_TEMP_dir(self.config)
         self.parser = parser
         self.TEMP = TEMP
 
@@ -105,10 +119,16 @@ class config_handler():
         Args:
             job_choice (list, optional): A specific job which should be performed. This one is not necessarily defined in the configuration file. It is handed over via command line or in interactive mode. Defaults to [].
         """ 
-        for jobi, job in enumerate(self.djobmodels):
+        if self.parser.status == '':
+            if mpi.rank == 0:
+                self.store(self.parser, self.config, self.TEMP)
+        self.djobmodels = []
+        for jobi, job_id in enumerate(self.config.job.jobs):
+            djob = transform3d(self.config, job_id,  transformers_J.get(type(self.config)))
             log.info('running job {}'.format(self.config.job.jobs[jobi]))
-            job.collect_jobs()
-            job.run()
+            djob.collect_jobs()
+            djob.run()
+        return djob
 
 
     def store(self, parser, config, TEMP):
@@ -128,7 +148,7 @@ class config_handler():
                 if os.path.isfile(TEMP+'/'+parser.config_file.split('/')[-1]):
                     # if the file already exists, check if something changed
                     logging.warning('config file {} already exist. Checking differences.'.format(TEMP+'/'+parser.config_file.split('/')[-1]))
-                    config_prev = config_handler.load_config(TEMP+'/'+parser.config_file.split('/')[-1], 'config_prev')   
+                    config_prev = load_config(TEMP+'/'+parser.config_file.split('/')[-1], 'config_prev')   
                     for key, val in config_prev.__dict__.items():
                         if hasattr(val, '__dict__'):
                             for k, v in val.__dict__.items():
@@ -166,34 +186,3 @@ class config_handler():
                 # Only give this info when not resuming
                 logging.info('Matching config file found. Resuming where I left off.')
                 logging.info(TEMP+'/'+parser.config_file.split('/')[-1])
-    
-
-    def load_config(directory, descriptor):
-        """Helper method for loading the configuration file.
-
-        Args:
-            directory (_type_): The directory to read from.
-            descriptor (_type_): Identifier with which the configuration file is stored in memory.
-
-        Returns:
-            object: the configuration file
-        """        
-        spec = iu.spec_from_file_location('configfile', directory)
-        p = iu.module_from_spec(spec)
-        sys.modules[descriptor] = p
-        spec.loader.exec_module(p)
-
-        return p.delensalot_model
-
-
-    def purge_TEMPdir(self):
-        TEMP = transform(self.config, transformers_T.get(type(self.config)))
-        shutil.rmtree(TEMP, ignore_errors=True)
-        log.info('Purged {}'.format(TEMP))
-
-
-    def purge_TEMPconf(self):
-        TEMP = transform(self.config, transformers_T.get(type(self.config)))
-        TEMPconf = TEMP +'/'+self.parser.config_file.split('/')[-1]
-        os.remove(TEMPconf)
-        log.info('Purged {}'.format(TEMPconf))
