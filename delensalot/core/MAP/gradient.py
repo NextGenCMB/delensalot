@@ -95,7 +95,7 @@ class Gradient(SharedFilters):
     def _get_est_for_prior(self, it):
         if it>0:
             print('Setting it=0 as only this is supported for now')
-        it = 0
+        # it = 0
         if isinstance(it, (list, np.ndarray)):
             return [self._get_est_for_prior(it_) for it_ in it]
         return [sub.gfield._get_est(it=it) for sub in self.subs]

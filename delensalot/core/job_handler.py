@@ -278,8 +278,8 @@ class DataContainer:
         return {'T': 'Talmobs_{}.npy', 'E': 'Ealmobs_{}.npy', 'B': 'Balmobs_{}.npy'}
 
     # @base_exception_handler
-    @log_on_start(logging.DEBUG, "Sim.collect_jobs() started")
-    @log_on_end(logging.DEBUG, "Sim.collect_jobs() finished: jobs={self.jobs}")
+    @log_on_start(logging.DEBUG, "DataContainer.collect_jobs() started")
+    @log_on_end(logging.DEBUG, "DataContainer.collect_jobs() finished: jobs={self.jobs}")
     def collect_jobs(self):
         jobs = list(range(len(['generate_sky', 'generate_obs'])))
         required_files = required_files_map.get(self.estimator_key, [])
@@ -588,7 +588,7 @@ class QEScheduler:
                    
         tasks = self.tasks if task is None else [task]
         for taski, task in enumerate(tasks):
-            log.info('{}, task {} started'.format(mpi.rank, task))
+            log.info('QEScheduler {}, task {} started'.format(mpi.rank, task))
 
             if task == 'calc_fields':
                 for idxs in self.jobs[taski][mpi.rank::mpi.size]:
@@ -739,7 +739,7 @@ class MAPScheduler:
                     self.MAP_minimizers[idx].likelihood.copyQEtoDirectory(self.QE_searchs)
 
         for taski, task in enumerate(self.tasks):
-            log.info('{}, MAP task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
+            log.info('MAPScheduler {}, MAP task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
             if task == 'calc_fields':
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
                     self.MAP_minimizers[idx].get_est(self.MAP_minimizers[idx].itmax)
