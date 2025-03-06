@@ -164,8 +164,8 @@ def cli(cl):
     """Pseudo-inverse for positive cl-arrays.
 
     """
-    ret = np.zeros_like(cl)
-    ret[np.where(cl > 0)] = 1. / cl[np.where(cl > 0)]
+    ret = np.zeros_like(cl, dtype=float)
+    ret[np.where(cl > 0)] = 1. / (1.0*cl[np.where(cl > 0)])
     return ret
 
 

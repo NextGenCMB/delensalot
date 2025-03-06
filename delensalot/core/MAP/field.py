@@ -123,7 +123,6 @@ class Gradient:
         else:
             ret = []
             for compi, comp in enumerate(component):
-                print(f'grabbing {self.prior_fns.format(component=comp, idx=idx, idx2=idx2, it=it)}')
                 priorlm = self.cacher_field.load(self.prior_fns.format(component=comp, idx=idx, idx2=idx2, it=it)).squeeze()
                 ret.append(priorlm)
             return np.array(ret)[indices]
