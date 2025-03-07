@@ -206,6 +206,9 @@ class DataContainer:
         self.mask_fn = mask_fn
         self.sky_coverage = sky_coverage
         self.data_key = data_key
+        if self.estimator_key == 'p':
+            self.data_key = 'tp'
+            # FIXME 
         self.lm_max_sky = lm_max_sky
         if self.data_source.flavour == 'obs' or np.all(self.data_source.obs_lib.maps != DEFAULT_NotAValue): # (1)
             # Here, obs data is provided and nothing needs to be generated
@@ -441,6 +444,15 @@ class DataContainer:
     def hashdict(self):
         return {}
 
+    def get_sim_tmap(self, idx):
+        if self.sky_coverage == 'full':
+            return self.data_source.get_sim_obs(idx=idx, space='map', field='temperature', spin=0)
+        elif self.sky_coverage == 'masked':
+            assert self.mask, "mask must be provided for sky_coverage = 'masked'"
+            # FIXME if data is already masked (e.g. provided from disk), this will doubly mask the data.. not sure we want this
+            obs = self.data_source.get_sim_obs(idx=idx, space='map', field='temperature', spin=2)
+            return obs*self.mask
+        
     def get_sim_pmap(self, idx):
         if self.sky_coverage == 'full':
             return self.data_source.get_sim_obs(idx=idx, space='map', field='polarization', spin=2)
@@ -449,28 +461,27 @@ class DataContainer:
             # FIXME if data is already masked (e.g. provided from disk), this will doubly mask the data.. not sure we want this
             obs = self.data_source.get_sim_obs(idx=idx, space='map', field='polarization', spin=2)
             return np.array([dat*self.mask for dat in obs])
-        
 
     def get_data(self, idx):
-        # TODO this could be provided by the data_container directly
         space = 'alm' if self.sky_coverage == 'full' else 'map'
+        earr = np.array([],dtype=complex)
         if True: # NOTE anisotropic data currently not supported
         # if self.noisemodel_coverage == 'isotropic':
             # NOTE dat maps must now be given in harmonic space in this idealized configuration. sims_MAP is not used here, as no truncation happens in idealized setting.
                 
             if self.data_key in ['p', 'eb', 'be']:
-                ret = alm_copy_nd(
+                ret = [earr, *alm_copy_nd(
                     self.data_source.get_sim_obs(idx, space='alm', spin=0, field='polarization'),
-                    None, self.lm_max_sky)                
+                    None, self.lm_max_sky)]
             elif self.data_key in ['ee']:
-                ret = alm_copy_nd(
+                ret = [earr, alm_copy_nd(
                     self.data_source.get_sim_obs(idx, space='alm', spin=0, field='polarization'),
-                    None, self.lm_max_sky)[0]
+                    None, self.lm_max_sky)[0], earr]
             elif self.data_key in ['tt']:
-                ret = alm_copy_nd(
+                ret = [alm_copy_nd(
                     self.data_source.get_sim_obs(idx, space='alm', spin=0, field='temperature'),
-                    None, self.lm_max_sky)
-            elif self.data_key in ['p']:
+                    None, self.lm_max_sky), earr, earr]
+            elif self.data_key in ['tp']:
                 EBobs = alm_copy_nd(
                     self.data_source.get_sim_obs(idx, space='alm', spin=0, field='polarization'),
                     None, self.lm_max_sky)

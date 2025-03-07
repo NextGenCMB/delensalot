@@ -19,7 +19,7 @@ def get_niv_desc(nlev, nivjob_geominfo, nivjob_geomlib, rhits_normalised, mask, 
         niv_desc = [np.array([pixel_area / nlev[mode] ** 2]*cli(rhits_normalised))]
         niv_desc = niv_desc + [mask] if mask else niv_desc
     else:
-        niv_desc = [niv_map] +[mask]
+        niv_desc = [niv_map] + [mask]
     return niv_desc
 
 

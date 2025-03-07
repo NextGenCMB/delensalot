@@ -25,7 +25,7 @@ from delensalot.core.helper import utils_plancklens
 from delensalot.core.job_handler import OBDBuilder, DataContainer, QEScheduler, MAPScheduler, MapDelenser, PhiAnalyser
 
 from delensalot.core.MAP.handler import Likelihood, Minimizer
-from delensalot.core.MAP import curvature, filter, operator as operator
+from delensalot.core.MAP import curvature, filter, operator_3d as operator
 from delensalot.core.MAP.gradient import Gradient, BirefringenceGradientSub, LensingGradientSub, GradSub
 
 from delensalot.config.config_manager import set_config
@@ -171,9 +171,14 @@ class l2base_Transformer:
         dl.nlev = nm.nlev
         dl.mask_fn = cf.analysis.mask_fn
         f = lambda x: utils_plancklens.get_niv_desc(nm.nlev, nm.geominfo, dl.nivjob_geomlib, dl.rhits_normalised_fn, dl.mask_fn, mode=x)
-        buff = f('P')
+        buff_eb = f('P')
+        buff_t = f('T')
+        if "_" in dl.estimator_key:
+            dl.data_key = cf.analysis.estimator_key.split('_')[1]
+        else:
+            dl.data_key = cf.analysis.estimator_key[-2:]
         dl.inv_operator_desc = {
-            'niv_desc': {'P': buff, 'T': buff},
+            'niv_desc': {'t': buff_t, 'e': buff_eb, 'b': buff_eb},
             'lm_max': dl.lm_max_sky,
             'nlev': cf.noisemodel.nlev,
             'geom_lib': get_geom(nm.geominfo).restrict(*np.arccos(dl.zbounds[::-1]), northsouth_sym=False),
@@ -186,6 +191,7 @@ class l2base_Transformer:
             "obd_libdir": cf.obd.libdir,
             "filtering_spatial_type": cf.noisemodel.spatial_type,
             'libdir': dl.TEMP,
+            'data_key': dl.data_key,
         }
 
 
@@ -196,6 +202,10 @@ class l2delensalotjob_Transformer(l2base_Transformer):
         def extract():
             def _process_Analysis(dl, an, cf):
                 dl.estimator_key = an.estimator_key
+                if "_" in dl.estimator_key:
+                    dl.data_key = an.estimator_key.split('_')[1]
+                else:
+                    dl.data_key = an.estimator_key[-2:]
                 dl.idxs = an.idxs
                 dl.idxs_mf = np.array(an.idxs_mf) # if dl.version != 'noMF' else np.array([])
             dl = DELENSALOT_Concept_v3()
@@ -205,7 +215,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             ret = {
                 "data_source": dl.data_source,
                 "estimator_key": dl.estimator_key,
-                'data_key': 'p',
+                'data_key': dl.data_key,
                 'idxs': dl.idxs,
                 'idxs_mf': dl.idxs_mf,
                 'mask_fn': cf.analysis.mask_fn,
@@ -331,6 +341,12 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             libdir = opj(get_TEMP_dir(cf), 'MAP',f"{cf.analysis.estimator_key}")
 
 
+            # TODO pipeline for all estimator keys changes pipeline as follows:
+            # 1. I'll privde a 3-tuple (TEB) data via get_data(). Depending on estimator key, some are empty
+            # 2. operators expect 3-tuple, check if some are empty, and acts (spin-0,spin-2)
+            # 3. filters expect 3-tuple. Check if some are empty, and acts
+            #    a. fwd_op, precon, calc_prep: 3-tuple can be digested
+            #    b. ivfres, wf: unclear. 
             filter_operators = []
             _MAP_operators_desc = {}
             for sec in secs_run:
@@ -340,7 +356,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "libdir": opj(libdir, 'estimate/'),
                 }
                 if sec == "lensing":
-                    _MAP_operators_desc[sec]["spin"] = 2
+                    _MAP_operators_desc[sec]["spin"] = 2 # TODO needs to change
                     _MAP_operators_desc[sec]["perturbative"] = False
                     _MAP_operators_desc[sec]['lm_max_in'] =  dl.lm_max_sky
                     _MAP_operators_desc[sec]['lm_max_out'] = dl.lm_max_pri
@@ -357,16 +373,27 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 'chain_descr': lambda p2, p5 : [[0, ["diag_cl"], p2, dl.inv_operator_desc['geominfo'][1]['nside'], np.inf, p5, cd_solve.tr_cg, cd_solve.cache_mem()]],
                 'cg_tol': cf.maprec.cg_tol,
             }
+            if "_" in dl.estimator_key:
+                dl.data_key = cf.analysis.estimator_key.split('_')[1]
+            else:
+                dl.data_key = cf.analysis.estimator_key[-2:]
+            if dl.data_key == 'tp':
+                allowed_keys = ['tt', 'ee', 'te']
+            elif dl.data_key == 'p':
+                allowed_keys = ['ee']
+            elif dl.data_key == 'tt':
+                allowed_keys = ['tt']
+            cls_filt = {key:val[:dl.lm_max_pri[0]+1] for key, val in data_container.cls_lib.Cl_dict.items() if key in allowed_keys}
             MAP_wfivf_desc = {
                 'sec_operator': sec_operator,
-                'beam_operator': operator.Beam({'transferfunction': dl.transferfunction, 'lm_max': dl.lm_max_sky}),
+                'beam_operator': operator.Beam({'transferfunction': dl.transferfunction, 'lm_max': dl.lm_max_sky, 'data_key': dl.data_key}),
                 'inv_operator': niv,
                 'libdir': opj(libdir, 'filter/'),
                 'add_operator': operator.Add({}),
                 "chain_descr": wf_info['chain_descr'](dl.lm_max_pri[0], wf_info['cg_tol']),
-                "cls_filt": data_container.cls_lib.Cl_dict,
+                "cls_filt": cls_filt,
             }
-            wfivf_filter = filter.Filter(MAP_wfivf_desc)
+            wfivf_filter = filter.Filter_3d(MAP_wfivf_desc)
 
             quad_desc = {
                 "wfivf_filter": wfivf_filter,

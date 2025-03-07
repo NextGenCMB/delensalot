@@ -26,7 +26,6 @@ def _extend_cl(cl, lmax):
 
 class Operator:
     def __init__(self, libdir):
-        
         zbounds = (-1,1)
         self.lenjob_geomlib = get_geom(('thingauss', {'lmax': 4500, 'smax': 3}))
         thtbounds = (np.arccos(zbounds[1]), np.arccos(zbounds[0]))
@@ -50,7 +49,7 @@ class Multiply:
         self.factor = descr["factor"]
     
 
-    @log_on_start(logging.DEBUG, "multiply: {obj.shape}", logger=log)
+    @log_on_start(logging.DEBUG, "multiply", logger=log)
     @log_on_end(logging.DEBUG, "multiply done", logger=log)
     def act(self, obj, spin=None, adjoint=False):
         if adjoint:
@@ -74,7 +73,7 @@ class Compound:
         self.space_out = out
     
 
-    @log_on_start(logging.DEBUG, "joint: {obj.shape}", logger=log)  
+    @log_on_start(logging.DEBUG, "joint", logger=log)  
     @log_on_end(logging.DEBUG, "joint done", logger=log)  
     def act(self, obj, spin):
         for operator in self.operators:
@@ -83,9 +82,10 @@ class Compound:
             else:
                 obj = operator.act(obj, spin)
 
-        if self.space_out == 'map' and obj.dtype in [np.complex64, np.complex128]:
+        if self.space_out == 'map' and obj[0].dtype in [np.complex64, np.complex128]:
             # NOTE this is a hack to catch a birefringence only case and return map
             # NOTE I should rather move the out space here completely
+            # FIXME this needs changing
             return self.operators[-1].operators[-1].lenjob_geomlib.synthesis(obj, 2, *self.operators[-1].operators[-1].lm_max, 6)
         return obj
     
@@ -105,15 +105,15 @@ class Secondary:
 
     @log_on_start(logging.DEBUG, "secondary", logger=log)  
     @log_on_end(logging.DEBUG, "secondary done", logger=log)  
-    def act(self, obj, spin=2, adjoint=False, backwards=False, out_sht_mode=None, secondary=None, out='alm'):
+    def act(self, obj, adjoint=False, backwards=False, out_sht_mode=None, secondary=None, out='alm'):
         secondary = secondary or [op.ID for op in self.operators]
         operators = self.operators if not adjoint else self.operators[::-1]
         for idx, operator in enumerate(operators):
             if operator.ID in secondary:
                 if isinstance(operator, Lensing):
-                    obj = operator.act(obj, spin, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode, out=out)
+                    obj = operator.act(obj, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode, out=out)
                 else:
-                    obj = operator.act(obj, spin, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode)
+                    obj = operator.act(obj, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode)
         return obj
 
 
@@ -148,25 +148,34 @@ class Lensing(Operator):
 
     @log_on_start(logging.DEBUG, "lensing", logger=log)
     @log_on_end(logging.DEBUG, "lensing done", logger=log)
-    def act(self, obj, spin=None, adjoint=False, backwards=False, out_sht_mode=None, out='alm'):
-        assert spin is not None, "spin not provided"
+    def act(self, obj, adjoint=False, backwards=False, out_sht_mode=None, out='alm'):
+        # assert len(obj) == 3, "obj must have 3 components"
+        print(len(obj))
+        if len(obj)>1 and obj[2].size == 0:
+            obj = obj[:-1]
+        lmax = Alm.getlmax(np.max([len(o) for o in obj]), None)
 
         if self.perturbative: # Applies perturbative remapping
             assert 0, "implement if needed" 
         else:
             if adjoint and backwards and out_sht_mode == 'GRAD_ONLY':
-                return np.atleast_2d(self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max_in[1], spin, *self.lm_max_out, backwards=backwards, out_sht_mode=out_sht_mode))
+                tlm = np.atleast_2d(self.ffi.lensgclm(np.atleast_2d(obj[0]), self.lm_max_in[1], 0, *self.lm_max_out, backwards=backwards, out_sht_mode=out_sht_mode)) if obj[0].size > 0 else np.array([],dtype=complex)
+                if len(obj)>1: eblm = np.atleast_2d(self.ffi.lensgclm(np.atleast_2d(obj[1:]), self.lm_max_in[1], 2, *self.lm_max_out, backwards=backwards, out_sht_mode=out_sht_mode)) if len(obj) > 1 else np.array([[],[]],dtype=complex)
+                return [tlm, *eblm]
             else:
                 if out == 'map':
-                    lmax = Alm.getlmax(obj.shape[-1], self.lm_max_out[1])
-                    return self.ffi.gclm2lenmap(np.atleast_2d(obj), lmax, spin, False)
+                    tlm = self.ffi.gclm2lenmap(np.atleast_2d(obj[0]), lmax, 0, False) if obj[0].size > 0 else np.array([])
+                    eblm = self.ffi.gclm2lenmap(np.atleast_2d(obj[1:]), lmax, 2, False) if len(obj) > 1 else np.array([[],[]])
+                    return [tlm, *eblm]
                 elif out == 'alm':
-                    obj = np.atleast_2d(obj)
-                    lm_obj = Alm.getlmax(obj[0].size, None)
-                    if lm_obj == self.lm_max_in[0]:
-                        return self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max_in[1], spin, *self.lm_max_out)
+                    if lmax == self.lm_max_in[0]:
+                        tlm = self.ffi.lensgclm(np.atleast_2d(obj[0]), self.lm_max_in[1], 0, *self.lm_max_out) if obj[0].size > 0 else np.array([],dtype=complex)
+                        eblm = self.ffi.lensgclm(np.atleast_2d(obj[1:]), self.lm_max_in[1], 2, *self.lm_max_out) if len(obj) > 1 else np.array([[],[]],dtype=complex)
+                        return [tlm, *eblm]
                     else:
-                        return self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max_out[1], spin, *self.lm_max_in)
+                        tlm = self.ffi.lensgclm(np.atleast_2d(obj[0]), self.lm_max_out[1], 0, *self.lm_max_in) if obj[0].size > 0 else np.array([])
+                        eblm = self.ffi.lensgclm(np.atleast_2d(obj[1:]), self.lm_max_out[1], 2, *self.lm_max_in) if len(obj) > 1 else np.array([[],[]])
+                        return [tlm, *eblm]
 
 
     def set_field(self, fieldlm):
@@ -238,11 +247,15 @@ class SpinRaise:
         assert adjoint == False, "adjoint not implemented"
         # lmax = Alm.getlmax(obj.size, self.lm_max[1])
         # assert spin in [-2, 2], spin
-        i1, i2 = (2, -1) if spin == 1 else (-2, 3)
-        fl = np.arange(i1, self.lm_max[0] + i1 + 1, dtype=float) * np.arange(i2, self.lm_max[0] + i2 + 1)
-        fl[:spin] *= 0.
-        fl = np.sqrt(fl)
-        elm = np.atleast_2d(almxfl(obj, fl, self.lm_max[1], False))
+        if spin==0:
+            fl = -np.sqrt(np.arange(self.lm_max[0] + 1) * np.arange(1, self.lm_max[0] + 2))
+            elm = np.atleast_2d(almxfl(obj, fl, self.lm_max[1], False))
+        else:
+            i1, i2 = (2, -1) if spin == 1 else (-2, 3)
+            fl = np.arange(i1, self.lm_max[0] + i1 + 1, dtype=float) * np.arange(i2, self.lm_max[0] + i2 + 1)
+            fl[:spin] *= 0.
+            fl = np.sqrt(fl)
+            elm = np.atleast_2d(almxfl(obj, fl, self.lm_max[1], False))
         return elm
 
 
@@ -258,21 +271,24 @@ class SpinRaise:
 class Beam:
     def __init__(self, operator_desc):
         self.ID = 'beam'
-        self.transferfunction = operator_desc['transferfunction']
-        # self.tebl2idx = {'t': 0, 'e': 1, 'b': 2}
-        self.tebl2idx = {'e': 0, 'b': 1}
+        self.data_key = operator_desc['data_key']
+        self.lm_max = operator_desc['lm_max']
+        self.transferfunction = [
+            operator_desc['transferfunction']['t'][:self.lm_max[0]+1] if self.data_key in ['tp', 'tt'] else np.array([]),
+            operator_desc['transferfunction']['e'][:self.lm_max[0]+1] if self.data_key in ['p', 'ee', 'eb', 'tp'] else np.array([]),
+            operator_desc['transferfunction']['b'][:self.lm_max[0]+1] if self.data_key in ['p', 'ee', 'eb', 'tp'] else np.array([]),
+        ]
+        self.tebl2idx = {'t':0, 'e': 1, 'b': 2}
         self.idx2tebl = {v: k for k, v in self.tebl2idx.items()}
         self.is_adjoint = False
-        self.lm_max = operator_desc['lm_max']
 
 
     @log_on_start(logging.DEBUG, "beam", logger=log)
     @log_on_end(logging.DEBUG, "beam done", logger=log)
     def act(self, obj, adjoint=False):
-        # assert self.lm_max[0] == Alm.getlmax(obj[0].size, None), (self.lm_max[0], obj.shape, Alm.getlmax(obj[0].size, None))
-        # FIXME change counting for T and MV
-        val = np.array([almxfl(o, self.transferfunction[self.idx2tebl[oi]], self.lm_max[0], False) for oi, o in enumerate(obj)])
-        return cli(val) if adjoint else val
+        assert len(obj) == 3, "obj must have 3 components"
+        val = [almxfl(o, self.transferfunction[oi], len(self.transferfunction[oi])-1, False) for oi, o in enumerate(obj)]
+        return [cli(v) for v in val] if adjoint else val
 
 
     def adjoint(self):
@@ -285,9 +301,10 @@ class Beam:
     
 
 class InverseNoiseVariance(Operator):
-    def __init__(self, nlev, lm_max, niv_desc, geom_lib, geominfo, transferfunction, libdir, spectrum_type=None, OBD=None, obd_rescale=None, obd_libdir=None, sky_coverage=None, filtering_spatial_type=None):
+    def __init__(self, nlev, lm_max, niv_desc, geom_lib, geominfo, transferfunction, libdir, spectrum_type=None, OBD=None, obd_rescale=None, obd_libdir=None, sky_coverage=None, filtering_spatial_type=None, data_key=None):
         super().__init__(libdir)
         self.ID = 'inoise'
+        self.data_key = data_key
         self.geom_lib = geom_lib
         self.geominfo = geominfo
         self.nlev = nlev
@@ -299,19 +316,19 @@ class InverseNoiseVariance(Operator):
         spectrum_type = spectrum_type
         OBD = OBD
         self.sky_coverage = sky_coverage
-        self.n1eblm = [
-            cli(_extend_cl(self.nlev['P']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2,
-            cli(_extend_cl(self.nlev['P']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2
-        ]
+        self.n1tebl = [
+            cli(_extend_cl(self.nlev['T']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2 if data_key in ['tp', 'tt'] else np.array([]),
+            cli(_extend_cl(self.nlev['P']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2 if data_key in ['p', 'ee', 'eb', 'tp'] else np.array([]),
+            cli(_extend_cl(self.nlev['P']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2 if data_key in ['p', 'ee', 'eb', 'tp'] else np.array([])]
 
 
     @log_on_start(logging.DEBUG, "InverseNoiseVariance", logger=log)
     @log_on_end(logging.DEBUG, "InverseNoiseVariance done", logger=log)
     def act(self, obj, adjoint=False):
-        assert self.lm_max[0] == Alm.getlmax(obj[0].size, None), (self.lm_max[0], Alm.getlmax(obj[0].size, None))
+        # assert self.lm_max[0] == Alm.getlmax(obj[0].size, None), (self.lm_max[0], Alm.getlmax(obj[0].size, None))
         if adjoint:
-            return np.array([cli(almxfl(o, self.n1eblm[oi], self.lm_max[1], False)) for oi, o in enumerate(obj)])
-        return np.array([almxfl(o, self.n1eblm[oi], self.lm_max[1], False) for oi, o in enumerate(obj)])
+            return [cli(almxfl(o, self.n1tebl[oi], len(self.n1tebl[oi]), False)) for oi, o in enumerate(obj)]
+        return [almxfl(o, self.n1tebl[oi], len(self.n1tebl[oi])-1, False) for oi, o in enumerate(obj)]
 
 
     def adjoint(self):
@@ -319,45 +336,41 @@ class InverseNoiseVariance(Operator):
         return self
     
 
-    def apply_map(self, qumap):
+    def apply_map(self, tqumap):
+        # NOTE niv order is assumed TT,QQ,UU,QU
         """Applies pixel inverse-noise variance maps
         """
-        if len(self.niv_desc) == 1:  #  QQ = UU
-            qumap *= self.niv_desc[0]
+        assert len(tqumap) == 3
+
+        tqumap[0] *= self.niv_desc[0]
+        assert self.template is None
+        qmap, umap = tqumap[1], tqumap[2]
+        qmap_copy = qmap.copy()
+        qmap *= self.niv_desc[1]
+        qmap += self.niv_desc[-1] * umap
+        umap *= self.niv_desc[2]
+        umap += self.niv_desc[-1] * qmap_copy
+        del qmap_copy
+
+        tlm = self.geom_lib.adjoint_synthesis(tqumap[0], 0, *self.lm_max, 6, apply_weights=False)
+        eblm = self.geom_lib.adjoint_synthesis([qmap, umap], 2, *self.lm_max, 6, apply_weights=False)
+        return np.array([tlm, eblm])
 
 
-        elif len(self.niv_desc) == 3:  # QQ, QU, UU
-            assert self.template is None
-            qmap, umap = qumap
-            qmap_copy = qmap.copy()
-            qmap *= self.niv_desc[0]
-            qmap += self.niv_desc[1] * umap
-            umap *= self.niv_desc[2]
-            umap += self.niv_desc[1] * qmap_copy
-            del qmap_copy
-        else:
-            assert 0
-        eblm = self.geom_lib.adjoint_synthesis(qumap, 2, *self.lm_max, 6, apply_weights=False)
-        return eblm
-
-
-    def get_febl(self, transferfunction):
+    def get_ftel(self, transferfunction):
         if self.sky_coverage == 'full':
-            ret = _extend_cl(transferfunction['e']*2, len(self.n1eblm[0])-1) * self.n1eblm[0]
-            return ret, None
+            ret_t = _extend_cl(transferfunction[0]*2, len(self.n1tebl[0])-1) * self.n1tebl[0]
+            ret_e = _extend_cl(transferfunction[1]*2, len(self.n1tebl[1])-1) * self.n1tebl[1]
+            ret_b = _extend_cl(transferfunction[2]*2, len(self.n1tebl[2])-1) * self.n1tebl[2]
+            return [ret_t, ret_e, ret_b]
 
-        if len(self.niv_desc) == 1:
-            nlev_febl = 10800. / np.sqrt(np.sum(read_map(self.niv_desc[0])) / (4.0 * np.pi)) / np.pi
-        elif len(self.niv_desc) == 3:
-            nlev_febl = 10800. / np.sqrt(
-                (0.5 * np.sum(read_map(self.niv_desc[0])) + np.sum(read_map(self.niv_desc[2]))) / (4.0 * np.pi)) / np.pi
-        else:
-            assert 0
-        self._nlevp = nlev_febl
-        log.info('Using nlevp %.2f amin'%self._nlevp)
-        niv_cl_e = transferfunction['e'] ** 2  / (self._nlevp/ 180. / 60. * np.pi) ** 2
-        niv_cl_b = transferfunction['b'] ** 2  / (self._nlevp/ 180. / 60. * np.pi) ** 2
-        return niv_cl_e, niv_cl_b.copy()
+        nlev_ftl = 10800. / np.sqrt(np.sum(read_map(self.niv_desc[0])) / (4.0 * np.pi)) / np.pi
+        nlev_febl = 10800. / np.sqrt((0.5 * np.sum(read_map(self.n_inv[1])) + np.sum(read_map(self.n_inv[2]))) / (4.0 * np.pi)) / np.pi
+        log.info('Using nlevp %.2f amin'%nlev_febl)
+        niv_cl_t = transferfunction['t'] ** 2  / (nlev_ftl/ 180. / 60. * np.pi) ** 2
+        niv_cl_e = transferfunction['e'] ** 2  / (nlev_febl/ 180. / 60. * np.pi) ** 2
+        niv_cl_b = transferfunction['b'] ** 2  / (nlev_febl/ 180. / 60. * np.pi) ** 2
+        return niv_cl_t, niv_cl_e# , niv_cl_b
     
 
 class Add:

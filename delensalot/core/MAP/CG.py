@@ -8,6 +8,26 @@ from IPython.display import clear_output
 from delensalot.core.cg import cd_monitors
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy
 
+
+class cache_mem(dict):
+    def __init__(self):
+        pass
+
+    def store(self, key, data):
+        [dTAd_inv, searchdirs, searchfwds] = data
+        self[key] = [dTAd_inv, searchdirs, searchfwds]
+
+    def restore(self, key):
+        return self[key]
+
+    def remove(self, key):
+        del self[key]
+
+    def trim(self, keys):
+        assert (set(keys).issubset(self.keys()))
+        for key in (set(self.keys()) - set(keys)):
+            del self[key]
+
 class MultigridStage(object):
     def __init__(self, ids, pre_ops_descr, lmax, nside, iter_max, eps_min, tr, cache):
         self.depth = ids
@@ -46,11 +66,18 @@ class ConjugateGradient:
         cd_solve(soltn, tpn_alm, fwd_op, self.bstage.pre_ops, self.dot_op, monitor, tr=self.bstage.tr, cache=self.bstage.cache)
 
 
-    def dot_op(self, elm1, elm2):
-        lmax = Alm.getlmax(elm1.size, None)
-        ell = np.arange(0, lmax + 1)
-        weights = 2 * ell + 1
-        return np.sum(alm2cl(elm1, elm2, lmax, lmax, None)[0:] * weights)
+    def dot_op(self, teblm1, teblm2):
+        lmaxs = [Alm.getlmax(te.size, None) for te in teblm1]
+        ells = [np.arange(0, lmax + 1) for lmax in lmaxs]
+        weights = [2 * ell + 1 for ell in ells]
+        tlm1, elm1, blm1 = teblm1
+        tlm2, elm2, blm2 = teblm1
+        
+        ret =  np.sum(alm2cl(tlm1, tlm2, lmaxs[0], lmaxs[0], None)[0:] * weights[0])
+        ret += np.sum(alm2cl(elm1, elm2, lmaxs[1], lmaxs[1], None)[0:] * weights[1])
+        ret += np.sum(alm2cl(blm1, blm2, lmaxs[2], lmaxs[2], None)[0:] * weights[2])
+        
+        return ret
     
 
     def log(self, stage, iter, eps, **kwargs):
@@ -95,33 +122,12 @@ class ConjugateGradient:
             self.prev_elapsed = elapsed
 
 
-
 def PTR(p, t, r):
     return lambda i: max(0, i - max(p, int(min(t, np.mod(i, r)))))
 
 
 tr_cg = (lambda i: i - 1)
 tr_cd = (lambda i: 0)
-
-
-class cache_mem(dict):
-    def __init__(self):
-        pass
-
-    def store(self, key, data):
-        [dTAd_inv, searchdirs, searchfwds] = data
-        self[key] = [dTAd_inv, searchdirs, searchfwds]
-
-    def restore(self, key):
-        return self[key]
-
-    def remove(self, key):
-        del self[key]
-
-    def trim(self, keys):
-        assert (set(keys).issubset(self.keys()))
-        for key in (set(self.keys()) - set(keys)):
-            del self[key]
 
 
 def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), roundoff=25):
@@ -150,10 +156,11 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
 
     iter = 0
     lines, lines2 = [], []
-    lmax = Alm.getlmax(residual.size, None)
+    lmax = np.max([Alm.getlmax(r.size, None) for r in residual])
     ell = np.arange(0, lmax + 1)
     weights = 2 * ell + 1
     while not criterion(iter, x, residual):
+        
         searchfwds = [fwd_op(searchdir) for searchdir in searchdirs]
         deltas = [dot_op(searchdir, residual) for searchdir in searchdirs]
 
@@ -171,10 +178,9 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
 
         # append to cache.
         cache.store(iter, [dTAd_inv, searchdirs, searchfwds])
-
         clear_output(wait=True)
         plt.figure(figsize=(10, 6))
-        lines2.append(hp.alm2cl(residual)*weights)
+        lines2.append([hp.alm2cl(res)*weights for res in residual])
         # update residual
         iter += 1
         if np.mod(iter, roundoff) == 0:
@@ -184,7 +190,8 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
                 residual -= searchfwd * alpha
 
         for linei, line2 in enumerate(lines2):
-            plt.plot(line2, label='iter %d'%(linei+1))
+            for res in line2:
+                plt.plot(res, label='iter %d'%(linei+1))
         # plt.legend(title='CG search')
         plt.ylabel(r'$C_\ell^{\rm residual}$')
         plt.xlabel(r'$\ell$')

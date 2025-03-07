@@ -29,7 +29,6 @@ class DELENSALOT_Concept_v3:
         Returns:
             str: A table with all attributes of the model
         """        
-        ##
         _str = ''
         for key, val in self.__dict__.items():
             keylen = len(str(key))

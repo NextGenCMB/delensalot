@@ -42,15 +42,39 @@ def almxfl(alm:np.ndarray, fl:np.ndarray, mmax:int or None, inplace:bool):
 
 
 def almxfl_nd(alm: np.ndarray, fl: np.ndarray, mmax: int or None, inplace: bool):
+    if isinstance(alm, np.ndarray):
+        if alm.ndim == 1:
+            assert fl.ndim == 1, (alm.ndim, fl.ndim)
+            almxfl(alm, fl, mmax, inplace=inplace)  # Modify in-place if requested
+            if not inplace:
+                return alm  # Only return if not modifying in-place
+        elif alm.ndim == 2:
+            fl_ = lambda i: fl[i] if fl.ndim == 2 else fl
+            if inplace:
+                for i in range(alm.shape[0]):
+                    almxfl(alm[i], fl_(i), mmax, inplace=True)  # Modify in-place
+            else:
+                return np.array([almxfl(alm[i], fl_(i), mmax, inplace=False) for i in range(alm.shape[0])])
+    if isinstance(alm, list):
+        fl_ = lambda i: fl[i] if isinstance(fl, list) else fl
+        if inplace:
+            for i in range(len(alm)):
+                almxfl(alm[i], fl_(i), mmax, inplace=True)  # Modify in-place
+        else:
+            return [almxfl(alm[i], fl_(i), mmax, inplace=False) for i in range(len(alm))]
+
+
+def almxfl_nd_old(alm: np.ndarray, fl: np.ndarray, mmax: int or None, inplace: bool):
     if alm.ndim == 1:
         almxfl(alm, fl, mmax, inplace=inplace)  # Modify in-place if requested
         if not inplace:
             return alm  # Only return if not modifying in-place
 
     elif alm.ndim == 2:
+        fl_ = fl[i] if len(fl) == 2 else fl
         if inplace:
             for i in range(alm.shape[0]):
-                almxfl(alm[i], fl, mmax, inplace=True)  # Modify in-place
+                almxfl(alm[i], fl_, mmax, inplace=True)  # Modify in-place
         else:
             return np.array([almxfl(alm[i], fl, mmax, inplace=False) for i in range(alm.shape[0])])
 
