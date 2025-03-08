@@ -9,7 +9,7 @@ from logdecorator import log_on_start, log_on_end
 import argparse
 import os, sys
 
-class lerepi_parser():
+class LerepiParser():
     def __init__(self):
         __argparser = argparse.ArgumentParser(description='delensalot entry point.')
         __argparser.add_argument('-r', dest='resume', type=str, default='', help='Absolute path to config file to resume.')
@@ -45,10 +45,5 @@ class lerepi_parser():
             pass
         return True
 
-
-    @log_on_start(logging.INFO, "Start of get_parser()", logger=log)
-    @log_on_end(logging.INFO, "Finished get_parser()", logger=log)
     def get_parser(self):
         return self.parser
-
-

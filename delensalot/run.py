@@ -11,7 +11,7 @@ import delensalot.core.mpi as mpi
 
 from delensalot.config.config_handler import ConfigHandler
 from delensalot.config.etc.abstract import parserclass
-from delensalot.config.parser import lerepi_parser
+from delensalot.config.parser import LerepiParser
 from delensalot.config.etc import logger
 
 datefmt = "%m-%d %H:%M:%S"
@@ -110,10 +110,10 @@ class run():
     
 
 if __name__ == '__main__':
-    """Entry point for the command line
+    """Entry point from the command line
     """
     os.environ['USE_PLANCKLENS_MPI'] = "False"
-    lparser = lerepi_parser()
+    lparser = LerepiParser()
     if lparser.validate():
         parser = lparser.get_parser()
 

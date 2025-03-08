@@ -8,7 +8,6 @@ import numpy as np
 from scipy.interpolate import UnivariateSpline as spl
 
 from delensalot.core.MAP import cg, field, operator_3d
-from delensalot.core.MAP.context import ComputationContext
 
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy, almxfl_nd, alm_copy_nd
 from delensalot.utils import cli

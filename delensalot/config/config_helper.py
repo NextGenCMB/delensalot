@@ -31,57 +31,34 @@ class data_functions:
 
     def a2r(val):
         """arcmin2radian converter
-
-        Args:
-            val (_type_): _description_
-
-        Returns:
-            _type_: _description_
         """
         return val / 180 / 60 * np.pi
 
     def r2a(val):
         """radian2arcmin converter
-
-        Args:
-            val (_type_): _description_
-
-        Returns:
-            _type_: _description_
         """
         return val * 180 * 60 / np.pi
         
 
     def c2a(val):
         """Cl2arcmin converter
-
-        Args:
-            val (_type_): _description_
-
-        Returns:
-            _type_: _description_
         """
         return np.sqrt(val) * (60 * 180 / np.pi)
         
 
     def get_nlev_mask(ratio, rhits):
         """Mask built thresholding the relative hit counts map
-            Note:
-                Same as 06b
         """
         mask = np.where(rhits/np.max(rhits) < 1. / ratio, 0., rhits)
-        
         return np.nan_to_num(mask)
 
 
     def get_zbounds(rhits, hits_ratio=np.inf):
         """Cos-tht bounds for thresholded mask
-
         """
         pix = np.where(data_functions.get_nlev_mask(hits_ratio, rhits))[0]
         tht, phi = hp.pix2ang(2048, pix)
         zbounds = np.cos(np.max(tht)), np.cos(np.min(tht))
-
         return zbounds
 
 
@@ -92,6 +69,7 @@ class data_functions:
 
         return zbounds_len
     
+
 def generate_plancklenskeys(input_str):
     def split_at_first(s, blacklist={'t', 'e', 'b'}):
         match = re.search(f"[{''.join(blacklist)}]", s)
