@@ -37,7 +37,7 @@ class Gradient(SharedFilters):
         # self.sub1: LensingGradientSub = object.__new__(LensingGradientSub)()
         # self.sub2: BirefringenceGradientSub = object.__new__(BirefringenceGradientSub)()
     
-    
+
     @log_on_start(logging.DEBUG, 'Gradient.get_gradient_total, it={it}', logger=log)
     def get_gradient_total(self, it, data=None):
         if isinstance(it, (list, np.ndarray)):

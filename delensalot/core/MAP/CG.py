@@ -1,6 +1,9 @@
 import sys
 import numpy as np
 
+import logging
+log = logging.getLogger(__name__)
+
 import matplotlib.pyplot as plt
 import healpy as hp
 from IPython.display import clear_output    
@@ -9,8 +12,89 @@ from delensalot.core.cg import cd_monitors
 
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy
 
+def get_rainbow_colors(num_items):
+    """Returns a list of colors from the 'rainbow' colormap."""
+    cmap = plt.cm.rainbow  # Choose the rainbow colormap
+    return [cmap(i / (num_items - 1)) for i in range(num_items)]
+
+def plot_stuff(residual, residualdata, bdata, fwddata, xdata, precondata, searchdirs, searchfwds, weights, x):
+    residualdata.append([hp.alm2cl(res)*weights for res in np.atleast_2d(residual)])
+    fwddata.append([hp.alm2cl(fwd_) for fwd_ in np.atleast_2d(searchfwds[0])])
+    xdata.append([hp.alm2cl(x_) for x_ in np.atleast_2d(x)])
+    precondata.append([hp.alm2cl(precon_) for precon_ in np.atleast_2d(searchdirs[0])])
+    colors = get_rainbow_colors(len(residualdata)+1)
+    clear_output(wait=True)
+    plt.figure(figsize=(10, 6))
+    for linei, line2 in enumerate(residualdata):
+        for resi, res in enumerate(line2):
+            plt.plot(res, label='iter %d'%(linei+1), color=colors[linei], ls='--' if resi else '-')
+    # plt.legend(title='CG search')
+    plt.ylabel(r'$C_\ell^{\rm residual}$')
+    plt.xlabel(r'$\ell$')
+    plt.yscale('log')
+    plt.show()
+
+    plt.figure(figsize=(10, 6))
+    for linei, line2 in enumerate(bdata):
+        for resi, res in enumerate(line2):
+            plt.plot(res, label='iter %d'%(linei+1), color=colors[linei], ls='--' if resi else '-')
+    # plt.legend(title='CG search')
+    plt.ylabel(r'$C_\ell^{\rm b}$')
+    plt.xlabel(r'$\ell$')
+    plt.yscale('log')
+    plt.show()
+
+    plt.figure(figsize=(10, 6))
+    for linei, line2 in enumerate(fwddata):
+        for res in line2:
+            plt.plot(res, label='iter %d'%(linei+1), color=colors[linei], ls='--' if resi else '-')
+    # plt.legend(title='CG search')
+    plt.ylabel(r'$C_\ell^{\rm fwd(x)}$')
+    plt.xlabel(r'$\ell$')
+    plt.yscale('log')
+    plt.show()
+
+    plt.figure(figsize=(10, 6))
+    for linei, line2 in enumerate(xdata):
+        for res in line2:
+            plt.plot(res, label='iter %d'%(linei+1), color=colors[linei], ls='--' if resi else '-')
+    # plt.legend(title='CG search')
+    plt.ylabel(r'$C_\ell^{\rm x}$')
+    plt.xlabel(r'$\ell$')
+    plt.yscale('log')
+    plt.show()
+
+    # plt.figure(figsize=(10, 6))
+    # for linei, line2 in enumerate(precondata):
+    #     for res in line2:
+    #         plt.plot(res, label='iter %d'%(linei+1))
+    # # plt.legend(title='CG search')
+    # plt.ylabel(r'$C_\ell^{\rm precon}$')
+    # plt.xlabel(r'$\ell$')
+    # plt.yscale('log')
+    # plt.show()
+
+class cache_mem(dict):
+    def __init__(self):
+        pass
+
+    def store(self, key, data):
+        [dTAd_inv, searchdirs, searchfwds] = data
+        self[key] = [dTAd_inv, searchdirs, searchfwds]
+
+    def restore(self, key):
+        return self[key]
+
+    def remove(self, key):
+        del self[key]
+
+    def trim(self, keys):
+        assert (set(keys).issubset(self.keys()))
+        for key in (set(self.keys()) - set(keys)):
+            del self[key]
+
 class MultigridStage(object):
-    def __init__(self, ids, pre_ops_descr, lmax, nside, iter_max, eps_min, tr, cache):
+    def __init__(self, ids, pre_ops_descr, lmax, nside, iter_max, eps_min, tr):
         self.depth = ids
         self.pre_ops_descr = pre_ops_descr
         self.lmax = lmax
@@ -18,11 +102,10 @@ class MultigridStage(object):
         self.iter_max = iter_max
         self.eps_min = eps_min
         self.tr = tr
-        self.cache = cache
         self.pre_ops = []
 
 
-#NOTE this is actually not a multigrid anymore, check line 35. pure diagonal here.
+#NOTE this is actually not a multigrid anymore. pure diagonal here.
 class ConjugateGradient:
     def __init__(self, pre_op_diag, chain_descr, s_cls, debug_log_prefix=None, plogdepth=0):
         self.debug_log_prefix = debug_log_prefix
@@ -30,8 +113,8 @@ class ConjugateGradient:
         self.chain_descr = chain_descr
         self.s_cls = s_cls
         stages = {}
-        for [id, pre_ops_descr, lmax, nside, iter_max, eps_min, tr, cache] in self.chain_descr:
-            stages[id] = MultigridStage(id, pre_ops_descr, lmax, nside, iter_max, eps_min, tr, cache)
+        for [id, pre_ops_descr, lmax, nside, iter_max, eps_min, tr] in self.chain_descr:
+            stages[id] = MultigridStage(id, pre_ops_descr, lmax, nside, iter_max, eps_min, tr)
             for pre_op_descr in pre_ops_descr:  # recursively add all stages to stages[0]
                 stages[id].pre_ops.append(pre_op_diag)
         self.bstage = stages[0]  # these are the pre_ops called in cd_solve
@@ -49,7 +132,7 @@ class ConjugateGradient:
             dot_op = self.dot_op
 
         monitor = cd_monitors.monitor_basic(dot_op, logger=self.logger, iter_max=self.bstage.iter_max, eps_min=self.bstage.eps_min, d0=dot_op(tpn_alm, tpn_alm))
-        cd_solve(soltn, tpn_alm, fwd_op, self.bstage.pre_ops, dot_op, monitor, tr=self.bstage.tr, cache=self.bstage.cache)
+        solve(soltn, tpn_alm, fwd_op, self.bstage.pre_ops, dot_op, monitor, tr=self.bstage.tr, cacher=cache_mem())
 
 
     def dot_op(self, elm1, elm2):
@@ -124,7 +207,7 @@ tr_cg = (lambda i: i - 1)
 tr_cd = (lambda i: 0)
 
 
-def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), roundoff=25):
+def solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cacher, roundoff=25):
     """customizable conjugate directions loop for x=[fwd_op]^{-1}b.
 
     Args:
@@ -159,7 +242,6 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
     precondata.append([hp.alm2cl(precon_) for precon_ in np.atleast_2d(searchdirs)])
     iter = 0
     
-
     while not criterion(iter, x, residual):
         
         searchfwds = [fwd_op(searchdir) for searchdir in searchdirs]
@@ -178,7 +260,7 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
             x += searchdir * alpha
 
         # append to cache.
-        cache.store(iter, [dTAd_inv, searchdirs, searchfwds])
+        cacher.store(iter, [dTAd_inv, searchdirs, searchfwds])
         
         # update residual
         iter += 1
@@ -187,62 +269,8 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
         else:
             for (searchfwd, alpha) in zip(searchfwds, alphas):
                 residual -= searchfwd * alpha
-        residualdata.append([hp.alm2cl(res)*weights for res in np.atleast_2d(residual)])
-        fwddata.append([hp.alm2cl(fwd_) for fwd_ in np.atleast_2d(searchfwds[0])])
-        xdata.append([hp.alm2cl(x_) for x_ in np.atleast_2d(x)])
-        precondata.append([hp.alm2cl(precon_) for precon_ in np.atleast_2d(searchdirs[0])])
-        clear_output(wait=True)
-        plt.figure(figsize=(10, 6))
-        for linei, line2 in enumerate(residualdata):
-            for res in line2:
-                plt.plot(res, label='iter %d'%(linei+1))
-        # plt.legend(title='CG search')
-        plt.ylabel(r'$C_\ell^{\rm residual}$')
-        plt.xlabel(r'$\ell$')
-        plt.yscale('log')
-        plt.show()
-
-        plt.figure(figsize=(10, 6))
-        for linei, line2 in enumerate(bdata):
-            for res in line2:
-                plt.plot(res, label='iter %d'%(linei+1))
-        # plt.legend(title='CG search')
-        plt.ylabel(r'$C_\ell^{\rm b}$')
-        plt.xlabel(r'$\ell$')
-        plt.yscale('log')
-        plt.show()
-
-        plt.figure(figsize=(10, 6))
-        for linei, line2 in enumerate(fwddata):
-            for res in line2:
-                plt.plot(res, label='iter %d'%(linei+1))
-        # plt.legend(title='CG search')
-        plt.ylabel(r'$C_\ell^{\rm fwd(x)}$')
-        plt.xlabel(r'$\ell$')
-        plt.yscale('log')
-        plt.show()
-
-        plt.figure(figsize=(10, 6))
-        for linei, line2 in enumerate(xdata):
-            for res in line2:
-                plt.plot(res, label='iter %d'%(linei+1))
-        # plt.legend(title='CG search')
-        plt.ylabel(r'$C_\ell^{\rm x}$')
-        plt.xlabel(r'$\ell$')
-        plt.yscale('log')
-        plt.show()
-
-
-        # plt.figure(figsize=(10, 6))
-        # for linei, line2 in enumerate(precondata):
-        #     for res in line2:
-        #         plt.plot(res, label='iter %d'%(linei+1))
-        # # plt.legend(title='CG search')
-        # plt.ylabel(r'$C_\ell^{\rm precon}$')
-        # plt.xlabel(r'$\ell$')
-        # plt.yscale('log')
-        # plt.show()
-
+        if log.getEffectiveLevel() == logging.INFO:
+            plot_stuff(residual, residualdata, bdata, fwddata, xdata, precondata, searchdirs, searchfwds, weights, x)
 
         # initial choices for new search directions.
         searchdirs = [pre_op(residual) for pre_op in pre_ops]
@@ -251,7 +279,7 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
         prev_iters = range(tr(iter), iter)
 
         for titer in prev_iters:
-            [prev_dTAd_inv, prev_searchdirs, prev_searchfwds] = cache.restore(titer)
+            [prev_dTAd_inv, prev_searchdirs, prev_searchfwds] = cacher.restore(titer)
 
             for searchdir in searchdirs:
                 proj = [dot_op(searchdir, prev_searchfwd) for prev_searchfwd in prev_searchfwds]
@@ -261,6 +289,6 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
                     searchdir -= prev_searchdir * beta
 
         # clear old keys from cache
-        cache.trim(range(tr(iter + 1), iter))
+        cacher.trim(range(tr(iter + 1), iter))
 
     return iter

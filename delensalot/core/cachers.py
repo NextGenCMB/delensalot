@@ -83,18 +83,6 @@ class cacher_mem(cacher):
         assert fn in self._cache.keys()
         del self._cache[fn]
 
-    def store(self, key, data):
-        [dTAd_inv, searchdirs, searchfwds] = data
-        self[key] = [dTAd_inv, searchdirs, searchfwds]
-
-    def restore(self, key):
-        return self[key]
-
-    def trim(self, keys):
-        assert (set(keys).issubset(self.keys()))
-        for key in (set(self.keys()) - set(keys)):
-            del self[key]
-
 class cacher_pk(object):
     def __init__(self, lib_dir, verbose=False):
         if not os.path.exists(lib_dir):

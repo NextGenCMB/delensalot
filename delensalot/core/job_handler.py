@@ -67,58 +67,7 @@ template_secondaries = ['lensing', 'birefringence']  # Define your desired order
 template_index_secondaries = {val: i for i, val in enumerate(template_secondaries)}
 
 
-class Basejob():
-    """
-    Base class for all jobs, i.e. convenience functions go in here as they should be accessible from anywhere
-    """
-    def __str__(self):
-        _str = ''
-        for key, val in self.__dict__.items():
-            keylen = len(str(key))
-            if type(val) in [list, np.ndarray, np.array, dict]:
-                _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(type(val))
-            else:
-                _str += '{}:'.format(key)+(20-keylen)*' '+'\t{}'.format(val)
-            _str += '\n'
-        return _str
-
-    def __init__(self, model):
-        self.__dict__.update(model.__dict__)
-
-        self.libdir_QE = opj(self.TEMP, 'QE')
-        if not os.path.exists(self.libdir_QE):
-            os.makedirs(self.libdir_QE)
-        self.libdir_MAP = lambda qe_key, idx, version: opj(self.TEMP, 'MAP/%s'%(qe_key), 'sim%04d'%(idx) + version)
-        self.libdir_blt = lambda idx: opj(self.TEMP, 'MAP/%s'%(self.k), 'sim%04d'%(idx) + self.version, 'BLT/')
-        for idx in np.array(list(set(np.concatenate([self.idxs, self.idxs_mf]))), dtype=int):
-            ## calculates all plms even for mf indices. This is not necessarily requested due to potentially idxs =/= idxs_mf, but otherwise collect and run must be adapted and its ok like this.
-            libdir_MAPidx = self.libdir_MAP(self.k, idx, self.version)
-            if not os.path.exists(libdir_MAPidx):
-                os.makedirs(libdir_MAPidx)
-            if not os.path.exists(self.libdir_blt(idx)):
-                os.makedirs(self.libdir_blt(idx))
-         
-        self.config_model = model
-        self.jobs = []
-
-
-    # @base_exception_handler
-    @log_on_start(logging.DEBUG, "collect_jobs() started")
-    @log_on_end(logging.DEBUG, "collect_jobs() finished: jobs={self.jobs}")
-    def collect_jobs(self):
-
-        assert 0, "Overwrite"
-
-
-    # @base_exception_handler
-    @log_on_start(logging.DEBUG, "collect_jobs() started")
-    @log_on_end(logging.DEBUG, "collect_jobs() finished")
-    def run(self):
-
-        assert 0, "Implement if needed"
-
-
-class OBDBuilder(Basejob):
+class OBDBuilder:
     """OBD matrix builder Job. Calculates the OBD matrix, used to correctly deproject the B-modes at a masked sky.
     """
     @check_MPI
@@ -538,6 +487,7 @@ class DataContainer:
         else:
             assert 0, 'implement if needed'
 
+
 class QEScheduler:
     """Quadratic estimate lensing reconstruction Job. Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.
     """
@@ -883,7 +833,7 @@ class MAPScheduler:
         return method_forwarder
 
 
-class MapDelenser(Basejob):
+class MapDelenser:
     """Map delenser Job for calculating delensed ILC and Blens spectra using precaulculated Btemplates as input.
     This is a combination of,
      * delensing with Btemplates (QE, MAP),
@@ -1056,7 +1006,7 @@ class MapDelenser(Basejob):
             return  almxfl(hlm, h2d, self.mmax_qlm, False)
 
 
-class PhiAnalyser(Basejob):
+class PhiAnalyser:
     """ This only works on Full sky.
     Phi analyser Job for calculating,
         * cross correlation,
@@ -1246,7 +1196,7 @@ class PhiAnalyser(Basejob):
         return np.load(fn%(self.k, len(self.idxs), len(self.its)))
         
 
-class OverwriteAnafast():
+class OverwriteAnafast:
     """Convenience class for overwriting method name
     """    
 

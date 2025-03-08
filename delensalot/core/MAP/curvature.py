@@ -4,17 +4,13 @@ from logdecorator import log_on_start, log_on_end
 
 import numpy as np
 
-from delensalot.core.MAP import bfgs
-from delensalot.utility.utils_hp import Alm, almxfl, alm2cl
-from delensalot.utils import cli
-from delensalot.core.iterator.steps import harmonicbump
-
 from delensalot.core import cachers
-from delensalot.core.MAP import field as MAP_field
-
+from delensalot.core.MAP import field as MAP_field, bfgs
+from delensalot.core.iterator.steps import harmonicbump
 from delensalot.core.MAP.context import get_computation_context
 
-import healpy as hp
+from delensalot.utils import cli
+from delensalot.utility.utils_hp import Alm, almxfl, alm2cl
 
 class Base:
     def __init__(self, gradient_lib, h0, bfgs_desc, libdir):
@@ -47,7 +43,7 @@ class Base:
         N = 0
         for sub in self.gradient_lib.subs:
             for compi, comp in enumerate(sub.gfield.component):
-                size = hp.Alm.getsize(sub.LM_max[0])
+                size = Alm.getsize(*sub.LM_max)
                 klms[N:N+size] = self.stepper[sub.ID].build_incr(klms[N:N+size], 0)
                 N += size
         return klms
@@ -63,7 +59,6 @@ class Base:
             self.step(gnew)
             self.field.cache(gnew, it, 'sk')
         return self.field.get_field(it, 'sk')
-        # gtot = gcurr, yk = gcurr - gprev
 
 
     def grad2dict(self, grad):

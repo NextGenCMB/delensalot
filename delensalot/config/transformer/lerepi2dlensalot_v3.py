@@ -367,7 +367,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             niv = operator.InverseNoiseVariance(**dl.inv_operator_desc)
 
             wf_info = {
-                'chain_descr': lambda p2, p5 : [[0, ["diag_cl"], p2, dl.inv_operator_desc['geominfo'][1]['nside'], np.inf, p5, (lambda i: i - 1), cachers.cacher_mem()]],
+                'chain_descr': lambda p2, p5 : [[0, ["diag_cl"], p2, dl.inv_operator_desc['geominfo'][1]['nside'], np.inf, p5, (lambda i: i - 1)]],
                 'cg_tol': cf.maprec.cg_tol,
             }
             if "_" in dl.estimator_key:
