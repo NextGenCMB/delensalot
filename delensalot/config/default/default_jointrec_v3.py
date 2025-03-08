@@ -6,7 +6,6 @@ import psutil
 import delensalot
 from delensalot import utils
 from delensalot.utility.utils_hp import gauss_beam
-import delensalot.core.power.pospace as pospace
 from delensalot.config.config_helper import LEREPI_Constants as lc
 from delensalot.config.metamodel import DEFAULT_NotAValue as DNaV, DEFAULT_NotASTR
 
@@ -147,7 +146,7 @@ DL_DEFAULT = {
         'Cl_fid': 'ffp10',
         'libdir_it': None,
         'binning': 'binned',
-        'spectrum_calculator': pospace,
+        'spectrum_calculator': "",
         'basemap': 'lens'
     },
     'phana': {
