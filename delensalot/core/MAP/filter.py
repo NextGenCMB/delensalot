@@ -4,13 +4,11 @@ from logdecorator import log_on_start, log_on_end
 
 from os.path import join as opj
 import numpy as np
-
 from scipy.interpolate import UnivariateSpline as spl
 
-from delensalot.core.MAP import cg, field, operator_3d
+from delensalot.core.MAP import cg, field, operator
 
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy, almxfl_nd, alm_copy_nd
-from delensalot.utils import cli
 
 CMBfields_sorted = ['tt', 'ee', 'bb']
 
@@ -23,10 +21,10 @@ filterfield_desc = lambda ID, libdir: {
 class Filter_3d:
     def __init__(self, filter_desc):
         self.libdir = filter_desc['libdir']
-        self.sec_operator: operator_3d.Secondary = filter_desc['sec_operator']
-        self.beam_operator: operator_3d.Beam = filter_desc['beam_operator']
-        self.inv_operator: operator_3d.InverseNoiseVariance = filter_desc['inv_operator']
-        self.add_operator: operator_3d.Add = filter_desc['add_operator']
+        self.sec_operator: operator.Secondary = filter_desc['sec_operator']
+        self.beam_operator: operator.Beam = filter_desc['beam_operator']
+        self.inv_operator: operator.InverseNoiseVariance = filter_desc['inv_operator']
+        self.add_operator: operator.Add = filter_desc['add_operator']
         
         self.chain_descr = filter_desc['chain_descr']
         

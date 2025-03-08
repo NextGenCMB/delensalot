@@ -63,13 +63,11 @@ class cacher_mem(cacher):
         self._cache = dict()
         self.safe = safe
 
-
     def cache(self, fn, obj):
         if self.safe:
             self._cache[fn] = np.copy(obj)
         else:
             self._cache[fn] = obj
-
 
     def load(self, fn):
         assert fn in self._cache.keys()
@@ -78,14 +76,24 @@ class cacher_mem(cacher):
         else:
             return self._cache[fn]
 
-
     def is_cached(self, fn):
         return fn in self._cache.keys()
-
 
     def remove(self, fn):
         assert fn in self._cache.keys()
         del self._cache[fn]
+
+    def store(self, key, data):
+        [dTAd_inv, searchdirs, searchfwds] = data
+        self[key] = [dTAd_inv, searchdirs, searchfwds]
+
+    def restore(self, key):
+        return self[key]
+
+    def trim(self, keys):
+        assert (set(keys).issubset(self.keys()))
+        for key in (set(self.keys()) - set(keys)):
+            del self[key]
 
 class cacher_pk(object):
     def __init__(self, lib_dir, verbose=False):

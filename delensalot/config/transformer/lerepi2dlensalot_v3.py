@@ -3,13 +3,11 @@
 """lerepi2dlensalot.py: transformer module to build job model and global params from configuation file.
 Each transformer is split into initializing the individual delensalot metamodel root model elements. 
 """
-
 import os, sys
 import copy
 from os.path import join as opj
 import logging
 log = logging.getLogger(__name__)
-from logdecorator import log_on_start, log_on_end
 
 import numpy as np
 import hashlib
@@ -20,26 +18,20 @@ from lenspyx.lensing import get_geom
 
 from delensalot.sims.data_source import DataSource
 
-from delensalot.core.cg import cd_solve
+from delensalot.core import cachers
 from delensalot.core.helper import utils_plancklens
 from delensalot.core.job_handler import OBDBuilder, DataContainer, QEScheduler, MAPScheduler, MapDelenser, PhiAnalyser
-
-
-from delensalot.core.MAP import curvature, operator_3d as operator
+from delensalot.core.MAP import curvature, operator
 from delensalot.core.MAP.filter import Filter_3d as Filter
-# from delensalot.core.MAP import curvature, operator as operator
-# from delensalot.core.MAP.filter import Filter as Filter
-
 from delensalot.core.MAP.handler import Likelihood, Minimizer
 from delensalot.core.MAP.gradient import Gradient, BirefringenceGradientSub, LensingGradientSub, GradSub
 
 from delensalot.config.config_manager import set_config
-from delensalot.config.etc.errorhandler import DelensalotError
+from delensalot.config.config_helper import PLANCKLENS_keys, generate_plancklenskeys, filter_secondary_and_component
 from delensalot.config.metamodel import DEFAULT_NotAValue as DNaV
-from delensalot.config.config_helper import PLANCKLENS_keys, data_functions as df, LEREPI_Constants as lc, generate_plancklenskeys, filter_secondary_and_component
-from delensalot.config.metamodel.delensalot_mm_v3 import DELENSALOT_Model as DELENSALOT_Model_mm_v3, DELENSALOT_Concept_v3
-from delensalot.utils import cli, camb_clfile, load_file
-
+from delensalot.config.metamodel.delensalot_mm_v3 import DELENSALOT_Concept_v3
+from delensalot.config.etc.errorhandler import DelensalotError
+from delensalot.utils import cli, camb_clfile
 
 # from delensalot.core.helper import memorytracker
 # memorytracker.MemoryTracker()
@@ -375,7 +367,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             niv = operator.InverseNoiseVariance(**dl.inv_operator_desc)
 
             wf_info = {
-                'chain_descr': lambda p2, p5 : [[0, ["diag_cl"], p2, dl.inv_operator_desc['geominfo'][1]['nside'], np.inf, p5, cd_solve.tr_cg, cd_solve.cache_mem()]],
+                'chain_descr': lambda p2, p5 : [[0, ["diag_cl"], p2, dl.inv_operator_desc['geominfo'][1]['nside'], np.inf, p5, (lambda i: i - 1), cachers.cacher_mem()]],
                 'cg_tol': cf.maprec.cg_tol,
             }
             if "_" in dl.estimator_key:

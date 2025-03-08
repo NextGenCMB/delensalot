@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
-"""handler.py: This module collects the delensalot jobs. It receives the delensalot model build for the respective job. They all initialize needed modules and directories, collect the computing-jobs, and run the computing-jobs, with MPI support, if available.
-    
+"""job_handler.py: This module collects the delensalot jobs. It receives the delensalot model build for the respective job. They all initialize needed modules and directories, collect the computing-jobs, and run the computing-jobs, with MPI support, if available.
 """
 import logging
 log = logging.getLogger(__name__)
@@ -20,26 +19,19 @@ from collections import UserDict
 
 from plancklens.sims import planck2018_sims
 
-from delensalot.core.MAP import functionforwardlist
-from delensalot.utils import cli
-from delensalot.utils import read_map, ztruncify
-from delensalot.utility.utils_hp import Alm, almxfl, alm_copy, gauss_beam, alm2cl, alm_copy_nd
-
-from delensalot.config.visitor import transform, transform3d
-from delensalot.config.metamodel import DEFAULT_NotAValue
-
 from delensalot.core import mpi
 from delensalot.core.mpi import check_MPI
-
-from delensalot.core.iterator.statics import rec as rec
 from delensalot.core.opfilt.bmodes_ninv import template_dense, template_bfilt
-
-from delensalot.core.MAP import handler as MAP_handler
 from delensalot.core.QE import handler as QE_handler
-
+from delensalot.core.MAP import handler as MAP_handler, functionforwardlist
 from delensalot.core.MAP.context import get_computation_context
+
 from delensalot.sims.data_source import dirname_generator
 
+from delensalot.config.metamodel import DEFAULT_NotAValue
+
+from delensalot.utils import read_map, ztruncify, cli
+from delensalot.utility.utils_hp import Alm, almxfl, alm_copy, gauss_beam, alm2cl, alm_copy_nd
 
 
 class ConstantDict(UserDict):

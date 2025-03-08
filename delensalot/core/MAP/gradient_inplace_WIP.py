@@ -12,14 +12,12 @@ from os.path import join as opj
 from typing import List, Type, Union
 from lenspyx.remapping.deflection_028 import rtype, ctype
 
-from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy, almxfl_nd, alm_copy_nd
-from delensalot.utils import cli
-
-from delensalot.core.MAP import field
-from delensalot.core.MAP import operator as operator
-
+from delensalot.core.MAP import operator, field
 from delensalot.core.MAP.filter import IVF, WF
 from delensalot.core.MAP.context import get_computation_context
+
+from delensalot.utils import cli
+from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy, almxfl_nd, alm_copy_nd
 
 
 class SharedFilters:

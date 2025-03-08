@@ -14,11 +14,11 @@ from logdecorator import log_on_start, log_on_end
 
 from lenspyx.remapping.deflection_028 import rtype, ctype
 
-from delensalot.core.MAP import field, operator_3d as operator
+from delensalot.core.MAP import field, operator
 from delensalot.core.MAP.context import get_computation_context
 
-from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy, almxfl_nd, alm_copy_nd
 from delensalot.utils import cli
+from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy, almxfl_nd, alm_copy_nd
 
 class SharedFilters:
     def __init__(self, sub):

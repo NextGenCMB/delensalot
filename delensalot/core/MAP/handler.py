@@ -5,12 +5,11 @@ from logdecorator import log_on_start, log_on_end
 import numpy as np
 from os.path import join as opj
 
-from delensalot.core.MAP import functionforwardlist
-from delensalot.core.MAP import field, gradient, curvature
+from delensalot.core.MAP import field, gradient, curvature, functionforwardlist
 from delensalot.core.MAP.context import get_computation_context
 
-from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy, alm_copy_nd
 from delensalot.utils import cli
+from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy, alm_copy_nd
 
 template_secondaries = ['lensing', 'birefringence']  # Define your desired order
 template_index_secondaries = {val: i for i, val in enumerate(template_secondaries)}

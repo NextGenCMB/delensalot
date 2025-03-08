@@ -6,26 +6,8 @@ import healpy as hp
 from IPython.display import clear_output    
 
 from delensalot.core.cg import cd_monitors
+
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy
-
-class cache_mem(dict):
-    def __init__(self):
-        pass
-
-    def store(self, key, data):
-        [dTAd_inv, searchdirs, searchfwds] = data
-        self[key] = [dTAd_inv, searchdirs, searchfwds]
-
-    def restore(self, key):
-        return self[key]
-
-    def remove(self, key):
-        del self[key]
-
-    def trim(self, keys):
-        assert (set(keys).issubset(self.keys()))
-        for key in (set(self.keys()) - set(keys)):
-            del self[key]
 
 class MultigridStage(object):
     def __init__(self, ids, pre_ops_descr, lmax, nside, iter_max, eps_min, tr, cache):
