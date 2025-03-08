@@ -150,7 +150,6 @@ class Lensing(Operator):
     @log_on_end(logging.DEBUG, "lensing done", logger=log)
     def act(self, obj, spin=None, adjoint=False, backwards=False, out_sht_mode=None, out='alm'):
         assert spin is not None, "spin not provided"
-
         if self.perturbative: # Applies perturbative remapping
             assert 0, "implement if needed" 
         else:
@@ -159,14 +158,17 @@ class Lensing(Operator):
             else:
                 if out == 'map':
                     lmax = Alm.getlmax(obj.shape[-1], self.lm_max_out[1])
-                    return self.ffi.gclm2lenmap(np.atleast_2d(obj), lmax, spin, False)
+                    ret = self.ffi.gclm2lenmap(np.atleast_2d(obj), lmax, spin, False)
+                    return ret
                 elif out == 'alm':
                     obj = np.atleast_2d(obj)
                     lm_obj = Alm.getlmax(obj[0].size, None)
+                    
                     if lm_obj == self.lm_max_in[0]:
-                        return self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max_in[1], spin, *self.lm_max_out)
+                        ret = self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max_in[1], spin, *self.lm_max_out)
                     else:
-                        return self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max_out[1], spin, *self.lm_max_in)
+                        ret = self.ffi.lensgclm(np.atleast_2d(obj), self.lm_max_out[1], spin, *self.lm_max_in)
+                    return ret
 
 
     def set_field(self, fieldlm):
@@ -285,11 +287,12 @@ class Beam:
     
 
 class InverseNoiseVariance(Operator):
-    def __init__(self, nlev, lm_max, niv_desc, geom_lib, geominfo, transferfunction, libdir, spectrum_type=None, OBD=None, obd_rescale=None, obd_libdir=None, sky_coverage=None, filtering_spatial_type=None):
+    def __init__(self, nlev, lm_max, niv_desc, geom_lib, geominfo, transferfunction, libdir, spectrum_type=None, OBD=None, obd_rescale=None, obd_libdir=None, sky_coverage=None, filtering_spatial_type=None, data_key=None):
         super().__init__(libdir)
         self.ID = 'inoise'
         self.geom_lib = geom_lib
         self.geominfo = geominfo
+        self.data_key = data_key
         self.nlev = nlev
         self.lm_max = lm_max
         self.niv = {}

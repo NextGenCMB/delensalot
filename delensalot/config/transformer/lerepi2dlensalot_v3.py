@@ -24,8 +24,13 @@ from delensalot.core.cg import cd_solve
 from delensalot.core.helper import utils_plancklens
 from delensalot.core.job_handler import OBDBuilder, DataContainer, QEScheduler, MAPScheduler, MapDelenser, PhiAnalyser
 
+
+from delensalot.core.MAP import curvature, operator_3d as operator
+from delensalot.core.MAP.filter import Filter_3d as Filter
+# from delensalot.core.MAP import curvature, operator as operator
+# from delensalot.core.MAP.filter import Filter as Filter
+
 from delensalot.core.MAP.handler import Likelihood, Minimizer
-from delensalot.core.MAP import curvature, filter, operator_3d as operator
 from delensalot.core.MAP.gradient import Gradient, BirefringenceGradientSub, LensingGradientSub, GradSub
 
 from delensalot.config.config_manager import set_config
@@ -272,7 +277,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "lmin_teb": dl.lmin_teb,
                 'inv_operator_desc': dl.inv_operator_desc,
             }
-
             QE_searchs_desc = {sec: {
                 "estimator_key": generate_plancklenskeys(cf.analysis.estimator_key)[sec],
                 'CLfids': dl.CLfids[sec],
@@ -360,6 +364,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     _MAP_operators_desc[sec]["perturbative"] = False
                     _MAP_operators_desc[sec]['lm_max_in'] =  dl.lm_max_sky
                     _MAP_operators_desc[sec]['lm_max_out'] = dl.lm_max_pri
+                    _MAP_operators_desc[sec]['data_key'] = dl.data_key
                     filter_operators.append(operator.Lensing(_MAP_operators_desc[sec]))
                 elif sec == 'birefringence':
                     _MAP_operators_desc[sec]['lm_max'] = dl.lm_max_pri
@@ -379,7 +384,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 dl.data_key = cf.analysis.estimator_key[-2:]
             if dl.data_key == 'tp':
                 allowed_keys = ['tt', 'ee', 'te']
-            elif dl.data_key == 'p':
+            elif dl.data_key in ['p', 'ee', 'eb']:
                 allowed_keys = ['ee']
             elif dl.data_key == 'tt':
                 allowed_keys = ['tt']
@@ -393,7 +398,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "chain_descr": wf_info['chain_descr'](dl.lm_max_pri[0], wf_info['cg_tol']),
                 "cls_filt": cls_filt,
             }
-            wfivf_filter = filter.Filter_3d(MAP_wfivf_desc)
+            wfivf_filter = Filter(MAP_wfivf_desc)
 
             quad_desc = {
                 "wfivf_filter": wfivf_filter,
@@ -412,6 +417,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "ID": 'lensing',
                     "sec_operator": sec_operator,
                     "chh": {comp: CLfids_lens[comp*2][:quad_desc['LM_max'][0]+1] * (0.5 * np.arange(quad_desc['LM_max'][0]+1) * np.arange(1,quad_desc['LM_max'][0]+2))**2 for comp in dl.analysis_secondary['lensing']['component']},
+                    'data_key': dl.data_key,
                 })
                 lens_grad_quad = LensingGradientSub(quad_desc)
                 chhsall.extend(list({comp: CLfids_lens[comp*2][:quad_desc['LM_max'][0]+1] * (0.5 * np.arange(quad_desc['LM_max'][0]+1) * np.arange(1,quad_desc['LM_max'][0]+2))**2 for comp in dl.analysis_secondary['lensing']['component']}.values()))

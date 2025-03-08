@@ -30,7 +30,6 @@ class Operator:
         self.lenjob_geomlib = get_geom(('thingauss', {'lmax': 4500, 'smax': 3}))
         thtbounds = (np.arccos(zbounds[1]), np.arccos(zbounds[0]))
         self.lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
-
         self.field_cacher = cachers.cacher_npy(libdir)
 
 
@@ -78,15 +77,16 @@ class Compound:
     def act(self, obj, spin):
         for operator in self.operators:
             if isinstance(operator, Secondary):
-                obj = operator.act(obj, spin, out=self.space_out)
+                obj = operator.act(obj, spin=spin, out=self.space_out)
             else:
-                obj = operator.act(obj, spin)
+                operator.act(obj, spin)
 
         if self.space_out == 'map' and obj[0].dtype in [np.complex64, np.complex128]:
             # NOTE this is a hack to catch a birefringence only case and return map
             # NOTE I should rather move the out space here completely
             # FIXME this needs changing
             return self.operators[-1].operators[-1].lenjob_geomlib.synthesis(obj, 2, *self.operators[-1].operators[-1].lm_max, 6)
+        
         return obj
     
 
@@ -105,13 +105,13 @@ class Secondary:
 
     @log_on_start(logging.DEBUG, "secondary", logger=log)  
     @log_on_end(logging.DEBUG, "secondary done", logger=log)  
-    def act(self, obj, adjoint=False, backwards=False, out_sht_mode=None, secondary=None, out='alm'):
+    def act(self, obj, spin=None, adjoint=False, backwards=False, out_sht_mode=None, secondary=None, out='alm'):
         secondary = secondary or [op.ID for op in self.operators]
         operators = self.operators if not adjoint else self.operators[::-1]
         for idx, operator in enumerate(operators):
             if operator.ID in secondary:
                 if isinstance(operator, Lensing):
-                    obj = operator.act(obj, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode, out=out)
+                    obj = operator.act(obj, spin=spin, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode, out=out)
                 else:
                     obj = operator.act(obj, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode)
         return obj
@@ -134,6 +134,7 @@ class Lensing(Operator):
     def __init__(self, operator_desc):
         super().__init__(operator_desc["libdir"])
         self.ID = 'lensing'
+        self.data_key = operator_desc["data_key"]
 
         self.LM_max = operator_desc["LM_max"]
         self.lm_max_in = operator_desc["lm_max_in"]
@@ -147,35 +148,31 @@ class Lensing(Operator):
 
 
     @log_on_start(logging.DEBUG, "lensing", logger=log)
-    @log_on_end(logging.DEBUG, "lensing done", logger=log)
-    def act(self, obj, adjoint=False, backwards=False, out_sht_mode=None, out='alm'):
-        # assert len(obj) == 3, "obj must have 3 components"
-        print(len(obj))
-        if len(obj)>1 and obj[2].size == 0:
-            obj = obj[:-1]
+    # @log_on_end(logging.DEBUG, "lensing done", logger=log)
+    def act(self, obj, spin=None, adjoint=False, backwards=False, out_sht_mode=None, out='alm'):
         lmax = Alm.getlmax(np.max([len(o) for o in obj]), None)
-
         if self.perturbative: # Applies perturbative remapping
             assert 0, "implement if needed" 
         else:
-            if adjoint and backwards and out_sht_mode == 'GRAD_ONLY':
-                tlm = np.atleast_2d(self.ffi.lensgclm(np.atleast_2d(obj[0]), self.lm_max_in[1], 0, *self.lm_max_out, backwards=backwards, out_sht_mode=out_sht_mode)) if obj[0].size > 0 else np.array([],dtype=complex)
-                if len(obj)>1: eblm = np.atleast_2d(self.ffi.lensgclm(np.atleast_2d(obj[1:]), self.lm_max_in[1], 2, *self.lm_max_out, backwards=backwards, out_sht_mode=out_sht_mode)) if len(obj) > 1 else np.array([[],[]],dtype=complex)
-                return [tlm, *eblm]
+            if adjoint and backwards:
+                tlm = np.atleast_2d(self.ffi.lensgclm(obj[0], self.lm_max_in[1], 0, *self.lm_max_out, backwards=backwards, out_sht_mode='STANDARD')) if self.data_key in ['tt', 'tp'] else np.zeros(shape=(Alm.getsize(*self.lm_max_out)),dtype=complex)
+                eblm = np.atleast_2d(self.ffi.lensgclm(np.atleast_2d(obj[1:]), self.lm_max_in[1], 2, *self.lm_max_out, backwards=backwards, out_sht_mode="GRAD_ONLY")) if self.data_key in ['p', 'ee', 'eb', 'bb', 'tp'] else np.zeros(shape=(1, Alm.getsize(*self.lm_max_out)),dtype=complex)
+                return np.array([tlm.squeeze(), *eblm, np.zeros_like(tlm.squeeze())])
             else:
                 if out == 'map':
-                    tlm = self.ffi.gclm2lenmap(np.atleast_2d(obj[0]), lmax, 0, False) if obj[0].size > 0 else np.array([])
-                    eblm = self.ffi.gclm2lenmap(np.atleast_2d(obj[1:]), lmax, 2, False) if len(obj) > 1 else np.array([[],[]])
-                    return [tlm, *eblm]
+                    tmap = self.ffi.gclm2lenmap(np.atleast_2d(obj[0]), lmax, spin, False) if self.data_key in ['tt', 'tp'] else np.zeros(shape=(2,self.ffi.geom.npix()))
+                    ebmap = self.ffi.gclm2lenmap(np.atleast_2d(obj[1:]), lmax, spin, False) if self.data_key in ['p', 'ee', 'eb', 'bb', 'tp'] else np.zeros(shape=(2,self.ffi.geom.npix()))
+                    return tmap+ebmap
+               
                 elif out == 'alm':
                     if lmax == self.lm_max_in[0]:
-                        tlm = self.ffi.lensgclm(np.atleast_2d(obj[0]), self.lm_max_in[1], 0, *self.lm_max_out) if obj[0].size > 0 else np.array([],dtype=complex)
-                        eblm = self.ffi.lensgclm(np.atleast_2d(obj[1:]), self.lm_max_in[1], 2, *self.lm_max_out) if len(obj) > 1 else np.array([[],[]],dtype=complex)
-                        return [tlm, *eblm]
+                        tlm = self.ffi.lensgclm(np.atleast_2d(obj[0]), self.lm_max_in[1], 0, *self.lm_max_out) if self.data_key in ['tt', 'tp'] else np.zeros(shape=(Alm.getsize(*self.lm_max_out)),dtype=complex)
+                        eblm = self.ffi.lensgclm(np.atleast_2d(obj[1:]), self.lm_max_in[1], 2, *self.lm_max_out)  if self.data_key in ['p', 'ee', 'eb', 'bb', 'tp'] else np.zeros(shape=(2,Alm.getsize(*self.lm_max_out)),dtype=complex)
+                        return np.array([tlm, *eblm])
                     else:
-                        tlm = self.ffi.lensgclm(np.atleast_2d(obj[0]), self.lm_max_out[1], 0, *self.lm_max_in) if obj[0].size > 0 else np.array([])
-                        eblm = self.ffi.lensgclm(np.atleast_2d(obj[1:]), self.lm_max_out[1], 2, *self.lm_max_in) if len(obj) > 1 else np.array([[],[]])
-                        return [tlm, *eblm]
+                        tlm = self.ffi.lensgclm(np.atleast_2d(obj[0]), self.lm_max_out[1], 0, *self.lm_max_in) if self.data_key in ['tt', 'tp'] else np.zeros(shape=(Alm.getsize(*self.lm_max_in)),dtype=complex)
+                        eblm = self.ffi.lensgclm(np.atleast_2d(obj[1:]), self.lm_max_out[1], 2, *self.lm_max_in)  if self.data_key in ['p', 'ee', 'eb', 'bb', 'tp'] else np.zeros(shape=(2,Alm.getsize(*self.lm_max_in)),dtype=complex)
+                        return np.array([tlm, *eblm])
 
 
     def set_field(self, fieldlm):
@@ -206,15 +203,15 @@ class Birefringence(Operator):
 
 
     @log_on_start(logging.DEBUG, "birefringence", logger=log)
-    @log_on_end(logging.DEBUG, "birefringence done", logger=log)
+    # @log_on_end(logging.DEBUG, "birefringence done", logger=log)
     def act(self, obj, spin=None, adjoint=False, backwards=False, out_sht_mode=None):
-        obj = np.atleast_2d(obj)
+        assert obj.shape[0] == 3, "obj must have 3 components"
         lmax = Alm.getlmax(obj[0].size, None)
 
         # NOTE if no B component, I set B to zero
-        if obj.shape[0] == 1:
-            obj = [obj[0], np.zeros_like(obj[0])+np.zeros_like(obj[0])*1j] 
-        Q, U = self.lenjob_geomlib.alm2map_spin(obj, 2, lmax, lmax, 6)  
+        # if obj.shape[0] == 1:
+        #     obj = [obj[0], np.zeros_like(obj[0])+np.zeros_like(obj[0])*1j] 
+        Q, U = self.lenjob_geomlib.alm2map_spin(obj[1:], 2, lmax, lmax, 6)  
 
         Q_rot = self.cos_a * Q - self.sin_a * U
         U_rot = self.sin_a * Q + self.cos_a * U
@@ -226,7 +223,7 @@ class Birefringence(Operator):
 
         if out_sht_mode == 'GRAD_ONLY':
             return np.atleast_2d(Elm_rot)
-        return np.array([Elm_rot, Blm_rot])
+        return np.array([obj[0], Elm_rot, Blm_rot])
 
 
     def set_field(self, fieldlm):
@@ -241,22 +238,18 @@ class SpinRaise:
 
 
     @log_on_start(logging.DEBUG, "spin_raise", logger=log)
-    @log_on_end(logging.DEBUG, "spin_raise done", logger=log)
+    # @log_on_end(logging.DEBUG, "spin_raise done", logger=log)
     def act(self, obj, spin=None, adjoint=False):
         # This is the property d _sY = -np.sqrt((l+s+1)(l-s+1)) _(s+1)Y
         assert adjoint == False, "adjoint not implemented"
-        # lmax = Alm.getlmax(obj.size, self.lm_max[1])
-        # assert spin in [-2, 2], spin
-        if spin==0:
+        if spin == 1:
             fl = -np.sqrt(np.arange(self.lm_max[0] + 1) * np.arange(1, self.lm_max[0] + 2))
-            elm = np.atleast_2d(almxfl(obj, fl, self.lm_max[1], False))
-        else:
-            i1, i2 = (2, -1) if spin == 1 else (-2, 3)
-            fl = np.arange(i1, self.lm_max[0] + i1 + 1, dtype=float) * np.arange(i2, self.lm_max[0] + i2 + 1)
-            fl[:spin] *= 0.
-            fl = np.sqrt(fl)
-            elm = np.atleast_2d(almxfl(obj, fl, self.lm_max[1], False))
-        return elm
+            almxfl(obj[0], fl, self.lm_max[1], True)
+        i1, i2 = (2, -1) if spin == 1 else (-2, 3)
+        fl = np.arange(i1, self.lm_max[0] + i1 + 1, dtype=float) * np.arange(i2, self.lm_max[0] + i2 + 1)
+        fl[:spin] *= 0.
+        fl = np.sqrt(fl)
+        almxfl(obj[1], fl, self.lm_max[1], True)
 
 
     def adjoint(self, obj, spin=None):
@@ -274,21 +267,20 @@ class Beam:
         self.data_key = operator_desc['data_key']
         self.lm_max = operator_desc['lm_max']
         self.transferfunction = [
-            operator_desc['transferfunction']['t'][:self.lm_max[0]+1] if self.data_key in ['tp', 'tt'] else np.array([]),
-            operator_desc['transferfunction']['e'][:self.lm_max[0]+1] if self.data_key in ['p', 'ee', 'eb', 'tp'] else np.array([]),
-            operator_desc['transferfunction']['b'][:self.lm_max[0]+1] if self.data_key in ['p', 'ee', 'eb', 'tp'] else np.array([]),
-        ]
+            operator_desc['transferfunction']['t'][:self.lm_max[0]+1] if self.data_key in ['tp', 'tt'] else np.zeros(shape=self.lm_max[0]+1),
+            operator_desc['transferfunction']['e'][:self.lm_max[0]+1] if self.data_key in ['p', 'ee', 'eb', 'tp'] else np.zeros(shape=self.lm_max[0]+1),
+            operator_desc['transferfunction']['b'][:self.lm_max[0]+1] if self.data_key in ['p', 'ee', 'eb', 'tp'] else np.zeros(shape=self.lm_max[0]+1),]
         self.tebl2idx = {'t':0, 'e': 1, 'b': 2}
         self.idx2tebl = {v: k for k, v in self.tebl2idx.items()}
         self.is_adjoint = False
 
 
     @log_on_start(logging.DEBUG, "beam", logger=log)
-    @log_on_end(logging.DEBUG, "beam done", logger=log)
+    # @log_on_end(logging.DEBUG, "beam done", logger=log)
     def act(self, obj, adjoint=False):
         assert len(obj) == 3, "obj must have 3 components"
-        val = [almxfl(o, self.transferfunction[oi], len(self.transferfunction[oi])-1, False) for oi, o in enumerate(obj)]
-        return [cli(v) for v in val] if adjoint else val
+        val = np.array([almxfl(o, self.transferfunction[oi], len(self.transferfunction[oi])-1, False) for oi, o in enumerate(obj)])
+        return cli(val) if adjoint else val
 
 
     def adjoint(self):
@@ -317,18 +309,17 @@ class InverseNoiseVariance(Operator):
         OBD = OBD
         self.sky_coverage = sky_coverage
         self.n1tebl = [
-            cli(_extend_cl(self.nlev['T']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2 if data_key in ['tp', 'tt'] else np.array([]),
-            cli(_extend_cl(self.nlev['P']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2 if data_key in ['p', 'ee', 'eb', 'tp'] else np.array([]),
-            cli(_extend_cl(self.nlev['P']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2 if data_key in ['p', 'ee', 'eb', 'tp'] else np.array([])]
+            cli(_extend_cl(self.nlev['T']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2 if data_key in ['tp', 'tt'] else np.zeros(shape=lm_max[0]+1),
+            0.5*cli(_extend_cl(self.nlev['P']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2 if data_key in ['p', 'ee', 'eb', 'tp'] else np.zeros(shape=lm_max[0]+1),
+            0.5*cli(_extend_cl(self.nlev['P']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2 if data_key in ['p', 'ee', 'eb', 'tp'] else np.zeros(shape=lm_max[0]+1)]
 
 
     @log_on_start(logging.DEBUG, "InverseNoiseVariance", logger=log)
-    @log_on_end(logging.DEBUG, "InverseNoiseVariance done", logger=log)
+    # @log_on_end(logging.DEBUG, "InverseNoiseVariance done", logger=log)
     def act(self, obj, adjoint=False):
-        # assert self.lm_max[0] == Alm.getlmax(obj[0].size, None), (self.lm_max[0], Alm.getlmax(obj[0].size, None))
         if adjoint:
-            return [cli(almxfl(o, self.n1tebl[oi], len(self.n1tebl[oi]), False)) for oi, o in enumerate(obj)]
-        return [almxfl(o, self.n1tebl[oi], len(self.n1tebl[oi])-1, False) for oi, o in enumerate(obj)]
+            return np.array([cli(almxfl(o, self.n1tebl[oi], len(self.n1tebl[oi])-1, False)) for oi, o in enumerate(obj)])
+        return np.array([almxfl(o, self.n1tebl[oi], len(self.n1tebl[oi])-1, False) for oi, o in enumerate(obj)])
 
 
     def adjoint(self):
@@ -370,7 +361,7 @@ class InverseNoiseVariance(Operator):
         niv_cl_t = transferfunction['t'] ** 2  / (nlev_ftl/ 180. / 60. * np.pi) ** 2
         niv_cl_e = transferfunction['e'] ** 2  / (nlev_febl/ 180. / 60. * np.pi) ** 2
         niv_cl_b = transferfunction['b'] ** 2  / (nlev_febl/ 180. / 60. * np.pi) ** 2
-        return niv_cl_t, niv_cl_e# , niv_cl_b
+        return [niv_cl_t, niv_cl_e , niv_cl_b]
     
 
 class Add:
@@ -380,7 +371,7 @@ class Add:
     
 
     @log_on_start(logging.DEBUG, "add: {obj1.shape}", logger=log)
-    @log_on_end(logging.DEBUG, "add done", logger=log)
+    # @log_on_end(logging.DEBUG, "add done", logger=log)
     def apply(self, obj1, obj2):
         if obj2.dtype in (np.complex64, np.complex128):
             obj1 += obj2

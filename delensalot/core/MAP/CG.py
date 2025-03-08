@@ -62,16 +62,29 @@ class ConjugateGradient:
         self.iter_tot = 0
         self.prev_eps = None
 
-        monitor = cd_monitors.monitor_basic(self.dot_op, logger=self.logger, iter_max=self.bstage.iter_max, eps_min=self.bstage.eps_min, d0=self.dot_op(tpn_alm, tpn_alm))
-        cd_solve(soltn, tpn_alm, fwd_op, self.bstage.pre_ops, self.dot_op, monitor, tr=self.bstage.tr, cache=self.bstage.cache)
+        if len(tpn_alm) == 3:
+            dot_op = self.dot_op3d
+        else:
+            dot_op = self.dot_op
+
+        monitor = cd_monitors.monitor_basic(dot_op, logger=self.logger, iter_max=self.bstage.iter_max, eps_min=self.bstage.eps_min, d0=dot_op(tpn_alm, tpn_alm))
+        cd_solve(soltn, tpn_alm, fwd_op, self.bstage.pre_ops, dot_op, monitor, tr=self.bstage.tr, cache=self.bstage.cache)
 
 
-    def dot_op(self, teblm1, teblm2):
+    def dot_op(self, elm1, elm2):
+        lmax = Alm.getlmax(elm1.size, None)
+        ell = np.arange(0, lmax + 1)
+        weight = 2 * ell + 1
+        ret =  np.sum(alm2cl(elm1, elm2, lmax, lmax, None) * weight)
+        return ret
+    
+
+    def dot_op3d(self, teblm1, teblm2):
         lmaxs = [Alm.getlmax(te.size, None) for te in teblm1]
         ells = [np.arange(0, lmax + 1) for lmax in lmaxs]
         weights = [2 * ell + 1 for ell in ells]
         tlm1, elm1, blm1 = teblm1
-        tlm2, elm2, blm2 = teblm1
+        tlm2, elm2, blm2 = teblm2
         
         ret =  np.sum(alm2cl(tlm1, tlm2, lmaxs[0], lmaxs[0], None)[0:] * weights[0])
         ret += np.sum(alm2cl(elm1, elm2, lmaxs[1], lmaxs[1], None)[0:] * weights[1])
@@ -149,16 +162,23 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
         fwd_op, pre_op(s) and dot_op must not modify their arguments!
 
     """
+    residualdata, bdata, fwddata, xdata, precondata = [], [], [], [], []
 
     n_pre_ops = len(pre_ops)
     residual = b - fwd_op(x)
     searchdirs = [op(residual) for op in pre_ops]
 
-    iter = 0
-    lines, lines2 = [], []
     lmax = np.max([Alm.getlmax(r.size, None) for r in residual])
     ell = np.arange(0, lmax + 1)
     weights = 2 * ell + 1
+    residualdata.append([hp.alm2cl(res)*weights for res in np.atleast_2d(residual)])
+    bdata.append([hp.alm2cl(b_) for b_ in np.atleast_2d(b)])
+    fwddata.append([hp.alm2cl(fwd_) for fwd_ in np.atleast_2d(fwd_op(x))])
+    xdata.append([hp.alm2cl(x_) for x_ in np.atleast_2d(x)])
+    precondata.append([hp.alm2cl(precon_) for precon_ in np.atleast_2d(searchdirs)])
+    iter = 0
+    
+
     while not criterion(iter, x, residual):
         
         searchfwds = [fwd_op(searchdir) for searchdir in searchdirs]
@@ -178,9 +198,7 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
 
         # append to cache.
         cache.store(iter, [dTAd_inv, searchdirs, searchfwds])
-        clear_output(wait=True)
-        plt.figure(figsize=(10, 6))
-        lines2.append([hp.alm2cl(res)*weights for res in residual])
+        
         # update residual
         iter += 1
         if np.mod(iter, roundoff) == 0:
@@ -188,8 +206,13 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
         else:
             for (searchfwd, alpha) in zip(searchfwds, alphas):
                 residual -= searchfwd * alpha
-
-        for linei, line2 in enumerate(lines2):
+        residualdata.append([hp.alm2cl(res)*weights for res in np.atleast_2d(residual)])
+        fwddata.append([hp.alm2cl(fwd_) for fwd_ in np.atleast_2d(searchfwds[0])])
+        xdata.append([hp.alm2cl(x_) for x_ in np.atleast_2d(x)])
+        precondata.append([hp.alm2cl(precon_) for precon_ in np.atleast_2d(searchdirs[0])])
+        clear_output(wait=True)
+        plt.figure(figsize=(10, 6))
+        for linei, line2 in enumerate(residualdata):
             for res in line2:
                 plt.plot(res, label='iter %d'%(linei+1))
         # plt.legend(title='CG search')
@@ -197,7 +220,46 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
         plt.xlabel(r'$\ell$')
         plt.yscale('log')
         plt.show()
-        # hp.mollview(hp.alm2map(residual, nside=1024))
+
+        plt.figure(figsize=(10, 6))
+        for linei, line2 in enumerate(bdata):
+            for res in line2:
+                plt.plot(res, label='iter %d'%(linei+1))
+        # plt.legend(title='CG search')
+        plt.ylabel(r'$C_\ell^{\rm b}$')
+        plt.xlabel(r'$\ell$')
+        plt.yscale('log')
+        plt.show()
+
+        plt.figure(figsize=(10, 6))
+        for linei, line2 in enumerate(fwddata):
+            for res in line2:
+                plt.plot(res, label='iter %d'%(linei+1))
+        # plt.legend(title='CG search')
+        plt.ylabel(r'$C_\ell^{\rm fwd(x)}$')
+        plt.xlabel(r'$\ell$')
+        plt.yscale('log')
+        plt.show()
+
+        plt.figure(figsize=(10, 6))
+        for linei, line2 in enumerate(xdata):
+            for res in line2:
+                plt.plot(res, label='iter %d'%(linei+1))
+        # plt.legend(title='CG search')
+        plt.ylabel(r'$C_\ell^{\rm x}$')
+        plt.xlabel(r'$\ell$')
+        plt.yscale('log')
+        plt.show()
+
+
+        # plt.figure(figsize=(10, 6))
+        # for linei, line2 in enumerate(precondata):
+        #     for res in line2:
+        #         plt.plot(res, label='iter %d'%(linei+1))
+        # # plt.legend(title='CG search')
+        # plt.ylabel(r'$C_\ell^{\rm precon}$')
+        # plt.xlabel(r'$\ell$')
+        # plt.yscale('log')
         # plt.show()
 
 

@@ -114,6 +114,12 @@ def generate_plancklenskeys(input_str):
     if birefringence:
         secondary_key['birefringence'] = {comp: comp.translate(transtable) + "_" + suffix if "_" in input_str else comp.translate(transtable) + suffix for comp in birefringence}
 
+    for sec, comp in secondary_key.items():
+        for co, c in comp.items():
+            if c.endswith('tp'):
+                secondary_key[sec][co] = secondary_key[sec][co].replace('_tp', '')
+                if secondary_key[sec][co] == 'a':
+                    secondary_key[sec][co] = 'a_p'
     for sec, val in secondary_key.items():
         for comp in val.values():
             if comp not in PLANCKLENS_keys:

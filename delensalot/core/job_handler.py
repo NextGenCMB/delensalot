@@ -273,6 +273,7 @@ class DataContainer:
         self.cls_lib = self.data_source.cls_lib
         self.obs_lib = self.data_source.obs_lib
 
+    
     def set_basename_sky(self):
         return {'T': 'Talmsky_{}.npy', 'E': 'Ealmsky_{}.npy', 'B': 'Balmsky_{}.npy'}
 
@@ -462,9 +463,10 @@ class DataContainer:
             obs = self.data_source.get_sim_obs(idx=idx, space='map', field='polarization', spin=2)
             return np.array([dat*self.mask for dat in obs])
 
+
     def get_data(self, idx):
         space = 'alm' if self.sky_coverage == 'full' else 'map'
-        earr = np.array([],dtype=complex)
+        earr = np.zeros(shape=Alm.getsize(*self.lm_max_sky),dtype=complex)
         if True: # NOTE anisotropic data currently not supported
         # if self.noisemodel_coverage == 'isotropic':
             # NOTE dat maps must now be given in harmonic space in this idealized configuration. sims_MAP is not used here, as no truncation happens in idealized setting.
@@ -488,11 +490,11 @@ class DataContainer:
                 Tobs = alm_copy_nd(
                     self.data_source.get_sim_obs(idx, space='alm', spin=0, field='temperature'),
                     None, self.lm_max_sky)         
-                ret = np.array([Tobs, *EBobs])
+                ret = [Tobs, *EBobs]
             else:
                 assert 0, 'implement if needed'
             if space == 'alm':
-                return ret
+                return np.array(ret)
             elif space == 'map':
                 assert self.data_key == 'p', 'implement if needed'
                 # TODO this should move to the data_container
@@ -507,6 +509,42 @@ class DataContainer:
             else:
                 assert 0, 'implement if needed'
 
+
+    def get_data_(self, idx):
+        #NOTE this is the 1d-version
+        space = 'alm' if self.sky_coverage == 'full' else 'map'
+        if self.data_key in ['p', 'eb', 'be']:
+            ret = alm_copy_nd(
+                self.data_source.get_sim_obs(idx, space='alm', spin=0, field='polarization'),
+                None, self.lm_max_sky)
+        elif self.data_key in ['ee']:
+            ret = alm_copy_nd(
+                self.data_source.get_sim_obs(idx, space='alm', spin=0, field='polarization'),
+                None, self.lm_max_sky)[0]
+        elif self.data_key in ['tt']:
+            ret = alm_copy_nd(
+                self.data_source.get_sim_obs(idx, space='alm', spin=0, field='temperature'),
+                None, self.lm_max_sky)
+        elif self.data_key in ['tp']:
+            EBobs = alm_copy_nd(
+                self.data_source.get_sim_obs(idx, space='alm', spin=0, field='polarization'),
+                None, self.lm_max_sky)
+            Tobs = alm_copy_nd(
+                self.data_source.get_sim_obs(idx, space='alm', spin=0, field='temperature'),
+                None, self.lm_max_sky)         
+            ret = [Tobs, *EBobs]
+        else:
+            assert 0, 'implement if needed'
+        if space == 'alm':
+            return np.array(ret)
+        elif space == 'map':
+            assert self.data_key == 'p', 'implement if needed'
+            # TODO this should move to the data_container
+            ret = np.atleast_2d(ret)
+            import healpy as hp
+            return [hp.alm2map_spin(r, nside=2048, spin=2) for r in ret]
+        else:
+            assert 0, 'implement if needed'
 
 class QEScheduler:
     """Quadratic estimate lensing reconstruction Job. Performs tasks such as lensing reconstruction, mean-field calculation, and B-lensing template calculation.

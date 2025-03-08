@@ -15,7 +15,6 @@ from logdecorator import log_on_start, log_on_end
 from lenspyx.remapping.deflection_028 import rtype, ctype
 
 from delensalot.core.MAP import field, operator_3d as operator
-from delensalot.core.MAP.filter import Filter
 from delensalot.core.MAP.context import get_computation_context
 
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy, almxfl_nd, alm_copy_nd
@@ -171,7 +170,7 @@ class GradSub:
         self.geom_lib = gradient_desc['sec_operator'].operators[-1].lenjob_geomlib
         self.sht_tr = 6
 
-        self.wfivf_filter: Filter = gradient_desc.get('wfivf_filter', None)
+        self.wfivf_filter = gradient_desc.get('wfivf_filter', None)
 
         self.LM_max = gradient_desc['LM_max']
 
@@ -218,12 +217,14 @@ class GradSub:
 class LensingGradientSub(GradSub):
     def __init__(self, desc):
         super().__init__(desc)
-        self.gradient_operator: operator.joint = self._get_operator(desc['sec_operator'])
+        self.gradient_operator: operator.Compound = self._get_operator(desc['sec_operator'])
         self.lm_max_in = self.gradient_operator.operators[-1].operators[-1].lm_max_in
+        self.data_key = desc['data_key']
         
 
-    def get_gradient_quad(self, it, data=None, data_leg2=None, wflm=None, ivfreslm=None):
-        spin0part, spin2part = True, False
+    def get_gradient_quad_(self, it, data=None, data_leg2=None, wflm=None, ivfreslm=None):
+        # NOTE This is the "1d"
+        spin0part, spin2part = False, True
         if isinstance(it, (list, np.ndarray)):
             return [self.get_gradient_quad(it_, data, data_leg2, wflm, ivfreslm) for it_ in it]
         # NOTE this function is equation 22 of the paper (for lensing).
@@ -241,27 +242,72 @@ class LensingGradientSub(GradSub):
                 wflm = self.wfivf_filter.get_wflm(it, self.data_container.get_data(idx))
                 ivfreslm = np.ascontiguousarray(self.wfivf_filter.get_ivfreslm(it, self.data_container.get_data(idx2), wflm))
 
-
             # TODO depending on shape of wflm and ivfreslm, I run different routines
             resmap_c = np.ascontiguousarray(np.empty((self.geom_lib.npix(),), dtype=wflm.dtype))
             resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
             
-            if spin2part:
-                self.geom_lib.synthesis(ivfreslm[1:], 2, *self.lm_max_in, self.sht_tr, map=resmap_r) # ivfmap
+            self.geom_lib.synthesis(ivfreslm, 2, *self.lm_max_in, self.sht_tr, map=resmap_r) # ivfmap
+            gcs_r = self.gradient_operator.act(np.copy(wflm), spin=3) # xwfglm
+            gc_c = resmap_c.conj() * gcs_r.T.copy().view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3)
+            gcs_r = self.gradient_operator.act(np.copy(wflm), spin=1) # xwfglm
+            gc_c -= resmap_c * gcs_r.T.copy().view(ctype[gcs_r.dtype]).squeeze().conj()  # (+2 , -1)
+            gc_r = gc_c.view(rtype[gc_c.dtype]).reshape((gc_c.size, 2)).T  # real view onto complex array
+            gc = self.geom_lib.adjoint_synthesis(gc_r, 1, self.LM_max[0], self.LM_max[0], self.sht_tr)
                 
-                gcs_r = self.gradient_operator.act(wflm[1:], spin=3) # xwfglm
-                gc_c = resmap_c.conj() * gcs_r.T.copy().view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3)
+            # NOTE at last, cast qlms to alm space with LM_max and also cast it to convergence
+            fl1 = np.sqrt(np.arange(self.LM_max[0]+1) * np.arange(1, self.LM_max[0]+2))
+            almxfl(gc[0], fl1, self.LM_max[1], True)
+            almxfl(gc[1], fl1, self.LM_max[1], True)
+            fl2 = cli(0.5 * np.arange(self.LM_max[0]+1) * np.arange(1, self.LM_max[0]+2))
+            almxfl(gc[0], fl2, self.LM_max[1], True)
+            almxfl(gc[1], fl2, self.LM_max[1], True)
+                
+            self.cache(gc, it=it, type='quad')
+        return self.gfield.get_quad(it)
+    
 
-                gcs_r = self.gradient_operator.act(wflm[1:], spin=1) # xwfglm
+    def get_gradient_quad(self, it, data=None, data_leg2=None, wflm=None, ivfreslm=None):
+        # NOTE this is the 3d version
+        if isinstance(it, (list, np.ndarray)):
+            return [self.get_gradient_quad(it_, data, data_leg2, wflm, ivfreslm) for it_ in it]
+        # NOTE this function is equation 22 of the paper (for lensing).
+        # Using property _2Y = _-2Y.conj
+        # res = ivf.conj * gpmap(3) - ivf * gpmap(1).conj
+        ctx, _ = get_computation_context()
+        idx, idx2 = ctx.idx, ctx.idx2 or ctx.idx
+        if self.data_container is None:
+            assert wflm is not None and ivfreslm is not None, "wflm and ivfreslm must be provided as data container is missing"
+        elif data is not None:
+            data_leg2 = data_leg2 or data # NOTE these are the data to calculate ivfreslm and wf
+        if not self.gfield.is_cached(it=it, type='quad'):
+            if wflm is None:
+                assert self.wfivf_filter is not None, "wfivf_filter must be provided at instantiation in absence of wflm and ivfreslm"
+                wflm = self.wfivf_filter.get_wflm(it, self.data_container.get_data(idx))
+                ivfreslm = np.ascontiguousarray(self.wfivf_filter.get_ivfreslm(it, self.data_container.get_data(idx2), wflm))
+
+            resmap_c = np.ascontiguousarray(np.empty((self.geom_lib.npix(),), dtype=wflm.dtype))
+            resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
+            
+            if self.data_key in ['p', 'tp', 'ee', 'eb', 'bb']:
+                self.geom_lib.synthesis(ivfreslm[1:], 2, *self.lm_max_in, self.sht_tr, map=resmap_r) # ivfmap
+                ponly = np.copy(wflm)
+                ponly[0] *= 0
+                gcs_r = self.gradient_operator.act(ponly, spin=3) # xwfglm
+                gc_c = resmap_c.conj() * gcs_r.T.copy().view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3)
+                ponly = np.copy(wflm)
+                ponly[0] *= 0
+                gcs_r = self.gradient_operator.act(ponly, spin=1) # xwfglm
                 gc_c -= resmap_c * gcs_r.T.copy().view(ctype[gcs_r.dtype]).squeeze().conj()  # (+2 , -1)
                 gc_r = gc_c.view(rtype[gc_c.dtype]).reshape((gc_c.size, 2)).T  # real view onto complex array
 
-            if spin0part:
-                gc_r = np.zeros_like(resmap_r) if 'gc_r' not in locals() else gc_r
-                irestmap = self.geom_lib.synthesis(ivfreslm[0], 0, *self.lm_max_in, 6)
-                buff_gtmap = self.gradient_operator.act(wflm[0], spin=0)
-                gc_r += np.array(buff_gtmap[0]) * irestmap
+            if self.data_key in ['tp', 'tt']:
+                irestmap = self.geom_lib.synthesis(ivfreslm[0], 0, *self.lm_max_in, self.sht_tr)[0]
+                tonly = np.copy(wflm)
+                tonly[1:] *= 0
+                buff_gtmap = self.gradient_operator.act(tonly, spin=1)
+                gc_r_ = buff_gtmap * irestmap
 
+            gc_r = gc_r + gc_r_ if 'gc_r' in locals() else gc_r_
             gc = self.geom_lib.adjoint_synthesis(gc_r, 1, self.LM_max[0], self.LM_max[0], self.sht_tr)
                 
             # NOTE at last, cast qlms to alm space with LM_max and also cast it to convergence
