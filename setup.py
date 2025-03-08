@@ -19,7 +19,7 @@ setup(
         'delensalot.data', 'delensalot.data.cls',
         'delensalot.biases',
         'delensalot.utility',
-        'delensalot.config', 'delensalot.config.default', 'delensalot.config.etc', 'delensalot.config.metamodel', 'delensalot.config.transformer', 'delensalot.config.validator',
+        'delensalot.config', 'delensalot.config.default', 'delensalot.config.etc', 'delensalot.config.metamodel', 'delensalot.config.transformer',
         'delensalot.core', 'delensalot.core.cg', 'delensalot.core.decorator', 'delensalot.core.helper', 'delensalot.core.iterator', 'delensalot.core.ivf', 'delensalot.core.opfilt', 'delensalot.core.power',
         'delensalot.sims',],
     data_files=[('delensalot/data/cls', ['delensalot/data/cls/FFP10_wdipole_lensedCls.dat',

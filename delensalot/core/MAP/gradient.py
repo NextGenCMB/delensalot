@@ -354,10 +354,10 @@ class BirefringenceGradientSub(GradSub):
             ivfreslm = np.ascontiguousarray(self.wfivf_filter.get_ivfreslm(it, self.data_container.get_data(idx2), wflm))
 
             # xwfmap = self.gradient_operator.act(wflm, spin=2)
-            lmax = Alm.getlmax(wflm.size, None)
-            xwfmap = self.geom_lib.synthesis([wflm, np.zeros_like(wflm,dtype=complex)], 2, lmax, lmax, self.sht_tr)
+            lmax = Alm.getlmax(wflm[0].size, None)
+            xwfmap = self.geom_lib.synthesis(wflm[1:], 2, lmax, lmax, self.sht_tr)
             lmax = Alm.getlmax(ivfreslm[0].size, None)
-            ivfmap = self.geom_lib.synthesis(ivfreslm, 2, lmax, lmax, 6)
+            ivfmap = self.geom_lib.synthesis(ivfreslm[1:], 2, lmax, lmax, 6)
  
             # qlms = -4*(ivfmap[0]*xwfmap[1] - ivfmap[1]*xwfmap[0])
             qlms = +2*(+ivfmap[0]*xwfmap[1] - ivfmap[1]*xwfmap[0])

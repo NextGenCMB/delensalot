@@ -1,37 +1,25 @@
 #!/usr/bin/env python
 
-"""handler.py: Base handler for lensing reconstruction pipelines.
-    Handles configuration file and makes sure analysis doesn't overwrite TEMP directory with altered configuration.
+"""config_handler.py: handler for lensing reconstruction pipelines.
+    Handles configuration files and TEMP directory.
     Collects delensalot jobs defined in DLENSALOT_jobs.
     Extracts models needed for each delensalot job via x2y_Transformer.
     Runs all delensalot jobs.
 """
-
-
-import os
-from os.path import join as opj
-
-import sys
+import os, sys
 import importlib.util as iu
 import shutil
 
 import logging
-from logdecorator import log_on_start, log_on_end
 log = logging.getLogger(__name__)
-
-import numpy as np
 
 from delensalot.core import mpi
 from delensalot.core.mpi import check_MPI
 
-from delensalot.config.validator import safelist
+from delensalot.config import safelist
 from delensalot.config.visitor import transform, transform3d
 from delensalot.config.transformer.lerepi2dlensalot_v3 import l2delensalotjob_Transformer, get_TEMP_dir
-from delensalot.config.metamodel.delensalot_mm_v3 import DELENSALOT_Model as DLENSALOT_Model_mm_v3
 
-transformers_J = {
-    DLENSALOT_Model_mm_v3: l2delensalotjob_Transformer()
-}
 
 def load_config(directory, descriptor):
     """Helper method for loading the configuration file.
@@ -89,7 +77,7 @@ class ConfigHandler():
         
         self.config.job.jobs = [djob_id] ## NOTE killing all other jobs on purpose here.
         self.djob_id = djob_id
-        self.djobmodels = [transform3d(self.config, djob_id, transformers_J.get(type(self.config)))]
+        self.djobmodels = [transform3d(self.config, djob_id, l2delensalotjob_Transformer())]
 
         return self.djobmodels[0]
 
@@ -108,7 +96,7 @@ class ConfigHandler():
                 self.store(self.parser, self.config, self.TEMP)
         self.djobmodels = []
         for job_id in self.config.job.jobs:
-            self.djobmodels.append(transform3d(self.config, job_id,  transformers_J.get(type(self.config))))
+            self.djobmodels.append(transform3d(self.config, job_id, l2delensalotjob_Transformer()))
         return self.djobmodels
         
 
@@ -124,7 +112,7 @@ class ConfigHandler():
                 self.store(self.parser, self.config, self.TEMP)
         self.djobmodels = []
         for jobi, job_id in enumerate(self.config.job.jobs):
-            djob = transform3d(self.config, job_id,  transformers_J.get(type(self.config)))
+            djob = transform3d(self.config, job_id, l2delensalotjob_Transformer())
             log.info('running job {}'.format(self.config.job.jobs[jobi]))
             djob.collect_jobs()
             djob.run()

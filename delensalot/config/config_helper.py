@@ -187,7 +187,6 @@ def scan_config(config, param_dict):
         set_nested_attr(config, key, original_value)
 
 
-
 def dprint(dictionary, depth=0, max_depth=2):
     if isinstance(dictionary, dict):
         max_key_length = max(len(str(key)) for key in dictionary)  # Get longest key length
@@ -203,6 +202,7 @@ def dprint(dictionary, depth=0, max_depth=2):
     else:
         print(dictionary)
 
+
 def filter_secondary_and_component(dct, allowed_chars):
     dct = copy.deepcopy(dct)
     forbidden_chars_in_sec = 'teb'  # NOTE this filters the last part in case of non-symmetrized keys (e.g. 'pee')
@@ -216,8 +216,6 @@ def filter_secondary_and_component(dct, allowed_chars):
     for key in sec_to_remove:
         del dct[key]
     return dct
-
-
 
 class CMBExperiment:
     def get_config(exp):
