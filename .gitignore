@@ -3,6 +3,7 @@ delensalot.egg-info/
 install/*
 SCRATCH/
 reconstruction/
+delensalot_temp/
 TESTSCRATCH/
 dev/*
 res/.DS_Store
