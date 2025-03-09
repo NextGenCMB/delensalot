@@ -7,11 +7,22 @@
 [![arXiv](https://img.shields.io/badge/arXiv-2310.06729-red)](https://arxiv.org/abs/2310.06729)
 
 # delensalot
-Curved-sky iterative CMB lensing reconstruction and bias calculation.
+Curved-sky optimal CMB lensing reconstruction and bias calculation.
+Delensalot, in essence, takes an observed CMB map and returns an optimal estimate of the underlying lensing field.
 
 If you use delensalot for your work, please consider citing the ApJ publication [CMB-S4: Iterative internal delensing and r constraints](https://iopscience.iop.org/article/10.3847/1538-4357/ad2351).
 
 ![noise comparison](res//deflectionnoisecomp.jpg)
+This figure shows the full sky optimal lensing potential reconstruction for various CMB observations in a 5 times 5 degree patch. The input lensing potential is shown in the leftmost figure.
+
+## Features and supports
+ * Curved-sky analysis
+ * anisotropic noise model support
+ * masked-sky support
+ * quadratic estimator (QE) implementation via Plancklens
+ * Mock data generation using e.g. lenspyx
+ * Supports various estimators (TT, EE, BB, MV, EE+EB, ..)
+
 
 # Installation
 Download the project, navigate to the root folder and execute the command,
@@ -20,17 +31,11 @@ Download the project, navigate to the root folder and execute the command,
 python setup.py install
 ```
 
-Make sure that you have the latest `plancklens` and that you are using the `plancklensdev` branch
-```
-cd plancklens
-git checkout plancklensdev
-```
-This is needed to give delensalot control over plancklens's mpi implementation, which we conveniently set up at this branch.
+Make sure that you have the latest `plancklens` and `lenpsyx`.
 
+
+## Set up a jupyter-kernel with delensalot
 You will need to install `jupyter` for the tutorials found in `first_steps/notebooks/`, and possibly an `ipykernel` to create a jupyter-kernel out of the environment in which you install `delensalot`.
-
-### Set up a jupyter-kernel with delensalot
-
 To run the tutorials with a jupyter kernel, you will have to install delensalot in it. Assuming you are using conda for your package management,
 
 ```
@@ -61,7 +66,7 @@ python3 -m ipykernel install --user --name=delensalot
 
 Frequent problems are
  * `attrs`. If there are errors related to the metamodel, make sure you have `attrs` (not `attr`, which is a different package) installed and updated/upgraded (version 23.1.0 should do)
- * `astropy`. If there are errors related to ducc0, chances are it's because of an old `astropy` installation. Make sure you have the latest `astropy`.
+ * `astropy`. If there are errors related to ducc0, chances are it's because of an old `astropy` installation.
 
 # Usage
 
