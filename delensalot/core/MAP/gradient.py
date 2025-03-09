@@ -29,7 +29,6 @@ class Gradient(SharedFilters):
     subs: List[Union[LensingGradientSub, BirefringenceGradientSub]]
     def __init__(self, subs, ipriormatrix, verbose=False):
         super().__init__(subs[0]) # NOTE I am assuming the ivf and wf class are the same in all gradients
-        # set_logging_level(verbose=verbose)  # Set True for debug mode
         self.subs: List[Union[LensingGradientSub, BirefringenceGradientSub]] = subs
         self.ipriormatrix = ipriormatrix
         self.component = [comp for sub in self.subs for comp in sub.component]
@@ -48,7 +47,10 @@ class Gradient(SharedFilters):
                 totgrad.append(sub.gfield.get_total(it))
             else:
                 log.info(f'calculating total gradient for {sub.ID}')
-                totgrad.append(-sub.get_gradient_meanfield(it) + sub.get_gradient_quad(it=it, data=data))
+                buff = -sub.get_gradient_meanfield(it) + sub.get_gradient_quad(it=it, data=data)
+                for compi, comp in enumerate(sub.component):
+                    buff[compi] = almxfl(buff[compi], sub.chh[comp] > 0, None, False)
+                totgrad.append(buff)
         prior = self.get_gradient_prior(it-1)
         totgrad = [a + b for a, b in zip(totgrad, prior)]
         return totgrad
@@ -306,9 +308,10 @@ class LensingGradientSub(GradSub):
                 tonly[1:] *= 0
                 buff_gtmap = self.gradient_operator.act(tonly, spin=1)
                 gc_r_ = buff_gtmap * irestmap
-
-            gc_r = gc_r + gc_r_ if 'gc_r' in locals() else gc_r_
-            gc = self.geom_lib.adjoint_synthesis(gc_r, 1, self.LM_max[0], self.LM_max[0], self.sht_tr)
+            gcr = 0
+            gcr += gc_r if 'gc_r' in locals() else gcr
+            gcr += gc_r_ if 'gc_r_' in locals() else gcr
+            gc = self.geom_lib.adjoint_synthesis(gcr, 1, self.LM_max[0], self.LM_max[0], self.sht_tr)
                 
             # NOTE at last, cast qlms to alm space with LM_max and also cast it to convergence
             fl1 = np.sqrt(np.arange(self.LM_max[0]+1) * np.arange(1, self.LM_max[0]+2))

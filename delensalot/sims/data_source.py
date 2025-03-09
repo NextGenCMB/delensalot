@@ -84,7 +84,7 @@ def dict2roundeddict(d):
     return d
 
 def dirname_generator(libdir_suffix, geominfo):
-    return os.environ['SCRATCH']+f'/simulation/{libdir_suffix}/{get_dirname(geominfo)}'
+    return os.environ['SCRATCH']+f'/delensalot_simulation/{libdir_suffix}/{get_dirname(geominfo)}'
 
 
 template_lensingcomponent = ['p', 'w'] 
@@ -103,11 +103,7 @@ class IsoWhiteNoise:
             self.geominfo = ('healpix', {'nside':2048})
         self.geom_lib = get_geom(self.geominfo)
         if noise_info.get('libdir', DNaV) == DNaV:
-            # NOTE libdir_suffix is terribly implemented.
-            # libdir_phas needs to be aligned with whatever the job_handler Data_container() sets the libdir of the simulations to.
-            # It would therefore be better to let Data_container() set libdir_phas.
-            # However, this is not possible because simhandler is called from l2p, and l2p does not know the libdir of the simulations yet.
-            # So, I need to set libdir here because pix_lib_phas needs it. In the end, it works.. but it's not pretty because this string format must match in two different classes..
+            # NOTE libdir_suffix must match in two different classes.. here and in DataContainer
             nlev_round = dict2roundeddict(noise_info['nlev'])
             self.libdir = dirname_generator(libdir_suffix, geominfo) + f'/phas/{get_dirname(str(sorted(nlev_round.items())))}/'
             self.pix_lib_phas = phas.pix_lib_phas(self.libdir, 3, (self.geom_lib.npix(),))
@@ -699,7 +695,7 @@ class Xobs:
             self.geominfo = ('healpix', {'nside':2048})
         self.geom_lib = get_geom(self.geominfo)
          
-        self.noise_lib = obs_info['noise_info']['noise_lib']
+        self.noise_lib = obs_info['noise_info']['noise_lib'] if obs_info != DNaV else DNaV
         
         self.maps = maps
         if np.all(self.maps != DNaV):
@@ -769,6 +765,8 @@ class Xobs:
                 log.debug('.., but stored on disk.')
                 if field == 'polarization':
                     if self.CMB_info['spin'] == 2:
+                        assert 'Q' in self.CMB_info['fns'], 'Q map not found - check config file'
+                        assert 'U' in self.CMB_info['fns'], 'U map not found - check config file'
                         if self.CMB_info['fns']['Q'] == self.CMB_info['fns']['U'] and self.CMB_info['fns']['Q'].endswith('.fits'):
                             # Assume implicitly that Q is field=1, U is field=2
                             obs1 = load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['Q'].format(idx)), ifield=1)
@@ -777,6 +775,8 @@ class Xobs:
                             obs1 = load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['Q'].format(idx)))
                             obs2 = load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['U'].format(idx)))
                     elif self.CMB_info['spin'] == 0:
+                        assert 'E' in self.CMB_info['fns'], 'E map not found - check config file'
+                        assert 'B' in self.CMB_info['fns'], 'B map not found - check config file'
                         if self.CMB_info['fns']['E'] == self.CMB_info['fns']['B'] and self.CMB_info['fns']['B'].endswith('.fits'):
                             # Assume implicitly that E is field=1, B is field=2
                             obs1 = load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['E'].format(idx)), ifield=1)
@@ -815,6 +815,7 @@ class Xobs:
                             else:
                                 obs = self.geom_lib.alm2map_spin(obs, lmax=self.CMB_info['lm_max'][0], spin=spin, mmax=self.CMB_info['lm_max'][1], nthreads=4)
                 elif field == 'temperature':
+                    assert 'T' in self.CMB_info['fns'], 'temperature map not found - check config file'
                     obs = np.array(load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['T'].format(idx))))
                     obs = self.CMB_info['modifier'](obs)
                     if self.CMB_info['space'] == 'map':
@@ -974,7 +975,7 @@ class DataSource:
         
         self.obs_info = obs_info
         self.CMB_info = self.obs_lib.CMB_info
-        self.sec_info = self.pri_lib.sec_info
+        self.sec_info = self.pri_lib.sec_info if 'pri_lib' in self.__dict__ else None
         self.operator_info = operator_info
 
         self.flavour = flavour

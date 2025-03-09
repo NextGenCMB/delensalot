@@ -75,7 +75,7 @@ class base:
                 nside = self.nivjob_geominfo[1]['nside'],
                 cl = self.cls_len,
                 transf = self.transferfunction['t'],
-                ninv = self.niv_desc['T'],
+                ninv = self.niv_desc['t'],
                 marge_monopole=True,
                 marge_dipole=True,
                 marge_maps=[],
@@ -90,7 +90,7 @@ class base:
                     nside = self.nivjob_geominfo[1]['nside'],
                     cl = self.cls_len,
                     transf = transf_elm_loc[:self.lm_max_ivf[0]+1],
-                    ninv = self.niv_desc['P'],
+                    ninv = self.niv_desc['e'],
                     geom = self.nivjob_geomlib,
                     chain_descr = self.chain_descr(self.lm_max_ivf[0], self.cg_tol),
                     bmarg_lmax = self.lmin_teb[2],
@@ -106,11 +106,11 @@ class base:
                     nside = self.nivjob_geominfo[1]['nside'],
                     cl = self.cls_len,
                     transf = self.transferfunction['e'],
-                    ninv = self.niv_desc['P'],
-                    chain_descr=self.chain_descr(self.lm_max_ivf[0], self.cg_tol),
-                    transf_blm=self.transferfunction['b'],
-                    marge_qmaps=(),
-                    marge_umaps=()
+                    ninv = [self.niv_desc['t'], self.niv_desc['e'], self.niv_desc['b']],
+                    chain_descr = self.chain_descr(self.lm_max_ivf[0], self.cg_tol),
+                    transf_blm = self.transferfunction['b'],
+                    marge_qmaps = (),
+                    marge_umaps = ()
                 )
                 log.log(logging.DEBUG, 'filt_cinv.cinv_p initialized')
 

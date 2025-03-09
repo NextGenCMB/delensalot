@@ -18,7 +18,6 @@ from lenspyx.lensing import get_geom
 
 from delensalot.sims.data_source import DataSource
 
-from delensalot.core import cachers
 from delensalot.core.helper import utils_plancklens
 from delensalot.core.job_handler import OBDBuilder, DataContainer, QEScheduler, MAPScheduler, MapDelenser, PhiAnalyser
 from delensalot.core.MAP import curvature, operator
@@ -44,10 +43,12 @@ def get_TEMP_dir(cf):
     else:       
         if cf.analysis.TEMP_suffix != '':
             _suffix = cf.analysis.TEMP_suffix
-            # NOTE this might not work if I don't know anything about the simulations...
-            _secsuffix = "simdata__"+"_".join(f"{key}_{'_'.join(values['component'])}" for key, values in cf.data_source.sec_info.items())
-        _suffix += '_OBD' if cf.noisemodel.OBD == 'OBD' else '_lminB'+str(cf.analysis.lmin_teb[2])+_secsuffix
-        TEMP =  opj(os.environ['SCRATCH'], 'analysis', _suffix)
+            if cf.data_source.flavour == 'obs' or cf.data_source.flavour == 'sky':
+                _secsuffix = '_unspecified_data'
+            else:
+                _secsuffix = "_datawith_" + ''.join(''.join(map(str, values['component'])) for values in cf.data_source.sec_info.values())
+        _suffix += '_OBD' if cf.noisemodel.OBD == 'OBD' else _secsuffix
+        TEMP =  opj(os.environ['SCRATCH'], 'delensalot_analysis', _suffix)
         return TEMP
     
 def check_estimator_key(key):
@@ -93,7 +94,8 @@ class l2base_Transformer:
         # NOTE this check key does not catch all possible wrong keys, but at least it catches the most common ones.
         # Plancklens keys should all be correct with this, for delensalot, not so sure, will see over time.
         check_estimator_key(cf.analysis.estimator_key)
-        check_estimator_key(cf.data_source.generator_key)
+        # FIXME implement generator_key, then run next line
+        # check_estimator_key(cf.data_source.generator_key)
 
         # NOTE processing comes in two steps.
         #   1.  all infos are validated here. everything is controlled by sec_info / generator_key. If subsequent infos (obs_info, operator_info) contains more info, remove them.
@@ -112,7 +114,7 @@ class l2base_Transformer:
         for sec in si.sec_info:
             si.sec_info[sec]['LM_max'] = operator_info[sec]['LM_max']
         si.operator_info = operator_info
-        
+
         dl.data_source = DataSource(**si.__dict__)
 
 
@@ -174,6 +176,7 @@ class l2base_Transformer:
             dl.data_key = cf.analysis.estimator_key.split('_')[1]
         else:
             dl.data_key = cf.analysis.estimator_key[-2:]
+
         dl.inv_operator_desc = {
             'niv_desc': {'t': buff_t, 'e': buff_eb, 'b': buff_eb},
             'lm_max': dl.lm_max_sky,
@@ -224,7 +227,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
 
     def build_QE_lensrec(self, cf):
-        """Transformer for generating a delensalot model for the lensing reconstruction jobs (QE and MAP)
+        """Transformer for generating a delensalot model for the lensing reconstruction job (QE)
         """
         def extract():
             def _process_components(dl):
@@ -297,7 +300,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
 
     def build_MAP_lensrec(self, cf):
-        """Transformer for generating a delensalot model for the lensing reconstruction jobs (QE and MAP)
+        """Transformer for generating a delensalot model for the lensing reconstruction job (MAP)
         """
         def extract():
             def _process_components(dl):
@@ -352,7 +355,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "libdir": opj(libdir, 'estimate/'),
                 }
                 if sec == "lensing":
-                    _MAP_operators_desc[sec]["spin"] = 2 # TODO needs to change
                     _MAP_operators_desc[sec]["perturbative"] = False
                     _MAP_operators_desc[sec]['lm_max_in'] =  dl.lm_max_sky
                     _MAP_operators_desc[sec]['lm_max_out'] = dl.lm_max_pri

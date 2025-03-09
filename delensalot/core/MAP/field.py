@@ -188,6 +188,7 @@ class Gradient:
         g += self.get_meanfield(it=it)
         g -= self.get_quad(it=it)
         g += self.get_prior(it=it-1)
+        g = almxfl(g, self.chh > 0, None, False)
         return g
     
 

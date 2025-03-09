@@ -146,11 +146,15 @@ class DataContainer:
         self.idxs_mf = idxs_mf
         self.mask_fn = mask_fn
         self.sky_coverage = sky_coverage
+        if sky_coverage == 'masked':
+            print('mask_fn', mask_fn)
+            assert os.path.isfile(mask_fn), "mask must be provided for sky_coverage = 'masked'"
         self.data_key = data_key
         if self.estimator_key == 'p':
             self.data_key = 'tp'
             # FIXME 
         self.lm_max_sky = lm_max_sky
+
         if self.data_source.flavour == 'obs' or np.all(self.data_source.obs_lib.maps != DEFAULT_NotAValue): # (1)
             # Here, obs data is provided and nothing needs to be generated
             if np.all(self.data_source.obs_lib.maps != DEFAULT_NotAValue):
@@ -265,7 +269,7 @@ class DataContainer:
                 if np.all(self.data_source.obs_lib.maps == DEFAULT_NotAValue):
                     self.data_source.purgecache()
         if np.all(self.data_source.maps == DEFAULT_NotAValue):
-            self._postrun_sky()
+            if self.data_source.flavour != 'obs': self._postrun_sky()
             self._postrun_obs()
 
 
@@ -390,102 +394,60 @@ class DataContainer:
         if self.sky_coverage == 'full':
             return self.data_source.get_sim_obs(idx=idx, space='map', field='temperature', spin=0)
         elif self.sky_coverage == 'masked':
-            assert self.mask, "mask must be provided for sky_coverage = 'masked'"
+            mask = np.load(self.mask_fn)
             # FIXME if data is already masked (e.g. provided from disk), this will doubly mask the data.. not sure we want this
             obs = self.data_source.get_sim_obs(idx=idx, space='map', field='temperature', spin=2)
-            return obs*self.mask
+            return obs*mask
         
     def get_sim_pmap(self, idx):
         if self.sky_coverage == 'full':
             return self.data_source.get_sim_obs(idx=idx, space='map', field='polarization', spin=2)
         elif self.sky_coverage == 'masked':
-            assert self.mask, "mask must be provided for sky_coverage = 'masked'"
+            mask = np.load(self.mask_fn)
             # FIXME if data is already masked (e.g. provided from disk), this will doubly mask the data.. not sure we want this
             obs = self.data_source.get_sim_obs(idx=idx, space='map', field='polarization', spin=2)
-            return np.array([dat*self.mask for dat in obs])
+            return np.array([dat*mask for dat in obs])
 
 
     def get_data(self, idx):
+        # NOTE wrapper to access data that is both masked or unmasked, as data_source does not support masked data if generated.
+        # If data is already masked, this will doubly mask the data.. not sure we want this 
+        # FIXME remove hp and get nside from data_source
+        import healpy as hp
+        nside = 2048
         space = 'alm' if self.sky_coverage == 'full' else 'map'
-        earr = np.zeros(shape=Alm.getsize(*self.lm_max_sky),dtype=complex)
-        if True: # NOTE anisotropic data currently not supported
-        # if self.noisemodel_coverage == 'isotropic':
-            # NOTE dat maps must now be given in harmonic space in this idealized configuration. sims_MAP is not used here, as no truncation happens in idealized setting.
-                
+        if space == 'alm':
+            earr = np.zeros(shape=Alm.getsize(*self.lm_max_sky),dtype=complex)
+        else:
+            earr = np.zeros(hp.nside2npix(nside))
+        if True: # NOTE trimmed data currently not supported
             if self.data_key in ['p', 'eb', 'be']:
-                ret = [earr, *alm_copy_nd(
-                    self.data_source.get_sim_obs(idx, space='alm', spin=0, field='polarization'),
-                    None, self.lm_max_sky)]
+                ret = [earr, *alm_copy_nd(self.data_source.get_sim_obs(idx, space='alm', spin=0, field='polarization'), None, self.lm_max_sky)]
+                if space == 'map':
+                    ret = [earr, *hp.alm2map_spin(ret[1:], nside=nside, spin=2, lmax=self.lm_max_sky[0], mmax=self.lm_max_sky[1])]
             elif self.data_key in ['ee']:
-                ret = [earr, alm_copy_nd(
-                    self.data_source.get_sim_obs(idx, space='alm', spin=0, field='polarization'),
-                    None, self.lm_max_sky)[0], earr]
+                ret = [earr, alm_copy_nd(self.data_source.get_sim_obs(idx, space='alm', spin=0, field='polarization'), None, self.lm_max_sky)[0], earr]
+                if space == 'map':
+                    assert 0, 'implement if needed'
             elif self.data_key in ['tt']:
-                ret = [alm_copy_nd(
-                    self.data_source.get_sim_obs(idx, space='alm', spin=0, field='temperature'),
-                    None, self.lm_max_sky), earr, earr]
+                ret = [alm_copy_nd(self.data_source.get_sim_obs(idx, space='alm', spin=0, field='temperature'), None, self.lm_max_sky), earr, earr]
+                if space == 'map':
+                    ret = [*hp.alm2map(ret[0], nside=nside, spin=0), earr, earr]
             elif self.data_key in ['tp']:
-                EBobs = alm_copy_nd(
-                    self.data_source.get_sim_obs(idx, space='alm', spin=0, field='polarization'),
-                    None, self.lm_max_sky)
-                Tobs = alm_copy_nd(
-                    self.data_source.get_sim_obs(idx, space='alm', spin=0, field='temperature'),
-                    None, self.lm_max_sky)         
+                Tobs = alm_copy_nd(self.data_source.get_sim_obs(idx, space='alm', spin=0, field='temperature'), None, self.lm_max_sky)   
+                EBobs = alm_copy_nd(self.data_source.get_sim_obs(idx, space='alm', spin=0, field='polarization'), None, self.lm_max_sky)
+                if space == 'map':
+                    Tobs = hp.alm2map(Tobs, nside=nside, spin=0)
+                    EBobs = hp.alm2map_spin(EBobs, nside=nside, spin=2, lmax=self.lm_max_sky[0], mmax=self.lm_max_sky[1])
                 ret = [Tobs, *EBobs]
             else:
                 assert 0, 'implement if needed'
-            if space == 'alm':
-                return np.array(ret)
-            elif space == 'map':
-                assert self.data_key == 'p', 'implement if needed'
-                # TODO this should move to the data_container
-                ret = np.atleast_2d(ret)
-                import healpy as hp
-                return [hp.alm2map_spin(r, nside=2048, spin=2) for r in ret]
-            else:
-                assert 0, 'implement if needed'
+            return np.array(ret)
         else:
             if self.estimator_key in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
                 return np.array(self.sims_MAP.get_sim_pmap(self.idx), dtype=float)
             else:
                 assert 0, 'implement if needed'
-
-
-    def get_data_(self, idx):
-        #NOTE this is the 1d-version
-        space = 'alm' if self.sky_coverage == 'full' else 'map'
-        if self.data_key in ['p', 'eb', 'be']:
-            ret = alm_copy_nd(
-                self.data_source.get_sim_obs(idx, space='alm', spin=0, field='polarization'),
-                None, self.lm_max_sky)
-        elif self.data_key in ['ee']:
-            ret = alm_copy_nd(
-                self.data_source.get_sim_obs(idx, space='alm', spin=0, field='polarization'),
-                None, self.lm_max_sky)[0]
-        elif self.data_key in ['tt']:
-            ret = alm_copy_nd(
-                self.data_source.get_sim_obs(idx, space='alm', spin=0, field='temperature'),
-                None, self.lm_max_sky)
-        elif self.data_key in ['tp']:
-            EBobs = alm_copy_nd(
-                self.data_source.get_sim_obs(idx, space='alm', spin=0, field='polarization'),
-                None, self.lm_max_sky)
-            Tobs = alm_copy_nd(
-                self.data_source.get_sim_obs(idx, space='alm', spin=0, field='temperature'),
-                None, self.lm_max_sky)         
-            ret = [Tobs, *EBobs]
-        else:
-            assert 0, 'implement if needed'
-        if space == 'alm':
-            return np.array(ret)
-        elif space == 'map':
-            assert self.data_key == 'p', 'implement if needed'
-            # TODO this should move to the data_container
-            ret = np.atleast_2d(ret)
-            import healpy as hp
-            return [hp.alm2map_spin(r, nside=2048, spin=2) for r in ret]
-        else:
-            assert 0, 'implement if needed'
 
 
 class QEScheduler:
@@ -797,11 +759,9 @@ class MAPScheduler:
         ctx.set(idx=stash[0], idx2=stash[1], component=stash[2])
         return ret
 
-
     def maxiterdone(self):
         return min([MAP_search.maxiterdone() for MAP_search in self.MAP_minimizers])
     
-
     def get_gradient_quad(self, idx, it, secondary=None, component=None, idx2=None):
         self.MAP_minimizers[idx].ctx.set(idx=idx, secondary=secondary, component=component, idx2=idx2)
         return self.MAP_minimizers[idx].get_gradient_quad(it=it)

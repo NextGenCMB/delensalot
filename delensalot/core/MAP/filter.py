@@ -39,12 +39,13 @@ class Filter_3d:
 
 
     def get_wflm(self, it, data=None):
+        lm_max_pri = self.sec_operator.operators[-1].lm_max_out
         if not self.wf_field.is_cached(it=it):
             assert data is not None, 'data is required for the calculation'
             if it>1:
                 cg_sol_curr = self.wf_field.get_field(it=it-1)
             else:
-                cg_sol_curr = np.zeros(shape=(3,Alm.getsize(4200,4200)),dtype=complex)
+                cg_sol_curr = np.zeros(shape=(3,Alm.getsize(*lm_max_pri)),dtype=complex)
                 if 'tt' in self.cls_filt and 'ee' in self.cls_filt:
                     cg_sol_curr[0:2] = self.wf_field.get_field(it=it-1)
                 elif 'tt' in self.cls_filt:
@@ -113,7 +114,7 @@ class Filter_3d:
             lm_max = self.inv_operator.lm_max
             imap = self.inv_operator.geom_lib.synthesis(teblm[0], 0, *lm_max, 6)
             qumap = self.inv_operator.geom_lib.synthesis(teblm[1:], 2, *lm_max, 6)
-            teblm = self.inv_operator.apply_map(np.array([imap, *qumap]))
+            teblm = self.inv_operator.apply_map(np.array([*imap, *qumap]))
 
         teblm = self.beam_operator.act(teblm, adjoint=False)
         teblm = self.sec_operator.act(teblm, adjoint=True, backwards=True) # lm_sky -> lm_pri

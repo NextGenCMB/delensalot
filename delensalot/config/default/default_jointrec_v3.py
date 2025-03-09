@@ -67,7 +67,7 @@ DL_DEFAULT = {
             },
         "operator_info": {
             'lensing': {
-                'epsilon': 1e-7,
+                'epsilon': 1e-10,
                 'Lmin': 2,
                 'lm_max': [4096,4096],
                 'LM_max': [4096+1024,4096+1024],

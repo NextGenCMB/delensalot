@@ -6,7 +6,7 @@ import re, sys
 import numpy as np
 import healpy as hp
 import copy
-
+from itertools import product
 import importlib.util as iu
 
 from delensalot.config.etc.errorhandler import DelensalotError
@@ -98,6 +98,10 @@ def generate_plancklenskeys(input_str):
                 secondary_key[sec][co] = secondary_key[sec][co].replace('_tp', '')
                 if secondary_key[sec][co] == 'a':
                     secondary_key[sec][co] = 'a_p'
+            if c.endswith('tt'):
+                if secondary_key[sec][co] == 'att':
+                    print("Turning att into a_p so that we can generate a valid starting point. This will fail if no polarization data provided")
+                    secondary_key[sec][co] = 'a_p'
     for sec, val in secondary_key.items():
         for comp in val.values():
             if comp not in PLANCKLENS_keys:
@@ -123,8 +127,6 @@ def load_config(directory, descriptor):
 
     return p.delensalot_model
 
-
-from itertools import product
 
 def set_nested_attr(obj, attr_path, value):
     """Sets a nested attribute based on a dot-separated path."""

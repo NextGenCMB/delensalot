@@ -301,9 +301,8 @@ class InverseNoiseVariance(Operator):
         self.geominfo = geominfo
         self.nlev = nlev
         self.lm_max = lm_max
-        self.niv = {}
-        for nivk, nivv in niv_desc.items():
-            self.niv[nivk] = read_map(nivv)
+        nivkeys_sorted = ['t', 'e', 'b']
+        self.niv = [read_map(niv_desc[key]) for key in nivkeys_sorted]
         self.transferfunction = transferfunction
         spectrum_type = spectrum_type
         OBD = OBD
@@ -312,7 +311,7 @@ class InverseNoiseVariance(Operator):
             cli(_extend_cl(self.nlev['T']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2 if data_key in ['tp', 'tt'] else np.zeros(shape=lm_max[0]+1),
             0.5*cli(_extend_cl(self.nlev['P']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2 if data_key in ['p', 'ee', 'eb', 'tp'] else np.zeros(shape=lm_max[0]+1),
             0.5*cli(_extend_cl(self.nlev['P']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2 if data_key in ['p', 'ee', 'eb', 'tp'] else np.zeros(shape=lm_max[0]+1)]
-
+        self.template = None
 
     @log_on_start(logging.DEBUG, "InverseNoiseVariance", logger=log)
     # @log_on_end(logging.DEBUG, "InverseNoiseVariance done", logger=log)
@@ -333,19 +332,19 @@ class InverseNoiseVariance(Operator):
         """
         assert len(tqumap) == 3
 
-        tqumap[0] *= self.niv_desc[0]
+        tqumap[0] *= self.niv[0]
         assert self.template is None
         qmap, umap = tqumap[1], tqumap[2]
         qmap_copy = qmap.copy()
-        qmap *= self.niv_desc[1]
-        qmap += self.niv_desc[-1] * umap
-        umap *= self.niv_desc[2]
-        umap += self.niv_desc[-1] * qmap_copy
+        qmap *= self.niv[1]
+        qmap += self.niv[-1] * umap
+        umap *= self.niv[2]
+        umap += self.niv[-1] * qmap_copy
         del qmap_copy
 
         tlm = self.geom_lib.adjoint_synthesis(tqumap[0], 0, *self.lm_max, 6, apply_weights=False)
         eblm = self.geom_lib.adjoint_synthesis([qmap, umap], 2, *self.lm_max, 6, apply_weights=False)
-        return np.array([tlm, eblm])
+        return np.array([*tlm, *eblm])
 
 
     def get_ftel(self, transferfunction):
@@ -355,12 +354,12 @@ class InverseNoiseVariance(Operator):
             ret_b = _extend_cl(transferfunction[2]*2, len(self.n1tebl[2])-1) * self.n1tebl[2]
             return [ret_t, ret_e, ret_b]
 
-        nlev_ftl = 10800. / np.sqrt(np.sum(read_map(self.niv_desc[0])) / (4.0 * np.pi)) / np.pi
-        nlev_febl = 10800. / np.sqrt((0.5 * np.sum(read_map(self.n_inv[1])) + np.sum(read_map(self.n_inv[2]))) / (4.0 * np.pi)) / np.pi
+        nlev_ftl = 10800. / np.sqrt(np.sum(read_map(self.niv[0])) / (4.0 * np.pi)) / np.pi
+        nlev_febl = 10800. / np.sqrt((0.5 * np.sum(read_map(self.niv[1])) + np.sum(read_map(self.niv[2]))) / (4.0 * np.pi)) / np.pi
         log.info('Using nlevp %.2f amin'%nlev_febl)
-        niv_cl_t = transferfunction['t'] ** 2  / (nlev_ftl/ 180. / 60. * np.pi) ** 2
-        niv_cl_e = transferfunction['e'] ** 2  / (nlev_febl/ 180. / 60. * np.pi) ** 2
-        niv_cl_b = transferfunction['b'] ** 2  / (nlev_febl/ 180. / 60. * np.pi) ** 2
+        niv_cl_t = transferfunction[0] ** 2  / (nlev_ftl/ 180. / 60. * np.pi) ** 2
+        niv_cl_e = transferfunction[1] ** 2  / (nlev_febl/ 180. / 60. * np.pi) ** 2
+        niv_cl_b = transferfunction[2] ** 2  / (nlev_febl/ 180. / 60. * np.pi) ** 2
         return [niv_cl_t, niv_cl_e , niv_cl_b]
     
 

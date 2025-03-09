@@ -14,6 +14,8 @@ from delensalot.config.etc.abstract import parserclass
 from delensalot.config.parser import LerepiParser
 from delensalot.config.etc import logger
 
+from delensalot.core.MAP.context import get_computation_context
+
 datefmt = "%m-%d %H:%M:%S"
 FORMAT = '%(levelname)s:: %(asctime)s:: %(name)s.%(funcName)s - %(message)s'
 formatter = logging.Formatter(FORMAT, datefmt=datefmt)
@@ -69,6 +71,10 @@ class run():
 
         self.delensalotjob = job_id
         self.config_handler = ConfigHandler(self.parser, config, key)
+
+        ctx, isnew = get_computation_context()
+        if not isnew:
+            ctx.reset()
 
 
     def collect_model(self):
@@ -127,6 +133,10 @@ if __name__ == '__main__':
         mpi.receive(None, source=mpi.ANY_SOURCE)
     if mpi.size > 1:
         config_handler.collect_models()
+
+    ctx, isnew = get_computation_context()
+    if not isnew:
+        ctx.reset()
 
     try:
         config_handler.run()
