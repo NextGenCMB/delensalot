@@ -227,9 +227,8 @@ def alm_splice(alm_lo, alm_hi, lsplit):
     if hasattr(alm_lo, 'alm_splice'):
         return alm_lo.alm_splice(alm_hi, lsplit)
 
-    alm_lo_lmax = Alm.getlmax(len(alm_lo))
-    alm_hi_lmax = Alm.getlmax(len(alm_hi))
-
+    alm_lo_lmax = Alm.getlmax(len(alm_lo), None)
+    alm_hi_lmax = Alm.getlmax(len(alm_hi), None)
     assert alm_lo_lmax >= lsplit and alm_hi_lmax >= lsplit
 
     alm_re = np.copy(alm_hi)

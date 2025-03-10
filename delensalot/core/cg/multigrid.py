@@ -45,7 +45,6 @@ class multigrid_chain:
         self.bstage = stages[0]  # these are the pre_ops called in cd_solve
 
     def solve(self, soltn, tpn_map, apply_fini='', dot_op=None):
-        print('inside multigrid chain solve')
         assert hasattr(self.opfilt, 'apply_fini%s' % apply_fini)
         finifunc = getattr(self.opfilt, 'apply_fini%s' % apply_fini)
         if apply_fini != '':
@@ -180,8 +179,8 @@ class pre_op_split:
     def calc(self, talm):
         self.iter += 1
 
-        talm_low = self.pre_op_low(alm_copy(talm, lmax=self.lsplit))
-        talm_hgh = self.pre_op_hgh(alm_copy(talm, lmax=self.lmax))
+        talm_low = self.pre_op_low(alm_copy(talm, None, self.lsplit, self.lsplit))
+        talm_hgh = self.pre_op_hgh(alm_copy(talm, None, self.lmax, self.lmax))
 
         return alm_splice(talm_low, talm_hgh, self.lsplit)
 
@@ -213,7 +212,7 @@ class pre_op_multigrid:
         monitor = cd_monitors.monitor_basic(self.opfilt.dot_op(),
                             iter_max=self.iter_max, eps_min=self.eps_min, logger=self.logger)
         soltn = talm * 0.0
-        cd_solve.cd_solve(soltn, alm_copy(talm, lmax=self.lmax),
+        cd_solve.cd_solve(soltn, alm_copy(talm, None, self.lmax, self.lmax),
                           self.fwd_op, self.pre_ops, self.opfilt.dot_op(), monitor, tr=self.tr, cache=self.cache)
 
         return alm_splice(soltn, talm, self.lmax)

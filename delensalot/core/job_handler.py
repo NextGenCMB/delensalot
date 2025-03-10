@@ -363,7 +363,7 @@ class DataContainer:
         return self.data_source.get_sim_pri(idx=idx, space=space, field=field, spin=spin)
     
     def get_sim_obs(self, idx, space, field, spin, lm_max=None):
-        print('DataContainer.get sim obs called')
+
         if self.sky_coverage == 'full':
             assert space == 'alm', "'full' sky_coverage only works for space = alm"
             return  alm_copy_nd(self.data_source.get_sim_obs(idx=idx, space=space, field=field, spin=spin), None, lm_max)
@@ -451,7 +451,7 @@ class DataContainer:
                 Tobs = alm_copy_nd(self.data_source.get_sim_obs(idx, space='alm', spin=0, field='temperature'), None, self.lm_max_sky)   
                 EBobs = alm_copy_nd(self.data_source.get_sim_obs(idx, space='alm', spin=0, field='polarization'), None, self.lm_max_sky)
                 if space == 'map':
-                    Tobs = hp.alm2map(Tobs, nside=nside, spin=0)
+                    Tobs = hp.alm2map(Tobs, nside=nside)
                     EBobs = hp.alm2map_spin(EBobs, nside=nside, spin=2, lmax=self.lm_max_sky[0], mmax=self.lm_max_sky[1])
                 ret = [Tobs, *EBobs]
             else:

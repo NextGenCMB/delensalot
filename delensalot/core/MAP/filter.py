@@ -210,9 +210,10 @@ class Filter_3d:
                 lm_max = self.inv_operator.lm_max
                 ivfresmap = []
                 ivfresmap.append(self.inv_operator.geom_lib.synthesis(ivfreslm[0], 0, *lm_max, 6))
-                ivfresmap.extend(*self.inv_operator.geom_lib.synthesis(ivfreslm[1:], 2, *lm_max, 6))
-                ivfresmap = self.inv_operator.geom_lib.synthesis(ivfreslm, 2, *lm_max, 6)
-                ivfresmap = [ivf+d for ivf,d in zip(ivfreslm,data)]
+                buff = self.inv_operator.geom_lib.synthesis(ivfreslm[1:], 2, *lm_max, 6)
+                ivfresmap.append(buff[0])
+                ivfresmap.append(buff[1])
+                ivfresmap = [ivf+d for ivf,d in zip(ivfresmap,data)]
                 ivfreslm = self.inv_operator.apply_map(ivfresmap)
 
             ivfreslm = self.beam_operator.act(ivfreslm, adjoint=False)

@@ -105,25 +105,15 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
     residual = b - fwd_op(x)
     searchdirs = [op(residual) for op in pre_ops]
 
-    hp.mollview(hp.alm2map(b.elm, nside=512), title='b', min=-1e6, max=1e6)
-    plt.show()
-    hp.mollview(hp.alm2map(b.blm, nside=512), title='b', min=-1e6, max=1e6)
-    plt.show()
-
-    hp.mollview(hp.alm2map(fwd_op(x).elm, nside=512), title='fwd', min=-1e6, max=1e6)
-    plt.show()
-    hp.mollview(hp.alm2map(fwd_op(x).blm, nside=512), title='fwd', min=-1e6, max=1e6)
-    plt.show()
-
-    lmax = Alm.getlmax(residual.elm.size, None)
-    ell = np.arange(0, lmax + 1)
-    weights = 2 * ell + 1
-    residualdata, bdata, fwddata, xdata, precondata = [], [], [], [], []
-    residualdata.append(hp.alm2cl(residual.elm)*weights)
-    bdata.append(hp.alm2cl(b.elm))
-    fwddata.append(hp.alm2cl(fwd_op(x).elm))
-    xdata.append(hp.alm2cl(x.elm))
-    precondata.append([hp.alm2cl(precon_.elm) for precon_ in searchdirs])
+    # lmax = Alm.getlmax(residual.elm.size, None)
+    # ell = np.arange(0, lmax + 1)
+    # weights = 2 * ell + 1
+    # residualdata, bdata, fwddata, xdata, precondata = [], [], [], [], []
+    # residualdata.append(hp.alm2cl(residual.elm)*weights)
+    # bdata.append(hp.alm2cl(b.elm))
+    # fwddata.append(hp.alm2cl(fwd_op(x).elm))
+    # xdata.append(hp.alm2cl(x.elm))
+    # precondata.append([hp.alm2cl(precon_.elm) for precon_ in searchdirs])
 
     # plot_stuff(residualdata, bdata, fwddata, xdata, precondata)
     
@@ -155,12 +145,12 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
             for (searchfwd, alpha) in zip(searchfwds, alphas):
                 residual -= searchfwd * alpha
 
-        residualdata.append(hp.alm2cl(residual.elm)*weights)
-        bdata.append(hp.alm2cl(b.elm))
-        fwddata.append(hp.alm2cl(fwd_op(x).elm))
-        xdata.append(hp.alm2cl(x.elm))
-        precondata.append([hp.alm2cl(precon_.elm) for precon_ in searchdirs])
-        plot_stuff(residualdata, bdata, fwddata, xdata, precondata, residual)
+        # residualdata.append(hp.alm2cl(residual.elm)*weights)
+        # bdata.append(hp.alm2cl(b.elm))
+        # fwddata.append(hp.alm2cl(fwd_op(x).elm))
+        # xdata.append(hp.alm2cl(x.elm))
+        # precondata.append([hp.alm2cl(precon_.elm) for precon_ in searchdirs])
+        # plot_stuff(residualdata, bdata, fwddata, xdata, precondata, residual)
 
 
 
