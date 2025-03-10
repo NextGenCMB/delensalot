@@ -335,8 +335,8 @@ def load_file_wsec(fn, lmax=None, ifield=0, cmb_components=['tt', 'ee', 'bb', 't
         assert ifield==0, 'ifield not implemented for npy files'
         return np.load(fn)[:None]
     elif fn.endswith('.fits'):
-        return fits.open(fn)[0].data
-        # return hp.read_map(fn, field=ifield)
+        # print(fits.open(fn)[1].header)
+        return hp.read_map(fn, field=ifield)
     elif fn.endswith('.dat'):
         assert ifield==0, 'ifield not implemented for dat files'
         return camb_clfile_wsec(fn)

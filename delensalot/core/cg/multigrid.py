@@ -8,6 +8,9 @@ import numpy as np
 from delensalot.utility.utils_hp import alm_copy, alm_splice
 from delensalot.core.cg import cd_solve, cd_monitors
 
+import healpy as hp
+import matplotlib.pyplot as plt
+
 class multigrid_stage(object):
     def __init__(self, ids, pre_ops_descr, lmax, nside, iter_max, eps_min, tr, cache):
         self.depth = ids
@@ -42,6 +45,7 @@ class multigrid_chain:
         self.bstage = stages[0]  # these are the pre_ops called in cd_solve
 
     def solve(self, soltn, tpn_map, apply_fini='', dot_op=None):
+        print('inside multigrid chain solve')
         assert hasattr(self.opfilt, 'apply_fini%s' % apply_fini)
         finifunc = getattr(self.opfilt, 'apply_fini%s' % apply_fini)
         if apply_fini != '':
@@ -57,6 +61,7 @@ class multigrid_chain:
                   self.log(stage, iter, eps, **kwargs))
 
         tpn_alm = self.opfilt.calc_prep(tpn_map, self.s_cls, self.n_inv_filt)
+
         monitor = cd_monitors.monitor_basic(dot_op, logger=logger, iter_max=self.bstage.iter_max,
                                         eps_min=self.bstage.eps_min, d0=dot_op(tpn_alm, tpn_alm))
 
@@ -74,7 +79,7 @@ class multigrid_chain:
         if stage.depth > self.plogdepth:
             return
 
-        log_str = '   ' * stage.depth + '(%4d, %04d) [%s] (%d, %.8f)' % (
+        log_str = '   ' * stage.depth + '(%4d, %04d) [%s] (%d, %1.2e)' % (
         stage.nside, stage.lmax, str(elapsed), iter, eps) + '\n'
         sys.stdout.write(log_str)
 

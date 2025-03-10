@@ -2,14 +2,64 @@
 
 """
 import numpy as np
+import healpy as hp
 
-
+from delensalot.utility.utils_hp import Alm
+import matplotlib.pyplot as plt
+from IPython.display import clear_output
 def PTR(p, t, r):
     return lambda i: max(0, i - max(p, int(min(t, np.mod(i, r)))))
 
 
 tr_cg = (lambda i: i - 1)
 tr_cd = (lambda i: 0)
+
+
+def plot_stuff(residualdata, bdata, fwddata, xdata, precondata, residual):
+    clear_output(wait=True)
+    def get_rainbow_colors(num_items):
+        """Returns a list of colors from the 'rainbow' colormap."""
+        cmap = plt.cm.rainbow  # Choose the rainbow colormap
+        return [cmap(i / (num_items - 1)) for i in range(num_items)]
+    colors = get_rainbow_colors(len(residualdata)+1)
+
+    hp.mollview(hp.alm2map(residual.elm, nside=512), title='residual')
+    plt.show()
+    hp.mollview(hp.alm2map(residual.blm, nside=512), title='residual')
+    plt.show()
+    
+    plt.figure(figsize=(10, 6))
+    for linei, line2 in enumerate(residualdata):
+        plt.plot(line2, label='iter %d'%(linei+1), color=colors[linei])
+    plt.ylabel(r'$C_\ell^{\rm residual}$')
+    plt.xlabel(r'$\ell$')
+    plt.yscale('log')
+    plt.show()
+
+    plt.figure(figsize=(10, 6))
+    for linei, line2 in enumerate(bdata):
+        plt.plot(line2, label='iter %d'%(linei+1), color=colors[linei])
+    plt.ylabel(r'$C_\ell^{\rm b}$')
+    plt.xlabel(r'$\ell$')
+    plt.yscale('log')
+    plt.show()
+
+    plt.figure(figsize=(10, 6))
+    for linei, line2 in enumerate(fwddata):
+        plt.plot(line2, label='iter %d'%(linei+1), color=colors[linei])
+    plt.ylabel(r'$C_\ell^{\rm fwd(x)}$')
+    plt.xlabel(r'$\ell$')
+    plt.yscale('log')
+    plt.show()
+
+    plt.figure(figsize=(10, 6))
+    for linei, line2 in enumerate(xdata):
+        plt.plot(line2, label='iter %d'%(linei+1), color=colors[linei])
+
+    plt.ylabel(r'$C_\ell^{\rm x}$')
+    plt.xlabel(r'$\ell$')
+    plt.yscale('log')
+    plt.show()
 
 
 class cache_mem(dict):
@@ -51,11 +101,32 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
         fwd_op, pre_op(s) and dot_op must not modify their arguments!
 
     """
-
     n_pre_ops = len(pre_ops)
     residual = b - fwd_op(x)
     searchdirs = [op(residual) for op in pre_ops]
 
+    hp.mollview(hp.alm2map(b.elm, nside=512), title='b', min=-1e6, max=1e6)
+    plt.show()
+    hp.mollview(hp.alm2map(b.blm, nside=512), title='b', min=-1e6, max=1e6)
+    plt.show()
+
+    hp.mollview(hp.alm2map(fwd_op(x).elm, nside=512), title='fwd', min=-1e6, max=1e6)
+    plt.show()
+    hp.mollview(hp.alm2map(fwd_op(x).blm, nside=512), title='fwd', min=-1e6, max=1e6)
+    plt.show()
+
+    lmax = Alm.getlmax(residual.elm.size, None)
+    ell = np.arange(0, lmax + 1)
+    weights = 2 * ell + 1
+    residualdata, bdata, fwddata, xdata, precondata = [], [], [], [], []
+    residualdata.append(hp.alm2cl(residual.elm)*weights)
+    bdata.append(hp.alm2cl(b.elm))
+    fwddata.append(hp.alm2cl(fwd_op(x).elm))
+    xdata.append(hp.alm2cl(x.elm))
+    precondata.append([hp.alm2cl(precon_.elm) for precon_ in searchdirs])
+
+    # plot_stuff(residualdata, bdata, fwddata, xdata, precondata)
+    
     iter = 0
     while not criterion(iter, x, residual):
         searchfwds = [fwd_op(searchdir) for searchdir in searchdirs]
@@ -84,6 +155,15 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
             for (searchfwd, alpha) in zip(searchfwds, alphas):
                 residual -= searchfwd * alpha
 
+        residualdata.append(hp.alm2cl(residual.elm)*weights)
+        bdata.append(hp.alm2cl(b.elm))
+        fwddata.append(hp.alm2cl(fwd_op(x).elm))
+        xdata.append(hp.alm2cl(x.elm))
+        precondata.append([hp.alm2cl(precon_.elm) for precon_ in searchdirs])
+        plot_stuff(residualdata, bdata, fwddata, xdata, precondata, residual)
+
+
+
         # initial choices for new search directions.
         searchdirs = [pre_op(residual) for pre_op in pre_ops]
 
@@ -102,5 +182,4 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
 
         # clear old keys from cache
         cache.trim(range(tr(iter + 1), iter))
-
     return iter

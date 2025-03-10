@@ -29,7 +29,7 @@ class Operator:
         zbounds = (-1,1)
         self.lenjob_geomlib = get_geom(('thingauss', {'lmax': 4500, 'smax': 3}))
         thtbounds = (np.arccos(zbounds[1]), np.arccos(zbounds[0]))
-        self.lenjob_geomlib.restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
+        self.lenjob_geomlib # .restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
         self.field_cacher = cachers.cacher_npy(libdir)
 
 
@@ -357,9 +357,9 @@ class InverseNoiseVariance(Operator):
         nlev_ftl = 10800. / np.sqrt(np.sum(read_map(self.niv[0])) / (4.0 * np.pi)) / np.pi
         nlev_febl = 10800. / np.sqrt((0.5 * np.sum(read_map(self.niv[1])) + np.sum(read_map(self.niv[2]))) / (4.0 * np.pi)) / np.pi
         log.info('Using nlevp %.2f amin'%nlev_febl)
-        niv_cl_t = transferfunction[0] ** 2  / (nlev_ftl/ 180. / 60. * np.pi) ** 2
-        niv_cl_e = transferfunction[1] ** 2  / (nlev_febl/ 180. / 60. * np.pi) ** 2
-        niv_cl_b = transferfunction[2] ** 2  / (nlev_febl/ 180. / 60. * np.pi) ** 2
+        niv_cl_t = transferfunction[0] ** 2 / (nlev_ftl/ 180. / 60. * np.pi) ** 2
+        niv_cl_e = transferfunction[1] ** 2 / (nlev_febl/ 180. / 60. * np.pi) ** 2
+        niv_cl_b = transferfunction[2] ** 2 / (nlev_febl/ 180. / 60. * np.pi) ** 2
         return [niv_cl_t, niv_cl_e , niv_cl_b]
     
 

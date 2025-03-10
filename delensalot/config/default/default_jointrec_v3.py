@@ -102,7 +102,7 @@ DL_DEFAULT = {
             'lensing': {
                 'geominfo': ('thingauss', {'lmax': 4500, 'smax': 3}),
                 'component': ['p', 'w'],
-                'epsilon': 1e-7,
+                'epsilon': 1e-10,
             },
             'birefringence': {
                 'geominfo': ('thingauss', {'lmax': 4500, 'smax': 3}),

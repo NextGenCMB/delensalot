@@ -9,6 +9,7 @@ from delensalot.config.config_helper import data_functions as df
 
 def get_niv_desc(nlev, nivjob_geominfo, nivjob_geomlib, rhits_normalised, mask, niv_map=None, mode='P'):
     """Generate noise inverse variance (NIV) description for temperature ('T') or polarization ('P')."""
+    rhits_normalised = None
     if isinstance(mask, str):
         mask = mask
     if niv_map is None:

@@ -33,6 +33,8 @@ from delensalot.config.metamodel import DEFAULT_NotAValue
 from delensalot.utils import read_map, ztruncify, cli
 from delensalot.utility.utils_hp import Alm, almxfl, alm_copy, gauss_beam, alm2cl, alm_copy_nd
 
+import matplotlib.pyplot as plt
+
 
 class ConstantDict(UserDict):
     def __init__(self, value):
@@ -74,7 +76,7 @@ class OBDBuilder:
     def __init__(self, OBD_model):
         self.__dict__.update(OBD_model.__dict__)
         nivp = self._load_niv(self.nivp_desc)
-        self.nivp = ztruncify(nivp, self.zbounds)
+        # self.nivp = ztruncify(nivp, self.zbounds)
 
 
     def _load_niv(self, niv_desc):
@@ -361,6 +363,7 @@ class DataContainer:
         return self.data_source.get_sim_pri(idx=idx, space=space, field=field, spin=spin)
     
     def get_sim_obs(self, idx, space, field, spin, lm_max=None):
+        print('DataContainer.get sim obs called')
         if self.sky_coverage == 'full':
             assert space == 'alm', "'full' sky_coverage only works for space = alm"
             return  alm_copy_nd(self.data_source.get_sim_obs(idx=idx, space=space, field=field, spin=spin), None, lm_max)
@@ -369,10 +372,12 @@ class DataContainer:
             # FIXME if data is already masked (e.g. provided from disk), this will doubly mask the data.. not sure we want this
             assert space == 'map', "'masked' sky_coverage only works for space = map"
             assert field == 'polarization'
-            mask = np.load(self.mask_fn)
+            mask = hp.read_map(self.mask_fn)
             obs = alm_copy_nd(self.data_source.get_sim_obs(idx=idx, space='alm', field=field, spin=0), None, lm_max)
             obs = hp.alm2map_spin(obs, nside=2048, spin=2, lmax=lm_max[0], mmax=lm_max[1])
-            return np.array([dat*mask for dat in obs])
+            ret = np.array([dat*mask for dat in obs])
+
+            return ret
 
     def get_sim_noise(self, idx, space, field, spin=2):
         return self.data_source.get_sim_noise(idx, spin=spin, space=space, field=field)
@@ -396,17 +401,26 @@ class DataContainer:
         elif self.sky_coverage == 'masked':
             mask = np.load(self.mask_fn)
             # FIXME if data is already masked (e.g. provided from disk), this will doubly mask the data.. not sure we want this
-            obs = self.data_source.get_sim_obs(idx=idx, space='map', field='temperature', spin=2)
-            return obs*mask
+            obs = self.data_source.get_sim_obs(idx=idx, space='map', field='temperature', spin=0)
+            return np.array(obs*mask)
         
     def get_sim_pmap(self, idx):
-        if self.sky_coverage == 'full':
-            return self.data_source.get_sim_obs(idx=idx, space='map', field='polarization', spin=2)
-        elif self.sky_coverage == 'masked':
-            mask = np.load(self.mask_fn)
-            # FIXME if data is already masked (e.g. provided from disk), this will doubly mask the data.. not sure we want this
-            obs = self.data_source.get_sim_obs(idx=idx, space='map', field='polarization', spin=2)
-            return np.array([dat*mask for dat in obs])
+        mask = np.load(self.mask_fn)
+        ret = self.data_source.get_sim_obs(idx=idx, space='map', field='polarization', spin=2)
+        if self.sky_coverage == 'masked':
+            return ret
+
+        # elif self.sky_coverage == 'masked':
+        #     mask = np.load(self.mask_fn)
+        #     # FIXME if data is already masked (e.g. provided from disk), this will doubly mask the data.. not sure we want this
+        #     obs = alm_copy(self.data_source.get_sim_obs(idx=idx, space='alm', field='polarization', spin=0), None, self.lm_max_sky[0], self.lm_max_sky[1])
+        #     maps = hp.alm2map_spin(obs, nside=2048, spin=2, lmax=self.lm_max_sky[0], mmax=self.lm_max_sky[1])
+        #     ret = [dat*mask for dat in maps]
+
+        #     # hp.mollview(ret[0])
+        #     # import matplotlib.pyplot as plt
+        #     # plt.show()
+        #     return np.array(ret)
 
 
     def get_data(self, idx):
@@ -486,7 +500,7 @@ class QEScheduler:
         for taski, task in enumerate(self.tasks):
             _jobs = []
             if task == 'calc_fields':
-                _nomfcheck = True if self.idxs_mf == [] else False
+                _nomfcheck = self.idxs_mf.size == 0
                 for idx in self.idxs:
                     __jobs = []
                     for Qi, QE_search in enumerate(self.QE_searchs): # each field has its own QE_search

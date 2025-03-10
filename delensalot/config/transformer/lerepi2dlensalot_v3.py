@@ -165,7 +165,7 @@ class l2base_Transformer:
         os.environ["OMP_NUM_THREADS"] = str(dl.tr)
 
     def process_Noisemodel(dl, nm, cf):
-        dl.nivjob_geomlib = get_geom(nm.geominfo).restrict(*np.arccos(dl.zbounds[::-1]), northsouth_sym=False)
+        dl.nivjob_geomlib = get_geom(nm.geominfo) # .restrict(*np.arccos(dl.zbounds[::-1]), northsouth_sym=False)
         dl.rhits_normalised_fn = nm.rhits_normalised
         dl.nlev = nm.nlev
         dl.mask_fn = cf.analysis.mask_fn
@@ -181,7 +181,7 @@ class l2base_Transformer:
             'niv_desc': {'t': buff_t, 'e': buff_eb, 'b': buff_eb},
             'lm_max': dl.lm_max_sky,
             'nlev': cf.noisemodel.nlev,
-            'geom_lib': get_geom(nm.geominfo).restrict(*np.arccos(dl.zbounds[::-1]), northsouth_sym=False),
+            'geom_lib': get_geom(nm.geominfo), #.restrict(*np.arccos(dl.zbounds[::-1]), northsouth_sym=False),
             'geominfo': nm.geominfo,
             'transferfunction': dl.transferfunction,
             'spectrum_type': nm.spectrum_type,

@@ -27,7 +27,7 @@ from delensalot.utility.utils_hp import Alm, almxfl, alm_copy
 from delensalot.utils import load_file_wsec, cli
 from delensalot.sims import operator_secondary
 
-
+import matplotlib.pyplot as plt
 
 def check_dict(d):
     for key, val in d.items():
@@ -693,6 +693,7 @@ class Xobs:
         self.geominfo = geominfo
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
+        print(self.geominfo, ' geominfo')
         self.geom_lib = get_geom(self.geominfo)
          
         self.noise_lib = obs_info['noise_info']['noise_lib'] if obs_info != DNaV else DNaV
@@ -718,6 +719,7 @@ class Xobs:
 
 
     def get_sim_obs(self, idx, space, field, spin=2):
+        print('get_sim_obs called')
         """_summary_
 
         Args:
@@ -777,53 +779,67 @@ class Xobs:
                     elif self.CMB_info['spin'] == 0:
                         assert 'E' in self.CMB_info['fns'], 'E map not found - check config file'
                         assert 'B' in self.CMB_info['fns'], 'B map not found - check config file'
-                        if self.CMB_info['fns']['E'] == self.CMB_info['fns']['B'] and self.CMB_info['fns']['B'].endswith('.fits'):
+                        if self.CMB_info['fns']['E'] == self.CMB_info['fns']['B'] and self.CMB_info['fns']['B'].endswith('.fits'):  
                             # Assume implicitly that E is field=1, B is field=2
                             obs1 = load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['E'].format(idx)), ifield=1)
                             obs2 = load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['B'].format(idx)), ifield=2)
                         else:
                             obs1 = load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['E'].format(idx)))
                             obs2 = load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['B'].format(idx)))
-                    obs1 = self.CMB_info['modifier'](obs1)
-                    obs2 = self.CMB_info['modifier'](obs2)                
+
                     obs = np.array([obs1, obs2])
                     if self.CMB_info['space'] == 'map':
+                        log.debug('data stored as map')
                         if space == 'map':
+                            log.debug('i want map')
                             if self.CMB_info['spin'] != spin:
                                 if self.CMB_info['spin'] == 0:
+                                    log.debug(f"need to swap spin from {self.CMB_info['spin']} to {spin}")
                                     alm_buffer1 = self.geom_lib.map2alm(obs[0], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                                     alm_buffer2 = self.geom_lib.map2alm(obs[1], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
-                                    obs = self.geom_lib.alm2map_spin([alm_buffer1,alm_buffer2], lmax=self.CMB_info['lm_max'][0], spin=spin, mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                                    obs = self.geom_lib.alm2map_spin(np.copy([alm_buffer1,alm_buffer2]), lmax=self.CMB_info['lm_max'][0], spin=spin, mmax=self.CMB_info['lm_max'][1], nthreads=4)
                                 elif self.CMB_info['spin'] == 2:
                                     alm_buffer = self.geom_lib.map2alm_spin(obs, spin=self.CMB_info['spin'], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                                     obs1 = self.geom_lib.alm2map(alm_buffer[0], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                                     obs2 = self.geom_lib.alm2map(alm_buffer[1], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                                     obs = np.array([obs1, obs2])
+                            obs1 = self.CMB_info['modifier'](obs[0])
+                            obs2 = self.CMB_info['modifier'](obs[1])
+                            obs = np.array([obs1, obs2]) 
+                            log.debug('done modifying')
                         elif space == 'alm':
+                            obs1 = self.CMB_info['modifier'](obs[0])
+                            obs2 = self.CMB_info['modifier'](obs[1])
+                            obs = np.array([obs1, obs2]) 
                             if self.CMB_info['spin'] == 0:
                                 obs1 = self.geom_lib.map2alm(obs[0], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                                 obs2 = self.geom_lib.map2alm(obs[1], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                                 obs = np.array([obs1, obs2])
                             else:
                                 obs = self.geom_lib.map2alm_spin(obs, spin=self.CMB_info['spin'], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                    
                     elif self.CMB_info['space'] == 'alm':
+                        log.debug('data stored as alm')
                         if space == 'map':
+                            log.debug(f"want map, but data is stored as alm")
                             if spin == 0:
+                                log.debug("i want spin 0")
                                 obs1 = self.geom_lib.alm2map(obs[0], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                                 obs2 = self.geom_lib.alm2map(obs[1], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                                 obs = np.array([obs1, obs2])
                             else:
+                                log.debug("i want spin 2")
                                 obs = self.geom_lib.alm2map_spin(obs, lmax=self.CMB_info['lm_max'][0], spin=spin, mmax=self.CMB_info['lm_max'][1], nthreads=4)
                 elif field == 'temperature':
                     assert 'T' in self.CMB_info['fns'], 'temperature map not found - check config file'
                     obs = np.array(load_file_wsec(opj(self.CMB_info['libdir'], self.CMB_info['fns']['T'].format(idx))))
-                    obs = self.CMB_info['modifier'](obs)
                     if self.CMB_info['space'] == 'map':
                         if space == 'alm':
                             obs = self.geom_lib.map2alm(obs, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                     elif self.CMB_info['space'] == 'alm':
                         if space == 'map':
                             obs = self.geom_lib.alm2map(obs, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                    obs = self.CMB_info['modifier'](obs)
                 self.cacher.cache(fn, obs)
             self.cacher.cache(fn, obs)
         elif self.cacher.is_cached(fn):
@@ -833,11 +849,11 @@ class Xobs:
             log.debug('found "{}"'.format(fn_otherspin))
             obs = np.array(self.cacher.load(fn_otherspin))
             if space == 'map':
-                if self.CMB_info['spin'] == 2:
+                if self.CMB_info['spin'] == 0:
                     obs1 = self.geom_lib.map2alm(obs[0], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                     obs2 = self.geom_lib.map2alm(obs[1], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                     obs = np.array([obs1, obs2])
-                    obs = self.geom_lib.alm2map_spin(obs, lmax=self.CMB_info['lm_max'][0], spin=self.CMB_info['spin'], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                    obs = self.geom_lib.alm2map_spin(obs, lmax=self.CMB_info['lm_max'][0], spin=2, mmax=self.CMB_info['lm_max'][1], nthreads=4)
                 else:
                     obs = self.geom_lib.map2alm_spin(obs, spin=self.CMB_info['spin'], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
                     obs1 = self.geom_lib.alm2map(obs[0], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
@@ -876,6 +892,11 @@ class Xobs:
             elif self.CMB_info['space'] == 'map':
                 obs = self.geom_lib.map2alm_spin(obs, spin=self.CMB_info['spin'], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
             self.cacher.cache(fn, obs)
+        ret = self.cacher.load(fn)
+        # print(ret.shape, self.CMB_info['lm_max'][0], self.CMB_info['lm_max'][1], self.CMB_info['spin'])
+        # hp.mollview(ret[0], title='supposedly e or q', min=-1, max=1)
+        # hp.mollview(ret[1], title='supposedly b or u', min=-1, max=1)
+        # plt.show()
         return self.cacher.load(fn)
     
 
@@ -1052,10 +1073,7 @@ class DataSource:
         return self.get_sim_obs(idx=idx, space='map', field='temperature', spin=0)
     # compatibility with Plancklens
     def get_sim_pmap(self, idx):
-        m = np.zeros(hp.nside2npix(1))
-        m[[7]] = 1
-        mask = hp.ud_grade(m, nside_out=2048)
-        return [obs*mask for obs in self.get_sim_obs(idx=idx, space='map', field='polarization', spin=2)]
+        return self.get_sim_obs(idx=idx, space='map', field='polarization', spin=2)
     
     def print_info(self):
         print('Simhandler:')

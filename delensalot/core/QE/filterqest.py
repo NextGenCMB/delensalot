@@ -64,9 +64,24 @@ class base:
     @log_on_start(logging.INFO, 'filterqest', logger=log)
     def _init_filterqest(self):
         if self.sky_coverage == 'full' and self.filtering_spatial_type == 'isotropic':
-            self.ivf = filt_simple.library_fullsky_sepTP(opj(self.libdir, 'ivf'), self.data_container, self.nivjob_geominfo[1]['nside'], self.transferfunction, self.cls_len, self.ftebl_len['t'], self.ftebl_len['e'], self.ftebl_len['b'], cache=True)
+            self.ivf = filt_simple.library_fullsky_sepTP(
+                opj(self.libdir, 'ivf'),
+                self.data_container,
+                self.nivjob_geominfo[1]['nside'],
+                self.transferfunction,
+                self.cls_len,
+                self.ftebl_len['t'],
+                self.ftebl_len['e'],
+                self.ftebl_len['b'],
+                cache=True)
             if self.estimator_type == 'sepTP':
-                self.qlms_dd = qest.library_sepTP(opj(self.libdir, 'qlms_dd'), self.ivf, self.ivf, self.cls_len['te'], self.nivjob_geominfo[1]['nside'], lmax_qlm=self.lm_max_qlm[0])
+                self.qlms_dd = qest.library_sepTP(
+                    opj(self.libdir, 'qlms_dd'),
+                    self.ivf,
+                    self.ivf,
+                    self.cls_len['te'],
+                    self.nivjob_geominfo[1]['nside'],
+                    lmax_qlm=self.lm_max_qlm[0])
         elif self.sky_coverage == 'masked' or self.filtering_spatial_type == 'anisotropic':
             ## Wait for finished run(), as plancklens triggers cinv_calc...
             self.cinv_t = filt_cinv.cinv_t(
@@ -75,7 +90,7 @@ class base:
                 nside = self.nivjob_geominfo[1]['nside'],
                 cl = self.cls_len,
                 transf = self.transferfunction['t'],
-                ninv = self.niv_desc['t'],
+                ninv = [self.niv_desc['t']],
                 marge_monopole=True,
                 marge_dipole=True,
                 marge_maps=[],
@@ -90,7 +105,7 @@ class base:
                     nside = self.nivjob_geominfo[1]['nside'],
                     cl = self.cls_len,
                     transf = transf_elm_loc[:self.lm_max_ivf[0]+1],
-                    ninv = self.niv_desc['e'],
+                    ninv = [self.niv_desc['e']],
                     geom = self.nivjob_geomlib,
                     chain_descr = self.chain_descr(self.lm_max_ivf[0], self.cg_tol),
                     bmarg_lmax = self.lmin_teb[2],
@@ -99,14 +114,14 @@ class base:
                     _bmarg_rescal = self.obd_rescale,
                     sht_threads = self.sht_threads)
             else:
-                log.log(logging.DEBUG, 'Using trunc')
+                log.log(logging.INFO, 'Using trunc')
                 self.cinv_p = filt_cinv.cinv_p(
                     lib_dir = opj(self.libdir, 'cinv_p'),
                     lmax = self.lm_max_ivf[0],
                     nside = self.nivjob_geominfo[1]['nside'],
                     cl = self.cls_len,
                     transf = self.transferfunction['e'],
-                    ninv = [self.niv_desc['t'], self.niv_desc['e'], self.niv_desc['b']],
+                    ninv = [self.niv_desc['e']],
                     chain_descr = self.chain_descr(self.lm_max_ivf[0], self.cg_tol),
                     transf_blm = self.transferfunction['b'],
                     marge_qmaps = (),
