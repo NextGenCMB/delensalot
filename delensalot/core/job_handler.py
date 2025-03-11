@@ -56,7 +56,7 @@ required_files_map = {
 required_files_map = ConstantDict(['T', 'E', 'B'])
 
 def dict2roundeddict(d):
-    return {k: np.around(v, 3) for k, v in d.items()}
+    return {k: float(np.around(v, 3)) for k, v in d.items()}
 
 def get_hashcode(s):
     return hashlib.sha256(str(s).encode()).hexdigest()[:4]

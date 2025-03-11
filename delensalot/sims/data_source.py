@@ -80,7 +80,7 @@ def get_dirname(s):
                                             " ": "", "'": "", '"': "", ":": "_", ",": "_"}))
 def dict2roundeddict(d):
     for k,v in d.items():
-        d[k] = np.around(v,3)
+        d[k] = float(np.around(v,3))
     return d
 
 def dirname_generator(libdir_suffix, geominfo):
