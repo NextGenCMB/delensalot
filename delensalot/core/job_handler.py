@@ -408,7 +408,7 @@ class DataContainer:
         elif self.sky_coverage == 'masked':
             mask = np.load(self.mask_fn)
             ret = self.data_source.get_sim_obs(idx=idx, space='map', field='polarization', spin=2)
-            return np.array([re*mask for re in mask])
+            return np.array([re*mask for re in ret])
 
 
     def get_data(self, idx):

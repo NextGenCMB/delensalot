@@ -12,6 +12,8 @@ from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy
 
 
 def plot_stuff(residual, residualdata, bdata, fwddata, xdata, precondata, searchdirs, searchfwds, weights, x):
+    import matplotlib
+    matplotlib.use('Agg')
     import matplotlib.pyplot as plt
     
     from IPython.display import clear_output
@@ -64,6 +66,8 @@ def plot_stuff(residual, residualdata, bdata, fwddata, xdata, precondata, search
     plt.xlabel(r'$\ell$')
     plt.yscale('log')
     plt.show()
+
+    plt.close('all')
 
     # plt.figure(figsize=(10, 6))
     # for linei, line2 in enumerate(precondata):
