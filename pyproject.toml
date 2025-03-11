@@ -4,12 +4,12 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "delensalot"
-version = "1.0"
+version = "1.1"
 authors = [
     "Julien Carron <jcarron@gmail.com>",
     "Sebastian Belkner <sebastianbelkner@gmail.com>",
 ]
-description = "CMB lensing, QE and iterative lensing reconstruction, and delensing on curved-sky"
+description = "CMB lensing, QE and MAP lensing reconstruction, and delensing on curved-sky"
 license = "GPL-2.0"
 readme = "README.md"
 repository = "https://github.com/NextGenCMB/delensalot"

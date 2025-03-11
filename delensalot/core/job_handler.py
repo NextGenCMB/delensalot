@@ -18,6 +18,7 @@ import healpy as hp
 from collections import UserDict
 
 from plancklens.sims import planck2018_sims
+from delensalot.sims.data_source import dirname_generator, dict2roundeddict
 
 from delensalot.core import mpi
 from delensalot.core.mpi import check_MPI
@@ -26,7 +27,6 @@ from delensalot.core.QE import handler as QE_handler
 from delensalot.core.MAP import handler as MAP_handler, functionforwardlist
 from delensalot.core.MAP.context import get_computation_context
 
-from delensalot.sims.data_source import dirname_generator
 
 from delensalot.config.metamodel import DEFAULT_NotAValue
 
@@ -54,9 +54,6 @@ required_files_map = {
     'ptt': ['T'],
     'p': ['T', 'E', 'B']}
 required_files_map = ConstantDict(['T', 'E', 'B'])
-
-def dict2roundeddict(d):
-    return {k: np.around(v, 3) for k, v in d.items()}
 
 def get_hashcode(s):
     return hashlib.sha256(str(s).encode()).hexdigest()[:4]
@@ -414,19 +411,6 @@ class DataContainer:
             return np.array([re*mask for re in mask])
 
 
-        # elif self.sky_coverage == 'masked':
-        #     mask = np.load(self.mask_fn)
-        #     # FIXME if data is already masked (e.g. provided from disk), this will doubly mask the data.. not sure we want this
-        #     obs = alm_copy(self.data_source.get_sim_obs(idx=idx, space='alm', field='polarization', spin=0), None, self.lm_max_sky[0], self.lm_max_sky[1])
-        #     maps = hp.alm2map_spin(obs, nside=2048, spin=2, lmax=self.lm_max_sky[0], mmax=self.lm_max_sky[1])
-        #     ret = [dat*mask for dat in maps]
-
-        #     # hp.mollview(ret[0])
-        #     # import matplotlib.pyplot as plt
-        #     # plt.show()
-        #     return np.array(ret)
-
-
     def get_data(self, idx):
         # NOTE wrapper to access data that is both masked or unmasked, as data_source does not support masked data if generated.
         # If data is already masked, this will doubly mask the data.. not sure we want this 
@@ -485,7 +469,7 @@ class QEScheduler:
         for QE_search_desc in QE_searchs_desc.values():
             QE_search_desc['idxs_mf'] = self.idxs_mf
             QE_search_desc['QE_filterqest_desc']['data_container'] = self.data_container
-        self.QE_searchs = [QE_handler.base(**QE_search_desc) for name, QE_search_desc in QE_searchs_desc.items()]
+        self.QE_searchs = [QE_handler.Base(**QE_search_desc) for name, QE_search_desc in QE_searchs_desc.items()]
 
         self.secondary2idx = {QE_search.secondary.ID: i for i, QE_search in enumerate(self.QE_searchs)}
         self.idx2secondary = {i: QE_search.secondary.ID for i, QE_search in enumerate(self.QE_searchs)}

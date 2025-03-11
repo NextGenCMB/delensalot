@@ -10,7 +10,7 @@ from delensalot.utils import cli
 from delensalot.core.QE import filterqest
 from delensalot.utility.utils_hp import Alm, almxfl, alm_copy
 
-from delensalot.core.QE import field as QE_field
+from delensalot.core.QE import field
 
 
 def rescale(arr, scale='p'):
@@ -25,7 +25,7 @@ complist_lensing_template = ['p', 'w']
 complist_lensing_template_idx = {val: i for i, val in enumerate(complist_lensing_template)}
 complist_birefringence_template = ['f']
 
-class base:
+class Base:
     def __init__(self, CLfids, estimator_key, QE_filterqest_desc, ID='generic', libdir=None, idxs_mf=[], subtract_meanfield=True, init_filterqest=False):
         self.estimator_key = estimator_key
         self.CLfids = CLfids
@@ -45,9 +45,9 @@ class base:
             'CLfids': CLfids,
             'component': component_,
         }
-        self.secondary = QE_field.secondary(field_desc)
+        self.secondary = field.Secondary(field_desc)
         QE_filterqest_desc.update({'libdir': opj(self.libdir)})
-        self.fq = filterqest.base(**QE_filterqest_desc)
+        self.fq = filterqest.PlancklensInterface(**QE_filterqest_desc)
         if init_filterqest: self.init_filterqest()
 
         self.chh = {comp: (

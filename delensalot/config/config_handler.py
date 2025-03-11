@@ -71,9 +71,8 @@ class ConfigHandler():
         Args:
             job_id (str, optional): _description_. Defaults to ''.
         """      
-        if self.parser.status == '':
-            if mpi.rank == 0:
-                self.store(self.parser, self.config, self.TEMP)
+        if mpi.rank == 0:
+            self.store(self.parser, self.config, self.TEMP)
         
         self.config.job.jobs = [djob_id] ## NOTE killing all other jobs on purpose here.
         self.djob_id = djob_id
@@ -91,9 +90,8 @@ class ConfigHandler():
         Args:
             job_id (str, optional): A specific job which should be performed. This one is not necessarily defined in the configuration file. It is handed over via command line or in interactive mode. Defaults to ''.
         """
-        if self.parser.status == '':
-            if mpi.rank == 0:
-                self.store(self.parser, self.config, self.TEMP)
+        if mpi.rank == 0:
+            self.store(self.parser, self.config, self.TEMP)
         self.djobmodels = []
         for job_id in self.config.job.jobs:
             self.djobmodels.append(transform3d(self.config, job_id, l2delensalotjob_Transformer()))
@@ -107,9 +105,8 @@ class ConfigHandler():
         Args:
             job_choice (list, optional): A specific job which should be performed. This one is not necessarily defined in the configuration file. It is handed over via command line or in interactive mode. Defaults to [].
         """ 
-        if self.parser.status == '':
-            if mpi.rank == 0:
-                self.store(self.parser, self.config, self.TEMP)
+        if mpi.rank == 0:
+            self.store(self.parser, self.config, self.TEMP)
         self.djobmodels = []
         for jobi, job_id in enumerate(self.config.job.jobs):
             djob = transform3d(self.config, job_id, l2delensalotjob_Transformer())

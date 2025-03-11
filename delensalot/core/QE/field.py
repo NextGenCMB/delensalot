@@ -9,7 +9,7 @@ from delensalot.core import cachers
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl
 
 
-class secondary:
+class Secondary:
     def __init__(self, secondary_desc):
         self.ID = secondary_desc['ID'] if 'ID' in secondary_desc else None
         self.libdir = secondary_desc['libdir']
@@ -70,7 +70,7 @@ class secondary:
                 return np.atleast_2d(almxfl(klm[0], h2d, lmax, False))
 
 
-class template:
+class Template:
     def __init__(self, secondary_desc):
         self.ID = secondary_desc['ID'] if 'ID' in secondary_desc else None
         self.libdir = secondary_desc['libdir']
