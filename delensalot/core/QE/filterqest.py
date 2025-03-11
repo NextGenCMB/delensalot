@@ -8,17 +8,16 @@ import os
 
 from plancklens import qest, qresp
 
-from delensalot.config.etc import logger
-
-from delensalot.utility.utils_hp import alm_copy
 from delensalot.core.cg import cd_solve
 from delensalot.core.ivf import filt_util, filt_cinv, filt_simple
 from delensalot.core.opfilt import utils_cinv_p as cinv_p_OBD
 
+from delensalot.config.etc import logger
 from delensalot.config.config_helper import data_functions as df
+from delensalot.utility.utils_hp import alm_copy
 from delensalot.utils import cli
 
-class base:
+class PlancklensInterface:
     # def __init__(self, filter_desc):
     def __init__(self, data_container, lm_max_ivf, lm_max_qlm, lmin_teb, cg_tol, sht_threads, cls_len, cls_unl, estimator_type, libdir, chain_descr=None, zbounds=(-1,1), inv_operator_desc=None):
         # This class is to interface with Plancklens

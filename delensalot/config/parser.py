@@ -37,7 +37,7 @@ class LerepiParser():
             else:
                 assert 0, log.error("Job_id must be in {} but is {}".format(['QE_lensrec', 'MAP_lensrec', 'build_OBD', 'generate_sim', 'delens', 'analyse_phi', ], job_id))
 
-        if self.parser.resume == '' and self.parser.status == '' and self.parser.purgehashs == '':
+        if self.parser.resume == '':
             assert 0, 'Choose one of the available options to get going.'
         if _validate_r(self.parser.resume):
             pass
