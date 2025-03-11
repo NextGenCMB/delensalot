@@ -10,7 +10,6 @@ import traceback
 import delensalot.core.mpi as mpi
 
 from delensalot.config.handler import config_handler
-import delensalot.config.etc.dev_helper as dh
 from delensalot.config.etc.abstract import parserclass
 from delensalot.config.parser import lerepi_parser
 
@@ -115,9 +114,6 @@ if __name__ == '__main__':
         parser = lparser.get_parser()
 
     config_handler = config_handler(parser)
-    if dh.dev_subr in parser.__dict__:
-        dh.dev(parser, config_handler.TEMP)
-        sys.exit()
     if mpi.rank == 0:
         mpi.disable()
         config_handler.collect_models()
