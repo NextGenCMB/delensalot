@@ -18,7 +18,7 @@ from delensalot.core.mpi import check_MPI
 
 from delensalot.config import safelist
 from delensalot.config.visitor import transform, transform3d
-from delensalot.config.transformer.lerepi2dlensalot_v3 import l2delensalotjob_Transformer, get_TEMP_dir
+from delensalot.config.transformer.lerepi2dlensalot import l2delensalotjob_Transformer, get_TEMP_dir
 
 
 def load_config(directory, descriptor):

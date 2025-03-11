@@ -1,10 +1,10 @@
 from delensalot.config.visitor import transform, transform3d
 
-from delensalot.config.metamodel.delensalot_mm_v3 import DELENSALOT_Model as DELENSALOT_Model_mm_v3, DELENSALOT_Concept_v3
-from delensalot.config.transformer.lerepi2dlensalot_v3 import l2delensalotjob_Transformer as l2delensalotjob_Transformer_v3
+from delensalot.config.metamodel.delensalot_mm import DELENSALOT_Model as DELENSALOT_Model_mm, DELENSALOT_Concept
+from delensalot.config.transformer.lerepi2dlensalot import l2delensalotjob_Transformer as l2delensalotjob_Transformer
 
 
-@transform3d.case(DELENSALOT_Concept_v3, str, l2delensalotjob_Transformer_v3)
+@transform3d.case(DELENSALOT_Concept, str, l2delensalotjob_Transformer)
 def f1(expr, job_id, transformer): # pylint: disable=missing-function-docstring
     if "generate_sim" == job_id:
         return transformer.build_datacontainer(expr)
@@ -22,7 +22,7 @@ def f1(expr, job_id, transformer): # pylint: disable=missing-function-docstring
         assert 0, 'Dont understand your key: {}'.format(job_id)
 
 
-@transform3d.case(DELENSALOT_Model_mm_v3, str, l2delensalotjob_Transformer_v3)
+@transform3d.case(DELENSALOT_Model_mm, str, l2delensalotjob_Transformer)
 def f1(expr, job_id, transformer): # pylint: disable=missing-function-docstring
     if "generate_sim" == job_id:
         return transformer.build_datacontainer(expr)

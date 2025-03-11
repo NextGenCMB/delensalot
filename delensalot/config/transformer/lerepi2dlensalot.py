@@ -28,7 +28,7 @@ from delensalot.core.MAP.gradient import Gradient, BirefringenceGradientSub, Len
 from delensalot.config.config_manager import set_config
 from delensalot.config.config_helper import PLANCKLENS_keys, generate_plancklenskeys, filter_secondary_and_component
 from delensalot.config.metamodel import DEFAULT_NotAValue as DNaV
-from delensalot.config.metamodel.delensalot_mm_v3 import DELENSALOT_Concept_v3
+from delensalot.config.metamodel.delensalot_mm import DELENSALOT_Concept
 from delensalot.config.etc.errorhandler import DelensalotError
 from delensalot.utils import cli, camb_clfile
 
@@ -208,7 +208,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.data_key = an.estimator_key[-2:]
                 dl.idxs = an.idxs
                 dl.idxs_mf = np.array(an.idxs_mf) # if dl.version != 'noMF' else np.array([])
-            dl = DELENSALOT_Concept_v3()
+            dl = DELENSALOT_Concept()
             l2base_Transformer.process_Computing(dl, cf.computing, cf)
             _process_Analysis(dl, cf.analysis, cf)
             l2base_Transformer.process_DataSource(dl, cf.data_source, cf)
@@ -255,7 +255,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_OBD(dl, cf.obd)
                 _process_Qerec(dl, cf.qerec)
 
-            dl = DELENSALOT_Concept_v3()
+            dl = DELENSALOT_Concept()
             _process_components(dl)
 
             keystring = cf.analysis.estimator_key if len(cf.analysis.estimator_key) == 1 else '_'+cf.analysis.estimator_key.split('_')[-1] if "_" in cf.analysis.estimator_key else cf.analysis.estimator_key[-2:]
@@ -327,7 +327,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 _process_OBD(dl, cf.obd)
                 _process_Itrec(dl, cf.maprec)
 
-            dl = DELENSALOT_Concept_v3()
+            dl = DELENSALOT_Concept()
             _process_components(dl)
 
             QE_scheduler = self.build_QE_lensrec(cf)

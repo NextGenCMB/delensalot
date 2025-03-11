@@ -19,7 +19,7 @@ from delensalot.config.metamodel import DEFAULT_NotAValue, DEFAULT_NotASTR
 import importlib.util
 
 
-class DELENSALOT_Concept_v3:
+class DELENSALOT_Concept:
     """An abstract element base type for the Dlensalot formalism."""
     __metaclass__ = abc.ABCMeta
 
@@ -41,7 +41,7 @@ class DELENSALOT_Concept_v3:
 
 
 @attr.s
-class DELENSALOT_Job(DELENSALOT_Concept_v3):
+class DELENSALOT_Job(DELENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
     delensalot can executte different jobs (QE reconstruction, simulation generation, MAP reconstruction, delensing, ..) which is controlled here.
 
@@ -52,7 +52,7 @@ class DELENSALOT_Job(DELENSALOT_Concept_v3):
 
 
 @attr.s
-class DELENSALOT_Analysis(DELENSALOT_Concept_v3):
+class DELENSALOT_Analysis(DELENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the specific analysis performed on the data.
 
@@ -91,7 +91,7 @@ class DELENSALOT_Analysis(DELENSALOT_Concept_v3):
 
 
 @attr.s
-class DELENSALOT_DataSource(DELENSALOT_Concept_v3):
+class DELENSALOT_DataSource(DELENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the input maps, and values can differ from the noise model and analysis.
 
@@ -111,7 +111,7 @@ class DELENSALOT_DataSource(DELENSALOT_Concept_v3):
 
 
 @attr.s
-class DELENSALOT_Noisemodel(DELENSALOT_Concept_v3):
+class DELENSALOT_Noisemodel(DELENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the noise model used for Wiener-filtering the data.
 
@@ -136,7 +136,7 @@ class DELENSALOT_Noisemodel(DELENSALOT_Concept_v3):
 
 
 @attr.s
-class DELENSALOT_QErec(DELENSALOT_Concept_v3):
+class DELENSALOT_QErec(DELENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the quadratic estimator reconstruction job.
 
@@ -158,7 +158,7 @@ class DELENSALOT_QErec(DELENSALOT_Concept_v3):
 
 
 @attr.s
-class DELENSALOT_MAPrec(DELENSALOT_Concept_v3):
+class DELENSALOT_MAPrec(DELENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the iterative reconstruction job.
 
@@ -189,7 +189,7 @@ class DELENSALOT_MAPrec(DELENSALOT_Concept_v3):
 
     
 @attr.s
-class DELENSALOT_Mapdelensing(DELENSALOT_Concept_v3):
+class DELENSALOT_Mapdelensing(DELENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the internal map delensing job.
 
@@ -220,7 +220,7 @@ class DELENSALOT_Mapdelensing(DELENSALOT_Concept_v3):
     basemap =               attr.field(default=DEFAULT_NotAValue)
 
 @attr.s
-class DELENSALOT_Phianalysis(DELENSALOT_Concept_v3):
+class DELENSALOT_Phianalysis(DELENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the internal map delensing job.
 
@@ -231,7 +231,7 @@ class DELENSALOT_Phianalysis(DELENSALOT_Concept_v3):
 
 
 @attr.s
-class DELENSALOT_OBD(DELENSALOT_Concept_v3):
+class DELENSALOT_OBD(DELENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the overlapping B-mode deprojection.
 
@@ -248,7 +248,7 @@ class DELENSALOT_OBD(DELENSALOT_Concept_v3):
 
 
 @attr.s
-class DELENSALOT_Computing(DELENSALOT_Concept_v3):
+class DELENSALOT_Computing(DELENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
     This class collects all configurations related to the usage of computing resources.
 
@@ -259,7 +259,7 @@ class DELENSALOT_Computing(DELENSALOT_Concept_v3):
 
 
 @attr.s
-class DELENSALOT_Model(DELENSALOT_Concept_v3):
+class DELENSALOT_Model(DELENSALOT_Concept):
     """A root model element type of the Dlensalot formalism.
 
     Attributes:
