@@ -327,7 +327,7 @@ class LensingGradientSub(GradSub):
 
     def _get_operator(self, filter_operator):
         lm_max_out = filter_operator.operators[-1].lm_max_out
-        return operator.Compound([operator.SpinRaise(lm_max=lm_max_out), filter_operator], out='map')
+        return operator.Compound([operator.SpinRaise(lm_max=lm_max_out), filter_operator], out='map', sht_tr=self.sht_tr)
     
 
     def cache(self, gfieldlm, it, type='quad'):
@@ -371,4 +371,4 @@ class BirefringenceGradientSub(GradSub):
     
 
     def _get_operator(self, filter_operator):
-        return operator.Compound([filter_operator], out='map')
+        return operator.Compound([filter_operator], out='map', sht_tr=self.sht_tr)

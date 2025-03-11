@@ -66,10 +66,11 @@ class Multiply:
 
 
 class Compound:
-    def __init__(self, operators, out):
+    def __init__(self, operators, out, sht_tr):
         
         self.operators = operators
         self.space_out = out
+        self.sht_tr = sht_tr
     
 
     @log_on_start(logging.DEBUG, "joint", logger=log)  
@@ -144,6 +145,8 @@ class Lensing(Operator):
         self.component = operator_desc["component"]
         self.field = {component: None for component in self.component}
         self.field_fns = field.get_secondary_fns(self.component)
+
+        self.sht_tr = operator_desc["sht_tr"]
         self.ffi = deflection(self.lenjob_geomlib, np.zeros(shape=Alm.getsize(*self.LM_max), dtype=complex), self.LM_max[1], numthreads=self.sht_tr, verbosity=False, epsilon=1e-10)
 
 
@@ -200,6 +203,7 @@ class Birefringence(Operator):
         self.field = {component: None for component in self.component}
         self.field_fns = field.get_secondary_fns(self.component)
 
+        self.sht_tr = operator_desc["sht_tr"]
 
     @log_on_start(logging.DEBUG, "birefringence", logger=log)
     # @log_on_end(logging.DEBUG, "birefringence done", logger=log)
@@ -292,7 +296,7 @@ class Beam:
     
 
 class InverseNoiseVariance(Operator):
-    def __init__(self, nlev, lm_max, niv_desc, geom_lib, geominfo, transferfunction, libdir, spectrum_type=None, OBD=None, obd_rescale=None, obd_libdir=None, sky_coverage=None, filtering_spatial_type=None, data_key=None):
+    def __init__(self, nlev, lm_max, niv_desc, geom_lib, geominfo, transferfunction, libdir, spectrum_type=None, OBD=None, obd_rescale=None, obd_libdir=None, sky_coverage=None, filtering_spatial_type=None, data_key=None, sht_tr=None):
         super().__init__(libdir)
         self.ID = 'inoise'
         self.data_key = data_key
@@ -305,6 +309,8 @@ class InverseNoiseVariance(Operator):
         self.transferfunction = transferfunction
         spectrum_type = spectrum_type
         OBD = OBD
+
+        self.sht_tr = sht_tr
         self.sky_coverage = sky_coverage
         self.n1tebl = [
             cli(_extend_cl(self.nlev['T']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2 if data_key in ['tp', 'tt'] else np.zeros(shape=lm_max[0]+1),
