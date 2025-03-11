@@ -112,8 +112,8 @@ class Filter_3d:
             teblm = self.inv_operator.act(teblm, adjoint=False)
         else:
             lm_max = self.inv_operator.lm_max
-            imap = self.inv_operator.geom_lib.synthesis(teblm[0], 0, *lm_max, 6)
-            qumap = self.inv_operator.geom_lib.synthesis(teblm[1:], 2, *lm_max, 6)
+            imap = self.inv_operator.geom_lib.synthesis(teblm[0], 0, *lm_max, self.sht_tr)
+            qumap = self.inv_operator.geom_lib.synthesis(teblm[1:], 2, *lm_max, self.sht_tr)
             teblm = self.inv_operator.apply_map(np.array([*imap, *qumap]))
 
         teblm = self.beam_operator.act(teblm, adjoint=False)
@@ -209,8 +209,8 @@ class Filter_3d:
             else:
                 lm_max = self.inv_operator.lm_max
                 ivfresmap = []
-                ivfresmap.append(self.inv_operator.geom_lib.synthesis(ivfreslm[0], 0, *lm_max, 6))
-                buff = self.inv_operator.geom_lib.synthesis(ivfreslm[1:], 2, *lm_max, 6)
+                ivfresmap.append(self.inv_operator.geom_lib.synthesis(ivfreslm[0], 0, *lm_max, self.sht_tr)
+                buff = self.inv_operator.geom_lib.synthesis(ivfreslm[1:], 2, *lm_max, self.sht_tr)
                 ivfresmap.append(buff[0])
                 ivfresmap.append(buff[1])
                 ivfresmap = [ivf+d for ivf,d in zip(ivfresmap,data)]

@@ -170,7 +170,7 @@ class GradSub:
         self.sky_coverage = gradient_desc['sky_coverage']
 
         self.geom_lib = gradient_desc['sec_operator'].operators[-1].lenjob_geomlib
-        self.sht_tr = 6
+        self.sht_tr = gradient_desc['sht_tr']
 
         self.wfivf_filter = gradient_desc.get('wfivf_filter', None)
 
@@ -360,7 +360,7 @@ class BirefringenceGradientSub(GradSub):
             lmax = Alm.getlmax(wflm[0].size, None)
             xwfmap = self.geom_lib.synthesis(wflm[1:], 2, lmax, lmax, self.sht_tr)
             lmax = Alm.getlmax(ivfreslm[0].size, None)
-            ivfmap = self.geom_lib.synthesis(ivfreslm[1:], 2, lmax, lmax, 6)
+            ivfmap = self.geom_lib.synthesis(ivfreslm[1:], 2, lmax, lmax, self.sht_tr)
  
             # qlms = -4*(ivfmap[0]*xwfmap[1] - ivfmap[1]*xwfmap[0])
             qlms = +2*(+ivfmap[0]*xwfmap[1] - ivfmap[1]*xwfmap[0])

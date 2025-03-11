@@ -29,7 +29,7 @@ class LerepiParser():
                     return True
                 else:
                     log.error('Cannot find config file to resume at {}'.format(resume_fn))
-                    assert 0, "I see the following options: {}".format(f)
+                    assert 0, "Cannot find config file to resume at {}".format(resume_fn)
                     
         def _validate_job(job_id):
             if job_id in ['QE_lensrec', 'MAP_lensrec', 'build_OBD', 'generate_sim', 'delens', 'analyse_phi', None]:

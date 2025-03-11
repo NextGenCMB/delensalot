@@ -85,7 +85,7 @@ class Compound:
             # NOTE this is a hack to catch a birefringence only case and return map
             # NOTE I should rather move the out space here completely
             # FIXME this needs changing
-            return self.operators[-1].operators[-1].lenjob_geomlib.synthesis(obj, 2, *self.operators[-1].operators[-1].lm_max, 6)
+            return self.operators[-1].operators[-1].lenjob_geomlib.synthesis(obj, 2, *self.operators[-1].operators[-1].lm_max, self.sht_tr)
         
         return obj
     
@@ -144,7 +144,7 @@ class Lensing(Operator):
         self.component = operator_desc["component"]
         self.field = {component: None for component in self.component}
         self.field_fns = field.get_secondary_fns(self.component)
-        self.ffi = deflection(self.lenjob_geomlib, np.zeros(shape=Alm.getsize(*self.LM_max), dtype=complex), self.LM_max[1], numthreads=8, verbosity=False, epsilon=1e-10)
+        self.ffi = deflection(self.lenjob_geomlib, np.zeros(shape=Alm.getsize(*self.LM_max), dtype=complex), self.LM_max[1], numthreads=self.sht_tr, verbosity=False, epsilon=1e-10)
 
 
     @log_on_start(logging.DEBUG, "lensing", logger=log)
@@ -180,7 +180,7 @@ class Lensing(Operator):
             d = [fieldlm[0], None] if self.component[0] == 'p' else [np.zeros_like(fieldlm[0], dtype=complex), fieldlm[0]]
         else:
             d = fieldlm
-        self.ffi = deflection(self.lenjob_geomlib, d[0], self.LM_max[1], dclm=d[1], numthreads=6, verbosity=False, epsilon=1e-10)
+        self.ffi = deflection(self.lenjob_geomlib, d[0], self.LM_max[1], dclm=d[1], numthreads=self.sht_tr, verbosity=False, epsilon=1e-10)
 
 
     def klm2dlm(self, klm):
@@ -192,7 +192,6 @@ class Lensing(Operator):
 class Birefringence(Operator):
     def __init__(self, operator_desc):
         super().__init__(operator_desc["libdir"])
-        
         self.ID = 'birefringence'
         self.LM_max = operator_desc["LM_max"]
         self.lm_max = operator_desc["lm_max"]
@@ -211,7 +210,7 @@ class Birefringence(Operator):
         # NOTE if no B component, I set B to zero
         # if obj.shape[0] == 1:
         #     obj = [obj[0], np.zeros_like(obj[0])+np.zeros_like(obj[0])*1j] 
-        Q, U = self.lenjob_geomlib.alm2map_spin(obj[1:], 2, lmax, lmax, 6)  
+        Q, U = self.lenjob_geomlib.alm2map_spin(obj[1:], 2, lmax, lmax, self.sht_tr)
 
         Q_rot = self.cos_a * Q - self.sin_a * U
         U_rot = self.sin_a * Q + self.cos_a * U
@@ -219,7 +218,7 @@ class Birefringence(Operator):
         if adjoint:
             Q_rot, U_rot = self.cos_a * Q + self.sin_a * U, -self.sin_a * Q + self.cos_a * U
 
-        Elm_rot, Blm_rot = self.lenjob_geomlib.map2alm_spin(np.array([Q_rot, U_rot]), 2, lmax, lmax, 6)
+        Elm_rot, Blm_rot = self.lenjob_geomlib.map2alm_spin(np.array([Q_rot, U_rot]), 2, lmax, lmax, self.sht_tr)
 
         if out_sht_mode == 'GRAD_ONLY':
             return np.atleast_2d(Elm_rot)
@@ -227,7 +226,7 @@ class Birefringence(Operator):
 
 
     def set_field(self, fieldlm):
-        self.angle = 2 * self.lenjob_geomlib.alm2map(fieldlm.squeeze(), *self.LM_max, 6)
+        self.angle = 2 * self.lenjob_geomlib.alm2map(fieldlm.squeeze(), *self.LM_max, self.sht_tr)
         self.cos_a, self.sin_a = np.cos(self.angle), np.sin(self.angle)
 
 
