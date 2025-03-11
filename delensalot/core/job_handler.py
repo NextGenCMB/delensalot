@@ -26,7 +26,7 @@ from delensalot.core.QE import handler as QE_handler
 from delensalot.core.MAP import handler as MAP_handler, functionforwardlist
 from delensalot.core.MAP.context import get_computation_context
 
-from delensalot.sims.data_source import dirname_generator
+from delensalot.sims.data_source import dirname_generator, dict2roundeddict
 
 from delensalot.config.metamodel import DEFAULT_NotAValue
 
@@ -54,9 +54,6 @@ required_files_map = {
     'ptt': ['T'],
     'p': ['T', 'E', 'B']}
 required_files_map = ConstantDict(['T', 'E', 'B'])
-
-def dict2roundeddict(d):
-    return {k: float(np.around(v, 3)) for k, v in d.items()}
 
 def get_hashcode(s):
     return hashlib.sha256(str(s).encode()).hexdigest()[:4]
