@@ -18,8 +18,6 @@ from duccjc.sht import synthesis_general_cap as syng, adjoint_synthesis_general_
 from ducc0.misc import lensing_rotate
 from copy import deepcopy
 
-from tests.old.test_QEfromfilter_P import eblm_wf
-
 rtype = {np.dtype(np.complex128):np.dtype(np.float64), np.dtype(np.complex64):np.dtype(np.float32)}
 ctype = {rtype[ctyp]:ctyp for ctyp in rtype}
 
@@ -193,7 +191,7 @@ class MD(operator):
 
                 #TODO: what to do with dgclm ? we dont need it anymore after computing the pointing
         """
-        super(MD).__init__(self)
+        super().__init__(self)
         assert int(spin) >= 0, spin
         nthreads = nthreads or psutil.cpu_count(logical=False)
 
@@ -208,7 +206,7 @@ class MD(operator):
         self.spin = int(spin)
 
         self.geom = self._prepare_geom(_dl_7=_dl_7)
-        self.dgclm = dgclm
+        self.dgclm = np.atleast_2d(dgclm)
         # FIXME:We dont need this once locs are calculated, just do it on instantiation ? or give locs as input ?
 
 
@@ -242,7 +240,7 @@ class MD(operator):
         self.adj_syn_params = adj_syn_params
         self.syn_params = syn_params
 
-        self.rtype = np.float64 if epsilon < 1e-7 else np.float32
+        self.rtype = np.dtype(np.float64) if epsilon <= 1e-7 else np.dtype(np.float32)
 
     def _prepare_geom(self, _dl_7=20):
         """Prepares geometry that will handle the lensing and windowing operations
@@ -318,11 +316,11 @@ class MD(operator):
     def apply_adjoint_inplace(self, alms_unl, alms_len):
         assert alms_unl.ndim == 2 and alms_unl.shape[1] == Alm.getsize(*self.lmmax_unl)
         assert alms_len.ndim == 2 and alms_len.shape[1] == Alm.getsize(*self.lmmax_len)
-        assert not self.adj_lensing_syng_params.get('apply_weights')
+        assert not self.adj_lensing_syng_params.get('apply_weights', False)
 
         self._prepare_ptg()
         self._allocate()
-        self.geom.synthesis(m=self._mapsr, alm=alms_len, **self.syn_params)
+        self.geom.synthesis(alms_len, map=self._mapsr, **self.syn_params)
         for of, w, npi in zip(self.geom.ofs, self.geom.weight, self.geom.nph):
             self._mapsr[:, of:of + npi] *= w
         if self.spin:
@@ -331,17 +329,17 @@ class MD(operator):
 
 
 class alm_filter_ninv(object):
-    def __init__(self, loc:np.ndarray, ninv:list, transf:np.ndarray,
+    def __init__(self, loc:np.ndarray, ninv:list, nlevs_iso, transfs:np.ndarray,
                  unlalm_info:tuple, lenalm_info:tuple, sht_threads:int,
-                 transf_b:np.ndarray or None=None, epsilon=1e-7, nlevp_iso=None,
+                 epsilon=1e-7,
                  tpl:bni.template_dense or None=None, verbose=False, maskbeam=False,
-                 dgclm: np.ndarray=np.zeros(1, dtype=complex), Lmmax:tuple[int, int]=(0, 0)):
+                 dgclm: np.ndarray=np.zeros(3, dtype=np.complex128), Lmmax:tuple[int, int]=(1, 1)):
         r"""CMB inverse-variance and Wiener filtering instance, to use for cg-inversion
 
             Args:
                 loc: co-latitude and longitude of the pixels. Must be something readable to give a (npix, 2) array
                 ninv: list of inverse-pixel noise variance maps (itself can be (a list of) string, or array, or ...)
-                transf: CMB transfer function (assumed to be the same in E and B)
+                transfs: CMB transfer functions (assumed to be a 2d array with the first dimension the number of unlensed alm components)
                 unlalm_info: tuple of int, lmax and mmax of unlensed CMB
                 lenalm_info: tuple of int, lmax and mmax of lensed CMB
                 epsilon: accuracy parameter of ducc synthesis_general and its adjoint
@@ -350,38 +348,29 @@ class alm_filter_ninv(object):
                 nlevp_iso: some reference value of the isotropic white noise level in uK-amin (preconditioner etc)
                 maskbeam: the data model includes a area-masking operation prior to the beam convolution
                 dgclm: lensing deflection, if present
-            #FIXME: make an operator class and abstract away the beam at least
 
         """
-        assert nlevp_iso is not None, 'need nlevp_iso, or come up with an idea of the pixel size given the loc'
-        transf_elm = transf
-        transf_blm = transf_b if transf_b is not None else transf
-        assert transf_blm.size == transf_elm.size, 'check if not same size OK'
+        ncomp_unl = 2 - np.any(dgclm) # There is lensing and we will deal for now with pol
+        assert transfs.ndim == 2 and transfs.shape[0] == ncomp_unl
 
-
-        lmax_unl, mmax_unl = unlalm_info
-        lmax_len, mmax_len = lenalm_info
-        lmax_transf = max(len(transf), len(transf_blm)) - 1
+        lmax_transf = transfs.shape[1] - 1
 
         self.n_inv = ninv
-        self.transf_elm = transf_elm
-        self.transf_blm = transf_blm
 
-        self.lmax_len = min(lmax_transf, lmax_len)
-        self.mmax_len = min(mmax_len, lmax_transf)
+        self.transfs = transfs
 
-        self.lmmax_len = (lmax_len, mmax_len)
-        self.lmmax_unl = (lmax_unl, mmax_unl)
+        self.lmmax_len = (min(lmax_transf, lenalm_info[0]),  min(lenalm_info[1], lmax_transf))
+        self.lmmax_sol = unlalm_info
 
-        self.lmax_sol = lmax_unl
-        self.mmax_sol = min(lmax_unl, mmax_unl)
-        self.ncomp_sol = 2  # here E and B alms
-        self.ncomp_dat = 2  # here Q and U
+        self.lmax_sol = unlalm_info[0]
+        self.mmax_sol = unlalm_info[1]
+        self.ncomp_sol = ncomp_unl
+        self.ncomp_dat = 2 # here Q and U
 
         self.sht_threads = sht_threads
         self.verbose=verbose
 
-        self._nlevp = nlevp_iso
+        self.nlevs_iso = nlevs_iso
         self.tim = timer(True, prefix='opfilt')
 
         self.template = tpl # here just one template allowed
@@ -400,23 +389,25 @@ class alm_filter_ninv(object):
         # all syng params except of loc
         syng_params = {'epsilon':epsilon,
                        'thtcap':thtcap,
-                       'eps_apo': np.sqrt(dl / lmax_unl * np.pi / thtcap),
-                        'spin':spin, 'lmax':lmax_len, 'mmax':mmax_len,
+                       'eps_apo': np.sqrt(dl / unlalm_info[0] * np.pi / thtcap),
+                        'spin':spin, 'lmax':self.lmmax_len[0], 'mmax':self.lmmax_len[1],
                         'nthreads':sht_threads, 'mode':'STANDARD', 'verbose':verbose}
         adj_syng_params = syng_params.copy()
-        adj_syng_params['lmax'] = lmax_unl
-        adj_syng_params['mmax'] = mmax_unl
+        adj_syng_params['lmax'] = self.lmmax_sol[0]
+        adj_syng_params['mmax'] = self.lmmax_sol[1]
 
         assert Lmmax is not None, Lmmax
         dgclm2d = np.atleast_2d(dgclm)
-        assert Alm.getsize(*Lmmax) == dgclm2d[0].size
+        assert Alm.getsize(*Lmmax) == dgclm2d[0].size, (Alm.getsize(*Lmmax), dgclm2d[0].size)
 
 
         # FIXME: what to for QE case ?
-        sht_mode = 'GRAD_ONLY' if Lmmax[0] > 0 else 'STANDARD'
+        sht_mode = 'GRAD_ONLY' if ncomp_unl == 1 else 'STANDARD'
+        self.nalms_unl = 1 if (spin == 0 or sht_mode == 'GRAD_ONLY') else 2
+        self.spin = spin
 
 
-        self.MD_op = MD(thtcap, spin, sht_mode, self.lmmax_len , self.lmmax_unl, dgclm, Lmmax,
+        self.MD_op = MD(thtcap, spin, sht_mode, self.lmmax_len , self.lmmax_sol, dgclm, Lmmax,
                       nthreads=sht_threads, epsilon=epsilon, verbose=False)
 
         if verbose:
@@ -493,21 +484,11 @@ class alm_filter_ninv(object):
         self._qu = None
         self._almlen = None
 
-    def get_febl(self):
-        assert self._nlevp is not None, 'need to implement some idea of pixel size from the locs if not specified'
-        if self._nlevp is None:
-            if len(self.n_inv) == 1:
-                ni = read_map(self.n_inv[0])
-                nlev_febl =  1. / np.sqrt(np.sum(ni * ni) / np.sum(ni)) * 180 * 60 / np.pi  # Ni-weigted noise level
-                # Hmm need some idea of pixel size here...
-            elif len(self.n_inv) == 3:
-                assert 0, 'implement this'
-            else:
-                assert 0
-            self._nlevp = nlev_febl
-        fel = self.transf_elm ** 2 / (self._nlevp/ 180. / 60. * np.pi) ** 2
-        fbl = self.transf_blm ** 2 / (self._nlevp/ 180. / 60. * np.pi) ** 2
-        return fel, fbl
+    def get_fal(self):
+        ret = self.transfs ** 2
+        for nlev, r in zip(self.nlevs_iso, ret):
+            r /= (nlev / 180. / 60. * np.pi) ** 2
+        return ret
 
     def apply_beam(self, eblm:np.ndarray, qumap:np.ndarray, loc=None):
         """Action of beam operator. Here defined from lensed harmonic space to data pixel space
@@ -517,11 +498,10 @@ class alm_filter_ninv(object):
 
         """
         assert eblm.shape == (self.ncomp_dat, Alm.getsize(*self.lmmax_len)), (eblm.shape, (self.ncomp_dat, Alm.getsize(*self.lmmax_len)))
-
         if loc is None:
             loc = read_map(self.loc)
-        almxfl(eblm[0], self.transf_elm, self.mmax_len, inplace=True)
-        almxfl(eblm[1], self.transf_blm, self.mmax_len, inplace=True)
+        for alm, bl in zip(eblm, self.transfs):
+            almxfl(alm, bl, self.lmmax_len[1], inplace=True)
         syng(alm=eblm, map=qumap, loc=loc, **self.syng_params)
 
     def apply_adjoint_beam(self, eblm:np.ndarray, qumap:np.ndarray, loc=None):
@@ -535,14 +515,17 @@ class alm_filter_ninv(object):
         if loc is None:
             loc = read_map(self.loc)
         syng_adj(map=qumap,  loc=loc, alm=eblm, **self.adj_syng_params)
-        almxfl(eblm[0], self.transf_elm, self.mmax_len, inplace=True)
-        almxfl(eblm[1], self.transf_blm, self.mmax_len, inplace=True)
+        for alm, bl in zip(eblm, self.transfs):
+            almxfl(alm, bl, self.lmmax_len[1], inplace=True)
 
     def apply_alm(self, alm_unl:np.ndarray):
-        """Applies operator B^T N^{-1} B
+        """Applies operator
+
+            :math:`\mathcal{B}^\dagger N^{-1} \mathcal{B}`
+
 
         """
-        assert  Alm.getlmax(alm_unl[0].size, self.mmax_sol) == self.lmax_sol, ( Alm.getlmax(alm_unl[0].size, self.mmax_sol), self.lmax_sol)
+        assert alm_unl.shape == (self.nalms_unl, Alm.getsize(*self.lmmax_sol))
         tim = timer(True, prefix='opfilt_pp')
         loc = read_map(self.loc)
         self._allocate_maps(r_dtype=rtype[alm_unl.dtype])
@@ -600,20 +583,20 @@ class alm_filter_ninv(object):
         """
         from lenspyx.utils_hp import rng # not sure this is the right thing to do
         clseb = {spec: cls.get(spec, np.array([0.0])) for spec in ['ee', 'bb', 'eb', 'be']}
-        eblm = synalms(clseb, lmax=self.lmax_len, mmax=self.mmax_len)
+        eblm = synalms(clseb, lmax=self.lmmax_len[0], mmax=self.lmmax_len[1])
         qu = np.empty((self.ncomp_dat, self.npix), dtype=rtype[eblm.dtype])
         self.apply_beam(eblm, qumap=qu, loc=read_map(self.loc))
         assert len(self.n_inv) == 1, 'not implemented, fix next line'
         qu += rng.standard_normal(qu.shape, dtype=qu.dtype) * np.sqrt(cli(read_map(self.n_inv[0])))
         return qu
 
-    def get_qlms(self, qudat: np.ndarray or list, eblm_wf: np.ndarray, lmax_qlm:int, mmax_qlm:int,
+    def get_qlms(self, qudat: np.ndarray or list, alm_wf: np.ndarray, lmax_qlm:int, mmax_qlm:int,
                  norm:str='k', eb_only=False):
         """
 
             Args:
                 qudat: input polarization maps (geom must match that of the filter)
-                eblm_wf: Wiener-filtered CMB maps (alm arrays)
+                alm_wf: Wiener-filtered CMB maps (alm arrays)
                 lmax_qlm: maximum multipole of output
                 mmax_qlm: maximum m of lm output
                 norm: normalization of the output (whether kappa-like ('k'), or potential-like...)
@@ -623,20 +606,21 @@ class alm_filter_ninv(object):
                 gradient and curl alms
 
         """
-        assert len(qudat) == self.ncomp_dat and len(eblm_wf) == 2
+        assert alm_wf.shape == (self.nalms_unl, Alm.getsize(*self.lmmax_sol))
         assert norm in ['k', 'kappa', 'kappa-like', 'p', 'phi', 'phi-like'], 'implement this (easy)'
+        assert self.spin == 2
         qgeom = self._get_sky_geom((2 * self.lmax_sol + lmax_qlm) // 2 + 1, weighted=True)
-        resmap_c = np.empty((qgeom.npix(),), dtype=eblm_wf.dtype)
+        resmap_c = np.empty((qgeom.npix(),), dtype=alm_wf.dtype)
         resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
-        self._get_irespmap(qudat, eblm_wf, qgeom, map_out=resmap_r, eb_only=eb_only)  # inplace onto resmap_c and resmap_r
+        self._get_irespmap(qudat, alm_wf, qgeom, map_out=resmap_r, eb_only=eb_only)  # inplace onto resmap_c and resmap_r
         if not eb_only:
-            eblm_wf_g = eblm_wf
+            alm_wf_g = alm_wf
         else:
-            eblm_wf_g = np.zeros_like(eblm_wf)
-            eblm_wf_g[0, :] = eblm_wf[0]  # For gradient leg
-        gcs_r = self._get_gpmap(eblm_wf_g, 3, qgeom)  # 2 pos.space maps, uses then complex view onto real array
+            alm_wf_g = np.zeros_like(alm_wf)
+            alm_wf_g[0, :] = alm_wf[0]  # For gradient leg
+        gcs_r = self._get_gpmap(alm_wf_g, 3, qgeom)  # 2 pos.space maps, uses then complex view onto real array
         gc_c = resmap_c.conj() * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3)
-        gcs_r = self._get_gpmap(eblm_wf_g, 1, qgeom)
+        gcs_r = self._get_gpmap(alm_wf_g, 1, qgeom)
         gc_c -= resmap_c * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze().conj()  # (+2 , -1)
         del resmap_c, resmap_r, gcs_r
         gc_r = gc_c.view(rtype[gc_c.dtype]).reshape((gc_c.size, 2)).T  # real view onto complex array
@@ -660,8 +644,6 @@ class alm_filter_ninv(object):
 
 
         """
-        assert 0, 'have to have lensing somehow here'
-        assert len(eblm_wf) == 2
         assert  Alm.getlmax(eblm_wf[0].size, self.mmax_sol)== self.lmax_sol, ( Alm.getlmax(eblm_wf[0].size, self.mmax_sol), self.lmax_sol)
         assert spin in [1, 3], spin
         lmax = Alm.getlmax(eblm_wf[0].size, self.mmax_sol)
@@ -684,7 +666,7 @@ class alm_filter_ninv(object):
 
 
         """
-        assert len(qu_dat) == self.ncomp_dat and len(eblm_wf) == 2, (len(eblm_wf), len(qu_dat))
+        assert len(qu_dat) == self.ncomp_dat and len(eblm_wf) == self.ncomp_sol
         loc = read_map(self.loc)
         self._allocate_maps(r_dtype=qu_dat.dtype)
         self.MD_op.apply_inplace(eblm_wf, self._almlen)
@@ -695,12 +677,12 @@ class alm_filter_ninv(object):
         self._almlen *= -1 # FIXME. is M^t B^t implemented correctly  here? best would be to have a BM I guess
         if eb_only:
             self._almlen[0, :] = 0
-        return qgeom.synthesis(self._almlen, 2, self.lmax_len, self.mmax_len, self.sht_threads, map=map_out)
+        return qgeom.synthesis(self._almlen, self.spin, self.lmmax_len[0], self.lmmax_len[1], self.sht_threads, map=map_out)
 
 pre_op_dense = None # not implemented
 
 def calc_prep(maps:np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv):
-    """cg-inversion pre-operation  (D^t B^t N^{-1} X^{dat})
+    """cg-inversion pre-operation  (D^t M^t B^t N^{-1} X^{dat})
 
         Args:
             maps: input polarisation maps
@@ -709,13 +691,14 @@ def calc_prep(maps:np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv):
 
 
     """
-    assert ninv_filt.lmax_sol == ninv_filt.lmax_len, (ninv_filt.lmax_sol, ninv_filt.lmax_len)  # not implemented wo lensing
-    assert ninv_filt.mmax_sol == ninv_filt.mmax_len, (ninv_filt.mmax_sol, ninv_filt.mmax_len)
-    qumap = np.copy(maps)
-    ninv_filt.apply_map(qumap)
-    eblm = np.empty((ninv_filt.ncomp_sol, Alm.getsize(ninv_filt.lmax_sol, ninv_filt.mmax_sol)), dtype=ctype[qumap.dtype])
-    ninv_filt.apply_adjoint_beam(eblm=eblm, qumap=qumap, loc=read_map(ninv_filt.loc))
-    return eblm
+    assert maps.ndim == 2 and maps.shape[0] == ninv_filt.ncomp_dat, (maps.shape, ninv_filt.ncomp_dat)
+    ninv_filt._allocate_maps(maps.dtype)
+    ninv_filt._qu[:] = maps
+    ninv_filt.apply_map(ninv_filt._qu)
+    ninv_filt.apply_adjoint_beam(eblm=ninv_filt._almlen, qumap=ninv_filt._qu, loc=read_map(ninv_filt.loc))
+    alms_unl = np.empty((ninv_filt.nalms_unl, Alm.getsize(*ninv_filt.lmmax_sol)), dtype=ctype[maps.dtype])
+    ninv_filt.MD_op.apply_adjoint_inplace(alms_unl, ninv_filt._almlen)
+    return alms_unl
 
 def apply_fini(*args, **kwargs):
     """cg-inversion post-operation
@@ -731,32 +714,32 @@ class pre_op_diag:
 
     """
     def __init__(self, s_cls:dict, ninv_filt:alm_filter_ninv):
-        ninv_fel, ninv_fbl = ninv_filt.get_febl()  # (N_lev * transf) ** 2 basically
+        #FIXME: 'ee', 'bb' ?
+        specs = ['ee', 'bb'][:ninv_filt.nalms_unl]
+        ninv_fals = ninv_filt.get_fal()  # (N_lev * transf) ** 2 basically
         lmax_sol = ninv_filt.lmax_sol
         flmat = {}
-        for fl, clk in zip([ninv_fel, ninv_fbl], ['ee', 'bb']):
+        for fl, clk in zip(ninv_fals, specs):
             assert len(s_cls[clk]) > ninv_filt.lmax_sol, (ninv_filt.lmax_sol, len(s_cls[clk]))
             if len(fl) - 1 < lmax_sol: # We extend the transfer fct to avoid predcon. with zero (~ Gauss beam)
                 print("PRE_OP_DIAG: extending transfer fct from lmax %s to lmax %s"%(len(fl)-1, lmax_sol))
                 assert np.all(fl > 0)
-                spl_sq = spl(np.arange(len(ninv_fel), dtype=float), np.log(fl), k=2, ext='extrapolate')
+                spl_sq = spl(np.arange(len(fl), dtype=float), np.log(fl), k=2, ext='extrapolate')
                 flmat[clk] = cli(s_cls[clk][:lmax_sol + 1]) + np.exp(spl_sq(np.arange(lmax_sol + 1, dtype=float)))
             else:
                 flmat[clk] = cli(s_cls[clk][:lmax_sol + 1]) + fl
 
-        self.flmat = {k: cli(flmat[k]) * (s_cls[k][:lmax_sol +1] > 0.) for k in ['ee', 'bb']}
-        self.lmax = ninv_filt.lmax_sol
-        self.mmax = ninv_filt.mmax_sol
+        self.flmat = np.array([cli(flmat[k]) * (s_cls[k][:lmax_sol +1] > 0.) for k in specs])
+        self.lmmax =(ninv_filt.lmax_sol, ninv_filt.mmax_sol)
 
-    def __call__(self, eblm):
-        return self.calc(eblm)
+    def __call__(self, alm):
+        return self.calc(alm)
 
     def calc(self, eblm):
-        assert Alm.getsize(self.lmax, self.mmax) == eblm[0].size, (self.lmax, self.mmax, Alm.getlmax(eblm[0].size, self.mmax))
-        assert Alm.getsize(self.lmax, self.mmax) == eblm[1].size, (self.lmax, self.mmax, Alm.getlmax(eblm[1].size, self.mmax))
-        ret = np.copy(eblm)
-        almxfl(ret[0], self.flmat['ee'], self.mmax, True)
-        almxfl(ret[1], self.flmat['bb'], self.mmax, True)
+        assert eblm.shape == (len(self.flmat), Alm.getsize(*self.lmmax)), (eblm.shape,  Alm.getsize(*self.lmmax))
+        ret = np.copy(eblm) # TODO is a copy needed here ?
+        for alm, fl in zip(ret, self.flmat):
+            almxfl(alm, fl, self.lmmax[1], True)
         return ret
 
 class dot_op:
@@ -770,16 +753,13 @@ class dot_op:
 
         """
         if mmax is None or mmax < 0: mmax = lmax
-        self.lmax = lmax
-        self.mmax = min(mmax, lmax)
+        self.lmmax = (lmax, min(mmax, lmax))
 
     def __call__(self, eblm1, eblm2):
-        assert eblm1[0].size == Alm.getsize(self.lmax, self.mmax), (eblm1[0].size, Alm.getsize(self.lmax, self.mmax))
-        assert eblm2[0].size == Alm.getsize(self.lmax, self.mmax), (eblm2[0].size, Alm.getsize(self.lmax, self.mmax))
-        assert eblm1[1].size == Alm.getsize(self.lmax, self.mmax), (eblm1[1].size, Alm.getsize(self.lmax, self.mmax))
-        assert eblm2[1].size == Alm.getsize(self.lmax, self.mmax), (eblm2[1].size, Alm.getsize(self.lmax, self.mmax))
-        ret  = np.sum(alm2cl(eblm1[0], eblm2[0], self.lmax, self.mmax, None) * (2 * np.arange(self.lmax + 1) + 1))
-        ret += np.sum(alm2cl(eblm1[1], eblm2[1], self.lmax, self.mmax, None) * (2 * np.arange(self.lmax + 1) + 1))
+        assert eblm1[0].size == Alm.getsize(*self.lmmax) and eblm2.size == eblm1.size
+        ret = 0
+        for alm, blm in zip(eblm1, eblm2):
+            ret += np.sum(alm2cl(alm, blm, self.lmmax[0], self.lmmax[1], None) * (2 * np.arange(self.lmmax[0] + 1) + 1))
         return ret
 
 class fwd_op:
@@ -789,24 +769,23 @@ class fwd_op:
     """
     def __init__(self, s_cls:dict, ninv_filt:alm_filter_ninv):
 
-        icls = {'ee':cli(s_cls['ee']), 'bb':cli(s_cls['bb'])}
-        assert np.all(ninv_filt.transf_elm[np.where(icls['ee'][:ninv_filt.lmax_len] == 0.)] == 0.), 'inconsistent inputs'
-        assert np.all(ninv_filt.transf_blm[np.where(icls['bb'][:ninv_filt.lmax_len] == 0.)] == 0.), 'inconsistent inputs'
+        icls = np.array([cli(s_cls['ee']),cli(s_cls['bb'])])
+        for bl, cl in zip(ninv_filt.transfs, icls):
+            assert np.all(bl[np.where(cl[:ninv_filt.lmmax_len[0]] == 0.)] == 0.), 'inconsistent inputs'
         self.icls = icls
         self.ninv_filt = ninv_filt
         self.lmax_sol = ninv_filt.lmax_sol
         self.mmax_sol = ninv_filt.mmax_sol
 
     def hashdict(self):
-        return {'iclee': clhash(self.icls['ee']),'iclbb': clhash(self.icls['bb']),
-                'n_inv_filt': self.ninv_filt.hashdict()}
+        return {'icls':clhash(self.icls)}
 
-    def __call__(self, eblm):
-        return self.calc(eblm)
+    def __call__(self, alms):
+        return self.calc(alms)
 
-    def calc(self, eblm):
-        nlm = np.copy(eblm)
-        self.ninv_filt.apply_alm(nlm)
-        nlm[0] += almxfl(eblm[0], self.icls['ee'], self.mmax_sol, False)
-        nlm[1] += almxfl(eblm[1], self.icls['bb'], self.mmax_sol, False)
-        return nlm
+    def calc(self, alms):
+        nlms = np.copy(alms) #TODO is this copy needed ?
+        self.ninv_filt.apply_alm(nlms)
+        for nlm, alm, icl in zip(nlms, alms, self.icls):
+            nlm += almxfl(alm, icl, self.mmax_sol, False)
+        return nlms

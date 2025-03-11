@@ -189,7 +189,7 @@ class MD(operator):
 
                 #TODO: what to do with dgclm ? we dont need it anymore after computing the pointing
         """
-        super(D).__init__(self)
+        super(MD).__init__(self)
         assert int(spin) >= 0, spin
         nthreads = nthreads or psutil.cpu_count(logical=False)
 
@@ -490,6 +490,9 @@ class alm_filter_ninv(object):
             else:
                 ret.append(ninv_comp)
         return ret
+
+    def get_fal(self):
+        return self.get_febl()
 
     def get_febl(self):
         assert self._nlevp is not None, 'need to implement some idea of pixel size from the locs if not specified'
