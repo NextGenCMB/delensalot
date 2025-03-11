@@ -403,12 +403,16 @@ class DataContainer:
             # FIXME if data is already masked (e.g. provided from disk), this will doubly mask the data.. not sure we want this
             obs = self.data_source.get_sim_obs(idx=idx, space='map', field='temperature', spin=0)
             return np.array(obs*mask)
-        
+
+    
     def get_sim_pmap(self, idx):
-        mask = np.load(self.mask_fn)
-        ret = self.data_source.get_sim_obs(idx=idx, space='map', field='polarization', spin=2)
-        if self.sky_coverage == 'masked':
-            return ret
+        if self.sky_coverage == 'full':
+            return self.data_source.get_sim_obs(idx=idx, space='map', field='polarization', spin=2)
+        elif self.sky_coverage == 'masked':
+            mask = np.load(self.mask_fn)
+            ret = self.data_source.get_sim_obs(idx=idx, space='map', field='polarization', spin=2)
+            return np.array([re*mask for re in mask])
+
 
         # elif self.sky_coverage == 'masked':
         #     mask = np.load(self.mask_fn)

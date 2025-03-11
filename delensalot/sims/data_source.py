@@ -693,7 +693,6 @@ class Xobs:
         self.geominfo = geominfo
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
-        print(self.geominfo, ' geominfo')
         self.geom_lib = get_geom(self.geominfo)
          
         self.noise_lib = obs_info['noise_info']['noise_lib'] if obs_info != DNaV else DNaV
@@ -719,7 +718,6 @@ class Xobs:
 
 
     def get_sim_obs(self, idx, space, field, spin=2):
-        print('get_sim_obs called')
         """_summary_
 
         Args:
@@ -892,11 +890,6 @@ class Xobs:
             elif self.CMB_info['space'] == 'map':
                 obs = self.geom_lib.map2alm_spin(obs, spin=self.CMB_info['spin'], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
             self.cacher.cache(fn, obs)
-        ret = self.cacher.load(fn)
-        # print(ret.shape, self.CMB_info['lm_max'][0], self.CMB_info['lm_max'][1], self.CMB_info['spin'])
-        # hp.mollview(ret[0], title='supposedly e or q', min=-1, max=1)
-        # hp.mollview(ret[1], title='supposedly b or u', min=-1, max=1)
-        # plt.show()
         return self.cacher.load(fn)
     
 
