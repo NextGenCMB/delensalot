@@ -710,7 +710,7 @@ def apply_fini(*args, **kwargs):
     pass
 
 class scratch_space:
-    # Idea tested here is to have a common space for some arrays, possibly pre-allocated.
+    # Idea tested here is to have a common space for some large arrays, possibly pre-allocated.
     def __init__(self):
         self.scratch = dict()
     def add(self, key, arr):
