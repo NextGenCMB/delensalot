@@ -736,6 +736,8 @@ class scratch_space:
         self.scratch[key] = arr
     def get(self, key):
         return self.scratch[key]
+    def clean(self):
+        self.scratch = dict()
 
 my_scratch = scratch_space()
 
@@ -769,9 +771,9 @@ class pre_op_diag:
         t0 = time.time()
         assert Alm.getsize(self.lmax, self.mmax) == eblm[0].size, (self.lmax, self.mmax, Alm.getlmax(eblm[0].size, self.mmax))
         assert Alm.getsize(self.lmax, self.mmax) == eblm[1].size, (self.lmax, self.mmax, Alm.getlmax(eblm[1].size, self.mmax))
-        if not 'eblm_pre' in my_scratch.scratch: # sharing this with fwd_op and returning it led to trouble
-            my_scratch.add('eblm_pre', np.empty_like(eblm))
-        ret = my_scratch.get('eblm_pre')
+        if not 'alms_pre' in my_scratch.scratch: # sharing this with fwd_op and returning it led to trouble
+            my_scratch.add('alms_pre', np.empty_like(eblm))
+        ret = my_scratch.get('alms__pre')
         ret[:] = eblm
         self.timer['pre_op_copy'] += time.time() - t0
         t0 = time.time()
@@ -831,9 +833,9 @@ class fwd_op:
 
     def calc(self, eblm):
         t0 = time.time()
-        if not 'eblm_fwd' in my_scratch.scratch:
-            my_scratch.add('eblm_fwd', np.empty_like(eblm))
-        nlm = my_scratch.get('eblm_fwd')
+        if not 'alms_fwd' in my_scratch.scratch: # sharing this with fwd_op and returning it led to trouble
+            my_scratch.add('alms_fwd', np.empty_like(eblm))
+        nlm= my_scratch.get('alms_fwd')
         nlm[:] = eblm
         self.timer['fwd_op (copy)'] += time.time() - t0
         t0 = time.time()

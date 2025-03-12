@@ -717,6 +717,8 @@ class scratch_space:
         self.scratch[key] = arr
     def get(self, key):
         return self.scratch[key]
+    def clean(self):
+        self.scratch = dict()
 
 class pre_op_diag:
     """Cg-inversion diagonal preconditioner
