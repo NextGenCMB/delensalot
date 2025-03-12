@@ -13,12 +13,11 @@ from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy
 
 def plot_stuff(residual, residualdata, bdata, fwddata, xdata, precondata, searchdirs, searchfwds, weights, x):
     import matplotlib
-    matplotlib.use('Agg')
+    # matplotlib.use('Agg')
     import matplotlib.pyplot as plt
     
     from IPython.display import clear_output
     def get_rainbow_colors(num_items):
-        """Returns a list of colors from the 'rainbow' colormap."""
         cmap = plt.cm.rainbow  # Choose the rainbow colormap
         return [cmap(i / (num_items - 1)) for i in range(num_items)]
     residualdata.append([hp.alm2cl(res)*weights for res in np.atleast_2d(residual)])
@@ -67,7 +66,7 @@ def plot_stuff(residual, residualdata, bdata, fwddata, xdata, precondata, search
     plt.yscale('log')
     plt.show()
 
-    plt.close('all')
+    # plt.close('all')
 
     # plt.figure(figsize=(10, 6))
     # for linei, line2 in enumerate(precondata):
