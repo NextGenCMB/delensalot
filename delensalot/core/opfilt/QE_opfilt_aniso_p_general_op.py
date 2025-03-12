@@ -4,7 +4,7 @@
     the data is distributed on isolatitude rings.
 
 """
-
+import time
 import numpy as np
 import psutil
 from scipy.interpolate import UnivariateSpline as spl
@@ -333,7 +333,7 @@ class alm_filter_ninv(object):
                  unlalm_info:tuple, lenalm_info:tuple, sht_threads:int,
                  epsilon=1e-7,
                  tpl:bni.template_dense or None=None, verbose=False, maskbeam=False,
-                 dgclm: np.ndarray=np.zeros(3, dtype=np.complex128), Lmmax:tuple[int, int]=(1, 1)):
+                 dgclm: np.ndarray=np.zeros((1,3), dtype=np.complex128), Lmmax:tuple[int, int]=(1, 1)):
         r"""CMB inverse-variance and Wiener filtering instance, to use for cg-inversion
 
             Args:
@@ -709,6 +709,15 @@ def apply_fini(*args, **kwargs):
     """
     pass
 
+class scratch_space:
+    # Idea tested here is to have a common space for some arrays, possibly pre-allocated.
+    def __init__(self):
+        self.scratch = dict()
+    def add(self, key, arr):
+        self.scratch[key] = arr
+    def get(self, key):
+        return self.scratch[key]
+
 class pre_op_diag:
     """Cg-inversion diagonal preconditioner
 
@@ -731,15 +740,20 @@ class pre_op_diag:
 
         self.flmat = np.array([cli(flmat[k]) * (s_cls[k][:lmax_sol +1] > 0.) for k in specs])
         self.lmmax =(ninv_filt.lmax_sol, ninv_filt.mmax_sol)
+        self.timer  = {'pre_op (calc)':0, 'pre_op (copy)':0}
 
     def __call__(self, alm):
         return self.calc(alm)
 
     def calc(self, eblm):
+        t0 = time.time()
         assert eblm.shape == (len(self.flmat), Alm.getsize(*self.lmmax)), (eblm.shape,  Alm.getsize(*self.lmmax))
         ret = np.copy(eblm) # TODO is a copy needed here ?
+        self.timer['pre_op (copy)'] += time.time() - t0
+        t0 = time.time()
         for alm, fl in zip(ret, self.flmat):
             almxfl(alm, fl, self.lmmax[1], True)
+        self.timer['pre_op (calc)'] += time.time() - t0
         return ret
 
 class dot_op:
@@ -754,12 +768,15 @@ class dot_op:
         """
         if mmax is None or mmax < 0: mmax = lmax
         self.lmmax = (lmax, min(mmax, lmax))
+        self.timer  = {'dot_op (calc)':0}
 
     def __call__(self, eblm1, eblm2):
+        t0 = time.time()
         assert eblm1[0].size == Alm.getsize(*self.lmmax) and eblm2.size == eblm1.size
         ret = 0
         for alm, blm in zip(eblm1, eblm2):
             ret += np.sum(alm2cl(alm, blm, self.lmmax[0], self.lmmax[1], None) * (2 * np.arange(self.lmmax[0] + 1) + 1))
+        self.timer['dot_op (calc)'] += time.time() - t0
         return ret
 
 class fwd_op:
@@ -776,6 +793,7 @@ class fwd_op:
         self.ninv_filt = ninv_filt
         self.lmax_sol = ninv_filt.lmax_sol
         self.mmax_sol = ninv_filt.mmax_sol
+        self.timer  = {'fwd_op (calc)':0, 'fwd_op (copy)':0}
 
     def hashdict(self):
         return {'icls':clhash(self.icls)}
@@ -784,8 +802,12 @@ class fwd_op:
         return self.calc(alms)
 
     def calc(self, alms):
+        t0 = time.time()
         nlms = np.copy(alms) #TODO is this copy needed ?
+        self.timer['fwd_op (copy)'] += time.time() - t0
+        t0 = time.time()
         self.ninv_filt.apply_alm(nlms)
         for nlm, alm, icl in zip(nlms, alms, self.icls):
             nlm += almxfl(alm, icl, self.mmax_sol, False)
+        self.timer['fwd_op (calc)'] += time.time() - t0
         return nlms

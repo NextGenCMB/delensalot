@@ -17,6 +17,7 @@ from delensalot.core.opfilt import bmodes_ninv as bni
 from duccjc.sht import synthesis_general_cap as syng, adjoint_synthesis_general_cap as syng_adj # FIXME
 from ducc0.misc import get_deflected_angles, lensing_rotate
 from copy import deepcopy
+import time
 
 rtype = {np.dtype(np.complex128):np.dtype(np.float64), np.dtype(np.complex64):np.dtype(np.float32)}
 ctype = {rtype[ctyp]:ctyp for ctyp in rtype}
@@ -555,11 +556,11 @@ class alm_filter_ninv(object):
         self._allocate_maps(dtype=rtype[eblm.dtype])
         tim.add('applyalm init')
         self.apply_beam(eblm, qumap=self._qu, loc=loc)
-        tim.add('beam')
+        tim.add('beam to pixel space')
         self.apply_map(self._qu)
         tim.add('Ni')
         self.apply_adjoint_beam(eblm, qumap=self._qu, loc=loc)
-        tim.add('beam (adjoint)')
+        tim.add('beam to pixel space (adjoint)')
         if self.verbose:
             print(tim)
 
@@ -726,6 +727,18 @@ def apply_fini(*args, **kwargs):
     """
     pass
 
+
+class scratch_space:
+    # Idea tested here is to have a common space for some arrays, possibly pre-allocated.
+    def __init__(self):
+        self.scratch = dict()
+    def add(self, key, arr):
+        self.scratch[key] = arr
+    def get(self, key):
+        return self.scratch[key]
+
+my_scratch = scratch_space()
+
 class pre_op_diag:
     """Cg-inversion diagonal preconditioner
 
@@ -747,16 +760,24 @@ class pre_op_diag:
         self.flmat = {k: cli(flmat[k]) * (s_cls[k][:lmax_sol +1] > 0.) for k in ['ee', 'bb']}
         self.lmax = ninv_filt.lmax_sol
         self.mmax = ninv_filt.mmax_sol
+        self.timer  = {'pre_op_diag':0, 'pre_op_copy':0}
 
     def __call__(self, eblm):
         return self.calc(eblm)
 
     def calc(self, eblm):
+        t0 = time.time()
         assert Alm.getsize(self.lmax, self.mmax) == eblm[0].size, (self.lmax, self.mmax, Alm.getlmax(eblm[0].size, self.mmax))
         assert Alm.getsize(self.lmax, self.mmax) == eblm[1].size, (self.lmax, self.mmax, Alm.getlmax(eblm[1].size, self.mmax))
-        ret = np.copy(eblm)
+        if not 'eblm_pre' in my_scratch.scratch: # sharing this with fwd_op and returning it led to trouble
+            my_scratch.add('eblm_pre', np.empty_like(eblm))
+        ret = my_scratch.get('eblm_pre')
+        ret[:] = eblm
+        self.timer['pre_op_copy'] += time.time() - t0
+        t0 = time.time()
         almxfl(ret[0], self.flmat['ee'], self.mmax, True)
         almxfl(ret[1], self.flmat['bb'], self.mmax, True)
+        self.timer['pre_op_diag'] += time.time() - t0
         return ret
 
 class dot_op:
@@ -772,14 +793,17 @@ class dot_op:
         if mmax is None or mmax < 0: mmax = lmax
         self.lmax = lmax
         self.mmax = min(mmax, lmax)
+        self.timer  = {'dot_op':0}
 
     def __call__(self, eblm1, eblm2):
+        t0 = time.time()
         assert eblm1[0].size == Alm.getsize(self.lmax, self.mmax), (eblm1[0].size, Alm.getsize(self.lmax, self.mmax))
         assert eblm2[0].size == Alm.getsize(self.lmax, self.mmax), (eblm2[0].size, Alm.getsize(self.lmax, self.mmax))
         assert eblm1[1].size == Alm.getsize(self.lmax, self.mmax), (eblm1[1].size, Alm.getsize(self.lmax, self.mmax))
         assert eblm2[1].size == Alm.getsize(self.lmax, self.mmax), (eblm2[1].size, Alm.getsize(self.lmax, self.mmax))
         ret  = np.sum(alm2cl(eblm1[0], eblm2[0], self.lmax, self.mmax, None) * (2 * np.arange(self.lmax + 1) + 1))
         ret += np.sum(alm2cl(eblm1[1], eblm2[1], self.lmax, self.mmax, None) * (2 * np.arange(self.lmax + 1) + 1))
+        self.timer['dot_op'] += time.time() - t0
         return ret
 
 class fwd_op:
@@ -796,6 +820,7 @@ class fwd_op:
         self.ninv_filt = ninv_filt
         self.lmax_sol = ninv_filt.lmax_sol
         self.mmax_sol = ninv_filt.mmax_sol
+        self.timer  = {'fwd_op (calc)':0, 'fwd_op (copy)':0}
 
     def hashdict(self):
         return {'iclee': clhash(self.icls['ee']),'iclbb': clhash(self.icls['bb']),
@@ -805,8 +830,15 @@ class fwd_op:
         return self.calc(eblm)
 
     def calc(self, eblm):
-        nlm = np.copy(eblm)
+        t0 = time.time()
+        if not 'eblm_fwd' in my_scratch.scratch:
+            my_scratch.add('eblm_fwd', np.empty_like(eblm))
+        nlm = my_scratch.get('eblm_fwd')
+        nlm[:] = eblm
+        self.timer['fwd_op (copy)'] += time.time() - t0
+        t0 = time.time()
         self.ninv_filt.apply_alm(nlm)
         nlm[0] += almxfl(eblm[0], self.icls['ee'], self.mmax_sol, False)
         nlm[1] += almxfl(eblm[1], self.icls['bb'], self.mmax_sol, False)
-        return nlm
+        self.timer['fwd_op (calc)'] += time.time() - t0
+        return nlm #FIXME: this is actually returning the scratch array, is that safe ?
