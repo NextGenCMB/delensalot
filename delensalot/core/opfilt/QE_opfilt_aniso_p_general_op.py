@@ -720,6 +720,8 @@ class scratch_space:
     def clean(self):
         self.scratch = dict()
 
+my_scratch = scratch_space()
+
 class pre_op_diag:
     """Cg-inversion diagonal preconditioner
 
@@ -750,7 +752,10 @@ class pre_op_diag:
     def calc(self, eblm):
         t0 = time.time()
         assert eblm.shape == (len(self.flmat), Alm.getsize(*self.lmmax)), (eblm.shape,  Alm.getsize(*self.lmmax))
-        ret = np.copy(eblm) # TODO is a copy needed here ?
+        if not 'alms_pre' in my_scratch.scratch: # sharing this with fwd_op and returning it led to trouble
+            my_scratch.add('alms_pre', np.empty_like(eblm))
+        ret = my_scratch.get('alms_pre')
+        ret[:] = eblm
         self.timer['pre_op (copy)'] += time.time() - t0
         t0 = time.time()
         for alm, fl in zip(ret, self.flmat):
@@ -805,7 +810,10 @@ class fwd_op:
 
     def calc(self, alms):
         t0 = time.time()
-        nlms = np.copy(alms) #TODO is this copy needed ?
+        if not 'alms_fwd' in my_scratch.scratch: # sharing this with fwd_op and returning it led to trouble
+            my_scratch.add('alms_fwd', np.empty_like(alms))
+        nlms= my_scratch.get('alms_fwd')
+        nlms[:] = alms
         self.timer['fwd_op (copy)'] += time.time() - t0
         t0 = time.time()
         self.ninv_filt.apply_alm(nlms)

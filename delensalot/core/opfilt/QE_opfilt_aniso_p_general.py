@@ -773,7 +773,7 @@ class pre_op_diag:
         assert Alm.getsize(self.lmax, self.mmax) == eblm[1].size, (self.lmax, self.mmax, Alm.getlmax(eblm[1].size, self.mmax))
         if not 'alms_pre' in my_scratch.scratch: # sharing this with fwd_op and returning it led to trouble
             my_scratch.add('alms_pre', np.empty_like(eblm))
-        ret = my_scratch.get('alms__pre')
+        ret = my_scratch.get('alms_pre')
         ret[:] = eblm
         self.timer['pre_op_copy'] += time.time() - t0
         t0 = time.time()
