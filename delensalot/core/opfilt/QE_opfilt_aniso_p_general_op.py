@@ -15,7 +15,7 @@ from delensalot.utils import timer, cli, clhash, read_map
 from lenspyx.utils_hp import almxfl, Alm, alm2cl, synalms
 from delensalot.core.opfilt import bmodes_ninv as bni
 from duccjc.sht import synthesis_general_cap as syng, adjoint_synthesis_general_cap as syng_adj # FIXME
-from ducc0.misc import lensing_rotate
+from ducc0.misc import lensing_rotate, vdot
 from copy import deepcopy
 
 rtype = {np.dtype(np.complex128):np.dtype(np.float64), np.dtype(np.complex64):np.dtype(np.float32)}
@@ -644,7 +644,7 @@ class alm_filter_ninv(object):
 
 
         """
-        assert  Alm.getlmax(eblm_wf[0].size, self.mmax_sol)== self.lmax_sol, ( Alm.getlmax(eblm_wf[0].size, self.mmax_sol), self.lmax_sol)
+        assert eblm_wf.shape == (self.nalms_unl, Alm.getsize(*self.lmmax_sol)), ( Alm.getlmax(eblm_wf[0].size, self.mmax_sol), self.lmax_sol)
         assert spin in [1, 3], spin
         lmax = Alm.getlmax(eblm_wf[0].size, self.mmax_sol)
         i1, i2 = (2, -1) if spin == 1 else (-2, 3)
@@ -652,11 +652,12 @@ class alm_filter_ninv(object):
         fl[:spin] *= 0.
         fl = np.sqrt(fl)
         eblm = np.copy(eblm_wf)
-        almxfl(eblm[0], fl, self.mmax_sol, True)
-        almxfl(eblm[1], fl, self.mmax_sol, False)
+        for alm in eblm:
+            almxfl(alm, fl, self.mmax_sol, True)
         valuesc = np.empty((qgeom.npix(),), dtype=eblm_wf.dtype)
         values = valuesc.view(rtype[valuesc.dtype]).reshape((qgeom.npix(), 2)).T
-        return qgeom.synthesis(eblm, spin, lmax, self.mmax_sol, self.sht_threads, map=values)
+        sht_mode = 'GRAD_ONLY' if eblm.shape[0] == 1 else 'STANDARD'
+        return qgeom.synthesis(eblm, spin, lmax, self.mmax_sol, self.sht_threads, map=values, mode=sht_mode)
 
     def _get_irespmap(self, qu_dat:np.ndarray, eblm_wf:np.ndarray or list, qgeom:utils_geom.Geom,
                       map_out=None, eb_only=False):
@@ -674,7 +675,8 @@ class alm_filter_ninv(object):
         self._qu -= qu_dat
         self.apply_map(self._qu)
         self.apply_adjoint_beam(eblm=self._almlen, qumap=self._qu, loc=loc)
-        self._almlen *= -1 # FIXME. is M^t B^t implemented correctly  here? best would be to have a BM I guess
+        self._almlen *= -0.5 # FIXME. is M^t B^t implemented correctly  here? best would be to have a BM I guess
+        # FIXME: should get rid of this factor of 2 here, this is not where it belongs
         if eb_only:
             self._almlen[0, :] = 0
         return qgeom.synthesis(self._almlen, self.spin, self.lmmax_len[0], self.lmmax_len[1], self.sht_threads, map=map_out)
@@ -771,6 +773,8 @@ class dot_op:
                 lmax: maximum multipole defining the alm layout
                 mmax: maximum m defining the alm layout (defaults to lmax if None or < 0)
 
+            Note:
+                Here cross-spectrum computed in long double precision
 
         """
         if mmax is None or mmax < 0: mmax = lmax
@@ -782,7 +786,7 @@ class dot_op:
         assert eblm1[0].size == Alm.getsize(*self.lmmax) and eblm2.size == eblm1.size
         ret = 0
         for alm, blm in zip(eblm1, eblm2):
-            ret += np.sum(alm2cl(alm, blm, self.lmmax[0], self.lmmax[1], None) * (2 * np.arange(self.lmmax[0] + 1) + 1))
+            ret += 2 * vdot(alm, blm).real - vdot(alm[:self.lmmax[0] + 1], blm[:self.lmmax[0] + 1]).real
         self.timer['dot_op (calc)'] += time.time() - t0
         return ret
 

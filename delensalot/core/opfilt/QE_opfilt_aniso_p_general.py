@@ -15,7 +15,7 @@ from delensalot.utils import timer, cli, clhash, read_map
 from lenspyx.utils_hp import almxfl, Alm, alm2cl, synalms
 from delensalot.core.opfilt import bmodes_ninv as bni
 from duccjc.sht import synthesis_general_cap as syng, adjoint_synthesis_general_cap as syng_adj # FIXME
-from ducc0.misc import get_deflected_angles, lensing_rotate
+from ducc0.misc import lensing_rotate, vdot
 from copy import deepcopy
 import time
 
@@ -368,6 +368,7 @@ class alm_filter_ninv(object):
 
         self.lmax_sol = lmax_unl
         self.mmax_sol = min(lmax_unl, mmax_unl)
+        self.lmmax_sol = (self.lmax_sol, self.mmax_sol)
         self.ncomp_sol = 2  # here E and B alms
         self.ncomp_dat = 2  # here Q and U
 
@@ -499,8 +500,7 @@ class alm_filter_ninv(object):
         assert self._nlevp is not None, 'need to implement some idea of pixel size from the locs if not specified'
         if self._nlevp is None:
             if len(self.n_inv) == 1:
-                ni = read_map(self.n_inv[0])
-                nlev_febl =  1. / np.sqrt(np.sum(ni * ni) / np.sum(ni)) * 180 * 60 / np.pi  # Ni-weigted noise level
+                assert 0
                 # Hmm need some idea of pixel size here...
             elif len(self.n_inv) == 3:
                 assert 0, 'implement this'
@@ -627,7 +627,7 @@ class alm_filter_ninv(object):
         """
         assert len(qudat) == self.ncomp_dat and len(eblm_wf) == 2
         assert norm in ['k', 'kappa', 'kappa-like', 'p', 'phi', 'phi-like'], 'implement this (easy)'
-        qgeom = self._get_sky_geom((2 * self.lmax_sol + lmax_qlm // 2) + 1, weighted=False)
+        qgeom = self._get_sky_geom( (2 * self.lmax_sol + lmax_qlm) // 2 + 1, weighted=False)
         resmap_c = np.empty((qgeom.npix(),), dtype=eblm_wf.dtype)
         resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
         self._get_irespmap(qudat, eblm_wf, qgeom, map_out=resmap_r, eb_only=eb_only)  # inplace onto resmap_c and resmap_r
@@ -693,7 +693,8 @@ class alm_filter_ninv(object):
         self._qu -= qu_dat
         self.apply_map(self._qu)
         self.apply_adjoint_beam(eblm=ebwf, qumap=self._qu, loc=loc)
-        ebwf *= -1 # FIXME. I think I am including a pair of adjoint- and forward synthesis too much here in the beam-masked case
+        ebwf *= - 0.5 # FIXME. I think I am including a pair of adjoint- and forward synthesis too much here in the beam-masked case
+        # FIXME: should get rid of this factor of 2 here, this is not where it belongs
         if eb_only:
             ebwf[0, :] = 0
         return qgeom.synthesis(ebwf, 2, self.lmax_len, self.mmax_len, self.sht_threads, map=map_out)
@@ -803,8 +804,8 @@ class dot_op:
         assert eblm2[0].size == Alm.getsize(self.lmax, self.mmax), (eblm2[0].size, Alm.getsize(self.lmax, self.mmax))
         assert eblm1[1].size == Alm.getsize(self.lmax, self.mmax), (eblm1[1].size, Alm.getsize(self.lmax, self.mmax))
         assert eblm2[1].size == Alm.getsize(self.lmax, self.mmax), (eblm2[1].size, Alm.getsize(self.lmax, self.mmax))
-        ret  = np.sum(alm2cl(eblm1[0], eblm2[0], self.lmax, self.mmax, None) * (2 * np.arange(self.lmax + 1) + 1))
-        ret += np.sum(alm2cl(eblm1[1], eblm2[1], self.lmax, self.mmax, None) * (2 * np.arange(self.lmax + 1) + 1))
+        ret  = 2 * vdot(eblm1[0], eblm2[0]).real - vdot(eblm1[0][:self.lmax + 1], eblm2[0][:self.lmax + 1]).real
+        ret += 2 * vdot(eblm1[1], eblm2[1]).real - vdot(eblm1[1][:self.lmax + 1], eblm2[1][:self.lmax + 1]).real
         self.timer['dot_op'] += time.time() - t0
         return ret
 
