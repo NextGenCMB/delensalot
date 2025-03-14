@@ -323,7 +323,7 @@ class MD(operator):
         for of, w, npi in zip(self.geom.ofs, self.geom.weight, self.geom.nph):
             self._mapsr[:, of:of + npi] *= w
         if self.spin:
-            lensing_rotate(self._mapsc, -self._gamma, self.spin, self.nthreads)
+            lensing_rotate(self._mapsc, self._gamma, -self.spin, self.nthreads)
         syng_adj(alm=alms_unl, map=self._mapsr, loc=self._loc, **self.adj_lensing_syng_params)
 
 

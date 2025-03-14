@@ -242,6 +242,7 @@ class MD(operator):
 
         self.rtype = np.dtype(np.float64) if epsilon <= 1e-7 else np.dtype(np.float32)
 
+
     def _prepare_geom(self, _dl_7=20):
         """Prepares geometry that will handle the lensing and windowing operations
 
@@ -299,6 +300,31 @@ class MD(operator):
         self._mapsc = None
         self._mapsr = None
 
+    def change_dlm(self, dgclm, mmax:int):
+        """Change the deflection field components
+        
+        
+        """
+        dgclm2d = np.atleast_2d(np.array(dgclm))
+        Lmax = Alm.getlmax(dgclm2d[0].size, mmax)
+        assert Alm.getsize(Lmax, mmax) == dgclm2d[0].size
+
+        self.dgclm = dgclm2d
+        self.Lmmax = (Lmax, mmax)
+
+        # reset cached arrays
+        self._loc = None
+        self._gamma = None
+
+    def apply_D(self, alms_unl):
+        assert alms_unl.ndim == 2 and alms_unl.shape[1] == Alm.getsize(*self.lmmax_unl)
+        self._prepare_ptg()
+        self._allocate() # This to avoid creating new large arrays all the time in cg-searches...
+        syng(alm=alms_unl, map=self._mapsr, loc=self._loc, **self.lensing_syng_params)
+        if self.spin:
+            lensing_rotate(self._mapsc, self._gamma, self.spin, self.nthreads)
+        return self._mapsr # Return complexview
+    
     def apply_inplace(self, alms_unl, alms_len):
         assert alms_unl.ndim == 2 and alms_unl.shape[1] == Alm.getsize(*self.lmmax_unl)
         assert alms_len.ndim == 2 and alms_len.shape[1] == Alm.getsize(*self.lmmax_len)
@@ -324,7 +350,7 @@ class MD(operator):
         for of, w, npi in zip(self.geom.ofs, self.geom.weight, self.geom.nph):
             self._mapsr[:, of:of + npi] *= w
         if self.spin:
-            lensing_rotate(self._mapsc, -self._gamma, self.spin, self.nthreads)
+            lensing_rotate(self._mapsc, self._gamma, -self.spin, self.nthreads)
         syng_adj(alm=alms_unl, map=self._mapsr, loc=self._loc, **self.adj_lensing_syng_params)
 
 
@@ -392,6 +418,11 @@ class alm_filter_ninv(object):
                        'eps_apo': np.sqrt(dl / unlalm_info[0] * np.pi / thtcap),
                         'spin':spin, 'lmax':self.lmmax_len[0], 'mmax':self.lmmax_len[1],
                         'nthreads':sht_threads, 'mode':'STANDARD', 'verbose':verbose}
+        syng_params_unl = {'epsilon':epsilon,
+                    'thtcap':thtcap,
+                    'eps_apo': np.sqrt(dl / unlalm_info[0] * np.pi / thtcap),
+                    'spin':spin, 'lmax':self.lmmax_sol[0], 'mmax':self.lmmax_sol[1],
+                    'nthreads':sht_threads, 'mode':'GRAD_ONLY' if ncomp_unl == 1 else 'STANDARD', 'verbose':verbose}
         adj_syng_params = syng_params.copy()
         adj_syng_params['lmax'] = self.lmmax_sol[0]
         adj_syng_params['mmax'] = self.lmmax_sol[1]
@@ -416,6 +447,7 @@ class alm_filter_ninv(object):
 
         self.syng_params = syng_params
         self.adj_syng_params = adj_syng_params
+        self.syng_params_unl = syng_params_unl #FIXME: only used for gradient ?
 
         self.thtcap = thtcap
         self.npix = npix
@@ -424,8 +456,18 @@ class alm_filter_ninv(object):
         self._qu = None
         self._almlen = None
 
+    def dot_op(self):
+        return dot_op(*self.lmmax_sol)
+
     def hashdict(self):
         return {}
+
+    def change_dlm(self, dgclm, mmax:int, *args, **kwargs):
+        """Change the deflection field components of the lensing operator
+
+
+        """
+        self.MD_op.change_dlm(dgclm, mmax)
 
     def _get_sky_geom(self, lmax, weighted=True):
         """Returns a suitable weighted geometry object for the masked beam operation
@@ -525,7 +567,7 @@ class alm_filter_ninv(object):
 
 
         """
-        assert alm_unl.shape == (self.nalms_unl, Alm.getsize(*self.lmmax_sol))
+        assert alm_unl.shape == (self.nalms_unl, Alm.getsize(*self.lmmax_sol)), (alm_unl.shape, (self.nalms_unl, Alm.getsize(*self.lmmax_sol)))
         tim = timer(True, prefix='opfilt_pp')
         loc = read_map(self.loc)
         self._allocate_maps(r_dtype=rtype[alm_unl.dtype])
@@ -583,9 +625,11 @@ class alm_filter_ninv(object):
         """
         from lenspyx.utils_hp import rng # not sure this is the right thing to do
         clseb = {spec: cls.get(spec, np.array([0.0])) for spec in ['ee', 'bb', 'eb', 'be']}
-        eblm = synalms(clseb, lmax=self.lmmax_len[0], mmax=self.lmmax_len[1])
-        qu = np.empty((self.ncomp_dat, self.npix), dtype=rtype[eblm.dtype])
-        self.apply_beam(eblm, qumap=qu, loc=read_map(self.loc))
+        eblm_unl = synalms(clseb, lmax=self.lmmax_len[0], mmax=self.lmmax_len[1])
+        eblm_len = np.empty((self.ncomp_dat, Alm.getsize(*self.lmmax_len)), dtype=eblm_unl.dtype)
+        self.MD_op.apply_inplace(eblm_unl, eblm_len)
+        qu = np.empty((self.ncomp_dat, self.npix), dtype=rtype[eblm_len.dtype])
+        self.apply_beam(eblm_len, qumap=qu, loc=read_map(self.loc))
         assert len(self.n_inv) == 1, 'not implemented, fix next line'
         qu += rng.standard_normal(qu.shape, dtype=qu.dtype) * np.sqrt(cli(read_map(self.n_inv[0])))
         return qu
@@ -654,10 +698,18 @@ class alm_filter_ninv(object):
         eblm = np.copy(eblm_wf)
         for alm in eblm:
             almxfl(alm, fl, self.mmax_sol, True)
+        #FIXME: put all this in MD op ?
         valuesc = np.empty((qgeom.npix(),), dtype=eblm_wf.dtype)
-        values = valuesc.view(rtype[valuesc.dtype]).reshape((qgeom.npix(), 2)).T
-        sht_mode = 'GRAD_ONLY' if eblm.shape[0] == 1 else 'STANDARD'
-        return qgeom.synthesis(eblm, spin, lmax, self.mmax_sol, self.sht_threads, map=values, mode=sht_mode)
+        valuesr = valuesc.view(rtype[valuesc.dtype]).reshape((qgeom.npix(), 2)).T
+        #values = syng(lmax=lmax_unl, mmax=mmax, alm=gclm, loc=self._loc, spin=spin, epsilon=self.epsilon,
+        #                               nthreads=self.sht_tr, mode=sht_mode, verbose=self.verbosity)
+        #self.tim.add('synthesis general (%s)' % sht_mode)
+        #return qgeom.synthesis(eblm, spin, lmax, self.mmax_sol, self.sht_threads, map=values, mode=sht_mode)
+        angles = dlm2angles(self.MD_op.dgclm, qgeom, self.MD_op.Lmmax[1], self.MD_op.nthreads, spin != 0)
+        syng(alm=eblm, map=valuesr, loc=angles[:,0:2], **self.syng_params_unl)
+        if spin:
+            lensing_rotate(valuesc, angles[:, 2], spin, self.MD_op.nthreads)
+        return valuesr
 
     def _get_irespmap(self, qu_dat:np.ndarray, eblm_wf:np.ndarray or list, qgeom:utils_geom.Geom,
                       map_out=None, eb_only=False):
