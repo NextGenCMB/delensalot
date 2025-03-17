@@ -347,8 +347,8 @@ class InverseNoiseVariance(Operator):
         umap += self.niv[-1] * qmap_copy
         del qmap_copy
 
-        tlm = self.geom_lib.adjoint_synthesis(tqumap[0], 0, *self.lm_max, 6, apply_weights=False)
-        eblm = self.geom_lib.adjoint_synthesis([qmap, umap], 2, *self.lm_max, 6, apply_weights=False)
+        tlm = self.geom_lib.adjoint_synthesis(tqumap[0], 0, *self.lm_max, self.sht_tr, apply_weights=False)
+        eblm = self.geom_lib.adjoint_synthesis([qmap, umap], 2, *self.lm_max, self.sht_tr, apply_weights=False)
         return np.array([*tlm, *eblm])
 
 
@@ -380,7 +380,7 @@ class Add:
         if obj2.dtype in (np.complex64, np.complex128):
             obj1 += obj2
         elif obj2.dtype in (np.float32, np.float64):
-            obj1 = self.data_geomlib.synthesis(obj1, 2, *self.lm_max, 6, apply_weights=False)
+            obj1 = self.data_geomlib.synthesis(obj1, 2, *self.lm_max, self.sht_tr, apply_weights=False)
             obj1 += obj2
         return obj1
             

@@ -14,6 +14,9 @@ from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy_nd
 def get_secondary_fns(component):
     return {comp: f'klm_{comp}_idx{{idx}}_{{idx2}}_it{{it}}' for comp in component}
 
+def get_secondary_meanfield_fns(component):
+    return {comp: f'kmflm_{comp}_idx{{idx}}_{{idx2}}_it{{it}}' for comp in component}
+
 
 class Secondary:
     def __init__(self, field_desc):
@@ -165,9 +168,9 @@ class Gradient:
         it_ = 0 # NOTE this currently only uses the QE gradient meanfield
         if self.is_cached(it=it, type='meanfield'):
             if isinstance(it, (list, np.ndarray)):
-                return np.array([self.cacher.load(self.meanfield_fns.format(idx=idx, idx2=idx2, it=it_))[:,indices] for _ in it])
+                return np.array([self.cacher.load(self.meanfield_fns.format(idx=idx, idx2=idx2, it=it_))[:,indices] for _ in it]) * (0 + 0j)
             else:
-                return self.cacher.load(self.meanfield_fns.format(idx=idx, idx2=idx2, it=it_))[indices]
+                return self.cacher.load(self.meanfield_fns.format(idx=idx, idx2=idx2, it=it_))[indices] * (0 + 0j)
 
         else:
             assert 0, f"cannot find meanfield at {self.libdir}/{self.meanfield_fns.format(idx=idx, idx2=idx2, it=it_)}"

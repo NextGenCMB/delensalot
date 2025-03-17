@@ -485,11 +485,12 @@ class QEScheduler:
 
     def collect_jobs(self, recalc=False):
         jobs = list(range(len(self.tasks)))
+        idxs_ = np.unique(np.concatenate([self.idxs, self.idxs_mf])).astype(int)
         for taski, task in enumerate(self.tasks):
             _jobs = []
             if task == 'calc_fields':
                 _nomfcheck = self.idxs_mf.size == 0
-                for idx in self.idxs:
+                for idx in idxs_:
                     __jobs = []
                     for Qi, QE_search in enumerate(self.QE_searchs): # each field has its own QE_search
                         _add = False
@@ -542,18 +543,31 @@ class QEScheduler:
             self.init_QEsearchs()
                    
         tasks = self.tasks if task is None else [task]
+        # NOTE step 0 is making sure I run get_qlm() for all indices needed, before calculating mean-field or similar
         for taski, task in enumerate(tasks):
-            log.info('QEScheduler {}, task {} started'.format(mpi.rank, task))
-
+            log.info('QEScheduler {} - step 0, task {} started'.format(mpi.rank, task))
             if task == 'calc_fields':
                 for idxs in self.jobs[taski][mpi.rank::mpi.size]:
                     for seci, secidx in enumerate(idxs):
                         if secidx is not None: #these Nones come from the field already being done.
                             self.QE_searchs[seci].get_qlm(int(secidx))
+                    if np.all(self.data_container.obs_lib.maps == DEFAULT_NotAValue):
+                        self.data_container.data_source.purgecache()
+                mpi.barrier()
+
+
+        tasks = self.tasks if task is None else [task]
+        for taski, task in enumerate(tasks):
+            log.info('QEScheduler {} - step 1, task {} started'.format(mpi.rank, task))       
+            if task == 'calc_fields':
+                for idxs in self.jobs[taski][mpi.rank::mpi.size]:
+                    for seci, secidx in enumerate(idxs):
+                        if secidx is not None: #these Nones come from the field already being done.
                             self.QE_searchs[seci].get_est(int(secidx)) # this is here for convenience
                     if np.all(self.data_container.obs_lib.maps == DEFAULT_NotAValue):
                         self.data_container.data_source.purgecache()
                 mpi.barrier()
+
 
             if task == 'calc_meanfields':
                 for idxs in self.jobs[taski][mpi.rank::mpi.size]:
@@ -565,12 +579,13 @@ class QEScheduler:
                     QE_search.get_qmflm(QE_search.estimator_key, self.idxs_mf)
                 mpi.barrier()
 
+
             # TODO later
             if task == 'calc_templates':
+                assert 0, 'implement if needed'
                 for idxs in self.jobs[taski][mpi.rank::mpi.size]:
                     # For each combination of operators, I want to build templates
                     # jobs list could come as [idx-delta,idx-beta,idx-deltabeta] for each idx
-                    idx, operator_indexs = idxs.split('-')
                     self.get_template(idx, operator_indexs)
                     if np.all(self.data_container.obs_lib.maps == DEFAULT_NotAValue):
                         self.data_container.purgecache()
@@ -725,8 +740,12 @@ class MAPScheduler:
         print('only available for QE, set it=0')
 
 
-    def get_template(self, it, secondary=None, component=None):
-        return self.MAP_minimizers[0].get_template(it, secondary, component)
+    def get_meanfield(self, idx, it=None, secondary=None, component=None, idx2=None):
+        self.get_gradient_meanfield(idx, it, secondary=None, component=None, idx2=None)
+
+
+    def get_template(self, idx, it, secondary=None, component=None):
+        return self.MAP_minimizers[idx].get_template(it, secondary, component)
 
 
     def get_wflm(self, idx, it=None, lm_max=None, idx2=None):
@@ -863,21 +882,11 @@ class MapDelenser:
     # # @log_on_end(logging.DEBUG, "get_basemap() finished")  
     def get_basemap(self, idx):
         '''
-        Return a B-map to be delensed. Can be the map handled in the sims_lib library (basemap='lens'), 'lens_ffp10' (these are the ffp10 relizations on NERSC),
+        Return a B-map to be delensed. Can be the map handled in the DataSource library (basemap='lens'), 'lens_ffp10' (these are the ffp10 relizations on NERSC),
         or the observed map itself, in which case the residual foregrounds and noise will still be in there.
             gauss_beam(self.beam / 180 / 60 * np.pi, lmax=self.lm_max_blt[1])
         '''
         # TODO depends if data comes from delensalot simulations or from external.. needs cleaner implementation
-        if self.basemap == 'pico_dc2_lens':
-            from delensalot.utils import cli
-            FWHMs = [38.4, 32.0, 28.3, 23.6, 22.2, 18.4, 12.8, 10.7, 9.5, 7.9, 7.4, 6.2, 4.3, 3.6, 3.2, 2.6, 2.5, 2.1, 1.5, 1.3, 1.1]
-            freqs = [21, 25, 30, 36, 43, 52, 62, 75, 90, 108, 129, 155, 186, 223, 268, 321, 385, 462, 555, 666, 799]
-            beams = np.array([hp.gauss_beam(FWHM / 180. / 60. * np.pi, lmax=2000) for FWHM in FWHMs])
-            map = dict()
-            map.update({freqs[-1]: hp.read_map('/pscratch/sd/e/erussie/PICO/data/maps/pysm_3.4.0_maps/c4_{freq:03d}_4096.fits'.format(freq=freqs[-1]), field=(1,2))})
-            log.info('loaded input B map')
-            temp_ = hp.map2alm_spin(map[freqs[-1]], spin=2, lmax=self.lm_max_blt[0])
-            return hp.almxfl(temp_[1],cli(beams[-1]))*1e6
         if self.basemap == 'lens': 
             return alm_copy(
                     self.data_container.get_sim_sky(idx, space='alm', spin=0, field='polarization')[1],

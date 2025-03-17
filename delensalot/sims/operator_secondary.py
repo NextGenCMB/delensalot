@@ -48,7 +48,7 @@ class lensing:
         self.geominfo = operator_desc["geominfo"]
         self.geomlib = get_geom(operator_desc['geominfo'])
         self.field = {component: None for component in self.component}
-        self.ffi = deflection(self.geomlib, np.zeros(shape=hp.Alm.getsize(*(1,1)), dtype=complex), 1, numthreads=operator_desc.get('tr', 8), verbosity=False, epsilon=operator_desc['epsilon'])
+        self.ffi = deflection(self.geomlib, np.zeros(shape=hp.Alm.getsize(*(1,1)), dtype=complex), 1, numthreads=operator_desc.get('tr', 6), verbosity=False, epsilon=operator_desc['epsilon'])
 
 
     # NOTE this is alm2alm

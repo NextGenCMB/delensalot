@@ -1,4 +1,4 @@
-"""sims/sims_lib.py: library for collecting and handling simulations. Eventually, delensalot needs a `get_sim_pmap()` and `get_sim_tmap()`, which are the maps of the observed sky. But data may come as cls, priensed alms, ..., . So this module allows to start analysis with,
+"""sims/data_source.py: library for collecting and handling simulations. Eventually, delensalot needs a `get_sim_pmap()` and `get_sim_tmap()`, which are the maps of the observed sky. But data may come as cls, priensed alms, ..., . So this module allows to start analysis with,
     * cls,
     * alms_pri
     * alm_len + noise
@@ -1029,13 +1029,15 @@ class DataSource:
     
     
     def purgecache(self):
-        log.info('sims_lib: purging cachers to release memory')
+        log.info(f'DataSource: purging cachers to release memory: {list(self.obs_lib.cacher._cache.keys())}')
         libs = ['obs_lib', 'noise_lib', 'pri_lib', 'sky_lib']
         for lib in libs:
             if lib in self.__dict__:
                 if len(list(self.obs_lib.cacher._cache.keys())) > 0:
                     for key in np.copy(list(self.obs_lib.cacher._cache.keys())):
+                        log.info(f"removed {key}")
                         self.obs_lib.cacher.remove(key)
+
 
     def isdone(self, idx, field, spin, space='map', flavour='obs'):
         fn = '{}_space{}_spin{}_field{}_{}'.format(flavour, space, spin, field, idx)

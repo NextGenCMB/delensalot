@@ -8,7 +8,7 @@ from os.path import join as opj
 
 from delensalot.utils import cli
 from delensalot.core.QE import filterqest
-from delensalot.utility.utils_hp import Alm, almxfl, alm_copy
+from delensalot.utility.utils_hp import Alm, almxfl, alm_copy, alm_copy_nd, almxfl_nd
 
 from delensalot.core.QE import field
 
@@ -99,33 +99,37 @@ class Base:
 
 
     def get_qmflm(self, idxs, component=None):
-        # TODO connect it to the field class
         if component is None:
             return np.array([self.get_qmflm(idxs, component) for component in self.secondary.component])
         if isinstance(component, list):
-            component = component[0]
-        return self.qlms.get_sim_qlm_mf(self.estimator_key[component], idxs)
+            return np.array([self.get_qmflm(idxs, comp).squeeze() for comp in component])
+        return np.atleast_2d(self.qlms.get_sim_qlm_mf(self.estimator_key[component], idxs))
         
 
-    def get_kmflm(self, idx, component=None, scale='k'):
-        # TODO connect it to the field class
+    def get_kmflm(self, idx, component=None, scale='k', idxs_mf=None):
+        idxs_mf = idxs_mf if idxs_mf is not None else self.idxs_mf
+        # NOTE not caching index-fixed meanfields, as this would require too much memory.
         if component is None:
-            return np.array([self.get_kmflm(idx, component) for component in self.secondary.component])
+            return np.array([self.get_kmflm(idx, component, idxs_mf=idxs_mf).squeeze() for component in self.secondary.component])
         if isinstance(component, list):
-            component = component[0]
+            return np.array([self.get_kmflm(idx, comp, idxs_mf=idxs_mf).squeeze() for comp in component])
 
-        if len(self.idxs_mf) <= 2: # NOTE this is really just a lower bound
-            return np.zeros(Alm.getsize(*self.fq.lm_max_qlm), dtype=complex)
-        kmflm = self.get_qmflm(self.idxs_mf, component=component)
+        if len(idxs_mf) <= 2: # NOTE this is really just a lower bound
+            return np.zeros(shape=(1, Alm.getsize(*self.fq.lm_max_qlm)), dtype=complex)
+        
+        kmflm = self.get_qmflm(idxs_mf, component=component)
+
+        Lmax = Alm.getlmax(kmflm.size, None)
         R = self.get_response_len(component)
-        WF = self.secondary.CLfids[component*2] * cli(self.secondary.CLfids[component*2] + cli(R))  # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
-        kmflm = alm_copy(kmflm, None, self.fq.lm_max_qlm[0], self.fq.lm_max_qlm[1])
-        almxfl(kmflm, cli(R), self.fq.lm_max_qlm[1], True) # Normalized QE
-        almxfl(kmflm, WF, self.fq.lm_max_qlm[1], True) # Wiener-filter QE
-        almxfl(kmflm, self.secondary.CLfids[component*2] > 0, self.fq.lm_max_qlm[1], True)
-        # FIXME correct removal
-        kmflm -= self.get_est(idx, component=component)*1/(1-len(self.idxs_mf))
-        return np.array(kmflm)
+        WF = self.secondary.CLfids[component*2][:Lmax+1] * cli(self.secondary.CLfids[component*2][:Lmax+1] + cli(R))  # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
+        kmflm = alm_copy_nd(kmflm, None, (Lmax,Lmax))
+        almxfl_nd(kmflm, cli(R), Lmax, True) # Normalized QE
+        almxfl_nd(kmflm, WF, Lmax, True) # Wiener-filter QE
+        almxfl_nd(kmflm, self.secondary.CLfids[component*2][:Lmax+1] > 0, Lmax, True)
+        kmflm = self._rescale(kmflm, scale='k')
+        kmflm = (kmflm - self.get_est(idx, component=component, subtract_meanfield=False, scale='k')/len(idxs_mf))*(len(self.idxs_mf)/(len(idxs_mf)-1))
+        assert scale == 'k', "Only k scale is supported for kmflm at this time" # TODO can be implemented via _rescale_k2h
+        return kmflm
     
 
     def get_wflm(self, idx, lm_max=None):
@@ -163,3 +167,30 @@ class Base:
             buff = cli(R_unl0[:lmax+1] + cli(chh_comp)) * (chh_comp > 0)
             ret.append(np.array(buff))
         return ret
+    
+
+    def _rescale(self, hlm, scale):
+        if scale == 'p':
+            assert self.ID == 'lensing', "Only lensing is supported for p"
+            return hlm
+        elif scale == 'k':
+            if self.ID == 'birefringence':
+                return hlm
+            else:
+                lmax = Alm.getlmax(hlm[0].size, None)
+                h2k =  0.5 * np.arange(lmax + 1) * np.arange(1, lmax + 2)
+                return np.atleast_2d(almxfl(hlm[0], h2k, lmax, False))
+            
+
+    # NOTE preparation for future implementation
+    def _rescale_k2h(self, klm, scale):
+        if scale == 'p':
+            assert self.ID == 'lensing', "Only lensing is supported for p"
+            return hlm
+        elif scale == 'k':
+            if self.ID == 'birefringence':
+                return hlm
+            else:
+                lmax = Alm.getlmax(hlm[0].size, None)
+                h2k =  0.5 * np.arange(lmax + 1) * np.arange(1, lmax + 2)
+                return np.atleast_2d(almxfl(hlm[0], h2k, lmax, False))

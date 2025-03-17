@@ -3,10 +3,11 @@
 
 safelist = [
     'version',
-    'key',
+    'estimator_key',
+    'generator_key',
     'jobs',
-    'simidxs',
-    'simidxs_mf',
+    'idxs',
+    'idxs_mf',
     'tasks',
     'iterations',
     'cl_analysis',

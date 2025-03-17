@@ -29,37 +29,37 @@ def plot_stuff(residual, residualdata, bdata, fwddata, xdata, precondata, search
     plt.figure(figsize=(10, 6))
     for linei, line2 in enumerate(residualdata):
         for resi, res in enumerate(line2):
-            plt.plot(res, label='iter %d'%(linei+1), color=colors[linei], ls='--' if resi else '-')
+            plt.plot(res, label='iter %d'%(linei+1), color=colors[linei], ls='-' if resi else '-')
     # plt.legend(title='CG search')
     plt.ylabel(r'$C_\ell^{\rm residual}$')
     plt.xlabel(r'$\ell$')
     plt.yscale('log')
     plt.show()
 
-    plt.figure(figsize=(10, 6))
-    for linei, line2 in enumerate(bdata):
-        for resi, res in enumerate(line2):
-            plt.plot(res, label='iter %d'%(linei+1), color=colors[linei], ls='--' if resi else '-')
-    # plt.legend(title='CG search')
-    plt.ylabel(r'$C_\ell^{\rm b}$')
-    plt.xlabel(r'$\ell$')
-    plt.yscale('log')
-    plt.show()
+    # plt.figure(figsize=(10, 6))
+    # for linei, line2 in enumerate(bdata):
+    #     for resi, res in enumerate(line2):
+    #         plt.plot(res, label='iter %d'%(linei+1), color=colors[linei], ls='-' if resi else '-')
+    # # plt.legend(title='CG search')
+    # plt.ylabel(r'$C_\ell^{\rm b}$')
+    # plt.xlabel(r'$\ell$')
+    # plt.yscale('log')
+    # plt.show()
 
-    plt.figure(figsize=(10, 6))
-    for linei, line2 in enumerate(fwddata):
-        for res in line2:
-            plt.plot(res, label='iter %d'%(linei+1), color=colors[linei], ls='--' if resi else '-')
-    # plt.legend(title='CG search')
-    plt.ylabel(r'$C_\ell^{\rm fwd(x)}$')
-    plt.xlabel(r'$\ell$')
-    plt.yscale('log')
-    plt.show()
+    # plt.figure(figsize=(10, 6))
+    # for linei, line2 in enumerate(fwddata):
+    #     for res in line2:
+    #         plt.plot(res, label='iter %d'%(linei+1), color=colors[linei], ls='-' if resi else '-')
+    # # plt.legend(title='CG search')
+    # plt.ylabel(r'$C_\ell^{\rm fwd(x)}$')
+    # plt.xlabel(r'$\ell$')
+    # plt.yscale('log')
+    # plt.show()
 
     plt.figure(figsize=(10, 6))
     for linei, line2 in enumerate(xdata):
         for res in line2:
-            plt.plot(res, label='iter %d'%(linei+1), color=colors[linei], ls='--' if resi else '-')
+            plt.plot(res, label='iter %d'%(linei+1), color=colors[linei], ls='-' if resi else '-')
     # plt.legend(title='CG search')
     plt.ylabel(r'$C_\ell^{\rm x}$')
     plt.xlabel(r'$\ell$')
@@ -212,6 +212,7 @@ tr_cd = (lambda i: 0)
 
 
 def solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cacher, roundoff=25):
+    maxiter = 35
     """customizable conjugate directions loop for x=[fwd_op]^{-1}b.
 
     Args:
@@ -246,7 +247,7 @@ def solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cacher, roundoff=25):
     precondata.append([hp.alm2cl(precon_) for precon_ in np.atleast_2d(searchdirs)])
     iter = 0
     
-    while not criterion(iter, x, residual):
+    while not criterion(iter, x, residual) and iter <= maxiter:
         
         searchfwds = [fwd_op(searchdir) for searchdir in searchdirs]
         deltas = [dot_op(searchdir, residual) for searchdir in searchdirs]

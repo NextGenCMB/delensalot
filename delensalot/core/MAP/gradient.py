@@ -47,7 +47,7 @@ class Gradient(SharedFilters):
                 totgrad.append(sub.gfield.get_total(it))
             else:
                 log.info(f'calculating total gradient for {sub.ID}')
-                buff = -sub.get_gradient_meanfield(it) + sub.get_gradient_quad(it=it, data=data)
+                buff = -sub.get_gradient_meanfield(it) * (0. +0.j) + sub.get_gradient_quad(it=it, data=data)
                 for compi, comp in enumerate(sub.component):
                     buff[compi] = almxfl(buff[compi], sub.chh[comp] > 0, None, False)
                 totgrad.append(buff)
@@ -202,7 +202,7 @@ class GradSub:
         else:
             total = 0
             total += self.get_gradient_prior(it - 1)
-            total -= self.get_gradient_meanfield(it)
+            total -= self.get_gradient_meanfield(it) * (0. +0.j)
             total += self.get_gradient_quad(it)
             return total
             # self.gfield.cache_total(total, idx, idx2, it)

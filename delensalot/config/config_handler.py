@@ -124,12 +124,14 @@ class ConfigHandler():
             configfile (str): the name of the configuration file
             TEMP (str): The location at which the configuration file (and all intermediate and final products of the analysis) will be stored
         """
+        print('trying to store config file')
         dostore = False
         # This is only done if not resuming. Otherwise file would already exist
-        log.info(parser.config_file)
+        print("this is the config file:", parser.config_file)
         if os.path.isfile(parser.config_file) and parser.config_file.endswith('.py'):
-            if config.__dict__['validate_model'] == True:
+            if True: #config.__dict__['validate_model'] == True:
                 # If validation skipped, simply overwrite existing config file
+                print(TEMP+'/'+parser.config_file.split('/')[-1])
                 if os.path.isfile(TEMP+'/'+parser.config_file.split('/')[-1]):
                     # if the file already exists, check if something changed
                     logging.warning('config file {} already exist. Checking differences.'.format(TEMP+'/'+parser.config_file.split('/')[-1]))

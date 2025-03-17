@@ -25,11 +25,11 @@ class Secondary:
 
     def get_qlm(self, simidx, component=None):
         if component is None:
-            return [self.get_qlm(simidx, component) for component in self.component]
-        return self.cacher.load(self.qlm_fns[component].format(idx=simidx))
+            return np.array([self.get_qlm(simidx, component) for component in self.component])
+        return np.atleast_2d(self.cacher.load(self.qlm_fns[component].format(idx=simidx)))
     
 
-    def get_est(self, simidx,component=None, scale='p'):
+    def get_est(self, simidx,component=None, scale='k'):
         if component is None:
             return [self.get_est(simidx, component).squeeze() for component in self.component]
         return self._rescale(self.cacher.load(self.klm_fns[component].format(idx=simidx)), scale)
@@ -57,17 +57,17 @@ class Secondary:
             return self.cacher.is_cached(self.qlm_fns[component].format(idx=simidx))
         
 
-    def _rescale(self, klm, scale):
+    def _rescale(self, hlm, scale):
         if scale == 'p':
             assert self.ID == 'lensing', "Only lensing is supported for p"
-            return klm
+            return hlm
         elif scale == 'k':
             if self.ID == 'birefringence':
-                return klm
+                return hlm
             else:
-                lmax = Alm.getlmax(klm[0].size, None)
-                h2d =  0.5 * np.arange(lmax + 1) * np.arange(1, lmax + 2)
-                return np.atleast_2d(almxfl(klm[0], h2d, lmax, False))
+                lmax = Alm.getlmax(hlm[0].size, None)
+                h2k =  0.5 * np.arange(lmax + 1) * np.arange(1, lmax + 2)
+                return np.atleast_2d(almxfl(hlm[0], h2k, lmax, False))
 
 
 class Template:

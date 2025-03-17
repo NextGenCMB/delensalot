@@ -104,6 +104,20 @@ class Minimizer:
             return ret
         else:
             return self.likelihood.get_est(it, scale=scale)
+        
+
+    def _get_est_meanfield(self, it, secondary=None, component=None, scale='k'):
+        ctx, isnew = get_computation_context()
+        component, secondary = component or ctx.component, secondary or ctx.secondary
+        secondary = secondary or [sec for sec in self.likelihood.secondaries.keys()]
+        ctx.set(secondary=secondary, component=component)
+        ret = []
+        if isinstance(it, (list, np.ndarray)):
+            for it_ in it:
+                ret.append(self.likelihood.get_est_meanfield(it_, scale=scale))
+            return ret
+        else:
+            return self.likelihood.get_est_meanfield(it, scale=scale)
 
 
     def get_template(self, it, secondary=None, component=None):
@@ -234,7 +248,15 @@ class Likelihood:
             # scale = 'd' if sec in ['lensing'] else 'k'
             ret.append(self.secondaries[sec].get_est(it=it, scale=scale))
         return ret
-        # return list(map(list, zip(*ret)))
+    
+
+    def get_est_meanfield(self, it, scale='k'):
+        ctx, isnew = get_computation_context()
+        secondary = ctx.secondary or list(self.secondaries.keys())
+        ret = []
+        for seci, sec in enumerate(secondary):
+            ret.append(self.gradient_lib.subs[seci].get_gradient_meanfield(it=it))
+        return ret
 
     
     def isiterdone(self, it):
@@ -265,12 +287,12 @@ class Likelihood:
         # NOTE this turns them into convergence fields
         ctx, isnew = get_computation_context()  # NOTE getting the singleton instance for MPI rank
         for secname, secondary in self.secondaries.items():
-            QE_searchs[self.sec2idx[secname]].init_filterqest() # FIXME if data not yet simulated, this will cause wrong QE results.. I don't know why atm
+            QE_searchs[self.sec2idx[secname]].init_filterqest()
             if not all(self.secondaries[secname].is_cached(it=0)):
                 klm_QE = QE_searchs[self.sec2idx[secname]].get_est(self.idx)
                 self.secondaries[secname].cache_klm(klm_QE, it=0)
-            
-            if not self.gradient_lib.subs[self.sec2idx[secname]].gfield.is_cached(it=0):
+
+            if not self.gradient_lib.subs[self.sec2idx[secname]].gfield.is_cached(it=0, type='meanfield'):
                 kmflm_QE = QE_searchs[self.sec2idx[secname]].get_kmflm(self.idx)
                 self.gradient_lib.subs[self.sec2idx[secname]].gfield.cache(kmflm_QE, it=0, type='meanfield')
 

@@ -19,7 +19,7 @@ from delensalot.utils import cli
 
 class PlancklensInterface:
     # def __init__(self, filter_desc):
-    def __init__(self, data_container, lm_max_ivf, lm_max_qlm, lmin_teb, cg_tol, sht_threads, cls_len, cls_unl, estimator_type, libdir, chain_descr=None, zbounds=(-1,1), inv_operator_desc=None):
+    def __init__(self, data_container, lm_max_ivf, lm_max_qlm, lmin_teb, cg_tol, sht_threads, cls_len, cls_unl, estimator_type, libdir, chain_descr=None, zbounds=(-1,1), inv_operator_desc=None, sht_tr=None):
         # This class is to interface with Plancklens
         
         self.data_container = data_container

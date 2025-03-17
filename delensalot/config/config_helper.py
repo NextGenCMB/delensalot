@@ -98,9 +98,12 @@ def generate_plancklenskeys(input_str):
                 secondary_key[sec][co] = secondary_key[sec][co].replace('_tp', '')
                 if secondary_key[sec][co] == 'a':
                     secondary_key[sec][co] = 'a_p'
-            if c.endswith('tt'):
+            if c.endswith('tt') or c.endswith('eb'):
                 if secondary_key[sec][co] == 'att':
-                    print("Turning att into a_p so that we can generate a valid starting point. This will fail if no polarization data provided")
+                    print(f"Turning {c} into a_p so that we can generate a valid starting point. This will fail if no polarization data provided")
+                    secondary_key[sec][co] = 'a_p'
+                if secondary_key[sec][co] == 'a_eb':
+                    print(f"Turning {c} into a_p so that we can generate a valid starting point. This will fail if no polarization data provided")
                     secondary_key[sec][co] = 'a_p'
     for sec, val in secondary_key.items():
         for comp in val.values():

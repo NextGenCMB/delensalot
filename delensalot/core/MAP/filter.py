@@ -33,6 +33,7 @@ class Filter_3d:
 
         self.cls_filt_bool = np.array([filter_desc['cls_filt'][key]>0 if key in self.cls_filt else lenclsfilt for keyi, key in enumerate(CMBfields_sorted)])
         self.icls = self.invert_cls_filt(self.cls_filt)
+        self.sht_tr = filter_desc['sht_tr']
         
         self.ivf_field = field.Filter(filterfield_desc('ivf', self.libdir))
         self.wf_field: field.Filter = field.Filter(filterfield_desc('wf', self.libdir))

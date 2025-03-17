@@ -158,7 +158,7 @@ class l2base_Transformer:
         dl.cls_len = camb_clfile(an.cls_len)
         dl.zbounds = (-1,1)
         dl.zbounds_len = (-1,1)
-        dl.sht_transferfunction = utils_plancklens.gauss_beamtransferfunction(an.beam_FWHM, dl.lm_max_sky, an.lmin_teb, an.transfer_has_pixwindow, cf.noisemodel.geominfo)
+        dl.transferfunction = utils_plancklens.gauss_beamtransferfunction(an.beam_FWHM, dl.lm_max_sky, an.lmin_teb, an.transfer_has_pixwindow, cf.noisemodel.geominfo)
 
     def process_Computing(dl, co, cf):
         dl.sht_tr = co.OMP_NUM_THREADS
@@ -183,7 +183,7 @@ class l2base_Transformer:
             'nlev': cf.noisemodel.nlev,
             'geom_lib': get_geom(nm.geominfo), #.restrict(*np.arccos(dl.zbounds[::-1]), northsouth_sym=False),
             'geominfo': nm.geominfo,
-            'transferfunction': dl.sht_transferfunction,
+            'transferfunction': dl.transferfunction,
             'spectrum_type': nm.spectrum_type,
             'OBD': nm.OBD,
             'sky_coverage': nm.sky_coverage,
@@ -192,6 +192,7 @@ class l2base_Transformer:
             "filtering_spatial_type": cf.noisemodel.spatial_type,
             'libdir': dl.TEMP,
             'data_key': dl.data_key,
+            "sht_tr": dl.sht_tr,
         }
 
 
@@ -386,12 +387,13 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             cls_filt = {key:val[:dl.lm_max_pri[0]+1] for key, val in data_container.cls_lib.Cl_dict.items() if key in allowed_keys}
             MAP_wfivf_desc = {
                 'sec_operator': sec_operator,
-                'beam_operator': operator.Beam({'transferfunction': dl.sht_transferfunction, 'lm_max': dl.lm_max_sky, 'data_key': dl.data_key}),
+                'beam_operator': operator.Beam({'transferfunction': dl.transferfunction, 'lm_max': dl.lm_max_sky, 'data_key': dl.data_key}),
                 'inv_operator': niv,
                 'libdir': opj(libdir, 'filter/'),
                 'add_operator': operator.Add({}),
                 "chain_descr": wf_info['chain_descr'](dl.lm_max_pri[0], wf_info['cg_tol']),
                 "cls_filt": cls_filt,
+                "sht_tr": dl.sht_tr,
             }
             wfivf_filter = Filter(MAP_wfivf_desc)
 
@@ -455,9 +457,9 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "estimator_key": cf.analysis.estimator_key,
                     "idx": idx,
                     "idx2": idx,
-                } for idx in dl.idxs
+                } for idxi, idx in enumerate(dl.idxs)
             }
-            likelihood = [Likelihood(**MAP_likelihood_desc) for MAP_likelihood_desc in MAP_likelihood_descs.values()]
+            likelihood = {idx: Likelihood(**MAP_likelihood_desc) for idx, MAP_likelihood_desc in MAP_likelihood_descs.items()}
             
             MAP_minimizer_descs = {
                 idx: {
@@ -467,7 +469,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     "libdir": libdir,
                     'idx': idx,
                     'idx2': idx,
-                } for idx in dl.idxs
+                } for idxi, idx in enumerate(dl.idxs)
             }
             MAP_minimizers = [Minimizer(**MAP_minimizer_desc) for MAP_minimizer_desc in MAP_minimizer_descs.values()]
 
