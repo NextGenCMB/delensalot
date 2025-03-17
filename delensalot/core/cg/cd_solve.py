@@ -11,6 +11,85 @@ def PTR(p, t, r):
 tr_cg = (lambda i: i - 1)
 tr_cd = (lambda i: 0)
 
+from plancklens.qcinv.util_alm import eblm, teblm
+
+from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy
+import healpy as hp
+
+def plot_stuff(residual, residualdata, bdata, fwddata, xdata, precondata, searchdirs, searchfwds, weights, x):
+    import matplotlib
+    # matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    from IPython.display import clear_output
+    def get_rainbow_colors(num_items):
+        cmap = plt.cm.rainbow  # Choose the rainbow colormap
+        return [cmap(i / (num_items - 1)) for i in range(num_items)]
+    
+    if isinstance(residual, (eblm, teblm)):
+        residualdata.append([hp.alm2cl(res)*weights for res in np.atleast_2d(residual.elm)])
+        # fwddata.append([hp.alm2cl(fwd_) for fwd_ in np.atleast_2d(searchfwds[0])])
+        xdata.append([hp.alm2cl(x_) for x_ in np.atleast_2d(x.elm)])
+        # precondata.append([hp.alm2cl(precon_) for precon_ in np.atleast_2d(searchdirs[0])])
+    else:
+        residualdata.append([hp.alm2cl(res)*weights for res in np.atleast_2d(residual)])
+        # fwddata.append([hp.alm2cl(fwd_) for fwd_ in np.atleast_2d(searchfwds[0])])
+        xdata.append([hp.alm2cl(x_) for x_ in np.atleast_2d(x)])
+        # precondata.append([hp.alm2cl(precon_) for precon_ in np.atleast_2d(searchdirs[0])])
+
+    colors = get_rainbow_colors(len(residualdata)+1)
+    clear_output(wait=True)
+
+    plt.figure(figsize=(10, 6))
+    for linei, line2 in enumerate(residualdata):
+        for resi, res in enumerate(line2):
+            plt.plot(res, label='iter %d'%(linei+1), color=colors[linei], ls='-' if resi else '-')
+    # plt.legend(title='CG search')
+    plt.ylabel(r'$C_\ell^{\rm residual}$')
+    plt.xlabel(r'$\ell$')
+    plt.yscale('log')
+    plt.show()
+
+    plt.figure(figsize=(10, 6))
+    for linei, line2 in enumerate(xdata):
+        for res in line2:
+            plt.plot(res, label='iter %d'%(linei+1), color=colors[linei], ls='-' if resi else '-')
+    # plt.legend(title='CG search')
+    plt.ylabel(r'$C_\ell^{\rm x}$')
+    plt.xlabel(r'$\ell$')
+    plt.yscale('log')
+    plt.show()
+
+    # plt.figure(figsize=(10, 6))
+    # for linei, line2 in enumerate(bdata):
+    #     for resi, res in enumerate(line2):
+    #         plt.plot(res, label='iter %d'%(linei+1), color=colors[linei], ls='-' if resi else '-')
+    # # plt.legend(title='CG search')
+    # plt.ylabel(r'$C_\ell^{\rm b}$')
+    # plt.xlabel(r'$\ell$')
+    # plt.yscale('log')
+    # plt.show()
+
+    # plt.figure(figsize=(10, 6))
+    # for linei, line2 in enumerate(fwddata):
+    #     for res in line2:
+    #         plt.plot(res, label='iter %d'%(linei+1), color=colors[linei], ls='-' if resi else '-')
+    # # plt.legend(title='CG search')
+    # plt.ylabel(r'$C_\ell^{\rm fwd(x)}$')
+    # plt.xlabel(r'$\ell$')
+    # plt.yscale('log')
+    # plt.show()
+
+    # plt.close('all')
+
+    # plt.figure(figsize=(10, 6))
+    # for linei, line2 in enumerate(precondata):
+    #     for res in line2:
+    #         plt.plot(res, label='iter %d'%(linei+1))
+    # # plt.legend(title='CG search')
+    # plt.ylabel(r'$C_\ell^{\rm precon}$')
+    # plt.xlabel(r'$\ell$')
+    # plt.yscale('log')
+    # plt.show()
 
 class cache_mem(dict):
     def __init__(self):
@@ -52,10 +131,32 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
 
     """
 
+    residualdata, bdata, fwddata, xdata, precondata = [], [], [], [], []
+
     n_pre_ops = len(pre_ops)
 
     residual = b - fwd_op(x)
     searchdirs = [op(residual) for op in pre_ops]
+
+
+    if isinstance(residual, (eblm, teblm)):
+        lmax = np.max([Alm.getlmax(r.size, None) for r in residual.elm])
+        ell = np.arange(0, lmax + 1)
+        weights = 2 * ell + 1
+        residualdata.append([hp.alm2cl(res)*weights for res in np.atleast_2d(residual.elm)])
+        # bdata.append([hp.alm2cl(b_) for b_ in np.atleast_2d(b)])
+        # fwddata.append([hp.alm2cl(fwd_) for fwd_ in np.atleast_2d(fwd_op(x).elm)])
+        xdata.append([hp.alm2cl(x_) for x_ in np.atleast_2d(x.elm)])
+        # precondata.append([hp.alm2cl(precon_) for precon_ in np.atleast_2d(searchdirs)])
+    else:
+        lmax = np.max([Alm.getlmax(r.size, None) for r in residual])
+        ell = np.arange(0, lmax + 1)
+        weights = 2 * ell + 1
+        residualdata.append([hp.alm2cl(res)*weights for res in np.atleast_2d(residual)])
+        # bdata.append([hp.alm2cl(b_) for b_ in np.atleast_2d(b)])
+        # fwddata.append([hp.alm2cl(fwd_) for fwd_ in np.atleast_2d(fwd_op(x))])
+        xdata.append([hp.alm2cl(x_) for x_ in np.atleast_2d(x)])
+        # precondata.append([hp.alm2cl(precon_) for precon_ in np.atleast_2d(searchdirs)])
 
     iter = 0
     while not criterion(iter, x, residual):
@@ -84,6 +185,8 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
         else:
             for (searchfwd, alpha) in zip(searchfwds, alphas):
                 residual -= searchfwd * alpha
+
+        plot_stuff(residual, residualdata, bdata, fwddata, xdata, precondata, searchdirs, searchfwds, weights, x)
 
         # initial choices for new search directions.
         searchdirs = [pre_op(residual) for pre_op in pre_ops]
