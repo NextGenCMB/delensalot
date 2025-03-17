@@ -337,18 +337,19 @@ class InverseNoiseVariance(Operator):
         """
         assert len(tqumap) == 3
 
-        tqumap[0] *= self.niv[0]
-        assert self.template is None
-        qmap, umap = tqumap[1], tqumap[2]
-        qmap_copy = qmap.copy()
-        qmap *= self.niv[1]
-        qmap += self.niv[2] * umap
-        umap *= self.niv[2]
-        umap += self.niv[1] * qmap_copy
-        del qmap_copy
+        tqumap[0] *= self.niv[1]
+        tqumap[1:] *= self.niv[2]
+        # assert self.template is None
+        # qmap, umap = tqumap[1], tqumap[2]
+        # qmap_copy = qmap.copy()
+        # qmap *= self.niv[1]
+        # qmap += self.niv[2] * umap
+        # umap *= self.niv[2]
+        # umap += self.niv[1] * qmap_copy
+        # del qmap_copy
 
         tlm = self.geom_lib.adjoint_synthesis(tqumap[0], 0, *self.lm_max, self.sht_tr, apply_weights=False)
-        eblm = self.geom_lib.adjoint_synthesis([qmap, umap], 2, *self.lm_max, self.sht_tr, apply_weights=False)
+        eblm = self.geom_lib.adjoint_synthesis(tqumap[1:], 2, *self.lm_max, self.sht_tr, apply_weights=False)
         return np.array([*tlm, *eblm])
 
 
