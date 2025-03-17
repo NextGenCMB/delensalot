@@ -332,7 +332,7 @@ class InverseNoiseVariance(Operator):
     
 
     def apply_map(self, tqumap):
-        # NOTE niv order is assumed TT,QQ,UU,QU
+        # NOTE niv order is assumed to be TT,QQ,UU,QU
         """Applies pixel inverse-noise variance maps
         """
         assert len(tqumap) == 3
@@ -342,9 +342,9 @@ class InverseNoiseVariance(Operator):
         qmap, umap = tqumap[1], tqumap[2]
         qmap_copy = qmap.copy()
         qmap *= self.niv[1]
-        qmap += self.niv[-1] * umap
+        qmap += self.niv[2] * umap
         umap *= self.niv[2]
-        umap += self.niv[-1] * qmap_copy
+        umap += self.niv[1] * qmap_copy
         del qmap_copy
 
         tlm = self.geom_lib.adjoint_synthesis(tqumap[0], 0, *self.lm_max, self.sht_tr, apply_weights=False)

@@ -158,7 +158,7 @@ class l2base_Transformer:
         dl.cls_len = camb_clfile(an.cls_len)
         dl.zbounds = (-1,1)
         dl.zbounds_len = (-1,1)
-        dl.transferfunction = utils_plancklens.gauss_beamtransferfunction(an.beam_FWHM, dl.lm_max_sky, an.lmin_teb, an.transfer_has_pixwindow, cf.noisemodel.geominfo)
+        dl.transferfunction = utils_plancklens.gauss_beamtransferfunction_sharp(an.beam_FWHM, dl.lm_max_sky, an.lmin_teb, an.transfer_has_pixwindow, cf.noisemodel.geominfo)
 
     def process_Computing(dl, co, cf):
         dl.sht_tr = co.OMP_NUM_THREADS

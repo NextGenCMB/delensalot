@@ -24,7 +24,67 @@ def get_niv_desc(nlev, nivjob_geominfo, nivjob_geomlib, rhits_normalised, mask, 
     return niv_desc
 
 
-def gauss_beamtransferfunction(beam, lm_max, lmin_teb, with_pixwin=False, geominfo=None):
+def gauss_beamtransferfunction_logistic(beam, lm_max, lmin_teb, with_pixwin=False, geominfo=None, transition_width=1.5):
+    """
+    Computes a Gaussian beam transfer function with a smooth transition at lmin_teb.
+    
+    Parameters:
+        beam (float): Beam FWHM in arcmin.
+        lm_max (list or tuple): Maximum multipole for each field.
+        lmin_teb (int): The lower limit for TEB modes, below which modes are suppressed.
+        transition_width (int): The width of the transition region for smooth suppression.
+        with_pixwin (bool): Whether to include the pixel window function.
+        geominfo (tuple): Geometry information for pixel window function.
+
+    Returns:
+        dict: A dictionary containing smoothed transfer functions for 'T', 'E', and 'B'.
+    """
+    # Compute Gaussian beam factor
+    beam_factor = gauss_beam(df.a2r(beam), lmax=lm_max[0])
+
+    # Define smooth transition instead of a hard cutoff
+    ell = np.arange(lm_max[0] + 1)[:, None]
+    transition_mask = 1 / (1 + np.exp(-(ell - lmin_teb) / transition_width))  # Logistic function
+
+    if not with_pixwin:
+        transf = beam_factor[:, None] * transition_mask
+    else:
+        assert geominfo[0] == 'healpix', 'Implement non-healpix pixelwindow function'
+        pixwin_factor = hp.pixwin(geominfo[1]['nside'], lmax=lm_max[0])
+        transf = beam_factor[:, None] * pixwin_factor[:, None] * transition_mask
+
+    return dict(zip('teb', transf.T))
+
+
+def gauss_beamtransferfunction_cosine(beam, lm_max, lmin_teb, with_pixwin=False, geominfo=None, transition_width=5):
+    def cosine_taper(ell, lmin, width):
+        """Cosine taper function for smooth suppression."""
+        taper = 0.5 * (1 + np.cos(np.pi * (ell - lmin) / width))
+        taper[ell < lmin - width] = 0  # Strictly zero below lmin - width
+        taper[ell > lmin] = 1  # Fully 1 above lmin
+        return taper
+
+    # Compute Gaussian beam factor
+    beam_factor = gauss_beam(df.a2r(beam), lmax=lm_max[0])
+
+    # Define multipole array
+    ell = np.arange(lm_max[0] + 1)[:, None]
+
+    # Apply taper function separately to T, E, B
+    transition_masks = [cosine_taper(ell, lmin, transition_width) for lmin in lmin_teb]
+
+    if not with_pixwin:
+        transf = [beam_factor[:, None] * mask for mask in transition_masks]
+    else:
+        assert geominfo[0] == 'healpix', 'Implement non-healpix pixelwindow function'
+        pixwin_factor = hp.pixwin(geominfo[1]['nside'], lmax=lm_max[0])
+        transf = [beam_factor[:, None] * pixwin_factor[:, None] * mask for mask in transition_masks]
+
+
+    return dict(zip('teb', [t.squeeze().T for t in transf]))  # Ensure correct orientation
+
+
+def gauss_beamtransferfunction_sharp(beam, lm_max, lmin_teb, with_pixwin=False, geominfo=None):
     beam_factor = gauss_beam(df.a2r(beam), lmax=lm_max[0])
     lmin_mask = np.arange(lm_max[0] + 1)[:, None] >= lmin_teb
     if not with_pixwin:

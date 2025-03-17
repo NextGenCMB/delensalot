@@ -246,6 +246,9 @@ def solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cacher, roundoff=25):
     xdata.append([hp.alm2cl(x_) for x_ in np.atleast_2d(x)])
     precondata.append([hp.alm2cl(precon_) for precon_ in np.atleast_2d(searchdirs)])
     iter = 0
+
+    lmax = hp.Alm.getlmax(residual[0].size)
+    ell = np.arange(0, lmax + 1)
     
     while not criterion(iter, x, residual) and iter <= maxiter:
         
@@ -258,6 +261,20 @@ def solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cacher, roundoff=25):
             for ip2 in range(0, ip1 + 1):
                 dTAd[ip1, ip2] = dTAd[ip2, ip1] = dot_op(searchdirs[ip1], searchfwds[ip2])
         dTAd_inv = np.linalg.inv(dTAd)
+
+
+        searchfwd_alm = searchfwds[0][1] # NOTE zeroth grid direction of elm  # Assuming single search direction
+        # Compute per-ell power spectrum
+        cl_dTAd = hp.alm2cl(searchfwd_alm)  # This gives a power spectrum over ell-modes
+        cl_dTAd[cl_dTAd <= 0] = np.min(cl_dTAd[cl_dTAd > 0]) * 1e-6
+        # Compute per-ell condition number
+        cond_num_ell = np.zeros(lmax + 1)
+        for ell in range(1, lmax + 1):  # Avoid ell=0
+            cond_num_ell[ell] = cl_dTAd[ell] / np.min(cl_dTAd[ell:])  # Condition number per ell
+
+        # Compute global condition number (max over all ell)
+        global_cond_num = np.max(cond_num_ell)
+
 
         # search.
         alphas = np.dot(dTAd_inv, deltas)
@@ -274,8 +291,13 @@ def solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cacher, roundoff=25):
         else:
             for (searchfwd, alpha) in zip(searchfwds, alphas):
                 residual -= searchfwd * alpha
-        if log.getEffectiveLevel() == logging.INFO:
+        if log.getEffectiveLevel() in [logging.INFO, logging.DEBUG]:
             plot_stuff(residual, residualdata, bdata, fwddata, xdata, precondata, searchdirs, searchfwds, weights, x)
+            import matplotlib.pyplot as plt
+            ell = np.arange(len(cond_num_ell))
+            plt.plot(ell[20:51], cond_num_ell[20:51])
+            print(f"Iteration {iter}: Global Condition Number = {global_cond_num:.2f}")
+            plt.show()
 
         # initial choices for new search directions.
         searchdirs = [pre_op(residual) for pre_op in pre_ops]
