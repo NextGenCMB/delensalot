@@ -188,8 +188,8 @@ class Gradient:
             else:
                 return self.cacher.load(self.total_fns.format(idx=idx, idx2=idx2, it=it))[indices]
 
-        g += self.get_meanfield(it=it)
-        g -= self.get_quad(it=it)
+        g -= self.get_meanfield(it=it)
+        g += self.get_quad(it=it)
         g += self.get_prior(it=it-1)
         g = almxfl(g, self.chh > 0, None, False)
         return g

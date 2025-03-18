@@ -212,7 +212,7 @@ class Filter_3d:
             ivfreslm = 1*self.beam_operator.act(ivfreslm)
             
             if data[0].dtype in [np.complex64, np.complex128]:
-                ivfreslm -= data
+                ivfreslm = data - ivfreslm
                 ivfreslm = self.inv_operator.act(ivfreslm, adjoint=False)
             else:
                 lm_max = self.inv_operator.lm_max
@@ -224,7 +224,7 @@ class Filter_3d:
                 ivfresmap = [d-ivf for ivf,d in zip(ivfresmap,data)]
                 ivfreslm = self.inv_operator.apply_map(ivfresmap)
 
-            ivfreslm = self.beam_operator.act(ivfreslm, adjoint=False, factor_p=0.5)
+            ivfreslm = self.beam_operator.act(ivfreslm, adjoint=False, factor_p=.5)
             if 'tt' in self.cls_filt and 'ee' in self.cls_filt:
                 ivfreslm[2] = np.zeros_like(ivfreslm[0],dtype=complex)
             elif 'tt' in self.cls_filt:
