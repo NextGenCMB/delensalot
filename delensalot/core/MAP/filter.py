@@ -153,13 +153,18 @@ class Filter_3d:
             nz = np.where(ninv_ftl > 0)
             spl_sq = spl(np.arange(len(ninv_ftl), dtype=float)[nz], np.log(ninv_ftl[nz]), k=2, ext='extrapolate')
             ninv_ftl = np.exp(spl_sq(np.arange(lmax_ + 1, dtype=float)))
+        else:
+            ninv_ftl = ninv_ftebl[0]
         if np.any(ninv_ftebl[1]) and len(ninv_ftebl[1]) - 1 < lmax_: # We extend the transfer fct to avoid predcon. with zero (~ Gauss beam)
             import matplotlib.pyplot as plt
             ninv_fel = ninv_ftebl[1]
             log.debug("PRE_OP_DIAG: extending transfer fct from lmax %s to lmax %s"%(len(ninv_fel)-1, lmax_))
             nz = np.where(ninv_fel > 0)
             spl_sq = spl(np.arange(len(ninv_fel), dtype=float)[nz], np.log(ninv_fel[nz]), k=2, ext='extrapolate')
-            ninv_fel = np.exp(spl_sq(np.arange(lmax_+1, dtype=float))) 
+            ninv_fel = np.exp(spl_sq(np.arange(lmax_+1, dtype=float)))
+        else:
+            ninv_fel = ninv_ftebl[1]
+
 
         if 'tt' in self.cls_filt and 'ee' in self.cls_filt:
             lmax_sky_ = self.cls_filt['tt'].size

@@ -296,7 +296,8 @@ def solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cacher, roundoff=25):
             plot_stuff(residual, residualdata, bdata, fwddata, xdata, precondata, searchdirs, searchfwds, weights, x)
             import matplotlib.pyplot as plt
             ell = np.arange(len(cond_num_ell))
-            plt.plot(ell[20:51], cond_num_ell[20:51])
+            plt.plot(ell, cond_num_ell)
+            plt.loglog()
             print(f"Iteration {iter}: Global Condition Number = {global_cond_num:.2f}")
             plt.show()
 

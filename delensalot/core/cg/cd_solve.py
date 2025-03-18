@@ -86,7 +86,7 @@ class cache_mem(dict):
 
 
 def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), roundoff=25):
-    maxiter = 25
+    maxiter = 35
     """customizable conjugate directions loop for x=[fwd_op]^{-1}b.
 
     Args:
