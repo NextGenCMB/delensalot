@@ -29,7 +29,8 @@ def plot_stuff(residual, residualdata, bdata, fwddata, xdata, precondata, search
     plt.figure(figsize=(10, 6))
     for linei, line2 in enumerate(residualdata):
         for resi, res in enumerate(line2):
-            plt.plot(res, label='iter %d'%(linei+1), color=colors[linei], ls='-' if resi else '-')
+            color = colors[linei] if linei < len(residualdata) - 1 else 'black'
+            plt.plot(res, label='iter %d'%(linei+1), color=color, ls='-' if resi else '-')
     # plt.legend(title='CG search')
     plt.ylabel(r'$C_\ell^{\rm residual}$')
     plt.xlabel(r'$\ell$')

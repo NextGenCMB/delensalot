@@ -30,7 +30,7 @@ DL_DEFAULT = {
         'phi_field': 'potential',
         'CMB_fn': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
         'phi_fn': opj(os.path.dirname(delensalot.__file__), 'data', 'cls', 'FFP10_wdipole_lenspotentialCls.dat'),
-        'epsilon': 1e-7,
+        'epsilon': 1e-10,
         'spin': 0,
         'CMB_modifier': lambda x: x,
         'phi_modifier': lambda x: x,
@@ -106,7 +106,7 @@ DL_DEFAULT = {
         'lm_max_qlm': (4000,4000),
         'mfvar': '',
         'soltn_cond': lambda it: True,
-        'epsilon': 1e-7,
+        'epsilon': 1e-10,
         },
     'noisemodel': {
         'sky_coverage': 'masked',

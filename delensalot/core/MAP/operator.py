@@ -280,9 +280,10 @@ class Beam:
 
     @log_on_start(logging.DEBUG, "beam", logger=log)
     # @log_on_end(logging.DEBUG, "beam done", logger=log)
-    def act(self, obj, adjoint=False):
+    def act(self, obj, adjoint=False, factor_p=1):
         assert len(obj) == 3, "obj must have 3 components"
-        val = np.array([almxfl(o, self.transferfunction[oi], len(self.transferfunction[oi])-1, False) for oi, o in enumerate(obj)])
+        factor = lambda oi: factor_p if oi > 0 else 1.
+        val = np.array([almxfl(o, self.transferfunction[oi]*factor(oi), len(self.transferfunction[oi])-1, False) for oi, o in enumerate(obj)])
         return cli(val) if adjoint else val
 
 

@@ -204,10 +204,10 @@ class Filter_3d:
             assert elm_wf is not None and data is not None
             ivfreslm = self.sec_operator.act(elm_wf)
             assert ivfreslm.shape[0] == 3, ivfreslm.shape
-            ivfreslm = -1*self.beam_operator.act(ivfreslm)
+            ivfreslm = 1*self.beam_operator.act(ivfreslm)
             
             if data[0].dtype in [np.complex64, np.complex128]:
-                ivfreslm += data
+                ivfreslm -= data
                 ivfreslm = self.inv_operator.act(ivfreslm, adjoint=False)
             else:
                 lm_max = self.inv_operator.lm_max
@@ -216,10 +216,10 @@ class Filter_3d:
                 buff = self.inv_operator.geom_lib.synthesis(ivfreslm[1:], 2, *lm_max, self.sht_tr)
                 ivfresmap.append(buff[0])
                 ivfresmap.append(buff[1])
-                ivfresmap = [ivf+d for ivf,d in zip(ivfresmap,data)]
+                ivfresmap = [d-ivf for ivf,d in zip(ivfresmap,data)]
                 ivfreslm = self.inv_operator.apply_map(ivfresmap)
 
-            ivfreslm = self.beam_operator.act(ivfreslm, adjoint=False)
+            ivfreslm = self.beam_operator.act(ivfreslm, adjoint=False, factor_p=0.5)
             if 'tt' in self.cls_filt and 'ee' in self.cls_filt:
                 ivfreslm[2] = np.zeros_like(ivfreslm[0],dtype=complex)
             elif 'tt' in self.cls_filt:

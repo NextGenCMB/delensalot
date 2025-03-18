@@ -23,9 +23,12 @@ def plot_stuff(residualdata, bdata, fwddata, xdata, precondata, residual):
         return [cmap(i / (num_items - 1)) for i in range(num_items)]
     colors = get_rainbow_colors(len(residualdata)+1)
 
-    hp.mollview(hp.alm2map(residual.elm, nside=512), title='residual')
+    lmax = Alm.getlmax(residual.elm.size, None)
+    ell = np.arange(0, lmax + 1)
+    weights = 2 * ell + 1
+    hp.mollview(hp.alm2map(residual.elm, nside=512)*weights, title='residual')
     plt.show()
-    hp.mollview(hp.alm2map(residual.blm, nside=512), title='residual')
+    hp.mollview(hp.alm2map(residual.blm, nside=512)*weights, title='residual')
     plt.show()
     
     plt.figure(figsize=(10, 6))
@@ -83,6 +86,7 @@ class cache_mem(dict):
 
 
 def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), roundoff=25):
+    maxiter = 25
     """customizable conjugate directions loop for x=[fwd_op]^{-1}b.
 
     Args:
@@ -118,7 +122,7 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
     # plot_stuff(residualdata, bdata, fwddata, xdata, precondata)
     
     iter = 0
-    while not criterion(iter, x, residual):
+    while not criterion(iter, x, residual) and iter <= maxiter:
         searchfwds = [fwd_op(searchdir) for searchdir in searchdirs]
         deltas = [dot_op(searchdir, residual) for searchdir in searchdirs]
 
