@@ -362,7 +362,6 @@ class BirefringenceGradientSub(GradSub):
             lmax = Alm.getlmax(ivfreslm[0].size, None)
             ivfmap = self.geom_lib.synthesis(ivfreslm[1:], 2, lmax, lmax, self.sht_tr)
  
-            # qlms = -4*(ivfmap[0]*xwfmap[1] - ivfmap[1]*xwfmap[0])
             qlms = +4*(+ivfmap[0]*xwfmap[1] - ivfmap[1]*xwfmap[0]) # NOTE factor 4 here because I have factor 0.5 in the get_ivfreslm at the beam (needed for lensing)
             qlms = self.geom_lib.adjoint_synthesis(qlms, 0, self.LM_max[0], self.LM_max[1], self.sht_tr)
             

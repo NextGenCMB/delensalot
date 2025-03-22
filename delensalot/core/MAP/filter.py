@@ -215,10 +215,9 @@ class Filter_3d:
                 ivfreslm = data - ivfreslm
                 ivfreslm = self.inv_operator.act(ivfreslm, adjoint=False)
             else:
-                lm_max = self.inv_operator.lm_max
                 ivfresmap = []
-                ivfresmap.append(self.inv_operator.geom_lib.synthesis(ivfreslm[0], 0, *lm_max, self.sht_tr))
-                buff = self.inv_operator.geom_lib.synthesis(ivfreslm[1:], 2, *lm_max, self.sht_tr)
+                ivfresmap.append(self.inv_operator.geom_lib.synthesis(ivfreslm[0], 0, *self.inv_operator.lm_max, self.sht_tr))
+                buff = self.inv_operator.geom_lib.synthesis(ivfreslm[1:], 2, *self.inv_operator.lm_max, self.sht_tr)
                 ivfresmap.append(buff[0])
                 ivfresmap.append(buff[1])
                 ivfresmap = [d-ivf for ivf,d in zip(ivfresmap,data)]
