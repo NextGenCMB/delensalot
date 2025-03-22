@@ -112,6 +112,7 @@ class cache_mem(dict):
 
 
 def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), roundoff=25):
+    maxiter = 10
     """customizable conjugate directions loop for x=[fwd_op]^{-1}b.
 
     Args:
@@ -159,7 +160,7 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
         # precondata.append([hp.alm2cl(precon_) for precon_ in np.atleast_2d(searchdirs)])
 
     iter = 0
-    while not criterion(iter, x, residual):
+    while not criterion(iter, x, residual) and iter <= maxiter:
         searchfwds = [fwd_op(searchdir) for searchdir in searchdirs]
         deltas = [dot_op(searchdir, residual) for searchdir in searchdirs]
 
