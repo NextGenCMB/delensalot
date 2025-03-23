@@ -137,6 +137,9 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
     n_pre_ops = len(pre_ops)
 
     residual = b - fwd_op(x)
+    print('x is', x)
+    print('fwd(x) is', fwd_op(x))
+    print('going to calculate pre_op')
     searchdirs = [op(residual) for op in pre_ops]
 
 
