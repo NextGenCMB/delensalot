@@ -236,6 +236,9 @@ def solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cacher, roundoff=25):
 
     n_pre_ops = len(pre_ops)
     residual = b - fwd_op(x)
+    print('x is', x[0][10000:10010])
+    print('fwd(x) is', fwd_op(x))
+    print('going to calculate pre_op')
     searchdirs = [op(residual) for op in pre_ops]
 
     lmax = np.max([Alm.getlmax(r.size, None) for r in residual])
