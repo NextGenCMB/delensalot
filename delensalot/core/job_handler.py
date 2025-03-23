@@ -418,29 +418,31 @@ class DataContainer:
         import healpy as hp
         nside = 2048
         space = 'alm' if self.sky_coverage == 'full' else 'map'
+        lm_max_ = self.data_source.obs_lib.CMB_info['lm_max']
+        # lm_max_ = self.lm_max_sky
         if space == 'alm':
-            earr = np.zeros(shape=Alm.getsize(*self.lm_max_sky),dtype=complex)
+            earr = np.zeros(shape=Alm.getsize(*self.lm_max_),dtype=complex)
         else:
             earr = np.zeros(hp.nside2npix(nside))
         if True: # NOTE trimmed data currently not supported
             if self.data_key in ['p', 'eb', 'be']:
-                ret = [earr, *alm_copy_nd(self.data_source.get_sim_obs(idx, space='alm', spin=0, field='polarization'), None, self.lm_max_sky)]
+                ret = [earr, *alm_copy_nd(self.data_source.get_sim_obs(idx, space='alm', spin=0, field='polarization'), None, lm_max_)]
                 if space == 'map':
-                    ret = [earr, *hp.alm2map_spin(ret[1:], nside=nside, spin=2, lmax=self.lm_max_sky[0], mmax=self.lm_max_sky[1])]
+                    ret = [earr, *hp.alm2map_spin(ret[1:], nside=nside, spin=2, lmax=lm_max_[0], mmax=lm_max_[1])]
             elif self.data_key in ['ee']:
-                ret = [earr, alm_copy_nd(self.data_source.get_sim_obs(idx, space='alm', spin=0, field='polarization'), None, self.lm_max_sky)[0], earr]
+                ret = [earr, alm_copy_nd(self.data_source.get_sim_obs(idx, space='alm', spin=0, field='polarization'), None, lm_max_)[0], earr]
                 if space == 'map':
                     assert 0, 'implement if needed'
             elif self.data_key in ['tt']:
-                ret = [alm_copy_nd(self.data_source.get_sim_obs(idx, space='alm', spin=0, field='temperature'), None, self.lm_max_sky), earr, earr]
+                ret = [alm_copy_nd(self.data_source.get_sim_obs(idx, space='alm', spin=0, field='temperature'), None, lm_max_), earr, earr]
                 if space == 'map':
                     ret = [*hp.alm2map(ret[0], nside=nside, spin=0), earr, earr]
             elif self.data_key in ['tp']:
-                Tobs = alm_copy_nd(self.data_source.get_sim_obs(idx, space='alm', spin=0, field='temperature'), None, self.lm_max_sky)   
-                EBobs = alm_copy_nd(self.data_source.get_sim_obs(idx, space='alm', spin=0, field='polarization'), None, self.lm_max_sky)
+                Tobs = alm_copy_nd(self.data_source.get_sim_obs(idx, space='alm', spin=0, field='temperature'), None, lm_max_)   
+                EBobs = alm_copy_nd(self.data_source.get_sim_obs(idx, space='alm', spin=0, field='polarization'), None, lm_max_)
                 if space == 'map':
                     Tobs = hp.alm2map(Tobs, nside=nside)
-                    EBobs = hp.alm2map_spin(EBobs, nside=nside, spin=2, lmax=self.lm_max_sky[0], mmax=self.lm_max_sky[1])
+                    EBobs = hp.alm2map_spin(EBobs, nside=nside, spin=2, lmax=lm_max_[0], mmax=lm_max_[1])
                 ret = [Tobs, *EBobs]
             else:
                 assert 0, 'implement if needed'
