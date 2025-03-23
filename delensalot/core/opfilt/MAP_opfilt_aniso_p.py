@@ -405,7 +405,7 @@ def calc_prep(qumaps:np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv_wl):
     almxfl(eblm[1], ninv_filt.b_transf_blm, ninv_filt.mmax_len, True)
     print('after transfer', eblm)
     print('lensing with', ninv_filt.mmax_len, 2, ninv_filt.lmax_sol, ninv_filt.mmax_sol)
-    print(ninv_filt.ffi.geom.__dict__)
+    print(ninv_filt.ffi.__dict__)
     elm = ninv_filt.ffi.lensgclm(eblm, ninv_filt.mmax_len, 2, ninv_filt.lmax_sol, ninv_filt.mmax_sol,
                                       backwards=True, out_sht_mode='GRAD_ONLY').squeeze()
     print('after lensgclm', elm)
