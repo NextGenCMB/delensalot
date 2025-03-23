@@ -169,7 +169,7 @@ class ConjugateGradient:
         if stage.depth > self.plogdepth:
             return
 
-        log_str = '   ' * stage.depth + '(%4d, %04d) [%s] (%d, %1.2e)' % (
+        log_str = '   ' * stage.depth + '(%4d, %04d) [%s] (%d, %1.4e)' % (
         stage.nside, stage.lmax, str(elapsed), iter, eps) + '\n'
         sys.stdout.write(log_str)
 
@@ -236,7 +236,7 @@ def solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cacher, roundoff=25):
 
     n_pre_ops = len(pre_ops)
     residual = b - fwd_op(x)
-    print('x is', x[0][10000:10010])
+    print('x is', x[1][10000:10010])
     print('fwd(x) is', fwd_op(x))
     print('going to calculate pre_op')
     searchdirs = [op(residual) for op in pre_ops]
