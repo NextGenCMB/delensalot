@@ -749,7 +749,9 @@ class Xobs:
                                 obs2 = self.geom_lib.alm2map(obs[1], lmax=self.lmax, mmax=self.lmax, nthreads=4)
                                 obs = np.array([obs1, obs2])
                             else:
+                                print('inside datasource:', obs)
                                 obs = self.geom_lib.alm2map_spin(obs, lmax=self.lmax, spin=spin, mmax=self.lmax, nthreads=4)
+                                print(obs, self.lmax)
                 elif field == 'temperature':
                     obs = np.array(load_file(opj(self.libdir, self.fns['T'].format(simidx))))
                     obs = self.CMB_modifier(obs)
@@ -811,6 +813,7 @@ class Xobs:
             elif self.space == 'map':
                 obs = self.geom_lib.map2alm_spin(obs, spin=self.spin, lmax=self.lmax, mmax=self.lmax, nthreads=4)
             self.cacher.cache(fn, obs)
+        print('inside datasource:', self.cacher.load(fn))
         return self.cacher.load(fn)
     
 
