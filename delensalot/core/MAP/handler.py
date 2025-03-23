@@ -77,6 +77,7 @@ class Minimizer:
             if not self.use_QE_starting_point and it == 1:
                 for sec, val in est_prev.items():
                     est_prev[sec] = np.zeros_like(val,dtype=complex)
+            print('previous estimate:', est_prev)
             self.update_operator(est_prev)
             grad_tot = self.likelihood.get_likelihood_gradient(it)
             grad_tot = np.concatenate([np.ravel(arr) for arr in grad_tot])

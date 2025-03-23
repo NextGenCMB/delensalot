@@ -160,7 +160,7 @@ class Lensing(Operator):
             if adjoint and backwards:
                 tlm = np.atleast_2d(self.ffi.lensgclm(obj[0], self.lm_max_in[1], 0, *self.lm_max_out, backwards=backwards, out_sht_mode='STANDARD')) if self.data_key in ['tt', 'tp'] else np.zeros(shape=(Alm.getsize(*self.lm_max_out)),dtype=complex)
                 # print('lensing with', self.lm_max_in[1], 2, *self.lm_max_out)
-                # print(self.ffi.__dict__)
+                print(self.ffi.__dict__)
                 # print(np.atleast_2d(obj[1:]))
                 print('now comes lensing')
                 print(obj.dtype, self.ffi.dlm.dtype)
