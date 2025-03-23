@@ -168,6 +168,7 @@ class qlm_iterator(object):
     def _sk2plm(self, itr):
         sk_fname = lambda k: 'rlm_sn_%s_%s' % (k, 'p')
         rlm = self.cacher.load('phi_%slm_it000'%self.h)
+        print('loading plm', itr)
         for i in range(itr):
             rlm += self.hess_cacher.load(sk_fname(i))
         return rlm
@@ -319,7 +320,7 @@ class qlm_iterator(object):
         if itr < 0:
             return np.zeros(Alm.getsize(self.lmax_qlm, self.mmax_qlm), dtype=complex)
         assert key.lower() in ['p', 'o'], key  # potential or curl potential.
-        if pwithn1:
+        if not pwithn1:
             fn = '%s_%slm_it%03d' % ({'p': 'phi', 'o': 'om'}[key.lower()], self.h, itr)
         else:
             fn = '%s_%slm_it%03d_wN1' % ({'p': 'phi', 'o': 'om'}[key.lower()], self.h, itr)
@@ -472,7 +473,7 @@ class qlm_iterator(object):
             assert key in ['p'], key + '  not implemented'
             dlm = self.get_hlm(itr - 1, key)
             self.hlm2dlm(dlm, True)
-            print('prev estimate:', dlm)
+            print('prev estimate:', dlm, np.mean(dlm))
             ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm, cachers.cacher_mem(safe=False))
             self.filter.set_ffi(ffi)
             mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.filter)
