@@ -77,12 +77,15 @@ class Filter_3d:
         elif space == 'map':
             teblmc = self.inv_operator.apply_map(data)
         assert len(teblmc) == 3, teblmc.shape
+        print('after apply_map', teblmc)
         
         teblmc = self.beam_operator.act(teblmc, adjoint=False)
+        print('after transfer', teblmc)
         assert len(teblmc) == 3, len(teblmc)
         # NOTE spin 0 is standard, spin 2 is GRAD_only. For convenience, I'll make it return a 3 tuple
         teblm = self.sec_operator.act(teblmc, adjoint=True, backwards=True) # NOTE lm_sky -> lm_pri
         assert len(teblm) == 3, len(teblm)
+        print('after lensgclm', teblm)
 
         teblm = almxfl_nd(teblm, self.cls_filt_bool, None, False)
         assert len(teblm) == 3, len(teblm)
