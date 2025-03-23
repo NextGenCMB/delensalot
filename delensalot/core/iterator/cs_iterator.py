@@ -459,20 +459,6 @@ class qlm_iterator(object):
                 if os.path.exists(opj(self.lib_dir, 'ffi_%s_it%s'%(key, itr))):
                     shutil.rmtree(opj(self.lib_dir, 'ffi_%s_it%s'%(key, itr)))
 
-
-    # FIXME awful to have this here..
-    def get_mchain(self, it, key):
-        assert self.is_iter_done(it - 1, key)
-        assert key.lower() in ['p', 'o'], key  # potential or curl potential.
-        assert key in ['p'], key + '  not implemented'
-        dlm = self.get_hlm(it - 1, key)
-        self.hlm2dlm(dlm, True)
-        ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm, cachers.cacher_mem(safe=False))
-        self.filter.set_ffi(ffi)
-        mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.filter)
-        return mchain
-
-
     @log_on_start(logging.DEBUG, "calc_gradlik(it={itr}, key={key}) started")
     @log_on_end(logging.DEBUG, "calc_gradlik(it={itr}, key={key}) finished")
     def calc_gradlik(self, itr, key, iwantit=False):
@@ -486,6 +472,7 @@ class qlm_iterator(object):
             assert key in ['p'], key + '  not implemented'
             dlm = self.get_hlm(itr - 1, key)
             self.hlm2dlm(dlm, True)
+            print('prev estimate:', dlm)
             ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm, cachers.cacher_mem(safe=False))
             self.filter.set_ffi(ffi)
             mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.filter)
