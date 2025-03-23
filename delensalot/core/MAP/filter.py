@@ -54,6 +54,7 @@ class Filter_3d:
                 elif 'ee' in self.cls_filt:
                     cg_sol_curr[1] = self.wf_field.get_field(it=it-1)
             teb_prep_alm = self.calc_prep(data) # NOTE lm_sky -> lm_pri
+            print(teb_prep_alm)
             mchain = cg.ConjugateGradient(self.preconditioner_op, self.chain_descr, self.cls_filt)
             mchain.solve(cg_sol_curr, teb_prep_alm, self.fwd_op)
             self.wf_field.cache(cg_sol_curr, it=it)
