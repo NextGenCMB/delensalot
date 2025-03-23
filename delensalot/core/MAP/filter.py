@@ -53,9 +53,7 @@ class Filter_3d:
                     cg_sol_curr[0] = self.wf_field.get_field(it=it-1)
                 elif 'ee' in self.cls_filt:
                     cg_sol_curr[1] = self.wf_field.get_field(it=it-1)
-            print(data)
             teb_prep_alm = self.calc_prep(data) # NOTE lm_sky -> lm_pri
-            print(teb_prep_alm)
             mchain = cg.ConjugateGradient(self.preconditioner_op, self.chain_descr, self.cls_filt)
             mchain.solve(cg_sol_curr, teb_prep_alm, self.fwd_op)
             self.wf_field.cache(cg_sol_curr, it=it)
@@ -77,15 +75,12 @@ class Filter_3d:
         elif space == 'map':
             teblmc = self.inv_operator.apply_map(data)
         assert len(teblmc) == 3, teblmc.shape
-        print('after apply_map', teblmc)
         
         teblmc = self.beam_operator.act(teblmc, adjoint=False)
-        print('after transfer', teblmc)
         assert len(teblmc) == 3, len(teblmc)
         # NOTE spin 0 is standard, spin 2 is GRAD_only. For convenience, I'll make it return a 3 tuple
         teblm = self.sec_operator.act(teblmc, adjoint=True, backwards=True) # NOTE lm_sky -> lm_pri
         assert len(teblm) == 3, len(teblm)
-        print('after lensgclm', teblm)
 
         teblm = almxfl_nd(teblm, self.cls_filt_bool, None, False)
         assert len(teblm) == 3, len(teblm)
@@ -149,6 +144,7 @@ class Filter_3d:
     @log_on_start(logging.DEBUG, " ---- preconditioner_op", logger=log)
     @log_on_end(logging.DEBUG, " done ---- preconditioner_op", logger=log)  
     def preconditioner_op(self, teblm):
+        print('input preconditioner_op', teblm)
         lmax_ = Alm.getlmax(teblm[1].size, None)
 
         ninv_ftebl = self.inv_operator.get_ftel(self.beam_operator.transferfunction)
@@ -203,6 +199,7 @@ class Filter_3d:
             tebout[0] = almxfl(teblm[0], flmat[:, 0, 0], lmax_, False)
         elif 'ee' in self.cls_filt:
             tebout[1] = almxfl(teblm[1], flmat[:, 0, 0], lmax_, False)
+        print('output preconditioner_op', tebout)
         return tebout
     
 
