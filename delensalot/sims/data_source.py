@@ -764,6 +764,7 @@ class Xobs:
             elif self.CMB_info['libdir'] != DNaV:  # observed data is somewhere
                 log.debug('.., but stored on disk.')
                 if field == 'polarization':
+                    print(opj(self.CMB_info['libdir'], self.CMB_info['fns']['E'].format(idx)))
                     if self.CMB_info['spin'] == 2:
                         assert 'Q' in self.CMB_info['fns'], 'Q map not found - check config file'
                         assert 'U' in self.CMB_info['fns'], 'U map not found - check config file'
@@ -890,6 +891,7 @@ class Xobs:
             elif self.CMB_info['space'] == 'map':
                 obs = self.geom_lib.map2alm_spin(obs, spin=self.CMB_info['spin'], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
             self.cacher.cache(fn, obs)
+        print('inside datasource:', self.cacher.load(fn))
         return self.cacher.load(fn)
     
 
