@@ -53,6 +53,7 @@ class Filter_3d:
                     cg_sol_curr[0] = self.wf_field.get_field(it=it-1)
                 elif 'ee' in self.cls_filt:
                     cg_sol_curr[1] = self.wf_field.get_field(it=it-1)
+            print(data)
             teb_prep_alm = self.calc_prep(data) # NOTE lm_sky -> lm_pri
             print(teb_prep_alm)
             mchain = cg.ConjugateGradient(self.preconditioner_op, self.chain_descr, self.cls_filt)
