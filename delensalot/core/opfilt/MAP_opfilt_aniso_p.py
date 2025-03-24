@@ -408,7 +408,10 @@ def calc_prep(qumaps:np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv_wl):
     # print(ninv_filt.ffi.__dict__)
     # print(eblm)
     print('now comes lensing')
-    print(eblm.dtype, eblm, eblm, ninv_filt.mmax_len, 2, ninv_filt.lmax_sol, ninv_filt.mmax_sol)
+    print(eblm.dtype, eblm, ninv_filt.mmax_len, 2, ninv_filt.lmax_sol, ninv_filt.mmax_sol)
+    import hashlib
+    print(hash(hashlib.sha256(ninv_filt.ffi.dlm.view(np.uint8)).hexdigest()))
+    print(hash(hashlib.sha256(eblm.view(np.uint8)).hexdigest()))
     elm = ninv_filt.ffi.lensgclm(eblm, ninv_filt.mmax_len, 2, ninv_filt.lmax_sol, ninv_filt.mmax_sol,
                                       backwards=True, out_sht_mode='GRAD_ONLY').squeeze()
     almxfl(elm, s_cls['ee'] > 0., ninv_filt.mmax_sol, True)
