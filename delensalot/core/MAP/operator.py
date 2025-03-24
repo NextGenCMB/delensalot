@@ -156,7 +156,10 @@ class Lensing(Operator):
                 # print(self.ffi.__dict__)
                 # print(np.atleast_2d(obj[1:]))
                 print('now comes lensing')
-                print(np.atleast_2d(obj[1:]),self.lm_max_in[1], 2, *self.lm_max_out)
+                import hashlib
+                print(np.atleast_2d(obj[1:]), self.lm_max_in[1], 2, *self.lm_max_out)
+                print(hash(hashlib.sha256(self.ffi.dlm.view(np.uint8)).hexdigest()))
+                print(hash(hashlib.sha256(np.atleast_2d(obj[1:]).view(np.uint8)).hexdigest()))
                 eblm = np.atleast_2d(self.ffi.lensgclm(np.atleast_2d(obj[1:]), self.lm_max_in[1], 2, *self.lm_max_out, backwards=backwards, out_sht_mode="GRAD_ONLY")) if self.data_key in ['p', 'ee', 'eb', 'bb', 'tp'] else np.zeros(shape=(1, Alm.getsize(*self.lm_max_out)),dtype=complex)
                 print(eblm)
                 print('that was eblm')
