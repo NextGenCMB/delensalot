@@ -733,7 +733,6 @@ class QE_lr(Basejob):
         ## task may be set from MAP lensrec, as MAP lensrec has prereqs to QE lensrec
         ## if None, then this is a normal QE lensrec call
 
-        # blueprint for new task: calc_cinv
         # Only now instantiate aniso filter as it triggers an expensive computation
         if True: # 'calc_cinv'
             if self.qe_filter_directional == 'anisotropic':
