@@ -37,10 +37,6 @@ class Operator:
         assert 0, "subclass this"
 
 
-    def set_field(self, it, component=None):
-        assert 0, "subclass this"
-
-
 class Multiply:
     def __init__(self, descr):
         
@@ -59,10 +55,7 @@ class Multiply:
 
     def adjoint(self, obj, spin=None):
         return self.act(obj, spin=spin, adjoint=True)
-    
 
-    def set_field(self, it, component=None):
-        pass
 
 
 class Compound:
@@ -189,6 +182,9 @@ class Lensing(Operator):
             d = [fieldlm[0], None] if self.component[0] == 'p' else [np.zeros_like(fieldlm[0], dtype=complex), fieldlm[0]]
         else:
             d = fieldlm
+        d = [np.load('/Users/sebastianbelkner/Desktop/git/delensalot/delensalot_temp/analysis/test_mainvssdevmasked_main_lminB0/MAP/p_p/sim0000noMF/phi_plm_it000.npy'), None]
+        import healpy as hp
+        d[0] = hp.almxfl(d[0], np.sqrt(np.arange(4000 + 1, dtype=float) * np.arange(1, 4000 + 2, dtype=float)))
         self.ffi = deflection(self.lenjob_geomlib, d[0], self.LM_max[1], dclm=d[1], numthreads=self.sht_tr, verbosity=False, epsilon=1e-10)
 
 
@@ -264,10 +260,7 @@ class SpinRaise:
     def adjoint(self, obj, spin=None):
         assert 0, "implement if needed"
         return self.act(obj, adjoint=True, spin=spin)
-    
 
-    def set_field(self, idx, it, component=None):
-        pass
     
 
 class Beam:
