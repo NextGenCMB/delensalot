@@ -409,6 +409,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                         dl.stepper_model.mmax_qlm = dl.lm_max_qlm[1]
                         dl.stepper = steps.harmonicbump(dl.stepper_model.lmax_qlm, dl.stepper_model.mmax_qlm, a=dl.stepper_model.a, b=dl.stepper_model.b, xa=dl.stepper_model.xa, xb=dl.stepper_model.xb)
 
+                    setting_masked = {'lmax_qlm': dl.stepper_model.lmax_qlm, 'mmax_qlm': dl.stepper_model.mmax_qlm, 'a': 0.02, 'b': 0.399,'xa': 1, 'xb': 15}
+                    dl.stepper = steps.harmonicbump(**setting_masked)
                     dl.ffi = deflection(dl.lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(*dl.lm_max_qlm), dtype=complex), dl.lm_max_qlm[1], numthreads=dl.tr, verbosity=dl.verbose, epsilon=dl.epsilon)
 
 
@@ -594,7 +596,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                         dl.stepper_model.lmax_qlm = dl.lm_max_qlm[0]
                         dl.stepper_model.mmax_qlm = dl.lm_max_qlm[1]
                         dl.stepper = steps.harmonicbump(dl.stepper_model.lmax_qlm, dl.stepper_model.mmax_qlm, a=dl.stepper_model.a, b=dl.stepper_model.b, xa=dl.stepper_model.xa, xb=dl.stepper_model.xb)
-                        # dl.stepper = steps.nrstep(dl.lm_max_qlm[0], dl.lm_max_qlm[1], val=0.5) # handler of the size steps in the MAP BFGS iterative search
+                    setting_masked = {'lmax_qlm': dl.stepper_model.lmax_qlm, 'mmax_qlm': dl.stepper_model.mmax_qlm, 'a': 0.02, 'b': 0.399,'xa': 1, 'xb': 15}
+                    dl.stepper = steps.harmonicbump(**setting_masked)
                     dl.ffi = deflection(dl.lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(*dl.lm_max_qlm), dtype=complex), dl.lm_max_qlm[1], numthreads=dl.tr, verbosity=dl.verbose, epsilon=dl.epsilon)
                 
                 _process_Meta(dl, cf.meta)
@@ -1050,7 +1053,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                         dl.stepper_model.lmax_qlm = dl.lm_max_qlm[0]
                         dl.stepper_model.mmax_qlm = dl.lm_max_qlm[1]
                         dl.stepper = steps.harmonicbump(dl.stepper_model.lmax_qlm, dl.stepper_model.mmax_qlm, a=dl.stepper_model.a, b=dl.stepper_model.b, xa=dl.stepper_model.xa, xb=dl.stepper_model.xb)
-                        # dl.stepper = steps.nrstep(dl.lm_max_qlm[0], dl.lm_max_qlm[1], val=0.5) # handler of the size steps in the MAP BFGS iterative search
+                    setting_masked = {'lmax_qlm': dl.stepper_model.lmax_qlm, 'mmax_qlm': dl.stepper_model.mmax_qlm, 'a': 0.02, 'b': 0.399,'xa': 1, 'xb': 15}
+                    dl.stepper = steps.harmonicbump(**setting_masked)
                     dl.ffi = deflection(dl.lenjob_geomlib, np.zeros(shape=hp.Alm.getsize(*dl.lm_max_qlm), dtype=complex), dl.lm_max_qlm[1], numthreads=dl.tr, verbosity=dl.verbose, epsilon=dl.epsilon)
 
 
