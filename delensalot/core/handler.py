@@ -618,6 +618,11 @@ class QE_lr(Basejob):
 
         super().__init__(dlensalot_model)
         self.dlensalot_model = dlensalot_model
+
+        
+        self.k = 'p_eb'
+        self.dlensalot_model.k = self.k
+
         
         self.simgen = Sim_generator(dlensalot_model)
         self.simulationdata = self.simgen.simulationdata
