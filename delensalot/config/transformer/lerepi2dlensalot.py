@@ -215,7 +215,7 @@ class l2OBD_Transformer:
         # but this should really be detached from one another
         masks = []
         if cf.noisemodel.rhits_normalised is not None:
-            msk = df.get_nlev_mask(cf.noisemodel.rhits_normalised[1], hp.read_map(cf.noisemodel.rhits_normalised[0]))
+            msk = df.get_nlev_mask(cf.noisemodel.rhits_normalised[1], np.load(cf.noisemodel.rhits_normalised[0]))
         else:
             msk = np.ones(shape=dl.nivjob_geomlib.npix())
         masks.append(msk)
