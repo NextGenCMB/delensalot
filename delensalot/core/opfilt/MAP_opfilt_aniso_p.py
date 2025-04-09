@@ -378,9 +378,9 @@ class pre_op_diag:
         return self.calc(elm)
 
     def calc(self, elm):
-        print('input preconditioner_op', elm)
+        # print('input preconditioner_op', elm)
         assert Alm.getsize(self.lmax, self.mmax) == elm.size, (self.lmax, self.mmax, Alm.getlmax(elm.size, self.mmax))
-        print('output preconditioner_op', almxfl(elm, self.flmat, self.mmax, False))
+        # print('output preconditioner_op', almxfl(elm, self.flmat, self.mmax, False))
         return almxfl(elm, self.flmat, self.mmax, False)
 
 
@@ -407,16 +407,16 @@ def calc_prep(qumaps:np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv_wl):
     # print('lensing with', ninv_filt.mmax_len, 2, ninv_filt.lmax_sol, ninv_filt.mmax_sol)
     # print(ninv_filt.ffi.__dict__)
     # print(eblm)
-    print('now comes lensing')
-    print(eblm.dtype, eblm, ninv_filt.mmax_len, 2, ninv_filt.lmax_sol, ninv_filt.mmax_sol)
-    import hashlib
-    print(hash(hashlib.sha256(ninv_filt.ffi.dlm.view(np.uint8)).hexdigest()))
-    print(hash(hashlib.sha256(eblm.view(np.uint8)).hexdigest()))
+    # print('now comes lensing')
+    # print(eblm.dtype, eblm, ninv_filt.mmax_len, 2, ninv_filt.lmax_sol, ninv_filt.mmax_sol)
+    # import hashlib
+    # print(hash(hashlib.sha256(ninv_filt.ffi.dlm.view(np.uint8)).hexdigest()))
+    # print(hash(hashlib.sha256(eblm.view(np.uint8)).hexdigest()))
     elm = ninv_filt.ffi.lensgclm(eblm, ninv_filt.mmax_len, 2, ninv_filt.lmax_sol, ninv_filt.mmax_sol,
                                       backwards=True, out_sht_mode='GRAD_ONLY').squeeze()
     almxfl(elm, s_cls['ee'] > 0., ninv_filt.mmax_sol, True)
-    print(elm)
-    print('that was lensing elm')
+    # print(elm)
+    # print('that was lensing elm')
     return elm
 
 
