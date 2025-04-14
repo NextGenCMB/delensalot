@@ -269,7 +269,7 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         """
         assert Alm.getlmax(tlm_wf.size, self.mmax_sol) == self.lmax_sol, ( Alm.getlmax(tlm_wf.size, self.mmax_sol), self.lmax_sol)
         fl = -np.sqrt(np.arange(self.lmax_sol + 1) * np.arange(1, self.lmax_sol + 2))
-        ffi = self.ffi.change_geom(q_pbgeom) if q_pbgeom is not self.ffi.pbgeom else self.ffi
+        ffi = self.ffi.change_geom(q_pbgeom.geom) if q_pbgeom.geom is not self.ffi.pbgeom.geom else self.ffi
         return ffi.gclm2lenmap([almxfl(tlm_wf, fl, self.mmax_sol, False), np.zeros_like(tlm_wf)], self.mmax_sol, 1, False)
 
 
