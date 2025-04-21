@@ -894,6 +894,7 @@ class QE_lr(Basejob):
             plm  = self.qlms_dd.get_sim_qlm(self.k, int(simidx))  #Unormalized quadratic estimate:
             if sub_mf and self.version != 'noMF':
                 plm -= self.mf(int(simidx))  # MF-subtracted unnormalized QE
+            
             R = qresp.get_response(self.k, self.lm_max_ivf[0], self.k[0], self.cls_len, self.cls_len, self.ftebl_len, lmax_qlm=self.lm_max_qlm[0])[0]
             # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
             WF = self.cpp * pl_utils.cli(self.cpp + pl_utils.cli(R))
