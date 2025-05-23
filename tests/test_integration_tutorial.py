@@ -61,7 +61,7 @@ class Tutorial(unittest.TestCase):
             hp.write_map(mask_fn, mask)
             hp.write_map(rhits_fn, rhits)
         for job_id in self.job_ids:
-            fn = opj(Path(delensalot.__file__).parent.parent, 'first_steps/notebooks/', 'conf_mwe_applynoOBD.py')
+            fn = opj(Path(delensalot.__file__).parent.parent, 'first_steps/notebooks/masked_sky', 'conf_mwe_applynoOBD.py')
             delensalot_runner = run(config_fn=fn, job_id=job_id, verbose=True)
             ana_mwe = delensalot_runner.init_job()
         assert 1
@@ -84,7 +84,7 @@ class Tutorial(unittest.TestCase):
         tniti_fn = opj(os.environ['SCRATCH'], 'analysis', 'OBDmatrix', 'my_first_dlensalot_analysis', 'nside512', 'lcut100', 'tniti.npy')
         np.save(tniti_fn, np.random.random(100))
         for job_id in self.job_ids:
-            fn = opj(Path(delensalot.__file__).parent.parent, 'first_steps/notebooks/', 'conf_mwe_applyOBD.py')
+            fn = opj(Path(delensalot.__file__).parent.parent, 'first_steps/notebooks/masked_sky', 'conf_mwe_applyOBD.py')
             delensalot_runner = run(config_fn=fn, job_id=job_id, verbose=True)
             ana_mwe = delensalot_runner.init_job()
         assert 1
@@ -106,21 +106,14 @@ class Tutorial(unittest.TestCase):
             hp.write_map(rhits_fn, rhits)
             np.save(tniti_fn, np.ones(shape=(100**2,100**2)))
         for job_id in self.job_ids:
-            fn = opj(Path(delensalot.__file__).parent.parent, 'first_steps/notebooks/', 'conf_mwe_buildOBD.py')
-            delensalot_runner = run(config_fn=fn, job_id=job_id, verbose=True)
-            ana_mwe = delensalot_runner.init_job()
-        assert 1
-
-    def test_conf_mwe_fastWF(self):
-        for job_id in self.job_ids:
-            fn = opj(Path(delensalot.__file__).parent.parent, 'first_steps/notebooks/', 'conf_mwe_fastWF.py')
+            fn = opj(Path(delensalot.__file__).parent.parent, 'first_steps/notebooks/masked_sky', 'conf_mwe_buildOBD.py')
             delensalot_runner = run(config_fn=fn, job_id=job_id, verbose=True)
             ana_mwe = delensalot_runner.init_job()
         assert 1
 
     def test_conf_mwe_fullsky(self):
         for job_id in self.job_ids:
-            fn = opj(Path(delensalot.__file__).parent.parent, 'first_steps/notebooks/', 'conf_mwe_fullsky.py')
+            fn = opj(Path(delensalot.__file__).parent.parent, 'first_steps/notebooks', 'conf_mwe_fullsky.py')
             delensalot_runner = run(config_fn=fn, job_id=job_id, verbose=True)
             ana_mwe = delensalot_runner.init_job()
         assert 1
@@ -136,7 +129,7 @@ class Tutorial(unittest.TestCase):
         if not os.path.isfile(mask_fn):
             hp.write_map(mask_fn, mask)
         for job_id in self.job_ids:
-            fn = opj(Path(delensalot.__file__).parent.parent, 'first_steps/notebooks/', 'conf_mwe_maskedsky.py')
+            fn = opj(Path(delensalot.__file__).parent.parent, 'first_steps/notebooks/masked_sky', 'conf_mwe_maskedsky.py')
             delensalot_runner = run(config_fn=fn, job_id=job_id, verbose=True)
             ana_mwe = delensalot_runner.init_job()
 
