@@ -485,7 +485,7 @@ class qlm_iterator(object):
 
     @log_on_start(logging.DEBUG, "calc_gradlik(it={itr}, key={key}) started")
     @log_on_end(logging.DEBUG, "calc_gradlik(it={itr}, key={key}) finished")
-    def calc_gradlik(self, itr, key, iwantit=False):
+    def calc_gradlik(self, itr, key, iwantit=False, cache=False):
         """Computes the quadratic part of the gradient for plm iteration 'itr'
         Compared to formalism of the papers, this returns -g_LM^{QD}
         Args:
@@ -496,7 +496,7 @@ class qlm_iterator(object):
         assert self.is_iter_done(itr - 1, key)
         assert itr > 0, itr
         assert key.lower() in ['p', 'o'], key  # potential or curl potential.
-        if not self._is_qd_grad_done(itr, key) or iwantit:
+        if not self._is_qd_grad_done(itr, key) or iwantit or cache:
             assert key in ['p'], key + '  not implemented'
             dlm = self.get_hlm(itr - 1, key)
             self.hlm2dlm(dlm, True)
@@ -529,8 +529,8 @@ class qlm_iterator(object):
             G, C = self.filter.get_qlms(self.dat_maps, soltn, q_geom)
             almxfl(G if key.lower() == 'p' else C, self._h2p(self.lmax_qlm), self.mmax_qlm, True)
             log.info('get_qlms calculation done; (%.0f secs)'%(time.time() - t0))
-            if itr == 1: #We need the gradient at 0 and the yk's to be able to rebuild all gradients
-                fn_lik = '%slm_grad%slik_it%03d' % (self.h, key.lower(), 0)
+            if itr == 1 or cache: #We need the gradient at 0 and the yk's to be able to rebuild all gradients
+                fn_lik = '%slm_grad%slik_it%03d' % (self.h, key.lower(), itr-1)
                 self.cacher.cache(fn_lik, -G if key.lower() == 'p' else -C)
             return -G if key.lower() == 'p' else -C
 
@@ -549,7 +549,7 @@ class iterator_splitlik_cstmf(qlm_iterator):
     """
 
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
-                 dat_maps:tuple, plm0:np.ndarray, mf0:np.ndarray, pp_h0:np.ndarray,
+                 dat_maps:list, plm0:np.ndarray, mf0:np.ndarray, pp_h0:np.ndarray,
                  cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.alm_filter_wl, k_geom:utils_geom.Geom,
                  chain_descr, stepper:steps.nrstep, **kwargs):
         super(iterator_splitlik_cstmf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
@@ -740,7 +740,7 @@ class iterator_simf_mcs(qlm_iterator):
         mf_cmb_phas: phases of CMB sims for the MF estimate
         mf_noise_phas: phases of noise maps for the MF estimate
         shift_phas: if False, all MF are estimated with the same pahse at all iterations,
-                    if Turem, changes the phases used for MF estimate between iterations 
+                    if True, changes the phases used for MF estimate between iterations 
     """
 
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
