@@ -111,7 +111,7 @@ class cache_mem(dict):
             del self[key]
 
 
-def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), roundoff=25, maxiter=10):
+def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), roundoff=25, maxiter=200):
     """customizable conjugate directions loop for x=[fwd_op]^{-1}b.
 
     Args:
