@@ -2,11 +2,16 @@
 
     Based on plancklens wigners implementation
 
+    #FIXME: what is this file doing here? and lenspyx wigners are much better
 """
 import healpy as hp
 import numpy as np
 
-from plancklens.wigners import wigners
+try:
+    from plancklens.wigners import wigners
+except ImportError:
+    wigners = None
+    print("delensalot pospace: could not import plancklens.wigners, in case you needed it")
 from plancklens import utils
 
 

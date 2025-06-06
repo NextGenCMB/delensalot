@@ -650,7 +650,9 @@ class Xobs:
                 if noise_lib == DNaV:
                     # observed maps provided and noise maps provided (used for validation in application level only. #TODO utilize get_sim_noise() to generate OBD etc.)
                     # FIXME at this point, nlev is unclear, supposedly? This is thus only passing whatever is in the config file.
-                    self.noise_lib = iso_white_noise(nlev=nlev, lmax=lmax, spin=spin, fns=fnsnoise, libdir=libdir_noise, space=space, geominfo=self.geominfo, libdir_suffix=libdir_suffix)
+                    pass
+                    # print(nlev)
+                    # self.noise_lib = iso_white_noise(nlev=nlev, lmax=lmax, spin=spin, fns=fnsnoise, libdir=libdir_noise, space=space, geominfo=self.geominfo, libdir_suffix=libdir_suffix)
 
 
 

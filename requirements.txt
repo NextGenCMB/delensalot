@@ -1,10 +1,7 @@
-numpy<1.23 # temporart fix for deprecated setuptools
-setuptools<65.0
-healpy
+numpy
 logdecorator
 psutil
-plancklens @ git+https://github.com/carronj/plancklens@plancklensdev
-lenspyx @ git+https://github.com/carronj/lenspyx
+# plancklens @ git+https://github.com/carronj/plancklens@plancklensdev
+# lenspyx @ git+https://github.com/carronj/lenspyx
 attrs # pip install --upgrade attrs
 scipy
-# MSC

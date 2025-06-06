@@ -31,11 +31,8 @@ setup(
     description='Iterative CMB lensing reconstruction on curved-sky',
     install_requires=[
         'numpy',
-        'healpy',
         'logdecorator',
         'psutil',
-        'plancklens @ git+https://github.com/carronj/plancklens@plancklensdev',
-        'lenspyx @ git+https://github.com/carronj/lenspyx',
         'attrs'
     ],
     requires=['numpy'],

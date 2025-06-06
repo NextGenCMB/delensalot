@@ -63,8 +63,12 @@ class multigrid_chain:
             dot_op = self.opfilt.dot_op()
         logger = (lambda iter, eps, stage=self.bstage, **kwargs:
                   self.log(stage, iter, eps, **kwargs))
-
+        # print(tpn_map)
+        # print('-')
+        # print(self.s_cls, self.n_inv_filt)
+        # print('---')
         tpn_alm = self.opfilt.calc_prep(tpn_map, self.s_cls, self.n_inv_filt)
+        # print(tpn_alm)
         monitor = cd_monitors.monitor_basic(dot_op, logger=logger, iter_max=self.bstage.iter_max,
                                         eps_min=self.bstage.eps_min, d0=dot_op(tpn_alm, tpn_alm))
 
