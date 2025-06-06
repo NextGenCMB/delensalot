@@ -258,6 +258,20 @@ def dls2cls(dls):
     return cls
 
 
+def dls2cls_grad(dls):
+    """Maps CAMB output from get_lensed_gradient_cls to cls dict"""
+    assert dls.shape[1] == 8
+    lmax = dls.shape[0] - 1
+    cls = {}
+    refac = 2. * np.pi * cli( np.arange(lmax + 1) * np.arange(1, lmax + 2, dtype=float))
+    for i, k in enumerate(['tt', 'ee', 'bb', 'pp', 'te']): #, 'tp', 'gt2', 'gtgt']):
+        if k == 'pp':
+            cls[k] = dls[:, i]
+        else:
+            cls[k] = dls[:, i] * refac
+    return cls
+
+
 def load_file(fn, lmax=None, ifield=0):
     if fn.endswith('.npy'):
        return np.load(fn)[:None]

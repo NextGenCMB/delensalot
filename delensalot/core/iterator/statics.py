@@ -59,7 +59,8 @@ class rec:
     @staticmethod
     def is_iter_done(lib_dir, itr):
         """Returns True if the iteration 'itr' has been performed already and False if not
-
+            Alternatively, returns True if the plm at last iteration has been cached, even
+            if the hessian iterations have been deleted to save memory space
         """
         lib_dir = os.path.abspath(lib_dir)
         if not os.path.exists(lib_dir): return False
@@ -67,7 +68,8 @@ class rec:
         if itr <= 0:
             return cacher.is_cached('%s_plm_it000' % ({'p': 'phi', 'o': 'om'}['p']))
         sk_fname = lambda k: os.path.join(lib_dir, 'hessian', 'rlm_sn_%s_%s' % (k, 'p'))
-        return cacher.is_cached(sk_fname(itr - 1))
+        fn = f"phi_plm_it{itr:03.0f}"
+        return cacher.is_cached(sk_fname(itr - 1)) or cacher.is_cached(fn)
 
     @staticmethod
     def load_grad(lib_dir, itr):

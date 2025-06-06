@@ -177,9 +177,14 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         """Returns a unit vairance phase, useful for phase cancellation to reduce MF sims variance"""
         return synalm(np.ones(self.lmax_len + 1, dtype=float), self.lmax_len, self.mmax_len)
 
-    def synalm(self, unlcmb_cls:dict, cmb_phas:phas.lib_phas, noise_phase:phas.lib_phas, get_unltlm:bool=False):
+    def synalm(self, unlcmb_cls:dict, cmb_phas:phas.lib_phas, noise_phase:phas.lib_phas, get_unltlm:bool=False, nlev_sim:dict=None):
         """Generate some dat maps consistent with noise filter fiducial ingredients
-
+            Params:
+                unlcmb_cls: unlensed CMB cls
+                cmb_phas: unlensed CMB phase
+                noise_phase: noise phase
+                get_unltlm: return unlensed Tlm
+                nlev_sim: noise level for the simulation (if different from the filter)
             Note:
                 Feeding in directly the unlensed CMB phase can be useful for paired simulations.
                 In this case the shape must match that of the filter unlensed alm array
@@ -192,8 +197,13 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         tlm = self.ffi.lensgclm(tlm_unl, self.mmax_sol, 0, self.lmax_len, self.mmax_len)
         almxfl(tlm, self.transf, self.mmax_len, True)
         
+        if nlev_sim is not None:
+            nlev_tlm = _extend_cl(nlev_sim['t'], self.lmax_len)
+        else:
+            nlev_tlm = self.nlev_tlm
+
         noise_phase = alm_copy(noise_phase, None, self.lmax_len, self.mmax_len)
-        tlm_noise = almxfl(noise_phase, (self.nlev_tlm / 180 / 60 * np.pi) * (self.transf > 0), self.mmax_len, False)
+        tlm_noise = almxfl(noise_phase, (nlev_tlm / 180 / 60 * np.pi) * (self.transf > 0), self.mmax_len, False)
         # assert Alm.getlmax(tlm_noise.size, self.mmax_len) == self.lmax_len, (Alm.getlmax(tlm_noise.size, self.mmax_len), self.lmax_len)
 
         tlm += tlm_noise

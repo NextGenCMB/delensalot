@@ -31,7 +31,9 @@ from plancklens.sims import maps
 from delensalot.sims import sims_ffp10
 from delensalot.utility import utils_sims, utils_hp
 import healpy as hp
-
+import itertools
+from delensalot.utility.utils_hp import almxfl, alm2cl
+from plancklens.nhl import get_nhl
 
 output_dir = opj(os.path.dirname(os.path.dirname(delensalot.__file__)), 'outputs')
 output_sim = lambda qe_key, suffix, version, datidx: opj(output_dir, suffix, version, '{}_sim_{:04d}'.format(qe_key, datidx))
@@ -112,8 +114,7 @@ def export_nhl(libdir:str, qe_key, parfile, datidx:int, recache=False):
 
 def semi_rdn0_qe(libdir, parfile, datidx, qe_key='p_p'):
     # Semi-analytical RD-N0:
-    from delensalot.utility.utils_hp import almxfl, alm2cl
-    from plancklens.nhl import get_nhl
+    
 
     lmax, mmax = parfile.lmax_ivf, parfile.mmax_ivf
 
@@ -206,7 +207,7 @@ def get_rdn0_qe(param, datidx, qe_key, Ndatasims=40, Nmcsims=100, Nroll=10, vers
 
     ds_dict = { k : datidx for k in np.arange(Ndatasims, Nmcsims + Ndatasims)} # This remap all sim. indices to the data maps to build QEs with always the data in one leg
     assert ss_dict.keys() == ds_dict.keys(), "Make sure that all MC sim indices are affected to the data index"
-    fn_dir = output_sim(qe_key, param.suffix, datidx)
+    fn_dir = output_sim(qe_key, param.suffix, version, datidx)
     if not os.path.exists(fn_dir):
         os.makedirs(fn_dir)
 
@@ -336,7 +337,7 @@ def get_plm(itr:int, itdir:str):
         plm += np.load(itdir + '/hessian/rlm_sn_%s_p.npy'%(str(i)))
     return plm
 
-def ss_ds_cross(mcs:np.ndarray, folder:str, itlibA:cs_iterator.qlm_iterator, itlibB:cs_iterator.qlm_iterator, ss_dict:dict):
+def compute_ss_ds_cross_spectra(mcs:np.ndarray, folder:str, itlibA:cs_iterator.qlm_iterator, itlibB:cs_iterator.qlm_iterator, ss_dict:dict):
     """Same as ss_ds but for cross-spectra. Here all maps must have been previously calculated
 
 
@@ -520,6 +521,266 @@ def ss_ds(qe_key:str, itr:int, mcs:np.ndarray, itlib:cs_iterator.qlm_iterator, i
             print("cached " + fn_ss)
 
 
+def compute_ss_ds_cross(qe_key: str, itr: int, mcs: np.ndarray, nlev_sim: dict, itlibs: list, splits: list,
+                ss_dict: dict, itlibs_phases: list = None, noise_phase: list = None, rdn0tol=None, assert_phases_exist=False):
+    """
+    Builds ds and ss spectra for cross MAP estimator.
+
+    Each g^QD is done with cross only estimator, estimated at the phi^MAP given by the combination of maps from the splits.
+    For instance, g^QD(1, 2) is estimated with one leg dataset index 1 and on the other leg dataset index 2,
+    and the lensing potential phi^MAP is the one estimated with the combination of the maps from the splits 1 and 2.
+
+    Args:
+        qe_key (str): 'p_p' for Pol-only, 'ptt' for T-only, 'p_eb' for EB-only, etc.
+        itr (int): Iteration index of MAP phi.
+        mcs (np.ndarray): Simulation indices.
+        nlev_sim (dict): Dictionary with noise levels in Temperature and Polarisation of the split maps.
+        itlibs (list): List of iterator instances to compute the ds and ss for, from iterator_splitlik_cstmf class.
+        splits (list): List of splits indices for the different itlibs.
+        ss_dict (dict): Dictionary for ss simulations.
+        itlibs_phases (list, optional): List of iterator instances that generate the unlensed CMB phases for the sims (use this if want paired sims). Defaults to None.
+        noise_phase (list, optional): List of noise phases for the split sims. Defaults to None.
+        rdn0tol (float, optional): -log10 of cg tolerance default for RD sims WF. Defaults to None.
+        assert_phases_exist (bool, optional): Set this if you expect the phases to be already calculated. Defaults to False.
+
+    Returns:
+        None
+    """
+    """Builds ds and ss spectra for cross MAP estimator
+
+    Each g^QD is done with cross only estimator, estimated at the phi^MAP given by the combination of maps from the splits
+    For instance g^QD(1, 2) is estimated with one leg datset index 1 and on the other leg datset index 2
+    and the lensing potential phi^MAP is the one estimated with the combination of the maps from the splits 1 and 2 
+
+    Args:
+        qe_key: 'p_p' for Pol-only, 'ptt' for T-only, 'p_eb' for EB-only, etc
+        itr: iteration index of MAP phi
+        mcs: sim indices
+        nlev_sim: dict, {'t':nlev_t, 'p':nlev_p} of noise level in Temperature and Polarisation of the split maps
+        itlibs: list of iterator instances to compute the ds and ss for, from iterator_splitlik_cstmf class
+        splits: list of splits indices for the different itlibs
+        itlibs_phases: list of iterator instances that generates the unlensed CMB phases for the sims (use this if want paired sims)
+        noise_phase: list of noise phases for the split sims
+        assert_phases_exist: set this if you expect the phases to be already calculated
+    """
+    assert itr > 0
+    assert qe_key in ['ptt'], f'synalm with noise phases not implemented for key {qe_key}'
+    print('Start computing ss ds')
+
+    if itlibs_phases is None:
+        itlibs_phases = itlibs
+
+    assert len(itlibs) == len(splits)
+    assert len(itlibs_phases) == len(splits)
+    assert len(itlibs) == len(itlibs_phases)
+
+    combinations = list(itertools.combinations(splits, 2))
+    split_combinations = [comb for comb in combinations if not any(c1 in c2 for c1 in comb[0] for c2 in comb[1])]
+    print("Split combinations: ", split_combinations)
+
+    fn_wf_dat = lambda sp, datset: f'xwf_dat_split{sp}_datset{datset}'
+    fn_wf = lambda sp, datset, this_idx: f'dat_wf_split{sp}_datset{datset}_filtersim_{this_idx:04d}'
+    fn = lambda sp, datset, this_idx: f'dat_split{sp}_datset{datset}_filtersim_{this_idx:04d}'
+
+
+    """First we compute the data WF"""
+    jobs = [(sp, datset) for sp in splits for datset in range(itlibs[sp].nsplits)]
+    for job in jobs[mpi.rank::mpi.size]:
+        sp, datset = job
+        itlib = itlibs[sp]
+        itlib_phases = itlibs_phases[sp]
+        ivf_cacher = cachers.cacher_npy(opj(itlib.lib_dir, fdir_dsss(itr, rdn0tol)))
+        ivf_phas_cacher = cachers.cacher_npy(opj(itlib_phases.lib_dir, fdir_dsss(itr, rdn0tol)))
+        print('RDN0 libdir: ' + ivf_cacher.lib_dir)
+        
+        if not ivf_cacher.is_cached(fn_wf_dat(sp, datset)):
+            print(f'RDNO rank {mpi.rank} Getting the data WF for split {sp} and datset {datset}')
+
+            dlm = itlib.get_hlm(itr - 1, 'p')
+            itlib.hlm2dlm(dlm, True)
+            ffi = itlib.filter.ffi.change_dlm([dlm, None], itlib.mmax_qlm, cachers.cacher_mem())
+            itlib.filter.set_ffi(ffi)
+            chain_descr = itlib.chain_descr
+            if rdn0tol is not None:
+                chain_descr[0][5] = 10**(-rdn0tol)
+            mchain = multigrid.multigrid_chain(itlib.opfilt, chain_descr, itlib.cls_filt, itlib.filter)
+            
+            soltn = np.zeros(utils_hp.Alm.getsize(itlib.lmax_filt, itlib.mmax_filt), dtype=complex)
+            mchain.solve(soltn, itlib.dat_maps[datset], dot_op=itlib.filter.dot_op())
+            ivf_cacher.cache(fn_wf_dat(sp, datset), soltn)
+   
+    mpi.barrier()
+
+    """Now we compute the sims"""
+    # jobs = [(sp, datset, int(idx)) for sp in splits for datset in range(itlibs[sp].nsplits) for idx in np.unique(mcs)]
+    jobs = [(int(idx), sp, datset) for idx in np.unique(mcs) for sp in splits for datset in range(itlibs[sp].nsplits)]
+    for job in jobs[mpi.rank::mpi.size]:
+        idx, sp, datset = job
+        itlib = itlibs[sp]
+        itlib_phases = itlibs_phases[sp]
+
+        # print(f'Rank {mpi.rank} processing WF split {sp}, datset {datset}, sim {idx}')
+        assert hasattr(itlib.filter, 'synalm')
+
+        ivf_cacher = cachers.cacher_npy(opj(itlib.lib_dir, fdir_dsss(itr, rdn0tol)))
+        ivf_phas_cacher = cachers.cacher_npy(opj(itlib_phases.lib_dir, fdir_dsss(itr, rdn0tol)))
+        # print('RDN0 libdir: ' + ivf_cacher.lib_dir)
+
+        fn_unl = lambda this_idx: f'unllm_filtersim_{this_idx:04d}'
+        def _sim_unl(itlib, lmax_sol, mmax_sol):
+            if qe_key == 'p_p':
+                assert np.all(itlib_phases.cls_filt['ee'][:lmax_sol+1] == itlib.cls_filt['ee'][:lmax_sol+1]), 'inconsistent inputs'
+                return utils_hp.synalm(itlib_phases.cls_filt['ee'][:lmax_sol+1], lmax_sol, mmax_sol)
+            elif qe_key == 'ptt':
+                assert np.all(itlib_phases.cls_filt['tt'][:lmax_sol+1] == itlib.cls_filt['tt'][:lmax_sol+1]), 'inconsistent inputs'
+                return utils_hp.synalm(itlib_phases.cls_filt['tt'][:lmax_sol+1], lmax_sol, mmax_sol)
+            elif qe_key == 'p':
+                return [utils_hp.synalm(itlib_phases.cls_filt[cl][:lmax_sol+1], lmax_sol, mmax_sol) for cl in ['tt', 'ee']]
+
+        if not ivf_cacher.is_cached(fn_wf(sp, datset, idx)) or not ivf_cacher.is_cached(fn(sp, datset, idx)):
+            dlm = itlib.get_hlm(itr - 1, 'p')
+            itlib.hlm2dlm(dlm, True)
+            ffi = itlib.filter.ffi.change_dlm([dlm, None], itlib.mmax_qlm, cachers.cacher_mem())
+            itlib.filter.set_ffi(ffi)
+            chain_descr = itlib.chain_descr
+            if rdn0tol is not None:
+                chain_descr[0][5] = 10**(-rdn0tol)
+            mchain = multigrid.multigrid_chain(itlib.opfilt, chain_descr, itlib.cls_filt, itlib.filter)
+            print(f'RDNO: rank {mpi.rank} getting WF sim {idx} for split {sp} and datset {datset}')
+            if not ivf_phas_cacher.is_cached(fn_unl(idx)):
+                assert not assert_phases_exist
+                lmax_sol, mmax_sol = itlib_phases.filter.lmax_sol, itlib_phases.filter.mmax_sol
+                assert (lmax_sol, mmax_sol) == (itlib.filter.lmax_sol, itlib.filter.mmax_sol), 'inconsistent inputs'
+                xlm_unl = _sim_unl(itlib, lmax_sol, mmax_sol)
+                ivf_phas_cacher.cache(fn_unl(idx), xlm_unl)
+            xlm_unl = ivf_phas_cacher.load(fn_unl(idx))
+
+            noise_tlm = noise_phase[sp[datset]].get_sim(idx, 0) #FIXME: here noise map is only for T 
+            xlm_dat = itlib.filter.synalm(itlib.cls_filt, cmb_phas=xlm_unl, noise_phase=noise_tlm, nlev_sim=nlev_sim)
+            ivf_cacher.cache(fn(sp, datset, idx), xlm_dat)
+            soltn = np.zeros(utils_hp.Alm.getsize(itlib.lmax_filt, itlib.mmax_filt), dtype=complex)
+            mchain.solve(soltn, ivf_cacher.load(fn(sp, datset, idx)), dot_op=itlib.filter.dot_op())
+            ivf_cacher.cache(fn_wf(sp, datset, idx), soltn)
+    mpi.barrier()
+
+    if mpi.rank == 0:
+        print('******** WF done, starting the spectra ********')
+    mpi.barrier()
+
+    _ivf_cacher = cachers.cacher_npy(opj(itlibs[splits[0]].lib_dir, fdir_dsss(itr, rdn0tol)))
+    fn_ds_cross = lambda this_idx, spa, spb: _ivf_cacher.lib_dir + f'/qcl_ds_cross{spa}x{spb}_{this_idx:04d}'
+    fn_ss = lambda i, j, spa, spb: _ivf_cacher.lib_dir + f'/qcl_ss_cross{spa}x{spb}_{min(i, j):04d}_{max(i, j):04d}.dat'
+
+    """ Now we compute the g^QD cross for ds and for ss, as well as the cross specrea """
+    jobs = [(int(idx), spa, spb) for idx in np.unique(mcs)  for spa, spb in split_combinations]
+    for idx, spa, spb in jobs[mpi.rank::mpi.size]:
+        if not os.path.exists(fn_ds_cross(idx, spa, spb) + '.dat'):
+            qlm = {}
+            for sp in [spa, spb]:
+                itlib = itlibs[sp]
+                ivf_cacher = cachers.cacher_npy(opj(itlib.lib_dir, fdir_dsss(itr, rdn0tol)))
+                ivf_phas_cacher = cachers.cacher_npy(opj(itlib_phases.lib_dir, fdir_dsss(itr, rdn0tol)))
+                get_qlms = itlib.filter.get_qlms
+                q_geom = itlib.filter.ffi.pbgeom
+
+                xwf_dat = [ivf_cacher.load(fn_wf_dat(sp, datset)) for datset in range(itlib.nsplits)]
+                xwf_sim = [ivf_cacher.load(fn_wf(sp, datset, idx)) for datset in range(itlib.nsplits)]
+                xwf_dat_tot = np.sum(xwf_dat, axis=0)
+                xwf_sim_tot = np.sum(xwf_sim, axis=0)
+
+                qlm[sp] = np.zeros(hp.Alm.getsize(itlib.lmax_qlm, itlib.mmax_qlm), dtype='complex128')
+                for datset in range(itlib.nsplits):
+                    # ds cross QE
+                    qlm[sp] += 0.5 * get_qlms(itlib.dat_maps[datset], xwf_dat[datset], q_geom, alm_wf_leg2=xwf_sim_tot - xwf_sim[datset])[0]
+                    qlm[sp] += 0.5 * get_qlms(ivf_cacher.load(fn(sp, datset, idx)), xwf_sim[datset], q_geom, alm_wf_leg2=xwf_dat_tot - xwf_dat[datset])[0]
+                qlm[sp] *= 1./(itlib.nsplits * (itlib.nsplits-1))
+
+            _cpp = utils_hp.alm2cl(qlm[spa], qlm[spb], itlib.lmax_qlm, itlib.mmax_qlm, itlib.lmax_qlm)
+            np.savetxt(fn_ds_cross(idx, spa, spb) + '.dat', _cpp)
+            print("cached " + fn_ds_cross(idx, spa, spb) + '.dat')
+    mpi.barrier()
+
+    for idx in np.unique(mcs)[mpi.rank::mpi.size]:
+        cpp_comb = np.zeros(itlibs[splits[0]].lmax_qlm + 1)
+        for spa, spb in split_combinations:
+            cpp_comb += np.loadtxt(fn_ds_cross(idx, spa, spb) + '.dat')
+        cpp_comb /= len(split_combinations)
+        np.savetxt(_ivf_cacher.lib_dir + f'/qcl_ds_cross_comb_{idx:04d}.dat', cpp_comb)
+        print("cached " + _ivf_cacher.lib_dir + f'/qcl_ds_cross_comb_{idx:04d}.dat')
+    mpi.barrier()
+
+    jobs = [(int(idx), spa, spb) for idx in np.unique(mcs)  for spa, spb in split_combinations]
+    for idx, spa, spb in jobs[mpi.rank::mpi.size]:
+        cpp_comb = np.zeros(itlibs[splits[0]].lmax_qlm + 1)
+        i, j = int(idx), ss_dict[int(idx)]
+        # for spa, spb in split_combinations:
+        if not os.path.exists(fn_ss(i, j, spa, spb)):
+            qlm = {}
+            for sp in [spa, spb]:
+                itlib = itlibs[sp]
+                ivf_cacher = cachers.cacher_npy(opj(itlib.lib_dir, fdir_dsss(itr, rdn0tol)))
+                ivf_phas_cacher = cachers.cacher_npy(opj(itlib_phases.lib_dir, fdir_dsss(itr, rdn0tol)))
+                
+                get_qlms = itlib.filter.get_qlms
+                q_geom = itlib.filter.ffi.pbgeom
+
+                wf_i = [ivf_cacher.load(fn_wf(sp, datset, i)) for datset in range(itlib.nsplits)]
+                wf_j = [ivf_cacher.load(fn_wf(sp, datset, j)) for datset in range(itlib.nsplits)]
+                wf_i_tot = np.sum(wf_i, axis=0)
+                wf_j_tot = np.sum(wf_j, axis=0)
+
+                qlm[sp] = np.zeros(hp.Alm.getsize(itlib.lmax_qlm, itlib.mmax_qlm), dtype='complex128')
+                for datset in range(itlib.nsplits):
+                    # ss cross QE
+                    qlm[sp] += 0.5 * get_qlms(ivf_cacher.load(fn(sp, datset, i)), wf_i[datset], q_geom, alm_wf_leg2=wf_j_tot - wf_j[datset])[0]
+                    qlm[sp] += 0.5 * get_qlms(ivf_cacher.load(fn(sp, datset, j)), wf_j[datset], q_geom, alm_wf_leg2=wf_i_tot - wf_i[datset])[0]
+                qlm[sp] *= 1./(itlib.nsplits * (itlib.nsplits-1))
+            _cpp = utils_hp.alm2cl(qlm[spa], qlm[spb], itlib.lmax_qlm, itlib.mmax_qlm, itlib.lmax_qlm)
+            np.savetxt(fn_ss(i, j, spa, spb), _cpp)
+            print("cached " + fn_ss(i, j, spa, spb))
+    mpi.barrier()
+    
+    for idx in np.unique(mcs)[mpi.rank::mpi.size]:
+        cpp_comb = np.zeros(itlibs[splits[0]].lmax_qlm + 1)
+        for spa, spb in split_combinations:
+            cpp_comb += np.loadtxt(fn_ss(i, j, spa, spb))
+        cpp_comb /= len(split_combinations)
+        np.savetxt(_ivf_cacher.lib_dir + f'/qcl_ss_cross_comb_{idx:04d}.dat', cpp_comb)
+        print("cached " + _ivf_cacher.lib_dir + f'/qcl_ss_cross_comb_{idx:04d}.dat')
+    
+    mpi.barrier()
+
+def collect_ss_ds_cross(itr: int, mcs: np.ndarray, itlib_12:cs_iterator.qlm_iterator, rdn0tol=None):
+    """Collect the Cls previously run
+        Args:
+            itr: iteration index of MAP phi
+            mcs: sim indices
+            itlib_12: iterator instance to compute the ds ans ss for
+            rdn0tol: -log10 of cg tolerance default for RD sims WF
+        Returns:
+            rdn0: 4*ds - 2*ss
+            ds: the ds spectrum
+            ss: the ss spectrum
+    """
+
+    # assert itr > 0
+    # assert qe_key in ['ptt'], f'synalm with noise phases not implemented for key {qe_key}'
+    
+    _ivf_cacher = cachers.cacher_npy(opj(itlib_12.lib_dir, fdir_dsss(itr, rdn0tol)))
+    
+    cl_ds = []
+    cl_ss = []
+
+    for idx in np.unique(mcs):
+        cl_ds.append(np.loadtxt(_ivf_cacher.lib_dir + f'/qcl_ds_cross_comb_{idx:04d}.dat'))
+        cl_ss.append(np.loadtxt(_ivf_cacher.lib_dir + f'/qcl_ss_cross_comb_{idx:04d}.dat'))
+
+    cl_ds = np.array(cl_ds)
+    cl_ss = np.array(cl_ss)
+    # cl_ds = np.mean(cl_ds, axis=0)
+    # cl_ss = np.mean(cl_ss, axis=0)
+    rdn0 = 4*cl_ds - 2*cl_ss
+    return rdn0, cl_ds, cl_ss
 
 
 if __name__ == '__main__':

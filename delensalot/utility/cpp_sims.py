@@ -23,7 +23,7 @@ from delensalot.utility import utils_hp as uhp
 from delensalot.utility.utils_hp import alm_copy
 from delensalot.utility.utils_plot import pp2kk, bnd
 import delensalot.core.mpi as mpi
-
+from lenspyx.qest import qresp as qresp_lpx 
 
 from lensitbiases import n1_fft
 import time
@@ -108,14 +108,17 @@ class cpp_sims_lib:
             self.qlms_dd = self.param.qlms_dd_nocut_inh
         else:
             self.ivfs = self.param.ivfs
-            # self.qcls_ss = self.param.qcls_ss
+            try:
+                self.qcls_ss = self.param.qcls_ss
+            except AttributeError:
+                self.qcls_ss = None
             # self.qcls_ds = self.param.qcls_ds
             # self.qcls_dd = self.param.qcls_dd
             self.qlms_dd = self.param.qlms_dd
         
         self.nhllib = None
         self.n0n1_libdir = n0n1_libdir
-        self.cache_plm = kwargs['cache_plm'] if 'cache_plm' in kwargs.keys() else True
+        # self.cache_plm = kwargs['cache_plm'] if 'cache_plm' in kwargs.keys() else True
         
         if 'split' in kwargs.keys():
             i, j = kwargs['split']
@@ -146,7 +149,7 @@ class cpp_sims_lib:
         return cacher
 
     def get_plm(self, simidx, itr, use_cache=True):
-        if use_cache and self.cache_plm:
+        if use_cache:
             # cacher = self.cacher_sim(simidx)
             cacher = cachers.cacher_npy(self.libdir_sim(simidx))
             # print(self.libdir_sim(simidx))
@@ -159,12 +162,33 @@ class cpp_sims_lib:
         else:
             return statics.rec.load_plms(self.libdir_sim(simidx), [itr])[0]
 
+    def clear_hessian_cache(self, simidx, itr):
+        """Save space on disk by deleting maps used for the L-BFGS iterations.
+        /!| this will prevent you from making more iterations on the same simulation 
+        since you will not have access to the gradient and residual vectors anymore
+        """
+        self.get_plm(simidx, itr, use_cache=True)
+        lib_dir = self.libdir_sim(simidx)
+        cacher = cachers.cacher_npy(lib_dir)
+        fn = f"phi_plm_it{itr:03.0f}"
+        assert cacher.is_cached(fn), f"phi_plm_it{itr:03.0f} not found in {lib_dir}"
+        sk_fname = lambda k: os.path.join(lib_dir, 'hessian', 'rlm_sn_%s_%s' % (k, 'p'))
+        yk_fname = lambda k: os.path.join(lib_dir, 'hessian', 'rlm_yn_%s_%s' % (k, 'p'))
+        for i in range(itr):
+            if cacher.is_cached(yk_fname(i)):
+                print(f'Removing {yk_fname(i)}')
+                cacher.remove(yk_fname(i))
+            if cacher.is_cached(sk_fname(i)):
+                print(f'Removing {sk_fname(i)}')
+                cacher.remove(sk_fname(i))
+
+
     def get_plm_qe(self, simidx, use_cache=True, recache=False, verbose=True):
 
         if verbose:
             print('We get the QE qlms from ' + self.qlms_dd.lib_dir)
         
-        if use_cache and self.cache_plm:
+        if use_cache:
             cacher = cachers.cacher_npy(self.libdir_sim(simidx))
             # cacher = self.cacher_sim(simidx)
             # print(self.libdir_sim(simidx))
@@ -194,7 +218,7 @@ class cpp_sims_lib:
         else:
             shuffled_idx = self.param.sims.sims_cmb_len.plm_shuffle(simidx)
 
-        if use_cache and self.cache_plm:
+        if use_cache:
             cacher = cachers.cacher_npy(self.libdir_sim(simidx))
             fn = f"phi_plm_input"
             if not cacher.is_cached(fn) or recache:
@@ -440,10 +464,13 @@ class cpp_sims_lib:
                     MF = cacher.load(fn)
         return MF
     
-    def get_qe_resp(self, recache=False, resp_gradcls=True):
+    def get_qe_resp(self, recache=False, resp_gradcls=True, lmax_qlm=None):
         #TODO: Implement the version to get the lmin_ivf=0 case
 
-        fn_resp_qe = 'resp_qe_{}'.format(self.k) + self.qe_version
+        if lmax_qlm is None:
+            lmax_qlm = self.param.lmax_qlm
+
+        fn_resp_qe = 'resp_qe_{}'.format(self.k) + self.qe_version + '_lmaxqlm{}'.format(lmax_qlm) * (lmax_qlm != self.param.lmax_qlm)
         if resp_gradcls: 
             fn_resp_qe += '_gradcls'
         cacher = self.cacher_param
@@ -454,7 +481,7 @@ class cpp_sims_lib:
                 lmax = self.ivfs.lmax
             except AttributeError:
                 lmax = self.ivfs.lmax_fl
-            R = qresp.get_response(self.k, lmax, 'p', self.cls_weights, self.cls_grad, fals, lmax_qlm=self.param.lmax_qlm)[0]
+            R = qresp.get_response(self.k, lmax, 'p', self.cls_weights, self.cls_grad, fals, lmax_qlm=lmax_qlm)[0]
             cacher.cache(fn_resp_qe, R)
         R = cacher.load(fn_resp_qe)
         return R
@@ -537,9 +564,9 @@ class cpp_sims_lib:
             _n1 = cacher.load(fn_n1)
 
         else:
-            n1lib = n1_lib.library_n1(cacher.lib_dir + version, self.cls_weights['tt'], self.cls_weights['te'], self.cls_weights['ee'], self.lmax_qlm)
+            n1lib = n1_lib.library_n1(cacher.lib_dir + version, self.cls_weights['tt'], self.cls_weights['te'], self.cls_weights['ee'], self.param.lmax_qlm)
 
-            _n1 = n1lib.get_n1(self.k, 'p',  self.param.cls_unl['pp'], fal_sepTP['tt'], fal_sepTP['ee'], fal_sepTP['bb'], Lmax=self.lmax_qlm)
+            _n1 = n1lib.get_n1(self.k, 'p',  self.param.cls_unl['pp'], fal_sepTP['tt'], fal_sepTP['ee'], fal_sepTP['bb'], Lmax=self.param.lmax_qlm)
 
         if normalize is False:
             return NG, _n1
@@ -557,7 +584,7 @@ class cpp_sims_lib:
             lib_dir = opj(self.TEMP, 'n0n1_iter'+version)
         else:
             lib_dir = self.n0n1_libdir
-        
+
         if 'nocut' in version:
             lmin_ivf = 0 
         else:
@@ -571,6 +598,20 @@ class cpp_sims_lib:
 
         return N0_biased, N1_biased, r_gg_fid, r_gg_true
 
+    def get_mf_resp_del(self, itmax=15):
+        if self.n0n1_libdir is None:
+            lib_dir = opj(self.TEMP, 'del_cls')
+        else:
+            lib_dir = self.n0n1_libdir
+
+        itbias = iterbiasesN0N1.iterbiases(self.param.nlev_t, self.param.nlev_p, self.param.beam, self.param.lmin_ivf, self.param.lmax_ivf,
+                                        self.param.lmax_qlm, self.param.cls_unl, None, lib_dir)
+        cls_del, _ = itbias.delcls(self.k, itmax, None, None)
+        mf_resp = qresp_lpx.get_mf_response( self.k, nlev_t=self.param.nlev_t, beam=self.param.beam, lmax_ivf=self.param.lmax_ivf, 
+            lmax_sky=self.param.cmb_unl.lmax, cls_unl=cls_del[-1], lmin_ivf=self.param._lmin_ivf[self.k],
+            lmax_qlm=self.param.lmax_qlm)[0]
+        
+        return mf_resp
 
     def get_wf_fid(self, itermax=15, version=''):
         """Fiducial iterative Wiener filter.
@@ -597,7 +638,7 @@ class cpp_sims_lib:
         cacher = self.cacher_sim(simidx)
         if not cacher.is_cached(fn) or recache:
             if mf is False:
-                wf = self.get_cpp_itXinput(simidx, itr, cached_input=cache_plm) * utils.cli(self.get_cpp_input(simidx, cached_input=cache_plm)) / self.fsky
+                wf = self.get_cpp_itXinput(simidx, itr,cache_plm=cache_plm) * utils.cli(self.get_cpp_input(simidx, cache_plm=cache_plm)) / self.fsky
             else:
                 plmin = self.get_plm_input(simidx, use_cache=cache_plm)
                 # plmit = self.plms[simidx][itr]
@@ -838,7 +879,7 @@ class cpp_sims_lib:
         ss = qcls_ss.get_sim_stats_qcl(self.k, mcs).mean()
         return 2*ss
 
-    def get_rdn0_qe(self, datidx, Ndatasims=40, Nmcsims=100, Nroll=10):
+    def get_rdn0_qe(self, datidx, Ndatasims=40, Nmcsims=100, Nroll=10, use_qcl_dd=False):
         """Returns unnormalised realization-dependent N0 lensing bias RDN0.
         To get the RDN0, we use sims with no overlap with the sims that are used as "data"
         i.e, we need to define the sims that are used for data, comprised bewteen idx=0 and idx=Ndatasims-1
@@ -851,11 +892,13 @@ class cpp_sims_lib:
             Nroll: the allocation of i, j sims is done with j = i+1, by batches of Nroll 
 
         """
-
-        rdn0, ds, ss = rdn0_cs.get_rdn0_qe(self.param, datidx, self.k,  Ndatasims, Nmcsims, Nroll, version=self.version)
-        lmax = len(rdn0)-1
-        pp2kk = 0.25 * np.arange(lmax + 1)** 2 * (np.arange(1, lmax + 2) ** 2) * 1e7
-        return rdn0 * pp2kk, ds*pp2kk, ss*pp2kk
+        if use_qcl_dd:
+            qcls_ds = self.param.qcls_ds
+        else:
+            rdn0, ds, ss = rdn0_cs.get_rdn0_qe(self.param, datidx, self.k,  Ndatasims, Nmcsims, Nroll, version=self.version)
+            lmax = len(rdn0)-1
+            pp2kk = 0.25 * np.arange(lmax + 1)** 2 * (np.arange(1, lmax + 2) ** 2) * 1e7
+            return rdn0 * pp2kk, ds*pp2kk, ss*pp2kk
 
     def get_mcn1_qe(self, Ndatasims=40, Nmcsims=100, Nroll=10):
         """Returns unnormalized estimates of the QE MC-N1
@@ -874,15 +917,16 @@ class cpp_sims_lib:
     def get_nsims_itmax(self, itmax):
         """Return the number of simulations reconstructed up to itmax"""
         nsim = 0
-        while statics.rec.maxiterdone(self.libdir_sim(nsim)) >= itmax:
+        # while statics.rec.maxiterdone(self.libdir_sim(nsim)) >= itmax:
+        while statics.rec.is_iter_done(self.libdir_sim(nsim), itmax):
             nsim+=1
         return nsim
 
     def get_idx_sims_done(self, itmax=15):
         isdone = [False]*5000
         for i in range(5000):
-            if self.maxiterdone(i) ==itmax:
-                isdone[i] = True
+            # if self.maxiterdone(i) ==itmax:
+            isdone[i] = statics.rec.is_iter_done(self.libdir_sim(nsim), itmax)
         return isdone
 
     def maxiterdone(self, simidx):

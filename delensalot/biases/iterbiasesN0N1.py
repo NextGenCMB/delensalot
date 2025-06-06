@@ -7,14 +7,17 @@ import pickle as pk
 from healpy import gauss_beam
 from scipy.interpolate import UnivariateSpline as spl
 from delensalot.core import cachers, mpi
-from delensalot.utils import cls2dls, dls2cls
+from delensalot.utils import cls2dls, dls2cls, dls2cls_grad
 from plancklens import qresp, nhl, utils
-
+from plancklens.n1 import n1 as n1_lib
+from os.path import join as opj
+import plancklens
 #Uses lensitbiases to compute fast N1 
 from lensitbiases import n1_fft
 
 # Requires the full camb python package for the lensed spectra calc.
 from camb.correlations import lensed_cls
+import camb 
 
 def _dicthash(cl_dict:dict, lmax:int, keys:list or None=None):
     """Returns the hash key for the selected keys and maximum multipoles of the Cls in cl_dict"""
@@ -54,7 +57,10 @@ def cls_lmin_filt(lmin_tlm:int, lmin_elm:int, lmin_blm:int, cl_dict:dict):
 
 class iterbiases:
     """"""
-    def __init__(self, nlev_t:float, nlev_p:float, beam_fwhm:float, lmin_ivf:int or tuple, lmax_ivf:int, lmax_qlm:int, cls_unl_fid:dict, cls_noise_fid:dict or None=None, lib_dir:str or None=None, verbose:bool =False):
+    def __init__(
+            self, nlev_t:float, nlev_p:float, beam_fwhm:float, lmin_ivf:int or tuple, 
+            lmax_ivf:int, lmax_qlm:int, cls_unl_fid:dict, cls_noise_fid:dict or None=None, 
+            lib_dir:str or None=None, verbose:bool =False, grad_cls=False):
         """
         Computes the iterative N0 and N1 biases, given a set of fiducial unlensed Cls unlensed.
 
@@ -111,6 +117,15 @@ class iterbiases:
         else:
             self._cacher = cachers.cacher_mem()
 
+        self.grad_cls = grad_cls
+        if self.grad_cls: 
+            cls_path = opj(os.path.dirname(plancklens.__file__), 'data', 'cls')
+            if verbose:
+                print('Running CAMB to get grad Cls')
+                print('Input parameter file:', opj(cls_path , 'FFP10_wdipole_params.ini'))
+            pars = camb.read_ini(opj(cls_path, 'FFP10_wdipole_params.ini'))
+            self.results = camb.get_results(pars)
+
     def hashdict(self):
         return {'cls_unl_fid':self.fidcls_unl, 'cls_noise_fid': self.fidcls_noise,
                 'lmax_qlm':self.lmax_qlm}
@@ -147,6 +162,8 @@ class iterbiases:
             fn = f'n0n1_ref_{qe_key}' + '_it' + str(itrmax)
             if version != '':
                 fn = 'v' + version + fn
+            if self.grad_cls:
+                fn = 'gradcls_' + fn
             # print(fn)
 
         if cls_noise_true is None: cls_noise_true = cls_noise_fid
@@ -157,17 +174,32 @@ class iterbiases:
             fn = 'n0n1_' + str(qe_key) + '_it' + str(itrmax) + '_' + _dicthash(cls_noise_true, lmax_ivf, keys=['tt', 'ee', 'bb']) + _dicthash(cls_unl_true, 6000, keys = ['tt', 'te', 'ee', 'pp'])
             if version != '':
                 fn = 'v' + version + fn
+            if self.grad_cls:
+                fn = 'gradcls_' + fn
             # print(fn)
         
         if not self._cacher.is_cached(fn) or recache:
             fid_delcls, true_delcls = self.delcls(qe_key, itrmax, cls_unl_true, cls_noise_true, version=version)
-            N0_biased, N1_biased_spl, r_gg_fid, r_gg_true = cls2N0N1(qe_key, fid_delcls[-1], true_delcls[-1],
-                                                                cls_noise_fid, cls_noise_true, lmin_ivf, lmax_ivf, lmax_qlm, doN1mat=False)
+            if self.grad_cls:
+                fid_del = fid_delcls[-1]
+                tru_del = true_delcls[-1]
+                
+                dls_del_fid, cldd_del_fid = cls2dls(fid_del)
+                grad_del_fid = dls2cls_grad(self.results.get_lensed_gradient_cls(CMB_unit='muK', clpp=cldd_del_fid))
+                dls_del_true, cldd_del_true = cls2dls(tru_del)
+                grad_del_true = dls2cls_grad(self.results.get_lensed_gradient_cls(CMB_unit='muK', clpp=cldd_del_true))
+            else:
+                grad_del_true = None
+                grad_del_fid = None
+                
+            N0_biased, N1_biased_spl, r_gg_fid, r_gg_true = cls2N0N1(
+                qe_key, fid_delcls[-1], true_delcls[-1], cls_noise_fid, cls_noise_true, 
+                lmin_ivf, lmax_ivf, lmax_qlm, doN1mat=False, grad_cls_true=grad_del_true, grad_cls_fid=grad_del_fid)
             self._cacher.cache(fn, np.array([N0_biased, N1_biased_spl, r_gg_fid, r_gg_true]))
             return np.array([N0_biased, N1_biased_spl, r_gg_fid, r_gg_true])
         return self._cacher.load(fn)
 
-    def delcls(self, qe_key:str, itrmax:int, cls_unl_true: dict or None, cls_noise_true:dict or None, version:str = ''):
+    def delcls(self, qe_key:str, itrmax:int, cls_unl_true: dict or None, cls_noise_true:dict or None, version:str = '', fn=None, recache=False):
         """Returns fiducial and true partially delensed cls
 
         """
@@ -177,9 +209,19 @@ class iterbiases:
 
         if cls_noise_true is None: cls_noise_true = cls_noise_fid
         if cls_unl_true is None: cls_unl_true = cls_unl_fid
-        fid_delcls, true_delcls = get_delcls(qe_key, itrmax, cls_unl_fid, cls_unl_true, cls_noise_fid,
-                                                 cls_noise_true, lmin_ivf, lmax_ivf, lmax_qlm, version=version)
-        return fid_delcls, true_delcls
+        if fn is None:
+            fn = 'delcls_' + str(qe_key) + '_it' + str(itrmax) + '_' + _dicthash(cls_noise_true, lmax_ivf, keys=['tt', 'ee', 'bb']) + _dicthash(cls_unl_true, 6000, keys = ['tt', 'te', 'ee', 'pp'])
+            if version != '':
+                fn = 'v' + version + fn
+            # print(fn)
+
+        if not self._cacher.is_cached(fn + '_fid') or not self._cacher.is_cached(fn + '_true') or  recache:
+            fid_delcls, true_delcls = get_delcls(qe_key, itrmax, cls_unl_fid, cls_unl_true, cls_noise_fid,
+                                                    cls_noise_true, lmin_ivf, lmax_ivf, lmax_qlm, version=version)
+
+            self._cacher.cache(fn + '_fid', fid_delcls)
+            self._cacher.cache(fn + '_true', true_delcls)
+        return self._cacher.load(fn + '_fid'), self._cacher.load(fn + '_true')
 
 
 def get_fals(qe_key:str, cls_cmb_filt:dict, cls_cmb_dat:dict, cls_noise_filt:dict, cls_noise_dat:dict, lmin_ivf:int or tuple, lmax_ivf:int):
@@ -369,7 +411,10 @@ def get_delcls(qe_key: str, itermax:int, cls_unl_fid: dict, cls_unl_true:dict, c
 
 
 
-def cls2N0N1(qe_key:str, cls_cmb_filt:dict, cls_cmb_dat:dict, cls_noise_filt:dict, cls_noise_dat:dict, lmin_ivf:int, lmax_ivf:int, lmax_qlm:int, doN1mat:bool = False):
+def cls2N0N1(
+        qe_key:str, cls_cmb_filt:dict, cls_cmb_dat:dict, cls_noise_filt:dict, 
+        cls_noise_dat:dict, lmin_ivf:int, lmax_ivf:int, lmax_qlm:int, doN1mat:bool = False, do_n1_fft = True, 
+        grad_cls_fid=None, grad_cls_true=None):
     """
         Returns QE N0 and N1 from input filtering and data cls
             Args:
@@ -398,12 +443,24 @@ def cls2N0N1(qe_key:str, cls_cmb_filt:dict, cls_cmb_dat:dict, cls_noise_filt:dic
     """
 
     fals, dat_cls, cls_w, cls_f = get_fals(qe_key, cls_cmb_filt, cls_cmb_dat, cls_noise_filt, cls_noise_dat, lmin_ivf, lmax_ivf)
+    
+    if grad_cls_fid is not None:
+        print('We use grad Cls in the QE weights ')
+        cls_w = {q: np.copy(grad_cls_fid[q][:lmax_ivf+1]) for q in ['tt', 'te', 'ee', 'bb']}
+    if grad_cls_true is not None:
+        print('We use grad Cls in the QE response')
+        cls_f = {q: np.copy(grad_cls_true[q]) for q in ['tt', 'te', 'ee', 'bb']}
 
     lib = n1_fft.n1_fft(fals, cls_w, cls_f, np.copy(cls_cmb_dat['pp']), lminbox=50, lmaxbox=5000, k2l=None)
     n1_Ls = np.arange(50, (lmax_qlm // 50) * 50  + 50, 50)
     if not doN1mat:
-        n1 = np.array([lib.get_n1(qe_key, L, do_n1mat=False)  for L in n1_Ls])
-        n1mat = None
+        if do_n1_fft:
+            n1 = np.array([lib.get_n1(qe_key, L, do_n1mat=False)  for L in n1_Ls])
+            n1mat = None
+        # else:
+        #     n1lib = n1_lib.library_n1(cacher.lib_dir + version, self.cls_weights['tt'], self.cls_weights['te'], self.cls_weights['ee'], self.lmax_qlm)
+        #     _n1 = n1lib.get_n1(self.k, 'p',  self.param.cls_unl['pp'], fal_sepTP['tt'], fal_sepTP['ee'], fal_sepTP['bb'], Lmax=self.lmax_qlm)
+
     else:
         n1_, n1m_ = lib.get_n1(qe_key, n1_Ls[0], do_n1mat=True)
         n1 = np.zeros(len(n1_Ls))
