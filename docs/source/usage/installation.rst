@@ -8,7 +8,13 @@ Download the project at `github`_, navigate to the root folder and execute,
 
     python setup.py install
 
-:code:`delensalot` currently requires an older gnu compiler, `gcc 7`, to work.
-The only reason for this incompatibility is that a newer version is more restrictive to type checking.
 
 .. _`github`: https://github.com/NextGenCMB/delensalot/
+
+
+Tutorials
+==========
+
+Are written as jupyter notebooks. You may require setting up your own kernel with :code:`delensalot` installed in it. `This source`_` can help you with it.
+
+.. _`This source`: http://echrislynch.com/2019/02/01/adding-an-environment-to-jupyter-notebooks/

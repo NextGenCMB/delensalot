@@ -16,7 +16,7 @@ class LEREPI_Constants:
     cmbs4_edges = np.array([2, 30, 60, 90, 120, 150, 180, 200, 300, 500, 700, 1000, 1500, 2000, 3000, 4000, 5000])
     SPDP_edges = np.concatenate([np.arange(2,200,50),np.logspace(np.log(2e2),np.log(4000),40, base=np.e, dtype=int)]) # these are used for calculating residual power spectra on SPDP patch.
     SPDP2_edges = np.arange(2,4000,30) # these are used for calculating residual power spectra on SPDP patch.
-
+    AoA_edges = np.array([2, 30, 70, 110, 140, 170, 200, 300, 500, 700, 1000, 1500, 2000, 3000, 4000, 5000])
 
 class data_functions:
 

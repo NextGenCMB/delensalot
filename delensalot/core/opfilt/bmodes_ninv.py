@@ -10,11 +10,11 @@ import logging
 log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
 
-from plancklens import utils
 from plancklens.qcinv import opfilt_pp
 
 from lenspyx.remapping import utils_geom
 
+from delensalot import utils
 from delensalot.core import mpi
 from delensalot.utils import enumerate_progress, read_map
 from delensalot.utility.utils_hp import Alm
@@ -88,12 +88,7 @@ class template_bfilt(object):
         self.lmax = lmax_marg
         self.nmodes = int((lmax_marg + 1) * lmax_marg + lmax_marg + 1 - 4)
         if not np.all(geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
-            log.info('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
-            # old signature: "nrings"_a, "nph"_a, "ofs"_a, "stride"_a, "phi0"_a, "theta"_a, "wgt"_a
-            # nr = geom.get_nrings()
-            # old geom: geom_ = us.Geometry(nr, geom.nph.copy(), geom.ofs.copy(), 1, geom.phi0.copy(), geom.theta.copy(), np.ones(nr, dtype=float))
-            # new signature: (self, thet:, phi0, nphi, ringstart, w)
-            # new geom_
+            log.debug('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
             geom_ = utils_geom.Geom(geom.theta.copy(), geom.phi0.copy(), geom.nph.copy(), geom.ofs.copy(), np.ones(len(geom.ofs), dtype=float))
         else:
             geom_ = geom
@@ -107,7 +102,7 @@ class template_bfilt(object):
                 os.makedirs(_lib_dir)
             self.lib_dir = _lib_dir
 
-        sht_threads = sht_threads
+        self.sht_threads = sht_threads
 
 
     def hashdict(self):
@@ -164,7 +159,7 @@ class template_bfilt(object):
         elm = np.zeros_like(blm)
 
         this_lmax = Alm.getlmax(blm.size, -1)
-        q, u = self.geom.alm2map_spin([elm, blm], 2, this_lmax, this_lmax. self.sht_threads)
+        q, u = self.geom.alm2map_spin([elm, blm], 2, this_lmax, this_lmax, self.sht_threads)
         qumap[0] *= q
         qumap[1] *= u
 
@@ -241,7 +236,6 @@ class template_bfilt(object):
 
     def _get_rows_mpi(self, NiQQ_NiUU_NiQU, prefix):
         """Produces and save all rows of the matrix for large matriz sizes
-
         """
         assert self.lib_dir is not None, 'cant do this without a lib_dir'
         if NiQQ_NiUU_NiQU.shape[0] == 3: #Here, QQ and UU may be different, but NiQU negligible
@@ -250,6 +244,7 @@ class template_bfilt(object):
         else: #Here, we assume that NiQQ = NiUU, and NiQU is negligible
             NiQQ, NiUU, NiQU = NiQQ_NiUU_NiQU[0], NiQQ_NiUU_NiQU[0], None
         assert self.nmodes <= 99999, 'ops, naming in the lines below'
+        log.info("number of rows for tnit: {}. Using mpi rank {} with size {}".format(self.nmodes, mpi.rank, mpi.size))
         if not os.path.exists(os.path.join(self.lib_dir, 'rows')):
             os.makedirs(os.path.join(self.lib_dir, 'rows'))
         for ai, a in enumerate_progress(range(self.nmodes)[mpi.rank::mpi.size], label='Calculating Pmat row'):
@@ -278,8 +273,8 @@ class template_dense(template_bfilt):
     def tniti(self):
         if self._tniti is None:
             self._tniti = read_map(os.path.join(self.lib_dir, 'tniti.npy')) * self.rescal
-            log.info("reading " +os.path.join(self.lib_dir, 'tniti.npy') )
-            log.info("Rescaling it with %.5f"%self.rescal)
+            log.debug("reading " +os.path.join(self.lib_dir, 'tniti.npy') )
+            log.debug("Rescaling it with %.5f"%self.rescal)
         return self._tniti
 
 
@@ -312,6 +307,7 @@ class eblm_filter_ninv(opfilt_pp.alm_filter_ninv):
             if _bmarg_lib_dir is not None and os.path.exists( os.path.join(_bmarg_lib_dir, 'tniti.npy')):
                 log.info("Loading " + os.path.join(_bmarg_lib_dir, 'tniti.npy'))
                 self.tniti = np.load(os.path.join(_bmarg_lib_dir, 'tniti.npy'))
+                log.info("done")
                 if _bmarg_rescal != 1.:
                     log.info("**** RESCALING tiniti with %.4f"%_bmarg_rescal)
                     self.tniti *= _bmarg_rescal
@@ -350,14 +346,14 @@ class eblm_filter_ninv(opfilt_pp.alm_filter_ninv):
                     qmap -= pmodes[0]
                     umap -= pmodes[1]
             else:
-                log.info("apply_map: cuts %s %s"%(self.blm_range[0], self.blm_range[1]))
-                elm, blm = lug.map2alm_spin(np.array([qmap, umap]), 2, lmax=min(3 * self.nside - 1, self.blm_range[1]), mmax=min(3 * self.nside - 1, self.blm_range[1]), nthreads=4)
+                log.debug("apply_map: cuts %s %s"%(self.blm_range[0], self.blm_range[1]))
+                elm, blm = log.map2alm_spin(np.array([qmap, umap]), 2, lmax=min(3 * self.nside - 1, self.blm_range[1]), mmax=min(3 * self.nside - 1, self.blm_range[1]), nthreads=4)
                 if self.blm_range[0] > 2: # approx taking out the low-ell B-modes
                     b_ftl = np.ones(hp.Alm.getlmax(blm.size) + 1, dtype=float)
                     b_ftl[:self.blm_range[0]] *= 0.
                     hp.almxfl(blm, b_ftl, inplace=True)
 
-                q, u = lug.alm2map_spin(np.array([elm, blm]), 2, lmax=hp.Alm.getlmax(elm.size), mmax=hp.Alm.getlmax(elm.size), nthreads=4, zbounds=self.zbounds)
+                q, u = log.alm2map_spin(np.array([elm, blm]), 2, lmax=hp.Alm.getlmax(elm.size), mmax=hp.Alm.getlmax(elm.size), nthreads=4, zbounds=self.zbounds)
                 qmap[:] = q * self.n_inv[0]
                 umap[:] = u * self.n_inv[0]
 

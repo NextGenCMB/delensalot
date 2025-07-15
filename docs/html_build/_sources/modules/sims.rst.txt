@@ -5,12 +5,10 @@ sims
 module reference
 
 .. automodule:: delensalot.sims
-   :members:
-   :undoc-members:
+   :members: sims_lib
 
-generic
-------
+sims_lib
+----------
 
-.. automodule:: delensalot.sims.generic
-   :members:
-   :undoc-members:
+.. automodule:: delensalot.sims.sims_lib
+   :members: Simhandler, Xunl, Xsky, Xobs, Cls

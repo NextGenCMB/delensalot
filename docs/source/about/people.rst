@@ -2,20 +2,16 @@
 people
 ========
 
-Current dev team.
+Dev team.
 
 Julien Carron,
-Sebastian Belkner,
-Louis Legrand.
+Sebastian Belkner.
 
 
-Past dev team.
--
+With highly valuable contributions from,
 
-
-With highly valuable contribution from,
-
-Samuel Simko,
+Louis Legrand,
+Samuel Simko.
 
 
 Other:

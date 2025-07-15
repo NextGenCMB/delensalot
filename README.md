@@ -1,6 +1,28 @@
 ![delensalot logo](res/dlensalot2.PNG)
+[![Install](https://github.com/NextGenCMB/delensalot/actions/workflows/install.yaml/badge.svg?branch=sims&event=pull_request)](https://github.com/NextGenCMB/delensalot/actions/workflows/install.yaml)
+[![Documentation Status](https://readthedocs.org/projects/delensalot/badge/?version=latest)](https://delensalot.readthedocs.io/en/latest/?badge=latest)
+[![Integration filter](https://github.com/NextGenCMB/delensalot/actions/workflows/integration_filter.yaml/badge.svg?branch=sims&event=pull_request)](https://github.com/NextGenCMB/delensalot/actions/workflows/integration_filter.yaml)
+[![Integration reconstruction](https://github.com/NextGenCMB/delensalot/actions/workflows/unit_reconstruction.yaml/badge.svg?branch=sims&event=pull_request)](https://github.com/NextGenCMB/delensalot/actions/workflows/integration_reconstruction.yaml)
+[![Integration tutorial](https://github.com/NextGenCMB/delensalot/actions/workflows/integration_tutorial.yaml/badge.svg?branch=sims&event=pull_request)](https://github.com/NextGenCMB/delensalot/actions/workflows/integration_tutorial.yaml)
+[![arXiv](https://img.shields.io/badge/arXiv-2310.06729-red)](https://arxiv.org/abs/2310.06729)
+
 # delensalot
-Curved-sky iterative CMB lensing tools
+Curved-sky optimal CMB lensing reconstruction and bias calculation.
+Delensalot, in essence, takes an observed CMB map and returns an optimal estimate of the underlying lensing field.
+
+If you use delensalot for your work, please consider citing the ApJ publication [CMB-S4: Iterative internal delensing and r constraints](https://iopscience.iop.org/article/10.3847/1538-4357/ad2351).
+
+![noise comparison](res//deflectionnoisecomp.jpg)
+This figure shows the full sky optimal lensing potential reconstruction for various CMB observations in a 5 times 5 degree patch. The input lensing potential is shown in the leftmost figure.
+
+## Features and supports
+ * Curved-sky analysis
+ * anisotropic noise model support
+ * masked-sky support
+ * quadratic estimator (QE) implementation via Plancklens
+ * Mock data generation using e.g. lenspyx
+ * Supports various estimators (TT, EE, BB, MV, EE+EB, ..)
+
 
 # Installation
 Download the project, navigate to the root folder and execute the command,
@@ -9,39 +31,50 @@ Download the project, navigate to the root folder and execute the command,
 python setup.py install
 ```
 
+Make sure that you have the latest `plancklens` and `lenpsyx`.
+
+
+## Set up a jupyter-kernel with delensalot
 You will need to install `jupyter` for the tutorials found in `first_steps/notebooks/`, and possibly an `ipykernel` to create a jupyter-kernel out of the environment in which you install `delensalot`.
-<!-- TODO: Add explicit instructions -->
+To run the tutorials with a jupyter kernel, you will have to install delensalot in it. Assuming you are using conda for your package management,
+
+```
+conda create --name delensalot
+conda activate delensalot
+```
+
+Then, install your favourite packages,
+
+```
+conda install pip, numpy
+```
+
+Now, go to the delensalot directory, and install, including its requirements,
+
+```
+cd </path/to/delensalot>
+python3 -m pip install -r requirements .
+python3 setup.py develop
+```
+
+Eventually, create your kernel using the environment at which you just installed all packages,
+```
+python3 -m ipykernel install --user --name=delensalot
+```
 
 ## Installation troubles
 
 Frequent problems are
  * `attrs`. If there are errors related to the metamodel, make sure you have `attrs` (not `attr`, which is a different package) installed and updated/upgraded (version 23.1.0 should do)
- * ..
+ * `astropy`. If there are errors related to ducc0, chances are it's because of an old `astropy` installation.
 
 # Usage
 
-
-## The quickest way: `map2delblm()` or `map2tempblm()`
-
-`delensalot` comes with two handy functions to get you started very easily.
-To get a delensed B map, simply import `delensalot` and run `map2delblm()`:
+## parameter file
+Check the first_steps/parameter_files/ and run any of them using,
+``` 
+python3 <parfile>.py
 ```
-import delensalot
-delensedmap = delensalot.map2delblm(obsmaps, lmax_cmb=lmax_cmb, beam=beam, itmax=itmax, noise=noise, verbose=True)
-```
-
-here `obsmaps` is the observed Q and U map you may have... gotten from somewhere. Then all what is left to do is to tell `delensalot` about,
- * the maximum \ell (`lmax_cmb`) of your CMB map you'd like to use,
- * the beam (`sims_beam`) of the transfer function of the observed maps,
- * how many iterations (`itmax`) you'd like to perform,
- * and the noise level (`noise`) of the observation.
-
-If you are interested in the B-lensing template, instead use `map2tempblm()`,
-```
-import delensalot
-Blenstemplate = delensalot.map2tempblm(obsmaps, lmax_cmb=lmax_cmb, beam=beam, itmax=itmax, noise=noise, verbose=True)
-```
-
 
 ## Run a configuration file
 
@@ -54,11 +87,6 @@ delensalot supports MPI,
 
 ```
 srun --nodes <nnodes> -n <taskspernode> python3 run.py -r <path-to-config/conf.py>
-```
-
-If you'd like to know the status of the analysis done with `<path-to-config/conf.py>`, run,
-```
-python3 run.py -s <path-to-config/conf.py>
 ```
 
 ## interactive mode
@@ -76,8 +104,7 @@ delensalot entry point.
 
 optional arguments:
   -h, --help            show this help message and exit
-  -p NEW                Relative path to config file to run analysis.
-  -r RESUME             Absolute path to config file to resume.
+  -r RESUME             Absolute path to config file to run/resume.
   -s STATUS             Absolute path for the analysis to write a report.
 
 ```

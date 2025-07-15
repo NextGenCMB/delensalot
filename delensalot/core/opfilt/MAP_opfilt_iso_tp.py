@@ -12,7 +12,7 @@ import numpy as np
 
 from lenspyx import remapping
 from lenspyx.utils import timer, cli
-from lenspyx.utils_hp import almxfl,   Alm, synalm, alm2cl
+from lenspyx.utils_hp import almxfl, Alm, synalm, alm2cl
 from lenspyx.remapping.utils_geom import pbdGeometry
 from lenspyx.remapping.deflection_028 import rtype, ctype
 
@@ -90,7 +90,7 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         self.inoise_1_tlm  = _extend_cl(transf_tlm ** 1 ,lmax_len) * cli(nlev_tlm ** 2) * (180 * 60 / np.pi) ** 2
 
         self.inoise_2_elm  = _extend_cl(transf_elm ** 2, lmax_len) * cli(nlev_elm ** 2) * (180 * 60 / np.pi) ** 2
-        self.inoise_1_elm  = _extend_cl(transf_elm ** 1 ,lmax_len) * cli(nlev_elm ** 2) * (180 * 60 / np.pi) ** 2
+        self.inoise_1_elm  = _extend_cl(transf_elm ** 1, lmax_len) * cli(nlev_elm ** 2) * (180 * 60 / np.pi) ** 2
 
         self.inoise_2_blm = _extend_cl(transf_blm ** 2, lmax_len) * cli(nlev_blm ** 2) * (180 * 60 / np.pi) ** 2
         self.inoise_1_blm = _extend_cl(transf_blm ** 1, lmax_len) * cli(nlev_blm ** 2) * (180 * 60 / np.pi) ** 2
@@ -114,6 +114,12 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
 
     def dot_op(self):
         return dot_op(self.lmax_sol, self.mmax_sol)
+    
+    def degrade(self, nside, lmax, mmax, set_deflection_to_zero=True):
+        """Degradation of the filter to lower resolution
+        """
+        print('Not degrading filter {} {}'.format(len(self.nlev_tlm), lmax))
+        return self
 
     def apply_alm(self, telm:np.ndarray):
         """Applies operator Y^T N^{-1} Y (now  bl ** 2 / n, where D is lensing, bl the transfer function)
@@ -127,7 +133,7 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         # View to the same array for GRAD_ONLY mode:
         eblm = self.ffi.lensgclm(telm[1:],  self.mmax_sol, 2, self.lmax_len, self.mmax_len)
         tlm  = self.ffi.lensgclm(telm[0:1], self.mmax_sol, 0, self.lmax_len, self.mmax_len)
-        tlm.reshape((1, tlm.size))
+        tlm = tlm.reshape((1, tlm.size))
         self.tim.add('lensgclm fwd')
         almxfl( tlm[0], self.inoise_2_tlm, self.mmax_len, inplace=True)
         almxfl(eblm[0], self.inoise_2_elm, self.mmax_len, inplace=True)
@@ -182,14 +188,19 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
             All implementation signs are super-weird but end result should be correct...
 
         """
-        assert alm_wf_leg2 is None
         assert Alm.getlmax(teblm_dat[0].size, self.mmax_len) == self.lmax_len, (Alm.getlmax(teblm_dat[0].size, self.mmax_len), self.lmax_len)
         assert Alm.getlmax(teblm_dat[1].size, self.mmax_len) == self.lmax_len, (Alm.getlmax(teblm_dat[1].size, self.mmax_len), self.lmax_len)
         assert Alm.getlmax(teblm_dat[2].size, self.mmax_len) == self.lmax_len, (Alm.getlmax(teblm_dat[2].size, self.mmax_len), self.lmax_len)
         assert Alm.getlmax(telm_wf[0].size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(telm_wf[0].size, self.mmax_sol), self.lmax_sol)
-        assert Alm.getlmax(telm_wf[0].size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(telm_wf[1].size, self.mmax_sol), self.lmax_sol)
-
+        assert Alm.getlmax(telm_wf[1].size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(telm_wf[1].size, self.mmax_sol), self.lmax_sol)
+        if alm_wf_leg2 is None:
+            alm_wf_leg2 = telm_wf
+        else:
+            assert Alm.getlmax(alm_wf_leg2[0].size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(alm_wf_leg2[0].size, self.mmax_sol), self.lmax_sol)
+            assert Alm.getlmax(alm_wf_leg2[1].size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(alm_wf_leg2[1].size, self.mmax_sol), self.lmax_sol)
+        
         tlm_wf, elm_wf = telm_wf
+        tlm_wf_leg2, elm_wf_leg2 = alm_wf_leg2
         tlm_dat = teblm_dat[0]
         eblm_dat = teblm_dat[1:3]
 
@@ -198,16 +209,16 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
         self._get_irespmap(eblm_dat, elm_wf, q_pbgeom, map_out=resmap_r) # inplace onto resmap_c and resmap_r
 
-        gcs_r = self._get_gpmap(elm_wf, 3, q_pbgeom)  # 2 pos.space maps, uses then complex view onto real array
+        gcs_r = self._get_gpmap(elm_wf_leg2, 3, q_pbgeom)  # 2 pos.space maps, uses then complex view onto real array
         gc_c = resmap_c.conj() * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3)
-        gcs_r = self._get_gpmap(elm_wf, 1, q_pbgeom)
+        gcs_r = self._get_gpmap(elm_wf_leg2, 1, q_pbgeom)
         gc_c -= resmap_c * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze().conj()  # (+2 , -1)
         del resmap_c, resmap_r, gcs_r
 
         gc_r = gc_c.view(rtype[gc_c.dtype]).reshape((gc_c.size, 2)).T  # real view onto complex array
 
         # Spin-0 part
-        gc_r += self._get_gtmap(tlm_wf, q_pbgeom) * self._get_irestmap(tlm_dat, tlm_wf, q_pbgeom)
+        gc_r += self._get_gtmap(tlm_wf_leg2, q_pbgeom) * self._get_irestmap(tlm_dat, tlm_wf, q_pbgeom)
         # Projection onto gradient and curl
         lmax_qlm, mmax_qlm = self.ffi.lmax_dlm, self.ffi.mmax_dlm
         gc = q_pbgeom.geom.adjoint_synthesis(gc_r, 1, lmax_qlm, mmax_qlm, self.ffi.sht_tr)
@@ -342,13 +353,13 @@ class pre_op_diag:
         lmax_sol = ninv_filt.lmax_sol
         ninv_ftl, ninv_fel, ninv_fbl = ninv_filt.get_ftebl()
         if len(ninv_fel) - 1 < lmax_sol: # We extend the transfer fct to avoid predcon. with zero (~ Gauss beam)
-            log.info("PRE_OP_DIAG: extending transfer fct from lmax %s to lmax %s"%(len(ninv_fel)-1, lmax_sol))
+            log.debug("PRE_OP_DIAG: extending transfer fct from lmax %s to lmax %s"%(len(ninv_fel)-1, lmax_sol))
             assert np.all(ninv_fel >= 0)
             nz = np.where(ninv_fel > 0)
             spl_sq = spl(np.arange(len(ninv_fel), dtype=float)[nz], np.log(ninv_fel[nz]), k=2, ext='extrapolate')
             ninv_fel = np.exp(spl_sq(np.arange(lmax_sol + 1, dtype=float)))
         if len(ninv_ftl) - 1 < lmax_sol:  # We extend the transfer fct to avoid predcon. with zero (~ Gauss beam)
-            log.info("PRE_OP_DIAG: extending transfer fct from lmax %s to lmax %s" % (len(ninv_fel) - 1, lmax_sol))
+            log.debug("PRE_OP_DIAG: extending transfer fct from lmax %s to lmax %s" % (len(ninv_fel) - 1, lmax_sol))
             assert np.all(ninv_ftl >= 0)
             nz = np.where(ninv_ftl > 0)
             spl_sq = spl(np.arange(len(ninv_ftl), dtype=float)[nz], np.log(ninv_ftl[nz]), k=2, ext='extrapolate')

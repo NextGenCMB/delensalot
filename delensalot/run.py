@@ -3,19 +3,15 @@
 """run.py: Entry point for running delensalot
 """
 
-
 import os, sys
 import logging
 import traceback
 
-from delensalot.core import mpi
-from delensalot.core.mpi import check_MPI
+import delensalot.core.mpi as mpi
 
 from delensalot.config.handler import config_handler
-import delensalot.config.etc.dev_helper as dh
 from delensalot.config.etc.abstract import parserclass
 from delensalot.config.parser import lerepi_parser
-
 
 datefmt = "%m-%d %H:%M:%S"
 FORMAT = '%(levelname)s:: %(asctime)s:: %(name)s.%(funcName)s - %(message)s'
@@ -32,7 +28,6 @@ logging.getLogger("healpy").disabled = True
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 
-
 class run():
     """Entry point for the interactive mode
     """
@@ -47,17 +42,18 @@ class run():
         """        
         os.environ['USE_PLANCKLENS_MPI'] = "False"
         if not verbose:
-            ConsoleOutputHandler.setLevel(logging.WARNING)
-            sys_logger.setLevel(logging.WARNING)
-            logging.basicConfig(level=logging.WARNING, handlers=[ConsoleOutputHandler])
-        else:
             ConsoleOutputHandler.setLevel(logging.INFO)
             sys_logger.setLevel(logging.INFO)
             logging.basicConfig(level=logging.INFO, handlers=[ConsoleOutputHandler])
+        else:
+            ConsoleOutputHandler.setLevel(logging.DEBUG)
+            sys_logger.setLevel(logging.DEBUG)
+            logging.basicConfig(level=logging.DEBUG, handlers=[ConsoleOutputHandler])
         self.parser = parserclass()
         self.parser.resume =  ""
         self.parser.config_file = config_fn
         self.parser.status = ''
+        self.parser.job_id = job_id
 
         self.delensalotjob = job_id
         self.config_handler = config_handler(self.parser, config_model)
@@ -80,41 +76,53 @@ class run():
         if mpi.size > 1:
             if mpi.rank == 0:
                 mpi.disable()
-                self.config_handler.collect_models(self.delensalotjob)
+                self.config_handler.collect_models()
                 mpi.enable()
                 [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
             else:
                 mpi.receive(None, source=mpi.ANY_SOURCE)
 
-        return self.config_handler.collect_models(self.delensalotjob)
+        return self.config_handler.collect_models()
 
 
     def run(self):
+        self.collect_models()
+        self.config_handler.run()
 
-        return self.collect_model()
+        return self.config_handler.djobmodels
 
 
     def init_job(self):
+        
+        return self.collect_model()
+    
+
+    def purge_TEMPdir(self):
+        self.config_handler.purge_TEMPdir()
 
 
-        self.config_handler.run(self.delensalotjob)
-
-        return self.config_handler.delensalotjobs[0]
-
+    def purge_TEMPconf(self):
+        self.config_handler.purge_TEMPconf()
 
 
 if __name__ == '__main__':
     """Entry point for the command line
     """
+    os.environ['USE_PLANCKLENS_MPI'] = "False"
     lparser = lerepi_parser()
     if lparser.validate():
         parser = lparser.get_parser()
 
     config_handler = config_handler(parser)
-    if dh.dev_subr in parser.__dict__:
-        dh.dev(parser, config_handler.TEMP)
-        sys.exit()
-    config_handler.collect_jobs()
+    if mpi.rank == 0:
+        mpi.disable()
+        config_handler.collect_models()
+        mpi.enable()
+        [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
+    else:
+        mpi.receive(None, source=mpi.ANY_SOURCE)
+    if mpi.size > 1:
+        config_handler.collect_models()
 
     try:
         config_handler.run()

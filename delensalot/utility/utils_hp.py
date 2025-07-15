@@ -144,7 +144,7 @@ def alm_copy(alm:np.ndarray, mmaxin:int or None, lmaxout:int, mmaxout:int):
         Parameters
         ----------
         alm :ndarray
-            healpy alm array to copy.
+            healpy alm arrays to copy.
         mmaxin: int or None
             mmax parameter of input array (can be set to None or negative for default)
         lmaxout : int
@@ -154,18 +154,45 @@ def alm_copy(alm:np.ndarray, mmaxin:int or None, lmaxout:int, mmaxout:int):
 
 
     """
-    lmaxin = Alm.getlmax(alm.size, mmaxin)
-    if mmaxin is None or mmaxin < 0: mmaxin = lmaxin
-    if (lmaxin == lmaxout) and (mmaxin == mmaxout):
-        ret = np.copy(alm)
+    alms = np.atleast_2d(alm)
+    ret = []
+    for alm in alms:
+        lmaxin = Alm.getlmax(alm.size, mmaxin)
+        if mmaxin is None or mmaxin < 0: mmaxin = lmaxin
+        if (lmaxin == lmaxout) and (mmaxin == mmaxout):
+            ret.append(np.copy(alm))
+        else:
+            _ret = np.zeros(Alm.getsize(lmaxout, mmaxout), dtype=alm.dtype)
+            lmax_min = min(lmaxout, lmaxin)
+            for m in range(0, min(mmaxout, mmaxin) + 1):
+                idx_in =  m * (2 * lmaxin + 1 - m) // 2 + m
+                idx_out = m * (2 * lmaxout+ 1 - m) // 2 + m
+                _ret[idx_out: idx_out + lmax_min + 1 - m] = alm[idx_in: idx_in + lmax_min + 1 - m]
+            ret.append(_ret)
+    ret = np.array(ret)
+    if ret.shape[0] == 1:
+        return ret[0]
     else:
-        ret = np.zeros(Alm.getsize(lmaxout, mmaxout), dtype=alm.dtype)
-        lmax_min = min(lmaxout, lmaxin)
-        for m in range(0, min(mmaxout, mmaxin) + 1):
-            idx_in =  m * (2 * lmaxin + 1 - m) // 2 + m
-            idx_out = m * (2 * lmaxout+ 1 - m) // 2 + m
-            ret[idx_out: idx_out + lmax_min + 1 - m] = alm[idx_in: idx_in + lmax_min + 1 - m]
-    return ret
+        return ret
+    
+
+def alm_splice(alm_lo, alm_hi, lsplit):
+    """Returns an alm with lmax = lmax(alm_hi) which is alm_lo for (l <= lsplit) alm_hi for (l  > lsplit.)
+
+    """
+    if hasattr(alm_lo, 'alm_splice'):
+        return alm_lo.alm_splice(alm_hi, lsplit)
+
+    alm_lo_lmax = Alm.getlmax(len(alm_lo), None)
+    alm_hi_lmax = Alm.getlmax(len(alm_hi), None)
+
+    assert alm_lo_lmax >= lsplit and alm_hi_lmax >= lsplit
+
+    alm_re = np.copy(alm_hi)
+    for m in range(0, lsplit + 1):
+        alm_re[(m * (2 * alm_hi_lmax + 1 - m) // 2 + m):(m * (2 * alm_hi_lmax + 1 - m) // 2 + lsplit + 1)] = \
+        alm_lo[(m * (2 * alm_lo_lmax + 1 - m) // 2 + m):(m * (2 * alm_lo_lmax + 1 - m) // 2 + lsplit + 1)]
+    return alm_re
 
 class Alm:
     """alm arrays useful statics. Directly from healpy but excluding keywords

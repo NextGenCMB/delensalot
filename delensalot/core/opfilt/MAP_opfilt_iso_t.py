@@ -4,15 +4,18 @@
 """
 import time
 import numpy as np
-from plancklens.utils import cli
-import time
+
+
 
 from lenspyx import remapping
 from lenspyx.remapping import utils_geom
+from lenspyx.utils_hp import alm_copy
 
-from delensalot.utility.utils_hp import almxfl, Alm, synalm
+from delensalot.utils import cli
 from delensalot.utils import timer, clhash
+from delensalot.utility.utils_hp import almxfl, Alm, synalm
 from delensalot.core.opfilt import opfilt_base, QE_opfilt_iso_t
+from plancklens.sims import phas
 
 
 fwd_op = QE_opfilt_iso_t.fwd_op
@@ -60,10 +63,10 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         self.lmax_len = min(lmax_len, lmax_transf)
         self.mmax_len = min(mmax_len, self.lmax_len)
 
-        nlev_tlm = _extend_cl(nlev_t, lmax_len)
+        self.nlev_tlm = _extend_cl(nlev_t, lmax_len)
 
-        self.inoise_2 = _extend_cl(transf ** 2, lmax_len) * cli(nlev_tlm ** 2) * (180 * 60 / np.pi) ** 2
-        self.inoise_1 = _extend_cl(transf ** 1, lmax_len) * cli(nlev_tlm ** 2) * (180 * 60 / np.pi) ** 2
+        self.inoise_2 = _extend_cl(transf ** 2, lmax_len) * cli(self.nlev_tlm ** 2) * (180 * 60 / np.pi) ** 2
+        self.inoise_1 = _extend_cl(transf ** 1, lmax_len) * cli(self.nlev_tlm ** 2) * (180 * 60 / np.pi) ** 2
         self.transf   = _extend_cl(transf, lmax_len)
 
         if rescal is None:
@@ -116,7 +119,35 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         if self.dorescal:
             almxfl(tlm, self.rescali, self.mmax_sol, True)
         # TODO: should add here the projection into cls > 0
-
+    
+    def degrade(self, nside, lmax, mmax, set_deflection_to_zero=True):
+        """Degradation of the filter to lower resolution
+        """
+        print('Not degrading filter {} {}'.format(len(self.nlev_tlm), lmax))
+        return self
+        # print(len(self.nlev_tlm), lmax+1)
+        # assert len(self.nlev_tlm) == lmax+1, 'not tested yet'
+        # if len(self.nlev_tlm) == lmax+1 and set_deflection_to_zero is False:
+        #     return self
+        
+        # if set_deflection_to_zero is True:
+        #     print("Setting deflection to zero")
+        #     _ffi = remapping.deflection(utils_geom.Geom.get_healpix_geometry(nside), np.zeros(hp.Alm.getsize(lmax)), mmax, 
+        #         numthreads=self.sht_threads, verbosity=0, single_prec=False, epsilon=self.ffi.epsilon)
+        # else:
+        #     print(f"Using the same deflection, rescaled to the new nside {nside}")
+        #     dlm = alm_copy(self.ffi.dlm, None, lmax, mmax)
+        #     if self.ffi.dclm is not None:
+        #         dclm = alm_copy(self.ffi.dclm, None, lmax, mmax)
+        #     else:
+        #         dclm = None
+        #     _ffi = remapping.deflection(utils_geom.Geom.get_healpix_geometry(nside), dlm, mmax, 
+        #         dclm=dclm, numthreads=self.ffi.sht_tr, 
+        #         verbosity=self.ffi.verbosity, single_prec=self.ffi.single_prec, epsilon=self.ffi.epsilon)
+        
+        # nlev_t = alm_copy(self.nlev_tlm, None, lmax, mmax)
+        # return alm_filter_nlev_wl(nlev_t, _ffi, self.transf, (self.lmax_sol, self.mmax_sol), (self.lmax_len, self.mmax_len), verbose=self.verbose, rescal=cli(self.rescali))
+    
     def get_qlms(self, tlm_dat: np.ndarray, tlm_wf: np.ndarray, q_pbgeom: utils_geom.pbdGeometry, alm_wf_leg2=None):
         """Get lensing generaliazed QE consistent with filter assumptions
 
@@ -141,44 +172,119 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         almxfl(G, fl, self.ffi.mmax_dlm, True)
         almxfl(C, fl, self.ffi.mmax_dlm, True)
         return G, C
+    
+    def get_unit_variance(self):
+        """Returns a unit vairance phase, useful for phase cancellation to reduce MF sims variance"""
+        return synalm(np.ones(self.lmax_len + 1, dtype=float), self.lmax_len, self.mmax_len)
 
-    def get_qlms_mf(self, mfkey, q_pbgeom:utils_geom.pbdGeometry, mchain, phas=None, cls_filt:dict or None=None):
+    def synalm(self, unlcmb_cls:dict, cmb_phas:phas.lib_phas, noise_phase:phas.lib_phas, get_unltlm:bool=False, nlev_sim:dict=None):
+        """Generate some dat maps consistent with noise filter fiducial ingredients
+            Params:
+                unlcmb_cls: unlensed CMB cls
+                cmb_phas: unlensed CMB phase
+                noise_phase: noise phase
+                get_unltlm: return unlensed Tlm
+                nlev_sim: noise level for the simulation (if different from the filter)
+            Note:
+                Feeding in directly the unlensed CMB phase can be useful for paired simulations.
+                In this case the shape must match that of the filter unlensed alm array
+
+        """
+        cmb_phas = alm_copy(cmb_phas, None, self.lmax_sol, self.mmax_sol)
+        tlm_unl = almxfl(cmb_phas, np.sqrt(unlcmb_cls['tt']), self.mmax_sol, False)
+
+        assert Alm.getlmax(tlm_unl.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(tlm_unl.size, self.mmax_sol), self.lmax_sol)
+        tlm = self.ffi.lensgclm(tlm_unl, self.mmax_sol, 0, self.lmax_len, self.mmax_len)
+        almxfl(tlm, self.transf, self.mmax_len, True)
+        
+        if nlev_sim is not None:
+            nlev_tlm = _extend_cl(nlev_sim['t'], self.lmax_len)
+        else:
+            nlev_tlm = self.nlev_tlm
+
+        noise_phase = alm_copy(noise_phase, None, self.lmax_len, self.mmax_len)
+        tlm_noise = almxfl(noise_phase, (nlev_tlm / 180 / 60 * np.pi) * (self.transf > 0), self.mmax_len, False)
+        # assert Alm.getlmax(tlm_noise.size, self.mmax_len) == self.lmax_len, (Alm.getlmax(tlm_noise.size, self.mmax_len), self.lmax_len)
+
+        tlm += tlm_noise
+        assert Alm.getlmax(tlm.size, self.mmax_len) == self.lmax_len, (Alm.getlmax(tlm.size, self.mmax_len), self.lmax_len)
+        if get_unltlm:
+            return tlm, tlm_unl 
+        else:
+            return tlm
+
+    def get_qlms_mf(self, mfkey, q_pbgeom:utils_geom.pbdGeometry, mchain, phas=None, noise_phas=None, cls_filt:dict or None=None):
         """Mean-field estimate using tricks of Carron Lewis appendix
-
+        Returns  g^MF = <g^QD> 
+        It should be correlated to -phi^{input}
 
         """
         if mfkey in [1]: # This should be B^t x, D dC D^t B^t Covi x, x random phases in alm space
             if phas is None:
                 phas = synalm(np.ones(self.lmax_len + 1, dtype=float), self.lmax_len, self.mmax_len)
+            
+            phas = alm_copy(phas, None, self.lmax_len, self.mmax_len)
             assert Alm.getlmax(phas.size, self.mmax_len) == self.lmax_len
-
+            
             soltn = np.zeros(Alm.getsize(self.lmax_sol, self.mmax_sol), dtype=complex)
-            mchain.solve(soltn, phas, dot_op=self.dot_op())
-
-            almxfl(phas,  self.transf, self.mmax_len, True)
-            #
-            assert 0, ' finish this'
-            repmap, impmap = q_pbgeom.geom.alm2map_spin(phas, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
-
-            Gs, Cs = self._get_gpmap([soltn, np.zeros_like(soltn)], 3, q_pbgeom)  # 2 pos.space maps
-            GC = (repmap - 1j * impmap) * (Gs + 1j * Cs)  # (-2 , +3)
-            Gs, Cs = self._get_gpmap([soltn, np.zeros_like(soltn)], 1, q_pbgeom)
-            GC -= (repmap + 1j * impmap) * (Gs - 1j * Cs)  # (+2 , -1)
-            del repmap, impmap, Gs, Cs
+            mchain.solve(soltn, phas, dot_op=self.dot_op()) # X^WF
+            
+            almxfl(phas,  self.transf, self.mmax_len, True) # B^t X 
+            tmap = q_pbgeom.geom.alm2map(phas, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
+            gtmap = self._get_gtmap(soltn, q_pbgeom)   # D dC D^t B^t Covi x
+            
+            GC = tmap * gtmap
+            lmax_qlm = self.ffi.lmax_dlm
+            mmax_qlm = self.ffi.mmax_dlm
+            G, C = q_pbgeom.geom.map2alm_spin(GC, 1, lmax_qlm, mmax_qlm, self.ffi.sht_tr, (-1., 1.))
+            del GC
+            fl = - np.sqrt(np.arange(lmax_qlm + 1, dtype=float) * np.arange(1, lmax_qlm + 2))
+            almxfl(G, fl, mmax_qlm, True)
+            almxfl(C, fl, mmax_qlm, True)
+        
         elif mfkey in [0]: # standard gQE, quite inefficient but simple
-            assert 0, 'not implemented'
+            if phas is None:
+                phas = synalm(np.ones(self.lmax_sol + 1, dtype=float), self.lmax_sol, self.mmax_sol)
+            if noise_phas is None:
+                noise_phas =  synalm(np.ones(self.lmax_len + 1, dtype=float), self.lmax_len, self.mmax_len)
+            
+            # assert Alm.getlmax(phas.size, self.mmax_sol) == self.lmax_sol
+            # assert Alm.getlmax(noise_phas.size, self.mmax_len) == self.lmax_len
 
+            cmb_phas = alm_copy(phas, None, self.lmax_sol, self.mmax_sol)
+            # cmb_phas = phas
+            tlm_dat = self.synalm(cls_filt, cmb_phas=cmb_phas, noise_phase=noise_phas)
+            # Get the WF CMB map
+            soltn = np.zeros(Alm.getsize(self.lmax_sol, self.mmax_sol), dtype=complex)
+            mchain.solve(soltn, tlm_dat, dot_op=self.dot_op())
+            G, C = self.get_qlms(tlm_dat, soltn, q_pbgeom)
+        
         else:
             assert 0, mfkey + ' not implemented'
-        lmax_qlm = self.ffi.lmax_dlm
-        mmax_qlm = self.ffi.mmax_dlm
-        G, C = q_pbgeom.geom.map2alm_spin([GC.real, GC.imag], 1, lmax_qlm, mmax_qlm, self.ffi.sht_tr, (-1., 1.))
-        del GC
-        fl = - np.sqrt(np.arange(lmax_qlm + 1, dtype=float) * np.arange(1, lmax_qlm + 2))
-        almxfl(G, fl, mmax_qlm, True)
-        almxfl(C, fl, mmax_qlm, True)
+
         return G, C
 
+    def get_qlms_mf_pred(self, plm:np.ndarray, cls_unl:dict):
+        """Return predicted analytical MF
+        
+        """
+        nltt = (self.nlev_tlm / 180 / 60 * np.pi) ** 2 * cli(self.transf ** 2)
+        
+        lmax_ivf = len(self.transf) - 1 
+        ells = np.arange(lmax_ivf+1)
+        # FIXME: Should we include the lmin_ivf here ?
+        
+        wftt = cls_unl['tt'][:lmax_ivf+1]*cli(cls_unl['tt'][:lmax_ivf+1] + nltt[:lmax_ivf+1])
+        # sumwf = -2 * np.sum((2*ells+1) / 4. / np.pi * wftt)
+        sumwf = -2 * np.sum((2*ells+1) / 4. / np.pi * (wftt**2 - wftt[lmax_ivf]))
+
+        lmax_qlm = self.ffi.lmax_dlm
+        mmax_qlm = self.ffi.mmax_dlm
+        fl = (np.arange(lmax_qlm + 1, dtype=float) * np.arange(1, lmax_qlm + 2) / 2. ) ** 2
+        grad_MF = almxfl(plm, fl, mmax_qlm, inplace=False)
+
+        return grad_MF * sumwf
+        
     def _get_irestmap(self, tlm_dat:np.ndarray, tlm_wf:np.ndarray, q_pbgeom:utils_geom.pbdGeometry):
         """Builds inverse variance weighted map to feed into the QE
 

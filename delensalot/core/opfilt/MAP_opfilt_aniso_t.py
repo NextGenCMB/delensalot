@@ -10,13 +10,25 @@ import numpy as np
 
 from lenspyx import remapping
 from lenspyx.remapping import utils_geom
+from lenspyx.utils_hp import alm_copy
 
 from delensalot.utils import clhash, cli, read_map, timer
 from delensalot.utility.utils_hp import almxfl, Alm, alm2cl, synalm, default_rng
 from delensalot.core.opfilt import opfilt_base, tmodes_ninv as tni
 
+from delensalot.core.opfilt import MAP_opfilt_iso_t
+from plancklens.sims import phas
+import healpy as hp 
+from lenspyx.remapping import deflection 
+from plancklens.qcinv import template_removal
 
-pre_op_dense = None # not implemented
+# pre_op_dense = None # not implemented
+from plancklens.qcinv.opfilt_tt import pre_op_dense
+
+#FIXME: This is the same fw_op as the QE, is it correct ?
+fwd_op = MAP_opfilt_iso_t.fwd_op
+
+
 def apply_fini(*args, **kwargs):
     """cg-inversion post-operation
 
@@ -28,7 +40,9 @@ def apply_fini(*args, **kwargs):
 
 class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
     def __init__(self, ninv_geom:utils_geom.Geom, ninv: np.ndarray, ffi:remapping.deflection, transf:np.ndarray,
-                 unlalm_info:tuple, lenalm_info:tuple, sht_threads:int,verbose=False, lmin_dotop=0, tpl:tni.template_tfilt or None =None):
+                 unlalm_info:tuple, lenalm_info:tuple, sht_threads:int,verbose=False,
+                 lmin_dotop=0, tpl:tni.template_dense or None =None, 
+                 marge_monopole = False, marge_dipole = False, rescal=None):
         r"""CMB inverse-variance and Wiener filtering instance, using unlensed E and lensing deflection
 
             Args:
@@ -56,17 +70,15 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         self.b_transf_tlm = transf
         self.lmin_dotop = lmin_dotop
 
-        if not np.all(ninv_geom.weight == 1.): # All map2alm's here will be sums rather than integrals...
-            log.info('*** alm_filter_ninv: switching to same ninv_geometry but with unit weights')
-            geom_ = utils_geom.Geom(ninv_geom.theta.copy(), ninv_geom.phi0.copy(), ninv_geom.nph.copy(), ninv_geom.ofs.copy(), np.ones(len(ninv_geom.ofs), dtype=float))
-            # Does not seem to work without the 'copy'
-        else:
-            geom_ = ninv_geom
-        assert np.all(ninv_geom_.weight == 1.)
-        assert utils_geom.Geom.npix(geom_) == ninv.size, (geom_.npix(), ninv.size)
+        if rescal is None:
+            rescal = np.ones(lmax_sol + 1, dtype=float)
+        assert rescal.size > lmax_sol and np.all(rescal >= 0.)
+        self.dorescal = np.any(rescal != 1.)
+        self.rescali = cli(rescal)
+
         self.sht_threads = sht_threads
         self.ninv_geom = ninv_geom
-        self.geom_ = geom_
+        self.geom = ninv_geom
 
         self.verbose=verbose
 
@@ -75,9 +87,17 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
 
         self.template = tpl
 
+        self.marge_monopole = marge_monopole
+        self.marge_dipole = marge_dipole 
+
+        self.templates = [self.template]
+        
+        if marge_monopole: self.templates.append(template_removal.template_monopole())
+        if marge_dipole: self.templates.append(template_removal.template_dipole())
+
     def hashdict(self):
         return {'ninv':self._ninv_hash(), 'transf':clhash(self.b_transf_tlm),
-                'deflection':self.ffi.hashdict(),
+                # 'deflection':self.ffi.hashdict(), #TODO: Deflection hashdict is not implemented
                 'unalm':(self.lmax_sol, self.mmax_sol), 'lenalm':(self.lmax_len, self.mmax_len) }
 
     def _ninv_hash(self):
@@ -92,8 +112,56 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         n_inv_cl_t = self.b_transf_tlm ** 2  / (self._nlevt / 180. / 60. * np.pi) ** 2
         return n_inv_cl_t
 
+    def degrade(self, nside, lmax, mmax, set_deflection_to_zero=True):
+        """Reproducing plancklens function, useful for multigrid preconditioner
+        # TODO: Check if the lmax can conflict with the template lmax_marg
+
+        Note: now only degrading the unlensed lmax, corresponding to the lmax of the Ninv matrix 
+           applied  to the calc _prep in the CG problem (D^t B^t N^{-1} X^{dat})
+           while we keep the lensed lmax the same as it is the lmax for the N in the CMB maps (lensed)
+           inside N_alpha^{-1}= Y^t D^t B^t N^{-1} B D Y, where D is lensing, B the transfer function   
+        """
+        if nside == hp.npix2nside(len(self.n_inv)) and set_deflection_to_zero is False:
+            return self
+        else:
+            print(f"MAP OPFILT ANISO T: Degrading filtered maps to nside:{nside}, lmax:{lmax}")
+            
+            if set_deflection_to_zero is True:
+                print("Setting deflection to zero")
+                _ffi = deflection(utils_geom.Geom.get_healpix_geometry(nside), np.zeros(hp.Alm.getsize(lmax)), mmax, 
+                    numthreads=self.sht_threads, verbosity=0, single_prec=False, epsilon=self.ffi.epsilon)
+            else:
+                print(f"Using the same deflection, rescaled to the new nside {nside}")
+                # dlm = alm_copy(self.ffi.dlm, None, lmax, mmax)
+                # if self.ffi.dclm is not None:
+                #     dclm = alm_copy(self.ffi.dclm, None, lmax, mmax)
+                # else:
+                #     dclm = None
+                # TODO: Here I dont change the deflection lmax anymore, just the nside to match the new ninv 
+                _ffi = deflection(utils_geom.Geom.get_healpix_geometry(nside), self.ffi.dlm, mmax, 
+                    dclm=self.ffi.dclm, numthreads=self.ffi.sht_tr, 
+                    verbosity=self.ffi.verbosity, single_prec=self.ffi.single_prec, epsilon=self.ffi.epsilon)
+            
+            if self.template is not None:
+                tpl = tni.template_dense(lmax_marg=self.template.lmax, geom=utils_geom.Geom.get_healpix_geometry(nside), 
+                        sht_threads=self.template.sht_threads, _lib_dir=self.template.lib_dir, rescal=self.template.rescal)
+            else:
+                tpl = None   
+            
+            return alm_filter_ninv_wl(
+                        utils_geom.Geom.get_healpix_geometry(nside), 
+                        hp.ud_grade(self.n_inv, nside, power=-2), 
+                        _ffi, self.b_transf_tlm, 
+                        (lmax, mmax), (self.lmax_len, self.mmax_len),
+                        self.sht_threads, self.verbose, 
+                        lmin_dotop=self.lmin_dotop, tpl=tpl, 
+                        marge_monopole = self.marge_monopole,  
+                        marge_dipole = self.marge_dipole, 
+                        rescal = cli(self.rescali)[:lmax+1])
+
+
     def dot_op(self):
-        return dot_op(self.lmax_sol, self.mmax_sol, lmin=self.lmin_dotop)
+        return dot_op(lmax=self.lmax_sol, mmax=self.mmax_sol, lmin=self.lmin_dotop)
 
     def apply_map(self, tmap):
         """Applies pixel inverse-noise variance maps
@@ -120,6 +188,7 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         # Forward lensing here
         tim = self.tim
         tim.reset_t0()
+        tlm_2d = tlm.reshape((1, tlm.size))
         lmax_unl = Alm.getlmax(tlm.size, self.mmax_sol)
         assert lmax_unl == self.lmax_sol, (lmax_unl, self.lmax_sol)
         # glm is -tlm for spin 0 but two signs cancel
@@ -129,43 +198,25 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         almxfl(tlm_len, self.b_transf_tlm, self.mmax_len, inplace=True)
         tim.add('transf')
 
-        tmap = self.geom_.alm2map(tlm_len)
-        tim.add('alm2map lmax %s mmax %s nrings %s'%(self.lmax_len, self.mmax_len, self.geom_get_nrings()))
+        tmap = self.geom.synthesis(tlm_len, 0, self.lmax_len, self.mmax_len, self.sht_threads)
+        tim.add('alm2map lmax %s mmax %s nrings %s'%(self.lmax_len, self.mmax_len, self.geom.theta.size))
 
         self.apply_map(tmap)  # applies N^{-1}
         tim.add('apply ninv')
 
-        tlm_len = self.geom_.map2alm(tmap)
-        tim.add('map2alm lmax %s mmax %s nrings %s'%(self.lmax_len, self.mmax_len, self.geom_get_nrings()))
-
         # The map2alm is here a sum rather than integral, so geom.weights are assumed to be unity
+        tlm_len = self.geom.adjoint_synthesis(tmap, 0, self.lmax_len, self.mmax_len, self.sht_threads,
+                                              apply_weights=False).squeeze()
+        tim.add('map2alm lmax %s mmax %s nrings %s'%(self.lmax_len, self.mmax_len, self.geom.theta.size))
+
         almxfl(tlm_len, self.b_transf_tlm, self.mmax_len, inplace=True)
         tim.add('transf')
 
         # backward lensing with magn. mult. here
-        tlm[:]= self.ffi.lensgclm(tlm_len, self.mmax_len, 0, self.lmax_sol, self.mmax_sol, backwards=True)
+        self.ffi.lensgclm(tlm_len, self.mmax_len, 0, self.lmax_sol, self.mmax_sol, backwards=True, gclm_out=tlm_2d)
         tim.add('lensgclm bwd')
         if self.verbose:
             print(tim)
-
-    def synalm(self, unlcmb_cls:dict, cmb_phas=None):
-        """Generate some dat maps consistent with noise filter fiducial ingredients
-
-            Note:
-                Feeding in directly the unlensed CMB phase can be useful for paired simulations.
-                In this case the shape must match that of the filter unlensed alm array
-
-
-        """
-        tlm = synalm(unlcmb_cls['tt'], self.lmax_sol, self.mmax_sol) if cmb_phas is None else cmb_phas
-        assert Alm.getlmax(tlm.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(tlm.size, self.mmax_sol), self.lmax_sol)
-        tlm_len = self.ffi.lensgclm(tlm, self.mmax_sol, 0, self.lmax_len, self.mmax_len, False)
-        almxfl(tlm_len, self.b_transf_tlm, self.mmax_len, True)
-        # cant use here geom_ since it is using the unit weight transforms
-        T = self.ninv_geom.alm2map(tlm_len, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
-        pixnoise = np.sqrt(cli(self.n_inv))
-        T += default_rng().standard_normal(utils_geom.Geom.npix(self.ninv_geom)) * pixnoise
-        return T
 
     def get_qlms(self, tlm_dat: np.ndarray, tlm_wf: np.ndarray, q_pbgeom: utils_geom.pbdGeometry, alm_wf_leg2=None):
         """Get lensing generaliazed QE consistent with filter assumptions
@@ -192,6 +243,87 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         almxfl(C, fl, self.ffi.mmax_dlm, True)
         return G, C
 
+    def get_unit_variance(self):
+        """Returns a unit vairance phase, useful for phase cancellation to reduce MF sims variance"""
+        return np.array(default_rng().standard_normal(utils_geom.Geom.npix(self.ninv_geom)))
+
+    def synalm(self, unlcmb_cls:dict, cmb_phas:phas.lib_phas, noise_phase:phas.lib_phas):
+        """Generate some dat maps consistent with noise filter fiducial ingredients
+
+            Note:
+                Feeding in directly the unlensed CMB phase can be useful for paired simulations.
+                In this case the shape must match that of the filter unlensed alm array
+
+
+        """
+        # tlm = synalm(unlcmb_cls['tt'], self.lmax_sol, self.mmax_sol) if cmb_phas is None else cmb_phas
+        # cmb_phas = alm_copy(cmb_phas, None, self.lmax_sol, self.mmax_sol)
+        tlm_unl = almxfl(cmb_phas, np.sqrt(unlcmb_cls['tt']), self.mmax_sol, False)
+
+        assert Alm.getlmax(tlm_unl.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(tlm_unl.size, self.mmax_sol), self.lmax_sol)
+        tlm_len = self.ffi.lensgclm(tlm_unl, self.mmax_sol, 0, self.lmax_len, self.mmax_len, backwards=False)
+        almxfl(tlm_len, self.b_transf_tlm, self.mmax_len, True)
+        # cant use here geom_ since it is using the unit weight transforms
+        T = self.ninv_geom.alm2map(tlm_len, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
+        # if noise_phas is None:
+            # noise_phas = default_rng().standard_normal(utils_geom.Geom.npix(self.ninv_geom)) * pixnoise
+        pixnoise = np.sqrt(cli(self.n_inv))
+        T += noise_phase * pixnoise
+        return T
+    
+    def get_qlms_mf(self, mfkey, q_pbgeom:utils_geom.pbdGeometry, mchain, phas=None, noise_phase=None, cls_filt:dict or None=None):
+        """Mean-field estimate using tricks of Carron Lewis appendix
+        """
+        print("Warning: Map_opfilt_aniso_t.alm_filter_ninv_wl.get_qlms_mf() has not be tested, might no be working well")
+        if mfkey in [1]: # This should be B^t x, D dC D^t B^t Covi x, x random phases in pixel space here
+            if phas is None:
+                # unit variance phases in T
+                phas = np.array(default_rng().standard_normal(utils_geom.Geom.npix(self.ninv_geom)))
+            assert phas.size == utils_geom.Geom.npix(self.ninv_geom)
+            
+            soltn = np.zeros(Alm.getsize(self.lmax_sol, self.mmax_sol), dtype=complex)
+            mchain.solve(soltn, phas, dot_op=self.dot_op())
+
+            phas = self.ninv_geom.map2alm(phas, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
+            almxfl(phas, self.b_transf_tlm, self.mmax_len, True)
+            
+            tmap = q_pbgeom.geom.alm2map(phas, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))  # B^t X
+            
+            gtmap = self._get_gtmap(soltn, q_pbgeom)   # D dC D^t B^t Covi x
+
+            GC = tmap * gtmap
+            lmax_qlm = self.ffi.lmax_dlm
+            mmax_qlm = self.ffi.mmax_dlm
+            G, C = q_pbgeom.geom.map2alm_spin(GC, 1, lmax_qlm, mmax_qlm, self.ffi.sht_tr, (-1., 1.))
+            # G, C = q_pbgeom.geom.map2alm_spin([GC.real, GC.imag], 1, lmax_qlm, mmax_qlm, self.ffi.sht_tr, (-1., 1.))
+            del GC
+            G = alm_copy(G, None, lmax_qlm, mmax_qlm) 
+            C = alm_copy(C, None, lmax_qlm, mmax_qlm) 
+            fl = - np.sqrt(np.arange(lmax_qlm + 1, dtype=float) * np.arange(1, lmax_qlm + 2))
+            almxfl(G, fl, mmax_qlm, True)
+            almxfl(C, fl, mmax_qlm, True)
+        
+        elif mfkey in [0]: # standard gQE, quite inefficient but simple
+            if phas is None:
+                phas = np.array(default_rng().standard_normal(utils_geom.Geom.npix(self.ninv_geom)))
+            if noise_phase is None:
+                noise_phase = np.array(default_rng().standard_normal(utils_geom.Geom.npix(self.ninv_geom)))
+
+            # assert Alm.getlmax(phas.size, self.mmax_sol) == self.lmax_sol
+            # assert Alm.getlmax(noise_phas.size, self.mmax_len) == self.lmax_len
+            
+            cmb_phas = self.ninv_geom.map2alm(phas, self.lmax_sol, self.mmax_sol, self.ffi.sht_tr, (-1., 1.))
+            # cmb_phas = alm_copy(phas, None, self.lmax_sol, self.mmax_sol)
+            tmap = self.synalm(cls_filt, cmb_phas=cmb_phas, noise_phase=noise_phas)
+            # Get the WF CMB map
+            soltn = np.zeros(Alm.getsize(self.lmax_sol, self.mmax_sol), dtype=complex)
+            mchain.solve(soltn, tmap, dot_op=self.dot_op())
+            G, C = self.get_qlms(tmap, soltn, q_pbgeom)
+        else:
+            assert 0, mfkey + ' not implemented'
+
+        return G, C
+
 
     def _get_gtmap(self, tlm_wf:np.ndarray, q_pbgeom:utils_geom.pbdGeometry):
         """Wiener-filtered gradient leg to feed into the QE
@@ -203,8 +335,8 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         """
         assert  Alm.getlmax(tlm_wf.size, self.mmax_sol)== self.lmax_sol, ( Alm.getlmax(tlm_wf.size, self.mmax_sol), self.lmax_sol)
         fl = -np.sqrt(np.arange(self.lmax_sol + 1) * np.arange(1, self.lmax_sol + 2))
-        ffi = self.ffi.change_geom(q_pbgeom) if q_pbgeom is not self.ffi.pbgeom else self.ffi
-        return ffi.gclm2lenmap([almxfl(tlm_wf, fl, self.mmax_sol, False), np.zeros_like(tlm_wf)], self.mmax_sol, 1, False)
+        ffi = self.ffi.change_geom(q_pbgeom.geom) if q_pbgeom is not self.ffi.pbgeom else self.ffi
+        return ffi.gclm2lenmap(almxfl(tlm_wf, fl, self.mmax_sol, False), self.mmax_sol, 1, False)
 
 
     def _get_irestmap(self, tdat:np.ndarray, twf:np.ndarray, q_pbgeom:utils_geom.pbdGeometry):
@@ -216,14 +348,15 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
 
         """
 
-        assert np.all(self.geom_.weight == 1.) # sum rather than integrals
-        twf_len = self.ffi.lensgclm(twf, self.mmax_sol, 0, self.lmax_len, self.mmax_len, False)
+        #assert np.all(self.geom_.weight == 1.) # sum rather than integrals
+        twf_len = self.ffi.lensgclm(twf, self.mmax_sol, 0, self.lmax_len, self.mmax_len, backwards=False)
         almxfl(twf_len, self.b_transf_tlm, self.mmax_len, True)
-        t = tdat - self.geom_.alm2map(twf_len)
+        t = tdat - self.geom.synthesis(twf_len, 0, self.lmax_len, self.mmax_len, self.sht_threads).squeeze()
         self.apply_map(t)
-        twf_len = self.geom_.map2alm(t)
+        twf_len = self.geom.adjoint_synthesis(t, 0, self.lmax_len, self.mmax_len, self.sht_threads,
+                                              apply_weights=False).squeeze()
         almxfl(twf_len, self.b_transf_tlm, self.mmax_len, True)  # Factor of 1/2 because of \dagger rather than ^{-1}
-        return q_pbgeom.geom.alm2map(twf_len, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
+        return q_pbgeom.geom.synthesis(twf_len, 0, self.lmax_len, self.mmax_len, self.ffi.sht_tr).squeeze()
 
 
 class pre_op_diag:
@@ -235,7 +368,7 @@ class pre_op_diag:
         lmax_sol = ninv_filt.lmax_sol
         ninv_ftl = ninv_filt.get_ftl() # (N_lev * transf) ** 2 basically
         if len(ninv_ftl) - 1 < lmax_sol: # We extend the transfer fct to avoid predcon. with zero (~ Gauss beam)
-            log.info("PRE_OP_DIAG: extending T transfer fct from lmax %s to lmax %s"%(len(ninv_ftl)-1, lmax_sol))
+            log.debug("PRE_OP_DIAG: extending T transfer fct from lmax %s to lmax %s"%(len(ninv_ftl)-1, lmax_sol))
             assert np.all(ninv_ftl >= 0)
             nz = np.where(ninv_ftl > 0)
             spl_sq = spl(np.arange(len(ninv_ftl), dtype=float)[nz], np.log(ninv_ftl[nz]), k=2, ext='extrapolate')
@@ -252,7 +385,7 @@ class pre_op_diag:
         assert Alm.getsize(self.lmax, self.mmax) == tlm.size, (self.lmax, self.mmax, Alm.getlmax(tlm.size, self.mmax))
         return almxfl(tlm, self.flmat, self.mmax, False)
 
-def calc_prep(tmap:np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv_wl, sht_threads:int=4):
+def calc_prep(tmap:np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv_wl):
     """cg-inversion pre-operation  (D^t B^t N^{-1} X^{dat})
 
         Args:
@@ -263,13 +396,13 @@ def calc_prep(tmap:np.ndarray, s_cls:dict, ninv_filt:alm_filter_ninv_wl, sht_thr
 
     """
     assert isinstance(tmap, np.ndarray)
-    assert np.all(ninv_filt.geom_.weight==1.) # Sum rather than integral, hence requires unit weights
-    tmapc= np.copy(tmap)
+    tmapc = np.copy(tmap)
     ninv_filt.apply_map(tmapc)
-
-    tlm = ninv_filt.geom_.map2alm(tmapc)
+    tlm = ninv_filt.geom.adjoint_synthesis(tmapc, 0, ninv_filt.lmax_len, ninv_filt.mmax_len, ninv_filt.sht_threads,
+                                           apply_weights=False).squeeze()
     almxfl(tlm, ninv_filt.b_transf_tlm, ninv_filt.mmax_len, True)
-    tlm = ninv_filt.ffi.lensgclm(tlm, ninv_filt.mmax_len, 0, ninv_filt.lmax_sol, ninv_filt.mmax_sol, sht_threads, backwards=True)
+    tlm = ninv_filt.ffi.lensgclm(tlm, ninv_filt.mmax_len, 0, ninv_filt.lmax_sol, ninv_filt.mmax_sol,
+                                 backwards=True)
     almxfl(tlm, s_cls['tt'] > 0., ninv_filt.mmax_sol, True)
     return tlm
 
@@ -294,28 +427,3 @@ class dot_op:
         assert tlm2.size == Alm.getsize(self.lmax, self.mmax), (tlm2.size, Alm.getsize(self.lmax, self.mmax))
         return np.sum(alm2cl(tlm1, tlm2, self.lmax, self.mmax, None)[self.lmin:] * (2 * np.arange(self.lmin, self.lmax + 1) + 1))
 
-
-class fwd_op:
-    """Forward operation for temperature-only
-
-
-    """
-    def __init__(self, s_cls:dict, ninv_filt:alm_filter_ninv_wl):
-        self.icltt = cli(s_cls['tt'])
-        self.ninv_filt = ninv_filt
-        self.lmax_sol = ninv_filt.lmax_sol
-        self.mmax_sol = ninv_filt.mmax_sol
-
-    def hashdict(self):
-        return {'icltt': clhash(self.icltt),
-                'n_inv_filt': self.ninv_filt.hashdict()}
-
-    def __call__(self, tlm):
-        return self.calc(tlm)
-
-    def calc(self, tlm):
-        nlm = np.copy(tlm)
-        self.ninv_filt.apply_alm(nlm)
-        nlm += almxfl(tlm, self.icltt, self.mmax_sol, False)
-        almxfl(nlm, self.icltt > 0., self.mmax_sol, True)
-        return nlm

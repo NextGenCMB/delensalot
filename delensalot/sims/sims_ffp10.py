@@ -23,7 +23,7 @@ aberration_lbv_ffp10 = (264. * (np.pi / 180), 48.26 * (np.pi / 180), 0.001234)
 
 class cmb_len_ffp10:
     def __init__(self, aberration:tuple[float, float, float]or None=None, lmin_dlm=0, cacher:cachers.cacher or None=None,
-                       lmax_thingauss:int=5120, nbands:int=1, targetres=0.75, verbose:bool=False, plm_shuffle:callable or None=None):
+                       lmax_thingauss:int=5120, epsilon=1e-7, verbose:bool=False, plm_shuffle:callable or None=None):
 
         """FFP10 lensed cmbs, lensed with independent delensalot code on thingauss geometry
 
@@ -40,41 +40,25 @@ class cmb_len_ffp10:
 
         """
 
-        nbands = int(nbands + (1 - int(nbands)%2))  # want an odd number to avoid a split just on the equator
-        assert nbands <= 10, 'did not check'
         if cacher is None:
             cacher = cachers.cacher_none() # This cacher saves nothing
         if aberration is None:
             aberration = aberration_lbv_ffp10
         self.cacher = cacher
 
-        self.fft_tr = int(os.environ.get('OMP_NUM_THREADS', 1))
-        self.sht_tr = int(os.environ.get('OMP_NUM_THREADS', 1))
+        self.sht_tr = int(os.environ.get('OMP_NUM_THREADS', 0))
 
         self.lmax_len = 4096 # FFP10 lensed CMBs were designed for this lmax
         self.mmax_len = 4096
         self.lmax_thingauss = lmax_thingauss
         self.lmin_dlm = lmin_dlm
 
-        self.targetres = targetres  # Main accuracy parameter. This crudely matches the FFP10 pipeline's
 
-        zls, zus = self._mkbands(nbands)
         # By construction the central one covers the equator
-        len_geoms = [utils_geom.Geom.get_thingauss_geometry(lmax_thingauss, 2)]
-        len_geoms[0].restrict(zls[nbands//2], zus[nbands//2])
-        for ib in range(nbands//2):
-            # and the other ones are symmetric w.r.t. the equator. We merge them to get faster SHTs
-            geom_south = utils_geom.Geom.get_thingauss_geometry(lmax_thingauss, 2, zbounds=(zls[ib], zus[ib]))
-            geom_north = utils_geom.Geom.get_thingauss_geometry(lmax_thingauss, 2, zbounds=(zls[nbands-ib-1], zus[nbands-ib-1]))
-            len_geoms.append(utils_geom.Geom.merge([geom_north, geom_south]))
-        pbdGeoms = [utils_geom.pbdGeometry(len_geom, utils_geom.pbounds(np.pi, 2 * np.pi)) for len_geom in len_geoms]
+        self.len_geom = utils_geom.Geom.get_thingauss_geometry(lmax_thingauss, 2)
+        pbdGeom = utils_geom.pbdGeometry(self.len_geom, utils_geom.pbounds(np.pi, 2 * np.pi))
 
-        # Sanity check, we cant have rings overlap
-        ref_geom = utils_geom.Geom.get_thingauss_geometry(self.lmax_thingauss, 2)
-        tht_all = np.concatenate([pbgeo.geom.theta for pbgeo in pbdGeoms])
-        assert np.all(np.sort(ref_geom.theta) == np.sort(tht_all))
-
-        self.pbdGeoms = pbdGeoms
+        self.pbdGeom = pbdGeom
 
         # aberration: we must add the difference to the FFP10 aberration
         l, b, v = aberration
@@ -91,25 +75,12 @@ class cmb_len_ffp10:
         if verbose:
             print("Input aberration power %.3e"%(utils_hp.alm2cl(vlm, vlm, 1, 1, 1)[1]))
         self.verbose = verbose
-
+        self.epsilon = epsilon
         self.plm_shuffle = plm_shuffle
 
-    @staticmethod
-    def _mkbands(nbands: int):
-        """Splits the sky in nbands regions with equal numbers of latitude points """
-        thts, dt = np.linspace(0, np.pi, nbands + 1), 0. / 180 / 60 * np.pi  # no buffer here
-        th_l = thts[:-1] - dt
-        th_u = thts[1:] + dt
-        th_l[0] = 0.
-        th_u[-1] = np.pi
-        zu = np.cos(th_l[::-1])
-        zl = np.cos(th_u[::-1])
-        zl[0] = -1.
-        zu[-1] = 1.
-        return zl, zu
 
     def hashdict(self):
-        ret = {'sims':'ffp10', 'tres':self.targetres, 'lmaxGL':self.lmax_thingauss, 'lmin_dlm':self.lmin_dlm}
+        ret = {'sims':'ffp10', 'epsilon':self.epsilon, 'lmaxGL':self.lmax_thingauss, 'lmin_dlm':self.lmin_dlm}
         cl_aber = utils_hp.alm2cl(self.vlm, self.vlm, 1, 1, 1)
         if np.any(cl_aber):
             ret['aberration'] = cl_aber
@@ -141,7 +112,6 @@ class cmb_len_ffp10:
             lmax_len = self.lmax_len
         if mmax_len is None:
             mmax_len = min(lmax_len, self.mmax_len)
-        len_eblm = np.zeros((2, utils_hp.Alm.getsize(lmax_len, mmax_len)), dtype=complex)
         if unl_elm is None:
             unl_elm = cmb_unl_ffp10.get_sim_elm(idx)
         if unl_blm is None:
@@ -149,9 +119,9 @@ class cmb_len_ffp10:
         lmax_elm = utils_hp.Alm.getlmax(unl_elm.size, -1)
         mmax_elm = lmax_elm
         assert lmax_elm == utils_hp.Alm.getlmax(unl_blm.size, -1)
-        for i, pbdGeom in utils.enumerate_progress(self.pbdGeoms, 'collecting bands'):
-            ffi = deflection(pbdGeom, self.targetres, dlm, mmax_dlm, self.fft_tr, self.sht_tr, verbose=self.verbose, dclm=dclm)
-            len_eblm += ffi.lensgclm([unl_elm, unl_blm], mmax_elm, 2, lmax_len, mmax_len)
+        ffi = deflection(self.len_geom, dlm, mmax_dlm, numthreads=self.sht_tr,
+                             epsilon=self.epsilon, verbose=self.verbose, dclm=dclm)
+        len_eblm = ffi.lensgclm(np.array([unl_elm, unl_blm]), mmax_elm, 2, lmax_len, mmax_len)
         return len_eblm
 
     def get_sim_tlm(self, idx):
@@ -159,12 +129,10 @@ class cmb_len_ffp10:
         if not self.cacher.is_cached(fn):
             dlm, dclm, lmax_dlm, mmax_dlm = self._get_dlm(idx)
             unl_tlm = cmb_unl_ffp10.get_sim_tlm(idx)
-            len_tlm = np.zeros(utils_hp.Alm.getsize(self.lmax_len, self.mmax_len), dtype=complex)
             lmax_tlm = utils_hp.Alm.getlmax(unl_tlm.size, -1)
             mmax_tlm = lmax_tlm
-            for i, pbdGeom in utils.enumerate_progress(self.pbdGeoms, 'collecting bands'):
-                ffi = deflection(pbdGeom, self.targetres, dlm, mmax_dlm, self.fft_tr, self.sht_tr, verbose=self.verbose, dclm=dclm)
-                len_tlm += ffi.lensgclm(unl_tlm, mmax_tlm, 0, self.lmax_len, self.mmax_len)
+            ffi = deflection(self.len_geom, dlm, mmax_dlm, numthreads=self.sht_tr, verbose=self.verbose, dclm=dclm)
+            len_tlm = ffi.lensgclm(unl_tlm, mmax_tlm, 0, self.lmax_len, self.mmax_len)
             self.cacher.cache(fn, len_tlm)
             return len_tlm
         return self.cacher.load(fn)
@@ -269,7 +237,7 @@ class cmb_len_ffp10_wcurl(cmb_len_ffp10):
 
 class cmb_len_ffp10_shuffle_dlm(cmb_len_ffp10):
     def __init__(self, dlm_idxs:dict={}, aberration:tuple[float, float, float]or None=None, lmin_dlm=0, cacher:cachers.cacher or None=None,
-                       lmax_thingauss:int=5120, nbands:int=1, targetres=0.75, verbose:bool=False):
+                       lmax_thingauss:int=5120,  epsilon=1e-7, verbose:bool=False):
 
         r"""Library of simulations with remaped the defelection field indice.
             Useful for MC-N1 computations.
@@ -279,7 +247,7 @@ class cmb_len_ffp10_shuffle_dlm(cmb_len_ffp10):
         """
 
         super(cmb_len_ffp10_shuffle_dlm, self).__init__(aberration=aberration, lmin_dlm=lmin_dlm, cacher=cacher,
-                       lmax_thingauss=lmax_thingauss, nbands=nbands, targetres=targetres, verbose=verbose)
+                       lmax_thingauss=lmax_thingauss,  epsilon=epsilon, verbose=verbose)
         self.dlm_idxs = dlm_idxs
 
     def _get_dlm(self, idx):

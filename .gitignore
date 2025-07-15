@@ -1,9 +1,13 @@
 build/
 delensalot.egg-info/
-delensalot/ana/config/cmbs4/
-delensalot/ana/config/pico/
 install/*
 SCRATCH/
+reconstruction/
+delensalot_temp/
+TESTSCRATCH/
+
+# protect notebooks
+first_steps/
 
 outputs/*
 

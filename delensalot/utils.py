@@ -1,8 +1,13 @@
+from __future__ import annotations
+
 import sys
+import healpy as hp
 from time import time
 import numpy as np
 import hashlib
 import json
+
+from lenspyx.lensing import get_geom 
 
 class timer:
     def __init__(self, verbose, prefix='', suffix=''):
@@ -84,6 +89,7 @@ class timer:
                              + " (total [" + (
                                  '%02d:%02d:%02d:%02d' % (dhi, dmi, dsi, dmsi)) + "]) " + msg + ' %s \n' % self.suffix)
 
+
 def enumerate_progress(lst:list or np.ndarray, label=''):
     """Simple progress bar.
 
@@ -105,6 +111,7 @@ def enumerate_progress(lst:list or np.ndarray, label=''):
     sys.stdout.write("\n")
     sys.stdout.flush()
 
+
 def clhash(cl, dtype=np.float32):
     """Hash for generic numpy array.
 
@@ -113,6 +120,46 @@ def clhash(cl, dtype=np.float32):
     """
     return hashlib.sha1(np.copy(cl.astype(dtype), order='C')).hexdigest()
 
+
+def hash_check(hash1, hash2, ignore=['lib_dir', 'prefix'], keychain=[], fn=None):
+    keys1 = hash1.keys()
+    keys2 = hash2.keys()
+    for key in ignore:
+        if key in keys1: keys1.remove(key)
+        if key in keys2: keys2.remove(key)
+    for key in set(keys1).union(set(keys2)):
+        # v1 = hash1[key]
+        # v2 = hash2[key]
+        try:
+            v1 = hash1[key]
+            v2 = hash2[key]
+        except KeyError:
+            raise KeyError(f"Cannot find key {key} in hashdict {fn}")
+        
+        def hashfail(msg=None):
+            print(f"CHECKING HASHFILE {fn}")
+            print(f"ERROR: HASHCHECK FAIL AT KEY {key}")
+            if msg is not None:
+                print("   " + msg)
+            print("   ", "V1 = ", v1)
+            print("   ", "V2 = ", v2)
+            print(keys1)
+            print(keys2)
+
+            assert 0
+
+        if type(v1) != type(v2):
+            hashfail(f'UNEQUAL TYPES: type(v1) = {type(v1)}, type(v2)={type(v2)}')
+        elif type(v2) == dict:
+            hash_check( v1, v2, ignore=ignore, keychain=keychain + [key], fn=fn )
+        elif type(v1) == np.ndarray:
+            if not np.allclose(v1, v2):
+                hashfail('UNEQUAL ARRAY')
+        else:
+            if not( v1 == v2 ):
+                hashfail('UNEQUAL VALUES')
+
+
 def cli(cl):
     """Pseudo-inverse for positive cl-arrays.
 
@@ -120,6 +167,13 @@ def cli(cl):
     ret = np.zeros_like(cl)
     ret[np.where(cl > 0)] = 1. / cl[np.where(cl > 0)]
     return ret
+
+
+def butterfilt(Lcut=300, n=5):
+    """Butterworth low pass filter.
+    """
+    return lambda ell: 1. / (1. + (ell/Lcut)**(2*n))
+
 
 def read_map(m):
     """Reads a map whether given as (list of) string (with ',f' denoting field f), array or callable
@@ -185,10 +239,13 @@ def cls2dls(cls):
         cl = cls.get(k, np.zeros(lmax + 1, dtype=float))
         sli = slice(0, min(len(cl), lmax + 1))
         dls[sli, i] = cl[sli] * refac[sli]
-    cldd = np.copy(cls.get('pp', None))
+    cldd = None
+    if 'pp' in cls.keys():
+        cldd = np.copy(cls.get('pp'))
     if cldd is not None:
         cldd *= np.arange(len(cldd)) ** 2 * np.arange(1, len(cldd) + 1, dtype=float) ** 2 /  (2. * np.pi)
     return dls, cldd
+
 
 def dls2cls(dls):
     """Inverse operation to cls2dls"""
@@ -199,3 +256,66 @@ def dls2cls(dls):
     for i, k in enumerate(['tt', 'ee', 'bb', 'te']):
         cls[k] = dls[:, i] * refac
     return cls
+
+
+def dls2cls_grad(dls):
+    """Maps CAMB output from get_lensed_gradient_cls to cls dict"""
+    assert dls.shape[1] == 8
+    lmax = dls.shape[0] - 1
+    cls = {}
+    refac = 2. * np.pi * cli( np.arange(lmax + 1) * np.arange(1, lmax + 2, dtype=float))
+    for i, k in enumerate(['tt', 'ee', 'bb', 'pp', 'te']): #, 'tp', 'gt2', 'gtgt']):
+        if k == 'pp':
+            cls[k] = dls[:, i]
+        else:
+            cls[k] = dls[:, i] * refac
+    return cls
+
+
+def load_file(fn, lmax=None, ifield=0):
+    if fn.endswith('.npy'):
+       return np.load(fn)[:None]
+    elif fn.endswith('.fits'):
+        return hp.read_map(fn, field=ifield)
+    elif fn.endswith('.dat'):
+        return camb_clfile(fn)
+    
+
+def ztruncify(m:np.ndarray, zbounds:np.array[tuple[float, float]]):
+    """truncify list of maps (or single map) and return only pixels along the zbounds
+
+    Args:
+        m (np.ndarray): healpix map(s)
+        zbounds (np.array[tuple[float, float]]): list of zbound for which the truncation is applied
+
+    Returns:
+        np.ndarray: truncated healpix map(s)
+    """    
+    ret = []
+    print(m.shape, len(m.shape))
+    if len(m.shape)>1:
+        for mp in m:
+            ret.append(ztruncify(mp,zbounds))
+        return np.array(ret)
+    zbounds = np.atleast_2d(np.array(zbounds))
+    nside = hp.npix2nside(m.shape[0])
+    hp_geom = get_geom(('healpix',{'nside': nside}))
+    slics = []
+    slics_m = []
+    npix = 0
+    for zbound in zbounds:
+        tht_min, tht_max = np.arccos(zbound[1]), np.arccos(zbound[0])
+        hp_trunc = get_geom(('healpix',{'nside': nside})).restrict(tht_min, tht_max, False)
+        hp_start = hp_geom.ofs[np.where(hp_geom.theta == np.min(hp_trunc.theta))[0]][0]
+        this_npix = hp_trunc.npix()
+        hp_end = hp_start + this_npix
+        slics.append(slice(hp_start, int(hp_end)))
+        slics_m.append(slice(npix, npix + this_npix))
+        npix += this_npix
+
+    if len(slics) == 1:
+        return m[slics[0]]
+    ret = np.zeros(npix, dtype=float)
+    for sli_m, sli in zip(slics_m, slics):
+        ret[sli_m] = m[sli]
+    return ret

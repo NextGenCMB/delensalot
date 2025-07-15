@@ -7,31 +7,24 @@
 
 """
 
-import os
+import os, sys, time
 from os.path import join as opj
-import shutil
-import time
-import sys
 import numpy as np
 
 import lenspyx.remapping.utils_geom as utils_geom
-
-from plancklens.qcinv import multigrid
-
-from delensalot.utils import cli, read_map
-from delensalot.utility.utils_hp import Alm, almxfl, alm2cl
-from delensalot.core import cachers
-from delensalot.core.iterator import steps
-import delensalot.core.iterator.cs_iterator
-from delensalot.core.opfilt import opfilt_base
-
 
 import logging
 log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
 
-alm2rlm = lambda alm : alm # get rid of this
-rlm2alm = lambda rlm : rlm
+from delensalot.utils import cli
+from delensalot.utility.utils_hp import Alm, almxfl
+from delensalot.core import cachers
+from delensalot.core.cg import multigrid
+from delensalot.core.iterator import steps
+from delensalot.core.opfilt import opfilt_base
+import delensalot.core.iterator.cs_iterator
+
 
 
 class iterator_cstmf(delensalot.core.iterator.cs_iterator.qlm_iterator):
@@ -52,18 +45,18 @@ class iterator_cstmf(delensalot.core.iterator.cs_iterator.qlm_iterator):
         self.cacher.cache('mf', almxfl(mf0, self._h2p(self.lmax_qlm), self.mmax_qlm, False))
 
 
-    @log_on_start(logging.INFO, "fastWF.load_graddet() started: it={k}, key={key}")
-    @log_on_end(logging.INFO, "fastWF.load_graddet() finished: it={k}, key={key}")
+    @log_on_start(logging.DEBUG, "fastWF.load_graddet() started: it={k}, key={key}")
+    @log_on_end(logging.DEBUG, "fastWF.load_graddet() finished: it={k}, key={key}")
     def load_graddet(self, k, key):
         return self.cacher.load('mf')
 
-    @log_on_start(logging.INFO, "fastWF.calc_graddet() started: it={k}, key={key}")
-    @log_on_end(logging.INFO, "fastWF.calc_graddet() finished: it={k}, key={key}")
+    @log_on_start(logging.DEBUG, "fastWF.calc_graddet() started: it={k}, key={key}")
+    @log_on_end(logging.DEBUG, "fastWF.calc_graddet() finished: it={k}, key={key}")
     def calc_graddet(self, k, key):
         return self.cacher.load('mf')
 
-    @log_on_start(logging.INFO, "fastWF.calc_gradlik() started: it={itr}, key={key}")
-    @log_on_end(logging.INFO, "fastWF.calc_gradlik() finished: it={itr}, key={key}")
+    @log_on_start(logging.DEBUG, "fastWF.calc_gradlik() started: it={itr}, key={key}")
+    @log_on_end(logging.DEBUG, "fastWF.calc_gradlik() finished: it={itr}, key={key}")
     def calc_gradlik(self, itr, key, iwantit=False):
         """Computes the quadratic part of the gradient for plm iteration 'itr'
 
@@ -72,7 +65,6 @@ class iterator_cstmf(delensalot.core.iterator.cs_iterator.qlm_iterator):
         assert itr > 0, itr
         assert key.lower() in ['p', 'o'], key  # potential or curl potential.
         if not self._is_qd_grad_done(itr, key) or iwantit:
-            log.info("before loading dlm")
             assert key in ['p'], key + '  not implemented'
             dlm = self.get_hlm(itr - 1, key)
             self.hlm2dlm(dlm, True)
@@ -82,7 +74,6 @@ class iterator_cstmf(delensalot.core.iterator.cs_iterator.qlm_iterator):
             mmax = None  # FIXME: here should be data actual mmax. We assume same as lmax
             #: FIXME total unsafe hack to see if this is pol or TT rec:
             PorT = 'p' in self.opfilt.__name__.split('.')[-1] or 'e' in self.opfilt.__name__.split('.')[-1]
-            log.info("before lensing")
             if PorT: # Pol rec.
                 delEB = np.empty_like(self.dat_maps)
                 delEB[0] = almxfl(self.dat_maps[0], cli(self.filter.transf_elm), mmax, False)
@@ -95,7 +86,6 @@ class iterator_cstmf(delensalot.core.iterator.cs_iterator.qlm_iterator):
                 delT = ffi.lensgclm(delT, self.filter.mmax_len, 0, self.filter.lmax_len, self.filter.mmax_len, backwards=True, nomagn=True)
                 almxfl(delT, self.filter.transf, mmax, True)
             self.filter.set_ffi(self.filter.ffi.change_dlm([np.zeros_like(dlm), None], self.mmax_qlm, cachers.cacher_mem(safe=False)))
-            log.info("multigrid.multigrid_chain")
             mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.filter)
             soltn, it_soltn = self.load_soltn(itr, key)
 
@@ -103,16 +93,14 @@ class iterator_cstmf(delensalot.core.iterator.cs_iterator.qlm_iterator):
                 soltn *= self.soltn_cond
                 assert soltn.ndim == 1, 'Fix following lines'
                 if PorT:
-                    log.info('before mchain.solve()')
                     mchain.solve(soltn, delEB, dot_op=self.filter.dot_op())
-                    log.info('after mchain.solve()')
                 else:
                     mchain.solve(soltn, delT, dot_op=self.filter.dot_op())
                 fn_wf = 'wflm_%s_it%s' % (key.lower(), itr - 1)
                 log.info("caching "  + fn_wf)
                 self.wf_cacher.cache(fn_wf, soltn)
             else:
-                log.info("Using cached WF solution at iter %s "%itr)
+                log.debug("Using cached WF solution at iter %s "%itr)
 
             t0 = time.time()
             if ffi.pbgeom.geom is self.k_geom and ffi.pbgeom.pbound == utils_geom.pbounds(0., 2 * np.pi):
