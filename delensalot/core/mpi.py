@@ -59,15 +59,13 @@ def enable(verbose=True):
         barrier, send, receive, bcast = comm.Barrier, comm.send, comm.recv, comm.bcast
         finalize, ANY_SOURCE = MPI.Finalize, MPI.ANY_SOURCE
         disabled = False
-        if verbose:
-            if not rank: print(f"[env: {detect_env()}] mpi4py available: {is_installed('mpi4py')} | OMP_NUM_THREADS={OMP_threads}")
     except Exception as e:
         if verbose:
             if not rank: print(f"[env: {detect_env()}] mpi4py load failed: {e} | OMP_NUM_THREADS={OMP_threads}")
         disable()
 
 def print_mpi_info():
-    if not rank: print(f"MPI task-size: {size}\nHost: {hostname}\nTotal system CPUs: {n_cpus}\nThreads (CPUs per task): {OMP_threads} | MPI: {'enabled' if not disabled else 'disabled'}")
+    if not rank: print(f"MPI:\t\t\t{'enabled' if not disabled else 'disabled'}\nMPI task-size:\t\t{size} (the number of simulations processed in parallel)\nOMP_NUM_Threads:\t{OMP_threads} (CPUs per simulation)\nTotal system CPUs:\t{n_cpus}\nEstimated idle CPUs:\t{int(n_cpus)-int(size)*int(OMP_threads)}\nHost:\t\t\t{hostname}\n --------- ")
 
 
 def parse_slurm_script(script_path):
@@ -113,6 +111,14 @@ def parse_slurm_script(script_path):
     if omp_threads and omp_threads.isdigit():
         config["cpus_per_task"] = int(omp_threads)
 
+    print("Parsed SLURM script settings:")
+    print(f"{'nodes':>16}: {config['nodes']}")
+    print(f"{'ntasks':>16}: {config['ntasks']}  # number of simulations processed in parallel (MPI tasks)")
+    print(f"{'ntasks_per_node':>16}: {config['ntasks_per_node']}")
+    print(f"{'cpus_per_task':>16}: {config['cpus_per_task']}  # number of CPU cores used per simulation (OpenMP threads)")
+    print(f"{'mem_per_task':>16}: {config['mem_per_task']}")
+    # print(f"{'gres':>16}: {config['gres']}")
+    # print(f"{'env_vars':>16}: {config['env_vars']}")
     return config
 
 def check_hardware_compliance(config, rank, env_name):
@@ -156,8 +162,5 @@ if __name__ == "__main__":
     if len(sys.argv) == 2:
         if not rank:
             parsed = parse_slurm_script(sys.argv[1])
-            print("\nParsed SLURM script settings:")
-            for k, v in parsed.items():
-                print(f"{k:>16}: {v}")
             check_hardware_compliance(parsed, rank, detect_env())
 
