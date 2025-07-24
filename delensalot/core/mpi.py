@@ -1,110 +1,73 @@
-"""mpi4py wrapper module, supporting send/receive.
+import os, sys, platform, logging
+from importlib.util import find_spec
 
-"""
-
-from __future__ import print_function
-import logging
 log = logging.getLogger(__name__)
+rank, size, disabled = 0, 1, True
+barrier = send = receive = bcast = finalize = lambda *a, **kw: None
+ANY_SOURCE = 0
+n_cpus = os.cpu_count()
+OMP_threads = os.environ.get("OMP_NUM_THREADS", "not set")
+hostname = platform.node()
 
-import os, sys, importlib
-import platform
-import multiprocessing
+def is_notebook():
+    try: return 'ZMQ' in get_ipython().__class__.__name__
+    except: return False
 
+def is_installed(pkg="mpi4py"):
+    return pkg in sys.modules or find_spec(pkg)
 
-def check_MPI(func):
-    global name, rank, size
-    def inner_function(*args, **kwargs):
-        log.info("rank: {}, size: {}, name: {}".format(rank, size, name))
-        return func(*args, **kwargs)
-    return inner_function
-
-def check_MPI_inline():
-    global name, rank, size
-    log.info("rank: {}, size: {}, name: {}".format(rank, size, name))
-
-
-def isinstalled():
-    # For illustrative purposes.
-    name = 'mpi4py'
-    if name in sys.modules:
-        print(f"{name!r} already in sys.modules")
-        return True
-    spec = importlib.util.find_spec(name)
-    if spec is not None:
-        # If you choose to perform the actual import ...
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[name] = module
-        spec.loader.exec_module(module)
-        print(f"{name!r} has been imported")
-        return True
+def detect_env():
+    if "SLURM_JOB_ID" in os.environ:
+        return "slurm_compute_node"
+    elif any(env in os.environ for env in ["SLURM_CLUSTER_NAME", "SLURM_CONF"]):
+        return "slurm_login_node"
     else:
-        print(f"can't find the {name!r} module")
-        return False
-
-
-def is_notebook() -> bool:
-    try:
-        shell = get_ipython().__class__.__name__
-        if shell == 'ZMQInteractiveShell':
-            return True   # Jupyter notebook or qtconsole
-        elif shell == 'TerminalInteractiveShell':
-            return False  # Terminal running IPython
-        else:
-            return False  # Other type (?)
-    except NameError:
-        return False
-
-
-def enable():
-    global disabled, verbose, has_key, mpisupport, name
-    disabled = False
-    verbose = True
-    has_key = lambda key : key in os.environ.keys()
-    if '_' in os.environ:
-        mpisupport = 'srun' in os.environ['_'] or 'mpirun' in os.environ['_']
-    else:
-        mpisupport = False
-    pmisupport = 'PMI_CRAY_NO_SMP_ORDER' in os.environ.keys()
-    # mpisupport = not has_key('NERSC_HOST') or (has_key('SLURM_SUBMIT_DIR') and has_key('NERSC_HOST'))
-    name = "{} with {} cpus".format(platform.processor(),multiprocessing.cpu_count())
-
-    if not is_notebook() and (mpisupport or pmisupport) and isinstalled():
-        print('mpisupport: {}, pmisupport: {}'.format(mpisupport, pmisupport))
-        init()
-    else:
-        print('mpisupport: {}, pmisupport: {}'.format(mpisupport, pmisupport))
-        disable()
-
-
-
-def disable():
-    
-    global barrier, send, receive, bcast, ANY_SOURCE, name, rank, size, finalize, disabled
-    print('disabling mpi')
-    barrier = lambda: -1
-    send = lambda _, dest: 0
-    receive = lambda _, source: _
-    bcast = lambda _, root=0: _
-    ANY_SOURCE = 0
-    disabled = True
-    rank = 0
-    size = 1
-    finalize = lambda: -1
-    log.info('mpi.py : disabled, rank %s in %s' % (rank, size))
+        return "home_station"
 
 def init():
+    global rank, size, barrier, send, receive, bcast, finalize, ANY_SOURCE, disabled
+    try:
+        from mpi4py import MPI
+        comm = MPI.COMM_WORLD
+        rank, size = comm.Get_rank(), comm.Get_size()
+        barrier, send, receive, bcast = comm.Barrier, comm.send, comm.recv, comm.bcast
+        finalize, ANY_SOURCE = MPI.Finalize, MPI.ANY_SOURCE
+        disabled = False
+        log.info(f"MPI initialized: rank {rank}, size {size}")
+    except Exception as e:
+        log.warning(f"MPI init failed: {e}")
+        disable()
 
-    global barrier, send, receive, bcast, ANY_SOURCE, name, rank, size, finalize, disabled
-    print('enabling mpi')
-    from mpi4py import MPI
-    rank = MPI.COMM_WORLD.Get_rank()
-    size = MPI.COMM_WORLD.Get_size()
-    barrier = MPI.COMM_WORLD.Barrier
-    ANY_SOURCE = MPI.ANY_SOURCE
-    send = MPI.COMM_WORLD.send
-    receive = MPI.COMM_WORLD.recv
-    bcast = MPI.COMM_WORLD.bcast
-    finalize = MPI.Finalize
-    log.info('mpi.py : setup OK, rank %s in %s' % (rank, size))
+def disable():
+    global rank, size, disabled
+    rank, size, disabled = 0, 1, True
+    log.info("MPI disabled")
 
-enable()
+def enable(verbose=True):
+    if is_notebook():
+        disable()
+        return
+    try:
+        from mpi4py import MPI
+        comm = MPI.COMM_WORLD
+        global rank, size, barrier, send, receive, bcast, finalize, ANY_SOURCE, disabled
+        rank, size = comm.Get_rank(), comm.Get_size()
+        barrier, send, receive, bcast = comm.Barrier, comm.send, comm.recv, comm.bcast
+        finalize, ANY_SOURCE = MPI.Finalize, MPI.ANY_SOURCE
+        disabled = False
+        if verbose:
+            print(f"[env: {detect_env()}] mpi4py available: {is_installed('mpi4py')} | OMP_NUM_THREADS={OMP_threads}")
+    except Exception as e:
+        if verbose:
+            print(f"[env: {detect_env()}] mpi4py load failed: {e} | OMP_NUM_THREADS={OMP_threads}")
+        disable()
+
+def print_mpi_info():
+    print(f"[Rank {rank}/{size}] Host: {hostname} | CPUs: {n_cpus} | Threads: {OMP_threads} | MPI: {'enabled' if not disabled else 'disabled'}")
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.WARNING)
+    enable()
+    print_mpi_info()
+    barrier()
+    print(f"Hello from rank {rank}/{size}")
