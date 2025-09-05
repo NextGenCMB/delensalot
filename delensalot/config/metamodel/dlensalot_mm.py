@@ -356,7 +356,6 @@ class DLENSALOT_Config(DLENSALOT_Concept):
         outdir_plot_root (str): root path for the plots to be stored at
         outdir_plot_rel (str):  relative path folder for the plots to be stored at
     """
-    outdir_plot_root =      attr.field(default=opj(os.environ['HOME'], 'plots'))
     outdir_plot_rel =       attr.field(default='')
 
 @attr.s

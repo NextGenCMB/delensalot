@@ -148,7 +148,6 @@ DL_DEFAULT = {
         'beam': 1.0,
     },
     'config': {
-        'outdir_plot_root': opj(os.environ['HOME'], 'plots'),
         'outdir_plot_rel': ''
     }
 }
