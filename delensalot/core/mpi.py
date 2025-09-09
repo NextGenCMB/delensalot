@@ -107,6 +107,7 @@ def init():
     bcast = MPI.COMM_WORLD.bcast
     finalize = MPI.Finalize
     log.info('mpi.py : setup OK, rank %s in %s' % (rank, size))
+    print('mpi.py : setup OK, rank %s in %s' % (rank, size))
 
 enable()
 
