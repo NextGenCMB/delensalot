@@ -61,9 +61,12 @@ def enable():
     disabled = False
     verbose = True
     has_key = lambda key : key in os.environ.keys()
-    if '_' in os.environ:
-        mpisupport = 'srun' in os.environ['_'] or 'mpirun' in os.environ['_']
-    else:
+    try:
+        from mpi4py import MPI
+        comm = MPI.COMM_WORLD
+        size = comm.Get_size()
+        mpisupport = size > 1
+    except ImportError:
         mpisupport = False
     pmisupport = 'PMI_CRAY_NO_SMP_ORDER' in os.environ.keys()
     # mpisupport = not has_key('NERSC_HOST') or (has_key('SLURM_SUBMIT_DIR') and has_key('NERSC_HOST'))
