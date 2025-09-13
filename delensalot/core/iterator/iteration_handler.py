@@ -28,7 +28,7 @@ class base_iterator():
         
         self.libdir_iterator = self.libdir_MAP(self.k, simidx, self.version)
         if not os.path.exists(self.libdir_iterator):
-            os.makedirs(self.libdir_iterator)
+            os.makedirs(self.libdir_iterator, exist_ok=True)
 
         self.tr = self.iterator_config.tr
         if self.qe.qe_filter_directional == 'anisotropic':

@@ -69,17 +69,17 @@ class Basejob():
 
         self.libdir_QE = opj(self.TEMP, 'QE')
         if not os.path.exists(self.libdir_QE):
-            os.makedirs(self.libdir_QE)
+            os.makedirs(self.libdir_QE, exist_ok=True)
         self.libdir_MAP = lambda qe_key, simidx, version: opj(self.TEMP, 'MAP/%s'%(qe_key), 'sim%04d'%(simidx) + version)
         self.libdir_blt = lambda simidx: opj(self.TEMP, 'MAP/%s'%(self.k), 'sim%04d'%(simidx) + self.version, 'BLT/')
         for simidx in np.array(list(set(np.concatenate([self.simidxs, self.simidxs_mf]))), dtype=int):
             ## calculates all plms even for mf indices. This is not necessarily requested due to potentially simidxs =/= simidxs_mf, but otherwise collect and run must be adapted and its ok like this.
             libdir_MAPidx = self.libdir_MAP(self.k, simidx, self.version)
             if not os.path.exists(libdir_MAPidx):
-                os.makedirs(libdir_MAPidx)
+                os.makedirs(libdir_MAPidx, exist_ok=True)
             if not os.path.exists(self.libdir_blt(simidx)):
-                os.makedirs(self.libdir_blt(simidx))
-         
+                os.makedirs(self.libdir_blt(simidx), exist_ok=True)
+
         self.config_model = model
         self.jobs = []
 
@@ -283,11 +283,11 @@ class Sim_generator(Basejob):
             if mpi.rank == 0:
                 if mpi.size>1:
                     if not os.path.exists(self.libdir):
-                        os.makedirs(self.libdir)
+                        os.makedirs(self.libdir, exist_ok=True)
                     [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
                 else:
                     if not os.path.exists(self.libdir):
-                        os.makedirs(self.libdir)
+                        os.makedirs(self.libdir, exist_ok=True)
             else:
                 mpi.receive(None, source=mpi.ANY_SOURCE)
             
@@ -1018,7 +1018,7 @@ class MAP_lr(Basejob):
         ## tasks -> mf_dirname
         if "calc_meanfield" in self.it_tasks or 'calc_blt' in self.it_tasks:
             if not os.path.isdir(self.mf_dirname) and mpi.rank == 0:
-                os.makedirs(self.mf_dirname)
+                os.makedirs(self.mf_dirname, exist_ok=True)
 
         # sims -> sims_MAP
         if self.it_filter_directional == 'anisotropic':
@@ -1217,7 +1217,7 @@ class Map_delenser(Basejob):
         self.simgen = Sim_generator(dlensalot_model)
         self.libdir_delenser = opj(self.TEMP, 'delensing/{}'.format(self.dirid))
         if not(os.path.isdir(self.libdir_delenser)):
-            os.makedirs(self.libdir_delenser)
+            os.makedirs(self.libdir_delenser, exist_ok=True)
         self.fns = opj(self.libdir_delenser, 'ClBB_sim{:04d}.npy')
 
 
@@ -1395,20 +1395,20 @@ class Phi_analyser(Basejob):
 
         
         if not(os.path.isdir(self.libdir_phianalayser)):
-            os.makedirs(self.libdir_phianalayser)
+            os.makedirs(self.libdir_phianalayser, exist_ok=True)
         
         self.TEMP_WF = opj(self.libdir_phianalayser, 'WF')
         if not os.path.isdir(self.TEMP_WF):
-            os.makedirs(self.TEMP_WF)
+            os.makedirs(self.TEMP_WF, exist_ok=True)
         self.TEMP_Cx = opj(self.libdir_phianalayser, 'Cx')
         if not os.path.isdir(self.TEMP_Cx):
-            os.makedirs(self.TEMP_Cx)
+            os.makedirs(self.TEMP_Cx, exist_ok=True)
         self.TEMP_Cxbias = opj(self.libdir_phianalayser, 'Cxb')
         if not os.path.isdir(self.TEMP_Cxbias):
-            os.makedirs(self.TEMP_Cxbias)
+            os.makedirs(self.TEMP_Cxbias, exist_ok=True)
         self.TEMP_Cccc = opj(self.libdir_phianalayser, 'Cccc')
         if not os.path.isdir(self.TEMP_Cccc):
-            os.makedirs(self.TEMP_Cccc)
+            os.makedirs(self.TEMP_Cccc, exist_ok=True)
 
     def collect_jobs(self):
         _jobs, jobs = [], []

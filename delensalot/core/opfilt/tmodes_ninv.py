@@ -81,7 +81,7 @@ class template_tfilt(object):
         self.lib_dir = None
         if _lib_dir is not None and lmax_marg > 10: #just to avoid problems if user does not understand what is doing...
             if not os.path.exists(_lib_dir):
-                os.makedirs(_lib_dir)
+                os.makedirs(_lib_dir, exist_ok=True)
             self.lib_dir = _lib_dir
 
     def hashdict(self):

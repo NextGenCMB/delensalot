@@ -59,7 +59,7 @@ class cinv_p(filt_cinv.cinv):
         self.chain = util.jit(multigrid.multigrid_chain, opfilt_pp, chain_descr, cl, self.n_inv_filt)
 
         if not os.path.exists(lib_dir):
-            os.makedirs(lib_dir)
+            os.makedirs(lib_dir, exist_ok=True)
         if not os.path.exists(os.path.join(lib_dir, "filt_hash.pk")):
             pk.dump(self.hashdict(), open(os.path.join(lib_dir, "filt_hash.pk"), 'wb'), protocol=2)
         if not os.path.exists(os.path.join(self.lib_dir, "fbl.dat")):
@@ -69,7 +69,7 @@ class cinv_p(filt_cinv.cinv):
         if not os.path.exists(os.path.join(self.lib_dir, "tal.dat")):
             np.savetxt(os.path.join(self.lib_dir, "tal.dat"), self._calc_tal())
         if not os.path.exists(os.path.join(self.lib_dir,  "fmask.fits.gz")):
-            hp.write_map(os.path.join(self.lib_dir,  "fmask.fits.gz"),  self._calc_mask())
+            hp.write_map(os.path.join(self.lib_dir,  "fmask.fits.gz"),  self._calc_mask(), overwrite=True)
 
         utils.hash_check(pk.load(open(os.path.join(lib_dir, "filt_hash.pk"), 'rb')), self.hashdict(), fn=os.path.join(lib_dir, "filt_hash.pk"))
 

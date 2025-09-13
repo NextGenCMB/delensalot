@@ -119,7 +119,7 @@ class cinv_t(cinv):
         self.chain = util.jit(multigrid.multigrid_chain, opfilt_tt, chain_descr, dl, n_inv_filt)
         if mpi.rank == 0:
             if not os.path.exists(lib_dir):
-                os.makedirs(lib_dir)
+                os.makedirs(lib_dir, exist_ok=True)
 
             if not os.path.exists(os.path.join(lib_dir, "filt_hash.pk")):
                 pk.dump(self.hashdict(), open(os.path.join(lib_dir, "filt_hash.pk"), 'wb'), protocol=2)
@@ -131,7 +131,7 @@ class cinv_t(cinv):
                 np.savetxt(os.path.join(self.lib_dir, "tal.dat"),  self._calc_tal())
 
             if not os.path.exists(os.path.join(self.lib_dir, "fmask.fits.gz")):
-                hp.write_map(os.path.join(self.lib_dir, "fmask.fits.gz"), self._calc_mask())
+                hp.write_map(os.path.join(self.lib_dir, "fmask.fits.gz"), self._calc_mask(), overwrite=True)
 
         mpi.barrier()
         utils.hash_check(pk.load(open(os.path.join(lib_dir, "filt_hash.pk"), 'rb')), self.hashdict(), fn=os.path.join(lib_dir, "filt_hash.pk"))
@@ -241,7 +241,7 @@ class cinv_p(cinv):
 
         if mpi.rank == 0:
             if not os.path.exists(lib_dir):
-                os.makedirs(lib_dir)
+                os.makedirs(lib_dir, exist_ok=True)
 
             if not os.path.exists(os.path.join(lib_dir, "filt_hash.pk")):
                 pk.dump(self.hashdict(), open(os.path.join(lib_dir, "filt_hash.pk"), 'wb'), protocol=2)
@@ -255,7 +255,7 @@ class cinv_p(cinv):
                 np.savetxt(os.path.join(self.lib_dir, "tal.dat"), self._calc_tal())
 
             if not os.path.exists(os.path.join(self.lib_dir,  "fmask.fits.gz")):
-                hp.write_map(os.path.join(self.lib_dir,  "fmask.fits.gz"),  self._calc_mask())
+                hp.write_map(os.path.join(self.lib_dir,  "fmask.fits.gz"),  self._calc_mask(), overwrite=True)
 
         mpi.barrier()
         utils.hash_check(pk.load(open(os.path.join(lib_dir, "filt_hash.pk"), 'rb')), self.hashdict(), fn=os.path.join(lib_dir, "filt_hash.pk"))
@@ -410,7 +410,7 @@ class cinv_tp:
 
         if mpi.rank == 0:
             if not os.path.exists(lib_dir):
-                os.makedirs(lib_dir)
+                os.makedirs(lib_dir, exist_ok=True)
 
             if not os.path.exists(os.path.join(lib_dir,  "filt_hash.pk")):
                 pk.dump(self.hashdict(), open(os.path.join(lib_dir,  "filt_hash.pk"), 'wb'), protocol=2)
@@ -420,7 +420,7 @@ class cinv_tp:
 
             if not os.path.exists(os.path.join(self.lib_dir,  "fmask.fits.gz")):
                 fmask = self.calc_mask()
-                hp.write_map(os.path.join(self.lib_dir,  "fmask.fits.gz"), fmask)
+                hp.write_map(os.path.join(self.lib_dir,  "fmask.fits.gz"), fmask, overwrite=True)
 
         mpi.barrier()
         utils.hash_check(pk.load(open(os.path.join(lib_dir,  "filt_hash.pk"), 'rb')), self.hashdict(), fn=os.path.join(lib_dir, "filt_hash.pk"))
@@ -534,7 +534,7 @@ class library_cinv_sepTP(filt_simple.library_sepTP):
             if not os.path.exists(fname_mask):
                 fmask = self.cinv_t.get_fmask()
                 assert np.all(fmask == self.cinv_p.get_fmask())
-                hp.write_map(fname_mask, fmask)
+                hp.write_map(fname_mask, fmask, overwrite=True)
 
         mpi.barrier()
         utils.hash_check(pk.load(open(os.path.join(lib_dir, "filt_hash.pk"), 'rb')), self.hashdict(), fn=os.path.join(lib_dir, "filt_hash.pk"))
@@ -604,7 +604,7 @@ class library_cinv_jTP(filt_simple.library_jTP):
             if not os.path.exists(fname_mask):
                 fmask = self.cinv_tp.get_fmask()
                 assert np.all(fmask == self.cinv_tp.get_fmask())
-                hp.write_map(fname_mask, fmask)
+                hp.write_map(fname_mask, fmask, overwrite=True)
 
         mpi.barrier()
         utils.hash_check(pk.load(open(os.path.join(lib_dir, "filt_hash.pk"), 'rb')), self.hashdict(), fn=os.path.join(lib_dir, "filt_hash.pk"))

@@ -46,7 +46,7 @@ DATDIR = opj(os.environ['SCRATCH'],'lenspyxedFFP10cls_noaberration')
 libdir_n1_dd = os.path.join(TEMP, 'n1_ffp10_l4096_L5120')
 
 if not os.path.exists(DATDIR):
-    os.makedirs(DATDIR)
+    os.makedirs(DATDIR, exist_ok=True)
 # harmonic space noise phas down to 4096
 noise_phas = phas.lib_phas(opj(os.environ['HOME'], 'noisephas_lmax%s'%4096), 3, 4096) # T, E, and B noise phases
 cmb_phas = phas.lib_phas(opj(os.environ['HOME'], 'cmbphas_lmax%s'%5120), 4, 5120) # unlensed CMB phases
@@ -148,7 +148,7 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float, epsilon=1e-5, nbump=
     """
     libdir_iterator = libdir_iterators(k, simidx, version)
     if not os.path.exists(libdir_iterator):
-        os.makedirs(libdir_iterator)
+        os.makedirs(libdir_iterator, exist_ok=True)
     if numthreads <= 0:
         numthreads = int(os.environ.get('OMP_NUM_THREADS', cpu_count()))
     cpp = np.copy(cls_unl['pp'][:lmax_qlm + 1])

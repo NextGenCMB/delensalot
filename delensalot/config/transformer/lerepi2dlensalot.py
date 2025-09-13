@@ -856,7 +856,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     dl.outdir_plot_abs = opj(dl.outdir_plot_root, dl.outdir_plot_rel)
                     
                     if not os.path.isdir(dl.outdir_plot_abs):
-                        os.makedirs(dl.outdir_plot_abs)
+                        os.makedirs(dl.outdir_plot_abs, exist_ok=True)
                     log.info('Plots will be stored at {}'.format(dl.outdir_plot_abs))
 
 

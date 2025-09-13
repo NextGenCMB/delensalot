@@ -182,7 +182,7 @@ class config_handler():
                 dostore = True
         if dostore:
             if not os.path.exists(TEMP):
-                os.makedirs(TEMP)
+                os.makedirs(TEMP, exist_ok=True)
             try:
                 shutil.copyfile(parser.config_file, TEMP +'/'+parser.config_file.split('/')[-1])
                 logging.info('config file stored at '+ TEMP +'/'+parser.config_file.split('/')[-1])
