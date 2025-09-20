@@ -57,7 +57,6 @@ class Multiply:
         return self.act(obj, spin=spin, adjoint=True)
 
 
-
 class Compound:
     def __init__(self, operators, out, sht_tr):
         
@@ -155,14 +154,7 @@ class Lensing(Operator):
                 # print('lensing with', self.lm_max_in[1], 2, *self.lm_max_out)
                 # print(self.ffi.__dict__)
                 # print(np.atleast_2d(obj[1:]))
-                print('now comes lensing')
-                import hashlib
-                print(np.atleast_2d(obj[1:]), self.lm_max_in[1], 2, *self.lm_max_out)
-                print(hash(hashlib.sha256(self.ffi.dlm.view(np.uint8)).hexdigest()))
-                print(hash(hashlib.sha256(np.atleast_2d(obj[1:]).view(np.uint8)).hexdigest()))
                 eblm = np.atleast_2d(self.ffi.lensgclm(np.atleast_2d(obj[1:]), self.lm_max_in[1], 2, *self.lm_max_out, backwards=backwards, out_sht_mode="GRAD_ONLY")) if self.data_key in ['p', 'ee', 'eb', 'bb', 'tp'] else np.zeros(shape=(1, Alm.getsize(*self.lm_max_out)),dtype=complex)
-                print(eblm)
-                print('that was eblm')
                 return np.array([tlm.squeeze(), *eblm, np.zeros_like(tlm.squeeze())])
             else:
                 if out == 'map':
@@ -186,9 +178,9 @@ class Lensing(Operator):
             d = [fieldlm[0], None] if self.component[0] == 'p' else [np.zeros_like(fieldlm[0], dtype=complex), fieldlm[0]]
         else:
             d = fieldlm
-        d = [np.load('/Users/sebastianbelkner/Desktop/git/delensalot/delensalot_temp/analysis/test_mainvssdevmasked_main_lminB0/MAP/p_p/sim0000noMF/phi_plm_it000.npy'), None]
-        import healpy as hp
-        d[0] = hp.almxfl(d[0], np.sqrt(np.arange(4000 + 1, dtype=float) * np.arange(1, 4000 + 2, dtype=float)))
+        # d = [np.load('/Users/sebastianbelkner/Desktop/git/delensalot/delensalot_temp/analysis/test_mainvssdevmasked_main_lminB0/MAP/p_p/sim0000noMF/phi_plm_it000.npy'), None]
+        # import healpy as hp
+        # d[0] = hp.almxfl(d[0], np.sqrt(np.arange(4000 + 1, dtype=float) * np.arange(1, 4000 + 2, dtype=float)))
         self.ffi = deflection(self.lenjob_geomlib, d[0], self.LM_max[1], dclm=d[1], numthreads=self.sht_tr, verbosity=False, epsilon=1e-10)
 
 
@@ -265,7 +257,6 @@ class SpinRaise:
         assert 0, "implement if needed"
         return self.act(obj, adjoint=True, spin=spin)
 
-    
 
 class Beam:
     def __init__(self, operator_desc):
@@ -300,7 +291,7 @@ class Beam:
     
 
 class InverseNoiseVariance(Operator):
-    def __init__(self, nlev, lm_max, niv_desc, geom_lib, geominfo, transferfunction, libdir, spectrum_type=None, OBD=None, obd_rescale=None, obd_libdir=None, sky_coverage=None, filtering_spatial_type=None, data_key=None, sht_tr=None):
+    def __init__(self, nlev, lm_max, niv_desc, geom_lib, geominfo, transferfunction, libdir, sht_tr, spectrum_type=None, OBD=None, obd_rescale=None, obd_libdir=None, sky_coverage=None, filtering_spatial_type=None, data_key=None):
         super().__init__(libdir)
         self.ID = 'inoise'
         self.data_key = data_key

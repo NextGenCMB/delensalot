@@ -9,7 +9,7 @@ from delensalot.core import cachers
 
 from delensalot.utils import cli
 from delensalot.utility.utils_hp import almxfl, alm2cl
-
+from delensalot.core.MAP.context import get_computation_context
 
 class BFGSHessian(object):
     """
@@ -76,7 +76,8 @@ class BFGSHessian(object):
             log.debug('Linked s vector {} to Hessian'.format(str(path2s)))
 
     def _save_alpha(self, alpha, i):
-        fname = 'temp_alpha_%s'%i
+        ctx, isnew = get_computation_context()
+        fname = 'temp_alpha_%s_%s'%(i, ctx.idx)
         self.cacher.cache(fname, alpha)
         return
 
@@ -84,8 +85,9 @@ class BFGSHessian(object):
         """Loads, and remove, bfgs alpha from disk.
 
         """
-        fname = 'temp_alpha_%s'%i
-        assert self.cacher.is_cached(fname)
+        ctx, isnew = get_computation_context()
+        fname = 'temp_alpha_%s_%s'%(i, ctx.idx)
+        assert self.cacher.is_cached(fname), fname
         ret = self.cacher.load(fname)
         self.cacher.remove(fname)
         return ret
@@ -143,7 +145,7 @@ class BFGSHessian(object):
         for i in range(k - 1, np.max([-1, k - self.L - 1]), -1):
             alpha_i = rho(i) * self.dot_op(self.s(i), q)
             q -= alpha_i * self.y(i)
-            self._save_alpha(alpha_i, i)
+            self._save_alpha(alpha_i, i) # FIXME may want to keep the alphas and only save the new ones. Delete them after last iteration done.
 
         r = self.applyH0k(q, k)
         for i in range(np.max([0, k - self.L]), k):

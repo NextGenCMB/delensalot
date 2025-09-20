@@ -84,7 +84,7 @@ def gauss_beamtransferfunction_cosine(beam, lm_max, lmin_teb, with_pixwin=False,
     return dict(zip('teb', [t.squeeze().T for t in transf]))  # Ensure correct orientation
 
 
-def gauss_beamtransferfunction_sharp(beam, lm_max, lmin_teb, with_pixwin=False, geominfo=None):
+def gauss_beamtransferfunction(beam, lm_max, lmin_teb, with_pixwin=False, geominfo=None):
     beam_factor = gauss_beam(df.a2r(beam), lmax=lm_max[0])
     lmin_mask = np.arange(lm_max[0] + 1)[:, None] >= lmin_teb
     if not with_pixwin:

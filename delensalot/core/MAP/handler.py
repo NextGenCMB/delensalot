@@ -15,32 +15,27 @@ template_secondaries = ['lensing', 'birefringence']  # Define your desired order
 template_index_secondaries = {val: i for i, val in enumerate(template_secondaries)}
 
 class Minimizer:
-    def __init__(self, estimator_key, likelihood, itmax, libdir, idx, idx2):
-        self.estimator_key = estimator_key
+    def __init__(self, likelihood, itmax, libdir, use_QE_starting_point=True):
         self.itmax = itmax
         self.libdir = libdir
-        self.idx = idx
-        self.idx2 = idx2 or idx
 
         self.likelihood: Likelihood = likelihood
-        self.ctx, isnew = get_computation_context()
-        self.ctx.set(idx=idx, idx2=idx2)
+        self.use_QE_starting_point = use_QE_starting_point
 
-        self.use_QE_starting_point = True
+        self.secondaries: field.Secondary = {
+            quad.ID: field.Secondary({
+                "ID":  quad.ID,
+                "component": quad.component,
+                "libdir": opj(self.libdir, 'estimate/'),
+        }) for quad in likelihood.gradient_lib.subs}
+        self.sec2idx = {secondary_ID: idx for idx, secondary_ID in enumerate(self.secondaries.keys())}
+        self.idx2sec = {idx: secondary_ID for idx, secondary_ID in enumerate(self.secondaries.keys())}
+        self.seclist_sorted = sorted(list(self.sec2idx.keys()), key=lambda x: template_index_secondaries.get(x, ''))
 
 
-    def get_est(self, request_it=None, secondary=None, component=None, scale='k', calc_flag=False, idx=None, idx2=None):
+    def get_est(self, request_it=None, secondary=None, component=None, scale='k', calc_flag=False):
         ctx, isnew = get_computation_context()  # Get the singleton instance for MPI rank
-        if not isinstance(request_it, (list,np.ndarray)):
-            idx, idx2, component, secondary = (ctx.idx or idx, ctx.idx2 or idx2, ctx.component or component, ctx.secondary or secondary)
-        else:
-            request_it = request_it
-        idx = idx or self.idx
-        idx2 = idx2 or self.idx2
-        idx2 = idx2 or idx
-        ctx.set(idx=idx, idx2=idx2)
-
-        self.likelihood.copyQEtoDirectory(self.likelihood.QE_searchs)
+        component, secondary = (ctx.component or component, ctx.secondary or secondary)
         current_it = self.maxiterdone()
 
         if not isinstance(request_it, (list, np.ndarray)):
@@ -76,22 +71,27 @@ class Minimizer:
             est_prev = {sec: est_prev[self.likelihood.sec2idx[sec]] for sec in self.likelihood.seclist_sorted}
             if not self.use_QE_starting_point and it == 1:
                 for sec, val in est_prev.items():
-                    est_prev[sec] = np.zeros_like(val,dtype=complex)
+                    est_prev[sec] = np.zeros_like(val, dtype=complex)
             self.update_operator(est_prev)
-            grad_tot = self.likelihood.get_likelihood_gradient(it)
+            grad_tot = self.likelihood.get_likelihood_gradient(it=it)
             grad_tot = np.concatenate([np.ravel(arr) for arr in grad_tot])
             if it >= 2:
-                grad_prev = self.likelihood.get_likelihood_gradient(it-1)
+                grad_prev = self.likelihood.get_likelihood_gradient(it=it-1)
                 grad_prev = np.concatenate([np.ravel(arr) for arr in grad_prev])
-                self.likelihood.curvature.add_yvector(grad_tot, grad_prev, it)
-            increment = self.likelihood.curvature.get_increment(grad_tot, it)
+                self.likelihood.curvature_lib.add_yvector(grad_tot, grad_prev, it)
+            increment = self.likelihood.curvature_lib.get_increment(grad_tot, it)
             prev_klm = np.concatenate([np.ravel(arr) for arr in self._get_est(it-1, scale=scale)])
-            new_klms = self.likelihood.curvature.grad2dict(increment + prev_klm)
+            # TODO Need to test this
+            if not self.use_QE_starting_point and it == 1:
+                print("STILL NEEDS TESTING: Zeroing previous klm for first iteration as not using QE starting point")
+                prev_klm = np.zeros_like(prev_klm, dtype=complex)
+            new_klms = self.likelihood.curvature_lib.grad2dict(increment + prev_klm)
             self.cache_klm(new_klms, it)
 
         return new_klms
 
-
+    # helper function
+    # FIXME merge this with get_secondary_est()
     def _get_est(self, it, secondary=None, component=None, scale='k'):
         ctx, isnew = get_computation_context()
         component, secondary = component or ctx.component, secondary or ctx.secondary
@@ -100,24 +100,34 @@ class Minimizer:
         ret = []
         if isinstance(it, (list, np.ndarray)):
             for it_ in it:
-                ret.append(self.likelihood.get_est(it_, scale=scale))
+                ret.append(self.get_secondary_est(it_, scale=scale))
             return ret
         else:
-            return self.likelihood.get_est(it, scale=scale)
+            return self.get_secondary_est(it, scale=scale)
         
 
-    def _get_est_meanfield(self, it, secondary=None, component=None, scale='k'):
+    def get_secondary_est(self, it, scale='k'):
         ctx, isnew = get_computation_context()
-        component, secondary = component or ctx.component, secondary or ctx.secondary
-        secondary = secondary or [sec for sec in self.likelihood.secondaries.keys()]
-        ctx.set(secondary=secondary, component=component)
+        secondary = ctx.secondary or list(self.secondaries.keys())
         ret = []
-        if isinstance(it, (list, np.ndarray)):
-            for it_ in it:
-                ret.append(self.likelihood.get_est_meanfield(it_, scale=scale))
-            return ret
-        else:
-            return self.likelihood.get_est_meanfield(it, scale=scale)
+        for sec in secondary:
+            # scale = 'd' if sec in ['lensing'] else 'k'
+            ret.append(self.secondaries[sec].get_est(it=it, scale=scale))
+        return ret
+        
+
+    # def _get_est_meanfield(self, it, secondary=None, component=None, scale='k'):
+    #     ctx, isnew = get_computation_context()
+    #     component, secondary = component or ctx.component, secondary or ctx.secondary
+    #     secondary = secondary or [sec for sec in self.likelihood.secondaries.keys()]
+    #     ctx.set(secondary=secondary, component=component)
+    #     ret = []
+    #     if isinstance(it, (list, np.ndarray)):
+    #         for it_ in it:
+    #             ret.append(self.likelihood.get_est_meanfield(it_, scale=scale))
+    #         return ret
+    #     else:
+    #         return self.likelihood.get_est_meanfield(it, scale=scale)
 
 
     def get_template(self, it, secondary=None, component=None):
@@ -139,7 +149,6 @@ class Minimizer:
 
 
     def maxiterdone(self):
-        ctx, isnew = get_computation_context()
         it = -2
         isdone = True
         while isdone:
@@ -148,10 +157,27 @@ class Minimizer:
         return it
 
 
-    # exposed functions for job handler
+    # NOTE exposed functions for job handler
     def cache_klm(self, new_klms, it):
         for secID, secondary in self.likelihood.secondaries.items():
             secondary.cache_klm(new_klms[secID], it=it)
+
+
+    def copyQEtoDirectory(self, QE_searchs):
+        # NOTE this turns them into convergence fields
+        ctx, isnew = get_computation_context()  # NOTE getting the singleton instance for MPI rank
+        for secname, secondary in self.secondaries.items():
+            QE_searchs[self.sec2idx[secname]].init_filterqest()
+            if not all(self.secondaries[secname].is_cached(it=0)):
+                klm_QE = QE_searchs[self.sec2idx[secname]].get_est(ctx.idx)
+                self.secondaries[secname].cache_klm(klm_QE, it=0)
+            if not self.likelihood.gradient_lib.subs[self.sec2idx[secname]].gfield.is_cached(it=0, type='meanfield'):
+                kmflm_QE = QE_searchs[self.sec2idx[secname]].get_kmflm(ctx.idx)
+                self.likelihood.gradient_lib.subs[self.sec2idx[secname]].gfield.cache(kmflm_QE, it=0, type='meanfield')
+            if not self.likelihood.gradient_lib.wfivf_filter.wf_field.is_cached(it=0):
+                lm_max_out = self.likelihood.gradient_lib.subs[0].gradient_operator.operators[-1].operators[-1].lm_max_out
+                wflm_QE = QE_searchs[self.sec2idx[secname]].get_wflm(ctx.idx, lm_max_out)
+                self.likelihood.gradient_lib.wfivf_filter.wf_field.cache(np.array(wflm_QE), it=0)
 
 
     def __getattr__(self, name):
@@ -164,18 +190,15 @@ class Minimizer:
 
 
 class Likelihood:
-    def __init__(self, data_container, gradient_lib, libdir, QE_searchs, lm_max_sky, estimator_key, idx, idx2=None):
-        
-        self.data = None 
-
-        self.estimator_key = estimator_key
+    def __init__(self, data_container, gradient_lib, libdir, QE_searchs):
+        self.data = None
         self.data_container = data_container
         self.libdir = libdir
         self.QE_searchs = QE_searchs
-        self.idx = idx
-        self.idx2 = idx2 or idx
-        self.lm_max_sky = lm_max_sky
 
+        self.gradient_lib: gradient.Gradient = gradient_lib
+
+        # NOTE TODO likelihood should not have a secondary object, this should be handled at minimizer level
         self.secondaries: field.Secondary = {
             quad.ID: field.Secondary({
                 "ID":  quad.ID,
@@ -186,8 +209,8 @@ class Likelihood:
         self.idx2sec = {idx: secondary_ID for idx, secondary_ID in enumerate(self.secondaries.keys())}
         self.seclist_sorted = sorted(list(self.sec2idx.keys()), key=lambda x: template_index_secondaries.get(x, ''))
 
-        self.gradient_lib: gradient.Gradient  = gradient_lib
-
+        # NOTE this whole thing should be wrapped into a curvature_lib class, which can depend on the curvature starting point,
+        # and just passed to the likelihood
         def dotop(glms1, glms2):
             ret, N = 0., 0
             for lmax, mmax in [sub.LM_max for sec in self.seclist_sorted for sub in self.gradient_lib.subs if sub.ID == sec]:
@@ -200,7 +223,7 @@ class Likelihood:
         curvature_desc["bfgs_desc"].update({'dot_op': dotop})
         curvature_desc['libdir'] = opj(self.libdir, 'curvature/')
         curvature_desc['h0'] = [h0 for QE_search in self.QE_searchs for h0 in QE_search._get_h0()]
-        self.curvature: curvature.Base = curvature.Base(self.gradient_lib, **curvature_desc)
+        self.curvature_lib: curvature.Base = curvature.Base(self.gradient_lib, **curvature_desc)
         
 
     def get_likelihood(self, it):
@@ -237,70 +260,12 @@ class Likelihood:
     
 
     def get_likelihood_gradient(self, it):
-        return self.gradient_lib.get_gradient_total(it)
+        return self.gradient_lib.get_gradient_total(it=it)
     
-
-    def get_est(self, it, scale='k'):
-        ctx, isnew = get_computation_context()
-        secondary = ctx.secondary or list(self.secondaries.keys())
-        ret = []
-        for sec in secondary:
-            # scale = 'd' if sec in ['lensing'] else 'k'
-            ret.append(self.secondaries[sec].get_est(it=it, scale=scale))
-        return ret
     
-
-    def get_est_meanfield(self, it, scale='k'):
-        ctx, isnew = get_computation_context()
-        secondary = ctx.secondary or list(self.secondaries.keys())
-        ret = []
-        for seci, sec in enumerate(secondary):
-            ret.append(self.gradient_lib.subs[seci].get_gradient_meanfield(it=it))
-        return ret
-
+    def get_likelihood_curvature(self, it):
+        return self.curvature_lib.get_curvature(it=it)
     
-    def isiterdone(self, it):
-        if it >= 0:
-            return np.all([val for sec in self.secondaries.values() for val in sec.is_cached(idx=self.idx, idx2=self.idx2, it=it)])
-        return False    
-
-
-    def maxiterdone(self):
-        itr = -2
-        isdone = True
-        while isdone:
-            itr += 1
-            isdone = self.isiterdone(itr + 1)
-        return itr
-    
-
-    # exposed functions for job handler
-    def cache_klm(self, new_klms, it):
-        for secID, secondary in self.secondaries.items():
-            for component in secondary.component:
-                secondary.cache_klm(new_klms[secID][component], idx=self.idx, idx2=self.idx2, it=it, component=component)
-
-
-    # NOTE This can be called from application level. Once the starting points are calculated, this can be used to prepare the MAP run
-    # TODO this should use the gradient_lib version.
-    def copyQEtoDirectory(self, QE_searchs):
-        # NOTE this turns them into convergence fields
-        ctx, isnew = get_computation_context()  # NOTE getting the singleton instance for MPI rank
-        for secname, secondary in self.secondaries.items():
-            QE_searchs[self.sec2idx[secname]].init_filterqest()
-            if not all(self.secondaries[secname].is_cached(it=0)):
-                klm_QE = QE_searchs[self.sec2idx[secname]].get_est(self.idx)
-                self.secondaries[secname].cache_klm(klm_QE, it=0)
-
-            if not self.gradient_lib.subs[self.sec2idx[secname]].gfield.is_cached(it=0, type='meanfield'):
-                kmflm_QE = QE_searchs[self.sec2idx[secname]].get_kmflm(self.idx)
-                self.gradient_lib.subs[self.sec2idx[secname]].gfield.cache(kmflm_QE, it=0, type='meanfield')
-
-            if not self.gradient_lib.wfivf_filter.wf_field.is_cached(it=0):
-                lm_max_out = self.gradient_lib.subs[0].gradient_operator.operators[-1].operators[-1].lm_max_out
-                wflm_QE = QE_searchs[self.sec2idx[secname]].get_wflm(self.idx, lm_max_out)
-                self.gradient_lib.wfivf_filter.wf_field.cache(np.array(wflm_QE), it=0)
-
 
     def __getattr__(self, name):
         # NOTE this forwards the method call to the gradient_lib
@@ -310,3 +275,53 @@ class Likelihood:
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
         
         return method_forwarder
+    
+    # NOTE likelihood should not have a get_est() function. Perhaps just rename it to get_secondary_est()
+    # def get_secondary_est(self, it, scale='k'):
+    #     ctx, isnew = get_computation_context()
+    #     secondary = ctx.secondary or list(self.secondaries.keys())
+    #     ret = []
+    #     for sec in secondary:
+    #         # scale = 'd' if sec in ['lensing'] else 'k'
+    #         ret.append(self.secondaries[sec].get_est(it=it, scale=scale))
+    #     return ret
+    
+
+    # NOTE this is merely a pass-through to the gradient_lib, so perhaps even remove it?
+    # def get_est_meanfield(self, it, scale='k'):
+    #     ctx, isnew = get_computation_context()
+    #     secondary = ctx.secondary or list(self.secondaries.keys())
+    #     ret = []
+    #     for seci, sec in enumerate(secondary):
+    #         ret.append(self.gradient_lib.subs[seci].get_gradient_meanfield(it=it))
+    #     return ret
+    
+
+    # exposed functions for job handler
+    # def cache_klm(self, new_klms, it):
+    #     ctx, isnew = get_computation_context() # NOTE I changed this recently as idx should come from context
+    #     idx, idx2 = ctx.idx, ctx.idx2
+    #     for secID, secondary in self.secondaries.items():
+    #         for component in secondary.component:
+    #             secondary.cache_klm(new_klms[secID][component], idx=idx, idx2=idx2, it=it, component=component)
+
+
+    # NOTE This can be called from application level. Once the starting points are calculated, this can be used to prepare the MAP run
+    # TODO likelihood should not depend on the QE_searchs class. Then perhaps this should move to the MAPScheduler..
+    # Best would be to have this as a standalone function somewhere in helper.py.
+    # another solution would be to have a MAP handler that contains the minimizer, and this function.
+    # def copyQEtoDirectory(self, QE_searchs):
+    #     # NOTE this turns them into convergence fields
+    #     ctx, isnew = get_computation_context()  # NOTE getting the singleton instance for MPI rank
+    #     for secname, secondary in self.secondaries.items():
+    #         QE_searchs[self.sec2idx[secname]].init_filterqest()
+    #         if not all(self.secondaries[secname].is_cached(it=0)):
+    #             klm_QE = QE_searchs[self.sec2idx[secname]].get_est(ctx.idx)
+    #             self.secondaries[secname].cache_klm(klm_QE, it=0)
+    #         if not self.gradient_lib.subs[self.sec2idx[secname]].gfield.is_cached(it=0, type='meanfield'):
+    #             kmflm_QE = QE_searchs[self.sec2idx[secname]].get_kmflm(ctx.idx)
+    #             self.gradient_lib.subs[self.sec2idx[secname]].gfield.cache(kmflm_QE, it=0, type='meanfield')
+    #         if not self.gradient_lib.wfivf_filter.wf_field.is_cached(it=0):
+    #             lm_max_out = self.gradient_lib.subs[0].gradient_operator.operators[-1].operators[-1].lm_max_out
+    #             wflm_QE = QE_searchs[self.sec2idx[secname]].get_wflm(ctx.idx, lm_max_out)
+    #             self.gradient_lib.wfivf_filter.wf_field.cache(np.array(wflm_QE), it=0)

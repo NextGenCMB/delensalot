@@ -236,9 +236,6 @@ def solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cacher, roundoff=25):
 
     n_pre_ops = len(pre_ops)
     residual = b - fwd_op(x)
-    print('x is', x[1][10000:10010])
-    print('fwd(x) is', fwd_op(x))
-    print('going to calculate pre_op')
     searchdirs = [op(residual) for op in pre_ops]
 
     lmax = np.max([Alm.getlmax(r.size, None) for r in residual])
@@ -296,13 +293,13 @@ def solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cacher, roundoff=25):
             for (searchfwd, alpha) in zip(searchfwds, alphas):
                 residual -= searchfwd * alpha
         if log.getEffectiveLevel() in [logging.INFO, logging.DEBUG]:
-            plot_stuff(residual, residualdata, bdata, fwddata, xdata, precondata, searchdirs, searchfwds, weights, x)
-            import matplotlib.pyplot as plt
-            ell = np.arange(len(cond_num_ell))
-            plt.plot(ell, cond_num_ell)
-            plt.loglog()
+            # plot_stuff(residual, residualdata, bdata, fwddata, xdata, precondata, searchdirs, searchfwds, weights, x)
+            # import matplotlib.pyplot as plt
+            # ell = np.arange(len(cond_num_ell))
+            # plt.plot(ell, cond_num_ell)
+            # plt.loglog()
+            # plt.show()
             print(f"Iteration {iter}: Global Condition Number = {global_cond_num:.2f}")
-            plt.show()
 
         # initial choices for new search directions.
         searchdirs = [pre_op(residual) for pre_op in pre_ops]

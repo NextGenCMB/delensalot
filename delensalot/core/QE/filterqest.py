@@ -158,6 +158,7 @@ class PlancklensInterface:
 
 
     def get_wflm(self, idx, key, lm_max=None):
+        # NOTE may want to force _init_filterqest() before calling this
         lm_max = lm_max or self.lm_max_ivf
         if key in ['ptt']:
             return alm_copy(self.ivf.get_sim_tmliklm(idx), None, *lm_max)

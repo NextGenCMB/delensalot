@@ -117,7 +117,6 @@ class l2base_Transformer:
 
         dl.data_source = DataSource(**si.__dict__)
 
-
     def process_Analysis(dl, an, cf):
         dl.beam_FWHM = an.beam_FWHM
         dl.mask_fn = an.mask_fn
@@ -158,7 +157,7 @@ class l2base_Transformer:
         dl.cls_len = camb_clfile(an.cls_len)
         dl.zbounds = (-1,1)
         dl.zbounds_len = (-1,1)
-        dl.transferfunction = utils_plancklens.gauss_beamtransferfunction_sharp(an.beam_FWHM, dl.lm_max_sky, an.lmin_teb, an.transfer_has_pixwindow, cf.noisemodel.geominfo)
+        dl.transferfunction = utils_plancklens.gauss_beamtransferfunction(an.beam_FWHM, dl.lm_max_sky, an.lmin_teb, an.transfer_has_pixwindow, cf.noisemodel.geominfo)
 
     def process_Computing(dl, co, cf):
         dl.sht_tr = co.OMP_NUM_THREADS
@@ -273,8 +272,9 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "lmin_teb": dl.lmin_teb,
                 'inv_operator_desc': dl.inv_operator_desc,
             }
+            buff = generate_plancklenskeys(cf.analysis.estimator_key)
             QE_searchs_desc = {sec: {
-                "estimator_key": generate_plancklenskeys(cf.analysis.estimator_key)[sec],
+                "estimator_key": buff[sec],
                 'CLfids': dl.CLfids[sec],
                 "subtract_meanfield": dl.subtract_QE_meanfield,
                 "QE_filterqest_desc": QE_filterqest_desc,
@@ -447,31 +447,20 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             }
             gradient = Gradient(**joint_desc)
 
-            MAP_likelihood_descs = {
-                idx: {
-                    'data_container': data_container,
-                    'gradient_lib': gradient,
-                    'libdir': libdir,
-                    "QE_searchs": QE_searchs,
-                    "lm_max_sky": dl.lm_max_sky,
-                    "estimator_key": cf.analysis.estimator_key,
-                    "idx": idx,
-                    "idx2": idx,
-                } for idxi, idx in enumerate(dl.idxs)
+            MAP_likelihood_desc = {
+                'data_container': data_container,
+                'gradient_lib': gradient,
+                'libdir': libdir,
+                "QE_searchs": QE_searchs,
             }
-            likelihood = {idx: Likelihood(**MAP_likelihood_desc) for idx, MAP_likelihood_desc in MAP_likelihood_descs.items()}
+            likelihood = Likelihood(**MAP_likelihood_desc)
             
-            MAP_minimizer_descs = {
-                idx: {
-                    "estimator_key": cf.analysis.estimator_key,
-                    "likelihood": likelihood[idx],
-                    'itmax': dl.itmax,
-                    "libdir": libdir,
-                    'idx': idx,
-                    'idx2': idx,
-                } for idxi, idx in enumerate(dl.idxs)
+            MAP_minimizer_desc = {
+                "likelihood": likelihood,
+                'itmax': dl.itmax,
+                "libdir": libdir,
             }
-            MAP_minimizers = [Minimizer(**MAP_minimizer_desc) for MAP_minimizer_desc in MAP_minimizer_descs.values()]
+            MAP_minimizer = Minimizer(**MAP_minimizer_desc)
 
             MAP_job_desc = {
                 "idxs": cf.analysis.idxs,
@@ -479,7 +468,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 'data_container': data_container,
                 "QE_searchs": QE_searchs,
                 "tasks": dl.tasks,
-                "MAP_minimizers": MAP_minimizers,
+                "MAP_minimizer": MAP_minimizer,
             }
             set_config(dl)
             return MAP_job_desc

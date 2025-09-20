@@ -5,7 +5,6 @@
 import logging
 log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
-
 import argparse
 import os, sys
 
@@ -38,7 +37,7 @@ class LerepiParser():
                 assert 0, log.error("Job_id must be in {} but is {}".format(['QE_lensrec', 'MAP_lensrec', 'build_OBD', 'generate_sim', 'delens', 'analyse_phi', ], job_id))
 
         if self.parser.resume == '':
-            assert 0, 'Choose one of the available options to get going.'
+            assert 0, 'Choose one of the available options.'
         if _validate_r(self.parser.resume):
             pass
         if _validate_job(self.parser.job_id):

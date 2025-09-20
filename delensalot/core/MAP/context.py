@@ -51,5 +51,4 @@ class ComputationContext:
 
 # Global function to get the context
 def get_computation_context():
-    ctx, is_new = ComputationContext()
-    return ctx, is_new
+    return ComputationContext()

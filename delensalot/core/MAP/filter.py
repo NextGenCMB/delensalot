@@ -98,7 +98,8 @@ class Filter_3d:
     @log_on_start(logging.DEBUG, " ---- fwd_op", logger=log)
     @log_on_end(logging.DEBUG, " done ---- fwd_op", logger=log)  
     def fwd_op(self, tebwflm):
-        """ acts on elm, which is a lm_max_pri map
+        """ This is Equation (20) of the CMB-S4 paper
+        acts on elm, which is a lm_max_pri map
         """
         # NOTE if bb interesting, can be implemented here. Currently, bb is just zero, only shape is kept
         assert tebwflm.shape[0] == 3, len(tebwflm)
@@ -144,7 +145,6 @@ class Filter_3d:
     @log_on_start(logging.DEBUG, " ---- preconditioner_op", logger=log)
     @log_on_end(logging.DEBUG, " done ---- preconditioner_op", logger=log)  
     def preconditioner_op(self, teblm):
-        print('input preconditioner_op', teblm)
         lmax_ = Alm.getlmax(teblm[1].size, None)
 
         ninv_ftebl = self.inv_operator.get_ftel(self.beam_operator.transferfunction)
@@ -199,13 +199,13 @@ class Filter_3d:
             tebout[0] = almxfl(teblm[0], flmat[:, 0, 0], lmax_, False)
         elif 'ee' in self.cls_filt:
             tebout[1] = almxfl(teblm[1], flmat[:, 0, 0], lmax_, False)
-        print('output preconditioner_op', tebout)
         return tebout
     
 
     @log_on_start(logging.DEBUG, " ---- get_ivfreslm: {it}", logger=log)
     @log_on_end(logging.DEBUG, " done ---- get_ivfreslm", logger=log)
     def get_ivfreslm(self, it, data=None, elm_wf=None):
+        # assert elm_wf.shape[0] == 3, elm_wf.shape
         # NOTE this is eq. 21 of the paper
         if not self.ivf_field.is_cached(it=it):
             assert elm_wf is not None and data is not None
@@ -217,11 +217,10 @@ class Filter_3d:
                 ivfreslm = data - ivfreslm
                 ivfreslm = self.inv_operator.act(ivfreslm, adjoint=False)
             else:
-                ivfresmap = []
-                ivfresmap.append(self.inv_operator.geom_lib.synthesis(ivfreslm[0], 0, *self.inv_operator.lm_max, self.sht_tr))
-                buff = self.inv_operator.geom_lib.synthesis(ivfreslm[1:], 2, *self.inv_operator.lm_max, self.sht_tr)
-                ivfresmap.append(buff[0])
-                ivfresmap.append(buff[1])
+                ivfresmap = [
+                    self.inv_operator.geom_lib.synthesis(ivfreslm[0], 0, *self.inv_operator.lm_max, self.sht_tr),
+                    *self.inv_operator.geom_lib.synthesis(ivfreslm[1:], 2, *self.inv_operator.lm_max, self.sht_tr)
+                ]
                 ivfresmap = [d-ivf for ivf,d in zip(ivfresmap,data)]
                 ivfreslm = self.inv_operator.apply_map(ivfresmap)
 

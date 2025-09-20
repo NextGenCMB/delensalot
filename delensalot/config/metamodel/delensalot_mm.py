@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-"""dlensalot_mm.py: Contains classes defining the metamodel of the Dlensalot formalism.
+"""dlensalot_mm.py: Contains classes defining the metamodel of the Delensalot formalism.
     The metamodel is a structured representation, with the `DELENSALOT_Model` as the main building block.
-    We use the attr package. It provides handy ways of validation and defaulting.
+    We use the attr package. It provides handy ways of validation (not currently used) and defaulting.
 """
 
 import abc, attr, os, sys
@@ -278,7 +278,7 @@ class DELENSALOT_Model(DELENSALOT_Concept):
 
     """
     
-    defaults_to =           attr.field(default='default_jointrec_v3')
+    defaults_to =           attr.field(default='default_jointrec')
     validate_model =        attr.field(default=True)
     job =                   attr.field(default=DELENSALOT_Job())
     analysis =              attr.field(default=DELENSALOT_Analysis())

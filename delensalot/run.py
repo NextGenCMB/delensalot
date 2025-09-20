@@ -7,6 +7,35 @@ import os, sys
 import logging
 import traceback
 
+from rich.logging import RichHandler
+from rich.traceback import install
+from rich.console import Console
+from rich.traceback import Traceback
+
+from logdecorator import log_on_start, log_on_end
+import logdecorator
+
+# Hide frames coming from logdecorator and the logging module
+install()
+
+console = Console()
+
+# Custom excepthook
+def filter_excepthook(exc_type, exc_value, tb):
+    # Filter out frames whose filename contains 'logdecorator'
+    filtered_tb = []
+    while tb is not None:
+        frame = tb.tb_frame
+        if "logdecorator" not in frame.f_code.co_filename:
+            filtered_tb.append(tb)
+        tb = tb.tb_next
+
+    rich_tb = Traceback.from_exception(exc_type, exc_value, exc_value.__traceback__)
+    console.print(rich_tb)
+
+# Override the default excepthook
+sys.excepthook = filter_excepthook
+
 import delensalot.core.mpi as mpi
 
 from delensalot.config.config_handler import ConfigHandler
@@ -138,6 +167,7 @@ if __name__ == '__main__':
     if not isnew:
         ctx.reset()
 
+    config_handler.run()
     try:
         config_handler.run()
     except Exception as err:

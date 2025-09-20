@@ -25,8 +25,6 @@ class library_sepTP(object):
 
     """
     def __init__(self, lib_dir, sim_lib, cl_weights, soltn_lib=None, cache=True):
-
-
         self.lib_dir = lib_dir
         self.sim_lib = sim_lib
         self.cl = cl_weights
@@ -38,7 +36,7 @@ class library_sepTP(object):
                 os.makedirs(lib_dir)
             if not os.path.exists(fn_hash):
                 pk.dump(self.hashdict(), open(fn_hash, 'wb'), protocol=2)
-        mpi.barrier()
+        # mpi.barrier()
         # utils.hash_check(pk.load(open(fn_hash, 'rb')), self.hashdict(), fn=fn_hash)
 
     def hashdict(self):
@@ -359,7 +357,6 @@ class library_fullsky_sepTP(library_sepTP):
 
     """
     def __init__(self, lib_dir, sim_lib, nside, transf:np.ndarray or dict, cl_len, ftl, fel, fbl, cache=False):
-
         transfd = transf if isinstance(transf, dict) else {'t': transf, 'e': transf, 'b': transf}
         assert 't' in transfd.keys() and 'e' in transfd.keys() and 'b' in transfd.keys()
 

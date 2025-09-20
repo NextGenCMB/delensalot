@@ -1,6 +1,7 @@
 import logging
 import logdecorator
 import sys
+import inspect
 
 # All classes use this logger without inheritance
 log = logging.getLogger("global_logger")
@@ -16,21 +17,30 @@ logging.getLogger("healpy").setLevel(logging.WARNING)
 np_logger.setLevel(logging.WARNING)
 
 
+class SafeDict(dict):
+    """A dict that returns {key} if key is missing, so str.format won't crash."""
+    def __missing__(self, key):
+        return "{" + key + "}"
+
 def safe_log_on_start(level, msg, logger):
-    """Wrapper around log_on_start to catch formatting errors globally."""
     def decorator(func):
+        sig = inspect.signature(func)
+
         def wrapper(*args, **kwargs):
             try:
-                formatted_msg = msg.format(*args, **kwargs)  # Try formatting first
+                bound = sig.bind_partial(*args, **kwargs)
+                bound.apply_defaults()
+
+                # Safe formatting: missing keys just remain as {key}
+                formatted_msg = msg.format_map(SafeDict(bound.arguments))
+
                 logger.log(level, formatted_msg)
-                # print(formatted_msg)
             except Exception as e:
-                logger.warning(f"Logging failed inside safe_log_on_start: {e}")  # Suppress long traceback
+                logger.warning(f"Logging failed inside safe_log_on_start: {e}")
+                logger.debug(f"Args: {args}, Kwargs: {kwargs}")
 
-            return func(*args, **kwargs)  # Run the function normally
-
+            return func(*args, **kwargs)
         return wrapper
-
     return decorator
 
 # Apply the patch globally

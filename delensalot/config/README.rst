@@ -5,13 +5,13 @@ CMB lensing reconstruction pipelines for various experiments (CMB-S4, PICO)
 Introduces config files for user-friendliy delensalot handling
 
 
-dlensalot model:
+delensalot model:
 --------------------
 
 Description of available parameters.
 
 
-A complete Dlensalot config file includes,
+A complete Delensalot config file includes,
 
 ==================== ===========
         Type         Description

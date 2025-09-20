@@ -418,10 +418,10 @@ class DataContainer:
         import healpy as hp
         nside = 2048
         space = 'alm' if self.sky_coverage == 'full' else 'map'
-        lm_max_ = self.data_source.obs_lib.CMB_info['lm_max']
-        # lm_max_ = self.lm_max_sky
+        # lm_max_ = self.data_source.obs_lib.CMB_info['lm_max'] # NOTE using this gives an error in an operator action
+        lm_max_ = self.lm_max_sky
         if space == 'alm':
-            earr = np.zeros(shape=Alm.getsize(*self.lm_max_),dtype=complex)
+            earr = np.zeros(shape=Alm.getsize(*lm_max_),dtype=complex)
         else:
             earr = np.zeros(hp.nside2npix(nside))
         if True: # NOTE trimmed data currently not supported
@@ -539,6 +539,7 @@ class QEScheduler:
 
 
     def run(self, task=None):
+        ctx, isnew = get_computation_context()
         if not np.all(np.array(self.jobs)==None):
             log.info(f"Running QE jobs: {self.jobs}")
         if True: # 'triggers calc_cinv'
@@ -552,6 +553,7 @@ class QEScheduler:
                 for idxs in self.jobs[taski][mpi.rank::mpi.size]:
                     for seci, secidx in enumerate(idxs):
                         if secidx is not None: #these Nones come from the field already being done.
+                            ctx.set(idx=secidx, idx2=secidx)
                             self.QE_searchs[seci].get_qlm(int(secidx))
                     if np.all(self.data_container.obs_lib.maps == DEFAULT_NotAValue):
                         self.data_container.data_source.purgecache()
@@ -565,6 +567,7 @@ class QEScheduler:
                 for idxs in self.jobs[taski][mpi.rank::mpi.size]:
                     for seci, secidx in enumerate(idxs):
                         if secidx is not None: #these Nones come from the field already being done.
+                            ctx.set(idx=secidx, idx2=secidx)
                             self.QE_searchs[seci].get_est(int(secidx)) # this is here for convenience
                     if np.all(self.data_container.obs_lib.maps == DEFAULT_NotAValue):
                         self.data_container.data_source.purgecache()
@@ -575,6 +578,7 @@ class QEScheduler:
                 for idxs in self.jobs[taski][mpi.rank::mpi.size]:
                     for QE_search in self.QE_searchs:
                         for seci, secidx in enumerate(idxs):
+                            ctx.set(idx=secidx, idx2=secidx)
                             self.QE_searchs[seci].get_qlm(int(secidx))
                             self.QE_searchs[seci].get_est(int(secidx)) # this is here for convenience
                 for QE_search in self.QE_searchs:
@@ -672,8 +676,8 @@ class QEScheduler:
 
 
 class MAPScheduler:
-    MAP_minimizers: List[MAP_handler.Minimizer]
-    def __init__(self, idxs, idxs_mf, data_container, QE_searchs, tasks, MAP_minimizers):
+    MAP_minimizer: MAP_handler.Minimizer
+    def __init__(self, idxs, idxs_mf, data_container, QE_searchs, tasks, MAP_minimizer):
         self.data_container = data_container
 
         self.idxs = idxs
@@ -683,21 +687,25 @@ class MAPScheduler:
         self._sec2idx = {QE_search.secondary.ID: i for i, QE_search in enumerate(self.QE_searchs)}
         self._seclist_sorted = sorted(list(self._sec2idx.keys()), key=lambda x: template_index_secondaries.get(x, ''))
 
-        self.MAP_minimizers: MAP_handler.Minimizer = MAP_minimizers
+        self.MAP_minimizer: MAP_handler.Minimizer = MAP_minimizer
         self.tasks = tasks
-        for idx in self.idxs:
-            if np.all([self.QE_searchs[0].isdone(idx, comp)==0 for comp in self.QE_searchs[0].secondary.component]):
-                if mpi.rank == 0:
-                    self.MAP_minimizers[idx].likelihood.copyQEtoDirectory(QE_searchs)
+
+        # NOTE this conflicts with setting idx via ctx later during run. At init, context is not set yet, so copyQEtoDirectory will not work
+        # for idx in self.idxs:
+        #     if np.all([self.QE_searchs[0].isdone(idx, comp)==0 for comp in self.QE_searchs[0].secondary.component]):
+        #         if mpi.rank == 0:
+        #             self.MAP_minimizer.copyQEtoDirectory(QE_searchs)
 
 
     def collect_jobs(self):
+        ctx, isnew = get_computation_context()
         jobs = list(range(len(self.tasks)))
         for taski, task in enumerate(self.tasks):
             _jobs = []
             if task == 'calc_fields':
                 for idxi, idx in enumerate(self.idxs):
-                    if self.MAP_minimizers[idxi].maxiterdone() < self.MAP_minimizers[idxi].itmax:
+                    ctx.set(idx=idx, idx2=idx)
+                    if self.MAP_minimizer.maxiterdone() < self.MAP_minimizer.itmax:
                         _jobs.append(idx)
                 jobs[taski] = _jobs
         self.jobs = jobs
@@ -705,29 +713,38 @@ class MAPScheduler:
 
 
     def run(self):
-        for idx in self.idxs:
-            if np.all([self.QE_searchs[0].isdone(idx, comp)==0 for comp in self.QE_searchs[0].secondary.component]):
-                if mpi.rank == 0:
-                    self.MAP_minimizers[idx].likelihood.copyQEtoDirectory(self.QE_searchs)
+        ctx, isnew = get_computation_context()
 
         for taski, task in enumerate(self.tasks):
             log.info('MAPScheduler {}, MAP task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
             if task == 'calc_fields':
+                for idx in self.jobs[taski][mpi.rank::mpi.size]: # NOTE every rank takes care of its own indices
+                    if np.all([self.QE_searchs[0].isdone(idx, comp)==0 for comp in self.QE_searchs[0].secondary.component]):
+                        ctx.set(idx=idx, idx2=idx)
+                        self.MAP_minimizer.copyQEtoDirectory(self.QE_searchs)
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
-                    self.MAP_minimizers[idx].get_est(self.MAP_minimizers[idx].itmax)
+                    ctx.set(idx=idx, idx2=idx)
+                    self.MAP_minimizer.get_est(self.MAP_minimizer.itmax)
+
+        #NOTE resetting context to first idx - for application level
+        ctx.set(idx=min(self.idxs), idx2=min(self.idxs))
 
 
     def get_est(self, idx, it=None, secondary=None, component=None, scale='k', subtract_QE_meanfield=True, calc_flag=False, idx2=None):
+        ctx, isnew = get_computation_context()
+        ctx.set(idx=idx, idx2=idx)
         if isinstance(secondary, str) and secondary not in self._seclist_sorted:
             print('Secondary not found. Available secondaries are:', self._seclist_sorted)
             return np.array([[]])
         if it is None:
-            it = self.MAP_minimizers[idx].maxiterdone()
+            it = self.MAP_minimizer.maxiterdone()
 
-        for idx in self.idxs:
-            self.MAP_minimizers[idx].likelihood.copyQEtoDirectory(self.QE_searchs)
+        for idx_ in self.idxs:
+            ctx.set(idx=idx_, idx2=idx_)
+            self.MAP_minimizer.copyQEtoDirectory(self.QE_searchs)
+        ctx.set(idx=idx, idx2=idx)
         def get_map_est(it_):
-            return self.MAP_minimizers[idx].get_est(it_, secondary, component, scale, calc_flag)
+            return self.MAP_minimizer.get_est(it_, secondary, component, scale, calc_flag)
 
         if isinstance(it, (list, np.ndarray)):
             it = np.array(it)
@@ -735,6 +752,8 @@ class MAPScheduler:
 
 
     def get_qlm(self, idx, it, secondary=None, component=None, idx2=None):
+        ctx, isnew = get_computation_context()
+        ctx.set(idx=idx, idx2=idx)
         if secondary is None:
             return [self.QE_searchs[self.sec2idx[QE_search.ID]].get_qlm(idx, component) for QE_search in self.QE_searchs]
         if it==0:
@@ -743,11 +762,15 @@ class MAPScheduler:
 
 
     def get_meanfield(self, idx, it=None, secondary=None, component=None, idx2=None):
+        ctx, isnew = get_computation_context()
+        ctx.set(idx=idx, idx2=idx)
         self.get_gradient_meanfield(idx, it, secondary=None, component=None, idx2=None)
 
 
     def get_template(self, idx, it, secondary=None, component=None):
-        return self.MAP_minimizers[idx].get_template(it, secondary, component)
+        ctx, isnew = get_computation_context()
+        ctx.set(idx=idx, idx2=idx)
+        return self.MAP_minimizer.get_template(it, secondary, component)
 
 
     def get_wflm(self, idx, it=None, lm_max=None, idx2=None):
@@ -758,7 +781,7 @@ class MAPScheduler:
         ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
         stash = ctx.idx, ctx.idx2, ctx.component
         ctx.set(idx=idx)
-        ret = self.MAP_minimizers[idx].get_wflm(it)
+        ret = self.MAP_minimizer.get_wflm(it)
         ctx.set(idx=stash[0], idx2=stash[1], component=stash[2])
         return ret
 
@@ -771,47 +794,55 @@ class MAPScheduler:
 
 
     def get_ivfreslm(self, idx, it=None, idx2=None):
-        ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
+        ctx, _ = get_computation_context()
         stash = ctx.idx, ctx.idx2, ctx.component
         ctx.set(idx=idx)
         # NOTE currently no support for list of secondary or it
         if it==None: it = self.maxiterdone()
         if it==0:
             print('only available for MAP, set it>0')
-        ret = self.MAP_minimizers[idx].get_ivfreslm(it)
+        ret = self.MAP_minimizer.get_ivfreslm(it)
         ctx.set(idx=stash[0], idx2=stash[1], component=stash[2])
         return ret
 
     def maxiterdone(self):
-        return min([MAP_search.maxiterdone() for MAP_search in self.MAP_minimizers])
+        ctx, _ = get_computation_context()
+        buff_ = ctx.idx, ctx.idx2
+        buff = []
+        for idx in self.idxs:
+            ctx.set(idx=idx, idx2=idx)
+            buff.append(self.MAP_minimizer.maxiterdone())
+        ctx.set(idx=buff_[0], idx2=buff_[1])
+        return min(buff)
     
     def get_gradient_quad(self, idx, it, secondary=None, component=None, idx2=None):
-        self.MAP_minimizers[idx].ctx.set(idx=idx, secondary=secondary, component=component, idx2=idx2)
-        return self.MAP_minimizers[idx].get_gradient_quad(it=it)
+        ctx, _ = get_computation_context()
+        ctx.set(idx=idx, secondary=secondary, component=component, idx2=idx2)
+        return self.MAP_minimizer.get_gradient_quad(it=it)
     
     def get_gradient_total(self, idx, it, secondary=None, component=None, idx2=None):
-        self.MAP_minimizers[idx].ctx.set(idx=idx, secondary=secondary, component=component, idx2=idx2)
-        return self.MAP_minimizers[idx].get_gradient_total(it=it)
+        ctx, _ = get_computation_context()
+        ctx.set(idx=idx, secondary=secondary, component=component, idx2=idx2)
+        return self.MAP_minimizer.get_gradient_total(it=it)
     
     def get_gradient_prior(self, idx, it, secondary=None, component=None, idx2=None):
-        self.MAP_minimizers[idx].ctx.set(idx=idx, secondary=secondary, component=component, idx2=idx2)
-        return self.MAP_minimizers[idx].get_gradient_prior(it=it)
+        ctx, _ = get_computation_context()
+        ctx.set(idx=idx, secondary=secondary, component=component, idx2=idx2)
+        return self.MAP_minimizer.get_gradient_prior(it=it)
     
     def get_gradient_meanfield(self, idx, it, secondary=None, component=None, idx2=None):
-        self.MAP_minimizers[idx].ctx.set(idx=idx, secondary=secondary, component=component, idx2=idx2)
-        return self.MAP_minimizers[idx].get_gradient_meanfield(it=it)
+        ctx, _ = get_computation_context()
+        ctx.set(idx=idx, secondary=secondary, component=component, idx2=idx2)
+        return self.MAP_minimizer.get_gradient_meanfield(it=it)
     
 
     def __getattr__(self, name):
-        # Forward the method call to the minimizer specified by idx
-        def method_forwarder(idx, *args, **kwargs):
-            if idx < len(self.MAP_minimizers):
-                minimizer = self.MAP_minimizers[idx]
-                if name in functionforwardlist and hasattr(minimizer, name):
-                    return getattr(minimizer, name)(idx, *args, **kwargs)  # Pass idx to the minimizer
-                else:
-                    raise AttributeError(f"method {name} not found in MAP_minimizer")
-            raise IndexError(f"scheduler has no MAP_minimizer at index {idx}")
+        # Forward the method call to the minimizer
+        def method_forwarder(*args, **kwargs):
+            if name in functionforwardlist and hasattr(self.MAP_minimizer, name):
+                return getattr(self.MAP_minimizer, name)(*args, **kwargs)
+            else:
+                raise AttributeError(f"method {name} not found in MAP_minimizer")
 
         return method_forwarder
 
