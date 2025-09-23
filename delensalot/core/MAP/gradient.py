@@ -13,12 +13,13 @@ from logdecorator import log_on_start, log_on_end
 # from delensalot.config.etc.logger import set_logging_level
 
 from lenspyx.remapping.deflection_028 import rtype, ctype
+from lenspyx.remapping import utils_geom
 
 from delensalot.core.MAP import field, operator
 from delensalot.core.MAP.context import get_computation_context
 
 from delensalot.utils import cli
-from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy, almxfl_nd, alm_copy_nd
+from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy, almxfl_nd, alm_copy_nd, default_rng
 
 class SharedFilters:
     def __init__(self, sub):
@@ -109,6 +110,50 @@ class Gradient(SharedFilters):
         return [sub.get_gradient_meanfield(it=it) for sub in self.subs]
 
 
+    # TODO implement this
+    def get_qlms_mf(self, mfkey, q_pbgeom, mchain, phas=None, cls_filt=None):
+        """Mean-field estimate using tricks of Carron Lewis appendix
+        """
+        if mfkey in [1]: # This should be B^t x, D dC D^t B^t Covi x, x random phases in pixel space here
+            if phas is None:
+                # unit variance phases in Q U space
+                phas = np.array([default_rng().standard_normal(utils_geom.Geom.npix(self.ninv_geom)),
+                                 default_rng().standard_normal(utils_geom.Geom.npix(self.ninv_geom))])
+            assert phas[0].size == utils_geom.Geom.npix(self.ninv_geom)
+            assert phas[1].size == utils_geom.Geom.npix(self.ninv_geom)
+
+            soltn = np.zeros(Alm.getsize(self.lmax_sol, self.mmax_sol), dtype=complex)
+            mchain.solve(soltn, phas, dot_op=self.dot_op())
+
+            phas = self.ninv_geom.map2alm_spin(phas, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
+            almxfl(phas[0], 0.5 * self.b_transf_elm, self.mmax_len, True)
+            almxfl(phas[1], 0.5 * self.b_transf_blm, self.mmax_len, True)
+            repmap, impmap = q_pbgeom.geom.alm2map_spin(phas, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
+
+            Gs, Cs = self._get_gpmap(soltn, 3, q_pbgeom)  # 2 pos.space maps
+            GC = (repmap - 1j * impmap) * (Gs + 1j * Cs)  # (-2 , +3)
+            Gs, Cs = self._get_gpmap(soltn, 1, q_pbgeom)
+            GC -= (repmap + 1j * impmap) * (Gs - 1j * Cs)  # (+2 , -1)
+            del repmap, impmap, Gs, Cs
+
+        elif mfkey in [0]: # standard gQE, quite inefficient but simple
+            assert phas is None, 'discarding this phase anyways'
+            QUdat = np.array(self.synalm(cls_filt))
+            elm_wf = np.zeros(Alm.getsize(self.lmax_sol, self.mmax_sol), dtype=complex)
+            mchain.solve(elm_wf, QUdat, dot_op=self.dot_op())
+            return self.get_qlms(QUdat, elm_wf, q_pbgeom)
+        else:
+            assert 0, mfkey + ' not implemented'
+        lmax_qlm = self.ffi.lmax_dlm
+        mmax_qlm = self.ffi.mmax_dlm
+        G, C = q_pbgeom.geom.map2alm_spin([GC.real, GC.imag], 1, lmax_qlm, mmax_qlm, self.ffi.sht_tr, (-1., 1.))
+        del GC
+        fl = - np.sqrt(np.arange(lmax_qlm + 1, dtype=float) * np.arange(1, lmax_qlm + 2))
+        almxfl(G, fl, mmax_qlm, True)
+        almxfl(C, fl, mmax_qlm, True)
+        return G, C
+    
+
     def update_operator(self, field):
         self.wfivf_filter.update_operator(field)
 
@@ -188,8 +233,9 @@ class LensingGradientSub(GradSub):
         self.data_key = desc['data_key']
         
 
-    def get_gradient_quad_(self, it, data=None, data_leg2=None, wflm=None, ivfreslm=None):
-        # NOTE This is the "1d"
+    def get_gradient_quad_1d(self, it, data=None, data_leg2=None, wflm=None, ivfreslm=None):
+        assert 0, "Not sure about the current state"
+        # NOTE This is the "1d" version, i.e. TP is not done simultaneously
         spin0part, spin2part = False, True
         if isinstance(it, (list, np.ndarray)):
             return [self.get_gradient_quad(it=it_, data=data, data_leg2=data_leg2, wflm=wflm, ivfreslm=ivfreslm) for it_ in it]
@@ -205,11 +251,11 @@ class LensingGradientSub(GradSub):
         if not self.gfield.is_cached(it=it, type='quad'):
             if wflm is None:
                 assert self.wfivf_filter is not None, "wfivf_filter must be provided at instantiation in absence of wflm and ivfreslm"
-                # TODO following line returns 1d array, possibly need to turn into 3d array
+                # NOTE following line returns 1d array, possibly need to turn into 3d array
                 wflm = self.wfivf_filter.get_wflm(it, self.data_container.get_data(idx))
                 ivfreslm = np.ascontiguousarray(self.wfivf_filter.get_ivfreslm(it, self.data_container.get_data(idx2), wflm))
 
-            # TODO depending on shape of wflm and ivfreslm, I run different routines
+            # NOTE depending on shape of wflm and ivfreslm, I run different routines
             resmap_c = np.ascontiguousarray(np.empty((self.geom_lib.npix(),), dtype=wflm.dtype))
             resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
             
@@ -273,9 +319,9 @@ class LensingGradientSub(GradSub):
                 tonly[1:] *= 0
                 buff_gtmap = self.gradient_operator.act(tonly, spin=1)
                 gc_r_ = buff_gtmap * irestmap
-            gcr = 0
-            gcr += gc_r if 'gc_r' in locals() else gcr
-            gcr += gc_r_ if 'gc_r_' in locals() else gcr
+            gcr = 0.
+            gcr += gc_r if 'gc_r' in locals() else 0.
+            gcr += gc_r_ if 'gc_r_' in locals() else 0.
             gc = self.geom_lib.adjoint_synthesis(gcr, 1, self.LM_max[0], self.LM_max[0], self.sht_tr)
                 
             # NOTE at last, cast qlms to alm space with LM_max and also cast it to convergence
@@ -285,7 +331,8 @@ class LensingGradientSub(GradSub):
             fl2 = cli(0.5 * np.arange(self.LM_max[0]+1) * np.arange(1, self.LM_max[0]+2))
             almxfl(gc[0], fl2, self.LM_max[1], True)
             almxfl(gc[1], fl2, self.LM_max[1], True)
-                
+            # NOTE gc has flipped sign compared to mainbranch.
+            # but mainbranch stores and returns it as -G and -C, so should be fine
             self.cache(gc, it=it, type='quad')
         return self.gfield.get_quad(it)
     

@@ -62,7 +62,7 @@ class Secondary:
         if isinstance(component, str):
             component = [component]
         for ci, comp in enumerate(self.component):
-            klm_ = klm[ci] if isinstance(klm, (list, np.ndarray)) else klm[comp] # TODO this can be removed one the get_est from minimizer is fixed
+            klm_ = klm[ci] if isinstance(klm, (list, np.ndarray)) else klm[comp] # TODO UNCLEAR this can be removed once the get_est from minimizer is fixed
             self.cacher.cache(self.fns[comp].format(idx=idx, idx2=idx2, it=it), np.atleast_2d(klm_))
 
 

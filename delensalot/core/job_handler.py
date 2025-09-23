@@ -411,26 +411,71 @@ class DataContainer:
             return np.array([re*mask for re in ret])
 
 
+    def get_data_(self, idx):
+            # NOTE wrapper to access data that is both masked or unmasked, as data_source does not support masked data if generated.
+            # If data is already masked, this will doubly mask the data.. not sure we want this 
+            # FIXME remove hp and get nside from data_source
+            import healpy as hp
+            nside = 2048
+            space = 'alm' if self.sky_coverage == 'full' else 'map'
+            # lm_max_ = self.data_source.obs_lib.CMB_info['lm_max'] # NOTE using this gives an error in an operator action
+            lm_max_ = self.lm_max_sky
+            if space == 'alm':
+                earr = np.zeros(shape=Alm.getsize(*lm_max_),dtype=complex)
+            else:
+                earr = np.zeros(hp.nside2npix(nside))
+            if True: # NOTE trimmed data currently not supported
+                pobs = self.data_source.get_sim_obs(idx, space='alm', spin=0, field='polarization')
+                # pobs = alm_copy_nd(pobs, None, lm_max_)
+                if self.data_key in ['p', 'eb', 'be']:
+                    # ret = [earr, *alm_copy_nd(pobs, None, lm_max_)]
+                    ret = [earr, pobs]
+                    if space == 'map':
+                        ret = [earr, *hp.alm2map_spin(ret[1:], nside=nside, spin=2, lmax=lm_max_[0], mmax=lm_max_[1])]
+                elif self.data_key in ['ee']:
+                    ret = [earr, alm_copy_nd(pobs, None, lm_max_)[0], earr]
+                    if space == 'map':
+                        assert 0, 'implement if needed'
+                elif self.data_key in ['tt']:
+                    ret = [alm_copy_nd(self.data_source.get_sim_obs(idx, space='alm', spin=0, field='temperature'), None, lm_max_), earr, earr]
+                    if space == 'map':
+                        ret = [*hp.alm2map(ret[0], nside=nside, spin=0), earr, earr]
+                elif self.data_key in ['tp']:
+                    Tobs = alm_copy_nd(self.data_source.get_sim_obs(idx, space='alm', spin=0, field='temperature'), None, lm_max_)   
+                    QUobs = alm_copy_nd(pobs, None, lm_max_)
+                    if space == 'map':
+                        Tobs = hp.alm2map(Tobs, nside=nside)
+                        QUobs = hp.alm2map_spin(QUobs, nside=nside, spin=2, lmax=lm_max_[0], mmax=lm_max_[1])
+                    ret = [Tobs, *QUobs]
+                else:
+                    assert 0, 'implement if needed'
+                return np.array(ret)
+            else:
+                if self.estimator_key in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
+                    return np.array(self.sims_MAP.get_sim_pmap(self.idx), dtype=float)
+                else:
+                    assert 0, 'implement if needed'
+
+
     def get_data(self, idx):
         # NOTE wrapper to access data that is both masked or unmasked, as data_source does not support masked data if generated.
         # If data is already masked, this will doubly mask the data.. not sure we want this 
         # FIXME remove hp and get nside from data_source
-        import healpy as hp
-        nside = 2048
+        
         space = 'alm' if self.sky_coverage == 'full' else 'map'
-        # lm_max_ = self.data_source.obs_lib.CMB_info['lm_max'] # NOTE using this gives an error in an operator action
-        lm_max_ = self.lm_max_sky
         if space == 'alm':
+            nside = 2048
+            import healpy as hp
+            lm_max_ = self.lm_max_sky
+            pobs = self.data_source.get_sim_obs(idx, space=space, spin=0, field='polarization')
+            # earr = np.zeros(shape=pobs.shape[-1],dtype=complex)
             earr = np.zeros(shape=Alm.getsize(*lm_max_),dtype=complex)
-        else:
-            earr = np.zeros(hp.nside2npix(nside))
-        if True: # NOTE trimmed data currently not supported
+            pobs = alm_copy_nd(pobs, None, lm_max_)
             if self.data_key in ['p', 'eb', 'be']:
-                ret = [earr, *alm_copy_nd(self.data_source.get_sim_obs(idx, space='alm', spin=0, field='polarization'), None, lm_max_)]
-                if space == 'map':
-                    ret = [earr, *hp.alm2map_spin(ret[1:], nside=nside, spin=2, lmax=lm_max_[0], mmax=lm_max_[1])]
+                # ret = [earr, *alm_copy_nd(pobs, None, lm_max_)]
+                ret = [earr, *pobs]
             elif self.data_key in ['ee']:
-                ret = [earr, alm_copy_nd(self.data_source.get_sim_obs(idx, space='alm', spin=0, field='polarization'), None, lm_max_)[0], earr]
+                ret = [earr, alm_copy_nd(pobs, None, lm_max_)[0], earr]
                 if space == 'map':
                     assert 0, 'implement if needed'
             elif self.data_key in ['tt']:
@@ -439,17 +484,23 @@ class DataContainer:
                     ret = [*hp.alm2map(ret[0], nside=nside, spin=0), earr, earr]
             elif self.data_key in ['tp']:
                 Tobs = alm_copy_nd(self.data_source.get_sim_obs(idx, space='alm', spin=0, field='temperature'), None, lm_max_)   
-                EBobs = alm_copy_nd(self.data_source.get_sim_obs(idx, space='alm', spin=0, field='polarization'), None, lm_max_)
+                QUobs = alm_copy_nd(pobs, None, lm_max_)
                 if space == 'map':
                     Tobs = hp.alm2map(Tobs, nside=nside)
-                    EBobs = hp.alm2map_spin(EBobs, nside=nside, spin=2, lmax=lm_max_[0], mmax=lm_max_[1])
-                ret = [Tobs, *EBobs]
+                    QUobs = hp.alm2map_spin(QUobs, nside=nside, spin=2, lmax=lm_max_[0], mmax=lm_max_[1])
+                ret = [Tobs, *QUobs]
             else:
                 assert 0, 'implement if needed'
             return np.array(ret)
         else:
-            if self.estimator_key in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
-                return np.array(self.sims_MAP.get_sim_pmap(self.idx), dtype=float)
+            # if self.estimator_key in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
+            buff = np.array(self.data_source.get_sim_pmap(idx), dtype=float)
+            if self.data_key in ['p', 'eb', 'be']:
+                ret = np.array([np.zeros_like(buff[0]), *buff])
+                return ret
+            elif self.data_key in ['ee']:
+                assert 0, "need to verify this. get_sim_pmap() may return QU, in which case the ret below is wrong"
+                ret = np.array([np.zeros_like(buff[0]), buff[0], np.zeros_like(buff[0])])   
             else:
                 assert 0, 'implement if needed'
 

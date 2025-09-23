@@ -340,13 +340,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             secs_run = [sec for sec in seclist_sorted if sec in dl.analysis_secondary]
             libdir = opj(get_TEMP_dir(cf), 'MAP',f"{cf.analysis.estimator_key}")
 
-
-            # TODO pipeline for all estimator keys changes pipeline as follows:
-            # 1. I'll privde a 3-tuple (TEB) data via get_data(). Depending on estimator key, some are empty
-            # 2. operators expect 3-tuple, check if some are empty, and acts (spin-0,spin-2)
-            # 3. filters expect 3-tuple. Check if some are empty, and acts
-            #    a. fwd_op, precon, calc_prep: 3-tuple can be digested
-            #    b. ivfres, wf: unclear. 
             filter_operators = []
             _MAP_operators_desc = {}
             for sec in secs_run:

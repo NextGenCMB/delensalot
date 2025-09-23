@@ -348,7 +348,7 @@ class InverseNoiseVariance(Operator):
         return np.array([*tlm, *eblm])
 
 
-    def get_ftel(self, transferfunction):
+    def get_ftebl(self, transferfunction):
         if self.sky_coverage == 'full':
             ret_t = _extend_cl(transferfunction[0]*2, len(self.n1tebl[0])-1) * self.n1tebl[0]
             ret_e = _extend_cl(transferfunction[1]*2, len(self.n1tebl[1])-1) * self.n1tebl[1]
@@ -356,8 +356,10 @@ class InverseNoiseVariance(Operator):
             return [ret_t, ret_e, ret_b]
 
         nlev_ftl = 10800. / np.sqrt(np.sum(read_map(self.niv[0])) / (4.0 * np.pi)) / np.pi
-        nlev_febl = 10800. / np.sqrt((0.5 * np.sum(read_map(self.niv[1])) + np.sum(read_map(self.niv[2]))) / (4.0 * np.pi)) / np.pi
-        log.info('Using nlevp %.2f amin'%nlev_febl)
+        # TODO analog to main branch, I only take niv[1] here but I believe it would be more accurate to take both Q and U into account
+        nlev_febl = 10800. / np.sqrt((0.5 * np.sum(read_map(self.niv[1])) + 0.5 * np.sum(read_map(self.niv[2]))) / (4.0 * np.pi)) / np.pi
+        # nlev_febl = 10800. / np.sqrt((0.5 * np.sum(read_map(self.niv[1])) + np.sum(read_map(self.niv[2]))) / (4.0 * np.pi)) / np.pi
+        log.debug('Using nlevp %.2f amin'%nlev_febl)
         niv_cl_t = transferfunction[0] ** 2 / (nlev_ftl/ 180. / 60. * np.pi) ** 2
         niv_cl_e = transferfunction[1] ** 2 / (nlev_febl/ 180. / 60. * np.pi) ** 2
         niv_cl_b = transferfunction[2] ** 2 / (nlev_febl/ 180. / 60. * np.pi) ** 2

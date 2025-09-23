@@ -213,7 +213,7 @@ tr_cd = (lambda i: 0)
 
 
 def solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cacher, roundoff=25):
-    maxiter = 10
+    maxiter = 30
     """customizable conjugate directions loop for x=[fwd_op]^{-1}b.
 
     Args:
@@ -299,7 +299,8 @@ def solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cacher, roundoff=25):
             # plt.plot(ell, cond_num_ell)
             # plt.loglog()
             # plt.show()
-            print(f"Iteration {iter}: Global Condition Number = {global_cond_num:.2f}")
+            # print(f"Iteration {iter}: Global Condition Number = {global_cond_num:.2f}")
+            pass
 
         # initial choices for new search directions.
         searchdirs = [pre_op(residual) for pre_op in pre_ops]

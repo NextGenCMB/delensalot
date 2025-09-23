@@ -35,7 +35,8 @@ class Filter_3d:
         self.icls = self.invert_cls_filt(self.cls_filt)
         self.sht_tr = filter_desc['sht_tr']
         
-        self.ivf_field = field.Filter(filterfield_desc('ivf', self.libdir))
+        # TODO rename this to "ivfres"_field
+        self.ivfres_field = field.Filter(filterfield_desc('ivf', self.libdir))
         self.wf_field: field.Filter = field.Filter(filterfield_desc('wf', self.libdir))
 
 
@@ -69,7 +70,7 @@ class Filter_3d:
         assert data.shape[0] == 3, len(data)
         space = next(('alm' if data[i].dtype in [np.complex64, np.complex128] else 'map') for i in range(3) if np.any(data[i]))
 
-        # TODO can remove this once operator has a single act()
+        # TODO merge inv_operator.act with inv_operator.apply_map. Can remove this once operator has a single act()
         if space == 'alm':
             teblmc = self.inv_operator.act(data, adjoint=False)
         elif space == 'map':
@@ -147,7 +148,7 @@ class Filter_3d:
     def preconditioner_op(self, teblm):
         lmax_ = Alm.getlmax(teblm[1].size, None)
 
-        ninv_ftebl = self.inv_operator.get_ftel(self.beam_operator.transferfunction)
+        ninv_ftebl = self.inv_operator.get_ftebl(self.beam_operator.transferfunction)
         if np.any(ninv_ftebl[0]) and len(ninv_ftebl[0]) - 1 < lmax_:  # We extend the transfer fct to avoid predcon. with zero (~ Gauss beam)
             ninv_ftl = ninv_ftebl[0]
             log.debug("PRE_OP_DIAG: extending transfer fct from lmax %s to lmax %s" % (len(ninv_ftl)-1, lmax_))
@@ -207,7 +208,7 @@ class Filter_3d:
     def get_ivfreslm(self, it, data=None, elm_wf=None):
         # assert elm_wf.shape[0] == 3, elm_wf.shape
         # NOTE this is eq. 21 of the paper
-        if not self.ivf_field.is_cached(it=it):
+        if not self.ivfres_field.is_cached(it=it):
             assert elm_wf is not None and data is not None
             ivfreslm = self.sec_operator.act(elm_wf)
             assert ivfreslm.shape[0] == 3, ivfreslm.shape
@@ -218,7 +219,7 @@ class Filter_3d:
                 ivfreslm = self.inv_operator.act(ivfreslm, adjoint=False)
             else:
                 ivfresmap = [
-                    self.inv_operator.geom_lib.synthesis(ivfreslm[0], 0, *self.inv_operator.lm_max, self.sht_tr),
+                    self.inv_operator.geom_lib.synthesis(ivfreslm[0], 0, *self.inv_operator.lm_max, self.sht_tr)[0],
                     *self.inv_operator.geom_lib.synthesis(ivfreslm[1:], 2, *self.inv_operator.lm_max, self.sht_tr)
                 ]
                 ivfresmap = [d-ivf for ivf,d in zip(ivfresmap,data)]
@@ -233,8 +234,8 @@ class Filter_3d:
             elif 'ee' in self.cls_filt:
                 ivfreslm[0] = np.zeros_like(ivfreslm[1],dtype=complex)
                 # ivfreslm[2] = np.zeros_like(ivfreslm[1],dtype=complex)
-            self.ivf_field.cache(ivfreslm, it=it)
-        return self.ivf_field.get_field(it=it)
+            self.ivfres_field.cache(ivfreslm, it=it)
+        return self.ivfres_field.get_field(it=it)
 
 
     def invert_cls_filt(self, cls_filt):
