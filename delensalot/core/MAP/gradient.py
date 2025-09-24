@@ -175,7 +175,6 @@ class GradSub:
         self.ID = gradient_desc['ID']
         self.chh = gradient_desc['chh']
         libdir = gradient_desc['libdir']
-        self.sky_coverage = gradient_desc['sky_coverage']
 
         self.geom_lib = gradient_desc['sec_operator'].operators[-1].lenjob_geomlib
         self.sht_tr = gradient_desc['sht_tr']

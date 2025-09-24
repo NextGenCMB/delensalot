@@ -288,7 +288,7 @@ class Beam:
     
 
 class InverseNoiseVariance(Operator):
-    def __init__(self, nlev, lm_max, niv_desc, geom_lib, geominfo, transferfunction, libdir, sht_tr, spectrum_type=None, OBD=None, obd_rescale=None, obd_libdir=None, sky_coverage=None, filtering_spatial_type=None, data_key=None):
+    def __init__(self, nlev, lm_max, niv_desc, geom_lib, geominfo, transferfunction, libdir, sht_tr, spectrum_type=None, OBD=None, obd_rescale=None, obd_libdir=None, sky_coverage=None, data_key=None):
         super().__init__(libdir)
         self.ID = 'inoise'
         self.data_key = data_key

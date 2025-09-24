@@ -96,7 +96,18 @@ class DELENSALOT_DataSource(DELENSALOT_Concept):
     This class collects all configurations related to the input maps, and values can differ from the noise model and analysis.
 
     Attributes:
-                                     
+        flavour (str):      can be 'pri' (prior, unlensed CMB), 'sec' (secondary, lensed CMB), 'obs' (observed, lensed CMB + noise)
+        libdir_suffix (str):  custom suffix to be added where the maps are located
+        generator_key (str):   key to identify the type of map generation. Can be 'pwf' (lensed CMB + noise), 'p' (lensed CMB only), 'f' (birefringence field)
+        maps:           the maps themselves
+        geominfo:      the geometric information of the maps, lenspyx style
+        fid_info:      the fiducial power spectra used for generating the maps
+        CMB_info:      the CMB power spectra used for generating the maps
+        sec_info:      the secondary (lensing, birefringence) information used for generating the maps
+        obs_info:      the observation information used for generating the maps (noise levels, beam, transfer function)
+        operator_info: the operators used for generating the maps (lensing, birefringence)
+        sky_coverage (str):  can be 'full' or 'masked'
+
     """
     flavour =       attr.field(default=DEFAULT_NotAValue)
     libdir_suffix = attr.field(default='generic')
@@ -108,6 +119,7 @@ class DELENSALOT_DataSource(DELENSALOT_Concept):
     obs_info =      attr.field(default=DEFAULT_NotAValue)
     operator_info = attr.field(default=DEFAULT_NotAValue)
     generator_key = attr.field(default=DEFAULT_NotAValue)
+    sky_coverage =  attr.field(default='full')
 
 
 @attr.s
@@ -116,16 +128,12 @@ class DELENSALOT_Noisemodel(DELENSALOT_Concept):
     This class collects all configurations related to the noise model used for Wiener-filtering the data.
 
     Attributes:
-        sky_coverage (str):     Can be either 'masked' or 'unmasked'
         spectrum_type (str):    TBD
         OBD (str):              OBD identifier. Can be 'OBD', 'trunc'. Defines how lowest B-modes will be handled.
-        nlev_t (float):         (central) noise level of temperature data in muK arcmin.
-        nlev_p (float):         (central) noise level of polarization data in muK arcmin.
+        nlev (dict):         (central) noise level of temperature and polarization data in muK arcmin.
         rhits_normalised (str): path to the hits-count map, used to calculate the noise levels, and the mask tracing the noise level. Second entry in tuple is the <inverse hits-count multiplier>.
         geominfo (tuple): geominfo of the noise map
     """
-    sky_coverage =          attr.field(default=DEFAULT_NotAValue)
-    spatial_type =          attr.field(default=DEFAULT_NotAValue)
     spectrum_type =         attr.field(default=DEFAULT_NotAValue)
     OBD =                   attr.field(default=DEFAULT_NotAValue)
     nlev =                  attr.field(default=DEFAULT_NotAValue)
@@ -142,7 +150,8 @@ class DELENSALOT_QErec(DELENSALOT_Concept):
 
     Attributes:
         tasks (list[tuple]):        tasks to perfrom. Can be any combination of :code:`calc_phi`, :code:`calc_meanfield`, :code:`calc_blt`
-        qlm_type (str):             lensing potential estimator identifier. Can be 'sepTP' or 'jTP'
+        filtering_type (str):       can be either 'isotropic' (unmasked sky) or 'anisotropic' (masked sky)
+        estimator_type (str):       lensing potential estimator identifier. Can be 'sepTP' or 'jTP'
         cg_tol (float):             tolerance of the conjugate gradient method
         filter_directional (str):   can be either 'isotropic' (unmasked sky) or 'isotropic' (masked sky)
         lm_max_qlm (type):          maximum multipole `\ell` and m to reconstruct the lensing potential
@@ -151,7 +160,7 @@ class DELENSALOT_QErec(DELENSALOT_Concept):
     
     """
     tasks =                 attr.field(default=DEFAULT_NotAValue)
-    filtering =             attr.field(default=DEFAULT_NotAValue)
+    filtering_type =        attr.field(default=DEFAULT_NotAValue)
     estimator_type =        attr.field(default=DEFAULT_NotAValue)
     qlm_type =              attr.field(default=DEFAULT_NotAValue)
     cg_tol =                attr.field(default=DEFAULT_NotAValue)
@@ -180,7 +189,7 @@ class DELENSALOT_MAPrec(DELENSALOT_Concept):
     """
     tasks =                 attr.field(default=DEFAULT_NotAValue)
     itmax =                 attr.field(default=DEFAULT_NotAValue)
-    filtering =             attr.field(default=DEFAULT_NotAValue)
+    filtering_type =        attr.field(default=DEFAULT_NotAValue)
     cg_tol =                attr.field(default=DEFAULT_NotAValue)
     mfvar =                 attr.field(default=DEFAULT_NotAValue)
     soltn_cond =            attr.field(default=DEFAULT_NotAValue)

@@ -185,10 +185,9 @@ class l2base_Transformer:
             'transferfunction': dl.transferfunction,
             'spectrum_type': nm.spectrum_type,
             'OBD': nm.OBD,
-            'sky_coverage': nm.sky_coverage,
+            'filtering_type': cf.maprec.filtering_type,
             "obd_rescale": cf.obd.rescale,
             "obd_libdir": cf.obd.libdir,
-            "filtering_spatial_type": cf.noisemodel.spatial_type,
             'libdir': dl.TEMP,
             'data_key': dl.data_key,
             "sht_tr": dl.sht_tr,
@@ -219,7 +218,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 'idxs': dl.idxs,
                 'idxs_mf': dl.idxs_mf,
                 'mask_fn': cf.analysis.mask_fn,
-                'sky_coverage': cf.noisemodel.sky_coverage,
+                'sky_coverage': cf.data_source.sky_coverage,
                 'lm_max_sky': cf.analysis.lm_max_sky,
             }
             return ret
@@ -379,6 +378,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 allowed_keys = ['tt']
             cls_filt = {key:val[:dl.lm_max_pri[0]+1] for key, val in data_container.cls_lib.Cl_dict.items() if key in allowed_keys}
             MAP_wfivf_desc = {
+                'filtering_type': cf.maprec.filtering_type,
                 'sec_operator': sec_operator,
                 'beam_operator': operator.Beam({'transferfunction': dl.transferfunction, 'lm_max': dl.lm_max_sky, 'data_key': dl.data_key}),
                 'inv_operator': niv,
@@ -395,7 +395,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 'data_container': data_container,
                 "libdir": libdir,
                 "LM_max": dl.LM_max,
-                'sky_coverage': cf.noisemodel.sky_coverage,
                 'geomlib': get_geom(('thingauss', {'lmax': 4500, 'smax': 3})), # FIXME this must match the geom in the operator
                 "sht_tr": dl.sht_tr,
             }

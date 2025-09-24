@@ -26,11 +26,11 @@ class PlancklensInterface:
         self.estimator_type = estimator_type
         self.libdir = libdir or opj(os.environ['SCRATCH'], 'QE')
 
-        # nivjob_geominfo, niv_desc, nlev, ttebl, filtering_spatial_type, 
+        # nivjob_geominfo, niv_desc, nlev, ttebl, filtering_type, 
         self.nivjob_geominfo = inv_operator_desc['geominfo']
         self.niv_desc = inv_operator_desc['niv_desc']
         self.nlev = inv_operator_desc['nlev']
-        self.filtering_spatial_type = inv_operator_desc['filtering_spatial_type']
+        self.filtering_type = inv_operator_desc['filtering_type']
         self.transferfunction = inv_operator_desc['transferfunction']
         self.sky_coverage = inv_operator_desc['sky_coverage']
         
@@ -62,7 +62,7 @@ class PlancklensInterface:
 
     @log_on_start(logging.INFO, 'filterqest', logger=log)
     def _init_filterqest(self):
-        if self.filtering_spatial_type == 'isotropic':
+        if self.filtering_type == 'isotropic':
             self.ivf = filt_simple.library_fullsky_sepTP(
                 opj(self.libdir, 'ivf'),
                 self.data_container,
@@ -81,7 +81,7 @@ class PlancklensInterface:
                     self.cls_len['te'],
                     self.nivjob_geominfo[1]['nside'],
                     lmax_qlm=self.lm_max_qlm[0])
-        elif self.filtering_spatial_type == 'anisotropic':
+        elif self.filtering_type == 'anisotropic':
             ## Wait for finished run(), as plancklens triggers cinv_calc...
             self.cinv_t = filt_cinv.cinv_t(
                 lib_dir = opj(self.libdir, 'cinv_t'),
