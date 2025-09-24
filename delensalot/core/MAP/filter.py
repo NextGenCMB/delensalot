@@ -7,6 +7,7 @@ import numpy as np
 from scipy.interpolate import UnivariateSpline as spl
 
 from delensalot.core.MAP import cg, field, operator
+from delensalot.config.config_manager import get_config
 
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy, almxfl_nd, alm_copy_nd
 
@@ -26,6 +27,7 @@ class Filter_3d:
         self.inv_operator: operator.InverseNoiseVariance = filter_desc['inv_operator']
         self.add_operator: operator.Add = filter_desc['add_operator']
         
+        self.filtering_type = filter_desc['filtering_type']
         self.chain_descr = filter_desc['chain_descr']
         
         self.cls_filt = filter_desc['cls_filt']
@@ -56,6 +58,11 @@ class Filter_3d:
                     cg_sol_curr[1] = self.wf_field.get_field(it=it-1)
             teb_prep_alm = self.calc_prep(data) # NOTE lm_sky -> lm_pri
             mchain = cg.ConjugateGradient(self.preconditioner_op, self.chain_descr, self.cls_filt)
+            if self.filtering_type == 'isotropic':
+                assert 0, "not implemented"
+                config = get_config()
+                buff = {sec.ID: np.zeros(shape=(config.LM_max)) for sec in self.sec_operator.operators} # n
+                self.update_operator(buff)
             mchain.solve(cg_sol_curr, teb_prep_alm, self.fwd_op)
             self.wf_field.cache(cg_sol_curr, it=it)
         return self.wf_field.get_field(it=it)
@@ -65,31 +72,46 @@ class Filter_3d:
     @log_on_end(logging.DEBUG, " done ---- calc_prep", logger=log)  
     def calc_prep(self, data):
         # NOTE data can be alms or map
-        """cg preoperation. This performs :math:`D_\phi^t B^t N^{-1} X^{\rm dat}`
+        """cg preoperation. This performs :math:`D_\phi^t B^t N^{-1} X^{\rm dat}` (or the isotropic version of it)
         """
-        assert data.shape[0] == 3, len(data)
-        space = next(('alm' if data[i].dtype in [np.complex64, np.complex128] else 'map') for i in range(3) if np.any(data[i]))
+        if self.filtering_type == 'isotropic':
+            assert 0, "not implemented"
+            # PorT = 'p' in self.opfilt.__name__.split('.')[-1] or 'e' in self.opfilt.__name__.split('.')[-1]
+            # if PorT: # Pol rec.
+            #     delEB = np.empty_like(self.dat_maps)
+            #     delEB[0] = almxfl(self.dat_maps[0], cli(self.filter.transf_elm), mmax, False)
+            #     delEB[1] = almxfl(self.dat_maps[1], cli(self.filter.transf_blm), mmax, False)
+            #     delEB = ffi.lensgclm(delEB, self.filter.mmax_len, 2, self.filter.lmax_len, self.filter.mmax_len, backwards=True, nomagn=True)
+            #     almxfl(delEB[0], self.filter.transf_elm, mmax, True)
+            #     almxfl(delEB[1], self.filter.transf_blm, mmax, True)
+            #     teb_prep_alm = delEB
+            # else: # TT-rec
+            #     delT = almxfl(self.dat_maps, cli(self.filter.transf), mmax, False)
+            #     delT = ffi.lensgclm(delT, self.filter.mmax_len, 0, self.filter.lmax_len, self.filter.mmax_len, backwards=True, nomagn=True)
+            #     almxfl(delT, self.filter.transf, mmax, True)
+            #     teb_prep_alm = delT
+        else:
+            assert data.shape[0] == 3, len(data)
+            teblmc = self.inv_operator.act(data, adjoint=False)
+            assert len(teblmc) == 3, teblmc.shape
+            
+            teblmc = self.beam_operator.act(teblmc, adjoint=False)
+            assert len(teblmc) == 3, len(teblmc)
+            # NOTE spin 0 is standard, spin 2 is GRAD_only. For convenience, I'll make it return a 3 tuple
+            teblm = self.sec_operator.act(teblmc, adjoint=True, backwards=True) # NOTE lm_sky -> lm_pri
+            assert len(teblm) == 3, len(teblm)
 
-        teblmc = self.inv_operator.act(data, adjoint=False)
-        assert len(teblmc) == 3, teblmc.shape
-        
-        teblmc = self.beam_operator.act(teblmc, adjoint=False)
-        assert len(teblmc) == 3, len(teblmc)
-        # NOTE spin 0 is standard, spin 2 is GRAD_only. For convenience, I'll make it return a 3 tuple
-        teblm = self.sec_operator.act(teblmc, adjoint=True, backwards=True) # NOTE lm_sky -> lm_pri
-        assert len(teblm) == 3, len(teblm)
-
-        teblm = almxfl_nd(teblm, self.cls_filt_bool, None, False)
-        assert len(teblm) == 3, len(teblm)
-        if 'tt' in self.cls_filt and 'ee' in self.cls_filt:
-            teblm[2] = np.zeros_like(teblm[1],dtype=complex)
-        elif 'tt' in self.cls_filt:
-            teblm[1] = np.zeros_like(teblm[0],dtype=complex)
-            teblm[2] = np.zeros_like(teblm[0],dtype=complex)
-        elif 'ee' in self.cls_filt:
-            teblm[0] = np.zeros_like(teblm[1],dtype=complex)
-            teblm[2] = np.zeros_like(teblm[1],dtype=complex)
-        return np.array(teblm)
+            teblm = almxfl_nd(teblm, self.cls_filt_bool, None, False)
+            assert len(teblm) == 3, len(teblm)
+            if 'tt' in self.cls_filt and 'ee' in self.cls_filt:
+                teblm[2] = np.zeros_like(teblm[1],dtype=complex)
+            elif 'tt' in self.cls_filt:
+                teblm[1] = np.zeros_like(teblm[0],dtype=complex)
+                teblm[2] = np.zeros_like(teblm[0],dtype=complex)
+            elif 'ee' in self.cls_filt:
+                teblm[0] = np.zeros_like(teblm[1],dtype=complex)
+                teblm[2] = np.zeros_like(teblm[1],dtype=complex)
+            return np.array(teblm)
 
 
     @log_on_start(logging.DEBUG, " ---- fwd_op", logger=log)
