@@ -213,7 +213,7 @@ tr_cd = (lambda i: 0)
 
 
 def solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cacher, roundoff=25):
-    maxiter = 30
+    maxiter = 80
     """customizable conjugate directions loop for x=[fwd_op]^{-1}b.
 
     Args:
@@ -264,17 +264,17 @@ def solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cacher, roundoff=25):
         dTAd_inv = np.linalg.inv(dTAd)
 
 
-        searchfwd_alm = searchfwds[0][1] # NOTE zeroth grid direction of elm  # Assuming single search direction
-        # Compute per-ell power spectrum
-        cl_dTAd = hp.alm2cl(searchfwd_alm)  # This gives a power spectrum over ell-modes
-        cl_dTAd[cl_dTAd <= 0] = np.min(cl_dTAd[cl_dTAd > 0]) * 1e-6
-        # Compute per-ell condition number
-        cond_num_ell = np.zeros(lmax + 1)
-        for ell in range(1, lmax + 1):  # Avoid ell=0
-            cond_num_ell[ell] = cl_dTAd[ell] / np.min(cl_dTAd[ell:])  # Condition number per ell
-
-        # Compute global condition number (max over all ell)
-        global_cond_num = np.max(cond_num_ell)
+        # NOTE only need this for logging/diagnostics. FIXME this is currently only for eWF (because of [0][1], t would be [0][0])
+        # searchfwd_alm = searchfwds[0][1] # NOTE zeroth grid direction of elm  # Assuming single search direction
+        # # Compute per-ell power spectrum
+        # cl_dTAd = hp.alm2cl(searchfwd_alm)  # This gives a power spectrum over ell-modes
+        # cl_dTAd[cl_dTAd <= 0] = np.min(cl_dTAd[cl_dTAd > 0]) * 1e-6
+        # # Compute per-ell condition number
+        # cond_num_ell = np.zeros(lmax + 1)
+        # for ell in range(1, lmax + 1):  # Avoid ell=0
+        #     cond_num_ell[ell] = cl_dTAd[ell] / np.min(cl_dTAd[ell:])  # Condition number per ell
+        # # Compute global condition number (max over all ell)
+        # global_cond_num = np.max(cond_num_ell)
 
 
         # search.

@@ -280,12 +280,13 @@ class LensingGradientSub(GradSub):
     
 
     def get_gradient_quad(self, it, data=None, data_leg2=None, wflm=None, ivfreslm=None):
-        # NOTE this is the 3d version
-        if isinstance(it, (list, np.ndarray)):
-            return [self.get_gradient_quad(it=it_, data=data, data_leg2=data_leg2, wflm=wflm, ivfreslm=ivfreslm) for it_ in it]
+        # NOTE this is the 3d version as in T and P are both handled
+        # TODO write down equation in docstring
         # NOTE this function is equation 22 of the CMB-S4 paper (for lensing).
         # Using property _2Y = _-2Y.conj
         # res = ivf.conj * gpmap(3) - ivf * gpmap(1).conj
+        if isinstance(it, (list, np.ndarray)):
+            return [self.get_gradient_quad(it=it_, data=data, data_leg2=data_leg2, wflm=wflm, ivfreslm=ivfreslm) for it_ in it]
         ctx, _ = get_computation_context()
         idx, idx2 = ctx.idx, ctx.idx2 or ctx.idx
         if self.data_container is None:
@@ -331,8 +332,8 @@ class LensingGradientSub(GradSub):
             fl2 = cli(0.5 * np.arange(self.LM_max[0]+1) * np.arange(1, self.LM_max[0]+2))
             almxfl(gc[0], fl2, self.LM_max[1], True)
             almxfl(gc[1], fl2, self.LM_max[1], True)
-            # NOTE gc has flipped sign compared to mainbranch.
-            # but mainbranch stores and returns it as -G and -C, so should be fine
+            # NOTE gc has flipped sign compared to Juliens implementation.
+            # However, Julien stores and returns it as -G and -C, so should be fine
             self.cache(gc, it=it, type='quad')
         return self.gfield.get_quad(it)
     
@@ -359,6 +360,7 @@ class BirefringenceGradientSub(GradSub):
     
 
     def get_gradient_quad(self, it, data=None, data_leg2=None, wflm=None, ivfreslm=None):
+        # TODO write down equation in docstring
         if isinstance(it, (list, np.ndarray)):
             return [self.get_gradient_quad(it_, data, data_leg2, wflm, ivfreslm) for it_ in it]
         ctx, _ = get_computation_context()

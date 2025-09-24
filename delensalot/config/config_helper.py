@@ -95,6 +95,7 @@ def generate_plancklenskeys(input_str):
     for sec, comp in secondary_key.items():
         for co, c in comp.items():
             if c.endswith('tp'):
+                # NOTE p_tp is the symmetrized version of ptp + ppt, so we need to convert p_tp -> p
                 secondary_key[sec][co] = secondary_key[sec][co].replace('_tp', '')
                 if secondary_key[sec][co] == 'a':
                     secondary_key[sec][co] = 'a_p'

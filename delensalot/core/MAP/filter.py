@@ -70,11 +70,7 @@ class Filter_3d:
         assert data.shape[0] == 3, len(data)
         space = next(('alm' if data[i].dtype in [np.complex64, np.complex128] else 'map') for i in range(3) if np.any(data[i]))
 
-        # TODO merge inv_operator.act with inv_operator.apply_map. Can remove this once operator has a single act()
-        if space == 'alm':
-            teblmc = self.inv_operator.act(data, adjoint=False)
-        elif space == 'map':
-            teblmc = self.inv_operator.apply_map(data)
+        teblmc = self.inv_operator.act(data, adjoint=False)
         assert len(teblmc) == 3, teblmc.shape
         
         teblmc = self.beam_operator.act(teblmc, adjoint=False)
@@ -117,7 +113,7 @@ class Filter_3d:
             lm_max = self.inv_operator.lm_max
             imap = self.inv_operator.geom_lib.synthesis(teblm[0], 0, *lm_max, self.sht_tr)
             qumap = self.inv_operator.geom_lib.synthesis(teblm[1:], 2, *lm_max, self.sht_tr)
-            teblm = self.inv_operator.apply_map(np.array([*imap, *qumap]))
+            teblm = self.inv_operator.act(np.array([*imap, *qumap]))
 
         teblm = self.beam_operator.act(teblm, adjoint=False)
         teblm = self.sec_operator.act(teblm, adjoint=True, backwards=True) # lm_sky -> lm_pri
@@ -223,7 +219,7 @@ class Filter_3d:
                     *self.inv_operator.geom_lib.synthesis(ivfreslm[1:], 2, *self.inv_operator.lm_max, self.sht_tr)
                 ]
                 ivfresmap = [d-ivf for ivf,d in zip(ivfresmap,data)]
-                ivfreslm = self.inv_operator.apply_map(ivfresmap)
+                ivfreslm = self.inv_operator.act(ivfresmap)
 
             ivfreslm = self.beam_operator.act(ivfreslm, adjoint=False, factor_p=.5)
             if 'tt' in self.cls_filt and 'ee' in self.cls_filt:

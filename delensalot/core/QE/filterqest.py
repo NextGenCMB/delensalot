@@ -62,7 +62,7 @@ class PlancklensInterface:
 
     @log_on_start(logging.INFO, 'filterqest', logger=log)
     def _init_filterqest(self):
-        if self.sky_coverage == 'full' and self.filtering_spatial_type == 'isotropic':
+        if self.filtering_spatial_type == 'isotropic':
             self.ivf = filt_simple.library_fullsky_sepTP(
                 opj(self.libdir, 'ivf'),
                 self.data_container,
@@ -81,7 +81,7 @@ class PlancklensInterface:
                     self.cls_len['te'],
                     self.nivjob_geominfo[1]['nside'],
                     lmax_qlm=self.lm_max_qlm[0])
-        elif self.sky_coverage == 'masked' or self.filtering_spatial_type == 'anisotropic':
+        elif self.filtering_spatial_type == 'anisotropic':
             ## Wait for finished run(), as plancklens triggers cinv_calc...
             self.cinv_t = filt_cinv.cinv_t(
                 lib_dir = opj(self.libdir, 'cinv_t'),
@@ -93,6 +93,7 @@ class PlancklensInterface:
                 marge_monopole=True,
                 marge_dipole=True,
                 marge_maps=[],
+                chain_descr = self.chain_descr(self.lm_max_ivf[0], self.cg_tol),
             )
 
             transf_elm_loc = self.transferfunction['e']
@@ -151,8 +152,8 @@ class PlancklensInterface:
                 ivfs2 = self.ivf,
                 clte = self.cls_len['te'],
                 nside = self.nivjob_geominfo[1]['nside'],
-                lmax_qlm=self.lm_max_qlm[0]
-            )
+                lmax_qlm = self.lm_max_qlm[0]
+            ) 
             log.log(logging.DEBUG, 'qest.library_sepTP initialized')
         return self.qlms_dd
 

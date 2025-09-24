@@ -9,14 +9,13 @@ from delensalot.config.config_helper import data_functions as df
 
 def get_niv_desc(nlev, nivjob_geominfo, nivjob_geomlib, rhits_normalised, mask, niv_map=None, mode='P'):
     """Generate noise inverse variance (NIV) description for temperature ('T') or polarization ('P')."""
-    rhits_normalised = None
     if isinstance(mask, str):
         mask = mask
     if niv_map is None:
         if nivjob_geominfo[0] != 'healpix':
             assert 0, 'needs testing, please choose Healpix geom for nivjob for now'
         pixel_area = hp.nside2pixarea(nivjob_geominfo[1]['nside'], degrees=True) * 3600  # Convert to arcmin²
-        rhits_normalised = np.load(rhits_normalised) if rhits_normalised is not None else np.array([1])
+        rhits_normalised = rhits_normalised if rhits_normalised is not None else np.array([1])
         niv_desc = [np.array([pixel_area / nlev[mode] ** 2]*cli(rhits_normalised))]
         niv_desc = niv_desc + [mask] if mask else niv_desc
     else:

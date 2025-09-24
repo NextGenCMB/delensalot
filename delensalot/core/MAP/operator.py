@@ -151,9 +151,6 @@ class Lensing(Operator):
         else:
             if adjoint and backwards:
                 tlm = np.atleast_2d(self.ffi.lensgclm(obj[0], self.lm_max_in[1], 0, *self.lm_max_out, backwards=backwards, out_sht_mode='STANDARD')) if self.data_key in ['tt', 'tp'] else np.zeros(shape=(Alm.getsize(*self.lm_max_out)),dtype=complex)
-                # print('lensing with', self.lm_max_in[1], 2, *self.lm_max_out)
-                # print(self.ffi.__dict__)
-                # print(np.atleast_2d(obj[1:]))
                 eblm = np.atleast_2d(self.ffi.lensgclm(np.atleast_2d(obj[1:]), self.lm_max_in[1], 2, *self.lm_max_out, backwards=backwards, out_sht_mode="GRAD_ONLY")) if self.data_key in ['p', 'ee', 'eb', 'bb', 'tp'] else np.zeros(shape=(1, Alm.getsize(*self.lm_max_out)),dtype=complex)
                 return np.array([tlm.squeeze(), *eblm, np.zeros_like(tlm.squeeze())])
             else:
@@ -300,7 +297,7 @@ class InverseNoiseVariance(Operator):
         self.nlev = nlev
         self.lm_max = lm_max
         nivkeys_sorted = ['t', 'e', 'b']
-        self.niv = [read_map(niv_desc[key]) for key in nivkeys_sorted]
+        self.niv = [read_map(niv_desc[key]) for key in nivkeys_sorted] # NOTE niv is always TT, QQ, UU
         self.transferfunction = transferfunction
         spectrum_type = spectrum_type
         OBD = OBD
@@ -316,36 +313,33 @@ class InverseNoiseVariance(Operator):
     @log_on_start(logging.DEBUG, "InverseNoiseVariance", logger=log)
     # @log_on_end(logging.DEBUG, "InverseNoiseVariance done", logger=log)
     def act(self, obj, adjoint=False):
-        if adjoint:
-            return np.array([cli(almxfl(o, self.n1tebl[oi], len(self.n1tebl[oi])-1, False)) for oi, o in enumerate(obj)])
-        return np.array([almxfl(o, self.n1tebl[oi], len(self.n1tebl[oi])-1, False) for oi, o in enumerate(obj)])
+        if obj.dtype in (np.complex64, np.complex128): # NOTE this is full sky isotropic run (we run things on alms)
+            if adjoint:
+                return np.array([cli(almxfl(o, self.n1tebl[oi], len(self.n1tebl[oi])-1, False)) for oi, o in enumerate(obj)])
+            return np.array([almxfl(o, self.n1tebl[oi], len(self.n1tebl[oi])-1, False) for oi, o in enumerate(obj)])
+        else:
+            obj[0] *= self.niv[0]
+            obj[1:] *= self.niv[1]
+            
+            if False: # TODO if noise inverse variance maps are TT,QQ,UU,QU, need to catch it here
+                assert 0, "implement if needed"
+                assert self.template is None
+                qmap, umap = obj[1], obj[2]
+                qmap_copy = qmap.copy()
+                qmap *= self.niv[1]
+                qmap += self.niv[2] * umap
+                umap *= self.niv[2]
+                umap += self.niv[1] * qmap_copy
+                del qmap_copy
+
+            tlm = self.geom_lib.adjoint_synthesis(obj[0], 0, *self.lm_max, self.sht_tr, apply_weights=False)
+            eblm = self.geom_lib.adjoint_synthesis(obj[1:], 2, *self.lm_max, self.sht_tr, apply_weights=False)
+            return np.array([*tlm, *eblm])
 
 
     def adjoint(self):
         self.is_adjoint = True
         return self
-    
-
-    def apply_map(self, tqumap):
-        # NOTE niv order is assumed to be TT,QQ,UU,QU
-        """Applies pixel inverse-noise variance maps
-        """
-        assert len(tqumap) == 3
-
-        tqumap[0] *= self.niv[1]
-        tqumap[1:] *= self.niv[2]
-        # assert self.template is None
-        # qmap, umap = tqumap[1], tqumap[2]
-        # qmap_copy = qmap.copy()
-        # qmap *= self.niv[1]
-        # qmap += self.niv[2] * umap
-        # umap *= self.niv[2]
-        # umap += self.niv[1] * qmap_copy
-        # del qmap_copy
-
-        tlm = self.geom_lib.adjoint_synthesis(tqumap[0], 0, *self.lm_max, self.sht_tr, apply_weights=False)
-        eblm = self.geom_lib.adjoint_synthesis(tqumap[1:], 2, *self.lm_max, self.sht_tr, apply_weights=False)
-        return np.array([*tlm, *eblm])
 
 
     def get_ftebl(self, transferfunction):
@@ -356,9 +350,9 @@ class InverseNoiseVariance(Operator):
             return [ret_t, ret_e, ret_b]
 
         nlev_ftl = 10800. / np.sqrt(np.sum(read_map(self.niv[0])) / (4.0 * np.pi)) / np.pi
-        # TODO analog to main branch, I only take niv[1] here but I believe it would be more accurate to take both Q and U into account
-        nlev_febl = 10800. / np.sqrt((0.5 * np.sum(read_map(self.niv[1])) + 0.5 * np.sum(read_map(self.niv[2]))) / (4.0 * np.pi)) / np.pi
-        # nlev_febl = 10800. / np.sqrt((0.5 * np.sum(read_map(self.niv[1])) + np.sum(read_map(self.niv[2]))) / (4.0 * np.pi)) / np.pi
+        # NOTE analog to main branch, I only take niv[1] here assuming QQ = UU. Otherwise I need to take into account QU cross as well
+        nlev_febl = 10800. / np.sqrt((np.sum(read_map(self.niv[1]))) / (4.0 * np.pi)) / np.pi
+        # nlev_febl = 10800. / np.sqrt((0.5 * np.sum(read_map(self.niv[1])) + 0.5 * np.sum(read_map(self.niv[2]))) / (4.0 * np.pi)) / np.pi
         log.debug('Using nlevp %.2f amin'%nlev_febl)
         niv_cl_t = transferfunction[0] ** 2 / (nlev_ftl/ 180. / 60. * np.pi) ** 2
         niv_cl_e = transferfunction[1] ** 2 / (nlev_febl/ 180. / 60. * np.pi) ** 2

@@ -165,10 +165,10 @@ class l2base_Transformer:
 
     def process_Noisemodel(dl, nm, cf):
         dl.nivjob_geomlib = get_geom(nm.geominfo) # .restrict(*np.arccos(dl.zbounds[::-1]), northsouth_sym=False)
-        dl.rhits_normalised_fn = nm.rhits_normalised
+        dl.rhits_normalised_fn = nm.rhits_normalised if isinstance(nm.rhits_normalised, str) else None
         dl.nlev = nm.nlev
         dl.mask_fn = cf.analysis.mask_fn
-        f = lambda x: utils_plancklens.get_niv_desc(nm.nlev, nm.geominfo, dl.nivjob_geomlib, dl.rhits_normalised_fn, dl.mask_fn, mode=x)
+        f = lambda x: utils_plancklens.get_niv_desc(nm.nlev, nm.geominfo, dl.nivjob_geomlib, np.load(dl.rhits_normalised_fn) if isinstance(nm.rhits_normalised, str) else None, dl.mask_fn, mode=x)
         buff_eb = f('P')
         buff_t = f('T')
         if "_" in dl.estimator_key:
