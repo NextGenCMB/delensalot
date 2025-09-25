@@ -223,6 +223,7 @@ class Likelihood:
         curvature_desc["bfgs_desc"].update({'dot_op': dotop})
         curvature_desc['libdir'] = opj(self.libdir, 'curvature/')
         curvature_desc['h0'] = [h0 for QE_search in self.QE_searchs for h0 in QE_search._get_h0()]
+        curvature_desc['sky_coverage'] = self.gradient_lib.wfivf_filter.sky_coverage
         self.curvature_lib: curvature.Base = curvature.Base(self.gradient_lib, **curvature_desc)
         
 

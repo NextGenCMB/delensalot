@@ -19,7 +19,7 @@ DL_DEFAULT = {
         'flavour': 'pri',
         'libdir_suffix': 'generic',
         'geominfo': ('healpix',{'nside': 2048}), # NOTE this is the geometry for any map generated as the final result
-        'maps': DNaV,
+        # 'maps': DNaV,
         'fid_info': {
             'libdir': opj(os.path.dirname(delensalot.__file__), 'data', 'cls'),
             'fn': 'FFP10_wdipole_secondaries_lens_birefringence.dat',

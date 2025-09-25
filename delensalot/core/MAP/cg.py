@@ -213,7 +213,7 @@ tr_cd = (lambda i: 0)
 
 
 def solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cacher, roundoff=25):
-    maxiter = 80
+    maxiter = 200
     """customizable conjugate directions loop for x=[fwd_op]^{-1}b.
 
     Args:

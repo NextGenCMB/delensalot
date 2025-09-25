@@ -933,7 +933,7 @@ class DataSource:
     Data can be cl, pri, len, or obs, .. and alms or maps. Simhandler connects the individual libraries and decides what can be generated.
     E.g.: If obs data provided, len data cannot be generated.
     """ 
-    def __init__(self, flavour, generator_key, libdir_suffix, sec_info, maps=DNaV, geominfo=DNaV, fid_info=DNaV, CMB_info=DNaV, obs_info=DNaV, operator_info=DNaV):
+    def __init__(self, flavour, libdir_suffix, sec_info, maps=DNaV, geominfo=DNaV, fid_info=DNaV, CMB_info=DNaV, obs_info=DNaV, operator_info=DNaV):
         """Entry point for simulation data handling.
         Simhandler() connects the individual librariers together accordingly, depending on the provided data.
         It never stores data on disk itself, only in memory.

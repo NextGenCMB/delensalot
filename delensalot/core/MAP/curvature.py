@@ -13,7 +13,7 @@ from delensalot.utils import cli
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl
 
 class Base:
-    def __init__(self, gradient_lib, h0, bfgs_desc, libdir):
+    def __init__(self, gradient_lib, h0, bfgs_desc, libdir, sky_coverage):
         self.ID = "curvature"
         self.gradient_lib = gradient_lib
         self.field = MAP_field.Curvature(
@@ -22,16 +22,17 @@ class Base:
             "fns": {'yk': f"diff_grad1d_simidx{{idx}}_{{idx2}}_it{{it}}m{{itm1}}",
                     'sk': f"incr_grad1d_simidx{{idx}}_{{idx2}}_it{{it}}m{{itm1}}",
             }})
-  
+        setting_fullsky = lambda sub: {'lmax_qlm': sub.LM_max[0], 'mmax_qlm': sub.LM_max[1], 'a': 0.2, 'b': 0.199, 'xa': 400, 'xb': 1500}
+        setting_masked = lambda sub: {'lmax_qlm': sub.LM_max[0], 'mmax_qlm': sub.LM_max[1], 'a': 0.02, 'b': 0.399,'xa': 1, 'xb': 15}
+
         self.h0 = h0
         bfgs_desc.update({"apply_H0k": self.apply_H0k, "apply_B0k": self.apply_B0k})
         bfgs_desc.update({'cacher': cachers.cacher_npy(self.field.libdir)})
         self.bfgs_h = bfgs.BFGSHessian(self.h0, **bfgs_desc)
         
         # TODO need to (at least) semi-automatically switch depending on masked/full sky
-        setting = lambda sub: {'lmax_qlm': sub.LM_max[0], 'mmax_qlm': sub.LM_max[1], 'a': 0.2, 'b': 0.199, 'xa': 400, 'xb': 1500}
-        setting_masked = lambda sub: {'lmax_qlm': sub.LM_max[0], 'mmax_qlm': sub.LM_max[1], 'a': 0.02, 'b': 0.399,'xa': 1, 'xb': 15}
-        self.stepper = {sub.ID: harmonicbump(**setting_masked(sub),) for sub in self.gradient_lib.subs}
+        setting_hb = setting_masked if sky_coverage == "masked" else setting_fullsky
+        self.stepper = {sub.ID: harmonicbump(**setting_hb(sub),) for sub in self.gradient_lib.subs}
 
 
     def add_svector(self, incr, it):

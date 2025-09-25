@@ -29,6 +29,7 @@ from delensalot.core.MAP.context import get_computation_context
 from delensalot.sims.data_source import dirname_generator, dict2roundeddict
 
 from delensalot.config.metamodel import DEFAULT_NotAValue
+from delensalot.config.config_manager import get_config
 
 from delensalot.utils import read_map, ztruncify, cli
 from delensalot.utility.utils_hp import Alm, almxfl, alm_copy, gauss_beam, alm2cl, alm_copy_nd
@@ -330,6 +331,9 @@ class DataContainer:
 
                 self.obs_lib = self.data_source.obs_lib
 
+                # NOTE dumping data_source info to readme
+                config = get_config()
+                np.savetxt(self.data_source.obs_lib.CMB_info['libdir'] + '/README_simulation_info.txt', np.array([str(config.data_source.__dict__).replace(" '", "\n'")]), fmt="%s")
 
     def _postrun_sky(self):
         # NOTE if this class here decides to generate data, we need to update some parameters in the data_source object

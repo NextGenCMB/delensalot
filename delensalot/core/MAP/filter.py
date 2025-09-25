@@ -28,6 +28,7 @@ class Filter_3d:
         self.add_operator: operator.Add = filter_desc['add_operator']
         
         self.filtering_type = filter_desc['filtering_type']
+        self.sky_coverage = filter_desc['sky_coverage']
         self.chain_descr = filter_desc['chain_descr']
         
         self.cls_filt = filter_desc['cls_filt']
@@ -129,7 +130,7 @@ class Filter_3d:
         teblm = self.beam_operator.act(teblm, adjoint=False)
         assert len(teblm) == 3, len(teblm)
 
-        if self.inv_operator.sky_coverage == 'full':
+        if self.sky_coverage == 'full':
             teblm = self.inv_operator.act(teblm, adjoint=False)
         else:
             lm_max = self.inv_operator.lm_max

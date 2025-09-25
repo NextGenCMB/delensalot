@@ -32,7 +32,6 @@ class PlancklensInterface:
         self.nlev = inv_operator_desc['nlev']
         self.filtering_type = inv_operator_desc['filtering_type']
         self.transferfunction = inv_operator_desc['transferfunction']
-        self.sky_coverage = inv_operator_desc['sky_coverage']
         
         # OBD='trunc', obd_libdir='obd', obd_rescale=1.,
         self.OBD = inv_operator_desc['OBD']

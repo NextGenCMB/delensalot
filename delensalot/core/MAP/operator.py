@@ -288,7 +288,7 @@ class Beam:
     
 
 class InverseNoiseVariance(Operator):
-    def __init__(self, nlev, lm_max, niv_desc, geom_lib, geominfo, transferfunction, libdir, sht_tr, spectrum_type=None, OBD=None, obd_rescale=None, obd_libdir=None, sky_coverage=None, data_key=None):
+    def __init__(self, nlev, lm_max, niv_desc, geom_lib, geominfo, transferfunction, libdir, sht_tr, spectrum_type=None, OBD=None, obd_rescale=None, obd_libdir=None, filtering_type=None, data_key=None):
         super().__init__(libdir)
         self.ID = 'inoise'
         self.data_key = data_key
@@ -303,7 +303,7 @@ class InverseNoiseVariance(Operator):
         OBD = OBD
 
         self.sht_tr = sht_tr
-        self.sky_coverage = sky_coverage
+        self.filtering_type = filtering_type
         self.n1tebl = [
             cli(_extend_cl(self.nlev['T']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2 if data_key in ['tp', 'tt'] else np.zeros(shape=lm_max[0]+1),
             0.5*cli(_extend_cl(self.nlev['P']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2 if data_key in ['p', 'ee', 'eb', 'tp'] else np.zeros(shape=lm_max[0]+1),
@@ -343,7 +343,7 @@ class InverseNoiseVariance(Operator):
 
 
     def get_ftebl(self, transferfunction):
-        if self.sky_coverage == 'full':
+        if self.filtering_type == 'isotropic':
             ret_t = _extend_cl(transferfunction[0]*2, len(self.n1tebl[0])-1) * self.n1tebl[0]
             ret_e = _extend_cl(transferfunction[1]*2, len(self.n1tebl[1])-1) * self.n1tebl[1]
             ret_b = _extend_cl(transferfunction[2]*2, len(self.n1tebl[2])-1) * self.n1tebl[2]

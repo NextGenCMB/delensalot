@@ -99,27 +99,22 @@ class DELENSALOT_DataSource(DELENSALOT_Concept):
         flavour (str):      can be 'pri' (prior, unlensed CMB), 'sec' (secondary, lensed CMB), 'obs' (observed, lensed CMB + noise)
         libdir_suffix (str):  custom suffix to be added where the maps are located
         generator_key (str):   key to identify the type of map generation. Can be 'pwf' (lensed CMB + noise), 'p' (lensed CMB only), 'f' (birefringence field)
-        maps:           the maps themselves
         geominfo:      the geometric information of the maps, lenspyx style
         fid_info:      the fiducial power spectra used for generating the maps
         CMB_info:      the CMB power spectra used for generating the maps
         sec_info:      the secondary (lensing, birefringence) information used for generating the maps
         obs_info:      the observation information used for generating the maps (noise levels, beam, transfer function)
         operator_info: the operators used for generating the maps (lensing, birefringence)
-        sky_coverage (str):  can be 'full' or 'masked'
 
     """
     flavour =       attr.field(default=DEFAULT_NotAValue)
     libdir_suffix = attr.field(default='generic')
-    maps =          attr.field(default=DEFAULT_NotAValue)
     geominfo =      attr.field(default=DEFAULT_NotAValue)
     fid_info =      attr.field(default=DEFAULT_NotAValue)
     CMB_info =      attr.field(default=DEFAULT_NotAValue)
     sec_info =      attr.field(default=DEFAULT_NotAValue)
     obs_info =      attr.field(default=DEFAULT_NotAValue)
     operator_info = attr.field(default=DEFAULT_NotAValue)
-    generator_key = attr.field(default=DEFAULT_NotAValue)
-    sky_coverage =  attr.field(default='full')
 
 
 @attr.s
