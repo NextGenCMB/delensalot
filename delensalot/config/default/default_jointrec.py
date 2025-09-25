@@ -112,7 +112,7 @@ DL_DEFAULT = {
     },
     'qerec':{
         'tasks': ['calc_fields'],
-        'estimator_type': 'sepTP',
+        'TP_strategy': 'separate',
         'cg_tol': 1e-7,
         "subtract_QE_meanfield": True,
     },

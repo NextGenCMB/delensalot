@@ -114,7 +114,7 @@ class l2base_Transformer:
         for sec in si.sec_info:
             si.sec_info[sec]['LM_max'] = operator_info[sec]['LM_max']
         si.operator_info = operator_info
-
+        set_config(cf)
         dl.data_source = DataSource(**si.__dict__)
 
     def process_Analysis(dl, an, cf):
@@ -211,6 +211,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             l2base_Transformer.process_Computing(dl, cf.computing, cf)
             _process_Analysis(dl, cf.analysis, cf)
             l2base_Transformer.process_DataSource(dl, cf.data_source, cf)
+            mask_ = cf.analysis.mask_fn if cf.analysis.mask_fn is not None else ''
             ret = {
                 "data_source": dl.data_source,
                 "estimator_key": dl.estimator_key,
@@ -218,7 +219,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 'idxs': dl.idxs,
                 'idxs_mf': dl.idxs_mf,
                 'mask_fn': cf.analysis.mask_fn,
-                'sky_coverage': "masked" if os.path.isfile(cf.analysis.mask_fn) else "full",
+                'sky_coverage': "masked" if os.path.isfile(mask_) else "full",
                 'lm_max_sky': cf.analysis.lm_max_sky,
             }
             return ret
@@ -245,7 +246,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     qe_tasks_sorted = ['calc_fields', 'calc_meanfields', 'calc_templates'] if qe.subtract_QE_meanfield else ['calc_fields', 'calc_templates']
                     dl.qe_tasks = [task for task in qe_tasks_sorted if task in qe.tasks]
                     dl.subtract_QE_meanfield = qe.subtract_QE_meanfield
-                    dl.estimator_type = qe.estimator_type
+                    dl.TP_strategy = qe.TP_strategy
                     
                 _process_Computing(dl, cf.computing)
                 _process_DataSource(dl, cf.data_source)
@@ -259,7 +260,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
             keystring = cf.analysis.estimator_key if len(cf.analysis.estimator_key) == 1 else '_'+cf.analysis.estimator_key.split('_')[-1] if "_" in cf.analysis.estimator_key else cf.analysis.estimator_key[-2:]
             QE_filterqest_desc = {
-                "estimator_type": dl.estimator_type, # TODO this could be a different value for each secondary
+                "TP_strategy": dl.TP_strategy, # TODO this could be a different value for each secondary
                 "libdir": opj(get_TEMP_dir(cf), 'QE', keystring),
                 "cls_len": dl.cls_len,
                 "cls_unl": dl.data_source.cls_lib.Cl_dict,
@@ -377,9 +378,10 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             elif dl.data_key == 'tt':
                 allowed_keys = ['tt']
             cls_filt = {key:val[:dl.lm_max_pri[0]+1] for key, val in data_container.cls_lib.Cl_dict.items() if key in allowed_keys}
+            mask_ = cf.analysis.mask_fn if cf.analysis.mask_fn is not None else ''
             MAP_wfivf_desc = {
                 'filtering_type': cf.maprec.filtering_type,
-                'sky_coverage': "masked" if os.path.isfile(cf.analysis.mask_fn) else "full",
+                'sky_coverage': "masked" if os.path.isfile(mask_) else "full",
                 'sec_operator': sec_operator,
                 'beam_operator': operator.Beam({'transferfunction': dl.transferfunction, 'lm_max': dl.lm_max_sky, 'data_key': dl.data_key}),
                 'inv_operator': niv,

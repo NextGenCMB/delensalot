@@ -19,11 +19,11 @@ from delensalot.utils import cli
 
 class PlancklensInterface:
     # def __init__(self, filter_desc):
-    def __init__(self, data_container, lm_max_ivf, lm_max_qlm, lmin_teb, cg_tol, sht_threads, cls_len, cls_unl, estimator_type, libdir, chain_descr=None, zbounds=(-1,1), inv_operator_desc=None, sht_tr=None):
+    def __init__(self, data_container, lm_max_ivf, lm_max_qlm, lmin_teb, cg_tol, sht_threads, cls_len, cls_unl, TP_strategy, libdir, chain_descr=None, zbounds=(-1,1), inv_operator_desc=None, sht_tr=None):
         # This class is to interface with Plancklens
         
         self.data_container = data_container
-        self.estimator_type = estimator_type
+        self.TP_strategy = TP_strategy
         self.libdir = libdir or opj(os.environ['SCRATCH'], 'QE')
 
         # nivjob_geominfo, niv_desc, nlev, ttebl, filtering_type, 
@@ -72,7 +72,7 @@ class PlancklensInterface:
                 self.ftebl_len['e'],
                 self.ftebl_len['b'],
                 cache=True)
-            if self.estimator_type == 'sepTP':
+            if self.TP_strategy == 'separate':
                 self.qlms_dd = qest.library_sepTP(
                     opj(self.libdir, 'qlms_dd'),
                     self.ivf,
@@ -80,6 +80,8 @@ class PlancklensInterface:
                     self.cls_len['te'],
                     self.nivjob_geominfo[1]['nside'],
                     lmax_qlm=self.lm_max_qlm[0])
+            elif self.TP_strategy == 'joint':
+                assert 0, 'Not implemented yet'
         elif self.filtering_type == 'anisotropic':
             ## Wait for finished run(), as plancklens triggers cinv_calc...
             self.cinv_t = filt_cinv.cinv_t(

@@ -338,8 +338,6 @@ class DataContainer:
     def _postrun_sky(self):
         # NOTE if this class here decides to generate data, we need to update some parameters in the data_source object
         # NOTE if later reconstruction is run with the same config file, these updates also make sure they find the data without having to update the config file
-        
-
         if not self.data_source.flavour in ['sky', 'obs'] and np.all(self.data_source.obs_lib.maps == DEFAULT_NotAValue):
             self.data_source.sky_lib.CMB_info['fns'] = self.fns_sky
             self.data_source.sky_lib.CMB_info['libdir'] = self.libdir_sky

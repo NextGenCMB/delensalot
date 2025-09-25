@@ -295,6 +295,7 @@ class InverseNoiseVariance(Operator):
         self.geom_lib = geom_lib
         self.geominfo = geominfo
         self.nlev = nlev
+        self.colored_noise = isinstance(nlev['T'], np.ndarray) or isinstance(nlev['P'], np.ndarray)
         self.lm_max = lm_max
         nivkeys_sorted = ['t', 'e', 'b']
         self.niv = [read_map(niv_desc[key]) for key in nivkeys_sorted] # NOTE niv is always TT, QQ, UU
@@ -334,6 +335,39 @@ class InverseNoiseVariance(Operator):
 
             tlm = self.geom_lib.adjoint_synthesis(obj[0], 0, *self.lm_max, self.sht_tr, apply_weights=False)
             eblm = self.geom_lib.adjoint_synthesis(obj[1:], 2, *self.lm_max, self.sht_tr, apply_weights=False)
+            return np.array([*tlm, *eblm])
+        
+
+    def apply_combined(self, obj, adjoint=False):
+        """
+        Apply approx N^{-1} using sqrt-weighted harmonic filtering:
+        out = W^{1/2} y^{-1} (1/N_ell) y W^{1/2} qumap
+        """
+        if obj.dtype in (np.complex64, np.complex128): # NOTE this is full sky isotropic run (we run things on alms)
+            if adjoint:
+                return np.array([cli(almxfl(o, self.n1tebl[oi], len(self.n1tebl[oi])-1, False)) for oi, o in enumerate(obj)])
+            return np.array([almxfl(o, self.n1tebl[oi], len(self.n1tebl[oi])-1, False) for oi, o in enumerate(obj)])
+        else: # NOTE this is anisotropic run (we run things on maps)
+            if self.colored_noise is False:
+                tlm = self.geom_lib.adjoint_synthesis(obj[0], 0, *self.lm_max, self.sht_tr, apply_weights=False)
+                eblm = self.geom_lib.adjoint_synthesis(obj[1:], 2, *self.lm_max, self.sht_tr, apply_weights=False)
+
+            elif self.colored_noise:
+                obj[0] *= np.sqrt(self.niv[0])
+                obj[1:] *= np.sqrt(self.niv[1])
+                # spin-2 SHT -> multiply alms by invN -> inverse SHT
+                almT_f = self.almxfl(tlm, (1.0 / (np.pi / (180.0 * 60.0) * self.nlev['T']))**2)
+                almE_f = self.almxfl(eblm[0], (1.0 / (np.pi / (180.0 * 60.0) * self.nlev['P']))**2)
+                almB_f = self.almxfl(eblm[1], (1.0 / (np.pi / (180.0 * 60.0) * self.nlev['P']))**2)
+
+                obj[0] = self.geom_lib.synthesis(almT_f, 0, *self.lm_max, self.sht_tr, apply_weights=False)
+                obj[1:] = self.geom_lib.synthesis(np.array([almE_f, almB_f]), 2, *self.lm_max, self.sht_tr, apply_weights=False)
+                # post-weight
+                obj[0] *= np.sqrt(self.niv[0])
+                obj[1:] *= np.sqrt(self.niv[1])
+
+                tlm = self.geom_lib.adjoint_synthesis(obj[0], 0, *self.lm_max, self.sht_tr, apply_weights=False)
+                eblm = self.geom_lib.adjoint_synthesis(obj[1:], 2, *self.lm_max, self.sht_tr, apply_weights=False)
             return np.array([*tlm, *eblm])
 
 

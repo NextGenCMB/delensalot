@@ -146,7 +146,7 @@ class DELENSALOT_QErec(DELENSALOT_Concept):
     Attributes:
         tasks (list[tuple]):        tasks to perfrom. Can be any combination of :code:`calc_phi`, :code:`calc_meanfield`, :code:`calc_blt`
         filtering_type (str):       can be either 'isotropic' (unmasked sky) or 'anisotropic' (masked sky)
-        estimator_type (str):       lensing potential estimator identifier. Can be 'sepTP' or 'jTP'
+        TP_strategy (str):          Can be 'separate' or 'joint', defines if T and P quadratic estimators are filtered separately or jointly
         cg_tol (float):             tolerance of the conjugate gradient method
         filter_directional (str):   can be either 'isotropic' (unmasked sky) or 'isotropic' (masked sky)
         lm_max_qlm (type):          maximum multipole `\ell` and m to reconstruct the lensing potential
@@ -156,7 +156,7 @@ class DELENSALOT_QErec(DELENSALOT_Concept):
     """
     tasks =                 attr.field(default=DEFAULT_NotAValue)
     filtering_type =        attr.field(default=DEFAULT_NotAValue)
-    estimator_type =        attr.field(default=DEFAULT_NotAValue)
+    TP_strategy =           attr.field(default=DEFAULT_NotAValue)
     qlm_type =              attr.field(default=DEFAULT_NotAValue)
     cg_tol =                attr.field(default=DEFAULT_NotAValue)
     subtract_QE_meanfield = attr.field(default=DEFAULT_NotAValue)
