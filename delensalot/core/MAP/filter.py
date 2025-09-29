@@ -8,6 +8,7 @@ from scipy.interpolate import UnivariateSpline as spl
 
 from delensalot.core.MAP import cg, field, operator
 from delensalot.config.config_manager import get_config
+from delensalot.utils import cli
 
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy, almxfl_nd, alm_copy_nd
 
@@ -18,6 +19,14 @@ filterfield_desc = lambda ID, libdir: {
     "libdir": opj(libdir),
     "fns": f"{ID}_idx{{idx}}_{{idx2}}_it{{it}}",}
 
+def _extend_cl(cl, lmax):
+    """Forces input to an array of size lmax + 1
+    """
+    if np.isscalar(cl):
+        return np.ones(lmax + 1, dtype=float) * cl
+    ret = np.zeros(lmax + 1, dtype=float)
+    ret[:min(len(cl), lmax+1)]= np.copy(cl[:min(len(cl), lmax+1)])
+    return ret
 
 class Filter_3d:
     def __init__(self, filter_desc):
@@ -45,6 +54,7 @@ class Filter_3d:
 
     def get_wflm(self, it, data=None):
         lm_max_pri = self.sec_operator.operators[-1].lm_max_out
+        lm_max_sky = self.sec_operator.operators[-1].lm_max_in
         if not self.wf_field.is_cached(it=it):
             assert data is not None, 'data is required for the calculation'
             if it>1:
@@ -57,14 +67,32 @@ class Filter_3d:
                     cg_sol_curr[0] = self.wf_field.get_field(it=it-1)
                 elif 'ee' in self.cls_filt:
                     cg_sol_curr[1] = self.wf_field.get_field(it=it-1)
-            teb_prep_alm = self.calc_prep(data) # NOTE lm_sky -> lm_pri
-            mchain = cg.ConjugateGradient(self.preconditioner_op, self.chain_descr, self.cls_filt)
+            mchain = cg.ConjugateGradient(self.preconditioner_op, self.chain_descr, self.cls_filt)        
             if self.filtering_type == 'isotropic':
-                assert 0, "not implemented"
                 config = get_config()
-                buff = {sec.ID: np.zeros(shape=(config.LM_max)) for sec in self.sec_operator.operators} # n
-                self.update_operator(buff)
-            mchain.solve(cg_sol_curr, teb_prep_alm, self.fwd_op)
+                if data[0].dtype in [np.float32, np.float64]:
+                    delTEB = np.zeros(shape=(3,Alm.getsize(*lm_max_sky)),dtype=complex)
+                    delTEB[0] = self.inv_operator.geom_lib.adjoint_synthesis(data[0], 0, *config.lm_max_sky, self.sht_tr)[0]
+                    delTEB[1:] = self.inv_operator.geom_lib.adjoint_synthesis(data[1:], 2, *config.lm_max_sky, self.sht_tr)
+                else:
+                    delTEB = data
+                delTEB[0] = almxfl(delTEB[0], cli(self.beam_operator.transferfunction[0]), config.lm_max_sky[1], False)
+                delTEB[1] = almxfl(delTEB[1], cli(self.beam_operator.transferfunction[1]), config.lm_max_sky[1], False)
+                delTEB[2] = almxfl(delTEB[2], cli(self.beam_operator.transferfunction[2]), config.lm_max_sky[1], False)
+                delTEB = self.sec_operator.act(delTEB, adjoint=True, backwards=True, out_sht_mode='STANDARD', nomagn=True)
+                almxfl(delTEB[0], _extend_cl(self.beam_operator.transferfunction[0], config.lm_max_pri[1]), config.lm_max_pri[1], True)
+                almxfl(delTEB[1], _extend_cl(self.beam_operator.transferfunction[1], config.lm_max_pri[1]), config.lm_max_pri[1], True)
+                almxfl(delTEB[2], _extend_cl(self.beam_operator.transferfunction[2], config.lm_max_pri[1]), config.lm_max_pri[1], True)
+                field_operator = self.get_field_operator()
+                config = get_config()
+                zero_field = {sec.ID: np.zeros(shape=(config.LM_max), dtype=complex) for sec in self.sec_operator.operators}
+                self.update_operator(zero_field)
+                teb_prep_alm = self.calc_prep(delTEB) # NOTE lm_sky -> lm_pri
+                mchain.solve(cg_sol_curr, teb_prep_alm, self.fwd_op)
+                self.update_operator(field_operator)
+            else:
+                teb_prep_alm = self.calc_prep(data) # NOTE lm_sky -> lm_pri
+                mchain.solve(cg_sol_curr, teb_prep_alm, self.fwd_op)
             self.wf_field.cache(cg_sol_curr, it=it)
         return self.wf_field.get_field(it=it)
 
@@ -75,44 +103,27 @@ class Filter_3d:
         # NOTE data can be alms or map
         """cg preoperation. This performs :math:`D_\phi^t B^t N^{-1} X^{\rm dat}` (or the isotropic version of it)
         """
-        if self.filtering_type == 'isotropic':
-            assert 0, "not implemented"
-            # PorT = 'p' in self.opfilt.__name__.split('.')[-1] or 'e' in self.opfilt.__name__.split('.')[-1]
-            # if PorT: # Pol rec.
-            #     delEB = np.empty_like(self.dat_maps)
-            #     delEB[0] = almxfl(self.dat_maps[0], cli(self.filter.transf_elm), mmax, False)
-            #     delEB[1] = almxfl(self.dat_maps[1], cli(self.filter.transf_blm), mmax, False)
-            #     delEB = ffi.lensgclm(delEB, self.filter.mmax_len, 2, self.filter.lmax_len, self.filter.mmax_len, backwards=True, nomagn=True)
-            #     almxfl(delEB[0], self.filter.transf_elm, mmax, True)
-            #     almxfl(delEB[1], self.filter.transf_blm, mmax, True)
-            #     teb_prep_alm = delEB
-            # else: # TT-rec
-            #     delT = almxfl(self.dat_maps, cli(self.filter.transf), mmax, False)
-            #     delT = ffi.lensgclm(delT, self.filter.mmax_len, 0, self.filter.lmax_len, self.filter.mmax_len, backwards=True, nomagn=True)
-            #     almxfl(delT, self.filter.transf, mmax, True)
-            #     teb_prep_alm = delT
-        else:
-            assert data.shape[0] == 3, len(data)
-            teblmc = self.inv_operator.act(data, adjoint=False)
-            assert len(teblmc) == 3, teblmc.shape
-            
-            teblmc = self.beam_operator.act(teblmc, adjoint=False)
-            assert len(teblmc) == 3, len(teblmc)
-            # NOTE spin 0 is standard, spin 2 is GRAD_only. For convenience, I'll make it return a 3 tuple
-            teblm = self.sec_operator.act(teblmc, adjoint=True, backwards=True) # NOTE lm_sky -> lm_pri
-            assert len(teblm) == 3, len(teblm)
+        assert data.shape[0] == 3, len(data)
+        teblmc = self.inv_operator.act(data, adjoint=False)
+        assert len(teblmc) == 3, teblmc.shape
+        
+        teblmc = self.beam_operator.act(teblmc, adjoint=False)
+        assert len(teblmc) == 3, len(teblmc)
+        # NOTE spin 0 is standard, spin 2 is GRAD_only. For convenience, I'll make it return a 3 tuple
+        teblm = self.sec_operator.act(teblmc, adjoint=True, backwards=True) # NOTE lm_sky -> lm_pri
+        assert len(teblm) == 3, len(teblm)
 
-            teblm = almxfl_nd(teblm, self.cls_filt_bool, None, False)
-            assert len(teblm) == 3, len(teblm)
-            if 'tt' in self.cls_filt and 'ee' in self.cls_filt:
-                teblm[2] = np.zeros_like(teblm[1],dtype=complex)
-            elif 'tt' in self.cls_filt:
-                teblm[1] = np.zeros_like(teblm[0],dtype=complex)
-                teblm[2] = np.zeros_like(teblm[0],dtype=complex)
-            elif 'ee' in self.cls_filt:
-                teblm[0] = np.zeros_like(teblm[1],dtype=complex)
-                teblm[2] = np.zeros_like(teblm[1],dtype=complex)
-            return np.array(teblm)
+        teblm = almxfl_nd(teblm, self.cls_filt_bool, None, False)
+        assert len(teblm) == 3, len(teblm)
+        if 'tt' in self.cls_filt and 'ee' in self.cls_filt:
+            teblm[2] = np.zeros_like(teblm[1],dtype=complex)
+        elif 'tt' in self.cls_filt:
+            teblm[1] = np.zeros_like(teblm[0],dtype=complex)
+            teblm[2] = np.zeros_like(teblm[0],dtype=complex)
+        elif 'ee' in self.cls_filt:
+            teblm[0] = np.zeros_like(teblm[1],dtype=complex)
+            teblm[2] = np.zeros_like(teblm[1],dtype=complex)
+        return np.array(teblm)
 
 
     @log_on_start(logging.DEBUG, " ---- fwd_op", logger=log)
@@ -177,7 +188,6 @@ class Filter_3d:
         else:
             ninv_ftl = ninv_ftebl[0]
         if np.any(ninv_ftebl[1]) and len(ninv_ftebl[1]) - 1 < lmax_: # We extend the transfer fct to avoid predcon. with zero (~ Gauss beam)
-            import matplotlib.pyplot as plt
             ninv_fel = ninv_ftebl[1]
             log.debug("PRE_OP_DIAG: extending transfer fct from lmax %s to lmax %s"%(len(ninv_fel)-1, lmax_))
             nz = np.where(ninv_fel > 0)
@@ -242,7 +252,7 @@ class Filter_3d:
                     *self.inv_operator.geom_lib.synthesis(ivfreslm[1:], 2, *self.inv_operator.lm_max, self.sht_tr)
                 ]
                 ivfresmap = [d-ivf for ivf,d in zip(ivfresmap,data)]
-                ivfreslm = self.inv_operator.act(ivfresmap)
+                ivfreslm = self.inv_operator.act(np.array(ivfresmap))
 
             ivfreslm = self.beam_operator.act(ivfreslm, adjoint=False, factor_p=.5)
             if 'tt' in self.cls_filt and 'ee' in self.cls_filt:
@@ -276,6 +286,8 @@ class Filter_3d:
     def update_operator(self, field):
         self.sec_operator.set_field(field)
 
+    def get_field_operator(self):
+        return self.sec_operator.get_field()
 
     def get_template(self, it, secondary=None, component=None):
         estCMB = self.get_wflm(it=it)

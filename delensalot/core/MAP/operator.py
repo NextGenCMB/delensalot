@@ -98,13 +98,13 @@ class Secondary:
 
     @log_on_start(logging.DEBUG, "secondary", logger=log)  
     @log_on_end(logging.DEBUG, "secondary done", logger=log)  
-    def act(self, obj, spin=None, adjoint=False, backwards=False, out_sht_mode=None, secondary=None, out='alm'):
+    def act(self, obj, spin=None, adjoint=False, backwards=False, out_sht_mode=None, secondary=None, nomagn=None, out='alm'):
         secondary = secondary or [op.ID for op in self.operators]
         operators = self.operators if not adjoint else self.operators[::-1]
         for idx, operator in enumerate(operators):
             if operator.ID in secondary:
                 if isinstance(operator, Lensing):
-                    obj = operator.act(obj, spin=spin, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode, out=out)
+                    obj = operator.act(obj, spin=spin, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode, nomagn=nomagn, out=out)
                 else:
                     obj = operator.act(obj, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode)
         return obj
@@ -114,7 +114,11 @@ class Secondary:
         for operator in self.operators:
             operator.set_field(field[operator.ID])
 
-    
+
+    def get_field(self):
+        return {operator.ID: operator.get_field() for operator in self.operators}
+
+
     def update_lm_max(self, lm_max_in, lm_max_out):
         in_prev, out_prev = self.operators[0].lm_max_in, self.operators[0].lm_max_out
         for operator in self.operators:
@@ -144,15 +148,17 @@ class Lensing(Operator):
 
     @log_on_start(logging.DEBUG, "lensing", logger=log)
     # @log_on_end(logging.DEBUG, "lensing done", logger=log)
-    def act(self, obj, spin=None, adjoint=False, backwards=False, out_sht_mode=None, out='alm'):
+    def act(self, obj, spin=None, adjoint=False, backwards=False, out_sht_mode=None, nomagn=None, out='alm'):
         lmax = Alm.getlmax(np.max([len(o) for o in obj]), None)
         if self.perturbative: # Applies perturbative remapping
             assert 0, "implement if needed" 
         else:
             if adjoint and backwards:
                 tlm = np.atleast_2d(self.ffi.lensgclm(obj[0], self.lm_max_in[1], 0, *self.lm_max_out, backwards=backwards, out_sht_mode='STANDARD')) if self.data_key in ['tt', 'tp'] else np.zeros(shape=(Alm.getsize(*self.lm_max_out)),dtype=complex)
-                eblm = np.atleast_2d(self.ffi.lensgclm(np.atleast_2d(obj[1:]), self.lm_max_in[1], 2, *self.lm_max_out, backwards=backwards, out_sht_mode="GRAD_ONLY")) if self.data_key in ['p', 'ee', 'eb', 'bb', 'tp'] else np.zeros(shape=(1, Alm.getsize(*self.lm_max_out)),dtype=complex)
-                return np.array([tlm.squeeze(), *eblm, np.zeros_like(tlm.squeeze())])
+                out_sht_mode = out_sht_mode or 'GRAD_ONLY'
+                nomagn = nomagn or False
+                eblm = np.atleast_2d(self.ffi.lensgclm(np.atleast_2d(obj[1:]), self.lm_max_in[1], 2, *self.lm_max_out, backwards=backwards, out_sht_mode=out_sht_mode, nomagn=nomagn)) if self.data_key in ['p', 'ee', 'eb', 'bb', 'tp'] else np.zeros(shape=(1, Alm.getsize(*self.lm_max_out)),dtype=complex)
+                return np.array([tlm.squeeze(), *eblm, np.zeros_like(tlm.squeeze())]) if out_sht_mode == 'GRAD_ONLY' else np.array([tlm.squeeze(), *eblm])
             else:
                 if out == 'map':
                     tmap = self.ffi.gclm2lenmap(np.atleast_2d(obj[0]), lmax, spin, False) if self.data_key in ['tt', 'tp'] else np.zeros(shape=(2,self.ffi.geom.npix()))
@@ -171,21 +177,27 @@ class Lensing(Operator):
 
 
     def set_field(self, fieldlm):
-        if fieldlm.shape[0] == 1:
+        if isinstance(fieldlm, list):
+            if len(fieldlm) == 1:
+                d = [fieldlm[0], None] if self.component[0] == 'p' else [np.zeros_like(fieldlm[0], dtype=complex), fieldlm[0]]
+            elif len(fieldlm) == 2:
+                d = fieldlm
+        elif fieldlm.shape[0] == 1:
             d = [fieldlm[0], None] if self.component[0] == 'p' else [np.zeros_like(fieldlm[0], dtype=complex), fieldlm[0]]
         else:
             d = fieldlm
-        # d = [np.load('/Users/sebastianbelkner/Desktop/git/delensalot/delensalot_temp/analysis/test_mainvssdevmasked_main_lminB0/MAP/p_p/sim0000noMF/phi_plm_it000.npy'), None]
-        # import healpy as hp
-        # d[0] = hp.almxfl(d[0], np.sqrt(np.arange(4000 + 1, dtype=float) * np.arange(1, 4000 + 2, dtype=float)))
+        # TODO fix hardcoded epsilon
         self.ffi = deflection(self.lenjob_geomlib, d[0], self.LM_max[1], dclm=d[1], numthreads=self.sht_tr, verbosity=False, epsilon=1e-10)
+
+
+    def get_field(self):
+        return [self.ffi.dlm, self.ffi.dclm]
 
 
     def klm2dlm(self, klm):
         h2d = cli(0.5 * np.sqrt(np.arange(self.LM_max[0] + 1, dtype=float) * np.arange(1, self.LM_max[0] + 2, dtype=float)))
         Lmax = Alm.getlmax(klm.size, None)
         return almxfl(klm, h2d, Lmax, False)
-
 
 class Birefringence(Operator):
     def __init__(self, operator_desc):
@@ -227,6 +239,11 @@ class Birefringence(Operator):
     def set_field(self, fieldlm):
         self.angle = 2 * self.lenjob_geomlib.alm2map(fieldlm.squeeze(), *self.LM_max, self.sht_tr)
         self.cos_a, self.sin_a = np.cos(self.angle), np.sin(self.angle)
+        self.field = fieldlm
+
+
+    def get_field(self):
+        return self.field
 
 
 class SpinRaise:
@@ -307,13 +324,14 @@ class InverseNoiseVariance(Operator):
         self.filtering_type = filtering_type
         self.n1tebl = [
             cli(_extend_cl(self.nlev['T']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2 if data_key in ['tp', 'tt'] else np.zeros(shape=lm_max[0]+1),
-            0.5*cli(_extend_cl(self.nlev['P']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2 if data_key in ['p', 'ee', 'eb', 'tp'] else np.zeros(shape=lm_max[0]+1),
-            0.5*cli(_extend_cl(self.nlev['P']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2 if data_key in ['p', 'ee', 'eb', 'tp'] else np.zeros(shape=lm_max[0]+1)]
+            1.0*cli(_extend_cl(self.nlev['P']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2 if data_key in ['p', 'ee', 'eb', 'tp'] else np.zeros(shape=lm_max[0]+1),
+            1.0*cli(_extend_cl(self.nlev['P']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2 if data_key in ['p', 'ee', 'eb', 'tp'] else np.zeros(shape=lm_max[0]+1)]
         self.template = None
 
     @log_on_start(logging.DEBUG, "InverseNoiseVariance", logger=log)
     # @log_on_end(logging.DEBUG, "InverseNoiseVariance done", logger=log)
     def act(self, obj, adjoint=False):
+        # TODO "operatorise" this function. If OBD activated, and spectrum_type is non-white, more opertations are needed in here
         if obj.dtype in (np.complex64, np.complex128): # NOTE this is full sky isotropic run (we run things on alms)
             if adjoint:
                 return np.array([cli(almxfl(o, self.n1tebl[oi], len(self.n1tebl[oi])-1, False)) for oi, o in enumerate(obj)])
@@ -378,9 +396,9 @@ class InverseNoiseVariance(Operator):
 
     def get_ftebl(self, transferfunction):
         if self.filtering_type == 'isotropic':
-            ret_t = _extend_cl(transferfunction[0]*2, len(self.n1tebl[0])-1) * self.n1tebl[0]
-            ret_e = _extend_cl(transferfunction[1]*2, len(self.n1tebl[1])-1) * self.n1tebl[1]
-            ret_b = _extend_cl(transferfunction[2]*2, len(self.n1tebl[2])-1) * self.n1tebl[2]
+            ret_t = _extend_cl(transferfunction[0]**2, len(self.n1tebl[0])-1) * self.n1tebl[0]
+            ret_e = _extend_cl(transferfunction[1]**2, len(self.n1tebl[1])-1) * self.n1tebl[1]
+            ret_b = _extend_cl(transferfunction[2]**2, len(self.n1tebl[2])-1) * self.n1tebl[2]
             return [ret_t, ret_e, ret_b]
 
         nlev_ftl = 10800. / np.sqrt(np.sum(read_map(self.niv[0])) / (4.0 * np.pi)) / np.pi

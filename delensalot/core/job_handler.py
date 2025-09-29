@@ -462,19 +462,14 @@ class DataContainer:
     def get_data(self, idx):
         # NOTE wrapper to access data that is both masked or unmasked, as data_source does not support masked data if generated.
         # If data is already masked, this will doubly mask the data.. not sure we want this 
-        # FIXME remove hp and get nside from data_source
-        
         space = 'alm' if self.sky_coverage == 'full' else 'map'
         if space == 'alm':
-            nside = 2048
-            import healpy as hp
             lm_max_ = self.lm_max_sky
             pobs = self.data_source.get_sim_obs(idx, space=space, spin=0, field='polarization')
             # earr = np.zeros(shape=pobs.shape[-1],dtype=complex)
             earr = np.zeros(shape=Alm.getsize(*lm_max_),dtype=complex)
             pobs = alm_copy_nd(pobs, None, lm_max_)
             if self.data_key in ['p', 'eb', 'be']:
-                # ret = [earr, *alm_copy_nd(pobs, None, lm_max_)]
                 ret = [earr, *pobs]
             elif self.data_key in ['ee']:
                 ret = [earr, alm_copy_nd(pobs, None, lm_max_)[0], earr]
@@ -482,19 +477,18 @@ class DataContainer:
                     assert 0, 'implement if needed'
             elif self.data_key in ['tt']:
                 ret = [alm_copy_nd(self.data_source.get_sim_obs(idx, space='alm', spin=0, field='temperature'), None, lm_max_), earr, earr]
-                if space == 'map':
-                    ret = [*hp.alm2map(ret[0], nside=nside, spin=0), earr, earr]
             elif self.data_key in ['tp']:
                 Tobs = alm_copy_nd(self.data_source.get_sim_obs(idx, space='alm', spin=0, field='temperature'), None, lm_max_)   
-                QUobs = alm_copy_nd(pobs, None, lm_max_)
-                if space == 'map':
-                    Tobs = hp.alm2map(Tobs, nside=nside)
-                    QUobs = hp.alm2map_spin(QUobs, nside=nside, spin=2, lmax=lm_max_[0], mmax=lm_max_[1])
-                ret = [Tobs, *QUobs]
+                pobs = alm_copy_nd(pobs, None, lm_max_)
+                ret = [Tobs, *pobs]
             else:
                 assert 0, 'implement if needed'
             return np.array(ret)
-        else:
+        
+        elif space == 'map':
+            # ret = [*hp.alm2map(ret[0], nside=nside, spin=0), earr, earr]
+            # Tobs = hp.alm2map(Tobs, nside=nside)
+            # QUobs = hp.alm2map_spin(QUobs, nside=nside, spin=2, lmax=lm_max_[0], mmax=lm_max_[1])
             # if self.estimator_key in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
             buff = np.array(self.data_source.get_sim_pmap(idx), dtype=float)
             if self.data_key in ['p', 'eb', 'be']:

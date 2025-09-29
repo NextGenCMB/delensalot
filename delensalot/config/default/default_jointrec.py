@@ -124,7 +124,6 @@ DL_DEFAULT = {
         'soltn_cond': lambda it: True,
     },
     'noisemodel': {
-        'sky_coverage': 'unmasked',
         'spatial_type': 'isotropic',
         'spectrum_type': 'white',
         'OBD': 'trunc',
