@@ -255,8 +255,10 @@ class Filter_3d:
                 ivfreslm = self.inv_operator.act(np.array(ivfresmap))
 
             ivfreslm = self.beam_operator.act(ivfreslm, adjoint=False, factor_p=.5)
+            # TODO need to check why I have this if-tree here, seems fishy
             if 'tt' in self.cls_filt and 'ee' in self.cls_filt:
-                ivfreslm[2] = np.zeros_like(ivfreslm[0],dtype=complex)
+                pass
+                # ivfreslm[2] = np.zeros_like(ivfreslm[0],dtype=complex)
             elif 'tt' in self.cls_filt:
                 ivfreslm[1] = np.zeros_like(ivfreslm[0],dtype=complex)
                 ivfreslm[2] = np.zeros_like(ivfreslm[0],dtype=complex)

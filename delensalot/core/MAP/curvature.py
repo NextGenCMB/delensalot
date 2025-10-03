@@ -23,6 +23,7 @@ class Base:
                     'sk': f"incr_grad1d_simidx{{idx}}_{{idx2}}_it{{it}}m{{itm1}}",
             }})
         setting_fullsky = lambda sub: {'lmax_qlm': sub.LM_max[0], 'mmax_qlm': sub.LM_max[1], 'a': 0.2, 'b': 0.199, 'xa': 400, 'xb': 1500}
+        setting_fullsky = lambda sub: {'lmax_qlm': sub.LM_max[0], 'mmax_qlm': sub.LM_max[1], 'a': 0.5, 'b': 0.499, 'xa': 400, 'xb': 1500} #NOTE main branch setting
         setting_masked = lambda sub: {'lmax_qlm': sub.LM_max[0], 'mmax_qlm': sub.LM_max[1], 'a': 0.02, 'b': 0.399,'xa': 1, 'xb': 15}
 
         self.h0 = h0
@@ -30,7 +31,6 @@ class Base:
         bfgs_desc.update({'cacher': cachers.cacher_npy(self.field.libdir)})
         self.bfgs_h = bfgs.BFGSHessian(self.h0, **bfgs_desc)
         
-        # TODO need to (at least) semi-automatically switch depending on masked/full sky
         setting_hb = setting_masked if sky_coverage == "masked" else setting_fullsky
         self.stepper = {sub.ID: harmonicbump(**setting_hb(sub),) for sub in self.gradient_lib.subs}
 
