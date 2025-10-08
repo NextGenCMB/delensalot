@@ -5,12 +5,14 @@ from logdecorator import log_on_start, log_on_end
 import numpy as np
 
 from lenspyx.remapping import deflection
-from lenspyx.lensing import get_geom 
+from lenspyx.lensing import get_geom
+from lenspyx.remapping.deflection_028 import rtype
 
 from delensalot.core import cachers
 from delensalot.core.MAP import field
 
 from delensalot.utils import cli, read_map
+from delensalot.utility import utils_qe
 from delensalot.utility.utils_hp import Alm, almxfl, alm_copy
 
 
@@ -151,13 +153,40 @@ class Lensing(Operator):
     def act(self, obj, spin=None, adjoint=False, backwards=False, out_sht_mode=None, nomagn=None, out='alm'):
         lmax = Alm.getlmax(np.max([len(o) for o in obj]), None)
         if self.perturbative: # Applies perturbative remapping
-            assert 0, "implement if needed" 
+            # get_alm = lambda a: elm_wf if a == 'e' else np.zeros_like(elm_wf)
+            # geom, sht_tr = self.filter.ffi.geom, self.filter.ffi.sht_tr
+            # d1_c = np.empty((geom.npix(),), dtype=elm_wf.dtype)
+            # d1_r = d1_c.view(rtype[d1_c.dtype]).reshape((d1_c.size, 2)).T  # real view onto complex array
+            # geom.synthesis(dlm, 1, self.lmax_qlm, self.mmax_qlm, sht_tr, map=d1_r, mode='GRAD_ONLY')
+            # dp = utils_qe.qeleg_multi([2], +3, [utils_qe.get_spin_raise(2, self.lmax_filt)])(get_alm, geom, sht_tr)
+            # dm = utils_qe.qeleg_multi([2], +1, [utils_qe.get_spin_lower(2, self.lmax_filt)])(get_alm, geom, sht_tr)
+            # dlens_c = -0.5 * ((d1_c.conj()) * dp + d1_c * dm)
+            # dlens_r = dlens_c.view(rtype[dlens_c.dtype]).reshape((dlens_c.size, 2)).T  # real view onto complex array
+            # del dp, dm, d1_c
+            # blm = geom.adjoint_synthesis(dlens_r, 2, lmaxb, mmaxb, sht_tr)[1]
+            # return blm
+
+            get_alm = lambda a: obj[1] if a == 'e' else np.zeros_like(obj[1])
+            geom, sht_tr = self.ffi.geom, self.ffi.sht_tr
+            d1_c = np.empty((geom.npix(),), dtype=obj[1].dtype)
+            d1_r = d1_c.view(rtype[d1_c.dtype]).reshape((d1_c.size, 2)).T  # real view onto complex array
+            self.ffi.geom.synthesis(self.ffi.dlm, 1, self.LM_max[0], self.LM_max[1], sht_tr, map=d1_r, mode='GRAD_ONLY')
+
+            dp = utils_qe.qeleg_multi([2], +3, [utils_qe.get_spin_raise(2, self.lm_max_in[0])])(get_alm, geom, sht_tr)
+            dm = utils_qe.qeleg_multi([2], +1, [utils_qe.get_spin_lower(2, self.lm_max_in[0])])(get_alm, geom, sht_tr)
+            dlens_c = -0.5 * ((d1_c.conj()) * dp + d1_c * dm)
+            dlens_r = dlens_c.view(rtype[dlens_c.dtype]).reshape((dlens_c.size, 2)).T  # real view onto complex array
+            del dp, dm, d1_c
+            eblm = self.ffi.geom.adjoint_synthesis(dlens_r, 2, 500, 500, sht_tr)
+            tlm = np.zeros_like(eblm[0])
+            return np.array([tlm, *eblm])
         else:
             if adjoint and backwards:
                 tlm = np.atleast_2d(self.ffi.lensgclm(obj[0], self.lm_max_in[1], 0, *self.lm_max_out, backwards=backwards, out_sht_mode='STANDARD')) if self.data_key in ['tt', 'tp'] else np.zeros(shape=(Alm.getsize(*self.lm_max_out)),dtype=complex)
                 out_sht_mode = out_sht_mode or 'GRAD_ONLY'
                 nomagn = nomagn or False
-                eblm = np.atleast_2d(self.ffi.lensgclm(np.atleast_2d(obj[1:]), self.lm_max_in[1], 2, *self.lm_max_out, backwards=backwards, out_sht_mode=out_sht_mode, nomagn=nomagn)) if self.data_key in ['p', 'ee', 'eb', 'bb', 'tp'] else np.zeros(shape=(1, Alm.getsize(*self.lm_max_out)),dtype=complex)
+                shaptefirstdim = 1 if out_sht_mode == 'GRAD_ONLY' else 2
+                eblm = np.atleast_2d(self.ffi.lensgclm(np.atleast_2d(obj[1:]), self.lm_max_in[1], 2, *self.lm_max_out, backwards=backwards, out_sht_mode=out_sht_mode, nomagn=nomagn)) if self.data_key in ['p', 'ee', 'eb', 'bb', 'tp'] else np.zeros(shape=(shaptefirstdim, Alm.getsize(*self.lm_max_out)),dtype=complex)
                 return np.array([tlm.squeeze(), *eblm, np.zeros_like(tlm.squeeze())]) if out_sht_mode == 'GRAD_ONLY' else np.array([tlm.squeeze(), *eblm])
             else:
                 if out == 'map':
@@ -199,6 +228,7 @@ class Lensing(Operator):
         Lmax = Alm.getlmax(klm.size, None)
         return almxfl(klm, h2d, Lmax, False)
 
+
 class Birefringence(Operator):
     def __init__(self, operator_desc):
         super().__init__(operator_desc["libdir"])
@@ -210,6 +240,7 @@ class Birefringence(Operator):
         self.field = {component: None for component in self.component}
         self.field_fns = field.get_secondary_fns(self.component)
 
+        self.perturbative = operator_desc["perturbative"]
         self.sht_tr = operator_desc["sht_tr"]
 
     @log_on_start(logging.DEBUG, "birefringence", logger=log)
@@ -217,20 +248,23 @@ class Birefringence(Operator):
     def act(self, obj, spin=None, adjoint=False, backwards=False, out_sht_mode=None):
         assert obj.shape[0] == 3, "obj must have 3 components"
         lmax = Alm.getlmax(obj[0].size, None)
-
-        # NOTE if no B component, I set B to zero
-        # if obj.shape[0] == 1:
-        #     obj = [obj[0], np.zeros_like(obj[0])+np.zeros_like(obj[0])*1j] 
         Q, U = self.lenjob_geomlib.alm2map_spin(obj[1:], 2, lmax, lmax, self.sht_tr)
-
-        Q_rot = self.cos_a * Q - self.sin_a * U
-        U_rot = self.sin_a * Q + self.cos_a * U
-
-        if adjoint:
-            Q_rot, U_rot = self.cos_a * Q + self.sin_a * U, -self.sin_a * Q + self.cos_a * U
+        if self.perturbative:
+            if adjoint:
+                Q_rot = Q + self.angle * U
+                U_rot = U - self.angle * Q
+            else:
+                Q_rot = Q - self.angle * U
+                U_rot = U + self.angle * Q
+        else:
+            if adjoint:
+                Q_rot = self.cos_a * Q + self.sin_a * U
+                U_rot = self.cos_a * U - self.sin_a * Q
+            else:
+                Q_rot = self.cos_a * Q - self.sin_a * U
+                U_rot = self.cos_a * U + self.sin_a * Q
 
         Elm_rot, Blm_rot = self.lenjob_geomlib.map2alm_spin(np.array([Q_rot, U_rot]), 2, lmax, lmax, self.sht_tr)
-
         if out_sht_mode == 'GRAD_ONLY':
             return np.atleast_2d(Elm_rot)
         return np.array([obj[0], Elm_rot, Blm_rot])

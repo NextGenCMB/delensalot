@@ -490,15 +490,25 @@ class DataContainer:
             # Tobs = hp.alm2map(Tobs, nside=nside)
             # QUobs = hp.alm2map_spin(QUobs, nside=nside, spin=2, lmax=lm_max_[0], mmax=lm_max_[1])
             # if self.estimator_key in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
-            buff = np.array(self.data_source.get_sim_pmap(idx), dtype=float)
             if self.data_key in ['p', 'eb', 'be']:
+                buff = np.array(self.data_source.get_sim_pmap(idx), dtype=float)
                 ret = np.array([np.zeros_like(buff[0]), *buff])
                 return ret
             elif self.data_key in ['ee']:
-                assert 0, "need to verify this. get_sim_pmap() may return QU, in which case the ret below is wrong"
-                ret = np.array([np.zeros_like(buff[0]), buff[0], np.zeros_like(buff[0])])   
-            else:
-                assert 0, 'implement if needed'
+                # FIXME running on ee only means I need to get only E, but get_sim_pmap returns both Q and U, so "truncation" should actually happen somewhere else
+                assert 0, "implement if needed"
+                buff = np.array(self.data_source.get_sim_pmap(idx), dtype=float)
+                ret = np.array([np.zeros_like(buff[0]), buff[0], np.zeros_like(buff[0])])
+                return ret
+            elif self.data_key in ['tt']:
+                buff = np.array(self.data_source.get_sim_tmap(idx), dtype=float)
+                ret = np.array([buff, np.zeros_like(buff), np.zeros_like(buff)])
+                return ret 
+            elif self.data_key in ['tp']:
+                buff_p = np.array(self.data_source.get_sim_pmap(idx), dtype=float)
+                buff_t = np.array(self.data_source.get_sim_tmap(idx), dtype=float)
+                ret = np.array([buff_t, *buff_p])
+                return ret
 
 
 class QEScheduler:
@@ -669,7 +679,7 @@ class QEScheduler:
         return self.QE_searchs[self.secondary2idx[secondary]].get_est(idx, component, subtract_meanfield, scale=scale)
 
 
-    def get_template(self, idx, it=0, secondary=None, component=None, calc=False):
+    def get_template(self, idx, it=0, QE_perturbative=True, secondary=None, component=None, calc=False):
         assert it==0, 'QE does not have iterations, leave blank or set it=0'
         path = opj(self.QE_searchs[0].fq.libdir, 'template', f"template_sim{idx}_it{it}")
         if not os.path.isfile(path):
@@ -814,10 +824,10 @@ class MAPScheduler:
         self.get_gradient_meanfield(idx, it, secondary=None, component=None, idx2=None)
 
 
-    def get_template(self, idx, it, secondary=None, component=None):
+    def get_template(self, idx, it, QE_perturbative=True, secondary=None, component=None):
         ctx, isnew = get_computation_context()
         ctx.set(idx=idx, idx2=idx)
-        return self.MAP_minimizer.get_template(it, secondary, component)
+        return self.MAP_minimizer.get_template(it, QE_perturbative, secondary, component)
 
 
     def get_wflm(self, idx, it=None, lm_max=None, idx2=None):

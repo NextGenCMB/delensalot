@@ -21,6 +21,7 @@ class Minimizer:
 
         self.likelihood: Likelihood = likelihood
         self.use_QE_starting_point = use_QE_starting_point
+        # self.use_QE_starting_point = False
 
         self.secondaries: field.Secondary = {
             quad.ID: field.Secondary({
@@ -70,6 +71,7 @@ class Minimizer:
             est_prev = self.get_est(it-1, scale='d')
             est_prev = {sec: est_prev[self.likelihood.sec2idx[sec]] for sec in self.likelihood.seclist_sorted}
             if not self.use_QE_starting_point and it == 1:
+                print("Setting starting point to zero")
                 for sec, val in est_prev.items():
                     est_prev[sec] = np.zeros_like(val, dtype=complex)
             self.update_operator(est_prev)
@@ -83,7 +85,7 @@ class Minimizer:
             prev_klm = np.concatenate([np.ravel(arr) for arr in self._get_est(it-1, scale=scale)])
             # TODO Need to test this
             if not self.use_QE_starting_point and it == 1:
-                print("STILL NEEDS TESTING: Zeroing previous klm for first iteration as not using QE starting point")
+                print("Setting starting point to zero")
                 prev_klm = np.zeros_like(prev_klm, dtype=complex)
             new_klms = self.likelihood.curvature_lib.grad2dict(increment + prev_klm)
             self.cache_klm(new_klms, it)
@@ -130,7 +132,7 @@ class Minimizer:
     #         return self.likelihood.get_est_meanfield(it, scale=scale)
 
 
-    def get_template(self, it, secondary=None, component=None):
+    def get_template(self, it, QE_perturbative=True, secondary=None, component=None):
         est = self.get_est(it, scale='d')
         secondary = secondary or self.likelihood.seclist_sorted
         nulled_secondaries = [sec for sec in self.likelihood.secondaries.keys() if sec not in secondary]
@@ -138,8 +140,10 @@ class Minimizer:
         for nulled in nulled_secondaries:
             est[self.likelihood.sec2idx[nulled]] = np.zeros_like(est[self.likelihood.sec2idx[nulled]], dtype=complex)
         est = {sec: est[self.likelihood.sec2idx[sec]] for sec in self.likelihood.seclist_sorted}
+        # from delensalot.utility.plot_helper import bandpass_alms
+        # est['lensing'][0] = bandpass_alms(est['lensing'][0], 20, 3000)
         self.update_operator(est)
-        return self.likelihood.gradient_lib.wfivf_filter.get_template(it, secondary=secondary, component=component)
+        return self.likelihood.gradient_lib.wfivf_filter.get_template(it, QE_perturbative=QE_perturbative, secondary=secondary, component=component)
 
 
     def isiterdone(self, it):

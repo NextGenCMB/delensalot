@@ -28,6 +28,20 @@ def _extend_cl(cl, lmax):
     ret[:min(len(cl), lmax+1)]= np.copy(cl[:min(len(cl), lmax+1)])
     return ret
 
+def zeroed_copy(d):
+    """Return a deep copy of dict with same structure, but all arrays replaced by zeros of same shape."""
+    out = {}
+    for k, v in d.items():
+        if isinstance(v, np.ndarray):
+            out[k] = np.zeros_like(v, dtype=complex)
+        elif isinstance(v, list):
+            out[k] = [np.zeros_like(x, dtype=complex) if isinstance(x, np.ndarray) else x for x in v]
+        elif isinstance(v, dict):
+            out[k] = zeroed_copy(v)  # recursive
+        else:
+            out[k] = v  # leave untouched if not array/list
+    return out
+
 class Filter_3d:
     def __init__(self, filter_desc):
         self.libdir = filter_desc['libdir']
@@ -85,7 +99,7 @@ class Filter_3d:
                 almxfl(delTEB[2], _extend_cl(self.beam_operator.transferfunction[2], config.lm_max_pri[1]), config.lm_max_pri[1], True)
                 field_operator = self.get_field_operator()
                 config = get_config()
-                zero_field = {sec.ID: np.zeros(shape=(config.LM_max), dtype=complex) for sec in self.sec_operator.operators}
+                zero_field = zeroed_copy(field_operator)
                 self.update_operator(zero_field)
                 teb_prep_alm = self.calc_prep(delTEB) # NOTE lm_sky -> lm_pri
                 mchain.solve(cg_sol_curr, teb_prep_alm, self.fwd_op)
@@ -291,11 +305,25 @@ class Filter_3d:
     def get_field_operator(self):
         return self.sec_operator.get_field()
 
-    def get_template(self, it, secondary=None, component=None):
-        estCMB = self.get_wflm(it=it)
+    def get_template(self, it, QE_perturbative=True, secondary=None, component=None):
+        lm_max_pri = self.sec_operator.operators[-1].lm_max_out
+        estCMB = np.zeros(shape=(3,Alm.getsize(*lm_max_pri)),dtype=complex)
+        if it == 0:
+            if 'tt' in self.cls_filt and 'ee' in self.cls_filt:
+                estCMB[0:2] = self.wf_field.get_field(it=it)
+            elif 'tt' in self.cls_filt:
+                estCMB[0] = self.wf_field.get_field(it=it)
+            elif 'ee' in self.cls_filt:
+                estCMB[1] = self.wf_field.get_field(it=it)
+            config = get_config()
+            estCMB = alm_copy_nd(estCMB, config.lm_max_pri[1], config.lm_max_sky)
+        else:
+            estCMB = self.wf_field.get_field(it=it)
 
         for operator in self.sec_operator.operators:
-            if operator.ID == 'lensing':
+            # if operator.ID == 'lensing':
+            if QE_perturbative:
                 operator.perturbative = (it == 0)
-
+            else:
+                operator.perturbative = False
         return self.sec_operator.act(estCMB, secondary=secondary)
