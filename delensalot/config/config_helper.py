@@ -129,6 +129,7 @@ def load_config(directory, descriptor):
     sys.modules[descriptor] = p
     spec.loader.exec_module(p)
 
+    p.delensalot_model.config_fn = directory
     return p.delensalot_model
 
 

@@ -87,12 +87,6 @@ def dirname_generator(libdir_suffix, geominfo):
     return os.environ['SCRATCH']+f'/delensalot_simulation/{libdir_suffix}/{get_dirname(geominfo)}'
 
 
-template_lensingcomponent = ['p', 'w'] 
-template_index_lensingcomponent = {val: i for i, val in enumerate(template_lensingcomponent)}
-
-template_secondaries = ['lensing', 'birefringence']  # Define your desired order
-template_index_secondaries = {val: i for i, val in enumerate(template_secondaries)}
-
 class IsoWhiteNoise:
     # FIXME misleading naming. if noisemaps are passed, these are not necessarily iso. One way to refactor is to create a more generic class 'noise_map'.
     """class for generating very simple isotropic white noise
@@ -574,7 +568,7 @@ class Xsky:
                 if self.CMB_info['libdir'] == DNaV:
                     log.debug('.., generating.')
                     pri = self.pri_lib.get_sim_pri(idx, space='alm', field=field, spin=0)
-                    for operator in self.operators[::-1]:
+                    for operator in self.operators:
                         sec = self.pri_lib.get_sim_sec(idx, space='alm', secondary=operator.ID)
                         if operator.ID == 'lensing': 
                             sec = np.array([alm_copy(s, None, operator.LM_max[0], operator.LM_max[1]) for s in sec], dtype=complex)
@@ -912,16 +906,20 @@ class Xobs:
                 elif spin == 2:
                     sky = np.array(self.geom_lib.alm2map_spin(sky, spin=spin, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4))
                 return sky + noise
+                # return noise
             else:
                 return sky + noise
+                # return noise
         elif field == 'temperature':
             if space == 'map':
                 sky = self.geom_lib.map2alm(sky, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
             hp.almxfl(sky, self.obs_info['transfunction'], inplace=True)
             if space == 'map':
                 return np.array(self.geom_lib.alm2map(sky, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)) + noise
+                # return noise
             else:
                 return sky + noise
+                # return noise
 
 
     def get_sim_noise(self, idx, space, field, spin=2):

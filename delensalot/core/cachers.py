@@ -83,6 +83,20 @@ class cacher_mem(cacher):
         assert fn in self._cache.keys()
         del self._cache[fn]
 
+
+
+class NoCache(cacher):
+    def cache(self, key, value, **kwargs):
+        """don’t store, just return directly"""
+        return value
+    def load(self, key, **kwargs):
+        return None
+    def is_cached(self, key, **kwargs):
+        return False
+    def remove(self, key, **kwargs):
+        pass
+
+
 class cacher_pk(object):
     def __init__(self, lib_dir, verbose=False):
         if not os.path.exists(lib_dir):

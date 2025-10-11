@@ -26,13 +26,15 @@ complist_lensing_template_idx = {val: i for i, val in enumerate(complist_lensing
 complist_birefringence_template = ['f']
 
 class Base:
-    def __init__(self, CLfids, estimator_key, QE_filterqest_desc, ID='generic', libdir=None, idxs_mf=[], subtract_meanfield=True, init_filterqest=False):
+    def __init__(self, CLfids, estimator_key, QE_filterqest_desc, ID='generic', libdir=None, idxs_mf=[], subtract_meanfield=True, init_filterqest=False, qmflm_fn=None):
         self.estimator_key = estimator_key
         self.CLfids = CLfids
         self.idxs_mf = idxs_mf
         self.subtract_meanfield = subtract_meanfield
         self.ID = ID or 'generic'
+        self.qmflm_fn = qmflm_fn or {comp: None for comp in estimator_key.keys()}
         oek = list(estimator_key.values())[0]
+        
         keystring = oek if len(oek) == 1 else '_'+oek.split('_')[-1] if "_" in oek else oek[-2:]
         self.libdir = libdir or opj(os.environ['SCRATCH'], 'QE_search_generic', keystring)
         if 'p' in estimator_key.keys() or 'w' in estimator_key.keys():
@@ -66,7 +68,7 @@ class Base:
 
     def get_qlm(self, idx, component=None):
         if component is None:
-            return np.array([self.get_qlm(idx, component) for component in self.secondary.component])
+            return np.array([self.get_qlm(idx, component).squeeze() for component in self.secondary.component])
         if isinstance(component, list):
             component = component[0]
         if not self.secondary.is_cached(idx, component):
@@ -85,8 +87,8 @@ class Base:
             qlm = self.get_qlm(idx, component)
             Lmax = Alm.getlmax(qlm.size, None)
             _submf = subtract_meanfield or self.subtract_meanfield
-            if _submf and len(self.idxs_mf)>2: #NOTE >2 is really just a lower bound.
-                mf_qlm = self.get_qmflm(self.idxs_mf, component=component)
+            if _submf:
+                mf_qlm = self.get_qmflm(idx, self.idxs_mf, component=component)
                 qlm -= mf_qlm
             R = self.get_response_len(component)
             WF = self.secondary.CLfids[component*2][:Lmax+1] * cli(self.secondary.CLfids[component*2][:Lmax+1] + cli(R))  # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
@@ -98,13 +100,23 @@ class Base:
         return self.secondary.get_est(idx, component, scale) 
 
 
-    def get_qmflm(self, idxs, component=None):
+    def get_qmflm(self, idx, idxs, component=None):
         if component is None:
             return np.array([self.get_qmflm(idxs, component) for component in self.secondary.component])
         if isinstance(component, list):
             return np.array([self.get_qmflm(idxs, comp).squeeze() for comp in component])
-        return np.atleast_2d(self.qlms.get_sim_qlm_mf(self.estimator_key[component], idxs))
-        
+        if self.qmflm_fn[component] is not None:
+            mf_qlm = np.atleast_2d(np.load(self.qmflm_fn[component]))
+            print("MAKE SURE idxs for mf_qlm is correct!")
+            idxs = np.arange(10)
+            # FIXME if mf precalc is computed from same samples, need to remove that idx.. but we don't know the true len(idxs) here
+            mf_qlm = (mf_qlm - np.sqrt(np.sqrt(3/1.1))*self.get_qlm(idx, component)/len(idxs))*(len(idxs)/(len(idxs)-1))
+            return mf_qlm
+        else:
+            mf_qlm = np.atleast_2d(self.qlms.get_sim_qlm_mf(self.estimator_key[component], idxs))
+            mf_qlm = (mf_qlm - self.get_qlm(idx, component)/len(idxs))*(len(idxs)/(len(idxs)-1))
+            return mf_qlm
+
 
     def get_kmflm(self, idx, component=None, scale='k', idxs_mf=None):
         idxs_mf = idxs_mf if idxs_mf is not None else self.idxs_mf
@@ -114,10 +126,10 @@ class Base:
         if isinstance(component, list):
             return np.array([self.get_kmflm(idx, comp, idxs_mf=idxs_mf).squeeze() for comp in component])
 
-        if len(idxs_mf) <= 2: # NOTE this is really just a lower bound
+        if self.qmflm_fn[component] is None and len(idxs_mf) <= 2: # NOTE this is really just a lower bound
             return np.zeros(shape=(1, Alm.getsize(*self.fq.lm_max_qlm)), dtype=complex)
         
-        kmflm = self.get_qmflm(idxs_mf, component=component)
+        kmflm = self.get_qmflm(idx=idx, idxs=idxs_mf, component=component)
 
         Lmax = Alm.getlmax(kmflm.size, None)
         R = self.get_response_len(component)
@@ -127,7 +139,6 @@ class Base:
         almxfl_nd(kmflm, WF, Lmax, True) # Wiener-filter QE
         almxfl_nd(kmflm, self.secondary.CLfids[component*2][:Lmax+1] > 0, Lmax, True)
         kmflm = self._rescale(kmflm, scale='k')
-        kmflm = (kmflm - self.get_est(idx, component=component, subtract_meanfield=False, scale='k')/len(idxs_mf))*(len(self.idxs_mf)/(len(idxs_mf)-1))
         assert scale == 'k', "Only k scale is supported for kmflm at this time" # TODO can be implemented via _rescale_k2h
         return kmflm
     

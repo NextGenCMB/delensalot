@@ -45,6 +45,7 @@ class ConfigHandler():
     def __init__(self, parser, config=None, key=None):
         sorted_joblist = ['generate_sim', 'QE_lensrec', 'MAP_lensrec', 'analyse_phi', 'delens']
         self.config = config if config is not None else load_config(parser.config_file, 'configfile')
+        parser.config_file = self.config.config_fn
         if key is not None:
             self.config.analysis.key = key
         if 'job_id' in parser.__dict__ and parser.job_id is not None:
@@ -124,8 +125,7 @@ class ConfigHandler():
             configfile (str): the name of the configuration file
             TEMP (str): The location at which the configuration file (and all intermediate and final products of the analysis) will be stored
         """
-        print('trying to store config file')
-        dostore = False
+        dostore = True
         # This is only done if not resuming. Otherwise file would already exist
         print("this is the config file:", parser.config_file)
         if os.path.isfile(parser.config_file) and parser.config_file.endswith('.py'):
@@ -164,6 +164,7 @@ class ConfigHandler():
             if not os.path.exists(TEMP):
                 os.makedirs(TEMP)
             try:
+                print(parser.config_file)
                 shutil.copyfile(parser.config_file, TEMP +'/'+parser.config_file.split('/')[-1])
                 logging.info('config file stored at '+ TEMP +'/'+parser.config_file.split('/')[-1])
             except shutil.SameFileError:

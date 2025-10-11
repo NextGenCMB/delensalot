@@ -63,9 +63,6 @@ def get_dirname(s):
     return str(s).translate(str.maketrans({"(": "", ")": "", "{": "", "}": "", "[": "", "]": "", 
                                             " ": "", "'": "", '"': "", ":": "_", ",": "_"}))
 
-template_secondaries = ['lensing', 'birefringence']  # Define your desired order
-template_index_secondaries = {val: i for i, val in enumerate(template_secondaries)}
-
 
 class OBDBuilder:
     """OBD matrix builder Job. Calculates the OBD matrix, used to correctly deproject the B-modes at a masked sky.
@@ -592,7 +589,7 @@ class QEScheduler:
         self.jobs = jobs
         if not np.all(np.array(jobs)==None):
             log.info(f"QE jobs: {jobs}")
-        return np.array(jobs)
+        return np.array(jobs, dtype=object)
 
 
     def run(self, task=None):
@@ -618,14 +615,16 @@ class QEScheduler:
 
 
         tasks = self.tasks if task is None else [task]
+        
         for taski, task in enumerate(tasks):
             log.info('QEScheduler {} - step 1, task {} started'.format(mpi.rank, task))       
             if task == 'calc_fields':
                 for idxs in self.jobs[taski][mpi.rank::mpi.size]:
                     for seci, secidx in enumerate(idxs):
                         if secidx is not None: #these Nones come from the field already being done.
-                            ctx.set(idx=secidx, idx2=secidx)
-                            self.QE_searchs[seci].get_est(int(secidx)) # this is here for convenience
+                            if secidx in self.idxs: # NOTE this should only run across the simidxs, not the union with mf idxs
+                                ctx.set(idx=secidx, idx2=secidx)
+                                self.QE_searchs[seci].get_est(int(secidx)) # this is here for convenience
                     if np.all(self.data_container.obs_lib.maps == DEFAULT_NotAValue):
                         self.data_container.data_source.purgecache()
                 mpi.barrier()
@@ -742,7 +741,7 @@ class MAPScheduler:
         self.QE_searchs: QEScheduler = QE_searchs
 
         self._sec2idx = {QE_search.secondary.ID: i for i, QE_search in enumerate(self.QE_searchs)}
-        self._seclist_sorted = sorted(list(self._sec2idx.keys()), key=lambda x: template_index_secondaries.get(x, ''))
+        self._seclist = list(self._sec2idx.keys())
 
         self.MAP_minimizer: MAP_handler.Minimizer = MAP_minimizer
         self.tasks = tasks
@@ -766,12 +765,11 @@ class MAPScheduler:
                         _jobs.append(idx)
                 jobs[taski] = _jobs
         self.jobs = jobs
-        return jobs
+        return np.array(jobs, dtype=object)
 
 
     def run(self):
         ctx, isnew = get_computation_context()
-
         for taski, task in enumerate(self.tasks):
             log.info('MAPScheduler {}, MAP task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
             if task == 'calc_fields':
@@ -790,8 +788,8 @@ class MAPScheduler:
     def get_est(self, idx, it=None, secondary=None, component=None, scale='k', subtract_QE_meanfield=True, calc_flag=False, idx2=None):
         ctx, isnew = get_computation_context()
         ctx.set(idx=idx, idx2=idx)
-        if isinstance(secondary, str) and secondary not in self._seclist_sorted:
-            print('Secondary not found. Available secondaries are:', self._seclist_sorted)
+        if isinstance(secondary, str) and secondary not in self._seclist:
+            print('Secondary not found. Available secondaries are:', self._seclist)
             return np.array([[]])
         if it is None:
             it = self.MAP_minimizer.maxiterdone()
@@ -809,25 +807,24 @@ class MAPScheduler:
 
 
     def get_qlm(self, idx, it, secondary=None, component=None, idx2=None):
+        assert it==0, 'QLM only available for QE, set it=0'
         ctx, isnew = get_computation_context()
         ctx.set(idx=idx, idx2=idx)
         if secondary is None:
-            return [self.QE_searchs[self.sec2idx[QE_search.ID]].get_qlm(idx, component) for QE_search in self.QE_searchs]
-        if it==0:
-            return self.QE_searchs[self.sec2idx[secondary]].get_qlm(idx, component)
-        print('only available for QE, set it=0')
+            return [self.QE_searchs[self._sec2idx[QE_search.ID]].get_qlm(idx, component) for QE_search in self.QE_searchs]
+        return self.QE_searchs[self._sec2idx[secondary]].get_qlm(idx, component)
 
 
     def get_meanfield(self, idx, it=None, secondary=None, component=None, idx2=None):
         ctx, isnew = get_computation_context()
         ctx.set(idx=idx, idx2=idx)
-        self.get_gradient_meanfield(idx, it, secondary=None, component=None, idx2=None)
+        return self.get_gradient_meanfield(idx, it, secondary=None, component=None, idx2=None)
 
 
-    def get_template(self, idx, it, QE_perturbative=True, secondary=None, component=None):
+    def get_template(self, idx, it, QE_perturbative=True, secondary=None, component=None, idx2=None, order='reversed'):
         ctx, isnew = get_computation_context()
-        ctx.set(idx=idx, idx2=idx)
-        return self.MAP_minimizer.get_template(it, QE_perturbative, secondary, component)
+        ctx.set(idx=idx, idx2=idx2 or idx)
+        return self.MAP_minimizer.get_template(it, QE_perturbative, secondary, component, order=order)
 
 
     def get_wflm(self, idx, it=None, lm_max=None, idx2=None):
@@ -902,169 +899,6 @@ class MAPScheduler:
                 raise AttributeError(f"method {name} not found in MAP_minimizer")
 
         return method_forwarder
-
-
-class MapDelenser:
-    """Map delenser Job for calculating delensed ILC and Blens spectra using precaulculated Btemplates as input.
-    This is a combination of,
-     * delensing with Btemplates (QE, MAP),
-     * choosing power spectrum calculation as in binning, masking, and templating
-    """
-
-    @check_MPI
-    def __init__(self, dlensalot_model):
-        super().__init__(dlensalot_model)
-
-        self.lib = dict()
-        if 'nlevel' in self.binmasks:
-            self.lib.update({'nlevel': {}})
-        if 'mask' in self.binmasks:
-            self.lib.update({'mask': {}})
-        self.simgen = DataContainer(dlensalot_model)
-        self.libdir_delenser = opj(self.TEMP, 'delensing/{}'.format(self.dirid))
-        if not(os.path.isdir(self.libdir_delenser)):
-            os.makedirs(self.libdir_delenser)
-        self.fns = opj(self.libdir_delenser, 'ClBB_sim{:04d}.npy')
-
-
-    # @base_exception_handler
-    # @log_on_start(logging.DEBUG, "collect_jobs() started")
-    # @log_on_end(logging.DEBUG, "collect_jobs() finished: jobs={self.jobs}")
-    def collect_jobs(self):
-        # TODO a valid job is any requested job?, as BLTs may also be on CFS
-        jobs = []
-        for idx in self.idxs:
-            jobs.append(idx)
-        self.jobs = jobs
-
-        return jobs
-
-
-    # @base_exception_handler
-    # @log_on_start(logging.DEBUG, "run() started")
-    # @log_on_end(logging.DEBUG, "run() finished")
-    def run(self):
-        outputdata = self._prepare_job()
-        if self.jobs != []:
-            for idx in self.jobs[mpi.rank::mpi.size]:
-                log.debug('will store file at: {}'.format(self.fns.format(idx)))
-                self.delens(idx, outputdata)
-
-
-    def _prepare_job(self):
-        if self.binning == 'binned':
-            outputdata = np.zeros(shape=(2, 2+len(self.its), len(self.nlevels)+len(self.masks_fromfn), len(self.edges)-1))
-            for maskflavour, masks in self.binmasks.items():
-                for maskid, mask in masks.items():
-                    ## for a future me: ell-max of clc_templ must be edges[-1], lmax_mask can be anything...
-                    self.lib[maskflavour].update({maskid: self.cl_calc.map2cl_binned(mask, self.clc_templ, self.edges, self.lmax_mask)})
-        elif self.binning == 'unbinned':
-            for maskflavour, masks in self.binmasks.items():
-                for maskid, mask in masks.items():
-                    a = OverwriteAnafast() if self.cl_calc == hp else MaskedLib(mask, self.cl_calc, self.lmax, self.lmax_mask)
-                    outputdata = np.zeros(shape=(2, 2+len(self.its), len(self.nlevels)+len(self.masks_fromfn), self.lmax+1))
-                    self.lib[maskflavour].update({maskid: a})
-
-        return outputdata
-    
-
-    # # @log_on_start(logging.DEBUG, "get_basemap() started")
-    # # @log_on_end(logging.DEBUG, "get_basemap() finished")  
-    def get_basemap(self, idx):
-        '''
-        Return a B-map to be delensed. Can be the map handled in the DataSource library (basemap='lens'), 'lens_ffp10' (these are the ffp10 relizations on NERSC),
-        or the observed map itself, in which case the residual foregrounds and noise will still be in there.
-            gauss_beam(self.beam / 180 / 60 * np.pi, lmax=self.lm_max_blt[1])
-        '''
-        # TODO depends if data comes from delensalot simulations or from external.. needs cleaner implementation
-        if self.basemap == 'lens': 
-            return alm_copy(
-                    self.data_container.get_sim_sky(idx, space='alm', spin=0, field='polarization')[1],
-                    self.data_container.lmax, *self.lm_max_blt
-                )
-        elif self.basemap == 'lens_ffp10':
-                return alm_copy(
-                    planck2018_sims.cmb_len_ffp10.get_sim_blm(idx),
-                    None,
-                    lmaxout=self.lm_max_blt[0],
-                    mmaxout=self.lm_max_blt[1]
-                )  
-        else:
-            # only checking for map to save some memory..
-            if np.all(self.data_container.maps == DEFAULT_NotAValue):
-                return alm_copy(self.data_container.get_sim_obs(idx, space='alm', spin=0, field='polarization')[1], self.data_container.lmax, *self.lm_max_blt)
-            else:
-                return hp.map2alm_spin(self.data_container.get_sim_obs(idx, space='map', spin=2, field='polarization'), spin=2, lmax=self.lm_max_blt[0], mmax=self.lm_max_blt[1])[1]
-
-    
-    @log_on_start(logging.DEBUG, "_delens() started")
-    @log_on_end(logging.DEBUG, "_delens() finished")
-    def delens(self, idx, outputdata):
-        blm_L = self.get_basemap(idx)
-        log.info('got inbut Blms')
-        blt_QE = self.get_blt_it(idx, 0)
-        
-        bdel_QE = self.nivjob_geomlib.alm2map(blm_L-blt_QE, *self.lm_max_blt, nthreads=4)
-        del blt_QE
-        maskcounter = 0
-        for maskflavour, masks in self.binmasks.items():
-            for maskid, mask in masks.items():
-                log.info("starting mask {} {}".format(maskflavour, maskid))
-                
-                bcl_L = self.lib[maskflavour][maskid].map2cl(self.nivjob_geomlib.alm2map(blm_L, *self.lm_max_blt, nthreads=4))
-                outputdata[0][0][maskcounter] = bcl_L
-
-                blt_L_QE = self.lib[maskflavour][maskid].map2cl(bdel_QE)
-                outputdata[0][1][maskcounter] = blt_L_QE
-
-                for iti, it in enumerate(self.its):
-                    blt_MAP = self.get_blt_it(idx, it)
-                    bdel_MAP = self.nivjob_geomlib.alm2map(blm_L-blt_MAP, *self.lm_max_blt, nthreads=4)
-                    blt_L_MAP = self.lib[maskflavour][maskid].map2cl(bdel_MAP)    
-                    outputdata[0][2+iti][maskcounter] = blt_L_MAP
-                    log.info("Finished MAP delensing for idx {}, iteration {}".format(idx, it))
-
-                maskcounter+=1
-
-        np.save(self.fns.format(idx), outputdata)
-            
-
-    # @log_on_start(logging.DEBUG, "get_residualblens() started")
-    # @log_on_end(logging.DEBUG, "get_residualblens() finished")
-    def get_residualblens(self, idx, it):
-        basemap = self.get_basemap(idx)
-        
-        return basemap - self.get_blt_it(idx, it)
-    
-
-    # @base_exception_handler
-    # @log_on_start(logging.DEBUG, "read_data() started")
-    # @log_on_end(logging.DEBUG, "read_data() finished")
-    def read_data(self):
-        bcl_L = np.zeros(shape=(len(self.its)+2, len(self.nlevels)+len(self.masks_fromfn), len(self.idxs), len(self.edges)-1))
-        for idxi, idx in enumerate(self.idxs):
-            data = np.load(self.fns.format(idx))
-            bcl_L[0,:,idxi] = data[0][0]
-            bcl_L[1,:,idxi] = data[0][1]
-            for iti, it in enumerate(self.its):
-                bcl_L[2+iti,:,idxi] = data[0][2+iti]
-
-        return bcl_L
-
-
-    def hlm2dlm(self, hlm, inplace):
-        if self.h == 'd':
-            return hlm if inplace else hlm.copy()
-        if self.h == 'p':
-            h2d = np.sqrt(np.arange(self.lmax_qlm + 1, dtype=float) * np.arange(1, self.lmax_qlm + 2, dtype=float))
-        elif self.h == 'k':
-            h2d = cli(0.5 * np.sqrt(np.arange(self.lmax_qlm + 1, dtype=float) * np.arange(1, self.lmax_qlm + 2, dtype=float)))
-        else:
-            assert 0, self.h + ' not implemented'
-        if inplace:
-            almxfl(hlm, h2d, self.mmax_qlm, True)
-        else:
-            return  almxfl(hlm, h2d, self.mmax_qlm, False)
 
 
 class PhiAnalyser:

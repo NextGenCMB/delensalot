@@ -106,7 +106,7 @@ class Gradient:
         self.comp2idx = {component: i for i, component in enumerate(self.component)}
 
         self.cacher = cachers.cacher_npy(opj(self.libdir))
-        self.cacher_field = cachers.cacher_npy(opj(self.libdir_prior))
+        self.cacher_secondary = cachers.cacher_npy(opj(self.libdir_prior))
 
 
     def _get_est(self, it):
@@ -120,14 +120,14 @@ class Gradient:
             for it_ in it:
                 retcomp = []
                 for compi, comp in enumerate(component):
-                    priorlm = self.cacher_field.load(self.prior_fns.format(component=comp, idx=idx, idx2=idx2, it=it_)).squeeze()
+                    priorlm = self.cacher_secondary.load(self.prior_fns.format(component=comp, idx=idx, idx2=idx2, it=it_)).squeeze()
                     retcomp.append(priorlm)
                 ret.append(np.array(retcomp)[indices])
             return np.array(ret)
         else:
             ret = []
             for compi, comp in enumerate(component):
-                priorlm = self.cacher_field.load(self.prior_fns.format(component=comp, idx=idx, idx2=idx2, it=it)).squeeze()
+                priorlm = self.cacher_secondary.load(self.prior_fns.format(component=comp, idx=idx, idx2=idx2, it=it)).squeeze()
                 ret.append(priorlm)
             return np.array(ret)[indices]
 
@@ -142,7 +142,7 @@ class Gradient:
             ret = []
             for it_ in it:
                 itret = []
-                priorlm = self.cacher_field.load(self.prior_fns.format(component=comp, idx=idx, idx2=idx2, it=it_))[:,indices]
+                priorlm = self.cacher_secondary.load(self.prior_fns.format(component=comp, idx=idx, idx2=idx2, it=it_))[:,indices]
                 for compi, comp in enumerate(component):
                     Lmax = Alm.getlmax(priorlm[compi].size, None)
                     almxfl(priorlm[compi].squeeze(), cli(self.chh[comp]), Lmax, True)
@@ -150,7 +150,7 @@ class Gradient:
                 ret.append(itret)
             return ret
         else:
-            priorlm = self.cacher_field.load(self.prior_fns.format(component=comp, idx=idx, idx2=idx2, it=it))[indices]
+            priorlm = self.cacher_secondary.load(self.prior_fns.format(component=comp, idx=idx, idx2=idx2, it=it))[indices]
             for compi, comp in enumerate(component):
                 Lmax = Alm.getlmax(priorlm[compi].size, None)
                 almxfl(priorlm[compi].squeeze(), cli(self.chh[comp]), Lmax, True)
@@ -168,9 +168,9 @@ class Gradient:
         it_ = 0 # NOTE this currently only uses the QE gradient meanfield
         if self.is_cached(it=it, type='meanfield'):
             if isinstance(it, (list, np.ndarray)):
-                return np.array([self.cacher.load(self.meanfield_fns.format(idx=idx, idx2=idx2, it=it_))[:,indices] for _ in it]) * (0 + 0j)
+                return np.array([self.cacher.load(self.meanfield_fns.format(idx=idx, idx2=idx2, it=it_))[:,indices] for _ in it])
             else:
-                return self.cacher.load(self.meanfield_fns.format(idx=idx, idx2=idx2, it=it_))[indices] * (0 + 0j)
+                return self.cacher.load(self.meanfield_fns.format(idx=idx, idx2=idx2, it=it_))[indices]
 
         else:
             assert 0, f"cannot find meanfield at {self.libdir}/{self.meanfield_fns.format(idx=idx, idx2=idx2, it=it_)}"
@@ -216,7 +216,7 @@ class Gradient:
         idx, idx2 = ctx.idx, ctx.idx2 or ctx.idx
 
         file_map = {
-            'total': (self.cacher_field, self.total_fns.format(idx=idx, idx2=idx2, it=it)),
+            'total': (self.cacher, self.total_fns.format(idx=idx, idx2=idx2, it=it)),
             'quad': (self.cacher, self.quad_fns.format(idx=idx, idx2=idx2, it=it)),
             'meanfield': (self.cacher, self.meanfield_fns.format(idx=idx, idx2=idx2, it=it)),
         }
@@ -265,7 +265,7 @@ class Filter:
         self.libdir = field_desc['libdir']
         self.fns =  field_desc['fns']
 
-        self.cacher = cachers.cacher_npy(opj(self.libdir))
+        self.cacher = cachers.cacher_npy(opj(self.libdir)) if field_desc['cacher_type']=='npy' else cachers.NoCache()
 
 
     def get_field(self, it):

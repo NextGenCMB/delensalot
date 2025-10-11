@@ -14,12 +14,18 @@ from logdecorator import log_on_start, log_on_end
 
 from lenspyx.remapping.deflection_028 import rtype, ctype
 from lenspyx.remapping import utils_geom
+from lenspyx.utils_hp import synalm
 
 from delensalot.core.MAP import field, operator
 from delensalot.core.MAP.context import get_computation_context
 
 from delensalot.utils import cli
-from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy, almxfl_nd, alm_copy_nd, default_rng
+from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy, almxfl_nd, alm_copy_nd, default_rng, synalm
+from delensalot.config.config_manager import get_config
+
+from numpy.random import default_rng
+rng = default_rng()
+import healpy as hp
 
 class SharedFilters:
     def __init__(self, sub):
@@ -110,48 +116,77 @@ class Gradient(SharedFilters):
         return [sub.get_gradient_meanfield(it=it) for sub in self.subs]
 
 
-    # TODO implement this
-    def get_qlms_mf(self, mfkey, q_pbgeom, mchain, phas=None, cls_filt=None):
+    # TODO Need to implement for T and TP. Not urgent
+    def get_qlms_mf(self, mfkey, phas=None, cls_filt=None, maxiter=200):
         """Mean-field estimate using tricks of Carron Lewis appendix
         """
+        sky_coverage = 'masked'
+        # FIXME need to check if T is done correctly here in this function
+        config = get_config()
+        mchain = self.wfivf_filter.get_mchain()
         if mfkey in [1]: # This should be B^t x, D dC D^t B^t Covi x, x random phases in pixel space here
-            if phas is None:
-                # unit variance phases in Q U space
-                phas = np.array([default_rng().standard_normal(utils_geom.Geom.npix(self.ninv_geom)),
-                                 default_rng().standard_normal(utils_geom.Geom.npix(self.ninv_geom))])
-            assert phas[0].size == utils_geom.Geom.npix(self.ninv_geom)
-            assert phas[1].size == utils_geom.Geom.npix(self.ninv_geom)
-
-            soltn = np.zeros(Alm.getsize(self.lmax_sol, self.mmax_sol), dtype=complex)
-            mchain.solve(soltn, phas, dot_op=self.dot_op())
-
-            phas = self.ninv_geom.map2alm_spin(phas, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
-            almxfl(phas[0], 0.5 * self.b_transf_elm, self.mmax_len, True)
-            almxfl(phas[1], 0.5 * self.b_transf_blm, self.mmax_len, True)
-            repmap, impmap = q_pbgeom.geom.alm2map_spin(phas, 2, self.lmax_len, self.mmax_len, self.ffi.sht_tr, (-1., 1.))
-
-            Gs, Cs = self._get_gpmap(soltn, 3, q_pbgeom)  # 2 pos.space maps
-            GC = (repmap - 1j * impmap) * (Gs + 1j * Cs)  # (-2 , +3)
-            Gs, Cs = self._get_gpmap(soltn, 1, q_pbgeom)
-            GC -= (repmap + 1j * impmap) * (Gs - 1j * Cs)  # (+2 , -1)
-            del repmap, impmap, Gs, Cs
+            if phas is None: # unit variance phases in Q U space
+                if sky_coverage == 'masked':
+                    phas = np.array([
+                        default_rng().standard_normal(hp.nside2npix(config.noisemodel_geominfo[1]['nside'])),
+                        default_rng().standard_normal(hp.nside2npix(config.noisemodel_geominfo[1]['nside'])),
+                        default_rng().standard_normal(hp.nside2npix(config.noisemodel_geominfo[1]['nside']))])
+                else:
+                    phas = np.array([
+                        synalm(np.ones(config.lm_max_sky[0] + 1, dtype=float), *config.lm_max_sky),
+                        synalm(np.ones(config.lm_max_sky[0] + 1, dtype=float), *config.lm_max_sky),
+                        synalm(np.ones(config.lm_max_sky[0] + 1, dtype=float), *config.lm_max_sky)])
+            soltn = np.zeros((3,Alm.getsize(*config.lm_max_pri)), dtype=complex)
+            soltn = np.array([
+                        synalm(np.ones(config.lm_max_pri[0] + 1, dtype=float), *config.lm_max_pri),
+                        synalm(np.ones(config.lm_max_pri[0] + 1, dtype=float), *config.lm_max_pri),
+                        synalm(np.ones(config.lm_max_pri[0] + 1, dtype=float), *config.lm_max_pri)])
+            phas = self.wfivf_filter.calc_prep(phas)
+            mchain.solve(soltn, phas, self.wfivf_filter.fwd_op, maxiter=maxiter)
+            # if sky_coverage == 'masked':
+            #     print(phas[0])
+            #     phas = [
+            #         self.subs[0].geom_lib.adjoint_synthesis(phas[0], 0, *config.lm_max_sky, self.subs[0].sht_tr),
+            #         *self.subs[0].geom_lib.adjoint_synthesis(phas[1:], 2, *config.lm_max_sky, self.subs[0].sht_tr),
+            #     ]
+            phas = self.wfivf_filter.beam_operator.act(phas, adjoint=False, factor_p=.5)
+            # NOTE correct would be to synth onto noise model geom, then adjoint synth onto data geom, but if they are the same anyway, can ignore this
+            
+            phas_ = [
+                self.subs[0].geom_lib.synthesis(phas[0], 0, *config.lm_max_sky, self.subs[0].sht_tr),
+                *self.subs[0].geom_lib.synthesis(phas[1:], 2, *config.lm_max_sky, self.subs[0].sht_tr),
+            ]
+            # FIXME need to treat T properly here
+            # trepmap, timpmap = self.subs[0].geom_lib.adjoint_synthesis(phas[0], 0, *config.lm_max_sky, self.subs[0].sht_tr, (-1., 1.))
+            ponly = np.copy(soltn)
+            ponly[0] *= 0
+            Gs, Cs = self.subs[0].gradient_operator.act(ponly, spin=3) # xwfglm
+            ponly = np.copy(soltn)
+            ponly[0] *= 0
+            GC = (phas_[1] - 1j * phas_[2]) * (Gs + 1j * Cs)  # (-2 , +3)
+            Gs, Cs = self.subs[0].gradient_operator.act(ponly, spin=1) # xwfglm
+            GC -= (phas_[1] + 1j * phas_[2]) * (Gs - 1j * Cs)  # (+2 , -1)
 
         elif mfkey in [0]: # standard gQE, quite inefficient but simple
             assert phas is None, 'discarding this phase anyways'
             QUdat = np.array(self.synalm(cls_filt))
             elm_wf = np.zeros(Alm.getsize(self.lmax_sol, self.mmax_sol), dtype=complex)
             mchain.solve(elm_wf, QUdat, dot_op=self.dot_op())
-            return self.get_qlms(QUdat, elm_wf, q_pbgeom)
+            # FIXME next line
+            # return self.get_qlms(it=-10, data=QUdat, wflm=elm_wf, store=False)
         else:
             assert 0, mfkey + ' not implemented'
-        lmax_qlm = self.ffi.lmax_dlm
-        mmax_qlm = self.ffi.mmax_dlm
-        G, C = q_pbgeom.geom.map2alm_spin([GC.real, GC.imag], 1, lmax_qlm, mmax_qlm, self.ffi.sht_tr, (-1., 1.))
-        del GC
-        fl = - np.sqrt(np.arange(lmax_qlm + 1, dtype=float) * np.arange(1, lmax_qlm + 2))
-        almxfl(G, fl, mmax_qlm, True)
-        almxfl(C, fl, mmax_qlm, True)
-        return G, C
+
+        # print(GC)
+        
+        # self.subs[0].geom_lib.adjoint_synthesis(phas[1:], 2, *config.lm_max_sky, self.subs[0].sht_tr, (-1., 1.))
+        G, C = self.subs[0].geom_lib.adjoint_synthesis([GC.real, GC.imag], 1, *config.LM_max, self.subs[0].sht_tr)
+        # G, C = self.subs[0].geom_lib.adjoint_synthesis(gc_r, 1, *config.LM_max, self.subs[0].sht_tr)
+        # del GC
+        fl = - np.sqrt(np.arange(config.LM_max[0] + 1, dtype=float) * np.arange(1, config.LM_max[0] + 2))
+        almxfl(G, fl, config.LM_max[1], True)
+        almxfl(C, fl, config.LM_max[1], True)
+        return G, C, phas, soltn
     
 
     def update_operator(self, field):
@@ -227,8 +262,9 @@ class GradSub:
 class LensingGradientSub(GradSub):
     def __init__(self, desc):
         super().__init__(desc)
+        config = get_config()
         self.gradient_operator: operator.Compound = self._get_operator(desc['sec_operator'])
-        self.lm_max_in = self.gradient_operator.operators[-1].operators[-1].lm_max_in
+        self.lm_max_in = config.lm_max_sky
         self.data_key = desc['data_key']
     
 
@@ -292,7 +328,8 @@ class LensingGradientSub(GradSub):
     
 
     def _get_operator(self, filter_operator):
-        lm_max_out = filter_operator.operators[-1].lm_max_out
+        config = get_config()
+        lm_max_out = config.lm_max_pri
         return operator.Compound([operator.SpinRaise(lm_max=lm_max_out), filter_operator], out='map', sht_tr=self.sht_tr)
     
 
@@ -308,9 +345,14 @@ class BirefringenceGradientSub(GradSub):
 
     def __init__(self, desc):
         super().__init__(desc)
+        config = get_config()
         self.gradient_operator: operator.joint = self._get_operator(desc['sec_operator'])
-        self.lm_max = self.gradient_operator.operators[-1].operators[0].lm_max
-    
+        # NOTE birefringence acts either on pri or sky alm, depending on if bire comes after lensing.
+        # so lm_max_in is either lm_max_pri or lm_max_sky
+        if desc['sec_operator'].operators[0].ID == 'birefringence': # NOTE birefringence acts on pri alm
+            self.lm_max = config.lm_max_pri
+        elif desc['sec_operator'].operators[0].ID == 'lensing': # NOTE lensing acts on sky alm
+            self.lm_max = config.lm_max_sky
 
     def get_gradient_quad(self, it, data=None, data_leg2=None, wflm=None, ivfreslm=None):
         # TODO write down equation in docstring

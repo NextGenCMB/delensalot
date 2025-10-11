@@ -14,7 +14,7 @@ class ComputationContext:
         # key = (rank, unique_id)
         # Check if running inside a Jupyter Notebook
         if "ipykernel" in sys.modules:
-            rank = -1
+            rank = 0
         else:
             rank = mpi.rank  # Normal MPI rank
         if rank not in cls._instances:

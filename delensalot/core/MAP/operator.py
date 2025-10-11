@@ -15,7 +15,6 @@ from delensalot.utils import cli, read_map
 from delensalot.utility import utils_qe
 from delensalot.utility.utils_hp import Alm, almxfl, alm_copy
 
-
 def _extend_cl(cl, lmax):
     """Forces input to an array of size lmax + 1
     """
@@ -70,6 +69,7 @@ class Compound:
     @log_on_start(logging.DEBUG, "joint", logger=log)  
     @log_on_end(logging.DEBUG, "joint done", logger=log)  
     def act(self, obj, spin):
+        assert len(obj) == 3, "obj must be a 3 element array"
         for operator in self.operators:
             if isinstance(operator, Secondary):
                 obj = operator.act(obj, spin=spin, out=self.space_out)
@@ -100,9 +100,11 @@ class Secondary:
 
     @log_on_start(logging.DEBUG, "secondary", logger=log)  
     @log_on_end(logging.DEBUG, "secondary done", logger=log)  
-    def act(self, obj, spin=None, adjoint=False, backwards=False, out_sht_mode=None, secondary=None, nomagn=None, out='alm'):
+    def act(self, obj, spin=None, adjoint=False, backwards=False, out_sht_mode=None, secondary=None, nomagn=None, out='alm', order='normal'):
+        assert order in ['normal', 'reversed'], "order must be 'normal' or 'reversed'. Reversed is used for e.g. template generation"
         secondary = secondary or [op.ID for op in self.operators]
         operators = self.operators if not adjoint else self.operators[::-1]
+        operators = operators if order == 'normal' else operators[::-1]
         for idx, operator in enumerate(operators):
             if operator.ID in secondary:
                 if isinstance(operator, Lensing):
@@ -325,8 +327,14 @@ class Beam:
     def act(self, obj, adjoint=False, factor_p=1):
         assert len(obj) == 3, "obj must have 3 components"
         factor = lambda oi: factor_p if oi > 0 else 1.
-        val = np.array([almxfl(o, self.transferfunction[oi]*factor(oi), len(self.transferfunction[oi])-1, False) for oi, o in enumerate(obj)])
-        return cli(val) if adjoint else val
+        ellmax_ = Alm.getlmax(np.max([len(o) for o in obj]), None)
+        if ellmax_ > self.lm_max[0]:
+            log.warning(f"Beam operator: ellmax of input {ellmax_} is larger than lm_max of operator {self.lm_max[0]}. Extending transfer function to ellmax {ellmax_}.")
+        trsf_ = [_extend_cl(self.transferfunction[oi], ellmax_) for oi in range(3)] if ellmax_ > self.lm_max[0] else self.transferfunction
+        trsf_ = [cli(v) for v in trsf_] if adjoint else trsf_
+        val = np.array([almxfl(o, trsf_[oi]*factor(oi), len(trsf_[oi])-1, False) for oi, o in enumerate(obj)])
+        return val
+
 
 
     def adjoint(self):

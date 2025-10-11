@@ -160,6 +160,7 @@ class DELENSALOT_QErec(DELENSALOT_Concept):
     qlm_type =              attr.field(default=DEFAULT_NotAValue)
     cg_tol =                attr.field(default=DEFAULT_NotAValue)
     subtract_QE_meanfield = attr.field(default=DEFAULT_NotAValue)
+    qmflm_fns =             attr.field(default=None)
 
 
 @attr.s
@@ -177,7 +178,7 @@ class DELENSALOT_MAPrec(DELENSALOT_Concept):
         lenjob_pbgeominfo (str):    can be 'healpix_geominfo', 'thin_gauss' or 'pbdGeometry'
         lm_max_unl (tuple[int]):    maximum multipoles `\ell` and m for reconstruction the unlensed CMB
         lm_max_qlm (tuple[int]):    maximum multipoles L and m for reconstruction the lensing potential
-        mfvar (str):                path to precalculated mean-field, to be used instead
+        qmflm_fns (dict):           paths to precalculated mean-fields. Must be a qlm, i.e. unnormalized
         soltn_cond (type):          TBD
         stepper (DELENSALOT_STEPPER):configuration for updating the current likelihood iteration point with the likelihood gradient
               
@@ -186,7 +187,6 @@ class DELENSALOT_MAPrec(DELENSALOT_Concept):
     itmax =                 attr.field(default=DEFAULT_NotAValue)
     filtering_type =        attr.field(default=DEFAULT_NotAValue)
     cg_tol =                attr.field(default=DEFAULT_NotAValue)
-    mfvar =                 attr.field(default=DEFAULT_NotAValue)
     soltn_cond =            attr.field(default=DEFAULT_NotAValue)
     gradient_descs =        attr.field(default=DEFAULT_NotAValue)
     filter_desc =           attr.field(default=DEFAULT_NotAValue)

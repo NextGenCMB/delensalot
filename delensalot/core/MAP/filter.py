@@ -17,7 +17,8 @@ CMBfields_sorted = ['tt', 'ee', 'bb']
 filterfield_desc = lambda ID, libdir: {
     "ID": ID,
     "libdir": opj(libdir),
-    "fns": f"{ID}_idx{{idx}}_{{idx2}}_it{{it}}",}
+    "fns": f"{ID}_idx{{idx}}_{{idx2}}_it{{it}}",
+    "cacher_type": 'npy' if ID == 'wf' else 'NoCache'}
 
 def _extend_cl(cl, lmax):
     """Forces input to an array of size lmax + 1
@@ -61,31 +62,29 @@ class Filter_3d:
         self.icls = self.invert_cls_filt(self.cls_filt)
         self.sht_tr = filter_desc['sht_tr']
         
-        # TODO rename this to "ivfres"_field
-        self.ivfres_field = field.Filter(filterfield_desc('ivf', self.libdir))
+        self.ivfres_field = field.Filter(filterfield_desc('ivfres', self.libdir))
         self.wf_field: field.Filter = field.Filter(filterfield_desc('wf', self.libdir))
+
+        self.mchain = cg.ConjugateGradient(self.preconditioner_op, self.chain_descr, self.cls_filt)
 
 
     def get_wflm(self, it, data=None):
-        lm_max_pri = self.sec_operator.operators[-1].lm_max_out
-        lm_max_sky = self.sec_operator.operators[-1].lm_max_in
+        config = get_config()
         if not self.wf_field.is_cached(it=it):
             assert data is not None, 'data is required for the calculation'
             if it>1:
                 cg_sol_curr = self.wf_field.get_field(it=it-1)
             else:
-                cg_sol_curr = np.zeros(shape=(3,Alm.getsize(*lm_max_pri)),dtype=complex)
+                cg_sol_curr = np.zeros(shape=(3,Alm.getsize(*config.lm_max_pri)),dtype=complex)
                 if 'tt' in self.cls_filt and 'ee' in self.cls_filt:
                     cg_sol_curr[0:2] = self.wf_field.get_field(it=it-1)
                 elif 'tt' in self.cls_filt:
                     cg_sol_curr[0] = self.wf_field.get_field(it=it-1)
                 elif 'ee' in self.cls_filt:
                     cg_sol_curr[1] = self.wf_field.get_field(it=it-1)
-            mchain = cg.ConjugateGradient(self.preconditioner_op, self.chain_descr, self.cls_filt)        
             if self.filtering_type == 'isotropic':
-                config = get_config()
                 if data[0].dtype in [np.float32, np.float64]:
-                    delTEB = np.zeros(shape=(3,Alm.getsize(*lm_max_sky)),dtype=complex)
+                    delTEB = np.zeros(shape=(3,Alm.getsize(*config.lm_max_sky)),dtype=complex)
                     delTEB[0] = self.inv_operator.geom_lib.adjoint_synthesis(data[0], 0, *config.lm_max_sky, self.sht_tr)[0]
                     delTEB[1:] = self.inv_operator.geom_lib.adjoint_synthesis(data[1:], 2, *config.lm_max_sky, self.sht_tr)
                 else:
@@ -102,11 +101,11 @@ class Filter_3d:
                 zero_field = zeroed_copy(field_operator)
                 self.update_operator(zero_field)
                 teb_prep_alm = self.calc_prep(delTEB) # NOTE lm_sky -> lm_pri
-                mchain.solve(cg_sol_curr, teb_prep_alm, self.fwd_op)
+                self.mchain.solve(cg_sol_curr, teb_prep_alm, self.fwd_op, maxiter=50)
                 self.update_operator(field_operator)
             else:
                 teb_prep_alm = self.calc_prep(data) # NOTE lm_sky -> lm_pri
-                mchain.solve(cg_sol_curr, teb_prep_alm, self.fwd_op)
+                self.mchain.solve(cg_sol_curr, teb_prep_alm, self.fwd_op, maxiter=50)
             self.wf_field.cache(cg_sol_curr, it=it)
         return self.wf_field.get_field(it=it)
 
@@ -305,9 +304,10 @@ class Filter_3d:
     def get_field_operator(self):
         return self.sec_operator.get_field()
 
-    def get_template(self, it, QE_perturbative=True, secondary=None, component=None):
-        lm_max_pri = self.sec_operator.operators[-1].lm_max_out
-        estCMB = np.zeros(shape=(3,Alm.getsize(*lm_max_pri)),dtype=complex)
+    # TODO this should not sit in filter, rather in 
+    def get_template(self, it, QE_perturbative=True, secondary=None, component=None, order='reversed'):
+        config = get_config()
+        estCMB = np.zeros(shape=(3,Alm.getsize(*config.lm_max_pri)),dtype=complex)
         if it == 0:
             if 'tt' in self.cls_filt and 'ee' in self.cls_filt:
                 estCMB[0:2] = self.wf_field.get_field(it=it)
@@ -315,7 +315,7 @@ class Filter_3d:
                 estCMB[0] = self.wf_field.get_field(it=it)
             elif 'ee' in self.cls_filt:
                 estCMB[1] = self.wf_field.get_field(it=it)
-            config = get_config()
+            
             estCMB = alm_copy_nd(estCMB, config.lm_max_pri[1], config.lm_max_sky)
         else:
             estCMB = self.wf_field.get_field(it=it)
@@ -326,4 +326,7 @@ class Filter_3d:
                 operator.perturbative = (it == 0)
             else:
                 operator.perturbative = False
-        return self.sec_operator.act(estCMB, secondary=secondary)
+        return self.sec_operator.act(estCMB, secondary=secondary, order=order)
+    
+    def get_mchain(self):
+        return self.mchain

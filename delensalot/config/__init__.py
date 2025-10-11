@@ -27,6 +27,7 @@ safelist = [
     'libdir_suffix',
     'mfvar', #not really safe, but ok for now as long as you know what you do
     'operator_info',
+    "subtract_QE_meanfield",
 ]
 
 DEFAULT_NotAValue = -123456789

@@ -126,7 +126,7 @@ class ConjugateGradient:
         self.logger = (lambda iter, eps, stage=self.bstage, **kwargs: self.log(stage, iter, eps, **kwargs))
 
 
-    def solve(self, soltn, tpn_alm, fwd_op):
+    def solve(self, soltn, tpn_alm, fwd_op, maxiter=100):
         self.watch = cd_monitors.stopwatch()
         self.iter_tot = 0
         self.prev_eps = None
@@ -137,7 +137,7 @@ class ConjugateGradient:
             dot_op = self.dot_op
 
         monitor = cd_monitors.monitor_basic(dot_op, logger=self.logger, iter_max=self.bstage.iter_max, eps_min=self.bstage.eps_min, d0=dot_op(tpn_alm, tpn_alm))
-        solve(soltn, tpn_alm, fwd_op, self.bstage.pre_ops, dot_op, monitor, tr=self.bstage.tr, cacher=cache_mem())
+        solve(soltn, tpn_alm, fwd_op, self.bstage.pre_ops, dot_op, monitor, tr=self.bstage.tr, cacher=cache_mem(), maxiter=maxiter)
 
 
     def dot_op(self, elm1, elm2):
@@ -212,8 +212,7 @@ tr_cg = (lambda i: i - 1)
 tr_cd = (lambda i: 0)
 
 
-def solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cacher, roundoff=25):
-    maxiter = 50
+def solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cacher, roundoff=25, maxiter=200):
     """customizable conjugate directions loop for x=[fwd_op]^{-1}b.
 
     Args:

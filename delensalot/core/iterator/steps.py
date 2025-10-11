@@ -27,7 +27,6 @@ class harmonicbump(nrstep):
         if flt is not None:
             filt[:min(len(flt), lmax_qlm+1)] = flt[:min(len(flt), lmax_qlm+1)]
         self.scale = scale
-        print("bump params:", xa, xb, a, b)
         self.bump_params = (xa, xb, a, b)
         self.filt = filt
 
@@ -46,7 +45,6 @@ class harmonicbump(nrstep):
             """Bump function with f(xa) = a and f(xb) =  b with transition at midpoint over scale scale
 
             """
-            print("bump params:", xa, xb, a, b, scale)
             x0 = (xa + xb) * 0.5
             r = lambda x_: np.arctan(np.sign(b - a) * (x_ - x0) / scale) + np.sign(b - a) * np.pi * 0.5
             return a + r(x) * (b - a) / r(xb)

@@ -10,9 +10,7 @@ from delensalot.core.MAP.context import get_computation_context
 
 from delensalot.utils import cli
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy, alm_copy_nd
-
-template_secondaries = ['lensing', 'birefringence']  # Define your desired order
-template_index_secondaries = {val: i for i, val in enumerate(template_secondaries)}
+from delensalot.config.config_manager import get_config
 
 class Minimizer:
     def __init__(self, likelihood, itmax, libdir, use_QE_starting_point=True):
@@ -31,17 +29,15 @@ class Minimizer:
         }) for quad in likelihood.gradient_lib.subs}
         self.sec2idx = {secondary_ID: idx for idx, secondary_ID in enumerate(self.secondaries.keys())}
         self.idx2sec = {idx: secondary_ID for idx, secondary_ID in enumerate(self.secondaries.keys())}
-        self.seclist_sorted = sorted(list(self.sec2idx.keys()), key=lambda x: template_index_secondaries.get(x, ''))
+        self.seclist_sorted = list(self.sec2idx.keys())
 
 
     def get_est(self, request_it=None, secondary=None, component=None, scale='k', calc_flag=False):
         ctx, isnew = get_computation_context()  # Get the singleton instance for MPI rank
         component, secondary = (ctx.component or component, ctx.secondary or secondary)
         current_it = self.maxiterdone()
-
         if not isinstance(request_it, (list, np.ndarray)):
-            request_it = request_it or current_it
-
+            request_it = request_it or current_it if request_it != 0 else request_it
         if isinstance(request_it, (list, np.ndarray)):
             if any(current_it < reqit for reqit in request_it):
                 print(f"Cannot calculate new iterations if param 'it' is a list, maximum available iteration is {current_it}")
@@ -50,7 +46,6 @@ class Minimizer:
 
         if self.maxiterdone() < 0:
             raise RuntimeError(f"Could not find the QE starting points, expected them at {self.likelihood.secondaries['lensing'].libdir}")
-
         if request_it <= current_it:
             return self._get_est(request_it, secondary, component, scale)
 
@@ -132,7 +127,7 @@ class Minimizer:
     #         return self.likelihood.get_est_meanfield(it, scale=scale)
 
 
-    def get_template(self, it, QE_perturbative=True, secondary=None, component=None):
+    def get_template(self, it, QE_perturbative=True, secondary=None, component=None, order='reversed'):
         est = self.get_est(it, scale='d')
         secondary = secondary or self.likelihood.seclist_sorted
         nulled_secondaries = [sec for sec in self.likelihood.secondaries.keys() if sec not in secondary]
@@ -143,7 +138,8 @@ class Minimizer:
         # from delensalot.utility.plot_helper import bandpass_alms
         # est['lensing'][0] = bandpass_alms(est['lensing'][0], 20, 3000)
         self.update_operator(est)
-        return self.likelihood.gradient_lib.wfivf_filter.get_template(it, QE_perturbative=QE_perturbative, secondary=secondary, component=component)
+        # TODO get_template handling should be done here, not by wfivf_filter
+        return self.likelihood.gradient_lib.wfivf_filter.get_template(it, QE_perturbative=QE_perturbative, secondary=secondary, component=component, order=order)
 
 
     def isiterdone(self, it):
@@ -170,6 +166,7 @@ class Minimizer:
     def copyQEtoDirectory(self, QE_searchs):
         # NOTE this turns them into convergence fields
         ctx, isnew = get_computation_context()  # NOTE getting the singleton instance for MPI rank
+        config = get_config()
         for secname, secondary in self.secondaries.items():
             QE_searchs[self.sec2idx[secname]].init_filterqest()
             if not all(self.secondaries[secname].is_cached(it=0)):
@@ -179,7 +176,7 @@ class Minimizer:
                 kmflm_QE = QE_searchs[self.sec2idx[secname]].get_kmflm(ctx.idx)
                 self.likelihood.gradient_lib.subs[self.sec2idx[secname]].gfield.cache(kmflm_QE, it=0, type='meanfield')
             if not self.likelihood.gradient_lib.wfivf_filter.wf_field.is_cached(it=0):
-                lm_max_out = self.likelihood.gradient_lib.subs[0].gradient_operator.operators[-1].operators[-1].lm_max_out
+                lm_max_out = config.lm_max_pri
                 wflm_QE = QE_searchs[self.sec2idx[secname]].get_wflm(ctx.idx, lm_max_out)
                 self.likelihood.gradient_lib.wfivf_filter.wf_field.cache(np.array(wflm_QE), it=0)
 
@@ -211,7 +208,7 @@ class Likelihood:
         }) for quad in gradient_lib.subs}
         self.sec2idx = {secondary_ID: idx for idx, secondary_ID in enumerate(self.secondaries.keys())}
         self.idx2sec = {idx: secondary_ID for idx, secondary_ID in enumerate(self.secondaries.keys())}
-        self.seclist_sorted = sorted(list(self.sec2idx.keys()), key=lambda x: template_index_secondaries.get(x, ''))
+        self.seclist_sorted = list(self.sec2idx.keys())
 
         # NOTE this whole thing should be wrapped into a curvature_lib class, which can depend on the curvature starting point,
         # and just passed to the likelihood
