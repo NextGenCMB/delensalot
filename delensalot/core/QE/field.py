@@ -29,7 +29,7 @@ class Secondary:
         return np.atleast_2d(self.cacher.load(self.qlm_fns[component].format(idx=simidx)))
     
 
-    def get_est(self, simidx,component=None, scale='k'):
+    def get_est(self, simidx, component=None, scale='k'):
         if component is None:
             return [self.get_est(simidx, component).squeeze() for component in self.component]
         return self._rescale(self.cacher.load(self.klm_fns[component].format(idx=simidx)), scale)
@@ -43,6 +43,14 @@ class Secondary:
         self.cacher.cache(self.qlm_fns[component].format(idx=simidx), klm)
 
 
+    def cache_qmflm(self, qmflm, simidx, component=None):
+        if component is None:
+            assert len(qmflm) == len(self.component), "%d %d"%(len(qmflm), len(self.component))
+            for ci, component in enumerate(self.component):
+                self.cache_qmflm(qmflm[ci], component)
+        self.cacher.cache(self.qmflm_fns[component].format(idx=simidx), qmflm)
+
+
     def cache_klm(self, klm, simidx, component=None):
         if component is None:
             for ci, component in enumerate(self.component):
@@ -53,9 +61,11 @@ class Secondary:
     def is_cached(self, simidx, component, type='qlm'):
         if type == 'klm':
             return self.cacher.is_cached(self.klm_fns[component].format(idx=simidx))
-        else:
+        elif type == 'qlm':
             return self.cacher.is_cached(self.qlm_fns[component].format(idx=simidx))
-        
+        elif type == 'qmflm':
+            return self.cacher.is_cached(self.qmflm_fns[component].format(idx=simidx))
+
 
     def _rescale(self, hlm, scale):
         if scale == 'p':

@@ -167,6 +167,7 @@ class Minimizer:
         # NOTE this turns them into convergence fields
         ctx, isnew = get_computation_context()  # NOTE getting the singleton instance for MPI rank
         config = get_config()
+        print("inside map minimizer copyQEtoDirectory with config:", ctx.idx)
         for secname, secondary in self.secondaries.items():
             QE_searchs[self.sec2idx[secname]].init_filterqest()
             if not all(self.secondaries[secname].is_cached(it=0)):

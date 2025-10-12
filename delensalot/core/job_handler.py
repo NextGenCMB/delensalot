@@ -589,7 +589,7 @@ class QEScheduler:
         self.jobs = jobs
         if not np.all(np.array(jobs)==None):
             log.info(f"QE jobs: {jobs}")
-        return np.array(jobs, dtype=object)
+        return np.array(jobs, dtype=np.NAN)
 
 
     def run(self, task=None):
@@ -632,13 +632,18 @@ class QEScheduler:
 
             if task == 'calc_meanfields':
                 for idxs in self.jobs[taski][mpi.rank::mpi.size]:
+                    # for QE_search in self.QE_searchs:
+                    #     for seci, secidx in enumerate(idxs):
+                    #         if secidx is not None: #these Nones come from the field already being done.
+                    #             ctx.set(idx=secidx, idx2=secidx)
+                    #             self.QE_searchs[seci].get_qlm(int(secidx))
+                    #             if secidx in self.idxs: # NOTE this should only run across the simidxs, not the union with mf idxs
+                    #                 self.QE_searchs[seci].get_est(int(secidx)) # this is here for convenience
                     for QE_search in self.QE_searchs:
                         for seci, secidx in enumerate(idxs):
-                            ctx.set(idx=secidx, idx2=secidx)
-                            self.QE_searchs[seci].get_qlm(int(secidx))
-                            self.QE_searchs[seci].get_est(int(secidx)) # this is here for convenience
-                for QE_search in self.QE_searchs:
-                    QE_search.get_qmflm(QE_search.estimator_key, self.idxs_mf)
+                            if secidx is not None: #these Nones come from the field already being done.
+                                if secidx in self.idxs: # NOTE this should only run across the simidxs, not the union with mf idxs
+                                    QE_search.get_qmflm(secidx, self.idxs_mf)
                 mpi.barrier()
 
 
@@ -765,7 +770,7 @@ class MAPScheduler:
                         _jobs.append(idx)
                 jobs[taski] = _jobs
         self.jobs = jobs
-        return np.array(jobs, dtype=object)
+        return np.array(jobs, dtype=int)
 
 
     def run(self):
@@ -777,6 +782,7 @@ class MAPScheduler:
                     if np.all([self.QE_searchs[0].isdone(idx, comp)==0 for comp in self.QE_searchs[0].secondary.component]):
                         ctx.set(idx=idx, idx2=idx)
                         self.MAP_minimizer.copyQEtoDirectory(self.QE_searchs)
+                print("Done copying QE to MAP directory")
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
                     ctx.set(idx=idx, idx2=idx)
                     self.MAP_minimizer.get_est(self.MAP_minimizer.itmax)
