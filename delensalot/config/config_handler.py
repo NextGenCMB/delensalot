@@ -45,7 +45,8 @@ class ConfigHandler():
     def __init__(self, parser, config=None, key=None):
         sorted_joblist = ['generate_sim', 'QE_lensrec', 'MAP_lensrec', 'analyse_phi', 'delens']
         self.config = config if config is not None else load_config(parser.config_file, 'configfile')
-        parser.config_file = self.config.config_fn
+        if config is not None:
+            parser.config_file = self.config.config_fn
         if key is not None:
             self.config.analysis.key = key
         if 'job_id' in parser.__dict__ and parser.job_id is not None:

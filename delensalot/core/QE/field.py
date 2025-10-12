@@ -27,6 +27,14 @@ class Secondary:
         if component is None:
             return np.array([self.get_qlm(simidx, component) for component in self.component])
         return np.atleast_2d(self.cacher.load(self.qlm_fns[component].format(idx=simidx)))
+
+    
+    def cache_qmflm(self, qmflm, simidx, component=None):
+        if component is None:
+            assert len(qmflm) == len(self.component), "%d %d"%(len(qmflm), len(self.component))
+            for ci, component in enumerate(self.component):
+                self.cache_qmflm(qmflm[ci], component)
+        self.cacher.cache(self.qmflm_fns[component].format(idx=simidx), qmflm)
     
 
     def get_est(self, simidx,component=None, scale='k'):

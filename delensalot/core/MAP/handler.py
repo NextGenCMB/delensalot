@@ -167,18 +167,22 @@ class Minimizer:
         # NOTE this turns them into convergence fields
         ctx, isnew = get_computation_context()  # NOTE getting the singleton instance for MPI rank
         config = get_config()
+        print("inside map minimizer copyQEtoDirectory with config:", ctx.idx)
         for secname, secondary in self.secondaries.items():
             QE_searchs[self.sec2idx[secname]].init_filterqest()
             if not all(self.secondaries[secname].is_cached(it=0)):
                 klm_QE = QE_searchs[self.sec2idx[secname]].get_est(ctx.idx)
                 self.secondaries[secname].cache_klm(klm_QE, it=0)
+            print("finished copying secondaries", ctx.idx)
             if not self.likelihood.gradient_lib.subs[self.sec2idx[secname]].gfield.is_cached(it=0, type='meanfield'):
                 kmflm_QE = QE_searchs[self.sec2idx[secname]].get_kmflm(ctx.idx)
                 self.likelihood.gradient_lib.subs[self.sec2idx[secname]].gfield.cache(kmflm_QE, it=0, type='meanfield')
+            print("finished copying meanfields", ctx.idx)
             if not self.likelihood.gradient_lib.wfivf_filter.wf_field.is_cached(it=0):
                 lm_max_out = config.lm_max_pri
                 wflm_QE = QE_searchs[self.sec2idx[secname]].get_wflm(ctx.idx, lm_max_out)
                 self.likelihood.gradient_lib.wfivf_filter.wf_field.cache(np.array(wflm_QE), it=0)
+            print("finished copying wf", ctx.idx)
 
 
     def __getattr__(self, name):

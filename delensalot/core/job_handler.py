@@ -532,8 +532,8 @@ class QEScheduler:
 
         self.template_operator = QE_job_desc['template_operator'] # FIXME deal with this later
         
-        # NOTE if there is no job, we can already init the filterqest
-        if len(np.array([x for x in self.collect_jobs().ravel() if x is not None]))==0:
+        # NOTE if there is no job in task "calc_fields", we can already init the filterqest
+        if len(np.array([x for x in self.collect_jobs()[0].ravel() if x is not None]))==0:
             if len(self.data_container.collect_jobs()) == 0:
                 for QE_search in self.QE_searchs:
                     QE_search.init_filterqest()
@@ -546,82 +546,72 @@ class QEScheduler:
             _jobs = []
             if task == 'calc_fields':
                 _nomfcheck = self.idxs_mf.size == 0
-                for idx in idxs_:
+                for idx in idxs_: # data indices
                     __jobs = []
-                    for Qi, QE_search in enumerate(self.QE_searchs): # each field has its own QE_search
-                        _add = False
-                        for ci, component in enumerate(QE_search.secondary.component):
+                    _addindex = False
+                    for Qi, QE_search in enumerate(self.QE_searchs): # each field has its own QE_search. # secondary indices
+                        _addsecondary = False
+                        for ci, component in enumerate(QE_search.secondary.component): # component indices
                             if _nomfcheck or not QE_search.secondary.cacher.is_cached(QE_search.secondary.qmflm_fns[component].format(idx=idx)) or recalc:
-                                if not QE_search.secondary.cacher.is_cached(QE_search.secondary.klm_fns[component].format(idx=idx)) or recalc:
-                                   _add = True
-                        __jobs.append(idx) if _add else __jobs.append(None)
-                    _jobs.append(__jobs)
-            jobs.append(_jobs)
+                                if not QE_search.secondary.is_cached(idx, component, 'qlm') or recalc:
+                                   # print(idx, component, QE_search.secondary.klm_fns[component].format(idx=idx), QE_search.secondary.cacher.is_cached(QE_search.secondary.klm_fns[component].format(idx=idx)))
+                                   _addsecondary = True
+                                   _addindex = True
+                        if _addsecondary: __jobs.append(idx)
+                    if _addindex: _jobs.append(__jobs)
              
             if task == 'calc_meanfields':
-                for idx in self.idxs_mf:
+                for idx in self.idxs:
+                    _addindex = False
                     __jobs = []
                     for Qi, QE_search in enumerate(self.QE_searchs): # each field has its own QE_search
-                        _add = False
-                        for ci, component in enumerate(QE_search.secondary.component): # each field has n components # fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, pl_utils.mchash(self.idxs_mf)))
-                            mf_fn = opj(QE_search.libdir, 'qlms_dd', QE_search.secondary.qmflm_fns[component])
-                            if not os.path.isfile(mf_fn) or recalc:
-                                field_fn = opj(QE_search.libdir, 'qlms_dd', QE_search.secondary.qlm_fns[component].format(idx=idx) if idx != -1 else 'dat_%s.fits'%self.k)
-                                if not os.path.isfile(field_fn) or recalc:
-                                    _add = True
-                         # checking for each component, but only adding the complete field as task index
-                        __jobs.append(idx) if _add else __jobs.append(None)
-                    _jobs.append(__jobs)
-                jobs.append(_jobs)
+                        _addsecondary = False
+                        for ci, component in enumerate(QE_search.secondary.component): # each field has n components #
+                            if not QE_search.secondary.is_cached(idx, component, 'qmflm') or recalc:
+                                print('adding idx to meanfield job')
+                                _addsecondary = True
+                                _addindex = True
+                                # for idxqlms in self.idxs_mf:
+                                #     field_fn = opj(QE_search.libdir, 'qlms_dd', QE_search.secondary.qlm_fns[component].format(idx=idx) if idx != -1 else 'dat_%s.fits'%self.k)
+                        if _addsecondary: __jobs.append(idx)
+                    if _addindex: _jobs.append(__jobs)
 
             # TODO later. If i add combinatorics here across all operators, could add this to the collect list.
             if task == 'calc_templates':
+                assert 0, "not yet implemented"
                 for idx in self.idxs:
                     for Qi, QE_search in enumerate(self.QE_searchs): # each field has its own QE_search
                         __jobs = []
-                        for ci, component in enumerate(QE_search.te.components): # each field has n components # fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, pl_utils.mchash(self.idxs_mf)))
+                        for ci, component in enumerate(QE_search.secondary.components): # each field has n components # fn_mf = opj(self.libdir_QE, 'qlms_dd/simMF_k1%s_%s.fits' % (self.k, pl_utils.mchash(self.idxs_mf)))
                             tepmplate_fn = opj(QE_search.libdir, 'templates', QE_search.template.qmflm_fns[component])
                             if not os.path.isfile(tepmplate_fn) or recalc:
                                 field_fn = opj(QE_search.libdir, 'qlms_dd', QE_search.secondary.qlm_fns[component].format(idx=idx) if idx != -1 else 'dat_%s.fits'%self.k)
                                 if not os.path.isfile(field_fn) or recalc:
-                                    _jobs.append(int(idx))
-            jobs[taski] = _jobs
+                                    pass
+                                    # jobs.append(np.array(_jobs,dtype=float))
+            jobs[taski] = np.array(_jobs, dtype=int)
         self.jobs = jobs
-        if not np.all(np.array(jobs)==None):
-            log.info(f"QE jobs: {jobs}")
-        return np.array(jobs, dtype=object)
+        log.info(f"QE jobs: {jobs}")
+        # if not np.all(np.array(jobs)==None):
+        #     log.info(f"QE jobs: {jobs}")
+        # else:
+        #     log.info(f"QE jobs collection resulted in no jobs. Looks like QE is done already")
+        return jobs
 
 
     def run(self, task=None):
         ctx, isnew = get_computation_context()
-        if not np.all(np.array(self.jobs)==None):
-            log.info(f"Running QE jobs: {self.jobs}")
+        # if not np.all(np.array(self.jobs)==None):
+        #     log.info(f"Running QE jobs: {self.jobs}")
         if True: # 'triggers calc_cinv'
             self.init_QEsearchs()
                    
         tasks = self.tasks if task is None else [task]
         # NOTE step 0 is making sure I run get_qlm() for all indices needed, before calculating mean-field or similar
         for taski, task in enumerate(tasks):
-            log.info('QEScheduler {} - step 0, task {} started'.format(mpi.rank, task))
             if task == 'calc_fields':
                 for idxs in self.jobs[taski][mpi.rank::mpi.size]:
                     for seci, secidx in enumerate(idxs):
-                        if secidx is not None: #these Nones come from the field already being done.
-                            ctx.set(idx=secidx, idx2=secidx)
-                            self.QE_searchs[seci].get_qlm(int(secidx))
-                    if np.all(self.data_container.obs_lib.maps == DEFAULT_NotAValue):
-                        self.data_container.data_source.purgecache()
-                mpi.barrier()
-
-
-        tasks = self.tasks if task is None else [task]
-        
-        for taski, task in enumerate(tasks):
-            log.info('QEScheduler {} - step 1, task {} started'.format(mpi.rank, task))       
-            if task == 'calc_fields':
-                for idxs in self.jobs[taski][mpi.rank::mpi.size]:
-                    for seci, secidx in enumerate(idxs):
-                        if secidx is not None: #these Nones come from the field already being done.
                             if secidx in self.idxs: # NOTE this should only run across the simidxs, not the union with mf idxs
                                 ctx.set(idx=secidx, idx2=secidx)
                                 self.QE_searchs[seci].get_est(int(secidx)) # this is here for convenience
@@ -633,12 +623,10 @@ class QEScheduler:
             if task == 'calc_meanfields':
                 for idxs in self.jobs[taski][mpi.rank::mpi.size]:
                     for QE_search in self.QE_searchs:
-                        for seci, secidx in enumerate(idxs):
+                        for ci, component in enumerate(QE_search.secondary.component):
                             ctx.set(idx=secidx, idx2=secidx)
-                            self.QE_searchs[seci].get_qlm(int(secidx))
-                            self.QE_searchs[seci].get_est(int(secidx)) # this is here for convenience
-                for QE_search in self.QE_searchs:
-                    QE_search.get_qmflm(QE_search.estimator_key, self.idxs_mf)
+                            qmf_lm = QE_search.get_qmflm(int(idxs[ci]), self.idxs_mf, component)
+                            QE_search.secondary.cache_qmflm(qmf_lm, int(idxs[ci]), component=component)
                 mpi.barrier()
 
 
@@ -765,7 +753,7 @@ class MAPScheduler:
                         _jobs.append(idx)
                 jobs[taski] = _jobs
         self.jobs = jobs
-        return np.array(jobs, dtype=object)
+        return np.array(jobs, dtype=int)
 
 
     def run(self):
@@ -777,6 +765,7 @@ class MAPScheduler:
                     if np.all([self.QE_searchs[0].isdone(idx, comp)==0 for comp in self.QE_searchs[0].secondary.component]):
                         ctx.set(idx=idx, idx2=idx)
                         self.MAP_minimizer.copyQEtoDirectory(self.QE_searchs)
+                print("rank ", mpi.rank, " done copying QE to MAP directory")
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
                     ctx.set(idx=idx, idx2=idx)
                     self.MAP_minimizer.get_est(self.MAP_minimizer.itmax)

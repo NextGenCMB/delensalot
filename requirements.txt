@@ -1,10 +1,17 @@
-numpy
-healpy
-logdecorator
-psutil
-plancklens @ git+https://github.com/carronj/plancklens@plancklensdev
-lenspyx @ git+https://github.com/carronj/lenspyx
-attrs # pip install --upgrade attrs
-scipy
-rich
-# MSC
+astropy==7.1.0
+attr==0.3.2
+camb==1.6.4
+ducc0==0.39.0
+healpy==1.18.1
+ipython==8.12.3
+lenspyx.egg==info
+logdecorator==2.5
+matplotlib==3.10.7
+mpi4py==3.1.5
+numpy==2.3.3
+plancklens.egg==info
+psutil==7.0.0
+rich==14.2.0
+scarf==0.31.4
+scipy==1.16.2
+setuptools==69.0.3
