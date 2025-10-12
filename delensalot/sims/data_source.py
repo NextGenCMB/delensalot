@@ -27,8 +27,6 @@ from delensalot.utility.utils_hp import Alm, almxfl, alm_copy
 from delensalot.utils import load_file_wsec, cli
 from delensalot.sims import operator_secondary
 
-import matplotlib.pyplot as plt
-
 def check_dict(d):
     for key, val in d.items():
         if isinstance(val, dict) or isinstance(val, list) or isinstance(val, np.ndarray):

@@ -279,7 +279,7 @@ class Filter_3d:
                 ivfreslm[0] = np.zeros_like(ivfreslm[1],dtype=complex)
                 # ivfreslm[2] = np.zeros_like(ivfreslm[1],dtype=complex)
             self.ivfres_field.cache(ivfreslm, it=it)
-        return self.ivfres_field.get_field(it=it)
+        return self.ivfres_field.get_field(it=it) or ivfreslm
 
 
     def invert_cls_filt(self, cls_filt):
