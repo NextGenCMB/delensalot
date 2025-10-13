@@ -132,6 +132,7 @@ class Base:
         kmflm = self.get_qmflm(idx=idx, idxs=idxs_mf, component=component)
 
         Lmax = Alm.getlmax(kmflm.size, None)
+        print(Lmax)
         R = self.get_response_len(component)
         WF = self.secondary.CLfids[component*2][:Lmax+1] * cli(self.secondary.CLfids[component*2][:Lmax+1] + cli(R))  # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
         kmflm = alm_copy_nd(kmflm, None, (Lmax,Lmax))
