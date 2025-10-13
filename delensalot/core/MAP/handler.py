@@ -74,9 +74,7 @@ class Minimizer:
                 print("Using QE starting point for L<30")
                 qe_est = {sec: self.get_est(0, scale='d')[self.likelihood.sec2idx[sec]] for sec in self.likelihood.seclist_sorted}
                 for sec, val in est_prev.items():
-                    print(est_prev[sec][:Alm.getsize(30,30)].shape)
                     est_prev[sec][:Alm.getsize(30,30)] = qe_est[sec][:Alm.getsize(30,30)]
-                    print(est_prev[sec][:Alm.getsize(30,30)].shape)
             self.update_operator(est_prev)
             grad_tot = self.likelihood.get_likelihood_gradient(it=it)
             grad_tot = np.concatenate([np.ravel(arr) for arr in grad_tot])
