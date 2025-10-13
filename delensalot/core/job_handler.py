@@ -611,6 +611,7 @@ class QEScheduler:
                     for seci, secidx in enumerate(idxs):
                         ctx.set(idx=secidx, idx2=secidx)
                         self.QE_searchs[seci].get_qlm(int(secidx))
+                        self.QE_searchs[seci].get_est(int(secidx))
                     if np.all(self.data_container.obs_lib.maps == DEFAULT_NotAValue):
                         self.data_container.data_source.purgecache()
                 mpi.barrier()

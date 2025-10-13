@@ -110,7 +110,7 @@ class Base:
             print("MAKE SURE idxs for mf_qlm is correct!")
             idxs = np.arange(10)
             # FIXME if mf precalc is computed from same samples, need to remove that idx.. but we don't know the true len(idxs) here
-            mf_qlm = (mf_qlm - np.sqrt(np.sqrt(3/1.1))*self.get_qlm(idx, component)/len(idxs))*(len(idxs)/(len(idxs)-1))
+            mf_qlm = (mf_qlm - self.get_qlm(idx, component)/len(idxs))*(len(idxs)/(len(idxs)-1))
             return mf_qlm
         else:
             mf_qlm = np.atleast_2d(self.qlms.get_sim_qlm_mf(self.estimator_key[component], idxs))
