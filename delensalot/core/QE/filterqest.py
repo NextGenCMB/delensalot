@@ -11,6 +11,7 @@ from plancklens import qest, qresp
 from delensalot.core.cg import cd_solve
 from delensalot.core.ivf import filt_util, filt_cinv, filt_simple
 from delensalot.core.opfilt import utils_cinv_p as cinv_p_OBD
+from delensalot.core import mpi
 
 from delensalot.config.etc import logger
 from delensalot.config.config_helper import data_functions as df
@@ -115,7 +116,7 @@ class PlancklensInterface:
                     _bmarg_rescal = self.obd_rescale,
                     sht_threads = self.sht_threads)
             else:
-                log.log(logging.INFO, 'Using trunc')
+                if mpi.rank==0: log.log(logging.INFO, 'Using trunc')
                 self.cinv_p = filt_cinv.cinv_p(
                     lib_dir = opj(self.libdir, 'cinv_p'),
                     lmax = self.lm_max_ivf[0],

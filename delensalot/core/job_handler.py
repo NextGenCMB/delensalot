@@ -558,7 +558,7 @@ class QEScheduler:
                         for ci, component in enumerate(QE_search.secondary.component): # component indices
                             if _nomfcheck or not QE_search.secondary.cacher.is_cached(QE_search.secondary.qmflm_fns[component].format(idx=idx)) or recalc:
                                 if not QE_search.secondary.is_cached(idx, component, 'qlm') or recalc:
-                                   # print(idx, component, QE_search.secondary.klm_fns[component].format(idx=idx), QE_search.secondary.cacher.is_cached(QE_search.secondary.klm_fns[component].format(idx=idx)))
+                                #    print(idx, component, QE_search.secondary.klm_fns[component].format(idx=idx), QE_search.secondary.cacher.is_cached(QE_search.secondary.klm_fns[component].format(idx=idx)))
                                    _addsecondary = True
                                    _addindex = True
                         if _addsecondary: __jobs.append(idx)
@@ -572,7 +572,6 @@ class QEScheduler:
                         _addsecondary = False
                         for ci, component in enumerate(QE_search.secondary.component): # each field has n components #
                             if not QE_search.secondary.is_cached(idx, component, 'qmflm') or recalc:
-                                print('adding idx to meanfield job')
                                 _addsecondary = True
                                 _addindex = True
                                 # for idxqlms in self.idxs_mf:
@@ -610,9 +609,8 @@ class QEScheduler:
             if task == 'calc_fields':
                 for idxs in self.jobs[taski][mpi.rank::mpi.size]:
                     for seci, secidx in enumerate(idxs):
-                            if secidx in self.idxs: # NOTE this should only run across the simidxs, not the union with mf idxs
-                                ctx.set(idx=secidx, idx2=secidx)
-                                self.QE_searchs[seci].get_est(int(secidx)) # this is here for convenience
+                        ctx.set(idx=secidx, idx2=secidx)
+                        self.QE_searchs[seci].get_est(int(secidx)) # this is here for convenience
                     if np.all(self.data_container.obs_lib.maps == DEFAULT_NotAValue):
                         self.data_container.data_source.purgecache()
                 mpi.barrier()
