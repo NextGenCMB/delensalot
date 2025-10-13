@@ -85,8 +85,10 @@ class Base:
         
         if not self.secondary.is_cached(idx, component, 'klm'):
             qlm = self.get_qlm(idx, component)
+            print(qlm)
             Lmax = Alm.getlmax(qlm.size, None)
             _submf = subtract_meanfield or self.subtract_meanfield
+            print(_submf)
             if _submf:
                 mf_qlm = self.get_qmflm(idx, self.idxs_mf, component=component)
                 qlm -= mf_qlm
@@ -96,6 +98,7 @@ class Base:
             almxfl(klm, cli(R), Lmax, True) # Normalized QE
             almxfl(klm, WF, Lmax, True) # Wiener-filter QE
             almxfl(klm, self.secondary.CLfids[component*2][:Lmax+1] > 0, Lmax, True)
+            print(klm)
             self.secondary.cache_klm(np.atleast_2d(klm), idx, component)
         return self.secondary.get_est(idx, component, scale) 
 
