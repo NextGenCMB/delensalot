@@ -610,10 +610,14 @@ class QEScheduler:
                 for idxs in self.jobs[taski][mpi.rank::mpi.size]:
                     for seci, secidx in enumerate(idxs):
                         ctx.set(idx=secidx, idx2=secidx)
-                        self.QE_searchs[seci].get_est(int(secidx)) # this is here for convenience
+                        self.QE_searchs[seci].get_qlm(int(secidx))
                     if np.all(self.data_container.obs_lib.maps == DEFAULT_NotAValue):
                         self.data_container.data_source.purgecache()
                 mpi.barrier()
+                for idxs in self.jobs[taski][mpi.rank::mpi.size]:
+                    for seci, secidx in enumerate(idxs):
+                        ctx.set(idx=secidx, idx2=secidx)
+                        self.QE_searchs[seci].get_est(int(secidx))
 
 
             if task == 'calc_meanfields':

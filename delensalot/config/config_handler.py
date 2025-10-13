@@ -128,14 +128,14 @@ class ConfigHandler():
         """
         dostore = True
         # This is only done if not resuming. Otherwise file would already exist
-        print("this is the config file:", parser.config_file)
+        if mpi.rank==0: print("this is the config file:", parser.config_file)
         if os.path.isfile(parser.config_file) and parser.config_file.endswith('.py'):
             if True: #config.__dict__['validate_model'] == True:
                 # If validation skipped, simply overwrite existing config file
-                print(TEMP+'/'+parser.config_file.split('/')[-1])
+                if mpi.rank==0: print(TEMP+'/'+parser.config_file.split('/')[-1])
                 if os.path.isfile(TEMP+'/'+parser.config_file.split('/')[-1]):
                     # if the file already exists, check if something changed
-                    logging.warning('config file {} already exist. Checking differences.'.format(TEMP+'/'+parser.config_file.split('/')[-1]))
+                    if mpi.rank==0: logging.warning('config file {} already exist. Checking differences.'.format(TEMP+'/'+parser.config_file.split('/')[-1]))
                     config_prev = load_config(TEMP+'/'+parser.config_file.split('/')[-1], 'config_prev')   
                     for key, val in config_prev.__dict__.items():
                         if hasattr(val, '__dict__'):
@@ -145,18 +145,18 @@ class ConfigHandler():
                                     pass
                                 # FIXME if float, only check first digits for now.. this is presumably unsafe..
                                 elif v.__str__()[:4] != config.__dict__[key].__dict__[k].__str__()[:4]:
-                                    logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, config.__dict__[key].__dict__[k]))
+                                    if mpi.rank==0: logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, config.__dict__[key].__dict__[k]))
                                     if k.__str__() in safelist:
                                         dostore = True
                                     else:
                                         dostore = False
-                                        logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, config.__dict__[key].__dict__[k]))
-                                        logging.warning('Not part of safelist. Changing this value will likely result in a wrong analysis. Exit. Check config file.')
+                                        if mpi.rank==0: logging.warning("{} changed. Attribute {} had {} before, it's {} now.".format(key, k, v, config.__dict__[key].__dict__[k]))
+                                        if mpi.rank==0: logging.warning('Not part of safelist. Changing this value will likely result in a wrong analysis. Exit. Check config file.')
                                         sys.exit()
                         else:
                             ## Catching the infamous defaultstodictkey. Pass for now
                             pass
-                    logging.info('config file comparison done. No conflicts found.')
+                    if mpi.rank==0: logging.info('config file comparison done. No conflicts found.')
                 else:
                     dostore = True
             else:
@@ -167,11 +167,11 @@ class ConfigHandler():
             try:
                 print(parser.config_file)
                 shutil.copyfile(parser.config_file, TEMP +'/'+parser.config_file.split('/')[-1])
-                logging.info('config file stored at '+ TEMP +'/'+parser.config_file.split('/')[-1])
+                if mpi.rank==0: logging.info('config file stored at '+ TEMP +'/'+parser.config_file.split('/')[-1])
             except shutil.SameFileError:
                 log.debug("Did not copy config file as it appears to be the same.")
         else:
             if parser.resume == '':
                 # Only give this info when not resuming
-                logging.info('Matching config file found. Resuming where I left off.')
-                logging.info(TEMP+'/'+parser.config_file.split('/')[-1])
+                if mpi.rank==0: logging.info('Matching config file found. Resuming where I left off.')
+                if mpi.rank==0: logging.info(TEMP+'/'+parser.config_file.split('/')[-1])

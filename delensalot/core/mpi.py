@@ -69,7 +69,6 @@ def enable():
     name = "{} with {} cpus".format(platform.processor(),multiprocessing.cpu_count())
 
     if not is_notebook() and (mpisupport or pmisupport) and isinstalled():
-        print('mpisupport: {}, pmisupport: {}'.format(mpisupport, pmisupport))
         init()
     else:
         print('mpisupport: {}, pmisupport: {}'.format(mpisupport, pmisupport))
@@ -92,7 +91,6 @@ def disable():
     log.info('mpi.py : disabled, rank %s in %s' % (rank, size))
 
 def init():
-
     global barrier, send, receive, bcast, ANY_SOURCE, name, rank, size, finalize, disabled
     from mpi4py import MPI
     rank = MPI.COMM_WORLD.Get_rank()
@@ -103,6 +101,8 @@ def init():
     receive = MPI.COMM_WORLD.recv
     bcast = MPI.COMM_WORLD.bcast
     finalize = MPI.Finalize
+    pmisupport = 'PMI_CRAY_NO_SMP_ORDER' in os.environ.keys()
+    if rank==0: print('mpisupport: {}, pmisupport: {}'.format(mpisupport, pmisupport))
     log.info('mpi.py : setup OK, rank %s in %s' % (rank, size))
 
 enable()
