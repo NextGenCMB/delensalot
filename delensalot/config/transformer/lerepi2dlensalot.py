@@ -33,10 +33,6 @@ from delensalot.config.etc.errorhandler import DelensalotError
 from delensalot.utils import cli, camb_clfile
 from delensalot.config.config_manager import get_config
 
-seclist_sorted = ['lensing', 'birefringence']
-# seclist_sorted = ['lensing', 'birefringence'][::-1]
-template_index_secondaries = {val: i for i, val in enumerate(seclist_sorted)}
-template_index_secondaries_genSim = {val: i for i, val in enumerate(seclist_sorted[::-1])}
 
 class SecondaryRegistry:
     """Registry holding separate builders for operator and gradient-sub for each secondary."""
@@ -143,6 +139,13 @@ def _grad_builder_bire(dl, libdir, extras):
 
 
 def process_all_components(dl, cf):
+    # NOTE order of implementation is: 
+    #   datasource takes template_index_secondaries_genSim and applies in the order of the array, so first item comes last
+    #   gradient operator and secondary operator are applied in the order of seclist_sorted, so first item comes first
+    dl.seclist_sorted = cf.analysis.seclist_sorted if cf.analysis.seclist_sorted is not None else ['lensing', 'birefringence']
+    dl.template_index_secondaries = {val: i for i, val in enumerate(dl.seclist_sorted)}
+    dl.template_index_secondaries_genSim = {val: i for i, val in enumerate(dl.seclist_sorted[::-1])}
+
     l2base_Transformer.process_Computing(dl, cf.computing, cf)
     l2base_Transformer.process_DataSource(dl, cf.data_source, cf)
     l2base_Transformer.process_Analysis(dl, cf.analysis, cf)
@@ -221,7 +224,8 @@ def get_TEMP_dir(cf):
         _suffix += '_OBD' if cf.noisemodel.OBD == 'OBD' else _secsuffix
         TEMP =  opj(os.environ['SCRATCH'], 'delensalot_analysis', _suffix)
         return TEMP
-    
+
+
 def check_estimator_key(key):
     def generate_delensalotcombinations(allowed_strings):
         characters = ['p', 'w', 'f']
@@ -260,6 +264,7 @@ def atleast_1d(lst):
 class l2base_Transformer:
     """Initializes attributes needed across all Jobs, or which are at least handy to have
     """
+
     def process_DataSource(dl, si, cf):
         # NOTE this check key does not catch all possible wrong keys, but at least it catches the most common ones.
         # Plancklens keys should all be correct with this, for delensalot, not so sure, will see over time.
@@ -284,7 +289,8 @@ class l2base_Transformer:
         for sec in si.sec_info:
             si.sec_info[sec]['LM_max'] = operator_info[sec]['LM_max']
         si.operator_info = operator_info
-        si.operator_info = {k:v for k, v in sorted(operator_info.items(), key=lambda x: template_index_secondaries_genSim.get(x[0], ''))}
+        si.operator_info = {k:v for k, v in sorted(operator_info.items(), key=lambda x: dl.template_index_secondaries_genSim.get(x[0], ''))}
+        si.libdir_suffix = "_then_".join(dl.seclist_sorted)
         set_config(cf)
         dl.data_source = DataSource(**si.__dict__)
 
@@ -305,8 +311,8 @@ class l2base_Transformer:
         dl.lm_max_sky = an.lm_max_sky
 
         dl.analysis_secondary = filter_secondary_and_component(copy.deepcopy(cf.analysis.secondary), cf.analysis.estimator_key.split('_')[0])
-        dl.analysis_secondary = {k:v for k, v in sorted(dl.analysis_secondary.items(), key=lambda x: template_index_secondaries.get(x[0], ''))}
-        complist_sorted = [comp for sec in seclist_sorted for comp in dl.analysis_secondary[sec]['component']]
+        dl.analysis_secondary = {k:v for k, v in sorted(dl.analysis_secondary.items(), key=lambda x: dl.template_index_secondaries.get(x[0], ''))}
+        complist_sorted = [comp for sec in dl.seclist_sorted for comp in dl.analysis_secondary[sec]['component']]
 
         # NOTE all operators get the same lm_maxes. If I want to use different lm_maxes for the gradients, either,
         # 1. set in gradient classes and overwrite the settings of the operators, or
@@ -430,11 +436,14 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             dl = DELENSALOT_Concept()
             _process_components(dl)
             mask_ = cf.analysis.mask_fn if cf.analysis.mask_fn is not None else ''
-            if mask_ != '' and os.path.isfile(mask_) and cf.analysis.estimator_key.endswith('_p') and False:
-                keystring = '_eb'
-                print("Using mask, setting keystring to ", keystring)
+            if cf.qerec.estimator_key is not None:
+                if cf.qerec.estimator_key != cf.analysis.estimator_key:
+                    est_key_loc =  cf.qerec.estimator_key
+                else:
+                    est_key_loc = cf.analysis.estimator_key
             else:
-                keystring = cf.analysis.estimator_key if len(cf.analysis.estimator_key) == 1 else '_'+cf.analysis.estimator_key.split('_')[-1] if "_" in cf.analysis.estimator_key else cf.analysis.estimator_key[-2:]
+                est_key_loc = cf.analysis.estimator_key
+            keystring = cf.analysis.estimator_key if len(cf.analysis.estimator_key) == 1 else '_'+cf.analysis.estimator_key.split('_')[-1] if "_" in cf.analysis.estimator_key else cf.analysis.estimator_key[-2:]
             QE_filterqest_desc = {
                 "TP_strategy": dl.TP_strategy, # TODO this could be a different value for each secondary
                 "libdir": opj(get_TEMP_dir(cf), 'QE', keystring),
@@ -448,10 +457,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 "lmin_teb": dl.lmin_teb,
                 'inv_operator_desc': dl.inv_operator_desc,
             }
-            if mask_ != '' and os.path.isfile(mask_) and cf.analysis.estimator_key.endswith('_p') and False:
-                est_key_loc =  cf.analysis.estimator_key[:-2]+'_eb'
-            else:
-                est_key_loc = cf.analysis.estimator_key
 
             buff = generate_plancklenskeys(est_key_loc)
             QE_searchs_desc = {sec: {
@@ -491,7 +496,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             QE_searchs = QE_scheduler.QE_searchs
             data_container = self.build_datacontainer(cf)
 
-            seclist_local = [s for s in seclist_sorted if s in dl.analysis_secondary]
+            seclist_local = [s for s in dl.seclist_sorted if s in dl.analysis_secondary]
             libdir = opj(get_TEMP_dir(cf), "MAP", f"{cf.analysis.estimator_key}")
             os.makedirs(opj(libdir, "estimate/"), exist_ok=True)
             os.makedirs(opj(libdir, "filter/"), exist_ok=True)
@@ -550,7 +555,8 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             MAP_likelihood_desc = {'data_container': data_container, 'gradient_lib': gradient, 'libdir': libdir, "QE_searchs": QE_searchs}
             likelihood = Likelihood(**MAP_likelihood_desc)
 
-            MAP_minimizer_desc = {"likelihood": likelihood, 'itmax': dl.itmax, "libdir": libdir}
+            use_QE_for_lowL = True if cf.maprec.filtering_type == 'isotropic' else False
+            MAP_minimizer_desc = {"likelihood": likelihood, 'itmax': dl.itmax, "libdir": libdir, "use_QE_starting_point": True, "use_QE_for_lowL": use_QE_for_lowL}
             MAP_minimizer = Minimizer(**MAP_minimizer_desc)
 
             MAP_job_desc = {

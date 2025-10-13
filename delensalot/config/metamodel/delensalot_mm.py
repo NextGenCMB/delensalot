@@ -156,6 +156,7 @@ class DELENSALOT_QErec(DELENSALOT_Concept):
     """
     tasks =                 attr.field(default=DEFAULT_NotAValue)
     filtering_type =        attr.field(default=DEFAULT_NotAValue)
+    estimator_key =         attr.field(default=DEFAULT_NotAValue)
     TP_strategy =           attr.field(default=DEFAULT_NotAValue)
     qlm_type =              attr.field(default=DEFAULT_NotAValue)
     cg_tol =                attr.field(default=DEFAULT_NotAValue)

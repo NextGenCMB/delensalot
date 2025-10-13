@@ -13,12 +13,13 @@ from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy, alm_copy_
 from delensalot.config.config_manager import get_config
 
 class Minimizer:
-    def __init__(self, likelihood, itmax, libdir, use_QE_starting_point=True):
+    def __init__(self, likelihood, itmax, libdir, use_QE_starting_point=True, use_QE_for_lowL=False):
         self.itmax = itmax
         self.libdir = libdir
 
         self.likelihood: Likelihood = likelihood
         self.use_QE_starting_point = use_QE_starting_point
+        self.use_QE_for_lowL = use_QE_for_lowL
         # self.use_QE_starting_point = False
 
         self.secondaries: field.Secondary = {
@@ -69,6 +70,11 @@ class Minimizer:
                 print("Setting starting point to zero")
                 for sec, val in est_prev.items():
                     est_prev[sec] = np.zeros_like(val, dtype=complex)
+            if self.use_QE_for_lowL:
+                print("Using QE starting point for L<30")
+                qe_est = {sec: self.get_est(0, scale='d')[self.likelihood.sec2idx[sec]] for sec in self.likelihood.seclist_sorted}
+                for sec, val in est_prev.items():
+                    est_prev[sec][:Alm.getsize(30)] = qe_est[sec][:Alm.getsize(30)]
             self.update_operator(est_prev)
             grad_tot = self.likelihood.get_likelihood_gradient(it=it)
             grad_tot = np.concatenate([np.ravel(arr) for arr in grad_tot])
