@@ -570,7 +570,7 @@ class QEScheduler:
                     for Qi, QE_search in enumerate(self.QE_searchs): # each field has its own QE_search
                         _addsecondary = False
                         for ci, component in enumerate(QE_search.secondary.component): # each field has n components #
-                            if not QE_search.secondary.is_cached(idx, component, 'qmflm') or recalc:
+                            if not QE_search.secondary.is_cached(idx, component, 'kmflm') or recalc:
                                 _addsecondary = True
                                 _addindex = True
                                 # for idxqlms in self.idxs_mf:
@@ -635,6 +635,8 @@ class QEScheduler:
                             ctx.set(idx=secidx, idx2=secidx)
                             qmf_lm = QE_search.get_qmflm(int(idxs[ci]), self.idxs_mf, component)
                             QE_search.secondary.cache_qmflm(qmf_lm, int(idxs[ci]), component=component)
+                            qmf_lm = QE_search.get_qmflm(int(idxs[ci]), self.idxs_mf, component)
+                            QE_search.secondary.cache_kmflm(qmf_lm, int(idxs[ci]), component=component)
                 mpi.barrier()
 
 
