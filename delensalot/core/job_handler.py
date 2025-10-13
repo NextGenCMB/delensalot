@@ -556,7 +556,7 @@ class QEScheduler:
                         _addsecondary = False
                         for ci, component in enumerate(QE_search.secondary.component): # component indices
                             if _nomfcheck or not QE_search.secondary.cacher.is_cached(QE_search.secondary.qmflm_fns[component].format(idx=idx)) or recalc:
-                                if not QE_search.secondary.is_cached(idx, component, 'qlm') or recalc:
+                                if not QE_search.secondary.is_cached(idx, component, 'klm') or recalc:
                                 #    print(idx, component, QE_search.secondary.klm_fns[component].format(idx=idx), QE_search.secondary.cacher.is_cached(QE_search.secondary.klm_fns[component].format(idx=idx)))
                                    _addsecondary = True
                                    _addindex = True
@@ -623,13 +623,6 @@ class QEScheduler:
             if task == 'calc_meanfields':
                 if mpi.rank==0: log.info(f"Starting QE task {task}")
                 for idxs in self.jobs[taski][mpi.rank::mpi.size]:
-                    # for QE_search in self.QE_searchs:
-                    #     for seci, secidx in enumerate(idxs):
-                    #         if secidx is not None: #these Nones come from the field already being done.
-                    #             ctx.set(idx=secidx, idx2=secidx)
-                    #             self.QE_searchs[seci].get_qlm(int(secidx))
-                    #             if secidx in self.idxs: # NOTE this should only run across the simidxs, not the union with mf idxs
-                    #                 self.QE_searchs[seci].get_est(int(secidx)) # this is here for convenience
                     for QE_search in self.QE_searchs:
                         for ci, component in enumerate(QE_search.secondary.component):
                             ctx.set(idx=idxs[ci], idx2=idxs[ci])
@@ -773,6 +766,7 @@ class MAPScheduler:
             log.info('MAPScheduler {}, MAP task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski][mpi.rank::mpi.size]))
             if task == 'calc_fields':
                 for idx in self.jobs[taski][mpi.rank::mpi.size]: # NOTE every rank takes care of its own indices
+                    print([self.QE_searchs[0].isdone(idx, comp)==0 for comp in self.QE_searchs[0].secondary.component])
                     if np.all([self.QE_searchs[0].isdone(idx, comp)==0 for comp in self.QE_searchs[0].secondary.component]):
                         ctx.set(idx=idx, idx2=idx)
                         self.MAP_minimizer.copyQEtoDirectory(self.QE_searchs)
