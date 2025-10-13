@@ -557,7 +557,7 @@ class QEScheduler:
                                 if not QE_search.secondary.is_cached(idx, component, 'klm') or recalc:
                                 #    print(idx, component, QE_search.secondary.klm_fns[component].format(idx=idx), QE_search.secondary.cacher.is_cached(QE_search.secondary.klm_fns[component].format(idx=idx)))
                                    _addindex = True
-                    if _addindex: _jobs.append([idx for _ in range(len(QE_search))])
+                    if _addindex: _jobs.append([idx for _ in range(len(self.QE_searchs))])
              
             if task == 'calc_meanfields':
                 for idx in self.idxs:
