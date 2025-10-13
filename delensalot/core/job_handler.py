@@ -548,15 +548,12 @@ class QEScheduler:
         for taski, task in enumerate(self.tasks):
             _jobs = []
             if task == 'calc_fields':
-                _nomfcheck = self.idxs_mf.size == 0
                 for idx in idxs_: # data indices
                     _addindex = False
                     for Qi, QE_search in enumerate(self.QE_searchs): # each field has its own QE_search. # secondary indices
                         for ci, component in enumerate(QE_search.secondary.component): # component indices
-                            if _nomfcheck or not QE_search.secondary.cacher.is_cached(QE_search.secondary.qmflm_fns[component].format(idx=idx)) or recalc:
-                                if not QE_search.secondary.is_cached(idx, component, 'klm') or recalc:
-                                #    print(idx, component, QE_search.secondary.klm_fns[component].format(idx=idx), QE_search.secondary.cacher.is_cached(QE_search.secondary.klm_fns[component].format(idx=idx)))
-                                   _addindex = True
+                            if not QE_search.secondary.is_cached(idx, component, 'klm') or recalc:
+                                _addindex = True
                     if _addindex: _jobs.append([idx for _ in range(len(self.QE_searchs))])
              
             if task == 'calc_meanfields':
