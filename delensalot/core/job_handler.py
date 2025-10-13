@@ -144,7 +144,6 @@ class DataContainer:
         self.mask_fn = mask_fn
         self.sky_coverage = sky_coverage
         if sky_coverage == 'masked':
-            print('mask_fn', mask_fn)
             assert os.path.isfile(mask_fn), "mask must be provided for sky_coverage = 'masked'"
         self.data_key = data_key
         if self.estimator_key == 'p':
@@ -606,6 +605,7 @@ class QEScheduler:
         tasks = self.tasks if task is None else [task]
         # NOTE step 0 is making sure I run get_qlm() for all indices needed, before calculating mean-field or similar
         for taski, task in enumerate(tasks):
+            if mpi.rank==0: log.info(f"Starting QE task {task}")
             if task == 'calc_fields':
                 for idxs in self.jobs[taski][mpi.rank::mpi.size]:
                     for seci, secidx in enumerate(idxs):
@@ -617,6 +617,7 @@ class QEScheduler:
 
 
             if task == 'calc_meanfields':
+                if mpi.rank==0: log.info(f"Starting QE task {task}")
                 for idxs in self.jobs[taski][mpi.rank::mpi.size]:
                     # for QE_search in self.QE_searchs:
                     #     for seci, secidx in enumerate(idxs):
@@ -635,6 +636,7 @@ class QEScheduler:
 
             # TODO later
             if task == 'calc_templates':
+                if mpi.rank==0: log.info(f"Starting QE task {task}")
                 assert 0, 'implement if needed'
                 for idxs in self.jobs[taski][mpi.rank::mpi.size]:
                     # For each combination of operators, I want to build templates

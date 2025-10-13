@@ -27,7 +27,7 @@ def isinstalled():
     # For illustrative purposes.
     name = 'mpi4py'
     if name in sys.modules:
-        print(f"{name!r} already in sys.modules")
+        # print(f"{name!r} already in sys.modules")
         return True
     spec = importlib.util.find_spec(name)
     if spec is not None:
@@ -35,10 +35,10 @@ def isinstalled():
         module = importlib.util.module_from_spec(spec)
         sys.modules[name] = module
         spec.loader.exec_module(module)
-        print(f"{name!r} has been imported")
+        # print(f"{name!r} has been imported")
         return True
     else:
-        print(f"can't find the {name!r} module")
+        # print(f"can't find the {name!r} module")
         return False
 
 
@@ -80,7 +80,6 @@ def enable():
 def disable():
     
     global barrier, send, receive, bcast, ANY_SOURCE, name, rank, size, finalize, disabled
-    print('disabling mpi')
     barrier = lambda: -1
     send = lambda _, dest: 0
     receive = lambda _, source: _
@@ -95,7 +94,6 @@ def disable():
 def init():
 
     global barrier, send, receive, bcast, ANY_SOURCE, name, rank, size, finalize, disabled
-    print('enabling mpi')
     from mpi4py import MPI
     rank = MPI.COMM_WORLD.Get_rank()
     size = MPI.COMM_WORLD.Get_size()

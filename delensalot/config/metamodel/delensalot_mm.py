@@ -16,6 +16,7 @@ import logging
 log = logging.getLogger(__name__)
 
 from delensalot.config.metamodel import DEFAULT_NotAValue, DEFAULT_NotASTR
+from delensalot.core import mpi
 import importlib.util
 
 
@@ -306,7 +307,7 @@ class DELENSALOT_Model(DELENSALOT_Concept):
             if not hasattr(self, field.name) or getattr(self, field.name) is None:
                 setattr(self, field.name, field.default)
 
-        print('setting defaults')
+        if mpi.rank==0: print('setting defaults')
         default_path = Path(__file__).parent.parent / f"default/{self.defaults_to.replace('.py', '')}.py"
         spec = importlib.util.spec_from_file_location("default", default_path)
         default_module = importlib.util.module_from_spec(spec)

@@ -10,6 +10,7 @@ from itertools import product
 import importlib.util as iu
 
 from delensalot.config.etc.errorhandler import DelensalotError
+from delensalot.core import mpi
 
 PLANCKLENS_keys_fund = ['ptt', 'xtt', 'p_p', 'x_p', 'p', 'x', 'stt', 's', 'ftt','f_p', 'f','dtt', 'ntt','n', 'a_p',
                     'pte', 'pet', 'ptb', 'pbt', 'pee', 'peb', 'pbe', 'pbb',
@@ -110,7 +111,7 @@ def generate_plancklenskeys(input_str):
         for comp in val.values():
             if comp not in PLANCKLENS_keys:
                 raise DelensalotError(f"Your input '{input_str}' is not a valid key, it generated '{comp}' which is not a valid Plancklens key.")
-    print(f'the generated secondary keys for Plancklens are {input_str} - > {secondary_key}')
+    if mpi.rank==0: print(f'the generated secondary keys for Plancklens are {input_str} - > {secondary_key}')
     return secondary_key
 
 
