@@ -262,7 +262,7 @@ class l2base_Transformer:
         # NOTE order of implementation is: 
         #   datasource takes template_index_secondaries_genSim and applies in the order of the array, so first item comes last
         #   gradient operator and secondary operator are applied in the order of seclist_sorted, so first item comes first
-        dl.seclist_sorted = cf.analysis.seclist_sorted if cf.analysis.seclist_sorted is not None else ['lensing', 'birefringence']
+        dl.seclist_sorted = cf.analysis.seclist_sorted
         dl.template_index_secondaries = {val: i for i, val in enumerate(dl.seclist_sorted)}
         dl.template_index_secondaries_genSim = {val: i for i, val in enumerate(dl.seclist_sorted[::-1])}
         

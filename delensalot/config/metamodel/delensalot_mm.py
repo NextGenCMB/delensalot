@@ -88,7 +88,7 @@ class DELENSALOT_Analysis(DELENSALOT_Concept):
     transfer_has_pixwindow =attr.field(default=DEFAULT_NotAValue)
     CLfids =                attr.field(default=DEFAULT_NotAValue)
     secondary =             attr.field(default=DEFAULT_NotAValue)
-    seclist_sorted =        attr.field(default=DEFAULT_NotAValue)
+    seclist_sorted =        attr.field(default=['lensing', 'birefringence'])
 
 
 @attr.s
