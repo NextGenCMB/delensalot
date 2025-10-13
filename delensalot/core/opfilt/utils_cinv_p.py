@@ -59,7 +59,7 @@ class cinv_p(filt_cinv.cinv):
         self.chain = util.jit(multigrid.multigrid_chain, opfilt_pp, chain_descr, cl, self.n_inv_filt)
 
         if not os.path.exists(lib_dir):
-            os.makedirs(lib_dir)
+            os.makedirs(lib_dir, exist_ok=True)
         if not os.path.exists(os.path.join(lib_dir, "filt_hash.pk")):
             pk.dump(self.hashdict(), open(os.path.join(lib_dir, "filt_hash.pk"), 'wb'), protocol=2)
         if not os.path.exists(os.path.join(self.lib_dir, "fbl.dat")):
@@ -119,7 +119,7 @@ class cinv_p(filt_cinv.cinv):
                 4. * np.pi / len(ninv[2]) / np.sum(ninv[2]) * len(np.where(ninv[2] != 0.0)[0])) * 180. * 60. / np.pi
 
 
-        log.info("cinv_p::noiseP_uk_arcmin = %.3f"%NlevP_uKamin)
+        # log.info("cinv_p::noiseP_uk_arcmin = %.3f"%NlevP_uKamin)
 
         s_cls = self.chain.s_cls    
         b_transf = self.chain.n_inv_filt.b_transf

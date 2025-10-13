@@ -33,7 +33,7 @@ class library_sepTP(object):
         fn_hash = os.path.join(lib_dir, 'filt_hash.pk')
         if mpi.rank == 0:
             if not os.path.exists(lib_dir):
-                os.makedirs(lib_dir)
+                os.makedirs(lib_dir, exist_ok=True)
             if not os.path.exists(fn_hash):
                 pk.dump(self.hashdict(), open(fn_hash, 'wb'), protocol=2)
         # mpi.barrier()
@@ -204,7 +204,7 @@ class library_jTP(object):
         fn_hash = os.path.join(lib_dir, 'filt_hash.pk')
         if mpi.rank == 0:
             if not os.path.exists(lib_dir):
-                os.makedirs(lib_dir)
+                os.makedirs(lib_dir, exist_ok=True)
             if not os.path.exists(fn_hash):
                 pk.dump(self.hashdict(), open(fn_hash, 'wb'), protocol=2)
         mpi.barrier()

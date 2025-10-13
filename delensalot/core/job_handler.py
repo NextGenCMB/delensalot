@@ -112,7 +112,7 @@ class OBDBuilder:
                 else:
                     tnit = np.load(self.libdir+ '/tnit.npy')
                 if not os.path.exists(self.libdir+ '/tniti.npy'):
-                    log.info(tnit.shape)
+                    if mpi.rank==0: log.info(tnit.shape)
                     log.debug('inverting')
                     tniti = np.linalg.inv(tnit + np.diag((1. / (self.nlev_dep / 180. / 60. * np.pi) ** 2) * np.ones(tnit.shape[0])))
                     np.save(self.libdir+ '/tniti.npy', tniti)
@@ -155,9 +155,11 @@ class DataContainer:
         if self.data_source.flavour == 'obs' or np.all(self.data_source.obs_lib.maps != DEFAULT_NotAValue): # (1)
             # Here, obs data is provided and nothing needs to be generated
             if np.all(self.data_source.obs_lib.maps != DEFAULT_NotAValue):
-                log.info('Will use data provided in memory')
+                if mpi.rank==0: log.info('Will use data provided in memory')
+                pass
             else:
-                log.info('Will use obs data stored at {} with filenames {}'.format(self.data_source.libdir, str(self.data_source.fns)))
+                if mpi.rank==0: log.info('Will use obs data stored at {} with filenames {}'.format(self.data_source.libdir, str(self.data_source.fns)))
+                pass
         else:
             if self.data_source.flavour == 'sky':
                 # Here, sky data is provided and obs needs to be generated
@@ -187,7 +189,7 @@ class DataContainer:
             # in init, only rank 0 enters in first round to set dirs etc.. so cannot use bcast
             if mpi.rank == 0:
                 if not os.path.exists(self.libdir):
-                    os.makedirs(self.libdir)
+                    os.makedirs(self.libdir, exist_ok=True)
                 if mpi.size > 1:
                     for dest in range(mpi.size):
                         if dest != mpi.rank:
@@ -201,16 +203,19 @@ class DataContainer:
                 """function to check file existence """
                 if all(os.path.exists(opj(libdir, fns[f].format(idx))) for f in required_files for idx in idxs_):
                     _postrun_method()
-                    log.info(f'will use {data_type} data at {libdir} with filenames {fns}')
+                    if mpi.rank==0: log.info(f'will use {data_type} data at {libdir} with filenames {fns}')
+                    pass
                 else:
-                    log.info(f'{data_type} data will be stored at {libdir} with filenames {fns}')
+                    if mpi.rank==0: log.info(f'{data_type} data will be stored at {libdir} with filenames {fns}')
+                    pass
 
             check_and_log(self.libdir, self.fns, self._postrun_obs, "obs")
             if self.data_source.flavour != 'sky':
                 if all(os.path.exists(opj(self.libdir_sky, self.fns_sec[sec][component].format(idx))) for sec in self.fns_sec.keys() for component in self.fns_sec[sec] for idx in idxs_):
                     check_and_log(self.libdir_sky, self.fns_sky, self._postrun_sky, "sky")
                 else:
-                    log.info(f'sky data will be stored at {self.libdir_sky} with filenames {self.fns_sky}. All secondaries will be generated along the way')
+                    if mpi.rank==0: log.info(f'sky data will be stored at {self.libdir_sky} with filenames {self.fns_sky}. All secondaries will be generated along the way')
+                    pass
 
         self.cls_lib = self.data_source.cls_lib
         self.obs_lib = self.data_source.obs_lib
@@ -258,7 +263,6 @@ class DataContainer:
     def run(self):
         for taski, task in enumerate(['generate_sky', 'generate_obs']):
             for idx in self.jobs[taski][mpi.rank::mpi.size]:
-                log.info(f"rank {mpi.rank} (size {mpi.size}) {task} sim {idx}")
                 if task == 'generate_sky':
                     self.generate_sky(idx)
                 if task == 'generate_obs':
@@ -591,18 +595,12 @@ class QEScheduler:
                                     # jobs.append(np.array(_jobs,dtype=float))
             jobs[taski] = np.array(_jobs, dtype=int)
         self.jobs = jobs
-        log.info(f"QE jobs: {jobs}")
-        # if not np.all(np.array(jobs)==None):
-        #     log.info(f"QE jobs: {jobs}")
-        # else:
-        #     log.info(f"QE jobs collection resulted in no jobs. Looks like QE is done already")
+        if mpi.rank==0: log.info(f"QE jobs: {jobs}")
         return jobs
 
 
     def run(self, task=None):
         ctx, isnew = get_computation_context()
-        # if not np.all(np.array(self.jobs)==None):
-        #     log.info(f"Running QE jobs: {self.jobs}")
         if True: # 'triggers calc_cinv'
             self.init_QEsearchs()
                    
@@ -766,13 +764,12 @@ class MAPScheduler:
     def run(self):
         ctx, isnew = get_computation_context()
         for taski, task in enumerate(self.tasks):
-            log.info('MAPScheduler {}, MAP task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski]))
+            log.info('MAPScheduler {}, MAP task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski][mpi.rank::mpi.size]))
             if task == 'calc_fields':
                 for idx in self.jobs[taski][mpi.rank::mpi.size]: # NOTE every rank takes care of its own indices
                     if np.all([self.QE_searchs[0].isdone(idx, comp)==0 for comp in self.QE_searchs[0].secondary.component]):
                         ctx.set(idx=idx, idx2=idx)
                         self.MAP_minimizer.copyQEtoDirectory(self.QE_searchs)
-                print("rank ", mpi.rank, " done copying QE to MAP directory")
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
                     ctx.set(idx=idx, idx2=idx)
                     self.MAP_minimizer.get_est(self.MAP_minimizer.itmax)
@@ -919,20 +916,20 @@ class PhiAnalyser:
         self.tasks = ['calc_WFemp', 'calc_crosscorr', 'calc_reconbias', 'calc_crosscorrcoeff']
         
         if not(os.path.isdir(self.libdir_phianalayser)):
-            os.makedirs(self.libdir_phianalayser)
+            os.makedirs(self.libdir_phianalayser, exist_ok=True)
         
         self.TEMP_WF = opj(self.libdir_phianalayser, 'WF')
         if not os.path.isdir(self.TEMP_WF):
-            os.makedirs(self.TEMP_WF)
+            os.makedirs(self.TEMP_WF, exist_ok=True)
         self.TEMP_Cx = opj(self.libdir_phianalayser, 'Cx')
         if not os.path.isdir(self.TEMP_Cx):
-            os.makedirs(self.TEMP_Cx)
+            os.makedirs(self.TEMP_Cx, exist_ok=True)
         self.TEMP_Cxbias = opj(self.libdir_phianalayser, 'Cxb')
         if not os.path.isdir(self.TEMP_Cxbias):
-            os.makedirs(self.TEMP_Cxbias)
+            os.makedirs(self.TEMP_Cxbias, exist_ok=True)
         self.TEMP_Cccc = opj(self.libdir_phianalayser, 'Cccc')
         if not os.path.isdir(self.TEMP_Cccc):
-            os.makedirs(self.TEMP_Cccc)
+            os.makedirs(self.TEMP_Cccc, exist_ok=True)
 
     def collect_jobs(self):
         _jobs, jobs = [], []

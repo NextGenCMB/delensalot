@@ -92,7 +92,7 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         if self._nlevt is None:
             nlev = 10800. / np.sqrt(np.sum(read_map(self.n_inv)) / (4.0 * np.pi)) / np.pi
             self._nlevt = nlev
-            log.info('Using nlevt %.2f amin'%self._nlevt)
+            # log.info('Using nlevt %.2f amin'%self._nlevt)
         n_inv_cl_t = self.b_transf_tlm ** 2  / (self._nlevt / 180. / 60. * np.pi) ** 2
         return n_inv_cl_t
 

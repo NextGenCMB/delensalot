@@ -119,7 +119,7 @@ class cinv_t(cinv):
         self.chain = util.jit(multigrid.multigrid_chain, opfilt_tt, chain_descr, dl, n_inv_filt)
         if mpi.rank == 0:
             if not os.path.exists(lib_dir):
-                os.makedirs(lib_dir)
+                os.makedirs(lib_dir, exist_ok=True)
 
             if not os.path.exists(os.path.join(lib_dir, "filt_hash.pk")):
                 pk.dump(self.hashdict(), open(os.path.join(lib_dir, "filt_hash.pk"), 'wb'), protocol=2)
@@ -241,7 +241,7 @@ class cinv_p(cinv):
 
         if mpi.rank == 0:
             if not os.path.exists(lib_dir):
-                os.makedirs(lib_dir)
+                os.makedirs(lib_dir, exist_ok=True)
 
             if not os.path.exists(os.path.join(lib_dir, "filt_hash.pk")):
                 pk.dump(self.hashdict(), open(os.path.join(lib_dir, "filt_hash.pk"), 'wb'), protocol=2)
@@ -410,7 +410,7 @@ class cinv_tp:
 
         if mpi.rank == 0:
             if not os.path.exists(lib_dir):
-                os.makedirs(lib_dir)
+                os.makedirs(lib_dir, exist_ok=True)
 
             if not os.path.exists(os.path.join(lib_dir,  "filt_hash.pk")):
                 pk.dump(self.hashdict(), open(os.path.join(lib_dir,  "filt_hash.pk"), 'wb'), protocol=2)

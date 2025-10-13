@@ -7,6 +7,7 @@ log = logging.getLogger(__name__)
 from logdecorator import log_on_start, log_on_end
 import argparse
 import os, sys
+from delensalot.core import mpi
 
 class LerepiParser():
     def __init__(self):
@@ -23,7 +24,7 @@ class LerepiParser():
             if resume_fn != '':
                 # if resume is asked, check path 
                 if os.path.exists(resume_fn):
-                    log.info("resuming previous run with {}".format(resume_fn))
+                    if mpi.rank==0: log.info("resuming previous run with {}".format(resume_fn))
                     self.parser.config_file = resume_fn
                     return True
                 else:

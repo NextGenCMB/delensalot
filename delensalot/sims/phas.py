@@ -72,7 +72,7 @@ class sim_lib(object):
 
     def __init__(self, lib_dir, get_state_func=np.random.get_state, nsims_max=None):
         if not os.path.exists(lib_dir) and mpi.rank == 0:
-            os.makedirs(lib_dir)
+            os.makedirs(lib_dir, exist_ok=True)
         self.nmax = nsims_max
         fn_hash = os.path.join(lib_dir, 'sim_hash.pk')
         if mpi.rank == 0 and not os.path.exists(fn_hash):

@@ -99,11 +99,11 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
             else:
                 assert 0
             self._nlevp = nlev_febl
-            log.info('Using nlevp %.2f amin'%self._nlevp)
+            # log.info('Using nlevp %.2f amin'%self._nlevp)
         if self._nlevt is None:
             nlev_ftl = 10800. / np.sqrt(np.sum(read_map(self.n_inv[0])) / (4.0 * np.pi)) / np.pi
             self._nlevt = nlev_ftl
-            log.info('Using nlevt %.2f amin'%self._nlevt)
+            # log.info('Using nlevt %.2f amin'%self._nlevt)
 
         n_inv_cl_t = self.b_transf_tlm ** 2 /  (self._nlevt / 180. / 60. * np.pi) ** 2
         n_inv_cl_e = self.b_transf_elm ** 2  / (self._nlevp / 180. / 60. * np.pi) ** 2

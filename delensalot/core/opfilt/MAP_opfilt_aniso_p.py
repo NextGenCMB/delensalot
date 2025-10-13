@@ -90,7 +90,7 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
             else:
                 assert 0
             self._nlevp = nlev_febl
-            log.info('Using nlevp %.2f amin'%self._nlevp)
+            # log.info('Using nlevp %.2f amin'%self._nlevp)
         n_inv_cl_e = self.b_transf_elm ** 2  / (self._nlevp/ 180. / 60. * np.pi) ** 2
         n_inv_cl_b = self.b_transf_blm ** 2  / (self._nlevp/ 180. / 60. * np.pi) ** 2
         return n_inv_cl_e, n_inv_cl_b.copy()

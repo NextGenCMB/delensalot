@@ -99,7 +99,7 @@ class template_bfilt(object):
         self.lib_dir = None
         if _lib_dir is not None and lmax_marg > 10: #just to avoid problems if user does not understand what is doing...
             if not os.path.exists(_lib_dir):
-                os.makedirs(_lib_dir)
+                os.makedirs(_lib_dir, exist_ok=True)
             self.lib_dir = _lib_dir
 
         self.sht_threads = sht_threads
@@ -246,7 +246,7 @@ class template_bfilt(object):
         assert self.nmodes <= 99999, 'ops, naming in the lines below'
         log.info("number of rows for tnit: {}. Using mpi rank {} with size {}".format(self.nmodes, mpi.rank, mpi.size))
         if not os.path.exists(os.path.join(self.lib_dir, 'rows')):
-            os.makedirs(os.path.join(self.lib_dir, 'rows'))
+            os.makedirs(os.path.join(self.lib_dir, 'rows'), exist_ok=True)
         for ai, a in enumerate_progress(range(self.nmodes)[mpi.rank::mpi.size], label='Calculating Pmat row'):
             fname = os.path.join(self.lib_dir, 'rows', prefix + 'row%05d.npy'%a)
             if not os.path.exists(fname):

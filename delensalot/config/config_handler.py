@@ -112,7 +112,7 @@ class ConfigHandler():
         self.djobmodels = []
         for jobi, job_id in enumerate(self.config.job.jobs):
             djob = transform3d(self.config, job_id, l2delensalotjob_Transformer())
-            log.info('running job {}'.format(self.config.job.jobs[jobi]))
+            if mpi.rank==0: log.info('running job {}'.format(self.config.job.jobs[jobi]))
             djob.collect_jobs()
             djob.run()
         return djob
@@ -163,7 +163,7 @@ class ConfigHandler():
                 dostore = True
         if dostore:
             if not os.path.exists(TEMP):
-                os.makedirs(TEMP)
+                os.makedirs(TEMP, exist_ok=True)
             try:
                 print(parser.config_file)
                 shutil.copyfile(parser.config_file, TEMP +'/'+parser.config_file.split('/')[-1])
