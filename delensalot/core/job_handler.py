@@ -635,7 +635,7 @@ class QEScheduler:
                             ctx.set(idx=idxs[ci], idx2=idxs[ci])
                             qmf_lm = QE_search.get_qmflm(int(idxs[ci]), self.idxs_mf, component)
                             QE_search.secondary.cache_qmflm(qmf_lm, int(idxs[ci]), component=component)
-                            kmf_lm = QE_search.get_kmflm(int(idxs[ci]), self.idxs_mf, component)
+                            kmf_lm = QE_search.get_kmflm(int(idxs[ci]), component)
                             QE_search.secondary.cache_kmflm(kmf_lm, int(idxs[ci]), component=component)
                 mpi.barrier()
 
