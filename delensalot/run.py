@@ -147,7 +147,6 @@ class run():
 if __name__ == '__main__':
     """Entry point from the command line
     """
-
     # set_logging_level(verbose=True)
     os.environ['USE_PLANCKLENS_MPI'] = "False"
     lparser = LerepiParser()
