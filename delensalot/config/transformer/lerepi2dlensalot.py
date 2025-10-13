@@ -290,7 +290,7 @@ class l2base_Transformer:
             si.sec_info[sec]['LM_max'] = operator_info[sec]['LM_max']
         si.operator_info = operator_info
         si.operator_info = {k:v for k, v in sorted(operator_info.items(), key=lambda x: dl.template_index_secondaries_genSim.get(x[0], ''))}
-        si.libdir_suffix = "_then_".join(dl.seclist_sorted)
+        si.libdir_suffix = "_then_".join(dl.seclist_sorted[::-1])
         set_config(cf)
         dl.data_source = DataSource(**si.__dict__)
 
