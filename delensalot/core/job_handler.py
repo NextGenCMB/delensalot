@@ -632,7 +632,7 @@ class QEScheduler:
                     #                 self.QE_searchs[seci].get_est(int(secidx)) # this is here for convenience
                     for QE_search in self.QE_searchs:
                         for ci, component in enumerate(QE_search.secondary.component):
-                            ctx.set(idx=secidx, idx2=secidx)
+                            ctx.set(idx=idxs[ci], idx2=idxs[ci])
                             qmf_lm = QE_search.get_qmflm(int(idxs[ci]), self.idxs_mf, component)
                             QE_search.secondary.cache_qmflm(qmf_lm, int(idxs[ci]), component=component)
                             qmf_lm = QE_search.get_qmflm(int(idxs[ci]), self.idxs_mf, component)
