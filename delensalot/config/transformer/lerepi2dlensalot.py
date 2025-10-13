@@ -139,13 +139,6 @@ def _grad_builder_bire(dl, libdir, extras):
 
 
 def process_all_components(dl, cf):
-    # NOTE order of implementation is: 
-    #   datasource takes template_index_secondaries_genSim and applies in the order of the array, so first item comes last
-    #   gradient operator and secondary operator are applied in the order of seclist_sorted, so first item comes first
-    dl.seclist_sorted = cf.analysis.seclist_sorted if cf.analysis.seclist_sorted is not None else ['lensing', 'birefringence']
-    dl.template_index_secondaries = {val: i for i, val in enumerate(dl.seclist_sorted)}
-    dl.template_index_secondaries_genSim = {val: i for i, val in enumerate(dl.seclist_sorted[::-1])}
-
     l2base_Transformer.process_Computing(dl, cf.computing, cf)
     l2base_Transformer.process_DataSource(dl, cf.data_source, cf)
     l2base_Transformer.process_Analysis(dl, cf.analysis, cf)
@@ -266,6 +259,13 @@ class l2base_Transformer:
     """
 
     def process_DataSource(dl, si, cf):
+        # NOTE order of implementation is: 
+        #   datasource takes template_index_secondaries_genSim and applies in the order of the array, so first item comes last
+        #   gradient operator and secondary operator are applied in the order of seclist_sorted, so first item comes first
+        dl.seclist_sorted = cf.analysis.seclist_sorted if cf.analysis.seclist_sorted is not None else ['lensing', 'birefringence']
+        dl.template_index_secondaries = {val: i for i, val in enumerate(dl.seclist_sorted)}
+        dl.template_index_secondaries_genSim = {val: i for i, val in enumerate(dl.seclist_sorted[::-1])}
+        
         # NOTE this check key does not catch all possible wrong keys, but at least it catches the most common ones.
         # Plancklens keys should all be correct with this, for delensalot, not so sure, will see over time.
         check_estimator_key(cf.analysis.estimator_key)
