@@ -312,7 +312,7 @@ class l2base_Transformer:
 
         dl.analysis_secondary = filter_secondary_and_component(copy.deepcopy(cf.analysis.secondary), cf.analysis.estimator_key.split('_')[0])
         dl.analysis_secondary = {k:v for k, v in sorted(dl.analysis_secondary.items(), key=lambda x: dl.template_index_secondaries.get(x[0], ''))}
-        complist_sorted = [comp for sec in dl.seclist_sorted for comp in dl.analysis_secondary[sec]['component']]
+        complist_sorted = [comp for sec in dl.seclist_sorted for comp in dl.analysis_secondary[sec]['component'] if sec in dl.analysis_secondary]
 
         # NOTE all operators get the same lm_maxes. If I want to use different lm_maxes for the gradients, either,
         # 1. set in gradient classes and overwrite the settings of the operators, or
