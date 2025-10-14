@@ -126,7 +126,7 @@ class ConjugateGradient:
         self.logger = (lambda iter, eps, stage=self.bstage, **kwargs: self.log(stage, iter, eps, **kwargs))
 
 
-    def solve(self, soltn, tpn_alm, fwd_op, maxiter=50):
+    def solve(self, soltn, tpn_alm, fwd_op, maxiter=75):
         self.watch = cd_monitors.stopwatch()
         self.iter_tot = 0
         self.prev_eps = None
