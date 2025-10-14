@@ -95,6 +95,7 @@ class Minimizer:
                 print("Keeping QE starting point for L<=30")
                 for sec, val in new_klms.items():
                     for compi, (comp, comp_val) in enumerate(val.items()):
+                        print('keeping QE for new_klms L<=30')
                         new_klms[sec][comp][:Alm.getsize(30,30)] = qe_est_klm[sec][compi][:Alm.getsize(30,30)]
             self.cache_klm(new_klms, it)
 
