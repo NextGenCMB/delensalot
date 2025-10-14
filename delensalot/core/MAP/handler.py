@@ -62,19 +62,21 @@ class Minimizer:
 
     # helper function
     def _compute_iterations(self, current_it, request_it, scale):
+        config = get_config()
         for it in range(current_it + 1, request_it + 1):
             log.info(f'---------- starting iteration {it} ----------')
             est_prev = self.get_est(it-1, scale='d')
             est_prev = {sec: est_prev[self.likelihood.sec2idx[sec]] for sec in self.likelihood.seclist_sorted}
+            import healpy as hp
             if not self.use_QE_starting_point and it == 1:
                 print("Setting starting point to zero")
                 for sec, val in est_prev.items():
                     est_prev[sec] = np.zeros_like(val, dtype=complex)
             if self.use_QE_for_lowL: # NOTE this is for isoMAP setting
                 print("Using QE starting point for L<=30")
-                qe_est_qlm = {sec: self.get_est(0, scale='d')[self.likelihood.sec2idx[sec]] for sec in self.likelihood.seclist_sorted}
+                est_qe_qlm = {sec: self.get_est(0, scale='d')[self.likelihood.sec2idx[sec]] for sec in self.likelihood.seclist_sorted}
                 for sec, val in est_prev.items():
-                    est_prev[sec][:Alm.getsize(30,30)] = qe_est_qlm[sec][:Alm.getsize(30,30)]
+                    est_prev[sec][:Alm.getsize(30, config.LM_max[1])] = est_qe_qlm[sec][:Alm.getsize(30, config.LM_max[1])]
             self.update_operator(est_prev)
             grad_tot = self.likelihood.get_likelihood_gradient(it=it)
             grad_tot = np.concatenate([np.ravel(arr) for arr in grad_tot])
@@ -83,8 +85,8 @@ class Minimizer:
                 grad_prev = np.concatenate([np.ravel(arr) for arr in grad_prev])
                 self.likelihood.curvature_lib.add_yvector(grad_tot, grad_prev, it)
             increment = self.likelihood.curvature_lib.get_increment(grad_tot, it)
-            if self.use_QE_for_lowL: # NOTE this is for isoMAP setting
-                increment[:Alm.getsize(30,30)] *= 0.0+0.0j  
+            # if self.use_QE_for_lowL: # NOTE this is for isoMAP setting
+            #     increment[:Alm.getsize(30, config.LM_max[1])] *= 0.0+0.0j
             prev_klm = np.concatenate([np.ravel(arr) for arr in self._get_est(it-1, scale=scale)])
             qe_est_klm = {sec: self.get_est(0, scale='k')[self.likelihood.sec2idx[sec]] for sec in self.likelihood.seclist_sorted}
             if not self.use_QE_starting_point and it == 1:
@@ -95,8 +97,7 @@ class Minimizer:
                 print("Keeping QE starting point for L<=30")
                 for sec, val in new_klms.items():
                     for compi, (comp, comp_val) in enumerate(val.items()):
-                        print('keeping QE for new_klms L<=30')
-                        new_klms[sec][comp][:Alm.getsize(30,30)] = qe_est_klm[sec][compi][:Alm.getsize(30,30)]
+                        new_klms[sec][comp][:Alm.getsize(30,config.LM_max[1])] = qe_est_klm[sec][compi][:Alm.getsize(30,config.LM_max[1])]
             self.cache_klm(new_klms, it)
 
         return new_klms
