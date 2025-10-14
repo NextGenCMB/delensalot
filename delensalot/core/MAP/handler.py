@@ -72,11 +72,9 @@ class Minimizer:
                     est_prev[sec] = np.zeros_like(val, dtype=complex)
             if self.use_QE_for_lowL: # NOTE this is for isoMAP setting
                 print("Using QE starting point for L<=30")
-                qe_est = {sec: self.get_est(0, scale='d')[self.likelihood.sec2idx[sec]] for sec in self.likelihood.seclist_sorted}
+                qe_est_qlm = {sec: self.get_est(0, scale='d')[self.likelihood.sec2idx[sec]] for sec in self.likelihood.seclist_sorted}
                 for sec, val in est_prev.items():
-                    print('qe_est[sec]', qe_est[sec])
-                    print(qe_est[sec])
-                    est_prev[sec][:Alm.getsize(30,30)] = qe_est[sec][:Alm.getsize(30,30)]
+                    est_prev[sec][:Alm.getsize(30,30)] = qe_est_qlm[sec][:Alm.getsize(30,30)]
             self.update_operator(est_prev)
             grad_tot = self.likelihood.get_likelihood_gradient(it=it)
             grad_tot = np.concatenate([np.ravel(arr) for arr in grad_tot])
@@ -85,8 +83,10 @@ class Minimizer:
                 grad_prev = np.concatenate([np.ravel(arr) for arr in grad_prev])
                 self.likelihood.curvature_lib.add_yvector(grad_tot, grad_prev, it)
             increment = self.likelihood.curvature_lib.get_increment(grad_tot, it)
+            if self.use_QE_for_lowL: # NOTE this is for isoMAP setting
+                increment[:Alm.getsize(30,30)] *= 0.0+0.0j  
             prev_klm = np.concatenate([np.ravel(arr) for arr in self._get_est(it-1, scale=scale)])
-            # TODO Need to test this
+            qe_est_klm = {sec: self.get_est(0, scale='k')[self.likelihood.sec2idx[sec]] for sec in self.likelihood.seclist_sorted}
             if not self.use_QE_starting_point and it == 1:
                 print("Setting starting point to zero")
                 prev_klm = np.zeros_like(prev_klm, dtype=complex)
@@ -95,7 +95,7 @@ class Minimizer:
                 print("Keeping QE starting point for L<=30")
                 for sec, val in new_klms.items():
                     for compi, (comp, comp_val) in enumerate(val.items()):
-                        new_klms[sec][comp][:Alm.getsize(30,30)] = qe_est[sec][compi][:Alm.getsize(30,30)]
+                        new_klms[sec][comp][:Alm.getsize(30,30)] = qe_est_klm[sec][compi][:Alm.getsize(30,30)]
             self.cache_klm(new_klms, it)
 
         return new_klms
