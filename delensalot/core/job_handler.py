@@ -609,8 +609,9 @@ class QEScheduler:
                 mpi.barrier()
                 # NOTE This is awkward but need to get meanfield from rank 0 before get_est, as get_est uses the meanfield..
                 # otherwise all ranks try calculating the meanfield at once.. Would be better to remove this whole "calc_meanfields" task.
-                if 'calc_meanfields' in tasks: 
-                    for idxs in self.jobs[taski][mpi.rank::mpi.size]:
+                if 'calc_meanfields' in tasks:
+                    # NOTE calc_meanfield should be in jobs[1]
+                    for idxs in self.jobs[1][mpi.rank::mpi.size]:
                         for QE_search in self.QE_searchs:
                             for ci, component in enumerate(QE_search.secondary.component):
                                 ctx.set(idx=idxs[ci], idx2=idxs[ci])
