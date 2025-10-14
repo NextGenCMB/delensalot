@@ -443,7 +443,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                     est_key_loc = cf.analysis.estimator_key
             else:
                 est_key_loc = cf.analysis.estimator_key
-            keystring = cf.analysis.estimator_key if len(cf.analysis.estimator_key) == 1 else '_'+cf.analysis.estimator_key.split('_')[-1] if "_" in cf.analysis.estimator_key else cf.analysis.estimator_key[-2:]
+            keystring = est_key_loc if len(est_key_loc) == 1 else '_'+est_key_loc.split('_')[-1] if "_" in est_key_loc else est_key_loc[-2:]
             QE_filterqest_desc = {
                 "TP_strategy": dl.TP_strategy, # TODO this could be a different value for each secondary
                 "libdir": opj(get_TEMP_dir(cf), 'QE', keystring),

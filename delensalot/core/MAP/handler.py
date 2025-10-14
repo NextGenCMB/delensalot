@@ -92,6 +92,7 @@ class Minimizer:
             if self.use_QE_for_lowL: # NOTE this is for isoMAP setting
                 print("Using QE starting point for L<30")
                 for sec, val in new_klms.items():
+                    print(new_klms[sec])
                     new_klms[sec][:Alm.getsize(30,30)] = qe_est[sec][:Alm.getsize(30,30)]
             self.cache_klm(new_klms, it)
 
