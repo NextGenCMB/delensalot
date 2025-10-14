@@ -177,8 +177,6 @@ class Gradient(SharedFilters):
         else:
             assert 0, mfkey + ' not implemented'
 
-        # print(GC)
-        
         # self.subs[0].geom_lib.adjoint_synthesis(phas[1:], 2, *config.lm_max_sky, self.subs[0].sht_tr, (-1., 1.))
         G, C = self.subs[0].geom_lib.adjoint_synthesis([GC.real, GC.imag], 1, *config.LM_max, self.subs[0].sht_tr)
         # G, C = self.subs[0].geom_lib.adjoint_synthesis(gc_r, 1, *config.LM_max, self.subs[0].sht_tr)
