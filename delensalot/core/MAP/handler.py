@@ -71,9 +71,11 @@ class Minimizer:
                 for sec, val in est_prev.items():
                     est_prev[sec] = np.zeros_like(val, dtype=complex)
             if self.use_QE_for_lowL: # NOTE this is for isoMAP setting
-                print("Using QE starting point for L<30")
+                print("Using QE starting point for L<=30")
                 qe_est = {sec: self.get_est(0, scale='d')[self.likelihood.sec2idx[sec]] for sec in self.likelihood.seclist_sorted}
                 for sec, val in est_prev.items():
+                    print('qe_est[sec]', qe_est[sec])
+                    print(qe_est[sec])
                     est_prev[sec][:Alm.getsize(30,30)] = qe_est[sec][:Alm.getsize(30,30)]
             self.update_operator(est_prev)
             grad_tot = self.likelihood.get_likelihood_gradient(it=it)
@@ -90,10 +92,10 @@ class Minimizer:
                 prev_klm = np.zeros_like(prev_klm, dtype=complex)
             new_klms = self.likelihood.curvature_lib.grad2dict(increment + prev_klm)
             if self.use_QE_for_lowL: # NOTE this is for isoMAP setting
-                print("Using QE starting point for L<30")
+                print("Keeping QE starting point for L<=30")
                 for sec, val in new_klms.items():
-                    print(new_klms[sec])
-                    new_klms[sec][:Alm.getsize(30,30)] = qe_est[sec][:Alm.getsize(30,30)]
+                    for compi, (comp, comp_val) in enumerate(val.items()):
+                        new_klms[sec][comp][:Alm.getsize(30,30)] = qe_est[sec][compi][:Alm.getsize(30,30)]
             self.cache_klm(new_klms, it)
 
         return new_klms
