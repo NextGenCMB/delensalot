@@ -770,7 +770,6 @@ class MAPScheduler:
             log.info('MAPScheduler {}, MAP task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski][mpi.rank::mpi.size]))
             if task == 'calc_fields':
                 for idx in self.jobs[taski][mpi.rank::mpi.size]: # NOTE every rank takes care of its own indices
-                    print([self.QE_searchs[0].isdone(idx, comp)==0 for comp in self.QE_searchs[0].secondary.component])
                     if np.all([self.QE_searchs[0].isdone(idx, comp)==0 for comp in self.QE_searchs[0].secondary.component]):
                         ctx.set(idx=idx, idx2=idx)
                         self.MAP_minimizer.copyQEtoDirectory(self.QE_searchs)
