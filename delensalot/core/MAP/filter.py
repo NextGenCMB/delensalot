@@ -101,11 +101,11 @@ class Filter_3d:
                 zero_field = zeroed_copy(field_operator)
                 self.update_operator(zero_field)
                 teb_prep_alm = self.calc_prep(delTEB) # NOTE lm_sky -> lm_pri
-                self.mchain.solve(cg_sol_curr, teb_prep_alm, self.fwd_op, maxiter=75)
+                self.mchain.solve(cg_sol_curr, teb_prep_alm, self.fwd_op, maxiter=50)
                 self.update_operator(field_operator)
             else:
                 teb_prep_alm = self.calc_prep(data) # NOTE lm_sky -> lm_pri
-                self.mchain.solve(cg_sol_curr, teb_prep_alm, self.fwd_op, maxiter=75)
+                self.mchain.solve(cg_sol_curr, teb_prep_alm, self.fwd_op, maxiter=50)
             self.wf_field.cache(cg_sol_curr, it=it)
         return self.wf_field.get_field(it=it)
 

@@ -855,11 +855,12 @@ class MAPScheduler:
         ctx.set(idx=stash[0], idx2=stash[1], component=stash[2])
         return ret
 
-    def maxiterdone(self):
+    def maxiterdone(self, idx=None):
         ctx, _ = get_computation_context()
         buff_ = ctx.idx, ctx.idx2
         buff = []
-        for idx in self.idxs:
+        idxs_ = self.idxs if idx is None else [idx]
+        for idx in idxs_:
             ctx.set(idx=idx, idx2=idx)
             buff.append(self.MAP_minimizer.maxiterdone())
         ctx.set(idx=buff_[0], idx2=buff_[1])

@@ -144,7 +144,6 @@ class Gradient(SharedFilters):
             phas = self.wfivf_filter.calc_prep(phas)
             mchain.solve(soltn, phas, self.wfivf_filter.fwd_op, maxiter=maxiter)
             # if sky_coverage == 'masked':
-            #     print(phas[0])
             #     phas = [
             #         self.subs[0].geom_lib.adjoint_synthesis(phas[0], 0, *config.lm_max_sky, self.subs[0].sht_tr),
             #         *self.subs[0].geom_lib.adjoint_synthesis(phas[1:], 2, *config.lm_max_sky, self.subs[0].sht_tr),
