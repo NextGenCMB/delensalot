@@ -183,7 +183,7 @@ class Minimizer:
         config = get_config()
         print("Going to copy QE to MAP dir, if necessary ..", ctx.idx)
         for secname, secondary in self.secondaries.items():
-            QE_searchs[self.sec2idx[secname]].init_filterqest()
+            # QE_searchs[self.sec2idx[secname]].init_filterqest()
             if not all(self.secondaries[secname].is_cached(it=0)):
                 klm_QE = QE_searchs[self.sec2idx[secname]].get_est(ctx.idx)
                 self.secondaries[secname].cache_klm(klm_QE, it=0)
