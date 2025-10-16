@@ -735,7 +735,7 @@ class MAPScheduler:
 
         self.idxs = idxs
         self.idxs_mf = idxs_mf
-        self.QE_searchs: QEScheduler = QE_searchs
+        self.QE_searchs: QE_handler.Base = QE_searchs
 
         self._sec2idx = {QE_search.secondary.ID: i for i, QE_search in enumerate(self.QE_searchs)}
         self._seclist = list(self._sec2idx.keys())
@@ -770,7 +770,7 @@ class MAPScheduler:
         for taski, task in enumerate(self.tasks):
             log.info('MAPScheduler {}, MAP task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski][mpi.rank::mpi.size]))
             if task == 'calc_fields':
-                [qes.init_QEsearchs() for qes in self.QE_searchs]
+                self.init_QEsearchs()
                 for idx in self.jobs[taski][mpi.rank::mpi.size]: # NOTE every rank takes care of its own indices
                     if np.all([self.QE_searchs[0].isdone(idx, comp)==0 for comp in self.QE_searchs[0].secondary.component]):
                         ctx.set(idx=idx, idx2=idx)
@@ -899,6 +899,21 @@ class MAPScheduler:
                 raise AttributeError(f"method {name} not found in MAP_minimizer")
 
         return method_forwarder
+
+
+    def init_QEsearchs(self):
+        __init = False
+        first_rank = mpi.bcast(mpi.rank)
+        if first_rank == mpi.rank:
+            mpi.disable()
+            for QE_search in self.QE_searchs:
+                QE_search.init_filterqest()
+            mpi.enable()
+            [mpi.send(1, dest=dest) for dest in range(0,mpi.size) if dest!=mpi.rank]
+        else:
+            mpi.receive(None, source=mpi.ANY_SOURCE)
+        for QE_search in self.QE_searchs:
+            QE_search.init_filterqest()
 
 
 class PhiAnalyser:
