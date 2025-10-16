@@ -362,7 +362,8 @@ class DataContainer:
         return self.data_source.get_sim_pri(idx=idx, space=space, field=field, spin=spin)
     
     def get_sim_obs(self, idx, space, field, spin, lm_max=None):
-
+        config = get_config()
+        lm_max = lm_max or config.lm_max_sky
         if self.sky_coverage == 'full':
             assert space == 'alm', "'full' sky_coverage only works for space = alm"
             return  alm_copy_nd(self.data_source.get_sim_obs(idx=idx, space=space, field=field, spin=spin), None, lm_max)

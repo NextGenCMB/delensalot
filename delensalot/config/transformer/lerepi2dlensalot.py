@@ -262,9 +262,12 @@ class l2base_Transformer:
         # NOTE order of implementation is: 
         #   datasource takes template_index_secondaries_genSim and applies in the order of the array, so first item comes last
         #   gradient operator and secondary operator are applied in the order of seclist_sorted, so first item comes first
-        dl.seclist_sorted = cf.analysis.seclist_sorted
+        analysis_secondary = filter_secondary_and_component(copy.deepcopy(cf.analysis.secondary), cf.analysis.estimator_key.split('_')[0])
+        dl.seclist_sorted = [s for s in cf.analysis.seclist_sorted if s in analysis_secondary.keys()]
         dl.template_index_secondaries = {val: i for i, val in enumerate(dl.seclist_sorted)}
         dl.template_index_secondaries_genSim = {val: i for i, val in enumerate(dl.seclist_sorted[::-1])}
+        # NOTE remove all sec_info that is not in seclist_sorted
+        si.sec_info = {k:v for k, v in si.sec_info.items() if k in dl.seclist_sorted}
         
         # NOTE this check key does not catch all possible wrong keys, but at least it catches the most common ones.
         # Plancklens keys should all be correct with this, for delensalot, not so sure, will see over time.
@@ -311,6 +314,7 @@ class l2base_Transformer:
         dl.lm_max_sky = an.lm_max_sky
 
         dl.analysis_secondary = filter_secondary_and_component(copy.deepcopy(cf.analysis.secondary), cf.analysis.estimator_key.split('_')[0])
+        
         dl.analysis_secondary = {k:v for k, v in sorted(dl.analysis_secondary.items(), key=lambda x: dl.template_index_secondaries.get(x[0], ''))}
         complist_sorted = [comp for sec in dl.seclist_sorted if sec in dl.analysis_secondary for comp in dl.analysis_secondary[sec]['component']]
 
