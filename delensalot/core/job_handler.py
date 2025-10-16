@@ -776,6 +776,7 @@ class MAPScheduler:
                         self.MAP_minimizer.copyQEtoDirectory(self.QE_searchs)
                 for idx in self.jobs[taski][mpi.rank::mpi.size]:
                     ctx.set(idx=idx, idx2=idx)
+                    print('MAPScheduler {}, MAP task {} running idx {}'.format(mpi.rank, task, idx))
                     self.MAP_minimizer.get_est(self.MAP_minimizer.itmax)
 
         #NOTE resetting context to first idx - for application level
