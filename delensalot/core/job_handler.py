@@ -180,7 +180,7 @@ class DataContainer:
                     for comp in operator_info['component']:
                         self.fns_sec[sec][comp] = f'{sec}_{comp}lm_{{}}.npy'
 
-            hashc = get_hashcode(str([val['component'] for val in self.data_source.sec_info.values()])+str([val['component'] for val in self.data_source.sec_info.values()]))
+            hashc = get_hashcode(self.data_source.obs_info['transfunction'])
             nlev_round = dict2roundeddict(self.data_source.nlev)
             self.libdir = opj(self.libdir_sky, get_dirname(sorted(nlev_round.items())), f'{hashc}')
             self.fns = self.set_basename_obs()
