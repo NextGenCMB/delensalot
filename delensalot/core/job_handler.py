@@ -182,7 +182,7 @@ class DataContainer:
 
             hashc = get_hashcode(str([val['component'] for val in self.data_source.sec_info.values()])+str([val['component'] for val in self.data_source.sec_info.values()]))
             nlev_round = dict2roundeddict(self.data_source.nlev)
-            self.libdir = opj(dirname_generator(self.data_source.libdir_suffix, self.data_source.geominfo), geomstr, get_dirname(sorted(nlev_round.items())), f'{hashc}')
+            self.libdir = opj(self.libdir_sky, get_dirname(sorted(nlev_round.items())), f'{hashc}')
             self.fns = self.set_basename_obs()
             
             # in init, only rank 0 enters in first round to set dirs etc.. so cannot use bcast
@@ -770,7 +770,7 @@ class MAPScheduler:
         for taski, task in enumerate(self.tasks):
             log.info('MAPScheduler {}, MAP task {} started, jobs: {}'.format(mpi.rank, task, self.jobs[taski][mpi.rank::mpi.size]))
             if task == 'calc_fields':
-                self.init_QEsearchs()
+                self.init_QEsearchs() # NOTE this is not optional, as copyQEtoDirectory needs QE to be initialized for every single rank.
                 for idx in self.jobs[taski][mpi.rank::mpi.size]: # NOTE every rank takes care of its own indices
                     if np.all([self.QE_searchs[0].isdone(idx, comp)==0 for comp in self.QE_searchs[0].secondary.component]):
                         ctx.set(idx=idx, idx2=idx)
@@ -814,6 +814,7 @@ class MAPScheduler:
         return self.QE_searchs[self._sec2idx[secondary]].get_qlm(idx, component)
 
 
+    # TODO implement accessing mf across it, and on-the-fly/access file if not available
     def get_meanfield(self, idx, it=None, secondary=None, component=None, idx2=None):
         ctx, isnew = get_computation_context()
         ctx.set(idx=idx, idx2=idx)
