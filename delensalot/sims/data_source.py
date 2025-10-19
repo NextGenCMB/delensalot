@@ -424,7 +424,6 @@ class Xpri:
         if not self.cacher.is_cached(fn):
             if secondary in self.sec_info and (self.sec_info[secondary]['libdir'] == DNaV or not component in self.sec_info[secondary]['component']):
                 log.info(f'generating {secondary} {component} from cl')
-                log.debug(f'generating {secondary}{component} from cl')
                 Clpf = self.cls_lib.get_fidsec(idx, secondary, component*2, return_nonrec=return_nonrec).squeeze()
                 Clp = self.clsecsf2clsecp(secondary, Clpf)
                 sec = self.clp2seclm(secondary, component, Clp, idx)
@@ -434,7 +433,6 @@ class Xpri:
                     sec = self.geom_lib.alm2map(sec, lmax=self.sec_info[secondary]['LM_max'][0], mmax=self.sec_info[secondary]['LM_max'][1], nthreads=4)
             elif secondary not in self.sec_info:
                 log.info(f'generating {secondary} {component} from cl')
-                log.debug(f'generating {secondary}{component} from cl')
                 Clpf = self.cls_lib.get_fidsec(idx, secondary, component*2, return_nonrec=return_nonrec).squeeze()
                 Clp = self.clsecsf2clsecp(secondary, Clpf)
                 sec = self.clp2seclm(secondary, component, Clp, idx)
@@ -559,6 +557,8 @@ class Xsky:
         if field == 'temperature' and spin == 2:
             assert 0, "I don't think you want spin-2 temperature."
 
+        print(self.fixed_secondary_seed)
+        print('her')
         secondary_seed = self.fixed_secondary_seed or idx
         
         # NOTE Logic as follows: there is a cacher and a disk. If something is already in cache, no need to load it from disk. If spin X is requested but spin Y is stored, reuse, just convert. If none of it, generate

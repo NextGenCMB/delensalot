@@ -269,9 +269,11 @@ class DataContainer:
                     self.generate_obs(idx)
                 if np.all(self.data_source.obs_lib.maps == DEFAULT_NotAValue):
                     self.data_source.purgecache()
-        if np.all(self.data_source.maps == DEFAULT_NotAValue):
-            if self.data_source.flavour != 'obs': self._postrun_sky()
-            self._postrun_obs()
+            if np.all(self.data_source.maps == DEFAULT_NotAValue):
+                if task == 'generate_sky':
+                    if self.data_source.flavour != 'obs': self._postrun_sky()
+                if task == 'generate_obs':
+                    self._postrun_obs()
 
 
     def purgecache(self):
