@@ -560,7 +560,10 @@ class Xsky:
         print(self.fixed_secondary_seed)
         print('her')
         secondary_seed = self.fixed_secondary_seed or idx
-        
+
+        print(secondary_seed)
+        print('her')
+
         # NOTE Logic as follows: there is a cacher and a disk. If something is already in cache, no need to load it from disk. If spin X is requested but spin Y is stored, reuse, just convert. If none of it, generate
         fn = f"sky_space{space}_spin{spin}_field{field}_{idx}"
         log.debug(f"requesting{fn}")
