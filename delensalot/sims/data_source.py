@@ -557,9 +557,7 @@ class Xsky:
         if field == 'temperature' and spin == 2:
             assert 0, "I don't think you want spin-2 temperature."
 
-        print(self.fixed_secondary_seed)
         secondary_seed = idx if self.fixed_secondary_seed is None else self.fixed_secondary_seed
-        print(secondary_seed)
         # NOTE Logic as follows: there is a cacher and a disk. If something is already in cache, no need to load it from disk. If spin X is requested but spin Y is stored, reuse, just convert. If none of it, generate
         fn = f"sky_space{space}_spin{spin}_field{field}_{idx}"
         log.debug(f"requesting{fn}")
