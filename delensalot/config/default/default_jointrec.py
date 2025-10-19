@@ -82,7 +82,8 @@ DL_DEFAULT = {
                 'lm_max_obs': [4096,4096],
                 'geominfo': ('thingauss',{'lmax': 4500, 'smax': 3}),
             },
-        }
+        },
+        'fixed_secondary_seed': 0, # None or integer to fix the seed for secondary map generation
     },
     'analysis': { 
         'estimator_key': 'pwf_p',

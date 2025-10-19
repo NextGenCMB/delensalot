@@ -294,6 +294,8 @@ class l2base_Transformer:
         si.operator_info = operator_info
         si.operator_info = {k:v for k, v in sorted(operator_info.items(), key=lambda x: dl.template_index_secondaries_genSim.get(x[0], ''))}
         si.libdir_suffix = "_then_".join(dl.seclist_sorted[::-1])
+
+        si.fixed_secondary_seed = getattr(cf.data_source, 'fixed_secondary_seed', None)
         set_config(cf)
         dl.data_source = DataSource(**si.__dict__)
 

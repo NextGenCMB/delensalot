@@ -169,7 +169,8 @@ class DataContainer:
                 # some flavour provided, and we need to generate the sky and obs maps from this.
                 hashc = get_hashcode([val['component'] for val in self.data_source.sec_info.values()])
                 geominfo = self.data_source.sky_lib.operator_info['lensing']['geominfo'] if 'lensing' in self.data_source.sky_lib.operator_info else self.data_source.sky_lib.operator_info['birefringence']['geominfo']
-                geomstr = get_dirname(geominfo)+"_"+hashc
+                secondary_seed_string = "_fixed_secondary_seed{}".format(self.data_source.fixed_secondary_seed) if self.data_source.fixed_secondary_seed is not None else ""
+                geomstr = get_dirname(geominfo)+"_"+hashc+secondary_seed_string
                 
                 self.libdir_sky = opj(dirname_generator(self.data_source.libdir_suffix, self.data_source.geominfo), geomstr)
                 self.fns_sky = self.set_basename_sky()
@@ -283,6 +284,8 @@ class DataContainer:
         for sec, secinfo in self.data_source.sec_info.items():
             # FIXME if there is cross-correlation between the components, we need to generate them together
             for comp in secinfo['component']:
+                if self.data_source.fixed_secondary_seed is not None:
+                    idx = self.data_source.fixed_secondary_seed
                 if not os.path.exists(opj(self.libdir_sky, self.fns_sec[sec][comp].format(idx))):
                     s = self.data_source.get_sim_sec(idx, space='alm', secondary=sec, component=comp)
                     np.save(opj(self.libdir_sky, self.fns_sec[sec][comp].format(idx)), s)

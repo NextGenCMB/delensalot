@@ -109,14 +109,15 @@ class DELENSALOT_DataSource(DELENSALOT_Concept):
         operator_info: the operators used for generating the maps (lensing, birefringence)
 
     """
-    flavour =       attr.field(default=DEFAULT_NotAValue)
-    libdir_suffix = attr.field(default='generic')
-    geominfo =      attr.field(default=DEFAULT_NotAValue)
-    fid_info =      attr.field(default=DEFAULT_NotAValue)
-    CMB_info =      attr.field(default=DEFAULT_NotAValue)
-    sec_info =      attr.field(default=DEFAULT_NotAValue)
-    obs_info =      attr.field(default=DEFAULT_NotAValue)
-    operator_info = attr.field(default=DEFAULT_NotAValue)
+    flavour =               attr.field(default=DEFAULT_NotAValue)
+    libdir_suffix =         attr.field(default='generic')
+    geominfo =              attr.field(default=DEFAULT_NotAValue)
+    fid_info =              attr.field(default=DEFAULT_NotAValue)
+    CMB_info =              attr.field(default=DEFAULT_NotAValue)
+    sec_info =              attr.field(default=DEFAULT_NotAValue)
+    obs_info =              attr.field(default=DEFAULT_NotAValue)
+    operator_info =         attr.field(default=DEFAULT_NotAValue)
+    fixed_secondary_seed =  attr.field(default=DEFAULT_NotAValue)
 
 
 @attr.s

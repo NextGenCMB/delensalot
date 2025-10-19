@@ -284,7 +284,7 @@ class Xpri:
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
         self.geom_lib = get_geom(self.geominfo)
-  
+
         if CMB_info.get('libdir', DNaV) == DNaV or (CMB_info.get('fn', DNaV) == DNaV and any(value['fn'] == DNaV for value in sec_info.values())):
             if cls_lib == DNaV:
                 sec_info = {key: {'fns':DNaV, 'component':value['component'], 'libdir': DNaV, 'scale': 'p'} for key, value in sec_info.items()}
@@ -307,6 +307,8 @@ class Xpri:
             self.sec_info[sec].setdefault('libdir', DNaV)
             self.sec_info[sec].setdefault('modifier', lambda x: x)
         self.cacher = cachers.cacher_mem(safe=True)
+
+
 
     def get_sim_pri(self, idx, space, field, spin=2):
         """returns an priensed simulation field (temp,pol) in space (map, alm) and as spin (0,2). Note, spin is only applicable for pol, and returns QU for spin=2, and EB for spin=0.
@@ -508,7 +510,7 @@ class Xpri:
 class Xsky:
     """class for generating lensed CMB and phi realizations from priensed realizations, using lenspyx for the lensing operation
     """    
-    def __init__(self, pri_lib=DNaV, geominfo=DNaV, CMB_info=DNaV, operator_info=DNaV):
+    def __init__(self, pri_lib=DNaV, geominfo=DNaV, CMB_info=DNaV, operator_info=DNaV, fixed_secondary_seed=None):
         self.geominfo = geominfo
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
@@ -529,6 +531,8 @@ class Xsky:
 
         self.CMB_info.setdefault('spin', 0 if CMB_info['space'] == 'alm' else 2) # TODO not hundred percent sure about this
         self.CMB_info.setdefault('libdir', DNaV)
+
+        self.fixed_secondary_seed = fixed_secondary_seed
 
 
     def get_operator(self, opk, opv):
@@ -554,6 +558,8 @@ class Xsky:
             assert 0, "I don't think you want qlms ulms."
         if field == 'temperature' and spin == 2:
             assert 0, "I don't think you want spin-2 temperature."
+
+        secondary_seed = self.fixed_secondary_seed or idx
         
         # NOTE Logic as follows: there is a cacher and a disk. If something is already in cache, no need to load it from disk. If spin X is requested but spin Y is stored, reuse, just convert. If none of it, generate
         fn = f"sky_space{space}_spin{spin}_field{field}_{idx}"
@@ -567,7 +573,7 @@ class Xsky:
                     log.debug('.., generating.')
                     pri = self.pri_lib.get_sim_pri(idx, space='alm', field=field, spin=0)
                     for operator in self.operators:
-                        sec = self.pri_lib.get_sim_sec(idx, space='alm', secondary=operator.ID)
+                        sec = self.pri_lib.get_sim_sec(secondary_seed, space='alm', secondary=operator.ID)
                         if operator.ID == 'lensing': 
                             sec = np.array([alm_copy(s, None, operator.LM_max[0], operator.LM_max[1]) for s in sec], dtype=complex)
                             h2d = np.sqrt(np.arange(operator.LM_max[0] + 1) * np.arange(1, operator.LM_max[0] + 2))
@@ -929,7 +935,7 @@ class DataSource:
     Data can be cl, pri, len, or obs, .. and alms or maps. Simhandler connects the individual libraries and decides what can be generated.
     E.g.: If obs data provided, len data cannot be generated.
     """ 
-    def __init__(self, flavour, libdir_suffix, sec_info, maps=DNaV, geominfo=DNaV, fid_info=DNaV, CMB_info=DNaV, obs_info=DNaV, operator_info=DNaV):
+    def __init__(self, flavour, libdir_suffix, sec_info, fixed_secondary_seed, maps=DNaV, geominfo=DNaV, fid_info=DNaV, CMB_info=DNaV, obs_info=DNaV, operator_info=DNaV):
         """Entry point for simulation data handling.
         Simhandler() connects the individual librariers together accordingly, depending on the provided data.
         It never stores data on disk itself, only in memory.
@@ -943,6 +949,7 @@ class DataSource:
             obs_info (dict): observation information
             operator_info (dict): operator_info for secondaries
         """
+        self.fixed_secondary_seed = fixed_secondary_seed
         seccomp = {sec : [comp*2 for comp in sec_info[sec]['component']] for sec in sec_info}
 
         self.libdir_suffix = libdir_suffix
@@ -964,7 +971,7 @@ class DataSource:
                 assert CMB_info['space'] in ['map','alm'], "sky CMB data can only be in map or alm space"
                 assert not (contains_DNaV(obs_info)), "need to provide complete obs_info"
                 self.cls_lib = Cls(fid_info=copy.copy(fid_info), seccomp=seccomp)
-                self.sky_lib = Xsky(pri_lib=DNaV, geominfo=geominfo, CMB_info=copy.copy(CMB_info), operator_info=copy.copy(operator_info))
+                self.sky_lib = Xsky(pri_lib=DNaV, geominfo=geominfo, CMB_info=copy.copy(CMB_info), operator_info=copy.copy(operator_info), fixed_secondary_seed=fixed_secondary_seed)
                 
                 self.libdir = self.sky_lib.CMB_info['libdir']
                 self.fns = self.sky_lib.CMB_info['fns']
@@ -975,7 +982,7 @@ class DataSource:
                 self.cls_lib = Cls(fid_info=copy.copy(fid_info), seccomp=seccomp)
 
                 self.pri_lib = Xpri(cls_lib=self.cls_lib, geominfo=geominfo, CMB_info=copy.copy(CMB_info), sec_info=copy.copy(sec_info))
-                self.sky_lib = Xsky(pri_lib=self.pri_lib, geominfo=geominfo, CMB_info=copy.copy(CMB_info), operator_info=copy.copy(operator_info))
+                self.sky_lib = Xsky(pri_lib=self.pri_lib, geominfo=geominfo, CMB_info=copy.copy(CMB_info), operator_info=copy.copy(operator_info), fixed_secondary_seed=fixed_secondary_seed)
 
             if obs_info['noise_info'].get('libdir', DNaV) == DNaV:
                 noise_lib = IsoWhiteNoise(geominfo=geominfo, noise_info=obs_info['noise_info'], libdir_suffix=libdir_suffix)
@@ -1015,6 +1022,9 @@ class DataSource:
         return self.noise_lib.get_sim_noise(idx, spin=spin, space=space, field=field)
     
     def get_sim_sec(self, idx, space, secondary=None, component=None, return_nonrec=False):
+        # NOTE I can request any index, but if fixed_secondary_seed is set, I always get the same secondary realization. pri
+        if self.fixed_secondary_seed is not None:
+            idx = self.fixed_secondary_seed
         return self.pri_lib.get_sim_sec(idx=idx, space=space, secondary=secondary, component=component, return_nonrec=return_nonrec)
     
     def get_fidCMB(self, idx, component):
