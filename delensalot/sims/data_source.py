@@ -1032,7 +1032,7 @@ class DataSource:
     
     
     def purgecache(self):
-        libs = ['obs_lib', 'noise_lib', 'pri_lib', 'sky_lib']
+        libs = ['obs_lib', 'noise_lib', 'sky_lib'] #  'pri_lib'
         for lib in libs:
             if lib in self.__dict__:
                 if len(list(self.__dict__[lib].cacher._cache.keys())) > 0:
