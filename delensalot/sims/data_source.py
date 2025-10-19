@@ -1041,7 +1041,7 @@ class DataSource:
                 if len(list(self.__dict__[lib].cacher._cache.keys())) > 0:
                     log.info(f'DataSource: purging lib {lib} cachers to release memory: {list(self.__dict__[lib].cacher._cache.keys())}')
                     for key in np.copy(list(self.__dict__[lib].cacher._cache.keys())):
-                        log.info(f"removed {key}")
+                        # log.info(f"removed {key}")
                         self.__dict__[lib].cacher.remove(key)
 
 
