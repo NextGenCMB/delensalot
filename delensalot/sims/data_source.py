@@ -1038,11 +1038,11 @@ class DataSource:
         libs = ['obs_lib', 'noise_lib', 'pri_lib', 'sky_lib']
         for lib in libs:
             if lib in self.__dict__:
-                if len(list(self.lib.cacher._cache.keys())) > 0:
-                    log.info(f'DataSource: purging lib {lib} cachers to release memory: {list(self.lib.cacher._cache.keys())}')
-                    for key in np.copy(list(self.lib.cacher._cache.keys())):
+                if len(list(lib.cacher._cache.keys())) > 0:
+                    log.info(f'DataSource: purging lib {lib} cachers to release memory: {list(lib.cacher._cache.keys())}')
+                    for key in np.copy(list(lib.cacher._cache.keys())):
                         log.info(f"removed {key}")
-                        self.lib.cacher.remove(key)
+                        lib.cacher.remove(key)
 
 
     def isdone(self, idx, field, spin, space='map', flavour='obs'):
