@@ -54,12 +54,23 @@ def cls_lmin_filt(lmin_tlm:int, lmin_elm:int, lmin_blm:int, cl_dict:dict):
         elif key == 'te':
             cl[:max(lmin_tlm, lmin_elm)] *= 0.
 
+def cls_lmax_filt(lmax_tlm:int, lmax_elm:int, lmax_blm:int, cl_dict:dict):
+    """Remove the multipoles above lmax for all the Cls in cl_dict"""
+    for key, cl in cl_dict.items():
+        if key == 'tt':
+            cl[lmax_tlm + 1:] *= 0.
+        elif key == 'ee':
+            cl[lmax_elm + 1:] *= 0.
+        elif key == 'bb':
+            cl[lmax_blm + 1:] *= 0.
+        elif key == 'te':
+            cl[max(lmax_tlm, lmax_elm) + 1:] *= 0.
 
 class iterbiases:
     """"""
     def __init__(
             self, nlev_t:float, nlev_p:float, beam_fwhm:float, lmin_ivf:int or tuple, 
-            lmax_ivf:int, lmax_qlm:int, cls_unl_fid:dict, cls_noise_fid:dict or None=None, 
+            lmax_ivf:int or tuple,, lmax_qlm:int, cls_unl_fid:dict, cls_noise_fid:dict or None=None, 
             lib_dir:str or None=None, verbose:bool =False, grad_cls=False):
         """
         Computes the iterative N0 and N1 biases, given a set of fiducial unlensed Cls unlensed.
@@ -82,6 +93,7 @@ class iterbiases:
 
         self.fidcls_unl = cls_unl_fid
         lmin_tlm, lmin_elm, lmin_blm = _lmin_ivf(lmin_ivf)
+        lmax_tlm, lmax_elm, lmax_blm = _lmin_ivf(lmax_ivf)
 
         if verbose:
             print(f'lmin_tlm:{lmin_tlm}, lmin_elm:{lmin_elm}, lmin_blm:{lmin_blm}')
@@ -89,17 +101,17 @@ class iterbiases:
         if cls_noise_fid is None:
             if verbose:
                 print('Filtering with gaussian beam and fiducial noise levels')
-            transf_tlm   =  gauss_beam(beam_fwhm/180 / 60 * np.pi, lmax=lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_tlm)
-            transf_elm   =  gauss_beam(beam_fwhm/180 / 60 * np.pi, lmax=lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_elm)
-            transf_blm   =  gauss_beam(beam_fwhm/180 / 60 * np.pi, lmax=lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_blm)
-            
+            transf_tlm   =  gauss_beam(beam_fwhm/180 / 60 * np.pi, lmax=lmax_ivf['tt']) * (np.arange(lmax_ivf['tt'] + 1) >= lmin_tlm)
+            transf_elm   =  gauss_beam(beam_fwhm/180 / 60 * np.pi, lmax=lmax_ivf['ee']) * (np.arange(lmax_ivf['ee'] + 1) >= lmin_elm)
+            transf_blm   =  gauss_beam(beam_fwhm/180 / 60 * np.pi, lmax=lmax_ivf['bb']) * (np.arange(lmax_ivf['bb'] + 1) >= lmin_blm)
+
             cls_noise_fid = {'tt': ( (nlev_t / 180 / 60 * np.pi) * utils.cli(transf_tlm) ) ** 2,
                                 'ee': ( (nlev_p / 180 / 60 * np.pi) * utils.cli(transf_elm) ) ** 2,
                                 'bb': ( (nlev_p / 180 / 60 * np.pi) * utils.cli(transf_blm) ) ** 2  }
         else:
-            cls_noise_fid['tt'] =  cls_noise_fid['tt'][:lmax_ivf+1] * (np.arange(lmax_ivf + 1) >= lmin_tlm)
-            cls_noise_fid['ee'] =  cls_noise_fid['ee'][:lmax_ivf+1] * (np.arange(lmax_ivf + 1) >= lmin_elm)
-            cls_noise_fid['bb'] =  cls_noise_fid['bb'][:lmax_ivf+1] * (np.arange(lmax_ivf + 1) >= lmin_blm)
+            cls_noise_fid['tt'] =  cls_noise_fid['tt'][:lmax_ivf['tt']+1] * (np.arange(lmax_ivf['tt'] + 1) >= lmin_tlm)
+            cls_noise_fid['ee'] =  cls_noise_fid['ee'][:lmax_ivf['ee']+1] * (np.arange(lmax_ivf['ee'] + 1) >= lmin_elm)
+            cls_noise_fid['bb'] =  cls_noise_fid['bb'][:lmax_ivf['bb']+1] * (np.arange(lmax_ivf['bb'] + 1) >= lmin_blm)
 
         self.fidcls_noise = cls_noise_fid
 
@@ -160,11 +172,6 @@ class iterbiases:
 
         if cls_noise_true is None and cls_unl_true is None and fn is None:
             fn = f'n0n1_ref_{qe_key}' + '_it' + str(itrmax)
-            if version != '':
-                fn = 'v' + version + fn
-            if self.grad_cls:
-                fn = 'gradcls_' + fn
-            # print(fn)
 
         if cls_noise_true is None: cls_noise_true = cls_noise_fid
         if cls_unl_true is None: cls_unl_true = cls_unl_fid
@@ -224,7 +231,7 @@ class iterbiases:
         return self._cacher.load(fn + '_fid'), self._cacher.load(fn + '_true')
 
 
-def get_fals(qe_key:str, cls_cmb_filt:dict, cls_cmb_dat:dict, cls_noise_filt:dict, cls_noise_dat:dict, lmin_ivf:int or tuple, lmax_ivf:int):
+def get_fals(qe_key:str, cls_cmb_filt:dict, cls_cmb_dat:dict, cls_noise_filt:dict, cls_noise_dat:dict, lmin_ivf:int or tuple, lmax_ivf:int or tuple):
     """
     Get the filtering Cls and from the fiducial CMB Cls and noise, as well as the IVF data Cls
     Returns as well the QE weights and CMB response functions 
@@ -247,31 +254,39 @@ def get_fals(qe_key:str, cls_cmb_filt:dict, cls_cmb_dat:dict, cls_noise_filt:dic
     """
     assert qe_key in ['ptt', 'p_p', 'p'], "The qe_key should be in 'ptt', 'p_p' or 'p'"
     lmin_tlm, lmin_elm, lmin_blm = _lmin_ivf(lmin_ivf)  
+    lmax_tlm, lmax_elm, lmax_blm = _lmin_ivf(lmax_ivf)  
+    # lmax_ivf['te'] = min(lmax_tlm, lmax_elm)
+    lmax = max(lmax_ivf)
 
     fals = {}
     dat_cls = {}
 
     if qe_key in ['ptt', 'p']:
-        fals['tt'] = cls_cmb_filt['tt'][:lmax_ivf + 1] + cls_noise_filt['tt'][:lmax_ivf+1]
-        dat_cls['tt'] = cls_cmb_dat['tt'][:lmax_ivf + 1] + cls_noise_dat['tt'][:lmax_ivf+1]
+        fals['tt'] = cls_cmb_filt['tt'][:lmax + 1] + cls_noise_filt['tt'][:lmax + 1]
+        dat_cls['tt'] = cls_cmb_dat['tt'][:lmax + 1] + cls_noise_dat['tt'][:lmax + 1]
     if qe_key in ['p_p', 'p']:
-        fals['ee'] = cls_cmb_filt['ee'][:lmax_ivf + 1] + cls_noise_filt['ee'][:lmax_ivf+1]
-        fals['bb'] = cls_cmb_filt['bb'][:lmax_ivf + 1] + cls_noise_filt['bb'][:lmax_ivf+1]
-        dat_cls['ee'] = cls_cmb_dat['ee'][:lmax_ivf + 1] + cls_noise_dat['ee'][:lmax_ivf+1]
-        dat_cls['bb'] = cls_cmb_dat['bb'][:lmax_ivf + 1] + cls_noise_dat['bb'][:lmax_ivf+1]
+        fals['ee'] = cls_cmb_filt['ee'][:lmax + 1] + cls_noise_filt['ee'][:lmax + 1]
+        fals['bb'] = cls_cmb_filt['bb'][:lmax + 1] + cls_noise_filt['bb'][:lmax + 1]
+        dat_cls['ee'] = cls_cmb_dat['ee'][:lmax + 1] + cls_noise_dat['ee'][:lmax + 1]
+        dat_cls['bb'] = cls_cmb_dat['bb'][:lmax + 1] + cls_noise_dat['bb'][:lmax + 1]
     if qe_key in ['p']:
-        fals['te'] = np.copy(cls_cmb_filt['te'][:lmax_ivf + 1])
-        dat_cls['te'] = np.copy(cls_cmb_dat['te'][:lmax_ivf + 1])
+        fals['te'] = np.copy(cls_cmb_filt['te'][:lmax + 1])
+        dat_cls['te'] = np.copy(cls_cmb_dat['te'][:lmax + 1])
     fals = utils.cl_inverse(fals)
 
     cls_lmin_filt(lmin_tlm, lmin_elm, lmin_blm, fals)
     cls_lmin_filt(lmin_tlm, lmin_elm, lmin_blm, dat_cls)
+    cls_lmax_filt(lmax_tlm, lmax_elm, lmax_blm, fals)
+    cls_lmax_filt(lmax_tlm, lmax_elm, lmax_blm, dat_cls)
 
-    cls_w = {q: np.copy(cls_cmb_filt[q][:lmax_ivf+1]) for q in ['tt', 'te', 'ee', 'bb']}
+    cls_w = {q: np.copy(cls_cmb_filt[q]) for q in ['tt', 'te', 'ee', 'bb']}
     cls_f = {q: np.copy(cls_cmb_dat[q]) for q in ['tt', 'te', 'ee', 'bb']}
 
     cls_lmin_filt(lmin_tlm, lmin_elm, lmin_blm, cls_w)
     cls_lmin_filt(lmin_tlm, lmin_elm, lmin_blm, cls_f)
+
+    cls_lmax_filt(lmax_tlm, lmax_elm, lmax_blm, cls_w)
+    cls_lmax_filt(lmax_tlm, lmax_elm, lmax_blm, cls_f)
     
     return fals, dat_cls, cls_w, cls_f
 
@@ -302,9 +317,10 @@ def get_delcls(qe_key: str, itermax:int, cls_unl_fid: dict, cls_unl_true:dict, c
 
      """
 
-    slic = slice(0, lmax_ivf + 1)
 
     lmin_tlm, lmin_elm, lmin_blm = _lmin_ivf(lmin_ivf)
+    lmax_tlm, lmax_elm, lmax_blm = _lmin_ivf(lmax_ivf)
+    lmax = max(lmax_ivf)
 
     lmin_tlm =  max(lmin_tlm, 1) 
     lmin_elm = max(lmin_elm, 1)  
@@ -344,7 +360,7 @@ def get_delcls(qe_key: str, itermax:int, cls_unl_fid: dict, cls_unl_true:dict, c
             assert qe_key in ['p_p']
             if it == 0:
                 print('including imperfect knowledge of E in iterations')
-            slic = slice(lmin_elm, lmax_ivf + 1)
+            slic = slice(lmin_elm, lmax_elm + 1)
             rho_sqd_E = np.zeros(len(dls_unl_true[:, 1]))
             rho_sqd_E[slic] = cls_len_true['ee'][slic] * utils.cli(cls_len_true['ee'][slic] + cls_noise_true['ee'][slic]) # Assuming that the difference between lensed and unlensed EE can be neglected
             dls_unl_fid[:, 1] *= rho_sqd_E
@@ -375,9 +391,9 @@ def get_delcls(qe_key: str, itermax:int, cls_unl_fid: dict, cls_unl_true:dict, c
             for j, b in enumerate(['t', 'e', 'b'][i:]):
                 if np.any(cls_ivfs_arr[i, j + i]):
                     cls_ivfs[a + b] = cls_ivfs_arr[i, j + i]
-
-        n_gg = nhl.get_nhl(qe_key, qe_key, cls_w, cls_ivfs, lmax_ivf, lmax_ivf, lmax_out=lmax_qlm)[0]
-        r_gg_true = qresp.get_response(qe_key, lmax_ivf, 'p', cls_w, cls_f, fal, lmax_qlm=lmax_qlm)[0]
+    
+        n_gg = nhl.get_nhl(qe_key, qe_key, cls_w, cls_ivfs, lmax, lmax, lmax_out=lmax_qlm)[0]
+        r_gg_true = qresp.get_response(qe_key, lmax, 'p', cls_w, cls_f, fal, lmax_qlm=lmax_qlm)[0]
         N0_unbiased = n_gg * utils.cli(r_gg_true ** 2)  # N0 of QE estimator after rescaling by Rfid / Rtrue to make it unbiased
 
         cls_plen_true['pp'] = cldd_true * utils.cli(np.arange(len(cldd_true)) ** 2 * np.arange(1, len(cldd_true) + 1, dtype=float) ** 2 / (2. * np.pi))
@@ -443,14 +459,8 @@ def cls2N0N1(
     """
 
     fals, dat_cls, cls_w, cls_f = get_fals(qe_key, cls_cmb_filt, cls_cmb_dat, cls_noise_filt, cls_noise_dat, lmin_ivf, lmax_ivf)
+    lmax = max(lmax_ivf)
     
-    if grad_cls_fid is not None:
-        print('We use grad Cls in the QE weights ')
-        cls_w = {q: np.copy(grad_cls_fid[q][:lmax_ivf+1]) for q in ['tt', 'te', 'ee', 'bb']}
-    if grad_cls_true is not None:
-        print('We use grad Cls in the QE response')
-        cls_f = {q: np.copy(grad_cls_true[q]) for q in ['tt', 'te', 'ee', 'bb']}
-
     lib = n1_fft.n1_fft(fals, cls_w, cls_f, np.copy(cls_cmb_dat['pp']), lminbox=50, lmaxbox=5000, k2l=None)
     n1_Ls = np.arange(50, (lmax_qlm // 50) * 50  + 50, 50)
     if not doN1mat:
@@ -478,11 +488,11 @@ def cls2N0N1(
         for j, b in enumerate(['t', 'e', 'b'][i:]):
             if np.any(cls_ivfs_arr[i, j + i]):
                 cls_ivfs[a + b] = cls_ivfs_arr[i, j + i]
-    n_gg = nhl.get_nhl(qe_key, qe_key, cls_w, cls_ivfs, lmax_ivf, lmax_ivf, lmax_out=lmax_qlm)[0]
+    n_gg = nhl.get_nhl(qe_key, qe_key, cls_w, cls_ivfs, lmax, lmax, lmax_out=lmax_qlm)[0]
     # The QE is normalized by the fiducial response:
-    r_gg_fid = qresp.get_response(qe_key, lmax_ivf, 'p', cls_w, cls_cmb_filt, fals, lmax_qlm=lmax_qlm)[0]
+    r_gg_fid = qresp.get_response(qe_key, lmax, 'p', cls_w, cls_cmb_filt, fals, lmax_qlm=lmax_qlm)[0]
     if cls_cmb_dat is not cls_cmb_filt:
-        r_gg_true = qresp.get_response(qe_key, lmax_ivf, 'p', cls_w, cls_cmb_dat, fals, lmax_qlm=lmax_qlm)[0]
+        r_gg_true = qresp.get_response(qe_key, lmax, 'p', cls_w, cls_cmb_dat, fals, lmax_qlm=lmax_qlm)[0]
     else:
         r_gg_true = r_gg_fid
     N0_biased = n_gg * utils.cli(r_gg_fid ** 2)
