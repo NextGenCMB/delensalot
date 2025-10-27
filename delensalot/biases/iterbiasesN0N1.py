@@ -70,7 +70,7 @@ class iterbiases:
     """"""
     def __init__(
             self, nlev_t:float, nlev_p:float, beam_fwhm:float, lmin_ivf:int or tuple, 
-            lmax_ivf:int or tuple,, lmax_qlm:int, cls_unl_fid:dict, cls_noise_fid:dict or None=None, 
+            lmax_ivf:int or tuple, lmax_qlm:int, cls_unl_fid:dict, cls_noise_fid:dict or None=None, 
             lib_dir:str or None=None, verbose:bool =False, grad_cls=False):
         """
         Computes the iterative N0 and N1 biases, given a set of fiducial unlensed Cls unlensed.
