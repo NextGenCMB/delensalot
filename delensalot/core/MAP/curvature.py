@@ -27,13 +27,21 @@ class Base:
         setting_masked = lambda sub: {'lmax_qlm': sub.LM_max[0], 'mmax_qlm': sub.LM_max[1], 'a': 0.02, 'b': 0.399,'xa': 1, 'xb': 15}
 
         self.h0 = h0
-        bfgs_desc.update({"apply_H0k": self.apply_H0k, "apply_B0k": self.apply_B0k})
+        bfgs_desc.update({"applyH0k": self.applyH0k, "applyB0k": self.applyB0k})
         bfgs_desc.update({'cacher': cachers.cacher_npy(self.field.libdir)})
+        subs_layout = []
+        for sub in self.gradient_lib.subs:
+            for compi, comp in enumerate(sub.gfield.component):
+                subs_layout.append(sub.LM_max)
+        bfgs_desc.update({'subs_layout': subs_layout})
         self.bfgs_h = bfgs.BFGSHessian(self.h0, **bfgs_desc)
         
         setting_hb = setting_masked if sky_coverage == "masked" else setting_fullsky
         # setting_hb = setting_fullsky # NOTE need to manually set this for now
         self.stepper = {sub.ID: harmonicbump(**setting_hb(sub),) for sub in self.gradient_lib.subs}
+
+        self.iprior_list = np.diagonal(self.gradient_lib.ipriormatrix).T
+        self.dot_op = bfgs_desc.get('dot_op', np.sum)
 
 
     def add_svector(self, incr, it):
@@ -78,7 +86,7 @@ class Base:
         return ret
 
 
-    def apply_H0k(self, grad_lm:np.ndarray, kr):
+    def applyH0k(self, grad_lm:np.ndarray, kr):
         ret = np.empty_like(grad_lm)
         N = 0
         for h0 in self.h0:
@@ -88,11 +96,19 @@ class Base:
         return ret
 
 
-    def apply_B0k(self, grad_lm:np.ndarray, kr):
+    def applyB0k(self, grad_lm:np.ndarray, kr):
         ret = np.empty_like(grad_lm)
         N = 0
         for h0 in self.h0:
-            siz = Alm.getsize(len(h0), len(h0))
+            siz = Alm.getsize(len(h0)-1, len(h0)-1)
             ret[N:N+siz] = almxfl(grad_lm[N:N+siz], cli(h0), len(h0), False) #TOD0 this assumes >= 0
             N += siz
         return ret
+
+    
+    def get_curvature(self, grad_tot, it, secondary=None, component=None, idx2=None):
+        ctx, isnew = get_computation_context()
+        idx, idx2 = ctx.idx, ctx.idx2 or ctx.idx
+        for it_ in range(1,it):
+            self.bfgs_h.add_ys(self.field.fns['yk'].format(idx=idx, idx2=idx2, it=it_+1, itm1=it_), self.field.fns['sk'].format(idx=idx, idx2=idx2, it=it_, itm1=it_-1), it_-1)
+        return self.bfgs_h.get_curvature_spectra(grad_tot, it)

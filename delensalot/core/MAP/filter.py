@@ -18,7 +18,9 @@ filterfield_desc = lambda ID, libdir: {
     "ID": ID,
     "libdir": opj(libdir),
     "fns": f"{ID}_idx{{idx}}_{{idx2}}_it{{it}}",
-    "cacher_type": 'npy' if ID == 'wf' else 'NoCache'}
+    # "cacher_type": 'npy' if ID == 'wf' else 'NoCache'
+    "cacher_type": 'npy' if ID == 'wf' else 'npy'
+}
 
 def _extend_cl(cl, lmax):
     """Forces input to an array of size lmax + 1
@@ -279,7 +281,56 @@ class Filter_3d:
                 ivfreslm[0] = np.zeros_like(ivfreslm[1],dtype=complex)
                 # ivfreslm[2] = np.zeros_like(ivfreslm[1],dtype=complex)
             self.ivfres_field.cache(ivfreslm, it=it)
-        return self.ivfres_field.get_field(it=it) or ivfreslm
+        return self.ivfres_field.get_field(it=it)# or ivfreslm
+    
+
+    @log_on_start(logging.DEBUG, " ---- get_ivfreslm: {it}", logger=log)
+    @log_on_end(logging.DEBUG, " done ---- get_ivfreslm", logger=log)
+    def get_templateDiagMismatch(self, it, data=None, elm_wf=None, force_eval=False, Lc=30):
+        # assert elm_wf.shape[0] == 3, elm_wf.shape
+        # NOTE this is eq. 21 of the paper
+        if force_eval or not self.ivfres_field.is_cached(it=it):
+            assert elm_wf is not None and data is not None
+            ivfreslm = self.sec_operator.act(elm_wf)
+            assert ivfreslm.shape[0] == 3, ivfreslm.shape
+            ivfreslm = 1*self.beam_operator.act(ivfreslm)
+
+
+            lmax, mmax = 3500, 3500
+            # 3) Low-ℓ projection BEFORE N^{-1}
+            if (Lc is not None):
+                for comp_i, comp, in enumerate(range(3)):  # same layout as get_ivfreslm uses
+                    w = np.zeros(lmax+1)
+                    w[:Lc+1] = 1.0
+                    ivfreslm[comp_i] = almxfl(ivfreslm[comp_i], w, lmax, False)
+
+            if data[0].dtype in [np.complex64, np.complex128]:
+                # ivfreslm = data - ivfreslm
+                ivfreslm = self.inv_operator.act(ivfreslm, adjoint=False)
+            else:
+                # ivfresmap = [d-ivf for ivf,d in zip(ivfresmap,data)]
+                ivfresmap = [
+                    self.inv_operator.geom_lib.synthesis(ivfreslm[0], 0, *self.inv_operator.lm_max, self.sht_tr)[0],
+                    *self.inv_operator.geom_lib.synthesis(ivfreslm[1:], 2, *self.inv_operator.lm_max, self.sht_tr)
+                ]
+                ivfreslm = self.inv_operator.act(np.array(ivfresmap))
+
+
+            ivfreslm = self.beam_operator.act(ivfreslm, adjoint=False, factor_p=.5)
+            # TODO need to check why I have this if-tree here, seems fishy
+            if 'tt' in self.cls_filt and 'ee' in self.cls_filt:
+                pass
+                # ivfreslm[2] = np.zeros_like(ivfreslm[0],dtype=complex)
+            elif 'tt' in self.cls_filt:
+                ivfreslm[1] = np.zeros_like(ivfreslm[0],dtype=complex)
+                ivfreslm[2] = np.zeros_like(ivfreslm[0],dtype=complex)
+            elif 'ee' in self.cls_filt:
+                ivfreslm[0] = np.zeros_like(ivfreslm[1],dtype=complex)
+                # ivfreslm[2] = np.zeros_like(ivfreslm[1],dtype=complex)
+            if not force_eval:
+                self.ivfres_field.cache(ivfreslm, it=it)
+            return ivfreslm  # return directly when forced
+        return self.ivfres_field.get_field(it=it) #or ivfreslm
 
 
     def invert_cls_filt(self, cls_filt):

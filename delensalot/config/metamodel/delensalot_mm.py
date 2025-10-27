@@ -196,6 +196,8 @@ class DELENSALOT_MAPrec(DELENSALOT_Concept):
     filter_desc =           attr.field(default=DEFAULT_NotAValue)
     curvature_desc =        attr.field(default=DEFAULT_NotAValue)
     desc =                  attr.field(default=DEFAULT_NotAValue)
+    use_QE_for_lowL =       attr.field(default=False)
+    use_QE_starting_point = attr.field(default=False)
 
     
 @attr.s

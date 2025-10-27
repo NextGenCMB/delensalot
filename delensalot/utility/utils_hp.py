@@ -192,7 +192,7 @@ def alm_copy(alm:np.ndarray, mmaxin:int or None, lmaxout:int, mmaxout:int):
 
 
     """
-    alms = np.atleast_2d(alm)
+    alms = np.atleast_2d(alm).copy()
     ret = []
     for alm in alms:
         lmaxin = Alm.getlmax(alm.size, mmaxin)

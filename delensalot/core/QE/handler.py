@@ -168,7 +168,7 @@ class Base:
             return -1
 
 
-    def _get_h0(self):
+    def _get_h0_(self):
         lmax = self.fq.lm_max_qlm[0]
         ret = []
         for comp in self.secondary.component:
@@ -176,6 +176,30 @@ class Base:
             R_unl0 = self.get_response_unl(comp, scale=scale)
             chh_comp = self.chh[comp]
             buff = cli(R_unl0[:lmax+1] + cli(chh_comp)) * (chh_comp > 0)
+            ret.append(np.array(buff))
+        return ret
+    
+
+    def _get_h0(self, Lc=20, eps0=0.01):
+        """
+        Returns H0 with optional low-L ridge regularization.
+        Lc: transition scale (ell where ridge fades), Ridge term decays smoothly with ell^2 / (ell^2 + Lc^2)
+        eps0: ridge amplitude (this is multiplicative factor on mean of denom at low-L, and enters linearly)
+        """
+        lmax = self.fq.lm_max_qlm[0]
+        Ls = np.arange(lmax + 1)
+        # 
+
+        ret = []
+        for comp in self.secondary.component:
+            scale = 'k' if self.ID in ['lensing'] else 'p'
+            R_unl0 = self.get_response_unl(comp, scale=scale)
+            chh_comp = self.chh[comp]
+
+            denom = R_unl0[:lmax+1] + cli(chh_comp)
+            eps_L = eps0 * np.mean(denom[0:10]) * (Lc**2) / (Ls**2 + Lc**2)
+            denom_reg = denom + eps_L  # ridge regularization at low-L
+            buff = cli(denom_reg) * (chh_comp > 0)
             ret.append(np.array(buff))
         return ret
     

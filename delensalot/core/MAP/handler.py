@@ -12,15 +12,21 @@ from delensalot.utils import cli
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy, alm_copy_nd
 from delensalot.config.config_manager import get_config
 
+import healpy as hp
+import matplotlib.pyplot as plt
+
 class Minimizer:
     def __init__(self, likelihood, itmax, libdir, use_QE_starting_point=True, use_QE_for_lowL=False):
         self.itmax = itmax
         self.libdir = libdir
 
         self.likelihood: Likelihood = likelihood
+
         self.use_QE_starting_point = use_QE_starting_point
-        self.use_QE_for_lowL = use_QE_for_lowL
         # self.use_QE_starting_point = False
+
+        self.use_QE_for_lowL = use_QE_for_lowL
+        # self.use_QE_for_lowL = False
 
         self.secondaries: field.Secondary = {
             quad.ID: field.Secondary({
@@ -62,21 +68,25 @@ class Minimizer:
 
     # helper function
     def _compute_iterations(self, current_it, request_it, scale):
+        LCMB = 1
         for it in range(current_it + 1, request_it + 1):
             log.info(f'---------- starting iteration {it} ----------')
             est_prev = self.get_est(it-1, scale='d')
             est_prev = {sec: est_prev[self.likelihood.sec2idx[sec]] for sec in self.likelihood.seclist_sorted}
-            import healpy as hp
+            # print("est_prev before modifying, ", est_prev)
             if not self.use_QE_starting_point and it == 1:
                 print("Setting starting point to zero")
                 for sec, val in est_prev.items():
                     est_prev[sec] = np.zeros_like(val, dtype=complex)
             if self.use_QE_for_lowL: # NOTE this is for isoMAP setting
-                print("Using QE starting point for L<=30")
+                print("Using QE starting point for L<={} for lensing deflection gradient".format(LCMB))
                 est_qe_qlm = {sec: self.get_est(0, scale='d')[self.likelihood.sec2idx[sec]] for sec in self.likelihood.seclist_sorted}
                 for sec, val in est_prev.items():
-                    Lmax = Alm.getlmax(val.size, None)
-                    est_prev[sec][:Alm.getsize(30, Lmax)] = est_qe_qlm[sec][:Alm.getsize(30, Lmax)]
+                    if sec == 'lensing':
+                        Lmax = Alm.getlmax(val.size, None)
+                        # est_prev[sec][:,:Alm.getsize(LCMB, Lmax)] = est_qe_qlm[sec][:,:Alm.getsize(LCMB, Lmax)]
+                        est_prev[sec][0,:Alm.getsize(LCMB, Lmax)] = est_qe_qlm[sec][0,:Alm.getsize(LCMB, Lmax)]
+            # print("est_prev after modifying, ", est_prev)
             self.update_operator(est_prev)
             grad_tot = self.likelihood.get_likelihood_gradient(it=it)
             grad_tot = np.concatenate([np.ravel(arr) for arr in grad_tot])
@@ -85,6 +95,7 @@ class Minimizer:
                 grad_prev = np.concatenate([np.ravel(arr) for arr in grad_prev])
                 self.likelihood.curvature_lib.add_yvector(grad_tot, grad_prev, it)
             increment = self.likelihood.curvature_lib.get_increment(grad_tot, it)
+
             prev_klm = np.concatenate([np.ravel(arr) for arr in self._get_est(it-1, scale=scale)])
             qe_est_klm = {sec: self.get_est(0, scale='k')[self.likelihood.sec2idx[sec]] for sec in self.likelihood.seclist_sorted}
             if not self.use_QE_starting_point and it == 1:
@@ -92,13 +103,25 @@ class Minimizer:
                 prev_klm = np.zeros_like(prev_klm, dtype=complex)
             new_klms = self.likelihood.curvature_lib.grad2dict(increment + prev_klm)
             if self.use_QE_for_lowL: # NOTE this is for isoMAP setting
-                print("Keeping QE starting point for L<=30")
+                print("Keeping QE starting point for L<={} lensing deflection gradient".format(LCMB))
                 for sec, val in new_klms.items():
-                    for compi, (comp, comp_val) in enumerate(val.items()):
-                        Lmax = Alm.getlmax(comp_val.size, None)
-                        new_klms[sec][comp][:Alm.getsize(30, Lmax)] = qe_est_klm[sec][compi][:Alm.getsize(30, Lmax)]
-            self.cache_klm(new_klms, it)
+                    if sec=='lensing':
+                        for compi, (comp, comp_val) in enumerate(val.items()):
+                            if comp == 'p':
+                                Lmax = Alm.getlmax(comp_val.size, None)
+                                new_klms[sec][comp][:Alm.getsize(LCMB, Lmax)] = qe_est_klm[sec][compi][:Alm.getsize(LCMB, Lmax)]
 
+            prev_klm_ = self._get_est(it-1, scale=scale)
+            for seci, (sec, val) in enumerate(new_klms.items()):
+                for compi, (comp, comp_val) in enumerate(val.items()):
+                    fig = plt.figure(figsize=(8,6))
+                    plt.plot(hp.alm2cl(new_klms[sec][comp]), label='new klm')
+                    plt.plot(hp.alm2cl(prev_klm_[seci][compi]), label='previous klm')
+                    plt.loglog()
+                    plt.title("sec: {}, comp: {}".format(seci, compi))
+                    plt.show()
+
+            self.cache_klm(new_klms, it)
         return new_klms
 
     # helper function
@@ -197,6 +220,13 @@ class Minimizer:
                 self.likelihood.gradient_lib.wfivf_filter.wf_field.cache(np.array(wflm_QE), it=0)
                 print("finished copying wf", ctx.idx)
 
+    
+    def get_likelihood_curvature(self, it):
+        grad_tot = self.likelihood.get_likelihood_gradient(it=it-1)
+        grad_tot = np.concatenate([np.ravel(arr) for arr in grad_tot])
+        print('Got grad_tot for curvature at it=', it)
+        return self.likelihood.get_likelihood_curvature(grad_tot, it=it)
+
 
     def __getattr__(self, name):
         # NOTE this forwards the method call to the likelihood object
@@ -282,9 +312,8 @@ class Likelihood:
         return self.gradient_lib.get_gradient_total(it=it)
     
     
-    def get_likelihood_curvature(self, it):
-        return self.curvature_lib.get_curvature(it=it)
-    
+    def get_likelihood_curvature(self, grad_tot, it):
+        return self.curvature_lib.get_curvature(grad_tot, it=it)
 
     def __getattr__(self, name):
         # NOTE this forwards the method call to the gradient_lib

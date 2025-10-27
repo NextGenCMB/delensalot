@@ -561,8 +561,9 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             MAP_likelihood_desc = {'data_container': data_container, 'gradient_lib': gradient, 'libdir': libdir, "QE_searchs": QE_searchs}
             likelihood = Likelihood(**MAP_likelihood_desc)
 
-            use_QE_for_lowL = True if cf.maprec.filtering_type == 'isotropic' else False
-            MAP_minimizer_desc = {"likelihood": likelihood, 'itmax': dl.itmax, "libdir": libdir, "use_QE_starting_point": True, "use_QE_for_lowL": use_QE_for_lowL}
+            use_QE_for_lowL = cf.maprec.use_QE_for_lowL #False if cf.maprec.filtering_type == 'isotropic' else False
+            use_QE_starting_point = cf.maprec.use_QE_starting_point
+            MAP_minimizer_desc = {"likelihood": likelihood, 'itmax': dl.itmax, "libdir": libdir, "use_QE_starting_point": use_QE_starting_point, "use_QE_for_lowL": use_QE_for_lowL}
             MAP_minimizer = Minimizer(**MAP_minimizer_desc)
 
             MAP_job_desc = {

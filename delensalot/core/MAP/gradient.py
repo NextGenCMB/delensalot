@@ -265,7 +265,7 @@ class LensingGradientSub(GradSub):
         self.data_key = desc['data_key']
     
 
-    def get_gradient_quad(self, it, data=None, data_leg2=None, wflm=None, ivfreslm=None):
+    def get_gradient_quad(self, it, data=None, data_leg2=None, wflm=None, ivfreslm=None, force_eval=False):
         # NOTE this is the 3d version as in T and P are both handled
         # TODO write down equation in docstring
         # NOTE this function is equation 22 of the CMB-S4 paper (for lensing).
@@ -279,7 +279,7 @@ class LensingGradientSub(GradSub):
             assert wflm is not None and ivfreslm is not None, "wflm and ivfreslm must be provided as data container is missing"
         elif data is not None:
             data_leg2 = data_leg2 or data # NOTE these are the data to calculate ivfreslm and wf
-        if not self.gfield.is_cached(it=it, type='quad'):
+        if force_eval or not self.gfield.is_cached(it=it, type='quad'):
             if wflm is None:
                 assert self.wfivf_filter is not None, "wfivf_filter must be provided at instantiation in absence of wflm and ivfreslm"
                 wflm = self.wfivf_filter.get_wflm(it, self.data_container.get_data(idx))
@@ -320,7 +320,10 @@ class LensingGradientSub(GradSub):
             almxfl(gc[1], fl2, self.LM_max[1], True)
             # NOTE gc has flipped sign compared to Juliens implementation.
             # However, Julien stores and returns it as -G and -C, so should be fine
-            self.cache(gc, it=it, type='quad')
+                    # --- cache only if not forced ---
+            if not force_eval:
+                self.cache(gc, it=it, type='quad')
+            # return gc  # return directly when forced # NOTE only works for truly forcing, otherwise shape is wrong if not curl requested, e.g.
         return self.gfield.get_quad(it)
     
 

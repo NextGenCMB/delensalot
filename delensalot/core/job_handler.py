@@ -894,6 +894,11 @@ class MAPScheduler:
         ctx.set(idx=idx, secondary=secondary, component=component, idx2=idx2)
         return self.MAP_minimizer.get_gradient_meanfield(it=it)
     
+    def get_likelihood_curvature(self, idx, it, secondary=None, component=None, idx2=None):
+        ctx, _ = get_computation_context()
+        ctx.set(idx=idx, secondary=secondary, component=component, idx2=idx2)
+        return self.MAP_minimizer.get_likelihood_curvature(it=it)
+    
 
     def __getattr__(self, name):
         # Forward the method call to the minimizer
