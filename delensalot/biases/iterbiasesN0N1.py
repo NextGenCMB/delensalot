@@ -94,24 +94,25 @@ class iterbiases:
         self.fidcls_unl = cls_unl_fid
         lmin_tlm, lmin_elm, lmin_blm = _lmin_ivf(lmin_ivf)
         lmax_tlm, lmax_elm, lmax_blm = _lmin_ivf(lmax_ivf)
-
+        print(lmax_tlm, lmax_elm, lmax_blm)
+        lmax = max(lmax_ivf)
         if verbose:
             print(f'lmin_tlm:{lmin_tlm}, lmin_elm:{lmin_elm}, lmin_blm:{lmin_blm}')
 
         if cls_noise_fid is None:
             if verbose:
                 print('Filtering with gaussian beam and fiducial noise levels')
-            transf_tlm   =  gauss_beam(beam_fwhm/180 / 60 * np.pi, lmax=lmax_ivf['tt']) * (np.arange(lmax_ivf['tt'] + 1) >= lmin_tlm)
-            transf_elm   =  gauss_beam(beam_fwhm/180 / 60 * np.pi, lmax=lmax_ivf['ee']) * (np.arange(lmax_ivf['ee'] + 1) >= lmin_elm)
-            transf_blm   =  gauss_beam(beam_fwhm/180 / 60 * np.pi, lmax=lmax_ivf['bb']) * (np.arange(lmax_ivf['bb'] + 1) >= lmin_blm)
+            transf_tlm   =  gauss_beam(beam_fwhm/180 / 60 * np.pi, lmax=lmax) * (np.arange(lmax + 1) >= lmin_tlm)
+            transf_elm   =  gauss_beam(beam_fwhm/180 / 60 * np.pi, lmax=lmax) * (np.arange(lmax + 1) >= lmin_elm)
+            transf_blm   =  gauss_beam(beam_fwhm/180 / 60 * np.pi, lmax=lmax) * (np.arange(lmax + 1) >= lmin_blm)
 
             cls_noise_fid = {'tt': ( (nlev_t / 180 / 60 * np.pi) * utils.cli(transf_tlm) ) ** 2,
                                 'ee': ( (nlev_p / 180 / 60 * np.pi) * utils.cli(transf_elm) ) ** 2,
                                 'bb': ( (nlev_p / 180 / 60 * np.pi) * utils.cli(transf_blm) ) ** 2  }
         else:
-            cls_noise_fid['tt'] =  cls_noise_fid['tt'][:lmax_ivf['tt']+1] * (np.arange(lmax_ivf['tt'] + 1) >= lmin_tlm)
-            cls_noise_fid['ee'] =  cls_noise_fid['ee'][:lmax_ivf['ee']+1] * (np.arange(lmax_ivf['ee'] + 1) >= lmin_elm)
-            cls_noise_fid['bb'] =  cls_noise_fid['bb'][:lmax_ivf['bb']+1] * (np.arange(lmax_ivf['bb'] + 1) >= lmin_blm)
+            cls_noise_fid['tt'] =  cls_noise_fid['tt'][:lmax+1] * (np.arange(lmax + 1) >= lmin_tlm)
+            cls_noise_fid['ee'] =  cls_noise_fid['ee'][:lmax+1] * (np.arange(lmax + 1) >= lmin_elm)
+            cls_noise_fid['bb'] =  cls_noise_fid['bb'][:lmax+1] * (np.arange(lmax + 1) >= lmin_blm)
 
         self.fidcls_noise = cls_noise_fid
 
@@ -211,13 +212,14 @@ class iterbiases:
 
         """
         (nlev_t, nlev_p, beam, lmin_ivf, lmax_ivf, lmax_qlm) = self.config
+        lmax = max(lmax_ivf)
         cls_unl_fid = self.fidcls_unl
         cls_noise_fid = self.fidcls_noise
 
         if cls_noise_true is None: cls_noise_true = cls_noise_fid
         if cls_unl_true is None: cls_unl_true = cls_unl_fid
         if fn is None:
-            fn = 'delcls_' + str(qe_key) + '_it' + str(itrmax) + '_' + _dicthash(cls_noise_true, lmax_ivf, keys=['tt', 'ee', 'bb']) + _dicthash(cls_unl_true, 6000, keys = ['tt', 'te', 'ee', 'pp'])
+            fn = 'delcls_' + str(qe_key) + '_it' + str(itrmax) + '_' + _dicthash(cls_noise_true, lmax, keys=['tt', 'ee', 'bb']) + _dicthash(cls_unl_true, 6000, keys = ['tt', 'te', 'ee', 'pp'])
             if version != '':
                 fn = 'v' + version + fn
             # print(fn)
