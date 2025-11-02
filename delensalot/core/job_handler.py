@@ -24,7 +24,7 @@ from delensalot.core.mpi import check_MPI
 from delensalot.core.opfilt.bmodes_ninv import template_dense, template_bfilt
 from delensalot.core.QE import handler as QE_handler
 from delensalot.core.MAP import handler as MAP_handler, functionforwardlist
-from delensalot.core.MAP.context import get_computation_context
+from delensalot.core.MAP.context import get_computation_context, preserve_context
 
 from delensalot.sims.data_source import dirname_generator, dict2roundeddict
 
@@ -167,7 +167,7 @@ class DataContainer:
                 geomstr = 'unknown_skygeometry'
             else:
                 # some flavour provided, and we need to generate the sky and obs maps from this.
-                hashc = get_hashcode([val['component'] for val in self.data_source.sec_info.values()])
+                hashc = get_hashcode([val['component'] for val in self.data_source.sec_info.values() if isinstance(val, dict) and 'component' in val])
                 geominfo = self.data_source.sky_lib.operator_info['lensing']['geominfo'] if 'lensing' in self.data_source.sky_lib.operator_info else self.data_source.sky_lib.operator_info['birefringence']['geominfo']
                 secondary_seed_string = "_fixed_secondary_seed{}".format(self.data_source.fixed_secondary_seed) if self.data_source.fixed_secondary_seed is not None else ""
                 geomstr = get_dirname(geominfo)+"_"+hashc+secondary_seed_string
@@ -176,10 +176,11 @@ class DataContainer:
                 self.fns_sky = self.set_basename_sky()
                 # NOTE for each operator, I need sec fns
                 self.fns_sec = {}
-                for sec, operator_info in self.data_source.operator_info.items():
-                    self.fns_sec.update({sec:{}})
-                    for comp in operator_info['component']:
-                        self.fns_sec[sec][comp] = f'{sec}_{comp}lm_{{}}.npy'
+                for op, operator_info in self.data_source.operator_info.items():
+                    self.fns_sec.update({op:{}})
+                    if 'component' in operator_info:
+                        for comp in operator_info['component']:
+                            self.fns_sec[op][comp] = f'{op}_{comp}lm_{{}}.npy'
 
             hashc = get_hashcode(self.data_source.obs_info['transfunction'])
             nlev_round = dict2roundeddict(self.data_source.nlev)
@@ -350,13 +351,14 @@ class DataContainer:
 
 
         # NOTE for pri_lib we set the paths to the generated secondaries
-        for sec, secinfo in self.data_source.operator_info.items():
-            self.data_source.pri_lib.sec_info[sec]['fn'] = self.fns_sec[sec]
-            self.data_source.pri_lib.sec_info[sec]['libdir'] = self.libdir_sky
-            self.data_source.pri_lib.sec_info[sec]['space'] = 'alm'
-            self.data_source.pri_lib.sec_info[sec]['spin'] = 0
-            self.data_source.pri_lib.sec_info[sec]['lm_max'] = secinfo['lm_max']
-            self.data_source.pri_lib.sec_info[sec]['component'] = secinfo['component']
+        for op, opinfo in self.data_source.operator_info.items():
+            if 'component' in opinfo:
+                self.data_source.pri_lib.sec_info[op]['fn'] = self.fns_sec[op]
+                self.data_source.pri_lib.sec_info[op]['libdir'] = self.libdir_sky
+                self.data_source.pri_lib.sec_info[op]['space'] = 'alm'
+                self.data_source.pri_lib.sec_info[op]['spin'] = 0
+                self.data_source.pri_lib.sec_info[op]['lm_max'] = opinfo['lm_max']
+                self.data_source.pri_lib.sec_info[op]['component'] = opinfo['component']
 
 
     def get_sim_sky(self, idx, space, field, spin):
@@ -830,17 +832,15 @@ class MAPScheduler:
         ctx.set(idx=idx, idx2=idx2 or idx)
         return self.MAP_minimizer.get_template(it, QE_perturbative, secondary, component, order=order)
 
-
+    @preserve_context
     def get_wflm(self, idx, it=None, lm_max=None, idx2=None):
         # NOTE currently no support for list of secondary or it
         if it==None: it = self.maxiterdone()
         if it==0:
             return self.QE_searchs[0].get_wflm(idx, lm_max=lm_max)
         ctx, _ = get_computation_context()  # NOTE getting the singleton instance for MPI rank
-        stash = ctx.idx, ctx.idx2, ctx.component
         ctx.set(idx=idx)
         ret = self.MAP_minimizer.get_wflm(it)
-        ctx.set(idx=stash[0], idx2=stash[1], component=stash[2])
         return ret
 
 
@@ -850,7 +850,7 @@ class MAPScheduler:
             return self.QE_searchs[0].get_ivflm(idx)
         print('only available for QE, set it=0')
 
-
+    @preserve_context
     def get_ivfreslm(self, idx, it=None, idx2=None):
         ctx, _ = get_computation_context()
         stash = ctx.idx, ctx.idx2, ctx.component
@@ -863,15 +863,14 @@ class MAPScheduler:
         ctx.set(idx=stash[0], idx2=stash[1], component=stash[2])
         return ret
 
+    @preserve_context
     def maxiterdone(self, idx=None):
         ctx, _ = get_computation_context()
-        buff_ = ctx.idx, ctx.idx2
         buff = []
         idxs_ = self.idxs if idx is None else [idx]
         for idx in idxs_:
             ctx.set(idx=idx, idx2=idx)
             buff.append(self.MAP_minimizer.maxiterdone())
-        ctx.set(idx=buff_[0], idx2=buff_[1])
         return min(buff)
     
     def get_gradient_quad(self, idx, it, secondary=None, component=None, idx2=None):

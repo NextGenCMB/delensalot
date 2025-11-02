@@ -508,13 +508,13 @@ class Xpri:
 class Xsky:
     """class for generating lensed CMB and phi realizations from priensed realizations, using lenspyx for the lensing operation
     """    
-    def __init__(self, pri_lib=DNaV, geominfo=DNaV, CMB_info=DNaV, operator_info=DNaV, fixed_secondary_seed=None):
+    def __init__(self, pri_lib=DNaV, geominfo=DNaV, CMB_info=DNaV, operator_info=DNaV, fixed_secondary_seed=None, operator_order=DNaV):
         self.geominfo = geominfo
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
         self.geom_lib = get_geom(self.geominfo)
 
-        if CMB_info.get('libdir', DNaV) == DNaV: # needs being generated
+        if CMB_info.get('libdir', DNaV) == DNaV: # NOTE needs being generated
             if pri_lib != DNaV:
                 self.pri_lib = pri_lib
             else:
@@ -524,7 +524,10 @@ class Xsky:
         self.CMB_info = CMB_info
 
         self.operator_info = operator_info
-        self.operators = [self.get_operator(key, op) for key, op in operator_info.items()]
+        # NOTE this just sorts the operators according to operator_order, which is a delensalot config parameter
+        self.operators = [self.get_operator(key, op) for key, op in 
+                          (sorted(operator_info.items(), key=lambda kv: operator_order.index(kv[0])) if operator_order is not DNaV else operator_info.items())
+                          ]
         self.cacher = cachers.cacher_mem(safe=True)
 
         self.CMB_info.setdefault('spin', 0 if CMB_info['space'] == 'alm' else 2) # TODO not hundred percent sure about this
@@ -932,7 +935,7 @@ class DataSource:
     Data can be cl, pri, len, or obs, .. and alms or maps. Simhandler connects the individual libraries and decides what can be generated.
     E.g.: If obs data provided, len data cannot be generated.
     """ 
-    def __init__(self, flavour, libdir_suffix, sec_info, fixed_secondary_seed, maps=DNaV, geominfo=DNaV, fid_info=DNaV, CMB_info=DNaV, obs_info=DNaV, operator_info=DNaV):
+    def __init__(self, flavour, libdir_suffix, sec_info, fixed_secondary_seed, maps=DNaV, geominfo=DNaV, fid_info=DNaV, CMB_info=DNaV, obs_info=DNaV, operator_info=DNaV, operator_order=DNaV):
         """Entry point for simulation data handling.
         Simhandler() connects the individual librariers together accordingly, depending on the provided data.
         It never stores data on disk itself, only in memory.
@@ -968,7 +971,7 @@ class DataSource:
                 assert CMB_info['space'] in ['map','alm'], "sky CMB data can only be in map or alm space"
                 assert not (contains_DNaV(obs_info)), "need to provide complete obs_info"
                 self.cls_lib = Cls(fid_info=copy.copy(fid_info), seccomp=seccomp)
-                self.sky_lib = Xsky(pri_lib=DNaV, geominfo=geominfo, CMB_info=copy.copy(CMB_info), operator_info=copy.copy(operator_info), fixed_secondary_seed=fixed_secondary_seed)
+                self.sky_lib = Xsky(pri_lib=DNaV, geominfo=geominfo, CMB_info=copy.copy(CMB_info), operator_info=copy.copy(operator_info), fixed_secondary_seed=fixed_secondary_seed, operator_order=operator_order)
                 
                 self.libdir = self.sky_lib.CMB_info['libdir']
                 self.fns = self.sky_lib.CMB_info['fns']
@@ -979,7 +982,7 @@ class DataSource:
                 self.cls_lib = Cls(fid_info=copy.copy(fid_info), seccomp=seccomp)
 
                 self.pri_lib = Xpri(cls_lib=self.cls_lib, geominfo=geominfo, CMB_info=copy.copy(CMB_info), sec_info=copy.copy(sec_info))
-                self.sky_lib = Xsky(pri_lib=self.pri_lib, geominfo=geominfo, CMB_info=copy.copy(CMB_info), operator_info=copy.copy(operator_info), fixed_secondary_seed=fixed_secondary_seed)
+                self.sky_lib = Xsky(pri_lib=self.pri_lib, geominfo=geominfo, CMB_info=copy.copy(CMB_info), operator_info=copy.copy(operator_info), fixed_secondary_seed=fixed_secondary_seed, operator_order=operator_order)
 
             if obs_info['noise_info'].get('libdir', DNaV) == DNaV:
                 noise_lib = IsoWhiteNoise(geominfo=geominfo, noise_info=obs_info['noise_info'], libdir_suffix=libdir_suffix)
@@ -1004,6 +1007,8 @@ class DataSource:
         self.transfunction = self.obs_info['transfunction']
         self.noise_lib = self.obs_lib.noise_lib
         self.nlev = obs_info['noise_info']['nlev']
+
+        self.operator_order = operator_order
 
 
     def get_sim_sky(self, idx, space, field, spin):

@@ -6,7 +6,7 @@ import numpy as np
 from os.path import join as opj
 
 from delensalot.core.MAP import field, gradient, curvature, functionforwardlist
-from delensalot.core.MAP.context import get_computation_context
+from delensalot.core.MAP.context import get_computation_context, preserve_context
 
 from delensalot.utils import cli
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy, alm_copy_nd
@@ -52,7 +52,8 @@ class Minimizer:
             return self._get_est(request_it, secondary, component, scale)
 
         if self.maxiterdone() < 0:
-            raise RuntimeError(f"Could not find the QE starting points, expected them at {self.likelihood.secondaries['lensing'].libdir}")
+            raise RuntimeError(f"Could not find the QE starting points, expected them at {self.likelihood.secondaries['lensing'].libdir}."
+                "If you believe they should exist, they likely haven't been copied to the right location. Check if CopytoQEDir() has been called.")
         if request_it <= current_it:
             return self._get_est(request_it, secondary, component, scale)
 
@@ -124,8 +125,7 @@ class Minimizer:
             self.cache_klm(new_klms, it)
         return new_klms
 
-    # helper function
-    # FIXME merge this with get_secondary_est()
+    @preserve_context
     def _get_est(self, it, secondary=None, component=None, scale='k'):
         ctx, isnew = get_computation_context()
         component, secondary = component or ctx.component, secondary or ctx.secondary

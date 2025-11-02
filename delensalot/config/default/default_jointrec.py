@@ -38,7 +38,7 @@ DL_DEFAULT = {
             'lensing':{
                 'component': ['p','w'],
                 'space': 'cl',
-                'geominfo': ('thingauss', {'lmax': 4500, 'smax': 3}), # NOTE this is the geometry of the provided ssecondary maps
+                'geominfo': ('thingauss', {'lmax': 4500, 'smax': 3}), # NOTE this is the geometry of the provided secondary maps
                 'libdir': DNaV,
                 'fn': DNaV,
                 'scale': DNaV,
@@ -84,6 +84,7 @@ DL_DEFAULT = {
             },
         },
         'fixed_secondary_seed': 0, # None or integer to fix the seed for secondary map generation
+        'operator_order': ['birefringence', 'lensing'],
     },
     'analysis': { 
         'estimator_key': 'pwf_p',
@@ -110,6 +111,7 @@ DL_DEFAULT = {
                 'component': ['f'],
             },
         },
+        'seclist_sorted': ['lensing', 'birefringence'],
     },
     'qerec':{
         'tasks': ['calc_fields'],
@@ -123,6 +125,8 @@ DL_DEFAULT = {
         'cg_tol': 1e-7,
         'mfvar': '',
         'soltn_cond': lambda it: True,
+        "use_QE_starting_point": True,
+        "use_QE_for_lowL": False,
     },
     'noisemodel': {
         'spatial_type': 'isotropic',

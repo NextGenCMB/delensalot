@@ -89,7 +89,7 @@ class DELENSALOT_Analysis(DELENSALOT_Concept):
     transfer_has_pixwindow =attr.field(default=DEFAULT_NotAValue)
     CLfids =                attr.field(default=DEFAULT_NotAValue)
     secondary =             attr.field(default=DEFAULT_NotAValue)
-    seclist_sorted =        attr.field(default=['lensing', 'birefringence'])
+    operator_order =        attr.field(default=DEFAULT_NotAValue)
 
 
 @attr.s
@@ -118,6 +118,7 @@ class DELENSALOT_DataSource(DELENSALOT_Concept):
     obs_info =              attr.field(default=DEFAULT_NotAValue)
     operator_info =         attr.field(default=DEFAULT_NotAValue)
     fixed_secondary_seed =  attr.field(default=DEFAULT_NotAValue)
+    operator_order =        attr.field(default=DEFAULT_NotAValue)
 
 
 @attr.s
@@ -196,8 +197,8 @@ class DELENSALOT_MAPrec(DELENSALOT_Concept):
     filter_desc =           attr.field(default=DEFAULT_NotAValue)
     curvature_desc =        attr.field(default=DEFAULT_NotAValue)
     desc =                  attr.field(default=DEFAULT_NotAValue)
-    use_QE_for_lowL =       attr.field(default=False)
-    use_QE_starting_point = attr.field(default=False)
+    use_QE_for_lowL =       attr.field(default=DEFAULT_NotAValue)
+    use_QE_starting_point = attr.field(default=DEFAULT_NotAValue)
 
     
 @attr.s
@@ -342,7 +343,7 @@ class DELENSALOT_Model(DELENSALOT_Concept):
                 # while at the same time setting the defaults for that secondary if the user did not specify
                 for value in default_dict[default_key]:
                     target_attr = getattr(self, default_key)
-                    if value in ['sec_info']:#, 'secondary']:
+                    if value in ['sec_info']: #, 'secondary']:
                         attr_value = getattr(target_attr, value)
                         if attr_value == DEFAULT_NotAValue:
                             # NOTE if no sec_info is given, we need to set the default sec_info

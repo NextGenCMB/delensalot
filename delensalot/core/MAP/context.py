@@ -5,6 +5,9 @@ from delensalot.core import mpi
 from delensalot.core.mpi import check_MPI
 
 
+import functools
+
+
 class ComputationContext:
     _instances = {}
 
@@ -52,3 +55,20 @@ class ComputationContext:
 # Global function to get the context
 def get_computation_context():
     return ComputationContext()
+
+
+
+def preserve_context(func):
+    """Decorator: stash and restore computation context around func."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        # assumes first argument has get_computation_context() method or import scope
+        ctx, _ = get_computation_context()
+        stash = (ctx.idx, ctx.idx2, ctx.component, ctx.secondary)
+        try:
+            return func(*args, **kwargs)
+        finally:
+            # restore context parameters even if func raises
+            ctx.set(idx=stash[0], idx2=stash[1],
+                    component=stash[2], secondary=stash[3])
+    return wrapper
