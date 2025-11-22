@@ -121,6 +121,7 @@ class Minimizer:
                     plt.loglog()
                     plt.title("sec: {}, comp: {}".format(seci, compi))
                     plt.show()
+                    plt.close()
 
             self.cache_klm(new_klms, it)
         return new_klms
@@ -144,24 +145,41 @@ class Minimizer:
         ctx, isnew = get_computation_context()
         secondary = ctx.secondary or list(self.secondaries.keys())
         ret = []
-        for sec in secondary:
-            # scale = 'd' if sec in ['lensing'] else 'k'
-            ret.append(self.secondaries[sec].get_est(it=it, scale=scale))
+        if isinstance(secondary, (list, np.ndarray)):
+            for sec in secondary:
+                # scale = 'd' if sec in ['lensing'] else 'k'
+                ret.append(self.secondaries[sec].get_est(it=it, scale=scale))
+        else:
+            ret.append(self.secondaries[secondary].get_est(it=it, scale=scale))
         return ret
         
 
-    # def _get_est_meanfield(self, it, secondary=None, component=None, scale='k'):
-    #     ctx, isnew = get_computation_context()
-    #     component, secondary = component or ctx.component, secondary or ctx.secondary
-    #     secondary = secondary or [sec for sec in self.likelihood.secondaries.keys()]
-    #     ctx.set(secondary=secondary, component=component)
-    #     ret = []
-    #     if isinstance(it, (list, np.ndarray)):
-    #         for it_ in it:
-    #             ret.append(self.likelihood.get_est_meanfield(it_, scale=scale))
-    #         return ret
-    #     else:
-    #         return self.likelihood.get_est_meanfield(it, scale=scale)
+    @preserve_context
+    def get_gradient_meanfield(self, it, idxs, secondary=None, component=None, scale='k'):
+        # TODO this returns wrong result if meanfields not in MAP directory...
+        ctx, isnew = get_computation_context()
+        component = component or ctx.component
+        secondary = secondary or ctx.secondary or list(self.likelihood.secondaries.keys())
+        ctx.set(secondary=secondary, component=component)
+
+        ret_sum = None
+        count = 0
+        for idx_ in idxs:
+            ctx.set(idx=idx_)
+            est = self.get_secondary_est(it=it, scale=scale)
+
+            if ret_sum is None:
+                ret_sum = [np.zeros_like(a, dtype=complex) for a in est]
+
+            for i, a in enumerate(est):
+                ret_sum[i] += a
+            count += 1
+        if count > 0:
+            ret_mean = [a / count for a in ret_sum]
+        else:
+            ret_mean = []
+
+        return ret_mean
 
 
     def get_template(self, it, QE_perturbative=True, secondary=None, component=None, order='reversed'):
@@ -209,11 +227,11 @@ class Minimizer:
             if not all(self.secondaries[secname].is_cached(it=0)):
                 klm_QE = QE_searchs[self.sec2idx[secname]].get_est(ctx.idx)
                 self.secondaries[secname].cache_klm(klm_QE, it=0)
-                print("finished copying secondaries", ctx.idx)
+                print(f"finished copying secondary {secname}", ctx.idx)
             if not self.likelihood.gradient_lib.subs[self.sec2idx[secname]].gfield.is_cached(it=0, type='meanfield'):
                 kmflm_QE = QE_searchs[self.sec2idx[secname]].get_kmflm(ctx.idx)
                 self.likelihood.gradient_lib.subs[self.sec2idx[secname]].gfield.cache(kmflm_QE, it=0, type='meanfield')
-                print("finished copying meanfields", ctx.idx)
+                print(f"finished copying meanfield {secname}", ctx.idx)
             if not self.likelihood.gradient_lib.wfivf_filter.wf_field.is_cached(it=0):
                 lm_max_out = config.lm_max_pri
                 wflm_QE = QE_searchs[self.sec2idx[secname]].get_wflm(ctx.idx, lm_max_out)
@@ -240,7 +258,7 @@ class Minimizer:
 class Likelihood:
     def __init__(self, data_container, gradient_lib, libdir, QE_searchs):
         self.data = None
-        self.data_container = data_container
+        self.data_container = data_container # TODO looks like this can be removed
         self.libdir = libdir
         self.QE_searchs = QE_searchs
 

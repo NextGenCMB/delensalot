@@ -61,7 +61,7 @@ def enable():
     verbose = True
     has_key = lambda key : key in os.environ.keys()
     if '_' in os.environ:
-        mpisupport = 'srun' in os.environ['_'] or 'mpirun' in os.environ['_']
+        mpisupport = 'srun' in os.environ['_'] or 'mpirun' in os.environ['_'] or 'mpiexec' in os.environ['_']
     else:
         mpisupport = False
     pmisupport = 'PMI_CRAY_NO_SMP_ORDER' in os.environ.keys()

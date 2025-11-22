@@ -83,14 +83,14 @@ DL_DEFAULT = {
                 'geominfo': ('thingauss',{'lmax': 4500, 'smax': 3}),
             },
         },
-        'fixed_secondary_seed': 0, # None or integer to fix the seed for secondary map generation
+        'fixed_secondary_seed': None, # None or integer to fix the seed for secondary map generation
         'operator_order': ['birefringence', 'lensing'],
     },
     'analysis': { 
         'estimator_key': 'pwf_p',
         'idxs': np.arange(0,1),
         'TEMP_suffix': 'P_FS_CMBS4_jointsecrec',
-        'Lmin': {'p':2, 'w': 2, 'f': 2}, 
+        'Lmin': {'p':2, 'w': 2, 'f': 1}, 
         'LM_max': (4200, 4200), # NOTE this is max reconstructed secondary
         'lm_max_pri': (4000, 4000), # NOTE this is for CMB
         'lm_max_sky': (4000, 4000), # NOTE this is for CMB

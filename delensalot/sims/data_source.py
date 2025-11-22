@@ -498,10 +498,10 @@ class Xpri:
         hashed_seed = int(hashlib.sha256(combined_str).hexdigest(), 16) % (2**32)  # Convert to 32-bit int
         np.random.seed(hashed_seed)
         if secondary not in self.sec_info:
-            lm_max = list(self.sec_info.values())[0]['lm_max']
+            LM_max = list(self.sec_info.values())[0]['LM_max']
         else:
-            lm_max = self.sec_info[secondary]['LM_max']
-        sec = hp.synalm(clp, lm_max[0])
+            LM_max = self.sec_info[secondary]['LM_max']
+        sec = hp.synalm(clp, LM_max[0])
         return sec
 
 
@@ -1035,9 +1035,17 @@ class DataSource:
     def get_fidsec(self, idx, secondary=None, component=None, return_nonrec=False):
         return self.cls_lib.get_fidsec(idx=idx, secondary=secondary, component=component, return_nonrec=return_nonrec)
     
-    
+    def purgecache_all(self):
+        libs = ['obs_lib', 'noise_lib', 'sky_lib', 'pri_lib']
+        for lib in libs:
+            if lib in self.__dict__:
+                if len(list(self.__dict__[lib].cacher._cache.keys())) > 0:
+                    print(f'DataSource: purging lib {lib} cachers to release memory: {list(self.__dict__[lib].cacher._cache.keys())}')
+                    for key in np.copy(list(self.__dict__[lib].cacher._cache.keys())):
+                        self.__dict__[lib].cacher.remove(key)
+
     def purgecache(self):
-        libs = ['obs_lib', 'noise_lib', 'sky_lib'] #  'pri_lib'
+        libs = ['obs_lib', 'noise_lib', 'sky_lib', 'pri_lib'] #  'pri_lib'
         for lib in libs:
             if lib in self.__dict__:
                 if len(list(self.__dict__[lib].cacher._cache.keys())) > 0:

@@ -26,9 +26,10 @@ complist_lensing_template_idx = {val: i for i, val in enumerate(complist_lensing
 complist_birefringence_template = ['f']
 
 class Base:
-    def __init__(self, CLfids, estimator_key, QE_filterqest_desc, ID='generic', libdir=None, idxs_mf=[], subtract_meanfield=True, init_filterqest=False, qmflm_fn=None):
+    def __init__(self, CLfids, CLfidsNoLmin, estimator_key, QE_filterqest_desc, ID='generic', libdir=None, idxs_mf=[], subtract_meanfield=True, init_filterqest=False, qmflm_fn=None):
         self.estimator_key = estimator_key
         self.CLfids = CLfids
+        self.CLfidsNoLmin = CLfidsNoLmin
         self.idxs_mf = idxs_mf
         self.subtract_meanfield = subtract_meanfield
         self.ID = ID or 'generic'
@@ -87,6 +88,7 @@ class Base:
             qlm = self.get_qlm(idx, component)
             Lmax = Alm.getlmax(qlm.size, None)
             _submf = subtract_meanfield or self.subtract_meanfield
+            if idx==0: print(f"(only printing idx 0) _submf = {_submf}")
             if _submf:
                 mf_qlm = self.get_qmflm(idx, self.idxs_mf, component=component)
                 qlm -= mf_qlm
@@ -102,10 +104,11 @@ class Base:
 
     def get_qmflm(self, idx, idxs, component=None):
         if component is None:
-            return np.array([self.get_qmflm(idxs, component) for component in self.secondary.component])
+            return np.array([self.get_qmflm(idx=idx, idxs=idxs, component=component) for component in self.secondary.component])
         if isinstance(component, list):
-            return np.array([self.get_qmflm(idxs, comp).squeeze() for comp in component])
+            return np.array([self.get_qmflm(idx=idx, idxs=idxs, component=comp).squeeze() for comp in component])
         if self.qmflm_fn[component] is not None:
+            assert 0, "I think it works, but not sure I want to keep it"
             mf_qlm = np.atleast_2d(np.load(self.qmflm_fn[component]))
             print("MAKE SURE idxs for mf_qlm is correct!")
             idxs = np.arange(10)
@@ -118,13 +121,13 @@ class Base:
             return mf_qlm
 
 
-    def get_kmflm(self, idx, component=None, scale='k', idxs_mf=None):
+    def get_kmflm(self, idx, idxs_mf=None, component=None, scale='k'):
         idxs_mf = idxs_mf if idxs_mf is not None else self.idxs_mf
         # NOTE not caching index-fixed meanfields, as this would require too much memory.
         if component is None:
-            return np.array([self.get_kmflm(idx, component, idxs_mf=idxs_mf).squeeze() for component in self.secondary.component])
+            return np.array([self.get_kmflm(idx=idx, idxs_mf=idxs_mf, component=component).squeeze() for component in self.secondary.component])
         if isinstance(component, list):
-            return np.array([self.get_kmflm(idx, comp, idxs_mf=idxs_mf).squeeze() for comp in component])
+            return np.array([self.get_kmflm(idx=idx, idxs_mf=idxs_mf, component=comp).squeeze() for comp in component])
 
         if self.qmflm_fn[component] is None and len(idxs_mf) <= 2: # NOTE this is really just a lower bound
             return np.zeros(shape=(1, Alm.getsize(*self.fq.lm_max_qlm)), dtype=complex)
@@ -133,11 +136,11 @@ class Base:
 
         Lmax = Alm.getlmax(kmflm.size, None)
         R = self.get_response_len(component)
-        WF = self.secondary.CLfids[component*2][:Lmax+1] * cli(self.secondary.CLfids[component*2][:Lmax+1] + cli(R))  # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
+        WF = self.CLfidsNoLmin[component*2][:Lmax+1] * cli(self.CLfidsNoLmin[component*2][:Lmax+1] + cli(R))  # Isotropic Wiener-filter (here assuming for simplicity N0 ~ 1/R)
         kmflm = alm_copy_nd(kmflm, None, (Lmax,Lmax))
         almxfl_nd(kmflm, cli(R), Lmax, True) # Normalized QE
         almxfl_nd(kmflm, WF, Lmax, True) # Wiener-filter QE
-        almxfl_nd(kmflm, self.secondary.CLfids[component*2][:Lmax+1] > 0, Lmax, True)
+        almxfl_nd(kmflm, self.CLfidsNoLmin[component*2][:Lmax+1] > 0, Lmax, True)
         kmflm = self._rescale(kmflm, scale='k')
         assert scale == 'k', "Only k scale is supported for kmflm at this time" # TODO can be implemented via _rescale_k2h
         return kmflm
@@ -168,7 +171,7 @@ class Base:
             return -1
 
 
-    def _get_h0_(self):
+    def _get_h0(self):
         lmax = self.fq.lm_max_qlm[0]
         ret = []
         for comp in self.secondary.component:
@@ -180,28 +183,28 @@ class Base:
         return ret
     
 
-    def _get_h0(self, Lc=20, eps0=0.01):
-        """
-        Returns H0 with optional low-L ridge regularization.
-        Lc: transition scale (ell where ridge fades), Ridge term decays smoothly with ell^2 / (ell^2 + Lc^2)
-        eps0: ridge amplitude (this is multiplicative factor on mean of denom at low-L, and enters linearly)
-        """
-        lmax = self.fq.lm_max_qlm[0]
-        Ls = np.arange(lmax + 1)
-        # 
+    # def _get_h0(self, Lc=20, eps0=0.01):
+    #     """
+    #     Returns H0 with optional low-L ridge regularization.
+    #     Lc: transition scale (ell where ridge fades), Ridge term decays smoothly with ell^2 / (ell^2 + Lc^2)
+    #     eps0: ridge amplitude (this is multiplicative factor on mean of denom at low-L, and enters linearly)
+    #     """
+    #     lmax = self.fq.lm_max_qlm[0]
+    #     Ls = np.arange(lmax + 1)
+    #     # 
 
-        ret = []
-        for comp in self.secondary.component:
-            scale = 'k' if self.ID in ['lensing'] else 'p'
-            R_unl0 = self.get_response_unl(comp, scale=scale)
-            chh_comp = self.chh[comp]
+    #     ret = []
+    #     for comp in self.secondary.component:
+    #         scale = 'k' if self.ID in ['lensing'] else 'p'
+    #         R_unl0 = self.get_response_unl(comp, scale=scale)
+    #         chh_comp = self.chh[comp]
 
-            denom = R_unl0[:lmax+1] + cli(chh_comp)
-            eps_L = eps0 * np.mean(denom[0:10]) * (Lc**2) / (Ls**2 + Lc**2)
-            denom_reg = denom + eps_L  # ridge regularization at low-L
-            buff = cli(denom_reg) * (chh_comp > 0)
-            ret.append(np.array(buff))
-        return ret
+    #         denom = R_unl0[:lmax+1] + cli(chh_comp)
+    #         eps_L = eps0 * np.mean(denom[0:10]) * (Lc**2) / (Ls**2 + Lc**2)
+    #         denom_reg = denom + eps_L  # ridge regularization at low-L
+    #         buff = cli(denom_reg) * (chh_comp > 0)
+    #         ret.append(np.array(buff))
+    #     return ret
     
 
     def _rescale(self, hlm, scale):

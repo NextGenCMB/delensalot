@@ -7,18 +7,18 @@ import os, sys
 import logging
 import traceback
 
-from rich.logging import RichHandler
-from rich.traceback import install
-from rich.console import Console
-from rich.traceback import Traceback
+# from rich.logging import RichHandler
+# from rich.traceback import install
+# from rich.console import Console
+# from rich.traceback import Traceback
 
 from logdecorator import log_on_start, log_on_end
 import logdecorator
 
 # Hide frames coming from logdecorator and the logging module
-install()
+# install()
 
-console = Console()
+# console = Console()
 
 # Custom excepthook
 def filter_excepthook(exc_type, exc_value, tb):
@@ -30,11 +30,11 @@ def filter_excepthook(exc_type, exc_value, tb):
             filtered_tb.append(tb)
         tb = tb.tb_next
 
-    rich_tb = Traceback.from_exception(exc_type, exc_value, exc_value.__traceback__)
-    console.print(rich_tb)
+    # rich_tb = Traceback.from_exception(exc_type, exc_value, exc_value.__traceback__)
+    # console.print(rich_tb)
 
 # Override the default excepthook
-sys.excepthook = filter_excepthook
+# sys.excepthook = filter_excepthook
 
 import delensalot.core.mpi as mpi
 

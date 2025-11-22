@@ -28,6 +28,7 @@ safelist = [
     'mfvar', #not really safe, but ok for now as long as you know what you do
     'operator_info',
     "subtract_QE_meanfield",
+    "Lmin", # safe if MAP folder deleted
 ]
 
 DEFAULT_NotAValue = -123456789

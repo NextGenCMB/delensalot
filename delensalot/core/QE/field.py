@@ -18,8 +18,8 @@ class Secondary:
 
         self.qlm_fns = {sec: f"qlm_{sec}_simidx{{idx}}" for sec in self.component}
         self.klm_fns = {sec: f"klm_{sec}_simidx{{idx}}" for sec in self.component}
-        self.qmflm_fns = {sec: f"qmflm_{sec}_simidx{{idx}}" for sec in self.component}
-        self.kmflm_fns = {sec: f"kmflm_{sec}_simidx{{idx}}" for sec in self.component}
+        self.qmflm_fns = {sec: f"qmflm_{sec}_simidx{{idx}}_suffix{{suffix}}" for sec in self.component}
+        self.kmflm_fns = {sec: f"kmflm_{sec}_simidx{{idx}}_suffix{{suffix}}" for sec in self.component}
         
         self.cacher = cachers.cacher_npy(self.libdir, verbose=False)
 
@@ -44,20 +44,20 @@ class Secondary:
         self.cacher.cache(self.qlm_fns[component].format(idx=simidx), klm)
 
 
-    def cache_qmflm(self, qmflm, simidx, component=None):
+    def cache_qmflm(self, qmflm, simidx, component=None, suffix=''):
         if component is None:
             assert len(qmflm) == len(self.component), "%d %d"%(len(qmflm), len(self.component))
             for ci, component in enumerate(self.component):
                 self.cache_qmflm(qmflm[ci], component)
-        self.cacher.cache(self.qmflm_fns[component].format(idx=simidx), qmflm)
+        self.cacher.cache(self.qmflm_fns[component].format(idx=simidx, suffix=suffix), qmflm)
 
 
-    def cache_kmflm(self, kmflm, simidx, component=None):
+    def cache_kmflm(self, kmflm, simidx, component=None, suffix=''):
         if component is None:
             assert len(kmflm) == len(self.component), "%d %d"%(len(kmflm), len(self.component))
             for ci, component in enumerate(self.component):
                 self.cache_kmflm(kmflm[ci], component)
-        self.cacher.cache(self.kmflm_fns[component].format(idx=simidx), kmflm)
+        self.cacher.cache(self.kmflm_fns[component].format(idx=simidx, suffix=suffix), kmflm)
 
 
     def cache_klm(self, klm, simidx, component=None):
@@ -67,15 +67,15 @@ class Secondary:
         self.cacher.cache(self.klm_fns[component].format(idx=simidx), klm)
 
 
-    def is_cached(self, simidx, component, type='qlm'):
+    def is_cached(self, simidx, component, type='qlm', suffix=''):
         if type == 'klm':
             return self.cacher.is_cached(self.klm_fns[component].format(idx=simidx))
         elif type == 'qlm':
             return self.cacher.is_cached(self.qlm_fns[component].format(idx=simidx))
         elif type == 'qmflm':
-            return self.cacher.is_cached(self.qmflm_fns[component].format(idx=simidx))
+            return self.cacher.is_cached(self.qmflm_fns[component].format(idx=simidx, suffix=suffix))
         elif type == 'kmflm':
-            return self.cacher.is_cached(self.kmflm_fns[component].format(idx=simidx))
+            return self.cacher.is_cached(self.kmflm_fns[component].format(idx=simidx, suffix=suffix))
 
 
     def _rescale(self, hlm, scale):

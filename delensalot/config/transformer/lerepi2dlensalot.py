@@ -23,7 +23,7 @@ from delensalot.core.job_handler import OBDBuilder, DataContainer, QEScheduler, 
 from delensalot.core.MAP import curvature, operator
 from delensalot.core.MAP.filter import Filter_3d as Filter
 from delensalot.core.MAP.handler import Likelihood, Minimizer
-from delensalot.core.MAP.gradient import Gradient, BirefringenceGradientSub, LensingGradientSub, GradSub
+from delensalot.core.MAP.gradient import Gradient, BirefringenceGradientSub, LensingGradientSub, GradSub #, LensingGradientSubCompound, BirefringenceGradientSubCompund
 
 from delensalot.config.config_manager import set_config
 from delensalot.config.config_helper import PLANCKLENS_keys, generate_plancklenskeys, filter_secondary_and_component
@@ -98,6 +98,39 @@ def _grad_builder_lensing(dl, libdir, extras):
     return lens_grad, chh_list
 
 
+
+def _gradCompound_builder_lensing(dl, libdir, extras):
+    # expects extras['operators'][sec] present or will rebuild operator locally
+    op_obj = extras['operators'].get("lensing", None)
+    wfivf_filter = extras.get("wfivf_filter", None)
+    data_container = extras.get("data_container", None)
+
+    CLfids_lens = dl.CLfids['lensing']
+    chh_dict = {
+        comp: CLfids_lens[comp * 2][: dl.LM_max[0] + 1]
+              * (0.5 * np.arange(dl.LM_max[0] + 1) * np.arange(1, dl.LM_max[0] + 2)) ** 2
+        for comp in dl.analysis_secondary["lensing"]["component"]
+    }
+
+    quad_desc = {
+        "wfivf_filter": wfivf_filter,
+        "data_container": data_container,
+        "libdir": libdir,
+        "LM_max": dl.LM_max,
+        "sht_tr": dl.sht_tr,
+        "component": dl.analysis_secondary["lensing"]["component"],
+        "ID": "lensing",
+        "sec_operator": operator.Secondary([op_obj]) if op_obj is not None else operator.Secondary([_op_builder_lensing(dl, libdir, extras)]),
+        "chh": chh_dict,
+        "data_key": dl.data_key,
+        "geomlib": get_geom(('thingauss', {'lmax': 4500, 'smax': 3})),
+    }
+
+    lens_grad = LensingGradientSubCompound(quad_desc)
+    chh_list = list(chh_dict.values())
+    return lens_grad, chh_list
+
+
 def _op_builder_bire(dl, libdir, extras):
     desc = {
         "LM_max": dl.LM_max,
@@ -134,6 +167,34 @@ def _grad_builder_bire(dl, libdir, extras):
     }
 
     bire_grad = BirefringenceGradientSub(quad_desc)
+    chh_list = list(chh_dict.values())
+    return bire_grad, chh_list
+
+
+def _gradCompound_builder_bire(dl, libdir, extras):
+    op_obj = extras['operators'].get("birefringence", None)
+    wfivf_filter = extras.get("wfivf_filter", None)
+    data_container = extras.get("data_container", None)
+
+    CLfids_bire = dl.CLfids['birefringence']
+    chh_dict = {
+        comp: CLfids_bire[comp * 2][: dl.LM_max[0] + 1]
+        for comp in dl.analysis_secondary["birefringence"]["component"]
+    }
+
+    quad_desc = {
+        "wfivf_filter": wfivf_filter,
+        "data_container": data_container,
+        "libdir": libdir,
+        "LM_max": dl.LM_max,
+        "sht_tr": dl.sht_tr,
+        "component": dl.analysis_secondary["birefringence"]["component"],
+        "ID": "birefringence",
+        "sec_operator": operator.Secondary([op_obj]) if op_obj is not None else operator.Secondary([_op_builder_bire(dl, libdir, extras)]),
+        "chh": chh_dict,
+    }
+
+    bire_grad = BirefringenceGradientSubCompound(quad_desc)
     chh_list = list(chh_dict.values())
     return bire_grad, chh_list
 
@@ -336,7 +397,9 @@ class l2base_Transformer:
         elif isinstance(cf.analysis.Lmin, (int, list, np.ndarray)):
             dl.Lmin = {comp: cf.analysis.Lmin if isinstance(cf.analysis.Lmin, int) or len(cf.analysis.Lmin) == 1 
                     else cf.analysis.Lmin[i] for i, comp in enumerate(complist_sorted)}
+        dl.noLmin = {key: 1. for key in dl.Lmin.keys()}
         dl.CLfids = dl.data_source.get_CLfids(0, dl.analysis_secondary, dl.Lmin)
+        dl.CLfidsNoLmin = dl.data_source.get_CLfids(0, dl.analysis_secondary, dl.noLmin)
 
         dl.cls_len = camb_clfile(an.cls_len)
         dl.zbounds = (-1,1)
@@ -469,6 +532,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             QE_searchs_desc = {sec: {
                 "estimator_key": buff[sec],
                 'CLfids': dl.CLfids[sec],
+                "CLfidsNoLmin": dl.CLfidsNoLmin[sec], # Note I need this solely to keep the low L in the meanfield
                 "subtract_meanfield": dl.subtract_QE_meanfield,
                 "QE_filterqest_desc": QE_filterqest_desc,
                 "ID": sec,
@@ -501,6 +565,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
             QE_scheduler = self.build_QE_lensrec(cf)
             QE_searchs = QE_scheduler.QE_searchs
+
             data_container = self.build_datacontainer(cf)
 
             seclist_local = [s for s in dl.seclist_sorted if s in dl.analysis_secondary]
@@ -516,7 +581,9 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             # so have to set it before registering
             set_config(dl)
             SecondaryRegistry.register("lensing", _op_builder_lensing, _grad_builder_lensing)
+            # SecondaryRegistry.register("lensingCompound", _op_builder_lensing, _gradCompound_builder_lensing)
             SecondaryRegistry.register("birefringence", _op_builder_bire, _grad_builder_bire)
+            # SecondaryRegistry.register("birefringenceCompound", _op_builder_bire, _bireCompound_builder_lensing)
 
             filter_ops = []
             ops_map = {}
@@ -525,8 +592,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
                 filter_ops.append(op_obj)
                 ops_map[sec] = op_obj
 
-            # NOTE gradients are sorted in the order of the secondaries, but the secondary operator, I want to act birefringence first.
-            # FIXME what's the motivation again?
             sec_operator = operator.Secondary(filter_ops)
 
             mask_ = cf.analysis.mask_fn if cf.analysis.mask_fn is not None else ""
@@ -546,7 +611,19 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
             grad_subs = []
             chh_all = []
+
             extras = {'data_container': data_container, 'wfivf_filter': wfivf_filter, 'operators': ops_map}
+            # if "_" in dl.estimator_key:
+            #     dl.data_key = an.estimator_key.split('_')[1]
+            # else:
+            #     dl.data_key = an.estimator_key[-2:]
+            #COMPOUND
+            # if dl.data_key == 'eb':
+            #     for sec in seclist_local:
+            #         grad_obj, chh_list = SecondaryRegistry.build_grad(sec+"Compound", dl, libdir, extras=extras)
+            #         grad_subs.append(grad_obj)
+            #         chh_all.extend(chh_list)
+            # else:
             for sec in seclist_local:
                 grad_obj, chh_list = SecondaryRegistry.build_grad(sec, dl, libdir, extras=extras)
                 grad_subs.append(grad_obj)

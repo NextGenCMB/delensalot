@@ -466,9 +466,10 @@ class DataContainer:
                     assert 0, 'implement if needed'
 
 
-    def get_data(self, idx):
+    def get_data(self, idx, data_key=None):
         # NOTE wrapper to access data that is both masked or unmasked, as data_source does not support masked data if generated.
         # If data is already masked, this will doubly mask the data.. not sure we want this 
+        data_key_ = data_key or self.data_key
         space = 'alm' if self.sky_coverage == 'full' else 'map'
         if space == 'alm':
             lm_max_ = self.lm_max_sky
@@ -476,15 +477,15 @@ class DataContainer:
             # earr = np.zeros(shape=pobs.shape[-1],dtype=complex)
             earr = np.zeros(shape=Alm.getsize(*lm_max_),dtype=complex)
             pobs = alm_copy_nd(pobs, None, lm_max_)
-            if self.data_key in ['p', 'eb', 'be']:
+            if data_key_ in ['p', 'eb', 'be']:
                 ret = [earr, *pobs]
-            elif self.data_key in ['ee']:
+            elif data_key_ in ['ee']:
                 ret = [earr, alm_copy_nd(pobs, None, lm_max_)[0], earr]
                 if space == 'map':
                     assert 0, 'implement if needed'
-            elif self.data_key in ['tt']:
+            elif data_key_ in ['tt']:
                 ret = [alm_copy_nd(self.data_source.get_sim_obs(idx, space='alm', spin=0, field='temperature'), None, lm_max_), earr, earr]
-            elif self.data_key in ['tp']:
+            elif data_key_ in ['tp']:
                 Tobs = alm_copy_nd(self.data_source.get_sim_obs(idx, space='alm', spin=0, field='temperature'), None, lm_max_)   
                 pobs = alm_copy_nd(pobs, None, lm_max_)
                 ret = [Tobs, *pobs]
@@ -497,21 +498,21 @@ class DataContainer:
             # Tobs = hp.alm2map(Tobs, nside=nside)
             # QUobs = hp.alm2map_spin(QUobs, nside=nside, spin=2, lmax=lm_max_[0], mmax=lm_max_[1])
             # if self.estimator_key in ['p_p', 'p_eb', 'peb', 'p_be', 'pee']:
-            if self.data_key in ['p', 'eb', 'be']:
+            if data_key_ in ['p', 'eb', 'be']:
                 buff = np.array(self.data_source.get_sim_pmap(idx), dtype=float)
                 ret = np.array([np.zeros_like(buff[0]), *buff])
                 return ret
-            elif self.data_key in ['ee']:
+            elif data_key_ in ['ee']:
                 # FIXME running on ee only means I need to get only E, but get_sim_pmap returns both Q and U, so "truncation" should actually happen somewhere else
                 assert 0, "implement if needed"
                 buff = np.array(self.data_source.get_sim_pmap(idx), dtype=float)
                 ret = np.array([np.zeros_like(buff[0]), buff[0], np.zeros_like(buff[0])])
                 return ret
-            elif self.data_key in ['tt']:
+            elif data_key_ in ['tt']:
                 buff = np.array(self.data_source.get_sim_tmap(idx), dtype=float)
                 ret = np.array([buff, np.zeros_like(buff), np.zeros_like(buff)])
                 return ret 
-            elif self.data_key in ['tp']:
+            elif data_key_ in ['tp']:
                 buff_p = np.array(self.data_source.get_sim_pmap(idx), dtype=float)
                 buff_t = np.array(self.data_source.get_sim_tmap(idx), dtype=float)
                 ret = np.array([buff_t, *buff_p])
@@ -570,7 +571,7 @@ class QEScheduler:
                     for Qi, QE_search in enumerate(self.QE_searchs): # each field has its own QE_search
                         _addsecondary = False
                         for ci, component in enumerate(QE_search.secondary.component): # each field has n components #
-                            if not QE_search.secondary.is_cached(idx, component, 'kmflm') or recalc:
+                            if not QE_search.secondary.is_cached(idx, component, 'kmflm', suffix=f'__idxs{len(self.idxs_mf)}') or recalc:
                                 _addsecondary = True
                                 _addindex = True
                                 # for idxqlms in self.idxs_mf:
@@ -617,13 +618,18 @@ class QEScheduler:
                 # NOTE This is awkward but need to get meanfield from rank 0 before get_est, as get_est uses the meanfield..
                 # otherwise all ranks try calculating the meanfield at once.. Would be better to remove this whole "calc_meanfields" task.
                 if 'calc_meanfields' in tasks:
-                    # NOTE calc_meanfield should be in jobs[1]
+                    for QE_search in self.QE_searchs: # NOTE I need this loop as plancklens calculates the MF simMF_hashcode which every rank will do if I don't restrict it to one rank
+                        for ci, component in enumerate(QE_search.secondary.component):
+                            if mpi.rank==0: QE_search.qlms.get_sim_qlm_mf(QE_search.estimator_key[component], self.idxs_mf)
+                    mpi.barrier()
+
+                    # FIXME calc_meanfield should be in jobs[1] .. this is quite unsafe
                     for idxs in self.jobs[1][mpi.rank::mpi.size]:
                         for QE_search in self.QE_searchs:
                             for ci, component in enumerate(QE_search.secondary.component):
-                                ctx.set(idx=idxs[ci], idx2=idxs[ci])
+                                ctx.set(idx=idxs[ci], idx2=idxs[ci]) # FIXME this looks strange for cross estimates...
                                 qmf_lm = QE_search.get_qmflm(int(idxs[ci]), self.idxs_mf, component)
-                                QE_search.secondary.cache_qmflm(qmf_lm, int(idxs[ci]), component=component)
+                                QE_search.secondary.cache_qmflm(qmf_lm, int(idxs[ci]), component=component, suffix=f'__idxs{len(self.idxs_mf)}')
                 mpi.barrier()
                 for idxs in self.jobs[taski][mpi.rank::mpi.size]:
                     for seci, secidx in enumerate(idxs):
@@ -638,9 +644,9 @@ class QEScheduler:
                         for ci, component in enumerate(QE_search.secondary.component):
                             ctx.set(idx=idxs[ci], idx2=idxs[ci])
                             qmf_lm = QE_search.get_qmflm(int(idxs[ci]), self.idxs_mf, component)
-                            QE_search.secondary.cache_qmflm(qmf_lm, int(idxs[ci]), component=component)
-                            kmf_lm = QE_search.get_kmflm(int(idxs[ci]), component)
-                            QE_search.secondary.cache_kmflm(kmf_lm, int(idxs[ci]), component=component)
+                            QE_search.secondary.cache_qmflm(qmf_lm, int(idxs[ci]), component=component, suffix=f'__idxs{len(self.idxs_mf)}')
+                            kmf_lm = QE_search.get_kmflm(int(idxs[ci]), self.idxs_mf, component)
+                            QE_search.secondary.cache_kmflm(kmf_lm, int(idxs[ci]), component=component, suffix=f'__idxs{len(self.idxs_mf)}')
                 mpi.barrier()
 
 
@@ -734,6 +740,22 @@ class QEScheduler:
         return self.QE_searchs[0].isdone(idx)
 
 
+    def get_qmflm(self, idx, idxs, it=0, secondary=None, component=None):
+        assert it == 0, 'QE does not have iterations, leave blank or set it=0'
+        if secondary not in self.secondary2idx:
+            print(f'secondary {secondary} not found. Available secondaries are: ', self.secondary2idx.keys())
+            return np.array([[]])
+        return self.QE_searchs[self.secondary2idx[secondary]].get_qmflm(idx=idx, idxs=idxs, component=component)
+
+
+    def get_kmflm(self, idx, idxs, it=0, secondary=None, component=None):
+        assert it == 0, 'QE does not have iterations, leave blank or set it=0'
+        if secondary not in self.secondary2idx:
+            print(f'secondary {secondary} not found. Available secondaries are: ', self.secondary2idx.keys())
+            return np.array([[]])
+        return self.QE_searchs[self.secondary2idx[secondary]].get_kmflm(idx=idxs, idxs_mf=idxs, component=component)
+
+
 class MAPScheduler:
     MAP_minimizer: MAP_handler.Minimizer
     def __init__(self, idxs, idxs_mf, data_container, QE_searchs, tasks, MAP_minimizer):
@@ -768,7 +790,7 @@ class MAPScheduler:
                         _jobs.append(idx)
                 jobs[taski] = _jobs
         self.jobs = jobs
-        return np.array(jobs, dtype=int)
+        return jobs
 
 
     def run(self):
@@ -791,11 +813,17 @@ class MAPScheduler:
 
 
     def get_est(self, idx, it=None, secondary=None, component=None, scale='k', subtract_QE_meanfield=True, calc_flag=False, idx2=None):
+        # Check here maxiterdone for that index, and return zero array if N/A
+
         ctx, isnew = get_computation_context()
         ctx.set(idx=idx, idx2=idx)
+        maxiterdone_ = self.MAP_minimizer.maxiterdone()
+        if maxiterdone_ == -1:
+            print(f"idx {idx} has no available estimates. returning empty array")
+            return [np.array([[]])]
         if isinstance(secondary, str) and secondary not in self._seclist:
             print('Secondary not found. Available secondaries are:', self._seclist)
-            return np.array([[]])
+            return [np.array([[]])]
         if it is None:
             it = self.MAP_minimizer.maxiterdone()
 
@@ -873,26 +901,31 @@ class MAPScheduler:
             buff.append(self.MAP_minimizer.maxiterdone())
         return min(buff)
     
+    @preserve_context
     def get_gradient_quad(self, idx, it, secondary=None, component=None, idx2=None):
         ctx, _ = get_computation_context()
         ctx.set(idx=idx, secondary=secondary, component=component, idx2=idx2)
         return self.MAP_minimizer.get_gradient_quad(it=it)
     
+    @preserve_context
     def get_gradient_total(self, idx, it, secondary=None, component=None, idx2=None):
         ctx, _ = get_computation_context()
         ctx.set(idx=idx, secondary=secondary, component=component, idx2=idx2)
         return self.MAP_minimizer.get_gradient_total(it=it)
     
+    @preserve_context
     def get_gradient_prior(self, idx, it, secondary=None, component=None, idx2=None):
         ctx, _ = get_computation_context()
         ctx.set(idx=idx, secondary=secondary, component=component, idx2=idx2)
         return self.MAP_minimizer.get_gradient_prior(it=it)
     
-    def get_gradient_meanfield(self, idx, it, secondary=None, component=None, idx2=None):
+    @preserve_context
+    def get_gradient_meanfield(self, idx, it, idxs, secondary=None, component=None, idx2=None, scale='k'):
         ctx, _ = get_computation_context()
         ctx.set(idx=idx, secondary=secondary, component=component, idx2=idx2)
-        return self.MAP_minimizer.get_gradient_meanfield(it=it)
+        return self.MAP_minimizer.get_gradient_meanfield(it=it, idxs=idxs, secondary=secondary, component=component, scale=scale)
     
+    @preserve_context
     def get_likelihood_curvature(self, idx, it, secondary=None, component=None, idx2=None):
         ctx, _ = get_computation_context()
         ctx.set(idx=idx, secondary=secondary, component=component, idx2=idx2)
