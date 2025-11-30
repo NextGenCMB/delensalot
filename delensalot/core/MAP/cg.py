@@ -35,6 +35,20 @@ def plot_stuff(residual, residualdata, bdata, fwddata, xdata, precondata, search
     plt.ylabel(r'$C_\ell^{\rm residual}$')
     plt.xlabel(r'$\ell$')
     plt.yscale('log')
+    plt.xlim(0,500)
+    plt.show()
+
+
+    plt.figure(figsize=(10, 6))
+    for linei, line2 in enumerate(residualdata):
+        for resi, res in enumerate(line2):
+            color = colors[linei] if linei < len(residualdata) - 1 else 'black'
+            plt.plot(res, label='iter %d'%(linei+1), color=color, ls='-' if resi else '-')
+    # plt.legend(title='CG search')
+    plt.ylabel(r'$C_\ell^{\rm residual}$')
+    plt.xlabel(r'$\ell$')
+    plt.yscale('log')
+    plt.xlim(3000,4000)
     plt.show()
 
     # plt.figure(figsize=(10, 6))
@@ -158,6 +172,7 @@ class ConjugateGradient:
         ret =  np.sum(alm2cl(tlm1, tlm2, lmaxs[0], lmaxs[0], None)[0:] * weights[0])
         ret += np.sum(alm2cl(elm1, elm2, lmaxs[1], lmaxs[1], None)[0:] * weights[1])
         ret += np.sum(alm2cl(blm1, blm2, lmaxs[2], lmaxs[2], None)[0:] * weights[2])
+        # print(ret)
         
         return ret
     
@@ -247,6 +262,9 @@ def solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cacher, roundoff=25, max
     precondata.append([hp.alm2cl(precon_) for precon_ in np.atleast_2d(searchdirs)])
     iter = 0
 
+    
+    # print(f"b = {b.shape}, {hp.alm2cl(b[1])[0:30]}")
+
     lmax = hp.Alm.getlmax(residual[0].size)
     ell = np.arange(0, lmax + 1)
     
@@ -261,20 +279,6 @@ def solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cacher, roundoff=25, max
             for ip2 in range(0, ip1 + 1):
                 dTAd[ip1, ip2] = dTAd[ip2, ip1] = dot_op(searchdirs[ip1], searchfwds[ip2])
         dTAd_inv = np.linalg.inv(dTAd)
-
-
-        # NOTE only need this for logging/diagnostics. FIXME this is currently only for eWF (because of [0][1], t would be [0][0])
-        # searchfwd_alm = searchfwds[0][1] # NOTE zeroth grid direction of elm  # Assuming single search direction
-        # # Compute per-ell power spectrum
-        # cl_dTAd = hp.alm2cl(searchfwd_alm)  # This gives a power spectrum over ell-modes
-        # cl_dTAd[cl_dTAd <= 0] = np.min(cl_dTAd[cl_dTAd > 0]) * 1e-6
-        # # Compute per-ell condition number
-        # cond_num_ell = np.zeros(lmax + 1)
-        # for ell in range(1, lmax + 1):  # Avoid ell=0
-        #     cond_num_ell[ell] = cl_dTAd[ell] / np.min(cl_dTAd[ell:])  # Condition number per ell
-        # # Compute global condition number (max over all ell)
-        # global_cond_num = np.max(cond_num_ell)
-
 
         # search.
         alphas = np.dot(dTAd_inv, deltas)

@@ -23,7 +23,7 @@ from delensalot.core.job_handler import OBDBuilder, DataContainer, QEScheduler, 
 from delensalot.core.MAP import curvature, operator
 from delensalot.core.MAP.filter import Filter_3d as Filter
 from delensalot.core.MAP.handler import Likelihood, Minimizer
-from delensalot.core.MAP.gradient import Gradient, BirefringenceGradientSub, LensingGradientSub, GradSub #, LensingGradientSubCompound, BirefringenceGradientSubCompund
+from delensalot.core.MAP.gradient import Gradient, BirefringenceGradientSub, LensingGradientSub, GradSub
 
 from delensalot.config.config_manager import set_config
 from delensalot.config.config_helper import PLANCKLENS_keys, generate_plancklenskeys, filter_secondary_and_component
@@ -98,39 +98,6 @@ def _grad_builder_lensing(dl, libdir, extras):
     return lens_grad, chh_list
 
 
-
-def _gradCompound_builder_lensing(dl, libdir, extras):
-    # expects extras['operators'][sec] present or will rebuild operator locally
-    op_obj = extras['operators'].get("lensing", None)
-    wfivf_filter = extras.get("wfivf_filter", None)
-    data_container = extras.get("data_container", None)
-
-    CLfids_lens = dl.CLfids['lensing']
-    chh_dict = {
-        comp: CLfids_lens[comp * 2][: dl.LM_max[0] + 1]
-              * (0.5 * np.arange(dl.LM_max[0] + 1) * np.arange(1, dl.LM_max[0] + 2)) ** 2
-        for comp in dl.analysis_secondary["lensing"]["component"]
-    }
-
-    quad_desc = {
-        "wfivf_filter": wfivf_filter,
-        "data_container": data_container,
-        "libdir": libdir,
-        "LM_max": dl.LM_max,
-        "sht_tr": dl.sht_tr,
-        "component": dl.analysis_secondary["lensing"]["component"],
-        "ID": "lensing",
-        "sec_operator": operator.Secondary([op_obj]) if op_obj is not None else operator.Secondary([_op_builder_lensing(dl, libdir, extras)]),
-        "chh": chh_dict,
-        "data_key": dl.data_key,
-        "geomlib": get_geom(('thingauss', {'lmax': 4500, 'smax': 3})),
-    }
-
-    lens_grad = LensingGradientSubCompound(quad_desc)
-    chh_list = list(chh_dict.values())
-    return lens_grad, chh_list
-
-
 def _op_builder_bire(dl, libdir, extras):
     desc = {
         "LM_max": dl.LM_max,
@@ -171,34 +138,6 @@ def _grad_builder_bire(dl, libdir, extras):
     return bire_grad, chh_list
 
 
-def _gradCompound_builder_bire(dl, libdir, extras):
-    op_obj = extras['operators'].get("birefringence", None)
-    wfivf_filter = extras.get("wfivf_filter", None)
-    data_container = extras.get("data_container", None)
-
-    CLfids_bire = dl.CLfids['birefringence']
-    chh_dict = {
-        comp: CLfids_bire[comp * 2][: dl.LM_max[0] + 1]
-        for comp in dl.analysis_secondary["birefringence"]["component"]
-    }
-
-    quad_desc = {
-        "wfivf_filter": wfivf_filter,
-        "data_container": data_container,
-        "libdir": libdir,
-        "LM_max": dl.LM_max,
-        "sht_tr": dl.sht_tr,
-        "component": dl.analysis_secondary["birefringence"]["component"],
-        "ID": "birefringence",
-        "sec_operator": operator.Secondary([op_obj]) if op_obj is not None else operator.Secondary([_op_builder_bire(dl, libdir, extras)]),
-        "chh": chh_dict,
-    }
-
-    bire_grad = BirefringenceGradientSubCompound(quad_desc)
-    chh_list = list(chh_dict.values())
-    return bire_grad, chh_list
-
-
 def process_all_components(dl, cf):
     l2base_Transformer.process_Computing(dl, cf.computing, cf)
     l2base_Transformer.process_DataSource(dl, cf.data_source, cf)
@@ -232,26 +171,6 @@ def build_chain_descr(dl, cf):
     def chain_descr(p2, p5):
         return [[0, ["diag_cl"], p2, dl.inv_operator_desc['geominfo'][1]['nside'], np.inf, p5, (lambda i: i - 1)]]
     return lambda p2, p5: chain_descr(p2, p5)
-
-
-def build_iprior_matrix_from_chhs_(chh_list, ncomps, LMmax0):
-    ipriormatrix = np.zeros((ncomps, ncomps, LMmax0 + 1))
-    priormatrix = np.zeros((ncomps, ncomps, LMmax0 + 1))
-    for i in range(ncomps):
-        priormatrix[i, i, :] = chh_list[i]
-    rho0, Ls, Lstar = 0.9, np.arange(LMmax0 + 1), 10.
-    for i,j in itertools.combinations(range(ncomps), 2):
-        rho_ell = rho0 * np.exp(-Ls / float(Lstar)) 
-        priormatrix[i, j, :] = np.sqrt(chh_list[i] * chh_list[j]) * rho_ell
-        priormatrix[j, i, :] = priormatrix[i, j, :]
-    priormatrix = np.transpose(priormatrix, (2, 0, 1))
-    priormatrix[0:2, np.arange(3), np.arange(3)] = 1e-30
-    # nugget = 1e-6
-    # priormatrix += nugget * np.eye(3)[None, :, :]
-    ipriormatrix = np.linalg.inv(priormatrix)
-    
-    ipriormatrix = np.transpose(ipriormatrix, (2, 1, 0))
-    return ipriormatrix
 
 
 def build_iprior_matrix_from_chhs(chh_list, ncomps, LMmax0):
@@ -581,9 +500,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             # so have to set it before registering
             set_config(dl)
             SecondaryRegistry.register("lensing", _op_builder_lensing, _grad_builder_lensing)
-            # SecondaryRegistry.register("lensingCompound", _op_builder_lensing, _gradCompound_builder_lensing)
             SecondaryRegistry.register("birefringence", _op_builder_bire, _grad_builder_bire)
-            # SecondaryRegistry.register("birefringenceCompound", _op_builder_bire, _bireCompound_builder_lensing)
 
             filter_ops = []
             ops_map = {}
@@ -613,17 +530,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             chh_all = []
 
             extras = {'data_container': data_container, 'wfivf_filter': wfivf_filter, 'operators': ops_map}
-            # if "_" in dl.estimator_key:
-            #     dl.data_key = an.estimator_key.split('_')[1]
-            # else:
-            #     dl.data_key = an.estimator_key[-2:]
-            #COMPOUND
-            # if dl.data_key == 'eb':
-            #     for sec in seclist_local:
-            #         grad_obj, chh_list = SecondaryRegistry.build_grad(sec+"Compound", dl, libdir, extras=extras)
-            #         grad_subs.append(grad_obj)
-            #         chh_all.extend(chh_list)
-            # else:
             for sec in seclist_local:
                 grad_obj, chh_list = SecondaryRegistry.build_grad(sec, dl, libdir, extras=extras)
                 grad_subs.append(grad_obj)

@@ -47,6 +47,7 @@ def zeroed_copy(d):
 
 class Filter_3d:
     def __init__(self, filter_desc):
+        config = get_config()
         self.libdir = filter_desc['libdir']
         self.sec_operator: operator.Secondary = filter_desc['sec_operator']
         self.beam_operator: operator.Beam = filter_desc['beam_operator']
@@ -60,7 +61,7 @@ class Filter_3d:
         self.cls_filt = filter_desc['cls_filt']
         lenclsfilt =  np.array([False for _ in range(len(list(filter_desc['cls_filt'].values())[0]))])
 
-        self.cls_filt_bool = np.array([filter_desc['cls_filt'][key]>0 if key in self.cls_filt else lenclsfilt for keyi, key in enumerate(CMBfields_sorted)])
+        self.cls_filt_bool =np.array([_extend_cl(filter_desc['cls_filt'][key], config.lm_max_pri[0])>0 if key in self.cls_filt else _extend_cl(lenclsfilt, config.lm_max_pri[0]) for keyi, key in enumerate(CMBfields_sorted)])
         self.icls = self.invert_cls_filt(self.cls_filt)
         self.sht_tr = filter_desc['sht_tr']
         
@@ -68,6 +69,8 @@ class Filter_3d:
         self.wf_field: field.Filter = field.Filter(filterfield_desc('wf', self.libdir))
 
         self.mchain = cg.ConjugateGradient(self.preconditioner_op, self.chain_descr, self.cls_filt)
+
+        # print(f"inside Filter_3d init:", self.cls_filt_bool.shape, self.cls_filt['ee'].shape, self.icls.shape)
 
 
     def get_wflm(self, it, data=None):
@@ -107,6 +110,7 @@ class Filter_3d:
                 self.update_operator(field_operator)
             else:
                 teb_prep_alm = self.calc_prep(data) # NOTE lm_sky -> lm_pri
+                # print(f"get_wflm(): ", len(data[1]), teb_prep_alm.shape)
                 self.mchain.solve(cg_sol_curr, teb_prep_alm, self.fwd_op, maxiter=200)
             self.wf_field.cache(cg_sol_curr, it=it)
         return self.wf_field.get_field(it=it)
@@ -121,23 +125,27 @@ class Filter_3d:
         assert data.shape[0] == 3, len(data)
         teblmc = self.inv_operator.act(data, adjoint=False)
         assert len(teblmc) == 3, teblmc.shape
+        # print(f"inside calc_prep:", teblmc.shape)
         
         teblmc = self.beam_operator.act(teblmc, adjoint=False)
-        assert len(teblmc) == 3, len(teblmc)
+        # assert len(teblmc) == 3, len(teblmc)
         # NOTE spin 0 is standard, spin 2 is GRAD_only. For convenience, I'll make it return a 3 tuple
         teblm = self.sec_operator.act(teblmc, adjoint=True, backwards=True) # NOTE lm_sky -> lm_pri
         assert len(teblm) == 3, len(teblm)
 
+        # print(f"inside calc_prep:", teblm[1].shape, self.cls_filt_bool.shape)
+
         teblm = almxfl_nd(teblm, self.cls_filt_bool, None, False)
         assert len(teblm) == 3, len(teblm)
         if 'tt' in self.cls_filt and 'ee' in self.cls_filt:
-            teblm[2] = np.zeros_like(teblm[1],dtype=complex)
+            teblm[2] = np.zeros_like(teblm[1], dtype=complex)
         elif 'tt' in self.cls_filt:
-            teblm[1] = np.zeros_like(teblm[0],dtype=complex)
-            teblm[2] = np.zeros_like(teblm[0],dtype=complex)
+            teblm[1] = np.zeros_like(teblm[0], dtype=complex)
+            teblm[2] = np.zeros_like(teblm[0], dtype=complex)
         elif 'ee' in self.cls_filt:
-            teblm[0] = np.zeros_like(teblm[1],dtype=complex)
-            teblm[2] = np.zeros_like(teblm[1],dtype=complex)
+            teblm[0] = np.zeros_like(teblm[1], dtype=complex)
+            teblm[2] = np.zeros_like(teblm[1], dtype=complex)
+        # print(f"inside calc_prep:", np.array(teblm).shape)
         return np.array(teblm)
 
 
@@ -151,7 +159,9 @@ class Filter_3d:
         assert tebwflm.shape[0] == 3, len(tebwflm)
 
         nlm = np.copy(tebwflm)
+        # print(f"fwd_op: before 1st sec_operator with adjoint=False")
         teblm = self.sec_operator.act(nlm, adjoint=False, backwards=False) # # NOTE lm_max_pri -> lm_max_sky
+        # print(f"fwd_op: after 1st sec_operator with adjoint=False")
         assert len(teblm) == 3, len(teblm)
         teblm = self.beam_operator.act(teblm, adjoint=False)
         assert len(teblm) == 3, len(teblm)
@@ -165,7 +175,9 @@ class Filter_3d:
             teblm = self.inv_operator.act(np.array([*imap, *qumap]))
 
         teblm = self.beam_operator.act(teblm, adjoint=False)
+        # print(f"fwd_op: before 2nd sec_operator with adjoint=True")
         teblm = self.sec_operator.act(teblm, adjoint=True, backwards=True) # lm_sky -> lm_pri
+        # print(f"fwd_op: after 2nd sec_operator with adjoint=True")
         nlm = teblm
         if 'tt' in self.cls_filt and 'ee' in self.cls_filt:
             nlm[0] += almxfl(tebwflm[0], self.icls[:, 0, 0], len(self.cls_filt_bool[0])-1, False)
@@ -181,8 +193,12 @@ class Filter_3d:
             nlm[1] = np.zeros_like(nlm[0],dtype=complex)
             nlm[2] = np.zeros_like(nlm[0],dtype=complex)
         elif 'ee' in self.cls_filt:
+            import healpy as hp
+            # print(self.icls[:, 0, 0][0:30], self.cls_filt['ee'][0:30])
+            # print(hp.alm2cl(tebwflm[1])[0:30])
+            # print(hp.alm2cl(nlm[1])[0:30])
             nlm[1] += almxfl(tebwflm[1], self.icls[:, 0, 0], len(self.cls_filt_bool[0])-1, False)
-            almxfl(nlm[1], self.cls_filt['ee'] > 0, len(self.cls_filt_bool[0]), True)
+            almxfl(nlm[1], self.cls_filt['ee'] > 0, len(self.cls_filt_bool[0])-1, True)
             nlm[0] = np.zeros_like(nlm[1],dtype=complex)
             nlm[2] = np.zeros_like(nlm[1],dtype=complex)
         return nlm
@@ -191,51 +207,54 @@ class Filter_3d:
     @log_on_start(logging.DEBUG, " ---- preconditioner_op", logger=log)
     @log_on_end(logging.DEBUG, " done ---- preconditioner_op", logger=log)  
     def preconditioner_op(self, teblm):
-        lmax_ = Alm.getlmax(teblm[1].size, None)
+        lmax_pri_ = Alm.getlmax(teblm[1].size, None)
 
         ninv_ftebl = self.inv_operator.get_ftebl(self.beam_operator.transferfunction)
-        if np.any(ninv_ftebl[0]) and len(ninv_ftebl[0]) - 1 < lmax_:  # We extend the transfer fct to avoid predcon. with zero (~ Gauss beam)
+        if np.any(ninv_ftebl[0]) and len(ninv_ftebl[0]) - 1 < lmax_pri_:  # We extend the transfer fct to avoid predcon. with zero (~ Gauss beam)
+            # print(f'preconditioner_op(): extending')
             ninv_ftl = ninv_ftebl[0]
-            log.debug("PRE_OP_DIAG: extending transfer fct from lmax %s to lmax %s" % (len(ninv_ftl)-1, lmax_))
+            log.debug("PRE_OP_DIAG: extending transfer fct from lmax %s to lmax %s" % (len(ninv_ftl)-1, lmax_pri_))
             nz = np.where(ninv_ftl > 0)
             spl_sq = spl(np.arange(len(ninv_ftl), dtype=float)[nz], np.log(ninv_ftl[nz]), k=2, ext='extrapolate')
-            ninv_ftl = np.exp(spl_sq(np.arange(lmax_ + 1, dtype=float)))
+            ninv_ftl = np.exp(spl_sq(np.arange(lmax_pri_ + 1, dtype=float)))
         else:
             ninv_ftl = ninv_ftebl[0]
-        if np.any(ninv_ftebl[1]) and len(ninv_ftebl[1]) - 1 < lmax_: # We extend the transfer fct to avoid predcon. with zero (~ Gauss beam)
+        if np.any(ninv_ftebl[1]) and len(ninv_ftebl[1]) - 1 < lmax_pri_: # We extend the transfer fct to avoid predcon. with zero (~ Gauss beam)
+            # print(f'preconditioner_op(): extending, ninv_ftebl[1].shape = {ninv_ftebl[1].shape}')
             ninv_fel = ninv_ftebl[1]
-            log.debug("PRE_OP_DIAG: extending transfer fct from lmax %s to lmax %s"%(len(ninv_fel)-1, lmax_))
+            log.debug("PRE_OP_DIAG: extending transfer fct from lmax %s to lmax %s"%(len(ninv_fel)-1, lmax_pri_))
             nz = np.where(ninv_fel > 0)
             spl_sq = spl(np.arange(len(ninv_fel), dtype=float)[nz], np.log(ninv_fel[nz]), k=2, ext='extrapolate')
-            ninv_fel = np.exp(spl_sq(np.arange(lmax_+1, dtype=float)))
+            ninv_fel = np.exp(spl_sq(np.arange(lmax_pri_+1, dtype=float)))
         else:
             ninv_fel = ninv_ftebl[1]
 
-
+        
         if 'tt' in self.cls_filt and 'ee' in self.cls_filt:
             lmax_sky_ = self.cls_filt['tt'].size
-            Si = np.empty((lmax_ + 1,2,2), dtype=float)
+            Si = np.zeros((lmax_ + 1,2,2), dtype=float)
             Si[:lmax_sky_+1,0,0] = self.icls[:lmax_sky_+1,0,0]
             Si[:lmax_sky_+1,1,1] = self.icls[:lmax_sky_+1,1,1]
             Si[:lmax_sky_+1,0,1] = self.icls[:lmax_sky_+1,0,1]
             Si[:lmax_sky_+1,1,0] = self.icls[:lmax_sky_+1,1,0]
             Si[:,0,0] += ninv_ftl[:lmax_+1]
             Si[:,1,1] += ninv_fel[:lmax_+1]
-            tebout = np.empty(shape=(3,teblm[0].size), dtype=complex)
+            tebout = np.zeros(shape=(3,teblm[0].size), dtype=complex)
         elif 'tt' in self.cls_filt:
             lmax_sky_ = self.cls_filt['tt'].size
-            Si = np.empty((lmax_ + 1,1,1), dtype=float)
+            Si = np.zeros((lmax_ + 1,1,1), dtype=float)
             Si[:lmax_sky_+1,0,0] = self.icls[:lmax_sky_+1,0,0]
             Si[:lmax_sky_+1,0,0] += ninv_ftl[:lmax_+1]
-            tebout = np.empty(shape=(3,teblm[0].size), dtype=complex)
+            tebout = np.zeros(shape=(3,teblm[0].size), dtype=complex)
         elif 'ee' in self.cls_filt:
-            lmax_sky_ = self.cls_filt['ee'].size
-            Si = np.empty((lmax_ + 1,1,1), dtype=float)
-            Si[:lmax_sky_+1,0,0] = self.icls[:lmax_sky_+1,0,0]
-            Si[:lmax_sky_+1,0,0] += ninv_fel[:lmax_+1]
+            # print(f'preconditioner_op(): lmax_pri_ = {lmax_pri_}, self.icls.shape = {self.icls.shape}, ninv_fel.shape = {ninv_fel.shape}')
+            Si = np.zeros((lmax_pri_ + 1,1,1), dtype=float)
+            Si[:lmax_pri_+1,0,0] = self.icls[:lmax_pri_+1,0,0]
+            Si[:lmax_pri_+1,0,0] += ninv_fel[:lmax_pri_+1]
 
-            tebout = np.empty(shape=(3,teblm[1].size), dtype=complex)
-        flmat = np.linalg.pinv(Si)
+            tebout = np.zeros(shape=(3,teblm[1].size), dtype=complex)
+        flmat = np.linalg.pinv(Si) # TODO lmin_teb fix
+        # print(f'preconditioner_op(): flmat = {flmat}')
 
         if 'tt' in self.cls_filt and 'ee' in self.cls_filt:
             tebout[0] = almxfl(teblm[0], flmat[:, 0, 0], lmax_, False) + almxfl(teblm[1], flmat[:, 0, 1], lmax_, False)
@@ -243,7 +262,8 @@ class Filter_3d:
         elif 'tt' in self.cls_filt:
             tebout[0] = almxfl(teblm[0], flmat[:, 0, 0], lmax_, False)
         elif 'ee' in self.cls_filt:
-            tebout[1] = almxfl(teblm[1], flmat[:, 0, 0], lmax_, False)
+            tebout[1] = almxfl(teblm[1], flmat[:, 0, 0], lmax_pri_, False)
+        # print(f'preconditioner_op(): tebout = {tebout}')
         return tebout
     
 
@@ -284,67 +304,18 @@ class Filter_3d:
         return self.ivfres_field.get_field(it=it)# or ivfreslm
     
 
-    @log_on_start(logging.DEBUG, " ---- get_ivfreslm: {it}", logger=log)
-    @log_on_end(logging.DEBUG, " done ---- get_ivfreslm", logger=log)
-    def get_templateDiagMismatch(self, it, data=None, elm_wf=None, force_eval=False, Lc=30):
-        # assert elm_wf.shape[0] == 3, elm_wf.shape
-        # NOTE this is eq. 21 of the paper
-        if force_eval or not self.ivfres_field.is_cached(it=it):
-            assert elm_wf is not None and data is not None
-            ivfreslm = self.sec_operator.act(elm_wf)
-            assert ivfreslm.shape[0] == 3, ivfreslm.shape
-            ivfreslm = 1*self.beam_operator.act(ivfreslm)
-
-
-            lmax, mmax = 3500, 3500
-            # 3) Low-ℓ projection BEFORE N^{-1}
-            if (Lc is not None):
-                for comp_i, comp, in enumerate(range(3)):  # same layout as get_ivfreslm uses
-                    w = np.zeros(lmax+1)
-                    w[:Lc+1] = 1.0
-                    ivfreslm[comp_i] = almxfl(ivfreslm[comp_i], w, lmax, False)
-
-            if data[0].dtype in [np.complex64, np.complex128]:
-                # ivfreslm = data - ivfreslm
-                ivfreslm = self.inv_operator.act(ivfreslm, adjoint=False)
-            else:
-                # ivfresmap = [d-ivf for ivf,d in zip(ivfresmap,data)]
-                ivfresmap = [
-                    self.inv_operator.geom_lib.synthesis(ivfreslm[0], 0, *self.inv_operator.lm_max, self.sht_tr)[0],
-                    *self.inv_operator.geom_lib.synthesis(ivfreslm[1:], 2, *self.inv_operator.lm_max, self.sht_tr)
-                ]
-                ivfreslm = self.inv_operator.act(np.array(ivfresmap))
-
-
-            ivfreslm = self.beam_operator.act(ivfreslm, adjoint=False, factor_p=.5)
-            # TODO need to check why I have this if-tree here, seems fishy
-            if 'tt' in self.cls_filt and 'ee' in self.cls_filt:
-                pass
-                # ivfreslm[2] = np.zeros_like(ivfreslm[0],dtype=complex)
-            elif 'tt' in self.cls_filt:
-                ivfreslm[1] = np.zeros_like(ivfreslm[0],dtype=complex)
-                ivfreslm[2] = np.zeros_like(ivfreslm[0],dtype=complex)
-            elif 'ee' in self.cls_filt:
-                ivfreslm[0] = np.zeros_like(ivfreslm[1],dtype=complex)
-                # ivfreslm[2] = np.zeros_like(ivfreslm[1],dtype=complex)
-            if not force_eval:
-                self.ivfres_field.cache(ivfreslm, it=it)
-            return ivfreslm  # return directly when forced
-        return self.ivfres_field.get_field(it=it) #or ivfreslm
-
-
     def invert_cls_filt(self, cls_filt):
         if 'tt' in cls_filt and 'ee' in cls_filt:
-            Si = np.empty((cls_filt['tt'].size, 2, 2), dtype=float)
+            Si = np.zeros((cls_filt['tt'].size, 2, 2), dtype=float)
             Si[:, 0, 0] = cls_filt['tt']
             Si[:, 0, 1] = cls_filt['te']
             Si[:, 1, 0] = cls_filt['te']
             Si[:, 1, 1] = cls_filt['ee']
         elif 'tt' in cls_filt:
-            Si = np.empty((cls_filt['tt'].size, 1, 1), dtype=float)
+            Si = np.zeros((cls_filt['tt'].size, 1, 1), dtype=float)
             Si[:, 0, 0] = cls_filt['tt']
         elif 'ee' in cls_filt:
-            Si = np.empty((cls_filt['ee'].size, 1, 1), dtype=float)
+            Si = np.zeros((cls_filt['ee'].size, 1, 1), dtype=float)
             Si[:, 0, 0] = cls_filt['ee']
         return np.linalg.pinv(Si)
 

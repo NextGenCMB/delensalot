@@ -317,7 +317,7 @@ class LensingGradientSub(GradSub):
         self.data_key = desc['data_key']
 
 
-    def get_gradient_quad_standard(self, it, data=None, data_leg2=None, wflm=None, ivfreslm=None, force_eval=False):
+    def get_gradient_quad(self, it, data=None, data_leg2=None, wflm=None, ivfreslm=None, force_eval=False):
         # NOTE this is the 3d version as in T and P are both handled
         # TODO write down equation in docstring
         # NOTE this function is equation 22 of the CMB-S4 paper (for lensing).
@@ -379,7 +379,7 @@ class LensingGradientSub(GradSub):
         return self.gfield.get_quad(it)
 
 
-    def get_gradient_quad(self, it, data=None, data_leg2=None, wflm=None, ivfreslm=None, force_eval=False):
+    def get_gradient_quad_EBonlysupport(self, it, data=None, data_leg2=None, wflm=None, ivfreslm=None, force_eval=False):
         # ---- boilerplate: as in your current implementation ----
         if isinstance(it, (list, np.ndarray)):
             return [ self.get_gradient_quad(it=it_, data=data, data_leg2=data_leg2, wflm=wflm, ivfreslm=ivfreslm, force_eval=force_eval
@@ -406,9 +406,6 @@ class LensingGradientSub(GradSub):
             Xbar_r = Xbar_c.view(rtype[Xbar_c.dtype]).reshape((Xbar_c.size, 2)).T
             self.geom_lib.synthesis(ivfreslm[1:], 2, *self.lm_max_in, self.sht_tr, map=Xbar_r)
 
-            # ====================================================
-            # 2. Apply adjoint deflection (placeholder for now)
-            # ====================================================
             if self.data_key in ['p', 'ee', 'eb', 'bb', 'tp', 'te', 'tb']:
                 Xbar_c = Xbar_r.T.copy().view(ctype[Xbar_r.dtype]).squeeze()
 
@@ -421,7 +418,7 @@ class LensingGradientSub(GradSub):
             XWF_c = XWF_r.T.copy().view(ctype[XWF_r.dtype]).squeeze()
 
             # ====================================================
-            # 4. Gradient-only ∂X^WF (spin-raising, no φ-response)
+            # 4. Gradient-only dX^WF (spin-raising, no phi-response)
             # ====================================================
             gradWF_3_r = self.apply_grad_WF(wflm, spin_out=3)
             gradWF_1_r = self.apply_grad_WF(wflm, spin_out=1)
@@ -439,7 +436,7 @@ class LensingGradientSub(GradSub):
                 q_c = self._build_q_from_IV_and_WF(wflm, ivfreslm)
 
             # ====================================================
-            # 7. Apply D_kappa on q → gclm
+            # 7. Apply D_kappa on q -> gclm
             # ====================================================
             gclm = self._apply_D_on_q_and_A(q_c)
 
@@ -453,9 +450,7 @@ class LensingGradientSub(GradSub):
         assert spin == 2
         lmax_in, mmax_in = self.lm_max_in
 
-        EBalm = self.geom_lib.adjoint_synthesis(
-            Xbar_r, spin, lmax_in, lmax_in, self.sht_tr
-        )
+        EBalm = self.geom_lib.adjoint_synthesis(Xbar_r, spin, lmax_in, lmax_in, self.sht_tr)
 
         teb_in = np.zeros((3, EBalm.shape[1]), dtype=EBalm.dtype)
         teb_in[1:] = EBalm
@@ -476,10 +471,8 @@ class LensingGradientSub(GradSub):
         zero_field = zeroed_copy(field_op)
 
         self.wfivf_filter.update_operator(zero_field)
-        try:
-            grad_r = self.gradient_operator.act(teb, spin=spin_out)
-        finally:
-            self.wfivf_filter.update_operator(field_op)
+        grad_r = self.gradient_operator.act(teb, spin=spin_out)
+        self.wfivf_filter.update_operator(field_op)
 
         return grad_r
 

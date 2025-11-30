@@ -95,7 +95,6 @@ class BFGSHessian(object):
         self.cacher.remove(fname)
         return ret
 
-
     def applyH(self, x, k, _depth=0):
         """
         Recursive calculation of H_k x, for any x.
@@ -111,7 +110,6 @@ class BFGSHessian(object):
         rho = 1. / self.dot_op(s, y)
         Hv = self.applyH(x - rho * y * self.dot_op(x, s), k - 1, _depth=_depth + 1)
         return Hv - s * (rho * self.dot_op(y, Hv)) + rho * s * self.dot_op(s, x)
-
 
     def get_gk(self, k, alpha_k0):
         """
@@ -153,30 +151,6 @@ class BFGSHessian(object):
         for idx, i in enumerate(range(np.max([0, k - self.L]), k)):
             ret = ret - self.s(i) * self.dot_op(self.y(i), ret) * rho(i) + np.sqrt(rho(i)) * self.s(i) * eps[idx]
         return ret
-
-
-
-    def _lowL_window(self, lmax, L0=10, L1=30, sharp=3.0):
-        Ls = np.arange(lmax + 1)
-        x = (Ls - L0) / max(1, (L1 - L0))
-        wL = 0.5 * (1.0 - np.tanh(sharp * x))  # in [0,1], ~1 below L0, ~0 above L1
-        wL[0] = 1.0
-        wL[1] = 1.0
-        return wL
-
-    def _attenuate_lowL(self, vec, L0=10, L1=30, sharp=3.0):
-        """Return vec with low-L attenuated (same space as vec)."""
-        out, off = np.empty_like(vec), 0
-        for (lmax, mmax) in self.subs_layout:
-            size = Alm.getsize(lmax, mmax)
-            blk  = vec[off:off+size]
-            wL   = self._lowL_window(lmax, L0, L1, sharp)     # [0..1]
-            # attenuate toward zero at low-L (no unit mismatch)
-            blk  = almxfl(blk, 1.0 - wL, lmax, False)
-            out[off:off+size] = blk
-            off += size
-        return out
-
 
     def get_mHkgk(self, gk, k, output_fname=None):
         """
@@ -227,7 +201,6 @@ class BFGSHessian(object):
         self.cacher.cache(output_fname, -r)
         return
     
-
     def visualize_powell_damping(self, s, y, yB, L0=10, L1=30, show_damped=True):
         """
         Visualize strong low-L damping (smooth taper between L0–L1) consistent with
@@ -298,46 +271,6 @@ class BFGSHessian(object):
         plt.tight_layout()
         plt.show()
 
-
-    def _apply_scale_dependent_damping(self, s0, y0, s, y, k):
-        """
-        Simple Powell-like damping:
-        always damps modes below L=30 (smooth taper between 10–30).
-        Returns (y_damped, s^T y_damped).
-        """
-        L0, L1 = 10, 30
-        off = 0
-        y_out = np.empty_like(y)
-
-        yB = self.applyB0k(s0, k)  # baseline curvature prediction
-
-        for fi, (lmax, mmax) in enumerate(self.subs_layout):
-            size = Alm.getsize(lmax, mmax)
-            s_blk  = s[off:off+size]
-            y_blk  = y[off:off+size]
-            yB_blk = yB[off:off+size]
-            off += size
-
-            # --- fixed taper window ---
-            Ls = np.arange(lmax + 1)
-            # smooth transition: full damping at L<L0, none at L>L1
-            x = (Ls - L0) / max(1, (L1 - L0))
-            fL = 0.5 * (1.0 - np.tanh(3.0 * x))  # factor=3 sharpens the transition
-
-            # weight of QE (baseline) contribution; 1→full damping
-            wL = fL
-
-            # --- blend low-L toward baseline yB ---
-            y_blk_damped = almxfl(y_blk, 1.0 - wL, lmax, False) + \
-                        almxfl(yB_blk, wL, lmax, False)
-
-            y_out[off - size:off] = y_blk_damped
-
-        sy = self.dot_op(s, y_out)
-        return y_out, sy
-
-
-
     def get_curvature_spectra(self, grad_tot, k=None, tau0=1e0, L0=10, L1=30):
         """
         Compute measured and expected curvature spectra for all stored (s, y) pairs.
@@ -400,7 +333,6 @@ class BFGSHessian(object):
                 })
 
         return curvature_data
-
 
     def visualize_powell_damping_curvatureFromFirstIncrement(self, s0, y0, yB0, s, y, yB, tau0=1e0, L0=10, L1=30, show_damped=True):
         """
@@ -486,59 +418,3 @@ class BFGSHessian(object):
         plt.legend(frameon=False, fontsize='x-small', ncol=2)
         plt.tight_layout()
         plt.show()
-
-
-    def _apply_scale_dependent_damping_curvatureFromFirstIncrement(self, s0, y0, s, y, k):
-        """
-        Powell damping for concatenated alm vector.
-        Uses self.subs_layout = [(lmax, mmax), ...].
-        Returns (y_damped, sTy_damped).
-        """
-        tau0 = getattr(self, "tau0", 1e0)
-        L0, L1 = 10, 30
-        off = 0
-        y_out = np.empty_like(y)
-        yB = self.applyB0k(s, k)
-        yB0 = self.applyB0k(s0, 0)
-
-        for fi, (lmax, mmax) in enumerate(self.subs_layout):
-            size = Alm.getsize(lmax, mmax)
-            s0_blk = s0[off:off+size]
-            s_blk = s[off:off+size]
-            y_blk = y[off:off+size]
-            yB_blk = yB[off:off+size]
-            yB0_blk = yB0[off:off+size]
-            off += size
-
-            Ls = np.arange(lmax + 1)
-            fL = 0.5 * (1.0 + np.tanh((L1 - Ls) / max(1, (L1 - L0))))
-            tau_L = tau0 * fL  # float array
-            alpha_L = tau0 * fL
-
-
-            cl_sy   = alm2cl(s_blk, y_blk,  lmax, mmax, lmax)
-            cl_sBs  = alm2cl(s_blk, yB_blk, lmax, mmax, lmax)
-            cl_sBs0 = alm2cl(s0_blk, yB0_blk, lmax, mmax, lmax)
-
-            # mask = cl_sy < tau_L * np.abs(cl_sBs)
-            # mask = cl_sy > (1.0 / alpha_L) * np.abs(cl_sBs)
-            mask = cl_sy > (1.0 / alpha_L) * np.abs(cl_sBs0)
-            if np.any(mask):
-                theta_L = np.ones_like(Ls, dtype=float)  # <-- FORCE FLOAT
-                idx = np.where(mask)[0]
-                num = (1.0 - tau_L[idx]) * np.abs(cl_sBs0[idx])
-                den = np.maximum(np.abs(cl_sBs0[idx]) - np.abs(cl_sy[idx]), 1e-30)
-                theta_L[idx] = np.clip(num / den, 0.0, 1.0)
-                y_blk = almxfl(y_blk,  theta_L, lmax, False) + \
-                        almxfl(yB_blk, 1.0 - theta_L, lmax, False)
-
-            y_out[off - size:off] = y_blk
-            # --- Shade region where damping active ---
-            if np.any(mask):
-                frac = np.mean(mask)
-                print(f"Field {fi}: damping active in {frac*100:.1f}% of L-modes")
-
-        sy = self.dot_op(s, y_out)
-        return y_out, sy
-    
-

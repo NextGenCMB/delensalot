@@ -57,6 +57,7 @@ class lensing:
         assert spin is not None, "spin not provided"
        
         if self.perturbative: # Applies perturbative remapping
+            assert 0, "implement if needed"
             return 
             get_alm = lambda a: elm_wf if a == 'e' else np.zeros_like(elm_wf)
             geom, sht_tr = self.fq.ffi.geom, self.fq.ffi.sht_tr
@@ -79,7 +80,6 @@ class lensing:
     
 
     def set_field(self, field):
-        
         if isinstance(field, list) or isinstance(field, tuple) or isinstance(field, np.ndarray):
             if len(field) != 1:
                 field = np.atleast_2d(field)

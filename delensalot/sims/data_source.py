@@ -659,26 +659,6 @@ class Xsky:
                     sky = self.geom_lib.alm2map_spin(self.lenjob_geomlib.map2alm_spin(sky, spin=self.CMB_info['spin'], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4), lmax=self.CMB_info['lm_max'][0], spin=spin, mmax=self.CMB_info['lm_max'][1], nthreads=4)
             self.cacher.cache(fn, np.array(sky))
         return self.cacher.load(fn)
-    
-
-    def pri2len(self, Xlm, plms, **kwargs):
-        ll = np.arange(0,self.pri_lib.phi_lmax+1,1)
-        if len(plms) == 2:
-            plm, olm = plms
-            dplm = hp.almxfl(plm,  np.sqrt(ll*(ll+1)))
-            dolm = hp.almxfl(olm,  np.sqrt(ll*(ll+1)))
-            dlms = [dplm, dolm]
-        elif len(plms) == 1:
-            plm = plms[0]
-            dplm = hp.almxfl(plm,  np.sqrt(ll*(ll+1)))
-            dlms = [dplm]
-        else:
-            assert 0, 'wrong dimension of plms, should be a list of either gradient or gradient and curl'
-        return lenspyx.alm2lenmap_spin(Xlm, dlms, geometry=self.lenjob_geominfo, **kwargs)
-    
-    def pri2bf(self, Xmap, bfmap, **kwargs):
-        ll = np.arange(0,self.pri_lib.phi_lmax+1,1)
-        return np.exp(-np.imag*bfmap)*Xmap
 
 
 class Xobs:

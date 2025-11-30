@@ -67,7 +67,7 @@ DL_DEFAULT = {
             },
         "operator_info": {
             'lensing': {
-                'epsilon': 1e-10,
+                'epsilon': 1e-12,
                 'Lmin': 2,
                 'lm_max': [4096,4096],
                 'LM_max': [4096+1024,4096+1024],
@@ -104,7 +104,7 @@ DL_DEFAULT = {
             'lensing': {
                 'geominfo': ('thingauss', {'lmax': 4500, 'smax': 3}),
                 'component': ['p', 'w'],
-                'epsilon': 1e-10,
+                'epsilon': 1e-12,
             },
             'birefringence': {
                 'geominfo': ('thingauss', {'lmax': 4500, 'smax': 3}),

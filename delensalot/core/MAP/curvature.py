@@ -6,12 +6,56 @@ import numpy as np
 
 from delensalot.core import cachers
 from delensalot.core.MAP import field as MAP_field, bfgs
-from delensalot.core.iterator.steps import harmonicbump
 from delensalot.core.MAP.context import get_computation_context
 
 from delensalot.utils import cli
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl
 
+class nrstep(object):
+    def __init__(self, lmax_qlm:int, mmax_qlm:int, val=1.):
+        self.lmax_qlm = lmax_qlm
+        self.mmax_qlm = mmax_qlm
+        self.val = val
+
+    def steplen(self, itr, incrnorm):
+        return self.val
+
+    def build_incr(self, incrlm, itr):
+        print('incr step val %.5f'%self.val)
+        return incrlm * self.val
+
+class harmonicbump(nrstep):
+    def __init__(self, lmax_qlm, mmax_qlm, xa=400, xb=1500, a=0.5, b=0.499, scale=50, flt=None):
+        """Harmonic bumpy step that were useful for s06b and s08b
+
+        """
+        super().__init__(lmax_qlm, mmax_qlm)
+        filt = np.ones(self.lmax_qlm + 1, dtype=float)
+        if flt is not None:
+            filt[:min(len(flt), lmax_qlm+1)] = flt[:min(len(flt), lmax_qlm+1)]
+        self.scale = scale
+        self.bump_params = (xa, xb, a, b)
+        self.filt = filt
+
+    def steplen(self, itr, incrnorm):
+        xa, xb, a, b = self.bump_params
+        return self.bp(np.arange(self.lmax_qlm + 1),xa, a, xb, b, scale=self.scale)
+
+
+    def build_incr(self, incrlm, itr):
+        fl = self.steplen(itr, incrlm)
+        almxfl(incrlm, fl * self.filt, self.mmax_qlm, True)
+        return incrlm
+
+    @staticmethod
+    def bp(x, xa, a, xb, b, scale=50):
+            """Bump function with f(xa) = a and f(xb) =  b with transition at midpoint over scale scale
+
+            """
+            x0 = (xa + xb) * 0.5
+            r = lambda x_: np.arctan(np.sign(b - a) * (x_ - x0) / scale) + np.sign(b - a) * np.pi * 0.5
+            return a + r(x) * (b - a) / r(xb)
+            
 class Base:
     def __init__(self, gradient_lib, h0, bfgs_desc, libdir, sky_coverage):
         self.ID = "curvature"
@@ -112,3 +156,5 @@ class Base:
         for it_ in range(1,it):
             self.bfgs_h.add_ys(self.field.fns['yk'].format(idx=idx, idx2=idx2, it=it_+1, itm1=it_), self.field.fns['sk'].format(idx=idx, idx2=idx2, it=it_, itm1=it_-1), it_-1)
         return self.bfgs_h.get_curvature_spectra(grad_tot, it)
+
+

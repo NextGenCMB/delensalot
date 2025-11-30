@@ -140,6 +140,7 @@ class Lensing(Operator):
         self.LM_max = operator_desc["LM_max"]
         self.lm_max_in = operator_desc["lm_max_in"]
         self.lm_max_out = operator_desc["lm_max_out"]
+        print(self.lm_max_in, self.lm_max_out)
         # self.Lmin = operator_desc["Lmin"]
         self.perturbative = operator_desc["perturbative"]
         self.component = operator_desc["component"]
@@ -155,19 +156,6 @@ class Lensing(Operator):
     def act(self, obj, spin=None, adjoint=False, backwards=False, out_sht_mode=None, nomagn=None, out='alm'):
         lmax = Alm.getlmax(np.max([len(o) for o in obj]), None)
         if self.perturbative: # Applies perturbative remapping
-            # get_alm = lambda a: elm_wf if a == 'e' else np.zeros_like(elm_wf)
-            # geom, sht_tr = self.filter.ffi.geom, self.filter.ffi.sht_tr
-            # d1_c = np.empty((geom.npix(),), dtype=elm_wf.dtype)
-            # d1_r = d1_c.view(rtype[d1_c.dtype]).reshape((d1_c.size, 2)).T  # real view onto complex array
-            # geom.synthesis(dlm, 1, self.lmax_qlm, self.mmax_qlm, sht_tr, map=d1_r, mode='GRAD_ONLY')
-            # dp = utils_qe.qeleg_multi([2], +3, [utils_qe.get_spin_raise(2, self.lmax_filt)])(get_alm, geom, sht_tr)
-            # dm = utils_qe.qeleg_multi([2], +1, [utils_qe.get_spin_lower(2, self.lmax_filt)])(get_alm, geom, sht_tr)
-            # dlens_c = -0.5 * ((d1_c.conj()) * dp + d1_c * dm)
-            # dlens_r = dlens_c.view(rtype[dlens_c.dtype]).reshape((dlens_c.size, 2)).T  # real view onto complex array
-            # del dp, dm, d1_c
-            # blm = geom.adjoint_synthesis(dlens_r, 2, lmaxb, mmaxb, sht_tr)[1]
-            # return blm
-
             get_alm = lambda a: obj[1] if a == 'e' else np.zeros_like(obj[1])
             geom, sht_tr = self.ffi.geom, self.ffi.sht_tr
             d1_c = np.empty((geom.npix(),), dtype=obj[1].dtype)
@@ -184,11 +172,13 @@ class Lensing(Operator):
             return np.array([tlm, *eblm])
         else:
             if adjoint and backwards:
+                # print(f'adjoint, branch 0: self.lm_max_in[1], self.lm_max_out = {self.lm_max_in[1]}, {self.lm_max_out}')
                 tlm = np.atleast_2d(self.ffi.lensgclm(obj[0], self.lm_max_in[1], 0, *self.lm_max_out, backwards=backwards, out_sht_mode='STANDARD')) if self.data_key in ['tt', 'tp'] else np.zeros(shape=(Alm.getsize(*self.lm_max_out)),dtype=complex)
                 out_sht_mode = out_sht_mode or 'GRAD_ONLY'
                 nomagn = nomagn or False
                 shaptefirstdim = 1 if out_sht_mode == 'GRAD_ONLY' else 2
                 eblm = np.atleast_2d(self.ffi.lensgclm(np.atleast_2d(obj[1:]), self.lm_max_in[1], 2, *self.lm_max_out, backwards=backwards, out_sht_mode=out_sht_mode, nomagn=nomagn)) if self.data_key in ['p', 'ee', 'eb', 'bb', 'tp'] else np.zeros(shape=(shaptefirstdim, Alm.getsize(*self.lm_max_out)),dtype=complex)
+                # print(out_sht_mode)
                 return np.array([tlm.squeeze(), *eblm, np.zeros_like(tlm.squeeze())]) if out_sht_mode == 'GRAD_ONLY' else np.array([tlm.squeeze(), *eblm])
             else:
                 if out == 'map':
@@ -198,10 +188,12 @@ class Lensing(Operator):
                
                 elif out == 'alm':
                     if lmax == self.lm_max_in[0]:
+                        # print(f'non-adjoint, branch 1: self.lm_max_in[1], self.lm_max_out = {self.lm_max_in[1]}, {self.lm_max_out}')
                         tlm = self.ffi.lensgclm(np.atleast_2d(obj[0]), self.lm_max_in[1], 0, *self.lm_max_out) if self.data_key in ['tt', 'tp'] else np.zeros(shape=(Alm.getsize(*self.lm_max_out)),dtype=complex)
                         eblm = self.ffi.lensgclm(np.atleast_2d(obj[1:]), self.lm_max_in[1], 2, *self.lm_max_out)  if self.data_key in ['p', 'ee', 'eb', 'bb', 'tp'] else np.zeros(shape=(2,Alm.getsize(*self.lm_max_out)),dtype=complex)
                         return np.array([tlm, *eblm])
                     else:
+                        # print(f'non-adjoint, branch 2: self.lm_max_out[1], self.lm_max_in = {self.lm_max_out[1]}, {self.lm_max_in}')
                         tlm = self.ffi.lensgclm(np.atleast_2d(obj[0]), self.lm_max_out[1], 0, *self.lm_max_in) if self.data_key in ['tt', 'tp'] else np.zeros(shape=(Alm.getsize(*self.lm_max_in)),dtype=complex)
                         eblm = self.ffi.lensgclm(np.atleast_2d(obj[1:]), self.lm_max_out[1], 2, *self.lm_max_in)  if self.data_key in ['p', 'ee', 'eb', 'bb', 'tp'] else np.zeros(shape=(2,Alm.getsize(*self.lm_max_in)),dtype=complex)
                         return np.array([tlm, *eblm])
@@ -218,7 +210,7 @@ class Lensing(Operator):
         else:
             d = fieldlm
         # TODO fix hardcoded epsilon
-        self.ffi = deflection(self.lenjob_geomlib, d[0], self.LM_max[1], dclm=d[1], numthreads=self.sht_tr, verbosity=False, epsilon=1e-10)
+        self.ffi = deflection(self.lenjob_geomlib, d[0], self.LM_max[1], dclm=d[1], numthreads=self.sht_tr, verbosity=False, epsilon=1e-12)
 
 
     def get_field(self):
@@ -320,6 +312,7 @@ class Beam:
         self.tebl2idx = {'t':0, 'e': 1, 'b': 2}
         self.idx2tebl = {v: k for k, v in self.tebl2idx.items()}
         self.is_adjoint = False
+        # print(f"inside Beam init: ", self.transferfunction[1].shape, self.lm_max,  self.transferfunction[1])
 
 
     @log_on_start(logging.DEBUG, "beam", logger=log)
@@ -329,12 +322,15 @@ class Beam:
         factor = lambda oi: factor_p if oi > 0 else 1.
         ellmax_ = Alm.getlmax(np.max([len(o) for o in obj]), None)
         if ellmax_ > self.lm_max[0]:
+            # print("Beam mismatch?")
             log.warning(f"Beam operator: ellmax of input {ellmax_} is larger than lm_max of operator {self.lm_max[0]}. Extending transfer function to ellmax {ellmax_}.")
         trsf_ = [_extend_cl(self.transferfunction[oi], ellmax_) for oi in range(3)] if ellmax_ > self.lm_max[0] else self.transferfunction
         trsf_ = [cli(v) for v in trsf_] if adjoint else trsf_
         val = np.array([almxfl(o, trsf_[oi]*factor(oi), len(trsf_[oi])-1, False) for oi, o in enumerate(obj)])
-        return val
 
+        # print(f"inside Beam act: ", ellmax_, val.shape)
+
+        return val
 
 
     def adjoint(self):
@@ -369,6 +365,7 @@ class InverseNoiseVariance(Operator):
             1.0*cli(_extend_cl(self.nlev['P']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2 if data_key in ['p', 'ee', 'eb', 'tp'] else np.zeros(shape=lm_max[0]+1),
             1.0*cli(_extend_cl(self.nlev['P']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2 if data_key in ['p', 'ee', 'eb', 'tp'] else np.zeros(shape=lm_max[0]+1)]
         self.template = None
+        # print(f"inside iNV init: ", self.transferfunction['e'].shape, self.lm_max, self.n1tebl[1].shape, self.filtering_type, self.transferfunction['e'])
 
     @log_on_start(logging.DEBUG, "InverseNoiseVariance", logger=log)
     # @log_on_end(logging.DEBUG, "InverseNoiseVariance done", logger=log)
@@ -441,6 +438,7 @@ class InverseNoiseVariance(Operator):
             ret_t = _extend_cl(transferfunction[0]**2, len(self.n1tebl[0])-1) * self.n1tebl[0]
             ret_e = _extend_cl(transferfunction[1]**2, len(self.n1tebl[1])-1) * self.n1tebl[1]
             ret_b = _extend_cl(transferfunction[2]**2, len(self.n1tebl[2])-1) * self.n1tebl[2]
+            # print(f"inside get_ftebl: ", transferfunction[1].shape, self.lm_max, self.n1tebl[1].shape, ret_e.shape, transferfunction[1])
             return [ret_t, ret_e, ret_b]
 
         nlev_ftl = 10800. / np.sqrt(np.sum(read_map(self.niv[0])) / (4.0 * np.pi)) / np.pi
