@@ -94,8 +94,7 @@ class iterbiases:
         self.fidcls_unl = cls_unl_fid
         lmin_tlm, lmin_elm, lmin_blm = _lmin_ivf(lmin_ivf)
         lmax_tlm, lmax_elm, lmax_blm = _lmin_ivf(lmax_ivf)
-        print(lmax_tlm, lmax_elm, lmax_blm)
-        lmax = max(lmax_ivf)
+        lmax = max(lmax_tlm, lmax_elm, lmax_blm)
         if verbose:
             print(f'lmin_tlm:{lmin_tlm}, lmin_elm:{lmin_elm}, lmin_blm:{lmin_blm}')
 
@@ -212,7 +211,8 @@ class iterbiases:
 
         """
         (nlev_t, nlev_p, beam, lmin_ivf, lmax_ivf, lmax_qlm) = self.config
-        lmax = max(lmax_ivf)
+        lmax_tlm, lmax_elm, lmax_blm = _lmin_ivf(lmax_ivf)  
+        lmax = max(lmax_tlm, lmax_elm, lmax_blm)
         cls_unl_fid = self.fidcls_unl
         cls_noise_fid = self.fidcls_noise
 
@@ -258,7 +258,7 @@ def get_fals(qe_key:str, cls_cmb_filt:dict, cls_cmb_dat:dict, cls_noise_filt:dic
     lmin_tlm, lmin_elm, lmin_blm = _lmin_ivf(lmin_ivf)  
     lmax_tlm, lmax_elm, lmax_blm = _lmin_ivf(lmax_ivf)  
     # lmax_ivf['te'] = min(lmax_tlm, lmax_elm)
-    lmax = max(lmax_ivf)
+    lmax = max(lmax_tlm, lmax_elm, lmax_blm)
 
     fals = {}
     dat_cls = {}
@@ -322,7 +322,7 @@ def get_delcls(qe_key: str, itermax:int, cls_unl_fid: dict, cls_unl_true:dict, c
 
     lmin_tlm, lmin_elm, lmin_blm = _lmin_ivf(lmin_ivf)
     lmax_tlm, lmax_elm, lmax_blm = _lmin_ivf(lmax_ivf)
-    lmax = max(lmax_ivf)
+    lmax = max(lmax_tlm, lmax_elm, lmax_blm)
 
     lmin_tlm =  max(lmin_tlm, 1) 
     lmin_elm = max(lmin_elm, 1)  
@@ -461,7 +461,8 @@ def cls2N0N1(
     """
 
     fals, dat_cls, cls_w, cls_f = get_fals(qe_key, cls_cmb_filt, cls_cmb_dat, cls_noise_filt, cls_noise_dat, lmin_ivf, lmax_ivf)
-    lmax = max(lmax_ivf)
+    lmax_tlm, lmax_elm, lmax_blm = _lmin_ivf(lmax_ivf)  
+    lmax = max(lmax_tlm, lmax_elm, lmax_blm)
     
     lib = n1_fft.n1_fft(fals, cls_w, cls_f, np.copy(cls_cmb_dat['pp']), lminbox=50, lmaxbox=5000, k2l=None)
     n1_Ls = np.arange(50, (lmax_qlm // 50) * 50  + 50, 50)
