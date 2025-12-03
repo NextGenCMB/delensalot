@@ -111,8 +111,7 @@ class cache_mem(dict):
             del self[key]
 
 
-def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), roundoff=25):
-    maxiter = 10
+def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), roundoff=25, maxiter=200):
     """customizable conjugate directions loop for x=[fwd_op]^{-1}b.
 
     Args:
@@ -198,7 +197,7 @@ def cd_solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cache=cache_mem(), ro
             for (searchfwd, alpha) in zip(searchfwds, alphas):
                 residual -= searchfwd * alpha # r_{k+1} = r_k - \alpha_k A p_k
 
-        plot_stuff(residual, residualdata, bdata, fwddata, xdata, precondata, searchdirs, searchfwds, weights, x)
+        # plot_stuff(residual, residualdata, bdata, fwddata, xdata, precondata, searchdirs, searchfwds, weights, x)
 
         # initial choices for new search directions.
         searchdirs = [pre_op(residual) for pre_op in pre_ops] # z_{k+1} = M^{-1} r_{k+1}
