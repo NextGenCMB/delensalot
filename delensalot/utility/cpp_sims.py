@@ -1,4 +1,3 @@
-from termios import N_STRIP
 import numpy as np
 from os.path import join as opj
 import os
