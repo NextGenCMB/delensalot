@@ -403,6 +403,8 @@ def compute_n0_n1(
     lmin_ivf: LminType,
     lmax_ivf: LmaxType,
     lmax_qlm: int,
+    lmin_box: int = 50,
+    lmax_box: int = 5000,
     return_n1_matrix: bool = False,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
@@ -459,7 +461,7 @@ def compute_n0_n1(
     # Compute N1
     n1_result = compute_n1(
         qe_key, fals, cls_w, cls_f, cls_cmb_dat['pp'],
-        lmax_qlm, r_gg_fid, return_matrix=return_n1_matrix
+        lmax_qlm, r_gg_fid, return_matrix=return_n1_matrix, lmin_box=lmin_box, lmax_box=lmax_box
     )
     
     if return_n1_matrix:
@@ -485,6 +487,8 @@ def compute_delensed_cls(
     lmax_qlm: int,
     include_n1: bool = False,
     include_E_noise: bool = False,
+    lmin_box: int = 50,
+    lmax_box: int = 5000,
 ) -> Tuple[List[ClsDict], List[ClsDict]]:
     """
     Compute iteratively delensed power spectra.
@@ -585,7 +589,7 @@ def compute_delensed_cls(
         if include_n1:
             N1_unbiased = compute_n1(
                 qe_key, fal, cls_w, cls_f, cls_plen_true['pp'],
-                lmax_qlm, r_gg_true
+                lmax_qlm, r_gg_true, lmin_box=lmin_t, lmax_box=lmax_box
             )
         else:
             N1_unbiased = np.zeros(lmax_qlm + 1)
@@ -676,13 +680,17 @@ class IterativeBiases:
         lib_dir: Optional[str] = None,
         verbose: bool = False,
         use_grad_cls: bool = False,
+        lmin_box: int = 50,
+        lmax_box: int = 5000,
     ):
         self.config = (nlev_t, nlev_p, beam_fwhm, lmin_ivf, lmax_ivf, lmax_qlm)
         self.cls_unl_fid = cls_unl_fid
         self.lmax_qlm = lmax_qlm
         self.verbose = verbose
         self.use_grad_cls = use_grad_cls
-        
+        self.lmin_box = lmin_box
+        self.lmax_box = lmax_box
+
         # Parse multipole limits
         lmin_t, lmin_e, lmin_b = parse_lmin(lmin_ivf)
         lmax_t, lmax_e, lmax_b = parse_lmax(lmax_ivf)
@@ -810,7 +818,8 @@ class IterativeBiases:
         N0, N1, r_fid, r_true = compute_n0_n1(
             qe_key, delcls_fid[-1], delcls_true[-1],
             self.cls_noise_fid, cls_noise_true,
-            lmin_ivf, lmax_ivf, lmax_qlm
+            lmin_ivf, lmax_ivf, lmax_qlm, 
+            lmin_box=self.lmin_box, lmax_box=self.lmax_box,
         )
         
         # Cache and return
@@ -877,6 +886,8 @@ class IterativeBiases:
             lmin_ivf, lmax_ivf, lmax_qlm,
             include_n1=include_n1,
             include_E_noise=include_E,
+            lmin_box=self.lmin_box,
+            lmax_box=self.lmax_box,
         )
         
         # Cache
