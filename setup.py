@@ -36,6 +36,7 @@ setuptools.setup(
         'psutil',
         'attrs',
         'healpy',
+        'lenspyx',
     ],
     long_description=long_description,
     long_description_content_type='text/markdown',
