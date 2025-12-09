@@ -729,11 +729,14 @@ class IterativeBiases:
             hash_file = self._cacher._path('iterbias_hash')
             
             if not os.path.exists(hash_file):
-                pk.dump(self._get_hash_dict(), open(hash_file, 'wb'), protocol=2)
+                with open(hash_file, 'wb') as f:
+                    pk.dump(self._get_hash_dict(), f, protocol=2)
             
+            with open(hash_file, 'rb') as f:
+                hash_dict = pk.load(f)
             utils.hash_check(
                 self._get_hash_dict(),
-                pk.load(open(hash_file, 'rb')),
+                hash_dict,
                 fn=hash_file
             )
         else:
