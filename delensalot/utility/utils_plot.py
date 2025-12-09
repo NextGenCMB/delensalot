@@ -26,6 +26,15 @@ def pp2kk(ls):
       """
     return ls**2*(ls+1)**2/4
 
+def p2k(ls):
+    """Returns the  phi_lm into kappa_lm
+     
+     :math: `k_lm = (L(L+1)) / 2 p_lm`
+     
+      """
+    return ls*(ls+1)/2
+
+
 
 def plot_bnd(bndcl, ax=None, marker=None, dx=0, ls='', *argv, **kwargs):
     if ax is None:

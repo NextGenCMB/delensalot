@@ -127,6 +127,12 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         if self.verbose:
             print(self.tim)
 
+    def degrade(self, nside, lmax, mmax, set_deflection_to_zero=True):
+        """Degradation of the filter to lower resolution
+        """
+        print('Not degrading filter {} {}'.format(len(self.nlev_elm), lmax))
+        return self
+    
     def apply_map(self, eblm:np.ndarray):
         """Applies noise operator in place"""
         almxfl(eblm[0], self.inoise_1_elm * cli(self.transf_elm), self.mmax_len, True)
@@ -193,17 +199,21 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
             All implementation signs are super-weird but end result should be correct...
 
         """
-        assert alm_wf_leg2 is None
         assert Alm.getlmax(eblm_dat[0].size, self.mmax_len) == self.lmax_len, (Alm.getlmax(eblm_dat[0].size, self.mmax_len), self.lmax_len)
         assert Alm.getlmax(eblm_dat[1].size, self.mmax_len) == self.lmax_len, (Alm.getlmax(eblm_dat[1].size, self.mmax_len), self.lmax_len)
-        assert Alm.getlmax(elm_wf.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(elm_wf.size, self.mmax_sol), self.lmax_sol)
+        assert Alm.getlmax(elm_wf.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(elm_wf.size, self.mmax_sol), self.lmax_sol)        
+        if alm_wf_leg2 is None:
+            alm_wf_leg2 = elm_wf
+        else:
+            assert Alm.getlmax(alm_wf_leg2.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(alm_wf_leg2.size, self.mmax_sol), self.lmax_sol)
+        
         resmap_c = np.empty((q_pbgeom.geom.npix(),), dtype=elm_wf.dtype)
         resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
         self._get_irespmap(eblm_dat, elm_wf, q_pbgeom, map_out=resmap_r) # inplace onto resmap_c and resmap_r
 
-        gcs_r = self._get_gpmap(elm_wf, 3, q_pbgeom)  # 2 pos.space maps, uses then complex view onto real array
+        gcs_r = self._get_gpmap(alm_wf_leg2, 3, q_pbgeom)  # 2 pos.space maps, uses then complex view onto real array
         gc_c = resmap_c.conj() * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3)
-        gcs_r = self._get_gpmap(elm_wf, 1, q_pbgeom)
+        gcs_r = self._get_gpmap(alm_wf_leg2, 1, q_pbgeom)
         gc_c -= resmap_c * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze().conj()  # (+2 , -1)
         del resmap_c, resmap_r, gcs_r
         lmax_qlm, mmax_qlm = self.ffi.lmax_dlm, self.ffi.mmax_dlm

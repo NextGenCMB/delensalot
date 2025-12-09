@@ -11,11 +11,18 @@ import numpy as np
 from lenspyx import remapping
 from lenspyx.remapping import utils_geom
 from lenspyx.remapping.deflection_028 import rtype, ctype
+from lenspyx.utils_hp import alm_copy
 
 from delensalot.utils import clhash, cli, read_map, timer
 from delensalot.utility.utils_hp import almxfl, Alm, alm2cl, synalm, default_rng
 from delensalot.core.opfilt import opfilt_base, QE_opfilt_aniso_p, bmodes_ninv as bni
+from delensalot.core.opfilt import tmodes_ninv as tni
 from delensalot.core.opfilt import MAP_opfilt_iso_tp
+
+
+import healpy as hp 
+from lenspyx.remapping import deflection 
+
 apply_fini = QE_opfilt_aniso_p.apply_fini
 
 pre_op_dense = None # not implemented
@@ -69,7 +76,7 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         self.tim = timer(True, prefix='opfilt')
 
         self.p_template = p_tpl # here just one template allowed
-        self.t_template = None
+        self.t_template = None # TODO implement this
 
     def hashdict(self):
         return {'ninv':self._ninv_hash(),
@@ -109,7 +116,50 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         n_inv_cl_e = self.b_transf_elm ** 2  / (self._nlevp / 180. / 60. * np.pi) ** 2
         n_inv_cl_b = self.b_transf_blm ** 2  / (self._nlevp / 180. / 60. * np.pi) ** 2
         return n_inv_cl_t, n_inv_cl_e, n_inv_cl_b
-
+    
+    def degrade(self, nside, lmax, mmax, set_deflection_to_zero=True):
+        """Reproducing plancklens function, useful for multigrid preconditioner
+        # TODO: Check if the lmax can conflict with the template lmax_marg
+        """
+        if nside == hp.npix2nside(len(self.n_inv[0])) and set_deflection_to_zero is False:
+            return self
+        else:
+            print(f"MAP OPFILT ANISO TP: Degrading filtered maps to nside:{nside}, lmax:{lmax}")
+            
+            if set_deflection_to_zero is True:
+                print("Setting deflection to zero")
+                _ffi = deflection(utils_geom.Geom.get_healpix_geometry(nside), np.zeros(hp.Alm.getsize(lmax)), mmax, 
+                    numthreads=self.sht_threads, verbosity=0, single_prec=False, epsilon=self.ffi.epsilon)
+            else:
+                print(f"Using the same deflection, rescaled to the new nside {nside}")
+                dlm = alm_copy(self.ffi.dlm, None, lmax, mmax)
+                if self.ffi.dclm is not None:
+                    dclm = alm_copy(self.ffi.dclm, None, lmax, mmax)
+                else:
+                    dclm = None
+                _ffi = deflection(utils_geom.Geom.get_healpix_geometry(nside), dlm, mmax, 
+                    dclm=dclm, numthreads=self.ffi.sht_tr, 
+                    verbosity=self.ffi.verbosity, single_prec=self.ffi.single_prec, epsilon=self.ffi.epsilon)
+            
+            if self.t_template is not None:
+                t_tpl = tni.template_dense(lmax_marg=self.template.lmax, geom=utils_geom.Geom.get_healpix_geometry(nside), 
+                        sht_threads=self.template.sht_threads, _lib_dir=self.template.lib_dir, rescal=self.template.rescal)
+            else:
+                t_tpl = None    
+            if self.p_template is not None:
+                p_tpl = bni.template_dense(lmax_marg=self.p_template.lmax, geom=utils_geom.Geom.get_healpix_geometry(nside), 
+                        sht_threads=self.p_template.sht_threads, _lib_dir=self.p_template.lib_dir, rescal=self.p_template.rescal)
+            else:
+                p_tpl = None     
+            return alm_filter_ninv_wl(
+                        utils_geom.Geom.get_healpix_geometry(nside), 
+                        hp.ud_grade(self.n_inv, nside, power=-2), 
+                        _ffi, self.b_transf_tlm, 
+                        (lmax, mmax), (lmax, mmax), self.sht_threads, 
+                        p_tpl=p_tpl, transf_elm=self.b_transf_elm, transf_blm=self.b_transf_blm, 
+                        verbose=self.verbose, 
+                        lmin_dotop=self.lmin_dotop, 
+                        )
     def dot_op(self):
         return dot_op(self.lmax_sol, self.mmax_sol, lmin=self.lmin_dotop)
 
@@ -272,33 +322,39 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
             All implementation signs are super-weird but end result should be correct...
 
         """
-        assert alm_wf_leg2 is None
+        # assert alm_wf_leg2 is None
         assert tqu_dat[0].size == self.ninv_geom.npix(), (Alm.getlmax(tqu_dat[0].size, self.mmax_len), self.ninv_geom.npix())
         assert tqu_dat[1].size == self.ninv_geom.npix(), (Alm.getlmax(tqu_dat[1].size, self.mmax_len), self.ninv_geom.npix())
         assert tqu_dat[2].size == self.ninv_geom.npix(), (Alm.getlmax(tqu_dat[2].size, self.mmax_len), self.ninv_geom.npix())
 
         assert Alm.getlmax(telm_wf[0].size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(telm_wf[0].size, self.mmax_sol), self.lmax_sol)
         assert Alm.getlmax(telm_wf[1].size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(telm_wf[1].size, self.mmax_sol), self.lmax_sol)
-
+        if alm_wf_leg2 is None:
+            alm_wf_leg2 = telm_wf
+        else:
+            assert Alm.getlmax(alm_wf_leg2[0].size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(alm_wf_leg2[0].size, self.mmax_sol), self.lmax_sol)
+            assert Alm.getlmax(alm_wf_leg2[1].size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(alm_wf_leg2[1].size, self.mmax_sol), self.lmax_sol)
+        
         t_dat = tqu_dat[0]
         qu_dat = tqu_dat[1:]
         tlm_wf, elm_wf = telm_wf
+        tlm_wf_leg2, elm_wf_leg2 = alm_wf_leg2
 
         # Spin-2 part
         resmap_c = np.empty((q_pbgeom.geom.npix(),), dtype=elm_wf.dtype)
         resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
         self._get_irespmap(qu_dat, elm_wf, q_pbgeom, map_out=resmap_r)  # inplace onto resmap_c and resmap_r
 
-        gcs_r = self._get_gpmap(elm_wf, 3, q_pbgeom)  # 2 pos.space maps, uses then complex view onto real array
+        gcs_r = self._get_gpmap(elm_wf_leg2, 3, q_pbgeom)  # 2 pos.space maps, uses then complex view onto real array
         gc_c = resmap_c.conj() * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3)
-        gcs_r = self._get_gpmap(elm_wf, 1, q_pbgeom)
+        gcs_r = self._get_gpmap(elm_wf_leg2, 1, q_pbgeom)
         gc_c -= resmap_c * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze().conj()  # (+2 , -1)
         del resmap_c, resmap_r, gcs_r
 
         gc_r = gc_c.view(rtype[gc_c.dtype]).reshape((gc_c.size, 2)).T  # real view onto complex array
 
         # Spin-0 part
-        gc_r += self._get_gtmap(tlm_wf, q_pbgeom) * self._get_irestmap(t_dat, tlm_wf, q_pbgeom)
+        gc_r += self._get_gtmap(tlm_wf_leg2, q_pbgeom) * self._get_irestmap(t_dat, tlm_wf, q_pbgeom)
         # Projection onto gradient and curl
         lmax_qlm, mmax_qlm = self.ffi.lmax_dlm, self.ffi.mmax_dlm
         gc = q_pbgeom.geom.adjoint_synthesis(gc_r, 1, lmax_qlm, mmax_qlm, self.ffi.sht_tr)

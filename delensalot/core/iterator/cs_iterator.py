@@ -58,7 +58,8 @@ class qlm_iterator(object):
                  k_geom:utils_geom.Geom,
                  chain_descr, stepper:steps.nrstep,
                  logger=None,
-                 NR_method=100, tidy=0, verbose=True, soltn_cond=True, wflm0=None, _usethisE=None):
+                 NR_method=100, tidy=0, verbose=True, soltn_cond=True, wflm0=None, _usethisE=None, 
+                 no_lensing_precond=False, no_lensing_dense=None, cache_wf=True):
         """Lensing map iterator
 
             The bfgs hessian updates are called 'hlm's and are either in plm, dlm or klm space
@@ -71,7 +72,9 @@ class qlm_iterator(object):
                 k_geom: lenspyx geometry for once-per-iterations operations (like checking for invertibility etc, QE evals...)
                 stepper: custom calculation of NR-step
                 wflm0(optional): callable with Wiener-filtered CMB map search starting point
-
+                no_lensing_precond: if True, the preconditioner will not include lensing
+                no_lensing_dense: if True, the dense part of the preconditioner will not include lensing, defaults to None to match no_lensing_precond
+                cache_wf: if True, the Wiener-filtered maps will be cached on disk, if false they will be cached in memory
         """
         assert h in ['k', 'p', 'd']
         lmax_qlm, mmax_qlm = lm_max_dlm
@@ -84,7 +87,11 @@ class qlm_iterator(object):
         self.lib_dir = lib_dir
         self.cacher = cachers.cacher_npy(lib_dir)
         self.hess_cacher = cachers.cacher_npy(opj(self.lib_dir, 'hessian'))
-        self.wf_cacher = cachers.cacher_npy(opj(self.lib_dir, 'wflms'))
+        if cache_wf:
+            self.wf_cacher = cachers.cacher_npy(opj(self.lib_dir, 'wflms'))
+        else:
+            self.wf_cacher = cachers.cacher_mem()
+            print('Warning: Wiener-filtered maps are kept in memory but not written to disk')
         self.blt_cacher = cachers.cacher_npy(opj(self.lib_dir, 'BLT/'))
         if logger is None:
             from delensalot.core.iterator import loggers
@@ -123,6 +130,9 @@ class qlm_iterator(object):
         self.logger.startup(self)
 
         self._usethisE = _usethisE
+        self.no_lensing_precond = no_lensing_precond
+        self.no_lensing_dense = no_lensing_dense 
+
 
     def _p2h(self, lmax):
         if self.h == 'p':
@@ -329,13 +339,13 @@ class qlm_iterator(object):
         return self._sk2plm(itr)
 
 
-    def load_soltn(self, itr, key):
+    def load_soltn(self, itr, key, split=''):
         """Load starting point for the conjugate gradient inversion.
 
         """
         assert key.lower() in ['p', 'o']
         for i in np.arange(itr - 1, -1, -1):
-            fname = 'wflm_%s_it%s' % (key.lower(), i)
+            fname = 'wflm_%s_it%s' % (key.lower(), i) + '_'*(split != '') + split
             if self.wf_cacher.is_cached(fname):
                 return self.wf_cacher.load(fname), i
         if callable(self.wflm0):
@@ -462,21 +472,25 @@ class qlm_iterator(object):
 
     @log_on_start(logging.DEBUG, "calc_gradlik(it={itr}, key={key}) started")
     @log_on_end(logging.DEBUG, "calc_gradlik(it={itr}, key={key}) finished")
-    def calc_gradlik(self, itr, key, iwantit=False):
+    def calc_gradlik(self, itr, key, iwantit=False, cache=False):
         """Computes the quadratic part of the gradient for plm iteration 'itr'
         Compared to formalism of the papers, this returns -g_LM^{QD}
+        Args:
+            itr: iteration index
+            key: 'p' or 'o'
+            iwantit: if True, forces the calculation of the gradient and return it
         """
         assert self.is_iter_done(itr - 1, key)
         assert itr > 0, itr
         assert key.lower() in ['p', 'o'], key  # potential or curl potential.
-        if not self._is_qd_grad_done(itr, key) or iwantit:
+        if not self._is_qd_grad_done(itr, key) or iwantit or cache:
             assert key in ['p'], key + '  not implemented'
             dlm = self.get_hlm(itr - 1, key)
             self.hlm2dlm(dlm, True)
             # print('prev estimate:', dlm, np.mean(dlm))
             ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm, cachers.cacher_mem(safe=False))
             self.filter.set_ffi(ffi)
-            mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.filter)
+            mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.filter, no_lensing_precond=self.no_lensing_precond, no_lensing_dense=self.no_lensing_dense)
             if self._usethisE is not None:
                 if callable(self._usethisE):
                     log.info("iterator: using custom WF E")
@@ -503,8 +517,8 @@ class qlm_iterator(object):
             G, C = self.filter.get_qlms(self.dat_maps, soltn, q_geom)
             almxfl(G if key.lower() == 'p' else C, self._h2p(self.lmax_qlm), self.mmax_qlm, True)
             log.info('get_qlms calculation done; (%.0f secs)'%(time.time() - t0))
-            if itr == 1: #We need the gradient at 0 and the yk's to be able to rebuild all gradients
-                fn_lik = '%slm_grad%slik_it%03d' % (self.h, key.lower(), 0)
+            if itr == 1 or cache: #We need the gradient at 0 and the yk's to be able to rebuild all gradients
+                fn_lik = '%slm_grad%slik_it%03d' % (self.h, key.lower(), itr-1)
                 self.cacher.cache(fn_lik, -G if key.lower() == 'p' else -C)
             return -G if key.lower() == 'p' else -C
 
@@ -514,7 +528,97 @@ class qlm_iterator(object):
         """Compared to formalism of the papers, this should return +g_LM^{MF}"""
         assert 0, 'subclass this'
 
-       
+class iterator_splitlik_cstmf(qlm_iterator):
+    """Split lensing iterator
+    The iterator will compute the WF for the n maps, and return the quadratic split gradient given by 
+    g^QD = \frac{1}{n (n-1)} \sum \bar X^i D_a \nabla (( \sum_j X^WF_j ) - X^WF_i)
+    Args:
+        dat_maps is a list containing n CMB maps, one for each data split
+    """
+
+    def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,
+                 dat_maps:list, plm0:np.ndarray, mf0:np.ndarray, pp_h0:np.ndarray,
+                 cpp_prior:np.ndarray, cls_filt:dict, ninv_filt:opfilt_base.alm_filter_wl, k_geom:utils_geom.Geom,
+                 chain_descr, stepper:steps.nrstep, **kwargs):
+        super(iterator_splitlik_cstmf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
+                                             ninv_filt, k_geom, chain_descr, stepper, **kwargs)
+        
+        self.nsplits = len(self.dat_maps)
+        assert self.nsplits>= 2, "Data maps must contain two or more sets of maps"
+        print(f'Iterator will run with {self.nsplits} splits')
+        assert self.lmax_qlm == Alm.getlmax(plm0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(plm0.size, self.lmax_qlm))
+        if mf0 is not None:
+            self.cacher.cache('mf', almxfl(mf0, self._h2p(self.lmax_qlm), self.mmax_qlm, False))
+
+    def calc_gradlik(self, itr, key, iwantit=False):
+        assert self.is_iter_done(itr - 1, key)
+        assert itr > 0, itr
+        assert key.lower() in ['p', 'o'], key
+        if not self._is_qd_grad_done(itr, key) or iwantit:
+            assert key in ['p'], key + '  not implemented'
+            dlm = self.get_hlm(itr - 1, key)
+            self.hlm2dlm(dlm, True)
+            ffi = self.filter.ffi.change_dlm([dlm, None], self.mmax_qlm, cachers.cacher_mem(safe=False))
+            self.filter.set_ffi(ffi)
+            mchain = multigrid.multigrid_chain(self.opfilt, self.chain_descr, self.cls_filt, self.filter, no_lensing_precond=self.no_lensing_precond, no_lensing_dense=self.no_lensing_dense)
+            # if self._usethisE is not None:
+            #     if callable(self._usethisE):
+            #         log.info("iterator: using custom WF E")
+            #         soltn = self._usethisE(self.filter, itr)
+            #     else:
+            #         assert 0, 'dont know what to do this with this E input'
+            _soltn = []
+            for datset in range(self.nsplits):
+                log.info("Computing WF solution for datasplit %s at iter %s " % (datset, itr))
+                soltn, it_soltn = self.load_soltn(itr, key, str(datset))
+                if it_soltn < itr - 1:
+                    soltn *= self.soltn_cond
+                    
+                    mchain.solve(soltn, self.dat_maps[datset], dot_op=self.filter.dot_op())
+                    fn_wf = 'wflm_%s_it%s_%s' % (key.lower(),  itr - 1, datset)
+                    log.info("caching "  + fn_wf)
+                    self.wf_cacher.cache(fn_wf, soltn)
+                else:
+                    log.info("Using cached WF solution at iter %s "%itr)
+                _soltn.append(soltn)
+
+            t0 = time.time()
+            if ffi.pbgeom.geom is self.k_geom and ffi.pbgeom.pbound == pbounds(0., 2 * np.pi):
+                # This just avoids having to recalculate angles on a new geom etc
+                q_geom = ffi.pbgeom
+            else:
+                q_geom = pbdGeometry(self.k_geom, pbounds(0., 2 * np.pi))
+            _soltn_tot = np.sum(_soltn, axis=0) # \sum_i X^WF_i
+            G = np.zeros(Alm.getsize(self.lmax_qlm, self.mmax_qlm), dtype='complex128')
+            C = np.zeros(Alm.getsize(self.lmax_qlm, self.mmax_qlm), dtype='complex128')
+            for datset in range(self.nsplits):
+                # \bar X^i D_a \nabla (( \sum_j X^WF_j ) - X^WF_i)
+                _temp = self.filter.get_qlms(self.dat_maps[datset], _soltn[datset], q_geom, alm_wf_leg2 = _soltn_tot - _soltn[datset])
+                G += _temp[0]
+                C += _temp[1]
+            G *= 1./(self.nsplits * (self.nsplits-1))
+            C *= 1./(self.nsplits * (self.nsplits-1))
+            almxfl(G if key.lower() == 'p' else C, self._h2p(self.lmax_qlm), self.mmax_qlm, True)
+            log.info('get_qlms calculation done; (%.0f secs)'%(time.time() - t0))
+            if itr == 1: #We need the gradient at 0 and the yk's to be able to rebuild all gradients
+                fn_lik = '%slm_grad%slik_it%03d' % (self.h, key.lower(), 0)
+                self.cacher.cache(fn_lik, -G if key.lower() == 'p' else -C)
+            return -G if key.lower() == 'p' else -C
+ 
+    @log_on_start(logging.DEBUG, "load_graddet(it={k}, key={key}) started")
+    @log_on_end(logging.DEBUG, "load_graddet(it={k}, key={key}) finished")
+    def load_graddet(self, k, key):
+        if self.cacher.is_cached('mf'):
+            return self.cacher.load('mf')
+        return 0.
+
+    @log_on_start(logging.DEBUG, "calc_graddet(it={k}, key={key}) started")
+    @log_on_end(logging.DEBUG, "calc_graddet(it={k}, key={key}) finished")
+    def calc_graddet(self, k, key):
+        if self.cacher.is_cached('mf'):
+            return self.cacher.load('mf')
+        return 0.
+   
 class iterator_cstmf(qlm_iterator):
     """Constant mean-field
     """
@@ -525,19 +629,25 @@ class iterator_cstmf(qlm_iterator):
                  chain_descr, stepper:steps.nrstep, **kwargs):
         super(iterator_cstmf, self).__init__(lib_dir, h, lm_max_dlm, dat_maps, plm0, pp_h0, cpp_prior, cls_filt,
                                              ninv_filt, k_geom, chain_descr, stepper, **kwargs)
-        assert self.lmax_qlm == Alm.getlmax(mf0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(mf0.size, self.lmax_qlm))
-        self.cacher.cache('mf', almxfl(mf0, self._h2p(self.lmax_qlm), self.mmax_qlm, False))
+        assert self.lmax_qlm == Alm.getlmax(plm0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(plm0.size, self.lmax_qlm))
+        if mf0 is not None:
+            assert self.lmax_qlm == Alm.getlmax(mf0.size, self.mmax_qlm), (self.lmax_qlm, Alm.getlmax(mf0.size, self.lmax_qlm))
+            self.cacher.cache('mf', almxfl(mf0, self._h2p(self.lmax_qlm), self.mmax_qlm, False))
 
 
     @log_on_start(logging.DEBUG, "load_graddet(it={k}, key={key}) started")
     @log_on_end(logging.DEBUG, "load_graddet(it={k}, key={key}) finished")
     def load_graddet(self, k, key):
-        return self.cacher.load('mf')
+        if self.cacher.is_cached('mf'):
+            return self.cacher.load('mf')
+        return 0.
 
     @log_on_start(logging.DEBUG, "calc_graddet(it={k}, key={key}) started")
     @log_on_end(logging.DEBUG, "calc_graddet(it={k}, key={key}) finished")
     def calc_graddet(self, k, key):
-        return self.cacher.load('mf')
+        if self.cacher.is_cached('mf'):
+            return self.cacher.load('mf')
+        return 0.
 
 
 class iterator_pertmf(qlm_iterator):
@@ -618,7 +728,7 @@ class iterator_simf_mcs(qlm_iterator):
         mf_cmb_phas: phases of CMB sims for the MF estimate
         mf_noise_phas: phases of noise maps for the MF estimate
         shift_phas: if False, all MF are estimated with the same pahse at all iterations,
-                    if Turem, changes the phases used for MF estimate between iterations 
+                    if True, changes the phases used for MF estimate between iterations 
     """
 
     def __init__(self, lib_dir:str, h:str, lm_max_dlm:tuple,

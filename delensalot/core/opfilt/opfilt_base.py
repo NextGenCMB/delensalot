@@ -43,3 +43,8 @@ class alm_filter_wl(object):
 
     def synalm(self, cmbcls:dict, cmb_phas=None):
         assert 0, 'subclass this'
+
+    def degrade(self, nside, lmax, mmax, set_deflection_to_zero=True):
+        """Degradation of the filter to lower resolution"""
+        
+        assert 0, 'subclass this'

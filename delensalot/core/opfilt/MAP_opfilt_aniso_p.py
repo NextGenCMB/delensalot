@@ -16,6 +16,7 @@ from lenspyx.remapping.deflection_028 import rtype, ctype
 from delensalot.utils import clhash, cli, read_map, timer
 from delensalot.utility.utils_hp import almxfl, Alm, alm2cl, synalm, default_rng
 from delensalot.core.opfilt import opfilt_base, QE_opfilt_aniso_p, bmodes_ninv as bni
+import healpy as hp 
 
 apply_fini = QE_opfilt_aniso_p.apply_fini
 pre_op_dense = None # not implemented
@@ -94,6 +95,46 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
         n_inv_cl_e = self.b_transf_elm ** 2  / (self._nlevp/ 180. / 60. * np.pi) ** 2
         n_inv_cl_b = self.b_transf_blm ** 2  / (self._nlevp/ 180. / 60. * np.pi) ** 2
         return n_inv_cl_e, n_inv_cl_b.copy()
+
+    def degrade(self, nside, lmax, mmax, set_deflection_to_zero=True):
+        """Reproducing plancklens function, useful for multigrid preconditioner
+        # TODO: Check if the lmax can conflict with the template lmax_marg
+
+        Note: now only degrading the unlensed lmax, corresponding to the lmax of the Ninv matrix 
+           applied  to the calc _prep in the CG problem (D^t B^t N^{-1} X^{dat})
+           while we keep the lensed lmax the same as it is the lmax for the N in the CMB maps (lensed)
+           inside N_alpha^{-1}= Y^t D^t B^t N^{-1} B D Y, where D is lensing, B the transfer function   
+        """
+        if nside == hp.npix2nside(len(self.n_inv[0])) and set_deflection_to_zero is False:
+            return self
+        else:
+            print(f"MAP OPFILT ANISO P: Degrading filtered maps to nside:{nside}, lmax:{lmax}")
+            
+            if set_deflection_to_zero is True:
+                print("Setting deflection to zero")
+                _ffi = deflection(utils_geom.Geom.get_healpix_geometry(nside), np.zeros(hp.Alm.getsize(lmax)), mmax, 
+                    numthreads=self.sht_threads, verbosity=0, single_prec=False, epsilon=self.ffi.epsilon)
+            else:
+                print(f"Using the same deflection, rescaled to the new nside {nside}")
+                # TODO: Here I dont change the deflection lmax anymore, just the nside to match the new ninv 
+                _ffi = deflection(utils_geom.Geom.get_healpix_geometry(nside), self.ffi.dlm, mmax, 
+                    dclm=self.ffi.dclm, numthreads=self.ffi.sht_tr, 
+                    verbosity=self.ffi.verbosity, single_prec=self.ffi.single_prec, epsilon=self.ffi.epsilon)
+            
+            if self.template is not None:
+                tpl = bni.template_dense(lmax_marg=self.template.lmax, geom=utils_geom.Geom.get_healpix_geometry(nside), 
+                        sht_threads=self.template.sht_threads, _lib_dir=self.template.lib_dir, rescal=self.template.rescal)
+            else:
+                tpl = None   
+            
+            return alm_filter_ninv_wl(
+                        utils_geom.Geom.get_healpix_geometry(nside), 
+                        hp.ud_grade(self.n_inv, nside, power=-2), 
+                        _ffi, self.b_transf_elm, 
+                        (lmax, mmax), (self.lmax_len, self.mmax_len),
+                        self.sht_threads, self.verbose, 
+                        tpl=tpl, transf_blm = self.b_transf_b, lmin_dotop=self.lmin_dotop, wee=self.wee)
+
 
     def dot_op(self):
         return dot_op(self.lmax_sol, self.mmax_sol, lmin=self.lmin_dotop)
@@ -244,17 +285,21 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
             All implementation signs are super-weird but end result should be correct...
 
         """
-        assert alm_wf_leg2 is None
         assert eblm_dat[0].size == self.ninv_geom.npix(), (Alm.getlmax(eblm_dat[0].size, self.mmax_len), self.ninv_geom.npix())
         assert eblm_dat[1].size == self.ninv_geom.npix(), (Alm.getlmax(eblm_dat[1].size, self.mmax_len), self.ninv_geom.npix())
         assert Alm.getlmax(elm_wf.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(elm_wf.size, self.mmax_sol), self.lmax_sol)
+        if alm_wf_leg2 is None:
+            alm_wf_leg2 = elm_wf
+        else:
+            assert Alm.getlmax(alm_wf_leg2.size, self.mmax_sol) == self.lmax_sol, (Alm.getlmax(alm_wf_leg2.size, self.mmax_sol), self.lmax_sol)
+        
         resmap_c = np.empty((q_pbgeom.geom.npix(),), dtype=elm_wf.dtype)
         resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
         self._get_irespmap(eblm_dat, elm_wf, q_pbgeom, map_out=resmap_r) # inplace onto resmap_c and resmap_r
 
-        gcs_r = self._get_gpmap(elm_wf, 3, q_pbgeom)  # 2 pos.space maps, uses then complex view onto real array
+        gcs_r = self._get_gpmap(alm_wf_leg2, 3, q_pbgeom)  # 2 pos.space maps, uses then complex view onto real array
         gc_c = resmap_c.conj() * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3)
-        gcs_r = self._get_gpmap(elm_wf, 1, q_pbgeom)
+        gcs_r = self._get_gpmap(alm_wf_leg2, 1, q_pbgeom)
         gc_c -= resmap_c * gcs_r.T.view(ctype[gcs_r.dtype]).squeeze().conj()  # (+2 , -1)
         del resmap_c, resmap_r, gcs_r
         lmax_qlm, mmax_qlm = self.ffi.lmax_dlm, self.ffi.mmax_dlm

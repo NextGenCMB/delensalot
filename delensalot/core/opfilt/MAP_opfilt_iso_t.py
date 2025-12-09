@@ -119,7 +119,35 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         if self.dorescal:
             almxfl(tlm, self.rescali, self.mmax_sol, True)
         # TODO: should add here the projection into cls > 0
-
+    
+    def degrade(self, nside, lmax, mmax, set_deflection_to_zero=True):
+        """Degradation of the filter to lower resolution
+        """
+        print('Not degrading filter {} {}'.format(len(self.nlev_tlm), lmax))
+        return self
+        # print(len(self.nlev_tlm), lmax+1)
+        # assert len(self.nlev_tlm) == lmax+1, 'not tested yet'
+        # if len(self.nlev_tlm) == lmax+1 and set_deflection_to_zero is False:
+        #     return self
+        
+        # if set_deflection_to_zero is True:
+        #     print("Setting deflection to zero")
+        #     _ffi = remapping.deflection(utils_geom.Geom.get_healpix_geometry(nside), np.zeros(hp.Alm.getsize(lmax)), mmax, 
+        #         numthreads=self.sht_threads, verbosity=0, single_prec=False, epsilon=self.ffi.epsilon)
+        # else:
+        #     print(f"Using the same deflection, rescaled to the new nside {nside}")
+        #     dlm = alm_copy(self.ffi.dlm, None, lmax, mmax)
+        #     if self.ffi.dclm is not None:
+        #         dclm = alm_copy(self.ffi.dclm, None, lmax, mmax)
+        #     else:
+        #         dclm = None
+        #     _ffi = remapping.deflection(utils_geom.Geom.get_healpix_geometry(nside), dlm, mmax, 
+        #         dclm=dclm, numthreads=self.ffi.sht_tr, 
+        #         verbosity=self.ffi.verbosity, single_prec=self.ffi.single_prec, epsilon=self.ffi.epsilon)
+        
+        # nlev_t = alm_copy(self.nlev_tlm, None, lmax, mmax)
+        # return alm_filter_nlev_wl(nlev_t, _ffi, self.transf, (self.lmax_sol, self.mmax_sol), (self.lmax_len, self.mmax_len), verbose=self.verbose, rescal=cli(self.rescali))
+    
     def get_qlms(self, tlm_dat: np.ndarray, tlm_wf: np.ndarray, q_pbgeom: utils_geom.pbdGeometry, alm_wf_leg2=None):
         """Get lensing generaliazed QE consistent with filter assumptions
 
@@ -149,9 +177,14 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         """Returns a unit vairance phase, useful for phase cancellation to reduce MF sims variance"""
         return synalm(np.ones(self.lmax_len + 1, dtype=float), self.lmax_len, self.mmax_len)
 
-    def synalm(self, unlcmb_cls:dict, cmb_phas:phas.lib_phas, noise_phase:phas.lib_phas, get_unltlm:bool=False):
+    def synalm(self, unlcmb_cls:dict, cmb_phas:phas.lib_phas, noise_phase:phas.lib_phas, get_unltlm:bool=False, nlev_sim:dict=None):
         """Generate some dat maps consistent with noise filter fiducial ingredients
-
+            Params:
+                unlcmb_cls: unlensed CMB cls
+                cmb_phas: unlensed CMB phase
+                noise_phase: noise phase
+                get_unltlm: return unlensed Tlm
+                nlev_sim: noise level for the simulation (if different from the filter)
             Note:
                 Feeding in directly the unlensed CMB phase can be useful for paired simulations.
                 In this case the shape must match that of the filter unlensed alm array
@@ -164,8 +197,13 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         tlm = self.ffi.lensgclm(tlm_unl, self.mmax_sol, 0, self.lmax_len, self.mmax_len)
         almxfl(tlm, self.transf, self.mmax_len, True)
         
+        if nlev_sim is not None:
+            nlev_tlm = _extend_cl(nlev_sim['t'], self.lmax_len)
+        else:
+            nlev_tlm = self.nlev_tlm
+
         noise_phase = alm_copy(noise_phase, None, self.lmax_len, self.mmax_len)
-        tlm_noise = almxfl(noise_phase, (self.nlev_tlm / 180 / 60 * np.pi) * (self.transf > 0), self.mmax_len, False)
+        tlm_noise = almxfl(noise_phase, (nlev_tlm / 180 / 60 * np.pi) * (self.transf > 0), self.mmax_len, False)
         # assert Alm.getlmax(tlm_noise.size, self.mmax_len) == self.lmax_len, (Alm.getlmax(tlm_noise.size, self.mmax_len), self.lmax_len)
 
         tlm += tlm_noise
