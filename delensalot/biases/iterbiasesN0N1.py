@@ -9,7 +9,6 @@ from scipy.interpolate import UnivariateSpline as spl
 from delensalot.core import cachers, mpi
 from delensalot.utils import cls2dls, dls2cls, dls2cls_grad
 from plancklens import qresp, nhl, utils
-from plancklens.n1 import n1 as n1_lib
 from os.path import join as opj
 import plancklens
 #Uses lensitbiases to compute fast N1 
