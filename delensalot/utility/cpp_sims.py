@@ -26,7 +26,6 @@ import delensalot.core.mpi as mpi
 from lenspyx.qest import qresp as qresp_lpx 
 
 from lensitbiases import n1_fft
-import time
 _write_alm = lambda fn, alm : hp.write_alm(fn, alm, overwrite=True)
  
 class cpp_sims_lib:
