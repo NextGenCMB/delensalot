@@ -37,6 +37,7 @@ setuptools.setup(
         'attrs',
         'healpy',
         'lenspyx',
+        'plancklens',
     ],
     long_description=long_description,
     long_description_content_type='text/markdown',
