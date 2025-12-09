@@ -25,7 +25,6 @@ import delensalot.core.mpi as mpi
 from lenspyx.qest import qresp as qresp_lpx 
 
 from lensitbiases import n1_fft
-import time
 _write_alm = lambda fn, alm : hp.write_alm(fn, alm, overwrite=True)
  
 class cpp_sims_lib:
@@ -925,7 +924,7 @@ class cpp_sims_lib:
         isdone = [False]*5000
         for i in range(5000):
             # if self.maxiterdone(i) ==itmax:
-            isdone[i] = statics.rec.is_iter_done(self.libdir_sim(nsim), itmax)
+            isdone[i] = statics.rec.is_iter_done(self.libdir_sim(i), itmax)
         return isdone
 
     def maxiterdone(self, simidx):
