@@ -35,6 +35,7 @@ setuptools.setup(
         'logdecorator',
         'psutil',
         'attrs',
+        'healpy',
     ],
     long_description=long_description,
     long_description_content_type='text/markdown',
