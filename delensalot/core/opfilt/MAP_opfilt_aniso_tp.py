@@ -156,7 +156,7 @@ class alm_filter_ninv_wl(opfilt_base.alm_filter_wl):
                         hp.ud_grade(self.n_inv, nside, power=-2), 
                         _ffi, self.b_transf_tlm, 
                         (lmax, mmax), (lmax, mmax), self.sht_threads, 
-                        p_tpl=p_tpl, transf_elm=self.b_transf_elm, transf_blm=self.b_trans_blm, 
+                        p_tpl=p_tpl, transf_elm=self.b_transf_elm, transf_blm=self.b_transf_blm, 
                         verbose=self.verbose, 
                         lmin_dotop=self.lmin_dotop, 
                         )

@@ -23,7 +23,6 @@ from lenspyx.remapping import deflection
 from plancklens.qcinv import template_removal
 
 # pre_op_dense = None # not implemented
-from plancklens.qcinv.opfilt_tt import pre_op_dense
 
 #FIXME: This is the same fw_op as the QE, is it correct ?
 fwd_op = MAP_opfilt_iso_t.fwd_op

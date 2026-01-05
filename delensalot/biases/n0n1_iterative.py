@@ -399,7 +399,7 @@ def get_delcls(qe_key: str, itermax, cls_unl_fid: dict, cls_unl_true:dict, cls_n
         cls_plen_true['pp'] = cldd_true * utils.cli(np.arange(len(cldd_true)) ** 2 * np.arange(1, len(cldd_true) + 1, dtype=float) ** 2 / (2. * np.pi))
         cls_plen_fid['pp'] = cldd_fid * utils.cli(np.arange(len(cldd_fid)) ** 2 * np.arange(1, len(cldd_fid) + 1, dtype=float) ** 2 / (2. * np.pi))
         if 'wE' in version and it>0:
-            # Need to convert the template of the lensing power spectrum: Cldd*rho, into the reidual lensing of the map: Cldd*(1-rho)
+            # Need to convert the template of the lensing power spectrum: Cldd*rho, into the residual lensing of the map: Cldd*(1-rho)
             cls_plen_true['pp'] =  cls_plen_true['pp'] *utils.cli( rho_sqd_phi) * (1. - rho_sqd_phi) 
             cls_plen_fid['pp'] =  cls_plen_fid['pp'] *utils.cli( rho_sqd_phi) * (1. - rho_sqd_phi) 
         elif 'wE' in version and it ==0:
