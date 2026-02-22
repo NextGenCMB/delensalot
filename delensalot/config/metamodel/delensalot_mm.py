@@ -109,6 +109,7 @@ class DELENSALOT_DataSource(DELENSALOT_Concept):
         operator_info: the operators used for generating the maps (lensing, birefringence)
 
     """
+    gaussianized_sims =     attr.field(default=DEFAULT_NotAValue)
     flavour =               attr.field(default=DEFAULT_NotAValue)
     libdir_suffix =         attr.field(default='generic')
     geominfo =              attr.field(default=DEFAULT_NotAValue)

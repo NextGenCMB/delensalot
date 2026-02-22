@@ -38,6 +38,7 @@ class harmonicbump(nrstep):
 
     def steplen(self, itr, incrnorm):
         xa, xb, a, b = self.bump_params
+        print(self.bump_params)
         return self.bp(np.arange(self.lmax_qlm + 1),xa, a, xb, b, scale=self.scale)
 
 
@@ -64,37 +65,9 @@ class Base:
             "fns": {'yk': f"diff_grad1d_simidx{{idx}}_{{idx2}}_it{{it}}m{{itm1}}",
                     'sk': f"incr_grad1d_simidx{{idx}}_{{idx2}}_it{{it}}m{{itm1}}",
             }})
-        setting_fullsky = lambda sub: {'lmax_qlm': sub.LM_max[0], 'mmax_qlm': sub.LM_max[1], 'a': 0.3, 'b': 0.299, 'xa': 400, 'xb': 1500}
+        setting_fullsky = lambda sub: {'lmax_qlm': sub.LM_max[0], 'mmax_qlm': sub.LM_max[1], 'a': 0.2, 'b': 0.199, 'xa': 400, 'xb': 1500}
         # setting_fullsky = lambda sub: {'lmax_qlm': sub.LM_max[0], 'mmax_qlm': sub.LM_max[1], 'a': 0.5, 'b': 0.499, 'xa': 400, 'xb': 1500} # NOTE main branch setting
         setting_masked = lambda sub: {'lmax_qlm': sub.LM_max[0], 'mmax_qlm': sub.LM_max[1], 'a': 0.02, 'b': 0.399,'xa': 1, 'xb': 15}
-
-        self.use_full_h0 = True
-
-        # Build flat component layout (exact order of concatenation)
-        self.comp_slices = []
-        offset = 0
-
-        for sub in self.gradient_lib.subs:
-            size = Alm.getsize(*sub.LM_max)
-            for _ in sub.gfield.component:
-                self.comp_slices.append((offset, offset + size, sub.LM_max))
-                offset += size
-
-        self.ncomp = len(self.comp_slices)
-        self.h0 = h0
-        if isinstance(self.h0, np.ndarray):
-            assert self.h0.ndim == 3, "h0 must have shape (Ncomp, Ncomp, L)"
-            assert self.h0.shape[0] == self.ncomp
-            assert self.h0.shape[1] == self.ncomp
-
-            self.h0_lmax = self.h0.shape[-1] - 1
-            self.h0_mmax = self.comp_slices[0][2][1]
-
-            # Precompute inverse per L for B0
-            self.b0 = self._pinv_per_L(self.h0, rcond=1e-12)
-        else:
-            self.b0 = None
-
 
         self.h0 = h0
         bfgs_desc.update({"applyH0k": self.applyH0k, "applyB0k": self.applyB0k})
@@ -112,14 +85,6 @@ class Base:
 
         self.iprior_list = np.diagonal(self.gradient_lib.ipriormatrix).T
         self.dot_op = bfgs_desc.get('dot_op', np.sum)
-
-    def _pinv_per_L(self, A3, rcond=1e-12):
-        n = A3.shape[0]
-        Lmax = A3.shape[-1] - 1
-        B3 = np.zeros_like(A3)
-        for L in range(Lmax + 1):
-            B3[:, :, L] = np.linalg.pinv(A3[:, :, L], rcond=rcond)
-        return B3
 
 
     def add_svector(self, incr, it):
@@ -164,54 +129,24 @@ class Base:
         return ret
 
 
-    def applyH0k(self, grad_lm: np.ndarray, kr):
-        H0 = self.h0
-        ncomp = self.ncomp
-        g_blocks = []
-        for (a, b, _LM) in self.comp_slices:
-            g_blocks.append(grad_lm[a:b])
+    def applyH0k(self, grad_lm:np.ndarray, kr):
         ret = np.empty_like(grad_lm)
-        for i in range(ncomp):
-            out = np.zeros_like(g_blocks[i])
-            if self.use_full_h0:
-                # --- full matrix ---
-                for j in range(ncomp):
-                    tmp = g_blocks[j].copy()
-                    almxfl(tmp, H0[i, j], self.h0_mmax, True)
-                    out += tmp
-            else:
-                # --- diagonal only ---
-                tmp = g_blocks[i].copy()
-                almxfl(tmp, H0[i, i], self.h0_mmax, True)
-                out = tmp
-            a, b, _ = self.comp_slices[i]
-            ret[a:b] = out
+        N = 0
+        for h0 in self.h0:
+            siz = Alm.getsize(len(h0)-1, len(h0)-1)
+            ret[N:N+siz] = almxfl(grad_lm[N:N+siz], h0, len(h0), False)
+            N += siz
         return ret
 
 
-    def applyB0k(self, grad_lm: np.ndarray, kr):
-        B0 = self.b0
-        ncomp = self.ncomp
-        g_blocks = []
-        for (a, b, _LM) in self.comp_slices:
-            g_blocks.append(grad_lm[a:b])
+    def applyB0k(self, grad_lm:np.ndarray, kr):
         ret = np.empty_like(grad_lm)
-        for i in range(ncomp):
-            out = np.zeros_like(g_blocks[i])
-
-            if self.use_full_h0:
-                for j in range(ncomp):
-                    tmp = g_blocks[j].copy()
-                    almxfl(tmp, B0[i, j], self.h0_mmax, True)
-                    out += tmp
-            else:
-                tmp = g_blocks[i].copy()
-                almxfl(tmp, B0[i, i], self.h0_mmax, True)
-                out = tmp
-            a, b, _ = self.comp_slices[i]
-            ret[a:b] = out
+        N = 0
+        for h0 in self.h0:
+            siz = Alm.getsize(len(h0)-1, len(h0)-1)
+            ret[N:N+siz] = almxfl(grad_lm[N:N+siz], cli(h0), len(h0), False) #TOD0 this assumes >= 0
+            N += siz
         return ret
-
 
     
     def get_curvature(self, grad_tot, it, secondary=None, component=None, idx2=None):

@@ -170,8 +170,7 @@ class Base:
         else:
             return -1
 
-
-    def _get_h0(self):
+    def _get_h0_(self):
         lmax = self.fq.lm_max_qlm[0]
         ret = []
         for comp in self.secondary.component:
@@ -181,7 +180,41 @@ class Base:
             buff = cli(R_unl0[:lmax+1] + cli(chh_comp)) * (chh_comp > 0)
             ret.append(np.array(buff))
         return ret
-    
+
+    def _get_h0(self):
+        lmax = self.fq.lm_max_qlm[0]
+        comps = self.secondary.component
+        ncomp = len(comps)
+        scale = 'k' if self.ID in ['lensing'] else 'p'
+        R_full = self.fq.get_response_unl(
+            list(self.estimator_key.values())[0],
+            list(self.estimator_key.values())[0][0],
+            lmax
+        )
+
+        for i in range(ncomp):
+            for j in range(ncomp):
+                R_full[i, j] = rescale(R_full[i, j], scale=scale)
+
+        C_full = np.zeros((ncomp, ncomp, lmax+1))
+        for i, comp in enumerate(comps):
+            C_full[i, i] = self.chh[comp][:lmax+1]
+
+        # --- Build H0(L) = ( R + C^{-1} )^{-1}
+        H0 = np.zeros_like(R_full)
+        for L in range(lmax + 1):
+            R_L = R_full[:, :, L]
+            C_L = C_full[:, :, L]
+            Cinv_L = np.zeros_like(C_L)
+            for i in range(ncomp):
+                if C_L[i, i] > 0:
+                    Cinv_L[i, i] = 1.0 / C_L[i, i]
+
+            M = R_L + Cinv_L
+            H0[:, :, L] = np.linalg.pinv(M, rcond=1e-12)
+
+        return H0
+
 
     # def _get_h0(self, Lc=20, eps0=0.01):
     #     """

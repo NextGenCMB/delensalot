@@ -44,24 +44,39 @@ class BFGSHessian(object):
         """
 
          # this is the 1D-solution. For 2D, I will pass apply_h0k and apply_b0k
-        if len(h0) == 1: self.lmax_qlm = h0[0]
-        if applyH0k is None: apply_H0k = lambda rlm, kr: almxfl(rlm, h0, self.lmax_qlm, False)
-        if applyB0k is None: applyB0k = lambda rlm, kr: almxfl(rlm, cli(h0), self.lmax_qlm, False)
-        self.applyH0k = applyH0k
-        self.applyB0k = applyB0k
 
         self.cacher = cacher
         self.paths2ys = paths2ys
         self.paths2ss = paths2ss
         self.L = L
-
         self.verbose = verbose
-        if dot_op is None:
-            dot_op = np.sum
-        self.dot_op = dot_op
-
-        self.use_powell_damping = False
         self.subs_layout = subs_layout
+        self.use_powell_damping = False
+        self.dot_op = np.sum if dot_op is None else dot_op
+        self.h0 = h0
+
+        if applyH0k is not None:
+            self.applyH0k = applyH0k
+        else:
+            # Only safe default: 1D isotropic filter h0[L]
+            h0_arr = np.asarray(h0)
+            if h0_arr.ndim != 1:
+                raise ValueError("applyH0k was not provided, but h0 is not 1D. "
+                    "For matrix-valued h0 (N×N×L), you must pass applyH0k."
+                )
+            self.lmax_qlm = h0_arr.size - 1
+            self.applyH0k = lambda rlm, kr: almxfl(rlm, h0_arr, self.lmax_qlm, False)
+
+        if applyB0k is not None:
+            self.applyB0k = applyB0k
+        else:
+            h0_arr = np.asarray(h0)
+            if h0_arr.ndim != 1:
+                raise ValueError("applyB0k was not provided, but h0 is not 1D. "
+                    "For matrix-valued h0 (N×N×L), you must pass applyB0k."
+                )
+            self.lmax_qlm = h0_arr.size - 1
+            self.applyB0k = lambda rlm, kr: almxfl(rlm, cli(h0_arr), self.lmax_qlm, False)
 
     def y(self, n):
         return self.cacher.load(self.paths2ys[n])
@@ -75,8 +90,8 @@ class BFGSHessian(object):
         self.paths2ys[k] = path2y
         self.paths2ss[k] = path2s
         if self.verbose:
-            log.debug('Linked y vector {} to Hessian'.format(str(path2y)))
-            log.debug('Linked s vector {} to Hessian'.format(str(path2s)))
+            log.info('Linked y vector {} to Hessian'.format(str(path2y)))
+            log.info('Linked s vector {} to Hessian'.format(str(path2s)))
 
     def _save_alpha(self, alpha, i):
         ctx, isnew = get_computation_context()
@@ -165,19 +180,6 @@ class BFGSHessian(object):
             s0, y0 = self.s(0), self.y(0)
             si, yi = self.s(i), self.y(i)
             sy = self.dot_op(si, yi)
-
-            if self.use_powell_damping:
-                # modify yi in-place according to Powell criterion
-                yi, sy = self._apply_scale_dependent_damping(s0, y0, si, yi, k)
-                self.visualize_powell_damping(si, yi, self.applyB0k(si,k))
-                # self.visualize_powell_damping_curvatureFromFirstIncrement(s0, y0, self.applyB0k(s0, 0), si, yi, self.applyB0k(si,k))
-
-            # skip degenerate pairs
-            if sy <= 0 or not np.isfinite(sy):
-                print('could skip pair %d with s^T y = %.5e'%(i, sy))
-                # NOTE if i really skip, need to start tracking which indices I actually skipped, to pass this info to the forward pass below
-                # continue
-
             alpha_i = rho(i) * self.dot_op(si, q)
             q -= alpha_i * yi
             self._save_alpha(alpha_i, i)
@@ -201,76 +203,6 @@ class BFGSHessian(object):
         self.cacher.cache(output_fname, -r)
         return
     
-    def visualize_powell_damping(self, s, y, yB, L0=10, L1=30, show_damped=True):
-        """
-        Visualize strong low-L damping (smooth taper between L0–L1) consistent with
-        the current _apply_scale_dependent_damping() implementation.
-
-        Parameters
-        ----------
-        s, y, yB : 1D complex arrays
-            Concatenated alm arrays of all subfields (same layout).
-            yB = B0·s (baseline curvature prediction).
-        L0, L1 : int
-            Full damping for L<=L0, smooth transition to zero by L1.
-        show_damped : bool
-            If True, also plot damped |sᵀy′|(L).
-        """
-        import matplotlib.pyplot as plt
-        subs_layout = self.subs_layout
-        plt.figure(figsize=(8, 5))
-        colors = plt.cm.tab10(np.linspace(0, 1, len(subs_layout)))
-        off = 0
-
-        for fi, (lmax, mmax) in enumerate(subs_layout):
-            size = Alm.getsize(lmax, mmax)
-            s_blk  = s[off:off+size]
-            y_blk  = y[off:off+size]
-            yB_blk = yB[off:off+size]
-            off += size
-
-            # --- strong taper window: full damping below L0, none above L1
-            Ls = np.arange(lmax + 1)
-            x = (Ls - L0) / max(1, (L1 - L0))
-            fL = 0.5 * (1.0 - np.tanh(3.0 * x))  # sharp low-L transition
-            wL = fL
-
-            # --- curvature spectra ---
-            cl_sy  = alm2cl(s_blk, y_blk,  lmax, mmax, lmax)
-            cl_sBs = alm2cl(s_blk, yB_blk, lmax, mmax, lmax)
-
-            if show_damped:
-                y_damped = almxfl(y_blk, 1.0 - wL, lmax, False) + almxfl(yB_blk, wL, lmax, False)
-                cl_sy_damped = alm2cl(s_blk, y_damped, lmax, mmax, lmax)
-            else:
-                cl_sy_damped = None
-
-            c = colors[fi]
-            label_base = f"Field {fi}"
-
-            plt.loglog(Ls, np.abs(cl_sy),  color=c, lw=1.2, label=f"{label_base} |sᵀy| (original)")
-            plt.loglog(Ls, np.abs(cl_sBs), color=c, ls='--', alpha=0.6, label=f"{label_base} |sᵀB₀s|")
-            if show_damped and cl_sy_damped is not None:
-                plt.loglog(Ls, np.abs(cl_sy_damped), color=c, lw=1.8, alpha=0.8,
-                        linestyle='-.', label=f"{label_base} |sᵀy′| (damped)")
-
-            # show the damping window on secondary y-axis
-            ax2 = plt.gca().twinx()
-            ax2.plot(Ls, wL, color=c, lw=1.0, alpha=0.3)
-            ax2.set_ylabel("Damping weight w(L)", color="gray", fontsize=8)
-            ax2.set_ylim(-0.05, 1.05)
-
-            print(f"Field {fi}: strong damping up to L≈{L1}, full below L≈{L0}")
-
-        plt.xlabel(r'Multipole $L$')
-        plt.ylabel(r'Power-like curvature $|s^T y|(L)$')
-        plt.title("Strong low-L damping profile (consistent with tanh taper)")
-        plt.ylim(1e-8, 1e6)
-        plt.xlim(1, max(subs_layout, key=lambda x: x[0])[0])
-        plt.legend(frameon=False, fontsize='x-small', ncol=2)
-        plt.tight_layout()
-        plt.show()
-
     def get_curvature_spectra(self, grad_tot, k=None, tau0=1e0, L0=10, L1=30):
         """
         Compute measured and expected curvature spectra for all stored (s, y) pairs.
@@ -333,88 +265,3 @@ class BFGSHessian(object):
                 })
 
         return curvature_data
-
-    def visualize_powell_damping_curvatureFromFirstIncrement(self, s0, y0, yB0, s, y, yB, tau0=1e0, L0=10, L1=30, show_damped=True):
-        """
-        Visualize Powell damping (high-curvature capping) for concatenated alm vectors.
-
-        Parameters
-        ----------
-        s, y, yB : 1D complex arrays
-            Concatenated alm arrays of all subfields (same layout).
-            yB = B0·s (baseline curvature prediction).
-        tau0, L0, L1 : float
-            Damping parameters. tau_L = tau0 * f_L with tanh taper.
-        show_damped : bool
-            If True, compute and overlay damped |sᵗy′|(L).
-        """
-        import matplotlib.pyplot as plt
-        subs_layout = self.subs_layout
-        plt.figure(figsize=(8, 5))
-        colors = plt.cm.tab10(np.linspace(0, 1, len(subs_layout)))
-        off = 0
-
-        for fi, (lmax, mmax) in enumerate(subs_layout):
-            size = Alm.getsize(lmax, mmax)
-            s_blk  = s[off:off+size]
-            s0_blk  = s0[off:off+size]
-            y_blk  = y[off:off+size]
-            y0_blk  = y0[off:off+size]
-            yB_blk = yB[off:off+size]
-            yB0_blk = yB0[off:off+size]
-            off += size
-
-            # --- per-L damping profile ---
-            Ls = np.arange(lmax + 1)
-            fL = 0.5 * (1.0 + np.tanh((L1 - Ls) / max(1, (L1 - L0))))
-            tau_L = tau0 * fL  # stronger damping at low-L
-
-            # --- Curvature spectra ---
-            cl_sy  = alm2cl(s_blk, y_blk,  lmax, mmax, lmax)
-            cl_sBs = alm2cl(s_blk, yB_blk, lmax, mmax, lmax)
-            cl_sBs0 = alm2cl(s0_blk, yB0_blk, lmax, mmax, lmax)
-
-            # --- Identify modes where curvature is too strong ---
-            mask = np.abs(cl_sy) > (1.0 / tau_L) * np.abs(cl_sBs0)
-
-            # --- Compute damped curvature if requested ---
-            if show_damped:
-                theta_L = np.ones_like(Ls, dtype=float)
-                if np.any(mask):
-                    idx = np.where(mask)[0]
-                    # smooth blend back to baseline curvature (reduce y amplitude)
-                    num = (1.0 - tau_L[idx]) * np.abs(cl_sBs0[idx])
-                    den = np.maximum(np.abs(cl_sy[idx]) - np.abs(cl_sBs0[idx]), 1e-30)
-                    theta_L[idx] = np.clip(num / den, 0.0, 1.0)
-                y_damped = (
-                    almxfl(y_blk,  theta_L, lmax, False)
-                    + almxfl(yB_blk, 1.0 - theta_L, lmax, False)
-                )
-                cl_sy_damped = alm2cl(s_blk, y_damped, lmax, mmax, lmax)
-            else:
-                cl_sy_damped = None
-
-            # --- Plot per-field ---
-            c = colors[fi]
-            label_base = f"Field {fi}"
-            plt.loglog(Ls, np.abs(cl_sy), color=c, lw=1.2, label=f"{label_base} |sᵗy|")
-            plt.loglog(Ls, np.abs(cl_sBs0) / tau_L, color=c, ls='--', alpha=0.6, label=f"{label_base} (1/τₗ)|sᵗBs| cap")
-            plt.loglog(Ls, np.abs(cl_sBs) / tau_L, color=c, ls='--', alpha=0.2)
-            if show_damped and cl_sy_damped is not None:
-                plt.loglog(Ls, np.abs(cl_sy_damped), color=c, lw=1.8, alpha=0.8,
-                        linestyle='-.', label=f"{label_base} |sᵗy′| (damped)")
-
-            # --- Shade region where damping active ---
-            if np.any(mask):
-                plt.fill_between(Ls, 1e-12, 1e12, where=mask, color=c, alpha=0.12, edgecolor=None)
-                frac = np.mean(mask)
-                print(f"Field {fi}: damping active in {frac*100:.1f}% of L-modes")
-
-        plt.xlabel(r'Multipole $L$')
-        plt.ylabel(r'Power-like curvature')
-        plt.title("High-curvature Powell damping per field")
-        plt.ylim(1e-8, 1e6)   # expanded for your large low-L curvature
-        plt.xlim(1, max(subs_layout, key=lambda x: x[0])[0])
-        plt.legend(frameon=False, fontsize='x-small', ncol=2)
-        plt.tight_layout()
-        plt.show()

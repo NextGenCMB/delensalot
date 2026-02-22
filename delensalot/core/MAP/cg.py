@@ -171,7 +171,7 @@ class ConjugateGradient:
         
         ret =  np.sum(alm2cl(tlm1, tlm2, lmaxs[0], lmaxs[0], None)[0:] * weights[0])
         ret += np.sum(alm2cl(elm1, elm2, lmaxs[1], lmaxs[1], None)[0:] * weights[1])
-        ret += np.sum(alm2cl(blm1, blm2, lmaxs[2], lmaxs[2], None)[0:] * weights[2])
+        # ret += np.sum(alm2cl(blm1, blm2, lmaxs[2], lmaxs[2], None)[0:] * weights[2])
         # print(ret)
         
         return ret
@@ -261,67 +261,58 @@ def solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cacher, roundoff=25, max
     xdata.append([hp.alm2cl(x_) for x_ in np.atleast_2d(x)])
     precondata.append([hp.alm2cl(precon_) for precon_ in np.atleast_2d(searchdirs)])
     iter = 0
-
-    
-    # print(f"b = {b.shape}, {hp.alm2cl(b[1])[0:30]}")
-
     lmax = hp.Alm.getlmax(residual[0].size)
     ell = np.arange(0, lmax + 1)
-    
     while not criterion(iter, x, residual) and iter <= maxiter:
-        
+        # Forward ops on search directions
         searchfwds = [fwd_op(searchdir) for searchdir in searchdirs]
-        deltas = [dot_op(searchdir, residual) for searchdir in searchdirs]
 
-        # calculate (D^T A D)^{-1}
+        # RHS = D^T r
+        deltas = np.array([dot_op(searchdir, residual) for searchdir in searchdirs])
+
+        # Build D^T A D
         dTAd = np.zeros((n_pre_ops, n_pre_ops))
-        for ip1 in range(0, n_pre_ops):
-            for ip2 in range(0, ip1 + 1):
-                dTAd[ip1, ip2] = dTAd[ip2, ip1] = dot_op(searchdirs[ip1], searchfwds[ip2])
-        dTAd_inv = np.linalg.inv(dTAd)
+        for ip1 in range(n_pre_ops):
+            for ip2 in range(ip1 + 1):
+                v = dot_op(searchdirs[ip1], searchfwds[ip2])
+                dTAd[ip1, ip2] = v
+                dTAd[ip2, ip1] = v
 
-        # search.
-        alphas = np.dot(dTAd_inv, deltas)
-        for (searchdir, alpha) in zip(searchdirs, alphas):
+        # small diagonal jitter for safety
+        jitter = 1e-12 * np.trace(dTAd) / max(1, dTAd.shape[0])
+        dTAd_reg = dTAd + jitter * np.eye(dTAd.shape[0])
+        alphas = np.linalg.solve(dTAd_reg, deltas)
+        # Update solution
+        for searchdir, alpha in zip(searchdirs, alphas):
             x += searchdir * alpha
 
-        # append to cache.
-        cacher.store(iter, [dTAd_inv, searchdirs, searchfwds])
-        
-        # update residual
+        # Cache objects needed for orthogonalization
+        cacher.store(iter, [np.linalg.inv(dTAd_reg), searchdirs, searchfwds])
+
+        # Update residual
         iter += 1
-        if np.mod(iter, roundoff) == 0:
+        if iter % roundoff == 0:
             residual = b - fwd_op(x)
         else:
-            for (searchfwd, alpha) in zip(searchfwds, alphas):
+            for searchfwd, alpha in zip(searchfwds, alphas):
                 residual -= searchfwd * alpha
-        if log.getEffectiveLevel() in [logging.INFO, logging.DEBUG]:
-            # plot_stuff(residual, residualdata, bdata, fwddata, xdata, precondata, searchdirs, searchfwds, weights, x)
-            # import matplotlib.pyplot as plt
-            # ell = np.arange(len(cond_num_ell))
-            # plt.plot(ell, cond_num_ell)
-            # plt.loglog()
-            # plt.show()
-            # print(f"Iteration {iter}: Global Condition Number = {global_cond_num:.2f}")
-            pass
 
-        # initial choices for new search directions.
+        # New search directions from preconditioner
         searchdirs = [pre_op(residual) for pre_op in pre_ops]
 
-        # orthogonalize w.r.t. previous searches.
+        # Orthogonalize against previous directions
         prev_iters = range(tr(iter), iter)
-
         for titer in prev_iters:
-            [prev_dTAd_inv, prev_searchdirs, prev_searchfwds] = cacher.restore(titer)
+            prev_dTAd_inv, prev_searchdirs, prev_searchfwds = cacher.restore(titer)
 
             for searchdir in searchdirs:
-                proj = [dot_op(searchdir, prev_searchfwd) for prev_searchfwd in prev_searchfwds]
-                betas = np.dot(prev_dTAd_inv, proj)
+                proj = np.array([
+                    dot_op(searchdir, prev_searchfwd)
+                    for prev_searchfwd in prev_searchfwds
+                ])
+                betas = prev_dTAd_inv @ proj
+                for beta, prev_searchdir in zip(betas, prev_searchdirs):
+                    searchdir -= beta * prev_searchdir
 
-                for (beta, prev_searchdir) in zip(betas, prev_searchdirs):
-                    searchdir -= prev_searchdir * beta
-
-        # clear old keys from cache
         cacher.trim(range(tr(iter + 1), iter))
-
     return iter

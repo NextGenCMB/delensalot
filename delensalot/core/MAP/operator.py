@@ -72,6 +72,7 @@ class Compound:
         assert len(obj) == 3, "obj must be a 3 element array"
         for operator in self.operators:
             if isinstance(operator, Secondary):
+                # print("compound secondary starting")
                 obj = operator.act(obj, spin=spin, out=self.space_out)
             else:
                 operator.act(obj, spin)
@@ -81,7 +82,12 @@ class Compound:
             # NOTE I should rather move the out space here completely
             # FIXME this needs changing
             return self.operators[-1].operators[-1].lenjob_geomlib.synthesis(obj, 2, *self.operators[-1].operators[-1].lm_max, self.sht_tr)
-        
+            # lm_max = self.operators[-1].operators[0].lm_max_out
+            # buff = self.operators[-1].operators[-1].lenjob_geomlib.synthesis(obj[1:], 2, *lm_max, self.sht_tr)
+            # out = np.empty((3,) + buff.shape[1:], dtype=buff.dtype)
+            # out[0] = 0
+            # out[1:] = buff
+            # return out
         return obj
     
 
@@ -100,16 +106,17 @@ class Secondary:
 
     @log_on_start(logging.DEBUG, "secondary", logger=log)  
     @log_on_end(logging.DEBUG, "secondary done", logger=log)  
-    def act(self, obj, spin=None, adjoint=False, backwards=False, out_sht_mode=None, secondary=None, nomagn=None, out='alm', order='normal'):
+    def act(self, obj, spin=None, adjoint=False, backwards=False, out_sht_mode=None, secondary=None, nomagn=None, out='alm', order='normal', nobire=False):
         assert order in ['normal', 'reversed'], "order must be 'normal' or 'reversed'. Reversed is used for e.g. template generation"
         secondary = secondary or [op.ID for op in self.operators]
         operators = self.operators if not adjoint else self.operators[::-1]
         operators = operators if order == 'normal' else operators[::-1]
         for idx, operator in enumerate(operators):
+            # print(f'acting {operator.ID}')
             if operator.ID in secondary:
                 if isinstance(operator, Lensing):
                     obj = operator.act(obj, spin=spin, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode, nomagn=nomagn, out=out)
-                else:
+                elif not nobire:
                     obj = operator.act(obj, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode)
         return obj
 
@@ -140,7 +147,6 @@ class Lensing(Operator):
         self.LM_max = operator_desc["LM_max"]
         self.lm_max_in = operator_desc["lm_max_in"]
         self.lm_max_out = operator_desc["lm_max_out"]
-        print(self.lm_max_in, self.lm_max_out)
         # self.Lmin = operator_desc["Lmin"]
         self.perturbative = operator_desc["perturbative"]
         self.component = operator_desc["component"]
@@ -148,12 +154,12 @@ class Lensing(Operator):
         self.field_fns = field.get_secondary_fns(self.component)
 
         self.sht_tr = operator_desc["sht_tr"]
-        self.ffi = deflection(self.lenjob_geomlib, np.zeros(shape=Alm.getsize(*self.LM_max), dtype=complex), self.LM_max[1], numthreads=self.sht_tr, verbosity=False, epsilon=1e-10)
+        self.ffi = deflection(self.lenjob_geomlib, np.zeros(shape=Alm.getsize(*self.LM_max), dtype=complex), self.LM_max[1], numthreads=self.sht_tr, verbosity=False, epsilon=1e-12)
 
 
     @log_on_start(logging.DEBUG, "lensing", logger=log)
     # @log_on_end(logging.DEBUG, "lensing done", logger=log)
-    def act(self, obj, spin=None, adjoint=False, backwards=False, out_sht_mode=None, nomagn=None, out='alm'):
+    def act(self, obj, spin=None, adjoint=False, backwards=False, out_sht_mode=None, nomagn=None, out='alm'):        
         lmax = Alm.getlmax(np.max([len(o) for o in obj]), None)
         if self.perturbative: # Applies perturbative remapping
             get_alm = lambda a: obj[1] if a == 'e' else np.zeros_like(obj[1])
@@ -171,10 +177,12 @@ class Lensing(Operator):
             tlm = np.zeros_like(eblm[0])
             return np.array([tlm, *eblm])
         else:
+            out_sht_mode = out_sht_mode or 'STANDARD'
+            # out_sht_mode = out_sht_mode or 'GRAD_ONLY'
             if adjoint and backwards:
+                # print('adjoint lensing')
                 # print(f'adjoint, branch 0: self.lm_max_in[1], self.lm_max_out = {self.lm_max_in[1]}, {self.lm_max_out}')
                 tlm = np.atleast_2d(self.ffi.lensgclm(obj[0], self.lm_max_in[1], 0, *self.lm_max_out, backwards=backwards, out_sht_mode='STANDARD')) if self.data_key in ['tt', 'tp'] else np.zeros(shape=(Alm.getsize(*self.lm_max_out)),dtype=complex)
-                out_sht_mode = out_sht_mode or 'GRAD_ONLY'
                 nomagn = nomagn or False
                 shaptefirstdim = 1 if out_sht_mode == 'GRAD_ONLY' else 2
                 eblm = np.atleast_2d(self.ffi.lensgclm(np.atleast_2d(obj[1:]), self.lm_max_in[1], 2, *self.lm_max_out, backwards=backwards, out_sht_mode=out_sht_mode, nomagn=nomagn)) if self.data_key in ['p', 'ee', 'eb', 'bb', 'tp'] else np.zeros(shape=(shaptefirstdim, Alm.getsize(*self.lm_max_out)),dtype=complex)
@@ -182,20 +190,22 @@ class Lensing(Operator):
                 return np.array([tlm.squeeze(), *eblm, np.zeros_like(tlm.squeeze())]) if out_sht_mode == 'GRAD_ONLY' else np.array([tlm.squeeze(), *eblm])
             else:
                 if out == 'map':
-                    tmap = self.ffi.gclm2lenmap(np.atleast_2d(obj[0]), lmax, spin, False) if self.data_key in ['tt', 'tp'] else np.zeros(shape=(2,self.ffi.geom.npix()))
+                    tmap = self.ffi.gclm2lenmap(np.atleast_2d(obj[0]), lmax, spin, False) if self.data_key in ['tt', 'tp'] else np.zeros(shape=(1,self.ffi.geom.npix()))
                     ebmap = self.ffi.gclm2lenmap(np.atleast_2d(obj[1:]), lmax, spin, False) if self.data_key in ['p', 'ee', 'eb', 'bb', 'tp'] else np.zeros(shape=(2,self.ffi.geom.npix()))
-                    return tmap+ebmap
+                    return np.array([*tmap, *ebmap])
                
                 elif out == 'alm':
+                    # print('forward lensing')
+                    # print(out_sht_mode)
                     if lmax == self.lm_max_in[0]:
                         # print(f'non-adjoint, branch 1: self.lm_max_in[1], self.lm_max_out = {self.lm_max_in[1]}, {self.lm_max_out}')
-                        tlm = self.ffi.lensgclm(np.atleast_2d(obj[0]), self.lm_max_in[1], 0, *self.lm_max_out) if self.data_key in ['tt', 'tp'] else np.zeros(shape=(Alm.getsize(*self.lm_max_out)),dtype=complex)
-                        eblm = self.ffi.lensgclm(np.atleast_2d(obj[1:]), self.lm_max_in[1], 2, *self.lm_max_out)  if self.data_key in ['p', 'ee', 'eb', 'bb', 'tp'] else np.zeros(shape=(2,Alm.getsize(*self.lm_max_out)),dtype=complex)
+                        tlm = self.ffi.lensgclm(np.atleast_2d(obj[0]), self.lm_max_in[1], 0, *self.lm_max_out, out_sht_mode=out_sht_mode) if self.data_key in ['tt', 'tp'] else np.zeros(shape=(Alm.getsize(*self.lm_max_out)),dtype=complex)
+                        eblm = self.ffi.lensgclm(np.atleast_2d(obj[1:]), self.lm_max_in[1], 2, *self.lm_max_out, out_sht_mode=out_sht_mode)  if self.data_key in ['p', 'ee', 'eb', 'bb', 'tp'] else np.zeros(shape=(2,Alm.getsize(*self.lm_max_out)),dtype=complex)
                         return np.array([tlm, *eblm])
                     else:
                         # print(f'non-adjoint, branch 2: self.lm_max_out[1], self.lm_max_in = {self.lm_max_out[1]}, {self.lm_max_in}')
-                        tlm = self.ffi.lensgclm(np.atleast_2d(obj[0]), self.lm_max_out[1], 0, *self.lm_max_in) if self.data_key in ['tt', 'tp'] else np.zeros(shape=(Alm.getsize(*self.lm_max_in)),dtype=complex)
-                        eblm = self.ffi.lensgclm(np.atleast_2d(obj[1:]), self.lm_max_out[1], 2, *self.lm_max_in)  if self.data_key in ['p', 'ee', 'eb', 'bb', 'tp'] else np.zeros(shape=(2,Alm.getsize(*self.lm_max_in)),dtype=complex)
+                        tlm = self.ffi.lensgclm(np.atleast_2d(obj[0]), self.lm_max_out[1], 0, *self.lm_max_in, out_sht_mode=out_sht_mode) if self.data_key in ['tt', 'tp'] else np.zeros(shape=(Alm.getsize(*self.lm_max_in)),dtype=complex)
+                        eblm = self.ffi.lensgclm(np.atleast_2d(obj[1:]), self.lm_max_out[1], 2, *self.lm_max_in, out_sht_mode=out_sht_mode)  if self.data_key in ['p', 'ee', 'eb', 'bb', 'tp'] else np.zeros(shape=(2,Alm.getsize(*self.lm_max_in)),dtype=complex)
                         return np.array([tlm, *eblm])
 
 
@@ -260,6 +270,7 @@ class Birefringence(Operator):
 
         Elm_rot, Blm_rot = self.lenjob_geomlib.map2alm_spin(np.array([Q_rot, U_rot]), 2, lmax, lmax, self.sht_tr)
         if out_sht_mode == 'GRAD_ONLY':
+            assert 0, "i dont think that is what I want"
             return np.atleast_2d(Elm_rot)
         return np.array([obj[0], Elm_rot, Blm_rot])
 
@@ -268,6 +279,7 @@ class Birefringence(Operator):
         self.angle = 2 * self.lenjob_geomlib.alm2map(fieldlm.squeeze(), *self.LM_max, self.sht_tr)
         self.cos_a, self.sin_a = np.cos(self.angle), np.sin(self.angle)
         self.field = fieldlm
+        # self.field = np.zeros_like(fieldlm, dtype=complex)
 
 
     def get_field(self):
@@ -318,19 +330,16 @@ class Beam:
     @log_on_start(logging.DEBUG, "beam", logger=log)
     # @log_on_end(logging.DEBUG, "beam done", logger=log)
     def act(self, obj, adjoint=False, factor_p=1):
-        assert len(obj) == 3, "obj must have 3 components"
+        assert len(obj) == 3
         factor = lambda oi: factor_p if oi > 0 else 1.
         ellmax_ = Alm.getlmax(np.max([len(o) for o in obj]), None)
         if ellmax_ > self.lm_max[0]:
-            # print("Beam mismatch?")
-            log.warning(f"Beam operator: ellmax of input {ellmax_} is larger than lm_max of operator {self.lm_max[0]}. Extending transfer function to ellmax {ellmax_}.")
-        trsf_ = [_extend_cl(self.transferfunction[oi], ellmax_) for oi in range(3)] if ellmax_ > self.lm_max[0] else self.transferfunction
-        trsf_ = [cli(v) for v in trsf_] if adjoint else trsf_
-        val = np.array([almxfl(o, trsf_[oi]*factor(oi), len(trsf_[oi])-1, False) for oi, o in enumerate(obj)])
+            trsf_ = [_extend_cl(self.transferfunction[oi], ellmax_)
+                    for oi in range(3)]
+        else:
+            trsf_ = self.transferfunction
 
-        # print(f"inside Beam act: ", ellmax_, val.shape)
-
-        return val
+        return np.array([almxfl(o, trsf_[oi] * factor(oi), len(trsf_[oi]) - 1, False) for oi, o in enumerate(obj)])
 
 
     def adjoint(self):
@@ -372,13 +381,11 @@ class InverseNoiseVariance(Operator):
     def act(self, obj, adjoint=False):
         # TODO "operatorise" this function. If OBD activated, and spectrum_type is non-white, more opertations are needed in here
         if obj.dtype in (np.complex64, np.complex128): # NOTE this is full sky isotropic run (we run things on alms)
-            if adjoint:
-                return np.array([cli(almxfl(o, self.n1tebl[oi], len(self.n1tebl[oi])-1, False)) for oi, o in enumerate(obj)])
+            # adjoint = forward, as inv operator is real
             return np.array([almxfl(o, self.n1tebl[oi], len(self.n1tebl[oi])-1, False) for oi, o in enumerate(obj)])
         else:
             obj[0] *= self.niv[0]
             obj[1:] *= self.niv[1]
-            
             if False: # TODO if noise inverse variance maps are TT,QQ,UU,QU, need to catch it here
                 assert 0, "implement if needed"
                 assert self.template is None

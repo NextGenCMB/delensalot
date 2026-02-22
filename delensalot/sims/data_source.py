@@ -508,7 +508,11 @@ class Xpri:
 class Xsky:
     """class for generating lensed CMB and phi realizations from priensed realizations, using lenspyx for the lensing operation
     """    
-    def __init__(self, pri_lib=DNaV, geominfo=DNaV, CMB_info=DNaV, operator_info=DNaV, fixed_secondary_seed=None, operator_order=DNaV):
+    def __init__(self, pri_lib=DNaV, geominfo=DNaV, CMB_info=DNaV, operator_info=DNaV, fixed_secondary_seed=None, operator_order=DNaV, gaussianized_sims=DNaV):
+        self.gaussianized_sims = gaussianized_sims
+        from delensalot.utils import camb_clfile
+        self.Cl_dict_len = camb_clfile('/sharefs/alicpt/users/sebibel/git/delensalot/delensalot/data/cls/FFP10_wdipole_lensedCls_secondaries_lens_birefringence.dat')
+
         self.geominfo = geominfo
         if geominfo == DNaV:
             self.geominfo = ('healpix', {'nside':2048})
@@ -566,6 +570,19 @@ class Xsky:
         log.debug(f"requesting{fn}")
         self.lenjob_geomlib = self.operators[0].geomlib
         if not self.cacher.is_cached(fn):
+            if self.gaussianized_sims == 'unl':
+                # ============================================================
+                # GAUSSIANIZED UNL SIMULATION BRANCH
+                # ============================================================
+                sky = self.pri_lib.get_sim_pri(idx, space=space, field=field, spin=spin)
+                self.cacher.cache(fn, np.array(sky))
+                return self.cacher.load(fn)
+            if (self.gaussianized_sims == True) or (self.gaussianized_sims == "len"):
+                # ============================================================
+                # GAUSSIANIZED LEN SIMULATION BRANCH
+                # ============================================================
+                sky = self.get_Gaussianized_sims(idx, space, field, spin)
+                return self.cacher.load(fn)
             fn_other = f"sky_space{space}_spin{self.CMB_info['spin']}_field{field}_{idx}"
             if not self.cacher.is_cached(fn_other):
                 log.debug('..nothing cached..')
@@ -659,6 +676,70 @@ class Xsky:
                     sky = self.geom_lib.alm2map_spin(self.lenjob_geomlib.map2alm_spin(sky, spin=self.CMB_info['spin'], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4), lmax=self.CMB_info['lm_max'][0], spin=spin, mmax=self.CMB_info['lm_max'][1], nthreads=4)
             self.cacher.cache(fn, np.array(sky))
         return self.cacher.load(fn)
+
+    def get_Gaussianized_sims(self, idx, space, field, spin=2):
+        fn = f"sky_space{space}_spin{spin}_field{field}_{idx}"
+        log.debug(".. generating gaussianized lensed CMB realization")
+
+        lmax = self.CMB_info['lm_max'][0]
+
+        # ---- draw alms from lensed spectra ----
+        if field == 'temperature':
+            cls = self.Cl_dict_len['tt']
+            alm = hp.synalm(cls, lmax, new=True)
+
+        elif field == 'polarization':
+            # expect TT, EE, BB, TE in Cl_dict_len
+            cls = (
+                self.Cl_dict_len['tt'],
+                self.Cl_dict_len['ee'],
+                self.Cl_dict_len['bb'],
+                self.Cl_dict_len['te'],
+            )
+            alms = hp.synalm(cls, lmax, new=True)
+            # alms order: T, E, B
+            alm = alms[1:]  # return E,B for pol
+
+        else:
+            raise ValueError(field)
+
+        # ---- convert to requested space / spin ----
+        if field == 'temperature':
+            if space == 'map':
+                sky = self.geom_lib.alm2map(alm, lmax=lmax, mmax=self.CMB_info['lm_max'][1], nthreads=4)
+            else:
+                sky = alm
+
+        elif field == 'polarization':
+            if space == 'alm':
+                sky = alm
+            elif space == 'map':
+
+                if spin == 2:
+                    sky = self.geom_lib.alm2map_spin(
+                        alm,
+                        spin=2,
+                        lmax=lmax,
+                        mmax=self.CMB_info['lm_max'][1],
+                        nthreads=4
+                    )
+
+                elif spin == 0:
+                    sky1 = self.geom_lib.alm2map(
+                        alm[0],
+                        lmax=lmax,
+                        mmax=self.CMB_info['lm_max'][1],
+                        nthreads=4
+                    )
+                    sky2 = self.geom_lib.alm2map(
+                        alm[1],
+                        lmax=lmax,
+                        mmax=self.CMB_info['lm_max'][1],
+                        nthreads=4
+                    )
+                    sky = np.array([sky1, sky2])
+        self.cacher.cache(fn, np.array(sky))
+        return sky
 
 
 class Xobs:
@@ -915,7 +996,7 @@ class DataSource:
     Data can be cl, pri, len, or obs, .. and alms or maps. Simhandler connects the individual libraries and decides what can be generated.
     E.g.: If obs data provided, len data cannot be generated.
     """ 
-    def __init__(self, flavour, libdir_suffix, sec_info, fixed_secondary_seed, maps=DNaV, geominfo=DNaV, fid_info=DNaV, CMB_info=DNaV, obs_info=DNaV, operator_info=DNaV, operator_order=DNaV):
+    def __init__(self, flavour, libdir_suffix, sec_info, fixed_secondary_seed, maps=DNaV, geominfo=DNaV, fid_info=DNaV, CMB_info=DNaV, obs_info=DNaV, operator_info=DNaV, operator_order=DNaV, gaussianized_sims=DNaV):
         """Entry point for simulation data handling.
         Simhandler() connects the individual librariers together accordingly, depending on the provided data.
         It never stores data on disk itself, only in memory.
@@ -951,7 +1032,7 @@ class DataSource:
                 assert CMB_info['space'] in ['map','alm'], "sky CMB data can only be in map or alm space"
                 assert not (contains_DNaV(obs_info)), "need to provide complete obs_info"
                 self.cls_lib = Cls(fid_info=copy.copy(fid_info), seccomp=seccomp)
-                self.sky_lib = Xsky(pri_lib=DNaV, geominfo=geominfo, CMB_info=copy.copy(CMB_info), operator_info=copy.copy(operator_info), fixed_secondary_seed=fixed_secondary_seed, operator_order=operator_order)
+                self.sky_lib = Xsky(pri_lib=DNaV, geominfo=geominfo, CMB_info=copy.copy(CMB_info), operator_info=copy.copy(operator_info), fixed_secondary_seed=fixed_secondary_seed, operator_order=operator_order, gaussianized_sims=gaussianized_sims)
                 
                 self.libdir = self.sky_lib.CMB_info['libdir']
                 self.fns = self.sky_lib.CMB_info['fns']
@@ -962,7 +1043,7 @@ class DataSource:
                 self.cls_lib = Cls(fid_info=copy.copy(fid_info), seccomp=seccomp)
 
                 self.pri_lib = Xpri(cls_lib=self.cls_lib, geominfo=geominfo, CMB_info=copy.copy(CMB_info), sec_info=copy.copy(sec_info))
-                self.sky_lib = Xsky(pri_lib=self.pri_lib, geominfo=geominfo, CMB_info=copy.copy(CMB_info), operator_info=copy.copy(operator_info), fixed_secondary_seed=fixed_secondary_seed, operator_order=operator_order)
+                self.sky_lib = Xsky(pri_lib=self.pri_lib, geominfo=geominfo, CMB_info=copy.copy(CMB_info), operator_info=copy.copy(operator_info), fixed_secondary_seed=fixed_secondary_seed, operator_order=operator_order, gaussianized_sims=gaussianized_sims)
 
             if obs_info['noise_info'].get('libdir', DNaV) == DNaV:
                 noise_lib = IsoWhiteNoise(geominfo=geominfo, noise_info=obs_info['noise_info'], libdir_suffix=libdir_suffix)

@@ -69,6 +69,10 @@ class Filter_3d:
         self.wf_field: field.Filter = field.Filter(filterfield_desc('wf', self.libdir))
 
         self.mchain = cg.ConjugateGradient(self.preconditioner_op, self.chain_descr, self.cls_filt)
+        self.nobire = False
+        self.nocurl = False
+        self.shtmode = 'STANDARD'
+        # self.shtmode = 'GRAD_ONLY'
 
         # print(f"inside Filter_3d init:", self.cls_filt_bool.shape, self.cls_filt['ee'].shape, self.icls.shape)
 
@@ -97,7 +101,7 @@ class Filter_3d:
                 delTEB[0] = almxfl(delTEB[0], cli(self.beam_operator.transferfunction[0]), config.lm_max_sky[1], False)
                 delTEB[1] = almxfl(delTEB[1], cli(self.beam_operator.transferfunction[1]), config.lm_max_sky[1], False)
                 delTEB[2] = almxfl(delTEB[2], cli(self.beam_operator.transferfunction[2]), config.lm_max_sky[1], False)
-                delTEB = self.sec_operator.act(delTEB, adjoint=True, backwards=True, out_sht_mode='STANDARD', nomagn=True)
+                delTEB = self.sec_operator.act(delTEB, adjoint=True, backwards=True, out_sht_mode=self.shtmode, nomagn=True)
                 almxfl(delTEB[0], _extend_cl(self.beam_operator.transferfunction[0], config.lm_max_pri[1]), config.lm_max_pri[1], True)
                 almxfl(delTEB[1], _extend_cl(self.beam_operator.transferfunction[1], config.lm_max_pri[1]), config.lm_max_pri[1], True)
                 almxfl(delTEB[2], _extend_cl(self.beam_operator.transferfunction[2], config.lm_max_pri[1]), config.lm_max_pri[1], True)
@@ -130,28 +134,71 @@ class Filter_3d:
         teblmc = self.beam_operator.act(teblmc, adjoint=False)
         # assert len(teblmc) == 3, len(teblmc)
         # NOTE spin 0 is standard, spin 2 is GRAD_only. For convenience, I'll make it return a 3 tuple
-        teblm = self.sec_operator.act(teblmc, adjoint=True, backwards=True) # NOTE lm_sky -> lm_pri
+
+        teblm = self.sec_operator.act(teblmc, adjoint=True, backwards=True, nobire=self.nobire, out_sht_mode=self.shtmode,) # NOTE lm_sky -> lm_pri
         assert len(teblm) == 3, len(teblm)
 
         # print(f"inside calc_prep:", teblm[1].shape, self.cls_filt_bool.shape)
 
-        teblm = almxfl_nd(teblm, self.cls_filt_bool, None, False)
+        # teblm = almxfl_nd(teblm, self.cls_filt_bool, None, False)
+        # teblm[1] = almxfl_nd(teblm[1], self.cls_filt_bool[1], None, False)
+        # teblm[2] = almxfl_nd(teblm[2], self.cls_filt_bool[1], None, False)
         assert len(teblm) == 3, len(teblm)
-        if 'tt' in self.cls_filt and 'ee' in self.cls_filt:
-            teblm[2] = np.zeros_like(teblm[1], dtype=complex)
-        elif 'tt' in self.cls_filt:
-            teblm[1] = np.zeros_like(teblm[0], dtype=complex)
-            teblm[2] = np.zeros_like(teblm[0], dtype=complex)
-        elif 'ee' in self.cls_filt:
-            teblm[0] = np.zeros_like(teblm[1], dtype=complex)
-            teblm[2] = np.zeros_like(teblm[1], dtype=complex)
+        # if 'tt' in self.cls_filt and 'ee' in self.cls_filt:
+        #     teblm[2] = np.zeros_like(teblm[1], dtype=complex)
+        # elif 'tt' in self.cls_filt:
+        #     teblm[1] = np.zeros_like(teblm[0], dtype=complex)
+        #     teblm[2] = np.zeros_like(teblm[0], dtype=complex)
+        # elif 'ee' in self.cls_filt:
+        #     pass
+        #     teblm[0] = np.zeros_like(teblm[1], dtype=complex)
+        #     teblm[2] = np.zeros_like(teblm[1], dtype=complex)
         # print(f"inside calc_prep:", np.array(teblm).shape)
         return np.array(teblm)
+
 
 
     @log_on_start(logging.DEBUG, " ---- fwd_op", logger=log)
     @log_on_end(logging.DEBUG, " done ---- fwd_op", logger=log)  
     def fwd_op(self, tebwflm):
+        def proj_E(teblm):
+            out = teblm.copy()
+            out[0] *= 0
+            out[2] *= 0
+            return out
+        """ 
+        Pure alm space (full sky) for better readibility
+        This is Equation (20) of the CMB-S4 paper
+        acts on elm, which is a lm_max_pri map
+        """
+        # tebwflm = proj_E(tebwflm)
+
+        assert tebwflm.shape[0] == 3, len(tebwflm)
+        nlm = np.copy(tebwflm)
+        teblm = self.sec_operator.act(nlm, adjoint=False, backwards=False, nobire=self.nobire, out_sht_mode=self.shtmode) # # NOTE lm_max_pri -> lm_max_sky
+        assert len(teblm) == 3, len(teblm)
+        teblm = self.beam_operator.act(teblm, adjoint=False)
+        assert len(teblm) == 3, len(teblm)
+        teblm = self.inv_operator.act(teblm, adjoint=False)
+        teblm = self.beam_operator.act(teblm, adjoint=False)
+        teblm = self.sec_operator.act(teblm, adjoint=True, backwards=True, nobire=self.nobire, out_sht_mode=self.shtmode) # lm_sky -> lm_pri
+        nlm = teblm
+
+        if 'ee' in self.cls_filt:
+            iclsb = 1e-20*np.ones_like(self.icls[:, 0, 0])
+            nlm[1] += almxfl(tebwflm[1], self.icls[:, 0, 0], len(self.cls_filt_bool[0])-1, False)
+            nlm[2] += almxfl(tebwflm[2], iclsb, len(self.cls_filt_bool[0])-1, False)
+            # almxfl(nlm[1], self.cls_filt['ee'] > 0, len(self.cls_filt_bool[0])-1, True)
+        
+        # tebwflm = 
+            # nlm[0] = np.zeros_like(nlm[1],dtype=complex)
+            # nlm[2] = np.zeros_like(nlm[1],dtype=complex)
+        # return proj_E(nlm)
+        return nlm
+
+    @log_on_start(logging.DEBUG, " ---- fwd_op", logger=log)
+    @log_on_end(logging.DEBUG, " done ---- fwd_op", logger=log)  
+    def fwd_op_(self, tebwflm):
         """ This is Equation (20) of the CMB-S4 paper
         acts on elm, which is a lm_max_pri map
         """
@@ -160,7 +207,7 @@ class Filter_3d:
 
         nlm = np.copy(tebwflm)
         # print(f"fwd_op: before 1st sec_operator with adjoint=False")
-        teblm = self.sec_operator.act(nlm, adjoint=False, backwards=False) # # NOTE lm_max_pri -> lm_max_sky
+        teblm = self.sec_operator.act(nlm, adjoint=False, backwards=False, nobire=self.nobire, out_sht_mode=self.shtmode) # # NOTE lm_max_pri -> lm_max_sky
         # print(f"fwd_op: after 1st sec_operator with adjoint=False")
         assert len(teblm) == 3, len(teblm)
         teblm = self.beam_operator.act(teblm, adjoint=False)
@@ -176,7 +223,7 @@ class Filter_3d:
 
         teblm = self.beam_operator.act(teblm, adjoint=False)
         # print(f"fwd_op: before 2nd sec_operator with adjoint=True")
-        teblm = self.sec_operator.act(teblm, adjoint=True, backwards=True) # lm_sky -> lm_pri
+        teblm = self.sec_operator.act(teblm, adjoint=True, backwards=True, nobire=self.nobire, out_sht_mode=self.shtmode) # lm_sky -> lm_pri
         # print(f"fwd_op: after 2nd sec_operator with adjoint=True")
         nlm = teblm
         if 'tt' in self.cls_filt and 'ee' in self.cls_filt:
@@ -193,10 +240,6 @@ class Filter_3d:
             nlm[1] = np.zeros_like(nlm[0],dtype=complex)
             nlm[2] = np.zeros_like(nlm[0],dtype=complex)
         elif 'ee' in self.cls_filt:
-            import healpy as hp
-            # print(self.icls[:, 0, 0][0:30], self.cls_filt['ee'][0:30])
-            # print(hp.alm2cl(tebwflm[1])[0:30])
-            # print(hp.alm2cl(nlm[1])[0:30])
             nlm[1] += almxfl(tebwflm[1], self.icls[:, 0, 0], len(self.cls_filt_bool[0])-1, False)
             almxfl(nlm[1], self.cls_filt['ee'] > 0, len(self.cls_filt_bool[0])-1, True)
             nlm[0] = np.zeros_like(nlm[1],dtype=complex)
@@ -204,9 +247,135 @@ class Filter_3d:
         return nlm
 
 
+
+    @log_on_start(logging.DEBUG, " ---- preconditioner_op", logger=log)
+    @log_on_end(logging.DEBUG, " done ---- preconditioner_op", logger=log)
+    def preconditioner_op(self, teblm):
+        self.solve_eb = True
+        self.Cbb_reg = 1e-30
+        """
+        Diagonal (per-ℓ) preconditioner approximating (S^{-1} + B^T N^{-1} B)^{-1}
+        for solves in T-only, E-only, or EB space.
+
+        EB case:
+        - E prior uses self.icls[:,0,0] (assumed = 1/C_ell^EE or block-inverse element)
+        - B prior uses a small regularized C_ell^BB_reg (=> inverse prior = 1/C_ell^BB_reg)
+        - noise term uses ninv_fel for both E and B (and ninv_ftl for T if applicable)
+        """
+        assert teblm.shape[0] == 3, teblm.shape
+
+        lmax_pri_ = Alm.getlmax(teblm[1].size, None)
+
+        # --- helper: extend transfer-dependent spectra safely ---
+        def _extend_pos_spline(arr, lmax_target, name):
+            if (arr is None) or (len(arr) == 0):
+                return np.zeros(lmax_target + 1, dtype=float)
+            if len(arr) - 1 >= lmax_target:
+                return arr[:lmax_target + 1]
+            # extrapolate in log-space over positive support
+            nz = np.where(arr > 0)
+            if nz[0].size < 5:
+                # too few points -> pad with last positive or zeros
+                out = np.zeros(lmax_target + 1, dtype=float)
+                if nz[0].size > 0:
+                    out[:len(arr)] = arr
+                    out[len(arr):] = arr[nz[0][-1]]
+                return out
+            log.debug(f"PRE_OP_DIAG: extending {name} from lmax {len(arr)-1} to lmax {lmax_target}")
+            spl_sq = spl(np.arange(len(arr), dtype=float)[nz], np.log(arr[nz]), k=2, ext='extrapolate')
+            return np.exp(spl_sq(np.arange(lmax_target + 1, dtype=float)))
+
+        # --- get effective noise spectra in harmonic space: B^2 * N^{-1} (or analogous) ---
+        ninv_ftebl = self.inv_operator.get_ftebl(self.beam_operator.transferfunction)
+        ninv_ftl = _extend_pos_spline(ninv_ftebl[0], lmax_pri_, "ninv_ftl")  # length lmax+1
+        ninv_fel = _extend_pos_spline(ninv_ftebl[1], lmax_pri_, "ninv_fel")
+        ninv_fbl = _extend_pos_spline(ninv_ftebl[2], lmax_pri_, "ninv_fbl")
+
+        # Decide what space we're solving in
+        has_T = ('tt' in self.cls_filt)
+        has_E = ('ee' in self.cls_filt)
+        # EB solve if you want to allow B and you have polarization
+        # (set self.solve_eb = True in your config, otherwise default to False)
+        solve_eb = bool(getattr(self, "solve_eb", False)) and has_E
+
+        # --- Build S^{-1} + noise diagonal blocks ---
+        if has_T and has_E:
+            # TE mixing case (keep your old 2x2 T/E block; B handled separately if solve_eb)
+            # NOTE: fix lmax_ bug: use lmax_pri_
+            lmax_ = lmax_pri_
+            Si_TE = np.zeros((lmax_ + 1, 2, 2), dtype=float)
+
+            # self.icls assumed shape (ell,2,2) for T/E inverse prior block
+            Si_TE[:lmax_+1, 0, 0] = self.icls[:lmax_+1, 0, 0]
+            Si_TE[:lmax_+1, 1, 1] = self.icls[:lmax_+1, 1, 1]
+            Si_TE[:lmax_+1, 0, 1] = self.icls[:lmax_+1, 0, 1]
+            Si_TE[:lmax_+1, 1, 0] = self.icls[:lmax_+1, 1, 0]
+
+            Si_TE[:, 0, 0] += ninv_ftl[:lmax_+1]
+            Si_TE[:, 1, 1] += ninv_fel[:lmax_+1]
+
+            flmat_TE = np.linalg.pinv(Si_TE)  # (ell,2,2)
+
+            tebout = np.zeros((3, teblm[0].size), dtype=complex)
+            tebout[0] = almxfl(teblm[0], flmat_TE[:, 0, 0], lmax_, False) + almxfl(teblm[1], flmat_TE[:, 0, 1], lmax_, False)
+            tebout[1] = almxfl(teblm[0], flmat_TE[:, 1, 0], lmax_, False) + almxfl(teblm[1], flmat_TE[:, 1, 1], lmax_, False)
+
+            if solve_eb:
+                # B block: (S_B^{-1} + ninv_fbl)^{-1}
+                # Choose regularized C_ell^BB (in "prior" units), convert to inverse.
+                Cbb_reg = getattr(self, "Cbb_reg", 1e-30)  # you should set this sensibly
+                if np.isscalar(Cbb_reg):
+                    icls_bb = np.full(lmax_ + 1, 1.0 / float(Cbb_reg), dtype=float)
+                else:
+                    Cbb_reg = _extend_cl(Cbb_reg, lmax_)
+                    icls_bb = np.where(Cbb_reg > 0, 1.0 / Cbb_reg, 0.0)
+                Si_B = icls_bb + ninv_fbl[:lmax_+1]
+                flmat_B = np.where(Si_B > 0, 1.0 / Si_B, 0.0)
+                tebout[2] = almxfl(teblm[2], flmat_B, lmax_, False)
+
+            return tebout
+
+        elif has_T:
+            lmax_ = Alm.getlmax(teblm[0].size, None)
+            Si_T = self.icls[:lmax_+1, 0, 0] + ninv_ftl[:lmax_+1]
+            flmat_T = np.where(Si_T > 0, 1.0 / Si_T, 0.0)
+            tebout = np.zeros((3, teblm[0].size), dtype=complex)
+            tebout[0] = almxfl(teblm[0], flmat_T, lmax_, False)
+            return tebout
+
+        elif has_E:
+            # Polarization-only solve (E or EB)
+            lmax_ = lmax_pri_
+
+            # E block
+            icls_ee = self.icls[:lmax_+1, 0, 0]  # assumed inverse EE prior
+            Si_E = icls_ee + ninv_fel[:lmax_+1]
+            flmat_E = np.where(Si_E > 0, 1.0 / Si_E, 0.0)
+
+            tebout = np.zeros((3, teblm[1].size), dtype=complex)
+            tebout[1] = almxfl(teblm[1], flmat_E, lmax_, False)
+
+            if solve_eb:
+                # B block with regularization
+                Cbb_reg = getattr(self, "Cbb_reg", 1e-30)  # set this; see notes below
+                if np.isscalar(Cbb_reg):
+                    icls_bb = np.full(lmax_ + 1, 1.0 / float(Cbb_reg), dtype=float)
+                else:
+                    Cbb_reg = _extend_cl(Cbb_reg, lmax_)
+                    icls_bb = np.where(Cbb_reg > 0, 1.0 / Cbb_reg, 0.0)
+
+                Si_B = icls_bb + ninv_fbl[:lmax_+1]
+                flmat_B = np.where(Si_B > 0, 1.0 / Si_B, 0.0)
+                tebout[2] = almxfl(teblm[2], flmat_B, lmax_, False)
+
+            return tebout
+
+        else:
+            return np.zeros_like(teblm)
+
     @log_on_start(logging.DEBUG, " ---- preconditioner_op", logger=log)
     @log_on_end(logging.DEBUG, " done ---- preconditioner_op", logger=log)  
-    def preconditioner_op(self, teblm):
+    def preconditioner_op_(self, teblm):
         lmax_pri_ = Alm.getlmax(teblm[1].size, None)
 
         ninv_ftebl = self.inv_operator.get_ftebl(self.beam_operator.transferfunction)
@@ -274,7 +443,7 @@ class Filter_3d:
         # NOTE this is eq. 21 of the paper
         if not self.ivfres_field.is_cached(it=it):
             assert elm_wf is not None and data is not None
-            ivfreslm = self.sec_operator.act(elm_wf)
+            ivfreslm = self.sec_operator.act(elm_wf, nobire=False, out_sht_mode=self.shtmode)
             assert ivfreslm.shape[0] == 3, ivfreslm.shape
             ivfreslm = 1*self.beam_operator.act(ivfreslm)
             

@@ -5,6 +5,8 @@ from logdecorator import log_on_start, log_on_end
 import numpy as np
 from os.path import join as opj
 
+from plancklens import qest, qresp
+
 from delensalot.core.MAP import field, gradient, curvature, functionforwardlist
 from delensalot.core.MAP.context import get_computation_context, preserve_context
 
@@ -14,6 +16,29 @@ from delensalot.config.config_manager import get_config
 
 import healpy as hp
 import matplotlib.pyplot as plt
+
+
+def _resp_project(QE, src, RG, RC, RGC, RCG, Lmax):
+    z = np.zeros(Lmax + 1)
+    RG  = np.asarray(RG)[:Lmax+1]
+    RC  = np.asarray(RC)[:Lmax+1]
+    RGC = np.asarray(RGC)[:Lmax+1]
+    RCG = np.asarray(RCG)[:Lmax+1]
+
+    if QE == "p_p":
+        return RG if src == "p" else z
+
+    if QE == "x_p":
+        if src == "x": return RC
+        if src == "a": return RCG
+        return z
+
+    if QE == "a_p":
+        if src == "a": return RG
+        if src == "x": return RGC
+        return z
+
+    raise ValueError(f"Unsupported QE key {QE} in _resp_project")
 
 class Minimizer:
     def __init__(self, likelihood, itmax, libdir, use_QE_starting_point=True, use_QE_for_lowL=False):
@@ -288,7 +313,8 @@ class Likelihood:
         curvature_desc = {"bfgs_desc": {}}
         curvature_desc["bfgs_desc"].update({'dot_op': dotop})
         curvature_desc['libdir'] = opj(self.libdir, 'curvature/')
-        curvature_desc['h0'] = [h0 for QE_search in self.QE_searchs for h0 in QE_search._get_h0()]
+        # curvature_desc['h0'] = [h0 for QE_search in self.QE_searchs for h0 in QE_search._get_h0()]
+        curvature_desc['h0'] = self.build_full_h0(use='unl', diagonal_only=False, curvature_scale='k')
         curvature_desc['sky_coverage'] = self.gradient_lib.wfivf_filter.sky_coverage
         self.curvature_lib: curvature.Base = curvature.Base(self.gradient_lib, **curvature_desc)
         
@@ -332,6 +358,164 @@ class Likelihood:
     
     def get_likelihood_curvature(self, grad_tot, it):
         return self.curvature_lib.get_curvature(grad_tot, it=it)
+
+
+    def build_R_full(self, *, use='unl', diagonal_only=False):
+        assert use in ('unl', 'len')
+        QE_searchs = self.QE_searchs
+        labels = []
+        for si, s in enumerate(QE_searchs):
+            for comp in s.secondary.component:
+                labels.append((si, comp))
+        N = len(labels)
+        lmax = QE_searchs[0].fq.lm_max_qlm[0]
+        comp_to_src = {
+            'p': 'p',  # gradient lensing
+            'w': 'x',  # curl lensing
+            'f': 'a',  # rotation / birefringence-like
+            'x': 'x',  # if you ever use 'x' directly
+            'a': 'a',
+        }
+        R_full = np.zeros((N, N, lmax + 1), dtype=float)
+        for i, (si, comp_i) in enumerate(labels):
+            search_i = QE_searchs[si]
+            # target QE key (e.g. 'p_p', 'x_p', 'a_p')
+            QE_key = search_i.estimator_key[comp_i]
+            if use == 'unl':
+                cls = search_i.fq.cls_unl
+                fal = search_i.fq.ftebl_unl
+            else:
+                cls = search_i.fq.cls_len
+                fal = search_i.fq.ftebl_len
+
+            lmax_ivf = search_i.fq.lm_max_ivf[0]
+
+            for j, (sj, comp_j) in enumerate(labels):
+                if i != j: continue
+                src = comp_to_src.get(comp_j, None)
+                if src is None:
+                    raise ValueError(f"Don't know how to map component '{comp_j}' to plancklens source key")
+
+                RG, RC, RGC, RCG = qresp.get_response(
+                    QE_key,
+                    lmax_ivf,
+                    src,          # key0
+                    cls,          # cls_weight (you used cls_weight, cls_len in notebook; here keep it consistent with your wrapper usage)
+                    cls,          # cls_cmb (same choice as above; you can split if you really need)
+                    fal,          # filtering
+                    lmax_qlm=lmax
+                )
+
+                # project to the physical response for this (QE_key <- src)
+                R_full[i, j, :] = _resp_project(QE_key, src, RG, RC, RGC, RCG, lmax)
+
+        return R_full, labels
+
+    def build_full_h0(self, use='unl', curvature_scale="k", diagonal_only=True):
+        """
+        Build isotropic H0 using Eq (4.3):
+            H0_L = ( 1/N0 + 1/C )^{-1}
+        curvature_scale:
+            "phi" → return H0 in potential units
+            "k"   → return H0 in k-like units for p and w
+        diagonal_only:
+            True  → only diagonal Fisher block
+        """
+
+        assert use in ('unl', 'len')
+        assert curvature_scale in ("phi", "k")
+
+        QE_searchs = self.QE_searchs
+        labels = [(si, comp)
+                for si, s in enumerate(QE_searchs)
+                for comp in s.secondary.component]
+
+        N = len(labels)
+        lmax = QE_searchs[0].fq.lm_max_qlm[0]
+        L = np.arange(lmax + 1)
+        f = 0.5 * L * (L + 1)
+
+        comp_to_src = {'p': 'p', 'w': 'x', 'f': 'a', 'x': 'x', 'a': 'a'}
+
+        F_phi = np.zeros((N, N, lmax + 1))
+        for i, (si, comp_i) in enumerate(labels):
+            search_i = QE_searchs[si]
+            QE_key = search_i.estimator_key[comp_i]
+            if use == 'unl':
+                cls = search_i.fq.cls_unl
+                fal = search_i.fq.ftebl_unl
+            else:
+                cls = search_i.fq.cls_len
+                fal = search_i.fq.ftebl_len
+
+            lmax_ivf = search_i.fq.lm_max_ivf[0]
+
+            for j, (sj, comp_j) in enumerate(labels):
+                if diagonal_only and i != j: continue
+                src = comp_to_src[comp_j]
+                RG, RC, RGC, RCG = qresp.get_response(QE_key, lmax_ivf, src, cls, cls, fal, lmax_qlm=lmax)
+                Rphi = _resp_project(QE_key, src, RG, RC, RGC, RCG, lmax)
+
+                # ---- Prior handling (diagonal only) ----
+                if i == j:
+                    C_field = search_i.chh[comp_i][:lmax+1]
+                    if comp_i in ('p', 'w'):
+                        # stored in k-like units → convert to potential units
+                        Cpot = np.zeros_like(C_field)
+                        mask = (C_field > 0) & (f > 0)
+                        Cpot[mask] = C_field[mask] / (f[mask]**2)
+
+                        invC = np.zeros_like(Cpot)
+                        invC[mask] = 1.0 / Cpot[mask]
+                    else:
+                        invC = np.zeros_like(C_field)
+                        mask = C_field > 0
+                        invC[mask] = 1.0 / C_field[mask]
+                else:
+                    invC = 0.0
+                F_phi[i, j, :] = Rphi + invC
+
+
+        H_phi = np.zeros_like(F_phi)
+        for ell in range(lmax + 1):
+            F_L = F_phi[:, :, ell]
+            H_phi[:, :, ell] = np.linalg.pinv(F_L, rcond=1e-24)
+
+        if curvature_scale == "k":
+            A = np.ones((N, lmax + 1))
+            for i, (_, comp) in enumerate(labels):
+                if comp in ('p', 'w'):
+                    A[i, :] = f
+                else:
+                    A[i, :] = 1.0
+
+            H_k = np.zeros_like(H_phi)
+
+            for i in range(N):
+                for j in range(N):
+                    H_k[i, j, :] = A[i, :] * A[j, :] * H_phi[i, j, :]
+            H0 = H_k
+        else:
+            H0 = H_phi
+
+        def _unphysical_Lmask(comp, L):
+            if comp == 'p': # dipole measurable
+                return L >= 2
+            if comp == 'w': # curl dipole unphysical
+                return L >= 2
+            if comp == 'f':
+                return L >= 2
+            return np.ones_like(L, dtype=bool)
+
+        for i, (_, comp_i) in enumerate(labels):
+            keep = _unphysical_Lmask(comp_i, L)
+            kill = ~keep
+            if np.any(kill):
+                H0[i, :, kill] = 0.0
+                H0[:, i, kill] = 0.0
+
+        return H0
+
 
     def __getattr__(self, name):
         # NOTE this forwards the method call to the gradient_lib

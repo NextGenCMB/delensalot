@@ -344,11 +344,11 @@ class LensingGradientSub(GradSub):
                 self.geom_lib.synthesis(ivfreslm[1:], 2, *self.lm_max_in, self.sht_tr, map=resmap_r) # ivfmap
                 ponly = np.copy(wflm)
                 ponly[0] *= 0
-                gcs_r = self.gradient_operator.act(ponly, spin=3) # xwfglm
+                gcs_r = self.gradient_operator.act(ponly, spin=3)[1:]
                 gc_c = resmap_c.conj() * gcs_r.T.copy().view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3)
                 ponly = np.copy(wflm)
                 ponly[0] *= 0
-                gcs_r = self.gradient_operator.act(ponly, spin=1) # xwfglm
+                gcs_r = self.gradient_operator.act(ponly, spin=1)[1:] # xwfglm
                 gc_c -= resmap_c * gcs_r.T.copy().view(ctype[gcs_r.dtype]).squeeze().conj()  # (+2 , -1)
                 gc_r = gc_c.view(rtype[gc_c.dtype]).reshape((gc_c.size, 2)).T  # real view onto complex array
 
@@ -373,14 +373,12 @@ class LensingGradientSub(GradSub):
             # NOTE gc has flipped sign compared to Juliens implementation.
             # However, Julien stores and returns it as -G and -C, so should be fine
                     # --- cache only if not forced ---
-            if not force_eval:
-                self.cache(gc, it=it, type='quad')
+            if not force_eval: self.cache(gc, it=it, type='quad')
             # return gc  # return directly when forced # NOTE only works for truly forcing, otherwise shape is wrong if not curl requested, e.g.
         return self.gfield.get_quad(it)
 
 
     def get_gradient_quad_EBonlysupport(self, it, data=None, data_leg2=None, wflm=None, ivfreslm=None, force_eval=False):
-        # ---- boilerplate: as in your current implementation ----
         if isinstance(it, (list, np.ndarray)):
             return [ self.get_gradient_quad(it=it_, data=data, data_leg2=data_leg2, wflm=wflm, ivfreslm=ivfreslm, force_eval=force_eval
                 )for it_ in it]
@@ -531,7 +529,6 @@ class LensingGradientSub(GradSub):
 
 
 class BirefringenceGradientSub(GradSub):
-
     def __init__(self, desc):
         super().__init__(desc)
         config = get_config()
@@ -554,13 +551,11 @@ class BirefringenceGradientSub(GradSub):
             wflm = self.wfivf_filter.get_wflm(it, self.data_container.get_data(idx))
             ivfreslm = np.ascontiguousarray(self.wfivf_filter.get_ivfreslm(it, self.data_container.get_data(idx2), wflm))
 
-            # xwfmap = self.gradient_operator.act(wflm, spin=2)
-            lmax = Alm.getlmax(wflm[0].size, None)
-            xwfmap = self.geom_lib.synthesis(wflm[1:], 2, lmax, lmax, self.sht_tr)
+            xwfmap = self.gradient_operator.act(wflm, spin=2)[1:]
             lmax = Alm.getlmax(ivfreslm[0].size, None)
             ivfmap = self.geom_lib.synthesis(ivfreslm[1:], 2, lmax, lmax, self.sht_tr)
 
-            qlms = +4*(+ivfmap[0]*xwfmap[1] - ivfmap[1]*xwfmap[0]) # NOTE factor 4 here because I have factor 0.5 in the get_ivfreslm at the beam (needed for lensing)
+            qlms = +4*(+ivfmap[0]*xwfmap[1] - ivfmap[1]*xwfmap[0]) # NOTE factor 4 here because I have factor 0.5 in the get_ivfreslm at the beam # FIXME perhaps I should move the ivfres_lm factor to the gradient in lensing and here
             qlms = self.geom_lib.adjoint_synthesis(qlms, 0, self.LM_max[0], self.LM_max[1], self.sht_tr)
             
             self.gfield.cache(qlms, it, type='quad')
@@ -569,157 +564,4 @@ class BirefringenceGradientSub(GradSub):
 
     def _get_operator(self, filter_operator):
         return operator.Compound([filter_operator], out='map', sht_tr=self.sht_tr)
-
-
-
-class LensingGradientSubCompound(GradSub):
-    def __init__(self, desc):
-        super().__init__(desc)
-        config = get_config()
-        self.gradient_operator: operator.Compound = self._get_operator(desc['sec_operator'])
-        self.lm_max_in = config.lm_max_sky
-        self.data_key = desc['data_key']
-    
-
-    def get_gradient_quadP(self, it, data=None, data_leg2=None, wflm=None, ivfreslm=None, force_eval=False):
-        # TODO overwrite 
-        #   1. data_key in wfivf_filter to run on P
-        #   DONE 2. self.data_container.get_data() to run on P
-        #   DONE 3. check self.data_key usage
-
-        if isinstance(it, (list, np.ndarray)):
-            return [self.get_gradient_quad(it=it_, data=data, data_leg2=data_leg2, wflm=wflm, ivfreslm=ivfreslm) for it_ in it]
-        ctx, _ = get_computation_context()
-        idx, idx2 = ctx.idx, ctx.idx2 or ctx.idx
-        if self.data_container is None:
-            assert wflm is not None and ivfreslm is not None, "wflm and ivfreslm must be provided as data container is missing"
-        elif data is not None:
-            data_leg2 = data_leg2 or data # NOTE these are the data to calculate ivfreslm and wf
-        # if force_eval or not self.gfield.is_cached(it=it, type='quad'):
-
-        if wflm is None:
-            assert self.wfivf_filter is not None, "wfivf_filter must be provided at instantiation in absence of wflm and ivfreslm"
-            wflm = self.wfivf_filter.get_wflm(it, self.data_container.get_data(idx, data_key='p'))
-            ivfreslm = np.ascontiguousarray(self.wfivf_filter.get_ivfreslm(it, self.data_container.get_data(idx2, data_key='p'), wflm))
-
-        resmap_c = np.ascontiguousarray(np.empty((self.geom_lib.npix(),), dtype=wflm.dtype))
-        resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
-        
-        if self.data_key in ['p', 'tp', 'ee', 'eb', 'bb']:
-            self.geom_lib.synthesis(ivfreslm[1:], 2, *self.lm_max_in, self.sht_tr, map=resmap_r) # ivfmap
-            ponly = np.copy(wflm)
-            ponly[0] *= 0
-            gcs_r = self.gradient_operator.act(ponly, spin=3) # xwfglm
-            gc_c = resmap_c.conj() * gcs_r.T.copy().view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3)
-            ponly = np.copy(wflm)
-            ponly[0] *= 0
-            gcs_r = self.gradient_operator.act(ponly, spin=1) # xwfglm
-            gc_c -= resmap_c * gcs_r.T.copy().view(ctype[gcs_r.dtype]).squeeze().conj()  # (+2 , -1)
-            gc_r = gc_c.view(rtype[gc_c.dtype]).reshape((gc_c.size, 2)).T  # real view onto complex array
-
-        if self.data_key in ['tp', 'tt']:
-            irestmap = self.geom_lib.synthesis(ivfreslm[0], 0, *self.lm_max_in, self.sht_tr)[0]
-            tonly = np.copy(wflm)
-            tonly[1:] *= 0
-            buff_gtmap = self.gradient_operator.act(tonly, spin=1)
-            gc_r_ = buff_gtmap * irestmap
-        gcr = 0.
-        gcr += gc_r if 'gc_r' in locals() else 0.
-        gcr += gc_r_ if 'gc_r_' in locals() else 0.
-        gc = self.geom_lib.adjoint_synthesis(gcr, 1, self.LM_max[0], self.LM_max[0], self.sht_tr)
-            
-        # NOTE at last, cast qlms to alm space with LM_max and also cast it to convergence
-        fl1 = np.sqrt(np.arange(self.LM_max[0]+1) * np.arange(1, self.LM_max[0]+2))
-        almxfl(gc[0], fl1, self.LM_max[1], True)
-        almxfl(gc[1], fl1, self.LM_max[1], True)
-        fl2 = cli(0.5 * np.arange(self.LM_max[0]+1) * np.arange(1, self.LM_max[0]+2))
-        almxfl(gc[0], fl2, self.LM_max[1], True)
-        almxfl(gc[1], fl2, self.LM_max[1], True)
-        # NOTE gc has flipped sign compared to Juliens implementation.
-        # However, Julien stores and returns it as -G and -C, so should be fine
-                # --- cache only if not forced ---
-        # if not force_eval:
-            # self.cache(gc, it=it, type='quad')
-        return gc  # return directly when forced # NOTE only works for truly forcing, otherwise shape is wrong if not curl requested, e.g.
-        # return self.gfield.get_quad(it)
-
-
-    def get_gradient_quadEB(self, it, data=None, data_leg2=None, wflm=None, ivfreslm=None, force_eval=False):
-        # NOTE this is the 3d version as in T and P are both handled
-        # TODO write down equation in docstring
-        # NOTE this function is equation 22 of the CMB-S4 paper (for lensing).
-        # Using property _2Y = _-2Y.conj
-        # res = ivf.conj * gpmap(3) - ivf * gpmap(1).conj
-        if isinstance(it, (list, np.ndarray)):
-            return [self.get_gradient_quad(it=it_, data=data, data_leg2=data_leg2, wflm=wflm, ivfreslm=ivfreslm) for it_ in it]
-        ctx, _ = get_computation_context()
-        idx, idx2 = ctx.idx, ctx.idx2 or ctx.idx
-        if self.data_container is None:
-            assert wflm is not None and ivfreslm is not None, "wflm and ivfreslm must be provided as data container is missing"
-        elif data is not None:
-            data_leg2 = data_leg2 or data # NOTE these are the data to calculate ivfreslm and wf
-        # if force_eval or not self.gfield.is_cached(it=it, type='quad'):
-        if wflm is None:
-            assert self.wfivf_filter is not None, "wfivf_filter must be provided at instantiation in absence of wflm and ivfreslm"
-            wflm = self.wfivf_filter.get_wflm(it, self.data_container.get_data(idx))
-            ivfreslm = np.ascontiguousarray(self.wfivf_filter.get_ivfreslm(it, self.data_container.get_data(idx2), wflm))
-
-        resmap_c = np.ascontiguousarray(np.empty((self.geom_lib.npix(),), dtype=wflm.dtype))
-        resmap_r = resmap_c.view(rtype[resmap_c.dtype]).reshape((resmap_c.size, 2)).T  # real view onto complex array
-        
-        if self.data_key in ['p', 'tp', 'ee', 'eb', 'bb']:
-            self.geom_lib.synthesis(ivfreslm[1:], 2, *self.lm_max_in, self.sht_tr, map=resmap_r) # ivfmap
-            ponly = np.copy(wflm)
-            ponly[0] *= 0
-            gcs_r = self.gradient_operator.act(ponly, spin=3) # xwfglm
-            gc_c = resmap_c.conj() * gcs_r.T.copy().view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3)
-            ponly = np.copy(wflm)
-            ponly[0] *= 0
-            gcs_r = self.gradient_operator.act(ponly, spin=1) # xwfglm
-            gc_c -= resmap_c * gcs_r.T.copy().view(ctype[gcs_r.dtype]).squeeze().conj()  # (+2 , -1)
-            gc_r = gc_c.view(rtype[gc_c.dtype]).reshape((gc_c.size, 2)).T  # real view onto complex array
-
-        if self.data_key in ['tp', 'tt']:
-            irestmap = self.geom_lib.synthesis(ivfreslm[0], 0, *self.lm_max_in, self.sht_tr)[0]
-            tonly = np.copy(wflm)
-            tonly[1:] *= 0
-            buff_gtmap = self.gradient_operator.act(tonly, spin=1)
-            gc_r_ = buff_gtmap * irestmap
-        gcr = 0.
-        gcr += gc_r if 'gc_r' in locals() else 0.
-        gcr += gc_r_ if 'gc_r_' in locals() else 0.
-        gc = self.geom_lib.adjoint_synthesis(gcr, 1, self.LM_max[0], self.LM_max[0], self.sht_tr)
-            
-        # NOTE at last, cast qlms to alm space with LM_max and also cast it to convergence
-        fl1 = np.sqrt(np.arange(self.LM_max[0]+1) * np.arange(1, self.LM_max[0]+2))
-        almxfl(gc[0], fl1, self.LM_max[1], True)
-        almxfl(gc[1], fl1, self.LM_max[1], True)
-        fl2 = cli(0.5 * np.arange(self.LM_max[0]+1) * np.arange(1, self.LM_max[0]+2))
-        almxfl(gc[0], fl2, self.LM_max[1], True)
-        almxfl(gc[1], fl2, self.LM_max[1], True)
-        # NOTE gc has flipped sign compared to Juliens implementation.
-        # However, Julien stores and returns it as -G and -C, so should be fine
-                # --- cache only if not forced ---
-        # if not force_eval:
-            # self.cache(gc, it=it, type='quad')
-        return gc  # return directly when forced # NOTE only works for truly forcing, otherwise shape is wrong if not curl requested, e.g.
-        # return self.gfield.get_quad(it)
-    
-
-    def get_gradient_quad(self, it, data=None, data_leg2=None, wflm=None, ivfreslm=None, force_eval=False):
-        return get_gradient_quadP(it, data=data, data_leg2=data_leg2, wflm=wflm, ivfreslm=ivfreslm, force_eval=force_eval) - get_gradient_quadEB(it, data=data, data_leg2=data_leg2, wflm=wflm, ivfreslm=ivfreslm, force_eval=force_eval) 
-
-
-    def _get_operator(self, filter_operator):
-        config = get_config()
-        lm_max_out = config.lm_max_pri
-        return operator.Compound([operator.SpinRaise(lm_max=lm_max_out), filter_operator], out='map', sht_tr=self.sht_tr)
-    
-
-    def cache(self, gfieldlm, it, type='quad'):
-        self.gfield.cache(gfieldlm, it=it, type=type)
-
-
-    def is_cached(self, it, type):
-        return self.gfield.is_cached(type=type, it=it)
 

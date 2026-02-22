@@ -33,49 +33,60 @@ from delensalot.config.etc.errorhandler import DelensalotError
 from delensalot.utils import cli, camb_clfile
 from delensalot.config.config_manager import get_config
 
+# from delensalot.core.helper import memorytracker
+# memorytracker.MemoryTracker()
 
-class SecondaryRegistry:
-    """Registry holding separate builders for operator and gradient-sub for each secondary."""
-    _registry = {}
-
-    @classmethod
-    def register(cls, name, op_builder, grad_builder):
-        cls._registry[name] = {'op': op_builder, 'grad': grad_builder}
-
-    @classmethod
-    def build_op(cls, name, dl, libdir, extras=None):
-        return cls._registry[name]['op'](dl, libdir, extras or {})
-
-    @classmethod
-    def build_grad(cls, name, dl, libdir, extras=None):
-        return cls._registry[name]['grad'](dl, libdir, extras or {})
-
-
-# ---- Register built-ins ----
 def _op_builder_lensing(dl, libdir, extras):
+    """
+    Lensing operator D: acts on *primary* (pri) alms and outputs *sky* alms.
+    In the full chain we want X_dat = B * F_beta * D * X + n  => apply D first, then F.
+    """
     desc = {
         "LM_max": dl.LM_max,
         "component": dl.analysis_secondary["lensing"]["component"],
         "libdir": opj(libdir, "estimate/"),
         "sht_tr": dl.sht_tr,
-        "lm_max_in": dl.lm_max_sky,
-        "lm_max_out": dl.lm_max_pri,
+
+        # IMPORTANT: forward should map pri -> sky
+        "lm_max_in": dl.lm_max_pri,
+        "lm_max_out": dl.lm_max_sky,
+
         "data_key": dl.data_key,
-        "perturbative": False
+        "perturbative": False,
     }
     return operator.Lensing(desc)
 
 
-def _grad_builder_lensing(dl, libdir, extras):
-    # expects extras['operators'][sec] present or will rebuild operator locally
-    op_obj = extras['operators'].get("lensing", None)
-    wfivf_filter = extras.get("wfivf_filter", None)
-    data_container = extras.get("data_container", None)
+def _op_builder_bire(dl, libdir, extras):
+    """
+    Birefringence operator F_beta: acts on *sky* alms (same harmonic band as pri in your setup,
+    but conceptually it follows D). Your implementation uses lm_max and does alm2map/map2alm internally.
+    """
+    desc = {
+        "LM_max": dl.LM_max,
+        "component": dl.analysis_secondary["birefringence"]["component"],
+        "libdir": opj(libdir, "estimate/"),
+        "sht_tr": dl.sht_tr,
+        "lm_max": dl.lm_max_sky,   # IMPORTANT: match sky band used in filtering legs
+        "perturbative": False,
+    }
+    return operator.Birefringence(desc)
 
-    CLfids_lens = dl.CLfids['lensing']
+
+def _grad_builder_lensing(dl, libdir, extras):
+    """
+    Lensing gradient must see the FULL secondary chain (D then F), not just the lensing op.
+    """
+    wfivf_filter = extras["wfivf_filter"]
+    data_container = extras["data_container"]
+    full_sec_operator = extras["sec_operator"]
+
+    CLfids_lens = dl.CLfids["lensing"]
+    L = np.arange(dl.LM_max[0] + 1, dtype=float)
+
+    # Your convention: chi-chi prior for (phi, omega) in "comp*2" keys, with kappa/phi scaling baked here
     chh_dict = {
-        comp: CLfids_lens[comp * 2][: dl.LM_max[0] + 1]
-              * (0.5 * np.arange(dl.LM_max[0] + 1) * np.arange(1, dl.LM_max[0] + 2)) ** 2
+        comp: CLfids_lens[comp * 2][: dl.LM_max[0] + 1] * (0.5 * L * (L + 1.0)) ** 2
         for comp in dl.analysis_secondary["lensing"]["component"]
     }
 
@@ -87,35 +98,26 @@ def _grad_builder_lensing(dl, libdir, extras):
         "sht_tr": dl.sht_tr,
         "component": dl.analysis_secondary["lensing"]["component"],
         "ID": "lensing",
-        "sec_operator": operator.Secondary([op_obj]) if op_obj is not None else operator.Secondary([_op_builder_lensing(dl, libdir, extras)]),
+        "sec_operator": full_sec_operator,
         "chh": chh_dict,
         "data_key": dl.data_key,
-        "geomlib": get_geom(('thingauss', {'lmax': 4500, 'smax': 3})),
+        "geomlib": get_geom(("thingauss", {"lmax": 4500, "smax": 3})),
     }
 
     lens_grad = LensingGradientSub(quad_desc)
-    chh_list = list(chh_dict.values())
-    return lens_grad, chh_list
-
-
-def _op_builder_bire(dl, libdir, extras):
-    desc = {
-        "LM_max": dl.LM_max,
-        "component": dl.analysis_secondary["birefringence"]["component"],
-        "libdir": opj(libdir, "estimate/"),
-        "sht_tr": dl.sht_tr,
-        "lm_max": dl.lm_max_pri,
-        "perturbative": False,
-    }
-    return operator.Birefringence(desc)
+    return lens_grad, list(chh_dict.values())
 
 
 def _grad_builder_bire(dl, libdir, extras):
-    op_obj = extras['operators'].get("birefringence", None)
-    wfivf_filter = extras.get("wfivf_filter", None)
-    data_container = extras.get("data_container", None)
+    """
+    Birefringence gradient must also see the FULL chain (D then F), because
+    your WF/IVF legs are produced with the full model.
+    """
+    wfivf_filter = extras["wfivf_filter"]
+    data_container = extras["data_container"]
+    full_sec_operator = extras["sec_operator"]
 
-    CLfids_bire = dl.CLfids['birefringence']
+    CLfids_bire = dl.CLfids["birefringence"]
     chh_dict = {
         comp: CLfids_bire[comp * 2][: dl.LM_max[0] + 1]
         for comp in dl.analysis_secondary["birefringence"]["component"]
@@ -129,13 +131,29 @@ def _grad_builder_bire(dl, libdir, extras):
         "sht_tr": dl.sht_tr,
         "component": dl.analysis_secondary["birefringence"]["component"],
         "ID": "birefringence",
-        "sec_operator": operator.Secondary([op_obj]) if op_obj is not None else operator.Secondary([_op_builder_bire(dl, libdir, extras)]),
+        "sec_operator": full_sec_operator,
         "chh": chh_dict,
     }
 
     bire_grad = BirefringenceGradientSub(quad_desc)
-    chh_list = list(chh_dict.values())
-    return bire_grad, chh_list
+    return bire_grad, list(chh_dict.values())
+
+
+class SecondaryRegistry:
+    """Registry holding separate builders for operator and gradient-sub for each secondary."""
+    _registry = {}
+
+    @classmethod
+    def register(cls, name, op_builder, grad_builder):
+        cls._registry[name] = {"op": op_builder, "grad": grad_builder}
+
+    @classmethod
+    def build_op(cls, name, dl, libdir, extras=None):
+        return cls._registry[name]["op"](dl, libdir, extras or {})
+
+    @classmethod
+    def build_grad(cls, name, dl, libdir, extras=None):
+        return cls._registry[name]["grad"](dl, libdir, extras or {})
 
 
 def process_all_components(dl, cf):
@@ -180,10 +198,6 @@ def build_iprior_matrix_from_chhs(chh_list, ncomps, LMmax0):
     return ipriormatrix
 
 
-# from delensalot.core.helper import memorytracker
-# memorytracker.MemoryTracker()
-
-
 def get_TEMP_dir(cf):
     if cf.job.jobs == ['build_OBD']:
         return cf.obd.libdir
@@ -216,22 +230,6 @@ def check_estimator_key(key):
     keys = generate_delensalotcombinations(PLANCKLENS_keys)
     if key not in keys:
         raise DelensalotError(f"Your input '{key}' is not a valid key. Please choose one of the following: {keys}")
-
-def all_combinations(lst):
-    return [''.join(comb) for comb in chain.from_iterable(combinations(lst, r) for r in range(1, len(lst) + 1))]
-
-def get_hashcode(s):
-    hlib = hashlib.sha256()
-    hlib.update(str(s).encode())
-    return hlib.hexdigest()[:4]
-
-def atleast_2d(lst):
-    if not isinstance(lst, list):
-        raise TypeError("Input must be a list.")
-    return lst if isinstance(lst[0], list) else [lst]
-
-def atleast_1d(lst):
-    return lst if isinstance(lst, list) else [lst]
 
 
 class l2base_Transformer:
@@ -273,8 +271,12 @@ class l2base_Transformer:
             si.sec_info[sec]['LM_max'] = operator_info[sec]['LM_max']
         si.operator_info = operator_info
         si.operator_info = {k:v for k, v in sorted(operator_info.items(), key=lambda x: dl.template_index_secondaries_genSim.get(x[0], ''))}
-        si.libdir_suffix = "_then_".join(dl.seclist_genSim_sorted)
-
+        if (si.gaussianized_sims == True) or (si.gaussianized_sims == 'len'):
+            si.libdir_suffix = "Gaussian_lensed_sims"
+        elif si.gaussianized_sims == "unl":
+            si.libdir_suffix = "Gaussian_unlensed_sims"
+        else:
+            si.libdir_suffix = "_then_".join(dl.seclist_genSim_sorted)
         si.fixed_secondary_seed = getattr(cf.data_source, 'fixed_secondary_seed', None)
         set_config(cf)
         dl.data_source = DataSource(**si.__dict__)
@@ -484,7 +486,6 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
             QE_scheduler = self.build_QE_lensrec(cf)
             QE_searchs = QE_scheduler.QE_searchs
-
             data_container = self.build_datacontainer(cf)
 
             seclist_local = [s for s in dl.seclist_sorted if s in dl.analysis_secondary]
@@ -493,12 +494,13 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             os.makedirs(opj(libdir, "filter/"), exist_ok=True)
 
             niv = operator.InverseNoiseVariance(**dl.inv_operator_desc)
-            beam_op = operator.Beam({'transferfunction': dl.transferfunction, 'lm_max': dl.lm_max_sky, 'data_key': dl.data_key})
+            beam_op = operator.Beam(
+                {"transferfunction": dl.transferfunction, "lm_max": dl.lm_max_sky, "data_key": dl.data_key}
+            )
             add_op = operator.Add({})
 
-            # TODO I don't like this block here, but building gradients require knowledge of lm_max_pri and lm_max_sky,
-            # so have to set it before registering
             set_config(dl)
+
             SecondaryRegistry.register("lensing", _op_builder_lensing, _grad_builder_lensing)
             SecondaryRegistry.register("birefringence", _op_builder_bire, _grad_builder_bire)
 
@@ -513,13 +515,13 @@ class l2delensalotjob_Transformer(l2base_Transformer):
 
             mask_ = cf.analysis.mask_fn if cf.analysis.mask_fn is not None else ""
             MAP_wfivf_desc = {
-                'filtering_type': cf.maprec.filtering_type,
-                'sky_coverage': "masked" if os.path.isfile(mask_) else "full",
-                'sec_operator': sec_operator,
-                'beam_operator': beam_op,
-                'inv_operator': niv,
-                'libdir': opj(libdir, 'filter/'),
-                'add_operator': add_op,
+                "filtering_type": cf.maprec.filtering_type,
+                "sky_coverage": "masked" if os.path.isfile(mask_) else "full",
+                "sec_operator": sec_operator,
+                "beam_operator": beam_op,
+                "inv_operator": niv,
+                "libdir": opj(libdir, "filter/"),
+                "add_operator": add_op,
                 "chain_descr": build_chain_descr(dl, cf)(dl.lm_max_pri[0], cf.maprec.cg_tol),
                 "cls_filt": build_cls_filt_from_container(data_container, dl),
                 "sht_tr": dl.sht_tr,
@@ -529,35 +531,55 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             grad_subs = []
             chh_all = []
 
-            extras = {'data_container': data_container, 'wfivf_filter': wfivf_filter, 'operators': ops_map}
+            extras = {
+                "data_container": data_container,
+                "wfivf_filter": wfivf_filter,
+                "operators": ops_map,          # optional, if subs still want the per-sec object
+                "sec_operator": sec_operator,
+                "seclist_local": seclist_local,
+            }
             for sec in seclist_local:
                 grad_obj, chh_list = SecondaryRegistry.build_grad(sec, dl, libdir, extras=extras)
                 grad_subs.append(grad_obj)
                 chh_all.extend(chh_list)
 
-            ncompsallsecs = sum(len(dl.analysis_secondary[sec]['component']) for sec in seclist_local)
+            ncompsallsecs = sum(len(dl.analysis_secondary[sec]["component"]) for sec in seclist_local)
             if len(chh_all) != ncompsallsecs:
-                raise RuntimeError("Mismatch: number of chh arrays != number of components (chh_all length vs ncompsallsecs)")
+                raise RuntimeError(
+                    f"Mismatch: chh_all length {len(chh_all)} != ncompsallsecs {ncompsallsecs}"
+                )
+
             ipriormatrix = build_iprior_matrix_from_chhs(chh_all, ncompsallsecs, dl.LM_max[0])
+            gradient = Gradient(**{"subs": grad_subs, "ipriormatrix": ipriormatrix})
 
-            gradient = Gradient(**{'subs': grad_subs, 'ipriormatrix': ipriormatrix})
-
-            MAP_likelihood_desc = {'data_container': data_container, 'gradient_lib': gradient, 'libdir': libdir, "QE_searchs": QE_searchs}
+            MAP_likelihood_desc = {
+                "data_container": data_container,
+                "gradient_lib": gradient,
+                "libdir": libdir,
+                "QE_searchs": QE_searchs,
+            }
             likelihood = Likelihood(**MAP_likelihood_desc)
 
-            use_QE_for_lowL = cf.maprec.use_QE_for_lowL #False if cf.maprec.filtering_type == 'isotropic' else False
+            use_QE_for_lowL = cf.maprec.use_QE_for_lowL
             use_QE_starting_point = cf.maprec.use_QE_starting_point
-            MAP_minimizer_desc = {"likelihood": likelihood, 'itmax': dl.itmax, "libdir": libdir, "use_QE_starting_point": use_QE_starting_point, "use_QE_for_lowL": use_QE_for_lowL}
+            MAP_minimizer_desc = {
+                "likelihood": likelihood,
+                "itmax": dl.itmax,
+                "libdir": libdir,
+                "use_QE_starting_point": use_QE_starting_point,
+                "use_QE_for_lowL": use_QE_for_lowL,
+            }
             MAP_minimizer = Minimizer(**MAP_minimizer_desc)
 
             MAP_job_desc = {
                 "idxs": cf.analysis.idxs,
                 "idxs_mf": dl.idxs_mf,
-                'data_container': data_container,
+                "data_container": data_container,
                 "QE_searchs": QE_searchs,
                 "tasks": dl.tasks,
                 "MAP_minimizer": MAP_minimizer,
             }
+
             set_config(dl)
             return MAP_job_desc
 
