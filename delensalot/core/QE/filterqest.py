@@ -18,11 +18,9 @@ from delensalot.config.config_helper import data_functions as df
 from delensalot.utility.utils_hp import alm_copy
 from delensalot.utils import cli
 
+# NOTE This class is to interface with Plancklens. TODO lenpsyx could get its own interface in here
 class PlancklensInterface:
-    # def __init__(self, filter_desc):
     def __init__(self, data_container, lm_max_ivf, lm_max_qlm, lmin_teb, cg_tol, sht_threads, cls_len, cls_unl, TP_strategy, libdir, chain_descr=None, zbounds=(-1,1), inv_operator_desc=None, sht_tr=None):
-        # This class is to interface with Plancklens
-        
         self.data_container = data_container
         self.TP_strategy = TP_strategy
         self.libdir = libdir or opj(os.environ['SCRATCH'], 'QE')

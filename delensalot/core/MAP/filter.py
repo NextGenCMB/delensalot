@@ -72,9 +72,7 @@ class Filter_3d:
         self.nobire = False
         self.nocurl = False
         self.shtmode = 'STANDARD'
-        # self.shtmode = 'GRAD_ONLY'
-
-        # print(f"inside Filter_3d init:", self.cls_filt_bool.shape, self.cls_filt['ee'].shape, self.icls.shape)
+        # self.shtmode = 'GRAD_ONLY' # NOTE grad only comes with dangers... if B relevant in intermediate steps, can spoil result..
 
 
     def get_wflm(self, it, data=None):
@@ -114,7 +112,6 @@ class Filter_3d:
                 self.update_operator(field_operator)
             else:
                 teb_prep_alm = self.calc_prep(data) # NOTE lm_sky -> lm_pri
-                # print(f"get_wflm(): ", len(data[1]), teb_prep_alm.shape)
                 self.mchain.solve(cg_sol_curr, teb_prep_alm, self.fwd_op, maxiter=200)
             self.wf_field.cache(cg_sol_curr, it=it)
         return self.wf_field.get_field(it=it)
@@ -129,16 +126,10 @@ class Filter_3d:
         assert data.shape[0] == 3, len(data)
         teblmc = self.inv_operator.act(data, adjoint=False)
         assert len(teblmc) == 3, teblmc.shape
-        # print(f"inside calc_prep:", teblmc.shape)
-        
         teblmc = self.beam_operator.act(teblmc, adjoint=False)
-        # assert len(teblmc) == 3, len(teblmc)
-        # NOTE spin 0 is standard, spin 2 is GRAD_only. For convenience, I'll make it return a 3 tuple
-
+        assert len(teblmc) == 3, len(teblmc)
         teblm = self.sec_operator.act(teblmc, adjoint=True, backwards=True, nobire=self.nobire, out_sht_mode=self.shtmode,) # NOTE lm_sky -> lm_pri
         assert len(teblm) == 3, len(teblm)
-
-        # print(f"inside calc_prep:", teblm[1].shape, self.cls_filt_bool.shape)
 
         # teblm = almxfl_nd(teblm, self.cls_filt_bool, None, False)
         # teblm[1] = almxfl_nd(teblm[1], self.cls_filt_bool[1], None, False)
@@ -153,15 +144,14 @@ class Filter_3d:
         #     pass
         #     teblm[0] = np.zeros_like(teblm[1], dtype=complex)
         #     teblm[2] = np.zeros_like(teblm[1], dtype=complex)
-        # print(f"inside calc_prep:", np.array(teblm).shape)
         return np.array(teblm)
-
 
 
     @log_on_start(logging.DEBUG, " ---- fwd_op", logger=log)
     @log_on_end(logging.DEBUG, " done ---- fwd_op", logger=log)  
     def fwd_op(self, tebwflm):
         def proj_E(teblm):
+            #NOTE if we don't let B float freely, need to project out B part in fwd operation
             out = teblm.copy()
             out[0] *= 0
             out[2] *= 0
@@ -189,12 +179,9 @@ class Filter_3d:
             nlm[1] += almxfl(tebwflm[1], self.icls[:, 0, 0], len(self.cls_filt_bool[0])-1, False)
             nlm[2] += almxfl(tebwflm[2], iclsb, len(self.cls_filt_bool[0])-1, False)
             # almxfl(nlm[1], self.cls_filt['ee'] > 0, len(self.cls_filt_bool[0])-1, True)
-        
-        # tebwflm = 
-            # nlm[0] = np.zeros_like(nlm[1],dtype=complex)
-            # nlm[2] = np.zeros_like(nlm[1],dtype=complex)
         # return proj_E(nlm)
         return nlm
+
 
     @log_on_start(logging.DEBUG, " ---- fwd_op", logger=log)
     @log_on_end(logging.DEBUG, " done ---- fwd_op", logger=log)  
@@ -204,11 +191,8 @@ class Filter_3d:
         """
         # NOTE if bb interesting, can be implemented here. Currently, bb is just zero, only shape is kept
         assert tebwflm.shape[0] == 3, len(tebwflm)
-
         nlm = np.copy(tebwflm)
-        # print(f"fwd_op: before 1st sec_operator with adjoint=False")
-        teblm = self.sec_operator.act(nlm, adjoint=False, backwards=False, nobire=self.nobire, out_sht_mode=self.shtmode) # # NOTE lm_max_pri -> lm_max_sky
-        # print(f"fwd_op: after 1st sec_operator with adjoint=False")
+        teblm = self.sec_operator.act(nlm, adjoint=False, backwards=False, nobire=self.nobire, out_sht_mode=self.shtmode) # NOTE lm_max_pri -> lm_max_sky
         assert len(teblm) == 3, len(teblm)
         teblm = self.beam_operator.act(teblm, adjoint=False)
         assert len(teblm) == 3, len(teblm)
@@ -222,9 +206,7 @@ class Filter_3d:
             teblm = self.inv_operator.act(np.array([*imap, *qumap]))
 
         teblm = self.beam_operator.act(teblm, adjoint=False)
-        # print(f"fwd_op: before 2nd sec_operator with adjoint=True")
         teblm = self.sec_operator.act(teblm, adjoint=True, backwards=True, nobire=self.nobire, out_sht_mode=self.shtmode) # lm_sky -> lm_pri
-        # print(f"fwd_op: after 2nd sec_operator with adjoint=True")
         nlm = teblm
         if 'tt' in self.cls_filt and 'ee' in self.cls_filt:
             nlm[0] += almxfl(tebwflm[0], self.icls[:, 0, 0], len(self.cls_filt_bool[0])-1, False)
@@ -247,14 +229,13 @@ class Filter_3d:
         return nlm
 
 
-
     @log_on_start(logging.DEBUG, " ---- preconditioner_op", logger=log)
     @log_on_end(logging.DEBUG, " done ---- preconditioner_op", logger=log)
     def preconditioner_op(self, teblm):
         self.solve_eb = True
         self.Cbb_reg = 1e-30
         """
-        Diagonal (per-ℓ) preconditioner approximating (S^{-1} + B^T N^{-1} B)^{-1}
+        Diagonal (per-ell) preconditioner approximating (S^{-1} + B^T N^{-1} B)^{-1}
         for solves in T-only, E-only, or EB space.
 
         EB case:
@@ -294,14 +275,13 @@ class Filter_3d:
         # Decide what space we're solving in
         has_T = ('tt' in self.cls_filt)
         has_E = ('ee' in self.cls_filt)
+
         # EB solve if you want to allow B and you have polarization
-        # (set self.solve_eb = True in your config, otherwise default to False)
         solve_eb = bool(getattr(self, "solve_eb", False)) and has_E
 
         # --- Build S^{-1} + noise diagonal blocks ---
         if has_T and has_E:
-            # TE mixing case (keep your old 2x2 T/E block; B handled separately if solve_eb)
-            # NOTE: fix lmax_ bug: use lmax_pri_
+            # NOTE TE mixing case (keep your old 2x2 T/E block; B handled separately if solve_eb)
             lmax_ = lmax_pri_
             Si_TE = np.zeros((lmax_ + 1, 2, 2), dtype=float)
 
@@ -344,7 +324,7 @@ class Filter_3d:
             return tebout
 
         elif has_E:
-            # Polarization-only solve (E or EB)
+            # NOTE Polarization-only solve (E or EB)
             lmax_ = lmax_pri_
 
             # E block
@@ -357,7 +337,7 @@ class Filter_3d:
 
             if solve_eb:
                 # B block with regularization
-                Cbb_reg = getattr(self, "Cbb_reg", 1e-30)  # set this; see notes below
+                Cbb_reg = getattr(self, "Cbb_reg", 1e-30)
                 if np.isscalar(Cbb_reg):
                     icls_bb = np.full(lmax_ + 1, 1.0 / float(Cbb_reg), dtype=float)
                 else:
@@ -375,12 +355,14 @@ class Filter_3d:
 
     @log_on_start(logging.DEBUG, " ---- preconditioner_op", logger=log)
     @log_on_end(logging.DEBUG, " done ---- preconditioner_op", logger=log)  
-    def preconditioner_op_(self, teblm):
+    def preconditioner_op_nulledB(self, teblm):
+        """
+        NOTE this is the old preconditioner operation that nulls the B channel. This is ok in principle.. above implementation let's B "float" freely which may help with robustness
+        """
         lmax_pri_ = Alm.getlmax(teblm[1].size, None)
 
         ninv_ftebl = self.inv_operator.get_ftebl(self.beam_operator.transferfunction)
         if np.any(ninv_ftebl[0]) and len(ninv_ftebl[0]) - 1 < lmax_pri_:  # We extend the transfer fct to avoid predcon. with zero (~ Gauss beam)
-            # print(f'preconditioner_op(): extending')
             ninv_ftl = ninv_ftebl[0]
             log.debug("PRE_OP_DIAG: extending transfer fct from lmax %s to lmax %s" % (len(ninv_ftl)-1, lmax_pri_))
             nz = np.where(ninv_ftl > 0)
@@ -389,7 +371,6 @@ class Filter_3d:
         else:
             ninv_ftl = ninv_ftebl[0]
         if np.any(ninv_ftebl[1]) and len(ninv_ftebl[1]) - 1 < lmax_pri_: # We extend the transfer fct to avoid predcon. with zero (~ Gauss beam)
-            # print(f'preconditioner_op(): extending, ninv_ftebl[1].shape = {ninv_ftebl[1].shape}')
             ninv_fel = ninv_ftebl[1]
             log.debug("PRE_OP_DIAG: extending transfer fct from lmax %s to lmax %s"%(len(ninv_fel)-1, lmax_pri_))
             nz = np.where(ninv_fel > 0)
@@ -398,7 +379,6 @@ class Filter_3d:
         else:
             ninv_fel = ninv_ftebl[1]
 
-        
         if 'tt' in self.cls_filt and 'ee' in self.cls_filt:
             lmax_sky_ = self.cls_filt['tt'].size
             Si = np.zeros((lmax_ + 1,2,2), dtype=float)
@@ -416,14 +396,12 @@ class Filter_3d:
             Si[:lmax_sky_+1,0,0] += ninv_ftl[:lmax_+1]
             tebout = np.zeros(shape=(3,teblm[0].size), dtype=complex)
         elif 'ee' in self.cls_filt:
-            # print(f'preconditioner_op(): lmax_pri_ = {lmax_pri_}, self.icls.shape = {self.icls.shape}, ninv_fel.shape = {ninv_fel.shape}')
             Si = np.zeros((lmax_pri_ + 1,1,1), dtype=float)
             Si[:lmax_pri_+1,0,0] = self.icls[:lmax_pri_+1,0,0]
             Si[:lmax_pri_+1,0,0] += ninv_fel[:lmax_pri_+1]
 
             tebout = np.zeros(shape=(3,teblm[1].size), dtype=complex)
         flmat = np.linalg.pinv(Si) # TODO lmin_teb fix
-        # print(f'preconditioner_op(): flmat = {flmat}')
 
         if 'tt' in self.cls_filt and 'ee' in self.cls_filt:
             tebout[0] = almxfl(teblm[0], flmat[:, 0, 0], lmax_, False) + almxfl(teblm[1], flmat[:, 0, 1], lmax_, False)
@@ -432,7 +410,6 @@ class Filter_3d:
             tebout[0] = almxfl(teblm[0], flmat[:, 0, 0], lmax_, False)
         elif 'ee' in self.cls_filt:
             tebout[1] = almxfl(teblm[1], flmat[:, 0, 0], lmax_pri_, False)
-        # print(f'preconditioner_op(): tebout = {tebout}')
         return tebout
     
 
@@ -495,7 +472,7 @@ class Filter_3d:
     def get_field_operator(self):
         return self.sec_operator.get_field()
 
-    # TODO this should not sit in filter, rather in 
+    # TODO this should not sit in filter, rather in ..TBD
     def get_template(self, it, QE_perturbative=True, secondary=None, component=None, order='reversed'):
         config = get_config()
         estCMB = np.zeros(shape=(3,Alm.getsize(*config.lm_max_pri)),dtype=complex)

@@ -99,7 +99,27 @@ class Base:
             almxfl(klm, WF, Lmax, True) # Wiener-filter QE
             almxfl(klm, self.secondary.CLfids[component*2][:Lmax+1] > 0, Lmax, True)
             self.secondary.cache_klm(np.atleast_2d(klm), idx, component)
-        return self.secondary.get_est(idx, component, scale) 
+        return self.secondary.get_est(idx, component, scale)
+
+
+    def get_est_QEscore(self, idx, component=None, subtract_meanfield=None, scale='k'):
+        if component is None:
+            return np.array([self.get_est(idx, component, subtract_meanfield, scale).squeeze() for component in self.secondary.component])
+        if isinstance(component, list):
+            return np.array([self.get_est(idx, comp, subtract_meanfield, scale).squeeze() for comp in component])
+        
+        if not self.secondary.is_cached(idx, component, 'klm'):
+            qlm = self.get_qlm(idx, component)
+            Lmax = Alm.getlmax(qlm.size, None)
+            _submf = subtract_meanfield or self.subtract_meanfield
+            if idx==0: print(f"(only printing idx 0) _submf = {_submf}")
+            if _submf:
+                mf_qlm = self.get_qmflm(idx, self.idxs_mf, component=component)
+                qlm -= mf_qlm
+            klm = alm_copy(qlm, None, Lmax, Lmax)
+            almxfl(klm, self.secondary.CLfids[component*2][:Lmax+1] > 0, Lmax, True)
+            self.secondary.cache_klm(np.atleast_2d(klm), idx, component)
+        return self.secondary.get_est(idx, component, scale)
 
 
     def get_qmflm(self, idx, idxs, component=None):
@@ -170,7 +190,7 @@ class Base:
         else:
             return -1
 
-    def _get_h0_(self):
+    def _get_h0_diagonal(self):
         lmax = self.fq.lm_max_qlm[0]
         ret = []
         for comp in self.secondary.component:
@@ -214,31 +234,6 @@ class Base:
             H0[:, :, L] = np.linalg.pinv(M, rcond=1e-12)
 
         return H0
-
-
-    # def _get_h0(self, Lc=20, eps0=0.01):
-    #     """
-    #     Returns H0 with optional low-L ridge regularization.
-    #     Lc: transition scale (ell where ridge fades), Ridge term decays smoothly with ell^2 / (ell^2 + Lc^2)
-    #     eps0: ridge amplitude (this is multiplicative factor on mean of denom at low-L, and enters linearly)
-    #     """
-    #     lmax = self.fq.lm_max_qlm[0]
-    #     Ls = np.arange(lmax + 1)
-    #     # 
-
-    #     ret = []
-    #     for comp in self.secondary.component:
-    #         scale = 'k' if self.ID in ['lensing'] else 'p'
-    #         R_unl0 = self.get_response_unl(comp, scale=scale)
-    #         chh_comp = self.chh[comp]
-
-    #         denom = R_unl0[:lmax+1] + cli(chh_comp)
-    #         eps_L = eps0 * np.mean(denom[0:10]) * (Lc**2) / (Ls**2 + Lc**2)
-    #         denom_reg = denom + eps_L  # ridge regularization at low-L
-    #         buff = cli(denom_reg) * (chh_comp > 0)
-    #         ret.append(np.array(buff))
-    #     return ret
-    
 
     def _rescale(self, hlm, scale):
         if scale == 'p':

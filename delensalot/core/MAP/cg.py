@@ -11,7 +11,7 @@ from delensalot.core.cg import cd_monitors
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy
 
 
-def plot_stuff(residual, residualdata, bdata, fwddata, xdata, precondata, searchdirs, searchfwds, weights, x):
+def plot_diagnostics(residual, residualdata, bdata, fwddata, xdata, precondata, searchdirs, searchfwds, weights, x):
     import matplotlib
     # matplotlib.use('Agg')
     import matplotlib.pyplot as plt
@@ -246,7 +246,7 @@ def solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cacher, roundoff=25, max
         fwd_op, pre_op(s) and dot_op must not modify their arguments!
 
     """
-    residualdata, bdata, fwddata, xdata, precondata = [], [], [], [], []
+    
 
     n_pre_ops = len(pre_ops)
     residual = b - fwd_op(x)
@@ -255,11 +255,13 @@ def solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cacher, roundoff=25, max
     lmax = np.max([Alm.getlmax(r.size, None) for r in residual])
     ell = np.arange(0, lmax + 1)
     weights = 2 * ell + 1
-    residualdata.append([hp.alm2cl(res)*weights for res in np.atleast_2d(residual)])
-    bdata.append([hp.alm2cl(b_) for b_ in np.atleast_2d(b)])
-    fwddata.append([hp.alm2cl(fwd_) for fwd_ in np.atleast_2d(fwd_op(x))])
-    xdata.append([hp.alm2cl(x_) for x_ in np.atleast_2d(x)])
-    precondata.append([hp.alm2cl(precon_) for precon_ in np.atleast_2d(searchdirs)])
+    if False:
+        residualdata, bdata, fwddata, xdata, precondata = [], [], [], [], []
+        residualdata.append([hp.alm2cl(res)*weights for res in np.atleast_2d(residual)])
+        bdata.append([hp.alm2cl(b_) for b_ in np.atleast_2d(b)])
+        fwddata.append([hp.alm2cl(fwd_) for fwd_ in np.atleast_2d(fwd_op(x))])
+        xdata.append([hp.alm2cl(x_) for x_ in np.atleast_2d(x)])
+        precondata.append([hp.alm2cl(precon_) for precon_ in np.atleast_2d(searchdirs)])
     iter = 0
     lmax = hp.Alm.getlmax(residual[0].size)
     ell = np.arange(0, lmax + 1)

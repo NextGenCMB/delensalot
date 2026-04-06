@@ -48,10 +48,7 @@ class Minimizer:
         self.likelihood: Likelihood = likelihood
 
         self.use_QE_starting_point = use_QE_starting_point
-        # self.use_QE_starting_point = False
-
         self.use_QE_for_lowL = use_QE_for_lowL
-        # self.use_QE_for_lowL = False
 
         self.secondaries: field.Secondary = {
             quad.ID: field.Secondary({
@@ -313,7 +310,6 @@ class Likelihood:
         curvature_desc = {"bfgs_desc": {}}
         curvature_desc["bfgs_desc"].update({'dot_op': dotop})
         curvature_desc['libdir'] = opj(self.libdir, 'curvature/')
-        # curvature_desc['h0'] = [h0 for QE_search in self.QE_searchs for h0 in QE_search._get_h0()]
         curvature_desc['h0'] = self.build_full_h0(use='unl', diagonal_only=False, curvature_scale='k')
         curvature_desc['sky_coverage'] = self.gradient_lib.wfivf_filter.sky_coverage
         self.curvature_lib: curvature.Base = curvature.Base(self.gradient_lib, **curvature_desc)
@@ -460,7 +456,7 @@ class Likelihood:
                 if i == j:
                     C_field = search_i.chh[comp_i][:lmax+1]
                     if comp_i in ('p', 'w'):
-                        # stored in k-like units → convert to potential units
+                        # stored in k-like units, convert to potential units
                         Cpot = np.zeros_like(C_field)
                         mask = (C_field > 0) & (f > 0)
                         Cpot[mask] = C_field[mask] / (f[mask]**2)
@@ -500,7 +496,7 @@ class Likelihood:
 
         def _unphysical_Lmask(comp, L):
             if comp == 'p': # dipole measurable
-                return L >= 2
+                return L >= 1
             if comp == 'w': # curl dipole unphysical
                 return L >= 2
             if comp == 'f':

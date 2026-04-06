@@ -372,13 +372,16 @@ class LensingGradientSub(GradSub):
             almxfl(gc[1], fl2, self.LM_max[1], True)
             # NOTE gc has flipped sign compared to Juliens implementation.
             # However, Julien stores and returns it as -G and -C, so should be fine
-                    # --- cache only if not forced ---
+            # --- cache only if not forced ---
             if not force_eval: self.cache(gc, it=it, type='quad')
             # return gc  # return directly when forced # NOTE only works for truly forcing, otherwise shape is wrong if not curl requested, e.g.
         return self.gfield.get_quad(it)
 
 
     def get_gradient_quad_EBonlysupport(self, it, data=None, data_leg2=None, wflm=None, ivfreslm=None, force_eval=False):
+        """
+        This is a work in progress and tests EB-only MAP estimators.. needs validation
+        """
         if isinstance(it, (list, np.ndarray)):
             return [ self.get_gradient_quad(it=it_, data=data, data_leg2=data_leg2, wflm=wflm, ivfreslm=ivfreslm, force_eval=force_eval
                 )for it_ in it]

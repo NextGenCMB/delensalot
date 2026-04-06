@@ -112,7 +112,6 @@ class Secondary:
         operators = self.operators if not adjoint else self.operators[::-1]
         operators = operators if order == 'normal' else operators[::-1]
         for idx, operator in enumerate(operators):
-            # print(f'acting {operator.ID}')
             if operator.ID in secondary:
                 if isinstance(operator, Lensing):
                     obj = operator.act(obj, spin=spin, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode, nomagn=nomagn, out=out)
@@ -147,7 +146,6 @@ class Lensing(Operator):
         self.LM_max = operator_desc["LM_max"]
         self.lm_max_in = operator_desc["lm_max_in"]
         self.lm_max_out = operator_desc["lm_max_out"]
-        # self.Lmin = operator_desc["Lmin"]
         self.perturbative = operator_desc["perturbative"]
         self.component = operator_desc["component"]
         self.field = {component: None for component in self.component}
@@ -180,13 +178,10 @@ class Lensing(Operator):
             out_sht_mode = out_sht_mode or 'STANDARD'
             # out_sht_mode = out_sht_mode or 'GRAD_ONLY'
             if adjoint and backwards:
-                # print('adjoint lensing')
-                # print(f'adjoint, branch 0: self.lm_max_in[1], self.lm_max_out = {self.lm_max_in[1]}, {self.lm_max_out}')
                 tlm = np.atleast_2d(self.ffi.lensgclm(obj[0], self.lm_max_in[1], 0, *self.lm_max_out, backwards=backwards, out_sht_mode='STANDARD')) if self.data_key in ['tt', 'tp'] else np.zeros(shape=(Alm.getsize(*self.lm_max_out)),dtype=complex)
                 nomagn = nomagn or False
                 shaptefirstdim = 1 if out_sht_mode == 'GRAD_ONLY' else 2
                 eblm = np.atleast_2d(self.ffi.lensgclm(np.atleast_2d(obj[1:]), self.lm_max_in[1], 2, *self.lm_max_out, backwards=backwards, out_sht_mode=out_sht_mode, nomagn=nomagn)) if self.data_key in ['p', 'ee', 'eb', 'bb', 'tp'] else np.zeros(shape=(shaptefirstdim, Alm.getsize(*self.lm_max_out)),dtype=complex)
-                # print(out_sht_mode)
                 return np.array([tlm.squeeze(), *eblm, np.zeros_like(tlm.squeeze())]) if out_sht_mode == 'GRAD_ONLY' else np.array([tlm.squeeze(), *eblm])
             else:
                 if out == 'map':
@@ -195,15 +190,11 @@ class Lensing(Operator):
                     return np.array([*tmap, *ebmap])
                
                 elif out == 'alm':
-                    # print('forward lensing')
-                    # print(out_sht_mode)
                     if lmax == self.lm_max_in[0]:
-                        # print(f'non-adjoint, branch 1: self.lm_max_in[1], self.lm_max_out = {self.lm_max_in[1]}, {self.lm_max_out}')
                         tlm = self.ffi.lensgclm(np.atleast_2d(obj[0]), self.lm_max_in[1], 0, *self.lm_max_out, out_sht_mode=out_sht_mode) if self.data_key in ['tt', 'tp'] else np.zeros(shape=(Alm.getsize(*self.lm_max_out)),dtype=complex)
                         eblm = self.ffi.lensgclm(np.atleast_2d(obj[1:]), self.lm_max_in[1], 2, *self.lm_max_out, out_sht_mode=out_sht_mode)  if self.data_key in ['p', 'ee', 'eb', 'bb', 'tp'] else np.zeros(shape=(2,Alm.getsize(*self.lm_max_out)),dtype=complex)
                         return np.array([tlm, *eblm])
                     else:
-                        # print(f'non-adjoint, branch 2: self.lm_max_out[1], self.lm_max_in = {self.lm_max_out[1]}, {self.lm_max_in}')
                         tlm = self.ffi.lensgclm(np.atleast_2d(obj[0]), self.lm_max_out[1], 0, *self.lm_max_in, out_sht_mode=out_sht_mode) if self.data_key in ['tt', 'tp'] else np.zeros(shape=(Alm.getsize(*self.lm_max_in)),dtype=complex)
                         eblm = self.ffi.lensgclm(np.atleast_2d(obj[1:]), self.lm_max_out[1], 2, *self.lm_max_in, out_sht_mode=out_sht_mode)  if self.data_key in ['p', 'ee', 'eb', 'bb', 'tp'] else np.zeros(shape=(2,Alm.getsize(*self.lm_max_in)),dtype=complex)
                         return np.array([tlm, *eblm])
@@ -374,7 +365,6 @@ class InverseNoiseVariance(Operator):
             1.0*cli(_extend_cl(self.nlev['P']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2 if data_key in ['p', 'ee', 'eb', 'tp'] else np.zeros(shape=lm_max[0]+1),
             1.0*cli(_extend_cl(self.nlev['P']**2, lm_max[0])) * (180 * 60 / np.pi) ** 2 if data_key in ['p', 'ee', 'eb', 'tp'] else np.zeros(shape=lm_max[0]+1)]
         self.template = None
-        # print(f"inside iNV init: ", self.transferfunction['e'].shape, self.lm_max, self.n1tebl[1].shape, self.filtering_type, self.transferfunction['e'])
 
     @log_on_start(logging.DEBUG, "InverseNoiseVariance", logger=log)
     # @log_on_end(logging.DEBUG, "InverseNoiseVariance done", logger=log)

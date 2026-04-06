@@ -62,7 +62,7 @@ class BFGSHessian(object):
             h0_arr = np.asarray(h0)
             if h0_arr.ndim != 1:
                 raise ValueError("applyH0k was not provided, but h0 is not 1D. "
-                    "For matrix-valued h0 (N×N×L), you must pass applyH0k."
+                    "For matrix-valued h0 (NxNxL), you must pass applyH0k."
                 )
             self.lmax_qlm = h0_arr.size - 1
             self.applyH0k = lambda rlm, kr: almxfl(rlm, h0_arr, self.lmax_qlm, False)
@@ -73,7 +73,7 @@ class BFGSHessian(object):
             h0_arr = np.asarray(h0)
             if h0_arr.ndim != 1:
                 raise ValueError("applyB0k was not provided, but h0 is not 1D. "
-                    "For matrix-valued h0 (N×N×L), you must pass applyB0k."
+                    "For matrix-valued h0 (NxNxL), you must pass applyB0k."
                 )
             self.lmax_qlm = h0_arr.size - 1
             self.applyB0k = lambda rlm, kr: almxfl(rlm, cli(h0_arr), self.lmax_qlm, False)
