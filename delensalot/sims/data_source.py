@@ -511,7 +511,8 @@ class Xsky:
     def __init__(self, pri_lib=DNaV, geominfo=DNaV, CMB_info=DNaV, operator_info=DNaV, fixed_secondary_seed=None, operator_order=DNaV, gaussianized_sims=DNaV):
         self.gaussianized_sims = gaussianized_sims
         from delensalot.utils import camb_clfile
-        self.Cl_dict_len = camb_clfile('/sharefs/alicpt/users/sebibel/git/delensalot/delensalot/data/cls/FFP10_wdipole_lensedCls_secondaries_lens_birefringence.dat')
+        _here = os.path.dirname(os.path.abspath(__file__))  # /path/to/sims/
+        self.Cl_dict_len = camb_clfile(opj(_here,"..", "data/cls/FFP10_wdipole_lensedCls_secondaries_lens_birefringence.dat"))
 
         self.geominfo = geominfo
         if geominfo == DNaV:
