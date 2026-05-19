@@ -24,17 +24,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # MPI is needed to build plancklens (Fortran extension)
-      - uses: mpi4py/setup-mpi@v1
-
-      # gfortran is needed to compile plancklens
+      # gfortran MUST come before setup-mpi and before plancklens build
       - name: Install gfortran (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get install -y gfortran
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y gfortran
+          gfortran --version
 
       - name: Install gfortran (macOS)
         if: runner.os == 'macOS'
-        run: brew install gcc
+        run: |
+          brew install gcc
+          # brew gcc lands at a versioned path e.g. gfortran-14 — find and symlink it
+          GFORTRAN=$(ls $(brew --prefix gcc)/bin/gfortran-* | head -1)
+          sudo ln -sf "$GFORTRAN" /usr/local/bin/gfortran
+          gfortran --version
+
+      # MPI setup after gfortran is in PATH
+      - uses: mpi4py/setup-mpi@v1
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
@@ -44,8 +52,6 @@ jobs:
       - name: Upgrade pip / build tools
         run: python -m pip install --upgrade pip setuptools wheel
 
-      # Install in order: build-time deps first, then the git-only packages,
-      # then delensalot itself.
       - name: Install numpy (build-time dep for several packages)
         run: pip install numpy
 
@@ -55,6 +61,9 @@ jobs:
       - name: Install plancklens (GitHub, requires gfortran + MPI)
         run: pip install git+https://github.com/carronj/plancklens
 
+      # lenspyx has a broken setup.py: it references FFP10_wtensors_tensCls.dat
+      # which doesn't exist in the repo. Workaround: clone, touch the missing
+      # file, install locally. Filed upstream: carronj/lenspyx.
       - name: Install lenspyx (GitHub, with missing-file workaround)
         run: |
           git clone https://github.com/carronj/lenspyx.git /tmp/lenspyx
