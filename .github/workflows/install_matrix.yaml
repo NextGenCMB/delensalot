@@ -1,0 +1,65 @@
+name: Installation
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  install:
+    name: Python ${{ matrix.python-version }} — ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false      # show all failures, not just the first
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        include:
+          # Spot-check macOS on the oldest and newest supported Pythons
+          - os: macos-latest
+            python-version: "3.9"
+          - os: macos-latest
+            python-version: "3.12"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # MPI is needed to build plancklens (Fortran extension)
+      - uses: mpi4py/setup-mpi@v1
+
+      # gfortran is needed to compile plancklens
+      - name: Install gfortran (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y gfortran
+
+      - name: Install gfortran (macOS)
+        if: runner.os == 'macOS'
+        run: brew install gcc
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Upgrade pip / build tools
+        run: python -m pip install --upgrade pip setuptools wheel
+
+      # Install in order: build-time deps first, then the git-only packages,
+      # then delensalot itself.
+      - name: Install numpy (build-time dep for several packages)
+        run: pip install numpy
+
+      - name: Install ducc0
+        run: pip install ducc0
+
+      - name: Install plancklens (GitHub, requires gfortran + MPI)
+        run: pip install git+https://github.com/carronj/plancklens
+
+      - name: Install lenspyx (GitHub)
+        run: pip install git+https://github.com/carronj/lenspyx
+
+      - name: Install delensalot + remaining deps
+        run: pip install -e ".[dev]" 2>/dev/null || pip install -e .
+
+      - name: Run installation checker
+        run: python check_install.py
