@@ -32,6 +32,7 @@ jobs:
           pip install numpy ducc0
           pip install git+https://github.com/carronj/plancklens
           pip install git+https://github.com/carronj/lenspyx
+          pip install -e ".[dev]"
 
       - name: Run smoke test
         run: python -m unittest tests/test_integration_mwe.py -v
