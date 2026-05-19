@@ -1,132 +1,113 @@
 ![delensalot logo](res/dlensalot2.PNG)
-[![Install](https://github.com/NextGenCMB/delensalot/actions/workflows/install.yaml/badge.svg?branch=sims&event=pull_request)](https://github.com/NextGenCMB/delensalot/actions/workflows/install.yaml)
+[![Installation](https://github.com/NextGenCMB/delensalot/actions/workflows/install_matrix.yaml/badge.svg)](https://github.com/NextGenCMB/delensalot/actions/workflows/install_matrix.yaml)
+[![Smoke test](https://github.com/NextGenCMB/delensalot/actions/workflows/smoke_test.yaml/badge.svg)](https://github.com/NextGenCMB/delensalot/actions/workflows/smoke_test.yaml)
 [![Documentation Status](https://readthedocs.org/projects/delensalot/badge/?version=latest)](https://delensalot.readthedocs.io/en/latest/?badge=latest)
-[![Integration filter](https://github.com/NextGenCMB/delensalot/actions/workflows/integration_filter.yaml/badge.svg?branch=sims&event=pull_request)](https://github.com/NextGenCMB/delensalot/actions/workflows/integration_filter.yaml)
-[![Integration reconstruction](https://github.com/NextGenCMB/delensalot/actions/workflows/unit_reconstruction.yaml/badge.svg?branch=sims&event=pull_request)](https://github.com/NextGenCMB/delensalot/actions/workflows/integration_reconstruction.yaml)
-[![Integration tutorial](https://github.com/NextGenCMB/delensalot/actions/workflows/integration_tutorial.yaml/badge.svg?branch=sims&event=pull_request)](https://github.com/NextGenCMB/delensalot/actions/workflows/integration_tutorial.yaml)
 [![arXiv](https://img.shields.io/badge/arXiv-2310.06729-red)](https://arxiv.org/abs/2310.06729)
 
 # delensalot
 Curved-sky optimal CMB lensing reconstruction and bias calculation.
-Delensalot, in essence, takes an observed CMB map and returns an optimal estimate of the underlying lensing field.
+Delensalot takes an observed CMB map and returns an optimal estimate of the underlying lensing field.
 
 If you use delensalot for your work, please consider citing the ApJ publication [CMB-S4: Iterative internal delensing and r constraints](https://iopscience.iop.org/article/10.3847/1538-4357/ad2351).
 
 ![noise comparison](res//deflectionnoisecomp.jpg)
 This figure shows the full sky optimal lensing potential reconstruction for various CMB observations in a 5 times 5 degree patch. The input lensing potential is shown in the leftmost figure.
 
-## Features and supports
+## Features
  * Curved-sky analysis
- * anisotropic noise model support
- * masked-sky support
- * quadratic estimator (QE) implementation via Plancklens
- * Mock data generation using e.g. lenspyx
+ * Anisotropic noise model support
+ * Masked-sky support
+ * Quadratic estimator (QE) implementation via Plancklens
+ * Mock data generation using lenspyx
  * Supports various estimators (TT, EE, BB, MV, EE+EB, ..)
 
 
 # Installation
-Download the project, navigate to the root folder and execute the command,
 
-``` 
-python setup.py install
+Requires Python 3.9–3.12. First install the two dependencies that are not on PyPI:
+
+```bash
+pip install git+https://github.com/carronj/plancklens
+pip install git+https://github.com/carronj/lenspyx
 ```
 
-Make sure that you have the latest `plancklens` and `lenpsyx`.
+> **Note:** building `plancklens` requires a Fortran compiler (`gfortran`).
+> On macOS: `brew install gcc`. On Linux: `sudo apt-get install gfortran`.
 
+Then install delensalot:
 
-## Set up a jupyter-kernel with delensalot
-You will need to install `jupyter` for the tutorials found in `first_steps/notebooks/`, and possibly an `ipykernel` to create a jupyter-kernel out of the environment in which you install `delensalot`.
-To run the tutorials with a jupyter kernel, you will have to install delensalot in it. Assuming you are using conda for your package management,
-
+```bash
+git clone https://github.com/NextGenCMB/delensalot.git
+cd delensalot
+pip install -e .
 ```
-conda create --name delensalot
+
+To verify your installation:
+
+```bash
+python check_install.py
+```
+
+## Setting up a conda environment
+
+```bash
+conda create --name delensalot python=3.11
 conda activate delensalot
-```
+conda install pip numpy
 
-Then, install your favourite packages,
+pip install git+https://github.com/carronj/plancklens
+pip install git+https://github.com/carronj/lenspyx
 
-```
-conda install pip, numpy
-```
-
-Now, go to the delensalot directory, and install, including its requirements,
-
-```
 cd </path/to/delensalot>
-python3 -m pip install -r requirements .
-python3 setup.py develop
+pip install -e .
 ```
 
-Eventually, create your kernel using the environment at which you just installed all packages,
-```
-python3 -m ipykernel install --user --name=delensalot
+To use delensalot in Jupyter notebooks, add it as a kernel:
+
+```bash
+pip install ipykernel
+python -m ipykernel install --user --name=delensalot
 ```
 
-## Installation troubles
+## Installation troubleshooting
 
-Frequent problems are
- * `attrs`. If there are errors related to the metamodel, make sure you have `attrs` (not `attr`, which is a different package) installed and updated/upgraded (version 23.1.0 should do)
- * `astropy`. If there are errors related to ducc0, chances are it's because of an old `astropy` installation.
+* **`attrs` errors** — make sure you have the `attrs` package (not `attr`, which is different): `pip install --upgrade attrs`. Version 23.1.0 or newer is required.
+* **`astropy` / `ducc0` errors** — usually caused by an outdated `astropy`. Run `pip install --upgrade astropy`.
+* **`plancklens` build fails** — make sure `gfortran` is installed (see above).
+* **Still stuck?** — run `python check_install.py` for a full dependency report with fix hints.
+
 
 # Usage
 
-## parameter file
-Check the first_steps/parameter_files/ and run any of them using,
-``` 
+## Interactive mode
+
+See `first_steps/notebooks/` for tutorials. The minimal working example notebook `interactive_mwe.ipynb` is a good starting point.
+
+## Parameter files
+
+```bash
 python3 <parfile>.py
 ```
 
-## Run a configuration file
+See `first_steps/parameter_files/` for examples.
 
-To run a configuration file `<path-to-config/conf.py>`, type in your favorite `bash`,
-``` 
-python3 run.py -r <path-to-config/conf.py>
-```
+## MPI / HPC
 
-delensalot supports MPI,
+delensalot supports MPI for parallelisation across simulation indices:
 
-```
-srun --nodes <nnodes> -n <taskspernode> python3 run.py -r <path-to-config/conf.py>
-```
-
-## interactive mode
-
-delensalot supports interactive mode. See `first_steps/notebooks/` for our tutorials.
-
-
-## help
-
-Type `python3 run.py [-h]` for quickhelp,
-```
-usage: run.py [-h] [-p NEW] [-r RESUME] [-s STATUS] [-purgehashs PURGEHASHS]
-
-delensalot entry point.
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -r RESUME             Absolute path to config file to run/resume.
-  -s STATUS             Absolute path for the analysis to write a report.
-
+```bash
+srun -n <ntasks> python3 run.py -r <path-to-config-file>
 ```
 
 
 # Dependencies
 
- uses
-  * [Plancklens](https://github.com/carronj/plancklens)
-  * [lenspyx](https://github.com/carronj/lenspyx)
-  * [DUCC](https://github.com/mreineck/ducc)
-
-## Doc
-Documentation may be found [HERE]
+* [Plancklens](https://github.com/carronj/plancklens)
+* [lenspyx](https://github.com/carronj/lenspyx)
+* [DUCC](https://github.com/mreineck/ducc)
+* numpy, scipy, healpy, astropy, attrs, psutil, logdecorator
 
 
-## Use with HPC
-`delensalot` can be computationally demanding.
-We have parallelized the computations across the simulation index in most cases. Assuming you have MPI set up and `srun` is available, you can simply run MPI-supported `delensalot` via,
+# Documentation
 
-```
-srun -MPI_paramX X -MPI_paramY Y python3 <path-to-delensalot>/run.py -r <path-to-config-file>
-```
-
-If you have troubles, your HPC-center can help.
+Documentation can be found at [delensalot.readthedocs.io](https://delensalot.readthedocs.io).
