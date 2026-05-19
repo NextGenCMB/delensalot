@@ -55,9 +55,6 @@ jobs:
       - name: Install plancklens (GitHub, requires gfortran + MPI)
         run: pip install git+https://github.com/carronj/plancklens
 
-      # lenspyx has a broken setup.py: it references FFP10_wtensors_tensCls.dat
-      # which doesn't exist in the repo. Workaround: clone, touch the missing
-      # file, install locally. Filed upstream: carronj/lenspyx#<issue>.
       - name: Install lenspyx (GitHub, with missing-file workaround)
         run: |
           git clone https://github.com/carronj/lenspyx.git /tmp/lenspyx
