@@ -1,7 +1,40 @@
 [build-system]
-requires = [
-    "setuptools>=61.0",
-    "wheel",
-    "numpy"
-]
+requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "delensalot"
+version = "0.1.0"
+description = "Iterative CMB lensing reconstruction on curved-sky"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "Julien Carron",      email = "to.jcarron@gmail.com" },
+    { name = "Sebastian Belkner",  email = "to.sebastianbelkner@gmail.com" },
+]
+requires-python = ">=3.9"
+dependencies = [
+    "numpy",
+    "scipy",
+    "healpy",
+    "astropy",
+    "ducc0",
+    "logdecorator",
+    "psutil",
+    "attrs>=23.1.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.urls]
+Homepage    = "https://github.com/NextGenCMB/delensalot"
+"Bug Tracker" = "https://github.com/NextGenCMB/delensalot/issues"
+
+[tool.setuptools.packages.find]
+# auto-discovers all packages with __init__.py — no manual list needed
+where = ["."]
+include = ["delensalot*"]
+
+[tool.setuptools.package-data]
+"delensalot.data.cls" = ["*.dat", "*.ini"]
