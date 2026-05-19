@@ -1,5 +1,5 @@
 ![delensalot logo](res/dlensalot2.PNG)
-[![Installation](https://github.com/NextGenCMB/delensalot/actions/workflows/install_matrix.yaml/badge.svg)](https://github.com/NextGenCMB/delensalot/actions/workflows/install_matrix.yaml)
+[![Installation](https://github.com/NextGenCMB/delensalot/actions/workflows/install.yaml/badge.svg)](https://github.com/NextGenCMB/delensalot/actions/workflows/install.yaml)
 [![Smoke test](https://github.com/NextGenCMB/delensalot/actions/workflows/smoke_test.yaml/badge.svg)](https://github.com/NextGenCMB/delensalot/actions/workflows/smoke_test.yaml)
 [![Documentation Status](https://readthedocs.org/projects/delensalot/badge/?version=latest)](https://delensalot.readthedocs.io/en/latest/?badge=latest)
 [![arXiv](https://img.shields.io/badge/arXiv-2310.06729-red)](https://arxiv.org/abs/2310.06729)
@@ -40,12 +40,6 @@ Then install delensalot:
 git clone https://github.com/NextGenCMB/delensalot.git
 cd delensalot
 pip install -e .
-```
-
-To verify your installation:
-
-```bash
-python check_install.py
 ```
 
 ## Setting up a conda environment
