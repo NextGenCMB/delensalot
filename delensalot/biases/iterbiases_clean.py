@@ -546,7 +546,7 @@ def compute_delensed_cls(
             )
         
         if include_E_noise:
-            print("New module including imperfect E-mode knowledge in delensing.")
+            # print("New module including imperfect E-mode knowledge in delensing.")
             assert qe_key == 'p_p', "include_E_noise only works with 'p_p'"
             cls_plen_fid, cls_plen_true = _compute_delensed_with_E_noise(
                 dls_unl_fid, dls_unl_true, cldd_fid, cldd_true,

@@ -13,7 +13,8 @@ from plancklens.n1 import n1 as n1_lib
 
 from delensalot import utils
 from delensalot.utils import read_map, cli
-from delensalot.biases import iterbiasesN0N1
+# from delensalot.biases import iterbiases_clean as iterbiasesN0N1
+from delensalot.biases.iterbiases_clean import IterativeBiases
 from delensalot.biases import rdn0_cs
 from delensalot.core import cachers
 # from delensalot.core.helper import utils_scarf
@@ -51,8 +52,10 @@ class cpp_sims_lib:
         self.label = label
         # Load the parameters defined in the param_file
         self.param_file = param_file
-
-        self.param = SourceFileLoader(param_file, param_file +'.py').load_module()
+        try:
+            self.param = SourceFileLoader(param_file, param_file +'.py').load_module()
+        except FileNotFoundError:
+            self.param = SourceFileLoader(param_file, param_file).load_module()
         if verbose:
             print('Loaded param file ' + param_file)
 
@@ -80,8 +83,12 @@ class cpp_sims_lib:
         
         
         self.cacher_param = cachers.cacher_npy(cpp_lib_dir)
-        self.fsky = self.get_fsky() 
-
+        # try:
+        #     self.fsky, self.fsky2, self.fsky3, self.fsky4 = self.get_fsky() 
+        # except:
+        #     self.fsky, self.fsky2, self.fsky3, self.fsky4 = self.get_fsky(recache=True)
+        self.fsky = self.get_fsky()
+        self.fsky2, self.fsky3, self.fsky4 = self.fsky, self.fsky, self.fsky 
         # Cl weights used in the QE (either lensed Cls or grad Cls)
         try:
             self.cls_weights = self.param.ivfs.cl
@@ -204,6 +211,8 @@ class cpp_sims_lib:
         """Returns the input plm, depending if it is a sims_ffp10, a npipe sim or other sim"""
         if type(self.param.sims).__name__ == 'smicaNPIPE_wTpmask30amin':
             return self.param.sims.get_sim_plm(idx)
+        elif type(self.param.sims).__name__ == 'chwide_nilc':
+            return self.param.sims.cmb_unl.get_sim_plm(idx)
         elif type(self.param.sims.sims_cmb_len).__name__ == 'cmb_len_ffp10':
             return planck2018_sims.cmb_unl_ffp10().get_sim_plm(idx)
         else:
@@ -241,18 +250,24 @@ class cpp_sims_lib:
         blm = uhp.alm_copy(blm, mmaxin=lmaxdat, lmaxout=lmaxout, mmaxout=lmaxout)
         return elm, blm
 
-    def get_fsky(self):
-        try:
-            fn = 'fsky'
-            if not self.cacher_param.is_cached(fn):
-                mask = read_map(self.param.masks)
-                fsky = np.sum(mask)/np.size(mask)
-                print(fsky)
-                self.cacher_param.cache(fn, fsky)
-            return self.cacher_param.load(fn)
-        except AttributeError:
-            # print('No masks defined in param file ' + self.param_file)
-            return 1.
+    def get_fsky(self, recache=False):
+        return self.param.qcls_dd.fskies[1234]
+        # try:
+        #     fn = 'fsky'
+        #     if not self.cacher_param.is_cached(fn) or recache:
+        #         # mask = read_map(self.param.qlms_dd.get_masks)
+        #         # fsky = np.sum(mask)/np.size(mask)
+        #         # fsky2 = np.sum(mask**2)/np.size(mask)
+        #         # fsky3 = np.sum(mask**3)/np.size(mask)
+        #         # fsky4 = np.sum(mask**4)/np.size(mask)
+        #         # fsky8 = np.sum(mask**4)/np.size(mask) #FIXME for the covariance maybe?
+                
+        #         print(fsky, fsky2, fsky3, fsky4)
+        #         self.cacher_param.cache(fn, np.array([fsky, fsky2, fsky3, fsky4]))
+        #     return self.cacher_param.load(fn)
+        # except AttributeError:
+        #     # print('No masks defined in param file ' + self.param_file)
+        #     return 1., 1., 1., 1., 1.
 
     def get_cl(self, alm, blm=None, lmax_out=None):
         if blm is None: blm = alm 
@@ -587,9 +602,9 @@ class cpp_sims_lib:
             lmin_ivf = 0 
         else:
             lmin_ivf = self.param.lmin_ivf
-        itbias = iterbiasesN0N1.iterbiases(self.param.nlev_t, self.param.nlev_p, self.param.beam, lmin_ivf, self.param.lmax_ivf,
+        itbias = IterativeBiases(self.param.nlev_t, self.param.nlev_p, self.param.beam, lmin_ivf, self.param.lmax_ivf,
                                     self.param.lmax_qlm, self.param.cls_unl, None, lib_dir)
-        N0_biased, N1_biased, r_gg_fid, r_gg_true = itbias.get_n0n1(self.k, itermax, None, None, version=version, recache=recache)
+        N0_biased, N1_biased, r_gg_fid, r_gg_true = itbias.get_n0_n1(self.k, itermax, None, None, version=version, recache=recache)
         if normalize is False:
             N0_biased *= r_gg_fid**2
             N1_biased *= r_gg_fid**2
@@ -602,9 +617,9 @@ class cpp_sims_lib:
         else:
             lib_dir = self.n0n1_libdir
 
-        itbias = iterbiasesN0N1.iterbiases(self.param.nlev_t, self.param.nlev_p, self.param.beam, self.param.lmin_ivf, self.param.lmax_ivf,
+        itbias = IterativeBiases(self.param.nlev_t, self.param.nlev_p, self.param.beam, self.param.lmin_ivf, self.param.lmax_ivf,
                                         self.param.lmax_qlm, self.param.cls_unl, None, lib_dir)
-        cls_del, _ = itbias.delcls(self.k, itmax, None, None)
+        cls_del, _ = itbias.get_delensed_cls(self.k, itmax, None, None)
         mf_resp = qresp_lpx.get_mf_response( self.k, nlev_t=self.param.nlev_t, beam=self.param.beam, lmax_ivf=self.param.lmax_ivf, 
             lmax_sky=self.param.cmb_unl.lmax, cls_unl=cls_del[-1], lmin_ivf=self.param._lmin_ivf[self.k],
             lmax_qlm=self.param.lmax_qlm)[0]
@@ -612,7 +627,7 @@ class cpp_sims_lib:
         return mf_resp
 
     def get_wf_fid(self, itermax=15, version=''):
-        """Fiducial iterative Wiener filter.
+        r"""Fiducial iterative Wiener filter.
         
         Normalisation of :math:`phi^{MAP}`
         :math:`\mathcal{W} = \frac{C_{\phi\phi, \mathrm{fid}}}{C_{\phi\phi, \mathrm{fid}} + 1/\mathcal{R}_L}`
@@ -627,7 +642,7 @@ class cpp_sims_lib:
             return self.cpp_fid[:self.lmax_qlm+1] * utils.cli(self.cpp_fid[:self.lmax_qlm+1] + utils.cli(resp_fid[:self.lmax_qlm+1]))
 
     def get_wf_sim(self, simidx, itr, mf=False, mc_sims=None, recache=False, cache_plm=True):
-        """Get the Wiener filter from the simulations.
+        r"""Get the Wiener filter from the simulations.
 
         :math:`\hat \mathcal{W} = \frac{C_L{\phi^{\rm MAP} \phi{\rm in}}}{C_L{\phi^{\rm in} \phi{\rm in}}}`
         
@@ -636,7 +651,7 @@ class cpp_sims_lib:
         cacher = self.cacher_sim(simidx)
         if not cacher.is_cached(fn) or recache:
             if mf is False:
-                wf = self.get_cpp_itXinput(simidx, itr,cache_plm=cache_plm) * utils.cli(self.get_cpp_input(simidx, cache_plm=cache_plm)) / self.fsky
+                wf = self.get_cpp_itXinput(simidx, itr,cache_plm=cache_plm) * utils.cli(self.get_cpp_input(simidx, cache_plm=cache_plm)) / self.fsky2
             else:
                 plmin = self.get_plm_input(simidx, use_cache=cache_plm)
                 # plmit = self.plms[simidx][itr]
@@ -698,6 +713,41 @@ class cpp_sims_lib:
         wfcorr_spl = self.cacher_param.load(fn_wfspline)
         return wf_eff[:self.lmax_qlm+1], wfcorr_spl
 
+    def get_qe_resp_eff(self, simidxs, do_spline=True, lmin_interp=2, lmax_interp=None, k=3, s=None):
+        """Get the effective QE response from several simulations
+        args:
+            simidxs: indices of simulations to average over
+        returns:
+            R_eff: effective QE response
+        """
+        R_eff = np.zeros(self.lmax_qlm+1)
+        for simidx in simidxs:
+            # print(f'Getting QE response for sim {simidx}')
+            R_eff += self.get_qe_resp_for_sim(simidx)
+        R_eff /= len(simidxs)
+        if do_spline:
+            resp_qe = self.get_qe_resp()
+            R_spl = np.ones(self.lmax_qlm+1) * R_eff
+            if lmax_interp is None: lmax_interp=self.lmax_qlm
+            ells = np.arange(lmin_interp, lmax_interp+1)
+            # R_spl[ells] = spline(ells, R_eff[ells], k=k, s=s)(ells)
+            R_spl[ells] = resp_qe[ells] * spline(ells, R_eff[ells] * cli(resp_qe[ells]), k=k, s=s)(ells)
+            R_eff = R_spl
+        return R_eff
+    
+    def get_qe_resp_for_sim(self, simidx):
+        """Get the QE response for a given simulation
+        args:
+            simidx: index of simulation
+        returns:
+            R_sim: QE response for the simulation
+        """        
+        cpp_in = self.get_cpp_input(simidx)
+        cpp_qexin = self.get_cpp_qeXinput(simidx) / self.fsky
+        R_sim = cpp_qexin * utils.cli(cpp_in)
+        return R_sim
+        
+
 
     def get_num_rdn0(self, itr=50, mcs=None, Nroll=None):
         "Retunr number of sims with RDN0 estimated"
@@ -744,10 +794,10 @@ class cpp_sims_lib:
         ells = np.arange(lmin_interp, lmax_interp+1)
         # Reff_Spline[ells] = r_gg_fid[ells] * spline(ells, rdn0[ells] * utils.cli(r_gg_fid[ells]), k=k, s=s)(ells)
         if dospline:
-            Reff_Spline[ells] = r_gg_fid[ells] * spline(ells, rdn0[ells] /self.fsky * utils.cli(r_gg_fid[ells]), k=k, s=s)(ells)
+            Reff_Spline[ells] = r_gg_fid[ells] * spline(ells, rdn0[ells] /self.fsky4 * utils.cli(r_gg_fid[ells]), k=k, s=s)(ells)
             # Reff_Spline[ells] = r_gg_fid[ells] * spline(ells, rdn0[ells]  * utils.cli(r_gg_fid[ells]), k=k, s=s)(ells)
         else:
-            Reff_Spline = rdn0 /self.fsky
+            Reff_Spline = rdn0 /self.fsky4
         # kR_eff = np.zeros(4001)
         # R_eff  = r_gg_fid * Reff_Spline
         return Reff_Spline
@@ -775,9 +825,9 @@ class cpp_sims_lib:
         if lmax_interp is None: lmax_interp=self.lmax_qlm
         ells = np.arange(lmin_interp, lmax_interp+1)
         if dospline:
-            Reff_Spline[ells] = r_gg_fid[ells] * spline(ells, rdn0[ells] /self.fsky * utils.cli(r_gg_fid[ells]), k=k, s=s)(ells)
+            Reff_Spline[ells] = r_gg_fid[ells] * spline(ells, rdn0[ells] /self.fsky4 * utils.cli(r_gg_fid[ells]), k=k, s=s)(ells)
         else:
-            Reff_Spline = rdn0 /self.fsky
+            Reff_Spline = rdn0 /self.fsky4
         return Reff_Spline
 
     def load_rdn0_map(self, idx, itr, mcs, Nroll, tol=5., rdn0tol=5., recache = False):
@@ -832,7 +882,7 @@ class cpp_sims_lib:
             else:
                 r_gg_fid = self.get_map_resp(itmax_fid, version=version)
                 RDN0 *= utils.cli(r_gg_fid[:self.lmax_qlm+1])**2
-        return RDN0 / self.fsky
+        return RDN0 / self.fsky4
         
     def get_semi_rdn0_qe(self, simidx):
         """Returns semi analytical realisation-dependent N0 lensing bias
@@ -947,8 +997,8 @@ class cpp_sims_lib:
         N1_qe = _N1_qe if N1_qe is None else N1_qe
 
         ells = np.arange(self.lmax_qlm+1)
-        cov_qe =  cli((2.*ells + 1.) * self.fsky) * 2 * ((self.cpp_fid[:self.lmax_qlm+1]*cosmicvar + N0_qe[:self.lmax_qlm+1] + N1_qe[:self.lmax_qlm+1]*withN1) * w(ells))**2 
-        cov_map = cli((2.*ells + 1.) * self.fsky) * 2 * ((self.cpp_fid[:self.lmax_qlm+1]*cosmicvar + N0_map[:self.lmax_qlm+1] + N1_map[:self.lmax_qlm+1]*withN1) * w(ells))**2 
+        cov_qe =  cli((2.*ells + 1.) * self.fsky4) * 2 * ((self.cpp_fid[:self.lmax_qlm+1]*cosmicvar + N0_qe[:self.lmax_qlm+1] + N1_qe[:self.lmax_qlm+1]*withN1) * w(ells))**2 
+        cov_map = cli((2.*ells + 1.) * self.fsky4) * 2 * ((self.cpp_fid[:self.lmax_qlm+1]*cosmicvar + N0_map[:self.lmax_qlm+1] + N1_map[:self.lmax_qlm+1]*withN1) * w(ells))**2 
         if edges is not None:
             nbins = len(edges) - 1
             cov_qe_b = np.zeros(nbins)
@@ -1019,8 +1069,8 @@ class cpp_sims_lib:
                 plm_mf1_qe = self.get_mf0([idx, plm_shuffle(idx)], mf_sims=qe_mf_sims_1, version=self.version)
                 plm_mf2_qe = self.get_mf0([idx, plm_shuffle(idx)], mf_sims=qe_mf_sims_2, version=self.version)
 
-                _cpp10 = hp.alm2cl(plm1-plm_mf1, plm0-plm_mf2)/self.fsky
-                _cpp10_qe = hp.alm2cl(plmqe1-plm_mf1_qe, plmqe0-plm_mf2_qe)/self.fsky
+                _cpp10 = hp.alm2cl(plm1-plm_mf1, plm0-plm_mf2)/self.fsky4
+                _cpp10_qe = hp.alm2cl(plmqe1-plm_mf1_qe, plmqe0-plm_mf2_qe)/self.fsky4
             
                 cacher.cache(fn_cpp_map_cross, _cpp10)
                 cacher.cache(fn_cpp_qe_cross, _cpp10_qe)
@@ -1050,7 +1100,7 @@ class cpp_sims_lib:
         return dcpp_10_qe.mean(), dcpp_10.mean()
 
     def get_delta_cpp(self, itr:int, lmin:int, lmax:int, edges:np.ndarray, wf_it:np.ndarray=None, Resp:np.ndarray=None, n1:np.ndarray=None, resp_n1:np.ndarray=None,  mcs:np.ndarray=np.arange(0, 40), mf_sims:np.ndarray=np.arange(0, 40)):
-        """Get the bias Delta Cpp / Cpp from a set of simulations
+        r"""Get the bias Delta Cpp / Cpp from a set of simulations
         We compute the bias (C_L^{\hat \phi, \hat \phi} - RDN0 - N1) / C_L^{\phi_{in}, \phi_{in}} - 1
         
         Args: 
@@ -1094,12 +1144,12 @@ class cpp_sims_lib:
             if itr == 0:
                 cpp_qe = self.get_cpp_qe_raw(idx, splitMF=True, recache=False)          
                 rdn0_qe = self.get_semi_rdn0_qe(idx, normalize=False)
-                dcpp = ((cpp_qe/self.fsky - rdn0_qe - n1) *utils.cli(Resp) **2 )*utils.cli(cpp_input) -1
+                dcpp = ((cpp_qe/self.fsky4 - rdn0_qe - n1) *utils.cli(Resp) **2 )*utils.cli(cpp_input) -1
             
             else:
                 cpp_map = self.get_cpp(idx, itr, sub_mf=True, mf_sims=mf_sims, splitMF=True)
                 RDN0_map  = self.get_rdn0_map(idx, itr =itr, Reff=Resp,  useReff=True)
-                dcpp = (cpp_map*utils.cli(wf_it)**2 /self.fsky - RDN0_map - n1*utils.cli(resp_n1**2)) * utils.cli(cpp_input) - 1
+                dcpp = (cpp_map*utils.cli(wf_it)**2 /self.fsky4 - RDN0_map - n1*utils.cli(resp_n1**2)) * utils.cli(cpp_input) - 1
 
             if edges is None:
                 delta_cpp.add(dcpp)
@@ -1127,10 +1177,10 @@ class cpp_sims_lib:
             cpp_input = self.get_cpp_input(i)
             RDN0_map  = self.get_rdn0_map(i, itr =itr, Reff=rfid,  useReff=True)
             
-            map_rd_rat = (cpp_map*utils.cli(wf_it)**2 /self.fsky - cpp_input) *cli(RDN0_map +N1_map)
-            map_n0_rat = (cpp_map*utils.cli(wf_it)**2 /self.fsky - cpp_input) *cli(N0_map +N1_map)
+            map_rd_rat = (cpp_map*utils.cli(wf_it)**2 /self.fsky4 - cpp_input) *cli(RDN0_map +N1_map)
+            map_n0_rat = (cpp_map*utils.cli(wf_it)**2 /self.fsky4 - cpp_input) *cli(N0_map +N1_map)
             
-            dmap = (cpp_map*utils.cli(wf_it)**2 / self.fsky  - N1_map - RDN0_map) * utils.cli(cpp_input)
+            dmap = (cpp_map*utils.cli(wf_it)**2 / self.fsky4  - N1_map - RDN0_map) * utils.cli(cpp_input)
             
             bnd_map_rdrat.add(bnd(map_rd_rat,  lmin, lmax, edges)[1])
             bnd_map_n0rat.add(bnd(map_n0_rat,  lmin, lmax, edges)[1])
@@ -1173,8 +1223,8 @@ class cpp_sims_lib:
             _cpp_map = self.get_cpp(i, itr, sub_mf=sub_mf, mf_sims=mc_sims, splitMF=True)
             RDN0_map  = self.get_rdn0_map(i, itr =itr, Reff=map_resp,  useReff=True)
             
-            cpp_map = _cpp_map*utils.cli(wf_it)**2 /self.fsky
-            cpp_map_rd = _cpp_map*utils.cli(wf_it)**2 /self.fsky - (RDN0_map+N1_map) * bias_map_resp
+            cpp_map = _cpp_map*utils.cli(wf_it)**2 /self.fsky4
+            cpp_map_rd = _cpp_map*utils.cli(wf_it)**2 /self.fsky4 - (RDN0_map+N1_map) * bias_map_resp
 
             bnd_map.add(bnd(cpp_map,  lmin, lmax, edges, weight=w)[1])
             bnd_map_rd.add(bnd(cpp_map_rd,  lmin, lmax, edges, weight=w)[1])
@@ -1182,7 +1232,7 @@ class cpp_sims_lib:
         for i in range(nsims_qe):
             _cpp_qe = self.get_cpp_qe_raw(i, splitMF=True)    
             
-            cpp_qe =  (_cpp_qe/self.fsky)*utils.cli(qe_resp) **2
+            cpp_qe =  (_cpp_qe/self.fsky4)*utils.cli(qe_resp) **2
         
             bnd_qe.add(bnd(cpp_qe,  lmin, lmax, edges, weight=w)[1])
 
@@ -1192,7 +1242,7 @@ class cpp_sims_lib:
             _cpp_qe = self.get_cpp_qe_raw(i, splitMF=True)    
             rdn0_qe= self.get_rdn0_qe(i, 40, 100, 10)[0]
             
-            cpp_qe_rd =  (_cpp_qe/self.fsky - rdn0_qe)*utils.cli(qe_resp) **2            
+            cpp_qe_rd =  (_cpp_qe/self.fsky4 - rdn0_qe)*utils.cli(qe_resp) **2            
         
             bnd_qe_rd.add(bnd(cpp_qe_rd,  lmin, lmax, edges, weight=w)[1])   
 
