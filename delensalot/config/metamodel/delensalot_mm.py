@@ -153,7 +153,6 @@ class DELENSALOT_QErec(DELENSALOT_Concept):
         filtering_type (str):       can be either 'isotropic' (unmasked sky) or 'anisotropic' (masked sky)
         TP_strategy (str):          Can be 'separate' or 'joint', defines if T and P quadratic estimators are filtered separately or jointly
         cg_tol (float):             tolerance of the conjugate gradient method
-        filter_directional (str):   can be either 'isotropic' (unmasked sky) or 'isotropic' (masked sky)
         lm_max_qlm (type):          maximum multipole `\ell` and m to reconstruct the lensing potential
         cl_analysis (bool):         If tru, performs lensing power spectrum analysis
         blt_pert (bool):            If True, delensing is performed perurbitivly (recommended)
@@ -179,7 +178,7 @@ class DELENSALOT_MAPrec(DELENSALOT_Concept):
         itmax (int):                maximum number of iterations
         cg_tol (float):             tolerance of the conjugate gradient method
         iterator_typ (str):         mean-field handling identifier. Can be either 'const_mf' or 'pert_mf'
-        filter_directional (str):   can be either 'isotropic' (unmasked sky) or 'isotropic' (masked sky)
+        filtering_type (str):       can be either 'isotropic' (unmasked sky) or 'anisotropic' (masked sky)
         lenjob_geominfo (str):      can be 'healpix_geominfo', 'thin_gauss' or 'pbdGeometry'
         lenjob_pbgeominfo (str):    can be 'healpix_geominfo', 'thin_gauss' or 'pbdGeometry'
         lm_max_unl (tuple[int]):    maximum multipoles `\ell` and m for reconstruction the unlensed CMB

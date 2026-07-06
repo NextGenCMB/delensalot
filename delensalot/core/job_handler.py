@@ -378,7 +378,7 @@ class DataContainer:
             # FIXME if data is already masked (e.g. provided from disk), this will doubly mask the data.. not sure we want this
             assert space == 'map', "'masked' sky_coverage only works for space = map"
             assert field == 'polarization'
-            mask = hp.read_map(self.mask_fn)
+            mask = 1 # hp.read_map(self.mask_fn)
             obs = alm_copy_nd(self.data_source.get_sim_obs(idx=idx, space='alm', field=field, spin=0), None, lm_max)
             obs = hp.alm2map_spin(obs, nside=2048, spin=2, lmax=lm_max[0], mmax=lm_max[1])
             ret = np.array([dat*mask for dat in obs])
