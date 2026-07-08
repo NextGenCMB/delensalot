@@ -18,6 +18,7 @@ from delensalot.config.config_helper import data_functions as df
 from delensalot.utility.utils_hp import alm_copy
 from delensalot.utils import cli
 
+
 # NOTE This class is to interface with Plancklens. TODO lenpsyx could get its own interface in here
 class PlancklensInterface:
     def __init__(self, data_container, lm_max_ivf, lm_max_qlm, lmin_teb, cg_tol, sht_threads, cls_len, cls_unl, TP_strategy, libdir, chain_descr=None, zbounds=(-1,1), inv_operator_desc=None, sht_tr=None):
@@ -57,6 +58,23 @@ class PlancklensInterface:
         self.ftebl_unl = {key: self.__compute_transfer(cls_key, nlev_key, transf_key, 'unl') 
             for key, (cls_key, nlev_key, transf_key) in zip('teb', [('tt', 'T', 't'), ('ee', 'P', 'e'), ('bb', 'P', 'b')])}
 
+
+    def _qe_data_part(self, key):
+        if "_" in key:
+            return key.split("_", 1)[1]
+        if key in ["p"]:
+            return "tp"
+        if key.endswith("tt"):
+            return "tt"
+        if key.endswith("eb"):
+            return "eb"
+        if key.endswith("be"):
+            return "be"
+        if key.endswith("ee"):
+            return "ee"
+        if key.endswith("p"):
+            return "p"
+        return key
 
     @log_on_start(logging.DEBUG, 'filterqest', logger=log)
     def _init_filterqest(self):
@@ -159,31 +177,45 @@ class PlancklensInterface:
 
 
     def get_wflm(self, idx, key, lm_max=None):
-        # NOTE may want to force _init_filterqest() before calling this
         lm_max = lm_max or self.lm_max_ivf
-        if key in ['ptt']:
+        data_part = self._qe_data_part(key)
+
+        if data_part == "tt":
             return alm_copy(self.ivf.get_sim_tmliklm(idx), None, *lm_max)
-        elif key in ['p_p', 'p_eb', 'peb', 'p_be', 'pee', 'x_p', 'x_eb', 'xeb', 'x_be', 'xee']:
+
+        elif data_part in ["p", "eb", "be", "ee"]:
             return alm_copy(self.ivf.get_sim_emliklm(idx), None, *lm_max)
-        elif key in ['p']:
-            return np.array([alm_copy(self.ivf.get_sim_tmliklm(idx), None, *lm_max), alm_copy(self.ivf.get_sim_emliklm(idx), None, *lm_max)])
-        elif key in ['a_p']:
-            return alm_copy(self.ivf.get_sim_emliklm(idx), None, *lm_max)
+
+        elif data_part == "tp":
+            return np.array([
+                alm_copy(self.ivf.get_sim_tmliklm(idx), None, *lm_max),
+                alm_copy(self.ivf.get_sim_emliklm(idx), None, *lm_max),
+            ])
+
         else:
-            raise ValueError('Unknown estimator_key:', key)
+            raise ValueError(f"Unknown estimator_key/data_part: {key} / {data_part}")
 
 
     def get_ivflm(self, idx, key):
-        if key in ['ptt']:
+        data_part = self._qe_data_part(key)
+
+        if data_part == "tt":
             return alm_copy(self.ivf.get_sim_tlm(idx), None, *self.lm_max_ivf)
-        elif key in ['p_p', 'p_eb', 'peb', 'p_be', 'pee', 'x_p', 'x_eb', 'xeb', 'x_be', 'xee']:
-            return alm_copy(self.ivf.get_sim_elm(idx), None, *self.lm_max_ivf), alm_copy(self.ivf.get_sim_blm(idx), None, *self.lm_max_ivf)
-        elif key in ['p']:
-            return np.array([alm_copy(self.ivf.get_sim_tlm(idx), None, *self.lm_max_ivf), alm_copy(self.ivf.get_sim_elm(idx), None, *self.lm_max_ivf)])
-        elif key in ['a_p']:
-            return alm_copy(self.ivf.get_sim_elm(idx), None, *self.lm_max_ivf), alm_copy(self.ivf.get_sim_blm(idx), None, *self.lm_max_ivf)
+
+        elif data_part in ["p", "eb", "be", "ee"]:
+            return (
+                alm_copy(self.ivf.get_sim_elm(idx), None, *self.lm_max_ivf),
+                alm_copy(self.ivf.get_sim_blm(idx), None, *self.lm_max_ivf),
+            )
+
+        elif data_part == "tp":
+            return np.array([
+                alm_copy(self.ivf.get_sim_tlm(idx), None, *self.lm_max_ivf),
+                alm_copy(self.ivf.get_sim_elm(idx), None, *self.lm_max_ivf),
+            ])
+
         else:
-            raise ValueError('Unknown estimator_key:', key)
+            raise ValueError(f"Unknown estimator_key/data_part: {key} / {data_part}")
         
 
     def get_response_unl(self, key, key0, lmax_qlm):

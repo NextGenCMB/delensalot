@@ -77,41 +77,75 @@ def generate_plancklenskeys(input_str):
         if match:
             return s[:match.start()], s[match.start():]
         return s, ''
+
     lensing_components = {'p', 'w'}
     birefringence_components = {'f'}
-    valid_suffixes = {'p', 'ee', 'eb'}
-    transtable = str.maketrans({'p':"p", 'f':"a", 'w':"x"})
+    reionization_components = {'r'}
+
+    # delensalot -> plancklens
+    # p -> p : lensing gradient
+    # w -> x : lensing curl
+    # f -> a : birefringence / rotation
+    # r -> f : reionization / modulation
+    transtable = str.maketrans({'p': "p", 'w': "x", 'f': "a", 'r': "f"})
+
     if "_" in input_str:
         components_part, suffix = input_str.split('_')
     else:
-        components_part, suffix = split_at_first(input_str)  # last character as suffix
+        components_part, suffix = split_at_first(input_str)
+
     lensing = sorted(components_part[i] for i in range(len(components_part)) if components_part[i] in lensing_components)
     birefringence = sorted(components_part[i] for i in range(len(components_part)) if components_part[i] in birefringence_components)
+    reionization = sorted(components_part[i] for i in range(len(components_part)) if components_part[i] in reionization_components)
+
     secondary_key = {}
+
+    def _mk_key(comp):
+        return comp.translate(transtable) + "_" + suffix if "_" in input_str else comp.translate(transtable) + suffix
+
     if lensing:
-        secondary_key['lensing'] = {comp: comp.translate(transtable) + "_" + suffix if "_" in input_str else comp.translate(transtable)+ suffix for comp in lensing}
+        secondary_key['lensing'] = {comp: _mk_key(comp) for comp in lensing}
+
     if birefringence:
-        secondary_key['birefringence'] = {comp: comp.translate(transtable) + "_" + suffix if "_" in input_str else comp.translate(transtable) + suffix for comp in birefringence}
+        secondary_key['birefringence'] = {comp: _mk_key(comp) for comp in birefringence}
+
+    if reionization:
+        secondary_key['reionization'] = {comp: _mk_key(comp) for comp in reionization}
 
     for sec, comp in secondary_key.items():
         for co, c in comp.items():
+
+            # p_tp, x_tp are the symmetrized versions; plancklens uses p, x.
+            # For birefringence, plancklens has no bare "a", so use a_p.
+            # For modulation/reionization, plancklens does have bare "f".
             if c.endswith('tp'):
-                # NOTE p_tp is the symmetrized version of ptp + ppt, so we need to convert p_tp -> p
-                secondary_key[sec][co] = secondary_key[sec][co].replace('_tp', '')
+                if "_" in c:
+                    secondary_key[sec][co] = c.replace('_tp', '')
+                else:
+                    secondary_key[sec][co] = c[:-2]
+
                 if secondary_key[sec][co] == 'a':
                     secondary_key[sec][co] = 'a_p'
+
+            # Rotation has no TT/EB-only starting-point support in your setup;
+            # use a_p as before.
             if c.endswith('tt') or c.endswith('eb'):
                 if secondary_key[sec][co] == 'att':
                     print(f"Turning {c} into a_p so that we can generate a valid starting point. This will fail if no polarization data provided")
                     secondary_key[sec][co] = 'a_p'
+
                 if secondary_key[sec][co] == 'a_eb':
                     print(f"Turning {c} into a_p so that we can generate a valid starting point. This will fail if no polarization data provided")
                     secondary_key[sec][co] = 'a_p'
+
     for sec, val in secondary_key.items():
         for comp in val.values():
             if comp not in PLANCKLENS_keys:
                 raise DelensalotError(f"Your input '{input_str}' is not a valid key, it generated '{comp}' which is not a valid Plancklens key.")
-    if mpi.rank==0: print(f'the generated secondary keys for Plancklens are {input_str} - > {secondary_key}')
+
+    if mpi.rank == 0:
+        print(f'the generated secondary keys for Plancklens are {input_str} - > {secondary_key}')
+
     return secondary_key
 
 

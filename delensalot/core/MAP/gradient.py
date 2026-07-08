@@ -568,3 +568,90 @@ class BirefringenceGradientSub(GradSub):
     def _get_operator(self, filter_operator):
         return operator.Compound([filter_operator], out='map', sht_tr=self.sht_tr)
 
+
+class ReionizationGradientSub(GradSub):
+    """Patchy-reionization / optical-depth screening gradient.
+
+    For the forward model X_dat = B R_tau X + n with
+    R_tau X = exp(-tau) X, the quadratic part of the negative
+    log-posterior gradient is
+
+        g_tau(n) = (R_tau X_WF)_T (B^T N^-1 res)_T
+                 + (R_tau X_WF)_Q (B^T N^-1 res)_Q
+                 + (R_tau X_WF)_U (B^T N^-1 res)_U .
+
+    The stored polarization residual leg has the historical factor_p=0.5
+    from Filter_3d.get_ivfreslm(), hence the explicit factor 2 on Q/U.
+    """
+
+    def __init__(self, desc):
+        super().__init__(desc)
+        config = get_config()
+
+        self.gradient_operator = self._get_operator(desc["sec_operator"])
+        self.data_key = desc.get("data_key", None)
+        self.screen = desc.get("screen", "pol")
+
+        if desc["sec_operator"].operators[0].ID == "reionization":
+            self.lm_max = config.lm_max_pri
+        else:
+            self.lm_max = config.lm_max_sky
+
+    def get_gradient_quad(self, it, data=None, data_leg2=None, wflm=None, ivfreslm=None, force_eval=False):
+        if isinstance(it, (list, np.ndarray)):
+            return [
+                self.get_gradient_quad(
+                    it_, data=data, data_leg2=data_leg2,
+                    wflm=wflm, ivfreslm=ivfreslm, force_eval=force_eval
+                )
+                for it_ in it
+            ]
+
+        ctx, _ = get_computation_context()
+        idx, idx2 = ctx.idx, ctx.idx2 or ctx.idx
+        data_leg2 = data_leg2 or data
+
+        if force_eval or not self.gfield.is_cached(it=it, type='quad'):
+            if wflm is None:
+                assert self.wfivf_filter is not None, (
+                    "wfivf_filter must be provided in absence of wflm/ivfreslm"
+                )
+                d1 = self.data_container.get_data(idx) if data is None else data
+                d2 = self.data_container.get_data(idx2) if data_leg2 is None else data_leg2
+                wflm = self.wfivf_filter.get_wflm(it, d1)
+                ivfreslm = np.ascontiguousarray(
+                    self.wfivf_filter.get_ivfreslm(it, d2, wflm)
+                )
+
+            # Full current model in map space. If lensing precedes reionization,
+            # Reionization.act must accept map input and simply multiply it.
+            xwfmap = self.gradient_operator.act(np.copy(wflm), spin=2)
+
+            lmax = Alm.getlmax(ivfreslm[0].size, None)
+            qmap = np.zeros(self.geom_lib.npix(), dtype=float)
+
+            if self.data_key in ['p', 'tp', 'ee', 'eb', 'bb']:
+                ivfpmap = self.geom_lib.synthesis(
+                    ivfreslm[1:], 2, lmax, lmax, self.sht_tr
+                )
+                qmap += 2.0 * (ivfpmap[0] * xwfmap[1] + ivfpmap[1] * xwfmap[2])
+
+            if self.screen == "all" and self.data_key in ['tp', 'tt']:
+                ivftmap = self.geom_lib.synthesis(
+                    ivfreslm[0], 0, lmax, lmax, self.sht_tr
+                )[0]
+                qmap += ivftmap * xwfmap[0]
+
+            qlm = self.geom_lib.adjoint_synthesis(
+                qmap, 0, self.LM_max[0], self.LM_max[1], self.sht_tr
+            )
+
+            if not force_eval:
+                self.gfield.cache(np.atleast_2d(qlm), it, type='quad')
+            else:
+                return np.atleast_2d(qlm)
+
+        return self.gfield.get_quad(it)
+
+    def _get_operator(self, filter_operator):
+        return operator.Compound([filter_operator], out="map", sht_tr=self.sht_tr)

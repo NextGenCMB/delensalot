@@ -23,7 +23,7 @@ DL_DEFAULT = {
         # 'maps': DNaV,
         'fid_info': {
             'libdir': opj(os.path.dirname(delensalot.__file__), 'data', 'cls'),
-            'fn': 'FFP10_wdipole_secondaries_lens_birefringence.dat',
+            'fn': 'FFP10_wdipole_secondaries_lens_reionization.dat',
             'libdir_sec': DNaV,
             'fn_sec': DNaV,
         },
@@ -47,6 +47,15 @@ DL_DEFAULT = {
             },
             'birefringence':{
                 'component': ['f'],
+                'space': 'cl',
+                'geominfo': ('thingauss', {'lmax': 4500, 'smax': 3}),
+                'libdir': DNaV,
+                'fn': DNaV,
+                'scale': DNaV,
+                'modifier': lambda x: x,
+            },
+            'reionization': {
+                'component': ['r'],
                 'space': 'cl',
                 'geominfo': ('thingauss', {'lmax': 4500, 'smax': 3}),
                 'libdir': DNaV,
@@ -83,15 +92,23 @@ DL_DEFAULT = {
                 'lm_max_obs': [4096,4096],
                 'geominfo': ('thingauss',{'lmax': 4500, 'smax': 3}),
             },
+            'reionization': {
+                'Lmin': 1,
+                'lm_max': [4096, 4096],
+                'LM_max': [4096, 4096],
+                'lm_max_obs': [4096, 4096],
+                'geominfo': ('thingauss', {'lmax': 4500, 'smax': 3}),
+                'perturbative': False,
+            },
         },
-        'fixed_secondary_seed': None, # None or integer to fix the seed for secondary map generation
-        'operator_order': ['birefringence', 'lensing'],
+        'fixed_secondary_seed': None, # None, or integer to fix the seed for secondary map generation
+        'operator_order': ['lensing', 'reionization', 'birefringence'],
     },
     'analysis': { 
         'estimator_key': 'pwf_p',
         'idxs': np.arange(0,1),
         'TEMP_suffix': 'P_FS_CMBS4_jointsecrec',
-        'Lmin': {'p':2, 'w': 2, 'f': 1}, 
+        'Lmin': {'p': 2, 'w': 2, 'f': 1, 'r': 1},
         'LM_max': (4200, 4200), # NOTE this is max reconstructed secondary
         'lm_max_pri': (4000, 4000), # NOTE this is for CMB
         'lm_max_sky': (4000, 4000), # NOTE this is for CMB
@@ -102,17 +119,11 @@ DL_DEFAULT = {
         'beam_FWHM': 1.0,
         'transfer_has_pixwindow': False,
         'secondary': {
-            'lensing': {
-                'geominfo': ('thingauss', {'lmax': 4500, 'smax': 3}),
-                'component': ['p', 'w'],
-                'epsilon': 1e-12,
-            },
-            'birefringence': {
-                'geominfo': ('thingauss', {'lmax': 4500, 'smax': 3}),
-                'component': ['f'],
-            },
+            'lensing': {'geominfo': ('thingauss', {'lmax': 4500, 'smax': 3}), 'component': ['p', 'w'], 'epsilon': 1e-12},
+            'reionization': {'geominfo': ('thingauss', {'lmax': 4500, 'smax': 3}), 'component': ['r']},
+            'birefringence': {'geominfo': ('thingauss', {'lmax': 4500, 'smax': 3}), 'component': ['f']},
         },
-        'seclist_sorted': ['lensing', 'birefringence'],
+        'operator_order': ['lensing', 'reionization', 'birefringence'],
     },
     'qerec':{
         'tasks': ['calc_fields'],

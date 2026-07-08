@@ -205,29 +205,46 @@ class IsoWhiteNoise:
 
 
 class Cls:
-    """class for accessing CAMB-like file for CMB power spectra, optionally a distinct file for the lensing field (grad and curl component), and birefringence
-    """    
+    """Class for accessing CMB and configured secondary fiducial spectra."""
+
     def __init__(self, fid_info=DNaV, seccomp=DNaV):
-        # TODO add support for field-field (phi-bf) correlations
         assert seccomp != DNaV, "need to provide seccomp"
         assert fid_info != DNaV, "need to provide fid_info"
 
         self.all_secondaries_components = {
             'lensing': ['pp', 'ww'],
             'birefringence': ['ff'],
+            'reionization': ['rr'],
         }
-
-        if fid_info['libdir'] == DNaV:
-            if fid_info['fn'] == DNaV:
-                assert 0, "need to provide libdir or at least fn in CMB_info"
-        self.Cl_dict = load_file_wsec(opj(fid_info['libdir'], fid_info['fn']))
-        if 'libdir_sec' in fid_info and 'fn_sec' in fid_info:
-            if all([val != DNaV for val in [fid_info['libdir_sec'], fid_info['fn_sec']]]):
-                if opj(fid_info['libdir'], fid_info['fn']) != opj(fid_info['libdir_sec'], fid_info['fn_sec']):
-                    self.Cl_dict.update(load_file_wsec(opj(fid_info['libdir_sec'], fid_info['fnfn_sec'])))
 
         self.fid_info = fid_info
         self.seccomp = seccomp
+        self.seccomp_required = fid_info.get("seccomp_required", seccomp)
+
+        cmb_required = ['tt', 'ee', 'bb', 'te']
+        sec_required = sorted(set(comp for comps in self.seccomp_required.values() for comp in comps))
+
+        if fid_info['libdir'] == DNaV or fid_info['fn'] == DNaV:
+            raise ValueError("need to provide fid_info['libdir'] and fid_info['fn']")
+
+        fn_cmb = opj(fid_info['libdir'], fid_info['fn'])
+
+        has_separate_sec = (
+            fid_info.get('libdir_sec', DNaV) != DNaV and
+            fid_info.get('fn_sec', DNaV) != DNaV
+        )
+
+        if has_separate_sec:
+            self.Cl_dict = load_file_wsec(fn_cmb, cmb_components=cmb_required, sec_components=[], strict=True)
+
+            fn_sec = opj(fid_info['libdir_sec'], fid_info['fn_sec'])
+            self.Cl_dict.update(load_file_wsec(fn_sec, cmb_components=[], sec_components=sec_required, strict=True))
+        else:
+            self.Cl_dict = load_file_wsec(fn_cmb, cmb_components=cmb_required, sec_components=sec_required, strict=True)
+
+        missing = sorted(set(cmb_required + sec_required) - set(self.Cl_dict))
+        if missing:
+            raise KeyError(f"Missing required spectra {missing}. Available spectra are {sorted(self.Cl_dict)}.")
 
         self.cacher = cachers.cacher_mem(safe=True)
 
@@ -242,26 +259,38 @@ class Cls:
     
 
     def get_fidsec(self, idx, secondary=None, component=None, lmax=None, return_nonrec=False):
-        # NOTE if return_nonrec is False, this function returns the fiducial spectra that are used for reconstruction
-        # (i.e. whatever is in self.seccomp - or self.sec_info via the config file),
-        # otherwise it returns all the spectra defined in self.all_secondaries_components
+        # return_nonrec=False: spectra for simulated/generated secondaries, from self.seccomp
+        # return_nonrec=True : spectra for any known analysis secondary, from self.all_secondaries_components
+
         if secondary is None:
-            _ = self.seccomp.keys() if not return_nonrec else self.all_secondaries_components.keys()
+            secs = self.seccomp.keys() if not return_nonrec else self.all_secondaries_components.keys()
             c_ = lambda x: self.seccomp[x] if not return_nonrec else self.all_secondaries_components[x]
             assert component is None, "don't provide component without secondary"
-            return [self.get_fidsec(idx, sec, c_(sec), lmax, return_nonrec) for sec in _]
+            return [self.get_fidsec(idx, sec, c_(sec), lmax, return_nonrec) for sec in secs]
+
         if component is None:
-            _ = self.seccomp[secondary] if not return_nonrec else self.all_secondaries_components[secondary]
-            return np.array([self.get_fidsec(idx, secondary, comp, lmax, return_nonrec).squeeze() for comp in _])
+            comps = self.seccomp[secondary] if not return_nonrec else self.all_secondaries_components[secondary]
+            return np.array([self.get_fidsec(idx, secondary, comp, lmax, return_nonrec).squeeze() for comp in comps])
+
         if isinstance(component, list):
-            _ = self.seccomp[secondary] if not return_nonrec else self.all_secondaries_components[secondary]
-            assert all(len(comp)==2 for comp in component), 'each component in the list must have length 2 (pp, ww, etc..), not {}'.format(component)
-            if not return_nonrec: assert all([comp in _ for comp in component]), 'component not in secondary'
+            allowed = self.seccomp[secondary] if not return_nonrec else self.all_secondaries_components[secondary]
+            assert all(len(comp) == 2 for comp in component), f"each component must have length 2, got {component}"
+            missing_allowed = [comp for comp in component if comp not in allowed]
+            if missing_allowed:
+                raise KeyError(f"{secondary}: requested spectra {missing_allowed}, but allowed spectra are {allowed}")
             return np.array([self.get_fidsec(idx, secondary, comp, lmax, return_nonrec).squeeze() for comp in component])
+
         if isinstance(secondary, list):
             c_ = lambda x: self.seccomp[x] if not return_nonrec else self.all_secondaries_components[x]
             return np.array([self.get_fidsec(idx, sec, [comp for comp in c_(sec) if comp in component], lmax, return_nonrec).squeeze() for sec in secondary])
-        if not return_nonrec: assert component in self.all_secondaries_components[secondary], f'component {component} not in secondary {secondary}: {self.all_secondaries_components[secondary]}'
+
+        allowed = self.seccomp.get(secondary, []) if not return_nonrec else self.all_secondaries_components.get(secondary, [])
+        if component not in allowed:
+            raise KeyError(f"{secondary}: requested spectrum {component!r}, but allowed spectra are {allowed}")
+
+        if component not in self.Cl_dict:
+            raise KeyError(f"Missing spectrum {component!r} for secondary {secondary!r}. Available spectra: {sorted(self.Cl_dict)}")
+
         fn = f"clssec{secondary}_{component}_{idx}"
         if not self.cacher.is_cached(fn):
             Cls = self.Cl_dict[component][:lmax+1] if lmax is not None else self.Cl_dict[component]
@@ -278,6 +307,7 @@ class Xpri:
         self.all_secondaries_components = {
             'lensing': ['p', 'w'],
             'birefringence': ['f'],
+            'reionization': ['r'],
         }
 
         self.geominfo = geominfo
@@ -546,6 +576,10 @@ class Xsky:
             return operator_secondary.birefringence(opv)
         elif opk == 'lensing':
             return operator_secondary.lensing(opv)
+        elif opk == 'reionization':
+            return operator_secondary.reionization(opv)
+        else:
+            raise ValueError(f"Unknown secondary operator: {opk}")
 
 
     def get_sim_sky(self, idx, space, field, spin=2):
@@ -603,6 +637,12 @@ class Xsky:
                                 sec = np.array([alm_copy(s, None, 4096, 4096) for s in sec], dtype=complex)
                                 operator.set_field(sec)
                                 pri = operator.act(pri, spin=2 if field == 'polarization' else 0)
+                        elif operator.ID == 'reionization':
+                            sec = np.array([alm_copy(s, None, operator.LM_max[0], operator.LM_max[1]) for s in sec], dtype=complex,)
+                            operator.set_field(sec)
+                            pri = operator.act(pri, spin=2 if field == 'polarization' else 0)
+                        else:
+                            raise ValueError(f"Unknown operator ID: {operator.ID}")
                     sky = pri
                     if field == 'polarization':
                         sky = self.operators[0].geomlib.alm2map_spin(sky, lmax=self.CMB_info['lm_max'][0], spin=2, mmax=self.CMB_info['lm_max'][1], nthreads=4)

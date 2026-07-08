@@ -201,65 +201,121 @@ def read_map(m):
         assert 0, 'cant tell what to do with ' + m
 
 
-def camb_clfile(fname, lmax=None):
-    """CAMB spectra (lenspotentialCls, lensedCls or tensCls types) returned as a dict of numpy arrays.
+_CMB_DLS_KEYS = {"tt", "ee", "bb", "te"}
+_POTENTIAL_FIELDS = {"p", "w"}        # phi / curl potential-like fields
+_RAW_SECONDARY_FIELDS = {"f", "r"}    # birefringence, delta-tau, etc.
 
-    Args:
-        fname (str): path to CAMB output file
-        lmax (int, optional): outputs cls truncated at this multipole.
 
+def _canon_cls_key(key):
+    key = key.strip().lower()
+    aliases = {"tp": "pt", "ep": "pe", "tw": "wt", "ew": "we", "tf": "ft", "ef": "fe", "tr": "rt", "er": "re"}
+    return aliases.get(key, key)
+
+
+def _cls_weight(key, ell):
+    """Weight by which columns are stored in the .dat file.
+
+    File convention:
+        TT/EE/BB/TE : D_l = l(l+1) C_l / 2pi
+        PP/WW/PW    : l^2(l+1)^2 C_l / 2pi
+        PT/PE/WT/WE : sqrt(l^3(l+1)^3) C_l / 2pi
+        FF/RR/etc   : raw C_l
     """
-    cols = np.loadtxt(fname).transpose()
-    ell = np.int_(cols[0])
-    if lmax is None: lmax = ell[-1]
-    assert ell[-1] >= lmax, (ell[-1], lmax)
-    cls = {k : np.zeros(lmax + 1, dtype=float) for k in ['tt', 'ee', 'bb', 'te']}
-    w = ell * (ell + 1) / (2. * np.pi)  # weights in output file
-    idc = np.where(ell <= lmax) if lmax is not None else np.arange(len(ell), dtype=int)
-    for i, k in enumerate(['tt', 'ee', 'bb', 'te']):
-        cls[k][ell[idc]] = cols[i + 1][idc] / w[idc]
-    if len(cols) > 5:
-        wpp = lambda ell : ell ** 2 * (ell + 1) ** 2 / (2. * np.pi)
-        wptpe = lambda ell : np.sqrt(ell.astype(float) ** 3 * (ell + 1.) ** 3) / (2. * np.pi)
-        for i, k in enumerate(['pp', 'pt', 'pe']):
-            cls[k] = np.zeros(lmax + 1, dtype=float)
-        cls['pp'][ell[idc]] = cols[5][idc] / wpp(ell[idc])
-        cls['pt'][ell[idc]] = cols[6][idc] / wptpe(ell[idc])
-        cls['pe'][ell[idc]] = cols[7][idc] / wptpe(ell[idc])
+    key = _canon_cls_key(key)
+
+    if key in _CMB_DLS_KEYS:
+        return ell * (ell + 1.0) / (2.0 * np.pi)
+
+    if len(key) != 2:
+        raise ValueError(f"Cannot infer spectrum type for key {key!r}; expected two-character key like 'pp', 'rr', 'pt'.")
+
+    a, b = key[0], key[1]
+
+    if a in _POTENTIAL_FIELDS and b in _POTENTIAL_FIELDS:
+        return ell**2 * (ell + 1.0)**2 / (2.0 * np.pi)
+
+    if (a in _POTENTIAL_FIELDS and b in {"t", "e"}) or (b in _POTENTIAL_FIELDS and a in {"t", "e"}):
+        return np.sqrt(ell.astype(float)**3 * (ell + 1.0)**3) / (2.0 * np.pi)
+
+    return 1.0
+
+
+def _read_cls_header_or_fallback(fname, ncols):
+    with open(fname, "r") as f:
+        first = f.readline().strip()
+
+    if first.startswith("#"):
+        keys = first[1:].strip().split()
+        if len(keys) != ncols:
+            raise ValueError(f"{fname}: header has {len(keys)} columns but data has {ncols} columns. Header: {keys}")
+        if keys[0].lower() not in ["l", "ell"]:
+            raise ValueError(f"{fname}: first header column must be L/ell, got {keys[0]!r}")
+        return [_canon_cls_key(k) for k in keys[1:]]
+
+    fallback = ["tt", "ee", "bb", "te", "pp", "pt", "pe"]
+    if ncols - 1 > len(fallback):
+        raise ValueError(f"{fname}: no header found, but file has {ncols} columns. Add a header like '# L TT EE BB TE PP TP EP RR'.")
+    return fallback[:ncols - 1]
+
+
+def camb_clfile(fname, lmax=None, requested_keys=None, required_keys=None, strict=True):
+    """Header-aware delensalot/CAMB-like cls reader.
+
+    Parameters
+    ----------
+    requested_keys:
+        Spectra to return. If None, return all spectra present in the file.
+    required_keys:
+        Spectra that must be present. Usually derived from the current config.
+    strict:
+        If True, fail if required_keys are missing.
+    """
+    cols = np.loadtxt(fname).T
+    ell = np.asarray(cols[0], dtype=int)
+    if lmax is None:
+        lmax = int(ell[-1])
+    if ell[-1] < lmax:
+        raise ValueError(f"{fname}: requested lmax={lmax}, but file only reaches {ell[-1]}.")
+
+    present_keys = _read_cls_header_or_fallback(fname, len(cols))
+    present_keys = [_canon_cls_key(k) for k in present_keys]
+
+    if len(set(present_keys)) != len(present_keys):
+        raise ValueError(f"{fname}: duplicate spectra after canonicalization: {present_keys}")
+
+    requested_keys = None if requested_keys is None else [_canon_cls_key(k) for k in requested_keys]
+    required_keys = [] if required_keys is None else [_canon_cls_key(k) for k in required_keys]
+
+    missing = sorted(set(required_keys) - set(present_keys))
+    if missing and strict:
+        raise KeyError(f"{fname}: missing required spectra {missing}. Present spectra are {sorted(present_keys)}.")
+
+    keep = present_keys if requested_keys is None else [k for k in requested_keys if k in present_keys]
+
+    idc = np.where(ell <= lmax)[0]
+    elli = ell[idc]
+    cls = {}
+
+    for i, key in enumerate(present_keys, start=1):
+        if key not in keep:
+            continue
+        cls[key] = np.zeros(lmax + 1, dtype=float)
+        cls[key][elli] = cols[i][idc] / _cls_weight(key, elli)
+
     return cls
 
 
-def camb_clfile_wsec(fname, lmax=None, CMB_components=['tt', 'ee', 'bb', 'te'], sec_components=['pp', 'pt', 'pe', 'ww', 'wt', 'we', 'wp', 'ff', 'ft', 'fe', 'fp', 'fw']):
-    """CAMB spectra (lenspotentialCls, lensedCls or tensCls types) returned as a dict of numpy arrays.
+def camb_clfile_wsec(fname, lmax=None, CMB_components=None, sec_components=None, strict=True):
+    requested_keys = []
+    if CMB_components is not None:
+        requested_keys += [_canon_cls_key(k) for k in CMB_components]
+    if sec_components is not None:
+        requested_keys += [_canon_cls_key(k) for k in sec_components]
 
-    Args:
-        fname (str): path to CAMB output file
-        lmax (int, optional): outputs cls truncated at this multipole.
+    requested_keys = None if len(requested_keys) == 0 else requested_keys
+    required_keys = requested_keys
 
-    """
-    cols = np.loadtxt(fname).transpose()
-    ell = np.int_(cols[0])
-    if lmax is None: lmax = ell[-1]
-    assert ell[-1] >= lmax, (ell[-1], lmax)
-    cls = {k : np.zeros(lmax + 1, dtype=float) for k in CMB_components}
-    w = ell * (ell + 1) / (2. * np.pi)  # weights in output file
-    idc = np.where(ell <= lmax) if lmax is not None else np.arange(len(ell), dtype=int)
-    for i, k in enumerate(CMB_components):
-        cls[k][ell[idc]] = cols[i + 1][idc] / w[idc]
-    if len(cols) > 5:
-        for i, k in enumerate(sec_components):
-            cls[k] = np.zeros(lmax + 1, dtype=float)
-        wpp = lambda ell : ell ** 2 * (ell + 1) ** 2 / (2. * np.pi)
-        wptpe = lambda ell : np.sqrt(ell.astype(float) ** 3 * (ell + 1.) ** 3) / (2. * np.pi)
-        for i, k in enumerate(sec_components):
-            if i in [1,2,4,5]:
-                cls[k][ell[idc]] = cols[i+len(CMB_components)+1] / wptpe(ell[idc])
-            elif i in [0,3,5,6]:
-                cls[k][ell[idc]] = cols[i+len(CMB_components)+1] / wpp(ell[idc])
-            elif i in [7,8,9,10,11,12]:
-                cls[k][ell[idc]] = cols[i+len(CMB_components)+1]
-
-    return cls
+    return camb_clfile(fname, lmax=lmax, requested_keys=requested_keys, required_keys=required_keys, strict=strict)
 
 
 def cls2dls(cls):
@@ -302,16 +358,17 @@ def load_file(fn, lmax=None, ifield=0):
         assert ifield==0, 'ifield not implemented for dat files'
         return camb_clfile(fn)
     
-def load_file_wsec(fn, lmax=None, ifield=0, cmb_components=['tt', 'ee', 'bb', 'te'], sec_components=['pp', 'pt', 'pe', 'ww', 'wt', 'we', 'wp', 'ff', 'ft', 'fe', 'fp', 'fw']):
+def load_file_wsec(fn, lmax=None, ifield=0, cmb_components=None, sec_components=None, strict=True):
     if fn.endswith('.npy'):
-        assert ifield==0, 'ifield not implemented for npy files'
+        assert ifield == 0, 'ifield not implemented for npy files'
         return np.load(fn)[:None]
     elif fn.endswith('.fits'):
-        # print(fits.open(fn)[1].header)
         return hp.read_map(fn, field=ifield)
     elif fn.endswith('.dat'):
-        assert ifield==0, 'ifield not implemented for dat files'
-        return camb_clfile_wsec(fn)
+        assert ifield == 0, 'ifield not implemented for dat files'
+        return camb_clfile_wsec(fn, lmax=lmax, CMB_components=cmb_components, sec_components=sec_components, strict=strict)
+    else:
+        raise ValueError(f"Unknown file type: {fn}")
 
 def ztruncify(m:np.ndarray, zbounds:np.array[tuple[float, float]]):
     """truncify list of maps (or single map) and return only pixels along the zbounds

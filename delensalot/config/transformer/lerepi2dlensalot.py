@@ -23,7 +23,7 @@ from delensalot.core.job_handler import OBDBuilder, DataContainer, QEScheduler, 
 from delensalot.core.MAP import curvature, operator
 from delensalot.core.MAP.filter import Filter_3d as Filter
 from delensalot.core.MAP.handler import Likelihood, Minimizer
-from delensalot.core.MAP.gradient import Gradient, BirefringenceGradientSub, LensingGradientSub, GradSub
+from delensalot.core.MAP.gradient import Gradient, BirefringenceGradientSub, LensingGradientSub, ReionizationGradientSub, GradSub
 
 from delensalot.config.config_manager import set_config
 from delensalot.config.config_helper import PLANCKLENS_keys, generate_plancklenskeys, filter_secondary_and_component
@@ -71,6 +71,23 @@ def _op_builder_bire(dl, libdir, extras):
         "perturbative": False,
     }
     return operator.Birefringence(desc)
+
+
+def _op_builder_reionization(dl, libdir, extras):
+    """
+    Reionization screening operator R_tau: local map-space modulation.
+    Conceptually this acts after lensing, like birefringence.
+    """
+    desc = {
+        "LM_max": dl.LM_max,
+        "component": dl.analysis_secondary["reionization"]["component"],
+        "libdir": opj(libdir, "estimate/"),
+        "sht_tr": dl.sht_tr,
+        "lm_max": dl.lm_max_sky,
+        "data_key": dl.data_key,
+        "perturbative": False,
+    }
+    return operator.Reionization(desc)
 
 
 def _grad_builder_lensing(dl, libdir, extras):
@@ -139,6 +156,34 @@ def _grad_builder_bire(dl, libdir, extras):
     return bire_grad, list(chh_dict.values())
 
 
+def _grad_builder_reionization(dl, libdir, extras):
+    """
+    Reionization gradient sees the full secondary chain, same as lensing/birefringence.
+    """
+    wfivf_filter = extras["wfivf_filter"]
+    data_container = extras["data_container"]
+    full_sec_operator = extras["sec_operator"]
+
+    CLfids_reio = dl.CLfids["reionization"]
+    chh_dict = {comp: CLfids_reio[comp * 2][: dl.LM_max[0] + 1] for comp in dl.analysis_secondary["reionization"]["component"]}
+
+    quad_desc = {
+        "wfivf_filter": wfivf_filter,
+        "data_container": data_container,
+        "libdir": libdir,
+        "LM_max": dl.LM_max,
+        "sht_tr": dl.sht_tr,
+        "component": dl.analysis_secondary["reionization"]["component"],
+        "ID": "reionization",
+        "sec_operator": full_sec_operator,
+        "chh": chh_dict,
+        "data_key": dl.data_key,
+    }
+
+    reio_grad = ReionizationGradientSub(quad_desc)
+    return reio_grad, list(chh_dict.values())
+
+
 class SecondaryRegistry:
     """Registry holding separate builders for operator and gradient-sub for each secondary."""
     _registry = {}
@@ -149,10 +194,14 @@ class SecondaryRegistry:
 
     @classmethod
     def build_op(cls, name, dl, libdir, extras=None):
+        if name not in cls._registry:
+            raise ValueError(f"No registered MAP operator builder for secondary '{name}'")
         return cls._registry[name]["op"](dl, libdir, extras or {})
 
     @classmethod
     def build_grad(cls, name, dl, libdir, extras=None):
+        if name not in cls._registry:
+            raise ValueError(f"No registered MAP gradient builder for secondary '{name}'")
         return cls._registry[name]["grad"](dl, libdir, extras or {})
 
 
@@ -215,18 +264,18 @@ def get_TEMP_dir(cf):
 
 def check_estimator_key(key):
     def generate_delensalotcombinations(allowed_strings):
-        characters = ['p', 'w', 'f']
+        characters = ['p', 'w', 'r', 'f']
         combinations = []
-        for r in range(1, 4):
-            for comb in itertools.combinations(characters, r):
+        for n in range(1, len(characters) + 1):
+            for comb in itertools.combinations(characters, n):
                 combinations.append(''.join(comb))
         combinations = sorted(set(combinations), key=lambda x: [characters.index(c) for c in x])
         result = []
         for s in allowed_strings:
             for prefix in combinations:
-                new_string = prefix + s[1:]
-                result.append(new_string)
+                result.append(prefix + s[1:])
         return result
+
     keys = generate_delensalotcombinations(PLANCKLENS_keys)
     if key not in keys:
         raise DelensalotError(f"Your input '{key}' is not a valid key. Please choose one of the following: {keys}")
@@ -245,6 +294,19 @@ class l2base_Transformer:
         dl.template_index_secondaries_genSim = {val: i for i, val in enumerate(dl.seclist_genSim_sorted)}
         # NOTE remove all sec_info that is not in seclist_sorted
         si.sec_info = {k:v for k, v in si.sec_info.items() if k in dl.seclist_genSim_sorted}
+        def _seccomp_from_secondary_dict(dct):
+            return {sec: [comp * 2 for comp in secinfo["component"]] for sec, secinfo in dct.items()}
+
+        seccomp_gen = _seccomp_from_secondary_dict(si.sec_info)
+        seccomp_ana = _seccomp_from_secondary_dict(analysis_secondary)
+
+        fid_required_seccomp = copy.deepcopy(seccomp_gen)
+        for sec, comps in seccomp_ana.items():
+            fid_required_seccomp.setdefault(sec, [])
+            fid_required_seccomp[sec] = sorted(set(fid_required_seccomp[sec]).union(comps))
+
+        si.fid_info = copy.deepcopy(si.fid_info)
+        si.fid_info["seccomp_required"] = fid_required_seccomp
         
         # NOTE this check key does not catch all possible wrong keys, but at least it catches the most common ones.
         # Plancklens keys should all be correct with this, for delensalot, not so sure, will see over time.
@@ -450,16 +512,27 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             }
 
             buff = generate_plancklenskeys(est_key_loc)
-            QE_searchs_desc = {sec: {
-                "estimator_key": buff[sec],
-                'CLfids': dl.CLfids[sec],
-                "CLfidsNoLmin": dl.CLfidsNoLmin[sec], # Note I need this solely to keep the low L in the meanfield
-                "subtract_meanfield": dl.subtract_QE_meanfield,
-                "QE_filterqest_desc": QE_filterqest_desc,
-                "ID": sec,
-                "libdir": opj(get_TEMP_dir(cf), 'QE', keystring),
-                "qmflm_fn": cf.qerec.qmflm_fns[sec] if cf.qerec.qmflm_fns is not None else None,
-            } for sec in dl.analysis_secondary.keys()}
+            qe_secs = [sec for sec in dl.seclist_sorted if sec in dl.analysis_secondary]
+            missing = [sec for sec in qe_secs if sec not in buff]
+            if missing:
+                raise DelensalotError(
+                    f"Estimator key {est_key_loc!r} did not generate Plancklens QE keys for {missing}. "
+                    f"It generated {buff}."
+                )
+            qmflm_fns = cf.qerec.qmflm_fns or {}
+            QE_searchs_desc = {
+                sec: {
+                    "estimator_key": buff[sec],
+                    "CLfids": dl.CLfids[sec],
+                    "CLfidsNoLmin": dl.CLfidsNoLmin[sec],
+                    "subtract_meanfield": dl.subtract_QE_meanfield,
+                    "QE_filterqest_desc": QE_filterqest_desc,
+                    "ID": sec,
+                    "libdir": opj(get_TEMP_dir(cf), "QE", keystring),
+                    "qmflm_fn": qmflm_fns.get(sec, None),
+                }
+                for sec in qe_secs
+            }
             
             QE_job_desc = {
                 "template_operator": None, # template_operator
@@ -502,6 +575,7 @@ class l2delensalotjob_Transformer(l2base_Transformer):
             set_config(dl)
 
             SecondaryRegistry.register("lensing", _op_builder_lensing, _grad_builder_lensing)
+            SecondaryRegistry.register("reionization", _op_builder_reionization, _grad_builder_reionization)
             SecondaryRegistry.register("birefringence", _op_builder_bire, _grad_builder_bire)
 
             filter_ops = []

@@ -33,8 +33,8 @@ class Secondary:
         idx, idx2, component = ctx.idx, ctx.idx2 or ctx.idx, ctx.component or self.component
         if isinstance(component, str):
             component = [component]
-        if self.ID == 'birefringence':
-            scale = 'k' # FIXME this is only true between lensing and birefringence.. for other fields this needs to be changed
+        if self.ID != 'lensing':
+            scale = 'k'
         # NOTE component are stored with leading dimension
         if isinstance(component, (np.ndarray, list)):
             assert all([comp in self.component for comp in component]), "component must be in {}".format(self.component)

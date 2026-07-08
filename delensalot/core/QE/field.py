@@ -80,15 +80,27 @@ class Secondary:
 
     def _rescale(self, hlm, scale):
         if scale == 'p':
-            assert self.ID == 'lensing', "Only lensing is supported for p"
-            return hlm
-        elif scale == 'k':
-            if self.ID == 'birefringence':
+            if self.ID == 'lensing':
+                return hlm
+            elif self.ID in ['birefringence', 'reionization']:
                 return hlm
             else:
+                return hlm
+
+        elif scale == 'k':
+            if self.ID == 'lensing':
                 lmax = Alm.getlmax(hlm[0].size, None)
-                h2k =  0.5 * np.arange(lmax + 1) * np.arange(1, lmax + 2)
+                h2k = 0.5 * np.arange(lmax + 1) * np.arange(1, lmax + 2)
                 return np.atleast_2d(almxfl(hlm[0], h2k, lmax, False))
+
+            elif self.ID in ['birefringence', 'reionization']:
+                return hlm
+
+            else:
+                return hlm
+
+        else:
+            raise ValueError(f"Unknown scale {scale}")
 
 
 class Template:

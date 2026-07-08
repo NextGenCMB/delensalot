@@ -24,6 +24,7 @@ def rescale(arr, scale='p'):
 complist_lensing_template = ['p', 'w']
 complist_lensing_template_idx = {val: i for i, val in enumerate(complist_lensing_template)}
 complist_birefringence_template = ['f']
+complist_reionization_template = ['r']
 
 class Base:
     def __init__(self, CLfids, CLfidsNoLmin, estimator_key, QE_filterqest_desc, ID='generic', libdir=None, idxs_mf=[], subtract_meanfield=True, init_filterqest=False, qmflm_fn=None):
@@ -38,10 +39,14 @@ class Base:
         
         keystring = oek if len(oek) == 1 else '_'+oek.split('_')[-1] if "_" in oek else oek[-2:]
         self.libdir = libdir or opj(os.environ['SCRATCH'], 'QE_search_generic', keystring)
-        if 'p' in estimator_key.keys() or 'w' in estimator_key.keys():
+        if self.ID == "lensing":
             component_ = [key for key in complist_lensing_template if key in self.estimator_key]
-        elif 'f' in estimator_key.keys():
-            component_ = ['f']
+        elif self.ID == "birefringence":
+            component_ = [key for key in complist_birefringence_template if key in self.estimator_key]
+        elif self.ID == "reionization":
+            component_ = [key for key in complist_reionization_template if key in self.estimator_key]
+        else:
+            component_ = list(self.estimator_key.keys())
         field_desc = {
             "ID": self.ID,
             "libdir": opj(self.libdir, 'estimate'),
@@ -53,12 +58,17 @@ class Base:
         self.fq = filterqest.PlancklensInterface(**QE_filterqest_desc)
         if init_filterqest: self.init_filterqest()
 
-        self.chh = {comp: (
-            self.CLfids[comp*2][:self.fq.lm_max_qlm[0]+1]
-            * (0.5 * np.arange(self.fq.lm_max_qlm[0]+1) * np.arange(1,self.fq.lm_max_qlm[0]+2))**2
-            if ('p' in estimator_key.keys() or 'w' in estimator_key.keys())
-            else self.CLfids[comp*2][:self.fq.lm_max_qlm[0]+1]
-        )for comp in self.secondary.component}
+        L_ = np.arange(self.fq.lm_max_qlm[0] + 1)
+        h2k = 0.5 * L_ * (L_ + 1)
+
+        self.chh = {
+            comp: (
+                self.CLfids[comp * 2][:self.fq.lm_max_qlm[0] + 1] * h2k**2
+                if self.ID == "lensing" and comp in ["p", "w"]
+                else self.CLfids[comp * 2][:self.fq.lm_max_qlm[0] + 1]
+            )
+            for comp in self.secondary.component
+        }
 
         self.comp2idx = {comp: idx for idx, comp in enumerate(self.secondary.component)}
 
@@ -237,15 +247,22 @@ class Base:
 
     def _rescale(self, hlm, scale):
         if scale == 'p':
-            assert self.ID == 'lensing', "Only lensing is supported for p"
             return hlm
+
         elif scale == 'k':
-            if self.ID == 'birefringence':
-                return hlm
-            else:
+            if self.ID == 'lensing':
                 lmax = Alm.getlmax(hlm[0].size, None)
-                h2k =  0.5 * np.arange(lmax + 1) * np.arange(1, lmax + 2)
+                h2k = 0.5 * np.arange(lmax + 1) * np.arange(1, lmax + 2)
                 return np.atleast_2d(almxfl(hlm[0], h2k, lmax, False))
+
+            elif self.ID in ['birefringence', 'reionization']:
+                return hlm
+
+            else:
+                return hlm
+
+        else:
+            raise ValueError(f"Unknown scale {scale}")
             
 
     # NOTE preparation for future implementation

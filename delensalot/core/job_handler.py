@@ -168,7 +168,15 @@ class DataContainer:
             else:
                 # some flavour provided, and we need to generate the sky and obs maps from this.
                 hashc = get_hashcode([val['component'] for val in self.data_source.sec_info.values() if isinstance(val, dict) and 'component' in val])
-                geominfo = self.data_source.sky_lib.operator_info['lensing']['geominfo'] if 'lensing' in self.data_source.sky_lib.operator_info else self.data_source.sky_lib.operator_info['birefringence']['geominfo']
+                opinfo = self.data_source.sky_lib.operator_info
+
+                if len(opinfo) == 0:
+                    geominfo = self.data_source.geominfo
+                else:
+                    op_order = getattr(self.data_source, "operator_order", list(opinfo.keys()))
+                    op_order = [op for op in op_order if op in opinfo]
+                    first_op = op_order[0] if len(op_order) else list(opinfo.keys())[0]
+                    geominfo = opinfo[first_op]["geominfo"]
                 secondary_seed_string = "_fixed_secondary_seed{}".format(self.data_source.fixed_secondary_seed) if self.data_source.fixed_secondary_seed is not None else ""
                 geomstr = get_dirname(geominfo)+"_"+hashc+secondary_seed_string
                 

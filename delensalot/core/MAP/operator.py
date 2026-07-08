@@ -277,6 +277,85 @@ class Birefringence(Operator):
         return self.field
 
 
+class Reionization(Operator):
+    """Optical-depth screening operator.
+
+    Applies the multiplicative modulation  X_obs = exp(-dtau) * X  in real
+    space, parametrized by a scalar secondary field dtau(n).
+    """
+    def __init__(self, operator_desc):
+        super().__init__(operator_desc["libdir"])
+        self.ID = 'reionization'
+        self.data_key = operator_desc["data_key"]
+
+        self.LM_max = operator_desc["LM_max"]
+        self.lm_max = operator_desc["lm_max"]
+        self.lm_max_in = operator_desc["lm_max"]
+        self.lm_max_out = operator_desc["lm_max"]
+        self.component = operator_desc["component"]      # e.g. ['r']
+        self.field = {component: None for component in self.component}
+        self.field_fns = field.get_secondary_fns(self.component)
+
+        self.perturbative = operator_desc["perturbative"]
+        self.sht_tr = operator_desc["sht_tr"]
+        self.screen = operator_desc.get("screen", "pol")  # 'pol' or 'all'
+
+        self.set_field(np.zeros((1, Alm.getsize(*self.LM_max)), dtype=complex))
+
+    @log_on_start(logging.DEBUG, "reionization", logger=log)
+    def act(self, obj, spin=None, adjoint=False, backwards=False, out_sht_mode=None):
+        assert obj.shape[0] == 3, "obj must have 3 components"
+
+        # Forward screening: exp(-dtau). The true adjoint is the same
+        # multiplication, not exp(+dtau). exp(+dtau) is only the inverse
+        # operation and should be used for explicit backwards/de-screening calls.
+        sign = -1.0 if adjoint else (+1.0 if backwards else -1.0)
+
+        if self.perturbative:
+            fac = 1.0 + sign * self.dtau
+        else:
+            fac = np.exp(sign * self.dtau)
+
+        # Map-space path. This is needed when a previous operator, e.g. lensing
+        # in gradient mode, has already produced spin maps. Scalar screening is
+        # just multiplication and is independent of the spin of the map.
+        if obj[0].size == self.lenjob_geomlib.npix():
+            out = np.array(obj, copy=True)
+            if self.screen == "all" and self.data_key in ['tt', 'tp']:
+                out[0] *= fac
+            out[1] *= fac
+            out[2] *= fac
+            return out
+
+        lmax = Alm.getlmax(obj[0].size, None)
+
+        Q, U = self.lenjob_geomlib.alm2map_spin(obj[1:], 2, lmax, lmax, self.sht_tr)
+        Elm_s, Blm_s = self.lenjob_geomlib.map2alm_spin(np.array([fac * Q, fac * U]), 2, lmax, lmax, self.sht_tr)
+
+        if self.screen == "all" and self.data_key in ['tt', 'tp']:
+            T = self.lenjob_geomlib.alm2map(obj[0], lmax, lmax, self.sht_tr)
+            Tlm_s = self.lenjob_geomlib.map2alm(fac * T, lmax, lmax, self.sht_tr)
+        else:
+            Tlm_s = obj[0]
+
+        if out_sht_mode == 'GRAD_ONLY':
+            assert 0, "GRAD_ONLY not meaningful for scalar screening"
+
+        return np.array([Tlm_s, Elm_s, Blm_s])
+
+    def set_field(self, fieldlm):
+        assert np.atleast_2d(fieldlm).shape[0] == 1, "tau is a single scalar field"
+        flm = fieldlm.squeeze().copy()
+        flm[0] = 0.0  # drop monopole: bar-tau is degenerate with As
+        self.dtau = self.lenjob_geomlib.alm2map(flm, *self.LM_max, self.sht_tr)
+        self.exp_mdtau = np.exp(-self.dtau)
+        self.exp_pdtau = np.exp(+self.dtau)  # for backwards / de-screening
+        self.field = fieldlm
+
+    def get_field(self):
+        return self.field
+
+
 class SpinRaise:
     def __init__(self, lm_max):
         self.ID = 'spin_raise'

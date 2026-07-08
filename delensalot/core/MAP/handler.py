@@ -38,6 +38,10 @@ def _resp_project(QE, src, RG, RC, RGC, RCG, Lmax):
         if src == "x": return RGC
         return z
 
+    # plancklens reionization / modulation source key
+    if QE == "f_p":
+        return RG if src == "f" else z
+
     raise ValueError(f"Unsupported QE key {QE} in _resp_project")
 
 class Minimizer:
@@ -366,10 +370,11 @@ class Likelihood:
         N = len(labels)
         lmax = QE_searchs[0].fq.lm_max_qlm[0]
         comp_to_src = {
-            'p': 'p',  # gradient lensing
-            'w': 'x',  # curl lensing
-            'f': 'a',  # rotation / birefringence-like
-            'x': 'x',  # if you ever use 'x' directly
+            'p': 'p',  # lensing gradient
+            'w': 'x',  # lensing curl
+            'f': 'a',  # birefringence / rotation
+            'r': 'f',  # reionization / optical-depth screening
+            'x': 'x',
             'a': 'a',
         }
         R_full = np.zeros((N, N, lmax + 1), dtype=float)
@@ -392,17 +397,7 @@ class Likelihood:
                 if src is None:
                     raise ValueError(f"Don't know how to map component '{comp_j}' to plancklens source key")
 
-                RG, RC, RGC, RCG = qresp.get_response(
-                    QE_key,
-                    lmax_ivf,
-                    src,          # key0
-                    cls,          # cls_weight (you used cls_weight, cls_len in notebook; here keep it consistent with your wrapper usage)
-                    cls,          # cls_cmb (same choice as above; you can split if you really need)
-                    fal,          # filtering
-                    lmax_qlm=lmax
-                )
-
-                # project to the physical response for this (QE_key <- src)
+                RG, RC, RGC, RCG = qresp.get_response(QE_key, lmax_ivf, src, cls, cls,  fal, lmax_qlm=lmax)
                 R_full[i, j, :] = _resp_project(QE_key, src, RG, RC, RGC, RCG, lmax)
 
         return R_full, labels
@@ -431,7 +426,14 @@ class Likelihood:
         L = np.arange(lmax + 1)
         f = 0.5 * L * (L + 1)
 
-        comp_to_src = {'p': 'p', 'w': 'x', 'f': 'a', 'x': 'x', 'a': 'a'}
+        comp_to_src = {
+            'p': 'p',
+            'w': 'x',
+            'f': 'a',
+            'r': 'f',
+            'x': 'x',
+            'a': 'a',
+        }
 
         F_phi = np.zeros((N, N, lmax + 1))
         for i, (si, comp_i) in enumerate(labels):
@@ -501,6 +503,8 @@ class Likelihood:
                 return L >= 2
             if comp == 'f':
                 return L >= 2
+            if comp == 'r':
+                return L >= 1
             return np.ones_like(L, dtype=bool)
 
         for i, (_, comp_i) in enumerate(labels):

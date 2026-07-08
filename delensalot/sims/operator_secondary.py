@@ -135,6 +135,57 @@ class birefringence:
         self.field['f'] = field
 
 
+class reionization:
+    """Optical-depth screening operator.
+
+    Applies the multiplicative modulation  X_obs = exp(-dtau) * X  in real
+    space, parametrized by a scalar secondary field dtau(n).
+    """
+    def __init__(self, operator_desc):
+        self.ID = 'reionization'
+        self.Lmin = operator_desc["Lmin"]
+        self.lm_max = operator_desc["lm_max"]
+        self.LM_max = operator_desc["LM_max"]
+        self.component = operator_desc["component"]      # e.g. ['tau']
+        self.geominfo = operator_desc["geominfo"]
+        self.geomlib = get_geom(operator_desc['geominfo'])
+        self.ffi = deflection(self.geomlib, np.zeros(shape=hp.Alm.getsize(*(1,1)), dtype=complex), 1, numthreads=operator_desc.get('tr', 8), verbosity=False, epsilon=1)
+        self.field = {component: None for component in self.component}
+        self.perturbative = operator_desc.get("perturbative", False)
+        self.tr = operator_desc.get('tr', 8)
+
+    # spin doesn't do anything here, but parameter is needed as joint operator passes it to all operators
+    # NOTE this is alm2alm. obj is spin-2 [Elm, Blm], matching birefringence.
+    def act(self, obj, spin=None, adjoint=False, backwards=False):
+        comp = self.component[0]
+
+        f = alm_copy(np.asarray(self.field[comp]).squeeze(), None, self.LM_max[0], self.LM_max[1])
+        dtau = self.ffi.geom.alm2map(f, lmax=self.LM_max[0], mmax=self.LM_max[1], nthreads=self.tr)
+
+        # forward: exp(-dtau), backwards/de-screening: exp(+dtau)
+        # adjoint does not change the factor, since this is a real map-space multiplication
+        sign = +1.0 if backwards else -1.0
+        fac = 1.0 + sign * dtau if self.perturbative else np.exp(sign * dtau)
+
+        if spin == 0:
+            T = self.ffi.geom.alm2map(obj, lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=self.tr)
+            return self.ffi.geom.map2alm(fac * T, lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=self.tr)
+
+        elif spin == 2:
+            Q, U = self.ffi.geom.alm2map_spin(obj, spin=2, lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=self.tr)
+            Elm_s, Blm_s = self.ffi.geom.map2alm_spin(np.array([fac * Q, fac * U]), spin=2, lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=self.tr)
+            return np.array([Elm_s, Blm_s])
+
+        else:
+            raise ValueError(f"reionization operator only supports spin 0 or 2, got {spin}")
+
+    def adjoint(self, obj, spin=None):
+        return self.act(obj, spin=spin, adjoint=True)
+
+    def set_field(self, field):
+        self.field[self.component[0]] = field
+        
+
 class beam:
     def __init__(self, operator_desc):
         self.beamwidth = operator_desc['beamwidth']
