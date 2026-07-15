@@ -295,7 +295,7 @@ class alm_filter_nlev_wl(opfilt_base.alm_filter_wl):
         fl[:spin] *= 0.
         fl = np.sqrt(fl)
         elm = np.atleast_2d(almxfl(elm_wf, fl, self.mmax_sol, False))
-        ffi = self.ffi.change_geom(q_pbgeom.geom) if q_pbgeom is not self.ffi.pbgeom else self.ffi
+        ffi = self.ffi.change_geom(q_pbgeom.geom) if q_pbgeom.geom is not self.ffi.pbgeom.geom else self.ffi
         return ffi.gclm2lenmap(elm, self.mmax_sol, spin, False)
 
 class pre_op_diag:
