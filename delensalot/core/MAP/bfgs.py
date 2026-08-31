@@ -177,7 +177,7 @@ class BFGSHessian(object):
 
         # backward pass
         for i in range(k - 1, max(-1, k - self.L - 1), -1):
-            s0, y0 = self.s(0), self.y(0)
+            # s0, y0 = self.s(0), self.y(0)
             si, yi = self.s(i), self.y(i)
             sy = self.dot_op(si, yi)
             alpha_i = rho(i) * self.dot_op(si, q)

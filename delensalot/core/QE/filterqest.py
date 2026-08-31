@@ -137,10 +137,10 @@ class PlancklensInterface:
                 cl_weights = self.cls_len,
             )
             log.log(logging.DEBUG, 'filt_cinv.library_cinv_sepTP initialized')
-            _ftebl_rs = lambda x: np.ones(self.lm_max_qlm[0] + 1, dtype=float) * (np.arange(self.lm_max_qlm[0] + 1) >= self.lmin_teb[x])
+            _ftebl_rs = lambda x: np.ones(self.lm_max_ivf[0] + 1, dtype=float) * (np.arange(self.lm_max_ivf[0] + 1) >= self.lmin_teb[x])
             self.ivf = filt_util.library_ftl(
                 ivfs = _filter_raw,
-                lmax = self.lm_max_qlm[0],
+                lmax = self.lm_max_ivf[0],
                 lfilt_t = _ftebl_rs(0),
                 lfilt_e = _ftebl_rs(1),
                 lfilt_b = _ftebl_rs(2),
@@ -195,5 +195,11 @@ class PlancklensInterface:
     
 
     def __compute_transfer(self, cls_key, nlev_key, component, spectrum_type):
+        lmax = self.lm_max_ivf[0]
         cls = self.cls_len if spectrum_type == 'len' else self.cls_unl
-        return cli(cls[cls_key][:self.lm_max_ivf[0] + 1] + df.a2r(self.nlev[nlev_key])**2 * cli(self.transferfunction[component] ** 2)) * (self.transferfunction[component] > 0)
+        cl = np.zeros(lmax + 1, dtype=float)
+        cl[:min(len(cls[cls_key]), lmax + 1)] = cls[cls_key][:lmax + 1]
+        transf = np.zeros(lmax + 1, dtype=float)
+        transf[:min(len(self.transferfunction[component]), lmax + 1)] = self.transferfunction[component][:lmax + 1]
+        lmin = self.lmin_teb['teb'.index(component)]
+        return cli(cl + df.a2r(self.nlev[nlev_key])**2 * cli(transf**2)) * (transf > 0) * (np.arange(lmax + 1) >= lmin)

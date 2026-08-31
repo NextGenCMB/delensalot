@@ -12,6 +12,11 @@ from delensalot.utils import cli
 
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy, almxfl_nd, alm_copy_nd
 
+
+DENSE_LOWL_PRECON = False
+DENSE_LOWL_LMAX = 20
+DENSE_LOWL_RCOND = 1e-12
+
 CMBfields_sorted = ['tt', 'ee', 'bb']
 
 filterfield_desc = lambda ID, libdir: {
@@ -74,6 +79,63 @@ class Filter_3d:
         self.shtmode = 'STANDARD'
         # self.shtmode = 'GRAD_ONLY' # NOTE grad only comes with dangers... if B relevant in intermediate steps, can spoil result..
 
+    def _lowl_indices(self, lmax_full, lmax_dense):
+        """Indices into a full alm array of every mode with l <= lmax_dense."""
+        idx, lm = [], []
+        for m in range(lmax_dense + 1):
+            for l in range(m, lmax_dense + 1):
+                idx.append(m * (2 * lmax_full + 1 - m) // 2 + l)
+                lm.append((l, m))
+        return np.array(idx, dtype=int), lm
+
+    def invalidate_dense_lowl(self):
+        """Drop the cached block. Must be called whenever the operator changes."""
+        self._dense_lowl = None
+
+    def _get_dense_lowl(self):
+        """Build (or return) the inverse of the low-L block of fwd_op.
+
+        Built by probing: column i is fwd_op(e_i) restricted to the low-L
+        E modes. No analytic model of the mask coupling is assumed."""
+        if getattr(self, '_dense_lowl', None) is not None:
+            return self._dense_lowl
+
+        config = get_config()
+        lmax_full = config.lm_max_pri[0]
+        ldense = min(DENSE_LOWL_LMAX, lmax_full)
+        idx, lm = self._lowl_indices(lmax_full, ldense)
+        n = idx.size
+        nalm = Alm.getsize(*config.lm_max_pri)
+
+        log.info(f'building dense low-L preconditioner: {n} modes (l <= {ldense}), '
+                 f'{n} fwd_op evaluations')
+
+        A = np.zeros((n, n), dtype=complex)
+        probe = np.zeros((3, nalm), dtype=complex)
+        for i in range(n):
+            probe[:] = 0.
+            probe[1, idx[i]] = 1.
+            A[:, i] = self.fwd_op(probe.copy())[1][idx]
+
+        scale = np.max(np.abs(A)) or 1.0
+        asym = np.max(np.abs(A - A.conj().T)) / scale
+        if asym > 1e-6:
+            log.warning(f'dense low-L block asymmetry {asym:.2e} -- fwd_op is not '
+                        f'self-adjoint in this subspace, which CG assumes')
+        A = 0.5 * (A + A.conj().T)
+
+        w, V = np.linalg.eigh(A)
+        wmax = np.max(np.abs(w)) if w.size else 0.
+        floor = DENSE_LOWL_RCOND * wmax if wmax > 0 else DENSE_LOWL_RCOND
+        nfloored = int(np.sum(w < floor))
+        if nfloored:
+            log.info(f'dense low-L: floored {nfloored}/{n} eigenvalues '
+                     f'(cond {wmax / max(w.min(), floor):.2e})')
+        w = np.clip(w, floor, None)
+        Ainv = V @ np.diag(1.0 / w) @ V.conj().T
+
+        self._dense_lowl = {'idx': idx, 'Ainv': Ainv, 'ldense': ldense}
+        return self._dense_lowl
 
     def get_wflm(self, it, data=None):
         config = get_config()
@@ -157,7 +219,6 @@ class Filter_3d:
             out[2] *= 0
             return out
         """ 
-        Pure alm space (full sky) for better readibility
         This is Equation (20) of the CMB-S4 paper
         acts on elm, which is a lm_max_pri map
         """
@@ -169,7 +230,16 @@ class Filter_3d:
         assert len(teblm) == 3, len(teblm)
         teblm = self.beam_operator.act(teblm, adjoint=False)
         assert len(teblm) == 3, len(teblm)
-        teblm = self.inv_operator.act(teblm, adjoint=False)
+
+        if self.sky_coverage == 'full':
+            teblm = self.inv_operator.act(teblm, adjoint=False)
+        else:
+            lm_max = self.inv_operator.lm_max
+            imap  = self.inv_operator.geom_lib.synthesis(teblm[0], 0, *lm_max, self.sht_tr)
+            qumap = self.inv_operator.geom_lib.synthesis(teblm[1:], 2, *lm_max, self.sht_tr)
+            teblm = self.inv_operator.act(np.array([*imap, *qumap]))
+
+        assert len(teblm) == 3, len(teblm)
         teblm = self.beam_operator.act(teblm, adjoint=False)
         teblm = self.sec_operator.act(teblm, adjoint=True, backwards=True, nobire=self.nobire, out_sht_mode=self.shtmode) # lm_sky -> lm_pri
         nlm = teblm
@@ -233,7 +303,7 @@ class Filter_3d:
     @log_on_end(logging.DEBUG, " done ---- preconditioner_op", logger=log)
     def preconditioner_op(self, teblm):
         self.solve_eb = True
-        self.Cbb_reg = 1e-30
+        self.Cbb_reg = 1e-20
         """
         Diagonal (per-ell) preconditioner approximating (S^{-1} + B^T N^{-1} B)^{-1}
         for solves in T-only, E-only, or EB space.
@@ -272,11 +342,8 @@ class Filter_3d:
         ninv_fel = _extend_pos_spline(ninv_ftebl[1], lmax_pri_, "ninv_fel")
         ninv_fbl = _extend_pos_spline(ninv_ftebl[2], lmax_pri_, "ninv_fbl")
 
-        # Decide what space we're solving in
         has_T = ('tt' in self.cls_filt)
         has_E = ('ee' in self.cls_filt)
-
-        # EB solve if you want to allow B and you have polarization
         solve_eb = bool(getattr(self, "solve_eb", False)) and has_E
 
         # --- Build S^{-1} + noise diagonal blocks ---
@@ -347,6 +414,13 @@ class Filter_3d:
                 Si_B = icls_bb + ninv_fbl[:lmax_+1]
                 flmat_B = np.where(Si_B > 0, 1.0 / Si_B, 0.0)
                 tebout[2] = almxfl(teblm[2], flmat_B, lmax_, False)
+
+            # NOTE dense low-L block REPLACES the diagonal result below l_dense.
+            # The diagonal approximation is worst at large scales on a cut sky,
+            # which is where convergence is slowest.
+            if DENSE_LOWL_PRECON:
+                d = self._get_dense_lowl()
+                tebout[1][d['idx']] = d['Ainv'] @ teblm[1][d['idx']]
 
             return tebout
 
@@ -468,6 +542,7 @@ class Filter_3d:
 
     def update_operator(self, field):
         self.sec_operator.set_field(field)
+        self.invalidate_dense_lowl()
 
     def get_field_operator(self):
         return self.sec_operator.get_field()

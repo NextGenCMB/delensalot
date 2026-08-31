@@ -11,87 +11,71 @@ from delensalot.core.cg import cd_monitors
 from delensalot.utility.utils_hp import Alm, almxfl, alm2cl, alm_copy
 
 
-def plot_diagnostics(residual, residualdata, bdata, fwddata, xdata, precondata, searchdirs, searchfwds, weights, x):
-    import matplotlib
-    # matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-    
-    from IPython.display import clear_output
-    def get_rainbow_colors(num_items):
-        cmap = plt.cm.rainbow  # Choose the rainbow colormap
-        return [cmap(i / (num_items - 1)) for i in range(num_items)]
-    residualdata.append([hp.alm2cl(res)*weights for res in np.atleast_2d(residual)])
-    fwddata.append([hp.alm2cl(fwd_) for fwd_ in np.atleast_2d(searchfwds[0])])
-    xdata.append([hp.alm2cl(x_) for x_ in np.atleast_2d(x)])
-    precondata.append([hp.alm2cl(precon_) for precon_ in np.atleast_2d(searchdirs[0])])
-    colors = get_rainbow_colors(len(residualdata)+1)
-    clear_output(wait=True)
-    plt.figure(figsize=(10, 6))
-    for linei, line2 in enumerate(residualdata):
-        for resi, res in enumerate(line2):
-            color = colors[linei] if linei < len(residualdata) - 1 else 'black'
-            plt.plot(res, label='iter %d'%(linei+1), color=color, ls='-' if resi else '-')
-    # plt.legend(title='CG search')
-    plt.ylabel(r'$C_\ell^{\rm residual}$')
-    plt.xlabel(r'$\ell$')
-    plt.yscale('log')
-    plt.xlim(0,500)
-    plt.show()
+import os
+
+def _plots_enabled():
+    if os.environ.get('DELENSALOT_CG_PLOT', '').lower() not in ('1', 'true', 'yes'):
+        return False
+    if any(v in os.environ for v in ('SLURM_JOB_ID', 'PBS_JOBID', 'LSB_JOBID')):
+        return False
+    try:
+        import matplotlib
+        return matplotlib.get_backend().lower() not in ('agg', 'pdf', 'ps', 'svg', 'template')
+    except ImportError:
+        return False
 
 
-    plt.figure(figsize=(10, 6))
-    for linei, line2 in enumerate(residualdata):
-        for resi, res in enumerate(line2):
-            color = colors[linei] if linei < len(residualdata) - 1 else 'black'
-            plt.plot(res, label='iter %d'%(linei+1), color=color, ls='-' if resi else '-')
-    # plt.legend(title='CG search')
-    plt.ylabel(r'$C_\ell^{\rm residual}$')
-    plt.xlabel(r'$\ell$')
-    plt.yscale('log')
-    plt.xlim(3000,4000)
-    plt.show()
+class CGDiagnostics:
+    def __init__(self, bands=((2, 30), (30, 300), (300, None))):
+        self.on = _plots_enabled()
+        self.bands = bands
+        self.residual, self.x = [], []
 
-    # plt.figure(figsize=(10, 6))
-    # for linei, line2 in enumerate(bdata):
-    #     for resi, res in enumerate(line2):
-    #         plt.plot(res, label='iter %d'%(linei+1), color=colors[linei], ls='-' if resi else '-')
-    # # plt.legend(title='CG search')
-    # plt.ylabel(r'$C_\ell^{\rm b}$')
-    # plt.xlabel(r'$\ell$')
-    # plt.yscale('log')
-    # plt.show()
+    def record(self, residual, x):
+        if not self.on:
+            return
+        self.residual.append([hp.alm2cl(r) for r in np.atleast_2d(residual)])
+        self.x.append([hp.alm2cl(a) for a in np.atleast_2d(x)])
 
-    # plt.figure(figsize=(10, 6))
-    # for linei, line2 in enumerate(fwddata):
-    #     for res in line2:
-    #         plt.plot(res, label='iter %d'%(linei+1), color=colors[linei], ls='-' if resi else '-')
-    # # plt.legend(title='CG search')
-    # plt.ylabel(r'$C_\ell^{\rm fwd(x)}$')
-    # plt.xlabel(r'$\ell$')
-    # plt.yscale('log')
-    # plt.show()
+    def band_eps(self, residual, b, dot_op):
+        out = {}
+        for lo, hi in self.bands:
+            num = _banded_dot(residual, residual, lo, hi)
+            den = _banded_dot(b, b, lo, hi)
+            out[(lo, hi)] = np.sqrt(num / den) if den > 0 else np.nan
+        return out
 
-    plt.figure(figsize=(10, 6))
-    for linei, line2 in enumerate(xdata):
-        for res in line2:
-            plt.plot(res, label='iter %d'%(linei+1), color=colors[linei], ls='-' if resi else '-')
-    # plt.legend(title='CG search')
-    plt.ylabel(r'$C_\ell^{\rm x}$')
-    plt.xlabel(r'$\ell$')
-    plt.yscale('log')
-    plt.show()
+    def show(self):
+        if not self.on or not self.residual:
+            return
+        import matplotlib.pyplot as plt
+        n = len(self.residual)
+        colors = [plt.cm.rainbow(i / max(1, n - 1)) for i in range(n)]
+        fig, ax = plt.subplots(1, 2, figsize=(13, 4.5))
+        for i, (res, xs) in enumerate(zip(self.residual, self.x)):
+            c = 'black' if i == n - 1 else colors[i]
+            for r in res:
+                ax[0].plot(r, color=c, lw=1)
+            for a in xs:
+                ax[1].plot(a, color=c, lw=1)
+        for a, lab in zip(ax, [r'$C_\ell^{\rm residual}$', r'$C_\ell^{x}$']):
+            a.set_yscale('log'); a.set_xscale('log')
+            a.set_xlabel(r'$\ell$'); a.set_ylabel(lab); a.grid(alpha=.3)
+        fig.suptitle(f'CG diagnostics ({n} iterations, black = last)')
+        fig.tight_layout()
+        plt.show()
+        plt.close(fig)
 
-    # plt.close('all')
 
-    # plt.figure(figsize=(10, 6))
-    # for linei, line2 in enumerate(precondata):
-    #     for res in line2:
-    #         plt.plot(res, label='iter %d'%(linei+1))
-    # # plt.legend(title='CG search')
-    # plt.ylabel(r'$C_\ell^{\rm precon}$')
-    # plt.xlabel(r'$\ell$')
-    # plt.yscale('log')
-    # plt.show()
+def _banded_dot(teblm1, teblm2, lmin, lmax):
+    lm = Alm.getlmax(teblm1[1].size, None)
+    hi = lm if lmax is None else min(lmax, lm)
+    ell = np.arange(lm + 1)
+    w = (2 * ell + 1) * ((ell >= lmin) & (ell <= hi))
+    tot = 0.
+    for a, b in [(teblm1[0], teblm2[0]), (teblm1[1], teblm2[1])]:
+        tot += np.sum(alm2cl(a, b, lm, lm, None) * w)
+    return tot
 
 class cache_mem(dict):
     def __init__(self):
@@ -226,8 +210,7 @@ def PTR(p, t, r):
 tr_cg = (lambda i: i - 1)
 tr_cd = (lambda i: 0)
 
-
-def solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cacher, roundoff=25, maxiter=200):
+def solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cacher, roundoff=25, maxiter=200, diag=None):
     """customizable conjugate directions loop for x=[fwd_op]^{-1}b.
 
     Args:
@@ -241,30 +224,21 @@ def solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cacher, roundoff=25, max
         tr                          :Truncation / restart functions. (e.g. use tr_cg for conjugate gradient)
         cache (optional)            :Cacher for search objects. Defaults to cache in memory 'cache_mem' instance.
         roundoff (int, optional)    :Recomputes residual by brute-force every *roundoff* iterations. Defaults to 25.
+        diag (CGDiagnostics)        :Per-iteration spectra collector. A no-op unless plotting is
+                                explicitly enabled, so it costs nothing in batch runs.
 
     Note:
         fwd_op, pre_op(s) and dot_op must not modify their arguments!
 
     """
-    
+    diag = diag if diag is not None else CGDiagnostics()
 
     n_pre_ops = len(pre_ops)
     residual = b - fwd_op(x)
     searchdirs = [op(residual) for op in pre_ops]
+    diag.record(residual, x)
 
-    lmax = np.max([Alm.getlmax(r.size, None) for r in residual])
-    ell = np.arange(0, lmax + 1)
-    weights = 2 * ell + 1
-    if False:
-        residualdata, bdata, fwddata, xdata, precondata = [], [], [], [], []
-        residualdata.append([hp.alm2cl(res)*weights for res in np.atleast_2d(residual)])
-        bdata.append([hp.alm2cl(b_) for b_ in np.atleast_2d(b)])
-        fwddata.append([hp.alm2cl(fwd_) for fwd_ in np.atleast_2d(fwd_op(x))])
-        xdata.append([hp.alm2cl(x_) for x_ in np.atleast_2d(x)])
-        precondata.append([hp.alm2cl(precon_) for precon_ in np.atleast_2d(searchdirs)])
     iter = 0
-    lmax = hp.Alm.getlmax(residual[0].size)
-    ell = np.arange(0, lmax + 1)
     while not criterion(iter, x, residual) and iter <= maxiter:
         # Forward ops on search directions
         searchfwds = [fwd_op(searchdir) for searchdir in searchdirs]
@@ -317,4 +291,19 @@ def solve(x, b, fwd_op, pre_ops, dot_op, criterion, tr, cacher, roundoff=25, max
                     searchdir -= beta * prev_searchdir
 
         cacher.trim(range(tr(iter + 1), iter))
+        diag.record(residual, x)
+
+    # NOTE the global eps is a (2l+1)-weighted sum over all multipoles, so the
+    # low-L block contributes little to the norm and can be entirely unconverged
+    # without moving it.
+    if iter > maxiter:
+        try:
+            bands = diag.band_eps(residual, b, dot_op)
+            bandstr = ', '.join(f'[{lo},{hi}]={v:.2e}' for (lo, hi), v in bands.items())
+        except Exception:
+            bandstr = 'unavailable'
+        log.warning(f'CG stopped at maxiter={maxiter} without meeting eps_min; '
+                    f'per-band relative residual: {bandstr}')
+
+    diag.show()
     return iter

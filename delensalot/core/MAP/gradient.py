@@ -344,11 +344,11 @@ class LensingGradientSub(GradSub):
                 self.geom_lib.synthesis(ivfreslm[1:], 2, *self.lm_max_in, self.sht_tr, map=resmap_r) # ivfmap
                 ponly = np.copy(wflm)
                 ponly[0] *= 0
-                gcs_r = self.gradient_operator.act(ponly, spin=3)[1:]
+                gcs_r = self.gradient_operator.act(ponly, spin=3)[-2:]
                 gc_c = resmap_c.conj() * gcs_r.T.copy().view(ctype[gcs_r.dtype]).squeeze()  # (-2 , +3)
                 ponly = np.copy(wflm)
                 ponly[0] *= 0
-                gcs_r = self.gradient_operator.act(ponly, spin=1)[1:] # xwfglm
+                gcs_r = self.gradient_operator.act(ponly, spin=1)[-2:] # xwfglm
                 gc_c -= resmap_c * gcs_r.T.copy().view(ctype[gcs_r.dtype]).squeeze().conj()  # (+2 , -1)
                 gc_r = gc_c.view(rtype[gc_c.dtype]).reshape((gc_c.size, 2)).T  # real view onto complex array
 
@@ -516,11 +516,22 @@ class LensingGradientSub(GradSub):
         q_c = (Xbar_c.conj() * gradWF_3_c - Xbar_c * gradWF_1_c.conj())
         return q_c
 
-
     def _get_operator(self, filter_operator):
         config = get_config()
         lm_max_out = config.lm_max_pri
-        return operator.Compound([operator.SpinRaise(lm_max=lm_max_out), filter_operator], out='map', sht_tr=self.sht_tr)
+        spin_raise = operator.SpinRaise(lm_max=lm_max_out)
+
+        ops = list(getattr(filter_operator, 'operators', []))
+        lens_idx = next((i for i, op in enumerate(ops) if isinstance(op, operator.Lensing) or getattr(op, 'ID', None) == 'lensing'), None,)
+
+        if lens_idx is None:
+            # no lensing in the chain: nothing to splice against
+            chain = [spin_raise, filter_operator]
+        else:
+            pre, post = ops[:lens_idx], ops[lens_idx:]
+            chain = ([operator.Secondary(pre)] if pre else []) + [spin_raise, operator.Secondary(post)]
+
+        return operator.Compound(chain, out='map', sht_tr=self.sht_tr)
     
 
     def cache(self, gfieldlm, it, type='quad'):
@@ -544,7 +555,9 @@ class BirefringenceGradientSub(GradSub):
             self.lm_max = config.lm_max_sky
 
     def get_gradient_quad(self, it, data=None, data_leg2=None, wflm=None, ivfreslm=None):
-        # TODO write down equation in docstring
+        """Quadratic piece of the birefringence gradient.
+            g^QD_alpha = 4 Im[ Xbar* . (chain) X^WF ]
+        """
         if isinstance(it, (list, np.ndarray)):
             return [self.get_gradient_quad(it_, data, data_leg2, wflm, ivfreslm) for it_ in it]
         ctx, _ = get_computation_context()
@@ -558,9 +571,10 @@ class BirefringenceGradientSub(GradSub):
             lmax = Alm.getlmax(ivfreslm[0].size, None)
             ivfmap = self.geom_lib.synthesis(ivfreslm[1:], 2, lmax, lmax, self.sht_tr)
 
-            qlms = +4*(+ivfmap[0]*xwfmap[1] - ivfmap[1]*xwfmap[0]) # NOTE factor 4 here because I have factor 0.5 in the get_ivfreslm at the beam # FIXME perhaps I should move the ivfres_lm factor to the gradient in lensing and here
+            # NOTE factor 4 here because I have factor 0.5 in the get_ivfreslm at the beam
+            qlms = +4*(+ivfmap[0]*xwfmap[1] - ivfmap[1]*xwfmap[0])
             qlms = self.geom_lib.adjoint_synthesis(qlms, 0, self.LM_max[0], self.LM_max[1], self.sht_tr)
-            
+
             self.gfield.cache(qlms, it, type='quad')
         return self.gfield.get_quad(it)
 

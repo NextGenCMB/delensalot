@@ -425,10 +425,11 @@ class Xpri:
             if secondary in self.sec_info and (self.sec_info[secondary]['libdir'] == DNaV or not component in self.sec_info[secondary]['component']):
                 log.info(f'generating {secondary} {component} from cl')
                 Clpf = self.cls_lib.get_fidsec(idx, secondary, component*2, return_nonrec=return_nonrec).squeeze()
+                Clpf = Clpf * self.sec_info[secondary].get('cl_modifier_factor', 1.0)
                 Clp = self.clsecsf2clsecp(secondary, Clpf)
                 sec = self.clp2seclm(secondary, component, Clp, idx)
-                ## If it comes from CL, like Gauss secs, then sec modification must happen here
-                sec = self.sec_info[secondary]['modifier'](sec)
+                ## NOTE secondaries are always stored "raw". Modification happens post-loading and post-generation. 
+                # sec = self.sec_info[secondary]['modifier'](sec)
                 if space == 'map':
                     sec = self.geom_lib.alm2map(sec, lmax=self.sec_info[secondary]['LM_max'][0], mmax=self.sec_info[secondary]['LM_max'][1], nthreads=4)
             elif secondary not in self.sec_info:
@@ -526,6 +527,7 @@ class Xsky:
         else:
             check_dict(CMB_info)
         self.CMB_info = CMB_info
+        self.lm_max_sky = CMB_info.get('lm_max_sky', CMB_info['lm_max'])
 
         self.operator_info = operator_info
         # NOTE this just sorts the operators according to operator_order, which is a delensalot config parameter
@@ -568,7 +570,7 @@ class Xsky:
         # NOTE Logic as follows: there is a cacher and a disk. If something is already in cache, no need to load it from disk. If spin X is requested but spin Y is stored, reuse, just convert. If none of it, generate
         fn = f"sky_space{space}_spin{spin}_field{field}_{idx}"
         log.debug(f"requesting{fn}")
-        self.lenjob_geomlib = self.operators[0].geomlib
+        self.lenjob_geomlib = next(op.geomlib for op in self.operators if op.ID == 'lensing')
         if not self.cacher.is_cached(fn):
             if self.gaussianized_sims == 'unl':
                 # ============================================================
@@ -599,30 +601,36 @@ class Xsky:
                             pri = operator.act(pri, spin=2 if field == 'polarization' else 0)
                         elif operator.ID == 'birefringence':
                             if field != 'temperature':
-                                sec = np.array([alm_copy(s, None, 4096, 4096) for s in sec], dtype=complex)
+                                sec = np.array([alm_copy(s, None, *operator.LM_max) for s in sec], dtype=complex)
                                 operator.set_field(sec)
                                 pri = operator.act(pri, spin=2 if field == 'polarization' else 0)
                     sky = pri
                     if field == 'polarization':
-                        sky = self.operators[0].geomlib.alm2map_spin(sky, lmax=self.CMB_info['lm_max'][0], spin=2, mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                        # NOTE the lensed alms live at the draw band; truncate to the sky band
+                        # before any transform, or the declared lmax will not match the array
+                        # size and the alm indexing is silently scrambled.
+                        sky = np.array([alm_copy(s, None, *self.lm_max_sky)
+                                        for s in np.atleast_2d(sky)], dtype=complex)
+                        sky = self.lenjob_geomlib.alm2map_spin(sky, lmax=self.lm_max_sky[0], spin=2, mmax=self.lm_max_sky[1], nthreads=4)
                         if space == 'map':
                             if spin == 0:
-                                alm_buffer = self.lenjob_geomlib.map2alm_spin(sky, spin=2, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
-                                sky1 = self.geom_lib.alm2map(alm_buffer[0], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
-                                sky2 = self.geom_lib.alm2map(alm_buffer[1], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                                alm_buffer = self.lenjob_geomlib.map2alm_spin(sky, spin=2, lmax=self.lm_max_sky[0], mmax=self.lm_max_sky[1], nthreads=4)
+                                sky1 = self.geom_lib.alm2map(alm_buffer[0], lmax=self.lm_max_sky[0], mmax=self.lm_max_sky[1], nthreads=4)
+                                sky2 = self.geom_lib.alm2map(alm_buffer[1], lmax=self.lm_max_sky[0], mmax=self.lm_max_sky[1], nthreads=4)
                                 sky = np.array([sky1, sky2])
                             elif spin == 2:
-                                sky = self.lenjob_geomlib.map2alm_spin(copy.copy(sky), spin=2, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
-                                sky = self.geom_lib.alm2map_spin(copy.copy(sky), lmax=self.CMB_info['lm_max'][0], spin=2, mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                                sky = self.lenjob_geomlib.map2alm_spin(copy.copy(sky), spin=2, lmax=self.lm_max_sky[0], mmax=self.lm_max_sky[1], nthreads=4)
+                                sky = self.geom_lib.alm2map_spin(copy.copy(sky), lmax=self.lm_max_sky[0], spin=2, mmax=self.lm_max_sky[1], nthreads=4)
                         elif space == 'alm':
-                            sky = self.lenjob_geomlib.map2alm_spin(sky, lmax=self.CMB_info['lm_max'][0], spin=2, mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                            sky = self.lenjob_geomlib.map2alm_spin(sky, lmax=self.lm_max_sky[0], spin=2, mmax=self.lm_max_sky[1], nthreads=4)
                     elif field == 'temperature':
-                        sky = self.operators[0].geomlib.alm2map(sky, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                        sky = alm_copy(np.atleast_1d(sky).squeeze(), None, *self.lm_max_sky)
+                        sky = self.lenjob_geomlib.alm2map(sky, lmax=self.lm_max_sky[0], mmax=self.lm_max_sky[1], nthreads=4)
                         if space == 'map':
-                            sky = self.lenjob_geomlib.map2alm(copy.copy(sky), lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
-                            sky = self.geom_lib.alm2map(copy.copy(sky), lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                            sky = self.lenjob_geomlib.map2alm(copy.copy(sky), lmax=self.lm_max_sky[0], mmax=self.lm_max_sky[1], nthreads=4)
+                            sky = self.geom_lib.alm2map(copy.copy(sky), lmax=self.lm_max_sky[0], mmax=self.lm_max_sky[1], nthreads=4)
                         elif space == 'alm':
-                            sky = self.lenjob_geomlib.map2alm(sky, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                            sky = self.lenjob_geomlib.map2alm(sky, lmax=self.lm_max_sky[0], mmax=self.lm_max_sky[1], nthreads=4)
                 else:
                     log.debug('.., but stored on disk.')
                     # FIXME similar to get_sim_obs, catch multiple maps in same .fits
@@ -747,6 +755,7 @@ class Xobs:
     """
     def __init__(self, maps=DNaV, sky_lib=DNaV, geominfo=DNaV, CMB_info=DNaV, obs_info=DNaV):
         self.CMB_info = CMB_info
+        self.lm_max_sky = CMB_info.get('lm_max_sky', CMB_info['lm_max'])
         self.obs_info = obs_info
         
         self.geominfo = geominfo
@@ -788,6 +797,11 @@ class Xobs:
         Returns:
             _type_: _description_
         """
+        # NOTE cached/generated obs data lives at the sky band. CMB_info['lm_max'] may be the
+        # draw band (with lensing headroom), so conversions between cached spin/space
+        # representations must use lm_max_sky. The on-disk branch below is left at
+        # CMB_info['lm_max'], as that describes externally supplied data.
+        lmax_sky, mmax_sky = self.lm_max_sky
         if space == 'alm' and spin == 2:
             assert 0, "I don't think you want qlms ulms."
         if field == 'temperature' and spin == 2:
@@ -907,14 +921,14 @@ class Xobs:
             obs = np.array(self.cacher.load(fn_otherspin))
             if space == 'map':
                 if self.CMB_info['spin'] == 0:
-                    obs1 = self.geom_lib.map2alm(obs[0], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
-                    obs2 = self.geom_lib.map2alm(obs[1], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                    obs1 = self.geom_lib.map2alm(obs[0], lmax=lmax_sky, mmax=mmax_sky, nthreads=4)
+                    obs2 = self.geom_lib.map2alm(obs[1], lmax=lmax_sky, mmax=mmax_sky, nthreads=4)
                     obs = np.array([obs1, obs2])
-                    obs = self.geom_lib.alm2map_spin(obs, lmax=self.CMB_info['lm_max'][0], spin=2, mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                    obs = self.geom_lib.alm2map_spin(obs, lmax=lmax_sky, spin=2, mmax=mmax_sky, nthreads=4)
                 else:
-                    obs = self.geom_lib.map2alm_spin(obs, spin=self.CMB_info['spin'], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
-                    obs1 = self.geom_lib.alm2map(obs[0], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
-                    obs2 = self.geom_lib.alm2map(obs[1], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                    obs = self.geom_lib.map2alm_spin(obs, spin=self.CMB_info['spin'], lmax=lmax_sky, mmax=mmax_sky, nthreads=4)
+                    obs1 = self.geom_lib.alm2map(obs[0], lmax=lmax_sky, mmax=mmax_sky, nthreads=4)
+                    obs2 = self.geom_lib.alm2map(obs[1], lmax=lmax_sky, mmax=mmax_sky, nthreads=4)
                     obs = np.array([obs1, obs2])
             self.cacher.cache(fn, obs)
         elif self.cacher.is_cached(fn_otherspace):
@@ -923,68 +937,65 @@ class Xobs:
             if field == 'polarization':
                 if self.CMB_info['space'] == 'alm':
                     if spin == 0:
-                        obs1 = self.geom_lib.alm2map(obs[0], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
-                        obs2 = self.geom_lib.alm2map(obs[1], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                        obs1 = self.geom_lib.alm2map(obs[0], lmax=lmax_sky, mmax=mmax_sky, nthreads=4)
+                        obs2 = self.geom_lib.alm2map(obs[1], lmax=lmax_sky, mmax=mmax_sky, nthreads=4)
                         obs = np.array([obs1, obs2])
                     elif spin == 2:
-                        obs = self.geom_lib.alm2map_spin(obs, lmax=self.CMB_info['lm_max'][0], spin=spin, mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                        obs = self.geom_lib.alm2map_spin(obs, lmax=lmax_sky, spin=spin, mmax=mmax_sky, nthreads=4)
                 elif self.CMB_info['space'] == 'map':
                     if self.CMB_info['spin'] == 0:
-                        alm_buffer1 = self.geom_lib.map2alm(obs[0], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
-                        alm_buffer2 = self.geom_lib.map2alm(obs[1], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                        alm_buffer1 = self.geom_lib.map2alm(obs[0], lmax=lmax_sky, mmax=mmax_sky, nthreads=4)
+                        alm_buffer2 = self.geom_lib.map2alm(obs[1], lmax=lmax_sky, mmax=mmax_sky, nthreads=4)
                         obs = np.array([alm_buffer1, alm_buffer2])
                     elif self.CMB_info['spin'] == 2:
-                        obs = self.geom_lib.map2alm_spin(obs, spin=self.CMB_info['spin'], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                        obs = self.geom_lib.map2alm_spin(obs, spin=self.CMB_info['spin'], lmax=lmax_sky, mmax=mmax_sky, nthreads=4)
             elif field == 'temperature':
                 if self.CMB_info['space'] == 'alm': 
-                    obs = self.geom_lib.alm2map(obs, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                    obs = self.geom_lib.alm2map(obs, lmax=lmax_sky, mmax=mmax_sky, nthreads=4)
                 elif self.CMB_info['space'] == 'map':
-                    obs = self.geom_lib.map2alm(obs, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                    obs = self.geom_lib.map2alm(obs, lmax=lmax_sky, mmax=mmax_sky, nthreads=4)
             self.cacher.cache(fn, obs)
         elif self.cacher.is_cached(fn_otherspacespin):
             log.debug('found "{}"'.format(fn_otherspacespin))
             obs = np.array(self.cacher.load(fn_otherspacespin))
             if self.CMB_info['space'] == 'alm':
-                obs = self.geom_lib.alm2map_spin(obs, lmax=self.CMB_info['lm_max'][0], spin=spin, mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                obs = self.geom_lib.alm2map_spin(obs, lmax=lmax_sky, spin=spin, mmax=mmax_sky, nthreads=4)
             elif self.CMB_info['space'] == 'map':
-                obs = self.geom_lib.map2alm_spin(obs, spin=self.CMB_info['spin'], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                obs = self.geom_lib.map2alm_spin(obs, spin=self.CMB_info['spin'], lmax=lmax_sky, mmax=mmax_sky, nthreads=4)
             self.cacher.cache(fn, obs)
         return self.cacher.load(fn)
-    
+
 
     def sky2obs(self, sky, noise, spin, space, field):
+        lmax, mmax = self.lm_max_sky
         if field == 'polarization':
             if space == 'map':
                 if spin == 0:
-                    sky1 = self.geom_lib.map2alm(sky[0], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
-                    sky2 = self.geom_lib.map2alm(sky[1], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                    sky1 = self.geom_lib.map2alm(sky[0], lmax=lmax, mmax=mmax, nthreads=4)
+                    sky2 = self.geom_lib.map2alm(sky[1], lmax=lmax, mmax=mmax, nthreads=4)
                     sky = np.array([sky1, sky2])
                 elif spin == 2:
-                    sky = self.geom_lib.map2alm_spin(sky, spin=spin, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                    sky = self.geom_lib.map2alm_spin(sky, spin=spin, lmax=lmax, mmax=mmax, nthreads=4)
             hp.almxfl(sky[0], self.obs_info['transfunction'], inplace=True)
             hp.almxfl(sky[1], self.obs_info['transfunction'], inplace=True)
             if space == 'map':
                 if spin == 0:
-                    sky1 = self.geom_lib.alm2map(sky[0], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
-                    sky2 = self.geom_lib.alm2map(sky[1], lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                    sky1 = self.geom_lib.alm2map(sky[0], lmax=lmax, mmax=mmax, nthreads=4)
+                    sky2 = self.geom_lib.alm2map(sky[1], lmax=lmax, mmax=mmax, nthreads=4)
                     sky = np.array([sky1, sky2])
                 elif spin == 2:
-                    sky = np.array(self.geom_lib.alm2map_spin(sky, spin=spin, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4))
+                    sky = np.array(self.geom_lib.alm2map_spin(sky, spin=spin, lmax=lmax, mmax=mmax, nthreads=4))
                 return sky + noise
-                # return noise
             else:
                 return sky + noise
-                # return noise
         elif field == 'temperature':
             if space == 'map':
-                sky = self.geom_lib.map2alm(sky, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)
+                sky = self.geom_lib.map2alm(sky, lmax=lmax, mmax=mmax, nthreads=4)
             hp.almxfl(sky, self.obs_info['transfunction'], inplace=True)
             if space == 'map':
-                return np.array(self.geom_lib.alm2map(sky, lmax=self.CMB_info['lm_max'][0], mmax=self.CMB_info['lm_max'][1], nthreads=4)) + noise
-                # return noise
+                return np.array(self.geom_lib.alm2map(sky, lmax=lmax, mmax=mmax, nthreads=4)) + noise
             else:
                 return sky + noise
-                # return noise
 
 
     def get_sim_noise(self, idx, space, field, spin=2):

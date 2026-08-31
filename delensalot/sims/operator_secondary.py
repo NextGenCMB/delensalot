@@ -111,7 +111,7 @@ class birefringence:
     # NOTE this is alm2alm
     def act(self, obj, spin=None, adjoint=False):
         f = np.array([self.field[comp].flatten() for comp in self.component], dtype=complex)
-        buff = alm_copy(f[0], None, *self.lm_max)
+        buff = alm_copy(f[0], None, *self.LM_max)
         buff_real = self.ffi.geom.alm2map(buff, lmax=self.LM_max[0], mmax=self.LM_max[1], nthreads=8)
         Q, U = self.ffi.geom.alm2map_spin(obj, spin=2, lmax=self.lm_max[0], mmax=self.lm_max[1], nthreads=8)
                 

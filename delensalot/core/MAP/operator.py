@@ -8,6 +8,8 @@ from lenspyx.remapping import deflection
 from lenspyx.lensing import get_geom
 from lenspyx.remapping.deflection_028 import rtype
 
+from delensalot.config.config_manager import get_config
+
 from delensalot.core import cachers
 from delensalot.core.MAP import field
 
@@ -26,11 +28,15 @@ def _extend_cl(cl, lmax):
 
 
 class Operator:
-    def __init__(self, libdir):
-        zbounds = (-1,1)
-        self.lenjob_geomlib = get_geom(('thingauss', {'lmax': 4500, 'smax': 3}))
+    def __init__(self, libdir, lmax_geom=None):
+        zbounds = (-1, 1)
+        # NOTE the config singleton holds either a DELENSALOT_Model (bands under .analysis)
+        # or a flattened DELENSALOT_Concept, depending on where in the build we are.
+        config = get_config()
+        src = getattr(config, 'analysis', config)
+        lmax_geom = lmax_geom or (max(src.lm_max_sky[0], src.lm_max_pri[0], src.LM_max[0]) + 1000)
+        self.lenjob_geomlib = get_geom(('thingauss', {'lmax': lmax_geom, 'smax': 3}))
         thtbounds = (np.arccos(zbounds[1]), np.arccos(zbounds[0]))
-        self.lenjob_geomlib # .restrict(*thtbounds, northsouth_sym=False, update_ringstart=True)
         self.field_cacher = cachers.cacher_npy(libdir)
 
 
@@ -66,30 +72,47 @@ class Compound:
         self.sht_tr = sht_tr
     
 
-    @log_on_start(logging.DEBUG, "joint", logger=log)  
-    @log_on_end(logging.DEBUG, "joint done", logger=log)  
     def act(self, obj, spin):
         assert len(obj) == 3, "obj must be a 3 element array"
-        for operator in self.operators:
+        for idx, operator in enumerate(self.operators):
+            last = (idx == len(self.operators) - 1)
             if isinstance(operator, Secondary):
-                # print("compound secondary starting")
-                obj = operator.act(obj, spin=spin, out=self.space_out)
+                # space_out describes the CHAIN's output, so only the final
+                # entry may honour it. With SpinRaise spliced between two
+                # Secondary wrappers, letting the first one return maps hands
+                # a map to SpinRaise, which expects alms.
+                obj = operator.act(obj, spin=spin, out=self.space_out if last else 'alm')
             else:
                 operator.act(obj, spin)
 
         if self.space_out == 'map' and obj[0].dtype in [np.complex64, np.complex128]:
-            # NOTE this is a hack to catch a birefringence only case and return map
-            # NOTE I should rather move the out space here completely
-            # FIXME this needs changing
-            return self.operators[-1].operators[-1].lenjob_geomlib.synthesis(obj, 2, *self.operators[-1].operators[-1].lm_max, self.sht_tr)
-            # lm_max = self.operators[-1].operators[0].lm_max_out
-            # buff = self.operators[-1].operators[-1].lenjob_geomlib.synthesis(obj[1:], 2, *lm_max, self.sht_tr)
-            # out = np.empty((3,) + buff.shape[1:], dtype=buff.dtype)
-            # out[0] = 0
-            # out[1:] = buff
-            # return out
+            # No operator in the chain converted to map space (e.g. birefringence-only,
+            # or lensing excluded via `secondary`). Synthesise the polarization here.
+            geom, lm_max = self._out_geom_and_lmmax()
+            buff = geom.synthesis(obj[1:], 2, *lm_max, self.sht_tr)
+            out = np.empty((3,) + buff.shape[1:], dtype=buff.dtype)
+            out[0] = 0.
+            out[1:] = buff
+            return out
         return obj
-    
+
+
+    def _out_geom_and_lmmax(self):
+        """Geometry and band-limit of the last harmonic-space operator in the chain.
+
+        Walks the chain from the back rather than indexing positionally, so it is
+        insensitive to operator_order and to SpinRaise being spliced in.
+        """
+        for op in self.operators[::-1]:
+            ops = op.operators if isinstance(op, Secondary) else [op]
+            for sub in ops[::-1]:
+                if not hasattr(sub, 'lenjob_geomlib'):
+                    continue
+                lm_max = getattr(sub, 'lm_max', None) or getattr(sub, 'lm_max_out', None)
+                if lm_max is not None:
+                    return sub.lenjob_geomlib, lm_max
+        raise RuntimeError("Compound: no operator in chain exposes a geometry and lm_max")
+
 
     def adjoint(self, obj, spin):
         for operator in self.operators[::-1]:
@@ -104,19 +127,38 @@ class Secondary:
         self.operators = desc # ["operators"]
 
 
-    @log_on_start(logging.DEBUG, "secondary", logger=log)  
-    @log_on_end(logging.DEBUG, "secondary done", logger=log)  
+    @log_on_start(logging.DEBUG, "secondary", logger=log)
+    @log_on_end(logging.DEBUG, "secondary done", logger=log)
     def act(self, obj, spin=None, adjoint=False, backwards=False, out_sht_mode=None, secondary=None, nomagn=None, out='alm', order='normal', nobire=False):
-        assert order in ['normal', 'reversed'], "order must be 'normal' or 'reversed'. Reversed is used for e.g. template generation"
+        """Apply the secondaries in sequence, tracking the object's space.
+        """
+        assert order in ['normal', 'reversed'], \
+            "order must be 'normal' or 'reversed'. Reversed is used for e.g. template generation"
         secondary = secondary or [op.ID for op in self.operators]
         operators = self.operators if not adjoint else self.operators[::-1]
         operators = operators if order == 'normal' else operators[::-1]
-        for idx, operator in enumerate(operators):
-            if operator.ID in secondary:
-                if isinstance(operator, Lensing):
-                    obj = operator.act(obj, spin=spin, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode, nomagn=nomagn, out=out)
-                elif not nobire:
-                    obj = operator.act(obj, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode)
+        active = [op for op in operators
+                  if op.ID in secondary and (isinstance(op, Lensing) or not nobire)]
+
+        space = 'alm'
+        for idx, operator in enumerate(active):
+            last = (idx == len(active) - 1)
+            nxt = active[idx + 1] if not last else None
+
+            if isinstance(operator, Lensing):
+                assert space == 'alm', "lensing needs alms in"
+                # Lensing.act's adjoint branch ignores `out` and always returns
+                # alms, so only negotiate map output on the forward path
+                if adjoint:
+                    to_map = False
+                else:
+                    to_map = (out == 'map') if last else isinstance(nxt, Birefringence)
+                obj = operator.act(obj, spin=2 if spin is None else spin, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode, nomagn=nomagn, out='map' if to_map else 'alm')
+                space = 'map' if to_map else 'alm'
+            else:
+                space_out = out if last else 'alm'
+                obj = operator.act(obj, adjoint=adjoint, backwards=adjoint, out_sht_mode=out_sht_mode, space_in=space, space_out=space_out)
+                space = space_out
         return obj
 
 
@@ -130,10 +172,13 @@ class Secondary:
 
 
     def update_lm_max(self, lm_max_in, lm_max_out):
-        in_prev, out_prev = self.operators[0].lm_max_in, self.operators[0].lm_max_out
+        ref = next((op for op in self.operators if isinstance(op, Lensing)), self.operators[0])
+        in_prev, out_prev = getattr(ref, 'lm_max_in', None), getattr(ref, 'lm_max_out', None)
         for operator in self.operators:
             operator.lm_max_in = lm_max_in
             operator.lm_max_out = lm_max_out
+            if hasattr(operator, 'lm_max'):   # Birefringence acts off lm_max, not lm_max_in/out
+                operator.lm_max = lm_max_in
         return in_prev, out_prev
 
 
@@ -171,7 +216,7 @@ class Lensing(Operator):
             dlens_c = -0.5 * ((d1_c.conj()) * dp + d1_c * dm)
             dlens_r = dlens_c.view(rtype[dlens_c.dtype]).reshape((dlens_c.size, 2)).T  # real view onto complex array
             del dp, dm, d1_c
-            eblm = self.ffi.geom.adjoint_synthesis(dlens_r, 2, 500, 500, sht_tr)
+            eblm = self.ffi.geom.adjoint_synthesis(dlens_r, 2, *self.lm_max_out, sht_tr)
             tlm = np.zeros_like(eblm[0])
             return np.array([tlm, *eblm])
         else:
@@ -238,12 +283,29 @@ class Birefringence(Operator):
         self.perturbative = operator_desc["perturbative"]
         self.sht_tr = operator_desc["sht_tr"]
 
+
     @log_on_start(logging.DEBUG, "birefringence", logger=log)
-    # @log_on_end(logging.DEBUG, "birefringence done", logger=log)
-    def act(self, obj, spin=None, adjoint=False, backwards=False, out_sht_mode=None):
-        assert obj.shape[0] == 3, "obj must have 3 components"
-        lmax = Alm.getlmax(obj[0].size, None)
-        Q, U = self.lenjob_geomlib.alm2map_spin(obj[1:], 2, lmax, lmax, self.sht_tr)
+    def act(self, obj, spin=None, adjoint=False, backwards=False, out_sht_mode=None, space_in='alm', space_out='alm'):
+        """Rotate polarization by 2*alpha.
+        """
+        if space_in == 'alm':
+            assert obj.shape[0] == 3, "alm input must have 3 components"
+            lmax = Alm.getlmax(np.max([len(o) for o in obj]), None)
+            mmax = self.lm_max[1] if self.lm_max[1] <= lmax else lmax
+            Tlm = obj[0]
+            Q, U = self.lenjob_geomlib.alm2map_spin(obj[1:], 2, lmax, mmax,
+                                                    self.sht_tr)
+        elif space_in == 'map':
+            # Lensing.act with out='map' may return (Q, U) or (T, Q, U)
+            # depending on data_key; take the polarization rows either way
+            obj = np.atleast_2d(obj)
+            assert obj.shape[0] in (2, 3), f"map input has shape {obj.shape}"
+            lmax, mmax = self.lm_max
+            Tlm = None
+            Q, U = obj[-2], obj[-1]
+        else:
+            raise ValueError(space_in)
+
         if self.perturbative:
             if adjoint:
                 Q_rot = Q + self.angle * U
@@ -259,18 +321,28 @@ class Birefringence(Operator):
                 Q_rot = self.cos_a * Q - self.sin_a * U
                 U_rot = self.cos_a * U + self.sin_a * Q
 
-        Elm_rot, Blm_rot = self.lenjob_geomlib.map2alm_spin(np.array([Q_rot, U_rot]), 2, lmax, lmax, self.sht_tr)
+        if space_out == 'map':
+            if space_in == 'map':
+                out = np.array(obj, copy=True)
+                out[-2], out[-1] = Q_rot, U_rot
+                return out
+            out = np.zeros((3,) + np.shape(Q_rot), dtype=Q_rot.dtype)
+            out[1], out[2] = Q_rot, U_rot
+            return out
+
+        Elm_rot, Blm_rot = self.lenjob_geomlib.map2alm_spin(
+            np.array([Q_rot, U_rot]), 2, lmax, mmax, self.sht_tr)
         if out_sht_mode == 'GRAD_ONLY':
             assert 0, "i dont think that is what I want"
             return np.atleast_2d(Elm_rot)
-        return np.array([obj[0], Elm_rot, Blm_rot])
-
+        if Tlm is None:
+            Tlm = np.zeros(Alm.getsize(lmax, mmax), dtype=Elm_rot.dtype)
+        return np.array([Tlm, Elm_rot, Blm_rot])
 
     def set_field(self, fieldlm):
         self.angle = 2 * self.lenjob_geomlib.alm2map(fieldlm.squeeze(), *self.LM_max, self.sht_tr)
         self.cos_a, self.sin_a = np.cos(self.angle), np.sin(self.angle)
         self.field = fieldlm
-        # self.field = np.zeros_like(fieldlm, dtype=complex)
 
 
     def get_field(self):
@@ -315,7 +387,6 @@ class Beam:
         self.tebl2idx = {'t':0, 'e': 1, 'b': 2}
         self.idx2tebl = {v: k for k, v in self.tebl2idx.items()}
         self.is_adjoint = False
-        # print(f"inside Beam init: ", self.transferfunction[1].shape, self.lm_max,  self.transferfunction[1])
 
 
     @log_on_start(logging.DEBUG, "beam", logger=log)

@@ -101,7 +101,7 @@ def _grad_builder_lensing(dl, libdir, extras):
         "sec_operator": full_sec_operator,
         "chh": chh_dict,
         "data_key": dl.data_key,
-        "geomlib": get_geom(("thingauss", {"lmax": 4500, "smax": 3})),
+        # "geomlib": get_geom(("thingauss", {"lmax": dl.lm_max_pri[0] + 2048, "smax": 3})),
     }
 
     lens_grad = LensingGradientSub(quad_desc)
@@ -277,6 +277,14 @@ class l2base_Transformer:
             si.libdir_suffix = "Gaussian_unlensed_sims"
         else:
             si.libdir_suffix = "_then_".join(dl.seclist_genSim_sorted)
+            # NOTE adding specific naming when secondary power spectra are modified
+            clmod_tags = [
+                f"{sec}_Clx{float(info['cl_modifier_factor']):g}"
+                for sec, info in si.sec_info.items()
+                if 'cl_modifier_factor' in info and not np.isclose(float(info['cl_modifier_factor']), 1.0)
+            ]
+            if clmod_tags:
+                si.libdir_suffix += "_" + "_".join(clmod_tags)
         si.fixed_secondary_seed = getattr(cf.data_source, 'fixed_secondary_seed', None)
         set_config(cf)
         dl.data_source = DataSource(**si.__dict__)

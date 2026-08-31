@@ -53,12 +53,12 @@ class Base:
         self.fq = filterqest.PlancklensInterface(**QE_filterqest_desc)
         if init_filterqest: self.init_filterqest()
 
-        self.chh = {comp: (
-            self.CLfids[comp*2][:self.fq.lm_max_qlm[0]+1]
-            * (0.5 * np.arange(self.fq.lm_max_qlm[0]+1) * np.arange(1,self.fq.lm_max_qlm[0]+2))**2
-            if ('p' in estimator_key.keys() or 'w' in estimator_key.keys())
-            else self.CLfids[comp*2][:self.fq.lm_max_qlm[0]+1]
-        )for comp in self.secondary.component}
+        self.chh = {
+            comp: (self.CLfids[comp*2][:self.fq.lm_max_qlm[0]+1]
+                   * (0.5 * np.arange(self.fq.lm_max_qlm[0]+1) * np.arange(1, self.fq.lm_max_qlm[0]+2))**2
+                   if comp in complist_lensing_template
+                   else self.CLfids[comp*2][:self.fq.lm_max_qlm[0]+1])
+            for comp in self.secondary.component}
 
         self.comp2idx = {comp: idx for idx, comp in enumerate(self.secondary.component)}
 
@@ -87,7 +87,7 @@ class Base:
         if not self.secondary.is_cached(idx, component, 'klm'):
             qlm = self.get_qlm(idx, component)
             Lmax = Alm.getlmax(qlm.size, None)
-            _submf = subtract_meanfield or self.subtract_meanfield
+            _submf = self.subtract_meanfield if subtract_meanfield is None else subtract_meanfield
             if idx==0: print(f"(only printing idx 0) _submf = {_submf}")
             if _submf:
                 mf_qlm = self.get_qmflm(idx, self.idxs_mf, component=component)

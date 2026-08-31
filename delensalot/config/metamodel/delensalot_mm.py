@@ -367,6 +367,5 @@ class DELENSALOT_Model(DELENSALOT_Concept):
                     setattr(self, default_key, default_value)
                 update_defaults(getattr(self, default_key), default_value)
 
-
     def fill_with_defaults(self):
         self.__attrs_post_init__()

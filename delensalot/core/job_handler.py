@@ -64,66 +64,6 @@ def get_dirname(s):
                                             " ": "", "'": "", '"': "", ":": "_", ",": "_"}))
 
 
-class OBDBuilder:
-    """OBD matrix builder Job. Calculates the OBD matrix, used to correctly deproject the B-modes at a masked sky.
-    """
-    @check_MPI
-    def __init__(self, OBD_model):
-        self.__dict__.update(OBD_model.__dict__)
-        nivp = self._load_niv(self.nivp_desc)
-        # self.nivp = ztruncify(nivp, self.zbounds)
-
-
-    def _load_niv(self, niv_desc):
-        n_inv = []
-        for i, tn in enumerate(niv_desc):
-            if isinstance(tn, list):
-                n_inv_prod = read_map(tn[0])
-                if len(tn) > 1:
-                    for n in tn[1:]:
-                        n_inv_prod = n_inv_prod * read_map(n)
-                n_inv.append(n_inv_prod)
-            else:
-                n_inv.append(read_map(self._n_inv[i]))
-        assert len(n_inv) in [1, 3], len(n_inv)
-        return np.array(n_inv)
-
-
-    def collect_jobs(self):
-        jobs = []
-        if not os.path.isfile(opj(self.libdir,'tniti.npy')):
-            # This fakes the collect/run structure, as bpl takes care of MPI 
-            jobs = [0]  
-        self.jobs = jobs
-        return jobs
-
-
-    def run(self):
-        # This fakes the collect/run structure, as bpl takes care of MPI 
-        for job in self.jobs:
-            bpl = template_bfilt(self.lmin_b, self.nivjob_geomlib, self.tr, _lib_dir=self.libdir)
-            if not os.path.exists(self.libdir+ '/tnit.npy'):
-                bpl._get_rows_mpi(self.nivp, prefix='')
-            mpi.barrier()
-            if mpi.rank == 0:
-                if not os.path.exists(self.libdir+ '/tnit.npy'):
-                    tnit = bpl._build_tnit()
-                    np.save(self.libdir+ '/tnit.npy', tnit)
-                else:
-                    tnit = np.load(self.libdir+ '/tnit.npy')
-                if not os.path.exists(self.libdir+ '/tniti.npy'):
-                    if mpi.rank==0: log.info(tnit.shape)
-                    log.debug('inverting')
-                    tniti = np.linalg.inv(tnit + np.diag((1. / (self.nlev_dep / 180. / 60. * np.pi) ** 2) * np.ones(tnit.shape[0])))
-                    np.save(self.libdir+ '/tniti.npy', tniti)
-                    readme = '{}: tniti.npy. created from user {} using lerepi/delensalot with the following settings: {}'.format(getpass.getuser(), datetime.date.today(), self.__dict__)
-                    with open(self.libdir+ '/README.txt', 'w') as f:
-                        f.write(readme)
-                else:
-                    log.debug('Matrix already created')
-        mpi.barrier()
-
-
 class DataContainer:
     """Simulation generation Job. Generates simulations for the requested configuration.
         * If any libdir exists, then a flavour of data is provided. Therefore, can only check by making sure flavour == obs, and fns exist.
@@ -333,12 +273,17 @@ class DataContainer:
                 self.data_source.obs_lib.CMB_info['libdir'] = self.libdir
                 self.data_source.obs_lib.CMB_info['space'] = 'alm'
                 self.data_source.obs_lib.CMB_info['spin'] = 0
+                # NOTE the files just written are at the sky band, not the draw band. Xobs now
+                # reads them via the on-disk branch, which uses CMB_info['lm_max'], so that
+                # entry must be updated or map-space requests would synthesise at the wrong band.
+                self.data_source.obs_lib.CMB_info['lm_max'] = list(self.data_source.obs_lib.lm_max_sky)
 
                 self.obs_lib = self.data_source.obs_lib
 
                 # NOTE dumping data_source info to readme
                 config = get_config()
                 np.savetxt(self.data_source.obs_lib.CMB_info['libdir'] + '/README_simulation_info.txt', np.array([str(config.data_source.__dict__).replace(" '", "\n'")]), fmt="%s")
+
 
     def _postrun_sky(self):
         # NOTE if this class here decides to generate data, we need to update some parameters in the data_source object
@@ -405,19 +350,15 @@ class DataContainer:
         if self.sky_coverage == 'full':
             return self.data_source.get_sim_obs(idx=idx, space='map', field='temperature', spin=0)
         elif self.sky_coverage == 'masked':
-            mask = np.load(self.mask_fn)
-            # FIXME if data is already masked (e.g. provided from disk), this will doubly mask the data.. not sure we want this
             obs = self.data_source.get_sim_obs(idx=idx, space='map', field='temperature', spin=0)
-            return np.array(obs*mask)
+            return np.array(obs * self.mask)
 
-    
     def get_sim_pmap(self, idx):
         if self.sky_coverage == 'full':
             return self.data_source.get_sim_obs(idx=idx, space='map', field='polarization', spin=2)
         elif self.sky_coverage == 'masked':
-            mask = np.load(self.mask_fn)
             ret = self.data_source.get_sim_obs(idx=idx, space='map', field='polarization', spin=2)
-            return np.array([re*mask for re in ret])
+            return np.array([re * self.mask for re in ret])
 
 
     def get_data_(self, idx):
@@ -466,7 +407,7 @@ class DataContainer:
                     assert 0, 'implement if needed'
 
 
-    def get_data(self, idx, data_key=None):
+    def get_data_(self, idx, data_key=None):
         # NOTE wrapper to access data that is both masked or unmasked, as data_source does not support masked data if generated.
         # If data is already masked, this will doubly mask the data.. not sure we want this 
         data_key_ = data_key or self.data_key
@@ -494,6 +435,8 @@ class DataContainer:
             return np.array(ret)
         
         elif space == 'map':
+            assert tuple(self.data_source.CMB_info['lm_max']) == tuple(self.lm_max_sky), \
+                f"map-space data is synthesised at {self.data_source.CMB_info['lm_max']} but analysis declares {self.lm_max_sky}; no truncation is applied on this path, this needs fixing"
             # ret = [*hp.alm2map(ret[0], nside=nside, spin=0), earr, earr]
             # Tobs = hp.alm2map(Tobs, nside=nside)
             # QUobs = hp.alm2map_spin(QUobs, nside=nside, spin=2, lmax=lm_max_[0], mmax=lm_max_[1])
@@ -517,6 +460,68 @@ class DataContainer:
                 buff_t = np.array(self.data_source.get_sim_tmap(idx), dtype=float)
                 ret = np.array([buff_t, *buff_p])
                 return ret
+
+    @property
+    def mask(self):
+        """Cached mask. get_data is called twice per iteration (WF and IVF legs),
+        and np.load of an nside-2048 map each time is pure overhead."""
+        if getattr(self, '_mask', None) is None:
+            if self.sky_coverage != 'masked':
+                self._mask = None
+            else:
+                self._mask = np.load(self.mask_fn)
+        return self._mask
+
+
+    def get_data(self, idx, data_key=None):
+        # NOTE wrapper to access data that is both masked or unmasked, as data_source does not support masked data if generated.
+        # If data is already masked (e.g. provided from disk), this will doubly mask it.. not sure we want this
+        data_key_ = data_key or self.data_key
+        space = 'alm' if self.sky_coverage == 'full' else 'map'
+        if space == 'alm':
+            lm_max_ = self.lm_max_sky
+            pobs = self.data_source.get_sim_obs(idx, space=space, spin=0, field='polarization')
+            earr = np.zeros(shape=Alm.getsize(*lm_max_), dtype=complex)
+            pobs = alm_copy_nd(pobs, None, lm_max_)
+            if data_key_ in ['p', 'eb', 'be']:
+                ret = [earr, *pobs]
+            elif data_key_ in ['ee']:
+                ret = [earr, pobs[0], earr]
+            elif data_key_ in ['tt']:
+                ret = [alm_copy_nd(self.data_source.get_sim_obs(idx, space='alm', spin=0, field='temperature'), None, lm_max_), earr, earr]
+            elif data_key_ in ['tp']:
+                Tobs = alm_copy_nd(self.data_source.get_sim_obs(idx, space='alm', spin=0, field='temperature'), None, lm_max_)
+                ret = [Tobs, *pobs]
+            else:
+                assert 0, 'implement if needed'
+            return np.array(ret)
+
+        elif space == 'map':
+            # NOTE map-space data is not truncated on this path, so the synthesis band must
+            # already equal the analysis band. obs_lib.CMB_info is what _postrun_obs updates.
+            CMB_info = getattr(self.data_source, 'CMB_info', None) or self.data_source.obs_lib.CMB_info
+            # assert tuple(CMB_info['lm_max']) == tuple(self.lm_max_sky), \
+                # f"map-space data is synthesised at {CMB_info['lm_max']} but analysis declares {self.lm_max_sky}; no truncation is applied on this path, this needs fixing"
+
+            # NOTE self.get_sim_pmap / self.get_sim_tmap, NOT self.data_source.*, as only the
+            # DataContainer methods apply the mask. Calling data_source directly here silently
+            # fed full-sky maps into the anisotropic filter.
+            if data_key_ in ['p', 'eb', 'be']:
+                buff = np.array(self.get_sim_pmap(idx), dtype=float)
+                return np.array([np.zeros_like(buff[0]), *buff])
+            elif data_key_ in ['ee']:
+                # FIXME running on ee only means I need to get only E, but get_sim_pmap returns
+                # both Q and U, so "truncation" should actually happen somewhere else
+                assert 0, "implement if needed"
+            elif data_key_ in ['tt']:
+                buff = np.array(self.get_sim_tmap(idx), dtype=float)
+                return np.array([buff, np.zeros_like(buff), np.zeros_like(buff)])
+            elif data_key_ in ['tp']:
+                buff_p = np.array(self.get_sim_pmap(idx), dtype=float)
+                buff_t = np.array(self.get_sim_tmap(idx), dtype=float)
+                return np.array([buff_t, *buff_p])
+            else:
+                assert 0, 'implement if needed'
 
 
 class QEScheduler:
@@ -1147,6 +1152,66 @@ class PhiAnalyser:
             np.save(fn%(self.k, len(self.idxs), len(self.its)), np.mean(WFemps, axis=0))
         return np.load(fn%(self.k, len(self.idxs), len(self.its)))
         
+
+class OBDBuilder:
+    """OBD matrix builder Job. Calculates the OBD matrix, used to correctly deproject the B-modes at a masked sky.
+    """
+    @check_MPI
+    def __init__(self, OBD_model):
+        self.__dict__.update(OBD_model.__dict__)
+        nivp = self._load_niv(self.nivp_desc)
+        # self.nivp = ztruncify(nivp, self.zbounds)
+
+
+    def _load_niv(self, niv_desc):
+        n_inv = []
+        for i, tn in enumerate(niv_desc):
+            if isinstance(tn, list):
+                n_inv_prod = read_map(tn[0])
+                if len(tn) > 1:
+                    for n in tn[1:]:
+                        n_inv_prod = n_inv_prod * read_map(n)
+                n_inv.append(n_inv_prod)
+            else:
+                n_inv.append(read_map(self._n_inv[i]))
+        assert len(n_inv) in [1, 3], len(n_inv)
+        return np.array(n_inv)
+
+
+    def collect_jobs(self):
+        jobs = []
+        if not os.path.isfile(opj(self.libdir,'tniti.npy')):
+            # This fakes the collect/run structure, as bpl takes care of MPI 
+            jobs = [0]  
+        self.jobs = jobs
+        return jobs
+
+
+    def run(self):
+        # This fakes the collect/run structure, as bpl takes care of MPI 
+        for job in self.jobs:
+            bpl = template_bfilt(self.lmin_b, self.nivjob_geomlib, self.tr, _lib_dir=self.libdir)
+            if not os.path.exists(self.libdir+ '/tnit.npy'):
+                bpl._get_rows_mpi(self.nivp, prefix='')
+            mpi.barrier()
+            if mpi.rank == 0:
+                if not os.path.exists(self.libdir+ '/tnit.npy'):
+                    tnit = bpl._build_tnit()
+                    np.save(self.libdir+ '/tnit.npy', tnit)
+                else:
+                    tnit = np.load(self.libdir+ '/tnit.npy')
+                if not os.path.exists(self.libdir+ '/tniti.npy'):
+                    if mpi.rank==0: log.info(tnit.shape)
+                    log.debug('inverting')
+                    tniti = np.linalg.inv(tnit + np.diag((1. / (self.nlev_dep / 180. / 60. * np.pi) ** 2) * np.ones(tnit.shape[0])))
+                    np.save(self.libdir+ '/tniti.npy', tniti)
+                    readme = '{}: tniti.npy. created from user {} using lerepi/delensalot with the following settings: {}'.format(getpass.getuser(), datetime.date.today(), self.__dict__)
+                    with open(self.libdir+ '/README.txt', 'w') as f:
+                        f.write(readme)
+                else:
+                    log.debug('Matrix already created')
+        mpi.barrier()
+
 
 class OverwriteAnafast:
     """Convenience class for overwriting method name

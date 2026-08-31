@@ -25,15 +25,15 @@ def _resp_project(QE, src, RG, RC, RGC, RCG, Lmax):
     RGC = np.asarray(RGC)[:Lmax+1]
     RCG = np.asarray(RCG)[:Lmax+1]
 
-    if QE == "p_p":
+    if QE in ("p_p", "p_eb", "p_be", "p_ee", "ptt"):
         return RG if src == "p" else z
 
-    if QE == "x_p":
+    if QE in ("x_p", "x_eb", "x_be", "x_ee"):
         if src == "x": return RC
         if src == "a": return RCG
         return z
 
-    if QE == "a_p":
+    if QE in ("a_p", "a_eb", "a_be", "a_ee"):
         if src == "a": return RG
         if src == "x": return RGC
         return z
@@ -239,28 +239,42 @@ class Minimizer:
         for secID, secondary in self.likelihood.secondaries.items():
             secondary.cache_klm(new_klms[secID], it=it)
 
-
     def copyQEtoDirectory(self, QE_searchs):
         # NOTE this turns them into convergence fields
         ctx, isnew = get_computation_context()  # NOTE getting the singleton instance for MPI rank
         config = get_config()
         for secname, secondary in self.secondaries.items():
             # QE_searchs[self.sec2idx[secname]].init_filterqest()
+            qe_i = QE_searchs[self.sec2idx[secname]]
             if not all(self.secondaries[secname].is_cached(it=0)):
-                klm_QE = QE_searchs[self.sec2idx[secname]].get_est(ctx.idx)
+                klm_QE = qe_i.get_est(ctx.idx)
                 self.secondaries[secname].cache_klm(klm_QE, it=0)
                 print(f"finished copying secondary {secname}", ctx.idx)
             if not self.likelihood.gradient_lib.subs[self.sec2idx[secname]].gfield.is_cached(it=0, type='meanfield'):
-                kmflm_QE = QE_searchs[self.sec2idx[secname]].get_kmflm(ctx.idx)
-                self.likelihood.gradient_lib.subs[self.sec2idx[secname]].gfield.cache(kmflm_QE, it=0, type='meanfield')
+                mflm = []
+                for comp in qe_i.secondary.component:
+                    if len(qe_i.idxs_mf) <= 2:
+                        # NOTE get_qmflm rescales by len/(len-1), so too few indices is
+                        # meaningless rather than merely noisy. Mirrors get_kmflm's guard.
+                        mflm.append(np.zeros(Alm.getsize(*qe_i.fq.lm_max_qlm), dtype=complex))
+                        continue
+                    q = np.atleast_2d(qe_i.get_qmflm(ctx.idx, qe_i.idxs_mf, component=comp))[0]
+                    q = np.copy(q)
+                    Lmax = Alm.getlmax(q.size, None)
+                    # NOTE the leading minus: get_gradient_total computes -meanfield + quad, but the quad gradient carries a flipped sign
+                    # relative to the plancklens qlm convention (see the note in LensingGradientSub.get_gradient_quad about -G/-C).
+                    almxfl(q, -cli(0.5 * np.arange(Lmax + 1) * np.arange(1, Lmax + 2)), Lmax, True)
+                    mflm.append(q)
+                self.likelihood.gradient_lib.subs[self.sec2idx[secname]].gfield.cache(
+                    np.array(mflm), it=0, type='meanfield')
                 print(f"finished copying meanfield {secname}", ctx.idx)
             if not self.likelihood.gradient_lib.wfivf_filter.wf_field.is_cached(it=0):
                 lm_max_out = config.lm_max_pri
-                wflm_QE = QE_searchs[self.sec2idx[secname]].get_wflm(ctx.idx, lm_max_out)
+                wflm_QE = qe_i.get_wflm(ctx.idx, lm_max_out)
                 self.likelihood.gradient_lib.wfivf_filter.wf_field.cache(np.array(wflm_QE), it=0)
                 print("finished copying wf", ctx.idx)
-
     
+
     def get_likelihood_curvature(self, it):
         grad_tot = self.likelihood.get_likelihood_gradient(it=it-1)
         grad_tot = np.concatenate([np.ravel(arr) for arr in grad_tot])

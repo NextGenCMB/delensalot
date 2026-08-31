@@ -66,7 +66,7 @@ DL_DEFAULT = {
                 'LM_max': [LMAX_SKY, LMAX_SKY],
                 'libdir': DNaV, 'fn': DNaV, 'scale': DNaV,
                 'modifier': lambda x: x,
-                'cl_modifier_factor': 1.0,
+                'cl_modifier_factor': 4.0,
             },
         },
         "obs_info": {
